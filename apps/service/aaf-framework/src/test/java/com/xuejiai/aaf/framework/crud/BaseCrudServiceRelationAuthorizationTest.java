@@ -67,11 +67,6 @@ class BaseCrudServiceRelationAuthorizationTest extends BaseMockitoUnitTest {
                         new CompiledFieldPolicy(Map.of()),
                         "rule-version");
         when(registry.requireByEntityType(TestEntity.class)).thenReturn(entry);
-        doReturn(definition).when(entry).definition();
-        when(definition.displayName()).thenReturn("测试资源");
-        when(enforcementService.<TestEntity>enforceObjectPreflight(
-                        entry, CrudOperation.GET, AccessMode.DEFAULT))
-                .thenReturn(decision);
         ReflectionTestUtils.setField(service, "crudResourceRegistry", registry);
         ReflectionTestUtils.setField(service, "crudEnforcementService", enforcementService);
     }
@@ -80,6 +75,7 @@ class BaseCrudServiceRelationAuthorizationTest extends BaseMockitoUnitTest {
     @DisplayName("Given L3 未命中且显式关系允许 When 读取单对象 Then 先查 L3 再仅按 tenant scope 重试")
     void should_retry_with_tenant_scope_after_explicit_relation_allows() {
         // 准备参数
+        prepareGetDecision();
         var entity = new TestEntity();
         entity.setId(99L);
         when(repository.findOne(any(Specification.class)))
@@ -108,30 +104,40 @@ class BaseCrudServiceRelationAuthorizationTest extends BaseMockitoUnitTest {
     }
 
     @Test
-    @DisplayName("Given L3 未命中且关系 Provider 拒绝 When 读取单对象 Then 不查询 tenant-only 范围")
-    void should_not_retry_tenant_scope_when_relation_is_denied() {
+    @DisplayName("Given L3 未命中且 tenant 候选关系拒绝 When 读取单对象 Then 完成候选查询后隐藏资源")
+    void should_hide_tenant_candidate_when_relation_is_denied() {
         // 准备参数
-        when(repository.findOne(any(Specification.class))).thenReturn(Optional.empty());
+        prepareGetDecision();
+        var entity = new TestEntity();
+        entity.setId(99L);
+        when(repository.findOne(any(Specification.class)))
+                .thenReturn(Optional.empty(), Optional.of(entity));
         when(enforcementService.allowsCurrentTarget(any(), any(), any(), any(), any()))
                 .thenReturn(false);
+        doReturn(definition).when(entry).definition();
+        when(definition.displayName()).thenReturn("测试资源");
 
         // 调用 + 断言
         assertThatThrownBy(() -> service.load(99L)).isInstanceOf(BusinessException.class);
-        verify(repository).findOne(any(Specification.class));
+        verify(repository, times(2)).findOne(any(Specification.class));
     }
 
     @Test
-    @DisplayName("Given 关系授权故障 When 默认读取 Then 原样失败且不执行 tenant-only 查询")
-    void should_not_retry_tenant_scope_when_relation_authorization_faults() {
+    @DisplayName("Given tenant 候选关系授权故障 When 默认读取 Then 原样失败且不返回候选对象")
+    void should_propagate_relation_authorization_fault_for_tenant_candidate() {
         // 准备参数
+        prepareGetDecision();
+        var entity = new TestEntity();
+        entity.setId(99L);
         var failure = new IllegalStateException("relation provider unavailable");
-        when(repository.findOne(any(Specification.class))).thenReturn(Optional.empty());
+        when(repository.findOne(any(Specification.class)))
+                .thenReturn(Optional.empty(), Optional.of(entity));
         when(enforcementService.allowsCurrentTarget(any(), any(), any(), any(), any()))
                 .thenThrow(failure);
 
         // 调用 + 断言
         assertThatThrownBy(() -> service.load(99L)).isSameAs(failure);
-        verify(repository).findOne(any(Specification.class));
+        verify(repository, times(2)).findOne(any(Specification.class));
     }
 
     @Test
@@ -144,6 +150,8 @@ class BaseCrudServiceRelationAuthorizationTest extends BaseMockitoUnitTest {
                     .thenReturn(decision(operation));
         }
         when(repository.findOne(any(Specification.class))).thenReturn(Optional.empty());
+        doReturn(definition).when(entry).definition();
+        when(definition.displayName()).thenReturn("测试资源");
 
         // 调用 + 断言
         for (var operation : Set.of(CrudOperation.UPDATE, CrudOperation.DELETE)) {
@@ -155,6 +163,12 @@ class BaseCrudServiceRelationAuthorizationTest extends BaseMockitoUnitTest {
         verify(repository, times(2)).findOne(any(Specification.class));
         org.mockito.Mockito.verify(enforcementService, org.mockito.Mockito.never())
                 .allowsCurrentTarget(any(), any(), any(), any(), any());
+    }
+
+    private void prepareGetDecision() {
+        when(enforcementService.<TestEntity>enforceObjectPreflight(
+                        entry, CrudOperation.GET, AccessMode.DEFAULT))
+                .thenReturn(decision);
     }
 
     private CrudEnforcementDecision<TestEntity> decision(CrudOperation operation) {

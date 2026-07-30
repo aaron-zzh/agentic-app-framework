@@ -83,7 +83,7 @@ class BaseCrudServiceQueryTokenTest {
             org.mockito.Mockito.doReturn(metaDecision)
                     .when(enforcementService)
                     .enforceRequest(entry, CrudOperation.META, AccessMode.DEFAULT);
-            ReflectionTestUtils.setField(this, "crudResourceCatalog", catalog);
+            ReflectionTestUtils.setField(this, "crudResourceRegistry", catalog);
             ReflectionTestUtils.setField(this, "crudEnforcementService", enforcementService);
         }
 

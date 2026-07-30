@@ -158,12 +158,16 @@ class CrudEnforcementContinuationTest extends BaseMockitoUnitTest {
 
     private void prepareEnforcement() {
         doReturn(definition).when(entry).definition();
-        when(entry.fieldPolicy()).thenReturn(new CompiledFieldPolicy(Map.of()));
+        org.mockito.Mockito.lenient()
+                .when(entry.fieldPolicy())
+                .thenReturn(new CompiledFieldPolicy(Map.of()));
         when(definition.capabilities()).thenReturn(capabilities);
         when(capabilities.operations())
                 .thenReturn(List.of(CrudOperation.GET, CrudOperation.BATCH_READ));
         when(definition.tenantScope()).thenReturn(TenantScope.GLOBAL);
-        when(definition.personalScope()).thenReturn(PersonalScope.none());
+        org.mockito.Mockito.lenient()
+                .when(definition.personalScope())
+                .thenReturn(PersonalScope.none());
         when(definition.permissionCode(CrudAction.READ)).thenReturn("system:todo:read");
         when(definition.entitySlug()).thenReturn("system.todo");
         when(operatorContext.currentOwnerId()).thenReturn(Optional.of(7L));

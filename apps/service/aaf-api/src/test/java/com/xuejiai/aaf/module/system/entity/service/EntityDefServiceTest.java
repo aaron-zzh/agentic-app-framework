@@ -87,15 +87,8 @@ class EntityDefServiceTest {
     @DisplayName("Given 代码实体关联未注册资源 When 创建 Then 拒绝")
     void should_reject_unregistered_relationship_resource() {
         when(entityDefRepository.existsBySlug("todo")).thenReturn(false);
-        when(crudResourceRegistry.find("system.todo"))
-                .thenReturn(
-                        Optional.of(
-                                catalogEntry(
-                                        "system.todo",
-                                        "todo",
-                                        "/todos",
-                                        List.of("id", "title"),
-                                        true)));
+        var todoEntry = catalogEntry("system.todo", "todo", "/todos", List.of("id", "title"), true);
+        when(crudResourceRegistry.find("system.todo")).thenReturn(Optional.of(todoEntry));
         when(crudResourceRegistry.find("system.unknown")).thenReturn(Optional.empty());
 
         assertThatThrownBy(
@@ -139,24 +132,11 @@ class EntityDefServiceTest {
                 }
                 """);
         when(entityDefRepository.findAll()).thenReturn(List.of(todoDefinition));
-        when(crudResourceRegistry.find("system.todo"))
-                .thenReturn(
-                        Optional.of(
-                                catalogEntry(
-                                        "system.todo",
-                                        "todo",
-                                        "/todos",
-                                        List.of("participants"),
-                                        true)));
-        when(crudResourceRegistry.find("system.user"))
-                .thenReturn(
-                        Optional.of(
-                                catalogEntry(
-                                        "system.user",
-                                        "user",
-                                        "/system/users",
-                                        List.of("id"),
-                                        false)));
+        var todoEntry =
+                catalogEntry("system.todo", "todo", "/todos", List.of("participants"), true);
+        var userEntry = catalogEntry("system.user", "user", "/system/users", List.of("id"), false);
+        when(crudResourceRegistry.find("system.todo")).thenReturn(Optional.of(todoEntry));
+        when(crudResourceRegistry.find("system.user")).thenReturn(Optional.of(userEntry));
 
         entityDefService.auditPersistedCodeDefinitions();
     }
@@ -165,15 +145,8 @@ class EntityDefServiceTest {
     @DisplayName("Given 未声明筛选字段 When 创建代码实体定义 Then 拒绝")
     void should_reject_undeclared_filter_field() {
         when(entityDefRepository.existsBySlug("todo")).thenReturn(false);
-        when(crudResourceRegistry.find("system.todo"))
-                .thenReturn(
-                        Optional.of(
-                                catalogEntry(
-                                        "system.todo",
-                                        "todo",
-                                        "/todos",
-                                        List.of("id", "title"),
-                                        true)));
+        var todoEntry = catalogEntry("system.todo", "todo", "/todos", List.of("id", "title"), true);
+        when(crudResourceRegistry.find("system.todo")).thenReturn(Optional.of(todoEntry));
 
         assertThatThrownBy(
                         () ->

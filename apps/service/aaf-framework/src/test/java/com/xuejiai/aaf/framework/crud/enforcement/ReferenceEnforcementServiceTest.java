@@ -53,9 +53,7 @@ class ReferenceEnforcementServiceTest extends BaseMockitoUnitTest {
                         catalog, applicationContext, operatorContext, accessProvider);
         when(catalog.require(SOURCE)).thenReturn(entry);
         doReturn(definition).when(entry).definition();
-        when(definition.relations()).thenReturn(List.of());
         when(accessProvider.getObject()).thenReturn(access);
-        when(operatorContext.currentOwnerId()).thenReturn(Optional.of(7L));
     }
 
     @Test
@@ -81,6 +79,7 @@ class ReferenceEnforcementServiceTest extends BaseMockitoUnitTest {
                 .thenReturn(Set.of(first.target(), second.target()));
         when(applicationContext.getBean("constraintPolicy", ReferencePolicy.class))
                 .thenReturn(policy);
+        when(operatorContext.currentOwnerId()).thenReturn(Optional.of(7L));
         when(policy.filterReferenceable(org.mockito.ArgumentMatchers.anySet()))
                 .thenAnswer(
                         invocation -> {

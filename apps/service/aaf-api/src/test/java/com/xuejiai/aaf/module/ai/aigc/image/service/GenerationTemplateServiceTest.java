@@ -3,21 +3,38 @@ package com.xuejiai.aaf.module.ai.aigc.image.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.framework.crud.definition.CrudOperation;
+import com.xuejiai.aaf.framework.crud.definition.CrudQueryDefinition;
+import com.xuejiai.aaf.framework.crud.definition.CrudResourceDefinition;
+import com.xuejiai.aaf.framework.crud.enforcement.AccessMode;
+import com.xuejiai.aaf.framework.crud.enforcement.CompiledFieldPolicy;
+import com.xuejiai.aaf.framework.crud.enforcement.CrudEnforcementDecision;
+import com.xuejiai.aaf.framework.crud.enforcement.CrudEnforcementService;
+import com.xuejiai.aaf.framework.crud.filter.CrudFilterSchema;
+import com.xuejiai.aaf.framework.crud.resource.CrudResourceCatalogEntry;
+import com.xuejiai.aaf.framework.crud.resource.CrudResourceRegistry;
+import com.xuejiai.aaf.framework.crud.view.CrudViewPlan;
 import com.xuejiai.aaf.module.ai.aigc.image.domain.GenerationTemplate;
 import com.xuejiai.aaf.module.ai.aigc.image.repository.GenerationTemplateRepository;
 import com.xuejiai.aaf.module.ai.aigc.image.vo.GenerationTemplatePageDTO;
@@ -31,7 +48,20 @@ import com.xuejiai.aaf.test.BaseMockitoUnitTest;
 class GenerationTemplateServiceTest extends BaseMockitoUnitTest {
 
     @Mock private GenerationTemplateRepository templateRepository;
+    @Mock private CrudResourceRegistry crudResourceRegistry;
+    @Mock private CrudResourceCatalogEntry resourceEntry;
+    @Mock private CrudResourceDefinition<GenerationTemplate> resourceDefinition;
+    @Mock private CrudQueryDefinition<GenerationTemplate> queryDefinition;
+    @Mock private CrudEnforcementService crudEnforcementService;
+
     @InjectMocks private GenerationTemplateService templateService;
+
+    @BeforeEach
+    void setUp() {
+        ReflectionTestUtils.setField(templateService, "crudResourceRegistry", crudResourceRegistry);
+        ReflectionTestUtils.setField(
+                templateService, "crudEnforcementService", crudEnforcementService);
+    }
 
     private static GenerationTemplate template(Long id, Long userId, boolean isPublic) {
         var t = new GenerationTemplate();
@@ -51,6 +81,7 @@ class GenerationTemplateServiceTest extends BaseMockitoUnitTest {
     @SuppressWarnings("unchecked")
     @DisplayName("Given 存在模板 When page(type+scope) Then 调用 repository 并返回结果")
     void should_return_page_when_query_by_type_and_scope() {
+        preparePageAccess();
         var query = new GenerationTemplatePageDTO();
         query.setType("IMAGE_GEN");
         query.setScope("PROJECT");
@@ -73,6 +104,7 @@ class GenerationTemplateServiceTest extends BaseMockitoUnitTest {
     @SuppressWarnings("unchecked")
     @DisplayName("Given 模板存在且可访问 When getById Then 返回 VO")
     void should_return_vo_when_template_accessible() {
+        prepareGetAccess(true);
         var t = template(1L, 100L, false);
         when(templateRepository.findOne(any(Specification.class))).thenReturn(Optional.of(t));
 
@@ -85,6 +117,7 @@ class GenerationTemplateServiceTest extends BaseMockitoUnitTest {
     @SuppressWarnings("unchecked")
     @DisplayName("Given 模板不可见（数据权限过滤后为空）When getById Then 抛 404")
     void should_throw_404_when_template_not_visible() {
+        prepareGetAccess(false);
         // 数据权限规则过滤后 findOne 返回 empty（模拟无权限或不存在）
         when(templateRepository.findOne(any(Specification.class))).thenReturn(Optional.empty());
 
@@ -104,5 +137,53 @@ class GenerationTemplateServiceTest extends BaseMockitoUnitTest {
 
         assertThat(vo.usageCount()).isEqualTo(1);
         verify(templateRepository).save(t);
+    }
+
+    private void preparePageAccess() {
+        var decision = decision(CrudOperation.PAGE);
+        when(crudResourceRegistry.requireByEntityType(GenerationTemplate.class))
+                .thenReturn(resourceEntry);
+        when(crudEnforcementService.<GenerationTemplate>enforceRequest(
+                        resourceEntry, CrudOperation.PAGE, AccessMode.DEFAULT))
+                .thenReturn(decision);
+        doReturn(resourceDefinition).when(resourceEntry).definition();
+        when(resourceDefinition.query()).thenReturn(queryDefinition);
+        when(queryDefinition.filterSchema()).thenReturn(CrudFilterSchema.empty());
+        when(queryDefinition.defaultSort()).thenReturn(Sort.unsorted());
+        when(resourceEntry.viewPlans())
+                .thenReturn(Map.of("list", new CrudViewPlan("list", Set.of(), Map.of(), "")));
+    }
+
+    private void prepareGetAccess(boolean accessible) {
+        var decision = decision(CrudOperation.GET);
+        when(crudResourceRegistry.requireByEntityType(GenerationTemplate.class))
+                .thenReturn(resourceEntry);
+        when(crudEnforcementService.<GenerationTemplate>enforceObjectPreflight(
+                        resourceEntry, CrudOperation.GET, AccessMode.DEFAULT))
+                .thenReturn(decision);
+        if (accessible) {
+            when(crudEnforcementService.allowsCurrentTarget(any(), any(), any(), any(), any()))
+                    .thenReturn(true);
+            when(resourceEntry.viewPlans())
+                    .thenReturn(
+                            Map.of("detail", new CrudViewPlan("detail", Set.of(), Map.of(), "")));
+            return;
+        }
+        doReturn(resourceDefinition).when(resourceEntry).definition();
+        when(resourceDefinition.displayName()).thenReturn("参数模板");
+    }
+
+    private CrudEnforcementDecision<GenerationTemplate> decision(CrudOperation operation) {
+        Specification<GenerationTemplate> unrestricted = (root, query, builder) -> null;
+        return new CrudEnforcementDecision<>(
+                1L,
+                1L,
+                null,
+                operation,
+                AccessMode.DEFAULT,
+                unrestricted,
+                unrestricted,
+                new CompiledFieldPolicy(Map.of()),
+                "test-version");
     }
 }

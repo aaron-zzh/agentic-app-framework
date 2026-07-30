@@ -217,7 +217,7 @@ class BaseCrudServiceOptionsTest extends BaseMockitoUnitTest {
             org.mockito.Mockito.doReturn(decision)
                     .when(enforcementService)
                     .enforceRequest(entry, operation, AccessMode.DEFAULT);
-            ReflectionTestUtils.setField(this, "crudResourceCatalog", catalog);
+            ReflectionTestUtils.setField(this, "crudResourceRegistry", catalog);
             ReflectionTestUtils.setField(this, "crudEnforcementService", enforcementService);
         }
 

@@ -46,9 +46,15 @@ class DefaultAuthorizationServiceTest extends BaseMockitoUnitTest {
 
     @BeforeEach
     void setUp() {
-        when(auditProvider.orderedStream()).thenAnswer(ignored -> Stream.empty());
-        when(operatorContext.currentOperatorId()).thenReturn(Optional.of(7L));
-        when(operatorContext.currentOwnerId()).thenReturn(Optional.of(7L));
+        org.mockito.Mockito.lenient()
+                .when(auditProvider.orderedStream())
+                .thenAnswer(ignored -> Stream.empty());
+        org.mockito.Mockito.lenient()
+                .when(operatorContext.currentOperatorId())
+                .thenReturn(Optional.of(7L));
+        org.mockito.Mockito.lenient()
+                .when(operatorContext.currentOwnerId())
+                .thenReturn(Optional.of(7L));
         service =
                 new DefaultAuthorizationService(
                         operatorContext,

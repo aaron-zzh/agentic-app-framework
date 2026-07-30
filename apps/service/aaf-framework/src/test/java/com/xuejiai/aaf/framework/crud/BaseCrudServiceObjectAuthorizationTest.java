@@ -3,7 +3,6 @@ package com.xuejiai.aaf.framework.crud;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -71,19 +70,26 @@ class BaseCrudServiceObjectAuthorizationTest extends BaseMockitoUnitTest {
     @BeforeEach
     void setUp() {
         service = new TestCrudService(repository);
-        when(registry.requireByEntityType(TestEntity.class)).thenReturn(entry);
-        doReturn(definition).when(entry).definition();
-        when(entry.viewPlans())
+        org.mockito.Mockito.lenient()
+                .when(registry.requireByEntityType(TestEntity.class))
+                .thenReturn(entry);
+        org.mockito.Mockito.lenient().doReturn(definition).when(entry).definition();
+        org.mockito.Mockito.lenient()
+                .when(entry.viewPlans())
                 .thenReturn(
                         Map.of(
                                 "detail",
                                 new CrudViewPlan("detail", Set.of("status"), Map.of(), "")));
-        when(definition.displayName()).thenReturn("测试资源");
-        when(definition.tenantScope()).thenReturn(TenantScope.ORG_REQUIRED);
-        when(definition.personalScope()).thenReturn(PersonalScope.none());
-        when(definition.references()).thenReturn(List.of());
-        when(definition.relations()).thenReturn(List.of());
-        when(definition.mutation())
+        org.mockito.Mockito.lenient()
+                .when(definition.tenantScope())
+                .thenReturn(TenantScope.ORG_REQUIRED);
+        org.mockito.Mockito.lenient()
+                .when(definition.personalScope())
+                .thenReturn(PersonalScope.none());
+        org.mockito.Mockito.lenient().when(definition.references()).thenReturn(List.of());
+        org.mockito.Mockito.lenient().when(definition.relations()).thenReturn(List.of());
+        org.mockito.Mockito.lenient()
+                .when(definition.mutation())
                 .thenReturn(
                         new CrudMutationDefinition(
                                 Set.of("status", "metadata"),
