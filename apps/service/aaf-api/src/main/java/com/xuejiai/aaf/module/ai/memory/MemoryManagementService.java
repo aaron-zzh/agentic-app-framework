@@ -7,20 +7,27 @@ package com.xuejiai.aaf.module.ai.memory;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
+import java.util.Locale;
+import java.util.Set;
 
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.model.PageResult;
-import com.xuejiai.aaf.framework.engine.knowledge.embedding.EmbeddingService;
-import com.xuejiai.aaf.framework.engine.memory.AtomMemoryEngine;
-import com.xuejiai.aaf.framework.engine.memory.MemoryAtom;
-import com.xuejiai.aaf.framework.engine.memory.MemoryAtomRepository;
-import com.xuejiai.aaf.framework.intelligent.cognition.memory.MemoryRerankerService;
-import com.xuejiai.aaf.framework.intelligent.cognition.memory.MemoryRetrievalService;
+import com.xuejiai.aaf.framework.intelligent.cognition.application.MemoryGovernanceService;
+import com.xuejiai.aaf.framework.intelligent.cognition.application.MemoryGovernanceService.RememberStatus;
+import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord;
+import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.ExplicitConfirmation;
+import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.MemorySubject;
+import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.SubjectKind;
+import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryManagementPort;
+import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryRecallPort;
+import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryRecallPort.RecallQuery;
+import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryWritePort;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
+import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 
 import lombok.RequiredArgsConstructor;
@@ -29,125 +36,92 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class MemoryManagementService {
 
-    private final MemoryAtomRepository repository;
-    private final AtomMemoryEngine memoryEngine;
-    private final EmbeddingService embeddingService;
-    private final MemoryRetrievalService retrievalService;
-    private final MemoryRerankerService reranker;
+    private static final String DEFAULT_SCOPE = "long_term";
+    private static final String SCOPE_TAG_PREFIX = "scope:";
+    private static final int MAX_SEARCH_RESULTS = 100;
+    private static final Set<String> ALLOWED_SCOPES =
+            Set.of("short_term", DEFAULT_SCOPE, "episodic", "procedural");
+
+    private final MemoryRecallPort memoryRecall;
+    private final MemoryWritePort memoryWriter;
+    private final MemoryManagementPort memoryManagement;
+    private final MemoryGovernanceService memoryGovernance;
     private final OperatorContext operatorContext;
 
-    /**
-     * 分页查询当前用户的记忆列表
-     *
-     * @param scope 范围筛选（可选）
-     * @param pageable 分页参数
-     * @return 记忆分页结果
-     */
-    public PageResult<MemoryAtomVO> list(String scope, Pageable pageable) {
-        var userId = operatorContext.currentUserId().orElseThrow();
-        Page<MemoryAtom> page;
-        if (scope != null) {
-            page = repository.findByUserIdAndScope(userId, scope, pageable);
-        } else {
-            page = repository.findByUserId(userId, pageable);
-        }
-        return new PageResult<>(page.map(this::toVO).toList(), page.getTotalElements());
+    public PageResult<MemoryRecordVO> list(String scope, Pageable pageable) {
+        var page =
+                memoryManagement.list(
+                        subject(),
+                        optionalScope(scope),
+                        Math.toIntExact(pageable.getOffset()),
+                        pageable.getPageSize(),
+                        Instant.now());
+        return new PageResult<>(page.items().stream().map(this::toVO).toList(), page.total());
     }
 
-    /**
-     * 搜索记忆（关键词匹配）
-     *
-     * @param keyword 关键词
-     * @param scope 范围筛选（可选）
-     * @return 匹配的记忆列表
-     */
-    public List<MemoryAtomVO> search(String keyword, String scope) {
-        var userId = operatorContext.currentUserId().orElseThrow();
-        List<MemoryAtom> results;
-        if (scope != null) {
-            results = repository.findByUserIdAndScopeAndContentContaining(userId, scope, keyword);
-        } else {
-            results = repository.findByUserIdAndContentContaining(userId, keyword);
-        }
-        return results.stream().map(this::toVO).toList();
-    }
-
-    /**
-     * 显式记住一条记忆（对齐 m_flow add）。当前用户主动"记住"某事时调用。
-     *
-     * @param content 记忆内容
-     * @param scope 范围（默认 long_term）
-     * @return 写入的记忆
-     */
-    @Transactional
-    public MemoryAtomVO add(String content, String scope) {
-        var userId = operatorContext.currentUserId().orElseThrow();
-        var atom = new MemoryAtom();
-        atom.setUserId(userId);
-        atom.setScope(scope != null ? scope : "long_term");
-        atom.setContent(content);
-        atom.setEmbedding(embeddingService.embed(content));
-        atom.setEventTime(Instant.now());
-        atom.setWeight(0.6);
-        return toVO(memoryEngine.store(atom));
-    }
-
-    /**
-     * 语义检索记忆（对齐 m_flow search）。走认知检索（意图路由 + 轻量重排），返回相关记忆上下文。
-     *
-     * @param query 自然语言查询
-     * @param topK 返回数量（默认 8）
-     * @return 按相关性排序的记忆
-     */
-    public List<MemoryAtomVO> semanticSearch(String query, Integer topK) {
-        var userId = operatorContext.currentUserId().orElseThrow();
-        int limit = topK != null && topK > 0 ? topK : 8;
-        // 显式检索属高价值、非延迟敏感场景：宽召回 + 专用重排模型（带门控 + 失败降级）
-        var candidates =
-                retrievalService.retrieveByVector(
-                        userId, embeddingService.embed(query), Math.max(limit * 3, 20));
-        return reranker
-                .rerank(query, candidates, limit, MemoryRerankerService.Mode.RERANK_MODEL)
+    public List<MemoryRecordVO> search(String keyword, String scope) {
+        return memoryManagement
+                .search(
+                        subject(),
+                        keyword,
+                        optionalScope(scope),
+                        MAX_SEARCH_RESULTS,
+                        Instant.now())
                 .stream()
                 .map(this::toVO)
                 .toList();
     }
 
-    /**
-     * 删除指定记忆
-     *
-     * @param ids 记忆 ID 列表
-     */
     @Transactional
-    public void delete(List<UUID> ids) {
-        memoryEngine.delete(ids);
-    }
-
-    /**
-     * 清空当前用户指定范围的记忆
-     *
-     * @param scope 范围（short_term/long_term/episodic/procedural）
-     */
-    @Transactional
-    public void clearByScope(String scope) {
-        var userId = operatorContext.currentUserId().orElseThrow();
-        var atoms = repository.findByUserIdAndScope(userId, scope);
-        if (!atoms.isEmpty()) {
-            memoryEngine.delete(atoms.stream().map(MemoryAtom::getId).toList());
+    public void add(String content, String scope) {
+        var at = Instant.now();
+        var outcome =
+                memoryGovernance.remember(
+                        subject(),
+                        content,
+                        List.of(SCOPE_TAG_PREFIX + normalizeScope(scope)),
+                        at);
+        if (outcome.status() == RememberStatus.REJECTED
+                || outcome.status() == RememberStatus.CONFLICT) {
+            throw new IllegalArgumentException(outcome.reason());
         }
     }
 
-    /**
-     * 获取记忆统计信息
-     *
-     * @return 各范围的记忆数量
-     */
+    public List<MemoryRecordVO> semanticSearch(String query, Integer topK) {
+        var limit = topK != null && topK > 0 ? topK : 8;
+        return memoryRecall
+                .recall(new RecallQuery(subject(), query, limit, Integer.MAX_VALUE, Instant.now()))
+                .stream()
+                .map(this::toVO)
+                .toList();
+    }
+
+    @Transactional
+    public void delete(List<String> ids) {
+        if (ids == null || ids.isEmpty()) return;
+        var subject = subject();
+        var at = Instant.now();
+        memoryWriter.forget(subject, List.copyOf(ids), confirmation(subject, "用户删除记忆", at), at);
+    }
+
+    @Transactional
+    public void clearByScope(String scope) {
+        var subject = subject();
+        var at = Instant.now();
+        memoryManagement.forgetScope(
+                subject,
+                normalizeScope(scope),
+                confirmation(subject, "用户清空记忆范围", at),
+                at);
+    }
+
     public MemoryStatsVO getStats() {
-        var userId = operatorContext.currentUserId().orElseThrow();
-        long shortTerm = repository.countByUserIdAndScope(userId, "short_term");
-        long longTerm = repository.countByUserIdAndScope(userId, "long_term");
-        long episodic = repository.countByUserIdAndScope(userId, "episodic");
-        long procedural = repository.countByUserIdAndScope(userId, "procedural");
+        var subject = subject();
+        var at = Instant.now();
+        long shortTerm = memoryManagement.count(subject, "short_term", at);
+        long longTerm = memoryManagement.count(subject, DEFAULT_SCOPE, at);
+        long episodic = memoryManagement.count(subject, "episodic", at);
+        long procedural = memoryManagement.count(subject, "procedural", at);
         return new MemoryStatsVO(
                 shortTerm,
                 longTerm,
@@ -156,18 +130,55 @@ public class MemoryManagementService {
                 shortTerm + longTerm + episodic + procedural);
     }
 
-    private MemoryAtomVO toVO(MemoryAtom e) {
-        return new MemoryAtomVO(
-                e.getId(),
-                e.getUserId(),
-                e.getScope(),
-                e.getContent(),
-                e.getEventTime(),
-                e.getWeight(),
-                e.getAccessCount(),
-                e.getLastAccessedAt(),
-                e.getTags(),
-                e.getMetadata(),
-                e.getCreatedAt());
+    private String optionalScope(String scope) {
+        return scope == null || scope.isBlank() ? null : normalizeScope(scope);
+    }
+
+    private String scopeOf(MemoryRecord memory) {
+        return memory.tags().stream()
+                .filter(tag -> tag.startsWith(SCOPE_TAG_PREFIX))
+                .map(tag -> tag.substring(SCOPE_TAG_PREFIX.length()))
+                .findFirst()
+                .orElse(DEFAULT_SCOPE);
+    }
+
+    private String normalizeScope(String scope) {
+        var normalized =
+                scope == null || scope.isBlank()
+                        ? DEFAULT_SCOPE
+                        : scope.trim().toLowerCase(Locale.ROOT);
+        if (!ALLOWED_SCOPES.contains(normalized)) {
+            throw new IllegalArgumentException("不支持的记忆范围: " + normalized);
+        }
+        return normalized;
+    }
+
+    private MemorySubject subject() {
+        var orgId = OrgContext.getCurrentOrgId();
+        if (orgId == null) throw new AccessDeniedException("请求缺少组织上下文");
+        var userId =
+                operatorContext
+                        .currentOwnerId()
+                        .orElseThrow(() -> new AccessDeniedException("请求未认证"));
+        return new MemorySubject(
+                new TenantId(orgId.toString()), SubjectKind.USER, userId.toString());
+    }
+
+    private ExplicitConfirmation confirmation(MemorySubject subject, String reason, Instant at) {
+        return new ExplicitConfirmation(true, "USER/" + subject.subjectId(), reason, at);
+    }
+
+    private MemoryRecordVO toVO(MemoryRecord memory) {
+        return new MemoryRecordVO(
+                memory.memoryId(),
+                scopeOf(memory),
+                memory.content(),
+                memory.redactedSummary(),
+                memory.importance(),
+                memory.confidence(),
+                memory.privacy().name(),
+                memory.tags(),
+                memory.expiresAt(),
+                memory.createdAt());
     }
 }

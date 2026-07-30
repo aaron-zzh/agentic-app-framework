@@ -39,67 +39,61 @@ public class BundleSearchService {
      * @param queryTime 查询提及的时间点
      * @return 排序后的 Bundle 列表
      */
+    @org.springframework.transaction.annotation.Transactional
     public List<MemoryBundle> search(Long userId, float[] queryVec, int topK, Instant queryTime) {
         var now = Instant.now();
         int candidateCount = topK * CANDIDATE_MULTIPLIER;
 
-        // 1. 向量检索候选原子
         var vecStr = toVectorString(queryVec);
-        var candidates = atomRepository.searchByVector(userId, vecStr, candidateCount);
+        var candidates = atomRepository.searchByVector(userId, vecStr, candidateCount, now);
         if (candidates.isEmpty()) return List.of();
 
-        // 2. 收集候选原子 ID
         var candidateIds = candidates.stream().map(MemoryAtom::getId).toList();
-
-        // 3. 查找候选原子的关系（1-2 跳邻居）
         var relations = relationRepository.findByAtomIds(candidateIds);
-
-        // 4. 扩展邻居 ID
         var neighborIds = new HashSet<>(candidateIds);
-        for (var rel : relations) {
-            neighborIds.add(rel.getSourceId());
-            neighborIds.add(rel.getTargetId());
+        for (var relation : relations) {
+            neighborIds.add(relation.getSourceId());
+            neighborIds.add(relation.getTargetId());
         }
 
-        // 5. 加载邻居原子
-        var allAtoms = atomRepository.findAllById(neighborIds.stream().toList());
-        var atomMap = allAtoms.stream().collect(Collectors.toMap(MemoryAtom::getId, a -> a));
+        var allAtoms =
+                atomRepository.findCurrentByIds(userId, neighborIds.stream().toList(), now);
+        var atomMap = allAtoms.stream().collect(Collectors.toMap(MemoryAtom::getId, atom -> atom));
+        relations =
+                relations.stream()
+                        .filter(
+                                relation ->
+                                        atomMap.containsKey(relation.getSourceId())
+                                                && atomMap.containsKey(relation.getTargetId()))
+                        .toList();
 
-        // 6. 自适应边置信度（优化点5）：统计候选相关边与 query 的平均距离。
-        //    边整体越贴近 query（可靠）→ 因子越小，边路径代价更低、影响放大；
-        //    边噪声大 → 因子变大，抑制边路径，回退到节点距离。
         double avgEdgeDist =
                 relations.stream()
-                        .filter(r -> r.getEdgeEmbedding() != null)
-                        .mapToDouble(r -> vecDistance(queryVec, r.getEdgeEmbedding()))
+                        .filter(relation -> relation.getEdgeEmbedding() != null)
+                        .mapToDouble(
+                                relation -> vecDistance(queryVec, relation.getEdgeEmbedding()))
                         .average()
                         .orElse(1.0);
         double edgeWeightFactor = Math.max(0.3, Math.min(1.5, avgEdgeDist * 1.5));
 
-        // 7. 为每个候选原子构建 Bundle（代价传播 + 取最小路径）
         var bundles = new ArrayList<MemoryBundle>();
         for (var seed : candidates) {
-            var bundle =
+            bundles.add(
                     buildBundle(
-                            seed, relations, atomMap, queryVec, edgeWeightFactor, now, queryTime);
-            bundles.add(bundle);
+                            seed, relations, atomMap, queryVec, edgeWeightFactor, now, queryTime));
         }
 
-        // 8. 按分数排序 + 去重
         bundles.sort(Comparator.comparingDouble(MemoryBundle::score).reversed());
         var deduplicated = deduplicateBundles(bundles, topK);
-
-        // 9. 记录访问
         var accessedIds =
                 deduplicated.stream()
-                        .flatMap(b -> b.atoms().stream())
+                        .flatMap(bundle -> bundle.atoms().stream())
                         .map(MemoryAtom::getId)
                         .distinct()
                         .toList();
         if (!accessedIds.isEmpty()) {
             atomRepository.recordAccess(accessedIds, now);
         }
-
         return deduplicated;
     }
 

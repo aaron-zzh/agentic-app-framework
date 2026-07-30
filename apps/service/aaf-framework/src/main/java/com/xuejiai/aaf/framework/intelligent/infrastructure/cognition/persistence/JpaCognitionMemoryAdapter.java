@@ -13,11 +13,13 @@ import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.Explic
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.MemorySubject;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.PrivacyLevel;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.SubjectKind;
+import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryManagementPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryRecallPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryWritePort;
 
 /** PostgreSQL/PgVector Cognition 记忆适配器。 */
-public final class JpaCognitionMemoryAdapter implements MemoryRecallPort, MemoryWritePort {
+public final class JpaCognitionMemoryAdapter
+        implements MemoryRecallPort, MemoryWritePort, MemoryManagementPort {
 
     private final CognitionMemoryRepository repository;
     private final EmbeddingService embeddings;
@@ -63,6 +65,83 @@ public final class JpaCognitionMemoryAdapter implements MemoryRecallPort, Memory
             used += memory.redactedSummary().length();
         }
         return List.copyOf(result);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public MemoryManagementPort.MemoryPage list(
+            MemorySubject subject, String scope, int offset, int limit, Instant at) {
+        if (offset < 0 || limit <= 0) {
+            throw new IllegalArgumentException("记忆分页参数非法");
+        }
+        var entities =
+                repository.listManaged(
+                        subject.tenantId().value(),
+                        subject.kind().name(),
+                        subject.subjectId(),
+                        scopeTag(scope),
+                        limit,
+                        offset,
+                        at);
+        var total =
+                repository.countManaged(
+                        subject.tenantId().value(),
+                        subject.kind().name(),
+                        subject.subjectId(),
+                        scopeTag(scope),
+                        at);
+        return new MemoryManagementPort.MemoryPage(
+                entities.stream().map(this::toDomain).toList(), total);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MemoryRecord> search(
+            MemorySubject subject,
+            String keyword,
+            String scope,
+            int limit,
+            Instant at) {
+        if (limit <= 0) throw new IllegalArgumentException("记忆搜索数量必须为正数");
+        return repository
+                .searchManaged(
+                        subject.tenantId().value(),
+                        subject.kind().name(),
+                        subject.subjectId(),
+                        Objects.requireNonNullElse(keyword, ""),
+                        scopeTag(scope),
+                        limit,
+                        at)
+                .stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long count(MemorySubject subject, String scope, Instant at) {
+        return repository.countManaged(
+                subject.tenantId().value(),
+                subject.kind().name(),
+                subject.subjectId(),
+                scopeTag(scope),
+                at);
+    }
+
+    @Override
+    @Transactional
+    public int forgetScope(
+            MemorySubject subject,
+            String scope,
+            ExplicitConfirmation confirmation,
+            Instant at) {
+        confirmation.requireConfirmed("按范围清空记忆");
+        return repository.forgetManagedScope(
+                subject.tenantId().value(),
+                subject.kind().name(),
+                subject.subjectId(),
+                scopeTag(scope),
+                at);
     }
 
     @Override
@@ -181,6 +260,10 @@ public final class JpaCognitionMemoryAdapter implements MemoryRecallPort, Memory
                 entity.getTags(),
                 entity.getExpiresAt(),
                 entity.getCreatedAt());
+    }
+
+    private static String scopeTag(String scope) {
+        return scope == null ? null : "scope:" + scope;
     }
 
     private static String vector(float[] values) {

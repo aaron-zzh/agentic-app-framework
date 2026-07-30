@@ -40,6 +40,108 @@ public interface CognitionMemoryRepository extends JpaRepository<CognitionMemory
             int maxItems,
             Instant at);
 
+    @Query(
+            value =
+                    """
+            SELECT * FROM ai_cognition_memory
+            WHERE tenant_id = :tenantId AND subject_kind = :subjectKind
+              AND subject_id = :subjectId AND forgotten_at IS NULL
+              AND (expires_at IS NULL OR expires_at > :at)
+              AND (
+                :scopeTag IS NULL
+                OR :scopeTag = ANY(COALESCE(tags, ARRAY[]::text[]))
+                OR (:scopeTag = 'scope:long_term' AND NOT EXISTS (
+                    SELECT 1 FROM unnest(COALESCE(tags, ARRAY[]::text[])) memory_tag
+                    WHERE memory_tag LIKE 'scope:%'))
+              )
+            ORDER BY importance DESC, created_at DESC
+            LIMIT :limit OFFSET :offset
+            """,
+            nativeQuery = true)
+    List<CognitionMemoryEntity> listManaged(
+            String tenantId,
+            String subjectKind,
+            String subjectId,
+            String scopeTag,
+            int limit,
+            int offset,
+            Instant at);
+
+    @Query(
+            value =
+                    """
+            SELECT * FROM ai_cognition_memory
+            WHERE tenant_id = :tenantId AND subject_kind = :subjectKind
+              AND subject_id = :subjectId AND forgotten_at IS NULL
+              AND (expires_at IS NULL OR expires_at > :at)
+              AND content ILIKE CONCAT('%', :keyword, '%')
+              AND (
+                :scopeTag IS NULL
+                OR :scopeTag = ANY(COALESCE(tags, ARRAY[]::text[]))
+                OR (:scopeTag = 'scope:long_term' AND NOT EXISTS (
+                    SELECT 1 FROM unnest(COALESCE(tags, ARRAY[]::text[])) memory_tag
+                    WHERE memory_tag LIKE 'scope:%'))
+              )
+            ORDER BY importance DESC, created_at DESC
+            LIMIT :limit
+            """,
+            nativeQuery = true)
+    List<CognitionMemoryEntity> searchManaged(
+            String tenantId,
+            String subjectKind,
+            String subjectId,
+            String keyword,
+            String scopeTag,
+            int limit,
+            Instant at);
+
+    @Query(
+            value =
+                    """
+            SELECT COUNT(*) FROM ai_cognition_memory
+            WHERE tenant_id = :tenantId AND subject_kind = :subjectKind
+              AND subject_id = :subjectId AND forgotten_at IS NULL
+              AND (expires_at IS NULL OR expires_at > :at)
+              AND (
+                :scopeTag IS NULL
+                OR :scopeTag = ANY(COALESCE(tags, ARRAY[]::text[]))
+                OR (:scopeTag = 'scope:long_term' AND NOT EXISTS (
+                    SELECT 1 FROM unnest(COALESCE(tags, ARRAY[]::text[])) memory_tag
+                    WHERE memory_tag LIKE 'scope:%'))
+              )
+            """,
+            nativeQuery = true)
+    long countManaged(
+            String tenantId,
+            String subjectKind,
+            String subjectId,
+            String scopeTag,
+            Instant at);
+
+    @Modifying
+    @Query(
+            value =
+                    """
+            UPDATE ai_cognition_memory
+            SET forgotten_at = :at, updated_at = :at
+            WHERE tenant_id = :tenantId AND subject_kind = :subjectKind
+              AND subject_id = :subjectId AND forgotten_at IS NULL
+              AND (expires_at IS NULL OR expires_at > :at)
+              AND (
+                :scopeTag = ANY(COALESCE(tags, ARRAY[]::text[]))
+                OR (:scopeTag = 'scope:long_term' AND NOT EXISTS (
+                    SELECT 1 FROM unnest(COALESCE(tags, ARRAY[]::text[])) memory_tag
+                    WHERE memory_tag LIKE 'scope:%'))
+              )
+            """,
+            nativeQuery = true)
+    int forgetManagedScope(
+            String tenantId,
+            String subjectKind,
+            String subjectId,
+            String scopeTag,
+            Instant at);
+
     @Modifying
     @Query(
             """

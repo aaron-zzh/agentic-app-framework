@@ -37,7 +37,7 @@ public class MemoryMaintenanceTask {
         var cutoff = now.minus(90, ChronoUnit.DAYS);
 
         // 查找 90 天未访问的原子
-        var staleAtoms = atomRepository.findStaleAtoms(cutoff);
+        var staleAtoms = atomRepository.findStaleAtoms(cutoff, now);
 
         // 计算衰减，低于阈值的批量失效
         var toInvalidate =

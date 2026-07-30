@@ -43,25 +43,33 @@ public class AtomMemoryEngineImpl implements AtomMemoryEngine {
     @Override
     @Transactional
     public MemoryRelation addRelation(MemoryRelation relation) {
+        if (relation.getSourceId().equals(relation.getTargetId())) {
+            throw new IllegalArgumentException("记忆关系两端不能相同");
+        }
+        var atoms = atomRepository.findAllById(List.of(relation.getSourceId(), relation.getTargetId()));
+        if (atoms.size() != 2) {
+            throw new IllegalArgumentException("记忆关系端点不存在");
+        }
+        if (!Objects.equals(atoms.get(0).getUserId(), atoms.get(1).getUserId())) {
+            throw new IllegalArgumentException("不能建立跨用户记忆关系");
+        }
         return relationRepository.save(relation);
     }
 
     @Override
     public List<MemoryAtom> searchByVector(Long userId, float[] queryVec, int topK) {
-        var vecStr = toVectorString(queryVec);
-        return atomRepository.searchByVector(userId, vecStr, topK);
+        return searchByVectorAt(userId, queryVec, topK, Instant.now());
     }
 
     @Override
     public List<MemoryAtom> searchByTime(Long userId, Instant start, Instant end) {
-        return atomRepository.findByTimeRange(userId, start, end);
+        return searchByTimeAt(userId, start, end, Instant.now());
     }
 
     @Override
+    @Transactional
     public List<MemoryAtom> searchHybrid(HybridQuery query) {
         var now = Instant.now();
-
-        // 并行执行向量检索和时间检索（虚拟线程）
         List<MemoryAtom> vectorResults;
         List<MemoryAtom> timeResults;
 
@@ -70,66 +78,56 @@ public class AtomMemoryEngineImpl implements AtomMemoryEngine {
                     query.queryEmbedding() != null
                             ? executor.submit(
                                     () ->
-                                            searchByVector(
+                                            searchByVectorAt(
                                                     query.userId(),
                                                     query.queryEmbedding(),
-                                                    query.topK() * 3))
+                                                    query.topK() * 3,
+                                                    now))
                             : executor.submit(() -> List.<MemoryAtom>of());
-
             Future<List<MemoryAtom>> timeFuture =
-                    (query.timeStart() != null && query.timeEnd() != null)
+                    query.timeStart() != null && query.timeEnd() != null
                             ? executor.submit(
                                     () ->
-                                            searchByTime(
+                                            searchByTimeAt(
                                                     query.userId(),
                                                     query.timeStart(),
-                                                    query.timeEnd()))
+                                                    query.timeEnd(),
+                                                    now))
                             : executor.submit(() -> List.<MemoryAtom>of());
-
             vectorResults = vectorFuture.get();
             timeResults = timeFuture.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("混合检索被中断", e);
         } catch (Exception e) {
-            log.warn("混合检索并行执行失败，降级为串行: {}", e.getMessage());
-            vectorResults =
-                    query.queryEmbedding() != null
-                            ? searchByVector(
-                                    query.userId(), query.queryEmbedding(), query.topK() * 3)
-                            : List.of();
-            timeResults =
-                    (query.timeStart() != null && query.timeEnd() != null)
-                            ? searchByTime(query.userId(), query.timeStart(), query.timeEnd())
-                            : List.of();
+            throw new IllegalStateException("混合检索执行失败", e);
         }
 
-        // 合并去重 + 时间衰减评分
         var merged = new LinkedHashMap<UUID, MemoryAtom>();
-        vectorResults.forEach(a -> merged.putIfAbsent(a.getId(), a));
-        timeResults.forEach(a -> merged.putIfAbsent(a.getId(), a));
+        vectorResults.forEach(atom -> merged.putIfAbsent(atom.getId(), atom));
+        timeResults.forEach(atom -> merged.putIfAbsent(atom.getId(), atom));
+        var vectorRanks = reciprocalRankScores(vectorResults);
+        var timeRanks = reciprocalRankScores(timeResults);
 
-        // 标签过滤
-        var filtered = merged.values().stream().filter(a -> matchTags(a, query.tags())).toList();
-
-        // 按时间衰减分数排序
         var scored =
-                filtered.stream()
+                merged.values().stream()
+                        .filter(atom -> matchTags(atom, query.tags()))
                         .sorted(
                                 Comparator.comparingDouble(
-                                                (MemoryAtom a) ->
-                                                        a.getWeight()
-                                                                * timeDecay.score(
-                                                                        a.getEventTime(),
-                                                                        now,
-                                                                        query.queryTime()))
+                                                (MemoryAtom atom) ->
+                                                        hybridScore(
+                                                                atom,
+                                                                vectorRanks,
+                                                                timeRanks,
+                                                                now,
+                                                                query.queryTime()))
                                         .reversed())
                         .limit(query.topK())
                         .toList();
 
-        // 记录访问
         if (!scored.isEmpty()) {
-            var ids = scored.stream().map(MemoryAtom::getId).toList();
-            atomRepository.recordAccess(ids, now);
+            atomRepository.recordAccess(scored.stream().map(MemoryAtom::getId).toList(), now);
         }
-
         return scored;
     }
 
@@ -141,7 +139,7 @@ public class AtomMemoryEngineImpl implements AtomMemoryEngine {
 
     @Override
     public List<MemoryAtom> searchByScope(Long userId, String scope, int topK) {
-        return atomRepository.findByUserIdAndScopeAndValidToIsNull(userId, scope).stream()
+        return atomRepository.findCurrentByUserIdAndScope(userId, scope, Instant.now()).stream()
                 .sorted(Comparator.comparingDouble(MemoryAtom::getWeight).reversed())
                 .limit(topK)
                 .toList();
@@ -171,17 +169,15 @@ public class AtomMemoryEngineImpl implements AtomMemoryEngine {
                             int useCount = atom.getAccessCount() + 1;
                             atom.setAccessCount(useCount);
                             atom.setLastAccessedAt(Instant.now());
-                            // 按成功次数动态更新 weight（metadata 存 successCount）
                             var meta =
                                     atom.getMetadata() != null
-                                            ? new java.util.HashMap<>(atom.getMetadata())
-                                            : new java.util.HashMap<String, Object>();
+                                            ? new HashMap<>(atom.getMetadata())
+                                            : new HashMap<String, Object>();
                             int successCount =
                                     ((Number) meta.getOrDefault("successCount", 0)).intValue();
                             if (success) successCount++;
                             meta.put("successCount", successCount);
                             atom.setMetadata(meta);
-                            // qualityScore = successCount / useCount，映射到 weight
                             atom.setWeight(useCount > 0 ? (double) successCount / useCount : 0.5);
                             atomRepository.save(atom);
                         });
@@ -193,6 +189,38 @@ public class AtomMemoryEngineImpl implements AtomMemoryEngine {
         if (!atomIds.isEmpty()) {
             atomRepository.deleteAllById(atomIds);
         }
+    }
+
+    private List<MemoryAtom> searchByVectorAt(
+            Long userId, float[] queryVec, int topK, Instant at) {
+        return atomRepository.searchByVector(userId, toVectorString(queryVec), topK, at);
+    }
+
+    private List<MemoryAtom> searchByTimeAt(
+            Long userId, Instant start, Instant end, Instant at) {
+        return atomRepository.findByTimeRange(userId, start, end, at);
+    }
+
+    private Map<UUID, Double> reciprocalRankScores(List<MemoryAtom> results) {
+        var scores = new HashMap<UUID, Double>();
+        for (var index = 0; index < results.size(); index++) {
+            scores.put(results.get(index).getId(), 1.0 / (60 + index + 1));
+        }
+        return scores;
+    }
+
+    private double hybridScore(
+            MemoryAtom atom,
+            Map<UUID, Double> vectorRanks,
+            Map<UUID, Double> timeRanks,
+            Instant now,
+            Instant queryTime) {
+        var retrievalScore =
+                vectorRanks.getOrDefault(atom.getId(), 0.0)
+                        + timeRanks.getOrDefault(atom.getId(), 0.0);
+        return retrievalScore
+                * atom.getWeight()
+                * timeDecay.score(atom.getEventTime(), now, queryTime);
     }
 
     private boolean matchTags(MemoryAtom atom, List<String> requiredTags) {

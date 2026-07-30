@@ -6,7 +6,6 @@
 package com.xuejiai.aaf.module.ai.memory;
 
 import java.util.List;
-import java.util.UUID;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
@@ -28,26 +27,27 @@ public class MemoryController {
 
     @Operation(summary = "记住一条记忆")
     @PostMapping
-    public Result<MemoryAtomVO> add(@RequestBody MemoryAddDTO dto) {
-        return Result.success(memoryService.add(dto.content(), dto.scope()));
+    public Result<Void> add(@RequestBody MemoryAddDTO dto) {
+        memoryService.add(dto.content(), dto.scope());
+        return Result.success();
     }
 
     @Operation(summary = "语义检索记忆")
     @PostMapping("/recall")
-    public Result<List<MemoryAtomVO>> recall(@RequestBody MemoryRecallDTO dto) {
+    public Result<List<MemoryRecordVO>> recall(@RequestBody MemoryRecallDTO dto) {
         return Result.success(memoryService.semanticSearch(dto.query(), dto.topK()));
     }
 
     @Operation(summary = "记忆列表（分页）")
     @GetMapping
-    public Result<PageResult<MemoryAtomVO>> list(
+    public Result<PageResult<MemoryRecordVO>> list(
             @RequestParam(required = false) String scope, Pageable pageable) {
         return Result.success(memoryService.list(scope, pageable));
     }
 
     @Operation(summary = "搜索记忆")
     @GetMapping("/search")
-    public Result<List<MemoryAtomVO>> search(
+    public Result<List<MemoryRecordVO>> search(
             @RequestParam String keyword, @RequestParam(required = false) String scope) {
         return Result.success(memoryService.search(keyword, scope));
     }
@@ -60,7 +60,7 @@ public class MemoryController {
 
     @Operation(summary = "删除记忆")
     @DeleteMapping
-    public Result<Void> delete(@RequestBody List<UUID> ids) {
+    public Result<Void> delete(@RequestBody List<String> ids) {
         memoryService.delete(ids);
         return Result.success();
     }

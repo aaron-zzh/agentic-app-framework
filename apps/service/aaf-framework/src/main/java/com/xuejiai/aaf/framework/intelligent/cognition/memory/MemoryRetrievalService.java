@@ -50,17 +50,20 @@ public class MemoryRetrievalService {
      *
      * <p>流程：线索识别 → 预算分配 → 并行检索 → 重排 → 格式化输出
      *
+     * @param tenantId 租户 ID
      * @param userId 用户 ID
      * @param conversationId 对话 ID（用于短期记忆）
      * @param query 查询文本
      * @return 分区记忆上下文
      */
-    public MemoryContext retrieve(Long userId, String conversationId, String query) {
+    public MemoryContext retrieve(
+            String tenantId, Long userId, String conversationId, String query) {
         var context = new MemoryContext();
 
         // 1. 短期记忆：当前对话上下文（工作记忆的一部分）
         if (conversationId != null) {
-            context.setRecentMessages(shortTermMemory.getContext(conversationId, 10));
+            context.setRecentMessages(
+                    shortTermMemory.getContext(tenantId, userId, conversationId, 10));
         }
 
         // 2. 查询意图路由 + 预算分配
