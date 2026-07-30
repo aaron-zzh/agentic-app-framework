@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.content.repository;
 
+import java.util.Optional;
+
 import com.xuejiai.aaf.framework.crud.CrudEntityRepository;
 import com.xuejiai.aaf.module.content.domain.ContentExecutionRun;
 
@@ -11,4 +13,6 @@ import com.xuejiai.aaf.module.content.domain.ContentExecutionRun;
 public interface ContentExecutionRunRepository extends CrudEntityRepository<ContentExecutionRun> {
 
     long countByProjectIdAndStatus(Long projectId, String status);
+
+    Optional<ContentExecutionRun> findFirstByAigcTaskIdOrderByIdDesc(Long aigcTaskId);
 }

@@ -40,6 +40,7 @@ import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
 import com.xuejiai.aaf.module.ai.aigc.media.service.MediaAssetService;
 import com.xuejiai.aaf.module.ai.aigc.media.vo.SaveFromGenerationDTO;
 import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
+import com.xuejiai.aaf.module.ai.aigc.task.event.AigcTaskTerminalEvent;
 import com.xuejiai.aaf.module.ai.aigc.task.mapper.AigcTaskMapper;
 import com.xuejiai.aaf.module.ai.aigc.task.repository.AigcTaskRepository;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.AigcTaskPageDTO;
@@ -664,6 +665,7 @@ public class AigcTaskService
         saveToMediaAsset(task, ossUrl);
 
         eventService.push(task.getUserId(), EVENT_COMPLETED, toVO(task));
+        eventPublisher.publishEvent(new AigcTaskTerminalEvent(task.getId()));
         log.info("[completeTask] 任务完成: taskId={}, ossUrl={}", task.getId(), ossUrl);
         // 图片任务触发成长任务进度
         if (AigcTaskTypeEnum.IMAGE.getCode().equals(task.getType())
@@ -716,6 +718,7 @@ public class AigcTaskService
         saveToMediaAsset(task, ossUrl);
 
         eventService.push(task.getUserId(), EVENT_COMPLETED, toVO(task));
+        eventPublisher.publishEvent(new AigcTaskTerminalEvent(task.getId()));
         log.info("[completeTask] 任务完成: taskId={}, ossUrl={}", task.getId(), ossUrl);
         eventPublisher.publishEvent(new UserGrowthEvent(task.getUserId(), "aigc.video.success"));
     }
@@ -796,6 +799,7 @@ public class AigcTaskService
         task.setErrorMsg(errorMsg);
         taskRepo.save(task);
         eventService.push(task.getUserId(), EVENT_FAILED, toVO(task));
+        eventPublisher.publishEvent(new AigcTaskTerminalEvent(task.getId()));
         log.info("[failTask] 任务失败: taskId={}, reason={}", task.getId(), errorMsg);
     }
 

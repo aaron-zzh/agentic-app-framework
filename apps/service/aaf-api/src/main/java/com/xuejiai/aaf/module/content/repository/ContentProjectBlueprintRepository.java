@@ -15,6 +15,10 @@ public interface ContentProjectBlueprintRepository
             String code, String status);
 
     java.util.Optional<ContentProjectBlueprint>
+            findFirstByCodeAndBlueprintVersionAndStatusOrderByIdDesc(
+                    String code, String blueprintVersion, String status);
+
+    java.util.Optional<ContentProjectBlueprint>
             findFirstByProjectTypeCodeAndProductionModeAndStatusOrderByIdDesc(
                     String projectTypeCode, String productionMode, String status);
 }

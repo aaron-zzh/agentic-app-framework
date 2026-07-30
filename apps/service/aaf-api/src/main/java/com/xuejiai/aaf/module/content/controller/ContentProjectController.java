@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.content.controller;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,6 +14,10 @@ import com.xuejiai.aaf.framework.crud.BaseCrudController;
 import com.xuejiai.aaf.module.content.domain.ContentProject;
 import com.xuejiai.aaf.module.content.service.ContentProjectMaterializer;
 import com.xuejiai.aaf.module.content.service.ContentProjectService;
+import com.xuejiai.aaf.module.content.service.action.ContentActionCommandService;
+import com.xuejiai.aaf.module.content.vo.ContentActionCommandDTO;
+import com.xuejiai.aaf.module.content.vo.ContentActionOptionVO;
+import com.xuejiai.aaf.module.content.vo.ContentExecutionRunVO;
 import com.xuejiai.aaf.module.content.vo.ContentProjectCreateDTO;
 import com.xuejiai.aaf.module.content.vo.ContentProjectGraphVO;
 import com.xuejiai.aaf.module.content.vo.ContentProjectMaterializeDTO;
@@ -46,6 +51,7 @@ public class ContentProjectController
 
     private final ContentProjectService service;
     private final ContentProjectMaterializer materializer;
+    private final ContentActionCommandService actionCommandService;
 
     @Override
     protected ContentProjectService getService() {
@@ -69,6 +75,21 @@ public class ContentProjectController
     @GetMapping("/{id}/summary")
     public Result<ContentProjectSummaryVO> summary(@PathVariable Long id) {
         return Result.success(materializer.summary(id));
+    }
+
+    @Operation(summary = "获取项目可执行动作")
+    @PreAuthorize("hasPermission(null, 'content:project:action')")
+    @GetMapping("/{id}/actions")
+    public Result<java.util.List<ContentActionOptionVO>> actions(@PathVariable Long id) {
+        return Result.success(actionCommandService.listActions(id));
+    }
+
+    @Operation(summary = "执行项目动作")
+    @PreAuthorize("hasPermission(null, 'content:project:action')")
+    @PostMapping("/{id}/actions")
+    public Result<ContentExecutionRunVO> executeAction(
+            @PathVariable Long id, @Valid @RequestBody ContentActionCommandDTO dto) {
+        return Result.success(actionCommandService.execute(id, dto));
     }
 
     @Operation(summary = "更新项目状态")

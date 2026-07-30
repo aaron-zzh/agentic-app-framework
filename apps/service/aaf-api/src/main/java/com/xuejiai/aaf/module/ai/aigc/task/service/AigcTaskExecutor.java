@@ -45,6 +45,7 @@ import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
 import com.xuejiai.aaf.module.ai.aigc.media.service.MediaAssetService;
 import com.xuejiai.aaf.module.ai.aigc.media.vo.SaveFromGenerationDTO;
 import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
+import com.xuejiai.aaf.module.ai.aigc.task.event.AigcTaskTerminalEvent;
 import com.xuejiai.aaf.module.ai.aigc.task.mapper.AigcTaskMapper;
 import com.xuejiai.aaf.module.ai.aigc.task.repository.AigcTaskRepository;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.AigcTaskVO;
@@ -216,6 +217,7 @@ public class AigcTaskExecutor {
         } catch (Exception e) {
             log.debug("[submitSync] SSE 推送失败（连接已断开）: taskId={}", taskId);
         }
+        eventPublisher.publishEvent(new AigcTaskTerminalEvent(task.getId()));
     }
 
     /** 调用 AI 服务生成图像。Midjourney 异步路径返回 null（任务已转 PENDING）。 */

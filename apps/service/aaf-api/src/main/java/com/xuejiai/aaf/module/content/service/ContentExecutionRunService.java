@@ -59,6 +59,10 @@ public class ContentExecutionRunService
                 entity.getCreateTime());
     }
 
+    public ContentExecutionRunVO toView(ContentExecutionRun entity) {
+        return toVO(entity);
+    }
+
     @Override
     protected ContentExecutionRun toEntity(ContentExecutionRunCreateDTO dto) {
         var entity = ContentExecutionRunConvert.INSTANCE.toEntity(dto);
