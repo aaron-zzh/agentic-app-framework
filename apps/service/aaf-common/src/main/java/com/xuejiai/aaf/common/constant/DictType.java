@@ -76,6 +76,8 @@ public final class DictType {
         public static final String CONFIG_STATUS = "content_config_status";
         public static final String CHANNEL = "content_channel";
         public static final String PROFILE_REF_SCOPE = "content_profile_ref_scope";
+        public static final String OBJECT_VERSION_STATUS = "content_object_version_status";
+        public static final String ACTION_KEY = "content_action_key";
     }
 
     /** AI 模块 */

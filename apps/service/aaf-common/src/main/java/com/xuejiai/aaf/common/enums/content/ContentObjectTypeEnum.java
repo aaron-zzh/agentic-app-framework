@@ -26,7 +26,7 @@ public enum ContentObjectTypeEnum implements ArrayValuable<String> {
     SHOT("shot", "镜头"),
     SHOT_KEYFRAME("shot_keyframe", "镜头关键帧"),
     REVIEW("review", "审核"),
-    INSPIRATION_BOARD("inspiration_board", "灵感板"),
+    CANVAS_BOARD("canvas_board", "画布节点"),
     PROPERTY_SUBJECT("property_subject", "楼盘资料"),
     CLAIM_EVIDENCE("claim_evidence", "主张证据");
 
