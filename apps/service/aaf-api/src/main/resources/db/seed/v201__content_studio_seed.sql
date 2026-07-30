@@ -18,7 +18,9 @@ INSERT INTO sys_dict_type (name, type, status, remark) VALUES
 ('品牌资料类型', 'content_brand_profile_kind', 0, '品牌/IP 资料类型'),
 ('内容配置状态', 'content_config_status', 0, '蓝图、扩展和渠道配置状态'),
 ('内容渠道', 'content_channel', 0, '内容发布渠道'),
-('品牌资料引用范围', 'content_profile_ref_scope', 0, '项目品牌资料主引用或辅助引用')
+('品牌资料引用范围', 'content_profile_ref_scope', 0, '项目品牌资料主引用或辅助引用'),
+('内容对象版本状态', 'content_object_version_status', 0, 'Content Studio 对象候选与采用状态'),
+('内容动作', 'content_action_key', 0, 'Content Studio 内置动作展示标签')
 ON CONFLICT DO NOTHING;
 
 -- ---------------- 字典数据 ----------------
@@ -60,7 +62,7 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ('content_object_type', '镜头', 'shot', 9, 'primary'),
 ('content_object_type', '镜头关键帧', 'shot_keyframe', 10, 'warning'),
 ('content_object_type', '审核', 'review', 11, 'success'),
-('content_object_type', '灵感板', 'inspiration_board', 12, 'info'),
+('content_object_type', '画布节点', 'canvas_board', 12, 'info'),
 ('content_object_type', '楼盘资料', 'property_subject', 13, 'default'),
 ('content_object_type', '主张证据', 'claim_evidence', 14, 'default')
 ON CONFLICT DO NOTHING;
@@ -128,6 +130,23 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ('content_profile_ref_scope', '辅助资料', 'auxiliary', 2, 'info')
 ON CONFLICT DO NOTHING;
 
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('content_object_version_status', '候选', 'candidate', 1, 'warning'),
+('content_object_version_status', '已采用', 'adopted', 2, 'success'),
+('content_object_version_status', '已否决', 'rejected', 3, 'danger'),
+('content_object_version_status', '已被取代', 'superseded', 4, 'info')
+ON CONFLICT DO NOTHING;
+
+-- 只登记已有真实执行绑定的动作；品牌与主张校验待真实校验器接入后再补。
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('content_action_key', '完善简报', 'brief.refine', 1, 'default'),
+('content_action_key', '生成创意方向', 'concept.generate', 2, 'primary'),
+('content_action_key', '生成文案', 'copy.generate', 3, 'info'),
+('content_action_key', '生成图片', 'image.generate', 4, 'warning'),
+('content_action_key', '局部修改图片', 'image.edit', 5, 'warning'),
+('content_action_key', '重新生成交付物', 'deliverable.regenerate', 6, 'primary')
+ON CONFLICT DO NOTHING;
+
 -- ---------------- 内置项目类型 ----------------
 INSERT INTO cs_project_type
     (code, name, icon, description, brief_placeholder, default_channels,
@@ -157,36 +176,37 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 -- ---------------- 内置项目蓝图 ----------------
+-- action_keys 只声明当前已有真实执行绑定的动作；蓝图按业务目标差异化，不做统一放行。
 INSERT INTO cs_project_blueprint
     (code, name, project_type_code, blueprint_version, production_mode, description, status,
      action_keys, confirmation_gates, brief_fields)
 VALUES
 ('new-product-standard', '新品推广标准蓝图', 'new_product', '1.0.0', 'standard', '新品推广默认内容包骨架', 'published',
- '["concept.generate","deliverable.generate","brand.validate"]'::jsonb,
+ '["brief.refine","concept.generate","copy.generate","image.generate","deliverable.regenerate"]'::jsonb,
  '["concept.adopt","deliverable.batch_generate","project.archive"]'::jsonb,
  '["product","sellingPoints","priceOrPromotion","audience"]'::jsonb),
 ('promotion-standard', '活动促销标准蓝图', 'promotion', '1.0.0', 'standard', '活动促销默认内容包骨架', 'published',
- '["concept.generate","deliverable.generate","brand.validate"]'::jsonb,
+ '["brief.refine","concept.generate","copy.generate","image.generate","deliverable.regenerate"]'::jsonb,
  '["concept.adopt","deliverable.batch_generate","project.archive"]'::jsonb,
  '["timeRange","offer","channel","audience"]'::jsonb),
 ('brand-visual-standard', '品牌视觉标准蓝图', 'brand_visual', '1.0.0', 'standard', '品牌视觉默认内容包骨架', 'published',
- '["concept.generate","deliverable.generate","brand.validate"]'::jsonb,
+ '["brief.refine","concept.generate","image.generate","image.edit","deliverable.regenerate"]'::jsonb,
  '["concept.adopt","deliverable.batch_generate","project.archive"]'::jsonb,
  '["visualElements","preservedElements","style"]'::jsonb),
 ('store-standard', '门店宣传标准蓝图', 'store', '1.0.0', 'standard', '门店宣传默认内容包骨架', 'published',
- '["concept.generate","deliverable.generate","brand.validate"]'::jsonb,
+ '["brief.refine","concept.generate","copy.generate","image.generate","deliverable.regenerate"]'::jsonb,
  '["concept.adopt","deliverable.batch_generate","project.archive"]'::jsonb,
  '["location","services","visitReason","promotion"]'::jsonb),
 ('social-standard', '社媒内容标准蓝图', 'social', '1.0.0', 'standard', '社媒内容默认内容包骨架', 'published',
- '["concept.generate","deliverable.generate","brand.validate"]'::jsonb,
+ '["brief.refine","concept.generate","copy.generate","image.generate","deliverable.regenerate"]'::jsonb,
  '["concept.adopt","deliverable.batch_generate","project.archive"]'::jsonb,
  '["topic","audience","callToAction"]'::jsonb),
 ('personal-ip-standard', '个人 IP 内容标准蓝图', 'personal_ip', '1.0.0', 'standard', '个人 IP 内容默认内容包骨架', 'published',
- '["concept.generate","deliverable.generate","brand.validate"]'::jsonb,
+ '["brief.refine","concept.generate","copy.generate","image.generate","deliverable.regenerate"]'::jsonb,
  '["concept.adopt","deliverable.batch_generate","project.archive"]'::jsonb,
  '["viewpoint","story","channels"]'::jsonb),
 ('narrative-series-short-drama', '系列短剧蓝图', 'narrative_series', '1.0.0', 'short_drama', '系列叙事短剧默认骨架', 'published',
- '["story.plan","episode.generate","shot.generate","video.generate"]'::jsonb,
+ '["brief.refine","concept.generate","copy.generate","image.generate"]'::jsonb,
  '["story.adopt","video.batch_generate","project.archive"]'::jsonb,
  '["story","episodeCount","episodeDuration","style"]'::jsonb)
 ON CONFLICT DO NOTHING;
@@ -227,6 +247,21 @@ VALUES
  '{}'::jsonb)
 ON CONFLICT DO NOTHING;
 
+-- ---------------- 内置执行绑定 ----------------
+-- 只种真实接通的 Tool 分支；Agent/Workflow 待有稳定运行时契约后再配置。
+-- 品牌与主张校验没有真实校验执行器，不得绑定到文案生成伪装成校验能力。
+INSERT INTO cs_execution_binding
+    (action_key, target_type, target_ref, binding_version, priority,
+     confirmation_required, estimated_credits, status)
+VALUES
+('brief.refine', 'tool', 'copywriting.generate', '1.0.0', 0, TRUE, 1.00, 'published'),
+('concept.generate', 'tool', 'copywriting.generate', '1.0.0', 0, TRUE, 1.00, 'published'),
+('copy.generate', 'tool', 'copywriting.generate', '1.0.0', 0, TRUE, 1.00, 'published'),
+('image.generate', 'tool', 'aigc.image.generate', '1.0.0', 0, TRUE, 10.00, 'published'),
+('image.edit', 'tool', 'aigc.image.edit', '1.0.0', 0, TRUE, 10.00, 'published'),
+('deliverable.regenerate', 'tool', 'copywriting.generate', '1.0.0', 0, TRUE, 1.00, 'published')
+ON CONFLICT DO NOTHING;
+
 -- ---------------- 资源权限码 ----------------
 WITH resources(resource, resource_name) AS (
     VALUES
@@ -256,6 +291,14 @@ SELECT resource_name || action_name,
        'content', resource, action, 0
 FROM resources
 CROSS JOIN actions
+ON CONFLICT (code) DO NOTHING;
+
+-- 动作执行与对象版本是命令式能力，不参与通用 CRUD 动作矩阵，单独登记。
+INSERT INTO sys_permission_code (name, code, module, resource, action, status)
+VALUES
+('执行内容项目动作', 'content:project:action', 'content', 'project', 'action', 0),
+('读取内容对象版本', 'content:object-version:read', 'content', 'object-version', 'read', 0),
+('导出内容对象版本', 'content:object-version:export', 'content', 'object-version', 'export', 0)
 ON CONFLICT (code) DO NOTHING;
 
 INSERT INTO sys_role_permission (role_id, permission_id)

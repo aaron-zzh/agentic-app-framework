@@ -55,9 +55,7 @@ public class ContentActionCommandService {
                     "copy.generate", "生成文案",
                     "image.generate", "生成图片",
                     "image.edit", "局部修改图片",
-                    "deliverable.regenerate", "重新生成交付物",
-                    "brand.validate", "品牌校验",
-                    "claim.validate", "主张证据校验");
+                    "deliverable.regenerate", "重新生成交付物");
 
     private final ContentProjectAccessGuard accessGuard;
     private final ContentProjectObjectRepository objectRepository;
@@ -255,8 +253,6 @@ public class ContentActionCommandService {
                     List.of(
                             ContentObjectTypeEnum.IMAGE_DELIVERABLE.getCode(),
                             ContentObjectTypeEnum.SHOT_KEYFRAME.getCode());
-            case "brand.validate", "claim.validate" ->
-                    List.of(ContentObjectTypeEnum.REVIEW.getCode());
             default -> List.of(ContentObjectTypeEnum.COPY_DELIVERABLE.getCode());
         };
     }
