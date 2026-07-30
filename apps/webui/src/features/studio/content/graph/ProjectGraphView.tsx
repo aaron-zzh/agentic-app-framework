@@ -48,6 +48,7 @@ const STATUS_VARIANT = {
 } as const
 
 interface GraphNodeActions {
+  readOnly: boolean
   onOpenDetails: (id: number) => void
   onOpenCanvas: (id: number) => void
   onAnnotateImage: (id: number) => void
@@ -130,6 +131,7 @@ function ContentDomainNodeComponent({ data, selected }: NodeProps) {
                 variant="outline"
                 size="xs"
                 className="flex-1"
+                disabled={actions?.readOnly}
                 onClick={(event) => {
                   event.stopPropagation()
                   if (canOpenCanvas) actions?.onOpenCanvas(objectId)
@@ -160,6 +162,7 @@ const NODE_TYPES = { contentDomain: ContentDomainNode }
 export interface ProjectGraphViewProps {
   graph: ContentProjectGraphVO
   focusObjectId?: number
+  readOnly?: boolean
   onFocusObject: (id: number) => void
   onOpenDetails: (id: number) => void
   onOpenCanvas: (id: number) => void
@@ -175,6 +178,7 @@ function tierForZoom(zoom: number) {
 export function ProjectGraphView({
   graph,
   focusObjectId,
+  readOnly = false,
   onFocusObject,
   onOpenDetails,
   onOpenCanvas,
@@ -198,8 +202,8 @@ export function ProjectGraphView({
     [graph, collapsedGroups, activeLayers, focusObjectId, zoomTier]
   )
   const nodeActions = useMemo(
-    () => ({ onOpenDetails, onOpenCanvas, onAnnotateImage }),
-    [onOpenDetails, onOpenCanvas, onAnnotateImage]
+    () => ({ readOnly, onOpenDetails, onOpenCanvas, onAnnotateImage }),
+    [readOnly, onOpenDetails, onOpenCanvas, onAnnotateImage]
   )
 
   function handleMoveEnd(_event: MouseEvent | TouchEvent | null, nextViewport: Viewport) {

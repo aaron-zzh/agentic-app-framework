@@ -65,6 +65,7 @@ export default function StudioProjectDetailPage() {
   const { data: project, isLoading: projectLoading } = useContentProject(validProjectId)
   const { data: graph, isLoading: graphLoading } = useContentProjectGraph(validProjectId)
   const { data: summary } = useContentProjectSummary(validProjectId)
+  const readOnly = project?.status === "archived"
 
   const setOpen = useChatterStore((state) => state.setOpen)
   const setMode = useChatterStore((state) => state.setMode)
@@ -118,6 +119,7 @@ export default function StudioProjectDetailPage() {
   }
 
   function handleOpenCanvas(id: number, mode: ContentCanvasMode) {
+    if (readOnly) return
     const object = graph?.objects.find((item) => item.id === id)
     if (!object) return
     handleFocusObject(id)
@@ -167,6 +169,7 @@ export default function StudioProjectDetailPage() {
           <ProjectGraphView
             graph={graph}
             focusObjectId={focusObjectId}
+            readOnly={readOnly}
             onFocusObject={handleFocusObject}
             onOpenDetails={handleOpenDetails}
             onOpenCanvas={(id) => handleOpenCanvas(id, "canvas")}
@@ -177,6 +180,7 @@ export default function StudioProjectDetailPage() {
             graph={graph}
             activeStage={activeStage}
             focusObjectId={focusObjectId}
+            readOnly={readOnly}
             onStageChange={(stage) => updateUrl({ stage })}
             onOpenDetails={handleOpenDetails}
             onOpenCanvas={(id) => handleOpenCanvas(id, "canvas")}
@@ -200,6 +204,7 @@ export default function StudioProjectDetailPage() {
       <ObjectDetailPanel
         open={detailPanel.value}
         object={focusedObject}
+        readOnly={readOnly}
         onOpenChange={detailPanel.setValue}
       />
 

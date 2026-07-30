@@ -40,6 +40,7 @@ export interface ProjectStructureViewProps {
   graph: ContentProjectGraphVO
   activeStage: ProjectGraphStage
   focusObjectId?: number
+  readOnly?: boolean
   onStageChange: (stage: ProjectGraphStage) => void
   onOpenDetails: (id: number) => void
   onOpenCanvas: (id: number) => void
@@ -50,6 +51,7 @@ export function ProjectStructureView({
   graph,
   activeStage,
   focusObjectId,
+  readOnly = false,
   onStageChange,
   onOpenDetails,
   onOpenCanvas,
@@ -199,6 +201,7 @@ export function ProjectStructureView({
                             <Button
                               variant="ghost"
                               size="sm"
+                              disabled={readOnly}
                               onClick={() => onOpenCanvas(object.id)}
                             >
                               打开画布
@@ -209,6 +212,7 @@ export function ProjectStructureView({
                             <Button
                               variant="ghost"
                               size="sm"
+                              disabled={readOnly}
                               onClick={() => onAnnotateImage(object.id)}
                             >
                               标注

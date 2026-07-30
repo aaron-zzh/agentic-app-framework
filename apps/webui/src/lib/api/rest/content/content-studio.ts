@@ -319,13 +319,6 @@ export interface ContentBrandProfileInput {
   status?: ContentConfigStatus
 }
 
-export interface ContentProjectInput extends ContentProjectMaterializeDTO {
-  generationMode?: ContentGenerationMode
-  status?: ContentProjectStatus
-  coverUrl?: string
-  budgetLimit?: number
-}
-
 export interface ContentProjectUpdateInput {
   name?: string
   brief?: string
@@ -348,7 +341,6 @@ export interface ContentProjectObjectInput {
   schemaVersion?: string
   entityResource?: string
   entityId?: number
-  adoptedVersionRef?: string
   summary?: string
   payload?: Record<string, unknown>
 }
@@ -476,8 +468,6 @@ export const contentStudioApi = {
       params: pageParams(params),
       headers: OWN_SCOPE_HEADERS
     }),
-  createProject: (data: ContentProjectInput) =>
-    backendApi.post<ContentProjectVO>("/content/projects", data, { headers: OWN_SCOPE_HEADERS }),
   materializeProject: (data: ContentProjectMaterializeDTO) =>
     backendApi.post<ContentProjectVO>("/content/projects/_materialize", data, {
       headers: OWN_SCOPE_HEADERS

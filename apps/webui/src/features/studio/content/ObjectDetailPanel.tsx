@@ -72,10 +72,16 @@ const EXECUTION_STATUS_VARIANT = {
 export interface ObjectDetailPanelProps {
   open: boolean
   object?: ContentProjectObjectVO
+  readOnly?: boolean
   onOpenChange: (open: boolean) => void
 }
 
-export function ObjectDetailPanel({ open, object, onOpenChange }: ObjectDetailPanelProps) {
+export function ObjectDetailPanel({
+  open,
+  object,
+  readOnly = false,
+  onOpenChange
+}: ObjectDetailPanelProps) {
   const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null)
   const [selectedRunId, setSelectedRunId] = useState<number | null>(null)
   const objectId = object?.id ?? null
@@ -96,7 +102,7 @@ export function ObjectDetailPanel({ open, object, onOpenChange }: ObjectDetailPa
   const selectedVersion = versions.find((version) => version.id === selectedVersionId)
 
   function handleAdopt() {
-    if (!object || selectedVersionId === null) return
+    if (readOnly || !object || selectedVersionId === null) return
     adoptVersion.mutate(
       { objectId: object.id, versionId: selectedVersionId },
       {
@@ -109,7 +115,7 @@ export function ObjectDetailPanel({ open, object, onOpenChange }: ObjectDetailPa
   }
 
   function handleReject(versionId: number) {
-    if (!object) return
+    if (readOnly || !object) return
     rejectVersion.mutate(
       { objectId: object.id, versionId },
       { onSuccess: () => notify.success("候选版本已否决") }
@@ -125,7 +131,9 @@ export function ObjectDetailPanel({ open, object, onOpenChange }: ObjectDetailPa
           </SheetTitle>
           <SheetDescription>
             {object
-              ? `${OBJECT_TYPE_LABELS[object.objectType]} · #${object.objectKey}`
+              ? readOnly
+                ? `${OBJECT_TYPE_LABELS[object.objectType]} · #${object.objectKey} · 项目已归档，采用、否决、取消与重试均已禁用`
+                : `${OBJECT_TYPE_LABELS[object.objectType]} · #${object.objectKey}`
               : "查看项目对象"}
           </SheetDescription>
         </SheetHeader>
@@ -194,7 +202,7 @@ export function ObjectDetailPanel({ open, object, onOpenChange }: ObjectDetailPa
                                 type="button"
                                 variant="outline"
                                 size="xs"
-                                disabled={rejectVersion.isPending}
+                                disabled={readOnly || rejectVersion.isPending}
                                 onClick={() => handleReject(version.id)}
                               >
                                 否决
@@ -202,7 +210,7 @@ export function ObjectDetailPanel({ open, object, onOpenChange }: ObjectDetailPa
                               <Button
                                 type="button"
                                 size="xs"
-                                disabled={adoptVersion.isPending}
+                                disabled={readOnly || adoptVersion.isPending}
                                 onClick={() => setSelectedVersionId(version.id)}
                               >
                                 采用
@@ -277,6 +285,7 @@ export function ObjectDetailPanel({ open, object, onOpenChange }: ObjectDetailPa
                               variant="outline"
                               size="xs"
                               disabled={
+                                readOnly ||
                                 !["pending", "running"].includes(selectedRun.status) ||
                                 cancelRun.isPending
                               }
@@ -294,6 +303,7 @@ export function ObjectDetailPanel({ open, object, onOpenChange }: ObjectDetailPa
                               variant="outline"
                               size="xs"
                               disabled={
+                                readOnly ||
                                 !["failed", "canceled"].includes(selectedRun.status) ||
                                 retryRun.isPending
                               }

@@ -69,6 +69,7 @@ export function ContentActionBar({ project, focusedObject }: ContentActionBarPro
   })
   const runAction = useRunContentAction()
   const snippets = snippetPage?.list ?? []
+  const archived = project.status === "archived"
   const availableActions = focusedObject
     ? actions.filter(
         (action) =>
@@ -79,7 +80,15 @@ export function ContentActionBar({ project, focusedObject }: ContentActionBarPro
   const selectedAction =
     availableActions.find((action) => action.actionKey === selectedActionKey) ??
     availableActions.at(0)
-  const disabled = project.status === "archived" || !selectedAction || runAction.isPending
+  const actionUnavailableMessage =
+    !actionsLoading && actions.length === 0
+      ? "当前项目蓝图未声明可用动作"
+      : !actionsLoading && availableActions.length === 0
+        ? focusedObject
+          ? "当前对象没有适用动作"
+          : "当前项目没有适用的项目级动作"
+        : null
+  const disabled = archived || !selectedAction || runAction.isPending
 
   function insertSnippet(id: number, content?: string) {
     if (!content) return
@@ -88,7 +97,7 @@ export function ContentActionBar({ project, focusedObject }: ContentActionBarPro
   }
 
   function execute(confirmed = false) {
-    if (!selectedAction) return
+    if (archived || !selectedAction) return
     runAction.mutate(
       {
         projectId: project.id,
@@ -159,14 +168,19 @@ export function ContentActionBar({ project, focusedObject }: ContentActionBarPro
                 : "先聚焦一个对象，或描述要推进的项目级动作…"
             }
             className="min-h-20 resize-y border-0 bg-transparent shadow-none focus-visible:ring-0"
-            disabled={project.status === "archived"}
+            disabled={archived}
           />
+          {archived ? (
+            <p className="text-amber-600 text-sm">
+              项目已归档，创作输入、执行动作、版本处置、画布与标注均已禁用。
+            </p>
+          ) : null}
 
           <div className="flex flex-wrap items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={<Button type="button" variant="outline" size="sm" />}
-                disabled={snippetsLoading}
+                disabled={archived || snippetsLoading}
               >
                 <Library />
                 片段库
@@ -214,29 +228,36 @@ export function ContentActionBar({ project, focusedObject }: ContentActionBarPro
             </TooltipProvider>
 
             <div className="ml-auto flex min-w-0 items-center gap-2">
-              {availableActions.length > 0 ? (
-                <Select
-                  value={selectedAction?.actionKey ?? ""}
-                  onValueChange={(value) => setSelectedActionKey(value ?? "")}
-                >
-                  <SelectTrigger size="sm" className="max-w-52">
-                    <SelectValue>{selectedAction?.label ?? "选择动作"}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent align="end">
-                    <SelectGroup>
-                      {availableActions.map((action) => (
-                        <SelectItem key={action.actionKey} value={action.actionKey}>
-                          {action.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              ) : null}
-              <Button type="button" disabled={disabled} onClick={() => execute()}>
-                {runAction.isPending ? <LoaderCircle className="animate-spin" /> : <Sparkles />}
-                {actionsLoading ? "加载动作…" : "执行"}
-              </Button>
+              {actionUnavailableMessage ? (
+                <p className="text-muted-foreground text-sm">{actionUnavailableMessage}</p>
+              ) : (
+                <>
+                  {availableActions.length > 0 ? (
+                    <Select
+                      value={selectedAction?.actionKey ?? ""}
+                      onValueChange={(value) => setSelectedActionKey(value ?? "")}
+                      disabled={archived}
+                    >
+                      <SelectTrigger size="sm" className="max-w-52">
+                        <SelectValue>{selectedAction?.label ?? "选择动作"}</SelectValue>
+                      </SelectTrigger>
+                      <SelectContent align="end">
+                        <SelectGroup>
+                          {availableActions.map((action) => (
+                            <SelectItem key={action.actionKey} value={action.actionKey}>
+                              {action.label}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  ) : null}
+                  <Button type="button" disabled={disabled} onClick={() => execute()}>
+                    {runAction.isPending ? <LoaderCircle className="animate-spin" /> : <Sparkles />}
+                    {actionsLoading ? "加载动作…" : "执行"}
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
