@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.module.ai.agui.v2;
+package com.xuejiai.aaf.module.ai.agui;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -26,7 +26,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.*;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 
-/** AG-UI v2 唯一入口；无固定 Assistant Bean、无 ThreadLocal、无 legacy fallback。 */
+/** AG-UI 唯一入口；无固定 Assistant Bean、无 ThreadLocal、无 legacy fallback。 */
 @RestController
 @RequestMapping("/api/agui")
 @PreAuthorize("isAuthenticated()")
