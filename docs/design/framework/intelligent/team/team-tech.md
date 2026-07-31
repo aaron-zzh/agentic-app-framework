@@ -151,7 +151,7 @@ public class TeamOrchestrator {
 - coordinator Assistant 本身就是 AssistantExecutor，天然具备 Agent 调度能力
 - A2A 协议统一了内部/外部通信，未来可无缝扩展到分布式
 
-AgentScope `Pipeline`/`MsgHub` 能力保留在 AgentScope 整合文档中作为未来优化选项（当 coordinator 需要高性能并行编排时可引入）。
+AgentScope 1.x `Pipeline`/`MsgHub` 不再作为目标选项。AgentScope 2.0 subagent 只用于单个 Assistant 内部委派；Team 的多 Assistant 分工、聚合与仲裁由 AAF Team 层通过稳定端口实现。
 
 ## 关键 Hook 注入点
 
@@ -200,4 +200,5 @@ try (var hub = MsgHub.builder()
 
 ## 相关文档（补充）
 
-- [AgentScope 整合策略](../agentscope-integration.md)
+- [五层智能架构](../architecture.md)
+- [AgentScope v2 使用指南](../../../../reference/dev/agentscope-usage-guide.md)

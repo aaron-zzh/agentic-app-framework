@@ -479,7 +479,7 @@ AAF 自研：五层接口定义 / 模型路由决策链 / 记忆管道 / 知识�
 
 | 文档 | 内容 |
 |------|------|
-| [AgentScope 整合](intelligent/agentscope-integration.md) | AgentScope 整合策略、编排模式映射、适配器清单 |
+| [AgentScope v2 使用指南](../../reference/dev/agentscope-usage-guide.md) | Harness、Middleware、状态流转与多智能体运行参考 |
 | [intelligent/agent.md](intelligent/architecture.md) | 五层智能架构详细设计 |
 | [intelligent/cognition.md](intelligent/cognition/cognition.md) | Cognition 层详细设计（含分层 Agentic 策略） |
 | [personalization.md](intelligent/cognition/personalization.md) | 用户感知与个性化 |

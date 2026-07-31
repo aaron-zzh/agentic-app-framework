@@ -64,7 +64,7 @@ tmp/           → 参考项目与素材（不参与构建，仅供 AI 查阅学
 | `pnpm acceptance:affected` | tester | 只跑 affected 项目的验收测试 |
 | `pnpm format` / `pnpm format:check` | — | Nx 格式化 / 格式检查 |
 
-developer 完工前必跑 `pnpm check:affected`，失败循环修复到全绿。
+developer 完工前根据改动影响范围判断是否需要运行 `pnpm check:affected`，失败时循环修复到全绿。
 
 ## 开发流程（摘要）
 
@@ -139,13 +139,12 @@ product(Epic→Story 拆分 + Spec 细化)
 - **不做 broad refactors**：只改任务要求的代码范围。借机重构相邻模块即 blocker（与"≥5 文件需协调者评估"配套）
 - **优先已有模式**：同一问题已有实现 → 复用或改造；禁止并行抽象（两套做同一件事）
 - **代码注释语言**：Java / TS 代码内注释保持一致（建议中文，与 `docs/` 真理源一致），禁中英混用
-- **文档禁编号**：编写文档时章节标题不加数字编号（如"一、""1."），用 Markdown 标题层级表达结构。已有编号的历史文档不主动修改，新建和重写时遵守
+- **文档禁编号**：编写技术文档时章节标题不加数字编号（如"一、""1."），用 Markdown 标题层级表达结构。已有编号的历史文档不主动修改，新建和重写时遵守
 - **TypeScript 严格模式**：类型必须显式，禁 `any` / 禁 `@ts-ignore`（特殊情况加注释解释）
 - **前端服务端状态边界**：TanStack Query 管服务端缓存；Zustand 仅管客户端 UI；禁止把服务端数据复制到 Zustand
 - **测试放置**：共享逻辑 → `packages/*.test.ts`；平台接线 → `apps/*.test.tsx`；测试需 mock `next/*` 来测共享组件即 blocker（位置错误）
 - **编码任务开始前必须加载对应 agent 上下文**：前端任务开始前加载 `.kiro/agents/developer-webui.json` 中 `resources` 列出的所有文档；后端任务开始前加载 `.kiro/agents/developer-service.json` 中 `resources` 列出的所有文档；前后端同时涉及时两者都加载。不得凭记忆跳过加载直接编码
 - **完工前必跑 `pnpm check:affected`**：失败即未完工，不得提交或汇报
-- **上下文使用率 ≤ 50%**：超过必须分析原因 + 记录 + 优化（详见 [上下文管理规范](docs/reference/team/context-management-standard.md)）
 - **strReplace 前必须读取文件最新内容**：禁止凭记忆直接写 `old_str`，必须先用文件读取工具确认当前内容再做替换，否则大概率 `old_str not found`
 - **Windows 环境禁用 Linux shell 参数**：shell 命令运行在 Windows PowerShell，禁用 `-tail` / `-head`（Linux 专属），读取文件末尾用 `Select-Object -Last N`，读取开头用 `Select-Object -First N`；优先用文件读取工具代替 shell 命令
 - **base-ui Trigger 组件禁止套 `<Button>`**：`DropdownMenuTrigger`、`SelectTrigger` 等 base-ui primitive trigger 本身渲染为 `<button>`，不能再用 `asChild` 套 `<Button>`（会产生 button 嵌套 button 导致 hydration error）。需要自定义样式时直接给 trigger 加 `className`（可用 `buttonVariants()` 生成），需要自定义组件时用 `render` prop：`<Menu.Trigger render={<MyButton />}>`
@@ -254,7 +253,6 @@ AAF 后端 Maven 模块依赖方向（详见 [architecture-constraints.md](docs/
 | 文档 | 内容 |
 |------|------|
 | [docs/task/backlog.md](docs/task/backlog.md) | 所有用户故事的唯一来源 |
-| [docs/task/aaf-v0.1.0.md](docs/task/aaf-v0.1.0.md) | 当前迭代任务计划 |
 | [docs/prd/roadmap.md](docs/prd/roadmap.md) | 版本里程碑路线图 |
 | [docs/prd/improvements.md](docs/prd/improvements.md) | 改进意见池 |
 
@@ -264,10 +262,9 @@ AAF 后端 Maven 模块依赖方向（详见 [architecture-constraints.md](docs/
 - 完工前必跑 `pnpm check:affected`，失败汇报视为未完工
 - 批量修改文件（≥5 个）或改接口签名 → 协调者评估
 - 🔴 高风险设计必须人类审核后再开发
-- 上下文使用率不得超过 50%
 - 规范文档（`docs/reference/`）只能由协调者修改
 - 一个知识点一份文档；发现重复记录到 [改进意见](docs/prd/improvements.md)
-- 开发记录：v0.1.0 采用轻量模式——每完成一个任务在 `dev-log.md` 中记录一行：`- ✅ #N 标题 — 一句话核心点（日期）`。从 v0.2.0 开始使用完整格式
+- 开发记录采用轻量模式——每完成一个任务在 `dev-log.md` 中记录一行：`- ✅ #N 标题 — 一句话核心点（日期）`。从 v2.0 开始使用完整格式
 
 <!-- nx configuration start-->
 <!-- Leave the start & end comments to automatically receive updates. -->

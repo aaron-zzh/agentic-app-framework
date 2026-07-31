@@ -46,7 +46,7 @@ gains:
 dependencies:
   - ../webui/user-studio-mvp.md
   - ../webui/flow-editor.md
-  - ../../framework/intelligent/architecture-v2.md
+  - ../../framework/intelligent/architecture.md
 related:
   - ./content-studio-capability-concept-map.md
   - ./content-studio-competitor-analysis.md

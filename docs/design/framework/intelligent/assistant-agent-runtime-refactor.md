@@ -16,7 +16,7 @@ gains:
 # 对话入口统一重构方案
 
 > Assistant 是用户唯一交互入口，Agent 是 Assistant 内部调度的无状态能力单元。
-> 本文是 [五层智能架构](architecture.md) 在「对话入口 + AgentScope 绑定」上的落地与纠偏，配套 [Assistant 技术方案](assistant/assistant-tech.md)、[Agent 技术方案](agent/agent-tech.md)、[AgentScope 整合策略](agentscope-integration.md)。
+> 本文是 [五层智能架构](architecture.md) 在「对话入口 + AgentScope 绑定」上的落地与纠偏，配套 [Assistant 技术方案](assistant/assistant-tech.md)、[Agent 技术方案](agent/agent-tech.md)、[AgentScope v2 使用指南](../../../reference/dev/agentscope-usage-guide.md)。
 
 ## 背景与问题
 
@@ -84,7 +84,7 @@ AssistantRuntime.materialize(ctx)          ← 按 threadId 上下文物化
 - **单一任务**：协调者调用一个内置 Agent 工具完成。
 - **多角色并行（fork，后置 v0.x+）**：协调者内部编排多个内置 Agent，事件 merge 进同一条流——这是协调者的高级能力，不改变对外入口契约。
 
-> 这是对 [agentscope-integration.md](agentscope-integration.md) 编排模式映射的落地：Assistant→Agent 走 **Subagents / Supervisor（agent-as-tool）**，Skill 路由走 **SkillBox**。
+> 这是对 [../../../reference/dev/agentscope-usage-guide.md](../../../reference/dev/agentscope-usage-guide.md) 编排模式映射的落地：Assistant→Agent 走 **Subagents / Supervisor（agent-as-tool）**，Skill 路由走 **SkillBox**。
 
 ## AG-UI 注册：按类型，不按实例
 
@@ -119,7 +119,7 @@ registry.registerFactory("assistant",
 | 内置 Agent（pool） | agent-as-tool（注册进 Toolkit 的 `call_agent`） | 协调者委派的工人 |
 | AgentDefinition | `ReActAgent` 蓝图 + `AgentPool` 池化 | 不再直接对外注册 |
 
-编排模式与适配器清单复用 [agentscope-integration.md](agentscope-integration.md)，本文不重复。
+编排模式与适配器清单复用 [../../../reference/dev/agentscope-usage-guide.md](../../../reference/dev/agentscope-usage-guide.md)，本文不重复。
 
 ## 知识库与记忆系统接入（复用 AgentScope SPI）
 
@@ -411,7 +411,7 @@ AI 执行中 → HumanApprovalService.request() → 存入 pending Map + 生成 
 - [五层智能架构](architecture.md)
 - [Assistant 技术方案](assistant/assistant-tech.md)
 - [Agent 技术方案](agent/agent-tech.md)
-- [AgentScope 整合策略](agentscope-integration.md)
+- [AgentScope v2 使用指南](../../../reference/dev/agentscope-usage-guide.md)
 
 ## 架构重构意见：以认知模型驱动，AgentScope 仅为执行层（2026-06-02）
 

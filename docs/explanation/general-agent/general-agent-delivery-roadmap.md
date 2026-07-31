@@ -15,8 +15,7 @@ dependencies:
   - ./agent-capabilities-explained.md
   - ./general-agent-migration-design.md
 related:
-  - ../../design/framework/intelligent/architecture-v2.md
-  - ../../design/framework/intelligent/architecture-v2-development-plan.md
+  - ../../design/framework/intelligent/architecture.md
 scope:
   includes:
     - 分阶段能力范围
@@ -137,7 +136,7 @@ gains:
 
 ## 与 AAF 的衔接
 
-本路线与 AAF 的五层结构可以自然对应，但这里只表达能力归属，不构成具体模块或版本承诺。权威领域契约见 [五层智能架构 v2](../../design/framework/intelligent/architecture-v2.md)，可执行拆分和退出标准见 [五层智能架构 v2 开发计划](../../design/framework/intelligent/architecture-v2-development-plan.md)。
+本路线与 AAF 的五层结构可以自然对应，但这里只表达能力归属，不构成具体模块或版本承诺。权威领域契约、P0-P6 可执行拆分和退出标准统一见 [五层智能架构](../../design/framework/intelligent/architecture.md)。
 
 交付路线与技术阶段按信任能力对齐：
 

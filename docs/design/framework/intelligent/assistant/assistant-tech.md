@@ -330,4 +330,4 @@ public class AssistantSessionConfig {
 
 ## 相关文档（补充）
 
-- [AgentScope 整合策略](../agentscope-integration.md)
+- [AgentScope v2 使用指南](../../../../reference/dev/agentscope-usage-guide.md)

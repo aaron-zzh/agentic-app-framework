@@ -7,8 +7,7 @@ version: 0.3.0
 date: 2026-07-29
 author: Kiro
 related:
-  - ./architecture-v2.md
-  - ./architecture-v2-development-plan.md
+  - ./architecture.md
 scope:
   includes:
     - 领域模型统一（Role 双套定义收敛、SkillRoute 与技能表接线）
@@ -139,7 +138,7 @@ public final class DefaultEffectiveSkillResolver implements EffectiveSkillResolv
 ```
 
 **用途**：`AssistantApplicationService` 在物化/路由前调用 `effectiveSkillResolver.resolve(assignedRoles)`，得到的合并技能集合用于：
-1. 生成 `EffectiveContextManifest`（已有概念，`architecture-v2.md` 定义的"有效上下文清单"，补充技能来源说明）
+1. 生成 `EffectiveContextManifest`（已有概念，由 `architecture.md` 定义，补充技能来源说明）
 2. 作为 `SkillRoute.skillKey` 的可见性校验依据——`SkillRoute.skillKey` 必须在合并结果中，否则该路由不可用（替代当前"必须属于 `Role.skillKeys`"这条单角色校验，扩展为"必须属于该助理挂载的所有角色技能 + 内置技能合并结果"）
 
 **与 AgentScope 的边界（回应"基于 AgentScope 实现"的要求）**：合并逻辑本身是纯 Java 领域代码，不导入 `io.agentscope.*`。AgentScope 承担的是**合并结果如何影响 HarnessAgent 执行**——即把 `EffectiveSkillResolver` 解析出的技能列表，在编译/调用时转换成系统提示词追加段（技能的 `instructions`/`systemPrompt` 拼进 sysPrompt，或作为 `RuntimeContext` extra 传入）。工具白名单不在这一步处理，见下方「三、工具白名单双层交集」独立小节——技能与工具是两条不同的合并规则，不可混同。

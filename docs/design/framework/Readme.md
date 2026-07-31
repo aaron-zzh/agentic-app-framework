@@ -3,10 +3,11 @@ level: Practice
 layer: Model
 purpose: 框架设计目录索引
 status: published
-version: 1.1.0
-date: 2026-07-23
+version: 1.2.0
+date: 2026-07-31
 author: AaronZZH
 changelog:
+  - 2026-07-31 | 智能架构收敛为唯一 architecture.md
   - 2026-07-23 | 更新五层智能架构 v2 与开发计划入口
   - 2026-05-06 | 补充 Front Matter
 ---
@@ -33,8 +34,7 @@ framework/
 | 文档 | 说明 |
 |------|------|
 | [智能架构设计索引](intelligent/Readme.md) | 五层智能架构及专项设计导航 |
-| [五层智能架构 v2](intelligent/architecture-v2.md) | 当前智能层领域模型与 AgentScope v2 适配边界 |
-| [五层智能架构 v2 开发计划](intelligent/architecture-v2-development-plan.md) | P0-P6 实施、测试、迁移与删除门禁 |
+| [五层智能架构](intelligent/architecture.md) | 唯一智能层领域模型、AgentScope v2 运行时边界与 P0-P6 迁移门禁 |
 | [meta-engine.md](engine/meta/meta-engine.md) | 元引擎核心设计（调度、状态、上下文、置信度门控） |
 | [personalization.md](intelligent/cognition/personalization.md) | 用户感知与个性化（记忆管道、上下文、状态管理协同） |
 
@@ -42,7 +42,6 @@ framework/
 
 | 文档 | 说明 |
 |------|------|
-| [agent.md](intelligent/architecture.md) | 智能体系统设计（五层智能架构总览） |
 | [cognition.md](intelligent/cognition/cognition.md) | 认知层设计（Layer 1 Cognition，Memory/Knowledge/Value/Retrieval） |
 | [operator.md](operator.md) | Operator 操作者模型设计 |
 

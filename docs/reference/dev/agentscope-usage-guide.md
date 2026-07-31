@@ -3,25 +3,26 @@ level: Practice
 layer: Framework
 purpose: AgentScope 使用方式与运行时原理参考——从 ReActAgent 基础用法到 HarnessAgent 多用户多智能体场景
 status: published
-version: 1.2.0
-date: 2026-07-29
+version: 1.3.0
+date: 2026-07-31
 author: AaronZZH & Kiro
 scope:
   includes:
     - ReActAgent/HarnessAgent 最小可用示例
     - Harness 官方架构原理（能力叠加、三层状态流转）
-    - 响应式运行时原理（非阻塞、Hook、Pipeline、长期记忆、MCP）
+    - 响应式运行时、Middleware、Subagents、生产保护与 MCP
     - 多用户多智能体（主 Agent + 子 Agent）场景实现方式
     - Agent 定义来源的两种模式对比
   excludes:
-    - AAF 领域模型与 AgentScope 的映射决策（见 architecture-v2.md）
+    - AAF 领域模型与 AgentScope 的映射决策（见 architecture.md）
     - AgentScope 内部实现细节
+    - AgentScope 1.x Hook、Pipeline 与历史迁移 API
 gains:
   - 知道 ReActAgent 与 HarnessAgent 的关系与选型依据
   - 知道 AgentScope 2.0 官方以 Harness 为生产环境主推路径
   - 理解 Harness 能力叠加机制与三层状态流转
   - 理解响应式非阻塞运行时约束的来源
-  - 知道 Hook/Pipeline/长期记忆等机制与 AAF 对应实现的关系
+  - 知道 Middleware、Subagents、执行保护和 Cognition 边界
   - 知道多智能体场景下 Agent 定义与实例的关系
   - 知道 Agent 定义来源的两种可选模式及适用场景
 ---
@@ -249,76 +250,56 @@ Msg msg = Msg.builder()
 String text = msg.getTextContent();  // 优先用安全的 helper 方法，避免直接 .getContent().get(0) 可能 NPE
 ```
 
-### Hook：运行时介入机制
+### Middleware：运行时介入机制
 
-Hook 是 AgentScope 提供"自主但可控"的核心机制——在推理循环的关键节点插入自定义逻辑，不修改框架源码、不子类化：
+AgentScope 2.0 使用 `MiddlewareBase` 在推理循环关键阶段插入横切逻辑，不修改框架源码、不子类化 Agent：
 
-```java
-public interface Hook {
-    <T extends HookEvent> Mono<T> onEvent(T event);
-    default int priority() { return 100; }  // 数值越小优先级越高
-}
-```
-
-关键事件类型：`PreReasoningEvent`/`PostReasoningEvent`（LLM 推理前后，可修改）、`PreActingEvent`/`PostActingEvent`（工具执行前后，可修改）、`ReasoningChunkEvent`/`ActingChunkEvent`（流式片段，仅通知）。
-
-优先级分档参考：0-50 系统级（鉴权/安全）、51-100 高优先级（校验/预处理）、101-500 业务逻辑、501-1000 低优先级（日志/度量）。
-
-AAF 的 `AafToolPermissionHook`/`AafTraceHook`/`MemoryContextHook` 都是这套 Hook 机制的具体实现，对应"权限门控""执行轨迹""记忆注入"这些横切能力，不侵入 Agent 核心循环。
-
-### 运行时介入：中断、取消、人机协同
-
-生产环境的"自主性"必须配合运行时可控性，AgentScope 原生提供三种机制：
-
-- **安全中断（interrupt）**：任意时刻暂停执行，完整保留上下文和工具状态，支持无损恢复。
-- **优雅取消**：终止长时间运行/无响应的工具调用，不破坏 Agent 状态，可立即恢复或重定向。
-- **人机协同（HITL）**：通过 Hook 在任意推理步骤注入人工修正、补充上下文或指导，`PostReasoningEvent.stopAgent()` 暂停执行等待人工确认，恢复靠 `agent.stream(StreamOptions.defaults())` 续跑。
-
-这套机制是 AAF `ToolPermissionChecker`/HITL 审批流程的技术底座。
-
-### Pipeline：多 Agent 编排
-
-用于结构化编排多个 Agent 协作，两种基本模式：
-
-```java
-// 顺序执行：上一个 Agent 的输出是下一个的输入
-SequentialPipeline pipeline = SequentialPipeline.builder()
-    .addAgent(researchAgent)
-    .addAgent(summaryAgent)
-    .addAgent(reviewAgent)
-    .build();
-
-// 并行执行：多个 Agent 独立工作，结果聚合
-FanoutPipeline pipeline = FanoutPipeline.builder()
-    .addAgent(agent1)
-    .addAgent(agent2)
-    .build();
-```
-
-选择依据：任务间有依赖（后者需要前者输出）→ Sequential；任务可独立并行、只需汇总结果 → Fanout。这对应 AAF Team 层"主导助理牵头分工"的两种基础编排原语。
-
-### 长期记忆：三种模式
-
-```java
-LongTermMemory longTermMemory = Mem0LongTermMemory.builder()
-    .apiKey(System.getenv("MEM0_API_KEY"))
-    .userId("user_123")   // 多租户隔离的关键参数
-    .build();
-
-ReActAgent agent = ReActAgent.builder()
-    .model(model)
-    .longTermMemory(longTermMemory)
-    .longTermMemoryMode(LongTermMemoryMode.BOTH)
-    .build();
-```
-
-| 模式 | 行为 |
+| 阶段 | 典型用途 |
 |---|---|
-| `STATIC_CONTROL` | 框架自动管理（通过 Hook 在每轮前自动 retrieve/写回） |
-| `AGENTIC` | Agent 自主决定何时使用记忆（通过工具调用） |
-| `BOTH` | 两种方式结合 |
+| `onAgent` | 整轮执行的前后处理、预算预检、轨迹 |
+| `onReasoning` | 推理前后处理、上下文与任务提醒 |
+| `onActing` | 工具权限、审批、结果脱敏和裁剪 |
+| `onModelCall` | 模型计量、超时、重试观测 |
+| `onSystemPrompt` | 按调用上下文组装系统提示 |
 
-AAF 的立场是**不使用 AgentScope 原生 `longTermMemory`**，而是用 `MemoryContextHook`（等价于 `STATIC_CONTROL` 语义，但由 AAF 自己的 `RetrievalPipeline` 实现）手动注入——因为 AAF 已有独立的记忆/知识融合检索管道（`Cognition` 层），若同时启用两套会造成双重检索、双真理源。这是 AAF "划界"原则的具体应用，不是不知道官方机制存在。
+AAF 的记忆注入、权限、轨迹和计量分别由 v2 middleware 调用稳定端口完成。领域层不导入 `MiddlewareBase`，也不保留 Hook、ThreadLocal 或直接 SQL 接线。
+
+### 运行时介入：取消、暂停与 HITL
+
+生产环境的自主执行必须受 AAF 任务生命周期约束：
+
+- 取消通过响应式订阅和任务状态传播到运行中的 Agent/工具，不用线程阻塞或轮询。
+- 计划模式和工具审批只负责 Agent 运行时暂停；approval、责任主体和恢复点持久化在 AAF。
+- `enablePendingToolRecovery(true)` 可恢复挂起的工具调用，但不能替代 `TaskControlPort` 或授权事实表。
+- 重复审批回调、恢复和副本接管必须使用同一 executionId 与幂等键。
+
+### Subagents 与 AAF 编排
+
+AgentScope 2.0 的 Harness 通过 subagent middleware 支持单个 Assistant 内的自主任务委派。AAF 不使用 1.x `Pipeline`/`MsgHub` 作为 Team 或工作流主路径：
+
+- Assistant 内探索性委派可使用 subagent。
+- Team 的多 Assistant 分工、聚合和仲裁由 AAF Team 层负责。
+- 确定性流程由 AAF 工作流引擎负责，HarnessAgent 只作为节点执行单元。
+- 子 Agent 使用独立 executionId/sessionId；父任务只通过 AAF 任务契约和事件聚合。
+
+### 长期记忆边界
+
+AgentScope 2.0 仍提供 `LongTermMemory` 和 Harness 工作区记忆能力，但 AAF 默认不把它们作为长期记忆源。长期记忆、知识和价值观唯一归 `Cognition`；调用前由 `MemoryContextMiddleware` 注入，执行后通过治理流水线写回。
+
+`AgentState.context` 只是可压缩、可重建的推理工作集；`MEMORY.md` 默认关闭，如启用也只能是可从 Cognition 重建的缓存。禁止 AgentScope 记忆与 AAF Cognition 双写。
+
+### 生产运行保护
+
+以下 API 已在 AgentScope 2.0 `HarnessAgent.Builder` 中确认存在：
+
+| API | 用途 | AAF 使用约束 |
+|---|---|---|
+| `modelExecutionConfig(ExecutionConfig)` | 模型调用超时和重试 | 与任务预算、截止时间和计量事件一致 |
+| `toolExecutionConfig(ExecutionConfig)` | 工具调用超时和重试 | 副作用工具同时要求稳定幂等键 |
+| `toolExecutionContext(ToolExecutionContext)` | 显式传递工具执行上下文 | 不用 ThreadLocal，不放凭证正文 |
+| `enablePendingToolRecovery(true)` | 恢复挂起的工具调用 | 与持久 approval 和任务恢复配合 |
+
+旧文档中的 `structuredOutputReminder(...)` Builder 示例不属于 2.0 正式版公开 API，不得继续复制；结构化输出应以当前模型接口和实际版本契约为准。
 
 ### MCP 集成
 
@@ -338,5 +319,4 @@ toolkit.registration()
 
 ## 相关文档
 
-- [五层智能架构 v2](../../design/framework/intelligent/architecture-v2.md) — AAF 领域模型与 AgentScope 的映射决策
-- [五层智能架构 v2 开发计划](../../design/framework/intelligent/architecture-v2-development-plan.md) — 实施阶段与端口契约
+- [五层智能架构](../../design/framework/intelligent/architecture.md) — AAF 领域模型、AgentScope 映射决策、实施阶段与端口契约

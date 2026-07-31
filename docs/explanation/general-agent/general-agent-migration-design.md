@@ -15,8 +15,7 @@ dependencies:
   - ./agent-capabilities-explained.md
 related:
   - ./general-agent-delivery-roadmap.md
-  - ../../design/framework/intelligent/architecture-v2.md
-  - ../../design/framework/intelligent/architecture-v2-development-plan.md
+  - ../../design/framework/intelligent/architecture.md
 scope:
   includes:
     - 面向普通用户的概念翻译

@@ -295,7 +295,7 @@ public class AafLongTermMemory implements LongTermMemory {
 | [nexus-knowledge.md](../../engine/data-knowledge/nexus-knowledge.md) | NexusKB 知识引擎（向量检索/知识图谱/RAG） |
 | [state-manager.md](../../engine/meta/state-manager.md) | 状态管理器（四层状态/渐进提交/存储映射） |
 | [agent.md](../architecture.md) | Agent 工作记忆与注意力预算 |
-| [AgentScope 整合](../agentscope-integration.md) | AgentScope 整合策略与适配层 |
+| [AgentScope v2 使用指南](../../../../reference/dev/agentscope-usage-guide.md) | Harness、Middleware、状态与多智能体运行方式 |
 
 ## 三层数据的职责分工
 

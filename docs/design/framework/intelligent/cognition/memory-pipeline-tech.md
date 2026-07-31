@@ -134,4 +134,4 @@ public ReActAgent createWithMemory(AgentDefinition def, String userId) {
 
 - [功能设计 — 记忆管道](memory-pipeline.md)
 - [AtomMemory 记忆引擎](../../engine/data-knowledge/atom-memory.md)
-- [AgentScope 整合策略](../agentscope-integration.md)
+- [AgentScope v2 使用指南](../../../../reference/dev/agentscope-usage-guide.md)

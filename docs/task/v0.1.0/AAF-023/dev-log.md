@@ -139,7 +139,7 @@
 
 - 对比 6 份技术方案文档与实际代码，更新 4 份文档匹配代码实现
 - 关键差异：AgentRuntime 接口抽象（代码更好）、Team 层规范容器设计（代码更好）、Session 适配器为静态工厂（代码更好）
-- 文档已更新：agent-tech.md / assistant-tech.md / team-tech.md / retrieval-tech.md / agentscope-integration.md
+- 文档已更新：agent-tech.md / assistant-tech.md / team-tech.md / retrieval-tech.md / 旧 AgentScope 整合文档（现已并入 architecture.md 与 agentscope-usage-guide.md）
 
 > **待实现清单**（文档设计有但代码未实现）：
 > - `AafLongTermMemory`（实现 AgentScope LongTermMemory 接口，委托 AAF 记忆管道）

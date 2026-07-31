@@ -229,7 +229,7 @@ Core（LLM 推理）→ Cognition（记忆/知识，横向共享底座）→ Age
 | 文档 | 说明 |
 |------|------|
 | [生态架构](ecosystem.md) | 框架、产品、运营生态三层定位 |
-| [AgentScope 整合](framework/intelligent/agentscope-integration.md) | AgentScope 整合策略、编排模式映射、适配器清单 |
+| [AgentScope v2 使用指南](../reference/dev/agentscope-usage-guide.md) | Harness、Middleware、状态流转与多智能体运行参考 |
 | [元引擎设计](framework/engine/meta/meta-engine.md) | 核心引擎：调度机制、引擎编排、DSL 调度、自进化机制 |
 | [智能体系统设计](framework/intelligent/agent/agent-design.md) | 五层智能架构详细设计 |
 | [认知层设计](framework/intelligent/cognition/cognition.md) | Cognition：记忆/知识/价值观/检索管道 |
