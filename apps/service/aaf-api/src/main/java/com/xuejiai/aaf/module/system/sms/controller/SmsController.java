@@ -44,6 +44,7 @@ import lombok.extern.slf4j.Slf4j;
 @RestController
 @RequestMapping("/api/system/sms")
 @RequiredArgsConstructor
+@org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
 public class SmsController {
 
     private static final String CHANNEL_SMS = MessageChannel.SMS.name();

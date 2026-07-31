@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.stats.controller;
 import java.io.IOException;
 import java.time.LocalDate;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -45,6 +46,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/stats")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class StatsController {
 
     private final StatsService statsService;
@@ -113,6 +115,7 @@ public class StatsController {
 
     @Operation(summary = "漏斗分析")
     @GetMapping("/funnel")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<FunnelVO> queryFunnel(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
                     LocalDate startDate,
@@ -125,6 +128,7 @@ public class StatsController {
 
     @Operation(summary = "留存分析")
     @GetMapping("/retention")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<RetentionVO> queryRetention(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
                     LocalDate baseDate) {
@@ -134,6 +138,7 @@ public class StatsController {
 
     @Operation(summary = "用户画像")
     @GetMapping("/profile")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<UserProfileVO> queryUserProfile(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
@@ -144,6 +149,7 @@ public class StatsController {
 
     @Operation(summary = "导出 CSV 报表")
     @GetMapping("/report/csv")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public void exportCsv(
             @RequestParam ReportTypeEnum type,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate reportDate,
@@ -158,6 +164,7 @@ public class StatsController {
 
     @Operation(summary = "导出 PDF 报表（骨架）")
     @GetMapping("/report/pdf")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public void exportPdf(
             @RequestParam ReportTypeEnum type,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate reportDate,
@@ -174,18 +181,21 @@ public class StatsController {
 
     @Operation(summary = "积分消耗概览（余额/本月消耗/本月充值及环比）")
     @GetMapping("/credits/overview")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<CreditsOverviewVO> creditsOverview() {
         return Result.success(analyticsService.creditsOverview());
     }
 
     @Operation(summary = "积分消耗分类分布（饼图数据）")
     @GetMapping("/credits/by-category")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<CreditsCategoryVO> creditsByCategory() {
         return Result.success(analyticsService.creditsByCategory());
     }
 
     @Operation(summary = "积分流水分页（管理员视角）")
     @GetMapping("/credits/records")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<com.xuejiai.aaf.common.model.PageResult<CreditRecordVO>> creditsRecords(
             @RequestParam(defaultValue = "1") int pageNo,
             @RequestParam(defaultValue = "20") int pageSize,

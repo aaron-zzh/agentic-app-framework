@@ -3,9 +3,9 @@ package com.xuejiai.aaf.module.system.auth.service;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Base64;
-import java.util.Random;
 import java.util.UUID;
 
 import javax.imageio.ImageIO;
@@ -30,6 +30,7 @@ public class CaptchaService {
     private static final Duration CAPTCHA_TTL = Duration.ofMinutes(5);
     private static final int CODE_LENGTH = 4;
     private static final String CHARS = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final StringRedisTemplate redisTemplate;
 
@@ -55,17 +56,14 @@ public class CaptchaService {
      */
     public boolean verify(String captchaId, String code) {
         var key = CACHE_PREFIX + captchaId;
-        var cached = redisTemplate.opsForValue().get(key);
-        if (cached == null) return false;
-        redisTemplate.delete(key);
-        return cached.equalsIgnoreCase(code);
+        var cached = redisTemplate.opsForValue().getAndDelete(key);
+        return cached != null && cached.equalsIgnoreCase(code);
     }
 
     private String randomCode() {
-        var random = new Random();
         var sb = new StringBuilder(CODE_LENGTH);
         for (int i = 0; i < CODE_LENGTH; i++) {
-            sb.append(CHARS.charAt(random.nextInt(CHARS.length())));
+            sb.append(CHARS.charAt(SECURE_RANDOM.nextInt(CHARS.length())));
         }
         return sb.toString();
     }
@@ -74,7 +72,7 @@ public class CaptchaService {
         int width = 120, height = 40;
         var image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         var g = image.createGraphics();
-        var random = new Random();
+        var random = SECURE_RANDOM;
 
         g.setColor(Color.WHITE);
         g.fillRect(0, 0, width, height);

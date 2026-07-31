@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.pay.controller;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -22,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/credits")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class CreditController {
 
     private final CreditService creditService;

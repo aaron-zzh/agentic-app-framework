@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.ai.flow.agui;
 
 import java.util.Map;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/workflow")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class WorkflowAgUiController {
 
     private final WorkflowAgUiService workflowAgUiService;

@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.approval.controller;
 
 import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,6 +32,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/delegations")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class DelegationController {
 
     private final DelegationService delegationService;

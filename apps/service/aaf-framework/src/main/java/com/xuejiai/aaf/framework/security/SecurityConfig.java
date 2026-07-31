@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.framework.security;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import javax.crypto.SecretKey;
@@ -10,6 +11,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.access.PermissionEvaluator;
 import org.springframework.security.access.expression.method.DefaultMethodSecurityExpressionHandler;
 import org.springframework.security.access.expression.method.MethodSecurityExpressionHandler;
@@ -46,18 +48,10 @@ import com.xuejiai.aaf.framework.security.authorization.PermissionVersionService
 @EnableConfigurationProperties(JwtProperties.class)
 public class SecurityConfig {
 
-    /** 公开路径，无需认证 */
-    private static final String[] PUBLIC_PATHS = {
-        "/api/auth/**",
+    /** 产品级公开命名空间和基础设施端点。特殊协议入口按 HTTP 方法单独声明。 */
+    static final String[] PRODUCT_PUBLIC_PATHS = {
         "/api/public/**",
-        "/api/channel/wx/**",
-        "/api/system/chat/sessions/thread/*/messages",
-        "/api/agui/run/**",
         "/api/hello",
-        "/api/system/files/**",
-        "/api/pay/orders/notify",
-        "/api/pay/orders/*/redirect",
-        "/api/pay/orders/by-merchant-order-no/*",
         "/swagger-ui/**",
         "/swagger-ui.html",
         "/v3/api-docs/**",
@@ -65,9 +59,48 @@ public class SecurityConfig {
         "/ws/**"
     };
 
+    static final String[] PUBLIC_POST_PATHS = {
+        "/api/auth/login",
+        "/api/auth/register",
+        "/api/auth/register-by-email",
+        "/api/auth/verify-email",
+        "/api/auth/send-email-code",
+        "/api/auth/send-sms-code",
+        "/api/auth/login-by-email",
+        "/api/auth/login-by-phone",
+        "/api/auth/reset-password",
+        "/api/auth/reset-password-by-phone",
+        "/api/auth/refresh",
+        "/api/auth/logout",
+        "/api/auth/oauth/*/callback",
+        "/api/auth/oauth/exchange",
+        "/api/system/auth/captcha/verify",
+        "/api/wecom/kf/callback",
+        "/api/channel/wx/mp/callback",
+        "/api/channel/wx/mini/callback",
+        "/api/channel/wx/mini/login",
+        "/api/channel/wx/mini/phone-login",
+        "/api/channel/feishu/callback",
+        "/api/channel/webhook/inbound",
+        "/api/pay/orders/notify/wx",
+        "/api/pay/orders/notify/alipay"
+    };
+
+    static final String[] PUBLIC_GET_PATHS = {
+        "/api/auth/oauth/*/url",
+        "/api/auth/oauth/*/redirect",
+        "/api/system/auth/captcha",
+        "/api/wecom/kf/callback",
+        "/api/channel/wx/mp/callback"
+    };
+
     @Bean
     public SecretKey jwtSecretKey(JwtProperties properties) {
-        return new SecretKeySpec(properties.secret().getBytes(), "HmacSHA256");
+        var secret = properties.secret().getBytes(StandardCharsets.UTF_8);
+        if (secret.length < 32) {
+            throw new IllegalStateException("JWT HS256 密钥至少需要 32 字节");
+        }
+        return new SecretKeySpec(secret, "HmacSHA256");
     }
 
     @Bean
@@ -168,7 +201,11 @@ public class SecurityConfig {
                         session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(
                         auth ->
-                                auth.requestMatchers(PUBLIC_PATHS)
+                                auth.requestMatchers(PRODUCT_PUBLIC_PATHS)
+                                        .permitAll()
+                                        .requestMatchers(HttpMethod.POST, PUBLIC_POST_PATHS)
+                                        .permitAll()
+                                        .requestMatchers(HttpMethod.GET, PUBLIC_GET_PATHS)
                                         .permitAll()
                                         // 健康探针保持公开，供容器/编排做存活与就绪检查
                                         .requestMatchers("/actuator/health/**")

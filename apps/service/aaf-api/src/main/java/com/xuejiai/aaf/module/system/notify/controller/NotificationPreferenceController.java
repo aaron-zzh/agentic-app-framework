@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.system.notify.controller;
 
 import java.time.LocalTime;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -26,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/notification-preferences")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class NotificationPreferenceController {
 
     private final NotificationPreferenceService preferenceService;

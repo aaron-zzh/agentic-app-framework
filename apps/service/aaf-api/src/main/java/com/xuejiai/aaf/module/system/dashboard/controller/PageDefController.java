@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.system.dashboard.controller;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,6 +31,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/system/page-defs")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
 public class PageDefController {
 
     private final PageDefService pageDefService;
@@ -47,6 +49,7 @@ public class PageDefController {
     }
 
     @Operation(summary = "根据 slug 获取已发布的页面定义")
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/slug/**")
     public Result<PageDefVO> getBySlug(jakarta.servlet.http.HttpServletRequest request) {
         String slug = request.getRequestURI().replaceFirst(".*/slug/", "");

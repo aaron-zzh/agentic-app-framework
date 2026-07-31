@@ -35,6 +35,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/system/workflow")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class ApprovalProcessController {
 
     private final ApprovalProcessService approvalProcessService;

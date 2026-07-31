@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.ai.team;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.Result;
@@ -13,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/ai/teams")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class TeamController {
 
     private final TeamOrchestrator orchestrator;

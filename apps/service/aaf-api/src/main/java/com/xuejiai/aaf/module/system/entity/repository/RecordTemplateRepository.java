@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.system.entity.repository;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -18,6 +19,8 @@ public interface RecordTemplateRepository extends JpaRepository<RecordTemplate, 
     /** 查询某实体下当前用户或共享的模板 */
     List<RecordTemplate> findByEntitySlugAndCreateByOrEntitySlugAndIsSharedTrue(
             String slug1, Long createBy, String slug2);
+
+    Optional<RecordTemplate> findByIdAndCreateBy(Long id, Long createBy);
 
     /** 清除某实体下某用户的默认标记 */
     @Modifying

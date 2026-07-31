@@ -25,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 @RestController("rolePermissionController")
 @RequestMapping("/api/permissions")
 @RequiredArgsConstructor
+@org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
 public class PermissionController {
 
     private final PermissionService permissionService;

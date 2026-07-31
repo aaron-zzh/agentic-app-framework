@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.customerservice.controller;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api/wecom/kf/bindings")
 @RequiredArgsConstructor
 @ConditionalOnProperty(prefix = "aaf.wecom.kf", name = "enabled", havingValue = "true")
+@PreAuthorize("isAuthenticated()")
 public class WecomKfBindingController {
 
     private final WecomKfAccountBindingRepository bindingRepo;

@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.ai.model.controller;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.data.domain.Pageable;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -29,6 +30,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/ai/models")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
 public class AiModelController {
 
     private final AiModelService aiModelService;
@@ -49,6 +51,7 @@ public class AiModelController {
     }
 
     @Operation(summary = "已启用模型列表（下拉选择用，可按能力过滤，多个用逗号分隔）")
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/enabled")
     public Result<List<AiModelVO>> listEnabled(@RequestParam(required = false) String capability) {
         if (capability != null && !capability.isBlank()) {
@@ -58,7 +61,8 @@ public class AiModelController {
         return Result.success(aiModelService.listEnabled());
     }
 
-    @Operation(summary = "用户侧模型定价列表（积分/次，已含加价倍率，无需权限）")
+    @Operation(summary = "用户侧模型定价列表（积分/次，已含加价倍率，无需管理权限）")
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/public-pricing")
     public Result<List<PublicModelPricingVO>> publicPricing() {
         return Result.success(aiModelService.listPublicPricing());

@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.knowledge.controller;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/knowledge/{kbId}/problems")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class ProblemController {
 
     private final ProblemService problemService;

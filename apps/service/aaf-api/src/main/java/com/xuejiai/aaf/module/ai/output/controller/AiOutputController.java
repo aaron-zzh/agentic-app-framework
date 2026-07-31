@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.ai.output.controller;
 
 import java.util.Map;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/ai-outputs")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class AiOutputController {
 
     private final AiOutputService outputService;

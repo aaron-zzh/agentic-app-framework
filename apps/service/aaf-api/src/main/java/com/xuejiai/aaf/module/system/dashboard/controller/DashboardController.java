@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -43,6 +44,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/system/dashboards")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class DashboardController {
 
     private static final Set<String> ADMIN_ROLES =
@@ -65,6 +67,7 @@ public class DashboardController {
     }
 
     @Operation(summary = "创建预设（管理员）")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PostMapping("/presets")
     public Result<DashboardPresetVO> createPreset(
             @Validated @RequestBody DashboardPresetCreateDTO dto) {
@@ -80,6 +83,7 @@ public class DashboardController {
     }
 
     @Operation(summary = "更新预设（管理员）")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PutMapping("/presets/{id}")
     public Result<DashboardPresetVO> updatePreset(
             @PathVariable Long id, @Validated @RequestBody DashboardPresetUpdateDTO dto) {
@@ -101,6 +105,7 @@ public class DashboardController {
     }
 
     @Operation(summary = "删除预设（管理员，软删除）")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @DeleteMapping("/presets/{id}")
     public Result<Void> deletePreset(@PathVariable Long id) {
         presetRepository.deleteById(id);
@@ -126,7 +131,7 @@ public class DashboardController {
     @Operation(summary = "查询仪表盘详情")
     @GetMapping("/{id}")
     public Result<DashboardVO> get(@PathVariable Long id) {
-        return Result.success(dashboardService.getById(id));
+        return Result.success(dashboardService.getById(id, ownerFilter()));
     }
 
     @Operation(summary = "创建仪表盘")
@@ -140,20 +145,20 @@ public class DashboardController {
     @PutMapping("/{id}")
     public Result<DashboardVO> update(
             @PathVariable Long id, @Validated @RequestBody DashboardUpdateDTO dto) {
-        return Result.success(dashboardService.update(id, dto));
+        return Result.success(dashboardService.update(id, ownerFilter(), dto));
     }
 
     @Operation(summary = "保存仪表盘布局")
     @PutMapping("/{id}/layout")
     public Result<DashboardVO> saveLayout(
             @PathVariable Long id, @Validated @RequestBody DashboardLayoutDTO dto) {
-        return Result.success(dashboardService.saveLayout(id, dto.layout()));
+        return Result.success(dashboardService.saveLayout(id, ownerFilter(), dto.layout()));
     }
 
     @Operation(summary = "删除仪表盘")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
-        dashboardService.delete(id);
+        dashboardService.delete(id, ownerFilter());
         return Result.success();
     }
 
@@ -177,6 +182,10 @@ public class DashboardController {
     }
 
     // ===== 内部工具 =====
+
+    private Long ownerFilter() {
+        return isAdmin() ? null : operatorContext.currentUserId().orElseThrow();
+    }
 
     private boolean isAdmin() {
         var auth = SecurityContextHolder.getContext().getAuthentication();

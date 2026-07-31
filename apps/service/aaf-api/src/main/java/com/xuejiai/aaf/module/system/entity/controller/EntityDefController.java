@@ -32,11 +32,13 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/entity-defs")
 @RequiredArgsConstructor
+@org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
 public class EntityDefController {
 
     private final EntityDefService entityDefService;
 
     @Operation(summary = "加载工作区实体元数据")
+    @org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
     @GetMapping("/bootstrap")
     public Result<EntityDefBootstrapVO> bootstrap() {
         return Result.success(entityDefService.bootstrap());

@@ -33,6 +33,7 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api/official/console")
 @LicenseOwnerRequired("官方服务控制台")
 @RequiredArgsConstructor
+@org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPER_ADMIN')")
 public class OfficialConsoleController {
 
     private final LicenseIssueService licenseIssueService;

@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.ai.aigc.media.controller;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.web.bind.annotation.*;
 
@@ -33,6 +34,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/aigc/assets")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class MediaAssetController {
 
     private final MediaAssetService assetService;

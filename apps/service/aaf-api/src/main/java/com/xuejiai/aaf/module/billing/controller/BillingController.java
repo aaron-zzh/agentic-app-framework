@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.billing.controller;
 
 import java.time.LocalDate;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -22,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/billing")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class BillingController {
 
     private final BillingQueryService billingQueryService;

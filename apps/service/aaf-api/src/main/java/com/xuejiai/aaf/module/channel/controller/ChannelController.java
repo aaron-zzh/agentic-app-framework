@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,6 +19,7 @@ import com.xuejiai.aaf.module.channel.service.ChannelMessageRouter;
 import com.xuejiai.aaf.module.channel.service.MiniAppLoginService;
 import com.xuejiai.aaf.module.channel.service.WebhookService;
 import com.xuejiai.aaf.module.channel.service.adapter.FeishuBotChannelAdapter;
+import com.xuejiai.aaf.module.channel.service.adapter.WechatMpChannelAdapter;
 import com.xuejiai.aaf.module.channel.vo.ChannelStatsVO;
 import com.xuejiai.aaf.module.channel.vo.MiniAppLoginDTO;
 import com.xuejiai.aaf.module.channel.vo.MiniAppPhoneLoginDTO;
@@ -33,11 +35,16 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/channel")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
 public class ChannelController {
 
     private final ChannelMessageRouter router;
     private final ChannelConfigService channelConfigService;
     private final WebhookService webhookService;
+
+    /** 可选注入——仅 aaf.channel.wx.mp.enabled=true 时存在 */
+    @Autowired(required = false)
+    private WechatMpChannelAdapter wechatMpAdapter;
 
     /** 可选注入——仅 aaf.channel.wx.mini.enabled=true 时存在 */
     @Autowired(required = false)
@@ -50,26 +57,57 @@ public class ChannelController {
     // ==================== 微信回调 ====================
 
     /** 微信公众号消息回调（POST） */
+    @PreAuthorize("permitAll()")
     @PostMapping("/wx/mp/callback")
-    public String wxMpCallback(@RequestBody String xmlPayload) {
-        var reply = router.routeInbound(ChannelTypeEnum.WECHAT_MP, xmlPayload);
-        return reply != null ? "success" : "success";
+    public String wxMpCallback(
+            @RequestParam String signature,
+            @RequestParam String timestamp,
+            @RequestParam String nonce,
+            @RequestBody String xmlPayload) {
+        if (wechatMpAdapter == null
+                || !wechatMpAdapter.checkSignature(timestamp, nonce, signature)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN, "微信回调签名验证失败");
+        }
+        router.routeInbound(ChannelTypeEnum.WECHAT_MP, xmlPayload);
+        return "success";
     }
 
     /** 微信公众号验证（GET） */
+    @PreAuthorize("permitAll()")
     @GetMapping("/wx/mp/callback")
-    public String wxMpVerify(@RequestParam String echostr) {
+    public String wxMpVerify(
+            @RequestParam String signature,
+            @RequestParam String timestamp,
+            @RequestParam String nonce,
+            @RequestParam String echostr) {
+        if (wechatMpAdapter == null
+                || !wechatMpAdapter.checkSignature(timestamp, nonce, signature)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN, "微信回调签名验证失败");
+        }
         return echostr;
     }
 
     /** 微信小程序客服消息回调 */
+    @PreAuthorize("permitAll()")
     @PostMapping("/wx/mini/callback")
-    public String wxMiniCallback(@RequestBody String xmlPayload) {
+    public String wxMiniCallback(
+            @RequestParam String signature,
+            @RequestParam String timestamp,
+            @RequestParam String nonce,
+            @RequestBody String xmlPayload) {
+        if (miniAppLoginService == null
+                || !miniAppLoginService.checkCallbackSignature(timestamp, nonce, signature)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN, "微信小程序回调签名验证失败");
+        }
         router.routeInbound(ChannelTypeEnum.WECHAT_MINI, xmlPayload);
         return "success";
     }
 
     /** 微信小程序登录 */
+    @PreAuthorize("permitAll()")
     @PostMapping("/wx/mini/login")
     public Result<MiniAppSessionVO> wxMiniLogin(@Validated @RequestBody MiniAppLoginDTO dto) {
         if (miniAppLoginService == null) {
@@ -79,6 +117,7 @@ public class ChannelController {
     }
 
     /** 微信小程序手机号一键登录 */
+    @PreAuthorize("permitAll()")
     @PostMapping("/wx/mini/phone-login")
     public Result<MiniAppSessionVO> wxMiniPhoneLogin(
             @Validated @RequestBody MiniAppPhoneLoginDTO dto) {
@@ -91,20 +130,19 @@ public class ChannelController {
     // ==================== 飞书机器人回调 ====================
 
     /** 飞书事件订阅回调 */
+    @PreAuthorize("permitAll()")
     @PostMapping("/feishu/callback")
     public Map<String, Object> feishuCallback(
-            @RequestHeader(value = "X-Lark-Request-Timestamp", required = false) String timestamp,
-            @RequestHeader(value = "X-Lark-Request-Nonce", required = false) String nonce,
-            @RequestHeader(value = "X-Lark-Signature", required = false) String signature,
+            @RequestHeader("X-Lark-Request-Timestamp") String timestamp,
+            @RequestHeader("X-Lark-Request-Nonce") String nonce,
+            @RequestHeader("X-Lark-Signature") String signature,
             @RequestBody String jsonPayload) {
         if (feishuAdapter == null) {
             return Map.of("error", "飞书渠道未启用");
         }
-        // 签名验证
-        if (signature != null) {
-            if (!feishuAdapter.verifySign(timestamp, nonce, jsonPayload, signature)) {
-                return Map.of("error", "签名验证失败");
-            }
+        if (!feishuAdapter.verifySign(timestamp, nonce, jsonPayload, signature)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN, "飞书回调签名验证失败");
         }
         // 飞书 URL 验证需要返回 challenge
         var inbound = feishuAdapter.receive(jsonPayload);
@@ -118,13 +156,16 @@ public class ChannelController {
     // ==================== Webhook 回调 ====================
 
     /** 入站 Webhook 接收 */
+    @PreAuthorize("permitAll()")
     @PostMapping("/webhook/inbound")
     public Result<String> webhookInbound(
-            @RequestHeader(value = "X-Webhook-Signature", required = false) String signature,
-            @RequestHeader(value = "X-Webhook-Id", required = false) Long webhookId,
+            @RequestHeader("X-Webhook-Signature") String signature,
+            @RequestHeader("X-Webhook-Id") Long webhookId,
+            @RequestHeader("X-Webhook-Timestamp") String timestamp,
+            @RequestHeader("X-Webhook-Nonce") String nonce,
             @RequestBody String jsonPayload) {
-        if (webhookId != null
-                && !webhookService.verifyInboundSignature(webhookId, signature, jsonPayload)) {
+        if (!webhookService.verifyInboundSignature(
+                webhookId, signature, timestamp, nonce, jsonPayload)) {
             return Result.error(GlobalErrorCode.FORBIDDEN, "签名验证失败");
         }
         webhookService.receiveInbound(jsonPayload);

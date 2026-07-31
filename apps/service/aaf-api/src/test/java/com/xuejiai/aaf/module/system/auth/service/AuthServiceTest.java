@@ -259,7 +259,7 @@ class AuthServiceTest extends BaseMockitoUnitTest {
         // 准备参数
         var phone = "13800138002";
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
-        when(valueOps.get("sms_verify_code:login:" + phone)).thenReturn("999999");
+        when(valueOps.getAndDelete("sms_verify_code:login:" + phone)).thenReturn("999999");
 
         // 调用 + 断言
         assertThatThrownBy(
@@ -382,7 +382,7 @@ class AuthServiceTest extends BaseMockitoUnitTest {
 
     private void stubSmsCodeValid(String phone) {
         when(redisTemplate.opsForValue()).thenReturn(valueOps);
-        when(valueOps.get("sms_verify_code:login:" + phone)).thenReturn("123456");
+        when(valueOps.getAndDelete("sms_verify_code:login:" + phone)).thenReturn("123456");
     }
 
     private void stubDefaultRole() {

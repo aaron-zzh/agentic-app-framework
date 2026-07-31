@@ -237,8 +237,9 @@ public class AuthController {
     @Operation(summary = "获取 OAuth 授权 URL")
     @GetMapping("/oauth/{provider}/url")
     public Result<String> getOAuthUrl(
-            @PathVariable String provider, @RequestParam(defaultValue = "") String state) {
-        return Result.success(authService.getOAuthUrl(provider, state));
+            @PathVariable String provider,
+            @RequestParam(defaultValue = "web") String deviceId) {
+        return Result.success(authService.getOAuthUrl(provider, deviceId));
     }
 
     @Operation(summary = "OAuth 服务端回调：换 token 后重定向前端")
@@ -246,18 +247,13 @@ public class AuthController {
     public ResponseEntity<Void> oauthRedirect(
             @PathVariable String provider,
             @RequestParam String code,
-            @RequestParam(defaultValue = "web") String deviceId,
+            @RequestParam String state,
             jakarta.servlet.http.HttpServletRequest request) {
-        // 服务端重定向场景下没有前端 sessionStorage，refCode 走前端 callback 路径
-        AuthLoginVO vo =
-                authService.oauthLogin(provider, code, deviceId, "web", getClientIp(request), null);
-        // 重定向到前端登录页，携带 token 参数
-        String redirectUrl =
-                frontendUrl
-                        + "/login?accessToken="
-                        + vo.accessToken()
-                        + "&refreshToken="
-                        + vo.refreshToken();
+        var login =
+                authService.oauthLogin(
+                        provider, code, state, "web", getClientIp(request), null);
+        var exchangeCode = authService.issueOAuthExchangeCode(login);
+        var redirectUrl = frontendUrl + "/login?oauthCode=" + exchangeCode;
         return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(redirectUrl)).build();
     }
 
@@ -268,15 +264,20 @@ public class AuthController {
             @Valid @RequestBody OAuthCallbackDTO dto,
             @RequestHeader(value = "X-Source-App", defaultValue = "web") String sourceApp,
             jakarta.servlet.http.HttpServletRequest request) {
-        String deviceId = dto.deviceId() != null ? dto.deviceId() : "web";
         return Result.success(
                 authService.oauthLogin(
                         provider,
                         dto.code(),
-                        deviceId,
+                        dto.state(),
                         sourceApp,
                         getClientIp(request),
                         dto.referrerCode()));
+    }
+
+    @Operation(summary = "OAuth 一次性交换登录令牌")
+    @PostMapping("/oauth/exchange")
+    public Result<AuthLoginVO> exchangeOAuth(@Valid @RequestBody OAuthExchangeDTO dto) {
+        return Result.success(authService.exchangeOAuthCode(dto.code()));
     }
 
     @Operation(summary = "绑定第三方账号")
@@ -295,6 +296,9 @@ public class AuthController {
         authService.unbindOAuth(userId, provider);
         return Result.success();
     }
+
+    /** OAuth 一次性交换请求体 */
+    public record OAuthExchangeDTO(@jakarta.validation.constraints.NotBlank String code) {}
 
     /** 刷新请求体 */
     public record RefreshRequest(String refreshToken) {}

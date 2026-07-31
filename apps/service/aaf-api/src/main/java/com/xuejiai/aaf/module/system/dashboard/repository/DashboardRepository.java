@@ -16,5 +16,7 @@ public interface DashboardRepository extends JpaRepository<Dashboard, Long> {
 
     List<Dashboard> findByOwnerIdOrderByIsDefaultDescCreateTimeDesc(Long ownerId);
 
+    Optional<Dashboard> findByIdAndOwnerId(Long id, Long ownerId);
+
     Optional<Dashboard> findByOwnerIdAndIsDefaultTrue(Long ownerId);
 }

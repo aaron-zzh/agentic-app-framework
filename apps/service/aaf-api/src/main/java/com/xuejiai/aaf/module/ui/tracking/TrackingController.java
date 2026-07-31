@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.ui.tracking;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/ui/tracking")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class TrackingController {
 
     private final TrackingService trackingService;
@@ -33,12 +35,14 @@ public class TrackingController {
 
     @Operation(summary = "获取热力图数据")
     @GetMapping("/heatmap")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<HeatmapVO> heatmap(@RequestParam String page) {
         return Result.success(trackingService.getHeatmap(page));
     }
 
     @Operation(summary = "获取操作模式识别结果")
     @GetMapping("/patterns")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public Result<List<PatternVO>> patterns() {
         return Result.success(trackingService.getPatterns());
     }

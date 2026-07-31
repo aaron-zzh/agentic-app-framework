@@ -8,7 +8,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.enums.pay.PayOrderStatusEnum;
+import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.engine.settlement.*;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.engine.settlement.channel.BrokerageBalanceChannelAdapter;
 import com.xuejiai.aaf.module.brokerage.repository.BrokerageUserRepository;
 import com.xuejiai.aaf.module.pay.ErrorCodeConstants;
@@ -40,6 +43,7 @@ public class PayOrderService {
     private final UserRepository userRepository;
 
     private final BizOrderService bizOrderService;
+    private final OperatorContext operatorContext;
 
     /** 创建支付单并发起支付 */
     @Transactional
@@ -50,7 +54,7 @@ public class PayOrderService {
         order.setBody(dto.body());
         order.setAmount(dto.amount());
         order.setChannelCode(dto.channelCode());
-        order.setUserId(dto.userId());
+        order.setUserId(requireCurrentOwnerId());
         order.setExpireTime(LocalDateTime.now().plusMinutes(30));
         payOrderRepository.save(order);
 
@@ -87,7 +91,7 @@ public class PayOrderService {
     /** 余额支付：原子扣减 brokerage_user.balance，成功后标记支付单 */
     private PayOrderVO handleBalancePayment(PayOrder order, PayOrderCreateDTO dto) {
         // 通过 user_id 找到 contact_id
-        var user = userRepository.findById(dto.userId()).orElse(null);
+        var user = userRepository.findById(order.getUserId()).orElse(null);
         if (user == null || user.getContactId() == null) {
             order.setStatus(PayOrderStatusEnum.CLOSED.getCode());
             payOrderRepository.save(order);
@@ -136,7 +140,7 @@ public class PayOrderService {
         }
         if (order.getStatus().equals(PayOrderStatusEnum.SUCCESS.getCode())) {
             log.info("支付单已成功，忽略重复回调: merchantOrderNo={}", merchantOrderNo);
-            return order.getId();
+            return null;
         }
         order.setStatus(PayOrderStatusEnum.SUCCESS.getCode());
         order.setChannelOrderNo(channelOrderNo);
@@ -192,6 +196,7 @@ public class PayOrderService {
                 payOrderRepository
                         .findById(id)
                         .orElseThrow(() -> exception(ErrorCodeConstants.PAY_ORDER_NOT_FOUND));
+        requireOwned(order);
         return toVO(order);
     }
 
@@ -202,6 +207,7 @@ public class PayOrderService {
                 payOrderRepository
                         .findByMerchantOrderNo(merchantOrderNo)
                         .orElseThrow(() -> exception(ErrorCodeConstants.PAY_ORDER_NOT_FOUND));
+        requireOwned(order);
         return toVO(order);
     }
 
@@ -216,6 +222,7 @@ public class PayOrderService {
                 payOrderRepository
                         .findById(id)
                         .orElseThrow(() -> exception(ErrorCodeConstants.PAY_ORDER_NOT_FOUND));
+        requireOwned(order);
         if (!isAlipayRedirectChannel(order.getChannelCode())) {
             throw exception(ErrorCodeConstants.PAY_ORDER_CHANNEL_MISMATCH);
         }
@@ -250,6 +257,18 @@ public class PayOrderService {
                         .CHANNEL_CODE_WAP
                         .equals(channelCode)
                 || "alipay_pc".equals(channelCode);
+    }
+
+    private Long requireCurrentOwnerId() {
+        return operatorContext
+                .currentOwnerId()
+                .orElseThrow(() -> new BusinessException(GlobalErrorCode.UNAUTHORIZED));
+    }
+
+    private void requireOwned(PayOrder order) {
+        if (!java.util.Objects.equals(order.getUserId(), requireCurrentOwnerId())) {
+            throw new BusinessException(GlobalErrorCode.FORBIDDEN, "无权访问此支付单");
+        }
     }
 
     private PayOrderVO toVO(PayOrder o) {

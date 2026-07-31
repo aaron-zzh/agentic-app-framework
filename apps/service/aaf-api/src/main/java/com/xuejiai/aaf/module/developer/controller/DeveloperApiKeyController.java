@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.developer.controller;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.Result;
@@ -25,6 +26,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @PremiumRequired("开发者 Gateway Key 管理")
 @FeatureRequired("developer")
+@PreAuthorize("isAuthenticated()")
 public class DeveloperApiKeyController {
 
     private final DeveloperAccountService accountService;

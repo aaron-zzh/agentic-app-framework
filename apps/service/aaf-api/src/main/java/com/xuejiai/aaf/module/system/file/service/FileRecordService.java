@@ -7,9 +7,12 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.exception.QuotaExceededException;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.storage.StorageService;
 import com.xuejiai.aaf.module.billing.repository.EntitlementQuotaRepository;
 import com.xuejiai.aaf.module.system.file.domain.FileRecord;
@@ -36,12 +39,46 @@ public class FileRecordService {
     private final FileRecordRepository fileRecordRepository;
     private final EntitlementQuotaRepository entitlementQuotaRepository;
     private final StorageService storageService;
+    private final OperatorContext operatorContext;
 
     /** 按存储 key 删除文件记录（同时归还存储配额，预留扩展点）。 */
     @Transactional
     public void deleteByKey(String key) {
         if (key == null || key.isBlank()) return;
         fileRecordRepository.deleteByKey(key);
+    }
+
+    /** 校验并返回当前用户拥有的文件记录。 */
+    public FileRecord requireOwnedByKey(String key) {
+        return fileRecordRepository
+                .findByKeyAndUploaderId(key, requireCurrentOwnerId())
+                .orElseThrow(
+                        () ->
+                                new BusinessException(
+                                        GlobalErrorCode.NOT_FOUND, "文件不存在或无权访问"));
+    }
+
+    /** 删除当前用户拥有的文件记录。 */
+    @Transactional
+    public void deleteOwnedByKey(String key) {
+        var record = requireOwnedByKey(key);
+        fileRecordRepository.delete(record);
+    }
+
+    /** 客户端直传 key 必须位于当前用户命名空间。 */
+    public void requireCurrentOwnerNamespace(String key) {
+        var prefix = "users/" + requireCurrentOwnerId() + "/";
+        if (key == null || !key.startsWith(prefix) || key.contains("..")) {
+            throw new BusinessException(GlobalErrorCode.FORBIDDEN, "文件 key 不属于当前用户命名空间");
+        }
+    }
+
+    /** HTTP 上传完成后按当前身份保存记录。 */
+    @Transactional
+    public FileRecord saveForCurrentOwner(
+            String key, String originalName, String mimeType, long size) {
+        var uploaderId = requireCurrentOwnerId();
+        return save(key, originalName, mimeType, size, uploaderId);
     }
 
     /** 保存文件记录（统一收口）。 上传成功后调此方法落库，同时校验存储配额。 */
@@ -82,10 +119,17 @@ public class FileRecordService {
                 SpecificationBuilder.<FileRecord>builder()
                         .likeIfPresent("originalName", req.getOriginalName())
                         .eqIfPresent("mimeType", req.getMimeType())
+                        .eqIfPresent("uploaderId", requireCurrentOwnerId())
                         .build();
         var page = fileRecordRepository.findAll(spec, pageable);
         return new PageResult<>(
                 page.getContent().stream().map(this::toVO).toList(), page.getTotalElements());
+    }
+
+    private Long requireCurrentOwnerId() {
+        return operatorContext
+                .currentOwnerId()
+                .orElseThrow(() -> new BusinessException(GlobalErrorCode.UNAUTHORIZED));
     }
 
     private FileRecordVO toVO(FileRecord entity) {

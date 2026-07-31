@@ -3,6 +3,8 @@ package com.xuejiai.aaf.module.examples.neo4j.controller;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.context.annotation.Profile;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -36,6 +38,8 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/examples/neo4j/movies")
 @RequiredArgsConstructor
+@Profile("examples")
+@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
 public class MovieRestController {
 
     private final MovieService movieService;

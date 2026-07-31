@@ -14,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageResult;
+import com.xuejiai.aaf.framework.crud.reference.EntityReferenceAccess;
+import com.xuejiai.aaf.framework.crud.reference.ResourceReference;
 import com.xuejiai.aaf.framework.engine.bpmn.api.BpmnEngine;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.module.approval.api.ApprovalProcessApi;
@@ -35,12 +37,15 @@ public class ApprovalProcessService implements ApprovalProcessApi {
 
     private final BpmnEngine bpmnEngine;
     private final ApprovalOperationService approvalOperationService;
+    private final EntityReferenceAccess entityReferenceAccess;
 
     /** 启动审批流程。 */
     @Override
     @Transactional
     public String startProcess(
             String entityType, Long entityId, String initiator, String assignee) {
+        entityReferenceAccess.requireReadable(
+                new ResourceReference(entityType, entityId), "审批目标");
         var variables = new HashMap<String, Object>();
         variables.put("entityType", entityType);
         variables.put("entityId", entityId);

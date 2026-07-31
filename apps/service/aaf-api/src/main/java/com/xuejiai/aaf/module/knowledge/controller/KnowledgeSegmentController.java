@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.knowledge.controller;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.data.domain.Pageable;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -37,6 +38,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/knowledge-bases/{kbId}/segments")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class KnowledgeSegmentController {
 
     private final KnowledgeSegmentService segmentService;

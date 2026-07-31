@@ -24,6 +24,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @Tag(name = "框架授权")
 @RestController
 @RequestMapping("/api/license")
+@org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
 public class LicenseController {
 
     private final SourceArchiveService sourceArchiveService;
@@ -49,6 +50,7 @@ public class LicenseController {
 
     @Operation(summary = "下载当前授权可用的源码包")
     @GetMapping("/source-code")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPER_ADMIN')")
     @FeatureRequired("source-download")
     public ResponseEntity<Resource> downloadSourceCode() {
         return ResponseEntity.ok()

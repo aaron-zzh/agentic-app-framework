@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.examples.image.controller;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,6 +32,7 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api/examples/image")
 @RequiredArgsConstructor
 @ConditionalOnProperty(name = "aaf.examples.image.enabled", havingValue = "true")
+@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
 public class ImageExampleController {
 
     private final ImageExampleService imageExampleService;

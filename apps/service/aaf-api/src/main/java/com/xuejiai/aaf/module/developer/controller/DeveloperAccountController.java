@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.developer.controller;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.Result;
@@ -19,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @PremiumRequired("开发者商业化模块")
 @FeatureRequired("developer")
+@PreAuthorize("isAuthenticated()")
 public class DeveloperAccountController {
 
     private final DeveloperAccountService accountService;

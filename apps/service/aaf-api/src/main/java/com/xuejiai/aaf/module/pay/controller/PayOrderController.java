@@ -11,13 +11,11 @@ import org.springframework.web.bind.annotation.*;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.engine.settlement.channel.AlipayChannelAdapter;
 import com.xuejiai.aaf.framework.engine.settlement.channel.WxPayChannelAdapter;
-import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.pay.handler.PaySuccessHandler;
 import com.xuejiai.aaf.module.pay.service.BizOrderService;
 import com.xuejiai.aaf.module.pay.service.PayNotifyService;
 import com.xuejiai.aaf.module.pay.service.PayOrderService;
 import com.xuejiai.aaf.module.pay.service.RechargeService;
-import com.xuejiai.aaf.module.pay.vo.PayNotifyDTO;
 import com.xuejiai.aaf.module.pay.vo.PayOrderCreateDTO;
 import com.xuejiai.aaf.module.pay.vo.PayOrderVO;
 
@@ -37,7 +35,6 @@ public class PayOrderController {
     private final RechargeService rechargeService;
     private final BizOrderService bizOrderService;
     private final PayNotifyService payNotifyService;
-    private final OperatorContext operatorContext;
     private final Map<String, PaySuccessHandler> handlers;
     private final WxPayChannelAdapter wxPayAdapter;
     private final AlipayChannelAdapter alipayAdapter;
@@ -47,7 +44,6 @@ public class PayOrderController {
             RechargeService rechargeService,
             BizOrderService bizOrderService,
             PayNotifyService payNotifyService,
-            OperatorContext operatorContext,
             List<PaySuccessHandler> handlerList,
             java.util.Optional<WxPayChannelAdapter> wxPayAdapter,
             java.util.Optional<AlipayChannelAdapter> alipayAdapter) {
@@ -55,7 +51,6 @@ public class PayOrderController {
         this.rechargeService = rechargeService;
         this.bizOrderService = bizOrderService;
         this.payNotifyService = payNotifyService;
-        this.operatorContext = operatorContext;
         this.handlers =
                 handlerList.stream()
                         .collect(
@@ -70,11 +65,9 @@ public class PayOrderController {
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/recharge")
     public Result<PayOrderVO> recharge(
-            @RequestParam(required = false) Long userId,
             @RequestParam long amount,
             @RequestParam(defaultValue = "MOCK") String channelCode) {
-        return Result.success(
-                rechargeService.initiateRecharge(ownerId(userId), amount, channelCode));
+        return Result.success(rechargeService.initiateRecharge(amount, channelCode));
     }
 
     @Operation(summary = "创建支付单")
@@ -84,17 +77,8 @@ public class PayOrderController {
         return Result.success(payOrderService.create(dto));
     }
 
-    @Operation(summary = "支付回调通知")
-    @PostMapping("/notify")
-    public Result<Void> notify(@Valid @RequestBody PayNotifyDTO dto) {
-        var payOrderId = payOrderService.handleNotify(dto);
-        if (payOrderId != null) {
-            payNotifyService.onPaySuccess(payOrderId);
-        }
-        return Result.success();
-    }
-
     @Operation(summary = "查询支付单")
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/{id}")
     public Result<PayOrderVO> getById(@PathVariable Long id) {
         return Result.success(payOrderService.getById(id));
@@ -107,6 +91,7 @@ public class PayOrderController {
      * ID，此端点供未登录场景下的落地页查询最终支付状态。
      */
     @Operation(summary = "按商户订单号查询支付单")
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/by-merchant-order-no/{merchantOrderNo}")
     public Result<PayOrderVO> getByMerchantOrderNo(@PathVariable String merchantOrderNo) {
         return Result.success(payOrderService.getByMerchantOrderNo(merchantOrderNo));
@@ -118,6 +103,7 @@ public class PayOrderController {
      * <p>无需鉴权头（浏览器直接整页跳转访问），安全性由订单归属 + 状态校验保证：仅未支付订单可重新生成跳转表单。
      */
     @Operation(summary = "支付宝页面跳转页")
+    @PreAuthorize("isAuthenticated()")
     @GetMapping(
             value = "/{id}/redirect",
             produces = org.springframework.http.MediaType.TEXT_HTML_VALUE)
@@ -135,10 +121,10 @@ public class PayOrderController {
     @PostMapping("/notify/wx")
     public org.springframework.http.ResponseEntity<Map<String, String>> notifyWx(
             @RequestBody String body,
-            @RequestHeader(value = "Wechatpay-Timestamp", required = false) String timestamp,
-            @RequestHeader(value = "Wechatpay-Nonce", required = false) String nonce,
-            @RequestHeader(value = "Wechatpay-Signature", required = false) String signature,
-            @RequestHeader(value = "Wechatpay-Serial", required = false) String serial) {
+            @RequestHeader("Wechatpay-Timestamp") String timestamp,
+            @RequestHeader("Wechatpay-Nonce") String nonce,
+            @RequestHeader("Wechatpay-Signature") String signature,
+            @RequestHeader("Wechatpay-Serial") String serial) {
         if (wxPayAdapter == null) {
             return org.springframework.http.ResponseEntity.status(500)
                     .body(Map.of("code", "FAIL", "message", "微信支付未配置"));
@@ -164,7 +150,7 @@ public class PayOrderController {
         } catch (Exception e) {
             log.error("微信回调处理失败", e);
             return org.springframework.http.ResponseEntity.status(500)
-                    .body(Map.of("code", "FAIL", "message", e.getMessage()));
+                    .body(Map.of("code", "FAIL", "message", "回调处理失败"));
         }
     }
 
@@ -191,9 +177,5 @@ public class PayOrderController {
             log.error("支付宝回调处理失败", e);
             return "fail";
         }
-    }
-
-    private Long ownerId(Long fallbackUserId) {
-        return operatorContext.currentOwnerId().orElse(fallbackUserId);
     }
 }

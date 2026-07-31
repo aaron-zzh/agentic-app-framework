@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.developer.controller;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.Result;
@@ -23,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/developer/subscription")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class DeveloperSubscriptionController {
 
     private final DeveloperAccountService accountService;

@@ -17,6 +17,8 @@ public interface FileRecordRepository
 
     Optional<FileRecord> findByKey(String key);
 
+    Optional<FileRecord> findByKeyAndUploaderId(String key, Long uploaderId);
+
     void deleteByKey(String key);
 
     @org.springframework.data.jpa.repository.Query(

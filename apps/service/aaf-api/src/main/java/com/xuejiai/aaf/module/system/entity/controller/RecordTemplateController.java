@@ -31,15 +31,15 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/system/record-templates")
 @RequiredArgsConstructor
+@org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
 public class RecordTemplateController {
 
     private final RecordTemplateService recordTemplateService;
 
     @Operation(summary = "查询实体下可见模板列表")
     @GetMapping
-    public Result<List<RecordTemplateVO>> list(
-            @RequestParam String entitySlug, @RequestParam Long userId) {
-        return Result.success(recordTemplateService.listBySlug(entitySlug, userId));
+    public Result<List<RecordTemplateVO>> list(@RequestParam String entitySlug) {
+        return Result.success(recordTemplateService.listBySlug(entitySlug));
     }
 
     @Operation(summary = "创建模板")
@@ -63,8 +63,8 @@ public class RecordTemplateController {
 
     @Operation(summary = "设为默认模板")
     @PutMapping("/{id}/default")
-    public Result<Void> setDefault(@PathVariable Long id, @RequestParam Long userId) {
-        recordTemplateService.setDefault(id, userId);
+    public Result<Void> setDefault(@PathVariable Long id) {
+        recordTemplateService.setDefault(id);
         return Result.success();
     }
 

@@ -1,14 +1,15 @@
 package com.xuejiai.aaf.module.channel.service.adapter;
 
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -35,9 +36,11 @@ import lombok.extern.slf4j.Slf4j;
 public class FeishuBotChannelAdapter implements ChannelAdapter {
 
     private static final String SEND_MSG_URL = "https://open.feishu.cn/open-apis/im/v1/messages";
+    private static final Duration CALLBACK_WINDOW = Duration.ofMinutes(5);
 
     private final BotChannelProperties properties;
     private final RestClient.Builder restClientBuilder;
+    private final StringRedisTemplate redisTemplate;
 
     @Override
     public ChannelTypeEnum channelType() {
@@ -164,21 +167,46 @@ public class FeishuBotChannelAdapter implements ChannelAdapter {
      * @return 验证是否通过
      */
     public boolean verifySign(String timestamp, String nonce, String body, String signature) {
-        var token = properties.feishu().verificationToken();
-        if (token == null || token.isBlank()) {
-            return true;
+        var encryptKey = properties.feishu().encryptKey();
+        if (isBlank(timestamp)
+                || isBlank(nonce)
+                || body == null
+                || isBlank(signature)
+                || isBlank(encryptKey)) {
+            return false;
+        }
+        long timestampSeconds;
+        try {
+            timestampSeconds = Long.parseLong(timestamp);
+        } catch (NumberFormatException e) {
+            return false;
+        }
+        if (Math.abs(Instant.now().getEpochSecond() - timestampSeconds)
+                > CALLBACK_WINDOW.toSeconds()) {
+            return false;
         }
         try {
-            var content = timestamp + nonce + properties.feishu().encryptKey() + body;
-            var mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec("".getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-            var hash = mac.doFinal(content.getBytes(StandardCharsets.UTF_8));
+            var content = timestamp + nonce + encryptKey + body;
+            var hash = MessageDigest.getInstance("SHA-256")
+                    .digest(content.getBytes(StandardCharsets.UTF_8));
             var computed = bytesToHex(hash);
-            return computed.equals(signature);
+            if (!MessageDigest.isEqual(
+                    computed.getBytes(StandardCharsets.US_ASCII),
+                    signature.getBytes(StandardCharsets.US_ASCII))) {
+                return false;
+            }
+            return Boolean.TRUE.equals(
+                    redisTemplate
+                            .opsForValue()
+                            .setIfAbsent("feishu:replay:" + nonce, "1", CALLBACK_WINDOW));
         } catch (Exception e) {
             log.error("飞书签名验证异常: {}", e.getMessage());
             return false;
         }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     /** 获取 tenant_access_token */

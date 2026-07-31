@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.company.controller;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
@@ -26,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/company")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class CompanyController {
 
     private final CompanyPlanService planService;

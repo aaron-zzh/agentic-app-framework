@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.ai.aigc.model3d.controller;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.Result;
@@ -28,6 +29,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/aigc/model3d")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class Model3dController {
 
     private final Model3dGenerationService model3dGenerationService;

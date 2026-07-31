@@ -17,7 +17,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.storage.FileService;
 import com.xuejiai.aaf.framework.storage.FileVO;
 import com.xuejiai.aaf.framework.storage.OssStorageService;
@@ -41,12 +40,12 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/system/files")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class FileController {
 
     private final FileService fileService;
     private final StorageService storageService;
     private final FileRecordService fileRecordService;
-    private final OperatorContext operatorContext;
 
     /** OSS 类型时非空，其他存储类型为 null */
     @Autowired(required = false)
@@ -63,6 +62,7 @@ public class FileController {
     @Operation(summary = "下载文件")
     @GetMapping("/{key}/download")
     public ResponseEntity<Resource> download(@PathVariable String key) {
+        fileRecordService.requireOwnedByKey(key);
         var input = storageService.download(key);
         var resource = new InputStreamResource(input);
         return ResponseEntity.ok()
@@ -76,13 +76,8 @@ public class FileController {
     @PostMapping("/upload")
     public Result<FileVO> upload(@RequestParam("file") MultipartFile file) {
         var vo = fileService.upload(file);
-        var uploaderId = operatorContext.currentOwnerId().orElse(null);
-        fileRecordService.save(
-                vo.key(),
-                file.getOriginalFilename(),
-                file.getContentType(),
-                file.getSize(),
-                uploaderId);
+        fileRecordService.saveForCurrentOwner(
+                vo.key(), file.getOriginalFilename(), file.getContentType(), file.getSize());
         return Result.success(vo);
     }
 
@@ -90,9 +85,9 @@ public class FileController {
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/confirm")
     public Result<Void> confirm(@Validated @RequestBody FileConfirmDTO dto) {
-        var uploaderId = operatorContext.currentOwnerId().orElse(null);
-        fileRecordService.save(
-                dto.key(), dto.originalName(), dto.mimeType(), dto.size(), uploaderId);
+        fileRecordService.requireCurrentOwnerNamespace(dto.key());
+        fileRecordService.saveForCurrentOwner(
+                dto.key(), dto.originalName(), dto.mimeType(), dto.size());
         return Result.success();
     }
 
@@ -100,13 +95,16 @@ public class FileController {
     @PreAuthorize("isAuthenticated()")
     @DeleteMapping
     public Result<Void> delete(@RequestParam String key) {
+        fileRecordService.requireOwnedByKey(key);
         fileService.delete(key);
+        fileRecordService.deleteOwnedByKey(key);
         return Result.success();
     }
 
     @Operation(summary = "获取预签名上传 URL")
     @GetMapping("/presigned-url")
     public Result<String> getPresignedUrl(@RequestParam String key) {
+        fileRecordService.requireCurrentOwnerNamespace(key);
         var url = storageService.getPresignedUploadUrl(key, Duration.ofMinutes(30));
         return Result.success(url);
     }

@@ -1,6 +1,9 @@
 package com.xuejiai.aaf.module.channel.service;
 
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -8,6 +11,7 @@ import java.util.Map;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
@@ -36,10 +40,14 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class WebhookService {
 
+    private static final Duration CALLBACK_WINDOW = Duration.ofMinutes(5);
+    private static final String REPLAY_PREFIX = "webhook:replay:";
+
     private final WebhookConfigRepository configRepository;
     private final WebhookLogRepository logRepository;
     private final RestClient.Builder restClientBuilder;
     private final ChannelMessageRouter router;
+    private final StringRedisTemplate redisTemplate;
 
     // ==================== 配置管理 ====================
 
@@ -136,23 +144,51 @@ public class WebhookService {
     }
 
     /**
-     * 验证入站 Webhook 签名。
+     * 验证入站 Webhook 签名并原子消费 nonce。
      *
      * @param webhookId Webhook 配置 ID
      * @param signature 请求头中的签名
+     * @param timestamp Unix 秒时间戳
+     * @param nonce 一次性随机数
      * @param body 请求体
      * @return 验证是否通过
      */
-    public boolean verifyInboundSignature(Long webhookId, String signature, String body) {
-        if (signature == null || signature.isBlank()) {
-            return true;
+    public boolean verifyInboundSignature(
+            Long webhookId, String signature, String timestamp, String nonce, String body) {
+        if (webhookId == null
+                || isBlank(signature)
+                || isBlank(timestamp)
+                || isBlank(nonce)
+                || body == null) {
+            return false;
+        }
+        long timestampSeconds;
+        try {
+            timestampSeconds = Long.parseLong(timestamp);
+        } catch (NumberFormatException e) {
+            return false;
+        }
+        if (Math.abs(Instant.now().getEpochSecond() - timestampSeconds)
+                > CALLBACK_WINDOW.toSeconds()) {
+            return false;
         }
         var config = configRepository.findById(webhookId).orElse(null);
-        if (config == null || config.getSecret() == null || config.getSecret().isBlank()) {
-            return true;
+        if (config == null
+                || !"active".equals(config.getStatus())
+                || isBlank(config.getSecret())) {
+            return false;
         }
-        var computed = computeHmac(body, config.getSecret());
-        return computed.equals(signature);
+        var signedPayload = "%s\n%s\n%s".formatted(timestamp, nonce, body);
+        var computed = computeHmac(signedPayload, config.getSecret());
+        var supplied = signature.startsWith("sha256=") ? signature.substring(7) : signature;
+        if (!MessageDigest.isEqual(
+                computed.getBytes(StandardCharsets.US_ASCII),
+                supplied.getBytes(StandardCharsets.US_ASCII))) {
+            return false;
+        }
+        var replayKey = REPLAY_PREFIX + webhookId + ":" + nonce;
+        return Boolean.TRUE.equals(
+                redisTemplate.opsForValue().setIfAbsent(replayKey, "1", CALLBACK_WINDOW));
     }
 
     // ==================== 内部方法 ====================
@@ -250,6 +286,10 @@ public class WebhookService {
             log.error("HMAC 计算失败: {}", e.getMessage());
             return "";
         }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private String truncate(String str, int maxLen) {

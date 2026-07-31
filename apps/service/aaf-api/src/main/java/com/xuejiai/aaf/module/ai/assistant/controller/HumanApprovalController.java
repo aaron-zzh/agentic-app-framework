@@ -34,6 +34,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/ai/approvals")
 @RequiredArgsConstructor
+@org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
 public class HumanApprovalController {
 
     private final HitlCoordinatorPort hitl;

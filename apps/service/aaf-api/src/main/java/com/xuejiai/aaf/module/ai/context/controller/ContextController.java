@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.ai.context.controller;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -30,6 +31,7 @@ import jakarta.validation.constraints.NotBlank;
 @Tag(name = "页面上下文（AI 感知预留）")
 @RestController
 @RequestMapping("/api/context")
+@PreAuthorize("isAuthenticated()")
 public class ContextController {
 
     // ========== 请求/响应 DTO ==========

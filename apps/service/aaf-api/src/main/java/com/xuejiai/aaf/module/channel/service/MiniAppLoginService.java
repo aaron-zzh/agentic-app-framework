@@ -44,6 +44,14 @@ public class MiniAppLoginService {
     private final JwtUtils jwtUtils;
     private final OrganizationService organizationService;
 
+    /** 使用微信 SDK 按 token、timestamp、nonce 校验客服消息回调签名。 */
+    public boolean checkCallbackSignature(String timestamp, String nonce, String signature) {
+        return timestamp != null
+                && nonce != null
+                && signature != null
+                && wxMaService.checkSignature(timestamp, nonce, signature);
+    }
+
     /**
      * 小程序登录。
      *

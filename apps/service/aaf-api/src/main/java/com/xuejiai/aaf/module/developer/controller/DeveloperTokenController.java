@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.developer.controller;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.*;
@@ -27,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @PremiumRequired("开发者 Token 池")
 @FeatureRequired("developer")
+@PreAuthorize("isAuthenticated()")
 public class DeveloperTokenController {
 
     private final DeveloperAccountService accountService;

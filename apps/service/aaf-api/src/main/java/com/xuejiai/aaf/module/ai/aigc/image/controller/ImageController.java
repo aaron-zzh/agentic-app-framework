@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.ai.aigc.image.controller;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,6 +35,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/system/images")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class ImageController {
 
     private final AiServiceRegistry aiServiceRegistry;

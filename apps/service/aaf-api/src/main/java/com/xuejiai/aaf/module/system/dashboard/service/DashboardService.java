@@ -74,13 +74,9 @@ public class DashboardService {
                 .toList();
     }
 
-    /** 查询单个仪表盘详情 */
-    public DashboardVO getById(Long id) {
-        var dashboard =
-                dashboardRepository
-                        .findById(id)
-                        .orElseThrow(() -> exception(ErrorCodeConstants.DASHBOARD_NOT_FOUND));
-        return toVO(dashboard);
+    /** 查询单个仪表盘详情；ownerId 为 null 时表示管理员访问。 */
+    public DashboardVO getById(Long id, Long ownerId) {
+        return toVO(findAccessibleById(id, ownerId));
     }
 
     /** 创建仪表盘 */
@@ -101,11 +97,8 @@ public class DashboardService {
 
     /** 更新仪表盘 */
     @Transactional
-    public DashboardVO update(Long id, DashboardUpdateDTO dto) {
-        var dashboard =
-                dashboardRepository
-                        .findById(id)
-                        .orElseThrow(() -> exception(ErrorCodeConstants.DASHBOARD_NOT_FOUND));
+    public DashboardVO update(Long id, Long ownerId, DashboardUpdateDTO dto) {
+        var dashboard = findAccessibleById(id, ownerId);
         if (dto.name() != null) {
             dashboard.setName(dto.name());
         }
@@ -129,23 +122,16 @@ public class DashboardService {
      * <p>与 {@link #update} 的区别：仅处理 widget 列表，不动 dashboard 元数据；语义清晰、链路独立，便于前端拖拽布局后单独保存。
      */
     @Transactional
-    public DashboardVO saveLayout(Long id, List<WidgetCreateDTO> layout) {
-        var dashboard =
-                dashboardRepository
-                        .findById(id)
-                        .orElseThrow(() -> exception(ErrorCodeConstants.DASHBOARD_NOT_FOUND));
+    public DashboardVO saveLayout(Long id, Long ownerId, List<WidgetCreateDTO> layout) {
+        var dashboard = findAccessibleById(id, ownerId);
         replaceWidgets(id, layout);
         return toVO(dashboard);
     }
 
     /** 删除仪表盘 */
     @Transactional
-    public void delete(Long id) {
-        var dashboard =
-                dashboardRepository
-                        .findById(id)
-                        .orElseThrow(() -> exception(ErrorCodeConstants.DASHBOARD_NOT_FOUND));
-        dashboardRepository.delete(dashboard);
+    public void delete(Long id, Long ownerId) {
+        dashboardRepository.delete(findAccessibleById(id, ownerId));
     }
 
     /** 可用指标元数据（counter Widget 配置用） */
@@ -250,6 +236,14 @@ public class DashboardService {
     }
 
     // ========== 内部方法 ==========
+
+    private Dashboard findAccessibleById(Long id, Long ownerId) {
+        var dashboard =
+                ownerId == null
+                        ? dashboardRepository.findById(id)
+                        : dashboardRepository.findByIdAndOwnerId(id, ownerId);
+        return dashboard.orElseThrow(() -> exception(ErrorCodeConstants.DASHBOARD_NOT_FOUND));
+    }
 
     /** 覆盖式替换某仪表盘下的 widget 列表 */
     private void replaceWidgets(Long dashboardId, List<WidgetCreateDTO> widgets) {

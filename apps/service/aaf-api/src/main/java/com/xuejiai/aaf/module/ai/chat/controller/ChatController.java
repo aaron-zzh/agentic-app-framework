@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.ai.chat.controller;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.data.domain.Page;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -43,6 +44,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/system/chat")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class ChatController {
 
     private final ChatService chatService;

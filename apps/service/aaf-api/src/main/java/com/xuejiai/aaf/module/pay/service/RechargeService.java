@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.xuejiai.aaf.common.enums.pay.BizOrderTypeEnum;
 import com.xuejiai.aaf.common.enums.pay.CreditTransactionSourceEnum;
 import com.xuejiai.aaf.framework.engine.credit.CreditService;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.pay.handler.PaySuccessHandler;
 import com.xuejiai.aaf.module.pay.vo.BizOrderCreateDTO;
 import com.xuejiai.aaf.module.pay.vo.PayOrderCreateDTO;
@@ -26,6 +27,7 @@ public class RechargeService implements PaySuccessHandler {
     private final PayOrderService payOrderService;
     private final CreditService creditService;
     private final ApplicationEventPublisher eventPublisher;
+    private final OperatorContext operatorContext;
 
     /** 延迟注入打破循环：PayNotifyService → RechargeService(handler) → PayNotifyService */
     @org.springframework.context.annotation.Lazy
@@ -37,9 +39,17 @@ public class RechargeService implements PaySuccessHandler {
         return BizOrderTypeEnum.RECHARGE.getCode();
     }
 
-    /** 发起充值：创建业务订单 + 支付单，MOCK 渠道同步入账 */
+    /** 发起充值：归属当前身份，创建业务订单 + 支付单，MOCK 渠道同步入账。 */
     @Transactional
-    public PayOrderVO initiateRecharge(Long userId, long amount, String channelCode) {
+    public PayOrderVO initiateRecharge(long amount, String channelCode) {
+        var userId =
+                operatorContext
+                        .currentOwnerId()
+                        .orElseThrow(
+                                () ->
+                                        new com.xuejiai.aaf.common.exception.BusinessException(
+                                                com.xuejiai.aaf.common.exception.GlobalErrorCode
+                                                        .UNAUTHORIZED));
         var bizOrder =
                 bizOrderService.create(
                         userId,

@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.ai.aigc.media.controller;
 
 import java.util.List;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.Result;
@@ -26,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/aigc/categories")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class MediaCategoryController {
 
     private final MediaCategoryService categoryService;

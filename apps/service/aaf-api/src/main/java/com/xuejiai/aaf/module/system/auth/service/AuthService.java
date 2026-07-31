@@ -3,12 +3,14 @@ package com.xuejiai.aaf.module.system.auth.service;
 import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.*;
 
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -19,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.enums.pay.CreditTransactionSourceEnum;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.common.util.NicknameGenerator;
 import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.framework.messaging.MessageChannel;
@@ -56,6 +59,11 @@ public class AuthService {
     private static final String VERIFY_CODE_LOCK_PREFIX = "verify_code_lock:";
     private static final String SMS_VERIFY_CODE_PREFIX = "sms_verify_code:";
     private static final String SMS_VERIFY_CODE_LOCK_PREFIX = "sms_verify_code_lock:";
+    private static final String OAUTH_STATE_PREFIX = "oauth_state:";
+    private static final String OAUTH_EXCHANGE_PREFIX = "oauth_exchange:";
+    private static final Duration OAUTH_STATE_TTL = Duration.ofMinutes(10);
+    private static final Duration OAUTH_EXCHANGE_TTL = Duration.ofMinutes(2);
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final UserRepository userRepository;
     private final UserOauthRepository userOauthRepository;
@@ -184,7 +192,7 @@ public class AuthService {
         user.setUsername(generateUsername(dto.email()));
         user.setNickname(dto.nickname() != null ? dto.nickname() : NicknameGenerator.generate());
         user.setPassword(
-                passwordEncoder.encode(String.valueOf(ThreadLocalRandom.current().nextLong())));
+                passwordEncoder.encode(randomPassword()));
         user.setEmailVerified(true);
         user.setSourceApp(sourceApp);
         user.setSourceChannel("local");
@@ -224,7 +232,7 @@ public class AuthService {
                         Duration.ofMinutes(
                                 systemConfigService.getInteger("security.verify_code_expire", 5)));
         redisTemplate.opsForValue().set(lockKey, "1", Duration.ofMinutes(1));
-        log.info("【验证码】邮箱={}, 类型={}, 验证码={}", dto.email(), dto.type(), code);
+        log.info("邮箱验证码已生成: email={}, type={}", maskEmail(dto.email()), dto.type());
         // 同步发送验证码邮件——失败立即向前端报错，避免用户陷入"发了没收到 + 限频不能重试"死循环
         var templateCode = "auth.verify_code." + dto.type();
         try {
@@ -246,7 +254,7 @@ public class AuthService {
             redisTemplate.delete(codeKey);
             log.warn(
                     "邮箱验证码发送失败: email={}, type={}, error={}",
-                    dto.email(),
+                    maskEmail(dto.email()),
                     dto.type(),
                     e.getMessage());
             throw exception(AUTH_VERIFY_CODE_SEND_FAILED);
@@ -270,7 +278,7 @@ public class AuthService {
                         Duration.ofMinutes(
                                 systemConfigService.getInteger("security.verify_code_expire", 5)));
         redisTemplate.opsForValue().set(lockKey, "1", Duration.ofMinutes(1));
-        log.info("【手机验证码】手机号={}, 类型={}, 验证码={}", dto.phone(), dto.type(), code);
+        log.info("手机验证码已生成: phone={}, type={}", maskPhone(dto.phone()), dto.type());
         // 同步发送短信验证码——SmsChannelSender 内部用 templateCode（register/login/reset）查 sys_sms_template
         // 解析厂商模板
         // 失败立即向前端报错，避免用户陷入"发了没收到 + 限频不能重试"死循环
@@ -288,7 +296,7 @@ public class AuthService {
             redisTemplate.delete(codeKey);
             log.warn(
                     "短信验证码发送失败: phone={}, type={}, error={}",
-                    dto.phone(),
+                    maskPhone(dto.phone()),
                     dto.type(),
                     e.getMessage());
             throw exception(AUTH_VERIFY_CODE_SEND_FAILED);
@@ -353,7 +361,7 @@ public class AuthService {
         user.setPhone(phone);
         user.setUsername(generateUsername(phone));
         user.setPassword(
-                passwordEncoder.encode(String.valueOf(ThreadLocalRandom.current().nextLong())));
+                passwordEncoder.encode(randomPassword()));
         user.setNickname(NicknameGenerator.generate());
         user.setSourceApp(sourceApp);
         user.setSourceChannel("local");
@@ -458,21 +466,30 @@ public class AuthService {
 
     // ==================== OAuth 第三方登录 ====================
 
-    /** 获取 OAuth 授权 URL */
-    public String getOAuthUrl(String provider, String state) {
+    /** 获取 OAuth 授权 URL，state 由服务端签发并绑定 provider/device。 */
+    public String getOAuthUrl(String provider, String deviceId) {
         OAuthClient client = findOAuthClient(provider);
+        var state = UUID.randomUUID().toString();
+        var stateData = new OAuthState(provider, deviceId == null ? "web" : deviceId);
+        redisTemplate
+                .opsForValue()
+                .set(
+                        OAUTH_STATE_PREFIX + state,
+                        JsonUtils.toJsonString(stateData),
+                        OAUTH_STATE_TTL);
         return client.buildAuthorizationUrl(state);
     }
 
-    /** OAuth 回调登录 */
+    /** OAuth 回调登录，一次性消费并校验 state。 */
     @Transactional
     public AuthLoginVO oauthLogin(
             String provider,
             String code,
-            String deviceId,
+            String state,
             String sourceApp,
             String registerIp,
             String referrerCode) {
+        var stateData = consumeOAuthState(provider, state);
         OAuthClient client = findOAuthClient(provider);
         OAuthUserInfo userInfo;
         try {
@@ -500,10 +517,43 @@ public class AuthService {
 
         user.recordLoginSuccess(null);
         userRepository.save(user);
-        return generateTokensWithSession(user, deviceId);
+        return generateTokensWithSession(user, stateData.deviceId());
     }
 
-    /** 已登录用户绑定第三方账号 */
+    /** 将 OAuth 登录结果保存为短时一次性交换码。 */
+    public String issueOAuthExchangeCode(AuthLoginVO login) {
+        var exchangeCode = UUID.randomUUID().toString();
+        redisTemplate
+                .opsForValue()
+                .set(
+                        OAUTH_EXCHANGE_PREFIX + exchangeCode,
+                        JsonUtils.toJsonString(login),
+                        OAUTH_EXCHANGE_TTL);
+        return exchangeCode;
+    }
+
+    /** 一次性消费 OAuth 登录交换码。 */
+    public AuthLoginVO exchangeOAuthCode(String exchangeCode) {
+        var json = redisTemplate.opsForValue().getAndDelete(OAUTH_EXCHANGE_PREFIX + exchangeCode);
+        if (json == null) {
+            throw exception(OAUTH_EXCHANGE_FAILED);
+        }
+        return JsonUtils.parseObject(json, AuthLoginVO.class);
+    }
+
+    private OAuthState consumeOAuthState(String provider, String state) {
+        if (state == null || state.isBlank()) {
+            throw exception(OAUTH_EXCHANGE_FAILED);
+        }
+        var json = redisTemplate.opsForValue().getAndDelete(OAUTH_STATE_PREFIX + state);
+        var stateData = JsonUtils.parseObjectQuietly(json, OAuthState.class);
+        if (stateData == null || !provider.equals(stateData.provider())) {
+            throw exception(OAUTH_EXCHANGE_FAILED);
+        }
+        return stateData;
+    }
+
+    private record OAuthState(String provider, String deviceId) {}
     @Transactional
     public void bindOAuth(Long userId, String provider, String code) {
         OAuthClient client = findOAuthClient(provider);
@@ -553,7 +603,7 @@ public class AuthService {
                 userInfo.username() != null ? userInfo.username() : NicknameGenerator.generate());
         user.setAvatar(userInfo.avatar());
         user.setPassword(
-                passwordEncoder.encode(String.valueOf(ThreadLocalRandom.current().nextLong())));
+                passwordEncoder.encode(randomPassword()));
         user.setEmailVerified(false);
         user.setSourceApp(sourceApp);
         user.setSourceChannel(userInfo.provider());
@@ -617,20 +667,18 @@ public class AuthService {
 
     private void validateCode(String email, String type, String code) {
         String key = VERIFY_CODE_PREFIX + type + ":" + email;
-        String stored = redisTemplate.opsForValue().get(key);
+        String stored = redisTemplate.opsForValue().getAndDelete(key);
         if (stored == null || !stored.equals(code)) {
             throw exception(AUTH_VERIFY_CODE_INVALID);
         }
-        redisTemplate.delete(key);
     }
 
     private void validateSmsCode(String phone, String type, String code) {
         String key = SMS_VERIFY_CODE_PREFIX + type + ":" + phone;
-        String stored = redisTemplate.opsForValue().get(key);
+        String stored = redisTemplate.opsForValue().getAndDelete(key);
         if (stored == null || !stored.equals(code)) {
             throw exception(AUTH_VERIFY_CODE_INVALID);
         }
-        redisTemplate.delete(key);
     }
 
     private void sendVerifyCode(String email, String type) {
@@ -664,19 +712,36 @@ public class AuthService {
                                     companyName),
                             "【" + companyName + "】安全验证码"));
         } catch (Exception e) {
-            // 发送失败不阻断流程，验证码已存 Redis，开发环境可从日志获取
-            log.warn("验证码发送失败，邮箱={}, 类型={}, 验证码={}", email, type, code, e);
+            log.warn(
+                    "验证码发送失败，邮箱={}, 类型={}", maskEmail(email), type, e);
         }
     }
 
     private String generateCode() {
-        return String.valueOf(ThreadLocalRandom.current().nextInt(100000, 999999));
+        return "%06d".formatted(SECURE_RANDOM.nextInt(1_000_000));
     }
 
     private String generateUsername(String email) {
         String prefix = email.split("@")[0];
-        String suffix = String.valueOf(ThreadLocalRandom.current().nextInt(1000, 9999));
+        String suffix = String.valueOf(SECURE_RANDOM.nextInt(1000, 10000));
         return prefix + suffix;
+    }
+
+    private String randomPassword() {
+        var bytes = new byte[32];
+        SECURE_RANDOM.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private String maskEmail(String email) {
+        if (email == null || !email.contains("@")) return "***";
+        var parts = email.split("@", 2);
+        return parts[0].substring(0, Math.min(1, parts[0].length())) + "***@" + parts[1];
+    }
+
+    private String maskPhone(String phone) {
+        if (phone == null || phone.length() < 7) return "***";
+        return phone.substring(0, 3) + "****" + phone.substring(phone.length() - 4);
     }
 
     private AuthLoginVO generateTokensWithSession(User user, String deviceId) {

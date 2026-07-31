@@ -36,6 +36,14 @@ public class WechatMpChannelAdapter implements ChannelAdapter {
         return ChannelTypeEnum.WECHAT_MP;
     }
 
+    /** 使用微信 SDK 按 token、timestamp、nonce 校验回调签名。 */
+    public boolean checkSignature(String timestamp, String nonce, String signature) {
+        return timestamp != null
+                && nonce != null
+                && signature != null
+                && wxMpService.checkSignature(timestamp, nonce, signature);
+    }
+
     @Override
     public UnifiedMessage receive(String rawPayload) {
         var xmlMsg = WxMpXmlMessage.fromXml(rawPayload);
