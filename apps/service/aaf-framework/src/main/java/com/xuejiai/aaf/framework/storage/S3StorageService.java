@@ -1,11 +1,16 @@
 package com.xuejiai.aaf.framework.storage;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.UUID;
 
+import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -23,6 +28,7 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
  *
  * <p>通过 AWS S3 SDK 统一访问，配置 endpoint 切换后端。
  */
+@Slf4j
 public class S3StorageService implements StorageService {
 
     private final S3Client s3Client;
@@ -59,17 +65,33 @@ public class S3StorageService implements StorageService {
     @Override
     public String upload(InputStream input, String filename, String contentType) {
         var key = generateKey(filename);
+        Path tempFile = null;
         try {
+            tempFile = Files.createTempFile("aaf-s3-upload-", ".tmp");
+            Files.copy(input, tempFile, StandardCopyOption.REPLACE_EXISTING);
             var request =
                     PutObjectRequest.builder()
                             .bucket(bucketName)
                             .key(key)
                             .contentType(contentType)
                             .build();
-            s3Client.putObject(request, RequestBody.fromInputStream(input, input.available()));
+            s3Client.putObject(request, RequestBody.fromFile(tempFile));
             return key;
         } catch (Exception e) {
             throw new StorageException("文件上传失败: " + e.getMessage(), e);
+        } finally {
+            deleteTempFile(tempFile);
+        }
+    }
+
+    private void deleteTempFile(Path tempFile) {
+        if (tempFile == null) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(tempFile);
+        } catch (IOException e) {
+            log.warn("S3 上传临时文件清理失败: {}", tempFile, e);
         }
     }
 

@@ -1,11 +1,13 @@
 package com.xuejiai.aaf.module.system.file;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -62,11 +64,19 @@ public class FileController {
     @Operation(summary = "下载文件")
     @GetMapping("/{key}/download")
     public ResponseEntity<Resource> download(@PathVariable String key) {
-        fileRecordService.requireOwnedByKey(key);
+        var record = fileRecordService.requireOwnedByKey(key);
+        var filename =
+                record.getOriginalName() == null || record.getOriginalName().isBlank()
+                        ? key
+                        : record.getOriginalName();
+        var contentDisposition =
+                ContentDisposition.attachment()
+                        .filename(filename, StandardCharsets.UTF_8)
+                        .build();
         var input = storageService.download(key);
         var resource = new InputStreamResource(input);
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + key + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString())
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(resource);
     }

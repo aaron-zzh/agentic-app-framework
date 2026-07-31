@@ -16,16 +16,21 @@ import org.springframework.stereotype.Service;
 import com.xuejiai.aaf.common.util.JsonUtils;
 
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 /** CI/CD 集成服务——触发 Pipeline、查询状态、处理 Webhook、触发部署。 */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class CiCdService {
 
     private static final HttpClient HTTP = HttpClient.newHttpClient();
+
+    private final JsonMapper jsonMapper;
 
     @Value("${aaf.autodev.github.token:}")
     private String githubToken;
@@ -38,11 +43,7 @@ public class CiCdService {
 
     /** 触发 GitHub Actions workflow */
     public Long triggerWorkflow(String workflowFile, String ref, Map<String, String> inputs) {
-        var inputsJson = inputs != null ? JsonUtils.toJsonString(inputs) : "{}";
-        var payload =
-                """
-                {"ref":"%s","inputs":%s}"""
-                        .formatted(ref, inputsJson);
+        var payload = buildWorkflowPayload(ref, inputs);
 
         var request =
                 githubRequest(
@@ -63,6 +64,14 @@ public class CiCdService {
             log.error("CI 触发异常: {}", e.getMessage());
             return null;
         }
+    }
+
+    String buildWorkflowPayload(String ref, Map<String, String> inputs) {
+        var payload = jsonMapper.createObjectNode();
+        payload.put("ref", ref);
+        var inputNode = jsonMapper.valueToTree(inputs != null ? inputs : Map.of());
+        payload.set("inputs", inputNode);
+        return payload.toString();
     }
 
     /** 查询构建状态 */
