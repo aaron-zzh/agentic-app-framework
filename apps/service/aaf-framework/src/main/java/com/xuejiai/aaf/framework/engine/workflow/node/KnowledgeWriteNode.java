@@ -31,7 +31,7 @@ public class KnowledgeWriteNode implements JavaDelegate {
         var content = (String) execution.getVariable("content");
 
         log.info("工作流 KnowledgeWriteNode: kbId={}", kbId);
-        var doc = new Document(content, Map.of("knowledgeBaseId", kbId));
+        var doc = new Document(content, Map.of("knowledge_base_id", kbId));
         vectorService.store(List.of(doc));
         execution.setVariable("success", true);
         execution.setVariable("output", "已写入知识库");

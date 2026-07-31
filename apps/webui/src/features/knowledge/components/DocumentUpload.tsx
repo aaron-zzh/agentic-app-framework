@@ -10,7 +10,10 @@ import { CheckCircle, Loader2, Upload, XCircle } from "lucide-react"
 import { useCallback, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { knowledgeApi } from "@/lib/api/rest/knowledge/knowledge"
+import {
+  invalidateKnowledgeDocumentQueries,
+  knowledgeApi
+} from "@/lib/api/rest/knowledge/knowledge"
 import { cn } from "@/lib/utils/cn"
 
 const ACCEPT = ".pdf,.doc,.docx,.md,.html,.txt"
@@ -45,7 +48,7 @@ export function DocumentUpload({ knowledgeBaseId }: DocumentUploadProps) {
         setUploads((prev) =>
           prev.map((u) => (u.id === id ? { ...u, progress: 100, status: "completed" } : u))
         )
-        qc.invalidateQueries({ queryKey: ["knowledge-bases", knowledgeBaseId, "documents"] })
+        await invalidateKnowledgeDocumentQueries(qc, knowledgeBaseId)
       } catch (err) {
         setUploads((prev) =>
           prev.map((u) =>

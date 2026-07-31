@@ -1,5 +1,5 @@
 /**
- * 知识图谱可视化——基于 @xyflow/react 展示节点和边
+ * 知识图谱可视化——基于 @xyflow/react 展示真实节点和边
  * @author AaronZZH & Kiro
  */
 
@@ -16,6 +16,7 @@ import {
 import { useCallback, useMemo, useState } from "react"
 import "@xyflow/react/dist/style.css"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useKnowledgeGraph } from "@/lib/api/rest/knowledge/knowledge"
 import type { GraphNode } from "@/lib/types/knowledge"
@@ -24,33 +25,40 @@ interface KnowledgeGraphProps {
   knowledgeBaseId: string
 }
 
+type GraphNodeData = {
+  label: string
+  graphNode: GraphNode
+} & Record<string, unknown>
+
+type KnowledgeFlowNode = Node<GraphNodeData>
+
 export function KnowledgeGraph({ knowledgeBaseId }: KnowledgeGraphProps) {
   const { data, isLoading } = useKnowledgeGraph(knowledgeBaseId)
   const [selected, setSelected] = useState<GraphNode | null>(null)
 
-  const nodes: Node[] = useMemo(() => {
+  const nodes = useMemo<KnowledgeFlowNode[]>(() => {
     if (!data) return []
-    return data.nodes.map((n, i) => ({
-      id: n.id,
-      position: { x: (i % 5) * 200, y: Math.floor(i / 5) * 150 },
-      data: { ...n, label: n.label },
+    return data.nodes.map((node, index) => ({
+      id: node.id,
+      position: { x: (index % 5) * 200, y: Math.floor(index / 5) * 150 },
+      data: { label: node.label, graphNode: node },
       type: "default"
     }))
   }, [data])
 
-  const edges: Edge[] = useMemo(() => {
+  const edges = useMemo<Edge[]>(() => {
     if (!data) return []
-    return data.edges.map((e) => ({
-      id: e.id,
-      source: e.source,
-      target: e.target,
-      label: e.label,
+    return data.edges.map((edge) => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      label: `${edge.label} · ${((edge.confidence ?? 0) * 100).toFixed(0)}%`,
       animated: true
     }))
   }, [data])
 
-  const onNodeClick: NodeMouseHandler = useCallback((_event, node) => {
-    setSelected(node.data as unknown as GraphNode)
+  const onNodeClick: NodeMouseHandler<KnowledgeFlowNode> = useCallback((_event, node) => {
+    setSelected(node.data.graphNode)
   }, [])
 
   if (isLoading) {
@@ -58,13 +66,20 @@ export function KnowledgeGraph({ knowledgeBaseId }: KnowledgeGraphProps) {
   }
 
   if (!data || data.nodes.length === 0) {
-    return <p className="py-8 text-center text-muted-foreground text-sm">暂无图谱数据</p>
+    return (
+      <Empty>
+        <EmptyHeader>
+          <EmptyTitle>暂无图谱数据</EmptyTitle>
+          <EmptyDescription>文档处理完成后将展示抽取出的实体关系</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    )
   }
 
   return (
     <div className="flex gap-4">
       <div className="h-[500px] flex-1 rounded-lg border">
-        <ReactFlow
+        <ReactFlow<KnowledgeFlowNode>
           nodes={nodes}
           edges={edges}
           onNodeClick={onNodeClick}
@@ -76,13 +91,12 @@ export function KnowledgeGraph({ knowledgeBaseId }: KnowledgeGraphProps) {
         </ReactFlow>
       </div>
 
-      {/* 详情面板 */}
-      {selected && (
+      {selected ? (
         <Card className="w-64 shrink-0">
           <CardHeader>
             <CardTitle className="text-sm">节点详情</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
+          <CardContent className="flex flex-col gap-2 text-sm">
             <div>
               <span className="text-muted-foreground">名称：</span>
               {selected.label}
@@ -92,12 +106,20 @@ export function KnowledgeGraph({ knowledgeBaseId }: KnowledgeGraphProps) {
               {selected.type}
             </div>
             <div>
+              <span className="text-muted-foreground">描述：</span>
+              {selected.description || "暂无"}
+            </div>
+            <div>
+              <span className="text-muted-foreground">来源文档：</span>
+              {selected.sourceDocumentId}
+            </div>
+            <div>
               <span className="text-muted-foreground">ID：</span>
-              <span className="font-mono text-xs">{selected.id}</span>
+              <span className="break-all font-mono text-xs">{selected.id}</span>
             </div>
           </CardContent>
         </Card>
-      )}
+      ) : null}
     </div>
   )
 }

@@ -27,7 +27,7 @@ public class AutoChunkStrategySelector {
     private ChunkConfig selectByFileType(String fileType) {
         var type = fileType == null ? "" : fileType.toLowerCase().replaceFirst("^\\.", "");
         return switch (type) {
-            case "pdf" -> new ChunkConfig(ChunkStrategy.RECURSIVE_CHARACTER, 1024, 128);
+            case "pdf" -> new ChunkConfig(ChunkStrategy.SEMANTIC_BOUNDARY, 1024, 128);
             case "md", "markdown" ->
                     new ChunkConfig(
                             ChunkStrategy.RECURSIVE_CHARACTER,

@@ -81,7 +81,8 @@ public record StorageProperties(
                             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                             "text/plain",
                             "text/csv",
-                            "text/markdown"),
+                            "text/markdown",
+                            "text/html"),
                     10L * 1024 * 1024);
         }
     }

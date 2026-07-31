@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.knowledge.domain;
 
+import org.hibernate.annotations.Formula;
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.enums.CommonStatusEnum;
@@ -42,15 +43,15 @@ public class KnowledgeBase extends BaseEntity {
 
     /** 分块策略 */
     @Column(name = "chunk_strategy", length = 50)
-    private String chunkStrategy;
+    private String chunkStrategy = "recursive";
 
     /** 分块大小 */
     @Column(name = "chunk_size")
-    private Integer chunkSize;
+    private Integer chunkSize = 512;
 
     /** 分块重叠 */
     @Column(name = "chunk_overlap")
-    private Integer chunkOverlap;
+    private Integer chunkOverlap = 64;
 
     /**
      * 状态
@@ -59,6 +60,11 @@ public class KnowledgeBase extends BaseEntity {
      */
     @Column(name = "status", nullable = false)
     private Integer status = CommonStatusEnum.ENABLE.getCode();
+
+    /** 未删除文档数量，由数据库关联统计，不新增冗余列。 */
+    @Formula(
+            "(SELECT COUNT(*) FROM ai_knowledge_document document WHERE document.knowledge_base_id = id AND document.deleted = false)")
+    private Long documentCount;
 
     /**
      * 是否自动注入。

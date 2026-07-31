@@ -104,6 +104,9 @@ public class TaskRuntime {
             recordResult(monitorId, result);
             notifyIfNeeded(ctx, result);
             return result;
+        } catch (TaskExecutionInProgressException e) {
+            taskMonitor.recordFailure(monitorId, e.getMessage());
+            throw e;
         } catch (TimeoutException e) {
             log.warn("任务超时: {} ({}s)", taskType, timeoutSeconds);
             taskMonitor.recordFailure(monitorId, "任务执行超时");
@@ -143,6 +146,9 @@ public class TaskRuntime {
             progressMap.put(executionId, 100);
             recordResult(monitorId, result);
             notifyIfNeeded(ctx, result);
+        } catch (TaskExecutionInProgressException e) {
+            taskMonitor.recordFailure(monitorId, e.getMessage());
+            throw e;
         } catch (TimeoutException e) {
             log.warn("任务超时: {} ({}s)", taskType, timeoutSeconds);
             taskMonitor.recordFailure(monitorId, "任务执行超时");

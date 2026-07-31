@@ -5,5 +5,6 @@ public enum PipelineStep {
     IMPORT,
     CHUNK,
     EMBED,
-    STORE
+    STORE,
+    GRAPH_EXTRACT
 }

@@ -7,4 +7,5 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record KnowledgeBaseStatsVO(
         @Schema(description = "文档数量") long documentCount,
         @Schema(description = "分块数量") long chunkCount,
-        @Schema(description = "向量数量") long embeddingCount) {}
+        @Schema(description = "向量数量") long embeddingCount,
+        @Schema(description = "文件总大小（字节）") long totalSize) {}

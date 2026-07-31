@@ -16,6 +16,6 @@ public record SearchRequest(
 
     public SearchRequest {
         if (topK <= 0) topK = 5;
-        if (similarityThreshold <= 0) similarityThreshold = 0.7;
+        if (similarityThreshold < 0) similarityThreshold = 0.7;
     }
 }

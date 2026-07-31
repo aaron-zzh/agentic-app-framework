@@ -6,7 +6,7 @@
 
 "use client"
 
-import { BookOpen, Plus, Search } from "lucide-react"
+import { BookOpen, Plus } from "lucide-react"
 import Link from "next/link"
 import { useId, useState } from "react"
 import { GlassCard, GlassCardBody, GlowButton, SectionHaze } from "@/components/studio"
@@ -24,14 +24,13 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useCreateKnowledgeBase, useKnowledgeBases } from "@/lib/api/rest/knowledge/knowledge"
 
 export default function StudioKnowledgeBasesPage() {
-  const [search, setSearch] = useState("")
   const [open, setOpen] = useState(false)
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const nameId = useId()
   const descId = useId()
 
-  const { data, isLoading } = useKnowledgeBases({ search })
+  const { data, isLoading } = useKnowledgeBases()
   const { mutate: create, isPending } = useCreateKnowledgeBase()
   const items = data?.list ?? []
 
@@ -109,17 +108,6 @@ export default function StudioKnowledgeBasesPage() {
           </Dialog>
         </div>
 
-        {/* 搜索 */}
-        <div className="relative">
-          <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="搜索知识库..."
-            className="bg-muted/20 pl-9"
-          />
-        </div>
-
         {/* 知识库卡片列表 */}
         {isLoading ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -154,11 +142,7 @@ export default function StudioKnowledgeBasesPage() {
                         )}
                       </div>
                     </div>
-                    {(kb as unknown as { docCount?: number }).docCount !== undefined && (
-                      <p className="text-muted-foreground text-xs">
-                        {(kb as unknown as { docCount: number }).docCount} 篇文档
-                      </p>
-                    )}
+                    <p className="text-muted-foreground text-xs">{kb.documentCount} 篇文档</p>
                   </GlassCardBody>
                 </GlassCard>
               </Link>

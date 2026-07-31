@@ -1,7 +1,10 @@
 package com.xuejiai.aaf.module.knowledge.vo;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /** 创建/更新知识库 Request VO。 */
@@ -17,6 +20,10 @@ public record CreateKnowledgeBaseRequest(
         @Schema(description = "描述", example = "存放产品相关文档") @Size(max = 1000) String description,
         @Schema(description = "向量模型名称", example = "text-embedding-v3") @Size(max = 100)
                 String embeddingModel,
-        @Schema(description = "分块策略", example = "recursive") @Size(max = 50) String chunkStrategy,
-        @Schema(description = "分块大小", example = "512") Integer chunkSize,
-        @Schema(description = "分块重叠", example = "64") Integer chunkOverlap) {}
+        @Schema(description = "分块策略", example = "recursive")
+                @Pattern(regexp = "fixed|recursive|semantic")
+                String chunkStrategy,
+        @Schema(description = "分块大小", example = "512") @Min(1) @Max(100_000)
+                Integer chunkSize,
+        @Schema(description = "分块重叠", example = "64") @Min(0) @Max(99_999)
+                Integer chunkOverlap) {}

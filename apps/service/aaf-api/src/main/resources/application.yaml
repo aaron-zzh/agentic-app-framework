@@ -69,7 +69,7 @@ spring:
       api-key: ${DASHSCOPE_API_KEY:}
     vectorstore:
       pgvector:
-        table-name: knowledge_embedding
+        table-name: ai_knowledge_embedding
         dimensions: 1536
         distance-type: cosine_distance
         index-type: hnsw

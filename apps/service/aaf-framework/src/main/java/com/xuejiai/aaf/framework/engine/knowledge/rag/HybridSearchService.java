@@ -25,9 +25,18 @@ public class HybridSearchService {
     private final KnowledgeEntityRepository entityRepository;
     private final EntityManager entityManager;
 
-    /** 三路混合检索 + RRF 融合排序 */
+    /** 三路混合检索 + RRF 融合排序。 */
     public List<RagSearchResult> search(
             String query, Long knowledgeBaseId, HybridSearchConfig config) {
+        return hybridSearch(query, knowledgeBaseId, config, 0.0);
+    }
+
+    /** 三路混合检索，并把阈值传递到向量检索支路。 */
+    public List<RagSearchResult> hybridSearch(
+            String query,
+            Long knowledgeBaseId,
+            HybridSearchConfig config,
+            double similarityThreshold) {
         // 三路并行检索（虚拟线程）
         List<RagSearchResult> vectorResults;
         List<RagSearchResult> bm25Results;
@@ -35,9 +44,15 @@ public class HybridSearchService {
 
         try (var executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
             var vectorFuture =
-                    executor.submit(() -> vectorSearch(query, knowledgeBaseId, config.topK()));
+                    executor.submit(
+                            () ->
+                                    vectorSearch(
+                                            query,
+                                            knowledgeBaseId,
+                                            config.topK(),
+                                            similarityThreshold));
             var bm25Future =
-                    executor.submit(() -> bm25Search(query, knowledgeBaseId, config.topK()));
+                    executor.submit(() -> keywordSearch(query, knowledgeBaseId, config.topK()));
             var graphFuture =
                     executor.submit(() -> graphSearch(query, knowledgeBaseId, config.topK()));
 
@@ -46,8 +61,9 @@ public class HybridSearchService {
             graphResults = graphFuture.get();
         } catch (Exception e) {
             // 降级为串行
-            vectorResults = vectorSearch(query, knowledgeBaseId, config.topK());
-            bm25Results = bm25Search(query, knowledgeBaseId, config.topK());
+            vectorResults =
+                    vectorSearch(query, knowledgeBaseId, config.topK(), similarityThreshold);
+            bm25Results = keywordSearch(query, knowledgeBaseId, config.topK());
             graphResults = graphSearch(query, knowledgeBaseId, config.topK());
         }
 
@@ -75,21 +91,26 @@ public class HybridSearchService {
                 .toList();
     }
 
-    private List<RagSearchResult> vectorSearch(String query, Long knowledgeBaseId, int topK) {
-        var request = new SearchRequest(query, topK, 0.0, knowledgeBaseId, null, null);
+    /** 仅执行向量检索。 */
+    public List<RagSearchResult> vectorSearch(
+            String query, Long knowledgeBaseId, int topK, double similarityThreshold) {
+        var request =
+                new SearchRequest(query, topK, similarityThreshold, knowledgeBaseId, null, null);
         return similaritySearchService.search(request).stream()
                 .map(r -> new RagSearchResult(r.content(), r.score(), "vector", r.metadata()))
                 .toList();
     }
 
+    /** 仅执行 PostgreSQL 全文关键词检索。 */
     @SuppressWarnings("unchecked")
-    private List<RagSearchResult> bm25Search(String query, Long knowledgeBaseId, int topK) {
+    public List<RagSearchResult> keywordSearch(String query, Long knowledgeBaseId, int topK) {
         var sql =
                 """
-                SELECT content, ts_rank(to_tsvector('chinese', content), plainto_tsquery('chinese', :query)) AS rank
+                SELECT id, document_id, content,
+                       ts_rank(to_tsvector('simple', content), plainto_tsquery('simple', :query)) AS rank
                 FROM ai_knowledge_chunk
                 WHERE knowledge_base_id = :kbId
-                  AND to_tsvector('chinese', content) @@ plainto_tsquery('chinese', :query)
+                  AND to_tsvector('simple', content) @@ plainto_tsquery('simple', :query)
                 ORDER BY rank DESC
                 LIMIT :topK
                 """;
@@ -106,14 +127,19 @@ public class HybridSearchService {
                         .map(
                                 row ->
                                         new RagSearchResult(
-                                                (String) row[0],
-                                                ((Number) row[1]).doubleValue(),
-                                                "bm25",
-                                                Map.of()))
+                                                (String) row[2],
+                                                ((Number) row[3]).doubleValue(),
+                                                "keyword",
+                                                Map.of(
+                                                        "chunk_id",
+                                                        ((Number) row[0]).longValue(),
+                                                        "document_id",
+                                                        ((Number) row[1]).longValue())))
                         .toList();
     }
 
-    private List<RagSearchResult> graphSearch(String query, Long knowledgeBaseId, int topK) {
+    private List<RagSearchResult> graphSearch(
+            String query, Long knowledgeBaseId, int topK) {
         // 先按名称模糊匹配找到实体，再取子图
         var entities =
                 entityRepository.findByNameContaining(query).stream()
@@ -125,21 +151,28 @@ public class HybridSearchService {
 
         return entities.stream()
                 .flatMap(entity -> graphSearchService.subgraphSearch(entity.getId(), 2).stream())
-                .filter(e -> e.getDescription() != null && !e.getDescription().isBlank())
+                .filter(e -> knowledgeBaseId.equals(e.getKnowledgeBaseId()))
+                .filter(e -> e.getName() != null && !e.getName().isBlank())
                 .distinct()
                 .limit(topK)
                 .map(
                         e ->
                                 new RagSearchResult(
-                                        e.getDescription(),
+                                        graphContent(e.getDescription(), e.getName()),
                                         1.0,
                                         "graph",
                                         Map.of(
+                                                "entity_id",
+                                                e.getId(),
                                                 "entityName",
                                                 e.getName(),
                                                 "entityType",
                                                 Objects.toString(e.getType(), ""))))
                 .toList();
+    }
+
+    private String graphContent(String description, String name) {
+        return description == null || description.isBlank() ? name : description;
     }
 
     /** 累加 RRF 分数：score = weight * (1 / (k + rank)) */

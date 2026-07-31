@@ -19,30 +19,53 @@ public class RecursiveCharacterChunker implements DocumentChunker {
     @Override
     public List<DocumentChunk> chunk(
             String content, ChunkConfig config, Map<String, Object> baseMetadata) {
-        var texts = splitRecursive(content, config.separators(), config.chunkSize());
-        // 合并重叠窗口
+        var texts =
+                splitRecursive(
+                        content, config.separators(), config.chunkSize(), config.overlapSize());
         var chunks = new ArrayList<DocumentChunk>();
+        String previous = null;
         int index = 0;
         for (var text : texts) {
+            var effectiveText = withOverlap(previous, text, config);
             var metadata = new HashMap<>(baseMetadata);
             metadata.put("chunk_index", index);
             chunks.add(
                     new DocumentChunk(
-                            text, index, metadata, FixedSizeChunker.estimateTokenCount(text)));
+                            effectiveText,
+                            index,
+                            metadata,
+                            FixedSizeChunker.estimateTokenCount(effectiveText)));
+            previous = effectiveText;
             index++;
         }
         return chunks;
     }
 
-    private List<String> splitRecursive(String text, List<String> separators, int chunkSize) {
+    private String withOverlap(String previous, String current, ChunkConfig config) {
+        if (previous == null || config.overlapSize() == 0 || current.length() >= config.chunkSize()) {
+            return current;
+        }
+        var available = config.chunkSize() - current.length();
+        var overlap = Math.min(Math.min(config.overlapSize(), available), previous.length());
+        return overlap == 0
+                ? current
+                : previous.substring(previous.length() - overlap) + current;
+    }
+
+    private List<String> splitRecursive(
+            String text, List<String> separators, int chunkSize, int overlapSize) {
         if (text.length() <= chunkSize) {
             return List.of(text);
         }
         if (separators.isEmpty()) {
-            // 无分隔符可用，强制按 chunkSize 切割
             var result = new ArrayList<String>();
-            for (int i = 0; i < text.length(); i += chunkSize) {
-                result.add(text.substring(i, Math.min(i + chunkSize, text.length())));
+            var step = chunkSize - overlapSize;
+            for (int start = 0; start < text.length(); start += step) {
+                var end = Math.min(start + chunkSize, text.length());
+                result.add(text.substring(start, end));
+                if (end == text.length()) {
+                    break;
+                }
             }
             return result;
         }
@@ -61,12 +84,14 @@ public class RecursiveCharacterChunker implements DocumentChunker {
                 current.append(separator).append(part);
             } else {
                 // 当前块已满，递归处理后加入结果
-                result.addAll(splitRecursive(current.toString(), remaining, chunkSize));
+                result.addAll(
+                        splitRecursive(current.toString(), remaining, chunkSize, overlapSize));
                 current = new StringBuilder(part);
             }
         }
         if (!current.isEmpty()) {
-            result.addAll(splitRecursive(current.toString(), remaining, chunkSize));
+            result.addAll(
+                    splitRecursive(current.toString(), remaining, chunkSize, overlapSize));
         }
         return result;
     }

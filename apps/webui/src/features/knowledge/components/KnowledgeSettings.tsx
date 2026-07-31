@@ -41,7 +41,7 @@ export function KnowledgeSettings({ knowledgeBase }: KnowledgeSettingsProps) {
   const [strategy, setStrategy] = useState(knowledgeBase.chunkStrategy)
   const [chunkSize, setChunkSize] = useState(knowledgeBase.chunkSize)
   const [chunkOverlap, setChunkOverlap] = useState(knowledgeBase.chunkOverlap)
-  const [model, setModel] = useState(knowledgeBase.embeddingModel)
+  const [model, setModel] = useState(knowledgeBase.embeddingModel ?? "")
 
   const { mutate: update, isPending } = useUpdateKnowledgeBase()
 

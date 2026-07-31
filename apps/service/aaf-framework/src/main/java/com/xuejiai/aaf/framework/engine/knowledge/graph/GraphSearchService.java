@@ -91,6 +91,7 @@ public class GraphSearchService {
         entity.setId(node.get("id").asString(null));
         entity.setName(node.get("name").asString(null));
         entity.setType(node.get("type").asString(null));
+        entity.setDescription(node.get("description").asString(null));
         entity.setKnowledgeBaseId(node.get("knowledgeBaseId").asLong(0));
         return entity;
     }

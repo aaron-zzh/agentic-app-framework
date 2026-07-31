@@ -8,6 +8,7 @@ import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.engine.meta.runtime.ExecutionMeta;
+import com.xuejiai.aaf.framework.engine.meta.runtime.TaskExecutionInProgressException;
 import com.xuejiai.aaf.framework.engine.meta.runtime.TaskRuntime;
 import com.xuejiai.aaf.framework.task.TaskProperties;
 import com.xuejiai.aaf.framework.task.queue.AsyncTaskMessage;
@@ -57,7 +58,7 @@ public class RetryableTaskConsumer {
             if (Boolean.TRUE.equals(redisTemplate.hasKey(completedKey))) {
                 return ProcessingOutcome.DUPLICATE;
             }
-            throw new TaskProcessingInProgressException(task.id());
+            throw new TaskExecutionInProgressException("任务正在由其他消费者处理: " + task.id());
         }
 
         try {
@@ -96,11 +97,5 @@ public class RetryableTaskConsumer {
         DUPLICATE,
         RETRY_SCHEDULED,
         DEAD_LETTERED
-    }
-
-    public static final class TaskProcessingInProgressException extends RuntimeException {
-        public TaskProcessingInProgressException(String taskId) {
-            super("任务正在由其他消费者处理: " + taskId);
-        }
     }
 }

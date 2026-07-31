@@ -48,8 +48,79 @@ public class GraphService {
         return entityRepository.findByKnowledgeBaseId(knowledgeBaseId);
     }
 
-    /** 查询 N 跳邻居 */
+    /** 按知识库查询完整节点与关系快照。 */
+    public GraphSnapshot snapshot(Long knowledgeBaseId) {
+        var entities = entityRepository.findGraphByKnowledgeBaseId(knowledgeBaseId);
+        var nodes =
+                entities.stream()
+                        .map(
+                                entity ->
+                                        new GraphNode(
+                                                entity.getId(),
+                                                entity.getName(),
+                                                entity.getType(),
+                                                entity.getDescription(),
+                                                entity.getSourceDocumentId()))
+                        .toList();
+        var edges =
+                entities.stream()
+                        .flatMap(
+                                source ->
+                                        source.getRelations().stream()
+                                                .filter(relation -> relation.getTarget() != null)
+                                                .filter(
+                                                        relation ->
+                                                                knowledgeBaseId.equals(
+                                                                        relation.getTarget()
+                                                                                .getKnowledgeBaseId()))
+                                                .map(
+                                                        relation ->
+                                                                new GraphEdge(
+                                                                        relationId(
+                                                                                source, relation),
+                                                                        source.getId(),
+                                                                        relation.getTarget()
+                                                                                .getId(),
+                                                                        relation.getType(),
+                                                                        relation.getConfidence(),
+                                                                        relation.getSourceDocumentId())))
+                        .toList();
+        return new GraphSnapshot(nodes, edges);
+    }
+
+    /** 清理指定文档生成的关系和孤立实体。 */
+    public void clearDocumentData(Long knowledgeBaseId, Long documentId) {
+        entityRepository.deleteDocumentRelations(knowledgeBaseId, documentId);
+        entityRepository.deleteExtractedOrphanEntities(knowledgeBaseId);
+    }
+
+    /** 查询 N 跳邻居。 */
     public List<KnowledgeEntity> findNeighbors(String entityId, int hops) {
         return entityRepository.findNeighbors(entityId, hops);
     }
+
+    private String relationId(KnowledgeEntity source, KnowledgeRelation relation) {
+        if (relation.getId() != null && !relation.getId().isBlank()) {
+            return relation.getId();
+        }
+        return "%s:%s:%s:%s"
+                .formatted(
+                        source.getId(),
+                        relation.getTarget().getId(),
+                        java.util.Objects.toString(relation.getType(), ""),
+                        java.util.Objects.toString(relation.getSourceDocumentId(), ""));
+    }
+
+    public record GraphSnapshot(List<GraphNode> nodes, List<GraphEdge> edges) {}
+
+    public record GraphNode(
+            String id, String name, String type, String description, Long sourceDocumentId) {}
+
+    public record GraphEdge(
+            String id,
+            String sourceId,
+            String targetId,
+            String type,
+            Double confidence,
+            Long sourceDocumentId) {}
 }

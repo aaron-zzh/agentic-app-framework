@@ -37,19 +37,23 @@ public class EntityExtractionService {
 
         try {
             return JsonUtils.parseObject(content, new TypeReference<>() {});
-        } catch (Exception e) {
-            log.warn("LLM 返回内容解析失败，原始内容: {}", content, e);
-            return List.of();
+        } catch (Exception failure) {
+            throw new IllegalStateException("实体关系抽取结果不是有效 JSON", failure);
         }
     }
 
-    /** 抽取实体关系并保存到 Neo4j */
-    public void extractAndSave(String text, Long knowledgeBaseId, Long documentId) {
+    /** 抽取实体关系并保存到 Neo4j。 */
+    public void extractAndSave(
+            String text, Long knowledgeBaseId, Long documentId, Runnable executionGuard) {
         var triples = extract(text, knowledgeBaseId, documentId);
+        executionGuard.run();
 
         for (var triple : triples) {
+            executionGuard.run();
             var subject = findOrCreateEntity(triple.subject(), knowledgeBaseId, documentId);
+            executionGuard.run();
             var object = findOrCreateEntity(triple.object(), knowledgeBaseId, documentId);
+            executionGuard.run();
 
             var relation = new KnowledgeRelation();
             relation.setType(triple.predicate());
@@ -59,6 +63,7 @@ public class EntityExtractionService {
             relation.setCreatedAt(Instant.now());
 
             graphService.saveRelation(subject.getId(), object.getId(), relation);
+            executionGuard.run();
         }
 
         log.info("从文档 {} 抽取并保存 {} 个三元组到知识库 {}", documentId, triples.size(), knowledgeBaseId);

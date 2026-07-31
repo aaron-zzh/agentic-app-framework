@@ -15,7 +15,7 @@ public record KnowledgeDocumentVO(
         @Schema(description = "文件大小（字节）") Long fileSize,
         @Schema(description = "内容哈希") String contentHash,
         @Schema(description = "状态（0=待处理 1=处理中 2=已完成 3=失败）") Integer status,
-        @Schema(description = "错误信息") String errorMessage,
+        @Schema(description = "失败原因") String errorMessage,
         @Schema(description = "分块数量") Integer chunkCount,
         @Schema(description = "创建时间") LocalDateTime createTime,
         @Schema(description = "更新时间") LocalDateTime updateTime) {}

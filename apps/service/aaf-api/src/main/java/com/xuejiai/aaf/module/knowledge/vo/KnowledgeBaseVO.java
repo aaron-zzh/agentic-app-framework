@@ -14,6 +14,7 @@ public record KnowledgeBaseVO(
         @Schema(description = "分块策略", example = "recursive") String chunkStrategy,
         @Schema(description = "分块大小", example = "512") Integer chunkSize,
         @Schema(description = "分块重叠", example = "64") Integer chunkOverlap,
+        @Schema(description = "文档数量") long documentCount,
         @Schema(description = "状态（0=禁用 1=启用）", example = "1") Integer status,
         @Schema(description = "创建时间") LocalDateTime createTime,
         @Schema(description = "更新时间") LocalDateTime updateTime) {}

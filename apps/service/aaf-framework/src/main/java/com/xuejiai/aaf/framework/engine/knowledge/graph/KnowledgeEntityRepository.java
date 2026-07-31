@@ -11,6 +11,36 @@ public interface KnowledgeEntityRepository extends Neo4jRepository<KnowledgeEnti
 
     List<KnowledgeEntity> findByKnowledgeBaseId(Long knowledgeBaseId);
 
+    @Query(
+            """
+            MATCH (source:KnowledgeEntity)
+            WHERE source.knowledgeBaseId = $knowledgeBaseId
+            OPTIONAL MATCH (source)-[relation:RELATES_TO]->(target:KnowledgeEntity)
+            WHERE target.knowledgeBaseId = $knowledgeBaseId
+            RETURN source, collect(relation), collect(target)
+            """)
+    List<KnowledgeEntity> findGraphByKnowledgeBaseId(Long knowledgeBaseId);
+
+    @Query(
+            """
+            MATCH (source:KnowledgeEntity)-[relation:RELATES_TO]->(target:KnowledgeEntity)
+            WHERE source.knowledgeBaseId = $knowledgeBaseId
+              AND target.knowledgeBaseId = $knowledgeBaseId
+              AND relation.sourceDocumentId = $documentId
+            DELETE relation
+            """)
+    void deleteDocumentRelations(Long knowledgeBaseId, Long documentId);
+
+    @Query(
+            """
+            MATCH (entity:KnowledgeEntity)
+            WHERE entity.knowledgeBaseId = $knowledgeBaseId
+              AND entity.sourceDocumentId IS NOT NULL
+              AND NOT (entity)--()
+            DELETE entity
+            """)
+    void deleteExtractedOrphanEntities(Long knowledgeBaseId);
+
     List<KnowledgeEntity> findByNameContaining(String keyword);
 
     Optional<KnowledgeEntity> findByNameAndKnowledgeBaseId(String name, Long knowledgeBaseId);

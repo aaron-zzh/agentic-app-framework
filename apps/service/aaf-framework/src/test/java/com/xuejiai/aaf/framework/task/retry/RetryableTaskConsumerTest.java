@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.framework.task.retry;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -20,6 +21,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
 import com.xuejiai.aaf.framework.engine.meta.runtime.ExecutionMeta;
+import com.xuejiai.aaf.framework.engine.meta.runtime.TaskExecutionInProgressException;
 import com.xuejiai.aaf.framework.engine.meta.runtime.TaskResult;
 import com.xuejiai.aaf.framework.engine.meta.runtime.TaskRuntime;
 import com.xuejiai.aaf.framework.task.TaskProperties;
@@ -83,6 +85,21 @@ class RetryableTaskConsumerTest extends BaseMockitoUnitTest {
         verify(taskQueue).enqueueWithDelay(taskCaptor.capture(), eq(Duration.ofSeconds(1)));
         assertThat(taskCaptor.getValue().attempt()).isEqualTo(1);
         assertThat(taskCaptor.getValue().lastError()).isEqualTo("redis unavailable");
+        verify(taskQueue, never()).sendToDeadLetter(any());
+    }
+
+    @Test
+    @DisplayName("Given 任务仍由旧执行持有 When 消费 Then 原样传播且不安排新 attempt")
+    void should_leave_message_pending_when_execution_is_still_in_progress() {
+        // 准备参数
+        var task = task(1, 3);
+        when(taskRuntime.submit(eq(task.type()), eq(task.payload()), any(ExecutionMeta.class)))
+                .thenThrow(new TaskExecutionInProgressException("still running"));
+
+        // 调用 + 断言
+        assertThatThrownBy(() -> consumer.executeWithRetry(task))
+                .isInstanceOf(TaskExecutionInProgressException.class);
+        verify(taskQueue, never()).enqueueWithDelay(any(), any());
         verify(taskQueue, never()).sendToDeadLetter(any());
     }
 

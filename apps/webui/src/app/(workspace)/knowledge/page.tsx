@@ -5,7 +5,7 @@
 
 "use client"
 
-import { BookOpen, Plus, Search } from "lucide-react"
+import { BookOpen, Plus } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 import { PageContainer } from "@/components/common/PageContainer"
@@ -25,12 +25,11 @@ import { TypographyH1 } from "@/components/ui/typography"
 import { useCreateKnowledgeBase, useKnowledgeBases } from "@/lib/api/rest/knowledge/knowledge"
 
 export default function KnowledgeListPage() {
-  const [search, setSearch] = useState("")
   const [open, setOpen] = useState(false)
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
 
-  const { data, isLoading } = useKnowledgeBases({ search })
+  const { data, isLoading } = useKnowledgeBases()
   const { mutate: create, isPending } = useCreateKnowledgeBase()
 
   const items = data?.list ?? []
@@ -89,17 +88,6 @@ export default function KnowledgeListPage() {
         </Dialog>
       </div>
 
-      {/* 搜索框 */}
-      <div className="relative mb-6 max-w-sm">
-        <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          className="pl-9"
-          placeholder="搜索知识库..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
-
       {/* 列表 */}
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -129,7 +117,7 @@ export default function KnowledgeListPage() {
                   </CardDescription>
                   <div className="mt-2 flex items-center gap-4 text-muted-foreground text-xs">
                     <span>{kb.documentCount} 篇文档</span>
-                    <span>更新于 {new Date(kb.updatedAt).toLocaleDateString()}</span>
+                    <span>更新于 {new Date(kb.updateTime).toLocaleDateString()}</span>
                   </div>
                 </CardHeader>
               </Card>
