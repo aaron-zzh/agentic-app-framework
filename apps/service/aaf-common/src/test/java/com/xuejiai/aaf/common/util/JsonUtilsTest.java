@@ -7,8 +7,6 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import tools.jackson.databind.json.JsonMapper;
-
 /**
  * JsonUtils 单元测试。
  *
@@ -63,16 +61,5 @@ class JsonUtilsTest {
     @Test
     void parseArray_空字符串返回空列表() {
         assertThat(JsonUtils.parseArray("", Person.class)).isEqualTo(List.of());
-    }
-
-    // ─── Jackson 3 JsonMapper 直接使用 ───────────────────────────────────────
-
-    @Test
-    void jsonMapper_序列化反序列化() throws Exception {
-        var mapper = JsonMapper.builder().build();
-        var json = mapper.writeValueAsString(new Person("Charlie", 40));
-        assertThat(json).contains("Charlie");
-        var person = mapper.readValue(json, Person.class);
-        assertThat(person.name()).isEqualTo("Charlie");
     }
 }

@@ -120,7 +120,7 @@ untracked 新增（需 git add）：`company/automation/repository/CompanyAutoma
 | framework 全部（23 等） | ✅ 绿 |
 | AuthServiceTest | ✅ 2/2 |
 | UserControllerTest | ✅ 5/5 |
-| UserServiceTest / PasswordEncoderTest / ImportExecutorTest | ✅ 绿 |
+| UserServiceTest / ImportExecutorTest | ✅ 绿 |
 | ControllerAuthorizationTest / LayeringTest（ArchUnit） | ✅ 绿（0 违规/冻结） |
 | **AafApplicationTest.contextLoads** | ❌ 任务 A（Flyway 迁移，非代码 bean 缺陷） |
 
