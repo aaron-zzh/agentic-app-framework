@@ -843,6 +843,12 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 };
         return new AgentExecutionCommand(
                 route.subagentSpec(),
+                Optional.of(
+                        new AgentExecutionCommand.RoleAssignment(
+                                effectiveRole.key(),
+                                effectiveRole.name(),
+                                effectiveRole.responsibilities(),
+                                effectiveRole.nonResponsibilities())),
                 executionModel,
                 skillSystemPromptAppendix,
                 roleAllowedToolNames,

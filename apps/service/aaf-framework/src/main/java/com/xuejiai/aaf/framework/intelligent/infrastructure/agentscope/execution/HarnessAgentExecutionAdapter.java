@@ -200,7 +200,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                 yield new ResolvedExecution(
                         compiler.compile(
                                 spec,
-                                command.skillSystemPromptAppendix(),
+                                command.effectiveSystemPromptAppendix(),
                                 command.roleAllowedToolNames()),
                         spec.model(),
                         predefined.identifier(),
@@ -216,7 +216,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                         compiler.compileDynamic(
                                 dynamic,
                                 executionModel,
-                                command.skillSystemPromptAppendix(),
+                                command.effectiveSystemPromptAppendix(),
                                 command.roleAllowedToolNames()),
                         executionModel,
                         dynamic.identifier(),

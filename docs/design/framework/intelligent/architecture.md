@@ -248,7 +248,7 @@ AAF 五层智能架构以 Assistant 为面向用户的认知主体，由 Team �
 
 系统只预置一个 `SYSTEM_MANAGED` 的默认用户助理模板 `system.assistant.default-user`，由 `DefaultUserAssistantTemplate` 提供。它是可版本化、可复制的 `AssistantDefinition` 配置模板，不是所有用户共享可变状态的助理实例；模板定义可以共享，用户会话、记忆、任务、执行状态和沙箱仍按 tenant、用户及会话隔离。
 
-模板提供稳定的 `AAF 助理` Persona，并装配多个 Role 和一个默认 Role。`SkillRoute.roleKey` 决定当前任务的有效 Role；运行时只解析该 Role 的 Skill，并以该 Role 的工具上限收窄 Agent 工具集和有效上下文。
+模板提供稳定的 `AAF 助理` Persona，并装配多个 Role 和一个默认 Role。刺激输入进入前注意后，`SkillRoute.roleKey` 决定当前任务的有效 Role；默认 Role 只在未命中特定任务时兜底，不会永久锁定助理。主助理直接处理时加载该 Role；委托执行时则将 Role 的 key、名称、职责和非职责封装为任务级 `RoleAssignment` 显式传给子智能体。运行时把 Role 提示与命中 Skill 提示共同编译进 Agent，并以该 Role 的工具上限收窄 Agent 工具集和有效上下文；不同子任务可以同时加载不同 Role。
 
 | Role | 定位 | 路由与能力 | 权限边界 |
 |---|---|---|---|

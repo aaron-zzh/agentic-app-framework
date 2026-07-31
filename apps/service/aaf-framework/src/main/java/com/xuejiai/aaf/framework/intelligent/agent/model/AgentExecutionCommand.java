@@ -10,6 +10,7 @@ import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
 /** 一次可恢复 Agent 回合的纯 AAF 输入。 */
 public record AgentExecutionCommand(
         SubagentSpec subagentSpec,
+        Optional<RoleAssignment> roleAssignment,
         Optional<ModelSpec> executionModel,
         String skillSystemPromptAppendix,
         Set<String> roleAllowedToolNames,
@@ -19,6 +20,8 @@ public record AgentExecutionCommand(
 
     public AgentExecutionCommand {
         Objects.requireNonNull(subagentSpec, "subagentSpec 不能为空");
+        roleAssignment =
+                Objects.requireNonNull(roleAssignment, "roleAssignment Optional 不能为空");
         executionModel = Objects.requireNonNull(executionModel, "executionModel Optional 不能为空");
         skillSystemPromptAppendix =
                 Objects.requireNonNull(skillSystemPromptAppendix, "skillSystemPromptAppendix 不能为空")
@@ -39,6 +42,74 @@ public record AgentExecutionCommand(
         messages = List.copyOf(Objects.requireNonNull(messages, "messages 不能为空"));
         if (messages.isEmpty()) {
             throw new IllegalArgumentException("messages 不能为空");
+        }
+    }
+
+    /** 将前注意选出的任务 Role 与命中技能共同编译进子智能体系统提示。 */
+    public String effectiveSystemPromptAppendix() {
+        var rolePrompt = roleAssignment.map(RoleAssignment::systemPromptAppendix).orElse("");
+        if (rolePrompt.isBlank()) {
+            return skillSystemPromptAppendix;
+        }
+        if (skillSystemPromptAppendix.isBlank()) {
+            return rolePrompt;
+        }
+        return rolePrompt + "\n\n" + skillSystemPromptAppendix;
+    }
+
+    /** Assistant 前注意阶段为当前任务选出、并显式委托给 Agent 的 Role 快照。 */
+    public record RoleAssignment(
+            String roleKey,
+            String roleName,
+            List<String> responsibilities,
+            List<String> nonResponsibilities) {
+
+        public RoleAssignment {
+            roleKey = requireText(roleKey, "roleKey");
+            roleName = requireText(roleName, "roleName");
+            responsibilities =
+                    List.copyOf(Objects.requireNonNull(responsibilities, "responsibilities 不能为空"));
+            nonResponsibilities =
+                    List.copyOf(
+                            Objects.requireNonNull(
+                                    nonResponsibilities, "nonResponsibilities 不能为空"));
+        }
+
+        public String systemPromptAppendix() {
+            return """
+                    ## 当前任务角色
+                    角色：%s（%s）
+
+                    职责：
+                    %s
+
+                    非职责：
+                    %s
+
+                    只在上述职责范围内执行，不得越过非职责边界。
+                    """
+                    .formatted(
+                            roleName,
+                            roleKey,
+                            bulletList(responsibilities),
+                            bulletList(nonResponsibilities))
+                    .trim();
+        }
+
+        private static String bulletList(List<String> items) {
+            return items.isEmpty()
+                    ? "- 无"
+                    : items.stream()
+                            .map(item -> "- " + item)
+                            .collect(java.util.stream.Collectors.joining("\n"));
+        }
+
+        private static String requireText(String value, String field) {
+            Objects.requireNonNull(value, field + " 不能为空");
+            if (value.isBlank()) {
+                throw new IllegalArgumentException(field + " 不能为空白");
+            }
+            return value;
         }
     }
 }

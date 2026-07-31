@@ -133,6 +133,12 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
                         false);
         return new AgentExecutionCommand(
                 dynamic,
+                Optional.of(
+                        new AgentExecutionCommand.RoleAssignment(
+                                "system.role.test",
+                                "测试角色",
+                                List.of("执行测试"),
+                                List.of("越权操作"))),
                 Optional.of(executionModel),
                 "技能提示",
                 Set.of(),
@@ -152,7 +158,7 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
         when(compiler.compileDynamic(
                         (SubagentSpec.Dynamic) command.subagentSpec(),
                         executionModel,
-                        command.skillSystemPromptAppendix(),
+                        command.effectiveSystemPromptAppendix(),
                         command.roleAllowedToolNames()))
                 .thenReturn(agent);
         when(agent.streamEvents(anyList(), eq(runtimeContext))).thenReturn(events);
