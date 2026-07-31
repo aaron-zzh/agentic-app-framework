@@ -230,11 +230,13 @@ AAF 五层智能架构以 Assistant 为面向用户的认知主体，由 Team �
 
 ### 助理的装配：人格 · 角色 · 记忆策略
 
-助理的身份与认知倾向主要由三个可组合要素定义，对应“我是谁 / 我负责什么 / 我如何记事”。完整的 `AssistantDefinition` 还包含技能路由、工具策略、用户控制模式、风险策略、版本和生命周期等治理配置，不能把三要素等同于助理的全部定义。
+助理装配分为**定义期的稳定配置**与**任务期的动态生效上下文**。`AssistantDefinition` 保存可版本化、可复制的 Persona、Role 快照、`defaultRoleKey`、SkillRoute 和 MemoryStrategy；运行时只从定义已授权的范围内选择，不把模型判断本身当作授权。工具策略、用户控制模式、风险策略和生命周期等仍是完整定义的一部分，不能把下列三要素等同于助理的全部定义。
 
-- **人格（Persona）**：助理的“我是谁”——名字、性格、说话风格、表达指引和形象。人格可独立复用，同一人格可与不同角色组合。`Actor` 保留表示 Human、Assistant、Agent、System 等行为与责任主体，不再表示人格。
-- **角色（Role）**：助理的“我负责什么、能做什么、不能做什么”——定义职责与非职责、可用技能及工具能力上限。角色库中的定义可跨助理复用；单个版本化 `AssistantDefinition` 保存多个 Role 快照和一个 `defaultRoleKey`，每条 `SkillRoute` 通过 `roleKey` 声明该任务的有效 Role。某次任务的实际技能与工具必须按有效 Role 收窄，并继续与助理工具策略、任务授权和 Agent 执行边界取交集。
-- **记忆策略（MemoryStrategy）**：助理的“我从哪里回忆、向哪里沉淀”——分别限定回忆范围、写入范围和长期记忆开关。可读取共享知识不代表可直接写入共享知识，公共知识写入仍需独立治理。
+- **人格（Persona）**：助理稳定的“我是谁”——名字、性格、说话风格、表达指引和形象。Persona 属于 Assistant，不随一次任务选中的 Role、创建的 Agent 或委托生命周期切换；同一 Persona 可以与多个 Role 组合。`Actor` 保留表示 Human、Assistant、Agent、System 等行为与责任主体，不再表示人格。
+- **角色（Role）**：任务上下文中的“我此刻负责什么、能做什么、不能做什么”——定义职责与非职责，以及技能和工具能力上限。单个 `AssistantDefinition` 可装配多个 Role，但默认 Role 只是低置信或未命中特定任务时的安全兜底，不会永久锁定助理。默认 `CHAT` 模型通过精简目录对输入做语义前注意，原子选择定义中已声明的 `roleKey + skillKey`；系统校验组合合法后，把有效 Role 映射为任务级 `RoleAssignment`，并只加载命中的单一 Skill。默认 Role 的 Route 以 `DIRECT` 复用主助理执行体，非默认 Role 的 Route 以 `DELEGATE` 创建任务级短命子智能体；无论哪种路径，都不能突破 Role、ToolPolicy、任务授权与 Agent 工具边界的交集。
+- **记忆策略（MemoryStrategy）**：助理的“我从哪里回忆、向哪里沉淀”——分别限定回忆范围、写入范围和长期记忆开关。MemoryStrategy 属于 Assistant 的认知治理，不随 Role 切换，也不随 DIRECT 主执行体复用或 DELEGATE 子智能体回收而迁移；Role 和 Skill 只能在策略允许范围内进一步收窄本次记忆上下文，不能扩张读写边界。可读取共享知识不代表可直接写入共享知识，公共知识写入仍需独立治理。
+
+因此，某次任务的有效上下文可概括为：**稳定 Persona + 任务级 RoleAssignment + 命中 Skill + MemoryStrategy 允许的记忆上下文 + 逐层取交集后的工具集**。Agent 只是该上下文的执行载体，不拥有 Assistant 的稳定人格或长期记忆。
 
 ### 子智能体并行
 
