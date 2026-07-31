@@ -30,7 +30,11 @@ import io.agentscope.harness.agent.HarnessAgent;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-/** AgentExecutionPort 的唯一 AgentScope Harness 实现。 */
+/**
+ * AgentExecutionPort 的唯一 AgentScope Harness 实现。
+ *
+ * <p>职责：解析执行规格 → 编译 HarnessAgent → 订阅 {@code streamEvents} 事件流 → 映射为 AAF 事件并顺序入库。同时维护活跃执行表以支持取消与中断。
+ */
 public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
 
     private final AgentDefinitionPort definitions;
@@ -42,6 +46,8 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
     private final ExecutionEventStorePort eventStore;
     private final ConversationLeasePort leases;
     private final DelegatedTaskPort delegatedTasks;
+
+    /** 活跃执行表：executionId → 运行态句柄，cancel 依赖它定位 Agent 与 RuntimeContext。 */
     private final ConcurrentMap<ExecutionId, ActiveExecution> activeExecutions =
             new ConcurrentHashMap<>();
 
@@ -66,12 +72,14 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         this.delegatedTasks = Objects.requireNonNull(delegatedTasks, "delegatedTasks 不能为空");
     }
 
+    /** 订阅时才真正解析与编译，保证每次 subscribe 都是独立执行。 */
     @Override
     public Flux<ExecutionEvent> execute(AgentExecutionCommand command) {
         Objects.requireNonNull(command, "command 不能为空");
         return Flux.defer(() -> executeDeferred(command));
     }
 
+    /** 取消：只在首次调用且源流未结束时生效，Agent 已启动才能下发 interrupt。 */
     @Override
     public Mono<Boolean> cancel(ExecutionId executionId) {
         Objects.requireNonNull(executionId, "executionId 不能为空");
@@ -88,6 +96,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                 });
     }
 
+    /** 解析阶段的异常也要落成 RUN_FAILED 事件，避免调用方拿到空流。 */
     private Flux<ExecutionEvent> executeDeferred(AgentExecutionCommand command) {
         requireCurrent(command);
         var mappingState = new MappingState(command.sequenceBase());
@@ -119,6 +128,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
 
         var active = new ActiveExecution(execution.agent(), runtimeContext, execution.ephemeral());
         try {
+            // executionId 唯一：同一执行不允许并发订阅两次
             var existing = activeExecutions.putIfAbsent(executionId, active);
             if (existing != null) {
                 release(executionId, active);
@@ -129,12 +139,14 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
             return execution
                     .agent()
                     .streamEvents(messageMapper.toAgentScope(command.messages()), runtimeContext)
+                    // 每个源事件：校验租约仍然有效 → 记录启动态 → 计量 token
                     .doOnNext(
                             event -> {
                                 requireCurrent(command);
                                 onSourceEvent(event, active);
                                 meteringObserver.observe(event, execution.model(), command);
                             })
+                    // 收敛为 AAF 事件，无对应语义的源事件被丢弃
                     .concatMap(
                             event ->
                                     Mono.justOrEmpty(
@@ -146,6 +158,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                                                     mappingState)))
                     .timeout(execution.executionPolicy().timeout())
                     .doOnError(ignored -> interruptOnce(active))
+                    // 异常收口：已取消发 EXECUTION_CANCELED，否则发 RUN_FAILED，流始终正常结束
                     .onErrorResume(
                             failure -> {
                                 if (active.cancelled().get()) {
@@ -164,6 +177,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                                                 failure));
                             })
                     .doOnComplete(() -> active.sourceCompleted().set(true))
+                    // 取消与正常完成竞态时补一条终态事件，CAS 保证只发一次
                     .concatWith(
                             Flux.defer(
                                     () ->
@@ -176,6 +190,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                                                                     execution.agentIdentifier(),
                                                                     mappingState))
                                                     : Flux.empty()))
+                    // concatMap 保证串行入库，sequence 由存储层原子分配
                     .concatMap(event -> eventStore.append(event, command.context().lease()))
                     .doFinally(ignored -> release(executionId, active));
         } catch (RuntimeException failure) {
@@ -184,6 +199,11 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         }
     }
 
+    /**
+     * 解析执行规格：预定义 Agent 走版本化定义 + 共享缓存；动态规格按执行模式取用。
+     *
+     * <p>DIRECT（主助理直答）复用缓存实例，其余动态子智能体一次性编译，用完即 close（ephemeral）。
+     */
     private ResolvedExecution resolveExecution(AgentExecutionCommand command) {
         return switch (command.subagentSpec()) {
             case SubagentSpec.Predefined predefined -> {
@@ -210,10 +230,8 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
             case SubagentSpec.Dynamic dynamic -> {
                 var executionModel =
                         command.executionModel()
-                                .orElseThrow(
-                                        () -> new IllegalArgumentException("Dynamic 执行缺少模型"));
-                var direct =
-                        command.executionMode() == AgentExecutionCommand.ExecutionMode.DIRECT;
+                                .orElseThrow(() -> new IllegalArgumentException("Dynamic 执行缺少模型"));
+                var direct = command.executionMode() == AgentExecutionCommand.ExecutionMode.DIRECT;
                 var agent =
                         direct
                                 ? compiler.compileDirect(
@@ -236,6 +254,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         };
     }
 
+    /** 委托态才需要校验：会话租约仍是当代 + 任务允许继续执行；直答态无此约束。 */
     private void requireCurrent(AgentExecutionCommand command) {
         var context = command.context();
         if (context.controlMode()
@@ -247,6 +266,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         delegatedTasks.requireAgentExecution(context);
     }
 
+    /** AGENT_START 之后 Agent 才可被中断，因此在此补发早于启动到达的取消请求。 */
     private void onSourceEvent(AgentEvent event, ActiveExecution active) {
         if (event.getType() != AgentEventType.AGENT_START) {
             return;
@@ -261,12 +281,14 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         }
     }
 
+    /** interrupt 幂等：CAS 保证同一执行只向 ReActAgent 下发一次中断。 */
     private void interruptOnce(ActiveExecution active) {
         if (active.interruptIssued().compareAndSet(false, true)) {
             active.agent().getDelegate().interrupt(active.runtimeContext());
         }
     }
 
+    /** 出表并释放一次性实例；缓存实例由 compiler 统一管理，不在此关闭。 */
     private void release(ExecutionId executionId, ActiveExecution active) {
         activeExecutions.remove(executionId, active);
         if (active.ephemeral() && active.released().compareAndSet(false, true)) {
@@ -274,12 +296,14 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         }
     }
 
+    /** 尚未进入活跃表就失败时的释放路径。 */
     private static void release(ResolvedExecution execution) {
         if (execution.ephemeral()) {
             execution.agent().close();
         }
     }
 
+    /** 解析结果：可执行 Agent + 计量与超时所需元数据；ephemeral 表示用完即销毁。 */
     private record ResolvedExecution(
             HarnessAgent agent,
             ModelSpec model,
@@ -287,6 +311,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
             ExecutionPolicy executionPolicy,
             boolean ephemeral) {}
 
+    /** 单次执行的运行态标志位，用于取消、中断与终态事件去重。 */
     private record ActiveExecution(
             HarnessAgent agent,
             RuntimeContext runtimeContext,

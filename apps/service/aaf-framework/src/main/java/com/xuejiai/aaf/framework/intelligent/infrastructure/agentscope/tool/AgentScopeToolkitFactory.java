@@ -8,7 +8,11 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.ToolGatewayPort;
 
 import io.agentscope.core.tool.Toolkit;
 
-/** 将版本化 AAF 工具定义编译为 AgentScope Toolkit。 */
+/**
+ * 将版本化 AAF 工具定义编译为 AgentScope Toolkit。
+ *
+ * <p>Toolkit 只包含精确匹配请求版本的工具，且每个工具都被包成 {@link PortBackedAgentTool}， 确保模型无法绕过 AAF 权限与审计链路。
+ */
 public final class AgentScopeToolkitFactory {
 
     private final ToolCatalogPort toolCatalog;
@@ -24,6 +28,7 @@ public final class AgentScopeToolkitFactory {
         this.evidenceStore = evidenceStore;
     }
 
+    /** 目录返回结果必须与请求逐项同序对应，缺项或错序一律视为目录故障。 */
     public Toolkit create(List<ToolRef> refs) {
         var definitions = toolCatalog.resolve(refs);
         if (definitions.size() != refs.size()) {

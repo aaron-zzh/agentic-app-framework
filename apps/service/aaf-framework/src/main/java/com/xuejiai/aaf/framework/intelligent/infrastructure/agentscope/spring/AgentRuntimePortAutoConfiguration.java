@@ -17,7 +17,12 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.definitio
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.model.AgentScopeModelResolver;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.RegistryToolPortAdapter;
 
-/** 将现有生产仓储和工具注册中心接入 P2 稳定端口。 */
+/**
+ * 将现有生产仓储和工具注册中心接入 P2 稳定端口。
+ *
+ * <p>必须早于 {@link AgentScopeInfrastructureAutoConfiguration}——后者以这些端口存在为生效条件。 全部 Bean 都带
+ * ConditionalOnMissingBean，业务方可自行替换实现。
+ */
 @AutoConfiguration
 @AutoConfigureBefore(AgentScopeInfrastructureAutoConfiguration.class)
 public class AgentRuntimePortAutoConfiguration {

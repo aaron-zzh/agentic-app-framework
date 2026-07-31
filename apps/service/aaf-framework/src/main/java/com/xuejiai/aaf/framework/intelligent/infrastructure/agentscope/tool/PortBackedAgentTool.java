@@ -15,7 +15,12 @@ import io.agentscope.core.tool.ToolCallParam;
 import io.agentscope.core.tool.ToolSuspendException;
 import reactor.core.publisher.Mono;
 
-/** AgentScope 最终工具边界；所有真实调用必须经过 AAF ToolGateway。 */
+/**
+ * AgentScope 最终工具边界；所有真实调用必须经过 AAF ToolGateway。
+ *
+ * <p>继承 ToolBase 以显式声明 schema 与只读语义。执行结果的业务证据写入 {@link ToolResultEvidenceStore}，由事件映射器在
+ * TOOL_RESULT_END 时取回。
+ */
 final class PortBackedAgentTool extends ToolBase {
 
     private final ToolDefinition definition;
@@ -41,6 +46,7 @@ final class PortBackedAgentTool extends ToolBase {
     @Override
     public Mono<ToolResultBlock> callAsync(ToolCallParam param) {
         var runtimeContext = param.getRuntimeContext();
+        // 上下文由 AgentScopeRuntimeContextMapper 以 typed key 注入，缺失即链路被破坏
         var context = runtimeContext == null ? null : runtimeContext.get(InvocationContext.class);
         if (context == null)
             return Mono.error(new IllegalStateException("工具调用缺少 typed InvocationContext"));
@@ -63,6 +69,7 @@ final class PortBackedAgentTool extends ToolBase {
                                     TextBlock.builder().text(result.output()).build(),
                                     result.metadata());
                         })
+                // 需人工授权：转 ToolSuspendException 让 Agent 挂起而非报错终止
                 .onErrorMap(
                         ApprovalRequiredException.class,
                         failure -> {

@@ -31,7 +31,12 @@ import io.agentscope.core.event.ToolResultEndEvent;
 import io.agentscope.core.message.GenerateReason;
 import io.agentscope.core.message.ToolResultState;
 
-/** 将 AgentScope 运行事件收敛为稳定、脱敏的 AAF 事件。 */
+/**
+ * 将 AgentScope 运行事件收敛为稳定、脱敏的 AAF 事件。
+ *
+ * <p>AgentScope 侧有 20+ 类型化事件，AAF 只保留对外契约需要的子集；思考链、工具入参、 原始错误信息不出边界。工具业务证据从 {@link
+ * ToolResultEvidenceStore} 取回后按白名单合并。
+ */
 public final class AgentScopeEventMapper {
 
     private final ToolResultEvidenceStore evidenceStore;
@@ -40,7 +45,7 @@ public final class AgentScopeEventMapper {
         this.evidenceStore = evidenceStore;
     }
 
-    /** 映射单个运行事件；不对外暴露思考链和工具参数。 */
+    /** 映射单个运行事件；不对外暴露思考链和工具参数。未识别类型返回 empty 直接丢弃。 */
     public Optional<ExecutionEvent> map(
             AgentEvent source,
             AgentExecutionCommand command,
@@ -155,6 +160,7 @@ public final class AgentScopeEventMapper {
                 ExecutionEventPayload.empty());
     }
 
+    /** AGENT_END → RUN_COMPLETED；已进入终态（失败/取消/待授权）时不再覆盖。 */
     private Optional<ExecutionEvent> mapAgentEnd(
             AgentEndEvent source,
             AgentExecutionCommand command,
@@ -174,6 +180,7 @@ public final class AgentScopeEventMapper {
                 payload("replyId", source.getReplyId()));
     }
 
+    /** 模型调用结束：带上 token 用量快照供前端展示；usage 缺失时只保留模型标识。 */
     private Optional<ExecutionEvent> mapModelCallEnd(
             ModelCallEndEvent source,
             AgentExecutionCommand command,
@@ -200,6 +207,7 @@ public final class AgentScopeEventMapper {
                 new ExecutionEventPayload(values));
     }
 
+    /** 文本增量：按 replyId 聚合即可还原完整回复。 */
     private Optional<ExecutionEvent> mapTextDelta(
             TextBlockDeltaEvent source,
             AgentExecutionCommand command,
@@ -215,6 +223,7 @@ public final class AgentScopeEventMapper {
                 payload("replyId", source.getReplyId(), "delta", source.getDelta()));
     }
 
+    /** 工具开始：只暴露 toolCallId 与工具名，模型生成的入参不出边界。 */
     private Optional<ExecutionEvent> mapToolStart(
             ToolCallStartEvent source,
             AgentExecutionCommand command,
@@ -234,6 +243,7 @@ public final class AgentScopeEventMapper {
                         source.getToolCallName()));
     }
 
+    /** 工具结束：证据标记需授权 → AUTHORIZATION_REQUESTED，否则按成功/失败分流。 */
     private Optional<ExecutionEvent> mapToolResult(
             ToolResultEndEvent source,
             AgentExecutionCommand command,
@@ -269,6 +279,7 @@ public final class AgentScopeEventMapper {
                 new ExecutionEventPayload(toolResultPayload(source, resultState, evidence)));
     }
 
+    /** 工具结果载荷：标识 + 结果状态 + 已过滤的业务证据。 */
     private static LinkedHashMap<String, Object> toolResultPayload(
             ToolResultEndEvent source,
             ToolResultState resultState,
@@ -281,6 +292,7 @@ public final class AgentScopeEventMapper {
         return values;
     }
 
+    /** 权限引擎 ASK 决策：转 APPROVAL_REQUESTED，只带待确认工具名。 */
     private Optional<ExecutionEvent> mapConfirmation(
             RequireUserConfirmEvent source,
             AgentExecutionCommand command,
@@ -298,6 +310,7 @@ public final class AgentScopeEventMapper {
                 payload("tools", toolNames));
     }
 
+    /** 停止请求：权限等待与工具挂起只改状态不发事件（由授权事件表达），其余为 EXECUTION_PAUSED。 */
     private Optional<ExecutionEvent> mapStop(
             RequestStopEvent source,
             AgentExecutionCommand command,
@@ -319,6 +332,7 @@ public final class AgentScopeEventMapper {
                 payload("reason", source.getGenerateReason().name()));
     }
 
+    /** 超出最大迭代：视为运行失败，附迭代上限便于排查。 */
     private Optional<ExecutionEvent> mapMaxIterations(
             ExceedMaxItersEvent source,
             AgentExecutionCommand command,
@@ -341,6 +355,7 @@ public final class AgentScopeEventMapper {
                         source.getCurrentIter()));
     }
 
+    /** 由源事件构造 AAF 事件：沿用源事件 id 与时间戳，id 缺失时兜底随机。 */
     private Optional<ExecutionEvent> event(
             AgentEvent source,
             AgentExecutionCommand command,
@@ -364,6 +379,7 @@ public final class AgentScopeEventMapper {
                         payload));
     }
 
+    /** 无源事件的合成事件（失败 / 取消），id 与时间戳本地生成。 */
     private ExecutionEvent syntheticEvent(
             AgentExecutionCommand command,
             String agentIdentifier,
@@ -382,6 +398,7 @@ public final class AgentScopeEventMapper {
                 payload);
     }
 
+    /** 统一填充调用上下文标识（租户 / 会话 / 任务 / 追踪链）。 */
     private ExecutionEvent create(
             EventId eventId,
             Instant createdAt,
@@ -416,6 +433,7 @@ public final class AgentScopeEventMapper {
                 createdAt);
     }
 
+    /** 按 key-value 交替入参构造载荷，null 值直接跳过。 */
     private static ExecutionEventPayload payload(Object... pairs) {
         var values = new LinkedHashMap<String, Object>();
         for (var index = 0; index < pairs.length; index += 2) {
@@ -431,7 +449,7 @@ public final class AgentScopeEventMapper {
         return UUID.randomUUID().toString().replace("-", "");
     }
 
-    /** 单个运行流内的序列和生命周期快照。 */
+    /** 单个运行流内的序列和生命周期快照。逐事件推进状态机，供后续事件复用当前状态。 */
     public static final class MappingState {
         private final AtomicLong sequence;
         private final AtomicReference<ExecutionEventStatus> status =

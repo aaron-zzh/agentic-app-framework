@@ -8,7 +8,11 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 
 import io.agentscope.extensions.redis.state.RedisClientAdapter;
 
-/** 复用 Spring 管理连接的 AgentScope Redis 客户端适配器。 */
+/**
+ * 复用 Spring 管理连接的 AgentScope Redis 客户端适配器。
+ *
+ * <p>供 RedisAgentStateStore 使用，避免另起一套 Jedis/Lettuce 连接池。 所有读操作把 Spring 的 null 返回归一化为空集合。
+ */
 public final class SpringRedisClientAdapter implements RedisClientAdapter {
 
     private final StringRedisTemplate redisTemplate;

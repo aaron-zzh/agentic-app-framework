@@ -18,14 +18,23 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AgentId;
 import io.agentscope.core.state.AgentStateStore;
 import io.agentscope.harness.agent.HarnessAgent;
 
-/** 将版本化 AAF AgentSpec 编译并缓存为无状态 HarnessAgent。 */
+/**
+ * 将版本化 AAF AgentSpec 编译并缓存为无状态 HarnessAgent。
+ *
+ * <p>HarnessAgent 是无状态引擎：实例只持有不可变配置（system prompt / 模型 / 工具集）， 会话数据由 AgentStateStore 按 (userId,
+ * sessionId) 寻址，因此同一执行画像可跨请求共享一个实例。
+ */
 public final class AgentScopeSpecCompiler implements AutoCloseable {
 
     private final AgentStateStore stateStore;
     private final AgentScopeToolkitFactory toolkitFactory;
     private final AgentScopeModelResolver modelResolver;
     private final EffectiveToolResolver effectiveToolResolver;
+
+    /** 预定义 Agent 缓存：键含版本号与生效画像，画像变化即视为新条目。 */
     private final ConcurrentMap<DefinitionKey, HarnessAgent> cache = new ConcurrentHashMap<>();
+
+    /** 主助理直答缓存：动态规格无版本号，用标识 + 模型 + 画像作键。 */
     private final ConcurrentMap<DirectKey, HarnessAgent> directCache = new ConcurrentHashMap<>();
 
     public AgentScopeSpecCompiler(
@@ -46,6 +55,7 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
         Objects.requireNonNull(spec, "spec 不能为空");
         Objects.requireNonNull(skillSystemPromptAppendix, "skillSystemPromptAppendix 不能为空");
         Objects.requireNonNull(roleAllowedToolNames, "roleAllowedToolNames 不能为空");
+        // 生效工具 = Role 白名单 ∩ Agent 声明工具，Toolkit 只暴露交集
         var effectiveTools =
                 List.copyOf(effectiveToolResolver.resolve(roleAllowedToolNames, spec.tools()));
         var effectiveSystemPrompt = appendPrompt(spec.systemPrompt(), skillSystemPromptAppendix);
@@ -64,10 +74,7 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
             Set<String> roleAllowedToolNames) {
         var resolved =
                 resolveDynamic(
-                        spec,
-                        executionModel,
-                        skillSystemPromptAppendix,
-                        roleAllowedToolNames);
+                        spec, executionModel, skillSystemPromptAppendix, roleAllowedToolNames);
         var key =
                 new DirectKey(
                         spec.identifier(),
@@ -78,10 +85,7 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
                 key,
                 ignored ->
                         compileDynamicNew(
-                                spec,
-                                executionModel,
-                                resolved.tools(),
-                                resolved.systemPrompt()));
+                                spec, executionModel, resolved.tools(), resolved.systemPrompt()));
     }
 
     /** 现场编译动态子智能体；规格没有稳定版本键，因此不进入定义缓存。 */
@@ -92,13 +96,11 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
             Set<String> roleAllowedToolNames) {
         var resolved =
                 resolveDynamic(
-                        spec,
-                        executionModel,
-                        skillSystemPromptAppendix,
-                        roleAllowedToolNames);
+                        spec, executionModel, skillSystemPromptAppendix, roleAllowedToolNames);
         return compileDynamicNew(spec, executionModel, resolved.tools(), resolved.systemPrompt());
     }
 
+    /** 校验动态规格并解析出生效工具与系统提示词。 */
     private DynamicExecutionProfile resolveDynamic(
             SubagentSpec.Dynamic spec,
             ModelSpec executionModel,
@@ -124,6 +126,8 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
             List<ToolRef> effectiveTools,
             String effectiveSystemPrompt) {
         var toolkit = toolkitFactory.create(effectiveTools);
+        // Harness 内置能力（工作区 / 记忆 / 子智能体 / 技能 / 文件与 Shell / 压缩）全部关闭：
+        // AAF 自己承担这些职责，只借用 ReAct 推理循环 + 工具调用，避免出现第二套真理源
         var agent =
                 HarnessAgent.builder()
                         .agentId(spec.identifier())
@@ -151,6 +155,7 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
                         .skillsEnabled(false)
                         .enableAgentTracingLog(false)
                         .build();
+        // 兜底断言：状态必须落在共享 Redis Store，否则多副本会退化成本地 JsonFile 存储
         if (agent.getStateStore() != stateStore) {
             agent.close();
             throw new IllegalStateException("HarnessAgent 未使用外部注入的 AgentStateStore");
@@ -161,6 +166,7 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
     private HarnessAgent compileNew(
             AgentSpec spec, List<ToolRef> effectiveTools, String effectiveSystemPrompt) {
         var toolkit = toolkitFactory.create(effectiveTools);
+        // 关闭项含义同 compileDynamicNew
         var agent =
                 HarnessAgent.builder()
                         .agentId(spec.agentId().value())
@@ -188,6 +194,7 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
                         .skillsEnabled(false)
                         .enableAgentTracingLog(false)
                         .build();
+        // 兜底断言：状态必须落在共享 Redis Store，否则多副本会退化成本地 JsonFile 存储
         if (agent.getStateStore() != stateStore) {
             agent.close();
             throw new IllegalStateException("HarnessAgent 未使用外部注入的 AgentStateStore");
@@ -195,6 +202,7 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
         return agent;
     }
 
+    /** 拼接系统提示词：Agent 基础人格 + 技能追加片段。 */
     private static String appendPrompt(String basePrompt, String appendix) {
         var normalizedBase = Objects.requireNonNull(basePrompt, "basePrompt 不能为空").trim();
         var normalizedAppendix = Objects.requireNonNull(appendix, "appendix 不能为空").trim();
@@ -203,6 +211,7 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
                 : normalizedBase + "\n\n" + normalizedAppendix;
     }
 
+    /** 容器销毁时释放全部缓存实例；一次性动态子智能体由调用方自行 close。 */
     @Override
     public void close() {
         cache.values().forEach(HarnessAgent::close);
@@ -211,17 +220,20 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
         directCache.clear();
     }
 
+    /** 预定义 Agent 缓存键。 */
     private record DefinitionKey(
             AgentId agentId,
             long version,
             List<ToolRef> effectiveTools,
             String effectiveSystemPrompt) {}
 
+    /** 主助理直答缓存键。 */
     private record DirectKey(
             String identifier,
             ModelSpec model,
             List<ToolRef> effectiveTools,
             String effectiveSystemPrompt) {}
 
+    /** 动态规格的生效画像。 */
     private record DynamicExecutionProfile(List<ToolRef> tools, String systemPrompt) {}
 }

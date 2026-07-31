@@ -19,10 +19,18 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import tools.jackson.core.type.TypeReference;
 
-/** 基于生产工具注册中心和 SQL 目录实现 P2 工具端口。 */
+/**
+ * 基于生产工具注册中心和 SQL 目录实现 P2 工具端口。
+ *
+ * <p>目录负责元数据（启用状态、只读/可撤销、权限码、schema），注册中心负责真实 callback。 Connector/MCP 类工具在此只做校验，实际调用必须走
+ * ConnectorActionPort。
+ */
 public final class RegistryToolPortAdapter implements ToolCatalogPort, ToolInvocationPort {
 
+    /** P2 只支持工具定义版本 1。 */
     private static final long SUPPORTED_VERSION = 1;
+
+    /** 受信参数名：只能由网关注入，禁止出现在模型可见 schema 中。 */
     private static final Set<String> RESERVED_CONNECTOR_PARAMETERS =
             Set.of("credentialhandle", "vaultref", "idempotencykey", "provideridempotencykey");
 
@@ -34,12 +42,14 @@ public final class RegistryToolPortAdapter implements ToolCatalogPort, ToolInvoc
         this.catalog = Objects.requireNonNull(catalog, "catalog 不能为空");
     }
 
+    /** 逐项解析并保持与入参同序，供 Toolkit 做对位校验。 */
     @Override
     public List<ToolDefinition> resolve(List<ToolRef> tools) {
         Objects.requireNonNull(tools, "tools 不能为空");
         return tools.stream().map(this::resolveOne).toList();
     }
 
+    /** 同步 callback 放到 boundedElastic 执行，避免阻塞事件循环线程。 */
     @Override
     public Mono<ToolInvocationResult> invoke(ToolInvocation invocation) {
         Objects.requireNonNull(invocation, "invocation 不能为空");
@@ -70,6 +80,7 @@ public final class RegistryToolPortAdapter implements ToolCatalogPort, ToolInvoc
                 .subscribeOn(Schedulers.boundedElastic());
     }
 
+    /** 解析单个工具：版本与标识校验 → 目录元数据 → callback → schema，任一环节缺失即失败。 */
     private ToolDefinition resolveOne(ToolRef ref) {
         Objects.requireNonNull(ref, "tool ref 不能为空");
         if (ref.version() != SUPPORTED_VERSION) {
@@ -108,6 +119,7 @@ public final class RegistryToolPortAdapter implements ToolCatalogPort, ToolInvoc
                 entry.idempotencyRequired());
     }
 
+    /** 目录元数据自洽性校验：启用状态、只读与可撤销互斥、Connector 写动作必须幂等。 */
     private void requireEnabled(ToolCatalogEntry entry) {
         if (!entry.enabled()) {
             throw new IllegalStateException("工具未启用: " + entry.toolName());
@@ -125,6 +137,7 @@ public final class RegistryToolPortAdapter implements ToolCatalogPort, ToolInvoc
         validateNoReservedProperties(entry.toolName(), schema);
     }
 
+    /** 递归下探嵌套 schema：去掉分隔符与大小写后比对，防止 credential_handle 等变体绕过。 */
     private void validateNoReservedProperties(String toolName, Object node) {
         if (node instanceof Map<?, ?> map) {
             var properties = map.get("properties");
@@ -144,6 +157,7 @@ public final class RegistryToolPortAdapter implements ToolCatalogPort, ToolInvoc
         }
     }
 
+    /** 入参 schema 必须是顶层 object，否则模型无法生成合法 Function Calling 参数。 */
     private Map<String, Object> inputSchema(ToolCatalogEntry entry) {
         if (entry.inputSchema() == null || entry.inputSchema().isBlank()) {
             throw new IllegalStateException("工具缺少 input schema: " + entry.toolName());
@@ -158,6 +172,7 @@ public final class RegistryToolPortAdapter implements ToolCatalogPort, ToolInvoc
         return schema;
     }
 
+    /** MCP 与 Connector 来源统一按外部动作处理。 */
     private static boolean connectorAction(ToolCatalogEntry entry) {
         return "MCP".equalsIgnoreCase(entry.source())
                 || "CONNECTOR".equalsIgnoreCase(entry.source());

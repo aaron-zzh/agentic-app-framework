@@ -14,9 +14,15 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.AgentDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AgentId;
 
-/** 将持久化 Agent 定义映射为 P2 运行规格。 */
+/**
+ * 将持久化 Agent 定义映射为 P2 运行规格。
+ *
+ * <p>{@link AgentDefinitionPort} 的 JPA 实现：读 agent_definition 表，把行记录翻译成 {@link AgentSpec}（提示词 + 模型 +
+ * 工具引用 + 执行策略），是预定义 Agent 的唯一定义来源。
+ */
 public final class JpaAgentDefinitionAdapter implements AgentDefinitionPort {
 
+    /** 定义表未存该字段，模型重试次数统一取默认值。 */
     private static final int DEFAULT_MODEL_RETRIES = 2;
 
     private final AgentDefinitionRepository repository;
@@ -25,6 +31,7 @@ public final class JpaAgentDefinitionAdapter implements AgentDefinitionPort {
         this.repository = Objects.requireNonNull(repository, "repository 不能为空");
     }
 
+    /** 仅返回 active 版本；非法或越界版本号按"定义不存在"处理。 */
     @Override
     public Optional<AgentSpec> findByIdAndVersion(AgentId agentId, long version) {
         Objects.requireNonNull(agentId, "agentId 不能为空");
@@ -41,6 +48,7 @@ public final class JpaAgentDefinitionAdapter implements AgentDefinitionPort {
         if (entity.getModelId() == null) {
             throw new IllegalStateException("Agent 定义未绑定模型: " + entity.getAgentId());
         }
+        // P2 阶段工具稳定标识 = callback 名称，版本恒为 1
         var tools =
                 JsonUtils.parseArray(entity.getAllowedTools(), String.class).stream()
                         .map(name -> new ToolRef(name, 1, name))

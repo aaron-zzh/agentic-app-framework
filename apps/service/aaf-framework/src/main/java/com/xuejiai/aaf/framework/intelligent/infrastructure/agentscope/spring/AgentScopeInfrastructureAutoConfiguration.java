@@ -29,7 +29,11 @@ import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePor
 import io.agentscope.core.state.AgentStateStore;
 import io.agentscope.extensions.redis.state.RedisAgentStateStore;
 
-/** Core + Agent 唯一 AgentScope 基础设施接线。 */
+/**
+ * Core + Agent 唯一 AgentScope 基础设施接线。
+ *
+ * <p>五个必需端口齐备时才装配，缺任一端口整个 AgentScope 运行时不生效。
+ */
 @AutoConfiguration
 @ConditionalOnBean({
     AgentDefinitionPort.class,
@@ -40,8 +44,10 @@ import io.agentscope.extensions.redis.state.RedisAgentStateStore;
 })
 public class AgentScopeInfrastructureAutoConfiguration {
 
+    /** Redis 状态键前缀，避免与其他业务键冲突。 */
     private static final String STATE_KEY_PREFIX = "aaf:agentscope:state:";
 
+    /** Agent 状态统一落 Redis：多副本共享，替代 Harness 默认的本地 JsonFile 存储。 */
     @Bean(destroyMethod = "close")
     @ConditionalOnMissingBean(AgentStateStore.class)
     @ConditionalOnBean(StringRedisTemplate.class)
@@ -92,6 +98,7 @@ public class AgentScopeInfrastructureAutoConfiguration {
         return new DefaultEffectiveToolResolver();
     }
 
+    /** 编译器持有 HarnessAgent 缓存，销毁时须 close 释放。 */
     @Bean(destroyMethod = "close")
     AgentScopeSpecCompiler agentScopeSpecCompiler(
             AgentStateStore stateStore,
