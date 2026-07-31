@@ -46,7 +46,7 @@ import {
   useTestAutomationRule,
   useToggleAutomationRule,
   useUpdateAutomationRule
-} from "@/lib/queries/use-automations"
+} from "@/lib/api/rest/automation/automation"
 
 /** 触发器类型标签 */
 const TRIGGER_LABELS: Record<TriggerType, string> = {

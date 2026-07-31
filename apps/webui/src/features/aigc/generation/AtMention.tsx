@@ -14,7 +14,7 @@ import {
   CommandItem,
   CommandList
 } from "@/components/ui/command"
-import { useMediaAssetSearch } from "@/lib/queries/use-media-assets"
+import { useMediaAssetSearch } from "@/lib/api/rest/media/media-asset"
 import { useAigcStore } from "../store"
 
 interface AtMentionProps {

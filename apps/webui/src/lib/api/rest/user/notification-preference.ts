@@ -3,6 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { backendApi } from "../backend-client"
 
 /** 通知通道类型 */
@@ -29,4 +30,23 @@ export const notificationPreferenceApi = {
   get: () => backendApi.get<NotificationPreference>("/notification-preferences"),
   /** 更新通知偏好 */
   update: (data: NotificationPreference) => backendApi.put<void>("/notification-preferences", data)
+}
+
+const KEY = ["notification-preferences"] as const
+
+export function useNotificationPreference() {
+  return useQuery({
+    queryKey: KEY,
+    queryFn: () => notificationPreferenceApi.get()
+  })
+}
+
+export function useUpdateNotificationPreference() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data: NotificationPreference) => notificationPreferenceApi.update(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEY })
+    }
+  })
 }

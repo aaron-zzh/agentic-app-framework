@@ -11,7 +11,7 @@ import { useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { BaseChart, type EChartsOption } from "@/features/stats/charts/BaseChart"
-import { useCreditsOverview, useCreditsTrend } from "@/lib/queries/use-credits-analytics"
+import { useCreditsOverview, useCreditsTrend } from "@/lib/api/rest/dashboard/credits-analytics"
 import { cn } from "@/lib/utils/cn"
 
 interface StatCardProps {

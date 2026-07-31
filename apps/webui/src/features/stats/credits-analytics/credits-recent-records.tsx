@@ -21,7 +21,7 @@ import {
   TableRow
 } from "@/components/ui/table"
 import type { CreditRecordVO } from "@/lib/api/rest/dashboard/credits-analytics"
-import { useCreditsRecords } from "@/lib/queries/use-credits-analytics"
+import { useCreditsRecords } from "@/lib/api/rest/dashboard/credits-analytics"
 
 const PAGE_SIZE = 10
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { AiModelVO } from "@/lib/api/rest/ai/ai-model"
-import { useAiModels } from "@/lib/queries/use-ai-models"
+import { useAiModels } from "@/lib/api/rest/ai/ai-model"
 
 export interface ModelOption {
   value: string

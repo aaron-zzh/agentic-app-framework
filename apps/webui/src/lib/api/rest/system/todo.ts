@@ -68,6 +68,8 @@ export interface TodoUpdateInput {
   participantIds?: number[]
 }
 
+// ==================== 用户端 / Studio 待办操作 ====================
+
 /** Studio 待办工具固定声明个人视角，与页面所在路由树的默认场景无关 */
 const OWN_SCOPE_HEADERS = { "X-Scope": "own" } as const
 
@@ -154,6 +156,40 @@ export function useStudioTodoClearDone() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (ids: number[]) => todoApi.removeBatch(ids),
+    onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.all })
+  })
+}
+
+// ==================== 管理端维护接口 ====================
+
+/**
+ * 管理端待办维护 API。
+ *
+ * Todo 是管理端和用户端共用的资源；本段仅提供跨用户的系统维护操作。
+ * 普通创建、编辑、状态更新和删除仍使用上方 todoApi。
+ */
+export const todoAdminApi = {
+  /** 清理当前租户内全部用户的已完成待办 */
+  clearDone: () => backendApi.put<number>("/todos/_clear-done"),
+
+  /** 异步清理当前租户内全部用户的已完成待办 */
+  clearDoneAsync: () => backendApi.post<string>("/todos/_clear-done/async")
+}
+
+/** 管理端清理全部用户的已完成待办 */
+export function useAdminTodoClearDone() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => todoAdminApi.clearDone(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.all })
+  })
+}
+
+/** 管理端异步清理全部用户的已完成待办 */
+export function useAdminTodoClearDoneAsync() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => todoAdminApi.clearDoneAsync(),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.all })
   })
 }

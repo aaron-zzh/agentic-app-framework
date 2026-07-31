@@ -28,12 +28,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { GenerationResultCard } from "@/features/aigc/generation/GenerationResultCard"
 import { PromptTemplateDialog } from "@/features/aigc/generation/PromptTemplateDialog"
+import { useGenerateVideo, type VideoImageMode } from "@/lib/api/rest/ai/aigc-task"
 import { type AigcTaskEvent, useAigcTaskStream } from "@/lib/hooks/use-aigc-task-stream"
 import { useEstimateAigcCredits } from "@/lib/hooks/use-estimate-aigc-credits"
 import { useFileUpload } from "@/lib/hooks/use-file-upload"
 import { useGenerationParams } from "@/lib/hooks/use-generation-params"
 import { useModelSelector } from "@/lib/hooks/use-model-selector"
-import { useGenerateVideo, type VideoImageMode } from "@/lib/queries/use-image-generation"
 
 const VIDEO_MODES: { value: VideoImageMode; label: string; icon: typeof Video }[] = [
   { value: "T2V", label: "文生视频", icon: Video },

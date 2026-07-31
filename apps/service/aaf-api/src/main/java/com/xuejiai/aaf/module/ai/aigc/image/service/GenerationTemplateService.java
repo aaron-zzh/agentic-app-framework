@@ -1,12 +1,17 @@
 package com.xuejiai.aaf.module.ai.aigc.image.service;
 
+import java.util.Objects;
 import java.util.Set;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.aigc.image.domain.GenerationTemplate;
 import com.xuejiai.aaf.module.ai.aigc.image.repository.GenerationTemplateRepository;
 import com.xuejiai.aaf.module.ai.aigc.image.vo.GenerationTemplateCreateDTO;
@@ -49,6 +54,7 @@ public class GenerationTemplateService
                     "updateTime");
 
     private final GenerationTemplateRepository templateRepository;
+    private final OperatorContext operatorContext;
 
     @Override
     protected GenerationTemplateRepository getRepository() {
@@ -87,6 +93,7 @@ public class GenerationTemplateService
         entity.setSteps(dto.steps());
         entity.setSeed(dto.seed());
         entity.setIsPublic(dto.isPublic() != null && dto.isPublic());
+        entity.setUserId(operatorContext.currentUserId().orElseThrow());
         return entity;
     }
 
@@ -116,24 +123,25 @@ public class GenerationTemplateService
                 .build();
     }
 
-    /** TODO 查询公开模板（绕过行级数据权限，直接按 is_public=true 过滤）。 */
-    public com.xuejiai.aaf.common.model.PageResult<GenerationTemplateVO> pagePublic(
-            GenerationTemplatePageDTO query) {
-        var spec = buildSpec(query);
+    /** 查询公开模板，始终强制 {@code isPublic=true}。 */
+    public PageResult<GenerationTemplateVO> pagePublic(GenerationTemplatePageDTO query) {
+        var spec =
+                buildSpec(query)
+                        .and((root, ignored, cb) -> cb.isTrue(root.get("isPublic")));
         var pageReq =
                 org.springframework.data.domain.PageRequest.of(
                         Math.max(query.getPageNo() - 1, 0),
                         query.getPageSize() > 0 ? query.getPageSize() : 100,
                         org.springframework.data.domain.Sort.by("usageCount").descending());
         var page = templateRepository.findAll(spec, pageReq);
-        return new com.xuejiai.aaf.common.model.PageResult<>(
+        return new PageResult<>(
                 page.getContent().stream().map(this::toVO).toList(), page.getTotalElements());
     }
 
     /** 按用户分页查询（/me 端点强制 userId 过滤）。 */
-    public com.xuejiai.aaf.common.model.PageResult<GenerationTemplateVO> pageByUser(
+    public PageResult<GenerationTemplateVO> pageByUser(
             Long userId, GenerationTemplatePageDTO query) {
-        var spec = buildSpec(query).and((root, q, cb) -> cb.equal(root.get("userId"), userId));
+        var spec = buildSpec(query).and((root, ignored, cb) -> cb.equal(root.get("userId"), userId));
         var pageReq =
                 org.springframework.data.domain.PageRequest.of(
                         Math.max(query.getPageNo() - 1, 0),
@@ -141,23 +149,28 @@ public class GenerationTemplateService
                         org.springframework.data.domain.Sort.by(
                                 org.springframework.data.domain.Sort.Direction.DESC, "updateTime"));
         var page = templateRepository.findAll(spec, pageReq);
-        return new com.xuejiai.aaf.common.model.PageResult<>(
+        return new PageResult<>(
                 page.getContent().stream().map(this::toVO).toList(), page.getTotalElements());
     }
 
-    /** 增加使用计数。 */
+    /** 增加公开模板或当前用户自有模板的使用计数。 */
     @Transactional
     public GenerationTemplateVO incrementUsage(Long id) {
         var template =
-                getRepository()
+                templateRepository
                         .findById(id)
-                        .orElseThrow(
-                                () ->
-                                        new com.xuejiai.aaf.common.exception.BusinessException(
-                                                com.xuejiai.aaf.common.exception.GlobalErrorCode
-                                                        .NOT_FOUND,
-                                                "模板不存在"));
+                        .orElseThrow(GenerationTemplateService::templateNotFound);
+        if (!Boolean.TRUE.equals(template.getIsPublic())) {
+            var currentUserId = operatorContext.currentUserId().orElse(null);
+            if (!Objects.equals(template.getUserId(), currentUserId)) {
+                throw templateNotFound();
+            }
+        }
         template.incrementUsage();
-        return toVO(getRepository().save(template));
+        return toVO(templateRepository.save(template));
+    }
+
+    private static BusinessException templateNotFound() {
+        return new BusinessException(GlobalErrorCode.NOT_FOUND, "模板不存在");
     }
 }

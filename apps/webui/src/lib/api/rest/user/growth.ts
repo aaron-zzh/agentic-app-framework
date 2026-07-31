@@ -1,11 +1,13 @@
 /**
- * 成长任务 hooks
+ * 成长任务 API 与 TanStack Query Hooks
  * @author AaronZZH & Kiro
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { backendApi } from "@/lib/api/rest/backend-client"
+
 import { invalidateCreditQueries } from "@/lib/api/rest/billing/credits"
+
+import { backendApi } from "../backend-client"
 
 export interface GrowthTaskVO {
   id: number
@@ -25,22 +27,28 @@ export interface GrowthTaskVO {
   userClaimedTime?: string
 }
 
-const KEY = ["user", "growth", "tasks"] as const
+const GROWTH_TASK_KEY = ["user", "growth", "tasks"] as const
+
+export const growthApi = {
+  listTasks: (): Promise<GrowthTaskVO[]> => backendApi.get("/user/growth/tasks"),
+  claimTask: (taskId: number): Promise<void> =>
+    backendApi.post(`/user/growth/tasks/${taskId}/claim`, {})
+}
 
 export function useGrowthTasks() {
   return useQuery({
-    queryKey: KEY,
-    queryFn: () => backendApi.get<GrowthTaskVO[]>("/user/growth/tasks")
+    queryKey: GROWTH_TASK_KEY,
+    queryFn: growthApi.listTasks
   })
 }
 
 export function useClaimGrowthTask() {
-  const qc = useQueryClient()
+  const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (taskId: number) => backendApi.post<void>(`/user/growth/tasks/${taskId}/claim`, {}),
+    mutationFn: growthApi.claimTask,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: KEY })
-      invalidateCreditQueries(qc)
+      queryClient.invalidateQueries({ queryKey: GROWTH_TASK_KEY })
+      invalidateCreditQueries(queryClient)
     }
   })
 }

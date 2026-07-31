@@ -25,8 +25,8 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAigcStore } from "@/features/aigc/store"
-import type { AiSkillVO } from "@/lib/queries/use-ai-skills"
-import { useAiSkills } from "@/lib/queries/use-ai-skills"
+import type { AiSkillVO } from "@/lib/api/rest/ai/skill"
+import { useAiSkills } from "@/lib/api/rest/ai/skill"
 import { cn } from "@/lib/utils"
 
 // ─── 分类配置 ────────────────────────────────────────────────────────────────

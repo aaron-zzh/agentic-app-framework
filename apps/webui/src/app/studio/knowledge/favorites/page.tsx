@@ -16,7 +16,7 @@ import {
   type UserFavoriteVO,
   useRemoveFavorite,
   useUserFavorites
-} from "@/lib/queries/use-user-favorites"
+} from "@/lib/api/rest/user/favorite"
 
 const TARGET_TYPE_LABELS: Record<string, string> = {
   DOC: "文档",
@@ -84,7 +84,7 @@ function FavoriteItem({ fav }: { fav: UserFavoriteVO }) {
 }
 
 export default function StudioKnowledgeFavoritesPage() {
-  const { data: page, isLoading } = useUserFavorites({ size: 50 })
+  const { data: page, isLoading } = useUserFavorites({ pageSize: 50 })
   const favorites = page?.list ?? []
 
   // 按 targetType 分组

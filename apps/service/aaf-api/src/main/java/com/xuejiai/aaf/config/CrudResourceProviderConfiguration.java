@@ -80,12 +80,14 @@ public class CrudResourceProviderConfiguration {
 
     @Bean
     CrudResourceDefinitionProvider<?> generationTemplateResource() {
-        return crud(
+        return CrudResourceDefinitions.crud(
                 "aigc.generation-template",
                 "参数模板",
                 GenerationTemplateController.class,
                 "/api/aigc/templates",
-                "system:generation-template");
+                "system:generation-template",
+                TenantScope.GLOBAL,
+                PersonalScope.byProperty("userId"));
     }
 
     @Bean

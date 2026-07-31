@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Textarea } from "@/components/ui/textarea"
 import type { EntityDefConfig } from "@/features/entity-engine/types"
-import { useEntityBootstrap } from "@/lib/queries/use-entity-defs"
+import { useEntityBootstrap } from "@/lib/api/rest/entity/entity-def"
 
 import {
   buildEntityDefGeneratorSystemPrompt,

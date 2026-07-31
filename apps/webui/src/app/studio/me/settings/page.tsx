@@ -26,11 +26,11 @@ import type {
   NotificationChannel,
   NotificationPreference
 } from "@/lib/api/rest/user/notification-preference"
-import { notify } from "@/lib/notification"
 import {
   useNotificationPreference,
   useUpdateNotificationPreference
-} from "@/lib/queries/use-notification-preference"
+} from "@/lib/api/rest/user/notification-preference"
+import { notify } from "@/lib/notification"
 
 const BUSSINESS_CATEGORIES = ["system", "task", "mention", "subscription"] as const
 type BizCategory = (typeof BUSSINESS_CATEGORIES)[number]

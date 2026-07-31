@@ -24,7 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
-import { useOrganizations } from "@/lib/queries/use-organizations"
+import { useOrganizations } from "@/lib/api/rest/user/organization"
 import { useOrgStore } from "@/lib/store/org-store"
 import { $url } from "@/lib/utils"
 

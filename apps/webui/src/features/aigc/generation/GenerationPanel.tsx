@@ -28,10 +28,10 @@ import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import type { VideoConfig } from "@/lib/api/rest/ai/ai-model"
+import { useGenerateImage } from "@/lib/api/rest/ai/aigc-task"
 import { request } from "@/lib/api/rest/entity/crud"
 import { useGenerationParams } from "@/lib/hooks/use-generation-params"
 import { useModelSelector } from "@/lib/hooks/use-model-selector"
-import { useGenerateImage } from "@/lib/queries/use-image-generation"
 import { useAigcStore } from "../store"
 import { VOICE_TEXT_MAX_LEN, VOICES } from "../voice-options"
 import { buildFinalPrompt, PromptInput } from "./PromptInput"
@@ -222,7 +222,7 @@ export function GenerationPanel() {
   const clearReferenceAssets = useAigcStore((s) => s.clearReferenceAssets)
 
   // ── 视频模式状态 ──
-  const videoConfig: VideoConfig | undefined = currentModel?.videoConfig
+  const videoConfig: VideoConfig | undefined = currentModel?.videoConfig ?? undefined
   const availableVideoModes = VIDEO_MODES.filter((m) => videoConfig?.modes?.includes(m.configKey))
   const [videoMode, setVideoMode] = useState<VideoImageMode>("T2V")
   const [videoParams, setVideoParams] = useState<VideoParams>(initVideoParams)

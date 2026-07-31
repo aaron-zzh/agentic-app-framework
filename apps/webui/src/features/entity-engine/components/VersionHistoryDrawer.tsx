@@ -26,8 +26,8 @@ import {
 } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { DataFieldDef } from "@/features/entity-engine/types"
+import { useRecordVersions, useRestoreVersion } from "@/lib/api/rest/entity/version"
 import { notify } from "@/lib/notification"
-import { useRecordVersions, useRestoreVersion } from "@/lib/queries/use-versions"
 import { cn } from "@/lib/utils/cn"
 
 interface Props {

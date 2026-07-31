@@ -32,7 +32,7 @@ import {
   useOrgMembers,
   useRemoveOrgMember,
   useUpdateOrganization
-} from "@/lib/queries/use-organizations"
+} from "@/lib/api/rest/user/organization"
 import { useOrgStore } from "@/lib/store/org-store"
 
 export default function OrganizationSettingsPage() {

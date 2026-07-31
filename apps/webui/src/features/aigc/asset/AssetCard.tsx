@@ -21,7 +21,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Model3DPreview } from "@/features/aigc/three/Model3DPreview"
-import { useMediaCategories, useUpdateMediaAsset } from "@/lib/queries/use-media-assets"
+import { useMediaCategories, useUpdateMediaAsset } from "@/lib/api/rest/media/media-asset"
 import { downloadFileWithToast } from "@/lib/utils"
 import type { MediaAssetType, MediaAssetVO, MediaCategoryVO } from "../types"
 

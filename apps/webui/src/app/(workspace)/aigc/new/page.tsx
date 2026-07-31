@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { PromptTemplateDialog } from "@/features/aigc/generation/PromptTemplateDialog"
 import { RichTextEditor } from "@/features/rich-text-editor"
-import { useCreateAigcProject } from "@/lib/queries/use-aigc-projects"
+import { useCreateAigcProject } from "@/lib/api/rest/ai/aigc-project"
 import { cn } from "@/lib/utils/cn"
 
 const PROJECT_TYPES = [

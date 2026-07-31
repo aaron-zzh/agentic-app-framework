@@ -22,14 +22,17 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
-import { type DeveloperSubscriptionPlan, developerApi } from "@/lib/api/rest/billing/developer"
-import { licenseApi } from "@/lib/api/rest/billing/license"
-import { useDeveloperPlans } from "@/lib/queries/use-developer-billing"
 import {
+  type DeveloperSubscriptionPlan,
+  developerApi,
+  useDeveloperPlans
+} from "@/lib/api/rest/billing/developer"
+import {
+  licenseApi,
   useIssueLicense,
   useLicenseStatus,
   useOfficialConsoleSummary
-} from "@/lib/queries/use-license-status"
+} from "@/lib/api/rest/billing/license"
 
 const FEATURE_OPTIONS = [
   { code: "developer", label: "开发者商业化模块" },

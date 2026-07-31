@@ -14,7 +14,7 @@ import { TypographyH1 } from "@/components/ui/typography"
 import { EntityDefEditor } from "@/features/entity-editor/EntityDefEditor"
 import { EntityDefList } from "@/features/entity-editor/EntityDefList"
 import type { EntityDefRecord } from "@/lib/api/rest/entity/entity-def"
-import { useEntityDefs, useUpdateEntityDef } from "@/lib/queries/use-entity-defs"
+import { useEntityDefs, useUpdateEntityDef } from "@/lib/api/rest/entity/entity-def"
 
 export default function EntitiesPage() {
   const { data: entities, isLoading } = useEntityDefs()

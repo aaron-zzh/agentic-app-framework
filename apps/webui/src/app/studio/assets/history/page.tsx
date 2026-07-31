@@ -27,8 +27,8 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useCancelAigcTask } from "@/lib/api/rest/ai/aigc-task"
 import { type PageResult, request } from "@/lib/api/rest/entity/crud"
-import { useCancelAigcTask } from "@/lib/queries/use-cancel-aigc-task"
 
 // ─── 类型 ───────────────────────────────────────────────────────────────────
 

@@ -21,17 +21,17 @@ import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import {
-  type PromptTemplateVO,
+  type GenerationTemplateVO,
   useCreatePromptTemplate,
   useDeletePromptTemplate,
   useMyPromptTemplates,
   useUpdatePromptTemplate
-} from "@/lib/queries/use-prompt-templates"
+} from "@/lib/api/rest/ai/generation-template"
 
 interface EditDialogProps {
   open: boolean
   onClose: () => void
-  initial?: PromptTemplateVO | null
+  initial?: GenerationTemplateVO | null
 }
 
 function EditDialog({ open, onClose, initial }: EditDialogProps) {
@@ -91,12 +91,12 @@ function EditDialog({ open, onClose, initial }: EditDialogProps) {
 }
 
 export default function StudioAssetsPromptsPage() {
-  const { data: page, isLoading } = useMyPromptTemplates({ size: 50 })
+  const { data: page, isLoading } = useMyPromptTemplates({ pageSize: 50 })
   const prompts = page?.list ?? []
   const deletePrompt = useDeletePromptTemplate()
 
-  const [editTarget, setEditTarget] = useState<PromptTemplateVO | null | undefined>(undefined)
-  // undefined = closed, null = create new, PromptTemplateVO = edit
+  const [editTarget, setEditTarget] = useState<GenerationTemplateVO | null | undefined>(undefined)
+  // undefined = closed, null = create new, GenerationTemplateVO = edit
 
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-6">

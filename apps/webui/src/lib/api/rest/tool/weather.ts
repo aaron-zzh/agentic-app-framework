@@ -1,10 +1,11 @@
 /**
- * 天气工具 TanStack Query Hook
+ * 天气工具 API 与 TanStack Query Hook
  * @author AaronZZH & Kiro
  */
 
 import { useQuery } from "@tanstack/react-query"
-import { backendApi } from "@/lib/api/rest/backend-client"
+
+import { backendApi } from "../backend-client"
 
 export interface WeatherVO {
   city: string
@@ -18,11 +19,16 @@ export interface WeatherVO {
   updatedAt: string
 }
 
+export const weatherApi = {
+  get: (city: string): Promise<WeatherVO> =>
+    backendApi.get(`/tools/weather?city=${encodeURIComponent(city)}`)
+}
+
 /** 查询城市天气（后端 30 分钟缓存） */
 export function useWeather(city: string) {
   return useQuery({
     queryKey: ["tools", "weather", city] as const,
-    queryFn: () => backendApi.get<WeatherVO>(`/tools/weather?city=${encodeURIComponent(city)}`),
+    queryFn: () => weatherApi.get(city),
     enabled: city.length > 0,
     staleTime: 30 * 60 * 1000
   })

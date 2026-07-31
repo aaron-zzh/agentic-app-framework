@@ -5,7 +5,7 @@ import { type ReactNode, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useLicenseStatus } from "@/lib/queries/use-license-status"
+import { useLicenseStatus } from "@/lib/api/rest/billing/license"
 
 export function LicenseOwnerOnly({ children }: { children: ReactNode }) {
   const [mounted, setMounted] = useState(false)

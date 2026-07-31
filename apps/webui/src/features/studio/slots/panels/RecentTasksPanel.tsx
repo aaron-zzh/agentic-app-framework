@@ -8,10 +8,10 @@
 import { CheckCircle2, Loader2, Trash2, XCircle } from "lucide-react"
 import Link from "next/link"
 import { useCallback, useEffect, useState } from "react"
+import { useCancelAigcTask } from "@/lib/api/rest/ai/aigc-task"
 import { request } from "@/lib/api/rest/crud/client"
 import type { PageResult } from "@/lib/api/types"
 import { type AigcTaskEvent, useAigcTaskStream } from "@/lib/hooks/use-aigc-task-stream"
-import { useCancelAigcTask } from "@/lib/queries/use-cancel-aigc-task"
 
 export function RecentTasksPanel() {
   const [tasks, setTasks] = useState<AigcTaskEvent[]>([])

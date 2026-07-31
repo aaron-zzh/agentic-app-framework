@@ -40,12 +40,12 @@ import type {
   DelegationScope,
   DelegationStatus
 } from "@/lib/api/rest/workflow/delegation"
-import { notify } from "@/lib/notification"
 import {
   useCancelDelegation,
   useCreateDelegation,
   useDelegations
-} from "@/lib/queries/use-delegations"
+} from "@/lib/api/rest/workflow/delegation"
+import { notify } from "@/lib/notification"
 
 /** 状态标签颜色映射 */
 const STATUS_VARIANT: Record<DelegationStatus, "default" | "secondary" | "destructive"> = {

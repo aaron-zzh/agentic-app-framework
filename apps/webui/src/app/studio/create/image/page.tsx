@@ -29,12 +29,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { GenerationResultCard } from "@/features/aigc/generation/GenerationResultCard"
 import { PromptTemplateDialog } from "@/features/aigc/generation/PromptTemplateDialog"
 import { API_ORIGIN } from "@/lib/api/config"
+import { useGenerateImage } from "@/lib/api/rest/ai/aigc-task"
 import { type AigcTaskEvent, useAigcTaskStream } from "@/lib/hooks/use-aigc-task-stream"
 import { useEstimateAigcCredits } from "@/lib/hooks/use-estimate-aigc-credits"
 import { useFileUpload } from "@/lib/hooks/use-file-upload"
 import { type GenerationParams, useGenerationParams } from "@/lib/hooks/use-generation-params"
 import { useModelSelector } from "@/lib/hooks/use-model-selector"
-import { useGenerateImage } from "@/lib/queries/use-image-generation"
 import { cn } from "@/lib/utils/cn"
 
 export default function StudioCreateImagePage() {

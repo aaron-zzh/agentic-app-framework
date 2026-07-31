@@ -16,7 +16,7 @@ import { AnimateBorder } from "@/components/animate/animate-border"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useInviteRewards, useMyInviteCode } from "@/lib/queries/use-invite"
+import { useInviteRewards, useMyInviteCode } from "@/lib/api/rest/brokerage/invite"
 import { cn } from "@/lib/utils/cn"
 
 interface InviteRewardViewProps {

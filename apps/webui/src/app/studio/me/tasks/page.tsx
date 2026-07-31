@@ -12,11 +12,7 @@ import { CheckCircle2, Coins, Loader2, Sparkles, Trophy } from "lucide-react"
 import { toast } from "sonner"
 import { GlassCard, GlowButton, NeonChip, SectionHaze } from "@/components/studio"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  type GrowthTaskVO,
-  useClaimGrowthTask,
-  useGrowthTasks
-} from "@/lib/queries/use-growth-tasks"
+import { type GrowthTaskVO, useClaimGrowthTask, useGrowthTasks } from "@/lib/api/rest/user/growth"
 import { cn } from "@/lib/utils"
 
 const CATEGORY_LABELS: Record<GrowthTaskVO["category"], string> = {

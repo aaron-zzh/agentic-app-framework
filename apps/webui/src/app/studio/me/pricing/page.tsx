@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { PublicModelPricingVO } from "@/lib/api/rest/ai/ai-model"
-import { useModelPricing } from "@/lib/queries/use-ai-models"
+import { useModelPricing } from "@/lib/api/rest/ai/ai-model"
 import { cn } from "@/lib/utils/index"
 
 const CAP_LABEL: Record<string, string> = {

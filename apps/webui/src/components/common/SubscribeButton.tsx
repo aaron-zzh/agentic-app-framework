@@ -24,7 +24,7 @@ import {
   useRemoveSubscription,
   useSubscription,
   useUpsertSubscription
-} from "@/lib/queries/use-subscription"
+} from "@/lib/api/rest/billing/subscription"
 import type { DataFieldDef, EntityDef, FieldDef } from "@/lib/types/entity"
 
 interface SubscribeButtonProps {

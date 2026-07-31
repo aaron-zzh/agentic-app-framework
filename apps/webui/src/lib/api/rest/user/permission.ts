@@ -1,9 +1,11 @@
 /**
- * 权限 API 调用——获取实体级权限配置
+ * 实体权限 API 与 TanStack Query Hooks
  * @author AaronZZH & Kiro
  */
 
-import { request } from "../entity/crud"
+import { useQuery } from "@tanstack/react-query"
+
+import { backendApi } from "../backend-client"
 
 /** 字段级权限 */
 export interface FieldAccess {
@@ -21,6 +23,15 @@ export interface EntityAccess {
 }
 
 /** 获取指定实体的权限配置 */
-export async function fetchEntityAccess(slug: string): Promise<EntityAccess> {
-  return request<EntityAccess>(`/permissions/entity/${slug}`)
+export function fetchEntityAccess(slug: string): Promise<EntityAccess> {
+  return backendApi.get<EntityAccess>(`/permissions/entity/${slug}`)
+}
+
+/** 查询当前用户对指定实体的权限 */
+export function useEntityAccess(entitySlug: string) {
+  return useQuery<EntityAccess>({
+    queryKey: [entitySlug, "access"],
+    queryFn: () => fetchEntityAccess(entitySlug),
+    staleTime: 5 * 60 * 1000
+  })
 }

@@ -3,6 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
+import { useQuery } from "@tanstack/react-query"
 import { backendApi } from "../backend-client"
 import { buildQuery, type ListParams, type PageResult } from "../entity/crud"
 
@@ -38,4 +39,16 @@ export const auditLogApi = {
   /** 审计日志分页列表 */
   list: (params: AuditLogListParams = {}) =>
     backendApi.get<PageResult<AuditLogVO>>(`/admin/audit-log${buildQuery(params)}`)
+}
+
+const KEYS = {
+  list: (params: AuditLogListParams) => ["audit-log", "list", params] as const
+}
+
+/** 审计日志分页列表 */
+export function useAuditLogList(params: AuditLogListParams = {}) {
+  return useQuery({
+    queryKey: KEYS.list(params),
+    queryFn: () => auditLogApi.list(params)
+  })
 }

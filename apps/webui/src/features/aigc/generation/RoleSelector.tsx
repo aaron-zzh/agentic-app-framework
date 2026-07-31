@@ -17,7 +17,7 @@ import {
   CommandList
 } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { useAssistants } from "@/lib/queries/use-assistants"
+import { useAssistants } from "@/lib/api/rest/ai/assistant"
 
 interface RoleSelectorProps {
   value: string

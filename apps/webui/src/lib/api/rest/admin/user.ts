@@ -3,6 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
+import { useQuery } from "@tanstack/react-query"
 import { buildApiUrl } from "../../config"
 import { backendApi } from "../backend-client"
 import { buildQuery, type ListParams, type PageResult } from "../entity/crud"
@@ -50,4 +51,15 @@ export const adminUserApi = {
 
   resetPassword: (id: number, password: string) =>
     backendApi.post<void>(`/system/users/${id}/password/reset`, { password })
+}
+
+const KEYS = {
+  list: (params: UserListParams) => ["admin", "users", "list", params] as const
+}
+
+export function useAdminUserList(params: UserListParams = {}) {
+  return useQuery({
+    queryKey: KEYS.list(params),
+    queryFn: () => adminUserApi.list(params)
+  })
 }

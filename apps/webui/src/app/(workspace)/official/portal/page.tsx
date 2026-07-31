@@ -7,7 +7,7 @@ import { PageContainer } from "@/components/common/PageContainer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { useLicenseStatus } from "@/lib/queries/use-license-status"
+import { useLicenseStatus } from "@/lib/api/rest/billing/license"
 
 export default function OfficialPortalPage() {
   const { data: license } = useLicenseStatus()

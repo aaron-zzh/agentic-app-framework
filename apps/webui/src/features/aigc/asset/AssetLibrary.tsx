@@ -32,7 +32,7 @@ import {
   useMediaAssetList,
   useMediaCategories,
   useMediaTags
-} from "@/lib/queries/use-media-assets"
+} from "@/lib/api/rest/media/media-asset"
 import { cn } from "@/lib/utils/index"
 import type { MediaAssetType, MediaCategoryVO } from "../types"
 import { AssetCard } from "./AssetCard"

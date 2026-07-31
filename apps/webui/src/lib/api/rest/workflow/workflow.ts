@@ -3,6 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { backendApi } from "../backend-client"
 
 /** 工作流状态 */
@@ -45,4 +46,57 @@ export const workflowApi = {
   /** 获取审批历史 */
   getHistory: (processInstanceId: string) =>
     backendApi.get<HistoryItem[]>(`/workflow/${processInstanceId}/history`)
+}
+
+/** 查询流程状态 */
+export function useWorkflowStatus(processInstanceId?: string) {
+  return useQuery({
+    queryKey: ["workflow", processInstanceId, "status"],
+    queryFn: () =>
+      workflowApi.getStatus(processInstanceId as NonNullable<typeof processInstanceId>),
+    enabled: !!processInstanceId
+  })
+}
+
+/** 查询审批历史 */
+export function useWorkflowHistory(processInstanceId?: string) {
+  return useQuery({
+    queryKey: ["workflow", processInstanceId, "history"],
+    queryFn: () =>
+      workflowApi.getHistory(processInstanceId as NonNullable<typeof processInstanceId>),
+    enabled: !!processInstanceId
+  })
+}
+
+/** 发起审批 */
+export function useWorkflowStart() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: workflowApi.start,
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["workflow", data.processInstanceId] })
+    }
+  })
+}
+
+/** 审批通过 */
+export function useWorkflowComplete(processInstanceId?: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: workflowApi.complete,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["workflow", processInstanceId] })
+    }
+  })
+}
+
+/** 驳回 */
+export function useWorkflowReject(processInstanceId?: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: workflowApi.reject,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["workflow", processInstanceId] })
+    }
+  })
 }

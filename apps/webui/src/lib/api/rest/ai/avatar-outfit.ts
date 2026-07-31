@@ -1,13 +1,13 @@
 /**
- * 助理装扮 TanStack Query Hooks
+ * 助理装扮 API、DTO 与 TanStack Query Hooks
  * @author AaronZZH & Kiro
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { backendApi } from "@/lib/api/rest/backend-client"
-import { buildQuery } from "@/lib/api/rest/crud/client"
 import type { PageResult } from "@/lib/api/types"
 import { notify } from "@/lib/notification"
+import { backendApi } from "../backend-client"
+import { buildQuery } from "../crud/client"
 
 export interface AvatarOutfitVO {
   id: number
@@ -35,42 +35,50 @@ export interface UserAvatarInventoryVO {
   outfit: AvatarOutfitVO
 }
 
-interface OutfitParams {
+export interface OutfitParams {
   type?: string
   page?: number
   size?: number
 }
 
-interface EquipDTO {
+export interface EquipOutfitDTO {
   outfitId: number
   personaId?: number
 }
 
-/** 装扮商城列表 */
+export const avatarOutfitApi = {
+  list: (params: OutfitParams = {}): Promise<PageResult<AvatarOutfitVO>> =>
+    backendApi.get(
+      `/avatar-outfits${buildQuery(params as Record<string, string | number | boolean | string[] | undefined>)}`
+    ),
+  listMine: (): Promise<UserAvatarInventoryVO[]> => backendApi.get("/user-avatar-inventory/me"),
+  purchase: (outfitId: number): Promise<void> =>
+    backendApi.post(`/avatar-outfits/${outfitId}/purchase`),
+  equip: (dto: EquipOutfitDTO): Promise<void> =>
+    backendApi.post("/user-avatar-inventory/equip", dto),
+  unequip: (dto: EquipOutfitDTO): Promise<void> =>
+    backendApi.post("/user-avatar-inventory/unequip", dto)
+}
+
 export function useAvatarOutfits(params: OutfitParams = {}) {
   return useQuery({
     queryKey: ["avatar-outfits", params] as const,
-    queryFn: () =>
-      backendApi.get<PageResult<AvatarOutfitVO>>(
-        `/avatar-outfits${buildQuery(params as Record<string, string | number | boolean | string[] | undefined>)}`
-      ),
+    queryFn: () => avatarOutfitApi.list(params),
     staleTime: 5 * 60 * 1000
   })
 }
 
-/** 我的装扮库存 */
 export function useMyAvatarInventory() {
   return useQuery({
     queryKey: ["avatar-inventory", "me"] as const,
-    queryFn: () => backendApi.get<UserAvatarInventoryVO[]>("/user-avatar-inventory/me")
+    queryFn: avatarOutfitApi.listMine
   })
 }
 
-/** 购买装扮 */
 export function usePurchaseOutfit() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (outfitId: number) => backendApi.post<void>(`/avatar-outfits/${outfitId}/purchase`),
+    mutationFn: avatarOutfitApi.purchase,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["avatar-outfits"] })
       queryClient.invalidateQueries({ queryKey: ["avatar-inventory"] })
@@ -78,32 +86,24 @@ export function usePurchaseOutfit() {
       notify.success("购买成功")
     },
     onError: () => {
-      //notify.error("购买失败，积分不足或请重试")
+      // 保持原行为：购买失败由请求层统一提示。
     }
   })
 }
 
-/** 装备装扮 */
 export function useEquipOutfit() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (dto: EquipDTO) => backendApi.post<void>("/user-avatar-inventory/equip", dto),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["avatar-inventory"] })
-    },
-    onError: () => {
-      notify.error("装备失败，请重试")
-    }
+    mutationFn: avatarOutfitApi.equip,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["avatar-inventory"] }),
+    onError: () => notify.error("装备失败，请重试")
   })
 }
 
-/** 卸下装扮 */
 export function useUnequipOutfit() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (dto: EquipDTO) => backendApi.post<void>("/user-avatar-inventory/unequip", dto),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["avatar-inventory"] })
-    }
+    mutationFn: avatarOutfitApi.unequip,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["avatar-inventory"] })
   })
 }

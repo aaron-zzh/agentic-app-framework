@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { FunnelChart, RetentionChart, TrendChart } from "@/features/stats/charts"
 import type { EChartsWidgetConfig } from "@/lib/api/rest/dashboard/dashboard"
 import type { FunnelStage, TrendPoint } from "@/lib/api/rest/dashboard/stats"
-import { useStatsFunnel, useStatsRetention, useStatsTrend } from "@/lib/queries/use-stats"
+import { useStatsFunnel, useStatsRetention, useStatsTrend } from "@/lib/api/rest/dashboard/stats"
 import { cn } from "@/lib/utils/cn"
 import { WIDGET_CARD_CLASS } from "./_shared/styles"
 

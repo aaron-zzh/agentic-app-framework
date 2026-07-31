@@ -28,7 +28,7 @@ import {
   type UserProjectTemplateVO,
   useForkProjectTemplate,
   useProjectTemplates
-} from "@/lib/queries/use-project-templates"
+} from "@/lib/api/rest/ai/project-template"
 
 const CATEGORIES = [
   { key: "ALL", label: "全部" },

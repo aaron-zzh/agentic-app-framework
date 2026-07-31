@@ -39,7 +39,7 @@ import {
   useDataAccessRules,
   useDeleteDataAccessRule,
   useUpdateDataAccessRule
-} from "@/lib/queries/use-data-access-rules"
+} from "@/lib/api/rest/admin/data-access"
 
 /** 操作符显示标签 */
 const OPERATOR_LABELS: Record<ConditionOperator, string> = {

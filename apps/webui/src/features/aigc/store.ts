@@ -4,7 +4,7 @@
  */
 
 import { create } from "zustand"
-import type { AiSkillVO } from "@/lib/queries/use-ai-skills"
+import type { AiSkillVO } from "@/lib/api/rest/ai/skill"
 import type { MediaAssetVO } from "./types"
 
 interface AigcStore {

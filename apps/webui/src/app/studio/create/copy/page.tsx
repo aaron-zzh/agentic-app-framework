@@ -36,8 +36,8 @@ import { TRANSLATE_OPTIONS } from "@/features/aigc/copywriting/constants"
 import { useCopywriting } from "@/features/aigc/copywriting/use-copywriting"
 import { useAigcStore } from "@/features/aigc/store"
 import { StreamingEditor } from "@/features/rich-text-editor"
+import { type AiSkillVO, useAiSkills } from "@/lib/api/rest/ai/skill"
 import { useModelSelector } from "@/lib/hooks/use-model-selector"
-import { type AiSkillVO, useAiSkills } from "@/lib/queries/use-ai-skills"
 import { cn } from "@/lib/utils/index"
 
 const ICON_MAP: Record<string, React.FC<{ className?: string }>> = {

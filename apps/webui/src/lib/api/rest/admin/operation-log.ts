@@ -3,6 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
+import { useQuery } from "@tanstack/react-query"
 import { backendApi } from "../backend-client"
 import { buildQuery, type ListParams, type PageResult } from "../entity/crud"
 
@@ -33,4 +34,15 @@ export interface OperationLogListParams extends ListParams {
 export const operationLogApi = {
   list: (params: OperationLogListParams = {}) =>
     backendApi.get<PageResult<OperationLogVO>>(`/operation-logs${buildQuery(params)}`)
+}
+
+const KEYS = {
+  list: (params: OperationLogListParams) => ["operation-log", "list", params] as const
+}
+
+export function useOperationLogList(params: OperationLogListParams = {}) {
+  return useQuery({
+    queryKey: KEYS.list(params),
+    queryFn: () => operationLogApi.list(params)
+  })
 }

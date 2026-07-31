@@ -23,11 +23,8 @@ import {
   DialogTitle
 } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { useAigcProjects } from "@/lib/queries/use-aigc-projects"
-import {
-  type SaveFromGenerationParams,
-  useSaveToAssetLibrary
-} from "@/lib/queries/use-image-generation"
+import { useAigcProjects } from "@/lib/api/rest/ai/aigc-project"
+import { type SaveFromGenerationParams, useSaveToAssetLibrary } from "@/lib/api/rest/ai/aigc-task"
 import { cn } from "@/lib/utils/index"
 
 interface SaveToProjectDialogProps {

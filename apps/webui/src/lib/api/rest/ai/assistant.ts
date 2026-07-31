@@ -1,10 +1,11 @@
 /**
- * 助理列表 TanStack Query Hook
+ * 可用助理 API、类型与 TanStack Query Hook
  * @author AaronZZH & Kiro
  */
 
 import { useQuery } from "@tanstack/react-query"
-import { request } from "@/lib/api/rest/entity/crud"
+
+import { backendApi } from "../backend-client"
 
 /** 助理下的角色条目 */
 export interface RoleItem {
@@ -22,10 +23,14 @@ export interface AssistantItem {
   roles: RoleItem[]
 }
 
+export const assistantApi = {
+  listAvailable: (): Promise<AssistantItem[]> => backendApi.get("/ai/assistants/available")
+}
+
 /** 查询当前用户可用的助理列表（含各助理下的角色） */
 export function useAssistants() {
   return useQuery({
     queryKey: ["ai", "assistants", "available"],
-    queryFn: () => request<AssistantItem[]>("/ai/assistants/available")
+    queryFn: assistantApi.listAvailable
   })
 }

@@ -8,8 +8,8 @@ import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import type { StreamingEditorHandle } from "@/features/rich-text-editor"
 import { copywritingApi } from "@/lib/api/rest/ai"
+import { useLinkProjectDoc } from "@/lib/api/rest/ai/aigc-project"
 import { useCreateDocument } from "@/lib/api/rest/system/document"
-import { useLinkProjectDoc } from "@/lib/queries/use-aigc-projects"
 import { useAigcStore } from "../store"
 
 /** 文案生成相关状态与动作；参数（type/template/length 等）直接读 store */

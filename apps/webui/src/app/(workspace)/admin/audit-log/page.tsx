@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/table"
 import { TypographyH1 } from "@/components/ui/typography"
 import type { AuditLogListParams } from "@/lib/api/rest/admin/audit-log"
-import { useAuditLogList } from "@/lib/queries/use-audit-log"
+import { useAuditLogList } from "@/lib/api/rest/admin/audit-log"
 
 /** 操作类型标签颜色 */
 const ACTION_VARIANT: Record<string, "default" | "secondary" | "destructive"> = {

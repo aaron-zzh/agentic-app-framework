@@ -23,7 +23,7 @@ import {
   useScheduledTaskResume,
   useScheduledTaskRun,
   useScheduledTasks
-} from "@/lib/queries/use-scheduled-tasks"
+} from "@/lib/api/rest/workflow/scheduled-task"
 
 /** 状态标签样式 */
 const STATUS_VARIANT: Record<ScheduledTaskStatus, "default" | "secondary" | "destructive"> = {

@@ -35,9 +35,13 @@ import {
   TableRow
 } from "@/components/ui/table"
 import { TypographyH1 } from "@/components/ui/typography"
-import { adminUserApi, type UserListParams, type UserVO } from "@/lib/api/rest/admin/user"
+import {
+  adminUserApi,
+  type UserListParams,
+  type UserVO,
+  useAdminUserList
+} from "@/lib/api/rest/admin/user"
 import { notify } from "@/lib/notification"
-import { useAdminUserList } from "@/lib/queries/use-admin-user"
 
 export default function AdminUserPage() {
   const [params, setParams] = useState<UserListParams>({ page: 1, pageSize: 20 })
