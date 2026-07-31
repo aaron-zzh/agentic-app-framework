@@ -16,7 +16,8 @@ public record AssistantDefinition(
         AssistantVersion version,
         String maintainer,
         Actor actor,
-        Role role,
+        List<Role> roles,
+        String defaultRoleKey,
         MemoryStrategy memoryStrategy,
         List<SkillRoute> skillRoutes,
         ToolPolicy toolPolicy,
@@ -30,7 +31,8 @@ public record AssistantDefinition(
         Objects.requireNonNull(version, "version 不能为空");
         maintainer = requireText(maintainer, "maintainer");
         Objects.requireNonNull(actor, "actor 不能为空");
-        Objects.requireNonNull(role, "role 不能为空");
+        roles = List.copyOf(Objects.requireNonNull(roles, "roles 不能为空"));
+        defaultRoleKey = requireText(defaultRoleKey, "defaultRoleKey");
         Objects.requireNonNull(memoryStrategy, "memoryStrategy 不能为空");
         skillRoutes = List.copyOf(Objects.requireNonNull(skillRoutes, "skillRoutes 不能为空"));
         Objects.requireNonNull(toolPolicy, "toolPolicy 不能为空");
@@ -41,14 +43,31 @@ public record AssistantDefinition(
         Objects.requireNonNull(defaultRiskPolicy, "defaultRiskPolicy 不能为空");
         Objects.requireNonNull(lifecycle, "lifecycle 不能为空");
         validateIdentity(ownership, systemKey, sourceSystemKey);
-        validateRoutes(role, skillRoutes);
-        validateToolPolicy(role, toolPolicy);
+        validateRoles(roles, defaultRoleKey);
+        validateRoutes(roles, defaultRoleKey, skillRoutes);
+        validateToolPolicy(roles, toolPolicy);
         validateModes(supportedControlModes);
     }
 
     /** 能力清单由定义实时投影，不形成第二份配置源。 */
     public AssistantCapabilityManifest capabilityManifest() {
         return AssistantCapabilityManifest.from(this);
+    }
+
+    public Role defaultRole() {
+        return requireRole(defaultRoleKey);
+    }
+
+    public Role roleFor(SkillRoute route) {
+        Objects.requireNonNull(route, "route 不能为空");
+        return requireRole(route.roleKey());
+    }
+
+    public Role requireRole(String roleKey) {
+        return roles.stream()
+                .filter(role -> role.key().equals(roleKey))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("Assistant 未配置 Role: " + roleKey));
     }
 
     public void requireControlMode(ControlMode mode) {
@@ -80,7 +99,21 @@ public record AssistantDefinition(
         }
     }
 
-    private static void validateRoutes(Role role, List<SkillRoute> routes) {
+    private static void validateRoles(List<Role> roles, String defaultRoleKey) {
+        if (roles.isEmpty()) {
+            throw new IllegalArgumentException("roles 不能为空");
+        }
+        var roleKeys = roles.stream().map(Role::key).toList();
+        if (roleKeys.size() != Set.copyOf(roleKeys).size()) {
+            throw new IllegalArgumentException("roles 不能包含重复 key");
+        }
+        if (!roleKeys.contains(defaultRoleKey)) {
+            throw new IllegalArgumentException("defaultRoleKey 必须引用已配置 Role");
+        }
+    }
+
+    private static void validateRoutes(
+            List<Role> roles, String defaultRoleKey, List<SkillRoute> routes) {
         if (routes.isEmpty()) {
             throw new IllegalArgumentException("skillRoutes 不能为空");
         }
@@ -88,17 +121,37 @@ public record AssistantDefinition(
         if (keys.size() != Set.copyOf(keys).size()) {
             throw new IllegalArgumentException("skillRoutes 不能包含重复 skillKey");
         }
-        if (!role.skillKeys().containsAll(keys)) {
-            throw new IllegalArgumentException("SkillRoute 必须属于 Role.skillKeys");
+        for (var route : routes) {
+            var role =
+                    roles.stream()
+                            .filter(candidate -> candidate.key().equals(route.roleKey()))
+                            .findFirst()
+                            .orElseThrow(
+                                    () ->
+                                            new IllegalArgumentException(
+                                                    "SkillRoute 引用了未配置 Role: "
+                                                            + route.roleKey()));
+            if (!role.skillKeys().contains(route.skillKey())) {
+                throw new IllegalArgumentException(
+                        "SkillRoute 必须属于对应 Role.skillKeys: " + route.skillKey());
+            }
         }
-        if (routes.stream().filter(SkillRoute::defaultRoute).count() != 1) {
+        var defaultRoutes = routes.stream().filter(SkillRoute::defaultRoute).toList();
+        if (defaultRoutes.size() != 1) {
             throw new IllegalArgumentException("Assistant 必须且只能有一个默认 SkillRoute");
+        }
+        if (!defaultRoutes.getFirst().roleKey().equals(defaultRoleKey)) {
+            throw new IllegalArgumentException("默认 SkillRoute 必须属于默认 Role");
         }
     }
 
-    private static void validateToolPolicy(Role role, ToolPolicy toolPolicy) {
-        if (!role.toolKeys().equals(toolPolicy.rules().keySet())) {
-            throw new IllegalArgumentException("Role.toolKeys 必须与 ToolPolicy 完全一致");
+    private static void validateToolPolicy(List<Role> roles, ToolPolicy toolPolicy) {
+        var roleToolKeys =
+                roles.stream()
+                        .flatMap(role -> role.toolKeys().stream())
+                        .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        if (!roleToolKeys.equals(toolPolicy.rules().keySet())) {
+            throw new IllegalArgumentException("所有 Role.toolKeys 的并集必须与 ToolPolicy 完全一致");
         }
     }
 

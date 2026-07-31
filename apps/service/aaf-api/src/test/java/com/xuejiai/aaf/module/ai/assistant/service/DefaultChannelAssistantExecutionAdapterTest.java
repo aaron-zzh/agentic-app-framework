@@ -67,7 +67,7 @@ class DefaultChannelAssistantExecutionAdapterTest extends BaseMockitoUnitTest {
         assertThat(command.controlMode()).isEqualTo(ControlMode.READ_ONLY);
         assertThat(command.tenantId().value()).isEqualTo("10");
         assertThat(command.userId().value()).isEqualTo("20");
-        assertThat(command.assistantId().value()).isEqualTo("system.assistant.customer-service");
+        assertThat(command.assistantId().value()).isEqualTo("system.assistant.default-user");
         assertThat(command.assistantVersion().value()).isEqualTo(1);
         assertThat(command.memorySubject().kind().name()).isEqualTo("VISITOR");
     }
@@ -122,7 +122,7 @@ class DefaultChannelAssistantExecutionAdapterTest extends BaseMockitoUnitTest {
         return new Request(
                 10L,
                 20L,
-                "system.assistant.customer-service",
+                "system.assistant.default-user",
                 1,
                 "feishu",
                 "binding-1",
@@ -148,7 +148,7 @@ class DefaultChannelAssistantExecutionAdapterTest extends BaseMockitoUnitTest {
                 status,
                 ControlMode.READ_ONLY,
                 OwnerType.ASSISTANT,
-                new AssistantId("system.assistant.customer-service"),
+                new AssistantId("system.assistant.default-user"),
                 (AgentId) null,
                 (UserId) null,
                 new CorrelationId("correlation"),

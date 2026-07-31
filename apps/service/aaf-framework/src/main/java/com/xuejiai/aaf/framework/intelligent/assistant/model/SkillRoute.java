@@ -9,6 +9,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.model.SubagentSpec;
 /** 从用户意图路由到子智能体规格的稳定规则。 */
 public record SkillRoute(
         String skillKey,
+        String roleKey,
         Set<String> intentTerms,
         SubagentSpec subagentSpec,
         String actionKey,
@@ -18,6 +19,7 @@ public record SkillRoute(
 
     public SkillRoute {
         skillKey = requireText(skillKey, "skillKey");
+        roleKey = requireText(roleKey, "roleKey");
         intentTerms = Set.copyOf(Objects.requireNonNull(intentTerms, "intentTerms 不能为空"));
         intentTerms.forEach(term -> requireText(term, "intentTerm"));
         Objects.requireNonNull(subagentSpec, "subagentSpec 不能为空");

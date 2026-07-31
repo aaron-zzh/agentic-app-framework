@@ -9,7 +9,7 @@ import {
   type TaskModelSelection
 } from "@/features/chatter/types"
 
-export const DEFAULT_CHATTER_ASSISTANT_ID = "system.assistant.content-creator"
+export const DEFAULT_CHATTER_ASSISTANT_ID = "system.assistant.default-user"
 export const DEFAULT_CHATTER_ASSISTANT_VERSION = 1
 
 interface ChatterPageRuntimeConfig {

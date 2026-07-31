@@ -48,7 +48,7 @@ import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryContextPort;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agent.persistence.JpaSkillCatalogAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentScopeInfrastructureAutoConfiguration;
-import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.BuiltinSystemAssistantTemplates;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.DefaultUserAssistantTemplate;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.AssistantDefinitionVersionRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.AssistantTaskControlRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.ContextSourcePreferenceRepository;
@@ -128,8 +128,8 @@ public class AssistantInfrastructureAutoConfiguration {
     }
 
     @Bean
-    SystemAssistantTemplateContributor builtinSystemAssistantTemplates() {
-        return new BuiltinSystemAssistantTemplates();
+    SystemAssistantTemplateContributor defaultUserAssistantTemplate() {
+        return new DefaultUserAssistantTemplate();
     }
 
     @Bean

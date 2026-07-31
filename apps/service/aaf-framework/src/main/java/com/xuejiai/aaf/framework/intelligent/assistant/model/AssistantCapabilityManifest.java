@@ -13,6 +13,8 @@ public record AssistantCapabilityManifest(
         AssistantVersion version,
         String maintainer,
         String name,
+        String defaultRoleKey,
+        Set<String> roleKeys,
         List<String> responsibilities,
         List<String> nonResponsibilities,
         Set<ControlMode> supportedControlModes,
@@ -26,14 +28,30 @@ public record AssistantCapabilityManifest(
                 definition.skillRoutes().stream()
                         .map(SkillRoute::actionKey)
                         .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        var roleKeys =
+                definition.roles().stream()
+                        .map(Role::key)
+                        .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        var responsibilities =
+                definition.roles().stream()
+                        .flatMap(role -> role.responsibilities().stream())
+                        .distinct()
+                        .toList();
+        var nonResponsibilities =
+                definition.roles().stream()
+                        .flatMap(role -> role.nonResponsibilities().stream())
+                        .distinct()
+                        .toList();
         return new AssistantCapabilityManifest(
                 definition.assistantId(),
                 definition.systemKey(),
                 definition.version(),
                 definition.maintainer(),
                 definition.actor().name(),
-                definition.role().responsibilities(),
-                definition.role().nonResponsibilities(),
+                definition.defaultRoleKey(),
+                roleKeys,
+                responsibilities,
+                nonResponsibilities,
                 definition.supportedControlModes(),
                 actions,
                 definition.memoryStrategy().recallScopes(),

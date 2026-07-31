@@ -41,7 +41,7 @@ import reactor.core.publisher.Mono;
 @Service
 public class DelegatedTaskService {
     private static final AssistantId DEFAULT_ASSISTANT_ID =
-            new AssistantId("system.assistant.content-creator");
+            new AssistantId("system.assistant.default-user");
     private static final AssistantVersion DEFAULT_ASSISTANT_VERSION = new AssistantVersion(1);
 
     private final DelegatedTaskPort tasks;

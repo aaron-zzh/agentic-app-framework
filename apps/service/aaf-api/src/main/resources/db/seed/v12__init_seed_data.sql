@@ -654,32 +654,19 @@ VALUES (
 );
 
 -- ============================================================
--- 内容创作助理（Assistant + Role 直接承载，不经 Agent 层——
--- 与客服助理同模式：Role.tool_whitelist 直接持有业务工具，skill_ids 驱动流程推进）
+-- 内容创作 Role（默认用户助理模板的可切换能力集）
 -- ============================================================
 
--- 内容创作（人格）
-INSERT INTO ai_persona (name, persona, system_prompt, status, create_time, update_time)
-VALUES (
-    '内容创作专家',
-    '专业、有洞察力、善于引导。像一位资深内容策划师，既懂传播规律又懂用户心理。',
-    '你是一位资深内容创作专家，帮助用户从 0 到 1 完成高质量内容创作和多平台分发。',
-    'active',
-    CURRENT_TIMESTAMP,
-    CURRENT_TIMESTAMP
-);
-
--- 内容创作 Role（能力集）
-INSERT INTO ai_role (name, description, skill_ids, tool_whitelist, status, create_time, update_time)
-VALUES (
-    '内容创作专家',
-    '内容拆解、思路澄清、结构构建、内容裂变、多平台发布',
+INSERT INTO ai_role (
+    id, code, name, description, skill_ids, tool_whitelist, status,
+    create_time, update_time
+) VALUES (
+    2, 'system.role.content-creator', '内容创作者',
+    '内容拆解、思路澄清、结构构建、内容裂变和多平台草稿生成',
     '["content-schedule","content-judge","content-clarify","content-architect","content-build"]',
     '["createDocument","updateDocument","publish","publishStatus","collect"]',
-    'active',
-    CURRENT_TIMESTAMP,
-    CURRENT_TIMESTAMP
-);
+    'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+) ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
 -- 开发者商业化套餐 Seed
@@ -1318,41 +1305,42 @@ ON CONFLICT (code) DO NOTHING;
 
 
 -- ============================================================
--- 客服助理种子数据（customer-service Agent 使用）
+-- 默认用户助理模板种子数据
 -- ============================================================
 
--- 客服知识库（公共，auto_inject=false，由 search_kb 工具按需检索）
+-- 平台向导知识库（公共，auto_inject=false，由 search_kb 工具按需检索）
 INSERT INTO ai_knowledge_base (
     id, name, description, embedding_model, chunk_strategy, chunk_size, chunk_overlap,
     status, auto_inject, owner_id, create_time, update_time, deleted
 ) VALUES (
-    1, '客服知识库',
-    '产品咨询、常见问题、功能说明等客服场景知识，供 customer-service Agent 使用',
+    1, 'AAF 平台向导知识库',
+    '产品咨询、常见问题和功能说明，供默认用户助理的平台向导 Role 使用',
     'text-embedding-v3', 'RECURSIVE', 512, 64, 1, FALSE, NULL,
     CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
--- 客服人格模板
+-- 默认用户助理的稳定 Persona
 INSERT INTO ai_persona (
     id, name, persona, system_prompt, status, owner_id, create_time, update_time, deleted
 ) VALUES (
-    1, '客服助理',
-    '专业、友好、简洁的客服助理，熟悉产品功能与常见问题。',
-    '你是 AAF 平台的官方客服助理，负责解答用户关于产品使用的问题。请基于知识库内容作答，不要捏造信息。',
+    1, 'AAF 助理',
+    '友好、准确、审慎，尊重用户表达与隐私。',
+    '你是 AAF 默认用户助理。默认作为平台向导解答产品使用问题，也可按用户意图切换到内容创作角色；只使用授权资料，不捏造信息。',
     'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
--- 客服角色（工具白名单仅限知识库检索）
+-- 默认平台向导 Role
 INSERT INTO ai_role (
-    id, name, description, skill_ids, tool_whitelist, status, owner_id,
+    id, code, name, description, skill_ids, tool_whitelist, status, owner_id,
     create_time, update_time, deleted
 ) VALUES (
-    1, '客服角色', '客服场景专用角色，工具限于知识库检索',
+    1, 'system.role.platform-guide', '平台向导',
+    'AAF 平台咨询、只读故障排查和人工转接',
     '[]', '["search_kb","switch_kb"]',
     'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
--- 客服助理（绑定客服人格 + 客服角色 + 客服知识库，user_id=0 表示系统级）
+-- 系统级默认用户助理模板配置载体；用户会话、记忆和执行状态不在此行共享
 INSERT INTO ai_assistant (
     id, user_id, persona_id, default_role_id, knowledge_base_id,
     memory_strategy, status, owner_id, create_time, update_time, deleted
@@ -1361,12 +1349,13 @@ INSERT INTO ai_assistant (
     CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
--- 助理-角色关联
+-- 默认用户助理挂载两个 Role，平台向导为默认 Role
 INSERT INTO ai_assistant_role (
     assistant_id, role_id, is_default, sort_order, create_time, update_time, deleted
-) VALUES (
-    1, 1, TRUE, 100, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
-) ON CONFLICT (assistant_id, role_id) DO NOTHING;
+) VALUES
+    (1, 1, TRUE, 100, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+    (1, 2, FALSE, 90, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE)
+ON CONFLICT (assistant_id, role_id) DO NOTHING;
 
 -- 客服知识库初始文档：AAF 框架介绍
 INSERT INTO ai_knowledge_document (

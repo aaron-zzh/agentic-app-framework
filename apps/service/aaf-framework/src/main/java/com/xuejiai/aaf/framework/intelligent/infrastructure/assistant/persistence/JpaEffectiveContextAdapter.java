@@ -60,15 +60,16 @@ public final class JpaEffectiveContextAdapter implements EffectiveContextPort {
                     case SubagentSpec.Predefined predefined -> predefined.identifier();
                     case SubagentSpec.Dynamic dynamic -> "动态子智能体：" + dynamic.identifier();
                 };
+        var effectiveRole = definition.roleFor(route);
         add(
                 unique,
                 new SourceReference(
                         SourceType.RULE,
-                        definition.role().key(),
+                        effectiveRole.key(),
                         definition.version().toString(),
                         "ASSISTANT",
-                        "当前 Assistant 角色与职责边界",
-                        definition.role().name(),
+                        "当前任务生效的 Assistant 角色与职责边界",
+                        effectiveRole.name(),
                         false));
         add(
                 unique,
