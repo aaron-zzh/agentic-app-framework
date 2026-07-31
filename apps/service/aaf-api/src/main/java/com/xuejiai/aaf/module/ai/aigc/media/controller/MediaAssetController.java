@@ -2,8 +2,8 @@ package com.xuejiai.aaf.module.ai.aigc.media.controller;
 
 import java.util.List;
 
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.PageResult;
@@ -51,7 +51,7 @@ public class MediaAssetController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int pageSize,
             @RequestParam(defaultValue = "createTime:desc") String sort) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         var springPage =
                 assetService.page(
                         userId,
@@ -69,14 +69,14 @@ public class MediaAssetController {
     @Operation(summary = "统计 AI 生成素材数量")
     @GetMapping("/ai-count")
     public Result<Long> aiCount() {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         return Result.success(assetService.countAiGenerated(userId));
     }
 
     @Operation(summary = "搜索素材")
     @GetMapping("/search")
     public Result<List<MediaAssetVO>> search(@RequestParam String keyword) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         return Result.success(assetService.search(userId, keyword));
     }
 
@@ -89,7 +89,7 @@ public class MediaAssetController {
     @Operation(summary = "创建素材")
     @PostMapping
     public Result<MediaAssetVO> create(@Valid @RequestBody MediaAssetCreateDTO dto) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         return Result.success(assetService.create(userId, dto));
     }
 
@@ -125,14 +125,14 @@ public class MediaAssetController {
     @Operation(summary = "从生成结果一键保存到素材库")
     @PostMapping("/save-from-generation")
     public Result<MediaAssetVO> saveFromGeneration(@Valid @RequestBody SaveFromGenerationDTO dto) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         return Result.success(assetService.saveFromGeneration(userId, dto));
     }
 
     @Operation(summary = "素材重新生成")
     @PostMapping("/regenerate")
     public Result<MediaAssetVO> regenerate(@Valid @RequestBody RegenerateRequest request) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         return Result.success(assetService.regenerate(userId, request));
     }
 

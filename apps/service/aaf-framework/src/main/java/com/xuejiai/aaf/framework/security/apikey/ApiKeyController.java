@@ -33,7 +33,7 @@ public class ApiKeyController {
     /** 生成 API Key（当前用户）。 */
     @PostMapping
     public Map<String, String> create(@RequestBody CreateRequest req) {
-        var userId = operatorContext.currentUserId().orElseThrow();
+        var userId = operatorContext.currentOwnerId().orElseThrow();
         var rawKey = "aaf_dk_" + UUID.randomUUID().toString().replace("-", "");
 
         var apiKey = new ApiKey();
@@ -54,7 +54,7 @@ public class ApiKeyController {
     /** 列出当前用户的 Key。 */
     @GetMapping
     public List<ApiKeyVO> listMine() {
-        var userId = operatorContext.currentUserId().orElseThrow();
+        var userId = operatorContext.currentOwnerId().orElseThrow();
         return repository.findByUserIdOrderByCreatedAtDesc(userId).stream()
                 .map(this::toVO)
                 .toList();
@@ -63,7 +63,7 @@ public class ApiKeyController {
     /** 删除自己的 Key。 */
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {
-        var userId = operatorContext.currentUserId().orElseThrow();
+        var userId = operatorContext.currentOwnerId().orElseThrow();
         var key = repository.findById(id).orElseThrow();
         if (!key.getUserId().equals(userId)) {
             throw new IllegalArgumentException("无权删除");

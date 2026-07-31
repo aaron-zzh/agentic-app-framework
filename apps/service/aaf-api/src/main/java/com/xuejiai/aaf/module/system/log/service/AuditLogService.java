@@ -46,7 +46,7 @@ public class AuditLogService {
         log.setEntityId(entityId);
         log.setAction(action);
         log.setChanges(changes);
-        log.setUserId(operatorContext.currentUserId().orElse(null));
+        log.setUserId(operatorContext.currentOwnerId().orElse(null));
         log.setIp(ServletUtils.getClientIp());
         log.setCreatedAt(LocalDateTime.now());
         log.setPreviousHash(previousHash);

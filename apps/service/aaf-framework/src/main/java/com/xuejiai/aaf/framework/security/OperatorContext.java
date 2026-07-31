@@ -22,9 +22,4 @@ public interface OperatorContext {
 
     /** 是否已认证 */
     boolean isAuthenticated();
-
-    /** 兼容旧调用：等同于 currentOwnerId */
-    default Optional<Long> currentUserId() {
-        return currentOwnerId();
-    }
 }

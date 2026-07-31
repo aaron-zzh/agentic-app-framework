@@ -70,7 +70,7 @@ public class ToolService {
         if (toolRegistry.getCallback(toolName).isEmpty()) {
             throw new BusinessException(GlobalErrorCode.NOT_FOUND, "工具未注册: " + toolName);
         }
-        var userId = operatorContext.currentUserId().orElse(null);
+        var userId = operatorContext.currentOwnerId().orElse(null);
         return toolCallDispatcher.dispatchWithPermission(null, userId, null, toolName, arguments);
     }
 
@@ -162,9 +162,9 @@ public class ToolService {
         mcpServerRepository.deleteById(id);
     }
 
-    /** 用户批准工具调用权限（临时授权）。 */
+    /** 用户批准工具调用权限（会话级授权）。 */
     public void approve(String sessionId, String toolName) {
-        permissionChecker.grantTemporary(sessionId, toolName);
+        permissionChecker.grant(sessionId, toolName);
     }
 
     private ToolVO toVO(ToolMeta meta) {

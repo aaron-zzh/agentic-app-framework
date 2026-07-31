@@ -36,14 +36,14 @@ public class NotificationPreferenceController {
     @Operation(summary = "获取当前用户通知偏好")
     @GetMapping
     public Result<NotificationPreference> get() {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         return Result.success(preferenceService.getByUserId(userId));
     }
 
     @Operation(summary = "更新通知偏好")
     @PutMapping
     public Result<NotificationPreference> update(@RequestBody UpdateRequest request) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         return Result.success(
                 preferenceService.upsert(
                         userId, request.preferences(), request.quietStart(), request.quietEnd()));

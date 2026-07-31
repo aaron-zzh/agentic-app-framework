@@ -31,7 +31,7 @@ public class MediaCategoryService {
 
     @Transactional(readOnly = true)
     public List<MediaCategoryVO> tree() {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         var all = categoryRepository.findByOwnerIdOrderBySortOrder(userId);
         Map<Long, List<MediaCategory>> grouped =
                 all.stream()
@@ -43,7 +43,7 @@ public class MediaCategoryService {
 
     @Transactional
     public MediaCategoryVO create(MediaCategoryCreateDTO dto) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         var category = new MediaCategory();
         category.setName(dto.name());
         category.setParentId(dto.parentId());
@@ -68,7 +68,7 @@ public class MediaCategoryService {
     }
 
     private MediaCategory findByIdForCurrentUser(Long id) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         var category =
                 categoryRepository
                         .findById(id)

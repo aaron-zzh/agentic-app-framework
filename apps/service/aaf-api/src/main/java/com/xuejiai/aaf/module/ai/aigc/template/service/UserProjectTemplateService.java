@@ -139,7 +139,7 @@ public class UserProjectTemplateService
         template.incrementUsage();
         templateRepository.save(template);
 
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         var config = template.getTemplateConfig();
 
         // 创建项目

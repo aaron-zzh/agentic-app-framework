@@ -162,6 +162,6 @@ public class ApprovalController {
     public record WithdrawDTO(@NotBlank String processInstanceId) {}
 
     private String currentUserId() {
-        return operatorContext.currentUserId().orElseThrow().toString();
+        return operatorContext.currentOwnerId().orElseThrow().toString();
     }
 }

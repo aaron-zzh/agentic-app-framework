@@ -110,7 +110,7 @@ public class AiClonedVoiceService
         entity.setPreferredName(dto.preferredName());
         entity.setTargetModel(dto.targetModel());
         entity.setSourceAssetId(dto.sourceAssetId());
-        entity.setUserId(operatorContext.currentUserId().orElseThrow());
+        entity.setUserId(operatorContext.currentOwnerId().orElseThrow());
 
         // TTS 类型：生成示例音频并上传 OSS
         if (isTts) {
@@ -151,7 +151,7 @@ public class AiClonedVoiceService
     protected org.springframework.data.jpa.domain.Specification<AiClonedVoice> buildSpec(
             AiClonedVoicePageDTO dto) {
         // BE-8 数据隔离：强制按当前 userId 过滤，忽略请求参数中的 userId
-        Long currentUserId = operatorContext.currentUserId().orElseThrow();
+        Long currentUserId = operatorContext.currentOwnerId().orElseThrow();
         return SpecificationBuilder.<AiClonedVoice>builder()
                 .eqIfPresent("userId", currentUserId)
                 .eqIfPresent("targetModel", dto.getTargetModel())

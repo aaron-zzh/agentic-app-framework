@@ -51,7 +51,7 @@ public class ConnectorCredentialController {
 
     private UserId currentUser() {
         return operatorContext
-                .currentUserId()
+                .currentOwnerId()
                 .map(String::valueOf)
                 .map(UserId::new)
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.UNAUTHORIZED));

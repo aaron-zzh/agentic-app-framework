@@ -101,7 +101,7 @@ public class AvatarOutfitService
     /** 批量回填当前用户的 owned/equipped 字段（无登录态全部 false）。 */
     private void enrichOwnedAndEquipped(List<AvatarOutfitVO> vos) {
         if (vos == null || vos.isEmpty()) return;
-        Long userId = operatorContext.currentUserId().orElse(null);
+        Long userId = operatorContext.currentOwnerId().orElse(null);
         if (userId == null) {
             vos.forEach(
                     vo -> {
@@ -128,7 +128,7 @@ public class AvatarOutfitService
     /** 购买装扮：扣积分 → 写库存。 */
     @Transactional
     public UserAvatarInventoryVO purchase(Long outfitId) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         var outfit =
                 outfitRepository
                         .findById(outfitId)
@@ -167,7 +167,7 @@ public class AvatarOutfitService
 
     /** 我的库存（联表回填装扮信息）。 */
     public List<UserAvatarInventoryVO> myInventory() {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         var invList = inventoryRepository.findByUserIdAndDeletedFalse(userId);
         if (invList.isEmpty()) return List.of();
 
@@ -184,7 +184,7 @@ public class AvatarOutfitService
     /** 装备：先卸下同类型已装备 → 装备指定 outfit。 */
     @Transactional
     public UserAvatarInventoryVO equip(EquipDTO dto) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         var inv =
                 inventoryRepository
                         .findByUserIdAndOutfitIdAndDeletedFalse(userId, dto.outfitId())
@@ -223,7 +223,7 @@ public class AvatarOutfitService
     /** 卸下装备。 */
     @Transactional
     public void unequip(EquipDTO dto) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         inventoryRepository
                 .findByUserIdAndOutfitIdAndDeletedFalse(userId, dto.outfitId())
                 .ifPresent(

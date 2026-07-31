@@ -62,7 +62,7 @@ public class CopywritingService {
             String translateTo,
             List<String> referenceImageKeys) {
         if (isMockEnabled()) return mockTextStream();
-        Long userId = operatorContext.currentUserId().orElse(null);
+        Long userId = operatorContext.currentOwnerId().orElse(null);
 
         // 解析参考图：fileKey → 签名 GET URL + mimeType
         List<VisionAttachment> attachments = visionMediaResolver.resolve(referenceImageKeys);
@@ -123,7 +123,7 @@ public class CopywritingService {
      */
     public Flux<String> generateFromAnalysis(String modelId, String analysis, String userNotes) {
         if (isMockEnabled()) return mockTextStream();
-        Long userId = operatorContext.currentUserId().orElse(null);
+        Long userId = operatorContext.currentOwnerId().orElse(null);
         var ctx = CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_CHAT, modelId);
 
         var sb = new StringBuilder();
@@ -155,7 +155,7 @@ public class CopywritingService {
      */
     public Flux<String> rewrite(String modelId, String content) {
         if (isMockEnabled()) return mockTextStream();
-        Long userId = operatorContext.currentUserId().orElse(null);
+        Long userId = operatorContext.currentOwnerId().orElse(null);
         var ctx = CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_CHAT, modelId);
         var messages =
                 List.<Message>of(
@@ -190,7 +190,7 @@ public class CopywritingService {
 
     public Flux<String> analyze(String modelId, String content) {
         if (isMockEnabled()) return mockTextStream();
-        Long userId = operatorContext.currentUserId().orElse(null);
+        Long userId = operatorContext.currentOwnerId().orElse(null);
         var ctx = CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_CHAT, modelId);
         var messages =
                 List.<Message>of(

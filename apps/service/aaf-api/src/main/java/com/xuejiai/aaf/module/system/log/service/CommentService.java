@@ -179,7 +179,7 @@ public class CommentService
     private void publishMentionEvent(String entityType, Long entityId, String content) {
         var actorName =
                 operatorContext
-                        .currentUserId()
+                        .currentOwnerId()
                         .flatMap(userRepository::findById)
                         .map(
                                 user ->

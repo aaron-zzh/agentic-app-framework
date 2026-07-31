@@ -41,7 +41,7 @@ public class LegalConsentController {
     @Operation(summary = "查询当前用户待同意的法律文档")
     @GetMapping("/pending")
     public Result<PendingConsentVO> pending() {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         return Result.success(legalDocumentService.listPendingForUser(userId));
     }
 
@@ -49,7 +49,7 @@ public class LegalConsentController {
     @PostMapping
     public Result<Void> submit(
             @Valid @RequestBody ConsentSubmitDTO dto, HttpServletRequest request) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         legalDocumentService.recordConsent(
                 userId, dto.documentId(), getClientIp(request), getSourceApp(request));
         return Result.success();

@@ -12,18 +12,20 @@ import org.springframework.web.bind.annotation.*;
 import com.xuejiai.aaf.common.enums.channel.ChannelTypeEnum;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.module.channel.domain.ChannelConfig;
-import com.xuejiai.aaf.module.channel.domain.WebhookConfig;
 import com.xuejiai.aaf.module.channel.service.ChannelConfigService;
 import com.xuejiai.aaf.module.channel.service.ChannelMessageRouter;
 import com.xuejiai.aaf.module.channel.service.MiniAppLoginService;
 import com.xuejiai.aaf.module.channel.service.WebhookService;
 import com.xuejiai.aaf.module.channel.service.adapter.FeishuBotChannelAdapter;
 import com.xuejiai.aaf.module.channel.service.adapter.WechatMpChannelAdapter;
+import com.xuejiai.aaf.module.channel.vo.ChannelConfigSaveDTO;
+import com.xuejiai.aaf.module.channel.vo.ChannelConfigVO;
 import com.xuejiai.aaf.module.channel.vo.ChannelStatsVO;
 import com.xuejiai.aaf.module.channel.vo.MiniAppLoginDTO;
 import com.xuejiai.aaf.module.channel.vo.MiniAppPhoneLoginDTO;
 import com.xuejiai.aaf.module.channel.vo.MiniAppSessionVO;
+import com.xuejiai.aaf.module.channel.vo.WebhookConfigSaveDTO;
+import com.xuejiai.aaf.module.channel.vo.WebhookConfigVO;
 
 import lombok.RequiredArgsConstructor;
 
@@ -176,15 +178,16 @@ public class ChannelController {
 
     /** 创建渠道配置 */
     @PostMapping("/config")
-    public Result<ChannelConfig> createConfig(@RequestBody ChannelConfig config) {
-        return Result.success(channelConfigService.create(config));
+    public Result<ChannelConfigVO> createConfig(
+            @Validated @RequestBody ChannelConfigSaveDTO dto) {
+        return Result.success(channelConfigService.create(dto));
     }
 
     /** 更新渠道配置 */
     @PutMapping("/config/{id}")
-    public Result<ChannelConfig> updateConfig(
-            @PathVariable Long id, @RequestBody ChannelConfig config) {
-        return Result.success(channelConfigService.update(id, config));
+    public Result<ChannelConfigVO> updateConfig(
+            @PathVariable Long id, @Validated @RequestBody ChannelConfigSaveDTO dto) {
+        return Result.success(channelConfigService.update(id, dto));
     }
 
     /** 删除渠道配置 */
@@ -196,13 +199,13 @@ public class ChannelController {
 
     /** 获取渠道配置详情 */
     @GetMapping("/config/{id}")
-    public Result<ChannelConfig> getConfig(@PathVariable Long id) {
+    public Result<ChannelConfigVO> getConfig(@PathVariable Long id) {
         return Result.success(channelConfigService.getById(id));
     }
 
     /** 获取所有启用的渠道配置 */
     @GetMapping("/config/list")
-    public Result<List<ChannelConfig>> listConfigs() {
+    public Result<List<ChannelConfigVO>> listConfigs() {
         return Result.success(channelConfigService.listEnabled());
     }
 
@@ -210,15 +213,16 @@ public class ChannelController {
 
     /** 创建 Webhook 配置 */
     @PostMapping("/webhook/config")
-    public Result<WebhookConfig> createWebhook(@RequestBody WebhookConfig config) {
-        return Result.success(webhookService.create(config));
+    public Result<WebhookConfigVO> createWebhook(
+            @Validated @RequestBody WebhookConfigSaveDTO dto) {
+        return Result.success(webhookService.create(dto));
     }
 
     /** 更新 Webhook 配置 */
     @PutMapping("/webhook/config/{id}")
-    public Result<WebhookConfig> updateWebhook(
-            @PathVariable Long id, @RequestBody WebhookConfig config) {
-        return Result.success(webhookService.update(id, config));
+    public Result<WebhookConfigVO> updateWebhook(
+            @PathVariable Long id, @Validated @RequestBody WebhookConfigSaveDTO dto) {
+        return Result.success(webhookService.update(id, dto));
     }
 
     /** 删除 Webhook 配置 */
@@ -230,7 +234,7 @@ public class ChannelController {
 
     /** 获取活跃 Webhook 列表 */
     @GetMapping("/webhook/config/list")
-    public Result<List<WebhookConfig>> listWebhooks() {
+    public Result<List<WebhookConfigVO>> listWebhooks() {
         return Result.success(webhookService.listActive());
     }
 

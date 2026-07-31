@@ -93,7 +93,7 @@ public class GenerationTemplateService
         entity.setSteps(dto.steps());
         entity.setSeed(dto.seed());
         entity.setIsPublic(dto.isPublic() != null && dto.isPublic());
-        entity.setUserId(operatorContext.currentUserId().orElseThrow());
+        entity.setUserId(operatorContext.currentOwnerId().orElseThrow());
         return entity;
     }
 
@@ -125,9 +125,7 @@ public class GenerationTemplateService
 
     /** 查询公开模板，始终强制 {@code isPublic=true}。 */
     public PageResult<GenerationTemplateVO> pagePublic(GenerationTemplatePageDTO query) {
-        var spec =
-                buildSpec(query)
-                        .and((root, ignored, cb) -> cb.isTrue(root.get("isPublic")));
+        var spec = buildSpec(query).and((root, ignored, cb) -> cb.isTrue(root.get("isPublic")));
         var pageReq =
                 org.springframework.data.domain.PageRequest.of(
                         Math.max(query.getPageNo() - 1, 0),
@@ -141,7 +139,8 @@ public class GenerationTemplateService
     /** 按用户分页查询（/me 端点强制 userId 过滤）。 */
     public PageResult<GenerationTemplateVO> pageByUser(
             Long userId, GenerationTemplatePageDTO query) {
-        var spec = buildSpec(query).and((root, ignored, cb) -> cb.equal(root.get("userId"), userId));
+        var spec =
+                buildSpec(query).and((root, ignored, cb) -> cb.equal(root.get("userId"), userId));
         var pageReq =
                 org.springframework.data.domain.PageRequest.of(
                         Math.max(query.getPageNo() - 1, 0),
@@ -161,7 +160,7 @@ public class GenerationTemplateService
                         .findById(id)
                         .orElseThrow(GenerationTemplateService::templateNotFound);
         if (!Boolean.TRUE.equals(template.getIsPublic())) {
-            var currentUserId = operatorContext.currentUserId().orElse(null);
+            var currentUserId = operatorContext.currentOwnerId().orElse(null);
             if (!Objects.equals(template.getUserId(), currentUserId)) {
                 throw templateNotFound();
             }

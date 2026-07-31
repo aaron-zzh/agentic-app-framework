@@ -74,7 +74,7 @@ class AigcProjectServiceTest extends BaseMockitoUnitTest {
         prepareCrudGetAccess();
         // mock：requireEntity 内部调用 repository.findOne(Specification)
         when(repository.findOne(any(Specification.class))).thenReturn(Optional.of(ownerProject));
-        when(operatorContext.currentUserId()).thenReturn(Optional.of(10L));
+        when(operatorContext.currentOwnerId()).thenReturn(Optional.of(10L));
 
         // 调用
         var vo = service.getByIdOwned(1L);
@@ -90,7 +90,7 @@ class AigcProjectServiceTest extends BaseMockitoUnitTest {
         prepareCrudGetAccess();
         // mock：项目属于 userId=10，但当前用户是 userId=99
         when(repository.findOne(any(Specification.class))).thenReturn(Optional.of(ownerProject));
-        when(operatorContext.currentUserId()).thenReturn(Optional.of(99L));
+        when(operatorContext.currentOwnerId()).thenReturn(Optional.of(99L));
 
         // 调用 + 断言：应抛 BusinessException（404 语义）
         assertThatThrownBy(() -> service.getByIdOwned(1L))
@@ -102,7 +102,7 @@ class AigcProjectServiceTest extends BaseMockitoUnitTest {
     @DisplayName("Given 项目属于用户A When 用户B 进入 DELETE hook Then 抛出 BusinessException（404 语义，防探测）")
     void beforeDelete_otherUser_throws() {
         // mock
-        when(operatorContext.currentUserId()).thenReturn(Optional.of(99L));
+        when(operatorContext.currentOwnerId()).thenReturn(Optional.of(99L));
 
         // 调用 + 断言
         assertThatThrownBy(() -> service.beforeDelete(ownerProject))

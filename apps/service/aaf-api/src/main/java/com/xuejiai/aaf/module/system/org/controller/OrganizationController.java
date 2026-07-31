@@ -46,7 +46,7 @@ public class OrganizationController {
     @Operation(summary = "获取当前用户的组织列表")
     @GetMapping
     public Result<List<OrganizationVO>> list() {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         return Result.success(organizationService.listByUser(userId));
     }
 
@@ -61,7 +61,7 @@ public class OrganizationController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Result<OrganizationVO> create(@Validated @RequestBody OrganizationCreateDTO request) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         return Result.success(organizationService.create(request, userId));
     }
 

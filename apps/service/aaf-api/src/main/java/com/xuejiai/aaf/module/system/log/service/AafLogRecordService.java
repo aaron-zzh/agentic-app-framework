@@ -34,7 +34,7 @@ public class AafLogRecordService implements ILogRecordService {
                         : LocalDateTime.now();
         eventPublisher.publishEvent(
                 new OperationLogEvent(
-                        operatorContext.currentUserId().orElse(null),
+                        operatorContext.currentOwnerId().orElse(null),
                         logRecord.getOperator(),
                         logRecord.getType(),
                         logRecord.getSubType(),

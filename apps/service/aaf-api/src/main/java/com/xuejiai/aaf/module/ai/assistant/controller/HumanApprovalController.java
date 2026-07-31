@@ -94,7 +94,7 @@ public class HumanApprovalController {
 
     private String currentUser() {
         return operatorContext
-                .currentUserId()
+                .currentOwnerId()
                 .map(String::valueOf)
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.UNAUTHORIZED));
     }

@@ -117,14 +117,14 @@ public class DashboardController {
     @Operation(summary = "查询当前用户仪表盘列表")
     @GetMapping
     public Result<List<DashboardVO>> list() {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         return Result.success(dashboardService.listByOwner(userId));
     }
 
     @Operation(summary = "查询当前用户默认仪表盘")
     @GetMapping("/default")
     public Result<DashboardVO> getDefault() {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         return Result.success(dashboardService.getDefault(userId));
     }
 
@@ -137,7 +137,7 @@ public class DashboardController {
     @Operation(summary = "创建仪表盘")
     @PostMapping
     public Result<DashboardVO> create(@Validated @RequestBody DashboardCreateDTO dto) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         return Result.success(dashboardService.create(userId, dto));
     }
 
@@ -176,7 +176,7 @@ public class DashboardController {
     public Result<WidgetDataVO> getWidgetData(
             @PathVariable String widgetId,
             @RequestBody(required = false) Map<String, Object> config) {
-        Long userId = operatorContext.currentUserId().orElse(null);
+        Long userId = operatorContext.currentOwnerId().orElse(null);
         return Result.success(
                 dashboardService.getWidgetData(widgetId, config, isAdmin() ? null : userId));
     }
@@ -184,7 +184,7 @@ public class DashboardController {
     // ===== 内部工具 =====
 
     private Long ownerFilter() {
-        return isAdmin() ? null : operatorContext.currentUserId().orElseThrow();
+        return isAdmin() ? null : operatorContext.currentOwnerId().orElseThrow();
     }
 
     private boolean isAdmin() {

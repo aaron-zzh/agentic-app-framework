@@ -51,7 +51,7 @@ public class RateLimitAspect {
         }
         // 优先用登录用户 ID，匿名则用 IP
         var identity =
-                operatorContext.currentUserId().map(Object::toString).orElseGet(this::currentIp);
+                operatorContext.currentOwnerId().map(Object::toString).orElseGet(this::currentIp);
         return KEY_PREFIX + prefix + ":" + identity;
     }
 

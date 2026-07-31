@@ -51,7 +51,7 @@ public class DocumentService {
 
     /** 获取文档树（按当前用户 ownerId 过滤）。 */
     public List<DocTreeNodeVO> getTree() {
-        Long ownerId = operatorContext.currentUserId().orElse(null);
+        Long ownerId = operatorContext.currentOwnerId().orElse(null);
         List<Document> docs =
                 ownerId != null
                         ? documentRepository.findByOwnerIdAndStatusOrderByCreateTimeDesc(
@@ -138,7 +138,7 @@ public class DocumentService {
         doc.setContent(content);
         doc.setStatus("active");
         doc.setPublish(dto.publish() != null ? dto.publish() : "draft");
-        doc.setOwnerId(operatorContext.currentUserId().orElse(null));
+        doc.setOwnerId(operatorContext.currentOwnerId().orElse(null));
         documentRepository.save(doc);
 
         // 提取链接关系

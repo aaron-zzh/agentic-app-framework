@@ -65,7 +65,7 @@ public class AiDigitalAvatarService
         entity.setSourceAssetId(dto.sourceAssetId());
         entity.setDefaultVoice(dto.defaultVoice());
         entity.setDetectStatus(STATUS_PENDING);
-        entity.setUserId(operatorContext.currentUserId().orElseThrow());
+        entity.setUserId(operatorContext.currentOwnerId().orElseThrow());
         return entity;
     }
 
@@ -79,7 +79,7 @@ public class AiDigitalAvatarService
     @Override
     protected Specification<AiDigitalAvatar> buildSpec(AiDigitalAvatarPageDTO dto) {
         // BE-8 数据隔离：强制按当前 userId 过滤
-        Long currentUserId = operatorContext.currentUserId().orElseThrow();
+        Long currentUserId = operatorContext.currentOwnerId().orElseThrow();
         return SpecificationBuilder.<AiDigitalAvatar>builder()
                 .eqIfPresent("userId", currentUserId)
                 .eqIfPresent("detectStatus", dto.getDetectStatus())

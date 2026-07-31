@@ -152,7 +152,7 @@ public class AigcTaskService
     /** BE-8 数据隔离：单条查询后校验 ownership，跨用户返回 404 防探测。 */
     public AigcTaskVO getByIdOwned(Long id) {
         var entity = requireEntity(id);
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         if (!entity.getUserId().equals(userId)) {
             throw exception(ErrorCodeConstants.AIGC_TASK_NOT_FOUND);
         }

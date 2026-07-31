@@ -86,8 +86,7 @@ public class ApprovalProcessController {
     @Operation(summary = "查询流程状态")
     @GetMapping("/{processInstanceId}")
     public Result<WorkflowStatusVO> getStatus(@PathVariable String processInstanceId) {
-        return Result.success(
-                approvalProcessService.getStatus(processInstanceId, currentUserId()));
+        return Result.success(approvalProcessService.getStatus(processInstanceId, currentUserId()));
     }
 
     @Operation(summary = "按实体查询关联流程状态")
@@ -139,8 +138,7 @@ public class ApprovalProcessController {
             @RequestParam(defaultValue = "1") int pageNo,
             @RequestParam(defaultValue = "10") int pageSize) {
         return Result.success(
-                approvalProcessService.listMyInitiatedInstances(
-                        currentUserId(), pageNo, pageSize));
+                approvalProcessService.listMyInitiatedInstances(currentUserId(), pageNo, pageSize));
     }
 
     @Operation(summary = "签收任务")
@@ -174,6 +172,6 @@ public class ApprovalProcessController {
     }
 
     private String currentUserId() {
-        return operatorContext.currentUserId().orElseThrow().toString();
+        return operatorContext.currentOwnerId().orElseThrow().toString();
     }
 }

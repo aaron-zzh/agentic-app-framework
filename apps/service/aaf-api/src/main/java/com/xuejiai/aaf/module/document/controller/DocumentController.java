@@ -45,7 +45,7 @@ public class DocumentController {
     @Operation(summary = "统计用户文档数量")
     @GetMapping("/count")
     public Result<Long> count() {
-        Long ownerId = operatorContext.currentUserId().orElse(null);
+        Long ownerId = operatorContext.currentOwnerId().orElse(null);
         if (ownerId == null) return Result.success(0L);
         return Result.success(documentRepository.countByOwnerIdAndStatus(ownerId, "active"));
     }
@@ -53,7 +53,7 @@ public class DocumentController {
     @Operation(summary = "获取当前用户文档列表（不含正文）")
     @GetMapping("/list")
     public Result<List<DocListItemVO>> list() {
-        Long ownerId = operatorContext.currentUserId().orElse(null);
+        Long ownerId = operatorContext.currentOwnerId().orElse(null);
         if (ownerId == null) return Result.success(List.of());
         return Result.success(documentRepository.listByOwner(ownerId));
     }

@@ -2,8 +2,8 @@ package com.xuejiai.aaf.module.ai.chat.controller;
 
 import java.util.List;
 
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.data.domain.Page;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -61,14 +61,14 @@ public class ChatController {
     @Operation(summary = "创建会话")
     @PostMapping("/sessions")
     public Result<ChatSessionVO> createSession(@RequestBody @Validated ChatSessionCreateDTO dto) {
-        var userId = operatorContext.currentUserId().orElseThrow();
+        var userId = operatorContext.currentOwnerId().orElseThrow();
         return Result.success(chatService.createSession(userId, dto));
     }
 
     @Operation(summary = "获取会话列表")
     @GetMapping("/sessions")
     public Result<List<ChatSessionVO>> listSessions() {
-        var userId = operatorContext.currentUserId().orElseThrow();
+        var userId = operatorContext.currentOwnerId().orElseThrow();
         return Result.success(chatService.listSessions(userId));
     }
 
@@ -103,7 +103,7 @@ public class ChatController {
     @Operation(summary = "发送消息")
     @PostMapping("/messages")
     public Result<ChatMessageVO> sendMessage(@RequestBody @Validated ChatMessageSendDTO dto) {
-        var userId = operatorContext.currentUserId().orElseThrow();
+        var userId = operatorContext.currentOwnerId().orElseThrow();
         var message =
                 chatService.saveMessage(userId, "HUMAN", dto.sessionId(), "user", dto.content());
         return Result.success(message);

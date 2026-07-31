@@ -98,7 +98,7 @@ public class CreditRedeemCodeController
     public Result<Long> redeem(@RequestBody java.util.Map<String, String> body) {
         var userId =
                 operatorContext
-                        .currentUserId()
+                        .currentOwnerId()
                         .orElseThrow(
                                 () ->
                                         new com.xuejiai.aaf.common.exception.BusinessException(

@@ -7,67 +7,34 @@ import org.springframework.transaction.annotation.Transactional;
 import com.xuejiai.aaf.common.enums.pay.BizOrderTypeEnum;
 import com.xuejiai.aaf.common.enums.pay.CreditTransactionSourceEnum;
 import com.xuejiai.aaf.framework.engine.credit.CreditService;
-import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.pay.handler.PaySuccessHandler;
-import com.xuejiai.aaf.module.pay.vo.BizOrderCreateDTO;
-import com.xuejiai.aaf.module.pay.vo.PayOrderCreateDTO;
-import com.xuejiai.aaf.module.pay.vo.PayOrderVO;
 import com.xuejiai.aaf.module.user.growth.event.UserGrowthEvent;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 充值业务编排：创建业务订单 → 创建支付单 → 支付成功回调 → 积分入账 */
+/**
+ * RECHARGE 类业务订单的支付成功处理器：标记订单已支付 → 积分入账。
+ *
+ * <p>B2：原 {@code initiateRecharge(amount, channelCode)} 由客户端提交金额下单，已删除。 充值下单统一由 {@code
+ * CreditPackageController#purchase} 承担——金额取 {@code credit_package.price}（服务端货架定价）， 本类只负责支付成功后的入账，不再提供任何创建订单入口。
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class RechargeService implements PaySuccessHandler {
 
     private final BizOrderService bizOrderService;
-    private final PayOrderService payOrderService;
     private final CreditService creditService;
     private final ApplicationEventPublisher eventPublisher;
-    private final OperatorContext operatorContext;
-
-    /** 延迟注入打破循环：PayNotifyService → RechargeService(handler) → PayNotifyService */
-    @org.springframework.context.annotation.Lazy
-    @org.springframework.beans.factory.annotation.Autowired
-    private PayNotifyService payNotifyService;
 
     @Override
     public String bizOrderType() {
         return BizOrderTypeEnum.RECHARGE.getCode();
     }
 
-    /** 发起充值：归属当前身份，创建业务订单 + 支付单，MOCK 渠道同步入账。 */
-    @Transactional
-    public PayOrderVO initiateRecharge(long amount, String channelCode) {
-        var userId =
-                operatorContext
-                        .currentOwnerId()
-                        .orElseThrow(
-                                () ->
-                                        new com.xuejiai.aaf.common.exception.BusinessException(
-                                                com.xuejiai.aaf.common.exception.GlobalErrorCode
-                                                        .UNAUTHORIZED));
-        var bizOrder =
-                bizOrderService.create(
-                        userId,
-                        new BizOrderCreateDTO(
-                                BizOrderTypeEnum.RECHARGE.getCode(), "积分充值", amount, channelCode));
-        var payOrder =
-                payOrderService.create(
-                        new PayOrderCreateDTO(
-                                bizOrder.orderNo(), "积分充值", null, amount, channelCode, userId));
-        bizOrderService.bindPayOrder(bizOrder.id(), payOrder.id());
-
-        if (payOrderService.isSuccess(payOrder.id())) {
-            payNotifyService.onPaySuccess(payOrder.id());
-        }
-        return payOrder;
-    }
-
-    /** 充值成功回调：积分入账（从 PayOrder 获取金额） */
+    /** 充值成功回调：积分入账（从业务订单获取金额，不信任回调入参） */
+    @Override
     @Transactional
     public void onPaySuccess(Long payOrderId) {
         var bizOrder = bizOrderService.findByPayOrderId(payOrderId);
@@ -81,6 +48,7 @@ public class RechargeService implements PaySuccessHandler {
         // 标记业务订单已支付
         bizOrderService.markPaid(bizOrder.getId());
         // 积分入账（金额从业务订单获取）
+        // M3：CreditService.earn 以「账户+来源+业务单号」为幂等键，并发/重复回调不会重复加分
         creditService.earn(
                 bizOrder.getUserId(),
                 bizOrder.getTotalAmount(),

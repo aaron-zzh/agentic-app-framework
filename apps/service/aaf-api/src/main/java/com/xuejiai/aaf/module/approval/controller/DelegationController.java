@@ -41,7 +41,7 @@ public class DelegationController {
     @Operation(summary = "创建委托")
     @PostMapping
     public Result<DelegationVO> create(@Validated @RequestBody DelegationCreateDTO dto) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         return Result.success(delegationService.create(userId, dto));
     }
 
@@ -49,14 +49,14 @@ public class DelegationController {
     @GetMapping
     public Result<PageResult<DelegationVO>> page(
             @Validated @ParameterObject DelegationPageDTO request) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         return Result.success(delegationService.page(userId, request));
     }
 
     @Operation(summary = "取消委托")
     @DeleteMapping("/{id}")
     public Result<Void> cancel(@PathVariable Long id) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         delegationService.cancel(userId, id);
         return Result.success();
     }

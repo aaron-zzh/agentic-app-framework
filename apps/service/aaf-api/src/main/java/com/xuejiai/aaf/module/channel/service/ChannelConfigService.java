@@ -14,6 +14,8 @@ import com.xuejiai.aaf.module.channel.domain.ChannelConfig;
 import com.xuejiai.aaf.module.channel.domain.UnifiedMessage;
 import com.xuejiai.aaf.module.channel.repository.ChannelConfigRepository;
 import com.xuejiai.aaf.module.channel.repository.ChannelMessageRepository;
+import com.xuejiai.aaf.module.channel.vo.ChannelConfigSaveDTO;
+import com.xuejiai.aaf.module.channel.vo.ChannelConfigVO;
 import com.xuejiai.aaf.module.channel.vo.ChannelStatsVO;
 
 import lombok.RequiredArgsConstructor;
@@ -36,25 +38,45 @@ public class ChannelConfigService {
     // ==================== CRUD ====================
 
     @Transactional
-    public ChannelConfig create(ChannelConfig config) {
-        return configRepository.save(config);
+    public ChannelConfigVO create(ChannelConfigSaveDTO dto) {
+        var config = new ChannelConfig();
+        config.setChannelType(dto.channelType());
+        applyEditableFields(config, dto);
+        return ChannelConfigVO.from(configRepository.save(config));
     }
 
     @Transactional
-    public ChannelConfig update(Long id, ChannelConfig updated) {
+    public ChannelConfigVO update(Long id, ChannelConfigSaveDTO dto) {
         var config =
                 configRepository
                         .findById(id)
                         .orElseThrow(
                                 () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "渠道配置不存在"));
-        config.setName(updated.getName());
-        config.setAppId(updated.getAppId());
-        config.setAppSecret(updated.getAppSecret());
-        config.setToken(updated.getToken());
-        config.setEncodingAesKey(updated.getEncodingAesKey());
-        config.setStatus(updated.getStatus());
-        config.setExtConfig(updated.getExtConfig());
-        return configRepository.save(config);
+        applyEditableFields(config, dto);
+        return ChannelConfigVO.from(configRepository.save(config));
+    }
+
+    /** 写入可编辑字段；密钥类字段留空表示保持原值（出参已脱敏，客户端无法回填原值）。 */
+    private void applyEditableFields(ChannelConfig config, ChannelConfigSaveDTO dto) {
+        config.setName(dto.name());
+        config.setAppId(dto.appId());
+        config.setExtConfig(dto.extConfig());
+        if (dto.status() != null) {
+            config.setStatus(dto.status());
+        }
+        if (isPresent(dto.appSecret())) {
+            config.setAppSecret(dto.appSecret());
+        }
+        if (isPresent(dto.token())) {
+            config.setToken(dto.token());
+        }
+        if (isPresent(dto.encodingAesKey())) {
+            config.setEncodingAesKey(dto.encodingAesKey());
+        }
+    }
+
+    private boolean isPresent(String value) {
+        return value != null && !value.isBlank();
     }
 
     @Transactional
@@ -62,18 +84,20 @@ public class ChannelConfigService {
         configRepository.deleteById(id);
     }
 
-    public ChannelConfig getById(Long id) {
-        return configRepository
-                .findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "渠道配置不存在"));
+    public ChannelConfigVO getById(Long id) {
+        return ChannelConfigVO.from(
+                configRepository
+                        .findById(id)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.NOT_FOUND, "渠道配置不存在")));
     }
 
-    public List<ChannelConfig> listEnabled() {
-        return configRepository.findByStatusAndDeletedFalse(0);
-    }
-
-    public List<ChannelConfig> listAll() {
-        return configRepository.findAll();
+    public List<ChannelConfigVO> listEnabled() {
+        return configRepository.findByStatusAndDeletedFalse(0).stream()
+                .map(ChannelConfigVO::from)
+                .toList();
     }
 
     // ==================== 状态监控 ====================

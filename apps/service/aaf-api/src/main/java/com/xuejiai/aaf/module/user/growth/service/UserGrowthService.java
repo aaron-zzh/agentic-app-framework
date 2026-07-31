@@ -36,7 +36,7 @@ public class UserGrowthService {
 
     /** 列出当前用户所有任务（合并任务定义 + 用户进度）。 */
     public List<UserGrowthTaskVO> listMyTasks() {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         var tasks = taskRepository.findByEnabledAndDeletedFalseOrderBySortOrderAsc(true);
         var progressMap = buildProgressMap(userId);
         return tasks.stream().map(t -> toVO(t, progressMap.get(t.getId()))).toList();
@@ -117,7 +117,7 @@ public class UserGrowthService {
     /** 用户领取奖励——发放积分（如有）+ 标记 CLAIMED。 */
     @Transactional
     public void claim(Long taskId) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         var task =
                 taskRepository
                         .findById(taskId)

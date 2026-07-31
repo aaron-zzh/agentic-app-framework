@@ -50,21 +50,21 @@ public class NotificationController {
     @GetMapping
     public Result<PageResult<NotificationVO>> page(
             @Validated @ParameterObject NotificationPageDTO request) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         return Result.success(notificationService.page(userId, request));
     }
 
     @Operation(summary = "获取未读数量")
     @GetMapping("/unread-count")
     public Result<Long> unreadCount() {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         return Result.success(notificationService.unreadCount(userId));
     }
 
     @Operation(summary = "标记已读")
     @PutMapping("/read")
     public Result<Void> markAsRead(@RequestBody List<Long> ids) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         notificationService.markAsRead(userId, ids);
         return Result.success();
     }
@@ -72,7 +72,7 @@ public class NotificationController {
     @Operation(summary = "删除通知")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         notificationService.delete(userId, id);
         return Result.success();
     }
@@ -82,7 +82,7 @@ public class NotificationController {
     public Result<Void> testPush(
             @RequestParam(required = false) Long userId,
             @RequestBody(required = false) TestPushDTO dto) {
-        Long targetId = userId != null ? userId : operatorContext.currentUserId().orElseThrow();
+        Long targetId = userId != null ? userId : operatorContext.currentOwnerId().orElseThrow();
         String title = dto != null && dto.title() != null ? dto.title() : "测试通知";
         String body = dto != null && dto.body() != null ? dto.body() : "这是一条测试推送消息";
         try {

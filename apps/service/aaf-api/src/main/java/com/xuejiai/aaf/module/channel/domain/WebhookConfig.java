@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.channel.domain;
 
 import org.hibernate.annotations.SQLDelete;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.Column;
@@ -37,6 +38,7 @@ public class WebhookConfig extends BaseEntity {
     private String eventTypes;
 
     /** HMAC 签名密钥 */
+    @JsonIgnore
     @Column(name = "secret", length = 200)
     private String secret;
 

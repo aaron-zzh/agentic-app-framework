@@ -56,7 +56,7 @@ public class TrendingService {
      * @return 20 条热点，解析失败时返回空列表
      */
     public List<TrendingItem> fetchTrending() {
-        Long userId = operatorContext.currentUserId().orElse(null);
+        Long userId = operatorContext.currentOwnerId().orElse(null);
         var ctx = CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_CHAT, MODEL_ID);
         // enable_search 为 DashScope 非标准参数，通过 extraBody 透传
         var options = OpenAiChatOptions.builder().extraBody(Map.of("enable_search", true)).build();

@@ -5,7 +5,9 @@ import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.BindException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -25,6 +27,7 @@ import com.xuejiai.aaf.framework.security.license.LicenseRequiredException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Path;
 import lombok.extern.slf4j.Slf4j;
 
 /** 全局异常处理器，将异常统一转为 Result 响应。 */
@@ -57,6 +60,31 @@ public class GlobalExceptionHandler {
                 principal,
                 authorities,
                 jwtRoles,
+                e.getMessage());
+        return Result.error(GlobalErrorCode.FORBIDDEN);
+    }
+
+    /** 未认证——凭证缺失/失效，统一返回 401，不回传认证细节 */
+    @ExceptionHandler(AuthenticationException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public Result<?> handleAuthentication(AuthenticationException e, HttpServletRequest request) {
+        log.info(
+                "[Unauthenticated] {} {} reason={}",
+                request.getMethod(),
+                request.getRequestURI(),
+                e.getMessage());
+        return Result.error(GlobalErrorCode.UNAUTHORIZED);
+    }
+
+    /** 权限不足——方法级 @PreAuthorize 之外的 AccessDeniedException（如 FilterSecurityInterceptor） */
+    @ExceptionHandler(AccessDeniedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Result<?> handleAccessDeniedException(
+            AccessDeniedException e, HttpServletRequest request) {
+        log.warn(
+                "[AccessDenied] {} {} reason={}",
+                request.getMethod(),
+                request.getRequestURI(),
                 e.getMessage());
         return Result.error(GlobalErrorCode.FORBIDDEN);
     }
@@ -165,11 +193,34 @@ public class GlobalExceptionHandler {
         return Result.error(GlobalErrorCode.BAD_REQUEST, message);
     }
 
-    /** 约束违反异常 */
+    /**
+     * 约束违反异常。
+     *
+     * <p>脱敏：只回传"叶子属性名 + 校验提示"，不回传 {@code e.getMessage()}（含方法签名、参数序号与非法入参值等内部信息）。
+     */
     @ExceptionHandler(ConstraintViolationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Result<?> handleConstraintViolation(ConstraintViolationException e) {
-        return Result.error(GlobalErrorCode.BAD_REQUEST, e.getMessage());
+        log.info("参数约束校验失败: {}", e.getMessage());
+        String message =
+                e.getConstraintViolations() == null
+                        ? "参数校验失败"
+                        : e.getConstraintViolations().stream()
+                                .findFirst()
+                                .map(v -> leafProperty(v.getPropertyPath()) + ": " + v.getMessage())
+                                .orElse("参数校验失败");
+        return Result.error(GlobalErrorCode.BAD_REQUEST, message);
+    }
+
+    /** 取属性路径的最后一段，避免暴露方法名与参数序号（如 createUser.arg0.phone → phone）。 */
+    private String leafProperty(Path propertyPath) {
+        String leaf = "参数";
+        for (var node : propertyPath) {
+            if (node.getName() != null) {
+                leaf = node.getName();
+            }
+        }
+        return leaf;
     }
 
     /** 非法参数异常（如枚举解析失败），统一映射为 400，避免落入未知异常兜底返回 500 */

@@ -83,7 +83,7 @@ public class UserProjectResourceService {
     // ---- 私有辅助 ----
 
     private AigcProject requireOwnership(Long projectId) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         var project =
                 projectRepository
                         .findById(projectId)

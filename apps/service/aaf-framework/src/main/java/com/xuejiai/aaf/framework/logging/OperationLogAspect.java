@@ -93,7 +93,7 @@ public class OperationLogAspect {
 
         var event =
                 new OperationLogEvent(
-                        operatorContext.currentUserId().orElse(null),
+                        operatorContext.currentOwnerId().orElse(null),
                         null, // username 由持久化层补充
                         annotation.module(),
                         annotation.type().name(),

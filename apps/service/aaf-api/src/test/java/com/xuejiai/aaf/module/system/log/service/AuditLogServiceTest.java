@@ -32,7 +32,7 @@ class AuditLogServiceTest extends BaseMockitoUnitTest {
     @Test
     void record_首条记录_previousHash为null() {
         when(auditLogRepository.findTopByOrderByIdDesc()).thenReturn(Optional.empty());
-        when(operatorContext.currentUserId()).thenReturn(Optional.of(1L));
+        when(operatorContext.currentOwnerId()).thenReturn(Optional.of(1L));
         when(auditLogRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         auditLogService.record("Document", 10L, "UPDATE", "{\"title\":\"新标题\"}");
@@ -54,7 +54,7 @@ class AuditLogServiceTest extends BaseMockitoUnitTest {
         AuditLog prev = new AuditLog();
         prev.setHash("abc123");
         when(auditLogRepository.findTopByOrderByIdDesc()).thenReturn(Optional.of(prev));
-        when(operatorContext.currentUserId()).thenReturn(Optional.empty());
+        when(operatorContext.currentOwnerId()).thenReturn(Optional.empty());
         when(auditLogRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         auditLogService.record("Document", 20L, "DELETE", null);
@@ -71,7 +71,7 @@ class AuditLogServiceTest extends BaseMockitoUnitTest {
     @Test
     void record_changes为null_不抛异常() {
         when(auditLogRepository.findTopByOrderByIdDesc()).thenReturn(Optional.empty());
-        when(operatorContext.currentUserId()).thenReturn(Optional.empty());
+        when(operatorContext.currentOwnerId()).thenReturn(Optional.empty());
         when(auditLogRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         // 不抛异常即通过

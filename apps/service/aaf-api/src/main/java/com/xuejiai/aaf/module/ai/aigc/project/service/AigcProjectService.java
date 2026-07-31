@@ -61,7 +61,7 @@ public class AigcProjectService
     public AigcProjectVO create(AigcProjectCreateDTO request) {
         var vo = super.create(request);
         operatorContext
-                .currentUserId()
+                .currentOwnerId()
                 .ifPresent(
                         uid ->
                                 eventPublisher.publishEvent(
@@ -98,7 +98,7 @@ public class AigcProjectService
         e.setDescription(dto.description());
         if (dto.type() != null) e.setType(dto.type());
         if (dto.prompt() != null) e.setPrompt(dto.prompt());
-        e.setUserId(operatorContext.currentUserId().orElseThrow());
+        e.setUserId(operatorContext.currentOwnerId().orElseThrow());
         return e;
     }
 
@@ -134,7 +134,7 @@ public class AigcProjectService
     @Override
     protected Specification<AigcProject> buildSpec(AigcProjectPageDTO p) {
         // BE-8 数据隔离：强制按当前 userId 过滤，防止跨用户读取
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         return (root, query, cb) -> {
             var predicates = new ArrayList<Predicate>();
             predicates.add(cb.equal(root.get("userId"), userId));
@@ -149,7 +149,7 @@ public class AigcProjectService
     /** BE-8 数据隔离：单条查询后校验 ownership，跨用户返回 404 防探测。 */
     public AigcProjectVO getByIdOwned(Long id) {
         var entity = requireEntity(id);
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         if (!entity.getUserId().equals(userId)) {
             throw new BusinessException(GlobalErrorCode.NOT_FOUND, "项目不存在");
         }
@@ -282,7 +282,7 @@ public class AigcProjectService
     }
 
     private void requireOwner(AigcProject project) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         if (!project.getUserId().equals(userId)) {
             throw new BusinessException(GlobalErrorCode.NOT_FOUND, "项目不存在");
         }

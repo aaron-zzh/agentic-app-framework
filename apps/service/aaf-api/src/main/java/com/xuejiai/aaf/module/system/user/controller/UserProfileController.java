@@ -80,7 +80,7 @@ public class UserProfileController {
 
     private Long currentUserId() {
         return operatorContext
-                .currentUserId()
+                .currentOwnerId()
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.UNAUTHORIZED, "未登录"));
     }
 }

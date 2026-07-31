@@ -2,8 +2,8 @@ package com.xuejiai.aaf.module.ai.output.controller;
 
 import java.util.Map;
 
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.data.domain.Page;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.Result;
@@ -31,7 +31,7 @@ public class AiOutputController {
             @RequestParam(required = false) String sourceType,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        var userId = operatorContext.currentUserId().orElseThrow();
+        var userId = operatorContext.currentOwnerId().orElseThrow();
         return Result.success(
                 outputService.list(userId, category, riskLevel, sourceType, page, size));
     }
@@ -57,7 +57,7 @@ public class AiOutputController {
     /** 统计 */
     @GetMapping("/stats")
     public Result<Map<String, Long>> stats() {
-        var userId = operatorContext.currentUserId().orElseThrow();
+        var userId = operatorContext.currentOwnerId().orElseThrow();
         return Result.success(outputService.stats(userId));
     }
 

@@ -90,7 +90,7 @@ public class AigcContentService
         e.setTitle(dto.title());
         e.setDocId(dto.docId());
         e.setPlatform(dto.platform());
-        e.setUserId(operatorContext.currentUserId().orElseThrow());
+        e.setUserId(operatorContext.currentOwnerId().orElseThrow());
         return e;
     }
 

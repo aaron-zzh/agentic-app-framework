@@ -121,55 +121,6 @@ public class ToolPermissionChecker {
             String reason,
             Instant decidedAt) {}
 
-    /** 检查工具调用权限（含参数，用于 pattern 匹配）。 */
-    public PermissionResult check(
-            String sessionId,
-            Long userId,
-            String toolName,
-            ToolRiskLevel riskLevel,
-            boolean readOnly,
-            List<String> agentAllowedTools,
-            String arguments) {
-
-        PermissionResult result;
-        String reason;
-
-        // 1. deny 黑名单优先
-        if (isDenied(sessionId, toolName)) {
-            result = PermissionResult.DENIED;
-            reason = "黑名单";
-        }
-        // 2. trust-all
-        else if (sessionId != null && trustAllSessions.contains(sessionId)) {
-            result = PermissionResult.GRANTED;
-            reason = "trust-all";
-        }
-        // 3. 会话级 trust（含 pattern 匹配 + 防重复）
-        else if (matchesGrant(sessionId, toolName, arguments)) {
-            result = PermissionResult.GRANTED;
-            reason = "已授权（防重复）";
-        }
-        // 4. Agent 级 allowedTools
-        else if (agentAllowedTools != null && agentAllowedTools.contains(toolName)) {
-            result = PermissionResult.GRANTED;
-            reason = "Agent allowedTools";
-        }
-        // 5. readOnly 自动通过
-        else if (readOnly) {
-            result = PermissionResult.AUTO_GRANTED;
-            reason = "只读工具";
-        }
-        // 6. 按风险等级决策
-        else {
-            result = evaluateByRisk(sessionId, userId, toolName, riskLevel);
-            reason = "风险评估: " + riskLevel;
-        }
-
-        // 发布决策日志事件
-        publishDecision(sessionId, toolName, result, reason);
-        return result;
-    }
-
     /** 检查工具调用权限，并保留审批单号等恢复执行所需信息。 */
     public PermissionDecision checkDetailed(
             String sessionId,
@@ -238,33 +189,6 @@ public class ToolPermissionChecker {
 
         publishDecision(sessionId, toolName, decision.result(), decision.reason());
         return decision;
-    }
-
-    /** 无参数版本。 */
-    public PermissionResult check(
-            String sessionId,
-            Long userId,
-            String toolName,
-            ToolRiskLevel riskLevel,
-            boolean readOnly,
-            List<String> agentAllowedTools) {
-        return check(sessionId, userId, toolName, riskLevel, readOnly, agentAllowedTools, null);
-    }
-
-    /** 兼容旧接口。 */
-    public PermissionResult check(
-            String sessionId,
-            Long userId,
-            String toolName,
-            ToolRiskLevel riskLevel,
-            boolean hasRolePermission) {
-        if (hasRolePermission) return PermissionResult.GRANTED;
-        return check(sessionId, userId, toolName, riskLevel, false, null, null);
-    }
-
-    private PermissionResult evaluateByRisk(
-            String sessionId, Long userId, String toolName, ToolRiskLevel riskLevel) {
-        return evaluateByRiskDetailed(sessionId, userId, toolName, riskLevel).result();
     }
 
     private PermissionDecision evaluateByRiskDetailed(
@@ -528,13 +452,5 @@ public class ToolPermissionChecker {
         eventPublisher.publishEvent(
                 new ToolPermissionDecisionEvent(
                         sessionId, toolName, result, reason, Instant.now()));
-    }
-
-    /**
-     * @deprecated 使用 grant 替代
-     */
-    @Deprecated
-    public void grantTemporary(String sessionId, String toolName) {
-        grant(sessionId, toolName);
     }
 }

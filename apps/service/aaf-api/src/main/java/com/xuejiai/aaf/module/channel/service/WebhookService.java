@@ -24,6 +24,8 @@ import com.xuejiai.aaf.module.channel.domain.WebhookConfig;
 import com.xuejiai.aaf.module.channel.domain.WebhookLog;
 import com.xuejiai.aaf.module.channel.repository.WebhookConfigRepository;
 import com.xuejiai.aaf.module.channel.repository.WebhookLogRepository;
+import com.xuejiai.aaf.module.channel.vo.WebhookConfigSaveDTO;
+import com.xuejiai.aaf.module.channel.vo.WebhookConfigVO;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,12 +54,14 @@ public class WebhookService {
     // ==================== 配置管理 ====================
 
     @Transactional
-    public WebhookConfig create(WebhookConfig config) {
-        return configRepository.save(config);
+    public WebhookConfigVO create(WebhookConfigSaveDTO dto) {
+        var config = new WebhookConfig();
+        applyEditableFields(config, dto);
+        return WebhookConfigVO.from(configRepository.save(config));
     }
 
     @Transactional
-    public WebhookConfig update(Long id, WebhookConfig updated) {
+    public WebhookConfigVO update(Long id, WebhookConfigSaveDTO dto) {
         var config =
                 configRepository
                         .findById(id)
@@ -65,13 +69,27 @@ public class WebhookService {
                                 () ->
                                         new BusinessException(
                                                 GlobalErrorCode.NOT_FOUND, "Webhook 配置不存在"));
-        config.setName(updated.getName());
-        config.setUrl(updated.getUrl());
-        config.setEventTypes(updated.getEventTypes());
-        config.setSecret(updated.getSecret());
-        config.setStatus(updated.getStatus());
-        config.setMaxRetries(updated.getMaxRetries());
-        return configRepository.save(config);
+        applyEditableFields(config, dto);
+        return WebhookConfigVO.from(configRepository.save(config));
+    }
+
+    /** 写入可编辑字段；secret 留空表示保持原值（出参已脱敏，客户端无法回填原值）。 */
+    private void applyEditableFields(WebhookConfig config, WebhookConfigSaveDTO dto) {
+        config.setName(dto.name());
+        config.setUrl(dto.url());
+        config.setEventTypes(dto.eventTypes());
+        if (!isBlank(dto.status())) {
+            config.setStatus(dto.status());
+        }
+        if (!isBlank(dto.direction())) {
+            config.setDirection(dto.direction());
+        }
+        if (dto.maxRetries() != null) {
+            config.setMaxRetries(dto.maxRetries());
+        }
+        if (!isBlank(dto.secret())) {
+            config.setSecret(dto.secret());
+        }
     }
 
     @Transactional
@@ -79,8 +97,10 @@ public class WebhookService {
         configRepository.deleteById(id);
     }
 
-    public List<WebhookConfig> listActive() {
-        return configRepository.findByStatusAndDeletedFalse("active");
+    public List<WebhookConfigVO> listActive() {
+        return configRepository.findByStatusAndDeletedFalse("active").stream()
+                .map(WebhookConfigVO::from)
+                .toList();
     }
 
     // ==================== 出站推送 ====================
@@ -173,9 +193,7 @@ public class WebhookService {
             return false;
         }
         var config = configRepository.findById(webhookId).orElse(null);
-        if (config == null
-                || !"active".equals(config.getStatus())
-                || isBlank(config.getSecret())) {
+        if (config == null || !"active".equals(config.getStatus()) || isBlank(config.getSecret())) {
             return false;
         }
         var signedPayload = "%s\n%s\n%s".formatted(timestamp, nonce, body);

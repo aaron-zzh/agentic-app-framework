@@ -56,7 +56,7 @@ public class AigcStoryboardController
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/{id}/import-to-timeline")
     public Result<AigcTimelineVO> importToTimeline(@PathVariable Long id) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         return Result.success(service.importToTimeline(id, userId));
     }
 }

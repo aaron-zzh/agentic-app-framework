@@ -36,7 +36,7 @@ public class PermissionController {
     public Result<EntityAccessVO> getEntityAccess(@PathVariable String slug) {
         Long userId =
                 operatorContext
-                        .currentUserId()
+                        .currentOwnerId()
                         .orElseThrow(
                                 () -> new BusinessException(GlobalErrorCode.UNAUTHORIZED, "未登录"));
         return Result.success(permissionService.getEntityAccess(userId, slug));

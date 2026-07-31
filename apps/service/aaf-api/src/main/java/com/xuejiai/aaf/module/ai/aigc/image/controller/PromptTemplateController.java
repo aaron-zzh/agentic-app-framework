@@ -41,7 +41,7 @@ public class PromptTemplateController {
             @RequestParam(required = false) String category,
             @RequestParam(defaultValue = "1") int pageNo,
             @RequestParam(defaultValue = "20") int pageSize) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         var query = new GenerationTemplatePageDTO();
         query.setCategory(category);
         query.setPageNo(pageNo);

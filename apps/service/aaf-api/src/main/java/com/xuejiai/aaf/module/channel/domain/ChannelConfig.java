@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.channel.domain;
 
 import org.hibernate.annotations.SQLDelete;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.Column;
@@ -37,14 +38,17 @@ public class ChannelConfig extends BaseEntity {
     private String appId;
 
     /** 应用密钥（加密存储） */
+    @JsonIgnore
     @Column(name = "app_secret", length = 500)
     private String appSecret;
 
     /** 消息 Token（微信验证用） */
+    @JsonIgnore
     @Column(name = "token", length = 200)
     private String token;
 
     /** 消息加密 Key */
+    @JsonIgnore
     @Column(name = "encoding_aes_key", length = 200)
     private String encodingAesKey;
 

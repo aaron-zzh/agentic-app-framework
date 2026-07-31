@@ -3,10 +3,10 @@ package com.xuejiai.aaf.module.stats.controller;
 import java.io.IOException;
 import java.time.LocalDate;
 
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -73,7 +73,7 @@ public class StatsController {
 
     /** 当前用户的过滤 userId：管理员返回 null（全局），普通用户返回自己的 id */
     private Long filterUserId() {
-        return isAdmin() ? null : operatorContext.currentUserId().orElse(null);
+        return isAdmin() ? null : operatorContext.currentOwnerId().orElse(null);
     }
 
     // ========== 趋势统计 ==========

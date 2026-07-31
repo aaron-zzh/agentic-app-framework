@@ -93,7 +93,7 @@ public class AuthService {
 
     /** 获取当前登录用户 ID */
     public Long currentUserId() {
-        return operatorContext.currentUserId().orElseThrow(() -> exception(AUTH_TOKEN_EXPIRED));
+        return operatorContext.currentOwnerId().orElseThrow(() -> exception(AUTH_TOKEN_EXPIRED));
     }
 
     // ==================== 账号密码登录 ====================
@@ -191,8 +191,7 @@ public class AuthService {
         user.setEmail(dto.email());
         user.setUsername(generateUsername(dto.email()));
         user.setNickname(dto.nickname() != null ? dto.nickname() : NicknameGenerator.generate());
-        user.setPassword(
-                passwordEncoder.encode(randomPassword()));
+        user.setPassword(passwordEncoder.encode(randomPassword()));
         user.setEmailVerified(true);
         user.setSourceApp(sourceApp);
         user.setSourceChannel("local");
@@ -360,8 +359,7 @@ public class AuthService {
         var user = new User();
         user.setPhone(phone);
         user.setUsername(generateUsername(phone));
-        user.setPassword(
-                passwordEncoder.encode(randomPassword()));
+        user.setPassword(passwordEncoder.encode(randomPassword()));
         user.setNickname(NicknameGenerator.generate());
         user.setSourceApp(sourceApp);
         user.setSourceChannel("local");
@@ -436,7 +434,7 @@ public class AuthService {
         // 删除 refreshToken
         jwtUtils.revokeRefreshToken(refreshToken);
         // 删除设备会话
-        Long userId = operatorContext.currentUserId().orElse(null);
+        Long userId = operatorContext.currentOwnerId().orElse(null);
         if (userId != null) {
             jwtUtils.removeSession(userId, deviceId);
         }
@@ -554,6 +552,7 @@ public class AuthService {
     }
 
     private record OAuthState(String provider, String deviceId) {}
+
     @Transactional
     public void bindOAuth(Long userId, String provider, String code) {
         OAuthClient client = findOAuthClient(provider);
@@ -602,8 +601,7 @@ public class AuthService {
         user.setNickname(
                 userInfo.username() != null ? userInfo.username() : NicknameGenerator.generate());
         user.setAvatar(userInfo.avatar());
-        user.setPassword(
-                passwordEncoder.encode(randomPassword()));
+        user.setPassword(passwordEncoder.encode(randomPassword()));
         user.setEmailVerified(false);
         user.setSourceApp(sourceApp);
         user.setSourceChannel(userInfo.provider());
@@ -712,8 +710,7 @@ public class AuthService {
                                     companyName),
                             "【" + companyName + "】安全验证码"));
         } catch (Exception e) {
-            log.warn(
-                    "验证码发送失败，邮箱={}, 类型={}", maskEmail(email), type, e);
+            log.warn("验证码发送失败，邮箱={}, 类型={}", maskEmail(email), type, e);
         }
     }
 

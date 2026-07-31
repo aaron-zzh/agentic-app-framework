@@ -40,7 +40,7 @@ public class BehaviorService {
     /** 批量采集行为事件。 */
     @Transactional
     public void trackEvents(UserEventBatchDTO dto) {
-        var userId = operatorContext.currentUserId().orElseThrow();
+        var userId = operatorContext.currentOwnerId().orElseThrow();
         var now = LocalDateTime.now();
         var events =
                 dto.events().stream()

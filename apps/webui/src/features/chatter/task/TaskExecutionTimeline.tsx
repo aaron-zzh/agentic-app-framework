@@ -149,10 +149,12 @@ export function TaskExecutionTimeline({ taskId, live = true }: TaskExecutionTime
   }, [live, queryClient, queryKey, taskId])
 
   const items = events.map(parseEvent)
+  const eventCount = events.length
 
   useEffect(() => {
+    if (eventCount === 0) return
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" })
-  }, [items.length])
+  }, [eventCount])
 
   if (isLoading) {
     return <p className="py-4 text-center text-muted-foreground text-sm">正在加载执行记录…</p>

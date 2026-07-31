@@ -90,7 +90,7 @@ public class SubscriptionController
 
     private Long currentUserId() {
         return operatorContext
-                .currentUserId()
+                .currentOwnerId()
                 .orElseThrow(
                         () ->
                                 new com.xuejiai.aaf.common.exception.BusinessException(

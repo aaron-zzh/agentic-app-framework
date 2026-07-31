@@ -80,7 +80,7 @@ public class AigcStoryboardService
         e.setProjectId(dto.projectId());
         e.setTitle(dto.title());
         e.setDocId(dto.docId());
-        e.setUserId(operatorContext.currentUserId().orElseThrow());
+        e.setUserId(operatorContext.currentOwnerId().orElseThrow());
         return e;
     }
 

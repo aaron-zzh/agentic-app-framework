@@ -39,7 +39,7 @@ public class SubscriptionController {
     @Operation(summary = "创建订阅")
     @PostMapping
     public Result<Subscription> create(@RequestBody CreateRequest request) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         var sub =
                 subscriptionService.create(
                         userId,
@@ -53,7 +53,7 @@ public class SubscriptionController {
     @Operation(summary = "取消订阅")
     @DeleteMapping("/{id}")
     public Result<Void> cancel(@PathVariable Long id) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         subscriptionService.cancel(userId, id);
         return Result.success(null);
     }
@@ -62,7 +62,7 @@ public class SubscriptionController {
     @GetMapping
     public Result<List<Subscription>> list(
             @RequestParam String entityType, @RequestParam Long entityId) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         return Result.success(
                 subscriptionService.listByUserAndEntity(userId, entityType, entityId));
     }
@@ -70,7 +70,7 @@ public class SubscriptionController {
     @Operation(summary = "查询当前用户对某实体类型的所有已订阅记录 ID")
     @GetMapping("/ids")
     public Result<List<Long>> listIds(@RequestParam String entityType) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         return Result.success(subscriptionService.listSubscribedIds(userId, entityType));
     }
 

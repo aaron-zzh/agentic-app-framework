@@ -54,7 +54,7 @@ public class UserFavoriteService
     @Override
     protected UserFavorite toEntity(UserFavoriteCreateDTO dto) {
         var e = new UserFavorite();
-        e.setUserId(operatorContext.currentUserId().orElseThrow());
+        e.setUserId(operatorContext.currentOwnerId().orElseThrow());
         e.setTargetType(dto.targetType());
         e.setTargetId(dto.targetId());
         e.setNote(dto.note());
@@ -68,7 +68,7 @@ public class UserFavoriteService
 
     @Override
     protected Specification<UserFavorite> buildSpec(UserFavoritePageDTO p) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         return (root, query, cb) -> {
             var predicates = new ArrayList<Predicate>();
             predicates.add(cb.equal(root.get("userId"), userId));
@@ -81,14 +81,14 @@ public class UserFavoriteService
     /** 按目标删除（toggle 用）。 */
     @Transactional
     public void deleteByTarget(String targetType, Long targetId) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         favoriteRepository.deleteByUserIdAndTargetTypeAndTargetId(userId, targetType, targetId);
     }
 
     /** 删除单条收藏，校验 ownership。 */
     @Transactional
     public void deleteOwn(Long id) {
-        Long userId = operatorContext.currentUserId().orElseThrow();
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
         var entity =
                 favoriteRepository
                         .findById(id)
