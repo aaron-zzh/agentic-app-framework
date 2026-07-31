@@ -9,7 +9,13 @@
 
         <sequenceFlow id="flow-start-approve" sourceRef="start" targetRef="approve"/>
 
-        <userTask id="approve" name="审批" flowable:assignee="${assignee}"/>
+        <userTask id="approve" name="审批" flowable:assignee="${assignee}">
+            <multiInstanceLoopCharacteristics isSequential="true"
+                                              flowable:collection="assignees"
+                                              flowable:elementVariable="assignee">
+                <completionCondition>${approved == false}</completionCondition>
+            </multiInstanceLoopCharacteristics>
+        </userTask>
 
         <sequenceFlow id="flow-approve-gateway" sourceRef="approve" targetRef="gateway"/>
 

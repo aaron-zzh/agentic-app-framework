@@ -5,7 +5,9 @@ import java.util.Map;
 
 import org.springframework.stereotype.Service;
 
-import com.xuejiai.aaf.framework.engine.workflow.WorkflowEngine;
+import com.xuejiai.aaf.framework.engine.bpmn.api.BpmnEngine;
+import com.xuejiai.aaf.framework.org.OrgContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +33,7 @@ import lombok.extern.slf4j.Slf4j;
  *
  * <pre>
  * var result = starter.start(DurableAgentLoopStarter.LoopRequest.of("agentId", "分析这份代码", userId));
- * // result.processInstanceId() 可用于后续查询进度、完成审批
+ * // result.processInstanceId() 可用于后续查询进度、完成 Human Gate
  * </pre>
  *
  * @author Kiro
@@ -42,8 +44,14 @@ import lombok.extern.slf4j.Slf4j;
 public class DurableAgentLoopStarter {
 
     private static final String PROCESS_KEY = "durable-agent-loop";
+    private static final String HUMAN_GATE_TASK_KEY = "humanApproval";
+    private static final String ORG_ID_VARIABLE = "_aafOrgId";
+    private static final String WORKSPACE_ID_VARIABLE = "_aafWorkspaceId";
+    private static final String USER_ID_VARIABLE = "_aafUserId";
+    private static final long ORGANIZATION_SCOPE = 0L;
 
-    private final WorkflowEngine workflowEngine;
+    private final BpmnEngine bpmnEngine;
+    private final OperatorContext operatorContext;
 
     /**
      * 启动 Agent 持久化循环。
@@ -67,12 +75,24 @@ public class DurableAgentLoopStarter {
             variables.put("knowledgeBaseId", request.knowledgeBaseId());
         if (request.extraVariables() != null) variables.putAll(request.extraVariables());
 
+        var orgId = OrgContext.getCurrentOrgId();
+        if (orgId == null) {
+            throw new IllegalStateException("Agent 持久化循环必须指定组织上下文");
+        }
+        variables.put(ORG_ID_VARIABLE, orgId);
+        variables.put(
+                WORKSPACE_ID_VARIABLE,
+                OrgContext.getCurrentWorkspaceId() != null
+                        ? OrgContext.getCurrentWorkspaceId()
+                        : ORGANIZATION_SCOPE);
+        variables.put(USER_ID_VARIABLE, request.userId().toString());
+
         var businessKey =
                 request.taskId() != null
                         ? "task:" + request.taskId()
                         : "agent:" + request.agentId() + ":" + System.currentTimeMillis();
 
-        var processInstanceId = workflowEngine.startProcess(PROCESS_KEY, businessKey, variables);
+        var processInstanceId = bpmnEngine.startProcess(PROCESS_KEY, businessKey, variables);
 
         log.info(
                 "[DurableAgentLoop] 启动 processInstanceId={} agentId={} taskId={}",
@@ -89,19 +109,87 @@ public class DurableAgentLoopStarter {
      * @param processInstanceId 流程实例 ID
      * @return 当前待办任务（null 表示已结束或无人工节点）
      */
-    public WorkflowEngine.TaskInfo currentTask(String processInstanceId) {
-        return workflowEngine.getCurrentTask(processInstanceId);
+    public BpmnEngine.TaskInfo currentTask(String processInstanceId) {
+        return bpmnEngine.getCurrentTask(processInstanceId);
     }
 
     /**
-     * 完成人工审批节点，让循环继续。
+     * 完成 Human Gate。
      *
      * @param taskId Flowable 任务 ID
-     * @param approved 是否批准
-     * @param comment 审批意见
+     * @param accepted 是否接受继续执行
+     * @param comment 操作意见
      */
-    public void completeApproval(String taskId, boolean approved, String comment) {
-        workflowEngine.completeTask(taskId, Map.of("approved", approved), comment);
+    public void completeHumanGate(String taskId, boolean accepted, String comment) {
+        if (taskId == null || taskId.isBlank()) {
+            throw new IllegalArgumentException("taskId 不能为空");
+        }
+        var task = bpmnEngine.getTask(taskId);
+        if (task == null) {
+            throw new IllegalArgumentException("Human Gate 任务不存在");
+        }
+        if (!bpmnEngine.isTaskAt(taskId, PROCESS_KEY, HUMAN_GATE_TASK_KEY)) {
+            throw new SecurityException("任务不是 Agent 持久化循环的 Human Gate");
+        }
+        var processVariables = bpmnEngine.getProcessVariables(task.processInstanceId());
+        requireCurrentScope(processVariables);
+        if (!operatorContext.isAuthenticated()) {
+            throw new SecurityException("完成 Human Gate 前必须登录");
+        }
+        var operatorId =
+                operatorContext
+                        .currentOperatorId()
+                        .orElseThrow(() -> new SecurityException("缺少当前操作人身份"))
+                        .toString();
+        if (!bpmnEngine.canOperateTask(taskId, operatorId)) {
+            throw new SecurityException("当前操作人无权完成 Human Gate");
+        }
+
+        var variables = new HashMap<String, Object>();
+        variables.put("needsApproval", false);
+        variables.put("accepted", accepted);
+        variables.put("approved", accepted);
+        if (accepted) {
+            variables.put("loopTerminated", false);
+            variables.put("terminationReason", "");
+        } else {
+            variables.put("loopTerminated", true);
+            variables.put("terminationReason", "HUMAN_REJECTED");
+            variables.put("goalAchieved", false);
+        }
+        bpmnEngine.completeTask(taskId, variables, comment);
+    }
+
+    private void requireCurrentScope(Map<String, Object> processVariables) {
+        var currentOrgId = OrgContext.getCurrentOrgId();
+        if (currentOrgId == null) {
+            throw new SecurityException("缺少组织上下文");
+        }
+        var currentWorkspaceId =
+                OrgContext.getCurrentWorkspaceId() != null
+                        ? OrgContext.getCurrentWorkspaceId()
+                        : ORGANIZATION_SCOPE;
+        var processOrgId = longVariable(processVariables, ORG_ID_VARIABLE);
+        var processWorkspaceId = longVariable(processVariables, WORKSPACE_ID_VARIABLE);
+        if (currentOrgId.longValue() != processOrgId
+                || currentWorkspaceId != processWorkspaceId) {
+            throw new SecurityException("Human Gate 任务不属于当前组织或工作区");
+        }
+    }
+
+    private long longVariable(Map<String, Object> variables, String name) {
+        var value = variables.get(name);
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            try {
+                return Long.parseLong(text);
+            } catch (NumberFormatException exception) {
+                throw new SecurityException("流程租户变量非法: " + name, exception);
+            }
+        }
+        throw new SecurityException("流程缺少租户变量: " + name);
     }
 
     /**
@@ -111,7 +199,7 @@ public class DurableAgentLoopStarter {
      * @return finalOutput 变量值
      */
     public String getFinalOutput(String processInstanceId) {
-        var vars = workflowEngine.getProcessVariables(processInstanceId);
+        var vars = bpmnEngine.getProcessVariables(processInstanceId);
         return (String) vars.get("finalOutput");
     }
 

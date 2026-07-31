@@ -17,22 +17,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.framework.security.OperatorContext;
-import com.xuejiai.aaf.module.system.workflow.approval.ApprovalRecord;
-import com.xuejiai.aaf.module.system.workflow.approval.ApprovalRecordService;
-import com.xuejiai.aaf.module.system.workflow.service.DelegationService;
 import com.xuejiai.aaf.module.system.workflow.service.WorkflowService;
 import com.xuejiai.aaf.module.system.workflow.vo.ProcessDefinitionVO;
 import com.xuejiai.aaf.module.system.workflow.vo.ProcessInstanceVO;
-import com.xuejiai.aaf.module.system.workflow.vo.WorkflowActionDTO;
 import com.xuejiai.aaf.module.system.workflow.vo.WorkflowDeployDTO;
 import com.xuejiai.aaf.module.system.workflow.vo.WorkflowMessageDTO;
 import com.xuejiai.aaf.module.system.workflow.vo.WorkflowPublishDTO;
 import com.xuejiai.aaf.module.system.workflow.vo.WorkflowSignalDTO;
-import com.xuejiai.aaf.module.system.workflow.vo.WorkflowStartDTO;
-import com.xuejiai.aaf.module.system.workflow.vo.WorkflowStatusVO;
-import com.xuejiai.aaf.module.system.workflow.vo.WorkflowTaskVO;
-import com.xuejiai.aaf.module.system.workflow.vo.WorkflowTransferDTO;
 import com.xuejiai.aaf.module.system.workflow.vo.WorkflowVersionVO;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -51,84 +42,6 @@ import lombok.RequiredArgsConstructor;
 public class WorkflowController {
 
     private final WorkflowService workflowService;
-    private final DelegationService delegationService;
-    private final ApprovalRecordService approvalRecordService;
-    private final OperatorContext operatorContext;
-
-    // ==================== 原有接口 ====================
-
-    @Operation(summary = "启动审批流程")
-    @PostMapping("/start")
-    public Result<String> start(@Validated @RequestBody WorkflowStartDTO dto) {
-        String initiator = operatorContext.currentUserId().orElseThrow().toString();
-        String processInstanceId =
-                workflowService.startProcess(
-                        dto.entityType(), dto.entityId(), initiator, dto.assignee());
-        return Result.success(processInstanceId);
-    }
-
-    @Operation(summary = "通过审批")
-    @PostMapping("/complete")
-    public Result<Void> complete(@Validated @RequestBody WorkflowActionDTO dto) {
-        var userId = currentUserId();
-        var processInstanceId = workflowService.completeTask(dto.taskId(), userId, dto.comment());
-        approvalRecordService.record(
-                processInstanceId,
-                dto.taskId(),
-                userId,
-                ApprovalRecord.OperationType.APPROVE,
-                dto.comment());
-        return Result.success();
-    }
-
-    @Operation(summary = "驳回审批")
-    @PostMapping("/reject")
-    public Result<Void> reject(@Validated @RequestBody WorkflowActionDTO dto) {
-        var userId = currentUserId();
-        var processInstanceId = workflowService.rejectTask(dto.taskId(), userId, dto.comment());
-        approvalRecordService.record(
-                processInstanceId,
-                dto.taskId(),
-                userId,
-                ApprovalRecord.OperationType.REJECT,
-                dto.comment());
-        return Result.success();
-    }
-
-    @Operation(summary = "查询流程状态")
-    @GetMapping("/{processInstanceId}")
-    public Result<WorkflowStatusVO> getStatus(@PathVariable String processInstanceId) {
-        return Result.success(workflowService.getStatus(processInstanceId, currentUserId()));
-    }
-
-    @Operation(summary = "按实体查询关联流程状态")
-    @GetMapping("/status")
-    public Result<WorkflowStatusVO> getStatusByEntity(
-            @RequestParam String entityType, @RequestParam String entityId) {
-        return Result.success(
-                workflowService.getStatusByEntity(entityType, entityId, currentUserId()));
-    }
-
-    @Operation(summary = "查询审批历史")
-    @GetMapping("/{processInstanceId}/history")
-    public Result<List<WorkflowStatusVO.HistoryItem>> getHistory(
-            @PathVariable String processInstanceId) {
-        return Result.success(workflowService.getHistory(processInstanceId, currentUserId()));
-    }
-
-    @Operation(summary = "单次转交任务")
-    @PostMapping("/transfer")
-    public Result<Void> transfer(@Validated @RequestBody WorkflowTransferDTO dto) {
-        delegationService.transfer(dto, currentUserId());
-        return Result.success();
-    }
-
-    @Operation(summary = "我的待审批列表")
-    @GetMapping("/tasks/my-pending")
-    public Result<List<WorkflowTaskVO>> myPendingTasks() {
-        String assignee = operatorContext.currentUserId().orElseThrow().toString();
-        return Result.success(workflowService.listPendingTasks(assignee));
-    }
 
     // ==================== #5802 流程定义管理 ====================
 
@@ -265,65 +178,6 @@ public class WorkflowController {
         return Result.success(workflowService.getProcessVariables(processInstanceId));
     }
 
-    // ==================== #5804 任务分配与流转 ====================
-
-    @Operation(summary = "候选人待签收任务")
-    @GetMapping("/tasks/candidate")
-    public Result<List<WorkflowTaskVO>> listCandidateTasks() {
-        String userId = operatorContext.currentUserId().orElseThrow().toString();
-        return Result.success(workflowService.listCandidateTasks(userId));
-    }
-
-    @Operation(summary = "候选组待签收任务")
-    @GetMapping("/tasks/candidate-group")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
-    public Result<List<WorkflowTaskVO>> listCandidateGroupTasks(
-            @RequestParam String candidateGroup) {
-        return Result.success(workflowService.listCandidateGroupTasks(candidateGroup));
-    }
-
-    @Operation(summary = "我发起的流程")
-    @GetMapping("/instances/my-initiated")
-    public Result<PageResult<ProcessInstanceVO>> listMyInitiatedInstances(
-            @RequestParam(defaultValue = "1") int pageNo,
-            @RequestParam(defaultValue = "10") int pageSize) {
-        String initiator = operatorContext.currentUserId().orElseThrow().toString();
-        return Result.success(
-                workflowService.listMyInitiatedInstances(initiator, pageNo, pageSize));
-    }
-
-    @Operation(summary = "签收任务")
-    @PostMapping("/tasks/{taskId}/claim")
-    public Result<Void> claimTask(@PathVariable String taskId) {
-        String userId = operatorContext.currentUserId().orElseThrow().toString();
-        workflowService.claimTask(taskId, userId);
-        return Result.success();
-    }
-
-    @Operation(summary = "委派任务")
-    @PostMapping("/tasks/{taskId}/delegate")
-    public Result<Void> delegateTask(
-            @PathVariable String taskId, @RequestParam String delegateUserId) {
-        workflowService.delegateTask(taskId, currentUserId(), delegateUserId);
-        return Result.success();
-    }
-
-    @Operation(summary = "退回任务")
-    @PostMapping("/tasks/{taskId}/return")
-    public Result<Void> returnTask(
-            @PathVariable String taskId, @RequestParam(required = false) String reason) {
-        workflowService.returnTask(taskId, currentUserId(), reason);
-        return Result.success();
-    }
-
-    @Operation(summary = "催办任务")
-    @PostMapping("/tasks/{taskId}/urge")
-    public Result<Void> urgeTask(@PathVariable String taskId) {
-        String urgerId = operatorContext.currentUserId().orElseThrow().toString();
-        workflowService.urgeTask(taskId, urgerId);
-        return Result.success();
-    }
-
     // ==================== #5805 信号与消息事件 ====================
 
     @Operation(summary = "发送信号事件")
@@ -366,9 +220,5 @@ public class WorkflowController {
             @PathVariable String processKey, @PathVariable int version) {
         workflowService.activateVersion(processKey, version);
         return Result.success();
-    }
-
-    private String currentUserId() {
-        return operatorContext.currentUserId().orElseThrow().toString();
     }
 }

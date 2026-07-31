@@ -1,7 +1,6 @@
 package com.xuejiai.aaf.module.ai.flow.service;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Set;
 
 import org.springframework.data.jpa.domain.Specification;
@@ -9,7 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
-import com.xuejiai.aaf.framework.engine.workflow.WorkflowEngine;
+import com.xuejiai.aaf.framework.engine.bpmn.api.BpmnEngine;
 import com.xuejiai.aaf.module.ai.flow.domain.AiFlowDefinition;
 import com.xuejiai.aaf.module.ai.flow.repository.AiFlowDefinitionRepository;
 import com.xuejiai.aaf.module.ai.flow.vo.AiFlowDefinitionCreateDTO;
@@ -46,7 +45,7 @@ public class AiFlowService
             Set.of("deploymentId", "status", "publishedAt");
 
     private final AiFlowDefinitionRepository repository;
-    private final WorkflowEngine workflowEngine;
+    private final BpmnEngine bpmnEngine;
     private final AiFlowBpmnCompiler bpmnCompiler;
 
     @Override
@@ -130,7 +129,7 @@ public class AiFlowService
                         },
                         (flow, ignored) -> {
                             var bpmnXml = bpmnCompiler.compile(flow.getId(), flow.getDefinition());
-                            var deploymentId = workflowEngine.deploy(flow.getName(), bpmnXml);
+                            var deploymentId = bpmnEngine.deploy(flow.getName(), bpmnXml);
                             flow.setDeploymentId(deploymentId);
                             return deploymentId;
                         },
@@ -138,20 +137,6 @@ public class AiFlowService
                         (flow, ignored, deploymentId) -> {},
                         (flow, ignored, deploymentId) -> toVO(flow));
         return executeCustomUpdateCommand(id, command, plan);
-    }
-
-    /** 查询智能体可调用的已发布工作流列表（供 WorkflowTool.listWorkflows 使用）。 */
-    public List<AiFlowDefinitionVO> listAgentCallable() {
-        return repository
-                .findAll(
-                        (root, query, cb) ->
-                                cb.and(
-                                        cb.equal(root.get("status"), "PUBLISHED"),
-                                        cb.equal(root.get("agentCallable"), true),
-                                        cb.equal(root.get("deleted"), false)))
-                .stream()
-                .map(this::toVO)
-                .toList();
     }
 
     private record DeployCommand(Long flowId) {}

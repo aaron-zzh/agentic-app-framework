@@ -31,7 +31,7 @@ public interface AafTask {
     /**
      * 是否为持久化长任务。
      *
-     * <p>返回 true 时，{@link TaskRuntime} 委托 {@code FlowableWorkflowEngine} 启动流程实例， 由 Flowable
+     * <p>返回 true 时，{@link TaskRuntime} 委托 {@code FlowableBpmnEngine} 启动流程实例， 由 Flowable
      * 原生提供状态持久化、检查点、子流程、人工节点等能力。 对应的 BPMN 流程定义 key 与 {@link #taskType()} 相同。 默认 false，兼容现有任务不受影响。
      */
     default boolean durable() {

@@ -5,7 +5,7 @@ import java.util.Map;
 import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.common.util.JsonUtils;
-import com.xuejiai.aaf.framework.engine.workflow.WorkflowEngine;
+import com.xuejiai.aaf.framework.engine.bpmn.api.BpmnEngine;
 import com.xuejiai.aaf.module.system.task.domain.ScheduledTask;
 
 import lombok.RequiredArgsConstructor;
@@ -90,7 +90,7 @@ import tools.jackson.core.type.TypeReference;
 @RequiredArgsConstructor
 public class WorkflowActionExecutor implements ScheduledActionExecutor {
 
-    private final WorkflowEngine workflowEngine;
+    private final BpmnEngine bpmnEngine;
 
     @Override
     public String actionType() {
@@ -125,7 +125,7 @@ public class WorkflowActionExecutor implements ScheduledActionExecutor {
             variables.put("scheduledTaskId", task.getId());
             variables.put("scheduledTaskName", task.getName());
 
-            var instanceId = workflowEngine.startProcess(processKey, businessKey, variables);
+            var instanceId = bpmnEngine.startProcess(processKey, businessKey, variables);
             log.info(
                     "定时任务 [{}] 触发工作流 processKey={} instanceId={}",
                     task.getName(),

@@ -37,12 +37,19 @@ public class AgentLoopInitDelegate implements JavaDelegate {
     public void execute(DelegateExecution execution) {
         // 初始化循环状态变量
         execution.setVariable("stepCount", 0);
+        execution.setVariable("stepResult", "");
+        execution.setVariable("stepSuccess", false);
         execution.setVariable("goalAchieved", false);
         execution.setVariable("needsApproval", false);
+        execution.setVariable("loopTerminated", false);
+        execution.setVariable("terminationReason", "");
+        execution.setVariable("accepted", false);
+        execution.setVariable("approved", false);
         execution.setVariable("loopOutput", "");
 
         // 设置默认 maxSteps
-        if (execution.getVariable("maxSteps") == null) {
+        var maxSteps = execution.getVariable("maxSteps");
+        if (!(maxSteps instanceof Number number) || number.intValue() <= 0) {
             execution.setVariable("maxSteps", DEFAULT_MAX_STEPS);
         }
     }

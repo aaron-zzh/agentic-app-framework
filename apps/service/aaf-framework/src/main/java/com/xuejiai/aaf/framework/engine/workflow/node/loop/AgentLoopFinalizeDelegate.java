@@ -25,13 +25,20 @@ public class AgentLoopFinalizeDelegate implements JavaDelegate {
         var loopOutput = (String) execution.getVariable("loopOutput");
         var stepCount = toInt(execution.getVariable("stepCount"));
         var goalAchieved = Boolean.TRUE.equals(execution.getVariable("goalAchieved"));
+        var loopTerminated = Boolean.TRUE.equals(execution.getVariable("loopTerminated"));
+        var terminationReason = String.valueOf(execution.getVariable("terminationReason"));
+        var finalSuccess = goalAchieved && !loopTerminated;
 
         execution.setVariable("finalOutput", loopOutput);
+        execution.setVariable("finalSuccess", finalSuccess);
 
         log.info(
-                "[AgentLoop] 收尾完成 processInstanceId={} goalAchieved={} totalSteps={}",
+                "[AgentLoop] 收尾完成 processInstanceId={} finalSuccess={} goalAchieved={} loopTerminated={} terminationReason={} totalSteps={}",
                 processInstanceId,
+                finalSuccess,
                 goalAchieved,
+                loopTerminated,
+                terminationReason,
                 stepCount);
     }
 

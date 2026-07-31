@@ -14,7 +14,7 @@ import java.util.function.Consumer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import com.xuejiai.aaf.framework.engine.workflow.WorkflowEngine;
+import com.xuejiai.aaf.framework.engine.bpmn.api.BpmnEngine;
 import com.xuejiai.aaf.framework.task.TaskMonitor;
 
 import jakarta.annotation.PreDestroy;
@@ -46,7 +46,7 @@ public class TaskRuntime {
 
     private final TaskMonitor taskMonitor;
     private final TaskNotifier taskNotifier;
-    private final WorkflowEngine workflowEngine;
+    private final BpmnEngine bpmnEngine;
 
     private final ExecutorService taskExecutor = Executors.newVirtualThreadPerTaskExecutor();
     private final Map<String, AafTask> registry = new ConcurrentHashMap<>();
@@ -92,7 +92,7 @@ public class TaskRuntime {
             // durable 任务：委托 Flowable 启动流程实例，由引擎原生提供持久化/重试/子任务能力
             if (task.durable()) {
                 var processInstanceId =
-                        workflowEngine.startProcess(taskType, executionId, ctx.variables());
+                        bpmnEngine.startProcess(taskType, executionId, ctx.variables());
                 taskMonitor.recordSuccess(monitorId);
                 log.info(
                         "持久化长任务已启动 Flowable 流程：type={}, processInstanceId={}",

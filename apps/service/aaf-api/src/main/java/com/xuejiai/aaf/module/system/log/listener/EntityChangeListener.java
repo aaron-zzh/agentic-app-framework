@@ -11,7 +11,7 @@ import com.xuejiai.aaf.module.system.log.service.AuditLogService;
 import com.xuejiai.aaf.module.system.notify.domain.Notification;
 import com.xuejiai.aaf.module.system.notify.repository.NotificationRepository;
 import com.xuejiai.aaf.module.system.notify.service.SubscriptionService;
-import com.xuejiai.aaf.module.system.workflow.service.AutomationService;
+import com.xuejiai.aaf.module.system.automation.service.AutomationService;
 
 import lombok.RequiredArgsConstructor;
 

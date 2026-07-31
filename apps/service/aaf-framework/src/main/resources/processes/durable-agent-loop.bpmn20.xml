@@ -13,14 +13,14 @@
   【三层 Loop 对应关系】
   外层 Loop（任务级）   ← 调用方（Assistant / ChatTaskScheduler）负责，传入 input/goalCondition
   中层 Loop（步骤级）   ← 本流程，Flowable 原生提供持久化、检查点、人工节点
-  内层 Loop（ReAct）   ← AgentLoopStepDelegate 内部调用 CognitiveCycleExecutor
+  内层 Loop（ReAct）   ← AgentLoopStepDelegate 通过 AgentExecutionPort 执行
 
   【Loop 五要素实现】
-  Goal Condition  → AgentLoopStepDelegate 检测 [DONE] 标记，写 goalAchieved=true
-  Step Budget     → maxSteps 变量（默认 20），超限时 goalAchieved=true 收尾
+  Goal Condition  → AgentLoopStepDelegate 仅检测真实 [DONE] 标记，写 goalAchieved=true
+  Step Budget     → maxSteps 变量（默认 20），耗尽时写 loopTerminated=true
   Checkpoint      → AgentLoopStepDelegate 每步调用 CheckpointStore.save()
   Compensation    → 待扩展：可在 finalize 节点前加补偿子流程
-  Human Gate      → needsApproval=true 时路由到 humanApproval UserTask
+  Human Gate      → needsApproval=true 时路由到 humanApproval UserTask，拒绝后直接收尾
 
   【流程变量（启动时传入）】
   agentId         - Agent 标识（必填）
@@ -62,10 +62,21 @@
         <serviceTask id="step" name="执行步骤"
                      flowable:delegateExpression="${agentLoopStepDelegate}"/>
 
-        <sequenceFlow id="flow-step-approval-gateway" sourceRef="step" targetRef="approvalGateway"/>
+        <sequenceFlow id="flow-step-termination-gateway" sourceRef="step" targetRef="terminationGateway"/>
 
-        <!-- ④ 判断是否需要人工审批 -->
-        <exclusiveGateway id="approvalGateway" name="需要审批？"/>
+        <!-- ④ 终止态优先收尾 -->
+        <exclusiveGateway id="terminationGateway" name="循环已终止？"/>
+
+        <sequenceFlow id="flow-loop-terminated" sourceRef="terminationGateway" targetRef="finalize">
+            <conditionExpression>${loopTerminated == true}</conditionExpression>
+        </sequenceFlow>
+
+        <sequenceFlow id="flow-loop-active" sourceRef="terminationGateway" targetRef="approvalGateway">
+            <conditionExpression>${loopTerminated == false}</conditionExpression>
+        </sequenceFlow>
+
+        <!-- ⑤ 判断是否需要 Human Gate -->
+        <exclusiveGateway id="approvalGateway" name="需要人工确认？"/>
 
         <sequenceFlow id="flow-needs-approval" sourceRef="approvalGateway" targetRef="humanApproval">
             <conditionExpression>${needsApproval == true}</conditionExpression>
@@ -75,15 +86,25 @@
             <conditionExpression>${needsApproval == false}</conditionExpression>
         </sequenceFlow>
 
-        <!-- ⑤ 人工审批节点（Human Gate） -->
+        <!-- ⑥ Human Gate -->
         <userTask id="humanApproval" name="人工审批"
                   flowable:assignee="${approver}">
             <documentation>Agent 检测到高风险操作，需要人工确认后继续。</documentation>
         </userTask>
 
-        <sequenceFlow id="flow-approval-goal-gateway" sourceRef="humanApproval" targetRef="goalGateway"/>
+        <sequenceFlow id="flow-human-gate-decision" sourceRef="humanApproval" targetRef="humanGateGateway"/>
 
-        <!-- ⑥ 判断是否达成目标或超出步数限制 -->
+        <exclusiveGateway id="humanGateGateway" name="接受继续执行？"/>
+
+        <sequenceFlow id="flow-human-rejected" sourceRef="humanGateGateway" targetRef="finalize">
+            <conditionExpression>${approved == false}</conditionExpression>
+        </sequenceFlow>
+
+        <sequenceFlow id="flow-human-accepted" sourceRef="humanGateGateway" targetRef="goalGateway">
+            <conditionExpression>${approved == true}</conditionExpression>
+        </sequenceFlow>
+
+        <!-- ⑦ 判断是否达成目标 -->
         <exclusiveGateway id="goalGateway" name="目标达成？"/>
 
         <sequenceFlow id="flow-goal-achieved" sourceRef="goalGateway" targetRef="finalize">
