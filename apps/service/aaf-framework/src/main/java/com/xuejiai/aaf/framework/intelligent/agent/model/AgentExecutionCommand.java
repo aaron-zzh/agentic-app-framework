@@ -11,6 +11,7 @@ import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
 public record AgentExecutionCommand(
         SubagentSpec subagentSpec,
         Optional<RoleAssignment> roleAssignment,
+        ExecutionMode executionMode,
         Optional<ModelSpec> executionModel,
         String skillSystemPromptAppendix,
         Set<String> roleAllowedToolNames,
@@ -22,6 +23,7 @@ public record AgentExecutionCommand(
         Objects.requireNonNull(subagentSpec, "subagentSpec 不能为空");
         roleAssignment =
                 Objects.requireNonNull(roleAssignment, "roleAssignment Optional 不能为空");
+        Objects.requireNonNull(executionMode, "executionMode 不能为空");
         executionModel = Objects.requireNonNull(executionModel, "executionModel Optional 不能为空");
         skillSystemPromptAppendix =
                 Objects.requireNonNull(skillSystemPromptAppendix, "skillSystemPromptAppendix 不能为空")
@@ -55,6 +57,11 @@ public record AgentExecutionCommand(
             return rolePrompt;
         }
         return rolePrompt + "\n\n" + skillSystemPromptAppendix;
+    }
+
+    public enum ExecutionMode {
+        DIRECT,
+        DELEGATE
     }
 
     /** Assistant 前注意阶段为当前任务选出、并显式委托给 Agent 的 Role 快照。 */

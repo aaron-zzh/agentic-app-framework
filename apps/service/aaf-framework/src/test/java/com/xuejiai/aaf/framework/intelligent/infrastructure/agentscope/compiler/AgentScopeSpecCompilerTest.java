@@ -100,6 +100,23 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
     }
 
     @Test
+    @DisplayName("Given 相同默认 Role 执行画像 When 重复直接编译 Then 复用同一主助理")
+    void should_reuse_direct_agent_for_same_execution_profile() {
+        var search = tool("knowledge.search");
+        var spec = dynamicSpec(List.of(search));
+        var executionModel = new ModelSpec("1");
+
+        var first =
+                compiler.compileDirect(
+                        spec, executionModel, "Role 与技能提示", Set.of(search.name()));
+        var second =
+                compiler.compileDirect(
+                        spec, executionModel, "Role 与技能提示", Set.of(search.name()));
+
+        assertThat(second).isSameAs(first);
+    }
+
+    @Test
     @DisplayName("Given 相同定义但不同技能提示 When 编译 Then 缓存产物相互隔离")
     void should_isolate_predefined_cache_by_effective_prompt() {
         var spec = agentSpec(List.of());

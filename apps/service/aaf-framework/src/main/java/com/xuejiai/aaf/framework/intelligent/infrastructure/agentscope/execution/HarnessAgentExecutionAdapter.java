@@ -211,17 +211,27 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                 var executionModel =
                         command.executionModel()
                                 .orElseThrow(
-                                        () -> new IllegalArgumentException("Dynamic 子智能体缺少执行模型"));
+                                        () -> new IllegalArgumentException("Dynamic 执行缺少模型"));
+                var direct =
+                        command.executionMode() == AgentExecutionCommand.ExecutionMode.DIRECT;
+                var agent =
+                        direct
+                                ? compiler.compileDirect(
+                                        dynamic,
+                                        executionModel,
+                                        command.effectiveSystemPromptAppendix(),
+                                        command.roleAllowedToolNames())
+                                : compiler.compileDynamic(
+                                        dynamic,
+                                        executionModel,
+                                        command.effectiveSystemPromptAppendix(),
+                                        command.roleAllowedToolNames());
                 yield new ResolvedExecution(
-                        compiler.compileDynamic(
-                                dynamic,
-                                executionModel,
-                                command.effectiveSystemPromptAppendix(),
-                                command.roleAllowedToolNames()),
+                        agent,
                         executionModel,
                         dynamic.identifier(),
                         dynamic.executionPolicy(),
-                        true);
+                        !direct);
             }
         };
     }

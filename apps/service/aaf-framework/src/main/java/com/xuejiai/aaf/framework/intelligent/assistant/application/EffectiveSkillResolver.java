@@ -5,14 +5,15 @@ import java.util.List;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Role;
 import com.xuejiai.aaf.framework.intelligent.core.skill.SkillDef;
 
-/** 合并 Assistant 角色技能与内置通用技能的领域服务。 */
+/** 按当前任务命中的 Skill 做渐进披露。 */
 public interface EffectiveSkillResolver {
 
     /**
-     * 合并角色技能和内置通用技能，按技能标识去重，同标识时角色技能优先。
+     * 解析当前有效 Role 中命中的单一 Skill。
      *
-     * @param assignedRoles Assistant 当前挂载的全部角色
-     * @return 合并后的不可变技能列表
+     * @param effectiveRole 前注意选出的任务 Role
+     * @param skillKey 前注意选出的 Skill key
+     * @return 命中的不可变技能列表；目录中不存在时为空
      */
-    List<SkillDef> resolve(List<Role> assignedRoles);
+    List<SkillDef> resolve(Role effectiveRole, String skillKey);
 }

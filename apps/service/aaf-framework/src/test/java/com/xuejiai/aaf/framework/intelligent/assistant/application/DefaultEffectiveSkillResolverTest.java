@@ -1,8 +1,7 @@
 package com.xuejiai.aaf.framework.intelligent.assistant.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
@@ -31,66 +30,43 @@ class DefaultEffectiveSkillResolverTest extends BaseMockitoUnitTest {
     }
 
     @Test
-    @DisplayName("Given 未分配角色 When 解析有效技能 Then 返回全部内置通用技能")
-    void should_return_built_in_skills_when_roles_are_empty() {
-        // 准备参数
-        var first = skill(1L, "通用总结", true);
-        var second = skill(2L, "通用检索", true);
-        when(skillCatalog.findBuiltIn()).thenReturn(List.of(first, second));
+    @DisplayName("Given Role 包含多个 Skill When 解析命中 Skill Then 只返回该 Skill")
+    void should_resolve_only_selected_skill() {
+        var selected = skill(10L, "selected");
+        var role = role("writer", Set.of("selected", "other"));
+        when(skillCatalog.findByCode("selected")).thenReturn(Optional.of(selected));
 
-        // 调用
-        var result = resolver.resolve(List.of());
+        var result = resolver.resolve(role, "selected");
 
-        // 断言
-        assertThat(result).containsExactly(first, second);
-        verify(skillCatalog).findBuiltIn();
+        assertThat(result).containsExactly(selected);
     }
 
     @Test
-    @DisplayName("Given 多个角色包含重复技能 When 解析有效技能 Then 合并并按技能标识去重")
-    void should_merge_and_deduplicate_skills_from_multiple_roles() {
-        // 准备参数
-        var shared = skill(10L, "共享技能", false);
-        var unique = skill(11L, "专属技能", false);
-        var firstRole = role("first", Set.of("shared"));
-        var secondRole = role("second", Set.of("shared", "unique"));
-        when(skillCatalog.findBuiltIn()).thenReturn(List.of());
-        when(skillCatalog.findByCode("shared")).thenReturn(Optional.of(shared));
-        when(skillCatalog.findByCode("unique")).thenReturn(Optional.of(unique));
+    @DisplayName("Given Skill 目录不存在命中项 When 解析 Then 返回空列表")
+    void should_return_empty_when_selected_skill_is_missing() {
+        var role = role("writer", Set.of("selected"));
+        when(skillCatalog.findByCode("selected")).thenReturn(Optional.empty());
 
-        // 调用
-        var result = resolver.resolve(List.of(firstRole, secondRole));
+        var result = resolver.resolve(role, "selected");
 
-        // 断言
-        assertThat(result).containsExactlyInAnyOrder(shared, unique);
-        assertThat(result).hasSize(2);
-        verify(skillCatalog, times(2)).findByCode("shared");
-        verify(skillCatalog).findByCode("unique");
+        assertThat(result).isEmpty();
     }
 
     @Test
-    @DisplayName("Given 角色技能与内置技能标识相同 When 解析有效技能 Then 角色技能覆盖内置定义")
-    void should_prefer_role_skill_when_identifier_conflicts() {
-        // 准备参数
-        var builtIn = skill(20L, "内容审查-内置", true);
-        var roleSkill = skill(20L, "内容审查-角色", false);
-        when(skillCatalog.findBuiltIn()).thenReturn(List.of(builtIn));
-        when(skillCatalog.findByCode("content-review")).thenReturn(Optional.of(roleSkill));
+    @DisplayName("Given Skill 不属于有效 Role When 解析 Then 拒绝越界加载")
+    void should_reject_skill_outside_effective_role() {
+        var role = role("writer", Set.of("selected"));
 
-        // 调用
-        var result = resolver.resolve(List.of(role("reviewer", Set.of("content-review"))));
-
-        // 断言
-        assertThat(result).containsExactly(roleSkill);
-        assertThat(result).doesNotContain(builtIn);
-        verify(skillCatalog).findByCode("content-review");
+        assertThatThrownBy(() -> resolver.resolve(role, "other"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("不属于当前有效 Role");
     }
 
     private Role role(String key, Set<String> skillKeys) {
         return new Role(key, key, List.of("执行指定职责"), List.of(), skillKeys, Set.of());
     }
 
-    private SkillDef skill(Long id, String name, boolean builtIn) {
-        return new SkillDef(id, name, name + "描述", null, List.of(), name + "提示词", 10, builtIn);
+    private SkillDef skill(Long id, String name) {
+        return new SkillDef(id, name, name + "描述", null, List.of(), name + "提示词", 10, false);
     }
 }

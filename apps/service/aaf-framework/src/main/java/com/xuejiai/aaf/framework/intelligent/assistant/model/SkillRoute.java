@@ -14,6 +14,7 @@ public record SkillRoute(
         SubagentSpec subagentSpec,
         String actionKey,
         ToolPolicy.ActionEffect actionEffect,
+        HandlingMode handlingMode,
         int priority,
         boolean defaultRoute) {
 
@@ -25,12 +26,13 @@ public record SkillRoute(
         Objects.requireNonNull(subagentSpec, "subagentSpec 不能为空");
         actionKey = requireText(actionKey, "actionKey");
         Objects.requireNonNull(actionEffect, "actionEffect 不能为空");
+        Objects.requireNonNull(handlingMode, "handlingMode 不能为空");
         if (!defaultRoute && intentTerms.isEmpty()) {
             throw new IllegalArgumentException("非默认 SkillRoute 必须声明 intentTerms");
         }
     }
 
-    /** 仅做确定性前注意匹配，不调用模型。 */
+    /** 仅作为模型不可用时的确定性兜底，不承担主要语义前注意。 */
     public boolean matches(String input) {
         if (input == null || input.isBlank() || intentTerms.isEmpty()) {
             return false;
@@ -47,5 +49,10 @@ public record SkillRoute(
             throw new IllegalArgumentException(name + " 不能为空白");
         }
         return value;
+    }
+
+    public enum HandlingMode {
+        DIRECT,
+        DELEGATE
     }
 }

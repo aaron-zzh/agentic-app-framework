@@ -1,9 +1,7 @@
 package com.xuejiai.aaf.framework.intelligent.assistant.application;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 
 import com.xuejiai.aaf.framework.intelligent.agent.port.SkillCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Role;
@@ -19,17 +17,12 @@ public final class DefaultEffectiveSkillResolver implements EffectiveSkillResolv
     }
 
     @Override
-    public List<SkillDef> resolve(List<Role> assignedRoles) {
-        Objects.requireNonNull(assignedRoles, "assignedRoles 不能为空");
-        var merged = new LinkedHashMap<Long, SkillDef>();
-
-        skillCatalog.findBuiltIn().forEach(skill -> merged.put(skill.skillId(), skill));
-        assignedRoles.stream()
-                .flatMap(role -> role.skillKeys().stream())
-                .map(skillCatalog::findByCode)
-                .flatMap(Optional::stream)
-                .forEach(skill -> merged.put(skill.skillId(), skill));
-
-        return List.copyOf(merged.values());
+    public List<SkillDef> resolve(Role effectiveRole, String skillKey) {
+        Objects.requireNonNull(effectiveRole, "effectiveRole 不能为空");
+        Objects.requireNonNull(skillKey, "skillKey 不能为空");
+        if (!effectiveRole.skillKeys().contains(skillKey)) {
+            throw new IllegalArgumentException("Skill 不属于当前有效 Role: " + skillKey);
+        }
+        return skillCatalog.findByCode(skillKey).stream().toList();
     }
 }

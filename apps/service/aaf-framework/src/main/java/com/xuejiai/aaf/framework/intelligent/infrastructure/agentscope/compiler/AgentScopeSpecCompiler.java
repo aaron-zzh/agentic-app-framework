@@ -26,6 +26,7 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
     private final AgentScopeModelResolver modelResolver;
     private final EffectiveToolResolver effectiveToolResolver;
     private final ConcurrentMap<DefinitionKey, HarnessAgent> cache = new ConcurrentHashMap<>();
+    private final ConcurrentMap<DirectKey, HarnessAgent> directCache = new ConcurrentHashMap<>();
 
     public AgentScopeSpecCompiler(
             AgentStateStore stateStore,
@@ -55,8 +56,50 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
                 key, ignored -> compileNew(spec, effectiveTools, effectiveSystemPrompt));
     }
 
+    /** 按完整任务执行画像编译并缓存默认 Role 的主助理执行体。 */
+    public HarnessAgent compileDirect(
+            SubagentSpec.Dynamic spec,
+            ModelSpec executionModel,
+            String skillSystemPromptAppendix,
+            Set<String> roleAllowedToolNames) {
+        var resolved =
+                resolveDynamic(
+                        spec,
+                        executionModel,
+                        skillSystemPromptAppendix,
+                        roleAllowedToolNames);
+        var key =
+                new DirectKey(
+                        spec.identifier(),
+                        executionModel,
+                        resolved.tools(),
+                        resolved.systemPrompt());
+        return directCache.computeIfAbsent(
+                key,
+                ignored ->
+                        compileDynamicNew(
+                                spec,
+                                executionModel,
+                                resolved.tools(),
+                                resolved.systemPrompt()));
+    }
+
     /** 现场编译动态子智能体；规格没有稳定版本键，因此不进入定义缓存。 */
     public HarnessAgent compileDynamic(
+            SubagentSpec.Dynamic spec,
+            ModelSpec executionModel,
+            String skillSystemPromptAppendix,
+            Set<String> roleAllowedToolNames) {
+        var resolved =
+                resolveDynamic(
+                        spec,
+                        executionModel,
+                        skillSystemPromptAppendix,
+                        roleAllowedToolNames);
+        return compileDynamicNew(spec, executionModel, resolved.tools(), resolved.systemPrompt());
+    }
+
+    private DynamicExecutionProfile resolveDynamic(
             SubagentSpec.Dynamic spec,
             ModelSpec executionModel,
             String skillSystemPromptAppendix,
@@ -72,6 +115,14 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
                 List.copyOf(effectiveToolResolver.resolve(roleAllowedToolNames, spec.tools()));
         var effectiveSystemPrompt =
                 appendPrompt(spec.systemPromptFragment(), skillSystemPromptAppendix);
+        return new DynamicExecutionProfile(effectiveTools, effectiveSystemPrompt);
+    }
+
+    private HarnessAgent compileDynamicNew(
+            SubagentSpec.Dynamic spec,
+            ModelSpec executionModel,
+            List<ToolRef> effectiveTools,
+            String effectiveSystemPrompt) {
         var toolkit = toolkitFactory.create(effectiveTools);
         var agent =
                 HarnessAgent.builder()
@@ -156,6 +207,8 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
     public void close() {
         cache.values().forEach(HarnessAgent::close);
         cache.clear();
+        directCache.values().forEach(HarnessAgent::close);
+        directCache.clear();
     }
 
     private record DefinitionKey(
@@ -163,4 +216,12 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
             long version,
             List<ToolRef> effectiveTools,
             String effectiveSystemPrompt) {}
+
+    private record DirectKey(
+            String identifier,
+            ModelSpec model,
+            List<ToolRef> effectiveTools,
+            String effectiveSystemPrompt) {}
+
+    private record DynamicExecutionProfile(List<ToolRef> tools, String systemPrompt) {}
 }

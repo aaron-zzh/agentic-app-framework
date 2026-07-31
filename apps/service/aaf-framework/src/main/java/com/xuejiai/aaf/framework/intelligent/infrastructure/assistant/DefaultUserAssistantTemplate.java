@@ -62,6 +62,7 @@ public final class DefaultUserAssistantTemplate implements SystemAssistantTempla
                                 contentCreatorAgent,
                                 "content.draft.generate",
                                 ActionEffect.GENERATED_CONTENT,
+                                SkillRoute.HandlingMode.DELEGATE,
                                 200,
                                 false),
                         new SkillRoute(
@@ -71,6 +72,7 @@ public final class DefaultUserAssistantTemplate implements SystemAssistantTempla
                                 contentCreatorAgent,
                                 "content.plan.read",
                                 ActionEffect.READ,
+                                SkillRoute.HandlingMode.DELEGATE,
                                 150,
                                 false),
                         new SkillRoute(
@@ -80,6 +82,7 @@ public final class DefaultUserAssistantTemplate implements SystemAssistantTempla
                                 platformGuideAgent,
                                 "support.handoff",
                                 ActionEffect.HUMAN_HANDOFF,
+                                SkillRoute.HandlingMode.DIRECT,
                                 100,
                                 false),
                         new SkillRoute(
@@ -89,6 +92,7 @@ public final class DefaultUserAssistantTemplate implements SystemAssistantTempla
                                 platformGuideAgent,
                                 "support.read",
                                 ActionEffect.READ,
+                                SkillRoute.HandlingMode.DIRECT,
                                 0,
                                 true));
         return new AssistantDefinition(
@@ -156,15 +160,15 @@ public final class DefaultUserAssistantTemplate implements SystemAssistantTempla
 
     private static SubagentSpec platformGuideAgent() {
         return new SubagentSpec.Dynamic(
-                "system.agent.platform-guide",
-                "为默认用户助理提供 AAF 平台向导、只读咨询和排查。",
-                "你是 AAF 平台向导 Agent。仅依据授权资料给出准确、简洁的只读咨询与排查建议；未知内容不得猜测，需要人工处理时明确建议转人工。",
+                "system.agent.default-user",
+                "默认用户助理的主执行体，直接处理平台向导职责内的请求。",
+                "你是 AAF 默认用户助理。保持稳定 Persona，直接处理平台咨询、只读排查和转人工；仅依据授权资料作答，未知内容不得猜测。",
                 List.of(
                         new ToolRef("knowledge.search", 1, "knowledge.search"),
                         new ToolRef("support.diagnostics.read", 1, "support.diagnostics.read"),
                         new ToolRef("support.handoff", 1, "support.handoff")),
                 new ExecutionPolicy(8, 2, Duration.ofSeconds(90)),
-                ModelSelectionRequirement.costOptimized(),
+                ModelSelectionRequirement.balanced(),
                 false);
     }
 

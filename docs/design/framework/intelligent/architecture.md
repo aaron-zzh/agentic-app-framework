@@ -3,7 +3,7 @@ level: Practice
 layer: Model
 purpose: 五层智能架构 v2——以智能助理为核心、对齐认知心理模型的领域模型设计
 status: draft
-version: 5.4.0
+version: 5.5.0
 date: 2026-07-31
 author: AaronZZH
 related:
@@ -248,7 +248,9 @@ AAF 五层智能架构以 Assistant 为面向用户的认知主体，由 Team �
 
 系统只预置一个 `SYSTEM_MANAGED` 的默认用户助理模板 `system.assistant.default-user`，由 `DefaultUserAssistantTemplate` 提供。它是可版本化、可复制的 `AssistantDefinition` 配置模板，不是所有用户共享可变状态的助理实例；模板定义可以共享，用户会话、记忆、任务、执行状态和沙箱仍按 tenant、用户及会话隔离。
 
-模板提供稳定的 `AAF 助理` Persona，并装配多个 Role 和一个默认 Role。刺激输入进入前注意后，`SkillRoute.roleKey` 决定当前任务的有效 Role；默认 Role 只在未命中特定任务时兜底，不会永久锁定助理。主助理直接处理时加载该 Role；委托执行时则将 Role 的 key、名称、职责和非职责封装为任务级 `RoleAssignment` 显式传给子智能体。运行时把 Role 提示与命中 Skill 提示共同编译进 Agent，并以该 Role 的工具上限收窄 Agent 工具集和有效上下文；不同子任务可以同时加载不同 Role。
+模板提供稳定的 `AAF 助理` Persona，并装配多个 Role 和一个默认 Role。刺激输入先进入默认 `CHAT` 模型驱动的语义前注意；模型只读取 Role 职责边界和 Skill 描述组成的精简目录，并输出 `roleKey + skillKey + confidence`。系统必须校验该组合已存在于 `SkillRoute`，模型不得创建能力或绕过授权；低置信度回到默认 Route，模型不可用或输出非法时才使用 `intentTerms + priority` 确定性规则兜底。
+
+默认 Role 的 Route 标记为 `DIRECT`：主助理加载稳定 Persona、默认 `RoleAssignment` 和命中的单一 Skill，按完整执行画像缓存复用，不创建短命子智能体。非默认 Role 的 Route 标记为 `DELEGATE`：系统将 Role 的 key、名称、职责和非职责封装为任务级 `RoleAssignment`，只加载命中的 Skill，并现场创建动态子智能体；任务结束后回收。两条路径都以有效 Role 的工具上限、ToolPolicy、任务授权和 Agent 工具边界共同收窄能力，不同子任务可以同时委托不同 Role。
 
 | Role | 定位 | 路由与能力 | 权限边界 |
 |---|---|---|---|
@@ -275,7 +277,7 @@ AAF 五层智能架构以 Assistant 为面向用户的认知主体，由 Team �
 - **技能（Skill）**：粗粒度、任务级。是"哪类意图交给哪种处理"的路由规则——匹配到某类意图后，激活对应的处理方式与专属指引。
 - **工具（Tool）**：细粒度、原子级。是一次具体动作的能力单元（查、写、算、调用外部服务）。
 
-助理可装配多个角色；每条技能路由显式绑定 `roleKey`，命中后以该有效 Role 同时收窄技能、工具和上下文，再与 ToolPolicy、任务授权及 Agent 工具边界取交集。一句话：**技能决定走哪条路，路由决定以哪个角色走，工具决定路上用什么**。
+助理可装配多个角色；每条技能路由显式绑定 `roleKey + skillKey`。前注意可以在内部先召回候选 Role、再在 Role 内选择 Skill，但对外必须原子返回一个已授权组合。Role 的 `skillKeys` 只是能力上限，执行时只加载当前 Route 命中的单一 Skill，不把该 Role 的全部 Skill Prompt 注入上下文；工具再与 ToolPolicy、任务授权及 Agent 工具边界取交集。一句话：**前注意选择角色和路径，渐进披露只加载这条路所需的技能与工具**。
 
 ### 认知基础的内容
 
@@ -423,7 +425,7 @@ MCP 只负责连接协议。连接器目录、OAuth scope、凭证托管、刷�
 
 ### 默认用户助理模板物化
 
-默认用户助理模板以 PostgreSQL 中版本化的系统预置 `AssistantDefinition` 存在，由 `DefaultUserAssistantTemplate` 贡献并通过通用 Assistant 应用服务安装、加载和物化。该定义同时保存稳定 Persona、Role 列表、`defaultRoleKey`、带 `roleKey` 的 SkillRoute、MemoryStrategy 和 ToolPolicy；框架不为平台向导或内容创作提供专用 Assistant 类型或专用 `HarnessAgent` 工厂。
+默认用户助理模板以 PostgreSQL 中版本化的系统预置 `AssistantDefinition` 存在，由 `DefaultUserAssistantTemplate` 贡献并通过通用 Assistant 应用服务安装、加载和物化。该定义同时保存稳定 Persona、Role 列表、`defaultRoleKey`、带 `roleKey + skillKey + handlingMode` 的 SkillRoute、MemoryStrategy 和 ToolPolicy。`ModelSkillRouter` 使用用户默认 `CHAT` 模型做语义前注意，`DefaultSkillRouter` 仅作故障兜底；框架不为平台向导或内容创作提供专用 Assistant 类型或专用 `HarnessAgent` 工厂。
 
 用户入口以 `tenantId + assistantId + conversationId` 建立会话，以 `taskId + executionId` 标识任务及其执行；默认模板、用户自建定义和用户复制定义共享同一入口、权限检查、记忆策略、任务生命周期和事件流，不按定义来源注册不同执行端点。系统模板只共享不可变配置，不承载用户共享状态。所有调用必须显式携带 tenant 上下文；当 AgentScope 状态接口只暴露 `(userId, sessionId)` 时，适配层必须使用稳定 tenant store prefix 或规范化 state user key 隔离租户，不能假设跨租户 userId 全局唯一。
 

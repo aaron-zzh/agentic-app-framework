@@ -125,6 +125,7 @@ public class AgentNode implements JavaDelegate {
         return new AgentExecutionCommand(
                 new SubagentSpec.Predefined(new AgentId(configuredAgentId), version),
                 Optional.empty(),
+                AgentExecutionCommand.ExecutionMode.DELEGATE,
                 Optional.empty(),
                 "",
                 tools,

@@ -27,6 +27,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.Role;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillRoute;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ToolPolicy;
 import com.xuejiai.aaf.framework.intelligent.core.skill.SkillDef;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 import com.xuejiai.aaf.test.BaseMockitoUnitTest;
 
 class DefaultUserAssistantTemplateTest extends BaseMockitoUnitTest {
@@ -61,12 +62,15 @@ class DefaultUserAssistantTemplateTest extends BaseMockitoUnitTest {
                         DefaultUserAssistantTemplate.PLATFORM_GUIDE_ROLE_KEY,
                         DefaultUserAssistantTemplate.CONTENT_CREATOR_ROLE_KEY);
 
-        var defaultRoute = router.route(template, "你好").orElseThrow();
-        var contentRoute = router.route(template, "请帮我写一篇文章草稿").orElseThrow();
+        var userId = new UserId("1");
+        var defaultRoute = router.route(template, "你好", userId).orElseThrow();
+        var contentRoute = router.route(template, "请帮我写一篇文章草稿", userId).orElseThrow();
         assertThat(defaultRoute.skillKey()).isEqualTo("support.read");
+        assertThat(defaultRoute.handlingMode()).isEqualTo(SkillRoute.HandlingMode.DIRECT);
         assertThat(template.roleFor(defaultRoute).key())
                 .isEqualTo(DefaultUserAssistantTemplate.PLATFORM_GUIDE_ROLE_KEY);
         assertThat(contentRoute.skillKey()).isEqualTo("content.draft");
+        assertThat(contentRoute.handlingMode()).isEqualTo(SkillRoute.HandlingMode.DELEGATE);
         assertThat(template.roleFor(contentRoute).key())
                 .isEqualTo(DefaultUserAssistantTemplate.CONTENT_CREATOR_ROLE_KEY);
         assertThat(template.capabilityManifest().roleKeys())
@@ -76,21 +80,18 @@ class DefaultUserAssistantTemplateTest extends BaseMockitoUnitTest {
     }
 
     @Test
-    @DisplayName("Given 默认助理的两个 Role When 解析有效技能 Then 各 Role 只解析自身 skillKeys")
-    void should_resolve_only_skills_owned_by_each_role() {
+    @DisplayName("Given 默认助理 Route When 解析有效技能 Then 只加载当前命中的 Skill")
+    void should_resolve_only_the_skill_selected_by_route() {
         var skillsByCode = skillsByCode();
-        when(skillCatalog.findBuiltIn()).thenReturn(List.of());
         when(skillCatalog.findByCode(anyString()))
                 .thenAnswer(
                         invocation ->
                                 Optional.ofNullable(skillsByCode.get(invocation.getArgument(0))));
 
-        for (var role : template.roles()) {
-            var result = skillResolver.resolve(List.of(role));
+        for (var route : template.skillRoutes()) {
+            var result = skillResolver.resolve(template.roleFor(route), route.skillKey());
 
-            assertThat(result)
-                    .extracting(SkillDef::name)
-                    .containsExactlyInAnyOrderElementsOf(role.skillKeys());
+            assertThat(result).extracting(SkillDef::name).containsExactly(route.skillKey());
         }
     }
 
@@ -232,6 +233,7 @@ class DefaultUserAssistantTemplateTest extends BaseMockitoUnitTest {
                 route.subagentSpec(),
                 route.actionKey(),
                 route.actionEffect(),
+                route.handlingMode(),
                 route.priority(),
                 route.defaultRoute());
     }

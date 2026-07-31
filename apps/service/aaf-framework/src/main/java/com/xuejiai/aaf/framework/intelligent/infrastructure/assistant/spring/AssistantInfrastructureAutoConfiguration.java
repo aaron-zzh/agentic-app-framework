@@ -23,10 +23,10 @@ import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantAppl
 import com.xuejiai.aaf.framework.intelligent.assistant.application.CompletionValidator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultCompletionValidator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultEffectiveSkillResolver;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultSkillRouter;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveSkillResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.InstallSystemAssistantTemplatesUseCase;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.ModelSkillRouter;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.SkillRouter;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionPort;
@@ -45,6 +45,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskRecoveryPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.role.AiRoleRepository;
 import com.xuejiai.aaf.framework.intelligent.cognition.application.MemoryGovernanceService;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryContextPort;
+import com.xuejiai.aaf.framework.intelligent.core.llm.LlmClient;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agent.persistence.JpaSkillCatalogAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentScopeInfrastructureAutoConfiguration;
@@ -108,9 +109,10 @@ public class AssistantInfrastructureAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnBean({LlmClient.class, SkillCatalogPort.class})
     @ConditionalOnMissingBean(SkillRouter.class)
-    SkillRouter assistantSkillRouter() {
-        return new DefaultSkillRouter();
+    SkillRouter assistantSkillRouter(LlmClient llmClient, SkillCatalogPort skillCatalog) {
+        return new ModelSkillRouter(llmClient, skillCatalog);
     }
 
     @Bean

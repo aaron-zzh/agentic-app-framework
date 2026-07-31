@@ -152,7 +152,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         requirePublished(definition);
         var route =
                 skillRouter
-                        .route(definition, command.input())
+                        .route(definition, command.input(), command.userId())
                         .orElseThrow(() -> new IllegalStateException("子任务没有可用的 SkillRoute"));
         if (!definition.toolPolicy().allows(command.controlMode(), route.actionEffect())) {
             throw new IllegalStateException("当前控制模式禁止子任务动作: " + route.actionKey());
@@ -200,7 +200,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         }
         var route =
                 skillRouter
-                        .route(definition, command.input())
+                        .route(definition, command.input(), command.userId())
                         .orElseThrow(() -> new IllegalStateException("没有可用的 SkillRoute"));
         if (!definition.toolPolicy().allows(command.controlMode(), route.actionEffect())) {
             throw new IllegalStateException("当前控制模式禁止业务动作: " + route.actionKey());
@@ -767,7 +767,8 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             List<AgentMessage> memoryMessages) {
         var effectiveRole = definition.roleFor(route);
         var skillSystemPromptAppendix =
-                mergeSkillPrompts(effectiveSkillResolver.resolve(List.of(effectiveRole)));
+                mergeSkillPrompts(
+                        effectiveSkillResolver.resolve(effectiveRole, route.skillKey()));
         var roleAllowedToolNames = effectiveRole.toolKeys();
         var authorizationRules = new LinkedHashMap<String, ToolAuthorizationRule>();
         definition
@@ -849,6 +850,10 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                 effectiveRole.name(),
                                 effectiveRole.responsibilities(),
                                 effectiveRole.nonResponsibilities())),
+                switch (route.handlingMode()) {
+                    case DIRECT -> AgentExecutionCommand.ExecutionMode.DIRECT;
+                    case DELEGATE -> AgentExecutionCommand.ExecutionMode.DELEGATE;
+                },
                 executionModel,
                 skillSystemPromptAppendix,
                 roleAllowedToolNames,

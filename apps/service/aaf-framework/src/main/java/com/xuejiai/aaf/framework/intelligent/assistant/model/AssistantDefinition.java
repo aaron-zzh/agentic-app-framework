@@ -135,6 +135,14 @@ public record AssistantDefinition(
                 throw new IllegalArgumentException(
                         "SkillRoute 必须属于对应 Role.skillKeys: " + route.skillKey());
             }
+            var expectedMode =
+                    route.roleKey().equals(defaultRoleKey)
+                            ? SkillRoute.HandlingMode.DIRECT
+                            : SkillRoute.HandlingMode.DELEGATE;
+            if (route.handlingMode() != expectedMode) {
+                throw new IllegalArgumentException(
+                        "默认 Role 必须 DIRECT，非默认 Role 必须 DELEGATE: " + route.skillKey());
+            }
         }
         var defaultRoutes = routes.stream().filter(SkillRoute::defaultRoute).toList();
         if (defaultRoutes.size() != 1) {
