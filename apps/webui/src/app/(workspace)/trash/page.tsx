@@ -28,7 +28,7 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import { TypographyH1 } from "@/components/ui/typography"
-import { useTrashList, useTrashPurge, useTrashRestore } from "@/lib/api/rest/entity/trash"
+import { useTrashList, useTrashPurge, useTrashRestore } from "@/lib/api/rest/entity"
 
 /** 相对时间格式化 */
 function formatRelativeTime(dateStr: string): string {

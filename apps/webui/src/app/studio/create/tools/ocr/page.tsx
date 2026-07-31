@@ -8,7 +8,7 @@
 import { Copy, FileText, Loader2, Upload } from "lucide-react"
 import { useRef, useState } from "react"
 import { GlassCard, GlassCardBody, GlowButton } from "@/components/studio"
-import { ocrApi } from "@/lib/api/rest/ai/ocr"
+import { ocrApi } from "@/lib/api/rest/ai"
 import { useFileUpload } from "@/lib/hooks/use-file-upload"
 import { notify } from "@/lib/notification"
 

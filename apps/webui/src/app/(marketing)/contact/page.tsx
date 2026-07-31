@@ -15,7 +15,7 @@ import { Field } from "@/components/form/fields"
 import { Form } from "@/components/form/form"
 import { schemaUtils } from "@/components/form/schema-utils"
 import { Button } from "@/components/ui/button"
-import { leadApi } from "@/lib/api/rest/lead/lead"
+import { leadApi } from "@/lib/api/rest/lead"
 import { CONTACT } from "@/lib/config"
 import { getOrCreateAnonymousId } from "@/lib/utils/anonymous-id"
 

@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BaseChart, type EChartsOption } from "@/features/stats/charts/BaseChart"
-import type { TrendPoint } from "@/lib/api/rest/dashboard/stats"
+import type { TrendPoint } from "@/lib/api/rest/dashboard"
 
 // 渐变折线图（替代 TrendChart，支持渐变填充）
 function GradientLineChart({ data }: { data: TrendPoint[] }) {

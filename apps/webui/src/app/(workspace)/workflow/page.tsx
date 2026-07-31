@@ -16,13 +16,13 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TypographyH1 } from "@/components/ui/typography"
-import type { ProcessInstanceVO, WorkflowTaskVO } from "@/lib/api/rest/workflow/approval"
+import type { ProcessInstanceVO, WorkflowTaskVO } from "@/lib/api/rest/workflow"
 import {
   useApprovalHistory,
   useApprovalStats,
   useMyInitiated,
   useMyPendingTasks
-} from "@/lib/api/rest/workflow/approval"
+} from "@/lib/api/rest/workflow"
 
 type Tab = "pending" | "done" | "initiated"
 

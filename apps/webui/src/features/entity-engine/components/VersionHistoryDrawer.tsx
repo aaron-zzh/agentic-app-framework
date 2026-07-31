@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { DataFieldDef } from "@/features/entity-engine/types"
-import { useRecordVersions, useRestoreVersion } from "@/lib/api/rest/entity/version"
+import { useRecordVersions, useRestoreVersion } from "@/lib/api/rest/entity"
 import { notify } from "@/lib/notification"
 import { cn } from "@/lib/utils/cn"
 

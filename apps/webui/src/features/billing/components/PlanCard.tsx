@@ -17,7 +17,7 @@
 import { CheckIcon, FlameIcon } from "lucide-react"
 import { useMemo } from "react"
 import { Button } from "@/components/ui/button"
-import type { SubscriptionPlanVO } from "@/lib/api/rest/billing/plans"
+import type { SubscriptionPlanVO } from "@/lib/api/rest/billing"
 import { cn } from "@/lib/utils/cn"
 import {
   calcYearlyDiscount,

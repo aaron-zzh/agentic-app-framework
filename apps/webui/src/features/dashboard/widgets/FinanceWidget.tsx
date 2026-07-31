@@ -5,7 +5,7 @@
 "use client"
 
 import dynamic from "next/dynamic"
-import type { FinanceWidgetConfig } from "@/lib/api/rest/dashboard/dashboard"
+import type { FinanceWidgetConfig } from "@/lib/api/rest/dashboard"
 import {
   mockBalanceStatistics,
   mockCreditCards,

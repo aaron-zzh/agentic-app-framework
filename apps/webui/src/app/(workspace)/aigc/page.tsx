@@ -19,7 +19,7 @@ import {
   type AigcProjectVO,
   useAigcProjects,
   useDeleteAigcProject
-} from "@/lib/api/rest/ai/aigc-project"
+} from "@/lib/api/rest/ai"
 
 const TYPE_LABELS: Record<string, string> = {
   IMAGE_POST: "图像",

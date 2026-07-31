@@ -11,7 +11,7 @@ import { Controller, useForm } from "react-hook-form"
 import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { useStudioTodoCreate } from "@/lib/api/rest/system/todo"
+import { useStudioTodoCreate } from "@/lib/api/rest/system"
 import { notify } from "@/lib/notification"
 
 const newTodoSchema = z.object({

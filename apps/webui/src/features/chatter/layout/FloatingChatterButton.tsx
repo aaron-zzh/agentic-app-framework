@@ -15,7 +15,7 @@
 import { useRef } from "react"
 import { LottieIcon } from "@/components/animate/LottieIcon"
 import type { ChatterPreset } from "@/features/chatter/types"
-import { leadApi } from "@/lib/api/rest/lead/lead"
+import { leadApi } from "@/lib/api/rest/lead"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { useChatterStore } from "@/lib/store/chatter-store"
 import { getOrCreateAnonymousId } from "@/lib/utils/anonymous-id"

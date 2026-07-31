@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { VOICE_TEXT_MAX_LEN as TEXT_MAX_LEN, VOICES } from "@/features/aigc/voice-options"
-import { request } from "@/lib/api/rest/entity/crud"
+import { request } from "@/lib/api/rest/entity"
 import { useAigcTaskStream } from "@/lib/hooks/use-aigc-task-stream"
 
 interface TaskItem {

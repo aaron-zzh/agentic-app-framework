@@ -13,7 +13,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useMemo } from "react"
 import { NeonChip } from "@/components/studio"
 import { Chatter } from "@/features/chatter"
-import { useAiSkills } from "@/lib/api/rest/ai/skill"
+import { useAiSkills } from "@/lib/api/rest/ai"
 
 export default function StudioChatPage() {
   const searchParams = useSearchParams()

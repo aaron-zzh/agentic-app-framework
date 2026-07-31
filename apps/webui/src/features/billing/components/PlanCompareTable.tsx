@@ -16,7 +16,7 @@
 
 import { CheckIcon, MinusIcon } from "lucide-react"
 import { useMemo } from "react"
-import type { PlanEntitlementVO, SubscriptionPlanVO } from "@/lib/api/rest/billing/plans"
+import type { PlanEntitlementVO, SubscriptionPlanVO } from "@/lib/api/rest/billing"
 import { cn } from "@/lib/utils/cn"
 
 const CYCLE_LABEL: Record<string, string> = {

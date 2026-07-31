@@ -17,7 +17,7 @@ import {
   delegatedTaskKeys,
   getDelegatedTaskEventStreamUrl,
   parseDelegatedTaskEvent
-} from "@/lib/api/rest/ai/delegated-task"
+} from "@/lib/api/rest/ai"
 
 interface TimelineItem {
   id: string

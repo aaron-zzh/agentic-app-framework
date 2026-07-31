@@ -19,7 +19,7 @@ import {
   type HumanApprovalDecisionRequest,
   humanApprovalApi,
   parseDelegatedTaskEvent
-} from "@/lib/api/rest/ai/delegated-task"
+} from "@/lib/api/rest/ai"
 
 interface PendingApproval {
   approvalId: string

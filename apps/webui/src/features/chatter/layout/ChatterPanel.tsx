@@ -15,7 +15,7 @@ import { TaskBoardPanel } from "@/features/chatter/task/TaskBoardPanel"
 import { ToolConfirmOverlay } from "@/features/chatter/task/ToolConfirmOverlay"
 import { ChatterThread } from "@/features/chatter/thread"
 import type { ChatterDropItem } from "@/features/chatter/types"
-import type { AiModelVO } from "@/lib/api/rest/ai/ai-model"
+import type { AiModelVO } from "@/lib/api/rest/ai"
 
 interface ChatterPanelProps {
   toolbar: ReactNode

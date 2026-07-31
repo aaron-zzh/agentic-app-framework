@@ -9,7 +9,7 @@ import { Lightbox, useLightbox } from "@/components/lightbox"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ModelViewer } from "@/features/aigc/three/ModelViewer"
-import { useMediaAssetDetail, useMediaAssetVariants } from "@/lib/api/rest/media/media-asset"
+import { useMediaAssetDetail, useMediaAssetVariants } from "@/lib/api/rest/media"
 
 function safeJsonParse<T>(str: string): T | null {
   try {

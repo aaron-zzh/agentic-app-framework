@@ -12,8 +12,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
-import type { SystemConfigVO } from "@/lib/api/rest/system/config"
-import { useAllSystemConfigs, useUpdateSystemConfig } from "@/lib/api/rest/system/config"
+import type { SystemConfigVO } from "@/lib/api/rest/system"
+import { useAllSystemConfigs, useUpdateSystemConfig } from "@/lib/api/rest/system"
 
 // ── 分类元数据 ──────────────────────────────────────────────
 

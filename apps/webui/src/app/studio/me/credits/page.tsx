@@ -31,7 +31,7 @@ import {
   useCreditBalance,
   useCreditGroups,
   useCreditTransactions
-} from "@/lib/api/rest/billing/credits"
+} from "@/lib/api/rest/billing"
 import { useDict } from "@/lib/hooks/use-dict"
 import { cn } from "@/lib/utils/cn"
 

@@ -25,8 +25,8 @@ import { MultiSeriesChartWidget } from "@/features/dashboard/widgets/MultiSeries
 import { TransactionListWidget } from "@/features/dashboard/widgets/TransactionListWidget"
 import { FunnelChart, TrendChart } from "@/features/stats/charts"
 import { MultiSeriesLineChart } from "@/features/stats/charts/MultiSeriesLineChart"
-import type { DashboardWidgetVO } from "@/lib/api/rest/dashboard/dashboard"
-import type { FunnelStage, TrendPoint } from "@/lib/api/rest/dashboard/stats"
+import type { DashboardWidgetVO } from "@/lib/api/rest/dashboard"
+import type { FunnelStage, TrendPoint } from "@/lib/api/rest/dashboard"
 
 import "react-grid-layout/css/styles.css"
 

@@ -26,7 +26,7 @@ import {
   useDeletePromptTemplate,
   useMyPromptTemplates,
   useUpdatePromptTemplate
-} from "@/lib/api/rest/ai/generation-template"
+} from "@/lib/api/rest/ai"
 
 interface EditDialogProps {
   open: boolean

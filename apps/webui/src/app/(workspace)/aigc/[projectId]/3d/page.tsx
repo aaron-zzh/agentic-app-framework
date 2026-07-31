@@ -21,7 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { AssetCard } from "@/features/aigc/asset/AssetCard"
 import type { MediaAssetVO } from "@/features/aigc/types"
-import { request } from "@/lib/api/rest/entity/crud"
+import { request } from "@/lib/api/rest/entity"
 import { useAigcTaskStream } from "@/lib/hooks/use-aigc-task-stream"
 
 const BirdsScene = dynamic(() => import("./BirdsScene"), {

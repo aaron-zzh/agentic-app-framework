@@ -28,8 +28,8 @@ import { PlanCard } from "@/features/billing/components/PlanCard"
 import { PlanCompareTable } from "@/features/billing/components/PlanCompareTable"
 import { PricingFAQ } from "@/features/billing/components/PricingFAQ"
 import { TrustSignals } from "@/features/billing/components/TrustSignals"
-import { useCurrentSubscription, useSubscriptionPlans } from "@/lib/api/rest/billing/plans"
-import { useMemberFaq, useWechatQrImage } from "@/lib/api/rest/system/config"
+import { useCurrentSubscription, useSubscriptionPlans } from "@/lib/api/rest/billing"
+import { useMemberFaq, useWechatQrImage } from "@/lib/api/rest/system"
 import { APP, CONTACT } from "@/lib/config"
 
 /** 默认推荐套餐 code，可从 plan.ext.recommended 后续改成数据驱动 */

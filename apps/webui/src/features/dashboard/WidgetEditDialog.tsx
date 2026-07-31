@@ -31,8 +31,8 @@ import type {
   EChartsWidgetConfig,
   ProgressWidgetConfig,
   ShortcutWidgetConfig
-} from "@/lib/api/rest/dashboard/dashboard"
-import { useMetrics } from "@/lib/api/rest/dashboard/dashboard"
+} from "@/lib/api/rest/dashboard"
+import { useMetrics } from "@/lib/api/rest/dashboard"
 
 /** 支持的颜色选项 */
 const COLOR_OPTIONS: { value: string; label: string; bg: string }[] = [

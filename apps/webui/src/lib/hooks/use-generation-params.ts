@@ -11,7 +11,7 @@
  * generateImage.mutate({ model: modelId, ...params })
  */
 import { useEffect, useRef, useState } from "react"
-import type { AiModelVO, ImageConfig, ImageModeConfig } from "@/lib/api/rest/ai/ai-model"
+import type { AiModelVO, ImageConfig, ImageModeConfig } from "@/lib/api/rest/ai"
 
 export interface GenerationParams {
   aspectRatio?: string

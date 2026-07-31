@@ -11,7 +11,7 @@ import {
   useEntityDelete,
   useEntityMutation,
   useEntityRecord
-} from "@/lib/queries/use-entity-mutations"
+} from "@/lib/api/rest/entity"
 import type { EntityDef } from "@/lib/types/entity"
 import {
   installMockBackendClient,

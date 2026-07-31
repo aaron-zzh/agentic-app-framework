@@ -27,7 +27,7 @@ import { useCallback, useRef, useState } from "react"
 import { GlassCard, GlowButton, NeonChip } from "@/components/studio"
 import { Textarea } from "@/components/ui/textarea"
 import { postAiStream } from "@/lib/api/ai-stream"
-import { useCreateDocument } from "@/lib/api/rest/system/document"
+import { useCreateDocument } from "@/lib/api/rest/system"
 import { notify } from "@/lib/notification"
 import { cn } from "@/lib/utils/index"
 

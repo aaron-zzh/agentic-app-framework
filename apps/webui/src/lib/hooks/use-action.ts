@@ -6,7 +6,7 @@
 "use client"
 
 import { useState } from "react"
-import { request } from "@/lib/api/rest/entity/crud"
+import { request } from "@/lib/api/rest/entity"
 
 export interface ActionConfig {
   /** 唯一标识 */

@@ -8,7 +8,7 @@
 import { CheckCircle2, Loader2, Trash2, XCircle } from "lucide-react"
 import Link from "next/link"
 import { useCallback, useEffect, useState } from "react"
-import { useCancelAigcTask } from "@/lib/api/rest/ai/aigc-task"
+import { useCancelAigcTask } from "@/lib/api/rest/ai"
 import { request } from "@/lib/api/rest/crud/client"
 import type { PageResult } from "@/lib/api/types"
 import { type AigcTaskEvent, useAigcTaskStream } from "@/lib/hooks/use-aigc-task-stream"

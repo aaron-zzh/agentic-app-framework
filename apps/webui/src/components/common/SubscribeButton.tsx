@@ -19,12 +19,12 @@ import {
   DialogTitle
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import type { SubscriptionChannel } from "@/lib/api/rest/billing/subscription"
+import type { SubscriptionChannel } from "@/lib/api/rest/billing"
 import {
   useRemoveSubscription,
   useSubscription,
   useUpsertSubscription
-} from "@/lib/api/rest/billing/subscription"
+} from "@/lib/api/rest/billing"
 import type { DataFieldDef, EntityDef, FieldDef } from "@/lib/types/entity"
 
 interface SubscribeButtonProps {

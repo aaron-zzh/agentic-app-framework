@@ -33,13 +33,13 @@ import type {
   DataAccessRule,
   DataAccessRuleInput,
   RuleEffect
-} from "@/lib/api/rest/admin/data-access"
+} from "@/lib/api/rest/admin"
 import {
   useCreateDataAccessRule,
   useDataAccessRules,
   useDeleteDataAccessRule,
   useUpdateDataAccessRule
-} from "@/lib/api/rest/admin/data-access"
+} from "@/lib/api/rest/admin"
 
 /** 操作符显示标签 */
 const OPERATOR_LABELS: Record<ConditionOperator, string> = {

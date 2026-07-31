@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { BaseChart, type EChartsOption } from "@/features/stats/charts/BaseChart"
-import { useCreditsTrend } from "@/lib/api/rest/dashboard/credits-analytics"
+import { useCreditsTrend } from "@/lib/api/rest/dashboard"
 
 const COLORS = ["#3b82f6", "#f59e0b", "#10b981"]
 

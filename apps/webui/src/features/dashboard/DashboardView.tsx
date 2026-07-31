@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { DashboardVO, DashboardWidgetVO, WidgetType } from "@/lib/api/rest/dashboard/dashboard"
+import type { DashboardVO, DashboardWidgetVO, WidgetType } from "@/lib/api/rest/dashboard"
 import {
   useCreateDashboard,
   useDashboard,
@@ -27,7 +27,7 @@ import {
   usePresets,
   useRenameDashboard,
   useSaveDashboardLayout
-} from "@/lib/api/rest/dashboard/dashboard"
+} from "@/lib/api/rest/dashboard"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { AddWidgetDialog } from "./AddWidgetDialog"
 import { ApplyPresetDialog } from "./ApplyPresetDialog"

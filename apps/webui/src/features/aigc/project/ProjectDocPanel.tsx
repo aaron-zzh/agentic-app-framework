@@ -24,8 +24,8 @@ import {
   useLinkProjectDoc,
   useUnlinkProjectDoc,
   useUpdateAigcProject
-} from "@/lib/api/rest/ai/aigc-project"
-import { useCreateDocument, useDocument, useUpdateDocument } from "@/lib/api/rest/system/document"
+} from "@/lib/api/rest/ai"
+import { useCreateDocument, useDocument, useUpdateDocument } from "@/lib/api/rest/system"
 import { cn } from "@/lib/utils/cn"
 
 interface Props {

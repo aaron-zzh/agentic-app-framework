@@ -14,7 +14,7 @@ import {
   useStudioTodoRemove,
   useStudioTodoUpdate,
   useStudioTodoUpdateStatus
-} from "@/lib/api/rest/system/todo"
+} from "@/lib/api/rest/system"
 import { cn } from "@/lib/utils/cn"
 
 export function TodoRow({ todo }: { todo: TodoVO }) {

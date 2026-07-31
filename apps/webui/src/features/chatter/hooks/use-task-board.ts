@@ -12,7 +12,7 @@ import {
   type DelegatedTaskVO,
   delegatedTaskApi,
   delegatedTaskKeys
-} from "@/lib/api/rest/ai/delegated-task"
+} from "@/lib/api/rest/ai"
 
 export interface TaskBoardProgress {
   total: number

@@ -3,7 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
-import type { EntityDefRecord, EntityResourceDescriptor } from "@/lib/api/rest/entity/entity-def"
+import type { EntityDefRecord, EntityResourceDescriptor } from "@/lib/api/rest/entity"
 import type { EntityDef, FieldDef } from "../types"
 
 interface ParseResult {

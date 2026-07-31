@@ -11,7 +11,7 @@ import { useState } from "react"
 import { GlassCard, GlassCardBody, GlowButton } from "@/components/studio"
 import { AssetCard } from "@/features/aigc/asset/AssetCard"
 import type { MediaAssetVO } from "@/features/aigc/types"
-import { request } from "@/lib/api/rest/entity/crud"
+import { request } from "@/lib/api/rest/entity"
 import { useAigcTaskStream } from "@/lib/hooks/use-aigc-task-stream"
 import { notify } from "@/lib/notification"
 

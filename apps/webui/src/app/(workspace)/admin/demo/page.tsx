@@ -24,7 +24,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { TypographyH1 } from "@/components/ui/typography"
-import { demoApi } from "@/lib/api/rest/system/demo"
+import { demoApi } from "@/lib/api/rest/system"
 
 export default function DemoPage() {
   const [cleanOpen, setCleanOpen] = useState(false)

@@ -4,7 +4,7 @@
  * @author AaronZZH & Kiro
  */
 
-import type { SubscriptionPlanVO } from "@/lib/api/rest/billing/plans"
+import type { SubscriptionPlanVO } from "@/lib/api/rest/billing"
 
 /** 套餐 ext JSON 解析结果 */
 export interface PlanExt {

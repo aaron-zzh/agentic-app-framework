@@ -36,7 +36,7 @@ import { TRANSLATE_OPTIONS } from "@/features/aigc/copywriting/constants"
 import { useCopywriting } from "@/features/aigc/copywriting/use-copywriting"
 import { useAigcStore } from "@/features/aigc/store"
 import { StreamingEditor } from "@/features/rich-text-editor"
-import { type AiSkillVO, useAiSkills } from "@/lib/api/rest/ai/skill"
+import { type AiSkillVO, useAiSkills } from "@/lib/api/rest/ai"
 import { useModelSelector } from "@/lib/hooks/use-model-selector"
 import { cn } from "@/lib/utils/index"
 

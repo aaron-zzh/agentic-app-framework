@@ -20,7 +20,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useCallback, useState } from "react"
 import { fromEntityDef } from "@/lib/api/rest/crud"
-import { ApiError, fetchRecord, updateRecord } from "@/lib/api/rest/entity/crud"
+import { ApiError, fetchRecord, updateRecord } from "@/lib/api/rest/entity"
 import type { EntityDef } from "@/lib/types/entity"
 
 interface ConflictState {

@@ -1,4 +1,6 @@
 export * from "./credits"
 export * from "./developer"
 export * from "./license"
+export * from "./plans"
+export * from "./redeem-codes"
 export * from "./subscription"

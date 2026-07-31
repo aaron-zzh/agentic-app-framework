@@ -20,7 +20,7 @@ import type { ReactNode } from "react"
 import { SmartPointerSensor } from "@/features/aigc/SmartPointerSensor"
 import { useAigcStore } from "@/features/aigc/store"
 import type { MediaAssetVO } from "@/features/aigc/types"
-import { mediaAssetApi } from "@/lib/api/rest/media/media-asset"
+import { mediaAssetApi } from "@/lib/api/rest/media"
 import { useChatterStore } from "@/lib/store/chatter-store"
 
 interface GlobalDndContextProps {

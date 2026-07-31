@@ -13,8 +13,8 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import { TypographyH1 } from "@/components/ui/typography"
 import { EntityDefEditor } from "@/features/entity-editor/EntityDefEditor"
 import { EntityDefList } from "@/features/entity-editor/EntityDefList"
-import type { EntityDefRecord } from "@/lib/api/rest/entity/entity-def"
-import { useEntityDefs, useUpdateEntityDef } from "@/lib/api/rest/entity/entity-def"
+import type { EntityDefRecord } from "@/lib/api/rest/entity"
+import { useEntityDefs, useUpdateEntityDef } from "@/lib/api/rest/entity"
 
 export default function EntitiesPage() {
   const { data: entities, isLoading } = useEntityDefs()

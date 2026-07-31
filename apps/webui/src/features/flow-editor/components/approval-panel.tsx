@@ -19,7 +19,7 @@ import {
 import { Progress } from "@/components/ui/progress"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
-import type { ApprovalOperationType } from "@/lib/api/rest/workflow/approval"
+import type { ApprovalOperationType } from "@/lib/api/rest/workflow"
 import {
   useAddSignAfter,
   useAddSignBefore,
@@ -27,8 +27,8 @@ import {
   useTransferSign,
   useVoteProgress,
   useWithdraw
-} from "@/lib/api/rest/workflow/approval"
-import { useWorkflowComplete, useWorkflowReject } from "@/lib/api/rest/workflow/workflow"
+} from "@/lib/api/rest/workflow"
+import { useWorkflowComplete, useWorkflowReject } from "@/lib/api/rest/workflow"
 
 interface ApprovalPanelProps {
   processInstanceId: string

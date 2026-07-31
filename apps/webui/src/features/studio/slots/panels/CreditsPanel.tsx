@@ -9,7 +9,7 @@ import { Coins, RefreshCw } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useCreditBalance } from "@/lib/api/rest/billing/credits"
+import { useCreditBalance } from "@/lib/api/rest/billing"
 
 export function CreditsPanel() {
   const { data, isLoading, refetch, isFetching } = useCreditBalance()

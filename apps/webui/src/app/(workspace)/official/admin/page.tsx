@@ -26,13 +26,13 @@ import {
   type DeveloperSubscriptionPlan,
   developerApi,
   useDeveloperPlans
-} from "@/lib/api/rest/billing/developer"
+} from "@/lib/api/rest/billing"
 import {
   licenseApi,
   useIssueLicense,
   useLicenseStatus,
   useOfficialConsoleSummary
-} from "@/lib/api/rest/billing/license"
+} from "@/lib/api/rest/billing"
 
 const FEATURE_OPTIONS = [
   { code: "developer", label: "开发者商业化模块" },

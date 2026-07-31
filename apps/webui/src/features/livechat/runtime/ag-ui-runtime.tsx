@@ -62,7 +62,7 @@ class OssImageAttachmentAdapter implements AttachmentAdapter {
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 import { buildApiUrl } from "@/lib/api/config"
-import { chatApi } from "@/lib/api/rest/ai/chat"
+import { chatApi } from "@/lib/api/rest/ai"
 import { useAigcTaskStream } from "@/lib/hooks/use-aigc-task-stream"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { getOrCreateAnonymousId } from "@/lib/utils/anonymous-id"

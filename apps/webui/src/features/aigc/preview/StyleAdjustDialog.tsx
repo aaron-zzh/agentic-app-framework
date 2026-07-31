@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { useGenerateImage } from "@/lib/api/rest/ai/aigc-task"
+import { useGenerateImage } from "@/lib/api/rest/ai"
 import { cn } from "@/lib/utils/index"
 
 interface StyleAdjustDialogProps {

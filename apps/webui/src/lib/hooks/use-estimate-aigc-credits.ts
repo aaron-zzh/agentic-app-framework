@@ -11,7 +11,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { useEffect, useState } from "react"
-import { useCreditBalance } from "@/lib/api/rest/billing/credits"
+import { useCreditBalance } from "@/lib/api/rest/billing"
 import { request } from "@/lib/api/rest/crud/client"
 
 export interface EstimateAigcCreditsParams {

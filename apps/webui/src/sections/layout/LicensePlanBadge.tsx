@@ -23,7 +23,7 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog"
-import { licenseApi, useLicenseStatus } from "@/lib/api/rest/billing/license"
+import { licenseApi, useLicenseStatus } from "@/lib/api/rest/billing"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { cn } from "@/lib/utils/cn"
 

@@ -22,7 +22,7 @@ import timeGridPlugin from "@fullcalendar/timegrid"
 import { useCallback, useMemo, useRef, useState } from "react"
 
 import { useResponsive } from "@/lib/hooks/use-responsive"
-import { mapRecordsToEvents, useCalendarEventUpdate } from "@/lib/queries/use-calendar-events"
+import { mapRecordsToEvents, useCalendarEventUpdate } from "@/lib/api/rest/entity"
 
 import type { EntityDef } from "../../types"
 import { EventDialog } from "./EventDialog"

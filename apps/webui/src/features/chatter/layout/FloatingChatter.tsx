@@ -18,7 +18,7 @@
 import { useEffect } from "react"
 import { FloatingChatterButton } from "@/features/chatter/layout/FloatingChatterButton"
 import { GlobalChatter } from "@/features/chatter/layout/GlobalChatter"
-import { leadApi } from "@/lib/api/rest/lead/lead"
+import { leadApi } from "@/lib/api/rest/lead"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { useChatterStore } from "@/lib/store/chatter-store"
 import { getOrCreateAnonymousId } from "@/lib/utils/anonymous-id"

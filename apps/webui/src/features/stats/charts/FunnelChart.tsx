@@ -7,7 +7,7 @@
 
 import { Filter } from "lucide-react"
 import { useMemo } from "react"
-import type { FunnelStage } from "@/lib/api/rest/dashboard/stats"
+import type { FunnelStage } from "@/lib/api/rest/dashboard"
 import { BaseChart, type EChartsOption } from "./BaseChart"
 
 interface FunnelChartProps {

@@ -39,12 +39,12 @@ import type {
   DelegationCreateReq,
   DelegationScope,
   DelegationStatus
-} from "@/lib/api/rest/workflow/delegation"
+} from "@/lib/api/rest/workflow"
 import {
   useCancelDelegation,
   useCreateDelegation,
   useDelegations
-} from "@/lib/api/rest/workflow/delegation"
+} from "@/lib/api/rest/workflow"
 import { notify } from "@/lib/notification"
 
 /** 状态标签颜色映射 */

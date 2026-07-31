@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from "vitest"
 
-import type { EntityDefRecord, EntityResourceDescriptor } from "@/lib/api/rest/entity/entity-def"
+import type { EntityDefRecord, EntityResourceDescriptor } from "@/lib/api/rest/entity"
 
 import { parseEntityDefBootstrap } from "./server-entity-def"
 

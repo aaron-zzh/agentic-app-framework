@@ -10,7 +10,7 @@ import Link from "next/link"
 import { use } from "react"
 import { Button } from "@/components/ui/button"
 import { ModelViewer } from "@/features/aigc/three/ModelViewer"
-import { useMediaAssetDetail } from "@/lib/api/rest/media/media-asset"
+import { useMediaAssetDetail } from "@/lib/api/rest/media"
 
 export default function AssetPreviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)

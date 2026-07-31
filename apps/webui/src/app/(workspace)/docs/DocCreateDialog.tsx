@@ -18,7 +18,7 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { useCreateDocument } from "@/lib/api/rest/system/document"
+import { useCreateDocument } from "@/lib/api/rest/system"
 
 const DOC_TYPES = [
   { value: "spec", label: "规格" },

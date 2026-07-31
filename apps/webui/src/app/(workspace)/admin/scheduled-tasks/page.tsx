@@ -17,13 +17,13 @@ import {
   TableRow
 } from "@/components/ui/table"
 import { TypographyH1 } from "@/components/ui/typography"
-import type { ScheduledTaskStatus } from "@/lib/api/rest/workflow/scheduled-task"
+import type { ScheduledTaskStatus } from "@/lib/api/rest/workflow"
 import {
   useScheduledTaskPause,
   useScheduledTaskResume,
   useScheduledTaskRun,
   useScheduledTasks
-} from "@/lib/api/rest/workflow/scheduled-task"
+} from "@/lib/api/rest/workflow"
 
 /** 状态标签样式 */
 const STATUS_VARIANT: Record<ScheduledTaskStatus, "default" | "secondary" | "destructive"> = {

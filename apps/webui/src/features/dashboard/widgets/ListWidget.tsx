@@ -8,8 +8,8 @@
 import { List } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { ListWidgetConfig } from "@/lib/api/rest/dashboard/dashboard"
-import { useWidgetData } from "@/lib/api/rest/dashboard/dashboard"
+import type { ListWidgetConfig } from "@/lib/api/rest/dashboard"
+import { useWidgetData } from "@/lib/api/rest/dashboard"
 import { cn } from "@/lib/utils/cn"
 import { WIDGET_CARD_CLASS } from "./_shared/styles"
 

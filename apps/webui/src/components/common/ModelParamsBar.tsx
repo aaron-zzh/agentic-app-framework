@@ -20,8 +20,8 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import type { AiModelVO, ImageConfig, ImageModeConfig } from "@/lib/api/rest/ai/ai-model"
-import { calcRatio } from "@/lib/api/rest/ai/ai-model"
+import type { AiModelVO, ImageConfig, ImageModeConfig } from "@/lib/api/rest/ai"
+import { calcRatio } from "@/lib/api/rest/ai"
 import type { GenerationParams } from "@/lib/hooks/use-generation-params"
 
 interface ModelParamsBarProps {

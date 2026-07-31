@@ -19,7 +19,7 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import { TypographyH1, TypographyMuted } from "@/components/ui/typography"
-import { type OcrRecognizeResult, ocrApi } from "@/lib/api/rest/ai/ocr"
+import { type OcrRecognizeResult, ocrApi } from "@/lib/api/rest/ai"
 
 const TASK_OPTIONS = [
   { value: "TEXT_RECOGNITION", label: "通用文字识别" },

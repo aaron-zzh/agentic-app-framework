@@ -16,7 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import {
   useWorkflowTemplates,
   type WorkflowTemplate
-} from "@/lib/api/rest/workflow/workflow-templates"
+} from "@/lib/api/rest/workflow"
 
 const CATEGORY_LABELS: Record<string, string> = {
   CONTENT: "内容创作",

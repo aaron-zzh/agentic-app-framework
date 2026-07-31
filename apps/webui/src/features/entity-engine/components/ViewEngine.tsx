@@ -20,13 +20,16 @@ import type { ComponentType } from "react"
 import { toast } from "sonner"
 import { ViewErrorBoundary } from "@/components/common/ViewErrorBoundary"
 import { fromEntityDef, useCrudUpdate } from "@/lib/api/rest/crud"
-import type { PageResult } from "@/lib/api/rest/entity/crud"
+import {
+  encodeFilterParams,
+  type PageResult,
+  useEntityDetail,
+  useEntityList,
+  useEntityQueryWindow,
+  useEntitySearchParams,
+  useFilterParams
+} from "@/lib/api/rest/entity"
 import { paths } from "@/lib/constants/paths"
-import { useEntityDetail } from "@/lib/queries/use-entity-detail"
-import { useEntityList } from "@/lib/queries/use-entity-list"
-import { useEntityQueryWindow } from "@/lib/queries/use-entity-query-window"
-import { useEntitySearchParams } from "@/lib/queries/use-entity-search-params"
-import { encodeFilterParams, useFilterParams } from "@/lib/queries/use-filter-params"
 import { cn } from "@/lib/utils/cn"
 import { useResolvedEntity } from "../hooks/use-resolved-entity"
 import { getViewComponent } from "../lib/component-registry"

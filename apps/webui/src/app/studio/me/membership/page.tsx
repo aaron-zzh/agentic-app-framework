@@ -16,8 +16,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { BillingCycleToggle } from "@/features/billing/components/BillingCycleToggle"
 import { PlanCard } from "@/features/billing/components/PlanCard"
 import { PricingFAQ } from "@/features/billing/components/PricingFAQ"
-import { useCurrentSubscription, useSubscriptionPlans } from "@/lib/api/rest/billing/plans"
-import { useMemberFaq } from "@/lib/api/rest/system/config"
+import { useCurrentSubscription, useSubscriptionPlans } from "@/lib/api/rest/billing"
+import { useMemberFaq } from "@/lib/api/rest/system"
 import { APP, CONTACT } from "@/lib/config"
 
 export default function StudioMeMembershipPage() {

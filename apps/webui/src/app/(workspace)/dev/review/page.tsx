@@ -20,7 +20,7 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import { TypographyH1, TypographyMuted } from "@/components/ui/typography"
-import { request } from "@/lib/api/rest/entity/crud"
+import { request } from "@/lib/api/rest/entity"
 
 interface AiOutput {
   id: number

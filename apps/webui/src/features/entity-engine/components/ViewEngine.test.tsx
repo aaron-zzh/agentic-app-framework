@@ -17,21 +17,21 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
   usePathname: () => "/"
 }))
-vi.mock("@/lib/queries/use-entity-list", () => ({
-  useEntityList: () => ({
-    data: [],
-    isLoading: false,
-    pagination: { page: 1, pageSize: 20, total: 0 }
-  })
-}))
-vi.mock("@/lib/queries/use-entity-detail", () => ({
-  useEntityDetail: () => ({ data: null, isLoading: false })
-}))
-vi.mock("@/lib/queries/use-entity-search-params", () => ({
-  useEntitySearchParams: () => [{ page: 1, pageSize: 20 }, vi.fn()]
-}))
+vi.mock("@/lib/api/rest/entity", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/api/rest/entity")>()
+  return {
+    ...actual,
+    useEntityList: () => ({
+      data: [],
+      isLoading: false,
+      pagination: { page: 1, pageSize: 20, total: 0 }
+    }),
+    useEntityDetail: () => ({ data: null, isLoading: false }),
+    useEntitySearchParams: () => [{ page: 1, pageSize: 20 }, vi.fn()]
+  }
+})
 
-import type { PageResult } from "@/lib/api/rest/entity/crud"
+import type { PageResult } from "@/lib/api/rest/entity"
 import type { EntityDef, FormViewOverrideProps } from "@/lib/types/entity"
 import { RecordWindowNavigationControls, ViewEngine } from "./ViewEngine"
 

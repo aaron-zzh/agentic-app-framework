@@ -12,7 +12,7 @@
 import { type QueryClient, useQueryClient } from "@tanstack/react-query"
 import { useEffect, useRef } from "react"
 import { buildSseUrl } from "@/lib/api/config"
-import { invalidateCreditQueries } from "@/lib/api/rest/billing/credits"
+import { invalidateCreditQueries } from "@/lib/api/rest/billing"
 
 /**
  * 任务完成/失败后的默认失效延时（毫秒）。

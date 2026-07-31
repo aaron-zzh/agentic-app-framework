@@ -19,7 +19,7 @@ import { useCallback, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { useChatSessions, useCreateSession } from "@/lib/api/rest/ai/chat"
+import { useChatSessions, useCreateSession } from "@/lib/api/rest/ai"
 import { useResponsive } from "@/lib/hooks/use-responsive"
 import { AgentRunStatus } from "./components/AgentRunStatus"
 

@@ -8,7 +8,7 @@
  * @author AaronZZH & Kiro
  */
 
-import type { EntityResourceDescriptor } from "@/lib/api/rest/entity/entity-def"
+import type { EntityResourceDescriptor } from "@/lib/api/rest/entity"
 import type { EntityDef } from "@/lib/types/entity"
 
 import { builtinMixins, type MixinDef } from "./entity-mixins"

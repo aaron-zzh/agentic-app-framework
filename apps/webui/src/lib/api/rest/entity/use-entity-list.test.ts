@@ -7,7 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { renderHook, waitFor } from "@testing-library/react"
 import { createElement, type ReactNode } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { useEntityList } from "@/lib/queries/use-entity-list"
+import { useEntityList } from "@/lib/api/rest/entity"
 import type { EntityDef } from "@/lib/types/entity"
 import {
   installMockBackendClient,

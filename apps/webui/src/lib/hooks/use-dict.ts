@@ -12,7 +12,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { useMemo } from "react"
-import { type DictDataVO, dictApi } from "@/lib/api/rest/admin/dict"
+import { type DictDataVO, dictApi } from "@/lib/api/rest/admin"
 
 const STALE_TIME = 30 * 60 * 1000 // 30 分钟
 

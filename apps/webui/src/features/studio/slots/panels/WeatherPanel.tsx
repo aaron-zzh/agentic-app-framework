@@ -9,7 +9,7 @@
 import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useWeather } from "@/lib/api/rest/tool/weather"
+import { useWeather } from "@/lib/api/rest/tool"
 import type { SlotPanelProps } from "../registry"
 
 export function WeatherPanel({ payload }: SlotPanelProps) {

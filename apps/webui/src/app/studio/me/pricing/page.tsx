@@ -10,8 +10,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { PublicModelPricingVO } from "@/lib/api/rest/ai/ai-model"
-import { useModelPricing } from "@/lib/api/rest/ai/ai-model"
+import type { PublicModelPricingVO } from "@/lib/api/rest/ai"
+import { useModelPricing } from "@/lib/api/rest/ai"
 import { cn } from "@/lib/utils/index"
 
 const CAP_LABEL: Record<string, string> = {

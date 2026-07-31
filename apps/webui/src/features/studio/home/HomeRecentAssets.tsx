@@ -16,7 +16,7 @@ import { Lightbox, useLightbox } from "@/components/lightbox"
 import { GlassCard } from "@/components/studio"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { MediaAssetVO } from "@/features/aigc/types"
-import { useMediaAssets } from "@/lib/api/rest/media/media-asset"
+import { useMediaAssets } from "@/lib/api/rest/media"
 
 function AssetThumb({
   asset,

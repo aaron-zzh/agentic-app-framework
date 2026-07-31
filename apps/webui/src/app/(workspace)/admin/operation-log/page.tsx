@@ -27,8 +27,8 @@ import {
   TableRow
 } from "@/components/ui/table"
 import { TypographyH1 } from "@/components/ui/typography"
-import type { OperationLogListParams } from "@/lib/api/rest/admin/operation-log"
-import { useOperationLogList } from "@/lib/api/rest/admin/operation-log"
+import type { OperationLogListParams } from "@/lib/api/rest/admin"
+import { useOperationLogList } from "@/lib/api/rest/admin"
 
 const TYPE_LABEL: Record<string, string> = {
   CREATE: "创建",

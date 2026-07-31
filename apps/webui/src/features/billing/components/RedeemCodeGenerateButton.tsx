@@ -32,12 +32,12 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
-import { billingPlansApi } from "@/lib/api/rest/billing/plans"
+import { billingPlansApi } from "@/lib/api/rest/billing"
 import {
   type RedeemCodeBatchType,
   type RedeemCodeCreateDTO,
   redeemCodesApi
-} from "@/lib/api/rest/billing/redeem-codes"
+} from "@/lib/api/rest/billing"
 import { notify } from "@/lib/notification"
 import { copyToClipboard } from "@/lib/utils/copy-to-clipboard"
 

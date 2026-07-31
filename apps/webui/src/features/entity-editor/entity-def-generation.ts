@@ -1,5 +1,5 @@
 import type { EntityDefConfig } from "@/features/entity-engine/types"
-import type { EntityResourceDescriptor } from "@/lib/api/rest/entity/entity-def"
+import type { EntityResourceDescriptor } from "@/lib/api/rest/entity"
 
 interface JsonObject {
   [key: string]: unknown

@@ -15,7 +15,7 @@
 
 "use client"
 
-import { useCreditBalance, useTokenRules } from "@/lib/api/rest/billing/credits"
+import { useCreditBalance, useTokenRules } from "@/lib/api/rest/billing"
 
 /** 视频积分基准时长（秒）：rule.creditAmount 对应 5s 一段视频的扣费 */
 const VIDEO_BASE_DURATION_SECONDS = 5

@@ -32,7 +32,7 @@ import {
   useMyBalance,
   useMyWithdraws,
   type WithdrawType
-} from "@/lib/api/rest/brokerage/withdraw"
+} from "@/lib/api/rest/brokerage"
 import { useProfile } from "@/lib/api/rest/user"
 import { notify } from "@/lib/notification"
 import { cn } from "@/lib/utils/cn"

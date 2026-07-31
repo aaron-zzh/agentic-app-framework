@@ -37,7 +37,7 @@ import type {
   AutomationRule,
   AutomationRuleInput,
   TriggerType
-} from "@/lib/api/rest/automation/automation"
+} from "@/lib/api/rest/automation"
 import {
   useAutomationLogs,
   useAutomationRules,
@@ -46,7 +46,7 @@ import {
   useTestAutomationRule,
   useToggleAutomationRule,
   useUpdateAutomationRule
-} from "@/lib/api/rest/automation/automation"
+} from "@/lib/api/rest/automation"
 
 /** 触发器类型标签 */
 const TRIGGER_LABELS: Record<TriggerType, string> = {

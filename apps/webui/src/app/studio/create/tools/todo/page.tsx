@@ -16,7 +16,7 @@ import {
   useStudioTodoClearDone,
   useStudioTodos,
   useStudioTodoUpdateStatus
-} from "@/lib/api/rest/system/todo"
+} from "@/lib/api/rest/system"
 import { type TodoFilter, TodoFooter } from "./TodoFooter"
 import { TodoNewForm } from "./TodoNewForm"
 import { TodoRow } from "./TodoRow"

@@ -10,7 +10,7 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { _mockEntityData } from "@/lib/_mock/entities"
 import { type CrudMeta, fromEntityDef, useCrudMeta } from "@/lib/api/rest/crud"
-import { fetchQueryWindow, type ListParams, type PageResult } from "@/lib/api/rest/entity/crud"
+import { fetchQueryWindow, type ListParams, type PageResult } from "./crud"
 import { useOrgStore } from "@/lib/store/org-store"
 import { useUIStore } from "@/lib/store/ui-store"
 import type { EntityDef } from "@/lib/types/entity"

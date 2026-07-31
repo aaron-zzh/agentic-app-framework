@@ -7,7 +7,7 @@
 import { type FormEvent, useEffect, useState } from "react"
 import { toast } from "sonner"
 
-import { leadApi } from "@/lib/api/rest/lead/lead"
+import { leadApi } from "@/lib/api/rest/lead"
 import { $url } from "@/lib/utils"
 import { getOrCreateAnonymousId } from "@/lib/utils/anonymous-id"
 

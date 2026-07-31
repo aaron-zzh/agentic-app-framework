@@ -18,7 +18,7 @@ import { ContextChip } from "@/features/chatter/dnd/ContextChip"
 import type { ChatterDropItem } from "@/features/chatter/types"
 import { VoiceWaveform3D } from "@/features/livechat/voice/VoiceWaveform3D"
 import { WsAsrButton } from "@/features/livechat/voice/WsAsrButton"
-import type { AiModelVO } from "@/lib/api/rest/ai/ai-model"
+import type { AiModelVO } from "@/lib/api/rest/ai"
 import { useModelSelector } from "@/lib/hooks/use-model-selector"
 
 interface ChatterComposerProps {

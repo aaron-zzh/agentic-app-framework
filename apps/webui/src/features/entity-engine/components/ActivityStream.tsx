@@ -21,7 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import type { ActivityItem, ScheduledActivity } from "@/lib/api/rest/entity/activity"
+import type { ActivityItem, ScheduledActivity } from "@/lib/api/rest/entity"
 import {
   useActivities,
   useAddComment,
@@ -29,7 +29,7 @@ import {
   useCreateSchedule,
   useDeleteComment,
   useSchedules
-} from "@/lib/api/rest/entity/activity"
+} from "@/lib/api/rest/entity"
 import { notify } from "@/lib/notification"
 import { cn } from "@/lib/utils/cn"
 import { formatTimeAgo } from "@/lib/utils/time"

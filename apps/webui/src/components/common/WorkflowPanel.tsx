@@ -24,7 +24,7 @@ import {
   useWorkflowReject,
   useWorkflowStart,
   useWorkflowStatus
-} from "@/lib/api/rest/workflow/workflow"
+} from "@/lib/api/rest/workflow"
 
 interface WorkflowPanelProps {
   processInstanceId?: string

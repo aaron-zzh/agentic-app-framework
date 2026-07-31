@@ -12,8 +12,8 @@ import {
   DialogTrigger
 } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import type { GenerationTemplateVO } from "@/lib/api/rest/ai/generation-template"
-import { listPublicTemplates, markTemplateUsed } from "@/lib/api/rest/ai/generation-template"
+import type { GenerationTemplateVO } from "@/lib/api/rest/ai"
+import { listPublicTemplates, markTemplateUsed } from "@/lib/api/rest/ai"
 import { cn } from "@/lib/utils/cn"
 
 interface PromptTemplateDialogProps {

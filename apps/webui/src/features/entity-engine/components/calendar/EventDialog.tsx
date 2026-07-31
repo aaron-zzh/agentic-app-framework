@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useEntityDelete, useEntityMutation } from "@/lib/queries/use-entity-mutations"
+import { useEntityDelete, useEntityMutation } from "@/lib/api/rest/entity"
 
 import type { EntityDef } from "../../types"
 

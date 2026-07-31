@@ -26,7 +26,7 @@ import {
   Wand2
 } from "lucide-react"
 import Link from "next/link"
-import type { ShortcutWidgetConfig } from "@/lib/api/rest/dashboard/dashboard"
+import type { ShortcutWidgetConfig } from "@/lib/api/rest/dashboard"
 import { cn } from "@/lib/utils/cn"
 
 interface ShortcutWidgetProps {

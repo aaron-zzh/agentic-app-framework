@@ -8,7 +8,7 @@
 import { useRouter } from "next/navigation"
 import { use, useEffect } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useAigcProject } from "@/lib/api/rest/ai/aigc-project"
+import { useAigcProject } from "@/lib/api/rest/ai"
 
 /** 项目类型 → 工作台子路由 */
 const TYPE_ROUTE: Record<string, string> = {

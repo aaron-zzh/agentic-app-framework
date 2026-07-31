@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation"
 import { PageContainer } from "@/components/common/PageContainer"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useDocument } from "@/lib/api/rest/system/document"
+import { useDocument } from "@/lib/api/rest/system"
 import { DocEditForm } from "../../DocEditForm"
 
 export default function DocEditPage() {

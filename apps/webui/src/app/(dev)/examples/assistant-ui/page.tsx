@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/select"
 import { TypographyH1, TypographyMuted } from "@/components/ui/typography"
 import { postAiStream } from "@/lib/api/ai-stream"
-import { type AiModelVO, listTextModels } from "@/lib/api/rest/ai/ai-model"
+import { type AiModelVO, listTextModels } from "@/lib/api/rest/ai"
 
 export default function AssistantUIExamplePage() {
   const [models, setModels] = useState<AiModelVO[]>([])

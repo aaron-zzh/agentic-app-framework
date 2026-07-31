@@ -7,7 +7,7 @@
 
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import type { EntityDefRecord } from "@/lib/api/rest/entity/entity-def"
+import type { EntityDefRecord } from "@/lib/api/rest/entity"
 import { cn } from "@/lib/utils/cn"
 
 interface EntityDefListProps {

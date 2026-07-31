@@ -15,8 +15,8 @@ import {
   useExternalStoreRuntime
 } from "@assistant-ui/react"
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
-import type { ChatMessageVO } from "@/lib/api/rest/ai/chat"
-import { useChatMessages } from "@/lib/api/rest/ai/chat"
+import type { ChatMessageVO } from "@/lib/api/rest/ai"
+import { useChatMessages } from "@/lib/api/rest/ai"
 import { useWebSocket } from "@/lib/hooks/use-websocket"
 import type { IMRuntimeConfig } from "./runtime"
 

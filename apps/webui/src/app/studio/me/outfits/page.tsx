@@ -17,7 +17,7 @@ import {
   useEquipOutfit,
   useMyAvatarInventory,
   usePurchaseOutfit
-} from "@/lib/api/rest/ai/avatar-outfit"
+} from "@/lib/api/rest/ai"
 import { cn } from "@/lib/utils/index"
 
 const RARITY_TONE: Record<string, "violet" | "cyan" | "emerald" | "amber"> = {

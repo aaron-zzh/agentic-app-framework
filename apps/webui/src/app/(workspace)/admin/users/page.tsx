@@ -40,7 +40,7 @@ import {
   type UserListParams,
   type UserVO,
   useAdminUserList
-} from "@/lib/api/rest/admin/user"
+} from "@/lib/api/rest/admin"
 import { notify } from "@/lib/notification"
 
 export default function AdminUserPage() {

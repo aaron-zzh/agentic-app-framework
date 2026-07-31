@@ -33,7 +33,7 @@ import {
   useIncrementRunCount,
   useWorkflowTemplate,
   type WorkflowStep
-} from "@/lib/api/rest/workflow/workflow-templates"
+} from "@/lib/api/rest/workflow"
 import { cn } from "@/lib/utils"
 
 const STEP_ICONS: Record<WorkflowStep["kind"], typeof FileText> = {

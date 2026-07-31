@@ -29,7 +29,7 @@ import {
 } from "@/features/entity-engine/components/list"
 import type { DataFieldDef, EntityDef } from "@/features/entity-engine/types"
 import { type CrudMeta, fromEntityDef, useCrudMeta } from "@/lib/api/rest/crud"
-import { useFilterParams } from "@/lib/queries/use-filter-params"
+import { useFilterParams } from "@/lib/api/rest/entity"
 import { cn } from "@/lib/utils/cn"
 
 interface ToolbarProps {

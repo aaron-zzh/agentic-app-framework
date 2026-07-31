@@ -17,7 +17,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useMyInviteHistory } from "@/lib/api/rest/brokerage/invite"
+import { useMyInviteHistory } from "@/lib/api/rest/brokerage"
 import { cn } from "@/lib/utils/cn"
 
 const PAGE_SIZE = 20

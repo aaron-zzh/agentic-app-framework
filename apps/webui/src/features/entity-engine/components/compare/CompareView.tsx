@@ -21,7 +21,7 @@ import { useCallback, useId, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { useEntityDelete, useEntityMutation } from "@/lib/queries/use-entity-mutations"
+import { useEntityDelete, useEntityMutation } from "@/lib/api/rest/entity"
 
 import type { EntityDef, FieldDef } from "../../types"
 import { CompareFieldRow, type CompareStatus } from "./CompareFieldRow"

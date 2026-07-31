@@ -31,7 +31,7 @@ import {
   useImportDocs,
   usePublishDocument,
   useUnpublishDocument
-} from "@/lib/api/rest/system/document"
+} from "@/lib/api/rest/system"
 import { paths } from "@/lib/constants/paths"
 import { useDocEvents } from "@/lib/hooks/use-doc-events"
 import type { DocTreeNode } from "@/lib/types/document"

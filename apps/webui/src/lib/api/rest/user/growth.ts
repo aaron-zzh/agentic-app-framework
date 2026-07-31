@@ -5,7 +5,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
-import { invalidateCreditQueries } from "@/lib/api/rest/billing/credits"
+import { invalidateCreditQueries } from "@/lib/api/rest/billing"
 
 import { backendApi } from "../backend-client"
 

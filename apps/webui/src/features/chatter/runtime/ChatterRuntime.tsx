@@ -15,7 +15,7 @@ import type { ChatterTarget } from "@/features/chatter/types"
 import { LivechatProvider } from "@/features/livechat/LivechatProvider"
 import { AgUiChatProvider } from "@/features/livechat/runtime/ag-ui-runtime"
 import { buildApiUrl } from "@/lib/api/config"
-import { chatApi } from "@/lib/api/rest/ai/chat"
+import { chatApi } from "@/lib/api/rest/ai"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { useChatterStore } from "@/lib/store/chatter-store"
 

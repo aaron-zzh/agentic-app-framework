@@ -10,7 +10,7 @@ import { useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { BaseChart, type EChartsOption } from "@/features/stats/charts/BaseChart"
-import { useCreditsByCategory } from "@/lib/api/rest/dashboard/credits-analytics"
+import { useCreditsByCategory } from "@/lib/api/rest/dashboard"
 
 const COLORS = ["#3b82f6", "#f59e0b", "#10b981", "#8b5cf6", "#ef4444", "#06b6d4"]
 

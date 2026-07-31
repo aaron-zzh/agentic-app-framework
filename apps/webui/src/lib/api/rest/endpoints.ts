@@ -1,4 +1,4 @@
-import type { DictDataVO } from "@/lib/api/rest/admin/dict"
+import type { DictDataVO } from "@/lib/api/rest/admin"
 import type { CrudResource } from "@/lib/api/rest/crud/client"
 import type { MenuVO } from "@/lib/api/rest/user"
 

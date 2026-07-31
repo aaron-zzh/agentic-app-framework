@@ -11,8 +11,8 @@ import { useQuery } from "@tanstack/react-query"
 import { ArrowRight, CheckSquare, FolderKanban, Sparkles, Wallet } from "lucide-react"
 import Link from "next/link"
 import { DataCapsule } from "@/components/studio"
-import { useCreditBalance } from "@/lib/api/rest/billing/credits"
-import { request } from "@/lib/api/rest/entity/crud"
+import { useCreditBalance } from "@/lib/api/rest/billing"
+import { request } from "@/lib/api/rest/entity"
 
 function useTodayTaskCount() {
   return useQuery({

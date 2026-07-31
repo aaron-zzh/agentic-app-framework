@@ -16,7 +16,7 @@ import { GlassCard, GlowButton, NeonChip } from "@/components/studio"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { GenerationResultCard } from "@/features/aigc/generation/GenerationResultCard"
-import { request } from "@/lib/api/rest/entity/crud"
+import { request } from "@/lib/api/rest/entity"
 import { type AigcTaskEvent, useAigcTaskStream } from "@/lib/hooks/use-aigc-task-stream"
 import { notify } from "@/lib/notification"
 

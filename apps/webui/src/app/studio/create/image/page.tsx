@@ -29,7 +29,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { GenerationResultCard } from "@/features/aigc/generation/GenerationResultCard"
 import { PromptTemplateDialog } from "@/features/aigc/generation/PromptTemplateDialog"
 import { API_ORIGIN } from "@/lib/api/config"
-import { useGenerateImage } from "@/lib/api/rest/ai/aigc-task"
+import { useGenerateImage } from "@/lib/api/rest/ai"
 import { type AigcTaskEvent, useAigcTaskStream } from "@/lib/hooks/use-aigc-task-stream"
 import { useEstimateAigcCredits } from "@/lib/hooks/use-estimate-aigc-credits"
 import { useFileUpload } from "@/lib/hooks/use-file-upload"

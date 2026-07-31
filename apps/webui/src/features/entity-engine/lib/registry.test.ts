@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest"
 
-import type { EntityResourceDescriptor } from "@/lib/api/rest/entity/entity-def"
+import type { EntityResourceDescriptor } from "@/lib/api/rest/entity"
 import type { EntityDef } from "../types"
 import { entityRegistry } from "./registry"
 

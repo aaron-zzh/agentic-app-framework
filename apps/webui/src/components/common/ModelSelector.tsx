@@ -22,7 +22,7 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
-import type { AiModelVO } from "@/lib/api/rest/ai/ai-model"
+import type { AiModelVO } from "@/lib/api/rest/ai"
 import type { ModelOption } from "@/lib/hooks/use-model-selector"
 
 interface ModelSelectorProps {
