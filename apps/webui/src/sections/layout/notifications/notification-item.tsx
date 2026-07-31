@@ -7,7 +7,7 @@
 
 import { ArrowRight } from "lucide-react"
 import Link from "next/link"
-import type { NotificationItem as NotificationItemType } from "@/lib/api/rest/user/notification"
+import type { NotificationItem as NotificationItemType } from "@/lib/api/rest/user"
 import { cn } from "@/lib/utils/cn"
 import { formatTimeAgo } from "@/lib/utils/time"
 import { NotificationIcon } from "./icons"

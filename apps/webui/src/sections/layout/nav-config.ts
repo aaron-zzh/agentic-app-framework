@@ -6,7 +6,7 @@
  * API 失败时 fallback 到 buildNavConfig()（仅保留核心入口）
  */
 
-import type { MenuVO } from "@/lib/api/rest/user/menu"
+import type { MenuVO } from "@/lib/api/rest/user"
 import { paths } from "@/lib/constants/paths"
 
 export interface NavItem {

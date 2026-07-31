@@ -11,7 +11,7 @@ import { useMemo } from "react"
 import { Brand } from "@/components/brand/Brand"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useLicenseStatus } from "@/lib/api/rest/billing/license"
-import { useUserMenus } from "@/lib/api/rest/user/menu"
+import { useUserMenus } from "@/lib/api/rest/user"
 import { cn } from "@/lib/utils/cn"
 import {
   buildNavConfig,

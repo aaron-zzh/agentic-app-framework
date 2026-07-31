@@ -14,7 +14,7 @@ import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { FieldText } from "@/components/form/field-text"
 import { Form } from "@/components/form/form"
-import { authApi } from "@/lib/api/rest/user/auth"
+import { authApi } from "@/lib/api/rest/user"
 import { paths } from "@/lib/constants/paths"
 import { notify } from "@/lib/notification"
 

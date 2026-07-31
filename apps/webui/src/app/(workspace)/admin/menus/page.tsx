@@ -49,8 +49,8 @@ import {
   TableRow
 } from "@/components/ui/table"
 import { TypographyH1 } from "@/components/ui/typography"
-import type { MenuCreateDTO, MenuVO } from "@/lib/api/rest/user/menu"
-import { useAllMenus, useCreateMenu, useDeleteMenu, useUpdateMenu } from "@/lib/api/rest/user/menu"
+import type { MenuCreateDTO, MenuVO } from "@/lib/api/rest/user"
+import { useAllMenus, useCreateMenu, useDeleteMenu, useUpdateMenu } from "@/lib/api/rest/user"
 import { cn } from "@/lib/utils/cn"
 
 /** 菜单类型标签颜色 */

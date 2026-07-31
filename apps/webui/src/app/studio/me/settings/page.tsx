@@ -25,11 +25,11 @@ import type {
   ChannelConfig,
   NotificationChannel,
   NotificationPreference
-} from "@/lib/api/rest/user/notification-preference"
+} from "@/lib/api/rest/user"
 import {
   useNotificationPreference,
   useUpdateNotificationPreference
-} from "@/lib/api/rest/user/notification-preference"
+} from "@/lib/api/rest/user"
 import { notify } from "@/lib/notification"
 
 const BUSSINESS_CATEGORIES = ["system", "task", "mention", "subscription"] as const

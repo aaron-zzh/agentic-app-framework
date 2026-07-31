@@ -10,7 +10,7 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { setBackendOrgId } from "@/lib/api/rest/backend-client"
-import type { OrganizationVO } from "@/lib/api/rest/user/organization"
+import type { OrganizationVO } from "@/lib/api/rest/user"
 
 interface OrgState {
   /** 当前选中的组织 ID */

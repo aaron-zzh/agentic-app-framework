@@ -15,12 +15,12 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import type { NotificationItem } from "@/lib/api/rest/user/notification"
+import type { NotificationItem } from "@/lib/api/rest/user"
 import {
   useMarkRead,
   useNotifications,
   useRemoveNotifications
-} from "@/lib/api/rest/user/notification"
+} from "@/lib/api/rest/user"
 import { notify } from "@/lib/notification"
 import { cn } from "@/lib/utils/index"
 import { formatTimeAgo } from "@/lib/utils/time"

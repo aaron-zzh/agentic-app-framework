@@ -15,13 +15,13 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { authApi } from "@/lib/api/rest/user/auth"
+import { authApi } from "@/lib/api/rest/user"
 import {
   profileApi,
   profileQueries,
   useChangePassword,
   useProfile
-} from "@/lib/api/rest/user/profile"
+} from "@/lib/api/rest/user"
 import { notify } from "@/lib/notification"
 
 const schema = z

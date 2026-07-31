@@ -7,7 +7,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation"
 import { Suspense, useEffect, useRef, useState } from "react"
-import { authApi } from "@/lib/api/rest/user/auth"
+import { authApi } from "@/lib/api/rest/user"
 import { paths } from "@/lib/constants/paths"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { clearRefCode, readRefCode } from "@/lib/utils/ref-code"

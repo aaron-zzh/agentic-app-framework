@@ -8,7 +8,7 @@
 import { User } from "lucide-react"
 import { DataCapsule, GlassCard } from "@/components/studio"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useProfile } from "@/lib/api/rest/user/profile"
+import { useProfile } from "@/lib/api/rest/user"
 
 export default function ProfileToolPage() {
   const { data: profile, isLoading } = useProfile()

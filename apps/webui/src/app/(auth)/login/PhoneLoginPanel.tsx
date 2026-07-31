@@ -18,7 +18,7 @@ import { FieldOtp } from "@/components/form/field-otp"
 import { FieldText } from "@/components/form/field-text"
 import { Form } from "@/components/form/form"
 import { Button } from "@/components/ui/button"
-import { authApi } from "@/lib/api/rest/user/auth"
+import { authApi } from "@/lib/api/rest/user"
 import { notify } from "@/lib/notification"
 import { clearRefCode, readRefCode } from "@/lib/utils/ref-code"
 

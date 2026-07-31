@@ -18,11 +18,11 @@ import type {
   ChannelConfig,
   NotificationChannel,
   NotificationPreference
-} from "@/lib/api/rest/user/notification-preference"
+} from "@/lib/api/rest/user"
 import {
   useNotificationPreference,
   useUpdateNotificationPreference
-} from "@/lib/api/rest/user/notification-preference"
+} from "@/lib/api/rest/user"
 import { notify } from "@/lib/notification"
 
 // ─── Activity + Application 分组开关（对标参考实现） ─────────────────────────

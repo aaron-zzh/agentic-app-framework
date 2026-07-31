@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { UploadAvatar } from "@/components/upload"
-import { useProfile, useUpdateProfile } from "@/lib/api/rest/user/profile"
+import { useProfile, useUpdateProfile } from "@/lib/api/rest/user"
 import { useAuth } from "@/lib/auth/use-auth"
 import { notify } from "@/lib/notification"
 

@@ -1,6 +1,6 @@
 import type { DictDataVO } from "@/lib/api/rest/admin/dict"
 import type { CrudResource } from "@/lib/api/rest/crud/client"
-import type { MenuVO } from "@/lib/api/rest/user/menu"
+import type { MenuVO } from "@/lib/api/rest/user"
 
 export const crudResources = {
   system: {

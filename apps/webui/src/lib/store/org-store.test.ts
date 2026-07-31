@@ -4,7 +4,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import type { OrganizationVO } from "@/lib/api/rest/user/organization"
+import type { OrganizationVO } from "@/lib/api/rest/user"
 
 vi.mock("@/lib/api/rest/backend-client", () => ({
   setBackendOrgId: vi.fn()

@@ -12,7 +12,7 @@ import { ArrowRight, Trophy } from "lucide-react"
 import Link from "next/link"
 import { GlassCard, NeonChip } from "@/components/studio"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useGrowthTasks } from "@/lib/api/rest/user/growth"
+import { useGrowthTasks } from "@/lib/api/rest/user"
 
 export function HomeGrowthTasks() {
   const { data: tasks, isLoading } = useGrowthTasks()

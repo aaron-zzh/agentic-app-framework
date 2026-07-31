@@ -16,7 +16,7 @@ import {
   type UserFavoriteVO,
   useRemoveFavorite,
   useUserFavorites
-} from "@/lib/api/rest/user/favorite"
+} from "@/lib/api/rest/user"
 
 const TARGET_TYPE_LABELS: Record<string, string> = {
   DOC: "文档",
