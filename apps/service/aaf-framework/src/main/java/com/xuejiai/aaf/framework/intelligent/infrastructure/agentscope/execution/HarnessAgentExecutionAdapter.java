@@ -208,17 +208,17 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                         false);
             }
             case SubagentSpec.Dynamic dynamic -> {
-                var parentModel =
-                        command.parentModel()
+                var executionModel =
+                        command.executionModel()
                                 .orElseThrow(
-                                        () -> new IllegalArgumentException("Dynamic 子智能体缺少父模型"));
+                                        () -> new IllegalArgumentException("Dynamic 子智能体缺少执行模型"));
                 yield new ResolvedExecution(
                         compiler.compileDynamic(
                                 dynamic,
-                                parentModel,
+                                executionModel,
                                 command.skillSystemPromptAppendix(),
                                 command.roleAllowedToolNames()),
-                        parentModel,
+                        executionModel,
                         dynamic.identifier(),
                         dynamic.executionPolicy(),
                         true);

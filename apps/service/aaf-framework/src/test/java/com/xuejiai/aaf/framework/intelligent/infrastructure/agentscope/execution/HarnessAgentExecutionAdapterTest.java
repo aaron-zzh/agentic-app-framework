@@ -61,7 +61,7 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
 
     private HarnessAgentExecutionAdapter adapter;
     private RuntimeContext runtimeContext;
-    private ModelSpec parentModel;
+    private ModelSpec executionModel;
 
     @BeforeEach
     void setUp() {
@@ -77,7 +77,7 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
                         leases,
                         delegatedTasks);
         runtimeContext = RuntimeContext.builder().build();
-        parentModel = new ModelSpec("1");
+        executionModel = new ModelSpec("1");
         when(invocationContext.controlMode()).thenReturn(ControlMode.READ_ONLY);
         when(invocationContext.executionId()).thenReturn(new ExecutionId("execution-test"));
         when(contextMapper.toAgentScope(invocationContext)).thenReturn(runtimeContext);
@@ -128,10 +128,12 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
                         "只执行测试任务",
                         List.of(),
                         new ExecutionPolicy(3, 1, timeout),
+                        com.xuejiai.aaf.framework.intelligent.agent.model.ModelSelectionRequirement
+                                .balanced(),
                         false);
         return new AgentExecutionCommand(
                 dynamic,
-                Optional.of(parentModel),
+                Optional.of(executionModel),
                 "技能提示",
                 Set.of(),
                 0,
@@ -149,7 +151,7 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
             AgentExecutionCommand command, Flux<io.agentscope.core.event.AgentEvent> events) {
         when(compiler.compileDynamic(
                         (SubagentSpec.Dynamic) command.subagentSpec(),
-                        parentModel,
+                        executionModel,
                         command.skillSystemPromptAppendix(),
                         command.roleAllowedToolNames()))
                 .thenReturn(agent);

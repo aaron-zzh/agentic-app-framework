@@ -1,0 +1,65 @@
+/**
+ * Chatter AG-UI 路径与 HttpAgent.initialState 纯构造逻辑。
+ * @author AaronZZH & Kiro
+ */
+
+import {
+  type ChatterTarget,
+  DEFAULT_TASK_MODEL_SELECTION,
+  type TaskModelSelection
+} from "@/features/chatter/types"
+
+export const DEFAULT_CHATTER_ASSISTANT_ID = "system.assistant.content-creator"
+export const DEFAULT_CHATTER_ASSISTANT_VERSION = 1
+
+interface ChatterPageRuntimeConfig {
+  preset?: string
+  agentRole?: string
+}
+
+interface BuildChatterInitialStateOptions {
+  target: ChatterTarget
+  currentPageId?: string | null
+  pageConfig?: ChatterPageRuntimeConfig
+  isAuthenticated: boolean
+  taskModelSelection?: TaskModelSelection
+}
+
+/** 构建传给 HttpAgent.initialState 的 Chatter 状态。 */
+export function buildChatterInitialState({
+  target,
+  currentPageId,
+  pageConfig,
+  isAuthenticated,
+  taskModelSelection
+}: BuildChatterInitialStateOptions): Record<string, unknown> {
+  const usesAssistantRuntime = isAuthenticated && target.type === "ai"
+  const effectiveTaskModelSelection = usesAssistantRuntime
+    ? (taskModelSelection ?? DEFAULT_TASK_MODEL_SELECTION)
+    : undefined
+  const assistantId =
+    target.assistantId ?? (usesAssistantRuntime ? DEFAULT_CHATTER_ASSISTANT_ID : undefined)
+  const assistantVersion =
+    target.assistantVersion ?? (assistantId ? DEFAULT_CHATTER_ASSISTANT_VERSION : undefined)
+
+  return {
+    pageId: currentPageId,
+    preset: pageConfig?.preset,
+    ...(isAuthenticated ? {} : { agentRole: target.agentRole ?? pageConfig?.agentRole }),
+    ...(assistantId ? { assistantId, assistantVersion } : {}),
+    ...(effectiveTaskModelSelection
+      ? { taskModelSelection: effectiveTaskModelSelection }
+      : {})
+  }
+}
+
+/** 解析 Chatter 使用的 AG-UI API 路径。 */
+export function resolveChatterAguiPath(target: ChatterTarget, isAuthenticated: boolean): string {
+  if (target.type === "kiro") {
+    return "/autodev/kiro/run"
+  }
+  if (isAuthenticated) {
+    return "/agui/run"
+  }
+  return `/agui/run/${target.agentRole ?? "customer-service"}`
+}

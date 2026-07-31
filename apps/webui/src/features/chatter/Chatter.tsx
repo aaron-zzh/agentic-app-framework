@@ -32,8 +32,10 @@ import type {
   ChatterDropItem,
   ChatterProps,
   ChatterTarget,
-  ChatterLayout as LayoutType
+  ChatterLayout as LayoutType,
+  TaskModelSelection
 } from "./types"
+import { DEFAULT_TASK_MODEL_SELECTION } from "./types"
 
 /** 根据 preset 和 props 生成初始 target */
 function presetToTarget(props: ChatterProps): ChatterTarget {
@@ -83,7 +85,9 @@ export function Chatter(props: ChatterProps) {
   const [target, setTarget] = useState<ChatterTarget>(() => presetToTarget(props))
   const [isOpen, setIsOpen] = useState(open ?? (effectiveLayout === "dialog" && !isAuthenticated))
   const [attachments, setAttachments] = useState<ChatterDropItem[]>([])
-  const [modelId, setModelId] = useState<string>("")
+  const [taskModelSelection, setTaskModelSelection] = useState<TaskModelSelection>(
+    DEFAULT_TASK_MODEL_SELECTION
+  )
 
   useEffect(() => {
     setMounted(true)
@@ -123,8 +127,15 @@ export function Chatter(props: ChatterProps) {
   // 避免 SSR 时 isAuthenticated=false 导致 panel 降级为 dialog 产生闪烁
   if (!mounted && (layout === "panel" || layout === "page")) return null
 
+  const taskModelSelectionEnabled = preset === "ai" && target.type === "ai" && isAuthenticated
+
   return (
-    <ChatterRuntime target={target} persist={persist} sessionId={props.sessionId} modelId={modelId}>
+    <ChatterRuntime
+      target={target}
+      persist={persist}
+      sessionId={props.sessionId}
+      taskModelSelection={taskModelSelectionEnabled ? taskModelSelection : undefined}
+    >
       <ChatterLayout
         layout={effectiveLayout}
         open={open ?? isOpen}
@@ -150,9 +161,9 @@ export function Chatter(props: ChatterProps) {
           attachments={attachments}
           onAttachmentRemove={handleAttachmentRemove}
           onAttachmentAdd={(item) => setAttachments((prev) => [...prev, item])}
-          modelId={modelId}
-          onModelChange={setModelId}
-          showModelSelector={preset !== "guest" && preset !== "livechat"}
+          taskModelSelection={taskModelSelection}
+          onTaskModelSelectionChange={setTaskModelSelection}
+          showModelSelector={taskModelSelectionEnabled}
         />
       </ChatterLayout>
     </ChatterRuntime>

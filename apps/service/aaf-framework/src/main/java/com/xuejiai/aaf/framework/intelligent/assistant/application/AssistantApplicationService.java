@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -16,6 +17,7 @@ import java.util.stream.Collectors;
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentExecutionCommand;
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentMessage;
 import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
+import com.xuejiai.aaf.framework.intelligent.agent.model.ModelSelectionRequirement;
 import com.xuejiai.aaf.framework.intelligent.agent.model.SubagentSpec;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolAuthorizationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolAuthorizationContext.ToolAuthorizationRule;
@@ -808,15 +810,29 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         "user:" + command.runId().value(),
                         AgentMessage.Role.USER,
                         command.input()));
-        var parentModel =
+        var executionModel =
                 switch (route.subagentSpec()) {
                     case SubagentSpec.Predefined ignored -> Optional.<ModelSpec>empty();
-                    case SubagentSpec.Dynamic ignored -> {
-                        // Dynamic 现场构造没有持久化模型，继承当前系统 CHAT 模型。
-                        var selectedModel =
-                                models.resolve(
-                                        CapabilityRoutingContext.ofCapability(
-                                                null, CapabilityRoutingContext.CAP_CHAT));
+                    case SubagentSpec.Dynamic dynamic -> {
+                        var selection = command.taskModelSelection();
+                        var routingContext =
+                                switch (selection.mode()) {
+                                    case EXPLICIT ->
+                                            CapabilityRoutingContext.of(
+                                                    preferenceUserId(command.userId().value()),
+                                                    CapabilityRoutingContext.CAP_CHAT,
+                                                    selection.modelId());
+                                    case AUTO ->
+                                            new CapabilityRoutingContext(
+                                                    preferenceUserId(command.userId().value()),
+                                                    CapabilityRoutingContext.CAP_CHAT,
+                                                    null,
+                                                    null,
+                                                    taskFeatures(
+                                                            dynamic.modelRequirement(),
+                                                            command.input()));
+                                };
+                        var selectedModel = models.resolve(routingContext);
                         yield Optional.of(
                                 new ModelSpec(
                                         Objects.requireNonNull(
@@ -826,12 +842,32 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 };
         return new AgentExecutionCommand(
                 route.subagentSpec(),
-                parentModel,
+                executionModel,
                 skillSystemPromptAppendix,
                 roleAllowedToolNames,
                 sequenceBase,
                 messages,
                 context);
+    }
+
+    private static Long preferenceUserId(String value) {
+        try {
+            var userId = Long.parseLong(value);
+            return userId > 0 ? userId : null;
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private static Map<String, Object> taskFeatures(
+            ModelSelectionRequirement requirement, String input) {
+        return Map.of(
+                CapabilityRoutingContext.FEATURE_REASONING_REQUIRED,
+                requirement.reasoningRequired(),
+                CapabilityRoutingContext.FEATURE_COST_SENSITIVE,
+                requirement.costSensitive(),
+                CapabilityRoutingContext.FEATURE_INPUT_LENGTH,
+                input.codePointCount(0, input.length()));
     }
 
     static String mergeSkillPrompts(List<SkillDef> skills) {

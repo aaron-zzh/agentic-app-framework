@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.xuejiai.aaf.framework.intelligent.agent.model.ExecutionPolicy;
+import com.xuejiai.aaf.framework.intelligent.agent.model.ModelSelectionRequirement;
 import com.xuejiai.aaf.framework.intelligent.agent.model.SubagentSpec;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolRef;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Actor;
@@ -81,6 +82,7 @@ public final class BuiltinSystemAssistantTemplates implements SystemAssistantTem
                                 new ToolRef("content.generate", 1, "content.generate"),
                                 new ToolRef("content.draft.create", 1, "content.draft.create")),
                         new ExecutionPolicy(10, 2, Duration.ofSeconds(120)),
+                        ModelSelectionRequirement.reasoning(),
                         false);
         var routes =
                 List.of(
@@ -163,6 +165,7 @@ public final class BuiltinSystemAssistantTemplates implements SystemAssistantTem
                                         "support.diagnostics.read", 1, "support.diagnostics.read"),
                                 new ToolRef("support.handoff", 1, "support.handoff")),
                         new ExecutionPolicy(8, 2, Duration.ofSeconds(90)),
+                        ModelSelectionRequirement.costOptimized(),
                         false);
         var routes =
                 List.of(

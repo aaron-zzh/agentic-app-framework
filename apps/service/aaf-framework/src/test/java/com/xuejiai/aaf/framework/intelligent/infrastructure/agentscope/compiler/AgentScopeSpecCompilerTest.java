@@ -148,7 +148,7 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
         var search = tool("knowledge.search");
         var generate = tool("content.generate");
         var spec = dynamicSpec(List.of(search, generate));
-        var parentModel = new ModelSpec("1");
+        var executionModel = new ModelSpec("1");
         var executor = Executors.newFixedThreadPool(2);
         HarnessAgent searchAgent = null;
         HarnessAgent generateAgent = null;
@@ -157,13 +157,13 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
                     CompletableFuture.supplyAsync(
                             () ->
                                     compiler.compileDynamic(
-                                            spec, parentModel, "技能 A", Set.of(search.name())),
+                                            spec, executionModel, "技能 A", Set.of(search.name())),
                             executor);
             var generateFuture =
                     CompletableFuture.supplyAsync(
                             () ->
                                     compiler.compileDynamic(
-                                            spec, parentModel, "技能 B", Set.of(generate.name())),
+                                            spec, executionModel, "技能 B", Set.of(generate.name())),
                             executor);
 
             searchAgent = searchFuture.join();
@@ -203,7 +203,14 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
 
     private SubagentSpec.Dynamic dynamicSpec(List<ToolRef> tools) {
         return new SubagentSpec.Dynamic(
-                "agent.dynamic-test", "验证动态执行画像", "动态基础提示", tools, policy(), false);
+                "agent.dynamic-test",
+                "验证动态执行画像",
+                "动态基础提示",
+                tools,
+                policy(),
+                com.xuejiai.aaf.framework.intelligent.agent.model.ModelSelectionRequirement
+                        .balanced(),
+                false);
     }
 
     private ExecutionPolicy policy() {

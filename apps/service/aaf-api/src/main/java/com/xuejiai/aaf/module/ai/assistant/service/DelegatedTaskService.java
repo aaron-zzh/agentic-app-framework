@@ -15,6 +15,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.Source;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.Status;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionInput;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskModelSelection;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskBoardPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.MemorySubject;
@@ -159,6 +160,7 @@ public class DelegatedTaskService {
                 input,
                 CompletionCriteria.responseDelivered(),
                 List.of(),
+                TaskModelSelection.auto(),
                 now);
     }
 

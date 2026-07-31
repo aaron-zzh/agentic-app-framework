@@ -10,7 +10,7 @@ import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
 /** 一次可恢复 Agent 回合的纯 AAF 输入。 */
 public record AgentExecutionCommand(
         SubagentSpec subagentSpec,
-        Optional<ModelSpec> parentModel,
+        Optional<ModelSpec> executionModel,
         String skillSystemPromptAppendix,
         Set<String> roleAllowedToolNames,
         long sequenceBase,
@@ -19,7 +19,7 @@ public record AgentExecutionCommand(
 
     public AgentExecutionCommand {
         Objects.requireNonNull(subagentSpec, "subagentSpec 不能为空");
-        parentModel = Objects.requireNonNull(parentModel, "parentModel Optional 不能为空");
+        executionModel = Objects.requireNonNull(executionModel, "executionModel Optional 不能为空");
         skillSystemPromptAppendix =
                 Objects.requireNonNull(skillSystemPromptAppendix, "skillSystemPromptAppendix 不能为空")
                         .trim();

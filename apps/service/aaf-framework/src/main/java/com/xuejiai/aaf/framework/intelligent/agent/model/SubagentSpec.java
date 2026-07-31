@@ -33,6 +33,7 @@ public sealed interface SubagentSpec permits SubagentSpec.Predefined, SubagentSp
             String systemPromptFragment,
             List<ToolRef> tools,
             ExecutionPolicy executionPolicy,
+            ModelSelectionRequirement modelRequirement,
             boolean inheritParentTools)
             implements SubagentSpec {
 
@@ -42,6 +43,7 @@ public sealed interface SubagentSpec permits SubagentSpec.Predefined, SubagentSp
             systemPromptFragment = requireText(systemPromptFragment, "systemPromptFragment");
             tools = List.copyOf(Objects.requireNonNull(tools, "tools 不能为空"));
             Objects.requireNonNull(executionPolicy, "executionPolicy 不能为空");
+            Objects.requireNonNull(modelRequirement, "modelRequirement 不能为空");
         }
 
         @Override

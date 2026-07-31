@@ -1,62 +1,73 @@
 /**
- * ChatterRuntime 单元测试——验证错误分类和端点 URL 构建
+ * ChatterRuntime 纯状态单元测试
+ * @author AaronZZH & Kiro
  */
 
 import { describe, expect, it } from "vitest"
+import { type ChatterTarget, DEFAULT_TASK_MODEL_SELECTION } from "@/features/chatter/types"
+import {
+  buildChatterInitialState,
+  DEFAULT_CHATTER_ASSISTANT_ID,
+  DEFAULT_CHATTER_ASSISTANT_VERSION,
+  resolveChatterAguiPath
+} from "./chatter-runtime-state"
 
-// 直接测试 classifyError 和 getEndpointUrl 的逻辑（提取为纯函数测试）
-// 由于这些是模块内部函数，我们测试其行为等价逻辑
+const aiTarget: ChatterTarget = { type: "ai" }
 
-describe("ChatterRuntime 错误分类", () => {
-  function classifyError(error: Error): string {
-    const msg = error.message.toLowerCase()
-    if (msg.includes("network") || msg.includes("fetch") || msg.includes("failed to fetch")) {
-      return "网络连接异常，请检查网络后重试"
-    }
-    if (msg.includes("429") || msg.includes("rate limit")) {
-      return "请求配额超限，请稍后再试"
-    }
-    if (msg.includes("500") || msg.includes("internal")) {
-      return "服务异常，请稍后再试"
-    }
-    return "对话出现错误，请重试"
-  }
-
-  it("网络错误应返回网络提示", () => {
-    expect(classifyError(new Error("Failed to fetch"))).toContain("网络")
+describe("Chatter 任务模型 initialState", () => {
+  it("默认任务模型选择应为 AUTO", () => {
+    expect(DEFAULT_TASK_MODEL_SELECTION).toEqual({ mode: "AUTO" })
   })
 
-  it("429 应返回配额提示", () => {
-    expect(classifyError(new Error("429 Too Many Requests"))).toContain("配额")
+  it("AUTO 应发送固定 Assistant 身份且不伪造 modelId", () => {
+    const state = buildChatterInitialState({
+      target: aiTarget,
+      isAuthenticated: true,
+      taskModelSelection: DEFAULT_TASK_MODEL_SELECTION
+    })
+
+    expect(state).toMatchObject({
+      assistantId: DEFAULT_CHATTER_ASSISTANT_ID,
+      assistantVersion: DEFAULT_CHATTER_ASSISTANT_VERSION,
+      taskModelSelection: { mode: "AUTO" }
+    })
+    expect(state).not.toHaveProperty("modelId")
   })
 
-  it("500 应返回服务异常提示", () => {
-    expect(classifyError(new Error("500 Internal Server Error"))).toContain("服务异常")
+  it("EXPLICIT 应在 taskModelSelection 中发送业务 modelId", () => {
+    const state = buildChatterInitialState({
+      target: aiTarget,
+      isAuthenticated: true,
+      taskModelSelection: { mode: "EXPLICIT", modelId: "qwen-plus" }
+    })
+
+    expect(state).toMatchObject({
+      assistantId: DEFAULT_CHATTER_ASSISTANT_ID,
+      assistantVersion: DEFAULT_CHATTER_ASSISTANT_VERSION,
+      taskModelSelection: { mode: "EXPLICIT", modelId: "qwen-plus" }
+    })
   })
 
-  it("未知错误应返回通用提示", () => {
-    expect(classifyError(new Error("unknown"))).toContain("对话出现错误")
+  it("未启用任务模型选择的其他 Chatter 场景不应注入该状态", () => {
+    const state = buildChatterInitialState({
+      target: { type: "ai", agentRole: "customer-service" },
+      isAuthenticated: false
+    })
+
+    expect(state).toMatchObject({ agentRole: "customer-service" })
+    expect(state).not.toHaveProperty("assistantId")
+    expect(state).not.toHaveProperty("taskModelSelection")
   })
 })
 
-describe("ChatterRuntime 端点 URL 构建", () => {
-  function buildAguiUrl(target: { type: string; agentRole?: string }): string {
-    if (target.type === "kiro") return "/api/autodev/kiro/run"
-    const agentId = target.agentRole ?? "assistant"
-    return `/api/agui/run/${agentId}`
-  }
-
-  it("kiro 类型应使用 autodev 独立端点", () => {
-    expect(buildAguiUrl({ type: "kiro" })).toContain("/autodev/kiro/run")
+describe("Chatter AG-UI 路径", () => {
+  it("已登录 AI 应复用 /agui/run", () => {
+    expect(resolveChatterAguiPath(aiTarget, true)).toBe("/agui/run")
   })
 
-  it("ai 类型无 agentRole 应使用 assistant", () => {
-    expect(buildAguiUrl({ type: "ai" })).toContain("/assistant")
-  })
-
-  it("agentRole 应作为 agentId 路径", () => {
-    expect(buildAguiUrl({ type: "ai", agentRole: "customer-service" })).toContain(
-      "/customer-service"
+  it("匿名 AI 应保留按角色区分的路径", () => {
+    expect(resolveChatterAguiPath({ type: "ai", agentRole: "customer-service" }, false)).toBe(
+      "/agui/run/customer-service"
     )
   })
 })

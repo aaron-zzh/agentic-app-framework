@@ -21,7 +21,12 @@ import { ChatterPanel } from "@/features/chatter/layout/ChatterPanel"
 import { GlobalChatterDialog } from "@/features/chatter/layout/GlobalChatterDialog"
 import { ChatterRuntime } from "@/features/chatter/runtime/ChatterRuntime"
 import { ChatterToolbar } from "@/features/chatter/toolbar/ChatterToolbar"
-import type { ChatterDropItem, ChatterTarget } from "@/features/chatter/types"
+import {
+  type ChatterDropItem,
+  type ChatterTarget,
+  DEFAULT_TASK_MODEL_SELECTION,
+  type TaskModelSelection
+} from "@/features/chatter/types"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { useChatterStore } from "@/lib/store/chatter-store"
 
@@ -56,6 +61,11 @@ export function GlobalChatter({ availableModes = [] }: GlobalChatterProps = {}) 
 
   const [target, setTarget] = useState<ChatterTarget>({ type: "ai", agentRole: config.agentRole })
   const [attachments, setAttachments] = useState<ChatterDropItem[]>([])
+  const [taskModelSelection, setTaskModelSelection] = useState<TaskModelSelection>(
+    DEFAULT_TASK_MODEL_SELECTION
+  )
+  const taskModelSelectionEnabled =
+    config.preset === "ai" && target.type === "ai" && isAuthenticated
 
   // 消费全局 DnD
   useEffect(() => {
@@ -161,12 +171,17 @@ export function GlobalChatter({ availableModes = [] }: GlobalChatterProps = {}) 
       attachments={attachments}
       onAttachmentRemove={(i) => setAttachments((prev) => prev.filter((_, idx) => idx !== i))}
       onAttachmentAdd={(item) => setAttachments((prev) => [...prev, item])}
-      showModelSelector={config.preset !== "guest"}
+      taskModelSelection={taskModelSelection}
+      onTaskModelSelectionChange={setTaskModelSelection}
+      showModelSelector={taskModelSelectionEnabled}
     />
   )
 
   return (
-    <ChatterRuntime target={target}>
+    <ChatterRuntime
+      target={target}
+      taskModelSelection={taskModelSelectionEnabled ? taskModelSelection : undefined}
+    >
       {mode === "dialog" && (
         <GlobalChatterDialog
           open={open}

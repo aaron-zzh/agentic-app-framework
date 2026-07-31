@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantCommand;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantVersion;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionCriteria;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskModelSelection;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.MemorySubject;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.SubjectKind;
@@ -80,6 +81,7 @@ public class DefaultChannelAssistantExecutionAdapter implements ChannelAssistant
                         request.input(),
                         CompletionCriteria.responseDelivered(),
                         List.of(),
+                        TaskModelSelection.auto(),
                         request.receivedAt());
 
         var events = assistants.execute(command).collectList().block(EXECUTION_TIMEOUT);

@@ -14,16 +14,15 @@ import { useTaskBoard } from "@/features/chatter/hooks/use-task-board"
 import { TaskBoardPanel } from "@/features/chatter/task/TaskBoardPanel"
 import { ToolConfirmOverlay } from "@/features/chatter/task/ToolConfirmOverlay"
 import { ChatterThread } from "@/features/chatter/thread"
-import type { ChatterDropItem } from "@/features/chatter/types"
-import type { AiModelVO } from "@/lib/api/rest/ai"
+import type { ChatterDropItem, TaskModelSelection } from "@/features/chatter/types"
 
 interface ChatterPanelProps {
   toolbar: ReactNode
   attachments: ChatterDropItem[]
   onAttachmentRemove: (index: number) => void
   onAttachmentAdd: (item: ChatterDropItem) => void
-  modelId?: string
-  onModelChange?: (modelId: string, model: AiModelVO) => void
+  taskModelSelection: TaskModelSelection
+  onTaskModelSelectionChange: (selection: TaskModelSelection) => void
   /** 是否显示模型选择器（未登录 guest preset 应传 false） */
   showModelSelector?: boolean
 }
@@ -33,8 +32,8 @@ export function ChatterPanel({
   attachments,
   onAttachmentRemove,
   onAttachmentAdd,
-  modelId,
-  onModelChange,
+  taskModelSelection,
+  onTaskModelSelectionChange,
   showModelSelector
 }: ChatterPanelProps) {
   const currentThreadId = useAuiState((state) => state.threads.mainThreadId)
@@ -58,8 +57,8 @@ export function ChatterPanel({
               if (attachments[i].type === "text") onAttachmentRemove(i)
             }
           }}
-          modelId={modelId}
-          onModelChange={onModelChange}
+          taskModelSelection={taskModelSelection}
+          onTaskModelSelectionChange={onTaskModelSelectionChange}
           showModelSelector={showModelSelector}
         />
       </DroppableComposer>

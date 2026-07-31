@@ -9,13 +9,33 @@ export interface ModelOption {
 }
 
 interface UseModelSelectorOptions {
-  value?: string
+  value?: string | null
   onChange?: (modelId: string, model: AiModelVO) => void
   autoSelect?: boolean
   defaultValue?: string
 }
 
-export function useModelSelector(capability: string, opts: UseModelSelectorOptions = {}) {
+interface UseModelSelectorResult<TModelId extends string | null> {
+  options: ModelOption[]
+  modelId: TModelId
+  setModelId: (id: string) => void
+  currentModel: AiModelVO | undefined
+  isLoading: boolean
+}
+
+export function useModelSelector(capability: string): UseModelSelectorResult<string>
+export function useModelSelector<TValue extends string | null>(
+  capability: string,
+  opts: UseModelSelectorOptions & { value: TValue }
+): UseModelSelectorResult<TValue>
+export function useModelSelector(
+  capability: string,
+  opts: UseModelSelectorOptions
+): UseModelSelectorResult<string | null>
+export function useModelSelector(
+  capability: string,
+  opts: UseModelSelectorOptions = {}
+): UseModelSelectorResult<string | null> {
   const { value, onChange, autoSelect = true, defaultValue } = opts
 
   const { data: allModels = [], isLoading } = useAiModels(capability)
@@ -28,7 +48,7 @@ export function useModelSelector(capability: string, opts: UseModelSelectorOptio
 
   const isControlled = value !== undefined
   const [internalValue, setInternalValue] = useState<string>(value ?? "")
-  const modelId = isControlled ? value : internalValue
+  const modelId = value !== undefined ? value : internalValue
 
   // capability 切换时清空，让 autoSelect 重新选第一个
   const prevCapability = useRef(capability)

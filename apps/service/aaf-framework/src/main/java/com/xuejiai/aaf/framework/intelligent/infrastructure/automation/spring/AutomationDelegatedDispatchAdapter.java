@@ -7,6 +7,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantComm
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskModelSelection;
 import com.xuejiai.aaf.framework.intelligent.automation.model.AutomationRun;
 import com.xuejiai.aaf.framework.intelligent.automation.port.AutomationPorts.DispatchPort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
@@ -70,6 +71,7 @@ public final class AutomationDelegatedDispatchAdapter implements DispatchPort {
                         renderGoal(template.goal(), run.parameters()),
                         template.completionCriteria(),
                         template.contextCandidates(),
+                        TaskModelSelection.auto(),
                         now);
         coordinator.submit(command, copyBoard(template.board(), taskId));
     }

@@ -13,13 +13,21 @@ export type ChatterPreset = "ai" | "kiro" | "livechat" | "guest"
 /** 布局模式 */
 export type ChatterLayout = "panel" | "dialog" | "drawer" | "page"
 
+/** Dynamic 任务使用的 CHAT LLM 选择。 */
+export type TaskModelSelection = { mode: "AUTO" } | { mode: "EXPLICIT"; modelId: string }
+
+/** Chatter 默认由后端能力路由自动选择任务模型。 */
+export const DEFAULT_TASK_MODEL_SELECTION: TaskModelSelection = { mode: "AUTO" }
+
 /** 对话目标 */
 export interface ChatterTarget {
   type: "ai" | "kiro" | "user"
   agentRole?: string
   userId?: string
-  /** 指定助理 ID（对应后端 Long，由 ConversationContextResolver 从 forwardedProps 读取） */
-  assistantId?: number
+  /** 稳定 Assistant ID，由 AG-UI initialState 发送。 */
+  assistantId?: string
+  /** Assistant 发布版本。 */
+  assistantVersion?: number
 }
 
 /** 拖放数据项 */

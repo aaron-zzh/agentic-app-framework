@@ -42,5 +42,7 @@ export type {
   ChatterLayout,
   ChatterPreset,
   ChatterProps,
-  ChatterTarget
+  ChatterTarget,
+  TaskModelSelection
 } from "./types"
+export { DEFAULT_TASK_MODEL_SELECTION } from "./types"

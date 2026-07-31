@@ -11,32 +11,25 @@
 "use client"
 
 import { type ReactNode, useMemo } from "react"
-import type { ChatterTarget } from "@/features/chatter/types"
+import type { ChatterTarget, TaskModelSelection } from "@/features/chatter/types"
 import { LivechatProvider } from "@/features/livechat/LivechatProvider"
 import { AgUiChatProvider } from "@/features/livechat/runtime/ag-ui-runtime"
 import { buildApiUrl } from "@/lib/api/config"
 import { chatApi } from "@/lib/api/rest/ai"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { useChatterStore } from "@/lib/store/chatter-store"
+import { buildChatterInitialState, resolveChatterAguiPath } from "./chatter-runtime-state"
 
-/** 构建对话端点 URL：kiro 走独立端点，AI 走 /agui/runs */
+/** 构建对话端点 URL。 */
 function buildAguiUrl(target: ChatterTarget, isAuthenticated: boolean): string {
-  if (target.type === "kiro") {
-    return buildApiUrl("/autodev/kiro/run")
-  }
-  // 已登录：后端通过 token 识别用户，不需要 agentId 路径参数
-  if (isAuthenticated) {
-    return buildApiUrl("/agui/run")
-  }
-  const agentId = target.agentRole ?? "customer-service"
-  return buildApiUrl(`/agui/run/${agentId}`)
+  return buildApiUrl(resolveChatterAguiPath(target, isAuthenticated))
 }
 
 interface ChatterRuntimeProps {
   target: ChatterTarget
   persist?: boolean
   sessionId?: string
-  modelId?: string
+  taskModelSelection?: TaskModelSelection
   children: ReactNode
 }
 
@@ -48,7 +41,12 @@ interface ChatterRuntimeProps {
  * 匿名访客（未登录）当前不记录对话历史：每次刷新/重开都是新 thread；
  * AG-UI 链路 /agui/runs 端点已在公开白名单，对话本身可正常进行。
  */
-export function ChatterRuntime({ target, sessionId, modelId, children }: ChatterRuntimeProps) {
+export function ChatterRuntime({
+  target,
+  sessionId,
+  taskModelSelection,
+  children
+}: ChatterRuntimeProps) {
   const currentPageId = useChatterStore((s) => s.currentPageId)
   const configs = useChatterStore((s) => s.configs)
   const pageConfig = currentPageId ? configs[currentPageId] : undefined
@@ -57,15 +55,15 @@ export function ChatterRuntime({ target, sessionId, modelId, children }: Chatter
   const aguiUrl = useMemo(() => buildAguiUrl(target, isAuthenticated), [target, isAuthenticated])
 
   const initialState = useMemo(
-    () => ({
-      pageId: currentPageId,
-      preset: pageConfig?.preset,
-      // 已登录走 /agui/run，后端自动选 agent，不传 agentRole 避免找不到
-      ...(isAuthenticated ? {} : { agentRole: target.agentRole ?? pageConfig?.agentRole }),
-      assistantId: target.assistantId,
-      ...(modelId ? { modelId } : {})
-    }),
-    [target.agentRole, target.assistantId, pageConfig, currentPageId, modelId, isAuthenticated]
+    () =>
+      buildChatterInitialState({
+        target,
+        currentPageId,
+        pageConfig,
+        isAuthenticated,
+        taskModelSelection
+      }),
+    [target, pageConfig, currentPageId, isAuthenticated, taskModelSelection]
   )
 
   // onNewThread 行为：

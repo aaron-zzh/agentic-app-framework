@@ -58,11 +58,11 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
     /** 现场编译动态子智能体；规格没有稳定版本键，因此不进入定义缓存。 */
     public HarnessAgent compileDynamic(
             SubagentSpec.Dynamic spec,
-            ModelSpec parentModel,
+            ModelSpec executionModel,
             String skillSystemPromptAppendix,
             Set<String> roleAllowedToolNames) {
         Objects.requireNonNull(spec, "spec 不能为空");
-        Objects.requireNonNull(parentModel, "parentModel 不能为空");
+        Objects.requireNonNull(executionModel, "executionModel 不能为空");
         Objects.requireNonNull(skillSystemPromptAppendix, "skillSystemPromptAppendix 不能为空");
         Objects.requireNonNull(roleAllowedToolNames, "roleAllowedToolNames 不能为空");
         if (spec.inheritParentTools()) {
@@ -79,7 +79,7 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
                         .name(spec.name())
                         .description(spec.description())
                         .sysPrompt(effectiveSystemPrompt)
-                        .model(modelResolver.resolve(parentModel))
+                        .model(modelResolver.resolve(executionModel))
                         .toolkit(toolkit)
                         .stateStore(stateStore)
                         .maxIters(spec.executionPolicy().maxIterations())

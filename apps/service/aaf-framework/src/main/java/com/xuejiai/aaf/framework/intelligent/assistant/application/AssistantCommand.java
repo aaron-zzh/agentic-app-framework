@@ -10,6 +10,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantVersion;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionCriteria;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceReference;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskModelSelection;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard.SubTask;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort.Lease;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.MemorySubject;
@@ -51,6 +52,7 @@ public record AssistantCommand(
         String input,
         CompletionCriteria completionCriteria,
         List<SourceReference> contextCandidates,
+        TaskModelSelection taskModelSelection,
         Instant requestedAt) {
 
     public AssistantCommand {
@@ -74,6 +76,7 @@ public record AssistantCommand(
         Objects.requireNonNull(runId, "runId 不能为空");
         Objects.requireNonNull(correlationId, "correlationId 不能为空");
         Objects.requireNonNull(controlMode, "controlMode 不能为空");
+        Objects.requireNonNull(taskModelSelection, "taskModelSelection 不能为空");
         Objects.requireNonNull(requestedAt, "requestedAt 不能为空");
         contextCandidates =
                 List.copyOf(Objects.requireNonNull(contextCandidates, "contextCandidates 不能为空"));
@@ -128,6 +131,7 @@ public record AssistantCommand(
                 input,
                 completionCriteria,
                 contextCandidates,
+                taskModelSelection,
                 at);
     }
 
@@ -155,6 +159,7 @@ public record AssistantCommand(
                 input,
                 completionCriteria,
                 contextCandidates,
+                taskModelSelection,
                 at);
     }
 
@@ -187,6 +192,7 @@ public record AssistantCommand(
                 input,
                 completionCriteria,
                 contextCandidates,
+                taskModelSelection,
                 at);
     }
 
@@ -214,6 +220,7 @@ public record AssistantCommand(
                 nextInput,
                 completionCriteria,
                 contextCandidates,
+                taskModelSelection,
                 at);
     }
 
@@ -256,6 +263,7 @@ public record AssistantCommand(
                 subTask.description(),
                 completionCriteria,
                 contextCandidates,
+                taskModelSelection,
                 at);
     }
 

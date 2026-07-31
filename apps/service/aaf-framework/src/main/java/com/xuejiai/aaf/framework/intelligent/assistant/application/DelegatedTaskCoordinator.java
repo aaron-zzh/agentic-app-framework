@@ -217,6 +217,7 @@ public final class DelegatedTaskCoordinator {
                 command.input(),
                 command.completionCriteria(),
                 command.contextCandidates(),
+                command.taskModelSelection(),
                 command.requestedAt());
     }
 

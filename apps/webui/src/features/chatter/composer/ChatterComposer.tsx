@@ -15,10 +15,13 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { ModelSelector } from "@/components/common/ModelSelector"
 import { Button } from "@/components/ui/button"
 import { ContextChip } from "@/features/chatter/dnd/ContextChip"
-import type { ChatterDropItem } from "@/features/chatter/types"
+import {
+  type ChatterDropItem,
+  DEFAULT_TASK_MODEL_SELECTION,
+  type TaskModelSelection
+} from "@/features/chatter/types"
 import { VoiceWaveform3D } from "@/features/livechat/voice/VoiceWaveform3D"
 import { WsAsrButton } from "@/features/livechat/voice/WsAsrButton"
-import type { AiModelVO } from "@/lib/api/rest/ai"
 import { useModelSelector } from "@/lib/hooks/use-model-selector"
 
 interface ChatterComposerProps {
@@ -28,8 +31,8 @@ interface ChatterComposerProps {
   onPasteText?: (item: ChatterDropItem) => void
   /** 发送后清空所有 attachments */
   onAfterSend?: () => void
-  modelId?: string
-  onModelChange?: (modelId: string, model: AiModelVO) => void
+  taskModelSelection: TaskModelSelection
+  onTaskModelSelectionChange: (selection: TaskModelSelection) => void
   /** 是否显示模型选择器，默认 true；未登录场景应传 false */
   showModelSelector?: boolean
 }
@@ -42,8 +45,8 @@ export function ChatterComposer({
   onAttachmentRemove,
   onPasteText,
   onAfterSend,
-  modelId,
-  onModelChange,
+  taskModelSelection,
+  onTaskModelSelectionChange,
   showModelSelector = true
 }: ChatterComposerProps) {
   const api = useAui()
@@ -176,7 +179,10 @@ export function ChatterComposer({
             */}
 
             {showModelSelector && (
-              <ModelSelectorSlot modelId={modelId} onModelChange={onModelChange} />
+              <ModelSelectorSlot
+                taskModelSelection={taskModelSelection}
+                onTaskModelSelectionChange={onTaskModelSelectionChange}
+              />
             )}
           </div>
 
@@ -217,19 +223,31 @@ export function ChatterComposer({
  * 模型选择槽——仅在需要展示时渲染，避免未登录场景调用 /ai/models 触发 401
  */
 function ModelSelectorSlot({
-  modelId,
-  onModelChange
+  taskModelSelection,
+  onTaskModelSelectionChange
 }: {
-  modelId?: string
-  onModelChange?: (modelId: string, model: AiModelVO) => void
+  taskModelSelection: TaskModelSelection
+  onTaskModelSelectionChange: (selection: TaskModelSelection) => void
 }) {
-  const {
-    options,
-    modelId: selectedModelId,
-    setModelId
-  } = useModelSelector("CHAT", {
-    value: modelId,
-    onChange: onModelChange
+  const selectedModelId = taskModelSelection.mode === "EXPLICIT" ? taskModelSelection.modelId : null
+  const { options, modelId, setModelId } = useModelSelector("CHAT", {
+    value: selectedModelId,
+    autoSelect: false,
+    onChange: (nextModelId) =>
+      onTaskModelSelectionChange({ mode: "EXPLICIT", modelId: nextModelId })
   })
-  return <ModelSelector options={options} value={selectedModelId} onChange={setModelId} />
+
+  return (
+    <ModelSelector
+      options={options}
+      value={modelId}
+      onChange={setModelId}
+      placeholder="任务模型"
+      autoOption={{
+        selected: taskModelSelection.mode === "AUTO",
+        onSelect: () => onTaskModelSelectionChange(DEFAULT_TASK_MODEL_SELECTION),
+        label: "任务模型 · 自动选择"
+      }}
+    />
+  )
 }

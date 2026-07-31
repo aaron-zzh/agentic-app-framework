@@ -24,15 +24,23 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 import type { AiModelVO } from "@/lib/api/rest/ai"
 import type { ModelOption } from "@/lib/hooks/use-model-selector"
+import {
+  hasModelSelectorChoices,
+  type ModelSelectorAutoOption,
+  resolveModelSelectorSelection
+} from "./model-selector-logic"
 
 interface ModelSelectorProps {
   options: ModelOption[]
-  value?: string
+  value?: string | null
   onChange?: (modelId: string, model: AiModelVO) => void
+  autoOption?: ModelSelectorAutoOption
   variant?: "dropdown" | "select"
   placeholder?: string
   className?: string
 }
+
+const AUTO_OPTION_VALUE = "__aaf_model_selector_auto__"
 
 // 按 modelName 关键词匹配品牌图标（优先级从上到下，first match wins）
 const BRAND_ICON_RULES: [keyword: string, icon: string][] = [
@@ -87,30 +95,39 @@ export function ModelSelector({
   options,
   value,
   onChange,
+  autoOption,
   variant = "dropdown",
   placeholder = "选择模型",
   className
 }: ModelSelectorProps) {
-  const currentModel = options.find((o) => o.value === value)
+  const selection = resolveModelSelectorSelection(options, value, autoOption)
+  const currentModel = selection.type === "model" ? selection.option : undefined
+  const currentLabel = selection.type === "none" ? undefined : selection.label
+  const selectedValue = selection.type === "auto" ? AUTO_OPTION_VALUE : (value ?? "")
 
   function handleSelect(id: string | null) {
     if (!id) return
+    if (id === AUTO_OPTION_VALUE) {
+      autoOption?.onSelect()
+      return
+    }
     const model = options.find((o) => o.value === id)
     if (model) onChange?.(id, model.meta)
   }
 
-  if (options.length === 0) return null
+  if (!hasModelSelectorChoices(options, autoOption)) return null
 
   if (variant === "select") {
     return (
-      <Select value={value ?? ""} onValueChange={handleSelect}>
+      <Select value={selectedValue} onValueChange={handleSelect}>
         <SelectTrigger className={className ?? "h-8 w-[180px] text-xs"}>
           <div className="flex min-w-0 items-center gap-1.5">
             {currentModel && <ModelAvatar option={currentModel} />}
-            <span className="truncate">{currentModel?.label ?? value}</span>
+            <span className="truncate">{currentLabel ?? value ?? placeholder}</span>
           </div>
         </SelectTrigger>
         <SelectContent>
+          {autoOption && <SelectItem value={AUTO_OPTION_VALUE}>{autoOption.label}</SelectItem>}
           {options.map((o) => (
             <SelectItem key={o.value} value={o.value}>
               <div className="flex items-center gap-2">
@@ -138,10 +155,18 @@ export function ModelSelector({
         }
       >
         {currentModel && <ModelAvatar option={currentModel} />}
-        <span className="max-w-40 truncate">{currentModel?.label ?? placeholder}</span>
+        <span className="max-w-40 truncate">{currentLabel ?? placeholder}</span>
         <ChevronDownIcon className="size-3" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="max-h-60 min-w-48 overflow-y-auto">
+        {autoOption && (
+          <DropdownMenuItem
+            onClick={autoOption.onSelect}
+            className={autoOption.selected ? "bg-accent" : ""}
+          >
+            <span>{autoOption.label}</span>
+          </DropdownMenuItem>
+        )}
         {options.map((o) => (
           <DropdownMenuItem
             key={o.value}

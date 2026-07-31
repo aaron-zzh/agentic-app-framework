@@ -32,7 +32,7 @@ public class DefaultCapabilityRouter implements CapabilityRouter {
         if (ctx.explicitModelId() != null) {
             log.debug(
                     "能力路由[显式]: capability={}, modelId={}", ctx.capability(), ctx.explicitModelId());
-            return loadByModelId(ctx.explicitModelId());
+            return loadByModelId(ctx.explicitModelId(), ctx.capability());
         }
 
         // 2. 编排引擎配置
@@ -41,7 +41,7 @@ public class DefaultCapabilityRouter implements CapabilityRouter {
                     "能力路由[编排]: capability={}, modelId={}",
                     ctx.capability(),
                     ctx.orchestrationModelId());
-            return loadByModelId(ctx.orchestrationModelId());
+            return loadByModelId(ctx.orchestrationModelId(), ctx.capability());
         }
 
         // 3. AI 辅助决策
@@ -54,13 +54,16 @@ public class DefaultCapabilityRouter implements CapabilityRouter {
             return aiSelected;
         }
 
-        // 4. 用户偏好（按顺序取第一个 enabled 的模型）
+        // 4. 用户偏好（按顺序取第一个 enabled 且支持目标能力的模型）
         if (ctx.userId() != null && ctx.capability() != null) {
             var userModel =
                     preferenceRepository
                             .findByScopeAndScopeIdAndCapability(
                                     ModelPreference.SCOPE_USER, ctx.userId(), ctx.capability())
-                            .flatMap(pref -> resolveFirstAvailable(pref.getModelIds()));
+                            .flatMap(
+                                    pref ->
+                                            resolveFirstAvailable(
+                                                    pref.getModelIds(), ctx.capability()));
             if (userModel.isPresent()) {
                 log.debug(
                         "能力路由[用户偏好]: capability={}, modelId={}",
@@ -70,13 +73,16 @@ public class DefaultCapabilityRouter implements CapabilityRouter {
             }
         }
 
-        // 5. 系统默认（按顺序取第一个 enabled 的模型）
+        // 5. 系统默认（按顺序取第一个 enabled 且支持目标能力的模型）
         if (ctx.capability() != null) {
             var systemModel =
                     preferenceRepository
                             .findByScopeAndScopeIdIsNullAndCapability(
                                     ModelPreference.SCOPE_SYSTEM, ctx.capability())
-                            .flatMap(pref -> resolveFirstAvailable(pref.getModelIds()));
+                            .flatMap(
+                                    pref ->
+                                            resolveFirstAvailable(
+                                                    pref.getModelIds(), ctx.capability()));
             if (systemModel.isPresent()) {
                 log.debug(
                         "能力路由[系统默认]: capability={}, modelId={}",
@@ -89,22 +95,33 @@ public class DefaultCapabilityRouter implements CapabilityRouter {
         // 6. yaml 兜底
         var fallbackId = fallbackModels.getOrDefault(ctx.capability(), "openai:gpt-4o");
         log.debug("能力路由[yaml兜底]: capability={}, modelId={}", ctx.capability(), fallbackId);
-        return loadByModelId(fallbackId);
+        return loadByModelId(fallbackId, ctx.capability());
     }
 
-    private AiModel loadByModelId(String modelId) {
-        return modelRepository
-                .findByModelId(modelId)
-                .orElseThrow(() -> new IllegalStateException("模型不存在: " + modelId));
+    private AiModel loadByModelId(String modelId, String capability) {
+        var model =
+                modelRepository
+                        .findByModelId(modelId)
+                        .orElseThrow(() -> new IllegalArgumentException("模型不存在: " + modelId));
+        if (!Boolean.TRUE.equals(model.getEnabled())) {
+            throw new IllegalArgumentException("模型未启用: " + modelId);
+        }
+        if (capability != null && !model.hasCapability(capability)) {
+            throw new IllegalArgumentException(
+                    "模型不支持能力 " + capability + ": " + modelId);
+        }
+        return model;
     }
 
-    /** 按顺序取 modelIds 中第一个 enabled=true 的模型 */
-    private java.util.Optional<AiModel> resolveFirstAvailable(java.util.List<String> modelIds) {
+    /** 按顺序取 modelIds 中第一个 enabled=true 且支持目标能力的模型。 */
+    private java.util.Optional<AiModel> resolveFirstAvailable(
+            java.util.List<String> modelIds, String capability) {
         if (modelIds == null || modelIds.isEmpty()) return java.util.Optional.empty();
         return modelIds.stream()
                 .map(id -> modelRepository.findByModelIdAndEnabledTrue(id))
                 .filter(java.util.Optional::isPresent)
                 .map(java.util.Optional::get)
+                .filter(model -> capability == null || model.hasCapability(capability))
                 .findFirst();
     }
 }
