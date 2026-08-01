@@ -25,7 +25,6 @@
 | [06-architecture-and-quality.md](06-architecture-and-quality.md) | 分层/实体外泄、重复抽象、命名/包结构、占位实现、通用工具 |
 | [07-system-admin-and-rbac.md](07-system-admin-and-rbac.md) | 用户/角色/权限点/行级数据权限，以及当前仍需收敛的角色、SELF 与 org 授权边界 |
 | [10-authorization-matrix.md](10-authorization-matrix.md) | Controller 鉴权冻结基线与剩余资源级授权矩阵；不再沿用旧数量统计 |
-| [11f-framework-infra.md](11f-framework-infra.md) | 基础设施；M50/M51/m30/m32 已修，M49 残留 ACK 窗口（需事务性收件箱） |
 | [14-remaining-tasks-handoff.md](14-remaining-tasks-handoff.md) | 当前交接：历史完成记录 + OPEN/PARTIAL 剩余任务；新对话从这里接续 |
 
 ## 状态口径
@@ -61,7 +60,7 @@
 | M21 | FIXED | 09（已删除） | `SmsProperties.testSend`（enabled + phoneWhitelist），生产默认整体禁用 |
 | M22 | FIXED | 09（已删除） | 新建 `SmsTemplateService`，`SmsController` 模板 CRUD 改调 service，出参 VO |
 | M23 | FIXED | 09（已删除） | `ImageController` 两端点补 `estimateCost` + `creditGuard.precheck` |
-| M49 | PARTIAL | 11f | 已有 completed 标记 + processing 租约去重；残留"handler 成功但写标记前崩溃"窗口，彻底修复需事务性收件箱（架构级） |
+| M49 | FIXED | 11f（已删除） | `TaskInboxExecutor` 落地事务性收件箱：`sys_task_inbox` 表原子占坑成功才执行 handler，业务副作用与完成标记同事务提交/回滚，彻底消除崩溃窗口；原 Redis 标记降级为快速去重缓存，`sys_task_inbox` 是持久化幂等真理源 |
 | M53 | FIXED | 11g（已删除） | embedding 成本由触发用户承担：`EmbeddingService` 接入 `AiCreditGuard` 按次计费；访客（VISITOR）降级为短期上下文，不产生长期记忆/embedding，规避匿名计费缺口 |
 | 重复2 | OPEN | 07/14 | permission 与 role 两套 PermissionService/Controller 职责仍重叠 |
 | 占位 | OPEN | 04/06/11g | engine 多个未进入实现阶段的空接口仍存在；`examples/*` 部分已改 `.legacy` 移出编译，仍有 `ExampleTools`/`MovieGraphQlController`/`MovieService` 等 `.java` 参与主构建未清理 |
