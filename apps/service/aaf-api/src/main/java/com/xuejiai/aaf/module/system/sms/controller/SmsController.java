@@ -23,8 +23,10 @@ import com.xuejiai.aaf.framework.messaging.MessageService;
 import com.xuejiai.aaf.framework.messaging.sms.SmsProperties;
 import com.xuejiai.aaf.module.system.notify.domain.MessageLog;
 import com.xuejiai.aaf.module.system.notify.repository.MessageLogRepository;
-import com.xuejiai.aaf.module.system.sms.domain.SmsTemplate;
-import com.xuejiai.aaf.module.system.sms.repository.SmsTemplateRepository;
+import com.xuejiai.aaf.module.system.sms.service.SmsTemplateService;
+import com.xuejiai.aaf.module.system.sms.vo.SmsTemplateCreateDTO;
+import com.xuejiai.aaf.module.system.sms.vo.SmsTemplateUpdateDTO;
+import com.xuejiai.aaf.module.system.sms.vo.SmsTemplateVO;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -50,7 +52,7 @@ public class SmsController {
 
     private static final String CHANNEL_SMS = MessageChannel.SMS.name();
 
-    private final SmsTemplateRepository templateRepository;
+    private final SmsTemplateService templateService;
     private final MessageService messageService;
     private final MessageLogRepository messageLogRepository;
     private final SmsProperties smsProperties;
@@ -58,49 +60,29 @@ public class SmsController {
     // ── 模板管理 ──────────────────────────────────────────────
 
     @GetMapping("/templates")
-    public Result<List<SmsTemplate>> listTemplates() {
-        return Result.success(templateRepository.findAll());
+    public Result<List<SmsTemplateVO>> listTemplates() {
+        return Result.success(templateService.list());
     }
 
     @PostMapping("/templates")
-    public Result<SmsTemplate> createTemplate(@Valid @RequestBody SmsTemplateCreateDTO dto) {
-        var entity = new SmsTemplate();
-        entity.setCode(dto.code());
-        entity.setName(dto.name());
-        entity.setSignName(dto.signName());
-        entity.setApiTemplateId(dto.apiTemplateId());
-        entity.setParams(dto.params());
-        entity.setProvider(dto.provider());
-        entity.setStatus((short) 1);
-        return Result.success(templateRepository.save(entity));
+    public Result<SmsTemplateVO> createTemplate(@Valid @RequestBody SmsTemplateCreateDTO dto) {
+        return Result.success(templateService.create(dto));
     }
 
     @PutMapping("/templates/{id}")
-    public Result<SmsTemplate> updateTemplate(
+    public Result<SmsTemplateVO> updateTemplate(
             @PathVariable Long id, @Valid @RequestBody SmsTemplateUpdateDTO dto) {
-        var entity =
-                templateRepository
-                        .findById(id)
-                        .orElseThrow(() -> new IllegalArgumentException("模板不存在"));
-        if (dto.signName() != null) entity.setSignName(dto.signName());
-        if (dto.apiTemplateId() != null) entity.setApiTemplateId(dto.apiTemplateId());
-        if (dto.provider() != null) entity.setProvider(dto.provider());
-        if (dto.status() != null) entity.setStatus(dto.status());
-        return Result.success(templateRepository.save(entity));
+        return Result.success(templateService.update(id, dto));
     }
 
     @GetMapping("/templates/{id}")
-    public Result<SmsTemplate> getTemplate(@PathVariable Long id) {
-        var entity =
-                templateRepository
-                        .findById(id)
-                        .orElseThrow(() -> new IllegalArgumentException("模板不存在"));
-        return Result.success(entity);
+    public Result<SmsTemplateVO> getTemplate(@PathVariable Long id) {
+        return Result.success(templateService.getById(id));
     }
 
     @DeleteMapping("/templates/{id}")
     public Result<Void> deleteTemplate(@PathVariable Long id) {
-        templateRepository.deleteById(id);
+        templateService.delete(id);
         return Result.success(null);
     }
 
@@ -171,17 +153,6 @@ public class SmsController {
     }
 
     // ── DTO ───────────────────────────────────────────────────
-
-    public record SmsTemplateCreateDTO(
-            @NotBlank String code,
-            @NotBlank String name,
-            String signName,
-            @NotBlank String apiTemplateId,
-            String params,
-            String provider) {}
-
-    public record SmsTemplateUpdateDTO(
-            String signName, String apiTemplateId, String provider, Short status) {}
 
     /**
      * 测试发送请求。

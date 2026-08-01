@@ -153,4 +153,7 @@ public interface ErrorCodeConstants {
     // ========== PROFILE 模块 1_015_000 ==========
     ErrorCode PROFILE_DIMENSION_CODE_EXISTS = ErrorCode.of(1_015_000, "维度编码已存在: {0}");
     ErrorCode PROFILE_DIMENSION_NOT_FOUND = ErrorCode.of(1_015_001, "维度不存在");
+
+    // ========== SMS 模块 1_016_000 ==========
+    ErrorCode SMS_TEMPLATE_NOT_FOUND = ErrorCode.of(1_016_000, "短信模板不存在");
 }
