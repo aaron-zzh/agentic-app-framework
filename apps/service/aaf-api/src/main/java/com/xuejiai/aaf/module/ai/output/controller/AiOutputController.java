@@ -8,8 +8,8 @@ import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.security.OperatorContext;
-import com.xuejiai.aaf.module.ai.output.domain.AiOutput;
 import com.xuejiai.aaf.module.ai.output.service.AiOutputService;
+import com.xuejiai.aaf.module.ai.output.vo.AiOutputVO;
 
 import lombok.RequiredArgsConstructor;
 
@@ -25,7 +25,7 @@ public class AiOutputController {
 
     /** 产出列表（分页+筛选） */
     @GetMapping
-    public Result<Page<AiOutput>> list(
+    public Result<Page<AiOutputVO>> list(
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String riskLevel,
             @RequestParam(required = false) String sourceType,
@@ -38,19 +38,19 @@ public class AiOutputController {
 
     /** 产出详情 */
     @GetMapping("/{id}")
-    public Result<AiOutput> detail(@PathVariable Long id) {
+    public Result<AiOutputVO> detail(@PathVariable Long id) {
         return Result.success(outputService.getById(id));
     }
 
     /** 调整产出 */
     @PostMapping("/{id}/adjust")
-    public Result<AiOutput> adjust(@PathVariable Long id, @RequestBody AdjustDTO dto) {
+    public Result<AiOutputVO> adjust(@PathVariable Long id, @RequestBody AdjustDTO dto) {
         return Result.success(outputService.adjust(id, dto.note()));
     }
 
     /** 回退产出 */
     @PostMapping("/{id}/revert")
-    public Result<AiOutput> revert(@PathVariable Long id, @RequestBody RevertDTO dto) {
+    public Result<AiOutputVO> revert(@PathVariable Long id, @RequestBody RevertDTO dto) {
         return Result.success(outputService.revert(id, dto.reason()));
     }
 
