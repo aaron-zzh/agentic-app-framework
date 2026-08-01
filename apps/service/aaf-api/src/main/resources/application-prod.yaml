@@ -26,6 +26,10 @@ aaf:
       enabled: false # B2：生产禁用 Mock 支付渠道（配置层显式关闭，Bean 层另有 @Profile("!prod") 兜底）
   security:
     mock-enable: false # 关闭 mock 认证，使用真实 JWT
+  messaging:
+    sms:
+      test-send:
+        enabled: false # M21：生产环境默认禁用测试发送，避免误发真实短信产生费用；确需验证配置时改为白名单模式
 
 springdoc:
   api-docs:

@@ -20,6 +20,7 @@ import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.messaging.MessageChannel;
 import com.xuejiai.aaf.framework.messaging.MessageRequest;
 import com.xuejiai.aaf.framework.messaging.MessageService;
+import com.xuejiai.aaf.framework.messaging.sms.SmsProperties;
 import com.xuejiai.aaf.module.system.notify.domain.MessageLog;
 import com.xuejiai.aaf.module.system.notify.repository.MessageLogRepository;
 import com.xuejiai.aaf.module.system.sms.domain.SmsTemplate;
@@ -52,6 +53,7 @@ public class SmsController {
     private final SmsTemplateRepository templateRepository;
     private final MessageService messageService;
     private final MessageLogRepository messageLogRepository;
+    private final SmsProperties smsProperties;
 
     // ── 模板管理 ──────────────────────────────────────────────
 
@@ -122,10 +124,22 @@ public class SmsController {
      * 测试短信发送（实际调用厂商 API，会产生真实费用）。
      *
      * <p>用于验证短信配置是否正确、模板是否可用。 仅在 aaf.messaging.sms.provider 已配置时可用。
+     *
+     * <p>M21：原实现直连 {@link MessageService}，无任何环境隔离或号码限制——生产环境下管理员正常测试配置就会
+     * 误发真实短信并产生费用，不需要恶意行为即可触发。现受 {@code aaf.messaging.sms.test-send} 双重约束：
+     * {@code enabled=false} 时整体禁用；配置 {@code phoneWhitelist} 后仅白名单号码可被测试发送。
      */
     @Operation(summary = "测试短信发送", description = "实际调用厂商 API 发送短信，会产生真实费用，仅用于配置验证")
     @PostMapping("/test-send")
     public Result<String> testSend(@Valid @RequestBody SmsTestSendDTO dto) {
+        var testSendConfig = smsProperties.testSend();
+        if (!testSendConfig.enabled()) {
+            throw new IllegalStateException("当前环境已禁用短信测试发送（aaf.messaging.sms.test-send.enabled=false）");
+        }
+        if (!testSendConfig.phoneWhitelist().isEmpty()
+                && !testSendConfig.phoneWhitelist().contains(dto.phone())) {
+            throw new IllegalArgumentException("测试发送号码不在白名单内，请检查 aaf.messaging.sms.test-send.phone-whitelist 配置");
+        }
         var variables =
                 dto.params() == null
                         ? Map.<String, Object>of()
