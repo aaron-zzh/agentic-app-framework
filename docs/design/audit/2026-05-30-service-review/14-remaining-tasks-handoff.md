@@ -169,7 +169,7 @@ M16 已完成：用户密码、OAuth access/refresh token、Channel/Webhook 密�
 | 身份与租户 | — | M1/M9 已修复（删除 userId fallback；API Key 继承真实角色，M19 组织过滤已闭环） |
 | 文件/短信/API 分层 | M29 | M6/M21/M22 已修复（Channel/Webhook Entity 出参；短信测试环境隔离；SMS Repository/Entity 边界）；framework 裸 key API 待处理 |
 | 架构与 DTO | M15 | Company 与 Channel/Webhook 输入已 DTO 化、Company/Channel/Webhook 输出已 VO 化、SMS 模板已 VO 化；AI Output、Document、Team 三模块仍有实体出参，规模较大（10+ 处），留待独立任务 |
-| 资金与成本 | M26 | image-to-image/edit 已接回统一 precheck（M23 已修复）；退款并发与稳定幂等键（M53 已修复：embedding 按次计费 + 访客降级短期上下文，见 11g） |
+| 资金与成本 | M26 | image-to-image/edit 已接回统一 precheck（M23 已修复）；退款并发与稳定幂等键（M53 已修复：embedding 按次计费 + 访客降级短期上下文，原 11g 已删除） |
 | OAuth/回调 | M28、M31、M37 | 适配器验签契约；账号绑定闭环与强制 state/nonce；per-flow execute、Webhook HMAC 与防重放 |
 | HITL/知识库/任务 | M36、M45、M49 | 删除或统一旧 HITL 链；移除危险两参检索重载；补齐副作用到 ACK 的业务幂等 |
 | 潜在语义风险 | m32 | 分布式锁获取失败返回 null 的语义仍不明确 |
