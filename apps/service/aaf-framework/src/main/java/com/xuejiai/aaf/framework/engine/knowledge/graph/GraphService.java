@@ -95,6 +95,19 @@ public class GraphService {
         entityRepository.deleteExtractedOrphanEntities(knowledgeBaseId);
     }
 
+    /**
+     * 合并重复实体：把 {@code duplicateIds} 的所有出边/入边转移到 {@code keepId}，再删除 {@code duplicateIds} 节点。
+     *
+     * <p>供 {@code EntityResolutionService} 异步消歧使用。合并后不保留 duplicate 侧的关系记录——
+     * 图谱只关心"当前哪些实体、有哪些关系"，历史归属通过关系上的 {@code sourceDocumentId} 追溯， 不需要额外记录"哪个实体被合并进了谁"。
+     */
+    public void mergeEntities(String keepId, List<String> duplicateIds) {
+        if (duplicateIds == null || duplicateIds.isEmpty()) {
+            return;
+        }
+        entityRepository.mergeEntities(keepId, duplicateIds);
+    }
+
     /** 查询 N 跳邻居。 */
     public List<KnowledgeEntity> findNeighbors(String entityId, int hops) {
         return entityRepository.findNeighbors(entityId, hops);

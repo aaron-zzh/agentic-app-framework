@@ -1,7 +1,10 @@
 package com.xuejiai.aaf.framework.engine.knowledge.graph;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
@@ -63,6 +66,26 @@ class GraphServiceTest extends BaseMockitoUnitTest {
         ordered.verify(entityRepository).deleteExtractedOrphanEntities(3L);
         ordered.verify(entityRepository).deleteDocumentRelations(3L, 12L);
         ordered.verify(entityRepository).deleteExtractedOrphanEntities(3L);
+    }
+
+    @Test
+    @DisplayName("Given 重复实体 id 列表 When 合并 Then 委托仓储做关系转移和删除")
+    void should_delegate_to_repository_when_merging_duplicate_entities() {
+        // 调用
+        graphService.mergeEntities("keep-uuid", List.of("dup-1", "dup-2"));
+
+        // 断言
+        verify(entityRepository).mergeEntities("keep-uuid", List.of("dup-1", "dup-2"));
+    }
+
+    @Test
+    @DisplayName("Given 空的重复实体列表 When 合并 Then 不调用仓储")
+    void should_skip_repository_call_when_duplicate_ids_is_empty() {
+        // 调用
+        graphService.mergeEntities("keep-uuid", List.of());
+
+        // 断言
+        verify(entityRepository, never()).mergeEntities(any(), any());
     }
 
     private KnowledgeEntity entity(String id, String name, String type, Long knowledgeBaseId) {

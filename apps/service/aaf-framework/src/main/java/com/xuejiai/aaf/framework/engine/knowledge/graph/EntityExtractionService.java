@@ -50,9 +50,19 @@ public class EntityExtractionService {
 
         for (var triple : triples) {
             executionGuard.run();
-            var subject = findOrCreateEntity(triple.subject(), knowledgeBaseId, documentId);
+            var subject =
+                    findOrCreateEntity(
+                            triple.subject(),
+                            triple.subjectDescription(),
+                            knowledgeBaseId,
+                            documentId);
             executionGuard.run();
-            var object = findOrCreateEntity(triple.object(), knowledgeBaseId, documentId);
+            var object =
+                    findOrCreateEntity(
+                            triple.object(),
+                            triple.objectDescription(),
+                            knowledgeBaseId,
+                            documentId);
             executionGuard.run();
 
             var relation = new KnowledgeRelation();
@@ -69,14 +79,21 @@ public class EntityExtractionService {
         log.info("从文档 {} 抽取并保存 {} 个三元组到知识库 {}", documentId, triples.size(), knowledgeBaseId);
     }
 
-    /** 查找或创建实体，同知识库内按名称去重 */
-    private KnowledgeEntity findOrCreateEntity(String name, Long knowledgeBaseId, Long documentId) {
+    /**
+     * 查找或创建实体，同知识库内按名称去重。
+     *
+     * <p>精确名称匹配是初筛，不做语义消歧——不同表述（如"张三"/"张经理"）会被当成不同实体先落库， 真正的跨表述合并交给异步的 {@code
+     * EntityResolutionService} 做批量消歧，避免在抽取路径上 引入同步 LLM 调用拖慢管道。
+     */
+    private KnowledgeEntity findOrCreateEntity(
+            String name, String description, Long knowledgeBaseId, Long documentId) {
         return entityRepository
                 .findByNameAndKnowledgeBaseId(name, knowledgeBaseId)
                 .orElseGet(
                         () -> {
                             var entity = new KnowledgeEntity();
                             entity.setName(name);
+                            entity.setDescription(description);
                             entity.setKnowledgeBaseId(knowledgeBaseId);
                             entity.setSourceDocumentId(documentId);
                             return graphService.saveEntity(entity);

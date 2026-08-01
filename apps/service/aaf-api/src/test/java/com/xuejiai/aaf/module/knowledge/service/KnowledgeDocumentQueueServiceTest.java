@@ -40,6 +40,7 @@ class KnowledgeDocumentQueueServiceTest extends BaseMockitoUnitTest {
     @Mock private KnowledgePipelineService pipelineService;
     @Mock private PermissionExecutionService permissionExecutionService;
     @Mock private KnowledgeDocumentExecutionLeaseService executionLeaseService;
+    @Mock private KnowledgeEntityResolutionQueueService entityResolutionQueueService;
     @InjectMocks private KnowledgeDocumentQueueService queueService;
 
     @AfterEach
@@ -112,6 +113,7 @@ class KnowledgeDocumentQueueServiceTest extends BaseMockitoUnitTest {
                 .hasMessageContaining("embedding unavailable");
         verify(permissionExecutionService)
                 .runAsOwner(eq(7L), eq("knowledge-document-process"), any(Runnable.class));
+        verify(entityResolutionQueueService, never()).enqueue(any(), any(), any(), any());
     }
 
     @Test
@@ -139,6 +141,7 @@ class KnowledgeDocumentQueueServiceTest extends BaseMockitoUnitTest {
         // 断言
         verify(pipelineService)
                 .process(eq(3L), eq(11L), any(), eq("guide.md"), any(Runnable.class));
+        verify(entityResolutionQueueService).enqueue(3L, 7L, 5L, 6L);
         assertThat(OrgContext.getCurrentOrgId()).isEqualTo(50L);
         assertThat(OrgContext.getCurrentWorkspaceId()).isEqualTo(60L);
     }
