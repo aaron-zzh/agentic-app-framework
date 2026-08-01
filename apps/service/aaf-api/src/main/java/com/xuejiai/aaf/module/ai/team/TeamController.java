@@ -6,7 +6,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.framework.intelligent.team.*;
+import com.xuejiai.aaf.framework.intelligent.team.TeamOrchestrator;
+import com.xuejiai.aaf.module.ai.team.vo.TeamMemberVO;
+import com.xuejiai.aaf.module.ai.team.vo.TeamTaskVO;
+import com.xuejiai.aaf.module.ai.team.vo.TeamVO;
 
 import lombok.RequiredArgsConstructor;
 
@@ -20,36 +23,46 @@ public class TeamController {
     private final TeamOrchestrator orchestrator;
 
     @PostMapping
-    public Result<TeamEntity> create(@RequestBody TeamCreateDTO dto) {
-        return Result.success(orchestrator.createTeam(dto.name(), dto.mode(), dto.coordinatorId()));
+    public Result<TeamVO> create(@RequestBody TeamCreateDTO dto) {
+        return Result.success(
+                TeamVO.from(
+                        orchestrator.createTeam(dto.name(), dto.mode(), dto.coordinatorId())));
     }
 
     @GetMapping("/{teamId}")
-    public Result<TeamEntity> get(@PathVariable Long teamId) {
-        return Result.success(orchestrator.getTeam(teamId));
+    public Result<TeamVO> get(@PathVariable Long teamId) {
+        var team = orchestrator.getTeam(teamId);
+        return Result.success(team != null ? TeamVO.from(team) : null);
     }
 
     @PostMapping("/{teamId}/members")
-    public Result<TeamMemberEntity> addMember(
+    public Result<TeamMemberVO> addMember(
             @PathVariable Long teamId, @RequestBody MemberAddDTO dto) {
         return Result.success(
-                orchestrator.addMember(teamId, dto.assistantId(), dto.role(), dto.capabilities()));
+                TeamMemberVO.from(
+                        orchestrator.addMember(
+                                teamId, dto.assistantId(), dto.role(), dto.capabilities())));
     }
 
     @GetMapping("/{teamId}/members")
-    public Result<List<TeamMemberEntity>> listMembers(@PathVariable Long teamId) {
-        return Result.success(orchestrator.getMembers(teamId));
+    public Result<List<TeamMemberVO>> listMembers(@PathVariable Long teamId) {
+        return Result.success(
+                orchestrator.getMembers(teamId).stream().map(TeamMemberVO::from).toList());
     }
 
     @PostMapping("/{teamId}/decompose")
-    public Result<List<TeamTaskEntity>> decompose(
+    public Result<List<TeamTaskVO>> decompose(
             @PathVariable Long teamId, @RequestBody GoalDTO dto) {
-        return Result.success(orchestrator.decomposeGoal(teamId, dto.goal()));
+        return Result.success(
+                orchestrator.decomposeGoal(teamId, dto.goal()).stream()
+                        .map(TeamTaskVO::from)
+                        .toList());
     }
 
     @GetMapping("/{teamId}/tasks/ready")
-    public Result<List<TeamTaskEntity>> readyTasks(@PathVariable Long teamId) {
-        return Result.success(orchestrator.getReadyTasks(teamId));
+    public Result<List<TeamTaskVO>> readyTasks(@PathVariable Long teamId) {
+        return Result.success(
+                orchestrator.getReadyTasks(teamId).stream().map(TeamTaskVO::from).toList());
     }
 
     @PutMapping("/{teamId}/tasks/{taskId}/status")
