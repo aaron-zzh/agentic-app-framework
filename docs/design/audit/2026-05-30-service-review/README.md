@@ -28,7 +28,7 @@
 | [09-file-sms-aigc.md](09-file-sms-aigc.md) | 文件上传/下载、短信模板与发送、AIGC 图像/媒资生成 |
 | [10-authorization-matrix.md](10-authorization-matrix.md) | Controller 鉴权冻结基线与剩余资源级授权矩阵；不再沿用旧数量统计 |
 | [11f-framework-infra.md](11f-framework-infra.md) | 基础设施；M50/M51/m30/m32 已修，M49 残留 ACK 窗口（需事务性收件箱） |
-| [11g-framework-orchestration-api-remainder.md](11g-framework-orchestration-api-remainder.md) | 工作流/编排/AI 能力与 API 收官复审；M53 仅 embedding 未门控，待计费策略决策 |
+| [11g-framework-orchestration-api-remainder.md](11g-framework-orchestration-api-remainder.md) | 工作流/编排/AI 能力与 API 收官复审；M53 已修复 |
 | [14-remaining-tasks-handoff.md](14-remaining-tasks-handoff.md) | 当前交接：历史完成记录 + OPEN/PARTIAL 剩余任务；新对话从这里接续 |
 
 ## 状态口径
@@ -65,7 +65,7 @@
 | M22 | PARTIAL | 09 | Controller 仍直连 Repository，并返回 Entity |
 | M23 | PARTIAL | 09 | image-to-image/edit 仍旁路统一权益 precheck、扣减与补偿 |
 | M49 | PARTIAL | 11f | 已有 completed 标记 + processing 租约去重；残留"handler 成功但写标记前崩溃"窗口，彻底修复需事务性收件箱（架构级） |
-| M53 | PARTIAL | 11g | streaming/call 已有门控；embedding 无门控无计量且接口缺 ownerId，闭环待计费归属与口径决策 |
+| M53 | FIXED | 11g | embedding 成本由触发用户承担：`EmbeddingService` 接入 `AiCreditGuard` 按次计费；访客（VISITOR）降级为短期上下文，不产生长期记忆/embedding，规避匿名计费缺口 |
 | 重复2 | OPEN | 07/14 | permission 与 role 两套 PermissionService/Controller 职责仍重叠 |
 | 占位 | OPEN | 04/06 | engine 多个未进入实现阶段的空接口仍存在 |
 
