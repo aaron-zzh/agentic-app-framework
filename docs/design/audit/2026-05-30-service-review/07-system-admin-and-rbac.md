@@ -1,30 +1,29 @@
 # 07 系统管理与 RBAC
 
-> 覆盖：用户、角色、权限点、行级数据权限、访问策略；以及贯穿全局的"方法级鉴权缺失"系统级问题。
+> 覆盖：用户、角色、权限点、行级数据权限、访问策略；以及方法级鉴权收口后的剩余角色与资源授权风险。
 
 ## 问题清单
 
 | 编号 | 级别 | 位置 | 问题 | 修复建议 |
 |------|------|------|------|---------|
-| B9 | 🔴 | `system/user/controller/UserController`、`tool/ToolController`、`company/controller/CompanyController`、`stats/StatsController`、`pay/*Controller`、`channel/*` 等大量管理接口 | **系统性缺失方法级鉴权**：增删用户、重置任意用户密码（含 admin id=1→账号接管）、改状态、导入导出、删/禁用工具、生成并注册可执行工具、导出全员行为报表等均无 `@PreAuthorize` | 制定"写操作/管理端点默认需鉴权"基线；对 user/role/permission/tool/stats/pay/channel 管理端点逐一加角色或权限校验；CI 加规则检测无鉴权的非公开写接口 |
-| B10 | 🔴 | `module/tool/ToolController#invoke`/`generate`/`confirmGenerate`/`viewSource`/`share` | 统一工具调用入口"Agent/用户/外部系统均可调用"，REST 直调可能绕过 `ToolPermissionGuard`（其只包装 Agent 内的 ToolCallback）；AI 生成并注册可执行工具、查看源码均无鉴权→任意用户可执行/生成代码、读他人工具源码 | `/invoke` 必须复用与 Agent 同一套权限/风险门控；生成/注册/共享/查看源码加鉴权与审计 |
-| M15 | 🟠 | `CompanyController`（createPlan/createObjective/createTask/recordMetric）、`WebhookService.create`、`ChannelConfigService.create` 等 | 直接以 JPA 实体作 `@RequestBody`→**Mass Assignment**：客户端可注入 id/orgId/ownerId/createBy/deleted/version 等系统字段 | 用 Create/Update DTO 接收，仅映射允许字段 |
-| M16 | 🟠 | `system/user/domain/User`（password 无 `@JsonIgnore`）、`channel/WebhookConfig.secret`、`ChannelConfig.appSecret/token` | 敏感字段缺 `@JsonIgnore`，违反架构约束"password/secret 必须 `@JsonIgnore`"，依赖 VO 转换做唯一防线 | 敏感字段统一加 `@JsonIgnore` 做纵深防御 |
-| M17 | 🟠 | `permission/service/PermissionService#assignRolesToUser` vs `assignPermissionsToRole` | 语义不对称：分配权限给角色是"删后重建"，分配角色给用户是"只增不删"（取消勾选不生效） | 统一为"全量覆盖"或明确文档化差异 |
-| 重复 | 🟠 | `role/service/PermissionService` 与 `permission/service/PermissionService`（后者 `@Service("menuPermissionService")`）；`role/controller/PermissionController` 与 `permission/controller/PermissionController` | 两套 PermissionService/Controller 职责重叠（均涉及角色-权限），并行抽象 | 合并为单一权限服务，消除重叠 |
-| m11 | 🟡 | `UserService#importUsers` | 默认密码 `123456` 来自配置，弱口令 | 强制首登改密或随机初始密码 |
-| m12 | 🟡 | `DataAccessService#buildPredicate` | rule 的 `field/operator` 未对实体元数据校验，非法字段运行时抛错 | 校验字段白名单 |
+| B9 | 🔴 | `system/user/controller/UserController`、`company/controller/CompanyController`、`stats/StatsController`、部分管理与跨用户端点 | 部分端点仍以过宽角色放行，SELF 资源归属与组织边界尚未清零 | 按“平台角色 / 组织角色 / SELF”细化授权；在 service 层补资源归属与 org 过滤；持续维护 10 区剩余矩阵直至逐项闭合 |
+| B10 | 🔴 | `module/tool/ToolController#viewSource`、工具列表端点 | 身份或角色门控不能替代具体工具的资源级授权；源码查看与列表仍需按 owner/org/share scope 限定可见范围 | 统一调用工具资源授权服务，按所有者、组织与共享范围过滤列表并校验源码访问 |
+| M17 | 🟠 | `permission/service/PermissionService#assignRolesToUser` vs `assignPermissionsToRole` | 语义不对称：分配权限给角色是“删后重建”，分配角色给用户是“只增不删”（取消勾选不生效） | 统一为“全量覆盖”或明确文档化差异；权限撤销语义确认前不直接修改 |
+| 重复2 | 🟠 | `role/service/PermissionService` 与 `permission/service/PermissionService`（后者 `@Service("menuPermissionService")`）；`role/controller/PermissionController` 与 `permission/controller/PermissionController` | 两套 PermissionService/Controller 职责重叠（均涉及角色-权限），并行抽象 | 合并为单一权限服务，消除重叠 |
+| m11 | 🟡 | `UserService#importUsers` | 未提供密码时使用可配置但可预测的默认值（代码默认 `web4.0`），且未见强制首登改密闭环 | 强制首登改密或生成一次性随机初始密码并通过安全渠道交付 |
+| m12 | 🟡 | `DataAccessService#buildLeafPredicate` | 规则创建/更新时未校验 `field/operator`；非法字段在执行期由 `root.get` 抛出并被外层捕获为 deny-all，虽 fail-closed 但会造成配置错误静默拒绝全部数据 | 保存规则时按 entitySlug 对实体字段和操作符做白名单校验 |
 
 ## 良好实践
 
 - `DataAccessService.buildSpecification` 无匹配规则时返回 `cb.disjunction()`（拒绝所有），行级权限 **fail-closed**，是正确范式（与 B1 租户过滤的 fail-open 形成对比，应以此为准）。
 - `DataAccessService` 用 Criteria API 构建谓词，参数化、无 SQL 注入。
-- `User` 充血模型（checkPassword/changePassword/isLocked/recordLoginFail/recordLoginSuccess）封装良好，密码仅以编码存储。
+- `User` 充血模型（checkPassword/changePassword/isLocked/recordLoginFail/recordLoginSuccess）封装良好，密码仅以编码存储且已增加 `@JsonIgnore` 纵深防御。
+- Company 的 plan/objective/key-result/task/metric 创建端点均改用受校验 DTO，service 只映射允许字段并设置状态、记录时间等系统字段，不再直接绑定 JPA 实体。
+- Channel/Webhook 配置入口使用 SaveDTO、出参使用脱敏 VO；`appSecret`、`token`、`encodingAesKey`、`secret` 均增加 `@JsonIgnore` 纵深防御。
 - `PermissionService.tree`/`buildTree` 递归构树清晰；版本化（permission 软删除 + 唯一 code 校验）到位。
-- `UserController` 批量删除 >100 转异步任务，考虑了规模化（但异步循环 `catch(Exception ignored)` 吞异常，见下）。
+- `UserController` 批量删除 >100 转异步任务；失败项现会累计用户 ID 并使现有异步任务进入 `FAILED`，不再静默报告成功。
 
 ## 对称性 / 一致性提示
 
-- 认证 vs 鉴权（清单#8）：B9/B10 是本轮最严重的系统级缺口。
+- 认证 vs 鉴权（清单#8）：B9/B10 当前重点是角色范围、资源归属与组织边界，而非是否存在方法级鉴权注解。
 - 创建 vs 删除（清单#2）：`assignRolesToUser` 只增不删（M17）。
-- `UserController.deleteBatch` 异步分支 `catch (Exception ignored) {}` 静默吞异常，失败项无记录（违反"不吞异常"）——建议累计失败清单返回。

@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.module.company.planning.domain.CompanyPlan;
 import com.xuejiai.aaf.module.company.planning.repository.CompanyPlanRepository;
+import com.xuejiai.aaf.module.company.planning.vo.CompanyPlanCreateDTO;
 
 import lombok.RequiredArgsConstructor;
 
@@ -22,7 +23,14 @@ public class CompanyPlanService {
     }
 
     @Transactional
-    public CompanyPlan createPlan(CompanyPlan plan) {
+    public CompanyPlan createPlan(CompanyPlanCreateDTO request) {
+        var plan = new CompanyPlan();
+        plan.setName(request.name());
+        plan.setPlanType(request.planType());
+        plan.setPeriod(request.period());
+        plan.setYear(request.year());
+        plan.setQuarter(request.quarter());
+        plan.setContent(request.content());
         plan.setStatus("DRAFT");
         return planRepository.save(plan);
     }

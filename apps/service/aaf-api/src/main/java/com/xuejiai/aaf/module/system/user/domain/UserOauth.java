@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 import org.hibernate.annotations.SQLDelete;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.Column;
@@ -43,10 +44,12 @@ public class UserOauth extends BaseEntity {
     private String providerUsername;
 
     /** 访问令牌 */
+    @JsonIgnore
     @Column(name = "access_token", length = 500)
     private String accessToken;
 
     /** 刷新令牌 */
+    @JsonIgnore
     @Column(name = "refresh_token", length = 500)
     private String refreshToken;
 

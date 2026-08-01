@@ -123,12 +123,18 @@ public class UserController implements ResourceOptionsController<User, UserVO> {
                         "user:deleteBatch",
                         ids.size(),
                         task -> {
+                            var failedIds = new java.util.ArrayList<Long>();
                             for (int i = 0; i < ids.size(); i++) {
+                                var userId = ids.get(i);
                                 try {
-                                    userService.delete(ids.get(i));
-                                } catch (Exception ignored) {
+                                    userService.delete(userId);
+                                } catch (Exception e) {
+                                    failedIds.add(userId);
                                 }
                                 task.setCurrent(i + 1);
+                            }
+                            if (!failedIds.isEmpty()) {
+                                throw new IllegalStateException("批量删除失败，用户ID: " + failedIds);
                             }
                         });
         return Result.success(java.util.Map.of("taskId", taskId, "async", true));

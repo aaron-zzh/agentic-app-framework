@@ -14,6 +14,8 @@ import com.xuejiai.aaf.module.company.ops.domain.OpsTaskExecution;
 import com.xuejiai.aaf.module.company.ops.repository.OpsMetricRepository;
 import com.xuejiai.aaf.module.company.ops.repository.OpsTaskExecutionRepository;
 import com.xuejiai.aaf.module.company.ops.repository.OpsTaskRepository;
+import com.xuejiai.aaf.module.company.ops.vo.OpsMetricCreateDTO;
+import com.xuejiai.aaf.module.company.ops.vo.OpsTaskCreateDTO;
 
 import lombok.RequiredArgsConstructor;
 
@@ -31,7 +33,15 @@ public class CompanyOpsService {
     }
 
     @Transactional
-    public OpsTask createTask(OpsTask task) {
+    public OpsTask createTask(OpsTaskCreateDTO request) {
+        var task = new OpsTask();
+        task.setName(request.name());
+        task.setDescription(request.description());
+        task.setCategory(request.category());
+        task.setCronExpr(request.cronExpr());
+        task.setTriggerType(request.triggerType());
+        task.setAgentId(request.agentId());
+        task.setConfig(request.config());
         task.setEnabled(true);
         return taskRepository.save(task);
     }
@@ -61,7 +71,13 @@ public class CompanyOpsService {
     }
 
     @Transactional
-    public OpsMetric recordMetric(OpsMetric metric) {
+    public OpsMetric recordMetric(OpsMetricCreateDTO request) {
+        var metric = new OpsMetric();
+        metric.setName(request.name());
+        metric.setCode(request.code());
+        metric.setValue(request.value());
+        metric.setUnit(request.unit());
+        metric.setSource(request.source());
         metric.setRecordedAt(LocalDateTime.now());
         return metricRepository.save(metric);
     }

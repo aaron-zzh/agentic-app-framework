@@ -30,6 +30,8 @@ import lombok.extern.slf4j.Slf4j;
 public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
     private static final String KEY_PREFIX = "aaf_dk_";
+    private static final java.time.Duration LAST_USED_UPDATE_INTERVAL =
+            java.time.Duration.ofMinutes(1);
 
     private final ApiKeyRepository apiKeyRepository;
 
@@ -66,9 +68,13 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         auth.setDetails(apiKey); // 可通过 details 获取 ApiKey 对象
         SecurityContextHolder.getContext().setAuthentication(auth);
 
-        // 异步更新最后使用时间
-        apiKey.setLastUsedAt(Instant.now());
-        apiKeyRepository.save(apiKey);
+        // 分钟级更新最后使用时间，避免每次认证都同步写库
+        var now = Instant.now();
+        if (apiKey.getLastUsedAt() == null
+                || apiKey.getLastUsedAt().plus(LAST_USED_UPDATE_INTERVAL).isBefore(now)) {
+            apiKey.setLastUsedAt(now);
+            apiKeyRepository.save(apiKey);
+        }
 
         filterChain.doFilter(request, response);
     }

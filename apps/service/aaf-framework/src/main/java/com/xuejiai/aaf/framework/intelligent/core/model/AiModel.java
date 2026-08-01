@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageConfig;
@@ -67,6 +68,7 @@ public class AiModel extends BaseEntity {
     private String baseUrl;
 
     /** API Key（加密存储） */
+    @JsonIgnore
     @Column(name = "api_key_encrypted", length = 1024)
     private String apiKey;
 

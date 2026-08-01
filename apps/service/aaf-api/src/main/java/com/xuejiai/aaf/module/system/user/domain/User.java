@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import org.hibernate.annotations.SQLDelete;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.xuejiai.aaf.common.enums.CommonStatusEnum;
 import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.framework.org.OrgIgnore;
@@ -35,6 +36,7 @@ public class User extends BaseEntity {
     @Column(name = "username", nullable = false, unique = true, length = 50)
     private String username;
 
+    @JsonIgnore
     @Column(name = "password", nullable = false, length = 200)
     private String password;
 

@@ -9,6 +9,8 @@ import com.xuejiai.aaf.module.company.okr.domain.KeyResult;
 import com.xuejiai.aaf.module.company.okr.domain.Objective;
 import com.xuejiai.aaf.module.company.okr.repository.KeyResultRepository;
 import com.xuejiai.aaf.module.company.okr.repository.ObjectiveRepository;
+import com.xuejiai.aaf.module.company.okr.vo.KeyResultCreateDTO;
+import com.xuejiai.aaf.module.company.okr.vo.ObjectiveCreateDTO;
 
 import lombok.RequiredArgsConstructor;
 
@@ -27,7 +29,13 @@ public class CompanyOkrService {
     }
 
     @Transactional
-    public Objective createObjective(Objective objective) {
+    public Objective createObjective(ObjectiveCreateDTO request) {
+        var objective = new Objective();
+        objective.setTitle(request.title());
+        objective.setPlanId(request.planId());
+        objective.setParentId(request.parentId());
+        objective.setOwnerUserId(request.ownerUserId());
+        objective.setPeriod(request.period());
         objective.setStatus("NOT_STARTED");
         return objectiveRepository.save(objective);
     }
@@ -37,9 +45,17 @@ public class CompanyOkrService {
     }
 
     @Transactional
-    public KeyResult createKeyResult(KeyResult kr) {
-        kr.setStatus("NOT_STARTED");
-        return keyResultRepository.save(kr);
+    public KeyResult createKeyResult(Long objectiveId, KeyResultCreateDTO request) {
+        var keyResult = new KeyResult();
+        keyResult.setObjectiveId(objectiveId);
+        keyResult.setTitle(request.title());
+        keyResult.setMetricType(request.metricType());
+        keyResult.setStartValue(request.startValue());
+        keyResult.setTargetValue(request.targetValue());
+        keyResult.setCurrentValue(request.currentValue());
+        keyResult.setOwnerUserId(request.ownerUserId());
+        keyResult.setStatus("NOT_STARTED");
+        return keyResultRepository.save(keyResult);
     }
 
     @Transactional

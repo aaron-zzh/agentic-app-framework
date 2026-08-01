@@ -2,6 +2,7 @@ package com.xuejiai.aaf.framework.intelligent.core.model;
 
 import org.hibernate.annotations.SQLDelete;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.Column;
@@ -40,6 +41,7 @@ public class AiModelProvider extends BaseEntity {
     private String baseUrl;
 
     /** 供应商级 API Key（加密存储） */
+    @JsonIgnore
     @Column(name = "api_key_encrypted", length = 1024)
     private String apiKey;
 

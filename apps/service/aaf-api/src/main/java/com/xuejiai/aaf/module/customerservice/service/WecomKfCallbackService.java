@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.module.customerservice.config.WecomKfProperties;
 
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -91,9 +92,17 @@ public class WecomKfCallbackService {
                 });
     }
 
+    @PreDestroy
+    void shutdownExecutor() {
+        executor.shutdownNow();
+    }
+
     /** 验证签名 */
     private boolean verifySignature(
             String msgSignature, String timestamp, String nonce, String encrypt) {
+        if (msgSignature == null) {
+            return false;
+        }
         try {
             String[] arr = {properties.getToken(), timestamp, nonce, encrypt};
             Arrays.sort(arr);
@@ -101,8 +110,9 @@ public class WecomKfCallbackService {
             for (var s : arr) sb.append(s);
             var sha1 = MessageDigest.getInstance("SHA-1");
             var digest = sha1.digest(sb.toString().getBytes(StandardCharsets.UTF_8));
-            var hexStr = bytesToHex(digest);
-            return hexStr.equals(msgSignature);
+            var expectedSignature = bytesToHex(digest).getBytes(StandardCharsets.US_ASCII);
+            var actualSignature = msgSignature.getBytes(StandardCharsets.US_ASCII);
+            return MessageDigest.isEqual(expectedSignature, actualSignature);
         } catch (Exception e) {
             log.error("验证签名异常", e);
             return false;

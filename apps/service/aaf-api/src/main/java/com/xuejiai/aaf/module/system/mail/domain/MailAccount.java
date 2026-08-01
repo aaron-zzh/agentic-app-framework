@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.system.mail.domain;
 
 import org.hibernate.annotations.SQLDelete;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.Column;
@@ -41,6 +42,7 @@ public class MailAccount extends BaseEntity {
     private String username;
 
     /** 登录密码 */
+    @JsonIgnore
     @Column(nullable = false, length = 200)
     private String password;
 
