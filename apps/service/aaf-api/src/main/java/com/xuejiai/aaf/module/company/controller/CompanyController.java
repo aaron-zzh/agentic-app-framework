@@ -49,8 +49,7 @@ public class CompanyController {
     }
 
     @PostMapping("/plans")
-    public Result<CompanyPlanVO> createPlan(
-            @Validated @RequestBody CompanyPlanCreateDTO request) {
+    public Result<CompanyPlanVO> createPlan(@Validated @RequestBody CompanyPlanCreateDTO request) {
         return Result.success(CompanyPlanVO.from(planService.createPlan(request)));
     }
 
@@ -63,8 +62,7 @@ public class CompanyController {
     }
 
     @PostMapping("/okr/objectives")
-    public Result<ObjectiveVO> createObjective(
-            @Validated @RequestBody ObjectiveCreateDTO request) {
+    public Result<ObjectiveVO> createObjective(@Validated @RequestBody ObjectiveCreateDTO request) {
         return Result.success(ObjectiveVO.from(okrService.createObjective(request)));
     }
 
@@ -125,8 +123,8 @@ public class CompanyController {
     /**
      * 执行运营编排——按 skill 串联的 AI 步骤链。
      *
-     * <p>m15：这里的 "workflow" 指企业运营编排（{@code module.company.workflow}），不是 Flowable
-     * 审批流，也不是 AI 工作流编辑器；边界说明见 {@link WorkflowExecutor}。
+     * <p>m15：这里的 "workflow" 指企业运营编排（{@code module.company.workflow}），不是 Flowable 审批流，也不是 AI
+     * 工作流编辑器；边界说明见 {@link WorkflowExecutor}。
      *
      * <p>底层执行器 v1 已归档，当前调用会显式抛未实现异常——原注释声称的"fork 并行 + 置信度门控"并未实现， 不保留该描述以免误导调用方。
      */

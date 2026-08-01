@@ -129,8 +129,7 @@ public record AssistantDefinition(
                             .orElseThrow(
                                     () ->
                                             new IllegalArgumentException(
-                                                    "SkillRoute 引用了未配置 Role: "
-                                                            + route.roleKey()));
+                                                    "SkillRoute 引用了未配置 Role: " + route.roleKey()));
             if (!role.skillKeys().contains(route.skillKey())) {
                 throw new IllegalArgumentException(
                         "SkillRoute 必须属于对应 Role.skillKeys: " + route.skillKey());

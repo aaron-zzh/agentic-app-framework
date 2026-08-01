@@ -27,8 +27,7 @@ class TaskRuntimeInProgressTest extends BaseMockitoUnitTest {
     @BeforeEach
     void setUp() {
         taskRuntime = new TaskRuntime(taskMonitor, taskNotifier, bpmnEngine);
-        when(taskMonitor.recordStart(
-                        anyString(), anyString(), any(), any(), any(), anyString()))
+        when(taskMonitor.recordStart(anyString(), anyString(), any(), any(), any(), anyString()))
                 .thenReturn(10L);
         taskRuntime.register(inProgressTask());
     }
@@ -54,9 +53,7 @@ class TaskRuntimeInProgressTest extends BaseMockitoUnitTest {
     @DisplayName("Given 任务仍在执行 When 带进度提交 Then 对称传播控制异常")
     void should_propagate_in_progress_from_progress_submit() {
         assertThatThrownBy(
-                        () ->
-                                taskRuntime.submitWithProgress(
-                                        "LONG_TASK", "{}", 1, progress -> {}))
+                        () -> taskRuntime.submitWithProgress("LONG_TASK", "{}", 1, progress -> {}))
                 .isInstanceOf(TaskExecutionInProgressException.class)
                 .hasMessage("still running");
         verify(taskMonitor).recordFailure(10L, "still running");

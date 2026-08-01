@@ -3,6 +3,7 @@ package com.xuejiai.aaf.framework.intelligent.core.model;
 import org.hibernate.annotations.SQLDelete;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.Column;

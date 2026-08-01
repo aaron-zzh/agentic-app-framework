@@ -159,8 +159,7 @@ public class StatsController {
     public Result<UserProfileVO> queryUserProfile(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        return Result.success(
-                behaviorService.queryUserProfile(startDate, endDate, filterOrgId()));
+        return Result.success(behaviorService.queryUserProfile(startDate, endDate, filterOrgId()));
     }
 
     // ========== 报表导出 ==========

@@ -2,8 +2,9 @@ package com.xuejiai.aaf.module.approval.repository;
 
 import java.util.List;
 
-import com.xuejiai.aaf.module.approval.domain.ApprovalRecord;
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.xuejiai.aaf.module.approval.domain.ApprovalRecord;
 
 /**
  * 审批记录仓储。

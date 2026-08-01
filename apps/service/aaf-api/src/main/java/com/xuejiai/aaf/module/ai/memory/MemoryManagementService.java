@@ -61,12 +61,7 @@ public class MemoryManagementService {
 
     public List<MemoryRecordVO> search(String keyword, String scope) {
         return memoryManagement
-                .search(
-                        subject(),
-                        keyword,
-                        optionalScope(scope),
-                        MAX_SEARCH_RESULTS,
-                        Instant.now())
+                .search(subject(), keyword, optionalScope(scope), MAX_SEARCH_RESULTS, Instant.now())
                 .stream()
                 .map(this::toVO)
                 .toList();
@@ -77,10 +72,7 @@ public class MemoryManagementService {
         var at = Instant.now();
         var outcome =
                 memoryGovernance.remember(
-                        subject(),
-                        content,
-                        List.of(SCOPE_TAG_PREFIX + normalizeScope(scope)),
-                        at);
+                        subject(), content, List.of(SCOPE_TAG_PREFIX + normalizeScope(scope)), at);
         if (outcome.status() == RememberStatus.REJECTED
                 || outcome.status() == RememberStatus.CONFLICT) {
             throw new IllegalArgumentException(outcome.reason());
@@ -109,10 +101,7 @@ public class MemoryManagementService {
         var subject = subject();
         var at = Instant.now();
         memoryManagement.forgetScope(
-                subject,
-                normalizeScope(scope),
-                confirmation(subject, "用户清空记忆范围", at),
-                at);
+                subject, normalizeScope(scope), confirmation(subject, "用户清空记忆范围", at), at);
     }
 
     public MemoryStatsVO getStats() {

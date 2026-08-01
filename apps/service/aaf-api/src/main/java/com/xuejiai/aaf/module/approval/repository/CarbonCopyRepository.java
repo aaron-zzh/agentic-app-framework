@@ -2,8 +2,9 @@ package com.xuejiai.aaf.module.approval.repository;
 
 import java.util.List;
 
-import com.xuejiai.aaf.module.approval.domain.CarbonCopyRecord;
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.xuejiai.aaf.module.approval.domain.CarbonCopyRecord;
 
 /**
  * 抄送记录仓储。

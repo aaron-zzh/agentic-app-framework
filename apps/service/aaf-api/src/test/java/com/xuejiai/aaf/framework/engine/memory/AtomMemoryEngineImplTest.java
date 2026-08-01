@@ -44,19 +44,14 @@ class AtomMemoryEngineImplTest extends BaseMockitoUnitTest {
         var userId = 1L;
         var vec = new float[] {0.1f, 0.2f, 0.3f};
         var expected = List.of(createAtom("结果1"));
-        when(atomRepository.searchByVector(
-                        eq(userId), anyString(), eq(10), any(Instant.class)))
+        when(atomRepository.searchByVector(eq(userId), anyString(), eq(10), any(Instant.class)))
                 .thenReturn(expected);
 
         var result = engine.searchByVector(userId, vec, 10);
 
         assertThat(result).hasSize(1);
         verify(atomRepository)
-                .searchByVector(
-                        eq(userId),
-                        contains("[0.1,0.2,0.3]"),
-                        eq(10),
-                        any(Instant.class));
+                .searchByVector(eq(userId), contains("[0.1,0.2,0.3]"), eq(10), any(Instant.class));
     }
 
     @Test
@@ -65,8 +60,7 @@ class AtomMemoryEngineImplTest extends BaseMockitoUnitTest {
         var start = Instant.now().minus(7, ChronoUnit.DAYS);
         var end = Instant.now();
         var expected = List.of(createAtom("时间范围内"));
-        when(atomRepository.findByTimeRange(
-                        eq(userId), eq(start), eq(end), any(Instant.class)))
+        when(atomRepository.findByTimeRange(eq(userId), eq(start), eq(end), any(Instant.class)))
                 .thenReturn(expected);
 
         var result = engine.searchByTime(userId, start, end);
@@ -82,8 +76,7 @@ class AtomMemoryEngineImplTest extends BaseMockitoUnitTest {
         var atom = createAtom("时间结果");
         var query = new HybridQuery(userId, null, start, end, null, null, 5);
         var timeResults = List.of(atom);
-        when(atomRepository.findByTimeRange(
-                        eq(userId), eq(start), eq(end), any(Instant.class)))
+        when(atomRepository.findByTimeRange(eq(userId), eq(start), eq(end), any(Instant.class)))
                 .thenReturn(timeResults);
         when(timeDecay.score(eq(atom.getEventTime()), any(), isNull())).thenReturn(0.9);
 

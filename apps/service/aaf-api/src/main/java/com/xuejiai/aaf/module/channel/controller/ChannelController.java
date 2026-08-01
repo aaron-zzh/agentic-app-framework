@@ -178,8 +178,7 @@ public class ChannelController {
 
     /** 创建渠道配置 */
     @PostMapping("/config")
-    public Result<ChannelConfigVO> createConfig(
-            @Validated @RequestBody ChannelConfigSaveDTO dto) {
+    public Result<ChannelConfigVO> createConfig(@Validated @RequestBody ChannelConfigSaveDTO dto) {
         return Result.success(channelConfigService.create(dto));
     }
 
@@ -213,8 +212,7 @@ public class ChannelController {
 
     /** 创建 Webhook 配置 */
     @PostMapping("/webhook/config")
-    public Result<WebhookConfigVO> createWebhook(
-            @Validated @RequestBody WebhookConfigSaveDTO dto) {
+    public Result<WebhookConfigVO> createWebhook(@Validated @RequestBody WebhookConfigSaveDTO dto) {
         return Result.success(webhookService.create(dto));
     }
 

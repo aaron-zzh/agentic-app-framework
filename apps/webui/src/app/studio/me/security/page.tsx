@@ -23,8 +23,8 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { authApi } from "@/lib/api/rest/user"
 import {
+  authApi,
   profileApi,
   profileQueries,
   useChangePassword,

@@ -6,8 +6,8 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { _mockEntityData } from "@/lib/_mock/entities"
 import { fromEntityDef } from "@/lib/api/rest/crud"
-import { fetchRecord, type PageResult } from "./crud"
 import type { EntityDef } from "@/lib/types/entity"
+import { fetchRecord, type PageResult } from "./crud"
 
 interface UseEntityDetailOptions {
   queryToken?: string

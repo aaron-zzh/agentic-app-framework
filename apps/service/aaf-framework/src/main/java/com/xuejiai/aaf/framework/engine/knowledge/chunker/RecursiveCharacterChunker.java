@@ -42,14 +42,14 @@ public class RecursiveCharacterChunker implements DocumentChunker {
     }
 
     private String withOverlap(String previous, String current, ChunkConfig config) {
-        if (previous == null || config.overlapSize() == 0 || current.length() >= config.chunkSize()) {
+        if (previous == null
+                || config.overlapSize() == 0
+                || current.length() >= config.chunkSize()) {
             return current;
         }
         var available = config.chunkSize() - current.length();
         var overlap = Math.min(Math.min(config.overlapSize(), available), previous.length());
-        return overlap == 0
-                ? current
-                : previous.substring(previous.length() - overlap) + current;
+        return overlap == 0 ? current : previous.substring(previous.length() - overlap) + current;
     }
 
     private List<String> splitRecursive(
@@ -90,8 +90,7 @@ public class RecursiveCharacterChunker implements DocumentChunker {
             }
         }
         if (!current.isEmpty()) {
-            result.addAll(
-                    splitRecursive(current.toString(), remaining, chunkSize, overlapSize));
+            result.addAll(splitRecursive(current.toString(), remaining, chunkSize, overlapSize));
         }
         return result;
     }

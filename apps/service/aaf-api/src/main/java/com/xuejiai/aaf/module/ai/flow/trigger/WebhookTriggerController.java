@@ -36,8 +36,7 @@ public class WebhookTriggerController {
      */
     @PostMapping("/{flowId}")
     public Map<String, Object> trigger(
-            @PathVariable Long flowId,
-            @RequestBody(required = false) Map<String, Object> payload) {
+            @PathVariable Long flowId, @RequestBody(required = false) Map<String, Object> payload) {
         var identity = triggerService.currentIdentity();
         var result = triggerService.triggerWebhook(flowId, payload, identity);
         log.info(

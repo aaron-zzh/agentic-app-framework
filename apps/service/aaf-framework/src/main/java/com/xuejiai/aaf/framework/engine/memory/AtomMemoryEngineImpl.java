@@ -46,7 +46,8 @@ public class AtomMemoryEngineImpl implements AtomMemoryEngine {
         if (relation.getSourceId().equals(relation.getTargetId())) {
             throw new IllegalArgumentException("记忆关系两端不能相同");
         }
-        var atoms = atomRepository.findAllById(List.of(relation.getSourceId(), relation.getTargetId()));
+        var atoms =
+                atomRepository.findAllById(List.of(relation.getSourceId(), relation.getTargetId()));
         if (atoms.size() != 2) {
             throw new IllegalArgumentException("记忆关系端点不存在");
         }
@@ -191,13 +192,11 @@ public class AtomMemoryEngineImpl implements AtomMemoryEngine {
         }
     }
 
-    private List<MemoryAtom> searchByVectorAt(
-            Long userId, float[] queryVec, int topK, Instant at) {
+    private List<MemoryAtom> searchByVectorAt(Long userId, float[] queryVec, int topK, Instant at) {
         return atomRepository.searchByVector(userId, toVectorString(queryVec), topK, at);
     }
 
-    private List<MemoryAtom> searchByTimeAt(
-            Long userId, Instant start, Instant end, Instant at) {
+    private List<MemoryAtom> searchByTimeAt(Long userId, Instant start, Instant end, Instant at) {
         return atomRepository.findByTimeRange(userId, start, end, at);
     }
 

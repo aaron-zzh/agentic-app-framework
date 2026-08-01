@@ -7,8 +7,7 @@
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import type { StreamingEditorHandle } from "@/features/rich-text-editor"
-import { copywritingApi } from "@/lib/api/rest/ai"
-import { useLinkProjectDoc } from "@/lib/api/rest/ai"
+import { copywritingApi, useLinkProjectDoc } from "@/lib/api/rest/ai"
 import { useCreateDocument } from "@/lib/api/rest/system"
 import { useAigcStore } from "../store"
 

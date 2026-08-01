@@ -25,10 +25,8 @@ import { Textarea } from "@/components/ui/textarea"
 import {
   type DeveloperSubscriptionPlan,
   developerApi,
-  useDeveloperPlans
-} from "@/lib/api/rest/billing"
-import {
   licenseApi,
+  useDeveloperPlans,
   useIssueLicense,
   useLicenseStatus,
   useOfficialConsoleSummary

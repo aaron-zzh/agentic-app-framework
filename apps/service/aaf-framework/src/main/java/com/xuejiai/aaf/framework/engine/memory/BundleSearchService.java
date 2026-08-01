@@ -56,8 +56,7 @@ public class BundleSearchService {
             neighborIds.add(relation.getTargetId());
         }
 
-        var allAtoms =
-                atomRepository.findCurrentByIds(userId, neighborIds.stream().toList(), now);
+        var allAtoms = atomRepository.findCurrentByIds(userId, neighborIds.stream().toList(), now);
         var atomMap = allAtoms.stream().collect(Collectors.toMap(MemoryAtom::getId, atom -> atom));
         relations =
                 relations.stream()
@@ -70,8 +69,7 @@ public class BundleSearchService {
         double avgEdgeDist =
                 relations.stream()
                         .filter(relation -> relation.getEdgeEmbedding() != null)
-                        .mapToDouble(
-                                relation -> vecDistance(queryVec, relation.getEdgeEmbedding()))
+                        .mapToDouble(relation -> vecDistance(queryVec, relation.getEdgeEmbedding()))
                         .average()
                         .orElse(1.0);
         double edgeWeightFactor = Math.max(0.3, Math.min(1.5, avgEdgeDist * 1.5));

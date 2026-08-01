@@ -36,7 +36,8 @@ public class WorkflowTool {
         }
         var result = new StringBuilder("可调用 AI Flow 列表：\n");
         for (var workflow : workflows) {
-            result.append("- %s（workflow_id: %d）".formatted(workflow.name(), workflow.workflowId()));
+            result.append(
+                    "- %s（workflow_id: %d）".formatted(workflow.name(), workflow.workflowId()));
             if (workflow.description() != null && !workflow.description().isBlank()) {
                 result.append("：").append(workflow.description());
             }
@@ -57,10 +58,7 @@ public class WorkflowTool {
         var parsedVariables = parseVariables(variables);
         var started =
                 workflowPort.start(
-                        workflowId,
-                        parsedVariables,
-                        invocation.scope(),
-                        invocation.agentRunId());
+                        workflowId, parsedVariables, invocation.scope(), invocation.agentRunId());
         log.info(
                 "AI Flow 已启动: workflowId={}, instanceId={}",
                 started.workflowId(),
@@ -75,9 +73,7 @@ public class WorkflowTool {
         }
         final Map<String, Object> parsed;
         try {
-            parsed =
-                    JsonUtils.parseObject(
-                            variables, new TypeReference<Map<String, Object>>() {});
+            parsed = JsonUtils.parseObject(variables, new TypeReference<Map<String, Object>>() {});
         } catch (RuntimeException exception) {
             throw new IllegalArgumentException("variables 必须是合法 JSON 对象", exception);
         }

@@ -41,10 +41,7 @@ public class AgentLoopStepDelegate implements JavaDelegate {
         execution.setVariable("stepCount", stepCount);
         var input = stringVariable(execution, "input", "");
         var previousOutput = stringVariable(execution, "loopOutput", "");
-        var stepInput =
-                previousOutput.isBlank()
-                        ? input
-                        : input + "\n\n[上一步结果]\n" + previousOutput;
+        var stepInput = previousOutput.isBlank() ? input : input + "\n\n[上一步结果]\n" + previousOutput;
 
         execution.setVariable("input", stepInput);
         execution.setVariable("output", "");
@@ -120,8 +117,7 @@ public class AgentLoopStepDelegate implements JavaDelegate {
                 stepResult);
     }
 
-    private void terminateForBudget(
-            DelegateExecution execution, int stepCount, int maxSteps) {
+    private void terminateForBudget(DelegateExecution execution, int stepCount, int maxSteps) {
         var stepResult = "已达到最大步骤数 %d".formatted(maxSteps);
         execution.setVariable("stepResult", stepResult);
         execution.setVariable("stepSuccess", false);
@@ -180,8 +176,7 @@ public class AgentLoopStepDelegate implements JavaDelegate {
         return output.contains("[需要审批]") || output.contains("[NEEDS_APPROVAL]");
     }
 
-    private String stringVariable(
-            DelegateExecution execution, String name, String defaultValue) {
+    private String stringVariable(DelegateExecution execution, String name, String defaultValue) {
         var value = execution.getVariable(name);
         return value == null ? defaultValue : String.valueOf(value);
     }

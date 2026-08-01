@@ -6,6 +6,7 @@ import org.hibernate.annotations.SQLDelete;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import com.xuejiai.aaf.common.enums.CommonStatusEnum;
 import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.framework.org.OrgIgnore;

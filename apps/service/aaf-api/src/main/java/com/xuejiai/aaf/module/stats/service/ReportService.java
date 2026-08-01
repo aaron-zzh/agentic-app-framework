@@ -70,13 +70,12 @@ public class ReportService {
     /**
      * PDF 导出——尚未实现。
      *
-     * <p>占位修复：原实现向响应流写入 "PDF 报表生成待实现" 纯文本，但 Content-Type 已声明为
-     * application/pdf，调用方会拿到一个"下载成功但打不开"的假 PDF，属静默降级。 未实现的能力必须显式失败，接入 iText 后再放开。
+     * <p>占位修复：原实现向响应流写入 "PDF 报表生成待实现" 纯文本，但 Content-Type 已声明为 application/pdf，调用方会拿到一个"下载成功但打不开"的假
+     * PDF，属静默降级。 未实现的能力必须显式失败，接入 iText 后再放开。
      */
     public void exportPdf(ReportTypeEnum type, LocalDate reportDate, OutputStream out)
             throws IOException {
-        throw new BusinessException(
-                GlobalErrorCode.SERVICE_UNAVAILABLE, "PDF 报表导出尚未实现，请改用 CSV 导出");
+        throw new BusinessException(GlobalErrorCode.SERVICE_UNAVAILABLE, "PDF 报表导出尚未实现，请改用 CSV 导出");
     }
 
     // ========== 内部方法 ==========

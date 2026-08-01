@@ -129,8 +129,8 @@ public class DefaultPromptEngine implements PromptEngine {
     /**
      * 渲染并注入 Few-shot 示例——尚未实现。
      *
-     * <p>占位修复：原实现直接 {@code return render(...)}，调用方以为拿到了带示例的 Prompt， 实际是普通渲染结果（示例数
-     * maxExamples 被静默忽略），属静默降级。 Few-shot 示例存储与相关度排序落地后再放开，在此之前显式报错。
+     * <p>占位修复：原实现直接 {@code return render(...)}，调用方以为拿到了带示例的 Prompt， 实际是普通渲染结果（示例数 maxExamples
+     * 被静默忽略），属静默降级。 Few-shot 示例存储与相关度排序落地后再放开，在此之前显式报错。
      */
     @Override
     public String renderWithExamples(

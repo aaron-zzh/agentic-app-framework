@@ -7,11 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { act, renderHook, waitFor } from "@testing-library/react"
 import { createElement, type ReactNode } from "react"
 import { beforeEach, describe, expect, it } from "vitest"
-import {
-  useEntityDelete,
-  useEntityMutation,
-  useEntityRecord
-} from "@/lib/api/rest/entity"
+import { useEntityDelete, useEntityMutation, useEntityRecord } from "@/lib/api/rest/entity"
 import type { EntityDef } from "@/lib/types/entity"
 import {
   installMockBackendClient,

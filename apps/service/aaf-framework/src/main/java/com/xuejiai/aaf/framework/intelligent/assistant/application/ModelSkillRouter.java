@@ -42,8 +42,7 @@ public final class ModelSkillRouter implements SkillRouter {
     }
 
     @Override
-    public Optional<SkillRoute> route(
-            AssistantDefinition definition, String input, UserId userId) {
+    public Optional<SkillRoute> route(AssistantDefinition definition, String input, UserId userId) {
         Objects.requireNonNull(definition, "definition 不能为空");
         if (input == null || input.isBlank()) {
             return defaultRoute(definition);
@@ -68,10 +67,7 @@ public final class ModelSkillRouter implements SkillRouter {
             if (selected.isPresent()) {
                 return selected;
             }
-            log.warn(
-                    "前注意模型返回未授权 Role/Skill 组合: {}/{}",
-                    decision.roleKey(),
-                    decision.skillKey());
+            log.warn("前注意模型返回未授权 Role/Skill 组合: {}/{}", decision.roleKey(), decision.skillKey());
         } catch (RuntimeException failure) {
             log.warn("默认模型前注意失败，使用确定性路由兜底: {}", failure.getMessage());
         }
@@ -101,8 +97,7 @@ public final class ModelSkillRouter implements SkillRouter {
                 .formatted(definition.defaultRoleKey(), catalog.toString().trim());
     }
 
-    private void appendRole(
-            StringBuilder catalog, Role role, AssistantDefinition definition) {
+    private void appendRole(StringBuilder catalog, Role role, AssistantDefinition definition) {
         catalog.append("ROLE key=")
                 .append(role.key())
                 .append(" name=")

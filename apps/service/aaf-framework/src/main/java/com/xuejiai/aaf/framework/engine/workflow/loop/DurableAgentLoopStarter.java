@@ -171,8 +171,7 @@ public class DurableAgentLoopStarter {
                         : ORGANIZATION_SCOPE;
         var processOrgId = longVariable(processVariables, ORG_ID_VARIABLE);
         var processWorkspaceId = longVariable(processVariables, WORKSPACE_ID_VARIABLE);
-        if (currentOrgId.longValue() != processOrgId
-                || currentWorkspaceId != processWorkspaceId) {
+        if (currentOrgId.longValue() != processOrgId || currentWorkspaceId != processWorkspaceId) {
             throw new SecurityException("Human Gate 任务不属于当前组织或工作区");
         }
     }

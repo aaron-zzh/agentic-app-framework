@@ -6,7 +6,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
-import com.xuejiai.aaf.framework.engine.bpmn.api.BpmnEngine;
 import org.flowable.engine.HistoryService;
 import org.flowable.engine.RepositoryService;
 import org.flowable.engine.RuntimeService;
@@ -18,6 +17,8 @@ import org.flowable.engine.repository.ProcessDefinitionQuery;
 import org.flowable.engine.runtime.ProcessInstanceQuery;
 import org.flowable.task.api.Task;
 import org.springframework.stereotype.Component;
+
+import com.xuejiai.aaf.framework.engine.bpmn.api.BpmnEngine;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -121,15 +122,13 @@ public class FlowableBpmnEngine implements BpmnEngine {
     }
 
     @Override
-    public boolean hasOperableTask(
-            String processKey, String userId, Long orgId, Long workspaceId) {
+    public boolean hasOperableTask(String processKey, String userId, Long orgId, Long workspaceId) {
         var scopeWorkspaceId = workspaceId != null ? workspaceId : ORGANIZATION_SCOPE;
         return taskService
                                 .createTaskQuery()
                                 .processDefinitionKey(processKey)
                                 .processVariableValueEquals(ORG_ID_VARIABLE, orgId)
-                                .processVariableValueEquals(
-                                        WORKSPACE_ID_VARIABLE, scopeWorkspaceId)
+                                .processVariableValueEquals(WORKSPACE_ID_VARIABLE, scopeWorkspaceId)
                                 .taskAssignee(userId)
                                 .count()
                         > 0
@@ -137,8 +136,7 @@ public class FlowableBpmnEngine implements BpmnEngine {
                                 .createTaskQuery()
                                 .processDefinitionKey(processKey)
                                 .processVariableValueEquals(ORG_ID_VARIABLE, orgId)
-                                .processVariableValueEquals(
-                                        WORKSPACE_ID_VARIABLE, scopeWorkspaceId)
+                                .processVariableValueEquals(WORKSPACE_ID_VARIABLE, scopeWorkspaceId)
                                 .taskCandidateUser(userId)
                                 .count()
                         > 0;
@@ -433,10 +431,7 @@ public class FlowableBpmnEngine implements BpmnEngine {
 
     @Override
     public List<InstanceInfo> listInstances(
-            String processKey,
-            Map<String, Object> variableEquals,
-            int pageNo,
-            int pageSize) {
+            String processKey, Map<String, Object> variableEquals, int pageNo, int pageSize) {
         return buildInstanceQuery(processKey, variableEquals)
                 .orderByProcessInstanceStartTime()
                 .desc()

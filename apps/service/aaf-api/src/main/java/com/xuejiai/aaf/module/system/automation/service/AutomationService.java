@@ -14,7 +14,6 @@ import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.module.approval.api.ApprovalProcessApi;
-import com.xuejiai.aaf.module.system.log.event.EntityChangeEvent;
 import com.xuejiai.aaf.module.system.automation.domain.AutomationLog;
 import com.xuejiai.aaf.module.system.automation.domain.AutomationRule;
 import com.xuejiai.aaf.module.system.automation.repository.AutomationLogRepository;
@@ -23,6 +22,7 @@ import com.xuejiai.aaf.module.system.automation.vo.AutomationLogPageDTO;
 import com.xuejiai.aaf.module.system.automation.vo.AutomationLogVO;
 import com.xuejiai.aaf.module.system.automation.vo.AutomationRuleCreateDTO;
 import com.xuejiai.aaf.module.system.automation.vo.AutomationRuleVO;
+import com.xuejiai.aaf.module.system.log.event.EntityChangeEvent;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -138,8 +138,7 @@ public class HybridSearchService {
                         .toList();
     }
 
-    private List<RagSearchResult> graphSearch(
-            String query, Long knowledgeBaseId, int topK) {
+    private List<RagSearchResult> graphSearch(String query, Long knowledgeBaseId, int topK) {
         // 先按名称模糊匹配找到实体，再取子图
         var entities =
                 entityRepository.findByNameContaining(query).stream()

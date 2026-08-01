@@ -135,10 +135,7 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
                 dynamic,
                 Optional.of(
                         new AgentExecutionCommand.RoleAssignment(
-                                "system.role.test",
-                                "测试角色",
-                                List.of("执行测试"),
-                                List.of("越权操作"))),
+                                "system.role.test", "测试角色", List.of("执行测试"), List.of("越权操作"))),
                 AgentExecutionCommand.ExecutionMode.DELEGATE,
                 Optional.of(executionModel),
                 "技能提示",

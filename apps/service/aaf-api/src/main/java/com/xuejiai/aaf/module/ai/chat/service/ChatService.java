@@ -37,8 +37,8 @@ public class ChatService {
     /**
      * m14：非人类发送者（AI / SYSTEM / BOT）的 senderId 占位值。
      *
-     * <p>{@code sender_id} 列 NOT NULL 且为字符串，AI 消息本身没有用户主键。原代码在多处直接写死 {@code 0L}/{@code "0"}
-     * 表示"AI 发的"，语义只能靠约定传递；这里收敛为具名常量， 真正的行动者维度由 {@code senderType}（{@link MessageSenderTypeEnum}）表达。
+     * <p>{@code sender_id} 列 NOT NULL 且为字符串，AI 消息本身没有用户主键。原代码在多处直接写死 {@code 0L}/{@code "0"} 表示"AI
+     * 发的"，语义只能靠约定传递；这里收敛为具名常量， 真正的行动者维度由 {@code senderType}（{@link MessageSenderTypeEnum}）表达。
      */
     public static final String NON_HUMAN_SENDER_ID = "0";
 
@@ -164,8 +164,8 @@ public class ChatService {
     /**
      * 用户主动发消息（REST 入口专用）。
      *
-     * <p>M18：与内部/AI 写入路径（{@code saveMessage} 各重载，由事件监听器和 AG-UI 链路调用，运行时无 SecurityContext） 区分开——此方法要求
-     * sessionId 归属当前身份，避免用户把消息写进他人会话。
+     * <p>M18：与内部/AI 写入路径（{@code saveMessage} 各重载，由事件监听器和 AG-UI 链路调用，运行时无 SecurityContext）
+     * 区分开——此方法要求 sessionId 归属当前身份，避免用户把消息写进他人会话。
      */
     @Transactional
     public ChatMessageVO saveUserMessage(Long senderId, Long sessionId, String content) {
@@ -312,8 +312,8 @@ public class ChatService {
     /**
      * M18：校验会话归属当前用户，防对象级越权（IDOR）。
      *
-     * <p>sessionId/messageId 由客户端从路径传入，只有存在性校验时任何登录用户都能读/删/改他人会话。 这里统一比对
-     * {@code conversation.creatorId} 与当前身份；不属于自己时抛"会话不存在"而非 403， 避免通过错误码枚举出他人会话是否存在。
+     * <p>sessionId/messageId 由客户端从路径传入，只有存在性校验时任何登录用户都能读/删/改他人会话。 这里统一比对 {@code
+     * conversation.creatorId} 与当前身份；不属于自己时抛"会话不存在"而非 403， 避免通过错误码枚举出他人会话是否存在。
      */
     private Conversation requireOwnedConversation(Long sessionId) {
         var conv = requireConversation(sessionId);

@@ -139,17 +139,12 @@ public final class DefaultUserAssistantTemplate implements SystemAssistantTempla
                         "knowledge.search",
                         new ToolRule("knowledge.search", ActionEffect.READ, false, false),
                         "support.diagnostics.read",
-                        new ToolRule(
-                                "support.diagnostics.read", ActionEffect.READ, false, false),
+                        new ToolRule("support.diagnostics.read", ActionEffect.READ, false, false),
                         "support.handoff",
-                        new ToolRule(
-                                "support.handoff", ActionEffect.HUMAN_HANDOFF, false, false),
+                        new ToolRule("support.handoff", ActionEffect.HUMAN_HANDOFF, false, false),
                         "content.generate",
                         new ToolRule(
-                                "content.generate",
-                                ActionEffect.GENERATED_CONTENT,
-                                false,
-                                false),
+                                "content.generate", ActionEffect.GENERATED_CONTENT, false, false),
                         "content.draft.create",
                         new ToolRule(
                                 "content.draft.create",

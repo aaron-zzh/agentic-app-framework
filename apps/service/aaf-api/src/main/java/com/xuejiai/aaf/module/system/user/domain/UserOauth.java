@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import org.hibernate.annotations.SQLDelete;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.Column;

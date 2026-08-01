@@ -93,8 +93,7 @@ public class WorkflowAgUiService {
         if (currentTask == null) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "流程当前未等待用户输入");
         }
-        bpmnEngine.completeTask(
-                currentTask.taskId(), safeVariables, identity.userId().toString());
+        bpmnEngine.completeTask(currentTask.taskId(), safeVariables, identity.userId().toString());
         var emitter = activeEmitters.get(runId);
         if (emitter != null) {
             sendEvent(emitter, AgUiEvent.toolCallResult(runId, "user_input_" + runId, "用户已提交输入"));

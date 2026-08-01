@@ -18,10 +18,7 @@ class DataRouterTest {
     void should_fail_without_fake_count_when_knowledge_base_route_is_not_implemented() {
         // 准备参数
         var target =
-                PipelineConfig.RouteTarget.builder()
-                        .type("knowledge_base")
-                        .target("kb-1")
-                        .build();
+                PipelineConfig.RouteTarget.builder().type("knowledge_base").target("kb-1").build();
         var config = PipelineConfig.builder().routeTarget(target).build();
         var context = new ProcessingContext(List.of(Map.of("content", "待写入内容")), config);
 
@@ -55,10 +52,7 @@ class DataRouterTest {
     void should_abort_pipeline_when_knowledge_base_route_is_not_implemented() {
         // 准备参数
         var target =
-                PipelineConfig.RouteTarget.builder()
-                        .type("knowledge_base")
-                        .target("kb-1")
-                        .build();
+                PipelineConfig.RouteTarget.builder().type("knowledge_base").target("kb-1").build();
         var config = PipelineConfig.builder().pipelineId("pipeline-1").routeTarget(target).build();
         var pipeline = new DataPipeline(List.of(router));
 
@@ -67,8 +61,7 @@ class DataRouterTest {
 
         // 断言
         assertThat(context.isAborted()).isTrue();
-        assertThat(context.getLogs())
-                .anyMatch(log -> log.contains("失败: 知识库路由尚未实现"));
+        assertThat(context.getLogs()).anyMatch(log -> log.contains("失败: 知识库路由尚未实现"));
         assertThat(context.getMetadata()).doesNotContainKey("inserted_count");
     }
 }

@@ -5,16 +5,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import com.xuejiai.aaf.module.approval.domain.ApprovalNodeConfig;
 import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.engine.bpmn.api.BpmnEngine;
 import com.xuejiai.aaf.framework.org.OrgContext;
+import com.xuejiai.aaf.module.approval.domain.ApprovalNodeConfig;
+import com.xuejiai.aaf.module.approval.domain.ApprovalNodeConfig.EmptyAssigneeStrategy;
 import com.xuejiai.aaf.module.system.org.service.OrganizationService;
 import com.xuejiai.aaf.module.system.role.service.RoleService;
-import com.xuejiai.aaf.module.approval.domain.ApprovalNodeConfig.EmptyAssigneeStrategy;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

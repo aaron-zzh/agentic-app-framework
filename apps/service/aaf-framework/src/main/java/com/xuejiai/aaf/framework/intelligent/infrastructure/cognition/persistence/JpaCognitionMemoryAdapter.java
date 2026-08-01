@@ -97,11 +97,7 @@ public final class JpaCognitionMemoryAdapter
     @Override
     @Transactional(readOnly = true)
     public List<MemoryRecord> search(
-            MemorySubject subject,
-            String keyword,
-            String scope,
-            int limit,
-            Instant at) {
+            MemorySubject subject, String keyword, String scope, int limit, Instant at) {
         if (limit <= 0) throw new IllegalArgumentException("记忆搜索数量必须为正数");
         return repository
                 .searchManaged(
@@ -131,10 +127,7 @@ public final class JpaCognitionMemoryAdapter
     @Override
     @Transactional
     public int forgetScope(
-            MemorySubject subject,
-            String scope,
-            ExplicitConfirmation confirmation,
-            Instant at) {
+            MemorySubject subject, String scope, ExplicitConfirmation confirmation, Instant at) {
         confirmation.requireConfirmed("按范围清空记忆");
         return repository.forgetManagedScope(
                 subject.tenantId().value(),

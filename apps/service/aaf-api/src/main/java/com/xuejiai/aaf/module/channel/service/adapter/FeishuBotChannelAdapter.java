@@ -187,8 +187,9 @@ public class FeishuBotChannelAdapter implements ChannelAdapter {
         }
         try {
             var content = timestamp + nonce + encryptKey + body;
-            var hash = MessageDigest.getInstance("SHA-256")
-                    .digest(content.getBytes(StandardCharsets.UTF_8));
+            var hash =
+                    MessageDigest.getInstance("SHA-256")
+                            .digest(content.getBytes(StandardCharsets.UTF_8));
             var computed = bytesToHex(hash);
             if (!MessageDigest.isEqual(
                     computed.getBytes(StandardCharsets.US_ASCII),

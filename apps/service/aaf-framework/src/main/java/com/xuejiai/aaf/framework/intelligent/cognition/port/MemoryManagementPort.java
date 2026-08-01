@@ -10,8 +10,7 @@ import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.Memory
 /** Cognition 记忆管理查询与按范围遗忘边界。 */
 public interface MemoryManagementPort {
 
-    MemoryPage list(
-            MemorySubject subject, String scope, int offset, int limit, Instant at);
+    MemoryPage list(MemorySubject subject, String scope, int offset, int limit, Instant at);
 
     List<MemoryRecord> search(
             MemorySubject subject, String keyword, String scope, int limit, Instant at);
@@ -19,10 +18,7 @@ public interface MemoryManagementPort {
     long count(MemorySubject subject, String scope, Instant at);
 
     int forgetScope(
-            MemorySubject subject,
-            String scope,
-            ExplicitConfirmation confirmation,
-            Instant at);
+            MemorySubject subject, String scope, ExplicitConfirmation confirmation, Instant at);
 
     record MemoryPage(List<MemoryRecord> items, long total) {
         public MemoryPage {

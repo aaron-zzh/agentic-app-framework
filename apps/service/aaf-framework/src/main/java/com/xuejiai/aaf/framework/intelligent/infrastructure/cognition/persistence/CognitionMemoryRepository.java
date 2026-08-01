@@ -112,11 +112,7 @@ public interface CognitionMemoryRepository extends JpaRepository<CognitionMemory
             """,
             nativeQuery = true)
     long countManaged(
-            String tenantId,
-            String subjectKind,
-            String subjectId,
-            String scopeTag,
-            Instant at);
+            String tenantId, String subjectKind, String subjectId, String scopeTag, Instant at);
 
     @Modifying
     @Query(
@@ -136,11 +132,7 @@ public interface CognitionMemoryRepository extends JpaRepository<CognitionMemory
             """,
             nativeQuery = true)
     int forgetManagedScope(
-            String tenantId,
-            String subjectKind,
-            String subjectId,
-            String scopeTag,
-            Instant at);
+            String tenantId, String subjectKind, String subjectId, String scopeTag, Instant at);
 
     @Modifying
     @Query(

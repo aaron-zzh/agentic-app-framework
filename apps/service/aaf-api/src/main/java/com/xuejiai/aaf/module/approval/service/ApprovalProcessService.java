@@ -44,8 +44,7 @@ public class ApprovalProcessService implements ApprovalProcessApi {
     @Transactional
     public String startProcess(
             String entityType, Long entityId, String initiator, String assignee) {
-        entityReferenceAccess.requireReadable(
-                new ResourceReference(entityType, entityId), "审批目标");
+        entityReferenceAccess.requireReadable(new ResourceReference(entityType, entityId), "审批目标");
         var variables = new HashMap<String, Object>();
         variables.put("entityType", entityType);
         variables.put("entityId", entityId);
@@ -57,8 +56,7 @@ public class ApprovalProcessService implements ApprovalProcessApi {
                 OrgContext.getCurrentWorkspaceId() != null
                         ? OrgContext.getCurrentWorkspaceId()
                         : ORGANIZATION_SCOPE);
-        return bpmnEngine.startProcess(
-                PROCESS_KEY, businessKey(entityType, entityId), variables);
+        return bpmnEngine.startProcess(PROCESS_KEY, businessKey(entityType, entityId), variables);
     }
 
     /** 通过审批。 */
@@ -89,8 +87,7 @@ public class ApprovalProcessService implements ApprovalProcessApi {
     public WorkflowStatusVO getStatusByEntity(String entityType, String entityId, String userId) {
         var parsedEntityId = parseEntityId(entityId);
         var processInstanceId =
-                bpmnEngine.findInstanceByBusinessKey(
-                        businessKey(entityType, parsedEntityId));
+                bpmnEngine.findInstanceByBusinessKey(businessKey(entityType, parsedEntityId));
         if (processInstanceId == null) {
             return new WorkflowStatusVO(
                     null, entityType, parsedEntityId, null, false, null, null, List.of());
@@ -101,8 +98,7 @@ public class ApprovalProcessService implements ApprovalProcessApi {
 
     /** 查询审批历史。 */
     @Transactional(readOnly = true)
-    public List<WorkflowStatusVO.HistoryItem> getHistory(
-            String processInstanceId, String userId) {
+    public List<WorkflowStatusVO.HistoryItem> getHistory(String processInstanceId, String userId) {
         requireInstanceAccess(processInstanceId, userId);
         return loadHistory(processInstanceId);
     }
@@ -144,12 +140,14 @@ public class ApprovalProcessService implements ApprovalProcessApi {
         validatePage(pageNo, pageSize);
         var variableEquals =
                 Map.<String, Object>of(
-                        "initiator", initiator,
-                        ORG_ID_VARIABLE, requireOrgId(),
+                        "initiator",
+                        initiator,
+                        ORG_ID_VARIABLE,
+                        requireOrgId(),
                         WORKSPACE_ID_VARIABLE,
-                                OrgContext.getCurrentWorkspaceId() != null
-                                        ? OrgContext.getCurrentWorkspaceId()
-                                        : ORGANIZATION_SCOPE);
+                        OrgContext.getCurrentWorkspaceId() != null
+                                ? OrgContext.getCurrentWorkspaceId()
+                                : ORGANIZATION_SCOPE);
         var list =
                 bpmnEngine.listInstances(PROCESS_KEY, variableEquals, pageNo, pageSize).stream()
                         .map(this::toInstanceVO)

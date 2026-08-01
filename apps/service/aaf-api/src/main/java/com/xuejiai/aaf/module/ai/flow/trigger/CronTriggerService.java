@@ -41,10 +41,7 @@ public class CronTriggerService {
      * @param variables 流程启动变量
      */
     public void register(
-            String triggerId,
-            String cronExpression,
-            Long flowId,
-            Map<String, Object> variables) {
+            String triggerId, String cronExpression, Long flowId, Map<String, Object> variables) {
         var normalizedTriggerId = requireNonBlank(triggerId, "触发器 ID 不能为空");
         var normalizedCronExpression = requireNonBlank(cronExpression, "Cron 表达式不能为空");
         var cronTrigger = new CronTrigger(normalizedCronExpression);
@@ -54,16 +51,10 @@ public class CronTriggerService {
 
         var newFuture =
                 taskScheduler.schedule(
-                        () ->
-                                execute(
-                                        normalizedTriggerId,
-                                        flowId,
-                                        capturedVariables,
-                                        identity),
+                        () -> execute(normalizedTriggerId, flowId, capturedVariables, identity),
                         cronTrigger);
         if (newFuture == null) {
-            throw new BusinessException(
-                    GlobalErrorCode.SERVICE_UNAVAILABLE, "定时触发器注册失败");
+            throw new BusinessException(GlobalErrorCode.SERVICE_UNAVAILABLE, "定时触发器注册失败");
         }
 
         var previous = scheduledTasks.put(normalizedTriggerId, newFuture);
@@ -91,8 +82,7 @@ public class CronTriggerService {
                     result.processInstanceId(),
                     result.businessKey());
         } catch (Exception e) {
-            log.error(
-                    "定时触发器执行失败: triggerId={} flowId={}", triggerId, flowId, e);
+            log.error("定时触发器执行失败: triggerId={} flowId={}", triggerId, flowId, e);
         }
     }
 

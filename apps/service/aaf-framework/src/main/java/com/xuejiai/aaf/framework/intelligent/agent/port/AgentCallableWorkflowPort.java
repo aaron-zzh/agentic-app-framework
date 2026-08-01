@@ -10,10 +10,7 @@ public interface AgentCallableWorkflowPort {
     List<WorkflowSummary> list(TrustedScope scope);
 
     WorkflowStartResult start(
-            Long workflowId,
-            Map<String, Object> variables,
-            TrustedScope scope,
-            String agentRunId);
+            Long workflowId, Map<String, Object> variables, TrustedScope scope, String agentRunId);
 
     record TrustedScope(Long userId, Long orgId, Long workspaceId) {
         public TrustedScope {
@@ -24,14 +21,8 @@ public interface AgentCallableWorkflowPort {
     }
 
     record WorkflowSummary(
-            Long workflowId,
-            String name,
-            String description,
-            boolean requireConfirm) {}
+            Long workflowId, String name, String description, boolean requireConfirm) {}
 
     record WorkflowStartResult(
-            Long workflowId,
-            String workflowName,
-            String processInstanceId,
-            String businessKey) {}
+            Long workflowId, String workflowName, String processInstanceId, String businessKey) {}
 }

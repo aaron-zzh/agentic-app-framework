@@ -2,13 +2,13 @@ package com.xuejiai.aaf.module.approval.service;
 
 import java.util.List;
 
-import com.xuejiai.aaf.module.approval.domain.CountersignConfig;
 import org.flowable.engine.RuntimeService;
 import org.flowable.engine.TaskService;
 import org.flowable.task.api.Task;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.module.approval.domain.CountersignConfig;
 import com.xuejiai.aaf.module.approval.domain.CountersignConfig.CountersignMode;
 
 import lombok.RequiredArgsConstructor;

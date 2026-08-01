@@ -21,8 +21,7 @@ public record AgentExecutionCommand(
 
     public AgentExecutionCommand {
         Objects.requireNonNull(subagentSpec, "subagentSpec 不能为空");
-        roleAssignment =
-                Objects.requireNonNull(roleAssignment, "roleAssignment Optional 不能为空");
+        roleAssignment = Objects.requireNonNull(roleAssignment, "roleAssignment Optional 不能为空");
         Objects.requireNonNull(executionMode, "executionMode 不能为空");
         executionModel = Objects.requireNonNull(executionModel, "executionModel Optional 不能为空");
         skillSystemPromptAppendix =

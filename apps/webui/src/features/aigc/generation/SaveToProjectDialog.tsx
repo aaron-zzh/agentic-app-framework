@@ -23,8 +23,11 @@ import {
   DialogTitle
 } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { useAigcProjects } from "@/lib/api/rest/ai"
-import { type SaveFromGenerationParams, useSaveToAssetLibrary } from "@/lib/api/rest/ai"
+import {
+  type SaveFromGenerationParams,
+  useAigcProjects,
+  useSaveToAssetLibrary
+} from "@/lib/api/rest/ai"
 import { cn } from "@/lib/utils/index"
 
 interface SaveToProjectDialogProps {

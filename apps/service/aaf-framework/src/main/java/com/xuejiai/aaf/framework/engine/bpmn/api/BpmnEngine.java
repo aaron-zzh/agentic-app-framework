@@ -105,8 +105,7 @@ public interface BpmnEngine {
      * @param workspaceId 工作区 ID，组织级流程使用 null
      * @return true=存在可操作任务
      */
-    boolean hasOperableTask(
-            String processKey, String userId, Long orgId, Long workspaceId);
+    boolean hasOperableTask(String processKey, String userId, Long orgId, Long workspaceId);
 
     /**
      * 查询流程当前待办任务。
@@ -352,10 +351,7 @@ public interface BpmnEngine {
      * @return 实例列表
      */
     List<InstanceInfo> listInstances(
-            String processKey,
-            Map<String, Object> variableEquals,
-            int pageNo,
-            int pageSize);
+            String processKey, Map<String, Object> variableEquals, int pageNo, int pageSize);
 
     /**
      * 统计符合流程定义和变量条件的实例。

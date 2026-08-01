@@ -4,9 +4,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.springframework.stereotype.Component;
+
 import com.xuejiai.aaf.module.approval.domain.ApprovalRecord;
 import com.xuejiai.aaf.module.approval.repository.ApprovalRecordRepository;
-import org.springframework.stereotype.Component;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -12,8 +12,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class SemanticBoundaryChunker implements DocumentChunker {
 
-    private static final Pattern BOUNDARY =
-            Pattern.compile("(?<=[。！？!?；;.])\\s*|(?:\\r?\\n){2,}");
+    private static final Pattern BOUNDARY = Pattern.compile("(?<=[。！？!?；;.])\\s*|(?:\\r?\\n){2,}");
 
     @Override
     public ChunkStrategy strategy() {
@@ -35,10 +34,7 @@ public class SemanticBoundaryChunker implements DocumentChunker {
             metadata.put("chunk_index", index);
             chunks.add(
                     new DocumentChunk(
-                            text,
-                            index,
-                            metadata,
-                            FixedSizeChunker.estimateTokenCount(text)));
+                            text, index, metadata, FixedSizeChunker.estimateTokenCount(text)));
         }
         return chunks;
     }
@@ -65,8 +61,7 @@ public class SemanticBoundaryChunker implements DocumentChunker {
         return result;
     }
 
-    private void appendWindows(
-            List<String> result, String text, int chunkSize, int overlapSize) {
+    private void appendWindows(List<String> result, String text, int chunkSize, int overlapSize) {
         var step = chunkSize - overlapSize;
         for (var start = 0; start < text.length(); start += step) {
             var end = Math.min(start + chunkSize, text.length());
@@ -78,11 +73,7 @@ public class SemanticBoundaryChunker implements DocumentChunker {
     }
 
     private void appendOverlap(
-            StringBuilder target,
-            String previous,
-            int nextLength,
-            int chunkSize,
-            int overlapSize) {
+            StringBuilder target, String previous, int nextLength, int chunkSize, int overlapSize) {
         var available = Math.max(0, chunkSize - nextLength);
         var length = Math.min(Math.min(overlapSize, available), previous.length());
         if (length > 0) {

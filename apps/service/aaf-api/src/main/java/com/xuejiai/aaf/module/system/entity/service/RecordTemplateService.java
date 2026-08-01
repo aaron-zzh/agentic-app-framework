@@ -107,8 +107,7 @@ public class RecordTemplateService {
         var entity =
                 recordTemplateRepository
                         .findById(id)
-                        .orElseThrow(
-                                () -> exception(ErrorCodeConstants.RECORD_TEMPLATE_NOT_FOUND));
+                        .orElseThrow(() -> exception(ErrorCodeConstants.RECORD_TEMPLATE_NOT_FOUND));
         if (!java.util.Objects.equals(entity.getCreateBy(), currentOwnerId())
                 && !Boolean.TRUE.equals(entity.getIsShared())) {
             throw exception(ErrorCodeConstants.RECORD_TEMPLATE_NOT_FOUND);

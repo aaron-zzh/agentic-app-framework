@@ -15,11 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  type AigcProjectVO,
-  useAigcProjects,
-  useDeleteAigcProject
-} from "@/lib/api/rest/ai"
+import { type AigcProjectVO, useAigcProjects, useDeleteAigcProject } from "@/lib/api/rest/ai"
 
 const TYPE_LABELS: Record<string, string> = {
   IMAGE_POST: "图像",

@@ -8,7 +8,6 @@ import static org.mockito.Mockito.when;
 import java.util.List;
 import java.util.Map;
 
-import com.xuejiai.aaf.module.approval.domain.ApprovalNodeConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -17,11 +16,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.framework.engine.bpmn.api.BpmnEngine;
-import com.xuejiai.aaf.module.system.org.service.OrganizationService;
-import com.xuejiai.aaf.module.system.role.service.RoleService;
+import com.xuejiai.aaf.module.approval.domain.ApprovalNodeConfig;
 import com.xuejiai.aaf.module.approval.domain.ApprovalNodeConfig.AssigneeStrategy;
 import com.xuejiai.aaf.module.approval.domain.ApprovalNodeConfig.EmptyAssigneeStrategy;
 import com.xuejiai.aaf.module.approval.domain.ApprovalNodeConfig.TimeoutStrategy;
+import com.xuejiai.aaf.module.system.org.service.OrganizationService;
+import com.xuejiai.aaf.module.system.role.service.RoleService;
 
 @ExtendWith(MockitoExtension.class)
 class ApprovalServiceTest {

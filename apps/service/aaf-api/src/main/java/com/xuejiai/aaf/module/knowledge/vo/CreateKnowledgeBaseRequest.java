@@ -23,7 +23,5 @@ public record CreateKnowledgeBaseRequest(
         @Schema(description = "分块策略", example = "recursive")
                 @Pattern(regexp = "fixed|recursive|semantic")
                 String chunkStrategy,
-        @Schema(description = "分块大小", example = "512") @Min(1) @Max(100_000)
-                Integer chunkSize,
-        @Schema(description = "分块重叠", example = "64") @Min(0) @Max(99_999)
-                Integer chunkOverlap) {}
+        @Schema(description = "分块大小", example = "512") @Min(1) @Max(100_000) Integer chunkSize,
+        @Schema(description = "分块重叠", example = "64") @Min(0) @Max(99_999) Integer chunkOverlap) {}

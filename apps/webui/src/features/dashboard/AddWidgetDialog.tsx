@@ -24,11 +24,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select"
-import type {
-  CounterWidgetConfig,
-  DashboardWidgetVO,
-  WidgetType
-} from "@/lib/api/rest/dashboard"
+import type { CounterWidgetConfig, DashboardWidgetVO, WidgetType } from "@/lib/api/rest/dashboard"
 import { useMetrics } from "@/lib/api/rest/dashboard"
 
 /** 可添加的 Widget 类型列表 */

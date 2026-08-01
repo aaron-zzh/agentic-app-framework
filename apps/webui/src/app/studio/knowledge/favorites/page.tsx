@@ -12,11 +12,7 @@ import Link from "next/link"
 import { GlassCard, NeonChip } from "@/components/studio"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  type UserFavoriteVO,
-  useRemoveFavorite,
-  useUserFavorites
-} from "@/lib/api/rest/user"
+import { type UserFavoriteVO, useRemoveFavorite, useUserFavorites } from "@/lib/api/rest/user"
 
 const TARGET_TYPE_LABELS: Record<string, string> = {
   DOC: "文档",

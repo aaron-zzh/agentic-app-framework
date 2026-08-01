@@ -60,18 +60,15 @@ class SpringEmailSenderTest extends BaseMockitoUnitTest {
 
     @Test
     @DisplayName("Given 附件且未配置回复地址 When 发送邮件 Then 构造 Multipart 并保留附件内容")
-    void should_send_multipart_message_without_reply_to_when_attachment_present()
-            throws Exception {
+    void should_send_multipart_message_without_reply_to_when_attachment_present() throws Exception {
         var message = new MimeMessage(Session.getInstance(new Properties()));
         when(mailSender.createMimeMessage()).thenReturn(message);
         var sender =
-                new SpringEmailSender(
-                        mailSender, new EmailProperties("noreply@example.com", null));
+                new SpringEmailSender(mailSender, new EmailProperties("noreply@example.com", null));
         var content = "测试附件".getBytes(StandardCharsets.UTF_8);
         var attachment = new Attachment("report.txt", content, "text/plain");
 
-        sender.sendWithAttachment(
-                "user@example.com", "附件邮件", "<p>请查收附件</p>", List.of(attachment));
+        sender.sendWithAttachment("user@example.com", "附件邮件", "<p>请查收附件</p>", List.of(attachment));
         message.saveChanges();
 
         verify(mailSender).send(same(message));
@@ -91,15 +88,11 @@ class SpringEmailSenderTest extends BaseMockitoUnitTest {
     void should_wrap_messaging_exception_when_message_cannot_be_prepared() throws Exception {
         var message = mock(MimeMessage.class);
         when(mailSender.createMimeMessage()).thenReturn(message);
-        doThrow(new MessagingException("invalid from"))
-                .when(message)
-                .setFrom(any(Address.class));
+        doThrow(new MessagingException("invalid from")).when(message).setFrom(any(Address.class));
         var sender =
-                new SpringEmailSender(
-                        mailSender, new EmailProperties("noreply@example.com", null));
+                new SpringEmailSender(mailSender, new EmailProperties("noreply@example.com", null));
 
-        assertThatThrownBy(
-                        () -> sender.send("user@example.com", "注册验证码", "<p>123456</p>"))
+        assertThatThrownBy(() -> sender.send("user@example.com", "注册验证码", "<p>123456</p>"))
                 .isInstanceOf(RuntimeException.class)
                 .hasMessage("邮件发送失败")
                 .hasCauseInstanceOf(MessagingException.class);

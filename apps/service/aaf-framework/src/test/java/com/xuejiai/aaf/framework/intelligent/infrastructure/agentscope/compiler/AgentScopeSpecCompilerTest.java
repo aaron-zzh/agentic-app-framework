@@ -107,11 +107,9 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
         var executionModel = new ModelSpec("1");
 
         var first =
-                compiler.compileDirect(
-                        spec, executionModel, "Role 与技能提示", Set.of(search.name()));
+                compiler.compileDirect(spec, executionModel, "Role 与技能提示", Set.of(search.name()));
         var second =
-                compiler.compileDirect(
-                        spec, executionModel, "Role 与技能提示", Set.of(search.name()));
+                compiler.compileDirect(spec, executionModel, "Role 与技能提示", Set.of(search.name()));
 
         assertThat(second).isSameAs(first);
     }

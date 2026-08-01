@@ -11,8 +11,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 public final class DefaultSkillRouter implements SkillRouter {
 
     @Override
-    public Optional<SkillRoute> route(
-            AssistantDefinition definition, String input, UserId userId) {
+    public Optional<SkillRoute> route(AssistantDefinition definition, String input, UserId userId) {
         var matched =
                 definition.skillRoutes().stream()
                         .filter(route -> !route.defaultRoute())

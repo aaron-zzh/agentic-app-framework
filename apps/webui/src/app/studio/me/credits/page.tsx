@@ -27,11 +27,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RedeemCodeButton } from "@/features/billing/components/RedeemCodeButton"
 import { ExpensesCategoryWidget } from "@/features/dashboard/widgets/ExpensesCategoryWidget"
 import { BaseChart, type EChartsOption } from "@/features/stats/charts/BaseChart"
-import {
-  useCreditBalance,
-  useCreditGroups,
-  useCreditTransactions
-} from "@/lib/api/rest/billing"
+import { useCreditBalance, useCreditGroups, useCreditTransactions } from "@/lib/api/rest/billing"
 import { useDict } from "@/lib/hooks/use-dict"
 import { cn } from "@/lib/utils/cn"
 

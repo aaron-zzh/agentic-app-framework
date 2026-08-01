@@ -2,8 +2,9 @@ package com.xuejiai.aaf.module.approval.repository;
 
 import java.util.Optional;
 
-import com.xuejiai.aaf.module.approval.domain.ApprovalFormTemplate;
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.xuejiai.aaf.module.approval.domain.ApprovalFormTemplate;
 
 /**
  * 审批表单模板仓储。

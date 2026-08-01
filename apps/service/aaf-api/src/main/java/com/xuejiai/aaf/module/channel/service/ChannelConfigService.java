@@ -89,9 +89,7 @@ public class ChannelConfigService {
                 configRepository
                         .findById(id)
                         .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                GlobalErrorCode.NOT_FOUND, "渠道配置不存在")));
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "渠道配置不存在")));
     }
 
     public List<ChannelConfigVO> listEnabled() {

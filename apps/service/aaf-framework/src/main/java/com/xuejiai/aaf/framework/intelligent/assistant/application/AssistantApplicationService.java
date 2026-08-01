@@ -767,8 +767,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             List<AgentMessage> memoryMessages) {
         var effectiveRole = definition.roleFor(route);
         var skillSystemPromptAppendix =
-                mergeSkillPrompts(
-                        effectiveSkillResolver.resolve(effectiveRole, route.skillKey()));
+                mergeSkillPrompts(effectiveSkillResolver.resolve(effectiveRole, route.skillKey()));
         var roleAllowedToolNames = effectiveRole.toolKeys();
         var authorizationRules = new LinkedHashMap<String, ToolAuthorizationRule>();
         definition

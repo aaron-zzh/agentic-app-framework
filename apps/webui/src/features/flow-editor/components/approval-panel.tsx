@@ -26,9 +26,10 @@ import {
   useApprovalTimeline,
   useTransferSign,
   useVoteProgress,
-  useWithdraw
+  useWithdraw,
+  useWorkflowComplete,
+  useWorkflowReject
 } from "@/lib/api/rest/workflow"
-import { useWorkflowComplete, useWorkflowReject } from "@/lib/api/rest/workflow"
 
 interface ApprovalPanelProps {
   processInstanceId: string

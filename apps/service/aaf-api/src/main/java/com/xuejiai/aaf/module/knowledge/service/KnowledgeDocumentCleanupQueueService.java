@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.knowledge.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+
 import java.time.LocalDateTime;
 
 import org.springframework.stereotype.Service;
@@ -14,8 +16,6 @@ import com.xuejiai.aaf.framework.task.queue.TaskQueue;
 import com.xuejiai.aaf.module.knowledge.domain.KnowledgeDocument;
 
 import lombok.RequiredArgsConstructor;
-
-import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
 
 /** 知识库文档删除后的外部资源异步清理任务。 */
 @Service

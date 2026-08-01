@@ -129,8 +129,7 @@ public class WorkflowService {
                         .stream()
                         .map(this::toInstanceVO)
                         .toList();
-        long total =
-                bpmnEngine.countHistoricInstances(processKey, finished, orgId, workspaceId);
+        long total = bpmnEngine.countHistoricInstances(processKey, finished, orgId, workspaceId);
         return new PageResult<>(list, total);
     }
 

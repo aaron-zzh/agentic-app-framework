@@ -166,8 +166,7 @@ public class KnowledgeBaseService
                 switch (request.effectiveMode()) {
                     case "vector" ->
                             hybridSearchService.vectorSearch(request.query(), id, topK, threshold);
-                    case "keyword" ->
-                            hybridSearchService.keywordSearch(request.query(), id, topK);
+                    case "keyword" -> hybridSearchService.keywordSearch(request.query(), id, topK);
                     case "hybrid" ->
                             hybridSearchService.hybridSearch(
                                     request.query(),

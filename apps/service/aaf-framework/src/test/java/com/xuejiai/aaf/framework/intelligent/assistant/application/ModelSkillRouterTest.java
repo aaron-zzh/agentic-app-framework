@@ -47,8 +47,7 @@ class ModelSkillRouterTest extends BaseMockitoUnitTest {
         var route = router.route(definition, "把这些产品更新整理成公众号文章", new UserId("42"));
 
         assertThat(route).isPresent();
-        assertThat(route.orElseThrow().handlingMode())
-                .isEqualTo(SkillRoute.HandlingMode.DELEGATE);
+        assertThat(route.orElseThrow().handlingMode()).isEqualTo(SkillRoute.HandlingMode.DELEGATE);
         assertThat(route.orElseThrow().skillKey()).isEqualTo("content.draft");
     }
 
@@ -65,8 +64,7 @@ class ModelSkillRouterTest extends BaseMockitoUnitTest {
         assertThat(route).isPresent();
         assertThat(route.orElseThrow().roleKey())
                 .isEqualTo(DefaultUserAssistantTemplate.PLATFORM_GUIDE_ROLE_KEY);
-        assertThat(route.orElseThrow().handlingMode())
-                .isEqualTo(SkillRoute.HandlingMode.DIRECT);
+        assertThat(route.orElseThrow().handlingMode()).isEqualTo(SkillRoute.HandlingMode.DIRECT);
     }
 
     @Test

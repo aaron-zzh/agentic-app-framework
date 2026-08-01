@@ -13,10 +13,7 @@ import { ArrowRight, Loader2, Workflow } from "lucide-react"
 import Link from "next/link"
 import { GlassCard, GlowButton, NeonChip, SectionHaze } from "@/components/studio"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  useWorkflowTemplates,
-  type WorkflowTemplate
-} from "@/lib/api/rest/workflow"
+import { useWorkflowTemplates, type WorkflowTemplate } from "@/lib/api/rest/workflow"
 
 const CATEGORY_LABELS: Record<string, string> = {
   CONTENT: "内容创作",

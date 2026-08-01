@@ -107,8 +107,7 @@ public class DefaultCapabilityRouter implements CapabilityRouter {
             throw new IllegalArgumentException("模型未启用: " + modelId);
         }
         if (capability != null && !model.hasCapability(capability)) {
-            throw new IllegalArgumentException(
-                    "模型不支持能力 " + capability + ": " + modelId);
+            throw new IllegalArgumentException("模型不支持能力 " + capability + ": " + modelId);
         }
         return model;
     }

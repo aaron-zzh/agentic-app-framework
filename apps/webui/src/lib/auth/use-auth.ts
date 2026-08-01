@@ -5,8 +5,7 @@
 
 import { useQueryClient } from "@tanstack/react-query"
 import { useCallback } from "react"
-import { authApi } from "@/lib/api/rest/user"
-import { organizationApi } from "@/lib/api/rest/user"
+import { authApi, organizationApi } from "@/lib/api/rest/user"
 import { type AuthUser, useAuthStore } from "@/lib/store/auth-store"
 import { useOrgStore } from "@/lib/store/org-store"
 import {

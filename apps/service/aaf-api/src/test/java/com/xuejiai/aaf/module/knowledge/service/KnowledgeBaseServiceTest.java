@@ -192,9 +192,7 @@ class KnowledgeBaseServiceTest extends BaseMockitoUnitTest {
         when(graphService.snapshot(3L))
                 .thenReturn(
                         new GraphSnapshot(
-                                List.of(
-                                        new GraphNode(
-                                                "entity-1", "AAF", "Concept", "框架", 11L)),
+                                List.of(new GraphNode("entity-1", "AAF", "Concept", "框架", 11L)),
                                 List.of(
                                         new GraphEdge(
                                                 "relation-1",

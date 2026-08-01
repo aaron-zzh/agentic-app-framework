@@ -46,10 +46,7 @@ public class AgentCallableWorkflowService implements AgentCallableWorkflowPort {
 
     @Override
     public WorkflowStartResult start(
-            Long workflowId,
-            Map<String, Object> variables,
-            TrustedScope scope,
-            String agentRunId) {
+            Long workflowId, Map<String, Object> variables, TrustedScope scope, String agentRunId) {
         if (workflowId == null || workflowId <= 0) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "workflowId 必须为正整数");
         }
@@ -67,8 +64,7 @@ public class AgentCallableWorkflowService implements AgentCallableWorkflowPort {
                         .orElseThrow(
                                 () ->
                                         new BusinessException(
-                                                GlobalErrorCode.NOT_FOUND,
-                                                "可调用的 AI Flow 不存在"));
+                                                GlobalErrorCode.NOT_FOUND, "可调用的 AI Flow 不存在"));
 
         var processVariables = new HashMap<String, Object>();
         if (variables != null) {

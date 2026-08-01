@@ -42,20 +42,14 @@ class WebhookServiceTest {
     void setUp() {
         webhookService =
                 new WebhookService(
-                        configRepository,
-                        logRepository,
-                        restClientBuilder,
-                        router,
-                        redisTemplate);
+                        configRepository, logRepository, restClientBuilder, router, redisTemplate);
     }
 
     @Test
     @DisplayName("Given 缺少签名或 nonce When 校验入站 webhook Then 失败关闭且不查配置")
     void should_fail_closed_when_signature_headers_missing() {
-        assertThat(webhookService.verifyInboundSignature(1L, null, "1", "nonce", "{}"))
-                .isFalse();
-        assertThat(webhookService.verifyInboundSignature(1L, "sig", "1", "", "{}"))
-                .isFalse();
+        assertThat(webhookService.verifyInboundSignature(1L, null, "1", "nonce", "{}")).isFalse();
+        assertThat(webhookService.verifyInboundSignature(1L, "sig", "1", "", "{}")).isFalse();
         verify(configRepository, never()).findById(1L);
     }
 
@@ -71,18 +65,13 @@ class WebhookServiceTest {
         config.setSecret(secret);
         when(configRepository.findById(1L)).thenReturn(java.util.Optional.of(config));
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.setIfAbsent(
-                        "webhook:replay:1:nonce-1", "1", Duration.ofMinutes(5)))
+        when(valueOperations.setIfAbsent("webhook:replay:1:nonce-1", "1", Duration.ofMinutes(5)))
                 .thenReturn(true, false);
         var signature = hmac("%s\n%s\n%s".formatted(timestamp, nonce, body), secret);
 
-        assertThat(
-                        webhookService.verifyInboundSignature(
-                                1L, signature, timestamp, nonce, body))
+        assertThat(webhookService.verifyInboundSignature(1L, signature, timestamp, nonce, body))
                 .isTrue();
-        assertThat(
-                        webhookService.verifyInboundSignature(
-                                1L, signature, timestamp, nonce, body))
+        assertThat(webhookService.verifyInboundSignature(1L, signature, timestamp, nonce, body))
                 .isFalse();
     }
 
@@ -99,6 +88,7 @@ class WebhookServiceTest {
     private String hmac(String data, String secret) throws Exception {
         var mac = Mac.getInstance("HmacSHA256");
         mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-        return java.util.HexFormat.of().formatHex(mac.doFinal(data.getBytes(StandardCharsets.UTF_8)));
+        return java.util.HexFormat.of()
+                .formatHex(mac.doFinal(data.getBytes(StandardCharsets.UTF_8)));
     }
 }

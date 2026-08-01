@@ -47,9 +47,7 @@ export function buildChatterInitialState({
     preset: pageConfig?.preset,
     ...(isAuthenticated ? {} : { agentRole: target.agentRole ?? pageConfig?.agentRole }),
     ...(assistantId ? { assistantId, assistantVersion } : {}),
-    ...(effectiveTaskModelSelection
-      ? { taskModelSelection: effectiveTaskModelSelection }
-      : {})
+    ...(effectiveTaskModelSelection ? { taskModelSelection: effectiveTaskModelSelection } : {})
   }
 }
 

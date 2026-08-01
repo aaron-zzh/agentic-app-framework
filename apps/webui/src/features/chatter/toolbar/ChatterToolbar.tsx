@@ -40,8 +40,7 @@ import {
 } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import type { ChatterPreset, ChatterTarget } from "@/features/chatter/types"
-import { useAssistants } from "@/lib/api/rest/ai"
-import { chatApi } from "@/lib/api/rest/ai"
+import { chatApi, useAssistants } from "@/lib/api/rest/ai"
 import { useChatterStore } from "@/lib/store/chatter-store"
 
 interface ChatterToolbarProps {
