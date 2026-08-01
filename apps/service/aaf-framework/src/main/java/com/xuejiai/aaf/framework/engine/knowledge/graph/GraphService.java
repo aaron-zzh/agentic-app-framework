@@ -83,7 +83,8 @@ public class GraphService {
                                                                                 .getId(),
                                                                         relation.getType(),
                                                                         relation.getConfidence(),
-                                                                        relation.getSourceDocumentId())))
+                                                                        relation
+                                                                                .getSourceDocumentId())))
                         .toList();
         return new GraphSnapshot(nodes, edges);
     }

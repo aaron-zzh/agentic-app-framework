@@ -1,4 +1,4 @@
-﻿package com.xuejiai.aaf.framework.intelligent.ai.safety;
+package com.xuejiai.aaf.framework.intelligent.ai.safety;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;

@@ -1,4 +1,4 @@
-﻿package com.xuejiai.aaf.module.channel.service;
+package com.xuejiai.aaf.module.channel.service;
 
 import org.springframework.stereotype.Component;
 

@@ -1,4 +1,4 @@
-﻿package com.xuejiai.aaf.framework.engine.tool.generator;
+package com.xuejiai.aaf.framework.engine.tool.generator;
 
 import java.util.List;
 

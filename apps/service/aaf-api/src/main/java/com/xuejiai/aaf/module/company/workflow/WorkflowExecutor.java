@@ -16,7 +16,8 @@ import org.springframework.stereotype.Service;
  *   <li>本包 {@code module.company.workflow}——企业运营编排：按 skill 串联的 AI 步骤，非 BPMN、不进 Flowable
  * </ul>
  *
- * <p>原 v1 实现注释声称"fork 并行"，实际是 for 循环内同步 dispatch；归档后改为显式抛异常，不再保留 误导性描述与静默降级路径。重建时若确需并行，须真正并发执行并在注释中说明调度模型。
+ * <p>原 v1 实现注释声称"fork 并行"，实际是 for 循环内同步 dispatch；归档后改为显式抛异常，不再保留
+ * 误导性描述与静默降级路径。重建时若确需并行，须真正并发执行并在注释中说明调度模型。
  */
 @Service
 public class WorkflowExecutor {

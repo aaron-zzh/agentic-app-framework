@@ -1,4 +1,4 @@
-﻿package com.xuejiai.aaf.framework.engine.tool;
+package com.xuejiai.aaf.framework.engine.tool;
 
 import java.time.Instant;
 import java.util.*;

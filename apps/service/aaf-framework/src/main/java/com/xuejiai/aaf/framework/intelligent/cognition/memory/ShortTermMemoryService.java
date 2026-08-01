@@ -47,9 +47,7 @@ public class ShortTermMemoryService {
             String tenantId, Long userId, String conversationId, int limit) {
         if (limit <= 0) return List.of();
         var items =
-                redisTemplate
-                        .opsForList()
-                        .range(key(tenantId, userId, conversationId), -limit, -1);
+                redisTemplate.opsForList().range(key(tenantId, userId, conversationId), -limit, -1);
         if (items == null || items.isEmpty()) return List.of();
         return items.stream().map(this::deserialize).toList();
     }

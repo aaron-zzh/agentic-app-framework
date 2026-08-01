@@ -116,18 +116,18 @@ class DefaultUserAssistantTemplateTest extends BaseMockitoUnitTest {
         }
         assertThat(
                         toolResolver.resolve(
-                                template
-                                        .requireRole(
-                                                DefaultUserAssistantTemplate.PLATFORM_GUIDE_ROLE_KEY)
+                                template.requireRole(
+                                                DefaultUserAssistantTemplate
+                                                        .PLATFORM_GUIDE_ROLE_KEY)
                                         .toolKeys(),
                                 unrestrictedTools))
                 .extracting(ToolRef::name)
                 .doesNotContain("content.generate", "content.draft.create");
         assertThat(
                         toolResolver.resolve(
-                                template
-                                        .requireRole(
-                                                DefaultUserAssistantTemplate.CONTENT_CREATOR_ROLE_KEY)
+                                template.requireRole(
+                                                DefaultUserAssistantTemplate
+                                                        .CONTENT_CREATOR_ROLE_KEY)
                                         .toolKeys(),
                                 unrestrictedTools))
                 .extracting(ToolRef::name)
