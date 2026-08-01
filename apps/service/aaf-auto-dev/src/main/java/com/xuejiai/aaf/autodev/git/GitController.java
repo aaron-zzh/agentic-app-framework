@@ -11,7 +11,6 @@ import com.xuejiai.aaf.common.model.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import tools.jackson.databind.JsonNode;
 
 /** Git + CI/CD 操作接口。 */
 @Tag(name = "Git & CI/CD")
@@ -100,7 +99,8 @@ public class GitController {
     }
 
     @Operation(summary = "触发部署")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize(
+            "hasRole('SUPER_ADMIN') or (hasRole('ADMIN') and @ciCdService.canAdminDeploy(#request.environment()))")
     @PostMapping("/ci/deploy")
     public java.util.concurrent.Callable<Result<Long>> deploy(@RequestBody DeployRequest request) {
         return () ->
@@ -111,8 +111,10 @@ public class GitController {
     @Operation(summary = "GitHub Webhook 回调")
     @PostMapping("/webhook/github")
     public Result<Void> githubWebhook(
-            @RequestHeader("X-GitHub-Event") String event, @RequestBody JsonNode payload) {
-        ciCdService.handleWebhook(event, payload);
+            @RequestHeader("X-GitHub-Event") String event,
+            @RequestHeader(value = "X-Hub-Signature-256", required = false) String signature,
+            @RequestBody byte[] payload) {
+        ciCdService.handleWebhook(event, signature, payload);
         return Result.success();
     }
 

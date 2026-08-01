@@ -5,10 +5,19 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.TaskScheduler;
@@ -16,13 +25,14 @@ import org.springframework.stereotype.Service;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 
+import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.util.JsonUtils;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /** CI/CD 集成服务——触发 Pipeline、查询状态、处理 Webhook、触发部署。 */
@@ -34,6 +44,7 @@ public class CiCdService {
     private static final long MAX_CACHED_BUILDS = 1_000;
     private static final Duration BUILD_CACHE_TTL = Duration.ofHours(24);
     private static final Duration RUN_ID_POLL_DELAY = Duration.ofSeconds(2);
+    private static final String GITHUB_SIGNATURE_PREFIX = "sha256=";
 
     /**
      * M7：改为实例字段而非 static，与项目其余服务的注入风格一致，也便于测试替换。
@@ -50,6 +61,15 @@ public class CiCdService {
 
     @Value("${aaf.autodev.github.repo:}")
     private String githubRepo;
+
+    @Value("${aaf.autodev.github.webhook-secret:}")
+    private String githubWebhookSecret;
+
+    @Value("${aaf.autodev.deploy.allowed-environments:}")
+    private String allowedDeploymentEnvironments;
+
+    @Value("${aaf.autodev.deploy.production-environments:production,prod}")
+    private String productionDeploymentEnvironments;
 
     /** 构建状态缓存（runId → status），限制容量并在写入 24 小时后淘汰。 */
     private final Map<Long, BuildStatus> buildCache =
@@ -126,10 +146,12 @@ public class CiCdService {
         return cached;
     }
 
-    /** 处理 GitHub Webhook 回调（workflow_run 事件） */
-    public void handleWebhook(String event, JsonNode payload) {
+    /** 处理已通过 HMAC-SHA256 验签的 GitHub Webhook 回调。 */
+    public void handleWebhook(String event, String signature, byte[] payloadBytes) {
+        verifyGithubWebhook(signature, payloadBytes);
         if (!"workflow_run".equals(event)) return;
 
+        var payload = JsonUtils.readTree(new String(payloadBytes, StandardCharsets.UTF_8));
         var action = payload.get("action").asString();
         var run = payload.get("workflow_run");
         var runId = run.get("id").asLong();
@@ -153,10 +175,76 @@ public class CiCdService {
                 status.getConclusion());
     }
 
-    /** 触发部署（调用 deploy workflow） */
+    /** 触发部署（调用 deploy workflow）。环境必须在服务端白名单内。 */
     public java.util.concurrent.CompletableFuture<Long> triggerDeploy(
             String environment, String ref) {
-        return triggerWorkflow("deploy.yml", ref, Map.of("environment", environment));
+        var normalizedEnvironment = normalizeEnvironment(environment);
+        if (!configuredEnvironments(allowedDeploymentEnvironments)
+                .contains(normalizedEnvironment)) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "不允许的部署环境");
+        }
+        return triggerWorkflow(
+                "deploy.yml", ref, Map.of("environment", normalizedEnvironment));
+    }
+
+    /** 普通管理员只能部署白名单中的非生产环境；生产环境仅 SUPER_ADMIN 可部署。 */
+    public boolean canAdminDeploy(String environment) {
+        if (environment == null || environment.isBlank()) {
+            return false;
+        }
+        var normalizedEnvironment = environment.trim().toLowerCase();
+        return configuredEnvironments(allowedDeploymentEnvironments)
+                        .contains(normalizedEnvironment)
+                && !configuredEnvironments(productionDeploymentEnvironments)
+                        .contains(normalizedEnvironment);
+    }
+
+    private void verifyGithubWebhook(String signature, byte[] payloadBytes) {
+        if (githubWebhookSecret == null
+                || githubWebhookSecret.isBlank()
+                || signature == null
+                || !signature.startsWith(GITHUB_SIGNATURE_PREFIX)) {
+            throw new BusinessException(GlobalErrorCode.UNAUTHORIZED);
+        }
+
+        final byte[] actualSignature;
+        try {
+            actualSignature =
+                    HexFormat.of().parseHex(signature.substring(GITHUB_SIGNATURE_PREFIX.length()));
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException(GlobalErrorCode.UNAUTHORIZED);
+        }
+
+        try {
+            var mac = Mac.getInstance("HmacSHA256");
+            mac.init(
+                    new SecretKeySpec(
+                            githubWebhookSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            var expectedSignature = mac.doFinal(payloadBytes);
+            if (!MessageDigest.isEqual(expectedSignature, actualSignature)) {
+                throw new BusinessException(GlobalErrorCode.UNAUTHORIZED);
+            }
+        } catch (GeneralSecurityException e) {
+            throw new IllegalStateException("无法校验 GitHub Webhook 签名", e);
+        }
+    }
+
+    private String normalizeEnvironment(String environment) {
+        if (environment == null || environment.isBlank()) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "部署环境不能为空");
+        }
+        return environment.trim().toLowerCase();
+    }
+
+    private Set<String> configuredEnvironments(String value) {
+        if (value == null || value.isBlank()) {
+            return Set.of();
+        }
+        return Arrays.stream(value.split(","))
+                .map(String::trim)
+                .filter(environment -> !environment.isEmpty())
+                .map(String::toLowerCase)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 
     /** 获取最近 N 次构建 */

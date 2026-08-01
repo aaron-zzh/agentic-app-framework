@@ -82,6 +82,7 @@ public class SecurityConfig {
         "/api/channel/wx/mini/phone-login",
         "/api/channel/feishu/callback",
         "/api/channel/webhook/inbound",
+        "/api/autodev/git/webhook/github",
         "/api/pay/orders/notify/wx",
         "/api/pay/orders/notify/alipay"
     };
