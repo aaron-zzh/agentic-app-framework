@@ -6,9 +6,13 @@ import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.stereotype.Component;
 
+import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.engine.tool.ScriptExecutor;
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.ResilientChatService;
+import com.xuejiai.aaf.framework.org.OrgContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +31,7 @@ public class ToolGenerator {
     private final ToolRegistry toolRegistry;
     private final ScriptExecutor scriptExecutor;
     private final GeneratedToolStore toolStore;
+    private final OperatorContext operatorContext;
 
     private static final String SYSTEM_PROMPT =
             """
@@ -82,11 +87,16 @@ public class ToolGenerator {
 
     /** 查看工具源码。 */
     public String viewSource(String toolName) {
-        return toolStore.findByName(toolName).map(GeneratedTool::getCode).orElse("工具不存在或无源码");
+        var scope = requireToolScope();
+        return toolStore
+                .findAccessibleByName(toolName, scope.ownerId(), scope.orgId())
+                .map(GeneratedTool::getCode)
+                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND));
     }
 
     /** 外部调用入口：生成并注册（含持久化）。 */
     public void confirmAndRegister(ToolBlueprint blueprint) {
+        var scope = requireToolScope();
         blueprint.setVisibility(ToolBlueprint.Visibility.PRIVATE);
         // 持久化
         var entity = new GeneratedTool();
@@ -95,8 +105,9 @@ public class ToolGenerator {
         entity.setParametersJson(
                 blueprint.getParameters() != null ? blueprint.getParameters().toString() : null);
         entity.setCode(blueprint.getCode());
-        entity.setCreatorUserId(
-                blueprint.getCreatorUserId() != null ? blueprint.getCreatorUserId() : 0L);
+        entity.setCreatorUserId(scope.ownerId());
+        entity.setOwnerId(scope.ownerId());
+        entity.setOrgId(scope.orgId());
         entity.setVisibility(blueprint.getVisibility());
         toolStore.save(entity);
         // 注册到内存
@@ -104,4 +115,21 @@ public class ToolGenerator {
         toolRegistry.register(callback, ToolRegistry.SOURCE_CUSTOM);
         log.info("AI 生成工具已注册并持久化（PRIVATE）: {}", blueprint.getName());
     }
+
+    private ToolReadScope requireToolScope() {
+        if (!operatorContext.isAuthenticated()) {
+            throw new BusinessException(GlobalErrorCode.UNAUTHORIZED);
+        }
+        var ownerId =
+                operatorContext
+                        .currentOwnerId()
+                        .orElseThrow(() -> new BusinessException(GlobalErrorCode.FORBIDDEN));
+        var orgId = OrgContext.getCurrentOrgId();
+        if (orgId == null) {
+            throw new BusinessException(GlobalErrorCode.FORBIDDEN);
+        }
+        return new ToolReadScope(ownerId, orgId);
+    }
+
+    private record ToolReadScope(Long ownerId, Long orgId) {}
 }

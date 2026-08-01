@@ -17,7 +17,6 @@ import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.engine.tool.ToolCallDispatcher.ToolCallResult;
 import com.xuejiai.aaf.framework.engine.tool.generator.ToolBlueprint;
 import com.xuejiai.aaf.framework.engine.tool.generator.ToolGenerator;
-import com.xuejiai.aaf.framework.security.OperatorContext;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -38,7 +37,6 @@ public class ToolController {
 
     private final ToolService toolService;
     private final ToolGenerator toolGenerator;
-    private final OperatorContext operatorContext;
 
     @Operation(summary = "查询已注册工具列表", description = "可按来源过滤：LOCAL/MCP/CUSTOM")
     @GetMapping
@@ -88,6 +86,7 @@ public class ToolController {
     }
 
     @Operation(summary = "查看工具源码")
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/{toolName}/source")
     public Result<String> viewSource(@PathVariable String toolName) {
         return Result.success(toolGenerator.viewSource(toolName));

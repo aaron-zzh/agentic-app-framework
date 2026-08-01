@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Repository;
 
@@ -50,6 +52,12 @@ public class GeneratedToolStoreImpl implements GeneratedToolStore {
     }
 
     @Override
+    public Optional<GeneratedTool> findAccessibleByName(String name, Long ownerId, Long orgId) {
+        return repository.findAccessibleByName(
+                name, ownerId, orgId, ToolBlueprint.Visibility.SHARED);
+    }
+
+    @Override
     public void updateVisibility(String name, ToolBlueprint.Visibility visibility) {
         repository
                 .findByName(name)
@@ -72,4 +80,19 @@ interface GeneratedToolRepository extends JpaRepository<GeneratedTool, Long> {
 
     List<GeneratedTool> findByCreatorUserIdOrVisibility(
             Long userId, ToolBlueprint.Visibility visibility);
+
+    @Query(
+            """
+            select tool
+            from GeneratedTool tool
+            where tool.name = :name
+              and tool.status = 'active'
+              and tool.orgId = :orgId
+              and (tool.creatorUserId = :ownerId or tool.visibility = :visibility)
+            """)
+    Optional<GeneratedTool> findAccessibleByName(
+            @Param("name") String name,
+            @Param("ownerId") Long ownerId,
+            @Param("orgId") Long orgId,
+            @Param("visibility") ToolBlueprint.Visibility visibility);
 }
