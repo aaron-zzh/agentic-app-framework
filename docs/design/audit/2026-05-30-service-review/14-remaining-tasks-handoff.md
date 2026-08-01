@@ -151,16 +151,16 @@ M16 已完成：用户密码、OAuth access/refresh token、Channel/Webhook 密�
 
 | 编号 | 状态 | 下一步 |
 |------|------|--------|
-| B1 | PARTIAL | 将 framework 非标准仓储纳入 org 租户过滤，并设计统一 workspace 行级隔离 |
-| B4 | PARTIAL | GitHub webhook 加 HMAC 验签；部署 environment 使用服务端白名单和分级授权 |
+| B1 | FIXED | org 租户过滤已扩大覆盖面；workspace 隔离核实已有独立设计并落地（见 README） |
+| B4 | FIXED | GitHub webhook HMAC 验签、部署环境服务端白名单和分级授权均已实现 |
 | B5 | OPEN | 收敛脚本执行为受限基线，删除裸子进程/关键词黑名单旁路 |
-| B7 | OPEN | 配置接口改 VO 并脱敏；敏感凭证字段增加序列化防御 |
-| B8 | OPEN | 校验 codegen module/name，规范化后强制输出路径位于 outputDir |
+| B7 | FIXED | 配置接口已 VO 化并脱敏；敏感凭证字段已增加 `@JsonIgnore` |
+| B8 | FIXED | codegen module/name 已用白名单校验，规范化后强制输出路径位于 outputDir |
 | B9 | PARTIAL | 不再按旧 Controller 总数扫注解；只处理角色过宽、SELF 归属、org 边界和冻结基线残余 |
 | B10 | PARTIAL | 为 `viewSource` 与工具列表补 owner/org/share scope 资源级授权 |
 | B13 | PARTIAL | 为 URL、byte[]、Base64 和底层 StorageService 增加统一策略；拒绝或隔离 SVG/HTML 主动内容 |
 | B17 | PARTIAL | 禁止 value 构造可执行 UEL，明确关闭方法调用并增加恶意 value 回归用例 |
-| B-mock | OPEN（条件） | 增加 `@Profile("!prod")`/构建隔离，避免仅靠配置关闭 Mock Token |
+| B-mock | FIXED | 已增加 `@Profile("!prod")`，与配置开关双重隔离 |
 
 ### 剩余 PARTIAL major/minor
 
@@ -205,9 +205,9 @@ M16 已完成：用户密码、OAuth access/refresh token、Channel/Webhook 密�
 已关闭问题不再作为“待补单测”列出。当前只为 B13/B17 残余与其他剩余 blocker 增加验证：
 
 - B13：URL、byte[]、Base64、底层 StorageService 绕过；SVG/HTML 主动内容；统一大小/类型策略。
-- B17：恶意 value 中的引号、方法调用、类型访问和表达式片段必须被拒绝，不能只验证 field。
-- B1/B9/B10：org、workspace、SELF、owner/share scope 的正反授权矩阵。
-- B4/B5/B7/B8/B-mock：Webhook 验签、受限脚本、敏感字段、路径规范化和生产 Profile。
+- B17：恶意 value 中的引号、方法调用、类型访问和表达式片段必须被拒绝，不能只验证 field（已修复，见 README）。
+- B9/B10：org、workspace、SELF、owner/share scope 的正反授权矩阵，由另一对话跟踪（见 10 鉴权矩阵）。
+- B5：受限脚本执行基线仍需推进（由另一对话跟踪）。
 
 测试命名继续遵循：developer 单测 `*Test.java`，tester 验收/集成 `*IT.java` 或 `*AcceptanceTest.java`。
 

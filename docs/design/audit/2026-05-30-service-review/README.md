@@ -21,7 +21,6 @@
 | [01-security-and-authz.md](01-security-and-authz.md) | 租户隔离、鉴权、Mock Token、API Key、JWT、AuthService、企微回调；主表已全部 FIXED，保留一项新发现的 OAuth 解绑账号锁死问题待产品决策 |
 | [03-channel-livechat.md](03-channel-livechat.md) | 渠道路由/配置、Webhook、客服会话、坐席分配 |
 | [04-ai-engines-and-tools.md](04-ai-engines-and-tools.md) | 工具权限守卫、脚本沙箱、价值规则、占位引擎、知识库 |
-| [05-autodev.md](05-autodev.md) | Git、CI/CD、代码生成、文档服务 |
 | [06-architecture-and-quality.md](06-architecture-and-quality.md) | 分层/实体外泄、重复抽象、命名/包结构、占位实现、通用工具 |
 | [07-system-admin-and-rbac.md](07-system-admin-and-rbac.md) | 用户/角色/权限点/行级数据权限，以及当前仍需收敛的角色、SELF 与 org 授权边界 |
 | [10-authorization-matrix.md](10-authorization-matrix.md) | Controller 鉴权冻结基线与剩余资源级授权矩阵；不再沿用旧数量统计 |
@@ -42,10 +41,10 @@
 | 编号 | 状态 | 区域 | 当前残余 |
 |------|------|------|---------|
 | B1 | FIXED | 01 | 非标准仓储覆盖面已扩大（pointcut 改为类型匹配）；workspace 维度复核确认已有独立设计并落地（workspace-isolation.md），非遗留问题 |
-| B4 | PARTIAL | 05 | GitHub webhook 仍无 HMAC 验签，部署 environment 无服务端白名单 |
+| B4 | FIXED | 05（已删除） | `verifyGithubWebhook` 用 HmacSHA256 + `MessageDigest.isEqual` 验签；`triggerDeploy` 强制部署环境服务端白名单，生产环境仅 `SUPER_ADMIN` |
 | B5 | OPEN | 04 | `ScriptSandbox` 仍以裸子进程/关键词黑名单执行脚本，与受限 GraalVM 路径并存 |
 | B7 | OPEN | 03 | Channel/Webhook 配置实体携带敏感凭证并经接口返回 |
-| B8 | OPEN | 05 | Codegen 输出路径仍信任 module/name，存在路径穿越任意写文件风险 |
+| B8 | FIXED | 05（已删除） | `CodegenService` 新增 `SAFE_IDENTIFIER` 白名单校验 module/name，`buildPath`/`writeFile` 均经 `ensureWithinOutputDir` 规范化后二次确认路径未越界 |
 | B9 | PARTIAL | 07/10 | 角色仍偏宽，SELF 资源归属与 org 边界尚未清零 |
 | B10 | PARTIAL | 07/10 | `viewSource` 与工具列表仍缺 owner/org/share scope 资源级授权 |
 
@@ -54,7 +53,7 @@
 | 编号 | 状态 | 区域 | 当前残余 |
 |------|------|------|---------|
 | M6 | FIXED | 03/06 | 核实：`listActive`/`listEnabled` 均已返回 VO，无 Entity 出参 |
-| M7 | FIXED | 05 | `CiCdService` 改注入 `HttpClient`；`queryLatestRunId` 改用 `TaskScheduler` 延迟调度，不再阻塞调用线程 |
+| M7 | FIXED | 05（已删除） | `CiCdService` 改注入 `HttpClient`；`queryLatestRunId` 改用 `TaskScheduler` 延迟调度，不再阻塞调用线程 |
 | M15 | PARTIAL | 07/08（已删除）/11g（已删除） | Company 与 Channel/Webhook 写入口已 DTO 化，Company/Channel/Webhook 出参已 VO 化，SMS 模板 CRUD 已 VO 化（本轮，见 M22）；`AiOutputController`（`Result<AiOutput>`）、`TeamController`（`Result<TeamEntity>`/`TeamMemberEntity`/`TeamTaskEntity`）、`DocumentController`（`getById`/`update`/`publish`/`unpublish`/`getPublished` 仍 `Result<Document>`）三模块仍有实体出参，规模较大（10+ 处改动点），本轮未做，留待独立任务 |
 | M17 | FIXED | 07 | `assignRolesToUser` 改为先删后建全量覆盖，与 `assignPermissionsToRole` 语义一致 |
 | M21 | FIXED | 09（已删除） | `SmsProperties.testSend`（enabled + phoneWhitelist），生产默认整体禁用 |
@@ -86,8 +85,8 @@
 - **敏感数据与实体边界**：B7、M6、M15、M22、M51。统一以 DTO/VO、字段脱敏和日志脱敏收敛。
 - **脚本、表达式与外部输入**：B5。UEL 值绑定（B17）、出站 SSRF（M39/M46）、提示词注入（M42）、JS 沙箱统一（m25）已闭环；剩余为 `ScriptSandbox` 自身的 OS 级隔离与 shell 黑名单路径。
 - **资金、权益与成本控制**：M23、M53。重点是统一 pre-call 门控（充值服务端定价、入账幂等、权益并发控制、退款幂等与真实账单失败已闭环；m29 已收敛降级范围，避免无差别 fallback 双倍计费）。
-- **回调与外部信任边界**：B4、B-mock、M21、M28、M31、M37。回调 HMAC、防重放、环境隔离和 OAuth 强制原语仍需闭环。
-- **分布式正确性**：M26、M49。M36 新旧状态机、M50 跨节点失效、m32 锁语义已闭环；M49 仅剩 handler 成功到写完成标记之间的崩溃窗口。
+- **回调与外部信任边界**：B-mock、M28、M31、M37。回调 HMAC、防重放、环境隔离和 OAuth 强制原语（B4、M21 已闭环）仍需推进剩余项。
+- **分布式正确性**：M26。M36 新旧状态机、M50 跨节点失效、m32 锁语义、M49 事务性收件箱已闭环。
 - **占位与重复抽象**：M27、重复2、占位、并行抽象。只保留真实用例需要的单一路径。
 
 ## 交接摘要
