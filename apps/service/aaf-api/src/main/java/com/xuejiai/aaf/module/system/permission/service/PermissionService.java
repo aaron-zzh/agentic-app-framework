@@ -177,19 +177,22 @@ public class PermissionService {
     }
 
     /**
-     * 为用户分配角色。
+     * 为用户分配角色（全量覆盖）。
+     *
+     * <p>M17：原实现只计算新增角色（{@code toAdd}）并写入，取消勾选的角色不会被移除——与 {@link
+     * #assignPermissionsToRole} 的"先删后建"语义不对称，导致管理员在界面取消角色勾选后权限撤销不生效。
+     * 现统一为全量覆盖：先删除该用户全部旧角色关联，再按传入列表重建，与角色-权限分配语义保持一致。
      *
      * @param userId 用户 ID
-     * @param roleIds 角色 ID 列表
+     * @param roleIds 角色 ID 列表（覆盖式，不传的角色即被移除）
      */
     @Transactional
     public void assignRolesToUser(Long userId, List<Long> roleIds) {
-        var existing = userRoleRepository.findByUserIdAndDeletedFalse(userId);
-        var existingRoleIds =
-                existing.stream().map(UserRole::getRoleId).collect(Collectors.toSet());
-        var toAdd =
+        // 先删除旧关联
+        userRoleRepository.deleteByUserId(userId);
+        // 新增关联
+        var entities =
                 roleIds.stream()
-                        .filter(rid -> !existingRoleIds.contains(rid))
                         .map(
                                 rid -> {
                                     var ur = new UserRole();
@@ -198,7 +201,7 @@ public class PermissionService {
                                     return ur;
                                 })
                         .toList();
-        userRoleRepository.saveAll(toAdd);
+        userRoleRepository.saveAll(entities);
         versionService.bumpPermissionVersion();
         permissionCacheService.evict(userId);
     }
