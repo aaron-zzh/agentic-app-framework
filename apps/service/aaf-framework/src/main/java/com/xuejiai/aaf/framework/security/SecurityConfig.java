@@ -84,7 +84,11 @@ public class SecurityConfig {
         "/api/channel/webhook/inbound",
         "/api/autodev/git/webhook/github",
         "/api/pay/orders/notify/wx",
-        "/api/pay/orders/notify/alipay"
+        "/api/pay/orders/notify/alipay",
+        // m17：短信状态回调——厂商侧不会携带 JWT，必须公开豁免，否则请求在 Security 层就被拦截，
+        // 端点即便实现了业务逻辑也永远不可达。回调内容通过各自厂商的签名机制校验，不依赖平台身份认证。
+        "/api/system/sms/callback/aliyun",
+        "/api/system/sms/callback/tencent"
     };
 
     static final String[] PUBLIC_GET_PATHS = {
