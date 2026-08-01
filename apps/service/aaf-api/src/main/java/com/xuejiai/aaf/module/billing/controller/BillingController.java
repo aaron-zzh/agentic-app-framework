@@ -1,4 +1,4 @@
-﻿package com.xuejiai.aaf.module.billing.controller;
+package com.xuejiai.aaf.module.billing.controller;
 
 import java.time.LocalDate;
 

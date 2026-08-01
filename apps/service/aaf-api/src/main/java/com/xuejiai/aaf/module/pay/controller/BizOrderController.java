@@ -1,4 +1,4 @@
-﻿package com.xuejiai.aaf.module.pay.controller;
+package com.xuejiai.aaf.module.pay.controller;
 
 import java.util.List;
 

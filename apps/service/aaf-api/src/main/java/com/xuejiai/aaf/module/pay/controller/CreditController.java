@@ -1,4 +1,4 @@
-﻿package com.xuejiai.aaf.module.pay.controller;
+package com.xuejiai.aaf.module.pay.controller;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
