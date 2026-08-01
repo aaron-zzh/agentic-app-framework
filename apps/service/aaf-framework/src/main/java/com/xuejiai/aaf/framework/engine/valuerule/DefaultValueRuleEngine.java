@@ -1,13 +1,15 @@
 package com.xuejiai.aaf.framework.engine.valuerule;
 
+import java.text.Normalizer;
 import java.util.List;
+import java.util.Locale;
 
 import org.springframework.stereotype.Component;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 默认价值规则引擎——优先从数据库加载规则，降级为内置关键词黑名单。 */
+/** 默认价值规则引擎——使用数据库可配置规则，规则服务不可用时 fail-closed。 */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -15,33 +17,24 @@ public class DefaultValueRuleEngine implements ValueRuleEngine {
 
     private final ValueRuleRepository valueRuleRepository;
 
-    /** 内置兜底黑名单（数据库不可用时使用） */
-    private static final List<String> FALLBACK_KEYWORDS =
-            List.of("暴力", "色情", "赌博", "毒品", "自杀", "恐怖主义");
-
     @Override
     public ValidationResult validate(String content) {
         if (content == null || content.isBlank()) return ValidationResult.pass();
 
-        // 优先从数据库加载 FORBIDDEN 规则
         try {
+            var normalizedContent = normalizeForMatch(content);
             var rules = valueRuleRepository.findEnabledForbiddenRules();
             for (var rule : rules) {
-                if (content.contains(rule.getCondition())) {
+                var condition = normalizeForMatch(rule.getCondition());
+                if (!condition.isEmpty() && normalizedContent.contains(condition)) {
                     log.debug("价值规则拦截: 命中规则 [{}]", rule.getName());
                     return ValidationResult.reject("内容违反价值规则: " + rule.getName());
                 }
             }
             return ValidationResult.pass();
-        } catch (Exception e) {
-            // 降级：使用内置关键词
-            log.warn("价值规则数据库查询失败，使用内置黑名单: {}", e.getMessage());
-            for (var keyword : FALLBACK_KEYWORDS) {
-                if (content.contains(keyword)) {
-                    return ValidationResult.reject("内容包含违规关键词: " + keyword);
-                }
-            }
-            return ValidationResult.pass();
+        } catch (RuntimeException e) {
+            log.error("价值规则查询失败，按安全策略拒绝内容", e);
+            return ValidationResult.reject("内容安全规则服务暂不可用");
         }
     }
 
@@ -51,5 +44,17 @@ public class DefaultValueRuleEngine implements ValueRuleEngine {
         return contents.stream()
                 .filter(item -> validate(extractor.extract(item)).passed())
                 .toList();
+    }
+
+    private String normalizeForMatch(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        var normalized = Normalizer.normalize(value, Normalizer.Form.NFKC).toLowerCase(Locale.ROOT);
+        var result = new StringBuilder(normalized.length());
+        normalized.codePoints()
+                .filter(Character::isLetterOrDigit)
+                .forEach(result::appendCodePoint);
+        return result.toString();
     }
 }
