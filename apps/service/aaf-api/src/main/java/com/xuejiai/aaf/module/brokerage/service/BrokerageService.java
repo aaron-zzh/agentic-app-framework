@@ -9,6 +9,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.enums.billing.SubscriptionStatusEnum;
 import com.xuejiai.aaf.common.enums.brokerage.BrokerageRecordStatusEnum;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.org.OrgIgnore;
@@ -499,7 +500,10 @@ public class BrokerageService {
         }
         // 查找活跃订阅套餐
         var subscription =
-                subscriptionRepository.findByUserIdAndStatus(user.getId(), "ACTIVE").orElse(null);
+                subscriptionRepository
+                        .findByUserIdAndStatus(
+                                user.getId(), SubscriptionStatusEnum.ACTIVE.getCode())
+                        .orElse(null);
         if (subscription == null) {
             return baseRate;
         }

@@ -9,6 +9,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.enums.billing.SubscriptionStatusEnum;
 import com.xuejiai.aaf.framework.crud.ReadonlyCrudService;
 import com.xuejiai.aaf.framework.crud.dto.ResourceRefDTO;
 import com.xuejiai.aaf.module.billing.domain.Subscription;
@@ -105,7 +106,9 @@ public class SubscriptionCrudService
 
     public SubscriptionVO getActiveForUser(Long userId) {
         var subscription =
-                subscriptionRepository.findByUserIdAndStatus(userId, "ACTIVE").orElse(null);
+                subscriptionRepository
+                        .findByUserIdAndStatus(userId, SubscriptionStatusEnum.ACTIVE.getCode())
+                        .orElse(null);
         return subscription == null ? null : toVO(subscription);
     }
 

@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.enums.billing.SubscriptionStatusEnum;
 import com.xuejiai.aaf.common.enums.sys.ContactSourceEnum;
 import com.xuejiai.aaf.common.enums.sys.ContactStatusEnum;
 import com.xuejiai.aaf.common.enums.sys.ContactTypeEnum;
@@ -183,7 +184,10 @@ public class BrokerageMeService {
                                     if (u != null) {
                                         isMember =
                                                 subscriptionRepository
-                                                        .findByUserIdAndStatus(u.getId(), "ACTIVE")
+                                                        .findByUserIdAndStatus(
+                                                                u.getId(),
+                                                                SubscriptionStatusEnum.ACTIVE
+                                                                        .getCode())
                                                         .isPresent();
                                     }
                                     Integer ordinal = contactIdToOrdinal.get(bu.getContactId());
