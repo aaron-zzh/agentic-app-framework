@@ -2,13 +2,13 @@
 
 > 覆盖：`aaf-auto-dev` 的 Git 操作、CI/CD 集成、代码生成、文档服务。
 
-## 问题清单
+## 问题清单（2026-08-01 复核）
 
-| 编号 | 级别 | 位置 | 问题 | 修复建议 |
-|------|------|------|------|---------|
-| B4 | 🔴 | `autodev/git/GitController` + `CiCdService` | `/webhook/github` 仍未校验 `X-Hub-Signature-256`，部署接口的 environment 仍缺少服务端白名单 | webhook 增加 HMAC 验签；部署环境使用服务端白名单并按环境分级授权 |
-| B8 | 🔴 | `autodev/codegen/CodegenService#buildPath/writeFile` | 输出路径 `outputDir/.../module/{module}/{pkg}/{name}.java` 用 `def.module()`/`def.name()` 直接拼接，未校验→`module="../.."` 可路径穿越任意写文件 | 校验 module/name 为 `[a-zA-Z0-9_]+`；规范化后校验仍在 outputDir 内 |
-| M7 | 🟠 | `autodev/git/CiCdService` | `HttpClient` 仍为 `static` 实例，与注入风格不一致；`queryLatestRunId` 用 `Thread.sleep(2000)` 阻塞 | 注入 `HttpClient`；轮询改回调/异步 |
+| 编号 | 级别 | 状态 | 位置 | 结论 |
+|------|------|------|------|------|
+| B4 | 🔴 | OPEN | `autodev/git/GitController` + `CiCdService` | `/webhook/github` 仍未校验 `X-Hub-Signature-256`，部署接口的 environment 仍缺少服务端白名单，未在本轮处理（由另一对话跟踪） |
+| B8 | 🔴 | OPEN | `autodev/codegen/CodegenService#buildPath/writeFile` | 输出路径 `outputDir/.../module/{module}/{pkg}/{name}.java` 用 `def.module()`/`def.name()` 直接拼接，未校验→`module="../.."` 可路径穿越任意写文件，未在本轮处理（由另一对话跟踪） |
+| M7 | 🟠 | FIXED | `autodev/git/CiCdService` | `HttpClient` 由 `static` 改为实例字段（注入风格，加 connectTimeout）；`queryLatestRunId` 改用注入的 `TaskScheduler` 延迟调度 + `HttpClient.sendAsync`，不再 `Thread.sleep` 阻塞调用线程；`GitController` 两端点改 `Callable<Result<Long>>` 返回类型，对外 HTTP 契约不变 |
 
 ## 良好实践
 
