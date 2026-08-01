@@ -65,7 +65,6 @@ class KnowledgeDocumentDispatchRecoveryTest extends BaseMockitoUnitTest {
         doReturn(renewalFuture)
                 .when(taskScheduler)
                 .scheduleAtFixedRate(any(Runnable.class), eq(Duration.ofSeconds(40)));
-        when(documentRepository.findRecoveryCycleMaxId()).thenReturn(11L);
         lease =
                 new Lease(
                         "knowledge-document:dispatch-recovery",
@@ -83,6 +82,7 @@ class KnowledgeDocumentDispatchRecoveryTest extends BaseMockitoUnitTest {
     @DisplayName("Given 存在陈旧待处理文档 When 恢复扫描 Then 重派并条件更新派发时间")
     void should_redispatch_stale_pending_document_and_touch_after_enqueue() {
         // 准备参数
+        when(documentRepository.findRecoveryCycleMaxId()).thenReturn(11L);
         var document = document();
         when(documentRepository.findRecoveryScanWindow(eq(0L), eq(11L), any(Pageable.class)))
                 .thenReturn(List.of(document));
@@ -148,6 +148,7 @@ class KnowledgeDocumentDispatchRecoveryTest extends BaseMockitoUnitTest {
     @DisplayName("Given Redis 入队仍失败 When 恢复扫描 Then 不更新派发时间以便下轮重试")
     void should_not_touch_dispatch_time_when_enqueue_fails() {
         // 准备参数
+        when(documentRepository.findRecoveryCycleMaxId()).thenReturn(11L);
         var document = document();
         when(documentRepository.findRecoveryScanWindow(eq(0L), eq(11L), any(Pageable.class)))
                 .thenReturn(List.of(document));

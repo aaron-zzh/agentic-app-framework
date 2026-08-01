@@ -24,6 +24,7 @@ import com.xuejiai.aaf.common.enums.CommonStatusEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.framework.crud.dto.ResourceRefDTO;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.system.user.domain.User;
 import com.xuejiai.aaf.module.system.user.repository.UserRepository;
 import com.xuejiai.aaf.module.system.user.service.UserService;
@@ -39,6 +40,7 @@ class UserServiceTest extends BaseMockitoUnitTest {
 
     @Mock private UserRepository userRepository;
     @Mock private PasswordEncoder passwordEncoder;
+    @Mock private OperatorContext operatorContext;
     @InjectMocks private UserService userService;
 
     private User user;
@@ -169,6 +171,8 @@ class UserServiceTest extends BaseMockitoUnitTest {
     @DisplayName("Given 旧密码正确 When 修改密码 Then 密码更新成功")
     void should_change_password_when_old_password_correct() {
         // mock 方法
+        when(operatorContext.isAuthenticated()).thenReturn(true);
+        when(operatorContext.currentOwnerId()).thenReturn(Optional.of(1L));
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("oldpass", "encoded")).thenReturn(true);
         when(passwordEncoder.encode("newpass")).thenReturn("new_encoded");
@@ -185,6 +189,8 @@ class UserServiceTest extends BaseMockitoUnitTest {
     @DisplayName("Given 旧密码错误 When 修改密码 Then 抛出异常")
     void should_throw_when_old_password_incorrect() {
         // mock 方法
+        when(operatorContext.isAuthenticated()).thenReturn(true);
+        when(operatorContext.currentOwnerId()).thenReturn(Optional.of(1L));
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("wrong", "encoded")).thenReturn(false);
 

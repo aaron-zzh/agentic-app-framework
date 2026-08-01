@@ -44,9 +44,6 @@ class KnowledgeDocumentExecutionLeaseServiceTest extends BaseMockitoUnitTest {
     void setUp() {
         leaseService =
                 new KnowledgeDocumentExecutionLeaseService(distributedLeases, taskScheduler, 9);
-        doReturn(renewalFuture)
-                .when(taskScheduler)
-                .scheduleAtFixedRate(any(Runnable.class), eq(Duration.ofSeconds(3)));
     }
 
     @AfterEach
@@ -60,6 +57,9 @@ class KnowledgeDocumentExecutionLeaseServiceTest extends BaseMockitoUnitTest {
     @DisplayName("Given 同一实例两次执行 When 获取文档租约 Then 每次使用不同 owner")
     void should_use_unique_owner_for_each_invocation() {
         // 准备参数
+        doReturn(renewalFuture)
+                .when(taskScheduler)
+                .scheduleAtFixedRate(any(Runnable.class), eq(Duration.ofSeconds(3)));
         when(distributedLeases.acquire(
                         eq("knowledge-document:processing:11"),
                         anyString(),
@@ -187,6 +187,9 @@ class KnowledgeDocumentExecutionLeaseServiceTest extends BaseMockitoUnitTest {
     @DisplayName("Given 文档操作处于事务中 When 操作返回 Then 提交后才释放租约")
     void should_hold_lease_until_transaction_commits() {
         // 准备参数
+        doReturn(renewalFuture)
+                .when(taskScheduler)
+                .scheduleAtFixedRate(any(Runnable.class), eq(Duration.ofSeconds(3)));
         var lease =
                 new Lease(
                         "knowledge-document:processing:11",

@@ -88,28 +88,6 @@ class KnowledgeBaseServiceTest extends BaseMockitoUnitTest {
                         pipelineService,
                         cleanupQueueService,
                         entityManager);
-        doAnswer(
-                        invocation -> {
-                            KnowledgeDocumentExecutionLeaseService.GuardedAction action =
-                                    invocation.getArgument(1);
-                            action.run(() -> {});
-                            return null;
-                        })
-                .when(executionLeaseService)
-                .execute(eq(11L), any(KnowledgeDocumentExecutionLeaseService.GuardedAction.class));
-        doAnswer(
-                        invocation -> {
-                            KnowledgeDocumentExecutionLeaseService.GuardedSupplier<?> action =
-                                    invocation.getArgument(1);
-                            return action.run(() -> {});
-                        })
-                .when(executionLeaseService)
-                .executeResult(
-                        eq(11L),
-                        org.mockito.ArgumentMatchers
-                                .<KnowledgeDocumentExecutionLeaseService.GuardedSupplier<
-                                                KnowledgeDocumentVO>>
-                                        any());
         ReflectionTestUtils.setField(
                 knowledgeBaseService, "crudResourceRegistry", crudResourceRegistry);
         ReflectionTestUtils.setField(
@@ -124,7 +102,8 @@ class KnowledgeBaseServiceTest extends BaseMockitoUnitTest {
                 .when(crudEnforcementService)
                 .enforceObjectPreflight(
                         eq(resourceEntry), any(CrudOperation.class), any(AccessMode.class));
-        when(enforcementDecision.scopeSpecification()).thenReturn(null);
+        when(enforcementDecision.scopeSpecification())
+                .thenReturn((root, query, cb) -> cb.conjunction());
         when(knowledgeBaseRepository.findOne(any(Specification.class)))
                 .thenReturn(Optional.of(knowledgeBase));
         when(crudEnforcementService.allowsCurrentTarget(
@@ -237,6 +216,15 @@ class KnowledgeBaseServiceTest extends BaseMockitoUnitTest {
     @DisplayName("Given 关联文档 When 删除 Then 事务内软删除并在提交后派发外部清理")
     void should_delete_and_enqueue_cleanup_after_commit() {
         // 准备参数
+        doAnswer(
+                        invocation -> {
+                            KnowledgeDocumentExecutionLeaseService.GuardedAction action =
+                                    invocation.getArgument(1);
+                            action.run(() -> {});
+                            return null;
+                        })
+                .when(executionLeaseService)
+                .execute(eq(11L), any(KnowledgeDocumentExecutionLeaseService.GuardedAction.class));
         var document = document(DocumentStatusEnum.COMPLETED.getCode());
         when(knowledgeDocumentRepository.findByIdAndKnowledgeBaseId(11L, 3L))
                 .thenReturn(Optional.of(document));
@@ -260,6 +248,19 @@ class KnowledgeBaseServiceTest extends BaseMockitoUnitTest {
     @DisplayName("Given 失败文档 When 重试 Then 清旧数据改为待处理并在提交后入队")
     void should_reset_and_enqueue_after_commit_when_failed_document_retries() {
         // 准备参数
+        doAnswer(
+                        invocation -> {
+                            KnowledgeDocumentExecutionLeaseService.GuardedSupplier<?> action =
+                                    invocation.getArgument(1);
+                            return action.run(() -> {});
+                        })
+                .when(executionLeaseService)
+                .executeResult(
+                        eq(11L),
+                        org.mockito.ArgumentMatchers
+                                .<KnowledgeDocumentExecutionLeaseService.GuardedSupplier<
+                                                KnowledgeDocumentVO>>
+                                        any());
         var document = document(DocumentStatusEnum.FAILED.getCode());
         document.setErrorMessage("graph unavailable");
         document.setChunkCount(4);
