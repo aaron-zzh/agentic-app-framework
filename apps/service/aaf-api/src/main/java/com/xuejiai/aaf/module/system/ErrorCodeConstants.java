@@ -140,8 +140,7 @@ public interface ErrorCodeConstants {
             ErrorCode.of(1_011_006, "实体标识 {0} 未注册到 CRUD 资源目录，无法校验规则字段");
     ErrorCode DATA_ACCESS_RULE_FIELD_INVALID =
             ErrorCode.of(1_011_007, "规则条件引用了非法字段: {0}（实体 {1} 不存在该字段或不支持行级过滤）");
-    ErrorCode DATA_ACCESS_RULE_OPERATOR_INVALID =
-            ErrorCode.of(1_011_008, "规则条件使用了不支持的操作符: {0}");
+    ErrorCode DATA_ACCESS_RULE_OPERATOR_INVALID = ErrorCode.of(1_011_008, "规则条件使用了不支持的操作符: {0}");
 
     // ========== NOTIFY 模块 1_012_000 ==========
     ErrorCode SUBSCRIPTION_NOT_FOUND = ErrorCode.of(1_012_000, "订阅不存在");

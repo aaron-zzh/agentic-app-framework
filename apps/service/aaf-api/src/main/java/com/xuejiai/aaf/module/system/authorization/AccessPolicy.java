@@ -14,8 +14,8 @@ import lombok.Setter;
 /**
  * ABAC 访问策略的可编辑定义；运行时只读取已发布快照。
  *
- * <p>标注 {@link com.xuejiai.aaf.framework.org.OrgIgnore}：策略引擎是平台级基础设施，租户边界由自身的 {@code
- * tenantId}（见 {@code AuthorizationAudit}）与策略条件表达，不套用 {@code org_id} 过滤。
+ * <p>标注 {@link com.xuejiai.aaf.framework.org.OrgIgnore}：策略引擎是平台级基础设施，租户边界由自身的 {@code tenantId}（见
+ * {@code AuthorizationAudit}）与策略条件表达，不套用 {@code org_id} 过滤。
  */
 @Getter
 @Setter

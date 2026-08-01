@@ -115,8 +115,8 @@ public class ResilientChatService {
      *   <li>真实错误被"降级成功"掩盖，排查时只看到备用模型的结果
      * </ul>
      *
-     * <p>判定沿因果链向上找第一个可判定信号：Spring AI 的 Transient/NonTransient 异常、HTTP 状态码（5xx 与
-     * 429 可重试，其余 4xx 不可）、网络超时/连接类 IO 异常。无法判定时保守地**不降级**，让错误暴露。
+     * <p>判定沿因果链向上找第一个可判定信号：Spring AI 的 Transient/NonTransient 异常、HTTP 状态码（5xx 与 429 可重试，其余 4xx
+     * 不可）、网络超时/连接类 IO 异常。无法判定时保守地**不降级**，让错误暴露。
      */
     private boolean isRetryable(Throwable error) {
         for (var t = error; t != null; t = t.getCause()) {

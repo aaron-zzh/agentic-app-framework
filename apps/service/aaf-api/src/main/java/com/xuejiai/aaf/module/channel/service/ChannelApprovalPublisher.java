@@ -37,8 +37,7 @@ import lombok.extern.slf4j.Slf4j;
  *   → 下次 Agent 调用该工具自动通过
  * </pre>
  *
- * <p>M36：审批状态已持久化，重启/多实例不再丢失；且决定入口真实存在——旧内存版没有任何 resolve 调用方，
- * 用户点了卡片也无处落地。
+ * <p>M36：审批状态已持久化，重启/多实例不再丢失；且决定入口真实存在——旧内存版没有任何 resolve 调用方， 用户点了卡片也无处落地。
  *
  * <p>注意：渠道链路中 Agent 是通过 {@code agent.call()} 阻塞等待的， resolve 后不需要像 AG-UI 那样 {@code agent.stream()}
  * 恢复—— ToolPermissionChecker 下次检查时已被授权，Agent 循环自动继续。

@@ -38,7 +38,9 @@ public class EmbeddingService {
     private final ConcurrentHashMap<String, float[]> cache = new ConcurrentHashMap<>();
 
     public EmbeddingService(
-            EmbeddingModel embeddingModel, EmbeddingProperties properties, AiCreditGuard creditGuard) {
+            EmbeddingModel embeddingModel,
+            EmbeddingProperties properties,
+            AiCreditGuard creditGuard) {
         this.embeddingModel = embeddingModel;
         this.properties = properties;
         this.creditGuard = creditGuard;
@@ -53,11 +55,15 @@ public class EmbeddingService {
             return cached;
         }
         creditGuard.precheck(
-                userId, CreditTransactionCategoryEnum.EMBEDDING.getCode(), AiCreditGuard.INESTIMABLE_COST);
+                userId,
+                CreditTransactionCategoryEnum.EMBEDDING.getCode(),
+                AiCreditGuard.INESTIMABLE_COST);
         var result = embedWithRetry(text);
         cache.putIfAbsent(key, result);
         creditGuard.settleFixed(
-                userId, properties.creditCostPerCall(), CreditTransactionCategoryEnum.EMBEDDING.getCode());
+                userId,
+                properties.creditCostPerCall(),
+                CreditTransactionCategoryEnum.EMBEDDING.getCode());
         return result;
     }
 

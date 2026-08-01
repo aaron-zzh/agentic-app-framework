@@ -112,9 +112,9 @@ public class SmsController {
      *
      * <p>用于验证短信配置是否正确、模板是否可用。 仅在 aaf.messaging.sms.provider 已配置时可用。
      *
-     * <p>M21：原实现直连 {@link MessageService}，无任何环境隔离或号码限制——生产环境下管理员正常测试配置就会
-     * 误发真实短信并产生费用，不需要恶意行为即可触发。现受 {@code aaf.messaging.sms.test-send} 双重约束：
-     * {@code enabled=false} 时整体禁用；配置 {@code phoneWhitelist} 后仅白名单号码可被测试发送。
+     * <p>M21：原实现直连 {@link MessageService}，无任何环境隔离或号码限制——生产环境下管理员正常测试配置就会 误发真实短信并产生费用，不需要恶意行为即可触发。现受
+     * {@code aaf.messaging.sms.test-send} 双重约束： {@code enabled=false} 时整体禁用；配置 {@code
+     * phoneWhitelist} 后仅白名单号码可被测试发送。
      */
     @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @Operation(summary = "测试短信发送", description = "实际调用厂商 API 发送短信，会产生真实费用，仅用于配置验证")
@@ -122,11 +122,13 @@ public class SmsController {
     public Result<String> testSend(@Valid @RequestBody SmsTestSendDTO dto) {
         var testSendConfig = smsProperties.testSend();
         if (!testSendConfig.enabled()) {
-            throw new IllegalStateException("当前环境已禁用短信测试发送（aaf.messaging.sms.test-send.enabled=false）");
+            throw new IllegalStateException(
+                    "当前环境已禁用短信测试发送（aaf.messaging.sms.test-send.enabled=false）");
         }
         if (!testSendConfig.phoneWhitelist().isEmpty()
                 && !testSendConfig.phoneWhitelist().contains(dto.phone())) {
-            throw new IllegalArgumentException("测试发送号码不在白名单内，请检查 aaf.messaging.sms.test-send.phone-whitelist 配置");
+            throw new IllegalArgumentException(
+                    "测试发送号码不在白名单内，请检查 aaf.messaging.sms.test-send.phone-whitelist 配置");
         }
         var variables =
                 dto.params() == null
@@ -146,9 +148,8 @@ public class SmsController {
     /**
      * 阿里云短信状态回调。阿里云配置回调地址：POST /api/system/sms/callback/aliyun
      *
-     * <p>m17：原实现连日志都未记录，且此前受类级 {@code @PreAuthorize} 限制——厂商回调不会携带平台 JWT，
-     * 实际永远 403，端点等于不可达。现已在 {@code SecurityConfig} 加入公开路径豁免，并记录访问日志用于
-     * 排查/后续对接验签开发。**当前仍是占位**：未做阿里云回调签名校验（官方回调机制细节需核对最新文档后
+     * <p>m17：原实现连日志都未记录，且此前受类级 {@code @PreAuthorize} 限制——厂商回调不会携带平台 JWT， 实际永远 403，端点等于不可达。现已在
+     * {@code SecurityConfig} 加入公开路径豁免，并记录访问日志用于 排查/后续对接验签开发。**当前仍是占位**：未做阿里云回调签名校验（官方回调机制细节需核对最新文档后
      * 单独实现，不在本轮臆造），也未解析 body 更新 sys_message_log；生产环境暴露该端点前必须补齐验签，
      * 否则任何人可推送伪造状态（不影响短信本身发送，仅影响状态记录的可信度）。
      */

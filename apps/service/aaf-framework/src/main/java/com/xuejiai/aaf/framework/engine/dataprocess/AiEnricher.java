@@ -124,15 +124,17 @@ public class AiEnricher implements ProcessingStep {
                 }
                 yield allowed.stream().filter(value::equals).findFirst().orElse("");
             }
-            case "sentiment" ->
-                    java.util.Set.of("正面", "中性", "负面").contains(value) ? value : "";
+            case "sentiment" -> java.util.Set.of("正面", "中性", "负面").contains(value) ? value : "";
             case "tags" ->
                     java.util.Arrays.stream(value.split("[,，]"))
                             .map(String::trim)
                             .filter(s -> !s.isBlank())
                             .limit(5)
                             .collect(java.util.stream.Collectors.joining(","));
-            default -> value.length() > MAX_OUTPUT_CHARS ? value.substring(0, MAX_OUTPUT_CHARS) : value;
+            default ->
+                    value.length() > MAX_OUTPUT_CHARS
+                            ? value.substring(0, MAX_OUTPUT_CHARS)
+                            : value;
         };
     }
 
@@ -148,8 +150,7 @@ public class AiEnricher implements ProcessingStep {
             }
             case "classification" -> {
                 var categories = params != null ? params.getOrDefault("categories", "其他") : "其他";
-                yield "任务：把待处理数据分类到这些类别之一：[%s]。只输出类别名称。\n\n%s"
-                        .formatted(categories, data);
+                yield "任务：把待处理数据分类到这些类别之一：[%s]。只输出类别名称。\n\n%s".formatted(categories, data);
             }
             case "sentiment" -> "任务：分析待处理数据的情感倾向，只输出一个词（正面/中性/负面）。\n\n" + data;
             case "tags" -> "任务：从待处理数据中提取 3-5 个关键标签，用逗号分隔，只输出标签。\n\n" + data;

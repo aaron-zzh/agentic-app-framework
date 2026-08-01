@@ -9,8 +9,8 @@ import org.springframework.context.annotation.Configuration;
 /**
  * 出站请求配置（M39 / M46）。
  *
- * <p>{@code allowed-hosts} 为空表示不做主机白名单、只做网段与协议校验（内网/元数据端点仍然禁止）；
- * 配置后则变为白名单模式，只有列出的主机（支持 {@code *.example.com}）可出站。
+ * <p>{@code allowed-hosts} 为空表示不做主机白名单、只做网段与协议校验（内网/元数据端点仍然禁止）； 配置后则变为白名单模式，只有列出的主机（支持 {@code
+ * *.example.com}）可出站。
  */
 @ConfigurationProperties(prefix = "aaf.outbound")
 public class OutboundUrlProperties {

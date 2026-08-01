@@ -56,8 +56,8 @@ public class DistributedLockAspect {
                                 .setIfAbsent(key, lockToken, lock.ttlSeconds(), TimeUnit.SECONDS));
         if (!acquired) {
             // m32：void 方法沿用"跳过"语义；有返回值的方法必须显式失败，否则 null 会被当成业务结果
-            var returnType = ((org.aspectj.lang.reflect.MethodSignature) pjp.getSignature())
-                    .getReturnType();
+            var returnType =
+                    ((org.aspectj.lang.reflect.MethodSignature) pjp.getSignature()).getReturnType();
             if (returnType == void.class || returnType == Void.class) {
                 log.debug("分布式锁获取失败，跳过执行: {}", key);
                 return null;

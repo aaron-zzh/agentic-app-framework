@@ -30,12 +30,12 @@ import lombok.extern.slf4j.Slf4j;
  * #ORG_LIST_PATH}——该接口用于登录后查询"当前用户属于哪些组织"，语义上基于 userId 查询、不依赖 orgId，必须豁免，否则用户在拿到 orgId
  * 之前无法查到自己的组织列表（死锁）。
  *
- * <p>B1：切面覆盖范围从"包路径匹配"改为"类型匹配"——原 pointcut 是
- * {@code execution(* module..repository.*.*(..)) || execution(* framework..repository.*.*(..))}，
- * 只命中放在 {@code repository} 子包下的仓储；framework 层大量仓储不遵循这一约定（如 {@code engine/credit/
- * CreditAccountRepository}、{@code intelligent/core/model/AiModelRepository}），完全绕过本切面。 现在改为对任意
- * {@code JpaRepository} 子接口生效（不看包路径），一次性覆盖此前遗漏的全部仓储。为此已将其中 13 个
- * 全局配置类实体补标 {@link OrgIgnore}（AgentDefinition/AiAssistantRole/AiModelProvider/ModelPreference/
+ * <p>B1：切面覆盖范围从"包路径匹配"改为"类型匹配"——原 pointcut 是 {@code execution(* module..repository.*.*(..)) ||
+ * execution(* framework..repository.*.*(..))}， 只命中放在 {@code repository} 子包下的仓储；framework
+ * 层大量仓储不遵循这一约定（如 {@code engine/credit/ CreditAccountRepository}、{@code
+ * intelligent/core/model/AiModelRepository}），完全绕过本切面。 现在改为对任意 {@code JpaRepository}
+ * 子接口生效（不看包路径），一次性覆盖此前遗漏的全部仓储。为此已将其中 13 个 全局配置类实体补标 {@link
+ * OrgIgnore}（AgentDefinition/AiAssistantRole/AiModelProvider/ModelPreference/
  * CreditAccount/CreditTransaction/PromptTemplate/Persona/ValueRule/PermissionTuple/TeamEntity/
  * AccessPolicy/AccessPolicySnapshot/AuthorizationAudit），避免切面扩面后把这些表误套组织过滤导致查询静默返回空。
  *

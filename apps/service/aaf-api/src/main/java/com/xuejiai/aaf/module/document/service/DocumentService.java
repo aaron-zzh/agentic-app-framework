@@ -53,9 +53,7 @@ public class DocumentService {
     @Transactional(readOnly = true)
     public long countCurrentUser() {
         var ownerId = operatorContext.currentOwnerId().orElse(null);
-        return ownerId != null
-                ? documentRepository.countByOwnerIdAndStatus(ownerId, "active")
-                : 0L;
+        return ownerId != null ? documentRepository.countByOwnerIdAndStatus(ownerId, "active") : 0L;
     }
 
     /** 获取当前用户文档列表（不含正文）。 */

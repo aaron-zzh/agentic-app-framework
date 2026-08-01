@@ -19,5 +19,6 @@ public interface EmbeddingService {
     float[] embed(String text, String modelId, SubjectKind subjectKind, String subjectId);
 
     /** 批量向量化，语义同 {@link #embed(String, String, SubjectKind, String)}。 */
-    List<float[]> embed(List<String> texts, String modelId, SubjectKind subjectKind, String subjectId);
+    List<float[]> embed(
+            List<String> texts, String modelId, SubjectKind subjectKind, String subjectId);
 }

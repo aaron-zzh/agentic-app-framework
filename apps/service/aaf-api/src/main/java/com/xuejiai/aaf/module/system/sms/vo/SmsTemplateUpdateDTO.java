@@ -7,4 +7,5 @@ package com.xuejiai.aaf.module.system.sms.vo;
  *
  * @author AaronZZH & Kiro
  */
-public record SmsTemplateUpdateDTO(String signName, String apiTemplateId, String provider, Short status) {}
+public record SmsTemplateUpdateDTO(
+        String signName, String apiTemplateId, String provider, Short status) {}

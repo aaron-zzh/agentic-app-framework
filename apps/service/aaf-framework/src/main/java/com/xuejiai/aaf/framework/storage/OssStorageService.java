@@ -82,8 +82,8 @@ public class OssStorageService implements StorageService {
     /**
      * m20：OSS 预签名 PUT 绑定 Content-Type 与长度上限。
      *
-     * <p>OSS 签名会把 {@code Content-Type} 纳入计算，客户端换类型即签名失效；长度上限通过
-     * {@code x-oss-content-length-range}（等价于 STS Policy 的 content-length-range）表达。
+     * <p>OSS 签名会把 {@code Content-Type} 纳入计算，客户端换类型即签名失效；长度上限通过 {@code
+     * x-oss-content-length-range}（等价于 STS Policy 的 content-length-range）表达。
      */
     @Override
     public PresignedUploadTicket getPresignedUploadUrl(PresignedUploadRequest req) {

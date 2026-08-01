@@ -71,7 +71,8 @@ class AssistantApplicationServiceTest {
         var definition = definitionWithLongTermMemory(true);
         var command = command(visitorSubject("channel-visitor-1"), new UserId("999"));
 
-        assertThat(AssistantApplicationService.longTermMemoryEnabled(command, definition)).isFalse();
+        assertThat(AssistantApplicationService.longTermMemoryEnabled(command, definition))
+                .isFalse();
     }
 
     @Test
@@ -80,7 +81,8 @@ class AssistantApplicationServiceTest {
         var definition = definitionWithLongTermMemory(false);
         var command = command(userSubject("20"), new UserId("20"));
 
-        assertThat(AssistantApplicationService.longTermMemoryEnabled(command, definition)).isFalse();
+        assertThat(AssistantApplicationService.longTermMemoryEnabled(command, definition))
+                .isFalse();
     }
 
     private static SkillDef skill(Long id, String name, String systemPrompt, int priority) {
@@ -90,9 +92,7 @@ class AssistantApplicationServiceTest {
     private static AssistantDefinition definitionWithLongTermMemory(boolean longTermEnabled) {
         var template = new DefaultUserAssistantTemplate().templates().getFirst();
         var strategy =
-                longTermEnabled
-                        ? MemoryStrategy.hybridDefault()
-                        : MemoryStrategy.knowledgeOnly();
+                longTermEnabled ? MemoryStrategy.hybridDefault() : MemoryStrategy.knowledgeOnly();
         return new AssistantDefinition(
                 template.assistantId(),
                 template.systemKey(),

@@ -15,8 +15,8 @@ import lombok.RequiredArgsConstructor;
 /**
  * M9：为 API Key 认证提供绑定用户的角色编码。
  *
- * <p>查询口径与登录签发 JWT 时（{@code AuthService#getRoleCodes}）完全一致——同样是 user_role → role.code，
- * 保证"API Key 调用"与"该用户自己登录"看到的角色一致，不额外放大也不额外收窄。
+ * <p>查询口径与登录签发 JWT 时（{@code AuthService#getRoleCodes}）完全一致——同样是 user_role → role.code， 保证"API Key
+ * 调用"与"该用户自己登录"看到的角色一致，不额外放大也不额外收窄。
  */
 @Component
 @RequiredArgsConstructor

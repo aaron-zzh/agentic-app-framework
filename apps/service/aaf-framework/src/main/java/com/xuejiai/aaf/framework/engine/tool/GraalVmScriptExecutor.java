@@ -31,8 +31,7 @@ public class GraalVmScriptExecutor implements ScriptExecutor {
         var contextRef = new AtomicReference<Context>();
 
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            var future =
-                    executor.submit(() -> executeJsInContext(code, argsJson, contextRef));
+            var future = executor.submit(() -> executeJsInContext(code, argsJson, contextRef));
             try {
                 return future.get(effectiveTimeout.toMillis(), TimeUnit.MILLISECONDS);
             } catch (TimeoutException e) {

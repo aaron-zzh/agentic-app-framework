@@ -69,8 +69,9 @@ public class TaskInboxExecutor {
 
     private String digest(String payload) {
         try {
-            var bytes = MessageDigest.getInstance("SHA-256")
-                    .digest(payload.getBytes(StandardCharsets.UTF_8));
+            var bytes =
+                    MessageDigest.getInstance("SHA-256")
+                            .digest(payload.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(bytes);
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("JVM 不支持 SHA-256", e);

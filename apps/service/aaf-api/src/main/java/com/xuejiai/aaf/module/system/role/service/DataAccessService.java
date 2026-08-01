@@ -430,14 +430,13 @@ public class DataAccessService
     /**
      * m12：保存规则前按 entitySlug 对应的 CRUD 资源做字段+操作符白名单校验。
      *
-     * <p>原实现不校验，非法字段在查询执行期由 {@code root.get} 抛异常，外层捕获后静默降级为
-     * {@code disjunction()}（拒绝所有数据）——管理员配错一个字段名会导致该实体数据对所有人不可见，且没有任何明确报错，
+     * <p>原实现不校验，非法字段在查询执行期由 {@code root.get} 抛异常，外层捕获后静默降级为 {@code
+     * disjunction()}（拒绝所有数据）——管理员配错一个字段名会导致该实体数据对所有人不可见，且没有任何明确报错，
      * 只能在运行时日志里才能看到"解析规则条件失败"。改为保存时立即报错拒绝，避免配置错误在生产环境静默生效。
      *
-     * <p>字段校验用"实体是否声明该字段"，不用字段能力策略里的 FILTER 能力——FILTER 代表"客户端 API
-     * 请求允许传的筛选参数"，与行级规则语义不同：{@code assigneeId} 这类字段刻意不开放给客户端筛选（否则可通过
-     * {@code ?assigneeId=xxx} 越权查询他人数据），但恰恰是行级规则最典型的引用字段（"只能看指派给自己的待办"）。
-     * 用 FILTER 校验会把这套系统最核心的规则模式误判为非法。
+     * <p>字段校验用"实体是否声明该字段"，不用字段能力策略里的 FILTER 能力——FILTER 代表"客户端 API 请求允许传的筛选参数"，与行级规则语义不同：{@code
+     * assigneeId} 这类字段刻意不开放给客户端筛选（否则可通过 {@code ?assigneeId=xxx}
+     * 越权查询他人数据），但恰恰是行级规则最典型的引用字段（"只能看指派给自己的待办"）。 用 FILTER 校验会把这套系统最核心的规则模式误判为非法。
      *
      * <p>entitySlug 找不到对应 CRUD 资源（未走 {@code BaseCrudService} 注册，如历史遗留或纯 repository
      * 资源）时不报错放行——这类资源没有 {@link com.xuejiai.aaf.framework.crud.resource.CrudResourceRegistry}
@@ -458,7 +457,8 @@ public class DataAccessService
         try {
             root = JsonUtils.readTree(conditionJson);
         } catch (Exception e) {
-            throw exception(ErrorCodeConstants.DATA_ACCESS_RULE_FIELD_INVALID, "<非法 JSON>", entitySlug);
+            throw exception(
+                    ErrorCodeConstants.DATA_ACCESS_RULE_FIELD_INVALID, "<非法 JSON>", entitySlug);
         }
         validateConditionNode(root, entitySlug, knownFields);
     }

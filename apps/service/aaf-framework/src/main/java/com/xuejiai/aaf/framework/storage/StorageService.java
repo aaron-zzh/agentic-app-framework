@@ -49,7 +49,8 @@ public interface StorageService {
     /**
      * 获取预签名上传票据（前端直传用）。
      *
-     * <p>M29：不再接受调用方的裸 key——key 由 {@link PresignedUploadRequest#toKey()} 按 owner 命名空间生成， 通用接口无法被误用来签别人的命名空间。
+     * <p>M29：不再接受调用方的裸 key——key 由 {@link PresignedUploadRequest#toKey()} 按 owner 命名空间生成，
+     * 通用接口无法被误用来签别人的命名空间。
      *
      * <p>m20：实现必须把 {@code contentType} 与大小上限写入签名约束。
      *

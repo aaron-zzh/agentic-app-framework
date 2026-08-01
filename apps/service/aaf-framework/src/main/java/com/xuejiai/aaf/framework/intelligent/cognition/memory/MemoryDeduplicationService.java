@@ -213,7 +213,8 @@ public class MemoryDeduplicationService {
                     target.setContent(
                             decision.content() != null ? decision.content() : newAtom.getContent());
                     // M53：成本记账到记忆归属用户
-                    target.setEmbedding(embeddingService.embed(target.getContent(), newAtom.getUserId()));
+                    target.setEmbedding(
+                            embeddingService.embed(target.getContent(), newAtom.getUserId()));
                     target.setWeight(Math.min(1.0, target.getWeight() + 0.1)); // 强化
                     atomEngine.store(target);
                     yield new DecisionResult(Action.UPDATE, target.getId(), target.getContent());

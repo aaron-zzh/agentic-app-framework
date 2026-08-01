@@ -169,7 +169,8 @@ public class MemoryExtractionService {
                     if (rel.description() != null && !rel.description().isBlank()) {
                         relation.setEdgeText(rel.description());
                         // M53：成本记账到触发用户
-                        relation.setEdgeEmbedding(embeddingService.embed(rel.description(), userId));
+                        relation.setEdgeEmbedding(
+                                embeddingService.embed(rel.description(), userId));
                     }
                     atomEngine.addRelation(relation);
                 }

@@ -27,8 +27,9 @@ public class KnowledgeVectorService {
     /**
      * 带过滤条件的相似度查询。
      *
-     * <p>M45：已删除无过滤的 {@code search(query, topK)} 重载——它不带任何 kbId/租户条件，一旦被新增调用方 使用就会跨知识库检索。检索必须显式给出过滤表达式；确实要全局检索时也必须由调用方显式传入
-     * 过滤条件（如 {@code "knowledge_base_id == 'x'"}），不提供"省略即全量"的入口。
+     * <p>M45：已删除无过滤的 {@code search(query, topK)} 重载——它不带任何 kbId/租户条件，一旦被新增调用方
+     * 使用就会跨知识库检索。检索必须显式给出过滤表达式；确实要全局检索时也必须由调用方显式传入 过滤条件（如 {@code "knowledge_base_id ==
+     * 'x'"}），不提供"省略即全量"的入口。
      *
      * @param query 查询文本
      * @param topK 返回条数

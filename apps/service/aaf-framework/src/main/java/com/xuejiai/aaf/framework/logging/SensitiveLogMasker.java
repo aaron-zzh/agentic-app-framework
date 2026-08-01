@@ -7,14 +7,15 @@ import java.util.regex.Pattern;
 /**
  * 操作日志脱敏（M51）。
  *
- * <p>修复前：切面把 {@code Arrays.toString(args)} 与 {@code result.toString()} 原样写入审计日志， 登录/改密/绑定/发短信等接口的密码、token、密钥、身份证会明文落库，审计表本身成了敏感数据泄漏点。
+ * <p>修复前：切面把 {@code Arrays.toString(args)} 与 {@code result.toString()} 原样写入审计日志，
+ * 登录/改密/绑定/发短信等接口的密码、token、密钥、身份证会明文落库，审计表本身成了敏感数据泄漏点。
  *
  * <p>两层防护：
  *
  * <ol>
  *   <li>按**参数名**脱敏——命中敏感词的整个入参直接替换为掩码（方法参数名在 {@code -parameters} 编译下可得）
- *   <li>按**文本模式**脱敏——对渲染后的字符串再扫一遍 {@code key=value} / {@code "key":"value"}
- *       形态，覆盖嵌套对象 toString 与 JSON 出参
+ *   <li>按**文本模式**脱敏——对渲染后的字符串再扫一遍 {@code key=value} / {@code "key":"value"} 形态，覆盖嵌套对象 toString 与
+ *       JSON 出参
  * </ol>
  *
  * <p>只做脱敏，不改变日志结构；宁可多掩一个字段，也不让敏感值进审计表。
@@ -94,7 +95,8 @@ public final class SensitiveLogMasker {
             if (i > 0) {
                 sb.append(", ");
             }
-            var name = parameterNames != null && i < parameterNames.length ? parameterNames[i] : null;
+            var name =
+                    parameterNames != null && i < parameterNames.length ? parameterNames[i] : null;
             if (isSensitiveName(name)) {
                 sb.append(name).append('=').append(MASK);
                 continue;

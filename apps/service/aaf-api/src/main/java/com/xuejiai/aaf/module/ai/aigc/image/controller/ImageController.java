@@ -85,9 +85,9 @@ public class ImageController {
         // AiServiceRegistry 返回的实例已被 ImageGenServiceDecorator 包裹，调用成功后会自动结算，
         // 但结算前若未预检，透支/欠费账户仍可发起真实调用。estimateCost 与统一任务链
         // （AigcTaskService#submitImageTask）用的是同一套默认估算逻辑。
-        var estimatedCost =
-                service.estimateCost(model, editRequest, creditGuard.getMarkupRate());
-        creditGuard.precheck(userId, CreditTransactionCategoryEnum.IMAGE_GEN.getCode(), estimatedCost);
+        var estimatedCost = service.estimateCost(model, editRequest, creditGuard.getMarkupRate());
+        creditGuard.precheck(
+                userId, CreditTransactionCategoryEnum.IMAGE_GEN.getCode(), estimatedCost);
         var result = service.imageToImage(model, editRequest);
         return Result.success(result);
     }
@@ -109,9 +109,9 @@ public class ImageController {
                         model.getModelId());
         var service = aiServiceRegistry.get(ImageGenerationService.class, model);
         // M23：同上，接回统一权益 precheck。
-        var estimatedCost =
-                service.estimateCost(model, editRequest, creditGuard.getMarkupRate());
-        creditGuard.precheck(userId, CreditTransactionCategoryEnum.IMAGE_GEN.getCode(), estimatedCost);
+        var estimatedCost = service.estimateCost(model, editRequest, creditGuard.getMarkupRate());
+        creditGuard.precheck(
+                userId, CreditTransactionCategoryEnum.IMAGE_GEN.getCode(), estimatedCost);
         var result = service.editImage(model, editRequest);
         return Result.success(result);
     }

@@ -55,8 +55,7 @@ public class GeneratedToolStoreImpl implements GeneratedToolStore {
     @Override
     public Set<String> findAccessibleNames(Long ownerId, Long orgId) {
         return Set.copyOf(
-                repository.findAccessibleNames(
-                        ownerId, orgId, ToolBlueprint.Visibility.SHARED));
+                repository.findAccessibleNames(ownerId, orgId, ToolBlueprint.Visibility.SHARED));
     }
 
     @Override

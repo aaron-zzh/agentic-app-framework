@@ -468,24 +468,22 @@ public class AuthService {
     public String getOAuthUrl(String provider, String deviceId) {
         OAuthClient client = findOAuthClient(provider);
         return client.buildAuthorizationUrl(
-                issueOAuthState(provider, deviceId == null ? "web" : deviceId, OAuthPurpose.LOGIN, null));
+                issueOAuthState(
+                        provider, deviceId == null ? "web" : deviceId, OAuthPurpose.LOGIN, null));
     }
 
     /**
      * 获取 OAuth 授权 URL（账号绑定用）。
      *
      * <p>M31：绑定链此前只收 code、完全没有 state——攻击者可诱导已登录用户提交攻击者自己的授权 code，
-     * 把攻击者的第三方账号绑到受害者账号上，之后即可用第三方登录接管账号。现在绑定与登录复用同一套 state 签发/消费流程，且 state 额外绑定**用途**与**发起人 userId**，
-     * 登录 state 不能拿来绑定，A 用户的绑定 state 也不能被 B 用户消费。
+     * 把攻击者的第三方账号绑到受害者账号上，之后即可用第三方登录接管账号。现在绑定与登录复用同一套 state 签发/消费流程，且 state 额外绑定**用途**与**发起人
+     * userId**， 登录 state 不能拿来绑定，A 用户的绑定 state 也不能被 B 用户消费。
      */
     public String getOAuthBindUrl(String provider, Long userId, String deviceId) {
         OAuthClient client = findOAuthClient(provider);
         return client.buildAuthorizationUrl(
                 issueOAuthState(
-                        provider,
-                        deviceId == null ? "web" : deviceId,
-                        OAuthPurpose.BIND,
-                        userId));
+                        provider, deviceId == null ? "web" : deviceId, OAuthPurpose.BIND, userId));
     }
 
     /** M31：state 签发统一入口——登录与绑定共用，避免两条链各写一套。 */

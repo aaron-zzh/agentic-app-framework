@@ -173,8 +173,7 @@ public class CodegenService {
     private void validateIdentifier(String field, String value) {
         if (value == null || !SAFE_IDENTIFIER.matcher(value).matches()) {
             throw new BusinessException(
-                    GlobalErrorCode.BAD_REQUEST,
-                    "%s 仅允许字母、数字和下划线".formatted(field));
+                    GlobalErrorCode.BAD_REQUEST, "%s 仅允许字母、数字和下划线".formatted(field));
         }
     }
 

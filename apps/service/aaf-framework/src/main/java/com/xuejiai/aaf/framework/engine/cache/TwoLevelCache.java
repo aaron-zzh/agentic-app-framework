@@ -93,8 +93,8 @@ public class TwoLevelCache<K, V> {
     /**
      * 清空全部。
      *
-     * <p>m30：改用 SCAN 游标分批删除——原实现用 {@code KEYS name:*}，Redis 单线程执行 KEYS 会随 key 总量线性阻塞，
-     * 生产环境上百万 key 时足以造成全实例卡顿。SCAN 分批返回、每批删除，不阻塞其他命令。
+     * <p>m30：改用 SCAN 游标分批删除——原实现用 {@code KEYS name:*}，Redis 单线程执行 KEYS 会随 key 总量线性阻塞， 生产环境上百万 key
+     * 时足以造成全实例卡顿。SCAN 分批返回、每批删除，不阻塞其他命令。
      */
     public void invalidateAll() {
         localCache.invalidateAll();

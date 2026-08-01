@@ -52,9 +52,7 @@ public class DefaultValueRuleEngine implements ValueRuleEngine {
         }
         var normalized = Normalizer.normalize(value, Normalizer.Form.NFKC).toLowerCase(Locale.ROOT);
         var result = new StringBuilder(normalized.length());
-        normalized.codePoints()
-                .filter(Character::isLetterOrDigit)
-                .forEach(result::appendCodePoint);
+        normalized.codePoints().filter(Character::isLetterOrDigit).forEach(result::appendCodePoint);
         return result.toString();
     }
 }

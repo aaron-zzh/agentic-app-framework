@@ -281,8 +281,7 @@ public class AuthController {
     @Operation(summary = "获取第三方账号绑定授权 URL（含一次性绑定 state）")
     @GetMapping("/oauth/{provider}/bind-url")
     public Result<String> getOAuthBindUrl(
-            @PathVariable String provider,
-            @RequestParam(required = false) String deviceId) {
+            @PathVariable String provider, @RequestParam(required = false) String deviceId) {
         Long userId = authService.currentUserId();
         return Result.success(authService.getOAuthBindUrl(provider, userId, deviceId));
     }

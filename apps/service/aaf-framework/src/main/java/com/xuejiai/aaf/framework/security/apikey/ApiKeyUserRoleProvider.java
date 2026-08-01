@@ -8,8 +8,8 @@ import java.util.List;
  * <p>修复前：{@link ApiKeyAuthFilter} 只授予 {@code ROLE_API_KEY}，不继承绑定用户的真实角色—— API Key
  * 调用方到不了任何需要业务角色的端点（fail-closed，不是越权，但能力与预期不符）。
  *
- * <p>framework 层拿不到 {@code UserRoleRepository}（在 aaf-api），故以最小 SPI 反转依赖：由 aaf-api 提供实现，
- * 复用登录签发 JWT 时的同一套角色查询，避免两处各写一份。未提供实现时过滤器退回只授 {@code ROLE_API_KEY}。
+ * <p>framework 层拿不到 {@code UserRoleRepository}（在 aaf-api），故以最小 SPI 反转依赖：由 aaf-api 提供实现， 复用登录签发 JWT
+ * 时的同一套角色查询，避免两处各写一份。未提供实现时过滤器退回只授 {@code ROLE_API_KEY}。
  */
 public interface ApiKeyUserRoleProvider {
 

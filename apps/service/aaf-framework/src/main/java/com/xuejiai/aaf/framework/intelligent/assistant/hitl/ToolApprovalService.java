@@ -27,15 +27,16 @@ import lombok.extern.slf4j.Slf4j;
  *
  * <ul>
  *   <li>重启或多实例部署即丢失待审批状态
- *   <li>全代码库没有任何 {@code resolve/getResult/getPending} 调用方——审批建出来后**无人可处理**， 而 publisher 已把卡片推给用户，用户点了也无处落地
+ *   <li>全代码库没有任何 {@code resolve/getResult/getPending} 调用方——审批建出来后**无人可处理**， 而 publisher
+ *       已把卡片推给用户，用户点了也无处落地
  * </ul>
  *
  * <p>现在状态落 {@code ai_tool_approval}，并提供可用的决定入口（{@code ToolApprovalController}）。 批准后由 {@code
  * ToolApprovalGrantListener} 消费 {@link ApprovalResolvedEvent} 回写会话级工具授权。
  *
- * <p>与任务级 HITL 的边界：任务级审批（有 AssistantTask/InvocationContext，决定后要迁移任务状态并恢复执行）
- * 走 {@code PersistentHitlCoordinator} + {@code ai_hitl_approval}；本服务面向 {@code ToolService} REST 调用与
- * Flowable {@code ToolNode} 这类**没有任务上下文**的工具确认。两者都持久化，职责不重叠。
+ * <p>与任务级 HITL 的边界：任务级审批（有 AssistantTask/InvocationContext，决定后要迁移任务状态并恢复执行） 走 {@code
+ * PersistentHitlCoordinator} + {@code ai_hitl_approval}；本服务面向 {@code ToolService} REST 调用与 Flowable
+ * {@code ToolNode} 这类**没有任务上下文**的工具确认。两者都持久化，职责不重叠。
  */
 @Slf4j
 @Service

@@ -86,12 +86,12 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
     /**
      * M9：授予 {@code ROLE_API_KEY} + 绑定用户的真实角色。
      *
-     * <p>原实现只给 {@code ROLE_API_KEY}，API Key 到不了任何需要业务角色的端点。现在继承绑定用户的角色，
-     * 使 API Key 与该用户自己登录时具备一致的角色视图；{@code ROLE_API_KEY} 保留，供需要区分"人 vs 密钥" 的策略使用，ApiKey 自身的 scope /
+     * <p>原实现只给 {@code ROLE_API_KEY}，API Key 到不了任何需要业务角色的端点。现在继承绑定用户的角色， 使 API Key
+     * 与该用户自己登录时具备一致的角色视图；{@code ROLE_API_KEY} 保留，供需要区分"人 vs 密钥" 的策略使用，ApiKey 自身的 scope /
      * allowedTables 收窄约束不受影响，仍在各自校验点生效。
      *
-     * <p>角色查询由 aaf-api 提供实现（{@link ApiKeyUserRoleProvider}）；未提供实现或查询异常时退回只授
-     * {@code ROLE_API_KEY}，保持 fail-closed。
+     * <p>角色查询由 aaf-api 提供实现（{@link ApiKeyUserRoleProvider}）；未提供实现或查询异常时退回只授 {@code ROLE_API_KEY}，保持
+     * fail-closed。
      */
     private List<org.springframework.security.core.GrantedAuthority> authoritiesOf(ApiKey apiKey) {
         var authorities =

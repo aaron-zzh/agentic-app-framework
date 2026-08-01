@@ -23,8 +23,8 @@ import lombok.extern.slf4j.Slf4j;
  * <p>M49 消费保证（**至少一次投递 + 事务性幂等消费**）：
  *
  * <ul>
- *   <li>{@code sys_task_inbox} 由 {@link
- *       com.xuejiai.aaf.framework.task.queue.TaskInboxExecutor} 与 handler 的关系库副作用在同一事务提交
+ *   <li>{@code sys_task_inbox} 由 {@link com.xuejiai.aaf.framework.task.queue.TaskInboxExecutor} 与
+ *       handler 的关系库副作用在同一事务提交
  *   <li>{@code task_queue:completed:<id>} 是快速去重缓存，重投时可直接判 DUPLICATE
  *   <li>{@code task_queue:processing:<id>} 租约防止两个消费者同时处理同一任务
  * </ul>

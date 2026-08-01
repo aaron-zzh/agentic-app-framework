@@ -19,9 +19,8 @@ import lombok.RequiredArgsConstructor;
 /**
  * 短信模板管理业务逻辑。
  *
- * <p>M22：原实现由 SmsController 直接注入 SmsTemplateRepository 并操作，违反
- * "controller→service→repository" 分层，且直接返回实体。迁移到独立 service 层，出参改 VO，
- * 与 MessageTemplateService（notify 模块同类模板管理）同一模式。
+ * <p>M22：原实现由 SmsController 直接注入 SmsTemplateRepository 并操作，违反 "controller→service→repository"
+ * 分层，且直接返回实体。迁移到独立 service 层，出参改 VO， 与 MessageTemplateService（notify 模块同类模板管理）同一模式。
  *
  * @author AaronZZH & Kiro
  */

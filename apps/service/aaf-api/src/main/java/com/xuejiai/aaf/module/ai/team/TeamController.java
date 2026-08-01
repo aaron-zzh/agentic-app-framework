@@ -25,8 +25,7 @@ public class TeamController {
     @PostMapping
     public Result<TeamVO> create(@RequestBody TeamCreateDTO dto) {
         return Result.success(
-                TeamVO.from(
-                        orchestrator.createTeam(dto.name(), dto.mode(), dto.coordinatorId())));
+                TeamVO.from(orchestrator.createTeam(dto.name(), dto.mode(), dto.coordinatorId())));
     }
 
     @GetMapping("/{teamId}")
@@ -51,8 +50,7 @@ public class TeamController {
     }
 
     @PostMapping("/{teamId}/decompose")
-    public Result<List<TeamTaskVO>> decompose(
-            @PathVariable Long teamId, @RequestBody GoalDTO dto) {
+    public Result<List<TeamTaskVO>> decompose(@PathVariable Long teamId, @RequestBody GoalDTO dto) {
         return Result.success(
                 orchestrator.decomposeGoal(teamId, dto.goal()).stream()
                         .map(TeamTaskVO::from)

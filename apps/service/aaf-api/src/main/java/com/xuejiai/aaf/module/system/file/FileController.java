@@ -121,7 +121,8 @@ public class FileController {
     /**
      * 获取预签名上传 URL（前端直传）。
      *
-     * <p>M29/m20：不再由客户端提交 key——只提交文件名与类型，key 由存储层按当前用户命名空间生成； 签名同时绑定 contentType 与大小上限，拿到签名也无法上传任意类型/超大对象。
+     * <p>M29/m20：不再由客户端提交 key——只提交文件名与类型，key 由存储层按当前用户命名空间生成； 签名同时绑定 contentType
+     * 与大小上限，拿到签名也无法上传任意类型/超大对象。
      */
     @Operation(summary = "获取预签名上传 URL")
     @PreAuthorize("isAuthenticated()")

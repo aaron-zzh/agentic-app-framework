@@ -314,8 +314,8 @@ public final class AssistantApplicationService implements AssistantCommandPort {
      * 长期记忆是否对本次执行生效：需要 assistant definition 配置开启，且主体为 {@link SubjectKind#USER}。
      *
      * <p>访客（{@code SubjectKind.VISITOR}，如未登录渠道用户）降级为短期会话上下文（产品决策，2026-08-01）：
-     * 不触发结构化抽取/embedding/向量检索去重，也不参与登录后记忆合并。渠道内的多轮对话仍靠 {@code
-     * ShortTermMemoryService} 维持上下文，仅访客登录转正后才会开始积累长期记忆。
+     * 不触发结构化抽取/embedding/向量检索去重，也不参与登录后记忆合并。渠道内的多轮对话仍靠 {@code ShortTermMemoryService}
+     * 维持上下文，仅访客登录转正后才会开始积累长期记忆。
      */
     static boolean longTermMemoryEnabled(AssistantCommand command, AssistantDefinition definition) {
         return definition.memoryStrategy().longTermEnabled()

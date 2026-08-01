@@ -20,8 +20,8 @@ import com.xuejiai.aaf.common.exception.GlobalErrorCode;
  * <p>背景：工作流 {@code HttpNode} 的 url 来自流程变量、知识库抓取的 url 来自用户导入，两处都直接发起请求， 可打内网服务与云元数据端点（{@code
  * 169.254.169.254}）。此前各自无任何校验。
  *
- * <p>校验顺序：协议 → URL 内嵌凭证 → 主机白名单（配置了才生效） → DNS 解析后逐个 IP 判定网段。 解析后判定可拦住"域名指向内网 IP"（DNS
- * rebinding 的静态形态）。
+ * <p>校验顺序：协议 → URL 内嵌凭证 → 主机白名单（配置了才生效） → DNS 解析后逐个 IP 判定网段。 解析后判定可拦住"域名指向内网 IP"（DNS rebinding
+ * 的静态形态）。
  *
  * <p>只做一件事：判断某个出站 URL 是否允许。两个调用方共用，不各写一套。
  */
@@ -34,7 +34,11 @@ public class OutboundUrlGuard {
 
     /** 云厂商元数据端点——即使部署在允许出网的网络里也一律禁止 */
     private static final Set<String> BLOCKED_HOSTS =
-            Set.of("169.254.169.254", "metadata.google.internal", "metadata.goog", "100.100.100.200");
+            Set.of(
+                    "169.254.169.254",
+                    "metadata.google.internal",
+                    "metadata.goog",
+                    "100.100.100.200");
 
     private final OutboundUrlProperties properties;
 

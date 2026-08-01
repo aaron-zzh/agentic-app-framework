@@ -24,7 +24,8 @@ public class TaskHandlerRegistrar implements InitializingBean {
     @Override
     public void afterPropertiesSet() {
         handlers.forEach(
-                handler -> taskRuntime.register(new HandlerTaskAdapter(handler, taskInboxExecutor)));
+                handler ->
+                        taskRuntime.register(new HandlerTaskAdapter(handler, taskInboxExecutor)));
     }
 
     private record HandlerTaskAdapter(TaskHandler handler, TaskInboxExecutor taskInboxExecutor)

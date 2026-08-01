@@ -68,8 +68,8 @@ public record StorageProperties(
         /**
          * 默认白名单 + 10MB。
          *
-         * <p>B13：默认白名单不再包含 {@code image/svg+xml} 与 {@code text/html}——这两类可被浏览器执行，
-         * 在同域访问下形成存储型 XSS；即便配置层被放开，{@link UploadPolicy#assertNotActiveContent} 仍会拦截。
+         * <p>B13：默认白名单不再包含 {@code image/svg+xml} 与 {@code text/html}——这两类可被浏览器执行， 在同域访问下形成存储型
+         * XSS；即便配置层被放开，{@link UploadPolicy#assertNotActiveContent} 仍会拦截。
          */
         public static UploadLimits defaults() {
             return new UploadLimits(

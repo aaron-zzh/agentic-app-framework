@@ -41,8 +41,8 @@ public class WecomKfCallbackService {
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
     /**
-     * m9：并发上限背压——原实现无限制地向 executor.submit 提交任务，虚拟线程本身轻量不会耗尽平台线程，
-     * 但下游 messageHandler.handleCallback（数据库/AI 调用）处理不过来时，未受限的并发数会堆积内存与连接池占用。
+     * m9：并发上限背压——原实现无限制地向 executor.submit 提交任务，虚拟线程本身轻量不会耗尽平台线程， 但下游
+     * messageHandler.handleCallback（数据库/AI 调用）处理不过来时，未受限的并发数会堆积内存与连接池占用。
      * 用信号量限制同时在跑的回调数，超出时不排队等待，直接丢弃并记录日志。
      */
     private Semaphore concurrencyLimiter;
@@ -96,8 +96,10 @@ public class WecomKfCallbackService {
 
         // 异步处理消息（快速响应企微服务器）——m9：并发上限背压，超出直接丢弃不排队等待
         if (!concurrencyLimiter.tryAcquire()) {
-            log.warn("客服回调并发已达上限（{}），丢弃本次回调等待企微重试: openKfId={}",
-                    properties.getMaxConcurrentCallbacks(), openKfId);
+            log.warn(
+                    "客服回调并发已达上限（{}），丢弃本次回调等待企微重试: openKfId={}",
+                    properties.getMaxConcurrentCallbacks(),
+                    openKfId);
             return;
         }
         executor.submit(

@@ -101,11 +101,11 @@ public class AiFlowTriggerService {
      * <p>M37 授权策略（2026-08-01 确认）：**已发布 AI Flow 允许所属组织的成员执行**，不再要求 per-flow
      * 粒度授权——已发布即代表组织内共享能力。因此这里只强制组织/工作区边界、发布状态与部署完整性， 不额外校验调用者是否为 flow 创建者。
      *
-     * <p>边界仍然严格：跨组织不可见（orgId 相等）、工作区隔离、未发布或未部署的流程不可触发；
-     * 触发身份由 {@link #currentIdentity()} 从认证与组织上下文推导，不接受调用方传入。
+     * <p>边界仍然严格：跨组织不可见（orgId 相等）、工作区隔离、未发布或未部署的流程不可触发； 触发身份由 {@link #currentIdentity()}
+     * 从认证与组织上下文推导，不接受调用方传入。
      *
-     * <p>该端点要求登录（{@code isAuthenticated()}），不存在匿名 webhook 入口；若将来要开放给无账号的
-     * 外部系统，应另立带 HMAC 时间戳/nonce 的独立路由，不要放宽本入口。
+     * <p>该端点要求登录（{@code isAuthenticated()}），不存在匿名 webhook 入口；若将来要开放给无账号的 外部系统，应另立带 HMAC 时间戳/nonce
+     * 的独立路由，不要放宽本入口。
      */
     private AiFlowDefinition requireTriggerableFlow(Long flowId, TrustedIdentity identity) {
         if (flowId == null || flowId <= 0) {

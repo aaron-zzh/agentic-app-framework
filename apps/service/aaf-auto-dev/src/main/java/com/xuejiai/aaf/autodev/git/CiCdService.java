@@ -46,10 +46,7 @@ public class CiCdService {
     private static final Duration RUN_ID_POLL_DELAY = Duration.ofSeconds(2);
     private static final String GITHUB_SIGNATURE_PREFIX = "sha256=";
 
-    /**
-     * M7：改为实例字段而非 static，与项目其余服务的注入风格一致，也便于测试替换。
-     * connectTimeout 避免 GitHub API 不可达时无限等待占用调用线程。
-     */
+    /** M7：改为实例字段而非 static，与项目其余服务的注入风格一致，也便于测试替换。 connectTimeout 避免 GitHub API 不可达时无限等待占用调用线程。 */
     private final HttpClient http =
             HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
 
@@ -183,8 +180,7 @@ public class CiCdService {
                 .contains(normalizedEnvironment)) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "不允许的部署环境");
         }
-        return triggerWorkflow(
-                "deploy.yml", ref, Map.of("environment", normalizedEnvironment));
+        return triggerWorkflow("deploy.yml", ref, Map.of("environment", normalizedEnvironment));
     }
 
     /** 普通管理员只能部署白名单中的非生产环境；生产环境仅 SUPER_ADMIN 可部署。 */
@@ -193,8 +189,7 @@ public class CiCdService {
             return false;
         }
         var normalizedEnvironment = environment.trim().toLowerCase();
-        return configuredEnvironments(allowedDeploymentEnvironments)
-                        .contains(normalizedEnvironment)
+        return configuredEnvironments(allowedDeploymentEnvironments).contains(normalizedEnvironment)
                 && !configuredEnvironments(productionDeploymentEnvironments)
                         .contains(normalizedEnvironment);
     }
@@ -277,18 +272,17 @@ public class CiCdService {
                                                         JsonUtils.readTree(response.body())
                                                                 .get("workflow_runs");
                                                 if (runs.isArray() && !runs.isEmpty()) {
-                                                    future.complete(
-                                                            runs.get(0).get("id").asLong());
+                                                    future.complete(runs.get(0).get("id").asLong());
                                                     return;
                                                 }
                                             }
                                             future.complete(null);
                                         })
-                        .exceptionally(
-                                e -> {
-                                    future.complete(null);
-                                    return null;
-                                }),
+                                .exceptionally(
+                                        e -> {
+                                            future.complete(null);
+                                            return null;
+                                        }),
                 java.time.Instant.now().plus(RUN_ID_POLL_DELAY));
         return future;
     }

@@ -36,8 +36,7 @@ class TaskHandlerRegistrarTest extends BaseMockitoUnitTest {
                             invocation.getArgument(3, Runnable.class).run();
                             return true;
                         });
-        var registrar =
-                new TaskHandlerRegistrar(List.of(handler), taskRuntime, taskInboxExecutor);
+        var registrar = new TaskHandlerRegistrar(List.of(handler), taskRuntime, taskInboxExecutor);
         var captor = ArgumentCaptor.forClass(AafTask.class);
 
         // 调用

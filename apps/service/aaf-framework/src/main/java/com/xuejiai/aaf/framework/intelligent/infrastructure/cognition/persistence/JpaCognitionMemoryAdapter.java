@@ -167,7 +167,10 @@ public final class JpaCognitionMemoryAdapter
         entity.setTags(replacement.tags());
         entity.setEmbedding(
                 embeddings.embed(
-                        replacement.content(), embeddingModelId, subject.kind(), subject.subjectId()));
+                        replacement.content(),
+                        embeddingModelId,
+                        subject.kind(),
+                        subject.subjectId()));
         entity.setUpdatedAt(confirmation.confirmedAt());
         return toDomain(repository.save(entity));
     }

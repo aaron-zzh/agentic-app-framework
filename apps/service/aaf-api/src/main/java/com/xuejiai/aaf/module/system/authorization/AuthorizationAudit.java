@@ -15,8 +15,8 @@ import lombok.Setter;
 /**
  * 统一授权与策略发布审计记录。
  *
- * <p>标注 {@link com.xuejiai.aaf.framework.org.OrgIgnore}：与 {@link AccessPolicy} 同理，租户边界由自身的
- * {@code tenantId} 字段表达，不套用 {@code org_id} 过滤。
+ * <p>标注 {@link com.xuejiai.aaf.framework.org.OrgIgnore}：与 {@link AccessPolicy} 同理，租户边界由自身的 {@code
+ * tenantId} 字段表达，不套用 {@code org_id} 过滤。
  */
 @Getter
 @Setter

@@ -9,8 +9,8 @@ import lombok.Setter;
 /**
  * 团队定义。
  *
- * <p>标注 {@link com.xuejiai.aaf.framework.org.OrgIgnore}：当前 {@code TeamOrchestrator#createTeam}
- * 从未设置 org_id，运行时该表实际上是全局的。若未来团队需要按组织隔离，需先在创建入口补齐 org_id 写入， 再移除本标注（否则组织过滤会让已有团队查询静默返回空）。
+ * <p>标注 {@link com.xuejiai.aaf.framework.org.OrgIgnore}：当前 {@code TeamOrchestrator#createTeam} 从未设置
+ * org_id，运行时该表实际上是全局的。若未来团队需要按组织隔离，需先在创建入口补齐 org_id 写入， 再移除本标注（否则组织过滤会让已有团队查询静默返回空）。
  */
 @Getter
 @Setter

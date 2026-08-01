@@ -3,12 +3,12 @@ package com.xuejiai.aaf.framework.engine.cache;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.listener.ChannelTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Component;
 
 import lombok.extern.slf4j.Slf4j;
@@ -17,7 +17,8 @@ import lombok.extern.slf4j.Slf4j;
  * 缓存失效跨实例广播（M50）。
  *
  * <p>修复前：{@code CacheInvalidationEvent} 是 JVM 内 Spring ApplicationEvent，失效只清**本机** Caffeine +
- * Redis。多实例部署时其他节点的本地缓存不受影响，模型/Agent/Prompt 配置改完后， 别的实例最长会继续用 {@code LOCAL_TTL}（5 分钟）内的旧配置——表现为"改了没生效/时好时坏"。
+ * Redis。多实例部署时其他节点的本地缓存不受影响，模型/Agent/Prompt 配置改完后， 别的实例最长会继续用 {@code LOCAL_TTL}（5
+ * 分钟）内的旧配置——表现为"改了没生效/时好时坏"。
  *
  * <p>现在失效在本机处理完后经 Redis pub/sub 广播，其他实例只清本地副本（Redis 侧已由发起方删除）。 消息带发送方实例 ID，发起方忽略自己的广播，避免回环。
  *
@@ -50,7 +51,10 @@ public class CacheInvalidationBroadcaster {
         try {
             var payload =
                     String.join(
-                            SEPARATOR, instanceId, cacheName, key == null ? "" : String.valueOf(key));
+                            SEPARATOR,
+                            instanceId,
+                            cacheName,
+                            key == null ? "" : String.valueOf(key));
             redisTemplate.convertAndSend(CHANNEL, payload);
         } catch (Exception e) {
             log.warn("缓存失效广播失败，其他实例将等本地 TTL 过期: cache={}, key={}", cacheName, key, e);

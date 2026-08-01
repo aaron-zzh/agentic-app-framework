@@ -12,8 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 文件服务门面。在 StorageService 之上提供业务级文件操作。
  *
- * <p>B13：全部上传入口（MultipartFile / URL / byte[] / Base64）共享 {@link UploadPolicy} 校验——类型白名单、
- * 大小上限、拒绝 SVG/HTML 等主动内容；远程 URL 与流式来源统一走带上限读取，避免超大对象写入存储。
+ * <p>B13：全部上传入口（MultipartFile / URL / byte[] / Base64）共享 {@link UploadPolicy} 校验——类型白名单、 大小上限、拒绝
+ * SVG/HTML 等主动内容；远程 URL 与流式来源统一走带上限读取，避免超大对象写入存储。
  */
 @Slf4j
 public class FileService {
@@ -97,8 +97,7 @@ public class FileService {
                 byte[] bytes = uploadPolicy.readWithLimit(is);
                 uploadPolicy.validate(path, contentType, bytes.length);
                 String key =
-                        storageService.upload(
-                                new ByteArrayInputStream(bytes), path, contentType);
+                        storageService.upload(new ByteArrayInputStream(bytes), path, contentType);
                 return storageService.getUrl(key);
             } finally {
                 conn.disconnect();
