@@ -7,13 +7,12 @@ import org.flowable.engine.delegate.JavaDelegate;
 import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.engine.tool.ScriptExecutor;
-import com.xuejiai.aaf.framework.engine.tool.ScriptSandbox;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 代码执行节点——在沙箱中执行 JS/Python 代码片段。
+ * 代码执行节点——在受限运行时中执行代码片段。
  *
  * <p>BPMN 用法：{@code flowable:delegateExpression="${codeExecutionNode}"}
  *
@@ -27,9 +26,8 @@ import lombok.extern.slf4j.Slf4j;
  *   <li>output/success/error（节点写入）
  * </ul>
  *
- * <p>m25：两种语言统一走 {@link ScriptExecutor}（GraalVM Polyglot 优先，缺依赖时降级子进程）。 原实现 JS 走 {@code
- * sandbox.executeShell("node -e " + code)}——多套一层 shell、依赖宿主机 node， 隔离强度明显弱于 Python 路径，且 shell
- * 侧只有关键词黑名单防护。现在不再有 shell 外壳。
+ * <p>B5：所有语言统一走 {@link ScriptExecutor}。当前仅 JavaScript 具备 GraalVM 受限运行时；Python 在安全运行时未启用前明确拒绝，
+ * 不再降级到宿主机子进程或 shell。
  */
 @Slf4j
 @Component("codeExecutionNode")
@@ -56,7 +54,7 @@ public class CodeExecutionNode implements JavaDelegate {
                 switch (language == null ? "" : language.toLowerCase()) {
                     case "python" -> scriptExecutor.executePython(code, argsJson, timeout);
                     case "js", "javascript" -> scriptExecutor.executeJs(code, argsJson, timeout);
-                    default -> ScriptSandbox.ScriptResult.error("不支持的语言: " + language);
+                    default -> ScriptExecutor.ScriptResult.error("不支持的语言: " + language);
                 };
 
         execution.setVariable("output", result.stdout());
