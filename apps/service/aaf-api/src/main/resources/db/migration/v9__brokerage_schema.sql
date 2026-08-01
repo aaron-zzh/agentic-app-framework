@@ -239,7 +239,7 @@ COMMENT ON COLUMN brokerage_invite_code.used_count IS '被使用（绑定）次�
 
 CREATE UNIQUE INDEX uk_brokerage_invite_code_contact_channel
     ON brokerage_invite_code(contact_id, COALESCE(channel, ''));
-CREATE UNIQUE INDEX uk_brokerage_invite_code_code ON brokerage_invite_code(code);
+CREATE UNIQUE INDEX uk_brokerage_invite_code_code ON brokerage_invite_code(code) WHERE deleted = FALSE;
 
 
 -- =====================================================

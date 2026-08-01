@@ -117,7 +117,7 @@ CREATE TABLE autodev_doc (
     org_id       BIGINT,
     workspace_id BIGINT,
     title        VARCHAR(200) NOT NULL,
-    file_path    VARCHAR(500) NOT NULL UNIQUE,
+    file_path    VARCHAR(500) NOT NULL,
     content      TEXT,
     doc_type     VARCHAR(50)  NOT NULL DEFAULT 'spec',
     front_matter JSONB,
@@ -139,6 +139,7 @@ COMMENT ON COLUMN autodev_doc.front_matter IS 'Front Matter 元数据（YAML 解
 
 CREATE INDEX idx_autodev_doc_fts
     ON autodev_doc USING GIN (to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(content, '')));
+CREATE UNIQUE INDEX uk_autodev_doc_file_path ON autodev_doc (file_path) WHERE deleted = FALSE;
 
 -- autodev_message：Kiro Agent 对话消息记录
 CREATE TABLE autodev_message (

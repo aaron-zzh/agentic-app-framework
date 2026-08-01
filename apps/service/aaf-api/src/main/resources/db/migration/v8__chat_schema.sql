@@ -223,7 +223,7 @@ COMMENT ON TABLE livechat_session_rating IS '会话满意度评价';
 
 CREATE TABLE livechat_ticket (
     id              BIGSERIAL PRIMARY KEY,
-    ticket_no       VARCHAR(32)  NOT NULL UNIQUE,
+    ticket_no       VARCHAR(32)  NOT NULL,
     title           VARCHAR(128) NOT NULL,
     description     TEXT,
     user_id         BIGINT,
@@ -250,6 +250,7 @@ CREATE TABLE livechat_ticket (
 );
 
 CREATE INDEX idx_ticket_status ON livechat_ticket(status);
+CREATE UNIQUE INDEX uk_livechat_ticket_ticket_no ON livechat_ticket (ticket_no) WHERE deleted = FALSE;
 COMMENT ON TABLE livechat_ticket IS '客服工单';
 
 CREATE TABLE livechat_ticket_record (

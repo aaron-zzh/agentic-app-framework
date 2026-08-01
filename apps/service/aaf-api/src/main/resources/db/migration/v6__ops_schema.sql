@@ -182,7 +182,7 @@ CREATE TABLE company_ops_metric (
     org_id          BIGINT,
     workspace_id    BIGINT,
     name            VARCHAR(128) NOT NULL,
-    code            VARCHAR(64) NOT NULL UNIQUE,
+    code            VARCHAR(64) NOT NULL,
     value           NUMERIC(18,4) NOT NULL,
     unit            VARCHAR(32),
     recorded_at     TIMESTAMP NOT NULL,
@@ -201,6 +201,7 @@ CREATE TABLE company_ops_metric (
 
 COMMENT ON TABLE company_ops_metric IS '运营指标';
 CREATE INDEX idx_company_ops_metric_code ON company_ops_metric(code, recorded_at DESC) WHERE deleted = FALSE;
+CREATE UNIQUE INDEX uk_company_ops_metric_code ON company_ops_metric (code) WHERE deleted = FALSE;
 
 -- ==================== automation: AI 自动化规则 ====================
 
