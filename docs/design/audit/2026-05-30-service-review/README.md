@@ -45,23 +45,20 @@
 
 | 编号 | 状态 | 区域 | 当前残余 |
 |------|------|------|---------|
-| B1 | PARTIAL | 01 | framework 非标准仓储仍未统一纳入租户过滤，workspace 行级过滤未统一 |
+| B1 | PARTIAL | 01 | 非标准仓储覆盖面已扩大（pointcut 改为类型匹配），workspace 行级过滤仍无统一机制 |
 | B4 | PARTIAL | 05 | GitHub webhook 仍无 HMAC 验签，部署 environment 无服务端白名单 |
 | B5 | OPEN | 04 | `ScriptSandbox` 仍以裸子进程/关键词黑名单执行脚本，与受限 GraalVM 路径并存 |
 | B7 | OPEN | 03 | Channel/Webhook 配置实体携带敏感凭证并经接口返回 |
 | B8 | OPEN | 05 | Codegen 输出路径仍信任 module/name，存在路径穿越任意写文件风险 |
 | B9 | PARTIAL | 07/10 | 角色仍偏宽，SELF 资源归属与 org 边界尚未清零 |
 | B10 | PARTIAL | 07/10 | `viewSource` 与工具列表仍缺 owner/org/share scope 资源级授权 |
-| B-mock | OPEN（条件） | 01 | Mock Token 仍依赖配置关闭，缺少非生产 Profile/构建级隔离 |
 
 ### Major
 
 | 编号 | 状态 | 区域 | 当前残余 |
 |------|------|------|---------|
-| M1 | PARTIAL | 01 | 当前用户接口仍暴露 userId，并在认证上下文缺失时 fallback |
 | M6 | PARTIAL | 03/06 | Channel/Webhook service 仍返回 Entity |
 | M7 | OPEN | 05 | CI/CD 使用静态 HttpClient，轮询以 `Thread.sleep` 阻塞 |
-| M9 | PARTIAL | 01 | API Key 认证未继承关联用户真实角色 |
 | M15 | PARTIAL | 07/08/11g | Company 与 Channel/Webhook 写入口已 DTO 化，Company 出参已 VO 化；SMS、AI Output、Document、Team 等仍有实体出参 |
 | M17 | OPEN | 07 | 用户角色与角色权限分配语义不对称 |
 | M21 | PARTIAL | 09 | 生产短信测试号码仍缺白名单和环境隔离 |
@@ -77,7 +74,6 @@
 | 编号/主题 | 状态 | 区域 | 当前残余 |
 |-----------|------|------|---------|
 | m1 | OPEN | 03 | Repository 查询条件与全局软删除限制重复 |
-| m7 | OPEN | 01 | ServletUtils 盲信代理头 |
 | m8 | OPEN | 01 | API Key last_used_at 每请求同步写入 |
 | m9 | PARTIAL | 03 | 客服回调虚拟线程 executor 仍无背压 |
 | m10 | OPEN | 01/全局 | 部分签名比较仍使用非常量时间比较 |
