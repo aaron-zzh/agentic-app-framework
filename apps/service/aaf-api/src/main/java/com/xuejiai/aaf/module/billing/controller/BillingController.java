@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.billing.controller;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+
 import java.time.LocalDate;
 
 import org.springframework.format.annotation.DateTimeFormat;
@@ -12,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.billing.service.BillingQueryService;
@@ -56,10 +59,6 @@ public class BillingController {
     private Long currentOwnerId() {
         return operatorContext
                 .currentOwnerId()
-                .orElseThrow(
-                        () ->
-                                new com.xuejiai.aaf.common.exception.BusinessException(
-                                        com.xuejiai.aaf.common.exception.GlobalErrorCode
-                                                .UNAUTHORIZED));
+                .orElseThrow(() -> exception(GlobalErrorCode.UNAUTHORIZED));
     }
 }

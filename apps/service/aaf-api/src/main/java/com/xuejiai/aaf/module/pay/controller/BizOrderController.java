@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.pay.controller;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+
 import java.util.List;
 
 import org.springframework.data.domain.Pageable;
@@ -7,6 +9,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.security.OperatorContext;
@@ -65,10 +68,6 @@ public class BizOrderController {
     private Long currentOwnerId() {
         return operatorContext
                 .currentOwnerId()
-                .orElseThrow(
-                        () ->
-                                new com.xuejiai.aaf.common.exception.BusinessException(
-                                        com.xuejiai.aaf.common.exception.GlobalErrorCode
-                                                .UNAUTHORIZED));
+                .orElseThrow(() -> exception(GlobalErrorCode.UNAUTHORIZED));
     }
 }

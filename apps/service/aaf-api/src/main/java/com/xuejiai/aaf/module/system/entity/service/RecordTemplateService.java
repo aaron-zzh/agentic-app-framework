@@ -7,6 +7,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.system.ErrorCodeConstants;
 import com.xuejiai.aaf.module.system.entity.domain.RecordTemplate;
@@ -118,11 +119,7 @@ public class RecordTemplateService {
     private Long currentOwnerId() {
         return operatorContext
                 .currentOwnerId()
-                .orElseThrow(
-                        () ->
-                                new com.xuejiai.aaf.common.exception.BusinessException(
-                                        com.xuejiai.aaf.common.exception.GlobalErrorCode
-                                                .UNAUTHORIZED));
+                .orElseThrow(() -> exception(GlobalErrorCode.UNAUTHORIZED));
     }
 
     private RecordTemplateVO toVO(RecordTemplate e) {
