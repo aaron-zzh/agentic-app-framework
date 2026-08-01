@@ -27,3 +27,10 @@ springdoc:
     enabled: false # 生产关闭 OpenAPI 文档端点
   swagger-ui:
     enabled: false # 生产关闭 Swagger UI
+
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus # 生产最小暴露；loggers/info 不通过 Web 开放

@@ -11,6 +11,7 @@ concurrency:
 
 env:
   ACR_REGISTRY: ${{ secrets.ACR_REGISTRY }}   # 含命名空间，例：registry.cn-hangzhou.aliyuncs.com/aaronzzh
+  IMAGE_TAG: latest                            # 容量受限环境默认仅保留latest标签
 
 jobs:
   build-and-push:
@@ -35,7 +36,7 @@ jobs:
         with:
           context: ./apps/service
           push: true
-          tags: ${{ env.ACR_REGISTRY }}/service:latest
+          tags: ${{ env.ACR_REGISTRY }}/service:${{ env.IMAGE_TAG }}
           no-cache: true
 
       - name: 加载前端构建变量（.env.production）
@@ -47,7 +48,7 @@ jobs:
           context: .
           file: ./apps/webui/Dockerfile
           push: true
-          tags: ${{ env.ACR_REGISTRY }}/webui:latest
+          tags: ${{ env.ACR_REGISTRY }}/webui:${{ env.IMAGE_TAG }}
           build-args: |
             NEXT_PUBLIC_API_URL=${{ secrets.PUBLIC_API_URL }}
             NEXT_PUBLIC_TLDRAW_LICENSE_KEY=${{ secrets.TLDRAW_LICENSE_KEY }}
@@ -113,8 +114,9 @@ jobs:
               -u ${{ secrets.ACR_USERNAME }} \
               -p ${{ secrets.ACR_PASSWORD }}
 
-            # 拉取最新镜像并滚动重启（不重启 DB/Redis）
+            # 拉取latest镜像并滚动重启（不重启 DB/Redis）
             export ACR_REGISTRY=${{ secrets.ACR_REGISTRY }}
+            export IMAGE_TAG=${{ env.IMAGE_TAG }}
             docker compose pull aaf-service aaf-webui
             docker compose up -d --no-deps aaf-service aaf-webui nginx
 

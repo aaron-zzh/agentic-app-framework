@@ -2,7 +2,7 @@
 FROM node:24.16.0-alpine AS deps
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@11.1.1 --activate
 
 # 只复制依赖声明，利用 layer 缓存
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -17,7 +17,7 @@ RUN pnpm install --frozen-lockfile --filter @aaf/webui...
 FROM node:24.16.0-alpine AS builder
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@11.1.1 --activate
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/webui/node_modules ./apps/webui/node_modules

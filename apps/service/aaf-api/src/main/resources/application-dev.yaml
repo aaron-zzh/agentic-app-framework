@@ -58,6 +58,9 @@ aaf:
       notify-url: ${ALIPAY_NOTIFY_URL:http://localhost:8080/api/pay/order/notify/alipay}
       return-url: ${ALIPAY_RETURN_URL:http://localhost:3000/pay-result}
   security:
+    query-token:
+      # ⚠️ 仅 dev：开发专用默认密钥；生产必须通过 AAF_QUERY_TOKEN_SECRET 注入独立随机值
+      secret: ${AAF_QUERY_TOKEN_SECRET:aaf-dev-only-query-token-secret-never-use-in-production}
     mock-enable: true # ⚠️ 仅 dev：mock 认证，生产必须为 false
   license:
     signing:

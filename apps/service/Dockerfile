@@ -11,7 +11,7 @@ RUN --mount=type=cache,target=/root/.m2 \
 FROM bellsoft/liberica-runtime-container:jdk-all-25-slim-musl AS runner
 WORKDIR /app
 
-COPY --from=builder /build/aaf-api/target/aaf-api-*.jar app.jar
+COPY --from=builder /build/aaf-api/target/aaf-api-*-exec.jar app.jar
 
 RUN mkdir -p /data/files
 
