@@ -390,7 +390,7 @@ public class WorkflowAgUiService {
 
     private void sendEvent(SseEmitter emitter, AgUiEvent event) {
         try {
-            var json = JsonUtils.toJsonString(event);
+            var json = JsonUtils.toJsonString(event.toMap());
             emitter.send(SseEmitter.event().data(json));
         } catch (IOException e) {
             log.debug("工作流 AG-UI SSE 发送失败: {}", e.getMessage());

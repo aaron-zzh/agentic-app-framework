@@ -13,6 +13,7 @@ import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 
 import com.xuejiai.aaf.framework.storage.FileService;
+import com.xuejiai.aaf.framework.storage.StorageProperties;
 import com.xuejiai.aaf.framework.storage.StorageService;
 import com.xuejiai.aaf.module.system.file.domain.FileRecord;
 import com.xuejiai.aaf.module.system.file.service.FileRecordService;
@@ -26,7 +27,9 @@ class FileControllerTest {
         var fileService = mock(FileService.class);
         var storageService = mock(StorageService.class);
         var fileRecordService = mock(FileRecordService.class);
-        var controller = new FileController(fileService, storageService, fileRecordService);
+        var storageProperties = mock(StorageProperties.class);
+        var controller =
+                new FileController(fileService, storageService, fileRecordService, storageProperties);
         var key = "2026/07/31/stored-file.pdf";
         var originalName = "审查报告 最终版.pdf";
         var record = new FileRecord();
@@ -52,7 +55,9 @@ class FileControllerTest {
         var fileService = mock(FileService.class);
         var storageService = mock(StorageService.class);
         var fileRecordService = mock(FileRecordService.class);
-        var controller = new FileController(fileService, storageService, fileRecordService);
+        var storageProperties = mock(StorageProperties.class);
+        var controller =
+                new FileController(fileService, storageService, fileRecordService, storageProperties);
         var key = "stored-file.pdf";
         var record = new FileRecord();
         record.setOriginalName(" ");
