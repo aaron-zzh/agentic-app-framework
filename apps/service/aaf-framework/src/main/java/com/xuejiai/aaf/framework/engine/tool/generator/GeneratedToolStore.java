@@ -2,6 +2,7 @@ package com.xuejiai.aaf.framework.engine.tool.generator;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /** 生成工具持久化契约。 */
 public interface GeneratedToolStore {
@@ -16,6 +17,9 @@ public interface GeneratedToolStore {
 
     /** 查询用户可见的所有工具（自己的 + 共享的）。 */
     List<GeneratedTool> findAccessible(Long userId);
+
+    /** 查询当前 owner/org 可见的工具名称，供注册表列表过滤。 */
+    Set<String> findAccessibleNames(Long ownerId, Long orgId);
 
     /** 按名称查询当前 owner/org 可见的工具，私有工具仅创建者可见。 */
     Optional<GeneratedTool> findAccessibleByName(String name, Long ownerId, Long orgId);

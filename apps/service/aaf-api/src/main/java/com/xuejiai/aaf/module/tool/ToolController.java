@@ -39,12 +39,14 @@ public class ToolController {
     private final ToolGenerator toolGenerator;
 
     @Operation(summary = "查询已注册工具列表", description = "可按来源过滤：LOCAL/MCP/CUSTOM")
+    @PreAuthorize("isAuthenticated()")
     @GetMapping
     public Result<List<ToolVO>> list(@RequestParam(required = false) String source) {
         return Result.success(toolService.list(source));
     }
 
     @Operation(summary = "按 Role 查询可用工具", description = "返回该 Role 白名单内的工具")
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/by-role/{roleId}")
     public Result<List<ToolVO>> listByRole(@PathVariable Long roleId) {
         return Result.success(toolService.listByRole(roleId));

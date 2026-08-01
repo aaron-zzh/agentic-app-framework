@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.tool;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -52,6 +53,13 @@ public class GeneratedToolStoreImpl implements GeneratedToolStore {
     }
 
     @Override
+    public Set<String> findAccessibleNames(Long ownerId, Long orgId) {
+        return Set.copyOf(
+                repository.findAccessibleNames(
+                        ownerId, orgId, ToolBlueprint.Visibility.SHARED));
+    }
+
+    @Override
     public Optional<GeneratedTool> findAccessibleByName(String name, Long ownerId, Long orgId) {
         return repository.findAccessibleByName(
                 name, ownerId, orgId, ToolBlueprint.Visibility.SHARED);
@@ -80,6 +88,19 @@ interface GeneratedToolRepository extends JpaRepository<GeneratedTool, Long> {
 
     List<GeneratedTool> findByCreatorUserIdOrVisibility(
             Long userId, ToolBlueprint.Visibility visibility);
+
+    @Query(
+            """
+            select tool.name
+            from GeneratedTool tool
+            where tool.status = 'active'
+              and tool.orgId = :orgId
+              and (tool.creatorUserId = :ownerId or tool.visibility = :visibility)
+            """)
+    List<String> findAccessibleNames(
+            @Param("ownerId") Long ownerId,
+            @Param("orgId") Long orgId,
+            @Param("visibility") ToolBlueprint.Visibility visibility);
 
     @Query(
             """

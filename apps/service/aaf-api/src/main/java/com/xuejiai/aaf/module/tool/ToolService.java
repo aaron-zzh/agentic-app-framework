@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.tool;
 
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -14,8 +15,10 @@ import com.xuejiai.aaf.framework.engine.tool.ToolCallDispatcher.ToolCallResult;
 import com.xuejiai.aaf.framework.engine.tool.ToolPermissionChecker;
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry;
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry.ToolMeta;
+import com.xuejiai.aaf.framework.engine.tool.generator.GeneratedToolStore;
 import com.xuejiai.aaf.framework.engine.tool.mcp.McpConnectionService;
 import com.xuejiai.aaf.framework.engine.tool.mcp.McpConnectionService.McpServerConfig;
+import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 
@@ -38,6 +41,7 @@ public class ToolService {
     private final OperatorContext operatorContext;
     private final McpConnectionService mcpConnectionService;
     private final McpServerRepository mcpServerRepository;
+    private final GeneratedToolStore generatedToolStore;
 
     /** 应用启动后重连所有已启用的 MCP Server。 */
     @EventListener(ApplicationReadyEvent.class)
@@ -59,10 +63,14 @@ public class ToolService {
         }
     }
 
-    /** 查询所有已注册工具 */
+    /** 查询当前用户可见的已注册工具。 */
     public List<ToolVO> list(String source) {
+        var accessibleCustomNames = accessibleCustomNames();
         var tools = source != null ? toolRegistry.listBySource(source) : toolRegistry.listAll();
-        return tools.stream().map(this::toVO).toList();
+        return tools.stream()
+                .filter(meta -> isDiscoverable(meta, accessibleCustomNames))
+                .map(this::toVO)
+                .toList();
     }
 
     /** 调用工具（统一入口） */
@@ -74,24 +82,26 @@ public class ToolService {
         return toolCallDispatcher.dispatchWithPermission(null, userId, null, toolName, arguments);
     }
 
-    /** 按 Role 获取可用工具列表 */
+    /** 按 Role 获取当前用户可见的工具列表。 */
     public List<ToolVO> listByRole(Long roleId) {
+        var accessibleCustomNames = accessibleCustomNames();
+        var registeredTools = toolRegistry.listAll();
         return toolRegistry.resolveForRole(roleId).stream()
                 .map(
-                        cb -> {
-                            var name = cb.getToolDefinition().name();
-                            var meta =
-                                    toolRegistry.listAll().stream()
-                                            .filter(m -> m.name().equals(name))
-                                            .findFirst()
-                                            .orElse(
-                                                    new ToolMeta(
-                                                            name,
-                                                            cb.getToolDefinition().description(),
-                                                            "UNKNOWN",
-                                                            null));
-                            return toVO(meta);
+                        callback -> {
+                            var name = callback.getToolDefinition().name();
+                            return registeredTools.stream()
+                                    .filter(meta -> meta.name().equals(name))
+                                    .findFirst()
+                                    .orElse(
+                                            new ToolMeta(
+                                                    name,
+                                                    callback.getToolDefinition().description(),
+                                                    "UNKNOWN",
+                                                    null));
                         })
+                .filter(meta -> isDiscoverable(meta, accessibleCustomNames))
+                .map(this::toVO)
                 .toList();
     }
 
@@ -165,6 +175,26 @@ public class ToolService {
     /** 用户批准工具调用权限（会话级授权）。 */
     public void approve(String sessionId, String toolName) {
         permissionChecker.grant(sessionId, toolName);
+    }
+
+    private Set<String> accessibleCustomNames() {
+        if (!operatorContext.isAuthenticated()) {
+            throw new BusinessException(GlobalErrorCode.UNAUTHORIZED);
+        }
+        var ownerId =
+                operatorContext
+                        .currentOwnerId()
+                        .orElseThrow(() -> new BusinessException(GlobalErrorCode.FORBIDDEN));
+        var orgId = OrgContext.getCurrentOrgId();
+        if (orgId == null) {
+            throw new BusinessException(GlobalErrorCode.FORBIDDEN);
+        }
+        return generatedToolStore.findAccessibleNames(ownerId, orgId);
+    }
+
+    private boolean isDiscoverable(ToolMeta meta, Set<String> accessibleCustomNames) {
+        return !ToolRegistry.SOURCE_CUSTOM.equals(meta.source())
+                || accessibleCustomNames.contains(meta.name());
     }
 
     private ToolVO toVO(ToolMeta meta) {
