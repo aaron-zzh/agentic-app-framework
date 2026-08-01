@@ -2,16 +2,16 @@
 
 > 覆盖：分层与实体外泄、重复/并行抽象、命名与包结构、占位实现、通用工具、异常处理。
 
-## 问题清单
+## 问题清单（2026-08-01 复核）
 
-| 编号 | 级别 | 位置 | 问题 | 修复建议 |
-|------|------|------|------|---------|
-| M6 | 🟠 | `WebhookService`、`ChannelConfigService` | service 层向 controller 返回 Channel/Webhook Entity，违反架构约束“service 禁止返回 Entity” | 统一 VO/DTO 出参；至少 controller 出参非实体 |
-| 占位 | 🟠 | `engine/{space,evolution,semanticcalc,dsl,metadata,monitor}` | 投机性空接口，违反硬约束#5“禁占位/TODO 占位”、准则#2“简洁优先” | 未到实现阶段不声明，待真实用例出现后再设计接口 |
-| 包结构 | 🟡 | `module/ai/role`、`module/ai/skill`、`module/tool` 等 | 文件平铺（Service/VO/DTO 同包）与 controller/service/domain 分层混用，跨模块不一致 | 统一模块内分层结构 |
-| 示例 | 🟡 | `aaf-api/module/examples/**` | demo/示例代码混入主 api 模块并参与构建 | 隔离到独立 profile 或移除 |
-| 兼容 | 🟡 | `OperatorContext#currentUserId`(default 别名)、`ToolPermissionGuard` 多重载 | “兼容旧调用”别名与硬约束#5精神相悖 | 统一调用方后删除别名 |
-| 异常 | 🟡 | `config/GlobalExceptionHandler` | 未显式处理 `AuthenticationException/AccessDeniedException`；`ConstraintViolationException` 直接回传 `e.getMessage()` 可能泄露内部信息 | 补 401/403；约束信息脱敏 |
+| 编号 | 级别 | 状态 | 位置 | 结论 |
+|------|------|------|------|------|
+| M6 | 🟠 | FIXED | `WebhookService`、`ChannelConfigService` | 核实（详见 03 区）：`listActive`/`listEnabled` 均已返回 VO，无 Entity 出参 |
+| 占位 | 🟠 | OPEN | `engine/{space,evolution,semanticcalc,dsl,metadata,monitor}` | 投机性空接口，违反硬约束#5"禁占位/TODO 占位"、准则#2"简洁优先"，未在本轮处理 |
+| 包结构 | 🟡 | OPEN | `module/ai/role`、`module/ai/skill`、`module/tool` 等 | 文件平铺（Service/VO/DTO 同包）与 controller/service/domain 分层混用，跨模块不一致，未在本轮处理 |
+| 示例 | 🟡 | OPEN | `aaf-api/module/examples/**` | demo/示例代码混入主 api 模块并参与构建，未在本轮处理 |
+| 兼容 | 🟡 | OPEN | `OperatorContext#currentUserId`(default 别名)、`ToolPermissionGuard` 多重载 | "兼容旧调用"别名与硬约束#5精神相悖，未在本轮处理 |
+| 异常 | 🟡 | FIXED | `config/GlobalExceptionHandler` | 核实：已有 `handleAuthentication`（401）、`handleAccessDenied`/`handleAccessDeniedException`（403）专门处理器；`ConstraintViolationException` 已用 `leafProperty` 脱敏，不回传 `e.getMessage()` 完整方法签名信息 |
 
 ## 良好实践（架构层面）
 

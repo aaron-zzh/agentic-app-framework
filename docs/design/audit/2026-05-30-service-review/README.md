@@ -57,9 +57,9 @@
 
 | 编号 | 状态 | 区域 | 当前残余 |
 |------|------|------|---------|
-| M6 | PARTIAL | 03/06 | Channel/Webhook service 仍返回 Entity |
+| M6 | FIXED | 03/06 | 核实：`listActive`/`listEnabled` 均已返回 VO，无 Entity 出参 |
 | M7 | OPEN | 05 | CI/CD 使用静态 HttpClient，轮询以 `Thread.sleep` 阻塞 |
-| M15 | PARTIAL | 07/08/11g | Company 与 Channel/Webhook 写入口已 DTO 化，Company 出参已 VO 化；SMS、AI Output、Document、Team 等仍有实体出参 |
+| M15 | PARTIAL | 07/08/11g | Company 与 Channel/Webhook 写入口已 DTO 化，Company/Channel/Webhook 出参已 VO 化，SMS 模板 CRUD 已 VO 化（本轮，见 M22）；`AiOutputController`（`Result<AiOutput>`）、`TeamController`（`Result<TeamEntity>`/`TeamMemberEntity`/`TeamTaskEntity`）、`DocumentController`（`getById`/`update`/`publish`/`unpublish`/`getPublished` 仍 `Result<Document>`）三模块仍有实体出参，规模较大（10+ 处改动点），本轮未做，留待独立任务 |
 | M17 | OPEN | 07 | 用户角色与角色权限分配语义不对称 |
 | M21 | PARTIAL | 09 | 生产短信测试号码仍缺白名单和环境隔离 |
 | M22 | PARTIAL | 09 | Controller 仍直连 Repository，并返回 Entity |
@@ -77,11 +77,11 @@
 | m8 | OPEN | 01 | API Key last_used_at 每请求同步写入 |
 | m9 | PARTIAL | 03 | 客服回调虚拟线程 executor 仍无背压 |
 | m10 | OPEN | 01/全局 | 部分签名比较仍使用非常量时间比较 |
-| m36 | OPEN | 04 | 内容安全依赖硬编码关键词黑名单 |
+| m36 | PARTIAL | 04 | 已改为数据库可配置规则+硬编码兜底降级，"应外置可配"已实现；子串匹配仍易绕过，语义级升级未做 |
 | 包结构 | OPEN | 06 | 业务模块内分层结构仍不一致 |
 | 示例 | OPEN | 06 | 示例代码仍混入主 API 构建 |
 | 兼容 | OPEN | 06 | OperatorContext 别名和 ToolPermissionGuard 重载仍形成兼容路径 |
-| 异常 | OPEN | 06 | 全局异常处理对 401/403 与约束信息脱敏仍不完整 |
+| 异常 | FIXED | 06 | 核实：已有 401/403 专门处理器，`ConstraintViolationException` 已脱敏 |
 | 并行抽象 | OPEN | 04/06 | 脚本执行与多租户机制仍存在双轨抽象 |
 
 ## 系统性剩余主题

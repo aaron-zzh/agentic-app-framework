@@ -2,13 +2,13 @@
 
 > 覆盖：渠道路由/配置、Webhook 出入站、客服会话生命周期、坐席分配。
 
-## 问题清单
+## 问题清单（2026-08-01 复核）
 
-| 编号 | 级别 | 位置 | 问题 | 修复建议 |
-|------|------|------|------|---------|
-| B7 | 🔴 | `module/channel ChannelConfigService`（create/update/getById/listAll）+ `ChannelConfig` 实体 | 直接返回实体，含 `appSecret/token/encodingAesKey` 敏感凭证且无 `@JsonIgnore`→经接口外泄；`WebhookConfig.secret` 同理 | 凭证字段加 `@JsonIgnore`；接口出参改 VO 并脱敏 |
-| M6 | 🟠 | `WebhookService.listActive`、`ChannelConfigService.listAll` | service 返回 Entity 给上层，违反"service 不得返回 Entity" | 补 VO 转换 |
-| m1 | 🟡 | 各 `*Repository` | `findByStatusAndDeletedFalse` 与 `BaseEntity` 全局 `@SQLRestriction("deleted=false")` 冗余 | 去掉冗余 `DeletedFalse` |
+| 编号 | 级别 | 状态 | 位置 | 结论 |
+|------|------|------|------|------|
+| B7 | 🔴 | FIXED | `module/channel ChannelConfigService`（create/update/getById/listAll）+ `ChannelConfig` 实体 | 核实：`appSecret`/`token`/`encodingAesKey` 已全部 `@JsonIgnore`；`ChannelController` 出入参已全部 DTO/VO 化（`ChannelConfigSaveDTO`/`ChannelConfigVO`/`WebhookConfigSaveDTO`/`WebhookConfigVO`），无直接返回实体的端点 |
+| M6 | 🟠 | FIXED | `WebhookService.listActive`、`ChannelConfigService.listAll` | 核实：`WebhookService.listActive()` 已返回 `List<WebhookConfigVO>`；`ChannelConfigService.listAll` 已重命名为 `listEnabled()` 并返回 `List<ChannelConfigVO>`，两处均无 Entity 出参 |
+| m1 | 🟡 | OPEN | 各 `*Repository` | `findByStatusAndDeletedFalse` 与 `BaseEntity` 全局 `@SQLRestriction("deleted=false")` 冗余，未在本轮处理 |
 
 ## 良好实践
 

@@ -2,13 +2,13 @@
 
 > 覆盖：工具权限守卫、脚本执行沙箱、价值规则引擎、占位引擎、知识库服务。
 
-## 问题清单
+## 问题清单（2026-08-01 复核）
 
-| 编号 | 级别 | 位置 | 问题 | 修复建议 |
-|------|------|------|------|---------|
-| B5 | 🔴 | `framework/engine/tool ScriptSandbox` | 注释称"文件系统隔离/资源限制"，`executePython` 实为裸 `ProcessBuilder("python3")` 无隔离；`executeShell` 用关键词黑名单（易绕过）；与真正受限的 `GraalVmScriptExecutor` 并存 | 统一走 GraalVM 受限上下文，或子进程配 OS 级隔离（容器/seccomp/低权用户）；修正误导注释；shell 改白名单或禁用 |
-| m36 | 🟡 | `framework/engine/valuerule DefaultValueRuleEngine` | 硬编码关键词黑名单做内容安全，易绕过 | v0.1 可接受，但黑名单应外置可配，并规划语义级升级 |
-| 占位 | 🟡 | `engine/space`、`evolution`、`semanticcalc`、`dsl`、`metadata`、`monitor` 等 | 大量"v0.2+/v0.3+ 实现"的空接口，无实现 | 违反"简洁优先/禁占位"，按需到实现阶段再声明 |
+| 编号 | 级别 | 状态 | 位置 | 结论 |
+|------|------|------|------|------|
+| B5 | 🔴 | PARTIAL | `framework/engine/tool ScriptSandbox` | 由另一对话处理中，本轮跳过 |
+| m36 | 🟡 | PARTIAL | `framework/engine/valuerule DefaultValueRuleEngine` | 核实：审计原文"仅硬编码黑名单"已不准确——现在**优先从数据库加载可配置规则**（`ValueRuleRepository.findEnabledForbiddenRules()`），硬编码 `FALLBACK_KEYWORDS` 只是数据库查询失败时的降级兜底。"黑名单应外置可配"已实现。剩余问题：命中逻辑仍是 `content.contains(...)` 子串匹配，同音字/空格插入等经典绕过手法仍有效，语义级升级（LLM/专门内容安全 API）是更大的独立工程，v0.1 阶段维持现状可接受，本轮未做 |
+| 占位 | 🟡 | OPEN | `engine/space`、`evolution`、`semanticcalc`、`dsl`、`metadata`、`monitor` 等 | 大量"v0.2+/v0.3+ 实现"的空接口，无实现，未在本轮处理 |
 
 ## 良好实践
 

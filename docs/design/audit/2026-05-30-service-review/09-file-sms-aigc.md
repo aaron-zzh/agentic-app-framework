@@ -2,15 +2,15 @@
 
 > 覆盖：文件上传/下载、短信模板与发送、AIGC 图像/视频/媒资生成。
 
-## 问题清单
+## 问题清单（2026-08-01 复核）
 
-| 编号 | 级别 | 位置 | 问题 | 修复建议 |
-|------|------|------|------|---------|
-| M21 | 🟠 | `system/sms/SmsController#testSend` | 测试发送可调用生产短信通道，但生产环境缺少测试号码白名单与环境隔离，仍可能误发真实短信并产生费用 | 生产环境禁用测试发送，或仅允许独立测试通道与号码白名单 |
-| M22 | 🟠 | `SmsController` | 控制器直接注入 `SmsTemplateRepository`/`SmsLogRepository` 并操作，违反“controller→service→repository”分层；模板 CRUD 仍返回实体 | 经 service 层访问；统一改为 VO 出参 |
-| M23 | 🟠 | `ai/aigc/image/ImageController#imageToImage/editImage` | image-to-image/edit 仍旁路统一任务主链，可绕过同一计费前置检查 | 将 image-to-image/edit 接入统一任务主链，复用 `precheck`、扣减与失败补偿 |
-| m16 | 🟡 | `ImageController#getById`（`/{id}`）、`queryTask/queryTasks` | 按 id/taskId 查询无归属校验→可查他人图像（prompt+URL）；底层透传 Midjourney 任务查询 | 查询加归属过滤 |
-| m17 | 🟡 | `SmsController#callback/{aliyun,tencent}` | 回调为空实现（占位，连日志都未记），且不在白名单 | 实现或移除；明确占位状态 |
+| 编号 | 级别 | 状态 | 位置 | 结论 |
+|------|------|------|------|------|
+| M21 | 🟠 | FIXED | `system/sms/SmsController#testSend` | 测试发送可调用生产短信通道，无环境隔离与号码白名单。修复：`SmsProperties.testSend`（enabled + phoneWhitelist），生产默认整体禁用 |
+| M22 | 🟠 | FIXED | `SmsController` | 直接注入 `SmsTemplateRepository` 并操作，模板 CRUD 返回实体。修复：新建 `SmsTemplateService`（`SmsTemplateVO`/`SmsTemplateCreateDTO`/`SmsTemplateUpdateDTO` 迁到 `vo` 包），与 `MessageTemplateService` 同一模式；新增 `SMS_TEMPLATE_NOT_FOUND` 错误码（`1_016_000`） |
+| M23 | 🟠 | FIXED | `ai/aigc/image/ImageController#imageToImage/editImage` | 核实：`AiServiceRegistry` 返回的实例已被 `ImageGenServiceDecorator` 包裹，结算本已自动发生；真正缺口是 precheck。修复：两端点补 `estimateCost` + `creditGuard.precheck`，`userId` 改 `orElseThrow` |
+| m16 | 🟡 | OPEN | `ImageController#getById`（`/{id}`）、`queryTask/queryTasks` | 按 id/taskId 查询无归属校验→可查他人图像（prompt+URL）；底层透传 Midjourney 任务查询 | 查询加归属过滤，未在本轮处理 |
+| m17 | 🟡 | OPEN | `SmsController#callback/{aliyun,tencent}` | 回调为空实现（占位，连日志都未记），且不在白名单 | 实现或移除；明确占位状态，未在本轮处理 |
 
 ## 良好实践
 
