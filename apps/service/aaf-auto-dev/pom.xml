@@ -32,6 +32,12 @@
 			<artifactId>org.eclipse.jgit</artifactId>
 		</dependency>
 
+		<!-- 缓存 -->
+		<dependency>
+			<groupId>com.github.ben-manes.caffeine</groupId>
+			<artifactId>caffeine</artifactId>
+		</dependency>
+
 		<!-- 工具 -->
 		<dependency>
 			<groupId>org.projectlombok</groupId>

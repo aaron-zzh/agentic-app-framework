@@ -5,13 +5,15 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+
+import com.github.benmanes.caffeine.cache.Caffeine;
 
 import com.xuejiai.aaf.common.util.JsonUtils;
 
@@ -29,6 +31,8 @@ import tools.jackson.databind.json.JsonMapper;
 public class CiCdService {
 
     private static final HttpClient HTTP = HttpClient.newHttpClient();
+    private static final long MAX_CACHED_BUILDS = 1_000;
+    private static final Duration BUILD_CACHE_TTL = Duration.ofHours(24);
 
     private final JsonMapper jsonMapper;
 
@@ -38,8 +42,13 @@ public class CiCdService {
     @Value("${aaf.autodev.github.repo:}")
     private String githubRepo;
 
-    /** 构建状态缓存（runId → status） */
-    private final Map<Long, BuildStatus> buildCache = new ConcurrentHashMap<>();
+    /** 构建状态缓存（runId → status），限制容量并在写入 24 小时后淘汰。 */
+    private final Map<Long, BuildStatus> buildCache =
+            Caffeine.newBuilder()
+                    .maximumSize(MAX_CACHED_BUILDS)
+                    .expireAfterWrite(BUILD_CACHE_TTL)
+                    .<Long, BuildStatus>build()
+                    .asMap();
 
     /** 触发 GitHub Actions workflow */
     public Long triggerWorkflow(String workflowFile, String ref, Map<String, String> inputs) {
