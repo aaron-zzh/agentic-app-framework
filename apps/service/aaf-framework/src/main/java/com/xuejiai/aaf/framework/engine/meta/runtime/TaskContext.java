@@ -19,6 +19,9 @@ import java.util.function.Consumer;
  */
 public class TaskContext {
 
+    /** 队列触发时由运行时注入的稳定任务 ID。 */
+    public static final String QUEUE_TASK_ID = "queueTaskId";
+
     /** 任务 ID（executionId，由 TaskRuntime 分配） */
     private final String executionId;
 

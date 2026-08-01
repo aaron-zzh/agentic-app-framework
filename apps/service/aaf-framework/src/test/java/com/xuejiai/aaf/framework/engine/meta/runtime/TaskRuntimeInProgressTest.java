@@ -45,7 +45,9 @@ class TaskRuntimeInProgressTest extends BaseMockitoUnitTest {
         assertThatThrownBy(
                         () ->
                                 taskRuntime.submit(
-                                        "LONG_TASK", "{}", ExecutionMeta.queue((short) 5, "{}")))
+                                        "LONG_TASK",
+                                        "{}",
+                                        ExecutionMeta.queue((short) 5, "task-1", "{}")))
                 .isInstanceOf(TaskExecutionInProgressException.class)
                 .hasMessage("still running");
         verify(taskMonitor).recordFailure(10L, "still running");

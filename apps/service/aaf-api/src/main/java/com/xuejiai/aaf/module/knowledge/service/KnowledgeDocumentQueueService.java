@@ -69,9 +69,12 @@ public class KnowledgeDocumentQueueService implements TaskHandler {
     }
 
     @Override
-    public void handle(String payloadJson) {
+    public void handle(String taskId, String payloadJson) {
         var payload = JsonUtils.parseObject(payloadJson, ProcessDocumentPayload.class);
         requireValid(payload);
+        if (!taskId(payload.documentId()).equals(taskId)) {
+            throw exception(GlobalErrorCode.BAD_REQUEST);
+        }
         permissionExecutionService.runAsOwner(
                 payload.ownerId(),
                 "knowledge-document-process",

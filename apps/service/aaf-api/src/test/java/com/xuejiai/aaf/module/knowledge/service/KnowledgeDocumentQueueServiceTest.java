@@ -72,7 +72,7 @@ class KnowledgeDocumentQueueServiceTest extends BaseMockitoUnitTest {
         runPermissionCallback();
 
         // 调用
-        queueService.handle(payload());
+        queueService.handle("knowledge-document:11", payload());
 
         // 断言
         verify(storageService, never()).download(any());
@@ -87,7 +87,7 @@ class KnowledgeDocumentQueueServiceTest extends BaseMockitoUnitTest {
         runPermissionCallback();
 
         // 调用
-        queueService.handle(payload());
+        queueService.handle("knowledge-document:11", payload());
 
         // 断言
         verify(storageService, never()).download(any());
@@ -107,7 +107,7 @@ class KnowledgeDocumentQueueServiceTest extends BaseMockitoUnitTest {
         runPermissionCallback();
 
         // 调用 + 断言
-        assertThatThrownBy(() -> queueService.handle(payload()))
+        assertThatThrownBy(() -> queueService.handle("knowledge-document:11", payload()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("embedding unavailable");
         verify(permissionExecutionService)
@@ -134,7 +134,7 @@ class KnowledgeDocumentQueueServiceTest extends BaseMockitoUnitTest {
         OrgContext.setCurrentWorkspaceId(60L);
 
         // 调用
-        queueService.handle(payload());
+        queueService.handle("knowledge-document:11", payload());
 
         // 断言
         verify(pipelineService)
@@ -153,7 +153,7 @@ class KnowledgeDocumentQueueServiceTest extends BaseMockitoUnitTest {
         runPermissionCallback();
 
         // 调用 + 断言
-        assertThatThrownBy(() -> queueService.handle(payload()))
+        assertThatThrownBy(() -> queueService.handle("knowledge-document:11", payload()))
                 .isInstanceOf(RuntimeException.class);
         verify(storageService, never()).download(any());
         verify(pipelineService, never()).process(any(), any(), any(), any(), any());

@@ -57,9 +57,12 @@ public class KnowledgeDocumentCleanupQueueService implements TaskHandler {
     }
 
     @Override
-    public void handle(String payloadJson) {
+    public void handle(String taskId, String payloadJson) {
         var payload = JsonUtils.parseObject(payloadJson, CleanupDocumentPayload.class);
         requireValid(payload);
+        if (!taskId(payload.documentId()).equals(taskId)) {
+            throw exception(GlobalErrorCode.BAD_REQUEST);
+        }
         pipelineService.clearDocumentGraphData(payload.knowledgeBaseId(), payload.documentId());
         if (payload.filePath() != null && !payload.filePath().isBlank()) {
             fileService.delete(payload.filePath());

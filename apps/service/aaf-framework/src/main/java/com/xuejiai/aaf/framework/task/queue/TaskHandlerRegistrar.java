@@ -19,13 +19,16 @@ public class TaskHandlerRegistrar implements InitializingBean {
 
     private final List<TaskHandler> handlers;
     private final TaskRuntime taskRuntime;
+    private final TaskInboxExecutor taskInboxExecutor;
 
     @Override
     public void afterPropertiesSet() {
-        handlers.forEach(handler -> taskRuntime.register(new HandlerTaskAdapter(handler)));
+        handlers.forEach(
+                handler -> taskRuntime.register(new HandlerTaskAdapter(handler, taskInboxExecutor)));
     }
 
-    private record HandlerTaskAdapter(TaskHandler handler) implements AafTask {
+    private record HandlerTaskAdapter(TaskHandler handler, TaskInboxExecutor taskInboxExecutor)
+            implements AafTask {
 
         @Override
         public String taskType() {
@@ -39,7 +42,15 @@ public class TaskHandlerRegistrar implements InitializingBean {
 
         @Override
         public TaskResult execute(TaskContext context) {
-            handler.handle(context.payload());
+            var queueTaskId = context.<String>getVariable(TaskContext.QUEUE_TASK_ID);
+            if (queueTaskId == null || queueTaskId.isBlank()) {
+                throw new IllegalStateException("队列任务缺少稳定 taskId: " + handler.taskType());
+            }
+            taskInboxExecutor.execute(
+                    queueTaskId,
+                    handler.taskType(),
+                    context.payload(),
+                    () -> handler.handle(queueTaskId, context.payload()));
             return TaskResult.ok();
         }
     }

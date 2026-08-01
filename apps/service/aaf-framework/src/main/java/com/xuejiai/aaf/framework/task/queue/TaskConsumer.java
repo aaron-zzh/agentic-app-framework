@@ -206,9 +206,8 @@ public class TaskConsumer {
             return;
         }
 
-        // M49：执行与 ACK 之间存在崩溃窗口（至少一次语义）。去重与并发保护由
-        // RetryableTaskConsumer 的 completed 标记 + processing 租约承担，此处不再叠加第二套幂等存储；
-        // 残留窗口与彻底修复方案（事务性收件箱）见 RetryableTaskConsumer 类注释。
+        // M49：handler 的关系库副作用与 sys_task_inbox 在同一事务提交；Redis completed/processing
+        // 仅作为快速去重缓存与并发租约。外部系统副作用仍由 handler 使用稳定 task.id() 保证幂等。
         retryableTaskConsumer.executeWithRetry(task);
         acknowledge(stream, record);
     }

@@ -88,6 +88,9 @@ public class TaskRuntime {
                         meta.priority(),
                         meta.triggerType());
         var ctx = new TaskContext(executionId, taskType, payload);
+        if (meta.queueTaskId() != null) {
+            ctx.setVariable(TaskContext.QUEUE_TASK_ID, meta.queueTaskId());
+        }
         try {
             // durable 任务：委托 Flowable 启动流程实例，由引擎原生提供持久化/重试/子任务能力
             if (task.durable()) {

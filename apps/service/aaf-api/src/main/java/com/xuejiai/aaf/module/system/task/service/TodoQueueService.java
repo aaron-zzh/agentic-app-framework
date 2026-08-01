@@ -48,7 +48,7 @@ public class TodoQueueService implements TaskHandler {
 
     /** 清理操作本身幂等，重复执行只会再次得到删除数量 0。 */
     @Override
-    public void handle(String payloadJson) {
+    public void handle(String taskId, String payloadJson) {
         var payload = JsonUtils.parseObject(payloadJson, ClearDonePayload.class);
         if (payload == null || payload.ownerId() == null || payload.ownerId() <= 0) {
             throw exception(GlobalErrorCode.BAD_REQUEST);

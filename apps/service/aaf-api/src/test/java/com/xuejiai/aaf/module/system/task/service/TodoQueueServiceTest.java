@@ -88,7 +88,7 @@ class TodoQueueServiceTest extends BaseMockitoUnitTest {
                 .clearDoneTodos();
 
         // 调用
-        queueService.handle(payload);
+        queueService.handle("todo-task-1", payload);
 
         // 断言
         verify(todoService).clearDoneTodos();

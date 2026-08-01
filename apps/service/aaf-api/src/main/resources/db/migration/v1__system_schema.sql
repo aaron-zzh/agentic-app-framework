@@ -784,6 +784,18 @@ COMMENT ON COLUMN sys_task_execution.context IS '执行参数快照 JSON（触�
 CREATE INDEX idx_task_execution_name ON sys_task_execution(task_name);
 CREATE INDEX idx_task_execution_status ON sys_task_execution(status);
 
+CREATE TABLE sys_task_inbox (
+    task_id         VARCHAR(255) PRIMARY KEY,
+    task_type       VARCHAR(100) NOT NULL,
+    payload_digest  CHAR(64)     NOT NULL,
+    completed_at    TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMENT ON TABLE sys_task_inbox IS '队列任务事务性收件箱，与 handler 关系库副作用原子提交以阻止崩溃重投';
+COMMENT ON COLUMN sys_task_inbox.task_id IS '跨重试保持稳定的队列任务 ID';
+COMMENT ON COLUMN sys_task_inbox.payload_digest IS 'SHA-256 载荷摘要，同一任务 ID 的载荷变化将 fail-closed';
+CREATE INDEX idx_task_inbox_completed_at ON sys_task_inbox(completed_at);
+
 -- ==================== 排除日历 ====================
 CREATE TABLE sys_holiday_calendar
 (
