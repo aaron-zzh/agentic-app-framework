@@ -1760,6 +1760,7 @@ COMMENT ON TABLE webhook_log IS 'Webhook 推送日志';
 CREATE TABLE IF NOT EXISTS sys_user_event (
     id              BIGSERIAL PRIMARY KEY,
     user_id         BIGINT       NOT NULL,
+    org_id          BIGINT,
     event_type      VARCHAR(32)  NOT NULL,
     page            VARCHAR(255),
     target          VARCHAR(255),
@@ -1770,7 +1771,9 @@ CREATE TABLE IF NOT EXISTS sys_user_event (
 CREATE INDEX idx_user_event_type_time ON sys_user_event (event_type, create_time);
 CREATE INDEX IF NOT EXISTS idx_user_event_user ON sys_user_event (user_id, create_time);
 CREATE INDEX idx_user_event_date ON sys_user_event ((create_time::date));
+CREATE INDEX idx_user_event_org_time ON sys_user_event (org_id, create_time);
 COMMENT ON TABLE sys_user_event IS '用户行为事件（追加写入）';
+COMMENT ON COLUMN sys_user_event.org_id IS '所属组织 ID，NULL=平台级/无组织上下文采集';
 
 -- ============================================================
 -- 用户画像模块

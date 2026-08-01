@@ -47,6 +47,7 @@ CREATE TABLE credit_transaction (
     category        VARCHAR(32),
     biz_id          VARCHAR(64),
     biz_type        VARCHAR(64),
+    idempotency_key VARCHAR(160),
     batch_type      VARCHAR(16),
     expire_at       TIMESTAMP(6),
     remain          BIGINT,
@@ -68,12 +69,16 @@ COMMENT ON COLUMN credit_transaction.source IS '来源：从哪来/为什么发�
 COMMENT ON COLUMN credit_transaction.category IS '消费分类：花在哪种 AI 能力，仅 SPEND 时有意义，见 CreditTransactionCategoryEnum';
 COMMENT ON COLUMN credit_transaction.batch_type IS '批次来源：SUBSCRIPTION/TOPUP/REWARD/WEEKLY/MANUAL';
 COMMENT ON COLUMN credit_transaction.biz_type   IS '业务表标识，与 biz_id 组合定位具体业务记录，如 AIGC_TASK / TOOL_CALL_AUDIT';
+COMMENT ON COLUMN credit_transaction.idempotency_key IS '一次性入账幂等键 accountId:source:biz_id，NULL=周期性发放不做幂等约束';
 COMMENT ON COLUMN credit_transaction.expire_at  IS '过期时间，NULL=永不过期（充值积分）';
 COMMENT ON COLUMN credit_transaction.remain     IS '本批次剩余可用量（EARN 时=amount，消费后递减）';
 
 CREATE INDEX idx_credit_transaction_account ON credit_transaction(account_id) WHERE deleted = FALSE;
 CREATE INDEX idx_credit_transaction_biz ON credit_transaction(biz_id) WHERE deleted = FALSE;
 CREATE INDEX idx_credit_transaction_biz_type_id ON credit_transaction(biz_type, biz_id) WHERE deleted = FALSE;
+CREATE UNIQUE INDEX uk_credit_transaction_idempotency
+    ON credit_transaction (idempotency_key)
+    WHERE idempotency_key IS NOT NULL AND deleted = FALSE;
 
 -- ==================== 积分转Token规则 ====================
 
