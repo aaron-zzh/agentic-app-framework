@@ -15,6 +15,7 @@ import org.flowable.engine.history.HistoricProcessInstanceQuery;
 import org.flowable.engine.repository.ProcessDefinition;
 import org.flowable.engine.repository.ProcessDefinitionQuery;
 import org.flowable.engine.runtime.ProcessInstanceQuery;
+import org.flowable.identitylink.api.IdentityLinkType;
 import org.flowable.task.api.Task;
 import org.springframework.stereotype.Component;
 
@@ -99,13 +100,11 @@ public class FlowableBpmnEngine implements BpmnEngine {
                 > 0) {
             return true;
         }
-        if (historyService
-                        .createHistoricIdentityLinkLogQuery()
-                        .processInstanceId(processInstanceId)
-                        .userId(userId)
-                        .type("candidate")
-                        .count()
-                > 0) {
+        if (historyService.getHistoricIdentityLinksForProcessInstance(processInstanceId).stream()
+                .anyMatch(
+                        link ->
+                                userId.equals(link.getUserId())
+                                        && IdentityLinkType.CANDIDATE.equals(link.getType()))) {
             return true;
         }
         var tasks = taskService.createTaskQuery().processInstanceId(processInstanceId).list();
