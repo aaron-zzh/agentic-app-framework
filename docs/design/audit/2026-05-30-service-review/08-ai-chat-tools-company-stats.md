@@ -20,7 +20,7 @@
 | 编号 | 修复实现 |
 |------|---------|
 | M18 | `ChatService` 新增 `requireOwnedConversation`（比对 `conversation.creatorId` 与当前身份，不匹配抛"会话不存在"而非 403，避免枚举他人会话），应用于 listMessages / getMessagesPaged / archiveSession / deleteSession / renameSession / messageFeedback（messageId 经所属会话反查）；REST 发消息改走新增的 `saveUserMessage`（校验归属），内部/AI 写入路径 `saveMessage` 重载保持不变（事件监听器与 AG-UI 链路无 SecurityContext） |
-| M19 | `StatsController`/`TrackingController` 的 `isPlatformAdmin()` 剔除 ORG_ADMIN；新增 `filterOrgId()`——平台管理员 null（全局），其余强制当前 org，缺组织上下文直接 403；`sys_user_event` 增 `org_id`（迁移 `v203__user_event_org_scope.sql`），采集时写入，漏斗/留存/画像查询强制附加 org 条件；埋点事件记录 orgId，热力图/模式聚合按 org 过滤；funnel/retention/profile/heatmap/patterns 放开给 ORG_ADMIN 但只能看本组织 |
+| M19 | `StatsController`/`TrackingController` 的 `isPlatformAdmin()` 剔除 ORG_ADMIN；新增 `filterOrgId()`——平台管理员 null（全局），其余强制当前 org，缺组织上下文直接 403；`sys_user_event` 增 `org_id`（已折叠进基础迁移 `v1__system_schema.sql`），采集时写入，漏斗/留存/画像查询强制附加 org 条件；埋点事件记录 orgId，热力图/模式聚合按 org 过滤；funnel/retention/profile/heatmap/patterns 放开给 ORG_ADMIN 但只能看本组织 |
 | M15 | 复核已收敛：CompanyController 入参全部为 `*CreateDTO`、出参为 `*VO`，无实体出入参残留 |
 | 占位 | `DefaultPromptEngine#renderWithExamples` 抛 `UnsupportedOperationException`（原静默 `return render(...)`，maxExamples 被忽略）；`ReportService#exportPdf` 抛业务异常（原向 `application/pdf` 流写纯文本，产出"下载成功但打不开"的假 PDF）；接口与类注释同步去掉"骨架"表述 |
 | m13 | `ChatService#messageFeedback` 改用 Jackson `ObjectNode` 构造 JSON；ChatController 的 SSE 手工拼串随 streamChat 迁至 AG-UI 链路已不存在 |

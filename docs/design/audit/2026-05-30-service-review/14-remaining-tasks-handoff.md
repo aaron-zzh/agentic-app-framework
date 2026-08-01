@@ -43,7 +43,7 @@
 原 `02-payments-billing-credit.md` 的 B2、M3、M4 已修复，分区文档随之删除，修复要点如下（代码内以 `B2:`/`M3:`/`M4:` 注释标注）：
 
 - **B2 客户端定价 + Mock 铸币**：删除 `PayOrderController#recharge` 与 `RechargeService#initiateRecharge`（客户端提交 amount 的唯一入口），充值统一走 `CreditPackageController#purchase`，金额取 `credit_package.price`；前端同步删除失效的 `endpoints.pay.recharge` 常量。`MockPayChannelAdapter` 增加 `@Profile("!prod")` 与 `application-prod.yaml` 显式 `aaf.pay.mock.enabled=false` 双保险，prod 下 Bean 不注册、MOCK 渠道对结算引擎不可见。
-- **M3 并发回调与入账幂等**：`PayOrderRepository` 新增 `transitionStatus`/`transitionStatusOnly` 原子状态迁移（`UPDATE ... WHERE status = WAITING`），`markSuccess`/`handleNotify` 改为按更新行数判定是否触发后续入账；`credit_transaction` 新增 `idempotency_key`（`accountId:source:bizId`）及部分唯一索引（迁移 `v202__credit_earn_idempotency.sql`），`CreditService.earn` 一次性入账走幂等键，`earnBatch` 的周期性发放保持 NULL 不受约束。
+- **M3 并发回调与入账幂等**：`PayOrderRepository` 新增 `transitionStatus`/`transitionStatusOnly` 原子状态迁移（`UPDATE ... WHERE status = WAITING`），`markSuccess`/`handleNotify` 改为按更新行数判定是否触发后续入账；`credit_transaction` 新增 `idempotency_key`（`accountId:source:bizId`）及部分唯一索引（已折叠进基础迁移 `v5__order_schema.sql`），`CreditService.earn` 一次性入账走幂等键，`earnBatch` 的周期性发放保持 NULL 不受约束。
 - **M4 权益扣减并发保护**：`EntitlementQuotaRepository#findByUserIdAndEntIdForUpdate`（`PESSIMISTIC_WRITE`）+ `EntitlementService#consume` 持锁后重校验 remain，与积分侧 `findByUserIdForUpdate` 同一并发策略。
 - 单测：`PayOrderServiceTest`（原子迁移命中/未命中）、`CreditServiceImplTest`（幂等跳过/首次写键/周期发放不写键）、新增 `EntitlementServiceTest`（行锁读取、持锁重校验拒绝）。
 - 遗留：本轮按人类指示未运行 `pnpm nx test service` / `check:affected`，需在下次门控时补跑。
@@ -87,9 +87,38 @@
 ### 08 区（对话/统计/企业运营）修复记录（2026-08-01）
 
 08 分区的 M18、M19、占位、m13、m14、m15 已修复，M15 的 Company/Channel 请求绑定与 Company 实体出参已收敛为 DTO/VO；全局仍保留其他模块实体出参残余。详见 [08 分区文档 #修复记录](08-ai-chat-tools-company-stats.md)。要点：会话/消息归属校验、ORG_ADMIN
-去平台化 + `sys_user_event.org_id` 组织过滤（迁移 `v203`）、未实现能力显式报错、JSON 序列化与 senderId 常量化、workflow 三套抽象边界说明。
+去平台化 + `sys_user_event.org_id` 组织过滤（已折叠进基础迁移 `v1__system_schema.sql`）、未实现能力显式报错、JSON 序列化与 senderId 常量化、workflow 三套抽象边界说明。
 
 M16 已完成：用户密码、OAuth access/refresh token、Channel/Webhook 密钥、SMTP 密码、模型及供应商 API Key 均增加 `@JsonIgnore`。
+
+### 11a 区（结算/存储）修复记录（2026-08-01）
+
+11a 分区 9 项（B13/M25/M26/M27/M28/M29/m18/m19/m20）已修复，分区文档随之删除。代码内以 `B13:`/`M25:` 等注释标注：
+
+| 编号 | 修复实现 |
+|------|---------|
+| B13 | 新增 `UploadPolicy`（类型白名单 + 大小上限 + 主动内容拒绝 + 带上限读取），`FileService` 四个入口（MultipartFile/URL/byte[]/Base64）统一走它；`StorageProperties.UploadLimits.defaults()` 移除 `image/svg+xml` 与 `text/html`；三个存储实现在 `upload` 入口调用静态 `assertNotActiveContent` 兜底直调；`FileServiceTest` 补 SVG/HTML/bytes/超大用例 |
+| M25 | `RefundRequest` 增 `originalAmount`，微信退款 `amount.total` 改传原单总额、`refund` 传退款额；引擎侧校验 `originalAmount >= amount` |
+| M26 | `pay_refund_order` 增 `request_no` 幂等键 + 部分唯一索引（迁移 `v204`）；申请阶段用 `PayOrderRepository#reserveRefundAmount` 原子占额（`UPDATE ... WHERE refund_amount + ? <= amount`），回调失败经 `releaseRefundAmount` 释放；回调成功与重试不再重复累加，重试复用原 refundNo |
+| M27 | 微信/支付宝 `downloadBill` 由"log 成功 + 返回空列表"改为 `UnsupportedOperationException`；`ReconcileService` 不吞该异常，对账中止而非静默失真 |
+| M28 | 新增 `NotifyEnvelope`（原始报文 + 请求头 + 表单参数）与 `NotifyResult`（统一验签结果），`verifyAndParseNotify` 上提到 `PayChannelAdapter`/`SettlementEngine`（默认 fail-closed）；`PayOrderController` 两个回调端点改走引擎，不再注入具体渠道适配器；删除旧的 `verifyNotify(Map)` 及余额渠道的空覆盖 |
+| M29 | `StorageService#getPresignedUploadUrl` 改为接受 `PresignedUploadRequest(ownerScope, filename, contentType, maxSize, expiry)`，key 由服务端按 owner 命名空间生成，返回 `PresignedUploadTicket`；`FileController` 不再接受客户端 key |
+| m18 | 复核：引擎已按订单 channelCode 精确路由（不遍历渠道），`PayStatus.NOT_FOUND` 与查询异常（null）已区分，调用方对 null 保持状态不变；补充契约注释 |
+| m19 | `DefaultSettlementEngine` 在 charge/withdraw/refund 边界统一校验金额为正 |
+| m20 | S3 预签名把 contentType 与 contentLength 纳入签名；OSS 绑定 contentType 并附 `content-length-range`；上限与普通上传共用同一份配置 |
+
+### 11b/11c 区（OAuth·License·智能核心）修复记录（2026-08-01）
+
+11b、11c 分区问题已处理完毕，分区文档随之删除。
+
+| 编号 | 核实结论与修复 |
+|------|---------------|
+| M31 | **真实且可利用**：`bindOAuth(userId, provider, code)` 完全没有 state，登录链有校验而绑定链没有——可诱导已登录用户绑定攻击者的第三方账号，后续用第三方登录接管。修复：`OAuthState` 增 `purpose`+`subjectUserId`，新增 `GET /auth/oauth/{provider}/bind-url` 签发绑定专用一次性 state，`consumeOAuthState` 统一校验存在性/provider/用途/主体，`OAuthBindDTO.state` 必填 |
+| M32 | 真实：验签公钥硬编码。修复：新增 `LicenseProperties`（`aaf.license.public-keys`，支持多把并存以轮换），生产 Profile 未显式配置直接启动失败，内置公钥降级为仅非生产可用 |
+| M36 | **真实，且比文档更严重**：旧内存链不仅无持久化，而是**只写不消费**——全代码库无任何 `resolve/getResult/getPending` 调用方，审批建出来永远无人可处理，而 publisher 已把卡片推给用户。另核实出**第三套**机制 `AuthorizationService` challenge（绑死策略评估，不适合承载工具确认）。修复（方案 A′）：新增 `ai_tool_approval`（迁移 `v205`）+ `ToolApprovalEntity/Repository/ToolApprovalService` 取代内存版并删除旧类；新增 `ToolApprovalGrantListener` 在批准后回写会话级工具授权、拒绝后加入会话黑名单；新增 `ToolApprovalController`（pending / decide / 按会话批量 decide）补齐处理入口 |
+| m24 | **已失效，无需修改**：`PermissionScope` 类已不存在；现行 `ToolPermissionChecker` 对 `agentAllowedTools == null` 是 fail-closed，不再默认放行全部工具 |
+
+> M36 未采用"把执行上下文贯穿到工具调度层"的字面做法：工具层入口是 `ToolService`（REST，sessionId=null）与 Flowable `ToolNode`（sessionId=workflow:xxx），本身不是 assistant 任务执行，没有也不会有 `AssistantTask`；而任务级 `HumanApproval` 强制要求非空 `InvocationContext`（10 个必填 id），`PersistentHitlCoordinator.decide()` 还会查任务、迁移状态、调度恢复。故按作用域分工：任务级走 `ai_hitl_approval`，工具/工作流级走 `ai_tool_approval`，两者都持久化且各有可用处理入口。
 
 ### 环境与迁移门控
 

@@ -27,9 +27,6 @@
 | [08-ai-chat-tools-company-stats.md](08-ai-chat-tools-company-stats.md) | 对话/流式、持久任务、企业运营编排、行为统计、Prompt 引擎 |
 | [09-file-sms-aigc.md](09-file-sms-aigc.md) | 文件上传/下载、短信模板与发送、AIGC 图像/媒资生成 |
 | [10-authorization-matrix.md](10-authorization-matrix.md) | Controller 鉴权冻结基线与剩余资源级授权矩阵；不再沿用旧数量统计 |
-| [11a-framework-settlement-storage.md](11a-framework-settlement-storage.md) | 结算/存储复审；当前残留上传入口、退款并发、回调抽象与裸 key API 风险 |
-| [11b-framework-auth-oauth-license.md](11b-framework-auth-oauth-license.md) | OAuth/License 复审；当前残留 OAuth 抽象与许可证校验问题 |
-| [11c-framework-intelligent-core.md](11c-framework-intelligent-core.md) | 智能核心复审；当前残留新旧 HITL 双机制问题 |
 | [11d-framework-controllers.md](11d-framework-controllers.md) | framework REST 暴露面；当前残留 UEL value、工作流授权/Webhook 与 SSRF 风险 |
 | [11e-framework-data-ai.md](11e-framework-data-ai.md) | 数据处理/AI/知识库；当前残留提示词注入、知识库检索旁路与抓取 SSRF |
 | [11f-framework-infra.md](11f-framework-infra.md) | 基础设施；当前残留消费幂等、多实例缓存、审计脱敏与锁语义问题 |
@@ -57,8 +54,6 @@
 | B8 | OPEN | 05 | Codegen 输出路径仍信任 module/name，存在路径穿越任意写文件风险 |
 | B9 | PARTIAL | 07/10 | 角色仍偏宽，SELF 资源归属与 org 边界尚未清零 |
 | B10 | PARTIAL | 07/10 | `viewSource` 与工具列表仍缺 owner/org/share scope 资源级授权 |
-| B13 | PARTIAL | 11a | URL、byte[]、Base64 与底层 StorageService 仍可绕过校验，SVG/HTML 主动内容风险仍在 |
-| B17 | PARTIAL | 11d | value 仍拼入 UEL，且未明确禁用方法调用 |
 | B-mock | OPEN（条件） | 01 | Mock Token 仍依赖配置关闭，缺少非生产 Profile/构建级隔离 |
 
 ### Major
@@ -74,19 +69,8 @@
 | M21 | PARTIAL | 09 | 生产短信测试号码仍缺白名单和环境隔离 |
 | M22 | PARTIAL | 09 | Controller 仍直连 Repository，并返回 Entity |
 | M23 | PARTIAL | 09 | image-to-image/edit 仍旁路统一权益 precheck、扣减与补偿 |
-| M25 | OPEN | 11a | 微信支付部分退款仍可能把原单总额误设为退款额 |
-| M26 | PARTIAL | 11a | 并发超额及客户端稳定幂等键仍缺失 |
-| M27 | OPEN | 11a | 微信/支付宝账单下载仍为空实现，可能使对账静默失真 |
-| M28 | PARTIAL | 11a | 统一适配器抽象未完成，微信回调上下文与现有接口不兼容 |
-| M29 | PARTIAL | 11a | framework 裸 key 接口仍容易被新增调用方误用 |
-| M31 | PARTIAL | 11b | 账号绑定链的 state 闭环待确认，OAuthClient 抽象不强制 state/nonce |
-| M32 | OPEN | 11b | LicenseLoader 验签公钥仍硬编码，无法按环境配置或轮换 |
-| M36 | PARTIAL | 11c | 旧内存 HITL 链无 publisher，新旧机制状态/通知分叉 |
-| M37 | PARTIAL | 11d | 同租户 per-flow execute 授权、Webhook HMAC/防重放仍缺失 |
-| M39 | OPEN | 11d | HttpNode URL 可来自流程变量，缺少 SSRF 防护 |
 | M42 | OPEN | 11e | AiEnricher 仍将外部数据原文拼入 LLM 提示词 |
 | M45 | PARTIAL | 11e | 危险两参检索重载当前无生产调用，但仍可在未来绕过 kbId 过滤 |
-| M46 | OPEN | 11e | WebScrapingService 可抓取任意 URL 且响应体无上限，存在 SSRF/内存 DoS |
 | M49 | PARTIAL | 11f | 副作用完成后、ACK 前崩溃仍可能重复执行 |
 | M50 | OPEN | 11f | TwoLevelCache 失效仅本机，多实例缓存可能陈旧 |
 | M51 | OPEN | 11f | OperationLogAspect 原样记录参数/响应，缺少敏感数据脱敏 |
@@ -104,10 +88,6 @@
 | m9 | PARTIAL | 03 | 客服回调虚拟线程 executor 仍无背压 |
 | m10 | OPEN | 01/全局 | 部分签名比较仍使用非常量时间比较 |
 | m36 | OPEN | 04 | 内容安全依赖硬编码关键词黑名单 |
-| m18 | OPEN | 11a | 支付状态查询遍历渠道，渠道异常可能被当作未支付 |
-| m19 | OPEN | 11a | charge 金额未统一校验大于零 |
-| m20 | OPEN | 11a | 预签名 PUT 未固定 contentType/size-range |
-| m24 | OPEN | 11c | PermissionScope.defaults() 以 null 表示放行全部工具 |
 | m25 | OPEN | 11d | CodeExecutionNode 仍通过 `node -e` 子进程执行 JS |
 | m29 | OPEN | 11e | ResilientChatService 对所有异常统一 fallback，可能双倍计费并掩盖错误 |
 | m30 | OPEN | 11f | TwoLevelCache.invalidateAll 使用 Redis KEYS |
