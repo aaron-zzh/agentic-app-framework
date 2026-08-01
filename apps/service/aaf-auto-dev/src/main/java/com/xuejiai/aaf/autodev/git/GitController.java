@@ -74,15 +74,11 @@ public class GitController {
     @Operation(summary = "触发 CI Pipeline")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PostMapping("/ci/trigger")
-    public java.util.concurrent.Callable<Result<Long>> triggerCi(
+    public java.util.concurrent.CompletableFuture<Result<Long>> triggerCi(
             @RequestBody CiTriggerRequest request) {
-        // M7：CiCdService 内部用 TaskScheduler 延迟查询 runId，不阻塞任何线程；这里用 Callable 返回类型
-        // 让 Spring MVC 在异步请求处理线程池（非 Tomcat 请求线程）里等待结果，对外契约仍是同步拿到 runId。
-        return () ->
-                Result.success(
-                        ciCdService
-                                .triggerWorkflow(request.workflow(), request.ref(), request.inputs())
-                                .get());
+        return ciCdService
+                .triggerWorkflow(request.workflow(), request.ref(), request.inputs())
+                .thenApply(Result::success);
     }
 
     @Operation(summary = "查询构建状态")
@@ -102,10 +98,11 @@ public class GitController {
     @PreAuthorize(
             "hasRole('SUPER_ADMIN') or (hasRole('ADMIN') and @ciCdService.canAdminDeploy(#request.environment()))")
     @PostMapping("/ci/deploy")
-    public java.util.concurrent.Callable<Result<Long>> deploy(@RequestBody DeployRequest request) {
-        return () ->
-                Result.success(
-                        ciCdService.triggerDeploy(request.environment(), request.ref()).get());
+    public java.util.concurrent.CompletableFuture<Result<Long>> deploy(
+            @RequestBody DeployRequest request) {
+        return ciCdService
+                .triggerDeploy(request.environment(), request.ref())
+                .thenApply(Result::success);
     }
 
     @Operation(summary = "GitHub Webhook 回调")
