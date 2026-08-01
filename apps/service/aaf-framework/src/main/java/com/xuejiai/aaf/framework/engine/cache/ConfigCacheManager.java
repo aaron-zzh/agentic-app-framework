@@ -6,7 +6,6 @@ import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.engine.prompt.PromptTemplate;
 import com.xuejiai.aaf.framework.engine.prompt.PromptTemplateRepository;
-import com.xuejiai.aaf.framework.engine.skill.SkillDefinition;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelPreference;
@@ -19,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 配置缓存管理器——启动时预热，运行时提供快速读取。
  *
- * <p>管理 4 个缓存实例：AiModel、PromptTemplate、ModelPreference、SkillDefinition。
+ * <p>管理 3 个缓存实例：AiModel、PromptTemplate、ModelPreference。
  */
 @Slf4j
 @Component
@@ -40,7 +39,6 @@ public class ConfigCacheManager {
             new java.util.concurrent.ConcurrentHashMap<>();
     private TwoLevelCache<Long, PromptTemplate> promptTemplateCache;
     private TwoLevelCache<Long, ModelPreference> modelPreferenceCache;
-    private TwoLevelCache<Long, SkillDefinition> skillDefCache;
 
     @PostConstruct
     void init() {
@@ -52,9 +50,6 @@ public class ConfigCacheManager {
         modelPreferenceCache =
                 cacheFactory.create(
                         "model_pref", ModelPreference.class, MAX_SIZE, LOCAL_TTL, REDIS_TTL);
-        skillDefCache =
-                cacheFactory.create(
-                        "skill_def", SkillDefinition.class, MAX_SIZE, LOCAL_TTL, REDIS_TTL);
         warmUp();
     }
 
@@ -95,10 +90,6 @@ public class ConfigCacheManager {
     public ModelPreference getModelPreference(Long id) {
         return modelPreferenceCache.get(
                 id, k -> modelPreferenceRepository.findById(k).orElse(null));
-    }
-
-    public SkillDefinition getSkillDef(Long id) {
-        return skillDefCache.get(id, k -> null); // SkillDefinition 暂无 Repository，按需扩展
     }
 
     private void warmUp() {
