@@ -9,15 +9,13 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.framework.security.OperatorContext;
-import com.xuejiai.aaf.module.document.domain.Document;
-import com.xuejiai.aaf.module.document.repository.DocumentRepository;
 import com.xuejiai.aaf.module.document.service.DocumentService;
 import com.xuejiai.aaf.module.document.vo.*;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 文档管理接口。
@@ -27,35 +25,21 @@ import jakarta.validation.Valid;
 @Tag(name = "文档管理")
 @RestController
 @RequestMapping("/api/docs")
+@RequiredArgsConstructor
 public class DocumentController {
 
     private final DocumentService documentService;
-    private final DocumentRepository documentRepository;
-    private final OperatorContext operatorContext;
-
-    public DocumentController(
-            DocumentService documentService,
-            DocumentRepository documentRepository,
-            OperatorContext operatorContext) {
-        this.documentService = documentService;
-        this.documentRepository = documentRepository;
-        this.operatorContext = operatorContext;
-    }
 
     @Operation(summary = "统计用户文档数量")
     @GetMapping("/count")
     public Result<Long> count() {
-        Long ownerId = operatorContext.currentOwnerId().orElse(null);
-        if (ownerId == null) return Result.success(0L);
-        return Result.success(documentRepository.countByOwnerIdAndStatus(ownerId, "active"));
+        return Result.success(documentService.countCurrentUser());
     }
 
     @Operation(summary = "获取当前用户文档列表（不含正文）")
     @GetMapping("/list")
     public Result<List<DocListItemVO>> list() {
-        Long ownerId = operatorContext.currentOwnerId().orElse(null);
-        if (ownerId == null) return Result.success(List.of());
-        return Result.success(documentRepository.listByOwner(ownerId));
+        return Result.success(documentService.listCurrentUser());
     }
 
     @Operation(summary = "获取文档树")
@@ -72,26 +56,26 @@ public class DocumentController {
 
     @Operation(summary = "获取文档详情")
     @GetMapping("/{id}")
-    public Result<Document> getById(@PathVariable Long id) {
-        return Result.success(documentService.getById(id));
+    public Result<DocumentVO> getById(@PathVariable Long id) {
+        return Result.success(DocumentVO.from(documentService.getById(id)));
     }
 
     @Operation(summary = "更新文档")
     @PutMapping("/{id}")
-    public Result<Document> update(@PathVariable Long id, @RequestBody DocUpdateDTO dto) {
-        return Result.success(documentService.update(id, dto));
+    public Result<DocumentVO> update(@PathVariable Long id, @RequestBody DocUpdateDTO dto) {
+        return Result.success(DocumentVO.from(documentService.update(id, dto)));
     }
 
     @Operation(summary = "发布文档")
     @PostMapping("/{id}/publish")
-    public Result<Document> publish(@PathVariable Long id) {
-        return Result.success(documentService.publish(id));
+    public Result<DocumentVO> publish(@PathVariable Long id) {
+        return Result.success(DocumentVO.from(documentService.publish(id)));
     }
 
     @Operation(summary = "取消发布（转为草稿）")
     @PostMapping("/{id}/unpublish")
-    public Result<Document> unpublish(@PathVariable Long id) {
-        return Result.success(documentService.unpublish(id));
+    public Result<DocumentVO> unpublish(@PathVariable Long id) {
+        return Result.success(DocumentVO.from(documentService.unpublish(id)));
     }
 
     @Operation(summary = "删除文档（逻辑删除）")
@@ -103,8 +87,9 @@ public class DocumentController {
 
     @Operation(summary = "获取已发布文档列表（公开端）")
     @GetMapping("/published")
-    public Result<List<Document>> getPublished() {
-        return Result.success(documentService.getPublished());
+    public Result<List<DocumentVO>> getPublished() {
+        return Result.success(
+                documentService.getPublished().stream().map(DocumentVO::from).toList());
     }
 
     @Operation(summary = "全文检索")
@@ -122,7 +107,8 @@ public class DocumentController {
     @Operation(summary = "导入 PDF（上传原文 + 提取文本存入文档库）")
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/import-pdf")
-    public Result<Document> importPdf(@RequestParam("file") MultipartFile file) throws IOException {
-        return Result.success(documentService.importPdf(file));
+    public Result<DocumentVO> importPdf(@RequestParam("file") MultipartFile file)
+            throws IOException {
+        return Result.success(DocumentVO.from(documentService.importPdf(file)));
     }
 }

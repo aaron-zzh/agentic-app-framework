@@ -49,6 +49,22 @@ public class DocumentService {
         this.operatorContext = operatorContext;
     }
 
+    /** 统计当前用户有效文档数量。 */
+    @Transactional(readOnly = true)
+    public long countCurrentUser() {
+        var ownerId = operatorContext.currentOwnerId().orElse(null);
+        return ownerId != null
+                ? documentRepository.countByOwnerIdAndStatus(ownerId, "active")
+                : 0L;
+    }
+
+    /** 获取当前用户文档列表（不含正文）。 */
+    @Transactional(readOnly = true)
+    public List<DocListItemVO> listCurrentUser() {
+        var ownerId = operatorContext.currentOwnerId().orElse(null);
+        return ownerId != null ? documentRepository.listByOwner(ownerId) : List.of();
+    }
+
     /** 获取文档树（按当前用户 ownerId 过滤）。 */
     public List<DocTreeNodeVO> getTree() {
         Long ownerId = operatorContext.currentOwnerId().orElse(null);
