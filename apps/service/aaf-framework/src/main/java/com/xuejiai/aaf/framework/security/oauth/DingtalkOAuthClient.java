@@ -4,12 +4,10 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 
-import lombok.extern.slf4j.Slf4j;
-
 /** 钉钉 OAuth 客户端。 */
-@Slf4j
 public class DingtalkOAuthClient implements OAuthClient {
 
     private static final String AUTH_URL = "https://login.dingtalk.com/oauth2/auth";
@@ -62,16 +60,20 @@ public class DingtalkOAuthClient implements OAuthClient {
                                         "authorization_code"))
                         .retrieve()
                         .body(Map.class);
-        log.debug("钉钉 token 响应: {}", tokenResp);
+        if (tokenResp == null) {
+            throw new IllegalStateException("钉钉 OAuth token 兑换失败: 响应为空");
+        }
 
         String accessToken = (String) tokenResp.get("accessToken");
+        if (!StringUtils.hasText(accessToken)) {
+            throw new IllegalStateException("钉钉 OAuth token 响应缺少 accessToken");
+        }
         String refreshToken = (String) tokenResp.get("refreshToken");
         int expiresIn =
                 tokenResp.get("expireIn") != null
                         ? ((Number) tokenResp.get("expireIn")).intValue()
                         : 7200;
 
-        // 获取用户信息
         var userResp =
                 restClient
                         .get()
@@ -79,11 +81,17 @@ public class DingtalkOAuthClient implements OAuthClient {
                         .header("x-acs-dingtalk-access-token", accessToken)
                         .retrieve()
                         .body(Map.class);
-        log.debug("钉钉用户信息响应: {}", userResp);
+        if (userResp == null) {
+            throw new IllegalStateException("钉钉 OAuth 用户信息获取失败: 响应为空");
+        }
+        String openId = (String) userResp.get("openId");
+        if (!StringUtils.hasText(openId)) {
+            throw new IllegalStateException("钉钉 OAuth 用户响应缺少 openId");
+        }
 
         return new OAuthUserInfo(
                 "dingtalk",
-                (String) userResp.get("openId"),
+                openId,
                 (String) userResp.get("nick"),
                 (String) userResp.get("avatarUrl"),
                 accessToken,

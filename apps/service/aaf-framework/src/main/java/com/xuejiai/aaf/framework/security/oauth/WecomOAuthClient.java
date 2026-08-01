@@ -4,12 +4,10 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 
-import lombok.extern.slf4j.Slf4j;
-
 /** 企业微信 OAuth 客户端。 */
-@Slf4j
 public class WecomOAuthClient implements OAuthClient {
 
     private static final String AUTH_URL = "https://login.work.weixin.qq.com/wwlogin/sso/login";
@@ -47,7 +45,6 @@ public class WecomOAuthClient implements OAuthClient {
     @Override
     @SuppressWarnings("unchecked")
     public OAuthUserInfo exchangeToken(String code) {
-        // 获取企业 access_token
         var tokenResp =
                 restClient
                         .get()
@@ -57,28 +54,48 @@ public class WecomOAuthClient implements OAuthClient {
                                 config.secret())
                         .retrieve()
                         .body(Map.class);
-        log.debug("企业微信 token 响应: {}", tokenResp);
+        requireSuccess(tokenResp, "企业微信 OAuth token 兑换失败");
 
         String accessToken = (String) tokenResp.get("access_token");
+        if (!StringUtils.hasText(accessToken)) {
+            throw new IllegalStateException("企业微信 OAuth token 响应缺少 access_token");
+        }
         int expiresIn =
                 tokenResp.get("expires_in") != null
                         ? ((Number) tokenResp.get("expires_in")).intValue()
                         : 7200;
 
-        // 用 code 获取用户信息
         var userResp =
                 restClient
                         .get()
                         .uri(USERINFO_URL + "?access_token={token}&code={code}", accessToken, code)
                         .retrieve()
                         .body(Map.class);
-        log.debug("企业微信用户信息响应: {}", userResp);
+        requireSuccess(userResp, "企业微信 OAuth 用户信息获取失败");
 
         String userId = (String) userResp.get("userid");
-        if (userId == null) {
+        if (!StringUtils.hasText(userId)) {
             userId = (String) userResp.get("open_userid");
+        }
+        if (!StringUtils.hasText(userId)) {
+            throw new IllegalStateException("企业微信 OAuth 用户响应缺少 userid 或 open_userid");
         }
 
         return new OAuthUserInfo("wecom", userId, userId, null, accessToken, null, expiresIn);
+    }
+
+    private static void requireSuccess(Map<String, Object> response, String message) {
+        if (response == null) {
+            throw new IllegalStateException(message + ": 响应为空");
+        }
+        var errorCode = response.get("errcode");
+        if (errorCode instanceof Number number && number.intValue() != 0) {
+            throw new IllegalStateException(
+                    message
+                            + ": code="
+                            + number.intValue()
+                            + ", message="
+                            + response.get("errmsg"));
+        }
     }
 }

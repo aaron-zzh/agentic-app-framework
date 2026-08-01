@@ -4,12 +4,10 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 
-import lombok.extern.slf4j.Slf4j;
-
 /** 微信开放平台 OAuth 客户端。 */
-@Slf4j
 public class WechatOAuthClient implements OAuthClient {
 
     private static final String AUTH_URL = "https://open.weixin.qq.com/connect/qrconnect";
@@ -46,7 +44,6 @@ public class WechatOAuthClient implements OAuthClient {
     @Override
     @SuppressWarnings("unchecked")
     public OAuthUserInfo exchangeToken(String code) {
-        // 用 code 换取 access_token
         var tokenResp =
                 restClient
                         .get()
@@ -58,17 +55,19 @@ public class WechatOAuthClient implements OAuthClient {
                                 code)
                         .retrieve()
                         .body(Map.class);
-        log.debug("微信 token 响应: {}", tokenResp);
+        requireSuccess(tokenResp, "errcode", "errmsg", "微信 OAuth token 兑换失败");
 
         String accessToken = (String) tokenResp.get("access_token");
         String openid = (String) tokenResp.get("openid");
+        if (!StringUtils.hasText(accessToken) || !StringUtils.hasText(openid)) {
+            throw new IllegalStateException("微信 OAuth token 响应缺少 access_token 或 openid");
+        }
         String refreshToken = (String) tokenResp.get("refresh_token");
         int expiresIn =
                 tokenResp.get("expires_in") != null
                         ? ((Number) tokenResp.get("expires_in")).intValue()
                         : 7200;
 
-        // 获取用户信息
         var userResp =
                 restClient
                         .get()
@@ -78,7 +77,7 @@ public class WechatOAuthClient implements OAuthClient {
                                 openid)
                         .retrieve()
                         .body(Map.class);
-        log.debug("微信用户信息响应: {}", userResp);
+        requireSuccess(userResp, "errcode", "errmsg", "微信 OAuth 用户信息获取失败");
 
         return new OAuthUserInfo(
                 "wechat",
@@ -88,5 +87,24 @@ public class WechatOAuthClient implements OAuthClient {
                 accessToken,
                 refreshToken,
                 expiresIn);
+    }
+
+    private static void requireSuccess(
+            Map<String, Object> response,
+            String errorCodeField,
+            String errorMessageField,
+            String message) {
+        if (response == null) {
+            throw new IllegalStateException(message + ": 响应为空");
+        }
+        var errorCode = response.get(errorCodeField);
+        if (errorCode instanceof Number number && number.intValue() != 0) {
+            throw new IllegalStateException(
+                    message
+                            + ": code="
+                            + number.intValue()
+                            + ", message="
+                            + response.get(errorMessageField));
+        }
     }
 }
