@@ -11,6 +11,19 @@ public interface EntitlementQuotaRepository extends CrudEntityRepository<Entitle
 
     Optional<EntitlementQuota> findByUserIdAndEntId(Long userId, Long entId);
 
+    /**
+     * M4：加行锁读取额度（{@code SELECT ... FOR UPDATE}），供真实扣减使用。
+     *
+     * <p>{@code check}（只读预判）与 {@code consume}（真扣）分处两个事务，若扣减仍走无锁的读改写， 并发请求会同时读到相同 remain 后各自写回，导致丢失更新甚至
+     * remain 变负。与积分侧 {@code CreditAccountRepository#findByUserIdForUpdate} 保持同一并发策略。
+     */
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query(
+            "SELECT q FROM EntitlementQuota q WHERE q.userId = :userId AND q.entId = :entId AND q.deleted = false")
+    Optional<EntitlementQuota> findByUserIdAndEntIdForUpdate(
+            @org.springframework.data.repository.query.Param("userId") Long userId,
+            @org.springframework.data.repository.query.Param("entId") Long entId);
+
     List<EntitlementQuota> findByUserId(Long userId);
 
     @org.springframework.data.jpa.repository.Query(

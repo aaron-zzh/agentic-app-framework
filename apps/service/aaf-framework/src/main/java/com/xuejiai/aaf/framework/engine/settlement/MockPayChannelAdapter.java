@@ -7,13 +7,25 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import lombok.extern.slf4j.Slf4j;
 
-/** 模拟支付渠道适配器——直接返回成功，用于开发和测试。仅在 aaf.pay.mock.enabled=true 时注册（生产默认关闭）。 */
+/**
+ * 模拟支付渠道适配器——直接返回成功，用于开发和测试。
+ *
+ * <p>B2 生产硬隔离（双保险）：
+ *
+ * <ul>
+ *   <li>{@link ConditionalOnProperty}：仅 {@code aaf.pay.mock.enabled=true} 时注册，默认关闭
+ *   <li>{@link Profile}：{@code prod} Profile 下即使配置误开也不注册 Bean，MOCK 渠道对 {@code SettlementEngine}
+ *       不可见，下单会被"不支持的支付渠道"直接拒绝
+ * </ul>
+ */
 @Slf4j
 @Component
+@Profile("!prod")
 @ConditionalOnProperty(
         prefix = "aaf.pay.mock",
         name = "enabled",

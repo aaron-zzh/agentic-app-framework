@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.enums.billing.EntitlementOperationEnum;
 import com.xuejiai.aaf.common.enums.billing.EntitlementTypeEnum;
+import com.xuejiai.aaf.common.enums.billing.SubscriptionStatusEnum;
 import com.xuejiai.aaf.common.exception.QuotaExceededException;
 import com.xuejiai.aaf.framework.engine.entitlement.EntitlementChecker;
 import com.xuejiai.aaf.module.billing.domain.EntitlementLedger;
@@ -75,14 +76,21 @@ public class EntitlementService implements EntitlementChecker {
 
         if (EntitlementTypeEnum.BOOLEAN.getCode().equals(def.getType())) return;
 
+        // M4：真扣减必须走行锁读取——check 是只读预判且与本方法不在同一事务，
+        // 无锁读改写在并发下会丢失更新、把 remain 扣成负数。
         var quota =
                 quotaRepository
-                        .findByUserIdAndEntId(userId, def.getId())
+                        .findByUserIdAndEntIdForUpdate(userId, def.getId())
                         .orElseThrow(() -> new QuotaExceededException(code, cost, 0));
 
         if (quota.getTotal() == -1) {
             writeLedger(quota.getId(), -cost, EntitlementOperationEnum.USE, null, null);
             return;
+        }
+
+        // M4：持锁后重新校验剩余额度（check 与 consume 之间额度可能已被其他请求消耗）
+        if (quota.getRemain() < cost) {
+            throw new QuotaExceededException(code, cost, quota.getRemain());
         }
 
         deduct(quota, cost);
@@ -133,7 +141,8 @@ public class EntitlementService implements EntitlementChecker {
         for (var quota : expiredQuotas) {
             var subscription =
                     subscriptionRepository
-                            .findByUserIdAndStatus(quota.getUserId(), "ACTIVE")
+                            .findByUserIdAndStatus(
+                                    quota.getUserId(), SubscriptionStatusEnum.ACTIVE.getCode())
                             .orElse(null);
             if (subscription == null) continue;
             var rule =
@@ -168,6 +177,7 @@ public class EntitlementService implements EntitlementChecker {
 
     // ===== 私有方法 =====
 
+    /** 扣减额度并写 ledger。调用方须已持有 quota 行锁（见 {@code consume}）。 */
     private void deduct(EntitlementQuota quota, long cost) {
         quota.setUsed(quota.getUsed() + cost);
         quota.setRemain(quota.getRemain() - cost);

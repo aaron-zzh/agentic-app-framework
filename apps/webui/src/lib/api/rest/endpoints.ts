@@ -92,8 +92,7 @@ export const restEndpoints = {
     orders: "/pay/orders",
     order: (id: string | number) => `/pay/orders/${id}`,
     orderByMerchantOrderNo: (merchantOrderNo: string) =>
-      `/pay/orders/by-merchant-order-no/${merchantOrderNo}`,
-    recharge: "/pay/orders/recharge"
+      `/pay/orders/by-merchant-order-no/${merchantOrderNo}`
   },
   dashboard: {
     dashboards: "/system/dashboards",

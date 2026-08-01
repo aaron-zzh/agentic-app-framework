@@ -65,6 +65,15 @@ public class CreditTransaction extends BaseEntity {
     @Column(name = "remain")
     private Long remain;
 
+    /**
+     * M3：入账幂等键，格式 {@code accountId:source:bizId}，仅一次性入账（支付充值、任务奖励等）填充。
+     *
+     * <p>数据库对该列建有部分唯一索引（{@code idempotency_key IS NOT NULL AND deleted = FALSE}），
+     * 是并发/重复回调重复加分的最后一道硬约束。周期性发放（月度订阅、周签到）同一 bizId 会合法重复， 故走 {@code earnBatch} 时该列为 NULL，不受唯一约束限制。
+     */
+    @Column(name = "idempotency_key", length = 160)
+    private String idempotencyKey;
+
     /** 备注 */
     @Column(name = "remark", length = 500)
     private String remark;

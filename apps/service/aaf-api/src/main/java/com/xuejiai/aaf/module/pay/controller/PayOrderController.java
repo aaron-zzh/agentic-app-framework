@@ -15,7 +15,6 @@ import com.xuejiai.aaf.module.pay.handler.PaySuccessHandler;
 import com.xuejiai.aaf.module.pay.service.BizOrderService;
 import com.xuejiai.aaf.module.pay.service.PayNotifyService;
 import com.xuejiai.aaf.module.pay.service.PayOrderService;
-import com.xuejiai.aaf.module.pay.service.RechargeService;
 import com.xuejiai.aaf.module.pay.vo.PayOrderCreateDTO;
 import com.xuejiai.aaf.module.pay.vo.PayOrderVO;
 
@@ -32,7 +31,6 @@ import lombok.extern.slf4j.Slf4j;
 public class PayOrderController {
 
     private final PayOrderService payOrderService;
-    private final RechargeService rechargeService;
     private final BizOrderService bizOrderService;
     private final PayNotifyService payNotifyService;
     private final Map<String, PaySuccessHandler> handlers;
@@ -41,14 +39,12 @@ public class PayOrderController {
 
     public PayOrderController(
             PayOrderService payOrderService,
-            RechargeService rechargeService,
             BizOrderService bizOrderService,
             PayNotifyService payNotifyService,
             List<PaySuccessHandler> handlerList,
             java.util.Optional<WxPayChannelAdapter> wxPayAdapter,
             java.util.Optional<AlipayChannelAdapter> alipayAdapter) {
         this.payOrderService = payOrderService;
-        this.rechargeService = rechargeService;
         this.bizOrderService = bizOrderService;
         this.payNotifyService = payNotifyService;
         this.handlers =
@@ -61,14 +57,9 @@ public class PayOrderController {
         log.info("PaySuccessHandler 注册完成: {}", this.handlers.keySet());
     }
 
-    @Operation(summary = "发起充值")
-    @PreAuthorize("isAuthenticated()")
-    @PostMapping("/recharge")
-    public Result<PayOrderVO> recharge(
-            @RequestParam long amount,
-            @RequestParam(defaultValue = "MOCK") String channelCode) {
-        return Result.success(rechargeService.initiateRecharge(amount, channelCode));
-    }
+    // B2：原 POST /recharge 由客户端提交 amount 直接下单，Mock 渠道下可同步入账形成"客户端定价铸币"。
+    // 该入口已删除：充值统一走 POST /api/billing/credit-packages/purchase，
+    // 金额取 credit_package.price（服务端货架定价），客户端只提交 packageId。
 
     @Operation(summary = "创建支付单")
     @PreAuthorize("isAuthenticated()")

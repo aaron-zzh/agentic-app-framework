@@ -1,6 +1,8 @@
 package com.xuejiai.aaf.module.pay.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -48,17 +50,41 @@ class PayOrderServiceTest {
     }
 
     @Test
-    @DisplayName("Given 支付单已成功 When 收到重复微信事件 Then 不返回副作用触发 ID 且不重复保存")
+    @DisplayName("Given 支付单已成功 When 收到重复微信事件 Then 原子迁移未命中且不返回副作用触发 ID")
     void should_not_trigger_side_effect_again_when_wx_event_replayed() {
-        var order = new PayOrder();
-        order.setId(10L);
-        order.setMerchantOrderNo("M-1");
-        order.setStatus(PayOrderStatusEnum.SUCCESS.getCode());
-        when(payOrderRepository.findByMerchantOrderNo("M-1")).thenReturn(Optional.of(order));
+        // M3：重复/并发回调下 UPDATE ... WHERE status = WAITING 命中 0 行
+        when(payOrderRepository.transitionStatus(
+                        eq("M-1"),
+                        eq(PayOrderStatusEnum.WAITING.getCode()),
+                        eq(PayOrderStatusEnum.SUCCESS.getCode()),
+                        eq("WX-1"),
+                        any()))
+                .thenReturn(0);
 
         var result = payOrderService.handleWxNotify("M-1", "WX-1");
 
         assertThat(result).isNull();
-        verify(payOrderRepository, never()).save(order);
+        verify(payOrderRepository, never()).findByMerchantOrderNo("M-1");
+    }
+
+    @Test
+    @DisplayName("Given 支付单待支付 When 首个回调到达 Then 抢到原子状态迁移并返回支付单 ID")
+    void should_return_pay_order_id_when_transition_won() {
+        var order = new PayOrder();
+        order.setId(10L);
+        order.setMerchantOrderNo("M-2");
+        order.setStatus(PayOrderStatusEnum.SUCCESS.getCode());
+        when(payOrderRepository.transitionStatus(
+                        eq("M-2"),
+                        eq(PayOrderStatusEnum.WAITING.getCode()),
+                        eq(PayOrderStatusEnum.SUCCESS.getCode()),
+                        eq("ALI-1"),
+                        any()))
+                .thenReturn(1);
+        when(payOrderRepository.findByMerchantOrderNo("M-2")).thenReturn(Optional.of(order));
+
+        var result = payOrderService.handleAlipayNotify("M-2", "ALI-1");
+
+        assertThat(result).isEqualTo(10L);
     }
 }

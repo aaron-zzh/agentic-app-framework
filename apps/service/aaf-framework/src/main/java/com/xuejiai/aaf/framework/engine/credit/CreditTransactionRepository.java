@@ -29,4 +29,9 @@ public interface CreditTransactionRepository extends CrudEntityRepository<Credit
     @Query(
             "SELECT COUNT(t) > 0 FROM CreditTransaction t WHERE t.type = com.xuejiai.aaf.framework.engine.credit.CreditTransactionType.EARN AND t.source = :refundSource AND t.bizId = :originalTxIdStr AND t.deleted = false")
     boolean existsRefundForOriginalTx(String refundSource, String originalTxIdStr);
+
+    /** M3：判断一次性入账幂等键是否已存在（与数据库部分唯一索引配套，先查后插给出友好跳过）。 */
+    @Query(
+            "SELECT COUNT(t) > 0 FROM CreditTransaction t WHERE t.idempotencyKey = :idempotencyKey AND t.deleted = false")
+    boolean existsByIdempotencyKey(String idempotencyKey);
 }

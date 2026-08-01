@@ -11,8 +11,8 @@ import com.xuejiai.aaf.common.enums.pay.PayOrderStatusEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.engine.settlement.*;
-import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.engine.settlement.channel.BrokerageBalanceChannelAdapter;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.brokerage.repository.BrokerageUserRepository;
 import com.xuejiai.aaf.module.pay.ErrorCodeConstants;
 import com.xuejiai.aaf.module.pay.domain.PayOrder;
@@ -132,21 +132,29 @@ public class PayOrderService {
         return markSuccess(outTradeNo, tradeNo);
     }
 
+    /**
+     * M3：以原子状态迁移标记支付成功，返回 payOrderId（未抢到迁移则返回 null）。
+     *
+     * <p>原实现"先查 → 判断非 SUCCESS → 改字段 → save"在并发回调（渠道重推 + 定时同步同时命中）下 两个事务可同时通过状态检查，各自触发一次积分入账；且
+     * CLOSED/过期订单也会被改写为 SUCCESS。 改为 {@code UPDATE ... WHERE status = WAITING} 后，只有一个事务拿到 updated=1，
+     * 且只有真正待支付的订单可迁移。
+     */
     private Long markSuccess(String merchantOrderNo, String channelOrderNo) {
-        var order = payOrderRepository.findByMerchantOrderNo(merchantOrderNo).orElse(null);
-        if (order == null) {
-            log.warn("支付回调：找不到支付单, merchantOrderNo={}", merchantOrderNo);
+        int updated =
+                payOrderRepository.transitionStatus(
+                        merchantOrderNo,
+                        PayOrderStatusEnum.WAITING.getCode(),
+                        PayOrderStatusEnum.SUCCESS.getCode(),
+                        channelOrderNo,
+                        LocalDateTime.now());
+        if (updated == 0) {
+            log.info("支付回调未触发状态迁移（订单不存在或已非待支付）: merchantOrderNo={}", merchantOrderNo);
             return null;
         }
-        if (order.getStatus().equals(PayOrderStatusEnum.SUCCESS.getCode())) {
-            log.info("支付单已成功，忽略重复回调: merchantOrderNo={}", merchantOrderNo);
-            return null;
-        }
-        order.setStatus(PayOrderStatusEnum.SUCCESS.getCode());
-        order.setChannelOrderNo(channelOrderNo);
-        order.setSuccessTime(LocalDateTime.now());
-        payOrderRepository.save(order);
-        return order.getId();
+        return payOrderRepository
+                .findByMerchantOrderNo(merchantOrderNo)
+                .map(PayOrder::getId)
+                .orElse(null);
     }
 
     /** 支付回调处理（Mock 渠道，返回支付单 ID） */
@@ -164,21 +172,21 @@ public class PayOrderService {
             throw exception(ErrorCodeConstants.PAY_ORDER_NOTIFY_UNSIGNED_FORBIDDEN);
         }
 
-        if (!order.getStatus().equals(PayOrderStatusEnum.WAITING.getCode())) {
-            log.warn("支付单已处理，忽略回调: merchantOrderNo={}", dto.merchantOrderNo());
+        // M3：与真实渠道回调走同一套原子状态迁移，避免并发回调重复入账
+        if (!dto.success()) {
+            payOrderRepository.transitionStatusOnly(
+                    dto.merchantOrderNo(),
+                    PayOrderStatusEnum.WAITING.getCode(),
+                    PayOrderStatusEnum.CLOSED.getCode(),
+                    LocalDateTime.now());
+            log.info("支付回调处理完成（支付失败关单）: merchantOrderNo={}", dto.merchantOrderNo());
             return null;
         }
-
-        if (dto.success()) {
-            order.setStatus(PayOrderStatusEnum.SUCCESS.getCode());
-            order.setChannelOrderNo(dto.channelOrderNo());
-            order.setSuccessTime(LocalDateTime.now());
-        } else {
-            order.setStatus(PayOrderStatusEnum.CLOSED.getCode());
+        Long payOrderId = markSuccess(dto.merchantOrderNo(), dto.channelOrderNo());
+        if (payOrderId != null) {
+            log.info("支付回调处理完成: merchantOrderNo={}", dto.merchantOrderNo());
         }
-        payOrderRepository.save(order);
-        log.info("支付回调处理完成: merchantOrderNo={}, success={}", dto.merchantOrderNo(), dto.success());
-        return dto.success() ? order.getId() : null;
+        return payOrderId;
     }
 
     /** 判断支付单是否已成功 */

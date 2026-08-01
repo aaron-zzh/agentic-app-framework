@@ -57,13 +57,15 @@ public class CreditServiceImpl implements CreditService {
     @Transactional
     public void earn(Long userId, long amount, String source, String bizId) {
         // 充值积分有效期 2 年
-        earnBatch(
+        // M3：支付类一次性入账，以「账户+来源+业务单号」为幂等键，并发/重复回调不会重复加分
+        doEarn(
                 userId,
                 amount,
                 "TOPUP",
                 source,
                 bizId,
-                LocalDateTime.now().plusDays(TOPUP_EXPIRE_DAYS));
+                LocalDateTime.now().plusDays(TOPUP_EXPIRE_DAYS),
+                true);
     }
 
     @Override
@@ -75,10 +77,36 @@ public class CreditServiceImpl implements CreditService {
             String source,
             String bizId,
             LocalDateTime expireAt) {
+        // M3：周期性/规则类发放（月度订阅、周签到）同一 bizId 会合法重复出现，故不套幂等键
+        doEarn(userId, amount, batchType, source, bizId, expireAt, false);
+    }
+
+    /**
+     * 入账统一实现。
+     *
+     * <p>M3：{@code idempotent=true} 时按 {@code accountId:source:bizId} 生成幂等键—— {@link
+     * #getOrCreateAccount} 走 {@code findByUserIdForUpdate} 持有账户行锁，同账户并发入账被串行化，
+     * 先查幂等键再插即可拦住重复；跨事务的极端并发由 {@code credit_transaction.idempotency_key} 的部分唯一索引兜底。
+     */
+    private void doEarn(
+            Long userId,
+            long amount,
+            String batchType,
+            String source,
+            String bizId,
+            LocalDateTime expireAt,
+            boolean idempotent) {
         if (amount <= 0) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "赚取金额必须大于 0");
         }
         var account = getOrCreateAccount(userId);
+        String idempotencyKey =
+                idempotent && bizId != null ? account.getId() + ":" + source + ":" + bizId : null;
+        if (idempotencyKey != null
+                && transactionRepository.existsByIdempotencyKey(idempotencyKey)) {
+            log.info("积分入账幂等跳过（该业务单号已入账）: userId={}, key={}", userId, idempotencyKey);
+            return;
+        }
         account.setBalance(account.getBalance() + amount);
         account.setTotalEarned(account.getTotalEarned() + amount);
         accountRepository.save(account);
@@ -93,6 +121,7 @@ public class CreditServiceImpl implements CreditService {
         tx.setBatchType(batchType);
         tx.setExpireAt(expireAt);
         tx.setRemain(amount);
+        tx.setIdempotencyKey(idempotencyKey);
         transactionRepository.save(tx);
 
         log.info(

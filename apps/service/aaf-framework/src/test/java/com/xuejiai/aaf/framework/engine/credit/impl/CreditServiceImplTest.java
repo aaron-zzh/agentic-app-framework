@@ -293,4 +293,41 @@ class CreditServiceImplTest extends BaseMockitoUnitTest {
                                         100L, 0L, 999L, LocalDateTime.now()))
                 .isInstanceOf(BusinessException.class);
     }
+
+    // ========== M3 入账幂等测试 ==========
+
+    @Test
+    @DisplayName("Given 同一业务单号已入账 When earn Then 幂等跳过不重复加分")
+    void earn_duplicateBizId_skipped() {
+        when(transactionRepository.existsByIdempotencyKey("1:RECHARGE:BIZ-1")).thenReturn(true);
+
+        creditService.earn(100L, 50L, "RECHARGE", "BIZ-1");
+
+        assertThat(account.getBalance()).isEqualTo(5L);
+        verify(transactionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Given 业务单号首次入账 When earn Then 正常加分并写入幂等键")
+    void earn_firstTime_writesIdempotencyKey() {
+        when(transactionRepository.existsByIdempotencyKey("1:RECHARGE:BIZ-2")).thenReturn(false);
+
+        creditService.earn(100L, 50L, "RECHARGE", "BIZ-2");
+
+        assertThat(account.getBalance()).isEqualTo(55L);
+        var captor = ArgumentCaptor.forClass(CreditTransaction.class);
+        verify(transactionRepository).save(captor.capture());
+        assertThat(captor.getValue().getIdempotencyKey()).isEqualTo("1:RECHARGE:BIZ-2");
+    }
+
+    @Test
+    @DisplayName("Given 周期性发放 When earnBatch Then 不写幂等键（允许同一 bizId 重复发放）")
+    void earnBatch_periodicGrant_hasNoIdempotencyKey() {
+        creditService.earnBatch(100L, 100L, "SUBSCRIPTION", "SUBSCRIPTION_MONTHLY", "77", null);
+
+        var captor = ArgumentCaptor.forClass(CreditTransaction.class);
+        verify(transactionRepository).save(captor.capture());
+        assertThat(captor.getValue().getIdempotencyKey()).isNull();
+        verify(transactionRepository, never()).existsByIdempotencyKey(any());
+    }
 }
