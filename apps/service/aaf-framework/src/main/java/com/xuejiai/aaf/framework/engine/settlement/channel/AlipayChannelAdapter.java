@@ -167,8 +167,29 @@ public class AlipayChannelAdapter implements PayChannelAdapter {
         }
     }
 
+    /**
+     * M28：统一回调验签入口——支付宝验签基于表单参数。
+     *
+     * <p>验签通过后把 {@code trade_status} 归一为 {@link PayStatus}，调用方不再解析渠道原始状态字符串。
+     */
+    @Override
+    public NotifyResult verifyAndParseNotify(NotifyEnvelope envelope) {
+        var params = envelope.formParams();
+        if (!verifyNotify(params)) {
+            log.warn("支付宝回调验签失败: outTradeNo={}", params.get("out_trade_no"));
+            return NotifyResult.rejected("验签失败");
+        }
+        String tradeStatus = params.get("trade_status");
+        String outTradeNo = params.get("out_trade_no");
+        if ("TRADE_SUCCESS".equals(tradeStatus) || "TRADE_FINISHED".equals(tradeStatus)) {
+            return NotifyResult.paid(outTradeNo, params.get("trade_no"), tradeStatus);
+        }
+        var status = "TRADE_CLOSED".equals(tradeStatus) ? PayStatus.CLOSED : PayStatus.UNPAID;
+        return NotifyResult.verifiedButNotPaid(status, outTradeNo, tradeStatus);
+    }
+
     /** 验证支付宝异步通知签名 */
-    public boolean verifyNotify(Map<String, String> params) {
+    private boolean verifyNotify(Map<String, String> params) {
         try {
             return AlipaySignature.rsaCheckV1(
                     params, properties.getAlipayPublicKey(), "UTF-8", "RSA2");
@@ -192,24 +213,14 @@ public class AlipayChannelAdapter implements PayChannelAdapter {
         return chargePagePay(request);
     }
 
+    /**
+     * 下载支付宝账单——CSV 下载与解析尚未实现。
+     *
+     * <p>M27：原实现仅取到下载地址就 {@code return List.of()}，对账拿到零条渠道记录会静默失真。 未实现即显式失败，禁止以空账单参与对账。
+     */
     @Override
     public List<PayChannelAdapter.BillItem> downloadBill(java.time.LocalDate date) {
-        try {
-            var model = new com.alipay.api.domain.AlipayDataDataserviceBillDownloadurlQueryModel();
-            model.setBillType("trade");
-            model.setBillDate(date.toString());
-            var req = new com.alipay.api.request.AlipayDataDataserviceBillDownloadurlQueryRequest();
-            req.setBizModel(model);
-            var response = alipayClient.execute(req);
-            if (response.isSuccess()) {
-                // 简化：实际需下载 CSV 并解析
-                log.info("支付宝账单下载地址: {}", response.getBillDownloadUrl());
-            }
-            return List.of();
-        } catch (AlipayApiException e) {
-            log.error("支付宝账单下载失败: date={}", date, e);
-            return List.of();
-        }
+        throw new UnsupportedOperationException("支付宝账单 CSV 下载与解析尚未实现，不能以空账单参与对账");
     }
 
     private String chargePagePay(ChargeRequest request) throws AlipayApiException {

@@ -45,4 +45,46 @@ class FileServiceTest {
 
         assertThat(vo.key()).isEqualTo("2026/05/30/abc.png");
     }
+
+    /** B13：SVG 属主动内容，即使伪装扩展名也应拒绝（存储型 XSS）。 */
+    @Test
+    void upload_svg主动内容拒绝() {
+        var svg =
+                new MockMultipartFile(
+                        "file", "x.svg", "image/svg+xml", "<svg onload=alert(1)>".getBytes());
+        assertThatThrownBy(() -> service.upload(svg)).isInstanceOf(StorageException.class);
+    }
+
+    /** B13：byte[] 入口以前完全绕过校验，现在同样受类型白名单约束。 */
+    @Test
+    void uploadFromBytes_非白名单类型拒绝() {
+        assertThatThrownBy(
+                        () ->
+                                service.uploadFromBytes(
+                                        "x".getBytes(), "a/b/x.sh", "application/x-sh"))
+                .isInstanceOf(StorageException.class)
+                .hasMessageContaining("类型");
+    }
+
+    /** B13：byte[] 入口超过大小上限同样拒绝。 */
+    @Test
+    void uploadFromBytes_超大拒绝() {
+        assertThatThrownBy(
+                        () ->
+                                service.uploadFromBytes(
+                                        new byte[11 * 1024 * 1024], "a/b/x.png", "image/png"))
+                .isInstanceOf(StorageException.class)
+                .hasMessageContaining("大小");
+    }
+
+    /** B13：Base64 入口以 data URL 声明 HTML 时应被主动内容规则拦住。 */
+    @Test
+    void uploadFromBase64_html主动内容拒绝() {
+        var dataUrl =
+                "data:text/html;base64,"
+                        + java.util.Base64.getEncoder()
+                                .encodeToString("<script>alert(1)</script>".getBytes());
+        assertThatThrownBy(() -> service.uploadFromBase64(dataUrl, "a/b/x.html"))
+                .isInstanceOf(StorageException.class);
+    }
 }

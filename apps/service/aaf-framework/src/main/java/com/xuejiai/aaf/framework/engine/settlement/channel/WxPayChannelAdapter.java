@@ -120,8 +120,10 @@ public class WxPayChannelAdapter implements PayChannelAdapter {
             wxRequest.setOutTradeNo(request.outTradeNo());
             wxRequest.setOutRefundNo(request.refundNo());
             var amount = new WxPayRefundV3Request.Amount();
+            // M25：微信 V3 语义——refund=本次退款额，total=原支付单总额（不是退款额）。
+            // 原实现两者都传退款额，部分退款会被渠道拒绝或按错误比例计算。
             amount.setRefund((int) request.amount());
-            amount.setTotal((int) request.amount()); // 简化：退款金额=原单金额时
+            amount.setTotal((int) request.originalAmount());
             amount.setCurrency("CNY");
             wxRequest.setAmount(amount);
             wxRequest.setReason(request.reason());
@@ -155,6 +157,39 @@ public class WxPayChannelAdapter implements PayChannelAdapter {
         }
     }
 
+    /**
+     * M28：统一回调验签入口——微信 V3 需要原始报文 + Wechatpay-* 请求头。
+     *
+     * <p>验签失败或解析异常统一返回 {@link NotifyResult#rejected}（fail-closed），不向调用方泄露 SDK 细节。
+     */
+    @Override
+    public NotifyResult verifyAndParseNotify(NotifyEnvelope envelope) {
+        var headers = envelope.headers();
+        var header = new SignatureHeader();
+        header.setTimeStamp(headers.get("Wechatpay-Timestamp"));
+        header.setNonce(headers.get("Wechatpay-Nonce"));
+        header.setSignature(headers.get("Wechatpay-Signature"));
+        header.setSerial(headers.get("Wechatpay-Serial"));
+        try {
+            var decrypted = parseOrderNotify(envelope.rawBody(), header).getResult();
+            String tradeState = decrypted.getTradeState();
+            if ("SUCCESS".equals(tradeState)) {
+                return NotifyResult.paid(
+                        decrypted.getOutTradeNo(), decrypted.getTransactionId(), tradeState);
+            }
+            var status =
+                    switch (tradeState) {
+                        case "CLOSED", "PAYERROR", "REVOKED" -> PayStatus.CLOSED;
+                        case "REFUND" -> PayStatus.REFUNDED;
+                        default -> PayStatus.UNPAID;
+                    };
+            return NotifyResult.verifiedButNotPaid(status, decrypted.getOutTradeNo(), tradeState);
+        } catch (WxPayException e) {
+            log.warn("微信回调验签或解析失败: {}", e.getMessage());
+            return NotifyResult.rejected("验签失败");
+        }
+    }
+
     /** 验证微信回调签名并解析通知 */
     public WxPayNotifyV3Result parseOrderNotify(String body, SignatureHeader header)
             throws WxPayException {
@@ -167,20 +202,14 @@ public class WxPayChannelAdapter implements PayChannelAdapter {
         return wxPayService.parseRefundNotifyV3Result(body, header);
     }
 
+    /**
+     * 下载微信账单——CSV 解析尚未实现。
+     *
+     * <p>M27：原实现调用下载接口后 log 成功但 {@code return List.of()}，对账拿到零条渠道记录会
+     * 静默失真（把全部本地记录判为差异，或在无本地记录时误报"无差异"）。未实现即显式失败。
+     */
     @Override
     public List<PayChannelAdapter.BillItem> downloadBill(java.time.LocalDate date) {
-        try {
-            var request = new com.github.binarywang.wxpay.bean.request.WxPayDownloadBillRequest();
-            request.setBillDate(date.toString());
-            request.setBillType("ALL");
-            var result = wxPayService.downloadBill(request);
-            // 简化：解析账单内容为 BillItem 列表
-            // 实际生产中需解析 CSV 格式
-            log.info("微信账单下载成功: date={}", date);
-            return List.of();
-        } catch (WxPayException e) {
-            log.error("微信账单下载失败: date={}", date, e);
-            return List.of();
-        }
+        throw new UnsupportedOperationException("微信账单 CSV 解析尚未实现，不能以空账单参与对账");
     }
 }

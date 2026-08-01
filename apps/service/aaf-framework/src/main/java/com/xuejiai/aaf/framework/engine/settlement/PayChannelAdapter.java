@@ -32,9 +32,14 @@ public interface PayChannelAdapter {
      */
     default void close(String outTradeNo) {}
 
-    /** 验证渠道异步通知签名（M28）。默认 fail-closed 拒绝；具体渠道适配器须覆盖实现真实验签。 */
-    default boolean verifyNotify(java.util.Map<String, String> params) {
-        return false;
+    /**
+     * 验签并解析渠道异步通知（M28）。
+     *
+     * <p>统一回调契约：调用方只组装 {@link NotifyEnvelope}（原始报文 + 请求头 + 表单参数），由适配器完成 验签与状态归一，不再需要按渠道分支调用具体
+     * SDK。默认 fail-closed 拒绝，具体渠道必须覆盖。
+     */
+    default NotifyResult verifyAndParseNotify(NotifyEnvelope envelope) {
+        return NotifyResult.rejected("该渠道未实现回调验签");
     }
 
     /** 下载渠道账单（对账用）。 返回账单条目列表，每条包含：商户订单号、金额（分）、状态。 默认返回空列表（Mock 渠道可覆盖生成模拟数据）。 */

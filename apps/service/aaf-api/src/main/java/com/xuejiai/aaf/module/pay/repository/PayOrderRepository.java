@@ -25,8 +25,8 @@ public interface PayOrderRepository extends JpaRepository<PayOrder, Long> {
     /**
      * M3：原子状态迁移——仅当订单仍处于 {@code fromStatus} 时才置为 {@code toStatus}。
      *
-     * <p>并发回调（同一订单被渠道重推 + 定时同步任务同时命中）下，先读后判再写的写法会让两个事务
-     * 同时通过状态检查、各自触发一次入账。这里把判断与更新压到一条 SQL，由数据库行锁保证只有一个 事务能拿到 {@code updated == 1}，其余得到 0 并跳过后续入账。
+     * <p>并发回调（同一订单被渠道重推 + 定时同步任务同时命中）下，先读后判再写的写法会让两个事务 同时通过状态检查、各自触发一次入账。这里把判断与更新压到一条
+     * SQL，由数据库行锁保证只有一个 事务能拿到 {@code updated == 1}，其余得到 0 并跳过后续入账。
      *
      * @return 实际更新行数：1=本次抢到状态迁移，0=已被其他线程处理或状态不匹配
      */
@@ -53,5 +53,32 @@ public interface PayOrderRepository extends JpaRepository<PayOrder, Long> {
             @Param("merchantOrderNo") String merchantOrderNo,
             @Param("fromStatus") Integer fromStatus,
             @Param("toStatus") Integer toStatus,
+            @Param("updateTime") LocalDateTime updateTime);
+
+    /**
+     * M26：原子占用可退额度——仅当"已退 + 本次 ≤ 订单总额"时累加，返回 1 表示占额成功。
+     *
+     * <p>原实现"读 refundAmount → 比较可退 → 成功后写回"在并发退款申请下，两个事务可同时通过校验， 累计退款超过订单金额。把判断与累加压到一条
+     * UPDATE，由数据库行锁保证上限。
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+            "UPDATE PayOrder o SET o.refundAmount = o.refundAmount + :amount, o.updateTime ="
+                    + " :updateTime WHERE o.id = :id AND o.refundAmount + :amount <= o.amount AND"
+                    + " o.deleted = false")
+    int reserveRefundAmount(
+            @Param("id") Long id,
+            @Param("amount") long amount,
+            @Param("updateTime") LocalDateTime updateTime);
+
+    /** M26：释放已占用的可退额度——渠道明确失败时回退占额，保证额度不被失败退款长期占用。 */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+            "UPDATE PayOrder o SET o.refundAmount = o.refundAmount - :amount, o.updateTime ="
+                    + " :updateTime WHERE o.id = :id AND o.refundAmount >= :amount AND o.deleted ="
+                    + " false")
+    int releaseRefundAmount(
+            @Param("id") Long id,
+            @Param("amount") long amount,
             @Param("updateTime") LocalDateTime updateTime);
 }

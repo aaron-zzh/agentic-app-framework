@@ -7,30 +7,29 @@ import java.util.Base64;
 
 import org.springframework.web.multipart.MultipartFile;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 文件服务门面。在 StorageService 之上提供业务级文件操作。 */
+/**
+ * 文件服务门面。在 StorageService 之上提供业务级文件操作。
+ *
+ * <p>B13：全部上传入口（MultipartFile / URL / byte[] / Base64）共享 {@link UploadPolicy} 校验——类型白名单、
+ * 大小上限、拒绝 SVG/HTML 等主动内容；远程 URL 与流式来源统一走带上限读取，避免超大对象写入存储。
+ */
 @Slf4j
-@RequiredArgsConstructor
 public class FileService {
 
     private final StorageService storageService;
-    private final StorageProperties.UploadLimits uploadLimits;
+    private final UploadPolicy uploadPolicy;
 
-    /** 校验上传文件大小和类型 */
-    private void validateUpload(MultipartFile file) {
-        if (file.getSize() > uploadLimits.maxSizeBytes()) {
-            throw new StorageException("文件超过大小限制", null);
-        }
-        if (!uploadLimits.allowedContentTypes().contains(file.getContentType())) {
-            throw new StorageException("不允许的文件类型: " + file.getContentType(), null);
-        }
+    public FileService(StorageService storageService, StorageProperties.UploadLimits uploadLimits) {
+        this.storageService = storageService;
+        this.uploadPolicy = new UploadPolicy(uploadLimits);
     }
 
     /** 上传文件。 */
     public FileVO upload(MultipartFile file) {
-        validateUpload(file);
+        // B13：统一策略校验（原先仅此入口有校验，且未拦主动内容）
+        uploadPolicy.validate(file.getOriginalFilename(), file.getContentType(), file.getSize());
         try {
             var key =
                     storageService.upload(
@@ -94,7 +93,12 @@ public class FileService {
                 }
             }
             try (var is = conn.getInputStream()) {
-                String key = storageService.upload(is, path, contentType);
+                // B13：远程内容先按上限读入再校验类型/主动内容，避免无上限写入与 SVG/HTML 落库
+                byte[] bytes = uploadPolicy.readWithLimit(is);
+                uploadPolicy.validate(path, contentType, bytes.length);
+                String key =
+                        storageService.upload(
+                                new ByteArrayInputStream(bytes), path, contentType);
                 return storageService.getUrl(key);
             } finally {
                 conn.disconnect();
@@ -114,6 +118,8 @@ public class FileService {
      * @return 存储后的可访问 URL
      */
     public String uploadFromBytes(byte[] bytes, String path, String contentType) {
+        // B13：字节入口同样走统一策略
+        uploadPolicy.validate(path, contentType, bytes != null ? bytes.length : 0);
         try {
             String key = storageService.upload(new ByteArrayInputStream(bytes), path, contentType);
             return storageService.getUrl(key);
@@ -141,6 +147,8 @@ public class FileService {
             }
         }
         byte[] bytes = Base64.getDecoder().decode(data);
+        // B13：Base64 入口同样走统一策略——mime 由 data URL 头推断，可被伪造，故扩展名也参与判定
+        uploadPolicy.validate(path, mime, bytes.length);
         try {
             String key = storageService.upload(new ByteArrayInputStream(bytes), path, mime);
             return storageService.getUrl(key);

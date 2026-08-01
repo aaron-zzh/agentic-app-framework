@@ -9,8 +9,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.framework.engine.settlement.channel.AlipayChannelAdapter;
-import com.xuejiai.aaf.framework.engine.settlement.channel.WxPayChannelAdapter;
+import com.xuejiai.aaf.framework.engine.settlement.NotifyEnvelope;
+import com.xuejiai.aaf.framework.engine.settlement.SettlementEngine;
 import com.xuejiai.aaf.module.pay.handler.PaySuccessHandler;
 import com.xuejiai.aaf.module.pay.service.BizOrderService;
 import com.xuejiai.aaf.module.pay.service.PayNotifyService;
@@ -30,30 +30,37 @@ import lombok.extern.slf4j.Slf4j;
 @RequestMapping("/api/pay/orders")
 public class PayOrderController {
 
+    /**
+     * M28：回调端点用于路由验签适配器的渠道编码。
+     *
+     * <p>回调报文本身不含 AAF 渠道编码，这里用各渠道适配器注册的任一编码定位适配器——同一适配器 覆盖该渠道全部下单方式（wx_pub/wx_lite/… 或
+     * alipay_pc/alipay_wap/…），验签逻辑一致。
+     */
+    private static final String WX_NOTIFY_CHANNEL_CODE = "wx_native";
+
+    private static final String ALIPAY_NOTIFY_CHANNEL_CODE = "alipay_pc";
+
     private final PayOrderService payOrderService;
     private final BizOrderService bizOrderService;
     private final PayNotifyService payNotifyService;
+    private final SettlementEngine settlementEngine;
     private final Map<String, PaySuccessHandler> handlers;
-    private final WxPayChannelAdapter wxPayAdapter;
-    private final AlipayChannelAdapter alipayAdapter;
 
     public PayOrderController(
             PayOrderService payOrderService,
             BizOrderService bizOrderService,
             PayNotifyService payNotifyService,
-            List<PaySuccessHandler> handlerList,
-            java.util.Optional<WxPayChannelAdapter> wxPayAdapter,
-            java.util.Optional<AlipayChannelAdapter> alipayAdapter) {
+            SettlementEngine settlementEngine,
+            List<PaySuccessHandler> handlerList) {
         this.payOrderService = payOrderService;
         this.bizOrderService = bizOrderService;
         this.payNotifyService = payNotifyService;
+        this.settlementEngine = settlementEngine;
         this.handlers =
                 handlerList.stream()
                         .collect(
                                 Collectors.toMap(
                                         PaySuccessHandler::bizOrderType, Function.identity()));
-        this.wxPayAdapter = wxPayAdapter.orElse(null);
-        this.alipayAdapter = alipayAdapter.orElse(null);
         log.info("PaySuccessHandler 注册完成: {}", this.handlers.keySet());
     }
 
@@ -116,22 +123,26 @@ public class PayOrderController {
             @RequestHeader("Wechatpay-Nonce") String nonce,
             @RequestHeader("Wechatpay-Signature") String signature,
             @RequestHeader("Wechatpay-Serial") String serial) {
-        if (wxPayAdapter == null) {
-            return org.springframework.http.ResponseEntity.status(500)
-                    .body(Map.of("code", "FAIL", "message", "微信支付未配置"));
-        }
         try {
-            var header = new com.github.binarywang.wxpay.bean.notify.SignatureHeader();
-            header.setTimeStamp(timestamp);
-            header.setNonce(nonce);
-            header.setSignature(signature);
-            header.setSerial(serial);
-            var notifyResult = wxPayAdapter.parseOrderNotify(body, header);
-            var decryptResult = notifyResult.getResult();
-            if ("SUCCESS".equals(decryptResult.getTradeState())) {
+            // M28：统一走结算引擎的回调信封契约，Controller 不再直连微信 SDK 与具体适配器
+            var envelope =
+                    NotifyEnvelope.ofBody(
+                            WX_NOTIFY_CHANNEL_CODE,
+                            body,
+                            Map.of(
+                                    "Wechatpay-Timestamp", timestamp,
+                                    "Wechatpay-Nonce", nonce,
+                                    "Wechatpay-Signature", signature,
+                                    "Wechatpay-Serial", serial));
+            var result = settlementEngine.verifyAndParseNotify(envelope);
+            if (!result.verified()) {
+                return org.springframework.http.ResponseEntity.status(401)
+                        .body(Map.of("code", "FAIL", "message", "验签失败"));
+            }
+            if (result.isPaySuccess()) {
                 var payOrderId =
                         payOrderService.handleWxNotify(
-                                decryptResult.getOutTradeNo(), decryptResult.getTransactionId());
+                                result.outTradeNo(), result.channelOrderNo());
                 if (payOrderId != null) {
                     payNotifyService.onPaySuccess(payOrderId);
                 }
@@ -148,17 +159,16 @@ public class PayOrderController {
     @Operation(summary = "支付宝支付回调")
     @PostMapping("/notify/alipay")
     public String notifyAlipay(@RequestParam Map<String, String> params) {
-        if (alipayAdapter == null) return "fail";
         try {
-            if (!alipayAdapter.verifyNotify(params)) {
-                log.warn("支付宝回调验签失败");
-                return "fail";
-            }
-            if ("TRADE_SUCCESS".equals(params.get("trade_status"))
-                    || "TRADE_FINISHED".equals(params.get("trade_status"))) {
+            // M28：验签与状态归一由适配器完成，这里只按统一结果决定是否入账
+            var result =
+                    settlementEngine.verifyAndParseNotify(
+                            NotifyEnvelope.ofForm(ALIPAY_NOTIFY_CHANNEL_CODE, params));
+            if (!result.verified()) return "fail";
+            if (result.isPaySuccess()) {
                 var payOrderId =
                         payOrderService.handleAlipayNotify(
-                                params.get("out_trade_no"), params.get("trade_no"));
+                                result.outTradeNo(), result.channelOrderNo());
                 if (payOrderId != null) {
                     payNotifyService.onPaySuccess(payOrderId);
                 }

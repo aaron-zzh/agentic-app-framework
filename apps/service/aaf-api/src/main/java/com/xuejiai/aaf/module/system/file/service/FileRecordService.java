@@ -52,10 +52,7 @@ public class FileRecordService {
     public FileRecord requireOwnedByKey(String key) {
         return fileRecordRepository
                 .findByKeyAndUploaderId(key, requireCurrentOwnerId())
-                .orElseThrow(
-                        () ->
-                                new BusinessException(
-                                        GlobalErrorCode.NOT_FOUND, "文件不存在或无权访问"));
+                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "文件不存在或无权访问"));
     }
 
     /** 删除当前用户拥有的文件记录。 */
@@ -67,10 +64,15 @@ public class FileRecordService {
 
     /** 客户端直传 key 必须位于当前用户命名空间。 */
     public void requireCurrentOwnerNamespace(String key) {
-        var prefix = "users/" + requireCurrentOwnerId() + "/";
+        var prefix = currentOwnerNamespace() + "/";
         if (key == null || !key.startsWith(prefix) || key.contains("..")) {
             throw new BusinessException(GlobalErrorCode.FORBIDDEN, "文件 key 不属于当前用户命名空间");
         }
+    }
+
+    /** M29：当前用户的存储命名空间前缀（不含结尾斜杠），供预签名上传按 owner 生成 key。 */
+    public String currentOwnerNamespace() {
+        return "users/" + requireCurrentOwnerId();
     }
 
     /** HTTP 上传完成后按当前身份保存记录。 */

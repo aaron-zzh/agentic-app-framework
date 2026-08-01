@@ -48,7 +48,16 @@ public class ReconcileService {
                                 () -> new IllegalArgumentException("未找到渠道适配器: " + channelCode));
 
         // 下载渠道账单
-        var billItems = adapter.downloadBill(date);
+        // M27：渠道账单解析未实现时适配器抛 UnsupportedOperationException，这里不吞异常——
+        // 以空账单继续比对会把全部本地成功订单误判为"本地有渠道无"，或在本地无订单时误报"无差异"，
+        // 让对账结论静默失真比直接失败更危险。
+        List<PayChannelAdapter.BillItem> billItems;
+        try {
+            billItems = adapter.downloadBill(date);
+        } catch (UnsupportedOperationException e) {
+            log.error("渠道账单能力未实现，对账中止: channelCode={}, date={}", channelCode, date);
+            throw e;
+        }
 
         // 查询本地当日订单
         var startTime = LocalDateTime.of(date, LocalTime.MIN);

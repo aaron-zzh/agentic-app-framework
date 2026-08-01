@@ -12,6 +12,9 @@ public interface RefundOrderRepository extends JpaRepository<RefundOrder, Long> 
 
     Optional<RefundOrder> findByRefundNo(String refundNo);
 
+    /** M26：按客户端幂等键查退款单，命中即复用，避免重试重复退款。 */
+    Optional<RefundOrder> findByRequestNo(String requestNo);
+
     List<RefundOrder> findByPayOrderId(Long payOrderId);
 
     /** 查询退款中的单据（用于重试） */

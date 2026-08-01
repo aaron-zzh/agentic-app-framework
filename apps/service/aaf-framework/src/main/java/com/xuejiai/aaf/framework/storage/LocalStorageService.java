@@ -29,6 +29,8 @@ public class LocalStorageService implements StorageService {
 
     @Override
     public String upload(InputStream input, String filename, String contentType) {
+        // B13：存储层兜底拒绝主动内容，防止绕过 FileService 直调
+        UploadPolicy.assertNotActiveContent(filename, contentType);
         var ext = extractExtension(filename);
         var key = LocalDate.now().format(DATE_PATH) + "/" + UUID.randomUUID() + ext;
         var target = resolveSafe(key);
@@ -76,7 +78,7 @@ public class LocalStorageService implements StorageService {
     }
 
     @Override
-    public String getPresignedUploadUrl(String key, Duration expiry) {
+    public PresignedUploadTicket getPresignedUploadUrl(PresignedUploadRequest request) {
         throw new UnsupportedOperationException("本地存储不支持预签名上传");
     }
 

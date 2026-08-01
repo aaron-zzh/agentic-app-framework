@@ -13,6 +13,9 @@ public interface StorageService {
     /**
      * 上传文件。
      *
+     * <p>B13：实现内部必须调用 {@link UploadPolicy#assertNotActiveContent} 兜底——业务校验在 {@link FileService}，
+     * 但直接注入 StorageService 的调用方会绕过它，主动内容拒绝要在存储层再拦一次。
+     *
      * @param input 文件输入流
      * @param filename 原始文件名
      * @param contentType MIME 类型
@@ -44,13 +47,16 @@ public interface StorageService {
     String getUrl(String key);
 
     /**
-     * 获取预签名上传 URL（前端直传用）。
+     * 获取预签名上传票据（前端直传用）。
      *
-     * @param key 文件 key
-     * @param expiry 有效期
-     * @return 预签名 PUT URL
+     * <p>M29：不再接受调用方的裸 key——key 由 {@link PresignedUploadRequest#toKey()} 按 owner 命名空间生成， 通用接口无法被误用来签别人的命名空间。
+     *
+     * <p>m20：实现必须把 {@code contentType} 与大小上限写入签名约束。
+     *
+     * @param request 预签名请求（含归属、文件名、类型、大小上限、有效期）
+     * @return 票据（含服务端生成的 key 与签名 URL）
      */
-    String getPresignedUploadUrl(String key, Duration expiry);
+    PresignedUploadTicket getPresignedUploadUrl(PresignedUploadRequest request);
 
     /**
      * 获取预签名下载 URL（GET）。

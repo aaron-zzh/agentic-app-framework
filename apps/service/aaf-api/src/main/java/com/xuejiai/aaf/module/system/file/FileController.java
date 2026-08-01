@@ -22,6 +22,9 @@ import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.storage.FileService;
 import com.xuejiai.aaf.framework.storage.FileVO;
 import com.xuejiai.aaf.framework.storage.OssStorageService;
+import com.xuejiai.aaf.framework.storage.PresignedUploadRequest;
+import com.xuejiai.aaf.framework.storage.PresignedUploadTicket;
+import com.xuejiai.aaf.framework.storage.StorageProperties;
 import com.xuejiai.aaf.framework.storage.StorageService;
 import com.xuejiai.aaf.framework.storage.StsCredentials;
 import com.xuejiai.aaf.module.system.file.service.FileRecordService;
@@ -48,6 +51,12 @@ public class FileController {
     private final FileService fileService;
     private final StorageService storageService;
     private final FileRecordService fileRecordService;
+    private final StorageProperties storageProperties;
+
+    /** m20：预签名上传的大小上限与普通上传共用同一份配置，避免两条链路策略不一致 */
+    private StorageProperties.UploadLimits uploadLimits() {
+        return storageProperties.uploadOrDefault();
+    }
 
     /** OSS 类型时非空，其他存储类型为 null */
     @Autowired(required = false)
@@ -70,9 +79,7 @@ public class FileController {
                         ? key
                         : record.getOriginalName();
         var contentDisposition =
-                ContentDisposition.attachment()
-                        .filename(filename, StandardCharsets.UTF_8)
-                        .build();
+                ContentDisposition.attachment().filename(filename, StandardCharsets.UTF_8).build();
         var input = storageService.download(key);
         var resource = new InputStreamResource(input);
         return ResponseEntity.ok()
@@ -111,12 +118,25 @@ public class FileController {
         return Result.success();
     }
 
+    /**
+     * 获取预签名上传 URL（前端直传）。
+     *
+     * <p>M29/m20：不再由客户端提交 key——只提交文件名与类型，key 由存储层按当前用户命名空间生成； 签名同时绑定 contentType 与大小上限，拿到签名也无法上传任意类型/超大对象。
+     */
     @Operation(summary = "获取预签名上传 URL")
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/presigned-url")
-    public Result<String> getPresignedUrl(@RequestParam String key) {
-        fileRecordService.requireCurrentOwnerNamespace(key);
-        var url = storageService.getPresignedUploadUrl(key, Duration.ofMinutes(30));
-        return Result.success(url);
+    public Result<PresignedUploadTicket> getPresignedUrl(
+            @RequestParam String filename, @RequestParam String contentType) {
+        var ticket =
+                storageService.getPresignedUploadUrl(
+                        new PresignedUploadRequest(
+                                fileRecordService.currentOwnerNamespace(),
+                                filename,
+                                contentType,
+                                uploadLimits().maxSizeBytes(),
+                                Duration.ofMinutes(30)));
+        return Result.success(ticket);
     }
 
     @Operation(summary = "获取 OSS STS 临时凭证（前端直传分片上传用）")

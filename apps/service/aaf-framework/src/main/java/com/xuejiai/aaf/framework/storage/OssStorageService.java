@@ -48,6 +48,8 @@ public class OssStorageService implements StorageService {
 
     @Override
     public String upload(InputStream input, String filename, String contentType) {
+        // B13：存储层兜底拒绝主动内容，防止绕过 FileService 直调
+        UploadPolicy.assertNotActiveContent(filename, contentType);
         var key = buildKey(filename);
         var meta = new com.aliyun.oss.model.ObjectMetadata();
         if (contentType != null && !contentType.isBlank()) {
@@ -77,13 +79,23 @@ public class OssStorageService implements StorageService {
         return "https://" + props.bucketName() + "." + props.endpoint() + "/" + key;
     }
 
+    /**
+     * m20：OSS 预签名 PUT 绑定 Content-Type 与长度上限。
+     *
+     * <p>OSS 签名会把 {@code Content-Type} 纳入计算，客户端换类型即签名失效；长度上限通过
+     * {@code x-oss-content-length-range}（等价于 STS Policy 的 content-length-range）表达。
+     */
     @Override
-    public String getPresignedUploadUrl(String key, Duration expiry) {
+    public PresignedUploadTicket getPresignedUploadUrl(PresignedUploadRequest req) {
+        var key = req.toKey();
         var request =
                 new GeneratePresignedUrlRequest(
                         props.bucketName(), key, com.aliyun.oss.HttpMethod.PUT);
-        request.setExpiration(new Date(System.currentTimeMillis() + expiry.toMillis()));
-        return ossClient.generatePresignedUrl(request).toString();
+        request.setExpiration(new Date(System.currentTimeMillis() + req.expiry().toMillis()));
+        request.setContentType(req.contentType());
+        request.addUserMetadata("content-length-range", "0," + req.maxSizeBytes());
+        var url = ossClient.generatePresignedUrl(request).toString();
+        return new PresignedUploadTicket(key, url, req.contentType(), req.maxSizeBytes());
     }
 
     @Override

@@ -60,9 +60,6 @@ public class BrokerageBalanceChannelAdapter implements PayChannelAdapter {
         return null;
     }
 
-    @Override
-    public boolean verifyNotify(java.util.Map<String, String> params) {
-        // 余额支付无异步通知，不需要验签
-        return false;
-    }
+    // M28：余额支付无异步通知，沿用 PayChannelAdapter#verifyAndParseNotify 的 fail-closed 默认实现即可，
+    // 不再单独提供验签方法（避免出现"永远返回 false"的空覆盖）。
 }

@@ -17,7 +17,8 @@ import lombok.extern.slf4j.Slf4j;
  * RECHARGE 类业务订单的支付成功处理器：标记订单已支付 → 积分入账。
  *
  * <p>B2：原 {@code initiateRecharge(amount, channelCode)} 由客户端提交金额下单，已删除。 充值下单统一由 {@code
- * CreditPackageController#purchase} 承担——金额取 {@code credit_package.price}（服务端货架定价）， 本类只负责支付成功后的入账，不再提供任何创建订单入口。
+ * CreditPackageController#purchase} 承担——金额取 {@code credit_package.price}（服务端货架定价），
+ * 本类只负责支付成功后的入账，不再提供任何创建订单入口。
  */
 @Slf4j
 @Service

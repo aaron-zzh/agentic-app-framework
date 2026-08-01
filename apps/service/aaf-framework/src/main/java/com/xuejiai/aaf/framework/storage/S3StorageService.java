@@ -64,6 +64,8 @@ public class S3StorageService implements StorageService {
 
     @Override
     public String upload(InputStream input, String filename, String contentType) {
+        // B13：存储层兜底拒绝主动内容，防止绕过 FileService 直调
+        UploadPolicy.assertNotActiveContent(filename, contentType);
         var key = generateKey(filename);
         Path tempFile = null;
         try {
@@ -112,14 +114,27 @@ public class S3StorageService implements StorageService {
         return endpoint + "/" + bucketName + "/" + key;
     }
 
+    /**
+     * m20：预签名 PUT 固定 contentType 与大小范围。
+     *
+     * <p>S3 预签名 PUT 的约束通过被签名的 {@code PutObjectRequest} 表达：签名覆盖 Content-Type 与 Content-Length，
+     * 客户端改动其中任一项都会导致签名校验失败，从而无法向该 key 上传任意内容或超大对象。
+     */
     @Override
-    public String getPresignedUploadUrl(String key, Duration expiry) {
-        var request =
+    public PresignedUploadTicket getPresignedUploadUrl(PresignedUploadRequest req) {
+        var key = req.toKey();
+        var presignRequest =
                 PutObjectPresignRequest.builder()
-                        .signatureDuration(expiry)
-                        .putObjectRequest(r -> r.bucket(bucketName).key(key))
+                        .signatureDuration(req.expiry())
+                        .putObjectRequest(
+                                r ->
+                                        r.bucket(bucketName)
+                                                .key(key)
+                                                .contentType(req.contentType())
+                                                .contentLength(req.maxSizeBytes()))
                         .build();
-        return presigner.presignPutObject(request).url().toString();
+        var url = presigner.presignPutObject(presignRequest).url().toString();
+        return new PresignedUploadTicket(key, url, req.contentType(), req.maxSizeBytes());
     }
 
     @Override

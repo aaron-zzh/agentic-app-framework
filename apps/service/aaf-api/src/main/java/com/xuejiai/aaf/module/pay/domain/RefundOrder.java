@@ -25,6 +25,14 @@ public class RefundOrder extends BaseEntity {
     @Column(name = "refund_no", nullable = false, length = 64, unique = true)
     private String refundNo;
 
+    /**
+     * M26：客户端幂等键。
+     *
+     * <p>客户端超时重试时携带同一 {@code requestNo}，服务端复用已有退款单（不再生成新的 refundNo 重复向渠道 提交）。数据库对该列建有部分唯一索引兜底并发重试。
+     */
+    @Column(name = "request_no", length = 64)
+    private String requestNo;
+
     /** 关联支付单 ID */
     @Column(name = "pay_order_id", nullable = false)
     private Long payOrderId;
