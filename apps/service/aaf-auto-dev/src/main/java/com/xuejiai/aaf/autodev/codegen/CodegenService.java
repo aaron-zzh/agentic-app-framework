@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 public class CodegenService {
+
+    private static final Pattern SAFE_IDENTIFIER = Pattern.compile("[A-Za-z0-9_]+");
 
     /** 字段类型映射：DSL 类型 → Java 类型 */
     private static final Map<String, String> TYPE_MAPPING =
@@ -58,6 +61,9 @@ public class CodegenService {
 
     /** 预览生成结果，不写入文件。 */
     public List<GeneratedFile> preview(EntityDefDTO def) {
+        validateIdentifier("module", def.module());
+        validateIdentifier("name", def.name());
+
         var model = buildModel(def);
         var layers =
                 List.of(
@@ -138,19 +144,47 @@ public class CodegenService {
 
     /** 构建输出文件路径。 */
     private String buildPath(String module, String pkg, String fileName) {
-        return "%s/com/xuejiai/aaf/module/%s/%s/%s".formatted(outputDir, module, pkg, fileName);
+        var path =
+                Path.of(outputDir)
+                        .resolve("com")
+                        .resolve("xuejiai")
+                        .resolve("aaf")
+                        .resolve("module")
+                        .resolve(module)
+                        .resolve(pkg)
+                        .resolve(fileName)
+                        .normalize();
+        ensureWithinOutputDir(path);
+        return path.toString();
     }
 
     /** 写入文件。 */
     private void writeFile(GeneratedFile file) {
         try {
-            var path = Path.of(file.path());
+            var path = ensureWithinOutputDir(Path.of(file.path()));
             Files.createDirectories(path.getParent());
             Files.writeString(path, file.content());
         } catch (IOException e) {
             throw new BusinessException(
                     GlobalErrorCode.INTERNAL_SERVER_ERROR, "文件写入失败: " + e.getMessage());
         }
+    }
+
+    private void validateIdentifier(String field, String value) {
+        if (value == null || !SAFE_IDENTIFIER.matcher(value).matches()) {
+            throw new BusinessException(
+                    GlobalErrorCode.BAD_REQUEST,
+                    "%s 仅允许字母、数字和下划线".formatted(field));
+        }
+    }
+
+    private Path ensureWithinOutputDir(Path path) {
+        var root = Path.of(outputDir).toAbsolutePath().normalize();
+        var normalizedPath = path.toAbsolutePath().normalize();
+        if (!normalizedPath.startsWith(root)) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "代码生成输出路径非法");
+        }
+        return normalizedPath;
     }
 
     /** 层定义。 */
