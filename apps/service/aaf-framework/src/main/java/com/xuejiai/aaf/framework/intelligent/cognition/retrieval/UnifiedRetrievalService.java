@@ -47,7 +47,8 @@ public class UnifiedRetrievalService {
      * @return 融合后的检索结果（已排序、已截断）
      */
     public RetrievalResult retrieve(RetrievalRequest request) {
-        var queryEmbedding = embeddingService.embed(request.query());
+        // M53：成本记账到触发用户
+        var queryEmbedding = embeddingService.embed(request.query(), request.userId());
 
         // 路由决策
         var route = decideRoute(request);

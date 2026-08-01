@@ -73,7 +73,8 @@ public class MemoryRetrievalService {
         // 3. 生成查询向量
         float[] queryEmbedding = null;
         if (query != null && !query.isBlank()) {
-            queryEmbedding = embeddingService.embed(query);
+            // M53：成本记账到触发用户
+            queryEmbedding = embeddingService.embed(query, userId);
         }
 
         // 4. 按预算并行检索各类记忆

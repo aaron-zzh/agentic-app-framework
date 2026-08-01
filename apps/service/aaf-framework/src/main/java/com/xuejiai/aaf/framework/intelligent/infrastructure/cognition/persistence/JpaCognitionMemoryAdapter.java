@@ -52,7 +52,12 @@ public final class JpaCognitionMemoryAdapter
                                 subject.tenantId().value(),
                                 subject.kind().name(),
                                 subject.subjectId(),
-                                vector(embeddings.embed(query.query(), embeddingModelId)),
+                                vector(
+                                        embeddings.embed(
+                                                query.query(),
+                                                embeddingModelId,
+                                                subject.kind(),
+                                                subject.subjectId())),
                                 query.maxItems(),
                                 query.at());
         var result = new ArrayList<MemoryRecord>();
@@ -160,7 +165,9 @@ public final class JpaCognitionMemoryAdapter
         entity.setConfidence(replacement.confidence());
         entity.setPrivacy(replacement.privacy().name());
         entity.setTags(replacement.tags());
-        entity.setEmbedding(embeddings.embed(replacement.content(), embeddingModelId));
+        entity.setEmbedding(
+                embeddings.embed(
+                        replacement.content(), embeddingModelId, subject.kind(), subject.subjectId()));
         entity.setUpdatedAt(confirmation.confirmedAt());
         return toDomain(repository.save(entity));
     }
@@ -230,7 +237,12 @@ public final class JpaCognitionMemoryAdapter
         entity.setConfidence(memory.confidence());
         entity.setPrivacy(memory.privacy().name());
         entity.setTags(memory.tags());
-        entity.setEmbedding(embeddings.embed(memory.content(), embeddingModelId));
+        entity.setEmbedding(
+                embeddings.embed(
+                        memory.content(),
+                        embeddingModelId,
+                        memory.subject().kind(),
+                        memory.subject().subjectId()));
         entity.setExpiresAt(memory.expiresAt());
         entity.setCreatedAt(memory.createdAt());
         entity.setUpdatedAt(memory.createdAt());

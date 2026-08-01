@@ -81,7 +81,8 @@ public class MemoryExtractionService {
             atom.setUserId(userId);
             atom.setScope(raw.scope() != null ? raw.scope() : "long_term");
             atom.setContent(raw.content());
-            atom.setEmbedding(embeddingService.embed(raw.content()));
+            // M53：成本记账到触发用户
+            atom.setEmbedding(embeddingService.embed(raw.content(), userId));
             atom.setEventTime(Instant.now());
             atom.setTags(raw.tags());
             atom.setWeight(0.5);
@@ -122,7 +123,8 @@ public class MemoryExtractionService {
             atom.setUserId(userId);
             atom.setScope(raw.scope() != null ? raw.scope() : "long_term");
             atom.setContent(raw.content());
-            atom.setEmbedding(embeddingService.embed(raw.content()));
+            // M53：成本记账到触发用户
+            atom.setEmbedding(embeddingService.embed(raw.content(), userId));
             atom.setEventTime(eventTime != null ? eventTime : Instant.now());
             atom.setTags(raw.tags());
             atom.setWeight(0.5);
@@ -166,7 +168,8 @@ public class MemoryExtractionService {
                     // 边语义：描述文本 + 向量，让检索时边参与语义打分
                     if (rel.description() != null && !rel.description().isBlank()) {
                         relation.setEdgeText(rel.description());
-                        relation.setEdgeEmbedding(embeddingService.embed(rel.description()));
+                        // M53：成本记账到触发用户
+                        relation.setEdgeEmbedding(embeddingService.embed(rel.description(), userId));
                     }
                     atomEngine.addRelation(relation);
                 }

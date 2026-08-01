@@ -39,6 +39,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskBoardPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskControlPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskRecoveryPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.application.MemoryGovernanceService;
+import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.SubjectKind;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryContextPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryRecallPort.RecallQuery;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
@@ -158,7 +159,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             throw new IllegalStateException("当前控制模式禁止子任务动作: " + route.actionKey());
         }
         var memoryContext =
-                definition.memoryStrategy().longTermEnabled()
+                longTermMemoryEnabled(command, definition)
                         ? memoryContexts.prepare(
                                 new RecallQuery(
                                         command.memorySubject(),
@@ -207,7 +208,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         }
 
         var memoryContext =
-                definition.memoryStrategy().longTermEnabled()
+                longTermMemoryEnabled(command, definition)
                         ? memoryContexts.prepare(
                                 new RecallQuery(
                                         command.memorySubject(),
@@ -307,6 +308,18 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                             null,
                                             null));
                         });
+    }
+
+    /**
+     * 长期记忆是否对本次执行生效：需要 assistant definition 配置开启，且主体为 {@link SubjectKind#USER}。
+     *
+     * <p>访客（{@code SubjectKind.VISITOR}，如未登录渠道用户）降级为短期会话上下文（产品决策，2026-08-01）：
+     * 不触发结构化抽取/embedding/向量检索去重，也不参与登录后记忆合并。渠道内的多轮对话仍靠 {@code
+     * ShortTermMemoryService} 维持上下文，仅访客登录转正后才会开始积累长期记忆。
+     */
+    static boolean longTermMemoryEnabled(AssistantCommand command, AssistantDefinition definition) {
+        return definition.memoryStrategy().longTermEnabled()
+                && command.memorySubject().kind() == SubjectKind.USER;
     }
 
     private AssistantDefinition requireDefinition(AssistantCommand command) {
@@ -528,7 +541,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                 assistantOwner(command),
                                 null);
                 var definition = requireDefinition(command);
-                if (definition.memoryStrategy().longTermEnabled()
+                if (longTermMemoryEnabled(command, definition)
                         && definition.memoryStrategy().writeScopes().contains("PERSONAL")) {
                     memoryGovernance.learn(
                             command.memorySubject(),

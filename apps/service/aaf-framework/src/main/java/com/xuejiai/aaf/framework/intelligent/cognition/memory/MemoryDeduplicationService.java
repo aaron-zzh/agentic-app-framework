@@ -101,7 +101,8 @@ public class MemoryDeduplicationService {
 
         for (var atom : newAtoms) {
             if (atom.getEmbedding() == null) {
-                atom.setEmbedding(embeddingService.embed(atom.getContent()));
+                // M53：成本记账到触发用户
+                atom.setEmbedding(embeddingService.embed(atom.getContent(), userId));
             }
 
             // 激活已有记忆（向量检索相关候选）
@@ -126,7 +127,8 @@ public class MemoryDeduplicationService {
     /** 单条记忆的去重检查（简化版，兼容旧接口）。 */
     public MemoryAtom deduplicateOrPass(MemoryAtom atom) {
         if (atom.getEmbedding() == null) {
-            atom.setEmbedding(embeddingService.embed(atom.getContent()));
+            // M53：成本记账到记忆归属用户
+            atom.setEmbedding(embeddingService.embed(atom.getContent(), atom.getUserId()));
         }
 
         var candidates =
@@ -143,7 +145,8 @@ public class MemoryDeduplicationService {
                             .findFirst()
                             .orElse(candidates.getFirst());
             target.setContent(decision.content() != null ? decision.content() : atom.getContent());
-            target.setEmbedding(embeddingService.embed(target.getContent()));
+            // M53：成本记账到记忆归属用户
+            target.setEmbedding(embeddingService.embed(target.getContent(), atom.getUserId()));
             target.setWeight(Math.min(1.0, target.getWeight() + 0.1));
             atomEngine.store(target);
             return null; // 已合并
@@ -209,7 +212,8 @@ public class MemoryDeduplicationService {
                 if (target != null) {
                     target.setContent(
                             decision.content() != null ? decision.content() : newAtom.getContent());
-                    target.setEmbedding(embeddingService.embed(target.getContent()));
+                    // M53：成本记账到记忆归属用户
+                    target.setEmbedding(embeddingService.embed(target.getContent(), newAtom.getUserId()));
                     target.setWeight(Math.min(1.0, target.getWeight() + 0.1)); // 强化
                     atomEngine.store(target);
                     yield new DecisionResult(Action.UPDATE, target.getId(), target.getContent());
