@@ -64,48 +64,94 @@ class ConditionEvaluatorTest {
     }
 
     @Test
-    void toFlowableExpression_简单EQ() {
+    void compile_简单EQ_值走变量绑定() {
         var group =
                 new ConditionGroup(
                         Logic.AND,
                         List.of(new ConditionExpression("status", Operator.EQ, "approved", null)),
                         null);
-        assertThat(evaluator.toFlowableExpression(group)).isEqualTo("${status == 'approved'}");
+        var compiled = evaluator.compile(group);
+        assertThat(compiled.expression()).isEqualTo("${status == cv0}");
+        assertThat(compiled.variables()).containsEntry("cv0", "approved");
     }
 
     /** B17：非法字段名（含 SQL/UEL 元字符）必须拒绝，杜绝表达式注入。 */
     @Test
-    void toFlowableExpression_非法字段名抛异常() {
+    void compile_非法字段名抛异常() {
         var group =
                 new ConditionGroup(
                         Logic.AND,
                         List.of(new ConditionExpression("'; DROP TABLE", Operator.EQ, "x", null)),
                         null);
-        assertThatThrownBy(() -> evaluator.toFlowableExpression(group))
+        assertThatThrownBy(() -> evaluator.compile(group))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("非法条件字段名");
     }
 
     /** B17：字段名含方法调用元字符（.getClass(）必须拒绝。 */
     @Test
-    void toFlowableExpression_字段名含方法调用抛异常() {
+    void compile_字段名含方法调用抛异常() {
         var group =
                 new ConditionGroup(
                         Logic.AND,
                         List.of(new ConditionExpression("x.getClass(", Operator.EQ, "1", null)),
                         null);
-        assertThatThrownBy(() -> evaluator.toFlowableExpression(group))
+        assertThatThrownBy(() -> evaluator.compile(group))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    /** B17：字符串值中的单引号必须转义（' → ''），防止闭合字符串注入表达式。 */
+    /** B17：构造值不再进入表达式文本——引号/反斜杠/表达式片段都只作为变量值存在。 */
     @Test
-    void toFlowableExpression_字符串值单引号被转义() {
+    void compile_恶意值不进入表达式文本() {
+        var payload = "x' || ''.getClass().forName('java.lang.Runtime') || 'y\\";
         var group =
                 new ConditionGroup(
                         Logic.AND,
-                        List.of(new ConditionExpression("name", Operator.EQ, "O'Brien", null)),
+                        List.of(new ConditionExpression("name", Operator.EQ, payload, null)),
                         null);
-        assertThat(evaluator.toFlowableExpression(group)).isEqualTo("${name == 'O''Brien'}");
+        var compiled = evaluator.compile(group);
+
+        assertThat(compiled.expression()).isEqualTo("${name == cv0}");
+        assertThat(compiled.expression()).doesNotContain("getClass").doesNotContain("'");
+        assertThat(compiled.variables()).containsEntry("cv0", payload);
+    }
+
+    /** B17：多条件与嵌套子组的变量编号不冲突，且子组不重复包 ${}。 */
+    @Test
+    void compile_嵌套子组变量编号唯一() {
+        var inner =
+                new ConditionGroup(
+                        Logic.OR,
+                        List.of(
+                                new ConditionExpression("role", Operator.EQ, "admin", null),
+                                new ConditionExpression("role", Operator.EQ, "manager", null)),
+                        null);
+        var outer =
+                new ConditionGroup(
+                        Logic.AND,
+                        List.of(new ConditionExpression("age", Operator.GTE, 18, null)),
+                        List.of(inner));
+
+        var compiled = evaluator.compile(outer);
+
+        assertThat(compiled.expression())
+                .isEqualTo("${age >= cv0 && (role == cv1 || role == cv2)}");
+        assertThat(compiled.variables()).hasSize(3).containsEntry("cv0", 18);
+    }
+
+    /** B17：IN 的逗号字符串绑定为列表，与内存求值语义一致。 */
+    @Test
+    void compile_IN逗号字符串绑定为列表() {
+        var group =
+                new ConditionGroup(
+                        Logic.AND,
+                        List.of(
+                                new ConditionExpression(
+                                        "role", Operator.IN, "admin,manager", null)),
+                        null);
+        var compiled = evaluator.compile(group);
+
+        assertThat(compiled.expression()).isEqualTo("${cv0.contains(role)}");
+        assertThat(compiled.variables()).containsEntry("cv0", List.of("admin", "manager"));
     }
 }

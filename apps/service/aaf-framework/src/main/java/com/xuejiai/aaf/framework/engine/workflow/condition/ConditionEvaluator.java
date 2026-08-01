@@ -49,12 +49,27 @@ public class ConditionEvaluator {
     }
 
     /**
-     * 转换为 Flowable UEL 表达式。
+     * 编译为 Flowable UEL 表达式 + 变量绑定（B17）。
      *
-     * @param group 条件组
-     * @return UEL 表达式字符串
+     * <p>原实现把 {@code value} 作为字符串字面量拼进表达式，且转义方式是 SQL 的 {@code '' }（EL 里单引号 应转义为 {@code
+     * \'}），反斜杠也未处理——转义实际无效，构造值可闭合字面量并注入后续表达式。
+     *
+     * <p>现在**任何值都不进入表达式文本**：每个值绑定为一个流程变量（{@code cv0/cv1/...}），表达式里只出现 经白名单校验的字段名、固定运算符和变量名。调用方必须把
+     * {@link CompiledCondition#variables()} 写入流程变量， 否则表达式求值会因变量缺失而失败（fail-closed，不会退化成拼串）。
+     *
+     * <p>{@code IN}/{@code CONTAINS} 仍会生成 {@code .contains(...)} 方法调用——这是这两个运算符的语义所需，
+     * 但方法名是代码里的固定字面量，接收者是白名单字段或绑定变量，外部输入无法控制被调用的方法。
      */
-    public String toFlowableExpression(ConditionGroup group) {
+    public CompiledCondition compile(ConditionGroup group) {
+        var variables = new java.util.LinkedHashMap<String, Object>();
+        var expression = buildExpression(group, variables);
+        return new CompiledCondition(expression, java.util.Map.copyOf(variables));
+    }
+
+    /** 编译结果：可直接交给 Flowable 的表达式，以及必须一同写入流程的变量绑定。 */
+    public record CompiledCondition(String expression, Map<String, Object> variables) {}
+
+    private String buildExpression(ConditionGroup group, Map<String, Object> variables) {
         if (group == null) return "true";
 
         var logic = group.logic() != null ? group.logic() : Logic.AND;
@@ -63,17 +78,25 @@ public class ConditionEvaluator {
 
         if (group.conditions() != null) {
             for (var condition : group.conditions()) {
-                parts.add(toUel(condition));
+                parts.add(toUel(condition, variables));
             }
         }
 
         if (group.groups() != null) {
             for (var subGroup : group.groups()) {
-                parts.add("(" + toFlowableExpression(subGroup) + ")");
+                parts.add("(" + unwrap(buildExpression(subGroup, variables)) + ")");
             }
         }
 
         return parts.isEmpty() ? "true" : "${" + String.join(connector, parts) + "}";
+    }
+
+    /** 子组编译结果带 ${}，嵌套拼接时需要去壳。 */
+    private String unwrap(String expression) {
+        if (expression.startsWith("${") && expression.endsWith("}")) {
+            return expression.substring(2, expression.length() - 1);
+        }
+        return expression;
     }
 
     private boolean evaluateExpression(ConditionExpression expr, Map<String, Object> formData) {
@@ -126,29 +149,38 @@ public class ConditionEvaluator {
     private static final java.util.regex.Pattern FIELD =
             java.util.regex.Pattern.compile("^[A-Za-z_][A-Za-z0-9_.]*$");
 
-    private String toUel(ConditionExpression expr) {
+    /** B17：绑定变量前缀，避免与业务流程变量冲突 */
+    private static final String VALUE_VAR_PREFIX = "cv";
+
+    private String toUel(ConditionExpression expr, Map<String, Object> variables) {
         var field = expr.field();
         if (field == null || !FIELD.matcher(field).matches()) {
             throw new IllegalArgumentException("非法条件字段名: " + field);
         }
-        var value = expr.value();
-        String quotedValue;
-        if (value instanceof String sv) {
-            // 转义单引号防止 UEL 注入
-            quotedValue = "'" + sv.replace("'", "''") + "'";
-        } else {
-            quotedValue = String.valueOf(value);
-        }
+        // B17：值一律绑定为变量，不进入表达式文本
+        var valueVar = VALUE_VAR_PREFIX + variables.size();
+        variables.put(valueVar, bindValue(expr));
 
         return switch (expr.operator()) {
-            case EQ -> field + " == " + quotedValue;
-            case NEQ -> field + " != " + quotedValue;
-            case GT -> field + " > " + quotedValue;
-            case GTE -> field + " >= " + quotedValue;
-            case LT -> field + " < " + quotedValue;
-            case LTE -> field + " <= " + quotedValue;
-            case IN -> quotedValue + ".contains(" + field + ")";
-            case CONTAINS -> field + ".contains(" + quotedValue + ")";
+            case EQ -> field + " == " + valueVar;
+            case NEQ -> field + " != " + valueVar;
+            case GT -> field + " > " + valueVar;
+            case GTE -> field + " >= " + valueVar;
+            case LT -> field + " < " + valueVar;
+            case LTE -> field + " <= " + valueVar;
+            case IN -> valueVar + ".contains(" + field + ")";
+            case CONTAINS -> field + ".contains(" + valueVar + ")";
         };
+    }
+
+    /** IN 的逗号字符串在内存求值里按列表语义处理，绑定时同样转成 List，保持两条链语义一致。 */
+    private Object bindValue(ConditionExpression expr) {
+        var value = expr.value();
+        if (expr.operator() == ConditionExpression.Operator.IN
+                && value instanceof String text
+                && !(value instanceof Collection<?>)) {
+            return List.of(text.split(",")).stream().map(String::trim).toList();
+        }
+        return value;
     }
 }

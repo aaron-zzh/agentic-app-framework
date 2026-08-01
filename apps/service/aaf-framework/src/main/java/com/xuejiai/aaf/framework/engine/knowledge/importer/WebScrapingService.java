@@ -29,9 +29,13 @@ public class WebScrapingService {
     private static final Set<String> HEADING_TAGS = Set.of("h1", "h2", "h3", "h4", "h5", "h6");
 
     private final WebScrapingProperties properties;
+    private final com.xuejiai.aaf.framework.net.OutboundUrlGuard outboundUrlGuard;
+    private final com.xuejiai.aaf.framework.net.OutboundUrlProperties outboundProperties;
 
     /** 单页抓取 + 正文提取 */
     public ImportResult scrapeUrl(String url) {
+        // M46：抓取 URL 来自用户（知识库导入），必须先过 SSRF 校验
+        outboundUrlGuard.check(url, "知识库网页抓取");
         var doc = fetchWithRetry(url);
         var title = doc.title().isBlank() ? url : doc.title();
         var body = doc.body();
@@ -70,10 +74,17 @@ public class WebScrapingService {
 
     /** 解析 sitemap.xml，提取所有 URL */
     public List<String> parseSitemap(String sitemapUrl) {
+        // M46：sitemap 同样是外部输入
+        outboundUrlGuard.check(sitemapUrl, "知识库 sitemap 解析");
         var doc = fetchWithRetry(sitemapUrl);
         // 用 XML 解析器重新解析
         var xmlDoc = Jsoup.parse(doc.html(), "", Parser.xmlParser());
-        return xmlDoc.select("loc").stream().map(Element::text).filter(s -> !s.isBlank()).toList();
+        return xmlDoc.select("loc").stream()
+                .map(Element::text)
+                .filter(s -> !s.isBlank())
+                // M46：sitemap 里的条目也可能指向内网，逐条过滤后再交给调用方
+                .filter(s -> outboundUrlGuard.isAllowed(s, "知识库 sitemap 条目"))
+                .toList();
     }
 
     /** 找文本密度最高的元素（文本长度 / max(子元素数, 1)） */
@@ -129,7 +140,8 @@ public class WebScrapingService {
                 return Jsoup.connect(url)
                         .userAgent(properties.userAgent())
                         .timeout(properties.connectTimeout())
-                        .maxBodySize(0)
+                        // M46：原为 maxBodySize(0)（无上限），恶意/超大页面可直接撑爆内存
+                        .maxBodySize(outboundProperties.getMaxResponseBytes())
                         .get();
             } catch (IOException e) {
                 lastException = e;
