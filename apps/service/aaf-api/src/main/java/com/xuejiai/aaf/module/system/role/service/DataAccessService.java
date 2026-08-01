@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.system.role.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -12,8 +14,10 @@ import org.springframework.transaction.annotation.Transactional;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.crud.enforcement.RecordRule;
+import com.xuejiai.aaf.framework.crud.resource.CrudResourceRegistry;
 import com.xuejiai.aaf.framework.security.authorization.PermissionVersionService;
 import com.xuejiai.aaf.framework.security.authorization.RecordRuleSupport;
+import com.xuejiai.aaf.module.system.ErrorCodeConstants;
 import com.xuejiai.aaf.module.system.org.repository.OrgMemberRepository;
 import com.xuejiai.aaf.module.system.org.repository.WorkspaceMemberRepository;
 import com.xuejiai.aaf.module.system.role.domain.DataAccessRule;
@@ -55,6 +59,10 @@ public class DataAccessService
     private static final Set<String> SORTABLE_FIELDS =
             Set.of("id", "entitySlug", "effect", "createTime");
 
+    /** m12：与 {@link #buildLeafPredicate} 的 switch 分支保持同步——新增操作符必须同时在两处登记。 */
+    private static final Set<String> SUPPORTED_OPERATORS =
+            Set.of("eq", "ne", "gt", "lt", "in", "like");
+
     private final DataAccessRuleRepository ruleRepository;
     private final UserRoleRepository userRoleRepository;
     private final RoleRepository roleRepository;
@@ -62,6 +70,7 @@ public class DataAccessService
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final DataAccessRuleCache ruleCache;
     private final PermissionVersionService versionService;
+    private final CrudResourceRegistry crudResourceRegistry;
 
     @Override
     protected List<String> optionSearchFields() {
@@ -411,10 +420,94 @@ public class DataAccessService
     }
 
     private void applyDTO(DataAccessRule rule, DataAccessRuleCreateDTO dto) {
+        validateCondition(dto.entitySlug(), dto.condition());
         rule.setEntitySlug(dto.entitySlug());
         rule.setRoles(dto.roles());
         rule.setCondition(dto.condition());
         rule.setEffect(dto.effect() != null ? dto.effect() : "allow");
+    }
+
+    /**
+     * m12：保存规则前按 entitySlug 对应的 CRUD 资源做字段+操作符白名单校验。
+     *
+     * <p>原实现不校验，非法字段在查询执行期由 {@code root.get} 抛异常，外层捕获后静默降级为
+     * {@code disjunction()}（拒绝所有数据）——管理员配错一个字段名会导致该实体数据对所有人不可见，且没有任何明确报错，
+     * 只能在运行时日志里才能看到"解析规则条件失败"。改为保存时立即报错拒绝，避免配置错误在生产环境静默生效。
+     *
+     * <p>字段校验用"实体是否声明该字段"，不用字段能力策略里的 FILTER 能力——FILTER 代表"客户端 API
+     * 请求允许传的筛选参数"，与行级规则语义不同：{@code assigneeId} 这类字段刻意不开放给客户端筛选（否则可通过
+     * {@code ?assigneeId=xxx} 越权查询他人数据），但恰恰是行级规则最典型的引用字段（"只能看指派给自己的待办"）。
+     * 用 FILTER 校验会把这套系统最核心的规则模式误判为非法。
+     *
+     * <p>entitySlug 找不到对应 CRUD 资源（未走 {@code BaseCrudService} 注册，如历史遗留或纯 repository
+     * 资源）时不报错放行——这类资源没有 {@link com.xuejiai.aaf.framework.crud.resource.CrudResourceRegistry}
+     * 元数据可供校验，字段合法性只能继续依赖查询期的 fail-closed 兜底。
+     */
+    private void validateCondition(String entitySlug, String conditionJson) {
+        var entityType =
+                crudResourceRegistry.entries().stream()
+                        .filter(entry -> entry.key().slug().equals(entitySlug))
+                        .findFirst()
+                        .map(entry -> entry.entityType())
+                        .orElse(null);
+        if (entityType == null) {
+            return;
+        }
+        var knownFields = entityFields(entityType);
+        JsonNode root;
+        try {
+            root = JsonUtils.readTree(conditionJson);
+        } catch (Exception e) {
+            throw exception(ErrorCodeConstants.DATA_ACCESS_RULE_FIELD_INVALID, "<非法 JSON>", entitySlug);
+        }
+        validateConditionNode(root, entitySlug, knownFields);
+    }
+
+    /** 递归收集实体类及其父类（直到 Object）声明的非静态字段名。 */
+    private Set<String> entityFields(Class<?> type) {
+        var fields = new java.util.LinkedHashSet<String>();
+        for (var current = type;
+                current != null && !Object.class.equals(current);
+                current = current.getSuperclass()) {
+            java.util.Arrays.stream(current.getDeclaredFields())
+                    .filter(field -> !java.lang.reflect.Modifier.isStatic(field.getModifiers()))
+                    .filter(field -> !field.isSynthetic())
+                    .map(java.lang.reflect.Field::getName)
+                    .forEach(fields::add);
+        }
+        return fields;
+    }
+
+    private void validateConditionNode(JsonNode node, String entitySlug, Set<String> knownFields) {
+        if (node == null || node.isNull() || node.isMissingNode() || node.has("deny_all")) {
+            return;
+        }
+        if (node.has("and")) {
+            node.get("and").forEach(child -> validateConditionNode(child, entitySlug, knownFields));
+            return;
+        }
+        if (node.has("or")) {
+            node.get("or").forEach(child -> validateConditionNode(child, entitySlug, knownFields));
+            return;
+        }
+        if (node.has("not")) {
+            validateConditionNode(node.get("not"), entitySlug, knownFields);
+            return;
+        }
+        var field = text(node, "field");
+        var op = text(node, "op");
+        if (op == null) {
+            op = text(node, "operator");
+        }
+        if (field == null || op == null) {
+            return;
+        }
+        if (!knownFields.contains(field)) {
+            throw exception(ErrorCodeConstants.DATA_ACCESS_RULE_FIELD_INVALID, field, entitySlug);
+        }
+        if (!SUPPORTED_OPERATORS.contains(op)) {
+            throw exception(ErrorCodeConstants.DATA_ACCESS_RULE_OPERATOR_INVALID, op);
+        }
     }
 
     @Override
