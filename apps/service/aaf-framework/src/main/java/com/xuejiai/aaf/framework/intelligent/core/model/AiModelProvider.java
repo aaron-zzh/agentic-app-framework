@@ -14,7 +14,12 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/** AI 模型供应商配置，同一供应商共享 baseUrl 与 API Key。 */
+/**
+ * AI 模型供应商配置，同一供应商共享 baseUrl 与 API Key。
+ *
+ * <p>标注 {@link com.xuejiai.aaf.framework.org.OrgIgnore}：供应商配置是平台级基础设施（同类 {@code AiModel}/{@code
+ * ModelPreference} 已标注），不含组织归属字段，{@code org_id} 恒为 NULL。
+ */
 @Getter
 @Setter
 @Entity
@@ -22,6 +27,7 @@ import lombok.Setter;
 @SQLDelete(
         sql =
                 "UPDATE ai_model_provider SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@com.xuejiai.aaf.framework.org.OrgIgnore
 public class AiModelProvider extends BaseEntity {
 
     /** 供应商编码：aliyun / volcengine / deepseek / third_party 等 */

@@ -11,13 +11,19 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-/** Prompt 模板，支持版本管理和变量注入。 */
+/**
+ * Prompt 模板，支持版本管理和变量注入。
+ *
+ * <p>标注 {@link com.xuejiai.aaf.framework.org.OrgIgnore}：模板是平台级能力目录（同类 {@code AiModel} 已标注），
+ * 不含组织归属字段，{@code org_id} 恒为 NULL。
+ */
 @Getter
 @Setter
 @Entity
 @Table(
         name = "ai_prompt_template",
         uniqueConstraints = {@UniqueConstraint(columnNames = {"name", "version"})})
+@com.xuejiai.aaf.framework.org.OrgIgnore
 public class PromptTemplate extends BaseEntity {
 
     /** 模板名称（唯一标识） */

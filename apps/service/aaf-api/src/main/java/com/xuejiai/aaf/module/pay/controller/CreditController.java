@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.module.pay.controller;
+﻿package com.xuejiai.aaf.module.pay.controller;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -31,8 +31,8 @@ public class CreditController {
 
     @Operation(summary = "查询积分余额")
     @GetMapping("/balance")
-    public Result<CreditBalanceVO> getBalance(@RequestParam(required = false) Long userId) {
-        var ownerId = ownerId(userId);
+    public Result<CreditBalanceVO> getBalance() {
+        var ownerId = currentOwnerId();
         var account = creditService.getAccount(ownerId);
         if (account == null) {
             return Result.success(new CreditBalanceVO(ownerId, 0, 0, 0, 0));
@@ -49,8 +49,8 @@ public class CreditController {
     @Operation(summary = "查询积分分组明细（按 batch_type 汇总）")
     @GetMapping("/groups")
     public Result<java.util.List<CreditGroupVO>> getGroups(
-            @RequestParam(required = false) Long userId) {
-        var grouped = creditService.getGroupedBalance(ownerId(userId));
+            ) {
+        var grouped = creditService.getGroupedBalance(currentOwnerId());
         // batch_type → 显示名映射
         var labelMap =
                 java.util.Map.of(
@@ -82,10 +82,9 @@ public class CreditController {
     @Operation(summary = "查询积分流水")
     @GetMapping("/transactions")
     public Result<PageResult<CreditTransactionVO>> getTransactions(
-            @RequestParam(required = false) Long userId,
             @PageableDefault(sort = "createTime", direction = Sort.Direction.DESC)
                     Pageable pageable) {
-        var page = creditService.getTransactions(ownerId(userId), pageable);
+        var page = creditService.getTransactions(currentOwnerId(), pageable);
         var list =
                 page.getContent().stream()
                         .map(
@@ -104,7 +103,20 @@ public class CreditController {
         return Result.success(new PageResult<>(list, page.getTotalElements()));
     }
 
-    private Long ownerId(Long fallbackUserId) {
-        return operatorContext.currentOwnerId().orElse(fallbackUserId);
+    /**
+     * M1：当前身份来源唯一——只从 OperatorContext 取，取不到即 401。
+     *
+     * <p>原实现是 currentOwnerId().orElse(客户端传入的 userId)：一旦认证上下文解析不出归属者
+     * （如 API Key 认证未绑定用户），就会采信请求参数里的 userId，形成任意用户数据读取。
+     * 管理员代查须走带显式鉴权的管理端接口，不复用本接口。
+     */
+    private Long currentOwnerId() {
+        return operatorContext
+                .currentOwnerId()
+                .orElseThrow(
+                        () ->
+                                new com.xuejiai.aaf.common.exception.BusinessException(
+                                        com.xuejiai.aaf.common.exception.GlobalErrorCode
+                                                .UNAUTHORIZED));
     }
 }

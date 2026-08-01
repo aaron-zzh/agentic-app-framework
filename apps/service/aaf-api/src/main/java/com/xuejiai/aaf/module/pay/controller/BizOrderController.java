@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.module.pay.controller;
+﻿package com.xuejiai.aaf.module.pay.controller;
 
 import java.util.List;
 
@@ -34,16 +34,15 @@ public class BizOrderController {
     @PreAuthorize("isAuthenticated()")
     @PostMapping
     public Result<BizOrderVO> create(
-            @RequestParam(required = false) Long userId,
             @Valid @RequestBody BizOrderCreateDTO dto) {
-        return Result.success(bizOrderService.create(ownerId(userId), dto));
+        return Result.success(bizOrderService.create(currentOwnerId(), dto));
     }
 
     @Operation(summary = "查询用户订单列表")
     @GetMapping
     public Result<PageResult<BizOrderVO>> list(
-            @RequestParam(required = false) Long userId, @PageableDefault Pageable pageable) {
-        var page = bizOrderService.listByUser(ownerId(userId), pageable);
+            @PageableDefault Pageable pageable) {
+        var page = bizOrderService.listByUser(currentOwnerId(), pageable);
         return Result.success(new PageResult<>(page.getContent(), page.getTotalElements()));
     }
 
@@ -59,7 +58,20 @@ public class BizOrderController {
         return Result.success(bizOrderService.getItems(id));
     }
 
-    private Long ownerId(Long fallbackUserId) {
-        return operatorContext.currentOwnerId().orElse(fallbackUserId);
+    /**
+     * M1：当前身份来源唯一——只从 OperatorContext 取，取不到即 401。
+     *
+     * <p>原实现是 currentOwnerId().orElse(客户端传入的 userId)：一旦认证上下文解析不出归属者
+     * （如 API Key 认证未绑定用户），就会采信请求参数里的 userId，形成任意用户数据读取。
+     * 管理员代查须走带显式鉴权的管理端接口，不复用本接口。
+     */
+    private Long currentOwnerId() {
+        return operatorContext
+                .currentOwnerId()
+                .orElseThrow(
+                        () ->
+                                new com.xuejiai.aaf.common.exception.BusinessException(
+                                        com.xuejiai.aaf.common.exception.GlobalErrorCode
+                                                .UNAUTHORIZED));
     }
 }

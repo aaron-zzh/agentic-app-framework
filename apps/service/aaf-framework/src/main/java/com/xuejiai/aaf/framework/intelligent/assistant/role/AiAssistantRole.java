@@ -11,6 +11,8 @@ import lombok.Setter;
  *
  * <p>角色为可复用定义，可跨助理挂载；一个助理可挂载多个角色。 助理的默认角色仍由 {@code ai_assistant.default_role_id} 指向，本表的 {@code
  * isDefault} 为冗余标记，便于按助理查询其默认角色。
+ *
+ * <p>标注 {@link OrgIgnore}：纯 M:N 关联表，无自己的组织语义，归属由 assistant/role 各自决定，{@code org_id} 恒为 NULL。
  */
 @Getter
 @Setter
@@ -25,6 +27,7 @@ import lombok.Setter;
             @Index(name = "idx_ai_assistant_role_assistant", columnList = "assistant_id"),
             @Index(name = "idx_ai_assistant_role_role", columnList = "role_id")
         })
+@com.xuejiai.aaf.framework.org.OrgIgnore
 public class AiAssistantRole extends BaseEntity {
 
     /** 关联的助理 ID */

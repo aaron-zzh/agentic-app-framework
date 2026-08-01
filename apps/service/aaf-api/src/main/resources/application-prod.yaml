@@ -5,6 +5,11 @@
 # - 关闭 mock 认证（使用真实 JWT，靠 JWT_SECRET 环境变量）
 # - 关闭 show-sql / clean-on-start
 # - 关闭 API 文档（不在生产暴露 swagger / api-docs）
+# - m7：由网关/LB 的转发头改写 remoteAddr，应用侧不再自行解析可伪造的 X-Forwarded-For
+server:
+  # m7：仅在"应用只能经网关/LB 访问"的生产拓扑下开启——此时 X-Forwarded-* 由代理覆写并剥离客户端伪造值，
+  # Spring ForwardedHeaderFilter 据此改写 remoteAddr；若应用可被直连访问，绝不能开启（等于放开 IP 伪造）
+  forward-headers-strategy: framework
 spring:
   config:
     import: optional:file:.env[.properties]

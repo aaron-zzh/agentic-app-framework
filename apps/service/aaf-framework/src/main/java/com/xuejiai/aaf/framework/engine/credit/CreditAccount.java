@@ -8,7 +8,12 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 积分账户 */
+/**
+ * 积分账户。
+ *
+ * <p>标注 {@link com.xuejiai.aaf.framework.org.OrgIgnore}：账户归属 {@code userId}（唯一约束）而非组织，{@code
+ * org_id} 恒为 NULL，与 {@code CreditTransaction} 同结构。
+ */
 @Getter
 @Setter
 @Entity
@@ -19,6 +24,7 @@ import lombok.Setter;
 @SQLDelete(
         sql =
                 "UPDATE credit_account SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@com.xuejiai.aaf.framework.org.OrgIgnore
 public class CreditAccount extends BaseEntity {
 
     /** 用户 ID（唯一） */

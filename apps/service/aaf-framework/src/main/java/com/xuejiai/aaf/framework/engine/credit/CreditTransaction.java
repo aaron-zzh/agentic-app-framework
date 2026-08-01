@@ -10,7 +10,12 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 积分流水记录 */
+/**
+ * 积分流水记录。
+ *
+ * <p>标注 {@link com.xuejiai.aaf.framework.org.OrgIgnore}：流水归属 {@code accountId}（关联 {@link
+ * CreditAccount}）而非组织，{@code org_id} 恒为 NULL。
+ */
 @Getter
 @Setter
 @Entity
@@ -18,6 +23,7 @@ import lombok.Setter;
 @SQLDelete(
         sql =
                 "UPDATE credit_transaction SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@com.xuejiai.aaf.framework.org.OrgIgnore
 public class CreditTransaction extends BaseEntity {
 
     /** 关联账户 ID */

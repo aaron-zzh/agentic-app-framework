@@ -6,11 +6,17 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-/** Persona（人格载体）：定义助理的人格、角色扮演和基础系统提示词。 可复用——同一个 Persona 可绑定不同 Role 组成多个 Assistant。 */
+/**
+ * Persona（人格载体）：定义助理的人格、角色扮演和基础系统提示词。 可复用——同一个 Persona 可绑定不同 Role 组成多个 Assistant。
+ *
+ * <p>标注 {@link com.xuejiai.aaf.framework.org.OrgIgnore}：归属由 {@code ownerId} 表达（NULL=系统公共模板，
+ * 有值=用户私有），不是组织资源，{@code org_id} 恒为 NULL。
+ */
 @Getter
 @Setter
 @Entity
 @Table(name = "ai_persona")
+@com.xuejiai.aaf.framework.org.OrgIgnore
 public class Persona extends BaseEntity {
 
     /** 显示名称（如"客服小美"） */

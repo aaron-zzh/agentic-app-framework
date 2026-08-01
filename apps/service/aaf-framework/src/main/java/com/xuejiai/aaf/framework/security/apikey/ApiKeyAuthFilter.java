@@ -34,9 +34,14 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             java.time.Duration.ofMinutes(1);
 
     private final ApiKeyRepository apiKeyRepository;
+    private final org.springframework.beans.factory.ObjectProvider<ApiKeyUserRoleProvider>
+            roleProvider;
 
-    public ApiKeyAuthFilter(@Lazy ApiKeyRepository apiKeyRepository) {
+    public ApiKeyAuthFilter(
+            @Lazy ApiKeyRepository apiKeyRepository,
+            org.springframework.beans.factory.ObjectProvider<ApiKeyUserRoleProvider> roleProvider) {
         this.apiKeyRepository = apiKeyRepository;
+        this.roleProvider = roleProvider;
     }
 
     @Override
@@ -61,10 +66,9 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         var apiKey = apiKeyOpt.get();
 
         // 设置 SecurityContext（principal = userId 字符串，与 JWT 一致）
-        var authorities = List.of(new SimpleGrantedAuthority("ROLE_API_KEY"));
         var auth =
                 new UsernamePasswordAuthenticationToken(
-                        apiKey.getUserId().toString(), null, authorities);
+                        apiKey.getUserId().toString(), null, authoritiesOf(apiKey));
         auth.setDetails(apiKey); // 可通过 details 获取 ApiKey 对象
         SecurityContextHolder.getContext().setAuthentication(auth);
 
@@ -77,6 +81,35 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * M9：授予 {@code ROLE_API_KEY} + 绑定用户的真实角色。
+     *
+     * <p>原实现只给 {@code ROLE_API_KEY}，API Key 到不了任何需要业务角色的端点。现在继承绑定用户的角色，
+     * 使 API Key 与该用户自己登录时具备一致的角色视图；{@code ROLE_API_KEY} 保留，供需要区分"人 vs 密钥" 的策略使用，ApiKey 自身的 scope /
+     * allowedTables 收窄约束不受影响，仍在各自校验点生效。
+     *
+     * <p>角色查询由 aaf-api 提供实现（{@link ApiKeyUserRoleProvider}）；未提供实现或查询异常时退回只授
+     * {@code ROLE_API_KEY}，保持 fail-closed。
+     */
+    private List<org.springframework.security.core.GrantedAuthority> authoritiesOf(ApiKey apiKey) {
+        var authorities =
+                new java.util.ArrayList<org.springframework.security.core.GrantedAuthority>();
+        authorities.add(new SimpleGrantedAuthority("ROLE_API_KEY"));
+        var provider = roleProvider.getIfAvailable();
+        if (provider == null) {
+            return authorities;
+        }
+        try {
+            provider.roleCodesOf(apiKey.getUserId()).stream()
+                    .filter(code -> code != null && !code.isBlank())
+                    .map(code -> new SimpleGrantedAuthority("ROLE_" + code.trim().toUpperCase()))
+                    .forEach(authorities::add);
+        } catch (RuntimeException e) {
+            log.warn("API Key 角色继承失败，退回仅 ROLE_API_KEY: userId={}", apiKey.getUserId(), e);
+        }
+        return authorities;
     }
 
     private String extractKey(HttpServletRequest request) {

@@ -30,8 +30,14 @@ import lombok.extern.slf4j.Slf4j;
  * #ORG_LIST_PATH}——该接口用于登录后查询"当前用户属于哪些组织"，语义上基于 userId 查询、不依赖 orgId，必须豁免，否则用户在拿到 orgId
  * 之前无法查到自己的组织列表（死锁）。
  *
- * <p>切面覆盖范围扩大到 {@code aaf-framework} 包下的 repository，此前只切 {@code module} 包，framework 层的
- * repository（如系统配置、序列号）完全不受组织隔离保护。
+ * <p>B1：切面覆盖范围从"包路径匹配"改为"类型匹配"——原 pointcut 是
+ * {@code execution(* module..repository.*.*(..)) || execution(* framework..repository.*.*(..))}，
+ * 只命中放在 {@code repository} 子包下的仓储；framework 层大量仓储不遵循这一约定（如 {@code engine/credit/
+ * CreditAccountRepository}、{@code intelligent/core/model/AiModelRepository}），完全绕过本切面。 现在改为对任意
+ * {@code JpaRepository} 子接口生效（不看包路径），一次性覆盖此前遗漏的全部仓储。为此已将其中 13 个
+ * 全局配置类实体补标 {@link OrgIgnore}（AgentDefinition/AiAssistantRole/AiModelProvider/ModelPreference/
+ * CreditAccount/CreditTransaction/PromptTemplate/Persona/ValueRule/PermissionTuple/TeamEntity/
+ * AccessPolicy/AccessPolicySnapshot/AuthorizationAudit），避免切面扩面后把这些表误套组织过滤导致查询静默返回空。
  *
  * <p>后台任务（{@code @Scheduled}）运行在无 HTTP 请求上下文的独立线程，{@code OrgContext} 中不会有 orgId，需要在方法/类上显式加
  * {@code @OrgIgnore} 声明豁免，否则会被 fail-closed 拒绝——不能像 HTTP 场景一样用 URL 白名单处理。
@@ -67,8 +73,8 @@ public class OrgFilterAspect {
     private final Map<Class<?>, Boolean> suspectedMisconfigCache = new ConcurrentHashMap<>();
 
     @Around(
-            "execution(* com.xuejiai.aaf.module..repository.*.*(..)) || "
-                    + "execution(* com.xuejiai.aaf.framework..repository.*.*(..))")
+            "this(org.springframework.data.jpa.repository.JpaRepository) && "
+                    + "within(com.xuejiai.aaf..*)")
     public Object enableOrgFilter(ProceedingJoinPoint joinPoint) throws Throwable {
         var session = entityManager.unwrap(org.hibernate.Session.class);
         if (OrgContext.isIgnore() || isGlobalEntityRepository(joinPoint)) {

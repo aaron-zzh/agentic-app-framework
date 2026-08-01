@@ -6,11 +6,18 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 价值观/伦理约束规则实体。 */
+/**
+ * 价值观/伦理约束规则实体。
+ *
+ * <p>标注 {@link com.xuejiai.aaf.framework.org.OrgIgnore}：{@code scope} 字段声明了 GLOBAL/ORG 两种值域，
+ * 但当前代码库没有任何写入路径把 {@code scope} 设为 ORG 或写入 {@code org_id}——运行时该表实际上就是全局规则表。
+ * 若未来落地按组织隔离价值观规则，需先补齐 org_id 写入路径，再移除本标注（否则组织过滤会让 ORG 规则查询静默返回空）。
+ */
 @Getter
 @Setter
 @Entity
 @Table(name = "ai_value_rule")
+@com.xuejiai.aaf.framework.org.OrgIgnore
 public class ValueRule extends BaseEntity {
 
     @Column(nullable = false, length = 128)

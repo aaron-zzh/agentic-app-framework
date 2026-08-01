@@ -12,7 +12,12 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 统一授权与策略发布审计记录。 */
+/**
+ * 统一授权与策略发布审计记录。
+ *
+ * <p>标注 {@link com.xuejiai.aaf.framework.org.OrgIgnore}：与 {@link AccessPolicy} 同理，租户边界由自身的
+ * {@code tenantId} 字段表达，不套用 {@code org_id} 过滤。
+ */
 @Getter
 @Setter
 @Entity
@@ -24,6 +29,7 @@ import lombok.Setter;
                     columnList = "subject_id,occurred_at"),
             @Index(name = "idx_authorization_audit_policy", columnList = "policy_id,policy_version")
         })
+@com.xuejiai.aaf.framework.org.OrgIgnore
 public class AuthorizationAudit extends BaseEntity {
 
     @Column(name = "event_type", nullable = false, length = 40)

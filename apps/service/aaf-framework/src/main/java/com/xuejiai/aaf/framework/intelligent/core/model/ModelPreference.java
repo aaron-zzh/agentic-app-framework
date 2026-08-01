@@ -15,6 +15,9 @@ import lombok.Setter;
  * 模型偏好配置。
  *
  * <p>model_ids 是有序渠道列表，RouterCapability 按顺序取第一个可用模型，其余作为降级链。
+ *
+ * <p>标注 {@link com.xuejiai.aaf.framework.org.OrgIgnore}：偏好按 {@code scope}（USER/SYSTEM）+ {@code
+ * scopeId} 归属，不含组织归属字段，与同类 {@code AiModel} 一致，{@code org_id} 恒为 NULL。
  */
 @Getter
 @Setter
@@ -22,6 +25,7 @@ import lombok.Setter;
 @Table(
         name = "ai_model_preference",
         uniqueConstraints = @UniqueConstraint(columnNames = {"scope", "scope_id", "capability"}))
+@com.xuejiai.aaf.framework.org.OrgIgnore
 public class ModelPreference extends BaseEntity {
 
     public static final String SCOPE_USER = "USER";

@@ -13,7 +13,12 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/** 已发布策略的不可变版本快照。 */
+/**
+ * 已发布策略的不可变版本快照。
+ *
+ * <p>标注 {@link com.xuejiai.aaf.framework.org.OrgIgnore}：与 {@link AccessPolicy} 同理，不套用 {@code
+ * org_id} 过滤；{@code from} 工厂方法仍会复制源策略的 org/workspace/owner 字段用于审计追溯，但查询不据此过滤。
+ */
 @Getter
 @Entity
 @NoArgsConstructor
@@ -28,6 +33,7 @@ import lombok.NoArgsConstructor;
 @SQLDelete(
         sql =
                 "UPDATE sys_access_policy_snapshot SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@com.xuejiai.aaf.framework.org.OrgIgnore
 public class AccessPolicySnapshot extends BaseEntity {
 
     @Column(name = "policy_id", nullable = false)

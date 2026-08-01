@@ -11,11 +11,17 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-/** Agent 元数据定义，持久化到数据库。 运行时通过此配置构建 AgentScope ReActAgent 实例。 */
+/**
+ * Agent 元数据定义，持久化到数据库。 运行时通过此配置构建 AgentScope ReActAgent 实例。
+ *
+ * <p>标注 {@link com.xuejiai.aaf.framework.org.OrgIgnore}：Agent 定义是平台级能力目录（同类 {@code
+ * AiModel}/{@code ModelPreference} 已标注），不含组织归属字段，{@code org_id} 恒为 NULL。
+ */
 @Getter
 @Setter
 @Entity
 @Table(name = "ai_agent_definition")
+@com.xuejiai.aaf.framework.org.OrgIgnore
 public class AgentDefinition extends BaseEntity {
 
     /** 运行时稳定标识。 */

@@ -11,7 +11,13 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.Setter;
 
-/** ReBAC 关系元组：object#relation@subject。 */
+/**
+ * ReBAC 关系元组：object#relation@subject。
+ *
+ * <p>标注 {@link com.xuejiai.aaf.framework.org.OrgIgnore}：{@code objectId}/{@code subjectId} 是跨类型
+ * 字符串化标识，元组本身承担鉴权判定（见 {@code ResourceRelationService#hasPermission}），套用 org 过滤会让
+ * 跨组织共享的权限判定静默失效，且该表已有自己的 object/subject 维度索引，不需要再叠加组织维度。
+ */
 @Getter
 @Setter
 @Entity
@@ -27,6 +33,7 @@ import lombok.Setter;
                             "subject_id",
                             "subject_relation"
                         }))
+@com.xuejiai.aaf.framework.org.OrgIgnore
 public class PermissionTuple extends BaseEntity {
 
     @Column(name = "object_type", nullable = false, length = 50)
