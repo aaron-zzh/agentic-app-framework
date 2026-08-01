@@ -11,6 +11,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.xuejiai.aaf.framework.engine.bpmn.api.BpmnEngine;
 import com.xuejiai.aaf.framework.task.TaskMonitor;
@@ -27,6 +28,7 @@ class TaskRuntimeInProgressTest extends BaseMockitoUnitTest {
     @BeforeEach
     void setUp() {
         taskRuntime = new TaskRuntime(taskMonitor, taskNotifier, bpmnEngine);
+        ReflectionTestUtils.setField(taskRuntime, "timeoutSeconds", 5L);
         when(taskMonitor.recordStart(anyString(), anyString(), any(), any(), any(), anyString()))
                 .thenReturn(10L);
         taskRuntime.register(inProgressTask());
