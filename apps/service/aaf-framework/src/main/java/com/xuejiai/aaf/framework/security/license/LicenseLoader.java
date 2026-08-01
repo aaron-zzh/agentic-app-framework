@@ -30,18 +30,33 @@ public class LicenseLoader {
     private static final Logger log = LoggerFactory.getLogger(LicenseLoader.class);
 
     private final LicenseIdentityService identityService;
+    private final LicenseProperties licenseProperties;
+    private final org.springframework.core.env.Environment environment;
 
     LicenseLoader() {
-        this(new LicenseIdentityService(new LicenseIdentityProperties()));
+        this(
+                new LicenseIdentityService(new LicenseIdentityProperties()),
+                new LicenseProperties(),
+                new org.springframework.core.env.StandardEnvironment());
     }
 
     @Autowired
-    public LicenseLoader(LicenseIdentityService identityService) {
+    public LicenseLoader(
+            LicenseIdentityService identityService,
+            LicenseProperties licenseProperties,
+            org.springframework.core.env.Environment environment) {
         this.identityService = identityService;
+        this.licenseProperties = licenseProperties;
+        this.environment = environment;
     }
 
-    // RSA 2048 公钥（与 BootstrapLicenseTool 生成的密钥对配套，运行工具后更新）
-    static final String PUBLIC_KEY_PEM =
+    /**
+     * 开发/测试用内置公钥（与 {@code BootstrapLicenseTool} 生成的密钥对配套）。
+     *
+     * <p>M32：仅作为**非生产**兜底信任根；生产环境必须通过 {@code aaf.license.public-keys} 显式配置， 否则启动失败（见 {@link
+     * #resolveTrustedKeys()}）。
+     */
+    static final String DEV_PUBLIC_KEY_PEM =
             "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjX7kNbyPNeOOYFkdoDo7"
                     + "lnaUMaBALdWj/58m3FWNUpITcwgzTt2A645zsDy0RFFAk0/xs3+/Xv0c2LTvl6SR"
                     + "syxaOdmR+tCPLh03OiR2pOsYvi0PdyJDKIYWWiEyrTDteoJ/J1XTT4dkEV7yEmJL"
@@ -66,10 +81,8 @@ public class LicenseLoader {
 
         try {
             var signedJWT = SignedJWT.parse(jwt.trim());
-            var publicKey = parsePublicKey(PUBLIC_KEY_PEM);
-            var verifier = new RSASSAVerifier(publicKey);
-
-            if (!signedJWT.verify(verifier)) {
+            // M32：依次尝试受信公钥（支持轮换期新旧并存），全部不通过才判为无效
+            if (!verifyWithTrustedKeys(signedJWT)) {
                 log.warn("Invalid or expired license, falling back to free mode");
                 return;
             }
@@ -125,5 +138,42 @@ public class LicenseLoader {
         var spec = new X509EncodedKeySpec(decoded);
         var keyFactory = KeyFactory.getInstance("RSA");
         return (RSAPublicKey) keyFactory.generatePublic(spec);
+    }
+
+    /** M32：用全部受信公钥依次验签，任一通过即受信（轮换期新旧公钥并存）。 */
+    private boolean verifyWithTrustedKeys(SignedJWT signedJWT) {
+        for (var pem : resolveTrustedKeys()) {
+            try {
+                if (signedJWT.verify(new RSASSAVerifier(parsePublicKey(pem)))) {
+                    return true;
+                }
+            } catch (Exception e) {
+                log.warn("License 公钥不可用，跳过该信任根: {}", e.getMessage());
+            }
+        }
+        return false;
+    }
+
+    /**
+     * M32：解析受信公钥列表。
+     *
+     * <p>配置了 {@code aaf.license.public-keys} 即以配置为准；未配置时：
+     *
+     * <ul>
+     *   <li>生产 Profile → 直接抛异常终止启动，避免生产误用内置开发信任根
+     *   <li>非生产 → 使用内置开发公钥并打印警告
+     * </ul>
+     */
+    private List<String> resolveTrustedKeys() {
+        var configured = licenseProperties.getPublicKeys();
+        if (configured != null && !configured.isEmpty()) {
+            return configured;
+        }
+        if (List.of(environment.getActiveProfiles()).contains("prod")) {
+            throw new IllegalStateException(
+                    "生产环境必须显式配置 aaf.license.public-keys，禁止使用内置开发公钥作为许可证信任根");
+        }
+        log.warn("未配置 aaf.license.public-keys，当前使用内置开发公钥（仅限非生产环境）");
+        return List.of(DEV_PUBLIC_KEY_PEM);
     }
 }

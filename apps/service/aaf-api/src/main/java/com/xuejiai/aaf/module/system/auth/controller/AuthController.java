@@ -237,8 +237,7 @@ public class AuthController {
     @Operation(summary = "获取 OAuth 授权 URL")
     @GetMapping("/oauth/{provider}/url")
     public Result<String> getOAuthUrl(
-            @PathVariable String provider,
-            @RequestParam(defaultValue = "web") String deviceId) {
+            @PathVariable String provider, @RequestParam(defaultValue = "web") String deviceId) {
         return Result.success(authService.getOAuthUrl(provider, deviceId));
     }
 
@@ -250,8 +249,7 @@ public class AuthController {
             @RequestParam String state,
             jakarta.servlet.http.HttpServletRequest request) {
         var login =
-                authService.oauthLogin(
-                        provider, code, state, "web", getClientIp(request), null);
+                authService.oauthLogin(provider, code, state, "web", getClientIp(request), null);
         var exchangeCode = authService.issueOAuthExchangeCode(login);
         var redirectUrl = frontendUrl + "/login?oauthCode=" + exchangeCode;
         return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(redirectUrl)).build();
@@ -280,12 +278,22 @@ public class AuthController {
         return Result.success(authService.exchangeOAuthCode(dto.code()));
     }
 
+    @Operation(summary = "获取第三方账号绑定授权 URL（含一次性绑定 state）")
+    @GetMapping("/oauth/{provider}/bind-url")
+    public Result<String> getOAuthBindUrl(
+            @PathVariable String provider,
+            @RequestParam(required = false) String deviceId) {
+        Long userId = authService.currentUserId();
+        return Result.success(authService.getOAuthBindUrl(provider, userId, deviceId));
+    }
+
     @Operation(summary = "绑定第三方账号")
     @PostMapping("/oauth/{provider}/bind")
     public Result<Void> bindOAuth(
             @PathVariable String provider, @Valid @RequestBody OAuthBindDTO dto) {
         Long userId = authService.currentUserId();
-        authService.bindOAuth(userId, provider, dto.code());
+        // M31：绑定必须携带归属当前用户的一次性 state，防 CSRF 式误绑
+        authService.bindOAuth(userId, provider, dto.code(), dto.state());
         return Result.success();
     }
 

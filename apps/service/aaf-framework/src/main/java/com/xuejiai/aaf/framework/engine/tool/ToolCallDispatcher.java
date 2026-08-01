@@ -11,7 +11,7 @@ import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyService;
-import com.xuejiai.aaf.framework.intelligent.assistant.hitl.HumanApprovalService;
+import com.xuejiai.aaf.framework.intelligent.assistant.hitl.ToolApprovalService;
 import com.xuejiai.aaf.framework.intelligent.core.confidence.ConfidenceGate;
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationDecision;
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationPlan;
@@ -219,7 +219,7 @@ public class ToolCallDispatcher {
                         true,
                         null,
                         arguments,
-                        HumanApprovalService.ApprovalType.LOW_CONFIDENCE,
+                        ToolApprovalService.ApprovalType.LOW_CONFIDENCE,
                         "置信度门控确认",
                         decision.message() == null ? "工具调用置信度不足" : decision.message());
         return switch (approval.result()) {

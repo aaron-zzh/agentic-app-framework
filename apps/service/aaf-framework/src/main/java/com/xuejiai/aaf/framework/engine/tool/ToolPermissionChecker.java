@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.framework.engine.tool;
+﻿package com.xuejiai.aaf.framework.engine.tool;
 
 import java.time.Instant;
 import java.util.*;
@@ -7,7 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
-import com.xuejiai.aaf.framework.intelligent.assistant.hitl.HumanApprovalService;
+import com.xuejiai.aaf.framework.intelligent.assistant.hitl.ToolApprovalService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,7 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class ToolPermissionChecker {
 
-    private final HumanApprovalService approvalService;
+    private final ToolApprovalService approvalService;
     private final ApplicationEventPublisher eventPublisher;
 
     /** 会话级授权记录：sessionId → 授权列表 */
@@ -140,7 +140,7 @@ public class ToolPermissionChecker {
                 requireConfirm,
                 agentAllowedTools,
                 arguments,
-                HumanApprovalService.ApprovalType.TOOL_PERMISSION,
+                ToolApprovalService.ApprovalType.TOOL_PERMISSION,
                 "工具调用确认",
                 "工具调用需要用户确认");
     }
@@ -155,7 +155,7 @@ public class ToolPermissionChecker {
             boolean requireConfirm,
             List<String> agentAllowedTools,
             String arguments,
-            HumanApprovalService.ApprovalType approvalType,
+            ToolApprovalService.ApprovalType approvalType,
             String approvalTitle,
             String approvalReason) {
 
@@ -204,7 +204,7 @@ public class ToolPermissionChecker {
                             userId,
                             toolName,
                             riskLevel,
-                            HumanApprovalService.ApprovalType.TOOL_PERMISSION,
+                            ToolApprovalService.ApprovalType.TOOL_PERMISSION,
                             "工具调用确认",
                             "中风险工具需用户确认");
             case HIGH ->
@@ -213,7 +213,7 @@ public class ToolPermissionChecker {
                             userId,
                             toolName,
                             riskLevel,
-                            HumanApprovalService.ApprovalType.TOOL_PERMISSION,
+                            ToolApprovalService.ApprovalType.TOOL_PERMISSION,
                             "高风险工具确认",
                             "高风险工具每次调用需确认");
             case CRITICAL -> PermissionDecision.of(PermissionResult.DENIED, "关键风险工具默认拒绝");
@@ -225,7 +225,7 @@ public class ToolPermissionChecker {
             Long userId,
             String toolName,
             ToolRiskLevel riskLevel,
-            HumanApprovalService.ApprovalType approvalType,
+            ToolApprovalService.ApprovalType approvalType,
             String title,
             String reason) {
         var approvalId =
@@ -252,11 +252,11 @@ public class ToolPermissionChecker {
         return PermissionDecision.pending(reason, approvalId);
     }
 
-    private String subjectType(HumanApprovalService.ApprovalType approvalType, String subjectKey) {
-        if (approvalType == HumanApprovalService.ApprovalType.ACTION_CONFIRM) {
+    private String subjectType(ToolApprovalService.ApprovalType approvalType, String subjectKey) {
+        if (approvalType == ToolApprovalService.ApprovalType.ACTION_CONFIRM) {
             return "ACTION";
         }
-        if (approvalType == HumanApprovalService.ApprovalType.LOW_CONFIDENCE
+        if (approvalType == ToolApprovalService.ApprovalType.LOW_CONFIDENCE
                 && subjectKey != null
                 && subjectKey.contains(".")) {
             return "ACTION";

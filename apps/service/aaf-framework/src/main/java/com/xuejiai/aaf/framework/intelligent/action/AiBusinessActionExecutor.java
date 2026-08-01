@@ -10,7 +10,7 @@ import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.engine.tool.ToolPermissionChecker;
 import com.xuejiai.aaf.framework.engine.tool.ToolRiskLevel;
-import com.xuejiai.aaf.framework.intelligent.assistant.hitl.HumanApprovalService;
+import com.xuejiai.aaf.framework.intelligent.assistant.hitl.ToolApprovalService;
 import com.xuejiai.aaf.framework.intelligent.core.confidence.ConfidenceGate;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.security.PermissionExecutionService;
@@ -124,7 +124,7 @@ public class AiBusinessActionExecutor {
                         true,
                         null,
                         request.params() == null ? null : request.params().toString(),
-                        HumanApprovalService.ApprovalType.ACTION_CONFIRM,
+                        ToolApprovalService.ApprovalType.ACTION_CONFIRM,
                         "业务动作确认",
                         "业务动作风险策略要求确认");
         return switch (decision.result()) {
@@ -170,7 +170,7 @@ public class AiBusinessActionExecutor {
                         true,
                         null,
                         request.params() == null ? null : request.params().toString(),
-                        HumanApprovalService.ApprovalType.LOW_CONFIDENCE,
+                        ToolApprovalService.ApprovalType.LOW_CONFIDENCE,
                         "业务动作置信度确认",
                         decision.message() == null ? "业务动作置信度不足" : decision.message());
         return switch (approval.result()) {

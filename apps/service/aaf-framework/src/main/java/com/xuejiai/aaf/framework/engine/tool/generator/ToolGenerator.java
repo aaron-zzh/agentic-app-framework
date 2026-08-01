@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.framework.engine.tool.generator;
+﻿package com.xuejiai.aaf.framework.engine.tool.generator;
 
 import java.util.List;
 
@@ -9,7 +9,6 @@ import org.springframework.stereotype.Component;
 import com.xuejiai.aaf.framework.engine.tool.ScriptExecutor;
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.ResilientChatService;
-import com.xuejiai.aaf.framework.intelligent.assistant.hitl.HumanApprovalService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +26,6 @@ public class ToolGenerator {
     private final ResilientChatService chatService;
     private final ToolRegistry toolRegistry;
     private final ScriptExecutor scriptExecutor;
-    private final HumanApprovalService approvalService;
     private final GeneratedToolStore toolStore;
 
     private static final String SYSTEM_PROMPT =

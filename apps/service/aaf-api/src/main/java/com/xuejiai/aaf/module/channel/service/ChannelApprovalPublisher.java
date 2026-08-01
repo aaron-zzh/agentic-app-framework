@@ -1,9 +1,9 @@
-package com.xuejiai.aaf.module.channel.service;
+﻿package com.xuejiai.aaf.module.channel.service;
 
 import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.hitl.ApprovalRequestPublisher;
-import com.xuejiai.aaf.framework.intelligent.assistant.hitl.HumanApprovalService.ApprovalRequest;
+import com.xuejiai.aaf.framework.intelligent.assistant.hitl.ToolApprovalService.ApprovalRequest;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,11 +31,14 @@ import lombok.extern.slf4j.Slf4j;
  *
  * <pre>
  * 用户点击按钮 → 渠道回调 → ChannelApprovalCallbackHandler
- *   → HumanApprovalService.resolve(requestId, decision)
- *   → ApprovalResolvedEvent 发布
- *   → HitlApprovalGrantListener 授权
+ *   → POST /api/tool-approvals/{approvalId}/decide（或按会话批量 decide）
+ *   → ToolApprovalService 落库 ai_tool_approval 并发布 ApprovalResolvedEvent
+ *   → ToolApprovalGrantListener 回写会话级工具授权
  *   → 下次 Agent 调用该工具自动通过
  * </pre>
+ *
+ * <p>M36：审批状态已持久化，重启/多实例不再丢失；且决定入口真实存在——旧内存版没有任何 resolve 调用方，
+ * 用户点了卡片也无处落地。
  *
  * <p>注意：渠道链路中 Agent 是通过 {@code agent.call()} 阻塞等待的， resolve 后不需要像 AG-UI 那样 {@code agent.stream()}
  * 恢复—— ToolPermissionChecker 下次检查时已被授权，Agent 循环自动继续。

@@ -464,18 +464,42 @@ public class AuthService {
 
     // ==================== OAuth 第三方登录 ====================
 
-    /** 获取 OAuth 授权 URL，state 由服务端签发并绑定 provider/device。 */
+    /** 获取 OAuth 授权 URL（登录用），state 由服务端签发并绑定 provider/device/用途。 */
     public String getOAuthUrl(String provider, String deviceId) {
         OAuthClient client = findOAuthClient(provider);
+        return client.buildAuthorizationUrl(
+                issueOAuthState(provider, deviceId == null ? "web" : deviceId, OAuthPurpose.LOGIN, null));
+    }
+
+    /**
+     * 获取 OAuth 授权 URL（账号绑定用）。
+     *
+     * <p>M31：绑定链此前只收 code、完全没有 state——攻击者可诱导已登录用户提交攻击者自己的授权 code，
+     * 把攻击者的第三方账号绑到受害者账号上，之后即可用第三方登录接管账号。现在绑定与登录复用同一套 state 签发/消费流程，且 state 额外绑定**用途**与**发起人 userId**，
+     * 登录 state 不能拿来绑定，A 用户的绑定 state 也不能被 B 用户消费。
+     */
+    public String getOAuthBindUrl(String provider, Long userId, String deviceId) {
+        OAuthClient client = findOAuthClient(provider);
+        return client.buildAuthorizationUrl(
+                issueOAuthState(
+                        provider,
+                        deviceId == null ? "web" : deviceId,
+                        OAuthPurpose.BIND,
+                        userId));
+    }
+
+    /** M31：state 签发统一入口——登录与绑定共用，避免两条链各写一套。 */
+    private String issueOAuthState(
+            String provider, String deviceId, OAuthPurpose purpose, Long subjectUserId) {
         var state = UUID.randomUUID().toString();
-        var stateData = new OAuthState(provider, deviceId == null ? "web" : deviceId);
+        var stateData = new OAuthState(provider, deviceId, purpose, subjectUserId);
         redisTemplate
                 .opsForValue()
                 .set(
                         OAUTH_STATE_PREFIX + state,
                         JsonUtils.toJsonString(stateData),
                         OAUTH_STATE_TTL);
-        return client.buildAuthorizationUrl(state);
+        return state;
     }
 
     /** OAuth 回调登录，一次性消费并校验 state。 */
@@ -487,7 +511,7 @@ public class AuthService {
             String sourceApp,
             String registerIp,
             String referrerCode) {
-        var stateData = consumeOAuthState(provider, state);
+        var stateData = consumeOAuthState(provider, state, OAuthPurpose.LOGIN, null);
         OAuthClient client = findOAuthClient(provider);
         OAuthUserInfo userInfo;
         try {
@@ -539,7 +563,13 @@ public class AuthService {
         return JsonUtils.parseObject(json, AuthLoginVO.class);
     }
 
-    private OAuthState consumeOAuthState(String provider, String state) {
+    /**
+     * M31：state 一次性消费统一入口——校验存在性（含 TTL）、provider、用途与发起主体。
+     *
+     * <p>{@code getAndDelete} 保证一次性；用途与 subjectUserId 校验保证登录 state 不能被拿去绑定、 他人的绑定 state 不能被当前用户消费。
+     */
+    private OAuthState consumeOAuthState(
+            String provider, String state, OAuthPurpose expectedPurpose, Long expectedUserId) {
         if (state == null || state.isBlank()) {
             throw exception(OAUTH_EXCHANGE_FAILED);
         }
@@ -548,13 +578,37 @@ public class AuthService {
         if (stateData == null || !provider.equals(stateData.provider())) {
             throw exception(OAUTH_EXCHANGE_FAILED);
         }
+        // 历史 state（无 purpose 字段）按登录用途处理，避免升级瞬间已签发的登录 state 失效
+        var purpose = stateData.purpose() == null ? OAuthPurpose.LOGIN : stateData.purpose();
+        if (purpose != expectedPurpose) {
+            log.warn("OAuth state 用途不匹配: expected={}, actual={}", expectedPurpose, purpose);
+            throw exception(OAUTH_EXCHANGE_FAILED);
+        }
+        if (expectedPurpose == OAuthPurpose.BIND
+                && !java.util.Objects.equals(expectedUserId, stateData.subjectUserId())) {
+            log.warn("OAuth 绑定 state 主体不匹配: state 归属={}", stateData.subjectUserId());
+            throw exception(OAUTH_EXCHANGE_FAILED);
+        }
         return stateData;
     }
 
-    private record OAuthState(String provider, String deviceId) {}
+    /** M31：state 用途——登录与绑定不可互换。 */
+    private enum OAuthPurpose {
+        LOGIN,
+        BIND
+    }
 
+    private record OAuthState(
+            String provider, String deviceId, OAuthPurpose purpose, Long subjectUserId) {}
+
+    /**
+     * 绑定第三方账号。
+     *
+     * <p>M31：必须携带由 {@link #getOAuthBindUrl} 签发的一次性 state，且该 state 归属当前用户。
+     */
     @Transactional
-    public void bindOAuth(Long userId, String provider, String code) {
+    public void bindOAuth(Long userId, String provider, String code, String state) {
+        consumeOAuthState(provider, state, OAuthPurpose.BIND, userId);
         OAuthClient client = findOAuthClient(provider);
         OAuthUserInfo userInfo;
         try {

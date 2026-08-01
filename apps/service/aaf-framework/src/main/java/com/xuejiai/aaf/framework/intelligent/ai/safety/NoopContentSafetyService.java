@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.framework.intelligent.ai.safety;
+﻿package com.xuejiai.aaf.framework.intelligent.ai.safety;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -10,8 +10,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import com.xuejiai.aaf.framework.intelligent.assistant.hitl.HumanApprovalService;
-import com.xuejiai.aaf.framework.intelligent.assistant.hitl.HumanApprovalService.ApprovalResolvedEvent;
+import com.xuejiai.aaf.framework.intelligent.assistant.hitl.ToolApprovalService;
+import com.xuejiai.aaf.framework.intelligent.assistant.hitl.ToolApprovalService.ApprovalResolvedEvent;
 
 import lombok.RequiredArgsConstructor;
 
@@ -21,7 +21,7 @@ import lombok.RequiredArgsConstructor;
 @ConditionalOnMissingBean(ContentSafetyService.class)
 public class NoopContentSafetyService implements ContentSafetyService {
 
-    private final HumanApprovalService approvalService;
+    private final ToolApprovalService approvalService;
     private final Map<String, ReviewState> reviewStates = new ConcurrentHashMap<>();
 
     @Override
@@ -42,7 +42,7 @@ public class NoopContentSafetyService implements ContentSafetyService {
                     approvalService.request(
                             request.sessionId(),
                             request.userId(),
-                            HumanApprovalService.ApprovalType.CONTENT_REVIEW,
+                            ToolApprovalService.ApprovalType.CONTENT_REVIEW,
                             "生成内容安全复审",
                             "AI 生成内容需要人工复审后继续执行",
                             java.util.Map.of(
@@ -71,7 +71,7 @@ public class NoopContentSafetyService implements ContentSafetyService {
     /** 内容复审完成后记录结果；AI 用相同参数重试时可继续执行或得到稳定拒绝。 */
     @EventListener
     public void onApprovalResolved(ApprovalResolvedEvent event) {
-        if (event.request().type() != HumanApprovalService.ApprovalType.CONTENT_REVIEW) {
+        if (event.request().type() != ToolApprovalService.ApprovalType.CONTENT_REVIEW) {
             return;
         }
         var key = stringContext(event.request().context(), "contentReviewKey");
@@ -79,7 +79,7 @@ public class NoopContentSafetyService implements ContentSafetyService {
             return;
         }
         var decision =
-                event.result().decision() == HumanApprovalService.Decision.APPROVED
+                event.result().decision() == ToolApprovalService.Decision.APPROVED
                         ? ReviewDecision.APPROVED
                         : ReviewDecision.REJECTED;
         reviewStates.put(key, new ReviewState(decision, event.request().requestId()));
