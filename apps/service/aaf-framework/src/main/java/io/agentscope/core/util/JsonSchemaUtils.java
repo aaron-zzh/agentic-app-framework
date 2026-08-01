@@ -26,7 +26,7 @@ import com.github.victools.jsonschema.generator.SchemaGenerator;
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfig;
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder;
 import com.github.victools.jsonschema.generator.SchemaVersion;
-import com.github.victools.jsonschema.module.jackson.JacksonModule;
+import com.github.victools.jsonschema.module.jackson.JacksonSchemaModule;
 import com.github.victools.jsonschema.module.jackson.JacksonOption;
 
 import io.agentscope.core.tool.ToolSchemaModule;
@@ -45,8 +45,8 @@ public class JsonSchemaUtils {
     private static final SchemaGenerator schemaGenerator;
 
     static {
-        JacksonModule jacksonModule =
-                new JacksonModule(JacksonOption.RESPECT_JSONPROPERTY_REQUIRED);
+        JacksonSchemaModule jacksonModule =
+                new JacksonSchemaModule(JacksonOption.RESPECT_JSONPROPERTY_REQUIRED);
 
         ToolSchemaModule toolSchemaModule =
                 PROPERTY_REQUIRED_BY_DEFAULT
