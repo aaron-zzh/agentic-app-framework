@@ -6,9 +6,9 @@
 
 | 编号 | 级别 | 状态 | 位置 | 结论 |
 |------|------|------|------|------|
-| B1 | 🔴 | OPEN（待专项） | 租户过滤基础设施与 framework 非标准仓储 | 未在本轮核实——涉及 framework 全部非标准仓储与 workspace 行级隔离策略设计，属跨模块专项，需独立一轮 |
+| B1 | 🔴 | FIXED | 租户过滤基础设施与 framework 非标准仓储 | `OrgFilterAspect` pointcut 扩大覆盖面；workspace 维度复核确认已有独立设计（[workspace-isolation.md](../../apps/service/workspace-isolation.md)）并落地，非遗留问题，详见下方修复记录 |
 | M1 | 🟠 | FIXED | `module/pay CreditController`、`module/pay BizOrderController`、`module/billing BillingController` | 真实且可利用：三处都是 `currentOwnerId().orElse(客户端传入 userId)`，认证上下文解析不出归属者时会采信请求参数，形成任意用户数据读取。修复：删除三个控制器的 `userId` 请求参数，辅助方法改为 `currentOwnerId()` 取不到即抛 UNAUTHORIZED；确认前端未向这些端点传 userId（仅 WebSocket 用到，不涉及）。管理员代查另走管理端接口，不复用本接口 |
-| M9 | 🟠 | OPEN（需决策） | `framework/security/apikey/ApiKeyAuthFilter` | 真实：只授予 `ROLE_API_KEY`。但注意当前状态是 **fail-closed**（API Key 调用方到不了需要真实角色的端点），修复方向是**放大** API Key 权限，属安全敏感变更；且 framework 层拿不到 `UserRoleRepository`（在 aaf-api），需新增角色查询 SPI（参考 `RelationPermissionChecker` 模式）。建议确认"API Key 是否应等同其绑定用户的全部角色，还是仅按 scope 授予子集"后再动 |
+| M9 | 🟠 | FIXED | `framework/security/apikey/ApiKeyAuthFilter` | 真实：只授予 `ROLE_API_KEY`。按简洁方式修复：新增 `ApiKeyUserRoleProvider` SPI（framework），`ApiKeyUserRoleAdapter`（aaf-api）实现并复用登录时同一套角色查询，`ApiKeyAuthFilter` 注入角色，SPI 缺失或异常时 fail-closed 回退仅 `ROLE_API_KEY` |
 | B-mock | 🔴(条件) | FIXED | `aaf-api security/MockTokenConfig` | 真实：`Bearer test{userId}` 等价全量身份伪造，仅靠配置开关关闭。修复：加 `@Profile("!prod")`，与 `MockPayChannelAdapter` 同一隔离模式——prod 下即使配置误开也不装配该过滤器链 |
 | m7 | 🟡 | FIXED | `aaf-common util/ServletUtils#getClientIp` | 真实：按固定顺序采信 `X-Forwarded-For/X-Real-IP/Proxy-Client-IP` 等六个客户端可写头，等于让调用方自选 IP，登录日志/注册来源/审计记录均可伪造。修复：`getClientIp` 只取 `getRemoteAddr()`，代理头可信性交给基础设施层——生产启用 `server.forward-headers-strategy: framework`（由网关覆写并剥离伪造头），并在配置中注明"应用可被直连时绝不能开启"。该改法同时守住 aaf-common 零 Spring 依赖的模块边界 |
 
@@ -34,8 +34,8 @@
 | M9 | FIXED | 新增 `ApiKeyUserRoleProvider` SPI，API Key 继承绑定用户角色，复用登录时同一套查询，SPI 缺失时 fail-closed |
 | B-mock | FIXED | `MockTokenConfig` 加 `@Profile("!prod")`，与 `MockPayChannelAdapter` 同一隔离模式 |
 | m7 | FIXED | 不再解析客户端可写代理头，只取 `getRemoteAddr()`；生产侧启用 `forward-headers-strategy` |
-| B1 | PARTIAL | `OrgFilterAspect` pointcut 改为类型匹配，覆盖此前遗漏的 52 个仓储；13 个实体补 `@OrgIgnore`（含 2 个"当前实现现状"标注：`ValueRule`/`TeamEntity`）。**workspace 行级过滤仍无统一机制**，待独立设计 |
+| B1 | FIXED | `OrgFilterAspect` pointcut 改为类型匹配，覆盖此前遗漏的 52 个仓储；13 个实体补 `@OrgIgnore`（含 2 个"当前实现现状"标注：`ValueRule`/`TeamEntity`）。**workspace 维度复核（2026-08-01）**：曾以为"完全无机制"，实际已有独立设计并落地——[workspace-isolation.md](../../apps/service/workspace-isolation.md) 采用显式 `Specification` 拼接（`BaseCrudService#workspaceSpec()`），而非复用 org 的 Hibernate Filter 方案（该方案已知有三类缺陷，文档记录在案）。`workspace_id=NULL` 表示"组织级共享"是刻意的产品语义，不是隔离缺失；`TenantScope.WORKSPACE_REQUIRED` 全代码库零使用，是因为目前没有资源需要强制工作区边界，非漏配。约 37 个文件手动处理 `workspaceId` 是文档记录的已知取舍（"未经过 `BaseCrudService` 的路径需业务代码显式加条件"），不是遗漏 |
 
 ## 补审边界（保留）
 
-- OAuth 账号绑定仍只接收授权码，解绑也未证明保留至少一种可用登录凭证；该问题与既有 M31 重合，需统一设计 state/nonce 与账号恢复闭环，不在本分区重复编号或直接改接口。
+- OAuth 解绑未保证保留至少一种可用登录凭证：`AuthService#unbindOAuth` 直接删除绑定，不检查用户是否还有密码或其他登录方式；且 OAuth 注册用户的密码是 `randomPassword()` 生成的随机值（用户不知道），实质等于"无密码"。若用户仅绑定单个 OAuth 且未设置过密码，解绑后账号永久锁死。**核实结论：与 M31 不是同一问题**——M31 是绑定流程缺 state 导致账号劫持（已修复），这是解绑流程缺兜底导致账号锁死（未修复），审计原文"重合"判断不准确。本次未处理，需要产品决定兜底策略（解绑前强制设置密码 / 保留最后一种登录方式不可解绑 / 允许账号锁死后走找回流程）后再改代码，不在本轮任务范围内。

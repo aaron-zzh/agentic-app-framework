@@ -18,7 +18,7 @@
 
 | 文档 | 覆盖范围 |
 |------|---------|
-| [01-security-and-authz.md](01-security-and-authz.md) | 租户隔离、鉴权、Mock Token、API Key、JWT、AuthService、企微回调 |
+| [01-security-and-authz.md](01-security-and-authz.md) | 租户隔离、鉴权、Mock Token、API Key、JWT、AuthService、企微回调；主表已全部 FIXED，保留一项新发现的 OAuth 解绑账号锁死问题待产品决策 |
 | [03-channel-livechat.md](03-channel-livechat.md) | 渠道路由/配置、Webhook、客服会话、坐席分配 |
 | [04-ai-engines-and-tools.md](04-ai-engines-and-tools.md) | 工具权限守卫、脚本沙箱、价值规则、占位引擎、知识库 |
 | [05-autodev.md](05-autodev.md) | Git、CI/CD、代码生成、文档服务 |
@@ -45,7 +45,7 @@
 
 | 编号 | 状态 | 区域 | 当前残余 |
 |------|------|------|---------|
-| B1 | PARTIAL | 01 | 非标准仓储覆盖面已扩大（pointcut 改为类型匹配），workspace 行级过滤仍无统一机制 |
+| B1 | FIXED | 01 | 非标准仓储覆盖面已扩大（pointcut 改为类型匹配）；workspace 维度复核确认已有独立设计并落地（workspace-isolation.md），非遗留问题 |
 | B4 | PARTIAL | 05 | GitHub webhook 仍无 HMAC 验签，部署 environment 无服务端白名单 |
 | B5 | OPEN | 04 | `ScriptSandbox` 仍以裸子进程/关键词黑名单执行脚本，与受限 GraalVM 路径并存 |
 | B7 | OPEN | 03 | Channel/Webhook 配置实体携带敏感凭证并经接口返回 |
