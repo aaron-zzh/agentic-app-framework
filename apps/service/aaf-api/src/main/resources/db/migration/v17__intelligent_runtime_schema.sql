@@ -221,6 +221,45 @@ CREATE INDEX idx_hitl_approval_pending
     ON ai_hitl_approval (tenant_id, task_id, created_at)
     WHERE status = 'PENDING';
 
+-- ==================== 工具层人工确认（M36） ====================
+-- 与上面的 ai_hitl_approval 分工：
+--   ai_hitl_approval —— 任务级审批，需 AssistantTask/InvocationContext，决定后驱动任务状态迁移与恢复
+--   ai_tool_approval —— 会话/工作流级工具确认（ToolService REST 调用、Flowable ToolNode 等无任务上下文的入口），
+--                       决定后由 ToolApprovalGrantListener 回写会话级工具授权
+-- 此表取代原内存版 HumanApprovalService：内存态在重启/多实例下丢失，且旧链无任何消费方，
+-- 审批建出来永远无人可处理，而卡片已推给用户。
+
+CREATE TABLE ai_tool_approval (
+    approval_id      VARCHAR(64)  PRIMARY KEY,
+    scope_key        VARCHAR(128) NOT NULL,
+    user_id          BIGINT       NOT NULL,
+    approval_type    VARCHAR(32)  NOT NULL,
+    title            VARCHAR(200) NOT NULL,
+    description      VARCHAR(1000),
+    subject_type     VARCHAR(32),
+    subject_key      VARCHAR(200),
+    risk_level       VARCHAR(16),
+    confidence       DOUBLE PRECISION,
+    grant_scope      VARCHAR(16)  NOT NULL DEFAULT 'NONE',
+    context_json     TEXT,
+    status           VARCHAR(16)  NOT NULL DEFAULT 'PENDING',
+    decision_reason  VARCHAR(500),
+    created_at       TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at       TIMESTAMP(6) NOT NULL,
+    decided_at       TIMESTAMP(6),
+    decided_by       BIGINT,
+    version          INTEGER      NOT NULL DEFAULT 0,
+    CONSTRAINT ck_tool_approval_status CHECK (status IN ('PENDING','APPROVED','REJECTED','TIMEOUT'))
+);
+
+COMMENT ON TABLE ai_tool_approval IS '工具层人工确认：会话/工作流级工具调用、内容审查、低置信度确认';
+COMMENT ON COLUMN ai_tool_approval.scope_key IS '授权作用域键：会话 sessionId 或 workflow:<processInstanceId>；无会话时为 "-"';
+COMMENT ON COLUMN ai_tool_approval.grant_scope IS '批准后授予范围：NONE/ONCE/SESSION/PATTERN，由监听器回写工具授权';
+COMMENT ON COLUMN ai_tool_approval.status IS 'PENDING/APPROVED/REJECTED/TIMEOUT；TIMEOUT 由读取时按 expires_at 判定并落库';
+
+CREATE INDEX idx_tool_approval_user_status ON ai_tool_approval (user_id, status);
+CREATE INDEX idx_tool_approval_scope ON ai_tool_approval (scope_key, status);
+
 CREATE TABLE ai_task_recovery_command (
     command_key VARCHAR(300) PRIMARY KEY,
     tenant_id VARCHAR(128) NOT NULL,

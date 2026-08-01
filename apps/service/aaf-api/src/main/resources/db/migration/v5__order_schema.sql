@@ -230,6 +230,7 @@ CREATE TABLE pay_refund_order (
     org_id          BIGINT,
     workspace_id    BIGINT,
     refund_no       VARCHAR(64)  NOT NULL,
+    request_no      VARCHAR(64),
     pay_order_id    BIGINT       NOT NULL,
     merchant_order_no VARCHAR(64) NOT NULL,
     channel_code    VARCHAR(32)  NOT NULL,
@@ -253,9 +254,14 @@ CREATE TABLE pay_refund_order (
 COMMENT ON TABLE pay_refund_order IS '退款单';
 COMMENT ON COLUMN pay_refund_order.refund_amount IS '退款金额（分）';
 COMMENT ON COLUMN pay_refund_order.status IS '0=等待退款 10=退款成功 20=退款失败';
+COMMENT ON COLUMN pay_refund_order.request_no IS 'M26 客户端幂等键，同一 request_no 重试复用同一退款单；NULL=未提供';
 
 CREATE UNIQUE INDEX uk_refund_order_no ON pay_refund_order(refund_no) WHERE deleted = FALSE;
 CREATE INDEX idx_refund_order_pay ON pay_refund_order(pay_order_id) WHERE deleted = FALSE;
+-- M26：并发退款申请以原子条件更新占额（见 PayOrderRepository#reserveRefundAmount），
+-- 客户端重试则靠本唯一索引复用同一退款单，避免重复向渠道提交
+CREATE UNIQUE INDEX uk_refund_order_request_no ON pay_refund_order(request_no)
+    WHERE request_no IS NOT NULL AND deleted = FALSE;
 
 -- ==================== 对账记录 ====================
 
