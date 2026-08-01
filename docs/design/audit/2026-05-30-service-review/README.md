@@ -1,4 +1,4 @@
-# 后端 service 详细代码审查（分区文档）
+﻿# 后端 service 详细代码审查（分区文档）
 
 > 这是对 [2026-05-30 抽样审查](../2026-05-30-service-code-review.md) 的加深版，按区域记录审查与复核结果。
 > 审查依据：[代码审查规范](../../../reference/dev/code-review-standard.md)、[架构约束](../../../reference/dev/architecture-constraints.md)、[编码规范硬约束](../../../../.kiro/skills/coding-standards/SKILL.md)。
@@ -27,10 +27,8 @@
 | [08-ai-chat-tools-company-stats.md](08-ai-chat-tools-company-stats.md) | 对话/流式、持久任务、企业运营编排、行为统计、Prompt 引擎 |
 | [09-file-sms-aigc.md](09-file-sms-aigc.md) | 文件上传/下载、短信模板与发送、AIGC 图像/媒资生成 |
 | [10-authorization-matrix.md](10-authorization-matrix.md) | Controller 鉴权冻结基线与剩余资源级授权矩阵；不再沿用旧数量统计 |
-| [11d-framework-controllers.md](11d-framework-controllers.md) | framework REST 暴露面；当前残留 UEL value、工作流授权/Webhook 与 SSRF 风险 |
-| [11e-framework-data-ai.md](11e-framework-data-ai.md) | 数据处理/AI/知识库；当前残留提示词注入、知识库检索旁路与抓取 SSRF |
-| [11f-framework-infra.md](11f-framework-infra.md) | 基础设施；当前残留消费幂等、多实例缓存、审计脱敏与锁语义问题 |
-| [11g-framework-orchestration-api-remainder.md](11g-framework-orchestration-api-remainder.md) | 工作流/编排/AI 能力与 API 收官复审；当前残留 framework 配额旁路与语义提示注入 |
+| [11f-framework-infra.md](11f-framework-infra.md) | 基础设施；M50/M51/m30/m32 已修，M49 残留 ACK 窗口（需事务性收件箱） |
+| [11g-framework-orchestration-api-remainder.md](11g-framework-orchestration-api-remainder.md) | 工作流/编排/AI 能力与 API 收官复审；M53 仅 embedding 未门控，待计费策略决策 |
 | [14-remaining-tasks-handoff.md](14-remaining-tasks-handoff.md) | 当前交接：历史完成记录 + OPEN/PARTIAL 剩余任务；新对话从这里接续 |
 
 ## 状态口径
@@ -69,12 +67,8 @@
 | M21 | PARTIAL | 09 | 生产短信测试号码仍缺白名单和环境隔离 |
 | M22 | PARTIAL | 09 | Controller 仍直连 Repository，并返回 Entity |
 | M23 | PARTIAL | 09 | image-to-image/edit 仍旁路统一权益 precheck、扣减与补偿 |
-| M42 | OPEN | 11e | AiEnricher 仍将外部数据原文拼入 LLM 提示词 |
-| M45 | PARTIAL | 11e | 危险两参检索重载当前无生产调用，但仍可在未来绕过 kbId 过滤 |
-| M49 | PARTIAL | 11f | 副作用完成后、ACK 前崩溃仍可能重复执行 |
-| M50 | OPEN | 11f | TwoLevelCache 失效仅本机，多实例缓存可能陈旧 |
-| M51 | OPEN | 11f | OperationLogAspect 原样记录参数/响应，缺少敏感数据脱敏 |
-| M53 | PARTIAL | 11g | registry/streaming/embedding 等 framework 路径未统一门控 |
+| M49 | PARTIAL | 11f | 已有 completed 标记 + processing 租约去重；残留"handler 成功但写标记前崩溃"窗口，彻底修复需事务性收件箱（架构级） |
+| M53 | PARTIAL | 11g | streaming/call 已有门控；embedding 无门控无计量且接口缺 ownerId，闭环待计费归属与口径决策 |
 | 重复2 | OPEN | 07/14 | permission 与 role 两套 PermissionService/Controller 职责仍重叠 |
 | 占位 | OPEN | 04/06 | engine 多个未进入实现阶段的空接口仍存在 |
 
@@ -88,10 +82,6 @@
 | m9 | PARTIAL | 03 | 客服回调虚拟线程 executor 仍无背压 |
 | m10 | OPEN | 01/全局 | 部分签名比较仍使用非常量时间比较 |
 | m36 | OPEN | 04 | 内容安全依赖硬编码关键词黑名单 |
-| m25 | OPEN | 11d | CodeExecutionNode 仍通过 `node -e` 子进程执行 JS |
-| m29 | OPEN | 11e | ResilientChatService 对所有异常统一 fallback，可能双倍计费并掩盖错误 |
-| m30 | OPEN | 11f | TwoLevelCache.invalidateAll 使用 Redis KEYS |
-| m32 | PARTIAL | 11f | 分布式锁获取失败仍返回 null；当前暂无 `@DistributedLock` 使用点，属潜在语义风险 |
 | 包结构 | OPEN | 06 | 业务模块内分层结构仍不一致 |
 | 示例 | OPEN | 06 | 示例代码仍混入主 API 构建 |
 | 兼容 | OPEN | 06 | OperatorContext 别名和 ToolPermissionGuard 重载仍形成兼容路径 |
@@ -100,12 +90,12 @@
 
 ## 系统性剩余主题
 
-- **租户与资源授权**：B1、B9、B10、M9、M37、M45。当前核心不再是“普遍无注解”，而是角色过宽、SELF 归属、org 强制过滤和资源 scope 未闭合（08 区会话归属 M18、统计 org 过滤 M19 已闭环）。
+- **租户与资源授权**：B1、B9、B10、M9。当前核心不再是“普遍无注解”，而是角色过宽、SELF 归属、org 强制过滤和资源 scope 未闭合（08 区会话归属 M18、统计 org 过滤 M19、知识库检索 M45 与 AI Flow 触发策略 M37 已闭环）。
 - **敏感数据与实体边界**：B7、M6、M15、M22、M51。统一以 DTO/VO、字段脱敏和日志脱敏收敛。
-- **脚本、表达式与外部输入**：B5、B17、M39、M42、M46、m25。仍需统一受限执行、SSRF 防护和语义输入边界。
-- **资金、权益与成本控制**：M23、M25–M27、M53。重点是统一 pre-call 门控和真实对账（充值服务端定价、入账幂等与权益并发控制已闭环）。
+- **脚本、表达式与外部输入**：B5。UEL 值绑定（B17）、出站 SSRF（M39/M46）、提示词注入（M42）、JS 沙箱统一（m25）已闭环；剩余为 `ScriptSandbox` 自身的 OS 级隔离与 shell 黑名单路径。
+- **资金、权益与成本控制**：M23、M53。重点是统一 pre-call 门控（充值服务端定价、入账幂等、权益并发控制、退款幂等与真实账单失败已闭环；m29 已收敛降级范围，避免无差别 fallback 双倍计费）。
 - **回调与外部信任边界**：B4、B-mock、M21、M28、M31、M37。回调 HMAC、防重放、环境隔离和 OAuth 强制原语仍需闭环。
-- **分布式正确性**：M26、M36、M49–M50、m32。重点是稳定幂等键、ACK 窗口、新旧状态机和跨节点失效。
+- **分布式正确性**：M26、M49。M36 新旧状态机、M50 跨节点失效、m32 锁语义已闭环；M49 仅剩 handler 成功到写完成标记之间的崩溃窗口。
 - **占位与重复抽象**：M27、重复2、占位、并行抽象。只保留真实用例需要的单一路径。
 
 ## 交接摘要

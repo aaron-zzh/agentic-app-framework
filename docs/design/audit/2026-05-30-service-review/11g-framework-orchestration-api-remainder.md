@@ -3,11 +3,11 @@
 > 覆盖：`engine/workflow`（FlowableWorkflowEngine/WorkflowEngine/FlowableConfig）、`intelligent/agent`（CognitiveCycleExecutor/AgentScheduler）、`intelligent/team`（TeamOrchestrator）、`intelligent/assistant/TaskBoard`、`intelligent/ai` 其余能力（video 等抽样），以及 API 剩余模块批量确认。
 > 2026-05-30 分区复审：编排、工作流与剩余 API。审查人 AI/architect。
 
-## 问题清单
+## 问题清单（2026-08-01 复核）
 
-| 编号 | 级别 | 位置 | 问题 | 修复建议 |
-|------|------|------|------|---------|
-| M53 | 🟠 | `intelligent/ai/*`（framework registry/streaming/embedding） | framework 层 registry、streaming、embedding 仍可绕过统一配额/积分门控，经内部调用或后续 API 接线形成成本旁路 | 将门控下沉到 framework 服务边界，确保 registry、streaming、embedding 的所有调用路径统一 precheck |
+| 编号 | 级别 | 状态 | 位置 | 结论 |
+|------|------|------|------|------|
+| M53 | 🟠 | PARTIAL（待计费策略决策） | `intelligent/ai/*`、`engine/knowledge/embedding/EmbeddingService` | 逐项核实：**streaming 不成立**——`ResilientChatService.stream` 已有 `creditGuard.precheck` + `withStreamUsage` 计量，`call` 两个重载同样有；**embedding 成立**——`EmbeddingService.embed/embedBatch` 既不门控也不计量，接口连 ownerId 都没有，无法归属成本；调用方遍布记忆抽取/去重/检索与知识库导入适配器。已在 `EmbeddingService` 类注释中标注该缺口与闭环前置条件，避免新增调用方误以为免费。闭环需先定：①系统触发的 embedding（会话后异步记忆抽取、知识库批量导入）由谁承担成本；②计费口径（按次/按 token）。定了之后再改接口并贯穿全部调用方 |
 
 ## API 剩余模块批量确认（不逐文件深审）
 
