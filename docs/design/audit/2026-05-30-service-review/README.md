@@ -20,7 +20,6 @@
 |------|---------|
 | [01-security-and-authz.md](01-security-and-authz.md) | 租户隔离、鉴权、Mock Token、API Key、JWT、AuthService、企微回调；主表已全部 FIXED，保留一项新发现的 OAuth 解绑账号锁死问题待产品决策 |
 | [03-channel-livechat.md](03-channel-livechat.md) | 渠道路由/配置、Webhook、客服会话、坐席分配 |
-| [04-ai-engines-and-tools.md](04-ai-engines-and-tools.md) | 工具权限守卫、脚本沙箱、价值规则、占位引擎、知识库 |
 | [06-architecture-and-quality.md](06-architecture-and-quality.md) | 分层/实体外泄、重复抽象、命名/包结构、占位实现、通用工具 |
 | [07-system-admin-and-rbac.md](07-system-admin-and-rbac.md) | 用户/角色/权限点/行级数据权限，以及当前仍需收敛的角色、SELF 与 org 授权边界 |
 | [10-authorization-matrix.md](10-authorization-matrix.md) | Controller 鉴权冻结基线与剩余资源级授权矩阵；不再沿用旧数量统计 |
@@ -42,7 +41,7 @@
 |------|------|------|---------|
 | B1 | FIXED | 01 | 非标准仓储覆盖面已扩大（pointcut 改为类型匹配）；workspace 维度复核确认已有独立设计并落地（workspace-isolation.md），非遗留问题 |
 | B4 | FIXED | 05（已删除） | `verifyGithubWebhook` 用 HmacSHA256 + `MessageDigest.isEqual` 验签；`triggerDeploy` 强制部署环境服务端白名单，生产环境仅 `SUPER_ADMIN` |
-| B5 | OPEN | 04 | `ScriptSandbox` 仍以裸子进程/关键词黑名单执行脚本，与受限 GraalVM 路径并存 |
+| B5 | FIXED | 04（已删除） | 删除 `ScriptSandbox`/`ProcessScriptExecutor`，默认只注册受限 `GraalVmScriptExecutor`；JS 用 `Context.close(true)` 真实超时取消+1MB 输出限制，Python 安全运行时未启用时 fail-closed |
 | B7 | OPEN | 03 | Channel/Webhook 配置实体携带敏感凭证并经接口返回 |
 | B8 | FIXED | 05（已删除） | `CodegenService` 新增 `SAFE_IDENTIFIER` 白名单校验 module/name，`buildPath`/`writeFile` 均经 `ensureWithinOutputDir` 规范化后二次确认路径未越界 |
 | B9 | PARTIAL | 07/10 | 角色仍偏宽，SELF 资源归属与 org 边界尚未清零 |
@@ -54,7 +53,7 @@
 |------|------|------|---------|
 | M6 | FIXED | 03/06 | 核实：`listActive`/`listEnabled` 均已返回 VO，无 Entity 出参 |
 | M7 | FIXED | 05（已删除） | `CiCdService` 改注入 `HttpClient`；`queryLatestRunId` 改用 `TaskScheduler` 延迟调度，不再阻塞调用线程 |
-| M15 | PARTIAL | 07/08（已删除）/11g（已删除） | Company 与 Channel/Webhook 写入口已 DTO 化，Company/Channel/Webhook 出参已 VO 化，SMS 模板 CRUD 已 VO 化（本轮，见 M22）；`AiOutputController`（`Result<AiOutput>`）、`TeamController`（`Result<TeamEntity>`/`TeamMemberEntity`/`TeamTaskEntity`）、`DocumentController`（`getById`/`update`/`publish`/`unpublish`/`getPublished` 仍 `Result<Document>`）三模块仍有实体出参，规模较大（10+ 处改动点），本轮未做，留待独立任务 |
+| M15 | FIXED | 07/08（已删除）/11g（已删除） | Company 与 Channel/Webhook 写入口已 DTO 化，Company/Channel/Webhook/SMS 模板 CRUD 出参已 VO 化；`AiOutputController`/`TeamController`（`TeamVO`/`TeamMemberVO`/`TeamTaskVO`）/`DocumentController`（`getById`/`update`/`publish`/`unpublish`/`getPublished` 均已 `DocumentVO`）三模块实体出参已全部收敛为 VO |
 | M17 | FIXED | 07 | `assignRolesToUser` 改为先删后建全量覆盖，与 `assignPermissionsToRole` 语义一致 |
 | M21 | FIXED | 09（已删除） | `SmsProperties.testSend`（enabled + phoneWhitelist），生产默认整体禁用 |
 | M22 | FIXED | 09（已删除） | 新建 `SmsTemplateService`，`SmsController` 模板 CRUD 改调 service，出参 VO |
@@ -72,7 +71,7 @@
 | m9 | FIXED | 03 | `WecomKfCallbackService` 加 `Semaphore` 并发上限，超出直接丢弃不排队 |
 | m16 | FIXED | 09（已删除） | 图像/AIGC 任务查询已统一到 `AigcTaskController#get`，`getByIdOwned` 做归属校验 |
 | m17 | FIXED | 09（已删除） | `SmsController` 回调补公开路径豁免（原类级 `@PreAuthorize` 致端点不可达）+ 访问日志；验签仍是占位 |
-| m36 | PARTIAL | 04 | 已改为数据库可配置规则+硬编码兜底降级，"应外置可配"已实现；子串匹配仍易绕过，语义级升级未做 |
+| m36 | FIXED | 04（已删除） | 已改为数据库可配置规则；查询失败改 fail-closed（移除硬编码兜底词表）；新增 `normalizeForMatch`（NFKC 规范化+大小写折叠+仅保留字母数字）防基础空格/全角/大小写绕过；语义级理解仍未做，v0.1 阶段可接受 |
 | 包结构 | OPEN | 06 | 业务模块内分层结构仍不一致 |
 | 示例 | OPEN | 06 | 示例代码仍混入主 API 构建 |
 | 兼容 | OPEN | 06 | OperatorContext 别名和 ToolPermissionGuard 重载仍形成兼容路径 |
@@ -83,7 +82,7 @@
 
 - **租户与资源授权**：B1、B9、B10、M9。当前核心不再是“普遍无注解”，而是角色过宽、SELF 归属、org 强制过滤和资源 scope 未闭合（08 区会话归属 M18、统计 org 过滤 M19、知识库检索 M45 与 AI Flow 触发策略 M37 已闭环）。
 - **敏感数据与实体边界**：B7、M6、M15、M22、M51。统一以 DTO/VO、字段脱敏和日志脱敏收敛。
-- **脚本、表达式与外部输入**：B5。UEL 值绑定（B17）、出站 SSRF（M39/M46）、提示词注入（M42）、JS 沙箱统一（m25）已闭环；剩余为 `ScriptSandbox` 自身的 OS 级隔离与 shell 黑名单路径。
+- **脚本、表达式与外部输入**：UEL 值绑定（B17）、出站 SSRF（M39/M46）、提示词注入（M42）、JS 沙箱统一（m25）、`ScriptSandbox` 收敛为受限 GraalVM 单路径（B5）均已闭环。
 - **资金、权益与成本控制**：M23、M53。重点是统一 pre-call 门控（充值服务端定价、入账幂等、权益并发控制、退款幂等与真实账单失败已闭环；m29 已收敛降级范围，避免无差别 fallback 双倍计费）。
 - **回调与外部信任边界**：B-mock、M28、M31、M37。回调 HMAC、防重放、环境隔离和 OAuth 强制原语（B4、M21 已闭环）仍需推进剩余项。
 - **分布式正确性**：M26。M36 新旧状态机、M50 跨节点失效、m32 锁语义、M49 事务性收件箱已闭环。

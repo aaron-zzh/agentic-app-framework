@@ -153,7 +153,7 @@ M16 已完成：用户密码、OAuth access/refresh token、Channel/Webhook 密�
 |------|------|--------|
 | B1 | FIXED | org 租户过滤已扩大覆盖面；workspace 隔离核实已有独立设计并落地（见 README） |
 | B4 | FIXED | GitHub webhook HMAC 验签、部署环境服务端白名单和分级授权均已实现 |
-| B5 | OPEN | 收敛脚本执行为受限基线，删除裸子进程/关键词黑名单旁路 |
+| B5 | FIXED | 已收敛脚本执行为受限基线，删除裸子进程/关键词黑名单旁路（GraalVM 单路径） |
 | B7 | FIXED | 配置接口已 VO 化并脱敏；敏感凭证字段已增加 `@JsonIgnore` |
 | B8 | FIXED | codegen module/name 已用白名单校验，规范化后强制输出路径位于 outputDir |
 | B9 | PARTIAL | 不再按旧 Controller 总数扫注解；只处理角色过宽、SELF 归属、org 边界和冻结基线残余 |
@@ -168,7 +168,7 @@ M16 已完成：用户密码、OAuth access/refresh token、Channel/Webhook 密�
 |------|------|-------------|
 | 身份与租户 | — | M1/M9 已修复（删除 userId fallback；API Key 继承真实角色，M19 组织过滤已闭环） |
 | 文件/短信/API 分层 | M29 | M6/M21/M22 已修复（Channel/Webhook Entity 出参；短信测试环境隔离；SMS Repository/Entity 边界）；framework 裸 key API 待处理 |
-| 架构与 DTO | M15 | Company 与 Channel/Webhook 输入已 DTO 化、Company/Channel/Webhook 输出已 VO 化、SMS 模板已 VO 化；AI Output、Document、Team 三模块仍有实体出参，规模较大（10+ 处），留待独立任务 |
+| 架构与 DTO | — | M15 已修复：Company/Channel/Webhook/SMS 模板输入输出已 DTO/VO 化；AiOutputController/TeamController/DocumentController 三模块实体出参已全部收敛为 VO |
 | 资金与成本 | M26 | image-to-image/edit 已接回统一 precheck（M23 已修复）；退款并发与稳定幂等键（M53 已修复：embedding 按次计费 + 访客降级短期上下文，原 11g 已删除） |
 | OAuth/回调 | M28、M31、M37 | 适配器验签契约；账号绑定闭环与强制 state/nonce；per-flow execute、Webhook HMAC 与防重放 |
 | HITL/知识库/任务 | M36、M45 | 删除或统一旧 HITL 链；移除危险两参检索重载（M49 已修复：TaskInboxExecutor 事务性收件箱，原 11f 已删除） |
@@ -193,7 +193,7 @@ M16 已完成：用户密码、OAuth access/refresh token、Channel/Webhook 密�
 ### 仍为 OPEN 的 minor/结构项
 
 - m1：软删除查询重复（m7/m8/m9/m10 已修复：代理头信任/API Key 热点写/回调 executor 背压/非常量时间比较）。
-- m36：内容安全关键词黑名单外置，并规划语义级能力。
+- m36：已改为数据库可配置规则+查询失败 fail-closed+NFKC 规范化匹配，语义级能力仍未做（v0.1 可接受）。
 - m18–m20、m24–m25：支付查询/金额、预签名约束、权限默认和 Node 子进程。
 - m29–m30：LLM fallback 范围、Redis KEYS。
 - 包结构、示例、兼容、异常、并行抽象：按 [README 当前问题总表](README.md#当前问题总表) 逐项收敛。
@@ -207,7 +207,7 @@ M16 已完成：用户密码、OAuth access/refresh token、Channel/Webhook 密�
 - B13：URL、byte[]、Base64、底层 StorageService 绕过；SVG/HTML 主动内容；统一大小/类型策略。
 - B17：恶意 value 中的引号、方法调用、类型访问和表达式片段必须被拒绝，不能只验证 field（已修复，见 README）。
 - B9/B10：org、workspace、SELF、owner/share scope 的正反授权矩阵，由另一对话跟踪（见 10 鉴权矩阵）。
-- B5：受限脚本执行基线仍需推进（由另一对话跟踪）。
+- B5：已修复（收敛为受限 GraalVM 单路径）。
 
 测试命名继续遵循：developer 单测 `*Test.java`，tester 验收/集成 `*IT.java` 或 `*AcceptanceTest.java`。
 
@@ -226,7 +226,7 @@ M16 已完成：用户密码、OAuth access/refresh token、Channel/Webhook 密�
 
 1. 重新查询 Git 状态，确认历史工作树内容是否已提交、丢失或变化。
 2. 处理 Flyway/AafApplicationTest 环境门控，建立可重复验证基线。
-3. 按剩余 blocker 表逐项建任务；B1/B9/B10 的授权边界优先，B5/B17 的执行注入风险同级。
+3. 按剩余 blocker 表逐项建任务；B9/B10 的授权边界优先（B1/B5/B17 已修复）。
 4. 补针对性单测并运行相应项目 test；任务完工前再运行 `pnpm check:affected`。
 5. 分批处理 PARTIAL major，再处理 OPEN major 与结构性债务。
 6. 更新本交接单与当前任务产出，不修改 12/13 历史文档。
