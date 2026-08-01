@@ -86,7 +86,7 @@
 
 ### 08 区（对话/统计/企业运营）修复记录（2026-08-01）
 
-08 分区的 M18、M19、占位、m13、m14、m15 已修复，M15 的 Company/Channel 请求绑定与 Company 实体出参已收敛为 DTO/VO；全局仍保留其他模块实体出参残余。详见 [08 分区文档 #修复记录](08-ai-chat-tools-company-stats.md)。要点：会话/消息归属校验、ORG_ADMIN
+08 分区的 M18、M19、占位、m13、m14、m15 已修复，M15 的 Company/Channel 请求绑定与 Company 实体出参已收敛为 DTO/VO；全局仍保留其他模块实体出参残余。08 分区文档已删除（问题全部收口）。要点：会话/消息归属校验、ORG_ADMIN
 去平台化 + `sys_user_event.org_id` 组织过滤（已折叠进基础迁移 `v1__system_schema.sql`）、未实现能力显式报错、JSON 序列化与 senderId 常量化、workflow 三套抽象边界说明。
 
 M16 已完成：用户密码、OAuth access/refresh token、Channel/Webhook 密钥、SMTP 密码、模型及供应商 API Key 均增加 `@JsonIgnore`。

@@ -24,7 +24,6 @@
 | [05-autodev.md](05-autodev.md) | Git、CI/CD、代码生成、文档服务 |
 | [06-architecture-and-quality.md](06-architecture-and-quality.md) | 分层/实体外泄、重复抽象、命名/包结构、占位实现、通用工具 |
 | [07-system-admin-and-rbac.md](07-system-admin-and-rbac.md) | 用户/角色/权限点/行级数据权限，以及当前仍需收敛的角色、SELF 与 org 授权边界 |
-| [08-ai-chat-tools-company-stats.md](08-ai-chat-tools-company-stats.md) | 对话/流式、持久任务、企业运营编排、行为统计、Prompt 引擎 |
 | [10-authorization-matrix.md](10-authorization-matrix.md) | Controller 鉴权冻结基线与剩余资源级授权矩阵；不再沿用旧数量统计 |
 | [11f-framework-infra.md](11f-framework-infra.md) | 基础设施；M50/M51/m30/m32 已修，M49 残留 ACK 窗口（需事务性收件箱） |
 | [14-remaining-tasks-handoff.md](14-remaining-tasks-handoff.md) | 当前交接：历史完成记录 + OPEN/PARTIAL 剩余任务；新对话从这里接续 |
@@ -57,7 +56,7 @@
 |------|------|------|---------|
 | M6 | FIXED | 03/06 | 核实：`listActive`/`listEnabled` 均已返回 VO，无 Entity 出参 |
 | M7 | FIXED | 05 | `CiCdService` 改注入 `HttpClient`；`queryLatestRunId` 改用 `TaskScheduler` 延迟调度，不再阻塞调用线程 |
-| M15 | PARTIAL | 07/08/11g（已删除） | Company 与 Channel/Webhook 写入口已 DTO 化，Company/Channel/Webhook 出参已 VO 化，SMS 模板 CRUD 已 VO 化（本轮，见 M22）；`AiOutputController`（`Result<AiOutput>`）、`TeamController`（`Result<TeamEntity>`/`TeamMemberEntity`/`TeamTaskEntity`）、`DocumentController`（`getById`/`update`/`publish`/`unpublish`/`getPublished` 仍 `Result<Document>`）三模块仍有实体出参，规模较大（10+ 处改动点），本轮未做，留待独立任务 |
+| M15 | PARTIAL | 07/08（已删除）/11g（已删除） | Company 与 Channel/Webhook 写入口已 DTO 化，Company/Channel/Webhook 出参已 VO 化，SMS 模板 CRUD 已 VO 化（本轮，见 M22）；`AiOutputController`（`Result<AiOutput>`）、`TeamController`（`Result<TeamEntity>`/`TeamMemberEntity`/`TeamTaskEntity`）、`DocumentController`（`getById`/`update`/`publish`/`unpublish`/`getPublished` 仍 `Result<Document>`）三模块仍有实体出参，规模较大（10+ 处改动点），本轮未做，留待独立任务 |
 | M17 | FIXED | 07 | `assignRolesToUser` 改为先删后建全量覆盖，与 `assignPermissionsToRole` 语义一致 |
 | M21 | FIXED | 09（已删除） | `SmsProperties.testSend`（enabled + phoneWhitelist），生产默认整体禁用 |
 | M22 | FIXED | 09（已删除） | 新建 `SmsTemplateService`，`SmsController` 模板 CRUD 改调 service，出参 VO |
