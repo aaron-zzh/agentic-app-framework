@@ -29,7 +29,8 @@ class FileControllerTest {
         var fileRecordService = mock(FileRecordService.class);
         var storageProperties = mock(StorageProperties.class);
         var controller =
-                new FileController(fileService, storageService, fileRecordService, storageProperties);
+                new FileController(
+                        fileService, storageService, fileRecordService, storageProperties);
         var key = "2026/07/31/stored-file.pdf";
         var originalName = "审查报告 最终版.pdf";
         var record = new FileRecord();
@@ -57,7 +58,8 @@ class FileControllerTest {
         var fileRecordService = mock(FileRecordService.class);
         var storageProperties = mock(StorageProperties.class);
         var controller =
-                new FileController(fileService, storageService, fileRecordService, storageProperties);
+                new FileController(
+                        fileService, storageService, fileRecordService, storageProperties);
         var key = "stored-file.pdf";
         var record = new FileRecord();
         record.setOriginalName(" ");
