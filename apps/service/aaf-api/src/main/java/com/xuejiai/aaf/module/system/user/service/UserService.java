@@ -22,6 +22,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.enums.CommonStatusEnum;
+import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
 import com.xuejiai.aaf.common.util.CollectionUtils;
@@ -33,6 +35,7 @@ import com.xuejiai.aaf.framework.bizlog.service.impl.DiffParseFunction;
 import com.xuejiai.aaf.framework.crud.definition.ResourceKey;
 import com.xuejiai.aaf.framework.crud.dto.ResourceRefDTO;
 import com.xuejiai.aaf.framework.crud.reference.CrudReferenceTargetAccess;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
 import com.xuejiai.aaf.module.system.user.api.UserRelationService;
 import com.xuejiai.aaf.module.system.user.domain.User;
@@ -62,6 +65,7 @@ public class UserService implements UserRelationService, CrudReferenceTargetAcce
     private final PasswordEncoder passwordEncoder;
     private final jakarta.validation.Validator validator;
     private final SystemConfigService systemConfigService;
+    private final OperatorContext operatorContext;
 
     /**
      * 创建用户
@@ -290,6 +294,7 @@ public class UserService implements UserRelationService, CrudReferenceTargetAcce
      */
     @Transactional
     public void changePassword(Long id, UserChangePasswordDTO request) {
+        requireSelf(id);
         var user = requireUser(id);
         if (!user.checkPassword(passwordEncoder, request.oldPassword())) {
             throw exception(USER_PASSWORD_INCORRECT);
@@ -512,6 +517,19 @@ public class UserService implements UserRelationService, CrudReferenceTargetAcce
     // ==================== 内部方法 ====================
 
     private static final Long ADMIN_USER_ID = 1L;
+
+    private void requireSelf(Long userId) {
+        if (!operatorContext.isAuthenticated()) {
+            throw new BusinessException(GlobalErrorCode.UNAUTHORIZED);
+        }
+        var currentOwnerId =
+                operatorContext
+                        .currentOwnerId()
+                        .orElseThrow(() -> new BusinessException(GlobalErrorCode.FORBIDDEN));
+        if (!userId.equals(currentOwnerId)) {
+            throw new BusinessException(GlobalErrorCode.FORBIDDEN);
+        }
+    }
 
     private void validateNotAdmin(Long id) {
         if (ADMIN_USER_ID.equals(id)) {

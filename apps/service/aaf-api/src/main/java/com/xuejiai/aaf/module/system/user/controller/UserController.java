@@ -150,7 +150,7 @@ public class UserController implements ResourceOptionsController<User, UserVO> {
     }
 
     @Operation(summary = "修改密码", description = "用户自行修改，需提供旧密码")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     @PutMapping("/{id}/password")
     public Result<Void> changePassword(
             @PathVariable Long id, @Validated @RequestBody UserChangePasswordDTO request) {
