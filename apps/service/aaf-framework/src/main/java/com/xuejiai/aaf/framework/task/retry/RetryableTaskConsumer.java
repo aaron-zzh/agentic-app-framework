@@ -17,7 +17,22 @@ import com.xuejiai.aaf.framework.task.queue.RedisStreamTaskQueue;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 执行队列任务，并在失败时可靠调度重试或写入死信。 */
+/**
+ * 执行队列任务，并在失败时可靠调度重试或写入死信。
+ *
+ * <p>M49 幂等现状与残留窗口（**至少一次**语义，不是恰好一次）：
+ *
+ * <ul>
+ *   <li>{@code task_queue:completed:<id>} 标记已完成任务，重投时直接判 DUPLICATE
+ *   <li>{@code task_queue:processing:<id>} 租约防止两个消费者同时处理同一任务
+ * </ul>
+ *
+ * <p>仍不能消除的窗口：handler 已成功、但进程在写 completed 标记**之前**崩溃，消息重投后会再执行一次； completed 标记按 {@code
+ * completedRetention} 过期后，超晚到达的重投也会再执行一次。
+ *
+ * <p>要做到"幂等记录与业务副作用原子提交"，必须把完成标记从 Redis 移进 handler 自己的数据库事务 （事务性收件箱），并把重试从"事务内退避"改为"由队列重投驱动"——这会改动现有重试/租约设计，
+ * 属架构级变更，未在本轮实施。业务 handler 若有不可重复的副作用（打款、发短信、外部下单）， 必须自行按 {@code task.id()} 建立业务侧幂等键，不能只依赖这里的 Redis 标记。
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor

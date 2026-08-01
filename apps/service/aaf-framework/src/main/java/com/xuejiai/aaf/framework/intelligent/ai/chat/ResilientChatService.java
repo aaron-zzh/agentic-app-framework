@@ -68,6 +68,11 @@ public class ResilientChatService {
             publishUsage(response, ownerId, model.getId(), billingCapability);
             return response;
         } catch (Exception e) {
+            // m29：只有可重试错误才降级，参数错误/内容策略拒绝等直接抛出
+            if (!isRetryable(e)) {
+                log.warn("主模型 [{}] 调用失败且不可重试，不降级: {}", model.getModelId(), e.getMessage());
+                throw e;
+            }
             log.warn("主模型 [{}] 调用失败，尝试降级: {}", model.getModelId(), e.getMessage());
             return callFallback(messages, model, ownerId, billingCapability);
         }
@@ -90,9 +95,60 @@ public class ResilientChatService {
             publishUsage(response, ownerId, model.getId(), billingCapability);
             return response;
         } catch (Exception e) {
+            // m29：同上，不可重试错误不降级
+            if (!isRetryable(e)) {
+                log.warn("主模型 [{}] 调用失败且不可重试，不降级: {}", model.getModelId(), e.getMessage());
+                throw e;
+            }
             log.warn("主模型 [{}] 调用失败，尝试降级: {}", model.getModelId(), e.getMessage());
             return callFallback(messages, model, ownerId, billingCapability);
         }
+    }
+
+    /**
+     * m29：判断异常是否值得降级重试。
+     *
+     * <p>原实现对**任何** {@code Exception} 都换备用模型重试，后果有两个：
+     *
+     * <ul>
+     *   <li>参数非法、内容策略拒绝这类必然再次失败的错误也重试，白付一次备用模型的钱
+     *   <li>真实错误被"降级成功"掩盖，排查时只看到备用模型的结果
+     * </ul>
+     *
+     * <p>判定沿因果链向上找第一个可判定信号：Spring AI 的 Transient/NonTransient 异常、HTTP 状态码（5xx 与
+     * 429 可重试，其余 4xx 不可）、网络超时/连接类 IO 异常。无法判定时保守地**不降级**，让错误暴露。
+     */
+    private boolean isRetryable(Throwable error) {
+        for (var t = error; t != null; t = t.getCause()) {
+            var name = t.getClass().getName();
+            if (name.endsWith("TransientAiException")) {
+                return true;
+            }
+            if (name.endsWith("NonTransientAiException")) {
+                return false;
+            }
+            if (t instanceof org.springframework.web.client.HttpStatusCodeException http) {
+                return isRetryableStatus(http.getStatusCode().value());
+            }
+            if (t
+                    instanceof
+                    org.springframework.web.reactive.function.client.WebClientResponseException
+                            webClient) {
+                return isRetryableStatus(webClient.getStatusCode().value());
+            }
+            if (t instanceof java.net.SocketTimeoutException
+                    || t instanceof java.net.ConnectException
+                    || t instanceof java.util.concurrent.TimeoutException
+                    || t instanceof java.io.IOException) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 5xx 服务端错误与 429 限流可重试；其余 4xx 是请求本身的问题，重试只会再失败一次。 */
+    private boolean isRetryableStatus(int status) {
+        return status >= 500 || status == 429;
     }
 
     /**
@@ -138,6 +194,11 @@ public class ResilientChatService {
                     model.getModelId(),
                     routedAt);
         } catch (Exception e) {
+            // m29：流式路径同样只对可重试错误降级
+            if (!isRetryable(e)) {
+                log.warn("主模型 [{}] 流式调用失败且不可重试，不降级: {}", model.getModelId(), e.getMessage());
+                throw e;
+            }
             log.warn("主模型 [{}] 流式调用失败，尝试降级: {}", model.getModelId(), e.getMessage());
             // 5. 主模型失败时降级到 fallbackModelId
             var fallback = resolveFallback(model);

@@ -70,18 +70,51 @@ public class TwoLevelCache<K, V> {
         putToRedis(key, value);
     }
 
-    /** 删除指定 key */
+    /** 删除指定 key（本机 + Redis） */
     public void invalidate(K key) {
         localCache.invalidate(key);
         redisTemplate.delete(redisKey(key));
     }
 
-    /** 清空全部 */
+    /**
+     * 只清本机本地缓存，不动 Redis（M50）。
+     *
+     * <p>用于接收其他实例广播的失效通知——Redis 侧已由发起实例删除，这里只需丢掉本机 Caffeine 副本， 避免重复删除与广播回环。
+     */
+    public void invalidateLocal(K key) {
+        localCache.invalidate(key);
+    }
+
+    /** 只清空本机本地缓存，不动 Redis（M50：广播接收侧使用）。 */
+    public void invalidateAllLocal() {
+        localCache.invalidateAll();
+    }
+
+    /**
+     * 清空全部。
+     *
+     * <p>m30：改用 SCAN 游标分批删除——原实现用 {@code KEYS name:*}，Redis 单线程执行 KEYS 会随 key 总量线性阻塞，
+     * 生产环境上百万 key 时足以造成全实例卡顿。SCAN 分批返回、每批删除，不阻塞其他命令。
+     */
     public void invalidateAll() {
         localCache.invalidateAll();
-        var keys = redisTemplate.keys(name + ":*");
-        if (keys != null && !keys.isEmpty()) {
-            redisTemplate.delete(keys);
+        var options =
+                org.springframework.data.redis.core.ScanOptions.scanOptions()
+                        .match(name + ":*")
+                        .count(500)
+                        .build();
+        try (var cursor = redisTemplate.scan(options)) {
+            var batch = new java.util.ArrayList<String>(500);
+            while (cursor.hasNext()) {
+                batch.add(cursor.next());
+                if (batch.size() >= 500) {
+                    redisTemplate.delete(batch);
+                    batch.clear();
+                }
+            }
+            if (!batch.isEmpty()) {
+                redisTemplate.delete(batch);
+            }
         }
     }
 

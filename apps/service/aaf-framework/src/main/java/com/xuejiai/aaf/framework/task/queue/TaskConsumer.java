@@ -206,6 +206,9 @@ public class TaskConsumer {
             return;
         }
 
+        // M49：执行与 ACK 之间存在崩溃窗口（至少一次语义）。去重与并发保护由
+        // RetryableTaskConsumer 的 completed 标记 + processing 租约承担，此处不再叠加第二套幂等存储；
+        // 残留窗口与彻底修复方案（事务性收件箱）见 RetryableTaskConsumer 类注释。
         retryableTaskConsumer.executeWithRetry(task);
         acknowledge(stream, record);
     }

@@ -1,7 +1,6 @@
 package com.xuejiai.aaf.framework.logging;
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.Map;
 
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -56,6 +55,11 @@ public class OperationLogAspect {
         }
     }
 
+    /** M51：错误信息同样可能带敏感值（如"密码 xxx 不正确"），一并脱敏。 */
+    private String maskedError(String errorMsg) {
+        return errorMsg == null ? null : truncate(SensitiveLogMasker.maskText(errorMsg), 500);
+    }
+
     private void publishEvent(
             ProceedingJoinPoint joinPoint,
             OperationLog annotation,
@@ -88,8 +92,17 @@ public class OperationLogAspect {
             userAgent = ServletUtils.getUserAgent(request);
         }
 
-        var params = truncate(Arrays.toString(joinPoint.getArgs()), 2000);
-        var responseStr = result != null ? truncate(result.toString(), 2000) : null;
+        // M51：审计入参/出参必须脱敏——原实现直接 Arrays.toString(args) 与 result.toString()，
+        // 登录/改密/绑定/发短信等接口的密码、token、密钥、验证码会明文落进审计表。
+        var params =
+                truncate(
+                        SensitiveLogMasker.maskArguments(
+                                signature.getParameterNames(), joinPoint.getArgs()),
+                        2000);
+        var responseStr =
+                result != null
+                        ? truncate(SensitiveLogMasker.maskText(result.toString()), 2000)
+                        : null;
 
         var event =
                 new OperationLogEvent(
@@ -107,7 +120,7 @@ public class OperationLogAspect {
                         userAgent,
                         duration,
                         success,
-                        errorMsg != null ? truncate(errorMsg, 500) : null,
+                        errorMsg != null ? maskedError(errorMsg) : null,
                         LocalDateTime.now());
 
         eventPublisher.publishEvent(event);

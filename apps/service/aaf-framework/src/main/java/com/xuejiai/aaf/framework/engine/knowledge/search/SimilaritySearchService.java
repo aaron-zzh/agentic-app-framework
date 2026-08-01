@@ -17,8 +17,16 @@ public class SimilaritySearchService {
 
     private final KnowledgeVectorService knowledgeVectorService;
 
-    /** 执行相似度搜索 */
+    /**
+     * 执行相似度搜索。
+     *
+     * <p>M45：必须给出 knowledgeBaseId——底层 {@code KnowledgeVectorService.search} 已删除无过滤重载，
+     * 这里再前置一道校验，避免"未传 kbId → 过滤表达式为 null → 全库检索"的静默跨库读取。
+     */
     public List<SearchResult> search(SearchRequest request) {
+        if (request.knowledgeBaseId() == null) {
+            throw new IllegalArgumentException("相似度检索必须指定 knowledgeBaseId，禁止跨知识库全量检索");
+        }
         var filterExpression = buildFilterExpression(request);
         var documents =
                 knowledgeVectorService.search(request.query(), request.topK(), filterExpression);

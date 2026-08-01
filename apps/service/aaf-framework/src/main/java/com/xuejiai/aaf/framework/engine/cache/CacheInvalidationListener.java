@@ -6,13 +6,19 @@ import org.springframework.stereotype.Component;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 缓存失效事件监听器——根据事件刷新对应缓存实例。 */
+/**
+ * 缓存失效事件监听器——根据事件刷新对应缓存实例。
+ *
+ * <p>M50：本机（Caffeine + Redis）失效完成后，经 {@link CacheInvalidationBroadcaster} 广播到其他实例，
+ * 让它们同步清掉本地副本；否则多实例部署下别的节点最长会用 LOCAL_TTL 内的旧配置。
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class CacheInvalidationListener {
 
     private final TwoLevelCacheFactory cacheFactory;
+    private final CacheInvalidationBroadcaster broadcaster;
 
     @EventListener
     @SuppressWarnings("unchecked")
@@ -29,5 +35,6 @@ public class CacheInvalidationListener {
             cache.invalidate(event.key());
             log.debug("刷新缓存: {}:{}", event.cacheName(), event.key());
         }
+        broadcaster.broadcast(event.cacheName(), event.key());
     }
 }
