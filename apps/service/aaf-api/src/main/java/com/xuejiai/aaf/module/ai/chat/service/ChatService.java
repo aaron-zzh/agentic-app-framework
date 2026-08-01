@@ -34,9 +34,19 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ChatService {
 
+    /**
+     * m14：非人类发送者（AI / SYSTEM / BOT）的 senderId 占位值。
+     *
+     * <p>{@code sender_id} 列 NOT NULL 且为字符串，AI 消息本身没有用户主键。原代码在多处直接写死 {@code 0L}/{@code "0"}
+     * 表示"AI 发的"，语义只能靠约定传递；这里收敛为具名常量， 真正的行动者维度由 {@code senderType}（{@link MessageSenderTypeEnum}）表达。
+     */
+    public static final String NON_HUMAN_SENDER_ID = "0";
+
     private final ConversationRepository conversationRepository;
     private final ConversationMessageRepository messageRepository;
     private final RelationPermissionWriter relationPermissionWriter;
+    private final com.xuejiai.aaf.framework.security.OperatorContext operatorContext;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     /**
      * 创建会话
@@ -79,6 +89,8 @@ public class ChatService {
      */
     @Transactional(readOnly = true)
     public List<ChatMessageVO> listMessages(Long sessionId) {
+        // M18：先校验会话归属，避免任意登录用户按 sessionId 读他人消息
+        requireOwnedConversation(sessionId);
         return messageRepository.findByConversationIdOrderByCreateTimeAsc(sessionId).stream()
                 .map(this::toMessageVO)
                 .toList();
@@ -103,6 +115,8 @@ public class ChatService {
      */
     @Transactional(readOnly = true)
     public Page<ChatMessageVO> getMessagesPaged(Long sessionId, int page, int size) {
+        // M18：分页读取同样需要归属校验
+        requireOwnedConversation(sessionId);
         // ConversationMessageRepository 暂不提供分页方法，用 findAll + Specification 替代
         // TODO: ConversationMessageRepository 增加分页查询方法后移除此处的内存分页
         var all = messageRepository.findByConversationIdOrderByCreateTimeAsc(sessionId);
@@ -122,7 +136,8 @@ public class ChatService {
      */
     @Transactional
     public void archiveSession(Long sessionId) {
-        var conv = requireConversation(sessionId);
+        // M18：归档属于会话管理操作，须校验归属
+        var conv = requireOwnedConversation(sessionId);
         conv.setStatus(ConversationStatusEnum.ARCHIVED);
         conversationRepository.save(conv);
     }
@@ -142,6 +157,20 @@ public class ChatService {
             Long senderId, String senderType, Long sessionId, String role, String content) {
         requireConversation(sessionId);
         var msg = buildMessage(senderId, senderType, sessionId, role, content);
+        messageRepository.save(msg);
+        return toMessageVO(msg);
+    }
+
+    /**
+     * 用户主动发消息（REST 入口专用）。
+     *
+     * <p>M18：与内部/AI 写入路径（{@code saveMessage} 各重载，由事件监听器和 AG-UI 链路调用，运行时无 SecurityContext） 区分开——此方法要求
+     * sessionId 归属当前身份，避免用户把消息写进他人会话。
+     */
+    @Transactional
+    public ChatMessageVO saveUserMessage(Long senderId, Long sessionId, String content) {
+        requireOwnedConversation(sessionId);
+        var msg = buildMessage(senderId, "HUMAN", sessionId, "user", content);
         messageRepository.save(msg);
         return toMessageVO(msg);
     }
@@ -210,7 +239,8 @@ public class ChatService {
      */
     @Transactional
     public void deleteSession(Long sessionId) {
-        requireConversation(sessionId);
+        // M18：删除他人会话是最高危的 IDOR 面，须校验归属
+        requireOwnedConversation(sessionId);
         conversationRepository.deleteById(sessionId);
     }
 
@@ -223,7 +253,8 @@ public class ChatService {
      */
     @Transactional
     public ChatSessionVO renameSession(Long sessionId, String title) {
-        var conv = requireConversation(sessionId);
+        // M18：重命名属于会话管理操作，须校验归属
+        var conv = requireOwnedConversation(sessionId);
         conv.setTitle(title);
         conversationRepository.save(conv);
         return toSessionVO(conv);
@@ -245,10 +276,13 @@ public class ChatService {
                                 () ->
                                         new BusinessException(
                                                 ErrorCodeConstants.CHAT_MESSAGE_NOT_FOUND));
-        var feedback =
-                "{\"feedback\":\"%s\",\"comment\":\"%s\"}"
-                        .formatted(feedbackType, comment != null ? comment : "");
-        msg.setMetadata(feedback);
+        // M18：messageId 来自路径，须经所属会话反查归属，否则可对他人消息打标
+        requireOwnedConversation(msg.getConversationId());
+        // m13：反馈内容用 Jackson 构造 JSON——手工拼串遇到引号/换行/反斜杠会产出非法 JSON
+        var node = objectMapper.createObjectNode();
+        node.put("feedback", feedbackType);
+        node.put("comment", comment != null ? comment : "");
+        msg.setMetadata(node.toString());
         messageRepository.save(msg);
     }
 
@@ -275,12 +309,33 @@ public class ChatService {
                         () -> new BusinessException(ErrorCodeConstants.CHAT_SESSION_NOT_FOUND));
     }
 
+    /**
+     * M18：校验会话归属当前用户，防对象级越权（IDOR）。
+     *
+     * <p>sessionId/messageId 由客户端从路径传入，只有存在性校验时任何登录用户都能读/删/改他人会话。 这里统一比对
+     * {@code conversation.creatorId} 与当前身份；不属于自己时抛"会话不存在"而非 403， 避免通过错误码枚举出他人会话是否存在。
+     */
+    private Conversation requireOwnedConversation(Long sessionId) {
+        var conv = requireConversation(sessionId);
+        var currentUserId =
+                operatorContext
+                        .currentOwnerId()
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCodeConstants.CHAT_SESSION_NOT_FOUND));
+        if (!java.util.Objects.equals(conv.getCreatorId(), currentUserId)) {
+            throw new BusinessException(ErrorCodeConstants.CHAT_SESSION_NOT_FOUND);
+        }
+        return conv;
+    }
+
     private ConversationMessage buildMessage(
             Long senderId, String senderType, Long sessionId, String role, String content) {
         var msg = new ConversationMessage();
         msg.setConversationId(sessionId);
-        // senderId 从 Long 转 String
-        msg.setSenderId(senderId != null ? senderId.toString() : "0");
+        // m14：人类发送者存用户 ID；AI/系统等非人类发送者用具名占位值，行动者语义由 senderType 承载
+        msg.setSenderId(senderId != null ? senderId.toString() : NON_HUMAN_SENDER_ID);
         msg.setSenderType(parseSenderType(senderType));
         msg.setRole(role);
         msg.setContent(content);

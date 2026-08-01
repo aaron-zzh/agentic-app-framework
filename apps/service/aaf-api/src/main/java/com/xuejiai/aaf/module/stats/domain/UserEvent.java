@@ -29,6 +29,14 @@ public class UserEvent {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
+    /**
+     * M19：所属组织 ID，采集时从 {@code OrgContext} 写入。
+     *
+     * <p>行为聚合（漏斗/留存/画像）据此按组织过滤，避免组织管理员读取跨组织运营数据。 NULL 表示采集时无组织上下文（平台级用户），仅平台管理员可见。
+     */
+    @Column(name = "org_id")
+    private Long orgId;
+
     /** 事件类型，对应 UserEventTypeEnum.code */
     @Column(name = "event_type", nullable = false, length = 32)
     private String eventType;

@@ -38,7 +38,7 @@ public class PromptTemplateService {
         return promptEngine.chain(templateNames, variables);
     }
 
-    /** 渲染并注入 Few-shot 示例 */
+    /** 渲染并注入 Few-shot 示例（底层尚未实现，调用会抛 {@link UnsupportedOperationException}） */
     public String renderWithExamples(
             String templateName, Map<String, String> variables, int maxExamples) {
         return promptEngine.renderWithExamples(templateName, variables, maxExamples);

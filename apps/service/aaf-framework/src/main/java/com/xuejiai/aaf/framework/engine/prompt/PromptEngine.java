@@ -43,7 +43,7 @@ public interface PromptEngine {
     /** 链式组装：多模板片段按顺序拼接 */
     String chain(List<String> templateNames, Map<String, String> variables);
 
-    /** 渲染并注入 Few-shot 示例 */
+    /** 渲染并注入 Few-shot 示例（尚未实现，调用抛 {@link UnsupportedOperationException}，不静默降级为普通渲染） */
     String renderWithExamples(String templateName, Map<String, String> variables, int maxExamples);
 
     // ─── 评估 ───

@@ -27,6 +27,31 @@ public class TrackingController {
 
     private final TrackingService trackingService;
 
+    /**
+     * M19：分析视图的组织过滤 orgId——平台管理员返回 null（全局），组织管理员强制当前组织。
+     *
+     * <p>ORG_ADMIN 不再等同平台管理员，避免埋点分析成为跨组织行为数据的读取通道。
+     */
+    private Long filterOrgId() {
+        var auth =
+                org.springframework.security.core.context.SecurityContextHolder.getContext()
+                        .getAuthentication();
+        boolean platformAdmin =
+                auth != null
+                        && auth.getAuthorities().stream()
+                                .anyMatch(
+                                        a ->
+                                                java.util.Set.of("ROLE_ADMIN", "ROLE_SUPER_ADMIN")
+                                                        .contains(a.getAuthority()));
+        if (platformAdmin) return null;
+        var orgId = com.xuejiai.aaf.framework.org.OrgContext.getCurrentOrgId();
+        if (orgId == null) {
+            throw new com.xuejiai.aaf.common.exception.BusinessException(
+                    com.xuejiai.aaf.common.exception.GlobalErrorCode.FORBIDDEN, "缺少组织上下文，无权查看行为分析");
+        }
+        return orgId;
+    }
+
     @Operation(summary = "批量上报埋点事件")
     @PostMapping("/events")
     public Result<Integer> reportEvents(@Validated @RequestBody TrackingEventDTO dto) {
@@ -35,15 +60,15 @@ public class TrackingController {
 
     @Operation(summary = "获取热力图数据")
     @GetMapping("/heatmap")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'ORG_ADMIN')")
     public Result<HeatmapVO> heatmap(@RequestParam String page) {
-        return Result.success(trackingService.getHeatmap(page));
+        return Result.success(trackingService.getHeatmap(page, filterOrgId()));
     }
 
     @Operation(summary = "获取操作模式识别结果")
     @GetMapping("/patterns")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'ORG_ADMIN')")
     public Result<List<PatternVO>> patterns() {
-        return Result.success(trackingService.getPatterns());
+        return Result.success(trackingService.getPatterns(filterOrgId()));
     }
 }

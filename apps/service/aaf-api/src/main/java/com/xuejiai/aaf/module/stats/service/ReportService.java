@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.common.enums.stats.ReportTypeEnum;
 import com.xuejiai.aaf.common.enums.stats.StatPeriodEnum;
+import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.module.stats.vo.TrendPointVO;
 
 import lombok.RequiredArgsConstructor;
@@ -20,7 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 报表服务。
  *
- * <p>支持日报/周报/月报生成，CSV 导出，PDF 导出骨架。
+ * <p>支持日报/周报/月报生成与 CSV 导出；PDF 导出尚未实现（调用即显式报错，不静默降级）。
  */
 @Slf4j
 @Service
@@ -65,13 +67,16 @@ public class ReportService {
         }
     }
 
-    /** PDF 导出骨架（预留接口，内部待接入 iText）。 */
+    /**
+     * PDF 导出——尚未实现。
+     *
+     * <p>占位修复：原实现向响应流写入 "PDF 报表生成待实现" 纯文本，但 Content-Type 已声明为
+     * application/pdf，调用方会拿到一个"下载成功但打不开"的假 PDF，属静默降级。 未实现的能力必须显式失败，接入 iText 后再放开。
+     */
     public void exportPdf(ReportTypeEnum type, LocalDate reportDate, OutputStream out)
             throws IOException {
-        // TODO: 接入 iText 8 生成 PDF 报表
-        var data = generateReport(type, reportDate);
-        log.info("PDF 导出骨架调用，报表类型={}，日期={}，指标数={}", type, reportDate, data.size());
-        out.write(("PDF 报表生成待实现 - %s %s".formatted(type.getLabel(), reportDate)).getBytes());
+        throw new BusinessException(
+                GlobalErrorCode.SERVICE_UNAVAILABLE, "PDF 报表导出尚未实现，请改用 CSV 导出");
     }
 
     // ========== 内部方法 ==========

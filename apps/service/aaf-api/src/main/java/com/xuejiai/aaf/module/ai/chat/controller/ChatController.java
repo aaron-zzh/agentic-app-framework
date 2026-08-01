@@ -78,7 +78,7 @@ public class ChatController {
         return Result.success(chatService.listMessages(sessionId));
     }
 
-    @Operation(summary = "获取会话消息历史（按 threadId，AG-UI 链路，公开）")
+    @Operation(summary = "获取会话消息历史（按 threadId，AG-UI 链路）")
     @GetMapping("/sessions/thread/{threadId}/messages")
     public Result<List<ChatMessageVO>> listMessagesByThreadId(@PathVariable String threadId) {
         return Result.success(chatService.listMessagesByThreadId(threadId));
@@ -104,8 +104,8 @@ public class ChatController {
     @PostMapping("/messages")
     public Result<ChatMessageVO> sendMessage(@RequestBody @Validated ChatMessageSendDTO dto) {
         var userId = operatorContext.currentOwnerId().orElseThrow();
-        var message =
-                chatService.saveMessage(userId, "HUMAN", dto.sessionId(), "user", dto.content());
+        // M18：走 saveUserMessage，内部校验 sessionId 归属当前用户
+        var message = chatService.saveUserMessage(userId, dto.sessionId(), dto.content());
         return Result.success(message);
     }
 

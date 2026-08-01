@@ -55,8 +55,12 @@ public class StatsController {
     private final AnalyticsService analyticsService;
     private final OperatorContext operatorContext;
 
-    /** 判断当前用户是否为管理员 */
-    private boolean isAdmin() {
+    /**
+     * 判断当前用户是否为平台级管理员（可跨组织查看）。
+     *
+     * <p>M19：ORG_ADMIN 不再计入平台级——组织管理员只能看本组织数据，否则统计接口会成为跨组织 运营数据（含行为 PII 聚合）的读取通道。
+     */
+    private boolean isPlatformAdmin() {
         var auth =
                 org.springframework.security.core.context.SecurityContextHolder.getContext()
                         .getAuthentication();
@@ -64,16 +68,28 @@ public class StatsController {
                 && auth.getAuthorities().stream()
                         .anyMatch(
                                 a ->
-                                        java.util.Set.of(
-                                                        "ROLE_ADMIN",
-                                                        "ROLE_SUPER_ADMIN",
-                                                        "ROLE_ORG_ADMIN")
+                                        java.util.Set.of("ROLE_ADMIN", "ROLE_SUPER_ADMIN")
                                                 .contains(a.getAuthority()));
     }
 
-    /** 当前用户的过滤 userId：管理员返回 null（全局），普通用户返回自己的 id */
+    /** 当前用户的过滤 userId：平台管理员返回 null（全局），其余返回自己的 id */
     private Long filterUserId() {
-        return isAdmin() ? null : operatorContext.currentOwnerId().orElse(null);
+        return isPlatformAdmin() ? null : operatorContext.currentOwnerId().orElse(null);
+    }
+
+    /**
+     * M19：行为分析的组织过滤 orgId——平台管理员返回 null（全局），其余强制当前组织。
+     *
+     * <p>非平台管理员且无组织上下文时拒绝，避免退化成全局查询。
+     */
+    private Long filterOrgId() {
+        if (isPlatformAdmin()) return null;
+        var orgId = com.xuejiai.aaf.framework.org.OrgContext.getCurrentOrgId();
+        if (orgId == null) {
+            throw new com.xuejiai.aaf.common.exception.BusinessException(
+                    com.xuejiai.aaf.common.exception.GlobalErrorCode.FORBIDDEN, "缺少组织上下文，无权查看运营统计");
+        }
+        return orgId;
     }
 
     // ========== 趋势统计 ==========
@@ -115,7 +131,7 @@ public class StatsController {
 
     @Operation(summary = "漏斗分析")
     @GetMapping("/funnel")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'ORG_ADMIN')")
     public Result<FunnelVO> queryFunnel(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
                     LocalDate startDate,
@@ -123,26 +139,28 @@ public class StatsController {
                     LocalDate endDate) {
         if (startDate == null) startDate = LocalDate.now().minusDays(7);
         if (endDate == null) endDate = LocalDate.now();
-        return Result.success(behaviorService.queryFunnel(startDate, endDate));
+        // M19：组织管理员只看本组织，平台管理员看全局
+        return Result.success(behaviorService.queryFunnel(startDate, endDate, filterOrgId()));
     }
 
     @Operation(summary = "留存分析")
     @GetMapping("/retention")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'ORG_ADMIN')")
     public Result<RetentionVO> queryRetention(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
                     LocalDate baseDate) {
         if (baseDate == null) baseDate = LocalDate.now();
-        return Result.success(behaviorService.queryRetention(baseDate));
+        return Result.success(behaviorService.queryRetention(baseDate, filterOrgId()));
     }
 
     @Operation(summary = "用户画像")
     @GetMapping("/profile")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN', 'ORG_ADMIN')")
     public Result<UserProfileVO> queryUserProfile(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        return Result.success(behaviorService.queryUserProfile(startDate, endDate));
+        return Result.success(
+                behaviorService.queryUserProfile(startDate, endDate, filterOrgId()));
     }
 
     // ========== 报表导出 ==========
@@ -162,7 +180,7 @@ public class StatsController {
         reportService.exportCsv(type, reportDate, response.getOutputStream());
     }
 
-    @Operation(summary = "导出 PDF 报表（骨架）")
+    @Operation(summary = "导出 PDF 报表（未实现，调用返回明确错误）")
     @GetMapping("/report/pdf")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public void exportPdf(
