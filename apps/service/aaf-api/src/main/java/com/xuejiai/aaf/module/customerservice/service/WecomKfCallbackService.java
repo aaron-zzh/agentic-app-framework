@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.regex.Pattern;
 
 import javax.crypto.Cipher;
@@ -38,6 +39,18 @@ public class WecomKfCallbackService {
     private final WecomKfProperties properties;
     private final WecomKfMessageHandler messageHandler;
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+
+    /**
+     * m9：并发上限背压——原实现无限制地向 executor.submit 提交任务，虚拟线程本身轻量不会耗尽平台线程，
+     * 但下游 messageHandler.handleCallback（数据库/AI 调用）处理不过来时，未受限的并发数会堆积内存与连接池占用。
+     * 用信号量限制同时在跑的回调数，超出时不排队等待，直接丢弃并记录日志。
+     */
+    private Semaphore concurrencyLimiter;
+
+    @jakarta.annotation.PostConstruct
+    void initConcurrencyLimiter() {
+        concurrencyLimiter = new Semaphore(Math.max(1, properties.getMaxConcurrentCallbacks()));
+    }
 
     /** URL验证：解密echostr并返回明文 */
     public String verifyUrl(String msgSignature, String timestamp, String nonce, String echostr) {
@@ -81,13 +94,20 @@ public class WecomKfCallbackService {
             return;
         }
 
-        // 异步处理消息（快速响应企微服务器）
+        // 异步处理消息（快速响应企微服务器）——m9：并发上限背压，超出直接丢弃不排队等待
+        if (!concurrencyLimiter.tryAcquire()) {
+            log.warn("客服回调并发已达上限（{}），丢弃本次回调等待企微重试: openKfId={}",
+                    properties.getMaxConcurrentCallbacks(), openKfId);
+            return;
+        }
         executor.submit(
                 () -> {
                     try {
                         messageHandler.handleCallback(openKfId, token);
                     } catch (Exception e) {
                         log.error("处理客服消息异常: openKfId={}", openKfId, e);
+                    } finally {
+                        concurrencyLimiter.release();
                     }
                 });
     }

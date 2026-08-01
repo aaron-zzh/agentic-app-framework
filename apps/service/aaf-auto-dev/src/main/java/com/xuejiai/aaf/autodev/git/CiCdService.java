@@ -30,11 +30,19 @@ import tools.jackson.databind.json.JsonMapper;
 @RequiredArgsConstructor
 public class CiCdService {
 
-    private static final HttpClient HTTP = HttpClient.newHttpClient();
     private static final long MAX_CACHED_BUILDS = 1_000;
     private static final Duration BUILD_CACHE_TTL = Duration.ofHours(24);
+    private static final Duration RUN_ID_POLL_DELAY = Duration.ofSeconds(2);
+
+    /**
+     * M7：改为实例字段而非 static，与项目其余服务的注入风格一致，也便于测试替换。
+     * connectTimeout 避免 GitHub API 不可达时无限等待占用调用线程。
+     */
+    private final HttpClient http =
+            HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
 
     private final JsonMapper jsonMapper;
+    private final TaskScheduler taskScheduler;
 
     @Value("${aaf.autodev.github.token:}")
     private String githubToken;
@@ -50,8 +58,9 @@ public class CiCdService {
                     .<Long, BuildStatus>build()
                     .asMap();
 
-    /** 触发 GitHub Actions workflow */
-    public Long triggerWorkflow(String workflowFile, String ref, Map<String, String> inputs) {
+    /** 触发 GitHub Actions workflow。异步等待 GitHub 创建 run 记录，不阻塞调用线程。 */
+    public java.util.concurrent.CompletableFuture<Long> triggerWorkflow(
+            String workflowFile, String ref, Map<String, String> inputs) {
         var payload = buildWorkflowPayload(ref, inputs);
 
         var request =
@@ -59,20 +68,25 @@ public class CiCdService {
                         "POST",
                         "/actions/workflows/%s/dispatches".formatted(workflowFile),
                         payload);
-        try {
-            var response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() == 204) {
-                log.info("CI 触发成功: workflow={} ref={}", workflowFile, ref);
-                // GitHub 不返回 context ID，需要查询最新 context
-                return queryLatestRunId(workflowFile, ref);
-            }
-            log.warn("CI 触发失败: HTTP {} - {}", response.statusCode(), response.body());
-            return null;
-        } catch (IOException | InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.error("CI 触发异常: {}", e.getMessage());
-            return null;
-        }
+        return http.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenCompose(
+                        response -> {
+                            if (response.statusCode() == 204) {
+                                log.info("CI 触发成功: workflow={} ref={}", workflowFile, ref);
+                                // GitHub 不返回 context ID，需要延迟查询最新 context
+                                return queryLatestRunId(workflowFile, ref);
+                            }
+                            log.warn(
+                                    "CI 触发失败: HTTP {} - {}",
+                                    response.statusCode(),
+                                    response.body());
+                            return java.util.concurrent.CompletableFuture.completedFuture(null);
+                        })
+                .exceptionally(
+                        e -> {
+                            log.error("CI 触发异常: {}", e.getMessage());
+                            return null;
+                        });
     }
 
     String buildWorkflowPayload(String ref, Map<String, String> inputs) {
@@ -90,7 +104,7 @@ public class CiCdService {
 
         var request = githubRequest("GET", "/actions/runs/%d".formatted(runId), null);
         try {
-            var response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+            var response = http.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() == 200) {
                 var json = JsonUtils.readTree(response.body());
                 var status = new BuildStatus();
@@ -139,7 +153,8 @@ public class CiCdService {
     }
 
     /** 触发部署（调用 deploy workflow） */
-    public Long triggerDeploy(String environment, String ref) {
+    public java.util.concurrent.CompletableFuture<Long> triggerDeploy(
+            String environment, String ref) {
         return triggerWorkflow("deploy.yml", ref, Map.of("environment", environment));
     }
 
@@ -151,26 +166,42 @@ public class CiCdService {
                 .toList();
     }
 
-    private Long queryLatestRunId(String workflowFile, String ref) {
+    private java.util.concurrent.CompletableFuture<Long> queryLatestRunId(
+            String workflowFile, String ref) {
         var request =
                 githubRequest(
                         "GET",
                         "/actions/workflows/%s/runs?branch=%s&per_page=1"
                                 .formatted(workflowFile, ref),
                         null);
-        try {
-            Thread.sleep(2000); // 等待 GitHub 创建 context
-            var response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() == 200) {
-                var runs = JsonUtils.readTree(response.body()).get("workflow_runs");
-                if (runs.isArray() && !runs.isEmpty()) {
-                    return runs.get(0).get("id").asLong();
-                }
-            }
-        } catch (IOException | InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-        return null;
+        // M7：原实现用 Thread.sleep(2000) 阻塞调用线程等待 GitHub 创建 run 记录——若从 HTTP 请求线程
+        // 触发（GitController#triggerCi 同步调用），会占用 Tomcat 工作线程 2 秒，影响吞吐。
+        // 改为 TaskScheduler 延迟调度 + HttpClient 异步发送，调用线程不阻塞。
+        var future = new java.util.concurrent.CompletableFuture<Long>();
+        taskScheduler.schedule(
+                () ->
+                        http.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                                .thenAccept(
+                                        response -> {
+                                            if (response.statusCode() == 200) {
+                                                var runs =
+                                                        JsonUtils.readTree(response.body())
+                                                                .get("workflow_runs");
+                                                if (runs.isArray() && !runs.isEmpty()) {
+                                                    future.complete(
+                                                            runs.get(0).get("id").asLong());
+                                                    return;
+                                                }
+                                            }
+                                            future.complete(null);
+                                        })
+                        .exceptionally(
+                                e -> {
+                                    future.complete(null);
+                                    return null;
+                                }),
+                java.time.Instant.now().plus(RUN_ID_POLL_DELAY));
+        return future;
     }
 
     private HttpRequest githubRequest(String method, String path, String body) {

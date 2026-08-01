@@ -1,18 +1,20 @@
 package com.xuejiai.aaf.autodev.git;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 import java.util.Map;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.scheduling.TaskScheduler;
 
 import tools.jackson.databind.json.JsonMapper;
 
 class CiCdServiceTest {
 
     private final JsonMapper jsonMapper = JsonMapper.builder().build();
-    private final CiCdService service = new CiCdService(jsonMapper);
+    private final CiCdService service = new CiCdService(jsonMapper, mock(TaskScheduler.class));
 
     @Test
     @DisplayName("Given ref 和 inputs 含 JSON 特殊字符 When 构造工作流请求体 Then 字段可无损解析")
