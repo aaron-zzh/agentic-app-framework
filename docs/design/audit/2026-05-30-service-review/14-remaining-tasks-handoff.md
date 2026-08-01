@@ -166,10 +166,10 @@ M16 已完成：用户密码、OAuth access/refresh token、Channel/Webhook 密�
 
 | 主题 | 编号 | 只处理的残余 |
 |------|------|-------------|
-| 身份与租户 | M1、M9 | 删除 userId fallback；API Key 继承真实角色（M19 组织过滤已闭环） |
-| 文件/短信/API 分层 | M6、M21、M22、M29 | Channel/Webhook Entity 出参；短信测试环境隔离；SMS Repository/Entity 边界；framework 裸 key API |
-| 架构与 DTO | M15 | Company 与 Channel/Webhook 输入已 DTO 化、Company 输出已 VO 化；SMS、AI Output、Document、Team 等仍有实体出参 |
-| 资金与成本 | M23、M26 | image-to-image/edit 接回统一扣减；退款并发与稳定幂等键（M53 已修复：embedding 按次计费 + 访客降级短期上下文，见 11g） |
+| 身份与租户 | — | M1/M9 已修复（删除 userId fallback；API Key 继承真实角色，M19 组织过滤已闭环） |
+| 文件/短信/API 分层 | M29 | M6/M21/M22 已修复（Channel/Webhook Entity 出参；短信测试环境隔离；SMS Repository/Entity 边界）；framework 裸 key API 待处理 |
+| 架构与 DTO | M15 | Company 与 Channel/Webhook 输入已 DTO 化、Company/Channel/Webhook 输出已 VO 化、SMS 模板已 VO 化；AI Output、Document、Team 三模块仍有实体出参，规模较大（10+ 处），留待独立任务 |
+| 资金与成本 | M26 | image-to-image/edit 已接回统一 precheck（M23 已修复）；退款并发与稳定幂等键（M53 已修复：embedding 按次计费 + 访客降级短期上下文，见 11g） |
 | OAuth/回调 | M28、M31、M37 | 适配器验签契约；账号绑定闭环与强制 state/nonce；per-flow execute、Webhook HMAC 与防重放 |
 | HITL/知识库/任务 | M36、M45、M49 | 删除或统一旧 HITL 链；移除危险两参检索重载；补齐副作用到 ACK 的业务幂等 |
 | 潜在语义风险 | m32 | 分布式锁获取失败返回 null 的语义仍不明确 |
@@ -179,7 +179,7 @@ M16 已完成：用户密码、OAuth access/refresh token、Channel/Webhook 密�
 | 分组 | 编号 | 修复方向 |
 |------|------|---------|
 | 资金与权益 | M25、M27 | 部分退款金额语义、真实账单下载/明确失败 |
-| 架构与 DTO | M7、M17、重复2 | 非阻塞 CI 调用、角色分配语义、权限模块去重（M15 已转 PARTIAL，M16 已完成） |
+| 架构与 DTO | 重复2 | 权限模块去重（M7/M17 已修复：非阻塞 CI 调用、角色分配语义；M15 已转 PARTIAL，M16 已完成） |
 | License/工作流 | M32、M39 | 生产公钥强制配置；HttpNode SSRF 防护 |
 | AI/抓取 | M42、M46 | 外部数据提示词边界；URL/协议/地址白名单和响应体上限 |
 | 分布式基础设施 | M50、M51 | 跨节点缓存失效；审计参数/响应脱敏 |
@@ -192,7 +192,7 @@ M16 已完成：用户密码、OAuth access/refresh token、Channel/Webhook 密�
 
 ### 仍为 OPEN 的 minor/结构项
 
-- m1、m7–m10：软删除查询重复、代理头信任、API Key 热点写、回调 executor 背压、非常量时间比较。
+- m1：软删除查询重复（m7/m8/m9/m10 已修复：代理头信任/API Key 热点写/回调 executor 背压/非常量时间比较）。
 - m36：内容安全关键词黑名单外置，并规划语义级能力。
 - m18–m20、m24–m25：支付查询/金额、预签名约束、权限默认和 Node 子进程。
 - m29–m30：LLM fallback 范围、Redis KEYS。

@@ -25,7 +25,6 @@
 | [06-architecture-and-quality.md](06-architecture-and-quality.md) | 分层/实体外泄、重复抽象、命名/包结构、占位实现、通用工具 |
 | [07-system-admin-and-rbac.md](07-system-admin-and-rbac.md) | 用户/角色/权限点/行级数据权限，以及当前仍需收敛的角色、SELF 与 org 授权边界 |
 | [08-ai-chat-tools-company-stats.md](08-ai-chat-tools-company-stats.md) | 对话/流式、持久任务、企业运营编排、行为统计、Prompt 引擎 |
-| [09-file-sms-aigc.md](09-file-sms-aigc.md) | 文件上传/下载、短信模板与发送、AIGC 图像/媒资生成 |
 | [10-authorization-matrix.md](10-authorization-matrix.md) | Controller 鉴权冻结基线与剩余资源级授权矩阵；不再沿用旧数量统计 |
 | [11f-framework-infra.md](11f-framework-infra.md) | 基础设施；M50/M51/m30/m32 已修，M49 残留 ACK 窗口（需事务性收件箱） |
 | [11g-framework-orchestration-api-remainder.md](11g-framework-orchestration-api-remainder.md) | 工作流/编排/AI 能力与 API 收官复审；M53 已修复 |
@@ -58,12 +57,12 @@
 | 编号 | 状态 | 区域 | 当前残余 |
 |------|------|------|---------|
 | M6 | FIXED | 03/06 | 核实：`listActive`/`listEnabled` 均已返回 VO，无 Entity 出参 |
-| M7 | OPEN | 05 | CI/CD 使用静态 HttpClient，轮询以 `Thread.sleep` 阻塞 |
+| M7 | FIXED | 05 | `CiCdService` 改注入 `HttpClient`；`queryLatestRunId` 改用 `TaskScheduler` 延迟调度，不再阻塞调用线程 |
 | M15 | PARTIAL | 07/08/11g | Company 与 Channel/Webhook 写入口已 DTO 化，Company/Channel/Webhook 出参已 VO 化，SMS 模板 CRUD 已 VO 化（本轮，见 M22）；`AiOutputController`（`Result<AiOutput>`）、`TeamController`（`Result<TeamEntity>`/`TeamMemberEntity`/`TeamTaskEntity`）、`DocumentController`（`getById`/`update`/`publish`/`unpublish`/`getPublished` 仍 `Result<Document>`）三模块仍有实体出参，规模较大（10+ 处改动点），本轮未做，留待独立任务 |
-| M17 | OPEN | 07 | 用户角色与角色权限分配语义不对称 |
-| M21 | PARTIAL | 09 | 生产短信测试号码仍缺白名单和环境隔离 |
-| M22 | PARTIAL | 09 | Controller 仍直连 Repository，并返回 Entity |
-| M23 | PARTIAL | 09 | image-to-image/edit 仍旁路统一权益 precheck、扣减与补偿 |
+| M17 | FIXED | 07 | `assignRolesToUser` 改为先删后建全量覆盖，与 `assignPermissionsToRole` 语义一致 |
+| M21 | FIXED | 09（已删除） | `SmsProperties.testSend`（enabled + phoneWhitelist），生产默认整体禁用 |
+| M22 | FIXED | 09（已删除） | 新建 `SmsTemplateService`，`SmsController` 模板 CRUD 改调 service，出参 VO |
+| M23 | FIXED | 09（已删除） | `ImageController` 两端点补 `estimateCost` + `creditGuard.precheck` |
 | M49 | PARTIAL | 11f | 已有 completed 标记 + processing 租约去重；残留"handler 成功但写标记前崩溃"窗口，彻底修复需事务性收件箱（架构级） |
 | M53 | FIXED | 11g | embedding 成本由触发用户承担：`EmbeddingService` 接入 `AiCreditGuard` 按次计费；访客（VISITOR）降级为短期上下文，不产生长期记忆/embedding，规避匿名计费缺口 |
 | 重复2 | OPEN | 07/14 | permission 与 role 两套 PermissionService/Controller 职责仍重叠 |
@@ -74,9 +73,9 @@
 | 编号/主题 | 状态 | 区域 | 当前残余 |
 |-----------|------|------|---------|
 | m1 | OPEN | 03 | Repository 查询条件与全局软删除限制重复 |
-| m8 | OPEN | 01 | API Key last_used_at 每请求同步写入 |
-| m9 | PARTIAL | 03 | 客服回调虚拟线程 executor 仍无背压 |
-| m10 | OPEN | 01/全局 | 部分签名比较仍使用非常量时间比较 |
+| m9 | FIXED | 03 | `WecomKfCallbackService` 加 `Semaphore` 并发上限，超出直接丢弃不排队 |
+| m16 | FIXED | 09（已删除） | 图像/AIGC 任务查询已统一到 `AigcTaskController#get`，`getByIdOwned` 做归属校验 |
+| m17 | FIXED | 09（已删除） | `SmsController` 回调补公开路径豁免（原类级 `@PreAuthorize` 致端点不可达）+ 访问日志；验签仍是占位 |
 | m36 | PARTIAL | 04 | 已改为数据库可配置规则+硬编码兜底降级，"应外置可配"已实现；子串匹配仍易绕过，语义级升级未做 |
 | 包结构 | OPEN | 06 | 业务模块内分层结构仍不一致 |
 | 示例 | OPEN | 06 | 示例代码仍混入主 API 构建 |
