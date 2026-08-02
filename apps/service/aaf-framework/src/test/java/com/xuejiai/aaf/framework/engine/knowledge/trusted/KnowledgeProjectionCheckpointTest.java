@@ -212,8 +212,7 @@ class KnowledgeProjectionCheckpointTest {
         var updatedAt = LocalDateTime.of(2026, 8, 2, 11, 30);
         var calls = new ArrayList<SqlCall>();
         var store =
-                new TrustedKnowledgeStore(
-                        projectionStatusJdbc(calls, knowledgeBaseId, updatedAt));
+                new TrustedKnowledgeStore(projectionStatusJdbc(calls, knowledgeBaseId, updatedAt));
 
         var status = store.graphProjectionStatus(knowledgeBaseId).orElseThrow();
 

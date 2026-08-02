@@ -97,7 +97,8 @@ class TrustedKnowledgeStoreRunTest {
                                         .thenReturn(EntityExtractionPrompt.OUTPUT_CONTRACT_VERSION);
                                 when(rs.getString(13)).thenReturn("stored-extraction-model");
                                 when(rs.getString(14)).thenReturn("stored-resolution-prompt");
-                                when(rs.getString(15)).thenReturn("stored-resolution-prompt-digest");
+                                when(rs.getString(15))
+                                        .thenReturn("stored-resolution-prompt-digest");
                                 when(rs.getString(16))
                                         .thenReturn(EntityResolutionPrompt.OUTPUT_CONTRACT_VERSION);
                                 when(rs.getString(17)).thenReturn("stored-resolution-model");
@@ -122,8 +123,7 @@ class TrustedKnowledgeStoreRunTest {
         assertThat(run.extractionSystemPrompt()).isEqualTo("stored prompt");
         assertThat(run.extractionModelId()).isEqualTo("stored-extraction-model");
         assertThat(run.entityResolutionSystemPrompt()).isEqualTo("stored-resolution-prompt");
-        assertThat(run.entityResolutionPromptDigest())
-                .isEqualTo("stored-resolution-prompt-digest");
+        assertThat(run.entityResolutionPromptDigest()).isEqualTo("stored-resolution-prompt-digest");
         assertThat(run.entityResolutionModelId()).isEqualTo("stored-resolution-model");
         assertThat(statements)
                 .noneMatch(statement -> statement.contains("INSERT INTO ai_knowledge_ingest_run"));

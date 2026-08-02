@@ -51,8 +51,7 @@ class KnowledgeGraphProjectionServiceTest {
     void should_expand_related_facts_with_remaining_limit() {
         var knowledgeBaseId = UUID.randomUUID();
         var documentId = UUID.randomUUID();
-        var filters =
-                new SourceFilters(Set.of("FILE"), Set.of("source-key"), Set.of(documentId));
+        var filters = new SourceFilters(Set.of("FILE"), Set.of("source-key"), Set.of(documentId));
         when(driver.session()).thenReturn(session);
         when(session.run(anyString(), anyMap())).thenReturn(directResult, relatedResult);
         doReturn(List.of("direct-fact")).when(directResult).list(any());
@@ -94,7 +93,8 @@ class KnowledgeGraphProjectionServiceTest {
 
         assertThat(factKeys).containsExactlyInAnyOrder("direct-a", "direct-b");
         verify(session, times(1)).run(anyString(), anyMap());
-        verify(session, never()).run(org.mockito.ArgumentMatchers.contains("related:FACT"), anyMap());
+        verify(session, never())
+                .run(org.mockito.ArgumentMatchers.contains("related:FACT"), anyMap());
     }
 
     @Test
@@ -102,9 +102,7 @@ class KnowledgeGraphProjectionServiceTest {
     void should_not_query_neo4j_without_scope_or_limit() {
         var noFilters = SourceFilters.from(Map.of());
         assertThat(service.searchFactKeys("AAF", Set.of(), noFilters, 3)).isEmpty();
-        assertThat(
-                        service.searchFactKeys(
-                                "AAF", Set.of(UUID.randomUUID()), noFilters, 0))
+        assertThat(service.searchFactKeys("AAF", Set.of(UUID.randomUUID()), noFilters, 0))
                 .isEmpty();
 
         verifyNoInteractions(driver);

@@ -18,9 +18,7 @@ public record CreateKnowledgeBaseRequest(
                 @Size(max = 200)
                 String name,
         @Schema(description = "描述", example = "存放产品相关文档") @Size(max = 1000) String description,
-        @Schema(
-                        description = "可见性：PRIVATE 私有、ORG 组织、SYSTEM_PUBLIC 系统公共",
-                        example = "PRIVATE")
+        @Schema(description = "可见性：PRIVATE 私有、ORG 组织、SYSTEM_PUBLIC 系统公共", example = "PRIVATE")
                 @Pattern(regexp = "PRIVATE|ORG|SYSTEM_PUBLIC")
                 String visibility,
         @Schema(description = "授权范围编码", example = "product") @Size(max = 128) String scopeCode,

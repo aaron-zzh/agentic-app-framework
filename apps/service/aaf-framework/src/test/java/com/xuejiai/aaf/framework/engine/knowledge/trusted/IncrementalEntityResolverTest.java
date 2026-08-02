@@ -153,8 +153,7 @@ class IncrementalEntityResolverTest {
     void should_create_entity_when_decision_is_create() {
         stubAmbiguous("{\"action\":\"CREATE\",\"entityId\":null}");
         var createdId = UUID.randomUUID();
-        when(store.createOrAliasEntity(
-                        10L, run.runId(), "AAF", "CONCEPT", null, "aaf", false))
+        when(store.createOrAliasEntity(10L, run.runId(), "AAF", "CONCEPT", null, "aaf", false))
                 .thenReturn(createdId);
 
         assertThat(resolver.resolve(run, mention())).isEqualTo(createdId);
@@ -165,8 +164,7 @@ class IncrementalEntityResolverTest {
     void should_create_review_entity_when_decision_is_review() {
         stubAmbiguous("{\"action\":\"REVIEW\",\"entityId\":null}");
         var createdId = UUID.randomUUID();
-        when(store.createOrAliasEntity(
-                        10L, run.runId(), "AAF", "CONCEPT", null, "aaf", true))
+        when(store.createOrAliasEntity(10L, run.runId(), "AAF", "CONCEPT", null, "aaf", true))
                 .thenReturn(createdId);
 
         assertThat(resolver.resolve(run, mention())).isEqualTo(createdId);
@@ -175,8 +173,7 @@ class IncrementalEntityResolverTest {
     @Test
     @DisplayName("Given 消歧响应包含未知字段 When 解析 Then 失败且不写实体")
     void should_reject_unknown_field() {
-        stubAmbiguous(
-                "{\"action\":\"CREATE\",\"entityId\":null,\"reason\":\"similar\"}");
+        stubAmbiguous("{\"action\":\"CREATE\",\"entityId\":null,\"reason\":\"similar\"}");
 
         assertInvalidDecision("字段集合不匹配");
     }
@@ -200,8 +197,7 @@ class IncrementalEntityResolverTest {
     @Test
     @DisplayName("Given LINK 指向候选外 UUID When 解析 Then 失败且不静默 CREATE")
     void should_reject_link_outside_candidates() {
-        stubAmbiguous(
-                "{\"action\":\"LINK\",\"entityId\":\"%s\"}".formatted(UUID.randomUUID()));
+        stubAmbiguous("{\"action\":\"LINK\",\"entityId\":\"%s\"}".formatted(UUID.randomUUID()));
 
         assertInvalidDecision("不在当前候选集合");
     }
@@ -209,8 +205,7 @@ class IncrementalEntityResolverTest {
     @Test
     @DisplayName("Given CREATE 携带非空 entityId When 解析 Then 失败且不写实体")
     void should_reject_entity_id_for_create() {
-        stubAmbiguous(
-                "{\"action\":\"CREATE\",\"entityId\":\"%s\"}".formatted(UUID.randomUUID()));
+        stubAmbiguous("{\"action\":\"CREATE\",\"entityId\":\"%s\"}".formatted(UUID.randomUUID()));
 
         assertInvalidDecision("必须是 null");
     }

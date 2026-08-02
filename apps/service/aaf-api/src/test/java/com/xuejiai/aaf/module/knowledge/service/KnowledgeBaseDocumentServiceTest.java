@@ -112,8 +112,7 @@ class KnowledgeBaseDocumentServiceTest extends BaseMockitoUnitTest {
     @DisplayName("Given 已发布文档 When 删除 Then 撤销真理数据并仅在提交后清理外部文件")
     void should_revoke_truth_and_enqueue_cleanup_after_commit_when_document_deletes() {
         var document = document(DocumentStatusEnum.COMPLETED.getCode());
-        when(knowledgeDocumentRepository.findByIdAndKnowledgeBaseId(
-                        DOCUMENT_ID, KNOWLEDGE_BASE_ID))
+        when(knowledgeDocumentRepository.findByIdAndKnowledgeBaseId(DOCUMENT_ID, KNOWLEDGE_BASE_ID))
                 .thenReturn(Optional.of(document));
         doAnswer(
                         invocation -> {
@@ -146,8 +145,7 @@ class KnowledgeBaseDocumentServiceTest extends BaseMockitoUnitTest {
         var document = document(DocumentStatusEnum.FAILED.getCode());
         document.setErrorMessage("projection unavailable");
         document.setChunkCount(4);
-        when(knowledgeDocumentRepository.findByIdAndKnowledgeBaseId(
-                        DOCUMENT_ID, KNOWLEDGE_BASE_ID))
+        when(knowledgeDocumentRepository.findByIdAndKnowledgeBaseId(DOCUMENT_ID, KNOWLEDGE_BASE_ID))
                 .thenReturn(Optional.of(document));
         when(knowledgeDocumentRepository.save(document)).thenReturn(document);
         doAnswer(

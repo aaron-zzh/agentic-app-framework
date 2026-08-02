@@ -29,8 +29,7 @@ public final class EntityExtractionPrompt {
                     "endOffset",
                     "confidence");
 
-    public static final Set<String> OPTIONAL_FIELDS =
-            Set.of("validAt", "invalidAt", "attributes");
+    public static final Set<String> OPTIONAL_FIELDS = Set.of("validAt", "invalidAt", "attributes");
 
     public static final Set<String> RESERVED_ATTRIBUTE_KEYS =
             Set.of(

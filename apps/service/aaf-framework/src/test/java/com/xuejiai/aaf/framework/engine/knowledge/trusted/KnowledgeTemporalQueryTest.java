@@ -59,10 +59,7 @@ class KnowledgeTemporalQueryTest {
         var store = new TrustedKnowledgeStore(capturingJdbc(sql));
 
         store.graphCandidates(
-                Set.of("fact-key"),
-                Set.of(UUID.randomUUID()),
-                SourceFilters.from(Map.of()),
-                10);
+                Set.of("fact-key"), Set.of(UUID.randomUUID()), SourceFilters.from(Map.of()), 10);
 
         assertThat(sql.get())
                 .contains("d.active_run_id = e.run_id")

@@ -63,8 +63,7 @@ public class KnowledgeGraphProjectionService {
                 authorizedKnowledgeBaseIds.stream().map(UUID::toString).sorted().toList();
         var sourceTypes = filters.sourceTypes().stream().sorted().toList();
         var sourceKeys = filters.sourceKeys().stream().sorted().toList();
-        var documentIds =
-                filters.documentIds().stream().map(UUID::toString).sorted().toList();
+        var documentIds = filters.documentIds().stream().map(UUID::toString).sorted().toList();
         try (var session = driver.session()) {
             var directFactKeys =
                     session.run(

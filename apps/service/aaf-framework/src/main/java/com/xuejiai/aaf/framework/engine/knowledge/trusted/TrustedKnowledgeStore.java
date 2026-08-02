@@ -755,8 +755,7 @@ public class TrustedKnowledgeStore {
                 """,
                 row.activeRunId());
         jdbcTemplate.update(
-                "UPDATE ai_knowledge_document SET active_run_id = NULL WHERE id = ?",
-                documentId);
+                "UPDATE ai_knowledge_document SET active_run_id = NULL WHERE id = ?", documentId);
         jdbcTemplate.update(
                 """
                 UPDATE ai_knowledge_ingest_run

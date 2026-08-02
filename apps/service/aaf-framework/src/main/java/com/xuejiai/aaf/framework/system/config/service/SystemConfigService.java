@@ -96,7 +96,8 @@ public class SystemConfigService {
                         .isSynchronizationActive()) {
             org.springframework.transaction.support.TransactionSynchronizationManager
                     .registerSynchronization(
-                            new org.springframework.transaction.support.TransactionSynchronization() {
+                            new org.springframework.transaction.support
+                                    .TransactionSynchronization() {
                                 @Override
                                 public void afterCommit() {
                                     evictCache(key);

@@ -26,13 +26,10 @@ public class KnowledgeIngestConfigurationService {
 
     public Snapshot resolve() {
         var extractionPrompt =
-                requiredPrompt(
-                        SysConfigKeys.Knowledge.EXTRACTION_SYSTEM_PROMPT,
-                        "知识事实抽取系统 Prompt");
+                requiredPrompt(SysConfigKeys.Knowledge.EXTRACTION_SYSTEM_PROMPT, "知识事实抽取系统 Prompt");
         var entityResolutionPrompt =
                 requiredPrompt(
-                        SysConfigKeys.Knowledge.ENTITY_RESOLUTION_SYSTEM_PROMPT,
-                        "知识实体消歧系统 Prompt");
+                        SysConfigKeys.Knowledge.ENTITY_RESOLUTION_SYSTEM_PROMPT, "知识实体消歧系统 Prompt");
         return new Snapshot(
                 extractionPrompt,
                 TrustedKnowledgeStore.sha256(extractionPrompt),
@@ -41,8 +38,7 @@ public class KnowledgeIngestConfigurationService {
                 entityResolutionPrompt,
                 TrustedKnowledgeStore.sha256(entityResolutionPrompt),
                 EntityResolutionPrompt.OUTPUT_CONTRACT_VERSION,
-                resolveSystemChatModel(
-                        CapabilityRoutingContext.CAP_KNOWLEDGE_ENTITY_RESOLUTION));
+                resolveSystemChatModel(CapabilityRoutingContext.CAP_KNOWLEDGE_ENTITY_RESOLUTION));
     }
 
     private String requiredPrompt(String key, String name) {
@@ -58,10 +54,7 @@ public class KnowledgeIngestConfigurationService {
                 preferenceRepository
                         .findByScopeAndScopeIdIsNullAndCapability(
                                 ModelPreference.SCOPE_SYSTEM, capability)
-                        .orElseThrow(
-                                () ->
-                                        new IllegalStateException(
-                                                "缺少系统模型偏好: " + capability));
+                        .orElseThrow(() -> new IllegalStateException("缺少系统模型偏好: " + capability));
         if (preference.getModelIds() == null || preference.getModelIds().isEmpty()) {
             throw new IllegalStateException("系统模型偏好没有候选模型: " + capability);
         }
@@ -76,9 +69,7 @@ public class KnowledgeIngestConfigurationService {
                 .map(model -> model.getModelId())
                 .findFirst()
                 .orElseThrow(
-                        () ->
-                                new IllegalStateException(
-                                        "系统模型偏好没有已启用的 CHAT 模型: " + capability));
+                        () -> new IllegalStateException("系统模型偏好没有已启用的 CHAT 模型: " + capability));
     }
 
     public record Snapshot(

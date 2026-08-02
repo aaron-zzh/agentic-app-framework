@@ -65,8 +65,7 @@ class KnowledgeAiMeterTest {
         stubPricing();
 
         var result =
-                meter.invokeText(
-                        billing, "extraction", "chunk:1", MODEL_ID, input, invocation);
+                meter.invokeText(billing, "extraction", "chunk:1", MODEL_ID, input, invocation);
 
         assertThat(result).isEqualTo("restored");
         verify(invocation, never()).get();
@@ -87,7 +86,8 @@ class KnowledgeAiMeterTest {
         var billing = new KnowledgeUsagePort.BillingContext("tenant", runId, 10L);
         var input = "fresh input";
         var digest = TrustedKnowledgeStore.sha256(MODEL_ID + "|" + input);
-        var reservation = reservation(billing, digest, KnowledgeUsagePort.ReservationState.RESERVED);
+        var reservation =
+                reservation(billing, digest, KnowledgeUsagePort.ReservationState.RESERVED);
         when(usagePort.findProviderResult(billing, "extraction", "chunk:1", digest))
                 .thenReturn(Optional.empty());
         when(usagePort.reserve(billing, "extraction", "chunk:1", digest)).thenReturn(reservation);
@@ -97,9 +97,7 @@ class KnowledgeAiMeterTest {
         when(response.getMetadata()).thenReturn(null);
         stubPricing();
 
-        assertThat(
-                        meter.invokeText(
-                                billing, "extraction", "chunk:1", MODEL_ID, input, invocation))
+        assertThat(meter.invokeText(billing, "extraction", "chunk:1", MODEL_ID, input, invocation))
                 .isEqualTo("fresh");
 
         var ordered = inOrder(usagePort, invocation);

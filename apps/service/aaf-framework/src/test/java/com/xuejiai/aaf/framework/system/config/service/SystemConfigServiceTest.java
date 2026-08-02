@@ -17,15 +17,13 @@ class SystemConfigServiceTest {
     @DisplayName("Given 活跃事务 When 请求淘汰配置缓存 Then 仅在提交后删除 Redis key")
     void should_evict_cache_only_after_commit() {
         var redisTemplate = mock(StringRedisTemplate.class);
-        var service =
-                new SystemConfigService(mock(SystemConfigRepository.class), redisTemplate);
+        var service = new SystemConfigService(mock(SystemConfigRepository.class), redisTemplate);
         TransactionSynchronizationManager.setActualTransactionActive(true);
         TransactionSynchronizationManager.initSynchronization();
         try {
             service.evictAfterCommit("knowledge.extraction.system_prompt");
 
-            verify(redisTemplate, never())
-                    .delete("sys:config:knowledge.extraction.system_prompt");
+            verify(redisTemplate, never()).delete("sys:config:knowledge.extraction.system_prompt");
             var synchronizations = TransactionSynchronizationManager.getSynchronizations();
             for (var synchronization : synchronizations) {
                 synchronization.afterCommit();

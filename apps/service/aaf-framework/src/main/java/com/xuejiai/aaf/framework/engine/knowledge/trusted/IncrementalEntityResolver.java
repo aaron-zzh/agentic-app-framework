@@ -76,8 +76,7 @@ public class IncrementalEntityResolver {
         if (!EntityResolutionPrompt.OUTPUT_CONTRACT_VERSION.equals(
                 run.entityResolutionOutputContractVersion())) {
             throw new IllegalStateException(
-                    "不支持的实体消歧输出契约: "
-                            + run.entityResolutionOutputContractVersion());
+                    "不支持的实体消歧输出契约: " + run.entityResolutionOutputContractVersion());
         }
         var payload = JsonUtils.toJsonString(Map.of("mention", mention, "candidates", candidates));
         var prompt = EntityResolutionPrompt.USER_PROMPT_TEMPLATE.replace("{payload}", payload);
@@ -111,8 +110,7 @@ public class IncrementalEntityResolver {
         };
     }
 
-    private ResolutionDecision parseDecision(
-            String content, List<EntityCandidate> candidates) {
+    private ResolutionDecision parseDecision(String content, List<EntityCandidate> candidates) {
         if (content == null || content.isBlank()) {
             throw new IllegalStateException("实体消歧结果为空");
         }
@@ -135,8 +133,7 @@ public class IncrementalEntityResolver {
             missing.removeAll(fields);
             var unknown = new LinkedHashSet<>(fields);
             unknown.removeAll(EntityResolutionPrompt.REQUIRED_FIELDS);
-            throw new IllegalArgumentException(
-                    "实体消歧结果字段集合不匹配，缺失=" + missing + "，未知=" + unknown);
+            throw new IllegalArgumentException("实体消歧结果字段集合不匹配，缺失=" + missing + "，未知=" + unknown);
         }
         var actionNode = root.get("action");
         if (actionNode == null || !actionNode.isTextual()) {

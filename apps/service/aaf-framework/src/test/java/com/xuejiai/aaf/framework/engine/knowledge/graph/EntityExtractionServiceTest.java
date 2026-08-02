@@ -108,7 +108,8 @@ class EntityExtractionServiceTest {
     @Test
     @DisplayName("Given 响应字段类型错误 When 解析 Then 整个抽取单元失败")
     void should_reject_wrong_field_type() {
-        var response = "[" + VALID_LITERAL.replace("\"startOffset\":0", "\"startOffset\":\"0\"") + "]";
+        var response =
+                "[" + VALID_LITERAL.replace("\"startOffset\":0", "\"startOffset\":\"0\"") + "]";
 
         assertInvalidResponse(response, "startOffset 必须是 32 位整数");
     }
@@ -117,8 +118,7 @@ class EntityExtractionServiceTest {
     @DisplayName("Given objectKind 或实体类型不受支持 When 解析 Then 整个抽取单元失败")
     void should_reject_invalid_object_kind_and_entity_type() {
         assertInvalidResponse(
-                "[" + VALID_LITERAL.replace("\"LITERAL\"", "\"OTHER\"") + "]",
-                "objectKind");
+                "[" + VALID_LITERAL.replace("\"LITERAL\"", "\"OTHER\"") + "]", "objectKind");
         var invalidEntityType =
                 VALID_LITERAL
                         .replace("\"LITERAL\"", "\"ENTITY\"")

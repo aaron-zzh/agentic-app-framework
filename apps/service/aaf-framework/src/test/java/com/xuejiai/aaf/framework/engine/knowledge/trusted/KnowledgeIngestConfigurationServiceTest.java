@@ -47,8 +47,7 @@ class KnowledgeIngestConfigurationServiceTest {
     void should_resolve_prompts_and_only_system_preferences() {
         when(systemConfigService.getString(SysConfigKeys.Knowledge.EXTRACTION_SYSTEM_PROMPT))
                 .thenReturn("  configured extraction  \n");
-        when(systemConfigService.getString(
-                        SysConfigKeys.Knowledge.ENTITY_RESOLUTION_SYSTEM_PROMPT))
+        when(systemConfigService.getString(SysConfigKeys.Knowledge.ENTITY_RESOLUTION_SYSTEM_PROMPT))
                 .thenReturn("  configured resolution  \n");
         when(preferenceRepository.findByScopeAndScopeIdIsNullAndCapability(
                         ModelPreference.SCOPE_SYSTEM,
@@ -103,8 +102,7 @@ class KnowledgeIngestConfigurationServiceTest {
     void should_reject_blank_resolution_prompt() {
         when(systemConfigService.getString(SysConfigKeys.Knowledge.EXTRACTION_SYSTEM_PROMPT))
                 .thenReturn("configured extraction");
-        when(systemConfigService.getString(
-                        SysConfigKeys.Knowledge.ENTITY_RESOLUTION_SYSTEM_PROMPT))
+        when(systemConfigService.getString(SysConfigKeys.Knowledge.ENTITY_RESOLUTION_SYSTEM_PROMPT))
                 .thenReturn(" \n\t ");
 
         assertThatThrownBy(service::resolve)
@@ -145,8 +143,7 @@ class KnowledgeIngestConfigurationServiceTest {
     private void stubPromptsAndExtractionPreference(String modelId) {
         when(systemConfigService.getString(SysConfigKeys.Knowledge.EXTRACTION_SYSTEM_PROMPT))
                 .thenReturn("configured extraction");
-        when(systemConfigService.getString(
-                        SysConfigKeys.Knowledge.ENTITY_RESOLUTION_SYSTEM_PROMPT))
+        when(systemConfigService.getString(SysConfigKeys.Knowledge.ENTITY_RESOLUTION_SYSTEM_PROMPT))
                 .thenReturn("configured resolution");
         when(preferenceRepository.findByScopeAndScopeIdIsNullAndCapability(
                         ModelPreference.SCOPE_SYSTEM,

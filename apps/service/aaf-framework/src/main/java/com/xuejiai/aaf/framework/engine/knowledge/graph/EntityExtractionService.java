@@ -138,9 +138,7 @@ public class EntityExtractionService {
         }
         if (root.size() > EntityExtractionPrompt.MAX_FACTS_PER_CHUNK) {
             throw new IllegalArgumentException(
-                    "单个焦点块最多抽取 "
-                            + EntityExtractionPrompt.MAX_FACTS_PER_CHUNK
-                            + " 条事实");
+                    "单个焦点块最多抽取 " + EntityExtractionPrompt.MAX_FACTS_PER_CHUNK + " 条事实");
         }
 
         var triples = new ArrayList<ExtractedTriple>(root.size());
@@ -274,8 +272,8 @@ public class EntityExtractionService {
                 if (item != null
                         && !item.isNull()
                         && (item.isTextual()
-                            || item.isBoolean()
-                            || (item.isNumber() && Double.isFinite(item.asDouble())))) {
+                                || item.isBoolean()
+                                || (item.isNumber() && Double.isFinite(item.asDouble())))) {
                     continue;
                 }
                 throw invalidItem(index, "attributes 数组只能包含非空标量: " + key);

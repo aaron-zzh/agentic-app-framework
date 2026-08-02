@@ -42,8 +42,7 @@ public record CapabilityRoutingContext(
     public static final String CAP_RERANK = "RERANK";
     public static final String CAP_EMBEDDING = "EMBEDDING";
     public static final String CAP_KNOWLEDGE_EXTRACTION = "KNOWLEDGE_EXTRACTION";
-    public static final String CAP_KNOWLEDGE_ENTITY_RESOLUTION =
-            "KNOWLEDGE_ENTITY_RESOLUTION";
+    public static final String CAP_KNOWLEDGE_ENTITY_RESOLUTION = "KNOWLEDGE_ENTITY_RESOLUTION";
     public static final String CAP_OCR = "OCR";
     public static final String CAP_MODEL_3D = "MODEL_3D";
     public static final String CAP_AVATAR = "AVATAR";

@@ -194,8 +194,7 @@ public class KnowledgeBaseService
 
     /** 后台运维详情；使用与分页相同的 ADMIN_MAINTENANCE 安全模式。 */
     public KnowledgeBaseMaintenanceVO getMaintenance(Long id) {
-        return toMaintenanceVO(
-                requireEntity(id, CrudOperation.GET, AccessMode.ADMIN_MAINTENANCE));
+        return toMaintenanceVO(requireEntity(id, CrudOperation.GET, AccessMode.ADMIN_MAINTENANCE));
     }
 
     private Specification<KnowledgeBase> buildMaintenanceSpec(
@@ -206,11 +205,7 @@ public class KnowledgeBaseService
                 predicates.add(
                         criteriaBuilder.like(
                                 criteriaBuilder.lower(root.get("name")),
-                                "%"
-                                        + request.getName()
-                                                .trim()
-                                                .toLowerCase(Locale.ROOT)
-                                        + "%"));
+                                "%" + request.getName().trim().toLowerCase(Locale.ROOT) + "%"));
             }
             if (request.getOrgId() != null) {
                 predicates.add(criteriaBuilder.equal(root.get("orgId"), request.getOrgId()));
@@ -354,14 +349,12 @@ public class KnowledgeBaseService
     }
 
     public GraphProjectionStatusVO getGraphProjectionStatus(Long id) {
-        var knowledgeBase =
-                requireEntity(id, CrudOperation.GET, AccessMode.ADMIN_MAINTENANCE);
+        var knowledgeBase = requireEntity(id, CrudOperation.GET, AccessMode.ADMIN_MAINTENANCE);
         return graphProjectionStatus(knowledgeBase);
     }
 
     public GraphProjectionStatusVO rebuildGraphProjection(Long id, String requestKey) {
-        var knowledgeBase =
-                requireEntity(id, CrudOperation.UPDATE, AccessMode.ADMIN_MAINTENANCE);
+        var knowledgeBase = requireEntity(id, CrudOperation.UPDATE, AccessMode.ADMIN_MAINTENANCE);
         graphProjectionService.rebuild(knowledgeBase.getStableId(), requestKey);
         return graphProjectionStatus(knowledgeBase);
     }
@@ -418,8 +411,7 @@ public class KnowledgeBaseService
         return retryDocument(id, documentId, AccessMode.ADMIN_MAINTENANCE);
     }
 
-    private KnowledgeDocumentVO retryDocument(
-            Long id, Long documentId, AccessMode accessMode) {
+    private KnowledgeDocumentVO retryDocument(Long id, Long documentId, AccessMode accessMode) {
         requireEntity(id, CrudOperation.UPDATE, accessMode);
         try {
             return executionLeaseService.executeResult(

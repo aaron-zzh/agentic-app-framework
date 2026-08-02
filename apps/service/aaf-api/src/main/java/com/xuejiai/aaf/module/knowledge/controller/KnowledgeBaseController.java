@@ -110,8 +110,7 @@ public class KnowledgeBaseController
     @PostMapping("/maintenance/{id}/documents/{documentId}/retry")
     public Result<KnowledgeDocumentVO> retryMaintenanceDocument(
             @PathVariable Long id, @PathVariable Long documentId) {
-        return Result.success(
-                knowledgeBaseService.retryMaintenanceDocument(id, documentId));
+        return Result.success(knowledgeBaseService.retryMaintenanceDocument(id, documentId));
     }
 
     @Operation(summary = "知识库统计信息")
@@ -153,10 +152,7 @@ public class KnowledgeBaseController
     @PostMapping("/{id}/graph-projection/rebuild")
     public Result<GraphProjectionStatusVO> rebuildGraphProjection(
             @PathVariable Long id,
-            @RequestHeader("Idempotency-Key")
-                    @NotBlank
-                    @Size(max = 200)
-                    String requestKey) {
+            @RequestHeader("Idempotency-Key") @NotBlank @Size(max = 200) String requestKey) {
         return Result.success(knowledgeBaseService.rebuildGraphProjection(id, requestKey));
     }
 
