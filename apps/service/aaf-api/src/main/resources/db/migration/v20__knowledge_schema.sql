@@ -1,14 +1,14 @@
--- NexusKB v300：直接创建最终可信知识 schema，PostgreSQL 成为唯一真理源。
+-- NexusKB v20：直接创建最终可信知识 schema，PostgreSQL 成为唯一真理源。
 
 -- 时态列统一使用 UTC；attributes 字节上限按 UTF8 计算。
 SET LOCAL TIME ZONE 'UTC';
 DO $$
 BEGIN
     IF current_setting('TimeZone') <> 'UTC' THEN
-        RAISE EXCEPTION 'v300 要求迁移会话使用 UTC，当前为 %', current_setting('TimeZone');
+        RAISE EXCEPTION 'v20 要求迁移会话使用 UTC，当前为 %', current_setting('TimeZone');
     END IF;
     IF current_setting('server_encoding') <> 'UTF8' THEN
-        RAISE EXCEPTION 'v300 attributes 字节上限要求数据库编码为 UTF8';
+        RAISE EXCEPTION 'v20 attributes 字节上限要求数据库编码为 UTF8';
     END IF;
 END $$;
 
@@ -39,13 +39,13 @@ CREATE TABLE ai_knowledge_base (
     delete_time          TIMESTAMP(6),
     deleted              BOOLEAN NOT NULL DEFAULT FALSE,
     remark               TEXT,
-    CONSTRAINT uk_ai_knowledge_base_stable_v300 UNIQUE (stable_id),
-    CONSTRAINT uk_ai_knowledge_base_identity_v300 UNIQUE (stable_id, id),
-    CONSTRAINT ck_ai_knowledge_base_visibility_v300
+    CONSTRAINT uk_ai_knowledge_base_stable_v20 UNIQUE (stable_id),
+    CONSTRAINT uk_ai_knowledge_base_identity_v20 UNIQUE (stable_id, id),
+    CONSTRAINT ck_ai_knowledge_base_visibility_v20
         CHECK (visibility IN ('PRIVATE', 'ORG', 'SYSTEM_PUBLIC'))
 );
 COMMENT ON TABLE ai_knowledge_base IS '知识库';
-CREATE INDEX idx_ai_knowledge_base_public_v300
+CREATE INDEX idx_ai_knowledge_base_public_v20
     ON ai_knowledge_base (visibility, status) WHERE deleted = FALSE;
 
 CREATE TABLE ai_knowledge_document (
@@ -80,15 +80,15 @@ CREATE TABLE ai_knowledge_document (
     delete_time        TIMESTAMP(6),
     deleted            BOOLEAN NOT NULL DEFAULT FALSE,
     remark             TEXT,
-    CONSTRAINT uk_ai_knowledge_document_stable_v300 UNIQUE (stable_id),
-    CONSTRAINT uk_ai_knowledge_document_base_v300 UNIQUE (id, knowledge_base_id),
-    CONSTRAINT ck_ai_knowledge_document_source_type_v300
+    CONSTRAINT uk_ai_knowledge_document_stable_v20 UNIQUE (stable_id),
+    CONSTRAINT uk_ai_knowledge_document_base_v20 UNIQUE (id, knowledge_base_id),
+    CONSTRAINT ck_ai_knowledge_document_source_type_v20
         CHECK (source_type IN ('FILE', 'URL', 'BUSINESS_OBJECT', 'SYSTEM'))
 );
 COMMENT ON TABLE ai_knowledge_document IS '知识库文档';
-CREATE INDEX idx_ai_knowledge_document_base_v300
+CREATE INDEX idx_ai_knowledge_document_base_v20
     ON ai_knowledge_document (knowledge_base_id);
-CREATE UNIQUE INDEX uk_ai_knowledge_document_source_v300
+CREATE UNIQUE INDEX uk_ai_knowledge_document_source_v20
     ON ai_knowledge_document (knowledge_base_id, source_type, source_key)
     WHERE deleted = FALSE AND source_key IS NOT NULL;
 
@@ -119,23 +119,23 @@ CREATE TABLE ai_knowledge_ingest_run (
     ready_at                  TIMESTAMP(6),
     published_at              TIMESTAMP(6),
     finished_at               TIMESTAMP(6),
-    CONSTRAINT uk_ai_knowledge_ingest_run_no_v300 UNIQUE (document_id, run_no),
-    CONSTRAINT uk_ai_knowledge_ingest_run_source_v300
+    CONSTRAINT uk_ai_knowledge_ingest_run_no_v20 UNIQUE (document_id, run_no),
+    CONSTRAINT uk_ai_knowledge_ingest_run_source_v20
         UNIQUE (id, document_id, knowledge_base_id),
-    CONSTRAINT uk_ai_knowledge_ingest_run_base_v300 UNIQUE (id, knowledge_base_id),
-    CONSTRAINT fk_ai_knowledge_ingest_run_document_v300
+    CONSTRAINT uk_ai_knowledge_ingest_run_base_v20 UNIQUE (id, knowledge_base_id),
+    CONSTRAINT fk_ai_knowledge_ingest_run_document_v20
         FOREIGN KEY (document_id, knowledge_base_id)
         REFERENCES ai_knowledge_document(id, knowledge_base_id),
-    CONSTRAINT ck_ai_knowledge_ingest_status_v300
+    CONSTRAINT ck_ai_knowledge_ingest_status_v20
         CHECK (status IN ('QUEUED', 'PROCESSING', 'READY', 'PUBLISHED', 'SUPERSEDED', 'FAILED')),
-    CONSTRAINT fk_ai_knowledge_ingest_expected_v300
+    CONSTRAINT fk_ai_knowledge_ingest_expected_v20
         FOREIGN KEY (expected_active_run_id, document_id, knowledge_base_id)
         REFERENCES ai_knowledge_ingest_run(id, document_id, knowledge_base_id)
 );
-CREATE UNIQUE INDEX uk_ai_knowledge_ingest_fingerprint_v300
+CREATE UNIQUE INDEX uk_ai_knowledge_ingest_fingerprint_v20
     ON ai_knowledge_ingest_run (document_id, ingest_fingerprint)
     WHERE status <> 'SUPERSEDED';
-CREATE UNIQUE INDEX uk_ai_knowledge_ingest_published_v300
+CREATE UNIQUE INDEX uk_ai_knowledge_ingest_published_v20
     ON ai_knowledge_ingest_run (document_id) WHERE status = 'PUBLISHED';
 
 -- document.active_run_id 与 PUBLISHED run 的循环一致性由后文延迟约束触发器保证，
@@ -157,9 +157,9 @@ CREATE TABLE ai_knowledge_ingest_unit (
     lease_until         TIMESTAMP WITH TIME ZONE,
     error_message       VARCHAR(2000),
     update_time         TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uk_ai_knowledge_ingest_unit_v300 UNIQUE (run_id, stage, unit_key),
-    CONSTRAINT uk_ai_knowledge_ingest_usage_v300 UNIQUE (usage_key),
-    CONSTRAINT ck_ai_knowledge_ingest_unit_status_v300
+    CONSTRAINT uk_ai_knowledge_ingest_unit_v20 UNIQUE (run_id, stage, unit_key),
+    CONSTRAINT uk_ai_knowledge_ingest_usage_v20 UNIQUE (usage_key),
+    CONSTRAINT ck_ai_knowledge_ingest_unit_status_v20
         CHECK (status IN ('RESERVED', 'IN_PROGRESS', 'COMPLETED', 'FAILED', 'UNKNOWN'))
 );
 
@@ -179,22 +179,22 @@ CREATE TABLE ai_knowledge_chunk (
     end_offset        INTEGER,
     metadata          JSONB NOT NULL DEFAULT '{}'::jsonb,
     created_at        TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uk_ai_knowledge_chunk_stable_v300 UNIQUE (stable_id),
-    CONSTRAINT uk_ai_knowledge_chunk_run_index_v300 UNIQUE (run_id, chunk_index),
-    CONSTRAINT uk_ai_knowledge_chunk_source_v300
+    CONSTRAINT uk_ai_knowledge_chunk_stable_v20 UNIQUE (stable_id),
+    CONSTRAINT uk_ai_knowledge_chunk_run_index_v20 UNIQUE (run_id, chunk_index),
+    CONSTRAINT uk_ai_knowledge_chunk_source_v20
         UNIQUE (stable_id, run_id, document_id, knowledge_base_id),
-    CONSTRAINT fk_ai_knowledge_chunk_source_v300
+    CONSTRAINT fk_ai_knowledge_chunk_source_v20
         FOREIGN KEY (run_id, document_id, knowledge_base_id)
         REFERENCES ai_knowledge_ingest_run(id, document_id, knowledge_base_id) ON DELETE CASCADE,
-    CONSTRAINT ck_ai_knowledge_chunk_offsets_v300
+    CONSTRAINT ck_ai_knowledge_chunk_offsets_v20
         CHECK ((start_offset IS NULL AND end_offset IS NULL)
             OR (start_offset IS NOT NULL AND end_offset IS NOT NULL
                 AND 0 <= start_offset AND start_offset <= end_offset))
 );
-CREATE INDEX idx_ai_knowledge_chunk_run_v300
+CREATE INDEX idx_ai_knowledge_chunk_run_v20
     ON ai_knowledge_chunk (run_id, chunk_index);
-CREATE INDEX idx_ai_knowledge_chunk_base_v300 ON ai_knowledge_chunk (knowledge_base_id);
-CREATE INDEX idx_ai_knowledge_chunk_fts_v300
+CREATE INDEX idx_ai_knowledge_chunk_base_v20 ON ai_knowledge_chunk (knowledge_base_id);
+CREATE INDEX idx_ai_knowledge_chunk_fts_v20
     ON ai_knowledge_chunk USING GIN (to_tsvector('simple', content));
 
 CREATE TABLE ai_knowledge_embedding (
@@ -211,19 +211,19 @@ CREATE TABLE ai_knowledge_embedding (
     metadata          JSONB NOT NULL DEFAULT '{}'::jsonb,
     embedding         vector(1536) NOT NULL,
     created_at        TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uk_ai_knowledge_embedding_v300
+    CONSTRAINT uk_ai_knowledge_embedding_v20
         UNIQUE (chunk_id, model_id, embedding_version),
-    CONSTRAINT fk_ai_knowledge_embedding_base_v300
+    CONSTRAINT fk_ai_knowledge_embedding_base_v20
         FOREIGN KEY (knowledge_base_id, knowledge_base_pk)
         REFERENCES ai_knowledge_base(stable_id, id),
-    CONSTRAINT fk_ai_knowledge_embedding_source_v300
+    CONSTRAINT fk_ai_knowledge_embedding_source_v20
         FOREIGN KEY (chunk_id, run_id, document_id, knowledge_base_pk)
         REFERENCES ai_knowledge_chunk(stable_id, run_id, document_id, knowledge_base_id)
         ON DELETE CASCADE
 );
-CREATE INDEX idx_ai_knowledge_embedding_base_v300
+CREATE INDEX idx_ai_knowledge_embedding_base_v20
     ON ai_knowledge_embedding (knowledge_base_id);
-CREATE INDEX idx_ai_knowledge_embedding_hnsw_v300 ON ai_knowledge_embedding
+CREATE INDEX idx_ai_knowledge_embedding_hnsw_v20 ON ai_knowledge_embedding
     USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64);
 
 CREATE TABLE ai_knowledge_entity (
@@ -237,17 +237,17 @@ CREATE TABLE ai_knowledge_entity (
     merged_into_id    UUID,
     created_at        TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at        TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uk_ai_knowledge_entity_key_v300 UNIQUE (knowledge_base_id, entity_key),
-    CONSTRAINT uk_ai_knowledge_entity_base_v300 UNIQUE (id, knowledge_base_id),
-    CONSTRAINT fk_ai_knowledge_entity_merge_v300
+    CONSTRAINT uk_ai_knowledge_entity_key_v20 UNIQUE (knowledge_base_id, entity_key),
+    CONSTRAINT uk_ai_knowledge_entity_base_v20 UNIQUE (id, knowledge_base_id),
+    CONSTRAINT fk_ai_knowledge_entity_merge_v20
         FOREIGN KEY (merged_into_id, knowledge_base_id)
         REFERENCES ai_knowledge_entity(id, knowledge_base_id),
-    CONSTRAINT ck_ai_knowledge_entity_merge_v300
+    CONSTRAINT ck_ai_knowledge_entity_merge_v20
         CHECK (merged_into_id IS NULL OR merged_into_id <> id),
-    CONSTRAINT ck_ai_knowledge_entity_review_v300
+    CONSTRAINT ck_ai_knowledge_entity_review_v20
         CHECK (review_status IN ('RESOLVED', 'REVIEW'))
 );
-CREATE INDEX idx_ai_knowledge_entity_name_v300
+CREATE INDEX idx_ai_knowledge_entity_name_v20
     ON ai_knowledge_entity (knowledge_base_id, lower(canonical_name));
 
 CREATE TABLE ai_knowledge_entity_alias (
@@ -258,16 +258,16 @@ CREATE TABLE ai_knowledge_entity_alias (
     confidence        DOUBLE PRECISION NOT NULL,
     source_run_id     UUID NOT NULL,
     created_at        TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uk_ai_knowledge_entity_alias_v300
+    CONSTRAINT uk_ai_knowledge_entity_alias_v20
         UNIQUE (knowledge_base_id, normalized_alias, entity_id),
-    CONSTRAINT fk_ai_knowledge_entity_alias_entity_v300
+    CONSTRAINT fk_ai_knowledge_entity_alias_entity_v20
         FOREIGN KEY (entity_id, knowledge_base_id)
         REFERENCES ai_knowledge_entity(id, knowledge_base_id),
-    CONSTRAINT fk_ai_knowledge_entity_alias_run_v300
+    CONSTRAINT fk_ai_knowledge_entity_alias_run_v20
         FOREIGN KEY (source_run_id, knowledge_base_id)
         REFERENCES ai_knowledge_ingest_run(id, knowledge_base_id)
 );
-CREATE INDEX idx_ai_knowledge_entity_alias_lookup_v300
+CREATE INDEX idx_ai_knowledge_entity_alias_lookup_v20
     ON ai_knowledge_entity_alias (knowledge_base_id, normalized_alias);
 
 CREATE TABLE ai_knowledge_entity_embedding (
@@ -279,15 +279,15 @@ CREATE TABLE ai_knowledge_entity_embedding (
     embedding         vector(1536) NOT NULL,
     created_at        TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at        TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uk_ai_knowledge_entity_embedding_v300 UNIQUE (entity_id, model_id),
-    CONSTRAINT fk_ai_knowledge_entity_embedding_entity_v300
+    CONSTRAINT uk_ai_knowledge_entity_embedding_v20 UNIQUE (entity_id, model_id),
+    CONSTRAINT fk_ai_knowledge_entity_embedding_entity_v20
         FOREIGN KEY (entity_id, knowledge_base_id)
         REFERENCES ai_knowledge_entity(id, knowledge_base_id) ON DELETE CASCADE,
-    CONSTRAINT fk_ai_knowledge_entity_embedding_run_v300
+    CONSTRAINT fk_ai_knowledge_entity_embedding_run_v20
         FOREIGN KEY (source_run_id, knowledge_base_id)
         REFERENCES ai_knowledge_ingest_run(id, knowledge_base_id)
 );
-CREATE INDEX idx_ai_knowledge_entity_embedding_hnsw_v300
+CREATE INDEX idx_ai_knowledge_entity_embedding_hnsw_v20
     ON ai_knowledge_entity_embedding USING hnsw (embedding vector_cosine_ops)
     WITH (m = 16, ef_construction = 64);
 
@@ -303,15 +303,15 @@ CREATE TABLE ai_knowledge_fact (
     confidence        DOUBLE PRECISION NOT NULL,
     created_at        TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at        TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uk_ai_knowledge_fact_key_v300 UNIQUE (knowledge_base_id, fact_key),
-    CONSTRAINT uk_ai_knowledge_fact_base_v300 UNIQUE (id, knowledge_base_id),
-    CONSTRAINT fk_ai_knowledge_fact_subject_v300
+    CONSTRAINT uk_ai_knowledge_fact_key_v20 UNIQUE (knowledge_base_id, fact_key),
+    CONSTRAINT uk_ai_knowledge_fact_base_v20 UNIQUE (id, knowledge_base_id),
+    CONSTRAINT fk_ai_knowledge_fact_subject_v20
         FOREIGN KEY (subject_entity_id, knowledge_base_id)
         REFERENCES ai_knowledge_entity(id, knowledge_base_id),
-    CONSTRAINT fk_ai_knowledge_fact_object_v300
+    CONSTRAINT fk_ai_knowledge_fact_object_v20
         FOREIGN KEY (object_entity_id, knowledge_base_id)
         REFERENCES ai_knowledge_entity(id, knowledge_base_id),
-    CONSTRAINT ck_ai_knowledge_fact_object_v300 CHECK (
+    CONSTRAINT ck_ai_knowledge_fact_object_v20 CHECK (
         (object_kind = 'ENTITY' AND object_entity_id IS NOT NULL AND object_literal IS NULL)
         OR (object_kind = 'LITERAL' AND object_entity_id IS NULL AND object_literal IS NOT NULL)
     )
@@ -330,14 +330,14 @@ CREATE TABLE ai_knowledge_evidence (
     reference_time_precision VARCHAR(16),
     reference_time_source    VARCHAR(32),
     created_at               TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uk_ai_knowledge_evidence_quote_v300
+    CONSTRAINT uk_ai_knowledge_evidence_quote_v20
         UNIQUE (run_id, focus_chunk_id, quote_hash),
-    CONSTRAINT uk_ai_knowledge_evidence_base_v300 UNIQUE (id, knowledge_base_id),
-    CONSTRAINT fk_ai_knowledge_evidence_source_v300
+    CONSTRAINT uk_ai_knowledge_evidence_base_v20 UNIQUE (id, knowledge_base_id),
+    CONSTRAINT fk_ai_knowledge_evidence_source_v20
         FOREIGN KEY (focus_chunk_id, run_id, document_id, knowledge_base_id)
         REFERENCES ai_knowledge_chunk(stable_id, run_id, document_id, knowledge_base_id)
         ON DELETE CASCADE,
-    CONSTRAINT ck_ai_knowledge_evidence_reference_time_v300 CHECK (
+    CONSTRAINT ck_ai_knowledge_evidence_reference_time_v20 CHECK (
         (reference_time IS NULL
             AND reference_time_precision IS NULL
             AND reference_time_source IS NULL)
@@ -353,13 +353,13 @@ CREATE TABLE ai_knowledge_evidence_span (
     start_offset INTEGER NOT NULL,
     end_offset   INTEGER NOT NULL,
     created_at   TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uk_ai_knowledge_evidence_span_v300
+    CONSTRAINT uk_ai_knowledge_evidence_span_v20
         UNIQUE (evidence_id, start_offset, end_offset),
-    CONSTRAINT ck_ai_knowledge_evidence_span_v300
+    CONSTRAINT ck_ai_knowledge_evidence_span_v20
         CHECK (start_offset >= 0 AND end_offset > start_offset)
 );
 
-CREATE OR REPLACE FUNCTION validate_ai_knowledge_assertion_attributes_v300(
+CREATE OR REPLACE FUNCTION validate_ai_knowledge_assertion_attributes_v20(
     checked_attributes JSONB)
 RETURNS BOOLEAN
 LANGUAGE sql
@@ -400,39 +400,39 @@ CREATE TABLE ai_knowledge_fact_evidence (
     expiration_reason  VARCHAR(32),
     attributes         JSONB NOT NULL DEFAULT '{}'::jsonb,
     PRIMARY KEY (fact_id, evidence_id),
-    CONSTRAINT uk_ai_knowledge_assertion_id_v300 UNIQUE (assertion_id),
-    CONSTRAINT fk_ai_knowledge_fact_evidence_fact_v300
+    CONSTRAINT uk_ai_knowledge_assertion_id_v20 UNIQUE (assertion_id),
+    CONSTRAINT fk_ai_knowledge_fact_evidence_fact_v20
         FOREIGN KEY (fact_id, knowledge_base_id)
         REFERENCES ai_knowledge_fact(id, knowledge_base_id) ON DELETE CASCADE,
-    CONSTRAINT fk_ai_knowledge_fact_evidence_evidence_v300
+    CONSTRAINT fk_ai_knowledge_fact_evidence_evidence_v20
         FOREIGN KEY (evidence_id, knowledge_base_id)
         REFERENCES ai_knowledge_evidence(id, knowledge_base_id) ON DELETE CASCADE,
-    CONSTRAINT ck_ai_knowledge_assertion_valid_interval_v300
+    CONSTRAINT ck_ai_knowledge_assertion_valid_interval_v20
         CHECK (valid_at IS NULL OR invalid_at IS NULL OR valid_at < invalid_at),
-    CONSTRAINT ck_ai_knowledge_assertion_system_interval_v300
+    CONSTRAINT ck_ai_knowledge_assertion_system_interval_v20
         CHECK (recorded_at IS NULL OR expired_at IS NULL OR recorded_at <= expired_at),
-    CONSTRAINT ck_ai_knowledge_assertion_expiration_v300 CHECK (
+    CONSTRAINT ck_ai_knowledge_assertion_expiration_v20 CHECK (
         (expired_at IS NULL AND expiration_reason IS NULL)
         OR (recorded_at IS NOT NULL
             AND expired_at IS NOT NULL
             AND expiration_reason IN (
                 'SOURCE_SUPERSEDED', 'SOURCE_REVOKED', 'CONTRADICTED'))
     ),
-    CONSTRAINT ck_ai_knowledge_assertion_attributes_v300
-        CHECK (validate_ai_knowledge_assertion_attributes_v300(attributes))
+    CONSTRAINT ck_ai_knowledge_assertion_attributes_v20
+        CHECK (validate_ai_knowledge_assertion_attributes_v20(attributes))
 );
-CREATE INDEX idx_ai_knowledge_evidence_document_run_v300
+CREATE INDEX idx_ai_knowledge_evidence_document_run_v20
     ON ai_knowledge_evidence (document_id, run_id, id);
-CREATE INDEX idx_ai_knowledge_assertion_current_fact_v300
+CREATE INDEX idx_ai_knowledge_assertion_current_fact_v20
     ON ai_knowledge_fact_evidence (fact_id, recorded_at)
     WHERE recorded_at IS NOT NULL AND expired_at IS NULL;
-CREATE INDEX idx_ai_knowledge_assertion_evidence_v300
+CREATE INDEX idx_ai_knowledge_assertion_evidence_v20
     ON ai_knowledge_fact_evidence (evidence_id, recorded_at, expired_at);
-CREATE INDEX idx_ai_knowledge_assertion_asof_v300
+CREATE INDEX idx_ai_knowledge_assertion_asof_v20
     ON ai_knowledge_fact_evidence
        (fact_id, recorded_at, expired_at, valid_at, invalid_at);
 
-CREATE OR REPLACE FUNCTION check_ai_knowledge_generation_consistency_v300(
+CREATE OR REPLACE FUNCTION check_ai_knowledge_generation_consistency_v20(
     checked_document_id BIGINT)
 RETURNS VOID
 LANGUAGE plpgsql
@@ -494,7 +494,7 @@ END;
 $$;
 
 -- 延迟触发器每次按事务最终状态检查；不得缓存结果，否则 SET CONSTRAINTS 后的继续写入可能绕过提交校验。
-CREATE OR REPLACE FUNCTION check_ai_knowledge_assertion_v300(
+CREATE OR REPLACE FUNCTION check_ai_knowledge_assertion_v20(
     checked_assertion_id UUID)
 RETURNS VOID
 LANGUAGE plpgsql
@@ -529,64 +529,64 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION enforce_ai_knowledge_document_generation_v300()
+CREATE OR REPLACE FUNCTION enforce_ai_knowledge_document_generation_v20()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    PERFORM check_ai_knowledge_generation_consistency_v300(NEW.id);
+    PERFORM check_ai_knowledge_generation_consistency_v20(NEW.id);
     RETURN NULL;
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION enforce_ai_knowledge_run_generation_v300()
+CREATE OR REPLACE FUNCTION enforce_ai_knowledge_run_generation_v20()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 BEGIN
     IF TG_OP = 'DELETE' THEN
-        PERFORM check_ai_knowledge_generation_consistency_v300(OLD.document_id);
+        PERFORM check_ai_knowledge_generation_consistency_v20(OLD.document_id);
     ELSIF TG_OP = 'UPDATE' THEN
-        PERFORM check_ai_knowledge_generation_consistency_v300(OLD.document_id);
+        PERFORM check_ai_knowledge_generation_consistency_v20(OLD.document_id);
         IF NEW.document_id IS DISTINCT FROM OLD.document_id THEN
-            PERFORM check_ai_knowledge_generation_consistency_v300(NEW.document_id);
+            PERFORM check_ai_knowledge_generation_consistency_v20(NEW.document_id);
         END IF;
     ELSE
-        PERFORM check_ai_knowledge_generation_consistency_v300(NEW.document_id);
+        PERFORM check_ai_knowledge_generation_consistency_v20(NEW.document_id);
     END IF;
     RETURN NULL;
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION enforce_ai_knowledge_assertion_generation_v300()
+CREATE OR REPLACE FUNCTION enforce_ai_knowledge_assertion_generation_v20()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    PERFORM check_ai_knowledge_assertion_v300(
+    PERFORM check_ai_knowledge_assertion_v20(
         CASE WHEN TG_OP = 'DELETE' THEN OLD.assertion_id ELSE NEW.assertion_id END);
     RETURN NULL;
 END;
 $$;
 
-CREATE CONSTRAINT TRIGGER ct_ai_knowledge_document_generation_v300
+CREATE CONSTRAINT TRIGGER ct_ai_knowledge_document_generation_v20
 AFTER INSERT OR UPDATE OF active_run_id ON ai_knowledge_document
 DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW
-EXECUTE FUNCTION enforce_ai_knowledge_document_generation_v300();
+EXECUTE FUNCTION enforce_ai_knowledge_document_generation_v20();
 
-CREATE CONSTRAINT TRIGGER ct_ai_knowledge_run_generation_v300
+CREATE CONSTRAINT TRIGGER ct_ai_knowledge_run_generation_v20
 AFTER INSERT OR UPDATE OF id, document_id, knowledge_base_id, status OR DELETE
 ON ai_knowledge_ingest_run
 DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW
-EXECUTE FUNCTION enforce_ai_knowledge_run_generation_v300();
+EXECUTE FUNCTION enforce_ai_knowledge_run_generation_v20();
 
-CREATE CONSTRAINT TRIGGER ct_ai_knowledge_assertion_generation_v300
+CREATE CONSTRAINT TRIGGER ct_ai_knowledge_assertion_generation_v20
 AFTER INSERT OR UPDATE OR DELETE ON ai_knowledge_fact_evidence
 DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW
-EXECUTE FUNCTION enforce_ai_knowledge_assertion_generation_v300();
+EXECUTE FUNCTION enforce_ai_knowledge_assertion_generation_v20();
 
 CREATE TABLE ai_knowledge_graph_outbox (
     event_id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -603,13 +603,13 @@ CREATE TABLE ai_knowledge_graph_outbox (
     error_message     VARCHAR(2000),
     created_at        TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at        TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_ai_knowledge_graph_outbox_run_v300
+    CONSTRAINT fk_ai_knowledge_graph_outbox_run_v20
         FOREIGN KEY (run_id, knowledge_base_id)
         REFERENCES ai_knowledge_ingest_run(id, knowledge_base_id),
-    CONSTRAINT ck_ai_knowledge_graph_outbox_status_v300
+    CONSTRAINT ck_ai_knowledge_graph_outbox_status_v20
         CHECK (status IN ('PENDING', 'PROCESSING', 'DONE', 'DEAD'))
 );
-CREATE INDEX idx_ai_knowledge_graph_outbox_poll_v300
+CREATE INDEX idx_ai_knowledge_graph_outbox_poll_v20
     ON ai_knowledge_graph_outbox (status, available_at, created_at);
 
 CREATE TABLE ai_knowledge_projection_checkpoint (
@@ -622,11 +622,11 @@ CREATE TABLE ai_knowledge_projection_checkpoint (
     error_message     VARCHAR(2000),
     updated_at        TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (knowledge_base_id, projection_kind),
-    CONSTRAINT ck_ai_knowledge_projection_watermark_v300
+    CONSTRAINT ck_ai_knowledge_projection_watermark_v20
         CHECK (desired_watermark >= 0 AND applied_watermark >= 0
                AND applied_watermark <= desired_watermark),
-    CONSTRAINT ck_ai_knowledge_projection_kind_v300
+    CONSTRAINT ck_ai_knowledge_projection_kind_v20
         CHECK (projection_kind IN ('PGVECTOR', 'NEO4J')),
-    CONSTRAINT ck_ai_knowledge_projection_status_v300
+    CONSTRAINT ck_ai_knowledge_projection_status_v20
         CHECK (status IN ('READY', 'REBUILDING', 'DEGRADED'))
 );

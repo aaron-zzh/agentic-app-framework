@@ -1,4 +1,6 @@
--- NexusKB v301：生产必需种子数据。schema 由 v300 完整创建，本文件只写数据。
+-- NexusKB v21：生产必需种子数据。schema 由 v20 完整创建；本迁移另确保哈希函数依赖可用。
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 SET LOCAL TIME ZONE 'UTC';
 
@@ -14,7 +16,7 @@ VALUES
     ('知识库引用', 'system:knowledge-base:reference', 'system', 'knowledge-base', 'reference', 0),
     ('知识库管理维护模式', 'system:knowledge-base:access-mode:admin-maintenance',
      'system', 'knowledge-base', 'admin-maintenance', 0)
-ON CONFLICT (code) DO NOTHING;
+ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 
 -- 修正重复执行或曾应用旧 seed 后遗留的只读角色写权限。
 DELETE FROM sys_role_permission role_permission
@@ -183,7 +185,7 @@ BEGIN
         WHERE scope = 'SYSTEM' AND scope_id IS NULL
           AND capability = 'KNOWLEDGE_ENTITY_RESOLUTION'
     ) THEN
-        RAISE EXCEPTION 'v301 无法初始化知识抽取模型偏好：缺少已启用 CHAT 模型';
+        RAISE EXCEPTION 'v21 无法初始化知识抽取模型偏好：缺少已启用 CHAT 模型';
     END IF;
 END $$;
 
@@ -223,9 +225,9 @@ INSERT INTO ai_knowledge_ingest_run (
     started_at, ready_at, published_at, finished_at)
 SELECT
     '00000000-0000-0000-0000-000000000303', 1, 1, 1,
-    encode(digest('seed-v301|aaf-platform-guide-v1', 'sha256'), 'hex'),
+    encode(digest('seed-v21|aaf-platform-guide-v1', 'sha256'), 'hex'),
     (SELECT id FROM sys_user WHERE username = 'admin'),
-    'PUBLISHED', 'seed-v301',
+    'PUBLISHED', 'seed-v21',
     encode(digest('RECURSIVE|512|64', 'sha256'), 'hex'),
     extraction.value, encode(digest(extraction.value, 'sha256'), 'hex'),
     'v2', extraction_model.model_id,
