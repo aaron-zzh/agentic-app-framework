@@ -222,7 +222,7 @@ commandRegistry.registerAll([
     label: "知识库",
     group: "知识",
     action: () => {
-      window.location.href = "/studio/knowledge/bases"
+      window.location.href = "/studio/knowledge"
     }
   },
   {

@@ -85,6 +85,25 @@ public class SystemConfigService {
         }
         config.setValue(value);
         configRepository.save(config);
+        evictAfterCommit(key);
+    }
+
+    /** 数据库提交后再淘汰共享缓存，避免并发读回填旧值。 */
+    public void evictAfterCommit(String key) {
+        if (org.springframework.transaction.support.TransactionSynchronizationManager
+                        .isActualTransactionActive()
+                && org.springframework.transaction.support.TransactionSynchronizationManager
+                        .isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager
+                    .registerSynchronization(
+                            new org.springframework.transaction.support.TransactionSynchronization() {
+                                @Override
+                                public void afterCommit() {
+                                    evictCache(key);
+                                }
+                            });
+            return;
+        }
         evictCache(key);
     }
 

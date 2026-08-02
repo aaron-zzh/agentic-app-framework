@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.knowledge.domain;
 
+import java.util.UUID;
+
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
@@ -26,6 +28,27 @@ import lombok.Setter;
                 "UPDATE ai_knowledge_document SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE"
                         + " id = ?")
 public class KnowledgeDocument extends BaseEntity {
+
+    @Column(name = "stable_id", nullable = false, unique = true)
+    private UUID stableId = UUID.randomUUID();
+
+    @Column(name = "source_document_id")
+    private Long sourceDocumentId;
+
+    @Column(name = "uploaded_by")
+    private Long uploadedBy;
+
+    @Column(name = "source_type", nullable = false, length = 32)
+    private String sourceType = "FILE";
+
+    @Column(name = "source_key", length = 1000)
+    private String sourceKey;
+
+    @Column(name = "source_uri", length = 2000)
+    private String sourceUri;
+
+    @Column(name = "active_run_id")
+    private UUID activeRunId;
 
     /**
      * 所属知识库 ID

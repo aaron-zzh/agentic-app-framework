@@ -279,7 +279,7 @@ items (group_title, title, path, icon, sort_order, visible) AS (
     ('AI 创作',  '素材库',     '/aigc/assets',                'image',             1,  true),
     ('AI 创作',  'AIGC 任务',  '/module/aigc-task',           'wand-2',            2,  true),
     -- 知识库
-    ('知识库',   '知识库',     '/knowledge',                  'database',          0,  true),
+    ('知识库',   '知识库',     '/studio/knowledge',           'database',          0,  true),
     -- 会员中心
     ('会员中心', '积分流水',   '/module/wallet-transaction',  'receipt',           1,  true),
     ('会员中心', '订阅套餐',   '/module/subscription-plan',   'credit-card',       2,  true),
@@ -287,6 +287,7 @@ items (group_title, title, path, icon, sort_order, visible) AS (
     -- 管理
     ('管理',     'AI 模型',    '/system/model',               'cpu',               0,  true),
     ('管理',     '兑换码',     '/module/credit-redeem-code',  'ticket',            1,  true),
+    ('管理',     '知识库运维', '/admin/knowledge',            'database-zap',      2,  true),
     ('管理',     '待办管理',   '/module/todo',                'check-square',      4,  true),
     -- 系统
     ('系统',     '系统参数',   '/admin/system-config',        'sliders-horizontal',0,  true),
@@ -1083,7 +1084,7 @@ JOIN sys_menu m ON m.path IN (
     '/dashboard',
     '/aigc',
     '/aigc/assets',
-    '/knowledge',
+    '/studio/knowledge',
     '/settings',
     '/trash'
 )
@@ -1308,16 +1309,7 @@ ON CONFLICT (code) DO NOTHING;
 -- 默认用户助理模板种子数据
 -- ============================================================
 
--- 平台向导知识库（公共，auto_inject=false，由 search_kb 工具按需检索）
-INSERT INTO ai_knowledge_base (
-    id, name, description, embedding_model, chunk_strategy, chunk_size, chunk_overlap,
-    status, auto_inject, owner_id, create_time, update_time, deleted
-) VALUES (
-    1, 'AAF 平台向导知识库',
-    '产品咨询、常见问题和功能说明，供默认用户助理的平台向导 Role 使用',
-    'text-embedding-v3', 'RECURSIVE', 512, 64, 1, FALSE, NULL,
-    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
-) ON CONFLICT (id) DO NOTHING;
+-- 平台向导知识库及其可信代际数据移至 db/seed/v301__nexus_knowledge_seed.sql。
 
 -- 默认用户助理的稳定 Persona
 INSERT INTO ai_persona (
@@ -1357,83 +1349,7 @@ INSERT INTO ai_assistant_role (
     (1, 2, FALSE, 90, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE)
 ON CONFLICT (assistant_id, role_id) DO NOTHING;
 
--- 客服知识库初始文档：AAF 框架介绍
-INSERT INTO ai_knowledge_document (
-    id, knowledge_base_id, title, file_type, status, chunk_count,
-    create_time, update_time, deleted
-) VALUES (
-    1, 1, 'AAF 框架介绍', 'text', 1, 3,
-    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
-) ON CONFLICT (id) DO NOTHING;
-
--- 分块1：产品定位与核心能力
-INSERT INTO ai_knowledge_chunk (
-    id, document_id, knowledge_base_id, content, chunk_index, token_count, created_at
-) VALUES (
-    1, 1, 1,
-    'AAF（Agentic App Framework）是一套面向开发者的生产级 AI 原生应用开发框架，目标是让每一个团队都能快速构建多智能体协作应用，而不需要从零搭建 AI 基础设施。
-
-AAF 的核心理念是「AI 是架构的一等公民」——不是在传统业务系统上贴一层 AI，而是从设计之初就以 AI 协作为中心来组织整个系统。
-
-主要核心能力：
-• 多智能体协作：支持 Agent 间的分工、委托与并行执行，内置 ReAct 推理循环、子 Agent 派发、结果汇聚等机制
-• 工作流引擎：可视化拖拽设计 AI 工作流，支持 LLM 节点、知识库节点、条件分支、代码节点等，底层由 Flowable 驱动执行
-• 知识库管理：支持文档上传、自动分块、向量化存储，提供语义检索（pgvector hnsw）、混合检索和知识图谱能力
-• 规范驱动开发：先写规范再写代码，规范是人类和 AI 的共同真理来源，支持 AI 全流程自动开发
-• 无代码开发：普通用户可通过可视化界面搭建工作流、配置技能和知识库，无需编写代码',
-    0, 380, CURRENT_TIMESTAMP
-) ON CONFLICT (id) DO NOTHING;
-
--- 分块2：技术栈与架构
-INSERT INTO ai_knowledge_chunk (
-    id, document_id, knowledge_base_id, content, chunk_index, token_count, created_at
-) VALUES (
-    2, 1, 1,
-    'AAF 技术栈：
-• 后端：Java 25 + Spring Boot 4 + Spring AI + WebFlux + GraphQL + MCP 协议
-• 智能体框架：AgentScope Java（HarnessAgent，支持 AG-UI 协议流式交互）
-• 数据层：PostgreSQL + pgvector（向量检索）、Neo4j（知识图谱）、Redis（缓存）
-• 工作流：Flowable（同时支持 AI 编排流和企业审批流）
-• 前端：Next.js 16 + React 19 + TypeScript，工程化采用 Nx Monorepo + pnpm
-• 跨端：UniApp（微信小程序 / H5 / APP）
-
-整体分为五层架构：
-1. 对话与交互层：多端适配、SSE 流式推送、REST/WebSocket/AG-UI 接口
-2. 服务层：用户管理、知识库、工作流、计费、AIGC 内容创作等业务模块
-3. 智能层：Core/Cognition/Agent/Assistant/Team 五层 AI 协作体系
-4. 引擎层：工作流引擎、知识库引擎、记忆引擎、工具系统、MCP 集成
-5. 基础设施层：PostgreSQL、Redis、Neo4j、向量库、Agent 沙箱
-
-AAF 支持多种部署方式，生产环境推荐 Docker Compose 或 Kubernetes，本地开发只需 JDK 25 + Node.js 22 + PostgreSQL。',
-    1, 320, CURRENT_TIMESTAMP
-) ON CONFLICT (id) DO NOTHING;
-
--- 分块3：使用场景与适用人群
-INSERT INTO ai_knowledge_chunk (
-    id, document_id, knowledge_base_id, content, chunk_index, token_count, created_at
-) VALUES (
-    3, 1, 1,
-    'AAF 适用场景：
-
-1. 企业 AI 助理：基于知识库构建企业专属客服、HR 助手、产品顾问，支持多知识库切换和权限隔离
-2. 内容创作平台：集成 AI 写作、图像生成、视频生成能力，支持多平台内容分发（小红书/公众号/抖音）
-3. 智能工作流：将重复性业务流程（如文档处理、数据提取、报告生成）自动化，人工只审核关键节点
-4. AI 开发工具：支持 AI 辅助编码、代码审查、自动测试，集成 MCP 工具协议对接外部开发工具
-5. 多智能体协作：复杂任务由协调者 Agent 拆解后分配给专业子 Agent 并行处理，最终汇总结果
-
-适用人群：
-• 希望快速落地 AI 应用的开发团队（节省搭建基础设施的时间）
-• 需要结合知识库和业务系统的企业（客服、销售、运营场景）
-• 想通过无代码方式构建 AI 工作流的业务人员
-
-当前版本（v0.1.0）已稳定支持：多智能体对话、知识库检索、内容创作工作流、计费与权限管理。
-更多功能（Agent 市场、低代码工作流编辑器、多租户SaaS）在 v0.2.0 规划中。
-
-如需了解更多，欢迎访问项目文档或通过客服联系我们。',
-    2, 350, CURRENT_TIMESTAMP
-) ON CONFLICT (id) DO NOTHING;
-
-
+-- 平台向导知识文档、run 与 chunk 移至 db/seed/v301__nexus_knowledge_seed.sql。
 
 -- ============================================================
 -- 视频生成提示词模板——品牌 + 口播 两个分类

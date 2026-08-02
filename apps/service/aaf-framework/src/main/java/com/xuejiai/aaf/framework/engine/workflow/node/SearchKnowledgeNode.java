@@ -1,31 +1,23 @@
 package com.xuejiai.aaf.framework.engine.workflow.node;
 
+import java.util.Collection;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.flowable.engine.delegate.DelegateExecution;
 import org.flowable.engine.delegate.JavaDelegate;
 import org.springframework.stereotype.Component;
 
-import com.xuejiai.aaf.framework.engine.knowledge.rag.HybridSearchConfig;
 import com.xuejiai.aaf.framework.engine.knowledge.rag.HybridSearchService;
+import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeSearchContracts.AuthorizedQuery;
+import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeSearchContracts.ChannelWeights;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationSubject;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
-/**
- * 知识库检索节点——工作流中直接检索知识库。
- *
- * <p>流程变量：
- *
- * <ul>
- *   <li>knowledgeBaseId（必填）——知识库 ID
- *   <li>query（必填）——检索查询
- *   <li>topK（可选，默认5）——返回结果数
- *   <li>similarityThreshold（可选，默认0.0）——相似度阈值，低于此值的结果被过滤
- *   <li>output（节点写入检索结果文本）
- * </ul>
- */
-@Slf4j
+/** 工作流知识检索节点；按稳定 UUID 先授权再检索，默认包含公共知识库。 */
 @Component("searchKnowledgeNode")
 @RequiredArgsConstructor
 public class SearchKnowledgeNode implements JavaDelegate {
@@ -34,27 +26,54 @@ public class SearchKnowledgeNode implements JavaDelegate {
 
     @Override
     public void execute(DelegateExecution execution) {
-        var kbId = ((Number) execution.getVariable("knowledgeBaseId")).longValue();
         var query = (String) execution.getVariable("query");
-        var topK =
-                execution.getVariable("topK") != null
-                        ? ((Number) execution.getVariable("topK")).intValue()
-                        : 5;
-        var similarityThreshold =
-                execution.getVariable("similarityThreshold") != null
-                        ? ((Number) execution.getVariable("similarityThreshold")).doubleValue()
-                        : 0.0;
-
-        var config = new HybridSearchConfig(0.5, 0.3, 0.2, topK);
-        var results = searchService.search(query, kbId, config);
-
+        var topK = integerVariable(execution, "topK", 5);
+        var threshold = doubleVariable(execution, "similarityThreshold", 0.0);
+        var knowledgeBaseIds = parseKnowledgeBaseIds(execution.getVariable("knowledgeBaseIds"));
+        var authorizedQuery =
+                new AuthorizedQuery(
+                        AuthorizationSubject.unresolved(),
+                        query,
+                        knowledgeBaseIds,
+                        true,
+                        Map.of(),
+                        ChannelWeights.defaults(),
+                        topK,
+                        threshold,
+                        Map.of());
         var output =
-                results.stream()
-                        .filter(r -> r.score() >= similarityThreshold)
-                        .map(r -> r.content())
+                searchService.search(authorizedQuery).hits().stream()
+                        .map(hit -> hit.content())
                         .collect(Collectors.joining("\n\n"));
 
         execution.setVariable("output", output);
         execution.setVariable("success", true);
+    }
+
+    private Set<UUID> parseKnowledgeBaseIds(Object value) {
+        return switch (value) {
+            case null -> Set.of();
+            case Collection<?> values ->
+                    values.stream()
+                            .map(Object::toString)
+                            .map(UUID::fromString)
+                            .collect(Collectors.toUnmodifiableSet());
+            default ->
+                    java.util.Arrays.stream(value.toString().split(","))
+                            .map(String::trim)
+                            .filter(item -> !item.isEmpty())
+                            .map(UUID::fromString)
+                            .collect(Collectors.toUnmodifiableSet());
+        };
+    }
+
+    private int integerVariable(DelegateExecution execution, String name, int defaultValue) {
+        var value = execution.getVariable(name);
+        return value instanceof Number number ? number.intValue() : defaultValue;
+    }
+
+    private double doubleVariable(DelegateExecution execution, String name, double defaultValue) {
+        var value = execution.getVariable(name);
+        return value instanceof Number number ? number.doubleValue() : defaultValue;
     }
 }

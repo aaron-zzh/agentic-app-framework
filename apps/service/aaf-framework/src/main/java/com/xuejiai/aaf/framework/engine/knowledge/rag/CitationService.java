@@ -5,6 +5,8 @@ import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Service;
 
+import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeSearchContracts.Hit;
+
 /** 引用溯源服务 — 解析答案中的 [N] 引用标记，映射到源文档 */
 @Service
 public class CitationService {
@@ -12,7 +14,7 @@ public class CitationService {
     private static final Pattern CITATION_PATTERN = Pattern.compile("\\[(\\d+)]");
 
     /** 从答案中提取引用标记，映射到对应的检索结果 */
-    public List<Citation> extractCitations(String answer, List<RagSearchResult> sources) {
+    public List<Citation> extractCitations(String answer, List<Hit> sources) {
         if (answer == null || sources == null || sources.isEmpty()) return List.of();
 
         var matcher = CITATION_PATTERN.matcher(answer);
@@ -29,8 +31,8 @@ public class CitationService {
                             return new Citation(
                                     idx,
                                     source.content(),
-                                    source.source(),
-                                    Objects.toString(source.metadata().get("document_id"), null));
+                                    source.candidateKey(),
+                                    source.source().documentId().toString());
                         })
                 .toList();
     }

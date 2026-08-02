@@ -1,5 +1,6 @@
 export * from "./audit-log"
 export * from "./data-access"
 export * from "./dict"
+export * from "./knowledge"
 export * from "./operation-log"
 export * from "./user"

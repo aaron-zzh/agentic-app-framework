@@ -492,7 +492,7 @@ export function useAiSkills(params: { category?, isActive? })
 | `/studio/me/credits` | `/credits/*` `/redeem-codes` 已有 |
 | `/studio/me/invite` | `/brokerage/*` 已有，迁移交互 |
 | `/studio/assets/works,materials,history` | 已有接口 |
-| `/studio/knowledge/docs,bases` | 已有接口，迁移 |
+| `/studio/knowledge`、`/studio/knowledge/docs` | 已有接口，迁移 |
 
 ## ADR（关键设计决策）
 

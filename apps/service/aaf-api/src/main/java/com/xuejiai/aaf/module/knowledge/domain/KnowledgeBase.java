@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.knowledge.domain;
 
+import java.util.UUID;
+
 import org.hibernate.annotations.Formula;
 import org.hibernate.annotations.SQLDelete;
 
@@ -28,6 +30,15 @@ import lombok.Setter;
                 "UPDATE ai_knowledge_base SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE"
                         + " id = ?")
 public class KnowledgeBase extends BaseEntity {
+
+    @Column(name = "stable_id", nullable = false, unique = true)
+    private UUID stableId = UUID.randomUUID();
+
+    @Column(name = "visibility", nullable = false, length = 24)
+    private String visibility = "PRIVATE";
+
+    @Column(name = "scope_code", length = 128)
+    private String scopeCode;
 
     /** 知识库名称 */
     @Column(name = "name", nullable = false, length = 200)

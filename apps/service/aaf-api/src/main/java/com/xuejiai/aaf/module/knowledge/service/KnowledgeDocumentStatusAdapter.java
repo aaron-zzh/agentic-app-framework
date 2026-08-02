@@ -8,7 +8,7 @@ import com.xuejiai.aaf.framework.engine.meta.runtime.TaskExecutionInProgressExce
 
 import lombok.RequiredArgsConstructor;
 
-/** 知识文档状态持久化适配器。 */
+/** 上传及尚未建立 run 前的文档状态适配器；run 建立后的最终状态由 TrustedKnowledgeStore 原子维护。 */
 @Component
 @RequiredArgsConstructor
 public class KnowledgeDocumentStatusAdapter implements KnowledgeDocumentStatusPort {

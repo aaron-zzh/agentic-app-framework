@@ -7,9 +7,11 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.stereotype.Service;
 
+import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeSearchContracts.AuthorizedQuery;
+
 import lombok.RequiredArgsConstructor;
 
-/** 检索增强生成服务 — 检索→构建 Prompt→调用 LLM→返回带引用的答案 */
+/** 检索增强生成服务——授权检索、生成与稳定来源引用。 */
 @Service
 @RequiredArgsConstructor
 public class RagGenerationService {
@@ -30,33 +32,24 @@ public class RagGenerationService {
     private final CitationService citationService;
     private final ChatModel chatModel;
 
-    /** 执行 RAG：检索 → 生成 → 溯源 */
-    public RagResponse generate(String question, Long knowledgeBaseId) {
-        // 检索
-        var sources =
-                hybridSearchService.search(question, knowledgeBaseId, new HybridSearchConfig());
-
-        // 构建上下文
+    public RagResponse generate(AuthorizedQuery query) {
+        var sources = hybridSearchService.search(query).hits();
         var context =
                 IntStream.range(0, sources.size())
                         .mapToObj(i -> "[%d] %s".formatted(i + 1, sources.get(i).content()))
                         .collect(Collectors.joining("\n\n"));
 
-        // 调用 LLM
         var response =
                 ChatClient.create(chatModel)
                         .prompt()
                         .system(SYSTEM_PROMPT.formatted(context))
-                        .user(question)
+                        .user(query.query())
                         .call()
                         .chatResponse();
 
         var answer = response.getResult().getOutput().getText();
         var tokensUsed = (int) response.getMetadata().getUsage().getTotalTokens();
-
-        // 引用溯源
-        var citations = citationService.extractCitations(answer, sources);
-
-        return new RagResponse(answer, citations, tokensUsed);
+        return new RagResponse(
+                answer, citationService.extractCitations(answer, sources), tokensUsed);
     }
 }

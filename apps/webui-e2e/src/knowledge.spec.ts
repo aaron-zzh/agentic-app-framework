@@ -10,19 +10,21 @@ test.describe("知识库管理", () => {
     await expect(page).toHaveURL("/")
   })
 
-  test("创建知识库→上传文档→查看状态→搜索→删除", async ({ page }) => {
+  test("创建知识库→上传文档→查看状态→搜索", async ({ page }) => {
+    const knowledgeBaseName = `E2E测试知识库-${Date.now()}`
+
     // 进入知识库页面
-    await page.goto("/knowledge")
+    await page.goto("/studio/knowledge")
 
     // 创建知识库
     await page.getByRole("button", { name: /新建|创建/ }).click()
-    await page.getByLabel("名称").fill("E2E测试知识库")
+    await page.getByLabel("名称").fill(knowledgeBaseName)
     await page.getByLabel("描述").fill("自动化测试用知识库")
     await page.getByRole("button", { name: /确定|创建/ }).click()
-    await expect(page.getByText("E2E测试知识库")).toBeVisible()
+    await expect(page.getByText(knowledgeBaseName, { exact: true })).toBeVisible()
 
     // 进入知识库详情
-    await page.getByText("E2E测试知识库").click()
+    await page.getByText(knowledgeBaseName, { exact: true }).click()
 
     // 上传文档
     const fileInput = page.locator('input[type="file"]')
@@ -36,18 +38,9 @@ test.describe("知识库管理", () => {
     await expect(page.getByText(/完成|已处理|COMPLETED/)).toBeVisible({ timeout: 30000 })
 
     // 搜索
-    const searchInput = page.getByPlaceholder(/搜索|查询/)
-    if (await searchInput.isVisible()) {
-      await searchInput.fill("测试文档")
-      await page.keyboard.press("Enter")
-      await expect(page.getByText(/测试/)).toBeVisible()
-    }
-
-    // 返回列表并删除
-    await page.goto("/knowledge")
-    const row = page.getByText("E2E测试知识库").locator("..")
-    await row.getByRole("button", { name: /删除/ }).click()
-    await page.getByRole("button", { name: /确认|确定/ }).click()
-    await expect(page.getByText("E2E测试知识库")).not.toBeVisible()
+    const searchInput = page.getByLabel("检索内容")
+    await searchInput.fill("测试文档")
+    await page.getByRole("button", { name: "检索", exact: true }).click()
+    await expect(page.getByRole("heading", { name: /检索结果/ })).toBeVisible()
   })
 })

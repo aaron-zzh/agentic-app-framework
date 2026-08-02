@@ -150,8 +150,8 @@ export const STUDIO_NAV: StudioWorkspaceConfig[] = [
     icon: BookOpen,
     path: "/studio/knowledge",
     children: [
-      { key: "docs", label: "文档", icon: FileText, path: "/studio/knowledge/docs", default: true },
-      { key: "bases", label: "知识库", icon: BookOpen, path: "/studio/knowledge/bases" },
+      { key: "bases", label: "知识库", icon: BookOpen, path: "/studio/knowledge", default: true },
+      { key: "docs", label: "文档", icon: FileText, path: "/studio/knowledge/docs" },
       { key: "favorites", label: "收藏", icon: Heart, path: "/studio/knowledge/favorites" }
     ]
   },

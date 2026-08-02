@@ -1,13 +1,10 @@
-/**
- * 融合检索服务——跨 Memory/Knowledge/Value 的统一路由与聚合。
- *
- * <p>对齐认知心理学：线索依赖提取 + 激活扩散 + 注意力资源分配。 不是又一个检索引擎，是跨认知组件的路由和聚合层。
- *
- * @author AaronZZH & Kiro
- */
 package com.xuejiai.aaf.framework.intelligent.cognition.retrieval;
 
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -16,18 +13,20 @@ import java.util.stream.IntStream;
 import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.framework.engine.knowledge.embedding.EmbeddingService;
-import com.xuejiai.aaf.framework.engine.knowledge.rag.HybridSearchConfig;
 import com.xuejiai.aaf.framework.engine.knowledge.rag.HybridSearchService;
-import com.xuejiai.aaf.framework.engine.knowledge.rag.RagSearchResult;
+import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeSearchContracts.AuthorizedQuery;
+import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeSearchContracts.ChannelWeights;
+import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeSearchContracts.Hit;
 import com.xuejiai.aaf.framework.engine.memory.AtomMemoryEngine;
 import com.xuejiai.aaf.framework.engine.memory.MemoryAtom;
 import com.xuejiai.aaf.framework.engine.memory.MemoryBundle;
 import com.xuejiai.aaf.framework.intelligent.cognition.memory.MemoryRerankerService;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationSubject;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 统一融合检索入口：并行查 Memory + Knowledge，RRF 融合，LLM 重排。 */
+/** 跨 Memory 与 Knowledge 的授权融合检索入口。 */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -40,23 +39,13 @@ public class UnifiedRetrievalService {
     private final EmbeddingService embeddingService;
     private final MemoryRerankerService reranker;
 
-    /**
-     * 统一检索入口。
-     *
-     * @param request 检索请求
-     * @return 融合后的检索结果（已排序、已截断）
-     */
     public RetrievalResult retrieve(RetrievalRequest request) {
-        // M53：成本记账到触发用户
         var queryEmbedding = embeddingService.embed(request.query(), request.userId());
-
-        // 路由决策
         var route = decideRoute(request);
 
-        // 并行检索（虚拟线程）
         List<MemoryAtom> memoryResults = List.of();
         List<MemoryBundle> bundles = List.of();
-        List<RagSearchResult> knowledgeResults = List.of();
+        List<Hit> knowledgeResults = List.of();
 
         try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
             Future<List<MemoryAtom>> memoryFuture =
@@ -68,7 +57,6 @@ public class UnifiedRetrievalService {
                                                     queryEmbedding,
                                                     route.memoryTopK()))
                             : executor.submit(() -> List.<MemoryAtom>of());
-
             Future<List<MemoryBundle>> bundleFuture =
                     route.searchBundles()
                             ? executor.submit(
@@ -79,17 +67,10 @@ public class UnifiedRetrievalService {
                                                     route.bundleTopK(),
                                                     null))
                             : executor.submit(() -> List.<MemoryBundle>of());
-
-            Future<List<RagSearchResult>> knowledgeFuture =
-                    route.searchKnowledge() && request.knowledgeBaseId() != null
-                            ? executor.submit(
-                                    () ->
-                                            knowledgeSearch.search(
-                                                    request.query(),
-                                                    request.knowledgeBaseId(),
-                                                    new HybridSearchConfig(
-                                                            0.4, 0.3, 0.3, route.knowledgeTopK())))
-                            : executor.submit(() -> List.<RagSearchResult>of());
+            Future<List<Hit>> knowledgeFuture =
+                    route.searchKnowledge()
+                            ? executor.submit(() -> searchKnowledge(request, route.knowledgeTopK()))
+                            : executor.submit(() -> List.<Hit>of());
 
             memoryResults = memoryFuture.get();
             bundles = bundleFuture.get();
@@ -101,93 +82,100 @@ public class UnifiedRetrievalService {
                         memoryEngine.searchByVector(
                                 request.userId(), queryEmbedding, route.memoryTopK());
             }
-            if (route.searchKnowledge() && request.knowledgeBaseId() != null) {
-                knowledgeResults =
-                        knowledgeSearch.search(
-                                request.query(),
-                                request.knowledgeBaseId(),
-                                new HybridSearchConfig(0.4, 0.3, 0.3, route.knowledgeTopK()));
+            if (route.searchKnowledge()) {
+                knowledgeResults = searchKnowledge(request, route.knowledgeTopK());
             }
         }
 
-        // RRF 融合排序
         var fused = fuseResults(memoryResults, knowledgeResults, request.topK());
-
-        // 轻量重排（纯计算，仅对记忆部分；不调 chat LLM，保持读路径低延迟）
         if (memoryResults.size() > 1) {
             memoryResults = reranker.rerank(request.query(), memoryResults, route.memoryTopK());
         }
-
-        // Value 校验过滤（P1 占位：后续接入 ValueRuleEngine 过滤不符合价值观的结果）
-        // memoryResults = valueFilter.filter(memoryResults);
-        // knowledgeResults = valueFilter.filter(knowledgeResults);
-
         return new RetrievalResult(memoryResults, bundles, knowledgeResults, fused);
     }
 
-    /** 路由决策：根据查询特征决定检索哪些源 */
-    private RouteDecision decideRoute(RetrievalRequest request) {
-        boolean hasKb = request.knowledgeBaseId() != null;
-        boolean hasUser = request.userId() != null;
+    private List<Hit> searchKnowledge(RetrievalRequest request, int topK) {
+        var query =
+                new AuthorizedQuery(
+                        AuthorizationSubject.unresolved(),
+                        request.query(),
+                        request.knowledgeBaseIds(),
+                        request.includePublic(),
+                        Map.of(),
+                        ChannelWeights.defaults(),
+                        topK,
+                        request.similarityThreshold(),
+                        Map.of());
+        return knowledgeSearch.search(query).hits();
+    }
 
-        // 都有：混合检索
-        if (hasKb && hasUser) {
+    private RouteDecision decideRoute(RetrievalRequest request) {
+        boolean hasKnowledge = !request.knowledgeBaseIds().isEmpty() || request.includePublic();
+        boolean hasUser = request.userId() != null;
+        if (hasKnowledge && hasUser) {
             return new RouteDecision(true, true, true, 6, 3, 6);
         }
-        // 仅知识库
-        if (hasKb) {
+        if (hasKnowledge) {
             return new RouteDecision(false, false, true, 0, 0, 10);
         }
-        // 仅记忆
         return new RouteDecision(true, true, false, 8, 4, 0);
     }
 
-    /** RRF 融合：将记忆结果和知识库结果统一排序 */
-    private List<FusedItem> fuseResults(
-            List<MemoryAtom> memory, List<RagSearchResult> knowledge, int topK) {
+    private List<FusedItem> fuseResults(List<MemoryAtom> memory, List<Hit> knowledge, int topK) {
         Map<String, double[]> scoreMap = new LinkedHashMap<>();
         Map<String, FusedItem> itemMap = new LinkedHashMap<>();
 
-        // 记忆结果 RRF
         IntStream.range(0, memory.size())
                 .forEach(
                         rank -> {
                             var atom = memory.get(rank);
-                            var key = "mem:" + atom.getId();
-                            scoreMap.computeIfAbsent(key, k -> new double[] {0.0})[0] +=
-                                    0.5 * (1.0 / (RRF_K + rank + 1));
+                            var key = "MEMORY:" + atom.getId();
+                            scoreMap.computeIfAbsent(key, ignored -> new double[] {0.0})[0] +=
+                                    0.5 / (RRF_K + rank + 1);
                             itemMap.putIfAbsent(
                                     key,
                                     new FusedItem(
-                                            atom.getContent(), "memory", scoreMap.get(key)[0]));
+                                            key,
+                                            atom.getContent(),
+                                            "memory",
+                                            scoreMap.get(key)[0]));
                         });
 
-        // 知识库结果 RRF
         IntStream.range(0, knowledge.size())
                 .forEach(
                         rank -> {
                             var item = knowledge.get(rank);
-                            var key = "kb:" + item.content().hashCode();
-                            scoreMap.computeIfAbsent(key, k -> new double[] {0.0})[0] +=
-                                    0.5 * (1.0 / (RRF_K + rank + 1));
+                            var key = item.candidateKey();
+                            scoreMap.computeIfAbsent(key, ignored -> new double[] {0.0})[0] +=
+                                    0.5 / (RRF_K + rank + 1);
                             itemMap.putIfAbsent(
                                     key,
                                     new FusedItem(
-                                            item.content(), item.source(), scoreMap.get(key)[0]));
+                                            key,
+                                            item.content(),
+                                            item.source().knowledgeBaseName(),
+                                            scoreMap.get(key)[0]));
                         });
 
         return scoreMap.entrySet().stream()
-                .sorted((a, b) -> Double.compare(b.getValue()[0], a.getValue()[0]))
+                .sorted(
+                        (left, right) -> {
+                            int score = Double.compare(right.getValue()[0], left.getValue()[0]);
+                            return score != 0 ? score : left.getKey().compareTo(right.getKey());
+                        })
                 .limit(topK)
                 .map(
-                        e -> {
-                            var item = itemMap.get(e.getKey());
-                            return new FusedItem(item.content(), item.source(), e.getValue()[0]);
+                        entry -> {
+                            var item = itemMap.get(entry.getKey());
+                            return new FusedItem(
+                                    item.candidateKey(),
+                                    item.content(),
+                                    item.source(),
+                                    entry.getValue()[0]);
                         })
                 .toList();
     }
 
-    /** 路由决策 */
     private record RouteDecision(
             boolean searchMemory,
             boolean searchBundles,
@@ -196,20 +184,26 @@ public class UnifiedRetrievalService {
             int bundleTopK,
             int knowledgeTopK) {}
 
-    /** 检索请求 */
-    public record RetrievalRequest(String query, Long userId, Long knowledgeBaseId, int topK) {
+    public record RetrievalRequest(
+            String query,
+            Long userId,
+            Set<UUID> knowledgeBaseIds,
+            boolean includePublic,
+            double similarityThreshold,
+            int topK) {
         public RetrievalRequest {
-            if (topK <= 0) topK = 10;
+            knowledgeBaseIds = knowledgeBaseIds == null ? Set.of() : Set.copyOf(knowledgeBaseIds);
+            if (topK <= 0) {
+                topK = 10;
+            }
         }
     }
 
-    /** 融合检索结果 */
     public record RetrievalResult(
             List<MemoryAtom> memoryResults,
             List<MemoryBundle> bundles,
-            List<RagSearchResult> knowledgeResults,
+            List<Hit> knowledgeResults,
             List<FusedItem> fused) {}
 
-    /** 融合后的单条结果 */
-    public record FusedItem(String content, String source, double score) {}
+    public record FusedItem(String candidateKey, String content, String source, double score) {}
 }

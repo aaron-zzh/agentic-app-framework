@@ -5,7 +5,6 @@
 
 import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useEffect, useRef } from "react"
-import { useAuthStore } from "@/lib/store/auth-store"
 import type {
   CreateKnowledgeBaseInput,
   GraphData,
@@ -16,7 +15,6 @@ import type {
   SearchRequest,
   SearchResponse
 } from "@/lib/types/knowledge"
-import { buildApiUrl } from "../../config"
 import { backendApi } from "../backend-client"
 import { buildQuery, type ListParams, type PageResult } from "../entity/crud"
 
@@ -66,9 +64,12 @@ export const knowledgeApi = {
   /** 图谱数据。 */
   graph: (id: KnowledgeResourceId) => backendApi.get<GraphData>(`${API_PATH}/${id}/graph`),
 
-  /** 检索。 */
-  search: (id: KnowledgeResourceId, params: SearchRequest) =>
-    backendApi.post<SearchResponse>(`${API_PATH}/${id}/search`, params),
+  /** 多库检索，默认同时检索当前用户可见的公开知识库。 */
+  search: (params: SearchRequest) =>
+    backendApi.post<SearchResponse>(`${API_PATH}/search`, {
+      ...params,
+      includePublic: params.includePublic ?? true
+    }),
 
   /** 段落列表（按文档）。 */
   segments: (kbId: KnowledgeResourceId, documentId: number, page = 0, size = 20) =>
@@ -96,37 +97,21 @@ export const knowledgeApi = {
 
   /** 上传文档。 */
   uploadDocument: (id: KnowledgeResourceId, file: File, onProgress?: (pct: number) => void) => {
-    return new Promise<KnowledgeDocument>((resolve, reject) => {
-      const xhr = new XMLHttpRequest()
-      xhr.open("POST", buildApiUrl(`${API_PATH}/${id}/documents/batch`))
-
-      const { accessToken } = useAuthStore.getState()
-      if (accessToken) {
-        xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`)
-      }
-
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable && onProgress) {
-          onProgress(Math.round((event.loaded / event.total) * 100))
+    const formData = new FormData()
+    formData.append("files", file)
+    return backendApi
+      .post<KnowledgeDocument[]>(`${API_PATH}/${id}/documents/batch`, formData, {
+        headers: { "Content-Type": undefined },
+        onUploadProgress: (event) => {
+          if (event.total && onProgress) {
+            onProgress(Math.round((event.loaded / event.total) * 100))
+          }
         }
-      }
-
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          const response = JSON.parse(xhr.responseText) as { data?: unknown }
-          const data = Array.isArray(response.data) ? response.data[0] : response.data
-          resolve(data as KnowledgeDocument)
-          return
-        }
-        reject(new Error(`上传失败: ${xhr.status} ${xhr.statusText}`))
-      }
-
-      xhr.onerror = () => reject(new Error("网络错误"))
-
-      const formData = new FormData()
-      formData.append("files", file)
-      xhr.send(formData)
-    })
+      })
+      .then(([document]) => {
+        if (!document) throw new Error("上传成功但未返回文档")
+        return document
+      })
   }
 }
 

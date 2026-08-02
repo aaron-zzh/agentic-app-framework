@@ -28,9 +28,15 @@ import {
 
 const DOCUMENT: KnowledgeDocument = {
   id: 31,
+  stableId: "00000000-0000-0000-0000-000000000031",
   knowledgeBaseId: 12,
+  sourceDocumentId: 88,
+  uploadedBy: 7,
+  sourceType: "FILE",
+  sourceKey: "architecture.md",
+  sourceUri: "/knowledge/architecture.md",
+  activeRunId: "00000000-0000-0000-0000-000000000099",
   title: "架构说明",
-  filePath: "/knowledge/architecture.md",
   fileType: "md",
   fileSize: 1024,
   contentHash: "sha256:test",
@@ -59,17 +65,39 @@ describe("knowledgeApi", () => {
     expect(backendApiMock.post).toHaveBeenCalledWith("/knowledge-bases/12/documents/31/retry")
   })
 
-  it("检索应原样发送统一 wire contract", async () => {
+  it("检索应发送授权多库 wire contract 并默认包含公共库", async () => {
     const request = {
       query: "实体注册表",
+      knowledgeBaseIds: ["00000000-0000-0000-0000-000000000012"],
+      sourceFilters: { sourceTypes: ["FILE" as const] },
       topK: 8,
       threshold: 0.65,
       mode: "hybrid" as const
     }
 
-    await knowledgeApi.search(12, request)
+    await knowledgeApi.search(request)
 
-    expect(backendApiMock.post).toHaveBeenCalledWith("/knowledge-bases/12/search", request)
+    expect(backendApiMock.post).toHaveBeenCalledWith("/knowledge-bases/search", {
+      ...request,
+      includePublic: true
+    })
+  })
+
+  it("纯图检索应按 graph 模式发送授权多库请求", async () => {
+    const request = {
+      query: "实体关系",
+      knowledgeBaseIds: ["00000000-0000-0000-0000-000000000012"],
+      topK: 5,
+      threshold: 0,
+      mode: "graph" as const
+    }
+
+    await knowledgeApi.search(request)
+
+    expect(backendApiMock.post).toHaveBeenCalledWith("/knowledge-bases/search", {
+      ...request,
+      includePublic: true
+    })
   })
 })
 

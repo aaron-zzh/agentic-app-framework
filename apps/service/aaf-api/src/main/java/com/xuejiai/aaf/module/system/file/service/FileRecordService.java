@@ -1,12 +1,5 @@
 package com.xuejiai.aaf.module.system.file.service;
 
-import java.util.Set;
-
-import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.exception.QuotaExceededException;
@@ -15,12 +8,18 @@ import com.xuejiai.aaf.common.model.SpecificationBuilder;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.storage.StorageService;
 import com.xuejiai.aaf.module.billing.repository.EntitlementQuotaRepository;
+import com.xuejiai.aaf.module.system.file.api.FileRecordApi;
 import com.xuejiai.aaf.module.system.file.domain.FileRecord;
 import com.xuejiai.aaf.module.system.file.repository.FileRecordRepository;
 import com.xuejiai.aaf.module.system.file.vo.FileRecordPageDTO;
 import com.xuejiai.aaf.module.system.file.vo.FileRecordVO;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Set;
 
 /**
  * 文件记录业务逻辑——sys_file 唯一写入收口。
@@ -30,7 +29,7 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class FileRecordService {
+public class FileRecordService implements FileRecordApi {
 
     private static final long GB = 1024L * 1024 * 1024;
     private static final Set<String> SORTABLE_FIELDS =
@@ -73,6 +72,20 @@ public class FileRecordService {
     /** M29：当前用户的存储命名空间前缀（不含结尾斜杠），供预签名上传按 owner 生成 key。 */
     public String currentOwnerNamespace() {
         return "users/" + requireCurrentOwnerId();
+    }
+
+    /** 供其他业务模块登记当前用户上传的来源文件。 */
+    @Override
+    @Transactional
+    public SourceFile registerCurrent(String key, String originalName, String mimeType, long size) {
+        var saved = saveForCurrentOwner(key, originalName, mimeType, size);
+        return new SourceFile(
+                saved.getId(),
+                saved.getKey(),
+                saved.getOriginalName(),
+                saved.getMimeType(),
+                saved.getSize(),
+                saved.getUploaderId());
     }
 
     /** HTTP 上传完成后按当前身份保存记录。 */

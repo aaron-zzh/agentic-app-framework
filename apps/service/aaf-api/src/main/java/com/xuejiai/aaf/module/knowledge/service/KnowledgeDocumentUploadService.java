@@ -14,9 +14,12 @@ import org.springframework.web.multipart.MultipartFile;
 import com.xuejiai.aaf.common.enums.knowledge.DocumentStatusEnum;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.storage.FileService;
+import com.xuejiai.aaf.module.document.api.DocumentSourceApi;
+import com.xuejiai.aaf.module.document.api.DocumentSourceApi.SourceDocumentCommand;
 import com.xuejiai.aaf.module.knowledge.domain.KnowledgeBase;
 import com.xuejiai.aaf.module.knowledge.domain.KnowledgeDocument;
 import com.xuejiai.aaf.module.knowledge.repository.KnowledgeDocumentRepository;
+import com.xuejiai.aaf.module.system.file.api.FileRecordApi;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +33,8 @@ public class KnowledgeDocumentUploadService {
     private final KnowledgeDocumentRepository documentRepository;
     private final KnowledgeDocumentQueueService queueService;
     private final FileService fileService;
+    private final FileRecordApi fileRecordApi;
+    private final DocumentSourceApi documentSourceApi;
 
     @Transactional
     public List<KnowledgeDocument> upload(KnowledgeBase knowledgeBase, MultipartFile[] files) {
@@ -51,9 +56,26 @@ public class KnowledgeDocumentUploadService {
             }
             var stored = fileService.upload(file);
             uploadedKeys.add(stored.key());
+            var sourceFile =
+                    fileRecordApi.registerCurrent(
+                            stored.key(), originalFilename, file.getContentType(), file.getSize());
+            var sourceDocument =
+                    documentSourceApi.register(
+                            new SourceDocumentCommand(
+                                    sourceFile.id(),
+                                    originalFilename,
+                                    "knowledge_source",
+                                    stored.key(),
+                                    null,
+                                    sourceFile.uploaderId()));
 
             var document = new KnowledgeDocument();
             document.setKnowledgeBaseId(knowledgeBase.getId());
+            document.setSourceDocumentId(sourceDocument.id());
+            document.setUploadedBy(sourceFile.uploaderId());
+            document.setSourceType("FILE");
+            document.setSourceKey(stored.key());
+            document.setSourceUri(stored.url());
             document.setTitle(originalFilename);
             document.setFilePath(stored.key());
             document.setFileType(extractFileType(originalFilename));

@@ -39,6 +39,7 @@ export function SearchTestPanel({ knowledgeBaseId }: SearchTestPanelProps) {
   const [threshold, setThreshold] = useState(0.7)
   const [mode, setMode] = useState<KnowledgeSearchMode>("hybrid")
   const [showParams, setShowParams] = useState(false)
+  const vectorThresholdEnabled = mode === "vector" || mode === "hybrid"
 
   const {
     mutate: search,
@@ -46,10 +47,11 @@ export function SearchTestPanel({ knowledgeBaseId }: SearchTestPanelProps) {
     isPending
   } = useMutation({
     mutationFn: () =>
-      knowledgeApi.search(knowledgeBaseId, {
+      knowledgeApi.search({
         query: query.trim(),
+        knowledgeBaseIds: [knowledgeBaseId],
         topK,
-        threshold: mode === "keyword" ? 0 : threshold,
+        threshold: vectorThresholdEnabled ? threshold : 0,
         mode
       })
   })
@@ -112,7 +114,7 @@ export function SearchTestPanel({ knowledgeBaseId }: SearchTestPanelProps) {
                 max={1}
                 step={0.05}
                 value={threshold}
-                disabled={mode === "keyword"}
+                disabled={!vectorThresholdEnabled}
                 onChange={(event) =>
                   setThreshold(Math.min(1, Math.max(0, Number(event.target.value))))
                 }
@@ -133,6 +135,7 @@ export function SearchTestPanel({ knowledgeBaseId }: SearchTestPanelProps) {
                   <SelectGroup>
                     <SelectItem value="vector">向量检索</SelectItem>
                     <SelectItem value="keyword">关键词检索</SelectItem>
+                    <SelectItem value="graph">图检索</SelectItem>
                     <SelectItem value="hybrid">混合检索</SelectItem>
                   </SelectGroup>
                 </SelectContent>
@@ -170,34 +173,35 @@ function SearchResults({ data }: { data: SearchResponse }) {
 }
 
 function SearchResultCard({ item }: { item: SearchResultItem }) {
-  const hasMetadata = Object.keys(item.metadata).length > 0
+  const sourceLabel = `${item.source.knowledgeBaseName} · ${item.source.sourceType}`
   return (
     <Card>
       <CardContent className="flex flex-col gap-3 pt-4">
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary">{item.source}</Badge>
-          <span className="text-muted-foreground text-xs">
-            相似度：{(item.score * 100).toFixed(1)}%
-          </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary">{sourceLabel}</Badge>
+          {item.matchedChannels.map((channel) => (
+            <Badge key={channel} variant="outline">
+              {channel}
+            </Badge>
+          ))}
+          <span className="text-muted-foreground text-xs">融合分数：{item.score.toFixed(4)}</span>
         </div>
         <p className="whitespace-pre-wrap text-sm leading-relaxed">{item.content}</p>
-        {hasMetadata ? (
-          <details>
-            <summary className="cursor-pointer text-muted-foreground text-xs">metadata</summary>
-            <pre className="mt-2 overflow-x-auto rounded-md bg-muted p-3 text-xs">
-              {JSON.stringify(item.metadata, null, 2)}
-            </pre>
-          </details>
-        ) : null}
+        <details>
+          <summary className="cursor-pointer text-muted-foreground text-xs">来源与证据</summary>
+          <pre className="mt-2 overflow-x-auto rounded-md bg-muted p-3 text-xs">
+            {JSON.stringify(item.source, null, 2)}
+          </pre>
+        </details>
       </CardContent>
     </Card>
   )
 }
 
 function isKnowledgeSearchMode(value: string | null): value is KnowledgeSearchMode {
-  return value === "vector" || value === "keyword" || value === "hybrid"
+  return value === "vector" || value === "keyword" || value === "graph" || value === "hybrid"
 }
 
 function searchResultKey(item: SearchResultItem): string {
-  return `${item.source}:${item.score}:${item.content}`
+  return item.candidateKey
 }

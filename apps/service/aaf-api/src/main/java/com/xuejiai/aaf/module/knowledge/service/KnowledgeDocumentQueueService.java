@@ -36,7 +36,6 @@ public class KnowledgeDocumentQueueService implements TaskHandler {
     private final KnowledgePipelineService pipelineService;
     private final PermissionExecutionService permissionExecutionService;
     private final KnowledgeDocumentExecutionLeaseService executionLeaseService;
-    private final KnowledgeEntityResolutionQueueService entityResolutionQueueService;
 
     public String enqueue(KnowledgeDocument document) {
         var payload =
@@ -112,11 +111,6 @@ public class KnowledgeDocumentQueueService implements TaskHandler {
             if (!result.success()) {
                 throw new IllegalStateException("知识库文档处理失败: " + result.errorMessage());
             }
-            entityResolutionQueueService.enqueue(
-                    document.getKnowledgeBaseId(),
-                    document.getOwnerId(),
-                    document.getOrgId(),
-                    document.getWorkspaceId());
         } catch (java.io.IOException failure) {
             throw new IllegalStateException("关闭知识库文档输入流失败", failure);
         }

@@ -31,14 +31,27 @@ public class SimilaritySearchService {
         var documents =
                 knowledgeVectorService.search(request.query(), request.topK(), filterExpression);
 
-        return documents.stream()
-                .map(this::toSearchResult)
-                .filter(r -> r.score() >= request.similarityThreshold())
+        var converted =
+                documents.stream()
+                        .map(this::toSearchResult)
+                        .filter(result -> result.score() >= request.similarityThreshold())
+                        .filter(result -> result.chunkId() != null && !result.chunkId().isBlank())
+                        .toList();
+        var candidateIds =
+                converted.stream()
+                        .map(SearchResult::chunkId)
+                        .map(UUID::fromString)
+                        .collect(Collectors.toUnmodifiableSet());
+        var currentIds =
+                knowledgeVectorService.retainCurrentChunkIds(
+                        candidateIds, request.knowledgeBaseId(), request.sourceFilters());
+        return converted.stream()
+                .filter(result -> currentIds.contains(UUID.fromString(result.chunkId())))
                 .collect(
                         Collectors.toMap(
-                                r -> r.content().hashCode(),
-                                r -> r,
-                                (a, b) -> a.score() >= b.score() ? a : b,
+                                SearchResult::chunkId,
+                                result -> result,
+                                (left, right) -> left.score() >= right.score() ? left : right,
                                 LinkedHashMap::new))
                 .values()
                 .stream()
@@ -49,19 +62,32 @@ public class SimilaritySearchService {
     private String buildFilterExpression(SearchRequest request) {
         var conditions = new ArrayList<String>();
 
-        if (request.knowledgeBaseId() != null) {
-            conditions.add("knowledge_base_id == %d".formatted(request.knowledgeBaseId()));
+        conditions.add("knowledge_base_id == \"%s\"".formatted(request.knowledgeBaseId()));
+        var filters = request.sourceFilters();
+        if (!filters.sourceTypes().isEmpty()) {
+            conditions.add(orEquals("source_type", filters.sourceTypes()));
         }
-        if (request.documentId() != null) {
-            conditions.add("document_id == %d".formatted(request.documentId()));
+        if (!filters.sourceKeys().isEmpty()) {
+            conditions.add(orEquals("source_key", filters.sourceKeys()));
         }
-        if (request.tags() != null && !request.tags().isEmpty()) {
-            for (var tag : request.tags()) {
-                conditions.add("tags in [\"%s\"]".formatted(tag));
-            }
+        if (!filters.documentIds().isEmpty()) {
+            conditions.add(
+                    orEquals(
+                            "document_id",
+                            filters.documentIds().stream().map(UUID::toString).toList()));
         }
 
-        return conditions.isEmpty() ? null : String.join(" && ", conditions);
+        return String.join(" && ", conditions);
+    }
+
+    private String orEquals(String field, Collection<String> values) {
+        return values.stream()
+                .map(value -> "%s == \"%s\"".formatted(field, escape(value)))
+                .collect(Collectors.joining(" || ", "(", ")"));
+    }
+
+    private String escape(String value) {
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     private SearchResult toSearchResult(Document doc) {
@@ -77,7 +103,7 @@ public class SimilaritySearchService {
                 doc.getText(),
                 score,
                 metadata,
-                doc.getId(),
+                Objects.toString(metadata.get("chunk_id"), null),
                 Objects.toString(metadata.get("document_id"), null));
     }
 }

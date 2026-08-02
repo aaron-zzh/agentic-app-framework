@@ -14,8 +14,8 @@ import com.xuejiai.aaf.framework.storage.FileService;
 import com.xuejiai.aaf.framework.storage.FileVO;
 import com.xuejiai.aaf.module.document.domain.Document;
 import com.xuejiai.aaf.module.document.repository.DocumentRepository;
-import com.xuejiai.aaf.module.system.file.domain.FileRecord;
-import com.xuejiai.aaf.module.system.file.repository.FileRecordRepository;
+import com.xuejiai.aaf.module.system.file.api.FileRecordApi;
+import com.xuejiai.aaf.module.system.file.api.FileRecordApi.SourceFile;
 
 import lombok.RequiredArgsConstructor;
 
@@ -27,7 +27,7 @@ public class DocImportService {
     private static final Logger log = LoggerFactory.getLogger(DocImportService.class);
 
     private final FileService fileService;
-    private final FileRecordRepository fileRecordRepository;
+    private final FileRecordApi fileRecordApi;
     private final DocumentRepository documentRepository;
 
     /**
@@ -40,7 +40,7 @@ public class DocImportService {
     public Document importPdf(MultipartFile file) throws IOException {
         // 1. 上传原始文件到 OSS，记录 sys_file
         FileVO uploaded = fileService.upload(file);
-        FileRecord fileRecord = saveFileRecord(uploaded, file);
+        var fileRecord = saveFileRecord(uploaded, file);
 
         // 2. 提取 PDF 文本
         String text = extractText(file);
@@ -53,7 +53,7 @@ public class DocImportService {
         doc.setContent(text);
         doc.setStatus("active");
         doc.setPublish("draft");
-        doc.setSourceFileId(fileRecord.getId());
+        doc.setSourceFileId(fileRecord.id());
         documentRepository.save(doc);
 
         log.info("PDF 导入完成：file={}, docId={}", file.getOriginalFilename(), doc.getId());
@@ -67,15 +67,12 @@ public class DocImportService {
 
     // ── 私有方法 ──────────────────────────────────────────────
 
-    private FileRecord saveFileRecord(FileVO uploaded, MultipartFile file) {
-        FileRecord record = new FileRecord();
-        record.setKey(uploaded.key());
-        record.setOriginalName(
-                file.getOriginalFilename() != null ? file.getOriginalFilename() : uploaded.key());
-        record.setMimeType(file.getContentType());
-        record.setSize(file.getSize());
-        record.setStoragePath(uploaded.url());
-        return fileRecordRepository.save(record);
+    private SourceFile saveFileRecord(FileVO uploaded, MultipartFile file) {
+        return fileRecordApi.registerCurrent(
+                uploaded.key(),
+                file.getOriginalFilename() != null ? file.getOriginalFilename() : uploaded.key(),
+                file.getContentType(),
+                file.getSize());
     }
 
     private String extractText(MultipartFile file) throws IOException {

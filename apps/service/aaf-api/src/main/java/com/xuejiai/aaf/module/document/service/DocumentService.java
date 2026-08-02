@@ -17,6 +17,9 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.module.document.api.DocumentSourceApi;
+import com.xuejiai.aaf.module.document.api.DocumentSourceApi.SourceDocument;
+import com.xuejiai.aaf.module.document.api.DocumentSourceApi.SourceDocumentCommand;
 import com.xuejiai.aaf.module.document.domain.DocLink;
 import com.xuejiai.aaf.module.document.domain.Document;
 import com.xuejiai.aaf.module.document.repository.DocLinkRepository;
@@ -25,7 +28,7 @@ import com.xuejiai.aaf.module.document.vo.*;
 
 /** 文档管理服务。 */
 @Service
-public class DocumentService {
+public class DocumentService implements DocumentSourceApi {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentService.class);
 
@@ -47,6 +50,24 @@ public class DocumentService {
         this.docLinkRepository = docLinkRepository;
         this.docImportService = docImportService;
         this.operatorContext = operatorContext;
+    }
+
+    /** 将已登记文件建档为知识来源文档。 */
+    @Override
+    @Transactional
+    public SourceDocument register(SourceDocumentCommand command) {
+        var doc = new Document();
+        doc.setTitle(command.title());
+        doc.setFilePath(command.sourceKey());
+        doc.setDocType(command.documentType());
+        doc.setContent(command.content());
+        doc.setStatus("active");
+        doc.setPublish("draft");
+        doc.setSourceFileId(command.sourceFileId());
+        doc.setOwnerId(command.ownerId());
+        var saved = documentRepository.save(doc);
+        return new SourceDocument(
+                saved.getId(), saved.getSourceFileId(), saved.getFilePath(), saved.getOwnerId());
     }
 
     /** 统计当前用户有效文档数量。 */

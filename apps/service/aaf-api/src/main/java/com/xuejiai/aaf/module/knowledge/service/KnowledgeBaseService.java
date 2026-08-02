@@ -2,11 +2,15 @@ package com.xuejiai.aaf.module.knowledge.service;
 
 import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -23,24 +27,34 @@ import com.xuejiai.aaf.framework.crud.definition.CrudOperation;
 import com.xuejiai.aaf.framework.crud.enforcement.AccessMode;
 import com.xuejiai.aaf.framework.engine.knowledge.graph.GraphService;
 import com.xuejiai.aaf.framework.engine.knowledge.pipeline.KnowledgePipelineService;
-import com.xuejiai.aaf.framework.engine.knowledge.rag.HybridSearchConfig;
 import com.xuejiai.aaf.framework.engine.knowledge.rag.HybridSearchService;
-import com.xuejiai.aaf.framework.engine.knowledge.rag.RagSearchResult;
+import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeGraphProjectionService;
+import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeSearchContracts.AuthorizedQuery;
+import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeSearchContracts.ChannelWeights;
+import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeSearchContracts.Response;
+import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore;
 import com.xuejiai.aaf.framework.engine.meta.runtime.TaskExecutionInProgressException;
+import com.xuejiai.aaf.framework.org.OrgContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationSubject;
 import com.xuejiai.aaf.module.knowledge.domain.KnowledgeBase;
 import com.xuejiai.aaf.module.knowledge.domain.KnowledgeDocument;
 import com.xuejiai.aaf.module.knowledge.repository.KnowledgeBaseRepository;
 import com.xuejiai.aaf.module.knowledge.repository.KnowledgeDocumentRepository;
 import com.xuejiai.aaf.module.knowledge.vo.BatchImportProgressVO;
 import com.xuejiai.aaf.module.knowledge.vo.CreateKnowledgeBaseRequest;
+import com.xuejiai.aaf.module.knowledge.vo.KnowledgeBaseMaintenancePageDTO;
+import com.xuejiai.aaf.module.knowledge.vo.KnowledgeBaseMaintenanceVO;
 import com.xuejiai.aaf.module.knowledge.vo.KnowledgeBaseStatsVO;
 import com.xuejiai.aaf.module.knowledge.vo.KnowledgeBaseUpdateDTO;
 import com.xuejiai.aaf.module.knowledge.vo.KnowledgeBaseVO;
 import com.xuejiai.aaf.module.knowledge.vo.KnowledgeDocumentVO;
 import com.xuejiai.aaf.module.knowledge.vo.KnowledgeGraphVO;
+import com.xuejiai.aaf.module.knowledge.vo.KnowledgeGraphVO.GraphProjectionStatusVO;
 import com.xuejiai.aaf.module.knowledge.vo.KnowledgeSearchDTO;
 import com.xuejiai.aaf.module.knowledge.vo.KnowledgeSearchResponseVO;
 import com.xuejiai.aaf.module.knowledge.vo.KnowledgeSearchResponseVO.SearchResultItemVO;
+import com.xuejiai.aaf.module.knowledge.vo.KnowledgeSearchResponseVO.SourceVO;
 
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
@@ -56,6 +70,18 @@ public class KnowledgeBaseService
                 KnowledgeBaseUpdateDTO,
                 PageParam> {
 
+    private static final Set<String> MAINTENANCE_SORT_FIELDS =
+            Set.of(
+                    "id",
+                    "name",
+                    "visibility",
+                    "status",
+                    "ownerId",
+                    "orgId",
+                    "workspaceId",
+                    "createTime",
+                    "updateTime");
+
     private final KnowledgeBaseRepository knowledgeBaseRepository;
     private final KnowledgeDocumentRepository knowledgeDocumentRepository;
     private final KnowledgeDocumentUploadService uploadService;
@@ -63,9 +89,12 @@ public class KnowledgeBaseService
     private final KnowledgeDocumentExecutionLeaseService executionLeaseService;
     private final HybridSearchService hybridSearchService;
     private final GraphService graphService;
+    private final KnowledgeGraphProjectionService graphProjectionService;
+    private final TrustedKnowledgeStore truthStore;
     private final KnowledgePipelineService pipelineService;
     private final KnowledgeDocumentCleanupQueueService cleanupQueueService;
     private final EntityManager entityManager;
+    private final OperatorContext operatorContext;
 
     @Override
     protected KnowledgeBaseRepository getRepository() {
@@ -76,8 +105,11 @@ public class KnowledgeBaseService
     protected KnowledgeBaseVO toVO(KnowledgeBase entity) {
         return new KnowledgeBaseVO(
                 entity.getId(),
+                entity.getStableId(),
                 entity.getName(),
                 entity.getDescription(),
+                entity.getVisibility(),
+                entity.getScopeCode(),
                 entity.getEmbeddingModel(),
                 Objects.requireNonNullElse(entity.getChunkStrategy(), "recursive"),
                 Objects.requireNonNullElse(entity.getChunkSize(), 512),
@@ -93,6 +125,8 @@ public class KnowledgeBaseService
         var entity = new KnowledgeBase();
         entity.setName(requireName(request.name()));
         entity.setDescription(request.description());
+        entity.setVisibility(Objects.requireNonNullElse(request.visibility(), "PRIVATE"));
+        entity.setScopeCode(request.scopeCode());
         entity.setEmbeddingModel(request.embeddingModel());
         entity.setChunkStrategy(Objects.requireNonNullElse(request.chunkStrategy(), "recursive"));
         entity.setChunkSize(Objects.requireNonNullElse(request.chunkSize(), 512));
@@ -108,6 +142,12 @@ public class KnowledgeBaseService
         }
         if (request.description() != null) {
             entity.setDescription(request.description());
+        }
+        if (request.visibility() != null) {
+            entity.setVisibility(request.visibility());
+        }
+        if (request.scopeCode() != null) {
+            entity.setScopeCode(request.scopeCode());
         }
         if (request.embeddingModel() != null) {
             entity.setEmbeddingModel(request.embeddingModel());
@@ -134,8 +174,98 @@ public class KnowledgeBaseService
         return List.of("name");
     }
 
+    /** 后台运维分页；绕过个人与记录范围，但始终保留租户范围。 */
+    public PageResult<KnowledgeBaseMaintenanceVO> pageMaintenance(
+            KnowledgeBaseMaintenancePageDTO request) {
+        var decision = enforce(CrudOperation.QUERY, AccessMode.ADMIN_MAINTENANCE);
+        var pageable =
+                request.toPageable(
+                        Sort.by(Sort.Order.desc("createTime"), Sort.Order.desc("id")),
+                        MAINTENANCE_SORT_FIELDS);
+        var page =
+                knowledgeBaseRepository.findAll(
+                        Specification.allOf(
+                                decision.scopeSpecification(), buildMaintenanceSpec(request)),
+                        pageable);
+        return new PageResult<>(
+                page.getContent().stream().map(this::toMaintenanceVO).toList(),
+                page.getTotalElements());
+    }
+
+    /** 后台运维详情；使用与分页相同的 ADMIN_MAINTENANCE 安全模式。 */
+    public KnowledgeBaseMaintenanceVO getMaintenance(Long id) {
+        return toMaintenanceVO(
+                requireEntity(id, CrudOperation.GET, AccessMode.ADMIN_MAINTENANCE));
+    }
+
+    private Specification<KnowledgeBase> buildMaintenanceSpec(
+            KnowledgeBaseMaintenancePageDTO request) {
+        return (root, query, criteriaBuilder) -> {
+            var predicates = new ArrayList<jakarta.persistence.criteria.Predicate>();
+            if (request.getName() != null && !request.getName().isBlank()) {
+                predicates.add(
+                        criteriaBuilder.like(
+                                criteriaBuilder.lower(root.get("name")),
+                                "%"
+                                        + request.getName()
+                                                .trim()
+                                                .toLowerCase(Locale.ROOT)
+                                        + "%"));
+            }
+            if (request.getOrgId() != null) {
+                predicates.add(criteriaBuilder.equal(root.get("orgId"), request.getOrgId()));
+            }
+            if (request.getWorkspaceId() != null) {
+                predicates.add(
+                        criteriaBuilder.equal(root.get("workspaceId"), request.getWorkspaceId()));
+            }
+            if (request.getOwnerId() != null) {
+                predicates.add(criteriaBuilder.equal(root.get("ownerId"), request.getOwnerId()));
+            }
+            if (request.getVisibility() != null && !request.getVisibility().isBlank()) {
+                predicates.add(
+                        criteriaBuilder.equal(
+                                root.get("visibility"), request.getVisibility().trim()));
+            }
+            if (request.getStatus() != null) {
+                predicates.add(criteriaBuilder.equal(root.get("status"), request.getStatus()));
+            }
+            return criteriaBuilder.and(
+                    predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
+    }
+
+    private KnowledgeBaseMaintenanceVO toMaintenanceVO(KnowledgeBase entity) {
+        return new KnowledgeBaseMaintenanceVO(
+                entity.getId(),
+                entity.getStableId(),
+                entity.getOrgId(),
+                entity.getWorkspaceId(),
+                entity.getOwnerId(),
+                entity.getName(),
+                entity.getDescription(),
+                entity.getVisibility(),
+                entity.getScopeCode(),
+                entity.getEmbeddingModel(),
+                Objects.requireNonNullElse(entity.getChunkStrategy(), "recursive"),
+                Objects.requireNonNullElse(entity.getChunkSize(), 512),
+                Objects.requireNonNullElse(entity.getChunkOverlap(), 64),
+                Objects.requireNonNullElse(entity.getDocumentCount(), 0L),
+                entity.getStatus(),
+                entity.getCreateTime(),
+                entity.getUpdateTime());
+    }
+
     public KnowledgeBaseStatsVO getStats(Long id) {
-        requireEntity(id);
+        return stats(requireEntity(id));
+    }
+
+    public KnowledgeBaseStatsVO getMaintenanceStats(Long id) {
+        return stats(requireEntity(id, CrudOperation.GET, AccessMode.ADMIN_MAINTENANCE));
+    }
+
+    private KnowledgeBaseStatsVO stats(KnowledgeBase knowledgeBase) {
+        var id = knowledgeBase.getId();
         var documentCount = knowledgeDocumentRepository.countByKnowledgeBaseId(id);
         var chunkCount = knowledgeDocumentRepository.sumChunkCountByKnowledgeBaseId(id);
         var totalSize = knowledgeDocumentRepository.sumFileSizeByKnowledgeBaseId(id);
@@ -144,43 +274,61 @@ public class KnowledgeBaseService
                                 entityManager
                                         .createNativeQuery(
                                                 "SELECT COUNT(*) FROM ai_knowledge_embedding WHERE metadata ->> 'knowledge_base_id' = CAST(:id AS TEXT)")
-                                        .setParameter("id", id)
+                                        .setParameter("id", knowledgeBase.getStableId())
                                         .getSingleResult())
                         .longValue();
         return new KnowledgeBaseStatsVO(documentCount, chunkCount, vectorCount, totalSize);
     }
 
     public PageResult<KnowledgeDocumentVO> listDocuments(Long id, Pageable pageable) {
-        requireEntity(id);
+        return listDocuments(id, pageable, AccessMode.DEFAULT);
+    }
+
+    public PageResult<KnowledgeDocumentVO> listMaintenanceDocuments(Long id, Pageable pageable) {
+        return listDocuments(id, pageable, AccessMode.ADMIN_MAINTENANCE);
+    }
+
+    private PageResult<KnowledgeDocumentVO> listDocuments(
+            Long id, Pageable pageable, AccessMode accessMode) {
+        requireEntity(id, CrudOperation.GET, accessMode);
         var page = knowledgeDocumentRepository.findByKnowledgeBaseId(id, pageable);
         return new PageResult<>(
                 page.getContent().stream().map(this::toDocumentVO).toList(),
                 page.getTotalElements());
     }
 
-    public KnowledgeSearchResponseVO search(Long id, KnowledgeSearchDTO request) {
-        requireEntity(id);
-        var topK = request.effectiveTopK();
-        var threshold = request.effectiveThreshold();
-        var results =
+    public KnowledgeSearchResponseVO search(KnowledgeSearchDTO request) {
+        var channelWeights =
                 switch (request.effectiveMode()) {
-                    case "vector" ->
-                            hybridSearchService.vectorSearch(request.query(), id, topK, threshold);
-                    case "keyword" -> hybridSearchService.keywordSearch(request.query(), id, topK);
-                    case "hybrid" ->
-                            hybridSearchService.hybridSearch(
-                                    request.query(),
-                                    id,
-                                    new HybridSearchConfig(0.5, 0.3, 0.2, topK),
-                                    threshold);
+                    case "vector" -> new ChannelWeights(1.0, 0.0, 0.0);
+                    case "keyword" -> new ChannelWeights(0.0, 1.0, 0.0);
+                    case "graph" -> new ChannelWeights(0.0, 0.0, 1.0);
+                    case "hybrid" -> ChannelWeights.defaults();
                     default -> throw exception(GlobalErrorCode.BAD_REQUEST);
                 };
-        return toSearchResponse(results);
+        var subject =
+                new AuthorizationSubject(
+                        operatorContext.currentOperatorId().orElse(null),
+                        operatorContext.currentOwnerId().orElse(null),
+                        OrgContext.getCurrentOrgId(),
+                        OrgContext.getCurrentWorkspaceId());
+        var query =
+                new AuthorizedQuery(
+                        subject,
+                        request.query(),
+                        request.effectiveKnowledgeBaseIds(),
+                        request.effectiveIncludePublic(),
+                        request.effectiveKnowledgeBaseWeights(),
+                        channelWeights,
+                        request.effectiveTopK(),
+                        request.effectiveThreshold(),
+                        request.effectiveSourceFilters());
+        return toSearchResponse(hybridSearchService.search(query));
     }
 
     public KnowledgeGraphVO getGraph(Long id) {
-        requireEntity(id);
-        var snapshot = graphService.snapshot(id);
+        var knowledgeBase = requireEntity(id);
+        var snapshot = graphService.snapshot(knowledgeBase.getStableId());
         return new KnowledgeGraphVO(
                 snapshot.nodes().stream()
                         .map(
@@ -189,20 +337,51 @@ public class KnowledgeBaseService
                                                 node.id(),
                                                 node.name(),
                                                 node.type(),
-                                                node.description(),
-                                                node.sourceDocumentId()))
+                                                node.description()))
                         .toList(),
                 snapshot.edges().stream()
                         .map(
                                 edge ->
                                         new KnowledgeGraphVO.GraphEdgeVO(
                                                 edge.id(),
+                                                edge.factKey(),
                                                 edge.sourceId(),
                                                 edge.targetId(),
-                                                edge.type(),
+                                                edge.predicate(),
                                                 edge.confidence(),
-                                                edge.sourceDocumentId()))
+                                                edge.evidenceIds()))
                         .toList());
+    }
+
+    public GraphProjectionStatusVO getGraphProjectionStatus(Long id) {
+        var knowledgeBase =
+                requireEntity(id, CrudOperation.GET, AccessMode.ADMIN_MAINTENANCE);
+        return graphProjectionStatus(knowledgeBase);
+    }
+
+    public GraphProjectionStatusVO rebuildGraphProjection(Long id, String requestKey) {
+        var knowledgeBase =
+                requireEntity(id, CrudOperation.UPDATE, AccessMode.ADMIN_MAINTENANCE);
+        graphProjectionService.rebuild(knowledgeBase.getStableId(), requestKey);
+        return graphProjectionStatus(knowledgeBase);
+    }
+
+    private GraphProjectionStatusVO graphProjectionStatus(KnowledgeBase knowledgeBase) {
+        var status =
+                truthStore
+                        .graphProjectionStatus(knowledgeBase.getStableId())
+                        .orElseThrow(() -> exception(GlobalErrorCode.NOT_FOUND));
+        return new GraphProjectionStatusVO(
+                status.knowledgeBaseId(),
+                "NEO4J",
+                status.baseWatermark(),
+                status.desiredWatermark(),
+                status.appliedWatermark(),
+                status.status(),
+                status.rebuildRequestKey(),
+                status.errorMessage(),
+                status.updatedAt(),
+                status.ready());
     }
 
     public KnowledgeDocumentVO getDocument(Long id, Long documentId) {
@@ -219,7 +398,7 @@ public class KnowledgeBaseService
                     guard -> {
                         var document = requireDocument(id, documentId);
                         guard.run();
-                        pipelineService.clearDocumentRelationalData(documentId);
+                        pipelineService.revokeDocument(documentId);
                         guard.run();
                         knowledgeDocumentRepository.delete(document);
                         enqueueCleanupAfterCommit(document);
@@ -231,7 +410,17 @@ public class KnowledgeBaseService
 
     @Transactional
     public KnowledgeDocumentVO retryDocument(Long id, Long documentId) {
-        requireEntity(id, CrudOperation.UPDATE, AccessMode.DEFAULT);
+        return retryDocument(id, documentId, AccessMode.DEFAULT);
+    }
+
+    @Transactional
+    public KnowledgeDocumentVO retryMaintenanceDocument(Long id, Long documentId) {
+        return retryDocument(id, documentId, AccessMode.ADMIN_MAINTENANCE);
+    }
+
+    private KnowledgeDocumentVO retryDocument(
+            Long id, Long documentId, AccessMode accessMode) {
+        requireEntity(id, CrudOperation.UPDATE, accessMode);
         try {
             return executionLeaseService.executeResult(
                     documentId,
@@ -240,8 +429,6 @@ public class KnowledgeBaseService
                         if (!DocumentStatusEnum.FAILED.getCode().equals(document.getStatus())) {
                             throw exception(GlobalErrorCode.BAD_REQUEST);
                         }
-                        guard.run();
-                        pipelineService.clearDocumentData(id, documentId);
                         guard.run();
                         document.setStatus(DocumentStatusEnum.PENDING.getCode());
                         document.setErrorMessage(null);
@@ -304,20 +491,39 @@ public class KnowledgeBaseService
         return name.trim();
     }
 
-    private KnowledgeSearchResponseVO toSearchResponse(List<RagSearchResult> results) {
+    private KnowledgeSearchResponseVO toSearchResponse(Response response) {
         var items =
-                results.stream()
+                response.hits().stream()
                         .map(
-                                result ->
+                                hit ->
                                         new SearchResultItemVO(
-                                                result.content(),
-                                                result.score(),
-                                                result.source(),
-                                                result.metadata() == null
-                                                        ? Map.of()
-                                                        : result.metadata()))
+                                                hit.candidateKey(),
+                                                hit.content(),
+                                                hit.score(),
+                                                hit.matchedChannels().stream()
+                                                        .map(Enum::name)
+                                                        .collect(
+                                                                java.util.stream.Collectors
+                                                                        .toUnmodifiableSet()),
+                                                new SourceVO(
+                                                        hit.source().knowledgeBaseId(),
+                                                        hit.source().knowledgeBaseName(),
+                                                        hit.source().visibility().name(),
+                                                        hit.source().documentId(),
+                                                        hit.source().sourceType(),
+                                                        hit.source().sourceKey(),
+                                                        hit.source().sourceUri(),
+                                                        hit.source().runId(),
+                                                        hit.source().focusChunkId(),
+                                                        hit.source().factIds(),
+                                                        hit.source().evidenceIds())))
                         .toList();
-        return new KnowledgeSearchResponseVO(items);
+        return new KnowledgeSearchResponseVO(
+                items,
+                response.searchedKnowledgeBaseIds(),
+                response.degradedChannels().stream()
+                        .map(Enum::name)
+                        .collect(java.util.stream.Collectors.toUnmodifiableSet()));
     }
 
     private KnowledgeDocument requireDocument(Long knowledgeBaseId, Long documentId) {
@@ -357,9 +563,15 @@ public class KnowledgeBaseService
     private KnowledgeDocumentVO toDocumentVO(KnowledgeDocument entity) {
         return new KnowledgeDocumentVO(
                 entity.getId(),
+                entity.getStableId(),
                 entity.getKnowledgeBaseId(),
+                entity.getSourceDocumentId(),
+                entity.getUploadedBy(),
+                entity.getSourceType(),
+                entity.getSourceKey(),
+                entity.getSourceUri(),
+                entity.getActiveRunId(),
                 entity.getTitle(),
-                entity.getFilePath(),
                 entity.getFileType(),
                 entity.getFileSize(),
                 entity.getContentHash(),

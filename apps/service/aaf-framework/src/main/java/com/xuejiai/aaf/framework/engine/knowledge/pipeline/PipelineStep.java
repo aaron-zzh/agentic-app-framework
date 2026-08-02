@@ -4,7 +4,8 @@ package com.xuejiai.aaf.framework.engine.knowledge.pipeline;
 public enum PipelineStep {
     IMPORT,
     CHUNK,
-    EMBED,
     STORE,
-    GRAPH_EXTRACT
+    EMBED,
+    EXTRACT_FACTS,
+    PUBLISH
 }

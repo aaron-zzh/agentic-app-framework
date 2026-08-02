@@ -41,7 +41,9 @@ public class SystemConfigApiService {
         config.setDescription(dto.description());
         config.setVisible(dto.visible() != null ? dto.visible() : true);
         config.setEditable(dto.editable() != null ? dto.editable() : true);
-        return toVO(configRepository.save(config));
+        var saved = configRepository.save(config);
+        configService.evictAfterCommit(saved.getConfigKey());
+        return toVO(saved);
     }
 
     @Transactional
@@ -50,8 +52,8 @@ public class SystemConfigApiService {
                 configRepository
                         .findById(id)
                         .orElseThrow(() -> new IllegalArgumentException("配置项不存在"));
-        configService.evict(config.getConfigKey());
         configRepository.deleteById(id);
+        configService.evictAfterCommit(config.getConfigKey());
     }
 
     public SystemConfigVO toVO(SystemConfig c) {

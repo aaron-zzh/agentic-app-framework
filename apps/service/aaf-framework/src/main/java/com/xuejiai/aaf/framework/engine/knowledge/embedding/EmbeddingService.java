@@ -1,10 +1,13 @@
 package com.xuejiai.aaf.framework.engine.knowledge.embedding;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -14,6 +17,10 @@ import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.common.enums.pay.CreditTransactionCategoryEnum;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
+import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeUsagePort;
+import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeUsagePort.BillingContext;
+import com.xuejiai.aaf.framework.intelligent.core.AiUsage;
+import com.xuejiai.aaf.framework.intelligent.core.model.ModelManagementService;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -35,15 +42,21 @@ public class EmbeddingService {
     private final EmbeddingModel embeddingModel;
     private final EmbeddingProperties properties;
     private final AiCreditGuard creditGuard;
+    private final KnowledgeUsagePort knowledgeUsagePort;
+    private final ModelManagementService modelManagementService;
     private final ConcurrentHashMap<String, float[]> cache = new ConcurrentHashMap<>();
 
     public EmbeddingService(
             EmbeddingModel embeddingModel,
             EmbeddingProperties properties,
-            AiCreditGuard creditGuard) {
+            AiCreditGuard creditGuard,
+            KnowledgeUsagePort knowledgeUsagePort,
+            ModelManagementService modelManagementService) {
         this.embeddingModel = embeddingModel;
         this.properties = properties;
         this.creditGuard = creditGuard;
+        this.knowledgeUsagePort = knowledgeUsagePort;
+        this.modelManagementService = modelManagementService;
     }
 
     /** 单条文本生成 embedding，成本记账到 userId。 */
@@ -109,6 +122,140 @@ public class EmbeddingService {
             return HexFormat.of().formatHex(hash);
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    /** 知识入库批量向量化；调用前预留，provider 结果落盘后幂等结算。 */
+    public List<float[]> embedKnowledgeBatch(
+            List<String> texts, BillingContext billing, String unitKey) {
+        Objects.requireNonNull(texts, "texts 不能为空");
+        Objects.requireNonNull(billing, "billing 不能为空");
+        if (texts.isEmpty()) {
+            return List.of();
+        }
+        var model = modelManagementService.getModel(properties.model());
+        var inputDigest =
+                sha256(
+                        properties.model()
+                                + "|"
+                                + String.join("|", texts.stream().map(this::sha256).toList()));
+        var stored =
+                knowledgeUsagePort.findProviderResult(billing, "embedding", unitKey, inputDigest);
+        if (stored.isPresent()) {
+            var provider =
+                    com.xuejiai.aaf.common.util.JsonUtils.parseObject(
+                            stored.get().providerResult(), EmbeddingProviderResult.class);
+            settleKnowledgeEmbedding(
+                    reservation(billing, unitKey, stored.get()),
+                    stored.get().providerResult(),
+                    model,
+                    provider);
+            cacheSettled(texts, provider.vectors());
+            return List.copyOf(provider.vectors());
+        }
+
+        knowledgeUsagePort.precheck(
+                billing,
+                CreditTransactionCategoryEnum.EMBEDDING.getCode(),
+                AiCreditGuard.INESTIMABLE_COST);
+        var reserved = knowledgeUsagePort.reserve(billing, "embedding", unitKey, inputDigest);
+        if (reserved.state() == KnowledgeUsagePort.ReservationState.BUSY) {
+            throw new IllegalStateException("知识入库 embedding 单元正由其他调用者处理");
+        }
+        if (reserved.state() == KnowledgeUsagePort.ReservationState.UNKNOWN) {
+            throw new IllegalStateException("知识入库 embedding 结果未知，需按 provider request id 人工确认");
+        }
+        if (reserved.state() == KnowledgeUsagePort.ReservationState.RECOVERABLE
+                || reserved.state() == KnowledgeUsagePort.ReservationState.COMPLETED) {
+            var provider =
+                    com.xuejiai.aaf.common.util.JsonUtils.parseObject(
+                            reserved.providerResult(), EmbeddingProviderResult.class);
+            settleKnowledgeEmbedding(reserved, reserved.providerResult(), model, provider);
+            cacheSettled(texts, provider.vectors());
+            return List.copyOf(provider.vectors());
+        }
+        if (!knowledgeUsagePort.start(reserved)) {
+            throw new IllegalStateException("知识入库 embedding 单元并发占用失败");
+        }
+        try {
+            var vectors = texts.stream().map(this::embedWithRetry).toList();
+            var inputTokens =
+                    texts.stream().mapToLong(text -> Math.max(1, text.length() / 4)).sum();
+            var provider = new EmbeddingProviderResult(vectors, inputTokens, vectors.size());
+            var providerJson = com.xuejiai.aaf.common.util.JsonUtils.toJsonString(provider);
+            knowledgeUsagePort.persistProviderResult(
+                    reserved, providerJson, reserved.providerRequestId());
+            settleKnowledgeEmbedding(reserved, providerJson, model, provider);
+            cacheSettled(texts, vectors);
+            return List.copyOf(vectors);
+        } catch (RuntimeException failure) {
+            knowledgeUsagePort.markUnknown(reserved, failure.getMessage());
+            throw failure;
+        }
+    }
+
+    private KnowledgeUsagePort.InvocationReservation reservation(
+            BillingContext billing,
+            String unitKey,
+            KnowledgeUsagePort.StoredProviderResult stored) {
+        return new KnowledgeUsagePort.InvocationReservation(
+                billing,
+                "embedding",
+                unitKey,
+                stored.inputDigest(),
+                stored.invocationId(),
+                stored.usageKey(),
+                stored.occurredAt(),
+                null,
+                stored.settled()
+                        ? KnowledgeUsagePort.ReservationState.COMPLETED
+                        : KnowledgeUsagePort.ReservationState.RECOVERABLE,
+                stored.providerResult(),
+                stored.providerRequestId());
+    }
+
+    private void settleKnowledgeEmbedding(
+            KnowledgeUsagePort.InvocationReservation reservation,
+            String providerJson,
+            com.xuejiai.aaf.framework.intelligent.core.model.AiModel model,
+            EmbeddingProviderResult provider) {
+        var usage = new EmbeddingUsage(provider.inputTokens(), provider.count());
+        var costYuan =
+                Objects.requireNonNullElse(model.getInputPricePerK(), BigDecimal.ZERO)
+                        .multiply(BigDecimal.valueOf(provider.inputTokens()))
+                        .divide(BigDecimal.valueOf(1000), 6, RoundingMode.HALF_UP);
+        knowledgeUsagePort.settle(
+                new KnowledgeUsagePort.UsageCall(
+                        reservation.usageKey(),
+                        reservation.billing(),
+                        reservation.stage(),
+                        reservation.unitKey(),
+                        reservation.invocationId(),
+                        reservation.inputDigest(),
+                        providerJson,
+                        reservation.providerRequestId(),
+                        model,
+                        usage,
+                        costYuan,
+                        reservation.occurredAt()));
+    }
+
+    private void cacheSettled(List<String> texts, List<float[]> vectors) {
+        for (var index = 0; index < texts.size(); index++) {
+            cache.putIfAbsent(sha256(texts.get(index)), vectors.get(index));
+        }
+    }
+
+    private record EmbeddingProviderResult(List<float[]> vectors, long inputTokens, int count) {
+        private EmbeddingProviderResult {
+            vectors = vectors == null ? List.of() : List.copyOf(vectors);
+        }
+    }
+
+    private record EmbeddingUsage(long inputTokens, int count) implements AiUsage {
+        @Override
+        public Map<String, Object> standardUsage() {
+            return Map.of("inputTokens", inputTokens, "outputTokens", 0, "count", count);
         }
     }
 }

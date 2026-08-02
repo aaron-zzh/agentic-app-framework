@@ -250,9 +250,9 @@ POST   /aigc/projects/{id}/...           ← 写入需校验 ownership
   /materials                   → 素材
   /prompts                     → 提示词
   /history                     → 任务历史
-/studio/knowledge              → 知识空间
+/studio/knowledge              → 知识库列表（知识空间默认）
+  /[id]                       → 知识库详情、文档、检索与图谱
   /docs                        → 文档管理（D7 基础）
-  /bases                       → 知识库
   /favorites                   → 收藏夹
 /studio/me                     → 我
   /account                     → 账号

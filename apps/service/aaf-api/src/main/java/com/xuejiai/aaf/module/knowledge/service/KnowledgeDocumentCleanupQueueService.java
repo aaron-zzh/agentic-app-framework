@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.util.JsonUtils;
-import com.xuejiai.aaf.framework.engine.knowledge.pipeline.KnowledgePipelineService;
 import com.xuejiai.aaf.framework.storage.FileService;
 import com.xuejiai.aaf.framework.task.queue.AsyncTaskMessage;
 import com.xuejiai.aaf.framework.task.queue.TaskHandler;
@@ -26,7 +25,6 @@ public class KnowledgeDocumentCleanupQueueService implements TaskHandler {
     private static final String TASK_ID_PREFIX = "knowledge-document-cleanup:";
 
     private final TaskQueue taskQueue;
-    private final KnowledgePipelineService pipelineService;
     private final FileService fileService;
 
     public String enqueue(KnowledgeDocument document) {
@@ -63,7 +61,6 @@ public class KnowledgeDocumentCleanupQueueService implements TaskHandler {
         if (!taskId(payload.documentId()).equals(taskId)) {
             throw exception(GlobalErrorCode.BAD_REQUEST);
         }
-        pipelineService.clearDocumentGraphData(payload.knowledgeBaseId(), payload.documentId());
         if (payload.filePath() != null && !payload.filePath().isBlank()) {
             fileService.delete(payload.filePath());
         }

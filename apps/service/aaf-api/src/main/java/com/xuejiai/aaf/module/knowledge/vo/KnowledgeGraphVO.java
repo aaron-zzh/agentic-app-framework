@@ -1,20 +1,32 @@
 package com.xuejiai.aaf.module.knowledge.vo;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
-/** 知识库图谱响应。 */
+/** Neo4j 可重建知识图投影视图。 */
 public record KnowledgeGraphVO(List<GraphNodeVO> nodes, List<GraphEdgeVO> edges) {
 
-    /** 图谱节点。 */
-    public record GraphNodeVO(
-            String id, String label, String type, String description, Long sourceDocumentId) {}
+    public record GraphProjectionStatusVO(
+            UUID knowledgeBaseId,
+            String projectionKind,
+            long baseWatermark,
+            long desiredWatermark,
+            long appliedWatermark,
+            String status,
+            String rebuildRequestKey,
+            String errorMessage,
+            LocalDateTime updatedAt,
+            boolean ready) {}
 
-    /** 图谱边。 */
+    public record GraphNodeVO(String id, String name, String type, String description) {}
+
     public record GraphEdgeVO(
             String id,
-            String source,
-            String target,
-            String label,
-            Double confidence,
-            Long sourceDocumentId) {}
+            String factKey,
+            String sourceId,
+            String targetId,
+            String predicate,
+            double confidence,
+            List<String> evidenceIds) {}
 }

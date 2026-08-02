@@ -153,7 +153,7 @@ export const restEndpoints = {
     knowledgeBase: (id: string) => `/knowledge-bases/${id}`,
     knowledgeBaseDocuments: (id: string) => `/knowledge-bases/${id}/documents`,
     knowledgeBaseGraph: (id: string) => `/knowledge-bases/${id}/graph`,
-    knowledgeBaseSearch: (id: string) => `/knowledge-bases/${id}/search`,
+    knowledgeBaseSearch: "/knowledge-bases/search",
     knowledgeBaseStats: (id: string) => `/knowledge-bases/${id}/stats`
   },
   media: {

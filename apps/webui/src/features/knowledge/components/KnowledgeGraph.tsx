@@ -41,7 +41,7 @@ export function KnowledgeGraph({ knowledgeBaseId }: KnowledgeGraphProps) {
     return data.nodes.map((node, index) => ({
       id: node.id,
       position: { x: (index % 5) * 200, y: Math.floor(index / 5) * 150 },
-      data: { label: node.label, graphNode: node },
+      data: { label: node.name, graphNode: node },
       type: "default"
     }))
   }, [data])
@@ -50,9 +50,9 @@ export function KnowledgeGraph({ knowledgeBaseId }: KnowledgeGraphProps) {
     if (!data) return []
     return data.edges.map((edge) => ({
       id: edge.id,
-      source: edge.source,
-      target: edge.target,
-      label: `${edge.label} · ${((edge.confidence ?? 0) * 100).toFixed(0)}%`,
+      source: edge.sourceId,
+      target: edge.targetId,
+      label: `${edge.predicate} · ${(edge.confidence * 100).toFixed(0)}%`,
       animated: true
     }))
   }, [data])
@@ -99,7 +99,7 @@ export function KnowledgeGraph({ knowledgeBaseId }: KnowledgeGraphProps) {
           <CardContent className="flex flex-col gap-2 text-sm">
             <div>
               <span className="text-muted-foreground">名称：</span>
-              {selected.label}
+              {selected.name}
             </div>
             <div>
               <span className="text-muted-foreground">类型：</span>
@@ -108,10 +108,6 @@ export function KnowledgeGraph({ knowledgeBaseId }: KnowledgeGraphProps) {
             <div>
               <span className="text-muted-foreground">描述：</span>
               {selected.description || "暂无"}
-            </div>
-            <div>
-              <span className="text-muted-foreground">来源文档：</span>
-              {selected.sourceDocumentId}
             </div>
             <div>
               <span className="text-muted-foreground">ID：</span>
