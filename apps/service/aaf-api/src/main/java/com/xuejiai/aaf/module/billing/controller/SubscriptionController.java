@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.billing.controller;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,6 +16,7 @@ import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.billing.domain.Subscription;
 import com.xuejiai.aaf.module.billing.service.SubscriptionCrudService;
 import com.xuejiai.aaf.module.billing.service.SubscriptionService;
+import com.xuejiai.aaf.module.billing.vo.AdminSubscriptionDTO;
 import com.xuejiai.aaf.module.billing.vo.DowngradeDTO;
 import com.xuejiai.aaf.module.billing.vo.SubscribeDTO;
 import com.xuejiai.aaf.module.billing.vo.SubscriptionPageParam;
@@ -51,6 +53,22 @@ public class SubscriptionController
         return Result.success(
                 subscriptionService.subscribe(
                         currentUserId(), dto.planCode(), dto.channelCode(), dto.isYearly()));
+    }
+
+    @Operation(summary = "查询指定用户当前订阅")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @GetMapping("/admin/users/{userId}")
+    public Result<SubscriptionVO> getUserSubscription(@PathVariable Long userId) {
+        return Result.success(subscriptionCrudService.getActiveForUser(userId));
+    }
+
+    @Operation(summary = "为指定用户开通或升级会员")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PostMapping("/admin/users/{userId}")
+    public Result<SubscriptionVO> activateByAdmin(
+            @PathVariable Long userId, @Valid @RequestBody AdminSubscriptionDTO dto) {
+        subscriptionService.activateByAdmin(userId, dto.planCode());
+        return Result.success(subscriptionCrudService.getActiveForUser(userId));
     }
 
     @Operation(summary = "当前用户订阅")

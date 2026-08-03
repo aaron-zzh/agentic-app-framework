@@ -6,7 +6,7 @@
 "use client"
 
 import { useQueryClient } from "@tanstack/react-query"
-import { KeyRound, MoreHorizontal, Upload } from "lucide-react"
+import { Crown, KeyRound, MoreHorizontal, Upload } from "lucide-react"
 import { useRef, useState } from "react"
 import { PageContainer } from "@/components/common/PageContainer"
 import { TablePagination } from "@/components/table/TablePagination"
@@ -22,10 +22,19 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
 import {
   Table,
   TableBody,
@@ -39,8 +48,11 @@ import {
   adminUserApi,
   type UserListParams,
   type UserVO,
-  useAdminUserList
+  useAdminActivateSubscription,
+  useAdminUserList,
+  useAdminUserSubscription
 } from "@/lib/api/rest/admin"
+import { useSubscriptionPlans } from "@/lib/api/rest/billing"
 import { notify } from "@/lib/notification"
 
 export default function AdminUserPage() {
@@ -64,6 +76,20 @@ export default function AdminUserPage() {
   const [resetPassword, setResetPassword] = useState("")
   const [resetting, setResetting] = useState(false)
 
+  // 会员开通弹窗状态
+  const [membershipTarget, setMembershipTarget] = useState<UserVO | null>(null)
+  const [selectedPlanCode, setSelectedPlanCode] = useState("")
+  const { data: plans = [], isLoading: plansLoading } = useSubscriptionPlans()
+  const { data: currentSubscription, isLoading: subscriptionLoading } = useAdminUserSubscription(
+    membershipTarget?.id ?? null
+  )
+  const { mutate: activateSubscription, isPending: activatingSubscription } =
+    useAdminActivateSubscription()
+  const currentPlan = plans.find((plan) => plan.code === currentSubscription?.planCode)
+  const availablePlans = plans.filter(
+    (plan) => plan.price > 0 && (!currentPlan || plan.price > currentPlan.price)
+  )
+
   function updateFilter(key: keyof UserListParams, value: string) {
     setParams((prev) => ({ ...prev, [key]: value || undefined, page: 1 }))
   }
@@ -77,6 +103,29 @@ export default function AdminUserPage() {
   function openResetPassword(user: UserVO) {
     setResetPassword("")
     setResetTarget(user)
+  }
+
+  function openMembership(user: UserVO) {
+    setSelectedPlanCode("")
+    setMembershipTarget(user)
+  }
+
+  function closeMembership() {
+    setMembershipTarget(null)
+    setSelectedPlanCode("")
+  }
+
+  function handleActivateMembership() {
+    if (!membershipTarget || !selectedPlanCode) return
+    activateSubscription(
+      { userId: membershipTarget.id, planCode: selectedPlanCode },
+      {
+        onSuccess: (subscription) => {
+          notify.success(`已为用户开通 ${subscription.planName ?? "会员套餐"}`)
+          closeMembership()
+        }
+      }
+    )
   }
 
   async function handleResetPassword() {
@@ -193,10 +242,16 @@ export default function AdminUserPage() {
                         <MoreHorizontal className="size-4" />
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openResetPassword(user)}>
-                          <KeyRound className="mr-2 size-3.5" />
-                          重置密码
-                        </DropdownMenuItem>
+                        <DropdownMenuGroup>
+                          <DropdownMenuItem onClick={() => openMembership(user)}>
+                            <Crown className="mr-2 size-3.5" />
+                            开通会员
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openResetPassword(user)}>
+                            <KeyRound className="mr-2 size-3.5" />
+                            重置密码
+                          </DropdownMenuItem>
+                        </DropdownMenuGroup>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -244,6 +299,80 @@ export default function AdminUserPage() {
             </Button>
             <Button onClick={handleResetPassword} disabled={!resetPassword || resetting}>
               {resetting ? "提交中..." : "确认重置"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 开通会员弹窗 */}
+      <Dialog open={!!membershipTarget} onOpenChange={(open) => !open && closeMembership()}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>开通会员</DialogTitle>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-4 py-2">
+            <p className="text-muted-foreground text-sm">
+              为用户「{membershipTarget?.nickname || membershipTarget?.username}」选择会员套餐
+            </p>
+
+            <div className="rounded-lg border p-3 text-sm">
+              <span className="text-muted-foreground">当前套餐：</span>
+              {subscriptionLoading ? (
+                <span>查询中...</span>
+              ) : currentSubscription ? (
+                <span>
+                  {currentSubscription.planName ?? currentSubscription.planCode}
+                  {currentSubscription.endAt
+                    ? `（到期 ${currentSubscription.endAt.replace("T", " ").slice(0, 16)}）`
+                    : "（长期有效）"}
+                </span>
+              ) : (
+                <span>暂无有效会员</span>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label htmlFor="membership-plan" className="font-medium text-sm">
+                目标套餐
+              </label>
+              <Select
+                value={selectedPlanCode}
+                onValueChange={(value) => setSelectedPlanCode(value ?? "")}
+                disabled={plansLoading || subscriptionLoading || availablePlans.length === 0}
+              >
+                <SelectTrigger id="membership-plan" className="w-full">
+                  <SelectValue placeholder={plansLoading ? "加载套餐中..." : "请选择会员套餐"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {availablePlans.map((plan) => (
+                      <SelectItem key={plan.code} value={plan.code}>
+                        {plan.name}（¥{(plan.price / 100).toFixed(2)}）
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+              {!plansLoading && !subscriptionLoading && availablePlans.length === 0 ? (
+                <p className="text-muted-foreground text-sm">当前没有可升级的更高级套餐</p>
+              ) : (
+                <p className="text-muted-foreground text-xs">
+                  仅支持首次开通或升级到价格更高的套餐，不支持同级续期和降级。
+                </p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={closeMembership} disabled={activatingSubscription}>
+              取消
+            </Button>
+            <Button
+              onClick={handleActivateMembership}
+              disabled={!selectedPlanCode || activatingSubscription}
+            >
+              {activatingSubscription ? "开通中..." : currentSubscription ? "确认升级" : "确认开通"}
             </Button>
           </DialogFooter>
         </DialogContent>

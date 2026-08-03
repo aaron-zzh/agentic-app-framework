@@ -1,5 +1,14 @@
 package com.xuejiai.aaf.module.billing.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+import static com.xuejiai.aaf.module.billing.ErrorCodeConstants.SUBSCRIPTION_CURRENT_PLAN_NOT_FOUND;
+import static com.xuejiai.aaf.module.billing.ErrorCodeConstants.SUBSCRIPTION_PAID_PLAN_REQUIRED;
+import static com.xuejiai.aaf.module.billing.ErrorCodeConstants.SUBSCRIPTION_PLAN_DISABLED;
+import static com.xuejiai.aaf.module.billing.ErrorCodeConstants.SUBSCRIPTION_PLAN_NOT_FOUND;
+import static com.xuejiai.aaf.module.billing.ErrorCodeConstants.SUBSCRIPTION_SAME_LEVEL_RENEW_UNSUPPORTED;
+import static com.xuejiai.aaf.module.billing.ErrorCodeConstants.SUBSCRIPTION_UPGRADE_ONLY;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.USER_NOT_FOUND;
+
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 
@@ -86,36 +95,34 @@ public class SubscriptionService implements PaySuccessHandler {
         var plan =
                 planRepository
                         .findByCode(planCode)
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                GlobalErrorCode.NOT_FOUND, "套餐不存在: " + planCode));
-
-        // 免费套餐直接激活，返回 null 表示无需支付
-        if (plan.getPrice() == 0) {
-            activateSubscription(userId, plan.getId(), null, false);
-            return null;
+                        .orElseThrow(() -> exception(SUBSCRIPTION_PLAN_NOT_FOUND, planCode));
+        if (!"ENABLED".equals(plan.getStatus())) {
+            throw exception(SUBSCRIPTION_PLAN_DISABLED);
         }
 
-        // 路由：若有生效订阅，按升级/降级/续费三向分支
         var existing =
                 subscriptionRepository
                         .findByUserIdAndStatus(userId, SubscriptionStatusEnum.ACTIVE.getCode())
                         .orElse(null);
         if (existing != null) {
-            var oldPlan = planRepository.findById(existing.getPlanId()).orElse(null);
-            boolean oldYearly = isCurrentSubYearly(existing);
-            if (oldPlan != null) {
-                if (isUpgrade(oldPlan, oldYearly, plan, yearly)) {
-                    return upgrade(userId, planCode, channelCode, yearly);
-                }
-                if (isDowngrade(oldPlan, oldYearly, plan, yearly)) {
-                    throw new BusinessException(
-                            GlobalErrorCode.BAD_REQUEST,
-                            "降级请使用 /api/billing/subscription/downgrade 接口");
-                }
-                // 同价位（续费同档）走原有付款流程
+            var oldPlan =
+                    planRepository
+                            .findById(existing.getPlanId())
+                            .orElseThrow(() -> exception(SUBSCRIPTION_CURRENT_PLAN_NOT_FOUND));
+            if (plan.getCode().equals(oldPlan.getCode())) {
+                throw exception(SUBSCRIPTION_SAME_LEVEL_RENEW_UNSUPPORTED);
             }
+            boolean oldYearly = isCurrentSubYearly(existing);
+            if (!isUpgrade(oldPlan, oldYearly, plan, yearly)) {
+                throw exception(SUBSCRIPTION_UPGRADE_ONLY);
+            }
+            return upgrade(userId, planCode, channelCode, yearly);
+        }
+
+        // 无生效订阅时允许首次开通免费套餐，供新用户注册初始化权益
+        if (plan.getPrice() == 0) {
+            activateSubscription(userId, plan.getId(), null, false);
+            return null;
         }
 
         // 年付价格 = 月付 * 12 * 0.8
@@ -394,6 +401,39 @@ public class SubscriptionService implements PaySuccessHandler {
         return expiredSubscriptions.size();
     }
 
+    /** 管理员为指定用户开通或升级会员，不创建支付订单且不触发分销佣金。 */
+    @Transactional
+    public Long activateByAdmin(Long userId, String planCode) {
+        userRepository.findById(userId).orElseThrow(() -> exception(USER_NOT_FOUND));
+        var newPlan =
+                planRepository
+                        .findByCode(planCode)
+                        .orElseThrow(() -> exception(SUBSCRIPTION_PLAN_NOT_FOUND, planCode));
+        if (!"ENABLED".equals(newPlan.getStatus()) || newPlan.getPrice() <= 0) {
+            throw exception(SUBSCRIPTION_PAID_PLAN_REQUIRED);
+        }
+
+        var activeSubscription =
+                subscriptionRepository
+                        .findByUserIdAndStatus(userId, SubscriptionStatusEnum.ACTIVE.getCode())
+                        .orElse(null);
+        if (activeSubscription == null) {
+            return activateSubscription(userId, newPlan.getId(), null, false, false);
+        }
+
+        var currentPlan =
+                planRepository
+                        .findById(activeSubscription.getPlanId())
+                        .orElseThrow(() -> exception(SUBSCRIPTION_CURRENT_PLAN_NOT_FOUND));
+        if (newPlan.getCode().equals(currentPlan.getCode())) {
+            throw exception(SUBSCRIPTION_SAME_LEVEL_RENEW_UNSUPPORTED);
+        }
+        if (newPlan.getPrice() <= currentPlan.getPrice()) {
+            throw exception(SUBSCRIPTION_UPGRADE_ONLY);
+        }
+        return activateUpgrade(userId, newPlan, null, false, false);
+    }
+
     /** 获取用户当前有效订阅 */
     @Transactional(readOnly = true)
     public Subscription getActiveSubscription(Long userId) {
@@ -405,6 +445,11 @@ public class SubscriptionService implements PaySuccessHandler {
     // ===== 公共辅助方法（供 Scheduler 调用） =====
 
     public Long activateSubscription(Long userId, Long planId, Long sourceId, boolean yearly) {
+        return activateSubscription(userId, planId, sourceId, yearly, true);
+    }
+
+    private Long activateSubscription(
+            Long userId, Long planId, Long sourceId, boolean yearly, boolean enableBrokerage) {
         var plan =
                 planRepository
                         .findById(planId)
@@ -456,7 +501,7 @@ public class SubscriptionService implements PaySuccessHandler {
                 subscription.getEndAt());
 
         // 付费套餐激活后尝试自动开通分销资格（免费套餐 FREE 不触发）
-        if (plan.getPrice() > 0) {
+        if (enableBrokerage && plan.getPrice() > 0) {
             tryEnableBrokerage(userId, plan, yearly, subscription.getId());
         }
 
@@ -466,6 +511,15 @@ public class SubscriptionService implements PaySuccessHandler {
     /** 升级激活：取消旧订阅 + 创建新订阅 + 实例化权益 + 三笔积分流水（不重复发首月积分）。 */
     public Long activateUpgrade(
             Long userId, SubscriptionPlan newPlan, Long sourceId, boolean yearly) {
+        return activateUpgrade(userId, newPlan, sourceId, yearly, true);
+    }
+
+    private Long activateUpgrade(
+            Long userId,
+            SubscriptionPlan newPlan,
+            Long sourceId,
+            boolean yearly,
+            boolean enableBrokerage) {
         var oldSub =
                 subscriptionRepository
                         .findByUserIdAndStatus(userId, SubscriptionStatusEnum.ACTIVE.getCode())
@@ -510,7 +564,7 @@ public class SubscriptionService implements PaySuccessHandler {
                 newSub.getEndAt());
 
         // 分销佣金（与 activateSubscription 一致）
-        if (newPlan.getPrice() > 0) {
+        if (enableBrokerage && newPlan.getPrice() > 0) {
             tryEnableBrokerage(userId, newPlan, yearly, newSub.getId());
         }
         return newSub.getId();

@@ -3,9 +3,10 @@
  * @author AaronZZH & Kiro
  */
 
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { buildApiUrl } from "../../config"
 import { backendApi } from "../backend-client"
+import type { SubscriptionVO } from "../billing/plans"
 import { buildQuery, type ListParams, type PageResult } from "../entity/crud"
 
 export interface UserVO {
@@ -50,16 +51,41 @@ export const adminUserApi = {
   },
 
   resetPassword: (id: number, password: string) =>
-    backendApi.post<void>(`/system/users/${id}/password/reset`, { password })
+    backendApi.post<void>(`/system/users/${id}/password/reset`, { password }),
+
+  getSubscription: (userId: number) =>
+    backendApi.get<SubscriptionVO | null>(`/billing/subscriptions/admin/users/${userId}`),
+
+  activateSubscription: (userId: number, planCode: string) =>
+    backendApi.post<SubscriptionVO>(`/billing/subscriptions/admin/users/${userId}`, { planCode })
 }
 
 const KEYS = {
-  list: (params: UserListParams) => ["admin", "users", "list", params] as const
+  list: (params: UserListParams) => ["admin", "users", "list", params] as const,
+  subscription: (userId: number | null) => ["admin", "users", userId, "subscription"] as const
 }
 
 export function useAdminUserList(params: UserListParams = {}) {
   return useQuery({
     queryKey: KEYS.list(params),
     queryFn: () => adminUserApi.list(params)
+  })
+}
+
+export function useAdminUserSubscription(userId: number | null) {
+  return useQuery({
+    queryKey: KEYS.subscription(userId),
+    queryFn: () => adminUserApi.getSubscription(userId as number),
+    enabled: userId !== null
+  })
+}
+
+export function useAdminActivateSubscription() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ userId, planCode }: { userId: number; planCode: string }) =>
+      adminUserApi.activateSubscription(userId, planCode),
+    onSuccess: (_subscription, variables) =>
+      queryClient.invalidateQueries({ queryKey: KEYS.subscription(variables.userId) })
   })
 }
