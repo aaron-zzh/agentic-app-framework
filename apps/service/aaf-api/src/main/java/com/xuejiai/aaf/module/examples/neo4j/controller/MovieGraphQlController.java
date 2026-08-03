@@ -70,7 +70,7 @@ import lombok.RequiredArgsConstructor;
  */
 @Controller
 @RequiredArgsConstructor
-@Profile("examples")
+@Profile("dev")
 @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
 public class MovieGraphQlController {
 

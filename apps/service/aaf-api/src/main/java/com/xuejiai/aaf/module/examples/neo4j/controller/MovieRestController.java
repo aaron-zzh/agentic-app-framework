@@ -38,7 +38,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/examples/neo4j/movies")
 @RequiredArgsConstructor
-@Profile("examples")
+@Profile("dev")
 @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
 public class MovieRestController {
 
