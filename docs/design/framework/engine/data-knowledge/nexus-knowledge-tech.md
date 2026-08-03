@@ -3,7 +3,7 @@ level: Practice
 layer: Product
 purpose: 定义 NexusKB 可信知识架构的接口、数据模型、投影、检索、计费和迁移方案
 status: published
-version: 1.3.4
+version: 1.3.5
 date: 2026-08-02
 author: AaronZZH
 tags:
@@ -26,7 +26,7 @@ scope:
     - PgVector 与 Neo4j 投影
     - 图遍历、结构候选与历史图能力边界
     - 授权多库 weighted RRF 与纯图模式
-    - v300 schema、v301 seed 及后续调整方案
+    - v20 schema、v21 seed 及后续调整方案
   excludes:
     - 知识管理 UI 布局细节
     - 模型供应商协议细节
@@ -39,10 +39,11 @@ gains:
   - 能按当前事实或显式时间点执行证据支持的可信检索
   - 能验证多库检索不会越过 ACL 并能稳定融合结果
 changelog:
+  - 2026-08-02 v1.3.5 | 知识库默认图谱切换为独立 Nx Three.js 引擎，支持 2D/2.5D/3D、批量渲染、基础布局和节点卡片
   - 2026-08-02 v1.3.4 | 前台收口到 /studio/knowledge，新增租户约束的 /admin/knowledge 运维入口与 ADMIN_MAINTENANCE 权限 seed
   - 2026-08-02 v1.3.3 | 删除阶段性 SQL 文本静态测试，将迁移验证合同收口为首次部署前的真实 PostgreSQL/Flyway 验收
-  - 2026-08-02 v1.3.2 | 将过渡知识表折叠进 v300 最终 CREATE，移除 ALTER/DML，拆分 v301 seed，并收紧 embedding 双标识与 run 归属一致性
-  - 2026-08-02 v1.3.1 | 未部署阶段将原 v301 时态字段、约束、索引和触发器合并进 v300 原始定义
+  - 2026-08-02 v1.3.2 | 将过渡知识表折叠进 v20 最终 CREATE，移除 ALTER/DML，拆分 v21 seed，并收紧 embedding 双标识与 run 归属一致性
+  - 2026-08-02 v1.3.1 | 未部署阶段将原 v21 时态字段、约束、索引和触发器合并进 v20 原始定义
   - 2026-08-02 v1.3.0 | 将不存在的统一 facade 改为实际 REST/组件/端口映射，标注能力状态并补充纯图检索合同
   - 2026-08-02 v1.2.0 | 落地双时态断言、抽取 v2、单事务发布、as-of 查询与可信图回源，并说明实施后能力增强
   - 2026-08-02 v1.1.0 | 增加事实断言双时态、Graphiti 能力裁剪、Neo4j 图查询边界与分阶段调整方案
@@ -55,7 +56,7 @@ changelog:
 
 ## 当前实现状态与替换范围
 
-v300 schema 与 v301 seed 已完成从旧 Neo4j 真理路径到可信知识基线的替换。当前运行时状态如下：
+v20 schema 与 v21 seed 已完成从旧 Neo4j 真理路径到可信知识基线的替换。当前运行时状态如下：
 
 - `KnowledgePipelineService` 使用 run/generation 隔离新产物，READY 后在 PostgreSQL 单事务发布；失败继续服务旧 `active_run_id`。
 - `EntityExtractionService` 将实体、事实、焦点证据和双时态断言写入 PostgreSQL，不再直接创建 Neo4j 真理数据。
@@ -66,7 +67,7 @@ v300 schema 与 v301 seed 已完成从旧 Neo4j 真理路径到可信知识基�
 
 本版补齐 `mode=graph` 的 REST 与 WebUI 接线，复用现有可信图检索闭环。仍未实现且不得误标为当前合同的能力包括：知识专用 Reranker、通用路径/探索 API、外部 as-of API、历史 `FACT_ASSERTION` 图、Episode 投影和自动事实冲突裁决。
 
-v300 schema 与 v301 seed 是直接替换，不保留旧 Neo4j 真理源、先删后建、逐条固定扣费或双写兼容分支。
+v20 schema 与 v21 seed 是直接替换，不保留旧 Neo4j 真理源、先删后建、逐条固定扣费或双写兼容分支。
 
 ## 架构不变量
 
@@ -132,6 +133,15 @@ flowchart LR
 | `GET /api/knowledge-bases/{id}/graph-projection/status` | `getGraphProjectionStatus(Long)` | `TrustedKnowledgeStore` checkpoint | 已实现；仅管理员 |
 | `POST /api/knowledge-bases/{id}/graph-projection/rebuild` | `rebuildGraphProjection(Long, String)` | `KnowledgeGraphProjectionService.rebuild(UUID, String)` | 已实现；仅管理员且要求幂等键 |
 | 文档 batch/retry/delete/progress | `KnowledgeBaseService` 文档方法 | Queue → `KnowledgePipelineService` / revoke | 已实现；入库与撤销入口 |
+
+### 前端知识可视化
+
+- `/studio/knowledge/{id}` 的图谱页签默认使用独立 Nx library `@aaf/knowledge-visualization`，不再使用 React Flow。
+- 引擎基于 Three.js，通过一个 `InstancedMesh` 批量渲染节点、一个 `LineSegments` 批量渲染关系，避免节点数量线性增加 DOM 和 draw call。
+- 首版支持 2D、2.5D、3D 相机模式、force/radial/grid 布局合同、节点拾取、悬停摘要和实体关联关系卡片；默认模式为 2.5D。
+- 共享 library 只接收普通图数据和稳定 ID，不依赖 TanStack Query、Neo4j Driver、业务 DTO 或文档路由；WebUI 继续负责 `GraphSnapshot` 适配和业务卡片。
+- 图快照来自可重建 Neo4j 投影；事实、证据、来源文档和时态详情仍以 PostgreSQL 为唯一真理源，后续通过 `entityId`、`factKey`、`evidenceId` 按需查询，不能复制成前端或 Neo4j 第二真理源。
+- React Flow 继续用于工作流、项目图谱和文档关系图等节点编辑场景，不保留知识库双渲染引擎或运行时 fallback。
 
 ### 管理路由与权限边界
 
@@ -354,22 +364,6 @@ NexusKB 采用“PostgreSQL 时态真理源 + Neo4j 可重建图查询投影”�
 - 普通检索默认只返回当前有效事实；历史事实必须通过显式 `validAt / knownAt` 查询，不允许因遗漏过滤条件意外返回已过期事实。
 - JSONB 保存完整扩展属性；Neo4j 只投影参与图过滤或算法的白名单标量，不把任意嵌套 JSON 动态展开为图属性。
 
-### Graphiti 能力取舍
-
-Graphiti 的核心价值是把来源 episode、事实边和双时态失效结合起来，但其直接写图实现不符合本设计的单一真理源约束。NexusKB 按下表借鉴和裁剪：
-
-| Graphiti 机制 | NexusKB 对应实现 | 决策 |
-|---------------|------------------|------|
-| `EpisodicNode.valid_at` | document/generation/evidence 的 `reference_time` | 保留来源参考时间，不默认创建 Neo4j episode 节点 |
-| `EntityEdge.valid_at / invalid_at` | 事实断言业务有效区间 | 保留，存 PostgreSQL 正式时间列 |
-| `EntityEdge.created_at / expired_at` | 断言 `recorded_at / expired_at` | 保留，发布时间而非抽取写入时间决定系统可见性 |
-| `episodes[]` | fact 与 evidence 多对多关联 | 复用现有来源链，不复制 episode ID 数组作为真理 |
-| `attributes` | 断言 `attributes JSONB` | 完整值存 PostgreSQL，图中只投影白名单标量 |
-| 精确重复复用旧边 | `factKey` + fact/evidence 唯一键 | 使用数据库确定性去重，不再调用模型判断精确重复 |
-| 全图向量搜索矛盾候选 | PostgreSQL 精确候选 + Neo4j 有界结构候选 | 不做无界全图语义候选；模型只裁决受限候选集合 |
-| Neo4j 事务直接保存全部历史 | PostgreSQL 发布事务 + outbox | 不采用；Neo4j 始终可删除并重建 |
-| saga/community | 按产品场景启用图投影与算法 | saga 顺序优先关系库；community/path 等图算法由 Neo4j 实现 |
-
 ### 存储与查询职责
 
 | 能力 | PostgreSQL | Neo4j |
@@ -502,7 +496,7 @@ Neo4j 可以因投影滞后产生假阳性，PostgreSQL 复核必须剔除；Neo
 |----|----------|--------------|
 | `ai_knowledge_base` | `id BIGINT`、`stable_id UUID`、`visibility`、`owner_id`、org/workspace、chunk/模型配置 | `UNIQUE(stable_id)`、`UNIQUE(stable_id, id)`；visibility 限 `PRIVATE/ORG/SYSTEM_PUBLIC`；SYSTEM_PUBLIC 仍走 ACL |
 | `ai_knowledge_document` | `stable_id`、`knowledge_base_id`、`source_type`、`source_key`、`source_uri`、`content_hash`、`uploaded_by`、`active_run_id`、`ingest_fence` | `UNIQUE(stable_id)`；有效行 `UNIQUE(knowledge_base_id, source_type, source_key)`；延迟约束触发器保证 active pointer 与同文档唯一 PUBLISHED run 双向一致 |
-| `ai_knowledge_ingest_run` | `id UUID`、document/base、`run_no`、`ingest_fingerprint`、`payer_user_id`、状态、两类 Prompt 快照/摘要、两类输出契约版本、抽取/消歧/Embedding 模型 ID、`expected_active_run_id`、`fencing_token`、时间 | `UNIQUE(document_id, run_no)`；v300 原生部分唯一索引对非 SUPERSEDED 行保持 `(document_id, ingest_fingerprint)` 唯一，旧代际回退必须创建新 run；每文档至多一个 PUBLISHED；延迟触发器保证 active pointer 与 PUBLISHED 双向一致 |
+| `ai_knowledge_ingest_run` | `id UUID`、document/base、`run_no`、`ingest_fingerprint`、`payer_user_id`、状态、两类 Prompt 快照/摘要、两类输出契约版本、抽取/消歧/Embedding 模型 ID、`expected_active_run_id`、`fencing_token`、时间 | `UNIQUE(document_id, run_no)`；v20 原生部分唯一索引对非 SUPERSEDED 行保持 `(document_id, ingest_fingerprint)` 唯一，旧代际回退必须创建新 run；每文档至多一个 PUBLISHED；延迟触发器保证 active pointer 与 PUBLISHED 双向一致 |
 | `ai_knowledge_ingest_unit` | `id UUID`、run、stage、`unit_key`、`input_digest`、`output_json`、`invocation_id`、`usage_key`、状态、错误 | `UNIQUE(run_id, stage, unit_key)`；`UNIQUE(usage_key)` |
 | `ai_knowledge_chunk` | `id BIGINT`、`stable_id UUID`、run/document/base、`chunk_index`、content、`content_hash`、token、offset、metadata | `UNIQUE(run_id, chunk_index)`；`UNIQUE(stable_id)`；chunk 必须属于同一来源链 |
 | `ai_knowledge_entity` | `id UUID`、base、canonical name/type、`entity_key`、description、`merged_into_id` | `UNIQUE(knowledge_base_id, entity_key)`；merged_into 不得指向自身 |
@@ -682,10 +676,10 @@ score(candidate) = baseWeight(candidate.baseId)
 
 ### 时态断言基础版本（已实现）
 
-时态断言已直接合并进尚未部署的 `v300__nexus_knowledge_trusted_schema.sql` 最终 schema，不存在 v301 schema follow-up migration；v301 版本号仅用于 `db/seed/v301__nexus_knowledge_seed.sql` 数据初始化：
+时态断言已直接合并进尚未部署的 `v20__nexus_knowledge_trusted_schema.sql` 最终 schema，不存在 v21 schema follow-up migration；v21 版本号仅用于 `db/seed/v21__nexus_knowledge_seed.sql` 数据初始化：
 
-- v300 原生创建 assertion/reference time 字段、时态与 JSONB 约束、查询索引和延迟一致性触发器，无需后续 ALTER、UPDATE 或历史 assertion 回填。
-- v300 原生部分唯一索引只约束非 SUPERSEDED 的 `(document_id, ingest_fingerprint)`，支持 F1 → F2 → F1 回退语义。
+- v20 原生创建 assertion/reference time 字段、时态与 JSONB 约束、查询索引和延迟一致性触发器，无需后续 ALTER、UPDATE 或历史 assertion 回填。
+- v20 原生部分唯一索引只约束非 SUPERSEDED 的 `(document_id, ingest_fingerprint)`，支持 F1 → F2 → F1 回退语义。
 - 旧 Neo4j facts/evidence 按可信基线策略不迁入 PostgreSQL 真理源，因此新建的 assertion 表初始为空，无需伪造 assertion 时间。
 - fact/evidence 关联已增加 `assertion_id`、四个时态字段、失效原因和 `attributes JSONB`。
 - evidence 已预留 `reference_time`、精度和来源，并为时间区间、JSON 大小、允许键和值类型增加数据库与应用双重校验。
@@ -756,9 +750,9 @@ score(candidate) = baseWeight(candidate.baseId)
 - 图查询注入过期、越权或伪造属性时，PostgreSQL 最终复核能够阻断。
 - 新增模型调用具备固定输出契约、幂等用量记录和有界候选输入。
 
-## v300 schema 与 v301 seed 已实现
+## v20 schema 与 v21 seed 已实现
 
-知识模块使用 v300-v399 号段。`db/migration/v300__nexus_knowledge_trusted_schema.sql` 只包含最终 DDL：直接创建知识库、文档、代际、chunk/embedding、事实证据、投影和延迟一致性约束，不包含 `ALTER TABLE` 或数据写入。`db/seed/v301__nexus_knowledge_seed.sql` 只包含生产必需数据：知识库 CRUD/`ADMIN_MAINTENANCE` 权限与角色授权、抽取/消歧 Prompt、模型偏好、平台向导知识库及其首个 PUBLISHED run、chunk 和投影 checkpoint，不包含 DDL。原 v301 时态 schema 迁移已删除，其结构语义全部属于 v300。
+知识模块使用 v20-v399 号段。`db/migration/v20__nexus_knowledge_trusted_schema.sql` 只包含最终 DDL：直接创建知识库、文档、代际、chunk/embedding、事实证据、投影和延迟一致性约束，不包含 `ALTER TABLE` 或数据写入。`db/seed/v21__nexus_knowledge_seed.sql` 只包含生产必需数据：知识库 CRUD/`ADMIN_MAINTENANCE` 权限与角色授权、抽取/消歧 Prompt、模型偏好、平台向导知识库及其首个 PUBLISHED run、chunk 和投影 checkpoint，不包含 DDL。原 v21 时态 schema 迁移已删除，其结构语义全部属于 v20。
 
 由于这组脚本尚未部署，`v2__ai_schema.sql` 不再创建临时知识表，`v3__doc_schema.sql` 直接定义 `source_file_id`。本基线不提供旧知识表的原地升级或 legacy 回填路径；已经执行过旧开发版脚本的本地数据库必须重建或重新建立 Flyway baseline。本任务未执行数据库迁移。
 
@@ -766,11 +760,11 @@ score(candidate) = baseWeight(candidate.baseId)
 
 1. 在空数据库按 Flyway 全局版本顺序执行既有 schema/seed。
 2. v2 跳过过渡知识表，v3 原生创建 `doc_document.source_file_id`。
-3. v300 一次性创建最终可信知识 schema；`active_run_id` 与唯一 PUBLISHED run 的循环一致性由延迟约束触发器保证，无需建表后 ALTER。
-4. v301 seed 先注册知识库普通 CRUD 和 `ADMIN_MAINTENANCE` 权限并按角色授权，再写入 Prompt 和 SYSTEM 模型偏好，最后创建平台向导知识库、文档、首个 PUBLISHED run 与三个 chunk。
-5. v301 seed 使用稳定 UUID、按 admin 业务键解析 uploader/payer，并同步 identity sequence 与投影 checkpoint。
+3. v20 一次性创建最终可信知识 schema；`active_run_id` 与唯一 PUBLISHED run 的循环一致性由延迟约束触发器保证，无需建表后 ALTER。
+4. v21 seed 先注册知识库普通 CRUD 和 `ADMIN_MAINTENANCE` 权限并按角色授权，再写入 Prompt 和 SYSTEM 模型偏好，最后创建平台向导知识库、文档、首个 PUBLISHED run 与三个 chunk。
+5. v21 seed 使用稳定 UUID、按 admin 业务键解析 uploader/payer，并同步 identity sequence 与投影 checkpoint。
 6. 不从旧 Neo4j facts/evidence 构造 PostgreSQL 真理；Neo4j 始终由 PostgreSQL 当前事实投影重建。
-7. 若环境存在旧开发版知识表或已执行旧 v300，不做兼容迁移，直接重建数据库或重新建立受控 baseline。
+7. 若环境存在旧开发版知识表或已执行旧 v20，不做兼容迁移，直接重建数据库或重新建立受控 baseline。
 
 ### 发布门槛
 
@@ -833,8 +827,8 @@ score(candidate) = baseWeight(candidate.baseId)
 
 ### 迁移验收
 
-- 首次部署前在空 PostgreSQL 实例按全局版本顺序执行完整 Flyway，确认 v300 schema 后执行 v301 seed。
+- 首次部署前在空 PostgreSQL 实例按全局版本顺序执行完整 Flyway，确认 v20 schema 后执行 v21 seed。
 - 通过 PostgreSQL catalog 核对关键表、复合外键、部分唯一索引和延迟约束触发器，而不是依赖 SQL 字符串匹配。
 - 验证平台向导 base/document/PUBLISHED run/chunk、active pointer、checkpoint 与 identity sequence 的最终状态一致。
-- 验证仓库不存在旧 `db/migration/v301__nexus_knowledge_temporal_assertion.sql`，旧 Neo4j facts/evidence 未被构造为 PostgreSQL 真理。
+- 验证仓库不存在旧 `db/migration/v21__nexus_knowledge_temporal_assertion.sql`，旧 Neo4j facts/evidence 未被构造为 PostgreSQL 真理。
 - 已执行旧开发版迁移的数据库只允许重建或受控 rebaseline，不依赖双写、legacy 表或兼容路径。

@@ -13,7 +13,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 
 /** PostgreSQL/JPA Assistant 任务控制适配器。 */
-public final class JpaTaskControlAdapter implements TaskControlPort {
+public class JpaTaskControlAdapter implements TaskControlPort {
 
     private final AssistantTaskControlRepository repository;
     private final ConversationLeasePort leases;

@@ -98,6 +98,32 @@ class KnowledgeGraphProjectionServiceTest {
     }
 
     @Test
+    @SuppressWarnings("rawtypes")
+    @DisplayName("Given 文档撤销事件 When 执行图投影 Then 删除失效事实关系与孤立实体")
+    void should_remove_revoked_run_projection_when_document_is_revoked() {
+        var runId = UUID.randomUUID();
+        var factId = UUID.randomUUID();
+        var event =
+                new TrustedKnowledgeStore.OutboxEvent(
+                        UUID.randomUUID(), runId, "DOCUMENT_REVOKED", 9L, runId, 3L, 1);
+        when(store.claimOutbox(100)).thenReturn(List.of(event));
+        when(store.currentFactIdsForRunExclusion(runId)).thenReturn(List.of(factId));
+        when(driver.session()).thenReturn(session);
+        when(session.run(anyString(), anyMap())).thenReturn(directResult);
+        when(session.run(anyString())).thenReturn(directResult);
+
+        service.projectPending();
+
+        var cypher = ArgumentCaptor.forClass(String.class);
+        var parameters = ArgumentCaptor.forClass(Map.class);
+        verify(session).run(cypher.capture(), parameters.capture());
+        assertThat(cypher.getValue()).contains("relation.id IN $factIds");
+        assertThat(parameters.getValue()).containsEntry("factIds", List.of(factId.toString()));
+        verify(session).run("MATCH (entity:KnowledgeEntity) WHERE NOT (entity)--() DELETE entity");
+        verify(store).completeOutbox(event);
+    }
+
+    @Test
     @DisplayName("Given 无授权知识库或额度非正数 When 图检索 Then 不访问 Neo4j")
     void should_not_query_neo4j_without_scope_or_limit() {
         var noFilters = SourceFilters.from(Map.of());

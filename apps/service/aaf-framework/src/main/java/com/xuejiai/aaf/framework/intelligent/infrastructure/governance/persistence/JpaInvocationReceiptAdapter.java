@@ -11,7 +11,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolI
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
 
-public final class JpaInvocationReceiptAdapter implements InvocationReceiptPort {
+public class JpaInvocationReceiptAdapter implements InvocationReceiptPort {
     private static final String PENDING = "PENDING";
     private static final String SUCCEEDED = "SUCCEEDED";
     private static final String FAILED = "FAILED";

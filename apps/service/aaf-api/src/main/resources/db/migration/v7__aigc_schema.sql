@@ -813,10 +813,7 @@ UPDATE ai_model SET image_config = '{
 -- PDF 导入链路 + AIGC 项目文档关联（原 v11）
 -- ============================================================
 
--- doc_document 加 source_file_id 关联原始文件（PDF 导入时指向 sys_file.id）
-ALTER TABLE doc_document
-    ADD COLUMN IF NOT EXISTS source_file_id BIGINT;
-
+-- doc_document 的 source_file_id 已在 v3 初始表结构中定义
 COMMENT ON COLUMN doc_document.source_file_id IS '来源文件 ID（sys_file.id），PDF 导入时非空';
 
 -- aigc_project 加 prompt 字段（项目级提示词，生成时直接使用，文档为可选增强）

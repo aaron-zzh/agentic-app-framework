@@ -4,11 +4,6 @@
 -- ============================================================
 
 -- ============================================================
--- 知识库
--- NexusKB 最终可信知识 schema 统一由 v300 创建；v2 不再建立过渡表。
--- ============================================================
-
--- ============================================================
 -- 记忆
 -- ============================================================
 
@@ -826,7 +821,7 @@ CREATE TABLE ai_skill_trigger_log (
     org_id       BIGINT,
     workspace_id BIGINT,
     -- 触发上下文
-    execution_id BIGINT       REFERENCES ai_task_execution(id),
+    execution_id BIGINT,
     session_id   BIGINT,
     user_id      BIGINT,
     assistant_id BIGINT       REFERENCES ai_assistant(id),
@@ -865,7 +860,7 @@ CREATE TABLE ai_workflow_run (
     org_id          BIGINT,
     workspace_id    BIGINT,
     -- 关联上下文
-    execution_id    BIGINT       REFERENCES ai_task_execution(id),
+    execution_id    BIGINT,
     session_id      BIGINT,
     user_id         BIGINT,
     -- 工作流定义（Flowable process definition key）
@@ -954,7 +949,7 @@ CREATE TABLE ai_agent_step (
     org_id       BIGINT,
     workspace_id BIGINT,
     -- 归属
-    execution_id BIGINT       NOT NULL REFERENCES ai_task_execution(id),
+    execution_id BIGINT       NOT NULL,
     iteration    INTEGER      NOT NULL DEFAULT 1,   -- 第几轮 ReAct 循环
     -- 步骤类型：THOUGHT=推理 / ACTION=调用工具 / OBSERVATION=工具返回 / ANSWER=最终回答
     step_type    VARCHAR(16)  NOT NULL,

@@ -4,13 +4,9 @@ import java.time.Duration;
 import java.time.Instant;
 
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.scheduling.TaskScheduler;
-import org.springframework.stereotype.Component;
 
 /** 基于 Spring 调度器的默认智能体任务重试实现。 */
-@Component
-@ConditionalOnMissingBean(RetryScheduler.class)
 public class SpringTaskSchedulerRetryScheduler implements RetryScheduler {
 
     private final TaskScheduler taskScheduler;

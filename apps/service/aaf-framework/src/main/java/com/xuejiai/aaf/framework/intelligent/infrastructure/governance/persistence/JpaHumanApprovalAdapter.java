@@ -13,7 +13,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 
-public final class JpaHumanApprovalAdapter implements HumanApprovalPort {
+public class JpaHumanApprovalAdapter implements HumanApprovalPort {
     private final HumanApprovalRepository repository;
 
     public JpaHumanApprovalAdapter(HumanApprovalRepository repository) {

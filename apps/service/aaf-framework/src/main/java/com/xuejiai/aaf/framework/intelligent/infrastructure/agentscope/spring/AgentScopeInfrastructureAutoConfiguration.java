@@ -1,8 +1,10 @@
 package com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
@@ -35,6 +37,7 @@ import io.agentscope.extensions.redis.state.RedisAgentStateStore;
  * <p>五个必需端口齐备时才装配，缺任一端口整个 AgentScope 运行时不生效。
  */
 @AutoConfiguration
+@AutoConfigureAfter(DataRedisAutoConfiguration.class)
 @ConditionalOnBean({
     AgentDefinitionPort.class,
     ToolCatalogPort.class,

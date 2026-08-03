@@ -14,7 +14,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.AuthorizationGrantPort;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 
-public final class JpaAuthorizationGrantAdapter implements AuthorizationGrantPort {
+public class JpaAuthorizationGrantAdapter implements AuthorizationGrantPort {
     private final AuthorizationGrantRepository repository;
 
     public JpaAuthorizationGrantAdapter(AuthorizationGrantRepository repository) {

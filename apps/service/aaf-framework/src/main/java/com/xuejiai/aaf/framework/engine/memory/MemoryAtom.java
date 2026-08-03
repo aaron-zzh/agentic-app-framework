@@ -6,7 +6,6 @@
 package com.xuejiai.aaf.framework.engine.memory;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -76,7 +75,7 @@ public class MemoryAtom {
     /** 分类标签 */
     @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(columnDefinition = "text[]")
-    private List<String> tags;
+    private String[] tags;
 
     /** 扩展元数据 */
     @JdbcTypeCode(SqlTypes.JSON)

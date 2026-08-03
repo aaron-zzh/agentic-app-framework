@@ -22,7 +22,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 
 /** 用户可管理来源的 PostgreSQL 有效上下文实现。 */
-public final class JpaEffectiveContextAdapter implements EffectiveContextPort {
+public class JpaEffectiveContextAdapter implements EffectiveContextPort {
 
     private final ContextSourcePreferenceRepository preferences;
     private final EffectiveContextManifestRepository manifests;

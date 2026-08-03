@@ -13,7 +13,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 
 /** 只持久化 opaque handle 与 vaultRef 元数据的生产 adapter。 */
-public final class JpaCredentialVaultAdapter implements CredentialVaultPort {
+public class JpaCredentialVaultAdapter implements CredentialVaultPort {
 
     private final CredentialHandleRepository repository;
 
@@ -83,7 +83,7 @@ public final class JpaCredentialVaultAdapter implements CredentialVaultPort {
         entity.setTenantId(metadata.tenantId().value());
         entity.setUserId(metadata.userId().value());
         entity.setConnectorId(metadata.connectorId());
-        entity.setScopes(metadata.scopes().stream().sorted().toList());
+        entity.setScopes(metadata.scopes().stream().sorted().toArray(String[]::new));
         entity.setExpiresAt(metadata.expiresAt());
         entity.setRevokedAt(metadata.revokedAt());
         entity.setVaultRef(metadata.vaultRef());
@@ -97,7 +97,7 @@ public final class JpaCredentialVaultAdapter implements CredentialVaultPort {
                 new TenantId(entity.getTenantId()),
                 new UserId(entity.getUserId()),
                 entity.getConnectorId(),
-                Set.copyOf(entity.getScopes()),
+                Set.of(entity.getScopes()),
                 entity.getExpiresAt(),
                 entity.getRevokedAt(),
                 entity.getVaultRef(),

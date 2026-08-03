@@ -1,9 +1,11 @@
 package com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.data.jpa.autoconfigure.DataJpaRepositoriesAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 
 import com.xuejiai.aaf.framework.engine.tool.ToolCatalogProvider;
@@ -20,10 +22,15 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.Regi
 /**
  * 将现有生产仓储和工具注册中心接入 P2 稳定端口。
  *
- * <p>必须早于 {@link AgentScopeInfrastructureAutoConfiguration}——后者以这些端口存在为生效条件。 全部 Bean 都带
+ * <p>必须晚于 {@link DataJpaRepositoriesAutoConfiguration}，确保 {@link AgentDefinitionRepository}
+ * 已注册后再评估端口创建条件；否则 {@link AgentDefinitionPort} 会缺失，后续 AgentScope 与 Assistant
+ * 条件装配链将被整体跳过。
+ *
+ * <p>同时必须早于 {@link AgentScopeInfrastructureAutoConfiguration}——后者以这些端口存在为生效条件。全部 Bean 都带
  * ConditionalOnMissingBean，业务方可自行替换实现。
  */
 @AutoConfiguration
+@AutoConfigureAfter(DataJpaRepositoriesAutoConfiguration.class)
 @AutoConfigureBefore(AgentScopeInfrastructureAutoConfiguration.class)
 public class AgentRuntimePortAutoConfiguration {
 

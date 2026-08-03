@@ -288,7 +288,7 @@ BEGIN
           AND target_type IS NULL
     ) agg
     WHERE agg.period_count > 0
-    ON CONFLICT (time_period, task_type) DO UPDATE SET
+    ON CONFLICT (time_period, task_type) WHERE deleted = FALSE DO UPDATE SET
         period_count     = EXCLUDED.period_count,
         cumulative_count = EXCLUDED.cumulative_count,
         update_time      = CURRENT_TIMESTAMP;

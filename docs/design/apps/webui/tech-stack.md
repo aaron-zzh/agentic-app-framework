@@ -141,7 +141,8 @@ gains:
 | 快捷键 | react-hotkeys-hook | 声明式快捷键绑定（⌘K/Esc/快捷操作） |
 | 文件上传 | react-dropzone | 拖拽文件上传区域，知识库文档上传 |
 | 剪贴板复制 | copy-to-clipboard | 跨浏览器剪贴板复制，代码块复制按钮 |
-| 节点流程图 | @xyflow/react (React Flow) | 工作流可视化编辑、RAG 管道、Agent 编排拓扑图、知识图谱关系展示 |
+| 节点流程图 | @xyflow/react (React Flow) | 工作流可视化编辑、RAG 管道、Agent 编排拓扑图 |
+| 知识可视化 | @aaf/knowledge-visualization + Three.js | 知识图谱 2D/2.5D/3D 批量渲染、布局、拾取和渐进探索 |
 | 图表 | echarts | Auto Dev 监控面板、协作控制台仪表板、Token 用量分析 |
 | PDF 预览 | @react-pdf/renderer 或 react-pdf | 文档导出预览、报表展示 |
 
@@ -152,7 +153,7 @@ gains:
 | 客户端模糊搜索 | fuse.js | 命令面板/文档树/知识库的前端即时搜索，无需后端请求 |
 | 微动画图标 | lottie-react | Agent 状态指示、加载动画、空状态插画（JSON 动画，轻量） |
 | 自动布局 | @dagrejs/dagre | 工作流图自动布局（配合 @xyflow/react） |
-| 深度可视化 | d3-force + d3-hierarchy + d3-scale + d3-shape | 按需引入子模块（不引入完整 d3），力导向知识图谱/自定义布局/比例尺 |
+| 深度可视化 | @aaf/knowledge-visualization + Three.js | 独立 Nx React library，核心渲染与布局不依赖业务 API，支持 2D/2.5D/3D |
 
 ### 3.8 工具函数库
 
@@ -203,7 +204,8 @@ gains:
 | AI 对话集成 | assistant-ui（AG-UI 协议） | CopilotKit / Vercel AI SDK 独立使用 | AG-UI 事件模型支持多 Agent/状态同步/人工审批；composable primitives       |
 | 命令面板 | cmdk                    | kbar / 自研                       | 轻量（2KB）、无样式锁定、shadcn/ui 官方集成、WAI-ARIA 合规                  |
 | 画板引擎 | tldraw（v2.0+）           | Excalidraw          | SDK 设计可嵌入、React 原生、协同内置、形状/连线/文本一体化                       |
-| 流程图 | @xyflow/react           | 自研 / mermaid                    | 节点+边声明式 API、拖拽/缩放/布局内置、React 19 兼容、社区活跃                   |
+| 流程图 | @xyflow/react           | 自研 / mermaid                    | 业务节点编辑、拖拽连线、缩放和工作流布局继续复用成熟编辑器能力                   |
+| 知识可视化 | @aaf/knowledge-visualization + Three.js | React Flow / D3 SVG | 核心知识探索需要批量 WebGL、2D/2.5D/3D、独立布局与语义交互，不能绑定 DOM 节点图 |
 | 图表 | ECharts                 | D3 / Chart.js / Recharts        | 声明式配置适合 React、SSR 支持、图表类型丰富；D3 仅按需引入子模块做力导向等自定义可视化        |
 | 测试框架 | Vitest + Playwright     | Jest + Cypress                  | Vite 原生速度、ESM 原生支持、Playwright 跨浏览器更稳定                     |
 
@@ -353,7 +355,7 @@ Client Component（交互）
 | 文档演示模式     | 智能文档一键转幻灯片             | reveal.js 嵌入 | v2.0+ |
 | 地理地图可视化   | 用户分布/地理数据展示            | Leaflet + react-leaflet | 按需 |
 | 画板图像编辑     | 画板内图片裁剪/滤镜/标注          | fabric.js | v2.0+ |
-| 力导向知识图谱   | 知识库实体关系物理模拟可视化         | D3 force + React 封装 | v1.0+ |
+| 知识可视化引擎   | 知识库实体关系的 2D/2.5D/3D 探索         | @aaf/knowledge-visualization + Three.js 批量渲染和独立布局 | 已落地基础版 |
 
 ---
 

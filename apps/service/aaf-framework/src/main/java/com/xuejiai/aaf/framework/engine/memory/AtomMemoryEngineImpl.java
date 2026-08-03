@@ -224,8 +224,8 @@ public class AtomMemoryEngineImpl implements AtomMemoryEngine {
 
     private boolean matchTags(MemoryAtom atom, List<String> requiredTags) {
         if (requiredTags == null || requiredTags.isEmpty()) return true;
-        if (atom.getTags() == null || atom.getTags().isEmpty()) return false;
-        return atom.getTags().stream().anyMatch(requiredTags::contains);
+        if (atom.getTags() == null || atom.getTags().length == 0) return false;
+        return Arrays.stream(atom.getTags()).anyMatch(requiredTags::contains);
     }
 
     private String toVectorString(float[] vec) {

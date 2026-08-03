@@ -198,7 +198,7 @@ public class KnowledgeGraphProjectionService {
         switch (event.eventType()) {
             case "FACT_UPSERT" ->
                     store.currentFactProjection(event.aggregateId()).ifPresent(this::projectFact);
-            case "DOCUMENT_REVOKED" -> reconcileRevokedRun(event);
+            case "DOCUMENT_REVOKED" -> deleteRun(event.runId());
             default -> throw new IllegalArgumentException("未知知识图投影事件: " + event.eventType());
         }
     }

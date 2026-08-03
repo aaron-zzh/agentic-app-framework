@@ -429,9 +429,9 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
      * 判断当前用户能否读取指定记录。
      *
      * <p>供跨资源引用、关联校验等框架内部流程复用，与详情查询使用相同的读取范围。返回 {@code false} 不区分记录不存在和无权访问。
-     * 这是固定安全入口，业务子类不能覆写；额外范围限制应通过资源规则或 {@link #buildSpec(PageParam)} 声明。
+     * 这是固定安全入口，业务子类不应覆写；额外范围限制应通过资源规则或 {@link #buildSpec(PageParam)} 声明。
      */
-    public final boolean isReadable(Long id) {
+    public boolean isReadable(Long id) {
         if (id == null || id <= 0) {
             return false;
         }
@@ -449,9 +449,9 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
      * 判断当前用户能否把指定记录作为其他资源的关联目标。
      *
      * <p>“可以查看”不等于“可以关联”。本方法除检查记录范围外，还要求资源的 ID 字段具有引用能力； 额外关联规则由 {@link ReferencePolicy}
-     * 处理。该方法是固定安全入口，业务子类不能覆写。
+     * 处理。该方法是固定安全入口，业务子类不应覆写。
      */
-    public final boolean isReferenceVisible(Long id) {
+    public boolean isReferenceVisible(Long id) {
         if (id == null || id <= 0) {
             return false;
         }
@@ -462,7 +462,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
                 .isPresent();
     }
 
-    public final Set<Long> readableReferenceIds(Collection<Long> ids) {
+    public Set<Long> readableReferenceIds(Collection<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             return Set.of();
         }
@@ -476,7 +476,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
                 .collect(Collectors.toUnmodifiableSet());
     }
 
-    public final Set<Long> referenceableIds(Collection<Long> ids) {
+    public Set<Long> referenceableIds(Collection<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             return Set.of();
         }
@@ -491,7 +491,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
                 .collect(Collectors.toUnmodifiableSet());
     }
 
-    public final Map<Long, ResourceRefDTO> loadReadableRefs(Collection<Long> ids) {
+    public Map<Long, ResourceRefDTO> loadReadableRefs(Collection<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             return Map.of();
         }

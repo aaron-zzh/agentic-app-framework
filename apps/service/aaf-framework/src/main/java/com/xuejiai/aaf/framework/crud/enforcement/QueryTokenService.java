@@ -14,6 +14,7 @@ import java.util.Objects;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -31,6 +32,7 @@ public final class QueryTokenService {
     private final Duration ttl;
     private final Clock clock;
 
+    @Autowired
     public QueryTokenService(
             @Value("${aaf.security.query-token.secret}") String secret,
             @Value("${aaf.security.query-token.ttl:PT5M}") Duration ttl) {

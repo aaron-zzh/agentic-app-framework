@@ -84,7 +84,7 @@ public class MemoryExtractionService {
             // M53：成本记账到触发用户
             atom.setEmbedding(embeddingService.embed(raw.content(), userId));
             atom.setEventTime(Instant.now());
-            atom.setTags(raw.tags());
+            atom.setTags(raw.tags().toArray(String[]::new));
             atom.setWeight(0.5);
             atoms.add(atom);
         }
@@ -126,7 +126,7 @@ public class MemoryExtractionService {
             // M53：成本记账到触发用户
             atom.setEmbedding(embeddingService.embed(raw.content(), userId));
             atom.setEventTime(eventTime != null ? eventTime : Instant.now());
-            atom.setTags(raw.tags());
+            atom.setTags(raw.tags().toArray(String[]::new));
             atom.setWeight(0.5);
             atoms.add(atom);
         }

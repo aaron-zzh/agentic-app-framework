@@ -51,7 +51,7 @@ $$[{"q":"什么是积分，我如何获得？","a":"积分是 AAF 平台的标�
  '分销资格获取条件',
  'ALL=全员自动 / PAID=付费套餐激活后自动 / MANUAL=手动授权',
  TRUE, TRUE)
-ON CONFLICT (config_key) DO NOTHING;
+ON CONFLICT (config_key) WHERE deleted = FALSE DO NOTHING;
 
 INSERT INTO sys_file_config (name, storage_type, config, master, status)
 SELECT '本地存储', 'LOCAL', '{"basePath":"/data/aaf/files"}', TRUE, 0
@@ -64,7 +64,7 @@ VALUES
     ('register', '注册验证码',   'SMS_482485008', '["code"]', 1),
     ('login',    '登录验证码',   'SMS_482485008', '["code"]', 1),
     ('reset',    '重置密码验证码', 'SMS_482485008', '["code"]', 1)
-ON CONFLICT (code) DO NOTHING;
+ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 
 -- ==================== 消息模板（邮件） ====================
 
@@ -99,7 +99,7 @@ VALUES (
 </html>',
     '["code","type","expireMinutes","companyName"]',
     1
-) ON CONFLICT (code) DO UPDATE SET
+) ON CONFLICT (code) WHERE deleted = FALSE DO UPDATE SET
     subject  = EXCLUDED.subject,
     content  = EXCLUDED.content,
     variables = EXCLUDED.variables;
@@ -116,7 +116,7 @@ VALUES
     ('auth.verify_code.reset', '重置密码验证码', 'EMAIL', '重置密码验证码',
      '<p>您正在重置密码，验证码为：<strong>${code}</strong>，${expireMinutes} 分钟内有效，请勿泄露。</p>',
      '["code","expireMinutes"]')
-ON CONFLICT (code) DO NOTHING;
+ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 
 -- 钉钉渠道验证码模板（开发/测试环境调试用）
 INSERT INTO sys_message_template (code, name, channel, subject, content, variables)
@@ -135,7 +135,7 @@ VALUES (
 
 > 如非本人操作，请忽略此消息。',
     '["code","type","expireMinutes","companyName"]'
-) ON CONFLICT (code) DO NOTHING;
+) ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 
 
 -- ==================== 初始管理员 ====================
@@ -143,7 +143,7 @@ VALUES (
 -- 密码为 admin（BCrypt），首次登录后请修改
 INSERT INTO sys_user (username, password, nickname, email, email_verified, status)
 VALUES ('admin', '$2a$10$UyqdQK.M7V9FE4IzbbzeUeQnU.NsumDR.RCviFq4Pt04Y/F4VWLKC', '管理员', 'admin@xuejiai.com', TRUE, 0)
-ON CONFLICT (username) DO NOTHING;
+ON CONFLICT (username) WHERE deleted = FALSE DO NOTHING;
 
 INSERT INTO sys_organization (name, slug, type, owner_id, create_by)
 SELECT '默认工作空间', 'personal-' || u.id, 'personal', u.id, u.id
@@ -166,7 +166,7 @@ VALUES ('admin',       '管理员',     '系统管理员，拥有全部权限'),
        ('member',      '普通成员',   '默认角色，基础读写权限'),
        ('guest',       '访客',       '只读权限'),
        ('agent',       'AI 智能体',  'AI Agent 专用角色')
-ON CONFLICT (code) DO NOTHING;
+ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 
 INSERT INTO sys_user_role (user_id, role_id)
 SELECT u.id, r.id FROM sys_user u, sys_role r
@@ -219,7 +219,7 @@ VALUES
     ('业务动作工具执行',   'tool:business-action:execute',       'tool',      'business-action',   'execute', 0),
     ('图片生成工具执行',   'tool:image-generate:execute',        'tool',      'image-generate',    'execute', 0),
     ('视频生成工具执行',   'tool:video-generate:execute',        'tool',      'video-generate',    'execute', 0)
-ON CONFLICT (code) DO NOTHING;
+ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 
 -- ==================== 角色菜单与权限挂接 ====================
 
@@ -232,7 +232,7 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO sys_role (code, name, description, status)
 VALUES ('sales', '销售', '销售演示角色，拥有工作台与 AI 创作入口，不包含系统管理权限', 0)
-ON CONFLICT (code) DO NOTHING;
+ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 
 INSERT INTO sys_role_permission (role_id, permission_id)
 SELECT r.id, p.id FROM sys_role r
@@ -496,7 +496,7 @@ INSERT INTO ai_tool_catalog (
 ('recognizeOcr', 'LOCAL', TRUE, 'FUNCTION', 'OCR', 'LOW', TRUE, FALSE, 'tool:ocr:execute', NULL, NULL,
  '{"type":"object","required":["requestJson"],"properties":{"requestJson":{"type":"string","description":"JSON 参数：imageUrl 必填；task 可选（TEXT_RECOGNITION/KEY_INFORMATION_EXTRACTION/TABLE_PARSING/DOCUMENT_PARSING/FORMULA_RECOGNITION/MULTI_LAN）；prompt 可选"}}}',
  220, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-ON CONFLICT (tool_name) DO UPDATE SET
+ON CONFLICT (tool_name) WHERE deleted = FALSE DO UPDATE SET
     source = EXCLUDED.source,
     enabled = EXCLUDED.enabled,
     tool_type = EXCLUDED.tool_type,
@@ -516,7 +516,7 @@ INSERT INTO ai_tool_catalog (tool_name, source, enabled, tool_type, category, ri
 VALUES ('queryWeather', 'LOCAL', TRUE, 'HTTP', 'WEATHER', 'LOW', TRUE, FALSE, 'tool:weather:query', NULL, NULL,
  '{"type":"object","required":["longitude","latitude"],"properties":{"longitude":{"type":"number","description":"经度，如 116.3883"},"latitude":{"type":"number","description":"纬度，如 39.9289"}}}',
  230, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-ON CONFLICT (tool_name) DO UPDATE SET
+ON CONFLICT (tool_name) WHERE deleted = FALSE DO UPDATE SET
     enabled = EXCLUDED.enabled,
     input_schema = EXCLUDED.input_schema,
     update_time = CURRENT_TIMESTAMP;
@@ -702,7 +702,7 @@ VALUES
 ('deepseek',  'DeepSeek',    'OPENAI_COMPAT', 'https://api.deepseek.com/v1',                       true,  20, 'DeepSeek 官方 API，支持 deepseek-chat / deepseek-reasoner'),
 ('n1n',       'N1N',         'OPENAI_COMPAT', 'https://llm-api.net/v1',                            true,  30, 'N1N 聚合平台，兼容 OpenAI 接口协议'),
 ('volcengine','火山引擎方舟', 'VOLCENGINE',    'https://ark.cn-beijing.volces.com/api/v3',           true,  40, '字节跳动火山引擎方舟平台，支持 doubao-seedance 等视频生成模型')
-ON CONFLICT (provider_code) DO NOTHING;
+ON CONFLICT (provider_code) WHERE deleted = FALSE DO NOTHING;
 
 -- ============================================================
 -- AI 模型
@@ -1138,7 +1138,7 @@ VALUES
      'STUDY', 'MIXED',
      '{"prompt":"你是高效学习和知识管理专家。将用户输入的学习材料整理为：1) 知识框架（大纲/思维导图文字版）2) 核心要点（每条 ≤30 字，带序号）3) 3 个自测问答（一问一答格式）。帮助用户加深理解和记忆。","defaultPersonaId":null}',
      TRUE, 5)
-ON CONFLICT (code) DO NOTHING;
+ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 
 -- ==================== 装扮 starter pack（5 头像 + 5 服饰） ====================
 INSERT INTO avatar_outfit (code, name, type, asset_url, thumbnail_url, rarity, unlock_condition, sort_order)
@@ -1173,7 +1173,7 @@ VALUES
     ('outfit-armor', '太空战甲', 'OUTFIT',
      '/assets/outfits/outfit-armor.png', '/assets/outfits/outfit-armor-thumb.png',
      'LEGENDARY', 'VIP', 15)
-ON CONFLICT (code) DO NOTHING;
+ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 
 -- ==================== 文案智能体技能（8 个：COPYWRITING/STRATEGY） ====================
 INSERT INTO ai_skill_definition (code, name, description, category, system_prompt, priority, status, built_in)
@@ -1282,7 +1282,7 @@ VALUES
         {"kind":"IMAGE","label":"思维导图配图","model":"wanx","aspect":"16:9","promptFrom":"step1"}
      ]}'::jsonb,
      TRUE, 50)
-ON CONFLICT (code) DO NOTHING;
+ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 
 
 
@@ -1301,7 +1301,7 @@ VALUES
      'ONBOARDING', 'credit.recharge.success', 1, 20, 40),
     ('invite-friend', '邀请好友', '邀请第一个好友注册，奖励 200 积分', '🎁',
      'ACHIEVEMENT', 'invite.success', 1, 200, 50)
-ON CONFLICT (code) DO NOTHING;
+ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 
 
 

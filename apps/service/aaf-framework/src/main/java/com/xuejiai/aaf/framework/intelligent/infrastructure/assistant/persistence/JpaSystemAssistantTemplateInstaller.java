@@ -8,7 +8,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition
 import com.xuejiai.aaf.framework.intelligent.assistant.port.SystemAssistantTemplateInstaller;
 
 /** 系统 Assistant 模板的版本化 JPA 安装器。 */
-public final class JpaSystemAssistantTemplateInstaller implements SystemAssistantTemplateInstaller {
+public class JpaSystemAssistantTemplateInstaller implements SystemAssistantTemplateInstaller {
 
     private final AssistantDefinitionVersionRepository repository;
 

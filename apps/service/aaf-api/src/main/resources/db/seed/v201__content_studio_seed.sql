@@ -291,7 +291,7 @@ SELECT resource_name || action_name,
        'content', resource, action, 0
 FROM resources
 CROSS JOIN actions
-ON CONFLICT (code) DO NOTHING;
+ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 
 -- 动作执行与对象版本是命令式能力，不参与通用 CRUD 动作矩阵，单独登记。
 INSERT INTO sys_permission_code (name, code, module, resource, action, status)
@@ -299,7 +299,7 @@ VALUES
 ('执行内容项目动作', 'content:project:action', 'content', 'project', 'action', 0),
 ('读取内容对象版本', 'content:object-version:read', 'content', 'object-version', 'read', 0),
 ('导出内容对象版本', 'content:object-version:export', 'content', 'object-version', 'export', 0)
-ON CONFLICT (code) DO NOTHING;
+ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 
 INSERT INTO sys_role_permission (role_id, permission_id)
 SELECT role.id, permission.id

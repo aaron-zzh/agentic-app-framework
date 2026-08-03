@@ -18,7 +18,7 @@ import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryRecallPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryWritePort;
 
 /** PostgreSQL/PgVector Cognition 记忆适配器。 */
-public final class JpaCognitionMemoryAdapter
+public class JpaCognitionMemoryAdapter
         implements MemoryRecallPort, MemoryWritePort, MemoryManagementPort {
 
     private final CognitionMemoryRepository repository;
@@ -164,7 +164,7 @@ public final class JpaCognitionMemoryAdapter
         entity.setImportance(replacement.importance());
         entity.setConfidence(replacement.confidence());
         entity.setPrivacy(replacement.privacy().name());
-        entity.setTags(replacement.tags());
+        entity.setTags(toTagsArray(replacement.tags()));
         entity.setEmbedding(
                 embeddings.embed(
                         replacement.content(),
@@ -239,7 +239,7 @@ public final class JpaCognitionMemoryAdapter
         entity.setImportance(memory.importance());
         entity.setConfidence(memory.confidence());
         entity.setPrivacy(memory.privacy().name());
-        entity.setTags(memory.tags());
+        entity.setTags(toTagsArray(memory.tags()));
         entity.setEmbedding(
                 embeddings.embed(
                         memory.content(),
@@ -265,9 +265,17 @@ public final class JpaCognitionMemoryAdapter
                 entity.getImportance(),
                 entity.getConfidence(),
                 PrivacyLevel.valueOf(entity.getPrivacy()),
-                entity.getTags(),
+                toTagsList(entity.getTags()),
                 entity.getExpiresAt(),
                 entity.getCreatedAt());
+    }
+
+    private static String[] toTagsArray(List<String> tags) {
+        return tags.toArray(String[]::new);
+    }
+
+    private static List<String> toTagsList(String[] tags) {
+        return tags == null ? List.of() : List.of(tags);
     }
 
     private static String scopeTag(String scope) {

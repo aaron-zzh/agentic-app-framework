@@ -15,7 +15,7 @@ VALUES
     ('待办引用', 'system:todo:reference', 'system', 'todo', 'reference', 0),
     ('待办管理维护模式', 'system:todo:access-mode:admin-maintenance', 'system', 'todo', 'admin-maintenance', 0),
     ('待办系统任务模式', 'system:todo:access-mode:system-job', 'system', 'todo', 'system-job', 0)
-ON CONFLICT (code) DO NOTHING;
+ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 
 INSERT INTO sys_role_permission (role_id, permission_id)
 SELECT r.id, p.id
@@ -67,7 +67,7 @@ VALUES
     ('等级佣金加成更新', 'brokerage:brokerage-level-bonus:update', 'brokerage', 'brokerage-level-bonus', 'update', 0),
     ('等级佣金加成删除', 'brokerage:brokerage-level-bonus:delete', 'brokerage', 'brokerage-level-bonus', 'delete', 0),
     ('等级佣金加成导出', 'brokerage:brokerage-level-bonus:export', 'brokerage', 'brokerage-level-bonus', 'export', 0)
-ON CONFLICT (code) DO UPDATE
+ON CONFLICT (code) WHERE deleted = FALSE DO UPDATE
 SET name = EXCLUDED.name,
     module = EXCLUDED.module,
     resource = EXCLUDED.resource,

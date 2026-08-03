@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -32,7 +33,7 @@ public class ContentAigcTaskTerminalListener {
     private final ContentProjectRepository projectRepository;
     private final ContentObjectVersionCandidateService candidateService;
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onTerminal(AigcTaskTerminalEvent event) {
         var task = taskRepository.findById(event.taskId()).orElse(null);

@@ -32,7 +32,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 
 /** PostgreSQL 委托任务唯一生产适配器。 */
-public final class JpaDelegatedTaskAdapter implements DelegatedTaskPort {
+public class JpaDelegatedTaskAdapter implements DelegatedTaskPort {
     private final DelegatedTaskRepository repository;
     private final TaskBoardRepository taskBoards;
     private final ConversationLeasePort leases;

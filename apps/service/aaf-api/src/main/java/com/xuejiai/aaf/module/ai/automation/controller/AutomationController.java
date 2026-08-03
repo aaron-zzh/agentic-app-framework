@@ -29,7 +29,7 @@ import com.xuejiai.aaf.framework.security.OperatorContext;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 @Tag(name = "AI 自动化")
-@RestController
+@RestController("aiAutomationController")
 @RequestMapping("/api/ai/automations")
 @PreAuthorize("isAuthenticated()")
 public class AutomationController {

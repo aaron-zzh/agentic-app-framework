@@ -14,7 +14,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 
 /** Goal/SubTask DAG 的 PostgreSQL 聚合适配器。 */
-public final class JpaTaskBoardAdapter implements TaskBoardPort {
+public class JpaTaskBoardAdapter implements TaskBoardPort {
     private final TaskBoardRepository repository;
     private final ConversationLeasePort leases;
 

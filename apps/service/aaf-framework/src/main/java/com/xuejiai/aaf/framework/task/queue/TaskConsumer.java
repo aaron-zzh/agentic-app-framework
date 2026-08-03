@@ -1,8 +1,11 @@
 package com.xuejiai.aaf.framework.task.queue;
 
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -10,15 +13,19 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import io.lettuce.core.XAutoClaimArgs;
+import io.lettuce.core.api.async.RedisStreamAsyncCommands;
+import io.lettuce.core.models.stream.ClaimedMessages;
+
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
-import org.springframework.data.domain.Range;
 import org.springframework.data.redis.connection.stream.Consumer;
 import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.connection.stream.ReadOffset;
 import org.springframework.data.redis.connection.stream.RecordId;
 import org.springframework.data.redis.connection.stream.StreamOffset;
 import org.springframework.data.redis.connection.stream.StreamReadOptions;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -48,6 +55,7 @@ public class TaskConsumer {
 
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final AtomicLong lastReclaimAt = new AtomicLong(0);
+    private final ConcurrentMap<String, String> reclaimCursors = new ConcurrentHashMap<>();
     private final String consumerPrefix = "task-consumer-" + UUID.randomUUID();
     private ExecutorService executor;
 
@@ -165,32 +173,64 @@ public class TaskConsumer {
             return;
         }
         for (var stream : STREAMS) {
-            var pending =
-                    redisTemplate
-                            .opsForStream()
-                            .pending(
-                                    stream,
-                                    GROUP,
-                                    Range.unbounded(),
-                                    taskProperties.getQueue().getReclaimBatchSize(),
-                                    taskProperties.getQueue().getPendingMinIdle());
-            if (pending.isEmpty()) {
-                continue;
-            }
-            var ids = pending.stream().map(message -> message.getId()).toArray(RecordId[]::new);
-            var claimed =
-                    redisTemplate
-                            .opsForStream()
-                            .claim(
-                                    stream,
-                                    GROUP,
-                                    consumerName,
-                                    taskProperties.getQueue().getPendingMinIdle(),
-                                    ids);
-            for (var message : claimed) {
+            for (var message : autoClaim(stream, consumerName)) {
                 processMessage(stream, message);
             }
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<MapRecord<String, Object, Object>> autoClaim(String stream, String consumerName) {
+        var streamKey = stream.getBytes(StandardCharsets.UTF_8);
+        var group = GROUP.getBytes(StandardCharsets.UTF_8);
+        var consumer = consumerName.getBytes(StandardCharsets.UTF_8);
+        var cursor = reclaimCursors.getOrDefault(stream, "0-0");
+        var claimed =
+                redisTemplate.execute(
+                        (RedisCallback<ClaimedMessages<byte[], byte[]>>)
+                                connection -> {
+                            var commands =
+                                    (RedisStreamAsyncCommands<byte[], byte[]>)
+                                            connection.getNativeConnection();
+                            return commands
+                                    .xautoclaim(
+                                            streamKey,
+                                            new XAutoClaimArgs<byte[]>()
+                                                    .consumer(
+                                                            io.lettuce.core.Consumer.from(
+                                                                    group, consumer))
+                                                    .minIdleTime(
+                                                            taskProperties
+                                                                    .getQueue()
+                                                                    .getPendingMinIdle())
+                                                    .startId(cursor)
+                                                    .count(
+                                                            taskProperties
+                                                                    .getQueue()
+                                                                    .getReclaimBatchSize()))
+                                    .toCompletableFuture()
+                                    .join();
+                        });
+        reclaimCursors.put(stream, claimed.getId());
+        return claimed.getMessages().stream()
+                .map(
+                        message -> {
+                            var fields = new HashMap<Object, Object>();
+                            message
+                                    .getBody()
+                                    .forEach(
+                                            (key, value) ->
+                                                    fields.put(
+                                                            new String(
+                                                                    key,
+                                                                    StandardCharsets.UTF_8),
+                                                            new String(
+                                                                    value,
+                                                                    StandardCharsets.UTF_8)));
+                            return MapRecord.<String, Object, Object>create(stream, fields)
+                                    .withId(RecordId.of(message.getId()));
+                        })
+                .toList();
     }
 
     private void processMessage(String stream, MapRecord<String, Object, Object> record) {

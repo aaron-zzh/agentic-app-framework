@@ -15,7 +15,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 
 /** approvalId 恢复作业的 JPA 实现；不轮询，由事件或显式入口领取。 */
-public final class JpaTaskRecoveryAdapter implements TaskRecoveryPort {
+public class JpaTaskRecoveryAdapter implements TaskRecoveryPort {
 
     private static final Duration RECOVERY_LEASE = Duration.ofHours(1);
 

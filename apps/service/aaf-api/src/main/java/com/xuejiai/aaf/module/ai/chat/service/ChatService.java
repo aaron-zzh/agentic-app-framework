@@ -11,6 +11,7 @@ import com.xuejiai.aaf.common.enums.chat.ConversationStatusEnum;
 import com.xuejiai.aaf.common.enums.chat.ConversationTypeEnum;
 import com.xuejiai.aaf.common.enums.chat.MessageSenderTypeEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.security.authorization.RelationPermissionWriter;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatMessageVO;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatSessionCreateDTO;
@@ -46,7 +47,6 @@ public class ChatService {
     private final ConversationMessageRepository messageRepository;
     private final RelationPermissionWriter relationPermissionWriter;
     private final com.xuejiai.aaf.framework.security.OperatorContext operatorContext;
-    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     /**
      * 创建会话
@@ -279,7 +279,7 @@ public class ChatService {
         // M18：messageId 来自路径，须经所属会话反查归属，否则可对他人消息打标
         requireOwnedConversation(msg.getConversationId());
         // m13：反馈内容用 Jackson 构造 JSON——手工拼串遇到引号/换行/反斜杠会产出非法 JSON
-        var node = objectMapper.createObjectNode();
+        var node = JsonUtils.createObjectNode();
         node.put("feedback", feedbackType);
         node.put("comment", comment != null ? comment : "");
         msg.setMetadata(node.toString());

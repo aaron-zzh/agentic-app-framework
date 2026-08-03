@@ -1,7 +1,6 @@
 package com.xuejiai.aaf.framework.intelligent.infrastructure.cognition.persistence;
 
 import java.time.Instant;
-import java.util.List;
 
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -49,7 +48,7 @@ public class CognitionMemoryEntity {
 
     @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(columnDefinition = "text[]")
-    private List<String> tags;
+    private String[] tags;
 
     @Column(columnDefinition = "vector(1536)")
     private float[] embedding;

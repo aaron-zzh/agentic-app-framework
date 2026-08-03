@@ -364,7 +364,7 @@ VALUES (
     'manage',
     0
 )
-ON CONFLICT (code) DO NOTHING;
+ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 
 INSERT INTO sys_role_permission (role_id, permission_id)
 SELECT r.id, p.id

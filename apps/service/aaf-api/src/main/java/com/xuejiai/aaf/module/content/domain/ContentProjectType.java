@@ -8,8 +8,6 @@ import org.hibernate.type.SqlTypes;
 
 import com.xuejiai.aaf.common.enums.content.ContentConfigStatusEnum;
 import com.xuejiai.aaf.common.model.BaseEntity;
-import com.xuejiai.aaf.framework.crud.reference.CrudReference;
-import com.xuejiai.aaf.framework.crud.reference.ReferenceCapability;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -26,18 +24,6 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "cs_project_type")
-@CrudReference(
-        key = "createBy",
-        idProperty = "createBy",
-        targetResource = "system.user",
-        viewField = "createBy",
-        capabilities = ReferenceCapability.READ)
-@CrudReference(
-        key = "updateBy",
-        idProperty = "updateBy",
-        targetResource = "system.user",
-        viewField = "updateBy",
-        capabilities = ReferenceCapability.READ)
 @SQLDelete(
         sql =
                 "UPDATE cs_project_type SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")

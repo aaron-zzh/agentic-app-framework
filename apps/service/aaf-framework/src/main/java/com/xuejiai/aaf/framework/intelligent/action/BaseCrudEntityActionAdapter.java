@@ -47,7 +47,7 @@ public abstract class BaseCrudEntityActionAdapter<
 
     @Override
     public String entitySlug() {
-        return entry().snapshot().slug();
+        return resourceKey.slug();
     }
 
     @Override
