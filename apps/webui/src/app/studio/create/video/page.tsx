@@ -172,10 +172,6 @@ export default function StudioCreateVideoPage() {
       if (task.type !== "VIDEO") return
       setRecentTasks((prev) => [task, ...prev].slice(0, 5))
     }, []),
-    onProgress: useCallback((task: AigcTaskEvent) => {
-      if (task.type !== "VIDEO") return
-      setRecentTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
-    }, []),
     onCompleted: useCallback((task: AigcTaskEvent) => {
       if (task.type !== "VIDEO") return
       setRecentTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))

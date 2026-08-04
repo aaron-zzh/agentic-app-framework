@@ -21,9 +21,12 @@ import { PlainTextPlugin } from "@lexical/react/LexicalPlainTextPlugin"
 import {
   $createParagraphNode,
   $createTextNode,
+  $getNodeByKey,
   $getRoot,
+  $isElementNode,
   COMMAND_PRIORITY_HIGH,
   DecoratorNode,
+  type ElementNode,
   KEY_ENTER_COMMAND,
   type LexicalNode,
   type NodeKey,
@@ -138,11 +141,7 @@ function ProjectPromptTag({
       e.stopPropagation()
       const onDismiss = _dismissCallbacks.get(nodeKey)
       editor.update(() => {
-        // biome-ignore lint/suspicious/noExplicitAny: Lexical 内部 nodeMap API
-        const node = (editor.getEditorState() as any)._nodeMap.get(nodeKey) as
-          | LexicalNode
-          | undefined
-        node?.remove()
+        $getNodeByKey(nodeKey)?.remove()
         _dismissCallbacks.delete(nodeKey)
       })
       onDismiss?.()
@@ -190,10 +189,8 @@ function getPlainTextExcludingTag(root: LexicalNode): string {
   let text = ""
   const visit = (node: LexicalNode) => {
     if (node instanceof ProjectPromptNode) return
-    // biome-ignore lint/suspicious/noExplicitAny: Lexical 节点子项遍历
-    const children = (node as any).getChildren?.()
-    if (children) {
-      for (const c of children) visit(c)
+    if ($isElementNode(node)) {
+      for (const child of node.getChildren()) visit(child)
     } else {
       text += node.getTextContent()
     }
@@ -216,25 +213,22 @@ function ExternalValuePlugin({ value }: { value: string }) {
     editor.update(() => {
       const root = $getRoot()
       // 保留含 ProjectPromptNode 的段落，仅清空其中的纯文本节点；移除其余段落
-      let tagParagraph: LexicalNode | null = null
+      let tagParagraph: ElementNode | null = null
       for (const child of root.getChildren()) {
-        // biome-ignore lint/suspicious/noExplicitAny: Lexical paragraph children
-        const hasTag = (child as any)
-          .getChildren?.()
-          ?.some((c: LexicalNode) => c instanceof ProjectPromptNode)
-        if (hasTag && !tagParagraph) {
+        const hasTag =
+          $isElementNode(child) &&
+          child.getChildren().some((nested) => nested instanceof ProjectPromptNode)
+        if (hasTag && !tagParagraph && $isElementNode(child)) {
           tagParagraph = child
-          // biome-ignore lint/suspicious/noExplicitAny: Lexical paragraph children
-          for (const c of (child as any).getChildren()) {
-            if (!(c instanceof ProjectPromptNode)) c.remove()
+          for (const nested of child.getChildren()) {
+            if (!(nested instanceof ProjectPromptNode)) nested.remove()
           }
         } else {
           child.remove()
         }
       }
       if (tagParagraph) {
-        // biome-ignore lint/suspicious/noExplicitAny: Lexical paragraph append
-        if (value) (tagParagraph as any).append($createTextNode(value))
+        if (value) tagParagraph.append($createTextNode(value))
       } else {
         const p = $createParagraphNode()
         if (value) p.append($createTextNode(value))
@@ -295,11 +289,11 @@ function ProjectPromptPlugin({
           toRemove.push(child)
           continue
         }
-        // biome-ignore lint/suspicious/noExplicitAny: Lexical paragraph children
-        const nested = (child as any).getChildren?.() as LexicalNode[] | undefined
-        nested?.forEach((c) => {
-          if (c instanceof ProjectPromptNode) toRemove.push(c)
-        })
+        if ($isElementNode(child)) {
+          for (const nested of child.getChildren()) {
+            if (nested instanceof ProjectPromptNode) toRemove.push(nested)
+          }
+        }
       }
       for (const n of toRemove) {
         _dismissCallbacks.delete(n.getKey())
@@ -309,10 +303,11 @@ function ProjectPromptPlugin({
       if (!projectPrompt?.content.trim()) return
 
       let firstChild = root.getFirstChild()
-      if (!firstChild) {
-        const para = $createParagraphNode()
-        root.append(para)
-        firstChild = para
+      if (!$isElementNode(firstChild)) {
+        const paragraph = $createParagraphNode()
+        if (firstChild) firstChild.insertBefore(paragraph)
+        else root.append(paragraph)
+        firstChild = paragraph
       }
 
       const tagNode = $createProjectPromptNode(
@@ -320,13 +315,11 @@ function ProjectPromptPlugin({
         projectPrompt.content,
         onDismissRef.current
       )
-      // biome-ignore lint/suspicious/noExplicitAny: Lexical paragraph API
-      const firstTextChild = (firstChild as any).getFirstChild?.()
+      const firstTextChild = firstChild.getFirstChild()
       if (firstTextChild) {
         firstTextChild.insertBefore(tagNode)
       } else {
-        // biome-ignore lint/suspicious/noExplicitAny: Lexical paragraph append
-        ;(firstChild as any).append(tagNode)
+        firstChild.append(tagNode)
       }
     })
   }, [editor, projectPrompt])
@@ -476,14 +469,15 @@ function PastePlugin() {
         e.preventDefault()
         editor.update(() => {
           const root = $getRoot()
-          let firstPara = root.getFirstChild()
-          if (!firstPara) {
-            firstPara = $createParagraphNode()
-            root.append(firstPara)
+          let firstParagraph = root.getFirstChild()
+          if (!$isElementNode(firstParagraph)) {
+            const paragraph = $createParagraphNode()
+            if (firstParagraph) firstParagraph.insertBefore(paragraph)
+            else root.append(paragraph)
+            firstParagraph = paragraph
           }
           const chip = $createProjectPromptNode(`${text.slice(0, 8)}…`, text)
-          // biome-ignore lint/suspicious/noExplicitAny: Lexical paragraph append
-          ;(firstPara as any).append(chip)
+          firstParagraph.append(chip)
           chip.selectNext()
         })
         return true

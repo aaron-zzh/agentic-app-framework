@@ -15,11 +15,11 @@ export { threeViewConfig } from "./three"
 // 3D（动态导入使用，此处仅导出类型和容器）
 export { ThreeView } from "./three/ThreeView"
 export type {
+  AssetVO,
   GenerationParams,
-  MediaAssetType,
-  MediaAssetVO,
-  MediaCategoryVO,
-  MediaTagVO,
+  MediaType,
+  MediaVersionVO,
+  MediaVO,
   Model3dTaskResult,
   Model3dTaskStatus,
   StoryElement

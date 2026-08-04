@@ -12,17 +12,10 @@ import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.tool.ToolCallDispatcher.ToolCallResult;
 import com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyService;
-import com.xuejiai.aaf.framework.intelligent.ai.video.VideoGenerationService;
-import com.xuejiai.aaf.framework.intelligent.ai.video.vo.VideoRequest;
-import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
-import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
-import com.xuejiai.aaf.framework.intelligent.core.registry.AiServiceRegistry;
 import com.xuejiai.aaf.framework.security.OperatorContext;
-import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
-import com.xuejiai.aaf.module.ai.aigc.media.service.MediaAssetService;
-import com.xuejiai.aaf.module.ai.aigc.media.vo.SaveFromGenerationDTO;
 import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskService;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.ImageTaskRequest;
+import com.xuejiai.aaf.module.ai.aigc.task.vo.VideoTaskRequest;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,9 +30,6 @@ public class ContentGenerationTool {
     private static final String VIDEO_TOOL = "generateVideo";
 
     private final AigcTaskService aigcTaskService;
-    private final AiServiceRegistry aiServiceRegistry;
-    private final CapabilityRouter capabilityRouter;
-    private final MediaAssetService mediaAssetService;
     private final ObjectProvider<ContentSafetyService> contentSafetyService;
     private final OperatorContext operatorContext;
 
@@ -107,58 +97,46 @@ public class ContentGenerationTool {
                 return blockedBySafety(
                         VIDEO_TOOL, safety.code(), safety.message(), safety.reviewId());
             }
-            // 走决策链选模型，再通过 factory 路由到正确实现
-            var userId = operatorContext.currentOwnerId().orElse(null);
-            var ctx =
-                    CapabilityRoutingContext.of(
-                            userId, CapabilityRoutingContext.CAP_VIDEO_GEN, request.model());
-            var aiModel = capabilityRouter.resolve(ctx);
-            var service = aiServiceRegistry.get(VideoGenerationService.class, aiModel);
-
+            var userId = operatorContext.currentOwnerId().orElseThrow();
+            var imageMode = videoImageMode(request);
             var taskId =
-                    service.submit(
-                            new VideoRequest(
+                    aigcTaskService.submitVideoTask(
+                            userId,
+                            new VideoTaskRequest(
                                     request.prompt(),
+                                    request.model(),
+                                    null,
+                                    request.resolution(),
+                                    request.duration(),
+                                    request.ratio(),
+                                    request.seed(),
+                                    imageMode,
                                     request.imageUrl(),
                                     request.referenceImageUrls(),
-                                    request.model(),
-                                    request.resolution(),
-                                    request.ratio(),
-                                    request.duration(),
-                                    request.seed(),
+                                    null,
+                                    null,
+                                    null,
+                                    null,
                                     null));
-
-            // 自动保存到素材库（视频为异步任务，先记录 taskId）
-            try {
-                mediaAssetService.saveFromGeneration(
-                        userId != null ? userId : 0L,
-                        new SaveFromGenerationDTO(
-                                null,
-                                MediaAssetType.VIDEO,
-                                "pending://" + taskId,
-                                null,
-                                "{\"prompt\":\"%s\",\"taskId\":\"%s\"}"
-                                        .formatted(request.prompt().replace("\"", "\\\""), taskId),
-                                null,
-                                null,
-                                null,
-                                null,
-                                null,
-                                true,
-                                null,
-                                null,
-                                null));
-            } catch (Exception e) {
-                log.warn("自动保存素材库失败: {}", e.getMessage());
-            }
 
             return asJson(
                     ToolCallResult.success(
                             VIDEO_TOOL,
-                            JsonUtils.toJsonString(Map.of("taskId", taskId, "status", "PENDING"))));
+                            JsonUtils.toJsonString(
+                                    Map.of("taskId", taskId, "status", "PENDING"))));
         } catch (Exception ex) {
             return asJson(ToolCallResult.error(VIDEO_TOOL, "GENERATION_ERROR", ex.getMessage()));
         }
+    }
+
+    private String videoImageMode(VideoGenerateRequest request) {
+        if (request.referenceImageUrls() != null && !request.referenceImageUrls().isEmpty()) {
+            return "REFERENCE";
+        }
+        if (request.imageUrl() != null && !request.imageUrl().isBlank()) {
+            return "FIRST_FRAME";
+        }
+        return "T2V";
     }
 
     private com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyResult review(

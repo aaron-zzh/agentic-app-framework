@@ -45,7 +45,7 @@ public class VideoTaskSyncJob {
 
         for (var task : tasks) {
             try {
-                String thirdTaskId = task.getTaskId();
+                String thirdTaskId = task.getProviderTaskId();
                 if (thirdTaskId == null || task.getModel() == null) continue;
 
                 var aiModel = configCacheManager.getAiModelByModelId(task.getModel());

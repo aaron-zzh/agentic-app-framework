@@ -5,16 +5,12 @@
 
 "use client"
 
-import Image from "next/image"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo } from "react"
 import { PendingOverlay } from "@/components/animate/PendingOverlay"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useMediaAssets } from "@/lib/api/rest/media"
-import { cn } from "@/lib/utils/index"
+import { useMediaList } from "@/lib/api/rest/media"
 import { useAigcStore } from "../store"
-import type { MediaAssetVO } from "../types"
-import { AssetGroupCard } from "./AssetGroupCard"
 import { DraggableAssetCard } from "./DraggableAssetCard"
 
 /** zoom=100 时单列基准宽度（px） */
@@ -46,30 +42,14 @@ function PendingTaskCard({
     prompt: string
     type: string
     modelId?: string
-    ossUrl?: string
     error?: string
-    asset?: import("../types").MediaAssetVO
   }
 }) {
-  const [loaded, setLoaded] = useState(false)
-  const removePendingTask = useAigcStore((s) => s.removePendingTask)
+  const removePendingTask = useAigcStore((state) => state.removePendingTask)
   const setPrompt = useAigcStore((s) => s.setPrompt)
   const setModel = useAigcStore((s) => s.setModel)
   const setGenerationPanelOpen = useAigcStore((s) => s.setGenerationPanelOpen)
 
-  if (task.asset) {
-    const uploading = task.asset.url.startsWith("blob:")
-    return (
-      <div className="relative">
-        <DraggableAssetCard asset={task.asset} />
-        {uploading && (
-          <div className="pointer-events-none absolute inset-0">
-            <PendingOverlay label="上传中…" />
-          </div>
-        )}
-      </div>
-    )
-  }
   return (
     <div className="relative aspect-square overflow-hidden rounded-[6px] border border-border/50">
       {task.error ? (
@@ -108,21 +88,7 @@ function PendingTaskCard({
           </div>
         </div>
       ) : (
-        <>
-          {!loaded && <PendingOverlay label={task.prompt.slice(0, 16)} showProgress />}
-          {task.ossUrl && (
-            <Image
-              src={task.ossUrl}
-              alt={task.prompt}
-              fill
-              className={cn(
-                "object-cover transition-opacity duration-500",
-                loaded ? "opacity-100" : "opacity-0"
-              )}
-              onLoad={() => setLoaded(true)}
-            />
-          )}
-        </>
+        <PendingOverlay label={task.prompt.slice(0, 16)} showProgress />
       )}
     </div>
   )
@@ -153,47 +119,27 @@ interface FileGridProps {
   projectId?: number | null
 }
 
-const EMPTY_LIST: MediaAssetVO[] = []
-
 export function FileGrid({ filterUnassigned = false, projectId }: FileGridProps) {
-  const queryParams = projectId ? { page: 0, pageSize: 20, projectId } : { page: 0, pageSize: 20 }
-  const { data, isLoading } = useMediaAssets(queryParams)
-  const storyboardAssets = useAigcStore((s) => s.storyboardAssets)
-  const setPreviewList = useAigcStore((s) => s.setPreviewList)
-  const pendingTasks = useAigcStore((s) => s.pendingTasks)
-  const fileZoom = useAigcStore((s) => s.fileZoom)
+  const queryParams = projectId
+    ? { pageNo: 1, pageSize: 20, projectId }
+    : { pageNo: 1, pageSize: 20 }
+  const { data, isLoading } = useMediaList(queryParams)
+  const storyboardMediaIds = useAigcStore((state) => state.storyboardMediaIds)
+  const setPreviewMediaIds = useAigcStore((state) => state.setPreviewMediaIds)
+  const pendingTasks = useAigcStore((state) => state.pendingTasks)
+  const fileZoom = useAigcStore((state) => state.fileZoom)
   const colWidth = Math.round((BASE_COL_WIDTH * fileZoom) / 100)
 
-  const assignedIds = useMemo(() => new Set(storyboardAssets.map((a) => a.id)), [storyboardAssets])
-  const list = data?.list ?? EMPTY_LIST
+  const assignedIds = useMemo(() => new Set(storyboardMediaIds), [storyboardMediaIds])
+  const list = useMemo(() => data?.list ?? [], [data?.list])
   const filtered = useMemo(
-    () => (filterUnassigned ? list.filter((a) => !assignedIds.has(a.id)) : list),
+    () => (filterUnassigned ? list.filter((media) => !assignedIds.has(media.id)) : list),
     [filterUnassigned, list, assignedIds]
   )
 
   useEffect(() => {
-    setPreviewList(filtered)
-  }, [filtered, setPreviewList])
-
-  const { groups, ungrouped } = useMemo(() => {
-    const groupMap = new Map<number, { id: number; name: string; assets: MediaAssetVO[] }>()
-    const ungrouped: MediaAssetVO[] = []
-    for (const asset of filtered) {
-      if (asset.groupId != null) {
-        if (!groupMap.has(asset.groupId)) {
-          groupMap.set(asset.groupId, {
-            id: asset.groupId,
-            name: asset.groupName ?? `组 ${asset.groupId}`,
-            assets: []
-          })
-        }
-        groupMap.get(asset.groupId)?.assets.push(asset)
-      } else {
-        ungrouped.push(asset)
-      }
-    }
-    return { groups: Array.from(groupMap.values()), ungrouped }
-  }, [filtered])
+    setPreviewMediaIds(filtered.map((media) => media.id))
+  }, [filtered, setPreviewMediaIds])
 
   if (isLoading) return <FileGridSkeleton />
 
@@ -211,17 +157,8 @@ export function FileGrid({ filterUnassigned = false, projectId }: FileGridProps)
       className="grid gap-2 p-3"
       style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${colWidth}px, 1fr))` }}
     >
-      {groups.map((g) => (
-        <AssetGroupCard
-          key={g.id}
-          groupId={g.id}
-          groupName={g.name}
-          assets={g.assets}
-          colWidth={colWidth}
-        />
-      ))}
-      {ungrouped.map((asset) => (
-        <DraggableAssetCard key={asset.id} asset={asset} />
+      {filtered.map((media) => (
+        <DraggableAssetCard key={media.id} media={media} />
       ))}
       {pendingTasks.map((task) => (
         <PendingTaskCard key={`pending-${task.id}`} task={task} />

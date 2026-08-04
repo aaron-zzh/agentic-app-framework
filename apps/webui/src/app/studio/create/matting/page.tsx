@@ -196,33 +196,21 @@ export default function MattingPage() {
           params: { imageUrl, method }
         })
       }),
-    onSuccess: (taskId) => {
-      setTasks((prev) => [
-        {
-          id: taskId,
-          userId: 0,
-          type: "IMAGE_PROCESS",
-          prompt: imageUrl,
-          status: "PENDING",
-          createTime: new Date().toISOString(),
-          updateTime: new Date().toISOString()
-        },
-        ...prev
-      ])
+    onSuccess: () => {
       notify.success("抠图任务已提交")
     },
     onError: () => notify.error("提交失败")
   })
 
   useAigcTaskStream({
-    onProgress: useCallback((task: AigcTaskEvent) => {
+    onCreated: useCallback((task: AigcTaskEvent) => {
       if (task.type !== "IMAGE_PROCESS") return
-      setTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
+      setTasks((prev) => [task, ...prev.filter((item) => item.id !== task.id)])
     }, []),
     onCompleted: useCallback((task: AigcTaskEvent) => {
       if (task.type !== "IMAGE_PROCESS") return
       setTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
-      toast.success("抠图完成，素材已入库")
+      toast.success("抠图完成，媒体已入库")
     }, []),
     onFailed: useCallback((task: AigcTaskEvent) => {
       if (task.type !== "IMAGE_PROCESS") return
@@ -387,12 +375,12 @@ export default function MattingPage() {
                       </span>
                     )}
                   </div>
-                  {task.status === "SUCCESS" && task.ossUrl && (
+                  {task.status === "SUCCESS" && task.outputUrl && (
                     <button
                       type="button"
                       className="flex items-center gap-1 rounded-md border border-foreground/8 px-2 py-1 text-muted-foreground text-xs hover:bg-foreground/[0.06] hover:text-foreground"
                       onClick={() => {
-                        const url = task.ossUrl
+                        const url = task.outputUrl
                         if (!url) return
                         downloadFileWithToast(url, `matting-${task.id}.png`)
                       }}
@@ -403,8 +391,8 @@ export default function MattingPage() {
                   )}
                 </div>
 
-                {task.status === "SUCCESS" && task.ossUrl && task.prompt && (
-                  <ImageSplitViewer original={task.prompt} result={task.ossUrl} />
+                {task.status === "SUCCESS" && task.outputUrl && task.prompt && (
+                  <ImageSplitViewer original={task.prompt} result={task.outputUrl} />
                 )}
               </div>
             ))}

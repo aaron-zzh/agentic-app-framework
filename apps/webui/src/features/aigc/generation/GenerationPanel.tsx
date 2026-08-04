@@ -30,6 +30,7 @@ import { Textarea } from "@/components/ui/textarea"
 import type { VideoConfig } from "@/lib/api/rest/ai"
 import { useGenerateImage } from "@/lib/api/rest/ai"
 import { request } from "@/lib/api/rest/entity"
+import { useMediaDetails } from "@/lib/api/rest/media"
 import { useGenerationParams } from "@/lib/hooks/use-generation-params"
 import { useModelSelector } from "@/lib/hooks/use-model-selector"
 import { useAigcStore } from "../store"
@@ -197,14 +198,17 @@ function VideoParamsBar({
   )
 }
 
-export function GenerationPanel() {
+export function GenerationPanel({
+  projectPrompt
+}: {
+  projectPrompt?: { label: string; content: string } | null
+}) {
   const open = useAigcStore((s) => s.generationPanelOpen)
   const setOpen = useAigcStore((s) => s.setGenerationPanelOpen)
   const generationType = useAigcStore((s) => s.generationType)
   const setGenerationType = useAigcStore((s) => s.setGenerationType)
   const prompt = useAigcStore((s) => s.prompt)
   const setPrompt = useAigcStore((s) => s.setPrompt)
-  const projectPromptTag = useAigcStore((s) => s.projectPromptTag)
   const projectPromptDismissed = useAigcStore((s) => s.projectPromptDismissed)
   const setProjectPromptDismissed = useAigcStore((s) => s.setProjectPromptDismissed)
   const isVideo = generationType === "VIDEO_GEN"
@@ -218,8 +222,15 @@ export function GenerationPanel() {
   // const setAgentRole = useAigcStore((s) => s.setAgentRole)
   const negativePrompt = useAigcStore((s) => s.negativePrompt)
   const setNegativePrompt = useAigcStore((s) => s.setNegativePrompt)
-  const referenceAssets = useAigcStore((s) => s.referenceAssets)
-  const clearReferenceAssets = useAigcStore((s) => s.clearReferenceAssets)
+  const referenceMediaIds = useAigcStore((state) => state.referenceMediaIds)
+  const uploadedReferenceDrafts = useAigcStore((state) => state.uploadedReferenceDrafts)
+  const referenceMediaQueries = useMediaDetails(referenceMediaIds)
+  const referenceMedia = referenceMediaQueries.flatMap((query) => (query.data ? [query.data] : []))
+  const referenceUrls = [
+    ...referenceMedia.map((media) => media.currentVersion.url),
+    ...uploadedReferenceDrafts.map((draft) => draft.url)
+  ]
+  const clearReferenceAssets = useAigcStore((state) => state.clearReferenceAssets)
 
   // ── 视频模式状态 ──
   const videoConfig: VideoConfig | undefined = currentModel?.videoConfig ?? undefined
@@ -234,7 +245,7 @@ export function GenerationPanel() {
     clearReferenceAssets()
   }
 
-  const isEditMode = !isVideo && !!currentModel?.imageConfig?.edit && referenceAssets.length > 0
+  const isEditMode = !isVideo && !!currentModel?.imageConfig?.edit && referenceUrls.length > 0
   const promptMaxLength = currentModel?.contextWindow
     ? Math.min(currentModel.contextWindow, 3000)
     : 3000
@@ -260,7 +271,7 @@ export function GenerationPanel() {
 
     generateImage.mutate(
       {
-        prompt: buildFinalPrompt(prompt, projectPromptDismissed ? null : projectPromptTag),
+        prompt: buildFinalPrompt(prompt, projectPromptDismissed ? null : projectPrompt),
         displayPrompt: prompt || undefined,
         model: modelId,
         width,
@@ -268,10 +279,7 @@ export function GenerationPanel() {
         sizePreset: sizePreset,
         aspectRatio: cfg?.mode === "ratio" ? p.aspectRatio : undefined,
         imageUrls: isEditMode
-          ? (referenceAssets
-              .slice(0, currentModel?.imageConfig?.edit?.maxInputImages ?? 1)
-              .map((a) => a.url)
-              .filter(Boolean) as string[])
+          ? referenceUrls.slice(0, currentModel?.imageConfig?.edit?.maxInputImages ?? 1)
           : undefined,
         negativePrompt: currentModel?.imageConfig?.generate?.negativePrompt
           ? negativePrompt || undefined
@@ -330,10 +338,10 @@ export function GenerationPanel() {
       ...(videoConfig?.generateAudio && { generateAudio: vp.generateAudio }),
       ...(vp.audioSetting && { audioSetting: vp.audioSetting })
     }
-    if (videoMode === "FIRST_FRAME" && referenceAssets[0]?.url) {
-      submitParams.imageUrl = referenceAssets[0].url
-    } else if (videoMode === "REFERENCE" && referenceAssets.length > 0) {
-      submitParams.referenceImageUrls = referenceAssets.map((a) => a.url).filter(Boolean)
+    if (videoMode === "FIRST_FRAME" && referenceUrls[0]) {
+      submitParams.imageUrl = referenceUrls[0]
+    } else if (videoMode === "REFERENCE" && referenceUrls.length > 0) {
+      submitParams.referenceImageUrls = referenceUrls
     } else if (videoMode === "EDIT" && vp.referenceVideoUrl) {
       submitParams.referenceVideoUrls = [vp.referenceVideoUrl]
     }
@@ -463,7 +471,7 @@ export function GenerationPanel() {
               <PromptTemplateDialog
                 type={isVideo ? "VIDEO_GEN" : "IMAGE_GEN"}
                 onSelect={(p) => setPrompt(p)}
-                hasReferenceImages={!isVideo && referenceAssets.length > 0}
+                hasReferenceImages={!isVideo && referenceUrls.length > 0}
               />
             </div>
 
@@ -507,7 +515,7 @@ export function GenerationPanel() {
               />
             )}
             <div className="flex min-h-0 flex-1 flex-col gap-1">
-              {referenceAssets.length > 0 && isEditMode && (
+              {referenceUrls.length > 0 && isEditMode && (
                 <span className="flex w-fit items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 font-medium text-amber-600/80 text-xs">
                   <svg className="size-3" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                     <path
@@ -532,7 +540,7 @@ export function GenerationPanel() {
                         ? "描述音乐风格、主题、情绪，或直接填入歌词..."
                         : "描述你想生成的图像..."
                 }
-                projectPrompt={projectPromptTag}
+                projectPrompt={projectPrompt}
                 dismissed={projectPromptDismissed}
                 onDismissedChange={setProjectPromptDismissed}
                 maxLength={promptMaxLength}

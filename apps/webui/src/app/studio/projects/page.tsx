@@ -151,9 +151,6 @@ export default function StudioProjectsPage() {
               <FolderKanban className="size-5 text-primary" />
               <h1 className="font-semibold text-xl">我的项目</h1>
             </div>
-            <p className="text-muted-foreground text-sm">
-              管理项目骨架、内容对象、品牌资料与审核进度。
-            </p>
           </div>
           <GlowButton
             nativeButton={false}

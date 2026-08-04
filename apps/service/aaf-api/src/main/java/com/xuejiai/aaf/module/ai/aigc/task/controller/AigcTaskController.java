@@ -127,7 +127,7 @@ public class AigcTaskController
     }
 
     /**
-     * 提交生成任务（IMAGE / VIDEO / MODEL_3D）。
+     * 提交生成任务（IMAGE / VIDEO / VOICE / MUSIC / MODEL_3D / IMAGE_PROCESS）。
      *
      * @param dto 提交参数
      * @return 统一任务 ID

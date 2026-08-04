@@ -1,6 +1,8 @@
 package com.xuejiai.aaf.module.ai.aigc.task.service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -13,7 +15,6 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.enums.aigc.AigcTaskStatusEnum;
-import com.xuejiai.aaf.common.enums.aigc.AigcTaskTypeEnum;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.cache.ConfigCacheManager;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
@@ -41,18 +42,19 @@ import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.framework.security.PermissionExecutionContextHolder;
 import com.xuejiai.aaf.framework.security.PermissionExecutionService;
 import com.xuejiai.aaf.framework.security.license.License;
-import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
-import com.xuejiai.aaf.module.ai.aigc.media.service.MediaAssetService;
-import com.xuejiai.aaf.module.ai.aigc.media.vo.SaveFromGenerationDTO;
+import com.xuejiai.aaf.module.ai.aigc.media.api.GeneratedMediaCommand;
+import com.xuejiai.aaf.module.ai.aigc.media.api.MediaApi;
+import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaType;
+import com.xuejiai.aaf.module.ai.aigc.media.vo.MediaVO;
 import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
 import com.xuejiai.aaf.module.ai.aigc.task.event.AigcTaskTerminalEvent;
 import com.xuejiai.aaf.module.ai.aigc.task.mapper.AigcTaskMapper;
 import com.xuejiai.aaf.module.ai.aigc.task.repository.AigcTaskRepository;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.AigcTaskVO;
+import com.xuejiai.aaf.module.system.file.api.StoredFile;
 import com.xuejiai.aaf.module.system.file.service.FileUploadService;
 import com.xuejiai.aaf.module.user.growth.event.UserGrowthEvent;
 
-import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import tools.jackson.core.type.TypeReference;
@@ -71,12 +73,11 @@ public class AigcTaskExecutor {
     private final AigcTaskEventService eventService;
     private final AigcTaskMapper taskMapper;
     private final FileUploadService fileService;
-    private final MediaAssetService mediaAssetService;
+    private final MediaApi mediaApi;
     private final AiServiceRegistry aiServiceRegistry;
     private final AiCreditGuard creditGuard;
     private final ConfigCacheManager configCacheManager;
     private final Model3dGenerationService model3dGenerationService;
-    private final EntityManager entityManager;
     private final PermissionExecutionService permissionExecutionService;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -95,7 +96,7 @@ public class AigcTaskExecutor {
      * <p>{@code @Async} 方法运行在独立线程池线程，脱离原 HTTP 请求线程， {@link PermissionExecutionContextHolder}（用户身份）与
      * {@link OrgContext}（组织隔离）均为空—— 前者导致积分结算等取不到 userId；后者不仅让方法入口 {@code taskRepo.findById} 被
      * {@code OrgFilterAspect} fail-closed 拒绝（需搭配方法级 {@link OrgIgnore} 豁免这段空窗期）， 还会让 {@code
-     * OperatorEntityListener} 对新建关联记录（如生成结果写入 {@code MediaAssetGroup}/ {@code MediaAsset}）的
+     * OperatorEntityListener} 对新建关联记录（如生成结果写入 {@code Media}/{@code MediaVersion}）的
      * orgId/workspaceId 兜底填充失效——{@code @OrgIgnore} 只豁免过滤器的 fail-closed
      * 拒绝，不会代替持久化时的字段回填，必须显式从任务实体恢复真实 orgId， 保证任务与其衍生记录的组织归属一致。执行完毕后清理，避免线程池复用时上下文泄漏。
      *
@@ -166,33 +167,38 @@ public class AigcTaskExecutor {
                 taskRepo.save(task);
             }
 
-            // ③ OSS 上传第一张
+            // ③ 持久化供应商结果与第一张图片
             log.debug(
-                    "[submitSync] 开始上传: taskId={}, resultUrl={}, b64={}",
+                    "[submitSync] 开始持久化: taskId={}, resultUrl={}, b64={}",
                     taskId,
                     result.url(),
                     result.b64Json() != null
                             ? "非空(len=" + result.b64Json().length() + ")"
                             : "null");
-            String ossUrl = uploadFirstImage(task, result, taskId, modelId);
-            task.setResultUrl(ossUrl);
-            task.setOssUrl(ossUrl);
+            task.setProviderResult(imageProviderResult(result));
+            var storedFile = uploadFirstImage(task, result, taskId, modelId);
+            var primaryMedia =
+                    createMedia(
+                            task,
+                            storedFile,
+                            MediaType.IMAGE,
+                            generatedName(task, p.getDisplayPrompt()),
+                            p.getWidth(),
+                            p.getHeight(),
+                            null,
+                            generationInfo(task, p.getSizePreset()));
+            task.setOutputMediaVersionId(primaryMedia.currentVersion().id());
             task.setStatus(AigcTaskStatusEnum.SUCCESS.getCode());
             task.setUpdateTime(LocalDateTime.now());
             taskRepo.save(task);
 
-            // ④ 写素材库（外层 runInOwnerContext 已设置用户上下文，ownerId 能正确填充）
-            long groupId =
-                    saveToMediaAsset(
-                            task,
-                            ossUrl,
-                            p.getDisplayPrompt(),
-                            p.getSizePreset(),
-                            p.getWidth(),
-                            p.getHeight());
-            saveExtraImages(task, result, p, groupId);
+            // ④ 多图候选各自创建独立 Media，不创建素材组
+            saveExtraImages(task, result, p);
 
-            log.info("[submitSync] 任务完成: taskId={}, ossUrl={}", taskId, ossUrl);
+            log.info(
+                    "[submitSync] 任务完成: taskId={}, mediaVersionId={}",
+                    taskId,
+                    task.getOutputMediaVersionId());
             eventPublisher.publishEvent(
                     new UserGrowthEvent(task.getUserId(), "aigc.image.success"));
         } catch (Exception e) {
@@ -236,7 +242,7 @@ public class AigcTaskExecutor {
                 && midjourneyAsyncImageService != null) {
             var req = new AsyncImageGenerationService.AsyncImageRequest(p.getPrompt(), modelId);
             String mjTaskId = midjourneyAsyncImageService.submitTask(req);
-            task.setTaskId(modelId + ":" + mjTaskId);
+            task.setProviderTaskId(modelId + ":" + mjTaskId);
             task.setStatus(AigcTaskStatusEnum.PENDING.getCode());
             taskRepo.save(task);
             log.info(
@@ -280,8 +286,8 @@ public class AigcTaskExecutor {
         return svc.generate(aiModel, p);
     }
 
-    /** 上传第一张图到 OSS，返回 ossUrl。 */
-    private String uploadFirstImage(
+    /** 上传第一张图并登记为 sys_file。 */
+    private StoredFile uploadFirstImage(
             AigcTask task, ImageResult result, Long taskId, String modelId) {
         String firstUrl =
                 result.url() != null
@@ -292,17 +298,20 @@ public class AigcTaskExecutor {
         if (firstUrl != null) {
             String ext = guessImageExt(firstUrl);
             String path =
-                    "aigc/%s/%s.%s".formatted(task.getType().toLowerCase(), UUID.randomUUID(), ext);
+                    "aigc/%s/%s.%s"
+                            .formatted(task.getType().toLowerCase(), UUID.randomUUID(), ext);
             if (firstUrl.startsWith("data:")
                     || (!firstUrl.startsWith("http") && firstUrl.length() > 200)) {
-                return fileService.uploadFromBase64(firstUrl, path, null);
+                return fileService.uploadFromBase64(firstUrl, path, task.getUserId());
             }
-            return fileService.uploadFromUrl(firstUrl, path, "image/" + ext, null);
+            return fileService.uploadFromUrl(
+                    firstUrl, path, imageContentType(ext), task.getUserId());
         }
         if (result.b64Json() != null) {
             String path =
-                    "aigc/%s/%s.png".formatted(task.getType().toLowerCase(), UUID.randomUUID());
-            return fileService.uploadFromBase64(result.b64Json(), path, null);
+                    "aigc/%s/%s.png"
+                            .formatted(task.getType().toLowerCase(), UUID.randomUUID());
+            return fileService.uploadFromBase64(result.b64Json(), path, task.getUserId());
         }
         throw new IllegalStateException(
                 "图片生成结果为空: taskId="
@@ -310,135 +319,90 @@ public class AigcTaskExecutor {
                         + ", model="
                         + modelId
                         + ", resultUrl="
-                        + result.url()
-                        + ", b64Json="
-                        + (result.b64Json() != null
-                                ? "非空(len=" + result.b64Json().length() + ")"
-                                : "null"));
+                        + result.url());
     }
 
-    /** 上传并保存第 2～N 张额外图片到同一素材组。 */
-    private void saveExtraImages(AigcTask task, ImageResult result, ImageRequest p, long groupId) {
+    /** 将第 2～N 张并列候选分别持久化为独立 Media。 */
+    private void saveExtraImages(AigcTask task, ImageResult result, ImageRequest request) {
         var extraUrls = result.urls();
         if (extraUrls == null || extraUrls.size() <= 1) return;
         for (int i = 1; i < extraUrls.size(); i++) {
-            try {
-                String extraUrl = extraUrls.get(i);
-                String ext = guessImageExt(extraUrl);
-                String path =
-                        "aigc/%s/%s.%s"
-                                .formatted(task.getType().toLowerCase(), UUID.randomUUID(), ext);
-                String extra = fileService.uploadFromUrl(extraUrl, path, "image/" + ext, null);
-                saveExtraAsset(
-                        task, extra, p.getSizePreset(), p.getWidth(), p.getHeight(), groupId);
-            } catch (Exception e) {
-                log.warn("[submitSync] 第{}张图上传失败: taskId={}", i + 1, task.getId(), e);
-            }
+            String extraUrl = extraUrls.get(i);
+            String ext = guessImageExt(extraUrl);
+            String path =
+                    "aigc/%s/%s.%s"
+                            .formatted(task.getType().toLowerCase(), UUID.randomUUID(), ext);
+            var storedFile =
+                    fileService.uploadFromUrl(
+                            extraUrl, path, imageContentType(ext), task.getUserId());
+            createMedia(
+                    task,
+                    storedFile,
+                    MediaType.IMAGE,
+                    generatedName(task, request.getDisplayPrompt()) + " #" + (i + 1),
+                    request.getWidth(),
+                    request.getHeight(),
+                    null,
+                    generationInfo(task, request.getSizePreset()));
         }
     }
 
-    /** 保存主素材，任务类型 → 素材类型映射取值参见 {@link AigcTaskTypeEnum}（case 需编译期常量，故用字面量）。 */
-    private long saveToMediaAsset(
-            AigcTask task, String ossUrl, String displayPrompt, String sizePreset, int w, int h) {
-        try {
-            var type =
-                    switch (task.getType()) {
-                        case "VIDEO" -> MediaAssetType.VIDEO;
-                        case "MODEL_3D" -> MediaAssetType.MODEL_3D;
-                        default -> MediaAssetType.IMAGE;
-                    };
-
-            // 每次生成任务创建一个素材组，用 displayPrompt（用户原始输入）命名，避免带入项目提示词前缀
-            // group 在 saveFromGeneration 的 REQUIRES_NEW 事务内创建，保证 group+asset 原子提交
-            String nameSource =
-                    displayPrompt != null && !displayPrompt.isBlank()
-                            ? displayPrompt
-                            : (task.getPrompt() != null && !task.getPrompt().isBlank()
-                                    ? task.getPrompt()
-                                    : "AI生成-" + task.getType() + "-" + task.getId());
-            // 截取前 20 字符，并去掉末尾不完整的标点/空白，避免截断中文词
-            String groupName =
-                    nameSource.length() <= 20
-                            ? nameSource.strip()
-                            : nameSource
-                                    .substring(0, 20)
-                                    .replaceAll("[，。！？、,.!?\\s]+$", "")
-                                    .strip();
-
-            var dto =
-                    new SaveFromGenerationDTO(
-                            groupName,
-                            type,
-                            ossUrl,
-                            null,
-                            JsonUtils.toJsonString(
-                                    Map.of(
-                                            "prompt",
-                                                    task.getPrompt() != null
-                                                            ? task.getPrompt()
-                                                            : "",
-                                            "model", task.getModel() != null ? task.getModel() : "",
-                                            "sizePreset", sizePreset != null ? sizePreset : "")),
-                            w,
-                            h,
-                            null,
-                            null,
-                            groupName,
-                            true,
-                            task.getModelName(),
-                            task.getProvider(),
-                            task.getProjectId());
-            var saved = mediaAssetService.saveFromGeneration(task.getUserId(), dto);
-            return saved.groupId() != null ? saved.groupId() : 0L;
-        } catch (Exception e) {
-            log.warn("[saveToMediaAsset] 写入素材库失败: taskId={}", task.getId(), e);
-            // 清除脏 Session，防止 null ID 的 group 污染后续操作
-            entityManager.clear();
-            return 0L;
-        }
+    private MediaVO createMedia(
+            AigcTask task,
+            StoredFile file,
+            MediaType mediaType,
+            String name,
+            Integer width,
+            Integer height,
+            BigDecimal duration,
+            String generationInfo) {
+        return mediaApi.createFromGeneratedFile(
+                new GeneratedMediaCommand(
+                        task.getUserId(),
+                        name,
+                        mediaType,
+                        file,
+                        null,
+                        null,
+                        task.getId(),
+                        task.getProjectId(),
+                        width,
+                        height,
+                        duration,
+                        null,
+                        generationInfo));
     }
 
-    /** 多图时追加第 2～N 张到同一素材组，任务类型取值参见 {@link AigcTaskTypeEnum}（case 需编译期常量，故用字面量）。 */
-    private void saveExtraAsset(
-            AigcTask task, String ossUrl, String sizePreset, int w, int h, long groupId) {
-        try {
-            var type =
-                    switch (task.getType()) {
-                        case "VIDEO" -> MediaAssetType.VIDEO;
-                        case "MODEL_3D" -> MediaAssetType.MODEL_3D;
-                        default -> MediaAssetType.IMAGE;
-                    };
-            String name =
-                    task.getPrompt() != null
-                            ? task.getPrompt().substring(0, Math.min(task.getPrompt().length(), 40))
-                            : "AI生成";
-            var dto =
-                    new SaveFromGenerationDTO(
-                            name,
-                            type,
-                            ossUrl,
-                            null,
-                            JsonUtils.toJsonString(
-                                    Map.of(
-                                            "prompt",
-                                                    task.getPrompt() != null
-                                                            ? task.getPrompt()
-                                                            : "",
-                                            "model", task.getModel() != null ? task.getModel() : "",
-                                            "sizePreset", sizePreset != null ? sizePreset : "")),
-                            w,
-                            h,
-                            null,
-                            groupId,
-                            null,
-                            true,
-                            task.getModelName(),
-                            task.getProvider(),
-                            task.getProjectId());
-            mediaAssetService.saveFromGeneration(task.getUserId(), dto);
-        } catch (Exception e) {
-            log.warn("[saveExtraAsset] 追加素材失败: taskId={}", task.getId(), e);
-        }
+    private String imageProviderResult(ImageResult result) {
+        var snapshot = new LinkedHashMap<String, Object>();
+        snapshot.put("modelId", result.modelId());
+        snapshot.put("url", result.url());
+        snapshot.put("urls", result.urls() != null ? result.urls() : List.of());
+        snapshot.put("embeddedBase64", result.b64Json() != null);
+        return JsonUtils.toJsonString(snapshot);
+    }
+
+    private String generatedName(AigcTask task, String preferredName) {
+        var source =
+                preferredName != null && !preferredName.isBlank()
+                        ? preferredName
+                        : (task.getPrompt() != null && !task.getPrompt().isBlank()
+                                ? task.getPrompt()
+                                : "AI生成-" + task.getType() + "-" + task.getId());
+        return source.substring(0, Math.min(source.length(), 80));
+    }
+
+    private String generationInfo(AigcTask task, String sizePreset) {
+        return JsonUtils.toJsonString(
+                Map.of(
+                        "prompt", task.getPrompt() != null ? task.getPrompt() : "",
+                        "model", task.getModel() != null ? task.getModel() : "",
+                        "provider", task.getProvider() != null ? task.getProvider() : "",
+                        "sizePreset", sizePreset != null ? sizePreset : ""));
+    }
+
+    private String imageContentType(String extension) {
+        return "jpg".equals(extension) ? "image/jpeg" : "image/" + extension;
     }
 
     /**
@@ -470,61 +434,56 @@ public class AigcTaskExecutor {
             task.setStatus(AigcTaskStatusEnum.RUNNING.getCode());
             taskRepo.save(task);
 
-            String ossUrl;
+            StoredFile storedFile;
+            BigDecimal duration = null;
             if (mockUrl != null && !mockUrl.isBlank()) {
-                ossUrl = mockUrl;
+                task.setProviderResult(
+                        JsonUtils.toJsonString(Map.of("url", mockUrl, "mock", true)));
+                String path = "aigc/music/%s.mp3".formatted(UUID.randomUUID());
+                storedFile =
+                        fileService.uploadFromUrl(
+                                mockUrl, path, "audio/mpeg", task.getUserId());
             } else {
                 var aiModel = configCacheManager.getAiModelByModelId(task.getModel());
                 var result =
                         aiServiceRegistry
                                 .get(MusicGenerationService.class, aiModel)
                                 .generate(aiModel, new MusicRequest(prompt, lyrics, gender, "mp3"));
-                // 装饰器 settle 后回填 creditTxId 用于后续失败退还
                 Long creditTxId = CreditCallContext.takeLastCreditTxId();
                 if (creditTxId != null) {
                     task.setCreditTxId(creditTxId);
                     taskRepo.save(task);
                 }
-                task.setResultUrl(result.audioUrl());
+                task.setProviderResult(JsonUtils.toJsonString(result));
+                duration =
+                        result.duration() != null
+                                ? BigDecimal.valueOf(result.duration())
+                                : null;
                 String path = "aigc/music/%s.mp3".formatted(UUID.randomUUID());
-                ossUrl = fileService.uploadFromUrl(result.audioUrl(), path, "audio/mpeg", null);
+                storedFile =
+                        fileService.uploadFromUrl(
+                                result.audioUrl(), path, "audio/mpeg", task.getUserId());
             }
-            task.setOssUrl(ossUrl);
+
+            var media =
+                    createMedia(
+                            task,
+                            storedFile,
+                            MediaType.MUSIC,
+                            generatedName(task, prompt),
+                            null,
+                            null,
+                            duration,
+                            generationInfo(task, null));
+            task.setOutputMediaVersionId(media.currentVersion().id());
             task.setStatus(AigcTaskStatusEnum.SUCCESS.getCode());
             task.setUpdateTime(LocalDateTime.now());
             taskRepo.save(task);
 
-            // 写入素材库（外层 runInOwnerContext 已设置用户上下文，ownerId 能正确填充）
-            try {
-                var dto =
-                        new SaveFromGenerationDTO(
-                                prompt != null
-                                        ? prompt.substring(0, Math.min(prompt.length(), 40))
-                                        : "AI音乐",
-                                MediaAssetType.MUSIC,
-                                ossUrl,
-                                null,
-                                "{\"prompt\":\"%s\",\"model\":\"%s\"}"
-                                        .formatted(
-                                                task.getPrompt() != null
-                                                        ? task.getPrompt().replace("\"", "'")
-                                                        : "",
-                                                task.getModel() != null ? task.getModel() : ""),
-                                null,
-                                null,
-                                null,
-                                null,
-                                null,
-                                true,
-                                task.getModelName(),
-                                task.getProvider(),
-                                task.getProjectId());
-                mediaAssetService.saveFromGeneration(task.getUserId(), dto);
-            } catch (Exception e) {
-                log.warn("[submitMusicSync] 写入素材库失败: taskId={}", taskId, e);
-            }
-
-            log.info("[submitMusicSync] 音乐生成完成: taskId={}, ossUrl={}", taskId, ossUrl);
+            log.info(
+                    "[submitMusicSync] 音乐生成完成: taskId={}, mediaVersionId={}",
+                    taskId,
+                    task.getOutputMediaVersionId());
         } catch (Exception e) {
             log.error("[submitMusicSync] 生成失败: taskId={}", taskId, e);
             refundIfSettled(task, e.getMessage());
@@ -568,9 +527,14 @@ public class AigcTaskExecutor {
             task.setStatus(AigcTaskStatusEnum.RUNNING.getCode());
             taskRepo.save(task);
 
-            String ossUrl;
+            StoredFile storedFile;
             if (mockUrl != null && !mockUrl.isBlank()) {
-                ossUrl = mockUrl;
+                task.setProviderResult(
+                        JsonUtils.toJsonString(Map.of("url", mockUrl, "mock", true)));
+                String path = "aigc/voice/%s.mp3".formatted(UUID.randomUUID());
+                storedFile =
+                        fileService.uploadFromUrl(
+                                mockUrl, path, "audio/mpeg", task.getUserId());
             } else {
                 var aiModel = configCacheManager.getAiModelByModelId(task.getModel());
                 if (aiModel == null) {
@@ -580,7 +544,6 @@ public class AigcTaskExecutor {
                         aiServiceRegistry
                                 .get(SpeechService.class, aiModel)
                                 .synthesize(aiModel, text, voice);
-                // 装饰器 settle 后回填 creditTxId 用于后续失败退还
                 Long creditTxId = CreditCallContext.takeLastCreditTxId();
                 if (creditTxId != null) {
                     task.setCreditTxId(creditTxId);
@@ -590,42 +553,37 @@ public class AigcTaskExecutor {
                 if (audio == null || audio.length == 0) {
                     throw new IllegalStateException("配音合成结果为空: taskId=" + taskId);
                 }
+                task.setProviderResult(
+                        JsonUtils.toJsonString(Map.of("charCount", result.charCount())));
                 String path = "aigc/voice/%s.mp3".formatted(UUID.randomUUID());
-                ossUrl = fileService.uploadFromBytes(audio, path, "audio/mpeg", null);
+                storedFile =
+                        fileService.uploadFromBytes(
+                                audio, path, "audio/mpeg", task.getUserId());
             }
 
-            task.setResultUrl(ossUrl);
-            task.setOssUrl(ossUrl);
+            var media =
+                    createMedia(
+                            task,
+                            storedFile,
+                            MediaType.AUDIO,
+                            generatedName(task, text),
+                            null,
+                            null,
+                            null,
+                            JsonUtils.toJsonString(
+                                    Map.of(
+                                            "text", text,
+                                            "voice", voice != null ? voice : "",
+                                            "model", task.getModel() != null ? task.getModel() : "")));
+            task.setOutputMediaVersionId(media.currentVersion().id());
             task.setStatus(AigcTaskStatusEnum.SUCCESS.getCode());
             task.setUpdateTime(LocalDateTime.now());
             taskRepo.save(task);
 
-            // 写入素材库（AUDIO 类型），用配音文本前 20 字命名（外层 runInOwnerContext 已设置用户上下文）
-            try {
-                String name = text.substring(0, Math.min(text.length(), 20));
-                var dto =
-                        new SaveFromGenerationDTO(
-                                name,
-                                MediaAssetType.AUDIO,
-                                ossUrl,
-                                null,
-                                JsonUtils.toJsonString(
-                                        Map.of("text", text, "voice", voice != null ? voice : "")),
-                                null,
-                                null,
-                                null,
-                                null,
-                                null,
-                                true,
-                                task.getModelName(),
-                                task.getProvider(),
-                                task.getProjectId());
-                mediaAssetService.saveFromGeneration(task.getUserId(), dto);
-            } catch (Exception e) {
-                log.warn("[submitVoiceSync] 写入素材库失败: taskId={}", taskId, e);
-            }
-
-            log.info("[submitVoiceSync] 配音生成完成: taskId={}, ossUrl={}", taskId, ossUrl);
+            log.info(
+                    "[submitVoiceSync] 配音生成完成: taskId={}, mediaVersionId={}",
+                    taskId,
+                    task.getOutputMediaVersionId());
         } catch (Exception e) {
             log.error("[submitVoiceSync] 生成失败: taskId={}", taskId, e);
             refundIfSettled(task, e.getMessage());
@@ -647,36 +605,66 @@ public class AigcTaskExecutor {
     }
 
     /** 3D 模型生成异步执行（提交到第三方后立即返回，由 {@code Model3dTaskSyncJob} 轮询结果）。 */
+    @OrgIgnore
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void submitModel3dSync(Long taskId, String prompt, String mockUrl) {
         var task = taskRepo.findById(taskId).orElse(null);
         if (task == null) return;
+        runInOwnerContext(
+                task,
+                "aigc-model3d-gen",
+                () -> submitModel3dSyncInternal(task, taskId, prompt, mockUrl));
+    }
+
+    private void submitModel3dSyncInternal(
+            AigcTask task, Long taskId, String prompt, String mockUrl) {
         try {
             task.setStatus(AigcTaskStatusEnum.RUNNING.getCode());
             taskRepo.save(task);
 
             if (mockUrl != null && !mockUrl.isBlank()) {
-                task.setOssUrl(mockUrl);
+                task.setProviderResult(
+                        JsonUtils.toJsonString(Map.of("modelUrl", mockUrl, "mock", true)));
+                String path = "aigc/model_3d/%s.glb".formatted(UUID.randomUUID());
+                var storedFile =
+                        fileService.uploadFromUrl(
+                                mockUrl,
+                                path,
+                                "model/gltf-binary",
+                                task.getUserId());
+                var media =
+                        createMedia(
+                                task,
+                                storedFile,
+                                MediaType.MODEL_3D,
+                                generatedName(task, prompt),
+                                null,
+                                null,
+                                null,
+                                generationInfo(task, null));
+                task.setOutputMediaVersionId(media.currentVersion().id());
                 task.setStatus(AigcTaskStatusEnum.SUCCESS.getCode());
                 task.setUpdateTime(LocalDateTime.now());
                 taskRepo.save(task);
                 eventService.push(task.getUserId(), EVENT_COMPLETED, toVO(task));
+                eventPublisher.publishEvent(new AigcTaskTerminalEvent(task.getId()));
                 return;
             }
 
-            // 从 task.params 读 source/textureQuality
-            Map<String, Object> p =
+            Map<String, Object> params =
                     task.getParams() != null
                             ? JsonUtils.parseObject(
                                     task.getParams(), new TypeReference<Map<String, Object>>() {})
                             : Map.of();
-            String source = p.containsKey("source") ? (String) p.get("source") : "text";
+            String source =
+                    params.containsKey("source") ? (String) params.get("source") : "text";
             String textureQuality =
-                    p.containsKey("textureQuality") ? (String) p.get("textureQuality") : null;
+                    params.containsKey("textureQuality")
+                            ? (String) params.get("textureQuality")
+                            : null;
 
-            // 按 source 路由提交方法
-            String thirdTaskId =
+            String providerTaskId =
                     switch (source) {
                         case "image" ->
                                 model3dGenerationService.submitImageTo3d(
@@ -691,14 +679,14 @@ public class AigcTaskExecutor {
                                         new Model3dGenerationService.TextTo3dRequest(
                                                 prompt, textureQuality, null));
                     };
-            task.setTaskId(thirdTaskId);
+            task.setProviderTaskId(providerTaskId);
             task.setStatus(AigcTaskStatusEnum.PENDING.getCode());
             task.setUpdateTime(LocalDateTime.now());
             taskRepo.save(task);
             log.info(
-                    "[submitModel3dSync] 任务已提交: taskId={}, thirdTaskId={}, source={}",
+                    "[submitModel3dSync] 任务已提交: taskId={}, providerTaskId={}, source={}",
                     taskId,
-                    thirdTaskId,
+                    providerTaskId,
                     source);
         } catch (Exception e) {
             log.error("[submitModel3dSync] 提交失败: taskId={}", taskId, e);
@@ -710,25 +698,52 @@ public class AigcTaskExecutor {
                 eventService.push(task.getUserId(), EVENT_FAILED, toVO(task));
             } catch (Exception ignored) {
             }
+            eventPublisher.publishEvent(new AigcTaskTerminalEvent(task.getId()));
         }
     }
 
     /** 视频生成异步执行（提交到第三方后立即返回，由 {@code VideoTaskSyncJob} 轮询结果）。 */
+    @OrgIgnore
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void submitVideoAsync(Long taskId, String prompt, String modelId, String mockUrl) {
         var task = taskRepo.findById(taskId).orElse(null);
         if (task == null) return;
+        runInOwnerContext(
+                task,
+                "aigc-video-gen",
+                () -> submitVideoAsyncInternal(task, taskId, prompt, modelId, mockUrl));
+    }
+
+    private void submitVideoAsyncInternal(
+            AigcTask task, Long taskId, String prompt, String modelId, String mockUrl) {
         try {
             task.setStatus(AigcTaskStatusEnum.RUNNING.getCode());
             taskRepo.save(task);
 
             if (mockUrl != null && !mockUrl.isBlank()) {
-                task.setOssUrl(mockUrl);
+                task.setProviderResult(
+                        JsonUtils.toJsonString(Map.of("videoUrl", mockUrl, "mock", true)));
+                String path = "aigc/video/%s.mp4".formatted(UUID.randomUUID());
+                var storedFile =
+                        fileService.uploadFromUrl(
+                                mockUrl, path, "video/mp4", task.getUserId());
+                var media =
+                        createMedia(
+                                task,
+                                storedFile,
+                                MediaType.VIDEO,
+                                generatedName(task, prompt),
+                                null,
+                                null,
+                                null,
+                                generationInfo(task, null));
+                task.setOutputMediaVersionId(media.currentVersion().id());
                 task.setStatus(AigcTaskStatusEnum.SUCCESS.getCode());
                 task.setUpdateTime(LocalDateTime.now());
                 taskRepo.save(task);
                 eventService.push(task.getUserId(), EVENT_COMPLETED, toVO(task));
+                eventPublisher.publishEvent(new AigcTaskTerminalEvent(task.getId()));
                 return;
             }
 
@@ -805,7 +820,7 @@ public class AigcTaskExecutor {
                 thirdTaskId = svc.submit(request);
             }
 
-            task.setTaskId(thirdTaskId);
+            task.setProviderTaskId(thirdTaskId);
             task.setStatus(AigcTaskStatusEnum.PENDING.getCode());
             task.setUpdateTime(LocalDateTime.now());
             taskRepo.save(task);
@@ -905,9 +920,18 @@ public class AigcTaskExecutor {
             task.setStatus(AigcTaskStatusEnum.RUNNING.getCode());
             taskRepo.save(task);
 
-            String ossUrl;
+            StoredFile storedFile;
             if (mockUrl != null && !mockUrl.isBlank()) {
-                ossUrl = mockUrl;
+                task.setProviderResult(
+                        JsonUtils.toJsonString(Map.of("resultUrl", mockUrl, "mock", true)));
+                String ext = guessImageExt(mockUrl);
+                String path = "aigc/image_process/%s.%s".formatted(UUID.randomUUID(), ext);
+                storedFile =
+                        fileService.uploadFromUrl(
+                                mockUrl,
+                                path,
+                                imageContentType(ext),
+                                task.getUserId());
             } else {
                 if (imageProcessService == null) {
                     throw new IllegalStateException("ImageProcessService 未配置，请检查阿里云 OSS 凭证");
@@ -916,14 +940,14 @@ public class AigcTaskExecutor {
                         imageProcessService.process(
                                 new ImageProcessService.ProcessRequest(imageUrl, method));
 
-                // 异步模式（如 SEGMENT_HD_COMMON_IMAGE）：提交成功后转 PENDING，由轮询 Job 处理
                 if ("PENDING".equals(result.status())) {
-                    task.setTaskId(result.taskId());
+                    task.setProviderTaskId(result.taskId());
+                    task.setProviderResult(JsonUtils.toJsonString(result));
                     task.setStatus(AigcTaskStatusEnum.PENDING.getCode());
                     task.setUpdateTime(LocalDateTime.now());
                     taskRepo.save(task);
                     log.info(
-                            "[submitImageProcessSync] 异步任务已提交: taskId={}, jobId={}",
+                            "[submitImageProcessSync] 异步任务已提交: taskId={}, providerTaskId={}",
                             taskId,
                             result.taskId());
                     return;
@@ -932,45 +956,38 @@ public class AigcTaskExecutor {
                 if (!"SUCCESS".equals(result.status())) {
                     throw new IllegalStateException("图像处理失败: " + result.errorMessage());
                 }
+                task.setProviderResult(JsonUtils.toJsonString(result));
                 String resultUrl = result.resultUrl();
                 String ext = guessImageExt(resultUrl);
                 String path = "aigc/image_process/%s.%s".formatted(UUID.randomUUID(), ext);
-                ossUrl = fileService.uploadFromUrl(resultUrl, path, "image/" + ext, null);
+                storedFile =
+                        fileService.uploadFromUrl(
+                                resultUrl,
+                                path,
+                                imageContentType(ext),
+                                task.getUserId());
             }
 
-            task.setResultUrl(ossUrl);
-            task.setOssUrl(ossUrl);
+            var media =
+                    createMedia(
+                            task,
+                            storedFile,
+                            MediaType.IMAGE,
+                            "AI处理-" + method + "-" + task.getId(),
+                            null,
+                            null,
+                            null,
+                            JsonUtils.toJsonString(
+                                    Map.of("imageUrl", imageUrl, "method", method)));
+            task.setOutputMediaVersionId(media.currentVersion().id());
             task.setStatus(AigcTaskStatusEnum.SUCCESS.getCode());
             task.setUpdateTime(LocalDateTime.now());
             taskRepo.save(task);
 
-            // 写入素材库（外层 runInOwnerContext 已设置用户上下文，ownerId 能正确填充）
-            try {
-                var dto =
-                        new SaveFromGenerationDTO(
-                                "AI处理-" + method + "-" + task.getId(),
-                                MediaAssetType.IMAGE,
-                                ossUrl,
-                                null,
-                                JsonUtils.toJsonString(
-                                        Map.of(
-                                                "imageUrl", imageUrl,
-                                                "method", method)),
-                                null,
-                                null,
-                                null,
-                                null,
-                                null,
-                                true,
-                                task.getModelName(),
-                                task.getProvider(),
-                                task.getProjectId());
-                mediaAssetService.saveFromGeneration(task.getUserId(), dto);
-            } catch (Exception e) {
-                log.warn("[submitImageProcessSync] 写入素材库失败: taskId={}", taskId, e);
-            }
-
-            log.info("[submitImageProcessSync] 图像处理完成: taskId={}, ossUrl={}", taskId, ossUrl);
+            log.info(
+                    "[submitImageProcessSync] 图像处理完成: taskId={}, mediaVersionId={}",
+                    taskId,
+                    task.getOutputMediaVersionId());
         } catch (Exception e) {
             log.error("[submitImageProcessSync] 处理失败: taskId={}", taskId, e);
             task.setStatus(AigcTaskStatusEnum.FAIL.getCode());

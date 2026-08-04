@@ -23,15 +23,13 @@ import { invalidateCreditQueries } from "@/lib/api/rest/billing"
 const INVALIDATE_DELAY_MS = 1500
 
 /**
- * 任务完成/失败后的默认失效集合：素材列表 + 首页计数胶囊 + 积分。
- * 调用方仅需在自己的 onCompleted/onFailed 中处理独有的 UI 状态
- * （如本地任务列表、素材库专属 key `media-asset-library`）。
+ * 任务完成/失败后的默认失效集合：媒体列表 + 资产列表 + 积分。
+ * 调用方仅需在自己的 onCompleted/onFailed 中处理独有的 UI 状态。
  */
 function invalidateAigcDefaultQueries(qc: QueryClient) {
   setTimeout(() => {
-    qc.invalidateQueries({ queryKey: ["media-assets"] })
-    qc.invalidateQueries({ queryKey: ["aigc", "tasks", "today-count"] })
-    qc.invalidateQueries({ queryKey: ["aigc", "assets", "ai-count"] })
+    qc.invalidateQueries({ queryKey: ["aigc", "media"] })
+    qc.invalidateQueries({ queryKey: ["aigc", "assets"] })
     invalidateCreditQueries(qc)
   }, INVALIDATE_DELAY_MS)
 }
@@ -41,24 +39,28 @@ export interface AigcTaskEvent {
   userId: number
   type: "IMAGE" | "VIDEO" | "MUSIC" | "MODEL_3D" | "VOICE" | "IMAGE_PROCESS"
   status: "PENDING" | "RUNNING" | "SUCCESS" | "FAIL"
-  provider?: string
-  model?: string
-  prompt?: string
-  taskId?: string
-  resultUrl?: string
-  ossUrl?: string
-  errorMsg?: string
+  provider: string | null
+  model: string | null
+  prompt: string | null
+  providerTaskId: string | null
+  providerResult: string | null
+  outputMediaId: number | null
+  outputMediaVersionId: number | null
+  outputUrl: string | null
+  assetId: number | null
+  isAsset: boolean
+  errorMsg: string | null
   /** 生成参数 JSON 字符串（含 imageUrls 等），对应后端 AigcTaskVO.params */
-  params?: string
+  params: string | null
+  projectId: number | null
   createTime: string
   updateTime: string
 }
 
-export type AigcTaskEventType = "task.created" | "task.progress" | "task.completed" | "task.failed"
+export type AigcTaskEventType = "task.created" | "task.completed" | "task.failed"
 
 export interface UseAigcTaskStreamOptions {
   onCreated?: (task: AigcTaskEvent) => void
-  onProgress?: (task: AigcTaskEvent) => void
   onCompleted?: (task: AigcTaskEvent) => void
   onFailed?: (task: AigcTaskEvent) => void
   onReconnect?: () => void
@@ -99,10 +101,6 @@ function connect() {
   source.addEventListener("task.created", (e) => {
     const t = parse(e)
     if (t) emit("onCreated", t)
-  })
-  source.addEventListener("task.progress", (e) => {
-    const t = parse(e)
-    if (t) emit("onProgress", t)
   })
   source.addEventListener("task.completed", (e) => {
     const t = parse(e)
@@ -151,21 +149,19 @@ function disconnect() {
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
 export function useAigcTaskStream(options: UseAigcTaskStreamOptions = {}) {
-  const { onCreated, onProgress, onCompleted, onFailed, onReconnect, enabled = true } = options
+  const { onCreated, onCompleted, onFailed, onReconnect, enabled = true } = options
   const qc = useQueryClient()
 
   // 用 ref 稳定回调引用，避免 effect 重跑
   const subRef = useRef<Subscriber>({
     onCreated: onCreated ?? (() => {}),
-    onProgress: onProgress ?? (() => {}),
     onCompleted: onCompleted ?? (() => {}),
     onFailed: onFailed ?? (() => {}),
     onReconnect
   })
   subRef.current = {
     onCreated: onCreated ?? (() => {}),
-    onProgress: onProgress ?? (() => {}),
-    // 任务完成/失败后素材列表、首页计数、积分余额均已变更，统一在此失效，调用方无需关心
+    // 任务完成/失败后媒体列表、资产列表、积分余额均已变更，统一在此失效，调用方无需关心
     // 调用方仅需处理自己独有的 UI 状态（如本地任务列表、素材库专属 key）
     onCompleted: (t) => {
       invalidateAigcDefaultQueries(qc)
@@ -184,7 +180,6 @@ export function useAigcTaskStream(options: UseAigcTaskStreamOptions = {}) {
     // 注册一个稳定的代理订阅者（指向 ref，不会因回调变化而重新注册）
     const proxy: Subscriber = {
       onCreated: (t) => subRef.current.onCreated(t),
-      onProgress: (t) => subRef.current.onProgress(t),
       onCompleted: (t) => subRef.current.onCompleted(t),
       onFailed: (t) => subRef.current.onFailed(t),
       onReconnect: () => subRef.current.onReconnect?.()

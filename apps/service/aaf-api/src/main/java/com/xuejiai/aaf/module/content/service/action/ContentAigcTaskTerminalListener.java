@@ -12,6 +12,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 
 import com.xuejiai.aaf.common.enums.aigc.AigcTaskStatusEnum;
 import com.xuejiai.aaf.common.enums.content.ContentExecutionStatusEnum;
+import com.xuejiai.aaf.module.ai.aigc.media.api.MediaApi;
 import com.xuejiai.aaf.module.ai.aigc.task.event.AigcTaskTerminalEvent;
 import com.xuejiai.aaf.module.ai.aigc.task.repository.AigcTaskRepository;
 import com.xuejiai.aaf.module.content.repository.ContentExecutionRunRepository;
@@ -29,6 +30,7 @@ import lombok.RequiredArgsConstructor;
 public class ContentAigcTaskTerminalListener {
 
     private final AigcTaskRepository taskRepository;
+    private final MediaApi mediaApi;
     private final ContentExecutionRunRepository runRepository;
     private final ContentProjectRepository projectRepository;
     private final ContentObjectVersionCandidateService candidateService;
@@ -49,18 +51,30 @@ public class ContentAigcTaskTerminalListener {
             if (project == null) {
                 return;
             }
-            var url = task.getOssUrl() != null ? task.getOssUrl() : task.getResultUrl();
+            if (task.getOutputMediaVersionId() == null) {
+                return;
+            }
+            var media =
+                    mediaApi.getByVersionId(
+                            task.getOutputMediaVersionId(), task.getUserId());
+            var url = media.currentVersion().url();
             var version =
                     candidateService.createCandidate(
                             project,
                             run,
-                            Map.of("imageUrl", url, "aigcTaskId", task.getId()),
+                            Map.of(
+                                    "imageUrl", url,
+                                    "aigcTaskId", task.getId(),
+                                    "mediaId", media.id(),
+                                    "mediaVersionId", task.getOutputMediaVersionId()),
                             List.of(url),
                             "AI 生成图片");
             run.setOutputPayload(
                     Map.of(
                             "aigcTaskId", task.getId(),
                             "objectVersionId", version.getId(),
+                            "mediaId", media.id(),
+                            "mediaVersionId", task.getOutputMediaVersionId(),
                             "imageUrl", url));
             run.setStatus(ContentExecutionStatusEnum.SUCCEEDED.getCode());
         } else {

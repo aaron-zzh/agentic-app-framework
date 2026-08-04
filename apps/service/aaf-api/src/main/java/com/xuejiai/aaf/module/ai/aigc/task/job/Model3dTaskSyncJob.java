@@ -42,18 +42,21 @@ public class Model3dTaskSyncJob {
 
         for (var task : tasks) {
             try {
-                String thirdTaskId = task.getTaskId();
+                String thirdTaskId = task.getProviderTaskId();
                 if (thirdTaskId == null) continue;
 
                 var result = model3dGenerationService.query(thirdTaskId);
                 if (result.status() == TaskStatus.SUCCEEDED) {
                     String modelUrl =
                             result.modelUrl() != null ? result.modelUrl() : result.baseModelUrl();
-                    log.info("[Model3dSync] 任务完成: aigcTaskId={}, url={}", task.getId(), modelUrl);
+                    log.info(
+                            "[Model3dSync] 任务完成: aigcTaskId={}, url={}",
+                            task.getId(),
+                            modelUrl);
                     permissionExecutionService.runAsOwner(
                             task.getUserId(),
                             "3D任务完成",
-                            () -> aigcTaskService.completeTask(thirdTaskId, modelUrl));
+                            () -> aigcTaskService.completeTask(thirdTaskId, result));
                 } else if (result.status() == TaskStatus.FAILED) {
                     log.warn("[Model3dSync] 任务失败: aigcTaskId={}", task.getId());
                     permissionExecutionService.runAsOwner(

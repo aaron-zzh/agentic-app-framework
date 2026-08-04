@@ -97,8 +97,8 @@ export function SkillPickerContent({ defaultCategory, onClose }: SkillPickerCont
   const [activeCategory, setActiveCategory] = useState<string | null>(defaultCategory ?? null)
   const [search, setSearch] = useState("")
 
-  const selectedSkill = useAigcStore((s) => s.selectedSkill)
-  const setSelectedSkill = useAigcStore((s) => s.setSelectedSkill)
+  const selectedSkillId = useAigcStore((state) => state.selectedSkillId)
+  const setSelectedSkillId = useAigcStore((state) => state.setSelectedSkillId)
 
   const { data: skills, isLoading } = useAiSkills({ activeOnly: true })
 
@@ -113,7 +113,7 @@ export function SkillPickerContent({ defaultCategory, onClose }: SkillPickerCont
 
   const handleSelect = (skill: AiSkillVO) => {
     // 再次点击同一技能 → 取消选中
-    setSelectedSkill(selectedSkill?.id === skill.id ? null : skill)
+    setSelectedSkillId(selectedSkillId === skill.id ? null : skill.id)
     onClose?.()
   }
 
@@ -122,11 +122,11 @@ export function SkillPickerContent({ defaultCategory, onClose }: SkillPickerCont
       {/* 标题 */}
       <div className="flex items-center justify-between border-foreground/6 border-b px-4 py-3">
         <span className="font-semibold text-sm">选择技能</span>
-        {selectedSkill && (
+        {selectedSkillId !== null && (
           <button
             type="button"
             onClick={() => {
-              setSelectedSkill(null)
+              setSelectedSkillId(null)
               onClose?.()
             }}
             className="text-muted-foreground text-xs hover:text-foreground"
@@ -183,7 +183,7 @@ export function SkillPickerContent({ defaultCategory, onClose }: SkillPickerCont
               <SkillCard
                 key={skill.id}
                 skill={skill}
-                selected={selectedSkill?.id === skill.id}
+                selected={selectedSkillId === skill.id}
                 onSelect={() => handleSelect(skill)}
               />
             ))

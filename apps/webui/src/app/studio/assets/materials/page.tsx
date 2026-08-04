@@ -8,5 +8,5 @@
 import { AssetLibrary } from "@/features/aigc/asset"
 
 export default function StudioAssetsMaterialsPage() {
-  return <AssetLibrary />
+  return <AssetLibrary collection="asset" />
 }

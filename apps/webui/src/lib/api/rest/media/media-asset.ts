@@ -1,225 +1,92 @@
 /**
- * 素材资源 API 客户端
+ * AIGC Media/Asset REST 客户端。
  * @author AaronZZH & Kiro
  */
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import type { MediaAssetVO, MediaCategoryVO, MediaTagVO } from "@/features/aigc/types"
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
+import type { AssetVO, MediaType, MediaVO } from "@/features/aigc/types"
 import { backendApi } from "../backend-client"
 import { buildQuery, type ListParams, type PageResult } from "../entity/crud"
 
-/** 旧路径——生成面板内的素材引用（保留兼容） */
-const LEGACY_PATH = "/media-assets"
-/** 新路径——素材库管理 */
-const API_PATH = "/aigc/assets"
-
-export interface RegenerateParams {
-  assetId: number
-  newPrompt?: string
-  newSeed?: number
-  newStyle?: string
-  modelId?: string
+export interface MediaListParams extends ListParams {
+  mediaType?: MediaType
+  sourceType?: string
+  projectId?: number
+  keyword?: string
 }
 
-export const mediaAssetApi = {
-  /** 素材列表（旧接口，生成面板用） */
-  legacyList: (params: ListParams = {}): Promise<PageResult<MediaAssetVO>> =>
-    backendApi.get<PageResult<MediaAssetVO>>(`${LEGACY_PATH}${buildQuery(params)}`),
-
-  /** 素材搜索（旧接口，@提及用） */
-  legacySearch: (keyword: string): Promise<MediaAssetVO[]> =>
-    backendApi.get<MediaAssetVO[]>(`${LEGACY_PATH}/search?keyword=${encodeURIComponent(keyword)}`),
-
-  /** 素材列表（分页+筛选） */
-  list: (params: ListParams = {}): Promise<PageResult<MediaAssetVO>> =>
-    backendApi.get<PageResult<MediaAssetVO>>(`${API_PATH}${buildQuery(params)}`),
-
-  /** 素材搜索（关键词匹配名称/标签） */
-  search: (keyword: string): Promise<MediaAssetVO[]> =>
-    backendApi.get<MediaAssetVO[]>(`${API_PATH}/search?keyword=${encodeURIComponent(keyword)}`),
-
-  /** 获取单条素材详情 */
-  getById: (id: number): Promise<MediaAssetVO> => backendApi.get<MediaAssetVO>(`${API_PATH}/${id}`),
-
-  /** 更新素材（名称/标签/分类） */
-  update: (
-    id: number,
-    dto: { name?: string; tags?: string; categoryId?: number | null }
-  ): Promise<MediaAssetVO> => backendApi.put<MediaAssetVO>(`${API_PATH}/${id}`, dto),
-
-  /** 删除素材 */
-  delete: (id: number): Promise<void> => backendApi.delete<void>(`${API_PATH}/${id}`),
-
-  /** 重新生成素材 */
-  regenerate: (params: RegenerateParams): Promise<MediaAssetVO> =>
-    backendApi.post<MediaAssetVO>(`${API_PATH}/regenerate`, params),
-
-  /** 获取素材变体列表 */
-  getVariants: (id: number): Promise<MediaAssetVO[]> =>
-    backendApi.get<MediaAssetVO[]>(`${API_PATH}/${id}/variants`),
-
-  /** 获取分类树 */
-  getCategories: (): Promise<MediaCategoryVO[]> =>
-    backendApi.get<MediaCategoryVO[]>("/aigc/categories"),
-
-  /** 创建分类 */
-  createCategory: (dto: {
-    name: string
-    parentId?: number | null
-    sortOrder?: number
-  }): Promise<MediaCategoryVO> => backendApi.post<MediaCategoryVO>("/aigc/categories", dto),
-
-  /** 更新分类 */
-  updateCategory: (
-    id: number,
-    dto: { name: string; parentId?: number | null; sortOrder?: number }
-  ): Promise<MediaCategoryVO> => backendApi.put<MediaCategoryVO>(`/aigc/categories/${id}`, dto),
-
-  /** 删除分类 */
-  deleteCategory: (id: number): Promise<void> => backendApi.delete<void>(`/aigc/categories/${id}`),
-
-  /** 获取标签列表 */
-  getTags: (): Promise<MediaTagVO[]> => backendApi.get<MediaTagVO[]>("/aigc/tags"),
-
-  /** 移动素材到指定分组 */
-  moveToGroup: (assetId: number, groupId: number): Promise<void> =>
-    backendApi.patch<void>(`${API_PATH}/${assetId}/group`, { groupId }),
-
-  /** 删除素材组及组内所有素材和文件 */
-  deleteGroup: (groupId: number): Promise<void> =>
-    backendApi.delete<void>(`${API_PATH}/group/${groupId}`)
+export interface AssetListParams extends ListParams {
+  mediaType?: MediaType
+  categoryId?: number
+  keyword?: string
 }
 
-const KEYS = {
-  all: ["media-assets"] as const,
-  list: (params: ListParams) => ["media-assets", "list", params] as const,
-  search: (keyword: string) => ["media-assets", "search", keyword] as const,
-  detail: (id: number) => ["media-assets", "detail", id] as const,
-  variants: (id: number) => ["media-assets", "variants", id] as const,
-  categories: ["media-assets", "categories"] as const,
-  tags: ["media-assets", "tags"] as const
+export interface SaveMediaAsAssetParams {
+  categoryId?: number
+  scope?: string
+  copyrightInfo?: string
 }
 
-/** 素材列表——生成面板用 */
-export function useMediaAssets(params: ListParams = {}) {
+export const MEDIA_QUERY_KEY = ["aigc", "media"] as const
+export const ASSET_QUERY_KEY = ["aigc", "assets"] as const
+
+export const mediaApi = {
+  list: (params: MediaListParams = {}): Promise<PageResult<MediaVO>> =>
+    backendApi.get<PageResult<MediaVO>>(`/aigc/media${buildQuery(params)}`),
+  getById: (id: number): Promise<MediaVO> => backendApi.get<MediaVO>(`/aigc/media/${id}`),
+  saveAsAsset: (id: number, params?: SaveMediaAsAssetParams): Promise<AssetVO> =>
+    backendApi.post<AssetVO>(`/aigc/media/${id}/asset`, params)
+}
+
+export const assetApi = {
+  list: (params: AssetListParams = {}): Promise<PageResult<AssetVO>> =>
+    backendApi.get<PageResult<AssetVO>>(`/aigc/assets${buildQuery(params)}`)
+}
+
+/** 查询持久化媒体。 */
+export function useMediaList(params: MediaListParams = {}) {
   return useQuery({
-    queryKey: KEYS.list(params),
-    queryFn: () => mediaAssetApi.list(params)
+    queryKey: [...MEDIA_QUERY_KEY, "list", params] as const,
+    queryFn: () => mediaApi.list(params)
   })
 }
 
-/** 素材搜索——@提及用 */
-export function useMediaAssetSearch(keyword: string) {
+/** 查询已保存资产。 */
+export function useAssetList(params: AssetListParams = {}) {
   return useQuery({
-    queryKey: KEYS.search(keyword),
-    queryFn: () => mediaAssetApi.search(keyword),
-    enabled: keyword.length > 0
+    queryKey: [...ASSET_QUERY_KEY, "list", params] as const,
+    queryFn: () => assetApi.list(params)
   })
 }
 
-/** 素材库列表（新 MediaAssetVO 类型，素材库页面用） */
-export function useMediaAssetList(params: ListParams = {}) {
-  return useQuery({
-    queryKey: ["media-asset-library", "list", params] as const,
-    queryFn: () => mediaAssetApi.list(params)
+/** 查询多个媒体详情；对象留在 TanStack Query，调用方仅持有 ID。 */
+export function useMediaDetails(ids: number[]) {
+  return useQueries({
+    queries: ids.map((id) => ({
+      queryKey: [...MEDIA_QUERY_KEY, "detail", id] as const,
+      queryFn: () => mediaApi.getById(id)
+    }))
   })
 }
 
-/** 素材详情 */
-export function useMediaAssetDetail(id: number | null) {
+/** 查询单个媒体。 */
+export function useMediaDetail(id: number | null) {
   return useQuery({
-    queryKey: KEYS.detail(id as NonNullable<typeof id>),
-    queryFn: () => mediaAssetApi.getById(id as NonNullable<typeof id>),
+    queryKey: [...MEDIA_QUERY_KEY, "detail", id] as const,
+    queryFn: () => mediaApi.getById(id as number),
     enabled: id !== null
   })
 }
 
-/** 更新素材（名称/标签/分类） */
-export function useUpdateMediaAsset() {
+/** 将媒体幂等保存为资产，并失效媒体与资产查询。 */
+export function useSaveMediaAsAsset() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({
-      id,
-      ...dto
-    }: {
-      id: number
-      name?: string
-      tags?: string
-      categoryId?: number | null
-    }) => mediaAssetApi.update(id, dto),
+    mutationFn: ({ mediaId, params }: { mediaId: number; params?: SaveMediaAsAssetParams }) =>
+      mediaApi.saveAsAsset(mediaId, params),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: KEYS.all })
-      queryClient.invalidateQueries({ queryKey: ["media-asset-library"] })
+      queryClient.invalidateQueries({ queryKey: MEDIA_QUERY_KEY })
+      queryClient.invalidateQueries({ queryKey: ASSET_QUERY_KEY })
     }
-  })
-}
-
-/** 删除素材 */
-export function useDeleteMediaAsset() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (id: number) => mediaAssetApi.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: KEYS.all })
-      queryClient.invalidateQueries({ queryKey: ["media-asset-library"] })
-    }
-  })
-}
-
-/** 重新生成素材 */
-export function useRegenerateAsset() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (params: RegenerateParams) => mediaAssetApi.regenerate(params),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: KEYS.all })
-      queryClient.invalidateQueries({ queryKey: ["media-asset-library"] })
-    }
-  })
-}
-
-/** 素材变体列表 */
-export function useMediaAssetVariants(id: number | null) {
-  return useQuery({
-    queryKey: KEYS.variants(id as NonNullable<typeof id>),
-    queryFn: () => mediaAssetApi.getVariants(id as NonNullable<typeof id>),
-    enabled: id !== null
-  })
-}
-
-/** 素材分类树 */
-export function useMediaCategories() {
-  return useQuery({
-    queryKey: KEYS.categories,
-    queryFn: () => mediaAssetApi.getCategories(),
-    staleTime: 5 * 60 * 1000
-  })
-}
-
-/** 创建分类 */
-export function useCreateCategory() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (dto: { name: string; parentId?: number | null }) =>
-      mediaAssetApi.createCategory(dto),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: KEYS.categories })
-  })
-}
-
-/** 删除分类 */
-export function useDeleteCategory() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (id: number) => mediaAssetApi.deleteCategory(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: KEYS.categories })
-  })
-}
-
-/** 素材标签列表 */
-export function useMediaTags() {
-  return useQuery({
-    queryKey: KEYS.tags,
-    queryFn: () => mediaAssetApi.getTags(),
-    staleTime: 5 * 60 * 1000
   })
 }

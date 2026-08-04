@@ -29,21 +29,11 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCancelAigcTask } from "@/lib/api/rest/ai"
 import { type PageResult, request } from "@/lib/api/rest/entity"
+import type { AigcTaskEvent } from "@/lib/hooks/use-aigc-task-stream"
 
 // ─── 类型 ───────────────────────────────────────────────────────────────────
 
-interface AigcTaskVO {
-  id: number
-  type: string
-  status: string
-  prompt: string
-  model: string
-  provider: string
-  ossUrl: string | null
-  errorMsg: string | null
-  params: string | null
-  createTime: string
-}
+type AigcTaskVO = AigcTaskEvent
 
 // ─── Hook ───────────────────────────────────────────────────────────────────
 
@@ -105,26 +95,26 @@ function TaskCard({ task, onPreview }: { task: AigcTaskVO; onPreview: (url: stri
       {/* biome-ignore lint/a11y/noStaticElementInteractions: 内部含 <button>，不能嵌套 <button> */}
       <div
         className="relative aspect-square bg-foreground/4"
-        role={task.ossUrl && !isFail ? "button" : undefined}
-        tabIndex={task.ossUrl && !isFail ? 0 : undefined}
+        role={task.outputUrl && !isFail ? "button" : undefined}
+        tabIndex={task.outputUrl && !isFail ? 0 : undefined}
         onClick={(e) => {
           if ((e.target as HTMLElement).closest("button,[role=menuitem]")) return
-          task.ossUrl && !isFail && onPreview(task.ossUrl)
+          task.outputUrl && !isFail && onPreview(task.outputUrl)
         }}
-        onKeyDown={(e) => e.key === "Enter" && task.ossUrl && !isFail && onPreview(task.ossUrl)}
-        style={task.ossUrl && !isFail ? { cursor: "zoom-in" } : undefined}
+        onKeyDown={(e) => e.key === "Enter" && task.outputUrl && !isFail && onPreview(task.outputUrl)}
+        style={task.outputUrl && !isFail ? { cursor: "zoom-in" } : undefined}
       >
-        {task.ossUrl && !isFail ? (
+        {task.outputUrl && !isFail ? (
           isVideo ? (
             <video
-              src={task.ossUrl}
+              src={task.outputUrl}
               className="pointer-events-none size-full object-cover"
               muted
               playsInline
             />
           ) : (
             // biome-ignore lint/performance/noImgElement: 缩略图
-            <img src={task.ossUrl} alt={task.prompt} className="size-full object-cover" />
+            <img src={task.outputUrl} alt={task.prompt} className="size-full object-cover" />
           )
         ) : (
           <div className="flex size-full flex-col items-center justify-center gap-1.5 text-muted-foreground/40">
@@ -198,11 +188,11 @@ export default function StudioAssetsHistoryPage() {
   const items = data?.list ?? []
 
   const slides = items
-    .filter((t) => t.status === "SUCCESS" && t.ossUrl)
+    .filter((t) => t.status === "SUCCESS" && t.outputUrl)
     .map((t) =>
       t.type.includes("VIDEO")
-        ? { type: "video" as const, sources: [{ src: t.ossUrl as string, type: "video/mp4" }] }
-        : { src: t.ossUrl as string }
+        ? { type: "video" as const, sources: [{ src: t.outputUrl as string, type: "video/mp4" }] }
+        : { src: t.outputUrl as string }
     )
 
   const { open, index, onOpen, onClose } = useLightbox(slides)

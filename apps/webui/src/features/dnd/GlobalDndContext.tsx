@@ -5,7 +5,6 @@
  * - chatter-composer-drop   → 写入 chatter-store.pendingDropItem（对话附件）
  * - generation-drop-zone    → aigc store addReferenceAsset
  * - storyboard-drop-zone    → aigc store addStoryboardAsset
- * - group-{id}              → 移动素材到目标素材组（调 API，invalidate media-assets）
  *
  * 未来其他页面的元素只需注册对应 droppable id 即可复用此 handler。
  *
@@ -15,12 +14,9 @@
 "use client"
 
 import { DndContext, type DragEndEvent, useSensor, useSensors } from "@dnd-kit/core"
-import { useQueryClient } from "@tanstack/react-query"
 import type { ReactNode } from "react"
 import { SmartPointerSensor } from "@/features/aigc/SmartPointerSensor"
 import { useAigcStore } from "@/features/aigc/store"
-import type { MediaAssetVO } from "@/features/aigc/types"
-import { mediaAssetApi } from "@/lib/api/rest/media"
 import { useChatterStore } from "@/lib/store/chatter-store"
 
 interface GlobalDndContextProps {
@@ -29,7 +25,6 @@ interface GlobalDndContextProps {
 
 export function GlobalDndContext({ children }: GlobalDndContextProps) {
   const setPendingDropItem = useChatterStore((s) => s.setPendingDropItem)
-  const queryClient = useQueryClient()
 
   const sensors = useSensors(
     useSensor(SmartPointerSensor, { activationConstraint: { distance: 8 } })
@@ -51,28 +46,17 @@ export function GlobalDndContext({ children }: GlobalDndContextProps) {
     // 以下 aigc 相关操作
     const aigc = useAigcStore.getState()
 
+    const mediaId = Number(item.id)
+    if (!Number.isSafeInteger(mediaId)) return
+
     if (overId === "generation-drop-zone") {
-      aigc.addReferenceAsset(item as unknown as MediaAssetVO)
+      aigc.addReferenceMediaId(mediaId)
       return
     }
 
     if (overId === "storyboard-drop-zone") {
-      aigc.addStoryboardAsset(item as unknown as MediaAssetVO)
+      aigc.addStoryboardMediaId(mediaId)
       return
-    }
-    if (overId.startsWith("group-")) {
-      const targetGroupId = Number(overId.replace("group-", ""))
-      const assetId = Number(item.id)
-      const currentGroupId = item.groupId as number | undefined
-      if (
-        !Number.isNaN(targetGroupId) &&
-        !Number.isNaN(assetId) &&
-        currentGroupId !== targetGroupId
-      ) {
-        mediaAssetApi.moveToGroup(assetId, targetGroupId).then(() => {
-          queryClient.invalidateQueries({ queryKey: ["media-assets"] })
-        })
-      }
     }
   }
 

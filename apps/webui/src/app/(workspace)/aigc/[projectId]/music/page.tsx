@@ -22,7 +22,7 @@ interface TaskItem {
   id: number
   prompt: string
   status: "PENDING" | "RUNNING" | "SUCCESS" | "FAIL"
-  ossUrl?: string
+  outputUrl?: string
   errorMsg?: string
 }
 
@@ -58,14 +58,10 @@ export default function MusicGenerationPage() {
   })
 
   useAigcTaskStream({
-    onProgress: (task) => {
-      if (task.type !== "MUSIC") return
-      setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status: "RUNNING" } : t)))
-    },
     onCompleted: (task) => {
       if (task.type !== "MUSIC") return
       setTasks((prev) =>
-        prev.map((t) => (t.id === task.id ? { ...t, status: "SUCCESS", ossUrl: task.ossUrl } : t))
+        prev.map((t) => (t.id === task.id ? { ...t, status: "SUCCESS", outputUrl: task.outputUrl } : t))
       )
       toast.success("音乐生成完成")
     },
@@ -147,12 +143,12 @@ export default function MusicGenerationPage() {
                 <p className="mt-0.5 text-muted-foreground text-xs">
                   {task.status === "PENDING" && "等待中..."}
                   {task.status === "RUNNING" && "生成中..."}
-                  {task.status === "SUCCESS" && "已完成，素材已入库"}
+                  {task.status === "SUCCESS" && "已完成，媒体已入库"}
                   {task.status === "FAIL" && `失败：${task.errorMsg ?? "未知错误"}`}
                 </p>
               </div>
-              {task.status === "SUCCESS" && task.ossUrl && (
-                <audio controls src={task.ossUrl} className="h-8 w-48 shrink-0">
+              {task.status === "SUCCESS" && task.outputUrl && (
+                <audio controls src={task.outputUrl} className="h-8 w-48 shrink-0">
                   <track kind="captions" />
                 </audio>
               )}

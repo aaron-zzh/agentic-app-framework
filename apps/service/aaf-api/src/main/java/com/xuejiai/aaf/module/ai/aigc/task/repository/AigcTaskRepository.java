@@ -20,8 +20,8 @@ public interface AigcTaskRepository extends CrudEntityRepository<AigcTask> {
     /** 按用户分页查询（最新在前） */
     Page<AigcTask> findByUserIdOrderByCreateTimeDesc(Long userId, Pageable pageable);
 
-    /** 按第三方任务 ID 查找 */
-    Optional<AigcTask> findByTaskId(String taskId);
+    /** 按第三方任务 ID 查找。 */
+    Optional<AigcTask> findByProviderTaskId(String providerTaskId);
 
     /** 查询指定状态的任务列表 */
     List<AigcTask> findByStatus(String status);

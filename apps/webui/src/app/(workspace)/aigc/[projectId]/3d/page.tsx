@@ -19,8 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/u
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
-import { AssetCard } from "@/features/aigc/asset/AssetCard"
-import type { MediaAssetVO } from "@/features/aigc/types"
+import { GenerationResultCard } from "@/features/aigc/generation/GenerationResultCard"
+import type { AigcTaskEvent } from "@/lib/hooks/use-aigc-task-stream"
 import { request } from "@/lib/api/rest/entity"
 import { useAigcTaskStream } from "@/lib/hooks/use-aigc-task-stream"
 
@@ -41,30 +41,29 @@ function SceneLoading() {
   )
 }
 
-interface TaskItem {
-  id: number
-  prompt: string
-  status: "PENDING" | "RUNNING" | "SUCCESS" | "FAIL"
-  ossUrl?: string
-  errorMsg?: string
-}
-
-function taskToAsset(task: TaskItem): MediaAssetVO {
+function pendingTask(id: number, prompt: string): AigcTaskEvent {
+  const now = new Date().toISOString()
   return {
-    id: task.id,
-    name: task.prompt,
+    id,
+    userId: 0,
     type: "MODEL_3D",
-    url: task.ossUrl ?? "",
-    thumbnailUrl: null,
-    createTime: new Date().toISOString(),
-    generationParams: null,
-    size: null,
-    width: null,
-    height: null,
-    tags: null,
-    groupId: null,
-    groupName: null
-  } as unknown as MediaAssetVO
+    status: "PENDING",
+    provider: null,
+    model: null,
+    prompt,
+    providerTaskId: null,
+    providerResult: null,
+    outputMediaId: null,
+    outputMediaVersionId: null,
+    outputUrl: null,
+    assetId: null,
+    isAsset: false,
+    errorMsg: null,
+    params: null,
+    projectId: null,
+    createTime: now,
+    updateTime: now
+  }
 }
 
 export default function AigcThreeDPage() {
@@ -72,7 +71,7 @@ export default function AigcThreeDPage() {
   const projectId = routeParams.projectId ? Number(routeParams.projectId) : null
   const [prompt, setPrompt] = useState("")
   const [textureQuality, setTextureQuality] = useState<"none" | "standard" | "detailed">("none")
-  const [tasks, setTasks] = useState<TaskItem[]>([])
+  const [tasks, setTasks] = useState<AigcTaskEvent[]>([])
 
   const { mutate: submit, isPending } = useMutation({
     mutationFn: () =>
@@ -86,7 +85,7 @@ export default function AigcThreeDPage() {
         })
       }),
     onSuccess: (taskId) => {
-      setTasks((prev) => [{ id: taskId, prompt: prompt.trim(), status: "PENDING" }, ...prev])
+      setTasks((previous) => [pendingTask(taskId, prompt.trim()), ...previous])
       setPrompt("")
       toast.success("3D 生成任务已提交")
     },
@@ -96,16 +95,12 @@ export default function AigcThreeDPage() {
   useAigcTaskStream({
     onCompleted: (task) => {
       if (task.type !== "MODEL_3D") return
-      setTasks((prev) =>
-        prev.map((t) => (t.id === task.id ? { ...t, status: "SUCCESS", ossUrl: task.ossUrl } : t))
-      )
-      toast.success("3D 模型生成完成，素材已入库")
+      setTasks((previous) => previous.map((item) => (item.id === task.id ? task : item)))
+      toast.success("3D 模型生成完成，媒体已入库")
     },
     onFailed: (task) => {
       if (task.type !== "MODEL_3D") return
-      setTasks((prev) =>
-        prev.map((t) => (t.id === task.id ? { ...t, status: "FAIL", errorMsg: task.errorMsg } : t))
-      )
+      setTasks((previous) => previous.map((item) => (item.id === task.id ? task : item)))
     }
   })
 
@@ -172,46 +167,7 @@ export default function AigcThreeDPage() {
               </div>
             </Card>
 
-            {/* 任务列表 */}
-            {tasks.length > 0 && (
-              <div className="space-y-3">
-                <h2 className="font-medium text-muted-foreground text-sm">生成记录</h2>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                  {tasks.map((task) =>
-                    task.status === "SUCCESS" && task.ossUrl ? (
-                      <AssetCard
-                        key={task.id}
-                        asset={taskToAsset(task)}
-                        onClick={() => {}}
-                        onDelete={() => {}}
-                        onRegenerate={() => {}}
-                      />
-                    ) : (
-                      <Card
-                        key={task.id}
-                        className="flex aspect-square flex-col items-center justify-center gap-2 p-4 text-center"
-                      >
-                        {task.status === "FAIL" ? (
-                          <>
-                            <span className="text-2xl text-destructive">✕</span>
-                            <p className="line-clamp-2 text-destructive text-xs">
-                              {task.errorMsg ?? "生成失败"}
-                            </p>
-                          </>
-                        ) : (
-                          <>
-                            <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                            <p className="line-clamp-2 text-muted-foreground text-xs">
-                              {task.prompt}
-                            </p>
-                          </>
-                        )}
-                      </Card>
-                    )
-                  )}
-                </div>
-              </div>
-            )}
+            <GenerationResultCard tasks={tasks} mediaType="MODEL_3D" />
           </TabsContent>
 
           <TabsContent value="viewer" className="h-[calc(100%-40px)]">

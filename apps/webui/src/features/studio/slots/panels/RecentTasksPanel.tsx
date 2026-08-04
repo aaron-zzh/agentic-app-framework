@@ -30,9 +30,6 @@ export function RecentTasksPanel() {
     onCreated: useCallback((task: AigcTaskEvent) => {
       setTasks((prev) => [task, ...prev.filter((t) => t.id !== task.id)].slice(0, 5))
     }, []),
-    onProgress: useCallback((task: AigcTaskEvent) => {
-      setTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
-    }, []),
     onCompleted: useCallback((task: AigcTaskEvent) => {
       setTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
     }, []),

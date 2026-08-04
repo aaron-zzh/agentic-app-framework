@@ -20,6 +20,9 @@ const CREATE_CONFIG = getWorkspaceConfig("create")
 
 export default function StudioCreateLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const activeItem = [...CREATE_CONFIG.children]
+    .sort((left, right) => right.path.length - left.path.length)
+    .find((item) => pathname === item.path || pathname.startsWith(`${item.path}/`))
 
   return (
     <div className="relative flex h-full flex-col">
@@ -30,7 +33,7 @@ export default function StudioCreateLayout({ children }: { children: React.React
       <div className="relative z-10 border-foreground/6 border-b bg-background/30 backdrop-blur">
         <div className="flex items-center justify-center gap-1 overflow-x-auto px-6 py-2">
           {CREATE_CONFIG.children.map((item) => {
-            const isActive = pathname === item.path || pathname.startsWith(`${item.path}/`)
+            const isActive = activeItem?.key === item.key
             const Icon = item.icon
             return (
               <Link

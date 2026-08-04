@@ -51,7 +51,7 @@ public class MidjourneyTaskSyncJob {
 
         for (var task : tasks) {
             try {
-                String compositeTaskId = task.getTaskId();
+                String compositeTaskId = task.getProviderTaskId();
                 if (compositeTaskId == null || !compositeTaskId.contains(":")) continue;
 
                 int sep = compositeTaskId.indexOf(':');

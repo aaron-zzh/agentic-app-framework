@@ -23,7 +23,7 @@ import {
   X
 } from "lucide-react"
 import { useParams } from "next/navigation"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   ContextMenu,
@@ -36,6 +36,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { downloadFile } from "@/lib/utils"
+import { useMediaDetail } from "@/lib/api/rest/media"
 import { FileGrid } from "../asset/FileGrid"
 import { useAigcStore } from "../store"
 import { ImageViewer } from "./ImageViewer"
@@ -155,9 +156,10 @@ export function PreviewPanel({
 }: {
   orientation?: "horizontal" | "vertical"
 }) {
-  const previewAsset = useAigcStore((s) => s.previewAsset)
-  const previewList = useAigcStore((s) => s.previewList)
-  const navigatePreview = useAigcStore((s) => s.navigatePreview)
+  const previewMediaId = useAigcStore((state) => state.previewMediaId)
+  const previewMediaIds = useAigcStore((state) => state.previewMediaIds)
+  const { data: previewAsset } = useMediaDetail(previewMediaId)
+  const navigatePreview = useAigcStore((state) => state.navigatePreview)
   const fileFilterUnassigned = useAigcStore((s) => s.fileFilterUnassigned)
   const fileAreaOpen = useAigcStore((s) => s.fileAreaOpen)
   const setFileAreaOpen = useAigcStore((s) => s.setFileAreaOpen)
@@ -171,17 +173,18 @@ export function PreviewPanel({
       : null
 
   // 切换项目时清空预览素材
-  const setPreviewAsset = useAigcStore((s) => s.setPreviewAsset)
-  const _routeKey = params.projectId ?? params.id
-  const prevProjectId = useRef(_routeKey)
-  if (prevProjectId.current !== _routeKey) {
-    prevProjectId.current = _routeKey
-    setPreviewAsset(null)
-  }
+  const setPreviewMediaId = useAigcStore((state) => state.setPreviewMediaId)
+  const routeKey = params.projectId ?? params.id
+  const prevProjectId = useRef(routeKey)
+  useEffect(() => {
+    if (prevProjectId.current === routeKey) return
+    prevProjectId.current = routeKey
+    setPreviewMediaId(null)
+  }, [routeKey, setPreviewMediaId])
 
-  const currentIdx = previewAsset ? previewList.findIndex((a) => a.id === previewAsset.id) : -1
+  const currentIdx = previewMediaId !== null ? previewMediaIds.indexOf(previewMediaId) : -1
   const hasPrev = currentIdx > 0
-  const hasNext = currentIdx >= 0 && currentIdx < previewList.length - 1
+  const hasNext = currentIdx >= 0 && currentIdx < previewMediaIds.length - 1
 
   const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null)
   const [fullscreenOpen, setFullscreenOpen] = useState(false)
@@ -200,8 +203,17 @@ export function PreviewPanel({
 
   function getPrompt() {
     try {
-      const p = previewAsset?.generationParams ? JSON.parse(previewAsset.generationParams) : {}
-      return p.prompt ?? previewAsset?.name ?? ""
+      const generationInfo = previewAsset?.currentVersion.generationInfo
+      const parsed: unknown = generationInfo ? JSON.parse(generationInfo) : null
+      if (
+        parsed !== null &&
+        typeof parsed === "object" &&
+        "prompt" in parsed &&
+        typeof parsed.prompt === "string"
+      ) {
+        return parsed.prompt
+      }
+      return previewAsset?.name ?? ""
     } catch {
       return previewAsset?.name ?? ""
     }
@@ -262,7 +274,7 @@ export function PreviewPanel({
                   {/* 图片区域 + 右键菜单 */}
                   <ContextMenu>
                     <ContextMenuTrigger className="h-full w-full">
-                      {previewAsset.type === "AUDIO" ? (
+                      {previewAsset.mediaType === "AUDIO" || previewAsset.mediaType === "MUSIC" ? (
                         <div className="flex h-full w-full flex-col items-center justify-center gap-4 p-6">
                           <Music className="size-16 text-muted-foreground/60" />
                           <span className="max-w-full truncate text-muted-foreground text-sm">
@@ -272,21 +284,21 @@ export function PreviewPanel({
                           <audio
                             key={previewAsset.id}
                             controls
-                            src={previewAsset.url ?? ""}
+                            src={previewAsset.currentVersion.url}
                             className="w-full max-w-md"
                           />
                         </div>
-                      ) : previewAsset.type === "VIDEO" ? (
+                      ) : previewAsset.mediaType === "VIDEO" ? (
                         // biome-ignore lint/a11y/useMediaCaption: 生成视频无字幕轨
                         <video
                           key={previewAsset.id}
                           controls
-                          src={previewAsset.url ?? ""}
+                          src={previewAsset.currentVersion.url}
                           className="h-full w-full object-contain"
                         />
                       ) : (
                         <ImageViewer
-                          src={previewAsset.thumbnailUrl ?? previewAsset.url ?? ""}
+                          src={previewAsset.currentVersion.thumbnailUrl ?? previewAsset.currentVersion.url}
                           alt={previewAsset.name}
                           className="h-full w-full"
                           onLoad={(e) => {
@@ -299,7 +311,7 @@ export function PreviewPanel({
                     <ContextMenuContent>
                       <ContextMenuItem
                         onClick={() => {
-                          useAigcStore.getState().addReferenceAsset(previewAsset)
+                          useAigcStore.getState().addReferenceMediaId(previewAsset.id)
                           useAigcStore.getState().setGenerationPanelOpen(true)
                         }}
                       >
@@ -321,32 +333,15 @@ export function PreviewPanel({
                     {/* 左：模型 + 尺寸信息 */}
                     <div className="flex items-center gap-1.5 rounded-md bg-black/40 px-2 py-1 backdrop-blur-sm">
                       {(() => {
-                        let model = previewAsset.modelName ?? ""
-                        let sizePreset = ""
-                        try {
-                          const p = previewAsset.generationParams
-                            ? JSON.parse(previewAsset.generationParams)
-                            : {}
-                          if (!model) model = p.model ?? ""
-                          sizePreset = p.sizePreset ?? ""
-                        } catch {}
-                        const w = naturalSize?.w
-                        const h = naturalSize?.h
-                        const sizeStr = w && h ? `${w}×${h}` : ""
-                        return (
-                          <>
-                            {model && <span className="text-white/80 text-xs">{model}</span>}
-                            {sizePreset && (
-                              <span className="text-white/60 text-xs">{sizePreset}</span>
-                            )}
-                            {sizeStr && <span className="text-white/60 text-xs">{sizeStr}</span>}
-                          </>
-                        )
+                        const width = previewAsset.currentVersion.width ?? naturalSize?.w
+                        const height = previewAsset.currentVersion.height ?? naturalSize?.h
+                        const size = width && height ? `${width}×${height}` : ""
+                        return size ? <span className="text-white/60 text-xs">{size}</span> : null
                       })()}
                     </div>
                     {/* 右：操作按钮 */}
                     <div className="flex gap-1">
-                      {previewAsset.type !== "AUDIO" && previewAsset.type !== "VIDEO" && (
+                      {previewAsset.mediaType !== "AUDIO" && previewAsset.mediaType !== "VIDEO" && (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -368,8 +363,10 @@ export function PreviewPanel({
                         size="sm"
                         className="size-8 p-0 text-muted-foreground hover:text-foreground"
                         onClick={() => {
-                          if (!previewAsset?.url) return
-                          downloadFile(previewAsset.url, previewAsset.name || "image")
+                          downloadFile(
+                            previewAsset.currentVersion.url,
+                            previewAsset.name || "media"
+                          )
                         }}
                       >
                         <Download className="size-4" />
@@ -390,7 +387,7 @@ export function PreviewPanel({
                       </Button>
                     </div>
                   </div>
-                  {previewList.length > 1 && (
+                  {previewMediaIds.length > 1 && (
                     <div className="absolute top-1/2 left-3 flex -translate-y-1/2 flex-col items-center gap-1">
                       <Button
                         variant="ghost"
@@ -442,7 +439,7 @@ export function PreviewPanel({
         <Dialog open={fullscreenOpen} onOpenChange={setFullscreenOpen}>
           <DialogContent className="h-[100vh]! max-w-[100vw]! p-0 [&>button]:text-white">
             <ImageViewer
-              src={previewAsset.thumbnailUrl ?? previewAsset.url ?? ""}
+              src={previewAsset.currentVersion.thumbnailUrl ?? previewAsset.currentVersion.url}
               alt={previewAsset.name}
               className="h-full w-full rounded-lg bg-black"
             />

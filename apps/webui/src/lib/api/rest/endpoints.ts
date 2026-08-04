@@ -42,7 +42,6 @@ export const restEndpoints = {
       `/system/chat/suggestions${agentId ? `?agentId=${agentId}` : ""}`,
     generationHistory: "/aigc/history",
     imageGeneration: "/system/images/draw",
-    saveGeneratedAsset: "/aigc/assets/save-from-generation",
     delegatedTasks: "/ai/tasks",
     delegatedTaskList: "/ai/tasks/delegated",
     delegatedTask: (taskId: string) => `/ai/tasks/${taskId}/delegation`,
@@ -157,12 +156,10 @@ export const restEndpoints = {
     knowledgeBaseStats: (id: string) => `/knowledge-bases/${id}/stats`
   },
   media: {
-    legacyAssets: "/media-assets",
+    media: "/aigc/media",
+    mediaById: (id: number) => `/aigc/media/${id}`,
+    mediaAsset: (id: number) => `/aigc/media/${id}/asset`,
     assets: "/aigc/assets",
-    asset: (id: number) => `/aigc/assets/${id}`,
-    assetRegenerate: "/aigc/assets/regenerate",
-    assetSearch: "/aigc/assets/search",
-    assetVariants: (id: number) => `/aigc/assets/${id}/variants`,
     categories: "/aigc/categories",
     tags: "/aigc/tags"
   },

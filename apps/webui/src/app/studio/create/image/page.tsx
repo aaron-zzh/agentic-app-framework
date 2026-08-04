@@ -148,10 +148,6 @@ export default function StudioCreateImagePage() {
       if (task.type !== "IMAGE") return
       setRecentTasks((prev) => [task, ...prev].slice(0, 5))
     }, []),
-    onProgress: useCallback((task: AigcTaskEvent) => {
-      if (task.type !== "IMAGE") return
-      setRecentTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
-    }, []),
     onCompleted: useCallback((task: AigcTaskEvent) => {
       if (task.type !== "IMAGE") return
       setRecentTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))

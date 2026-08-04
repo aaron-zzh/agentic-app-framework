@@ -10,7 +10,7 @@ import lombok.RequiredArgsConstructor;
 /**
  * AIGC 任务 SSE 推送服务——委托通用 {@link SseSessionManager} 管理连接和心跳。
  *
- * <p>事件类型：task.created / task.progress / task.completed / task.failed
+ * <p>事件类型：task.created / task.completed / task.failed
  *
  * @author AaronZZH
  */

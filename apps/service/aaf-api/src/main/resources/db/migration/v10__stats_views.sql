@@ -116,7 +116,7 @@ SELECT
     COALESCE(ca.total_earned, 0)                      AS total_earned_credits,
     COALESCE(ca.total_spent, 0)                       AS total_spent_credits,
     -- 素材统计
-    COUNT(DISTINCT ma.id)                             AS total_aigc_medias,
+    COUNT(DISTINCT ma.id)                             AS total_media_assets,
     -- Todo 统计
     COUNT(DISTINCT td.id)                             AS total_todos,
     COUNT(DISTINCT CASE WHEN td.status = 'done' THEN td.id END) AS done_todos

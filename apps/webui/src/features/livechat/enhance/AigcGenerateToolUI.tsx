@@ -44,7 +44,7 @@ function AigcTaskCard({ data }: { data: AigcToolResult }) {
       (task) => {
         if (task.id === taskId) {
           setStatus("SUCCESS")
-          setUrl(task.ossUrl ?? task.resultUrl)
+          setUrl(task.outputUrl ?? undefined)
         }
       },
       [taskId]

@@ -3,10 +3,11 @@ level: Practice
 layer: Product
 purpose: AAF 前端目录结构设计（apps/webui + packages/）
 status: draft
-version: 2.1.0
-date: 2026-05-14
+version: 2.2.0
+date: 2026-08-02
 author: AaronZZH
 changelog:
+  - 2026-08-02 | v2.2 补充可复用技术引擎类 Nx library 边界，并登记 knowledge-visualization
   - 2026-05-14 | v2.1 借鉴 next-ts：表单体系（Form/Field/schemaUtils）、sections/view/ 子目录、路由常量集中、CSS 变量布局、导航配置分离
   - 2026-05-13 | v2.0 重写：增加 features/ 层、依赖方向规则、插件门控、Nx 边界约束
   - 2026-05-10 | v1.0 初版
@@ -57,14 +58,14 @@ packages/  ←  features/  ←  sections/  ←  app/
 | `sections/` | 按业务域组织的复合组件，消费 features | 扁平组件文件 | ChatPage, DocumentEditor, FlowList |
 | `components/` | 无业务语义的纯 UI 组件 | 按形态分组 | ui/, common/, form/, assistant-ui/ |
 | `lib/` | 数据获取、状态、工具函数、门控 | 按职能分组 | api/, queries/, store/, modules/ |
-| `packages/` | 跨 app 共享（webui + uniapp） | 独立 Nx 项目 | core/, ui/, editor/ |
+| `packages/` | 跨 app 共享能力或可独立复用的技术引擎，不得反向依赖业务 app | 独立 Nx 项目 | core/, hooks/, knowledge-visualization/ |
 
 ### 1.4 文件放置决策树
 
 ```text
 这段代码应该放哪里？
 │
-├── 跨 webui 和 uniapp 都需要？ → packages/
+├── 跨 app 共享，或属于可独立复用且不依赖业务 app 的技术引擎？ → packages/
 │
 ├── 有内部插件/注册表体系，被多个业务域当"引擎"用？ → features/
 │
@@ -351,7 +352,7 @@ apps/webui/
 
 ## 三、packages/ 共享包设计
 
-> v0.1.0 阶段 packages/ 为空。提取判断标准：**webui 和 uniapp 都需要，且无框架依赖**。
+> `packages/` 承载跨应用共享能力和可独立复用的技术引擎。共享包不得依赖 `apps/` 业务代码；React、Three.js 等运行时依赖按包合同声明为 peer dependency，业务 API 与服务端状态管理保留在消费端。
 
 ```text
 packages/
@@ -362,6 +363,10 @@ packages/
 │   │   ├── utils/           → 纯函数工具（format/parse/validate）
 │   │   └── constants/       → 跨端常量（API 路径/错误码/枚举）
 │   └── package.json
+│
+├── knowledge-visualization/ → Three.js 知识图技术引擎（React adapter + Worker 布局）
+│   ├── src/lib/             → 公共合同、布局、渲染内核与生命周期
+│   └── package.json         → React/Three.js peer dependency
 │
 ├── ui/                      → 共享 UI 组件（React，跨 webui/uniapp-web）
 │   ├── src/components/      → MarkdownRenderer / CodeBlock / Avatar / LoadingSpinner

@@ -14,7 +14,7 @@ import {
   CommandItem,
   CommandList
 } from "@/components/ui/command"
-import { useMediaAssetSearch } from "@/lib/api/rest/media"
+import { useMediaList } from "@/lib/api/rest/media"
 import { useAigcStore } from "../store"
 
 interface AtMentionProps {
@@ -27,8 +27,9 @@ export function AtMention({ value, onChange, textareaRef }: AtMentionProps) {
   const [open, setOpen] = useState(false)
   const [keyword, setKeyword] = useState("")
   const [atPosition, setAtPosition] = useState(-1)
-  const addReferenceAsset = useAigcStore((s) => s.addReferenceAsset)
-  const { data: results = [] } = useMediaAssetSearch(keyword)
+  const addReferenceMediaId = useAigcStore((state) => state.addReferenceMediaId)
+  const { data } = useMediaList({ keyword, pageNo: 1, pageSize: 10 })
+  const results = data?.list ?? []
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: textareaRef is a stable ref object
   useEffect(() => {
@@ -62,7 +63,7 @@ export function AtMention({ value, onChange, textareaRef }: AtMentionProps) {
     const cursorPos = textareaRef.current?.selectionStart ?? value.length
     const newValue = value.slice(0, atPosition) + mention + value.slice(cursorPos)
     onChange(newValue)
-    addReferenceAsset(asset)
+    addReferenceMediaId(asset.id)
     setOpen(false)
     setKeyword("")
     requestAnimationFrame(() => {
@@ -100,7 +101,7 @@ export function AtMention({ value, onChange, textareaRef }: AtMentionProps) {
               >
                 {/* biome-ignore lint/performance/noImgElement: 动态素材缩略图 */}
                 <img
-                  src={asset.thumbnailUrl ?? undefined}
+                  src={asset.currentVersion.thumbnailUrl ?? asset.currentVersion.url}
                   alt={asset.name}
                   className="size-6 rounded-sm object-cover"
                 />

@@ -4,8 +4,13 @@
  */
 
 import { create } from "zustand"
-import type { AiSkillVO } from "@/lib/api/rest/ai"
-import type { MediaAssetVO } from "./types"
+
+/** 尚未进入 Media 聚合的用户上传参考文件，仅作为当前生成表单草稿。 */
+export interface UploadedReferenceDraft {
+  key: string
+  name: string
+  url: string
+}
 
 interface AigcStore {
   /** 生成面板是否展开 */
@@ -26,14 +31,16 @@ interface AigcStore {
   copywritingModel: string
   /** 文案生成参考图（用于视觉理解辅助生成）：key 透传给后端，url 用于前端缩略图预览 */
   copywritingReferenceImages: Array<{ key: string; url: string; name: string }>
-  /** 当前预览的素材 */
-  previewAsset: MediaAssetVO | null
-  /** 预览素材列表（用于导航） */
-  previewList: MediaAssetVO[]
-  /** 拖入生成面板的参考素材 */
-  referenceAssets: MediaAssetVO[]
-  /** 元素区（从素材库中选取的关键元素） */
-  storyboardAssets: MediaAssetVO[]
+  /** 当前预览的媒体 ID；媒体对象由 TanStack Query 持有。 */
+  previewMediaId: number | null
+  /** 预览媒体 ID 列表（用于导航）。 */
+  previewMediaIds: number[]
+  /** 拖入生成面板的持久媒体 ID。 */
+  referenceMediaIds: number[]
+  /** 当前生成表单中新上传、尚未建 Media 的参考文件草稿。 */
+  uploadedReferenceDrafts: UploadedReferenceDraft[]
+  /** 元素区的持久媒体 ID。 */
+  storyboardMediaIds: number[]
   /** 元素看板是否展开 */
   storyboardPanelOpen: boolean
   /** 素材区只展示未分配素材 */
@@ -50,12 +57,10 @@ interface AigcStore {
     prompt: string
     type: string
     modelId?: string
-    ossUrl?: string
     error?: string
-    asset?: MediaAssetVO
   }>
-  /** 当前选中的技能（用于在 HomeChatLauncher 等入口附加 systemPrompt） */
-  selectedSkill: AiSkillVO | null
+  /** 当前选中的技能 ID；技能对象由 TanStack Query 持有。 */
+  selectedSkillId: number | null
   /** 生成类型：image=AI生图 video=AI视频 */
   generationType: "IMAGE_GEN" | "VIDEO_GEN" | "VOICE" | "MUSIC"
   /** 视频时长（秒） */
@@ -70,8 +75,6 @@ interface AigcStore {
   agentRole: string
   /** 生成 Prompt */
   prompt: string
-  /** 当前项目提示词标签（null = 未启用），由项目数据同步，删除标签不清空此源 */
-  projectPromptTag: { label: string; content: string } | null
   /** 项目提示词是否被用户临时移除（true = 不注入输入框且不参与生成，可一键恢复） */
   projectPromptDismissed: boolean
   /** 随机种子（0 表示不指定） */
@@ -95,7 +98,7 @@ interface AigcStore {
 
   setGenerationPanelOpen: (open: boolean) => void
   setStoryboardPanelOpen: (open: boolean) => void
-  setSelectedSkill: (skill: AiSkillVO | null) => void
+  setSelectedSkillId: (skillId: number | null) => void
   setGenerationType: (type: "IMAGE_GEN" | "VIDEO_GEN" | "VOICE" | "MUSIC") => void
   setAgentRole: (roleId: string) => void
   setCopywritingPanelOpen: (open: boolean) => void
@@ -108,20 +111,21 @@ interface AigcStore {
   addCopywritingReferenceImage: (image: { key: string; url: string; name: string }) => void
   removeCopywritingReferenceImage: (key: string) => void
   clearCopywritingReferenceImages: () => void
-  setPreviewAsset: (asset: MediaAssetVO | null) => void
-  setPreviewList: (list: MediaAssetVO[]) => void
+  setPreviewMediaId: (mediaId: number | null) => void
+  setPreviewMediaIds: (mediaIds: number[]) => void
   navigatePreview: (direction: 1 | -1) => void
-  addReferenceAsset: (asset: MediaAssetVO) => void
-  removeReferenceAsset: (id: number) => void
+  addReferenceMediaId: (mediaId: number) => void
+  addUploadedReferenceDraft: (draft: UploadedReferenceDraft) => void
+  removeReferenceMediaId: (mediaId: number) => void
+  removeUploadedReferenceDraft: (key: string) => void
   clearReferenceAssets: () => void
-  addStoryboardAsset: (asset: MediaAssetVO) => void
-  removeStoryboardAsset: (id: number) => void
+  addStoryboardMediaId: (mediaId: number) => void
+  removeStoryboardMediaId: (mediaId: number) => void
   toggleFileFilter: () => void
   setFileAreaOpen: (open: boolean) => void
   setFileTypeFilter: (type: "ALL" | "IMAGE" | "VIDEO" | "AUDIO") => void
   setFileZoom: (zoom: number) => void
   setPrompt: (prompt: string) => void
-  setProjectPromptTag: (tag: { label: string; content: string } | null) => void
   setProjectPromptDismissed: (dismissed: boolean) => void
   setSeed: (seed: number) => void
   setPromptExtend: (v: boolean) => void
@@ -137,14 +141,13 @@ interface AigcStore {
   setAspectRatio: (ratio: string) => void
   setVideoDuration: (duration: string) => void
   addPendingTask: (task: { id: number; prompt: string; type: string; modelId?: string }) => void
-  completePendingTask: (id: number, ossUrl: string, asset?: MediaAssetVO) => void
   failPendingTask: (id: number, error: string) => void
   removePendingTask: (id: number) => void
 }
 
 export const useAigcStore = create<AigcStore>((set, _get) => ({
   generationPanelOpen: false,
-  selectedSkill: null,
+  selectedSkillId: null,
   generationType: "IMAGE_GEN",
   videoDuration: "5s",
   copywritingPanelOpen: false,
@@ -155,10 +158,11 @@ export const useAigcStore = create<AigcStore>((set, _get) => ({
   copywritingLength: "medium",
   copywritingModel: "",
   copywritingReferenceImages: [],
-  previewAsset: null,
-  previewList: [],
-  referenceAssets: [],
-  storyboardAssets: [],
+  previewMediaId: null,
+  previewMediaIds: [],
+  referenceMediaIds: [],
+  uploadedReferenceDrafts: [],
+  storyboardMediaIds: [],
   storyboardPanelOpen: true,
   fileFilterUnassigned: false,
   fileAreaOpen: true,
@@ -166,7 +170,6 @@ export const useAigcStore = create<AigcStore>((set, _get) => ({
   fileZoom: 100,
   pendingTasks: [],
   prompt: "",
-  projectPromptTag: null,
   projectPromptDismissed: false,
   seed: 0,
   promptExtend: true,
@@ -184,7 +187,7 @@ export const useAigcStore = create<AigcStore>((set, _get) => ({
 
   setGenerationPanelOpen: (open) => set({ generationPanelOpen: open }),
   setStoryboardPanelOpen: (open) => set({ storyboardPanelOpen: open }),
-  setSelectedSkill: (skill) => set({ selectedSkill: skill }),
+  setSelectedSkillId: (selectedSkillId) => set({ selectedSkillId }),
   setGenerationType: (type) => set({ generationType: type }),
   setAgentRole: (roleId) => set({ agentRole: roleId }),
   setCopywritingPanelOpen: (open) => set({ copywritingPanelOpen: open }),
@@ -206,40 +209,51 @@ export const useAigcStore = create<AigcStore>((set, _get) => ({
       copywritingReferenceImages: state.copywritingReferenceImages.filter((img) => img.key !== key)
     })),
   clearCopywritingReferenceImages: () => set({ copywritingReferenceImages: [] }),
-  setPreviewAsset: (asset) => set({ previewAsset: asset }),
-  setPreviewList: (list) => set({ previewList: list }),
+  setPreviewMediaId: (previewMediaId) => set({ previewMediaId }),
+  setPreviewMediaIds: (previewMediaIds) => set({ previewMediaIds }),
   navigatePreview: (direction) =>
     set((state) => {
-      if (!state.previewAsset || state.previewList.length === 0) return state
-      const idx = state.previewList.findIndex((a) => a.id === state.previewAsset?.id)
-      if (idx === -1) return state
-      const next = state.previewList[idx + direction]
-      return next ? { previewAsset: next } : state
+      if (state.previewMediaId === null || state.previewMediaIds.length === 0) return state
+      const index = state.previewMediaIds.indexOf(state.previewMediaId)
+      if (index === -1) return state
+      const nextMediaId = state.previewMediaIds[index + direction]
+      return nextMediaId !== undefined ? { previewMediaId: nextMediaId } : state
     }),
-  addReferenceAsset: (asset) =>
+  addReferenceMediaId: (mediaId) =>
     set((state) => {
-      if (state.referenceAssets.length >= 16) return state
-      if (state.referenceAssets.some((a) => a.id === asset.id)) return state
-      return { referenceAssets: [...state.referenceAssets, asset] }
+      if (state.referenceMediaIds.length + state.uploadedReferenceDrafts.length >= 16) return state
+      if (state.referenceMediaIds.includes(mediaId)) return state
+      return { referenceMediaIds: [...state.referenceMediaIds, mediaId] }
     }),
-  removeReferenceAsset: (id) =>
-    set((state) => ({ referenceAssets: state.referenceAssets.filter((a) => a.id !== id) })),
-  clearReferenceAssets: () => set({ referenceAssets: [] }),
-  addStoryboardAsset: (asset) =>
+  addUploadedReferenceDraft: (draft) =>
     set((state) => {
-      if (state.storyboardAssets.some((a) => a.id === asset.id)) return state
-      return { storyboardAssets: [...state.storyboardAssets, asset] }
+      if (state.referenceMediaIds.length + state.uploadedReferenceDrafts.length >= 16) return state
+      if (state.uploadedReferenceDrafts.some((item) => item.key === draft.key)) return state
+      return { uploadedReferenceDrafts: [...state.uploadedReferenceDrafts, draft] }
     }),
-  removeStoryboardAsset: (id) =>
-    set((state) => ({ storyboardAssets: state.storyboardAssets.filter((a) => a.id !== id) })),
+  removeReferenceMediaId: (mediaId) =>
+    set((state) => ({
+      referenceMediaIds: state.referenceMediaIds.filter((id) => id !== mediaId)
+    })),
+  removeUploadedReferenceDraft: (key) =>
+    set((state) => ({
+      uploadedReferenceDrafts: state.uploadedReferenceDrafts.filter((item) => item.key !== key)
+    })),
+  clearReferenceAssets: () => set({ referenceMediaIds: [], uploadedReferenceDrafts: [] }),
+  addStoryboardMediaId: (mediaId) =>
+    set((state) => {
+      if (state.storyboardMediaIds.includes(mediaId)) return state
+      return { storyboardMediaIds: [...state.storyboardMediaIds, mediaId] }
+    }),
+  removeStoryboardMediaId: (mediaId) =>
+    set((state) => ({
+      storyboardMediaIds: state.storyboardMediaIds.filter((id) => id !== mediaId)
+    })),
   toggleFileFilter: () => set((state) => ({ fileFilterUnassigned: !state.fileFilterUnassigned })),
   setFileAreaOpen: (open) => set({ fileAreaOpen: open }),
   setFileTypeFilter: (type) => set({ fileTypeFilter: type }),
   setFileZoom: (zoom) => set({ fileZoom: zoom }),
   setPrompt: (prompt) => set({ prompt }),
-  // 项目提示词源变化时（项目加载/切换/更新）自动重置移除状态，确保新内容默认展示
-  setProjectPromptTag: (projectPromptTag) =>
-    set({ projectPromptTag, projectPromptDismissed: false }),
   setProjectPromptDismissed: (projectPromptDismissed) => set({ projectPromptDismissed }),
   setSeed: (seed) => set({ seed }),
   setPromptExtend: (promptExtend) => set({ promptExtend }),
@@ -259,10 +273,6 @@ export const useAigcStore = create<AigcStore>((set, _get) => ({
       if (state.pendingTasks.some((t) => t.id === task.id)) return state
       return { pendingTasks: [...state.pendingTasks, task] }
     }),
-  completePendingTask: (id, ossUrl, asset) =>
-    set((state) => ({
-      pendingTasks: state.pendingTasks.map((t) => (t.id === id ? { ...t, ossUrl, asset } : t))
-    })),
   failPendingTask: (id, error) =>
     set((state) => ({
       pendingTasks: state.pendingTasks.map((t) => (t.id === id ? { ...t, error } : t))

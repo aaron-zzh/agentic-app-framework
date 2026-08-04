@@ -11,10 +11,34 @@ import { Loader2, Plus, Upload, X } from "lucide-react"
 import { useRef, useState } from "react"
 import { toast } from "sonner"
 import { API_ORIGIN } from "@/lib/api/config"
+import { useMediaDetails } from "@/lib/api/rest/media"
 import { useFileUpload } from "@/lib/hooks/use-file-upload"
 import { cn } from "@/lib/utils/index"
-import { useAigcStore } from "../store"
-import type { MediaAssetVO } from "../types"
+import { useAigcStore, type UploadedReferenceDraft } from "../store"
+
+function ReferenceThumbnail({
+  name,
+  url,
+  onRemove
+}: {
+  name: string
+  url: string
+  onRemove: () => void
+}) {
+  return (
+    <div className="group relative size-14 rounded-md bg-muted">
+      {/* biome-ignore lint/performance/noImgElement: 动态参考素材缩略图 */}
+      <img src={url} alt={name} className="size-full overflow-hidden rounded-md object-cover" />
+      <button
+        type="button"
+        onClick={onRemove}
+        className="absolute -top-1 -right-1 hidden size-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground group-hover:flex"
+      >
+        <X className="size-3" />
+      </button>
+    </div>
+  )
+}
 
 export function ReferenceDropZone({
   max = 16,
@@ -24,30 +48,35 @@ export function ReferenceDropZone({
   isEditMode?: boolean
 }) {
   const { isOver, setNodeRef } = useDroppable({ id: "generation-drop-zone" })
-  const referenceAssets = useAigcStore((s) => s.referenceAssets)
-  const removeReferenceAsset = useAigcStore((s) => s.removeReferenceAsset)
-  const addReferenceAsset = useAigcStore((s) => s.addReferenceAsset)
+  const referenceMediaIds = useAigcStore((state) => state.referenceMediaIds)
+  const uploadedReferenceDrafts = useAigcStore((state) => state.uploadedReferenceDrafts)
+  const mediaQueries = useMediaDetails(referenceMediaIds)
+  const media = mediaQueries.flatMap((query) => (query.data ? [query.data] : []))
+  const removeReferenceMediaId = useAigcStore((state) => state.removeReferenceMediaId)
+  const removeUploadedReferenceDraft = useAigcStore(
+    (state) => state.removeUploadedReferenceDraft
+  )
+  const addUploadedReferenceDraft = useAigcStore((state) => state.addUploadedReferenceDraft)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [fileDragOver, setFileDragOver] = useState(false)
   const { upload } = useFileUpload()
 
-  /** 上传单个文件并构造临时 MediaAssetVO 用于展示 */
-  async function uploadImageFile(file: File): Promise<MediaAssetVO> {
+  /** 上传单个文件并构造当前生成表单的参考文件草稿。 */
+  async function uploadImageFile(file: File): Promise<UploadedReferenceDraft> {
     const result = await upload(file)
     const fullUrl = result.url.startsWith("http") ? result.url : `${API_ORIGIN}${result.url}`
+    if (!result.key) throw new Error("上传结果缺少文件 key")
     return {
-      id: Date.now(),
+      key: result.key,
       name: file.name,
-      type: "IMAGE",
-      url: fullUrl,
-      thumbnailUrl: fullUrl
-    } as unknown as MediaAssetVO
+      url: fullUrl
+    }
   }
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return
-    if (referenceAssets.length >= max) {
+    if (referenceMediaIds.length + uploadedReferenceDrafts.length >= max) {
       toast.error(`最多添加 ${max} 张参考图`)
       return
     }
@@ -55,8 +84,8 @@ export function ReferenceDropZone({
     try {
       for (const file of Array.from(files)) {
         if (!file.type.startsWith("image/")) continue
-        const asset = await uploadImageFile(file)
-        addReferenceAsset(asset)
+        const draft = await uploadImageFile(file)
+        addUploadedReferenceDraft(draft)
       }
     } catch {
       toast.error("上传失败，请重试")
@@ -97,9 +126,9 @@ export function ReferenceDropZone({
       onDrop={onFileDrop}
     >
       {/* 右上角：计数 + 上传按钮（固定） */}
-      {referenceAssets.length > 0 && (
+      {media.length + uploadedReferenceDrafts.length > 0 && (
         <span className="absolute right-2 bottom-1 text-[10px] text-muted-foreground">
-          {referenceAssets.length}/{max}
+          {media.length + uploadedReferenceDrafts.length}/{max}
         </span>
       )}
       <button
@@ -112,25 +141,24 @@ export function ReferenceDropZone({
       </button>
 
       {/* 缩略图网格 */}
-      {referenceAssets.length > 0 ? (
+      {media.length + uploadedReferenceDrafts.length > 0 ? (
         <div className="flex flex-1 items-center">
           <div className="flex flex-wrap gap-2 pr-16">
-            {referenceAssets.map((asset) => (
-              <div key={asset.id} className="group relative size-14 rounded-md bg-muted">
-                {/* biome-ignore lint/performance/noImgElement: 动态参考素材缩略图 */}
-                <img
-                  src={asset.thumbnailUrl ?? asset.url ?? undefined}
-                  alt={asset.name}
-                  className="size-full overflow-hidden rounded-md object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeReferenceAsset(asset.id)}
-                  className="absolute -top-1 -right-1 hidden size-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground group-hover:flex"
-                >
-                  <X className="size-3" />
-                </button>
-              </div>
+            {media.map((item) => (
+              <ReferenceThumbnail
+                key={`media-${item.id}`}
+                name={item.name}
+                url={item.currentVersion.thumbnailUrl ?? item.currentVersion.url}
+                onRemove={() => removeReferenceMediaId(item.id)}
+              />
+            ))}
+            {uploadedReferenceDrafts.map((draft) => (
+              <ReferenceThumbnail
+                key={`upload-${draft.key}`}
+                name={draft.name}
+                url={draft.url}
+                onRemove={() => removeUploadedReferenceDraft(draft.key)}
+              />
             ))}
           </div>
         </div>

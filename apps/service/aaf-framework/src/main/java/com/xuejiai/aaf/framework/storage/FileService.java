@@ -3,7 +3,10 @@ package com.xuejiai.aaf.framework.storage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
+import java.util.HexFormat;
 
 import org.springframework.web.multipart.MultipartFile;
 
@@ -12,8 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 文件服务门面。在 StorageService 之上提供业务级文件操作。
  *
- * <p>B13：全部上传入口（MultipartFile / URL / byte[] / Base64）共享 {@link UploadPolicy} 校验——类型白名单、 大小上限、拒绝
- * SVG/HTML 等主动内容；远程 URL 与流式来源统一走带上限读取，避免超大对象写入存储。
+ * <p>全部上传入口共享 {@link UploadPolicy} 校验，并返回物理对象的稳定 key 与内容哈希。
  */
 @Slf4j
 public class FileService {
@@ -28,17 +30,20 @@ public class FileService {
 
     /** 上传文件。 */
     public FileVO upload(MultipartFile file) {
-        // B13：统一策略校验（原先仅此入口有校验，且未拦主动内容）
         uploadPolicy.validate(file.getOriginalFilename(), file.getContentType(), file.getSize());
         try {
+            var bytes = file.getBytes();
             var key =
                     storageService.upload(
-                            file.getInputStream(),
+                            new ByteArrayInputStream(bytes),
                             file.getOriginalFilename(),
                             file.getContentType());
-            var url = storageService.getUrl(key);
-            return new FileVO(
-                    key, url, file.getOriginalFilename(), file.getSize(), file.getContentType());
+            return toFileVO(
+                    key,
+                    file.getOriginalFilename(),
+                    bytes.length,
+                    file.getContentType(),
+                    bytes);
         } catch (IOException e) {
             throw new StorageException("文件上传失败", e);
         }
@@ -54,32 +59,22 @@ public class FileService {
         return storageService.getUrl(key);
     }
 
-    /**
-     * 从远程 URL 下载文件并上传到存储，返回可访问 URL。
-     *
-     * @param url 远程文件 URL
-     * @param path 存储路径（含文件名和扩展名），如 {@code aigc/image/xxx.png}
-     * @param contentType MIME 类型
-     * @return 存储后的可访问 URL
-     */
-    public String uploadFromUrl(String url, String path, String contentType) {
+    /** 从远程 URL 下载并上传，返回物理文件元数据。 */
+    public FileVO uploadFromUrl(String url, String path, String contentType) {
         try {
-            // 跟随重定向（picsum 等服务会 302 跳转）
-            java.net.HttpURLConnection conn =
-                    (java.net.HttpURLConnection) URI.create(url).toURL().openConnection();
+            var conn = (java.net.HttpURLConnection) URI.create(url).toURL().openConnection();
             conn.setInstanceFollowRedirects(true);
             conn.setConnectTimeout(10_000);
             conn.setReadTimeout(30_000);
             conn.connect();
-            // 手动处理最多 5 次重定向（HTTPS→HTTP 等跨协议情况 HttpURLConnection 不自动跟随）
-            int maxRedirects = 5;
+            var maxRedirects = 5;
             while (maxRedirects-- > 0) {
-                int code = conn.getResponseCode();
+                var code = conn.getResponseCode();
                 if (code == java.net.HttpURLConnection.HTTP_MOVED_PERM
                         || code == java.net.HttpURLConnection.HTTP_MOVED_TEMP
                         || code == 307
                         || code == 308) {
-                    String location = conn.getHeaderField("Location");
+                    var location = conn.getHeaderField("Location");
                     conn.disconnect();
                     conn =
                             (java.net.HttpURLConnection)
@@ -92,13 +87,13 @@ public class FileService {
                     break;
                 }
             }
-            try (var is = conn.getInputStream()) {
-                // B13：远程内容先按上限读入再校验类型/主动内容，避免无上限写入与 SVG/HTML 落库
-                byte[] bytes = uploadPolicy.readWithLimit(is);
+            try (var input = conn.getInputStream()) {
+                var bytes = uploadPolicy.readWithLimit(input);
                 uploadPolicy.validate(path, contentType, bytes.length);
-                String key =
-                        storageService.upload(new ByteArrayInputStream(bytes), path, contentType);
-                return storageService.getUrl(key);
+                var key =
+                        storageService.upload(
+                                new ByteArrayInputStream(bytes), path, contentType);
+                return toFileVO(key, path, bytes.length, contentType, bytes);
             } finally {
                 conn.disconnect();
             }
@@ -108,68 +103,67 @@ public class FileService {
         }
     }
 
-    /**
-     * 将字节数组上传到存储，返回可访问 URL。
-     *
-     * @param bytes 文件字节数组
-     * @param path 存储路径（含文件名和扩展名），如 {@code aigc/voice/xxx.mp3}
-     * @param contentType MIME 类型
-     * @return 存储后的可访问 URL
-     */
-    public String uploadFromBytes(byte[] bytes, String path, String contentType) {
-        // B13：字节入口同样走统一策略
+    /** 上传字节数组，返回物理文件元数据。 */
+    public FileVO uploadFromBytes(byte[] bytes, String path, String contentType) {
         uploadPolicy.validate(path, contentType, bytes != null ? bytes.length : 0);
         try {
-            String key = storageService.upload(new ByteArrayInputStream(bytes), path, contentType);
-            return storageService.getUrl(key);
+            var key =
+                    storageService.upload(new ByteArrayInputStream(bytes), path, contentType);
+            return toFileVO(key, path, bytes.length, contentType, bytes);
         } catch (Exception e) {
             throw new StorageException("字节数组上传文件失败: path=" + path, e);
         }
     }
 
-    /**
-     * 将 base64 字符串（支持 {@code data:mime;base64,} 前缀）解码后上传到存储，返回可访问 URL。
-     *
-     * @param b64 base64 字符串或 data URL
-     * @param path 存储路径（含文件名和扩展名），如 {@code aigc/image/xxx.png}
-     * @return 存储后的可访问 URL；若 {@code path} 中 MIME 类型不明确，可用 data URL 前缀推断
-     */
-    public String uploadFromBase64(String b64, String path) {
-        String mime = "application/octet-stream";
-        String data = b64;
+    /** 上传 Base64 内容，返回物理文件元数据。 */
+    public FileVO uploadFromBase64(String b64, String path) {
+        var mime = "application/octet-stream";
+        var data = b64;
         if (b64 != null && b64.startsWith("data:")) {
-            int comma = b64.indexOf(',');
+            var comma = b64.indexOf(',');
             if (comma > 0) {
-                String header = b64.substring(5, comma);
+                var header = b64.substring(5, comma);
                 mime = header.contains(";") ? header.substring(0, header.indexOf(';')) : header;
                 data = b64.substring(comma + 1);
             }
         }
-        byte[] bytes = Base64.getDecoder().decode(data);
-        // B13：Base64 入口同样走统一策略——mime 由 data URL 头推断，可被伪造，故扩展名也参与判定
+        var bytes = Base64.getDecoder().decode(data);
         uploadPolicy.validate(path, mime, bytes.length);
         try {
-            String key = storageService.upload(new ByteArrayInputStream(bytes), path, mime);
-            return storageService.getUrl(key);
+            var key = storageService.upload(new ByteArrayInputStream(bytes), path, mime);
+            return toFileVO(key, path, bytes.length, mime, bytes);
         } catch (Exception e) {
             throw new StorageException("base64 上传文件失败: path=" + path, e);
         }
     }
 
-    /**
-     * 对已上传的视频生成缩略图（仅 OSS 存储时有效，其他存储静默返回 null）。
-     *
-     * @param videoUrl 视频的访问 URL（用于反推 key）
-     * @return 缩略图访问 URL；不支持时返回 null
-     */
+    /** 为已上传的视频生成 OSS 截帧缩略图。 */
     public String generateVideoThumbnail(String videoUrl) {
         if (!(storageService instanceof OssStorageService oss)) {
             return null;
         }
-        // 从 URL 反推 key：去掉 urlPrefix 前缀
-        String key = oss.urlToKey(videoUrl);
+        var key = oss.urlToKey(videoUrl);
         if (key == null) return null;
-        String thumbKey = oss.generateVideoThumbnail(key);
+        var thumbKey = oss.generateVideoThumbnail(key);
         return thumbKey != null ? oss.getUrl(thumbKey) : null;
+    }
+
+    private FileVO toFileVO(
+            String key, String filename, long size, String contentType, byte[] bytes) {
+        return new FileVO(
+                key,
+                storageService.getUrl(key),
+                filename,
+                size,
+                contentType,
+                sha256(bytes));
+    }
+
+    private String sha256(byte[] bytes) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("运行环境不支持 SHA-256", e);
+        }
     }
 }

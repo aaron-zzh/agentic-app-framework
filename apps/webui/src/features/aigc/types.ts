@@ -3,8 +3,59 @@
  * @author AaronZZH & Kiro
  */
 
-/** 素材类型枚举 */
-export type MediaAssetType = "IMAGE" | "VIDEO" | "AUDIO" | "MODEL_3D" | "TEXT" | "MUSIC"
+/** 统一媒体类型，对齐后端 MediaType。 */
+export type MediaType = "IMAGE" | "VIDEO" | "AUDIO" | "MUSIC" | "MODEL_3D"
+
+/** 媒体来源类型由后端枚举返回，前端只透传筛选值。 */
+export type MediaSourceType = string
+
+/** 媒体当前版本。 */
+export interface MediaVersionVO {
+  id: number
+  versionNo: number
+  fileId: number
+  url: string
+  thumbnailFileId: number | null
+  thumbnailUrl: string | null
+  mimeType: string | null
+  size: number | null
+  width: number | null
+  height: number | null
+  duration: number | null
+  frameRate: number | null
+  generationInfo: string | null
+  checksum: string | null
+  createTime: string
+}
+
+/** 生成或上传后持久化的媒体对象。 */
+export interface MediaVO {
+  id: number
+  name: string
+  mediaType: MediaType
+  sourceType: MediaSourceType
+  sourceExecutionRunId: number | null
+  sourceTaskId: number | null
+  originalProjectId: number | null
+  assetId: number | null
+  currentVersion: MediaVersionVO
+  createTime: string
+  updateTime: string
+}
+
+/** 用户从媒体库标记保存的资产对象。 */
+export interface AssetVO {
+  id: number
+  mediaId: number
+  categoryId: number | null
+  scope: string
+  copyrightInfo: string | null
+  status: string
+  usageCount: number
+  media: MediaVO
+  createTime: string
+}
+
 
 /**
  * AIGC 任务类型，对应后端 AigcTaskTypeEnum / 字典 aigc_task_type。
@@ -32,47 +83,6 @@ export const AIGC_TASK_STATUSES: readonly AigcTaskStatus[] = [
   "SUCCESS",
   "FAIL"
 ]
-
-/** 素材资源 VO（对齐后端 MediaAssetVO） */
-export interface MediaAssetVO {
-  id: number
-  name: string
-  type: MediaAssetType
-  url: string
-  thumbnailUrl: string | null
-  size: number | null
-  width: number | null
-  height: number | null
-  duration: number | null
-  generationParams: string | null
-  tags: string | null
-  categoryId: number | null
-  groupId: number | null
-  groupName: string | null
-  aiGenerated: boolean
-  modelName: string | null
-  providerCode: string | null
-  userId: number
-  version: number
-  createTime: string
-  updateTime: string
-}
-
-/** 素材分类 VO */
-export interface MediaCategoryVO {
-  id: number
-  name: string
-  parentId: number | null
-  sortOrder: number
-  children: MediaCategoryVO[]
-}
-
-/** 素材标签 VO */
-export interface MediaTagVO {
-  id: number
-  name: string
-  color: string | null
-}
 
 /** 3D 模型生成任务状态 */
 export type Model3dTaskStatus = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED"
@@ -102,5 +112,5 @@ export interface GenerationParams {
   model: string
   resolution: string
   aspectRatio: string
-  referenceAssets: MediaAssetVO[]
+  referenceAssets: MediaVO[]
 }

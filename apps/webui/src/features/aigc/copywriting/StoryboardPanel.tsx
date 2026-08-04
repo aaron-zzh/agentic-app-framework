@@ -13,36 +13,38 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils/index"
+import { useMediaDetails } from "@/lib/api/rest/media"
 import { ProjectDocPanel } from "../project/ProjectDocPanel"
 import { useAigcStore } from "../store"
-import type { MediaAssetVO } from "../types"
+import type { MediaVO } from "../types"
 
 type DisplayMode = "all" | "text" | "media"
 
 interface StoryboardElement {
-  asset: MediaAssetVO
-  mediaAssets: MediaAssetVO[]
+  media: MediaVO
+  relatedMedia: MediaVO[]
 }
 
-function groupAssets(assets: MediaAssetVO[]): StoryboardElement[] {
-  return assets.map((a) => ({ asset: a, mediaAssets: [a] }))
+function groupMedia(media: MediaVO[]): StoryboardElement[] {
+  return media.map((item) => ({ media: item, relatedMedia: [item] }))
 }
 
-function MediaTypeIcon({ type }: { type: MediaAssetVO["type"] }) {
+function MediaTypeIcon({ type }: { type: MediaVO["mediaType"] }) {
   if (type === "VIDEO") return <Film className="size-3 text-blue-400" />
   if (type === "IMAGE") return <Image className="size-3 text-emerald-400" />
   return <Text className="size-3 text-muted-foreground" />
 }
 
 function MediaBadge({
-  asset,
+  media,
   scale,
   onRemove
 }: {
-  asset: MediaAssetVO
+  media: MediaVO
   scale: number
   onRemove?: () => void
 }) {
+  const version = media.currentVersion
   const thumbSize = Math.round(40 * scale)
 
   return (
@@ -53,11 +55,11 @@ function MediaBadge({
       >
         {/* biome-ignore lint/performance/noImgElement: 动态缩略图 */}
         <img
-          src={asset.thumbnailUrl ?? asset.url}
-          alt={asset.name}
+          src={version.thumbnailUrl ?? version.url}
+          alt={media.name}
           className="size-full object-cover"
         />
-        {asset.type === "VIDEO" && (
+        {media.mediaType === "VIDEO" && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/30">
             <Play className="size-2.5 fill-white text-white" />
           </div>
@@ -65,13 +67,13 @@ function MediaBadge({
       </div>
       <div className="flex min-w-0 flex-col">
         <div className="flex items-center gap-0.5">
-          <MediaTypeIcon type={asset.type} />
+          <MediaTypeIcon type={media.mediaType} />
           <span className="max-w-[56px] truncate text-muted-foreground text-xs">
-            {asset.name.slice(0, 10)}
+            {media.name.slice(0, 10)}
           </span>
         </div>
-        {asset.duration != null && (
-          <span className="text-[10px] text-muted-foreground/60">{asset.duration}s</span>
+        {version.duration != null && (
+          <span className="text-[10px] text-muted-foreground/60">{version.duration}s</span>
         )}
       </div>
       {onRemove && (
@@ -96,33 +98,24 @@ function ElementCard({
   mode: DisplayMode
   scale: number
 }) {
-  const addReferenceAsset = useAigcStore((s) => s.addReferenceAsset)
-  const removeStoryboardAsset = useAigcStore((s) => s.removeStoryboardAsset)
+  const addReferenceMediaId = useAigcStore((state) => state.addReferenceMediaId)
+  const removeStoryboardMediaId = useAigcStore((state) => state.removeStoryboardMediaId)
 
-  const { asset, mediaAssets } = element
-
-  let description: string | null = null
-  try {
-    const params = asset.generationParams ? JSON.parse(asset.generationParams) : null
-    description = params?.description ?? null
-  } catch {
-    // ignore
-  }
-
+  const { media, relatedMedia } = element
   const showText = mode === "all" || mode === "text"
   const showMedia = mode === "all" || mode === "media"
 
   return (
     <div className="group flex flex-col gap-2 rounded-lg border border-border/50 bg-card/50 p-3 transition-colors hover:bg-accent/50">
       <div className="flex items-center justify-between gap-1">
-        <span className="min-w-0 truncate font-medium text-foreground text-sm">{asset.name}</span>
+        <span className="min-w-0 truncate font-medium text-foreground text-sm">{media.name}</span>
         <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
           <Button
             variant="ghost"
             size="sm"
             className="size-6 p-0"
             title="添加到参考"
-            onClick={() => addReferenceAsset(asset)}
+            onClick={() => addReferenceMediaId(media.id)}
           >
             <Plus className="size-3" />
           </Button>
@@ -131,19 +124,21 @@ function ElementCard({
             size="sm"
             className="size-6 p-0 hover:text-destructive"
             title="从元素区移除"
-            onClick={() => removeStoryboardAsset(asset.id)}
+            onClick={() => removeStoryboardMediaId(media.id)}
           >
             <X className="size-3" />
           </Button>
         </div>
       </div>
-      {showText && description && (
-        <p className="line-clamp-3 text-muted-foreground text-xs leading-relaxed">{description}</p>
+      {showText && media.currentVersion.generationInfo && (
+        <p className="line-clamp-3 text-muted-foreground text-xs leading-relaxed">
+          {media.currentVersion.generationInfo}
+        </p>
       )}
-      {showMedia && mediaAssets.length > 0 && (
+      {showMedia && relatedMedia.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {mediaAssets.map((a) => (
-            <MediaBadge key={a.id} asset={a} scale={scale} />
+          {relatedMedia.map((item) => (
+            <MediaBadge key={item.id} media={item} scale={scale} />
           ))}
         </div>
       )}
@@ -214,15 +209,17 @@ function ViewSettingsPopover({
 }
 
 export function StoryboardPanel() {
-  const storyboardAssets = useAigcStore((s) => s.storyboardAssets)
-  const setStoryboardPanelOpen = useAigcStore((s) => s.setStoryboardPanelOpen)
+  const storyboardMediaIds = useAigcStore((state) => state.storyboardMediaIds)
+  const mediaQueries = useMediaDetails(storyboardMediaIds)
+  const media = mediaQueries.flatMap((query) => (query.data ? [query.data] : []))
+  const setStoryboardPanelOpen = useAigcStore((state) => state.setStoryboardPanelOpen)
   const { isOver, setNodeRef } = useDroppable({ id: "storyboard-drop-zone" })
 
   const [mode, setMode] = useState<DisplayMode>("all")
   const [scale, setScale] = useState(1)
   const [docPanelOpen, setDocPanelOpen] = useState(false)
 
-  const elements = groupAssets(storyboardAssets)
+  const elements = groupMedia(media)
 
   return (
     <div className="flex h-full min-w-0 flex-col overflow-hidden">
@@ -269,7 +266,7 @@ export function StoryboardPanel() {
           <span className="mb-1 block font-medium text-muted-foreground text-xs">— 关键元素 —</span>
           {elements.length > 0 ? (
             elements.map((el) => (
-              <ElementCard key={el.asset.id} element={el} mode={mode} scale={scale} />
+              <ElementCard key={el.media.id} element={el} mode={mode} scale={scale} />
             ))
           ) : (
             <div className="py-8 text-center">

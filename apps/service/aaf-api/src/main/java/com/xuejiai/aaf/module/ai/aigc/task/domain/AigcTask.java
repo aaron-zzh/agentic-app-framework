@@ -56,17 +56,18 @@ public class AigcTask extends BaseEntity {
     @Column(name = "params", columnDefinition = "JSONB")
     private String params;
 
-    /** 第三方任务 ID */
-    @Column(name = "task_id", columnDefinition = "TEXT")
-    private String taskId;
+    /** 第三方任务 ID。 */
+    @Column(name = "provider_task_id", columnDefinition = "TEXT")
+    private String providerTaskId;
 
-    /** 第三方结果 URL（未上传 OSS 前） */
-    @Column(name = "result_url", columnDefinition = "TEXT")
-    private String resultUrl;
+    /** 供应商原始响应快照，不作为内部文件身份。 */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "provider_result", columnDefinition = "JSONB")
+    private String providerResult;
 
-    /** OSS 存储 URL（上传后写入） */
-    @Column(name = "oss_url", columnDefinition = "TEXT")
-    private String ossUrl;
+    /** 平台保留结果对应的媒体版本 ID。 */
+    @Column(name = "output_media_version_id")
+    private Long outputMediaVersionId;
 
     /** 失败原因 */
     @Column(name = "error_msg", columnDefinition = "TEXT")

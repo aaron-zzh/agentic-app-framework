@@ -12,19 +12,13 @@ import { ArrowRight, CheckSquare, FolderKanban, Sparkles, Wallet } from "lucide-
 import Link from "next/link"
 import { DataCapsule } from "@/components/studio"
 import { useCreditBalance } from "@/lib/api/rest/billing"
+import { useAssetList } from "@/lib/api/rest/media"
 import { request } from "@/lib/api/rest/entity"
 
 function useTodayTaskCount() {
   return useQuery({
     queryKey: ["aigc", "tasks", "today-count"] as const,
     queryFn: () => request<number>("/aigc/tasks/today-count")
-  })
-}
-
-function useAiAssetCount() {
-  return useQuery({
-    queryKey: ["aigc", "assets", "ai-count"] as const,
-    queryFn: () => request<number>("/aigc/assets/ai-count")
   })
 }
 
@@ -38,7 +32,7 @@ function useDocCount() {
 export function HomeDataCapsules() {
   const { data: balance, isLoading: balanceLoading } = useCreditBalance()
   const { data: todayCount, isLoading: todayLoading } = useTodayTaskCount()
-  const { data: aiAssetCount, isLoading: aiAssetLoading } = useAiAssetCount()
+  const { data: assetPage, isLoading: aiAssetLoading } = useAssetList({ pageNo: 1, pageSize: 1 })
   const { data: docCount, isLoading: docLoading } = useDocCount()
 
   return (
@@ -56,10 +50,10 @@ export function HomeDataCapsules() {
           }
         />
       </Link>
-      <Link href="/studio/assets/works" className="group">
+      <Link href="/studio/assets/materials" className="group">
         <DataCapsule
-          label="AI 素材"
-          value={aiAssetCount ?? 0}
+          label="已存资产"
+          value={assetPage?.total ?? 0}
           unit="个"
           loading={aiAssetLoading}
           icon={<FolderKanban className="size-4" />}

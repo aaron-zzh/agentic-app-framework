@@ -49,17 +49,6 @@ export interface GenerateVideoParams {
   systemPrompt?: string
 }
 
-export interface SaveFromGenerationParams {
-  url: string
-  name?: string
-  type?: "IMAGE" | "VIDEO" | "AUDIO" | "MODEL_3D"
-  thumbnailUrl?: string
-  generationParams?: string
-  width?: number
-  height?: number
-  projectId?: number | null
-}
-
 export const aigcTaskApi = {
   cancel: (taskId: number): Promise<void> => request(`/aigc/tasks/${taskId}`, { method: "DELETE" }),
   generateImage: (params: GenerateImageParams): Promise<number> =>
@@ -127,12 +116,6 @@ export const aigcTaskApi = {
       method: "POST",
       body: JSON.stringify({ type: "MODEL_3D", prompt: params.prompt, model: params.model }),
       headers: { "Content-Type": "application/json" }
-    }),
-  saveToAssetLibrary: (params: SaveFromGenerationParams): Promise<unknown> =>
-    request("/aigc/assets/save-from-generation", {
-      method: "POST",
-      body: JSON.stringify(params),
-      headers: { "Content-Type": "application/json" }
     })
 }
 
@@ -171,13 +154,3 @@ export function useGenerate3d() {
   })
 }
 
-export function useSaveToAssetLibrary() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: aigcTaskApi.saveToAssetLibrary,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["media-assets"] })
-      queryClient.invalidateQueries({ queryKey: ["aigc-projects"] })
-    }
-  })
-}

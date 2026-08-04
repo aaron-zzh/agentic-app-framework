@@ -35,19 +35,7 @@ export default function VoiceToolPage() {
         method: "POST",
         body: JSON.stringify({ type: "VOICE", prompt: trimmed, projectId: null, params: { voice } })
       }),
-    onSuccess: (taskId) => {
-      setTasks((prev) => [
-        {
-          id: taskId,
-          userId: 0,
-          type: "VOICE",
-          prompt: trimmed,
-          status: "PENDING",
-          createTime: new Date().toISOString(),
-          updateTime: new Date().toISOString()
-        },
-        ...prev
-      ])
+    onSuccess: () => {
       setText("")
       notify.success("配音生成任务已提交")
     },
@@ -55,14 +43,14 @@ export default function VoiceToolPage() {
   })
 
   useAigcTaskStream({
-    onProgress: useCallback((task: AigcTaskEvent) => {
+    onCreated: useCallback((task: AigcTaskEvent) => {
       if (task.type !== "VOICE") return
-      setTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
+      setTasks((prev) => [task, ...prev.filter((item) => item.id !== task.id)])
     }, []),
     onCompleted: useCallback((task: AigcTaskEvent) => {
       if (task.type !== "VOICE") return
       setTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
-      toast.success("配音生成完成，素材已入库")
+      toast.success("配音生成完成，媒体已入库")
     }, []),
     onFailed: useCallback((task: AigcTaskEvent) => {
       if (task.type !== "VOICE") return

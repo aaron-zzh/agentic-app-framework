@@ -43,19 +43,7 @@ export default function MusicToolPage() {
           params: { lyrics: lyrics.trim() || undefined, gender }
         })
       }),
-    onSuccess: (taskId) => {
-      setTasks((prev) => [
-        {
-          id: taskId,
-          userId: 0,
-          type: "MUSIC",
-          prompt: lyrics.trim() || prompt.trim(),
-          status: "PENDING",
-          createTime: new Date().toISOString(),
-          updateTime: new Date().toISOString()
-        },
-        ...prev
-      ])
+    onSuccess: () => {
       setPrompt("")
       setLyrics("")
       notify.success("音乐生成任务已提交")
@@ -64,14 +52,14 @@ export default function MusicToolPage() {
   })
 
   useAigcTaskStream({
-    onProgress: useCallback((task: AigcTaskEvent) => {
+    onCreated: useCallback((task: AigcTaskEvent) => {
       if (task.type !== "MUSIC") return
-      setTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
+      setTasks((prev) => [task, ...prev.filter((item) => item.id !== task.id)])
     }, []),
     onCompleted: useCallback((task: AigcTaskEvent) => {
       if (task.type !== "MUSIC") return
       setTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
-      toast.success("音乐生成完成，素材已入库")
+      toast.success("音乐生成完成，媒体已入库")
     }, []),
     onFailed: useCallback((task: AigcTaskEvent) => {
       if (task.type !== "MUSIC") return
@@ -168,7 +156,7 @@ export default function MusicToolPage() {
       </GlassCard>
 
       {/* 生成结果 */}
-      <GenerationResultCard tasks={tasks} mediaType="AUDIO" />
+      <GenerationResultCard tasks={tasks} mediaType="MUSIC" />
     </div>
   )
 }

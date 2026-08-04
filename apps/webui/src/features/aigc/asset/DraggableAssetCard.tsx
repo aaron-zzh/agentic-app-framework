@@ -10,34 +10,32 @@ import { useRef, useState } from "react"
 import { useSemanticDraggable } from "@/features/chatter/dnd/useSemanticDraggable"
 import { cn } from "@/lib/utils/index"
 import { useAigcStore } from "../store"
-import type { MediaAssetVO } from "../types"
+import type { MediaVO } from "../types"
 
 interface DraggableAssetCardProps {
-  asset: MediaAssetVO
-  /** 所属组 ID，未分组时为 undefined；拖拽数据会携带此字段供 drop handler 使用 */
-  groupId?: number
+  media: MediaVO
 }
 
-export function DraggableAssetCard({ asset, groupId }: DraggableAssetCardProps) {
+export function DraggableAssetCard({ media }: DraggableAssetCardProps) {
+  const version = media.currentVersion
   const { ref, listeners, attributes, isDragging } = useSemanticDraggable({
-    id: `asset-${asset.id}`,
+    id: `media-${media.id}`,
     item: {
-      type: "image",
-      id: String(asset.id),
-      title: asset.name,
-      url: asset.url,
-      thumbnailUrl: asset.thumbnailUrl ?? asset.url,
-      // 携带当前分组信息，drop handler 可据此判断是否需要变更分组
-      groupId
+      type: media.mediaType === "VIDEO" ? "video" : "image",
+      id: media.id,
+      title: media.name,
+      url: version.url,
+      thumbnailUrl: version.thumbnailUrl ?? version.url,
+      semantics: { componentName: "StudioMedia", entity: "aigc.media" }
     }
   })
-  const setPreviewAsset = useAigcStore((s) => s.setPreviewAsset)
-  const previewAsset = useAigcStore((s) => s.previewAsset)
-  const isSelected = previewAsset?.id === asset.id
+  const setPreviewMediaId = useAigcStore((state) => state.setPreviewMediaId)
+  const previewMediaId = useAigcStore((state) => state.previewMediaId)
+  const isSelected = previewMediaId === media.id
 
   const audioRef = useRef<HTMLAudioElement>(null)
   const [playing, setPlaying] = useState(false)
-  const isAudio = asset.type === "AUDIO"
+  const isAudio = media.mediaType === "AUDIO" || media.mediaType === "MUSIC"
 
   const togglePlay = () => {
     const el = audioRef.current
@@ -47,7 +45,7 @@ export function DraggableAssetCard({ asset, groupId }: DraggableAssetCardProps) 
   }
 
   const handlePointerUp = () => {
-    if (!isDragging) setPreviewAsset(asset)
+    if (!isDragging) setPreviewMediaId(media.id)
   }
 
   return (
@@ -63,7 +61,7 @@ export function DraggableAssetCard({ asset, groupId }: DraggableAssetCardProps) 
       )}
       onPointerUp={handlePointerUp}
       onKeyDown={(e) => {
-        if (e.key === "Enter") setPreviewAsset(asset)
+        if (e.key === "Enter") setPreviewMediaId(media.id)
       }}
     >
       <div
@@ -91,7 +89,7 @@ export function DraggableAssetCard({ asset, groupId }: DraggableAssetCardProps) 
               {/* biome-ignore lint/a11y/useMediaCaption: 生成音频无字幕轨 */}
               <audio
                 ref={audioRef}
-                src={asset.url}
+                src={version.url}
                 onPlay={() => setPlaying(true)}
                 onPause={() => setPlaying(false)}
                 onEnded={() => setPlaying(false)}
@@ -100,15 +98,15 @@ export function DraggableAssetCard({ asset, groupId }: DraggableAssetCardProps) 
           ) : (
             // biome-ignore lint/performance/noImgElement: 动态素材缩略图
             <img
-              src={asset.thumbnailUrl ?? asset.url}
-              alt={asset.name}
+              src={version.thumbnailUrl ?? version.url}
+              alt={media.name}
               className="size-full object-cover"
             />
           )}
         </div>
       </div>
       <div className="px-2 py-1.5">
-        <span className="block truncate text-foreground text-xs">{asset.name}</span>
+        <span className="block truncate text-foreground text-xs">{media.name}</span>
       </div>
     </div>
   )

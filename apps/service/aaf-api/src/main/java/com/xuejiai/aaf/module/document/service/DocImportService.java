@@ -10,12 +10,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.xuejiai.aaf.framework.storage.FileService;
-import com.xuejiai.aaf.framework.storage.FileVO;
 import com.xuejiai.aaf.module.document.domain.Document;
 import com.xuejiai.aaf.module.document.repository.DocumentRepository;
-import com.xuejiai.aaf.module.system.file.api.FileRecordApi;
-import com.xuejiai.aaf.module.system.file.api.FileRecordApi.SourceFile;
+import com.xuejiai.aaf.module.system.file.service.FileUploadService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -26,38 +23,26 @@ public class DocImportService {
 
     private static final Logger log = LoggerFactory.getLogger(DocImportService.class);
 
-    private final FileService fileService;
-    private final FileRecordApi fileRecordApi;
+    private final FileUploadService fileUploadService;
     private final DocumentRepository documentRepository;
 
-    /**
-     * 导入 PDF：上传原始文件 → 提取文本 → 存入 doc_document。
-     *
-     * @param file 上传的 PDF 文件
-     * @return 创建的文档
-     */
+    /** 导入 PDF：上传原始文件 → 提取文本 → 存入 doc_document。 */
     @Transactional
     public Document importPdf(MultipartFile file) throws IOException {
-        // 1. 上传原始文件到 OSS，记录 sys_file
-        FileVO uploaded = fileService.upload(file);
-        var fileRecord = saveFileRecord(uploaded, file);
+        var storedFile = fileUploadService.uploadCurrent(file);
+        var text = extractText(file);
 
-        // 2. 提取 PDF 文本
-        String text = extractText(file);
+        var document = new Document();
+        document.setTitle(stripExtension(file.getOriginalFilename()));
+        document.setDocType("pdf_import");
+        document.setContent(text);
+        document.setStatus("active");
+        document.setPublish("draft");
+        document.setSourceFileId(storedFile.fileId());
+        documentRepository.save(document);
 
-        // 3. 存入 doc_document
-        String title = stripExtension(file.getOriginalFilename());
-        Document doc = new Document();
-        doc.setTitle(title);
-        doc.setDocType("pdf_import");
-        doc.setContent(text);
-        doc.setStatus("active");
-        doc.setPublish("draft");
-        doc.setSourceFileId(fileRecord.id());
-        documentRepository.save(doc);
-
-        log.info("PDF 导入完成：file={}, docId={}", file.getOriginalFilename(), doc.getId());
-        return doc;
+        log.info("PDF 导入完成：file={}, docId={}", file.getOriginalFilename(), document.getId());
+        return document;
     }
 
     /** 提取文档间链接关系（Markdown wikilink 扫描）。 */
@@ -65,25 +50,15 @@ public class DocImportService {
         // TODO: 实现文档链接提取逻辑
     }
 
-    // ── 私有方法 ──────────────────────────────────────────────
-
-    private SourceFile saveFileRecord(FileVO uploaded, MultipartFile file) {
-        return fileRecordApi.registerCurrent(
-                uploaded.key(),
-                file.getOriginalFilename() != null ? file.getOriginalFilename() : uploaded.key(),
-                file.getContentType(),
-                file.getSize());
-    }
-
     private String extractText(MultipartFile file) throws IOException {
-        try (var doc = Loader.loadPDF(file.getBytes())) {
-            return new PDFTextStripper().getText(doc);
+        try (var document = Loader.loadPDF(file.getBytes())) {
+            return new PDFTextStripper().getText(document);
         }
     }
 
     private String stripExtension(String filename) {
         if (filename == null) return "未命名文档";
-        int dot = filename.lastIndexOf('.');
+        var dot = filename.lastIndexOf('.');
         return dot > 0 ? filename.substring(0, dot) : filename;
     }
 }

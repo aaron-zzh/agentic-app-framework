@@ -9,12 +9,13 @@ import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.common.enums.aigc.AigcTaskStatusEnum;
 import com.xuejiai.aaf.common.enums.aigc.AigcTaskTypeEnum;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.intelligent.ai.image.process.ImageProcessService;
 import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.framework.security.PermissionExecutionService;
-import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaAssetType;
-import com.xuejiai.aaf.module.ai.aigc.media.service.MediaAssetService;
-import com.xuejiai.aaf.module.ai.aigc.media.vo.SaveFromGenerationDTO;
+import com.xuejiai.aaf.module.ai.aigc.media.api.GeneratedMediaCommand;
+import com.xuejiai.aaf.module.ai.aigc.media.api.MediaApi;
+import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaType;
 import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
 import com.xuejiai.aaf.module.ai.aigc.task.mapper.AigcTaskMapper;
 import com.xuejiai.aaf.module.ai.aigc.task.repository.AigcTaskRepository;
@@ -46,7 +47,7 @@ public class ImageProcessTaskSyncJob {
     private ImageProcessService imageProcessService;
 
     private final FileUploadService fileService;
-    private final MediaAssetService mediaAssetService;
+    private final MediaApi mediaApi;
     private final AigcTaskEventService eventService;
     private final AigcTaskMapper taskMapper;
     private final PermissionExecutionService permissionExecutionService;
@@ -72,10 +73,9 @@ public class ImageProcessTaskSyncJob {
     }
 
     private void processOne(AigcTask task) {
-        String jobId = task.getTaskId();
+        String jobId = task.getProviderTaskId();
         if (jobId == null) return;
 
-        // queryTask 内部有令牌桶限速（2 QPS），此处无需额外控制
         var result = imageProcessService.queryTask(jobId);
 
         if ("SUCCESS".equals(result.status())) {
@@ -86,41 +86,33 @@ public class ImageProcessTaskSyncJob {
                         String resultUrl = result.resultUrl();
                         String ext = guessExt(resultUrl);
                         String path = "aigc/image_process/%s.%s".formatted(UUID.randomUUID(), ext);
-                        String ossUrl;
-                        try {
-                            ossUrl =
-                                    fileService.uploadFromUrl(
-                                            resultUrl, path, "image/" + ext, null);
-                        } catch (Exception e) {
-                            throw new RuntimeException("OSS 上传失败: " + e.getMessage(), e);
-                        }
-                        task.setResultUrl(ossUrl);
-                        task.setOssUrl(ossUrl);
+                        var storedFile =
+                                fileService.uploadFromUrl(
+                                        resultUrl,
+                                        path,
+                                        imageContentType(ext),
+                                        task.getUserId());
+                        task.setProviderResult(JsonUtils.toJsonString(result));
+                        var media =
+                                mediaApi.createFromGeneratedFile(
+                                        new GeneratedMediaCommand(
+                                                task.getUserId(),
+                                                "AI抠图-" + task.getId(),
+                                                MediaType.IMAGE,
+                                                storedFile,
+                                                null,
+                                                null,
+                                                task.getId(),
+                                                task.getProjectId(),
+                                                null,
+                                                null,
+                                                null,
+                                                null,
+                                                task.getParams()));
+                        task.setOutputMediaVersionId(media.currentVersion().id());
                         task.setStatus(AigcTaskStatusEnum.SUCCESS.getCode());
                         task.setUpdateTime(LocalDateTime.now());
                         taskRepo.save(task);
-
-                        try {
-                            mediaAssetService.saveFromGeneration(
-                                    task.getUserId(),
-                                    new SaveFromGenerationDTO(
-                                            "AI抠图-" + task.getId(),
-                                            MediaAssetType.IMAGE,
-                                            ossUrl,
-                                            null,
-                                            task.getParams(),
-                                            null,
-                                            null,
-                                            null,
-                                            null,
-                                            null,
-                                            true,
-                                            task.getModelName(),
-                                            task.getProvider(),
-                                            task.getProjectId()));
-                        } catch (Exception e) {
-                            log.warn("[ImageProcessSync] 写入素材库失败: taskId={}", task.getId(), e);
-                        }
 
                         try {
                             eventService.push(
@@ -129,9 +121,9 @@ public class ImageProcessTaskSyncJob {
                         }
 
                         log.info(
-                                "[ImageProcessSync] 任务完成: taskId={}, ossUrl={}",
+                                "[ImageProcessSync] 任务完成: taskId={}, mediaVersionId={}",
                                 task.getId(),
-                                ossUrl);
+                                task.getOutputMediaVersionId());
                     });
 
         } else if ("FAILED".equals(result.status())) {
@@ -141,6 +133,10 @@ public class ImageProcessTaskSyncJob {
                     "图像处理失败",
                     () -> aigcTaskService.failTask(jobId, result.errorMessage()));
         }
+    }
+
+    private static String imageContentType(String extension) {
+        return "jpg".equals(extension) ? "image/jpeg" : "image/" + extension;
     }
 
     private static String guessExt(String url) {

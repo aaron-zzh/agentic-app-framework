@@ -15,21 +15,22 @@ import Video from "yet-another-react-lightbox/plugins/video"
 import { Lightbox, useLightbox } from "@/components/lightbox"
 import { GlassCard } from "@/components/studio"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { MediaAssetVO } from "@/features/aigc/types"
-import { useMediaAssets } from "@/lib/api/rest/media"
+import type { MediaVO } from "@/features/aigc/types"
+import { useMediaList } from "@/lib/api/rest/media"
 
 function AssetThumb({
   asset,
   onOpenLightbox
 }: {
-  asset: MediaAssetVO
+  asset: MediaVO
   onOpenLightbox: (url: string) => void
 }) {
   const [playing, setPlaying] = useState(false)
   const audioRef = useRef<HTMLAudioElement>(null)
-  const isAudio = asset.type === "AUDIO" || asset.type === "MUSIC"
-  const isVideo = asset.type === "VIDEO"
-  const src = asset.thumbnailUrl ?? asset.url
+  const version = asset.currentVersion
+  const isAudio = asset.mediaType === "AUDIO" || asset.mediaType === "MUSIC"
+  const isVideo = asset.mediaType === "VIDEO"
+  const src = version.thumbnailUrl ?? version.url
 
   if (isAudio) {
     return (
@@ -49,7 +50,7 @@ function AssetThumb({
         {/* biome-ignore lint/a11y/useMediaCaption: 生成音频无字幕轨 */}
         <audio
           ref={audioRef}
-          src={asset.url}
+          src={version.url}
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
           onEnded={() => setPlaying(false)}
@@ -62,21 +63,21 @@ function AssetThumb({
   return (
     <button
       type="button"
-      onClick={() => src && onOpenLightbox(asset.url ?? src)}
+      onClick={() => src && onOpenLightbox(version.url)}
       className="group/thumb relative block aspect-square w-full overflow-hidden rounded-lg border border-foreground/8 bg-foreground/[0.04] focus-visible:outline-none"
     >
       {isVideo ? (
-        asset.thumbnailUrl ? (
+        version.thumbnailUrl ? (
           // biome-ignore lint/performance/noImgElement: video 缩略图
           <img
-            src={asset.thumbnailUrl}
+            src={version.thumbnailUrl}
             alt={asset.name}
             className="size-full object-cover transition-transform duration-300 group-hover/thumb:scale-105"
           />
-        ) : asset.url ? (
+        ) : version.url ? (
           // 无缩略图时用 video 元素静帧预览
           <video
-            src={asset.url}
+            src={version.url}
             muted
             preload="metadata"
             className="size-full object-cover transition-transform duration-300 group-hover/thumb:scale-105"
@@ -111,7 +112,8 @@ function AssetThumb({
 }
 
 export function HomeRecentAssets() {
-  const { data, isLoading } = useMediaAssets({
+  const { data, isLoading } = useMediaList({
+    pageNo: 1,
     pageSize: 15,
     sortField: "createTime",
     sortOrder: "desc"
@@ -119,14 +121,14 @@ export function HomeRecentAssets() {
   const assets = data?.list ?? []
 
   const imageSlides = assets
-    .filter((a) => (a.type === "IMAGE" || a.type === "VIDEO") && a.url)
-    .map((a) =>
-      a.type === "VIDEO"
+    .filter((media) => media.mediaType === "IMAGE" || media.mediaType === "VIDEO")
+    .map((media) =>
+      media.mediaType === "VIDEO"
         ? {
             type: "video" as const,
-            sources: [{ src: a.url as string, type: "video/mp4" }]
+            sources: [{ src: media.currentVersion.url, type: media.currentVersion.mimeType ?? "video/mp4" }]
           }
-        : { src: a.url as string }
+        : { src: media.currentVersion.url }
     )
 
   const { open, index, onOpen, onClose } = useLightbox(imageSlides)

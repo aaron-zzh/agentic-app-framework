@@ -161,9 +161,6 @@ export function HomeChatLauncher() {
     onCreated: useCallback((task: AigcTaskEvent) => {
       setRecentTasks((prev) => [task, ...prev].slice(0, 5))
     }, []),
-    onProgress: useCallback((task: AigcTaskEvent) => {
-      setRecentTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
-    }, []),
     onCompleted: useCallback((task: AigcTaskEvent) => {
       setRecentTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
     }, []),
@@ -179,9 +176,10 @@ export function HomeChatLauncher() {
   const openSlot = useSlotStore((s) => s.openSlot)
 
   // 技能选择
-  const selectedSkill = useAigcStore((s) => s.selectedSkill)
-  const setSelectedSkill = useAigcStore((s) => s.setSelectedSkill)
+  const selectedSkillId = useAigcStore((state) => state.selectedSkillId)
+  const setSelectedSkillId = useAigcStore((state) => state.setSelectedSkillId)
   const { data: allSkills } = useAiSkills()
+  const selectedSkill = allSkills?.find((skill) => skill.id === selectedSkillId) ?? null
 
   // 当前 feature 对应的技能分类（用于 SkillPicker 默认筛选）
   const FEATURE_CATEGORY_MAP: Partial<Record<FeatureKey, string>> = {
@@ -484,7 +482,7 @@ export function HomeChatLauncher() {
                           }
                           // 口播/小红书：自动选中 code 匹配的技能
                           const matchedSkill = allSkills?.find((s) => s.code === f.key) ?? null
-                          setSelectedSkill(matchedSkill)
+                          setSelectedSkillId(matchedSkill?.id ?? null)
                           setActiveFeature(f.key)
                           setParamsOpen(false)
                         }}

@@ -22,10 +22,16 @@ import {
 import { type UseAgUiThreadListAdapter, useAgUiRuntime } from "@assistant-ui/react-ag-ui"
 import { backendApi } from "@/lib/api/rest/backend-client"
 
-/** 文件上传返回结构（com.xuejiai.aaf.framework.storage.FileVO） */
-interface FileVO {
+/** 文件上传返回结构（StoredFile）。 */
+interface StoredFile {
+  fileId: number
   url: string
   key: string
+  originalName: string
+  mimeType: string | null
+  size: number
+  contentHash: string | null
+  uploaderId: number | null
 }
 
 /** 上传图片到 OSS，以 URL 形式发送给 LLM */
@@ -46,7 +52,7 @@ class OssImageAttachmentAdapter implements AttachmentAdapter {
   async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
     const form = new FormData()
     form.append("file", attachment.file)
-    const vo = await backendApi.post<FileVO>("/system/files/upload", form, {
+    const vo = await backendApi.post<StoredFile>("/system/files/upload", form, {
       headers: { "Content-Type": undefined as unknown as string }
     })
     return {
@@ -276,7 +282,7 @@ function AigcTaskListener() {
       (task) => {
         updateAigcTask(task.id, {
           status: "SUCCESS",
-          url: task.ossUrl ?? task.resultUrl,
+          url: task.outputUrl ?? undefined,
           message: "生成完成"
         })
       },

@@ -55,13 +55,16 @@ export interface UploadResult {
   key?: string
 }
 
-/** 后端 FileController.upload 返回结构（com.xuejiai.aaf.framework.storage.FileVO） */
-interface FileVO {
+/** 后端 FileController.upload 返回的 StoredFile。 */
+interface StoredFile {
+  fileId: number
   key: string
   url: string
-  filename: string
+  originalName: string
+  mimeType: string | null
   size: number
-  contentType: string
+  contentHash: string | null
+  uploaderId: number | null
 }
 
 // ─── 图像压缩 ───────────────────────────────────────────────────────────────
@@ -144,7 +147,7 @@ export function useFileUpload(options: FileUploadOptions = {}) {
       const form = new FormData()
       form.append("file", file)
 
-      const vo = await backendApi.post<FileVO>("/system/files/upload", form, {
+      const vo = await backendApi.post<StoredFile>("/system/files/upload", form, {
         // 让 axios 自动设置 multipart boundary
         headers: { "Content-Type": undefined as unknown as string },
         signal,

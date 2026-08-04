@@ -19,15 +19,15 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.framework.storage.FileService;
-import com.xuejiai.aaf.framework.storage.FileVO;
 import com.xuejiai.aaf.framework.storage.OssStorageService;
 import com.xuejiai.aaf.framework.storage.PresignedUploadRequest;
 import com.xuejiai.aaf.framework.storage.PresignedUploadTicket;
 import com.xuejiai.aaf.framework.storage.StorageProperties;
 import com.xuejiai.aaf.framework.storage.StorageService;
 import com.xuejiai.aaf.framework.storage.StsCredentials;
+import com.xuejiai.aaf.module.system.file.api.StoredFile;
 import com.xuejiai.aaf.module.system.file.service.FileRecordService;
+import com.xuejiai.aaf.module.system.file.service.FileUploadService;
 import com.xuejiai.aaf.module.system.file.vo.FileConfirmDTO;
 import com.xuejiai.aaf.module.system.file.vo.FileRecordPageDTO;
 import com.xuejiai.aaf.module.system.file.vo.FileRecordVO;
@@ -48,7 +48,7 @@ import lombok.RequiredArgsConstructor;
 @PreAuthorize("isAuthenticated()")
 public class FileController {
 
-    private final FileService fileService;
+    private final FileUploadService fileUploadService;
     private final StorageService storageService;
     private final FileRecordService fileRecordService;
     private final StorageProperties storageProperties;
@@ -91,11 +91,8 @@ public class FileController {
     @Operation(summary = "上传文件")
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/upload")
-    public Result<FileVO> upload(@RequestParam("file") MultipartFile file) {
-        var vo = fileService.upload(file);
-        fileRecordService.saveForCurrentOwner(
-                vo.key(), file.getOriginalFilename(), file.getContentType(), file.getSize());
-        return Result.success(vo);
+    public Result<StoredFile> upload(@RequestParam("file") MultipartFile file) {
+        return Result.success(fileUploadService.uploadCurrent(file));
     }
 
     @Operation(summary = "前端直传完成确认（预签名/STS 分片上传后调用）")
@@ -103,8 +100,8 @@ public class FileController {
     @PostMapping("/confirm")
     public Result<Void> confirm(@Validated @RequestBody FileConfirmDTO dto) {
         fileRecordService.requireCurrentOwnerNamespace(dto.key());
-        fileRecordService.saveForCurrentOwner(
-                dto.key(), dto.originalName(), dto.mimeType(), dto.size());
+        fileRecordService.registerCurrent(
+                dto.key(), dto.originalName(), dto.mimeType(), dto.size(), null);
         return Result.success();
     }
 
@@ -112,9 +109,8 @@ public class FileController {
     @PreAuthorize("isAuthenticated()")
     @DeleteMapping
     public Result<Void> delete(@RequestParam String key) {
-        fileRecordService.requireOwnedByKey(key);
-        fileService.delete(key);
-        fileRecordService.deleteOwnedByKey(key);
+        var record = fileRecordService.requireOwnedByKey(key);
+        fileRecordService.requestDelete(record.getId());
         return Result.success();
     }
 

@@ -1104,7 +1104,7 @@ ON CONFLICT DO NOTHING;
 
 -- ============================================================
 -- User Studio 种子数据（装扮 starter pack + 文案智能体技能）
--- 项目模板已统一由 aigc_project_blueprint 承载，不再初始化 user_project_template。
+-- 项目复用入口已统一由 aigc_project_blueprint 承载，不再初始化平行项目模板。
 -- ============================================================
 
 -- ==================== 装扮 starter pack（5 头像 + 5 服饰） ====================
@@ -1198,7 +1198,7 @@ ON CONFLICT (code) WHERE code IS NOT NULL AND deleted = FALSE DO NOTHING;
 -- ============================================================
 -- v0.2.1 P1：用户工作流模板（5 流水线 seed）
 -- ============================================================
-INSERT INTO user_workflow_template (code, name, description, cover_url, category, template_config, is_official, sort_order)
+INSERT INTO user_workflow_template (code, name, description, cover_media_version_id, category, template_config, is_official, sort_order)
 VALUES
     ('voiceover-video', '口播视频流水线',
      '一键生成口播视频：先生成口播文案，再配套主视觉图，最后合成视频',

@@ -92,14 +92,16 @@ export const STUDIO_NAV: StudioWorkspaceConfig[] = [
     icon: Sparkles,
     path: "/studio/create",
     children: [
-      { key: "image", label: "图像", icon: ImageIcon, path: "/studio/create/image", default: true },
+      { key: "overview", label: "创作首页", icon: Sparkles, path: "/studio/create", default: true },
+      { key: "image", label: "图像", icon: ImageIcon, path: "/studio/create/image" },
       { key: "video", label: "视频", icon: Video, path: "/studio/create/video" },
+      { key: "voice", label: "配音", icon: Mic, path: "/studio/create/voice" },
+      { key: "music", label: "音乐", icon: Music, path: "/studio/create/music" },
+      { key: "model-3d", label: "3D", icon: Box, path: "/studio/create/tools/3d" },
       { key: "copy", label: "文案", icon: Wand2, path: "/studio/create/copy" },
       { key: "viral", label: "爆款", icon: Zap, path: "/studio/create/viral", badge: "热" },
       // { key: "pipeline", label: "工作流", icon: Workflow, path: "/studio/create/pipeline", badge: "新" },
       { key: "matting", label: "抠图", icon: Scissors, path: "/studio/create/matting" },
-      { key: "voice", label: "配音", icon: Mic, path: "/studio/create/voice" },
-      { key: "music", label: "音乐", icon: Music, path: "/studio/create/music" },
       { key: "tools", label: "工具箱", icon: Wrench, path: "/studio/create/tools", badge: "新" }
     ]
   },
@@ -204,7 +206,8 @@ export function resolveWorkspaceFromPath(pathname: string): StudioWorkspace | nu
   if (segment === "welcome") return "home"
   // 模板库与品牌资料归项目工作区
   if (segment === "templates" || segment === "brands") return "projects"
-  // 工具箱路径归 tools 工作区
+  // 3D 基础生成属于创作工作区；其余工具箱路径归 tools 工作区
+  if (pathname.startsWith("/studio/create/tools/3d")) return "create"
   if (pathname.startsWith("/studio/create/tools") || pathname.startsWith("/studio/create/draw"))
     return "tools"
   // chat 不归任何工作区（独立全屏）

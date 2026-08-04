@@ -19,7 +19,7 @@ import com.xuejiai.aaf.module.document.api.DocumentSourceApi.SourceDocumentComma
 import com.xuejiai.aaf.module.knowledge.domain.KnowledgeBase;
 import com.xuejiai.aaf.module.knowledge.domain.KnowledgeDocument;
 import com.xuejiai.aaf.module.knowledge.repository.KnowledgeDocumentRepository;
-import com.xuejiai.aaf.module.system.file.api.FileRecordApi;
+import com.xuejiai.aaf.module.system.file.service.FileUploadService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +33,7 @@ public class KnowledgeDocumentUploadService {
     private final KnowledgeDocumentRepository documentRepository;
     private final KnowledgeDocumentQueueService queueService;
     private final FileService fileService;
-    private final FileRecordApi fileRecordApi;
+    private final FileUploadService fileUploadService;
     private final DocumentSourceApi documentSourceApi;
 
     @Transactional
@@ -54,18 +54,15 @@ public class KnowledgeDocumentUploadService {
             if (originalFilename == null || originalFilename.isBlank()) {
                 throw exception(GlobalErrorCode.BAD_REQUEST);
             }
-            var stored = fileService.upload(file);
-            uploadedKeys.add(stored.key());
-            var sourceFile =
-                    fileRecordApi.registerCurrent(
-                            stored.key(), originalFilename, file.getContentType(), file.getSize());
+            var sourceFile = fileUploadService.uploadCurrent(file);
+            uploadedKeys.add(sourceFile.key());
             var sourceDocument =
                     documentSourceApi.register(
                             new SourceDocumentCommand(
-                                    sourceFile.id(),
+                                    sourceFile.fileId(),
                                     originalFilename,
                                     "knowledge_source",
-                                    stored.key(),
+                                    sourceFile.key(),
                                     null,
                                     sourceFile.uploaderId()));
 
@@ -74,10 +71,10 @@ public class KnowledgeDocumentUploadService {
             document.setSourceDocumentId(sourceDocument.id());
             document.setUploadedBy(sourceFile.uploaderId());
             document.setSourceType("FILE");
-            document.setSourceKey(stored.key());
-            document.setSourceUri(stored.url());
+            document.setSourceKey(sourceFile.key());
+            document.setSourceUri(sourceFile.url());
             document.setTitle(originalFilename);
-            document.setFilePath(stored.key());
+            document.setFilePath(sourceFile.key());
             document.setFileType(extractFileType(originalFilename));
             document.setFileSize(file.getSize());
             document.setStatus(DocumentStatusEnum.PENDING.getCode());

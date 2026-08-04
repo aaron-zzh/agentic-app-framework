@@ -19,7 +19,6 @@ import { StoryboardPanel } from "../copywriting/StoryboardPanel"
 import { GenerationPanel } from "../generation/GenerationPanel"
 import { PreviewPanel } from "../preview/PreviewPanel"
 import { useAigcStore } from "../store"
-import type { MediaAssetType } from "../types"
 
 export function AigcView({ projectId: projectIdProp }: { projectId?: number } = {}) {
   const router = useRouter()
@@ -33,68 +32,18 @@ export function AigcView({ projectId: projectIdProp }: { projectId?: number } = 
   // aigc 页面需要嵌入式对话面板
   // useChatterLayoutPreference("panel")
 
-  const setProjectPromptTag = useAigcStore((s) => s.setProjectPromptTag)
-
-  // 项目加载后把项目提示词同步到 store，供 GenerationPanel 使用
-  useEffect(() => {
-    if (!project) return
-    setProjectPromptTag(
-      project.prompt?.trim()
-        ? { label: project.name ?? "项目提示词", content: project.prompt }
-        : null
-    )
-    return () => setProjectPromptTag(null)
-  }, [project, setProjectPromptTag])
   const storyboardPanelOpen = useAigcStore((s) => s.storyboardPanelOpen)
   const queryClient = useQueryClient()
   const removePendingTask = useAigcStore((s) => s.removePendingTask)
   const addPendingTask = useAigcStore((s) => s.addPendingTask)
-  const completePendingTask = useAigcStore((s) => s.completePendingTask)
   const failPendingTask = useAigcStore((s) => s.failPendingTask)
 
   // 订阅 AIGC 任务事件，完成后刷新素材列表
   useAigcTaskStream({
     onCompleted: (task) => {
-      if (task.ossUrl) {
-        // 临时占位 asset 的类型需与任务类型对齐，否则音频/视频/3D 会被当作图片渲染
-        const assetType: MediaAssetType =
-          task.type === "VIDEO"
-            ? "VIDEO"
-            : task.type === "MODEL_3D"
-              ? "MODEL_3D"
-              : task.type === "VOICE" || task.type === "MUSIC"
-                ? "AUDIO"
-                : "IMAGE"
-        const tempAsset = {
-          id: task.id,
-          name: task.prompt ?? "生成素材",
-          type: assetType,
-          url: task.ossUrl,
-          thumbnailUrl: task.ossUrl,
-          size: null,
-          width: null,
-          height: null,
-          duration: null,
-          generationParams: null,
-          tags: null,
-          categoryId: null,
-          groupId: null,
-          userId: 0,
-          version: 0,
-          createTime: "",
-          updateTime: "",
-          groupName: null,
-          aiGenerated: true,
-          modelName: null,
-          providerCode: null
-        }
-        completePendingTask(task.id, task.ossUrl, tempAsset)
-      }
-      setTimeout(() => {
-        removePendingTask(task.id)
-        // media-assets + 积分已由 useAigcTaskStream 内置默认行为失效，此处仅补充素材库专属 key
-        queryClient.invalidateQueries({ queryKey: ["media-asset-library"] })
-      }, 1500)
+      if (!task.outputMediaId || !task.outputUrl) return
+      queryClient.invalidateQueries({ queryKey: ["aigc", "media"] })
+      setTimeout(() => removePendingTask(task.id), 1500)
     },
     onFailed: (task) => {
       // SSE 可能比 onSuccess 更早到达，兜底确保 pendingTask 存在
@@ -104,8 +53,8 @@ export function AigcView({ projectId: projectIdProp }: { projectId?: number } = 
       // 失败卡片保留，等用户点击重试或手动关闭
     },
     onReconnect: () => {
-      // SSE 断连重连后，补查断连期间可能丢失的任务结果（media-assets/积分由内置行为覆盖，此处仅补素材库专属 key）
-      queryClient.invalidateQueries({ queryKey: ["media-asset-library"] })
+      // SSE 重连后补查断连期间可能丢失的媒体结果
+      queryClient.invalidateQueries({ queryKey: ["aigc", "media"] })
     }
   })
 
@@ -128,7 +77,13 @@ export function AigcView({ projectId: projectIdProp }: { projectId?: number } = 
             <PreviewPanel orientation={storyboardPanelOpen ? "vertical" : "horizontal"} />
 
             {/* 生成面板（从底部弹起） */}
-            <GenerationPanel />
+            <GenerationPanel
+              projectPrompt={
+                project?.prompt?.trim()
+                  ? { label: project.name ?? "项目提示词", content: project.prompt }
+                  : null
+              }
+            />
 
             {/* 文案生成面板（从底部弹起） */}
             <CopywritingPanel projectId={projectId ?? undefined} />

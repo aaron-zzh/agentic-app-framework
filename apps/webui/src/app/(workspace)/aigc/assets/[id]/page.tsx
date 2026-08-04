@@ -10,11 +10,11 @@ import Link from "next/link"
 import { use } from "react"
 import { Button } from "@/components/ui/button"
 import { ModelViewer } from "@/features/aigc/three/ModelViewer"
-import { useMediaAssetDetail } from "@/lib/api/rest/media"
+import { useMediaDetail } from "@/lib/api/rest/media"
 
 export default function AssetPreviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  const { data: asset } = useMediaAssetDetail(Number(id))
+  const { data: media } = useMediaDetail(Number(id))
 
   return (
     <div className="flex h-full flex-col">
@@ -24,17 +24,17 @@ export default function AssetPreviewPage({ params }: { params: Promise<{ id: str
           size="icon"
           className="size-8"
           nativeButton={false}
-          render={<Link href="/aigc/assets" />}
+          render={<Link href="/studio/assets/works" />}
         >
           <ArrowLeft className="size-4" />
         </Button>
-        <h1 className="font-semibold">{asset?.name ?? "3D 预览"}</h1>
-        {asset && (
+        <h1 className="font-semibold">{media?.name ?? "3D 预览"}</h1>
+        {media && (
           <Button
             variant="outline"
             size="sm"
             className="ml-auto"
-            onClick={() => window.open(asset.url, "_blank")}
+            onClick={() => window.open(media.currentVersion.url, "_blank")}
           >
             <Download className="mr-1.5 size-3.5" />
             下载
@@ -42,8 +42,8 @@ export default function AssetPreviewPage({ params }: { params: Promise<{ id: str
         )}
       </div>
       <div className="flex-1">
-        {asset ? (
-          <ModelViewer modelUrl={asset.url} className="size-full" />
+        {media ? (
+          <ModelViewer modelUrl={media.currentVersion.url} className="size-full" />
         ) : (
           <div className="flex size-full items-center justify-center text-muted-foreground">
             加载中...
