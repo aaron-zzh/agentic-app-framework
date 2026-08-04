@@ -24,11 +24,19 @@ import jakarta.persistence.Column;
 /** 资源声明的高级筛选字段白名单。 */
 public final class CrudFilterSchema<E> {
 
+    public enum Mode {
+        AUTO,
+        NONE,
+        EXPLICIT
+    }
+
+    private final Mode mode;
     private final List<CrudFilterField<E>> fields;
     private final List<CrudFilterFieldMeta> metas;
     private final Map<String, CrudFilterRule<E>> rules;
 
-    private CrudFilterSchema(List<CrudFilterField<E>> fields) {
+    private CrudFilterSchema(Mode mode, List<CrudFilterField<E>> fields) {
+        this.mode = mode;
         this.fields = List.copyOf(fields);
 
         var mutableRules = new LinkedHashMap<String, CrudFilterRule<E>>();
@@ -45,11 +53,32 @@ public final class CrudFilterSchema<E> {
 
     @SafeVarargs
     public static <E> CrudFilterSchema<E> of(CrudFilterField<E>... fields) {
-        return new CrudFilterSchema<>(List.of(fields));
+        return new CrudFilterSchema<>(Mode.EXPLICIT, List.of(fields));
     }
 
+    /** 由资源类型合同与公开列表字段中央生成安全默认筛选。 */
+    public static <E> CrudFilterSchema<E> auto() {
+        return new CrudFilterSchema<>(Mode.AUTO, List.of());
+    }
+
+    /** 明确禁止资源使用通用筛选。 */
+    public static <E> CrudFilterSchema<E> none() {
+        return new CrudFilterSchema<>(Mode.NONE, List.of());
+    }
+
+    /** 兼容原有明确空筛选语义；新代码使用 {@link #none()}。 */
     public static <E> CrudFilterSchema<E> empty() {
-        return new CrudFilterSchema<>(List.of());
+        return none();
+    }
+
+    /** 将 AUTO 模式解析为不可变的显式安全筛选 schema。 */
+    public CrudFilterSchema<E> resolve(
+            CrudResourceTypeContract<E> types, CrudViewDefinition view) {
+        return mode == Mode.AUTO ? safeDefaults(types, view) : this;
+    }
+
+    public Mode mode() {
+        return mode;
     }
 
     /**
@@ -78,7 +107,7 @@ public final class CrudFilterSchema<E> {
                                 inferred.add(filterField);
                             }
                         });
-        return new CrudFilterSchema<>(inferred);
+        return new CrudFilterSchema<>(Mode.EXPLICIT, inferred);
     }
 
     private static <E> CrudFilterField<E> inferField(Field pageField, Field entityField) {

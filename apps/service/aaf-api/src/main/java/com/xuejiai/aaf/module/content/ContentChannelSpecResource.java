@@ -48,7 +48,7 @@ public final class ContentChannelSpecResource {
                                     CrudOperation.DELETE,
                                     CrudOperation.DELETE_BATCH),
                     new CrudQueryDefinition<>(
-                            CrudFilterSchema.empty(),
+                            CrudFilterSchema.auto(),
                             Set.of(
                                     "code",
                                     "name",

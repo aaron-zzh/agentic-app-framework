@@ -44,7 +44,7 @@ public final class ContentSnippetResource {
                                     CrudOperation.RESTORE,
                                     CrudOperation.ARCHIVE),
                     new CrudQueryDefinition<>(
-                            CrudFilterSchema.empty(),
+                            CrudFilterSchema.auto(),
                             Set.of(
                                     "name",
                                     "category",

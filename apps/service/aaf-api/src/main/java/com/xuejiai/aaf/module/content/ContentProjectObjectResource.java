@@ -45,7 +45,7 @@ public final class ContentProjectObjectResource {
                                     CrudOperation.ARCHIVE,
                                     CrudOperation.DELETE_BATCH),
                     new CrudQueryDefinition<>(
-                            CrudFilterSchema.empty(),
+                            CrudFilterSchema.auto(),
                             Set.of(
                                     "projectId",
                                     "objectType",

@@ -45,7 +45,7 @@ public final class ContentProjectProfileRefResource {
                                     CrudOperation.ARCHIVE,
                                     CrudOperation.UPDATE),
                     new CrudQueryDefinition<>(
-                            CrudFilterSchema.empty(),
+                            CrudFilterSchema.auto(),
                             Set.of(
                                     "projectId",
                                     "brandProfileId",

@@ -69,7 +69,7 @@ public final class TodoResource {
                                     CrudOperation.RESTORE,
                                     CrudOperation.ARCHIVE),
                     new CrudQueryDefinition<>(
-                            CrudFilterSchema.safeDefaults(TYPES, VIEW),
+                            CrudFilterSchema.auto(),
                             Set.of("id", "title", "dueDate"),
                             Sort.by("id").descending()),
                     CrudMutationDefinition.forTypes(TYPES)

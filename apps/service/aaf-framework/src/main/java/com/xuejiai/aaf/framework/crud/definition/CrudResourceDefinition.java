@@ -43,10 +43,11 @@ public record CrudResourceDefinition<E extends BaseEntity>(
         types = Objects.requireNonNull(types, "types");
         descriptor = Objects.requireNonNull(descriptor, "descriptor");
         capabilities = Objects.requireNonNull(capabilities, "capabilities");
-        query = Objects.requireNonNull(query, "query");
+        var declaredQuery = Objects.requireNonNull(query, "query");
         mutation = Objects.requireNonNull(mutation, "mutation");
         view = Objects.requireNonNull(view, "view");
-        fieldCapabilities = copyFieldCapabilities(fieldCapabilities);
+        query = resolveQuery(types, declaredQuery, view);
+        fieldCapabilities = withQueryCapabilities(copyFieldCapabilities(fieldCapabilities), query);
         references = List.copyOf(Objects.requireNonNull(references, "references"));
         if (references.stream().map(CrudReferenceDefinition::key).distinct().count()
                 != references.size()) {
@@ -188,6 +189,38 @@ public record CrudResourceDefinition<E extends BaseEntity>(
                 personalScope,
                 exposures,
                 schemaVersion);
+    }
+
+    private static <E extends BaseEntity> CrudQueryDefinition<E> resolveQuery(
+            CrudResourceTypeContract<E> types,
+            CrudQueryDefinition<E> query,
+            CrudViewDefinition view) {
+        var resolvedSchema = query.filterSchema().resolve(types, view);
+        if (resolvedSchema == query.filterSchema()) {
+            return query;
+        }
+        return new CrudQueryDefinition<>(
+                resolvedSchema, query.sortableFields(), query.defaultSort());
+    }
+
+    private static Map<String, Set<FieldCapability>> withQueryCapabilities(
+            Map<String, Set<FieldCapability>> capabilities, CrudQueryDefinition<?> query) {
+        var completed = new LinkedHashMap<String, EnumSet<FieldCapability>>();
+        capabilities.forEach(
+                (field, values) -> {
+                    var copied = EnumSet.noneOf(FieldCapability.class);
+                    copied.addAll(values);
+                    completed.put(field, copied);
+                });
+        grant(
+                completed,
+                query.filterSchema().metas().stream().map(meta -> meta.field()).toList(),
+                FieldCapability.FILTER,
+                FieldCapability.AGGREGATE);
+        grant(completed, query.sortableFields(), FieldCapability.SORT);
+        var immutable = new LinkedHashMap<String, Set<FieldCapability>>();
+        completed.forEach((field, values) -> immutable.put(field, Set.copyOf(values)));
+        return Map.copyOf(immutable);
     }
 
     private static Map<String, Set<FieldCapability>> copyFieldCapabilities(

@@ -5,6 +5,7 @@ import java.util.Set;
 
 import org.springframework.data.domain.Sort;
 
+import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.framework.crud.definition.*;
 import com.xuejiai.aaf.framework.crud.definition.CrudCapabilityDefinition;
 import com.xuejiai.aaf.framework.crud.definition.CrudResourceDefinition;
@@ -180,6 +181,15 @@ public final class CrudResourceDefinitions {
                 PersonalScope.none());
     }
 
+    /** 将已有业务差量 Definition 绑定到标准 CRUD Controller，避免重复 Provider 类。 */
+    public static <E extends BaseEntity> CrudResourceDefinitionProvider<E> bindCrud(
+            CrudResourceDefinition<E> definition, Class<?> controllerType) {
+        var endpoint =
+                CrudResourceEndpointBinding.crud(
+                        definition.key(), controllerType, definition.descriptor().apiPath());
+        return new StaticCrudResourceDefinitionProvider<>(definition, endpoint);
+    }
+
     /**
      * 在标准资源 Provider 上叠加具名自定义 UPDATE 命令契约。
      *
@@ -222,7 +232,7 @@ public final class CrudResourceDefinitions {
                         : CrudViewDefinition.forTypes(types);
         var query =
                 new CrudQueryDefinition(
-                        CrudFilterSchema.empty(),
+                        optionsOnly ? CrudFilterSchema.none() : CrudFilterSchema.auto(),
                         optionsOnly ? Set.of() : Set.of("id"),
                         Sort.by("id").descending());
         var definition =

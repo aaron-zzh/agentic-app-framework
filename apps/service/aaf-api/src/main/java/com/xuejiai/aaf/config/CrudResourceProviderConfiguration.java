@@ -55,6 +55,8 @@ import com.xuejiai.aaf.module.system.notify.controller.NoticeController;
 import com.xuejiai.aaf.module.system.org.controller.WorkspaceController;
 import com.xuejiai.aaf.module.system.role.controller.DataAccessRuleController;
 import com.xuejiai.aaf.module.system.role.controller.RoleController;
+import com.xuejiai.aaf.module.system.task.TodoResource;
+import com.xuejiai.aaf.module.system.task.controller.TodoController;
 import com.xuejiai.aaf.module.system.user.controller.UserController;
 import com.xuejiai.aaf.module.system.user.favorite.controller.UserFavoriteController;
 
@@ -483,6 +485,11 @@ public class CrudResourceProviderConfiguration {
                 NoticeController.class,
                 "/api/system/notices",
                 "system:notice");
+    }
+
+    @Bean
+    CrudResourceDefinitionProvider<?> todoResource() {
+        return CrudResourceDefinitions.bindCrud(TodoResource.DEFINITION, TodoController.class);
     }
 
     @Bean

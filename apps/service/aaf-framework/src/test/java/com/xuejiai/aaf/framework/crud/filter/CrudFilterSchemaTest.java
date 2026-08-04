@@ -107,22 +107,28 @@ class CrudFilterSchemaTest {
     }
 
     @Test
-    @DisplayName("Given 类型化查询字段与公开列表字段 When 推导默认筛选 Then 仅开放安全交集")
-    void should_infer_safe_defaults_from_page_list_and_entity_intersection() {
+    @DisplayName("Given AUTO 与 NONE Schema When 中央解析 Then 仅 AUTO 推导安全交集")
+    void should_resolve_auto_and_preserve_none_schema() {
         var types =
                 new CrudResourceTypeContract<>(
                         FilterEntity.class, Void.class, Void.class, Object.class, FilterPage.class);
         var view =
                 new CrudViewDefinition(
                         Map.of("list", Set.of("status", "category", "title", "internalId")), "");
+        var auto = CrudFilterSchema.<FilterEntity>auto();
+        var none = CrudFilterSchema.<FilterEntity>none();
 
-        var metas = CrudFilterSchema.safeDefaults(types, view).metas();
+        var metas = auto.resolve(types, view).metas();
 
+        assertThat(auto.mode()).isEqualTo(CrudFilterSchema.Mode.AUTO);
         assertThat(metas)
                 .extracting(CrudFilterFieldMeta::field)
                 .containsExactly("status", "category", "title");
         assertThat(metas.get(0).operators()).doesNotContain(CrudFilterOperator.IS_NULL.toMeta());
         assertThat(metas.get(1).operators()).contains(CrudFilterOperator.IS_NULL.toMeta());
+        assertThat(none.mode()).isEqualTo(CrudFilterSchema.Mode.NONE);
+        assertThat(none.resolve(types, view)).isSameAs(none);
+        assertThat(none.metas()).isEmpty();
     }
 
     private enum FilterStatus implements ArrayValuable<String> {

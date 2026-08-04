@@ -48,7 +48,7 @@ public final class ContentObjectVersionResource {
                                     CrudOperation.DELETE,
                                     CrudOperation.DELETE_BATCH),
                     new CrudQueryDefinition<>(
-                            CrudFilterSchema.empty(),
+                            CrudFilterSchema.auto(),
                             Set.of(
                                     "projectId",
                                     "objectId",
