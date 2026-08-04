@@ -16,7 +16,13 @@ import {
 } from "@/lib/api/rest/knowledge/knowledge"
 import { cn } from "@/lib/utils/cn"
 
-const ACCEPT = ".pdf,.doc,.docx,.md,.html,.txt"
+const SUPPORTED_EXTENSIONS = new Set(["pdf", "docx", "md", "markdown", "html", "htm", "txt"])
+const ACCEPT = Array.from(SUPPORTED_EXTENSIONS, (extension) => `.${extension}`).join(",")
+
+function isSupportedDocument(file: File): boolean {
+  const extension = file.name.split(".").pop()?.toLowerCase()
+  return extension !== undefined && SUPPORTED_EXTENSIONS.has(extension)
+}
 
 interface UploadItem {
   id: string
@@ -39,6 +45,20 @@ export function DocumentUpload({ knowledgeBaseId }: DocumentUploadProps) {
   const uploadFile = useCallback(
     async (file: File) => {
       const id = `${Date.now()}-${file.name}`
+      if (!isSupportedDocument(file)) {
+        setUploads((prev) => [
+          ...prev,
+          {
+            id,
+            name: file.name,
+            progress: 0,
+            status: "failed",
+            error: "不支持的文件格式"
+          }
+        ])
+        return
+      }
+
       setUploads((prev) => [...prev, { id, name: file.name, progress: 0, status: "uploading" }])
 
       try {
@@ -104,7 +124,7 @@ export function DocumentUpload({ knowledgeBaseId }: DocumentUploadProps) {
       >
         <Upload className="mb-2 size-8 text-muted-foreground" />
         <p className="font-medium text-sm">拖拽文件到此处，或点击选择</p>
-        <p className="text-muted-foreground text-xs">支持 PDF、Word、Markdown、HTML、TXT</p>
+        <p className="text-muted-foreground text-xs">支持 PDF、Word（DOCX）、Markdown、HTML、TXT</p>
       </div>
       <input
         ref={inputRef}
