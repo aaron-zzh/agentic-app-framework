@@ -1,8 +1,10 @@
 package com.xuejiai.aaf.module.system.org.service;
 
 import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_MANAGER_REQUIRED;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_MEMBER_ALREADY_EXISTS;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_MEMBER_NOT_FOUND;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_MEMBER_REQUIRED;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_NOT_FOUND;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_OWNER_REMOVE_FORBIDDEN;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_OWNER_ROLE_CHANGE_FORBIDDEN;
@@ -10,6 +12,9 @@ import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_PERSONAL_DELE
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_SLUG_EXISTS;
 
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,19 +54,29 @@ public class OrganizationService {
     /** 获取用户可切换的组织；super_admin 可切换全部组织，其他用户仅返回成员组织。 */
     public List<OrganizationVO> listByUser(Long userId) {
         if (authorizationService.isCurrentSubjectSuperAdmin()) {
-            return orgRepository.findAllByDeletedFalse().stream().map(this::toVO).toList();
+            return orgRepository.findAllByDeletedFalse().stream()
+                    .map(org -> toVO(org, null))
+                    .toList();
         }
-        var memberOrgIds =
-                memberRepository.findByUserIdAndDeletedFalse(userId).stream()
-                        .map(OrgMember::getOrgId)
-                        .toList();
-        return orgRepository.findByIdInAndDeletedFalse(memberOrgIds).stream()
-                .map(this::toVO)
+        var memberships = memberRepository.findByUserIdAndDeletedFalse(userId);
+        Map<Long, OrgMember> membershipByOrg =
+                memberships.stream()
+                        .collect(
+                                Collectors.toMap(
+                                        OrgMember::getOrgId,
+                                        Function.identity(),
+                                        (first, ignored) -> first));
+        return orgRepository
+                .findByIdInAndDeletedFalse(membershipByOrg.keySet().stream().toList())
+                .stream()
+                .map(org -> toVO(org, membershipByOrg.get(org.getId()).getRole()))
                 .toList();
     }
 
     public OrganizationVO getById(Long id) {
-        return toVO(findOrg(id));
+        var org = findOrg(id);
+        var membership = requireMember(id);
+        return toVO(org, membership == null ? null : membership.getRole());
     }
 
     /** 创建团队组织 */
@@ -84,21 +99,24 @@ public class OrganizationService {
         member.setRole("owner");
         memberRepository.save(member);
 
-        return toVO(org);
+        return toVO(org, "owner");
     }
 
     @Transactional
     public OrganizationVO update(Long id, OrganizationUpdateDTO dto) {
         var org = findOrg(id);
+        var membership = requireManager(id);
         if (dto.name() != null) {
             org.setName(dto.name());
         }
-        return toVO(orgRepository.save(org));
+        return toVO(
+                orgRepository.save(org), membership == null ? null : membership.getRole());
     }
 
     @Transactional
     public void delete(Long id) {
         var org = findOrg(id);
+        requireManager(id);
         if (org.isPersonal()) {
             throw exception(ORG_PERSONAL_DELETE_FORBIDDEN);
         }
@@ -127,6 +145,8 @@ public class OrganizationService {
     // ==================== 成员管理 ====================
 
     public List<OrgMemberVO> listMembers(Long orgId) {
+        findOrg(orgId);
+        requireMember(orgId);
         return memberRepository.findByOrgIdAndDeletedFalse(orgId).stream()
                 .map(this::toMemberVO)
                 .toList();
@@ -135,6 +155,7 @@ public class OrganizationService {
     @Transactional
     public OrgMemberVO addMember(Long orgId, OrgMemberAddDTO dto) {
         findOrg(orgId); // 确认组织存在
+        requireManager(orgId);
         if (memberRepository.existsByOrgIdAndUserIdAndDeletedFalse(orgId, dto.userId())) {
             throw exception(ORG_MEMBER_ALREADY_EXISTS);
         }
@@ -158,6 +179,7 @@ public class OrganizationService {
      */
     @Transactional
     public OrgMemberVO updateMemberRole(Long orgId, Long memberId, OrgMemberRoleUpdateDTO dto) {
+        requireManager(orgId);
         var member =
                 memberRepository
                         .findById(memberId)
@@ -174,6 +196,7 @@ public class OrganizationService {
 
     @Transactional
     public void removeMember(Long orgId, Long userId) {
+        requireManager(orgId);
         var member =
                 memberRepository
                         .findByOrgIdAndUserIdAndDeletedFalse(orgId, userId)
@@ -189,17 +212,44 @@ public class OrganizationService {
 
     // ==================== 私有方法 ====================
 
+    /** super_admin 返回 null；普通用户必须是组织成员。 */
+    private OrgMember requireMember(Long orgId) {
+        if (authorizationService.isCurrentSubjectSuperAdmin()) {
+            return null;
+        }
+        var userId =
+                operatorContext
+                        .currentOwnerId()
+                        .orElseThrow(() -> exception(ORG_MEMBER_REQUIRED));
+        return memberRepository
+                .findByOrgIdAndUserIdAndDeletedFalse(orgId, userId)
+                .orElseThrow(() -> exception(ORG_MEMBER_REQUIRED));
+    }
+
+    /** super_admin 返回 null；普通用户必须是组织 owner/admin。 */
+    private OrgMember requireManager(Long orgId) {
+        var membership = requireMember(orgId);
+        if (membership == null) {
+            return null;
+        }
+        if (!"owner".equals(membership.getRole()) && !"admin".equals(membership.getRole())) {
+            throw exception(ORG_MANAGER_REQUIRED);
+        }
+        return membership;
+    }
+
     private Organization findOrg(Long id) {
         return orgRepository.findById(id).orElseThrow(() -> exception(ORG_NOT_FOUND));
     }
 
-    private OrganizationVO toVO(Organization org) {
+    private OrganizationVO toVO(Organization org, String memberRole) {
         return new OrganizationVO(
                 org.getId(),
                 org.getName(),
                 org.getSlug(),
                 org.getType(),
                 org.getOwnerId(),
+                memberRole,
                 org.getCreateTime());
     }
 

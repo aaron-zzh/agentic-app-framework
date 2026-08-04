@@ -174,9 +174,10 @@ public final class CrudEnforcementService {
         requireAccessModeContext(accessMode);
         var allOrganizations = OrgContext.isAllOrganizations();
         var allWorkspaces = OrgContext.isAllWorkspaces();
-        if ((allOrganizations || allWorkspaces)
-                && (!authorizationService.isCurrentSubjectSuperAdmin()
-                        || !operation.allowedInAllOrganizations())) {
+        if ((allOrganizations
+                        && !authorizationService.isCurrentSubjectSuperAdmin())
+                || ((allOrganizations || allWorkspaces)
+                        && !operation.allowedInAllOrganizations())) {
             throw exception(GlobalErrorCode.FORBIDDEN);
         }
         var definition = entry.definition();

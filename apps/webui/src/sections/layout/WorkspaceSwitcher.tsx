@@ -24,7 +24,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
-import { useOrganizations, useWorkspaces } from "@/lib/api/rest/user"
+import {
+  type OrganizationVO,
+  useOrganizations,
+  useWorkspaces
+} from "@/lib/api/rest/user"
 import { useAuthStore } from "@/lib/store/auth-store"
 import {
   ALL_ORGANIZATIONS_ID,
@@ -78,9 +82,19 @@ export function WorkspaceSwitcher() {
     refreshScopeData()
   }
 
-  function selectOrganization(orgId: string) {
-    setCurrentOrgId(orgId)
-    setCurrentWorkspace(isSuperAdmin ? { id: ALL_WORKSPACES_ID, name: "全部工作区", orgId } : null)
+  function canViewAllWorkspaces(org: OrganizationVO): boolean {
+    return (
+      isSuperAdmin || org.memberRole === "owner" || org.memberRole === "admin"
+    )
+  }
+
+  function selectOrganization(org: OrganizationVO) {
+    setCurrentOrgId(org.id)
+    setCurrentWorkspace(
+      canViewAllWorkspaces(org)
+        ? { id: ALL_WORKSPACES_ID, name: "全部工作区", orgId: org.id }
+        : null
+    )
     refreshScopeData()
   }
 
@@ -137,27 +151,25 @@ export function WorkspaceSwitcher() {
 
             {orgs.map((org) => {
               const workspaces = workspacesByOrg.get(org.id) ?? []
+              const organizationWide = canViewAllWorkspaces(org)
               const organizationSelected =
                 currentOrgId === org.id &&
-                (isSuperAdmin
+                (organizationWide
                   ? currentWorkspace?.id === ALL_WORKSPACES_ID
                   : currentWorkspace == null)
 
               return (
                 <div key={org.id}>
-                  <DropdownMenuLabel className="pt-3 text-muted-foreground text-xs">
-                    {org.name}
-                  </DropdownMenuLabel>
                   <DropdownMenuItem
-                    onClick={() => selectOrganization(org.id)}
-                    className="gap-2.5 rounded-md px-2 py-2"
+                    onClick={() => selectOrganization(org)}
+                    className="mt-1 gap-2.5 rounded-md px-2 py-2"
                   >
                     <Layers3 className="text-muted-foreground" />
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm">
-                        {isSuperAdmin ? "全部工作区" : "组织共享"}
+                      <div className="truncate text-sm">{org.name}</div>
+                      <div className="truncate text-muted-foreground text-xs">
+                        {organizationWide ? "全部工作区" : "组织共享"}
                       </div>
-                      <div className="truncate text-muted-foreground text-xs">{org.name}</div>
                     </div>
                     {organizationSelected && <Badge variant="outline">当前</Badge>}
                   </DropdownMenuItem>

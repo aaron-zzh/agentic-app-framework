@@ -14,6 +14,7 @@ export interface OrganizationVO {
   slug: string
   logo?: string
   plan?: "free" | "pro" | "enterprise"
+  memberRole?: "owner" | "admin" | "member" | "guest"
 }
 
 /** 工作区信息 */

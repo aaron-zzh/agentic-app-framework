@@ -90,6 +90,8 @@ public interface ErrorCodeConstants {
     ErrorCode WORKSPACE_MEMBER_NOT_FOUND = ErrorCode.of(1_007_010, "成员不存在");
     ErrorCode WORKSPACE_MANAGER_REMOVE_FORBIDDEN = ErrorCode.of(1_007_011, "不能移除工作区管理者");
     ErrorCode WORKSPACE_MANAGER_REQUIRED = ErrorCode.of(1_007_012, "仅工作区管理者可执行此操作");
+    ErrorCode ORG_MEMBER_REQUIRED = ErrorCode.of(1_007_013, "您不是该组织成员");
+    ErrorCode ORG_MANAGER_REQUIRED = ErrorCode.of(1_007_014, "仅组织所有者或管理员可执行此操作");
 
     // ========== DASHBOARD 模块 1_008_000 ==========
     ErrorCode DASHBOARD_NOT_FOUND = ErrorCode.of(1_008_000, "仪表盘不存在");

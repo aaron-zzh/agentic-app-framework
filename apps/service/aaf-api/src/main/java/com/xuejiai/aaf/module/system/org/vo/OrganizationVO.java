@@ -15,4 +15,5 @@ public record OrganizationVO(
         String slug,
         String type,
         Long ownerId,
+        @Schema(description = "当前用户在组织中的角色；super_admin 跨组织查看时为空") String memberRole,
         LocalDateTime createTime) {}

@@ -126,9 +126,10 @@ public class OrgFilter implements Filter {
                 writeForbidden(response, "全工作区上下文仅支持读取请求");
                 return false;
             }
-            if (OrgContext.getCurrentOrgId() == null
-                    || !authorizationService.isCurrentSubjectSuperAdmin()) {
-                writeForbidden(response, "仅超级管理员可查看当前组织的全部工作区数据");
+            var orgId = OrgContext.getCurrentOrgId();
+            var userId = operatorContext.currentOwnerId().orElse(null);
+            if (orgId == null || userId == null || !canReadAllWorkspaces(orgId, userId)) {
+                writeForbidden(response, "仅组织所有者、管理员或超级管理员可查看全部工作区数据");
                 return false;
             }
             OrgContext.useAllWorkspaces();
@@ -166,6 +167,19 @@ public class OrgFilter implements Filter {
         }
         OrgContext.setCurrentWorkspaceId(workspaceId);
         return true;
+    }
+
+    private boolean canReadAllWorkspaces(Long orgId, Long userId) {
+        if (authorizationService.isCurrentSubjectSuperAdmin()) {
+            return true;
+        }
+        return OrgContext.runIgnoring(
+                () ->
+                        orgMemberRepository
+                                .findByOrgIdAndUserIdAndDeletedFalse(orgId, userId)
+                                .map(member -> member.getRole())
+                                .filter(role -> "owner".equals(role) || "admin".equals(role))
+                                .isPresent());
     }
 
     private void writeForbidden(HttpServletResponse response, String message) throws IOException {
