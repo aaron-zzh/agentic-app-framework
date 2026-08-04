@@ -1,18 +1,18 @@
 /**
- * WorkspaceSwitcher——工作区切换器
- * @author AaronZZH & Kiro
+ * WorkspaceSwitcher——组织与工作区范围切换器
  *
- * 过渡期按组织映射默认工作区，后续接入工作区接口后替换为真实工作区列表。
- * 切换默认工作区时：
- * 1. 更新 org-store.currentOrgId（持久化到 localStorage）
- * 2. API client 自动从 org-store 读取 X-Org-Id 请求头
- * 3. invalidateQueries 刷新所有数据
+ * super_admin 支持三级只读范围：全部组织、组织内全部工作区、特定工作区；
+ * 其他用户保持成员组织和具体工作区切换。服务端数据由 TanStack Query 管理，
+ * Zustand 仅保存当前选择并同步请求头。
+ *
+ * @author AaronZZH & Kiro
  */
 
 "use client"
 
 import { useQueryClient } from "@tanstack/react-query"
-import { ChevronsUpDown, Plus } from "lucide-react"
+import { Building2, ChevronsUpDown, Layers3, Network, Plus } from "lucide-react"
+import { useMemo } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -24,25 +24,71 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
-import { useOrganizations } from "@/lib/api/rest/user"
-import { useOrgStore } from "@/lib/store/org-store"
+import { useOrganizations, useWorkspaces } from "@/lib/api/rest/user"
+import { useAuthStore } from "@/lib/store/auth-store"
+import {
+  ALL_ORGANIZATIONS_ID,
+  ALL_WORKSPACES_ID,
+  hasSuperAdminRole,
+  useOrgStore
+} from "@/lib/store/org-store"
+import { useUIStore } from "@/lib/store/ui-store"
 import { $url } from "@/lib/utils"
 
 export function WorkspaceSwitcher() {
   const queryClient = useQueryClient()
-  const currentOrgId = useOrgStore((s) => s.currentOrgId)
-  const setCurrentOrgId = useOrgStore((s) => s.setCurrentOrgId)
-  const { data: orgs } = useOrganizations()
+  const roles = useAuthStore((state) => state.user?.roles)
+  const isSuperAdmin = hasSuperAdminRole(roles)
+  const currentOrgId = useOrgStore((state) => state.currentOrgId)
+  const setCurrentOrgId = useOrgStore((state) => state.setCurrentOrgId)
+  const currentWorkspace = useUIStore((state) => state.currentWorkspace)
+  const setCurrentWorkspace = useUIStore((state) => state.setCurrentWorkspace)
+  const { data: organizations } = useOrganizations()
+  const { data: workspacePage } = useWorkspaces(currentOrgId, isSuperAdmin)
 
-  const list = orgs ?? []
-  const active = list.find((o) => o.id === currentOrgId) ?? list[0]
-  const activeWorkspaceName = active ? active.name : null
+  const orgs = organizations ?? []
+  const workspacesByOrg = useMemo(() => {
+    const grouped = new Map<string, NonNullable<typeof workspacePage>["list"]>()
+    for (const workspace of workspacePage?.list ?? []) {
+      const workspaces = grouped.get(workspace.orgId) ?? []
+      workspaces.push(workspace)
+      grouped.set(workspace.orgId, workspaces)
+    }
+    return grouped
+  }, [workspacePage])
 
-  /** 切换默认工作区 */
-  function handleSwitchWorkspace(orgId: string) {
-    if (orgId === currentOrgId) return
+  const allOrganizationsSelected = currentOrgId === ALL_ORGANIZATIONS_ID
+  const activeOrg = orgs.find((org) => org.id === currentOrgId)
+  const activeWorkspaceName = allOrganizationsSelected
+    ? "全部组织"
+    : currentWorkspace?.id === ALL_WORKSPACES_ID
+      ? `${activeOrg?.name ?? "组织"} · 全部工作区`
+      : currentWorkspace
+        ? `${activeOrg?.name ?? "组织"} · ${currentWorkspace.name}`
+        : `${activeOrg?.name ?? "组织"} · 组织共享`
+
+  function refreshScopeData() {
+    void queryClient.invalidateQueries()
+  }
+
+  function selectAllOrganizations() {
+    if (allOrganizationsSelected && currentWorkspace == null) return
+    setCurrentWorkspace(null)
+    setCurrentOrgId(ALL_ORGANIZATIONS_ID)
+    refreshScopeData()
+  }
+
+  function selectOrganization(orgId: string) {
     setCurrentOrgId(orgId)
-    queryClient.invalidateQueries()
+    setCurrentWorkspace(isSuperAdmin ? { id: ALL_WORKSPACES_ID, name: "全部工作区", orgId } : null)
+    refreshScopeData()
+  }
+
+  function selectWorkspace(orgId: string, workspaceId: string, workspaceName: string) {
+    if (currentOrgId === orgId && currentWorkspace?.id === workspaceId) return
+    setCurrentOrgId(orgId)
+    setCurrentWorkspace({ id: workspaceId, name: workspaceName, orgId })
+    refreshScopeData()
   }
 
   return (
@@ -56,70 +102,96 @@ export function WorkspaceSwitcher() {
         }
       >
         <Avatar className="size-6 rounded-md after:hidden">
-          <AvatarImage
-            src={active?.logo ?? $url.cdn("/assets/icons/ChatBc.png")}
-            alt={activeWorkspaceName ?? "工作区"}
-            className="object-cover"
-          />
+          {!allOrganizationsSelected && (
+            <AvatarImage
+              src={activeOrg?.logo ?? $url.cdn("/assets/icons/ChatBc.png")}
+              alt={activeWorkspaceName}
+              className="object-cover"
+            />
+          )}
           <AvatarFallback className="rounded-md bg-primary/10 font-semibold text-primary text-xs">
-            {active?.name?.slice(0, 1) ?? "W"}
+            {allOrganizationsSelected ? "全" : (activeOrg?.name?.slice(0, 1) ?? "W")}
           </AvatarFallback>
         </Avatar>
-        <span className="max-w-32 truncate font-medium text-sm">
-          {activeWorkspaceName ?? "工作区"}
-        </span>
+        <span className="max-w-48 truncate font-medium text-sm">{activeWorkspaceName}</span>
         <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="start" className="w-64 overflow-hidden p-0">
+      <DropdownMenuContent align="start" className="w-72 overflow-hidden p-0">
         <div className="p-1.5">
           <DropdownMenuGroup>
-            <DropdownMenuLabel>工作区</DropdownMenuLabel>
-            {list.map((org) => (
-              <div key={org.id}>
-                {list.length > 1 && (
-                  <div className="px-2 pt-2 pb-1 text-muted-foreground text-xs">{org.name}</div>
-                )}
-                <DropdownMenuItem
-                  onClick={() => handleSwitchWorkspace(org.id)}
-                  className="gap-2.5 rounded-md px-2 py-2"
-                >
-                  <Avatar className="size-7 rounded-md after:hidden">
-                    <AvatarImage
-                      src={org.logo ?? $url.cdn("/assets/icons/ChatBc.png")}
-                      alt={org.name}
-                      className="object-cover"
-                    />
-                    <AvatarFallback className="rounded-md bg-primary/10 font-semibold text-primary text-xs">
-                      {org.name.slice(0, 1)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm">{org.name}</div>
-                  </div>
-                  {active?.id === org.id && (
-                    <Badge
-                      variant="outline"
-                      className="border-primary/20 bg-primary/10 text-primary"
+            <DropdownMenuLabel>数据范围</DropdownMenuLabel>
+            {isSuperAdmin && (
+              <DropdownMenuItem
+                onClick={selectAllOrganizations}
+                className="gap-2.5 rounded-md px-2 py-2"
+              >
+                <Building2 className="text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm">全部组织</div>
+                  <div className="truncate text-muted-foreground text-xs">跨组织只读视角</div>
+                </div>
+                {allOrganizationsSelected && <Badge variant="outline">当前</Badge>}
+              </DropdownMenuItem>
+            )}
+
+            {orgs.map((org) => {
+              const workspaces = workspacesByOrg.get(org.id) ?? []
+              const organizationSelected =
+                currentOrgId === org.id &&
+                (isSuperAdmin
+                  ? currentWorkspace?.id === ALL_WORKSPACES_ID
+                  : currentWorkspace == null)
+
+              return (
+                <div key={org.id}>
+                  <DropdownMenuLabel className="pt-3 text-muted-foreground text-xs">
+                    {org.name}
+                  </DropdownMenuLabel>
+                  <DropdownMenuItem
+                    onClick={() => selectOrganization(org.id)}
+                    className="gap-2.5 rounded-md px-2 py-2"
+                  >
+                    <Layers3 className="text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm">
+                        {isSuperAdmin ? "全部工作区" : "组织共享"}
+                      </div>
+                      <div className="truncate text-muted-foreground text-xs">{org.name}</div>
+                    </div>
+                    {organizationSelected && <Badge variant="outline">当前</Badge>}
+                  </DropdownMenuItem>
+
+                  {workspaces.map((workspace) => (
+                    <DropdownMenuItem
+                      key={workspace.id}
+                      onClick={() => selectWorkspace(org.id, workspace.id, workspace.name)}
+                      className="gap-2.5 rounded-md px-2 py-2 pl-6"
                     >
-                      当前
-                    </Badge>
-                  )}
-                </DropdownMenuItem>
-              </div>
-            ))}
+                      <Network className="text-muted-foreground" />
+                      <div className="min-w-0 flex-1 truncate text-sm">{workspace.name}</div>
+                      {currentOrgId === org.id && currentWorkspace?.id === workspace.id && (
+                        <Badge variant="outline">当前</Badge>
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+                </div>
+              )
+            })}
           </DropdownMenuGroup>
         </div>
 
         <DropdownMenuSeparator className="my-0 h-0 border-t border-dashed bg-transparent" />
 
         <div className="p-1.5">
-          <DropdownMenuItem className="gap-2 rounded-md px-2 py-2">
-            <div className="flex size-7 items-center justify-center rounded-md border border-muted-foreground/40 border-dashed bg-background/50">
-              <Plus className="size-3.5 text-muted-foreground" />
-            </div>
-            <span className="text-sm">创建工作区</span>
-          </DropdownMenuItem>
+          <DropdownMenuGroup>
+            <DropdownMenuItem className="gap-2 rounded-md px-2 py-2">
+              <div className="flex size-7 items-center justify-center rounded-md border border-muted-foreground/40 border-dashed bg-background/50">
+                <Plus className="text-muted-foreground" />
+              </div>
+              <span className="text-sm">创建工作区</span>
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
         </div>
       </DropdownMenuContent>
     </DropdownMenu>

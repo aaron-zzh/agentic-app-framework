@@ -3,6 +3,7 @@ package com.xuejiai.aaf.framework.crud.enforcement;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -15,6 +16,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,6 +32,7 @@ import com.xuejiai.aaf.framework.crud.definition.FieldCapability;
 import com.xuejiai.aaf.framework.crud.definition.PersonalScope;
 import com.xuejiai.aaf.framework.crud.definition.TenantScope;
 import com.xuejiai.aaf.framework.crud.resource.CrudResourceCatalogEntry;
+import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationChallengeRequiredException;
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationDecision;
@@ -39,6 +42,11 @@ import com.xuejiai.aaf.framework.security.authorization.AuthorizationPlan;
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationRequest;
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationService;
 import com.xuejiai.aaf.test.BaseMockitoUnitTest;
+
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Path;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 
 class CrudEnforcementServiceTest extends BaseMockitoUnitTest {
 
@@ -54,6 +62,11 @@ class CrudEnforcementServiceTest extends BaseMockitoUnitTest {
     void setUp() {
         enforcementService = new CrudEnforcementService(operatorContext, authorizationService);
         prepareDefinition();
+    }
+
+    @AfterEach
+    void tearDown() {
+        OrgContext.clear();
     }
 
     @Test
@@ -240,6 +253,89 @@ class CrudEnforcementServiceTest extends BaseMockitoUnitTest {
                 .isInstanceOf(AuthorizationChallengeRequiredException.class)
                 .extracting("challengeId")
                 .isEqualTo(challengeId);
+    }
+
+    @Test
+    @DisplayName("Given super_admin 全组织上下文 When 执行 QUERY preflight Then 移除组织租户范围")
+    void should_bypass_tenant_scope_for_super_admin_query_in_all_organizations() {
+        // 准备参数
+        OrgContext.useAllOrganizations();
+        when(authorizationService.isCurrentSubjectSuperAdmin()).thenReturn(true);
+        when(authorizationService.authorize(any())).thenReturn(allowedCrudDecision(Map.of()));
+        when(definition.tenantScope()).thenReturn(TenantScope.ORG_REQUIRED);
+
+        // 调用
+        CrudEnforcementDecision<TestEntity> decision =
+                enforcementService.enforceRequest(entry, CrudOperation.QUERY, AccessMode.DEFAULT);
+
+        // 断言
+        assertThat(decision.orgId()).isNull();
+        assertThat(decision.workspaceId()).isNull();
+        assertThat(decision.tenantScopeSpecification().toPredicate(null, null, null)).isNull();
+        verify(authorizationService).authorize(any());
+    }
+
+    @Test
+    @DisplayName("Given super_admin 当前组织全工作区上下文 When 执行 QUERY Then 仅保留组织租户条件")
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void should_keep_only_org_scope_for_super_admin_query_in_all_workspaces() {
+        // 准备参数
+        OrgContext.setCurrentOrgId(31L);
+        OrgContext.useAllWorkspaces();
+        when(authorizationService.isCurrentSubjectSuperAdmin()).thenReturn(true);
+        when(authorizationService.authorize(any())).thenReturn(allowedCrudDecision(Map.of()));
+        when(definition.tenantScope()).thenReturn(TenantScope.WORKSPACE_REQUIRED);
+        var root = mock(Root.class);
+        var orgPath = mock(Path.class);
+        var criteriaBuilder = mock(CriteriaBuilder.class);
+        var predicate = mock(Predicate.class);
+        when(root.get("orgId")).thenReturn(orgPath);
+        when(criteriaBuilder.equal(orgPath, 31L)).thenReturn(predicate);
+
+        // 调用
+        CrudEnforcementDecision<TestEntity> decision =
+                enforcementService.enforceRequest(entry, CrudOperation.QUERY, AccessMode.DEFAULT);
+        var actual = decision.tenantScopeSpecification().toPredicate(root, null, criteriaBuilder);
+
+        // 断言
+        assertThat(actual).isSameAs(predicate);
+        verify(root, never()).get("workspaceId");
+    }
+
+    @Test
+    @DisplayName("Given 非 super_admin 全组织上下文 When 执行 QUERY preflight Then 在 PDP 前拒绝")
+    void should_reject_all_organizations_query_for_non_super_admin() {
+        // 准备参数
+        OrgContext.useAllOrganizations();
+        when(authorizationService.isCurrentSubjectSuperAdmin()).thenReturn(false);
+
+        // 调用 + 断言
+        assertThatThrownBy(
+                        () ->
+                                enforcementService.enforceRequest(
+                                        entry, CrudOperation.QUERY, AccessMode.DEFAULT))
+                .isInstanceOf(com.xuejiai.aaf.common.exception.BusinessException.class)
+                .extracting("code")
+                .isEqualTo(403);
+        verify(authorizationService, never()).authorize(any());
+    }
+
+    @Test
+    @DisplayName("Given super_admin 全组织上下文 When 执行 CREATE preflight Then 在 PDP 前拒绝")
+    void should_reject_mutation_in_all_organizations() {
+        // 准备参数
+        OrgContext.useAllOrganizations();
+        when(authorizationService.isCurrentSubjectSuperAdmin()).thenReturn(true);
+
+        // 调用 + 断言
+        assertThatThrownBy(
+                        () ->
+                                enforcementService.enforceRequest(
+                                        entry, CrudOperation.CREATE, AccessMode.DEFAULT))
+                .isInstanceOf(com.xuejiai.aaf.common.exception.BusinessException.class)
+                .extracting("code")
+                .isEqualTo(403);
+        verify(authorizationService, never()).authorize(any());
     }
 
     private void prepareDefinition() {

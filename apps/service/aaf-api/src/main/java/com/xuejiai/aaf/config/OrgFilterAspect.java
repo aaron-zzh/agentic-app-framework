@@ -77,8 +77,10 @@ public class OrgFilterAspect {
                     + "within(com.xuejiai.aaf..*)")
     public Object enableOrgFilter(ProceedingJoinPoint joinPoint) throws Throwable {
         var session = entityManager.unwrap(org.hibernate.Session.class);
-        if (OrgContext.isIgnore() || isGlobalEntityRepository(joinPoint)) {
-            // 显式声明豁免（如全局性后台任务，见 @OrgIgnore）或目标实体本身是全局配置类型，
+        if (OrgContext.isIgnore()
+                || OrgContext.isAllOrganizations()
+                || isGlobalEntityRepository(joinPoint)) {
+            // 显式声明豁免、super_admin 全组织只读上下文，或目标实体本身是全局配置类型时，
             // 不启用过滤器也不 fail-closed；同一 Session 可能被前序调用启用过 orgFilter
             // （Hibernate Filter 状态绑定在 Session 而非单次查询上），此处必须显式关闭，
             // 否则会残留污染本次本应豁免的查询，导致全局配置类实体被误套 org_id 条件。

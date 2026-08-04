@@ -10,7 +10,7 @@ vi.mock("@/lib/api/rest/backend-client", () => ({
   setBackendOrgId: vi.fn()
 }))
 
-import { useOrgStore } from "./org-store"
+import { ALL_ORGANIZATIONS_ID, useOrgStore } from "./org-store"
 
 function org(id: string, name = id): OrganizationVO {
   return { id, name, slug: id }
@@ -43,6 +43,18 @@ describe("useOrgStore.ensureDefaultOrg", () => {
     useOrgStore.setState({ currentOrgId: "org-stale" })
     const orgs = [org("org-1"), org("org-2")]
     useOrgStore.getState().ensureDefaultOrg(orgs)
+    expect(useOrgStore.getState().currentOrgId).toBe("org-1")
+  })
+
+  it("super_admin 当前选择全部组织时保持 all", () => {
+    useOrgStore.setState({ currentOrgId: ALL_ORGANIZATIONS_ID })
+    useOrgStore.getState().ensureDefaultOrg([org("org-1")], ["SUPER_ADMIN"])
+    expect(useOrgStore.getState().currentOrgId).toBe(ALL_ORGANIZATIONS_ID)
+  })
+
+  it("非 super_admin 恢复到 all 时回退具体组织", () => {
+    useOrgStore.setState({ currentOrgId: ALL_ORGANIZATIONS_ID })
+    useOrgStore.getState().ensureDefaultOrg([org("org-1")], ["admin"])
     expect(useOrgStore.getState().currentOrgId).toBe("org-1")
   })
 })

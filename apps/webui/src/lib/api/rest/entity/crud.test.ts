@@ -91,6 +91,33 @@ describe("request()", () => {
     )
   })
 
+  it("应支持 all 组织与 all 工作区请求头，并可清除工作区头", async () => {
+    useOrgStore.getState().setCurrentOrgId("org-1")
+    useUIStore.getState().setCurrentWorkspace({ id: "all", name: "全部工作区" })
+    mockBackendResponse({ code: 0, data: [] })
+
+    await request("/documents")
+
+    expect(mockBackendRequest).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "X-Org-Id": "org-1",
+          "X-Workspace-Id": "all"
+        })
+      })
+    )
+
+    useUIStore.getState().setCurrentWorkspace(null)
+    useOrgStore.getState().setCurrentOrgId("all")
+    mockBackendResponse({ code: 0, data: [] })
+
+    await request("/documents")
+
+    const headers = mockBackendRequest.mock.calls.at(-1)?.[0].headers
+    expect(headers["X-Org-Id"]).toBe("all")
+    expect(headers["X-Workspace-Id"]).toBeUndefined()
+  })
+
   it("401 响应应触发 token 刷新并重试", async () => {
     useAuthStore.setState({
       accessToken: "expired-token",

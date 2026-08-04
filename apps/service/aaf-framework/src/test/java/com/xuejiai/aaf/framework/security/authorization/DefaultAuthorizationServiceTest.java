@@ -16,6 +16,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,6 +24,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.Mock;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.test.BaseMockitoUnitTest;
@@ -46,6 +50,7 @@ class DefaultAuthorizationServiceTest extends BaseMockitoUnitTest {
 
     @BeforeEach
     void setUp() {
+        SecurityContextHolder.clearContext();
         org.mockito.Mockito.lenient()
                 .when(auditProvider.orderedStream())
                 .thenAnswer(ignored -> Stream.empty());
@@ -66,6 +71,37 @@ class DefaultAuthorizationServiceTest extends BaseMockitoUnitTest {
                         auditProvider,
                         new PolicyDslCompiler(),
                         new PolicyExpressionEvaluator());
+    }
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    @DisplayName("Given 已认证主体具有精确 ROLE_SUPER_ADMIN When 查询中央判定 Then 返回 true")
+    void should_identify_authenticated_super_admin_authority() {
+        // 准备参数
+        var authentication =
+                new UsernamePasswordAuthenticationToken(
+                        "7", "", List.of(new SimpleGrantedAuthority("ROLE_SUPER_ADMIN")));
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        // 调用 + 断言
+        assertThat(service.isCurrentSubjectSuperAdmin()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Given authority 大小写不匹配 When 查询中央判定 Then 返回 false")
+    void should_reject_non_exact_super_admin_authority() {
+        // 准备参数
+        var authentication =
+                new UsernamePasswordAuthenticationToken(
+                        "7", "", List.of(new SimpleGrantedAuthority("ROLE_super_admin")));
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        // 调用 + 断言
+        assertThat(service.isCurrentSubjectSuperAdmin()).isFalse();
     }
 
     @Test

@@ -9,6 +9,7 @@ import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationService;
 import com.xuejiai.aaf.module.system.org.repository.OrgMemberRepository;
 import com.xuejiai.aaf.module.system.org.repository.WorkspaceMemberRepository;
 import com.xuejiai.aaf.module.system.org.repository.WorkspaceRepository;
@@ -37,8 +38,10 @@ public class OrgFilter implements Filter {
 
     private static final String HEADER_ORG_ID = "X-Org-Id";
     private static final String HEADER_WORKSPACE_ID = "X-Workspace-Id";
+    private static final String ALL_ORGANIZATIONS = "all";
 
     private final OperatorContext operatorContext;
+    private final AuthorizationService authorizationService;
     private final OrgMemberRepository orgMemberRepository;
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
@@ -67,6 +70,22 @@ public class OrgFilter implements Filter {
         if (orgIdHeader == null || orgIdHeader.isBlank()) {
             return true;
         }
+        if (ALL_ORGANIZATIONS.equalsIgnoreCase(orgIdHeader)) {
+            if (!"GET".equalsIgnoreCase(httpRequest.getMethod())) {
+                writeForbidden(response, "全组织上下文仅支持读取请求");
+                return false;
+            }
+            if (httpRequest.getHeader(HEADER_WORKSPACE_ID) != null) {
+                writeForbidden(response, "全组织上下文不能指定工作区");
+                return false;
+            }
+            if (!authorizationService.isCurrentSubjectSuperAdmin()) {
+                writeForbidden(response, "仅超级管理员可查看全部组织数据");
+                return false;
+            }
+            OrgContext.useAllOrganizations();
+            return true;
+        }
         Long orgId;
         try {
             orgId = Long.valueOf(orgIdHeader);
@@ -76,11 +95,13 @@ public class OrgFilter implements Filter {
         }
         // 未认证请求无法校验归属，交由后续鉴权链处理（如接口本身要求登录会在此之后拦截）
         var userId = operatorContext.currentOwnerId().orElse(null);
+        var isSuperAdmin = userId != null && authorizationService.isCurrentSubjectSuperAdmin();
         // 此刻 OrgContext 尚未设置 orgId（正在校验中），这次校验查询本身需豁免
         // OrgFilterAspect 的 fail-closed 检查，否则会陷入"为校验 orgId 而查询，
         // 却因缺少 orgId 被拦截"的自相矛盾。
         var belongsToOrg =
                 userId == null
+                        || isSuperAdmin
                         || OrgContext.runIgnoring(
                                 () ->
                                         orgMemberRepository.existsByOrgIdAndUserIdAndDeletedFalse(
@@ -100,6 +121,19 @@ public class OrgFilter implements Filter {
         if (workspaceIdHeader == null || workspaceIdHeader.isBlank()) {
             return true;
         }
+        if (ALL_ORGANIZATIONS.equalsIgnoreCase(workspaceIdHeader)) {
+            if (!"GET".equalsIgnoreCase(httpRequest.getMethod())) {
+                writeForbidden(response, "全工作区上下文仅支持读取请求");
+                return false;
+            }
+            if (OrgContext.getCurrentOrgId() == null
+                    || !authorizationService.isCurrentSubjectSuperAdmin()) {
+                writeForbidden(response, "仅超级管理员可查看当前组织的全部工作区数据");
+                return false;
+            }
+            OrgContext.useAllWorkspaces();
+            return true;
+        }
         Long workspaceId;
         try {
             workspaceId = Long.valueOf(workspaceIdHeader);
@@ -109,8 +143,10 @@ public class OrgFilter implements Filter {
         }
         var userId = operatorContext.currentOwnerId().orElse(null);
         var orgId = OrgContext.getCurrentOrgId();
+        var isSuperAdmin = userId != null && authorizationService.isCurrentSubjectSuperAdmin();
         var belongsToWorkspace =
                 userId == null
+                        || isSuperAdmin
                         || OrgContext.runIgnoring(
                                 () -> {
                                     var workspace =

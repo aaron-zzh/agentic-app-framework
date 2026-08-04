@@ -172,7 +172,7 @@ public final class DefaultAuthorizationService implements AuthorizationService {
             return LayerDecision.of(
                     AuthorizationLayer.L1_FUNCTION, AuthorizationEffect.ALLOW, "主体已认证");
         }
-        if (hasSuperAdminAuthority()) {
+        if (isCurrentSubjectSuperAdmin()) {
             return LayerDecision.of(
                     AuthorizationLayer.L1_FUNCTION, AuthorizationEffect.ALLOW, "超级管理员");
         }
@@ -246,7 +246,7 @@ public final class DefaultAuthorizationService implements AuthorizationService {
             return LayerDecision.of(
                     AuthorizationLayer.L2_RELATION, AuthorizationEffect.DENY, "主体未认证");
         }
-        if (hasSuperAdminAuthority()) {
+        if (isCurrentSubjectSuperAdmin()) {
             return LayerDecision.of(
                     AuthorizationLayer.L2_RELATION, AuthorizationEffect.ALLOW, "超级管理员");
         }
@@ -600,9 +600,11 @@ public final class DefaultAuthorizationService implements AuthorizationService {
                 && Objects.equals(challenge.requestDigest(), request.digest());
     }
 
-    private boolean hasSuperAdminAuthority() {
+    @Override
+    public boolean isCurrentSubjectSuperAdmin() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         return authentication != null
+                && authentication.isAuthenticated()
                 && authentication.getAuthorities().stream()
                         .map(GrantedAuthority::getAuthority)
                         .anyMatch("ROLE_SUPER_ADMIN"::equals);

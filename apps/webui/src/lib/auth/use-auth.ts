@@ -49,7 +49,7 @@ export function useAuth() {
   const ensureOrgContext = useCallback(async () => {
     try {
       const orgs = await organizationApi.list()
-      useOrgStore.getState().ensureDefaultOrg(orgs)
+      useOrgStore.getState().ensureDefaultOrg(orgs, useAuthStore.getState().user?.roles)
     } catch {
       // 拉取组织列表失败不阻塞鉴权流程，后续页面请求会因缺少 X-Org-Id 收到 403，
       // 用户可感知并重试，不在此处静默吞掉导致状态不一致

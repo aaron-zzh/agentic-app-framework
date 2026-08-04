@@ -53,4 +53,24 @@ public enum CrudOperation {
     public CrudAction action() {
         return action;
     }
+
+    /** 是否允许在 super_admin 全组织上下文中执行。 */
+    public boolean allowedInAllOrganizations() {
+        return switch (this) {
+            case PAGE, QUERY, GET, OPTIONS, META -> true;
+            case BATCH_READ,
+                    EXPORT,
+                    GROUP,
+                    IMPORT,
+                    VALIDATE,
+                    CREATE,
+                    UPDATE,
+                    DELETE,
+                    DELETE_BATCH,
+                    ARCHIVE,
+                    RESTORE,
+                    REFERENCE ->
+                    false;
+        };
+    }
 }

@@ -20,5 +20,7 @@ public interface OrganizationRepository extends JpaRepository<Organization, Long
 
     Optional<Organization> findByOwnerIdAndTypeAndDeletedFalse(Long ownerId, String type);
 
+    List<Organization> findAllByDeletedFalse();
+
     List<Organization> findByIdInAndDeletedFalse(List<Long> ids);
 }

@@ -115,6 +115,84 @@ class CrudDataAuthorizationProviderTest extends BaseMockitoUnitTest {
         assertThat(failed.constraint()).isNull();
     }
 
+    @Test
+    @DisplayName("Given 显式全工作区上下文且主体绑定组织 When PDP 求值 Then 继续编译 L3 约束")
+    void should_accept_explicit_all_workspaces_context() {
+        // 准备参数
+        OrgContext.setCurrentOrgId(31L);
+        OrgContext.useAllWorkspaces();
+        when(recordRuleSupportProvider.getIfAvailable()).thenReturn(recordRuleSupport);
+        when(fieldAccessSupportProvider.getIfAvailable()).thenReturn(fieldAccessSupport);
+        when(recordRuleSupport.<Object>compile("system.todo", 7L))
+                .thenReturn(RecordRule.allowAll("rule-workspaces"));
+        when(fieldAccessSupport.deniedFields("system.todo", 7L)).thenReturn(Map.of());
+
+        // 调用
+        var result = provider.evaluate(allWorkspacesRequest(), requirement());
+
+        // 断言
+        assertThat(result.effect()).isEqualTo(AuthorizationEffect.ALLOW);
+        assertThat(result.constraint())
+                .isInstanceOfSatisfying(
+                        CrudDataAuthorizationConstraint.class,
+                        constraint ->
+                                assertThat(constraint.accessVersion())
+                                        .isEqualTo("rule-workspaces"));
+    }
+
+    private AuthorizationRequest allWorkspacesRequest() {
+        var plan =
+                new AuthorizationPlan(
+                        AuthorizationPlan.FunctionRequirement.authenticated(),
+                        null,
+                        AuthorizationPlan.DataPlan.all(requirement()),
+                        null);
+        return new AuthorizationRequest(
+                new AuthorizationSubject(7L, 7L, 31L, null),
+                new AuthorizationTarget("system.todo", "read", null),
+                plan,
+                Map.of(),
+                Duration.ofMinutes(10));
+    }
+
+    @Test
+    @DisplayName("Given 显式全组织上下文且主体租户为空 When PDP 求值 Then 继续编译 L3 约束")
+    void should_accept_explicit_all_organizations_context() {
+        // 准备参数
+        OrgContext.useAllOrganizations();
+        when(recordRuleSupportProvider.getIfAvailable()).thenReturn(recordRuleSupport);
+        when(fieldAccessSupportProvider.getIfAvailable()).thenReturn(fieldAccessSupport);
+        when(recordRuleSupport.<Object>compile("system.todo", 7L))
+                .thenReturn(RecordRule.allowAll("rule-global"));
+        when(fieldAccessSupport.deniedFields("system.todo", 7L)).thenReturn(Map.of());
+
+        // 调用
+        var result = provider.evaluate(allOrganizationsRequest(), requirement());
+
+        // 断言
+        assertThat(result.effect()).isEqualTo(AuthorizationEffect.ALLOW);
+        assertThat(result.constraint())
+                .isInstanceOfSatisfying(
+                        CrudDataAuthorizationConstraint.class,
+                        constraint ->
+                                assertThat(constraint.accessVersion()).isEqualTo("rule-global"));
+    }
+
+    private AuthorizationRequest allOrganizationsRequest() {
+        var plan =
+                new AuthorizationPlan(
+                        AuthorizationPlan.FunctionRequirement.authenticated(),
+                        null,
+                        AuthorizationPlan.DataPlan.all(requirement()),
+                        null);
+        return new AuthorizationRequest(
+                new AuthorizationSubject(7L, 7L, null, null),
+                new AuthorizationTarget("system.todo", "read", null),
+                plan,
+                Map.of(),
+                Duration.ofMinutes(10));
+    }
+
     private AuthorizationRequest request() {
         var plan =
                 new AuthorizationPlan(

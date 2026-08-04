@@ -37,14 +37,22 @@ export {
   useNotificationPreference,
   useUpdateNotificationPreference
 } from "./notification-preference"
-export type { OrgAddMemberReq, OrganizationVO, OrgMemberVO, OrgUpdateReq } from "./organization"
+export type {
+  OrgAddMemberReq,
+  OrganizationVO,
+  OrgMemberVO,
+  OrgUpdateReq,
+  WorkspaceVO
+} from "./organization"
 export {
   organizationApi,
   useAddOrgMember,
   useOrganizations,
   useOrgMembers,
   useRemoveOrgMember,
-  useUpdateOrganization
+  useUpdateOrganization,
+  useWorkspaces,
+  workspaceApi
 } from "./organization"
 export type { EntityAccess, FieldAccess } from "./permission"
 export { fetchEntityAccess, useEntityAccess } from "./permission"

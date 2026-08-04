@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.framework.engine.entitlement.EntitlementChecker;
 import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationService;
 import com.xuejiai.aaf.module.system.org.domain.OrgMember;
 import com.xuejiai.aaf.module.system.org.domain.Organization;
 import com.xuejiai.aaf.module.system.org.repository.OrgMemberRepository;
@@ -43,9 +44,13 @@ public class OrganizationService {
     private final OrgMemberRepository memberRepository;
     private final EntitlementChecker entitlementChecker;
     private final OperatorContext operatorContext;
+    private final AuthorizationService authorizationService;
 
-    /** 获取用户所属的所有组织 */
+    /** 获取用户可切换的组织；super_admin 可切换全部组织，其他用户仅返回成员组织。 */
     public List<OrganizationVO> listByUser(Long userId) {
+        if (authorizationService.isCurrentSubjectSuperAdmin()) {
+            return orgRepository.findAllByDeletedFalse().stream().map(this::toVO).toList();
+        }
         var memberOrgIds =
                 memberRepository.findByUserIdAndDeletedFalse(userId).stream()
                         .map(OrgMember::getOrgId)

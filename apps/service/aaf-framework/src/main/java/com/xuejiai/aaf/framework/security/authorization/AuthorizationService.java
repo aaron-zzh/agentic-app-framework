@@ -7,6 +7,9 @@ public interface AuthorizationService {
 
     AuthorizationDecision authorize(AuthorizationRequest request);
 
+    /** 当前认证主体是否具有精确的 ROLE_SUPER_ADMIN authority。 */
+    boolean isCurrentSubjectSuperAdmin();
+
     boolean approveChallenge(UUID challengeId);
 
     /** 只读选择 APPROVED challenge 是否完整绑定当前请求，不执行消费。 */

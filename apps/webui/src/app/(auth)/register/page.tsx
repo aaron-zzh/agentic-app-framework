@@ -379,13 +379,13 @@ function RegisterPageInner() {
 
   async function handleSuccess(accessToken: string, refreshToken: string) {
     setTokens(accessToken, refreshToken)
-    const { user } = await authApi.me()
-    setUser(user)
+    const { user, roles } = await authApi.me()
+    setUser({ ...user, roles })
     // 新用户注册后端已自动创建 personal 组织（AuthService.createPersonalOrg），
     // 但前端 X-Org-Id 仍需显式拉取写入，否则跳转后的页面请求会因缺少组织上下文被拒绝
     try {
       const orgs = await organizationApi.list()
-      useOrgStore.getState().ensureDefaultOrg(orgs)
+      useOrgStore.getState().ensureDefaultOrg(orgs, roles)
     } catch {
       // 拉取组织列表失败不阻塞注册流程，后续由 checkAuth 兜底纠正
     }

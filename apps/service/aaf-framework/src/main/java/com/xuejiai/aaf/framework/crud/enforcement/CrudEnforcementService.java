@@ -172,6 +172,13 @@ public final class CrudEnforcementService {
             boolean requestLevelPolicy,
             boolean customUpdate) {
         requireAccessModeContext(accessMode);
+        var allOrganizations = OrgContext.isAllOrganizations();
+        var allWorkspaces = OrgContext.isAllWorkspaces();
+        if ((allOrganizations || allWorkspaces)
+                && (!authorizationService.isCurrentSubjectSuperAdmin()
+                        || !operation.allowedInAllOrganizations())) {
+            throw exception(GlobalErrorCode.FORBIDDEN);
+        }
         var definition = entry.definition();
         if (!customUpdate) {
             requireOperation(definition, operation);
@@ -196,7 +203,14 @@ public final class CrudEnforcementService {
                 requireCrudDataConstraint(authorizationDecision, definition.entitySlug());
 
         var fieldPolicy = applyFieldConstraint(entry, dataConstraint);
-        var tenantScope = this.<E>tenantSpec(definition.tenantScope(), orgId, workspaceId);
+        Specification<E> tenantScope;
+        if (allOrganizations && definition.tenantScope() != TenantScope.GLOBAL) {
+            tenantScope = unrestrictedSpec();
+        } else if (allWorkspaces && definition.tenantScope() != TenantScope.GLOBAL) {
+            tenantScope = tenantSpec(TenantScope.ORG_REQUIRED, orgId, null);
+        } else {
+            tenantScope = tenantSpec(definition.tenantScope(), orgId, workspaceId);
+        }
         var recordScope = dataConstraint.<E>typedRecordScope();
         var personalScope = this.<E>personalSpec(definition.personalScope(), subjectId, accessMode);
         var scope = Specification.<E>allOf(tenantScope, recordScope, personalScope);

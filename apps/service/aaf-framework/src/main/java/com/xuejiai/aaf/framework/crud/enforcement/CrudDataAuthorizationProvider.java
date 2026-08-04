@@ -101,6 +101,12 @@ public final class CrudDataAuthorizationProvider implements DataAuthorizationPro
                 || !Objects.equals(subject.workspaceId(), OrgContext.getCurrentWorkspaceId())) {
             return false;
         }
+        if (OrgContext.isAllOrganizations()) {
+            return subject.tenantId() == null && subject.workspaceId() == null;
+        }
+        if (OrgContext.isAllWorkspaces()) {
+            return subject.tenantId() != null && subject.workspaceId() == null;
+        }
         return switch (tenantScope) {
             case GLOBAL -> true;
             case ORG_REQUIRED, ORG_SHARED_WORKSPACE_OPTIONAL -> subject.tenantId() != null;

@@ -59,11 +59,12 @@ function LoginContent() {
     if (!accessToken || !refreshToken) return
 
     setTokens(accessToken, refreshToken)
-    authApi.me().then(async ({ user }) => {
-      setUser(user)
+    authApi.me().then(async ({ user, roles }) => {
+      const authUser = { ...user, roles } as AuthUser
+      setUser(authUser)
       try {
         const orgs = await organizationApi.list()
-        useOrgStore.getState().ensureDefaultOrg(orgs)
+        useOrgStore.getState().ensureDefaultOrg(orgs, roles)
       } catch {
         // 拉取组织列表失败不阻塞登录流程
       }
@@ -88,8 +89,14 @@ function LoginContent() {
     isNewUser?: boolean
   ) {
     setAxiosAuth(accessToken)
-    const { user } = await authApi.me()
-    pendingAuthRef.current = { accessToken, refreshToken, user, isNewUser: !!isNewUser }
+    const { user, roles } = await authApi.me()
+    const authUser = { ...user, roles } as AuthUser
+    pendingAuthRef.current = {
+      accessToken,
+      refreshToken,
+      user: authUser,
+      isNewUser: !!isNewUser
+    }
 
     try {
       const pending = await legalApi.pending()
@@ -132,7 +139,7 @@ function LoginContent() {
     // 确保登录后有有效的当前组织，否则后续请求会因缺少 X-Org-Id 被拒绝
     try {
       const orgs = await organizationApi.list()
-      useOrgStore.getState().ensureDefaultOrg(orgs)
+      useOrgStore.getState().ensureDefaultOrg(orgs, pending.user.roles)
     } catch {
       // 拉取组织列表失败不阻塞登录流程，后续页面可自行重试
     }

@@ -7,6 +7,7 @@ export type ThemeColor = "default" | "blue" | "purple" | "orange" | "green" | "r
 export interface WorkspaceItem {
   id: string
   name: string
+  orgId?: string
   logo?: string
 }
 
@@ -27,7 +28,7 @@ interface UIState {
   /** 当前工作区 */
   currentWorkspace: WorkspaceItem | null
   workspaces: WorkspaceItem[]
-  setCurrentWorkspace: (workspace: WorkspaceItem) => void
+  setCurrentWorkspace: (workspace: WorkspaceItem | null) => void
   setWorkspaces: (workspaces: WorkspaceItem[]) => void
 }
 
@@ -49,7 +50,7 @@ export const useUIStore = create<UIState>()(
       currentWorkspace: null,
       workspaces: [],
       setCurrentWorkspace: (workspace) => {
-        setBackendWorkspaceId(workspace.id)
+        setBackendWorkspaceId(workspace?.id ?? null)
         set({ currentWorkspace: workspace })
       },
       setWorkspaces: (workspaces) => set({ workspaces })

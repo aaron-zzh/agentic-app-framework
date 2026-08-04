@@ -4,6 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import type { PageResult } from "@/lib/api/types"
 import { backendApi } from "../backend-client"
 
 /** 组织信息 */
@@ -13,6 +14,16 @@ export interface OrganizationVO {
   slug: string
   logo?: string
   plan?: "free" | "pro" | "enterprise"
+}
+
+/** 工作区信息 */
+export interface WorkspaceVO {
+  id: string
+  orgId: string
+  name: string
+  slug: string
+  createBy: string
+  createTime: string
 }
 
 /** 组织成员 */
@@ -39,8 +50,11 @@ export interface OrgAddMemberReq {
 }
 
 export const organizationApi = {
-  /** 获取当前用户的组织列表 */
-  list: () => backendApi.get<OrganizationVO[]>("/system/orgs"),
+  /** 获取当前用户可切换的组织列表；该引导接口不依赖当前组织上下文。 */
+  list: () =>
+    backendApi.get<OrganizationVO[]>("/system/orgs", {
+      headers: { "X-Org-Id": "", "X-Workspace-Id": "" }
+    }),
 
   /** 更新组织信息 */
   update: (id: string, data: OrgUpdateReq) =>
@@ -58,16 +72,39 @@ export const organizationApi = {
     backendApi.delete<void>(`/system/orgs/${orgId}/members/${userId}`)
 }
 
+export const workspaceApi = {
+  /** 获取可切换工作区；super_admin 可用 all 一次加载全部组织工作区。 */
+  list: (orgId: string, allOrganizations: boolean) =>
+    backendApi.get<PageResult<WorkspaceVO>>("/system/workspaces", {
+      params: { pageNo: 1, pageSize: 500, sort: "id:asc" },
+      headers: {
+        "X-Org-Id": allOrganizations ? "all" : orgId,
+        "X-Workspace-Id": ""
+      }
+    })
+}
+
 const KEYS = {
   orgs: ["organizations"] as const,
+  workspaces: (orgId: string, allOrganizations: boolean) =>
+    ["workspaces", allOrganizations ? "all" : orgId] as const,
   members: (orgId: string) => ["organizations", orgId, "members"] as const
 }
 
-/** 查询当前用户的组织列表 */
+/** 查询当前用户可切换的组织列表。 */
 export function useOrganizations() {
   return useQuery({
     queryKey: KEYS.orgs,
     queryFn: organizationApi.list
+  })
+}
+
+/** 查询工作区列表；super_admin 可跨组织一次加载。 */
+export function useWorkspaces(orgId: string | null, allOrganizations: boolean) {
+  return useQuery({
+    queryKey: KEYS.workspaces(orgId ?? "", allOrganizations),
+    queryFn: () => workspaceApi.list(orgId ?? "", allOrganizations),
+    enabled: allOrganizations || (orgId != null && orgId !== "all")
   })
 }
 
