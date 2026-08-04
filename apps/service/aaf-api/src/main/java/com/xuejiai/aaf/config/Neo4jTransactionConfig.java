@@ -10,9 +10,7 @@ import org.springframework.data.neo4j.core.transaction.Neo4jTransactionManager;
 @Configuration(proxyBeanMethods = false)
 public class Neo4jTransactionConfig {
 
-    /**
-     * 为 Neo4jTemplate 提供专用事务管理器，但不参与默认事务管理器候选，避免抑制 JPA 自动配置。
-     */
+    /** 为 Neo4jTemplate 提供专用事务管理器，但不参与默认事务管理器候选，避免抑制 JPA 自动配置。 */
     @Bean(defaultCandidate = false)
     public Neo4jTransactionManager neo4jTransactionManager(
             Driver driver, DatabaseSelectionProvider databaseSelectionProvider) {
