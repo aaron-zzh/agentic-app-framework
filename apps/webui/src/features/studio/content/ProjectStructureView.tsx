@@ -18,7 +18,7 @@ import {
   TableRow
 } from "@/components/ui/table"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import type { ContentObjectType, ContentProjectGraphVO } from "@/lib/api/rest/content"
+import type { AigcObjectType, AigcProjectGraph } from "@/lib/api/rest/ai/aigc"
 import {
   getObjectStage,
   OBJECT_STATUS_LABELS,
@@ -26,6 +26,7 @@ import {
   PROJECT_GRAPH_STAGES,
   type ProjectGraphStage
 } from "./graph/graph-projection"
+import { getObjectTypeConfig } from "./project-type-config"
 
 const OBJECT_STATUS_TONE = {
   empty: "neutral",
@@ -36,8 +37,13 @@ const OBJECT_STATUS_TONE = {
   done: "emerald"
 } as const
 
+function ObjectTypeIcon({ type }: { type: AigcObjectType }) {
+  const Icon = getObjectTypeConfig(type).icon
+  return <Icon />
+}
+
 export interface ProjectStructureViewProps {
-  graph: ContentProjectGraphVO
+  graph: AigcProjectGraph
   activeStage: ProjectGraphStage
   focusObjectId?: number
   readOnly?: boolean
@@ -60,7 +66,7 @@ export function ProjectStructureView({
   const stageObjects = graph.objects
     .filter((object) => getObjectStage(object) === activeStage)
     .toSorted((left, right) => left.sortOrder - right.sortOrder || left.id - right.id)
-  const groups = new Map<ContentObjectType, typeof stageObjects>()
+  const groups = new Map<AigcObjectType, typeof stageObjects>()
   for (const object of stageObjects) {
     const current = groups.get(object.objectType) ?? []
     groups.set(object.objectType, [...current, object])
@@ -151,7 +157,10 @@ export function ProjectStructureView({
             >
               <div className="flex items-center justify-between border-b px-4 py-3">
                 <div>
-                  <h3 className="font-medium text-sm">{OBJECT_TYPE_LABELS[type]}</h3>
+                  <h3 className="flex items-center gap-2 font-medium text-sm">
+                    <ObjectTypeIcon type={type} />
+                    {OBJECT_TYPE_LABELS[type]}
+                  </h3>
                   <p className="text-muted-foreground text-xs">{objects.length} 项</p>
                 </div>
                 <NeonChip tone="neutral" size="sm">

@@ -14,7 +14,7 @@ import { API_ORIGIN } from "@/lib/api/config"
 import { useMediaDetails } from "@/lib/api/rest/media"
 import { useFileUpload } from "@/lib/hooks/use-file-upload"
 import { cn } from "@/lib/utils/index"
-import { useAigcStore, type UploadedReferenceDraft } from "../store"
+import { type UploadedReferenceDraft, useAigcStore } from "../store"
 
 function ReferenceThumbnail({
   name,
@@ -53,9 +53,7 @@ export function ReferenceDropZone({
   const mediaQueries = useMediaDetails(referenceMediaIds)
   const media = mediaQueries.flatMap((query) => (query.data ? [query.data] : []))
   const removeReferenceMediaId = useAigcStore((state) => state.removeReferenceMediaId)
-  const removeUploadedReferenceDraft = useAigcStore(
-    (state) => state.removeUploadedReferenceDraft
-  )
+  const removeUploadedReferenceDraft = useAigcStore((state) => state.removeUploadedReferenceDraft)
   const addUploadedReferenceDraft = useAigcStore((state) => state.addUploadedReferenceDraft)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)

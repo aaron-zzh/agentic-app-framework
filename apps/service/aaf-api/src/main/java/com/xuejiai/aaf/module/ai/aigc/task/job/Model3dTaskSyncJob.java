@@ -49,10 +49,7 @@ public class Model3dTaskSyncJob {
                 if (result.status() == TaskStatus.SUCCEEDED) {
                     String modelUrl =
                             result.modelUrl() != null ? result.modelUrl() : result.baseModelUrl();
-                    log.info(
-                            "[Model3dSync] 任务完成: aigcTaskId={}, url={}",
-                            task.getId(),
-                            modelUrl);
+                    log.info("[Model3dSync] 任务完成: aigcTaskId={}, url={}", task.getId(), modelUrl);
                     permissionExecutionService.runAsOwner(
                             task.getUserId(),
                             "3D任务完成",

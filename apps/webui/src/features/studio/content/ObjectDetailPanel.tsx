@@ -1,7 +1,5 @@
 /**
- * Content Studio 对象详情、版本与执行诊断面板。
- *
- * 服务端对象、版本和运行记录只从 TanStack Query 读取；采用动作始终经过明确确认。
+ * Content Studio 对象详情、版本、执行、作品与时间线面板。
  * @author AaronZZH & Kiro
  */
 
@@ -24,24 +22,27 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type {
-  ContentExecutionStatus,
-  ContentObjectVersionStatus,
-  ContentProjectObjectVO
-} from "@/lib/api/rest/content"
+  AigcExecutionStatus,
+  AigcObjectVersionStatus,
+  AigcProject,
+  AigcProjectObject
+} from "@/lib/api/rest/ai/aigc"
 import {
-  useAdoptContentObjectVersion,
-  useCancelContentExecutionRun,
-  useContentExecutionRuns,
-  useContentObjectVersions,
-  useRejectContentObjectVersion,
-  useRetryContentExecutionRun
-} from "@/lib/api/rest/content"
+  useAdoptAigcObjectVersion,
+  useAigcExecutionRuns,
+  useAigcObjectVersions,
+  useCancelAigcExecutionRun,
+  useRejectAigcObjectVersion,
+  useRetryAigcExecutionRun
+} from "@/lib/api/rest/ai/aigc"
 import { notify } from "@/lib/notification"
 import { OBJECT_STATUS_LABELS, OBJECT_TYPE_LABELS } from "./graph/graph-projection"
+import { ObjectWorkPanel } from "./ObjectWorkPanel"
+import { TimelinePanel } from "./TimelinePanel"
 
-const VERSION_STATUS_LABELS: Record<ContentObjectVersionStatus, string> = {
+const VERSION_STATUS_LABELS: Record<AigcObjectVersionStatus, string> = {
   candidate: "候选",
-  adopted: "adopted",
+  adopted: "已采用",
   rejected: "已否决",
   superseded: "已被取代"
 }
@@ -53,7 +54,7 @@ const VERSION_STATUS_VARIANT = {
   superseded: "secondary"
 } as const
 
-const EXECUTION_STATUS_LABELS: Record<ContentExecutionStatus, string> = {
+const EXECUTION_STATUS_LABELS: Record<AigcExecutionStatus, string> = {
   pending: "等待中",
   running: "执行中",
   succeeded: "已成功",
@@ -71,40 +72,42 @@ const EXECUTION_STATUS_VARIANT = {
 
 export interface ObjectDetailPanelProps {
   open: boolean
-  object?: ContentProjectObjectVO
-  readOnly?: boolean
+  project: AigcProject
+  object?: AigcProjectObject
   onOpenChange: (open: boolean) => void
 }
 
-export function ObjectDetailPanel({
-  open,
-  object,
-  readOnly = false,
-  onOpenChange
-}: ObjectDetailPanelProps) {
+export function ObjectDetailPanel({ open, project, object, onOpenChange }: ObjectDetailPanelProps) {
   const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null)
   const [selectedRunId, setSelectedRunId] = useState<number | null>(null)
   const objectId = object?.id ?? null
-  const { data: versions = [], isLoading: versionsLoading } = useContentObjectVersions(objectId)
-  const { data: runPage, isLoading: runsLoading } = useContentExecutionRuns(
-    {
-      objectId: object?.id,
-      projectId: object?.projectId
-    },
+  const mutable = project.status === "draft" || project.status === "in_progress"
+  const { data: versions = [], isLoading: versionsLoading } = useAigcObjectVersions(
+    object?.projectId ?? null,
+    objectId
+  )
+  const { data: runPage, isLoading: runsLoading } = useAigcExecutionRuns(
+    { objectId: object?.id, projectId: object?.projectId },
     object !== undefined
   )
-  const adoptVersion = useAdoptContentObjectVersion()
-  const rejectVersion = useRejectContentObjectVersion()
-  const cancelRun = useCancelContentExecutionRun()
-  const retryRun = useRetryContentExecutionRun()
+  const adoptVersion = useAdoptAigcObjectVersion()
+  const rejectVersion = useRejectAigcObjectVersion()
+  const cancelRun = useCancelAigcExecutionRun()
+  const retryRun = useRetryAigcExecutionRun()
   const runs = runPage?.list ?? []
   const selectedRun = runs.find((run) => run.id === selectedRunId)
   const selectedVersion = versions.find((version) => version.id === selectedVersionId)
+  const timelineAvailable = object?.objectType === "video_deliverable"
 
   function handleAdopt() {
-    if (readOnly || !object || selectedVersionId === null) return
+    if (!mutable || !object || selectedVersionId === null) return
     adoptVersion.mutate(
-      { objectId: object.id, versionId: selectedVersionId },
+      {
+        projectId: project.id,
+        objectId: object.id,
+        versionId: selectedVersionId,
+        expectedProjectVersion: project.version
+      },
       {
         onSuccess: () => {
           setSelectedVersionId(null)
@@ -115,9 +118,14 @@ export function ObjectDetailPanel({
   }
 
   function handleReject(versionId: number) {
-    if (readOnly || !object) return
+    if (!mutable || !object) return
     rejectVersion.mutate(
-      { objectId: object.id, versionId },
+      {
+        projectId: project.id,
+        objectId: object.id,
+        versionId,
+        expectedProjectVersion: project.version
+      },
       { onSuccess: () => notify.success("候选版本已否决") }
     )
   }
@@ -131,9 +139,7 @@ export function ObjectDetailPanel({
           </SheetTitle>
           <SheetDescription>
             {object
-              ? readOnly
-                ? `${OBJECT_TYPE_LABELS[object.objectType]} · #${object.objectKey} · 项目已归档，采用、否决、取消与重试均已禁用`
-                : `${OBJECT_TYPE_LABELS[object.objectType]} · #${object.objectKey}`
+              ? `${OBJECT_TYPE_LABELS[object.objectType]} · #${object.objectKey}${mutable ? "" : ` · ${project.status} 阶段只读`}`
               : "查看项目对象"}
           </SheetDescription>
         </SheetHeader>
@@ -143,7 +149,9 @@ export function ObjectDetailPanel({
             <TabsList className="w-full">
               <TabsTrigger value="detail">详情</TabsTrigger>
               <TabsTrigger value="versions">版本</TabsTrigger>
-              <TabsTrigger value="executions">执行详情</TabsTrigger>
+              <TabsTrigger value="executions">执行</TabsTrigger>
+              <TabsTrigger value="work">作品</TabsTrigger>
+              {timelineAvailable ? <TabsTrigger value="timeline">时间线</TabsTrigger> : null}
             </TabsList>
 
             <TabsContent value="detail" className="min-h-0">
@@ -158,7 +166,7 @@ export function ObjectDetailPanel({
                   <dt className="text-muted-foreground">来源</dt>
                   <dd>{object.source}</dd>
                   <dt className="text-muted-foreground">采用版本</dt>
-                  <dd>{object.adoptedVersionRef || "尚未采用"}</dd>
+                  <dd>{object.adoptedVersionId ? `#${object.adoptedVersionId}` : "尚未采用"}</dd>
                   <dt className="text-muted-foreground">摘要</dt>
                   <dd>{object.summary || "暂无摘要"}</dd>
                 </dl>
@@ -182,7 +190,7 @@ export function ObjectDetailPanel({
                   <Empty className="min-h-56">
                     <EmptyHeader>
                       <EmptyTitle>暂无对象版本</EmptyTitle>
-                      <EmptyDescription>执行成功后会先在这里产生候选版本。</EmptyDescription>
+                      <EmptyDescription>执行成功后会先产生候选版本。</EmptyDescription>
                     </EmptyHeader>
                   </Empty>
                 ) : (
@@ -202,7 +210,7 @@ export function ObjectDetailPanel({
                                 type="button"
                                 variant="outline"
                                 size="xs"
-                                disabled={readOnly || rejectVersion.isPending}
+                                disabled={!mutable || rejectVersion.isPending}
                                 onClick={() => handleReject(version.id)}
                               >
                                 否决
@@ -210,7 +218,7 @@ export function ObjectDetailPanel({
                               <Button
                                 type="button"
                                 size="xs"
-                                disabled={readOnly || adoptVersion.isPending}
+                                disabled={!mutable || adoptVersion.isPending}
                                 onClick={() => setSelectedVersionId(version.id)}
                               >
                                 采用
@@ -222,11 +230,9 @@ export function ObjectDetailPanel({
                           {version.summary || "暂无版本摘要"}
                         </p>
                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground text-xs">
-                          <span>来源 ExecutionRun #{version.executionRunId ?? "-"}</span>
+                          <span>ExecutionRun #{version.executionRunId ?? "-"}</span>
                           <span>{new Date(version.createTime).toLocaleString("zh-CN")}</span>
-                          {version.supersededByVersionId ? (
-                            <span>被版本 #{version.supersededByVersionId} 取代</span>
-                          ) : null}
+                          <span>{version.mediaVersionIds.length} 个 MediaVersion</span>
                         </div>
                       </div>
                     ))}
@@ -243,7 +249,7 @@ export function ObjectDetailPanel({
                   <Empty className="min-h-56">
                     <EmptyHeader>
                       <EmptyTitle>暂无执行记录</EmptyTitle>
-                      <EmptyDescription>该对象还没有关联的 ExecutionRun。</EmptyDescription>
+                      <EmptyDescription>该对象还没有关联 AigcExecutionRun。</EmptyDescription>
                     </EmptyHeader>
                   </Empty>
                 ) : (
@@ -269,12 +275,11 @@ export function ObjectDetailPanel({
                         </Button>
                       ))}
                     </div>
-
                     {selectedRun ? (
                       <div className="flex flex-col gap-3 rounded-xl border p-4">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div>
-                            <p className="font-medium">ExecutionRun #{selectedRun.id}</p>
+                            <p className="font-medium">AigcExecutionRun #{selectedRun.id}</p>
                             <p className="text-muted-foreground text-xs">
                               {selectedRun.targetType} · {selectedRun.targetRef || "未记录目标"}
                             </p>
@@ -285,14 +290,15 @@ export function ObjectDetailPanel({
                               variant="outline"
                               size="xs"
                               disabled={
-                                readOnly ||
+                                !mutable ||
                                 !["pending", "running"].includes(selectedRun.status) ||
                                 cancelRun.isPending
                               }
                               onClick={() =>
-                                cancelRun.mutate(selectedRun.id, {
-                                  onSuccess: () => notify.success("执行已取消")
-                                })
+                                cancelRun.mutate(
+                                  { id: selectedRun.id },
+                                  { onSuccess: () => notify.success("执行已取消") }
+                                )
                               }
                             >
                               <CircleStop />
@@ -303,7 +309,7 @@ export function ObjectDetailPanel({
                               variant="outline"
                               size="xs"
                               disabled={
-                                readOnly ||
+                                !mutable ||
                                 !["failed", "canceled"].includes(selectedRun.status) ||
                                 retryRun.isPending
                               }
@@ -323,33 +329,39 @@ export function ObjectDetailPanel({
                           </div>
                         </div>
                         <dl className="grid grid-cols-[6rem_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
-                          <dt className="text-muted-foreground">动作</dt>
-                          <dd>{selectedRun.actionKey}</dd>
                           <dt className="text-muted-foreground">状态</dt>
                           <dd>{EXECUTION_STATUS_LABELS[selectedRun.status]}</dd>
                           <dt className="text-muted-foreground">费用</dt>
                           <dd>{selectedRun.costCredits ?? "未结算"}</dd>
                           <dt className="text-muted-foreground">模型</dt>
                           <dd>{selectedRun.selectedModelVersion || "自动路由"}</dd>
+                          <dt className="text-muted-foreground">子任务</dt>
+                          <dd>{selectedRun.taskIds.length}</dd>
                           <dt className="text-muted-foreground">错误</dt>
                           <dd className="break-words text-destructive">
                             {selectedRun.errorMessage || "无"}
                           </dd>
-                          <dt className="text-muted-foreground">开始时间</dt>
-                          <dd>{selectedRun.startTime || "未开始"}</dd>
-                          <dt className="text-muted-foreground">结束时间</dt>
-                          <dd>{selectedRun.endTime || "未结束"}</dd>
                         </dl>
                       </div>
                     ) : (
                       <p className="rounded-xl border border-dashed p-4 text-center text-muted-foreground text-sm">
-                        选择一条 ExecutionRun 查看诊断详情
+                        选择一条执行记录查看诊断详情
                       </p>
                     )}
                   </div>
                 )}
               </ScrollArea>
             </TabsContent>
+
+            <TabsContent value="work" className="min-h-0">
+              <ObjectWorkPanel project={project} object={object} />
+            </TabsContent>
+
+            {timelineAvailable ? (
+              <TabsContent value="timeline" className="min-h-0">
+                <TimelinePanel object={object} disabled={project.status === "archived"} />
+              </TabsContent>
+            ) : null}
           </Tabs>
         ) : null}
       </SheetContent>
@@ -360,7 +372,7 @@ export function ObjectDetailPanel({
           if (!nextOpen) setSelectedVersionId(null)
         }}
         title="采用此候选版本"
-        description={`采用版本 ${selectedVersion?.versionNo ?? ""} 后将更新对象采用指针；其他执行结果不会自动移动该指针。`}
+        description={`采用版本 ${selectedVersion?.versionNo ?? ""} 后将移动对象采用指针；其他执行结果不会自动采用。`}
         confirmText="确认采用"
         onConfirm={handleAdopt}
       />

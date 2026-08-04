@@ -22,6 +22,7 @@ import com.xuejiai.aaf.framework.intelligent.ai.vision.VisionAttachment;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
+import com.xuejiai.aaf.module.ai.aigc.copywriting.api.AigcCopywritingApi;
 import com.xuejiai.aaf.module.ai.skill.SkillService;
 import com.xuejiai.aaf.module.ai.vision.VisionMediaResolver;
 
@@ -34,7 +35,7 @@ import tools.jackson.core.type.TypeReference;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class CopywritingService {
+public class CopywritingService implements AigcCopywritingApi {
 
     private final ResilientChatService chatService;
     private final OperatorContext operatorContext;

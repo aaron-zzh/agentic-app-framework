@@ -39,11 +39,7 @@ public class FileService {
                             file.getOriginalFilename(),
                             file.getContentType());
             return toFileVO(
-                    key,
-                    file.getOriginalFilename(),
-                    bytes.length,
-                    file.getContentType(),
-                    bytes);
+                    key, file.getOriginalFilename(), bytes.length, file.getContentType(), bytes);
         } catch (IOException e) {
             throw new StorageException("文件上传失败", e);
         }
@@ -90,9 +86,7 @@ public class FileService {
             try (var input = conn.getInputStream()) {
                 var bytes = uploadPolicy.readWithLimit(input);
                 uploadPolicy.validate(path, contentType, bytes.length);
-                var key =
-                        storageService.upload(
-                                new ByteArrayInputStream(bytes), path, contentType);
+                var key = storageService.upload(new ByteArrayInputStream(bytes), path, contentType);
                 return toFileVO(key, path, bytes.length, contentType, bytes);
             } finally {
                 conn.disconnect();
@@ -107,8 +101,7 @@ public class FileService {
     public FileVO uploadFromBytes(byte[] bytes, String path, String contentType) {
         uploadPolicy.validate(path, contentType, bytes != null ? bytes.length : 0);
         try {
-            var key =
-                    storageService.upload(new ByteArrayInputStream(bytes), path, contentType);
+            var key = storageService.upload(new ByteArrayInputStream(bytes), path, contentType);
             return toFileVO(key, path, bytes.length, contentType, bytes);
         } catch (Exception e) {
             throw new StorageException("字节数组上传文件失败: path=" + path, e);
@@ -151,12 +144,7 @@ public class FileService {
     private FileVO toFileVO(
             String key, String filename, long size, String contentType, byte[] bytes) {
         return new FileVO(
-                key,
-                storageService.getUrl(key),
-                filename,
-                size,
-                contentType,
-                sha256(bytes));
+                key, storageService.getUrl(key), filename, size, contentType, sha256(bytes));
     }
 
     private String sha256(byte[] bytes) {

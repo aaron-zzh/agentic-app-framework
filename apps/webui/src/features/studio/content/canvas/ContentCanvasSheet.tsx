@@ -16,7 +16,7 @@ import {
   SheetTitle
 } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { ContentProjectObjectVO } from "@/lib/api/rest/content"
+import type { AigcProjectObject } from "@/lib/api/rest/ai/aigc"
 
 const CanvasPanel = dynamic(
   () => import("@/features/studio/projects/CanvasPanel").then((module) => module.CanvasPanel),
@@ -29,7 +29,7 @@ export interface ContentCanvasSheetProps {
   open: boolean
   mode: ContentCanvasMode
   projectId: number
-  object: ContentProjectObjectVO | null
+  object: AigcProjectObject | null
   onOpenChange: (open: boolean) => void
 }
 

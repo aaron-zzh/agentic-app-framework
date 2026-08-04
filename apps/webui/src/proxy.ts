@@ -21,7 +21,6 @@ const PROTECTED_PATHS = [
   "/notifications",
   "/trash",
   "/admin",
-  "/aigc",
   "/examples/ocr",
   "/examples/image"
 ]

@@ -20,7 +20,6 @@ import com.xuejiai.aaf.common.constant.SysConfigKeys;
 import com.xuejiai.aaf.common.enums.aigc.AigcTaskStatusEnum;
 import com.xuejiai.aaf.common.enums.aigc.AigcTaskTypeEnum;
 import com.xuejiai.aaf.common.enums.pay.CreditTransactionCategoryEnum;
-import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.engine.cache.ConfigCacheManager;
@@ -37,10 +36,9 @@ import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext
 import com.xuejiai.aaf.framework.intelligent.core.registry.AiServiceRegistry;
 import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
 import com.xuejiai.aaf.module.ai.aigc.ErrorCodeConstants;
-import com.xuejiai.aaf.module.ai.aigc.media.api.GeneratedMediaCommand;
-import com.xuejiai.aaf.module.ai.aigc.media.api.MediaApi;
-import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaType;
-import com.xuejiai.aaf.module.ai.aigc.media.vo.MediaVO;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcGeneratedMediaCommand;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaType;
 import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
 import com.xuejiai.aaf.module.ai.aigc.task.event.AigcTaskTerminalEvent;
 import com.xuejiai.aaf.module.ai.aigc.task.mapper.AigcTaskMapper;
@@ -49,8 +47,8 @@ import com.xuejiai.aaf.module.ai.aigc.task.vo.AigcTaskPageDTO;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.AigcTaskVO;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.ImageTaskRequest;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.VideoTaskRequest;
+import com.xuejiai.aaf.module.system.file.api.FileStoragePort;
 import com.xuejiai.aaf.module.system.file.api.StoredFile;
-import com.xuejiai.aaf.module.system.file.service.FileUploadService;
 import com.xuejiai.aaf.module.user.growth.event.UserGrowthEvent;
 
 import jakarta.persistence.criteria.Predicate;
@@ -98,8 +96,8 @@ public class AigcTaskService
     private final AigcTaskRepository taskRepo;
     private final AigcTaskEventService eventService;
     private final AigcTaskMapper taskMapper;
-    private final FileUploadService fileService;
-    private final MediaApi mediaApi;
+    private final FileStoragePort fileService;
+    private final AigcMediaApi mediaApi;
     private final CapabilityRouter capabilityRouter;
     private final AigcTaskExecutor taskExecutor;
     private final AiCreditGuard creditGuard;
@@ -108,10 +106,6 @@ public class AigcTaskService
     private final AiServiceRegistry aiServiceRegistry;
     private final Model3dGenerationService model3dGenerationService;
     private final ApplicationEventPublisher eventPublisher;
-
-    // BE-8 数据隔离：注入 OperatorContext
-    @org.springframework.beans.factory.annotation.Autowired
-    private com.xuejiai.aaf.framework.security.OperatorContext operatorContext;
 
     // ========== BaseCrudService 必须实现 ==========
 
@@ -150,16 +144,6 @@ public class AigcTaskService
                 predicates.add(cb.equal(root.get("projectId"), dto.getProjectId()));
             return predicates.isEmpty() ? null : cb.and(predicates.toArray(new Predicate[0]));
         };
-    }
-
-    /** BE-8 数据隔离：单条查询后校验 ownership，跨用户返回 404 防探测。 */
-    public AigcTaskVO getByIdOwned(Long id) {
-        var entity = requireEntity(id);
-        Long userId = operatorContext.currentOwnerId().orElseThrow();
-        if (!entity.getUserId().equals(userId)) {
-            throw exception(ErrorCodeConstants.AIGC_TASK_NOT_FOUND);
-        }
-        return toVO(entity);
     }
 
     @Transactional
@@ -651,7 +635,7 @@ public class AigcTaskService
                     createMedia(
                             task,
                             file,
-                            MediaType.IMAGE,
+                            AigcMediaType.IMAGE,
                             generatedName(task),
                             null,
                             null,
@@ -666,8 +650,7 @@ public class AigcTaskService
         }
 
         publishCompleted(task);
-        eventPublisher.publishEvent(
-                new UserGrowthEvent(task.getUserId(), "aigc.image.success"));
+        eventPublisher.publishEvent(new UserGrowthEvent(task.getUserId(), "aigc.image.success"));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -703,7 +686,7 @@ public class AigcTaskService
                     createMedia(
                             task,
                             file,
-                            MediaType.VIDEO,
+                            AigcMediaType.VIDEO,
                             generatedName(task),
                             null,
                             null,
@@ -725,8 +708,7 @@ public class AigcTaskService
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void completeTask(
-            String providerTaskId,
-            Model3dGenerationService.Model3dTaskResult result) {
+            String providerTaskId, Model3dGenerationService.Model3dTaskResult result) {
         var task = taskRepo.findByProviderTaskId(providerTaskId).orElse(null);
         if (task == null) {
             log.warn("[completeTask] 任务不存在: providerTaskId={}", providerTaskId);
@@ -747,7 +729,7 @@ public class AigcTaskService
                     createMedia(
                             task,
                             file,
-                            MediaType.MODEL_3D,
+                            AigcMediaType.MODEL_3D,
                             generatedName(task),
                             null,
                             null,
@@ -840,33 +822,14 @@ public class AigcTaskService
         task.setErrorMsg(errorMsg);
         taskRepo.save(task);
         eventService.push(task.getUserId(), EVENT_FAILED, toVO(task));
-        eventPublisher.publishEvent(new AigcTaskTerminalEvent(task.getId()));
+        eventPublisher.publishEvent(AigcTaskTerminalEvent.from(task));
         log.info("[failTask] 任务失败: taskId={}, reason={}", task.getId(), errorMsg);
     }
 
-    // ========== 历史分页查询 ==========
-
-    /**
-     * 按用户 ID 分页查询任务历史，按创建时间倒序。
-     *
-     * <p>直接使用 Repository 派生查询，绕开 BaseCrud 的 RecordRule（L3 行级权限）链路， 避免因未配置 aigc-task 记录规则而导致结果为空的问题。
-     * ownership 隔离已由调用方（Controller）传入的 userId 保证。
-     */
-    @Transactional(readOnly = true)
-    public PageResult<AigcTaskVO> pageByUser(Long userId, int pageNo, int pageSize) {
-        var pageable =
-                org.springframework.data.domain.PageRequest.of(
-                        Math.max(pageNo - 1, 0), pageSize > 0 ? pageSize : 20);
-        var page = taskRepo.findByUserIdOrderByCreateTimeDesc(userId, pageable);
-        return new PageResult<>(
-                page.getContent().stream().map(this::toVO).toList(),
-                page.getTotalElements(),
-                pageNo,
-                pageSize,
-                java.util.List.of(),
-                null,
-                null,
-                page.hasNext());
+    /** 查询指定用户今日创建的任务数。 */
+    public long todayCountByUser(Long userId) {
+        return taskRepo.countByUserIdAndCreateTimeAfter(
+                userId, java.time.LocalDate.now().atStartOfDay());
     }
 
     // ========== 内部工具方法 ==========
@@ -921,12 +884,10 @@ public class AigcTaskService
         return task;
     }
 
-    private StoredFile uploadFileStrict(
-            String url, AigcTask task) {
+    private StoredFile uploadFileStrict(String url, AigcTask task) {
         String ext = guessExtension(url, task.getType());
         String path =
-                "aigc/%s/%s.%s"
-                        .formatted(task.getType().toLowerCase(), UUID.randomUUID(), ext);
+                "aigc/%s/%s.%s".formatted(task.getType().toLowerCase(), UUID.randomUUID(), ext);
         try {
             return fileService.uploadFromUrl(
                     url, path, guessContentType(task.getType()), task.getUserId());
@@ -947,7 +908,7 @@ public class AigcTaskService
             BigDecimal frameRate,
             String generationInfo) {
         return mediaApi.createFromGeneratedFile(
-                new GeneratedMediaCommand(
+                new AigcGeneratedMediaCommand(
                         task.getUserId(),
                         name,
                         mediaType,
@@ -971,7 +932,7 @@ public class AigcTaskService
 
     private void publishCompleted(AigcTask task) {
         eventService.push(task.getUserId(), EVENT_COMPLETED, toVO(task));
-        eventPublisher.publishEvent(new AigcTaskTerminalEvent(task.getId()));
+        eventPublisher.publishEvent(AigcTaskTerminalEvent.from(task));
         log.info(
                 "[completeTask] 任务完成: taskId={}, mediaVersionId={}",
                 task.getId(),
@@ -1052,5 +1013,4 @@ public class AigcTaskService
             return "";
         }
     }
-
 }

@@ -84,11 +84,7 @@ public class FileRecordService implements FileRecordApi {
     @Override
     @Transactional
     public StoredFile registerCurrent(
-            String key,
-            String originalName,
-            String mimeType,
-            long size,
-            String contentHash) {
+            String key, String originalName, String mimeType, long size, String contentHash) {
         return register(key, originalName, mimeType, size, contentHash, requireCurrentOwnerId());
     }
 
@@ -198,7 +194,8 @@ public class FileRecordService implements FileRecordApi {
         var file =
                 fileRecordRepository
                         .findById(fileId)
-                        .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "文件不存在"));
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "文件不存在"));
         if ("DELETED".equals(file.getStorageStatus())) {
             throw new BusinessException(GlobalErrorCode.NOT_FOUND, "文件已删除");
         }

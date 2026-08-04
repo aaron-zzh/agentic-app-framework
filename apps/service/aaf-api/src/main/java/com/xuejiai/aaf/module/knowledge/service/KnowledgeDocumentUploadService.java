@@ -19,7 +19,7 @@ import com.xuejiai.aaf.module.document.api.DocumentSourceApi.SourceDocumentComma
 import com.xuejiai.aaf.module.knowledge.domain.KnowledgeBase;
 import com.xuejiai.aaf.module.knowledge.domain.KnowledgeDocument;
 import com.xuejiai.aaf.module.knowledge.repository.KnowledgeDocumentRepository;
-import com.xuejiai.aaf.module.system.file.service.FileUploadService;
+import com.xuejiai.aaf.module.system.file.api.FileStoragePort;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +33,7 @@ public class KnowledgeDocumentUploadService {
     private final KnowledgeDocumentRepository documentRepository;
     private final KnowledgeDocumentQueueService queueService;
     private final FileService fileService;
-    private final FileUploadService fileUploadService;
+    private final FileStoragePort fileUploadService;
     private final DocumentSourceApi documentSourceApi;
 
     @Transactional

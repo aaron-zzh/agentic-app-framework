@@ -83,7 +83,7 @@ public class DashScopeVideoGenerationService implements VideoGenerationService {
                         null);
         var params =
                 HappyhorseParams.of(
-                        req, model != null ? model : placeholderModel("happyhorse-1.1-t2v"));
+                        req, model != null ? model : minimalModelDescriptor("happyhorse-1.1-t2v"));
         return doSubmit(
                 params.modelName(),
                 params.toInput(),
@@ -116,7 +116,7 @@ public class DashScopeVideoGenerationService implements VideoGenerationService {
                         req,
                         aiModel != null
                                 ? aiModel
-                                : placeholderModel(
+                                : minimalModelDescriptor(
                                         request.getModel() != null
                                                 ? request.getModel()
                                                 : "happyhorse-1.1-i2v"));
@@ -152,7 +152,7 @@ public class DashScopeVideoGenerationService implements VideoGenerationService {
                         req,
                         aiModel != null
                                 ? aiModel
-                                : placeholderModel(
+                                : minimalModelDescriptor(
                                         request.getModel() != null
                                                 ? request.getModel()
                                                 : "happyhorse-1.1-r2v"));
@@ -177,7 +177,7 @@ public class DashScopeVideoGenerationService implements VideoGenerationService {
                         request,
                         aiModel != null
                                 ? aiModel
-                                : placeholderModel(
+                                : minimalModelDescriptor(
                                         request.getModel() != null
                                                 ? request.getModel()
                                                 : "happyhorse-1.0-video-edit"));
@@ -303,8 +303,8 @@ public class DashScopeVideoGenerationService implements VideoGenerationService {
         };
     }
 
-    /** 当调用方未传 resolvedModel 时，用模型名构建最小占位 AiModel（无 videoConfig，跳过校验）。 */
-    private AiModel placeholderModel(String modelName) {
+    /** 当调用方未传 resolvedModel 时，仅构建用于供应商请求的最小模型描述。 */
+    private AiModel minimalModelDescriptor(String modelName) {
         var m = new AiModel();
         m.setModelName(modelName);
         return m;

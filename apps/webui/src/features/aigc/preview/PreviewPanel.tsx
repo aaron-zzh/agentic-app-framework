@@ -35,8 +35,8 @@ import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { downloadFile } from "@/lib/utils"
 import { useMediaDetail } from "@/lib/api/rest/media"
+import { downloadFile } from "@/lib/utils"
 import { FileGrid } from "../asset/FileGrid"
 import { useAigcStore } from "../store"
 import { ImageViewer } from "./ImageViewer"
@@ -298,7 +298,10 @@ export function PreviewPanel({
                         />
                       ) : (
                         <ImageViewer
-                          src={previewAsset.currentVersion.thumbnailUrl ?? previewAsset.currentVersion.url}
+                          src={
+                            previewAsset.currentVersion.thumbnailUrl ??
+                            previewAsset.currentVersion.url
+                          }
                           alt={previewAsset.name}
                           className="h-full w-full"
                           onLoad={(e) => {

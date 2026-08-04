@@ -8,7 +8,7 @@
 import { X } from "lucide-react"
 import { useMediaDetails } from "@/lib/api/rest/media"
 import { useAigcStore } from "../store"
-import type { MediaVO } from "../types"
+import type { AigcMedia } from "../types"
 
 /** 素材 badge */
 function AssetBadge({
@@ -38,7 +38,7 @@ function AssetBadge({
   )
 }
 
-function referenceDescription(media: MediaVO, index: number): string {
+function referenceDescription(media: AigcMedia, index: number): string {
   try {
     const parsed: unknown = media.currentVersion.generationInfo
       ? JSON.parse(media.currentVersion.generationInfo)
@@ -63,9 +63,7 @@ export function ReferenceRow() {
   const mediaQueries = useMediaDetails(referenceMediaIds)
   const media = mediaQueries.flatMap((query) => (query.data ? [query.data] : []))
   const removeReferenceMediaId = useAigcStore((state) => state.removeReferenceMediaId)
-  const removeUploadedReferenceDraft = useAigcStore(
-    (state) => state.removeUploadedReferenceDraft
-  )
+  const removeUploadedReferenceDraft = useAigcStore((state) => state.removeUploadedReferenceDraft)
 
   if (media.length === 0 && uploadedReferenceDrafts.length === 0) return null
 
@@ -80,13 +78,14 @@ export function ReferenceRow() {
             url={item.currentVersion.thumbnailUrl ?? item.currentVersion.url}
             onRemove={(id) => removeReferenceMediaId(Number(id))}
           />
-          <span className="text-foreground/70 text-sm">
-            {referenceDescription(item, index)}
-          </span>
+          <span className="text-foreground/70 text-sm">{referenceDescription(item, index)}</span>
         </span>
       ))}
       {uploadedReferenceDrafts.map((draft, index) => (
-        <span key={`upload-${draft.key}`} className="inline-flex flex-wrap items-baseline gap-x-1.5">
+        <span
+          key={`upload-${draft.key}`}
+          className="inline-flex flex-wrap items-baseline gap-x-1.5"
+        >
           <AssetBadge
             id={draft.key}
             name={draft.name}

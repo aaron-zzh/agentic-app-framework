@@ -22,8 +22,9 @@ import { GlassCard } from "@/components/studio"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import type { ContentProjectGraphVO, ContentRelationLayer } from "@/lib/api/rest/content"
+import type { AigcProjectGraph, AigcRelationLayer } from "@/lib/api/rest/ai/aigc"
 import { cn } from "@/lib/utils/index"
+import { getObjectTypeConfig } from "../project-type-config"
 import {
   type ContentGraphNodeData,
   OBJECT_STATUS_LABELS,
@@ -31,7 +32,7 @@ import {
 } from "./graph-projection"
 import { useProjectGraphViewState } from "./view-state-store"
 
-const LAYER_OPTIONS: { value: ContentRelationLayer; label: string }[] = [
+const LAYER_OPTIONS: { value: AigcRelationLayer; label: string }[] = [
   { value: "domain", label: "领域" },
   { value: "reference", label: "引用" },
   { value: "story_order", label: "故事顺序" },
@@ -56,6 +57,11 @@ interface GraphNodeActions {
 
 const GraphNodeActionsContext = createContext<GraphNodeActions | null>(null)
 
+function ObjectTypeIcon({ type }: { type: NonNullable<ContentGraphNodeData["objectType"]> }) {
+  const Icon = getObjectTypeConfig(type).icon
+  return <Icon />
+}
+
 function ContentDomainNodeComponent({ data, selected }: NodeProps) {
   const node = data as ContentGraphNodeData
   const actions = useContext(GraphNodeActionsContext)
@@ -78,7 +84,10 @@ function ContentDomainNodeComponent({ data, selected }: NodeProps) {
       <div className="flex flex-col gap-2 p-3">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <p className="truncate font-medium text-sm">{node.title}</p>
+            <p className="flex items-center gap-2 truncate font-medium text-sm">
+              {node.objectType ? <ObjectTypeIcon type={node.objectType} /> : null}
+              {node.title}
+            </p>
             {node.zoomTier !== "global" && node.description ? (
               <p className="truncate text-muted-foreground text-xs">{node.description}</p>
             ) : null}
@@ -160,7 +169,7 @@ const ContentDomainNode = memo(ContentDomainNodeComponent)
 const NODE_TYPES = { contentDomain: ContentDomainNode }
 
 export interface ProjectGraphViewProps {
-  graph: ContentProjectGraphVO
+  graph: AigcProjectGraph
   focusObjectId?: number
   readOnly?: boolean
   onFocusObject: (id: number) => void

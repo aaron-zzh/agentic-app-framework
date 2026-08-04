@@ -124,8 +124,8 @@ export function useCancelAigcTask() {
   return useMutation({
     mutationFn: aigcTaskApi.cancel,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["aigc-tasks"] })
-      queryClient.invalidateQueries({ queryKey: ["aigc", "tasks", "history"] })
+      queryClient.invalidateQueries({ queryKey: ["aigc.task"] })
+      queryClient.invalidateQueries({ queryKey: ["aigc.task", "history"] })
     }
   })
 }
@@ -134,7 +134,7 @@ export function useGenerateImage() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: aigcTaskApi.generateImage,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["aigc", "tasks"] })
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["aigc.task"] })
   })
 }
 
@@ -142,7 +142,7 @@ export function useGenerateVideo() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: aigcTaskApi.generateVideo,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["aigc", "tasks"] })
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["aigc.task"] })
   })
 }
 
@@ -150,7 +150,6 @@ export function useGenerate3d() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: aigcTaskApi.generate3d,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["aigc", "tasks"] })
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["aigc.task"] })
   })
 }
-

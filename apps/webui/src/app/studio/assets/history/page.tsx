@@ -39,7 +39,7 @@ type AigcTaskVO = AigcTaskEvent
 
 function useAigcTaskHistory(page = 1, size = 40) {
   return useQuery({
-    queryKey: ["aigc", "tasks", "history", page] as const,
+    queryKey: ["aigc.task", "history", page] as const,
     queryFn: () => request<PageResult<AigcTaskVO>>(`/aigc/tasks?pageNo=${page}&pageSize=${size}`)
   })
 }
@@ -101,7 +101,9 @@ function TaskCard({ task, onPreview }: { task: AigcTaskVO; onPreview: (url: stri
           if ((e.target as HTMLElement).closest("button,[role=menuitem]")) return
           task.outputUrl && !isFail && onPreview(task.outputUrl)
         }}
-        onKeyDown={(e) => e.key === "Enter" && task.outputUrl && !isFail && onPreview(task.outputUrl)}
+        onKeyDown={(e) =>
+          e.key === "Enter" && task.outputUrl && !isFail && onPreview(task.outputUrl)
+        }
         style={task.outputUrl && !isFail ? { cursor: "zoom-in" } : undefined}
       >
         {task.outputUrl && !isFail ? (

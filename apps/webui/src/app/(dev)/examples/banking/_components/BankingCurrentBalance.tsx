@@ -46,14 +46,17 @@ function CardItem({ card }: { card: CreditCard }) {
       {/* 操作菜单 */}
       <div className="absolute top-4 right-4">
         <DropdownMenu>
-          <DropdownMenuTrigger>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-white/60 hover:bg-white/10 hover:text-white"
-            >
-              <MoreVertical className="h-4 w-4" />
-            </Button>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8 text-white/60 hover:bg-white/10 hover:text-white"
+              />
+            }
+          >
+            <MoreVertical />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem className="text-destructive">

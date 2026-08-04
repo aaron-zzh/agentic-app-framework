@@ -8,18 +8,16 @@ export { AssetLibrary } from "./asset/AssetLibrary"
 // 对话内联预览
 export { MediaPreviewCard } from "./preview/MediaPreviewCard"
 export { StyleAdjustDialog } from "./preview/StyleAdjustDialog"
-// 项目管理
-export { AigcView } from "./project/AigcView"
 export { useAigcStore } from "./store"
 export { threeViewConfig } from "./three"
 // 3D（动态导入使用，此处仅导出类型和容器）
 export { ThreeView } from "./three/ThreeView"
 export type {
-  AssetVO,
+  AigcAsset,
+  AigcMedia,
+  AigcMediaType,
+  AigcMediaVersion,
   GenerationParams,
-  MediaType,
-  MediaVersionVO,
-  MediaVO,
   Model3dTaskResult,
   Model3dTaskStatus,
   StoryElement

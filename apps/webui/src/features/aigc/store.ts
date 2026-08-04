@@ -51,14 +51,6 @@ interface AigcStore {
   fileTypeFilter: "ALL" | "IMAGE" | "VIDEO" | "AUDIO"
   /** 素材区缩放比例（50-150） */
   fileZoom: number
-  /** 正在生成中的任务（显示 loading 占位） */
-  pendingTasks: Array<{
-    id: number
-    prompt: string
-    type: string
-    modelId?: string
-    error?: string
-  }>
   /** 当前选中的技能 ID；技能对象由 TanStack Query 持有。 */
   selectedSkillId: number | null
   /** 生成类型：image=AI生图 video=AI视频 */
@@ -140,9 +132,6 @@ interface AigcStore {
   setResolution: (resolution: string) => void
   setAspectRatio: (ratio: string) => void
   setVideoDuration: (duration: string) => void
-  addPendingTask: (task: { id: number; prompt: string; type: string; modelId?: string }) => void
-  failPendingTask: (id: number, error: string) => void
-  removePendingTask: (id: number) => void
 }
 
 export const useAigcStore = create<AigcStore>((set, _get) => ({
@@ -168,7 +157,6 @@ export const useAigcStore = create<AigcStore>((set, _get) => ({
   fileAreaOpen: true,
   fileTypeFilter: "ALL",
   fileZoom: 100,
-  pendingTasks: [],
   prompt: "",
   projectPromptDismissed: false,
   seed: 0,
@@ -267,16 +255,5 @@ export const useAigcStore = create<AigcStore>((set, _get) => ({
   setModel: (model) => set({ model }),
   setResolution: (resolution) => set({ resolution }),
   setAspectRatio: (ratio) => set({ aspectRatio: ratio }),
-  setVideoDuration: (duration) => set({ videoDuration: duration }),
-  addPendingTask: (task) =>
-    set((state) => {
-      if (state.pendingTasks.some((t) => t.id === task.id)) return state
-      return { pendingTasks: [...state.pendingTasks, task] }
-    }),
-  failPendingTask: (id, error) =>
-    set((state) => ({
-      pendingTasks: state.pendingTasks.map((t) => (t.id === id ? { ...t, error } : t))
-    })),
-  removePendingTask: (id) =>
-    set((state) => ({ pendingTasks: state.pendingTasks.filter((t) => t.id !== id) }))
+  setVideoDuration: (duration) => set({ videoDuration: duration })
 }))

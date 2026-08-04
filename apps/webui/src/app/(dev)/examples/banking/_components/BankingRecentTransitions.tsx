@@ -129,10 +129,12 @@ export function BankingRecentTransitions({ title, tableData }: BankingRecentTran
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>
-                    <DropdownMenuTrigger>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button type="button" variant="ghost" size="icon" className="size-8" />
+                      }
+                    >
+                      <MoreVertical />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem>Download</DropdownMenuItem>

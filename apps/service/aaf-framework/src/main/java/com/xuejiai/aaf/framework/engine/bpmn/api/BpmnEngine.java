@@ -174,6 +174,9 @@ public interface BpmnEngine {
     /** 判断流程实例是否仍在运行。 */
     boolean isProcessRunning(String processInstanceId);
 
+    /** 按 ID 查询运行中或历史流程实例；不存在时返回 null。 */
+    InstanceInfo getInstance(String processInstanceId);
+
     // ==================== #5802 流程定义管理 ====================
 
     /**

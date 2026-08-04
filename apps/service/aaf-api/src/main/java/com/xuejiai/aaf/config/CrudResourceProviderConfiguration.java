@@ -12,13 +12,6 @@ import com.xuejiai.aaf.framework.crud.resource.CrudResourceDefinitionProvider;
 import com.xuejiai.aaf.framework.crud.resource.CrudResourceDefinitions;
 import com.xuejiai.aaf.module.ai.aigc.avatar.controller.AiDigitalAvatarController;
 import com.xuejiai.aaf.module.ai.aigc.image.controller.GenerationTemplateController;
-import com.xuejiai.aaf.module.ai.aigc.project.controller.AigcContentController;
-import com.xuejiai.aaf.module.ai.aigc.project.controller.AigcProjectController;
-import com.xuejiai.aaf.module.ai.aigc.project.controller.AigcShotController;
-import com.xuejiai.aaf.module.ai.aigc.project.controller.AigcStoryboardController;
-import com.xuejiai.aaf.module.ai.aigc.project.controller.AigcTimelineController;
-import com.xuejiai.aaf.module.ai.aigc.task.controller.AigcTaskController;
-import com.xuejiai.aaf.module.ai.aigc.template.controller.UserProjectTemplateController;
 import com.xuejiai.aaf.module.ai.aigc.video.controller.VideoTemplateController;
 import com.xuejiai.aaf.module.ai.aigc.voice.controller.AiClonedVoiceController;
 import com.xuejiai.aaf.module.ai.aigc.workflow.controller.UserWorkflowTemplateController;
@@ -90,76 +83,6 @@ public class CrudResourceProviderConfiguration {
                 "system:generation-template",
                 TenantScope.GLOBAL,
                 PersonalScope.byProperty("userId"));
-    }
-
-    @Bean
-    CrudResourceDefinitionProvider<?> aigcContentResource() {
-        return crud(
-                "aigc.aigc-content",
-                "内容产出",
-                AigcContentController.class,
-                "/api/aigc/contents",
-                "system:aigc-content");
-    }
-
-    @Bean
-    CrudResourceDefinitionProvider<?> aigcProjectResource() {
-        return crud(
-                "aigc.aigc-project",
-                "创作项目",
-                AigcProjectController.class,
-                "/api/aigc/projects",
-                "system:aigc-project");
-    }
-
-    @Bean
-    CrudResourceDefinitionProvider<?> aigcShotResource() {
-        return crud(
-                "aigc.aigc-shot",
-                "分镜",
-                AigcShotController.class,
-                "/api/aigc/shots",
-                "system:aigc-shot");
-    }
-
-    @Bean
-    CrudResourceDefinitionProvider<?> aigcStoryboardResource() {
-        return crud(
-                "aigc.aigc-storyboard",
-                "分镜规划",
-                AigcStoryboardController.class,
-                "/api/aigc/storyboards",
-                "system:aigc-storyboard");
-    }
-
-    @Bean
-    CrudResourceDefinitionProvider<?> aigcTimelineResource() {
-        return crud(
-                "aigc.aigc-timeline",
-                "时间轴",
-                AigcTimelineController.class,
-                "/api/aigc/timelines",
-                "system:aigc-timeline");
-    }
-
-    @Bean
-    CrudResourceDefinitionProvider<?> aigcTaskResource() {
-        return crud(
-                "aigc.aigc-task",
-                "AIGC任务",
-                AigcTaskController.class,
-                "/api/aigc/tasks",
-                "system:aigc-task");
-    }
-
-    @Bean
-    CrudResourceDefinitionProvider<?> userProjectTemplateResource() {
-        return crud(
-                "aigc.user-project-template",
-                "项目模板",
-                UserProjectTemplateController.class,
-                "/api/aigc/project-templates",
-                "system:user-project-template");
     }
 
     @Bean

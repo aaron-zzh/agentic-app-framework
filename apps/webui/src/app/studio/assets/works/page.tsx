@@ -1,12 +1,10 @@
 /**
- * /studio/assets/works——我的作品（type=OUTPUT 过滤）
+ * /studio/assets/works——AIGC Work 作品与 Publication。
  * @author AaronZZH & Kiro
  */
 
-"use client"
-
-import { AssetLibrary } from "@/features/aigc/asset"
+import { WorksLibrary } from "@/features/studio/content"
 
 export default function StudioAssetsWorksPage() {
-  return <AssetLibrary collection="media" />
+  return <WorksLibrary />
 }

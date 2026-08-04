@@ -1,97 +1,49 @@
 /**
- * /studio/templates 模板库
- *
- * 按 category 分 tab，GlassCard 网格，使用模板 → fork → 跳详情
- *
+ * /studio/templates——已发布 AIGC Project Blueprint 目录。
  * @author AaronZZH & Kiro
  */
 
 "use client"
 
 import { FolderKanban } from "lucide-react"
-import { useRouter } from "next/navigation"
-import { useState } from "react"
+import Link from "next/link"
 import { GlassCard, GlowButton, NeonChip } from "@/components/studio"
-import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  type UserProjectTemplateVO,
-  useForkProjectTemplate,
-  useProjectTemplates
-} from "@/lib/api/rest/ai"
+import { getProjectTypeConfig } from "@/features/studio/content"
+import type { AigcProjectBlueprint } from "@/lib/api/rest/ai/aigc"
+import { useAigcProjectBlueprints } from "@/lib/api/rest/ai/aigc"
 
-const CATEGORIES = [
-  { key: "ALL", label: "全部" },
-  { key: "CONTENT_OPS", label: "内容运营" },
-  { key: "AIGC", label: "AIGC" },
-  { key: "LIFE", label: "生活" },
-  { key: "STUDY", label: "学习" },
-  { key: "WORK", label: "工作" }
-]
-
-const TONE_MAP: Record<string, "violet" | "cyan"> = {
-  CONTENT_OPS: "violet",
-  AIGC: "cyan",
-  LIFE: "cyan",
-  STUDY: "violet",
-  WORK: "cyan"
-}
-
-function TemplateSkeleton() {
+function BlueprintCard({ blueprint }: { blueprint: AigcProjectBlueprint }) {
+  const type = getProjectTypeConfig({ code: blueprint.projectTypeCode, name: "" })
+  const Icon = type.icon
   return (
-    <div className="overflow-hidden rounded-2xl bg-card p-0">
-      <Skeleton className="h-32 w-full rounded-none rounded-t-2xl" />
-      <div className="space-y-2 p-4">
-        <Skeleton className="h-4 w-3/4" />
-        <Skeleton className="h-3 w-full" />
+    <GlassCard glow={type.tone} className="overflow-hidden">
+      <div className="flex h-32 items-center justify-center bg-foreground/[0.04] text-muted-foreground">
+        <Icon className="size-10" />
       </div>
-    </div>
-  )
-}
-
-function TemplateCard({
-  tpl,
-  onUse
-}: {
-  tpl: UserProjectTemplateVO
-  onUse: (tpl: UserProjectTemplateVO) => void
-}) {
-  const tone = TONE_MAP[tpl.category] ?? "violet"
-  return (
-    <GlassCard glow={tone} interactive={false} className="overflow-hidden">
-      {/* 封面 */}
-      <div className="relative flex h-32 items-center justify-center bg-foreground/[0.04]">
-        {tpl.coverUrl ? (
-          // biome-ignore lint/performance/noImgElement: 封面图
-          <img src={tpl.coverUrl} alt={tpl.name} className="h-full w-full object-cover" />
-        ) : (
-          <FolderKanban className="size-10 text-muted-foreground/30" />
-        )}
-      </div>
-      <div className="space-y-2 p-4">
+      <div className="flex flex-col gap-3 p-4">
         <div className="flex items-start justify-between gap-2">
-          <p className="font-medium text-sm leading-snug">{tpl.name}</p>
-          <NeonChip tone={tone} size="sm">
-            {tpl.category}
+          <div>
+            <h2 className="font-medium text-sm">{blueprint.name}</h2>
+            <p className="text-muted-foreground text-xs">v{blueprint.blueprintVersion}</p>
+          </div>
+          <NeonChip tone={type.tone} size="sm">
+            {type.label}
           </NeonChip>
         </div>
-        {tpl.description && (
-          <p className="line-clamp-2 text-muted-foreground text-xs leading-5">{tpl.description}</p>
-        )}
-        <div className="flex items-center justify-between pt-1">
-          <span className="text-muted-foreground text-xs">{tpl.usageCount} 次使用</span>
-          <GlowButton tone="primary" size="sm" onClick={() => onUse(tpl)}>
-            使用此模板
+        <p className="line-clamp-2 min-h-10 text-muted-foreground text-xs leading-5">
+          {blueprint.description || "已发布项目蓝图"}
+        </p>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-muted-foreground text-xs">{blueprint.productionMode}</span>
+          <GlowButton
+            nativeButton={false}
+            render={<Link href="/studio/projects/new" />}
+            tone="primary"
+            size="sm"
+          >
+            创建项目
           </GlowButton>
         </div>
       </div>
@@ -100,95 +52,40 @@ function TemplateCard({
 }
 
 export default function StudioTemplatesPage() {
-  const router = useRouter()
-  const [activeCategory, setActiveCategory] = useState("ALL")
-  const [forkTarget, setForkTarget] = useState<UserProjectTemplateVO | null>(null)
-  const [projectName, setProjectName] = useState("")
-
-  const queryParams =
-    activeCategory === "ALL"
-      ? { isOfficial: true, size: 50 }
-      : { category: activeCategory, isOfficial: true, size: 50 }
-
-  const { data: page, isLoading } = useProjectTemplates(queryParams)
-  const templates = page?.list ?? []
-  const fork = useForkProjectTemplate()
-
-  const handleUse = (tpl: UserProjectTemplateVO) => {
-    setForkTarget(tpl)
-    setProjectName(tpl.name)
-  }
-
-  const handleFork = async () => {
-    if (!forkTarget || !projectName.trim()) return
-    const project = await fork.mutateAsync({ templateId: forkTarget.id, name: projectName })
-    setForkTarget(null)
-    router.push(`/studio/projects/${project.id}`)
-  }
+  const { data, isLoading } = useAigcProjectBlueprints({ status: "published", pageSize: 100 })
+  const blueprints = data?.list ?? []
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-6">
-      <header className="space-y-2">
-        <h1 className="font-semibold text-xl">模板库</h1>
-        <p className="text-muted-foreground text-sm">选择模板，一键创建项目</p>
+    <div className="mx-auto flex max-w-7xl flex-col gap-6 p-6">
+      <header>
+        <h1 className="font-semibold text-xl">项目蓝图</h1>
+        <p className="text-muted-foreground text-sm">从已发布蓝图物化唯一 AigcProject。</p>
       </header>
-
-      <Tabs value={activeCategory} onValueChange={setActiveCategory}>
-        <TabsList className="mb-4">
-          {CATEGORIES.map((c) => (
-            <TabsTrigger key={c.key} value={c.key}>
-              {c.label}
-            </TabsTrigger>
+      {isLoading ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {Array.from({ length: 8 }, (_, index) => (
+            <Skeleton key={`blueprint-${index}`} className="h-64 rounded-2xl" />
           ))}
-        </TabsList>
-
-        {CATEGORIES.map((c) => (
-          <TabsContent key={c.key} value={c.key}>
-            {isLoading ? (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <TemplateSkeleton key={i} />
-                ))}
-              </div>
-            ) : templates.length === 0 ? (
-              <div className="py-20 text-center text-muted-foreground text-sm">暂无模板</div>
-            ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {templates.map((tpl) => (
-                  <TemplateCard key={tpl.id} tpl={tpl} onUse={handleUse} />
-                ))}
-              </div>
-            )}
-          </TabsContent>
-        ))}
-      </Tabs>
-
-      {/* Fork Dialog */}
-      <Dialog open={!!forkTarget} onOpenChange={(open) => !open && setForkTarget(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>使用「{forkTarget?.name}」创建项目</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="space-y-1.5">
-              <Label>项目名称</Label>
-              <Input
-                value={projectName}
-                onChange={(e) => setProjectName(e.target.value)}
-                placeholder="输入项目名称"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setForkTarget(null)}>
-              取消
-            </Button>
-            <Button onClick={handleFork} disabled={!projectName.trim() || fork.isPending}>
-              {fork.isPending ? "创建中…" : "创建项目"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
+      ) : blueprints.length === 0 ? (
+        <GlassCard glow="none">
+          <Empty className="min-h-72">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <FolderKanban />
+              </EmptyMedia>
+              <EmptyTitle>暂无已发布蓝图</EmptyTitle>
+              <EmptyDescription>项目创建必须绑定已发布 AIGC Project Blueprint。</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        </GlassCard>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {blueprints.map((blueprint) => (
+            <BlueprintCard key={blueprint.id} blueprint={blueprint} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

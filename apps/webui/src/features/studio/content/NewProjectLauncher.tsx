@@ -21,19 +21,21 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
-  type ContentBrandProfileVO,
-  type ContentChannel,
-  type ContentProductionMode,
-  type ContentProjectTypeCode,
-  type ContentProjectTypeVO,
-  useContentBrandProfiles,
-  useContentProjectTypes,
-  useMaterializeContentProject
-} from "@/lib/api/rest/content"
-import { CHANNEL_LABELS, getProjectTypeConfig } from "./project-type-config"
+  type AigcBrandProfile,
+  type AigcChannelCode,
+  type AigcProductionMode,
+  type AigcProjectType,
+  type AigcProjectTypeCode,
+  useAigcBrandProfiles,
+  useAigcChannelSpecs,
+  useAigcProjectBlueprints,
+  useAigcProjectTypes,
+  useMaterializeAigcProject
+} from "@/lib/api/rest/ai/aigc"
+import { getChannelLabel, getProjectTypeConfig } from "./project-type-config"
 
 interface BrandProfileSelectProps {
-  profiles: ContentBrandProfileVO[]
+  profiles: AigcBrandProfile[]
   value?: number
   onChange: (value?: number) => void
   disabled?: boolean
@@ -53,7 +55,7 @@ export function BrandProfileSelect({
     >
       <SelectTrigger className="w-full sm:w-72">
         <SelectValue>
-          {profiles.find((profile) => profile.id === value)?.name ?? "选择品牌 / IP 资料"}
+          {profiles.find((profile) => profile.id === value)?.name ?? "选择已发布品牌 / IP 资料"}
         </SelectValue>
       </SelectTrigger>
       <SelectContent>
@@ -71,17 +73,17 @@ export function BrandProfileSelect({
 }
 
 interface ProjectTypePickerProps {
-  types: ContentProjectTypeVO[]
-  value?: ContentProjectTypeCode
-  onChange: (value: ContentProjectTypeCode) => void
-  showAssistantFallback?: boolean
+  types: AigcProjectType[]
+  value?: AigcProjectTypeCode
+  onChange: (value: AigcProjectTypeCode) => void
+  showAssistantChoice?: boolean
 }
 
 export function ProjectTypePicker({
   types,
   value,
   onChange,
-  showAssistantFallback = true
+  showAssistantChoice = true
 }: ProjectTypePickerProps) {
   return (
     <div className="flex flex-col gap-3">
@@ -89,7 +91,7 @@ export function ProjectTypePicker({
         value={value ? [value] : []}
         onValueChange={(values: string[]) => {
           const next = values.at(-1)
-          if (next) onChange(next as ContentProjectTypeCode)
+          if (next) onChange(next)
         }}
         variant="outline"
         className="grid w-full grid-cols-2 gap-2 md:grid-cols-3"
@@ -113,12 +115,12 @@ export function ProjectTypePicker({
           )
         })}
       </ToggleGroup>
-      {showAssistantFallback ? (
+      {showAssistantChoice ? (
         <Link
           href="/studio/chat"
           className="flex w-fit items-center gap-2 rounded-lg px-2 py-1 text-muted-foreground text-sm transition-colors hover:bg-muted hover:text-foreground"
         >
-          <Bot className="size-4" />
+          <Bot />
           不确定，让助手帮我选择
         </Link>
       ) : null}
@@ -127,23 +129,23 @@ export function ProjectTypePicker({
 }
 
 interface ChannelPickerProps {
-  channels: ContentChannel[]
-  value: ContentChannel[]
-  onChange: (value: ContentChannel[]) => void
+  channels: AigcChannelCode[]
+  value: AigcChannelCode[]
+  onChange: (value: AigcChannelCode[]) => void
 }
 
 export function ChannelPicker({ channels, value, onChange }: ChannelPickerProps) {
   return (
     <ToggleGroup
       value={value}
-      onValueChange={(values: string[]) => onChange(values as ContentChannel[])}
+      onValueChange={onChange}
       variant="outline"
       size="sm"
       className="flex w-full flex-wrap justify-start"
     >
       {channels.map((channel) => (
-        <ToggleGroupItem key={channel} value={channel} aria-label={CHANNEL_LABELS[channel]}>
-          {CHANNEL_LABELS[channel]}
+        <ToggleGroupItem key={channel} value={channel} aria-label={getChannelLabel(channel)}>
+          {getChannelLabel(channel)}
         </ToggleGroupItem>
       ))}
     </ToggleGroup>
@@ -151,8 +153,8 @@ export function ChannelPicker({ channels, value, onChange }: ChannelPickerProps)
 }
 
 interface ProductionModePickerProps {
-  value: ContentProductionMode
-  onChange: (value: ContentProductionMode) => void
+  value: AigcProductionMode
+  onChange: (value: AigcProductionMode) => void
 }
 
 export function ProductionModePicker({ value, onChange }: ProductionModePickerProps) {
@@ -161,10 +163,15 @@ export function ProductionModePicker({ value, onChange }: ProductionModePickerPr
       value={[value]}
       onValueChange={(values: string[]) => {
         const next = values.at(-1)
-        if (next) onChange(next as ContentProductionMode)
+        if (next === "standard" || next === "short_drama" || next === "motion_comic") {
+          onChange(next)
+        }
       }}
       variant="outline"
     >
+      <ToggleGroupItem value="standard" aria-label="标准内容">
+        <Sparkles /> 标准
+      </ToggleGroupItem>
       <ToggleGroupItem value="short_drama" aria-label="短剧">
         <Clapperboard /> 短剧
       </ToggleGroupItem>
@@ -183,33 +190,38 @@ export interface NewProjectLauncherProps {
 export function NewProjectLauncher({ mode = "compact", className }: NewProjectLauncherProps) {
   const router = useRouter()
   const briefId = useId()
-  const { data: typePage, isLoading: typesLoading } = useContentProjectTypes()
-  const { data: profilePage, isLoading: profilesLoading } = useContentBrandProfiles()
-  const materialize = useMaterializeContentProject()
+  const { data: typePage, isLoading: typesLoading } = useAigcProjectTypes()
+  const { data: profilePage, isLoading: profilesLoading } = useAigcBrandProfiles()
+  const { data: channelPage } = useAigcChannelSpecs({ status: "published" })
+  const materialize = useMaterializeAigcProject()
   const [brandProfileId, setBrandProfileId] = useState<number>()
-  const [projectTypeCode, setProjectTypeCode] = useState<ContentProjectTypeCode>()
-  const [productionMode, setProductionMode] = useState<ContentProductionMode>("standard")
-  const [channels, setChannels] = useState<ContentChannel[]>([])
+  const [projectTypeCode, setProjectTypeCode] = useState<AigcProjectTypeCode>()
+  const [productionMode, setProductionMode] = useState<AigcProductionMode>("standard")
+  const [channels, setChannels] = useState<AigcChannelCode[]>([])
   const [brief, setBrief] = useState("")
 
-  const allTypes = typePage?.list ?? []
+  const allTypes = (typePage?.list ?? []).filter((type) => type.status === "published")
   const types = mode === "compact" ? allTypes.filter((type) => type.quickEntry) : allTypes
-  const profiles = profilePage?.list ?? []
+  const profiles = (profilePage?.list ?? []).filter(
+    (profile) => profile.currentVersionId !== undefined
+  )
+  const channelSpecs = (channelPage?.list ?? []).filter((channel) => channel.status === "published")
   const selectedType = allTypes.find((type) => type.code === projectTypeCode)
+  const { data: blueprintPage, isLoading: blueprintsLoading } = useAigcProjectBlueprints(
+    {
+      projectTypeCode,
+      productionMode,
+      status: "published"
+    },
+    selectedType !== undefined
+  )
+  const selectedBlueprint = blueprintPage?.list.at(0)
   const availableChannels = useMemo(() => {
     const defaults = selectedType?.defaultChannels ?? []
-    const common: ContentChannel[] = [
-      "xiaohongshu",
-      "douyin",
-      "wechat_channels",
-      "wechat_mp",
-      "offline_poster",
-      "bilibili"
-    ]
-    return Array.from(new Set([...defaults, ...common]))
-  }, [selectedType])
+    return Array.from(new Set([...defaults, ...channelSpecs.map((channel) => channel.code)]))
+  }, [channelSpecs, selectedType])
 
-  function handleTypeChange(code: ContentProjectTypeCode) {
+  function handleTypeChange(code: AigcProjectTypeCode) {
     const type = allTypes.find((item) => item.code === code)
     setProjectTypeCode(code)
     setChannels(type?.defaultChannels ?? [])
@@ -217,17 +229,23 @@ export function NewProjectLauncher({ mode = "compact", className }: NewProjectLa
   }
 
   function handleCreate() {
-    if (!selectedType) return
+    if (!selectedType || !selectedBlueprint) return
     const date = new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit" }).format(
       new Date()
     )
+    const selectedProfile = profiles.find((profile) => profile.id === brandProfileId)
     materialize.mutate(
       {
         projectTypeCode: selectedType.code,
         name: `${selectedType.name} · ${date}`,
-        brief: brief.trim() || undefined,
-        primaryBrandProfileId: brandProfileId,
-        channels,
+        blueprintVersionId: selectedBlueprint.id,
+        briefJson: brief.trim() || undefined,
+        brandProfileVersionIds: selectedProfile?.currentVersionId
+          ? [selectedProfile.currentVersionId]
+          : [],
+        channelSpecVersionIds: channelSpecs
+          .filter((channel) => channels.includes(channel.code))
+          .map((channel) => channel.id),
         productionMode
       },
       { onSuccess: (project) => router.push(`/studio/projects/${project.id}`) }
@@ -239,7 +257,7 @@ export function NewProjectLauncher({ mode = "compact", className }: NewProjectLa
       <GlassCardBody className="flex flex-col gap-6 p-5 sm:p-7">
         <div className="flex flex-col gap-1">
           <h2 className="font-semibold text-xl">新建项目</h2>
-          <p className="text-muted-foreground text-sm">选择业务目标，立即建立可编辑的项目骨架。</p>
+          <p className="text-muted-foreground text-sm">选择业务目标，立即物化已发布蓝图。</p>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -253,8 +271,7 @@ export function NewProjectLauncher({ mode = "compact", className }: NewProjectLa
             />
             {profiles.length === 0 && !profilesLoading ? (
               <Link href="/studio/brands" className="text-primary text-sm hover:underline">
-                <Plus className="mr-1 inline size-4" />
-                新建品牌资料
+                <Plus /> 新建并发布品牌资料
               </Link>
             ) : null}
           </div>
@@ -266,7 +283,7 @@ export function NewProjectLauncher({ mode = "compact", className }: NewProjectLa
             types={types}
             value={projectTypeCode}
             onChange={handleTypeChange}
-            showAssistantFallback={mode === "compact"}
+            showAssistantChoice={mode === "compact"}
           />
           {typesLoading ? <p className="text-muted-foreground text-sm">正在加载项目类型…</p> : null}
         </div>
@@ -298,15 +315,21 @@ export function NewProjectLauncher({ mode = "compact", className }: NewProjectLa
           />
         </div>
 
+        {selectedType && !blueprintsLoading && !selectedBlueprint ? (
+          <p className="text-destructive text-sm">
+            当前项目类型和生产模式没有已发布蓝图，暂不能创建。
+          </p>
+        ) : null}
+
         <div className="flex justify-end">
           <GlowButton
             tone="violet"
             size="lg"
-            disabled={!selectedType || materialize.isPending}
+            disabled={!selectedType || !selectedBlueprint || materialize.isPending}
             onClick={handleCreate}
           >
             <Sparkles />
-            {materialize.isPending ? "正在创建…" : "创建项目"}
+            {materialize.isPending ? "正在物化…" : "创建项目"}
           </GlowButton>
         </div>
       </GlassCardBody>

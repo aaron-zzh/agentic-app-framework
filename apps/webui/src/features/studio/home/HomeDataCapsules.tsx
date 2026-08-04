@@ -12,12 +12,12 @@ import { ArrowRight, CheckSquare, FolderKanban, Sparkles, Wallet } from "lucide-
 import Link from "next/link"
 import { DataCapsule } from "@/components/studio"
 import { useCreditBalance } from "@/lib/api/rest/billing"
-import { useAssetList } from "@/lib/api/rest/media"
 import { request } from "@/lib/api/rest/entity"
+import { useAssetList } from "@/lib/api/rest/media"
 
 function useTodayTaskCount() {
   return useQuery({
-    queryKey: ["aigc", "tasks", "today-count"] as const,
+    queryKey: ["aigc.task", "today-count"] as const,
     queryFn: () => request<number>("/aigc/tasks/today-count")
   })
 }
@@ -50,7 +50,7 @@ export function HomeDataCapsules() {
           }
         />
       </Link>
-      <Link href="/studio/assets/materials" className="group">
+      <Link href="/studio/assets/library" className="group">
         <DataCapsule
           label="已存资产"
           value={assetPage?.total ?? 0}

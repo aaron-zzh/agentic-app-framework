@@ -2,8 +2,8 @@ package com.xuejiai.aaf.module.ai.aigc.task.mapper;
 
 import org.springframework.stereotype.Component;
 
-import com.xuejiai.aaf.module.ai.aigc.media.api.MediaApi;
-import com.xuejiai.aaf.module.ai.aigc.media.vo.MediaVO;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaView;
 import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.AigcTaskVO;
 
@@ -14,13 +14,12 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AigcTaskMapper {
 
-    private final MediaApi mediaApi;
+    private final AigcMediaApi mediaApi;
 
     public AigcTaskVO toVO(AigcTask task) {
-        MediaVO media =
+        AigcMediaView media =
                 task.getOutputMediaVersionId() != null
-                        ? mediaApi.getByVersionId(
-                                task.getOutputMediaVersionId(), task.getUserId())
+                        ? mediaApi.getByVersionId(task.getOutputMediaVersionId(), task.getUserId())
                         : null;
         return new AigcTaskVO(
                 task.getId(),

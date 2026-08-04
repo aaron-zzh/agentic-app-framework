@@ -3,14 +3,14 @@
  * @author AaronZZH & Kiro
  */
 
-/** 统一媒体类型，对齐后端 MediaType。 */
-export type MediaType = "IMAGE" | "VIDEO" | "AUDIO" | "MUSIC" | "MODEL_3D"
+/** 统一媒体类型，对齐后端 AigcMediaType。 */
+export type AigcMediaType = "IMAGE" | "VIDEO" | "AUDIO" | "MUSIC" | "MODEL_3D"
 
 /** 媒体来源类型由后端枚举返回，前端只透传筛选值。 */
-export type MediaSourceType = string
+export type AigcMediaSourceType = string
 
 /** 媒体当前版本。 */
-export interface MediaVersionVO {
+export interface AigcMediaVersion {
   id: number
   versionNo: number
   fileId: number
@@ -29,22 +29,22 @@ export interface MediaVersionVO {
 }
 
 /** 生成或上传后持久化的媒体对象。 */
-export interface MediaVO {
+export interface AigcMedia {
   id: number
   name: string
-  mediaType: MediaType
-  sourceType: MediaSourceType
+  mediaType: AigcMediaType
+  sourceType: AigcMediaSourceType
   sourceExecutionRunId: number | null
   sourceTaskId: number | null
   originalProjectId: number | null
   assetId: number | null
-  currentVersion: MediaVersionVO
+  currentVersion: AigcMediaVersion
   createTime: string
   updateTime: string
 }
 
 /** 用户从媒体库标记保存的资产对象。 */
-export interface AssetVO {
+export interface AigcAsset {
   id: number
   mediaId: number
   categoryId: number | null
@@ -52,10 +52,9 @@ export interface AssetVO {
   copyrightInfo: string | null
   status: string
   usageCount: number
-  media: MediaVO
+  media: AigcMedia
   createTime: string
 }
-
 
 /**
  * AIGC 任务类型，对应后端 AigcTaskTypeEnum / 字典 aigc_task_type。
@@ -112,5 +111,5 @@ export interface GenerationParams {
   model: string
   resolution: string
   aspectRatio: string
-  referenceAssets: MediaVO[]
+  referenceAssets: AigcMedia[]
 }

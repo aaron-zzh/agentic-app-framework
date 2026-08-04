@@ -18,7 +18,7 @@ import { invalidateCreditQueries } from "@/lib/api/rest/billing"
  * 任务完成/失败后的默认失效延时（毫秒）。
  *
  * SSE 事件由 AigcTaskExecutor 在 REQUIRES_NEW 事务方法体内推送（push 早于方法返回、事务提交），
- * 立即失效存在读到提交前旧数据的竞态窗口，延时与 AigcView.tsx 原有实践保持一致。
+ * 延迟失效用于避开事件早于事务提交的竞态窗口。
  */
 const INVALIDATE_DELAY_MS = 1500
 
@@ -28,8 +28,9 @@ const INVALIDATE_DELAY_MS = 1500
  */
 function invalidateAigcDefaultQueries(qc: QueryClient) {
   setTimeout(() => {
-    qc.invalidateQueries({ queryKey: ["aigc", "media"] })
-    qc.invalidateQueries({ queryKey: ["aigc", "assets"] })
+    qc.invalidateQueries({ queryKey: ["aigc.task"] })
+    qc.invalidateQueries({ queryKey: ["aigc.media"] })
+    qc.invalidateQueries({ queryKey: ["aigc.asset"] })
     invalidateCreditQueries(qc)
   }, INVALIDATE_DELAY_MS)
 }

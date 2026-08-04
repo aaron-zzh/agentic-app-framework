@@ -5,7 +5,6 @@ import java.util.Map;
 
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.common.util.JsonUtils;
@@ -13,9 +12,8 @@ import com.xuejiai.aaf.framework.engine.tool.ToolCallDispatcher.ToolCallResult;
 import com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyService;
 import com.xuejiai.aaf.framework.security.OperatorContext;
-import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskService;
-import com.xuejiai.aaf.module.ai.aigc.task.vo.ImageTaskRequest;
-import com.xuejiai.aaf.module.ai.aigc.task.vo.VideoTaskRequest;
+import com.xuejiai.aaf.module.ai.aigc.task.api.AigcTaskApi;
+import com.xuejiai.aaf.module.ai.aigc.task.api.AigcTaskSubmitCommand;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,8 +27,8 @@ public class ContentGenerationTool {
     private static final String IMAGE_TOOL = "generateImage";
     private static final String VIDEO_TOOL = "generateVideo";
 
-    private final AigcTaskService aigcTaskService;
-    private final ObjectProvider<ContentSafetyService> contentSafetyService;
+    private final AigcTaskApi taskApi;
+    private final ContentSafetyService contentSafetyService;
     private final OperatorContext operatorContext;
 
     @Tool(description = "生成图片。参数为 JSON：prompt 必填，width/height/model 可选。")
@@ -47,30 +45,21 @@ public class ContentGenerationTool {
                 return blockedBySafety(
                         IMAGE_TOOL, safety.code(), safety.message(), safety.reviewId());
             }
-            var userId = operatorContext.currentOwnerId().orElseThrow();
+            var parameters = new java.util.LinkedHashMap<String, Object>();
+            if (request.width() != null) parameters.put("width", request.width());
+            if (request.height() != null) parameters.put("height", request.height());
             var taskId =
-                    aigcTaskService.submitImageTask(
-                            userId,
-                            new ImageTaskRequest(
-                                    request.prompt(),
-                                    request.model(),
-                                    request.width() != null ? request.width() : 1024,
-                                    request.height() != null ? request.height() : 1024,
-                                    null,
-                                    null,
-                                    null,
-                                    null,
-                                    null,
-                                    null,
-                                    null,
-                                    null,
-                                    null,
-                                    null,
-                                    null,
-                                    request.prompt(),
-                                    null,
-                                    null,
-                                    null));
+                    taskApi.submit(
+                                    new AigcTaskSubmitCommand(
+                                            null,
+                                            null,
+                                            null,
+                                            "IMAGE",
+                                            request.model(),
+                                            request.prompt(),
+                                            JsonUtils.toJsonString(parameters),
+                                            java.util.UUID.randomUUID().toString()))
+                            .id();
             return asJson(
                     ToolCallResult.success(
                             IMAGE_TOOL,
@@ -97,33 +86,34 @@ public class ContentGenerationTool {
                 return blockedBySafety(
                         VIDEO_TOOL, safety.code(), safety.message(), safety.reviewId());
             }
-            var userId = operatorContext.currentOwnerId().orElseThrow();
             var imageMode = videoImageMode(request);
+            var parameters = new java.util.LinkedHashMap<String, Object>();
+            if (request.resolution() != null) parameters.put("resolution", request.resolution());
+            if (request.duration() != null) parameters.put("duration", request.duration());
+            if (request.ratio() != null) parameters.put("ratio", request.ratio());
+            if (request.seed() != null) parameters.put("seed", request.seed());
+            parameters.put("imageMode", imageMode);
+            if (request.imageUrl() != null) parameters.put("imageUrl", request.imageUrl());
+            if (request.referenceImageUrls() != null) {
+                parameters.put("referenceImageUrls", request.referenceImageUrls());
+            }
             var taskId =
-                    aigcTaskService.submitVideoTask(
-                            userId,
-                            new VideoTaskRequest(
-                                    request.prompt(),
-                                    request.model(),
-                                    null,
-                                    request.resolution(),
-                                    request.duration(),
-                                    request.ratio(),
-                                    request.seed(),
-                                    imageMode,
-                                    request.imageUrl(),
-                                    request.referenceImageUrls(),
-                                    null,
-                                    null,
-                                    null,
-                                    null,
-                                    null));
+                    taskApi.submit(
+                                    new AigcTaskSubmitCommand(
+                                            null,
+                                            null,
+                                            null,
+                                            "VIDEO",
+                                            request.model(),
+                                            request.prompt(),
+                                            JsonUtils.toJsonString(parameters),
+                                            java.util.UUID.randomUUID().toString()))
+                            .id();
 
             return asJson(
                     ToolCallResult.success(
                             VIDEO_TOOL,
-                            JsonUtils.toJsonString(
-                                    Map.of("taskId", taskId, "status", "PENDING"))));
+                            JsonUtils.toJsonString(Map.of("taskId", taskId, "status", "PENDING"))));
         } catch (Exception ex) {
             return asJson(ToolCallResult.error(VIDEO_TOOL, "GENERATION_ERROR", ex.getMessage()));
         }
@@ -141,12 +131,7 @@ public class ContentGenerationTool {
 
     private com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyResult review(
             String toolName, String category, String prompt, Map<String, Object> metadata) {
-        var service = contentSafetyService.getIfAvailable();
-        if (service == null) {
-            // 无安全服务时默认放行
-            return com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyResult.pass();
-        }
-        return service.reviewBeforeGeneration(
+        return contentSafetyService.reviewBeforeGeneration(
                 new ContentSafetyRequest(
                         toolName,
                         category,

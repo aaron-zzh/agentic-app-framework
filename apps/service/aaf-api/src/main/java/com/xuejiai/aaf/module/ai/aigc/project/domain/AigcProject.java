@@ -1,14 +1,19 @@
 package com.xuejiai.aaf.module.ai.aigc.project.domain;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/** AIGC 创作项目。 */
+/** AIGC 唯一项目聚合根。 */
 @Getter
 @Setter
 @Entity
@@ -18,31 +23,66 @@ import lombok.Setter;
                 "UPDATE aigc_project SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class AigcProject extends BaseEntity {
 
-    /** 项目名称 */
-    @Column(name = "name", nullable = false, length = 200)
+    @Column(nullable = false, length = 200)
     private String name;
 
-    /** 封面图 URL */
-    @Column(name = "cover_url", length = 1000)
-    private String coverUrl;
-
-    /** 项目描述 */
-    @Column(name = "description", length = 500)
+    @Column(length = 500)
     private String description;
 
-    /** 项目类型：VIDEO_DRAMA/IMAGE_POST/SHORT_VIDEO/MIXED */
-    @Column(name = "type", nullable = false, length = 30)
-    private String type = "MIXED";
+    @Column(name = "project_type_code", nullable = false, length = 64)
+    private String projectTypeCode;
 
-    /** 项目状态：DRAFT/IN_PROGRESS/COMPLETED/ARCHIVED */
-    @Column(name = "status", nullable = false, length = 20)
-    private String status = "DRAFT";
+    @Column(name = "blueprint_code", length = 64)
+    private String blueprintCode;
 
-    /** 所属用户 ID */
+    @Column(name = "blueprint_version", length = 32)
+    private String blueprintVersion;
+
+    @Column(name = "domain_extension_code", length = 64)
+    private String domainExtensionCode;
+
+    @Column(name = "domain_extension_version", length = 32)
+    private String domainExtensionVersion;
+
+    @Column(name = "production_mode", nullable = false, length = 32)
+    private String productionMode;
+
+    @Column(name = "generation_mode", nullable = false, length = 32)
+    private String generationMode = "manual";
+
+    @Column(nullable = false, length = 32)
+    private String status = "draft";
+
+    @Column(columnDefinition = "TEXT")
+    private String brief;
+
+    @Column(columnDefinition = "TEXT")
+    private String prompt;
+
+    @Column(name = "cover_media_version_id")
+    private Long coverMediaVersionId;
+
+    @Column(name = "config_snapshot_id")
+    private Long configSnapshotId;
+
+    @Column(name = "graph_revision", nullable = false)
+    private Integer graphRevision = 1;
+
+    @Column(name = "primary_brand_profile_id")
+    private Long primaryBrandProfileId;
+
+    @Column(name = "assistant_id")
+    private Long assistantId;
+
+    @Column(name = "budget_limit", precision = 12, scale = 2)
+    private BigDecimal budgetLimit;
+
+    @Column(name = "cost_used", nullable = false, precision = 12, scale = 2)
+    private BigDecimal costUsed = BigDecimal.ZERO;
+
+    @Column(name = "last_active_time")
+    private LocalDateTime lastActiveTime;
+
     @Column(name = "user_id", nullable = false)
     private Long userId;
-
-    /** 项目级提示词——生成时直接使用，文档为可选增强 */
-    @Column(name = "prompt", columnDefinition = "TEXT")
-    private String prompt;
 }

@@ -35,13 +35,15 @@ export const paths = {
     notifications: "/notifications",
     trash: "/trash"
   },
-  aigc: {
-    root: "/aigc",
-    assets: "/aigc/assets",
-    video: "/aigc/video"
-  },
   studio: {
+    root: "/studio",
     welcome: "/studio/welcome",
+    create: "/studio/create",
+    projects: "/studio/projects",
+    project: (id: number | string) => `/studio/projects/${id}`,
+    works: "/studio/assets/works",
+    materials: "/studio/assets/materials",
+    assets: "/studio/assets/library",
     me: "/studio/me",
     mePricing: "/studio/me/membership",
     meCredits: "/studio/me/credits",

@@ -313,8 +313,8 @@ const personalPreset: DashboardPreset = {
       config: {
         type: "shortcut",
         items: [
-          { label: "AI 创作", href: "/aigc", icon: "sparkles" },
-          { label: "素材库", href: "/aigc/assets", icon: "image" },
+          { label: "AI 创作", href: "/studio/create", icon: "sparkles" },
+          { label: "素材库", href: "/studio/assets/materials", icon: "image" },
           { label: "知识库", href: "/studio/knowledge", icon: "database" },
           { label: "设置", href: "/settings", icon: "settings" }
         ]

@@ -13,15 +13,15 @@ import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.intelligent.ai.image.process.ImageProcessService;
 import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.framework.security.PermissionExecutionService;
-import com.xuejiai.aaf.module.ai.aigc.media.api.GeneratedMediaCommand;
-import com.xuejiai.aaf.module.ai.aigc.media.api.MediaApi;
-import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaType;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcGeneratedMediaCommand;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaType;
 import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
 import com.xuejiai.aaf.module.ai.aigc.task.mapper.AigcTaskMapper;
 import com.xuejiai.aaf.module.ai.aigc.task.repository.AigcTaskRepository;
 import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskEventService;
 import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskService;
-import com.xuejiai.aaf.module.system.file.service.FileUploadService;
+import com.xuejiai.aaf.module.system.file.api.FileStoragePort;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,8 +46,8 @@ public class ImageProcessTaskSyncJob {
     @Autowired(required = false)
     private ImageProcessService imageProcessService;
 
-    private final FileUploadService fileService;
-    private final MediaApi mediaApi;
+    private final FileStoragePort fileService;
+    private final AigcMediaApi mediaApi;
     private final AigcTaskEventService eventService;
     private final AigcTaskMapper taskMapper;
     private final PermissionExecutionService permissionExecutionService;
@@ -88,17 +88,14 @@ public class ImageProcessTaskSyncJob {
                         String path = "aigc/image_process/%s.%s".formatted(UUID.randomUUID(), ext);
                         var storedFile =
                                 fileService.uploadFromUrl(
-                                        resultUrl,
-                                        path,
-                                        imageContentType(ext),
-                                        task.getUserId());
+                                        resultUrl, path, imageContentType(ext), task.getUserId());
                         task.setProviderResult(JsonUtils.toJsonString(result));
                         var media =
                                 mediaApi.createFromGeneratedFile(
-                                        new GeneratedMediaCommand(
+                                        new AigcGeneratedMediaCommand(
                                                 task.getUserId(),
                                                 "AI抠图-" + task.getId(),
-                                                MediaType.IMAGE,
+                                                AigcMediaType.IMAGE,
                                                 storedFile,
                                                 null,
                                                 null,

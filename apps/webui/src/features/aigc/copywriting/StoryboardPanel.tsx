@@ -6,30 +6,29 @@
 "use client"
 
 import { useDroppable } from "@dnd-kit/core"
-import { BookOpen, Film, Image, Play, Plus, Settings2, Text, X } from "lucide-react"
+import { Film, Image, Play, Plus, Settings2, Text, X } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Slider } from "@/components/ui/slider"
-import { cn } from "@/lib/utils/index"
 import { useMediaDetails } from "@/lib/api/rest/media"
-import { ProjectDocPanel } from "../project/ProjectDocPanel"
+import { cn } from "@/lib/utils/index"
 import { useAigcStore } from "../store"
-import type { MediaVO } from "../types"
+import type { AigcMedia } from "../types"
 
 type DisplayMode = "all" | "text" | "media"
 
 interface StoryboardElement {
-  media: MediaVO
-  relatedMedia: MediaVO[]
+  media: AigcMedia
+  relatedMedia: AigcMedia[]
 }
 
-function groupMedia(media: MediaVO[]): StoryboardElement[] {
+function groupMedia(media: AigcMedia[]): StoryboardElement[] {
   return media.map((item) => ({ media: item, relatedMedia: [item] }))
 }
 
-function MediaTypeIcon({ type }: { type: MediaVO["mediaType"] }) {
+function MediaTypeIcon({ type }: { type: AigcMedia["mediaType"] }) {
   if (type === "VIDEO") return <Film className="size-3 text-blue-400" />
   if (type === "IMAGE") return <Image className="size-3 text-emerald-400" />
   return <Text className="size-3 text-muted-foreground" />
@@ -40,7 +39,7 @@ function MediaBadge({
   scale,
   onRemove
 }: {
-  media: MediaVO
+  media: AigcMedia
   scale: number
   onRemove?: () => void
 }) {
@@ -217,7 +216,6 @@ export function StoryboardPanel() {
 
   const [mode, setMode] = useState<DisplayMode>("all")
   const [scale, setScale] = useState(1)
-  const [docPanelOpen, setDocPanelOpen] = useState(false)
 
   const elements = groupMedia(media)
 
@@ -226,15 +224,6 @@ export function StoryboardPanel() {
       <div className="flex items-center justify-between border-border/50 border-b px-4 py-3">
         <h2 className="font-semibold text-foreground text-sm">元素看板</h2>
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="size-7 p-0 text-muted-foreground hover:text-foreground"
-            title="项目规范（Prompt + 文档）"
-            onClick={() => setDocPanelOpen(true)}
-          >
-            <BookOpen className="size-4" />
-          </Button>
           <ViewSettingsPopover
             mode={mode}
             scale={scale}
@@ -252,8 +241,6 @@ export function StoryboardPanel() {
           </Button>
         </div>
       </div>
-
-      <ProjectDocPanel open={docPanelOpen} onOpenChange={setDocPanelOpen} />
 
       <ScrollArea className="flex-1">
         <div

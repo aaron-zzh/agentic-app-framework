@@ -257,6 +257,30 @@ public class FlowableBpmnEngine implements BpmnEngine {
                 > 0;
     }
 
+    @Override
+    public InstanceInfo getInstance(String processInstanceId) {
+        var running =
+                runtimeService
+                        .createProcessInstanceQuery()
+                        .processInstanceId(processInstanceId)
+                        .singleResult();
+        if (running != null) {
+            return new InstanceInfo(
+                    running.getId(),
+                    running.getProcessDefinitionKey(),
+                    running.getBusinessKey(),
+                    running.isSuspended() ? "suspended" : "running",
+                    running.getStartTime().getTime(),
+                    null);
+        }
+        var historic =
+                historyService
+                        .createHistoricProcessInstanceQuery()
+                        .processInstanceId(processInstanceId)
+                        .singleResult();
+        return historic == null ? null : toInstanceInfo(historic);
+    }
+
     // ==================== #5802 流程定义管理 ====================
 
     @Override

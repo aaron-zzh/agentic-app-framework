@@ -10,11 +10,11 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils/index"
 import { StyleAdjustDialog } from "./StyleAdjustDialog"
 
-type MediaType = "image" | "video"
+type AigcMediaType = "image" | "video"
 type MediaStatus = "generating" | "completed"
 
 interface MediaPreviewCardProps {
-  type: MediaType
+  type: AigcMediaType
   thumbnail: string
   alt?: string
   status?: MediaStatus

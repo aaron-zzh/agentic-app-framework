@@ -1,7 +1,5 @@
 /**
  * Content Studio 工作台统一创作输入区。
- *
- * 动作和片段均来自服务端；未接通的角色、技能、模型、附件和工具不提供伪选项。
  * @author AaronZZH & Kiro
  */
 
@@ -14,8 +12,7 @@ import {
   Library,
   LoaderCircle,
   Paperclip,
-  Sparkles,
-  Wrench
+  Sparkles
 } from "lucide-react"
 import { useId, useState } from "react"
 import { GlassCard, NeonChip } from "@/components/studio"
@@ -24,6 +21,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -39,21 +37,17 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { ApiError } from "@/lib/api/errors"
-import type { ContentProjectObjectVO, ContentProjectVO } from "@/lib/api/rest/content"
-import {
-  useContentProjectActions,
-  useContentSnippets,
-  useRunContentAction
-} from "@/lib/api/rest/content"
+import type { AigcProject, AigcProjectObject } from "@/lib/api/rest/ai/aigc"
+import { useAigcProjectActions, useAigcSnippets, useRunAigcAction } from "@/lib/api/rest/ai/aigc"
+import { useMediaList } from "@/lib/api/rest/media"
 import { notify } from "@/lib/notification"
 
 const CONTENT_CONFIRMATION_REQUIRED = 8_000_022
 
 export interface ContentActionBarProps {
-  project: ContentProjectVO
-  focusedObject?: ContentProjectObjectVO
+  project: AigcProject
+  focusedObject?: AigcProjectObject
 }
 
 export function ContentActionBar({ project, focusedObject }: ContentActionBarProps) {
@@ -63,13 +57,19 @@ export function ContentActionBar({ project, focusedObject }: ContentActionBarPro
   const [prompt, setPrompt] = useState("")
   const [selectedActionKey, setSelectedActionKey] = useState("")
   const [selectedSnippetIds, setSelectedSnippetIds] = useState<number[]>([])
-  const { data: actions = [], isLoading: actionsLoading } = useContentProjectActions(project.id)
-  const { data: snippetPage, isLoading: snippetsLoading } = useContentSnippets({
+  const [attachmentMediaVersionIds, setAttachmentMediaVersionIds] = useState<number[]>([])
+  const { data: actions = [], isLoading: actionsLoading } = useAigcProjectActions(project.id)
+  const { data: mediaPage, isLoading: mediaLoading } = useMediaList({
+    pageNo: 1,
+    pageSize: 20
+  })
+  const { data: snippetPage, isLoading: snippetsLoading } = useAigcSnippets({
     projectTypeCode: project.projectTypeCode
   })
-  const runAction = useRunContentAction()
+  const runAction = useRunAigcAction()
   const snippets = snippetPage?.list ?? []
-  const archived = project.status === "archived"
+  const media = mediaPage?.list ?? []
+  const writable = project.status === "draft" || project.status === "in_progress"
   const availableActions = focusedObject
     ? actions.filter(
         (action) =>
@@ -80,7 +80,7 @@ export function ContentActionBar({ project, focusedObject }: ContentActionBarPro
   const selectedAction =
     availableActions.find((action) => action.actionKey === selectedActionKey) ??
     availableActions.at(0)
-  const actionUnavailableMessage =
+  const unavailableMessage =
     !actionsLoading && actions.length === 0
       ? "当前项目蓝图未声明可用动作"
       : !actionsLoading && availableActions.length === 0
@@ -88,7 +88,6 @@ export function ContentActionBar({ project, focusedObject }: ContentActionBarPro
           ? "当前对象没有适用动作"
           : "当前项目没有适用的项目级动作"
         : null
-  const disabled = archived || !selectedAction || runAction.isPending
 
   function insertSnippet(id: number, content?: string) {
     if (!content) return
@@ -96,8 +95,18 @@ export function ContentActionBar({ project, focusedObject }: ContentActionBarPro
     setSelectedSnippetIds((current) => (current.includes(id) ? current : [...current, id]))
   }
 
+  function toggleAttachment(mediaVersionId: number, checked: boolean) {
+    setAttachmentMediaVersionIds((current) =>
+      checked
+        ? current.includes(mediaVersionId)
+          ? current
+          : [...current, mediaVersionId]
+        : current.filter((id) => id !== mediaVersionId)
+    )
+  }
+
   function execute(confirmed = false) {
-    if (archived || !selectedAction) return
+    if (!writable || !selectedAction) return
     runAction.mutate(
       {
         projectId: project.id,
@@ -105,9 +114,9 @@ export function ContentActionBar({ project, focusedObject }: ContentActionBarPro
           actionKey: selectedAction.actionKey,
           objectId: focusedObject?.id,
           prompt: prompt.trim() || undefined,
-          snippetIds: selectedSnippetIds.length > 0 ? selectedSnippetIds : undefined,
-          generationMode: project.generationMode,
-          confirmed
+          attachmentMediaVersionIds,
+          confirmed,
+          idempotencyKey: crypto.randomUUID()
         }
       },
       {
@@ -168,11 +177,11 @@ export function ContentActionBar({ project, focusedObject }: ContentActionBarPro
                 : "先聚焦一个对象，或描述要推进的项目级动作…"
             }
             className="min-h-20 resize-y border-0 bg-transparent shadow-none focus-visible:ring-0"
-            disabled={archived}
+            disabled={!writable}
           />
-          {archived ? (
+          {!writable ? (
             <p className="text-amber-600 text-sm">
-              项目已归档，创作输入、执行动作、版本处置、画布与标注均已禁用。
+              当前项目已进入 {project.status} 阶段，创作与执行动作只读。
             </p>
           ) : null}
 
@@ -180,10 +189,9 @@ export function ContentActionBar({ project, focusedObject }: ContentActionBarPro
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={<Button type="button" variant="outline" size="sm" />}
-                disabled={archived || snippetsLoading}
+                disabled={!writable || snippetsLoading}
               >
-                <Library />
-                片段库
+                <Library /> 片段库
                 {selectedSnippetIds.length > 0 ? `(${selectedSnippetIds.length})` : null}
               </DropdownMenuTrigger>
               <DropdownMenuContent className="min-w-64">
@@ -206,37 +214,48 @@ export function ContentActionBar({ project, focusedObject }: ContentActionBarPro
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger render={<span />}>
-                  <Button type="button" variant="outline" size="sm" disabled>
-                    <Paperclip />
-                    附件
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>附件解析链路尚未接通</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger render={<span />}>
-                  <Button type="button" variant="outline" size="sm" disabled>
-                    <Wrench />
-                    工具
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>工具直调链路尚未接通</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={<Button type="button" variant="outline" size="sm" />}
+                disabled={!writable || mediaLoading}
+              >
+                <Paperclip /> 附件
+                {attachmentMediaVersionIds.length > 0
+                  ? `(${attachmentMediaVersionIds.length})`
+                  : null}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="min-w-72">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>选择 MediaVersion</DropdownMenuLabel>
+                  {media.length > 0 ? (
+                    media.map((item) => (
+                      <DropdownMenuCheckboxItem
+                        key={item.id}
+                        checked={attachmentMediaVersionIds.includes(item.currentVersion.id)}
+                        onCheckedChange={(checked) =>
+                          toggleAttachment(item.currentVersion.id, checked === true)
+                        }
+                      >
+                        <span className="truncate">{item.name}</span>
+                      </DropdownMenuCheckboxItem>
+                    ))
+                  ) : (
+                    <DropdownMenuItem disabled>暂无可用媒体</DropdownMenuItem>
+                  )}
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <div className="ml-auto flex min-w-0 items-center gap-2">
-              {actionUnavailableMessage ? (
-                <p className="text-muted-foreground text-sm">{actionUnavailableMessage}</p>
+              {unavailableMessage ? (
+                <p className="text-muted-foreground text-sm">{unavailableMessage}</p>
               ) : (
                 <>
                   {availableActions.length > 0 ? (
                     <Select
                       value={selectedAction?.actionKey ?? ""}
                       onValueChange={(value) => setSelectedActionKey(value ?? "")}
-                      disabled={archived}
+                      disabled={!writable}
                     >
                       <SelectTrigger size="sm" className="max-w-52">
                         <SelectValue>{selectedAction?.label ?? "选择动作"}</SelectValue>
@@ -252,7 +271,11 @@ export function ContentActionBar({ project, focusedObject }: ContentActionBarPro
                       </SelectContent>
                     </Select>
                   ) : null}
-                  <Button type="button" disabled={disabled} onClick={() => execute()}>
+                  <Button
+                    type="button"
+                    disabled={!writable || !selectedAction || runAction.isPending}
+                    onClick={() => execute()}
+                  >
                     {runAction.isPending ? <LoaderCircle className="animate-spin" /> : <Sparkles />}
                     {actionsLoading ? "加载动作…" : "执行"}
                   </Button>

@@ -7,12 +7,12 @@
 
 import type { Edge, Node } from "@xyflow/react"
 import type {
-  ContentObjectStatus,
-  ContentObjectType,
-  ContentProjectGraphVO,
-  ContentProjectObjectVO,
-  ContentRelationLayer
-} from "@/lib/api/rest/content"
+  AigcObjectStatus,
+  AigcObjectType,
+  AigcProjectGraph,
+  AigcProjectObject,
+  AigcRelationLayer
+} from "@/lib/api/rest/ai/aigc"
 
 export type ProjectGraphStage =
   | "context"
@@ -36,13 +36,19 @@ export const PROJECT_GRAPH_STAGES: {
   { key: "governance", label: "审核 / 导出", description: "检查、审核与完成" }
 ]
 
-export const OBJECT_TYPE_LABELS: Record<ContentObjectType, string> = {
+export const OBJECT_TYPE_LABELS: Record<AigcObjectType, string> = {
   brief: "简报",
   creative_concept: "创意方向",
   deliverable_set: "内容包",
   image_deliverable: "图片交付物",
   video_deliverable: "视频交付物",
   copy_deliverable: "文案交付物",
+  article_deliverable: "博客文章",
+  topic: "文章选题",
+  source_material_set: "来源资料",
+  article_outline: "文章提纲",
+  seo_metadata: "SEO 元数据",
+  distribution_variant: "渠道分发变体",
   episode: "分集",
   scene: "场次",
   shot: "镜头",
@@ -53,7 +59,7 @@ export const OBJECT_TYPE_LABELS: Record<ContentObjectType, string> = {
   claim_evidence: "主张证据"
 }
 
-export const OBJECT_STATUS_LABELS: Record<ContentObjectStatus, string> = {
+export const OBJECT_STATUS_LABELS: Record<AigcObjectStatus, string> = {
   empty: "空槽位",
   draft: "草稿",
   pending_confirm: "待确认",
@@ -62,15 +68,21 @@ export const OBJECT_STATUS_LABELS: Record<ContentObjectStatus, string> = {
   done: "已完成"
 }
 
-const TYPE_STAGE: Record<ContentObjectType, ProjectGraphStage> = {
+const TYPE_STAGE: Record<AigcObjectType, ProjectGraphStage> = {
   property_subject: "context",
   claim_evidence: "context",
   brief: "planning",
+  topic: "planning",
+  source_material_set: "context",
   creative_concept: "creative",
+  article_outline: "creative",
   deliverable_set: "package",
   image_deliverable: "material",
   video_deliverable: "material",
   copy_deliverable: "material",
+  article_deliverable: "material",
+  seo_metadata: "material",
+  distribution_variant: "material",
   episode: "material",
   scene: "material",
   shot: "material",
@@ -96,9 +108,9 @@ export interface ContentGraphNodeData extends Record<string, unknown> {
   title: string
   description?: string
   summary: string
-  status?: ContentObjectStatus
+  status?: AigcObjectStatus
   objectId?: number
-  objectType?: ContentObjectType
+  objectType?: AigcObjectType
   objectCount: number
   pendingCount: number
   blockedCount: number
@@ -110,7 +122,7 @@ export type ContentGraphNode = Node<ContentGraphNodeData, "contentDomain">
 
 export interface GraphProjectionOptions {
   collapsedGroups: ProjectGraphStage[]
-  activeLayers: ContentRelationLayer[]
+  activeLayers: AigcRelationLayer[]
   focusObjectId?: number
   zoomTier: ProjectGraphZoomTier
 }
@@ -120,11 +132,11 @@ export interface GraphProjection {
   edges: Edge[]
 }
 
-export function getObjectStage(object: ContentProjectObjectVO): ProjectGraphStage {
+export function getObjectStage(object: AigcProjectObject): ProjectGraphStage {
   return TYPE_STAGE[object.objectType]
 }
 
-function groupSummary(objects: ContentProjectObjectVO[]): string {
+function groupSummary(objects: AigcProjectObject[]): string {
   const pending = objects.filter((object) => object.status === "pending_confirm").length
   const blocked = objects.filter((object) => object.status === "blocked").length
   const shots = objects.filter((object) => object.objectType === "shot").length
@@ -135,12 +147,12 @@ function groupSummary(objects: ContentProjectObjectVO[]): string {
 }
 
 export function toGraphProjection(
-  graph: ContentProjectGraphVO,
+  graph: AigcProjectGraph,
   options: GraphProjectionOptions
 ): GraphProjection {
   const collapsed = new Set(options.collapsedGroups)
   const activeLayers = new Set(options.activeLayers)
-  const objectsByStage = new Map<ProjectGraphStage, ContentProjectObjectVO[]>()
+  const objectsByStage = new Map<ProjectGraphStage, AigcProjectObject[]>()
   const objectStage = new Map<number, ProjectGraphStage>()
 
   for (const stage of PROJECT_GRAPH_STAGES) objectsByStage.set(stage.key, [])

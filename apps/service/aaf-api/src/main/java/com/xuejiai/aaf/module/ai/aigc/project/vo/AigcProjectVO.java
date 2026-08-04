@@ -1,20 +1,30 @@
 package com.xuejiai.aaf.module.ai.aigc.project.vo;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-import lombok.Data;
-
-/** 创作项目响应 VO。 */
-@Data
-public class AigcProjectVO {
-    private Long id;
-    private String name;
-    private String coverUrl;
-    private String description;
-    private String type;
-    private String status;
-    private Long userId;
-    private String prompt;
-    private LocalDateTime createTime;
-    private LocalDateTime updateTime;
-}
+public record AigcProjectVO(
+        Long id,
+        Integer version,
+        String name,
+        String description,
+        String projectTypeCode,
+        String blueprintCode,
+        String blueprintVersion,
+        String domainExtensionCode,
+        String domainExtensionVersion,
+        String productionMode,
+        String generationMode,
+        String status,
+        String brief,
+        String prompt,
+        Long coverMediaVersionId,
+        Long configSnapshotId,
+        Integer graphRevision,
+        Long primaryBrandProfileId,
+        Long assistantId,
+        BigDecimal budgetLimit,
+        BigDecimal costUsed,
+        LocalDateTime lastActiveTime,
+        LocalDateTime createTime,
+        LocalDateTime updateTime) {}

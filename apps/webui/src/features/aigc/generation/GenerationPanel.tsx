@@ -6,7 +6,7 @@
 
 "use client"
 
-import { useMutation } from "@tanstack/react-query"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { AnimatePresence, m } from "framer-motion"
 import { X } from "lucide-react"
 import { useParams } from "next/navigation"
@@ -255,7 +255,7 @@ export function GenerationPanel({
   const [musicGender, setMusicGender] = useState<"female" | "male">("female")
 
   const generateImage = useGenerateImage()
-  const addPendingTask = useAigcStore((s) => s.addPendingTask)
+  const queryClient = useQueryClient()
   const routeParams = useParams()
   const projectId = routeParams.projectId
     ? Number(routeParams.projectId)
@@ -294,13 +294,7 @@ export function GenerationPanel({
         projectId: projectId ?? undefined
       },
       {
-        onSuccess: (taskId) => {
-          addPendingTask({
-            id: taskId,
-            prompt,
-            type: "IMAGE",
-            modelId: modelId
-          })
+        onSuccess: () => {
           setPrompt("")
           setOpen(false)
         },
@@ -316,13 +310,15 @@ export function GenerationPanel({
   /** 配音/音乐生成提交：复用统一任务接口 /aigc/tasks/submit */
   const audioGenerate = useMutation({
     mutationFn: (body: object) =>
-      request<number>("/aigc/tasks/submit", { method: "POST", body: JSON.stringify(body) })
+      request<number>("/aigc/tasks/submit", { method: "POST", body: JSON.stringify(body) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["aigc.task"] })
   })
 
   /** 视频生成提交 */
   const videoGenerate = useMutation({
     mutationFn: (body: object) =>
-      request<number>("/aigc/tasks/submit", { method: "POST", body: JSON.stringify(body) })
+      request<number>("/aigc/tasks/submit", { method: "POST", body: JSON.stringify(body) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["aigc.task"] })
   })
 
   function handleGenerateVideo() {
@@ -354,8 +350,7 @@ export function GenerationPanel({
         params: submitParams
       },
       {
-        onSuccess: (taskId) => {
-          addPendingTask({ id: taskId, prompt, type: "VIDEO", modelId })
+        onSuccess: () => {
           setPrompt("")
           setOpen(false)
           toast.success("视频生成任务已提交")
@@ -381,8 +376,7 @@ export function GenerationPanel({
         params: isVoice ? { voice } : { gender: musicGender }
       },
       {
-        onSuccess: (taskId) => {
-          addPendingTask({ id: taskId, prompt: text, type })
+        onSuccess: () => {
           setPrompt("")
           setOpen(false)
           toast.success(isVoice ? "配音生成任务已提交" : "音乐生成任务已提交")

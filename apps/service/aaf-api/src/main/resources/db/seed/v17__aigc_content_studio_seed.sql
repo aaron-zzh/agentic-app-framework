@@ -1,5 +1,5 @@
 -- ============================================================
--- AIGC / Content Studio 统一字典、内置配置与权限种子
+-- AIGC 统一字典、内置配置与权限种子
 -- 依赖 v7__aigc_schema.sql；只写最终 AIGC 字典、配置与权限。
 -- ============================================================
 
@@ -24,6 +24,11 @@ INSERT INTO sys_dict_type (name, type, status, remark) VALUES
 ('AIGC 渠道', 'aigc_channel', 0, '内容发布渠道'),
 ('AIGC 品牌资料引用范围', 'aigc_profile_ref_scope', 0, '项目品牌资料主引用或辅助引用'),
 ('AIGC 对象版本状态', 'aigc_object_version_status', 0, '对象候选与采用状态'),
+('AIGC 作品状态', 'aigc_work_status', 0, '作品收录、发布和归档状态'),
+('AIGC 作品可见范围', 'aigc_work_visibility', 0, '作品个人、工作区或公开范围'),
+('AIGC 发布状态', 'aigc_publication_status', 0, '渠道发布生命周期状态'),
+('AIGC 时间线状态', 'aigc_timeline_status', 0, '轻时间线编辑和归档状态'),
+('AIGC 时间线轨道类型', 'aigc_timeline_track_type', 0, '视频、语音、音乐、字幕和叠加轨道'),
 ('AIGC 动作', 'aigc_action_key', 0, '内置动作展示标签')
 ON CONFLICT DO NOTHING;
 
@@ -35,8 +40,9 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ('aigc_project_status', '草稿', 'draft', 1, 'default'),
 ('aigc_project_status', '进行中', 'in_progress', 2, 'primary'),
 ('aigc_project_status', '审核中', 'reviewing', 3, 'warning'),
-('aigc_project_status', '已完成', 'completed', 4, 'success'),
-('aigc_project_status', '已归档', 'archived', 5, 'info')
+('aigc_project_status', '交付中', 'delivering', 4, 'primary'),
+('aigc_project_status', '已完成', 'completed', 5, 'success'),
+('aigc_project_status', '已归档', 'archived', 6, 'info')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
@@ -152,6 +158,25 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ('aigc_object_version_status', '已采用', 'adopted', 2, 'success'),
 ('aigc_object_version_status', '已否决', 'rejected', 3, 'danger'),
 ('aigc_object_version_status', '已被取代', 'superseded', 4, 'info'),
+('aigc_work_status', '已收录', 'collected', 1, 'primary'),
+('aigc_work_status', '已发布', 'published', 2, 'success'),
+('aigc_work_status', '已归档', 'archived', 3, 'info'),
+('aigc_work_visibility', '仅自己', 'PRIVATE', 1, 'default'),
+('aigc_work_visibility', '工作区', 'WORKSPACE', 2, 'primary'),
+('aigc_work_visibility', '公开', 'PUBLIC', 3, 'success'),
+('aigc_publication_status', '待发布', 'pending', 1, 'default'),
+('aigc_publication_status', '已排期', 'scheduled', 2, 'info'),
+('aigc_publication_status', '发布中', 'publishing', 3, 'primary'),
+('aigc_publication_status', '已发布', 'published', 4, 'success'),
+('aigc_publication_status', '失败', 'failed', 5, 'danger'),
+('aigc_publication_status', '已取消', 'canceled', 6, 'info'),
+('aigc_timeline_status', '草稿', 'draft', 1, 'default'),
+('aigc_timeline_status', '已归档', 'archived', 2, 'info'),
+('aigc_timeline_track_type', '视频', 'VIDEO', 1, 'primary'),
+('aigc_timeline_track_type', '语音', 'VOICE', 2, 'info'),
+('aigc_timeline_track_type', '音乐', 'MUSIC', 3, 'success'),
+('aigc_timeline_track_type', '字幕', 'SUBTITLE', 4, 'warning'),
+('aigc_timeline_track_type', '叠加层', 'OVERLAY', 5, 'default'),
 ('aigc_action_key', '完善简报', 'brief.refine', 1, 'default'),
 ('aigc_action_key', '生成创意方向', 'concept.generate', 2, 'primary'),
 ('aigc_action_key', '生成文案', 'copy.generate', 3, 'info'),
@@ -329,50 +354,148 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 -- ============================================================
--- AIGC 资源权限
+-- 内置项目类型兼容包
 -- ============================================================
 
-WITH resources(resource, resource_name) AS (
-    VALUES
-        ('brand-profile', '品牌/IP 资料'),
-        ('project-type', '项目类型'),
-        ('blueprint', '项目蓝图'),
-        ('domain-extension', '行业扩展'),
-        ('channel-spec', '渠道规格'),
-        ('project', '创作项目'),
-        ('project-profile-ref', '项目资料引用'),
-        ('project-object', '项目对象'),
-        ('project-relation', '项目关系'),
-        ('object-version', '对象版本'),
-        ('execution-run', '执行记录'),
-        ('media', '素材'),
-        ('asset', '资产'),
-        ('work', '作品'),
-        ('timeline', '时间线'),
-        ('snippet', '创作片段')
-), actions(action, action_name) AS (
-    VALUES
-        ('read', '读取'),
-        ('create', '创建'),
-        ('update', '更新'),
-        ('delete', '删除'),
-        ('export', '导出'),
-        ('reference', '引用')
-)
+INSERT INTO aigc_project_type_package
+    (package_version, project_type_id, blueprint_id, domain_extension_id,
+     channel_spec_ids, execution_binding_ids, production_mode,
+     compatibility_result, status)
+SELECT blueprint.blueprint_version,
+       project_type.id,
+       blueprint.id,
+       NULL,
+       COALESCE(
+           (SELECT jsonb_agg(channel_spec.id ORDER BY channel_spec.id)
+            FROM aigc_channel_spec channel_spec
+            WHERE channel_spec.deleted = FALSE
+              AND channel_spec.status = 'published'
+              AND project_type.default_channels ? channel_spec.code),
+           '[]'::jsonb),
+       COALESCE(
+           (SELECT jsonb_agg(binding.id ORDER BY binding.id)
+            FROM aigc_execution_binding binding
+            WHERE binding.deleted = FALSE
+              AND binding.status = 'published'
+              AND blueprint.action_keys ? binding.action_key),
+           '[]'::jsonb),
+       blueprint.production_mode,
+       jsonb_build_object(
+           'compatible', TRUE,
+           'projectTypeCode', project_type.code,
+           'blueprintCode', blueprint.code,
+           'domainExtensionCode', NULL::text,
+           'channelCodes', project_type.default_channels,
+           'coveredActionKeys', blueprint.action_keys),
+       'published'
+FROM aigc_project_type project_type
+JOIN aigc_project_blueprint blueprint
+  ON blueprint.project_type_code = project_type.code
+ AND blueprint.production_mode = project_type.default_production_mode
+ AND blueprint.status = 'published'
+ AND blueprint.deleted = FALSE
+WHERE project_type.status = 'published'
+  AND project_type.deleted = FALSE
+ON CONFLICT (project_type_id, package_version) WHERE deleted = FALSE DO NOTHING;
+
+-- ============================================================
+-- AIGC 资源权限
+-- CRUD 权限与 Resource capability 对齐；业务命令单独声明。
+-- ============================================================
+
 INSERT INTO sys_permission_code (name, code, module, resource, action, status)
-SELECT resource_name || action_name,
-       'aigc:' || resource || ':' || action,
-       'aigc', resource, action, 0
-FROM resources
-CROSS JOIN actions
+VALUES
+    ('品牌/IP 资料读取', 'aigc:brand-profile:read', 'aigc', 'brand-profile', 'read', 0),
+    ('品牌/IP 资料创建', 'aigc:brand-profile:create', 'aigc', 'brand-profile', 'create', 0),
+    ('品牌/IP 资料更新', 'aigc:brand-profile:update', 'aigc', 'brand-profile', 'update', 0),
+    ('品牌/IP 资料删除', 'aigc:brand-profile:delete', 'aigc', 'brand-profile', 'delete', 0),
+    ('品牌/IP 资料导出', 'aigc:brand-profile:export', 'aigc', 'brand-profile', 'export', 0),
+    ('项目类型读取', 'aigc:project-type:read', 'aigc', 'project-type', 'read', 0),
+    ('项目类型创建', 'aigc:project-type:create', 'aigc', 'project-type', 'create', 0),
+    ('项目类型更新', 'aigc:project-type:update', 'aigc', 'project-type', 'update', 0),
+    ('项目类型删除', 'aigc:project-type:delete', 'aigc', 'project-type', 'delete', 0),
+    ('项目类型导出', 'aigc:project-type:export', 'aigc', 'project-type', 'export', 0),
+    ('项目类型兼容包读取', 'aigc:project-type-package:read', 'aigc', 'project-type-package', 'read', 0),
+    ('项目类型兼容包创建', 'aigc:project-type-package:create', 'aigc', 'project-type-package', 'create', 0),
+    ('项目类型兼容包更新', 'aigc:project-type-package:update', 'aigc', 'project-type-package', 'update', 0),
+    ('项目类型兼容包删除', 'aigc:project-type-package:delete', 'aigc', 'project-type-package', 'delete', 0),
+    ('项目类型兼容包导出', 'aigc:project-type-package:export', 'aigc', 'project-type-package', 'export', 0),
+    ('项目蓝图读取', 'aigc:blueprint:read', 'aigc', 'blueprint', 'read', 0),
+    ('项目蓝图创建', 'aigc:blueprint:create', 'aigc', 'blueprint', 'create', 0),
+    ('项目蓝图更新', 'aigc:blueprint:update', 'aigc', 'blueprint', 'update', 0),
+    ('项目蓝图删除', 'aigc:blueprint:delete', 'aigc', 'blueprint', 'delete', 0),
+    ('项目蓝图导出', 'aigc:blueprint:export', 'aigc', 'blueprint', 'export', 0),
+    ('领域扩展读取', 'aigc:domain-extension:read', 'aigc', 'domain-extension', 'read', 0),
+    ('领域扩展创建', 'aigc:domain-extension:create', 'aigc', 'domain-extension', 'create', 0),
+    ('领域扩展更新', 'aigc:domain-extension:update', 'aigc', 'domain-extension', 'update', 0),
+    ('领域扩展删除', 'aigc:domain-extension:delete', 'aigc', 'domain-extension', 'delete', 0),
+    ('领域扩展导出', 'aigc:domain-extension:export', 'aigc', 'domain-extension', 'export', 0),
+    ('渠道规格读取', 'aigc:channel-spec:read', 'aigc', 'channel-spec', 'read', 0),
+    ('渠道规格创建', 'aigc:channel-spec:create', 'aigc', 'channel-spec', 'create', 0),
+    ('渠道规格更新', 'aigc:channel-spec:update', 'aigc', 'channel-spec', 'update', 0),
+    ('渠道规格删除', 'aigc:channel-spec:delete', 'aigc', 'channel-spec', 'delete', 0),
+    ('渠道规格导出', 'aigc:channel-spec:export', 'aigc', 'channel-spec', 'export', 0),
+    ('创作项目读取', 'aigc:project:read', 'aigc', 'project', 'read', 0),
+    ('创作项目更新', 'aigc:project:update', 'aigc', 'project', 'update', 0),
+    ('创作项目导出', 'aigc:project:export', 'aigc', 'project', 'export', 0),
+    ('执行记录读取', 'aigc:execution-run:read', 'aigc', 'execution-run', 'read', 0),
+    ('执行记录导出', 'aigc:execution-run:export', 'aigc', 'execution-run', 'export', 0),
+    ('执行绑定读取', 'aigc:execution-binding:read', 'aigc', 'execution-binding', 'read', 0),
+    ('执行绑定创建', 'aigc:execution-binding:create', 'aigc', 'execution-binding', 'create', 0),
+    ('执行绑定更新', 'aigc:execution-binding:update', 'aigc', 'execution-binding', 'update', 0),
+    ('执行绑定删除', 'aigc:execution-binding:delete', 'aigc', 'execution-binding', 'delete', 0),
+    ('执行绑定导出', 'aigc:execution-binding:export', 'aigc', 'execution-binding', 'export', 0),
+    ('生成任务读取', 'aigc:task:read', 'aigc', 'task', 'read', 0),
+    ('素材读取', 'aigc:media:read', 'aigc', 'media', 'read', 0),
+    ('素材更新', 'aigc:media:update', 'aigc', 'media', 'update', 0),
+    ('素材删除', 'aigc:media:delete', 'aigc', 'media', 'delete', 0),
+    ('资产读取', 'aigc:asset:read', 'aigc', 'asset', 'read', 0),
+    ('资产创建', 'aigc:asset:create', 'aigc', 'asset', 'create', 0),
+    ('资产更新', 'aigc:asset:update', 'aigc', 'asset', 'update', 0),
+    ('资产标签维护', 'aigc:asset:tag', 'aigc', 'asset', 'tag', 0),
+    ('资产删除', 'aigc:asset:delete', 'aigc', 'asset', 'delete', 0),
+    ('资产分类读取', 'aigc:asset-category:read', 'aigc', 'asset-category', 'read', 0),
+    ('资产分类创建', 'aigc:asset-category:create', 'aigc', 'asset-category', 'create', 0),
+    ('资产分类更新', 'aigc:asset-category:update', 'aigc', 'asset-category', 'update', 0),
+    ('资产分类删除', 'aigc:asset-category:delete', 'aigc', 'asset-category', 'delete', 0),
+    ('资产分类导出', 'aigc:asset-category:export', 'aigc', 'asset-category', 'export', 0),
+    ('资产标签读取', 'aigc:asset-tag:read', 'aigc', 'asset-tag', 'read', 0),
+    ('资产标签创建', 'aigc:asset-tag:create', 'aigc', 'asset-tag', 'create', 0),
+    ('资产标签更新', 'aigc:asset-tag:update', 'aigc', 'asset-tag', 'update', 0),
+    ('资产标签删除', 'aigc:asset-tag:delete', 'aigc', 'asset-tag', 'delete', 0),
+    ('资产标签导出', 'aigc:asset-tag:export', 'aigc', 'asset-tag', 'export', 0),
+    ('资产集合读取', 'aigc:asset-collection:read', 'aigc', 'asset-collection', 'read', 0),
+    ('资产集合创建', 'aigc:asset-collection:create', 'aigc', 'asset-collection', 'create', 0),
+    ('资产集合更新', 'aigc:asset-collection:update', 'aigc', 'asset-collection', 'update', 0),
+    ('资产集合删除', 'aigc:asset-collection:delete', 'aigc', 'asset-collection', 'delete', 0),
+    ('资产集合导出', 'aigc:asset-collection:export', 'aigc', 'asset-collection', 'export', 0),
+    ('作品读取', 'aigc:work:read', 'aigc', 'work', 'read', 0),
+    ('作品更新', 'aigc:work:update', 'aigc', 'work', 'update', 0),
+    ('作品导出', 'aigc:work:export', 'aigc', 'work', 'export', 0),
+    ('时间线读取', 'aigc:timeline:read', 'aigc', 'timeline', 'read', 0),
+    ('时间线删除', 'aigc:timeline:delete', 'aigc', 'timeline', 'delete', 0),
+    ('时间线导出', 'aigc:timeline:export', 'aigc', 'timeline', 'export', 0),
+    ('创作片段读取', 'aigc:snippet:read', 'aigc', 'snippet', 'read', 0),
+    ('创作片段创建', 'aigc:snippet:create', 'aigc', 'snippet', 'create', 0),
+    ('创作片段更新', 'aigc:snippet:update', 'aigc', 'snippet', 'update', 0),
+    ('创作片段删除', 'aigc:snippet:delete', 'aigc', 'snippet', 'delete', 0),
+    ('创作片段导出', 'aigc:snippet:export', 'aigc', 'snippet', 'export', 0)
 ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 
 INSERT INTO sys_permission_code (name, code, module, resource, action, status)
 VALUES
-('执行创作项目动作', 'aigc:project:action', 'aigc', 'project', 'action', 0),
-('采用对象版本', 'aigc:object-version:adopt', 'aigc', 'object-version', 'adopt', 0),
-('执行生成动作', 'aigc:execution-run:execute', 'aigc', 'execution-run', 'execute', 0),
-('发布作品', 'aigc:work:publish', 'aigc', 'work', 'publish', 0)
+    ('发布项目类型兼容包', 'aigc:project-type-package:publish', 'aigc', 'project-type-package', 'publish', 0),
+    ('创建创作项目', 'aigc:project:create', 'aigc', 'project', 'create', 0),
+    ('执行创作项目动作', 'aigc:project:action', 'aigc', 'project', 'action', 0),
+    ('采用项目对象版本', 'aigc:project:adopt', 'aigc', 'project', 'adopt', 0),
+    ('执行生成动作', 'aigc:execution-run:execute', 'aigc', 'execution-run', 'execute', 0),
+    ('提交生成任务', 'aigc:task:submit', 'aigc', 'task', 'submit', 0),
+    ('取消生成任务', 'aigc:task:cancel', 'aigc', 'task', 'cancel', 0),
+    ('维护资产集合成员', 'aigc:asset-collection:item', 'aigc', 'asset-collection', 'item', 0),
+    ('创建作品', 'aigc:work:create', 'aigc', 'work', 'create', 0),
+    ('发布作品', 'aigc:work:publish', 'aigc', 'work', 'publish', 0),
+    ('创建时间线', 'aigc:timeline:create', 'aigc', 'timeline', 'create', 0),
+    ('更新时间线编排', 'aigc:timeline:update', 'aigc', 'timeline', 'update', 0)
 ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 
 INSERT INTO sys_role_permission (role_id, permission_id)

@@ -1,0 +1,199 @@
+/**
+ * AIGC 项目配置 API：项目类型、蓝图、渠道规格与创作片段。
+ * @author AaronZZH & Kiro
+ */
+
+import { useQuery } from "@tanstack/react-query"
+import type { PageResult } from "../../../types"
+import { backendApi } from "../../backend-client"
+
+export type AigcConfigStatus = "draft" | "verifying" | "published" | "deprecated" | "withdrawn"
+export type AigcProductionMode = "standard" | "short_drama" | "motion_comic"
+export type AigcProjectTypeCode = string
+export type AigcChannelCode = string
+
+export interface AigcPageParams {
+  pageNo?: number
+  pageSize?: number
+}
+
+export interface AigcProjectType {
+  id: number
+  version: number
+  code: AigcProjectTypeCode
+  name: string
+  icon?: string
+  description?: string
+  briefPlaceholder?: string
+  definitionVersion?: string
+  defaultChannels: AigcChannelCode[]
+  defaultProductionMode?: AigcProductionMode
+  quickEntry: boolean
+  builtin: boolean
+  sortOrder: number
+  status: AigcConfigStatus
+}
+
+export interface AigcProjectBlueprint {
+  id: number
+  version: number
+  code: string
+  name: string
+  projectTypeCode: AigcProjectTypeCode
+  blueprintVersion: string
+  productionMode: AigcProductionMode
+  description?: string
+  status: AigcConfigStatus
+  objectSpec?: Record<string, unknown>
+  relationSpec?: Record<string, unknown>
+  deliverableSpec?: Record<string, unknown>
+  actionKeys: string[]
+  confirmationGates: string[]
+  briefFields: string[]
+}
+
+export interface AigcDomainExtension {
+  id: number
+  version: number
+  code: string
+  name: string
+  extensionVersion: string
+  industry?: string
+  region?: string
+  language?: string
+  status: AigcConfigStatus
+  profileSchemaExt?: Record<string, unknown>
+  objectDefinitions?: Record<string, unknown>
+  knowledgeRequirements?: Record<string, unknown>
+  ruleSets?: Record<string, unknown>
+  validators: string[]
+  roleRecommendations: string[]
+  actionConstraints?: Record<string, unknown>
+  channelOverrides?: Record<string, unknown>
+  migrationDeclaration?: Record<string, unknown>
+}
+
+export interface AigcChannelSpec {
+  id: number
+  version: number
+  code: AigcChannelCode
+  name: string
+  specVersion: string
+  aspectRatio?: string
+  width?: number
+  height?: number
+  maxDurationSeconds?: number
+  copyStructure?: Record<string, unknown>
+  requiredDisclaimers?: string
+  exportFormat?: string
+  sortOrder: number
+  status: AigcConfigStatus
+}
+
+export interface AigcSnippet {
+  id: number
+  version: number
+  name: string
+  category?: string
+  content?: string
+  referenceMediaVersionIds: number[]
+  variableSlots?: Record<string, unknown>
+  projectTypeCode?: AigcProjectTypeCode
+  brandProfileId?: number
+  useCount: number
+  isPublic: boolean
+}
+
+export interface AigcStatusPageParams extends AigcPageParams {
+  status?: AigcConfigStatus
+}
+
+export interface AigcProjectBlueprintParams extends AigcStatusPageParams {
+  projectTypeCode?: AigcProjectTypeCode
+  productionMode?: AigcProductionMode
+}
+
+export interface AigcSnippetParams extends AigcPageParams {
+  category?: string
+  projectTypeCode?: AigcProjectTypeCode
+}
+
+const withPage = <T extends AigcPageParams>(
+  params: T
+): T & { pageNo: number; pageSize: number } => ({
+  pageNo: 1,
+  pageSize: 200,
+  ...params
+})
+
+export const aigcConfigurationApi = {
+  projectTypes: (params: AigcPageParams = {}) =>
+    backendApi.get<PageResult<AigcProjectType>>("/aigc/project-types", {
+      params: withPage(params)
+    }),
+  projectBlueprints: (params: AigcProjectBlueprintParams = {}) =>
+    backendApi.get<PageResult<AigcProjectBlueprint>>("/aigc/project-blueprints", {
+      params: withPage(params)
+    }),
+  channelSpecs: (params: AigcStatusPageParams = {}) =>
+    backendApi.get<PageResult<AigcChannelSpec>>("/aigc/channel-specs", {
+      params: withPage(params)
+    }),
+  domainExtensions: (params: AigcStatusPageParams = {}) =>
+    backendApi.get<PageResult<AigcDomainExtension>>("/aigc/domain-extensions", {
+      params: withPage(params)
+    }),
+  snippets: (params: AigcSnippetParams = {}) =>
+    backendApi.get<PageResult<AigcSnippet>>("/aigc/snippets", {
+      params: withPage(params)
+    })
+}
+
+export const aigcConfigurationKeys = {
+  all: ["aigc.configuration"] as const,
+  projectTypes: (params: AigcPageParams) =>
+    ["aigc.configuration", "project-types", params] as const,
+  projectBlueprints: (params: AigcProjectBlueprintParams) =>
+    ["aigc.configuration", "project-blueprints", params] as const,
+  channelSpecs: (params: AigcStatusPageParams) =>
+    ["aigc.configuration", "channel-specs", params] as const,
+  domainExtensions: (params: AigcStatusPageParams) =>
+    ["aigc.configuration", "domain-extensions", params] as const,
+  snippets: (params: AigcSnippetParams) => ["aigc.configuration", "snippets", params] as const
+}
+
+export function useAigcProjectTypes(params: AigcPageParams = {}) {
+  return useQuery({
+    queryKey: aigcConfigurationKeys.projectTypes(params),
+    queryFn: () => aigcConfigurationApi.projectTypes(params)
+  })
+}
+
+export function useAigcProjectBlueprints(params: AigcProjectBlueprintParams = {}, enabled = true) {
+  return useQuery({
+    queryKey: aigcConfigurationKeys.projectBlueprints(params),
+    queryFn: () => aigcConfigurationApi.projectBlueprints(params),
+    enabled
+  })
+}
+
+export function useAigcChannelSpecs(params: AigcStatusPageParams = {}) {
+  return useQuery({
+    queryKey: aigcConfigurationKeys.channelSpecs(params),
+    queryFn: () => aigcConfigurationApi.channelSpecs(params)
+  })
+}
+
+export function useAigcDomainExtensions(params: AigcStatusPageParams = {}) {
+  return useQuery({
+    queryKey: aigcConfigurationKeys.domainExtensions(params),
+    queryFn: () => aigcConfigurationApi.domainExtensions(params)
+  })
+}
+
+export function useAigcSnippets(params: AigcSnippetParams = {}) {
+  return useQuery({
+    queryKey: aigcConfigurationKeys.snippets(params),
+    queryFn: () => aigcConfigurationApi.snippets(params)
+  })
+}

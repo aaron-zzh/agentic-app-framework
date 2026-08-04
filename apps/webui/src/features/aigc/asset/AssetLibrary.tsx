@@ -7,7 +7,7 @@
 
 "use client"
 
-import { Box, ImageIcon, Music, RefreshCw, Search, Video } from "lucide-react"
+import { BookmarkPlus, Box, ImageIcon, Music, RefreshCw, Search, Video } from "lucide-react"
 import { useState } from "react"
 import VideoPlugin from "yet-another-react-lightbox/plugins/video"
 import { Lightbox, useLightbox } from "@/components/lightbox"
@@ -17,11 +17,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import type { MediaType, MediaVO } from "@/features/aigc/types"
-import { useAssetList, useMediaList } from "@/lib/api/rest/media"
+import type { AigcMedia, AigcMediaType } from "@/features/aigc/types"
+import { useAssetList, useMediaList, useSaveMediaAsAsset } from "@/lib/api/rest/media"
+import { notify } from "@/lib/notification"
 
 const PAGE_SIZE = 20
-const MEDIA_TYPES: Array<{ value: MediaType | "ALL"; label: string }> = [
+const MEDIA_TYPES: Array<{ value: AigcMediaType | "ALL"; label: string }> = [
   { value: "ALL", label: "全部" },
   { value: "IMAGE", label: "图像" },
   { value: "VIDEO", label: "视频" },
@@ -41,7 +42,7 @@ export function AssetLibrary({ collection = "media" }: AssetLibraryProps) {
 function MediaLibrary() {
   const [pageNo, setPageNo] = useState(1)
   const [keyword, setKeyword] = useState("")
-  const [mediaType, setMediaType] = useState<MediaType | "ALL">("ALL")
+  const [mediaType, setMediaType] = useState<AigcMediaType | "ALL">("ALL")
   const { data, isLoading, refetch } = useMediaList({
     pageNo,
     pageSize: PAGE_SIZE,
@@ -51,8 +52,8 @@ function MediaLibrary() {
 
   return (
     <LibraryView
-      title="作品"
-      description="生成结果已持久化为媒体；需要长期复用时可在结果卡保存为资产。"
+      title="素材"
+      description="上传或生成的持久化媒体；需要跨项目复用时可进一步登记为资产。"
       items={data?.list ?? []}
       total={data?.total ?? 0}
       pageNo={pageNo}
@@ -76,7 +77,7 @@ function MediaLibrary() {
 function SavedAssetLibrary() {
   const [pageNo, setPageNo] = useState(1)
   const [keyword, setKeyword] = useState("")
-  const [mediaType, setMediaType] = useState<MediaType | "ALL">("ALL")
+  const [mediaType, setMediaType] = useState<AigcMediaType | "ALL">("ALL")
   const { data, isLoading, refetch } = useAssetList({
     pageNo,
     pageSize: PAGE_SIZE,
@@ -112,15 +113,15 @@ function SavedAssetLibrary() {
 interface LibraryViewProps {
   title: string
   description: string
-  items: MediaVO[]
+  items: AigcMedia[]
   total: number
   pageNo: number
   keyword: string
-  mediaType: MediaType | "ALL"
+  mediaType: AigcMediaType | "ALL"
   isLoading: boolean
   saved?: boolean
   onKeywordChange: (value: string) => void
-  onTypeChange: (value: MediaType | "ALL") => void
+  onTypeChange: (value: AigcMediaType | "ALL") => void
   onPageChange: (page: number) => void
   onRefresh: () => void
 }
@@ -146,7 +147,9 @@ function LibraryView({
       media.mediaType === "VIDEO"
         ? {
             type: "video" as const,
-            sources: [{ src: media.currentVersion.url, type: media.currentVersion.mimeType ?? "video/mp4" }]
+            sources: [
+              { src: media.currentVersion.url, type: media.currentVersion.mimeType ?? "video/mp4" }
+            ]
           }
         : { src: media.currentVersion.url }
     )
@@ -176,7 +179,10 @@ function LibraryView({
             className="pl-9"
           />
         </div>
-        <Tabs value={mediaType} onValueChange={(value) => onTypeChange(value as MediaType | "ALL")}>
+        <Tabs
+          value={mediaType}
+          onValueChange={(value) => onTypeChange(value as AigcMediaType | "ALL")}
+        >
           <TabsList>
             {MEDIA_TYPES.map((type) => (
               <TabsTrigger key={type.value} value={type.value}>
@@ -237,12 +243,14 @@ function MediaCard({
   saved,
   onPreview
 }: {
-  media: MediaVO
+  media: AigcMedia
   saved: boolean
   onPreview: (url: string) => void
 }) {
   const version = media.currentVersion
   const isAudio = media.mediaType === "AUDIO" || media.mediaType === "MUSIC"
+  const saveAsAsset = useSaveMediaAsAsset()
+  const isSaved = saved || media.assetId != null
 
   return (
     <Card className="gap-3">
@@ -271,7 +279,7 @@ function MediaCard({
             onClick={() => onPreview(version.url)}
           >
             <video src={version.url} muted preload="metadata" className="size-full object-cover" />
-            <Video className="absolute inset-1/2 -translate-1/2 text-white" />
+            <Video className="-translate-1/2 absolute inset-1/2 text-white" />
           </button>
         ) : isAudio ? (
           <div className="flex aspect-square flex-col items-center justify-center gap-3 rounded-lg bg-muted p-3">
@@ -291,7 +299,24 @@ function MediaCard({
             打开 3D
           </a>
         )}
-        {(saved || media.assetId !== null) && <Badge variant="secondary">已保存资产</Badge>}
+        {isSaved ? (
+          <Badge variant="secondary">已保存资产</Badge>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={saveAsAsset.isPending}
+            onClick={() =>
+              saveAsAsset.mutate(
+                { mediaId: media.id },
+                { onSuccess: () => notify.success("素材已保存到资产库") }
+              )
+            }
+          >
+            <BookmarkPlus /> {saveAsAsset.isPending ? "正在保存…" : "保存为资产"}
+          </Button>
+        )}
       </CardContent>
     </Card>
   )

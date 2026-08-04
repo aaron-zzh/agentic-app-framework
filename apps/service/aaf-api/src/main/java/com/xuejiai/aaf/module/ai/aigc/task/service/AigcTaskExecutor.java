@@ -42,17 +42,16 @@ import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.framework.security.PermissionExecutionContextHolder;
 import com.xuejiai.aaf.framework.security.PermissionExecutionService;
 import com.xuejiai.aaf.framework.security.license.License;
-import com.xuejiai.aaf.module.ai.aigc.media.api.GeneratedMediaCommand;
-import com.xuejiai.aaf.module.ai.aigc.media.api.MediaApi;
-import com.xuejiai.aaf.module.ai.aigc.media.enums.MediaType;
-import com.xuejiai.aaf.module.ai.aigc.media.vo.MediaVO;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcGeneratedMediaCommand;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaType;
 import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
 import com.xuejiai.aaf.module.ai.aigc.task.event.AigcTaskTerminalEvent;
 import com.xuejiai.aaf.module.ai.aigc.task.mapper.AigcTaskMapper;
 import com.xuejiai.aaf.module.ai.aigc.task.repository.AigcTaskRepository;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.AigcTaskVO;
+import com.xuejiai.aaf.module.system.file.api.FileStoragePort;
 import com.xuejiai.aaf.module.system.file.api.StoredFile;
-import com.xuejiai.aaf.module.system.file.service.FileUploadService;
 import com.xuejiai.aaf.module.user.growth.event.UserGrowthEvent;
 
 import lombok.RequiredArgsConstructor;
@@ -72,8 +71,8 @@ public class AigcTaskExecutor {
     private final AigcTaskRepository taskRepo;
     private final AigcTaskEventService eventService;
     private final AigcTaskMapper taskMapper;
-    private final FileUploadService fileService;
-    private final MediaApi mediaApi;
+    private final FileStoragePort fileService;
+    private final AigcMediaApi mediaApi;
     private final AiServiceRegistry aiServiceRegistry;
     private final AiCreditGuard creditGuard;
     private final ConfigCacheManager configCacheManager;
@@ -181,7 +180,7 @@ public class AigcTaskExecutor {
                     createMedia(
                             task,
                             storedFile,
-                            MediaType.IMAGE,
+                            AigcMediaType.IMAGE,
                             generatedName(task, p.getDisplayPrompt()),
                             p.getWidth(),
                             p.getHeight(),
@@ -223,7 +222,7 @@ public class AigcTaskExecutor {
         } catch (Exception e) {
             log.debug("[submitSync] SSE 推送失败（连接已断开）: taskId={}", taskId);
         }
-        eventPublisher.publishEvent(new AigcTaskTerminalEvent(task.getId()));
+        eventPublisher.publishEvent(AigcTaskTerminalEvent.from(task));
     }
 
     /** 调用 AI 服务生成图像。Midjourney 异步路径返回 null（任务已转 PENDING）。 */
@@ -298,8 +297,7 @@ public class AigcTaskExecutor {
         if (firstUrl != null) {
             String ext = guessImageExt(firstUrl);
             String path =
-                    "aigc/%s/%s.%s"
-                            .formatted(task.getType().toLowerCase(), UUID.randomUUID(), ext);
+                    "aigc/%s/%s.%s".formatted(task.getType().toLowerCase(), UUID.randomUUID(), ext);
             if (firstUrl.startsWith("data:")
                     || (!firstUrl.startsWith("http") && firstUrl.length() > 200)) {
                 return fileService.uploadFromBase64(firstUrl, path, task.getUserId());
@@ -309,8 +307,7 @@ public class AigcTaskExecutor {
         }
         if (result.b64Json() != null) {
             String path =
-                    "aigc/%s/%s.png"
-                            .formatted(task.getType().toLowerCase(), UUID.randomUUID());
+                    "aigc/%s/%s.png".formatted(task.getType().toLowerCase(), UUID.randomUUID());
             return fileService.uploadFromBase64(result.b64Json(), path, task.getUserId());
         }
         throw new IllegalStateException(
@@ -330,15 +327,14 @@ public class AigcTaskExecutor {
             String extraUrl = extraUrls.get(i);
             String ext = guessImageExt(extraUrl);
             String path =
-                    "aigc/%s/%s.%s"
-                            .formatted(task.getType().toLowerCase(), UUID.randomUUID(), ext);
+                    "aigc/%s/%s.%s".formatted(task.getType().toLowerCase(), UUID.randomUUID(), ext);
             var storedFile =
                     fileService.uploadFromUrl(
                             extraUrl, path, imageContentType(ext), task.getUserId());
             createMedia(
                     task,
                     storedFile,
-                    MediaType.IMAGE,
+                    AigcMediaType.IMAGE,
                     generatedName(task, request.getDisplayPrompt()) + " #" + (i + 1),
                     request.getWidth(),
                     request.getHeight(),
@@ -357,7 +353,7 @@ public class AigcTaskExecutor {
             BigDecimal duration,
             String generationInfo) {
         return mediaApi.createFromGeneratedFile(
-                new GeneratedMediaCommand(
+                new AigcGeneratedMediaCommand(
                         task.getUserId(),
                         name,
                         mediaType,
@@ -441,8 +437,7 @@ public class AigcTaskExecutor {
                         JsonUtils.toJsonString(Map.of("url", mockUrl, "mock", true)));
                 String path = "aigc/music/%s.mp3".formatted(UUID.randomUUID());
                 storedFile =
-                        fileService.uploadFromUrl(
-                                mockUrl, path, "audio/mpeg", task.getUserId());
+                        fileService.uploadFromUrl(mockUrl, path, "audio/mpeg", task.getUserId());
             } else {
                 var aiModel = configCacheManager.getAiModelByModelId(task.getModel());
                 var result =
@@ -455,10 +450,7 @@ public class AigcTaskExecutor {
                     taskRepo.save(task);
                 }
                 task.setProviderResult(JsonUtils.toJsonString(result));
-                duration =
-                        result.duration() != null
-                                ? BigDecimal.valueOf(result.duration())
-                                : null;
+                duration = result.duration() != null ? BigDecimal.valueOf(result.duration()) : null;
                 String path = "aigc/music/%s.mp3".formatted(UUID.randomUUID());
                 storedFile =
                         fileService.uploadFromUrl(
@@ -469,7 +461,7 @@ public class AigcTaskExecutor {
                     createMedia(
                             task,
                             storedFile,
-                            MediaType.MUSIC,
+                            AigcMediaType.MUSIC,
                             generatedName(task, prompt),
                             null,
                             null,
@@ -533,8 +525,7 @@ public class AigcTaskExecutor {
                         JsonUtils.toJsonString(Map.of("url", mockUrl, "mock", true)));
                 String path = "aigc/voice/%s.mp3".formatted(UUID.randomUUID());
                 storedFile =
-                        fileService.uploadFromUrl(
-                                mockUrl, path, "audio/mpeg", task.getUserId());
+                        fileService.uploadFromUrl(mockUrl, path, "audio/mpeg", task.getUserId());
             } else {
                 var aiModel = configCacheManager.getAiModelByModelId(task.getModel());
                 if (aiModel == null) {
@@ -557,15 +548,14 @@ public class AigcTaskExecutor {
                         JsonUtils.toJsonString(Map.of("charCount", result.charCount())));
                 String path = "aigc/voice/%s.mp3".formatted(UUID.randomUUID());
                 storedFile =
-                        fileService.uploadFromBytes(
-                                audio, path, "audio/mpeg", task.getUserId());
+                        fileService.uploadFromBytes(audio, path, "audio/mpeg", task.getUserId());
             }
 
             var media =
                     createMedia(
                             task,
                             storedFile,
-                            MediaType.AUDIO,
+                            AigcMediaType.AUDIO,
                             generatedName(task, text),
                             null,
                             null,
@@ -574,7 +564,10 @@ public class AigcTaskExecutor {
                                     Map.of(
                                             "text", text,
                                             "voice", voice != null ? voice : "",
-                                            "model", task.getModel() != null ? task.getModel() : "")));
+                                            "model",
+                                                    task.getModel() != null
+                                                            ? task.getModel()
+                                                            : "")));
             task.setOutputMediaVersionId(media.currentVersion().id());
             task.setStatus(AigcTaskStatusEnum.SUCCESS.getCode());
             task.setUpdateTime(LocalDateTime.now());
@@ -629,15 +622,12 @@ public class AigcTaskExecutor {
                 String path = "aigc/model_3d/%s.glb".formatted(UUID.randomUUID());
                 var storedFile =
                         fileService.uploadFromUrl(
-                                mockUrl,
-                                path,
-                                "model/gltf-binary",
-                                task.getUserId());
+                                mockUrl, path, "model/gltf-binary", task.getUserId());
                 var media =
                         createMedia(
                                 task,
                                 storedFile,
-                                MediaType.MODEL_3D,
+                                AigcMediaType.MODEL_3D,
                                 generatedName(task, prompt),
                                 null,
                                 null,
@@ -648,7 +638,7 @@ public class AigcTaskExecutor {
                 task.setUpdateTime(LocalDateTime.now());
                 taskRepo.save(task);
                 eventService.push(task.getUserId(), EVENT_COMPLETED, toVO(task));
-                eventPublisher.publishEvent(new AigcTaskTerminalEvent(task.getId()));
+                eventPublisher.publishEvent(AigcTaskTerminalEvent.from(task));
                 return;
             }
 
@@ -657,8 +647,7 @@ public class AigcTaskExecutor {
                             ? JsonUtils.parseObject(
                                     task.getParams(), new TypeReference<Map<String, Object>>() {})
                             : Map.of();
-            String source =
-                    params.containsKey("source") ? (String) params.get("source") : "text";
+            String source = params.containsKey("source") ? (String) params.get("source") : "text";
             String textureQuality =
                     params.containsKey("textureQuality")
                             ? (String) params.get("textureQuality")
@@ -698,7 +687,7 @@ public class AigcTaskExecutor {
                 eventService.push(task.getUserId(), EVENT_FAILED, toVO(task));
             } catch (Exception ignored) {
             }
-            eventPublisher.publishEvent(new AigcTaskTerminalEvent(task.getId()));
+            eventPublisher.publishEvent(AigcTaskTerminalEvent.from(task));
         }
     }
 
@@ -726,13 +715,12 @@ public class AigcTaskExecutor {
                         JsonUtils.toJsonString(Map.of("videoUrl", mockUrl, "mock", true)));
                 String path = "aigc/video/%s.mp4".formatted(UUID.randomUUID());
                 var storedFile =
-                        fileService.uploadFromUrl(
-                                mockUrl, path, "video/mp4", task.getUserId());
+                        fileService.uploadFromUrl(mockUrl, path, "video/mp4", task.getUserId());
                 var media =
                         createMedia(
                                 task,
                                 storedFile,
-                                MediaType.VIDEO,
+                                AigcMediaType.VIDEO,
                                 generatedName(task, prompt),
                                 null,
                                 null,
@@ -743,7 +731,7 @@ public class AigcTaskExecutor {
                 task.setUpdateTime(LocalDateTime.now());
                 taskRepo.save(task);
                 eventService.push(task.getUserId(), EVENT_COMPLETED, toVO(task));
-                eventPublisher.publishEvent(new AigcTaskTerminalEvent(task.getId()));
+                eventPublisher.publishEvent(AigcTaskTerminalEvent.from(task));
                 return;
             }
 
@@ -928,10 +916,7 @@ public class AigcTaskExecutor {
                 String path = "aigc/image_process/%s.%s".formatted(UUID.randomUUID(), ext);
                 storedFile =
                         fileService.uploadFromUrl(
-                                mockUrl,
-                                path,
-                                imageContentType(ext),
-                                task.getUserId());
+                                mockUrl, path, imageContentType(ext), task.getUserId());
             } else {
                 if (imageProcessService == null) {
                     throw new IllegalStateException("ImageProcessService 未配置，请检查阿里云 OSS 凭证");
@@ -962,23 +947,19 @@ public class AigcTaskExecutor {
                 String path = "aigc/image_process/%s.%s".formatted(UUID.randomUUID(), ext);
                 storedFile =
                         fileService.uploadFromUrl(
-                                resultUrl,
-                                path,
-                                imageContentType(ext),
-                                task.getUserId());
+                                resultUrl, path, imageContentType(ext), task.getUserId());
             }
 
             var media =
                     createMedia(
                             task,
                             storedFile,
-                            MediaType.IMAGE,
+                            AigcMediaType.IMAGE,
                             "AI处理-" + method + "-" + task.getId(),
                             null,
                             null,
                             null,
-                            JsonUtils.toJsonString(
-                                    Map.of("imageUrl", imageUrl, "method", method)));
+                            JsonUtils.toJsonString(Map.of("imageUrl", imageUrl, "method", method)));
             task.setOutputMediaVersionId(media.currentVersion().id());
             task.setStatus(AigcTaskStatusEnum.SUCCESS.getCode());
             task.setUpdateTime(LocalDateTime.now());

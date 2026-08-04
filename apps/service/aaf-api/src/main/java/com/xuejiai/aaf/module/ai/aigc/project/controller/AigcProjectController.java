@@ -10,116 +10,250 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.crud.BaseCrudController;
-import com.xuejiai.aaf.framework.crud.BaseCrudService;
-import com.xuejiai.aaf.framework.security.license.FeatureRequired;
-import com.xuejiai.aaf.framework.security.license.LicenseFeature;
+import com.xuejiai.aaf.framework.org.OrgContext;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionAdoptCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectMaterializeCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectMediaRefCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectObjectCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectView;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcReviewApproveCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProject;
 import com.xuejiai.aaf.module.ai.aigc.project.service.AigcProjectService;
-import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectCreateDTO;
-import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocLinkDTO;
-import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocVO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcObjectVersionDecisionDTO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcObjectVersionVO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectChannelRefVO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectConfigSnapshotVO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentRefVO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectGraphVO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectMaterializeDTO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectMediaRefDTO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectMediaRefVO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectObjectCommandDTO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectObjectVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectPageDTO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectProfileRefVO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectResourceRefVO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectRevisionVO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectStatusDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectSummaryVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectUpdateDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectVO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectVersionDTO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcReviewApproveDTO;
 
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
-/** AIGC 创作项目接口。 */
-@FeatureRequired(LicenseFeature.Codes.AIGC)
-@Tag(name = "AIGC 创作项目")
+/** 唯一 AIGC 项目聚合 REST 接口。 */
+@Tag(name = "AIGC 项目")
 @RestController
 @RequestMapping("/api/aigc/projects")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class AigcProjectController
         extends BaseCrudController<
-                AigcProject,
-                AigcProjectVO,
-                AigcProjectCreateDTO,
-                AigcProjectUpdateDTO,
-                AigcProjectPageDTO> {
+                AigcProject, AigcProjectVO, Void, AigcProjectUpdateDTO, AigcProjectPageDTO> {
 
     private final AigcProjectService service;
 
     @Override
-    protected BaseCrudService<
-                    AigcProject,
-                    AigcProjectVO,
-                    AigcProjectCreateDTO,
-                    AigcProjectUpdateDTO,
-                    AigcProjectPageDTO>
-            getService() {
+    protected AigcProjectService getService() {
         return service;
     }
 
-    // BE-8 数据隔离：override 单条查询，加 ownership 校验（跨用户返回 404 防探测）
-    @Override
-    @Operation(summary = "查询项目详情（含 ownership 校验）")
-    @PreAuthorize("isAuthenticated()")
-    @GetMapping("/{id}")
-    public Result<AigcProjectVO> get(
-            @Parameter(description = "记录 ID") @PathVariable Long id,
-            @RequestParam(required = false) String queryToken,
-            @RequestParam(defaultValue = "detail") String fieldSet) {
-        return Result.success(service.getByIdOwned(id));
+    @Operation(summary = "按已发布配置物化项目")
+    @PreAuthorize("hasAuthority('aigc:project:create')")
+    @PostMapping("/_materialize")
+    public Result<AigcProjectView> materialize(
+            @Valid @RequestBody AigcProjectMaterializeDTO request) {
+        return Result.success(
+                service.materialize(
+                        new AigcProjectMaterializeCommand(
+                                OrgContext.getCurrentWorkspaceId(),
+                                request.name(),
+                                request.projectTypeCode(),
+                                request.blueprintVersionId(),
+                                request.domainExtensionVersionId(),
+                                request.brandProfileVersionIds(),
+                                request.channelSpecVersionIds(),
+                                request.productionMode(),
+                                request.briefJson())));
     }
 
-    // BE-8 数据隔离：override 更新，加 ownership 校验（跨用户返回 404 防探测）
-    @Override
-    @Operation(summary = "更新项目（含 ownership 校验）")
-    @PreAuthorize("isAuthenticated()")
-    @PutMapping("/{id}")
-    public Result<AigcProjectVO> update(
-            @Parameter(description = "记录 ID") @PathVariable Long id,
-            @RequestBody AigcProjectUpdateDTO request) {
-        return Result.success(service.updateOwned(id, request));
+    @Operation(summary = "获取项目图谱")
+    @GetMapping("/{id}/graph")
+    public Result<AigcProjectGraphVO> graph(@PathVariable Long id) {
+        return Result.success(service.graph(id));
     }
 
-    // BE-8 数据隔离：override 删除，加 ownership 校验（跨用户返回 404 防探测）
-    @Override
-    @Operation(summary = "删除项目（含 ownership 校验）")
-    @PreAuthorize("isAuthenticated()")
-    @DeleteMapping("/{id}")
-    public Result<Void> delete(@Parameter(description = "记录 ID") @PathVariable Long id) {
-        service.deleteOwned(id);
-        return Result.success();
-    }
-
-    @Operation(summary = "项目概览统计")
-    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "获取项目概览")
     @GetMapping("/{id}/summary")
     public Result<AigcProjectSummaryVO> summary(@PathVariable Long id) {
-        return Result.success(service.getSummary(id));
+        return Result.success(service.summary(id));
     }
 
-    @Operation(summary = "获取项目关联文档列表")
-    @PreAuthorize("isAuthenticated()")
-    @GetMapping("/{id}/docs")
-    public Result<List<AigcProjectDocVO>> getDocs(@PathVariable Long id) {
-        return Result.success(service.getProjectDocs(id));
+    @Operation(summary = "更新项目状态")
+    @PutMapping("/{id}/status")
+    public Result<AigcProjectVO> updateStatus(
+            @PathVariable Long id, @Valid @RequestBody AigcProjectStatusDTO request) {
+        return Result.success(
+                service.updateStatus(id, request.status(), request.expectedVersion()));
     }
 
-    @Operation(summary = "关联文档到项目")
-    @PreAuthorize("isAuthenticated()")
-    @PostMapping("/{id}/docs")
-    public Result<AigcProjectDocVO> linkDoc(
-            @PathVariable Long id, @RequestBody AigcProjectDocLinkDTO dto) {
-        return Result.success(service.linkDoc(id, dto));
+    @Operation(summary = "查询项目对象")
+    @GetMapping("/{id}/objects")
+    public Result<List<AigcProjectObjectVO>> objects(@PathVariable Long id) {
+        return Result.success(service.objects(id));
     }
 
-    @Operation(summary = "取消文档与项目的关联")
-    @PreAuthorize("isAuthenticated()")
-    @DeleteMapping("/{id}/docs/{docId}")
-    public Result<Void> unlinkDoc(@PathVariable Long id, @PathVariable Long docId) {
-        service.unlinkDoc(id, docId);
+    @Operation(summary = "追加项目对象")
+    @PostMapping("/{id}/objects")
+    public Result<?> appendObject(
+            @PathVariable Long id, @Valid @RequestBody AigcProjectObjectCommandDTO request) {
+        return Result.success(
+                service.appendObject(
+                        new AigcProjectObjectCommand(
+                                id,
+                                request.parentObjectId(),
+                                request.stableKey(),
+                                request.objectType(),
+                                request.orderNo(),
+                                request.schemaVersion(),
+                                request.payloadJson(),
+                                request.expectedProjectVersion())));
+    }
+
+    @Operation(summary = "查询对象版本")
+    @GetMapping("/{id}/objects/{objectId}/versions")
+    public Result<List<AigcObjectVersionVO>> versions(
+            @PathVariable Long id, @PathVariable Long objectId) {
+        return Result.success(service.versions(id, objectId));
+    }
+
+    @Operation(summary = "采用候选对象版本")
+    @PreAuthorize("hasAuthority('aigc:project:adopt')")
+    @PostMapping("/{id}/objects/{objectId}/versions/{versionId}/_adopt")
+    public Result<?> adoptVersion(
+            @PathVariable Long id,
+            @PathVariable Long objectId,
+            @PathVariable Long versionId,
+            @Valid @RequestBody AigcObjectVersionDecisionDTO request) {
+        return Result.success(
+                service.adoptVersion(
+                        new AigcObjectVersionAdoptCommand(
+                                id,
+                                objectId,
+                                versionId,
+                                request.expectedProjectVersion(),
+                                request.reason())));
+    }
+
+    @Operation(summary = "否决候选对象版本")
+    @PostMapping("/{id}/objects/{objectId}/versions/{versionId}/_reject")
+    public Result<?> rejectVersion(
+            @PathVariable Long id,
+            @PathVariable Long objectId,
+            @PathVariable Long versionId,
+            @Valid @RequestBody AigcObjectVersionDecisionDTO request) {
+        return Result.success(
+                service.rejectVersion(id, objectId, versionId, request.expectedProjectVersion()));
+    }
+
+    @Operation(summary = "关联项目媒体版本")
+    @PostMapping("/{id}/media-refs")
+    public Result<?> attachMedia(
+            @PathVariable Long id, @Valid @RequestBody AigcProjectMediaRefDTO request) {
+        return Result.success(
+                service.attachMedia(
+                        new AigcProjectMediaRefCommand(
+                                id,
+                                request.objectId(),
+                                request.mediaVersionId(),
+                                request.role(),
+                                request.sortOrder(),
+                                request.adoptionStatus(),
+                                request.expectedProjectVersion())));
+    }
+
+    @Operation(summary = "查询项目媒体引用")
+    @GetMapping("/{id}/media-refs")
+    public Result<List<AigcProjectMediaRefVO>> mediaRefs(@PathVariable Long id) {
+        return Result.success(service.mediaRefs(id));
+    }
+
+    @Operation(summary = "解除项目媒体引用")
+    @DeleteMapping("/{id}/media-refs/{refId}")
+    public Result<Void> detachMedia(
+            @PathVariable Long id,
+            @PathVariable Long refId,
+            @jakarta.validation.constraints.NotNull Integer expectedProjectVersion) {
+        service.detachMedia(id, refId, expectedProjectVersion);
         return Result.success();
+    }
+
+    @GetMapping("/{id}/configuration")
+    public Result<List<AigcProjectConfigSnapshotVO>> configuration(@PathVariable Long id) {
+        return Result.success(service.configuration(id));
+    }
+
+    @GetMapping("/{id}/profile-refs")
+    public Result<List<AigcProjectProfileRefVO>> profileRefs(@PathVariable Long id) {
+        return Result.success(service.profileRefs(id));
+    }
+
+    @GetMapping("/{id}/channel-refs")
+    public Result<List<AigcProjectChannelRefVO>> channelRefs(@PathVariable Long id) {
+        return Result.success(service.channelRefs(id));
+    }
+
+    @GetMapping("/{id}/document-refs")
+    public Result<List<AigcProjectDocumentRefVO>> documentRefs(@PathVariable Long id) {
+        return Result.success(service.documentRefs(id));
+    }
+
+    @GetMapping("/{id}/resource-refs")
+    public Result<List<AigcProjectResourceRefVO>> resourceRefs(@PathVariable Long id) {
+        return Result.success(service.resourceRefs(id));
+    }
+
+    @GetMapping("/{id}/revisions")
+    public Result<List<AigcProjectRevisionVO>> revisions(@PathVariable Long id) {
+        return Result.success(service.revisions(id));
+    }
+
+    @PostMapping("/{id}/_submit-review")
+    public Result<AigcProjectView> submitReview(
+            @PathVariable Long id, @Valid @RequestBody AigcProjectVersionDTO request) {
+        return Result.success(service.submitReview(id, request.expectedVersion()));
+    }
+
+    @PostMapping("/{id}/_approve-review")
+    public Result<AigcProjectView> approveReview(
+            @PathVariable Long id, @Valid @RequestBody AigcReviewApproveDTO request) {
+        return Result.success(
+                service.approveReview(
+                        new AigcReviewApproveCommand(
+                                id,
+                                request.reviewObjectId(),
+                                request.expectedProjectVersion(),
+                                request.conclusion())));
+    }
+
+    @PostMapping("/{id}/_complete")
+    public Result<AigcProjectView> complete(
+            @PathVariable Long id, @Valid @RequestBody AigcProjectVersionDTO request) {
+        return Result.success(service.complete(id, request.expectedVersion()));
+    }
+
+    @PostMapping("/{id}/_archive")
+    public Result<AigcProjectView> archive(
+            @PathVariable Long id, @Valid @RequestBody AigcProjectVersionDTO request) {
+        return Result.success(service.archive(id, request.expectedVersion()));
     }
 }

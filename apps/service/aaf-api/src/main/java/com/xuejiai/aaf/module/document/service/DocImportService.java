@@ -12,7 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.xuejiai.aaf.module.document.domain.Document;
 import com.xuejiai.aaf.module.document.repository.DocumentRepository;
-import com.xuejiai.aaf.module.system.file.service.FileUploadService;
+import com.xuejiai.aaf.module.system.file.api.FileStoragePort;
 
 import lombok.RequiredArgsConstructor;
 
@@ -23,7 +23,7 @@ public class DocImportService {
 
     private static final Logger log = LoggerFactory.getLogger(DocImportService.class);
 
-    private final FileUploadService fileUploadService;
+    private final FileStoragePort fileUploadService;
     private final DocumentRepository documentRepository;
 
     /** 导入 PDF：上传原始文件 → 提取文本 → 存入 doc_document。 */

@@ -1,5 +1,5 @@
 -- ============================================================
--- AIGC / Content Studio 统一基线 Schema
+-- AIGC 统一基线 Schema
 -- 历史迁移重写已获批准；所有环境必须清空后按 Flyway 顺序重建。
 -- 约束：唯一 aigc_project；内部持久文件只通过 file_id/media_version_id 标识。
 -- ============================================================
@@ -311,7 +311,7 @@ CREATE TABLE aigc_project (
     deleted BOOLEAN NOT NULL DEFAULT FALSE,
     remark VARCHAR(255)
 );
-COMMENT ON TABLE aigc_project IS 'AIGC/Content Studio 唯一项目聚合根';
+COMMENT ON TABLE aigc_project IS 'AIGC 唯一项目聚合根';
 COMMENT ON COLUMN aigc_project.cover_media_version_id IS '项目封面媒体版本，不持久化内部文件 URL';
 COMMENT ON COLUMN aigc_project.graph_revision IS '项目对象图谱当前逻辑修订号';
 CREATE INDEX idx_aigc_project_owner ON aigc_project (owner_id) WHERE deleted = FALSE;
@@ -1027,7 +1027,9 @@ CREATE TABLE aigc_work_publication (
     org_id BIGINT,
     workspace_id BIGINT,
     work_id BIGINT NOT NULL REFERENCES aigc_work(id) ON DELETE RESTRICT,
+    channel_spec_version_id BIGINT NOT NULL REFERENCES aigc_channel_spec(id) ON DELETE RESTRICT,
     channel_code VARCHAR(64) NOT NULL,
+    idempotency_key VARCHAR(100) NOT NULL,
     external_id VARCHAR(200),
     external_url VARCHAR(1000),
     status VARCHAR(32) NOT NULL,
@@ -1048,6 +1050,10 @@ CREATE TABLE aigc_work_publication (
 COMMENT ON TABLE aigc_work_publication IS '作品多渠道发布记录；external_url 仅表示外部平台地址';
 CREATE INDEX idx_aigc_work_publication_work ON aigc_work_publication (work_id) WHERE deleted = FALSE;
 CREATE INDEX idx_aigc_work_publication_status ON aigc_work_publication (status, scheduled_time) WHERE deleted = FALSE;
+CREATE INDEX idx_aigc_work_publication_channel_spec
+    ON aigc_work_publication (channel_spec_version_id) WHERE deleted = FALSE;
+CREATE UNIQUE INDEX uk_aigc_work_publication_idempotency_active
+    ON aigc_work_publication (work_id, idempotency_key) WHERE deleted = FALSE;
 
 -- ============================================================
 -- 轻量视频时间线与 Storyboard 导出投影

@@ -1,15 +1,19 @@
 package com.xuejiai.aaf.module.ai.aigc.project.repository;
 
-import java.util.List;
+import java.util.Optional;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.xuejiai.aaf.framework.crud.CrudEntityRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProject;
 
-public interface AigcProjectRepository extends CrudEntityRepository<AigcProject> {
-    Page<AigcProject> findByUserId(Long userId, Pageable pageable);
+import jakarta.persistence.LockModeType;
 
-    List<AigcProject> findByUserIdAndStatus(Long userId, String status);
+public interface AigcProjectRepository extends CrudEntityRepository<AigcProject> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select project from AigcProject project where project.id = :id")
+    Optional<AigcProject> findLockedById(@Param("id") Long id);
 }

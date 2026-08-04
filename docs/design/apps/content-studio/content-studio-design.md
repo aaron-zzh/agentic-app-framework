@@ -1,12 +1,16 @@
 ---
 level: Practice
 layer: Product
-purpose: 设计面向中小企业、品牌服务团队和 OPC 的多场景 Agent 内容生产平台，包括项目类型优先入口、可组合场景配置、项目图谱与结构双视图及专业对象视图
-status: draft
-version: 1.6.0
-date: 2026-07-30
+purpose: 设计 Content Studio 产品工作台及其在统一 AIGC 工程领域中的项目、创作、审核、作品与发布闭环
+status: active
+version: 1.8.1
+date: 2026-08-05
 author: AaronZZH & Kiro
 changelog:
+  - 2026-08-05 | v1.8.1 最终源码静态审查后标记项目到 Publication 闭环为 active
+  - 2026-08-04 | v1.8.0 明确八个 AIGC 核心领域子模块、ExecutionBinding 归 execution 及专业能力适配器边界
+  - 2026-08-04 | v1.7.1 对齐八个 AIGC 子模块、配置版本映射、媒体所有权及 Work/Publication 生命周期条件
+  - 2026-08-04 | v1.7.0 明确 Content Studio 为产品工作台、AIGC 为唯一工程领域，统一代码命名、子模块、完整项目生命周期及媒体边界
   - 2026-07-30 | v1.6.0 拆分画布节点、参考图标注与灵感示例三个概念，明确 tldraw 的双入口边界
   - 2026-07-28 | v1.5.0 融合完整能力地图，扩展多场景定位并定义系列叙事对象、专业视图与执行分支
   - 2026-07-27 | v1.4.0 新增版本化行业扩展机制、接入生命周期与房地产企业完整样例
@@ -27,7 +31,7 @@ scope:
     - 品牌/IP、行业、渠道与创作方式的分工
     - Assistant、角色、模型、领域、Skill、Prompt、片段、附件、工具与生成模式
     - 项目图谱与结构视图的同源工作台
-    - 文档、记忆、知识库、工作流、作品库和资产库边界
+    - 文档、记忆、知识库、工作流、Media、Asset、Work 与 sys_file 边界
     - 视频与系列叙事等业务场景、专业对象视图、灵感/人才生态与设置支持
     - 版本化行业扩展、接入生命周期、规则治理与房地产企业样例
     - 验证版、MVP、叙事内容扩展、企业增强与生态扩展的范围及决策门
@@ -40,7 +44,8 @@ gains:
   - 能判断新需求应扩展行业、项目类型、渠道、生产模式、执行绑定、Tool 还是 Workflow
   - 能按版本化行业扩展机制接入房地产等新行业并保持共享项目内核
   - 能组合 Assistant、角色、领域、Skill、模型、Prompt、片段、附件、工具与生成模式
-  - 能区分文档、记忆、知识库、工作流、资产、作品和片段的真理源边界
+  - 能将 Content Studio 用户语义映射到唯一 AIGC 工程领域及 Aigc* 代码命名
+  - 能区分文档、记忆、知识库、工作流、Media、Asset、Work 与 sys_file 的真理源边界
   - 能区分项目图谱、结构视图、导演台、故事板、轻时间线和执行详情的职责
   - 能判断 Assistant 何时应自动推进、何时必须等待用户确认
 dependencies:
@@ -49,6 +54,7 @@ dependencies:
   - ../../framework/intelligent/architecture.md
 related:
   - ./content-studio-capability-concept-map.md
+  - ./content-studio-tech.md
   - ./content-studio-competitor-analysis.md
   - ../../../prd/roadmap.md
   - ../../../task/v0.8/AAF-068/tasks.md
@@ -59,6 +65,22 @@ related:
 
 > **一句话定位**：面向中小企业、品牌服务团队与 OPC 的基于 Agent 的多场景营销内容生产平台；用户以业务项目为载体，将品牌资料与创作目标转化为可编辑、可审核、可复用、可多渠道交付的图文、视频与系列叙事内容。
 
+## 产品名称与工程领域
+
+**Content Studio 是产品和工作台名称，不是独立后端业务模块。** 前端可继续使用 Content Studio、Studio 与 `/studio` 表达用户入口；后端业务能力只归属 **AIGC** 工程领域。不得新增或保留平行的 `content` 项目、媒体、资产、作品、任务或 API 体系，也不得以产品页面名称决定后端模块边界。
+
+产品文档坚持用户语义，工程实现采用唯一代码命名：
+
+| 用户语义 | 代码命名 | 说明 |
+|---|---|---|
+| Project | `AigcProject` | 项目聚合根，承载完整生命周期 |
+| ProjectGraph | `AigcProjectObject` + 语义关系 | 图谱是项目对象关系门面，不建立第二图节点真理源 |
+| Media | `AigcMedia` | 上传或生成的持久素材身份 |
+| Asset | `AigcAsset` | 经用户确认可跨项目复用的媒体登记 |
+| Work | `AigcWork` | 经采用和审核后收录的项目成果 |
+
+AIGC 业务内核按稳定职责划分为八个核心领域子模块：`configuration`、`brand`、`project`、`media`、`execution`、`work`、`timeline`、`task`。`ExecutionBinding` 明确归 `execution`，`AigcAsset` 归 `media`，二者均不形成额外核心领域。`image`、`video`、`voice`、`model3d`、`copywriting` 等按专业模态提供模型、工具和供应商适配能力，不拥有平行的项目、媒体、执行、作品或文件业务内核。产品文档只定义职责与生命周期，具体包、接口、数据表、配置版本映射、BaseCrud 管理根/内部记录边界及迁移结果以 [Content Studio 技术设计](./content-studio-tech.md) 为唯一工程真理源。
+
 ## 设计结论
 
 ### 核心决策
@@ -68,7 +90,7 @@ related:
 | 产品入口 | **项目类型优先**，而非首页自由对话优先 | 目标用户知道业务目标但不擅写 Prompt；类型可立即装载稳定项目骨架 |
 | 对话位置 | 创建项目后，Assistant 在项目内补充、修改与推进 | 避免 Agent 从零猜意图，也不让项目状态只存在聊天记录中 |
 | 场景组合 | 业务目标选 `ProjectType`；蓝图、领域扩展、渠道、生产模式与执行绑定按职责组合 | 避免按行业 × 渠道 × 模型复制项目类型或工作台 |
-| 稳定内核 | 所有场景共享 **Project、ProjectGraph、对象关系、资产引用、版本、审核与执行记录** | 营销、持续内容和系列叙事只有对象结构与执行策略不同，不应分叉产品内核 |
+| 稳定内核 | 所有场景共享 **Project、ProjectGraph、对象关系、Media、Asset、Work、Publication、版本、审核与执行记录** | 营销、持续内容和系列叙事只有对象结构与执行策略不同，不应分叉产品内核 |
 | 默认工作台 | **项目图谱 + 结构视图**，共享同一份项目数据 | 图谱适合看关系和影响，结构适合确认、批量编辑和阶段推进 |
 | 专业视图 | 导演台、故事板、轻时间线和执行详情按焦点对象打开 | 专业能力服务 Scene、Shot、Video 等对象，不争夺项目级主界面 |
 | 图谱性质 | 领域概念图谱，不是默认工作流图 | 用户应看到对象、约束、内容、素材与影响关系，而非模型调用节点 |
@@ -114,7 +136,7 @@ Content Studio 交付的是围绕一个业务目标的一组可编辑内容，�
         → 版本、审核与导出
 ```
 
-完整产品支持营销宣传、持续内容和系列叙事等场景，但所有场景必须复用 Project、ProjectGraph、Assistant、任务、资产、版本和审核内核。差异只能通过项目类型、项目蓝图、领域扩展、渠道规格、生产模式和执行绑定组合表达，不为单一行业或内容形态复制工作台。
+完整产品支持营销宣传、持续内容和系列叙事等场景，但所有场景必须复用 Project、ProjectGraph、Assistant、ExecutionRun、Media、Asset、Work、Publication、版本和审核内核。差异只能通过项目类型、项目蓝图、领域扩展、渠道规格、生产模式和执行绑定组合表达，不为单一行业或内容形态复制工作台。
 
 首期不做真正无限画布、完整专业 NLE、3D/UI 设计、开放模型/方法市场、实时多人创作和自动投放。用户可在项目中复制、Remix 或分支已有成果；不把“模板”或“配方”建设为独立的新手对象。
 
@@ -168,8 +190,10 @@ Content Studio 交付的是围绕一个业务目标的一组可编辑内容，�
 | 项目记忆 | 当前项目决策、修正、采用理由和有效上下文 | 只在项目内生效，复制项目时由用户决定是否带入 | 验证版/MVP |
 | 知识库 | 对文档、产品资料、案例和规则建立可检索索引 | 提供有来源的 RAG，不保存项目执行状态 | MVP |
 | 工作流库 | 版本化 WorkflowDefinition 与执行策略 | 专家/系统能力，不作为新手项目模板市场 | MVP 后/企业增强 |
-| 资产库 | 上传或生成的图片、视频、音频、字体及其版本、来源与权限 | 保存媒体和引用，不等于已交付作品 | 验证版 |
-| 作品库 | 已采用、发布或归档的最终 Deliverable | 通过引用关联资产与项目，不复制底层媒体文件 | MVP |
+| 素材 `Media` | 上传或生成的图片、视频、音频、3D 等持久媒体及其版本 | 是项目输入/候选产物；生成成功不自动成为资产或作品 | 验证版 |
+| 资产库 `Asset` | 对用户确认可跨项目复用的 Media 做分类、标签、权限和授权登记 | 引用 Media，不复制文件；项目临时候选不自动进入资产库 | 验证版 |
+| 作品库 `Work` | 收录已采用且通过审核的 Deliverable/ObjectVersion | 引用项目成果和 Media，不复制正文或底层文件；可关联多渠道 Publication | MVP |
+| 物理文件 `sys_file` | 登记存储 key、哈希、大小、存储状态和物理删除生命周期 | 是文件基础设施，不是用户素材库，不承载项目、资产或作品语义 | 基础设施 |
 | 片段库 | 文本、参考图和变量槽位组成的轻量复用单元 | 服务单次输入与对象操作，不承载完整项目结构 | MVP |
 
 推荐工作区结构：
@@ -183,6 +207,7 @@ Workspace
 ├─ PersonalMemory
 ├─ SnippetLibrary
 ├─ WorkflowLibrary（专家/内部）
+├─ MediaLibrary
 ├─ AssetLibrary
 ├─ WorkLibrary
 └─ Settings
@@ -212,7 +237,7 @@ Workspace
 | 领域扩展版本（DomainExtensionVersion） | 受哪些行业对象、知识、规则和校验器约束 | 客户事实、项目内容和工作流正文 |
 | 渠道规格 | 发布到哪里，尺寸、时长、声明和导出格式是什么 | 项目阶段和领域事实 |
 | 生产模式（productionMode） | 同一业务目标采用哪种内容生产形态 | 新建项目内核或复制业务状态 |
-| 执行绑定（ExecutionBinding） | 当前动作由 Tool、Agent 还是 Workflow 完成 | 创建项目骨架和保存领域内容 |
+| 执行绑定（ExecutionBinding） | 由 `execution` 核心领域拥有，决定当前动作由 Tool、Agent 还是 Workflow 完成 | 创建项目骨架和保存领域内容 |
 
 视频创作是首个复杂场景样板：
 
@@ -274,8 +299,8 @@ Project（NarrativeSeries）
 | 专业对象视图 | 聚焦当前 Scene、Shot、Video 等对象的工作面 | 按需提供导演台、故事板、轻时间线和执行详情 | 项目级第三主视图或独立真理源 |
 | 故事板视图 `Storyboard View` | 镜头与画面版本的顺序化阅读和确认 | 投影 Shot、ShotKeyframe、资产引用与采用版本 | 与 Shot 并列的第二份业务对象 |
 | 故事板导出 `StoryboardExport` | 将当前故事板投影导出为可交付快照 | 保存来源 Project revision，只读且可重新生成 | 可反向编辑镜头的真理源 |
-| 画布节点 `CanvasBoard` | 项目里一块可自由排列参考图与手绘的板子 | 作为 ProjectObject 保存 tldraw 快照与导出的资产引用 | 项目图谱本身、工作流画布或灵感发现入口 |
-| 参考图标注 | 对图像对象圈选、涂抹、标记局部重绘意图 | 对象级 tldraw 工具会话，产出参考输入或新 AssetVersion | 独立对象或持久画布 |
+| 画布节点 `CanvasBoard` | 项目里一块可自由排列参考图与手绘的板子 | 作为 ProjectObject 保存 tldraw 快照与导出的 AigcMedia 引用 | 项目图谱本身、工作流画布或灵感发现入口 |
+| 参考图标注 | 对图像对象圈选、涂抹、标记局部重绘意图 | 对象级 tldraw 工具会话，产出参考输入或新 MediaVersion | 独立对象或持久画布 |
 | 灵感 | 别人公开的、可复用的项目示例 | 公开提示词摘要、技能、创作方式与脱敏制作过程，可 Remix 成新项目 | 画布、Moodboard 或项目内对象 |
 | Assistant | 项目内创作助理 | 补齐信息、维护图谱、调度任务、解释结果 | 项目、资产、规则的真理源 |
 
@@ -307,17 +332,18 @@ Workspace
 │     │  ├─ CanvasBoard（画布节点，保存 tldraw 快照与导出的资产引用）
 │     │  └─ Review（审核、意见、结论）
 │     ├─ ProjectDocument[]
-│     ├─ ProjectAssetRef[]
+│     ├─ ProjectMediaRef[]（引用 AigcMedia 的指定版本与项目用途）
 │     ├─ ProjectMemory
-│     ├─ ProjectGraph（ProjectObject + ProjectRelation 的领域状态；布局为视图状态）
-│     └─ ExecutionRun[]（统一执行记录；可关联 AIGC Task）
+│     ├─ ProjectGraph（AigcProjectObject + 语义关系的领域状态；布局为视图状态）
+│     └─ ExecutionRun[]（统一执行记录；媒体动作可关联 AigcTask）
 ├─ DocumentLibrary
 ├─ KnowledgeBases[]
 ├─ PersonalMemory
 ├─ SnippetLibrary
 ├─ WorkflowLibrary
-├─ AssetLibrary
-├─ WorkLibrary
+├─ MediaLibrary（AigcMedia）
+├─ AssetLibrary（AigcAsset）
+├─ WorkLibrary（AigcWork）
 └─ Settings
 ```
 
@@ -328,8 +354,8 @@ Workspace
 | 分集 `Episode` | 系列叙事项目中的单集，保存集序、目标时长、脚本引用、审核状态和最终交付引用 | 只属于一个 Project |
 | 场次 `Scene` | 保存时空、出场角色/场景/道具引用、场次文本与连续性状态 | 只属于一个 Episode |
 | 镜头 `Shot` | 保存顺序、目标时长、景别、构图、调度、运镜、光影、对白/音效和资产引用 | 系列叙事中属于一个 Scene；单条视频中直接属于 VideoDeliverable |
-| 镜头关键帧 `ShotKeyframe` | 以 START、END 或 ANCHOR 角色引用不可变 AssetVersion | 只属于一个 Shot；参考图不能伪装为关键帧 |
-| 镜头媒体版本 `ShotMediaVersion` | 保存逐镜生成或上传的视频候选与采用状态 | 时间线只引用已采用版本，不复制媒体 |
+| 镜头关键帧 `ShotKeyframe` | 以 START、END 或 ANCHOR 角色引用不可变 MediaVersion | 只属于一个 Shot；参考图不能伪装为关键帧 |
+| 镜头媒体版本 `ShotMediaVersion` | 保存逐镜生成或上传的媒体候选引用与采用状态 | 时间线只引用已采用版本，不复制媒体 |
 | 时间线合成 `TimelineComposition` | 保存轨道、片段、入出点、转场、字幕、配音、音乐和音量 | 轻时间线是其编辑视图，不改写剧本或镜头计划 |
 
 故事板不另存一份镜头状态，而是 Shot、ShotKeyframe、顺序关系、资产引用和采用版本的专业投影；审核结论写入 Review 或对象状态。
@@ -345,11 +371,15 @@ Workspace
 | 行业规则、Validator 和动作约束定义 | DomainExtensionVersion | 固定版本引用和规则结论 |
 | 渠道尺寸、时长、必要声明和导出规格 | ChannelSpecificationVersion | 固定版本引用和渠道变体关系 |
 | 当前项目事实、主张、卖点和采用决策 | ProjectObject / ClaimEvidence | 项目内对象，必须引用证据来源 |
-| 媒体文件、版权、来源和不可变版本 | AssetVersion | ProjectAssetRef 与采用指针，不复制文件 |
-| 项目对象父级、顺序、状态和语义关系 | ProjectObject / ProjectRelation | ProjectGraph 自身领域状态 |
+| 物理存储 key、哈希、大小、存储状态和物理删除 | `sys_file` | 仅以稳定文件引用关联；不把 URL 当文件身份 |
+| 素材身份、来源与当前媒体版本 | `AigcMedia` | `ProjectMediaRef` 及来源关系；不由 Asset 或 Work 代替 |
+| 不可变媒体文件版本 | `MediaVersion` | 引用 `sys_file`；不在多个业务对象重复保存 URL |
+| 跨项目可复用登记 | `AigcAsset` | 指向 AigcMedia；不复制媒体或物理文件 |
+| 已采用并审核的成果收录 | `AigcWork` | 指向 Deliverable/ObjectVersion 与 Media；不复制正文或文件 |
+| 项目对象父级、顺序、状态和语义关系 | `AigcProjectObject` / ProjectRelation | ProjectGraph 自身领域状态 |
 | 执行状态、成本、重试、输入输出和终态 | ExecutionRun | 只以 entityRef 建立产出、来源和影响关系 |
 
-一个工作区可创建多个品牌/IP。项目通过 `ProjectProfileRef` 选择一个主资料，并按作用范围引用零到多个子品牌、产品线、角色 IP 或联名资料；辅助资料不自动约束整个项目。品牌/IP 资料是独立对象，其中图片、Logo、角色图、音色和参考视频仍由资产库承载。项目可以添加临时覆盖，但不得把品牌规则只保存在 Assistant 记忆或聊天摘要中。
+一个工作区可创建多个品牌/IP。项目通过 `ProjectProfileRef` 选择一个主资料，并按作用范围引用零到多个子品牌、产品线、角色 IP 或联名资料；辅助资料不自动约束整个项目。品牌/IP 资料是独立对象，其中图片、Logo、角色图、音色和参考视频由 `AigcMedia/AigcMediaVersion` 承载，BrandProfileVersion 只保存媒体版本引用；仅在用户确认需要跨项目复用时再登记为 `AigcAsset`。项目可以添加临时覆盖，但不得把品牌规则只保存在 Assistant 记忆或聊天摘要中。
 
 项目引用指定的 BrandProfileVersion；资料更新后提示查看影响并由用户决定同步，不能静默改变已审核内容。Assistant 只加载项目显式绑定的品牌/IP、文档、知识和记忆，防止跨品牌、跨客户上下文泄漏。
 
@@ -380,9 +410,9 @@ Workspace
 | `ResolvedDomainContext` | 将行业扩展、品牌/IP、项目类型、渠道和当前项目事实解析为运行时上下文 | 每个项目创建或受控刷新时 | 行业定义的第二份副本、跨项目隐式记忆 |
 | `ProjectType` | 表达用户要完成的业务目标 | 新目标具有不同交付结构和阶段时 | 仅因行业、渠道或模型不同而新增 |
 | `ProjectBlueprintVersion` | 定义该业务目标的基础对象、关系、交付物、动作和确认点 | 项目骨架发生版本化变化时 | 行业规则全集、Skill 或 Workflow 实现 |
-| `ExecutionBinding` | 将 Blueprint 的 `actionKey` 映射到 Agent、Tool 或 Workflow 目标 | 行业需要不同执行能力或策略时 | Skill、项目领域状态和用户内容 |
+| `ExecutionBinding` | 由 `execution` 核心领域拥有，将 Blueprint 的 `actionKey` 映射到 Agent、Tool 或 Workflow 目标 | 行业需要不同执行能力或策略时 | Skill、项目领域状态和用户内容 |
 | 渠道规格 | 约束尺寸、时长、文案结构、必要声明和导出格式 | 新增发布渠道或格式时 | 新项目类型、行业事实 |
-| `ProjectTypePackage` | 发布时固定可兼容的类型、蓝图、领域扩展、渠道规格、生产模式和执行绑定版本组合 | 需要安装、灰度或回滚一组配置时 | 新的领域真理源 |
+| `ProjectTypePackage` | 发布时固定可兼容的类型、蓝图、领域扩展、渠道规格、生产模式，以及由 `execution` 提供的执行绑定版本组合 | 需要安装、灰度或回滚一组配置时 | 新的领域真理源 |
 
 `DomainExtensionVersion` 是行业定义来源，`ResolvedDomainContext` 是其在具体项目中的解析结果。Project 记录采用的行业扩展版本；已有项目不会因行业包升级被静默修改。
 
@@ -403,7 +433,7 @@ DomainExtensionVersion
 └─ migrations：兼容范围、差异说明与受控迁移声明
 ```
 
-行业扩展包只保存定义和引用：客户文档进入文档库，检索索引进入知识库，媒体进入资产库，项目事实进入 ProjectGraph；Skill、Workflow 和模型由独立定义及 ExecutionBinding 引用，不能内嵌复制。
+行业扩展包只保存定义和引用：客户文档进入文档库，检索索引进入知识库，媒体进入 MediaLibrary，需要跨项目复用时再登记到 AssetLibrary，项目事实进入 ProjectGraph；Skill、Workflow 和模型由独立定义及 ExecutionBinding 引用，不能内嵌复制。
 
 规则分为两类：
 
@@ -597,6 +627,63 @@ flowchart LR
 - 结构与图谱视图共享同一 PropertySubject、ClaimEvidence、CreativeConcept 和 Deliverable 数据，任一处修改后另一处同步。
 - 楼盘、开发商、客户与项目资料仅在显式 ProjectProfileRefs、KnowledgeBase 和权限范围内加载；跨工作区访问拒绝率 100%。
 - 至少用 5 个历史或脱敏真实项目回放资料解析、卖点生成、图文视频内容包和红线用例；企业法务/合规负责人确认规则集后才进入正式项目。
+
+## 项目端到端生命周期
+
+所有项目类型共享同一条生命周期，场景差异只改变蓝图中的对象、动作、审核门和交付物，不改变 Project、ExecutionRun、Media、Asset、Work 或 Publication 的含义。
+
+```text
+项目类型 / 品牌 / Brief
+→ 蓝图物化
+→ ProjectGraph（AigcProjectObject + 语义关系）
+→ ActionCommand
+→ ExecutionRun
+→ AigcTask（可选，仅媒体子任务）
+→ Media / ObjectVersion candidate
+→ 明确采用
+→ 质检与审核
+→ Work（成功交付必须收录）
+→ Publication（0..N，可选渠道发布）
+→ 项目完成；完成后可归档
+
+创作中放弃的项目可从创作阶段直接归档，但不得标记为完成。
+```
+
+### 生命周期阶段
+
+| 阶段 | 形成的产品事实 | 进入下一阶段的条件 |
+|---|---|---|
+| 定义目标 | 项目类型、品牌/IP 版本、渠道、生产模式和 Brief | 关键事实足以选择兼容蓝图；缺口与假设显式可见 |
+| 蓝图物化 | `AigcProject`、不可变配置快照、初始 `AigcProjectObject` 与关系 | 兼容性校验通过，项目骨架可立即展示 |
+| 图谱创作 | 用户、Assistant 和系统围绕 ProjectGraph 编辑对象并发起动作 | 动作有稳定 actionKey、目标对象和确认上下文 |
+| 受控执行 | `ActionCommand` 经过权限、预算、规则和确认门后形成 `ExecutionRun` | 执行目标确定；仅媒体动作按需关联 `AigcTask` |
+| 候选产生 | 文本/结构候选进入 ObjectVersion，持久媒体进入 `AigcMedia` 及媒体版本 | 候选可比较、来源可追溯、失败不移动采用指针 |
+| 采用 | 用户或蓝图允许的确定规则明确选择候选 | 采用指针更新并形成项目修订；下游影响已提示 |
+| 审核 | 完成校验、品牌/领域/渠道质检及人工或企业审批 | 所有阻断项解决，交付物达到完成契约 |
+| 作品与发布 | 审核通过且计入成功交付的成果必须收录为 `AigcWork`，并可形成零到多个 Publication | 已收录至少一个 Work；Publication 已成功、明确无需发布，或用户明确仅保留为作品 |
+| 完成与归档 | 项目完成后可归档并保留图谱、版本、执行、审核和作品追溯；创作中放弃也可直接归档 | 完成要求交付契约满足且无进行中的阻断任务；归档不触发文件物理删除 |
+
+产品阶段与技术状态唯一映射为：定义目标 `CONFIGURING`、蓝图物化 `MATERIALIZED`、图谱创作 `CREATING`、受控执行 `EXECUTING`、候选比较与采用 `ADOPTING`、审核 `REVIEWING`、作品收录与可选发布 `DELIVERING`、完成 `COMPLETED`、归档 `ARCHIVED`。状态枚举、迁移条件与接口以 [技术设计的唯一 AigcProject 聚合](./content-studio-tech.md#唯一-aigcproject-聚合) 为工程真理源。
+
+“执行成功”“采用”“审核通过”“收录作品”“发布”和“项目完成”是六个不同事实，不得用单个任务状态替代。Asset 也不在主线中自动产生：只有用户明确将某个 Media 标记为跨项目可复用时，才登记为 `AigcAsset`。
+
+### AI 博客样例
+
+AI 博客沿用统一 AIGC 工程领域，可作为 `objectType = blog_content` 的项目对象样例：
+
+```text
+社媒内容或长文内容 ProjectType
+→ 蓝图物化 Brief + blog_content + cover + channel_variant
+→ ActionCommand 生成大纲、正文候选和封面候选
+→ ExecutionRun；封面生成可关联 AigcTask，纯文本动作无需 AigcTask
+→ blog_content ObjectVersion + cover AigcMedia candidate
+→ 采用、事实/品牌审核
+→ AigcWork
+→ 官网、公众号等 Publication
+→ 完成；完成后可归档
+```
+
+`blog_content` 是 `AigcProjectObject` 的业务类型，不是新模块或独立项目表。标题、摘要、栏目、状态与正文引用属于该对象；长正文由 DocumentVersion 作为内容权威来源，封面由 AigcMedia 承载，资产复用通过 AigcAsset 登记，作品和发布分别由 AigcWork 与 Publication 表达。不得为 AI 博客建立 `content` 模块、第二套文件表或绕过统一生命周期。
 
 ## 创建项目
 
@@ -929,7 +1016,7 @@ PoC 先用规则布局验证交互；当嵌套分组、局部重排和连线路�
 | ProjectGraph、领域对象、关系、版本、任务状态 | TanStack Query + 服务端接口 / 事件流 |
 | 选中、悬停、缩放、viewport、折叠、关系筛选、临时拖拽布局 | Zustand 或组件本地状态 |
 
-禁止把完整服务端 `ProjectGraph` 复制到 Zustand。节点发起生成后，前端创建 AIGC Task，服务端通过事件流更新任务和领域对象，Query 缓存刷新后由投影适配器同步更新图谱与结构视图。
+禁止把完整服务端 `ProjectGraph` 复制到 Zustand。节点发起动作后，前端提交 ActionCommand，服务端创建 ExecutionRun；仅媒体生成、处理或合成动作按需关联 AigcTask。服务端通过事件流更新执行、候选和领域对象，Query 缓存刷新后由投影适配器同步更新图谱与结构视图。
 
 #### 画布节点与参考图标注
 
@@ -937,24 +1024,24 @@ tldraw 有且只有两个入口，都不承担项目图谱，也不承担灵感�
 
 | 入口 | 形态 | 打开方式 | 写回什么 |
 |---|---|---|---|
-| 画布节点 `CanvasBoard` | 项目内的一种 ProjectObject，出现在图谱「素材」分区 | 图谱或结构视图中选中该节点 | 画布快照与选区导出的 ProjectAsset |
-| 参考图标注 | 对象级工具，不产生新对象 | 选中 ImageDeliverable、ShotKeyframe 或 ProjectAssetRef 后打开「标注」 | 标注结果作为新 AssetVersion 或参考图引用 |
+| 画布节点 `CanvasBoard` | 项目内的一种 ProjectObject，出现在图谱「素材」分区 | 图谱或结构视图中选中该节点 | 画布快照与选区导出的 AigcMedia |
+| 参考图标注 | 对象级工具，不产生新对象 | 选中 ImageDeliverable、ShotKeyframe 或 ProjectMediaRef 后打开「标注」 | 标注结果作为新 MediaVersion 或参考图引用 |
 
 ```text
 画布节点（持久对象）
 项目图谱「素材」分区的 CanvasBoard 节点
   → 打开 tldraw
     → 自由排列参考图、手绘和批注
-      → 选区导出并关联为 ProjectAsset
+      → 选区导出为 AigcMedia，通过 ProjectMediaRef 关联；需要跨项目复用时再登记 AigcAsset
 
 参考图标注（临时工具）
 选中图像类对象
   → 打开 tldraw 标注
     → 圈选、涂抹、局部重绘意图标记
-      → 作为 AI 编辑的参考输入或新 AssetVersion
+      → 作为 AI 编辑的参考输入或新 MediaVersion
 ```
 
-`CanvasBoard` 是项目对象，因此拥有 id、父级、顺序和状态，可被关系引用；参考图标注只是打开工具的一次会话，不注册对象。两者的 tldraw Shape/Store 都不能成为 `ProjectGraph` 真理源——画布节点保存的是快照与导出的资产引用，业务关系仍由 `ProjectRelation` 表达。
+`CanvasBoard` 是项目对象，因此拥有 id、父级、顺序和状态，可被关系引用；参考图标注只是打开工具的一次会话，不注册对象。两者的 tldraw Shape/Store 都不能成为 `ProjectGraph` 真理源——画布节点保存的是快照与导出的 AigcMedia 引用，业务关系仍由 `ProjectRelation` 表达。
 
 React Flow 与 tldraw 不在同一主工作面同时加载；tldraw 按需懒加载。
 
@@ -1028,12 +1115,15 @@ ActionCommand
   │                         └→ WorkflowTool → WorkflowRuntime（按需）
   └─ WorkflowExecutor → WorkflowRuntime → Agent / Tool / Model 节点
 → ExecutionRun
-→ 可选 AIGC Task（仅媒体生成）
-→ 新 ObjectVersion / AssetVersion
+→ 可选 AigcTask（仅媒体生成、处理或合成）
+→ Media / ObjectVersion candidate
 → 用户或规则明确采用后更新 adoptedVersionRef
+→ 质检 / 审核
+→ 可选收录 AigcWork 与创建 Publication
+→ Project 完成或归档
 ```
 
-`ExecutionBinding` 的目标类型为 `AGENT | TOOL | WORKFLOW`。WorkflowTool 只是 Agent 调用 WorkflowRuntime 的适配器，不是直接 Workflow 分支的必经层；所有分支统一产生 ExecutionRun，AIGC Task 只是其中一种媒体生成子任务。成功执行先产生候选 ObjectVersion/AssetVersion，只有通过明确采用门才更新所属 ProjectObject.adoptedVersionRef，并提交 Project revision / domain event；失败、取消和重试不得移动采用指针，费用结算与终态保留在 ExecutionRun。同一蓝图可切换快速/专业执行策略，同一 Workflow 也可服务多个项目类型。配置发布时，`ProjectTypePackage` 只固定兼容的 ProjectType、ProjectBlueprintVersion、DomainExtensionVersion、ChannelSpecificationVersion、productionMode 约束与 ExecutionBinding 版本，用于安装、灰度和回滚，不成为新的领域真理源。
+`ExecutionBinding` 的目标类型为 `AGENT | TOOL | WORKFLOW`。WorkflowTool 只是 Agent 调用 WorkflowRuntime 的适配器，不是直接 Workflow 分支的必经层；所有分支统一产生 ExecutionRun。AigcTask 只在图像、视频、音频、3D、转码或合成等媒体动作中按需创建，一个 ExecutionRun 可关联零到多个 AigcTask。成功执行先产生 Media 或 ObjectVersion 候选，只有通过明确采用门才更新所属 AigcProjectObject 的 adoptedVersionRef，并提交项目修订/领域事件；失败、取消和重试不得移动采用指针，费用结算与终态保留在 ExecutionRun。采用后仍须分别经过质检/审核、AigcWork 收录、Publication 和项目完成/归档，不得把执行成功视为作品完成。同一蓝图可切换快速/专业执行策略，同一 Workflow 也可服务多个项目类型。配置发布时，`ProjectTypePackage` 只固定兼容的 ProjectType、ProjectBlueprintVersion、DomainExtensionVersion、ChannelSpecificationVersion、productionMode 约束与 ExecutionBinding 版本，用于安装、灰度和回滚，不成为新的领域真理源。
 
 首期不建设独立的 Template/Recipe CRUD。稳定做法优先通过“复制项目 / Remix / 从成功项目创建相似项目”复用；只有同类项目高频重复且步骤稳定时，才将运行轨迹沉淀为内部 Workflow 或面向高级用户的创作方式。
 
@@ -1083,19 +1173,21 @@ Project Assistant
 
 ## AAF 能力基线与工程重点
 
-现有 AAF 已有 AIGC 任务、模型路由、OSS、素材、项目、故事板、时间线、FlowEditor 与 Assistant/Agent 等实现载体，但其成熟度不一。本方案优先在现有 `AigcProject`、`MediaAsset`、任务服务和前端创作组件上演进，不建立平行项目和任务体系。
+全流程重构已将内容生产相关的项目、媒体、任务、故事板、时间线与执行链收敛到唯一 AIGC 工程领域，以及 `AigcProject`、`AigcProjectObject`、`AigcMedia`、`AigcAsset`、`AigcWork` 等统一命名。`content` 平行业务模块、双 API、双写和兼容适配层均不再作为实现路径；`image`、`video`、`voice`、`model3d`、`copywriting` 等现有专业包只承担能力适配。
 
-| 能力 | 当前处理 | 本方案新增重点 |
+| 能力 | 当前归属 | 后续演进重点 |
 |---|---|---|
-| AIGC 任务与模型 | 复用并加固 | 幂等、取消、超时、恢复、费用与素材写入一致性 |
-| 项目与资产 | 优先扩展现有对象 | ProjectType、ProjectBlueprint、BrandProfile 关联、版本与影响关系 |
+| 执行与媒体任务 | ExecutionBinding、ExecutionRun 归 `execution`，媒体子任务归 `task` | 幂等、取消、超时、恢复、费用与候选写入一致性 |
+| 项目与图谱 | AigcProject + AigcProjectObject/Relation | ProjectType、ProjectBlueprint、BrandProfile 关联、版本与影响关系 |
+| 素材、资产与作品 | AigcMedia、AigcAsset、AigcWork 分属 `media` 与 `work` | 素材版本、可复用登记、采用审核、Publication 与 sys_file 引用边界 |
+| 专业能力适配 | image/video/voice/model3d/copywriting 等适配器 | 统一通过 Tool/API/供应商契约接入 execution/task，不新增业务内核 |
 | 创作界面 | 重组现有 Generation/Preview/Copywriting/Storyboard/Timeline | 结构/图谱同源投影、统一任务卡、对象就地生成 |
 | FlowEditor | 仅专家层复用 | 验证工作流运行时与项目图谱/任务事件的映射 |
 | Assistant/Agent | 单项目 Assistant 受控编排 | 类型补全、图谱维护、确认门与完成校验 |
-| 媒体工程 | 补强 | 视频合成、字幕/音频对齐、转码、缩略图和导出 |
+| 媒体工程 | 持续补强 | 视频合成、字幕/音频对齐、转码、缩略图和导出 |
 | 企业治理 | 按阶段叠加 | 工作区隔离、资料权限、审核、审计和预算 |
 
-进入开发前必须用真实模型验证：模型契约、任务一致性、跨用户权限、项目图谱更新和端到端内容包五类链路。
+后续能力演进仍须用真实模型持续验证模型契约、任务一致性、跨用户权限、项目图谱更新和端到端内容包五类链路。
 
 ## 范围、分期与决策门
 
@@ -1125,11 +1217,15 @@ Project Assistant
 - 系列叙事项目保持 Project → Episode → Scene → Shot → ShotKeyframe 的单父级结构；短剧与漫剧不分叉项目、资产和任务内核。
 - 项目固定记录 `blueprintVersionId` 和 `domainExtensionVersionId`；蓝图或行业扩展升级不静默改变已有 ProjectGraph。
 - 每次执行记录最终领域上下文、ExecutionBinding、Agent/Tool/Workflow、模型、Prompt/片段、附件、工具和生成模式；经 Skill 路由时额外记录 skillDefinitionVersionId，支持复现与审计。
+- 每个 ActionCommand 统一产生 ExecutionRun；非媒体动作不创建 AigcTask，媒体动作可关联零到多个 AigcTask。
+- 执行成功、候选产生、采用、审核通过、作品收录、发布和项目完成必须是可独立追溯的事实，任一步不得隐式推进下一步。
+- Media、Asset、Work 与 sys_file 保持单一所有权：Asset 和 Work 只引用，不复制 MediaVersion 或物理文件。
+- AI 博客以 `blog_content` AigcProjectObject 跑通候选、采用、审核、AigcWork 和 Publication，不新增 `content` 模块或第二文件体系。
 - 自动模式不得绕过预算、品牌/合规硬规则和不可逆操作确认门。
 - 项目只加载显式绑定的品牌/IP、知识与记忆；跨工作区、跨客户上下文访问拒绝率 100%。
 - 行业硬规则不能被 Prompt、手动或自动模式绕过；软规则覆盖必须记录操作者与理由。
 - 项目图谱由 React Flow 渲染，tldraw 只出现在画布节点与参考图标注两个入口；两者不在同一主工作面同时加载，画布内容不成为 `ProjectGraph` 真理源。
-- 作品库引用已采用 Deliverable 和资产版本，不复制媒体文件形成第二真理源。
+- 作品库以 AigcWork 引用已采用且通过审核的 Deliverable/ObjectVersion 与 MediaVersion，不复制正文或媒体文件形成第二真理源。
 - 关键异步任务终态率 ≥99%，重复提交不重复扣费，断线恢复不丢结果。
 - 20 个真实项目中内容包完成率低于 50% 时，暂停扩展项目类型，优先修复蓝图、Assistant 补全与对象编辑。
 
@@ -1146,4 +1242,5 @@ Project Assistant
 ## 参考资料
 
 - [Content Studio 竞品分析](./content-studio-competitor-analysis.md) — Flova、LibTV、Miora 与 ChatCut 的术语、流程、界面证据和取舍。
-- [Content Studio 能力与概念地图](./content-studio-capability-concept-map.md) — 核心概念、产品能力、信息架构与业务场景的导航地图。
+- [Content Studio 能力与概念地图](./content-studio-capability-concept-map.md) — 产品名称、AIGC 工程领域、核心概念、完整生命周期、产品能力与场景导航。
+- [Content Studio 技术设计](./content-studio-tech.md) — 统一 AIGC 核心领域子模块、接口、数据、sys_file 边界和一次性迁移结果。

@@ -1,5 +1,5 @@
 /**
- * Content Studio 最近项目网格。
+ * Content Studio 最近 AIGC 项目网格。
  * @author AaronZZH & Kiro
  */
 
@@ -8,7 +8,6 @@
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
 import { ChevronRight, FolderKanban, Plus } from "lucide-react"
-import Image from "next/image"
 import Link from "next/link"
 import { GlassCard, GlowButton, NeonChip } from "@/components/studio"
 import {
@@ -20,11 +19,11 @@ import {
   EmptyTitle
 } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { ContentProjectVO } from "@/lib/api/rest/content"
-import { useContentProjects } from "@/lib/api/rest/content"
+import type { AigcProject } from "@/lib/api/rest/ai/aigc"
+import { useAigcProjects } from "@/lib/api/rest/ai/aigc"
 import { getProjectTypeConfig, PROJECT_STATUS_CONFIG } from "./project-type-config"
 
-function RecentProjectCard({ project }: { project: ContentProjectVO }) {
+function RecentProjectCard({ project }: { project: AigcProject }) {
   const type = getProjectTypeConfig({ code: project.projectTypeCode, name: "" })
   const TypeIcon = type.icon
   const status = PROJECT_STATUS_CONFIG[project.status]
@@ -34,20 +33,9 @@ function RecentProjectCard({ project }: { project: ContentProjectVO }) {
       className="group block focus-visible:outline-none"
     >
       <GlassCard interactive className="h-full">
-        <div className="relative aspect-video overflow-hidden bg-muted">
-          {project.coverUrl ? (
-            <Image
-              src={project.coverUrl}
-              alt={project.name}
-              fill
-              className="object-cover transition-transform duration-300 group-hover:scale-105"
-            />
-          ) : (
-            <div className="flex size-full items-center justify-center text-muted-foreground">
-              <TypeIcon className="size-10" />
-            </div>
-          )}
-          <div className="absolute top-2 right-2 flex gap-1.5">
+        <div className="relative flex aspect-video items-center justify-center overflow-hidden bg-muted text-muted-foreground">
+          <TypeIcon className="size-10 transition-transform duration-300 group-hover:scale-110" />
+          <div className="absolute top-2 right-2">
             <NeonChip tone={status.tone} size="sm">
               {status.label}
             </NeonChip>
@@ -73,7 +61,7 @@ function RecentProjectCard({ project }: { project: ContentProjectVO }) {
 }
 
 export function RecentProjectGrid() {
-  const { data, isLoading } = useContentProjects({ pageSize: 5 })
+  const { data, isLoading } = useAigcProjects({ pageSize: 5 })
   const projects = data?.list ?? []
 
   return (
@@ -87,10 +75,9 @@ export function RecentProjectGrid() {
           href="/studio/projects"
           className="flex items-center gap-1 text-muted-foreground text-sm hover:text-foreground"
         >
-          查看全部 <ChevronRight className="size-4" />
+          查看全部 <ChevronRight />
         </Link>
       </div>
-
       {isLoading ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
           {Array.from({ length: 5 }, (_, index) => (

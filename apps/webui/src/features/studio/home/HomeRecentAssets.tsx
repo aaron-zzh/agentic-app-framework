@@ -15,14 +15,14 @@ import Video from "yet-another-react-lightbox/plugins/video"
 import { Lightbox, useLightbox } from "@/components/lightbox"
 import { GlassCard } from "@/components/studio"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { MediaVO } from "@/features/aigc/types"
+import type { AigcMedia } from "@/features/aigc/types"
 import { useMediaList } from "@/lib/api/rest/media"
 
 function AssetThumb({
   asset,
   onOpenLightbox
 }: {
-  asset: MediaVO
+  asset: AigcMedia
   onOpenLightbox: (url: string) => void
 }) {
   const [playing, setPlaying] = useState(false)
@@ -126,7 +126,9 @@ export function HomeRecentAssets() {
       media.mediaType === "VIDEO"
         ? {
             type: "video" as const,
-            sources: [{ src: media.currentVersion.url, type: media.currentVersion.mimeType ?? "video/mp4" }]
+            sources: [
+              { src: media.currentVersion.url, type: media.currentVersion.mimeType ?? "video/mp4" }
+            ]
           }
         : { src: media.currentVersion.url }
     )
@@ -145,7 +147,7 @@ export function HomeRecentAssets() {
           <p className="pt-1 text-muted-foreground text-xs">AI 生成的图像、视频与音频素材</p>
         </div>
         <Link
-          href="/studio/assets/works"
+          href="/studio/assets/materials"
           className="flex items-center gap-0.5 text-muted-foreground text-sm hover:text-foreground"
         >
           更多

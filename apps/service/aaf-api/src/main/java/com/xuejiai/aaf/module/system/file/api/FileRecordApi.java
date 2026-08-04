@@ -4,11 +4,7 @@ package com.xuejiai.aaf.module.system.file.api;
 public interface FileRecordApi {
 
     StoredFile registerCurrent(
-            String key,
-            String originalName,
-            String mimeType,
-            long size,
-            String contentHash);
+            String key, String originalName, String mimeType, long size, String contentHash);
 
     StoredFile register(
             String key,

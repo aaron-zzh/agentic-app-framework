@@ -72,8 +72,7 @@ public final class CrudFilterSchema<E> {
     }
 
     /** 将 AUTO 模式解析为不可变的显式安全筛选 schema。 */
-    public CrudFilterSchema<E> resolve(
-            CrudResourceTypeContract<E> types, CrudViewDefinition view) {
+    public CrudFilterSchema<E> resolve(CrudResourceTypeContract<E> types, CrudViewDefinition view) {
         return mode == Mode.AUTO ? safeDefaults(types, view) : this;
     }
 

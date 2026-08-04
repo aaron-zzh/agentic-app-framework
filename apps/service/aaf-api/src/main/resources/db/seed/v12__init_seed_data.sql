@@ -275,9 +275,10 @@ items (group_title, title, path, icon, sort_order, visible) AS (
     ('概览',     '积分统计',   '/admin/credits-analytics',    'bar-chart-2',       1,  true),
     ('概览',     '开发示例',   '/examples',                   'file-text',         2,  true),
     -- AI 创作
-    ('AI 创作',  '创作项目',   '/aigc',                       'sparkles',          0,  true),
-    ('AI 创作',  '素材库',     '/aigc/assets',                'image',             1,  true),
-    ('AI 创作',  'AIGC 任务',  '/module/aigc-task',           'wand-2',            2,  true),
+    ('AI 创作',  '创作项目',   '/studio/projects',             'sparkles',          0,  true),
+    ('AI 创作',  '素材库',     '/studio/assets/materials',     'image',             1,  true),
+    ('AI 创作',  '作品库',     '/studio/assets/works',         'images',            2,  true),
+    ('AI 创作',  'AIGC 任务',  '/studio/assets/history',       'wand-2',            3,  true),
     -- 知识库
     ('知识库',   '知识库',     '/studio/knowledge',           'database',          0,  true),
     -- 会员中心
@@ -1082,8 +1083,10 @@ INSERT INTO sys_role_menu (role_id, menu_id)
 SELECT r.id, m.id FROM sys_role r
 JOIN sys_menu m ON m.path IN (
     '/dashboard',
-    '/aigc',
-    '/aigc/assets',
+    '/studio/projects',
+    '/studio/assets/materials',
+    '/studio/assets/works',
+    '/studio/assets/history',
     '/studio/knowledge',
     '/settings',
     '/trash'

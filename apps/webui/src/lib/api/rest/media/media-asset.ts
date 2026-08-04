@@ -4,19 +4,19 @@
  */
 
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
-import type { AssetVO, MediaType, MediaVO } from "@/features/aigc/types"
+import type { AigcAsset, AigcMedia, AigcMediaType } from "@/features/aigc/types"
 import { backendApi } from "../backend-client"
 import { buildQuery, type ListParams, type PageResult } from "../entity/crud"
 
 export interface MediaListParams extends ListParams {
-  mediaType?: MediaType
+  mediaType?: AigcMediaType
   sourceType?: string
   projectId?: number
   keyword?: string
 }
 
 export interface AssetListParams extends ListParams {
-  mediaType?: MediaType
+  mediaType?: AigcMediaType
   categoryId?: number
   keyword?: string
 }
@@ -27,20 +27,20 @@ export interface SaveMediaAsAssetParams {
   copyrightInfo?: string
 }
 
-export const MEDIA_QUERY_KEY = ["aigc", "media"] as const
-export const ASSET_QUERY_KEY = ["aigc", "assets"] as const
+export const MEDIA_QUERY_KEY = ["aigc.media"] as const
+export const ASSET_QUERY_KEY = ["aigc.asset"] as const
 
 export const mediaApi = {
-  list: (params: MediaListParams = {}): Promise<PageResult<MediaVO>> =>
-    backendApi.get<PageResult<MediaVO>>(`/aigc/media${buildQuery(params)}`),
-  getById: (id: number): Promise<MediaVO> => backendApi.get<MediaVO>(`/aigc/media/${id}`),
-  saveAsAsset: (id: number, params?: SaveMediaAsAssetParams): Promise<AssetVO> =>
-    backendApi.post<AssetVO>(`/aigc/media/${id}/asset`, params)
+  list: (params: MediaListParams = {}): Promise<PageResult<AigcMedia>> =>
+    backendApi.get<PageResult<AigcMedia>>(`/aigc/media${buildQuery(params)}`),
+  getById: (id: number): Promise<AigcMedia> => backendApi.get<AigcMedia>(`/aigc/media/${id}`),
+  saveAsAsset: (id: number, params?: SaveMediaAsAssetParams): Promise<AigcAsset> =>
+    backendApi.post<AigcAsset>(`/aigc/media/${id}/asset`, params)
 }
 
 export const assetApi = {
-  list: (params: AssetListParams = {}): Promise<PageResult<AssetVO>> =>
-    backendApi.get<PageResult<AssetVO>>(`/aigc/assets${buildQuery(params)}`)
+  list: (params: AssetListParams = {}): Promise<PageResult<AigcAsset>> =>
+    backendApi.get<PageResult<AigcAsset>>(`/aigc/assets${buildQuery(params)}`)
 }
 
 /** 查询持久化媒体。 */

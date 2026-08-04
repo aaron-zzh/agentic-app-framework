@@ -7,19 +7,19 @@
 
 import type { Viewport } from "@xyflow/react"
 import { create } from "zustand"
-import type { ContentRelationLayer } from "@/lib/api/rest/content"
+import type { AigcRelationLayer } from "@/lib/api/rest/ai/aigc"
 import type { ProjectGraphStage, ProjectGraphZoomTier } from "./graph-projection"
 
 interface ProjectGraphViewState {
   focusObjectId: number | null
   viewport: Viewport
   collapsedGroups: ProjectGraphStage[]
-  activeLayers: ContentRelationLayer[]
+  activeLayers: AigcRelationLayer[]
   zoomTier: ProjectGraphZoomTier
   setFocusObjectId: (id: number | null) => void
   setViewport: (viewport: Viewport) => void
   toggleCollapsedGroup: (group: ProjectGraphStage) => void
-  toggleLayer: (layer: ContentRelationLayer) => void
+  toggleLayer: (layer: AigcRelationLayer) => void
   setZoomTier: (tier: ProjectGraphZoomTier) => void
 }
 

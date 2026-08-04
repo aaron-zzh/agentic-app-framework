@@ -1,8 +1,9 @@
 /**
- * Studio 五度空间导航配置
+ * Studio 产品导航配置
  *
- * 顶级 5 工作区（创作 / 项目 / 资产 / 知识 / 我），每区子菜单 ≤5 类。
- * 详见 docs/design/apps/webui/user-studio-mvp.md
+ * 七个顶级工作区：首页 / 创作 / 作品 / 项目 / 知识 / 工具 / 我的。
+ * 子菜单按当前产品信息架构配置，不设固定数量上限。
+ * 详见 docs/design/apps/content-studio/content-studio-capability-concept-map.md
  */
 
 import {
@@ -12,6 +13,7 @@ import {
   CircleUser,
   FileText,
   FolderKanban,
+  FolderTree,
   Gift,
   Heart,
   History,
@@ -19,6 +21,7 @@ import {
   Image as ImageIcon,
   Images,
   Layers,
+  LayoutGrid,
   type LucideIcon,
   Mic,
   Music,
@@ -69,14 +72,14 @@ export interface StudioWorkspaceConfig {
   icon: LucideIcon
   /** 顶级路由 */
   path: string
-  /** 子菜单列表（每区 ≤5 类） */
+  /** 当前工作区的子菜单列表 */
   children: StudioNavItem[]
 }
 
 /**
- * 五度空间配置——单一真理源
+ * Studio 导航配置——单一真理源
  *
- * 顺序：创作 / 项目 / 资产 / 知识 / 我
+ * 顺序：首页 / 创作 / 作品 / 项目 / 知识 / 工具 / 我的
  */
 export const STUDIO_NAV: StudioWorkspaceConfig[] = [
   {
@@ -112,7 +115,21 @@ export const STUDIO_NAV: StudioWorkspaceConfig[] = [
     path: "/studio/assets",
     children: [
       { key: "works", label: "作品", icon: Images, path: "/studio/assets/works", default: true },
-      { key: "materials", label: "素材", icon: Box, path: "/studio/assets/materials" },
+      { key: "materials", label: "素材", icon: ImageIcon, path: "/studio/assets/materials" },
+      { key: "library", label: "资产", icon: Box, path: "/studio/assets/library" },
+      {
+        key: "categories",
+        label: "资产分类",
+        icon: FolderTree,
+        path: "/studio/assets/categories"
+      },
+      { key: "tags", label: "资产标签", icon: Tag, path: "/studio/assets/tags" },
+      {
+        key: "collections",
+        label: "资产集合",
+        icon: LayoutGrid,
+        path: "/studio/assets/collections"
+      },
       { key: "prompts", label: "提示词", icon: Tag, path: "/studio/assets/prompts" },
       { key: "history", label: "任务历史", icon: History, path: "/studio/assets/history" }
     ]

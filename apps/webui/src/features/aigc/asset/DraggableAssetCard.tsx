@@ -10,10 +10,10 @@ import { useRef, useState } from "react"
 import { useSemanticDraggable } from "@/features/chatter/dnd/useSemanticDraggable"
 import { cn } from "@/lib/utils/index"
 import { useAigcStore } from "../store"
-import type { MediaVO } from "../types"
+import type { AigcMedia } from "../types"
 
 interface DraggableAssetCardProps {
-  media: MediaVO
+  media: AigcMedia
 }
 
 export function DraggableAssetCard({ media }: DraggableAssetCardProps) {

@@ -7,18 +7,20 @@
 
 import { ArrowLeft, GitBranch, LayoutList, MessageSquare } from "lucide-react"
 import Link from "next/link"
+import type { ReactNode } from "react"
 import { NeonChip } from "@/components/studio"
 import { Button } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import type { ContentProjectVO } from "@/lib/api/rest/content"
+import type { AigcProject } from "@/lib/api/rest/ai/aigc"
 import { cn } from "@/lib/utils/index"
 import { getProjectTypeConfig, PROJECT_STATUS_CONFIG } from "./project-type-config"
 
 export type ProjectWorkbenchView = "structure" | "graph"
 
 export interface ProjectWorkbenchHeaderProps {
-  project: ContentProjectVO
+  project: AigcProject
   view: ProjectWorkbenchView
+  lifecycleActions?: ReactNode
   onViewChange: (view: ProjectWorkbenchView) => void
   onToggleChat: () => void
   chatOpen: boolean
@@ -27,6 +29,7 @@ export interface ProjectWorkbenchHeaderProps {
 export function ProjectWorkbenchHeader({
   project,
   view,
+  lifecycleActions,
   onViewChange,
   onToggleChat,
   chatOpen
@@ -48,7 +51,10 @@ export function ProjectWorkbenchHeader({
         </Button>
         <div className="min-w-0">
           <p className="truncate text-muted-foreground text-xs">
-            {project.primaryBrandProfileName ?? "未绑定品牌"} · {type.label}
+            {project.primaryBrandProfileId
+              ? `品牌 #${project.primaryBrandProfileId}`
+              : "未绑定品牌"}{" "}
+            · {type.label}
           </p>
           <h1 className="truncate font-semibold text-base">{project.name}</h1>
         </div>
@@ -57,12 +63,13 @@ export function ProjectWorkbenchHeader({
         </NeonChip>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        {lifecycleActions}
         <ToggleGroup
           value={[view]}
           onValueChange={(values: string[]) => {
             const next = values.at(-1)
-            if (next) onViewChange(next as ProjectWorkbenchView)
+            if (next === "structure" || next === "graph") onViewChange(next)
           }}
           variant="outline"
           size="sm"

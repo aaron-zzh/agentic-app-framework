@@ -21,22 +21,23 @@ import {
   PROJECT_GRAPH_STAGES,
   type ProjectGraphStage,
   ProjectGraphView,
+  ProjectLifecycleActions,
   ProjectStructureView,
   ProjectWorkbenchHeader,
   type ProjectWorkbenchView,
   useProjectGraphViewState
 } from "@/features/studio/content"
 import {
-  type ContentProjectObjectVO,
-  useContentProject,
-  useContentProjectGraph,
-  useContentProjectSummary
-} from "@/lib/api/rest/content"
+  type AigcProjectObject,
+  useAigcProject,
+  useAigcProjectGraph,
+  useAigcProjectSummary
+} from "@/lib/api/rest/ai/aigc"
 import { useChatterStore } from "@/lib/store/chatter-store"
 
 interface CanvasSession {
   mode: ContentCanvasMode
-  object: ContentProjectObjectVO
+  object: AigcProjectObject
 }
 
 function parseFocus(value: string | null): number | undefined {
@@ -62,10 +63,11 @@ export default function StudioProjectDetailPage() {
   const [canvasSession, setCanvasSession] = useState<CanvasSession | null>(null)
   const detailPanel = useBoolean(false)
   const setGraphFocus = useProjectGraphViewState((state) => state.setFocusObjectId)
-  const { data: project, isLoading: projectLoading } = useContentProject(validProjectId)
-  const { data: graph, isLoading: graphLoading } = useContentProjectGraph(validProjectId)
-  const { data: summary } = useContentProjectSummary(validProjectId)
-  const readOnly = project?.status === "archived"
+  const { data: project, isLoading: projectLoading } = useAigcProject(validProjectId)
+  const { data: graph, isLoading: graphLoading } = useAigcProjectGraph(validProjectId)
+  const { data: summary } = useAigcProjectSummary(validProjectId)
+  const readOnly =
+    project !== undefined && project.status !== "draft" && project.status !== "in_progress"
 
   const setOpen = useChatterStore((state) => state.setOpen)
   const setMode = useChatterStore((state) => state.setMode)
@@ -157,6 +159,7 @@ export default function StudioProjectDetailPage() {
       <ProjectWorkbenchHeader
         project={project}
         view={view}
+        lifecycleActions={<ProjectLifecycleActions project={project} objects={graph.objects} />}
         onViewChange={(nextView) => updateUrl({ view: nextView })}
         onToggleChat={handleToggleChat}
         chatOpen={chatterOpen && chatterMode === "panel"}
@@ -203,8 +206,8 @@ export default function StudioProjectDetailPage() {
 
       <ObjectDetailPanel
         open={detailPanel.value}
+        project={project}
         object={focusedObject}
-        readOnly={readOnly}
         onOpenChange={detailPanel.setValue}
       />
 

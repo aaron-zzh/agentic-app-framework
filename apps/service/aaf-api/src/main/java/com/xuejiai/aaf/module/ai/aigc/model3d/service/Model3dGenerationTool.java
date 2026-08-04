@@ -6,8 +6,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Description;
 
-import com.xuejiai.aaf.framework.security.OperatorContext;
-import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskService;
+import com.xuejiai.aaf.common.util.JsonUtils;
+import com.xuejiai.aaf.module.ai.aigc.task.api.AigcTaskApi;
+import com.xuejiai.aaf.module.ai.aigc.task.api.AigcTaskSubmitCommand;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,8 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class Model3dGenerationTool {
 
-    private final AigcTaskService aigcTaskService;
-    private final OperatorContext operatorContext;
+    private final AigcTaskApi taskApi;
 
     public record Request(String prompt, String textureQuality) {}
 
@@ -35,15 +35,27 @@ public class Model3dGenerationTool {
         return request -> {
             log.info("对话触发 3D 模型生成: prompt={}", request.prompt());
             try {
-                var userId = operatorContext.currentOwnerId().orElseThrow();
+                var parameters =
+                        JsonUtils.toJsonString(
+                                java.util.Map.of(
+                                        "mode",
+                                        "text",
+                                        "textureQuality",
+                                        request.textureQuality() == null
+                                                ? "standard"
+                                                : request.textureQuality()));
                 var taskId =
-                        aigcTaskService.submit3dTask(
-                                userId,
-                                request.prompt(),
-                                null,
-                                "text",
-                                request.textureQuality(),
-                                null);
+                        taskApi.submit(
+                                        new AigcTaskSubmitCommand(
+                                                null,
+                                                null,
+                                                null,
+                                                "MODEL_3D",
+                                                null,
+                                                request.prompt(),
+                                                parameters,
+                                                java.util.UUID.randomUUID().toString()))
+                                .id();
                 return new Response(taskId, "PENDING", "3D 模型生成任务已提交，预计2-10分钟完成");
             } catch (Exception e) {
                 log.error("对话生成 3D 模型失败: {}", e.getMessage(), e);

@@ -1,0 +1,20 @@
+package com.xuejiai.aaf.module.ai.aigc.configuration.mapper;
+
+import org.mapstruct.Mapper;
+import org.mapstruct.factory.Mappers;
+
+import com.xuejiai.aaf.module.ai.aigc.configuration.domain.AigcProjectBlueprint;
+import com.xuejiai.aaf.module.ai.aigc.configuration.vo.AigcProjectBlueprintCreateDTO;
+
+/**
+ * 项目蓝图对象转换器。
+ *
+ * @author AaronZZH & Kiro
+ */
+@Mapper
+public interface AigcProjectBlueprintConvert {
+
+    AigcProjectBlueprintConvert INSTANCE = Mappers.getMapper(AigcProjectBlueprintConvert.class);
+
+    AigcProjectBlueprint toEntity(AigcProjectBlueprintCreateDTO dto);
+}

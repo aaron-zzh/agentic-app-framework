@@ -19,9 +19,9 @@ import {
 } from "@/components/ui/context-menu"
 import { Model3DPreview } from "@/features/aigc/three/Model3DPreview"
 import { downloadFileWithToast } from "@/lib/utils"
-import type { MediaType, MediaVO } from "../types"
+import type { AigcMedia, AigcMediaType } from "../types"
 
-function getGenerationPath(type: MediaType): string {
+function getGenerationPath(type: AigcMediaType): string {
   switch (type) {
     case "VIDEO":
       return "/studio/create/video"
@@ -37,7 +37,7 @@ function getGenerationPath(type: MediaType): string {
 }
 
 interface AssetCardProps {
-  media: MediaVO
+  media: AigcMedia
   onClick: () => void
   onDelete: () => void
   onPreview?: () => void
@@ -116,11 +116,7 @@ export function AssetCard({ media, onClick, onDelete, onPreview }: AssetCardProp
             </audio>
           </button>
         ) : (
-          <button
-            type="button"
-            className="block size-full cursor-pointer"
-            onClick={onClick}
-          >
+          <button type="button" className="block size-full cursor-pointer" onClick={onClick}>
             {media.mediaType === "VIDEO" ? (
               <video
                 src={version.url}

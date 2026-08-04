@@ -25,9 +25,9 @@ import com.xuejiai.aaf.framework.storage.PresignedUploadTicket;
 import com.xuejiai.aaf.framework.storage.StorageProperties;
 import com.xuejiai.aaf.framework.storage.StorageService;
 import com.xuejiai.aaf.framework.storage.StsCredentials;
+import com.xuejiai.aaf.module.system.file.api.FileStoragePort;
 import com.xuejiai.aaf.module.system.file.api.StoredFile;
 import com.xuejiai.aaf.module.system.file.service.FileRecordService;
-import com.xuejiai.aaf.module.system.file.service.FileUploadService;
 import com.xuejiai.aaf.module.system.file.vo.FileConfirmDTO;
 import com.xuejiai.aaf.module.system.file.vo.FileRecordPageDTO;
 import com.xuejiai.aaf.module.system.file.vo.FileRecordVO;
@@ -48,7 +48,7 @@ import lombok.RequiredArgsConstructor;
 @PreAuthorize("isAuthenticated()")
 public class FileController {
 
-    private final FileUploadService fileUploadService;
+    private final FileStoragePort fileUploadService;
     private final StorageService storageService;
     private final FileRecordService fileRecordService;
     private final StorageProperties storageProperties;

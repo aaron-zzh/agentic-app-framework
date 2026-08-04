@@ -43,8 +43,8 @@ export function buildNavConfig(): NavGroup[] {
     {
       subheader: "AI 创作",
       items: [
-        { title: "创作项目", path: paths.aigc.root, icon: "sparkles" },
-        { title: "素材库", path: paths.aigc.assets, icon: "image" }
+        { title: "创作项目", path: paths.studio.projects, icon: "sparkles" },
+        { title: "素材库", path: paths.studio.materials, icon: "image" }
       ]
     },
     {

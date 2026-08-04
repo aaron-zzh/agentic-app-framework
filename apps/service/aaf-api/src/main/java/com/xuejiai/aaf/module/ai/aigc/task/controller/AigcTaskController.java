@@ -12,17 +12,16 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import com.xuejiai.aaf.common.enums.aigc.AigcTaskTypeEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
-import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.crud.BaseCrudController;
-import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.protection.RateLimit;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.security.license.FeatureRequired;
 import com.xuejiai.aaf.framework.security.license.LicenseFeature;
 import com.xuejiai.aaf.module.ai.aigc.ErrorCodeConstants;
+import com.xuejiai.aaf.module.ai.aigc.task.api.AigcTaskApi;
+import com.xuejiai.aaf.module.ai.aigc.task.api.AigcTaskView;
 import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
-import com.xuejiai.aaf.module.ai.aigc.task.repository.AigcTaskRepository;
 import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskEventService;
 import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskService;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.AigcTaskPageDTO;
@@ -35,7 +34,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * AIGC 统一任务接口——提交生成任务、订阅实时事件、查询任务列表。
@@ -44,52 +42,28 @@ import lombok.extern.slf4j.Slf4j;
  */
 @FeatureRequired(LicenseFeature.Codes.AIGC)
 @Tag(name = "AIGC 统一任务")
-@Slf4j
 @RestController
 @RequestMapping("/api/aigc/tasks")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class AigcTaskController
         extends BaseCrudController<AigcTask, AigcTaskVO, Void, Void, AigcTaskPageDTO> {
 
     private final AigcTaskService taskService;
+    private final AigcTaskApi taskApi;
     private final AigcTaskEventService eventService;
     private final OperatorContext operatorContext;
-    private final AigcTaskRepository taskRepository;
 
     @Override
-    protected BaseCrudService<AigcTask, AigcTaskVO, Void, Void, AigcTaskPageDTO> getService() {
+    protected AigcTaskService getService() {
         return taskService;
-    }
-
-    // BE-8 数据隔离：override 单条查询，加 ownership 校验（跨用户返回 404 防探测）
-    @Override
-    @Operation(summary = "查询任务详情（含 ownership 校验）")
-    @PreAuthorize("isAuthenticated()")
-    @GetMapping("/{id}")
-    public Result<AigcTaskVO> get(
-            @PathVariable Long id,
-            @RequestParam(required = false) String queryToken,
-            @RequestParam(defaultValue = "detail") String fieldSet) {
-        return Result.success(taskService.getByIdOwned(id));
-    }
-
-    /** 屏蔽创建——任务通过 /submit 提交 */
-    @Override
-    public Result<AigcTaskVO> create(@RequestBody Void body) {
-        throw exception(ErrorCodeConstants.AIGC_TASK_NOT_ALLOWED_CREATE);
-    }
-
-    /** 屏蔽更新——任务不支持编辑 */
-    @Override
-    public Result<AigcTaskVO> update(@PathVariable Long id, @RequestBody Void body) {
-        throw exception(ErrorCodeConstants.AIGC_TASK_NOT_ALLOWED_UPDATE);
     }
 
     /** 提交任务请求 DTO */
     public record SubmitTaskDTO(
             @NotBlank String type,
             @NotBlank String prompt,
-            /** 用于展示/命名的用户原始输入（不含项目提示词前缀），为空时回退到 prompt */
+            /** 用于展示/命名的用户原始输入（不含项目提示词前缀），为空时使用 prompt */
             String displayPrompt,
             String model,
             /** 所属项目 ID，null 表示全局任务 */
@@ -107,23 +81,13 @@ public class AigcTaskController
                         .currentOwnerId()
                         .orElseThrow(
                                 () -> new BusinessException(GlobalErrorCode.UNAUTHORIZED, "未登录"));
-        try {
-            long credits =
-                    taskService.estimateCredits(
-                            userId,
-                            dto.type(),
-                            dto.model(),
-                            dto.params() != null ? dto.params() : java.util.Map.of());
-            return Result.success(credits);
-        } catch (Exception e) {
-            // 模型未配置、路由失败或参数不足时返回 null，前端显示"费用以后台为准"
-            log.debug(
-                    "[积分预估] 预估失败（忽略）: type={}, model={}, msg={}",
-                    dto.type(),
-                    dto.model(),
-                    e.getMessage());
-            return Result.success(null);
-        }
+        long credits =
+                taskService.estimateCredits(
+                        userId,
+                        dto.type(),
+                        dto.model(),
+                        dto.params() != null ? dto.params() : java.util.Map.of());
+        return Result.success(credits);
     }
 
     /**
@@ -133,6 +97,7 @@ public class AigcTaskController
      * @return 统一任务 ID
      */
     @Operation(summary = "提交 AIGC 生成任务")
+    @PreAuthorize("hasAuthority('aigc:task:submit')")
     @PostMapping("/submit")
     @RateLimit(limit = 10, windowSeconds = 60, message = "任务提交过于频繁，请稍后再试")
     public Result<Long> submit(@Valid @RequestBody SubmitTaskDTO dto) {
@@ -237,10 +202,10 @@ public class AigcTaskController
                     }
                     case IMAGE_PROCESS -> {
                         var p = dto.params() != null ? dto.params() : Map.of();
-                        // imageUrl 优先取 params.imageUrl，其次取 prompt（兼容直接传 URL 的场景）
                         String imageUrl = toString(p.get("imageUrl"));
                         if (imageUrl == null || imageUrl.isBlank()) {
-                            imageUrl = dto.prompt();
+                            throw new BusinessException(
+                                    GlobalErrorCode.BAD_REQUEST, "IMAGE_PROCESS 缺少 imageUrl");
                         }
                         String method = toString(p.get("method"));
                         if (method == null || method.isBlank()) {
@@ -255,6 +220,16 @@ public class AigcTaskController
             taskService.setSystemPrompt(taskId, dto.systemPrompt());
         }
         return Result.success(taskId);
+    }
+
+    public record CancelTaskDTO(String reason) {}
+
+    @Operation(summary = "取消 AIGC 任务")
+    @PreAuthorize("hasAuthority('aigc:task:cancel')")
+    @PostMapping("/{id}/_cancel")
+    public Result<AigcTaskView> cancel(
+            @PathVariable Long id, @RequestBody(required = false) CancelTaskDTO request) {
+        return Result.success(taskApi.cancel(id, request == null ? null : request.reason()));
     }
 
     /**
@@ -282,22 +257,7 @@ public class AigcTaskController
                         .currentOwnerId()
                         .orElseThrow(
                                 () -> new BusinessException(GlobalErrorCode.UNAUTHORIZED, "未登录"));
-        var todayStart = java.time.LocalDate.now().atStartOfDay();
-        return Result.success(taskRepository.countByUserIdAndCreateTimeAfter(userId, todayStart));
-    }
-
-    /** 查询我的任务列表（分页）。 */
-    @Override
-    @Operation(summary = "查询我的 AIGC 任务列表")
-    public Result<PageResult<AigcTaskVO>> page(
-            @org.springframework.validation.annotation.Validated AigcTaskPageDTO request) {
-        Long userId =
-                operatorContext
-                        .currentOwnerId()
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.UNAUTHORIZED, "未登录"));
-        return Result.success(
-                taskService.pageByUser(userId, request.getPageNo(), request.getPageSize()));
+        return Result.success(taskService.todayCountByUser(userId));
     }
 
     private static Integer toInt(Object val) {

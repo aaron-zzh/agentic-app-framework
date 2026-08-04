@@ -60,7 +60,8 @@ export default function StudioCreatePage() {
         <p className="font-medium text-primary text-sm">Studio Create</p>
         <h1 className="font-semibold text-2xl">从一个入口开始创作</h1>
         <p className="max-w-3xl text-muted-foreground text-sm">
-          图像、视频、配音、音乐和 3D 统一进入生成任务与媒体库；确认有复用价值后，可将媒体保存为资产。
+          图像、视频、配音、音乐和 3D
+          统一进入生成任务与媒体库；确认有复用价值后，可将媒体保存为资产。
         </p>
       </header>
 
@@ -98,7 +99,11 @@ export default function StudioCreatePage() {
         <AlertTitle>文案是内容对象</AlertTitle>
         <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
           <span>文案进入内容创作与项目编排流程，不作为媒体资产保存。</span>
-          <Button nativeButton={false} variant="secondary" render={<Link href="/studio/create/copy" />}>
+          <Button
+            nativeButton={false}
+            variant="secondary"
+            render={<Link href="/studio/create/copy" />}
+          >
             进入文案创作
           </Button>
         </AlertDescription>
