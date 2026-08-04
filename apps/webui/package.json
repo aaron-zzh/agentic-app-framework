@@ -8,6 +8,7 @@
   "dependencies": {
     "@aaf/core": "workspace:*",
     "@aaf/hooks": "workspace:*",
+    "@aaf/knowledge-visualization": "workspace:*",
     "@aaf/tailwind-config": "workspace:*",
     "@ag-ui/client": "^0.0.57",
     "@assistant-ui/react": "^0.14.22",

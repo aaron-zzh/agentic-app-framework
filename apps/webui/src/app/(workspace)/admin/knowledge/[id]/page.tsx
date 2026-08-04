@@ -52,11 +52,7 @@ const DOCUMENT_STATUS: Record<
   3: { label: "失败", variant: "destructive" }
 }
 
-export default function AdminKnowledgeDetailPage({
-  params
-}: {
-  params: Promise<{ id: string }>
-}) {
+export default function AdminKnowledgeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: rawId } = use(params)
   const id = Number(rawId)
   const currentUserId = useAuthStore((state) => state.user?.id)
@@ -131,9 +127,7 @@ export default function AdminKnowledgeDetailPage({
               </Badge>
               <Badge variant="outline">{knowledgeBase.visibility}</Badge>
             </div>
-            <p className="mt-1 break-all text-muted-foreground text-xs">
-              {knowledgeBase.stableId}
-            </p>
+            <p className="mt-1 break-all text-muted-foreground text-xs">{knowledgeBase.stableId}</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">

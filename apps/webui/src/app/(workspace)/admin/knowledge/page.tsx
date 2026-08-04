@@ -110,8 +110,7 @@ export default function AdminKnowledgePage() {
           value={params.visibility ?? "all"}
           onValueChange={(value) =>
             updateFilters({
-              visibility:
-                value === "all" ? undefined : (value as KnowledgeBaseVisibility)
+              visibility: value === "all" ? undefined : (value as KnowledgeBaseVisibility)
             })
           }
         >
@@ -198,19 +197,13 @@ export default function AdminKnowledgePage() {
   )
 }
 
-function KnowledgeMaintenanceRow({
-  knowledgeBase
-}: {
-  knowledgeBase: KnowledgeBaseMaintenance
-}) {
+function KnowledgeMaintenanceRow({ knowledgeBase }: { knowledgeBase: KnowledgeBaseMaintenance }) {
   return (
     <TableRow>
       <TableCell className="text-muted-foreground text-sm">{knowledgeBase.id}</TableCell>
       <TableCell>
         <p className="font-medium">{knowledgeBase.name}</p>
-        <p className="max-w-64 truncate text-muted-foreground text-xs">
-          {knowledgeBase.stableId}
-        </p>
+        <p className="max-w-64 truncate text-muted-foreground text-xs">{knowledgeBase.stableId}</p>
       </TableCell>
       <TableCell>
         <Badge variant="outline">{VISIBILITY_LABEL[knowledgeBase.visibility]}</Badge>

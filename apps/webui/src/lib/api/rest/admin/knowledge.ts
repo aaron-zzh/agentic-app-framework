@@ -66,8 +66,7 @@ export const adminKnowledgeApi = {
 
   get: (id: number) => backendApi.get<KnowledgeBaseMaintenance>(`${MAINTENANCE_PATH}/${id}`),
 
-  stats: (id: number) =>
-    backendApi.get<KnowledgeBaseStats>(`${MAINTENANCE_PATH}/${id}/stats`),
+  stats: (id: number) => backendApi.get<KnowledgeBaseStats>(`${MAINTENANCE_PATH}/${id}/stats`),
 
   documents: (id: number) =>
     backendApi.get<PageResult<KnowledgeDocument>>(
@@ -78,9 +77,7 @@ export const adminKnowledgeApi = {
     backendApi.get<GraphProjectionStatus>(`${KNOWLEDGE_PATH}/${id}/graph-projection/status`),
 
   retryDocument: (id: number, documentId: number) =>
-    backendApi.post<KnowledgeDocument>(
-      `${MAINTENANCE_PATH}/${id}/documents/${documentId}/retry`
-    ),
+    backendApi.post<KnowledgeDocument>(`${MAINTENANCE_PATH}/${id}/documents/${documentId}/retry`),
 
   rebuildProjection: (id: number, requestKey: string) =>
     backendApi.post<GraphProjectionStatus>(
@@ -92,8 +89,7 @@ export const adminKnowledgeApi = {
 
 const adminKnowledgeKeys = {
   all: ["admin", "knowledge"] as const,
-  list: (params: KnowledgeMaintenanceListParams) =>
-    ["admin", "knowledge", "list", params] as const,
+  list: (params: KnowledgeMaintenanceListParams) => ["admin", "knowledge", "list", params] as const,
   detail: (id: number) => ["admin", "knowledge", id] as const,
   stats: (id: number) => ["admin", "knowledge", id, "stats"] as const,
   documents: (id: number) => ["admin", "knowledge", id, "documents"] as const,

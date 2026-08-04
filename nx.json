@@ -45,7 +45,9 @@
     },
     {
       "plugin": "@nx/next/plugin",
-      "include": ["apps/*"],
+      "include": [
+        "apps/*"
+      ],
       "options": {
         "startTargetName": "start",
         "buildTargetName": "build",
@@ -57,8 +59,14 @@
     },
     {
       "plugin": "@nx/vitest",
-      "include": ["apps/webui", "packages/hooks", "packages/core"],
-      "exclude": ["apps/uniapp"],
+      "include": [
+        "apps/webui",
+        "packages/hooks",
+        "packages/core"
+      ],
+      "exclude": [
+        "apps/uniapp"
+      ],
       "options": {
         "testTargetName": "vitest:test",
         "ciTargetName": "test-ci",
@@ -68,7 +76,10 @@
   ],
   "analytics": false,
   "release": {
-    "projects": ["core", "hooks"],
+    "projects": [
+      "core",
+      "hooks"
+    ],
     "version": {
       "conventionalCommits": true
     },
@@ -85,48 +96,94 @@
         "style": "css",
         "linter": "none"
       }
+    },
+    "@nx/react": {
+      "library": {
+        "unitTestRunner": "none"
+      }
     }
   },
   "sync": {
     "applyChanges": "all-files"
   },
   "projects": {
-    "webui": { "tags": ["scope:app", "type:app"] },
-    "service": { "tags": ["scope:app", "type:service"] },
-    "core": { "tags": ["scope:shared", "type:util"] },
-    "hooks": { "tags": ["scope:shared", "type:util"] }
+    "webui": {
+      "tags": [
+        "scope:app",
+        "type:app"
+      ]
+    },
+    "service": {
+      "tags": [
+        "scope:app",
+        "type:service"
+      ]
+    },
+    "core": {
+      "tags": [
+        "scope:shared",
+        "type:util"
+      ]
+    },
+    "hooks": {
+      "tags": [
+        "scope:shared",
+        "type:util"
+      ]
+    }
   },
   "moduleBoundaries": {
     "rules": [
       {
         "sourceTag": "scope:app",
-        "onlyDependOnLibsWithTags": ["scope:app", "scope:shared"]
+        "onlyDependOnLibsWithTags": [
+          "scope:app",
+          "scope:shared"
+        ]
       },
       {
         "sourceTag": "scope:shared",
-        "onlyDependOnLibsWithTags": ["scope:shared"]
+        "onlyDependOnLibsWithTags": [
+          "scope:shared"
+        ]
       }
     ]
   },
   "targetDefaults": {
     "build": {
-      "dependsOn": ["^build"],
-      "inputs": ["production", "^production"],
+      "dependsOn": [
+        "^build"
+      ],
+      "inputs": [
+        "production",
+        "^production"
+      ],
       "cache": true
     },
     "test": {
-      "inputs": ["test", "^production"],
+      "inputs": [
+        "test",
+        "^production"
+      ],
       "cache": true
     },
     "typecheck": {
-      "dependsOn": ["^build"],
+      "dependsOn": [
+        "^build"
+      ],
       "cache": true
     },
     "lint": {
       "cache": true
     },
     "check": {
-      "dependsOn": ["lint", "typecheck", "test", "build", "publint"]
+      "dependsOn": [
+        "lint",
+        "typecheck",
+        "test",
+        "build",
+        "publint"
+      ]
     }
   }
 }

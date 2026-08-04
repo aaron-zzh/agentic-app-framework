@@ -1103,42 +1103,9 @@ ON CONFLICT DO NOTHING;
 
 
 -- ============================================================
--- User Studio 种子数据（项目模板 + 装扮 starter pack + 文案智能体技能）
+-- User Studio 种子数据（装扮 starter pack + 文案智能体技能）
+-- 项目模板已统一由 aigc_project_blueprint 承载，不再初始化 user_project_template。
 -- ============================================================
-
--- ==================== 官方项目模板（5 个） ====================
-INSERT INTO user_project_template (code, name, description, category, project_type, template_config, is_official, sort_order)
-VALUES
-    ('xhs-redbook', '小红书爆款',
-     '一键生成小红书种草笔记，标题+正文+话题标签三段式，贴合平台算法',
-     'CONTENT_OPS', 'IMAGE_POST',
-     '{"prompt":"你是小红书爆款内容创作专家。根据用户描述，生成一篇完整的小红书种草笔记：标题（含 emoji，18 字以内）、正文（分段，500 字左右，口语化，有共鸣感）、标签（5-8 个，#格式）。","defaultPersonaId":null}',
-     TRUE, 1),
-
-    ('voiceover-30s', '30 秒口播',
-     '短视频/直播 30 秒口播脚本，3 秒黄金钩子+价值主张+行动号召',
-     'CONTENT_OPS', 'SHORT_VIDEO',
-     '{"prompt":"你是短视频口播脚本专家。生成一个 30 秒口播脚本（约 90 字）：前 3 秒强钩子（痛点/悬念/反常识）、中段核心价值（清晰简洁）、结尾行动号召（关注/购买/评论）。语速自然，适合真人口播。","defaultPersonaId":null}',
-     TRUE, 2),
-
-    ('viral-copy', '爆款复刻',
-     '分析爆款内容结构，提取核心套路，生成同类新作品',
-     'CONTENT_OPS', 'IMAGE_POST',
-     '{"prompt":"你是爆款内容分析与复刻专家。先分析用户提供的爆款样本（标题结构、情绪触发、内容框架、CTA），再基于同一套路生成全新原创内容，避免直接抄袭，保留底层逻辑。","defaultPersonaId":null}',
-     TRUE, 3),
-
-    ('ip-builder', '个人 IP 打造',
-     '围绕个人品牌进行系统内容规划，输出人设定位+内容策略+30 天选题',
-     'WORK', 'MIXED',
-     '{"prompt":"你是个人 IP 操盘手和内容策略师。帮用户完成：1) 人设定位（目标人群、核心价值、差异化标签）2) 内容矩阵（3 个核心内容方向）3) 30 天选题日历（每周 4 选题，含热点借势建议）。","defaultPersonaId":null}',
-     TRUE, 4),
-
-    ('study-notes', '学习笔记整理',
-     '将学习材料整理为结构化笔记，含知识框架+核心要点+复习问答',
-     'STUDY', 'MIXED',
-     '{"prompt":"你是高效学习和知识管理专家。将用户输入的学习材料整理为：1) 知识框架（大纲/思维导图文字版）2) 核心要点（每条 ≤30 字，带序号）3) 3 个自测问答（一问一答格式）。帮助用户加深理解和记忆。","defaultPersonaId":null}',
-     TRUE, 5)
-ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 
 -- ==================== 装扮 starter pack（5 头像 + 5 服饰） ====================
 INSERT INTO avatar_outfit (code, name, type, asset_url, thumbnail_url, rarity, unlock_condition, sort_order)

@@ -13,10 +13,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import io.lettuce.core.XAutoClaimArgs;
-import io.lettuce.core.api.async.RedisStreamAsyncCommands;
-import io.lettuce.core.models.stream.ClaimedMessages;
-
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.connection.stream.Consumer;
@@ -32,6 +28,9 @@ import org.springframework.stereotype.Component;
 import com.xuejiai.aaf.framework.task.TaskProperties;
 import com.xuejiai.aaf.framework.task.retry.RetryableTaskConsumer;
 
+import io.lettuce.core.XAutoClaimArgs;
+import io.lettuce.core.api.async.RedisStreamAsyncCommands;
+import io.lettuce.core.models.stream.ClaimedMessages;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -189,41 +188,37 @@ public class TaskConsumer {
                 redisTemplate.execute(
                         (RedisCallback<ClaimedMessages<byte[], byte[]>>)
                                 connection -> {
-                            var commands =
-                                    (RedisStreamAsyncCommands<byte[], byte[]>)
-                                            connection.getNativeConnection();
-                            return commands
-                                    .xautoclaim(
-                                            streamKey,
-                                            new XAutoClaimArgs<byte[]>()
-                                                    .consumer(
-                                                            io.lettuce.core.Consumer.from(
-                                                                    group, consumer))
-                                                    .minIdleTime(
-                                                            taskProperties
-                                                                    .getQueue()
-                                                                    .getPendingMinIdle())
-                                                    .startId(cursor)
-                                                    .count(
-                                                            taskProperties
-                                                                    .getQueue()
-                                                                    .getReclaimBatchSize()))
-                                    .toCompletableFuture()
-                                    .join();
-                        });
+                                    var commands =
+                                            (RedisStreamAsyncCommands<byte[], byte[]>)
+                                                    connection.getNativeConnection();
+                                    return commands.xautoclaim(
+                                                    streamKey,
+                                                    new XAutoClaimArgs<byte[]>()
+                                                            .consumer(
+                                                                    io.lettuce.core.Consumer.from(
+                                                                            group, consumer))
+                                                            .minIdleTime(
+                                                                    taskProperties
+                                                                            .getQueue()
+                                                                            .getPendingMinIdle())
+                                                            .startId(cursor)
+                                                            .count(
+                                                                    taskProperties
+                                                                            .getQueue()
+                                                                            .getReclaimBatchSize()))
+                                            .toCompletableFuture()
+                                            .join();
+                                });
         reclaimCursors.put(stream, claimed.getId());
         return claimed.getMessages().stream()
                 .map(
                         message -> {
                             var fields = new HashMap<Object, Object>();
-                            message
-                                    .getBody()
+                            message.getBody()
                                     .forEach(
                                             (key, value) ->
                                                     fields.put(
-                                                            new String(
-                                                                    key,
-                                                                    StandardCharsets.UTF_8),
+                                                            new String(key, StandardCharsets.UTF_8),
                                                             new String(
                                                                     value,
                                                                     StandardCharsets.UTF_8)));

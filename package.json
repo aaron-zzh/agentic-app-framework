@@ -29,6 +29,7 @@
     "@nx/js": "22.7.0",
     "@nx/maven": "22.7.0",
     "@nx/next": "22.7.0",
+    "@nx/react": "22.7.0",
     "@nx/vitest": "22.7.0",
     "@swc-node/register": "1.11.1",
     "@swc/cli": "~0.8.0",

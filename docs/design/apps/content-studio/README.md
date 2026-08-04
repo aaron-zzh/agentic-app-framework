@@ -3,10 +3,11 @@ level: Practice
 layer: Product
 purpose: 内容创作与营销生产系统设计目录入口
 status: draft
-version: 1.4.0
-date: 2026-07-26
+version: 1.5.0
+date: 2026-08-04
 author: AaronZZH & Kiro
 changelog:
+  - 2026-08-04 | v1.5.0 新增 Content Studio 与 AIGC 整合技术设计、目标表结构和文件生命周期方案
   - 2026-07-26 | v1.4.0 产品设计重构为项目类型优先入口与项目图谱工作台，并改用 Project 命名
   - 2026-07-25 | v1.3.0 竞品界面分析升级为完整竞品分析并重命名
   - 2026-07-24 | v1.2.0 新增竞品界面分析与截图证据索引
@@ -16,6 +17,7 @@ scope:
   includes:
     - 企业广告与 OPC 内容创作产品设计
     - 产品能力、技术概念与领域概念地图
+    - Content Studio 与 AIGC 整合技术设计
     - 参考产品竞品分析与界面证据
     - 跨 WebUI、Service 与智能层的产品方案
   excludes:
@@ -24,6 +26,7 @@ scope:
 gains:
   - 能定位内容创作产品的统一设计方案
   - 能查找功能、技术与领域概念的映射
+  - 能实施统一项目、媒体、资产、作品与文件生命周期模型
   - 能追溯竞品结论对应的官网与截图证据
 ---
 
@@ -34,6 +37,7 @@ gains:
 ## 文档列表
 
 1. [Content Studio 产品设计](./content-studio-design.md) — 定义项目类型优先入口、项目蓝图、项目图谱/结构双视图、Assistant 与工作流边界。
-2. [Content Studio 能力与概念地图](./content-studio-capability-concept-map.md) — 列出主要功能模块、核心技术概念、垂直领域概念及映射关系。
-3. [Content Studio 竞品分析](./content-studio-competitor-analysis.md) — Flova、LibTV、Miora、ChatCut 四家的定位、术语、流程与界面分析，以及 AAF 取舍。
-4. [竞品截图证据](./tmp/) — 竞品分析所使用的 16 张本地界面截图。
+2. [Content Studio 技术设计](./content-studio-tech.md) — 定义与 AIGC 的单模块整合、目标数据库、文件生命周期、迁移步骤和验收标准。
+3. [Content Studio 能力与概念地图](./content-studio-capability-concept-map.md) — 列出主要功能模块、核心技术概念、垂直领域概念及映射关系。
+4. [Content Studio 竞品分析](./content-studio-competitor-analysis.md) — 分析 Flova、LibTV、Miora、ChatCut 与 WorkRally，并说明 AAF 的设计取舍。
+5. [竞品截图证据](./tmp/) — 竞品分析使用的本地界面截图。

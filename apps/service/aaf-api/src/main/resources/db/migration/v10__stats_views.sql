@@ -116,14 +116,14 @@ SELECT
     COALESCE(ca.total_earned, 0)                      AS total_earned_credits,
     COALESCE(ca.total_spent, 0)                       AS total_spent_credits,
     -- 素材统计
-    COUNT(DISTINCT ma.id)                             AS total_media_assets,
+    COUNT(DISTINCT ma.id)                             AS total_aigc_medias,
     -- Todo 统计
     COUNT(DISTINCT td.id)                             AS total_todos,
     COUNT(DISTINCT CASE WHEN td.status = 'done' THEN td.id END) AS done_todos
 FROM sys_user u
 LEFT JOIN aigc_task t      ON t.user_id = u.id AND t.deleted = FALSE
 LEFT JOIN credit_account ca ON ca.user_id = u.id AND ca.deleted = FALSE
-LEFT JOIN media_asset ma   ON ma.user_id = u.id AND ma.deleted = FALSE
+LEFT JOIN aigc_media ma   ON ma.user_id = u.id AND ma.deleted = FALSE
 LEFT JOIN sys_todo td      ON td.assignee_id = u.id AND td.deleted = FALSE
 WHERE u.deleted = FALSE
 GROUP BY u.id, u.nickname, u.email, u.create_time, u.last_login_time,
@@ -393,7 +393,7 @@ VALUES
 ('personal', '个人工作台', '快捷入口、积分余额、AI 创作统计', FALSE, 300, 0,
 '[
   {"id":"personal-credits","type":"counter","title":"积分余额","position":{"x":0,"y":0,"w":3,"h":2},"config":{"type":"counter","entity":"@total_credit","aggregation":"count","icon":"credit-card","color":"yellow"}},
-  {"id":"personal-assets","type":"counter","title":"我的素材","position":{"x":3,"y":0,"w":3,"h":2},"config":{"type":"counter","entity":"media_asset","aggregation":"count","icon":"image","color":"purple"}},
+  {"id":"personal-assets","type":"counter","title":"我的素材","position":{"x":3,"y":0,"w":3,"h":2},"config":{"type":"counter","entity":"aigc_media","aggregation":"count","icon":"image","color":"purple"}},
   {"id":"personal-aigc-tasks","type":"counter","title":"生成任务","position":{"x":6,"y":0,"w":3,"h":2},"config":{"type":"counter","entity":"aigc_task","aggregation":"count","icon":"wand-2","color":"blue"}},
   {"id":"personal-knowledge","type":"counter","title":"知识库数量","position":{"x":9,"y":0,"w":3,"h":2},"config":{"type":"counter","entity":"ai_knowledge_base","aggregation":"count","icon":"database","color":"green"}},
   {"id":"personal-shortcuts","type":"shortcut","title":"快捷入口","position":{"x":0,"y":2,"w":12,"h":2},"config":{"type":"shortcut","items":[{"label":"AI 创作","href":"/aigc","icon":"sparkles"},{"label":"素材库","href":"/aigc/assets","icon":"image"},{"label":"知识库","href":"/studio/knowledge","icon":"database"},{"label":"设置","href":"/settings","icon":"settings"}]}},

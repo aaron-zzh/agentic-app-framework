@@ -1,0 +1,25 @@
+{
+  "name": "@aaf/knowledge-visualization",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "devDependencies": {
+    "@types/three": "0.184.1",
+    "react": "19.2.5",
+    "three": "0.184.0"
+  },
+  "peerDependencies": {
+    "react": "19.2.5",
+    "three": "0.184.0"
+  }
+}

@@ -486,16 +486,11 @@ ON CONFLICT DO NOTHING;
 
 
 
--- ==================== AIGC 创作项目字典 ====================
+-- ==================== 文档类型字典 ====================
+-- AIGC/Content Studio 字典统一由 v17__aigc_content_studio_seed.sql 提供，避免重复真理源。
 
 INSERT INTO sys_dict_type (name, type, status, remark) VALUES
-('文档类型',        'doc_type',             0, 'doc_document.doc_type 枚举值'),
-('AIGC 项目类型',   'aigc_project_type',    0, NULL),
-('AIGC 项目状态',   'aigc_project_status',  0, NULL),
-('AIGC 内容类型',   'aigc_content_type',    0, NULL),
-('AIGC 发布状态',   'aigc_publish_status',  0, NULL),
-('AIGC 发布平台',   'aigc_platform',        0, NULL),
-('时间轴轨道类型',  'aigc_track_type',      0, NULL)
+('文档类型', 'doc_type', 0, 'doc_document.doc_type 枚举值')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
@@ -505,78 +500,6 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ('doc_type', '教程',     'tutorial',     4, 'primary'),
 ('doc_type', 'AIGC 脚本','aigc_script',  5, 'warning'),
 ('doc_type', 'AIGC 文案','aigc_post',    6, 'success')
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
-('aigc_project_type', '短剧',   'VIDEO_DRAMA',  1, 'primary'),
-('aigc_project_type', '图文',   'IMAGE_POST',   2, 'success'),
-('aigc_project_type', '短视频', 'SHORT_VIDEO',  3, 'warning'),
-('aigc_project_type', '混合',   'MIXED',        4, 'default')
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
-('aigc_project_status', '草稿',   'DRAFT',       1, 'default'),
-('aigc_project_status', '进行中', 'IN_PROGRESS', 2, 'primary'),
-('aigc_project_status', '已完成', 'COMPLETED',   3, 'success'),
-('aigc_project_status', '已归档', 'ARCHIVED',    4, 'info')
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
-('aigc_content_type', '富文本', 'RICH_TEXT',   1, 'info'),
-('aigc_content_type', '图文',   'IMAGE_POST',  2, 'success'),
-('aigc_content_type', '短视频', 'SHORT_VIDEO', 3, 'primary')
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sys_dict_type (name, type, status, remark) VALUES
-('分镜景别', 'aigc_shot_scene_type', 0, '分镜 properties.sceneType'),
-('分镜素材角色', 'aigc_shot_asset_role', 0, 'aigc_shot_asset.role')
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
-('aigc_shot_asset_role', '最终视频', 'FINAL_VIDEO', 1, 'primary'),
-('aigc_shot_asset_role', '最终音频', 'FINAL_AUDIO', 2, 'success'),
-('aigc_shot_asset_role', '参考图',   'REFERENCE',   3, 'default')
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sys_dict_type (name, type, status, remark) VALUES
-('内容素材角色', 'aigc_content_asset_role', 0, 'aigc_content_asset.role')
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
-('aigc_content_asset_role', '正片',   'MAIN',     1, 'primary'),
-('aigc_content_asset_role', '封面',   'COVER',    2, 'success'),
-('aigc_content_asset_role', '背景音乐','BGM',     3, 'info'),
-('aigc_content_asset_role', '字幕',   'SUBTITLE', 4, 'default')
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
-('aigc_shot_scene_type', '远景', 'ELS',  1, 'default'),
-('aigc_shot_scene_type', '全景', 'LS',   2, 'default'),
-('aigc_shot_scene_type', '中景', 'MS',   3, 'default'),
-('aigc_shot_scene_type', '近景', 'MCU',  4, 'default'),
-('aigc_shot_scene_type', '特写', 'CU',   5, 'default'),
-('aigc_shot_scene_type', '大特写','ECU', 6, 'default')
-ON CONFLICT DO NOTHING;
-INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
-('aigc_publish_status', '草稿',   'DRAFT',      1, 'default'),
-('aigc_publish_status', '审核中', 'REVIEWING',  2, 'warning'),
-('aigc_publish_status', '已发布', 'PUBLISHED',  3, 'success'),
-('aigc_publish_status', '发布失败', 'FAILED',   4, 'danger')
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
-('aigc_platform', '微信公众号', 'WECHAT',       1, 'success'),
-('aigc_platform', '抖音',       'DOUYIN',       2, 'default'),
-('aigc_platform', '小红书',     'XIAOHONGSHU',  3, 'danger'),
-('aigc_platform', 'B站',        'BILIBILI',     4, 'info'),
-('aigc_platform', '视频号',     'CHANNELS',     5, 'success')
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
-('aigc_track_type', '视频轨', 'VIDEO',    1, 'primary'),
-('aigc_track_type', '音频轨', 'AUDIO',    2, 'success'),
-('aigc_track_type', '字幕轨', 'SUBTITLE', 3, 'info'),
-('aigc_track_type', '贴图轨', 'STICKER',  4, 'warning')
 ON CONFLICT DO NOTHING;
 
 -- ==================== Chat 会话域字典 ====================
