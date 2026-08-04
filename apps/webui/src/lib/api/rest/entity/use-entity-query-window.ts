@@ -9,7 +9,7 @@
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { _mockEntityData } from "@/lib/_mock/entities"
-import { type CrudMeta, fromEntityDef, useCrudMeta } from "@/lib/api/rest/crud"
+import { type CrudMeta, crudKey, fromEntityDef, useCrudMeta } from "@/lib/api/rest/crud"
 import { useOrgStore } from "@/lib/store/org-store"
 import { useUIStore } from "@/lib/store/ui-store"
 import type { EntityDef } from "@/lib/types/entity"
@@ -26,8 +26,12 @@ export interface UseEntityQueryWindowResult {
   error: Error | null
 }
 
+export function entityQueryWindowPrefix(entity: EntityDef) {
+  return [...crudKey(fromEntityDef(entity)), "queryWindow"] as const
+}
+
 export function entityQueryWindowKey(entity: EntityDef, params: unknown = {}) {
-  return [entity.slug, "queryWindow", params] as const
+  return [...entityQueryWindowPrefix(entity), params] as const
 }
 
 export function useEntityQueryWindow(

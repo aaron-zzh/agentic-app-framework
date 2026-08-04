@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { fromEntityDef } from "@/lib/api/rest/crud"
+import { crudKey, fromEntityDef } from "@/lib/api/rest/crud"
 import type { EntityDef } from "@/lib/types/entity"
 import { updateRecord } from "./crud"
 
@@ -71,8 +71,6 @@ export function useCalendarEventUpdate(entity: EntityDef) {
       }
       return updateRecord(resource, params.id, data)
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [entity.slug, "list"] })
-    }
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: crudKey(resource) })
   })
 }

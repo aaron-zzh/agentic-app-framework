@@ -28,7 +28,7 @@ import {
   ViewSettingsSheet
 } from "@/features/entity-engine/components/list"
 import type { DataFieldDef, EntityDef } from "@/features/entity-engine/types"
-import { type CrudMeta, fromEntityDef, useCrudMeta } from "@/lib/api/rest/crud"
+import { type CrudMeta, crudKey, fromEntityDef, useCrudMeta } from "@/lib/api/rest/crud"
 import { useFilterParams } from "@/lib/api/rest/entity"
 import { cn } from "@/lib/utils/cn"
 
@@ -69,56 +69,62 @@ export function Toolbar({
   const searchParams = useSearchParams()
   const currentView = searchParams.get("view") ?? "list"
   const [filters, setFilters] = useFilterParams()
-  const { data: crudMeta } = useCrudMeta<CrudMeta>(fromEntityDef(entity), {
+  const resource = fromEntityDef(entity)
+  const { data: crudMeta } = useCrudMeta<CrudMeta>(resource, {
     enabled: currentView === "list"
   })
   const tabs = useTabs("")
   const isHydrated = useHydrated()
   const queryClient = useQueryClient()
-  const queryWindowFetching = useIsFetching({ queryKey: [entity.slug, "queryWindow"] })
-  const listFetching = useIsFetching({ queryKey: [entity.slug, "list"] })
+  const entityFetching = useIsFetching({ queryKey: crudKey(resource) })
 
   // hydration 前不读取客户端 Query 缓存状态，避免 Base UI Trigger 的 disabled 属性不一致。
-  const isRefreshing = isHydrated && (queryWindowFetching > 0 || listFetching > 0)
+  const isRefreshing = isHydrated && entityFetching > 0
   const isRefreshDisabled = isHydrated && isRefreshing
 
-  // 刷新：保留当前筛选/排序/分页参数，等待活跃的实体查询完成后反馈结果
+  // 刷新：保留当前筛选/排序/分页参数，等待该实体的活动 CRUD 查询完成后反馈结果。
   const handleRefresh = useCallback(async () => {
     if (isRefreshDisabled) return
 
     try {
-      await Promise.all([
-        queryClient.invalidateQueries(
-          { queryKey: [entity.slug, "queryWindow"] },
-          { throwOnError: true }
-        ),
-        queryClient.invalidateQueries({ queryKey: [entity.slug, "list"] }, { throwOnError: true })
-      ])
+      await queryClient.invalidateQueries(
+        { queryKey: crudKey(resource), refetchType: "active" },
+        { throwOnError: true }
+      )
       toast.success("已刷新，当前已是最新数据")
     } catch {
       toast.error("刷新失败，请稍后重试")
     }
-  }, [entity.slug, isRefreshDisabled, queryClient])
+  }, [isRefreshDisabled, queryClient, resource])
 
-  // 有效的 Tab 字段：
-  //   viewSettings.tabField === undefined → 未配置，回退到 EntityDef
-  //   viewSettings.tabField === ""        → 用户明确关闭 Tab
-  //   viewSettings.tabField === "xxx"     → 用户选择了字段
-  const effectiveTabField =
+  const filterCapabilities = crudMeta?.filterFields
+  const filterableFields = new Set(filterCapabilities?.map((capability) => capability.field) ?? [])
+  const equalityFilterFields = new Set(
+    filterCapabilities
+      ?.filter((capability) => capability.operators.some((operator) => operator.value === "eq"))
+      .map((capability) => capability.field) ?? []
+  )
+  const configuredTabField =
     viewSettings.tabField !== undefined
       ? viewSettings.tabField || null
       : (entity.listView.tabs?.field ?? null)
+  const effectiveTabField =
+    configuredTabField && equalityFilterFields.has(configuredTabField) ? configuredTabField : null
+  const configuredFilterFields = viewSettings.filterFields ?? entity.listView.filterFields ?? []
+  const effectiveFilterFields = configuredFilterFields.filter((field) =>
+    filterableFields.has(field)
+  )
+  const effectiveViewSettings = { ...viewSettings, filterFields: effectiveFilterFields }
 
-  // 构造有效的 entity（覆盖 tabs 配置）
-  const effectiveEntity = effectiveTabField
-    ? {
-        ...entity,
-        listView: {
-          ...entity.listView,
-          tabs: { ...entity.listView.tabs, field: effectiveTabField }
-        }
-      }
-    : { ...entity, listView: { ...entity.listView, tabs: undefined } }
+  // 构造由后端能力收窄后的有效 EntityDef，仅用于筛选栏和状态 Tab 渲染。
+  const effectiveEntity = {
+    ...entity,
+    listView: {
+      ...entity.listView,
+      filterFields: effectiveFilterFields,
+      tabs: effectiveTabField ? { ...entity.listView.tabs, field: effectiveTabField } : undefined
+    }
+  }
 
   // 动态视图列表（透视视图按需显示）
   const availableViews = [
@@ -131,16 +137,15 @@ export function Toolbar({
   const handleTabChange = useCallback(
     (value: string) => {
       tabs.setValue(value)
-      const tabField = entity.listView.tabs?.field
-      if (!tabField) return
-      const without = filters.filter((f) => f.field !== tabField)
+      if (!effectiveTabField) return
+      const without = filters.filter((f) => f.field !== effectiveTabField)
       if (value) {
-        setFilters([...without, { field: tabField, operator: "eq", values: [value] }])
+        setFilters([...without, { field: effectiveTabField, operator: "eq", values: [value] }])
       } else {
         setFilters(without)
       }
     },
-    [entity, filters, setFilters, tabs]
+    [effectiveTabField, filters, setFilters, tabs]
   )
 
   const hasTabs = !!effectiveTabField
@@ -167,7 +172,11 @@ export function Toolbar({
               </Link>
             ))}
           </div>
-          <ViewSettingsSheet entity={entity} onSettingsChange={setViewSettings} />
+          <ViewSettingsSheet
+            entity={entity}
+            filterCapabilities={filterCapabilities}
+            onSettingsChange={setViewSettings}
+          />
         </div>
       )}
 
@@ -175,12 +184,13 @@ export function Toolbar({
       <div className="flex items-start justify-between px-4 py-1">
         <div className="flex flex-1 flex-col gap-1">
           <ListTabs entity={effectiveEntity} activeValue={tabs.value} onChange={handleTabChange} />
-          {(getHasFilterFields(entity, viewSettings) || Boolean(crudMeta?.filterFields.length)) && (
+          {(getHasFilterFields(effectiveEntity, effectiveViewSettings) ||
+            Boolean(filterCapabilities?.length)) && (
             <FilterBar
               entity={effectiveEntity}
               filters={filters}
               onChange={setFilters}
-              viewSettings={viewSettings}
+              viewSettings={effectiveViewSettings}
               trailingAction={
                 crudMeta?.filterFields.length ? (
                   <FilterBuilder
@@ -215,7 +225,11 @@ export function Toolbar({
                 </Link>
               ))}
             </div>
-            <ViewSettingsSheet entity={entity} onSettingsChange={setViewSettings} />
+            <ViewSettingsSheet
+              entity={entity}
+              filterCapabilities={filterCapabilities}
+              onSettingsChange={setViewSettings}
+            />
           </div>
         )}
       </div>

@@ -79,7 +79,8 @@ VALUES (
         {
           "type": "date",
           "name": "dueDate",
-          "label": "截止时间"
+          "label": "截止时间",
+          "includeTime": true
         }
       ],
       "listView": {

@@ -14,6 +14,7 @@ import {
   mockBackendResponse,
   resetMockBackendClient
 } from "@/test/mock-backend-client"
+import { entityQueryWindowKey } from "./use-entity-query-window"
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -39,6 +40,15 @@ describe("useEntityList", () => {
     vi.clearAllMocks()
     installMockBackendClient()
     resetMockBackendClient()
+  })
+
+  it("查询窗口缓存使用 CRUD 资源前缀", () => {
+    expect(entityQueryWindowKey(mockEntity as EntityDef, { page: 1 })).toEqual([
+      "crud",
+      "/api/task",
+      "queryWindow",
+      { page: 1 }
+    ])
   })
 
   it("获取列表数据", async () => {

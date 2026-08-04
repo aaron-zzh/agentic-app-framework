@@ -7,7 +7,6 @@
 
 "use client"
 
-import { useQueryClient } from "@tanstack/react-query"
 import type { OnChangeFn, SortingState } from "@tanstack/react-table"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
@@ -201,7 +200,6 @@ function RowActions({
 }) {
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const router = useRouter()
-  const queryClient = useQueryClient()
   const recordPanelId = useUIStore((s) => s.recordPanelId)
   const closeRecordPanel = useUIStore((s) => s.closeRecordPanel)
   const { mutate: remove, isPending: isDeleting } = useCrudDelete(fromEntityDef(entity))
@@ -214,8 +212,6 @@ function RowActions({
       { id },
       {
         onSuccess: () => {
-          queryClient.removeQueries({ queryKey: [entity.slug, "detail"] })
-          queryClient.invalidateQueries({ queryKey: [entity.slug, "queryWindow"] })
           if (recordPanelId === id) closeRecordPanel()
           toast.success(`${entity.label}已删除`)
         }

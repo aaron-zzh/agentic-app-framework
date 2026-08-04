@@ -51,4 +51,26 @@ class TodoResourceTest {
         assertThat(capabilities).containsKeys("id", "title", "assigneeId", "participants");
         assertThat(capabilities.get("title")).isNotEmpty();
     }
+
+    @Test
+    @DisplayName("Given Todo 类型合同 When 推导安全筛选 Then 开放状态和分类枚举能力")
+    void should_infer_typed_enum_filter_capabilities() {
+        var definition = TodoResource.DEFINITION;
+        var filterFields = definition.query().filterSchema().metas();
+
+        assertThat(filterFields)
+                .extracting(filter -> filter.field())
+                .containsExactly("status", "category");
+        assertThat(filterFields.getFirst().operators())
+                .extracting(operator -> operator.value())
+                .contains("eq", "in", "notIn")
+                .doesNotContain("isNull");
+        assertThat(filterFields.getLast().operators())
+                .extracting(operator -> operator.value())
+                .contains("eq", "isNull");
+        assertThat(definition.fieldCapabilities().get("status"))
+                .anyMatch(capability -> capability.name().equals("FILTER"));
+        assertThat(definition.fieldCapabilities().get("category"))
+                .anyMatch(capability -> capability.name().equals("FILTER"));
+    }
 }

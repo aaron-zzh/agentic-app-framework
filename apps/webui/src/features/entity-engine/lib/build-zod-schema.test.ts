@@ -73,6 +73,48 @@ describe("buildZodSchema", () => {
     expect(schema.safeParse({ status: "invalid" }).success).toBe(false)
   })
 
+  it("should accept relationship IDs and edit-mode reference objects", () => {
+    const fields: FieldDef[] = [
+      { type: "relationship", name: "assignee", relationTo: "system.user" },
+      {
+        type: "relationship",
+        name: "participants",
+        relationTo: "system.user",
+        hasMany: true
+      }
+    ]
+    const schema = buildZodSchema(fields)
+
+    expect(schema.safeParse({ assignee: "8", participants: ["8", "9"] }).success).toBe(true)
+    expect(
+      schema.safeParse({
+        assignee: { id: 8, label: "王五", imageUrl: "https://cdn.example/wang.png" },
+        participants: [
+          { id: "8", label: "王五" },
+          { id: 9, label: "李四" }
+        ]
+      }).success
+    ).toBe(true)
+    expect(schema.safeParse({ assignee: { label: "缺少 ID" } }).success).toBe(false)
+  })
+
+  it("should reject null for a required relationship with field message", () => {
+    const fields: FieldDef[] = [
+      {
+        type: "relationship",
+        name: "assignee",
+        label: "执行人",
+        relationTo: "system.user",
+        required: true
+      }
+    ]
+    const result = buildZodSchema(fields).safeParse({ assignee: null })
+
+    expect(result.success).toBe(false)
+    if (result.success) return
+    expect(result.error.issues[0]?.message).toBe("执行人不能为空")
+  })
+
   it("should handle checkbox as boolean", () => {
     const fields: FieldDef[] = [{ type: "checkbox", name: "agree", required: true }]
     const schema = buildZodSchema(fields)

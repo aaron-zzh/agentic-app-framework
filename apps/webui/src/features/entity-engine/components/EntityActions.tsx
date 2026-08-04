@@ -11,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useCallback, useState } from "react"
 
 import type { EntityAction, EntityDef } from "@/features/entity-engine/types"
+import { crudKey, fromEntityDef } from "@/lib/api/rest/crud"
 import { ApiError } from "@/lib/api/rest/entity"
 
 interface EntityActionsProps {
@@ -83,11 +84,7 @@ function ActionButton({
         throw new ApiError(res.status, `操作失败: ${res.statusText}`)
       }
 
-      // 刷新列表缓存
-      queryClient.invalidateQueries({ queryKey: [entity.slug, "list"] })
-      if (record?.id) {
-        queryClient.invalidateQueries({ queryKey: [entity.slug, "record", record.id] })
-      }
+      await queryClient.invalidateQueries({ queryKey: crudKey(fromEntityDef(entity)) })
     } catch {
       // TODO: Toast 通知
     } finally {

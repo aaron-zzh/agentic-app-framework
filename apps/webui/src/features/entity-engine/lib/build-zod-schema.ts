@@ -43,6 +43,7 @@ function buildFieldSchema(field: DataFieldDef): z.ZodTypeAny {
 function normalizeRequiredValue(value: unknown): unknown {
   if (
     value === undefined ||
+    value === null ||
     (typeof value === "string" && value.trim() === "") ||
     (Array.isArray(value) && value.length === 0) ||
     (typeof value === "number" && Number.isNaN(value))
@@ -85,8 +86,11 @@ function buildBaseSchema(field: DataFieldDef): z.ZodTypeAny {
         return field.multiple ? z.array(z.enum(values)) : z.enum(values)
       }
       return field.multiple ? z.array(z.string()) : z.string()
-    case "relationship":
-      return field.hasMany ? z.array(z.string()) : z.string()
+    case "relationship": {
+      const relationId = z.union([z.string(), z.number()])
+      const relationValue = z.union([relationId, z.object({ id: relationId }).passthrough()])
+      return field.hasMany ? z.array(relationValue) : relationValue
+    }
     case "upload":
       return field.multiple ? z.array(z.string()) : z.string()
     default:

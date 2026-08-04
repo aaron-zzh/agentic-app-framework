@@ -5,9 +5,10 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { _mockEntityData } from "@/lib/_mock/entities"
-import { fromEntityDef } from "@/lib/api/rest/crud"
+import { crudDetailKey, fromEntityDef } from "@/lib/api/rest/crud"
 import type { EntityDef } from "@/lib/types/entity"
 import { fetchRecord, type PageResult } from "./crud"
+import { entityQueryWindowPrefix } from "./use-entity-query-window"
 
 interface UseEntityDetailOptions {
   queryToken?: string
@@ -22,10 +23,13 @@ export function useEntityDetail(
   const queryClient = useQueryClient()
   const resource = fromEntityDef(entity)
   const initialData =
-    options.initialData ?? findListInitialData(queryClient, entity.slug, id, options.queryToken)
+    options.initialData ?? findListInitialData(queryClient, entity, id, options.queryToken)
 
   return useQuery<Record<string, unknown> | null>({
-    queryKey: [entity.slug, "detail", { id, queryToken: options.queryToken, fieldSet: "detail" }],
+    queryKey: crudDetailKey(resource, id, {
+      queryToken: options.queryToken,
+      fieldSet: "detail"
+    }),
     queryFn: async () => {
       if (!id) return null
       // mock 仅在开发环境且后端未就绪时使用
@@ -47,13 +51,13 @@ export function useEntityDetail(
 
 function findListInitialData(
   queryClient: ReturnType<typeof useQueryClient>,
-  entitySlug: string,
+  entity: EntityDef,
   id: string | undefined,
   queryToken?: string
 ): Record<string, unknown> | undefined {
   if (!id) return undefined
   const windows = queryClient.getQueriesData<PageResult<Record<string, unknown>>>({
-    queryKey: [entitySlug, "queryWindow"]
+    queryKey: entityQueryWindowPrefix(entity)
   })
   for (const [, window] of windows) {
     if (!window) continue

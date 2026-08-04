@@ -19,7 +19,7 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { GripVertical, HelpCircle, Search, Settings } from "lucide-react"
-import { useCallback, useId, useState } from "react"
+import { useCallback, useEffect, useId, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -37,6 +37,7 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import type { DataFieldDef, EntityDef } from "@/features/entity-engine/types"
+import type { CrudFilterFieldMeta } from "@/lib/api/rest/crud"
 import { cn } from "@/lib/utils/cn"
 
 const STORAGE_KEY_PREFIX = "aaf:view-settings:"
@@ -81,18 +82,71 @@ function saveSettings(entitySlug: string, settings: ViewSettings) {
   localStorage.setItem(`${STORAGE_KEY_PREFIX}${entitySlug}`, JSON.stringify(settings))
 }
 
+function sameStringArray(left?: string[], right?: string[]): boolean {
+  if (left === right) return true
+  if (!left || !right || left.length !== right.length) return false
+  return left.every((value, index) => value === right[index])
+}
+
 interface ViewSettingsSheetProps {
   entity: EntityDef
+  filterCapabilities?: CrudFilterFieldMeta[]
   onSettingsChange?: (settings: ViewSettings) => void
 }
 
-export function ViewSettingsSheet({ entity, onSettingsChange }: ViewSettingsSheetProps) {
+export function ViewSettingsSheet({
+  entity,
+  filterCapabilities,
+  onSettingsChange
+}: ViewSettingsSheetProps) {
   const uid = useId()
   const { value: open, setValue: setOpen } = useBoolean()
   const [draft, setDraft] = useState<ViewSettings>(() => loadSettings(entity.slug))
   const [search, setSearch] = useState("")
 
   const allFields = entity.fields.filter((f): f is DataFieldDef => "name" in f)
+  const filterableFieldNames = useMemo(
+    () => new Set(filterCapabilities?.map((capability) => capability.field) ?? []),
+    [filterCapabilities]
+  )
+  const equalityFilterFieldNames = useMemo(
+    () =>
+      new Set(
+        filterCapabilities
+          ?.filter((capability) => capability.operators.some((operator) => operator.value === "eq"))
+          .map((capability) => capability.field) ?? []
+      ),
+    [filterCapabilities]
+  )
+  const tabFields = allFields.filter(
+    (field) => field.type === "select" && equalityFilterFieldNames.has(field.name)
+  )
+  const configuredTabField = draft.tabField ?? entity.listView.tabs?.field
+  const tabFieldValue =
+    configuredTabField && equalityFilterFieldNames.has(configuredTabField) ? configuredTabField : ""
+
+  useEffect(() => {
+    if (!filterCapabilities) return
+
+    const nextFilterFields = draft.filterFields?.filter((field) => filterableFieldNames.has(field))
+    const nextTabField =
+      draft.tabField && equalityFilterFieldNames.has(draft.tabField) ? draft.tabField : undefined
+    if (sameStringArray(draft.filterFields, nextFilterFields) && draft.tabField === nextTabField) {
+      return
+    }
+
+    const next = { ...draft, filterFields: nextFilterFields, tabField: nextTabField }
+    setDraft(next)
+    saveSettings(entity.slug, next)
+    onSettingsChange?.(next)
+  }, [
+    draft,
+    entity.slug,
+    equalityFilterFieldNames,
+    filterCapabilities,
+    filterableFieldNames,
+    onSettingsChange
+  ])
 
   // 列配置：从 draft 或默认值初始化
   // listView.columns 中出现的列默认可见，其余默认隐藏
@@ -293,22 +347,20 @@ export function ViewSettingsSheet({ entity, onSettingsChange }: ViewSettingsShee
             <h3 className="mb-4 font-semibold text-base">高级设置</h3>
 
             {/* 状态 Tab 字段 */}
-            {allFields.filter((f) => f.type === "select").length > 0 && (
+            {tabFields.length > 0 && (
               <div className="mb-3 flex items-center justify-between">
                 <span className="text-muted-foreground text-sm">状态 Tab 字段</span>
                 <select
                   className="h-8 rounded-md border bg-background px-2 text-sm"
-                  value={draft.tabField ?? entity.listView.tabs?.field ?? ""}
+                  value={tabFieldValue}
                   onChange={(e) => patch({ tabField: e.target.value || undefined })}
                 >
                   <option value="">不显示</option>
-                  {allFields
-                    .filter((f) => f.type === "select")
-                    .map((f) => (
-                      <option key={f.name} value={f.name}>
-                        {f.label ?? f.name}
-                      </option>
-                    ))}
+                  {tabFields.map((field) => (
+                    <option key={field.name} value={field.name}>
+                      {field.label ?? field.name}
+                    </option>
+                  ))}
                 </select>
               </div>
             )}
@@ -461,8 +513,11 @@ export function ViewSettingsSheet({ entity, onSettingsChange }: ViewSettingsShee
                     const field = allFields.find((f) => f.name === col.name)
                     const label = field?.label ?? col.name
                     const isFirst = col.name === firstColumn?.name
-                    const current = draft.filterFields ?? getDefaultFilterFields(entity)
-                    const isFiltered = current.includes(col.name)
+                    const isFilterable = filterableFieldNames.has(col.name)
+                    const current = (draft.filterFields ?? getDefaultFilterFields(entity)).filter(
+                      (fieldName) => filterableFieldNames.has(fieldName)
+                    )
+                    const isFiltered = isFilterable && current.includes(col.name)
 
                     return (
                       <SortableColumnItem
@@ -471,10 +526,12 @@ export function ViewSettingsSheet({ entity, onSettingsChange }: ViewSettingsShee
                         label={label}
                         visible={col.visible}
                         filtered={isFiltered}
+                        filterDisabled={!isFilterable}
                         width={col.width}
                         disabled={isFirst}
                         onToggle={() => !isFirst && toggleColumn(col.name)}
                         onFilterToggle={() =>
+                          isFilterable &&
                           patch({
                             filterFields: isFiltered
                               ? current.filter((n) => n !== col.name)
@@ -523,6 +580,7 @@ function SortableColumnItem({
   label,
   visible,
   filtered,
+  filterDisabled,
   width,
   disabled,
   onToggle,
@@ -533,6 +591,7 @@ function SortableColumnItem({
   label: string
   visible: boolean
   filtered: boolean
+  filterDisabled?: boolean
   width?: number
   disabled?: boolean
   onToggle: () => void
@@ -598,6 +657,7 @@ function SortableColumnItem({
       <div className="flex w-16 shrink-0 justify-center">
         <Switch
           checked={filtered}
+          disabled={filterDisabled}
           onCheckedChange={onFilterToggle}
           aria-label={`筛选：${label}`}
           className="scale-75"

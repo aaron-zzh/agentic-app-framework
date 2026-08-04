@@ -22,6 +22,7 @@ import { ViewErrorBoundary } from "@/components/common/ViewErrorBoundary"
 import { fromEntityDef, useCrudUpdate } from "@/lib/api/rest/crud"
 import {
   encodeFilterParams,
+  entityQueryWindowPrefix,
   type PageResult,
   useEntityDetail,
   useEntityList,
@@ -319,7 +320,7 @@ export function useRecordWindowNavigation({
 }): RecordWindowNavigation {
   const router = useRouter()
   const queryClient = useQueryClient()
-  const queryWindow = queryToken ? findQueryWindow(queryClient, entity.slug, queryToken) : undefined
+  const queryWindow = queryToken ? findQueryWindow(queryClient, entity, queryToken) : undefined
   const ids = queryWindow?.ids?.map(String) ?? []
   const currentIndex = recordId ? ids.indexOf(recordId) : -1
   const hasWindow = !!queryWindow && currentIndex >= 0
@@ -414,11 +415,11 @@ function RecordWindowPager({
 
 function findQueryWindow(
   queryClient: ReturnType<typeof useQueryClient>,
-  entitySlug: string,
+  entity: EntityDef,
   queryToken?: string
 ): PageResult<Record<string, unknown>> | undefined {
   const windows = queryClient.getQueriesData<PageResult<Record<string, unknown>>>({
-    queryKey: [entitySlug, "queryWindow"]
+    queryKey: entityQueryWindowPrefix(entity)
   })
   for (const [, window] of windows) {
     if (!window) continue

@@ -9,8 +9,10 @@
 
 "use client"
 
+import Link from "next/link"
 import { Suspense, useEffect, useState } from "react"
 import { CustomBreadcrumbs } from "@/components/common/CustomBreadcrumbs"
+import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { ViewEngine } from "@/features/entity-engine/components"
 import type { ViewSettings } from "@/features/entity-engine/components/list"
@@ -61,12 +63,12 @@ export function EntityListView({ entity, view }: Props) {
             <div className="flex items-center gap-2">
               {extraAction}
               {canCreate && (
-                <a
-                  href={`${paths.workspace.module(entity.slug)}/new`}
-                  className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-3 font-medium text-primary-foreground text-sm hover:bg-primary/90"
+                <Button
+                  nativeButton={false}
+                  render={<Link href={`${paths.workspace.module(entity.slug)}/new`} />}
                 >
                   + 创建
-                </a>
+                </Button>
               )}
             </div>
           ) : undefined

@@ -4,7 +4,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { fromEntityDef } from "@/lib/api/rest/crud"
+import { crudDetailKey, crudKey, fromEntityDef } from "@/lib/api/rest/crud"
 import type { EntityDef } from "@/lib/types/entity"
 import { createRecord, deleteRecords, fetchRecord, updateRecord } from "./crud"
 
@@ -12,7 +12,7 @@ import { createRecord, deleteRecords, fetchRecord, updateRecord } from "./crud"
 export function useEntityRecord(entity: EntityDef, id: string | undefined) {
   const resource = fromEntityDef(entity)
   return useQuery<Record<string, unknown>>({
-    queryKey: [entity.slug, "record", id],
+    queryKey: crudDetailKey(resource, id, { fieldSet: "detail" }),
     queryFn: () => fetchRecord(resource, id ?? ""),
     enabled: !!id
   })
@@ -26,13 +26,7 @@ export function useEntityMutation(entity: EntityDef, id?: string) {
   return useMutation({
     mutationFn: (data: Record<string, unknown>) =>
       id ? updateRecord(resource, id, data) : createRecord(resource, data),
-    onSuccess: () => {
-      // 刷新列表和当前记录缓存
-      queryClient.invalidateQueries({ queryKey: [entity.slug, "list"] })
-      if (id) {
-        queryClient.invalidateQueries({ queryKey: [entity.slug, "record", id] })
-      }
-    }
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: crudKey(resource) })
   })
 }
 
@@ -43,8 +37,6 @@ export function useEntityDelete(entity: EntityDef) {
 
   return useMutation({
     mutationFn: (ids: string[]) => deleteRecords(resource, ids),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [entity.slug, "list"] })
-    }
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: crudKey(resource) })
   })
 }

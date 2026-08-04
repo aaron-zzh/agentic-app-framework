@@ -7,10 +7,20 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import com.xuejiai.aaf.common.enums.ArrayValuable;
+import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.common.model.PageParam;
+import com.xuejiai.aaf.common.validation.InEnum;
+import com.xuejiai.aaf.framework.crud.definition.CrudResourceTypeContract;
+import com.xuejiai.aaf.framework.crud.definition.CrudViewDefinition;
+
+import jakarta.persistence.Column;
 
 class CrudFilterSchemaTest {
 
@@ -94,5 +104,54 @@ class CrudFilterSchemaTest {
                                         CrudFilterField.text("title")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("筛选字段重复");
+    }
+
+    @Test
+    @DisplayName("Given 类型化查询字段与公开列表字段 When 推导默认筛选 Then 仅开放安全交集")
+    void should_infer_safe_defaults_from_page_list_and_entity_intersection() {
+        var types =
+                new CrudResourceTypeContract<>(
+                        FilterEntity.class, Void.class, Void.class, Object.class, FilterPage.class);
+        var view =
+                new CrudViewDefinition(
+                        Map.of("list", Set.of("status", "category", "title", "internalId")), "");
+
+        var metas = CrudFilterSchema.safeDefaults(types, view).metas();
+
+        assertThat(metas)
+                .extracting(CrudFilterFieldMeta::field)
+                .containsExactly("status", "category", "title");
+        assertThat(metas.get(0).operators()).doesNotContain(CrudFilterOperator.IS_NULL.toMeta());
+        assertThat(metas.get(1).operators()).contains(CrudFilterOperator.IS_NULL.toMeta());
+    }
+
+    private enum FilterStatus implements ArrayValuable<String> {
+        VALUES;
+
+        @Override
+        public String[] array() {
+            return new String[] {"pending", "done"};
+        }
+    }
+
+    private static final class FilterEntity extends BaseEntity {
+        @Column(nullable = false)
+        private String status;
+
+        private String category;
+        private String title;
+        private Long internalId;
+    }
+
+    private static final class FilterPage extends PageParam {
+        @InEnum(FilterStatus.class)
+        private String status;
+
+        @InEnum(FilterStatus.class)
+        private String category;
+
+        private String title;
+        private Long internalId;
+        private String hidden;
     }
 }

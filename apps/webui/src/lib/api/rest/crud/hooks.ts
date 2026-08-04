@@ -105,9 +105,7 @@ export function useCrudCreate<
 
   return useMutation({
     mutationFn: (data: TCreate) => createRecord<TRecord, TCreate>(resource, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: crudKey(resource) })
-    }
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: crudKey(resource) })
   })
 }
 
@@ -146,10 +144,8 @@ export function useCrudUpdate<
         record
       )
     },
-    onSettled: (_data, _error, variables) => {
+    onSettled: (_data, _error, _variables) =>
       queryClient.invalidateQueries({ queryKey: crudKey(resource) })
-      queryClient.invalidateQueries({ queryKey: crudDetailKey(resource, variables.id) })
-    }
   })
 }
 
@@ -160,7 +156,7 @@ export function useCrudDelete(resource: CrudResource) {
     mutationFn: ({ id }) => deleteRecord(resource, id),
     onSuccess: (_data, variables) => {
       queryClient.removeQueries({ queryKey: crudDetailKey(resource, variables.id) })
-      queryClient.invalidateQueries({ queryKey: crudKey(resource) })
+      return queryClient.invalidateQueries({ queryKey: crudKey(resource) })
     }
   })
 }
@@ -170,9 +166,7 @@ export function useCrudDeleteMany(resource: CrudResource) {
 
   return useMutation<void, Error, DeleteManyVariables>({
     mutationFn: ({ ids }) => deleteRecords(resource, ids),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: crudKey(resource) })
-    }
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: crudKey(resource) })
   })
 }
 

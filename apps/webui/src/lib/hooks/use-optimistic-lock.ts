@@ -19,7 +19,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useCallback, useState } from "react"
-import { fromEntityDef } from "@/lib/api/rest/crud"
+import { crudKey, fromEntityDef } from "@/lib/api/rest/crud"
 import { ApiError, fetchRecord, updateRecord } from "@/lib/api/rest/entity"
 import type { EntityDef } from "@/lib/types/entity"
 
@@ -50,8 +50,7 @@ export function useOptimisticLock(
   const mutation = useMutation({
     mutationFn: (data: Record<string, unknown>) => updateRecord(resource, id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [entity.slug, "list"] })
-      queryClient.invalidateQueries({ queryKey: [entity.slug, "record", id] })
+      void queryClient.invalidateQueries({ queryKey: crudKey(resource) })
       options?.onSuccess?.()
     },
     onError: async (error: Error, variables: Record<string, unknown>) => {
@@ -73,9 +72,9 @@ export function useOptimisticLock(
 
   /** 刷新：放弃本地修改，使用服务端数据 */
   const handleRefresh = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: [entity.slug, "record", id] })
+    void queryClient.invalidateQueries({ queryKey: crudKey(resource) })
     setConflict({ open: false, myData: null, serverData: null })
-  }, [queryClient, entity.slug, id])
+  }, [queryClient, resource])
 
   /** 取消：关闭对话框，保持当前状态 */
   const handleCancel = useCallback(() => {

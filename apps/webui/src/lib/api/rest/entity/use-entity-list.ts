@@ -8,7 +8,7 @@
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { _mockEntityData } from "@/lib/_mock/entities"
-import { fromEntityDef } from "@/lib/api/rest/crud"
+import { crudKey, fromEntityDef } from "@/lib/api/rest/crud"
 import { useUIStore } from "@/lib/store/ui-store"
 import type { EntityDef } from "@/lib/types/entity"
 import { fetchList, type ListParams, type PageResult } from "./crud"
@@ -26,8 +26,12 @@ export function useEntityList(entity: EntityDef, params: ListParams = {}): UseEn
   const workspaceId = useUIStore((s) => s.currentWorkspace?.id)
   const resource = fromEntityDef(entity)
 
-  // workspaceId 加入 queryKey，切换工作区时自动重新请求
-  const queryKey = [entity.slug, "list", { workspaceId, page, pageSize, sort, search, ...filters }]
+  // CRUD 资源前缀保证创建、更新、删除 mutation 可统一失效列表缓存。
+  const queryKey = [
+    ...crudKey(resource),
+    "list",
+    { workspaceId, page, pageSize, sort, search, ...filters }
+  ]
 
   const { data, isLoading, isFetching, error } = useQuery<PageResult<Record<string, unknown>>>({
     queryKey,
