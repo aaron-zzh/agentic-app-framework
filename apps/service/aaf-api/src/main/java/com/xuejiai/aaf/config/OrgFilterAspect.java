@@ -77,18 +77,29 @@ public class OrgFilterAspect {
                     + "within(com.xuejiai.aaf..*)")
     public Object enableOrgFilter(ProceedingJoinPoint joinPoint) throws Throwable {
         var session = entityManager.unwrap(org.hibernate.Session.class);
-        if (OrgContext.isIgnore()
-                || OrgContext.isAllOrganizations()
-                || isGlobalEntityRepository(joinPoint)) {
-            // 显式声明豁免、super_admin 全组织只读上下文，或目标实体本身是全局配置类型时，
-            // 不启用过滤器也不 fail-closed；同一 Session 可能被前序调用启用过 orgFilter
-            // （Hibernate Filter 状态绑定在 Session 而非单次查询上），此处必须显式关闭，
-            // 否则会残留污染本次本应豁免的查询，导致全局配置类实体被误套 org_id 条件。
-            session.disableFilter("orgFilter");
+        if (OrgContext.isIgnore() || isGlobalEntityRepository(joinPoint)) {
+            disableOrgFilters(session);
+            return joinPoint.proceed();
+        }
+        if (OrgContext.isAllOrganizations()) {
+            disableOrgFilters(session);
+            if (OrgContext.isAllOrganizationsUnrestricted()) {
+                return joinPoint.proceed();
+            }
+            var orgIds = OrgContext.getAccessibleOrgIds();
+            var workspaceIds = OrgContext.getAccessibleWorkspaceIds();
+            if (workspaceIds.isEmpty()) {
+                session.enableFilter("orgListFilter").setParameterList("orgIds", orgIds);
+            } else {
+                session.enableFilter("orgWorkspaceListFilter")
+                        .setParameterList("orgIds", orgIds)
+                        .setParameterList("workspaceIds", workspaceIds);
+            }
             return joinPoint.proceed();
         }
         var orgId = OrgContext.getCurrentOrgId();
         if (orgId != null) {
+            disableOrgFilters(session);
             session.enableFilter("orgFilter").setParameter("orgId", orgId);
             var result = joinPoint.proceed();
             checkSuspectedMisconfig(joinPoint, result);
@@ -96,10 +107,16 @@ public class OrgFilterAspect {
         }
         if (isOrgListRequest()) {
             // 白名单：不启用过滤器，允许按 userId 语义查询，不代表放行其他数据
-            session.disableFilter("orgFilter");
+            disableOrgFilters(session);
             return joinPoint.proceed();
         }
         throw new BusinessException(GlobalErrorCode.FORBIDDEN, "缺少组织上下文，无法访问该资源");
+    }
+
+    private void disableOrgFilters(org.hibernate.Session session) {
+        session.disableFilter("orgFilter");
+        session.disableFilter("orgListFilter");
+        session.disableFilter("orgWorkspaceListFilter");
     }
 
     /**

@@ -43,6 +43,19 @@ import lombok.Setter;
 @SQLRestriction("deleted = false")
 @FilterDef(name = "orgFilter", parameters = @ParamDef(name = "orgId", type = Long.class))
 @Filter(name = "orgFilter", condition = "org_id = :orgId")
+@FilterDef(name = "orgListFilter", parameters = @ParamDef(name = "orgIds", type = Long.class))
+@Filter(name = "orgListFilter", condition = "org_id in (:orgIds) and workspace_id is null")
+@FilterDef(
+        name = "orgWorkspaceListFilter",
+        parameters = {
+            @ParamDef(name = "orgIds", type = Long.class),
+            @ParamDef(name = "workspaceIds", type = Long.class)
+        })
+@Filter(
+        name = "orgWorkspaceListFilter",
+        condition =
+                "org_id in (:orgIds) and (workspace_id is null or workspace_id in"
+                        + " (:workspaceIds))")
 public abstract class BaseEntity implements Serializable {
 
     @Id

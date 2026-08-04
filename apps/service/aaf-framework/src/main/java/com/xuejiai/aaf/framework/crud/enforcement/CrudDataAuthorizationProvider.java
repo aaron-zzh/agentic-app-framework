@@ -102,7 +102,10 @@ public final class CrudDataAuthorizationProvider implements DataAuthorizationPro
             return false;
         }
         if (OrgContext.isAllOrganizations()) {
-            return subject.tenantId() == null && subject.workspaceId() == null;
+            return subject.tenantId() == null
+                    && subject.workspaceId() == null
+                    && (OrgContext.isAllOrganizationsUnrestricted()
+                            || !OrgContext.getAccessibleOrgIds().isEmpty());
         }
         if (OrgContext.isAllWorkspaces()) {
             return subject.tenantId() != null && subject.workspaceId() == null;

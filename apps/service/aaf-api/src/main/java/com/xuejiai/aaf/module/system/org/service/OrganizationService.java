@@ -109,8 +109,7 @@ public class OrganizationService {
         if (dto.name() != null) {
             org.setName(dto.name());
         }
-        return toVO(
-                orgRepository.save(org), membership == null ? null : membership.getRole());
+        return toVO(orgRepository.save(org), membership == null ? null : membership.getRole());
     }
 
     @Transactional
@@ -218,9 +217,7 @@ public class OrganizationService {
             return null;
         }
         var userId =
-                operatorContext
-                        .currentOwnerId()
-                        .orElseThrow(() -> exception(ORG_MEMBER_REQUIRED));
+                operatorContext.currentOwnerId().orElseThrow(() -> exception(ORG_MEMBER_REQUIRED));
         return memberRepository
                 .findByOrgIdAndUserIdAndDeletedFalse(orgId, userId)
                 .orElseThrow(() -> exception(ORG_MEMBER_REQUIRED));

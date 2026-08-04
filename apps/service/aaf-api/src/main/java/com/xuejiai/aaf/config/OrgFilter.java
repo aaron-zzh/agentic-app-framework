@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.config;
 
 import java.io.IOException;
+import java.util.LinkedHashSet;
 
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -79,11 +80,51 @@ public class OrgFilter implements Filter {
                 writeForbidden(response, "全组织上下文不能指定工作区");
                 return false;
             }
-            if (!authorizationService.isCurrentSubjectSuperAdmin()) {
-                writeForbidden(response, "仅超级管理员可查看全部组织数据");
+            var userId = operatorContext.currentOwnerId().orElse(null);
+            if (userId == null) {
+                writeForbidden(response, "缺少认证主体，无法查看全部组织");
                 return false;
             }
-            OrgContext.useAllOrganizations();
+            if (authorizationService.isCurrentSubjectSuperAdmin()) {
+                OrgContext.useAllOrganizations();
+                return true;
+            }
+            var memberships =
+                    OrgContext.runIgnoring(
+                            () -> orgMemberRepository.findByUserIdAndDeletedFalse(userId));
+            var organizationIds = memberships.stream().map(member -> member.getOrgId()).toList();
+            if (organizationIds.isEmpty()) {
+                writeForbidden(response, "当前用户没有可访问组织");
+                return false;
+            }
+            var managedOrgIds =
+                    memberships.stream()
+                            .filter(
+                                    member ->
+                                            "owner".equals(member.getRole())
+                                                    || "admin".equals(member.getRole()))
+                            .map(member -> member.getOrgId())
+                            .toList();
+            var workspaceIds =
+                    new LinkedHashSet<>(
+                            OrgContext.runIgnoring(
+                                    () ->
+                                            workspaceMemberRepository
+                                                    .findByUserIdAndDeletedFalse(userId)
+                                                    .stream()
+                                                    .map(member -> member.getWorkspaceId())
+                                                    .toList()));
+            if (!managedOrgIds.isEmpty()) {
+                workspaceIds.addAll(
+                        OrgContext.runIgnoring(
+                                () ->
+                                        workspaceRepository
+                                                .findByOrgIdInAndDeletedFalse(managedOrgIds)
+                                                .stream()
+                                                .map(workspace -> workspace.getId())
+                                                .toList()));
+            }
+            OrgContext.useAllOrganizations(organizationIds, workspaceIds);
             return true;
         }
         Long orgId;

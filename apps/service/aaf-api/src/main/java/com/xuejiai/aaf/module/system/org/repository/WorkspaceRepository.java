@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.system.org.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,4 +17,6 @@ public interface WorkspaceRepository extends CrudEntityRepository<Workspace> {
     Optional<Workspace> findByOrgIdAndSlugAndDeletedFalse(Long orgId, String slug);
 
     List<Workspace> findByOrgIdAndDeletedFalse(Long orgId);
+
+    List<Workspace> findByOrgIdInAndDeletedFalse(Collection<Long> orgIds);
 }

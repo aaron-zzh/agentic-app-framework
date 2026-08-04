@@ -24,11 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
-import {
-  type OrganizationVO,
-  useOrganizations,
-  useWorkspaces
-} from "@/lib/api/rest/user"
+import { type OrganizationVO, useOrganizations, useWorkspaces } from "@/lib/api/rest/user"
 import { useAuthStore } from "@/lib/store/auth-store"
 import {
   ALL_ORGANIZATIONS_ID,
@@ -48,9 +44,14 @@ export function WorkspaceSwitcher() {
   const currentWorkspace = useUIStore((state) => state.currentWorkspace)
   const setCurrentWorkspace = useUIStore((state) => state.setCurrentWorkspace)
   const { data: organizations } = useOrganizations()
-  const { data: workspacePage } = useWorkspaces(currentOrgId, isSuperAdmin)
-
   const orgs = organizations ?? []
+  const allOrganizationsSelected = currentOrgId === ALL_ORGANIZATIONS_ID
+  const canSelectAllOrganizations = isSuperAdmin || orgs.length > 1
+  const { data: workspacePage } = useWorkspaces(
+    currentOrgId,
+    isSuperAdmin || allOrganizationsSelected
+  )
+
   const workspacesByOrg = useMemo(() => {
     const grouped = new Map<string, NonNullable<typeof workspacePage>["list"]>()
     for (const workspace of workspacePage?.list ?? []) {
@@ -61,7 +62,6 @@ export function WorkspaceSwitcher() {
     return grouped
   }, [workspacePage])
 
-  const allOrganizationsSelected = currentOrgId === ALL_ORGANIZATIONS_ID
   const activeOrg = orgs.find((org) => org.id === currentOrgId)
   const activeWorkspaceName = allOrganizationsSelected
     ? "全部组织"
@@ -83,9 +83,7 @@ export function WorkspaceSwitcher() {
   }
 
   function canViewAllWorkspaces(org: OrganizationVO): boolean {
-    return (
-      isSuperAdmin || org.memberRole === "owner" || org.memberRole === "admin"
-    )
+    return isSuperAdmin || org.memberRole === "owner" || org.memberRole === "admin"
   }
 
   function selectOrganization(org: OrganizationVO) {
@@ -135,7 +133,7 @@ export function WorkspaceSwitcher() {
         <div className="p-1.5">
           <DropdownMenuGroup>
             <DropdownMenuLabel>数据范围</DropdownMenuLabel>
-            {isSuperAdmin && (
+            {canSelectAllOrganizations && (
               <DropdownMenuItem
                 onClick={selectAllOrganizations}
                 className="gap-2.5 rounded-md px-2 py-2"
@@ -143,7 +141,9 @@ export function WorkspaceSwitcher() {
                 <Building2 className="text-muted-foreground" />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm">全部组织</div>
-                  <div className="truncate text-muted-foreground text-xs">跨组织只读视角</div>
+                  <div className="truncate text-muted-foreground text-xs">
+                    {isSuperAdmin ? "平台全部组织只读视角" : "成员组织聚合只读视角"}
+                  </div>
                 </div>
                 {allOrganizationsSelected && <Badge variant="outline">当前</Badge>}
               </DropdownMenuItem>

@@ -20,14 +20,14 @@ export function hasSuperAdminRole(roles?: string[]): boolean {
 }
 
 interface OrgState {
-  /** 当前选中的组织 ID；all 表示 super_admin 全组织只读视角 */
+  /** 当前选中的组织 ID；all 表示当前用户可访问组织的聚合只读视角 */
   currentOrgId: string | null
   /** 切换当前组织 */
   setCurrentOrgId: (orgId: string) => void
   /**
    * 确保存在有效的当前组织范围。
    *
-   * super_admin 可保留 all；其他用户必须回退到所属组织列表中的具体组织。
+   * super_admin 或加入多个组织的用户可保留 all；单组织用户回退到具体组织。
    */
   ensureDefaultOrg: (orgs: OrganizationVO[], roles?: string[]) => void
 }
@@ -42,7 +42,8 @@ export const useOrgStore = create<OrgState>()(
       },
       ensureDefaultOrg: (orgs, roles) => {
         const current = get().currentOrgId
-        if (current === ALL_ORGANIZATIONS_ID && hasSuperAdminRole(roles)) return
+        if (current === ALL_ORGANIZATIONS_ID && (hasSuperAdminRole(roles) || orgs.length > 1))
+          return
         if (orgs.length === 0) return
         const stillValid = current != null && orgs.some((org) => org.id === current)
         if (stillValid) return

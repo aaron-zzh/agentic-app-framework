@@ -19,8 +19,10 @@ import com.xuejiai.aaf.common.model.SpecificationBuilder;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationService;
 import com.xuejiai.aaf.module.system.org.domain.Workspace;
 import com.xuejiai.aaf.module.system.org.domain.WorkspaceMember;
+import com.xuejiai.aaf.module.system.org.repository.OrgMemberRepository;
 import com.xuejiai.aaf.module.system.org.repository.WorkspaceMemberRepository;
 import com.xuejiai.aaf.module.system.org.repository.WorkspaceRepository;
 import com.xuejiai.aaf.module.system.org.vo.WorkspaceCreateDTO;
@@ -48,7 +50,9 @@ public class WorkspaceService
 
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
+    private final OrgMemberRepository orgMemberRepository;
     private final OperatorContext operatorContext;
+    private final AuthorizationService authorizationService;
     private static final Set<String> SORTABLE_FIELDS = Set.of("id", "name", "slug", "createTime");
 
     @Override
@@ -92,9 +96,53 @@ public class WorkspaceService
 
     @Override
     protected Specification<Workspace> buildSpec(WorkspacePageDTO req) {
-        return SpecificationBuilder.<Workspace>builder()
-                .likeIfPresent("name", req.getName())
-                .build();
+        var businessSpec =
+                SpecificationBuilder.<Workspace>builder()
+                        .likeIfPresent("name", req.getName())
+                        .build();
+        return Specification.allOf(businessSpec, accessibleWorkspaceSpec());
+    }
+
+    private Specification<Workspace> accessibleWorkspaceSpec() {
+        if (authorizationService.isCurrentSubjectSuperAdmin()) {
+            return (root, query, cb) -> null;
+        }
+        if (OrgContext.isAllOrganizations()) {
+            var workspaceIds = OrgContext.getAccessibleWorkspaceIds();
+            return workspaceIds.isEmpty()
+                    ? (root, query, cb) -> cb.disjunction()
+                    : (root, query, cb) -> root.get("id").in(workspaceIds);
+        }
+        var userId = operatorContext.currentOwnerId().orElse(null);
+        var orgId = OrgContext.getCurrentOrgId();
+        if (userId == null || orgId == null) {
+            return (root, query, cb) -> cb.disjunction();
+        }
+        var manager =
+                OrgContext.runIgnoring(
+                        () ->
+                                orgMemberRepository
+                                        .findByOrgIdAndUserIdAndDeletedFalse(orgId, userId)
+                                        .map(member -> member.getRole())
+                                        .filter(
+                                                role ->
+                                                        "owner".equals(role)
+                                                                || "admin".equals(role))
+                                        .isPresent());
+        if (manager) {
+            return (root, query, cb) -> null;
+        }
+        var workspaceIds =
+                OrgContext.runIgnoring(
+                        () ->
+                                workspaceMemberRepository
+                                        .findByUserIdAndDeletedFalse(userId)
+                                        .stream()
+                                        .map(WorkspaceMember::getWorkspaceId)
+                                        .toList());
+        return workspaceIds.isEmpty()
+                ? (root, query, cb) -> cb.disjunction()
+                : (root, query, cb) -> root.get("id").in(workspaceIds);
     }
 
     /** 创建工作区后，创建者自动成为该工作区成员，保证创建者不会看不到自己创建的工作区。 */

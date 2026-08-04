@@ -57,7 +57,7 @@ public class OrganizationController {
     }
 
     @Operation(summary = "创建组织")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyRole('ORG_ADMIN', 'ADMIN', 'SUPER_ADMIN')")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Result<OrganizationVO> create(@Validated @RequestBody OrganizationCreateDTO request) {

@@ -1,26 +1,29 @@
 package com.xuejiai.aaf.framework.org;
 
+import java.util.Collection;
+import java.util.Set;
+
 /**
- * 组织上下文，存储当前请求/任务的组织 ID、工作区 ID与全局读取状态。
+ * 组织上下文，存储当前请求/任务的组织 ID、工作区 ID与聚合读取状态。
  *
- * <p>下沉到 {@code aaf-framework}（而非 {@code aaf-api}），使 framework 层的定时任务等场景也能 读取/设置组织上下文、声明豁免组织过滤（见
+ * <p>下沉到 {@code aaf-framework}（而非 {@code aaf-api}），使 framework 层的定时任务等场景也能读取/设置组织上下文、声明豁免组织过滤（见
  * {@link OrgIgnore}）。
- *
- * <p>workspaceId 与 orgId 是两个独立维度（组织下可有多个工作区），但共用同一个上下文类而不新建
- * WorkspaceContext——两者生命周期一致（同一次请求内设置、请求结束一起清理），拆开只会增加概念数量， 不带来实际隔离收益。
  */
 public final class OrgContext {
 
     private static final ThreadLocal<Long> CURRENT_ORG_ID = new ThreadLocal<>();
     private static final ThreadLocal<Long> CURRENT_WORKSPACE_ID = new ThreadLocal<>();
     private static final ThreadLocal<Boolean> ALL_ORGANIZATIONS = new ThreadLocal<>();
+    private static final ThreadLocal<Boolean> ALL_ORGANIZATIONS_UNRESTRICTED = new ThreadLocal<>();
+    private static final ThreadLocal<Set<Long>> ACCESSIBLE_ORG_IDS = new ThreadLocal<>();
+    private static final ThreadLocal<Set<Long>> ACCESSIBLE_WORKSPACE_IDS = new ThreadLocal<>();
     private static final ThreadLocal<Boolean> ALL_WORKSPACES = new ThreadLocal<>();
     private static final ThreadLocal<Boolean> IGNORE = new ThreadLocal<>();
 
     private OrgContext() {}
 
     public static void setCurrentOrgId(Long orgId) {
-        ALL_ORGANIZATIONS.remove();
+        clearAllOrganizationsScope();
         ALL_WORKSPACES.remove();
         CURRENT_ORG_ID.set(orgId);
     }
@@ -41,17 +44,45 @@ public final class OrgContext {
         return CURRENT_WORKSPACE_ID.get();
     }
 
-    /** 进入全组织读取上下文；只允许认证过滤器在校验 super_admin 后调用。 */
+    /** 进入 super_admin 平台全组织读取上下文。 */
     public static void useAllOrganizations() {
-        CURRENT_ORG_ID.remove();
-        CURRENT_WORKSPACE_ID.remove();
-        ALL_WORKSPACES.remove();
-        ALL_ORGANIZATIONS.set(true);
+        enterAllOrganizations();
+        ALL_ORGANIZATIONS_UNRESTRICTED.set(true);
+        ACCESSIBLE_ORG_IDS.set(Set.of());
+        ACCESSIBLE_WORKSPACE_IDS.set(Set.of());
+    }
+
+    /** 进入普通用户的成员组织与已加入工作区聚合读取上下文。 */
+    public static void useAllOrganizations(
+            Collection<Long> organizationIds, Collection<Long> workspaceIds) {
+        var organizations = Set.copyOf(organizationIds);
+        if (organizations.isEmpty()) {
+            throw new IllegalArgumentException("成员组织集合不能为空");
+        }
+        enterAllOrganizations();
+        ALL_ORGANIZATIONS_UNRESTRICTED.set(false);
+        ACCESSIBLE_ORG_IDS.set(organizations);
+        ACCESSIBLE_WORKSPACE_IDS.set(Set.copyOf(workspaceIds));
     }
 
     /** 当前请求是否显式选择全部组织。 */
     public static boolean isAllOrganizations() {
         return Boolean.TRUE.equals(ALL_ORGANIZATIONS.get());
+    }
+
+    /** 当前全部组织上下文是否为 super_admin 平台全量。 */
+    public static boolean isAllOrganizationsUnrestricted() {
+        return Boolean.TRUE.equals(ALL_ORGANIZATIONS_UNRESTRICTED.get());
+    }
+
+    public static Set<Long> getAccessibleOrgIds() {
+        var ids = ACCESSIBLE_ORG_IDS.get();
+        return ids == null ? Set.of() : ids;
+    }
+
+    public static Set<Long> getAccessibleWorkspaceIds() {
+        var ids = ACCESSIBLE_WORKSPACE_IDS.get();
+        return ids == null ? Set.of() : ids;
     }
 
     /** 进入当前组织的全工作区读取上下文。 */
@@ -78,12 +109,6 @@ public final class OrgContext {
         return Boolean.TRUE.equals(IGNORE.get());
     }
 
-    /**
-     * 在忽略组织过滤的上下文中执行给定逻辑，执行完毕后还原原有状态。
-     *
-     * <p>用于非 Spring AOP 场景（如测试用例的 {@code setUp}）——{@link OrgIgnore} 依赖方法级 AOP 拦截，
-     * 对测试代码里的普通方法调用不生效，需要用本方法显式包裹。
-     */
     public static void runIgnoring(Runnable runnable) {
         var oldIgnore = isIgnore();
         try {
@@ -94,7 +119,6 @@ public final class OrgContext {
         }
     }
 
-    /** {@link #runIgnoring(Runnable)} 的有返回值版本。 */
     public static <T> T runIgnoring(java.util.function.Supplier<T> supplier) {
         var oldIgnore = isIgnore();
         try {
@@ -108,8 +132,22 @@ public final class OrgContext {
     public static void clear() {
         CURRENT_ORG_ID.remove();
         CURRENT_WORKSPACE_ID.remove();
-        ALL_ORGANIZATIONS.remove();
+        clearAllOrganizationsScope();
         ALL_WORKSPACES.remove();
         IGNORE.remove();
+    }
+
+    private static void enterAllOrganizations() {
+        CURRENT_ORG_ID.remove();
+        CURRENT_WORKSPACE_ID.remove();
+        ALL_WORKSPACES.remove();
+        ALL_ORGANIZATIONS.set(true);
+    }
+
+    private static void clearAllOrganizationsScope() {
+        ALL_ORGANIZATIONS.remove();
+        ALL_ORGANIZATIONS_UNRESTRICTED.remove();
+        ACCESSIBLE_ORG_IDS.remove();
+        ACCESSIBLE_WORKSPACE_IDS.remove();
     }
 }

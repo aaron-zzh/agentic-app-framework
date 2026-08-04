@@ -6,6 +6,7 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -175,6 +176,7 @@ public final class CrudEnforcementService {
         var allOrganizations = OrgContext.isAllOrganizations();
         var allWorkspaces = OrgContext.isAllWorkspaces();
         if ((allOrganizations
+                        && OrgContext.isAllOrganizationsUnrestricted()
                         && !authorizationService.isCurrentSubjectSuperAdmin())
                 || ((allOrganizations || allWorkspaces)
                         && !operation.allowedInAllOrganizations())) {
@@ -206,7 +208,13 @@ public final class CrudEnforcementService {
         var fieldPolicy = applyFieldConstraint(entry, dataConstraint);
         Specification<E> tenantScope;
         if (allOrganizations && definition.tenantScope() != TenantScope.GLOBAL) {
-            tenantScope = unrestrictedSpec();
+            tenantScope =
+                    OrgContext.isAllOrganizationsUnrestricted()
+                            ? unrestrictedSpec()
+                            : multiOrgTenantSpec(
+                                    definition.tenantScope(),
+                                    OrgContext.getAccessibleOrgIds(),
+                                    OrgContext.getAccessibleWorkspaceIds());
         } else if (allWorkspaces && definition.tenantScope() != TenantScope.GLOBAL) {
             tenantScope = tenantSpec(TenantScope.ORG_REQUIRED, orgId, null);
         } else {
@@ -510,6 +518,30 @@ public final class CrudEnforcementService {
                                         : cb.or(
                                                 cb.isNull(root.get("workspaceId")),
                                                 cb.equal(root.get("workspaceId"), workspaceId));
+                        return cb.and(org, workspace);
+                    };
+        };
+    }
+
+    private <E extends BaseEntity> Specification<E> multiOrgTenantSpec(
+            TenantScope scope, Set<Long> orgIds, Set<Long> workspaceIds) {
+        return switch (scope) {
+            case GLOBAL -> tenantSpec(TenantScope.GLOBAL, null, null);
+            case ORG_REQUIRED -> (root, query, cb) -> root.get("orgId").in(orgIds);
+            case WORKSPACE_REQUIRED ->
+                    (root, query, cb) ->
+                            workspaceIds.isEmpty()
+                                    ? cb.disjunction()
+                                    : cb.and(
+                                            root.get("orgId").in(orgIds),
+                                            root.get("workspaceId").in(workspaceIds));
+            case ORG_SHARED_WORKSPACE_OPTIONAL ->
+                    (root, query, cb) -> {
+                        var org = root.get("orgId").in(orgIds);
+                        var workspace = cb.isNull(root.get("workspaceId"));
+                        if (!workspaceIds.isEmpty()) {
+                            workspace = cb.or(workspace, root.get("workspaceId").in(workspaceIds));
+                        }
                         return cb.and(org, workspace);
                     };
         };
