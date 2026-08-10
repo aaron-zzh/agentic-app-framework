@@ -52,6 +52,7 @@ CREATE TABLE aigc_project_blueprint (
     blueprint_version VARCHAR(32) NOT NULL,
     production_mode VARCHAR(32) NOT NULL,
     description VARCHAR(500),
+    cover_url VARCHAR(1000),
     status VARCHAR(32) NOT NULL,
     object_spec JSONB,
     relation_spec JSONB,
@@ -71,6 +72,7 @@ CREATE TABLE aigc_project_blueprint (
     remark VARCHAR(255)
 );
 COMMENT ON TABLE aigc_project_blueprint IS 'AIGC 版本化项目骨架';
+COMMENT ON COLUMN aigc_project_blueprint.cover_url IS '蓝图卡封面 URL，可空；前端加载失败时按项目类型使用渐变封面';
 COMMENT ON COLUMN aigc_project_blueprint.object_spec IS '项目对象规格 JSON';
 COMMENT ON COLUMN aigc_project_blueprint.relation_spec IS '项目关系规格 JSON';
 CREATE UNIQUE INDEX uk_aigc_blueprint_code_version_active

@@ -5,10 +5,10 @@
  * @author AaronZZH & Kiro
  */
 
-import { Box, FileText, ImageIcon, Mic, Music, Video } from "lucide-react"
+import { Box, FileText, ImageIcon, Mic, Music, UserRound, Video } from "lucide-react"
 import Link from "next/link"
 import { SectionHaze } from "@/components/studio"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -52,7 +52,47 @@ const MEDIA_ENTRIES = [
   }
 ] as const
 
-export default function StudioCreatePage() {
+interface StudioCreatePageProps {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}
+
+function DigitalHumanPlaceholder() {
+  return (
+    <div className="relative mx-auto flex max-w-6xl flex-col gap-6 p-6">
+      <SectionHaze variant="violet" />
+      <header className="relative flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <p className="font-medium text-primary text-sm">Studio Create</p>
+          <Badge variant="secondary">尚未开放</Badge>
+        </div>
+        <h1 className="font-semibold text-2xl">数字人创作</h1>
+        <p className="max-w-3xl text-muted-foreground text-sm">
+          数字人能力正在准备中。本页面仅用于确认创作模式，当前不会提交生成任务。
+        </p>
+      </header>
+      <Card className="relative">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <UserRound aria-hidden="true" />
+            数字人能力尚未开放
+          </CardTitle>
+          <CardDescription>
+            后续将在这里提供形象、声音与视频驱动能力；开放前不会创建模拟任务或结果。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground text-sm">你可以先使用图像、视频、配音等现有能力。</p>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+export default async function StudioCreatePage({ searchParams }: StudioCreatePageProps) {
+  const params = await searchParams
+  const mode = Array.isArray(params.mode) ? params.mode[0] : params.mode
+  if (mode === "digital-human") return <DigitalHumanPlaceholder />
+
   return (
     <div className="relative mx-auto flex max-w-6xl flex-col gap-6 p-6">
       <SectionHaze variant="violet" />
@@ -94,20 +134,20 @@ export default function StudioCreatePage() {
         })}
       </section>
 
-      <Alert className="relative">
-        <FileText />
-        <AlertTitle>文案是内容对象</AlertTitle>
-        <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-          <span>文案进入内容创作与项目编排流程，不作为媒体资产保存。</span>
-          <Button
-            nativeButton={false}
-            variant="secondary"
-            render={<Link href="/studio/create/copy" />}
-          >
-            进入文案创作
-          </Button>
-        </AlertDescription>
-      </Alert>
+      <Card className="relative flex-row flex-wrap items-center p-4">
+        <FileText aria-hidden="true" className="shrink-0" />
+        <div className="min-w-0 flex-1">
+          <CardTitle>文案是内容对象</CardTitle>
+          <CardDescription>文案进入内容创作与项目编排流程，不作为媒体资产保存。</CardDescription>
+        </div>
+        <Button
+          nativeButton={false}
+          variant="secondary"
+          render={<Link href="/studio/create/copy" />}
+        >
+          进入文案创作
+        </Button>
+      </Card>
     </div>
   )
 }

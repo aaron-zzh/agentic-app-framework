@@ -7,6 +7,7 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.type.SqlTypes;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.module.ai.aigc.configuration.enums.AigcConfigStatus;
 
 import jakarta.persistence.Column;
@@ -18,12 +19,15 @@ import lombok.Setter;
 /**
  * 项目类型实体。
  *
+ * <p>平台级版本化配置，与组织无关；组织业务数据只引用其已发布版本。
+ *
  * @author AaronZZH & Kiro
  */
 @Getter
 @Setter
 @Entity
 @Table(name = "aigc_project_type")
+@OrgIgnore
 @SQLDelete(
         sql =
                 "UPDATE aigc_project_type SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")

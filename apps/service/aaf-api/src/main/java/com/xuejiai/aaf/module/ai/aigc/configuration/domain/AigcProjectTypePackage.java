@@ -8,6 +8,7 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.type.SqlTypes;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.module.ai.aigc.configuration.enums.AigcConfigStatus;
 
 import jakarta.persistence.Column;
@@ -16,11 +17,16 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/** 项目类型、蓝图、领域、渠道和执行绑定的兼容版本组合。 */
+/**
+ * 项目类型、蓝图、领域、渠道和执行绑定的兼容版本组合。
+ *
+ * <p>平台级版本化配置，与组织无关。
+ */
 @Getter
 @Setter
 @Entity
 @Table(name = "aigc_project_type_package")
+@OrgIgnore
 @SQLDelete(
         sql =
                 "UPDATE aigc_project_type_package SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")

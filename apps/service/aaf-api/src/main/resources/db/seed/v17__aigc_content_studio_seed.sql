@@ -502,5 +502,19 @@ INSERT INTO sys_role_permission (role_id, permission_id)
 SELECT role.id, permission.id
 FROM sys_role role
 JOIN sys_permission_code permission ON permission.module = 'aigc'
-WHERE role.code IN ('member', 'org_admin', 'admin', 'super_admin')
+WHERE role.code IN ('admin', 'super_admin')
+   OR (
+       role.code IN ('member', 'org_admin')
+       AND NOT (
+           permission.resource IN (
+               'project-type',
+               'project-type-package',
+               'blueprint',
+               'domain-extension',
+               'channel-spec',
+               'execution-binding'
+           )
+           AND permission.action IN ('create', 'update', 'delete', 'publish')
+       )
+   )
 ON CONFLICT DO NOTHING;

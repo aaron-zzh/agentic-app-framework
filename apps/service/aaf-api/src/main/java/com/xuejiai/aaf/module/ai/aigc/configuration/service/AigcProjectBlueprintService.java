@@ -54,6 +54,7 @@ public class AigcProjectBlueprintService
                 entity.getBlueprintVersion(),
                 entity.getProductionMode(),
                 entity.getDescription(),
+                entity.getCoverUrl(),
                 entity.getStatus(),
                 entity.getObjectSpec(),
                 entity.getRelationSpec(),
@@ -96,6 +97,7 @@ public class AigcProjectBlueprintService
         AigcConfigurationPatchSupport.required(
                 request.productionMode(), "productionMode", entity::setProductionMode);
         AigcConfigurationPatchSupport.nullable(request.description(), entity::setDescription);
+        AigcConfigurationPatchSupport.nullable(request.coverUrl(), entity::setCoverUrl);
         AigcConfigurationPatchSupport.nullable(request.objectSpec(), entity::setObjectSpec);
         AigcConfigurationPatchSupport.nullable(request.relationSpec(), entity::setRelationSpec);
         AigcConfigurationPatchSupport.nullable(

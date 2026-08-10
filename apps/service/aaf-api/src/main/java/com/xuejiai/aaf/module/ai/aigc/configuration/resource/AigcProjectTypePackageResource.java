@@ -57,7 +57,7 @@ public final class AigcProjectTypePackageResource {
                                             COMMAND_PUBLISH,
                                             Set.of("status", "compatibilityResult"))),
                     CrudViewDefinition.forTypes(TYPES),
-                    TenantScope.ORG_SHARED_WORKSPACE_OPTIONAL,
+                    TenantScope.GLOBAL,
                     PersonalScope.none());
 
     private AigcProjectTypePackageResource() {}

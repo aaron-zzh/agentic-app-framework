@@ -4,10 +4,12 @@ import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import com.xuejiai.aaf.framework.crud.definition.Patch;
 
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import tools.jackson.databind.JsonNode;
@@ -24,6 +26,7 @@ public record AigcProjectBlueprintUpdateDTO(
         Patch<String> blueprintVersion,
         Patch<String> productionMode,
         Patch<String> description,
+        Patch<String> coverUrl,
         Patch<Map<String, Object>> objectSpec,
         Patch<Map<String, Object>> relationSpec,
         Patch<Map<String, Object>> deliverableSpec,
@@ -39,6 +42,7 @@ public record AigcProjectBlueprintUpdateDTO(
         blueprintVersion = normalize(blueprintVersion);
         productionMode = normalize(productionMode);
         description = normalize(description);
+        coverUrl = normalize(coverUrl);
         objectSpec = normalize(objectSpec);
         relationSpec = normalize(relationSpec);
         deliverableSpec = normalize(deliverableSpec);
@@ -55,6 +59,7 @@ public record AigcProjectBlueprintUpdateDTO(
             @JsonProperty("blueprintVersion") JsonNode blueprintVersion,
             @JsonProperty("productionMode") JsonNode productionMode,
             @JsonProperty("description") JsonNode description,
+            @JsonProperty("coverUrl") JsonNode coverUrl,
             @JsonProperty("objectSpec") JsonNode objectSpec,
             @JsonProperty("relationSpec") JsonNode relationSpec,
             @JsonProperty("deliverableSpec") JsonNode deliverableSpec,
@@ -69,6 +74,7 @@ public record AigcProjectBlueprintUpdateDTO(
                 Patch.parse(blueprintVersion, AigcConfigurationPatchDecoder::text),
                 Patch.parse(productionMode, AigcConfigurationPatchDecoder::text),
                 Patch.parse(description, AigcConfigurationPatchDecoder::text),
+                Patch.parse(coverUrl, AigcConfigurationPatchDecoder::text),
                 Patch.parse(objectSpec, AigcConfigurationPatchDecoder::objectMap),
                 Patch.parse(relationSpec, AigcConfigurationPatchDecoder::objectMap),
                 Patch.parse(deliverableSpec, AigcConfigurationPatchDecoder::objectMap),
@@ -76,6 +82,13 @@ public record AigcProjectBlueprintUpdateDTO(
                 Patch.parse(confirmationGates, AigcConfigurationPatchDecoder::stringList),
                 Patch.parse(briefFields, AigcConfigurationPatchDecoder::stringList),
                 expectedVersion);
+    }
+
+    @JsonIgnore
+    @AssertTrue(message = "coverUrl 长度不能超过 1000")
+    public boolean isCoverUrlValid() {
+        var value = coverUrl.valueOrNull();
+        return value == null || value.length() <= 1000;
     }
 
     private static <T> Patch<T> normalize(Patch<T> patch) {

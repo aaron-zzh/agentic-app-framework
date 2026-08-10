@@ -8,6 +8,7 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.type.SqlTypes;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.module.ai.aigc.configuration.enums.AigcConfigStatus;
 
 import jakarta.persistence.Column;
@@ -19,12 +20,15 @@ import lombok.Setter;
 /**
  * 项目蓝图实体。
  *
+ * <p>平台级版本化配置，与组织无关；组织项目只引用其已发布版本。
+ *
  * @author AaronZZH & Kiro
  */
 @Getter
 @Setter
 @Entity
 @Table(name = "aigc_project_blueprint")
+@OrgIgnore
 @SQLDelete(
         sql =
                 "UPDATE aigc_project_blueprint SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
@@ -47,6 +51,9 @@ public class AigcProjectBlueprint extends BaseEntity {
 
     @Column(name = "description", length = 500)
     private String description;
+
+    @Column(name = "cover_url", length = 1000)
+    private String coverUrl;
 
     @Column(name = "status", nullable = false, length = 32)
     private String status = AigcConfigStatus.DRAFT.getCode();

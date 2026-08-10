@@ -67,10 +67,7 @@ export function RecentProjectGrid() {
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="font-semibold text-base">最近项目</h2>
-          <p className="pt-1 text-muted-foreground text-xs">继续推进最近活跃的内容项目</p>
-        </div>
+        <h2 className="font-semibold text-base">最近项目</h2>
         <Link
           href="/studio/projects"
           className="flex items-center gap-1 text-muted-foreground text-sm hover:text-foreground"

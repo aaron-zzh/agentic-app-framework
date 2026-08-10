@@ -19,6 +19,7 @@ public record AigcProjectBlueprintVO(
         String blueprintVersion,
         String productionMode,
         String description,
+        String coverUrl,
         String status,
         Map<String, Object> objectSpec,
         Map<String, Object> relationSpec,

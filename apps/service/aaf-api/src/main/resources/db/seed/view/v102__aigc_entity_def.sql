@@ -90,6 +90,7 @@ VALUES
         {"type":"text","name":"blueprintVersion","label":"蓝图版本","required":true},
         {"type":"text","name":"productionMode","label":"生产模式","required":true},
         {"type":"text","name":"description","label":"描述"},
+        {"type":"text","name":"coverUrl","label":"封面 URL"},
         {"type":"text","name":"status","label":"状态","readOnly":true},
         {"type":"json","name":"objectSpec","label":"对象规格"},
         {"type":"json","name":"relationSpec","label":"关系规格"},

@@ -5,6 +5,7 @@ import java.util.Map;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 /**
  * 项目蓝图创建请求。
@@ -19,6 +20,7 @@ public record AigcProjectBlueprintCreateDTO(
         @NotBlank String blueprintVersion,
         @NotBlank String productionMode,
         String description,
+        @Size(max = 1000) String coverUrl,
         Map<String, Object> objectSpec,
         Map<String, Object> relationSpec,
         Map<String, Object> deliverableSpec,

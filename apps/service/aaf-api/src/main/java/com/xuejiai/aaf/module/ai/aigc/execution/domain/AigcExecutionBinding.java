@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -12,11 +13,16 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-/** AIGC 动作到 Agent、Tool、Workflow 的版本化绑定。 */
+/**
+ * AIGC 动作到 Agent、Tool、Workflow 的版本化绑定。
+ *
+ * <p>平台级执行配置，与组织无关。
+ */
 @Getter
 @Setter
 @Entity
 @Table(name = "aigc_execution_binding")
+@OrgIgnore
 @SQLDelete(
         sql =
                 "UPDATE aigc_execution_binding SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")

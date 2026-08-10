@@ -43,6 +43,7 @@ export interface AigcProjectBlueprint {
   blueprintVersion: string
   productionMode: AigcProductionMode
   description?: string
+  coverUrl?: string | null
   status: AigcConfigStatus
   objectSpec?: Record<string, unknown>
   relationSpec?: Record<string, unknown>

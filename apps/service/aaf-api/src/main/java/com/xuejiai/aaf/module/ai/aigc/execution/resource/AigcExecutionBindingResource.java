@@ -57,7 +57,7 @@ public final class AigcExecutionBindingResource {
                             Sort.by(Sort.Order.asc("actionKey"), Sort.Order.desc("priority"))),
                     CrudMutationDefinition.forTypes(TYPES),
                     CrudViewDefinition.forTypes(TYPES),
-                    TenantScope.ORG_SHARED_WORKSPACE_OPTIONAL,
+                    TenantScope.GLOBAL,
                     PersonalScope.none());
 
     private AigcExecutionBindingResource() {}

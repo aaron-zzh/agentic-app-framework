@@ -55,7 +55,7 @@ public final class AigcProjectBlueprintResource {
                             .withCustomUpdateCommands(
                                     java.util.Map.of("PUBLISH", Set.of("status"))),
                     CrudViewDefinition.forTypes(TYPES),
-                    TenantScope.ORG_SHARED_WORKSPACE_OPTIONAL,
+                    TenantScope.GLOBAL,
                     PersonalScope.none());
 
     private AigcProjectBlueprintResource() {}
