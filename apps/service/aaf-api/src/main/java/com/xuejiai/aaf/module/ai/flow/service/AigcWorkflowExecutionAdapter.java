@@ -41,8 +41,7 @@ public class AigcWorkflowExecutionAdapter implements AigcWorkflowExecutionPort {
                                 () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "工作流不存在"));
         var flowWorkspaceId = flow.getWorkspaceId() == null ? 0L : flow.getWorkspaceId();
         var commandWorkspaceId = command.workspaceId() == null ? 0L : command.workspaceId();
-        if (!command.orgId().equals(flow.getOrgId())
-                || !commandWorkspaceId.equals(flowWorkspaceId)) {
+        if (!command.orgId().equals(flow.getOrgId()) || commandWorkspaceId != flowWorkspaceId) {
             throw new BusinessException(GlobalErrorCode.NOT_FOUND, "工作流不存在");
         }
         if (!"PUBLISHED".equals(flow.getStatus())) {

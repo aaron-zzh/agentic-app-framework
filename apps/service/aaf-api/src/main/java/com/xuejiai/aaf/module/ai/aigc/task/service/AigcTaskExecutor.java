@@ -45,6 +45,7 @@ import com.xuejiai.aaf.framework.security.license.License;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcGeneratedMediaCommand;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaType;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaView;
 import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
 import com.xuejiai.aaf.module.ai.aigc.task.event.AigcTaskTerminalEvent;
 import com.xuejiai.aaf.module.ai.aigc.task.mapper.AigcTaskMapper;
@@ -343,10 +344,10 @@ public class AigcTaskExecutor {
         }
     }
 
-    private MediaVO createMedia(
+    private AigcMediaView createMedia(
             AigcTask task,
             StoredFile file,
-            MediaType mediaType,
+            AigcMediaType mediaType,
             String name,
             Integer width,
             Integer height,

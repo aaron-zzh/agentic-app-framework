@@ -10,6 +10,7 @@ import java.util.Set;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.framework.crud.enforcement.AccessMode;
+import com.xuejiai.aaf.framework.crud.filter.CrudFilterSchema;
 import com.xuejiai.aaf.framework.crud.reference.CrudReferenceDefinition;
 import com.xuejiai.aaf.framework.crud.relation.RelationDefinition;
 
@@ -195,7 +196,7 @@ public record CrudResourceDefinition<E extends BaseEntity>(
             CrudResourceTypeContract<E> types,
             CrudQueryDefinition<E> query,
             CrudViewDefinition view) {
-        var resolvedSchema = query.filterSchema().resolve(types, view);
+        var resolvedSchema = CrudFilterSchema.resolve(query.filterSchema(), types, view);
         if (resolvedSchema == query.filterSchema()) {
             return query;
         }

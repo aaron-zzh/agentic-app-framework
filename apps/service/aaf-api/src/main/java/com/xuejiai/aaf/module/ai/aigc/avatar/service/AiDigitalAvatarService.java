@@ -6,6 +6,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.security.OperatorContext;
@@ -15,6 +17,8 @@ import com.xuejiai.aaf.module.ai.aigc.avatar.vo.AiDigitalAvatarCreateDTO;
 import com.xuejiai.aaf.module.ai.aigc.avatar.vo.AiDigitalAvatarPageDTO;
 import com.xuejiai.aaf.module.ai.aigc.avatar.vo.AiDigitalAvatarUpdateDTO;
 import com.xuejiai.aaf.module.ai.aigc.avatar.vo.AiDigitalAvatarVO;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaType;
 
 import lombok.RequiredArgsConstructor;
 
@@ -36,6 +40,7 @@ public class AiDigitalAvatarService
     private static final String STATUS_PENDING = "PENDING";
 
     private final AiDigitalAvatarRepository avatarRepository;
+    private final AigcMediaApi mediaApi;
     @org.springframework.beans.factory.annotation.Autowired private OperatorContext operatorContext;
 
     @Override
@@ -48,8 +53,8 @@ public class AiDigitalAvatarService
         return new AiDigitalAvatarVO(
                 e.getId(),
                 e.getName(),
-                e.getImageUrl(),
-                e.getSourceAssetId(),
+                e.getImageMediaVersionId(),
+                e.getSourceMediaVersionId(),
                 e.getDetectStatus(),
                 e.getDetectReason(),
                 e.getDefaultVoice(),
@@ -59,13 +64,19 @@ public class AiDigitalAvatarService
 
     @Override
     protected AiDigitalAvatar toEntity(AiDigitalAvatarCreateDTO dto) {
+        var userId = operatorContext.currentOwnerId().orElseThrow();
+        requireImageMediaVersion(dto.imageMediaVersionId(), userId, "形象图片");
+        if (dto.sourceMediaVersionId() != null) {
+            requireImageMediaVersion(dto.sourceMediaVersionId(), userId, "原始形象素材");
+        }
+
         var entity = new AiDigitalAvatar();
         entity.setName(dto.name());
-        entity.setImageUrl(dto.imageUrl());
-        entity.setSourceAssetId(dto.sourceAssetId());
+        entity.setImageMediaVersionId(dto.imageMediaVersionId());
+        entity.setSourceMediaVersionId(dto.sourceMediaVersionId());
         entity.setDefaultVoice(dto.defaultVoice());
         entity.setDetectStatus(STATUS_PENDING);
-        entity.setUserId(operatorContext.currentOwnerId().orElseThrow());
+        entity.setUserId(userId);
         return entity;
     }
 
@@ -84,5 +95,12 @@ public class AiDigitalAvatarService
                 .eqIfPresent("userId", currentUserId)
                 .eqIfPresent("detectStatus", dto.getDetectStatus())
                 .build();
+    }
+
+    private void requireImageMediaVersion(Long mediaVersionId, Long userId, String label) {
+        var media = mediaApi.getByVersionId(mediaVersionId, userId);
+        if (media.mediaType() != AigcMediaType.IMAGE) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, label + "媒体类型必须为IMAGE");
+        }
     }
 }

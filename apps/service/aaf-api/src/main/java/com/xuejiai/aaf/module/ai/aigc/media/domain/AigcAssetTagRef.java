@@ -5,7 +5,6 @@ import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import jakarta.persistence.IdClass;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -22,11 +21,11 @@ import lombok.Setter;
 @Table(name = "aigc_asset_tag_ref")
 public class AigcAssetTagRef {
 
-    @Id
+    @jakarta.persistence.Id
     @Column(name = "asset_id", nullable = false)
     private Long assetId;
 
-    @Id
+    @jakarta.persistence.Id
     @Column(name = "tag_id", nullable = false)
     private Long tagId;
 

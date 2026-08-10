@@ -18,11 +18,11 @@ public class AiDigitalAvatar extends BaseEntity {
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
-    @Column(name = "image_url", nullable = false, length = 1000)
-    private String imageUrl;
+    @Column(name = "image_media_version_id", nullable = false)
+    private Long imageMediaVersionId;
 
-    @Column(name = "source_asset_id")
-    private Long sourceAssetId;
+    @Column(name = "source_media_version_id")
+    private Long sourceMediaVersionId;
 
     /** 图片合规检测状态：PENDING / PASSED / FAILED */
     @Column(name = "detect_status", nullable = false, length = 20)

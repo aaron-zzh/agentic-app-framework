@@ -4,6 +4,8 @@ package com.xuejiai.aaf.module.ai.aigc.media.api;
 public interface AigcMediaView {
     Long id();
 
+    AigcMediaType mediaType();
+
     Long assetId();
 
     AigcMediaVersionView currentVersion();

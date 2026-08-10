@@ -5,8 +5,8 @@ import java.time.LocalDateTime;
 public record AiDigitalAvatarVO(
         Long id,
         String name,
-        String imageUrl,
-        Long sourceAssetId,
+        Long imageMediaVersionId,
+        Long sourceMediaVersionId,
         String detectStatus,
         String detectReason,
         String defaultVoice,

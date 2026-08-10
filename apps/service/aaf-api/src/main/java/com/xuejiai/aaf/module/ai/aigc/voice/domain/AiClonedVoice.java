@@ -39,15 +39,15 @@ public class AiClonedVoice extends BaseEntity {
     @Column(name = "target_model", nullable = false, length = 100)
     private String targetModel;
 
-    /** 复刻原始音频的 media_asset.id，可为空 */
-    @Column(name = "source_asset_id")
-    private Long sourceAssetId;
+    /** 复刻原始音频的不可变媒体版本 ID */
+    @Column(name = "source_media_version_id")
+    private Long sourceMediaVersionId;
 
     /** 所属用户 ID */
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    /** 示例音频 OSS URL，克隆完成后自动生成 */
-    @Column(name = "sample_audio_url", length = 1000)
-    private String sampleAudioUrl;
+    /** 克隆完成后生成的示例音频媒体版本 ID */
+    @Column(name = "sample_audio_media_version_id")
+    private Long sampleAudioMediaVersionId;
 }

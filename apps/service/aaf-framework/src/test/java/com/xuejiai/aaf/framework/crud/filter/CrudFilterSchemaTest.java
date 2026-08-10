@@ -118,7 +118,7 @@ class CrudFilterSchemaTest {
         var auto = CrudFilterSchema.<FilterEntity>auto();
         var none = CrudFilterSchema.<FilterEntity>none();
 
-        var metas = auto.resolve(types, view).metas();
+        var metas = CrudFilterSchema.resolve(auto, types, view).metas();
 
         assertThat(auto.mode()).isEqualTo(CrudFilterSchema.Mode.AUTO);
         assertThat(metas)
@@ -127,7 +127,7 @@ class CrudFilterSchemaTest {
         assertThat(metas.get(0).operators()).doesNotContain(CrudFilterOperator.IS_NULL.toMeta());
         assertThat(metas.get(1).operators()).contains(CrudFilterOperator.IS_NULL.toMeta());
         assertThat(none.mode()).isEqualTo(CrudFilterSchema.Mode.NONE);
-        assertThat(none.resolve(types, view)).isSameAs(none);
+        assertThat(CrudFilterSchema.resolve(none, types, view)).isSameAs(none);
         assertThat(none.metas()).isEmpty();
     }
 

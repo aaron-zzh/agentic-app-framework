@@ -1,10 +1,13 @@
 package com.xuejiai.aaf.module.ai.aigc.voice.service;
 
 import java.util.Set;
+import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.engine.cache.ConfigCacheManager;
@@ -13,13 +16,17 @@ import com.xuejiai.aaf.framework.intelligent.ai.omni.VoiceEnrollmentService.Crea
 import com.xuejiai.aaf.framework.intelligent.ai.speech.CosyVoiceEnrollmentService;
 import com.xuejiai.aaf.framework.intelligent.ai.speech.SpeechService;
 import com.xuejiai.aaf.framework.security.OperatorContext;
-import com.xuejiai.aaf.framework.storage.StorageService;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcGeneratedMediaCommand;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaType;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaView;
 import com.xuejiai.aaf.module.ai.aigc.voice.domain.AiClonedVoice;
 import com.xuejiai.aaf.module.ai.aigc.voice.repository.AiClonedVoiceRepository;
 import com.xuejiai.aaf.module.ai.aigc.voice.vo.AiClonedVoiceCreateDTO;
 import com.xuejiai.aaf.module.ai.aigc.voice.vo.AiClonedVoicePageDTO;
 import com.xuejiai.aaf.module.ai.aigc.voice.vo.AiClonedVoiceUpdateDTO;
 import com.xuejiai.aaf.module.ai.aigc.voice.vo.AiClonedVoiceVO;
+import com.xuejiai.aaf.module.system.file.api.FileStoragePort;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -51,7 +58,8 @@ public class AiClonedVoiceService
     private final CosyVoiceEnrollmentService cosyEnrollmentService;
     private final ConfigCacheManager configCacheManager;
     private final SpeechService speechService;
-    private final StorageService storageService;
+    private final FileStoragePort fileStoragePort;
+    private final AigcMediaApi mediaApi;
     @org.springframework.beans.factory.annotation.Autowired private OperatorContext operatorContext;
 
     @Override
@@ -71,8 +79,8 @@ public class AiClonedVoiceService
                 e.getVoice(),
                 e.getPreferredName(),
                 e.getTargetModel(),
-                e.getSourceAssetId(),
-                e.getSampleAudioUrl(),
+                e.getSourceMediaVersionId(),
+                e.getSampleAudioMediaVersionId(),
                 e.getUserId(),
                 e.getCreateTime());
     }
@@ -81,6 +89,12 @@ public class AiClonedVoiceService
     @Override
     @Transactional
     public AiClonedVoiceVO create(AiClonedVoiceCreateDTO dto) {
+        var userId = operatorContext.currentOwnerId().orElseThrow();
+        var sourceMedia =
+                requireMediaVersion(
+                        dto.sourceMediaVersionId(), userId, AigcMediaType.AUDIO, "复刻原始音频");
+        var sourceAudioUrl = sourceMedia.currentVersion().url();
+
         // 按 ai_model.capabilities 路由：SPEECH_TTS 走 CosyVoice SDK，其余走 Omni REST
         var aiModel = configCacheManager.getAiModelByModelId(dto.targetModel());
         boolean isTts = aiModel != null && aiModel.hasCapability("SPEECH_TTS");
@@ -89,39 +103,51 @@ public class AiClonedVoiceService
         if (isTts) {
             voice =
                     cosyEnrollmentService.createVoice(
-                            dto.targetModel(),
-                            dto.preferredName(),
-                            dto.audioData(),
-                            dto.language());
+                            dto.targetModel(), dto.preferredName(), sourceAudioUrl, dto.language());
         } else {
             voice =
                     enrollmentService.createVoice(
                             new CreateVoiceRequest(
                                     dto.targetModel(),
                                     dto.preferredName(),
-                                    dto.audioData(),
+                                    sourceAudioUrl,
                                     dto.text(),
                                     dto.language()));
         }
 
-        // 持久化到本地
         var entity = new AiClonedVoice();
         entity.setVoice(voice);
         entity.setPreferredName(dto.preferredName());
         entity.setTargetModel(dto.targetModel());
-        entity.setSourceAssetId(dto.sourceAssetId());
-        entity.setUserId(operatorContext.currentOwnerId().orElseThrow());
+        entity.setSourceMediaVersionId(dto.sourceMediaVersionId());
+        entity.setUserId(userId);
 
-        // TTS 类型：生成示例音频并上传 OSS
         if (isTts) {
             try {
-                byte[] audioBytes = speechService.synthesize(null, "你好，这是我的专属声音。", voice).audio();
-                String key =
-                        storageService.upload(
-                                new java.io.ByteArrayInputStream(audioBytes),
-                                "sample_" + dto.preferredName() + ".wav",
-                                "audio/wav");
-                entity.setSampleAudioUrl(storageService.getUrl(key));
+                var audioBytes = speechService.synthesize(aiModel, "你好，这是我的专属声音。", voice).audio();
+                var storedFile =
+                        fileStoragePort.uploadFromBytes(
+                                audioBytes,
+                                "aigc/voice/sample/%s.wav".formatted(UUID.randomUUID()),
+                                "audio/wav",
+                                userId);
+                var sampleMedia =
+                        mediaApi.createFromGeneratedFile(
+                                new AigcGeneratedMediaCommand(
+                                        userId,
+                                        "音色示例-" + dto.preferredName(),
+                                        AigcMediaType.AUDIO,
+                                        storedFile,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null));
+                entity.setSampleAudioMediaVersionId(sampleMedia.currentVersion().id());
             } catch (Exception e) {
                 log.warn("[ClonedVoice] 示例音频生成失败，不影响音色创建: voice={}", voice, e);
             }
@@ -156,5 +182,15 @@ public class AiClonedVoiceService
                 .eqIfPresent("userId", currentUserId)
                 .eqIfPresent("targetModel", dto.getTargetModel())
                 .build();
+    }
+
+    private AigcMediaView requireMediaVersion(
+            Long mediaVersionId, Long userId, AigcMediaType expectedType, String label) {
+        var media = mediaApi.getByVersionId(mediaVersionId, userId);
+        if (media.mediaType() != expectedType) {
+            throw new BusinessException(
+                    GlobalErrorCode.BAD_REQUEST, "%s媒体类型必须为%s".formatted(label, expectedType));
+        }
+        return media;
     }
 }
