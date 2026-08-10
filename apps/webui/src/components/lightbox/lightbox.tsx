@@ -22,7 +22,7 @@ function ReferenceButton() {
     <button
       type="button"
       className="yarl__button"
-      onClick={() => router.push(`/studio/create/image?refUrl=${encodeURIComponent(url)}`)}
+      onClick={() => router.push(`/studio/create?mode=image&refUrl=${encodeURIComponent(url)}`)}
       title="引用为参考图"
     >
       <ImagePlus size={24} />

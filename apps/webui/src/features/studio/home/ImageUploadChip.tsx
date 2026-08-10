@@ -1,75 +1,80 @@
 /**
- * ImageUploadChip——输入框内嵌图片上传 chip
+ * ImageUploadChip——媒体生成输入框内的方形图片附件。
  *
  * 状态：
- * - 上传中：进度圆圈 + 文件名（截断）
- * - 已完成：缩略图 + 文件名 + × 删除
+ * - 上传中：方形本地预览 + 进度蒙层
+ * - 已完成：方形缩略图，可点击打开 Lightbox
  *
  * @author AaronZZH & Kiro
  */
 "use client"
 
 import { X } from "lucide-react"
+import { Lightbox } from "@/components/lightbox/lightbox"
+import { useLightbox } from "@/components/lightbox/use-lightbox"
 
 interface ImageUploadChipProps {
   /** 文件名 */
   name: string
   /** 上传进度 0-100，100 表示完成 */
   progress: number
-  /** 完成后的预览 URL（blob URL 或 OSS URL） */
+  /** 预览 URL（blob URL 或 OSS URL） */
   previewSrc?: string
   /** 点击删除 */
   onRemove: () => void
 }
 
 export function ImageUploadChip({ name, progress, previewSrc, onRemove }: ImageUploadChipProps) {
-  const done = progress >= 100 && !!previewSrc
-  // 截断过长文件名
-  const displayName = name.length > 20 ? `${name.slice(0, 18)}…` : name
+  const slides = previewSrc ? [{ src: previewSrc }] : []
+  const { open, index, onOpen, onClose } = useLightbox(slides)
+  const normalizedProgress = Math.min(100, Math.max(0, Math.round(progress)))
+  const done = normalizedProgress >= 100
 
   return (
-    <span className="inline-flex max-w-[200px] shrink-0 items-center gap-1.5 rounded-full border border-foreground/[0.12] bg-foreground/[0.06] px-2 py-0.5 align-middle text-xs">
-      {done ? (
-        /* 完成态：缩略图 */
-        // biome-ignore lint/performance/noImgElement: thumbnail chip
-        <img src={previewSrc} alt={name} className="size-4 rounded-full object-cover" />
-      ) : (
-        /* 上传中：SVG 进度圆 */
-        <svg width="16" height="16" viewBox="0 0 16 16" className="shrink-0" aria-hidden="true">
-          <circle
-            cx="8"
-            cy="8"
-            r="6"
-            fill="none"
-            stroke="currentColor"
-            strokeOpacity={0.2}
-            strokeWidth="2"
-          />
-          <circle
-            cx="8"
-            cy="8"
-            r="6"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeDasharray={`${(progress / 100) * 37.7} 37.7`}
-            transform="rotate(-90 8 8)"
-            className="text-primary transition-[stroke-dasharray] duration-200"
-          />
-        </svg>
-      )}
-
-      <span className="truncate leading-none">{displayName}</span>
-
-      <button
-        type="button"
-        onClick={onRemove}
-        className="ml-0.5 flex shrink-0 items-center justify-center rounded-full opacity-50 hover:opacity-100"
-        aria-label="移除图片"
+    <>
+      <div
+        className="group relative size-14 shrink-0 overflow-hidden rounded-md border border-foreground/12 bg-foreground/6"
+        title={name}
       >
-        <X className="size-2.5" />
-      </button>
-    </span>
+        {previewSrc ? (
+          <button
+            type="button"
+            onClick={() => onOpen(previewSrc)}
+            className="flex size-full cursor-zoom-in items-center justify-center"
+            aria-label={`预览附件 ${name}`}
+          >
+            {/* biome-ignore lint/performance/noImgElement: blob/OSS 动态附件预览 */}
+            <img src={previewSrc} alt={name} className="size-full object-cover" />
+          </button>
+        ) : (
+          <div className="flex size-full items-center justify-center text-muted-foreground text-xs">
+            图片
+          </div>
+        )}
+
+        {!done ? (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/45 text-white text-xs tabular-nums backdrop-blur-[1px]">
+            {normalizedProgress}%
+          </div>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={onRemove}
+          className="absolute top-1 right-1 flex size-4 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-destructive"
+          aria-label={`移除附件 ${name}`}
+        >
+          <X className="size-3" />
+        </button>
+      </div>
+
+      <Lightbox
+        open={open}
+        index={index}
+        slides={slides}
+        close={onClose}
+        toolbar={{ buttons: ["close"] }}
+      />
+    </>
   )
 }
