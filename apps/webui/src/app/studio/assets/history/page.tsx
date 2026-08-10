@@ -47,11 +47,11 @@ function useAigcTaskHistory(page = 1, size = 40) {
 // ─── 任务类型→创作页路由 ──────────────────────────────────────────────────────
 
 function getCreatePath(type: string): string {
-  if (type.includes("VIDEO")) return "/studio/create/video"
-  if (type === "MUSIC") return "/studio/create/music"
-  if (type === "VOICE") return "/studio/create/voice"
-  if (type === "MODEL_3D") return "/studio/create/tools/3d"
-  return "/studio/create/image"
+  if (type.includes("VIDEO")) return "/studio/create?mode=video"
+  if (type === "MUSIC") return "/studio/create?mode=music"
+  if (type === "VOICE") return "/studio/create?mode=voice"
+  if (type === "MODEL_3D") return "/studio/create?mode=model-3d"
+  return "/studio/create?mode=image"
 }
 
 function writeRegenerateSession(task: AigcTaskVO) {

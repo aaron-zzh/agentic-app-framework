@@ -46,7 +46,7 @@ const TOOLS: Tool[] = [
   //   title: "Logo 生成",
   //   desc: "品牌 Logo / 头像 / Banner 快速生成",
   //   icon: ImageIcon,
-  //   href: "/studio/create/image?preset=logo",
+  //   href: "/studio/create?mode=image&preset=logo",
   //   tone: "violet"
   // },
   {
@@ -102,7 +102,7 @@ const TOOLS: Tool[] = [
   //   title: "3D 模型生成",
   //   desc: "文字描述一键生成 3D 模型",
   //   icon: Layers,
-  //   href: "/studio/create/tools/3d",
+  //   href: "/studio/create?mode=model-3d",
   //   tone: "violet"
   // }
 ]

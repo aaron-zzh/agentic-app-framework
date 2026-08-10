@@ -26,6 +26,7 @@ export function Model3dGenerationComposer(props: MediaGenerationComposerProps) {
       placeholder="描述你想生成的 3D 模型..."
       canSubmit={controller.canSubmit}
       isSubmitting={controller.isSubmitting}
+      creditEstimate={controller.creditEstimate}
       leadingTools={props.leadingTools}
       appearance={props.appearance}
       className={props.className}

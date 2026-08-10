@@ -8,10 +8,11 @@
 
 "use client"
 
-import { useCallback, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { useAigcStore } from "@/features/aigc/store"
 import { useAiSkills, useGenerateImage } from "@/lib/api/rest/ai"
+import { useEstimateAigcCredits } from "@/lib/hooks/use-estimate-aigc-credits"
 import { useFileUpload } from "@/lib/hooks/use-file-upload"
 import { useGenerationParams } from "@/lib/hooks/use-generation-params"
 import { useModelSelector } from "@/lib/hooks/use-model-selector"
@@ -49,9 +50,25 @@ export function useImageGenerationController({
     modelId,
     setModelId,
     currentModel
-  } = useModelSelector("IMAGE_GEN", { defaultValue: initialDraft?.model })
+  } = useModelSelector("IMAGE_GEN", { defaultValue: initialDraft?.model ?? "n1n:gpt-image-2" })
   const { params, onChangeParams, resolvedSize } = useGenerationParams(currentModel)
   const generateImage = useGenerateImage()
+  const estimateParams = useMemo(
+    () => ({
+      imageCount: params.imageCount ?? 1,
+      width: resolvedSize.width,
+      height: resolvedSize.height,
+      quality: params.quality
+    }),
+    [params.imageCount, params.quality, resolvedSize.height, resolvedSize.width]
+  )
+  const creditEstimate = useEstimateAigcCredits({
+    type: "IMAGE",
+    model: modelId,
+    prompt,
+    params: estimateParams,
+    enabled: Boolean(modelId)
+  })
 
   const uploadReferenceImage = useCallback(
     async (file: File) => {
@@ -98,6 +115,9 @@ export function useImageGenerationController({
         promptExtend: params.promptExtend,
         quality: params.quality,
         format: params.format,
+        background: params.background,
+        contentModeration: params.contentModeration,
+        seed: params.seed && params.seed > 0 ? params.seed : undefined,
         imageUrls: referenceImage ? [referenceImage.url] : undefined,
         systemPrompt: selectedSkill?.systemPrompt ?? undefined
       })
@@ -106,8 +126,8 @@ export function useImageGenerationController({
       setReferenceImage(null)
       setPendingImage(null)
       onTaskSubmitted?.({ mode: "image", taskId })
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "提交失败，请重试")
+    } catch {
+      // API 客户端已统一提示请求错误
     }
   }, [
     currentModel,
@@ -137,6 +157,7 @@ export function useImageGenerationController({
     params,
     onChangeParams,
     selectedSkill,
+    creditEstimate,
     setSelectedSkillId,
     submit,
     isSubmitting: generateImage.isPending || uploading,

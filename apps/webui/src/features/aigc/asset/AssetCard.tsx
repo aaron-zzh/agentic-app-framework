@@ -24,15 +24,15 @@ import type { AigcMedia, AigcMediaType } from "../types"
 function getGenerationPath(type: AigcMediaType): string {
   switch (type) {
     case "VIDEO":
-      return "/studio/create/video"
+      return "/studio/create?mode=video"
     case "AUDIO":
-      return "/studio/create/voice"
+      return "/studio/create?mode=voice"
     case "MUSIC":
-      return "/studio/create/music"
+      return "/studio/create?mode=music"
     case "MODEL_3D":
-      return "/studio/create/tools/3d"
+      return "/studio/create?mode=model-3d"
     default:
-      return "/studio/create/image"
+      return "/studio/create?mode=image"
   }
 }
 

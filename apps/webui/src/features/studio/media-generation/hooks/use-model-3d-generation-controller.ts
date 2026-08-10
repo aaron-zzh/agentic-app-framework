@@ -7,10 +7,11 @@
 "use client"
 
 import { useMutation } from "@tanstack/react-query"
-import { useCallback, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { toast } from "sonner"
 import type { MediaGenerationControllerOptions } from "@/features/studio/media-generation/types"
 import { request } from "@/lib/api/rest/entity"
+import { useEstimateAigcCredits } from "@/lib/hooks/use-estimate-aigc-credits"
 
 export const TEXTURE_OPTIONS = [
   { value: "none", label: "无贴图" },
@@ -32,6 +33,16 @@ export function useModel3dGenerationController({
 }: MediaGenerationControllerOptions = {}) {
   const [prompt, setPrompt] = useState(initialDraft?.prompt ?? "")
   const [textureQuality, setTextureQuality] = useState<TextureQuality>("none")
+  const estimateParams = useMemo(
+    () => ({ source: "text", textureQuality }),
+    [textureQuality]
+  )
+  const creditEstimate = useEstimateAigcCredits({
+    type: "MODEL_3D",
+    model: null,
+    prompt,
+    params: estimateParams
+  })
   const generateModel3d = useMutation({
     mutationFn: (input: Model3dSubmissionInput) =>
       request<number>("/aigc/tasks/submit", {
@@ -60,8 +71,8 @@ export function useModel3dGenerationController({
       toast.success(`3D 任务已提交（#${taskId}）`)
       setPrompt("")
       onTaskSubmitted?.({ mode: "model-3d", taskId })
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "提交失败，请重试")
+    } catch {
+      // API 客户端已统一提示请求错误
     }
   }, [generateModel3d, onTaskSubmitted, prompt, textureQuality])
 
@@ -70,6 +81,7 @@ export function useModel3dGenerationController({
     setPrompt,
     textureQuality,
     setTextureQuality,
+    creditEstimate,
     submit,
     isSubmitting: generateModel3d.isPending,
     canSubmit: !generateModel3d.isPending && prompt.trim().length > 0

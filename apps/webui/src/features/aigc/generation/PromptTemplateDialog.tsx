@@ -80,11 +80,11 @@ export function PromptTemplateDialog({
         }
       >
         <Sparkles className="size-3" />
-        模板库
+        提示词库
       </DialogTrigger>
       <DialogContent className="max-w-2xl! p-0">
         <DialogHeader className="border-b px-4 py-3">
-          <DialogTitle className="text-sm">选择提示词模板</DialogTitle>
+          <DialogTitle className="text-sm">选择提示词</DialogTitle>
         </DialogHeader>
         <div className="flex min-h-0" style={{ height: "60vh" }}>
           {/* 左侧分类 */}
@@ -107,7 +107,7 @@ export function PromptTemplateDialog({
           {/* 右侧模板列表 */}
           <ScrollArea className="flex-1">
             {filtered.length === 0 ? (
-              <p className="py-10 text-center text-muted-foreground text-sm">暂无模板</p>
+              <p className="py-10 text-center text-muted-foreground text-sm">暂无提示词</p>
             ) : (
               <div className="flex flex-col gap-2 p-3">
                 {filtered.map((t) => (

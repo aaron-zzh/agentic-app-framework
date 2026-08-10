@@ -22,6 +22,7 @@ export function MusicGenerationComposer(props: MediaGenerationComposerProps) {
       placeholder="描述你想生成的音乐..."
       canSubmit={controller.canSubmit}
       isSubmitting={controller.isSubmitting}
+      creditEstimate={controller.creditEstimate}
       leadingTools={props.leadingTools}
       appearance={props.appearance}
       className={props.className}

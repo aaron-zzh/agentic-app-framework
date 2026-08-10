@@ -11,7 +11,32 @@ import type { ReactNode } from "react"
 import type { VideoImageMode } from "@/lib/api/rest/ai"
 import type { AigcTaskEvent } from "@/lib/hooks/use-aigc-task-stream"
 
-export type MediaGenerationMode = "image" | "video" | "voice" | "music" | "model-3d"
+export const MEDIA_GENERATION_MODES = [
+  "image",
+  "video",
+  "voice",
+  "music",
+  "model-3d"
+] as const
+
+export type MediaGenerationMode = (typeof MEDIA_GENERATION_MODES)[number]
+
+/** 判断 URL 参数是否为受支持的媒体生成模式。 */
+export function isMediaGenerationMode(value: string | undefined): value is MediaGenerationMode {
+  return MEDIA_GENERATION_MODES.includes(value as MediaGenerationMode)
+}
+
+/** 构建统一媒体生成页面 URL。 */
+export function getMediaGenerationPath(
+  mode: MediaGenerationMode,
+  params: Record<string, string | undefined> = {}
+): string {
+  const searchParams = new URLSearchParams({ mode })
+  for (const [key, value] of Object.entries(params)) {
+    if (value) searchParams.set(key, value)
+  }
+  return `/studio/create?${searchParams.toString()}`
+}
 
 export type MediaTaskType = Extract<
   AigcTaskEvent["type"],
@@ -19,6 +44,12 @@ export type MediaTaskType = Extract<
 >
 
 export type MediaResultType = "IMAGE" | "VIDEO" | "AUDIO" | "MUSIC" | "MODEL_3D"
+
+export interface MediaCreditEstimate {
+  credits: number | null
+  sufficient: boolean
+  isLoading: boolean
+}
 
 export interface MediaImageAttachment {
   url: string

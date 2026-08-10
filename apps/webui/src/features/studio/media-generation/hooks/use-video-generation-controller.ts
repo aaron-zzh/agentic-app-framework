@@ -21,6 +21,7 @@ import {
   useGenerateVideo,
   type VideoImageMode
 } from "@/lib/api/rest/ai"
+import { useEstimateAigcCredits } from "@/lib/hooks/use-estimate-aigc-credits"
 import { useFileUpload } from "@/lib/hooks/use-file-upload"
 import { useGenerationParams } from "@/lib/hooks/use-generation-params"
 import { useModelSelector } from "@/lib/hooks/use-model-selector"
@@ -100,6 +101,38 @@ export function useVideoGenerationController({
     if (matched) setModelId(matched.value)
   }, [brands, imageMode, modelId, modelOptions, selectedBrand, setModelId])
 
+  const resolvedModelId = useMemo(() => {
+    const selectedProvider = currentModel?.provider ?? selectedBrand
+    return (
+      modelOptions.find(
+        (option) =>
+          option.meta.provider === selectedProvider &&
+          option.value.includes(MODEL_SUFFIX_BY_MODE[imageMode])
+      )?.value ?? modelId
+    )
+  }, [currentModel?.provider, imageMode, modelId, modelOptions, selectedBrand])
+  const estimateParams = useMemo(
+    () => ({
+      duration: Number(params.videoDuration?.replace("s", "")) || undefined,
+      resolution: params.resolution ?? currentModel?.videoConfig?.resolutions?.[0],
+      ratio: params.aspectRatio ?? currentModel?.videoConfig?.ratios?.[0]
+    }),
+    [
+      currentModel?.videoConfig?.ratios,
+      currentModel?.videoConfig?.resolutions,
+      params.aspectRatio,
+      params.resolution,
+      params.videoDuration
+    ]
+  )
+  const creditEstimate = useEstimateAigcCredits({
+    type: "VIDEO",
+    model: resolvedModelId,
+    prompt,
+    params: estimateParams,
+    enabled: Boolean(resolvedModelId)
+  })
+
   const selectBrand = useCallback(
     (provider: string) => {
       setSelectedBrand(provider)
@@ -173,17 +206,10 @@ export function useVideoGenerationController({
     }
 
     try {
-      const selectedProvider = currentModel?.provider ?? selectedBrand
-      const resolvedModel =
-        modelOptions.find(
-          (option) =>
-            option.meta.provider === selectedProvider &&
-            option.value.includes(MODEL_SUFFIX_BY_MODE[imageMode])
-        )?.value ?? modelId
       const videoConfig = currentModel?.videoConfig
       const taskId = await generateVideo.mutateAsync({
         prompt: normalizedPrompt || "参考图生成视频",
-        model: resolvedModel ?? undefined,
+        model: resolvedModelId ?? undefined,
         projectId,
         imageMode,
         imageUrl: imageMode === "FIRST_FRAME" ? referenceImage?.url : undefined,
@@ -208,8 +234,8 @@ export function useVideoGenerationController({
       setLastFrameImage(null)
       setPendingImage(null)
       onTaskSubmitted?.({ mode: "video", taskId })
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "提交失败，请重试")
+    } catch {
+      // API 客户端已统一提示请求错误
     }
   }, [
     currentModel,
@@ -223,7 +249,7 @@ export function useVideoGenerationController({
     projectId,
     prompt,
     referenceImage,
-    selectedBrand,
+    resolvedModelId,
     selectedSkill
   ])
 
@@ -253,6 +279,7 @@ export function useVideoGenerationController({
     selectedBrand,
     selectBrand,
     selectedSkill,
+    creditEstimate,
     setSelectedSkillId,
     submit,
     isSubmitting: generateVideo.isPending || uploading,

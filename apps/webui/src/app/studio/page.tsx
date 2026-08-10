@@ -21,12 +21,12 @@ const WELCOME_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000
 const QUICK_CREATE_ENTRIES = [
   {
     title: "图像",
-    href: "/studio/create/image",
+    href: "/studio/create?mode=image",
     icon: ImageIcon
   },
   {
     title: "视频",
-    href: "/studio/create/video",
+    href: "/studio/create?mode=video",
     icon: Video
   },
   {
@@ -36,12 +36,12 @@ const QUICK_CREATE_ENTRIES = [
   },
   {
     title: "配音",
-    href: "/studio/create/voice",
+    href: "/studio/create?mode=voice",
     icon: Mic
   },
   {
     title: "音乐",
-    href: "/studio/create/music",
+    href: "/studio/create?mode=music",
     icon: Music
   },
   {

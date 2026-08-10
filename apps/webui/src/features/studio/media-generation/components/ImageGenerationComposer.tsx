@@ -8,9 +8,9 @@
 
 "use client"
 
-import { ChevronDown, Plus, Wand2 } from "lucide-react"
+import { Plus, Wand2 } from "lucide-react"
 import { useRef, useState } from "react"
-import { ModelParamsBar } from "@/components/common/ModelParamsBar"
+import { ModelParamsPopover } from "@/components/common/ModelParamsPopover"
 import { ModelSelector } from "@/components/common/ModelSelector"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { PromptTemplateDialog } from "@/features/aigc/generation/PromptTemplateDialog"
@@ -25,7 +25,6 @@ import { cn } from "@/lib/utils"
 export function ImageGenerationComposer(props: MediaGenerationComposerProps) {
   const controller = useImageGenerationController(props)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [paramsOpen, setParamsOpen] = useState(false)
   const [skillPickerOpen, setSkillPickerOpen] = useState(false)
 
   const attachment = controller.pendingImage ?? controller.referenceImage
@@ -38,7 +37,16 @@ export function ImageGenerationComposer(props: MediaGenerationComposerProps) {
       placeholder="描述你想生成的图像内容..."
       canSubmit={controller.canSubmit}
       isSubmitting={controller.isSubmitting}
+      creditEstimate={controller.creditEstimate}
       leadingTools={props.leadingTools}
+      headerTools={
+        <PromptTemplateDialog
+          type="IMAGE_GEN"
+          hasReferenceImages={Boolean(controller.referenceImage)}
+          onSelect={controller.setPrompt}
+          triggerClassName="flex h-8 shrink-0 items-center gap-1 rounded-lg border border-foreground/8 px-2.5 text-muted-foreground text-xs transition-colors hover:bg-foreground/[0.06]"
+        />
+      }
       appearance={props.appearance}
       className={props.className}
       attachments={
@@ -82,13 +90,6 @@ export function ImageGenerationComposer(props: MediaGenerationComposerProps) {
             className="h-8 shrink-0 gap-1 rounded-lg border border-foreground/8 px-2.5 text-muted-foreground text-xs hover:bg-foreground/[0.06]"
           />
 
-          <PromptTemplateDialog
-            type="IMAGE_GEN"
-            hasReferenceImages={Boolean(controller.referenceImage)}
-            onSelect={controller.setPrompt}
-            triggerClassName="flex h-8 shrink-0 items-center gap-1 rounded-lg border border-foreground/8 px-2.5 text-muted-foreground text-xs transition-colors hover:bg-foreground/[0.06]"
-          />
-
           <Popover open={skillPickerOpen} onOpenChange={setSkillPickerOpen}>
             <PopoverTrigger
               render={
@@ -114,29 +115,14 @@ export function ImageGenerationComposer(props: MediaGenerationComposerProps) {
             </PopoverContent>
           </Popover>
 
-          <Popover open={paramsOpen} onOpenChange={setParamsOpen}>
-            <PopoverTrigger
-              render={
-                <button
-                  type="button"
-                  className="flex h-8 shrink-0 items-center gap-1 rounded-lg border border-foreground/8 px-2.5 text-muted-foreground text-xs transition-colors hover:bg-foreground/[0.06]"
-                />
-              }
-            >
-              参数
-              <ChevronDown className="size-3" />
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-[min(560px,calc(100vw-2rem))] p-3">
-              <ModelParamsBar
-                model={controller.currentModel}
-                params={controller.params}
-                onChangeParams={controller.onChangeParams}
-                isEditMode={Boolean(
-                  controller.referenceImage && controller.currentModel?.imageConfig?.edit
-                )}
-              />
-            </PopoverContent>
-          </Popover>
+          <ModelParamsPopover
+            model={controller.currentModel}
+            params={controller.params}
+            onChangeParams={controller.onChangeParams}
+            isEditMode={Boolean(
+              controller.referenceImage && controller.currentModel?.imageConfig?.edit
+            )}
+          />
         </>
       }
     />

@@ -48,7 +48,7 @@ export function CanvasAIPanel({ editor, entity }: CanvasAIPanelProps) {
       const file = new File([blob], "canvas-export.png", { type: "image/png" })
       const result = await upload(file)
       const url = result.url.startsWith("http") ? result.url : `${API_ORIGIN}${result.url}`
-      router.push(`/studio/create/image?refUrl=${encodeURIComponent(url)}`)
+      router.push(`/studio/create?mode=image&refUrl=${encodeURIComponent(url)}`)
     } catch {
       toast.error("导出失败，请重试")
     } finally {

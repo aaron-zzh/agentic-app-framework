@@ -38,7 +38,7 @@ commandRegistry.registerAll([
     label: "文生图",
     group: "创作",
     action: () => {
-      window.location.href = "/studio/create/image"
+      window.location.href = "/studio/create?mode=image"
     }
   },
   {
@@ -46,7 +46,7 @@ commandRegistry.registerAll([
     label: "文生视频",
     group: "创作",
     action: () => {
-      window.location.href = "/studio/create/video"
+      window.location.href = "/studio/create?mode=video"
     }
   },
   {
@@ -78,7 +78,7 @@ commandRegistry.registerAll([
     label: "配音",
     group: "创作",
     action: () => {
-      window.location.href = "/studio/create/voice"
+      window.location.href = "/studio/create?mode=voice"
     }
   },
   {
@@ -86,7 +86,7 @@ commandRegistry.registerAll([
     label: "音乐",
     group: "创作",
     action: () => {
-      window.location.href = "/studio/create/music"
+      window.location.href = "/studio/create?mode=music"
     }
   },
   {

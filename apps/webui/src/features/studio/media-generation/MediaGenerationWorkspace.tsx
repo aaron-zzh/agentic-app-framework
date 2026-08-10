@@ -12,6 +12,7 @@
 import { useRouter } from "next/navigation"
 import type { ReactNode } from "react"
 import { useCallback, useEffect, useState } from "react"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { GenerationResultCard } from "@/features/aigc/generation/GenerationResultCard"
 import { useAigcStore } from "@/features/aigc/store"
 import { ImageGenerationComposer } from "@/features/studio/media-generation/components/ImageGenerationComposer"
@@ -27,6 +28,7 @@ import type {
   MediaTaskType
 } from "@/features/studio/media-generation/types"
 import {
+  getMediaGenerationPath,
   isMediaTaskType,
   MODE_BY_TASK_TYPE,
   RESULT_TYPE_BY_MODE,
@@ -35,51 +37,19 @@ import {
 import type { VideoImageMode } from "@/lib/api/rest/ai"
 import { type AigcTaskEvent, useAigcTaskStream } from "@/lib/hooks/use-aigc-task-stream"
 import { useSlotStore } from "@/features/studio/slots/store"
-import { cn } from "@/lib/utils"
 
 interface Feature {
   key: MediaGenerationMode
   label: string
-  href: string
-  activeClass: string
 }
 
 const FEATURES: Feature[] = [
-  {
-    key: "image",
-    label: "AI 生图",
-    href: "/studio/create/image",
-    activeClass: "border-violet-500/40 bg-violet-500/15 text-violet-400"
-  },
-  {
-    key: "video",
-    label: "AI 视频",
-    href: "/studio/create/video",
-    activeClass: "border-cyan-500/40 bg-cyan-500/15 text-cyan-400"
-  },
-  {
-    key: "voice",
-    label: "配音",
-    href: "/studio/create/voice",
-    activeClass: "border-rose-500/40 bg-rose-500/15 text-rose-400"
-  },
-  {
-    key: "music",
-    label: "音乐",
-    href: "/studio/create/music",
-    activeClass: "border-emerald-500/40 bg-emerald-500/15 text-emerald-400"
-  },
-  {
-    key: "model-3d",
-    label: "3D",
-    href: "/studio/create/tools/3d",
-    activeClass: "border-violet-500/40 bg-violet-500/15 text-violet-400"
-  }
+  { key: "image", label: "AI 生图" },
+  { key: "video", label: "AI 视频" },
+  { key: "voice", label: "配音" },
+  { key: "music", label: "音乐" },
+  { key: "model-3d", label: "3D" }
 ]
-
-const FEATURE_BY_MODE = Object.fromEntries(
-  FEATURES.map((feature) => [feature.key, feature])
-) as Record<MediaGenerationMode, Feature>
 
 interface ParsedTaskParams {
   imageUrls?: string[]
@@ -95,6 +65,7 @@ interface WorkspaceDraft {
 
 interface MediaGenerationWorkspaceProps {
   initialMode?: MediaGenerationMode
+  initialDraft?: MediaGenerationDraft
   projectId?: number | null
 }
 
@@ -123,10 +94,13 @@ function resolveVideoImageMode(params: ParsedTaskParams): VideoImageMode {
 /** 组合五种媒体 Composer，并呈现当前模式的实时任务结果。 */
 export function MediaGenerationWorkspace({
   initialMode = "image",
+  initialDraft,
   projectId = null
 }: MediaGenerationWorkspaceProps) {
   const [activeMode, setActiveMode] = useState<MediaGenerationMode>(initialMode)
-  const [workspaceDraft, setWorkspaceDraft] = useState<WorkspaceDraft | null>(null)
+  const [workspaceDraft, setWorkspaceDraft] = useState<WorkspaceDraft | null>(() =>
+    initialDraft ? { mode: initialMode, value: initialDraft } : null
+  )
   const [tasksByType, setTasksByType] = useState<Record<MediaTaskType, AigcTaskEvent[]>>({
     IMAGE: [],
     VIDEO: [],
@@ -167,11 +141,10 @@ export function MediaGenerationWorkspace({
 
   const handleModeChange = useCallback(
     (mode: MediaGenerationMode) => {
-      const feature = FEATURE_BY_MODE[mode]
       setActiveMode(mode)
       setWorkspaceDraft(null)
       setSelectedSkillId(null)
-      router.push(feature.href)
+      router.push(getMediaGenerationPath(mode))
     },
     [router, setSelectedSkillId]
   )
@@ -204,31 +177,28 @@ export function MediaGenerationWorkspace({
           videoImageMode: mode === "video" ? resolveVideoImageMode(params) : undefined
         }
       }))
-      router.push(FEATURE_BY_MODE[mode].href)
+      router.push(getMediaGenerationPath(mode))
     },
     [router]
   )
 
-  const activeFeature = FEATURE_BY_MODE[activeMode]
   const activeTaskType = TASK_TYPE_BY_MODE[activeMode]
   const activeDraft = workspaceDraft?.mode === activeMode ? workspaceDraft.value : undefined
   const composerKey = `${activeMode}-${activeDraft?.revision ?? 0}`
   const modeSelector = (
-    <select
+    <Tabs
       value={activeMode}
-      onChange={(event) => handleModeChange(event.target.value as MediaGenerationMode)}
-      aria-label="生成模式"
-      className={cn(
-        "h-8 shrink-0 rounded-lg border px-2.5 text-xs outline-none",
-        activeFeature.activeClass
-      )}
+      onValueChange={(value) => handleModeChange(value as MediaGenerationMode)}
+      className="min-w-0"
     >
-      {FEATURES.map((feature) => (
-        <option key={feature.key} value={feature.key}>
-          {feature.label}
-        </option>
-      ))}
-    </select>
+      <TabsList className="h-8 max-w-full justify-start overflow-x-auto">
+        {FEATURES.map((feature) => (
+          <TabsTrigger key={feature.key} value={feature.key} className="h-7 px-3 text-xs">
+            {feature.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
   )
 
   const composerProps: MediaGenerationComposerProps = {

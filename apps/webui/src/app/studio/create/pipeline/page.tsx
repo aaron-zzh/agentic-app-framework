@@ -101,7 +101,7 @@ export default function StudioPipelineListPage() {
             <p className="text-muted-foreground text-sm">暂无模板</p>
             <Link href="/studio/create">
               <GlowButton tone="ghost" size="sm">
-                返回创作首页
+                返回素材生成
               </GlowButton>
             </Link>
           </div>

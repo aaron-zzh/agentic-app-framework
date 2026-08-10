@@ -7,10 +7,11 @@
 "use client"
 
 import { useMutation } from "@tanstack/react-query"
-import { useCallback, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { toast } from "sonner"
 import type { MediaGenerationControllerOptions } from "@/features/studio/media-generation/types"
 import { request } from "@/lib/api/rest/entity"
+import { useEstimateAigcCredits } from "@/lib/hooks/use-estimate-aigc-credits"
 
 interface MusicSubmissionInput {
   prompt: string
@@ -26,6 +27,16 @@ export function useMusicGenerationController({
   const [prompt, setPrompt] = useState(initialDraft?.prompt ?? "")
   const [lyrics, setLyrics] = useState("")
   const [gender, setGender] = useState("female")
+  const estimateParams = useMemo(
+    () => ({ lyrics: lyrics || undefined, gender }),
+    [gender, lyrics]
+  )
+  const creditEstimate = useEstimateAigcCredits({
+    type: "MUSIC",
+    model: null,
+    prompt: lyrics || prompt,
+    params: estimateParams
+  })
   const generateMusic = useMutation({
     mutationFn: (input: MusicSubmissionInput) =>
       request<number>("/aigc/tasks/submit", {
@@ -60,8 +71,8 @@ export function useMusicGenerationController({
       setPrompt("")
       setLyrics("")
       onTaskSubmitted?.({ mode: "music", taskId })
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "提交失败，请重试")
+    } catch {
+      // API 客户端已统一提示请求错误
     }
   }, [gender, generateMusic, lyrics, onTaskSubmitted, prompt])
 
@@ -72,6 +83,7 @@ export function useMusicGenerationController({
     setLyrics,
     gender,
     setGender,
+    creditEstimate,
     submit,
     isSubmitting: generateMusic.isPending,
     canSubmit:

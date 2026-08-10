@@ -24,6 +24,7 @@ export function VoiceGenerationComposer(props: MediaGenerationComposerProps) {
       maxLength={200}
       canSubmit={controller.canSubmit}
       isSubmitting={controller.isSubmitting}
+      creditEstimate={controller.creditEstimate}
       leadingTools={props.leadingTools}
       appearance={props.appearance}
       className={props.className}
