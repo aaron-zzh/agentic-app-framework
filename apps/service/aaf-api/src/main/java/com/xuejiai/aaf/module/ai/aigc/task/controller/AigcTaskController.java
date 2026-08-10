@@ -97,7 +97,6 @@ public class AigcTaskController
      * @return 统一任务 ID
      */
     @Operation(summary = "提交 AIGC 生成任务")
-    @PreAuthorize("hasAuthority('aigc:task:submit')")
     @PostMapping("/submit")
     @RateLimit(limit = 10, windowSeconds = 60, message = "任务提交过于频繁，请稍后再试")
     public Result<Long> submit(@Valid @RequestBody SubmitTaskDTO dto) {

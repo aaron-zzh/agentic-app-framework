@@ -36,21 +36,42 @@ public class AiAutoConfiguration {
         // 代码内置兜底（最低优先级），可被 yaml aaf.ai.default-models 覆盖
         var builtIn =
                 new java.util.HashMap<>(
-                        Map.of(
-                                CapabilityRoutingContext.CAP_CHAT,
+                        Map.ofEntries(
+                                Map.entry(
+                                        CapabilityRoutingContext.CAP_CHAT,
                                         properties.getDefaultModel() != null
                                                 ? properties.getDefaultModel()
-                                                : "deepseek:chat",
-                                CapabilityRoutingContext.CAP_IMAGE_GEN, "qwen:wan2.7-image",
-                                CapabilityRoutingContext.CAP_VIDEO_GEN, "qwen:happyhorse-1.1-i2v",
-                                CapabilityRoutingContext.CAP_SPEECH_ASR, "qwen:fun-asr-realtime",
-                                CapabilityRoutingContext.CAP_SPEECH_TTS, "qwen:cosyvoice-v3-flash",
-                                CapabilityRoutingContext.CAP_MUSIC_GEN, "qwen:fun-music-v1",
-                                CapabilityRoutingContext.CAP_OMNI_REALTIME,
-                                        "qwen:qwen3-omni-flash-realtime",
-                                CapabilityRoutingContext.CAP_RERANK, "qwen:qwen3-rerank",
-                                CapabilityRoutingContext.CAP_EMBEDDING, "qwen:text-embedding-v4",
-                                CapabilityRoutingContext.CAP_OCR, "qwen:qwen3.5-ocr"));
+                                                : "deepseek:chat"),
+                                Map.entry(
+                                        CapabilityRoutingContext.CAP_IMAGE_GEN,
+                                        "qwen:wan2.7-image"),
+                                Map.entry(
+                                        CapabilityRoutingContext.CAP_VIDEO_GEN,
+                                        "qwen:happyhorse-1.1-i2v"),
+                                Map.entry(
+                                        CapabilityRoutingContext.CAP_SPEECH_ASR,
+                                        "qwen:fun-asr-realtime"),
+                                Map.entry(
+                                        CapabilityRoutingContext.CAP_SPEECH_TTS,
+                                        "qwen:cosyvoice-v3-flash"),
+                                Map.entry(
+                                        CapabilityRoutingContext.CAP_MUSIC_GEN,
+                                        "qwen:fun-music-v1"),
+                                Map.entry(
+                                        CapabilityRoutingContext.CAP_MODEL_3D,
+                                        "tripo:tripo3d-v2"),
+                                Map.entry(
+                                        CapabilityRoutingContext.CAP_OMNI_REALTIME,
+                                        "qwen:qwen3-omni-flash-realtime"),
+                                Map.entry(
+                                        CapabilityRoutingContext.CAP_RERANK,
+                                        "qwen:qwen3-rerank"),
+                                Map.entry(
+                                        CapabilityRoutingContext.CAP_EMBEDDING,
+                                        "qwen:text-embedding-v4"),
+                                Map.entry(
+                                        CapabilityRoutingContext.CAP_OCR,
+                                        "qwen:qwen3.5-ocr")));
         // yaml 配置覆盖内置默认值
         if (properties.getDefaultModels() != null) {
             builtIn.putAll(properties.getDefaultModels());

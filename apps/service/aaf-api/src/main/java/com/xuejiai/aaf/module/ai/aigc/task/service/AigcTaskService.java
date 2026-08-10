@@ -572,7 +572,10 @@ public class AigcTaskService
                 yield model3dGenerationService.estimateCost(resolvedModel, req, markup);
             }
             case MUSIC -> {
-                var resolvedModel = configCacheManager.getAiModelByModelId(model);
+                var ctx =
+                        CapabilityRoutingContext.of(
+                                userId, CapabilityRoutingContext.CAP_MUSIC_GEN, model);
+                var resolvedModel = capabilityRouter.resolve(ctx);
                 var req = new MusicGenerationService.MusicRequest("", null, null, "mp3");
                 yield aiServiceRegistry
                         .get(MusicGenerationService.class, resolvedModel)
