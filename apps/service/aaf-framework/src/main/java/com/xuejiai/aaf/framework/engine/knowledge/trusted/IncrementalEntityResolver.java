@@ -136,7 +136,7 @@ public class IncrementalEntityResolver {
             throw new IllegalArgumentException("实体消歧结果字段集合不匹配，缺失=" + missing + "，未知=" + unknown);
         }
         var actionNode = root.get("action");
-        if (actionNode == null || !actionNode.isTextual()) {
+        if (actionNode == null || !actionNode.isString()) {
             throw new IllegalArgumentException("实体消歧 action 必须是字符串");
         }
         var action = actionNode.asString();
@@ -145,7 +145,7 @@ public class IncrementalEntityResolver {
         }
         var entityIdNode = root.get("entityId");
         if ("LINK".equals(action)) {
-            if (entityIdNode == null || !entityIdNode.isTextual()) {
+            if (entityIdNode == null || !entityIdNode.isString()) {
                 throw new IllegalArgumentException("LINK 的 entityId 必须是候选 UUID 字符串");
             }
             var entityId = parseUuid(entityIdNode.asString());

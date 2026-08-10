@@ -115,7 +115,7 @@ public class EntityDefService {
 
     private void validatePersistedCodeDefinition(EntityDef entity) {
         var config = JsonUtils.readTree(entity.getConfig());
-        if ("code".equals(config.path("kind").asText())) {
+        if ("code".equals(config.path("kind").asString())) {
             validateConfig(entity.getSlug(), config);
         }
     }
@@ -124,7 +124,7 @@ public class EntityDefService {
         if (config == null || !config.isObject()) {
             throw exception(ErrorCodeConstants.ENTITY_DEF_CONFIG_INVALID);
         }
-        if ("code".equals(config.path("kind").asText())) {
+        if ("code".equals(config.path("kind").asString())) {
             validateCodeResource(slug, config);
         }
     }
@@ -133,7 +133,7 @@ public class EntityDefService {
         if (config.has("slug") || config.has("apiPath")) {
             throw exception(ErrorCodeConstants.ENTITY_DEF_CONFIG_INVALID);
         }
-        var descriptor = requireCodeResource(config.path("resource").asText());
+        var descriptor = requireCodeResource(config.path("resource").asString());
         if (!slug.equals(descriptor.slug())) {
             throw exception(ErrorCodeConstants.ENTITY_DEF_CONFIG_INVALID);
         }
@@ -148,13 +148,13 @@ public class EntityDefService {
             return;
         }
         for (var field : fields) {
-            if (!field.isObject() || !"relationship".equals(field.path("type").asText())) {
+            if (!field.isObject() || !"relationship".equals(field.path("type").asString())) {
                 continue;
             }
             if (field.has("pickerPath")) {
                 throw exception(ErrorCodeConstants.ENTITY_DEF_CONFIG_INVALID);
             }
-            requireCodeResource(field.path("relationTo").asText());
+            requireCodeResource(field.path("relationTo").asString());
         }
     }
 
@@ -190,7 +190,7 @@ public class EntityDefService {
             if (!field.isObject()) {
                 continue;
             }
-            var type = field.path("type").asText();
+            var type = field.path("type").asString();
             if ("group".equals(type) || "tabs".equals(type) || "row".equals(type)) {
                 continue;
             }
@@ -208,12 +208,12 @@ public class EntityDefService {
     }
 
     private void validateFieldName(JsonNode fieldName, Set<String> allowedFields) {
-        if (!fieldName.isTextual() || fieldName.asText().isBlank()) {
+        if (!fieldName.isString() || fieldName.asString().isBlank()) {
             return;
         }
-        if (!allowedFields.contains(fieldName.asText())) {
+        if (!allowedFields.contains(fieldName.asString())) {
             throw exception(
-                    ErrorCodeConstants.ENTITY_DEF_VIEW_FIELD_UNDECLARED, fieldName.asText());
+                    ErrorCodeConstants.ENTITY_DEF_VIEW_FIELD_UNDECLARED, fieldName.asString());
         }
     }
 
@@ -270,14 +270,14 @@ public class EntityDefService {
     }
 
     private String resolveApiPath(JsonNode config) {
-        if (!"code".equals(config.path("kind").asText())) {
+        if (!"code".equals(config.path("kind").asString())) {
             return null;
         }
-        return requireCodeResource(config.path("resource").asText()).apiPath();
+        return requireCodeResource(config.path("resource").asString()).apiPath();
     }
 
     private JsonNode enrichCodeConfig(JsonNode config) {
-        if (!"code".equals(config.path("kind").asText()) || !(config instanceof ObjectNode)) {
+        if (!"code".equals(config.path("kind").asString()) || !(config instanceof ObjectNode)) {
             return config;
         }
         var enriched = (ObjectNode) config.deepCopy();
@@ -291,10 +291,10 @@ public class EntityDefService {
         }
         for (var field : fields) {
             if (!(field instanceof ObjectNode relationship)
-                    || !"relationship".equals(relationship.path("type").asText())) {
+                    || !"relationship".equals(relationship.path("type").asString())) {
                 continue;
             }
-            var relation = requireCodeResource(relationship.path("relationTo").asText());
+            var relation = requireCodeResource(relationship.path("relationTo").asString());
             relationship.put("pickerPath", relation.apiPath() + "/_options");
         }
     }

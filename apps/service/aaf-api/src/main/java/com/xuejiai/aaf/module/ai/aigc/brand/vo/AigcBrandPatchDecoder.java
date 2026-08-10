@@ -8,8 +8,8 @@ public final class AigcBrandPatchDecoder {
     private AigcBrandPatchDecoder() {}
 
     public static String text(JsonNode node) {
-        if (!node.isTextual()) throw new IllegalArgumentException("字段必须是字符串");
-        return node.asText();
+        if (!node.isString()) throw new IllegalArgumentException("字段必须是字符串");
+        return node.asString();
     }
 
     public static Long longValue(JsonNode node) {

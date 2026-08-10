@@ -61,10 +61,10 @@ public record TodoUpdateDTO(
     }
 
     private static String decodeText(JsonNode node, String field) {
-        if (!node.isTextual()) {
+        if (!node.isString()) {
             throw new IllegalArgumentException(field + " 必须是字符串");
         }
-        return node.asText();
+        return node.asString();
     }
 
     private static Long decodeLong(JsonNode node) {
@@ -75,9 +75,9 @@ public record TodoUpdateDTO(
     }
 
     private static LocalDateTime decodeDateTime(JsonNode node) {
-        if (!node.isTextual()) {
+        if (!node.isString()) {
             throw new IllegalArgumentException("截止时间必须是 ISO 日期时间");
         }
-        return LocalDateTime.parse(node.asText());
+        return LocalDateTime.parse(node.asString());
     }
 }

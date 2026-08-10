@@ -145,7 +145,7 @@ public class AiFlowBpmnCompiler {
         var id = requiredText(node, "id");
         var type = requiredText(node, "type");
         var data = node.path("data");
-        var name = data.path("label").asText(id);
+        var name = data.path("label").asString(id);
         switch (type) {
             case "start" -> emptyElement(xml, "startEvent", id, name, null);
             case "end" -> emptyElement(xml, "endEvent", id, name, null);
@@ -202,9 +202,9 @@ public class AiFlowBpmnCompiler {
 
     private void renderWait(
             StringBuilder xml, String id, String name, JsonNode data, Map<String, String> signals) {
-        var waitType = data.path("waitType").asText("signal");
+        var waitType = data.path("waitType").asString("signal");
         if ("human".equals(waitType)) {
-            var assignee = data.path("assignee").asText();
+            var assignee = data.path("assignee").asString();
             xml.append("    <userTask id=\"")
                     .append(escape(id))
                     .append("\" name=\"")
@@ -222,7 +222,7 @@ public class AiFlowBpmnCompiler {
                 .append(escape(name))
                 .append("\">\n");
         if ("timer".equals(waitType)) {
-            var duration = data.path("waitKey").asText();
+            var duration = data.path("waitKey").asString();
             if (duration.isBlank()) throw badRequest("定时等待节点必须配置 ISO-8601 时长");
             xml.append("      <timerEventDefinition><timeDuration>")
                     .append(escape(duration))
@@ -240,7 +240,7 @@ public class AiFlowBpmnCompiler {
         var id = requiredText(edge, "id");
         var source = requiredText(edge, "source");
         var target = requiredText(edge, "target");
-        var label = edge.path("label").asText();
+        var label = edge.path("label").asString();
         xml.append("    <sequenceFlow id=\"")
                 .append(escape(id))
                 .append("\" sourceRef=\"")
@@ -251,10 +251,10 @@ public class AiFlowBpmnCompiler {
         if (!label.isBlank()) xml.append(" name=\"").append(escape(label)).append("\"");
         xml.append(">\n");
 
-        var condition = edge.path("condition").asText();
-        if ("iteration".equals(sourceNode.path("type").asText())) {
+        var condition = edge.path("condition").asString();
+        if ("iteration".equals(sourceNode.path("type").asString())) {
             condition =
-                    "loop-out".equals(edge.path("sourceHandle").asText())
+                    "loop-out".equals(edge.path("sourceHandle").asString())
                             ? "${hasNextIteration == true}"
                             : "${hasNextIteration == false}";
         }
@@ -283,7 +283,7 @@ public class AiFlowBpmnCompiler {
             var id = requiredText(node, "id");
             var x = node.path("position").path("x").asDouble(0);
             var y = node.path("position").path("y").asDouble(0);
-            var event = Set.of("start", "end").contains(node.path("type").asText());
+            var event = Set.of("start", "end").contains(node.path("type").asString());
             var width = event ? 36 : 160;
             var height = event ? 36 : 80;
             xml.append("    <bpmndi:BPMNShape id=\"")
@@ -323,7 +323,7 @@ public class AiFlowBpmnCompiler {
     }
 
     private double[] center(JsonNode node) {
-        var event = Set.of("start", "end").contains(node.path("type").asText());
+        var event = Set.of("start", "end").contains(node.path("type").asString());
         return new double[] {
             node.path("position").path("x").asDouble(0) + (event ? 18 : 80),
             node.path("position").path("y").asDouble(0) + (event ? 18 : 40)
@@ -335,10 +335,10 @@ public class AiFlowBpmnCompiler {
         var defaults = new HashMap<String, String>();
         nodeById.forEach(
                 (nodeId, node) -> {
-                    if (!"condition".equals(node.path("type").asText())) return;
+                    if (!"condition".equals(node.path("type").asString())) return;
                     var unconditioned =
                             outgoing.getOrDefault(nodeId, List.of()).stream()
-                                    .filter(edge -> edge.path("condition").asText().isBlank())
+                                    .filter(edge -> edge.path("condition").asString().isBlank())
                                     .toList();
                     if (unconditioned.size() > 1) {
                         throw badRequest("条件节点只能有一条无条件默认连线: " + nodeId);
@@ -353,10 +353,10 @@ public class AiFlowBpmnCompiler {
     private Map<String, String> collectSignals(List<JsonNode> nodes) {
         var signals = new HashMap<String, String>();
         for (var node : nodes) {
-            if (!"wait".equals(node.path("type").asText())) continue;
+            if (!"wait".equals(node.path("type").asString())) continue;
             var data = node.path("data");
-            if (!"signal".equals(data.path("waitType").asText("signal"))) continue;
-            var waitKey = data.path("waitKey").asText();
+            if (!"signal".equals(data.path("waitType").asString("signal"))) continue;
+            var waitKey = data.path("waitKey").asString();
             if (waitKey.isBlank()) throw badRequest("信号等待节点必须配置 waitKey");
             signals.put(requiredText(node, "id"), waitKey);
         }
@@ -423,7 +423,7 @@ public class AiFlowBpmnCompiler {
     }
 
     private String requiredText(JsonNode node, String field) {
-        var value = node.path(field).asText();
+        var value = node.path(field).asString();
         if (value.isBlank()) throw badRequest("字段不能为空: " + field);
         return value;
     }

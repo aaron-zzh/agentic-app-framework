@@ -48,7 +48,7 @@ public final class JpaRoleDefinitionAdapter implements RoleDefinitionPort {
                 throw new IllegalStateException(fieldName + " 必须是 JSON 字符串数组");
             }
             for (var item : node) {
-                if (!item.isTextual()) {
+                if (!item.isString()) {
                     throw new IllegalStateException(fieldName + " 必须是 JSON 字符串数组");
                 }
             }

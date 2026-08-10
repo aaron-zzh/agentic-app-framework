@@ -58,25 +58,25 @@ final class FilterPayloadParser {
         var field = condition.path("field");
         var operator = condition.path("operator");
         var values = condition.path("values");
-        if (!field.isTextual()
-                || !field.asText().matches(FIELD_PATTERN)
-                || !operator.isTextual()
+        if (!field.isString()
+                || !field.asString().matches(FIELD_PATTERN)
+                || !operator.isString()
                 || !values.isArray()) {
             throw invalidFilter();
         }
 
         var parsedValues = new ArrayList<String>();
         for (var value : values) {
-            if (!value.isTextual() || value.asText().isBlank()) {
+            if (!value.isString() || value.asString().isBlank()) {
                 throw invalidFilter();
             }
-            parsedValues.add(value.asText());
+            parsedValues.add(value.asString());
         }
-        var parsedOperator = CrudFilterOperator.fromValue(operator.asText());
+        var parsedOperator = CrudFilterOperator.fromValue(operator.asString());
         if (!parsedOperator.supportsValueCount(parsedValues.size())) {
             throw invalidFilter();
         }
-        return new CrudFilter(field.asText(), parsedOperator, parsedValues);
+        return new CrudFilter(field.asString(), parsedOperator, parsedValues);
     }
 
     private static RuntimeException invalidFilter() {

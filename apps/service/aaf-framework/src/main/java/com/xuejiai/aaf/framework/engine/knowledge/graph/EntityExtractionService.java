@@ -189,7 +189,7 @@ public class EntityExtractionService {
 
     private String requiredString(JsonNode item, String field, int index) {
         var value = item.get(field);
-        if (value == null || !value.isTextual()) {
+        if (value == null || !value.isString()) {
             throw invalidItem(index, field + " 必须是字符串");
         }
         return value.asString();
@@ -216,7 +216,7 @@ public class EntityExtractionService {
         if (value == null || value.isNull()) {
             return null;
         }
-        if (!value.isTextual()) {
+        if (!value.isString()) {
             throw invalidItem(index, field + " 必须是 ISO-8601 时间字符串或 null");
         }
         try {
@@ -261,7 +261,7 @@ public class EntityExtractionService {
         if (value == null || value.isNull()) {
             throw invalidItem(index, "attributes 值不能为 null: " + key);
         }
-        if (value.isTextual() || value.isBoolean() || value.isNumber()) {
+        if (value.isString() || value.isBoolean() || value.isNumber()) {
             if (value.isNumber() && !Double.isFinite(value.asDouble())) {
                 throw invalidItem(index, "attributes 数值必须有限: " + key);
             }
@@ -271,7 +271,7 @@ public class EntityExtractionService {
             for (var item : value) {
                 if (item != null
                         && !item.isNull()
-                        && (item.isTextual()
+                        && (item.isString()
                                 || item.isBoolean()
                                 || (item.isNumber() && Double.isFinite(item.asDouble())))) {
                     continue;

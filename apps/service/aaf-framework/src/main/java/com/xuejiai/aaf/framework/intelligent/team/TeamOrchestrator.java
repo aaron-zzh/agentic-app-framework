@@ -174,10 +174,10 @@ public class TeamOrchestrator {
 
             var requiredCapability = node.get("requiredCapability");
             if (requiredCapability != null && !requiredCapability.isNull()) {
-                if (!requiredCapability.isTextual()) {
+                if (!requiredCapability.isString()) {
                     throw new IllegalArgumentException("任务字段 requiredCapability 必须是字符串");
                 }
-                task.setRequiredCapability(requiredCapability.asText());
+                task.setRequiredCapability(requiredCapability.asString());
             }
 
             var dependencies = node.path("dependencies");
@@ -187,10 +187,10 @@ public class TeamOrchestrator {
                 }
                 var dependencyIds = new ArrayList<String>();
                 for (var dependency : dependencies) {
-                    if (!dependency.isTextual() || dependency.asText().isBlank()) {
+                    if (!dependency.isString() || dependency.asString().isBlank()) {
                         throw new IllegalArgumentException("任务依赖必须是非空字符串");
                     }
-                    dependencyIds.add(dependency.asText());
+                    dependencyIds.add(dependency.asString());
                 }
                 task.setDependencies(String.join(",", dependencyIds));
             }
@@ -224,9 +224,9 @@ public class TeamOrchestrator {
 
     private String requiredText(JsonNode node, String fieldName) {
         var value = node.get(fieldName);
-        if (value == null || !value.isTextual() || value.asText().isBlank()) {
+        if (value == null || !value.isString() || value.asString().isBlank()) {
             throw new IllegalArgumentException("任务字段 " + fieldName + " 必须是非空字符串");
         }
-        return value.asText();
+        return value.asString();
     }
 }

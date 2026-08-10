@@ -14,11 +14,11 @@ final class TodoJsonDecoder {
 
     static ResourceReference decodeReference(JsonNode node) {
         if (!node.isObject()
-                || !node.path("resource").isTextual()
+                || !node.path("resource").isString()
                 || !node.path("id").isIntegralNumber()) {
             throw new IllegalArgumentException("来源引用格式非法");
         }
-        return new ResourceReference(node.path("resource").asText(), node.path("id").longValue());
+        return new ResourceReference(node.path("resource").asString(), node.path("id").longValue());
     }
 
     static List<Long> decodeIds(JsonNode node) {

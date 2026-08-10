@@ -95,9 +95,9 @@ public final class PolicyDslCompiler {
 
     private PolicyExpression compilePredicate(JsonNode node, PolicyFactSchema schema) {
         if (!node.hasNonNull("field")
-                || !node.get("field").isTextual()
+                || !node.get("field").isString()
                 || !node.hasNonNull("op")
-                || !node.get("op").isTextual()) {
+                || !node.get("op").isString()) {
             throw new PolicyCompilationException("叶子节点必须声明字符串 field 和 op");
         }
         var fact = limitedText(node.get("field"), "field");
@@ -150,7 +150,7 @@ public final class PolicyDslCompiler {
         }
         return switch (type) {
             case STRING -> {
-                if (!node.isTextual()) {
+                if (!node.isString()) {
                     throw new PolicyCompilationException("策略字面量必须是 STRING");
                 }
                 yield limitedText(node, "value");
