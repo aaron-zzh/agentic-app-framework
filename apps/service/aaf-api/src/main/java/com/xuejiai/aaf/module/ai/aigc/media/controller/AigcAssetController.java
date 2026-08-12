@@ -48,14 +48,14 @@ public class AigcAssetController
     }
 
     @Operation(summary = "查询资产标签")
-    @PreAuthorize("hasAuthority('aigc:asset:read')")
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/{id}/tags")
     public Result<List<AigcAssetTagVO>> tags(@PathVariable Long id) {
         return Result.success(assetService.tags(id));
     }
 
     @Operation(summary = "整体替换资产标签")
-    @PreAuthorize("hasAuthority('aigc:asset:tag')")
+    @PreAuthorize("isAuthenticated()")
     @PutMapping("/{id}/tags")
     public Result<List<AigcAssetTagVO>> replaceTags(
             @PathVariable Long id, @Valid @RequestBody AigcAssetTagsDTO command) {

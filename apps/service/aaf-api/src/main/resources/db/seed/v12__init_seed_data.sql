@@ -146,7 +146,7 @@ VALUES ('admin', '$2a$10$UyqdQK.M7V9FE4IzbbzeUeQnU.NsumDR.RCviFq4Pt04Y/F4VWLKC',
 ON CONFLICT (username) WHERE deleted = FALSE DO NOTHING;
 
 INSERT INTO sys_organization (name, slug, type, owner_id, create_by)
-SELECT '默认工作空间', 'personal-' || u.id, 'personal', u.id, u.id
+SELECT u.username, 'personal-' || u.id, 'personal', u.id, u.id
 FROM sys_user u WHERE u.username = 'admin'
   AND NOT EXISTS (SELECT 1 FROM sys_organization o WHERE o.slug = 'personal-' || u.id);
 
@@ -768,7 +768,7 @@ VALUES
     ('SYSTEM', NULL, 'MUSIC_GEN',  '["qwen:fun-music-v1"]'),
     ('SYSTEM', NULL, 'SPEECH_ASR', '["qwen:fun-asr-realtime"]'),
     ('SYSTEM', NULL, 'SPEECH_TTS', '["qwen:cosyvoice-v3-flash"]'),
-    ('SYSTEM', NULL, 'MODEL_3D',   '["meshy:meshy-4"]')
+    ('SYSTEM', NULL, 'MODEL_3D',   '["tripo:tripo3d-v2"]')
 ON CONFLICT ON CONSTRAINT uq_model_preference DO NOTHING;
 
 -- 3D 生成定价矩阵（source × textureQuality）

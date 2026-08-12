@@ -29,6 +29,14 @@ public class BatchGenerationTask extends BaseEntity {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
+    /** 所属项目 ID，NULL 表示全局批量任务。 */
+    @Column(name = "project_id")
+    private Long projectId;
+
+    /** 关联执行记录 ID。 */
+    @Column(name = "execution_run_id")
+    private Long executionRunId;
+
     /** 任务状态，枚举 {@link BatchTaskStatus} */
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)

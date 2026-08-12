@@ -17,6 +17,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.module.document.api.DocumentReferenceApi;
 import com.xuejiai.aaf.module.document.api.DocumentSourceApi;
 import com.xuejiai.aaf.module.document.api.DocumentSourceApi.SourceDocument;
 import com.xuejiai.aaf.module.document.api.DocumentSourceApi.SourceDocumentCommand;
@@ -28,7 +29,7 @@ import com.xuejiai.aaf.module.document.vo.*;
 
 /** 文档管理服务。 */
 @Service
-public class DocumentService implements DocumentSourceApi {
+public class DocumentService implements DocumentSourceApi, DocumentReferenceApi {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentService.class);
 
@@ -86,20 +87,35 @@ public class DocumentService implements DocumentSourceApi {
 
     /** 获取文档树（按当前用户 ownerId 过滤）。 */
     public List<DocTreeNodeVO> getTree() {
-        Long ownerId = operatorContext.currentOwnerId().orElse(null);
-        List<Document> docs =
-                ownerId != null
-                        ? documentRepository.findByOwnerIdAndStatusOrderByCreateTimeDesc(
-                                ownerId, "active")
-                        : documentRepository.findByStatusOrderByFilePath("active");
-        return buildTree(docs);
+        return operatorContext
+                .currentOwnerId()
+                .map(
+                        ownerId ->
+                                buildTree(
+                                        documentRepository
+                                                .findByOwnerIdAndStatusOrderByCreateTimeDesc(
+                                                        ownerId, "active")))
+                .orElseGet(List::of);
     }
 
-    /** 获取文档详情。 */
+    /** 获取当前用户的有效文档详情。 */
     public Document getById(Long id) {
-        return documentRepository
-                .findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "文档不存在"));
+        var ownerId = operatorContext.currentOwnerId().orElse(null);
+        return requireOwnedDocument(id, ownerId);
+    }
+
+    /** 校验一组文档均属于指定 owner 且处于有效状态。 */
+    @Override
+    @Transactional(readOnly = true)
+    public List<OwnedDocument> requireOwned(Collection<Long> documentIds, Long ownerId) {
+        if (documentIds == null || documentIds.isEmpty()) {
+            return List.of();
+        }
+        return new LinkedHashSet<>(documentIds)
+                .stream()
+                        .map(documentId -> requireOwnedDocument(documentId, ownerId))
+                        .map(document -> new OwnedDocument(document.getId(), document.getOwnerId()))
+                        .toList();
     }
 
     /** 更新文档（标题/内容/类型/发布状态），同步写回本地文件。 */
@@ -209,7 +225,11 @@ public class DocumentService implements DocumentSourceApi {
 
     /** 全文检索。 */
     public List<DocSearchResultVO> search(String query) {
-        return documentRepository.fullTextSearch(query).stream()
+        var ownerId = operatorContext.currentOwnerId().orElse(null);
+        if (ownerId == null) {
+            return List.of();
+        }
+        return documentRepository.fullTextSearch(query, ownerId).stream()
                 .map(
                         doc ->
                                 new DocSearchResultVO(
@@ -222,42 +242,68 @@ public class DocumentService implements DocumentSourceApi {
 
     /** 获取文档关系图数据（nodes + edges，1 跳）。 */
     public DocRelationGraphVO getRelations(Long id) {
-        getById(id); // 校验存在
+        Document center = getById(id);
 
         List<DocLink> outgoing = docLinkRepository.findBySourceId(id);
         List<DocLink> incoming = docLinkRepository.findByTargetId(id);
 
         Set<Long> nodeIds = new HashSet<>();
         nodeIds.add(id);
-        outgoing.forEach(l -> nodeIds.add(l.getTargetId()));
-        incoming.forEach(l -> nodeIds.add(l.getSourceId()));
+        outgoing.forEach(link -> nodeIds.add(link.getTargetId()));
+        incoming.forEach(link -> nodeIds.add(link.getSourceId()));
 
-        List<Document> nodes = documentRepository.findAllById(nodeIds);
+        List<Document> nodes =
+                documentRepository.findAllByIdInAndOwnerIdAndStatus(
+                        nodeIds, center.getOwnerId(), "active");
+        Set<Long> visibleNodeIds = nodes.stream().map(Document::getId).collect(Collectors.toSet());
 
         List<DocRelationGraphVO.Edge> edges = new ArrayList<>();
-        outgoing.forEach(
-                l ->
-                        edges.add(
-                                new DocRelationGraphVO.Edge(
-                                        l.getSourceId(), l.getTargetId(), l.getLinkType())));
-        incoming.forEach(
-                l ->
-                        edges.add(
-                                new DocRelationGraphVO.Edge(
-                                        l.getSourceId(), l.getTargetId(), l.getLinkType())));
+        outgoing.stream()
+                .filter(
+                        link ->
+                                visibleNodeIds.contains(link.getSourceId())
+                                        && visibleNodeIds.contains(link.getTargetId()))
+                .forEach(
+                        link ->
+                                edges.add(
+                                        new DocRelationGraphVO.Edge(
+                                                link.getSourceId(),
+                                                link.getTargetId(),
+                                                link.getLinkType())));
+        incoming.stream()
+                .filter(
+                        link ->
+                                visibleNodeIds.contains(link.getSourceId())
+                                        && visibleNodeIds.contains(link.getTargetId()))
+                .forEach(
+                        link ->
+                                edges.add(
+                                        new DocRelationGraphVO.Edge(
+                                                link.getSourceId(),
+                                                link.getTargetId(),
+                                                link.getLinkType())));
 
         List<DocRelationGraphVO.Node> graphNodes =
                 nodes.stream()
                         .map(
-                                d ->
+                                document ->
                                         new DocRelationGraphVO.Node(
-                                                d.getId(),
-                                                d.getTitle(),
-                                                d.getFilePath(),
-                                                d.getId().equals(id)))
+                                                document.getId(),
+                                                document.getTitle(),
+                                                document.getFilePath(),
+                                                document.getId().equals(id)))
                         .collect(Collectors.toList());
 
         return new DocRelationGraphVO(graphNodes, edges);
+    }
+
+    private Document requireOwnedDocument(Long documentId, Long ownerId) {
+        if (ownerId == null) {
+            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "文档不存在");
+        }
+        return documentRepository
+                .findByIdAndOwnerIdAndStatus(documentId, ownerId, "active")
+                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "文档不存在"));
     }
 
     private void validateFilePath(String filePath) {

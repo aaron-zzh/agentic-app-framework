@@ -13,6 +13,8 @@ public interface AigcObjectVersionRepository extends JpaRepository<AigcObjectVer
 
     List<AigcObjectVersion> findByObjectIdAndStatus(Long objectId, String status);
 
+    List<AigcObjectVersion> findByProjectIdOrderByIdAsc(Long projectId);
+
     List<AigcObjectVersion> findByExecutionRunIdOrderByIdAsc(Long executionRunId);
 
     Optional<AigcObjectVersion> findFirstByObjectIdOrderByVersionNoDesc(Long objectId);

@@ -6,6 +6,9 @@ import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.xuejiai.aaf.framework.crud.CrudEntityRepository;
 import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
@@ -34,4 +37,18 @@ public interface AigcTaskRepository extends CrudEntityRepository<AigcTask> {
 
     /** 按状态和任务类型查询 */
     List<AigcTask> findByStatusAndType(String status, String type);
+
+    List<AigcTask> findByProjectIdOrderByIdAsc(Long projectId);
+
+    @Modifying
+    @Query(
+            value =
+                    """
+                    UPDATE generation_history
+                    SET deleted = true, delete_time = CURRENT_TIMESTAMP
+                    WHERE deleted = false
+                      AND task_id IN (SELECT id FROM aigc_task WHERE project_id = :projectId)
+                    """,
+            nativeQuery = true)
+    int softDeleteGenerationHistoryByProjectId(@Param("projectId") Long projectId);
 }

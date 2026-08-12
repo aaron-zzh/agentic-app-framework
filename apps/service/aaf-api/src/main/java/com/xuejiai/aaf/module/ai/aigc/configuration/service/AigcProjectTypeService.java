@@ -117,8 +117,7 @@ public class AigcProjectTypeService
                             AigcConfigurationPatchSupport.requireVersion(
                                     entity.getVersion(), request.expectedVersion());
                         },
-                        (entity, request) ->
-                                entity.setStatus(AigcConfigStatus.PUBLISHED.getCode()),
+                        (entity, request) -> entity.setStatus(AigcConfigStatus.PUBLISHED.getCode()),
                         (entity, request) -> null,
                         true,
                         (entity, request, ignored) -> {},

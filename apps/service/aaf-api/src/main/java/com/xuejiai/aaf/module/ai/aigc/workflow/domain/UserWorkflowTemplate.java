@@ -31,8 +31,9 @@ public class UserWorkflowTemplate extends BaseEntity {
     @Column(name = "description", length = 1000)
     private String description;
 
-    @Column(name = "cover_url", length = 1000)
-    private String coverUrl;
+    /** 模板封面的不可变媒体版本 ID。 */
+    @Column(name = "cover_media_version_id")
+    private Long coverMediaVersionId;
 
     /** 模板分类：CONTENT/MARKETING/STUDY/LIFE */
     @Column(name = "category", nullable = false, length = 50)

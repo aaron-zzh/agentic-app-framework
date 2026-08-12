@@ -1,7 +1,7 @@
 /**
  * 视频生成 controller。
  *
- * 管理视频模型、参数、品牌、技能、首尾帧上传与提交，不依赖页面路由。
+ * 管理视频模型、参数、品牌、技能、多参考图、首尾帧上传与提交，不依赖页面路由。
  *
  * @author AaronZZH & Kiro
  */
@@ -14,22 +14,22 @@ import { useAigcStore } from "@/features/aigc/store"
 import type {
   MediaGenerationControllerOptions,
   MediaImageAttachment,
-  PendingMediaImageAttachment
+  PendingMediaImageAttachment,
+  VideoInputMode
 } from "@/features/studio/media-generation/types"
-import {
-  useAiSkills,
-  useGenerateVideo,
-  type VideoImageMode
-} from "@/lib/api/rest/ai"
+import { useAiSkills, useGenerateVideo } from "@/lib/api/rest/ai"
+import { type AigcBrandProfileSelection, mergeAigcSystemPrompts } from "@/lib/api/rest/ai/aigc"
 import { useEstimateAigcCredits } from "@/lib/hooks/use-estimate-aigc-credits"
 import { useFileUpload } from "@/lib/hooks/use-file-upload"
 import { useGenerationParams } from "@/lib/hooks/use-generation-params"
 import { useModelSelector } from "@/lib/hooks/use-model-selector"
 
-const MODEL_SUFFIX_BY_MODE: Record<VideoImageMode, string> = {
+const MAX_REFERENCE_IMAGES = 9
+
+const MODEL_SUFFIX_BY_MODE: Record<VideoInputMode, string> = {
   T2V: "t2v",
-  FIRST_FRAME: "i2v",
-  REFERENCE: "r2v"
+  REFERENCE: "r2v",
+  FIRST_LAST_FRAME: "r2v"
 }
 
 function attachmentFromUrl(url: string | undefined, name: string): MediaImageAttachment | null {
@@ -41,18 +41,34 @@ export function useVideoGenerationController({
   initialDraft,
   onTaskSubmitted
 }: MediaGenerationControllerOptions = {}) {
+  const initialImageMode: VideoInputMode =
+    initialDraft?.videoImageMode ??
+    (initialDraft?.lastFrameImageUrl
+      ? "FIRST_LAST_FRAME"
+      : initialDraft?.referenceImageUrl
+        ? "REFERENCE"
+        : "T2V")
+  const initialReferenceImage = attachmentFromUrl(initialDraft?.referenceImageUrl, "参考图")
+
   const [prompt, setPrompt] = useState(initialDraft?.prompt ?? "")
-  const [imageMode, setImageModeState] = useState<VideoImageMode>(
-    initialDraft?.videoImageMode ?? "T2V"
+  const [imageMode, setImageModeState] = useState<VideoInputMode>(initialImageMode)
+  const [referenceImages, setReferenceImages] = useState<MediaImageAttachment[]>(() =>
+    initialImageMode === "REFERENCE" && initialReferenceImage ? [initialReferenceImage] : []
   )
-  const [referenceImage, setReferenceImage] = useState<MediaImageAttachment | null>(() =>
-    attachmentFromUrl(initialDraft?.referenceImageUrl, "参考图")
+  const [firstFrameImage, setFirstFrameImage] = useState<MediaImageAttachment | null>(() =>
+    initialImageMode === "FIRST_LAST_FRAME" ? initialReferenceImage : null
   )
   const [lastFrameImage, setLastFrameImage] = useState<MediaImageAttachment | null>(() =>
-    attachmentFromUrl(initialDraft?.lastFrameImageUrl, "尾帧")
+    initialImageMode === "FIRST_LAST_FRAME"
+      ? attachmentFromUrl(initialDraft?.lastFrameImageUrl, "尾帧图")
+      : null
   )
   const [pendingImage, setPendingImage] = useState<PendingMediaImageAttachment | null>(null)
+  const [pendingLastFrameImage, setPendingLastFrameImage] =
+    useState<PendingMediaImageAttachment | null>(null)
   const [selectedBrand, setSelectedBrand] = useState("")
+  const [selectedBrandProfile, setSelectedBrandProfile] =
+    useState<AigcBrandProfileSelection | null>(null)
 
   const { upload, uploading, progress } = useFileUpload()
   const selectedSkillId = useAigcStore((state) => state.selectedSkillId)
@@ -147,44 +163,85 @@ export function useVideoGenerationController({
     [imageMode, modelOptions, setModelId]
   )
 
-  const setImageMode = useCallback((nextMode: VideoImageMode) => {
+  const setImageMode = useCallback((nextMode: VideoInputMode) => {
     setImageModeState(nextMode)
-    if (nextMode === "T2V") {
-      setReferenceImage(null)
+    setPendingImage(null)
+    setPendingLastFrameImage(null)
+    if (nextMode === "REFERENCE") {
+      setFirstFrameImage(null)
       setLastFrameImage(null)
-    } else if (nextMode !== "REFERENCE") {
+    } else if (nextMode === "FIRST_LAST_FRAME") {
+      setReferenceImages([])
+    } else {
+      setReferenceImages([])
+      setFirstFrameImage(null)
       setLastFrameImage(null)
     }
   }, [])
 
-  const uploadReferenceImage = useCallback(
+  const uploadReferenceImages = useCallback(
+    async (files: File[]) => {
+      const remaining = MAX_REFERENCE_IMAGES - referenceImages.length
+      if (remaining <= 0) {
+        toast.info(`参考图最多上传 ${MAX_REFERENCE_IMAGES} 张`)
+        return
+      }
+      const selectedFiles = files.slice(0, remaining)
+      if (files.length > remaining) {
+        toast.info(`参考图最多上传 ${MAX_REFERENCE_IMAGES} 张`)
+      }
+
+      for (const file of selectedFiles) {
+        const previewSrc = URL.createObjectURL(file)
+        setPendingImage({ name: file.name, previewSrc })
+        try {
+          const result = await upload(file)
+          setReferenceImages((current) => [
+            ...current,
+            { url: result.url, previewSrc, name: file.name }
+          ])
+        } catch {
+          URL.revokeObjectURL(previewSrc)
+          toast.error(`参考图「${file.name}」上传失败`)
+        } finally {
+          setPendingImage(null)
+        }
+      }
+    },
+    [referenceImages.length, upload]
+  )
+
+  const uploadFirstFrameImage = useCallback(
     async (file: File) => {
       const previewSrc = URL.createObjectURL(file)
       setPendingImage({ name: file.name, previewSrc })
-      setReferenceImage(null)
+      setFirstFrameImage(null)
       try {
         const result = await upload(file)
-        setReferenceImage({ url: result.url, previewSrc, name: file.name })
-        setPendingImage(null)
-        if (imageMode === "T2V") setImageModeState("FIRST_FRAME")
+        setFirstFrameImage({ url: result.url, previewSrc, name: file.name })
       } catch {
         URL.revokeObjectURL(previewSrc)
+        toast.error("首帧图上传失败")
+      } finally {
         setPendingImage(null)
-        toast.error("参考图上传失败")
       }
     },
-    [imageMode, upload]
+    [upload]
   )
 
   const uploadLastFrameImage = useCallback(
     async (file: File) => {
       const previewSrc = URL.createObjectURL(file)
+      setPendingLastFrameImage({ name: file.name, previewSrc })
+      setLastFrameImage(null)
       try {
         const result = await upload(file)
         setLastFrameImage({ url: result.url, previewSrc, name: file.name })
       } catch {
         URL.revokeObjectURL(previewSrc)
-        toast.error("尾帧上传失败")
+        toast.error("尾帧图上传失败")
+      } finally {
+        setPendingLastFrameImage(null)
       }
     },
     [upload]
@@ -192,18 +249,29 @@ export function useVideoGenerationController({
 
   const submit = useCallback(async () => {
     const normalizedPrompt = prompt.trim()
-    if (!normalizedPrompt && !referenceImage) {
+    if (imageMode === "T2V" && !normalizedPrompt) {
       toast.error("请输入创作描述")
       return
     }
-    if (imageMode !== "T2V" && !referenceImage) {
-      toast.error(imageMode === "REFERENCE" ? "请上传首帧" : "请上传起始图")
+    if (imageMode === "REFERENCE" && referenceImages.length === 0) {
+      toast.error("请至少上传一张参考图")
       return
     }
-    if (imageMode === "REFERENCE" && !lastFrameImage) {
-      toast.error("请上传尾帧")
+    if (imageMode === "FIRST_LAST_FRAME" && !firstFrameImage) {
+      toast.error("请上传首帧图")
       return
     }
+    if (imageMode === "FIRST_LAST_FRAME" && !lastFrameImage) {
+      toast.error("请上传尾帧图")
+      return
+    }
+
+    const referenceImageUrls =
+      imageMode === "REFERENCE"
+        ? referenceImages.map((image) => image.url)
+        : imageMode === "FIRST_LAST_FRAME"
+          ? [firstFrameImage?.url, lastFrameImage?.url].filter((url): url is string => Boolean(url))
+          : undefined
 
     try {
       const videoConfig = currentModel?.videoConfig
@@ -211,14 +279,8 @@ export function useVideoGenerationController({
         prompt: normalizedPrompt || "参考图生成视频",
         model: resolvedModelId ?? undefined,
         projectId,
-        imageMode,
-        imageUrl: imageMode === "FIRST_FRAME" ? referenceImage?.url : undefined,
-        referenceImageUrls:
-          imageMode === "REFERENCE"
-            ? [referenceImage?.url, lastFrameImage?.url].filter(
-                (url): url is string => Boolean(url)
-              )
-            : undefined,
+        imageMode: imageMode === "T2V" ? "T2V" : "REFERENCE",
+        referenceImageUrls,
         ...(videoConfig?.resolutions?.length
           ? { resolution: params.resolution ?? videoConfig.resolutions[0] }
           : {}),
@@ -226,48 +288,69 @@ export function useVideoGenerationController({
           ? { ratio: params.aspectRatio ?? videoConfig.ratios[0] }
           : {}),
         duration: Number(params.videoDuration?.replace("s", "")) || undefined,
-        systemPrompt: selectedSkill?.systemPrompt ?? undefined
+        systemPrompt: mergeAigcSystemPrompts(
+          selectedSkill?.systemPrompt,
+          selectedBrandProfile?.systemPrompt
+        )
       })
       toast.success(`视频任务已提交（#${taskId}）`)
       setPrompt("")
-      setReferenceImage(null)
+      setReferenceImages([])
+      setFirstFrameImage(null)
       setLastFrameImage(null)
       setPendingImage(null)
+      setPendingLastFrameImage(null)
       onTaskSubmitted?.({ mode: "video", taskId })
     } catch {
       // API 客户端已统一提示请求错误
     }
   }, [
     currentModel,
+    firstFrameImage,
     generateVideo,
     imageMode,
     lastFrameImage,
-    modelId,
-    modelOptions,
     onTaskSubmitted,
     params,
     projectId,
     prompt,
-    referenceImage,
+    referenceImages,
     resolvedModelId,
+    selectedBrandProfile,
     selectedSkill
   ])
+
+  const hasRequiredInput =
+    imageMode === "T2V"
+      ? prompt.trim().length > 0
+      : imageMode === "REFERENCE"
+        ? referenceImages.length > 0
+        : Boolean(firstFrameImage && lastFrameImage)
 
   return {
     prompt,
     setPrompt,
     imageMode,
     setImageMode,
-    referenceImage,
+    referenceImages,
+    firstFrameImage,
     lastFrameImage,
     pendingImage,
-    uploadReferenceImage,
+    pendingLastFrameImage,
+    maxReferenceImages: MAX_REFERENCE_IMAGES,
+    uploadReferenceImages,
+    uploadFirstFrameImage,
     uploadLastFrameImage,
-    removeReferenceImage: () => {
-      setReferenceImage(null)
+    removeReferenceImage: (index: number) =>
+      setReferenceImages((current) => current.filter((_, itemIndex) => itemIndex !== index)),
+    removeFirstFrameImage: () => {
+      setFirstFrameImage(null)
       setPendingImage(null)
     },
-    removeLastFrameImage: () => setLastFrameImage(null),
+    removeLastFrameImage: () => {
+      setLastFrameImage(null)
+      setPendingLastFrameImage(null)
+    },
     uploadProgress: progress,
     modelOptions,
     modelId,
@@ -278,14 +361,13 @@ export function useVideoGenerationController({
     brands,
     selectedBrand,
     selectBrand,
+    selectedBrandProfile,
+    setSelectedBrandProfile,
     selectedSkill,
     creditEstimate,
     setSelectedSkillId,
     submit,
     isSubmitting: generateVideo.isPending || uploading,
-    canSubmit:
-      !generateVideo.isPending &&
-      !uploading &&
-      (prompt.trim().length > 0 || Boolean(referenceImage))
+    canSubmit: !generateVideo.isPending && !uploading && hasRequiredInput
   }
 }

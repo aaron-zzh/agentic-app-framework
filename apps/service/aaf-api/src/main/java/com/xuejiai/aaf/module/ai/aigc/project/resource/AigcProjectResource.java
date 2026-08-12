@@ -37,7 +37,6 @@ public final class AigcProjectResource {
                     CrudCapabilityDefinition.forTypes(TYPES)
                             .without(
                                     CrudOperation.CREATE,
-                                    CrudOperation.DELETE,
                                     CrudOperation.DELETE_BATCH,
                                     CrudOperation.IMPORT,
                                     CrudOperation.RESTORE,

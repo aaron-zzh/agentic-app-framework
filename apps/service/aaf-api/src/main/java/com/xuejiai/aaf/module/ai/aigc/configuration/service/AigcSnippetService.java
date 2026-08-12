@@ -8,12 +8,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.aigc.configuration.domain.AigcSnippet;
 import com.xuejiai.aaf.module.ai.aigc.configuration.repository.AigcSnippetRepository;
 import com.xuejiai.aaf.module.ai.aigc.configuration.vo.AigcSnippetCreateDTO;
 import com.xuejiai.aaf.module.ai.aigc.configuration.vo.AigcSnippetPageDTO;
 import com.xuejiai.aaf.module.ai.aigc.configuration.vo.AigcSnippetUpdateDTO;
 import com.xuejiai.aaf.module.ai.aigc.configuration.vo.AigcSnippetVO;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
 
 import lombok.RequiredArgsConstructor;
 
@@ -30,6 +32,8 @@ public class AigcSnippetService
                 AigcSnippetPageDTO> {
 
     private final AigcSnippetRepository repository;
+    private final AigcMediaApi mediaApi;
+    private final OperatorContext operatorContext;
 
     @Override
     protected AigcSnippetRepository getRepository() {
@@ -54,14 +58,16 @@ public class AigcSnippetService
 
     @Override
     protected AigcSnippet toEntity(AigcSnippetCreateDTO dto) {
+        var mediaVersionIds =
+                dto.referenceMediaVersionIds() == null
+                        ? List.<Long>of()
+                        : List.copyOf(dto.referenceMediaVersionIds());
+        lockMediaVersions(mediaVersionIds);
         var entity = new AigcSnippet();
         entity.setName(dto.name());
         entity.setCategory(dto.category());
         entity.setContent(dto.content());
-        entity.setReferenceMediaVersionIds(
-                dto.referenceMediaVersionIds() == null
-                        ? List.of()
-                        : List.copyOf(dto.referenceMediaVersionIds()));
+        entity.setReferenceMediaVersionIds(mediaVersionIds);
         entity.setVariableSlots(dto.variableSlots());
         entity.setProjectTypeCode(dto.projectTypeCode());
         entity.setBrandProfileId(dto.brandProfileId());
@@ -81,12 +87,21 @@ public class AigcSnippetService
         AigcConfigurationPatchSupport.required(
                 dto.referenceMediaVersionIds(),
                 "referenceMediaVersionIds",
-                value -> entity.setReferenceMediaVersionIds(List.copyOf(value)));
+                value -> {
+                    var mediaVersionIds = List.copyOf(value);
+                    lockMediaVersions(mediaVersionIds);
+                    entity.setReferenceMediaVersionIds(mediaVersionIds);
+                });
         AigcConfigurationPatchSupport.nullable(dto.variableSlots(), entity::setVariableSlots);
         AigcConfigurationPatchSupport.nullable(dto.projectTypeCode(), entity::setProjectTypeCode);
         AigcConfigurationPatchSupport.nullable(dto.brandProfileId(), entity::setBrandProfileId);
         AigcConfigurationPatchSupport.required(dto.useCount(), "useCount", entity::setUseCount);
         AigcConfigurationPatchSupport.required(dto.isPublic(), "isPublic", entity::setIsPublic);
+    }
+
+    private void lockMediaVersions(List<Long> mediaVersionIds) {
+        var userId = operatorContext.currentOwnerId().orElseThrow();
+        mediaVersionIds.forEach(mediaVersionId -> mediaApi.getByVersionId(mediaVersionId, userId));
     }
 
     @Override

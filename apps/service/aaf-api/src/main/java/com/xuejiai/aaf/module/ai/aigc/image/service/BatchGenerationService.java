@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.ai.aigc.image.service;
 import java.time.Duration;
 import java.util.List;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -16,11 +17,14 @@ import com.xuejiai.aaf.framework.intelligent.ai.image.vo.ImageRequest;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 import com.xuejiai.aaf.framework.intelligent.core.registry.AiServiceRegistry;
+import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.module.ai.aigc.image.api.AigcBatchGenerationApi;
 import com.xuejiai.aaf.module.ai.aigc.image.domain.BatchGenerationTask;
 import com.xuejiai.aaf.module.ai.aigc.image.repository.BatchGenerationTaskRepository;
 import com.xuejiai.aaf.module.ai.aigc.image.vo.BatchGenerationSubmitDTO;
 import com.xuejiai.aaf.module.ai.aigc.image.vo.BatchGenerationTaskVO;
 import com.xuejiai.aaf.module.ai.aigc.image.vo.BatchTaskStatus;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class BatchGenerationService {
+public class BatchGenerationService implements AigcBatchGenerationApi {
 
     private static final String QUEUE_KEY = "aigc:batch:queue";
     private static final String RATE_LIMIT_KEY = "aigc:batch:rate_limit";
@@ -44,6 +48,9 @@ public class BatchGenerationService {
     private final StringRedisTemplate redisTemplate;
     private final AiServiceRegistry aiServiceRegistry;
     private final CapabilityRouter capabilityRouter;
+    private final OperatorContext operatorContext;
+    private final ObjectProvider<AigcProjectApi> projectApiProvider;
+    private final ObjectProvider<BatchGenerationService> selfProvider;
 
     /**
      * 提交批量生成任务。
@@ -53,9 +60,17 @@ public class BatchGenerationService {
      * @return 任务信息
      */
     @Transactional
-    public BatchGenerationTaskVO submit(Long userId, BatchGenerationSubmitDTO dto) {
+    public BatchGenerationTaskVO submit(BatchGenerationSubmitDTO dto) {
+        var userId =
+                operatorContext
+                        .currentOwnerId()
+                        .orElseThrow(() -> new BusinessException(GlobalErrorCode.UNAUTHORIZED));
+        if (dto.projectId() != null) {
+            projectApiProvider.getObject().lockForGeneratedResource(dto.projectId(), userId);
+        }
         var task = new BatchGenerationTask();
         task.setUserId(userId);
+        task.setProjectId(dto.projectId());
         task.setStatus(BatchTaskStatus.PENDING);
         task.setTotalCount(dto.prompts().size());
         task.setCompletedCount(0);
@@ -72,9 +87,18 @@ public class BatchGenerationService {
         log.info("批量生成任务已提交: taskId={}, count={}", task.getId(), dto.prompts().size());
 
         // 异步触发执行
-        processQueue();
+        selfProvider.getObject().processQueue();
 
         return toVO(task);
+    }
+
+    @Override
+    @Transactional
+    public void deleteProjectResources(Long projectId) {
+        var tasks = taskRepository.findByProjectIdOrderByIdAsc(projectId);
+        tasks.forEach(task -> task.setStatus(BatchTaskStatus.CANCELLED));
+        taskRepository.saveAllAndFlush(tasks);
+        taskRepository.deleteAll(tasks);
     }
 
     /**
@@ -96,8 +120,8 @@ public class BatchGenerationService {
      * @return 任务列表
      */
     @Transactional(readOnly = true)
-    public List<BatchGenerationTaskVO> listByUser(Long userId) {
-        return taskRepository.findByUserId(userId).stream().map(this::toVO).toList();
+    public List<BatchGenerationTaskVO> listCurrentUser() {
+        return taskRepository.findByUserId(currentOwnerId()).stream().map(this::toVO).toList();
     }
 
     /**
@@ -112,8 +136,13 @@ public class BatchGenerationService {
                 || task.getStatus() == BatchTaskStatus.CANCELLED) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "任务已完成或已取消，无法取消");
         }
-        task.setStatus(BatchTaskStatus.CANCELLED);
-        taskRepository.save(task);
+        var updated =
+                taskRepository.transitionStatusIfActive(
+                        taskId, BatchTaskStatus.PENDING, BatchTaskStatus.CANCELLED);
+        if (updated == 0) {
+            taskRepository.transitionStatusIfActive(
+                    taskId, BatchTaskStatus.RUNNING, BatchTaskStatus.CANCELLED);
+        }
         log.info("批量生成任务已取消: taskId={}", taskId);
     }
 
@@ -144,45 +173,57 @@ public class BatchGenerationService {
     /** 执行单个批量任务（含重试逻辑）。 */
     private void executeTask(Long taskId) {
         var task = taskRepository.findById(taskId).orElse(null);
-        if (task == null || task.getStatus() == BatchTaskStatus.CANCELLED) return;
-
-        task.setStatus(BatchTaskStatus.RUNNING);
-        taskRepository.save(task);
+        if (task == null
+                || taskRepository.transitionStatusIfActive(
+                                taskId, BatchTaskStatus.PENDING, BatchTaskStatus.RUNNING)
+                        == 0) {
+            return;
+        }
 
         BatchGenerationSubmitDTO dto;
         try {
             dto = JsonUtils.parseObject(task.getParams(), BatchGenerationSubmitDTO.class);
         } catch (Exception e) {
-            task.setStatus(BatchTaskStatus.FAILED);
-            taskRepository.save(task);
+            taskRepository.transitionStatusIfActive(
+                    taskId, BatchTaskStatus.RUNNING, BatchTaskStatus.FAILED);
             return;
         }
 
+        var completedCount = task.getCompletedCount();
+        var failedCount = task.getFailedCount();
         for (var prompt : dto.prompts()) {
-            if (task.getStatus() == BatchTaskStatus.CANCELLED) break;
+            if (isCancelled(taskId)) return;
 
             var success = executeWithRetry(prompt, dto.model(), dto.width(), dto.height());
-            if (success) {
-                task.setCompletedCount(task.getCompletedCount() + 1);
-            } else {
-                task.setFailedCount(task.getFailedCount() + 1);
+            var updated =
+                    success
+                            ? taskRepository.incrementCompletedIfRunning(
+                                    taskId, BatchTaskStatus.RUNNING)
+                            : taskRepository.incrementFailedIfRunning(
+                                    taskId, BatchTaskStatus.RUNNING);
+            if (updated == 0) {
+                return;
             }
-            taskRepository.save(task);
+            if (success) {
+                completedCount++;
+            } else {
+                failedCount++;
+            }
         }
 
-        // 更新最终状态
-        if (task.getStatus() != BatchTaskStatus.CANCELLED) {
-            task.setStatus(
-                    task.getFailedCount() > 0 && task.getCompletedCount() == 0
-                            ? BatchTaskStatus.FAILED
-                            : BatchTaskStatus.COMPLETED);
-            taskRepository.save(task);
+        var finalStatus =
+                failedCount > 0 && completedCount == 0
+                        ? BatchTaskStatus.FAILED
+                        : BatchTaskStatus.COMPLETED;
+        if (taskRepository.transitionStatusIfActive(taskId, BatchTaskStatus.RUNNING, finalStatus)
+                == 0) {
+            return;
         }
         log.info(
                 "批量生成任务完成: taskId={}, completed={}, failed={}",
                 taskId,
-                task.getCompletedCount(),
-                task.getFailedCount());
+                completedCount,
+                failedCount);
     }
 
     /** 带重试的单次生成执行。 */
@@ -211,10 +252,23 @@ public class BatchGenerationService {
         return false;
     }
 
+    private boolean isCancelled(Long taskId) {
+        return taskRepository
+                .findById(taskId)
+                .map(task -> task.getStatus() == BatchTaskStatus.CANCELLED)
+                .orElse(true);
+    }
+
     private BatchGenerationTask findById(Long id) {
         return taskRepository
-                .findById(id)
+                .findByIdAndUserId(id, currentOwnerId())
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "批量任务不存在"));
+    }
+
+    private Long currentOwnerId() {
+        return operatorContext
+                .currentOwnerId()
+                .orElseThrow(() -> new BusinessException(GlobalErrorCode.UNAUTHORIZED));
     }
 
     private BatchGenerationTaskVO toVO(BatchGenerationTask task) {

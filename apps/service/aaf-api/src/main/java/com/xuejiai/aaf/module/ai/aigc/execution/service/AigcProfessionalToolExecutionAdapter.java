@@ -38,8 +38,7 @@ public class AigcProfessionalToolExecutionAdapter implements AigcToolExecutionPo
             case IMAGE_EDIT -> executeImage(command, true);
             default ->
                     throw new BusinessException(
-                            GlobalErrorCode.BAD_REQUEST,
-                            "不支持的 Tool 动作目标: " + command.targetRef());
+                            GlobalErrorCode.BAD_REQUEST, "不支持的 Tool 动作目标: " + command.targetRef());
         };
     }
 

@@ -111,7 +111,7 @@ public class MiniAppLoginService {
                 passwordEncoder.encode(String.valueOf(ThreadLocalRandom.current().nextLong())));
         user.setEmailVerified(false);
         user = userRepository.save(user);
-        organizationService.createPersonalOrg(user.getId(), user.getNickname());
+        organizationService.createPersonalOrg(user.getId(), user.getUsername());
         return user;
     }
 
@@ -203,7 +203,7 @@ public class MiniAppLoginService {
                 passwordEncoder.encode(String.valueOf(ThreadLocalRandom.current().nextLong())));
         user.setEmailVerified(false);
         user = userRepository.save(user);
-        organizationService.createPersonalOrg(user.getId(), user.getNickname());
+        organizationService.createPersonalOrg(user.getId(), user.getUsername());
         return user;
     }
 }

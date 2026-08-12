@@ -9,4 +9,6 @@ public interface AigcWorkApi {
     AigcPublicationView markPublicationResult(AigcPublicationResultCommand command);
 
     AigcWorkView archive(Long workId, Integer expectedVersion);
+
+    void deleteProjectResources(Long projectId);
 }

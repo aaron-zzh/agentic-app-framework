@@ -11,9 +11,9 @@
 
 import { Download, Loader2, Wand2 } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { type Editor, Tldraw } from "tldraw"
+import { AssetRecordType, createShapeId, type Editor, Tldraw } from "tldraw"
 import "tldraw/tldraw.css"
 import {
   DropdownMenu,
@@ -26,13 +26,86 @@ import { useFileUpload } from "@/lib/hooks/use-file-upload"
 interface CanvasPanelProps {
   /** IndexedDB 持久化键，不传则不持久化 */
   persistenceKey?: string
+  /** 首次打开画布时插入的图片 URL */
+  initialImageUrl?: string
 }
 
-export function CanvasPanel({ persistenceKey }: CanvasPanelProps) {
+export function CanvasPanel({ persistenceKey, initialImageUrl }: CanvasPanelProps) {
   const [editor, setEditor] = useState<Editor | null>(null)
   const [sendingToAi, setSendingToAi] = useState(false)
   const router = useRouter()
   const { upload } = useFileUpload()
+  const initializedImageUrlRef = useRef<string | null>(null)
+
+  const insertInitialImage = useCallback(async (canvasEditor: Editor, imageUrl: string) => {
+    const existingShape = canvasEditor
+      .getCurrentPageShapes()
+      .find((shape) => shape.type === "image" && shape.props.url === imageUrl)
+    if (existingShape) {
+      canvasEditor.select(existingShape.id)
+      canvasEditor.zoomToSelection({ animation: { duration: 200 } })
+      return
+    }
+
+    const dimensions = await new Promise<{ width: number; height: number }>((resolve) => {
+      const image = new Image()
+      image.onload = () =>
+        resolve({
+          width: image.naturalWidth || 1024,
+          height: image.naturalHeight || 1024
+        })
+      image.onerror = () => resolve({ width: 1024, height: 1024 })
+      image.src = imageUrl
+    })
+    const scale = Math.min(1, 900 / Math.max(dimensions.width, dimensions.height))
+    const width = Math.round(dimensions.width * scale)
+    const height = Math.round(dimensions.height * scale)
+    const assetId = AssetRecordType.createId()
+    const shapeId = createShapeId()
+
+    canvasEditor.createAssets([
+      {
+        id: assetId,
+        typeName: "asset",
+        type: "image",
+        props: {
+          h: height,
+          w: width,
+          src: imageUrl,
+          name: "AI 生成图片",
+          isAnimated: false,
+          mimeType: "image/*"
+        },
+        meta: {}
+      }
+    ])
+    const center = canvasEditor.getViewportScreenCenter()
+    canvasEditor.createShape({
+      id: shapeId,
+      type: "image",
+      x: center.x - width / 2,
+      y: center.y - height / 2,
+      props: {
+        w: width,
+        h: height,
+        playing: false,
+        url: imageUrl,
+        assetId,
+        crop: null,
+        flipX: false,
+        flipY: false,
+        altText: "AI 生成图片"
+      }
+    })
+    canvasEditor.select(shapeId)
+    canvasEditor.zoomToSelection({ animation: { duration: 200 } })
+  }, [])
+
+  useEffect(() => {
+    if (!editor || !initialImageUrl || initializedImageUrlRef.current === initialImageUrl) return
+    initializedImageUrlRef.current = initialImageUrl
+    void insertInitialImage(editor, initialImageUrl)
+  }, [editor, initialImageUrl, insertInitialImage])
 
   const handleMount = useCallback((e: Editor) => {
     setEditor(e)

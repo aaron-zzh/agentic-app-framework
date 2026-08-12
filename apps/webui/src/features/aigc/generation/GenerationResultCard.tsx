@@ -7,7 +7,19 @@
 
 "use client"
 
-import { Box, Check, CheckCircle2, Loader2, Music, Save, Video, Wand2, XCircle } from "lucide-react"
+import {
+  Box,
+  Check,
+  CheckCircle2,
+  Loader2,
+  Music,
+  PanelTopOpen,
+  Save,
+  Video,
+  Wand2,
+  XCircle
+} from "lucide-react"
+import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
 import VideoPlugin from "yet-another-react-lightbox/plugins/video"
@@ -22,14 +34,17 @@ interface GenerationResultCardProps {
   tasks: AigcTaskEvent[]
   mediaType: "IMAGE" | "VIDEO" | "AUDIO" | "MUSIC" | "MODEL_3D"
   onRegenerate?: (task: AigcTaskEvent) => void
+  regeneratingTaskId?: number | null
 }
 
 export function GenerationResultCard({
   tasks,
   mediaType,
-  onRegenerate
+  onRegenerate,
+  regeneratingTaskId = null
 }: GenerationResultCardProps) {
   const [savedMediaIds, setSavedMediaIds] = useState<Set<number>>(() => new Set())
+  const router = useRouter()
   const saveAsset = useSaveMediaAsAsset()
   const slides = tasks
     .filter(
@@ -70,6 +85,12 @@ export function GenerationResultCard({
     )
   }
 
+  const handleOpenCanvas = (task: AigcTaskEvent) => {
+    if (mediaType !== "IMAGE" || task.status !== "SUCCESS" || !task.outputUrl) return
+    const params = new URLSearchParams({ imageUrl: task.outputUrl })
+    router.push(`/studio/create/draw?${params.toString()}`)
+  }
+
   return (
     <>
       <GlassCard glow="violet" className="overflow-hidden">
@@ -84,6 +105,7 @@ export function GenerationResultCard({
               (task.outputMediaId !== null && savedMediaIds.has(task.outputMediaId))
             const isSaving =
               saveAsset.isPending && saveAsset.variables?.mediaId === task.outputMediaId
+            const isRegenerating = regeneratingTaskId === task.id
 
             return (
               <div key={task.id} className="flex items-center gap-3 px-4 py-3">
@@ -120,15 +142,28 @@ export function GenerationResultCard({
                   </GlowButton>
                 )}
 
+                {mediaType === "IMAGE" && task.status === "SUCCESS" && task.outputUrl && (
+                  <GlowButton
+                    tone="ghost"
+                    size="sm"
+                    onClick={() => handleOpenCanvas(task)}
+                    className="shrink-0 text-xs"
+                  >
+                    <PanelTopOpen />
+                    在画布中打开
+                  </GlowButton>
+                )}
+
                 {(task.status === "SUCCESS" || task.status === "FAIL") && onRegenerate && (
                   <GlowButton
                     tone="ghost"
                     size="sm"
                     onClick={() => onRegenerate(task)}
+                    disabled={regeneratingTaskId !== null}
                     className="shrink-0 text-xs"
                   >
-                    <Wand2 />
-                    重新生成
+                    {isRegenerating ? <Loader2 className="animate-spin" /> : <Wand2 />}
+                    {isRegenerating ? "提交中..." : "重新生成"}
                   </GlowButton>
                 )}
               </div>

@@ -19,6 +19,7 @@ import {
   getObjectStage,
   ObjectDetailPanel,
   PROJECT_GRAPH_STAGES,
+  ProjectDocumentPanel,
   type ProjectGraphStage,
   ProjectGraphView,
   ProjectLifecycleActions,
@@ -30,6 +31,7 @@ import {
 import {
   type AigcProjectObject,
   useAigcProject,
+  useAigcProjectDocumentRefs,
   useAigcProjectGraph,
   useAigcProjectSummary
 } from "@/lib/api/rest/ai/aigc"
@@ -57,13 +59,16 @@ export default function StudioProjectDetailPage() {
   const searchParams = useSearchParams()
   const projectId = Number(params.id)
   const validProjectId = Number.isFinite(projectId) && projectId > 0 ? projectId : null
-  const view: ProjectWorkbenchView = searchParams.get("view") === "graph" ? "graph" : "structure"
+  const view: ProjectWorkbenchView =
+    searchParams.get("view") === "structure" ? "structure" : "graph"
   const focusObjectId = parseFocus(searchParams.get("focus"))
   const requestedStage = searchParams.get("stage")
   const [canvasSession, setCanvasSession] = useState<CanvasSession | null>(null)
   const detailPanel = useBoolean(false)
+  const documentPanel = useBoolean(false)
   const setGraphFocus = useProjectGraphViewState((state) => state.setFocusObjectId)
   const { data: project, isLoading: projectLoading } = useAigcProject(validProjectId)
+  const { data: documentRefs = [] } = useAigcProjectDocumentRefs(validProjectId)
   const { data: graph, isLoading: graphLoading } = useAigcProjectGraph(validProjectId)
   const { data: summary } = useAigcProjectSummary(validProjectId)
   const readOnly =
@@ -161,6 +166,9 @@ export default function StudioProjectDetailPage() {
         view={view}
         lifecycleActions={<ProjectLifecycleActions project={project} objects={graph.objects} />}
         onViewChange={(nextView) => updateUrl({ view: nextView })}
+        onOpenDocuments={documentPanel.onTrue}
+        documentsOpen={documentPanel.value}
+        documentCount={documentRefs.length}
         onToggleChat={handleToggleChat}
         chatOpen={chatterOpen && chatterMode === "panel"}
       />
@@ -203,6 +211,13 @@ export default function StudioProjectDetailPage() {
           <span className="text-amber-500">已归档 · 只读</span>
         ) : null}
       </footer>
+
+      <ProjectDocumentPanel
+        open={documentPanel.value}
+        onOpenChange={documentPanel.setValue}
+        project={project}
+        readOnly={readOnly}
+      />
 
       <ObjectDetailPanel
         open={detailPanel.value}

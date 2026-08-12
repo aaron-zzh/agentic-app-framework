@@ -79,7 +79,7 @@ export function MediaComposerShell({
       <div className="flex items-center gap-2 px-4 pb-2.5">
         <div className="flex flex-1 items-center gap-1.5 overflow-x-auto">{tools}</div>
         <div className="flex shrink-0 items-center gap-1.5">
-          <span
+          <output
             className={cn(
               "flex h-8 items-center gap-1 rounded-lg border border-foreground/8 px-2 text-muted-foreground text-xs tabular-nums",
               creditEstimate.credits !== null && !creditEstimate.sufficient && "text-amber-400"
@@ -89,7 +89,7 @@ export function MediaComposerShell({
           >
             <Coins className="size-3.5" />
             {creditEstimate.isLoading ? "…" : (creditEstimate.credits ?? "—")}
-          </span>
+          </output>
           <WsAsrButton onResult={onPromptChange} onInterim={onPromptChange} />
           <Button
             type="button"
@@ -114,7 +114,12 @@ export function MediaComposerShell({
   }
 
   return (
-    <AnimateBorder rounded="xl" borderWidth={1} duration={10} className={cn("flex w-full", className)}>
+    <AnimateBorder
+      rounded="xl"
+      borderWidth={1}
+      duration={10}
+      className={cn("flex w-full", className)}
+    >
       <GlassCard glow="violet" className="w-full">
         {content}
       </GlassCard>

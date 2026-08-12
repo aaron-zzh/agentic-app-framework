@@ -86,7 +86,7 @@ public class DynamicImageModelFactory {
                         false,
                         false,
                         model.getModelName(),
-                        Duration.ofSeconds(60),
+                        Duration.ofSeconds(600),
                         2,
                         null,
                         null);

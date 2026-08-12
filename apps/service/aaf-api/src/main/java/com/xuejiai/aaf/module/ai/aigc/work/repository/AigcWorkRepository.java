@@ -16,6 +16,8 @@ public interface AigcWorkRepository extends CrudEntityRepository<AigcWork> {
 
     List<AigcWork> findByProjectIdAndStatusNot(Long projectId, String status);
 
+    List<AigcWork> findByProjectIdOrderByIdAsc(Long projectId);
+
     Optional<AigcWork> findByDeliverableObjectIdAndAdoptedObjectVersionId(
             Long deliverableObjectId, Long adoptedObjectVersionId);
 

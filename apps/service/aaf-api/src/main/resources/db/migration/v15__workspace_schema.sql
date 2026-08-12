@@ -85,7 +85,7 @@ WHERE u.deleted = FALSE
 
 -- 2) 为仍无活动组织归属的用户补建 personal 组织
 INSERT INTO sys_organization (name, slug, type, owner_id, create_by)
-SELECT COALESCE(u.nickname, u.username) || '的空间', 'personal-' || u.id, 'personal', u.id, u.id
+SELECT u.username, 'personal-' || u.id, 'personal', u.id, u.id
 FROM sys_user u
 WHERE u.deleted = FALSE
   AND NOT EXISTS (

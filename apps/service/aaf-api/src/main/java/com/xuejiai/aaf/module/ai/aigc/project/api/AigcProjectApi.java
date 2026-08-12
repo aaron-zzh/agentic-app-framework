@@ -6,6 +6,8 @@ public interface AigcProjectApi {
 
     AigcProjectView requireProject(Long projectId);
 
+    void lockForGeneratedResource(Long projectId, Long userId);
+
     AigcProjectGraphView getGraph(Long projectId);
 
     AigcProjectObjectView appendObject(AigcProjectObjectCommand command);

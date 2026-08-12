@@ -46,7 +46,7 @@ public class AigcMediaController
     }
 
     @Operation(summary = "将媒体保存到资产库")
-    @PreAuthorize("hasAuthority('aigc:asset:create')")
+    @PreAuthorize("isAuthenticated()")
     @PostMapping("/{id}/asset")
     public Result<AigcAssetVO> saveAsAsset(
             @PathVariable Long id, @RequestBody(required = false) AigcAssetSaveDTO request) {

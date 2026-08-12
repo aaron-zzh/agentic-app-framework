@@ -9,10 +9,11 @@
 "use client"
 
 import { ChevronDown } from "lucide-react"
-import { useId } from "react"
+import { useEffect, useId, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import type { AiModelVO, ImageModeConfig } from "@/lib/api/rest/ai"
@@ -149,7 +150,8 @@ function RatioGlyph({ ratio, large = false }: { ratio: string; large?: boolean }
   const height = heightPart > 0 ? heightPart : 1
   const maxSide = large ? 18 : 14
   const glyphWidth = width >= height ? maxSide : Math.max(5, Math.round((maxSide * width) / height))
-  const glyphHeight = height >= width ? maxSide : Math.max(5, Math.round((maxSide * height) / width))
+  const glyphHeight =
+    height >= width ? maxSide : Math.max(5, Math.round((maxSide * height) / width))
   const viewSize = large ? 22 : 18
 
   return (
@@ -249,7 +251,10 @@ function ImageParamsPanel({
       ? Array.from(new Set(dimensions.map((option) => option.ratio)))
       : DEFAULT_RATIOS
 
-  const sizePresetOptions = (modeConfig?.sizePresets ?? []).map((value) => ({ value, label: value }))
+  const sizePresetOptions = (modeConfig?.sizePresets ?? []).map((value) => ({
+    value,
+    label: value
+  }))
   const resolutionOptions = (() => {
     if (sizePresetOptions.length > 0) return sizePresetOptions
     if (config?.mode === "fixed") {
@@ -258,9 +263,7 @@ function ImageParamsPanel({
           .filter((option) => option.ratio === currentRatio)
           .map((option) => ({ value: option.resolution, label: option.resolution }))
       )
-      return fixedSizes.includes("auto")
-        ? [{ value: "auto", label: "自动" }, ...options]
-        : options
+      return fixedSizes.includes("auto") ? [{ value: "auto", label: "自动" }, ...options] : options
     }
     if (ratioSizes) {
       return uniqueOptions(
@@ -448,6 +451,86 @@ function ImageParamsPanel({
   )
 }
 
+function VideoDurationControl({
+  value,
+  maximum,
+  onChange
+}: {
+  value: string | undefined
+  maximum: number | null | undefined
+  onChange: (value: string) => void
+}) {
+  const minimumDuration = 2
+  const maximumDuration = Math.max(
+    minimumDuration,
+    maximum && maximum > 0 ? Math.floor(maximum) : 15
+  )
+  const normalizeDuration = (duration: number): number =>
+    Math.min(maximumDuration, Math.max(minimumDuration, Math.round(duration)))
+  const parsedDuration = Number.parseInt(value?.replace("s", "") ?? "", 10)
+  const fallbackDuration = Math.min(5, maximumDuration)
+  const currentDuration = normalizeDuration(
+    Number.isFinite(parsedDuration) ? parsedDuration : fallbackDuration
+  )
+  const [draftValue, setDraftValue] = useState(String(currentDuration))
+
+  useEffect(() => {
+    setDraftValue(String(currentDuration))
+  }, [currentDuration])
+
+  const commitDuration = (duration: number) => {
+    const normalized = normalizeDuration(duration)
+    setDraftValue(String(normalized))
+    onChange(`${normalized}s`)
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-3">
+        <Slider
+          min={minimumDuration}
+          max={maximumDuration}
+          step={1}
+          value={[currentDuration]}
+          disabled={minimumDuration === maximumDuration}
+          onValueChange={(nextValue) => {
+            const rawValue = Array.isArray(nextValue) ? nextValue[0] : nextValue
+            if (rawValue !== undefined) commitDuration(rawValue)
+          }}
+          aria-label="视频时长"
+          className="flex-1"
+        />
+        <div className="relative w-20 shrink-0">
+          <Input
+            type="number"
+            min={minimumDuration}
+            max={maximumDuration}
+            step={1}
+            value={draftValue}
+            onChange={(event) => setDraftValue(event.target.value)}
+            onBlur={() => {
+              const duration = Number(draftValue)
+              if (Number.isFinite(duration)) commitDuration(duration)
+              else setDraftValue(String(currentDuration))
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") event.currentTarget.blur()
+            }}
+            aria-label="视频时长（秒）"
+            className="h-8 pr-7 text-right text-xs tabular-nums"
+          />
+          <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-muted-foreground text-xs">
+            秒
+          </span>
+        </div>
+      </div>
+      <span className="text-[10px] text-muted-foreground">
+        连续范围：{minimumDuration}–{maximumDuration} 秒
+      </span>
+    </div>
+  )
+}
+
 function VideoParamsPanel({
   model,
   params,
@@ -460,9 +543,8 @@ function VideoParamsPanel({
   const config = model.videoConfig
   const ratios = config?.ratios?.length ? config.ratios : []
   const resolutions = config?.resolutions?.length ? config.resolutions : []
-  const durations = config?.durations?.length
-    ? config.durations.map((duration) => `${duration}s`)
-    : Array.from({ length: 14 }, (_, index) => `${index + 2}s`)
+  const maximumDuration =
+    config?.maxDuration ?? (config?.durations?.length ? Math.max(...config.durations) : undefined)
 
   return (
     <div className="flex flex-col gap-4">
@@ -486,13 +568,9 @@ function VideoParamsPanel({
         </Section>
       ) : null}
       <Section label="时长">
-        <OptionGroup
-          label="时长"
-          value={params.videoDuration ?? durations[0]}
-          options={durations.map((value) => ({
-            value,
-            label: `${value.replace("s", "")}秒`
-          }))}
+        <VideoDurationControl
+          value={params.videoDuration}
+          maximum={maximumDuration}
           onChange={(videoDuration) => onChangeParams({ videoDuration })}
         />
       </Section>
@@ -515,7 +593,11 @@ function getSummary(
     const duration = params.videoDuration ?? `${model.videoConfig?.durations?.[0] ?? 5}s`
     return {
       ratio,
-      text: [model.videoConfig?.ratios?.length ? ratio : undefined, resolution?.toUpperCase(), `${duration.replace("s", "")}秒`]
+      text: [
+        model.videoConfig?.ratios?.length ? ratio : undefined,
+        resolution?.toUpperCase(),
+        `${duration.replace("s", "")}秒`
+      ]
         .filter(Boolean)
         .join(" · ")
     }
@@ -532,11 +614,12 @@ function getSummary(
   const size =
     params.fixedSize === "auto"
       ? "自动尺寸"
-      : params.sizePreset ??
-        (parsed ? resolutionLabel(parsed[0], parsed[1]) : params.resolution ?? undefined)
+      : (params.sizePreset ??
+        (parsed ? resolutionLabel(parsed[0], parsed[1]) : (params.resolution ?? undefined)))
   const quality = modeConfig?.quality?.length
-    ? QUALITY_LABELS[params.quality ?? modeConfig.quality[0]] ??
-      (params.quality ?? modeConfig.quality[0])
+    ? (QUALITY_LABELS[params.quality ?? modeConfig.quality[0]] ??
+      params.quality ??
+      modeConfig.quality[0])
     : undefined
 
   return {

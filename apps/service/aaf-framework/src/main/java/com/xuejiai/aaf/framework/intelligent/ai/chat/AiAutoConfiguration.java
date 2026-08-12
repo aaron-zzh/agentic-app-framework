@@ -58,20 +58,15 @@ public class AiAutoConfiguration {
                                         CapabilityRoutingContext.CAP_MUSIC_GEN,
                                         "qwen:fun-music-v1"),
                                 Map.entry(
-                                        CapabilityRoutingContext.CAP_MODEL_3D,
-                                        "tripo:tripo3d-v2"),
+                                        CapabilityRoutingContext.CAP_MODEL_3D, "tripo:tripo3d-v2"),
                                 Map.entry(
                                         CapabilityRoutingContext.CAP_OMNI_REALTIME,
                                         "qwen:qwen3-omni-flash-realtime"),
-                                Map.entry(
-                                        CapabilityRoutingContext.CAP_RERANK,
-                                        "qwen:qwen3-rerank"),
+                                Map.entry(CapabilityRoutingContext.CAP_RERANK, "qwen:qwen3-rerank"),
                                 Map.entry(
                                         CapabilityRoutingContext.CAP_EMBEDDING,
                                         "qwen:text-embedding-v4"),
-                                Map.entry(
-                                        CapabilityRoutingContext.CAP_OCR,
-                                        "qwen:qwen3.5-ocr")));
+                                Map.entry(CapabilityRoutingContext.CAP_OCR, "qwen:qwen3.5-ocr")));
         // yaml 配置覆盖内置默认值
         if (properties.getDefaultModels() != null) {
             builtIn.putAll(properties.getDefaultModels());

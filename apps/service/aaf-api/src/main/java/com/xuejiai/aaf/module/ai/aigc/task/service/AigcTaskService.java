@@ -628,6 +628,13 @@ public class AigcTaskService
             log.warn("[completeTask] 任务不存在: providerTaskId={}", providerTaskId);
             return;
         }
+        if (!isCompletable(task)) {
+            log.info(
+                    "[completeTask] 忽略终态任务回调: taskId={}, status={}",
+                    task.getId(),
+                    task.getStatus());
+            return;
+        }
         if (!AigcTaskTypeEnum.IMAGE.getCode().equals(task.getType())) {
             throw new IllegalStateException("URL 完成回调仅支持 IMAGE 任务: " + task.getType());
         }
@@ -662,6 +669,13 @@ public class AigcTaskService
         var task = taskRepo.findByProviderTaskId(providerTaskId).orElse(null);
         if (task == null) {
             log.warn("[completeTask] 任务不存在: providerTaskId={}", providerTaskId);
+            return;
+        }
+        if (!isCompletable(task)) {
+            log.info(
+                    "[completeTask] 忽略终态任务回调: taskId={}, status={}",
+                    task.getId(),
+                    task.getStatus());
             return;
         }
         task.setProviderResult(JsonUtils.toJsonString(result));
@@ -716,6 +730,13 @@ public class AigcTaskService
         var task = taskRepo.findByProviderTaskId(providerTaskId).orElse(null);
         if (task == null) {
             log.warn("[completeTask] 任务不存在: providerTaskId={}", providerTaskId);
+            return;
+        }
+        if (!isCompletable(task)) {
+            log.info(
+                    "[completeTask] 忽略终态任务回调: taskId={}, status={}",
+                    task.getId(),
+                    task.getStatus());
             return;
         }
         task.setProviderResult(JsonUtils.toJsonString(result));
@@ -926,6 +947,11 @@ public class AigcTaskService
                         duration,
                         frameRate,
                         generationInfo));
+    }
+
+    private boolean isCompletable(AigcTask task) {
+        return AigcTaskStatusEnum.PENDING.getCode().equals(task.getStatus())
+                || AigcTaskStatusEnum.RUNNING.getCode().equals(task.getStatus());
     }
 
     private void completeWithMedia(AigcTask task, AigcMediaView media) {

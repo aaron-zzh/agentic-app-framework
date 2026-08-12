@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.ai.aigc.media.vo;
 
+import java.util.List;
+
 import com.xuejiai.aaf.common.model.PageParam;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaType;
 
@@ -11,6 +13,9 @@ import lombok.Setter;
 @Setter
 public class AigcAssetPageDTO extends PageParam {
     private AigcMediaType mediaType;
-    private Long categoryId;
+    private List<Long> categoryIds;
+    private Boolean uncategorized;
+    private List<Long> tagIds;
+    private Long collectionId;
     private String keyword;
 }

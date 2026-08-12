@@ -836,7 +836,7 @@ public class AuthService {
 
     /** 为新用户创建默认归属的个人工作空间（组织），保证多租户隔离下用户始终有 org 归属。 */
     private void createDefaultOrg(User user) {
-        organizationService.createPersonalOrg(user.getId(), user.getNickname());
+        organizationService.createPersonalOrg(user.getId(), user.getUsername());
     }
 
     private void grantRegistrationCredits(Long userId) {

@@ -21,14 +21,14 @@ public interface AigcAssetRepository extends CrudEntityRepository<AigcAsset> {
                     FROM aigc_asset_category
                     WHERE id = :categoryId
                       AND deleted = FALSE
-                      AND (
-                        owner_id = :userId
-                        OR (:workspaceId IS NOT NULL AND workspace_id = :workspaceId)
-                      )
+                      AND owner_id = :ownerId
+                      AND org_id = :orgId
+                      AND (workspace_id IS NULL OR workspace_id = :workspaceId)
                     """,
             nativeQuery = true)
-    long countAccessibleCategory(
+    long countOwnedCategory(
             @Param("categoryId") Long categoryId,
-            @Param("userId") Long userId,
+            @Param("ownerId") Long ownerId,
+            @Param("orgId") Long orgId,
             @Param("workspaceId") Long workspaceId);
 }

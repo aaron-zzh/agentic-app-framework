@@ -57,7 +57,7 @@ export function MediaPromptInput({
         disabled={disabled}
         className="max-h-[min(45vh,15rem)] min-h-16 resize-none overflow-y-auto border-0 bg-transparent px-1 py-1 text-sm leading-6 shadow-none focus-visible:border-transparent focus-visible:ring-0 dark:bg-transparent"
       />
-      <span className="pointer-events-none absolute right-1 bottom-0 text-muted-foreground/70 text-[10px]">
+      <span className="pointer-events-none absolute right-1 bottom-0 text-[10px] text-muted-foreground/70">
         {value.length}/{maxLength}
       </span>
     </div>

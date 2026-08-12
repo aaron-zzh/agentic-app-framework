@@ -34,9 +34,8 @@ public class BatchGenerationController {
 
     @Operation(summary = "提交批量生成任务")
     @PostMapping
-    public Result<BatchGenerationTaskVO> submit(
-            @RequestParam Long userId, @Valid @RequestBody BatchGenerationSubmitDTO dto) {
-        return Result.success(batchGenerationService.submit(userId, dto));
+    public Result<BatchGenerationTaskVO> submit(@Valid @RequestBody BatchGenerationSubmitDTO dto) {
+        return Result.success(batchGenerationService.submit(dto));
     }
 
     @Operation(summary = "查询任务进度")
@@ -47,8 +46,8 @@ public class BatchGenerationController {
 
     @Operation(summary = "查询用户所有批量任务")
     @GetMapping
-    public Result<List<BatchGenerationTaskVO>> listByUser(@RequestParam Long userId) {
-        return Result.success(batchGenerationService.listByUser(userId));
+    public Result<List<BatchGenerationTaskVO>> listByUser() {
+        return Result.success(batchGenerationService.listCurrentUser());
     }
 
     @Operation(summary = "取消任务")

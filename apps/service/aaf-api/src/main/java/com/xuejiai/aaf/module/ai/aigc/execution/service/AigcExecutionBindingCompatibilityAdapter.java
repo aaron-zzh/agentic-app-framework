@@ -29,11 +29,19 @@ public class AigcExecutionBindingCompatibilityAdapter
             String domainExtensionCode,
             String productionMode,
             List<String> channelCodes) {
-        var requested = bindingIds == null ? List.<Long>of() : bindingIds.stream().distinct().toList();
+        var requested =
+                bindingIds == null ? List.<Long>of() : bindingIds.stream().distinct().toList();
         var channels = channelCodes == null ? List.<String>of() : channelCodes;
         var compatible =
                 repository.findAllById(requested).stream()
-                        .filter(binding -> compatible(binding, projectTypeCode, domainExtensionCode, productionMode, channels))
+                        .filter(
+                                binding ->
+                                        compatible(
+                                                binding,
+                                                projectTypeCode,
+                                                domainExtensionCode,
+                                                productionMode,
+                                                channels))
                         .toList();
         var coveredActions =
                 compatible.stream()
@@ -54,7 +62,8 @@ public class AigcExecutionBindingCompatibilityAdapter
                 && matches(binding.getProjectTypeCode(), projectTypeCode)
                 && matches(binding.getDomainExtensionCode(), domainExtensionCode)
                 && matches(binding.getProductionMode(), productionMode)
-                && (binding.getChannelCode() == null || channelCodes.contains(binding.getChannelCode()));
+                && (binding.getChannelCode() == null
+                        || channelCodes.contains(binding.getChannelCode()));
     }
 
     private boolean matches(String constraint, String actual) {

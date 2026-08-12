@@ -10,7 +10,7 @@
 "use client"
 
 import { ThemeProvider, useTheme } from "next-themes"
-import { Suspense, useCallback, useEffect, useRef } from "react"
+import { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import type { PanelImperativeHandle } from "react-resizable-panels"
 import { MotionLazy } from "@/components/animate"
 import { CommandPalette } from "@/components/common/CommandPalette"
@@ -22,6 +22,7 @@ import { SlotDevTrigger, SlotDock } from "@/features/studio/slots"
 import { setBackendScope } from "@/lib/api/rest/backend-client"
 import { commandRegistry, useCommandPalette } from "@/lib/hooks/use-command-palette"
 import { useChatterStore } from "@/lib/store/chatter-store"
+import { EntityMetadataGate } from "@/sections/layout/EntityMetadataGate"
 
 // Studio 常用命令（模块级注册，避免重复）
 commandRegistry.registerAll([
@@ -397,10 +398,13 @@ function StudioContent({ children }: { children: React.ReactNode }) {
 }
 
 export default function StudioLayout({ children }: { children: React.ReactNode }) {
+  const [scopeReady, setScopeReady] = useState(false)
+
   // studio 个人工作台场景：查询视角为 own，强制仅本人数据，与角色无关
   // （即使管理员登录 studio 也只看自己，区别于中后台 all，见 backend-client.ts 查询视角说明）
   useEffect(() => {
     setBackendScope("own")
+    setScopeReady(true)
   }, [])
 
   return (
@@ -425,7 +429,9 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
       <div className="relative flex h-screen w-full overflow-hidden bg-background">
         <StudioSidebar />
         <MotionLazy>
-          <StudioContent>{children}</StudioContent>
+          <EntityMetadataGate enabled={scopeReady}>
+            <StudioContent>{children}</StudioContent>
+          </EntityMetadataGate>
         </MotionLazy>
       </div>
 

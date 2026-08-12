@@ -33,10 +33,7 @@ export function useModel3dGenerationController({
 }: MediaGenerationControllerOptions = {}) {
   const [prompt, setPrompt] = useState(initialDraft?.prompt ?? "")
   const [textureQuality, setTextureQuality] = useState<TextureQuality>("none")
-  const estimateParams = useMemo(
-    () => ({ source: "text", textureQuality }),
-    [textureQuality]
-  )
+  const estimateParams = useMemo(() => ({ source: "text", textureQuality }), [textureQuality])
   const creditEstimate = useEstimateAigcCredits({
     type: "MODEL_3D",
     model: null,

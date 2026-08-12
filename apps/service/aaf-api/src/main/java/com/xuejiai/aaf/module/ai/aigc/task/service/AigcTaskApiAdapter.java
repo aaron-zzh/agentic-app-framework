@@ -10,6 +10,7 @@ import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
 import com.xuejiai.aaf.module.ai.aigc.task.api.AigcTaskApi;
 import com.xuejiai.aaf.module.ai.aigc.task.api.AigcTaskSubmitCommand;
 import com.xuejiai.aaf.module.ai.aigc.task.api.AigcTaskView;
@@ -28,14 +29,19 @@ public class AigcTaskApiAdapter implements AigcTaskApi {
 
     private final AigcTaskService taskService;
     private final AigcTaskRepository taskRepository;
+    private final AigcProjectApi projectApi;
     private final OperatorContext operatorContext;
 
     @Override
+    @Transactional
     public AigcTaskView submit(AigcTaskSubmitCommand command) {
         if (command == null || command.taskType() == null || command.taskType().isBlank()) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "AIGC 子任务类型不能为空");
         }
         var userId = operatorContext.currentOwnerId().orElseThrow();
+        if (command.projectId() != null) {
+            projectApi.lockForGeneratedResource(command.projectId(), userId);
+        }
         var parameters = parseParameters(command.parametersJson());
         var taskId =
                 switch (command.taskType().toUpperCase()) {
@@ -119,13 +125,30 @@ public class AigcTaskApiAdapter implements AigcTaskApi {
         task.setStatus("FAIL");
         task.setErrorMsg(reason == null ? "执行已取消" : reason);
         task.setVersion(task.getVersion() + 1);
-        taskRepository.save(task);
+        taskRepository.saveAndFlush(task);
         return toView(task);
     }
 
     @Override
     public AigcTaskView requireTask(Long taskId) {
         return toView(requireTaskEntity(taskId));
+    }
+
+    @Override
+    @Transactional
+    public void deleteProjectResources(Long projectId) {
+        taskRepository.softDeleteGenerationHistoryByProjectId(projectId);
+        var tasks = taskRepository.findByProjectIdOrderByIdAsc(projectId);
+        tasks.forEach(
+                task -> {
+                    if ("PENDING".equals(task.getStatus()) || "RUNNING".equals(task.getStatus())) {
+                        task.setStatus("FAIL");
+                        task.setErrorMsg("项目已删除");
+                        task.setVersion(task.getVersion() + 1);
+                    }
+                });
+        taskRepository.saveAllAndFlush(tasks);
+        taskRepository.deleteAll(tasks);
     }
 
     private AigcTask requireTaskEntity(Long taskId) {

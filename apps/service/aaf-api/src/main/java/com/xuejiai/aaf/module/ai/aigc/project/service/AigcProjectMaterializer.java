@@ -19,17 +19,20 @@ import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectMaterializeCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProject;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectChannelRef;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectConfigSnapshot;
+import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectDocumentRef;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectObject;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectProfileRef;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectRelation;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectRevision;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectChannelRefRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectConfigSnapshotRepository;
+import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectDocumentRefRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectObjectRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectProfileRefRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectRelationRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectRevisionRepository;
+import com.xuejiai.aaf.module.document.api.DocumentReferenceApi;
 
 import lombok.RequiredArgsConstructor;
 import tools.jackson.core.type.TypeReference;
@@ -45,9 +48,11 @@ public class AigcProjectMaterializer {
     private final AigcProjectConfigSnapshotRepository snapshotRepository;
     private final AigcProjectProfileRefRepository profileRefRepository;
     private final AigcProjectChannelRefRepository channelRefRepository;
+    private final AigcProjectDocumentRefRepository documentRefRepository;
     private final AigcProjectObjectRepository objectRepository;
     private final AigcProjectRelationRepository relationRepository;
     private final AigcProjectRevisionRepository revisionRepository;
+    private final DocumentReferenceApi documentReferenceApi;
     private final OperatorContext operatorContext;
 
     @Transactional
@@ -61,6 +66,7 @@ public class AigcProjectMaterializer {
                                 command.channelSpecVersionIds(),
                                 command.productionMode()));
         var ownerId = operatorContext.currentOwnerId().orElseThrow();
+        var documents = documentReferenceApi.requireOwned(command.documentVersionIds(), ownerId);
         var workspaceId =
                 command.workspaceId() == null
                         ? OrgContext.getCurrentWorkspaceId()
@@ -124,6 +130,15 @@ public class AigcProjectMaterializer {
             reference.setChannelSpecId(resolved.channelSpecVersionIds().get(index));
             reference.setPrimaryChannel(index == 0);
             channelRefRepository.save(reference);
+        }
+        for (var index = 0; index < documents.size(); index++) {
+            var reference = new AigcProjectDocumentRef();
+            copyScope(project, reference);
+            reference.setProjectId(project.getId());
+            reference.setDocumentVersionId(documents.get(index).id());
+            reference.setRole("project");
+            reference.setSortOrder(index);
+            documentRefRepository.save(reference);
         }
 
         var objects = new LinkedHashMap<String, AigcProjectObject>();

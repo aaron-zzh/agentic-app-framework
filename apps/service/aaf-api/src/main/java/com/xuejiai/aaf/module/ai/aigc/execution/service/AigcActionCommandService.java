@@ -23,6 +23,7 @@ import com.xuejiai.aaf.module.ai.aigc.execution.domain.AigcExecutionRun;
 import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionRunRepository;
 import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionTaskRefRepository;
 import com.xuejiai.aaf.module.ai.aigc.execution.vo.AigcActionOptionVO;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectObjectView;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectView;
@@ -53,6 +54,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
     private final AigcExecutionRunRepository runRepository;
     private final AigcExecutionTaskRefRepository taskRefRepository;
     private final AigcTaskApi taskApi;
+    private final AigcMediaApi mediaApi;
     private final AigcRuntimeCancellationPort runtimeCancellationPort;
     private final OperatorContext operatorContext;
     private final List<AigcActionExecutor> executors;
@@ -82,14 +84,11 @@ public class AigcActionCommandService implements AigcExecutionApi {
         var cancellationReason = reason == null || reason.isBlank() ? "用户取消" : reason;
         var runtimeTraceId = text(run.getOutputPayload(), "runtimeTraceId");
         if (runtimeTraceId != null) {
-            runtimeCancellationPort.cancel(
-                    run.getTargetType(), runtimeTraceId, cancellationReason);
+            runtimeCancellationPort.cancel(run.getTargetType(), runtimeTraceId, cancellationReason);
         }
         taskRefRepository
                 .findByExecutionRunIdAndDeletedFalseOrderBySortOrderAsc(run.getId())
-                .forEach(
-                        reference ->
-                                taskApi.cancel(reference.getTaskId(), cancellationReason));
+                .forEach(reference -> taskApi.cancel(reference.getTaskId(), cancellationReason));
         run.setStatus("canceled");
         run.setErrorMessage(cancellationReason);
         run.setEndTime(LocalDateTime.now());
@@ -128,6 +127,10 @@ public class AigcActionCommandService implements AigcExecutionApi {
     private AigcExecutionRunView submitInternal(
             AigcActionCommand command, Long retryOfRunId, int retryCount) {
         var project = requireWritableProject(command.projectId());
+        command.attachmentMediaVersionIds()
+                .forEach(
+                        mediaVersionId ->
+                                mediaApi.getByVersionId(mediaVersionId, project.userId()));
         var object = resolveObject(project, command);
         var binding = bindingResolver.resolve(project, command.actionKey());
         validateBudget(project, binding);
@@ -158,6 +161,8 @@ public class AigcActionCommandService implements AigcExecutionApi {
     }
 
     private AigcProjectView requireWritableProject(Long projectId) {
+        var userId = operatorContext.currentOwnerId().orElseThrow();
+        projectApi.lockForGeneratedResource(projectId, userId);
         var project = projectApi.requireProject(projectId);
         if (!"draft".equals(project.lifecycleStage())
                 && !"in_progress".equals(project.lifecycleStage())) {
@@ -252,6 +257,47 @@ public class AigcActionCommandService implements AigcExecutionApi {
                     List.of("article_deliverable");
             default -> List.of("copy_deliverable");
         };
+    }
+
+    @Override
+    @Transactional
+    public void deleteProjectResources(Long projectId) {
+        runRepository.softDeleteGenerationHistoryByProjectId(projectId);
+        var runs = runRepository.findByProjectIdOrderByIdAsc(projectId);
+        if (runs.isEmpty()) {
+            return;
+        }
+        var now = LocalDateTime.now();
+        var runIds = runs.stream().map(AigcExecutionRun::getId).toList();
+        var references = taskRefRepository.findByExecutionRunIdInAndDeletedFalse(runIds);
+        runs.forEach(
+                run -> {
+                    if ("pending".equals(run.getStatus()) || "running".equals(run.getStatus())) {
+                        var runtimeTraceId = text(run.getOutputPayload(), "runtimeTraceId");
+                        if (runtimeTraceId != null) {
+                            runtimeCancellationPort.cancel(
+                                    run.getTargetType(), runtimeTraceId, "项目已删除");
+                        }
+                        references.stream()
+                                .filter(
+                                        reference ->
+                                                run.getId().equals(reference.getExecutionRunId()))
+                                .forEach(
+                                        reference ->
+                                                taskApi.cancel(reference.getTaskId(), "项目已删除"));
+                        run.setStatus("canceled");
+                        run.setErrorMessage("项目已删除");
+                        run.setEndTime(now);
+                        run.setVersion(run.getVersion() + 1);
+                    }
+                });
+        references.forEach(
+                reference -> {
+                    reference.setDeleted(true);
+                    reference.setDeleteTime(now);
+                });
+        taskRefRepository.saveAll(references);
+        runRepository.deleteAll(runs);
     }
 
     private AigcExecutionRun requireAccessibleRun(Long executionRunId) {

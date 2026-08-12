@@ -286,8 +286,7 @@ public class AigcWorkService
                     default -> false;
                 };
         if (!allowed) {
-            throw badRequest(
-                    "不支持的 Publication 状态流转: " + currentStatus + " -> " + targetStatus);
+            throw badRequest("不支持的 Publication 状态流转: " + currentStatus + " -> " + targetStatus);
         }
     }
 
@@ -324,6 +323,18 @@ public class AigcWorkService
                 new AigcWorkArchivedEvent(
                         UUID.randomUUID(), work.getId(), work.getProjectId(), Instant.now()));
         return toApiView(work);
+    }
+
+    @Override
+    @Transactional
+    public void deleteProjectResources(Long projectId) {
+        var works = repository.findByProjectIdOrderByIdAsc(projectId);
+        if (works.isEmpty()) {
+            return;
+        }
+        var workIds = works.stream().map(AigcWork::getId).toList();
+        publicationRepository.deleteAll(publicationRepository.findByWorkIdIn(workIds));
+        repository.deleteAll(works);
     }
 
     public List<AigcWorkPublicationVO> publications(Long workId) {

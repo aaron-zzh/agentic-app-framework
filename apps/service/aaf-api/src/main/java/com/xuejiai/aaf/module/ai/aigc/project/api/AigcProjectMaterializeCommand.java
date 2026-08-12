@@ -10,6 +10,7 @@ public record AigcProjectMaterializeCommand(
         Long domainExtensionVersionId,
         List<Long> brandProfileVersionIds,
         List<Long> channelSpecVersionIds,
+        List<Long> documentVersionIds,
         String productionMode,
         String briefJson) {
 
@@ -18,5 +19,7 @@ public record AigcProjectMaterializeCommand(
                 brandProfileVersionIds == null ? List.of() : List.copyOf(brandProfileVersionIds);
         channelSpecVersionIds =
                 channelSpecVersionIds == null ? List.of() : List.copyOf(channelSpecVersionIds);
+        documentVersionIds =
+                documentVersionIds == null ? List.of() : List.copyOf(documentVersionIds);
     }
 }

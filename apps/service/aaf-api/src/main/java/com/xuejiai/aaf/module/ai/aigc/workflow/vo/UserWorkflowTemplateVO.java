@@ -12,7 +12,7 @@ public class UserWorkflowTemplateVO {
     private String code;
     private String name;
     private String description;
-    private String coverUrl;
+    private Long coverMediaVersionId;
     private String category;
     private Map<String, Object> templateConfig;
     private Boolean isOfficial;

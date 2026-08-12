@@ -523,3 +523,213 @@ db/seed/v18__user_studio_seed.sql                        -- 模板 + 装扮 + �
 - [ ] Postman/curl 命中接口验证（含未登录 401、跨用户 404、参数校验 400）
 - [ ] 前端页面真机操作走通（生图/视频/项目/装扮等）
 - [ ] **数据隔离验证**：A 用户登录看不到 B 用户的项目/资产/装扮（核心安全门）
+
+
+
+## Studio 首页四行改版
+
+> 本节是 AAF-100 首页改版的增量设计，只覆盖 [requirement.md](./requirement.md) 中定义的 Reduction MVP。前文历史方案继续保留；与本节冲突的首页结构、蓝图封面字段和 Flyway 编号，以本节为准。
+
+### 目标与边界
+
+本次改造复用现有 AIGC `configuration`、`project` 与 Studio 页面能力，不新增平行模板、项目或创作体系。
+
+- 首页严格保留四个顶层内容区块，顺序固定为：统计卡、最近项目、蓝图、快速创作。
+- 删除首页对 `HomeRecentAssets`（“最近生成”）的导入与渲染，但不在本任务删除其组件或改造资产页。
+- 复用现有 `HomeDataCapsules`、`RecentProjectGrid`、蓝图查询和项目 `_materialize` 链路；统计口径、最近项目口径与项目详情页不变。
+- 五个既有创作能力直接进入原路由；数字人只进入统一创作入口的占位模式。
+- `HomeChatLauncher` 不在首页四区中使用，本任务不重构、不迁移、不删除该组件。
+- 不新增蓝图管理、排序、发布接口，不重构既有图像、视频、文案、配音和音乐页面。
+
+### 全局配置租户语义
+
+项目类型、项目蓝图、渠道规格、领域扩展、项目类型兼容包和执行绑定是平台级版本化定义，统一使用 `TenantScope.GLOBAL`，对应实体标注 `@OrgIgnore`。这些表的种子记录与运行时记录保持 `org_id = NULL`、`workspace_id = NULL`，与现有全局唯一键一致。
+
+- `member`、`org_admin` 可读取和使用全局定义，但不能创建、更新、删除或发布。
+- `admin`、`super_admin` 才可维护全局定义。
+- 项目、品牌/IP、媒体、任务和资产等业务数据继续按组织/工作区隔离。
+- 若未来需要组织自定义蓝图，应新增明确的组织覆盖/扩展模型，不在全局定义表中混存组织数据。
+- `@OrgIgnore` 与 `TenantScope.GLOBAL` 必须成对使用：前者关闭 Hibernate 组织过滤，后者令 CRUD 安全决策只接受 `org_id/workspace_id` 均为空的记录。
+
+### 首页结构
+
+`apps/webui/src/app/studio/page.tsx` 的内容容器只渲染以下四个直接子 `section`。页面标题、全局导航、欢迎页重定向和 toast 不计入内容区块，但不得插入为第五个业务 `section`。
+
+| 顺序 | 区块 | 复用或新增 | 数据与失败边界 |
+|------|------|------------|----------------|
+| 第一行 | 统计卡 | 复用 `HomeDataCapsules` | 各统计查询沿用现状；失败不阻塞其他区块 |
+| 第二行 | 最近项目 | 复用 `RecentProjectGrid` | 沿用现有最近排序和数量；空态/失败态只占本区 |
+| 第三行 | 蓝图 | 新增首页蓝图区，复用项目类型和蓝图 Query | 类型 Tabs、已发布蓝图卡、空态/失败态、建项 Dialog 均封装在本区 |
+| 第四行 | 快速创作 | 新增快速入口区 | 静态路由卡不依赖前三行数据，可独立导航 |
+
+响应式只允许区块内部卡片网格换行，不改变四个顶层区块的数量和 DOM 顺序。`HomeRecentAssets` 不再出现在首页；其原有媒体查询也不得由首页触发。
+
+### 数据库基线
+
+当前项目尚未部署，AIGC 基线迁移仍允许按既有批准直接重建。本增量不新增 Flyway 版本，直接修改：
+
+`apps/service/aaf-api/src/main/resources/db/migration/v7__aigc_schema.sql`
+
+在 `aigc_project_blueprint` 建表定义中加入：
+
+```sql
+cover_url VARCHAR(1000),
+```
+
+并增加列注释：
+
+```sql
+COMMENT ON COLUMN aigc_project_blueprint.cover_url IS '蓝图卡封面 URL，可空；前端加载失败时按项目类型使用渐变封面';
+```
+
+约束如下：
+
+- PostgreSQL 列为 `aigc_project_blueprint.cover_url VARCHAR(1000)`，nullable，不设默认值。
+- 不新增 `v104` 或其他增量迁移；所有未部署环境按 Flyway 基线重新构建。
+- 同步修改基线 `v102__aigc_entity_def.sql` 的蓝图字段配置，使管理视图可编辑 `coverUrl`。
+- 不创建索引；首页不按 `cover_url` 查询或排序。
+
+### Java 字段与映射
+
+现有 `AigcProjectBlueprint` CRUD 契约按同名字段贯通，HTTP 路径和资源名称不变。
+
+```java
+// AigcProjectBlueprint
+@Column(name = "cover_url", length = 1000)
+private String coverUrl;
+
+// AigcProjectBlueprintCreateDTO
+@Size(max = 1000) String coverUrl
+
+// AigcProjectBlueprintUpdateDTO
+Patch<String> coverUrl
+
+// AigcProjectBlueprintVO
+String coverUrl
+```
+
+具体映射要求：
+
+- `AigcProjectBlueprintCreateDTO` 在 `description` 后增加 nullable `coverUrl`；MapStruct `AigcProjectBlueprintConvert` 依同名字段自动映射到 Entity。
+- `AigcProjectBlueprintUpdateDTO` 增加 `Patch<String> coverUrl`，规范构造器执行 `coverUrl = normalize(coverUrl)`，`fromJson` 使用 `Patch.parse(coverUrl, AigcConfigurationPatchDecoder::text)`。缺席表示不修改，显式 `null` 表示清空。
+- `AigcProjectBlueprintVO` 在 `description` 后返回 `coverUrl`。由于 VO 使用 `NON_NULL`，数据库为 `null` 时响应可省略该字段；前端须同时接受缺失与 `null`。
+- `AigcProjectBlueprintService.toVO` 增加 `entity.getCoverUrl()`；`updateEntity` 使用 `AigcConfigurationPatchSupport.nullable(request.coverUrl(), entity::setCoverUrl)`。
+- 发布后蓝图仍遵循既有不可变规则；`coverUrl` 只允许在草稿状态随 CRUD 修改，不绕过 `requireDraft`。
+- 创建、更新、读取和清空封面均需单元测试，验证 1000 字符上限及 null 语义。
+
+### 前端蓝图类型
+
+`apps/webui/src/lib/api/rest/ai/aigc/configuration.ts` 的唯一蓝图类型增加：
+
+```ts
+export interface AigcProjectBlueprint {
+  // 既有字段保持不变
+  coverUrl?: string | null
+}
+```
+
+不新建首页专用蓝图 DTO，不把 Query 结果复制到 Zustand。首页只消费服务端既有 `/aigc/project-types` 与 `/aigc/project-blueprints` 契约。
+
+### 类型 Tabs 与蓝图卡
+
+- Tabs 来源为状态有效的项目类型定义，沿用 `AigcProjectType.code/name/sortOrder`；前端不得新建第二套项目类型枚举。
+- 蓝图查询使用 `useAigcProjectBlueprints({ projectTypeCode: activeType, status: "published" })`。Query key 已包含参数，每个 Tab 独立缓存、加载、空态和失败态。
+- 即使某类型查询结果为空，其 Tab 和第三行仍保留，不用其他类型蓝图填充。
+- 蓝图卡至少展示名称、项目类型、生产模式和封面区；整张卡的主要点击区域打开建项 Dialog，不先跳详情页。
+- 客户端可再次断言 `blueprint.status === "published"` 且 `projectTypeCode === activeType` 作为显示保护，但服务端筛选仍是数据边界。
+
+封面表现由蓝图卡组件内部管理，不写回 TanStack Query：
+
+```text
+coverUrl 为 null / undefined / 空白 → 直接显示项目类型渐变
+coverUrl 非空且图片未失败          → 显示图片
+图片 onError                       → 标记当前卡失败并立即切到项目类型渐变
+blueprint.id 或 coverUrl 变化       → 重置失败标记
+```
+
+图片使用空 `alt` 或等价装饰语义，名称由卡片文本提供。`onError` 后移除或隐藏失败图片，不能保留浏览器破图图标。渐变映射以 `projectTypeCode` 为键，复用/扩展 `project-type-config` 的稳定视觉配置；未知类型使用统一中性渐变，同一类型始终一致，不同已知类型可区分。
+
+### 蓝图建项 Dialog
+
+Dialog 以点击时的 `selectedBlueprint` 为不可编辑上下文，展示 `projectTypeCode` 对应类型名称、蓝图名称与 `productionMode`。可编辑字段为项目名称、单选 IP、渠道和高级设置中的补充说明。
+
+提交继续复用：
+
+`POST /aigc/projects/_materialize`
+
+请求映射如下：
+
+| Dialog 字段 | `AigcProjectMaterializeInput` | 规则 |
+|-------------|-------------------------------|------|
+| 项目名称 | `name` | 提交前 `trim()`；空值不发请求 |
+| 项目类型 | `projectTypeCode` | 取 `selectedBlueprint.projectTypeCode`，只读 |
+| 蓝图 | `blueprintVersionId` | 取 `selectedBlueprint.id`，只读 |
+| 生产模式 | `productionMode` | 取 `selectedBlueprint.productionMode`，只读 |
+| IP | `brandProfileVersionIds` | 未选为 `[]`；已选时提交该 IP 当前已发布版本 ID 的单元素数组 |
+| 渠道 | `channelSpecVersionIds` | 未选为 `[]`；已选时提交有权访问且有效的渠道规格版本 ID |
+| 补充说明 | `briefJson` | trim 后为空则省略；高级设置折叠不清空 |
+
+服务端 `AigcProjectMaterializer` 继续通过 `configurationApi.resolve(...)` 重新解析蓝图、项目类型、生产模式和渠道兼容性，通过 `brandApi.requireVersions(...)` 校验 IP 版本及工作区权限；不得信任客户端自行组合的类型、模式、IP 或渠道。蓝图非 `published`、已删除、不可访问或与类型/模式不兼容时，事务失败且不创建项目。
+
+交互规则：
+
+- `selectedBlueprint`、Dialog 开关、`activeType`、名称、IP、渠道、高级设置开关、补充说明和同步提交锁属于页面本地 UI 状态。
+- 项目类型、蓝图列表、最近项目、IP、渠道与创建结果属于服务端状态，只能由 TanStack Query hooks 管理；不得复制到 Zustand 或用 effect 制作第二份列表。
+- 打开卡片时以该蓝图建立全新表单初值；主动关闭后清理表单。创建失败不关闭、不重置，保留全部输入。
+- 名称错误显示在字段附近。提交函数使用同步 `ref`/等价单航班锁并结合 mutation `isPending` 禁用按钮，避免 React 状态刷新前的连点产生第二次请求；settled 后释放，允许失败重试。
+- `useMaterializeAigcProject` 成功后关闭 Dialog，失效最近项目相关 Query，并直接 `router.push(`/studio/projects/${project.id}`)`；不经过项目列表。
+- 创建错误由 Dialog 内可恢复错误提示承载，不导航、不清空输入。
+
+### 快速创作路由
+
+第四行使用 `Link` 或 `router.push` 直接指向现有页面，不通过 `HomeChatLauncher` 转发：
+
+| 入口 | 路由 |
+|------|------|
+| 图像 | `/studio/create/image` |
+| 视频 | `/studio/create/video` |
+| 文案 | `/studio/create/copy` |
+| 配音 | `/studio/create/voice` |
+| 音乐 | `/studio/create/music` |
+| 数字人 | `/studio/create?mode=digital-human` |
+
+`/studio/create` 只需识别 `mode=digital-human` 并在现有统一创作容器内展示“能力尚未开放”的明确占位状态；该状态不渲染数字人提交按钮、不调用生成 mutation、不伪造任务或结果。其他 query 参数和五个既有页面的结构、参数及生成流程不在本任务修改。
+
+### 加载、失败与权限
+
+四区不建立聚合式总 loading：每区独立读取自己的 Query 状态并在区内显示 skeleton、空态或重试入口。项目类型、蓝图与渠道规格作为全局定义按发布状态和平台权限读取；最近项目、IP 与新建项目继续按登录用户及组织/工作区过滤。认证失效沿用统一 `backendApi` 处理。任一区失败不得遮挡或禁用其他区。
+
+### 测试设计
+
+后端 developer 单测（`*Test.java`）：
+
+- Entity/DDL 映射可读写 null 与 1000 字符 `coverUrl`。
+- CreateDTO → Entity、Entity → VO、UpdateDTO Patch → Entity 的值、缺席和显式清空语义。
+- `status=published + projectTypeCode` 查询不返回其他类型或非发布蓝图。
+- 物化时蓝图下线、删除、类型/模式不匹配、无权 IP/渠道均失败且事务不产生项目。
+
+前端 developer 单元/组件测试（`*.test.ts(x)`）：
+
+- `AigcProjectBlueprint.coverUrl` 缺失、null、空白、有效图片及 `onError` 均得到正确封面，且无破图元素残留。
+- Tabs 使用项目类型定义；每个 Tab 只渲染本类型 published 蓝图，空类型保留区块。
+- Dialog 只读上下文、名称 trim/空值拦截、可选 IP/渠道、高级设置保值、切换蓝图重置、失败保值、重复点击单请求、成功直达详情。
+- 首页恰有四个顶层业务区块且顺序固定，不渲染“最近生成”；各区失败互不阻塞。
+- 六个快速入口路由精确匹配；数字人占位不暴露生成提交能力。
+- 至少覆盖桌面和窄视口，确认卡片换行不改变顶层区块数量。
+
+Tester 验收/集成测试使用 `*IT.java`、`*AcceptanceTest.java`、`*.accept.test.ts(x)` 或 Playwright，逐条映射 requirement.md 的 Gherkin AC；特别验证 AIGC 基线可重建、服务端防篡改、跨用户数据隔离、断开封面请求后的渐变回退和创建中连点。
+
+验证命令：
+
+```text
+pnpm nx test service
+pnpm nx test webui
+pnpm check:affected
+pnpm acceptance:affected
+```
+
+### 发布与回滚
+
+当前项目尚未部署，不执行增量迁移。环境按更新后的 Flyway 基线重建后再部署后端与前端；未配置封面的蓝图自然使用类型渐变。
+
+回滚采用代码与基线文件同步回退，不对已部署数据库执行删列脚本。正式部署前若迁移策略发生变化，必须重新评审并新增独立增量迁移，不得继续修改已执行的基线。

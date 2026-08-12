@@ -8,18 +8,16 @@
  */
 
 import type { ReactNode } from "react"
-import type { VideoImageMode } from "@/lib/api/rest/ai"
 import type { AigcTaskEvent } from "@/lib/hooks/use-aigc-task-stream"
 
-export const MEDIA_GENERATION_MODES = [
-  "image",
-  "video",
-  "voice",
-  "music",
-  "model-3d"
-] as const
+export const MEDIA_GENERATION_MODES = ["image", "video", "voice", "music", "model-3d"] as const
 
 export type MediaGenerationMode = (typeof MEDIA_GENERATION_MODES)[number]
+
+export const VIDEO_INPUT_MODES = ["T2V", "REFERENCE", "FIRST_LAST_FRAME"] as const
+
+/** 视频 Composer 的交互模式，与后端供应商路由模式分离。 */
+export type VideoInputMode = (typeof VIDEO_INPUT_MODES)[number]
 
 /** 判断 URL 参数是否为受支持的媒体生成模式。 */
 export function isMediaGenerationMode(value: string | undefined): value is MediaGenerationMode {
@@ -68,7 +66,7 @@ export interface MediaGenerationDraft {
   model?: string
   referenceImageUrl?: string
   lastFrameImageUrl?: string
-  videoImageMode?: VideoImageMode
+  videoImageMode?: VideoInputMode
 }
 
 export interface MediaTaskSubmission {

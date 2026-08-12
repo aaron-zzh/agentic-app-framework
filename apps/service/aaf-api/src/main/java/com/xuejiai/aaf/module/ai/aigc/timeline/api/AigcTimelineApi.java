@@ -11,4 +11,6 @@ public interface AigcTimelineApi {
     AigcTimelineView requireTimeline(Long timelineId);
 
     List<AigcStoryboardExportView> storyboardExports(Long timelineId);
+
+    void deleteProjectResources(Long projectId);
 }

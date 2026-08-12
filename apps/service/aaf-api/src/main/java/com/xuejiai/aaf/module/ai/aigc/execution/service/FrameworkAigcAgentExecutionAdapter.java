@@ -133,8 +133,7 @@ public class FrameworkAigcAgentExecutionAdapter implements AigcAgentExecutionPor
                     targetRef.substring(0, separator),
                     Long.parseLong(targetRef.substring(separator + 1)));
         } catch (NumberFormatException exception) {
-            throw new IllegalArgumentException(
-                    "Agent targetRef 必须为 agentId@version", exception);
+            throw new IllegalArgumentException("Agent targetRef 必须为 agentId@version", exception);
         }
     }
 

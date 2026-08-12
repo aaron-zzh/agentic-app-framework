@@ -27,10 +27,7 @@ export function useMusicGenerationController({
   const [prompt, setPrompt] = useState(initialDraft?.prompt ?? "")
   const [lyrics, setLyrics] = useState("")
   const [gender, setGender] = useState("female")
-  const estimateParams = useMemo(
-    () => ({ lyrics: lyrics || undefined, gender }),
-    [gender, lyrics]
-  )
+  const estimateParams = useMemo(() => ({ lyrics: lyrics || undefined, gender }), [gender, lyrics])
   const creditEstimate = useEstimateAigcCredits({
     type: "MUSIC",
     model: null,
@@ -86,7 +83,6 @@ export function useMusicGenerationController({
     creditEstimate,
     submit,
     isSubmitting: generateMusic.isPending,
-    canSubmit:
-      !generateMusic.isPending && (prompt.trim().length > 0 || lyrics.trim().length > 0)
+    canSubmit: !generateMusic.isPending && (prompt.trim().length > 0 || lyrics.trim().length > 0)
   }
 }

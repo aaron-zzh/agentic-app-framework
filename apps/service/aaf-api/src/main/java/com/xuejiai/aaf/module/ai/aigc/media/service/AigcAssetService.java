@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.ai.aigc.media.service;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
@@ -14,6 +15,7 @@ import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.aigc.media.domain.AigcAsset;
+import com.xuejiai.aaf.module.ai.aigc.media.domain.AigcAssetCollectionItem;
 import com.xuejiai.aaf.module.ai.aigc.media.domain.AigcAssetTag;
 import com.xuejiai.aaf.module.ai.aigc.media.domain.AigcAssetTagRef;
 import com.xuejiai.aaf.module.ai.aigc.media.domain.AigcMedia;
@@ -54,6 +56,49 @@ public class AigcAssetService
 
     @Override
     protected AigcAssetVO toVO(AigcAsset asset) {
+        return toVO(asset, tagViews(asset, activeTagIds(asset.getId())));
+    }
+
+    @Override
+    protected List<AigcAssetVO> toVOList(List<AigcAsset> assets, String fieldSet) {
+        if (assets.isEmpty()) return List.of();
+
+        var references =
+                tagRefRepository.findByAssetIdInAndDeletedFalseOrderByAssetIdAscTagIdAsc(
+                        assets.stream().map(AigcAsset::getId).toList());
+        var tagIdsByAsset = new LinkedHashMap<Long, List<Long>>();
+        for (var reference : references) {
+            tagIdsByAsset
+                    .computeIfAbsent(reference.getAssetId(), ignored -> new ArrayList<>())
+                    .add(reference.getTagId());
+        }
+        var tagsById =
+                tagRepository
+                        .findAllById(
+                                references.stream()
+                                        .map(AigcAssetTagRef::getTagId)
+                                        .distinct()
+                                        .toList())
+                        .stream()
+                        .collect(
+                                java.util.stream.Collectors.toMap(AigcAssetTag::getId, tag -> tag));
+
+        return assets.stream()
+                .map(
+                        asset -> {
+                            var tags =
+                                    tagIdsByAsset.getOrDefault(asset.getId(), List.of()).stream()
+                                            .map(tagsById::get)
+                                            .filter(Objects::nonNull)
+                                            .filter(tag -> tagAccessible(asset, tag))
+                                            .map(tagService::toVO)
+                                            .toList();
+                            return toVO(asset, tags);
+                        })
+                .toList();
+    }
+
+    private AigcAssetVO toVO(AigcAsset asset, List<AigcAssetTagVO> tags) {
         var media = mediaService.requireOwnedMedia(asset.getMediaId(), asset.getUserId());
         return new AigcAssetVO(
                 asset.getId(),
@@ -64,6 +109,7 @@ public class AigcAssetService
                 asset.getStatus(),
                 asset.getUsageCount(),
                 mediaService.toVO(media),
+                tags,
                 asset.getCreateTime());
     }
 
@@ -76,7 +122,10 @@ public class AigcAssetService
     protected void updateEntity(AigcAsset asset, AigcAssetUpdateDTO request) {
         if (request.categoryId() != null) {
             requireAccessibleCategory(
-                    request.categoryId(), asset.getUserId(), asset.getWorkspaceId());
+                    request.categoryId(),
+                    asset.getOwnerId(),
+                    asset.getOrgId(),
+                    asset.getWorkspaceId());
             asset.setCategoryId(request.categoryId());
         }
         if (request.scope() != null && !request.scope().isBlank()) {
@@ -91,8 +140,38 @@ public class AigcAssetService
     protected Specification<AigcAsset> buildSpec(AigcAssetPageDTO request) {
         return (root, query, builder) -> {
             var predicates = new ArrayList<Predicate>();
-            if (request.getCategoryId() != null) {
-                predicates.add(builder.equal(root.get("categoryId"), request.getCategoryId()));
+            if (Boolean.TRUE.equals(request.getUncategorized())) {
+                predicates.add(builder.isNull(root.get("categoryId")));
+            } else if (request.getCategoryIds() != null) {
+                var categoryIds = new LinkedHashSet<>(request.getCategoryIds());
+                categoryIds.remove(null);
+                if (!categoryIds.isEmpty()) {
+                    predicates.add(root.get("categoryId").in(categoryIds));
+                }
+            }
+            if (request.getTagIds() != null) {
+                for (var tagId : new LinkedHashSet<>(request.getTagIds())) {
+                    if (tagId == null) continue;
+                    var taggedAssets = query.subquery(Long.class);
+                    var tagReference = taggedAssets.from(AigcAssetTagRef.class);
+                    taggedAssets.select(tagReference.get("assetId"));
+                    taggedAssets.where(
+                            builder.equal(tagReference.get("assetId"), root.get("id")),
+                            builder.equal(tagReference.get("tagId"), tagId),
+                            builder.isFalse(tagReference.get("deleted")));
+                    predicates.add(builder.exists(taggedAssets));
+                }
+            }
+            if (request.getCollectionId() != null) {
+                var collectedAssets = query.subquery(Long.class);
+                var collectionItem = collectedAssets.from(AigcAssetCollectionItem.class);
+                collectedAssets.select(collectionItem.get("assetId"));
+                collectedAssets.where(
+                        builder.equal(collectionItem.get("assetId"), root.get("id")),
+                        builder.equal(
+                                collectionItem.get("collectionId"), request.getCollectionId()),
+                        builder.isFalse(collectionItem.get("deleted")));
+                predicates.add(builder.exists(collectedAssets));
             }
             if (request.getMediaType() != null
                     || (request.getKeyword() != null && !request.getKeyword().isBlank())) {
@@ -123,15 +202,17 @@ public class AigcAssetService
     @Transactional
     public AigcAssetVO saveFromMedia(Long mediaId, AigcAssetSaveDTO request) {
         var userId = requireCurrentUserId();
+        mediaService.lockMediaForReference(mediaId, userId);
         var media =
                 mediaRepository
-                        .findLockedByIdAndUserId(mediaId, userId)
+                        .findByIdAndUserId(mediaId, userId)
                         .orElseThrow(
                                 () ->
                                         new BusinessException(
                                                 GlobalErrorCode.NOT_FOUND, "媒体不存在或无权访问"));
         if (request != null && request.categoryId() != null) {
-            requireAccessibleCategory(request.categoryId(), userId, media.getWorkspaceId());
+            requireAccessibleCategory(
+                    request.categoryId(), userId, media.getOrgId(), media.getWorkspaceId());
         }
         var existing = assetRepository.findByMediaId(mediaId);
         if (existing.isPresent()) {
@@ -154,12 +235,14 @@ public class AigcAssetService
 
     public List<AigcAssetTagVO> tags(Long assetId) {
         var asset = requireEntity(assetId);
-        var tagIds =
-                tagRefRepository.findByAssetIdOrderByTagId(assetId).stream()
-                        .filter(reference -> !Boolean.TRUE.equals(reference.getDeleted()))
-                        .map(AigcAssetTagRef::getTagId)
-                        .toList();
-        return tagViews(asset, tagIds);
+        return tagViews(asset, activeTagIds(assetId));
+    }
+
+    private List<Long> activeTagIds(Long assetId) {
+        return tagRefRepository.findByAssetIdOrderByTagId(assetId).stream()
+                .filter(reference -> !Boolean.TRUE.equals(reference.getDeleted()))
+                .map(AigcAssetTagRef::getTagId)
+                .toList();
     }
 
     @Transactional
@@ -172,11 +255,12 @@ public class AigcAssetService
             throw new BusinessException(GlobalErrorCode.NOT_FOUND, "资产标签不存在或无权访问");
         }
 
-        var references =
-                new ArrayList<>(tagRefRepository.findByAssetIdOrderByTagId(assetId));
+        var references = new ArrayList<>(tagRefRepository.findByAssetIdOrderByTagId(assetId));
         var byTagId =
                 references.stream()
-                        .collect(java.util.stream.Collectors.toMap(AigcAssetTagRef::getTagId, value -> value));
+                        .collect(
+                                java.util.stream.Collectors.toMap(
+                                        AigcAssetTagRef::getTagId, value -> value));
         var touched = new LinkedHashSet<Long>();
         for (var reference : references) {
             var active = requested.contains(reference.getTagId());
@@ -202,12 +286,19 @@ public class AigcAssetService
         var byId =
                 tagRepository.findAllById(tagIds).stream()
                         .filter(tag -> tagAccessible(asset, tag))
-                        .collect(java.util.stream.Collectors.toMap(AigcAssetTag::getId, value -> value));
-        return tagIds.stream().map(byId::get).filter(Objects::nonNull).map(tagService::toVO).toList();
+                        .collect(
+                                java.util.stream.Collectors.toMap(
+                                        AigcAssetTag::getId, value -> value));
+        return tagIds.stream()
+                .map(byId::get)
+                .filter(Objects::nonNull)
+                .map(tagService::toVO)
+                .toList();
     }
 
     private boolean tagAccessible(AigcAsset asset, AigcAssetTag tag) {
         return !Boolean.TRUE.equals(tag.getDeleted())
+                && Objects.equals(asset.getOwnerId(), tag.getOwnerId())
                 && Objects.equals(asset.getOrgId(), tag.getOrgId())
                 && (tag.getWorkspaceId() == null
                         || Objects.equals(asset.getWorkspaceId(), tag.getWorkspaceId()));
@@ -215,13 +306,15 @@ public class AigcAssetService
 
     private void refreshTagUsageCounts(LinkedHashSet<Long> tagIds) {
         for (var tag : tagRepository.findAllById(tagIds)) {
-            tag.setUsageCount(Math.toIntExact(tagRefRepository.countByTagIdAndDeletedFalse(tag.getId())));
+            tag.setUsageCount(
+                    Math.toIntExact(tagRefRepository.countByTagIdAndDeletedFalse(tag.getId())));
             tagRepository.save(tag);
         }
     }
 
-    private void requireAccessibleCategory(Long categoryId, Long userId, Long workspaceId) {
-        if (assetRepository.countAccessibleCategory(categoryId, userId, workspaceId) == 0) {
+    private void requireAccessibleCategory(
+            Long categoryId, Long ownerId, Long orgId, Long workspaceId) {
+        if (assetRepository.countOwnedCategory(categoryId, ownerId, orgId, workspaceId) == 0) {
             throw new BusinessException(GlobalErrorCode.NOT_FOUND, "资产分类不存在或无权访问");
         }
     }

@@ -13,8 +13,10 @@ import { useRef, useState } from "react"
 import { ModelParamsPopover } from "@/components/common/ModelParamsPopover"
 import { ModelSelector } from "@/components/common/ModelSelector"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { BrandProfilePicker } from "@/features/aigc/generation/BrandProfilePicker"
 import { PromptTemplateDialog } from "@/features/aigc/generation/PromptTemplateDialog"
 import { SkillPickerContent } from "@/features/aigc/generation/SkillPicker"
+import { SnippetPickerDialog } from "@/features/aigc/generation/SnippetPickerDialog"
 import { ImageUploadChip } from "@/features/studio/home/ImageUploadChip"
 import { MediaComposerShell } from "@/features/studio/media-generation/components/MediaComposerShell"
 import { useImageGenerationController } from "@/features/studio/media-generation/hooks/use-image-generation-controller"
@@ -40,12 +42,24 @@ export function ImageGenerationComposer(props: MediaGenerationComposerProps) {
       creditEstimate={controller.creditEstimate}
       leadingTools={props.leadingTools}
       headerTools={
-        <PromptTemplateDialog
-          type="IMAGE_GEN"
-          hasReferenceImages={Boolean(controller.referenceImage)}
-          onSelect={controller.setPrompt}
-          triggerClassName="flex h-8 shrink-0 items-center gap-1 rounded-lg border border-foreground/8 px-2.5 text-muted-foreground text-xs transition-colors hover:bg-foreground/[0.06]"
-        />
+        <div className="flex items-center gap-1.5">
+          <PromptTemplateDialog
+            type="IMAGE_GEN"
+            hasReferenceImages={Boolean(controller.referenceImage)}
+            onSelect={controller.setPrompt}
+            triggerClassName="flex h-8 shrink-0 items-center gap-1 rounded-lg border border-foreground/8 px-2.5 text-muted-foreground text-xs transition-colors hover:bg-foreground/[0.06]"
+          />
+          <SnippetPickerDialog
+            value={controller.prompt}
+            onChange={controller.setPrompt}
+            triggerClassName="flex h-8 shrink-0 items-center gap-1 rounded-lg border border-foreground/8 px-2.5 text-muted-foreground text-xs transition-colors hover:bg-foreground/[0.06]"
+          />
+          <BrandProfilePicker
+            value={controller.selectedBrandProfile}
+            onChange={controller.setSelectedBrandProfile}
+            triggerClassName="flex h-8 shrink-0 items-center gap-1 rounded-lg border border-foreground/8 px-2.5 text-muted-foreground text-xs transition-colors hover:bg-foreground/[0.06]"
+          />
+        </div>
       }
       appearance={props.appearance}
       className={props.className}

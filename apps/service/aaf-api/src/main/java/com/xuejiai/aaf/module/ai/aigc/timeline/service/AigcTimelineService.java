@@ -237,6 +237,17 @@ public class AigcTimelineService
                 .toList();
     }
 
+    @Override
+    @Transactional
+    public void deleteProjectResources(Long projectId) {
+        storyboardExportRepository.deleteAll(
+                storyboardExportRepository.findByProjectIdOrderBySourceRevisionNoDescIdDesc(
+                        projectId));
+        var compositions = repository.findByProjectId(projectId);
+        compositions.forEach(composition -> deleteChildren(composition.getId()));
+        repository.deleteAll(compositions);
+    }
+
     @Transactional
     public void archiveProjectTimelines(Long projectId) {
         repository

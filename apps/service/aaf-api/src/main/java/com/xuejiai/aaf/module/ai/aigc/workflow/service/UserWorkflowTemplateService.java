@@ -52,7 +52,7 @@ public class UserWorkflowTemplateService
         vo.setCode(e.getCode());
         vo.setName(e.getName());
         vo.setDescription(e.getDescription());
-        vo.setCoverUrl(e.getCoverUrl());
+        vo.setCoverMediaVersionId(e.getCoverMediaVersionId());
         vo.setCategory(e.getCategory());
         vo.setTemplateConfig(e.getTemplateConfig());
         vo.setIsOfficial(e.getIsOfficial());

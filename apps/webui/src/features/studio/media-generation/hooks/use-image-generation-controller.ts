@@ -11,16 +11,17 @@
 import { useCallback, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { useAigcStore } from "@/features/aigc/store"
-import { useAiSkills, useGenerateImage } from "@/lib/api/rest/ai"
-import { useEstimateAigcCredits } from "@/lib/hooks/use-estimate-aigc-credits"
-import { useFileUpload } from "@/lib/hooks/use-file-upload"
-import { useGenerationParams } from "@/lib/hooks/use-generation-params"
-import { useModelSelector } from "@/lib/hooks/use-model-selector"
 import type {
   MediaGenerationControllerOptions,
   MediaImageAttachment,
   PendingMediaImageAttachment
 } from "@/features/studio/media-generation/types"
+import { useAiSkills, useGenerateImage } from "@/lib/api/rest/ai"
+import { type AigcBrandProfileSelection, mergeAigcSystemPrompts } from "@/lib/api/rest/ai/aigc"
+import { useEstimateAigcCredits } from "@/lib/hooks/use-estimate-aigc-credits"
+import { useFileUpload } from "@/lib/hooks/use-file-upload"
+import { useGenerationParams } from "@/lib/hooks/use-generation-params"
+import { useModelSelector } from "@/lib/hooks/use-model-selector"
 
 export function useImageGenerationController({
   projectId = null,
@@ -28,6 +29,8 @@ export function useImageGenerationController({
   onTaskSubmitted
 }: MediaGenerationControllerOptions = {}) {
   const [prompt, setPrompt] = useState(initialDraft?.prompt ?? "")
+  const [selectedBrandProfile, setSelectedBrandProfile] =
+    useState<AigcBrandProfileSelection | null>(null)
   const [referenceImage, setReferenceImage] = useState<MediaImageAttachment | null>(() =>
     initialDraft?.referenceImageUrl
       ? {
@@ -119,7 +122,10 @@ export function useImageGenerationController({
         contentModeration: params.contentModeration,
         seed: params.seed && params.seed > 0 ? params.seed : undefined,
         imageUrls: referenceImage ? [referenceImage.url] : undefined,
-        systemPrompt: selectedSkill?.systemPrompt ?? undefined
+        systemPrompt: mergeAigcSystemPrompts(
+          selectedSkill?.systemPrompt,
+          selectedBrandProfile?.systemPrompt
+        )
       })
       toast.success(`图像任务已提交（#${taskId}）`)
       setPrompt("")
@@ -139,6 +145,7 @@ export function useImageGenerationController({
     prompt,
     referenceImage,
     resolvedSize,
+    selectedBrandProfile,
     selectedSkill
   ])
 
@@ -156,6 +163,8 @@ export function useImageGenerationController({
     currentModel,
     params,
     onChangeParams,
+    selectedBrandProfile,
+    setSelectedBrandProfile,
     selectedSkill,
     creditEstimate,
     setSelectedSkillId,

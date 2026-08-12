@@ -25,7 +25,7 @@ WHERE u.username IN ('user1', 'user2') AND r.code = 'user'
 ON CONFLICT (user_id, role_id) DO NOTHING;
 
 INSERT INTO sys_organization (name, slug, type, owner_id, create_by)
-SELECT u.nickname || '的空间', 'personal-' || u.id, 'personal', u.id, u.id
+SELECT u.username, 'personal-' || u.id, 'personal', u.id, u.id
 FROM sys_user u
 WHERE u.username IN ('user1', 'user2')
   AND NOT EXISTS (SELECT 1 FROM sys_organization o WHERE o.slug = 'personal-' || u.id);

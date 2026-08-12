@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.ai.aigc.media.repository;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -11,6 +12,8 @@ import com.xuejiai.aaf.module.ai.aigc.media.domain.AigcMediaVersion;
 /** AIGC 媒体版本内部仓储，不暴露 BaseCrud。 */
 public interface AigcMediaVersionRepository extends JpaRepository<AigcMediaVersion, Long> {
     Optional<AigcMediaVersion> findByIdAndMediaId(Long id, Long mediaId);
+
+    List<AigcMediaVersion> findByMediaIdOrderByIdAsc(Long mediaId);
 
     @Query(
             """

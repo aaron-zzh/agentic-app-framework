@@ -9,4 +9,6 @@ public interface AigcExecutionApi {
     AigcExecutionRunView retry(Long executionRunId, String idempotencyKey);
 
     AigcExecutionRunView requireRun(Long executionRunId);
+
+    void deleteProjectResources(Long projectId);
 }

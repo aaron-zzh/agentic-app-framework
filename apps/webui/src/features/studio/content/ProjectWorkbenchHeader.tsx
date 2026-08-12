@@ -5,7 +5,7 @@
 
 "use client"
 
-import { ArrowLeft, GitBranch, LayoutList, MessageSquare } from "lucide-react"
+import { ArrowLeft, BookOpen, GitBranch, LayoutList, MessageSquare } from "lucide-react"
 import Link from "next/link"
 import type { ReactNode } from "react"
 import { NeonChip } from "@/components/studio"
@@ -22,6 +22,9 @@ export interface ProjectWorkbenchHeaderProps {
   view: ProjectWorkbenchView
   lifecycleActions?: ReactNode
   onViewChange: (view: ProjectWorkbenchView) => void
+  onOpenDocuments: () => void
+  documentsOpen: boolean
+  documentCount: number
   onToggleChat: () => void
   chatOpen: boolean
 }
@@ -31,6 +34,9 @@ export function ProjectWorkbenchHeader({
   view,
   lifecycleActions,
   onViewChange,
+  onOpenDocuments,
+  documentsOpen,
+  documentCount,
   onToggleChat,
   chatOpen
 }: ProjectWorkbenchHeaderProps) {
@@ -84,6 +90,16 @@ export function ProjectWorkbenchHeader({
             图谱
           </ToggleGroupItem>
         </ToggleGroup>
+        <Button
+          variant="outline"
+          size="sm"
+          aria-label="打开项目文档"
+          className={cn(documentsOpen && "border-primary/40 bg-primary/10 text-primary")}
+          onClick={onOpenDocuments}
+        >
+          <BookOpen />
+          文档{documentCount > 0 ? ` (${documentCount})` : ""}
+        </Button>
         <Button
           variant="outline"
           size="sm"

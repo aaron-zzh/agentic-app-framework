@@ -146,6 +146,17 @@ function shouldNotifyError(
 }
 
 backendClient.interceptors.request.use((config) => {
+  // 认证与登录合规接口不属于任何组织；移除持久化 store 写入的默认租户 Header，避免
+  // 被上一次选择的组织或全组织上下文污染
+  const organizationIndependent =
+    config.url?.startsWith("/auth/") ||
+    config.url === "/legal/consent" ||
+    config.url?.startsWith("/legal/consent/")
+  if (organizationIndependent) {
+    config.headers.delete("X-Org-Id")
+    config.headers.delete("X-Workspace-Id")
+  }
+
   const authorization = axios.defaults.headers.common.Authorization
   if (typeof authorization === "string") {
     config.headers.set("Authorization", authorization)

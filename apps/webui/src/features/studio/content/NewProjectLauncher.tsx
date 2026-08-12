@@ -32,6 +32,8 @@ import {
   useAigcProjectTypes,
   useMaterializeAigcProject
 } from "@/lib/api/rest/ai/aigc"
+import { useDocList } from "@/lib/api/rest/system/document"
+import { ProjectDocumentPicker } from "./ProjectDocumentPicker"
 import { getChannelLabel, getProjectTypeConfig } from "./project-type-config"
 
 interface BrandProfileSelectProps {
@@ -193,8 +195,10 @@ export function NewProjectLauncher({ mode = "compact", className }: NewProjectLa
   const { data: typePage, isLoading: typesLoading } = useAigcProjectTypes()
   const { data: profilePage, isLoading: profilesLoading } = useAigcBrandProfiles()
   const { data: channelPage } = useAigcChannelSpecs({ status: "published" })
+  const { data: documents = [], isLoading: documentsLoading } = useDocList()
   const materialize = useMaterializeAigcProject()
   const [brandProfileId, setBrandProfileId] = useState<number>()
+  const [documentVersionIds, setDocumentVersionIds] = useState<number[]>([])
   const [projectTypeCode, setProjectTypeCode] = useState<AigcProjectTypeCode>()
   const [productionMode, setProductionMode] = useState<AigcProductionMode>("standard")
   const [channels, setChannels] = useState<AigcChannelCode[]>([])
@@ -246,6 +250,7 @@ export function NewProjectLauncher({ mode = "compact", className }: NewProjectLa
         channelSpecVersionIds: channelSpecs
           .filter((channel) => channels.includes(channel.code))
           .map((channel) => channel.id),
+        documentVersionIds,
         productionMode
       },
       { onSuccess: (project) => router.push(`/studio/projects/${project.id}`) }
@@ -298,6 +303,17 @@ export function NewProjectLauncher({ mode = "compact", className }: NewProjectLa
         <div className="flex flex-col gap-2">
           <span className="font-medium text-sm">投放渠道（可选）</span>
           <ChannelPicker channels={availableChannels} value={channels} onChange={setChannels} />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <span className="font-medium text-sm">项目文档（可选）</span>
+          <ProjectDocumentPicker
+            values={documentVersionIds}
+            options={documents}
+            loading={documentsLoading}
+            disabled={materialize.isPending}
+            onValueChange={setDocumentVersionIds}
+          />
         </div>
 
         <div className="flex flex-col gap-2">

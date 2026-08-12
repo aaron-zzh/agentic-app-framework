@@ -12,6 +12,7 @@
 import { useRouter } from "next/navigation"
 import type { ReactNode } from "react"
 import { useCallback, useEffect, useState } from "react"
+import { toast } from "sonner"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { GenerationResultCard } from "@/features/aigc/generation/GenerationResultCard"
 import { useAigcStore } from "@/features/aigc/store"
@@ -30,13 +31,12 @@ import type {
 import {
   getMediaGenerationPath,
   isMediaTaskType,
-  MODE_BY_TASK_TYPE,
   RESULT_TYPE_BY_MODE,
   TASK_TYPE_BY_MODE
 } from "@/features/studio/media-generation/types"
-import type { VideoImageMode } from "@/lib/api/rest/ai"
-import { type AigcTaskEvent, useAigcTaskStream } from "@/lib/hooks/use-aigc-task-stream"
 import { useSlotStore } from "@/features/studio/slots/store"
+import { request } from "@/lib/api/rest/entity"
+import { type AigcTaskEvent, useAigcTaskStream } from "@/lib/hooks/use-aigc-task-stream"
 
 interface Feature {
   key: MediaGenerationMode
@@ -51,12 +51,7 @@ const FEATURES: Feature[] = [
   { key: "model-3d", label: "3D" }
 ]
 
-interface ParsedTaskParams {
-  imageUrls?: string[]
-  imageUrl?: string
-  referenceImageUrls?: string[]
-  imageMode?: VideoImageMode
-}
+type ParsedTaskParams = Record<string, unknown>
 
 interface WorkspaceDraft {
   mode: MediaGenerationMode
@@ -72,23 +67,13 @@ interface MediaGenerationWorkspaceProps {
 function parseTaskParams(params: string | null): ParsedTaskParams {
   if (!params) return {}
   try {
-    return JSON.parse(params) as ParsedTaskParams
+    const parsed: unknown = JSON.parse(params)
+    return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as ParsedTaskParams)
+      : {}
   } catch {
     return {}
   }
-}
-
-function resolveVideoImageMode(params: ParsedTaskParams): VideoImageMode {
-  if (
-    params.imageMode === "T2V" ||
-    params.imageMode === "FIRST_FRAME" ||
-    params.imageMode === "REFERENCE"
-  ) {
-    return params.imageMode
-  }
-  if ((params.referenceImageUrls?.length ?? 0) > 1) return "REFERENCE"
-  if (params.imageUrl || params.referenceImageUrls?.length) return "FIRST_FRAME"
-  return "T2V"
 }
 
 /** 组合五种媒体 Composer，并呈现当前模式的实时任务结果。 */
@@ -108,6 +93,7 @@ export function MediaGenerationWorkspace({
     MUSIC: [],
     MODEL_3D: []
   })
+  const [regeneratingTaskId, setRegeneratingTaskId] = useState<number | null>(null)
 
   const router = useRouter()
   const openSlot = useSlotStore((state) => state.openSlot)
@@ -115,7 +101,8 @@ export function MediaGenerationWorkspace({
 
   useEffect(() => {
     setActiveMode(initialMode)
-  }, [initialMode])
+    setWorkspaceDraft(initialDraft ? { mode: initialMode, value: initialDraft } : null)
+  }, [initialDraft, initialMode])
 
   const upsertCreatedTask = useCallback((task: AigcTaskEvent) => {
     if (!isMediaTaskType(task.type)) return
@@ -127,10 +114,15 @@ export function MediaGenerationWorkspace({
 
   const updateTask = useCallback((task: AigcTaskEvent) => {
     if (!isMediaTaskType(task.type)) return
-    setTasksByType((current) => ({
-      ...current,
-      [task.type]: current[task.type].map((item) => (item.id === task.id ? task : item))
-    }))
+    setTasksByType((current) => {
+      const existing = current[task.type]
+      return {
+        ...current,
+        [task.type]: existing.some((item) => item.id === task.id)
+          ? existing.map((item) => (item.id === task.id ? task : item))
+          : [task, ...existing].slice(0, 5)
+      }
+    })
   }, [])
 
   useAigcTaskStream({
@@ -157,34 +149,41 @@ export function MediaGenerationWorkspace({
   )
 
   const handleRegenerate = useCallback(
-    (task: AigcTaskEvent) => {
+    async (task: AigcTaskEvent) => {
       if (!isMediaTaskType(task.type)) return
-      const mode = MODE_BY_TASK_TYPE[task.type]
-      const params = parseTaskParams(task.params)
-      const referenceImageUrl =
-        params.imageUrls?.[0] ?? params.imageUrl ?? params.referenceImageUrls?.[0]
-      const lastFrameImageUrl = params.referenceImageUrls?.[1]
+      const prompt = task.prompt?.trim()
+      if (!prompt) {
+        toast.error("原任务缺少生成提示词")
+        return
+      }
 
-      setActiveMode(mode)
-      setWorkspaceDraft((current) => ({
-        mode,
-        value: {
-          revision: (current?.value.revision ?? 0) + 1,
-          prompt: task.prompt ?? "",
-          model: task.model ?? undefined,
-          referenceImageUrl,
-          lastFrameImageUrl,
-          videoImageMode: mode === "video" ? resolveVideoImageMode(params) : undefined
-        }
-      }))
-      router.push(getMediaGenerationPath(mode))
+      setRegeneratingTaskId(task.id)
+      try {
+        const taskId = await request<number>("/aigc/tasks/submit", {
+          method: "POST",
+          body: JSON.stringify({
+            type: task.type,
+            prompt,
+            displayPrompt: prompt,
+            model: task.model,
+            projectId: task.projectId,
+            params: parseTaskParams(task.params)
+          })
+        })
+        toast.success(`重新生成任务已提交（#${taskId}）`)
+        openSlot({ panelType: "recent-tasks" })
+      } catch {
+        // API 客户端已统一提示请求错误
+      } finally {
+        setRegeneratingTaskId(null)
+      }
     },
-    [router]
+    [openSlot]
   )
 
   const activeTaskType = TASK_TYPE_BY_MODE[activeMode]
   const activeDraft = workspaceDraft?.mode === activeMode ? workspaceDraft.value : undefined
-  const composerKey = `${activeMode}-${activeDraft?.revision ?? 0}`
+  const composerKey = `${activeMode}-${JSON.stringify(activeDraft ?? null)}`
   const modeSelector = (
     <Tabs
       value={activeMode}
@@ -228,13 +227,14 @@ export function MediaGenerationWorkspace({
   }
 
   return (
-    <>
+    <div className="flex flex-col gap-4">
       {composer}
       <GenerationResultCard
         tasks={tasksByType[activeTaskType]}
         mediaType={RESULT_TYPE_BY_MODE[activeMode]}
         onRegenerate={handleRegenerate}
+        regeneratingTaskId={regeneratingTaskId}
       />
-    </>
+    </div>
   )
 }

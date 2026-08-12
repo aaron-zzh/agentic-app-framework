@@ -6,14 +6,7 @@
 "use client"
 
 import { useBoolean } from "@aaf/hooks"
-import {
-  ChevronDown,
-  ChevronUp,
-  Library,
-  LoaderCircle,
-  Paperclip,
-  Sparkles
-} from "lucide-react"
+import { ChevronDown, ChevronUp, Library, LoaderCircle, Paperclip, Sparkles } from "lucide-react"
 import { useId, useState } from "react"
 import { GlassCard, NeonChip } from "@/components/studio"
 import { Button } from "@/components/ui/button"

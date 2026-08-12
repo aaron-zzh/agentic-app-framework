@@ -82,14 +82,14 @@ public class FileRecordService implements FileRecordApi {
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public StoredFile registerCurrent(
             String key, String originalName, String mimeType, long size, String contentHash) {
         return register(key, originalName, mimeType, size, contentHash, requireCurrentOwnerId());
     }
 
     @Override
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public StoredFile register(
             String key,
             String originalName,

@@ -78,6 +78,7 @@ public record StorageProperties(
                             "image/png",
                             "image/gif",
                             "image/webp",
+                            "audio/mpeg",
                             "application/pdf",
                             "application/msword",
                             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",

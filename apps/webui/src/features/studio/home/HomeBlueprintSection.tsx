@@ -9,11 +9,7 @@ import { ArrowRight, ChevronDown, LayoutTemplate, RefreshCw, Sparkles } from "lu
 import { useRouter } from "next/navigation"
 import { useId, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger
-} from "@/components/ui/collapsible"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import {
   Dialog,
   DialogContent,
@@ -22,21 +18,13 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog"
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle
-} from "@/components/ui/empty"
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  BrandProfileSelect,
-  ChannelPicker
-} from "@/features/studio/content/NewProjectLauncher"
+import { BrandProfileSelect, ChannelPicker } from "@/features/studio/content/NewProjectLauncher"
+import { ProjectDocumentPicker } from "@/features/studio/content/ProjectDocumentPicker"
 import { getProjectTypeConfig } from "@/features/studio/content/project-type-config"
 import {
   type AigcProductionMode,
@@ -48,6 +36,7 @@ import {
   useAigcProjectTypes,
   useMaterializeAigcProject
 } from "@/lib/api/rest/ai/aigc"
+import { useDocList } from "@/lib/api/rest/system/document"
 import { cn } from "@/lib/utils"
 
 const PRODUCTION_MODE_LABELS: Record<AigcProductionMode, string> = {
@@ -122,13 +111,8 @@ function BlueprintCard({
       aria-label={`${blueprint.name}，${display.label}，${PRODUCTION_MODE_LABELS[blueprint.productionMode]}，创建项目`}
       className="group relative aspect-video min-h-44 w-full overflow-hidden rounded-2xl bg-background text-left text-white outline-none ring-1 ring-foreground/10 transition-shadow hover:shadow-xl focus-visible:ring-3 focus-visible:ring-primary"
     >
-      <span
-        aria-hidden="true"
-        className={cn("absolute inset-0 bg-gradient-to-br", gradient)}
-      />
-      {coverUrl ? (
-        <BlueprintCoverImage key={`${blueprint.id}:${coverUrl}`} src={coverUrl} />
-      ) : null}
+      <span aria-hidden="true" className={cn("absolute inset-0 bg-gradient-to-br", gradient)} />
+      {coverUrl ? <BlueprintCoverImage key={`${blueprint.id}:${coverUrl}`} src={coverUrl} /> : null}
       <span
         aria-hidden="true"
         className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/15 to-black/85"
@@ -143,7 +127,7 @@ function BlueprintCard({
       </span>
       <span className="absolute inset-x-0 bottom-0 flex flex-col gap-2 p-4">
         <span className="line-clamp-2 font-semibold text-lg leading-tight">{blueprint.name}</span>
-        <span className="flex items-center justify-between gap-3 text-white/80 text-sm">
+        <span className="flex items-center justify-between gap-3 text-sm text-white/80">
           使用此蓝图创建项目
           <ArrowRight className="transition-transform group-hover:translate-x-1" />
         </span>
@@ -166,14 +150,22 @@ function CreateProjectDialog({
   const nameErrorId = `${nameId}-error`
   const briefId = useId()
   const submitLock = useRef(false)
-  const { data: profilePage, isLoading: profilesLoading, isError: profilesError } =
-    useAigcBrandProfiles()
-  const { data: channelPage, isLoading: channelsLoading, isError: channelsError } =
-    useAigcChannelSpecs({ status: "published" })
+  const {
+    data: profilePage,
+    isLoading: profilesLoading,
+    isError: profilesError
+  } = useAigcBrandProfiles()
+  const {
+    data: channelPage,
+    isLoading: channelsLoading,
+    isError: channelsError
+  } = useAigcChannelSpecs({ status: "published" })
+  const { data: documents = [], isLoading: documentsLoading } = useDocList()
   const materialize = useMaterializeAigcProject()
   const [name, setName] = useState(() => defaultProjectName(blueprint.name))
   const [nameError, setNameError] = useState<string | null>(null)
   const [brandProfileId, setBrandProfileId] = useState<number>()
+  const [documentVersionIds, setDocumentVersionIds] = useState<number[]>([])
   const [channels, setChannels] = useState(() => [...projectType.defaultChannels])
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const [brief, setBrief] = useState("")
@@ -182,9 +174,7 @@ function CreateProjectDialog({
   const profiles = (profilePage?.list ?? []).filter(
     (profile) => profile.currentVersionId !== undefined
   )
-  const channelSpecs = (channelPage?.list ?? []).filter(
-    (channel) => channel.status === "published"
-  )
+  const channelSpecs = (channelPage?.list ?? []).filter((channel) => channel.status === "published")
   const availableChannels = channelSpecs.map((channel) => channel.code)
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -213,6 +203,7 @@ function CreateProjectDialog({
         channelSpecVersionIds: channelSpecs
           .filter((channel) => channels.includes(channel.code))
           .map((channel) => channel.id),
+        documentVersionIds,
         briefJson: brief.trim() || undefined
       })
       onOpenChange(false)
@@ -231,11 +222,13 @@ function CreateProjectDialog({
         if (!open && !materialize.isPending) onOpenChange(false)
       }}
     >
-      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl max-sm:h-dvh max-sm:max-h-dvh max-sm:max-w-none max-sm:rounded-none">
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 max-sm:h-dvh max-sm:max-h-dvh max-sm:max-w-none max-sm:rounded-none sm:max-w-2xl">
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
           <DialogHeader className="shrink-0 border-b px-5 py-4 pr-12">
             <DialogTitle>从蓝图创建项目</DialogTitle>
-            <DialogDescription>使用所选蓝图初始化项目，创建后直接进入项目工作区。</DialogDescription>
+            <DialogDescription>
+              使用所选蓝图初始化项目，创建后直接进入项目工作区。
+            </DialogDescription>
           </DialogHeader>
 
           <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-5">
@@ -297,17 +290,24 @@ function CreateProjectDialog({
 
             <div className="flex flex-col gap-2">
               <span className="font-medium text-sm">渠道（可选）</span>
-              <ChannelPicker
-                channels={availableChannels}
-                value={channels}
-                onChange={setChannels}
-              />
+              <ChannelPicker channels={availableChannels} value={channels} onChange={setChannels} />
               {!channelsLoading && availableChannels.length === 0 ? (
                 <p className="text-muted-foreground text-xs">暂无可用渠道，不影响创建。</p>
               ) : null}
               {channelsError ? (
                 <p className="text-destructive text-xs">渠道加载失败，可不选择并继续创建。</p>
               ) : null}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <span className="font-medium text-sm">项目文档（可选）</span>
+              <ProjectDocumentPicker
+                values={documentVersionIds}
+                options={documents}
+                loading={documentsLoading}
+                disabled={materialize.isPending}
+                onValueChange={setDocumentVersionIds}
+              />
             </div>
 
             <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
@@ -452,7 +452,10 @@ export function HomeBlueprintSection() {
             {blueprintsLoading ? (
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {Array.from({ length: 3 }, (_, index) => (
-                  <Skeleton key={`active-blueprint-${index}`} className="aspect-video rounded-2xl" />
+                  <Skeleton
+                    key={`active-blueprint-${index}`}
+                    className="aspect-video rounded-2xl"
+                  />
                 ))}
               </div>
             ) : blueprintsError ? (

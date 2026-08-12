@@ -10,7 +10,7 @@ import ReactLightbox, { useLightboxState } from "yet-another-react-lightbox"
 export type LightboxProps = LightboxExternalProps
 
 /** 引用按钮：仅图片 slide 展示，点击跳转到图像创作页并作为参考图 */
-function ReferenceButton() {
+function ReferenceButton({ close }: { close?: () => void }) {
   const router = useRouter()
   const { currentSlide } = useLightboxState()
   const isImage = !!currentSlide && (currentSlide as { type?: string }).type !== "video"
@@ -18,13 +18,13 @@ function ReferenceButton() {
 
   if (!url) return null
 
+  const handleReference = () => {
+    close?.()
+    router.push(`/studio/create?mode=image&refUrl=${encodeURIComponent(url)}`)
+  }
+
   return (
-    <button
-      type="button"
-      className="yarl__button"
-      onClick={() => router.push(`/studio/create?mode=image&refUrl=${encodeURIComponent(url)}`)}
-      title="引用为参考图"
-    >
+    <button type="button" className="yarl__button" onClick={handleReference} title="引用为参考图">
       <ImagePlus size={24} />
     </button>
   )
@@ -74,14 +74,19 @@ function DownloadButton() {
  * Lightbox 图片/视频预览组件，基于 yet-another-react-lightbox。
  * CSS 已在 global.css 全局引入。
  */
-export function Lightbox({ plugins = [], toolbar, ...props }: LightboxProps) {
+export function Lightbox({ plugins = [], toolbar, close, ...props }: LightboxProps) {
   return (
     <ReactLightbox
       animation={{ swipe: 240 }}
+      close={close}
       controller={{ closeOnBackdropClick: true }}
       plugins={plugins}
       toolbar={{
-        buttons: [<ReferenceButton key="reference" />, <DownloadButton key="download" />, "close"],
+        buttons: [
+          <ReferenceButton key="reference" close={close} />,
+          <DownloadButton key="download" />,
+          "close"
+        ],
         ...toolbar
       }}
       {...props}

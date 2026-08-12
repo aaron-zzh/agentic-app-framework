@@ -1,7 +1,17 @@
-com.xuejiai.aaf.framework.engine.lease.LeaseAutoConfiguration
-com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentRuntimePortAutoConfiguration
-com.xuejiai.aaf.framework.intelligent.infrastructure.governance.spring.IntelligentGovernanceAutoConfiguration
-com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentScopeInfrastructureAutoConfiguration
-com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.spring.AssistantInfrastructureAutoConfiguration
+# Spring Boot 自动配置导入清单。每行注册一个 @AutoConfiguration 类，由框架在应用启动时自动加载。
+# 请勿删除此文件；新增、移除或重命名自动配置类时，必须同步维护对应导入项。
 
+# 分布式租约的 Redis 适配器
+com.xuejiai.aaf.framework.engine.lease.LeaseAutoConfiguration
+# 生成式内容安全服务
+com.xuejiai.aaf.framework.intelligent.ai.safety.ContentSafetyAutoConfiguration
+# Agent 运行时端口适配
+com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentRuntimePortAutoConfiguration
+# 智能治理与人工审批恢复机制
+com.xuejiai.aaf.framework.intelligent.infrastructure.governance.spring.IntelligentGovernanceAutoConfiguration
+# AgentScope 执行、状态与工具基础设施
+com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentScopeInfrastructureAutoConfiguration
+# Assistant 应用服务与持久化端口
+com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.spring.AssistantInfrastructureAutoConfiguration
+# 自动化任务恢复与调度基础设施
 com.xuejiai.aaf.framework.intelligent.infrastructure.automation.spring.AutomationInfrastructureAutoConfiguration

@@ -1,8 +1,8 @@
 /**
  * Studio 产品导航配置
  *
- * 七个顶级工作区：首页 / 创作 / 作品 / 项目 / 知识 / 工具 / 我的。
- * 子菜单按当前产品信息架构配置，不设固定数量上限。
+ * 七个顶级工作区：首页 / 项目 / 创作 / 资产 / 知识 / 工具 / 我的。
+ * 子菜单按生产闭环划分，不设固定数量上限。
  * 详见 docs/design/apps/content-studio/content-studio-capability-concept-map.md
  */
 
@@ -13,7 +13,6 @@ import {
   CircleUser,
   FileText,
   FolderKanban,
-  FolderTree,
   Gift,
   Heart,
   History,
@@ -21,7 +20,6 @@ import {
   Image as ImageIcon,
   Images,
   Layers,
-  LayoutGrid,
   type LucideIcon,
   Mic,
   Palette,
@@ -77,7 +75,7 @@ export interface StudioWorkspaceConfig {
 /**
  * Studio 导航配置——单一真理源
  *
- * 顺序：首页 / 创作 / 作品 / 项目 / 知识 / 工具 / 我的
+ * 顺序：首页 / 项目 / 创作 / 资产 / 知识 / 工具 / 我的
  */
 export const STUDIO_NAV: StudioWorkspaceConfig[] = [
   {
@@ -86,46 +84,6 @@ export const STUDIO_NAV: StudioWorkspaceConfig[] = [
     icon: Home,
     path: "/studio",
     children: [{ key: "home", label: "首页", icon: Home, path: "/studio", default: true }]
-  },
-  {
-    workspace: "create",
-    label: "创作",
-    icon: Sparkles,
-    path: "/studio/create",
-    children: [
-      { key: "overview", label: "素材生成", icon: Sparkles, path: "/studio/create", default: true },
-      { key: "copy", label: "文案", icon: Wand2, path: "/studio/create/copy" },
-      { key: "viral", label: "爆款", icon: Zap, path: "/studio/create/viral", badge: "热" },
-      // { key: "pipeline", label: "工作流", icon: Workflow, path: "/studio/create/pipeline", badge: "新" },
-      { key: "matting", label: "抠图", icon: Scissors, path: "/studio/create/matting" },
-      { key: "tools", label: "工具箱", icon: Wrench, path: "/studio/create/tools", badge: "新" }
-    ]
-  },
-  {
-    workspace: "assets",
-    label: "作品",
-    icon: Images,
-    path: "/studio/assets",
-    children: [
-      { key: "works", label: "作品", icon: Images, path: "/studio/assets/works", default: true },
-      { key: "materials", label: "素材", icon: ImageIcon, path: "/studio/assets/materials" },
-      { key: "library", label: "资产", icon: Box, path: "/studio/assets/library" },
-      {
-        key: "categories",
-        label: "资产分类",
-        icon: FolderTree,
-        path: "/studio/assets/categories"
-      },
-      { key: "tags", label: "资产标签", icon: Tag, path: "/studio/assets/tags" },
-      {
-        key: "collections",
-        label: "资产集合",
-        icon: LayoutGrid,
-        path: "/studio/assets/collections"
-      },
-      { key: "prompts", label: "提示词", icon: Tag, path: "/studio/assets/prompts" },
-      { key: "history", label: "任务历史", icon: History, path: "/studio/assets/history" }
-    ]
   },
   {
     workspace: "projects",
@@ -154,6 +112,38 @@ export const STUDIO_NAV: StudioWorkspaceConfig[] = [
       },
       { key: "brands", label: "品牌 · IP", icon: CircleUser, path: "/studio/brands" },
       { key: "templates", label: "模板库", icon: Shapes, path: "/studio/templates" }
+    ]
+  },
+  {
+    workspace: "create",
+    label: "创作",
+    icon: Sparkles,
+    path: "/studio/create",
+    children: [
+      { key: "overview", label: "创作台", icon: Sparkles, path: "/studio/create", default: true },
+      { key: "copy", label: "文案", icon: Wand2, path: "/studio/create/copy" },
+      { key: "viral", label: "爆款", icon: Zap, path: "/studio/create/viral", badge: "热" },
+      { key: "matting", label: "抠图", icon: Scissors, path: "/studio/create/matting" }
+    ]
+  },
+  {
+    workspace: "assets",
+    label: "资产",
+    icon: Box,
+    path: "/studio/assets",
+    children: [
+      {
+        key: "library",
+        label: "资产库",
+        icon: Box,
+        path: "/studio/assets/library",
+        default: true
+      },
+      { key: "materials", label: "素材", icon: ImageIcon, path: "/studio/assets/materials" },
+      { key: "works", label: "作品", icon: Images, path: "/studio/assets/works" },
+      { key: "prompts", label: "提示词", icon: Tag, path: "/studio/assets/prompts" },
+      { key: "snippets", label: "片段", icon: FileText, path: "/studio/assets/snippets" },
+      { key: "brands", label: "品牌 · IP", icon: CircleUser, path: "/studio/assets/brands" }
     ]
   },
   {
@@ -188,6 +178,12 @@ export const STUDIO_NAV: StudioWorkspaceConfig[] = [
         icon: CircleUser,
         path: "/studio/me/account",
         default: true
+      },
+      {
+        key: "generations",
+        label: "生成记录",
+        icon: History,
+        path: "/studio/me/generations"
       },
       { key: "membership", label: "会员", icon: CircleDollarSign, path: "/studio/me/membership" },
       { key: "credits", label: "积分", icon: Mic, path: "/studio/me/credits" },

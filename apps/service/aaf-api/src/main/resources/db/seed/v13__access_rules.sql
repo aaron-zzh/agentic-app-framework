@@ -76,3 +76,70 @@ VALUES
      '{"field":"ownerId","op":"eq","value":"$user.id"}',
      'allow')
 ON CONFLICT DO NOTHING;
+
+-- 资产中心同接口数据范围：Studio 使用 X-Scope: own，中后台使用 X-Scope: all。
+-- PersonalScope 负责默认个人视角；L3 规则防止普通成员通过伪造 all Header 越权。
+
+INSERT INTO sys_data_access_rule (entity_slug, roles, condition, effect)
+VALUES
+    ('asset',
+     '["*"]',
+     '{"field":"ownerId","op":"eq","value":"$user.id"}',
+     'allow'),
+    ('asset-category',
+     '["*"]',
+     '{"field":"ownerId","op":"eq","value":"$user.id"}',
+     'allow'),
+    ('asset-tag',
+     '["*"]',
+     '{"field":"ownerId","op":"eq","value":"$user.id"}',
+     'allow'),
+    ('asset-collection',
+     '["*"]',
+     '{"field":"ownerId","op":"eq","value":"$user.id"}',
+     'allow'),
+    ('asset',
+     '["org_admin","admin"]',
+     '{"field":"orgId","op":"in","value":"$user.orgIds"}',
+     'allow'),
+    ('asset-category',
+     '["org_admin","admin"]',
+     '{"field":"orgId","op":"in","value":"$user.orgIds"}',
+     'allow'),
+    ('asset-tag',
+     '["org_admin","admin"]',
+     '{"field":"orgId","op":"in","value":"$user.orgIds"}',
+     'allow'),
+    ('asset-collection',
+     '["org_admin","admin"]',
+     '{"field":"orgId","op":"in","value":"$user.orgIds"}',
+     'allow')
+ON CONFLICT DO NOTHING;
+
+-- 创作片段同接口数据范围：普通成员即使伪造 X-Scope: all 也只能访问自己的片段。
+
+INSERT INTO sys_data_access_rule (entity_slug, roles, condition, effect)
+VALUES
+    ('snippet',
+     '["*"]',
+     '{"field":"ownerId","op":"eq","value":"$user.id"}',
+     'allow'),
+    ('snippet',
+     '["org_admin","admin"]',
+     '{"field":"orgId","op":"in","value":"$user.orgIds"}',
+     'allow')
+ON CONFLICT DO NOTHING;
+
+-- 品牌资料同接口数据范围：普通成员即使伪造 X-Scope: all 也只能访问自己的品牌资料。
+
+INSERT INTO sys_data_access_rule (entity_slug, roles, condition, effect)
+VALUES
+    ('brand-profile',
+     '["*"]',
+     '{"field":"ownerId","op":"eq","value":"$user.id"}',
+     'allow'),
+    ('brand-profile',
+     '["org_admin","admin"]',
+     '{"field":"orgId","op":"in","value":"$user.orgIds"}',
+     'allow')
+ON CONFLICT DO NOTHING;

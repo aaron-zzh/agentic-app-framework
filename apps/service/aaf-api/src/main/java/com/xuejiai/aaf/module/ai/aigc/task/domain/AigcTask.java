@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.ai.aigc.task.domain;
 
+import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.type.SqlTypes;
@@ -18,6 +19,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
+@DynamicUpdate
 @Table(name = "aigc_task")
 @SQLDelete(
         sql = "UPDATE aigc_task SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")

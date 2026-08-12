@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,8 @@ import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.crud.definition.CrudOperation;
 import com.xuejiai.aaf.framework.crud.enforcement.AccessMode;
 import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionApi;
+import com.xuejiai.aaf.module.ai.aigc.image.api.AigcBatchGenerationApi;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionAdoptCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionCandidateCommand;
@@ -38,6 +41,7 @@ import com.xuejiai.aaf.module.ai.aigc.project.api.CompletionEvidencePort;
 import com.xuejiai.aaf.module.ai.aigc.project.api.ExecutionEvidencePort;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcObjectVersion;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProject;
+import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectDocumentRef;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectMediaRef;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectObject;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectRevision;
@@ -55,9 +59,11 @@ import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectRelationRepo
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectResourceRefRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectRevisionRepository;
+import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcResolvedDomainContextRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcObjectVersionVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectChannelRefVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectConfigSnapshotVO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentRefDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentRefVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectGraphVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectMediaRefVO;
@@ -70,6 +76,10 @@ import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectRevisionVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectSummaryVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectUpdateDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectVO;
+import com.xuejiai.aaf.module.ai.aigc.task.api.AigcTaskApi;
+import com.xuejiai.aaf.module.ai.aigc.timeline.api.AigcTimelineApi;
+import com.xuejiai.aaf.module.ai.aigc.work.api.AigcWorkApi;
+import com.xuejiai.aaf.module.document.api.DocumentReferenceApi;
 
 import lombok.RequiredArgsConstructor;
 import tools.jackson.core.type.TypeReference;
@@ -91,6 +101,7 @@ public class AigcProjectService
     private final AigcObjectVersionRepository versionRepository;
     private final AigcProjectRevisionRepository revisionRepository;
     private final AigcProjectConfigSnapshotRepository snapshotRepository;
+    private final AigcResolvedDomainContextRepository resolvedDomainContextRepository;
     private final AigcProjectProfileRefRepository profileRefRepository;
     private final AigcProjectChannelRefRepository channelRefRepository;
     private final AigcProjectDocumentRefRepository documentRefRepository;
@@ -99,7 +110,13 @@ public class AigcProjectService
     private final AigcProjectMaterializer materializer;
     private final CompletionEvidencePort completionEvidencePort;
     private final ExecutionEvidencePort executionEvidencePort;
+    private final ObjectProvider<AigcExecutionApi> executionApiProvider;
+    private final ObjectProvider<AigcTaskApi> taskApiProvider;
+    private final ObjectProvider<AigcWorkApi> workApiProvider;
+    private final ObjectProvider<AigcTimelineApi> timelineApiProvider;
+    private final AigcBatchGenerationApi batchGenerationApi;
     private final AigcMediaApi mediaApi;
+    private final DocumentReferenceApi documentReferenceApi;
     private final OperatorContext operatorContext;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -161,17 +178,45 @@ public class AigcProjectService
     }
 
     @Override
-    protected void beforeDelete(AigcProject project) {
-        throw new UnsupportedOperationException("项目不开放删除，请使用归档命令");
-    }
-
-    @Override
     protected Specification<AigcProject> buildSpec(AigcProjectPageDTO request) {
         return SpecificationBuilder.<AigcProject>builder()
                 .eqIfPresent("status", request.getStatus())
                 .eqIfPresent("projectTypeCode", request.getProjectTypeCode())
                 .eqIfPresent("productionMode", request.getProductionMode())
                 .build();
+    }
+
+    @Override
+    protected void beforeDelete(AigcProject project) {
+        var projectId = project.getId();
+
+        workApiProvider.getObject().deleteProjectResources(projectId);
+        timelineApiProvider.getObject().deleteProjectResources(projectId);
+
+        mediaRefRepository.deleteAll(
+                mediaRefRepository.findByProjectIdOrderBySortOrderAscIdAsc(projectId));
+        documentRefRepository.deleteAll(
+                documentRefRepository.findByProjectIdOrderBySortOrderAscIdAsc(projectId));
+        resourceRefRepository.deleteAll(
+                resourceRefRepository.findByProjectIdOrderBySortOrderAscIdAsc(projectId));
+        profileRefRepository.deleteAll(profileRefRepository.findByProjectIdOrderByIdAsc(projectId));
+        channelRefRepository.deleteAll(channelRefRepository.findByProjectIdOrderByIdAsc(projectId));
+
+        relationRepository.deleteAll(relationRepository.findByProjectIdOrderByIdAsc(projectId));
+        revisionRepository.deleteAll(
+                revisionRepository.findByProjectIdOrderByRevisionNoDesc(projectId));
+        versionRepository.deleteAll(versionRepository.findByProjectIdOrderByIdAsc(projectId));
+        objectRepository.deleteAll(
+                objectRepository.findByProjectIdOrderBySortOrderAscIdAsc(projectId));
+        resolvedDomainContextRepository.deleteAll(
+                resolvedDomainContextRepository.findByProjectIdOrderByRevisionNoDesc(projectId));
+        snapshotRepository.deleteAll(
+                snapshotRepository.findByProjectIdOrderByRevisionNoDesc(projectId));
+
+        batchGenerationApi.deleteProjectResources(projectId);
+        executionApiProvider.getObject().deleteProjectResources(projectId);
+        taskApiProvider.getObject().deleteProjectResources(projectId);
+        mediaApi.deleteExclusiveGeneratedByProject(projectId);
     }
 
     @Override
@@ -183,6 +228,13 @@ public class AigcProjectService
     @Override
     public AigcProjectView requireProject(Long projectId) {
         return toApiView(requireEntity(projectId));
+    }
+
+    @Override
+    public void lockForGeneratedResource(Long projectId, Long userId) {
+        repository
+                .findActiveSharedLockedByIdAndUserId(projectId, userId)
+                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "项目不存在或已删除"));
     }
 
     public AigcProjectVO requireProjectVO(Long projectId) {
@@ -632,17 +684,61 @@ public class AigcProjectService
                 .toList();
     }
 
+    @Transactional
+    public AigcProjectDocumentRefVO attachDocument(
+            Long projectId, AigcProjectDocumentRefDTO request) {
+        var project = requireLockedProject(projectId, request.expectedProjectVersion());
+        requireWritable(project);
+        if (request.objectId() != null) {
+            requireObject(projectId, request.objectId(), false);
+        }
+        documentReferenceApi.requireOwned(
+                List.of(request.documentVersionId()), project.getOwnerId());
+        var role =
+                request.role() == null || request.role().isBlank()
+                        ? "project"
+                        : request.role().trim();
+        var existing =
+                documentRefRepository.findByProjectIdAndDocumentVersionIdAndRole(
+                        projectId, request.documentVersionId(), role);
+        if (existing.isPresent()) {
+            return toDocumentRefVO(existing.get());
+        }
+
+        var reference = new AigcProjectDocumentRef();
+        copyScope(project, reference);
+        reference.setProjectId(projectId);
+        reference.setObjectId(request.objectId());
+        reference.setDocumentVersionId(request.documentVersionId());
+        reference.setRole(role);
+        reference.setSortOrder(
+                request.sortOrder() == null
+                        ? documentRefRepository
+                                .findByProjectIdOrderBySortOrderAscIdAsc(projectId)
+                                .size()
+                        : request.sortOrder());
+        documentRefRepository.save(reference);
+        bumpRevision(project, List.of(), List.of(), null, "关联项目文档");
+        return toDocumentRefVO(reference);
+    }
+
+    @Transactional
+    public void detachDocument(Long projectId, Long refId, Integer expectedProjectVersion) {
+        var project = requireLockedProject(projectId, expectedProjectVersion);
+        requireWritable(project);
+        var reference =
+                documentRefRepository
+                        .findById(refId)
+                        .filter(candidate -> projectId.equals(candidate.getProjectId()))
+                        .orElseThrow(() -> notFound("项目文档引用不存在"));
+        documentRefRepository.delete(reference);
+        bumpRevision(project, List.of(), List.of(), null, "解除项目文档引用");
+    }
+
     public List<AigcProjectDocumentRefVO> documentRefs(Long projectId) {
         requireEntity(projectId);
         return documentRefRepository.findByProjectIdOrderBySortOrderAscIdAsc(projectId).stream()
-                .map(
-                        reference ->
-                                new AigcProjectDocumentRefVO(
-                                        reference.getId(),
-                                        reference.getObjectId(),
-                                        reference.getDocumentVersionId(),
-                                        reference.getRole(),
-                                        reference.getSortOrder()))
+                .map(this::toDocumentRefVO)
                 .toList();
     }
 
@@ -783,6 +879,15 @@ public class AigcProjectService
                 object.getObjectType(),
                 object.getStatus(),
                 object.getAdoptedVersionId());
+    }
+
+    private AigcProjectDocumentRefVO toDocumentRefVO(AigcProjectDocumentRef reference) {
+        return new AigcProjectDocumentRefVO(
+                reference.getId(),
+                reference.getObjectId(),
+                reference.getDocumentVersionId(),
+                reference.getRole(),
+                reference.getSortOrder());
     }
 
     private AigcProjectMediaRefView toApiMediaRefView(AigcProjectMediaRef reference) {

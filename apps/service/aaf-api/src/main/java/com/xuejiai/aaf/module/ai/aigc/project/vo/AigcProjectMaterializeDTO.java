@@ -12,6 +12,7 @@ public record AigcProjectMaterializeDTO(
         Long domainExtensionVersionId,
         List<Long> brandProfileVersionIds,
         List<Long> channelSpecVersionIds,
+        List<Long> documentVersionIds,
         @NotBlank String productionMode,
         String briefJson) {
 
@@ -20,5 +21,7 @@ public record AigcProjectMaterializeDTO(
                 brandProfileVersionIds == null ? List.of() : List.copyOf(brandProfileVersionIds);
         channelSpecVersionIds =
                 channelSpecVersionIds == null ? List.of() : List.copyOf(channelSpecVersionIds);
+        documentVersionIds =
+                documentVersionIds == null ? List.of() : List.copyOf(documentVersionIds);
     }
 }

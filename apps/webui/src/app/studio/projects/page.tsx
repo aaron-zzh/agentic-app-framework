@@ -7,10 +7,29 @@
 
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
-import { FolderKanban, Layers, Plus } from "lucide-react"
+import { Archive, FolderKanban, Layers, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
+import { useId, useState } from "react"
+import { toast } from "sonner"
 import { GlassCard, GlowButton, NeonChip, SectionHaze } from "@/components/studio"
+import { Button } from "@/components/ui/button"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu"
 import {
   Empty,
   EmptyContent,
@@ -19,11 +38,19 @@ import {
   EmptyMedia,
   EmptyTitle
 } from "@/components/ui/empty"
+import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Textarea } from "@/components/ui/textarea"
 import { getProjectTypeConfig, PROJECT_STATUS_CONFIG } from "@/features/studio/content"
 import type { AigcProject, AigcProjectStatus } from "@/lib/api/rest/ai/aigc"
-import { useAigcProjects, useAigcProjectTypes } from "@/lib/api/rest/ai/aigc"
+import {
+  useAigcProjectLifecycle,
+  useAigcProjects,
+  useAigcProjectTypes,
+  useDeleteAigcProject,
+  useUpdateAigcProject
+} from "@/lib/api/rest/ai/aigc"
 import { cn } from "@/lib/utils/index"
 
 const STATUS_TABS: { value: "all" | AigcProjectStatus; label: string }[] = [
@@ -35,6 +62,11 @@ const STATUS_TABS: { value: "all" | AigcProjectStatus; label: string }[] = [
   { value: "archived", label: "已归档" }
 ]
 
+type PendingProjectAction = {
+  type: "archive" | "delete"
+  project: AigcProject
+}
+
 function buildFilterHref(status: string, type?: string): string {
   const params = new URLSearchParams()
   if (status !== "all") params.set("status", status)
@@ -43,20 +75,28 @@ function buildFilterHref(status: string, type?: string): string {
   return query ? `/studio/projects?${query}` : "/studio/projects"
 }
 
-function ProjectCard({ project }: { project: AigcProject }) {
+interface ProjectCardProps {
+  project: AigcProject
+  onEdit: (project: AigcProject) => void
+  onArchive: (project: AigcProject) => void
+  onDelete: (project: AigcProject) => void
+}
+
+function ProjectCard({ project, onEdit, onArchive, onDelete }: ProjectCardProps) {
   const type = getProjectTypeConfig({ code: project.projectTypeCode, name: "" })
   const TypeIcon = type.icon
   const status = PROJECT_STATUS_CONFIG[project.status]
+  const editable = project.status === "draft" || project.status === "in_progress"
 
   return (
-    <Link
-      href={`/studio/projects/${project.id}`}
-      className="group block focus-visible:outline-none"
-    >
-      <GlassCard interactive className="h-full">
+    <GlassCard interactive className="group relative h-full">
+      <Link
+        href={`/studio/projects/${project.id}`}
+        className="block h-full focus-visible:outline-none"
+      >
         <div className="relative flex aspect-video items-center justify-center overflow-hidden bg-muted text-muted-foreground">
           <TypeIcon className="size-10 transition-transform duration-300 group-hover:scale-110" />
-          <div className="absolute top-2 right-2 flex gap-1.5">
+          <div className="absolute top-2 left-2 flex gap-1.5">
             <NeonChip tone={type.tone} size="sm">
               {type.label}
             </NeonChip>
@@ -81,8 +121,122 @@ function ProjectCard({ project }: { project: AigcProject }) {
             </span>
           </div>
         </div>
-      </GlassCard>
-    </Link>
+      </Link>
+
+      <div className="absolute top-2 right-2 z-10">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            type="button"
+            aria-label={`打开项目「${project.name}」操作菜单`}
+            className="flex size-7 items-center justify-center rounded-full bg-black/45 text-white opacity-100 shadow-sm backdrop-blur-sm transition-opacity hover:bg-black/65 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 data-popup-open:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 [&_svg]:size-4"
+          >
+            <MoreHorizontal />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuGroup>
+              <DropdownMenuItem disabled={!editable} onClick={() => onEdit(project)}>
+                <Pencil />
+                编辑
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={project.status === "archived"}
+                onClick={() => onArchive(project)}
+              >
+                <Archive />
+                归档
+              </DropdownMenuItem>
+              <DropdownMenuItem variant="destructive" onClick={() => onDelete(project)}>
+                <Trash2 />
+                删除
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </GlassCard>
+  )
+}
+
+function ProjectEditDialog({
+  project,
+  onOpenChange
+}: {
+  project: AigcProject
+  onOpenChange: (open: boolean) => void
+}) {
+  const nameId = useId()
+  const descriptionId = useId()
+  const [name, setName] = useState(project.name)
+  const [description, setDescription] = useState(project.description ?? "")
+  const updateProject = useUpdateAigcProject()
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const trimmedName = name.trim()
+    if (!trimmedName) return
+    updateProject.mutate(
+      {
+        id: project.id,
+        data: {
+          name: trimmedName,
+          description: description.trim(),
+          expectedVersion: project.version
+        }
+      },
+      {
+        onSuccess: () => {
+          toast.success("项目已更新")
+          onOpenChange(false)
+        },
+        onError: (error) =>
+          toast.error(`更新失败：${error instanceof Error ? error.message : "未知错误"}`)
+      }
+    )
+  }
+
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <DialogHeader>
+            <DialogTitle>编辑项目</DialogTitle>
+            <DialogDescription>修改项目名称和描述。</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            <label htmlFor={nameId} className="font-medium text-sm">
+              项目名称
+            </label>
+            <Input
+              id={nameId}
+              autoFocus
+              required
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label htmlFor={descriptionId} className="font-medium text-sm">
+              项目描述
+            </label>
+            <Textarea
+              id={descriptionId}
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="补充项目背景、目标或交付说明"
+              className="min-h-28 resize-y"
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              取消
+            </Button>
+            <Button type="submit" disabled={!name.trim() || updateProject.isPending}>
+              {updateProject.isPending ? "保存中…" : "保存"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -99,6 +253,35 @@ export default function StudioProjectsPage() {
   })
   const projects = data?.list ?? []
   const projectTypes = typePage?.list ?? []
+  const [editingProject, setEditingProject] = useState<AigcProject | null>(null)
+  const [pendingAction, setPendingAction] = useState<PendingProjectAction | null>(null)
+  const lifecycle = useAigcProjectLifecycle()
+  const deleteProject = useDeleteAigcProject()
+
+  function executePendingAction() {
+    if (!pendingAction) return
+    const action = pendingAction
+    if (action.type === "archive") {
+      lifecycle.mutate(
+        {
+          projectId: action.project.id,
+          action: "archive",
+          expectedVersion: action.project.version
+        },
+        {
+          onSuccess: () => toast.success("项目已归档"),
+          onError: (error) =>
+            toast.error(`归档失败：${error instanceof Error ? error.message : "未知错误"}`)
+        }
+      )
+      return
+    }
+    deleteProject.mutate(action.project.id, {
+      onSuccess: () => toast.success("项目已删除"),
+      onError: (error) =>
+        toast.error(`删除失败：${error instanceof Error ? error.message : "未知错误"}`)
+    })
+  }
 
   return (
     <div className="relative h-full overflow-y-auto">
@@ -118,47 +301,49 @@ export default function StudioProjectsPage() {
           </GlowButton>
         </header>
 
-        <Tabs value={status}>
-          <TabsList className="bg-foreground/[0.04]">
-            {STATUS_TABS.map((tab) => (
-              <TabsTrigger
-                key={tab.value}
-                value={tab.value}
-                nativeButton={false}
-                render={<Link href={buildFilterHref(tab.value, type ?? undefined)} />}
-              >
-                {tab.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href={buildFilterHref(status)}
-            className={cn(
-              "rounded-full border px-3 py-1 text-xs transition-colors",
-              type
-                ? "text-muted-foreground hover:text-foreground"
-                : "border-primary/40 bg-primary/10 text-primary"
-            )}
-          >
-            全部类型
-          </Link>
-          {projectTypes.map((projectType) => (
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 flex-wrap gap-2 lg:flex-1">
             <Link
-              key={projectType.code}
-              href={buildFilterHref(status, projectType.code)}
+              href={buildFilterHref(status)}
               className={cn(
                 "rounded-full border px-3 py-1 text-xs transition-colors",
-                type === projectType.code
-                  ? "border-primary/40 bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:text-foreground"
+                type
+                  ? "text-muted-foreground hover:text-foreground"
+                  : "border-primary/40 bg-primary/10 text-primary"
               )}
             >
-              {projectType.name}
+              全部类型
             </Link>
-          ))}
+            {projectTypes.map((projectType) => (
+              <Link
+                key={projectType.code}
+                href={buildFilterHref(status, projectType.code)}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs transition-colors",
+                  type === projectType.code
+                    ? "border-primary/40 bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {projectType.name}
+              </Link>
+            ))}
+          </div>
+
+          <Tabs value={status} className="overflow-x-auto lg:shrink-0">
+            <TabsList className="bg-foreground/[0.04]">
+              {STATUS_TABS.map((tab) => (
+                <TabsTrigger
+                  key={tab.value}
+                  value={tab.value}
+                  nativeButton={false}
+                  render={<Link href={buildFilterHref(tab.value, type ?? undefined)} />}
+                >
+                  {tab.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
         </div>
 
         {isLoading ? (
@@ -192,10 +377,42 @@ export default function StudioProjectsPage() {
         ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {projects.map((project) => (
-              <ProjectCard key={project.id} project={project} />
+              <ProjectCard
+                key={project.id}
+                project={project}
+                onEdit={setEditingProject}
+                onArchive={(target) => setPendingAction({ type: "archive", project: target })}
+                onDelete={(target) => setPendingAction({ type: "delete", project: target })}
+              />
             ))}
           </div>
         )}
+
+        {editingProject ? (
+          <ProjectEditDialog
+            key={editingProject.id}
+            project={editingProject}
+            onOpenChange={(open) => {
+              if (!open) setEditingProject(null)
+            }}
+          />
+        ) : null}
+
+        <ConfirmDialog
+          open={pendingAction !== null}
+          onOpenChange={(open) => {
+            if (!open) setPendingAction(null)
+          }}
+          title={pendingAction?.type === "delete" ? "删除项目" : "归档项目"}
+          description={
+            pendingAction?.type === "delete"
+              ? `确定删除「${pendingAction.project.name}」吗？该项目独立生成的对象、版本、执行记录、生成任务、作品、时间线，以及项目独占的生成媒体、媒体版本和文件引用将一并删除；共享文档、品牌资料、渠道配置、已保存为资产或被其他资源引用的媒体不会被删除。此操作不可撤销。`
+              : `确定归档「${pendingAction?.project.name ?? ""}」吗？归档后项目将变为只读。`
+          }
+          confirmText={pendingAction?.type === "delete" ? "删除" : "确认归档"}
+          variant={pendingAction?.type === "delete" ? "destructive" : "default"}
+          onConfirm={executePendingAction}
+        />
       </div>
     </div>
   )

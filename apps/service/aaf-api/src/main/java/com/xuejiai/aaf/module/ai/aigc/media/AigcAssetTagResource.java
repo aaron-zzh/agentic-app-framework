@@ -47,7 +47,7 @@ public final class AigcAssetTagResource {
                     CrudMutationDefinition.forTypes(TYPES),
                     CrudViewDefinition.forTypes(TYPES),
                     TenantScope.ORG_SHARED_WORKSPACE_OPTIONAL,
-                    PersonalScope.none());
+                    PersonalScope.byProperty("ownerId"));
 
     private AigcAssetTagResource() {}
 }

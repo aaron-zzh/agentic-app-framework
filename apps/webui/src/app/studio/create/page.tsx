@@ -78,11 +78,8 @@ export default async function StudioCreatePage({ searchParams }: StudioCreatePag
   return (
     <div className="relative mx-auto max-w-6xl p-6">
       <SectionHaze variant="violet" />
-      <div className="relative">
-        <MediaGenerationWorkspace
-          initialMode={mode}
-          initialDraft={initialDraft}
-        />
+      <div className="relative pt-4">
+        <MediaGenerationWorkspace initialMode={mode} initialDraft={initialDraft} />
       </div>
     </div>
   )

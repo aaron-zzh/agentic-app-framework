@@ -13,4 +13,6 @@ public interface AigcExecutionTaskRefRepository extends JpaRepository<AigcExecut
             Long executionRunId);
 
     Optional<AigcExecutionTaskRef> findFirstByTaskIdAndDeletedFalseOrderByIdDesc(Long taskId);
+
+    List<AigcExecutionTaskRef> findByExecutionRunIdInAndDeletedFalse(List<Long> executionRunIds);
 }

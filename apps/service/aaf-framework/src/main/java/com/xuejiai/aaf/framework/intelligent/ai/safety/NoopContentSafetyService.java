@@ -6,9 +6,7 @@ import java.util.HexFormat;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.event.EventListener;
-import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.hitl.ToolApprovalService;
 import com.xuejiai.aaf.framework.intelligent.assistant.hitl.ToolApprovalService.ApprovalResolvedEvent;
@@ -16,9 +14,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.hitl.ToolApprovalService.
 import lombok.RequiredArgsConstructor;
 
 /** 默认审查实现：普通请求放行；高风险生成可转入统一 HITL 内容复审。 */
-@Component
 @RequiredArgsConstructor
-@ConditionalOnMissingBean(ContentSafetyService.class)
 public class NoopContentSafetyService implements ContentSafetyService {
 
     private final ToolApprovalService approvalService;

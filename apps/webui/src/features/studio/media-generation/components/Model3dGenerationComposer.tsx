@@ -33,9 +33,7 @@ export function Model3dGenerationComposer(props: MediaGenerationComposerProps) {
       tools={
         <select
           value={controller.textureQuality}
-          onChange={(event) =>
-            controller.setTextureQuality(event.target.value as TextureQuality)
-          }
+          onChange={(event) => controller.setTextureQuality(event.target.value as TextureQuality)}
           aria-label="贴图质量"
           className="h-8 shrink-0 rounded-lg border border-foreground/8 bg-background px-2.5 text-xs"
         >

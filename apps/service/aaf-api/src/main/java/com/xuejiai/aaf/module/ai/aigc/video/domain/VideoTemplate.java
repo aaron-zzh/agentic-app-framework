@@ -1,6 +1,10 @@
 package com.xuejiai.aaf.module.ai.aigc.video.domain;
 
+import java.util.Map;
+
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
+import org.hibernate.type.SqlTypes;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
 
@@ -30,17 +34,18 @@ public class VideoTemplate extends BaseEntity {
     @Column(name = "type", nullable = false, length = 30)
     private String type;
 
-    /** 模板参数（JSON） */
-    @Column(name = "params", columnDefinition = "TEXT")
-    private String params;
+    /** 模板参数。 */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "params", columnDefinition = "jsonb")
+    private Map<String, Object> params;
 
-    /** 预览视频 URL */
-    @Column(name = "preview_url", length = 500)
-    private String previewUrl;
+    /** 预览视频的不可变媒体版本 ID。 */
+    @Column(name = "preview_media_version_id")
+    private Long previewMediaVersionId;
 
-    /** 缩略图 URL */
-    @Column(name = "thumbnail_url", length = 500)
-    private String thumbnailUrl;
+    /** 缩略图的不可变媒体版本 ID。 */
+    @Column(name = "thumbnail_media_version_id")
+    private Long thumbnailMediaVersionId;
 
     /** 所属用户 ID */
     @Column(name = "user_id")

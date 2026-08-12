@@ -77,7 +77,7 @@ export const workspaceApi = {
   /** 获取可切换工作区；super_admin 可用 all 一次加载全部组织工作区。 */
   list: (orgId: string, allOrganizations: boolean) =>
     backendApi.get<PageResult<WorkspaceVO>>("/system/workspaces", {
-      params: { pageNo: 1, pageSize: 500, sort: "id:asc" },
+      params: { pageNo: 1, pageSize: -1, sort: "id:asc" },
       headers: {
         "X-Org-Id": allOrganizations ? "all" : orgId,
         "X-Workspace-Id": ""

@@ -122,11 +122,11 @@ public class OrganizationService {
         orgRepository.deleteById(id);
     }
 
-    /** 为新用户创建个人工作空间 */
+    /** 为新用户创建个人组织。 */
     @Transactional
-    public Organization createPersonalOrg(Long userId, String nickname) {
+    public Organization createPersonalOrg(Long userId, String username) {
         var org = new Organization();
-        org.setName(nickname + "的空间");
+        org.setName(username);
         org.setSlug("personal-" + userId);
         org.setType("personal");
         org.setOwnerId(userId);

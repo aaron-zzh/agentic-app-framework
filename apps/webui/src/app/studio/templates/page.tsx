@@ -5,10 +5,10 @@
 
 "use client"
 
-import { FolderKanban } from "lucide-react"
 import Link from "next/link"
+import { LottieIcon } from "@/components/animate"
 import { GlassCard, GlowButton, NeonChip } from "@/components/studio"
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getProjectTypeConfig } from "@/features/studio/content"
 import type { AigcProjectBlueprint } from "@/lib/api/rest/ai/aigc"
@@ -71,9 +71,7 @@ export default function StudioTemplatesPage() {
         <GlassCard glow="none">
           <Empty className="min-h-72">
             <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <FolderKanban />
-              </EmptyMedia>
+              <LottieIcon name="cat" width={120} height={120} loop />
               <EmptyTitle>暂无已发布蓝图</EmptyTitle>
               <EmptyDescription>项目创建必须绑定已发布 AIGC Project Blueprint。</EmptyDescription>
             </EmptyHeader>

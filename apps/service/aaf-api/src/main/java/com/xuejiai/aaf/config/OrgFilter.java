@@ -2,6 +2,7 @@ package com.xuejiai.aaf.config;
 
 import java.io.IOException;
 import java.util.LinkedHashSet;
+import java.util.regex.Pattern;
 
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -40,6 +41,8 @@ public class OrgFilter implements Filter {
     private static final String HEADER_ORG_ID = "X-Org-Id";
     private static final String HEADER_WORKSPACE_ID = "X-Workspace-Id";
     private static final String ALL_ORGANIZATIONS = "all";
+    private static final Pattern READ_ONLY_POST_PATH =
+            Pattern.compile("^/api/system/dashboards/widgets/[^/]+/data$");
 
     private final OperatorContext operatorContext;
     private final AuthorizationService authorizationService;
@@ -72,11 +75,12 @@ public class OrgFilter implements Filter {
             return true;
         }
         if (ALL_ORGANIZATIONS.equalsIgnoreCase(orgIdHeader)) {
-            if (!"GET".equalsIgnoreCase(httpRequest.getMethod())) {
+            if (!isReadRequest(httpRequest)) {
                 writeForbidden(response, "全组织上下文仅支持读取请求");
                 return false;
             }
-            if (httpRequest.getHeader(HEADER_WORKSPACE_ID) != null) {
+            var workspaceIdHeader = httpRequest.getHeader(HEADER_WORKSPACE_ID);
+            if (workspaceIdHeader != null && !workspaceIdHeader.isBlank()) {
                 writeForbidden(response, "全组织上下文不能指定工作区");
                 return false;
             }
@@ -163,7 +167,7 @@ public class OrgFilter implements Filter {
             return true;
         }
         if (ALL_ORGANIZATIONS.equalsIgnoreCase(workspaceIdHeader)) {
-            if (!"GET".equalsIgnoreCase(httpRequest.getMethod())) {
+            if (!isReadRequest(httpRequest)) {
                 writeForbidden(response, "全工作区上下文仅支持读取请求");
                 return false;
             }
@@ -208,6 +212,19 @@ public class OrgFilter implements Filter {
         }
         OrgContext.setCurrentWorkspaceId(workspaceId);
         return true;
+    }
+
+    /** 读取请求包括 GET，以及服务端精确登记且仅执行查询的 POST。 */
+    private boolean isReadRequest(HttpServletRequest httpRequest) {
+        if ("GET".equalsIgnoreCase(httpRequest.getMethod())) {
+            return true;
+        }
+        if (!"POST".equalsIgnoreCase(httpRequest.getMethod())) {
+            return false;
+        }
+        var requestPath =
+                httpRequest.getRequestURI().substring(httpRequest.getContextPath().length());
+        return READ_ONLY_POST_PATH.matcher(requestPath).matches();
     }
 
     private boolean canReadAllWorkspaces(Long orgId, Long userId) {

@@ -7,8 +7,8 @@
 "use client"
 
 import { useQueryClient } from "@tanstack/react-query"
-import { FileText, Loader2, Plus, Trash2 } from "lucide-react"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { FileText, Plus, Trash2 } from "lucide-react"
+import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import { SectionHaze } from "@/components/studio"
 import {
@@ -23,18 +23,13 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import type { RichTextEditorHandle } from "@/features/rich-text-editor"
-import { RichTextEditor } from "@/features/rich-text-editor"
+import { DocumentEditor } from "@/features/studio/content/DocumentEditor"
 import type { DocListItem } from "@/lib/api/rest/system/document"
 import {
   docKeys,
   useCreateDocument,
   useDeleteDocument,
-  useDocList,
-  useDocument,
-  usePublishDocument,
-  useUnpublishDocument,
-  useUpdateDocument
+  useDocList
 } from "@/lib/api/rest/system/document"
 import { useDocEvents } from "@/lib/hooks/use-doc-events"
 
@@ -196,14 +191,14 @@ export default function StudioKnowledgeDocsPage() {
           <ResizablePanel defaultSize={72}>
             <div className="h-full overflow-hidden">
               {selectedId === "new" ? (
-                <DocEditor
+                <DocumentEditor
                   createDoc={createDoc}
                   creating={creating}
                   onCreated={(id) => setSelectedId(id)}
                   onCancel={() => setSelectedId(null)}
                 />
               ) : selectedId ? (
-                <DocEditor key={selectedId} docId={selectedId} />
+                <DocumentEditor key={selectedId} docId={selectedId} />
               ) : (
                 <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
                   选择左侧文档
@@ -236,174 +231,6 @@ export default function StudioKnowledgeDocsPage() {
           })
         }}
       />
-    </div>
-  )
-}
-
-/** 文档编辑器（与 ProjectDocPanel 的 DocEditor 同构） */
-function DocEditor({
-  docId,
-  createDoc,
-  creating,
-  onCreated,
-  onCancel
-}: {
-  docId?: number
-  createDoc?: (
-    p: { title: string; content: string },
-    opts: { onSuccess: (doc: { id: number }) => void }
-  ) => void
-  creating?: boolean
-  onCreated?: (docId: number) => void
-  onCancel?: () => void
-}) {
-  const isNew = !docId
-  const { data: doc, isLoading } = useDocument(isNew ? null : (docId ?? null))
-  const { mutate: updateDoc, isPending: saving } = useUpdateDocument()
-  const { mutate: publish } = usePublishDocument()
-  const { mutate: unpublish } = useUnpublishDocument()
-
-  const [mode, setMode] = useState<"wysiwyg" | "markdown">("wysiwyg")
-  const [editorKey, setEditorKey] = useState(0)
-  const [initMode, setInitMode] = useState<"html" | "markdown">("markdown")
-  const [title, setTitle] = useState("")
-  const [content, setContent] = useState("")
-  const [dirty, setDirty] = useState(false)
-  const titleInputRef = useRef<HTMLInputElement>(null)
-  const editorRef = useRef<RichTextEditorHandle>(null)
-
-  useEffect(() => {
-    if (isNew) titleInputRef.current?.focus()
-  }, [isNew])
-
-  useEffect(() => {
-    if (doc) {
-      setTitle(doc.title ?? "")
-      setContent(doc.content ?? "")
-      setDirty(false)
-    }
-  }, [doc])
-
-  function handleModeChange(v: string) {
-    const newMode = v as "wysiwyg" | "markdown"
-    if (newMode === "markdown") {
-      const md = editorRef.current?.getContent("markdown") ?? content
-      setContent(md)
-    } else {
-      setInitMode("markdown")
-      setEditorKey((k) => k + 1)
-    }
-    setMode(newMode)
-  }
-
-  function handleSave() {
-    const saveContent =
-      mode === "wysiwyg" ? (editorRef.current?.getContent("markdown") ?? content) : content
-    if (isNew) {
-      if (!title.trim() || !createDoc) return
-      createDoc(
-        { title: title.trim(), content: saveContent },
-        { onSuccess: (created) => onCreated?.(created.id) }
-      )
-    } else {
-      updateDoc({ id: docId ?? 0, title, content: saveContent })
-      setDirty(false)
-    }
-  }
-
-  const isPublished = doc?.publish === "published"
-
-  if (!isNew && isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="size-5 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex h-full flex-col">
-      {/* 顶栏 */}
-      <div className="flex items-center gap-2 border-b px-4 py-2">
-        <input
-          ref={titleInputRef}
-          className="min-w-0 flex-1 bg-transparent font-medium text-sm outline-none placeholder:text-muted-foreground"
-          placeholder="文档标题..."
-          value={title}
-          onChange={(e) => {
-            setTitle(e.target.value)
-            setDirty(true)
-          }}
-        />
-        {!isNew &&
-          doc &&
-          (isPublished ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs"
-              onClick={() => unpublish(doc.id)}
-            >
-              取消发布
-            </Button>
-          ) : (
-            <Button variant="outline" size="sm" className="text-xs" onClick={() => publish(doc.id)}>
-              发布
-            </Button>
-          ))}
-        <Tabs value={mode} onValueChange={handleModeChange}>
-          <TabsList className="h-7">
-            <TabsTrigger value="wysiwyg" className="px-2 text-xs">
-              易读
-            </TabsTrigger>
-            <TabsTrigger value="markdown" className="px-2 text-xs">
-              Markdown
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-        {isNew && (
-          <Button variant="ghost" size="sm" className="text-xs" onClick={onCancel}>
-            取消
-          </Button>
-        )}
-        <Button
-          size="sm"
-          className="text-xs"
-          disabled={isNew ? !title.trim() || !!creating : !dirty || saving}
-          onClick={handleSave}
-        >
-          {(creating || saving) && <Loader2 className="mr-1 size-3 animate-spin" />}
-          保存
-        </Button>
-      </div>
-
-      {/* 内容区 */}
-      <div className="min-h-0 flex-1 overflow-auto">
-        {mode === "markdown" ? (
-          <textarea
-            className="h-full w-full resize-none bg-transparent p-3 font-mono text-sm outline-none"
-            value={content}
-            onChange={(e) => {
-              setContent(e.target.value)
-              setDirty(true)
-            }}
-            spellCheck={false}
-          />
-        ) : (
-          <RichTextEditor
-            key={editorKey}
-            ref={editorRef}
-            value={content}
-            onChange={() => setDirty(true)}
-            preset="document"
-            mode="html"
-            initialValueMode={initMode}
-            fill
-            noBorder
-            className="h-full"
-          />
-        )}
-      </div>
     </div>
   )
 }

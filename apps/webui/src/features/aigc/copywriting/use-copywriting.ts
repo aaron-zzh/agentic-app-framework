@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import type { StreamingEditorHandle } from "@/features/rich-text-editor"
-import { copywritingApi, useLinkProjectDoc } from "@/lib/api/rest/ai"
+import { aigcProjectApi, copywritingApi, useAttachAigcProjectDocument } from "@/lib/api/rest/ai"
 import { useCreateDocument } from "@/lib/api/rest/system"
 import { useAigcStore } from "../store"
 
@@ -36,7 +36,7 @@ export function useCopywriting(projectId?: number) {
   const resultEditorRef = useRef<StreamingEditorHandle>(null)
 
   const createDoc = useCreateDocument()
-  const linkDoc = useLinkProjectDoc()
+  const linkDoc = useAttachAigcProjectDocument()
 
   // 切换类型时重置向导、已保存状态、编辑器内容
   useEffect(() => {
@@ -60,7 +60,13 @@ export function useCopywriting(projectId?: number) {
       filePath: ""
     })
     if (projectId) {
-      await linkDoc.mutateAsync({ projectId, docId: doc.id, role: "output" })
+      const project = await aigcProjectApi.project(projectId)
+      await linkDoc.mutateAsync({
+        projectId,
+        documentVersionId: doc.id,
+        role: "output",
+        expectedProjectVersion: project.version
+      })
     }
     toast.success("已保存为文档")
     setSaved(true)

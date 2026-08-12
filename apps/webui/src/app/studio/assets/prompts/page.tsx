@@ -156,11 +156,9 @@ export default function StudioAssetsPromptsPage() {
         </div>
       )}
 
-      <EditDialog
-        open={editTarget !== undefined}
-        onClose={() => setEditTarget(undefined)}
-        initial={editTarget}
-      />
+      {editTarget !== undefined ? (
+        <EditDialog open onClose={() => setEditTarget(undefined)} initial={editTarget} />
+      ) : null}
     </div>
   )
 }

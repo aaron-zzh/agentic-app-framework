@@ -29,7 +29,7 @@ export interface WorkflowTemplate {
   code: string
   name: string
   description?: string
-  coverUrl?: string
+  coverMediaVersionId?: number
   category: string
   templateConfig: WorkflowTemplateConfig
   isOfficial: boolean

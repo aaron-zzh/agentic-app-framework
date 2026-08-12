@@ -140,6 +140,29 @@ export interface AigcProjectChannelRef {
   overrideConfig?: Record<string, unknown>
 }
 
+export interface AigcProjectDocumentRef {
+  id: number
+  objectId?: number
+  documentVersionId: number
+  role: string
+  sortOrder: number
+}
+
+export interface AigcProjectDocumentRefInput {
+  projectId: number
+  objectId?: number
+  documentVersionId: number
+  role?: string
+  sortOrder?: number
+  expectedProjectVersion: number
+}
+
+export interface AigcProjectDocumentDetachInput {
+  projectId: number
+  refId: number
+  expectedProjectVersion: number
+}
+
 export interface AigcProjectGraph {
   project: AigcProject
   graphRevision: number
@@ -194,6 +217,7 @@ export interface AigcProjectMaterializeInput {
   domainExtensionVersionId?: number
   brandProfileVersionIds?: number[]
   channelSpecVersionIds?: number[]
+  documentVersionIds?: number[]
   productionMode: AigcProductionMode
   briefJson?: string
 }
@@ -244,10 +268,19 @@ export const aigcProjectApi = {
     backendApi.post<AigcProjectView>("/aigc/projects/_materialize", data),
   update: (id: number, data: AigcProjectUpdateInput) =>
     backendApi.put<AigcProject>(`/aigc/projects/${id}`, data),
+  delete: (id: number) => backendApi.delete<void>(`/aigc/projects/${id}`),
   graph: (id: number) => backendApi.get<AigcProjectGraph>(`/aigc/projects/${id}/graph`),
   summary: (id: number) => backendApi.get<AigcProjectSummary>(`/aigc/projects/${id}/summary`),
   channelRefs: (id: number) =>
     backendApi.get<AigcProjectChannelRef[]>(`/aigc/projects/${id}/channel-refs`),
+  documentRefs: (id: number) =>
+    backendApi.get<AigcProjectDocumentRef[]>(`/aigc/projects/${id}/document-refs`),
+  attachDocument: ({ projectId, ...data }: AigcProjectDocumentRefInput) =>
+    backendApi.post<AigcProjectDocumentRef>(`/aigc/projects/${projectId}/document-refs`, data),
+  detachDocument: ({ projectId, refId, expectedProjectVersion }: AigcProjectDocumentDetachInput) =>
+    backendApi.delete<void>(`/aigc/projects/${projectId}/document-refs/${refId}`, {
+      params: { expectedProjectVersion }
+    }),
   objects: (id: number) => backendApi.get<AigcProjectObject[]>(`/aigc/projects/${id}/objects`),
   versions: (projectId: number, objectId: number) =>
     backendApi.get<AigcObjectVersion[]>(`/aigc/projects/${projectId}/objects/${objectId}/versions`),
@@ -284,6 +317,7 @@ export const aigcProjectKeys = {
   graph: (id: number) => ["aigc.project", "graph", id] as const,
   summary: (id: number) => ["aigc.project", "summary", id] as const,
   channelRefs: (id: number) => ["aigc.project", "channel-refs", id] as const,
+  documentRefs: (id: number) => ["aigc.project", "document-refs", id] as const,
   versions: (projectId: number, objectId: number) =>
     ["aigc.project", "versions", projectId, objectId] as const
 }
@@ -327,6 +361,14 @@ export function useAigcProjectChannelRefs(id: number | null) {
   })
 }
 
+export function useAigcProjectDocumentRefs(id: number | null) {
+  return useQuery({
+    queryKey: aigcProjectKeys.documentRefs(id ?? 0),
+    queryFn: () => aigcProjectApi.documentRefs(id as number),
+    enabled: id !== null
+  })
+}
+
 export function useAigcObjectVersions(projectId: number | null, objectId: number | null) {
   return useQuery({
     queryKey: aigcProjectKeys.versions(projectId ?? 0, objectId ?? 0),
@@ -336,10 +378,12 @@ export function useAigcObjectVersions(projectId: number | null, objectId: number
 }
 
 function invalidateProject(queryClient: ReturnType<typeof useQueryClient>, projectId: number) {
-  queryClient.invalidateQueries({ queryKey: aigcProjectKeys.detail(projectId) })
-  queryClient.invalidateQueries({ queryKey: aigcProjectKeys.graph(projectId) })
-  queryClient.invalidateQueries({ queryKey: aigcProjectKeys.summary(projectId) })
-  queryClient.invalidateQueries({ queryKey: aigcProjectKeys.all })
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: aigcProjectKeys.detail(projectId) }),
+    queryClient.invalidateQueries({ queryKey: aigcProjectKeys.graph(projectId) }),
+    queryClient.invalidateQueries({ queryKey: aigcProjectKeys.summary(projectId) }),
+    queryClient.invalidateQueries({ queryKey: aigcProjectKeys.all })
+  ])
 }
 
 export function useMaterializeAigcProject() {
@@ -356,6 +400,17 @@ export function useUpdateAigcProject() {
     mutationFn: ({ id, data }: { id: number; data: AigcProjectUpdateInput }) =>
       aigcProjectApi.update(id, data),
     onSuccess: (project) => invalidateProject(queryClient, project.id)
+  })
+}
+
+export function useDeleteAigcProject() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: aigcProjectApi.delete,
+    onSuccess: async (_result, projectId) => {
+      queryClient.removeQueries({ queryKey: aigcProjectKeys.detail(projectId) })
+      await queryClient.invalidateQueries({ queryKey: aigcProjectKeys.all })
+    }
   })
 }
 
@@ -410,5 +465,36 @@ export function useApproveAigcProjectReview() {
   return useMutation({
     mutationFn: aigcProjectApi.approveReview,
     onSuccess: (_project, input) => invalidateProject(queryClient, input.projectId)
+  })
+}
+/** 关联现有文档到项目。 */
+export function useAttachAigcProjectDocument() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: aigcProjectApi.attachDocument,
+    onSuccess: async (_reference, input) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: aigcProjectKeys.documentRefs(input.projectId)
+        }),
+        invalidateProject(queryClient, input.projectId)
+      ])
+    }
+  })
+}
+
+/** 解除项目文档引用。 */
+export function useDetachAigcProjectDocument() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: aigcProjectApi.detachDocument,
+    onSuccess: async (_result, input) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: aigcProjectKeys.documentRefs(input.projectId)
+        }),
+        invalidateProject(queryClient, input.projectId)
+      ])
+    }
   })
 }

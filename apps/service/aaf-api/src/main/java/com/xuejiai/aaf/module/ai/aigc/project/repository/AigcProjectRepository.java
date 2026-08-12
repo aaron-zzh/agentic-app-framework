@@ -16,4 +16,13 @@ public interface AigcProjectRepository extends CrudEntityRepository<AigcProject>
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select project from AigcProject project where project.id = :id")
     Optional<AigcProject> findLockedById(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_READ)
+    @Query(
+            """
+            select project from AigcProject project
+            where project.id = :id and project.userId = :userId and project.deleted = false
+            """)
+    Optional<AigcProject> findActiveSharedLockedByIdAndUserId(
+            @Param("id") Long id, @Param("userId") Long userId);
 }

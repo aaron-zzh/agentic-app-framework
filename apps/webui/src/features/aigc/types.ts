@@ -43,6 +43,17 @@ export interface AigcMedia {
   updateTime: string
 }
 
+/** 资产标签。 */
+export interface AigcAssetTag {
+  id: number
+  version: number
+  name: string
+  color: string | null
+  usageCount: number
+  createTime: string
+  updateTime: string
+}
+
 /** 用户从媒体库标记保存的资产对象。 */
 export interface AigcAsset {
   id: number
@@ -53,6 +64,7 @@ export interface AigcAsset {
   status: string
   usageCount: number
   media: AigcMedia
+  tags: AigcAssetTag[]
   createTime: string
 }
 

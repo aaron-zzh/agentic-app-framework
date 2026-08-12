@@ -7,17 +7,11 @@
 
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
-import { ChevronRight, FolderKanban, Plus } from "lucide-react"
+import { ChevronRight, Plus } from "lucide-react"
 import Link from "next/link"
+import { LottieIcon } from "@/components/animate"
 import { GlassCard, GlowButton, NeonChip } from "@/components/studio"
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle
-} from "@/components/ui/empty"
+import { Empty, EmptyContent, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { AigcProject } from "@/lib/api/rest/ai/aigc"
 import { useAigcProjects } from "@/lib/api/rest/ai/aigc"
@@ -85,11 +79,8 @@ export function RecentProjectGrid() {
         <GlassCard glow="none">
           <Empty className="min-h-44">
             <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <FolderKanban />
-              </EmptyMedia>
-              <EmptyTitle>还没有内容项目</EmptyTitle>
-              <EmptyDescription>选择上方项目类型，立即建立第一个项目骨架。</EmptyDescription>
+              <LottieIcon name="cat" width={100} height={100} loop />
+              <EmptyTitle>暂无项目</EmptyTitle>
             </EmptyHeader>
             <EmptyContent>
               <GlowButton
@@ -99,7 +90,7 @@ export function RecentProjectGrid() {
                 size="sm"
               >
                 <Plus />
-                完整创建
+                创建第一个项目
               </GlowButton>
             </EmptyContent>
           </Empty>

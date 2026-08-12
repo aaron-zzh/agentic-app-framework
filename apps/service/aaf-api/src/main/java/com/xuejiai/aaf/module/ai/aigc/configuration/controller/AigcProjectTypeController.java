@@ -49,8 +49,7 @@ public class AigcProjectTypeController
     @Operation(summary = "发布项目类型版本")
     @PostMapping("/{id}/publish")
     public Result<AigcProjectTypeVO> publish(
-            @PathVariable Long id,
-            @Valid @RequestBody AigcConfigurationPublishDTO command) {
+            @PathVariable Long id, @Valid @RequestBody AigcConfigurationPublishDTO command) {
         return Result.success(service.publish(id, command));
     }
 }

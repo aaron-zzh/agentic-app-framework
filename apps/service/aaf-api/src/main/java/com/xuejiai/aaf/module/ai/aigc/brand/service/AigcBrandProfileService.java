@@ -39,6 +39,7 @@ import com.xuejiai.aaf.module.ai.aigc.brand.vo.AigcBrandProfileVO;
 import com.xuejiai.aaf.module.ai.aigc.brand.vo.AigcBrandProfileVersionCreateDTO;
 import com.xuejiai.aaf.module.ai.aigc.brand.vo.AigcBrandProfileVersionPublishDTO;
 import com.xuejiai.aaf.module.ai.aigc.brand.vo.AigcBrandProfileVersionVO;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
 
 import lombok.RequiredArgsConstructor;
 
@@ -61,6 +62,7 @@ public class AigcBrandProfileService
     private final AigcBrandProfileVersionRepository versionRepository;
     private final AigcBrandProfileMediaRefRepository mediaRefRepository;
     private final AigcBrandProfileDocumentRefRepository documentRefRepository;
+    private final AigcMediaApi mediaApi;
     private final OperatorContext operatorContext;
 
     @Override
@@ -272,10 +274,13 @@ public class AigcBrandProfileService
 
     private void saveMediaRefs(Long versionId, List<Long> mediaVersionIds) {
         if (mediaVersionIds == null) return;
+        var userId = operatorContext.currentOwnerId().orElseThrow();
         for (var index = 0; index < mediaVersionIds.size(); index++) {
+            var mediaVersionId = mediaVersionIds.get(index);
+            mediaApi.getByVersionId(mediaVersionId, userId);
             var ref = new AigcBrandProfileMediaRef();
             ref.setBrandProfileVersionId(versionId);
-            ref.setMediaVersionId(mediaVersionIds.get(index));
+            ref.setMediaVersionId(mediaVersionId);
             ref.setRole(DEFAULT_REFERENCE_ROLE);
             ref.setSortOrder(index);
             mediaRefRepository.save(ref);

@@ -5,4 +5,8 @@ public interface AigcMediaApi {
     AigcMediaView createFromGeneratedFile(AigcGeneratedMediaCommand command);
 
     AigcMediaView getByVersionId(Long mediaVersionId, Long userId);
+
+    void lockMediaForReference(Long mediaId, Long userId);
+
+    void deleteExclusiveGeneratedByProject(Long projectId);
 }

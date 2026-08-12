@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.ai.aigc.media.vo;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /** AIGC 资产响应，media 为同一稳定媒体的动态投影。 */
 public record AigcAssetVO(
@@ -12,4 +13,5 @@ public record AigcAssetVO(
         String status,
         Integer usageCount,
         AigcMediaVO media,
+        List<AigcAssetTagVO> tags,
         LocalDateTime createTime) {}

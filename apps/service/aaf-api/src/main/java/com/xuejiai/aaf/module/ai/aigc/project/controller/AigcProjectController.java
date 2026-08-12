@@ -27,6 +27,7 @@ import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcObjectVersionDecisionDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcObjectVersionVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectChannelRefVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectConfigSnapshotVO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentRefDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentRefVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectGraphVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectMaterializeDTO;
@@ -68,7 +69,6 @@ public class AigcProjectController
     }
 
     @Operation(summary = "按已发布配置物化项目")
-    @PreAuthorize("hasAuthority('aigc:project:create')")
     @PostMapping("/_materialize")
     public Result<AigcProjectView> materialize(
             @Valid @RequestBody AigcProjectMaterializeDTO request) {
@@ -82,6 +82,7 @@ public class AigcProjectController
                                 request.domainExtensionVersionId(),
                                 request.brandProfileVersionIds(),
                                 request.channelSpecVersionIds(),
+                                request.documentVersionIds(),
                                 request.productionMode(),
                                 request.briefJson())));
     }
@@ -212,9 +213,27 @@ public class AigcProjectController
         return Result.success(service.channelRefs(id));
     }
 
+    @Operation(summary = "关联项目文档")
+    @PostMapping("/{id}/document-refs")
+    public Result<AigcProjectDocumentRefVO> attachDocument(
+            @PathVariable Long id, @Valid @RequestBody AigcProjectDocumentRefDTO request) {
+        return Result.success(service.attachDocument(id, request));
+    }
+
+    @Operation(summary = "查询项目文档引用")
     @GetMapping("/{id}/document-refs")
     public Result<List<AigcProjectDocumentRefVO>> documentRefs(@PathVariable Long id) {
         return Result.success(service.documentRefs(id));
+    }
+
+    @Operation(summary = "解除项目文档引用")
+    @DeleteMapping("/{id}/document-refs/{refId}")
+    public Result<Void> detachDocument(
+            @PathVariable Long id,
+            @PathVariable Long refId,
+            @jakarta.validation.constraints.NotNull Integer expectedProjectVersion) {
+        service.detachDocument(id, refId, expectedProjectVersion);
+        return Result.success();
     }
 
     @GetMapping("/{id}/resource-refs")

@@ -11,6 +11,7 @@ import {
   ChevronDown,
   CreditCard,
   Gift,
+  History,
   LayoutDashboard,
   LogOut,
   ShieldCheck,
@@ -43,6 +44,7 @@ const NAV_GROUPS: {
   {
     items: [
       { label: "账号资料", href: "/studio/me/account", icon: User },
+      { label: "生成记录", href: "/studio/me/generations", icon: History },
       { label: "安全设置", href: "/studio/me/security", icon: ShieldCheck },
       { label: "成长任务", href: "/studio/me/tasks", icon: CheckSquare },
       { label: "通知设置", href: "/studio/me/settings", icon: Bell }
