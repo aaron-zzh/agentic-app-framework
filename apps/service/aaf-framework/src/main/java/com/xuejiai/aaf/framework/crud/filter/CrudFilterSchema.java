@@ -84,32 +84,53 @@ public final class CrudFilterSchema<E> {
     }
 
     /**
-     * 从类型化查询 DTO 与公开列表字段推导保守默认筛选能力。
+     * 从公开列表字段与类型化查询 DTO 推导保守默认筛选能力。
      *
-     * <p>候选字段必须同时存在于 PageDTO 自身声明、list 字段集和实体属性中；只推导已有安全规则的字符串、固定枚举和 LocalDateTime， 不从
-     * EntityDef、客户端请求或关联展示对象推导能力。
+     * <p>公开列表字段是默认候选，PageDTO 字段可补充不在列表中的可筛选条件；两者都必须匹配实体属性，
+     * 且仅推导已有安全规则的字符串、固定枚举和 LocalDateTime。DTO 与列表字段同名时优先使用 DTO，
+     * 以保留 {@link InEnum} 等筛选约束；不从 EntityDef、客户端请求或关联展示对象推导能力。
      */
     public static <E extends BaseEntity> CrudFilterSchema<E> safeDefaults(
             CrudResourceTypeContract<E> types, CrudViewDefinition view) {
         var listFields = view.fieldSets().getOrDefault("list", Set.of());
-        var inferred = new ArrayList<CrudFilterField<E>>();
-        Arrays.stream(types.pageType().getDeclaredFields())
-                .filter(field -> !Modifier.isStatic(field.getModifiers()))
-                .filter(field -> !field.isSynthetic())
-                .filter(field -> listFields.contains(field.getName()))
+        var pageFields = instanceFields(types.pageType());
+        var candidates = new LinkedHashMap<String, Field>();
+
+        instanceFields(types.viewType())
+                .values()
                 .forEach(
-                        pageField -> {
-                            var entityField = findField(types.entityType(), pageField.getName());
-                            if (entityField == null) {
+                        viewField -> {
+                            if (!listFields.contains(viewField.getName())) {
                                 return;
                             }
-                            var filterField =
-                                    CrudFilterSchema.<E>inferField(pageField, entityField);
-                            if (filterField != null) {
-                                inferred.add(filterField);
-                            }
+                            candidates.put(
+                                    viewField.getName(),
+                                    pageFields.getOrDefault(viewField.getName(), viewField));
                         });
+        pageFields.forEach(candidates::putIfAbsent);
+
+        var inferred = new ArrayList<CrudFilterField<E>>();
+        candidates.values().forEach(
+                sourceField -> {
+                    var entityField = findField(types.entityType(), sourceField.getName());
+                    if (entityField == null) {
+                        return;
+                    }
+                    var filterField = CrudFilterSchema.<E>inferField(sourceField, entityField);
+                    if (filterField != null) {
+                        inferred.add(filterField);
+                    }
+                });
         return new CrudFilterSchema<>(Mode.EXPLICIT, inferred);
+    }
+
+    private static Map<String, Field> instanceFields(Class<?> type) {
+        var fields = new LinkedHashMap<String, Field>();
+        Arrays.stream(type.getDeclaredFields())
+                .filter(field -> !Modifier.isStatic(field.getModifiers()))
+                .filter(field -> !field.isSynthetic())
+                .forEach(field -> fields.putIfAbsent(field.getName(), field));
+        return fields;
     }
 
     private static <E> CrudFilterField<E> inferField(Field pageField, Field entityField) {
@@ -127,7 +148,7 @@ public final class CrudFilterSchema<E> {
         }
         if (LocalDateTime.class.equals(pageField.getType())
                 && LocalDateTime.class.equals(entityField.getType())) {
-            return CrudFilterField.localDateTime(name);
+            return CrudFilterField.localDateTime(name, DateTimeFilterVariable.values());
         }
         return null;
     }

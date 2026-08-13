@@ -91,6 +91,7 @@ public class TodoService
         return SpecificationBuilder.<Todo>builder()
                 .eqIfPresent("status", request.getStatus())
                 .eqIfPresent("category", request.getCategory())
+                .eqIfPresent("dueDate", request.getDueDate())
                 .eqIfPresent("sourceEntity", request.getSourceEntity())
                 .eqIfPresent("sourceId", request.getSourceId())
                 .build();

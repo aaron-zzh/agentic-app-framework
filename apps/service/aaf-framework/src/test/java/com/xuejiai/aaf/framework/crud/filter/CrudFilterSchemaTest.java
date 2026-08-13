@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
@@ -107,14 +108,21 @@ class CrudFilterSchemaTest {
     }
 
     @Test
-    @DisplayName("Given AUTO 与 NONE Schema When 中央解析 Then 仅 AUTO 推导安全交集")
-    void should_resolve_auto_and_preserve_none_schema() {
+    @DisplayName("Given AUTO Schema When 解析 Then 合并安全列表字段与 DTO 补充字段")
+    void should_resolve_auto_from_list_fields_and_page_dto_fields() {
         var types =
                 new CrudResourceTypeContract<>(
-                        FilterEntity.class, Void.class, Void.class, Object.class, FilterPage.class);
+                        FilterEntity.class,
+                        Void.class,
+                        Void.class,
+                        FilterView.class,
+                        FilterPage.class);
         var view =
                 new CrudViewDefinition(
-                        Map.of("list", Set.of("status", "category", "title", "internalId")), "");
+                        Map.of(
+                                "list",
+                                Set.of("status", "category", "title", "dueDate", "internalId")),
+                        "");
         var auto = CrudFilterSchema.<FilterEntity>auto();
         var none = CrudFilterSchema.<FilterEntity>none();
 
@@ -123,9 +131,13 @@ class CrudFilterSchemaTest {
         assertThat(auto.mode()).isEqualTo(CrudFilterSchema.Mode.AUTO);
         assertThat(metas)
                 .extracting(CrudFilterFieldMeta::field)
-                .containsExactly("status", "category", "title");
+                .containsExactly("status", "category", "title", "dueDate");
         assertThat(metas.get(0).operators()).doesNotContain(CrudFilterOperator.IS_NULL.toMeta());
         assertThat(metas.get(1).operators()).contains(CrudFilterOperator.IS_NULL.toMeta());
+        assertThat(metas.getLast().operators())
+                .contains(CrudFilterOperator.BETWEEN.toMeta());
+        assertThat(metas.getLast().variables())
+                .containsExactly("$now", "$todayStart", "$tomorrowStart", "$nowPlus3Days");
         assertThat(none.mode()).isEqualTo(CrudFilterSchema.Mode.NONE);
         assertThat(CrudFilterSchema.resolve(none, types, view)).isSameAs(none);
         assertThat(none.metas()).isEmpty();
@@ -146,8 +158,16 @@ class CrudFilterSchemaTest {
 
         private String category;
         private String title;
+        private LocalDateTime dueDate;
         private Long internalId;
     }
+
+    private record FilterView(
+            String status,
+            String category,
+            String title,
+            LocalDateTime dueDate,
+            Long internalId) {}
 
     private static final class FilterPage extends PageParam {
         @InEnum(FilterStatus.class)
@@ -156,7 +176,6 @@ class CrudFilterSchemaTest {
         @InEnum(FilterStatus.class)
         private String category;
 
-        private String title;
         private Long internalId;
         private String hidden;
     }

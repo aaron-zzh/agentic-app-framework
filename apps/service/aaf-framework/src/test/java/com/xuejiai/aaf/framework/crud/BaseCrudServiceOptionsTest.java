@@ -98,7 +98,7 @@ class BaseCrudServiceOptionsTest extends BaseMockitoUnitTest {
     }
 
     @Test
-    @DisplayName("Given 默认选择器搜索 When 实体有规范字符串字段 Then 对存在字段做模糊匹配")
+    @DisplayName("Given 默认列表搜索 When 实体有规范字符串字段 Then 对存在字段做模糊匹配")
     void should_search_existing_standard_string_fields_by_default() {
         jakarta.persistence.criteria.Root<TestRecord> root =
                 mock(jakarta.persistence.criteria.Root.class);
@@ -125,7 +125,7 @@ class BaseCrudServiceOptionsTest extends BaseMockitoUnitTest {
         when(criteriaBuilder.like(stringPath, "%需求%")).thenReturn(predicate);
 
         var result =
-                service.defaultOptionSpec(" 需求 ")
+                service.defaultListSearchSpec(" 需求 ")
                         .toPredicate(root, mock(CriteriaQuery.class), criteriaBuilder);
 
         assertThat(result).isSameAs(predicate);
@@ -262,6 +262,10 @@ class BaseCrudServiceOptionsTest extends BaseMockitoUnitTest {
 
         private Specification<TestRecord> defaultOptionSpec(String keyword) {
             return super.buildOptionSpec(keyword);
+        }
+
+        private Specification<TestRecord> defaultListSearchSpec(String keyword) {
+            return super.buildSearchSpec(keyword);
         }
 
         private Specification<TestRecord> marker(String name) {

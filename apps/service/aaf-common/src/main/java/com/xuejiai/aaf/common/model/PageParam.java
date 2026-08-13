@@ -53,6 +53,9 @@ public class PageParam implements Serializable {
     @Schema(description = "排序，格式：field:asc|desc，多个字段用逗号分隔", example = "createTime:desc,id:asc")
     private String sort;
 
+    @Schema(description = "关键字搜索")
+    private String search;
+
     /** 是否不分页 */
     public boolean isNoPaging() {
         return PAGE_SIZE_NONE == pageSize;

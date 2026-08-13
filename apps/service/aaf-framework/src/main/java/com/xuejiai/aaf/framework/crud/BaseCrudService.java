@@ -310,6 +310,15 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         return (root, query, cb) -> null;
     }
 
+    /**
+     * 构建普通列表的关键词搜索条件。
+     *
+     * <p><b>可按需覆写。</b>默认复用选择器的规范字段搜索；资源需要全文索引、拼音或组合名称搜索时可追加领域条件。
+     */
+    protected Specification<E> buildSearchSpec(String keyword) {
+        return buildDefaultSearchSpec(keyword);
+    }
+
     /** 返回资源定义中声明的筛选字段和操作符白名单 */
     private CrudFilterSchema<E> filterSchema() {
         return resourceDefinition().query().filterSchema();
@@ -324,7 +333,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     /**
      * 合并本次查询必须同时满足的全部条件。
      *
-     * <p>顺序包含统一安全范围、客户端筛选和业务子类追加条件。此方法保持为私有，避免业务代码漏掉租户或数据范围。
+     * <p>顺序包含统一安全范围、客户端筛选、关键词搜索和业务子类追加条件。此方法保持为私有，避免业务代码漏掉租户或数据范围。
      */
     private Specification<E> buildEffectiveSpec(
             P pageDTO, List<CrudFilter> filters, CrudEnforcementDecision<E> decision) {
@@ -332,6 +341,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         return Specification.allOf(
                 decision.scopeSpecification(),
                 buildFilterSpec(filters, filterContext),
+                buildSearchSpec(pageDTO.getSearch()),
                 buildSpec(pageDTO));
     }
 
@@ -1159,6 +1169,10 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
      * <p><b>可按需覆写。</b>默认在常见名称字段中做不区分大小写的模糊匹配。资源使用编码、拼音、组合名称等领域规则时， 可追加条件；不要自行加入租户或数据范围条件，框架会统一合并。
      */
     protected Specification<E> buildOptionSpec(String keyword) {
+        return buildDefaultSearchSpec(keyword);
+    }
+
+    private Specification<E> buildDefaultSearchSpec(String keyword) {
         if (keyword == null || keyword.isBlank()) {
             return (root, query, cb) -> null;
         }

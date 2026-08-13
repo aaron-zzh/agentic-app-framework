@@ -53,24 +53,41 @@ class TodoResourceTest {
     }
 
     @Test
-    @DisplayName("Given Todo 类型合同 When 推导安全筛选 Then 开放状态和分类枚举能力")
-    void should_infer_typed_enum_filter_capabilities() {
+    @DisplayName("Given Todo 类型合同 When 推导安全筛选 Then 开放枚举和截止日期能力")
+    void should_infer_typed_filter_capabilities() {
         var definition = TodoResource.DEFINITION;
         var filterFields = definition.query().filterSchema().metas();
 
         assertThat(filterFields)
                 .extracting(filter -> filter.field())
-                .containsExactly("status", "category");
+                .containsExactly("title", "category", "status", "dueDate", "createTime", "sourceEntity");
         assertThat(filterFields.getFirst().operators())
+                .extracting(operator -> operator.value())
+                .contains("contains", "startsWith");
+        assertThat(filterFields.get(1).operators())
+                .extracting(operator -> operator.value())
+                .contains("eq", "isNull");
+        assertThat(filterFields.get(2).operators())
                 .extracting(operator -> operator.value())
                 .contains("eq", "in", "notIn")
                 .doesNotContain("isNull");
-        assertThat(filterFields.getLast().operators())
+        assertThat(filterFields.get(3).operators())
                 .extracting(operator -> operator.value())
-                .contains("eq", "isNull");
+                .contains("between", "gte", "lte");
+        assertThat(filterFields.get(3).variables())
+                .containsExactly("$now", "$todayStart", "$tomorrowStart", "$nowPlus3Days");
+        assertThat(filterFields.get(4).operators())
+                .extracting(operator -> operator.value())
+                .contains("between", "gte", "lte");
+        assertThat(definition.fieldCapabilities().get("title"))
+                .anyMatch(capability -> capability.name().equals("FILTER"));
         assertThat(definition.fieldCapabilities().get("status"))
                 .anyMatch(capability -> capability.name().equals("FILTER"));
         assertThat(definition.fieldCapabilities().get("category"))
+                .anyMatch(capability -> capability.name().equals("FILTER"));
+        assertThat(definition.fieldCapabilities().get("dueDate"))
+                .anyMatch(capability -> capability.name().equals("FILTER"));
+        assertThat(definition.fieldCapabilities().get("createTime"))
                 .anyMatch(capability -> capability.name().equals("FILTER"));
     }
 }

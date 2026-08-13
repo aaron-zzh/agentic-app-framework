@@ -15,6 +15,7 @@ import { useCallback, useId, useRef, useState } from "react"
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import type { DataFieldDef, EntityDef } from "@/features/entity-engine/types"
+import type { CrudFilterFieldMeta } from "@/lib/api/rest/crud"
 import type { QuickFilter } from "@/lib/types/entity"
 import { buildDateRangeFilter } from "../../../lib/date-range-filter"
 import type { FilterCondition } from "./FilterBuilder"
@@ -44,21 +45,29 @@ interface SearchBarProps {
   entity: EntityDef
   filters: FilterCondition[]
   onChange: (filters: FilterCondition[]) => void
+  capabilities: CrudFilterFieldMeta[]
 }
 
 /** 统一搜索栏 */
-export function SearchBar({ entity, filters, onChange }: SearchBarProps) {
+export function SearchBar({ entity, filters, onChange, capabilities }: SearchBarProps) {
   const [query, setQuery] = useState("")
   const [phase, setPhase] = useState<InputPhase>("idle")
   const [selectedField, setSelectedField] = useState<DataFieldDef | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const allFields = entity.fields.filter((f): f is DataFieldDef => "name" in f)
-
-  // 可筛选字段：配置了 filterableFields 则只显示这些，否则显示全部
-  const filterableFields = entity.listView.filterableFields?.length
-    ? allFields.filter((f) => entity.listView.filterableFields?.includes(f.name))
+  const capabilityFields = new Set(
+    capabilities
+      .filter((capability) => capability.operators.length > 0)
+      .map((capability) => capability.field)
+  )
+  const configuredFields = entity.listView.filterableFields
+  const configuredFilterableFields = configuredFields?.length
+    ? allFields.filter((field) => configuredFields.includes(field.name))
     : allFields
+  const filterableFields = configuredFilterableFields.filter((field) =>
+    capabilityFields.has(field.name)
+  )
 
   const filteredFields = query
     ? filterableFields.filter((f) =>
@@ -92,13 +101,25 @@ export function SearchBar({ entity, filters, onChange }: SearchBarProps) {
   const handleConfirmValue = useCallback(
     (value: string) => {
       if (!selectedField || !value.trim()) return
-      const op = selectedField.type === "select" ? "eq" : "contains"
-      onChange([...filters, { field: selectedField.name, operator: op, values: [value.trim()] }])
+      const operators = capabilities.find(
+        (capability) => capability.field === selectedField.name
+      )?.operators
+      const preferredOperator = selectedField.type === "select" ? "eq" : "contains"
+      const operator =
+        operators?.find((candidate) => candidate.value === preferredOperator)?.value ??
+        operators?.find((candidate) => candidate.value === "eq")?.value ??
+        operators?.[0]?.value
+      if (!operator) return
+
+      onChange([
+        ...filters,
+        { field: selectedField.name, operator, values: [value.trim()] }
+      ])
       setSelectedField(null)
       setPhase("idle")
       setQuery("")
     },
-    [selectedField, filters, onChange]
+    [capabilities, selectedField, filters, onChange]
   )
 
   // 确认日期范围：单端转为比较操作符，双端才使用 between。

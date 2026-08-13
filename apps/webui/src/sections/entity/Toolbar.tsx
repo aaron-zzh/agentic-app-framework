@@ -236,7 +236,12 @@ export function Toolbar({
 
       {/* 行2：搜索框 + 收藏 + 刷新 */}
       <div className="flex items-center gap-2 px-4 pt-2 pb-1.5">
-        <SearchBar entity={entity} filters={filters} onChange={setFilters} />
+        <SearchBar
+          entity={entity}
+          filters={filters}
+          onChange={setFilters}
+          capabilities={filterCapabilities ?? []}
+        />
         <FilterFavorites entitySlug={entity.slug} currentFilters={filters} onApply={setFilters} />
         <Tooltip>
           <TooltipTrigger

@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.system.task.vo;
 
+import java.time.LocalDateTime;
+
 import com.xuejiai.aaf.common.enums.sys.TodoCategoryEnum;
 import com.xuejiai.aaf.common.enums.sys.TodoStatusEnum;
 import com.xuejiai.aaf.common.model.PageParam;
@@ -26,6 +28,9 @@ public class TodoPageDTO extends PageParam {
     @InEnum(value = TodoCategoryEnum.class, message = "分类必须是 {value}")
     @Schema(description = "分类筛选：todo / call / email / meeting")
     private String category;
+
+    @Schema(description = "截止时间筛选")
+    private LocalDateTime dueDate;
 
     @Schema(description = "来源实体类型")
     private String sourceEntity;

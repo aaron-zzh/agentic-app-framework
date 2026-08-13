@@ -93,6 +93,39 @@ VALUES (
           "createTime"
         ],
         "defaultSort": "id:desc",
+        "searchableFields": ["title"],
+        "quickFilters": [
+          {
+            "label": "今日到期",
+            "conditions": [
+              {
+                "field": "dueDate",
+                "operator": "between",
+                "values": ["$todayStart", "$tomorrowStart"]
+              }
+            ]
+          },
+          {
+            "label": "未来三天",
+            "conditions": [
+              {
+                "field": "dueDate",
+                "operator": "between",
+                "values": ["$now", "$nowPlus3Days"]
+              }
+            ]
+          },
+          {
+            "label": "已逾期",
+            "conditions": [
+              {
+                "field": "dueDate",
+                "operator": "lt",
+                "values": ["$now"]
+              }
+            ]
+          }
+        ],
         "batchActions": [
           "delete"
         ]
