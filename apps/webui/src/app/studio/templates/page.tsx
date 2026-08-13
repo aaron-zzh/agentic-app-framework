@@ -18,7 +18,10 @@ function BlueprintCard({ blueprint }: { blueprint: AigcProjectBlueprint }) {
   const type = getProjectTypeConfig({ code: blueprint.projectTypeCode, name: "" })
   const Icon = type.icon
   return (
-    <GlassCard glow={type.tone} className="overflow-hidden">
+    <GlassCard
+      glow={type.tone === "neutral" ? "none" : type.tone === "amber" ? "accent" : type.tone}
+      className="overflow-hidden"
+    >
       <div className="flex h-32 items-center justify-center bg-foreground/[0.04] text-muted-foreground">
         <Icon className="size-10" />
       </div>

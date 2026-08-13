@@ -51,24 +51,29 @@ export function createAigcBrandSystemPrompt(
   profile: AigcBrandProfile,
   version: AigcBrandProfileVersion
 ): string {
-  const rules = [
+  const rules: [string, string | undefined][] = [
     ["品牌定位", version.positioning],
     ["目标受众", version.audience],
     ["表达语气", version.toneOfVoice],
     ["视觉风格", version.visualStyle],
     ["必要声明", version.disclaimer],
     ["禁用项", version.forbiddenItems]
-  ].filter(([, value]): value is [string, string] => Boolean(value?.trim()))
+  ]
+  const populatedRules = rules.filter((entry): entry is [string, string] =>
+    Boolean(entry[1]?.trim())
+  )
   const serializedRules = version.rules ? JSON.stringify(version.rules) : undefined
 
   return [
     `请严格遵循已发布的品牌资料「${profile.name}」第 ${version.versionNo} 版：`,
-    ...rules.map(([label, value]) => `- ${label}：${value.trim()}`),
+    ...populatedRules.map(([label, value]) => `- ${label}：${value.trim()}`),
     ...(serializedRules && serializedRules !== "{}" ? [`- 其他品牌规则：${serializedRules}`] : [])
   ].join("\n")
 }
 
-export function mergeAigcSystemPrompts(...prompts: Array<string | undefined>): string | undefined {
+export function mergeAigcSystemPrompts(
+  ...prompts: Array<string | null | undefined>
+): string | undefined {
   const resolved = prompts.filter((prompt): prompt is string => Boolean(prompt?.trim()))
   return resolved.length > 0 ? resolved.join("\n\n") : undefined
 }

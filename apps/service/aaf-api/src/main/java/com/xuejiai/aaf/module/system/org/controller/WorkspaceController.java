@@ -32,8 +32,8 @@ import lombok.RequiredArgsConstructor;
 /**
  * 工作区管理接口，继承 BaseCrudController 获得标准 CRUD 接口。
  *
- * <p>权限模型不设独立角色层级：工作区 {@code ownerId} 指向的用户拥有全部管理权限（邀请/移除成员、改名、删除工作区）， 由 {@link WorkspaceService} 内部校验，
- * 不使用 {@code @PreAuthorize} 角色声明。
+ * <p>权限模型不设独立角色层级：工作区 {@code ownerId} 指向的用户拥有全部管理权限（邀请/移除成员、改名、删除工作区）， 由 {@link WorkspaceService}
+ * 内部校验， 不使用 {@code @PreAuthorize} 角色声明。
  *
  * @author AaronZZH & Kiro
  */

@@ -105,20 +105,22 @@ export function MediaGenerationWorkspace({
   }, [initialDraft, initialMode])
 
   const upsertCreatedTask = useCallback((task: AigcTaskEvent) => {
-    if (!isMediaTaskType(task.type)) return
+    const taskType = task.type
+    if (!isMediaTaskType(taskType)) return
     setTasksByType((current) => ({
       ...current,
-      [task.type]: [task, ...current[task.type].filter((item) => item.id !== task.id)].slice(0, 5)
+      [taskType]: [task, ...current[taskType].filter((item) => item.id !== task.id)].slice(0, 5)
     }))
   }, [])
 
   const updateTask = useCallback((task: AigcTaskEvent) => {
-    if (!isMediaTaskType(task.type)) return
+    const taskType = task.type
+    if (!isMediaTaskType(taskType)) return
     setTasksByType((current) => {
-      const existing = current[task.type]
+      const existing = current[taskType]
       return {
         ...current,
-        [task.type]: existing.some((item) => item.id === task.id)
+        [taskType]: existing.some((item) => item.id === task.id)
           ? existing.map((item) => (item.id === task.id ? task : item))
           : [task, ...existing].slice(0, 5)
       }

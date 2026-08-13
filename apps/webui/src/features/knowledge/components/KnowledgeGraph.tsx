@@ -27,6 +27,12 @@ interface KnowledgeGraphProps {
   knowledgeBaseId: string
 }
 
+interface SelectedRelation {
+  direction: "outgoing" | "incoming"
+  edge: GraphEdge
+  related: GraphNode | undefined
+}
+
 type KnowledgeGraphVisualizationProps = GraphVisualizationProps<GraphNode, GraphEdge>
 
 const ThreeKnowledgeGraph = dynamic<KnowledgeGraphVisualizationProps>(
@@ -78,17 +84,26 @@ export function KnowledgeGraph({ knowledgeBaseId }: KnowledgeGraphProps) {
   )
   const selected = selectedNodeId ? (nodesById.get(selectedNodeId) ?? null) : null
   const hovered = hoveredNodeId ? (nodesById.get(hoveredNodeId) ?? null) : null
-  const selectedRelations = useMemo(() => {
+  const selectedRelations = useMemo<SelectedRelation[]>(() => {
     if (!selected || !data) return []
-    return data.edges.flatMap((edge) => {
+
+    const relations: SelectedRelation[] = []
+    for (const edge of data.edges) {
       if (edge.sourceId === selected.id) {
-        return [{ direction: "outgoing" as const, edge, related: nodesById.get(edge.targetId) }]
+        relations.push({
+          direction: "outgoing",
+          edge,
+          related: nodesById.get(edge.targetId)
+        })
+      } else if (edge.targetId === selected.id) {
+        relations.push({
+          direction: "incoming",
+          edge,
+          related: nodesById.get(edge.sourceId)
+        })
       }
-      if (edge.targetId === selected.id) {
-        return [{ direction: "incoming" as const, edge, related: nodesById.get(edge.sourceId) }]
-      }
-      return []
-    })
+    }
+    return relations
   }, [data, nodesById, selected])
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: 切换图谱维度时需重置临时渲染状态

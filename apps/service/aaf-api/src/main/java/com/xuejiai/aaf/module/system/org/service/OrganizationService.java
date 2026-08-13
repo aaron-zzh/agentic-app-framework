@@ -98,8 +98,7 @@ public class OrganizationService {
                             workspaceRepository
                                     .findByOrgIdAndSlugAndDeletedFalse(
                                             org.getId(), DEFAULT_WORKSPACE_SLUG)
-                                    .orElseThrow(
-                                            () -> exception(ORG_DEFAULT_CONTEXT_NOT_FOUND));
+                                    .orElseThrow(() -> exception(ORG_DEFAULT_CONTEXT_NOT_FOUND));
                     var isOrgMember =
                             memberRepository.existsByOrgIdAndUserIdAndDeletedFalse(
                                     org.getId(), userId);

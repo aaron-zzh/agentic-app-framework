@@ -302,12 +302,15 @@ function ProjectPromptPlugin({
 
       if (!projectPrompt?.content.trim()) return
 
-      let firstChild = root.getFirstChild()
-      if (!$isElementNode(firstChild)) {
+      const firstChild = root.getFirstChild()
+      let firstElement: ElementNode
+      if ($isElementNode(firstChild)) {
+        firstElement = firstChild
+      } else {
         const paragraph = $createParagraphNode()
         if (firstChild) firstChild.insertBefore(paragraph)
         else root.append(paragraph)
-        firstChild = paragraph
+        firstElement = paragraph
       }
 
       const tagNode = $createProjectPromptNode(
@@ -315,11 +318,11 @@ function ProjectPromptPlugin({
         projectPrompt.content,
         onDismissRef.current
       )
-      const firstTextChild = firstChild.getFirstChild()
+      const firstTextChild = firstElement.getFirstChild()
       if (firstTextChild) {
         firstTextChild.insertBefore(tagNode)
       } else {
-        firstChild.append(tagNode)
+        firstElement.append(tagNode)
       }
     })
   }, [editor, projectPrompt])
@@ -469,10 +472,13 @@ function PastePlugin() {
         e.preventDefault()
         editor.update(() => {
           const root = $getRoot()
-          let firstParagraph = root.getFirstChild()
-          if (!$isElementNode(firstParagraph)) {
+          const firstChild = root.getFirstChild()
+          let firstParagraph: ElementNode
+          if ($isElementNode(firstChild)) {
+            firstParagraph = firstChild
+          } else {
             const paragraph = $createParagraphNode()
-            if (firstParagraph) firstParagraph.insertBefore(paragraph)
+            if (firstChild) firstChild.insertBefore(paragraph)
             else root.append(paragraph)
             firstParagraph = paragraph
           }

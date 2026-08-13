@@ -87,10 +87,7 @@ export const useOrgStore = create<OrgState>()(
         currentWorkspace: state.currentWorkspace
       }),
       onRehydrateStorage: () => (state) => {
-        setBackendOrgContext(
-          state?.currentOrgId ?? null,
-          state?.currentWorkspace?.id ?? null
-        )
+        setBackendOrgContext(state?.currentOrgId ?? null, state?.currentWorkspace?.id ?? null)
       }
     }
   )

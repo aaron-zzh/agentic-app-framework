@@ -167,12 +167,10 @@ class OrganizationServiceTest extends BaseMockitoUnitTest {
         when(authorizationService.isCurrentSubjectSuperAdmin()).thenReturn(true);
         when(memberRepository.findByOrgIdAndUserIdAndDeletedFalse(10L, 20L))
                 .thenReturn(Optional.of(member));
-        when(workspaceRepository.existsByOrgIdAndOwnerIdAndDeletedFalse(10L, 20L))
-                .thenReturn(true);
+        when(workspaceRepository.existsByOrgIdAndOwnerIdAndDeletedFalse(10L, 20L)).thenReturn(true);
 
         // 调用 + 断言
-        assertThatThrownBy(() -> service.removeMember(10L, 20L))
-                .hasMessageContaining("工作区管理者");
+        assertThatThrownBy(() -> service.removeMember(10L, 20L)).hasMessageContaining("工作区管理者");
         verify(memberRepository, never()).deleteById(1L);
     }
 

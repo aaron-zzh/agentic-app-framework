@@ -36,14 +36,7 @@ import {
   Zap
 } from "lucide-react"
 
-export type StudioSection =
-  | "home"
-  | "create"
-  | "projects"
-  | "assets"
-  | "knowledge"
-  | "me"
-  | "tools"
+export type StudioSection = "home" | "create" | "projects" | "assets" | "knowledge" | "me" | "tools"
 
 export interface StudioNavItem {
   /** 子菜单 key（用于路由拼接 + 状态） */

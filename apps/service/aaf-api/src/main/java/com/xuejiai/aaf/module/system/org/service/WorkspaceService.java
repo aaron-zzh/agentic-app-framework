@@ -103,7 +103,9 @@ public class WorkspaceService
 
     @Override
     protected Specification<Workspace> buildSpec(WorkspacePageDTO req) {
-        return SpecificationBuilder.<Workspace>builder().likeIfPresent("name", req.getName()).build();
+        return SpecificationBuilder.<Workspace>builder()
+                .likeIfPresent("name", req.getName())
+                .build();
     }
 
     /** 创建工作区后，创建者自动成为该工作区成员，保证创建者不会看不到自己创建的工作区。 */

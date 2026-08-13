@@ -203,13 +203,7 @@ export const aafLandingPageDef: PageDef = {
             name: "社区版",
             price: "免费",
             description: "个人开发者 / 学习",
-            features: [
-              "完整开源代码",
-              "社区支持",
-              "基础 Agent 能力",
-              "独立部署",
-              "5 个自定义实体"
-            ],
+            features: ["完整开源代码", "社区支持", "基础 Agent 能力", "独立部署", "5 个自定义实体"],
             cta: { label: "开始使用", href: "/dashboard" }
           },
           {

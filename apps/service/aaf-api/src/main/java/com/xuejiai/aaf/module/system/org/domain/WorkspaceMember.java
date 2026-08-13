@@ -14,8 +14,8 @@ import lombok.Setter;
  * 工作区成员——记录用户与工作区的归属关系。
  *
  * <p>不设角色字段：工作区权限模型无独立角色层级，管理权限由 {@link Workspace#getOwnerId()} 判断，
- * 本表只记录"谁在哪个工作区里"这一归属关系。组织成员不自动加入工作区，需显式邀请/加入。
- * {@code workspaceId} 直接复用 {@link BaseEntity} 的作用域字段，同时作为工作区外键。
+ * 本表只记录"谁在哪个工作区里"这一归属关系。组织成员不自动加入工作区，需显式邀请/加入。 {@code workspaceId} 直接复用 {@link BaseEntity}
+ * 的作用域字段，同时作为工作区外键。
  *
  * @author AaronZZH & Kiro
  */

@@ -25,7 +25,7 @@ export function useVoiceGenerationController({
   onTaskSubmitted
 }: MediaGenerationControllerOptions = {}) {
   const [prompt, setPrompt] = useState(initialDraft?.prompt ?? "")
-  const [voiceId, setVoiceId] = useState(VOICES[0].value)
+  const [voiceId, setVoiceId] = useState<string>(VOICES[0].value)
   const estimateParams = useMemo(() => ({ text: prompt }), [prompt])
   const creditEstimate = useEstimateAigcCredits({
     type: "VOICE",

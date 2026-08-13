@@ -59,6 +59,7 @@ const KIND_LABELS: Record<AigcBrandProfileKind, string> = {
 }
 
 interface BrandProfileForm {
+  [key: string]: unknown
   name: string
   kind: AigcBrandProfileKind
   industry: string
@@ -66,6 +67,7 @@ interface BrandProfileForm {
 }
 
 interface BrandVersionForm {
+  [key: string]: unknown
   positioning: string
   audience: string
   toneOfVoice: string

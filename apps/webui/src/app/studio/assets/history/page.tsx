@@ -116,7 +116,11 @@ function TaskCard({ task, onPreview }: { task: AigcTaskVO; onPreview: (url: stri
             />
           ) : (
             // biome-ignore lint/performance/noImgElement: 缩略图
-            <img src={task.outputUrl} alt={task.prompt} className="size-full object-cover" />
+            <img
+              src={task.outputUrl}
+              alt={task.prompt ?? "生成结果"}
+              className="size-full object-cover"
+            />
           )
         ) : (
           <div className="flex size-full flex-col items-center justify-center gap-1.5 text-muted-foreground/40">

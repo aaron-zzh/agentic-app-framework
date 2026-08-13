@@ -53,6 +53,8 @@ export const OBJECT_TYPE_LABELS: Record<AigcObjectType, string> = {
   scene: "场次",
   shot: "镜头",
   shot_keyframe: "镜头关键帧",
+  character: "角色",
+  prop: "道具",
   review: "审核",
   canvas_board: "画布节点",
   property_subject: "楼盘资料",
@@ -87,6 +89,8 @@ const TYPE_STAGE: Record<AigcObjectType, ProjectGraphStage> = {
   scene: "material",
   shot: "material",
   shot_keyframe: "material",
+  character: "material",
+  prop: "material",
   canvas_board: "material",
   review: "governance"
 }
