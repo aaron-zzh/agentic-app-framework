@@ -19,4 +19,6 @@ public interface WorkspaceRepository extends CrudEntityRepository<Workspace> {
     List<Workspace> findByOrgIdAndDeletedFalse(Long orgId);
 
     List<Workspace> findByOrgIdInAndDeletedFalse(Collection<Long> orgIds);
+
+    boolean existsByOrgIdAndOwnerIdAndDeletedFalse(Long orgId, Long ownerId);
 }

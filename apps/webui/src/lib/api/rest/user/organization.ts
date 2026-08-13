@@ -23,7 +23,7 @@ export interface WorkspaceVO {
   orgId: string
   name: string
   slug: string
-  createBy: string
+  ownerId: string
   createTime: string
 }
 

@@ -15,5 +15,5 @@ public record WorkspaceVO(
         @Schema(description = "所属组织 ID") Long orgId,
         @Schema(description = "工作区名称") String name,
         @Schema(description = "工作区标识（组织内唯一）") String slug,
-        @Schema(description = "创建者 ID，即工作区管理者") Long createBy,
+        @Schema(description = "工作区管理者用户 ID") Long ownerId,
         @Schema(description = "创建时间") LocalDateTime createTime) {}

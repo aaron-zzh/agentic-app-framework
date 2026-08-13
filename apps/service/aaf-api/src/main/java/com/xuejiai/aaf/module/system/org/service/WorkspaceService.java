@@ -5,6 +5,7 @@ import static com.xuejiai.aaf.module.system.ErrorCodeConstants.WORKSPACE_MANAGER
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.WORKSPACE_MANAGER_REQUIRED;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.WORKSPACE_MEMBER_ALREADY_EXISTS;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.WORKSPACE_MEMBER_NOT_FOUND;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.WORKSPACE_MEMBER_ORG_REQUIRED;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.WORKSPACE_ORG_CONTEXT_REQUIRED;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.WORKSPACE_SLUG_EXISTS;
 
@@ -15,11 +16,13 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
+import com.xuejiai.aaf.framework.crud.definition.CrudOperation;
+import com.xuejiai.aaf.framework.crud.enforcement.AccessMode;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
-import com.xuejiai.aaf.framework.security.authorization.AuthorizationService;
 import com.xuejiai.aaf.module.system.org.domain.Workspace;
 import com.xuejiai.aaf.module.system.org.domain.WorkspaceMember;
 import com.xuejiai.aaf.module.system.org.repository.OrgMemberRepository;
@@ -37,7 +40,7 @@ import lombok.RequiredArgsConstructor;
 /**
  * 工作区服务，继承 BaseCrudService 获得标准 CRUD 能力。
  *
- * <p>权限模型不设独立角色层级：{@code createBy} 即工作区管理者，拥有邀请/移除成员、改名、删除工作区等 全部管理权限。组织成员不自动加入工作区，需显式邀请/加入。详见设计文档
+ * <p>权限模型不设独立角色层级：{@code ownerId} 即工作区管理者，拥有邀请/移除成员、改名、删除工作区等 全部管理权限。组织成员不自动加入工作区，需显式邀请/加入。详见设计文档
  * {@code docs/design/apps/service/workspace-isolation.md}。
  *
  * @author AaronZZH & Kiro
@@ -52,7 +55,6 @@ public class WorkspaceService
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final OrgMemberRepository orgMemberRepository;
     private final OperatorContext operatorContext;
-    private final AuthorizationService authorizationService;
     private static final Set<String> SORTABLE_FIELDS = Set.of("id", "name", "slug", "createTime");
 
     @Override
@@ -67,7 +69,7 @@ public class WorkspaceService
                 w.getOrgId(),
                 w.getName(),
                 w.getSlug(),
-                w.getCreateBy(),
+                w.getOwnerId(),
                 w.getCreateTime());
     }
 
@@ -80,8 +82,13 @@ public class WorkspaceService
         if (workspaceRepository.findByOrgIdAndSlugAndDeletedFalse(orgId, dto.slug()).isPresent()) {
             throw exception(WORKSPACE_SLUG_EXISTS);
         }
+        var managerId =
+                operatorContext
+                        .currentOwnerId()
+                        .orElseThrow(() -> exception(WORKSPACE_MANAGER_REQUIRED));
         var workspace = new Workspace();
         workspace.setOrgId(orgId);
+        workspace.setOwnerId(managerId);
         workspace.setName(dto.name());
         workspace.setSlug(dto.slug());
         return workspace;
@@ -96,85 +103,70 @@ public class WorkspaceService
 
     @Override
     protected Specification<Workspace> buildSpec(WorkspacePageDTO req) {
-        var businessSpec =
-                SpecificationBuilder.<Workspace>builder()
-                        .likeIfPresent("name", req.getName())
-                        .build();
-        return Specification.allOf(businessSpec, accessibleWorkspaceSpec());
-    }
-
-    private Specification<Workspace> accessibleWorkspaceSpec() {
-        if (authorizationService.isCurrentSubjectSuperAdmin()) {
-            return (root, query, cb) -> null;
-        }
-        if (OrgContext.isAllOrganizations()) {
-            var workspaceIds = OrgContext.getAccessibleWorkspaceIds();
-            return workspaceIds.isEmpty()
-                    ? (root, query, cb) -> cb.disjunction()
-                    : (root, query, cb) -> root.get("id").in(workspaceIds);
-        }
-        var userId = operatorContext.currentOwnerId().orElse(null);
-        var orgId = OrgContext.getCurrentOrgId();
-        if (userId == null || orgId == null) {
-            return (root, query, cb) -> cb.disjunction();
-        }
-        var manager =
-                OrgContext.runIgnoring(
-                        () ->
-                                orgMemberRepository
-                                        .findByOrgIdAndUserIdAndDeletedFalse(orgId, userId)
-                                        .map(member -> member.getRole())
-                                        .filter(
-                                                role ->
-                                                        "owner".equals(role)
-                                                                || "admin".equals(role))
-                                        .isPresent());
-        if (manager) {
-            return (root, query, cb) -> null;
-        }
-        var workspaceIds =
-                OrgContext.runIgnoring(
-                        () ->
-                                workspaceMemberRepository
-                                        .findByUserIdAndDeletedFalse(userId)
-                                        .stream()
-                                        .map(WorkspaceMember::getWorkspaceId)
-                                        .toList());
-        return workspaceIds.isEmpty()
-                ? (root, query, cb) -> cb.disjunction()
-                : (root, query, cb) -> root.get("id").in(workspaceIds);
+        return SpecificationBuilder.<Workspace>builder().likeIfPresent("name", req.getName()).build();
     }
 
     /** 创建工作区后，创建者自动成为该工作区成员，保证创建者不会看不到自己创建的工作区。 */
     @Override
     @Transactional
     public WorkspaceVO create(WorkspaceCreateDTO request) {
-        var vo = super.create(request);
-        operatorContext
-                .currentOwnerId()
-                .ifPresent(
-                        userId -> {
-                            var member = new WorkspaceMember();
-                            member.setWorkspaceId(vo.id());
-                            member.setUserId(userId);
-                            workspaceMemberRepository.save(member);
-                        });
+        var previousWorkspaceId = OrgContext.getCurrentWorkspaceId();
+        var previousAllWorkspaces = OrgContext.isAllWorkspaces();
+        WorkspaceVO vo;
+        try {
+            OrgContext.setCurrentWorkspaceId(null);
+            vo = super.create(request);
+        } finally {
+            if (previousAllWorkspaces) {
+                OrgContext.useAllWorkspaces();
+            } else {
+                OrgContext.setCurrentWorkspaceId(previousWorkspaceId);
+            }
+        }
+        var member = new WorkspaceMember();
+        member.setOrgId(vo.orgId());
+        member.setWorkspaceId(vo.id());
+        member.setUserId(vo.ownerId());
+        member.setOwnerId(vo.ownerId());
+        workspaceMemberRepository.save(member);
         return vo;
     }
 
-    /** 更新工作区前，仅允许创建者（管理者）改名。 */
+    /** 更新工作区前，仅允许管理者改名。 */
     @Override
     protected void beforeUpdate(Workspace workspace, WorkspaceUpdateDTO request) {
         requireManager(workspace);
     }
 
-    /** 删除工作区前，仅允许创建者（管理者）操作并清理成员关系。 */
+    /** 删除工作区前，仅允许管理者操作并清理成员关系。 */
     @Override
     protected void beforeDelete(Workspace workspace) {
         requireManager(workspace);
         workspaceMemberRepository
                 .findByWorkspaceIdAndDeletedFalse(workspace.getId())
                 .forEach(workspaceMemberRepository::delete);
+    }
+
+    /** 工作区创建必须同步写入 owner 成员关系，不开放绕过该流程的批量创建。 */
+    @Override
+    public List<WorkspaceVO> createBatch(List<WorkspaceCreateDTO> requests) {
+        throw exception(GlobalErrorCode.CRUD_OPERATION_UNSUPPORTED, getEntityName(), "批量创建");
+    }
+
+    /** 工作区删除包含 owner 校验和成员清理，不开放绕过该流程的批量删除。 */
+    @Override
+    public void deleteBatch(List<Long> ids) {
+        unsupported("批量删除");
+    }
+
+    /** 工作区没有独立归档语义，避免复用批量逻辑删除绕过 owner 校验。 */
+    @Override
+    public void archive(List<Long> ids) {
+        unsupported("归档");
+    }
+
+    private void unsupported(String operation) {
+        throw exception(GlobalErrorCode.CRUD_OPERATION_UNSUPPORTED, getEntityName(), operation);
     }
 
     // ==================== 成员管理 ====================
@@ -186,27 +178,33 @@ public class WorkspaceService
                 .toList();
     }
 
-    /** 邀请成员加入工作区，仅工作区管理者（创建者）可操作。 */
+    /** 邀请成员加入工作区，仅工作区管理者可操作。 */
     @Transactional
     public WorkspaceMemberVO addMember(Long workspaceId, WorkspaceMemberAddDTO dto) {
-        var workspace = requireEntity(workspaceId);
+        var workspace = requireEntity(workspaceId, CrudOperation.UPDATE, AccessMode.DEFAULT);
         requireManager(workspace);
+        if (!orgMemberRepository.existsByOrgIdAndUserIdAndDeletedFalse(
+                workspace.getOrgId(), dto.userId())) {
+            throw exception(WORKSPACE_MEMBER_ORG_REQUIRED);
+        }
         if (workspaceMemberRepository.existsByWorkspaceIdAndUserIdAndDeletedFalse(
                 workspaceId, dto.userId())) {
             throw exception(WORKSPACE_MEMBER_ALREADY_EXISTS);
         }
         var member = new WorkspaceMember();
+        member.setOrgId(workspace.getOrgId());
         member.setWorkspaceId(workspaceId);
         member.setUserId(dto.userId());
+        member.setOwnerId(dto.userId());
         return toMemberVO(workspaceMemberRepository.save(member));
     }
 
-    /** 移除工作区成员，仅工作区管理者（创建者）可操作；管理者本人不可被移除。 */
+    /** 移除工作区成员，仅工作区管理者可操作；管理者本人不可被移除。 */
     @Transactional
     public void removeMember(Long workspaceId, Long userId) {
-        var workspace = requireEntity(workspaceId);
+        var workspace = requireEntity(workspaceId, CrudOperation.UPDATE, AccessMode.DEFAULT);
         requireManager(workspace);
-        if (workspace.getCreateBy() != null && workspace.getCreateBy().equals(userId)) {
+        if (workspace.getOwnerId() != null && workspace.getOwnerId().equals(userId)) {
             throw exception(WORKSPACE_MANAGER_REMOVE_FORBIDDEN);
         }
         var member =
@@ -216,12 +214,12 @@ public class WorkspaceService
         workspaceMemberRepository.delete(member);
     }
 
-    /** 校验当前用户是否为该工作区的管理者（创建者）。 */
+    /** 校验当前用户是否为该工作区的管理者。 */
     private void requireManager(Workspace workspace) {
         var currentUserId = operatorContext.currentOwnerId().orElse(null);
         if (currentUserId == null
-                || workspace.getCreateBy() == null
-                || !workspace.getCreateBy().equals(currentUserId)) {
+                || workspace.getOwnerId() == null
+                || !workspace.getOwnerId().equals(currentUserId)) {
             throw exception(WORKSPACE_MANAGER_REQUIRED);
         }
     }

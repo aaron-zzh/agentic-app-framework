@@ -68,6 +68,69 @@ SELECT u.id, r.id FROM sys_user u, sys_role r
 WHERE u.username = 'todo_member_test' AND r.code = 'member'
 ON CONFLICT (user_id, role_id) DO NOTHING;
 
+-- 直接写入的测试账号同样满足“个人组织 + 默认工作区”注册基线
+INSERT INTO sys_organization (name, slug, type, owner_id, create_by)
+SELECT u.username, 'personal-' || u.id, 'personal', u.id, u.id
+FROM sys_user u
+WHERE u.username IN ('todo_admin_test', 'todo_member_test')
+  AND NOT EXISTS (
+      SELECT 1 FROM sys_organization o
+      WHERE o.slug = 'personal-' || u.id AND o.deleted = FALSE
+  );
+
+INSERT INTO sys_demo_data_record (table_name, record_id)
+SELECT 'sys_organization', o.id
+FROM sys_organization o
+JOIN sys_user u ON o.owner_id = u.id
+WHERE o.type = 'personal' AND u.username IN ('todo_admin_test', 'todo_member_test');
+
+INSERT INTO sys_org_member (org_id, user_id, role, create_by)
+SELECT o.id, u.id, 'owner', u.id
+FROM sys_user u
+JOIN sys_organization o ON o.owner_id = u.id AND o.type = 'personal' AND o.deleted = FALSE
+WHERE u.username IN ('todo_admin_test', 'todo_member_test')
+  AND NOT EXISTS (
+      SELECT 1 FROM sys_org_member m
+      WHERE m.org_id = o.id AND m.user_id = u.id AND m.deleted = FALSE
+  );
+
+INSERT INTO sys_workspace (org_id, name, slug, owner_id, create_by)
+SELECT o.id, '默认工作区', 'default', u.id, u.id
+FROM sys_user u
+JOIN sys_organization o ON o.owner_id = u.id AND o.type = 'personal' AND o.deleted = FALSE
+WHERE u.username IN ('user1', 'user2', 'todo_admin_test', 'todo_member_test')
+  AND NOT EXISTS (
+      SELECT 1 FROM sys_workspace w
+      WHERE w.org_id = o.id AND w.slug = 'default' AND w.deleted = FALSE
+  );
+
+INSERT INTO sys_demo_data_record (table_name, record_id)
+SELECT 'sys_workspace', w.id
+FROM sys_workspace w
+JOIN sys_organization o ON w.org_id = o.id AND o.type = 'personal'
+JOIN sys_user u ON o.owner_id = u.id
+WHERE w.slug = 'default'
+  AND u.username IN ('user1', 'user2', 'todo_admin_test', 'todo_member_test');
+
+INSERT INTO sys_workspace_member (org_id, workspace_id, user_id, owner_id, create_by)
+SELECT w.org_id, w.id, u.id, u.id, u.id
+FROM sys_user u
+JOIN sys_organization o ON o.owner_id = u.id AND o.type = 'personal' AND o.deleted = FALSE
+JOIN sys_workspace w ON w.org_id = o.id AND w.slug = 'default' AND w.deleted = FALSE
+WHERE u.username IN ('user1', 'user2', 'todo_admin_test', 'todo_member_test')
+  AND NOT EXISTS (
+      SELECT 1 FROM sys_workspace_member m
+      WHERE m.workspace_id = w.id AND m.user_id = u.id AND m.deleted = FALSE
+  );
+
+INSERT INTO sys_demo_data_record (table_name, record_id)
+SELECT 'sys_workspace_member', m.id
+FROM sys_workspace_member m
+JOIN sys_workspace w ON m.workspace_id = w.id AND w.slug = 'default'
+JOIN sys_organization o ON w.org_id = o.id AND o.type = 'personal'
+JOIN sys_user u ON m.user_id = u.id AND o.owner_id = u.id
+WHERE u.username IN ('user1', 'user2', 'todo_admin_test', 'todo_member_test');
+
 -- team 类型测试组织，owner 为 todo_admin_test
 INSERT INTO sys_organization (name, slug, type, owner_id, create_by)
 SELECT '待办测试团队', 'team-todo-test',

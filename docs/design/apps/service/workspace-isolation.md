@@ -3,18 +3,20 @@ level: Practice
 layer: Model
 purpose: 组织下多工作区数据隔离设计——新增 Workspace 实体，修正 B1 租户隔离遗留问题
 status: draft
-version: 0.1.0
-date: 2026-07-12
+version: 0.2.0
+date: 2026-08-13
 author: AaronZZH
 changelog:
-  - 2026-07-12 | 完善：DataAccessService.buildUserContext() 的 orgId/workspaceId 均改为集合语义（orgIds/workspaceIds，查 sys_org_member/sys_workspace_member 归属关系表），移除语义错误的单值字段，与 orgFilter/workspaceSpec() 的"当前请求过滤"分工明确
-  - 2026-07-12 | 同步后端落地状态：workspaceSpec 实际签名、OperatorEntityListener 自动填充、OrgFilter 校验均已实现，更新变更影响面清单（前端待办暂不动）
-  - 2026-07-12 | 需求确认：成员显式邀请、创建者即管理者（无独立角色）、workspaceId=NULL 默认可见（无需迁移）
+  - 2026-08-13 | 调整：个人组织同步创建默认工作区（默认工作区/default），管理权改由 owner_id 表达，工作区 DDL 回并 v1 基线
+  - 2026-08-13 | 安全：工作区 owner/成员可见范围进入统一 CRUD L3 scope，覆盖分页、详情、选项、批量和写入口
+  - 2026-07-12 | 完善：DataAccessService.buildUserContext() 的 orgId/workspaceId 均改为集合语义（orgIds/workspaceIds，查 sys_org_member/sys_workspace_member 归属关系表）
+  - 2026-07-12 | 同步后端落地状态：OperatorEntityListener 自动填充、OrgFilter 校验均已实现
+  - 2026-07-12 | 需求确认：成员显式邀请、ownerId 标识管理者、workspaceId=NULL 默认可见
   - 2026-07-12 | 精简正文表述，合并重复论证段落，去除冗余说明
   - 2026-07-12 | 初版：Workspace 实体设计 + 隔离机制选型 + orgId/workspaceId 自动填充方案
 gains:
   - 能理解组织（Organization）与工作区（Workspace）的层级关系与各自职责边界
-  - 能理解为何数据隔离改用显式 Specification 拼接而非 Hibernate Filter + AOP
+  - 能定位统一 CRUD tenant/L3/personal scope 的工作区隔离边界
   - 能定位 orgId/workspaceId 自动填充的实现位置与生效条件
   - 能理解 personal 组织为何保留、系统级默认组织为何不引入
 related:
@@ -45,13 +47,13 @@ Workspace（工作区，新增）
 WorkspaceMember（新增）
 ```
 
-- `Organization` 保持现状（`personal`/`team`），承担计费主体、最外层组织边界职责，不改动 `OrganizationService.createPersonalOrg`。
+- `Organization` 保持 `personal`/`team` 类型与计费主体、最外层组织边界职责；`OrganizationService.createPersonalOrg` 在原有组织及 owner 成员关系之外，同事务创建默认工作区及其 owner 成员关系。
 - `Workspace` 挂在 `Organization` 下，用户在任意所属组织下可自建多个工作区。
 - 隔离粒度从"组织"下沉一层到"工作区"：`org_id` 定位组织，`workspace_id` 定位组织内哪个工作区，两者同时生效、不互相替代。
 
 **不引入系统级默认组织**：`sys_notice`/`sys_data_access_rule` 等种子数据存在 `org_id` 缺失问题，本质是全局配置或全局可见内容，不属于任何组织；正确解法是标注 `@OrgIgnore` 豁免隔离，而非编造一个默认组织归属。
 
-**保留 personal 组织**：解决"保证每个用户都有 `org_id` 可用"的兜底问题，与工作区要解决的"组织内部协作空间划分"是不同层级，不互斥。移除会导致注册流程被迫插入"先建组织"步骤，是体验倒退。**调整点**：用户注册自动创建 `personal` 组织时，同步在该组织下自动创建一个默认工作区，把"注册即可用"延伸到工作区层。
+**保留 personal 组织**：解决"保证每个用户都有 `org_id` 可用"的兜底问题，与工作区要解决的"组织内部协作空间划分"是不同层级，不互斥。移除会导致注册流程被迫插入"先建组织"步骤，是体验倒退。**调整点**：用户注册自动创建 `personal` 组织时，同步在该组织下自动创建 `name=默认工作区`、`slug=default` 的工作区，把"注册即可用"延伸到工作区层。
 
 ## 数据模型
 
@@ -59,9 +61,10 @@ WorkspaceMember（新增）
 sys_workspace
   id              BIGINT PK
   org_id          BIGINT FK → sys_organization  NOT NULL
+  owner_id        BIGINT FK → sys_user          NOT NULL（工作区管理者）
   name            VARCHAR
   slug            VARCHAR
-  + BaseEntity 审计字段（create_by 即工作区创建者/管理者）
+  + BaseEntity 其余审计字段
 
 sys_workspace_member
   id              BIGINT PK
@@ -72,51 +75,40 @@ sys_workspace_member
 
 组织成员**不自动**加入组织下的工作区，需显式邀请/加入，与 `sys_org_member` 是同一套模式。
 
-**工作区权限模型**：不设独立角色层级，`Workspace.createBy` 即该工作区的管理者，拥有邀请/移除成员、改名、删除工作区等全部管理权限；`sys_workspace_member` 只记录归属关系，不需要 `role` 字段。
+**工作区权限模型**：不设独立角色层级，`Workspace.ownerId` 即该工作区的管理者，拥有邀请/移除成员、改名、删除工作区等全部管理权限；`createBy` 仅记录实际操作者，不能承载业务权限；`sys_workspace_member` 只记录归属关系，不需要 `role` 字段。
 
-**`workspace_id` 隔离语义**：`NULL` 表示"组织级共享，不特定某个工作区"，在任何工作区视角下都默认可见，不是"缺失"或"不可见"。查询条件为 `workspaceId IS NULL OR workspaceId = 当前工作区`。因此历史数据不需要批量回填默认工作区——`workspace_id = NULL` 本身就是合法状态，不需要类似 `v16__workspace_schema.sql` 中回填 personal org 的迁移脚本。
+**成员移除约束**：将用户移出组织时，同事务软删除其在该组织下的全部 `sys_workspace_member` 关系，避免重新加入组织后旧授权自动恢复；若用户仍是该组织某个工作区的 `ownerId`，则拒绝移除，必须先处理工作区归属，避免产生无人可管理的工作区。
 
-## 隔离机制选型：显式 Specification，不用 Hibernate Filter + AOP
+**`workspace_id` 隔离语义**：`NULL` 表示"组织级共享，不特定某个工作区"，在任何工作区视角下都默认可见，不是"缺失"或"不可见"。查询条件为 `workspaceId IS NULL OR workspaceId = 当前工作区`。因此历史业务数据不需要批量回填默认工作区——`workspace_id = NULL` 本身就是合法状态；当前尚未部署，工作区最终 DDL 直接维护在 `v1__system_schema.sql`，不保留存量修复迁移。
 
-当前 `org_id` 隔离基于 `BaseEntity` 的 Hibernate `@Filter` + `OrgFilterAspect`。该机制暴露过三类问题（本迭代已修复）：
+## 隔离机制：统一 CRUD Scope + L3 行级规则
 
-1. `OrgFilterAspect` 用 `getDeclaringType()` 判断实体类型，对 `findAllById` 等继承方法会解析到错误的父接口，误判为"非全局实体"。
-2. Hibernate Filter 状态绑定在 Session 而非单次查询，一次误启用会残留污染后续查询。
-3. 全局配置类实体需逐一标注 `@OrgIgnore` 才能豁免，遗漏即导致查询静默过滤为空——表现为"数据消失"而非报错，排查成本高。
-
-工作区隔离**不复用该机制**，改为显式拼接 JPA `Specification`，与 `BaseCrudService.buildAccessSpec()`（L3 行级权限，已验证工作正常）同一模式：
+`org_id` 外层隔离仍由 `BaseEntity` 的 Hibernate `@Filter` 与 `OrgFilterAspect` 强制执行。工作区维度不再由业务 Service 自行拼接分页专用条件，而是进入统一 CRUD 安全管线：
 
 ```java
-Specification.allOf(idSpec(id), buildAccessSpec(), workspaceSpec())
-
-// workspaceSpec()：从 OrgContext.getCurrentWorkspaceId() 取当前请求的工作区 ID（由 OrgFilter 从
-// X-Workspace-Id 头解析并校验归属后写入）；未携带该头时返回 null（不叠加过滤，工作区维度可选）。
-// workspace_id 为 NULL 表示"组织级共享，不特定某个工作区"，任何工作区视角下都默认可见；
-// 否则要求精确匹配当前工作区。
-protected Specification<E> workspaceSpec() {
-    var workspaceId = OrgContext.getCurrentWorkspaceId();
-    if (workspaceId == null) {
-        return (root, query, cb) -> null;
-    }
-    return (root, query, cb) -> cb.or(
-            cb.isNull(root.get("workspaceId")),
-            cb.equal(root.get("workspaceId"), workspaceId));
-}
+Specification.allOf(
+    decision.scopeSpecification(), // tenantScope + L3 recordScope + personalScope
+    buildFilterSpec(filters, context),
+    buildSpec(pageDTO)              // 仅业务筛选
+)
 ```
 
-优势：条件在调用点可见，出问题读代码即可定位；不存在 Session 状态残留；不需要为每个实体判断"要不要豁免"。
+- `CrudEnforcementService` 根据资源的 `TenantScope`、当前 `OrgContext` 和 L3 数据权限规则生成 `decision.scopeSpecification()`。
+- `BaseCrudService` 的 PAGE、GET、OPTIONS、BATCH、UPDATE、DELETE 等标准入口统一消费该 scope，避免分页与详情授权不对称。
+- `Workspace` 自身是组织下的作用域根，数据库约束其 `workspace_id IS NULL`；其可见范围由 `v13__access_rules.sql` 的 L3 规则定义：`ownerId = $user.id OR id IN $user.workspaceIds`。超级管理员按统一授权规则绕过，其他用户必须是工作区 owner 或显式成员。
+- 当前工作区请求头仍由 `OrgFilter` 校验用户归属后写入 `OrgContext`；业务数据的 `workspace_id = NULL` 表示组织级共享，否则按当前工作区范围过滤。
 
-**已知取舍**：覆盖面依赖调用路径是否经过 `BaseCrudService`。部分 Service（如 `UserService`/`TodoService` 的自定义查询）直接调用 repository，这些路径需业务代码显式加 workspace 条件。这是有意的权衡：用较窄的覆盖面换取机制的简单性和可排查性。
+自定义 Service 若绕过 `BaseCrudService` 直接访问 Repository，必须显式复用相同的 CRUD enforcement 决策或执行等价范围校验；不能只在列表接口追加条件。
 
 ## orgId / workspaceId 自动填充
 
 `ownerId`/`orgId`/`workspaceId` 均已由 `OperatorEntityListener`（`@PrePersist` 全局监听器）兜底填充，业务层未显式设置时才生效（不覆盖已有值）。`orgId`/`workspaceId` 取值分别来自 `OrgContext.getCurrentOrgId()`/`OrgContext.getCurrentWorkspaceId()`，HTTP 请求场景由 `OrgFilter` 从 `X-Org-Id`/`X-Workspace-Id` 头解析、校验用户归属（查 `sys_org_member`/`sys_workspace_member`，不属于则 403）后写入。
 
-不做创建时 fail-closed——该监听器全局生效会覆盖后台任务、种子数据初始化等合法的"无 workspace 上下文"场景；缺失时业务数据会在查询侧被显式 `Specification` 条件（`workspaceSpec()`）过滤，属于纵深防御。
+不做创建时 fail-closed——该监听器全局生效会覆盖后台任务、种子数据初始化等合法的"无 workspace 上下文"场景；缺失时业务数据会在查询侧被统一 CRUD scope 过滤，属于纵深防御。
 
 ## 前端现状
 
-`WorkspaceSwitcher.tsx` 当前是"过渡期按组织映射默认工作区"（组件名叫工作区切换器，实际切换的是 `orgId`）。`ui-store.ts` 中 `currentWorkspace`/`workspaces` 状态已搭好骨架但无数据源写入。`Workspace` 实体落地后，前端切换到真实工作区列表。
+`WorkspaceSwitcher.tsx` 已通过 `useWorkspaces` 加载真实工作区列表，并将选择结果写入 `ui-store.ts` 的 `currentWorkspace`；支持具体工作区、当前组织全部工作区和全部组织三种视角。工作区创建与成员管理页面仍待补齐。
 
 ## 行级权限规则的 orgIds / workspaceIds 支持
 
@@ -128,25 +120,26 @@ protected Specification<E> workspaceSpec() {
 
 **为何是集合而非单值**：用户可同时属于多个组织/工作区（`sys_org_member`/`sys_workspace_member` 均为多对多归属关系，参见 `OrganizationService.listByUser()`）。早期实现曾直接取 `BaseEntity.orgId`/`workspaceId`（该用户记录本身归属于哪个组织/工作区，数据隔离用的单值字段）当作"用户所属组织/工作区"，语义错误——已修正为查归属关系表得到的集合。`teamIds` 目前仍是空占位（`List.of()`），团队功能落地后按同一模式补齐。
 
-**与 `orgFilter`/`workspaceSpec()` 的分工**（两者是"当前请求参数化过滤"，与行级规则的"用户归属集合判断"是两个不同维度，按需叠加，不互相替代）：
+**与请求范围和 L3 规则的分工**：
 
-- `orgFilter`（Hibernate Filter + `OrgFilterAspect`）/`workspaceSpec()`（`BaseCrudService`）：过滤"当前请求限定在哪个组织/工作区"，取值来自 `OrgContext.getCurrentOrgId()`/`getCurrentWorkspaceId()`（`X-Org-Id`/`X-Workspace-Id` 请求头，已由 `OrgFilter` 校验归属），是单值、请求维度的过滤，`orgFilter` 全局强制、`workspaceSpec()` 未携带头时不叠加（可选）。
-- 行级规则中的 `$user.orgIds`/`$user.workspaceIds`：表达"该用户归属于哪些组织/工作区"，与当前请求选了哪个组织/工作区无关，用于跨组织/工作区的归属判断场景（如"只有属于组织 A 的用户能看到 A 的某类数据，不受当前切换到哪个组织影响"）。
+- `OrgFilter`/`OrgFilterAspect` 强制当前组织外层隔离，并校验请求头中的组织、工作区归属。
+- `CrudEnforcementService` 根据当前 `OrgContext` 生成 tenant scope，表达"本次请求限定在哪个组织/工作区"。
+- L3 规则中的 `$user.orgIds`/`$user.workspaceIds` 表达"用户实际属于哪些组织/工作区"；工作区资源用它与 `ownerId` 组成显式可见范围。
 
-两者在 `BaseCrudService.buildEffectiveSpec()` 中通过 `Specification.allOf(buildSpec(pageDTO), buildAccessSpec(), workspaceSpec())` 合并生效；`orgFilter` 在 Hibernate Session 层面全局叠加。
+三者在 `decision.scopeSpecification()` 和 Hibernate org filter 两层叠加：请求范围不能扩大用户归属，用户归属规则也不能跨越当前组织。
 
 ## 变更影响面（后续技术设计需覆盖）
 
 后端已落地：
 
-- [x] 新增 `Workspace`/`WorkspaceMember` 实体 + 迁移脚本（`v16__workspace_schema.sql`）
+- [x] 新增 `Workspace`/`WorkspaceMember` 实体，最终 DDL 位于 `v1__system_schema.sql` org 子域
 - [x] 新建/加入/退出工作区的 API（`WorkspaceController`/`WorkspaceService`）
 - [x] `OrgFilter` 同款逻辑复刻解析/校验 `X-Workspace-Id`
-- [x] `BaseCrudService` 新增 `workspaceSpec()`，在 `buildEffectiveSpec()` 中与 `buildAccessSpec()` 叠加生效
+- [x] `CrudEnforcementService` 统一生成 tenant/L3/personal scope，`BaseCrudService` 全入口复用
 - [x] `OperatorEntityListener` 追加 `workspaceId` 自动填充
 - [x] `DataAccessService` 行级规则上下文补齐 `orgIds`/`workspaceIds` 集合语义
 
-前端待覆盖：
+前端状态：
 
-- [ ] 前端页面（工作区创建/切换/成员管理）
-- [ ] `WorkspaceSwitcher`/`ui-store.ts` 接入真实数据源
+- [x] `WorkspaceSwitcher`/`ui-store.ts` 接入真实工作区列表与切换状态
+- [ ] 工作区创建与成员管理页面

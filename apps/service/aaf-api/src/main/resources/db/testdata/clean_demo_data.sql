@@ -16,6 +16,20 @@ WHERE id IN (SELECT record_id FROM sys_demo_data_record WHERE table_name = 'sys_
 DELETE FROM sys_notice
 WHERE id IN (SELECT record_id FROM sys_demo_data_record WHERE table_name = 'sys_notice');
 
+DELETE FROM sys_todo_participant
+WHERE todo_id IN (SELECT record_id FROM sys_demo_data_record WHERE table_name = 'sys_todo');
+
+DELETE FROM sys_todo
+WHERE id IN (SELECT record_id FROM sys_demo_data_record WHERE table_name = 'sys_todo');
+
+DELETE FROM sys_workspace_member
+WHERE id IN (
+    SELECT record_id FROM sys_demo_data_record WHERE table_name = 'sys_workspace_member'
+);
+
+DELETE FROM sys_workspace
+WHERE id IN (SELECT record_id FROM sys_demo_data_record WHERE table_name = 'sys_workspace');
+
 DELETE FROM sys_org_member
 WHERE user_id IN (SELECT record_id FROM sys_demo_data_record WHERE table_name = 'sys_user');
 

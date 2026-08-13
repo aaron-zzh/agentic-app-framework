@@ -79,7 +79,7 @@ public interface ErrorCodeConstants {
     // ========== ORG 模块 1_007_000 ==========
     ErrorCode ORG_NOT_FOUND = ErrorCode.of(1_007_000, "组织不存在");
     ErrorCode ORG_SLUG_EXISTS = ErrorCode.of(1_007_001, "组织标识已存在");
-    ErrorCode ORG_PERSONAL_DELETE_FORBIDDEN = ErrorCode.of(1_007_002, "个人工作空间不可删除");
+    ErrorCode ORG_PERSONAL_DELETE_FORBIDDEN = ErrorCode.of(1_007_002, "个人组织不可删除");
     ErrorCode ORG_MEMBER_ALREADY_EXISTS = ErrorCode.of(1_007_003, "用户已是组织成员");
     ErrorCode ORG_MEMBER_NOT_FOUND = ErrorCode.of(1_007_004, "成员不存在");
     ErrorCode ORG_OWNER_ROLE_CHANGE_FORBIDDEN = ErrorCode.of(1_007_005, "不能修改所有者角色");
@@ -92,6 +92,9 @@ public interface ErrorCodeConstants {
     ErrorCode WORKSPACE_MANAGER_REQUIRED = ErrorCode.of(1_007_012, "仅工作区管理者可执行此操作");
     ErrorCode ORG_MEMBER_REQUIRED = ErrorCode.of(1_007_013, "您不是该组织成员");
     ErrorCode ORG_MANAGER_REQUIRED = ErrorCode.of(1_007_014, "仅组织所有者或管理员可执行此操作");
+    ErrorCode WORKSPACE_MEMBER_ORG_REQUIRED = ErrorCode.of(1_007_015, "用户不是该工作区所属组织的成员");
+    ErrorCode ORG_MEMBER_WORKSPACE_OWNER_REMOVE_FORBIDDEN =
+            ErrorCode.of(1_007_016, "用户仍是工作区管理者，请先处理工作区归属");
 
     // ========== DASHBOARD 模块 1_008_000 ==========
     ErrorCode DASHBOARD_NOT_FOUND = ErrorCode.of(1_008_000, "仪表盘不存在");

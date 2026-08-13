@@ -6,6 +6,10 @@
 
 INSERT INTO sys_data_access_rule (entity_slug, roles, condition, effect)
 VALUES
+    ('workspace',
+     '["*"]',
+     '{"or":[{"field":"ownerId","op":"eq","value":"$user.id"},{"field":"id","op":"in","value":"$user.workspaceIds"}]}',
+     'allow'),
     ('todo',
      '["*"]',
      '{"field":"assigneeId","op":"eq","value":"$user.id"}',

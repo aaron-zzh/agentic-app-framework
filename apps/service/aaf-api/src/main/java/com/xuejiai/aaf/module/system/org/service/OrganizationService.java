@@ -5,6 +5,7 @@ import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_MANAGER_REQUI
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_MEMBER_ALREADY_EXISTS;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_MEMBER_NOT_FOUND;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_MEMBER_REQUIRED;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_MEMBER_WORKSPACE_OWNER_REMOVE_FORBIDDEN;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_NOT_FOUND;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_OWNER_REMOVE_FORBIDDEN;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_OWNER_ROLE_CHANGE_FORBIDDEN;
@@ -24,8 +25,12 @@ import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationService;
 import com.xuejiai.aaf.module.system.org.domain.OrgMember;
 import com.xuejiai.aaf.module.system.org.domain.Organization;
+import com.xuejiai.aaf.module.system.org.domain.Workspace;
+import com.xuejiai.aaf.module.system.org.domain.WorkspaceMember;
 import com.xuejiai.aaf.module.system.org.repository.OrgMemberRepository;
 import com.xuejiai.aaf.module.system.org.repository.OrganizationRepository;
+import com.xuejiai.aaf.module.system.org.repository.WorkspaceMemberRepository;
+import com.xuejiai.aaf.module.system.org.repository.WorkspaceRepository;
 import com.xuejiai.aaf.module.system.org.vo.OrgMemberAddDTO;
 import com.xuejiai.aaf.module.system.org.vo.OrgMemberRoleUpdateDTO;
 import com.xuejiai.aaf.module.system.org.vo.OrgMemberVO;
@@ -45,8 +50,13 @@ import lombok.RequiredArgsConstructor;
 @Transactional(readOnly = true)
 public class OrganizationService {
 
+    private static final String DEFAULT_WORKSPACE_NAME = "默认工作区";
+    private static final String DEFAULT_WORKSPACE_SLUG = "default";
+
     private final OrganizationRepository orgRepository;
     private final OrgMemberRepository memberRepository;
+    private final WorkspaceRepository workspaceRepository;
+    private final WorkspaceMemberRepository workspaceMemberRepository;
     private final EntitlementChecker entitlementChecker;
     private final OperatorContext operatorContext;
     private final AuthorizationService authorizationService;
@@ -122,7 +132,7 @@ public class OrganizationService {
         orgRepository.deleteById(id);
     }
 
-    /** 为新用户创建个人组织。 */
+    /** 为新用户创建个人组织及其默认工作区。 */
     @Transactional
     public Organization createPersonalOrg(Long userId, String username) {
         var org = new Organization();
@@ -137,6 +147,20 @@ public class OrganizationService {
         member.setUserId(userId);
         member.setRole("owner");
         memberRepository.save(member);
+
+        var workspace = new Workspace();
+        workspace.setOrgId(org.getId());
+        workspace.setName(DEFAULT_WORKSPACE_NAME);
+        workspace.setSlug(DEFAULT_WORKSPACE_SLUG);
+        workspace.setOwnerId(userId);
+        workspace = workspaceRepository.save(workspace);
+
+        var workspaceMember = new WorkspaceMember();
+        workspaceMember.setOrgId(org.getId());
+        workspaceMember.setWorkspaceId(workspace.getId());
+        workspaceMember.setUserId(userId);
+        workspaceMember.setOwnerId(userId);
+        workspaceMemberRepository.save(workspaceMember);
 
         return org;
     }
@@ -203,6 +227,12 @@ public class OrganizationService {
         if ("owner".equals(member.getRole())) {
             throw exception(ORG_OWNER_REMOVE_FORBIDDEN);
         }
+        if (workspaceRepository.existsByOrgIdAndOwnerIdAndDeletedFalse(orgId, userId)) {
+            throw exception(ORG_MEMBER_WORKSPACE_OWNER_REMOVE_FORBIDDEN);
+        }
+        workspaceMemberRepository
+                .findByOrgIdAndUserIdAndDeletedFalse(orgId, userId)
+                .forEach(workspaceMemberRepository::delete);
         memberRepository.deleteById(member.getId());
         operatorContext
                 .currentOwnerId()

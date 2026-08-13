@@ -156,6 +156,27 @@ FROM sys_organization o
 WHERE o.type = 'personal' AND o.owner_id = (SELECT id FROM sys_user WHERE username = 'admin')
   AND NOT EXISTS (SELECT 1 FROM sys_org_member m WHERE m.org_id = o.id AND m.user_id = o.owner_id);
 
+INSERT INTO sys_workspace (org_id, name, slug, owner_id, create_by)
+SELECT o.id, '默认工作区', 'default', u.id, u.id
+FROM sys_user u
+JOIN sys_organization o ON o.owner_id = u.id AND o.type = 'personal' AND o.deleted = FALSE
+WHERE u.username = 'admin'
+  AND NOT EXISTS (
+      SELECT 1 FROM sys_workspace w
+      WHERE w.org_id = o.id AND w.slug = 'default' AND w.deleted = FALSE
+  );
+
+INSERT INTO sys_workspace_member (org_id, workspace_id, user_id, owner_id, create_by)
+SELECT w.org_id, w.id, u.id, u.id, u.id
+FROM sys_user u
+JOIN sys_organization o ON o.owner_id = u.id AND o.type = 'personal' AND o.deleted = FALSE
+JOIN sys_workspace w ON w.org_id = o.id AND w.slug = 'default' AND w.deleted = FALSE
+WHERE u.username = 'admin'
+  AND NOT EXISTS (
+      SELECT 1 FROM sys_workspace_member m
+      WHERE m.workspace_id = w.id AND m.user_id = u.id AND m.deleted = FALSE
+  );
+
 -- ==================== 角色定义 ====================
 
 INSERT INTO sys_role (code, name, description)
@@ -187,6 +208,12 @@ VALUES
     ('用户创建',           'system:user:create',                 'system',    'user',              'create',  0),
     ('用户更新',           'system:user:update',                 'system',    'user',              'update',  0),
     ('用户删除',           'system:user:delete',                 'system',    'user',              'delete',  0),
+    ('工作区读取',         'system:workspace:read',              'system',    'workspace',         'read',    0),
+    ('工作区创建',         'system:workspace:create',            'system',    'workspace',         'create',  0),
+    ('工作区更新',         'system:workspace:update',            'system',    'workspace',         'update',  0),
+    ('工作区删除',         'system:workspace:delete',            'system',    'workspace',         'delete',  0),
+    ('工作区导出',         'system:workspace:export',            'system',    'workspace',         'export',  0),
+    ('工作区引用',         'system:workspace:reference',         'system',    'workspace',         'reference', 0),
     ('菜单管理',           'system:menu:manage',                 'system',    'menu',              'manage',  0),
     ('权限码管理',         'system:permission:manage',           'system',    'permission',        'manage',  0),
     ('数据权限规则管理',   'system:data-access-rule:manage',     'system',    'data-access-rule',  'manage',  0),
@@ -226,6 +253,33 @@ ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 INSERT INTO sys_role_permission (role_id, permission_id)
 SELECT r.id, p.id FROM sys_role r CROSS JOIN sys_permission_code p
 WHERE r.code IN ('super_admin', 'admin', 'org_admin')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_role_permission (role_id, permission_id)
+SELECT r.id, p.id
+FROM sys_role r
+CROSS JOIN sys_permission_code p
+WHERE r.code = 'member'
+  AND p.code IN (
+      'system:workspace:read',
+      'system:workspace:create',
+      'system:workspace:update',
+      'system:workspace:delete',
+      'system:workspace:export',
+      'system:workspace:reference'
+  )
+ON CONFLICT DO NOTHING;
+
+INSERT INTO sys_role_permission (role_id, permission_id)
+SELECT r.id, p.id
+FROM sys_role r
+CROSS JOIN sys_permission_code p
+WHERE r.code IN ('user', 'guest')
+  AND p.code IN (
+      'system:workspace:read',
+      'system:workspace:export',
+      'system:workspace:reference'
+  )
 ON CONFLICT DO NOTHING;
 
 -- ==================== 销售演示角色 ====================
