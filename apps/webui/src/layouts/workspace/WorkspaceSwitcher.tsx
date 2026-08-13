@@ -171,7 +171,7 @@ export function WorkspaceSwitcher() {
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm">全部组织</div>
                   <div className="truncate text-muted-foreground text-xs">
-                    {isSuperAdmin ? "平台全部组织只读视角" : "成员组织聚合只读视角"}
+                    {isSuperAdmin ? "平台全部组织只读" : "成员组织聚合只读"}
                   </div>
                 </div>
                 {allOrganizationsSelected && <Badge variant="outline">当前</Badge>}
@@ -194,12 +194,7 @@ export function WorkspaceSwitcher() {
                     className="mt-1 gap-2.5 rounded-md px-2 py-2"
                   >
                     <Layers3 className="text-muted-foreground" />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm">{org.name}</div>
-                      <div className="truncate text-muted-foreground text-xs">
-                        {organizationWide ? "全部工作区" : "组织共享"}
-                      </div>
-                    </div>
+                    <div className="min-w-0 flex-1 truncate text-sm">{org.name}</div>
                     {organizationSelected && <Badge variant="outline">当前</Badge>}
                   </DropdownMenuItem>
 

@@ -64,6 +64,15 @@ describe("WorkspaceSwitcher", () => {
     })
   })
 
+  it("组织项仅显示组织名称，不显示范围副标题", async () => {
+    renderSwitcher()
+
+    fireEvent.click(screen.getByRole("button"))
+
+    expect(await screen.findByText("组织一")).toBeInTheDocument()
+    expect(screen.queryByText("全部工作区")).not.toBeInTheDocument()
+  })
+
   it("super_admin 选择全部组织时清空具体工作区", async () => {
     renderSwitcher()
 

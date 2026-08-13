@@ -7,7 +7,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useCallback } from "react"
 import { authApi, organizationApi } from "@/lib/api/rest/user"
 import { type AuthUser, useAuthStore } from "@/lib/store/auth-store"
-import { useOrgStore } from "@/lib/store/org-store"
+import { ALL_ORGANIZATIONS_ID, useOrgStore } from "@/lib/store/org-store"
 import {
   isMockAuthEnabled,
   MOCK_AUTH_ACCESS_TOKEN,
@@ -39,19 +39,40 @@ export function useAuth() {
   }, [qc, setUser])
 
   /**
-   * 确保存在有效的 X-Org-Id 请求头。
+   * 确保存在有效的组织与工作区请求头。
    *
-   * orgId 是纯客户端 UI 状态（org-store），其可用性不能依赖 localStorage persist 的
+   * 组织与工作区选择是纯客户端 UI 状态，其可用性不能依赖 localStorage persist 的
    * rehydrate 时序或登录页面组件是否被经过——用户可能通过已持久化的 token 直接进入应用
-   * （刷新页面、书签直达等），完全跳过登录页。checkAuth 是唯一在所有恢复路径下都会执行的
-   * 统一入口，因此 orgId 校正必须收口在这里，而不是散落在登录页面组件里。
+   * （刷新页面、书签直达等），完全跳过登录页。checkAuth 是所有恢复路径的统一入口，
+   * 因此默认上下文校正必须收口在这里，而不是散落在页面组件里。
    */
   const ensureOrgContext = useCallback(async () => {
     try {
-      const orgs = await organizationApi.list()
-      useOrgStore.getState().ensureDefaultOrg(orgs, useAuthStore.getState().user?.roles)
+      const [orgs, defaultContext] = await Promise.all([
+        organizationApi.list(),
+        organizationApi.defaultContext()
+      ])
+      const orgState = useOrgStore.getState()
+      const currentOrgValid =
+        orgState.currentOrgId != null &&
+        orgs.some((organization) => organization.id === orgState.currentOrgId)
+      const shouldUseDefault =
+        orgState.currentOrgId == null ||
+        (orgState.currentOrgId !== ALL_ORGANIZATIONS_ID && !currentOrgValid) ||
+        (orgState.currentOrgId === defaultContext.orgId && orgState.currentWorkspace == null)
+
+      if (shouldUseDefault) {
+        orgState.setOrgContext(defaultContext.orgId, {
+          id: defaultContext.workspaceId,
+          name: defaultContext.workspaceName,
+          orgId: defaultContext.orgId
+        })
+        return
+      }
+
+      orgState.ensureDefaultOrg(orgs, useAuthStore.getState().user?.roles)
     } catch {
-      // 拉取组织列表失败不阻塞鉴权流程，后续页面请求会因缺少 X-Org-Id 收到 403，
+      // 拉取默认上下文失败不阻塞鉴权流程，后续页面请求会因缺少组织或工作区 Header 收到 403，
       // 用户可感知并重试，不在此处静默吞掉导致状态不一致
     }
   }, [])
