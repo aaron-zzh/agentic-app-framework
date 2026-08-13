@@ -1,5 +1,5 @@
 /**
- * 资产工作区 Layout——资产生命周期与管理 sub-tab 切换。
+ * 资产功能分区 Layout——资产生命周期与管理 sub-tab 切换。
  * @author AaronZZH & Kiro
  */
 
@@ -8,10 +8,10 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { SectionHaze } from "@/components/studio"
-import { getWorkspaceConfig } from "@/features/studio/nav-config"
+import { getSectionConfig } from "@/features/studio/nav-config"
 import { cn } from "@/lib/utils/index"
 
-const ASSETS_CONFIG = getWorkspaceConfig("assets")
+const ASSETS_CONFIG = getSectionConfig("assets")
 
 export default function StudioAssetsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()

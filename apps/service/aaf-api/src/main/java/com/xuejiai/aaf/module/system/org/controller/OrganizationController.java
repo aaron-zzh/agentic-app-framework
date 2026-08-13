@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.system.org.service.OrganizationService;
+import com.xuejiai.aaf.module.system.org.vo.DefaultOrgContextVO;
 import com.xuejiai.aaf.module.system.org.vo.OrgMemberAddDTO;
 import com.xuejiai.aaf.module.system.org.vo.OrgMemberRoleUpdateDTO;
 import com.xuejiai.aaf.module.system.org.vo.OrgMemberVO;
@@ -48,6 +49,14 @@ public class OrganizationController {
     public Result<List<OrganizationVO>> list() {
         Long userId = operatorContext.currentOwnerId().orElseThrow();
         return Result.success(organizationService.listByUser(userId));
+    }
+
+    @Operation(summary = "获取当前用户的默认组织与工作区")
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/default-context")
+    public Result<DefaultOrgContextVO> getDefaultContext() {
+        Long userId = operatorContext.currentOwnerId().orElseThrow();
+        return Result.success(organizationService.getDefaultContext(userId));
     }
 
     @Operation(summary = "获取组织详情")

@@ -12,7 +12,7 @@
 
 import { useQueryClient } from "@tanstack/react-query"
 import { Building2, ChevronsUpDown, Layers3, Network, Plus } from "lucide-react"
-import { useMemo } from "react"
+import { useEffect, useMemo } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -32,7 +32,6 @@ import {
   hasSuperAdminRole,
   useOrgStore
 } from "@/lib/store/org-store"
-import { useUIStore } from "@/lib/store/ui-store"
 import { $url } from "@/lib/utils"
 
 export function WorkspaceSwitcher() {
@@ -40,9 +39,8 @@ export function WorkspaceSwitcher() {
   const roles = useAuthStore((state) => state.user?.roles)
   const isSuperAdmin = hasSuperAdminRole(roles)
   const currentOrgId = useOrgStore((state) => state.currentOrgId)
-  const setCurrentOrgId = useOrgStore((state) => state.setCurrentOrgId)
-  const currentWorkspace = useUIStore((state) => state.currentWorkspace)
-  const setCurrentWorkspace = useUIStore((state) => state.setCurrentWorkspace)
+  const currentWorkspace = useOrgStore((state) => state.currentWorkspace)
+  const setOrgContext = useOrgStore((state) => state.setOrgContext)
   const { data: organizations } = useOrganizations()
   const orgs = organizations ?? []
   const allOrganizationsSelected = currentOrgId === ALL_ORGANIZATIONS_ID
@@ -71,14 +69,48 @@ export function WorkspaceSwitcher() {
         ? `${activeOrg?.name ?? "组织"} · ${currentWorkspace.name}`
         : `${activeOrg?.name ?? "组织"} · 组织共享`
 
+  useEffect(() => {
+    if (
+      currentOrgId == null ||
+      currentOrgId === ALL_ORGANIZATIONS_ID ||
+      currentWorkspace == null ||
+      workspacePage == null
+    ) {
+      return
+    }
+
+    const selectedAllWorkspaces = currentWorkspace.id === ALL_WORKSPACES_ID
+    if (selectedAllWorkspaces && activeOrg == null) return
+    const canKeepAllWorkspaces =
+      activeOrg != null &&
+      (isSuperAdmin || activeOrg.memberRole === "owner" || activeOrg.memberRole === "admin")
+    const canKeepSpecificWorkspace = workspacePage.list.some(
+      (workspace) => workspace.orgId === currentOrgId && workspace.id === currentWorkspace.id
+    )
+    if (
+      (selectedAllWorkspaces && !canKeepAllWorkspaces) ||
+      (!selectedAllWorkspaces && !canKeepSpecificWorkspace)
+    ) {
+      setOrgContext(currentOrgId, null)
+      void queryClient.invalidateQueries()
+    }
+  }, [
+    activeOrg,
+    currentOrgId,
+    currentWorkspace,
+    isSuperAdmin,
+    queryClient,
+    setOrgContext,
+    workspacePage
+  ])
+
   function refreshScopeData() {
     void queryClient.invalidateQueries()
   }
 
   function selectAllOrganizations() {
     if (allOrganizationsSelected && currentWorkspace == null) return
-    setCurrentWorkspace(null)
-    setCurrentOrgId(ALL_ORGANIZATIONS_ID)
+    setOrgContext(ALL_ORGANIZATIONS_ID, null)
     refreshScopeData()
   }
 
@@ -87,19 +119,16 @@ export function WorkspaceSwitcher() {
   }
 
   function selectOrganization(org: OrganizationVO) {
-    setCurrentOrgId(org.id)
-    setCurrentWorkspace(
-      canViewAllWorkspaces(org)
-        ? { id: ALL_WORKSPACES_ID, name: "全部工作区", orgId: org.id }
-        : null
-    )
+    const workspace = canViewAllWorkspaces(org)
+      ? { id: ALL_WORKSPACES_ID, name: "全部工作区", orgId: org.id }
+      : null
+    setOrgContext(org.id, workspace)
     refreshScopeData()
   }
 
   function selectWorkspace(orgId: string, workspaceId: string, workspaceName: string) {
     if (currentOrgId === orgId && currentWorkspace?.id === workspaceId) return
-    setCurrentOrgId(orgId)
-    setCurrentWorkspace({ id: workspaceId, name: workspaceName, orgId })
+    setOrgContext(orgId, { id: workspaceId, name: workspaceName, orgId })
     refreshScopeData()
   }
 

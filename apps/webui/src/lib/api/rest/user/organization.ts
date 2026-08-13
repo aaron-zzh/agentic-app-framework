@@ -27,6 +27,14 @@ export interface WorkspaceVO {
   createTime: string
 }
 
+/** 当前用户的默认组织与工作区上下文 */
+export interface DefaultOrgContextVO {
+  orgId: string
+  orgName: string
+  workspaceId: string
+  workspaceName: string
+}
+
 /** 组织成员 */
 export interface OrgMemberVO {
   userId: string
@@ -55,6 +63,13 @@ export const organizationApi = {
   list: () =>
     backendApi.get<OrganizationVO[]>("/system/orgs", {
       headers: { "X-Org-Id": "", "X-Workspace-Id": "" }
+    }),
+
+  /** 获取当前用户的默认组织与工作区；该引导接口不依赖当前组织/工作区 Header。 */
+  defaultContext: () =>
+    backendApi.get<DefaultOrgContextVO>("/system/orgs/default-context", {
+      headers: { "X-Org-Id": "", "X-Workspace-Id": "" },
+      showError: false
     }),
 
   /** 更新组织信息 */

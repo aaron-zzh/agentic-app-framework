@@ -9,19 +9,24 @@
 
 "use client"
 
+import { useQueryClient } from "@tanstack/react-query"
 import { ThemeProvider, useTheme } from "next-themes"
 import { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import type { PanelImperativeHandle } from "react-resizable-panels"
 import { MotionLazy } from "@/components/animate"
 import { CommandPalette } from "@/components/common/CommandPalette"
+import { SplashScreen } from "@/components/common/SplashScreen"
 import { TopProgressBar } from "@/components/common/TopProgressBar"
+import { Button } from "@/components/ui/button"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { FloatingChatter } from "@/features/chatter/layout/FloatingChatter"
 import { StudioRouteSync, StudioSidebar, StudioTopbar } from "@/features/studio/shell"
 import { SlotDevTrigger, SlotDock } from "@/features/studio/slots"
 import { setBackendScope } from "@/lib/api/rest/backend-client"
+import { organizationApi } from "@/lib/api/rest/user"
 import { commandRegistry, useCommandPalette } from "@/lib/hooks/use-command-palette"
 import { useChatterStore } from "@/lib/store/chatter-store"
+import { useOrgStore } from "@/lib/store/org-store"
 import { EntityMetadataGate } from "@/sections/layout/EntityMetadataGate"
 
 // Studio 常用命令（模块级注册，避免重复）
@@ -398,14 +403,79 @@ function StudioContent({ children }: { children: React.ReactNode }) {
 }
 
 export default function StudioLayout({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient()
+  const setOrgContext = useOrgStore((state) => state.setOrgContext)
   const [scopeReady, setScopeReady] = useState(false)
+  const [contextError, setContextError] = useState(false)
+  const [contextAttempt, setContextAttempt] = useState(0)
 
-  // studio 个人工作台场景：查询视角为 own，强制仅本人数据，与角色无关
-  // （即使管理员登录 studio 也只看自己，区别于中后台 all，见 backend-client.ts 查询视角说明）
+  // Studio 固定使用当前用户的个人默认组织与默认工作区，查询视角为 own。
+  // 上下文就绪前不渲染任何 API 消费组件，避免首批请求缺少组织/工作区 Header。
   useEffect(() => {
+    let cancelled = false
     setBackendScope("own")
-    setScopeReady(true)
-  }, [])
+    setScopeReady(false)
+    setContextError(false)
+
+    organizationApi
+      .defaultContext()
+      .then(async (context) => {
+        if (cancelled) return
+        setOrgContext(context.orgId, {
+          id: context.workspaceId,
+          name: context.workspaceName,
+          orgId: context.orgId
+        })
+        await queryClient.invalidateQueries()
+        if (!cancelled) setScopeReady(true)
+      })
+      .catch(() => {
+        if (!cancelled) setContextError(true)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [contextAttempt, queryClient, setOrgContext])
+
+  const content = !scopeReady ? (
+    contextError ? (
+      <div className="flex h-screen items-center justify-center bg-background p-6">
+        <div className="max-w-md space-y-3 text-center">
+          <h1 className="font-semibold text-lg">默认工作区不可用</h1>
+          <p className="text-muted-foreground text-sm">
+            无法加载当前用户的默认组织与工作区，请重试。
+          </p>
+          <Button type="button" onClick={() => setContextAttempt((value) => value + 1)}>
+            重试
+          </Button>
+        </div>
+      </div>
+    ) : (
+      <SplashScreen />
+    )
+  ) : (
+    <>
+      <StudioRouteSync />
+
+      {/* ⌘K 全局命令面板（M9） */}
+      <StudioCommandPalette />
+
+      <div className="relative flex h-screen w-full overflow-hidden bg-background">
+        <StudioSidebar />
+        <MotionLazy>
+          <EntityMetadataGate>
+            <StudioContent>{children}</StudioContent>
+          </EntityMetadataGate>
+        </MotionLazy>
+      </div>
+
+      {/* panel/page slot 已在 StudioContent 内提供 */}
+      <FloatingChatter availableModes={["panel", "page"]} />
+      {/* 演示触发器：开发期模拟后端 WS 推送，生产环境移除 */}
+      {process.env.NODE_ENV === "development" && <SlotDevTrigger />}
+    </>
+  )
 
   return (
     <ThemeProvider
@@ -421,24 +491,7 @@ export default function StudioLayout({ children }: { children: React.ReactNode }
         <TopProgressBar />
       </Suspense>
 
-      <StudioRouteSync />
-
-      {/* ⌘K 全局命令面板（M9） */}
-      <StudioCommandPalette />
-
-      <div className="relative flex h-screen w-full overflow-hidden bg-background">
-        <StudioSidebar />
-        <MotionLazy>
-          <EntityMetadataGate enabled={scopeReady}>
-            <StudioContent>{children}</StudioContent>
-          </EntityMetadataGate>
-        </MotionLazy>
-      </div>
-
-      {/* panel/page slot 已在 StudioContent 内提供 */}
-      <FloatingChatter availableModes={["panel", "page"]} />
-      {/* 演示触发器：开发期模拟后端 WS 推送，生产环境移除 */}
-      {process.env.NODE_ENV === "development" && <SlotDevTrigger />}
+      {content}
     </ThemeProvider>
   )
 }

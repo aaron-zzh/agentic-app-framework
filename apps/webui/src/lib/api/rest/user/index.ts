@@ -38,6 +38,7 @@ export {
   useUpdateNotificationPreference
 } from "./notification-preference"
 export type {
+  DefaultOrgContextVO,
   OrgAddMemberReq,
   OrganizationVO,
   OrgMemberVO,

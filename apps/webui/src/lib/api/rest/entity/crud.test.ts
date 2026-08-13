@@ -7,7 +7,6 @@ import axios from "axios"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { useOrgStore } from "@/lib/store/org-store"
-import { useUIStore } from "@/lib/store/ui-store"
 import {
   installMockBackendClient,
   mockBackendRequest,
@@ -28,8 +27,7 @@ describe("request()", () => {
       user: null,
       isAuthenticated: false
     })
-    useOrgStore.setState({ currentOrgId: null })
-    useUIStore.setState({ currentWorkspace: null })
+    useOrgStore.setState({ currentOrgId: null, currentWorkspace: null })
   })
 
   afterEach(() => {
@@ -62,7 +60,11 @@ describe("request()", () => {
   })
 
   it("应注入 X-Workspace-Id header（当 store 中存在时）", async () => {
-    useUIStore.getState().setCurrentWorkspace({ id: "ws-abc", name: "测试工作区" })
+    useOrgStore.getState().setOrgContext("org-1", {
+      id: "ws-abc",
+      name: "测试工作区",
+      orgId: "org-1"
+    })
     mockBackendResponse({ code: 0, data: [] })
 
     await request("/documents")
@@ -77,7 +79,7 @@ describe("request()", () => {
   })
 
   it("应注入 X-Org-Id header（当 store 中存在时）", async () => {
-    useOrgStore.getState().setCurrentOrgId("org-xyz")
+    useOrgStore.getState().setOrgContext("org-xyz", null)
     mockBackendResponse({ code: 0, data: [] })
 
     await request("/documents")
@@ -92,8 +94,11 @@ describe("request()", () => {
   })
 
   it("应支持 all 组织与 all 工作区请求头，并可清除工作区头", async () => {
-    useOrgStore.getState().setCurrentOrgId("org-1")
-    useUIStore.getState().setCurrentWorkspace({ id: "all", name: "全部工作区" })
+    useOrgStore.getState().setOrgContext("org-1", {
+      id: "all",
+      name: "全部工作区",
+      orgId: "org-1"
+    })
     mockBackendResponse({ code: 0, data: [] })
 
     await request("/documents")
@@ -107,8 +112,7 @@ describe("request()", () => {
       })
     )
 
-    useUIStore.getState().setCurrentWorkspace(null)
-    useOrgStore.getState().setCurrentOrgId("all")
+    useOrgStore.getState().setOrgContext("all", null)
     mockBackendResponse({ code: 0, data: [] })
 
     await request("/documents")

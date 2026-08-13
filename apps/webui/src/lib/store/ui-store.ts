@@ -1,15 +1,7 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import { setBackendWorkspaceId } from "@/lib/api/rest/backend-client"
 
 export type ThemeColor = "default" | "blue" | "purple" | "orange" | "green" | "rose" | "cyan"
-
-export interface WorkspaceItem {
-  id: string
-  name: string
-  orgId?: string
-  logo?: string
-}
 
 interface UIState {
   sidebarOpen: boolean
@@ -25,20 +17,15 @@ interface UIState {
   recordPanelQueryToken?: string
   openRecordPanel: (id: string, mode?: "panel" | "drawer", queryToken?: string) => void
   closeRecordPanel: () => void
-  /** 当前工作区 */
-  currentWorkspace: WorkspaceItem | null
-  workspaces: WorkspaceItem[]
-  setCurrentWorkspace: (workspace: WorkspaceItem | null) => void
-  setWorkspaces: (workspaces: WorkspaceItem[]) => void
 }
 
 export const useUIStore = create<UIState>()(
   persist(
     (set) => ({
       sidebarOpen: true,
-      toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
+      toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
       compactLayout: true,
-      toggleCompactLayout: () => set((s) => ({ compactLayout: !s.compactLayout })),
+      toggleCompactLayout: () => set((state) => ({ compactLayout: !state.compactLayout })),
       themeColor: "default",
       setThemeColor: (color) => set({ themeColor: color }),
       recordPanelId: null,
@@ -46,14 +33,7 @@ export const useUIStore = create<UIState>()(
       recordPanelQueryToken: undefined,
       openRecordPanel: (id, mode = "panel", queryToken) =>
         set({ recordPanelId: id, recordPanelMode: mode, recordPanelQueryToken: queryToken }),
-      closeRecordPanel: () => set({ recordPanelId: null, recordPanelQueryToken: undefined }),
-      currentWorkspace: null,
-      workspaces: [],
-      setCurrentWorkspace: (workspace) => {
-        setBackendWorkspaceId(workspace?.id ?? null)
-        set({ currentWorkspace: workspace })
-      },
-      setWorkspaces: (workspaces) => set({ workspaces })
+      closeRecordPanel: () => set({ recordPanelId: null, recordPanelQueryToken: undefined })
     }),
     {
       name: "aaf-ui-preferences",
@@ -66,5 +46,3 @@ export const useUIStore = create<UIState>()(
     }
   )
 )
-
-setBackendWorkspaceId(useUIStore.getState().currentWorkspace?.id ?? null)

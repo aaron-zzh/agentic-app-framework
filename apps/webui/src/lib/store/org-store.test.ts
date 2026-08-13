@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { OrganizationVO } from "@/lib/api/rest/user"
 
 vi.mock("@/lib/api/rest/backend-client", () => ({
-  setBackendOrgId: vi.fn()
+  setBackendOrgContext: vi.fn()
 }))
 
 import { ALL_ORGANIZATIONS_ID, useOrgStore } from "./org-store"
@@ -18,7 +18,7 @@ function org(id: string, name = id): OrganizationVO {
 
 describe("useOrgStore.ensureDefaultOrg", () => {
   beforeEach(() => {
-    useOrgStore.setState({ currentOrgId: null })
+    useOrgStore.setState({ currentOrgId: null, currentWorkspace: null })
   })
 
   it("组织列表为空时不做任何操作", () => {

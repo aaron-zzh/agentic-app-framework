@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.system.org.service;
 
 import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_DEFAULT_CONTEXT_NOT_FOUND;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_MANAGER_REQUIRED;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_MEMBER_ALREADY_EXISTS;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_MEMBER_NOT_FOUND;
@@ -21,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.framework.engine.entitlement.EntitlementChecker;
+import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationService;
 import com.xuejiai.aaf.module.system.org.domain.OrgMember;
@@ -31,6 +33,7 @@ import com.xuejiai.aaf.module.system.org.repository.OrgMemberRepository;
 import com.xuejiai.aaf.module.system.org.repository.OrganizationRepository;
 import com.xuejiai.aaf.module.system.org.repository.WorkspaceMemberRepository;
 import com.xuejiai.aaf.module.system.org.repository.WorkspaceRepository;
+import com.xuejiai.aaf.module.system.org.vo.DefaultOrgContextVO;
 import com.xuejiai.aaf.module.system.org.vo.OrgMemberAddDTO;
 import com.xuejiai.aaf.module.system.org.vo.OrgMemberRoleUpdateDTO;
 import com.xuejiai.aaf.module.system.org.vo.OrgMemberVO;
@@ -81,6 +84,37 @@ public class OrganizationService {
                 .stream()
                 .map(org -> toVO(org, membershipByOrg.get(org.getId()).getRole()))
                 .toList();
+    }
+
+    /** 获取当前用户的个人默认组织与默认工作区。 */
+    public DefaultOrgContextVO getDefaultContext(Long userId) {
+        var org =
+                orgRepository
+                        .findByOwnerIdAndTypeAndDeletedFalse(userId, "personal")
+                        .orElseThrow(() -> exception(ORG_DEFAULT_CONTEXT_NOT_FOUND));
+        return OrgContext.runIgnoring(
+                () -> {
+                    var workspace =
+                            workspaceRepository
+                                    .findByOrgIdAndSlugAndDeletedFalse(
+                                            org.getId(), DEFAULT_WORKSPACE_SLUG)
+                                    .orElseThrow(
+                                            () -> exception(ORG_DEFAULT_CONTEXT_NOT_FOUND));
+                    var isOrgMember =
+                            memberRepository.existsByOrgIdAndUserIdAndDeletedFalse(
+                                    org.getId(), userId);
+                    var isWorkspaceMember =
+                            workspaceMemberRepository.existsByWorkspaceIdAndUserIdAndDeletedFalse(
+                                    workspace.getId(), userId);
+                    if (!isOrgMember || !isWorkspaceMember) {
+                        throw exception(ORG_DEFAULT_CONTEXT_NOT_FOUND);
+                    }
+                    return new DefaultOrgContextVO(
+                            org.getId().toString(),
+                            org.getName(),
+                            workspace.getId().toString(),
+                            workspace.getName());
+                });
     }
 
     public OrganizationVO getById(Long id) {

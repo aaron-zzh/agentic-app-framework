@@ -16,7 +16,7 @@ import { X } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useMemo } from "react"
 import { cn } from "@/lib/utils/index"
-import { getWorkspaceConfig } from "../nav-config"
+import { getSectionConfig } from "../nav-config"
 import { useStudioShell } from "./store"
 
 export function StudioTabBar() {
@@ -26,13 +26,13 @@ export function StudioTabBar() {
   const setActive = useStudioShell((s) => s.setActive)
   const closeTab = useStudioShell((s) => s.closeTab)
 
-  // 隐藏 tab bar 当 tabs 为空（首屏未访问任何工作区时不显示）
+  // 隐藏 tab bar 当 tabs 为空（首屏未访问任何功能分区时不显示）
   const visible = tabs.length > 0
 
   const tabsWithIcon = useMemo(
     () =>
       tabs.map((t) => {
-        const cfg = getWorkspaceConfig(t.workspace)
+        const cfg = getSectionConfig(t.section)
         return { ...t, Icon: cfg.icon }
       }),
     [tabs]

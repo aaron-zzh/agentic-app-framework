@@ -50,7 +50,7 @@ User Studio 是**项目驱动 + 助理常驻 + 五度空间多 tab** 的 AI 创�
 |---|------|-----|------|
 | A1 | 加载动画首屏（D4 仅首次/间隔 7 天） | 入口品牌沉浸感 → 进驾驶舱 | — |
 | A2 | 顶栏（品牌/积分/通知/头像/主题切换） | 全局信息 + 入口 | `/credits/balance` `/notifications/unread-count` `/auth/me` |
-| A3 | 五度空间侧栏（创作/项目/资产/知识/我） | 5 工作区入口 | 客户端 nav-config |
+| A3 | 五度空间侧栏（创作/项目/资产/知识/我） | 5 个功能分区入口 | 客户端 nav-config |
 | A4 | **多 tab 主区**（点侧栏菜单 → 在主区开/切 tab，可关闭、拖拽排序、持久化） | 多任务并行（核心交互） | sessionStorage + Zustand |
 | A5 | 助理浮球（默认右下） + 抽屉/全屏（D3） | 全局常驻 → 任意页面唤起对话 | `chatter/*` |
 | A6 | 风格系统（暗色默认 / 亮色可切，质感 token） | 视觉一致性 | 扩展 `global.css` |
@@ -65,13 +65,13 @@ User Studio 是**项目驱动 + 助理常驻 + 五度空间多 tab** 的 AI 创�
 └──────────────────────────────────────────────────┘
 ```
 
-- 行为：点侧栏 → 该工作区已开则切到对应 tab；未开则新建 tab 并 active
+- 行为：点侧栏 → 该功能分区已开则切到对应 tab；未开则新建 tab 并 active
 - 关闭：tab 右侧 × 关闭，最后一个 tab 不可关闭（保底"创作"）
 - 持久化：Zustand store + sessionStorage（关浏览器丢失，刷新保留）
 - URL：保留 `/studio/{tab}/...` 真实 URL，多 tab 仅是"主区视图缓存"，浏览器前进/后退仍可用
 - 移动端：Tab Bar 转底部 5 项 Tab Bar（与桌面一致），单时刻只显示 active tab
 
-#### B. 创作工作区 `/studio/create`
+#### B. 创作功能分区 `/studio/create`
 
 每个能力页头部 4 个 sub-tab，统一 Composer + Param Bar + Preview 三段布局。
 
@@ -97,7 +97,7 @@ User Studio 是**项目驱动 + 助理常驻 + 五度空间多 tab** 的 AI 创�
 - **热点跟踪** 🚧 v0.1 仅做静态推荐位（mock 或人工运营），定时抓取属 v0.2（依赖 `automation/rules`）
 - **天气查询** 🚧 后端补一个外部 API 代理 `/tools/weather?city=xxx`（轻量，1 个接口）
 
-#### C. 项目工作区 `/studio/projects`
+#### C. 项目功能分区 `/studio/projects`
 
 | # | 功能 | 闭环 | 后端 |
 |---|------|-----|------|
@@ -156,7 +156,7 @@ User Studio 是**项目驱动 + 助理常驻 + 五度空间多 tab** 的 AI 创�
 // features/studio/shell/store.ts
 interface StudioTab {
   id: string                    // 唯一 id（创建时生成）
-  workspace: 'create' | 'projects' | 'assets' | 'knowledge' | 'me'
+  section: 'create' | 'projects' | 'assets' | 'knowledge' | 'me'
   title: string                 // tab 标题（动态）
   icon: string                  // tab 图标
   url: string                   // 实际路由（保留前进后退能力）
@@ -167,7 +167,7 @@ interface StudioTab {
 interface StudioShellState {
   tabs: StudioTab[]
   activeId: string | null
-  open: (workspace, params?) => void   // 已开则切到，未开则新建
+  open: (section, params?) => void   // 已开则切到，未开则新建
   close: (id) => void
   reorder: (fromIdx, toIdx) => void
   setActive: (id) => void
@@ -176,12 +176,14 @@ interface StudioShellState {
 
 行为规则：
 
-- 同一 workspace 多次打开**不重复**——只切，不开新 tab（除非用户长按"在新 tab 打开"，留接口 v0.2）
+- 同一功能分区多次打开**不重复**——只切，不开新 tab（除非用户长按"在新 tab 打开"，留接口 v0.2）
 - 项目工作台例外：每个项目独立 tab（`/studio/projects/123` vs `/studio/projects/456` 是两个 tab）
 - tab 满 9 个时禁开新 tab（提示用户先关闭）
 - 关闭 active tab 自动 active 左侧邻居
 
 #### 数据隔离硬约束（横切关注）
+
+Studio 启动时先调用 `GET /api/system/orgs/default-context` 获取当前用户的 personal 组织和默认工作区，再原子设置 `X-Org-Id`、`X-Workspace-Id` 与 `X-Scope: own`。默认上下文就绪前不得渲染实体元数据或其他 API 消费组件；普通业务 DTO 不重复接收 `orgId/workspaceId`，由后端从已校验的 Header 上下文自动填充。
 
 **所有 user-studio 范围内的接口必须按当前登录 `userId` 过滤**：
 
@@ -235,7 +237,7 @@ POST   /aigc/projects/{id}/...           ← 写入需校验 ownership
 /login /register ...           → 复用 (auth)，不在 /studio 重做（D1）
 /aigc/*                        → 旧路由保留不动，新增页面只在 /studio/* 下（D1）
 /studio                        → 驾驶舱首屏 = create tab 默认
-/studio/create                 → 创作工作区
+/studio/create                 → 创作功能分区
   /image                       → 图像 sub-tab
   /video                       → 视频 sub-tab
   /copy                        → 文案智能体 sub-tab
@@ -434,7 +436,7 @@ apps/webui/src/
 
 **交付**：可访问 `/studio`，外壳完整、tab 切换流畅、风格统一
 
-### Sprint 2（创作工作区 + 项目工作台）— 1.5 周
+### Sprint 2（创作功能分区 + 项目工作台）— 1.5 周
 
 - `/studio/create/{image,video,copy,viral,tools}` 5 个 sub-tab 页（迁移 `features/aigc/generation/*`）
 - 多模型选择器（图像 6 模型 + 视频 2 模型）
@@ -464,7 +466,7 @@ apps/webui/src/
 - `/studio/me/*` 6 子模块（账号/会员/积分/邀请/装扮/设置）
 - 模型能力说明 + 收费标准展示页
 
-**交付**：资产/知识/我三大工作区可用
+**交付**：资产/知识/我三大功能分区可用
 
 ### Sprint 5（小工具 + 移动适配 + 打磨）— 0.5 周
 
@@ -509,7 +511,7 @@ apps/webui/src/
 | D6 | 模板市场 | ✅ v0.1 初步（系统官方模板 + 一键 fork） |
 | D7 | 知识地图 | ✅ v0.1 仅基础文档管理（CRUD + 分类 + 搜索 + 知识库 + 收藏），PARA 留 v0.2 |
 | D8 | 邀请分销 | ✅ v0.1 仅迁移 + 优化交互 |
-| D9 | 多 tab 切换 | ✅ 五工作区可同时打开多 tab，sessionStorage 持久化 |
+| D9 | 多 tab 切换 | ✅ 五个功能分区可同时打开多 tab，sessionStorage 持久化 |
 | D10 | 数据隔离 | ✅ 硬约束：所有 user-facing endpoint 按 userId 过滤 |
 
 ## 下一步

@@ -12,16 +12,16 @@
 
 import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
-import type { StudioWorkspace } from "../nav-config"
+import type { StudioSection } from "../nav-config"
 
 const MAX_TABS = 9
 
 export interface StudioTab {
   /** 唯一 id（创建时生成） */
   id: string
-  /** 所属工作区 */
-  workspace: StudioWorkspace
-  /** tab 标题（动态：项目名/工作区名） */
+  /** 所属功能分区 */
+  section: StudioSection
+  /** tab 标题（动态：项目名/功能分区名） */
   title: string
   /** 实际路由（保留浏览器前进后退） */
   url: string
@@ -32,11 +32,11 @@ export interface StudioTab {
 }
 
 interface OpenTabInput {
-  workspace: StudioWorkspace
+  section: StudioSection
   url: string
   title: string
-  /** 若提供且工作区不是 projects，会替换已有同 workspace tab；
-   *  projects 工作区每个 id 独立 tab */
+  /** 若提供且功能分区不是 projects，会替换已有同 section tab；
+   *  projects 功能分区每个 id 独立 tab */
   uniqueKey?: string
 }
 
@@ -63,15 +63,15 @@ interface StudioShellState {
 }
 
 /** 生成 tab id 的纯函数 */
-function genTabId(workspace: StudioWorkspace, uniqueKey?: string): string {
-  return uniqueKey ? `${workspace}:${uniqueKey}` : workspace
+function genTabId(section: StudioSection, uniqueKey?: string): string {
+  return uniqueKey ? `${section}:${uniqueKey}` : section
 }
 
 const initialState = {
   tabs: [
     {
       id: "home",
-      workspace: "home" as StudioWorkspace,
+      section: "home" as StudioSection,
       title: "首页",
       url: "/studio",
       scrollY: 0,
@@ -88,8 +88,8 @@ export const useStudioShell = create<StudioShellState>()(
     (set, get) => ({
       ...initialState,
 
-      openTab: ({ workspace, url, title, uniqueKey }) => {
-        const id = genTabId(workspace, uniqueKey)
+      openTab: ({ section, url, title, uniqueKey }) => {
+        const id = genTabId(section, uniqueKey)
         const { tabs } = get()
         const existing = tabs.find((t) => t.id === id)
 
@@ -115,7 +115,7 @@ export const useStudioShell = create<StudioShellState>()(
           }
         }
 
-        const newTab: StudioTab = { id, workspace, title, url, scrollY: 0 }
+        const newTab: StudioTab = { id, section, title, url, scrollY: 0 }
         set({ tabs: [...nextTabs, newTab], activeId: id })
       },
 
@@ -164,7 +164,7 @@ export const useStudioShell = create<StudioShellState>()(
       reset: () => set(initialState)
     }),
     {
-      name: "aaf-studio-shell-v2",
+      name: "aaf-studio-shell-v3",
       // tabs 用 sessionStorage（关浏览器丢失），但 sidebarCollapsed/assistantVisible 持久化更友好
       // MVP 简化：整体 sessionStorage，符合"关浏览器丢失，刷新保留"的约定
       storage: createJSONStorage(() =>

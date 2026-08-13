@@ -11,7 +11,6 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { _mockEntityData } from "@/lib/_mock/entities"
 import { type CrudMeta, crudKey, fromEntityDef, useCrudMeta } from "@/lib/api/rest/crud"
 import { useOrgStore } from "@/lib/store/org-store"
-import { useUIStore } from "@/lib/store/ui-store"
 import type { EntityDef } from "@/lib/types/entity"
 import { fetchQueryWindow, type ListParams, type PageResult } from "./crud"
 
@@ -39,8 +38,8 @@ export function useEntityQueryWindow(
   params: ListParams = {}
 ): UseEntityQueryWindowResult {
   const { page = 1, pageSize = 20, sort, search, ...filters } = params
-  const workspaceId = useUIStore((s) => s.currentWorkspace?.id)
-  const orgId = useOrgStore((s) => s.currentOrgId)
+  const workspaceId = useOrgStore((state) => state.currentWorkspace?.id)
+  const orgId = useOrgStore((state) => state.currentOrgId)
   const resource = fromEntityDef(entity)
   const { data: crudMeta } = useCrudMeta<CrudMeta>(resource)
   const queryParams = {

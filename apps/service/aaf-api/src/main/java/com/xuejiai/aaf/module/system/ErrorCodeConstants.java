@@ -95,6 +95,8 @@ public interface ErrorCodeConstants {
     ErrorCode WORKSPACE_MEMBER_ORG_REQUIRED = ErrorCode.of(1_007_015, "用户不是该工作区所属组织的成员");
     ErrorCode ORG_MEMBER_WORKSPACE_OWNER_REMOVE_FORBIDDEN =
             ErrorCode.of(1_007_016, "用户仍是工作区管理者，请先处理工作区归属");
+    ErrorCode ORG_DEFAULT_CONTEXT_NOT_FOUND =
+            ErrorCode.of(1_007_017, "当前用户的默认组织或工作区不存在");
 
     // ========== DASHBOARD 模块 1_008_000 ==========
     ErrorCode DASHBOARD_NOT_FOUND = ErrorCode.of(1_008_000, "仪表盘不存在");

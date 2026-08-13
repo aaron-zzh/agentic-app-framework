@@ -227,7 +227,7 @@ function CreateProjectDialog({
           <DialogHeader className="shrink-0 border-b px-5 py-4 pr-12">
             <DialogTitle>从蓝图创建项目</DialogTitle>
             <DialogDescription>
-              使用所选蓝图初始化项目，创建后直接进入项目工作区。
+              使用所选蓝图初始化项目，创建后直接进入项目工作台。
             </DialogDescription>
           </DialogHeader>
 

@@ -38,11 +38,8 @@ let backendUnavailableNotified = false
 export const backendApi = new RestApiClient(API_BASE_URL)
 export const backendClient = backendApi.getInstance()
 
-export function setBackendOrgId(orgId: string | null): void {
+export function setBackendOrgContext(orgId: string | null, workspaceId: string | null): void {
   backendApi.setHeader("X-Org-Id", orgId)
-}
-
-export function setBackendWorkspaceId(workspaceId: string | null): void {
   backendApi.setHeader("X-Workspace-Id", workspaceId)
 }
 
@@ -146,7 +143,7 @@ function shouldNotifyError(
 }
 
 backendClient.interceptors.request.use((config) => {
-  // 认证与登录合规接口不属于任何组织；移除持久化 store 写入的默认租户 Header，避免
+  // 认证与登录合规接口不属于任何组织；移除持久化 store 写入的默认组织/工作区 Header，避免
   // 被上一次选择的组织或全组织上下文污染
   const organizationIndependent =
     config.url?.startsWith("/auth/") ||

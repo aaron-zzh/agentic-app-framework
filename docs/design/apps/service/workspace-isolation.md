@@ -108,7 +108,9 @@ Specification.allOf(
 
 ## 前端现状
 
-`WorkspaceSwitcher.tsx` 已通过 `useWorkspaces` 加载真实工作区列表，并将选择结果写入 `ui-store.ts` 的 `currentWorkspace`；支持具体工作区、当前组织全部工作区和全部组织三种视角。工作区创建与成员管理页面仍待补齐。
+`WorkspaceSwitcher.tsx` 已通过 `useWorkspaces` 加载真实工作区列表，并通过 `useOrgStore.setOrgContext` 原子同步 `X-Org-Id`、`X-Workspace-Id` 与持久化客户端选择状态；支持具体工作区、当前组织全部工作区和全部组织三种视角。
+
+Studio 进入时调用 `GET /api/system/orgs/default-context`，该引导接口仅依赖认证用户，返回其 personal 组织及 `slug=default` 的默认工作区。前端在渲染实体元数据和业务组件前写入两个 Header，保证首批业务请求已具备完整组织与工作区上下文。工作区创建与成员管理页面仍待补齐。
 
 ## 行级权限规则的 orgIds / workspaceIds 支持
 

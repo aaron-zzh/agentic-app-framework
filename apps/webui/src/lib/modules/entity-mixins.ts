@@ -50,7 +50,7 @@ export const SoftDeleteMixin: MixinDef = {
   ]
 }
 
-/** 多租户 Mixin（orgId） */
+/** 组织隔离 Mixin（orgId） */
 export const OrgMixin: MixinDef = {
   name: "org",
   fields: [

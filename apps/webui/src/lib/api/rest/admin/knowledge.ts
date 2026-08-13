@@ -96,7 +96,7 @@ const adminKnowledgeKeys = {
   projection: (id: number) => ["admin", "knowledge", id, "projection"] as const
 }
 
-/** 查询租户范围内的知识库运维列表。 */
+/** 查询组织范围内的知识库运维列表。 */
 export function useAdminKnowledgeList(params: KnowledgeMaintenanceListParams = {}) {
   return useQuery({
     queryKey: adminKnowledgeKeys.list(params),

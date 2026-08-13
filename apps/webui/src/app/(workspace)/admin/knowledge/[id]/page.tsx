@@ -171,7 +171,7 @@ export default function AdminKnowledgeDetailPage({ params }: { params: Promise<{
         <Card>
           <CardHeader>
             <CardTitle>归属与配置</CardTitle>
-            <CardDescription>ADMIN_MAINTENANCE 仍受当前租户范围约束。</CardDescription>
+            <CardDescription>ADMIN_MAINTENANCE 仍受当前组织范围约束。</CardDescription>
           </CardHeader>
           <CardContent>
             <dl className="grid gap-3 text-sm sm:grid-cols-2">

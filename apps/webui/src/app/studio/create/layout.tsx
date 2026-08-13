@@ -1,9 +1,9 @@
 /**
- * 创作工作区 Layout——创作能力 sub-tab 切换
+ * 创作功能分区 Layout——创作能力 sub-tab 切换
  *
  * 顶部 sub-tab Bar：创作台 / 文案 / 爆款 / 抠图。
- * 工具箱虽复用 /studio/create 路由树，但属于独立一级工作区，不显示创作子导航。
- * 详见 docs/design/apps/webui/user-studio-mvp.md B 创作工作区
+ * 工具箱虽复用 /studio/create 路由树，但属于独立一级功能分区，不显示创作子导航。
+ * 详见 docs/design/apps/webui/user-studio-mvp.md B 创作功能分区
  *
  * @author AaronZZH & Kiro
  */
@@ -13,14 +13,14 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { SectionHaze } from "@/components/studio"
-import { getWorkspaceConfig } from "@/features/studio/nav-config"
+import { getSectionConfig } from "@/features/studio/nav-config"
 import { cn } from "@/lib/utils/index"
 
-const CREATE_CONFIG = getWorkspaceConfig("create")
+const CREATE_CONFIG = getSectionConfig("create")
 
 export default function StudioCreateLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const isToolsWorkspace =
+  const isToolsSection =
     pathname.startsWith("/studio/create/tools") || pathname.startsWith("/studio/create/draw")
   const activeItem = [...CREATE_CONFIG.children]
     .sort((left, right) => right.path.length - left.path.length)
@@ -30,7 +30,7 @@ export default function StudioCreateLayout({ children }: { children: React.React
     <div className="relative flex h-full flex-col">
       <SectionHaze variant="violet" />
 
-      {!isToolsWorkspace ? (
+      {!isToolsSection ? (
         <div className="relative z-10 border-foreground/6 border-b bg-background/30 backdrop-blur">
           <div className="flex items-center justify-center gap-1 overflow-x-auto px-6 py-2">
             {CREATE_CONFIG.children.map((item) => {

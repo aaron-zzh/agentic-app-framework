@@ -69,7 +69,7 @@ export default function AdminKnowledgePage() {
         <div>
           <TypographyH1>知识库运维</TypographyH1>
           <p className="mt-1 text-muted-foreground text-sm">
-            跨个人范围查看当前租户知识库，执行失败重试与投影重建。
+            跨个人范围查看当前组织知识库，执行失败重试与投影重建。
           </p>
         </div>
         <Button variant="outline" onClick={() => setParams(INITIAL_PARAMS)}>
@@ -174,7 +174,7 @@ export default function AdminKnowledgePage() {
             ) : (
               <TableRow>
                 <TableCell colSpan={9} className="py-10 text-center text-muted-foreground">
-                  当前租户范围内暂无知识库
+                  当前组织范围内暂无知识库
                 </TableCell>
               </TableRow>
             )}

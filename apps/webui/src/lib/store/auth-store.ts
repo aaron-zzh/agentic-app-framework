@@ -13,6 +13,7 @@ import { persist } from "zustand/middleware"
 import { buildApiUrl } from "@/lib/api/config"
 import { type ApiResult, registerBackendTokenRefresh } from "@/lib/api/rest/backend-client"
 import { clearAxiosAuth, setAxiosAuth } from "@/lib/auth/utils"
+import { useOrgStore } from "@/lib/store/org-store"
 
 export interface AuthUser {
   id: string
@@ -70,10 +71,17 @@ export const useAuthStore = create<AuthState>()(
         set({ accessToken, refreshToken, isAuthenticated: true })
       },
 
-      setUser: (user) => set({ user }),
+      setUser: (user) =>
+        set((state) => {
+          if (state.user?.id != null && state.user.id !== user.id) {
+            useOrgStore.getState().clearOrgContext()
+          }
+          return { user }
+        }),
 
       clearAuth: () => {
         clearAxiosAuth()
+        useOrgStore.getState().clearOrgContext()
         syncTokenCookie(null)
         set({
           accessToken: null,

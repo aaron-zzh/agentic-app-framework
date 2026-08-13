@@ -86,7 +86,7 @@ export const aafLandingPageDef: PageDef = {
           {
             icon: "shield-check",
             title: "企业级安全",
-            description: "RBAC + 行级数据权限 + 审计日志 + 多租户隔离，满足合规要求。"
+            description: "RBAC + 行级数据权限 + 审计日志 + 多组织隔离，满足合规要求。"
           },
           {
             icon: "puzzle",
@@ -207,7 +207,7 @@ export const aafLandingPageDef: PageDef = {
               "完整开源代码",
               "社区支持",
               "基础 Agent 能力",
-              "单租户部署",
+              "独立部署",
               "5 个自定义实体"
             ],
             cta: { label: "开始使用", href: "/dashboard" }
@@ -220,7 +220,7 @@ export const aafLandingPageDef: PageDef = {
             features: [
               "社区版全部功能",
               "优先技术支持",
-              "多租户 + RBAC",
+              "多组织 + RBAC",
               "高级工作流",
               "无限自定义实体",
               "AI 感知增强",
@@ -289,7 +289,7 @@ export const aafLandingPageDef: PageDef = {
             role: "CTO",
             company: "AI 创业公司",
             quote:
-              "从知识库到多租户 RBAC 一应俱全，我们直接基于 AAF 搭建了企业级产品，节省了至少半年的研发时间。",
+              "从知识库到多组织 RBAC 一应俱全，我们直接基于 AAF 搭建了企业级产品，节省了至少半年的研发时间。",
             avatar: $url.cdn("/assets/avatar/avatar.png")
           }
         ]
@@ -317,7 +317,7 @@ export const aafLandingPageDef: PageDef = {
           {
             question: "数据安全如何保障？",
             answer:
-              "AAF 支持私有化部署，数据完全在你的服务器上。内置 RBAC + 行级数据权限 + 审计日志 + 多租户隔离，满足企业合规要求。AI 感知数据不离开前端或仅发送到用户授权的 Agent。"
+              "AAF 支持私有化部署，数据完全在你的服务器上。内置 RBAC + 行级数据权限 + 审计日志 + 多组织隔离，满足企业合规要求。AI 感知数据不离开前端或仅发送到用户授权的 Agent。"
           },
           {
             question: "可以和现有系统集成吗？",

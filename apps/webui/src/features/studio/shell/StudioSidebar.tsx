@@ -1,7 +1,7 @@
 /**
  * Studio Sidebar——五度空间侧栏
  *
- * 顶级 5 工作区图标 + 子菜单（hover 展开 / 折叠态仅图标）
+ * 七个顶级功能分区图标 + 子菜单（hover 展开 / 折叠态仅图标）
  * 点击：调用 useStudioShell.openTab 打开/切到对应 tab，并 router.push 实际路由
  */
 
@@ -14,17 +14,17 @@ import { useMemo } from "react"
 import { Brand } from "@/components/brand/Brand"
 import { useWechatQrImage } from "@/lib/api/rest/system"
 import { cn } from "@/lib/utils/index"
-import { resolveWorkspaceFromPath, STUDIO_NAV, type StudioWorkspaceConfig } from "../nav-config"
+import { resolveSectionFromPath, STUDIO_NAV, type StudioSectionConfig } from "../nav-config"
 import { useStudioShell } from "./store"
 
 interface SidebarItemProps {
-  config: StudioWorkspaceConfig
+  config: StudioSectionConfig
   active: boolean
   collapsed: boolean
   onOpen: () => void
 }
 
-function WorkspaceItem({ config, active, collapsed, onOpen }: SidebarItemProps) {
+function SectionItem({ config, active, collapsed, onOpen }: SidebarItemProps) {
   const Icon = config.icon
 
   return (
@@ -71,14 +71,14 @@ export function StudioSidebar() {
   const router = useRouter()
   const { sidebarCollapsed, toggleSidebar, openTab } = useStudioShell()
 
-  // 当前 active workspace（从 URL 反查）
-  const activeWorkspace = useMemo(() => resolveWorkspaceFromPath(pathname), [pathname])
+  // 当前 active section（从 URL 反查）
+  const activeSection = useMemo(() => resolveSectionFromPath(pathname), [pathname])
 
-  const handleOpen = (config: StudioWorkspaceConfig) => {
+  const handleOpen = (config: StudioSectionConfig) => {
     const defaultChild = config.children.find((c) => c.default) ?? config.children[0]
     const url = defaultChild?.path ?? config.path
     openTab({
-      workspace: config.workspace,
+      section: config.section,
       url,
       title: config.label
     })
@@ -116,13 +116,13 @@ export function StudioSidebar() {
         <Brand collapsed={sidebarCollapsed} size="sm" href="/" className="text-foreground" />
       </div>
 
-      {/* 工作区列表 */}
+      {/* 功能分区列表 */}
       <nav className="flex flex-1 flex-col gap-1 px-2">
         {STUDIO_NAV.map((config) => (
-          <WorkspaceItem
-            key={config.workspace}
+          <SectionItem
+            key={config.section}
             config={config}
-            active={activeWorkspace === config.workspace}
+            active={activeSection === config.section}
             collapsed={sidebarCollapsed}
             onOpen={() => handleOpen(config)}
           />

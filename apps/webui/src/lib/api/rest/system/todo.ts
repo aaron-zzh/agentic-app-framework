@@ -169,10 +169,10 @@ export function useStudioTodoClearDone() {
  * 普通创建、编辑、状态更新和删除仍使用上方 todoApi。
  */
 export const todoAdminApi = {
-  /** 清理当前租户内全部用户的已完成待办 */
+  /** 清理当前组织内全部用户的已完成待办 */
   clearDone: () => backendApi.put<number>("/todos/_clear-done"),
 
-  /** 异步清理当前租户内全部用户的已完成待办 */
+  /** 异步清理当前组织内全部用户的已完成待办 */
   clearDoneAsync: () => backendApi.post<string>("/todos/_clear-done/async")
 }
 

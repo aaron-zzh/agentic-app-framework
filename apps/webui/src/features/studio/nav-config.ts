@@ -1,7 +1,7 @@
 /**
  * Studio 产品导航配置
  *
- * 七个顶级工作区：首页 / 项目 / 创作 / 资产 / 知识 / 工具 / 我的。
+ * 七个顶级功能分区：首页 / 项目 / 创作 / 资产 / 知识 / 工具 / 我的。
  * 子菜单按生产闭环划分，不设固定数量上限。
  * 详见 docs/design/apps/content-studio/content-studio-capability-concept-map.md
  */
@@ -36,7 +36,7 @@ import {
   Zap
 } from "lucide-react"
 
-export type StudioWorkspace =
+export type StudioSection =
   | "home"
   | "create"
   | "projects"
@@ -52,23 +52,23 @@ export interface StudioNavItem {
   label: string
   /** 图标 */
   icon: LucideIcon
-  /** 实际路由（同一 workspace 下） */
+  /** 实际路由（同一 section 下） */
   path: string
-  /** 是否是默认子项（点工作区直接打开） */
+  /** 是否是默认子项（点功能分区直接打开） */
   default?: boolean
   /** 角标 NeonChip 文案（如 "新"） */
   badge?: string
 }
 
-export interface StudioWorkspaceConfig {
-  workspace: StudioWorkspace
+export interface StudioSectionConfig {
+  section: StudioSection
   /** 顶级名 */
   label: string
   /** 顶级图标 */
   icon: LucideIcon
   /** 顶级路由 */
   path: string
-  /** 当前工作区的子菜单列表 */
+  /** 当前功能分区的子菜单列表 */
   children: StudioNavItem[]
 }
 
@@ -77,16 +77,16 @@ export interface StudioWorkspaceConfig {
  *
  * 顺序：首页 / 项目 / 创作 / 资产 / 知识 / 工具 / 我的
  */
-export const STUDIO_NAV: StudioWorkspaceConfig[] = [
+export const STUDIO_NAV: StudioSectionConfig[] = [
   {
-    workspace: "home",
+    section: "home",
     label: "首页",
     icon: Home,
     path: "/studio",
     children: [{ key: "home", label: "首页", icon: Home, path: "/studio", default: true }]
   },
   {
-    workspace: "projects",
+    section: "projects",
     label: "项目",
     icon: FolderKanban,
     path: "/studio/projects",
@@ -115,7 +115,7 @@ export const STUDIO_NAV: StudioWorkspaceConfig[] = [
     ]
   },
   {
-    workspace: "create",
+    section: "create",
     label: "创作",
     icon: Sparkles,
     path: "/studio/create",
@@ -127,7 +127,7 @@ export const STUDIO_NAV: StudioWorkspaceConfig[] = [
     ]
   },
   {
-    workspace: "assets",
+    section: "assets",
     label: "资产",
     icon: Box,
     path: "/studio/assets",
@@ -147,7 +147,7 @@ export const STUDIO_NAV: StudioWorkspaceConfig[] = [
     ]
   },
   {
-    workspace: "knowledge",
+    section: "knowledge",
     label: "知识",
     icon: BookOpen,
     path: "/studio/knowledge",
@@ -158,7 +158,7 @@ export const STUDIO_NAV: StudioWorkspaceConfig[] = [
     ]
   },
   {
-    workspace: "tools",
+    section: "tools",
     label: "工具",
     icon: Wrench,
     path: "/studio/create/tools",
@@ -167,7 +167,7 @@ export const STUDIO_NAV: StudioWorkspaceConfig[] = [
     ]
   },
   {
-    workspace: "me",
+    section: "me",
     label: "我的",
     icon: User,
     path: "/studio/me",
@@ -194,15 +194,15 @@ export const STUDIO_NAV: StudioWorkspaceConfig[] = [
   }
 ]
 
-/** 通过 workspace key 取配置 */
-export function getWorkspaceConfig(workspace: StudioWorkspace): StudioWorkspaceConfig {
-  const found = STUDIO_NAV.find((w) => w.workspace === workspace)
-  if (!found) throw new Error(`Unknown studio workspace: ${workspace}`)
+/** 通过 section key 取配置 */
+export function getSectionConfig(section: StudioSection): StudioSectionConfig {
+  const found = STUDIO_NAV.find((w) => w.section === section)
+  if (!found) throw new Error(`Unknown studio section: ${section}`)
   return found
 }
 
-/** 通过 pathname 反查 workspace（截 /studio/{workspace}/...） */
-export function resolveWorkspaceFromPath(pathname: string): StudioWorkspace | null {
+/** 通过 pathname 反查 section（截 /studio/{section}/...） */
+export function resolveSectionFromPath(pathname: string): StudioSection | null {
   // /studio 根路径 → home
   if (pathname === "/studio" || pathname === "/studio/") return "home"
   const match = pathname.match(/^\/studio\/([^/?#]+)/)
@@ -210,13 +210,13 @@ export function resolveWorkspaceFromPath(pathname: string): StudioWorkspace | nu
   const segment = match[1]
   // welcome 动画页归 home
   if (segment === "welcome") return "home"
-  // 模板库与品牌资料归项目工作区
+  // 模板库与品牌资料归项目功能分区
   if (segment === "templates" || segment === "brands") return "projects"
-  // 工具箱路径归 tools 工作区
+  // 工具箱路径归 tools 功能分区
   if (pathname.startsWith("/studio/create/tools") || pathname.startsWith("/studio/create/draw"))
     return "tools"
-  // chat 不归任何工作区（独立全屏）
+  // chat 不归任何功能分区（独立全屏）
   if (segment === "chat") return null
-  const valid = STUDIO_NAV.find((w) => w.workspace === segment)
-  return (valid?.workspace ?? null) as StudioWorkspace | null
+  const valid = STUDIO_NAV.find((w) => w.section === segment)
+  return (valid?.section ?? null) as StudioSection | null
 }

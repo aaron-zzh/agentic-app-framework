@@ -8,7 +8,6 @@ import { fireEvent, render, screen } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { ALL_ORGANIZATIONS_ID, useOrgStore } from "@/lib/store/org-store"
-import { useUIStore } from "@/lib/store/ui-store"
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher"
 
 const apiMocks = vi.hoisted(() => ({
@@ -41,8 +40,7 @@ describe("WorkspaceSwitcher", () => {
         roles: ["SUPER_ADMIN"]
       }
     })
-    useOrgStore.setState({ currentOrgId: "1" })
-    useUIStore.setState({ currentWorkspace: null })
+    useOrgStore.setState({ currentOrgId: "1", currentWorkspace: null })
     apiMocks.useOrganizations.mockReturnValue({
       data: [
         { id: "1", name: "组织一", slug: "org-1" },
@@ -73,7 +71,7 @@ describe("WorkspaceSwitcher", () => {
     fireEvent.click(await screen.findByText("全部组织"))
 
     expect(useOrgStore.getState().currentOrgId).toBe(ALL_ORGANIZATIONS_ID)
-    expect(useUIStore.getState().currentWorkspace).toBeNull()
+    expect(useOrgStore.getState().currentWorkspace).toBeNull()
   })
 
   it("选择其他组织的具体工作区时同步组织和工作区", async () => {
@@ -83,7 +81,7 @@ describe("WorkspaceSwitcher", () => {
     fireEvent.click(await screen.findByText("工作区二"))
 
     expect(useOrgStore.getState().currentOrgId).toBe("2")
-    expect(useUIStore.getState().currentWorkspace).toEqual({
+    expect(useOrgStore.getState().currentWorkspace).toEqual({
       id: "21",
       name: "工作区二",
       orgId: "2"
