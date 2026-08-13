@@ -16,6 +16,7 @@ import {
 } from "@/features/entity-engine/components"
 import type { EntityDef } from "@/features/entity-engine/types"
 import { paths } from "@/lib/constants/paths"
+import { getRecordDetailExtra } from "../record-detail-extras"
 
 interface Props {
   entity: EntityDef
@@ -27,6 +28,7 @@ export function EntityRecordView({ entity, recordId, queryToken }: Props) {
   const navigation = useRecordWindowNavigation({ entity, recordId, queryToken })
   const formId = `entity-record-form-${entity.slug}-${recordId}`
   const canUseExternalSave = !entity.overrides?.formView && entity.access?.update !== false
+  const detailExtra = getRecordDetailExtra(entity.slug, recordId, !canUseExternalSave)
   const action =
     canUseExternalSave || navigation.isAvailable ? (
       <div className="flex items-center gap-2">
@@ -42,7 +44,7 @@ export function EntityRecordView({ entity, recordId, queryToken }: Props) {
     ) : undefined
 
   return (
-    <PageContainer maxWidth="lg" className="flex flex-1 flex-col">
+    <PageContainer maxWidth="lg" className="flex flex-1 flex-col gap-4">
       <CustomBreadcrumbs
         links={[
           { name: "首页", href: paths.workspace.root },
@@ -50,7 +52,6 @@ export function EntityRecordView({ entity, recordId, queryToken }: Props) {
           { name: "详情" }
         ]}
         action={action}
-        className="mb-4"
       />
       <Card className="flex flex-1 flex-col overflow-hidden py-0">
         <ViewEngine
@@ -62,6 +63,7 @@ export function EntityRecordView({ entity, recordId, queryToken }: Props) {
           showRecordWindowPager={false}
         />
       </Card>
+      {detailExtra}
     </PageContainer>
   )
 }

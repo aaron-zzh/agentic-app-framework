@@ -105,25 +105,12 @@ WHERE r.code IN ('admin', 'super_admin')
 ON CONFLICT DO NOTHING;
 
 -- ---------------- 分销管理菜单与角色授权 ----------------
--- v12 已创建四个基础分销菜单；此处将佣金规则切换到通用模块，并补充等级佣金加成。
+-- v12 已创建四个基础分销菜单；此处将佣金规则切换到通用模块。
 UPDATE sys_menu
 SET path = '/module/brokerage-rule',
     update_time = CURRENT_TIMESTAMP
 WHERE path = '/admin/brokerage/rules'
   AND deleted = FALSE;
-
-INSERT INTO sys_menu (parent_id, title, path, icon, sort_order, menu_type, visible)
-SELECT parent_menu.id, '等级佣金加成', '/module/brokerage-level-bonus', 'badge-percent', 4, 'MENU', TRUE
-FROM sys_menu parent_menu
-WHERE parent_menu.title = '分销'
-  AND parent_menu.parent_id IS NULL
-  AND parent_menu.deleted = FALSE
-  AND NOT EXISTS (
-      SELECT 1
-      FROM sys_menu existing_menu
-      WHERE existing_menu.path = '/module/brokerage-level-bonus'
-        AND existing_menu.deleted = FALSE
-  );
 
 -- 分销管理模块仅授权 admin / super_admin；撤销 v12 全量菜单授权遗留的 org_admin 映射。
 INSERT INTO sys_role_menu (role_id, menu_id)
