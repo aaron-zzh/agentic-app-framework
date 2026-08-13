@@ -36,6 +36,7 @@ class OrgFilterAspectTest extends BaseMockitoUnitTest {
     void should_disable_org_filter_in_all_organizations() throws Throwable {
         // 准备参数
         OrgContext.useAllOrganizations();
+        when(joinPoint.getTarget()).thenReturn(new Object());
         when(entityManager.unwrap(Session.class)).thenReturn(session);
         when(joinPoint.proceed()).thenReturn(List.of("todo"));
 

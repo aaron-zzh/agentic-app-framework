@@ -16,6 +16,7 @@ import {
 } from "@/features/entity-engine/components"
 import type { EntityDef } from "@/features/entity-engine/types"
 import { paths } from "@/lib/constants/paths"
+import { selectScopeReadOnly, useOrgStore } from "@/lib/store/org-store"
 import { getRecordDetailExtra } from "../record-detail-extras"
 
 interface Props {
@@ -25,9 +26,11 @@ interface Props {
 }
 
 export function EntityRecordView({ entity, recordId, queryToken }: Props) {
+  const scopeReadOnly = useOrgStore(selectScopeReadOnly)
   const navigation = useRecordWindowNavigation({ entity, recordId, queryToken })
   const formId = `entity-record-form-${entity.slug}-${recordId}`
-  const canUseExternalSave = !entity.overrides?.formView && entity.access?.update !== false
+  const canUseExternalSave =
+    !scopeReadOnly && !entity.overrides?.formView && entity.access?.update !== false
   const detailExtra = getRecordDetailExtra(entity.slug, recordId, !canUseExternalSave)
   const action =
     canUseExternalSave || navigation.isAvailable ? (
@@ -59,6 +62,7 @@ export function EntityRecordView({ entity, recordId, queryToken }: Props) {
           view="form"
           recordId={recordId}
           queryToken={queryToken}
+          readOnly={scopeReadOnly}
           externalFormId={canUseExternalSave ? formId : undefined}
           showRecordWindowPager={false}
         />

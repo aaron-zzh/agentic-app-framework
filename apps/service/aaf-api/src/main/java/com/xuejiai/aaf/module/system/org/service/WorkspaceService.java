@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.system.org.service;
 
 import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.ORG_MEMBER_REQUIRED;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.WORKSPACE_MANAGER_REMOVE_FORBIDDEN;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.WORKSPACE_MANAGER_REQUIRED;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.WORKSPACE_MEMBER_ALREADY_EXISTS;
@@ -9,6 +10,7 @@ import static com.xuejiai.aaf.module.system.ErrorCodeConstants.WORKSPACE_MEMBER_
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.WORKSPACE_ORG_CONTEXT_REQUIRED;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.WORKSPACE_SLUG_EXISTS;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -23,6 +25,7 @@ import com.xuejiai.aaf.framework.crud.definition.CrudOperation;
 import com.xuejiai.aaf.framework.crud.enforcement.AccessMode;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationService;
 import com.xuejiai.aaf.module.system.org.domain.Workspace;
 import com.xuejiai.aaf.module.system.org.domain.WorkspaceMember;
 import com.xuejiai.aaf.module.system.org.repository.OrgMemberRepository;
@@ -55,6 +58,7 @@ public class WorkspaceService
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final OrgMemberRepository orgMemberRepository;
     private final OperatorContext operatorContext;
+    private final AuthorizationService authorizationService;
     private static final Set<String> SORTABLE_FIELDS = Set.of("id", "name", "slug", "createTime");
 
     @Override
@@ -103,9 +107,63 @@ public class WorkspaceService
 
     @Override
     protected Specification<Workspace> buildSpec(WorkspacePageDTO req) {
-        return SpecificationBuilder.<Workspace>builder()
-                .likeIfPresent("name", req.getName())
-                .build();
+        var businessSpec =
+                SpecificationBuilder.<Workspace>builder()
+                        .likeIfPresent("name", req.getName())
+                        .build();
+        var accessSpec =
+                Boolean.TRUE.equals(req.getMemberOnly())
+                        ? memberWorkspaceSpec()
+                        : accessibleWorkspaceSpec();
+        return Specification.allOf(businessSpec, accessSpec);
+    }
+
+    private Specification<Workspace> memberWorkspaceSpec() {
+        var userId =
+                operatorContext.currentOwnerId().orElseThrow(() -> exception(ORG_MEMBER_REQUIRED));
+        if (OrgContext.isAllOrganizations()) {
+            return idInOrFalse(workspaceMemberRepository.findWorkspaceIdsByUserId(userId));
+        }
+        var orgId = OrgContext.getCurrentOrgId();
+        if (orgId == null) {
+            throw exception(WORKSPACE_ORG_CONTEXT_REQUIRED);
+        }
+        return idInOrFalse(
+                workspaceMemberRepository.findWorkspaceIdsByOrgIdAndUserId(orgId, userId));
+    }
+
+    private Specification<Workspace> accessibleWorkspaceSpec() {
+        if (authorizationService.isCurrentSubjectSuperAdmin()) {
+            return unrestrictedSpec();
+        }
+        if (OrgContext.isAllOrganizations()) {
+            return idInOrFalse(OrgContext.getAccessibleWorkspaceIds());
+        }
+        var orgId = OrgContext.getCurrentOrgId();
+        if (orgId == null) {
+            throw exception(WORKSPACE_ORG_CONTEXT_REQUIRED);
+        }
+        var userId =
+                operatorContext.currentOwnerId().orElseThrow(() -> exception(ORG_MEMBER_REQUIRED));
+        var role =
+                orgMemberRepository
+                        .findByOrgIdAndUserIdAndDeletedFalse(orgId, userId)
+                        .map(member -> member.getRole())
+                        .orElseThrow(() -> exception(ORG_MEMBER_REQUIRED));
+        if ("owner".equals(role) || "admin".equals(role)) {
+            return unrestrictedSpec();
+        }
+        return idInOrFalse(
+                workspaceMemberRepository.findWorkspaceIdsByOrgIdAndUserId(orgId, userId));
+    }
+
+    private Specification<Workspace> idInOrFalse(Collection<Long> workspaceIds) {
+        return (root, query, cb) ->
+                workspaceIds.isEmpty() ? cb.disjunction() : root.get("id").in(workspaceIds);
+    }
+
+    private Specification<Workspace> unrestrictedSpec() {
+        return (root, query, cb) -> null;
     }
 
     /** 创建工作区后，创建者自动成为该工作区成员，保证创建者不会看不到自己创建的工作区。 */

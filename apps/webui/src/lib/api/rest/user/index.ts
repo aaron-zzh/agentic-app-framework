@@ -43,6 +43,7 @@ export type {
   OrganizationVO,
   OrgMemberVO,
   OrgUpdateReq,
+  WorkspaceUpdateReq,
   WorkspaceVO
 } from "./organization"
 export {
@@ -52,6 +53,7 @@ export {
   useOrgMembers,
   useRemoveOrgMember,
   useUpdateOrganization,
+  useUpdateWorkspace,
   useWorkspaces,
   workspaceApi
 } from "./organization"

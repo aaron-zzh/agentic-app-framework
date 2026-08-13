@@ -5,9 +5,13 @@
 
 import { useQueryClient } from "@tanstack/react-query"
 import { useCallback } from "react"
-import { authApi, organizationApi } from "@/lib/api/rest/user"
+import { authApi, organizationApi, workspaceApi } from "@/lib/api/rest/user"
 import { type AuthUser, useAuthStore } from "@/lib/store/auth-store"
-import { ALL_ORGANIZATIONS_ID, useOrgStore } from "@/lib/store/org-store"
+import {
+  hasSuperAdminRole,
+  type ScopeSelection,
+  useOrgStore
+} from "@/lib/store/org-store"
 import {
   isMockAuthEnabled,
   MOCK_AUTH_ACCESS_TOKEN,
@@ -38,42 +42,53 @@ export function useAuth() {
     qc.invalidateQueries({ queryKey: ["auth", "me"] })
   }, [qc, setUser])
 
-  /**
-   * 确保存在有效的组织与工作区请求头。
-   *
-   * 组织与工作区选择是纯客户端 UI 状态，其可用性不能依赖 localStorage persist 的
-   * rehydrate 时序或登录页面组件是否被经过——用户可能通过已持久化的 token 直接进入应用
-   * （刷新页面、书签直达等），完全跳过登录页。checkAuth 是所有恢复路径的统一入口，
-   * 因此默认上下文校正必须收口在这里，而不是散落在页面组件里。
-   */
+  /** 恢复并校验当前用户的稳定组织范围。 */
   const ensureOrgContext = useCallback(async () => {
+    const authUser = useAuthStore.getState().user
+    if (!authUser) return
+    const orgState = useOrgStore.getState()
+    const persistedScope = orgState.beginRestore(authUser.id)
     try {
       const [orgs, defaultContext] = await Promise.all([
         organizationApi.list(),
         organizationApi.defaultContext()
       ])
-      const orgState = useOrgStore.getState()
-      const currentOrgValid =
-        orgState.currentOrgId != null &&
-        orgs.some((organization) => organization.id === orgState.currentOrgId)
-      const shouldUseDefault =
-        orgState.currentOrgId == null ||
-        (orgState.currentOrgId !== ALL_ORGANIZATIONS_ID && !currentOrgValid) ||
-        (orgState.currentOrgId === defaultContext.orgId && orgState.currentWorkspace == null)
+      const isSuperAdmin = hasSuperAdminRole(authUser.roles)
+      let validScope: ScopeSelection | null = null
 
-      if (shouldUseDefault) {
-        orgState.setOrgContext(defaultContext.orgId, {
-          id: defaultContext.workspaceId,
-          name: defaultContext.workspaceName,
-          orgId: defaultContext.orgId
-        })
-        return
+      if (persistedScope?.kind === "all-organizations") {
+        if (isSuperAdmin || orgs.length >= 2) validScope = persistedScope
+      } else if (persistedScope?.kind === "all-workspaces") {
+        const org = orgs.find((item) => item.id === persistedScope.orgId)
+        if (org && (isSuperAdmin || org.memberRole === "owner" || org.memberRole === "admin")) {
+          validScope = persistedScope
+        }
+      } else if (persistedScope?.kind === "workspace") {
+        const orgExists = orgs.some((item) => item.id === persistedScope.orgId)
+        if (orgExists) {
+          const page = await workspaceApi.list(persistedScope.orgId, false)
+          if (
+            page.list.some(
+              (workspace) =>
+                workspace.orgId === persistedScope.orgId &&
+                workspace.id === persistedScope.workspaceId
+            )
+          ) {
+            validScope = persistedScope
+          }
+        }
       }
 
-      orgState.ensureDefaultOrg(orgs, useAuthStore.getState().user?.roles)
+      orgState.commitScope(
+        authUser.id,
+        validScope ?? {
+          kind: "workspace",
+          orgId: defaultContext.orgId,
+          workspaceId: defaultContext.workspaceId
+        }
+      )
     } catch {
-      // 拉取默认上下文失败不阻塞鉴权流程，后续页面请求会因缺少组织或工作区 Header 收到 403，
-      // 用户可感知并重试，不在此处静默吞掉导致状态不一致
+      orgState.failRestore("工作区上下文不可用")
     }
   }, [])
 

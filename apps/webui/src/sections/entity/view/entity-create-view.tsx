@@ -22,6 +22,7 @@ import { useResolvedEntity } from "@/features/entity-engine/hooks/use-resolved-e
 import type { EntityDef } from "@/features/entity-engine/types"
 import { fromEntityDef, useCrudCreate } from "@/lib/api/rest/crud"
 import { paths } from "@/lib/constants/paths"
+import { selectScopeReadOnly, useOrgStore } from "@/lib/store/org-store"
 
 interface Props {
   entity: EntityDef
@@ -29,6 +30,7 @@ interface Props {
 }
 
 export function EntityCreateView({ entity, presentation = "page" }: Props) {
+  const scopeReadOnly = useOrgStore(selectScopeReadOnly)
   const router = useRouter()
   const resolvedEntity = useResolvedEntity(entity)
   const resource = fromEntityDef(entity)
@@ -54,6 +56,27 @@ export function EntityCreateView({ entity, presentation = "page" }: Props) {
       },
       onError: () => {}
     })
+  }
+
+  if (scopeReadOnly) {
+    return (
+      <PageContainer maxWidth="lg" className="flex flex-1 flex-col">
+        <CustomBreadcrumbs
+          links={[
+            { name: "首页", href: paths.workspace.root },
+            { name: entity.label, href: paths.workspace.module(entity.slug) },
+            { name: "新建" }
+          ]}
+          className="mb-4"
+        />
+        <Card className="p-6">
+          <h1 className="font-medium">当前范围为只读</h1>
+          <p className="mt-2 text-muted-foreground text-sm">
+            聚合范围不能创建数据，请先选择一个具体工作区。
+          </p>
+        </Card>
+      </PageContainer>
+    )
   }
 
   const form = (

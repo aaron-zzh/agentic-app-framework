@@ -14,7 +14,8 @@ import { useAuth } from "./use-auth"
 const apiMocks = vi.hoisted(() => ({
   me: vi.fn(),
   listOrganizations: vi.fn(),
-  defaultContext: vi.fn()
+  defaultContext: vi.fn(),
+  listWorkspaces: vi.fn()
 }))
 
 vi.mock("@/lib/api/rest/user", () => ({
@@ -24,6 +25,9 @@ vi.mock("@/lib/api/rest/user", () => ({
   organizationApi: {
     list: apiMocks.listOrganizations,
     defaultContext: apiMocks.defaultContext
+  },
+  workspaceApi: {
+    list: apiMocks.listWorkspaces
   }
 }))
 
@@ -64,6 +68,7 @@ const defaultContext = {
 describe("useAuth 默认工作区初始化", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    window.localStorage.clear()
     useAuthStore.setState({
       accessToken: "access-token",
       refreshToken: "refresh-token",
@@ -71,13 +76,19 @@ describe("useAuth 默认工作区初始化", () => {
       isAuthenticated: true,
       isChecking: false
     })
-    useOrgStore.setState({ currentOrgId: null, currentWorkspace: null })
+    useOrgStore.setState({
+      status: "idle",
+      activeUserId: null,
+      currentScope: null,
+      error: null
+    })
     apiMocks.me.mockResolvedValue(userInfo)
     apiMocks.listOrganizations.mockResolvedValue([
       { id: "org-personal", name: "admin", slug: "personal-1" },
       { id: "org-team", name: "团队", slug: "team" }
     ])
     apiMocks.defaultContext.mockResolvedValue(defaultContext)
+    apiMocks.listWorkspaces.mockResolvedValue({ list: [], total: 0 })
   })
 
   it("当前无有效上下文时选择当前用户的默认工作区", async () => {
@@ -87,22 +98,23 @@ describe("useAuth 默认工作区初始化", () => {
       await result.current.checkAuth()
     })
 
-    expect(useOrgStore.getState().currentOrgId).toBe("org-personal")
-    expect(useOrgStore.getState().currentWorkspace).toEqual({
-      id: "workspace-default",
-      name: "默认工作区",
-      orgId: "org-personal"
+    expect(useOrgStore.getState().currentScope).toEqual({
+      kind: "workspace",
+      orgId: "org-personal",
+      workspaceId: "workspace-default"
     })
   })
 
-  it("当前已有具体工作区时保留用户选择", async () => {
-    useOrgStore.setState({
-      currentOrgId: "org-team",
-      currentWorkspace: {
-        id: "workspace-team",
-        name: "团队工作区",
-        orgId: "org-team"
-      }
+  it("当前已有有效具体工作区时保留用户选择", async () => {
+    const persistedScope = {
+      kind: "workspace",
+      orgId: "org-team",
+      workspaceId: "workspace-team"
+    } as const
+    window.localStorage.setItem("aaf-org-context:1", JSON.stringify(persistedScope))
+    apiMocks.listWorkspaces.mockResolvedValue({
+      list: [{ id: "workspace-team", orgId: "org-team", name: "团队工作区" }],
+      total: 1
     })
     const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() })
 
@@ -110,7 +122,6 @@ describe("useAuth 默认工作区初始化", () => {
       await result.current.checkAuth()
     })
 
-    expect(useOrgStore.getState().currentOrgId).toBe("org-team")
-    expect(useOrgStore.getState().currentWorkspace?.id).toBe("workspace-team")
+    expect(useOrgStore.getState().currentScope).toEqual(persistedScope)
   })
 })

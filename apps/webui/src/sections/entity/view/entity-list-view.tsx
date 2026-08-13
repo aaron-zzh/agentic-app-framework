@@ -9,9 +9,11 @@
 
 "use client"
 
+import { LockKeyhole } from "lucide-react"
 import Link from "next/link"
 import { Suspense, useEffect, useState } from "react"
 import { CustomBreadcrumbs } from "@/components/common/CustomBreadcrumbs"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { ViewEngine } from "@/features/entity-engine/components"
@@ -19,6 +21,7 @@ import type { ViewSettings } from "@/features/entity-engine/components/list"
 import { useResolvedEntity } from "@/features/entity-engine/hooks/use-resolved-entity"
 import type { EntityDef } from "@/features/entity-engine/types"
 import { paths } from "@/lib/constants/paths"
+import { selectScopeReadOnly, useOrgStore } from "@/lib/store/org-store"
 import { useUIStore } from "@/lib/store/ui-store"
 import { getListToolbarExtra } from "../list-toolbar-extras"
 import { RecordPanel } from "../RecordPanel"
@@ -35,8 +38,9 @@ export function EntityListView({ entity, view }: Props) {
   const recordPanelQueryToken = useUIStore((s) => s.recordPanelQueryToken)
   const openRecordPanel = useUIStore((s) => s.openRecordPanel)
   const close = useUIStore((s) => s.closeRecordPanel)
-  const canCreate = entity.access?.create !== false
-  const extraAction = getListToolbarExtra(entity.slug)
+  const scopeReadOnly = useOrgStore(selectScopeReadOnly)
+  const canCreate = !scopeReadOnly && entity.access?.create !== false
+  const extraAction = scopeReadOnly ? null : getListToolbarExtra(entity.slug)
 
   // 物化带 dictType 的 select 字段，Toolbar（筛选/搜索）与 ViewEngine（表格/表单渲染）共享同一份结果
   const resolvedEntity = useResolvedEntity(entity)
@@ -59,7 +63,12 @@ export function EntityListView({ entity, view }: Props) {
       <CustomBreadcrumbs
         links={[{ name: "首页", href: paths.workspace.root }, { name: entity.label }]}
         action={
-          extraAction || canCreate ? (
+          scopeReadOnly ? (
+            <Badge variant="secondary">
+              <LockKeyhole className="size-3" />
+              聚合范围只读
+            </Badge>
+          ) : extraAction || canCreate ? (
             <div className="flex items-center gap-2">
               {extraAction}
               {canCreate && (
@@ -85,7 +94,12 @@ export function EntityListView({ entity, view }: Props) {
           />
         </Suspense>
         <div className="flex min-h-0 shrink flex-col overflow-hidden">
-          <ViewEngine entity={entity} view={view} viewSettings={viewSettings} />
+          <ViewEngine
+            entity={entity}
+            view={view}
+            viewSettings={viewSettings}
+            readOnly={scopeReadOnly}
+          />
         </div>
       </Card>
     </div>

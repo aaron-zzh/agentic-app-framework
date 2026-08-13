@@ -19,7 +19,7 @@ import com.xuejiai.aaf.module.knowledge.vo.KnowledgeGraphVO.GraphProjectionStatu
 
 class KnowledgeBaseControllerTest {
 
-    private static final String ADMIN_ONLY = "hasAnyRole('ADMIN', 'SUPER_ADMIN')";
+    private static final String ADMIN_ONLY = "hasAnyRole('ORG_ADMIN', 'ADMIN', 'SUPER_ADMIN')";
 
     @Test
     @DisplayName("Given 图投影运维接口 When 检查方法权限 Then 仅允许管理员角色")

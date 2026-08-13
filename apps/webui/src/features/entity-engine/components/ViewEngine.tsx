@@ -138,7 +138,13 @@ function ViewEngineInner({
   // 内置视图
   switch (view) {
     case "list":
-      return <ConnectedListView entity={resolvedEntity} viewSettings={viewSettings} />
+      return (
+        <ConnectedListView
+          entity={resolvedEntity}
+          viewSettings={viewSettings}
+          readOnly={readOnly}
+        />
+      )
     case "kanban":
       return <KanbanView entity={resolvedEntity} />
     case "form":
@@ -168,10 +174,12 @@ function ViewEngineInner({
 /** 列表视图——连接数据层 + URL 状态 */
 function ConnectedListView({
   entity,
-  viewSettings
+  viewSettings,
+  readOnly
 }: {
   entity: EntityDef
   viewSettings?: ViewSettings
+  readOnly?: boolean
 }) {
   const [params, setParams] = useEntitySearchParams()
   const [filters] = useFilterParams()
@@ -212,6 +220,7 @@ function ConnectedListView({
       onSortingChange={onSortingChange}
       sortableFields={sortableFields}
       queryToken={queryToken}
+      readOnly={readOnly}
     />
   )
 }
@@ -290,7 +299,7 @@ function ConnectedFormView({
         />
       )}
       {detail}
-      {!Override && entity.workflow && recordId && (
+      {!isReadOnly && !Override && entity.workflow && recordId && (
         <EntityApproval config={entity.workflow} entityId={recordId} currentUserId="current-user" />
       )}
     </div>

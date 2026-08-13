@@ -142,6 +142,14 @@ function shouldNotifyError(
   return true
 }
 
+function isAggregateReadRequest(config: InternalAxiosRequestConfig): boolean {
+  const method = config.method?.toUpperCase() ?? "GET"
+  if (method === "GET") return true
+  if (method !== "POST") return false
+  const path = config.url?.split("?", 1)[0] ?? ""
+  return /^\/system\/dashboards\/widgets\/[^/]+\/data$/.test(path)
+}
+
 backendClient.interceptors.request.use((config) => {
   // 认证与登录合规接口不属于任何组织；移除持久化 store 写入的默认组织/工作区 Header，避免
   // 被上一次选择的组织或全组织上下文污染
@@ -152,6 +160,12 @@ backendClient.interceptors.request.use((config) => {
   if (organizationIndependent) {
     config.headers.delete("X-Org-Id")
     config.headers.delete("X-Workspace-Id")
+  }
+
+  const orgId = String(config.headers.get("X-Org-Id") ?? "")
+  const workspaceId = String(config.headers.get("X-Workspace-Id") ?? "")
+  if ((orgId === "all" || workspaceId === "all") && !isAggregateReadRequest(config)) {
+    throw new ApiError(403, "聚合范围仅支持读取")
   }
 
   const authorization = axios.defaults.headers.common.Authorization
@@ -192,7 +206,9 @@ backendClient.interceptors.response.use(
     }
     return response
   },
-  async (error: AxiosError<ApiResult<unknown>>) => {
+  async (error: AxiosError<ApiResult<unknown>> | ApiError) => {
+    if (error instanceof ApiError) throw error
+
     const response = error.response
     const config = error.config as RetriableConfig | undefined
 

@@ -282,7 +282,6 @@ class CrudEnforcementServiceTest extends BaseMockitoUnitTest {
         // 准备参数
         OrgContext.setCurrentOrgId(31L);
         OrgContext.useAllWorkspaces();
-        when(authorizationService.isCurrentSubjectSuperAdmin()).thenReturn(true);
         when(authorizationService.authorize(any())).thenReturn(allowedCrudDecision(Map.of()));
         when(definition.tenantScope()).thenReturn(TenantScope.WORKSPACE_REQUIRED);
         var root = mock(Root.class);

@@ -31,7 +31,7 @@ vi.mock("@/lib/api/rest/entity", async (importOriginal) => {
   }
 })
 
-import type { PageResult } from "@/lib/api/rest/entity"
+import { entityQueryWindowKey, type PageResult } from "@/lib/api/rest/entity"
 import type { EntityDef, FormViewOverrideProps } from "@/lib/types/entity"
 import { RecordWindowNavigationControls, ViewEngine } from "./ViewEngine"
 
@@ -58,16 +58,19 @@ function renderWithQueryClient(ui: ReactElement, queryClient = createQueryClient
 }
 
 function seedQueryWindow(queryClient: QueryClient) {
-  queryClient.setQueryData<PageResult<Record<string, unknown>>>(["test", "queryWindow", {}], {
-    list: [{ id: "1" }, { id: "2" }, { id: "3" }],
-    total: 3,
-    pageNo: 1,
-    pageSize: 3,
-    ids: [1, 2, 3],
-    queryToken: "window-1",
-    fieldSet: "list",
-    hasMore: false
-  })
+  queryClient.setQueryData<PageResult<Record<string, unknown>>>(
+    entityQueryWindowKey(mockEntity as EntityDef, {}),
+    {
+      list: [{ id: "1" }, { id: "2" }, { id: "3" }],
+      total: 3,
+      pageNo: 1,
+      pageSize: 3,
+      ids: [1, 2, 3],
+      queryToken: "window-1",
+      fieldSet: "list",
+      hasMore: false
+    }
+  )
 }
 
 describe("ViewEngine", () => {

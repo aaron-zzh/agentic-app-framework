@@ -12,8 +12,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 
-import com.xuejiai.aaf.framework.storage.FileService;
 import com.xuejiai.aaf.framework.storage.StorageProperties;
+import com.xuejiai.aaf.module.system.file.api.FileStoragePort;
 import com.xuejiai.aaf.framework.storage.StorageService;
 import com.xuejiai.aaf.module.system.file.domain.FileRecord;
 import com.xuejiai.aaf.module.system.file.service.FileRecordService;
@@ -24,7 +24,7 @@ class FileControllerTest {
     @DisplayName("Given 文件记录包含中文原始名称 When 下载文件 Then 响应头返回编码后的原始名称")
     void should_use_encoded_original_name_when_downloading_file() {
         // 准备参数
-        var fileService = mock(FileService.class);
+        var fileService = mock(FileStoragePort.class);
         var storageService = mock(StorageService.class);
         var fileRecordService = mock(FileRecordService.class);
         var storageProperties = mock(StorageProperties.class);
@@ -53,7 +53,7 @@ class FileControllerTest {
     @DisplayName("Given 文件原始名称为空 When 下载文件 Then 使用存储 key 作为回退名称")
     void should_fallback_to_key_when_original_name_is_blank() {
         // 准备参数
-        var fileService = mock(FileService.class);
+        var fileService = mock(FileStoragePort.class);
         var storageService = mock(StorageService.class);
         var fileRecordService = mock(FileRecordService.class);
         var storageProperties = mock(StorageProperties.class);

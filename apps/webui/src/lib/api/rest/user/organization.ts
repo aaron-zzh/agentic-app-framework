@@ -47,9 +47,12 @@ export interface OrgMemberVO {
 
 /** 更新组织请求 */
 export interface OrgUpdateReq {
-  name?: string
-  slug?: string
-  logo?: string
+  name: string
+}
+
+/** 更新工作区请求 */
+export interface WorkspaceUpdateReq {
+  name: string
 }
 
 /** 添加成员请求 */
@@ -89,14 +92,20 @@ export const organizationApi = {
 }
 
 export const workspaceApi = {
-  /** 获取可切换工作区；super_admin 可用 all 一次加载全部组织工作区。 */
+  /** 获取可切换工作区；聚合范围用 all 一次加载全部可访问组织工作区。 */
   list: (orgId: string, allOrganizations: boolean) =>
     backendApi.get<PageResult<WorkspaceVO>>("/system/workspaces", {
-      params: { pageNo: 1, pageSize: -1, sort: "id:asc" },
+      params: { pageNo: 1, pageSize: -1, sort: "id:asc", memberOnly: true },
       headers: {
         "X-Org-Id": allOrganizations ? "all" : orgId,
         "X-Workspace-Id": ""
       }
+    }),
+
+  /** 更新工作区显示名称。 */
+  update: (id: string, orgId: string, data: WorkspaceUpdateReq) =>
+    backendApi.put<WorkspaceVO>(`/system/workspaces/${id}`, data, {
+      headers: { "X-Org-Id": orgId, "X-Workspace-Id": id }
     })
 }
 
@@ -131,6 +140,16 @@ export function useUpdateOrganization() {
     mutationFn: ({ id, data }: { id: string; data: OrgUpdateReq }) =>
       organizationApi.update(id, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.orgs })
+  })
+}
+
+/** 更新工作区显示名称。 */
+export function useUpdateWorkspace() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, orgId, data }: { id: string; orgId: string; data: WorkspaceUpdateReq }) =>
+      workspaceApi.update(id, orgId, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["workspaces"] })
   })
 }
 

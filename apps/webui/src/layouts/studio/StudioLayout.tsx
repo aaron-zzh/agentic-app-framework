@@ -406,7 +406,7 @@ function StudioContent({ children }: { children: React.ReactNode }) {
 
 export function StudioLayout({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient()
-  const setOrgContext = useOrgStore((state) => state.setOrgContext)
+  const setScope = useOrgStore((state) => state.setScope)
   const [scopeReady, setScopeReady] = useState(false)
   const [contextError, setContextError] = useState(false)
   const [contextAttempt, setContextAttempt] = useState(0)
@@ -426,10 +426,10 @@ export function StudioLayout({ children }: { children: React.ReactNode }) {
       .defaultContext()
       .then(async (context) => {
         if (cancelled) return
-        setOrgContext(context.orgId, {
-          id: context.workspaceId,
-          name: context.workspaceName,
-          orgId: context.orgId
+        setScope({
+          kind: "workspace",
+          orgId: context.orgId,
+          workspaceId: context.workspaceId
         })
         await queryClient.invalidateQueries()
         if (!cancelled) setScopeReady(true)
@@ -441,7 +441,7 @@ export function StudioLayout({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [contextAttempt, queryClient, setOrgContext])
+  }, [contextAttempt, queryClient, setScope])
 
   const content = !scopeReady ? (
     contextError ? (

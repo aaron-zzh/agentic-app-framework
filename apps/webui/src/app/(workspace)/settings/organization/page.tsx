@@ -36,7 +36,9 @@ import {
 import { useOrgStore } from "@/lib/store/org-store"
 
 export default function OrganizationSettingsPage() {
-  const currentOrgId = useOrgStore((s) => s.currentOrgId)
+  const currentScope = useOrgStore((s) => s.currentScope)
+  const currentOrgId =
+    currentScope && currentScope.kind !== "all-organizations" ? currentScope.orgId : null
   const { data: orgs } = useOrganizations()
   const org = orgs?.find((o) => o.id === currentOrgId) ?? orgs?.[0]
 

@@ -39,6 +39,7 @@ interface ListViewProps {
   onSortingChange: OnChangeFn<SortingState>
   sortableFields: string[]
   queryToken?: string
+  readOnly?: boolean
 }
 
 export function ListView({
@@ -52,7 +53,8 @@ export function ListView({
   sorting,
   onSortingChange,
   sortableFields,
-  queryToken
+  queryToken,
+  readOnly = false
 }: ListViewProps) {
   const router = useRouter()
   const openRecordPanel = useUIStore((s) => s.openRecordPanel)
@@ -89,7 +91,9 @@ export function ListView({
   // viewSettings 覆盖 EntityDef.listView 中的对应字段
   // 拖拽排序必须有 orderField 才能开启
   const effectiveDraggable =
-    !!entity.listView.orderField && (viewSettings?.draggable ?? entity.listView.draggable ?? false)
+    !readOnly &&
+    !!entity.listView.orderField &&
+    (viewSettings?.draggable ?? entity.listView.draggable ?? false)
   const effectiveGroupBy = viewSettings?.groupBy ?? entity.listView.groupBy
   // enableSort 默认 true，viewSettings 可关闭
   const enableSort = viewSettings?.enableSort ?? true
@@ -154,6 +158,7 @@ export function ListView({
       columns={tableColumns}
       data={data}
       headerAction={columnConfigAction}
+      enableSelection={!readOnly}
       enableSort={enableSort}
       sorting={sorting}
       onSortingChange={onSortingChange}
@@ -180,7 +185,7 @@ export function ListView({
         else if (action === "detail") router.push(recordHref(entity.slug, id, queryToken))
       }}
       renderRowActions={
-        entity.access?.update !== false || entity.access?.delete !== false
+        !readOnly && (entity.access?.update !== false || entity.access?.delete !== false)
           ? (row) => <RowActions row={row} entity={entity} queryToken={queryToken} />
           : undefined
       }

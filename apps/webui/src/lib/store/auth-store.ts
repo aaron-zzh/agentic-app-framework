@@ -74,14 +74,15 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user) =>
         set((state) => {
           if (state.user?.id != null && state.user.id !== user.id) {
-            useOrgStore.getState().clearOrgContext()
+            useOrgStore.getState().clearOrgContext(state.user.id)
           }
           return { user }
         }),
 
       clearAuth: () => {
+        const currentUserId = useAuthStore.getState().user?.id
         clearAxiosAuth()
-        useOrgStore.getState().clearOrgContext()
+        useOrgStore.getState().clearOrgContext(currentUserId)
         syncTokenCookie(null)
         set({
           accessToken: null,

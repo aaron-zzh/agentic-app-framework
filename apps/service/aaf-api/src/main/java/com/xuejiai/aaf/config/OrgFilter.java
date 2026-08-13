@@ -96,9 +96,10 @@ public class OrgFilter implements Filter {
             var memberships =
                     OrgContext.runIgnoring(
                             () -> orgMemberRepository.findByUserIdAndDeletedFalse(userId));
-            var organizationIds = memberships.stream().map(member -> member.getOrgId()).toList();
-            if (organizationIds.isEmpty()) {
-                writeForbidden(response, "当前用户没有可访问组织");
+            var organizationIds =
+                    memberships.stream().map(member -> member.getOrgId()).distinct().toList();
+            if (organizationIds.size() < 2) {
+                writeForbidden(response, "至少加入两个组织后才能查看全部组织");
                 return false;
             }
             var managedOrgIds =
@@ -108,16 +109,14 @@ public class OrgFilter implements Filter {
                                             "owner".equals(member.getRole())
                                                     || "admin".equals(member.getRole()))
                             .map(member -> member.getOrgId())
+                            .distinct()
                             .toList();
             var workspaceIds =
                     new LinkedHashSet<>(
                             OrgContext.runIgnoring(
                                     () ->
-                                            workspaceMemberRepository
-                                                    .findByUserIdAndDeletedFalse(userId)
-                                                    .stream()
-                                                    .map(member -> member.getWorkspaceId())
-                                                    .toList()));
+                                            workspaceMemberRepository.findWorkspaceIdsByUserId(
+                                                    userId)));
             if (!managedOrgIds.isEmpty()) {
                 workspaceIds.addAll(
                         OrgContext.runIgnoring(
@@ -140,19 +139,21 @@ public class OrgFilter implements Filter {
         }
         // 未认证请求无法校验归属，交由后续鉴权链处理（如接口本身要求登录会在此之后拦截）
         var userId = operatorContext.currentOwnerId().orElse(null);
-        var isSuperAdmin = userId != null && authorizationService.isCurrentSubjectSuperAdmin();
         // 此刻 OrgContext 尚未设置 orgId（正在校验中），这次校验查询本身需豁免
         // OrgFilterAspect 的 fail-closed 检查，否则会陷入"为校验 orgId 而查询，
         // 却因缺少 orgId 被拦截"的自相矛盾。
-        var belongsToOrg =
+        var isOrgMember =
                 userId == null
-                        || isSuperAdmin
                         || OrgContext.runIgnoring(
                                 () ->
                                         orgMemberRepository.existsByOrgIdAndUserIdAndDeletedFalse(
                                                 orgId, userId));
-        if (userId != null && !belongsToOrg) {
-            writeForbidden(response, "您不属于该组织，无权访问");
+        var canReadAsSuperAdmin =
+                userId != null
+                        && authorizationService.isCurrentSubjectSuperAdmin()
+                        && isReadRequest(httpRequest);
+        if (!isOrgMember && !canReadAsSuperAdmin) {
+            writeForbidden(response, "您不属于该组织，无权执行此操作");
             return false;
         }
         OrgContext.setCurrentOrgId(orgId);
@@ -189,26 +190,30 @@ public class OrgFilter implements Filter {
         }
         var userId = operatorContext.currentOwnerId().orElse(null);
         var orgId = OrgContext.getCurrentOrgId();
-        var isSuperAdmin = userId != null && authorizationService.isCurrentSubjectSuperAdmin();
-        var belongsToWorkspace =
-                userId == null
-                        || isSuperAdmin
-                        || OrgContext.runIgnoring(
-                                () -> {
-                                    var workspace =
-                                            workspaceRepository.findById(workspaceId).orElse(null);
-                                    if (workspace == null
-                                            || (orgId != null
-                                                    && !orgId.equals(workspace.getOrgId()))) {
-                                        return false;
-                                    }
-                                    return workspaceMemberRepository
-                                            .existsByWorkspaceIdAndUserIdAndDeletedFalse(
-                                                    workspaceId, userId);
-                                });
-        if (userId != null && !belongsToWorkspace) {
-            writeForbidden(response, "您不属于该工作区，无权访问");
+        if (orgId == null) {
+            writeForbidden(response, "具体工作区必须绑定组织上下文");
             return false;
+        }
+        var workspace =
+                OrgContext.runIgnoring(
+                        () -> workspaceRepository.findById(workspaceId).orElse(null));
+        if (workspace == null || !orgId.equals(workspace.getOrgId())) {
+            writeForbidden(response, "工作区不属于当前组织");
+            return false;
+        }
+        if (userId != null) {
+            var isMember =
+                    OrgContext.runIgnoring(
+                            () ->
+                                    workspaceMemberRepository
+                                            .existsByWorkspaceIdAndUserIdAndDeletedFalse(
+                                                    workspaceId, userId));
+            var canReadAsSuperAdmin =
+                    authorizationService.isCurrentSubjectSuperAdmin() && isReadRequest(httpRequest);
+            if (!isMember && !canReadAsSuperAdmin) {
+                writeForbidden(response, "您不属于该工作区，无权执行此操作");
+                return false;
+            }
         }
         OrgContext.setCurrentWorkspaceId(workspaceId);
         return true;

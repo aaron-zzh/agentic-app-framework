@@ -18,4 +18,7 @@ public class WorkspacePageDTO extends PageParam {
 
     @Schema(description = "工作区名称（模糊搜索）")
     private String name;
+
+    @Schema(description = "是否仅返回当前用户实际加入的工作区")
+    private Boolean memberOnly;
 }

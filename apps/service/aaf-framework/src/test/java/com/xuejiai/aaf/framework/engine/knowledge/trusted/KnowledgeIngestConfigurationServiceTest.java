@@ -58,10 +58,12 @@ class KnowledgeIngestConfigurationServiceTest {
                         CapabilityRoutingContext.CAP_KNOWLEDGE_ENTITY_RESOLUTION))
                 .thenReturn(Optional.of(preference(List.of("resolve-model"))));
         when(modelRepository.findByModelIdAndEnabledTrue("disabled")).thenReturn(Optional.empty());
+        var extractionModel = chatModel("extract-model");
+        var resolutionModel = chatModel("resolve-model");
         when(modelRepository.findByModelIdAndEnabledTrue("extract-model"))
-                .thenReturn(Optional.of(chatModel("extract-model")));
+                .thenReturn(Optional.of(extractionModel));
         when(modelRepository.findByModelIdAndEnabledTrue("resolve-model"))
-                .thenReturn(Optional.of(chatModel("resolve-model")));
+                .thenReturn(Optional.of(resolutionModel));
 
         var snapshot = service.resolve();
 
