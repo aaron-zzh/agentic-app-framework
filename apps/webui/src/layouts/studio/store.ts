@@ -12,7 +12,7 @@
 
 import { create } from "zustand"
 import { createJSONStorage, persist } from "zustand/middleware"
-import type { StudioSection } from "../nav-config"
+import type { StudioSection } from "@/features/studio/nav-config"
 
 const MAX_TABS = 9
 

@@ -3,8 +3,8 @@ level: Practice
 layer: Model
 purpose: AAF 前端组件与目录规范，开发时查阅
 status: published
-version: 1.1.0
-date: 2026-05-17
+version: 1.2.0
+date: 2026-05-18
 author: AaronZZH
 gains:
   - 能正确组织前端目录和组件
@@ -15,52 +15,59 @@ gains:
 
 ## 目录约定
 
-```
-app/                  Next.js App Router 页面（路由即目录）
-  (auth)/             路由组，不影响 URL
-  chat/
-    page.tsx          页面组件（Server Component 优先）
-    layout.tsx
-components/           共享组件
-  ui/                 shadcn/ui 原语（CLI 生成 + 自写原子组件）
-  form/               表单控件（基于 ui/ 组合，value/onChange 接口）
-  common/             通用非表单组件（基于 ui/ 组合）
-features/
-  entity-engine/
-    components/
-      fields/         EntityDef 驱动的字段渲染器（消费 form/ + ui/）
-lib/
-  api/                API 客户端（按模块分文件）
-  hooks/              自定义 Hook（逻辑层）
-  utils/              工具函数
+```text
+apps/webui/src/
+├── app/                 Next.js App Router，仅负责路由声明与薄接线
+├── layouts/             跨页面应用壳，按 workspace/studio/marketing/auth/dev 等场景拆分
+├── sections/            页面级业务内容与 View 组装，按领域拆分
+├── features/            可复用业务能力
+├── components/          无业务语义的共享组件
+│   ├── ui/              shadcn/ui 原语（CLI 生成 + 自写原子组件）
+│   ├── form/            表单控件（基于 ui/ 组合，value/onChange 接口）
+│   └── common/          通用非表单组件（基于 ui/ 组合）
+└── lib/                 应用级基础能力
+    ├── api/             API 客户端（按模块分文件）
+    ├── hooks/           通用 Hook
+    └── utils/           工具函数
+packages/                跨应用共享包
 ```
 
 ### 组件分层依赖方向
 
+```text
+app/ → sections/ → features/ → components/ → lib/ → packages/
+  └──→ layouts/  → features/ → components/ → lib/ → packages/
 ```
-components/ui/   ←   components/form/   ←   features/entity-engine/components/fields/
-components/ui/   ←   components/common/
-```
+
+`layouts/` 与 `sections/` 是同级组装层，二者互不依赖。路由 `page.tsx` 接线 `sections/{domain}/view`，路由 `layout.tsx` 接线 `layouts/{shell}`。
 
 **各层职责**：
 
 | 层 | 位置 | 职责 | 接口特征 |
 |----|------|------|---------|
-| `ui/` | `components/ui/` | shadcn 原语 + 自写原子组件，无状态，无业务语义 | 纯 props |
-| `form/` | `components/form/` | 表单输入控件，可有内部 UI 状态，无业务语义 | `value / onChange / error / disabled` |
-| `common/` | `components/common/` | 通用非表单组件，可有内部状态，无业务语义 | 按需 |
-| `fields/` | `features/entity-engine/components/fields/` | EntityDef 驱动的字段渲染器，消费 `form/` + `ui/` | `FieldProps`（含 `FieldDef`） |
+| 路由层 | `app/` | 路由声明、参数解析与薄接线 | 只导入对应 View 或 Layout |
+| 应用壳层 | `layouts/` | 跨页面 Header、Sidebar、Footer、Provider 与全局浮层组装 | 可消费 `features/components/lib`，不得消费 `sections` |
+| 页面组装层 | `sections/` | 页面级 View 与领域业务内容组装 | 可消费 `features/components/lib`，不得消费 `layouts` |
+| 业务能力层 | `features/` | 可被多个页面或壳复用的完整业务能力 | 业务语义明确，不依赖上层组装层 |
+| UI 原语层 | `components/ui/` | shadcn 原语 + 自写原子组件，无业务语义 | 纯 props |
+| 表单组件层 | `components/form/` | 表单输入控件，可有内部 UI 状态，无业务语义 | `value / onChange / error / disabled` |
+| 通用组件层 | `components/common/` | 通用非表单组件，可有内部状态，无业务语义 | 按需 |
+| 实体字段层 | `features/entity-engine/components/fields/` | EntityDef 驱动的字段渲染器，消费 `form/` + `ui/` | `FieldProps`（含 `FieldDef`） |
 
-**新组件放哪——判断树**：
+**新代码放哪——判断树**：
 
-```
-需要新组件？
+```text
+需要新增代码？
+├─ Next.js 路由入口 → app/（只接线）
+├─ 跨页面应用壳 → layouts/{shell}/
+├─ 页面 View 或领域业务组装 → sections/{domain}/view/
+├─ 可复用完整业务能力 → features/{domain}/
 ├─ shadcn/ui 有 → pnpm dlx shadcn add xxx → components/ui/   ← 优先
 ├─ 原子级 UI，无状态，无业务语义 → components/ui/（自写）
 ├─ 表单输入控件（value/onChange 接口） → components/form/
 ├─ 通用非表单，无业务语义 → components/common/
 ├─ 需要 FieldDef，EntityDef 驱动 → features/entity-engine/components/fields/
-└─ 有业务语义（知道具体业务概念） → features/ 或 sections/
+└─ 跨应用共享基础能力 → packages/
 ```
 
 ## 状态管理
@@ -82,32 +89,39 @@ components/ui/   ←   components/common/
 
 **判断标准**：如果 `useState` 的 setter 只用于 `true/false/toggle`、tab 切换、或对象部分更新，必须用对应的 `@aaf/hooks`。自定义业务逻辑的状态仍用 `useState`。
 
-## 组件三层分离
+## 组件与页面分层
 
-中等以上复杂度的组件必须分离为三层：
+中等以上复杂度的页面能力必须分离逻辑、UI 与业务组装；应用壳和路由入口再分别落入 `layouts/` 与 `app/`：
 
 | 层 | 职责 | 位置 | 关心什么 |
 |----|------|------|---------|
-| **逻辑层**（hook） | 状态管理、API 调用、数据转换 | `lib/hooks/` 或 `packages/core/` | 不关心 UI 长什么样 |
-| **UI 层**（组件） | 渲染、样式、布局、动画、无障碍 | `components/` | 不关心数据从哪来 |
-| **业务层**（页面） | 组装逻辑 + UI，传递 props | `app/` 页面文件 | 不关心实现细节 |
+| **逻辑层**（hook） | 状态管理、API 调用、数据转换 | `features/{domain}/hooks/`、`lib/hooks/` 或 `packages/` | 不关心 UI 长什么样 |
+| **UI 层**（组件） | 渲染、样式、布局、动画、无障碍 | `components/` 或 `features/{domain}/components/` | 不关心路由如何组织 |
+| **业务组装层**（View） | 组装逻辑 + UI，传递 props | `sections/{domain}/view/` | 页面业务内容 |
+| **应用壳层**（Layout） | 组装跨页面 Header、Sidebar、Provider 等 | `layouts/{shell}/` | 应用壳结构，不关心页面业务内容 |
+| **路由层** | 解析路由并接线 View 或 Layout | `app/**/page.tsx`、`app/**/layout.tsx` | 路由声明，不承载业务实现 |
 
 ```tsx
 // ✅ 逻辑层：可复用、可测试、可跨端共享
 function useChatMessages(agentId: string) {
-  const { messages, append, stop } = useChat({ api: `/api/chat/${agentId}` });
-  return { messages, send: append, stop };
+  const { messages, append, stop } = useChat({ api: `/api/chat/${agentId}` })
+  return { messages, send: append, stop }
 }
 
 // ✅ UI 层：纯渲染，通过 props 接收数据
 function ChatPanel({ messages, onSend, onStop }: ChatPanelProps) {
-  return (/* JSX */);
+  return (/* JSX */)
 }
 
-// ✅ 业务层：页面组装
-export default function AgentChatPage({ params }: { params: { id: string } }) {
-  const chat = useChatMessages(params.id);
-  return <ChatPanel messages={chat.messages} onSend={chat.send} onStop={chat.stop} />;
+// ✅ sections/agent/view/AgentChatView.tsx：页面业务组装
+export function AgentChatView({ agentId }: { agentId: string }) {
+  const chat = useChatMessages(agentId)
+  return <ChatPanel messages={chat.messages} onSend={chat.send} onStop={chat.stop} />
+}
+
+// ✅ app/agents/[id]/page.tsx：路由仅接线 View
+export default function AgentChatPage() {
+  return <AgentChatView agentId="example-agent" />
 }
 ```
 
@@ -115,8 +129,9 @@ export default function AgentChatPage({ params }: { params: { id: string } }) {
 - 简单组件（按钮/输入框/卡片）：不需要分离，直接写
 - 中等组件（对话面板/表单/列表）：抽 hook 分离逻辑
 - 复杂组件（工作流编辑器/协作面板）：必须分离，否则不可维护
+- `page.tsx` 与 `layout.tsx`：只做路由接线，业务组装分别下沉到 `sections/` 与 `layouts/`
 
-**禁止**：在 UI 组件内直接调用 API、直接操作 store、包含业务判断逻辑。
+**禁止**：在无业务语义的共享 UI 组件内直接调用 API、直接操作业务 store 或包含业务判断逻辑。
 
 **表单控件的逻辑分离规则**：
 
@@ -130,20 +145,24 @@ export default function AgentChatPage({ params }: { params: { id: string } }) {
 
 ## 组件规范
 
-- 页面级组件（`page.tsx`）默认 Server Component，需要交互时加 `'use client'`
+- 路由 `page.tsx` 默认保持 Server Component，并只接线 `sections/{domain}/view`
+- 客户端交互边界下沉到对应 View、feature 或共享组件，不因局部交互把整个 route page 改为 Client Component
 - 组件文件名 PascalCase：`ChatPanel.tsx`
 - 每个文件只导出一个组件
 
 ```tsx
-// ✅ Server Component（默认）
+// ✅ app/chat/page.tsx：Server Component 薄接线
 export default async function ChatPage() {
   const data = await fetchData()
-  return <ChatPanel data={data} />
+  return <ChatView data={data} />
 }
 
-// ✅ Client Component（需要时）
-'use client'
-export function ChatInput({ onSend }: Props) { ... }
+// ✅ sections/chat/view/ChatView.tsx：需要交互时由 View 声明客户端边界
+"use client"
+
+export function ChatView({ data }: ChatViewProps) {
+  return <ChatPanel data={data} />
+}
 ```
 
 ## API 调用规范

@@ -39,7 +39,7 @@
 
 | 文件 | 描述 | 工作量 |
 |------|------|--------|
-| `sections/layout/AppHeader.tsx` | 面包屑未自动生成 | 0.5d |
+| `layouts/workspace/AppHeader.tsx` | 面包屑未自动生成 | 0.5d |
 | `app/(workspace)/admin/.../page.tsx` | 用户 ID 未从 auth store 获取 | 0.5d |
 
 ## 架构层面债务

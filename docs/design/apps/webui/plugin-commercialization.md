@@ -3,8 +3,8 @@ level: Practice
 layer: Product
 purpose: AAF 插件商业化设计——付费插件的定义、控制机制与技术实现
 status: draft
-version: 1.0.0
-date: 2026-05-13
+version: 1.0.1
+date: 2026-08-13
 author: AaronZZH
 ---
 
@@ -245,7 +245,7 @@ public Mono<Result> listSessions(...) { ... }
 ## 五、侧边栏菜单控制
 
 ```typescript
-// sections/layout/AppSidebar.tsx
+// layouts/workspace/AppSidebar.tsx
 // 菜单项根据插件状态决定显示方式
 interface NavItem {
   label: string

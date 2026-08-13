@@ -1,5 +1,5 @@
 /**
- * WorkspaceLayout——工作区布局
+ * WorkspaceContent——工作区布局
  *
  * Chatter 布局策略：
  * - 默认 dialog（浮动按钮，右下角，不占页面宽度）
@@ -16,18 +16,18 @@ import type { PanelImperativeHandle } from "react-resizable-panels"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { FloatingChatter } from "@/features/chatter/layout/FloatingChatter"
 import { GlobalDndContext } from "@/features/dnd/GlobalDndContext"
+import { EntityMetadataGate } from "@/features/entity-engine/components/EntityMetadataGate"
 import { setBackendScope } from "@/lib/api/rest/backend-client"
 import { useChatterStore } from "@/lib/store/chatter-store"
-import { AppHeader } from "@/sections/layout/AppHeader"
-import { AppSidebar } from "@/sections/layout/AppSidebar"
-import { EntityMetadataGate } from "./EntityMetadataGate"
+import { AppHeader } from "./AppHeader"
+import { AppSidebar } from "./AppSidebar"
 
-interface WorkspaceLayoutProps {
+interface WorkspaceContentProps {
   children: ReactNode
 }
 
-/** 工作区壳层，在实体元数据成功注册前阻塞所有注册表消费者。 */
-export function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
+/** 工作区客户端壳体，在实体元数据成功注册前阻塞所有注册表消费者。 */
+export function WorkspaceContent({ children }: WorkspaceContentProps) {
   const open = useChatterStore((s) => s.open)
   const layoutOverride = useChatterStore((s) => s.layoutOverride)
   const mainPanelRef = useRef<PanelImperativeHandle>(null)
@@ -42,7 +42,7 @@ export function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
 
   // layoutOverride 优先，未声明时默认 dialog（浮动）
   const isPanelMode = (layoutOverride ?? "dialog") === "panel"
-  // page 模式：页面自己完全管理 Chatter，WorkspaceLayout 不渲染任何 Chatter UI
+  // page 模式：页面自己完全管理 Chatter，WorkspaceContent 不渲染任何 Chatter UI
   const isPageMode = layoutOverride === "page"
 
   // panel 模式下 open 变化时调整主面板宽度

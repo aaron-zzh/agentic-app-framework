@@ -19,7 +19,7 @@ import {
   buildOfficialNavConfig,
   type NavGroup,
   type NavItem
-} from "@/sections/layout/nav-config"
+} from "./nav-config"
 
 /** 侧边栏切换按钮（移动端弹出 Sheet） */
 export function MobileNav() {

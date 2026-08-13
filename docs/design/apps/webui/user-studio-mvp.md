@@ -3,10 +3,11 @@ level: Practice
 layer: Product
 purpose: User Studio v0.1 MVP 完整设计——驾驶舱 + 五度空间多 tab + 助理常驻 + 全功能闭环
 status: published
-version: 0.2.2
-date: 2026-07-26
+version: 0.2.3
+date: 2026-08-13
 author: AaronZZH & Kiro
 changelog:
+  - 2026-08-13 | v0.2.3 Studio 壳与多 tab 状态迁入 layouts/studio
   - 2026-07-26 | v0.2.2 更新 Content Studio 产品设计入口与项目图谱/结构双视图描述
   - 2026-07-24 | v0.2.1 增加 Content Studio 企业广告与 OPC 创作演进方案入口
   - 2026-06-22 | v0.2.0 全功能完整化：补全多模型生图（3 国内 + 3 国外）/ 视频 2 模型 / 智能体技能矩阵 / 爆款 4 步 / 数据资产 4 类 / 助理装扮库存 / 项目资源 M:N 关联 / 其他小工具（logo/天气/热点/会议/画像）/ 模型能力收费说明；五度空间升级为多 tab 切换交互；D7 文档管理基础版（不上 PARA）；数据隔离硬约束（按 user_id 过滤）；后端缺口清单
@@ -153,7 +154,7 @@ User Studio 是**项目驱动 + 助理常驻 + 五度空间多 tab** 的 AI 创�
 状态结构：
 
 ```ts
-// features/studio/shell/store.ts
+// layouts/studio/store.ts
 interface StudioTab {
   id: string                    // 唯一 id（创建时生成）
   section: 'create' | 'projects' | 'assets' | 'knowledge' | 'me'
@@ -341,8 +342,8 @@ Web 响应式而非独立 H5。断点：
 
 ```text
 apps/webui/src/
-├── app/studio/                      ← 新建普通目录（不用路由组）
-│   ├── layout.tsx                   ← 驾驶舱外壳（侧栏 + 顶栏 + Tab Bar + 助理浮球）
+├── app/studio/                      ← 普通路由目录（不用路由组）
+│   ├── layout.tsx                   ← Server Component 薄接线，仅渲染 StudioLayout
 │   ├── page.tsx                     ← 默认重定向到 create
 │   ├── create/                      ← 创作（5 sub-tabs）
 │   ├── projects/                    ← 项目列表 / 工作台
@@ -351,11 +352,18 @@ apps/webui/src/
 │   ├── knowledge/                   ← 知识空间 3 类
 │   ├── me/                          ← 个人中心 6 类
 │   └── chat/                        ← 助理全屏
-├── features/studio/                 ← 驾驶舱专属逻辑
-│   ├── shell/                       ← 外壳（Sidebar/Topbar/TabBar/AssistantDock + Zustand store）
+├── layouts/studio/                  ← 驾驶舱应用壳
+│   ├── StudioLayout.tsx             ← 侧栏 + 顶栏 + Tab Bar + 助理浮球组装
+│   ├── StudioRouteSync.tsx          ← 路由与多 tab 状态同步
+│   ├── StudioSidebar.tsx
+│   ├── StudioTopbar.tsx
+│   ├── StudioTabBar.tsx
+│   ├── SidebarCollapseButton.tsx
+│   └── store.ts                     ← 壳私有 Zustand UI 状态
+├── features/studio/                 ← 驾驶舱可复用业务能力
 │   ├── home/                        ← 首屏组件（DataCapsule / ChatLauncher / ProjectGrid）
 │   ├── theme/                       ← 主题切换 token
-│   ├── nav-config.ts                ← 五度空间配置
+│   ├── nav-config.ts                ← 五度空间业务配置
 │   └── tools/                       ← 小工具箱（logo / weather / extract / hot / meeting / profile）
 └── components/studio/               ← 风格层基础组件
     ├── GlassCard.tsx

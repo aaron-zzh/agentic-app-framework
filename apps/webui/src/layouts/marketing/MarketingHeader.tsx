@@ -7,12 +7,12 @@
 
 import Link from "next/link"
 import { Brand } from "@/components/brand/Brand"
+import { ThemeToggle } from "@/components/common/ThemeToggle"
 import { Button } from "@/components/ui/button"
 import { paths } from "@/lib/constants/paths"
 import { useScrollOffset } from "@/lib/hooks/use-scroll-offset"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { cn } from "@/lib/utils/cn"
-import { ThemeToggle } from "./HeaderActions"
 
 const navLinks = [
   { label: "产品", href: "/" },

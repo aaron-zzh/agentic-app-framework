@@ -20,9 +20,9 @@ import { useResolvedEntity } from "@/features/entity-engine/hooks/use-resolved-e
 import type { EntityDef } from "@/features/entity-engine/types"
 import { paths } from "@/lib/constants/paths"
 import { useUIStore } from "@/lib/store/ui-store"
-import { Toolbar } from "@/sections/layout/Toolbar"
 import { getListToolbarExtra } from "../list-toolbar-extras"
 import { RecordPanel } from "../RecordPanel"
+import { Toolbar } from "../Toolbar"
 
 interface Props {
   entity: EntityDef

@@ -2,7 +2,7 @@
  * LanguageSwitcher——语言切换器
  * @author AaronZZH & Kiro
  *
- * 放置在 AppHeader 用户菜单区域，通过 DropdownMenu 切换语言。
+ * 通用语言切换入口，通过 DropdownMenu 切换语言。
  * 切换时调用 setUserLocale server action 写入 cookie，通过 router.refresh() 触发服务端重渲染。
  */
 

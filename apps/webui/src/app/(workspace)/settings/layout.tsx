@@ -24,9 +24,9 @@ import { usePathname, useRouter } from "next/navigation"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import { LicensePlanBadge } from "@/features/billing/components/LicensePlanBadge"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { cn } from "@/lib/utils/cn"
-import { LicensePlanBadge } from "@/sections/layout/LicensePlanBadge"
 
 // ─── 导航配置（对标参考：General / Billing / Notifications / Social Links / Security）
 

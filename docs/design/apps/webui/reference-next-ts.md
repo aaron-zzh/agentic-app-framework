@@ -1,3 +1,15 @@
+---
+level: Reality
+layer: Pattern
+purpose: 分析 next-ts 的目录与布局模式及其在 AAF WebUI 中的采纳方式
+status: published
+version: 1.1.0
+date: 2026-08-13
+author: AaronZZH
+changelog:
+  - 2026-08-13 | 采纳独立 layouts 应用壳层并同步目录映射
+---
+
 # next-ts 参考项目分析
 
 > next-ts 是一个基于 MUI + App Router。本文分析其目录结构、路由设计、布局系统和表单组件模式，提炼对 AAF webui 的借鉴价值。
@@ -93,9 +105,9 @@ layouts/
 - 布局组件支持通过 settings context 动态切换导航模式
 
 **AAF 借鉴**：
-- AAF 使用 Next.js 路由组 `(workspace)/(canvas)/(auth)` 的 layout.tsx 实现布局切换，比 next-ts 的手动 Layout 组件更原生
-- 但 next-ts 的 **CSS 变量驱动布局尺寸** 和 **导航配置数据分离** 值得借鉴
-- AAF 可在 `sections/layout/` 中采用类似的 slot 组合模式构建 AppSidebar/AppHeader
+- AAF 使用 Next.js 路由组 `(workspace)/(canvas)/(auth)` 的 layout.tsx 选择应用壳，比 next-ts 的运行时手动切换更原生
+- AAF 采用独立 `layouts/` 承载 workspace、studio、marketing、auth 等壳层实现，路由 layout.tsx 仅负责接线
+- CSS 变量驱动布局尺寸和导航配置数据分离继续沿用；slot 原语仅在单个复杂壳层内按需抽取
 
 ### 2.4 路由常量集中管理
 
@@ -190,7 +202,7 @@ auth/
 | `app/` | `app/` | 一致，AAF 额外使用路由组 `(workspace)/(canvas)/(auth)` |
 | `sections/` | `sections/` | AAF 已采用。next-ts 有 `view/` 子目录模式 |
 | `components/` | `components/` | 一致。next-ts 按功能域分子目录（hook-form/table/upload） |
-| `layouts/` | `sections/layout/` + 路由组 layout.tsx | AAF 用 Next.js 原生路由组替代手动 Layout 组件 |
+| `layouts/` | `layouts/` + 路由组 layout.tsx | 独立壳层实现；Next.js 路由组负责选择和接线 |
 | `auth/` | `lib/auth/` | AAF 放在 lib/ 下，next-ts 作为顶层目录 |
 | `routes/paths.ts` | `lib/constants/` | AAF 可引入集中路由常量 |
 | `actions/` | `lib/api/` + Server Actions | AAF 用 lib/api/ 做 fetch 封装，Server Actions 按需在 app/ 中定义 |
@@ -208,6 +220,7 @@ auth/
 |--------|------|
 | 路由层极薄 | page.tsx 仅 metadata + View 引用 |
 | sections 按领域组织 | 每个业务域一个目录 |
+| layouts 独立壳层 | 路由 layout.tsx 与壳层组件实现分离 |
 | `_mock/` 前缀约定 | 内部/开发用目录 |
 | 表单用 react-hook-form + zod | 技术选型一致 |
 | 认证 guard 模式 | AuthGuard / GuestGuard |
@@ -222,7 +235,7 @@ auth/
 | **schemaUtils 工厂** | `schemaUtils.email()` / `schemaUtils.file()` | `lib/schemas/utils.ts` 提供常用 schema 工厂 | P1（v0.1） |
 | **路由常量集中** | `routes/paths.ts` 含动态路由函数 | `lib/constants/paths.ts` 集中定义 | P1（v0.1） |
 | **CSS 变量驱动布局** | `--layout-nav-vertical-width` 等 | `global.css` 中定义布局 CSS 变量 | P1（v0.1） |
-| **导航配置数据分离** | `nav-config-dashboard.tsx` 纯数据文件 | `sections/layout/nav-config.ts` 分离导航数据 | P1（v0.1） |
+| **导航配置数据分离** | `nav-config-dashboard.tsx` 纯数据文件 | `layouts/workspace/nav-config.ts` 分离导航数据 | P1（v0.1） |
 | **创建/编辑表单复用** | `*-create-edit-form.tsx` 同一组件 | sections 中表单组件命名 `*-form.tsx`，通过 props 区分创建/编辑 | P2 |
 
 ### 4.3 不采纳（AAF 有更好方案）
@@ -230,20 +243,20 @@ auth/
 | next-ts 做法 | AAF 选择 | 理由 |
 |-------------|---------|------|
 | MUI 组件库 | shadcn/ui + Tailwind | 零依赖锁定、RSC 友好、体积更小 |
-| 手动 Layout 组件 | Next.js 路由组 layout.tsx | 更原生、自动代码分割 |
+| 运行时手动选择 Layout | Next.js 路由组 layout.tsx | 更原生、自动代码分割；壳层实现仍位于 `layouts/` |
 | axios 请求库 | 原生 fetch + graphql-request | Next.js 扩展 fetch 有缓存/重验证能力 |
-| `layouts/` 顶层目录 | `sections/layout/` | AAF 布局是 sections 的一种，不需要独立顶层 |
 | 无 features 层 | `features/` 复合功能模块 | AAF 有流程图/富文本等复杂引擎需求 |
 
 ## 五、总结
 
 next-ts 是一个成熟的管理后台框架，其核心优势在于**清晰的分层**和**表单组件体系**。AAF 的目录结构已借鉴了其大部分架构理念（路由薄层、sections 按域、组件分层），在此基础上 AAF 额外引入了 `features/` 层和 `providers/` 层以应对 AI 原生应用的复杂度。
 
-最值得 AAF 在 v0.1 实现中直接落地的是：
-1. **Field 命名空间 + Form 包装器 + schemaUtils** — 表单开发效率提升
-2. **路由常量集中管理** — 路径变更安全
-3. **CSS 变量驱动布局尺寸** — 主题/响应式灵活
-4. **导航配置数据分离** — 菜单可动态化
+最值得 AAF 在后续演进中持续落地的是：
+1. **独立 layouts 应用壳层** — 路由边界与壳层实现分离
+2. **Field 命名空间 + Form 包装器 + schemaUtils** — 表单开发效率提升
+3. **路由常量集中管理** — 路径变更安全
+4. **CSS 变量驱动布局尺寸** — 主题/响应式灵活
+5. **导航配置数据分离** — 菜单可动态化
 
 ---
 

@@ -28,7 +28,7 @@
 
 | 文件 | 行号 | 内容 | 优先级 |
 |------|------|------|--------|
-| `sections/layout/AppHeader.tsx` | 146 | 面包屑根据路由自动生成 | P2 |
+| `layouts/workspace/AppHeader.tsx` | 146 | 面包屑根据路由自动生成 | P2 |
 | `app/(workspace)/admin/.../page.tsx` | 32 | 从 auth store 获取当前用户 ID | P1 |
 
 ## Error Boundary 覆盖分析

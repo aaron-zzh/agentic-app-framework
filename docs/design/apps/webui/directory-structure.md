@@ -3,10 +3,12 @@ level: Practice
 layer: Product
 purpose: AAF 前端目录结构设计（apps/webui + packages/）
 status: draft
-version: 2.2.0
-date: 2026-08-02
+version: 2.4.0
+date: 2026-08-13
 author: AaronZZH
 changelog:
+  - 2026-08-13 | v2.4 落地 Workspace/Studio 场景壳与 Notifications 业务能力目录边界
+  - 2026-08-13 | v2.3 新增独立 layouts 应用壳层，统一 View 归属与依赖方向
   - 2026-08-02 | v2.2 补充可复用技术引擎类 Nx library 边界，并登记 knowledge-visualization
   - 2026-05-14 | v2.1 借鉴 next-ts：表单体系（Form/Field/schemaUtils）、sections/view/ 子目录、路由常量集中、CSS 变量布局、导航配置分离
   - 2026-05-13 | v2.0 重写：增加 features/ 层、依赖方向规则、插件门控、Nx 边界约束
@@ -26,26 +28,24 @@ changelog:
 | **结构化视图模式** | Action/View | 数据驱动的列表/表单/看板视图，菜单导航，CRUD | `app/(workspace)/` |
 | **生成式交互模式** | AAF 一切皆文档/画板/对话 | 对话驱动 UI 生成，语义组件动态组装，画板自由布局 | `app/(canvas)/` |
 
-两种模式共享底层（components/ui/ + lib/ + features/），交互范式不同，不强行统一。
+两种模式共享底层（components/ui/ + lib/ + features/），由独立 layouts/ 提供各自应用壳层，交互范式不同，不强行统一。
 
 ### 1.2 分层与依赖方向
 
 ```text
-packages/  ←  features/  ←  sections/  ←  app/
-（共享层）    （功能层）     （区块层）     （路由层）
-                 ↑
-            components/  ←  sections/  ←  app/
-            （组件层）
-                 ↑
-              lib/       ←  所有层均可依赖
-            （逻辑层）
+app/
+├── sections/ → features/ → components/ → lib/ → packages/
+└── layouts/  → features/ → components/ → lib/ → packages/
 ```
 
+`sections/` 与 `layouts/` 是同级组装层：前者组装页面业务内容，后者组装跨页面应用壳；二者均由 `app/` 接线，互不依赖。
+
 **依赖方向规则**（单向，禁止反向引用）：
-- `app/` → 可引用 sections/ features/ components/ lib/
-- `sections/` → 可引用 features/ components/ lib/，禁止引用 app/
-- `features/` → 可引用 components/ lib/ packages/，禁止引用 sections/ app/
-- `components/` → 可引用 lib/ packages/，禁止引用 features/ sections/ app/
+- `app/` → 可引用 layouts/ sections/ features/ components/ lib/
+- `layouts/` → 可引用 features/ components/ lib/ packages/，禁止引用 sections/ app/
+- `sections/` → 可引用 features/ components/ lib/ packages/，禁止引用 layouts/ app/
+- `features/` → 可引用 components/ lib/ packages/，禁止引用 layouts/ sections/ app/
+- `components/` → 可引用 lib/ packages/，禁止引用 layouts/ features/ sections/ app/
 - `lib/` → 可引用 packages/，禁止引用 UI 层
 - `packages/` → 零内部依赖（仅依赖外部 npm 包）
 
@@ -53,9 +53,10 @@ packages/  ←  features/  ←  sections/  ←  app/
 
 | 层 | 职责 | 内部结构 | 示例 |
 |----|------|---------|------|
-| `app/` | 路由组织 + 页面组合，不含业务逻辑 | Next.js 约定文件 | page.tsx, layout.tsx |
+| `app/` | 路由组织与边界接线，不含业务逻辑 | Next.js 约定文件 | page.tsx, layout.tsx |
+| `layouts/` | 跨页面应用壳层，组合导航、侧栏、顶栏和全局功能入口 | 按应用壳分目录 | workspace/, studio/, marketing/, auth/ |
 | `features/` | 自成体系的复合功能模块，有内部插件/注册表 | components/ hooks/ lib/ types.ts | FlowEditor, RichTextEditor, Copilot |
-| `sections/` | 按业务域组织的复合组件，消费 features | 扁平组件文件 | ChatPage, DocumentEditor, FlowList |
+| `sections/` | 按业务域组织的页面复合组件，消费 features | view/ + 领域组件 | ChatView, DocumentEditorView, FlowListView |
 | `components/` | 无业务语义的纯 UI 组件 | 按形态分组 | ui/, common/, form/, assistant-ui/ |
 | `lib/` | 数据获取、状态、工具函数、门控 | 按职能分组 | api/, queries/, store/, modules/ |
 | `packages/` | 跨 app 共享能力或可独立复用的技术引擎，不得反向依赖业务 app | 独立 Nx 项目 | core/, hooks/, knowledge-visualization/ |
@@ -67,15 +68,17 @@ packages/  ←  features/  ←  sections/  ←  app/
 │
 ├── 跨 app 共享，或属于可独立复用且不依赖业务 app 的技术引擎？ → packages/
 │
-├── 有内部插件/注册表体系，被多个业务域当"引擎"用？ → features/
+├── 有内部插件/注册表体系，被多个业务域当“引擎”用？ → features/
 │
 ├── 纯 UI，无业务语义？ → components/
 │
-├── 绑定具体业务域，组合 features + components？ → sections/
+├── 绑定具体业务域，组合 features + components，形成页面内容？ → sections/
+│
+├── 跨页面持续存在的应用壳（侧栏/顶栏/导航/全局入口）？ → layouts/
 │
 ├── 数据获取 / 状态 / 工具函数？ → lib/
 │
-└── 页面路由 / 布局？ → app/
+└── Next.js 路由约定文件（page/layout/loading/error）？ → app/
 ```
 
 ### 1.5 features/ 内部统一结构约定
@@ -173,6 +176,14 @@ apps/webui/
 │   │       ├── upload/route.ts
 │   │       └── proxy/route.ts        → 后端 API 代理（开发环境）
 │   │
+│   ├── layouts/                      → 应用壳层（与 sections 同级）
+│   │   ├── workspace/                → 中后台壳（侧栏 + 顶栏 + 主内容区）
+│   │   ├── studio/                   → Studio 壳（功能分区导航 + 标签栏）
+│   │   ├── marketing/                → 营销站壳（顶部导航 + 页脚）
+│   │   ├── auth/                     → 认证壳
+│   │   ├── canvas/                   → 全屏画板壳
+│   │   └── dev/                      → 开发工具壳
+│   │
 │   ├── features/                     → 复合功能模块层
 │   │   ├── flow-editor/             → 统一流程图编辑器
 │   │   │   ├── components/           → 画布/节点面板/自定义边/变量选择器
@@ -248,12 +259,6 @@ apps/webui/
 │   │   │   ├── AgentCard.tsx
 │   │   │   ├── AgentStatus.tsx
 │   │   │   └── AgentList.tsx
-│   │   ├── layout/                   → 布局区块
-│   │   │   ├── AppSidebar.tsx
-│   │   │   ├── AppHeader.tsx
-│   │   │   ├── CommandBar.tsx        → ⌘K 命令面板
-│   │   │   ├── nav-config.ts         → 导航配置数据（纯数据，与组件分离）
-│   │   │   └── components/           → AccountMenu / SearchBar / NotificationBell
 │   │   └── settings/                 → 设置区块
 │   │       ├── ProfileForm.tsx
 │   │       ├── ModelConfig.tsx
@@ -462,20 +467,52 @@ packages/
 
 ### 4.6 布局组件对应关系
 
+`app/**/layout.tsx` 负责 Next.js 路由边界、Server Component 接线和 metadata；`layouts/` 负责可测试、可组合的应用壳 UI。路由文件导入对应壳组件，不在路由层实现侧栏、顶栏等细节。
+
 ```text
-sections/layout/
-├── AppSidebar.tsx             → workspace 侧边栏
-├── AppHeader.tsx              → workspace 顶栏
-├── ViewSwitcher.tsx           → 视图切换 Tab
-├── nav-config.ts              → workspace 导航配置（从 entityRegistry 生成）
-├── MarketingHeader.tsx        → marketing 顶部导航（logo + 链接 + 登录按钮）
-├── MarketingFooter.tsx        → marketing 页脚（链接分组 + 版权）
-├── AuthLayout.tsx             → auth 布局容器（居中卡片 / 左右分栏）
-└── components/
-    ├── AccountMenu.tsx        → 用户头像下拉菜单
-    ├── SearchBar.tsx          → ⌘K 搜索
-    └── NotificationBell.tsx   → 通知铃铛
+layouts/
+├── workspace/
+│   ├── WorkspaceLayout.tsx    → workspace Server 壳层组装与 parallel route slot
+│   ├── WorkspaceContent.tsx   → workspace 客户端交互壳
+│   ├── AppSidebar.tsx         → workspace 侧边栏
+│   ├── AppHeader.tsx          → workspace 顶栏
+│   ├── HeaderActions.tsx      → 顶栏操作入口组装
+│   ├── MobileNav.tsx          → workspace 移动侧栏导航
+│   ├── MobileTabBar.tsx       → workspace 移动端底部导航
+│   ├── WorkspaceSwitcher.tsx  → workspace 私有组织/工作区切换入口
+│   └── nav-config.ts          → workspace 导航配置
+├── studio/
+│   ├── StudioLayout.tsx       → Studio 客户端壳层组装
+│   ├── StudioRouteSync.tsx    → 路由与壳状态同步
+│   ├── StudioSidebar.tsx      → 功能分区导航
+│   ├── StudioTopbar.tsx       → Studio 顶栏
+│   ├── StudioTabBar.tsx       → Studio 标签栏
+│   ├── SidebarCollapseButton.tsx
+│   └── store.ts               → Studio 壳私有 UI 状态
+├── marketing/
+│   ├── MarketingLayout.tsx
+│   ├── MarketingHeader.tsx
+│   └── MarketingFooter.tsx
+├── auth/
+│   ├── AuthLayout.tsx
+│   └── AuthHeader.tsx
+├── canvas/
+│   └── CanvasLayout.tsx
+└── dev/
+    ├── DevLayout.tsx
+    └── DevHeader.tsx
+
+features/
+├── notifications/             → Workspace/Studio 复用的通知能力
+│   ├── index.tsx
+│   ├── notification-item.tsx
+│   ├── count-badge.tsx
+│   └── icons.tsx
+└── entity-engine/components/
+    └── EntityMetadataGate.tsx → Workspace/Studio 复用的实体元数据门禁
 ```
+
+`layouts/` 只放壳层结构和壳层私有 UI 状态。通知、组织切换、计费授权等可被多个壳层消费的完整业务能力放 `features/`；当前跨壳复用的通知能力位于 `features/notifications/`，实体元数据门禁位于 `features/entity-engine/components/`。实体工具栏等页面业务组装放 `sections/`，不得由壳层反向消费；主题切换等无业务语义组件放 `components/`。仅被单一壳消费的入口组件可留在对应场景目录，一旦出现第二个壳使用方即下沉到 `features/`。
 
 ### 4.7 布局 CSS 变量
 
@@ -498,8 +535,8 @@ sections/layout/
 
 | 维度 | next-ts | AAF |
 |------|---------|-----|
-| 布局切换 | 手动传 Layout 组件 prop | Next.js 路由组自动切换（零配置） |
-| 布局原语 | `LayoutSection` slot 模式（header/sidebar/footer） | 不需要——每个路由组 layout.tsx 直接组合 |
+| 布局切换 | 手动传 Layout 组件 prop | Next.js 路由组选择对应 `layouts/` 壳组件 |
+| 布局原语 | `LayoutSection` slot 模式（header/sidebar/footer） | 按复杂度在 `layouts/` 内按需抽取，不建立全局万能原语 |
 | 导航模式 | vertical/horizontal/mini 运行时切换 | 固定 vertical + 折叠态（toggle） |
 | 样式方案 | MUI styled + CSS 变量 | Tailwind + CSS 变量 |
 | 响应式 | MUI breakpoints | Tailwind 断点 + container queries |
@@ -592,7 +629,7 @@ export const paths = {
 借鉴 next-ts 的 `nav-config-dashboard.tsx`，将导航菜单数据从组件中分离：
 
 ```ts
-// sections/layout/nav-config.ts — 纯数据，无 React 依赖
+// layouts/workspace/nav-config.ts — 纯数据，无 React 依赖
 export const navConfig = [
   { group: 'content', label: '内容管理', items: [
     { title: '文档', path: paths.workspace.module('document'), icon: 'file-text' },
@@ -645,7 +682,8 @@ sections/document/
 // nx.json 或 .eslintrc（v0.2+ 激活）
 {
   "depConstraints": [
-    { "sourceTag": "scope:app", "onlyDependOnLibsWithTags": ["scope:feature", "scope:section", "scope:component", "scope:lib", "scope:package"] },
+    { "sourceTag": "scope:app", "onlyDependOnLibsWithTags": ["scope:layout", "scope:section", "scope:feature", "scope:component", "scope:lib", "scope:package"] },
+    { "sourceTag": "scope:layout", "onlyDependOnLibsWithTags": ["scope:feature", "scope:component", "scope:lib", "scope:package"] },
     { "sourceTag": "scope:section", "onlyDependOnLibsWithTags": ["scope:feature", "scope:component", "scope:lib", "scope:package"] },
     { "sourceTag": "scope:feature", "onlyDependOnLibsWithTags": ["scope:component", "scope:lib", "scope:package"] },
     { "sourceTag": "scope:component", "onlyDependOnLibsWithTags": ["scope:lib", "scope:package"] },
@@ -681,6 +719,7 @@ sections/document/
 | `lib/schemas/utils.ts` schema 工厂 | next-ts `schema-utils.ts` | `schemaUtils.email()` 统一校验规则 |
 | `lib/constants/paths.ts` 路由常量 | next-ts `routes/paths.ts` | 集中定义 + 动态路由函数化 |
 | CSS 变量驱动布局尺寸 | next-ts `layouts/` CSS variables | `--layout-sidebar-width` 等变量控制 |
-| `sections/layout/nav-config.ts` | next-ts `nav-config-dashboard.tsx` | 导航配置数据与组件分离 |
+| `layouts/workspace/nav-config.ts` | next-ts `nav-config-dashboard.tsx` | 导航配置数据与组件分离 |
+| `layouts/` 应用壳层 | next-ts `layouts/` | 路由边界与壳层实现分离 |
 | `sections/*/view/` 子目录 | next-ts `sections/*/view/` | 多页面域统一入口 + barrel export |
 | 创建/编辑表单复用 | next-ts `*-create-edit-form.tsx` | 同一组件通过 props 区分模式 |

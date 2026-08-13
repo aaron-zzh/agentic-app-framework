@@ -10,6 +10,7 @@ import { ChevronDown } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Brand } from "@/components/brand/Brand"
+import { ThemeToggle } from "@/components/common/ThemeToggle"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -25,7 +26,6 @@ import { paths } from "@/lib/constants/paths"
 import { useScrollOffset } from "@/lib/hooks/use-scroll-offset"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { cn } from "@/lib/utils/cn"
-import { ThemeToggle } from "./HeaderActions"
 
 const devPages = [
   { label: "工作区", href: "/dashboard" },
@@ -77,19 +77,25 @@ function AuthButton() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   if (isAuthenticated) {
     return (
-      <Link href={paths.studio.welcome}>
-        <Button variant="outline" size="sm">
-          进入工作区
-        </Button>
-      </Link>
+      <Button
+        variant="outline"
+        size="sm"
+        nativeButton={false}
+        render={<Link href={paths.studio.welcome} />}
+      >
+        进入工作区
+      </Button>
     )
   }
   return (
-    <Link href={paths.auth.login}>
-      <Button variant="outline" size="sm">
-        登录
-      </Button>
-    </Link>
+    <Button
+      variant="outline"
+      size="sm"
+      nativeButton={false}
+      render={<Link href={paths.auth.login} />}
+    >
+      登录
+    </Button>
   )
 }
 

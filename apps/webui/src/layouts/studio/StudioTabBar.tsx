@@ -15,8 +15,8 @@
 import { X } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useMemo } from "react"
+import { getSectionConfig } from "@/features/studio/nav-config"
 import { cn } from "@/lib/utils/index"
-import { getSectionConfig } from "../nav-config"
 import { useStudioShell } from "./store"
 
 export function StudioTabBar() {

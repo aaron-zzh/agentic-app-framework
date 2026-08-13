@@ -1,21 +1,9 @@
 /**
- * Dev 布局——开发调试用，含简单顶栏
+ * Dev 路由布局。
  */
 
-import { MotionLazy } from "@/components/animate"
-import { registerDefaultComponents } from "@/features/entity-engine/components/register"
-import { DevHeader } from "@/sections/layout/DevHeader"
+import { DevLayout } from "@/layouts/dev/DevLayout"
 
-// 注册默认字段组件
-registerDefaultComponents()
-
-export default function DevLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <MotionLazy>
-      <div className="min-h-screen bg-background">
-        <DevHeader />
-        <main>{children}</main>
-      </div>
-    </MotionLazy>
-  )
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return <DevLayout>{children}</DevLayout>
 }

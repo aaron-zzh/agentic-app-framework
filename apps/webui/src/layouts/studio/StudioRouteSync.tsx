@@ -9,7 +9,7 @@
 
 import { usePathname } from "next/navigation"
 import { useEffect } from "react"
-import { getSectionConfig, resolveSectionFromPath } from "../nav-config"
+import { getSectionConfig, resolveSectionFromPath } from "@/features/studio/nav-config"
 import { useStudioShell } from "./store"
 
 export function StudioRouteSync() {

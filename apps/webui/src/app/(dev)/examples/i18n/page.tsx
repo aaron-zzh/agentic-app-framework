@@ -5,7 +5,7 @@
 
 import { getTranslations } from "next-intl/server"
 
-import { LanguageSwitcher } from "@/sections/layout/LanguageSwitcher"
+import { LanguageSwitcher } from "@/components/common/LanguageSwitcher"
 
 import { I18nClientDemo } from "./_components/I18nClientDemo"
 

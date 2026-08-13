@@ -5,17 +5,17 @@
  * 中：搜索/命令面板触发
  * 右：积分余额、通知、用户头像、主题切换
  *
- * 复用现有 UserAvatarPopover、NotificationsBell（在 sections/layout/notifications/）
+ * 复用现有 UserAvatarPopover 与 Notifications 业务能力
  */
 
 "use client"
 
 import { Search } from "lucide-react"
 import { Brand } from "@/components/brand/Brand"
+import { ThemeToggle } from "@/components/common/ThemeToggle"
 import { UserAvatarPopover } from "@/components/common/UserAvatarPopover"
+import { NotificationDrawer } from "@/features/notifications"
 import { cn } from "@/lib/utils/index"
-import { ThemeToggle } from "@/sections/layout/HeaderActions"
-import { NotificationDrawer } from "@/sections/layout/notifications"
 
 export function StudioTopbar() {
   return (

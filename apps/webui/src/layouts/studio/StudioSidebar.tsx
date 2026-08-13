@@ -12,9 +12,13 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useMemo } from "react"
 import { Brand } from "@/components/brand/Brand"
+import {
+  resolveSectionFromPath,
+  STUDIO_NAV,
+  type StudioSectionConfig
+} from "@/features/studio/nav-config"
 import { useWechatQrImage } from "@/lib/api/rest/system"
 import { cn } from "@/lib/utils/index"
-import { resolveSectionFromPath, STUDIO_NAV, type StudioSectionConfig } from "../nav-config"
 import { useStudioShell } from "./store"
 
 interface SidebarItemProps {

@@ -1,19 +1,11 @@
 /**
- * 营销页布局——顶部导航 + 内容 + 页脚
+ * 营销页路由布局。
+ *
  * @author AaronZZH & Kiro
  */
 
-import { FloatingChatter } from "@/features/chatter/layout/FloatingChatter"
-import { MarketingFooter } from "@/sections/layout/MarketingFooter"
-import { MarketingHeader } from "@/sections/layout/MarketingHeader"
+import { MarketingLayout } from "@/layouts/marketing/MarketingLayout"
 
-export default function MarketingLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex min-h-screen flex-col">
-      <MarketingHeader />
-      <main className="flex-1">{children}</main>
-      <MarketingFooter />
-      <FloatingChatter />
-    </div>
-  )
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return <MarketingLayout>{children}</MarketingLayout>
 }

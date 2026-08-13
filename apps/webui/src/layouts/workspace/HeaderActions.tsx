@@ -5,30 +5,13 @@
 
 "use client"
 
-import { MessageSquare, MoonStar, SunMedium, Users } from "lucide-react"
-import { useTheme } from "next-themes"
+import { MessageSquare, Users } from "lucide-react"
+import { ThemeToggle } from "@/components/common/ThemeToggle"
 import { UserAvatarPopover } from "@/components/common/UserAvatarPopover"
+import { NotificationDrawer } from "@/features/notifications"
 import { useChatterStore } from "@/lib/store/chatter-store"
 import { ContactsPanel } from "./ContactsPanel"
-import { NotificationDrawer } from "./notifications"
 import { SettingsButton } from "./SettingsButton"
-
-/** 明暗主题快捷切换 */
-export function ThemeToggle() {
-  const { theme, setTheme } = useTheme()
-
-  return (
-    <button
-      type="button"
-      className="rounded-md p-1.5 text-muted-foreground hover:bg-accent"
-      aria-label="切换主题"
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-    >
-      <SunMedium className="size-5 dark:hidden" aria-hidden="true" />
-      <MoonStar className="hidden size-5 dark:block" aria-hidden="true" />
-    </button>
-  )
-}
 
 /** Chatter 全局触发按钮 */
 export function ChatterToggle() {

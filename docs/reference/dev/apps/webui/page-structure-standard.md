@@ -1,3 +1,15 @@
+---
+level: Practice
+layer: Model
+purpose: 规范 WebUI 工作区路由、页面 View 与应用壳层的职责边界
+status: published
+version: 1.1.0
+date: 2026-08-13
+author: AaronZZH
+changelog:
+  - 2026-08-13 | 统一页面 View 到 sections，并明确 layouts 应用壳层
+---
+
 # 工作区页面结构规范
 
 > 本文档是 webui `(workspace)` 路由组下所有页面的编写规范，供后续新建页面和存量页面重构参考。
@@ -5,26 +17,36 @@
 ## 核心原则
 
 - `app/` 下的 `page.tsx` 只做路由接线，不写业务逻辑
-- 业务逻辑和 UI 放在 `features/{domain}/` 下的 View 组件
+- 页面业务组装和 UI 放在 `sections/{domain}/view/` 下的 View 组件
+- 可复用领域能力放在 `features/{feature}/`，由 sections 消费
+- 跨页面应用壳放在 `layouts/{shell}/`，由 `app/**/layout.tsx` 接线
 - 需要 Chatter 嵌入的页面，在 View 组件里声明；无声明则默认浮动
 
 ## 标准结构
 
 ### 目录层次
 
-```
+```text
 app/(workspace)/{路由}/
   page.tsx          ← 路由入口（Server Component，极简）
-  layout.tsx        ← 仅在该路由需要私有布局时创建
+  layout.tsx        ← 仅在该路由需要私有路由边界时创建
   loading.tsx       ← 仅在需要独立骨架屏时创建
 
-features/{domain}/
-  {Domain}View.tsx  ← 主视图（"use client"，业务逻辑和 UI 全在这里）
-  {Domain}Layout.tsx ← 有复杂子布局时使用，否则直接用 View
-  components/       ← 该功能内部复用的子组件
-  hooks/            ← 该功能私有 hooks
-  store.ts          ← 仅管 UI 状态的 Zustand store（可选）
-  types.ts          ← 类型定义
+layouts/{shell}/
+  {Shell}Layout.tsx ← 跨页面应用壳；侧栏、顶栏、导航和全局入口
+
+sections/{domain}/
+  view/
+    index.ts
+    {domain}-view.tsx ← 页面主视图（"use client"，组合 features）
+  components/         ← 该业务域的页面级组件（可选）
+
+features/{feature}/
+  components/       ← 可复用能力组件
+  hooks/            ← 能力内部 hooks
+  lib/              ← 注册表、算法和转换逻辑
+  types.ts          ← 对外类型
+  index.ts          ← 公开 API
 ```
 
 ### page.tsx 模板
@@ -35,7 +57,7 @@ features/{domain}/
  * @author AaronZZH & Kiro
  */
 
-import { {Domain}View } from "@/features/{domain}"
+import { {Domain}View } from "@/sections/{domain}/view"
 
 export default function {Domain}Page() {
   return <{Domain}View />
@@ -47,6 +69,8 @@ export default function {Domain}Page() {
 - 不写任何 hooks、状态、业务逻辑
 - 只做一件事：渲染对应的 View 组件
 - 如果需要传路由参数（`params`、`searchParams`），透传给 View
+
+`app/**/layout.tsx` 同样保持薄层：只处理路由边界、Server Component 接线和 metadata，并渲染 `layouts/{shell}/` 导出的壳组件。仅单一路由使用的局部排版不进入 `layouts/`，放在该路由的 `_components/`。
 
 ### View 组件模板
 

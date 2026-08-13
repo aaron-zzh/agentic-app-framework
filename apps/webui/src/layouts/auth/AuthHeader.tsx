@@ -6,7 +6,7 @@
 "use client"
 
 import { Brand } from "@/components/brand/Brand"
-import { ThemeToggle } from "./HeaderActions"
+import { ThemeToggle } from "@/components/common/ThemeToggle"
 
 export function AuthHeader() {
   return (
