@@ -1266,6 +1266,18 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         if (queryToken == null || queryToken.isBlank()) {
             return;
         }
+        if ("detail".equals(fieldSet)) {
+            queryTokenService.validateForDetail(
+                    queryToken,
+                    new QueryTokenService.DetailQueryTokenContext(
+                            decision.subjectId(),
+                            decision.orgId(),
+                            decision.workspaceId(),
+                            resourceDefinition().key().value(),
+                            decision.accessVersion()),
+                    id);
+            return;
+        }
         queryTokenService.validate(
                 queryToken, queryTokenContext(decision, fieldSet, "signed-query"), id);
     }

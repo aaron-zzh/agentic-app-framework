@@ -42,7 +42,11 @@ export default function StudioTodoToolPage() {
   const handleToggleAll = (checked: boolean) => {
     const target = checked ? activeTodos : completedTodos
     target.forEach((todo) => {
-      updateStatus({ id: todo.id, status: checked ? "done" : "pending" })
+      updateStatus({
+        id: todo.id,
+        status: checked ? "done" : "pending",
+        expectedVersion: todo.version
+      })
     })
   }
 

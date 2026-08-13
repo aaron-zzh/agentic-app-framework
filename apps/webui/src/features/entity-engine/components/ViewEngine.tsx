@@ -225,6 +225,16 @@ function ConnectedListView({
   )
 }
 
+export function withExpectedVersion(
+  detail: Record<string, unknown> | null | undefined,
+  values: Record<string, unknown>
+): Record<string, unknown> | undefined {
+  if (!detail || !("version" in detail)) return values
+  const version = detail.version
+  if (typeof version !== "number" || !Number.isInteger(version) || version < 0) return undefined
+  return { ...values, expectedVersion: version }
+}
+
 /** 表单视图——连接数据层（仅编辑模式；新建走独立路由 EntityCreateView） */
 function ConnectedFormView({
   entity,
@@ -255,8 +265,13 @@ function ConnectedFormView({
   const handleSubmit = canUpdate
     ? (values: Record<string, unknown>) => {
         if (!recordId) return
+        const updateData = withExpectedVersion(data, values)
+        if (!updateData) {
+          toast.error("记录版本无效，请刷新后重试")
+          return
+        }
         update(
-          { id: recordId, data: values },
+          { id: recordId, data: updateData },
           {
             onSuccess: () => toast.success(`${entity.label}已保存`),
             onError: () => {}

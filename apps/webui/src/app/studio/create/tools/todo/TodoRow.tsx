@@ -43,7 +43,7 @@ export function TodoRow({ todo }: { todo: TodoVO }) {
       return
     }
     if (trimmed !== todo.title) {
-      updateTodo({ id: todo.id, data: { title: trimmed } })
+      updateTodo({ id: todo.id, data: { title: trimmed, expectedVersion: todo.version } })
     }
   }
 
@@ -62,7 +62,11 @@ export function TodoRow({ todo }: { todo: TodoVO }) {
       <Checkbox
         checked={isDone}
         onCheckedChange={(checked) =>
-          updateStatus({ id: todo.id, status: checked ? "done" : "pending" })
+          updateStatus({
+            id: todo.id,
+            status: checked ? "done" : "pending",
+            expectedVersion: todo.version
+          })
         }
         aria-label={isDone ? "标记为未完成" : "标记为已完成"}
       />

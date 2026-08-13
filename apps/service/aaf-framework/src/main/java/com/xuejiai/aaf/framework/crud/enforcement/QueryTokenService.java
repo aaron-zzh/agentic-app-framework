@@ -27,6 +27,7 @@ public final class QueryTokenService {
 
     private static final String VERSION = "v2";
     private static final String HMAC_ALGORITHM = "HmacSHA256";
+    private static final String LIST_FIELD_SET = "list";
 
     private final byte[] secret;
     private final Duration ttl;
@@ -72,6 +73,21 @@ public final class QueryTokenService {
 
     public QueryTokenClaims validate(String token, QueryTokenContext expected, Long requiredId) {
         requireContext(expected);
+        return validateToken(token, claims -> validateClaims(claims, expected, requiredId));
+    }
+
+    /**
+     * 校验列表窗口 token 是否可用于详情读取。
+     *
+     * <p>仅允许 {@code list} 字段集签发的 token 切换到 {@code detail} 投影；签名、过期、主体、租户、资源、权限版本和窗口成员约束均保持不变。
+     */
+    public QueryTokenClaims validateForDetail(
+            String token, DetailQueryTokenContext expected, Long requiredId) {
+        requireDetailContext(expected);
+        return validateToken(token, claims -> validateDetailClaims(claims, expected, requiredId));
+    }
+
+    private QueryTokenClaims validateToken(String token, TokenClaimsValidator validator) {
         try {
             var parts = token.split("\\.", 3);
             if (parts.length != 3 || !VERSION.equals(parts[0])) {
@@ -87,7 +103,7 @@ public final class QueryTokenService {
                                     Base64.getUrlDecoder().decode(parts[1]),
                                     StandardCharsets.UTF_8),
                             QueryTokenClaims.class);
-            validateClaims(claims, expected, requiredId);
+            validator.validate(claims);
             return claims;
         } catch (com.xuejiai.aaf.common.exception.BusinessException cause) {
             throw cause;
@@ -98,20 +114,59 @@ public final class QueryTokenService {
 
     private void validateClaims(
             QueryTokenClaims claims, QueryTokenContext expected, Long requiredId) {
-        var now = Instant.now(clock).getEpochSecond();
-        if (claims == null
-                || claims.iat() > now
-                || claims.exp() <= now
-                || !claims.subjectId().equals(expected.subjectId())
-                || !Objects.equals(claims.orgId(), expected.orgId())
-                || !Objects.equals(claims.workspaceId(), expected.workspaceId())
-                || !claims.resourceKey().equals(expected.resourceKey())
-                || !claims.fieldSet().equals(expected.fieldSet())
-                || !claims.accessVersion().equals(expected.accessVersion())
-                || claims.queryHash() == null
-                || claims.queryHash().isBlank()) {
+        if (!hasExpectedBindings(
+                claims,
+                expected.subjectId(),
+                expected.orgId(),
+                expected.workspaceId(),
+                expected.resourceKey(),
+                expected.accessVersion())) {
             throw new IllegalArgumentException("stale token");
         }
+        if (!Objects.equals(claims.fieldSet(), expected.fieldSet())) {
+            throw new IllegalArgumentException("stale token");
+        }
+        requireWindowMember(claims, requiredId);
+    }
+
+    private void validateDetailClaims(
+            QueryTokenClaims claims, DetailQueryTokenContext expected, Long requiredId) {
+        if (!hasExpectedBindings(
+                claims,
+                expected.subjectId(),
+                expected.orgId(),
+                expected.workspaceId(),
+                expected.resourceKey(),
+                expected.accessVersion())) {
+            throw new IllegalArgumentException("stale token");
+        }
+        if (!LIST_FIELD_SET.equals(claims.fieldSet())) {
+            throw new IllegalArgumentException("stale token");
+        }
+        requireWindowMember(claims, requiredId);
+    }
+
+    private boolean hasExpectedBindings(
+            QueryTokenClaims claims,
+            Long subjectId,
+            Long orgId,
+            Long workspaceId,
+            String resourceKey,
+            String accessVersion) {
+        var now = Instant.now(clock).getEpochSecond();
+        return claims != null
+                && claims.iat() <= now
+                && claims.exp() > now
+                && Objects.equals(claims.subjectId(), subjectId)
+                && Objects.equals(claims.orgId(), orgId)
+                && Objects.equals(claims.workspaceId(), workspaceId)
+                && Objects.equals(claims.resourceKey(), resourceKey)
+                && Objects.equals(claims.accessVersion(), accessVersion)
+                && claims.queryHash() != null
+                && !claims.queryHash().isBlank();
+    }
+
+    private void requireWindowMember(QueryTokenClaims claims, Long requiredId) {
         if (requiredId != null && !claims.ids().contains(requiredId)) {
             throw exception(
                     GlobalErrorCode.CRUD_RESOURCE_NOT_IN_QUERY_WINDOW, claims.resourceKey());
@@ -133,6 +188,17 @@ public final class QueryTokenService {
         }
     }
 
+    private void requireDetailContext(DetailQueryTokenContext context) {
+        if (context == null
+                || context.subjectId() == null
+                || context.resourceKey() == null
+                || context.resourceKey().isBlank()
+                || context.accessVersion() == null
+                || context.accessVersion().isBlank()) {
+            throw exception(GlobalErrorCode.FORBIDDEN);
+        }
+    }
+
     private byte[] sign(String payload) {
         try {
             var mac = Mac.getInstance(HMAC_ALGORITHM);
@@ -147,6 +213,11 @@ public final class QueryTokenService {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(value);
     }
 
+    @FunctionalInterface
+    private interface TokenClaimsValidator {
+        void validate(QueryTokenClaims claims);
+    }
+
     public record QueryTokenContext(
             Long subjectId,
             Long orgId,
@@ -154,6 +225,13 @@ public final class QueryTokenService {
             String resourceKey,
             String fieldSet,
             String queryHash,
+            String accessVersion) {}
+
+    public record DetailQueryTokenContext(
+            Long subjectId,
+            Long orgId,
+            Long workspaceId,
+            String resourceKey,
             String accessVersion) {}
 
     public record QueryTokenClaims(

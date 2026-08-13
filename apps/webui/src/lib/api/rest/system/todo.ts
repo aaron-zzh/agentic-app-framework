@@ -30,6 +30,7 @@ export interface TodoSourceReference {
 
 export interface TodoVO {
   id: number
+  version: number
   assigneeId: number
   title: string
   category: TodoCategory
@@ -60,6 +61,7 @@ export interface TodoCreateInput {
 }
 
 export interface TodoUpdateInput {
+  expectedVersion: number
   title?: string
   category?: TodoCategory
   status?: TodoStatus
@@ -90,8 +92,12 @@ export const todoApi = {
     backendApi.put<TodoVO>(`/todos/${id}`, data, { headers: OWN_SCOPE_HEADERS }),
 
   /** 快捷更新状态 */
-  updateStatus: (id: number, status: TodoStatus) =>
-    backendApi.put<TodoVO>(`/todos/${id}/status`, { status }, { headers: OWN_SCOPE_HEADERS }),
+  updateStatus: (id: number, status: TodoStatus, expectedVersion: number) =>
+    backendApi.put<TodoVO>(
+      `/todos/${id}/status`,
+      { status, expectedVersion },
+      { headers: OWN_SCOPE_HEADERS }
+    ),
 
   /** 删除 */
   remove: (id: number) => backendApi.delete<void>(`/todos/${id}`, { headers: OWN_SCOPE_HEADERS }),
@@ -136,8 +142,15 @@ export function useStudioTodoUpdate() {
 export function useStudioTodoUpdateStatus() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, status }: { id: number; status: TodoStatus }) =>
-      todoApi.updateStatus(id, status),
+    mutationFn: ({
+      id,
+      status,
+      expectedVersion
+    }: {
+      id: number
+      status: TodoStatus
+      expectedVersion: number
+    }) => todoApi.updateStatus(id, status, expectedVersion),
     onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.all })
   })
 }
