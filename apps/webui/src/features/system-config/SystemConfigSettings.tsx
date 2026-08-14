@@ -22,6 +22,7 @@ const CATEGORY_META: Record<string, { label: string; icon: string }> = {
   user: { label: "用户", icon: "👤" },
   security: { label: "安全", icon: "🔒" },
   ai: { label: "AI", icon: "🤖" },
+  knowledge: { label: "知识库", icon: "📚" },
   sms: { label: "短信", icon: "💬" },
   storage: { label: "存储", icon: "🗄️" },
   aigc: { label: "AIGC", icon: "🎨" },
