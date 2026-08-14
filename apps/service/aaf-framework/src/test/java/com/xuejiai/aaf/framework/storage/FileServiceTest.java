@@ -77,6 +77,22 @@ class FileServiceTest {
                 .hasMessageContaining("大小");
     }
 
+    /** B13：原始图片 Base64 无 data URL 前缀时，按文件签名识别 MIME。 */
+    @Test
+    void uploadFromBase64_无dataUrl时按png签名推断类型() {
+        when(storage.upload(any(), any(), any())).thenReturn("aigc/image.png");
+        when(storage.getUrl("aigc/image.png")).thenReturn("/files/aigc/image.png");
+        var pngBytes =
+                new byte[] {
+                    (byte) 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a
+                };
+        var rawBase64 = java.util.Base64.getEncoder().encodeToString(pngBytes);
+
+        var file = service.uploadFromBase64(rawBase64, "aigc/image.png");
+
+        assertThat(file.contentType()).isEqualTo("image/png");
+    }
+
     /** B13：Base64 入口以 data URL 声明 HTML 时应被主动内容规则拦住。 */
     @Test
     void uploadFromBase64_html主动内容拒绝() {

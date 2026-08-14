@@ -422,6 +422,7 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
             record.setModelId(modelId);
             record.setCapability(capability);
             record.setQuotaType((short) quotaType);
+            record.setFencingToken(0L);
             record.setCostYuan(java.math.BigDecimal.valueOf(costYuan));
             record.setCreditAmount(creditCost);
             record.setCreditTxId(creditTxId);
