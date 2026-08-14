@@ -4,14 +4,12 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 import org.springdoc.core.annotations.ParameterObject;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.lang.Nullable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -19,15 +17,13 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
-import com.xuejiai.aaf.framework.storage.OssStorageService;
 import com.xuejiai.aaf.framework.storage.PresignedUploadRequest;
 import com.xuejiai.aaf.framework.storage.PresignedUploadTicket;
 import com.xuejiai.aaf.framework.storage.StorageProperties;
-import com.xuejiai.aaf.framework.storage.StorageService;
-import com.xuejiai.aaf.framework.storage.StsCredentials;
 import com.xuejiai.aaf.module.system.file.api.FileStoragePort;
 import com.xuejiai.aaf.module.system.file.api.StoredFile;
 import com.xuejiai.aaf.module.system.file.service.FileRecordService;
+import com.xuejiai.aaf.module.system.file.service.FileStorageReferenceService;
 import com.xuejiai.aaf.module.system.file.vo.FileConfirmDTO;
 import com.xuejiai.aaf.module.system.file.vo.FileRecordPageDTO;
 import com.xuejiai.aaf.module.system.file.vo.FileRecordVO;
@@ -49,19 +45,14 @@ import lombok.RequiredArgsConstructor;
 public class FileController {
 
     private final FileStoragePort fileUploadService;
-    private final StorageService storageService;
     private final FileRecordService fileRecordService;
+    private final FileStorageReferenceService storageReferenceService;
     private final StorageProperties storageProperties;
 
     /** m20：预签名上传的大小上限与普通上传共用同一份配置，避免两条链路策略不一致 */
     private StorageProperties.UploadLimits uploadLimits() {
         return storageProperties.uploadOrDefault();
     }
-
-    /** OSS 类型时非空，其他存储类型为 null */
-    @Autowired(required = false)
-    @Nullable
-    private OssStorageService ossStorageService;
 
     @Operation(summary = "分页查询文件列表")
     @GetMapping
@@ -80,7 +71,7 @@ public class FileController {
                         : record.getOriginalName();
         var contentDisposition =
                 ContentDisposition.attachment().filename(filename, StandardCharsets.UTF_8).build();
-        var input = storageService.download(key);
+        var input = fileRecordService.downloadOwnedByKey(key);
         var resource = new InputStreamResource(input);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString())
@@ -98,11 +89,10 @@ public class FileController {
     @Operation(summary = "前端直传完成确认（预签名/STS 分片上传后调用）")
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/confirm")
-    public Result<Void> confirm(@Validated @RequestBody FileConfirmDTO dto) {
-        fileRecordService.requireCurrentOwnerNamespace(dto.key());
-        fileRecordService.registerCurrent(
-                dto.key(), dto.originalName(), dto.mimeType(), dto.size(), null);
-        return Result.success();
+    public Result<StoredFile> confirm(@Validated @RequestBody FileConfirmDTO dto) {
+        return Result.success(
+                fileRecordService.confirmCurrentUpload(
+                        dto.key(), dto.originalName(), dto.mimeType(), dto.size()));
     }
 
     @Operation(summary = "删除文件")
@@ -125,24 +115,23 @@ public class FileController {
     @GetMapping("/presigned-url")
     public Result<PresignedUploadTicket> getPresignedUrl(
             @RequestParam String filename, @RequestParam String contentType) {
+        var target = storageReferenceService.resolveCurrentMaster();
         var ticket =
-                storageService.getPresignedUploadUrl(
-                        new PresignedUploadRequest(
-                                fileRecordService.currentOwnerNamespace(),
-                                filename,
-                                contentType,
-                                uploadLimits().maxSizeBytes(),
-                                Duration.ofMinutes(30)));
-        return Result.success(ticket);
-    }
-
-    @Operation(summary = "获取 OSS STS 临时凭证（前端直传分片上传用）")
-    @PreAuthorize("isAuthenticated()")
-    @GetMapping("/sts-token")
-    public Result<StsCredentials> getStsToken() {
-        if (ossStorageService == null) {
-            return Result.error(400, "当前存储类型不支持 STS，请切换为 OSS 存储");
-        }
-        return Result.success(ossStorageService.getStsCredentials());
+                target.storageService()
+                        .getPresignedUploadUrl(
+                                new PresignedUploadRequest(
+                                        fileRecordService.currentOwnerStorageNamespace(
+                                                target.storageConfigId()),
+                                        filename,
+                                        contentType,
+                                        uploadLimits().maxSizeBytes(),
+                                        Duration.ofMinutes(30)));
+        return Result.success(
+                new PresignedUploadTicket(
+                        ticket.key(),
+                        ticket.url(),
+                        ticket.contentType(),
+                        ticket.maxSizeBytes(),
+                        target.storageConfigId()));
     }
 }

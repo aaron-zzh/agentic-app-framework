@@ -1,6 +1,5 @@
 package com.xuejiai.aaf.framework.intelligent.ai.image.vo;
 
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
@@ -9,6 +8,7 @@ import java.util.Map;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.framework.intelligent.ai.image.ImageInputReader;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -68,16 +68,18 @@ public final class GeminiEditParams {
 
         // prompt 在前，参考图在后——Gemini 推荐顺序，有助于模型理解参考图用途
         parts.add(Map.of("text", prompt));
-        for (String url : sourceUrls) {
+        for (String sourceUrl : sourceUrls) {
             try {
-                log.info("[GeminiEditParams] 下载参考图: url={}", url);
-                byte[] bytes = URI.create(url).toURL().openStream().readAllBytes();
-                log.info("[GeminiEditParams] 参考图下载成功: size={}KB", bytes.length / 1024);
-                String b64 = Base64.getEncoder().encodeToString(bytes);
-                String mime = guessMime(url);
-                parts.add(Map.of("inline_data", Map.of("mime_type", mime, "data", b64)));
+                var sourceImage = ImageInputReader.read(sourceUrl);
+                log.info(
+                        "[GeminiEditParams] 参考图读取成功: size={}KB", sourceImage.bytes().length / 1024);
+                String b64 = Base64.getEncoder().encodeToString(sourceImage.bytes());
+                parts.add(
+                        Map.of(
+                                "inline_data",
+                                Map.of("mime_type", sourceImage.mimeType(), "data", b64)));
             } catch (Exception e) {
-                log.warn("[GeminiEditParams] 参考图下载失败，跳过: url={}", url, e);
+                throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "读取 Gemini 参考图失败");
             }
         }
 
@@ -94,13 +96,5 @@ public final class GeminiEditParams {
         body.put("contents", List.of(userContent));
         body.put("generationConfig", genConfig);
         return body;
-    }
-
-    private static String guessMime(String url) {
-        String lower = url.split("\\?")[0].toLowerCase();
-        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
-        if (lower.endsWith(".webp")) return "image/webp";
-        if (lower.endsWith(".gif")) return "image/gif";
-        return "image/png";
     }
 }

@@ -32,10 +32,11 @@ export function useImageGenerationController({
   const [selectedBrandProfile, setSelectedBrandProfile] =
     useState<AigcBrandProfileSelection | null>(null)
   const [referenceImage, setReferenceImage] = useState<MediaImageAttachment | null>(() =>
-    initialDraft?.referenceImageUrl
+    initialDraft?.referenceImageFileId
       ? {
-          url: initialDraft.referenceImageUrl,
-          previewSrc: initialDraft.referenceImageUrl,
+          fileId: initialDraft.referenceImageFileId,
+          url: initialDraft.referenceImagePreviewUrl ?? "",
+          previewSrc: initialDraft.referenceImagePreviewUrl ?? "",
           name: "参考图"
         }
       : null
@@ -80,7 +81,7 @@ export function useImageGenerationController({
       setReferenceImage(null)
       try {
         const result = await upload(file)
-        setReferenceImage({ url: result.url, previewSrc, name: file.name })
+        setReferenceImage({ fileId: result.fileId, url: result.url, previewSrc, name: file.name })
         setPendingImage(null)
       } catch {
         URL.revokeObjectURL(previewSrc)
@@ -98,7 +99,7 @@ export function useImageGenerationController({
 
   const submit = useCallback(async () => {
     const normalizedPrompt = prompt.trim()
-    if (!normalizedPrompt && !referenceImage) {
+    if (!normalizedPrompt && !referenceImage?.fileId) {
       toast.error("请输入创作描述")
       return
     }
@@ -121,7 +122,7 @@ export function useImageGenerationController({
         background: params.background,
         contentModeration: params.contentModeration,
         seed: params.seed && params.seed > 0 ? params.seed : undefined,
-        imageUrls: referenceImage ? [referenceImage.url] : undefined,
+        imageFileIds: referenceImage?.fileId ? [referenceImage.fileId] : undefined,
         systemPrompt: mergeAigcSystemPrompts(
           selectedSkill?.systemPrompt,
           selectedBrandProfile?.systemPrompt
@@ -173,6 +174,6 @@ export function useImageGenerationController({
     canSubmit:
       !generateImage.isPending &&
       !uploading &&
-      (prompt.trim().length > 0 || Boolean(referenceImage))
+      (prompt.trim().length > 0 || Boolean(referenceImage?.fileId))
   }
 }

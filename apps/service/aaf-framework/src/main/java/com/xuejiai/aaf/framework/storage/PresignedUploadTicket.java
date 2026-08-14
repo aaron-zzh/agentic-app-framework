@@ -9,6 +9,12 @@ package com.xuejiai.aaf.framework.storage;
  * @param url 预签名 PUT URL
  * @param contentType 签名绑定的 MIME 类型，客户端 PUT 时必须一致
  * @param maxSizeBytes 签名绑定的大小上限
+ * @param storageConfigId 签发此票据的不可变存储配置 ID
  */
 public record PresignedUploadTicket(
-        String key, String url, String contentType, long maxSizeBytes) {}
+        String key, String url, String contentType, long maxSizeBytes, Long storageConfigId) {
+
+    public PresignedUploadTicket(String key, String url, String contentType, long maxSizeBytes) {
+        this(key, url, contentType, maxSizeBytes, null);
+    }
+}

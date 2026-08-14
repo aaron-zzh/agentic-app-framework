@@ -48,6 +48,7 @@ import com.xuejiai.aaf.module.ai.aigc.task.vo.AigcTaskPageDTO;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.AigcTaskVO;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.ImageTaskRequest;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.VideoTaskRequest;
+import com.xuejiai.aaf.module.system.file.api.FileReference;
 import com.xuejiai.aaf.module.system.file.api.FileStoragePort;
 import com.xuejiai.aaf.module.system.file.api.StoredFile;
 import com.xuejiai.aaf.module.user.growth.event.UserGrowthEvent;
@@ -149,6 +150,9 @@ public class AigcTaskService
 
     @Transactional
     public Long submitImageTask(Long userId, ImageTaskRequest req) {
+        if (req.imageFileIds() != null) {
+            req.imageFileIds().forEach(fileService::requireCurrentOwner);
+        }
         long t0 = System.currentTimeMillis();
         var ctx =
                 CapabilityRoutingContext.of(
@@ -185,6 +189,7 @@ public class AigcTaskService
                         req.projectId());
         task.setParams(req.toParamsJson());
         taskRepo.save(task);
+        retainImageTaskInputs(task.getId(), req.imageFileIds());
         eventService.push(userId, EVENT_CREATED, toVO(task));
 
         final Long taskId = task.getId();
@@ -206,6 +211,12 @@ public class AigcTaskService
 
     @Transactional
     public Long submitVideoTask(Long userId, VideoTaskRequest req) {
+        if (req.imageFileId() != null) {
+            fileService.requireCurrentOwner(req.imageFileId());
+        }
+        if (req.referenceImageFileIds() != null) {
+            req.referenceImageFileIds().forEach(fileService::requireCurrentOwner);
+        }
         var ctx =
                 CapabilityRoutingContext.of(
                         userId, CapabilityRoutingContext.CAP_VIDEO_GEN, req.model());
@@ -218,8 +229,12 @@ public class AigcTaskService
         var videoReq =
                 new VideoRequest(
                         req.prompt(),
-                        req.imageUrl(),
-                        req.referenceImageUrls(),
+                        req.imageFileId() != null ? "internal-file" : null,
+                        req.referenceImageFileIds() != null
+                                ? req.referenceImageFileIds().stream()
+                                        .map(ignored -> "internal-file")
+                                        .toList()
+                                : null,
                         resolvedModelId,
                         req.resolution(),
                         req.ratio(),
@@ -241,6 +256,7 @@ public class AigcTaskService
         task.setParams(req.toParamsJson());
 
         taskRepo.save(task);
+        retainVideoTaskInputs(task.getId(), req);
         eventService.push(userId, EVENT_CREATED, toVO(task));
 
         final Long taskId = task.getId();
@@ -255,6 +271,35 @@ public class AigcTaskService
                 });
         log.info("[submitVideoTask] 视频生成任务已创建: taskId={}, model={}", task.getId(), resolvedModelId);
         return task.getId();
+    }
+
+    /** AIGC 输入文件随任务保留。任务终态后仍保留该引用，使任务详情和结果具备可复现的输入审计记录。 */
+    private void retainImageTaskInputs(Long taskId, java.util.List<Long> fileIds) {
+        if (fileIds == null) return;
+        for (int index = 0; index < fileIds.size(); index++) {
+            fileService.retain(
+                    fileIds.get(index),
+                    new FileReference(
+                            "AIGC_TASK", taskId, "imageFileIds[" + index + "]", "TASK_INPUT"));
+        }
+    }
+
+    private void retainVideoTaskInputs(Long taskId, VideoTaskRequest request) {
+        if (request.imageFileId() != null) {
+            fileService.retain(
+                    request.imageFileId(),
+                    new FileReference("AIGC_TASK", taskId, "imageFileId", "TASK_INPUT"));
+        }
+        if (request.referenceImageFileIds() == null) return;
+        for (int index = 0; index < request.referenceImageFileIds().size(); index++) {
+            fileService.retain(
+                    request.referenceImageFileIds().get(index),
+                    new FileReference(
+                            "AIGC_TASK",
+                            taskId,
+                            "referenceImageFileIds[" + index + "]",
+                            "TASK_INPUT"));
+        }
     }
 
     @Transactional

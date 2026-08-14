@@ -66,6 +66,7 @@ export function ReferenceDropZone({
     const fullUrl = result.url.startsWith("http") ? result.url : `${API_ORIGIN}${result.url}`
     if (!result.key) throw new Error("上传结果缺少文件 key")
     return {
+      fileId: result.fileId,
       key: result.key,
       name: file.name,
       url: fullUrl

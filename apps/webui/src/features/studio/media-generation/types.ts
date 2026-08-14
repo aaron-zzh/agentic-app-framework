@@ -50,6 +50,7 @@ export interface MediaCreditEstimate {
 }
 
 export interface MediaImageAttachment {
+  fileId: number
   url: string
   previewSrc: string
   name: string
@@ -64,8 +65,10 @@ export interface MediaGenerationDraft {
   revision: number
   prompt: string
   model?: string
-  referenceImageUrl?: string
-  lastFrameImageUrl?: string
+  referenceImageFileId?: number
+  referenceImagePreviewUrl?: string
+  lastFrameImageFileId?: number
+  lastFrameImagePreviewUrl?: string
   videoImageMode?: VideoInputMode
 }
 

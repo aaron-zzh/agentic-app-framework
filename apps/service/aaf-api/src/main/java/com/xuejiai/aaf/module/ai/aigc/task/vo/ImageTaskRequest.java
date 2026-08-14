@@ -21,7 +21,7 @@ public record ImageTaskRequest(
         Integer seed,
         Boolean promptExtend,
         Integer imageCount,
-        List<String> imageUrls,
+        List<Long> imageFileIds,
         String quality,
         String format,
         String background,

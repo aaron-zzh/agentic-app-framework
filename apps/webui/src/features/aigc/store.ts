@@ -7,8 +7,10 @@ import { create } from "zustand"
 
 /** 尚未进入 Media 聚合的用户上传参考文件，仅作为当前生成表单草稿。 */
 export interface UploadedReferenceDraft {
+  fileId: number
   key: string
   name: string
+  /** 仅用于浏览器预览，不可作为模型参考图输入。 */
   url: string
 }
 

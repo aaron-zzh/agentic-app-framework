@@ -32,8 +32,12 @@ const MODEL_SUFFIX_BY_MODE: Record<VideoInputMode, string> = {
   FIRST_LAST_FRAME: "r2v"
 }
 
-function attachmentFromUrl(url: string | undefined, name: string): MediaImageAttachment | null {
-  return url ? { url, previewSrc: url, name } : null
+function attachmentFromDraft(
+  fileId: number | undefined,
+  previewSrc: string | undefined,
+  name: string
+): MediaImageAttachment | null {
+  return fileId ? { fileId, url: previewSrc ?? "", previewSrc: previewSrc ?? "", name } : null
 }
 
 export function useVideoGenerationController({
@@ -43,12 +47,16 @@ export function useVideoGenerationController({
 }: MediaGenerationControllerOptions = {}) {
   const initialImageMode: VideoInputMode =
     initialDraft?.videoImageMode ??
-    (initialDraft?.lastFrameImageUrl
+    (initialDraft?.lastFrameImageFileId
       ? "FIRST_LAST_FRAME"
-      : initialDraft?.referenceImageUrl
+      : initialDraft?.referenceImageFileId
         ? "REFERENCE"
         : "T2V")
-  const initialReferenceImage = attachmentFromUrl(initialDraft?.referenceImageUrl, "参考图")
+  const initialReferenceImage = attachmentFromDraft(
+    initialDraft?.referenceImageFileId,
+    initialDraft?.referenceImagePreviewUrl,
+    "参考图"
+  )
 
   const [prompt, setPrompt] = useState(initialDraft?.prompt ?? "")
   const [imageMode, setImageModeState] = useState<VideoInputMode>(initialImageMode)
@@ -60,7 +68,11 @@ export function useVideoGenerationController({
   )
   const [lastFrameImage, setLastFrameImage] = useState<MediaImageAttachment | null>(() =>
     initialImageMode === "FIRST_LAST_FRAME"
-      ? attachmentFromUrl(initialDraft?.lastFrameImageUrl, "尾帧图")
+      ? attachmentFromDraft(
+          initialDraft?.lastFrameImageFileId,
+          initialDraft?.lastFrameImagePreviewUrl,
+          "尾帧图"
+        )
       : null
   )
   const [pendingImage, setPendingImage] = useState<PendingMediaImageAttachment | null>(null)
@@ -198,7 +210,7 @@ export function useVideoGenerationController({
           const result = await upload(file)
           setReferenceImages((current) => [
             ...current,
-            { url: result.url, previewSrc, name: file.name }
+            { fileId: result.fileId, url: result.url, previewSrc, name: file.name }
           ])
         } catch {
           URL.revokeObjectURL(previewSrc)
@@ -218,7 +230,7 @@ export function useVideoGenerationController({
       setFirstFrameImage(null)
       try {
         const result = await upload(file)
-        setFirstFrameImage({ url: result.url, previewSrc, name: file.name })
+        setFirstFrameImage({ fileId: result.fileId, url: result.url, previewSrc, name: file.name })
       } catch {
         URL.revokeObjectURL(previewSrc)
         toast.error("首帧图上传失败")
@@ -236,7 +248,7 @@ export function useVideoGenerationController({
       setLastFrameImage(null)
       try {
         const result = await upload(file)
-        setLastFrameImage({ url: result.url, previewSrc, name: file.name })
+        setLastFrameImage({ fileId: result.fileId, url: result.url, previewSrc, name: file.name })
       } catch {
         URL.revokeObjectURL(previewSrc)
         toast.error("尾帧图上传失败")
@@ -253,24 +265,28 @@ export function useVideoGenerationController({
       toast.error("请输入创作描述")
       return
     }
-    if (imageMode === "REFERENCE" && referenceImages.length === 0) {
+    if (imageMode === "REFERENCE" && !referenceImages.some((image) => image.fileId !== undefined)) {
       toast.error("请至少上传一张参考图")
       return
     }
-    if (imageMode === "FIRST_LAST_FRAME" && !firstFrameImage) {
+    if (imageMode === "FIRST_LAST_FRAME" && !firstFrameImage?.fileId) {
       toast.error("请上传首帧图")
       return
     }
-    if (imageMode === "FIRST_LAST_FRAME" && !lastFrameImage) {
+    if (imageMode === "FIRST_LAST_FRAME" && !lastFrameImage?.fileId) {
       toast.error("请上传尾帧图")
       return
     }
 
-    const referenceImageUrls =
+    const referenceImageFileIds =
       imageMode === "REFERENCE"
-        ? referenceImages.map((image) => image.url)
+        ? referenceImages
+            .map((image) => image.fileId)
+            .filter((fileId): fileId is number => fileId !== undefined)
         : imageMode === "FIRST_LAST_FRAME"
-          ? [firstFrameImage?.url, lastFrameImage?.url].filter((url): url is string => Boolean(url))
+          ? [firstFrameImage?.fileId, lastFrameImage?.fileId].filter(
+              (fileId): fileId is number => fileId !== undefined
+            )
           : undefined
 
     try {
@@ -280,7 +296,7 @@ export function useVideoGenerationController({
         model: resolvedModelId ?? undefined,
         projectId,
         imageMode: imageMode === "T2V" ? "T2V" : "REFERENCE",
-        referenceImageUrls,
+        referenceImageFileIds,
         ...(videoConfig?.resolutions?.length
           ? { resolution: params.resolution ?? videoConfig.resolutions[0] }
           : {}),
@@ -324,8 +340,8 @@ export function useVideoGenerationController({
     imageMode === "T2V"
       ? prompt.trim().length > 0
       : imageMode === "REFERENCE"
-        ? referenceImages.length > 0
-        : Boolean(firstFrameImage && lastFrameImage)
+        ? referenceImages.some((image) => image.fileId !== undefined)
+        : Boolean(firstFrameImage?.fileId && lastFrameImage?.fileId)
 
   return {
     prompt,

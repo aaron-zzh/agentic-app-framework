@@ -8,8 +8,11 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.module.system.file.domain.FileConfig;
 import com.xuejiai.aaf.module.system.file.repository.FileConfigRepository;
+import com.xuejiai.aaf.module.system.file.repository.FileRecordRepository;
 import com.xuejiai.aaf.module.system.file.vo.FileConfigCreateDTO;
 import com.xuejiai.aaf.module.system.file.vo.FileConfigUpdateDTO;
 import com.xuejiai.aaf.module.system.file.vo.FileConfigVO;
@@ -26,6 +29,7 @@ import lombok.RequiredArgsConstructor;
 public class FileConfigService {
 
     private final FileConfigRepository fileConfigRepository;
+    private final FileRecordRepository fileRecordRepository;
 
     /**
      * 查询所有文件存储配置。
@@ -72,6 +76,10 @@ public class FileConfigService {
     @Transactional
     public FileConfigVO update(Long id, FileConfigUpdateDTO req) {
         var config = requireConfig(id);
+        if ((req.storageType() != null || req.config() != null)
+                && fileRecordRepository.existsByStorageConfigId(id)) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "已有文件引用的存储配置不能修改存储位置");
+        }
         if (req.name() != null) config.setName(req.name());
         if (req.storageType() != null) config.setStorageType(req.storageType());
         if (req.config() != null) config.setConfig(req.config());
@@ -87,6 +95,9 @@ public class FileConfigService {
      */
     @Transactional
     public void delete(Long id) {
+        if (fileRecordRepository.existsByStorageConfigId(id)) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "已有文件引用的存储配置不能删除");
+        }
         fileConfigRepository.deleteById(id);
     }
 

@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.system.file.api;
 
+import java.util.List;
+
 import org.springframework.web.multipart.MultipartFile;
 
 /** 文件子域对外暴露的上传、查询与引用生命周期边界。 */
@@ -14,6 +16,10 @@ public interface FileStoragePort {
     StoredFile uploadFromBase64(String base64, String path, Long uploaderId);
 
     StoredFile get(Long fileId);
+
+    StoredFile requireCurrentOwner(Long fileId);
+
+    List<String> prepareCurrentOwnerImageInputs(List<Long> fileIds);
 
     String getAccessibleUrl(Long fileId);
 

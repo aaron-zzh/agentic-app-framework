@@ -4,7 +4,7 @@
  *
  * 统一上传链路：
  * - 默认 → 后端 POST /api/system/files/upload（存储类型由后端 aaf.storage.type 决定，local/s3/oss 任一）
- * - NEXT_PUBLIC_UPLOAD_MODE=oss → 切换到 useOssUpload（STS 临时凭证 + ali-oss SDK 分片直传，绕过后端转发）
+ * - NEXT_PUBLIC_UPLOAD_MODE=oss → 切换到 useOssUpload（预签名 PUT 直传，不向浏览器暴露 STS 凭证）
  *
  * 文件类型支持：
  * - 图片：自动 Canvas 压缩（webp/jpeg）+ 获取尺寸
@@ -41,6 +41,8 @@ export interface FileUploadOptions {
 }
 
 export interface UploadResult {
+  /** 文件记录 ID，提交业务请求时必须使用该值 */
+  fileId: number
   /** 上传后的访问 URL */
   url: string
   /** 文件名 */
@@ -143,7 +145,7 @@ export function useFileUpload(options: FileUploadOptions = {}) {
 
   /** 后端直传：POST /system/files/upload (multipart/form-data) */
   const uploadToBackend = useCallback(
-    async (file: File, signal: AbortSignal): Promise<{ url: string; key: string }> => {
+    async (file: File, signal: AbortSignal): Promise<StoredFile> => {
       const form = new FormData()
       form.append("file", file)
 
@@ -155,7 +157,7 @@ export function useFileUpload(options: FileUploadOptions = {}) {
           if (e.total) setProgress(Math.round((e.loaded / e.total) * 100))
         }
       })
-      return { url: vo.url, key: vo.key }
+      return vo
     },
     []
   )
@@ -189,10 +191,18 @@ export function useFileUpload(options: FileUploadOptions = {}) {
         }
 
         // 3. 上传
-        const { url, key } = await uploadToBackend(compressed, signal)
+        const storedFile = await uploadToBackend(compressed, signal)
 
         setProgress(100)
-        return { url, key, name: compressed.name, size: compressed.size, width, height }
+        return {
+          fileId: storedFile.fileId,
+          url: storedFile.url,
+          key: storedFile.key,
+          name: compressed.name,
+          size: compressed.size,
+          width,
+          height
+        }
       } finally {
         setUploading(false)
         abortRef.current = null
@@ -220,7 +230,7 @@ export function useFileUpload(options: FileUploadOptions = {}) {
     setProgress(0)
   }, [])
 
-  // ─── env 切链路：NEXT_PUBLIC_UPLOAD_MODE=oss 时委托给 useOssUpload（STS + 分片直传） ───
+  // ─── env 切链路：NEXT_PUBLIC_UPLOAD_MODE=oss 时委托给 useOssUpload（预签名 PUT） ───
   // hook 顺序固定：始终调用 useOssUpload，不依赖 env 开关条件
   const ossHook = useOssUpload({
     maxWidth,

@@ -21,6 +21,8 @@ public interface FileRecordRepository
 
     void deleteByKey(String key);
 
+    boolean existsByStorageConfigId(Long storageConfigId);
+
     @org.springframework.data.jpa.repository.Query(
             "SELECT COALESCE(SUM(f.size), 0) FROM FileRecord f WHERE f.uploaderId = :uploaderId AND f.deleted = false")
     long sumSizeByUploaderId(

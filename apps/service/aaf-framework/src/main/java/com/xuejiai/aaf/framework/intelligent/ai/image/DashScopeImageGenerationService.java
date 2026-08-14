@@ -1,8 +1,6 @@
 package com.xuejiai.aaf.framework.intelligent.ai.image;
 
-import java.net.URI;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -165,11 +163,10 @@ public class DashScopeImageGenerationService implements ImageGenerationService {
             List<String> imageUrls) {
         try {
             var contentList = new ArrayList<Map<String, Object>>();
-            // 有图时先加图片（图像编辑）——本地 URL 转 base64，避免百炼服务器拉取失败
+            // 引用内容已由调用方准备为 Data URL 或短时签名 URL。
             if (imageUrls != null) {
-                for (String imgUrl : imageUrls) {
-                    String imageValue = isLocalUrl(imgUrl) ? toBase64DataUrl(imgUrl) : imgUrl;
-                    contentList.add(Collections.singletonMap("image", imageValue));
+                for (String imageUrl : imageUrls) {
+                    contentList.add(Collections.singletonMap("image", imageUrl));
                 }
             }
             contentList.add(Collections.singletonMap("text", prompt));
@@ -208,10 +205,10 @@ public class DashScopeImageGenerationService implements ImageGenerationService {
             int count) {
         try {
             List<Map<String, Object>> contentList = new ArrayList<>();
-            // 每张参考图下载转 base64
+            // 引用内容已由调用方准备为 Data URL 或短时签名 URL。
             if (imageUrls != null) {
-                for (String url : imageUrls) {
-                    contentList.add(Collections.singletonMap("image", toBase64DataUrl(url)));
+                for (String imageUrl : imageUrls) {
+                    contentList.add(Collections.singletonMap("image", imageUrl));
                 }
             }
             contentList.add(Collections.singletonMap("text", prompt));
@@ -245,20 +242,6 @@ public class DashScopeImageGenerationService implements ImageGenerationService {
         } catch (Exception e) {
             log.error("[DashScopeImage][qwen2] 失败: model={}", model, e);
             throw new RuntimeException("qwen-image-2 图像生成失败: " + e.getMessage(), e);
-        }
-    }
-
-    /** 将图片 URL 下载并转为 data:{mime};base64,{data} 格式 */
-    private String toBase64DataUrl(String imageUrl) {
-        try (var is = URI.create(imageUrl).toURL().openStream()) {
-            byte[] bytes = is.readAllBytes();
-            String mime = "image/png"; // 默认 png，OSS URL 通常不带扩展名
-            if (imageUrl.contains(".jpg") || imageUrl.contains(".jpeg")) mime = "image/jpeg";
-            else if (imageUrl.contains(".webp")) mime = "image/webp";
-            return "data:" + mime + ";base64," + Base64.getEncoder().encodeToString(bytes);
-        } catch (Exception e) {
-            log.warn("[DashScopeImage] 图片下载失败，回退使用 URL: {}", imageUrl);
-            return imageUrl; // 下载失败时降级用 URL（部分情况 DashScope 也接受 URL）
         }
     }
 
@@ -299,16 +282,6 @@ public class DashScopeImageGenerationService implements ImageGenerationService {
     }
 
     // ========== 工具方法 ==========
-
-    /** 判断是否为本地/内网 URL，百炼服务器无法访问 */
-    private boolean isLocalUrl(String url) {
-        if (url == null) return false;
-        return url.contains("localhost")
-                || url.contains("127.0.0.1")
-                || url.contains("192.168.")
-                || url.contains("10.")
-                || url.startsWith("file:");
-    }
 
     private String stripNamespace(String modelId) {
         if (modelId == null) return "";

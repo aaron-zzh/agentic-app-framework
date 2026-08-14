@@ -115,12 +115,7 @@ public class AigcTaskController
                 switch (taskType) {
                     case IMAGE -> {
                         var p = dto.params() != null ? dto.params() : Map.of();
-                        String imageUrl = toString(p.get("imageUrl"));
-                        @SuppressWarnings("unchecked")
-                        List<String> imageUrls =
-                                p.get("imageUrls") instanceof List
-                                        ? (List<String>) p.get("imageUrls")
-                                        : (imageUrl != null ? List.of(imageUrl) : null);
+                        List<Long> imageFileIds = toLongList(p.get("imageFileIds"));
                         Integer wRaw = toInt(p.get("width"));
                         Integer hRaw = toInt(p.get("height"));
                         // 0 或未传均视为 auto，传 null 让后端用模型默认尺寸
@@ -137,7 +132,7 @@ public class AigcTaskController
                                         toInt(p.get("seed")),
                                         toBool(p.get("promptExtend")),
                                         toInt(p.get("imageCount")),
-                                        imageUrls,
+                                        imageFileIds,
                                         toString(p.get("quality")),
                                         toString(p.get("format")),
                                         toString(p.get("background")),
@@ -162,8 +157,8 @@ public class AigcTaskController
                                         toString(p.get("ratio")),
                                         toInt(p.get("seed")),
                                         toString(p.get("imageMode")),
-                                        toString(p.get("imageUrl")),
-                                        toStringList(p.get("referenceImageUrls")),
+                                        toLong(p.get("imageFileId")),
+                                        toLongList(p.get("referenceImageFileIds")),
                                         toStringList(p.get("referenceVideoUrls")),
                                         toStringList(p.get("referenceAudioUrls")),
                                         toString(p.get("audioSetting")),
@@ -282,6 +277,33 @@ public class AigcTaskController
 
     private static Boolean toBoolean(Object val) {
         return toBool(val);
+    }
+
+    private static List<Long> toLongList(Object val) {
+        if (val == null) return null;
+        if (!(val instanceof List<?> list)) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "imageFileIds 必须是数组");
+        }
+        return list.stream()
+                .map(AigcTaskController::toLong)
+                .map(
+                        fileId -> {
+                            if (fileId == null || fileId <= 0) {
+                                throw new BusinessException(
+                                        GlobalErrorCode.BAD_REQUEST, "imageFileIds 包含无效文件 ID");
+                            }
+                            return fileId;
+                        })
+                .toList();
+    }
+
+    private static Long toLong(Object val) {
+        if (val instanceof Number number) return number.longValue();
+        try {
+            return val != null ? Long.parseLong(val.toString()) : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     @SuppressWarnings("unchecked")

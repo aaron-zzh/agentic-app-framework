@@ -13,7 +13,7 @@ export interface GenerateImageParams {
   model?: string
   width?: number
   height?: number
-  imageUrls?: string[]
+  imageFileIds?: number[]
   negativePrompt?: string
   seed?: number
   promptExtend?: boolean
@@ -39,8 +39,8 @@ export interface GenerateVideoParams {
   ratio?: string
   seed?: number
   imageMode?: VideoImageMode
-  imageUrl?: string
-  referenceImageUrls?: string[]
+  imageFileId?: number
+  referenceImageFileIds?: number[]
   referenceVideoUrls?: string[]
   referenceAudioUrls?: string[]
   audioSetting?: string
@@ -64,7 +64,7 @@ export const aigcTaskApi = {
         params: {
           width: params.width ?? 1024,
           height: params.height ?? 1024,
-          ...(params.imageUrls?.length ? { imageUrls: params.imageUrls } : {}),
+          ...(params.imageFileIds?.length ? { imageFileIds: params.imageFileIds } : {}),
           ...(params.negativePrompt ? { negativePrompt: params.negativePrompt } : {}),
           ...(params.seed ? { seed: params.seed } : {}),
           ...(params.promptExtend !== undefined ? { promptExtend: params.promptExtend } : {}),
@@ -94,9 +94,9 @@ export const aigcTaskApi = {
           ...(params.ratio ? { ratio: params.ratio } : {}),
           ...(params.seed ? { seed: params.seed } : {}),
           ...(params.imageMode ? { imageMode: params.imageMode } : {}),
-          ...(params.imageUrl ? { imageUrl: params.imageUrl } : {}),
-          ...(params.referenceImageUrls?.length
-            ? { referenceImageUrls: params.referenceImageUrls }
+          ...(params.imageFileId ? { imageFileId: params.imageFileId } : {}),
+          ...(params.referenceImageFileIds?.length
+            ? { referenceImageFileIds: params.referenceImageFileIds }
             : {}),
           ...(params.referenceVideoUrls?.length
             ? { referenceVideoUrls: params.referenceVideoUrls }

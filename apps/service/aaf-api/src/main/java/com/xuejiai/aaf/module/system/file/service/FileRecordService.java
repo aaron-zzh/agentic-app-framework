@@ -1,6 +1,8 @@
 package com.xuejiai.aaf.module.system.file.service;
 
+import java.io.InputStream;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
 
 import org.springframework.data.domain.Sort;
@@ -15,7 +17,8 @@ import com.xuejiai.aaf.common.exception.QuotaExceededException;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
 import com.xuejiai.aaf.framework.security.OperatorContext;
-import com.xuejiai.aaf.framework.storage.StorageService;
+import com.xuejiai.aaf.framework.storage.StorageProperties;
+import com.xuejiai.aaf.framework.storage.UploadPolicy;
 import com.xuejiai.aaf.module.billing.repository.EntitlementQuotaRepository;
 import com.xuejiai.aaf.module.system.file.api.FileRecordApi;
 import com.xuejiai.aaf.module.system.file.api.FileReference;
@@ -45,7 +48,8 @@ public class FileRecordService implements FileRecordApi {
     private final FileReferenceRepository fileReferenceRepository;
     private final FileConfigRepository fileConfigRepository;
     private final EntitlementQuotaRepository entitlementQuotaRepository;
-    private final StorageService storageService;
+    private final FileStorageReferenceService storageReferenceService;
+    private final StorageProperties storageProperties;
     private final OperatorContext operatorContext;
 
     /** 按存储 key 删除文件记录。 */
@@ -68,6 +72,12 @@ public class FileRecordService implements FileRecordApi {
         fileRecordRepository.delete(requireOwnedByKey(key));
     }
 
+    /** 按文件创建时绑定的存储配置下载当前用户拥有的文件。 */
+    public InputStream downloadOwnedByKey(String key) {
+        var file = requireOwnedByKey(key);
+        return storageReferenceService.resolve(file).download(file.getKey());
+    }
+
     /** 客户端直传 key 必须位于当前用户命名空间。 */
     public void requireCurrentOwnerNamespace(String key) {
         var prefix = currentOwnerNamespace() + "/";
@@ -81,11 +91,90 @@ public class FileRecordService implements FileRecordApi {
         return "users/" + requireCurrentOwnerId();
     }
 
+    /** 当前用户按存储配置隔离的直传命名空间，配置 ID 同时作为确认时的不可变路由标识。 */
+    public String currentOwnerStorageNamespace(Long storageConfigId) {
+        return currentOwnerNamespace()
+                + "/storage/"
+                + (storageConfigId == null ? "default" : storageConfigId);
+    }
+
+    /** 从服务端生成的直传 key 提取创建时绑定的存储配置 ID。 */
+    private Long storageConfigIdFromCurrentOwnerKey(String key) {
+        var prefix = currentOwnerNamespace() + "/storage/";
+        if (key == null || !key.startsWith(prefix) || key.contains("..")) {
+            throw new BusinessException(GlobalErrorCode.FORBIDDEN, "文件 key 不属于当前用户直传命名空间");
+        }
+        var suffix = key.substring(prefix.length());
+        var slash = suffix.indexOf('/');
+        if (slash <= 0) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "直传文件 key 格式无效");
+        }
+        var configId = suffix.substring(0, slash);
+        if ("default".equals(configId)) return null;
+        try {
+            return Long.valueOf(configId);
+        } catch (NumberFormatException e) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "直传文件存储配置无效");
+        }
+    }
+
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public StoredFile registerCurrent(
             String key, String originalName, String mimeType, long size, String contentHash) {
-        return register(key, originalName, mimeType, size, contentHash, requireCurrentOwnerId());
+        return registerCurrentForStorage(
+                key, originalName, mimeType, size, contentHash, currentStorageConfigId());
+    }
+
+    /** 校验浏览器直传的实际对象后，以签发时绑定的存储配置登记。 */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public StoredFile confirmCurrentUpload(
+            String key, String originalName, String mimeType, long declaredSize) {
+        var storageConfigId = storageConfigIdFromCurrentOwnerKey(key);
+        var policy = new UploadPolicy(storageProperties.uploadOrDefault());
+        policy.validate(originalName, mimeType, declaredSize);
+        long actualSize = countUploadedObject(key, storageConfigId, policy.maxSizeBytes());
+        if (actualSize != declaredSize) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "直传文件大小与实际对象不一致");
+        }
+        return registerCurrentForStorage(
+                key, originalName, mimeType, actualSize, null, storageConfigId);
+    }
+
+    private long countUploadedObject(String key, Long storageConfigId, long maxSizeBytes) {
+        try (var input = storageReferenceService.resolveByConfigId(storageConfigId).download(key)) {
+            long total = 0;
+            var buffer = new byte[8192];
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                total += read;
+                if (total > maxSizeBytes) {
+                    throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "直传文件超过大小限制");
+                }
+            }
+            return total;
+        } catch (java.io.IOException e) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "直传文件不存在或无法读取");
+        }
+    }
+
+    /** 使用上传时已选定的存储配置登记当前用户文件，避免主配置切换造成错绑。 */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public StoredFile registerCurrentForStorage(
+            String key,
+            String originalName,
+            String mimeType,
+            long size,
+            String contentHash,
+            Long storageConfigId) {
+        return registerForStorage(
+                key,
+                originalName,
+                mimeType,
+                size,
+                contentHash,
+                requireCurrentOwnerId(),
+                storageConfigId);
     }
 
     @Override
@@ -97,12 +186,31 @@ public class FileRecordService implements FileRecordApi {
             long size,
             String contentHash,
             Long uploaderId) {
+        return registerForStorage(
+                key,
+                originalName,
+                mimeType,
+                size,
+                contentHash,
+                uploaderId,
+                currentStorageConfigId());
+    }
+
+    /** 使用上传时已选定的存储配置登记任意归属的文件。 */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public StoredFile registerForStorage(
+            String key,
+            String originalName,
+            String mimeType,
+            long size,
+            String contentHash,
+            Long uploaderId,
+            Long storageConfigId) {
         if (uploaderId != null) {
             checkStorageQuota(uploaderId, size);
         }
         var record = new FileRecord();
-        record.setStorageConfigId(
-                fileConfigRepository.findByMasterTrue().map(config -> config.getId()).orElse(null));
+        record.setStorageConfigId(storageConfigId);
         record.setKey(key);
         record.setOriginalName(originalName != null ? originalName : key);
         record.setMimeType(mimeType);
@@ -119,8 +227,36 @@ public class FileRecordService implements FileRecordApi {
     }
 
     @Override
+    public StoredFile requireCurrentOwner(Long fileId) {
+        var file = requireFile(fileId);
+        if (!requireCurrentOwnerId().equals(file.getUploaderId())) {
+            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "文件不存在或无权访问");
+        }
+        return toStoredFile(file);
+    }
+
+    @Override
+    public List<String> prepareCurrentOwnerImageInputs(List<Long> fileIds) {
+        if (fileIds == null || fileIds.isEmpty()) {
+            return List.of();
+        }
+        return fileIds.stream()
+                .map(
+                        fileId -> {
+                            var file = requireFile(fileId);
+                            if (!requireCurrentOwnerId().equals(file.getUploaderId())) {
+                                throw new BusinessException(
+                                        GlobalErrorCode.NOT_FOUND, "文件不存在或无权访问");
+                            }
+                            return storageReferenceService.prepareImageInput(file);
+                        })
+                .toList();
+    }
+
+    @Override
     public String getAccessibleUrl(Long fileId) {
-        return storageService.getUrl(requireFile(fileId).getKey());
+        var file = requireFile(fileId);
+        return storageReferenceService.resolve(file).getUrl(file.getKey());
     }
 
     @Override
@@ -208,6 +344,10 @@ public class FileRecordService implements FileRecordApi {
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.UNAUTHORIZED));
     }
 
+    private Long currentStorageConfigId() {
+        return fileConfigRepository.findByMasterTrue().map(config -> config.getId()).orElse(null);
+    }
+
     private void checkStorageQuota(Long userId, long newFileSize) {
         var quota = entitlementQuotaRepository.findByUserIdAndEntCode(userId, "storage");
         if (quota.isEmpty() || quota.get().getRemain() == -1) return;
@@ -222,7 +362,7 @@ public class FileRecordService implements FileRecordApi {
         return new StoredFile(
                 file.getId(),
                 file.getKey(),
-                storageService.getUrl(file.getKey()),
+                storageReferenceService.resolve(file).getUrl(file.getKey()),
                 file.getOriginalName(),
                 file.getMimeType(),
                 file.getSize(),
@@ -234,7 +374,7 @@ public class FileRecordService implements FileRecordApi {
         return new FileRecordVO(
                 entity.getId(),
                 entity.getKey(),
-                storageService.getUrl(entity.getKey()),
+                storageReferenceService.resolve(entity).getUrl(entity.getKey()),
                 entity.getOriginalName(),
                 entity.getMimeType(),
                 entity.getSize(),

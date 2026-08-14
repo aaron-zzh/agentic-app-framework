@@ -69,7 +69,7 @@ public class AigcTaskApiAdapter implements AigcTaskApi {
                         integer(parameters.get("seed")),
                         bool(parameters.get("promptExtend")),
                         integer(parameters.get("imageCount")),
-                        stringList(parameters.get("sourceImages")),
+                        longList(parameters.get("imageFileIds")),
                         text(parameters.get("quality")),
                         text(parameters.get("format")),
                         text(parameters.get("background")),
@@ -95,8 +95,8 @@ public class AigcTaskApiAdapter implements AigcTaskApi {
                         text(parameters.get("ratio")),
                         integer(parameters.get("seed")),
                         text(parameters.get("imageMode")),
-                        text(parameters.get("imageUrl")),
-                        stringList(parameters.get("referenceImageUrls")),
+                        longValue(parameters.get("imageFileId")),
+                        longList(parameters.get("referenceImageFileIds")),
                         stringList(parameters.get("referenceVideoUrls")),
                         stringList(parameters.get("referenceAudioUrls")),
                         text(parameters.get("audioSetting")),
@@ -187,6 +187,22 @@ public class AigcTaskApiAdapter implements AigcTaskApi {
             return List.of();
         }
         return values.stream().map(String::valueOf).toList();
+    }
+
+    private List<Long> longList(Object value) {
+        if (!(value instanceof List<?> values)) {
+            return List.of();
+        }
+        return values.stream().map(this::longValue).filter(java.util.Objects::nonNull).toList();
+    }
+
+    private Long longValue(Object value) {
+        if (value instanceof Number number) return number.longValue();
+        try {
+            return value != null ? Long.parseLong(String.valueOf(value)) : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private String text(Object value) {

@@ -12,6 +12,7 @@ package com.xuejiai.aaf.framework.storage;
  * @param region OSS 地域，如 oss-cn-hangzhou
  * @param urlPrefix 对象访问 URL 前缀（可空）；前端拼上传后访问 URL 时优先使用， 用于绑定自定义域名 / CDN 加速域名场景；为空则回退
  *     https://&lt;bucket&gt;.&lt;endpoint&gt;/&lt;key&gt;
+ * @param keyPrefix 当前用户可登记对象的存储 key 前缀
  */
 public record StsCredentials(
         String accessKeyId,
@@ -21,4 +22,5 @@ public record StsCredentials(
         String bucket,
         String endpoint,
         String region,
-        String urlPrefix) {}
+        String urlPrefix,
+        String keyPrefix) {}

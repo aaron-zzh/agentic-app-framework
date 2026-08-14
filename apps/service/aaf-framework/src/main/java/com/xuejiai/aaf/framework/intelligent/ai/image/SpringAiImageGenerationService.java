@@ -207,25 +207,14 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
             // 下载图片并以 binary 形式上传
             List<String> srcUrls = req.allSourceUrls();
             for (int i = 0; i < srcUrls.size(); i++) {
-                byte[] bytes =
-                        java.net.URI.create(srcUrls.get(i)).toURL().openStream().readAllBytes();
-                String srcUrl = srcUrls.get(i).split("\\?")[0].toLowerCase();
-                String ext =
-                        srcUrl.endsWith(".webp")
-                                ? "webp"
-                                : srcUrl.endsWith(".jpg") || srcUrl.endsWith(".jpeg")
-                                        ? "jpg"
-                                        : "png";
-                String mime =
-                        ext.equals("webp")
-                                ? "image/webp"
-                                : ext.equals("jpg") ? "image/jpeg" : "image/png";
+                var sourceImage = ImageInputReader.read(srcUrls.get(i));
+                String ext = sourceImage.extension();
                 String fname = "image_" + i + "." + ext;
                 String fieldName = srcUrls.size() == 1 ? "image" : "image[]";
-                var mediaType = MediaType.parseMediaType(mime);
+                var mediaType = MediaType.parseMediaType(sourceImage.mimeType());
                 multipart.part(
                         fieldName,
-                        new ByteArrayResource(bytes) {
+                        new ByteArrayResource(sourceImage.bytes()) {
                             @Override
                             public String getFilename() {
                                 return fname;

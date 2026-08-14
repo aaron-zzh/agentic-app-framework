@@ -250,10 +250,13 @@ public class AigcTaskExecutor {
             return null;
         }
         var svc = aiServiceRegistry.get(ImageGenerationService.class, aiModel);
+        if (p.getImageFileIds() != null && !p.getImageFileIds().isEmpty()) {
+            p.setImageUrls(fileService.prepareCurrentOwnerImageInputs(p.getImageFileIds()));
+        }
         log.info(
-                "[图片任务] modelId={}, imageUrls={}, prompt={}",
+                "[图片任务] modelId={}, imageFileCount={}, prompt={}",
                 modelId,
-                p.getImageUrls(),
+                p.getImageUrls() != null ? p.getImageUrls().size() : 0,
                 p.getPrompt() != null && p.getPrompt().length() > 50
                         ? p.getPrompt().substring(0, 50) + "..."
                         : p.getPrompt());
@@ -762,6 +765,17 @@ public class AigcTaskExecutor {
                             ? l.stream().map(Object::toString).toList()
                             : null;
 
+            List<Long> referenceImageFileIds = toParamLongList(p.get("referenceImageFileIds"));
+            List<String> referenceImageUrls =
+                    fileService.prepareCurrentOwnerImageInputs(referenceImageFileIds);
+            Long imageFileId = toParamLong(p.get("imageFileId"));
+            String imageUrl =
+                    imageFileId != null
+                            ? fileService
+                                    .prepareCurrentOwnerImageInputs(List.of(imageFileId))
+                                    .getFirst()
+                            : null;
+
             boolean isVolcengine =
                     aiModel != null
                             && aiModel.effectiveProviderType() == AiModelProviderType.VOLCENGINE;
@@ -773,32 +787,22 @@ public class AigcTaskExecutor {
             if (isVolcengine
                     && hasRichMedia
                     && svc instanceof DoubaoVideoGenerationService doubao) {
-                @SuppressWarnings("unchecked")
-                List<String> referenceImages =
-                        p.get("referenceImageUrls") instanceof List<?> l
-                                ? l.stream().map(Object::toString).toList()
-                                : null;
                 boolean generateAudio = Boolean.TRUE.equals(p.get("generateAudio"));
                 thirdTaskId =
                         doubao.submitRich(
                                 aiModel,
                                 prompt,
-                                referenceImages,
+                                referenceImageUrls,
                                 referenceVideoUrls,
                                 referenceAudioUrls,
                                 (String) p.get("ratio"),
                                 toParamInt(p.get("duration")),
                                 generateAudio);
             } else {
-                @SuppressWarnings("unchecked")
-                List<String> referenceImageUrls =
-                        p.get("referenceImageUrls") instanceof List<?> l
-                                ? l.stream().map(Object::toString).toList()
-                                : null;
                 var request =
                         new VideoRequest(
                                 prompt,
-                                (String) p.get("imageUrl"),
+                                imageUrl,
                                 referenceImageUrls,
                                 modelId,
                                 (String) p.get("resolution"),
@@ -836,6 +840,23 @@ public class AigcTaskExecutor {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private static Long toParamLong(Object val) {
+        if (val instanceof Number number) return number.longValue();
+        try {
+            return val != null ? Long.parseLong(val.toString()) : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static List<Long> toParamLongList(Object val) {
+        if (!(val instanceof List<?> list)) return List.of();
+        return list.stream()
+                .map(AigcTaskExecutor::toParamLong)
+                .filter(java.util.Objects::nonNull)
+                .toList();
     }
 
     /** 从 task.params JSON 反序列化为 ImageRequest，再补充 prompt/modelId。 */

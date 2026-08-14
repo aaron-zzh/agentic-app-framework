@@ -39,6 +39,7 @@ public class ImageRequest {
     private String sizePreset;
     private String aspectRatio;
     private String displayPrompt;
+    private List<Long> imageFileIds;
     private List<String> imageUrls;
 
     public ImageRequest(String prompt, String modelId) {

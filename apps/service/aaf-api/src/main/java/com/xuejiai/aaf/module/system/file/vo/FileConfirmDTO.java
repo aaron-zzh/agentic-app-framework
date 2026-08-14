@@ -7,5 +7,5 @@ import jakarta.validation.constraints.Positive;
 public record FileConfirmDTO(
         @NotBlank String key,
         @NotBlank String originalName,
-        String mimeType,
+        @NotBlank String mimeType,
         @Positive long size) {}

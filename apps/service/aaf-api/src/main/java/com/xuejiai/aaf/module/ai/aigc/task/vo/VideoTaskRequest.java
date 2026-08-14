@@ -22,8 +22,8 @@ public record VideoTaskRequest(
         Integer seed,
         /** 图片模式：T2V / FIRST_FRAME / REFERENCE */
         String imageMode,
-        String imageUrl,
-        List<String> referenceImageUrls,
+        Long imageFileId,
+        List<Long> referenceImageFileIds,
         List<String> referenceVideoUrls,
         List<String> referenceAudioUrls,
         String audioSetting,

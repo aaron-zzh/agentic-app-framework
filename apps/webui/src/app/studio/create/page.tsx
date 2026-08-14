@@ -64,16 +64,13 @@ export default async function StudioCreatePage({ searchParams }: StudioCreatePag
   if (rawMode === "digital-human") return <DigitalHumanPlaceholder />
 
   const mode: MediaGenerationMode = isMediaGenerationMode(rawMode) ? rawMode : "image"
-  const referenceImageUrl = firstParam(params.refUrl)
   const prompt = firstParam(params.prompt) ?? ""
-  const initialDraft: MediaGenerationDraft | undefined =
-    referenceImageUrl || prompt
-      ? {
-          revision: 0,
-          prompt,
-          referenceImageUrl
-        }
-      : undefined
+  const initialDraft: MediaGenerationDraft | undefined = prompt
+    ? {
+        revision: 0,
+        prompt
+      }
+    : undefined
 
   return (
     <div className="relative mx-auto max-w-6xl p-6">

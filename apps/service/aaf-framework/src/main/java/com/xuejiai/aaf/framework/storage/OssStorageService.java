@@ -137,7 +137,8 @@ public class OssStorageService implements StorageService {
                     props.bucketName(),
                     props.endpoint(),
                     region,
-                    props.urlPrefix());
+                    props.urlPrefix(),
+                    null);
         } catch (ClientException e) {
             throw new StorageException("获取 STS 临时凭证失败: " + e.getErrMsg(), e);
         }
