@@ -25,6 +25,7 @@ import {
   Cpu,
   CreditCard,
   Database,
+  DatabaseZap,
   FileText,
   FlaskConical,
   FolderOpen,
@@ -33,8 +34,10 @@ import {
   GitPullRequest,
   Globe,
   Image,
+  Images,
   LayoutDashboard,
   LayoutTemplate,
+  ListRestart,
   type LucideIcon,
   Mail,
   Menu,
@@ -98,6 +101,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   video: Video,
   box: Box,
   image: Image,
+  images: Images,
   // 开发工具
   "scroll-text": ScrollText,
   "git-pull-request": GitPullRequest,
@@ -110,6 +114,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   clock: Clock,
   menu: Menu,
   database: Database,
+  "database-zap": DatabaseZap,
   "wand-2": Wand2,
   // 分销
   percent: Percent,
@@ -119,7 +124,8 @@ const ICON_MAP: Record<string, LucideIcon> = {
   "flask-conical": FlaskConical,
   "sliders-horizontal": SlidersHorizontal,
   "layout-template": LayoutTemplate,
-  "clipboard-list": ClipboardList
+  "clipboard-list": ClipboardList,
+  "list-restart": ListRestart
 }
 
 function NavIcon({ name, className }: { name?: string; className?: string }) {
