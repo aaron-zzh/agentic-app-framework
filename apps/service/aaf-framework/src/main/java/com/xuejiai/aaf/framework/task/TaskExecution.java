@@ -2,11 +2,11 @@ package com.xuejiai.aaf.framework.task;
 
 import java.time.LocalDateTime;
 
+import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -18,13 +18,10 @@ import lombok.Setter;
  */
 @Getter
 @Setter
+@OrgIgnore
 @Entity(name = "SysTaskExecution")
 @Table(name = "sys_task_execution")
-public class TaskExecution {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class TaskExecution extends BaseEntity {
 
     @Column(name = "task_name", nullable = false, length = 100)
     private String taskName;
@@ -64,7 +61,4 @@ public class TaskExecution {
 
     @Column(name = "context", columnDefinition = "TEXT")
     private String context;
-
-    @Column(name = "create_time", nullable = false, updatable = false)
-    private LocalDateTime createTime;
 }

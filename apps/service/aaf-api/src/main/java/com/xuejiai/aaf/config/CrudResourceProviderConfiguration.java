@@ -48,6 +48,10 @@ import com.xuejiai.aaf.module.system.notify.controller.NoticeController;
 import com.xuejiai.aaf.module.system.org.controller.WorkspaceController;
 import com.xuejiai.aaf.module.system.role.controller.DataAccessRuleController;
 import com.xuejiai.aaf.module.system.role.controller.RoleController;
+import com.xuejiai.aaf.module.system.task.AsyncTaskResource;
+import com.xuejiai.aaf.module.system.task.TaskExecutionResource;
+import com.xuejiai.aaf.module.system.task.controller.AsyncTaskEntityController;
+import com.xuejiai.aaf.module.system.task.controller.TaskExecutionEntityController;
 import com.xuejiai.aaf.module.system.todo.TodoResource;
 import com.xuejiai.aaf.module.system.todo.controller.TodoController;
 import com.xuejiai.aaf.module.system.user.controller.UserController;
@@ -413,6 +417,18 @@ public class CrudResourceProviderConfiguration {
     @Bean
     CrudResourceDefinitionProvider<?> todoResource() {
         return CrudResourceDefinitions.bindCrud(TodoResource.DEFINITION, TodoController.class);
+    }
+
+    @Bean
+    CrudResourceDefinitionProvider<?> asyncTaskResource() {
+        return CrudResourceDefinitions.bindCrud(
+                AsyncTaskResource.DEFINITION, AsyncTaskEntityController.class);
+    }
+
+    @Bean
+    CrudResourceDefinitionProvider<?> taskExecutionResource() {
+        return CrudResourceDefinitions.bindCrud(
+                TaskExecutionResource.DEFINITION, TaskExecutionEntityController.class);
     }
 
     @Bean

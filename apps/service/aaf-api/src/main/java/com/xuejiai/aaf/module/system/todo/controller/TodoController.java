@@ -15,6 +15,7 @@ import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.crud.BaseCrudController;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.crud.definition.Patch;
+import com.xuejiai.aaf.framework.task.AsyncQueueTaskService;
 import com.xuejiai.aaf.module.system.todo.domain.Todo;
 import com.xuejiai.aaf.module.system.todo.service.TodoQueueService;
 import com.xuejiai.aaf.module.system.todo.service.TodoService;
@@ -88,17 +89,17 @@ public class TodoController
                                 dto.expectedVersion())));
     }
 
-    @Operation(summary = "批量清理已完成待办", description = "管理端维护操作，清理全部用户的已完成待办，跨用户不受行级数据权限限制。")
+    @Operation(summary = "同步清理已完成待办", description = "立即清理当前组织内全部用户的已完成待办。")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
-    @PutMapping("/_clear-done")
+    @PostMapping("/actions/clear-done-sync")
     public Result<Long> clearDoneTodos() {
         return Result.success(todoService.clearDoneTodos());
     }
 
-    @Operation(summary = "异步清理已完成待办", description = "通用 Redis Stream 任务队列试点，立即返回任务 ID。")
+    @Operation(summary = "异步清理已完成待办", description = "提交持久化异步任务并立即返回可查询任务引用。")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
-    @PostMapping("/_clear-done/async")
-    public Result<String> clearDoneTodosAsync() {
+    @PostMapping("/actions/clear-done")
+    public Result<AsyncQueueTaskService.AsyncTaskRef> clearDoneTodosAsync() {
         return Result.success(todoQueueService.enqueueClearDone());
     }
 

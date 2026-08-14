@@ -83,6 +83,26 @@ VALUES (
           "includeTime": true
         }
       ],
+      "actions": [
+        {
+          "key": "clearDoneSync",
+          "label": "清理已完成待办",
+          "type": "entity",
+          "execution": "sync",
+          "endpoint": "/api/todos/actions/clear-done-sync",
+          "confirmMessage": "将立即清理当前组织内全部用户的已完成待办，且不可恢复。是否继续？",
+          "position": "listToolbar"
+        },
+        {
+          "key": "clearDone",
+          "label": "清理已完成待办（异步）",
+          "type": "entity",
+          "execution": "async",
+          "endpoint": "/api/todos/actions/clear-done",
+          "confirmMessage": "将清理当前组织内全部用户的已完成待办，且不可恢复。是否继续？",
+          "position": "listToolbar"
+        }
+      ],
       "listView": {
         "columns": [
           "title",

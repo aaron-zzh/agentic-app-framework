@@ -60,7 +60,8 @@ class TodoResourceTest {
 
         assertThat(filterFields)
                 .extracting(filter -> filter.field())
-                .containsExactly("title", "category", "status", "dueDate", "createTime", "sourceEntity");
+                .containsExactly(
+                        "title", "category", "status", "dueDate", "createTime", "sourceEntity");
         assertThat(filterFields.getFirst().operators())
                 .extracting(operator -> operator.value())
                 .contains("contains", "startsWith");

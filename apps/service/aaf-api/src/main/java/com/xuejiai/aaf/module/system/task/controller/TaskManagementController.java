@@ -4,8 +4,6 @@ import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
 
 import java.util.List;
 
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,9 +16,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
+import com.xuejiai.aaf.framework.task.AsyncQueueTaskService;
+import com.xuejiai.aaf.framework.task.AsyncTaskStatus;
 import com.xuejiai.aaf.framework.task.ScheduledTaskExecutor;
-import com.xuejiai.aaf.framework.task.TaskExecution;
-import com.xuejiai.aaf.framework.task.TaskExecutionRepository;
 import com.xuejiai.aaf.framework.task.TaskRegistry;
 import com.xuejiai.aaf.framework.task.queue.DeadLetterQueue;
 import com.xuejiai.aaf.framework.task.queue.DeadLetterQueue.DeadLetterMessage;
@@ -43,8 +41,8 @@ public class TaskManagementController {
 
     private final TaskRegistry taskRegistry;
     private final ScheduledTaskExecutor scheduledTaskExecutor;
-    private final TaskExecutionRepository taskExecutionRepository;
     private final DeadLetterQueue deadLetterQueue;
+    private final AsyncQueueTaskService asyncTaskService;
 
     @Operation(summary = "任务列表（定时任务）")
     @GetMapping
@@ -88,19 +86,17 @@ public class TaskManagementController {
         return Result.success();
     }
 
-    @Operation(summary = "执行记录查询（分页）")
-    @GetMapping("/executions")
-    public Result<PageResult<TaskExecution>> executions(
-            @RequestParam(defaultValue = "1") @Min(1) int pageNo,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(200) int pageSize,
-            @RequestParam(required = false) String status) {
-        var pageable =
-                PageRequest.of(pageNo - 1, pageSize, Sort.by(Sort.Direction.DESC, "startTime"));
-        var page =
-                (status != null && !status.isBlank())
-                        ? taskExecutionRepository.findByStatus(status, pageable)
-                        : taskExecutionRepository.findAll(pageable);
-        return Result.success(new PageResult<>(page.getContent(), page.getTotalElements()));
+    @Operation(summary = "重试失败的受管异步任务")
+    @PostMapping("/async/{taskId}/retry")
+    public Result<Void> retryAsyncTask(@PathVariable String taskId) {
+        var task =
+                asyncTaskService
+                        .find(taskId)
+                        .orElseThrow(() -> exception(GlobalErrorCode.NOT_FOUND));
+        if (task.getStatus() != AsyncTaskStatus.FAILED || !asyncTaskService.retryFailed(taskId)) {
+            throw exception(GlobalErrorCode.BAD_REQUEST);
+        }
+        return Result.success();
     }
 
     @Operation(summary = "死信队列列表")
@@ -113,9 +109,16 @@ public class TaskManagementController {
                 new PageResult<>(deadLetterQueue.list(offset, pageSize), deadLetterQueue.count()));
     }
 
-    @Operation(summary = "死信重试")
+    @Operation(summary = "重试 raw 死信")
     @PostMapping("/dead-letter/{recordId}/retry")
     public Result<Void> retryDeadLetter(@PathVariable String recordId) {
+        var deadLetter =
+                deadLetterQueue
+                        .find(recordId)
+                        .orElseThrow(() -> exception(GlobalErrorCode.NOT_FOUND));
+        if (asyncTaskService.isManaged(deadLetter.task().id())) {
+            throw exception(GlobalErrorCode.BAD_REQUEST);
+        }
         if (!deadLetterQueue.retry(recordId)) {
             throw exception(GlobalErrorCode.NOT_FOUND);
         }

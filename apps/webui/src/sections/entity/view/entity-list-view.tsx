@@ -16,7 +16,7 @@ import { CustomBreadcrumbs } from "@/components/common/CustomBreadcrumbs"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { ViewEngine } from "@/features/entity-engine/components"
+import { EntityActions, ViewEngine } from "@/features/entity-engine/components"
 import type { ViewSettings } from "@/features/entity-engine/components/list"
 import { useResolvedEntity } from "@/features/entity-engine/hooks/use-resolved-entity"
 import type { EntityDef } from "@/features/entity-engine/types"
@@ -60,30 +60,38 @@ export function EntityListView({ entity, view }: Props) {
 
   const list = (
     <div className="flex flex-1 flex-col overflow-hidden p-3">
-      <CustomBreadcrumbs
-        links={[{ name: "首页", href: paths.workspace.root }, { name: entity.label }]}
-        action={
-          scopeReadOnly ? (
-            <Badge variant="secondary">
-              <LockKeyhole className="size-3" />
-              聚合范围只读
-            </Badge>
-          ) : extraAction || canCreate ? (
-            <div className="flex items-center gap-2">
-              {extraAction}
-              {canCreate && (
-                <Button
-                  nativeButton={false}
-                  render={<Link href={`${paths.workspace.module(entity.slug)}/new`} />}
-                >
-                  + 创建
-                </Button>
-              )}
+      <div className="relative mb-4">
+        <CustomBreadcrumbs
+          links={[{ name: "首页", href: paths.workspace.root }, { name: entity.label }]}
+          action={
+            scopeReadOnly ? (
+              <Badge variant="secondary">
+                <LockKeyhole className="size-3" />
+                聚合范围只读
+              </Badge>
+            ) : extraAction || canCreate ? (
+              <div className="flex items-center gap-2">
+                {extraAction}
+                {canCreate && (
+                  <Button
+                    nativeButton={false}
+                    render={<Link href={`${paths.workspace.module(entity.slug)}/new`} />}
+                  >
+                    + 创建
+                  </Button>
+                )}
+              </div>
+            ) : undefined
+          }
+        />
+        {!scopeReadOnly && (
+          <div className="pointer-events-none absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center">
+            <div className="pointer-events-auto">
+              <EntityActions entity={entity} position="listToolbar" />
             </div>
-          ) : undefined
-        }
-        className="mb-4"
-      />
+          </div>
+        )}
+      </div>
 
       <Card className="flex max-h-full min-h-0 shrink flex-col overflow-hidden py-0">
         <Suspense>

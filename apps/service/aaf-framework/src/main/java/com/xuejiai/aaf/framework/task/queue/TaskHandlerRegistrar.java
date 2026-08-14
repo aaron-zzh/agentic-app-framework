@@ -47,12 +47,13 @@ public class TaskHandlerRegistrar implements InitializingBean {
             if (queueTaskId == null || queueTaskId.isBlank()) {
                 throw new IllegalStateException("队列任务缺少稳定 taskId: " + handler.taskType());
             }
-            taskInboxExecutor.execute(
-                    queueTaskId,
-                    handler.taskType(),
-                    context.payload(),
-                    () -> handler.handle(queueTaskId, context.payload()));
-            return TaskResult.ok();
+            var result =
+                    taskInboxExecutor.execute(
+                            queueTaskId,
+                            handler.taskType(),
+                            context.payload(),
+                            () -> handler.handle(queueTaskId, context.payload()));
+            return TaskResult.ok(result);
         }
     }
 }

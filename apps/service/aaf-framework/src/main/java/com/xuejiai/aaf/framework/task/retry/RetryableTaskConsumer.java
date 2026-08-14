@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import com.xuejiai.aaf.framework.engine.meta.runtime.ExecutionMeta;
 import com.xuejiai.aaf.framework.engine.meta.runtime.TaskExecutionInProgressException;
 import com.xuejiai.aaf.framework.engine.meta.runtime.TaskRuntime;
+import com.xuejiai.aaf.framework.task.AsyncQueueTaskService;
 import com.xuejiai.aaf.framework.task.TaskProperties;
 import com.xuejiai.aaf.framework.task.queue.AsyncTaskMessage;
 import com.xuejiai.aaf.framework.task.queue.RedisStreamTaskQueue;
@@ -47,6 +48,7 @@ public class RetryableTaskConsumer {
 
     private final RedisStreamTaskQueue taskQueue;
     private final TaskRuntime taskRuntime;
+    private final AsyncQueueTaskService asyncTaskService;
     private final StringRedisTemplate redisTemplate;
     private final TaskProperties taskProperties;
 
@@ -76,6 +78,7 @@ public class RetryableTaskConsumer {
         }
 
         try {
+            asyncTaskService.markRunning(task);
             var result =
                     taskRuntime.submit(
                             task.type(),
@@ -83,6 +86,7 @@ public class RetryableTaskConsumer {
                             ExecutionMeta.queue(
                                     (short) task.priority(), task.id(), task.payload()));
             if (result.success()) {
+                asyncTaskService.markSucceeded(task.id(), result.output());
                 redisTemplate
                         .opsForValue()
                         .set(completedKey, "1", taskProperties.getQueue().getCompletedRetention());
@@ -91,13 +95,16 @@ public class RetryableTaskConsumer {
 
             var error = result.error() == null ? "任务执行失败" : result.error();
             if (task.attempt() >= task.maxRetries()) {
-                taskQueue.sendToDeadLetter(task.withLastError(error));
+                var failedTask = task.withLastError(error);
+                taskQueue.sendToDeadLetter(failedTask);
+                asyncTaskService.markFailed(failedTask);
                 log.error("任务 {} 达到最大重试次数 {}，已转入死信", task.id(), task.maxRetries());
                 return ProcessingOutcome.DEAD_LETTERED;
             }
 
             var retryNumber = task.attempt() + 1;
             var retryTask = task.nextAttempt(error);
+            asyncTaskService.markRetryWaiting(retryTask);
             var delay = retryPolicy.delayForAttempt(retryNumber);
             taskQueue.enqueueWithDelay(retryTask, delay);
             log.warn("任务 {} 第 {} 次执行失败，{}ms 后重试", task.id(), retryNumber, delay.toMillis());

@@ -2,6 +2,8 @@ package com.xuejiai.aaf.module.system.todo.service;
 
 import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
 
+import java.util.function.Supplier;
+
 import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
@@ -9,9 +11,8 @@ import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.security.PermissionExecutionService;
-import com.xuejiai.aaf.framework.task.queue.AsyncTaskMessage;
+import com.xuejiai.aaf.framework.task.AsyncQueueTaskService;
 import com.xuejiai.aaf.framework.task.queue.TaskHandler;
-import com.xuejiai.aaf.framework.task.queue.TaskQueue;
 
 import lombok.RequiredArgsConstructor;
 
@@ -22,13 +23,13 @@ public class TodoQueueService implements TaskHandler {
 
     public static final String TASK_TYPE = "TODO_CLEAR_DONE";
 
-    private final TaskQueue taskQueue;
+    private final AsyncQueueTaskService asyncTaskService;
     private final TodoService todoService;
     private final OperatorContext operatorContext;
     private final PermissionExecutionService permissionExecutionService;
 
-    /** 提交低优先级清理任务，返回稳定业务任务 ID。 */
-    public String enqueueClearDone() {
+    /** 提交低优先级清理任务并返回可查询的持久化任务引用。 */
+    public AsyncQueueTaskService.AsyncTaskRef enqueueClearDone() {
         var ownerId =
                 operatorContext
                         .currentOwnerId()
@@ -36,9 +37,13 @@ public class TodoQueueService implements TaskHandler {
         var payload =
                 new ClearDonePayload(
                         ownerId, OrgContext.getCurrentOrgId(), OrgContext.getCurrentWorkspaceId());
-        var task = new AsyncTaskMessage(TASK_TYPE, JsonUtils.toJsonString(payload), 8);
-        taskQueue.enqueue(task);
-        return task.id();
+        return asyncTaskService.submit(
+                TASK_TYPE,
+                JsonUtils.toJsonString(payload),
+                8,
+                ownerId,
+                payload.orgId(),
+                payload.workspaceId());
     }
 
     @Override
@@ -48,24 +53,26 @@ public class TodoQueueService implements TaskHandler {
 
     /** 清理操作本身幂等，重复执行只会再次得到删除数量 0。 */
     @Override
-    public void handle(String taskId, String payloadJson) {
+    public String handle(String taskId, String payloadJson) {
         var payload = JsonUtils.parseObject(payloadJson, ClearDonePayload.class);
         if (payload == null || payload.ownerId() == null || payload.ownerId() <= 0) {
             throw exception(GlobalErrorCode.BAD_REQUEST);
         }
-        permissionExecutionService.runAsOwner(
-                payload.ownerId(),
-                "todo-clear-done-queue",
-                () -> runInOrgContext(payload, todoService::clearDoneTodos));
+        var deletedCount =
+                permissionExecutionService.runAsOwner(
+                        payload.ownerId(),
+                        "todo-clear-done-queue",
+                        () -> runInOrgContext(payload, todoService::clearDoneTodos));
+        return JsonUtils.toJsonString(new ClearDoneResult(deletedCount));
     }
 
-    private void runInOrgContext(ClearDonePayload payload, Runnable action) {
+    private <T> T runInOrgContext(ClearDonePayload payload, Supplier<T> action) {
         var previousOrgId = OrgContext.getCurrentOrgId();
         var previousWorkspaceId = OrgContext.getCurrentWorkspaceId();
         OrgContext.setCurrentOrgId(payload.orgId());
         OrgContext.setCurrentWorkspaceId(payload.workspaceId());
         try {
-            action.run();
+            return action.get();
         } finally {
             OrgContext.setCurrentOrgId(previousOrgId);
             OrgContext.setCurrentWorkspaceId(previousWorkspaceId);
@@ -73,4 +80,6 @@ public class TodoQueueService implements TaskHandler {
     }
 
     record ClearDonePayload(Long ownerId, Long orgId, Long workspaceId) {}
+
+    record ClearDoneResult(long deletedCount) {}
 }

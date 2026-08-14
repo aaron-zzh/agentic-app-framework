@@ -11,7 +11,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 
 import com.xuejiai.aaf.common.util.JsonUtils;
@@ -19,13 +18,13 @@ import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.security.PermissionExecutionContextHolder;
 import com.xuejiai.aaf.framework.security.PermissionExecutionService;
-import com.xuejiai.aaf.framework.task.queue.AsyncTaskMessage;
-import com.xuejiai.aaf.framework.task.queue.TaskQueue;
+import com.xuejiai.aaf.framework.task.AsyncQueueTaskService;
+import com.xuejiai.aaf.framework.task.AsyncTaskStatus;
 import com.xuejiai.aaf.test.BaseMockitoUnitTest;
 
 class TodoQueueServiceTest extends BaseMockitoUnitTest {
 
-    @Mock private TaskQueue taskQueue;
+    @Mock private AsyncQueueTaskService asyncTaskService;
     @Mock private TodoService todoService;
     @Mock private OperatorContext operatorContext;
 
@@ -35,7 +34,10 @@ class TodoQueueServiceTest extends BaseMockitoUnitTest {
     void setUp() {
         queueService =
                 new TodoQueueService(
-                        taskQueue, todoService, operatorContext, new PermissionExecutionService());
+                        asyncTaskService,
+                        todoService,
+                        operatorContext,
+                        new PermissionExecutionService());
     }
 
     @AfterEach
@@ -45,28 +47,37 @@ class TodoQueueServiceTest extends BaseMockitoUnitTest {
     }
 
     @Test
-    @DisplayName("Given 管理员与组织上下文 When 提交异步清理 Then 入队低优先级稳定任务")
+    @DisplayName("Given 管理员与组织上下文 When 提交异步清理 Then 创建低优先级持久化任务")
     void should_enqueue_clear_done_with_owner_and_org_context() {
         // 准备参数
         when(operatorContext.currentOwnerId()).thenReturn(Optional.of(7L));
         OrgContext.setCurrentOrgId(11L);
         OrgContext.setCurrentWorkspaceId(13L);
-        var captor = ArgumentCaptor.forClass(AsyncTaskMessage.class);
+        var expected =
+                new AsyncQueueTaskService.AsyncTaskRef(
+                        "todo-task-1", TodoQueueService.TASK_TYPE, AsyncTaskStatus.PENDING);
+        when(asyncTaskService.submit(
+                        org.mockito.ArgumentMatchers.eq(TodoQueueService.TASK_TYPE),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.eq(8),
+                        org.mockito.ArgumentMatchers.eq(7L),
+                        org.mockito.ArgumentMatchers.eq(11L),
+                        org.mockito.ArgumentMatchers.eq(13L)))
+                .thenReturn(expected);
 
         // 调用
-        var taskId = queueService.enqueueClearDone();
+        var task = queueService.enqueueClearDone();
 
         // 断言
-        verify(taskQueue).enqueue(captor.capture());
-        var task = captor.getValue();
-        var payload =
-                JsonUtils.parseObject(task.payload(), TodoQueueService.ClearDonePayload.class);
-        assertThat(taskId).isEqualTo(task.id());
-        assertThat(task.type()).isEqualTo(TodoQueueService.TASK_TYPE);
-        assertThat(task.priority()).isEqualTo(8);
-        assertThat(payload.ownerId()).isEqualTo(7L);
-        assertThat(payload.orgId()).isEqualTo(11L);
-        assertThat(payload.workspaceId()).isEqualTo(13L);
+        assertThat(task).isEqualTo(expected);
+        verify(asyncTaskService)
+                .submit(
+                        org.mockito.ArgumentMatchers.eq(TodoQueueService.TASK_TYPE),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.eq(8),
+                        org.mockito.ArgumentMatchers.eq(7L),
+                        org.mockito.ArgumentMatchers.eq(11L),
+                        org.mockito.ArgumentMatchers.eq(13L));
     }
 
     @Test
@@ -88,9 +99,13 @@ class TodoQueueServiceTest extends BaseMockitoUnitTest {
                 .clearDoneTodos();
 
         // 调用
-        queueService.handle("todo-task-1", payload);
+        var result = queueService.handle("todo-task-1", payload);
 
         // 断言
+        assertThat(
+                        JsonUtils.parseObject(result, TodoQueueService.ClearDoneResult.class)
+                                .deletedCount())
+                .isEqualTo(3L);
         verify(todoService).clearDoneTodos();
         assertThat(PermissionExecutionContextHolder.get()).isNull();
         assertThat(OrgContext.getCurrentOrgId()).isEqualTo(1L);

@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.Range;
@@ -123,6 +124,18 @@ public class RedisStreamTaskQueue implements TaskQueue, DeadLetterQueue {
                                 new DeadLetterMessage(
                                         record.getId().getValue(), toTask(record.getValue())))
                 .toList();
+    }
+
+    @Override
+    public Optional<DeadLetterMessage> find(String recordId) {
+        var records =
+                redisTemplate.opsForStream().range(STREAM_DEAD, Range.closed(recordId, recordId));
+        if (records.isEmpty()) {
+            return Optional.empty();
+        }
+        var record = records.getFirst();
+        return Optional.of(
+                new DeadLetterMessage(record.getId().getValue(), toTask(record.getValue())));
     }
 
     @Override

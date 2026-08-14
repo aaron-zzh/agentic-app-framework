@@ -114,8 +114,10 @@ export interface EntityAction {
   key: string
   label: string
   icon?: string
-  type: "single" | "batch"
-  /** POST /api/{entity}/actions/{key} */
+  type: "entity" | "single" | "batch"
+  /** 动作执行模式；异步动作返回可查询的任务 ID。 */
+  execution?: "sync" | "async"
+  /** POST 动作端点。 */
   endpoint: string
   confirmMessage?: string
   position: "formHeader" | "listToolbar" | "rowAction" | "contextMenu"
