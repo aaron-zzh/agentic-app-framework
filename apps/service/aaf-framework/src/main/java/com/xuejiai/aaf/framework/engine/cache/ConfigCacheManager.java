@@ -10,6 +10,8 @@ import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelPreference;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelPreferenceRepository;
+import com.xuejiai.aaf.framework.org.OrgContext;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -46,11 +48,11 @@ public class ConfigCacheManager {
                 cacheFactory.create("ai_model", AiModel.class, MAX_SIZE, LOCAL_TTL, REDIS_TTL);
         promptTemplateCache =
                 cacheFactory.create(
-                        "prompt_tpl", PromptTemplate.class, MAX_SIZE, LOCAL_TTL, REDIS_TTL);
+                        "system_prompt_tpl", PromptTemplate.class, MAX_SIZE, LOCAL_TTL, REDIS_TTL);
         modelPreferenceCache =
                 cacheFactory.create(
                         "model_pref", ModelPreference.class, MAX_SIZE, LOCAL_TTL, REDIS_TTL);
-        warmUp();
+        OrgContext.runIgnoring(this::warmUp);
     }
 
     public AiModel getAiModel(Long id) {
@@ -83,8 +85,14 @@ public class ConfigCacheManager {
         return model;
     }
 
+    @OrgIgnore
     public PromptTemplate getPromptTemplate(Long id) {
-        return promptTemplateCache.get(id, k -> promptTemplateRepository.findById(k).orElse(null));
+        return promptTemplateCache.get(
+                id,
+                key ->
+                        promptTemplateRepository
+                                .findByIdAndVisibility(key, PromptTemplate.VISIBILITY_ENGINE)
+                                .orElse(null));
     }
 
     public ModelPreference getModelPreference(Long id) {
@@ -102,7 +110,9 @@ public class ConfigCacheManager {
                             if (m.getModelId() != null)
                                 aiModelIdIndex.put(m.getModelId(), m.getId());
                         });
-        promptTemplateRepository.findAll().forEach(p -> promptTemplateCache.put(p.getId(), p));
+        promptTemplateRepository
+                .findAllByVisibility(PromptTemplate.VISIBILITY_ENGINE)
+                .forEach(prompt -> promptTemplateCache.put(prompt.getId(), prompt));
         modelPreferenceRepository.findAll().forEach(p -> modelPreferenceCache.put(p.getId(), p));
         log.info("配置缓存预热完成");
     }

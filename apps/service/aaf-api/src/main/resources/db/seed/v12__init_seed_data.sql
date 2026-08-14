@@ -245,7 +245,11 @@ VALUES
     ('工具执行',           'tool:default:execute',               'tool',      'default',           'execute', 0),
     ('业务动作工具执行',   'tool:business-action:execute',       'tool',      'business-action',   'execute', 0),
     ('图片生成工具执行',   'tool:image-generate:execute',        'tool',      'image-generate',    'execute', 0),
-    ('视频生成工具执行',   'tool:video-generate:execute',        'tool',      'video-generate',    'execute', 0)
+    ('视频生成工具执行',   'tool:video-generate:execute',        'tool',      'video-generate',    'execute', 0),
+    ('提示词模板读取',     'system:prompt-template:read',        'system',    'prompt-template',   'read',    0),
+    ('提示词模板创建',     'system:prompt-template:create',      'system',    'prompt-template',   'create',  0),
+    ('提示词模板更新',     'system:prompt-template:update',      'system',    'prompt-template',   'update',  0),
+    ('提示词模板删除',     'system:prompt-template:delete',      'system',    'prompt-template',   'delete',  0)
 ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 
 -- ==================== 角色菜单与权限挂接 ====================
@@ -266,7 +270,11 @@ WHERE r.code = 'member'
       'system:workspace:update',
       'system:workspace:delete',
       'system:workspace:export',
-      'system:workspace:reference'
+      'system:workspace:reference',
+      'system:prompt-template:read',
+      'system:prompt-template:create',
+      'system:prompt-template:update',
+      'system:prompt-template:delete'
   )
 ON CONFLICT DO NOTHING;
 
@@ -282,6 +290,19 @@ WHERE r.code IN ('user', 'guest')
   )
 ON CONFLICT DO NOTHING;
 
+-- ==================== 提示词模板数据范围 ====================
+-- 标准 CRUD 只暴露创建者记录和当前租户 PUBLIC 记录。
+-- SYSTEM 由专用后端谓词只读/使用/复制；ENGINE 永不进入 Studio 数据范围。
+DELETE FROM sys_data_access_rule WHERE entity_slug = 'prompt-template';
+
+INSERT INTO sys_data_access_rule (entity_slug, roles, condition, effect)
+VALUES (
+    'prompt-template',
+    '["*"]',
+    '{"or":[{"field":"ownerId","op":"eq","value":"$user.id"},{"field":"visibility","op":"eq","value":"PUBLIC"}]}',
+    'allow'
+)
+ON CONFLICT DO NOTHING;
 -- ==================== 销售演示角色 ====================
 
 INSERT INTO sys_role (code, name, description, status)
@@ -888,70 +909,31 @@ WHERE model_id = 'volcengine:doubao-seedance-2-0-260128';
 -- 提示词模板预置数据
 -- ============================================================
 
-INSERT INTO generation_template (name, type, category, prompt, negative_prompt, is_public, usage_count, user_id, create_time, update_time, version, deleted, scope)
+INSERT INTO ai_prompt_template (name, type, category, content, negative_prompt, visibility, usage_count, scope, org_id, workspace_id, owner_id, create_time, update_time, version, deleted)
 VALUES
 -- ===== 图像生成模板 =====
-('赛博朋克城市夜景',  'IMAGE_GEN', '科幻',  '赛博朋克风格城市夜景，霓虹灯璀璨，雨后街道倒影，高楼林立，超写实，8K 细节',     '模糊，低质量，变形，水印',   true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('油画风格山水',      'IMAGE_GEN', '风景',  '中国传统山水画风格，云雾缭绕，古松苍劲，墨韵流动，意境深远，写意风格',           '现代元素，摄影感，低质量',   true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('写实人物肖像',      'IMAGE_GEN', '人物',  '专业摄影棚人物肖像，自然光，浅景深，清晰五官，高清细节，胶片质感',               '变形，模糊，水印，多人',     true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('梦幻奇幻场景',      'IMAGE_GEN', '奇幻',  '奇幻风格魔法森林，发光蘑菇，精灵光点，薄雾弥漫，神秘氛围，史诗级光效，4K',       '现实场景，普通，低质量',     true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('极简风格产品图',    'IMAGE_GEN', '商业',  '极简白色背景产品摄影，专业打光，高光反射，商业级品质，超清细节',                  '杂乱背景，阴影过重，变形',   true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('动漫二次元人物',    'IMAGE_GEN', '动漫',  '日系动漫风格，精致五官，明亮色彩，清晰线条，高品质插画，赛璐璐风格',             '写实风，模糊，低质量',       true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('水墨国风建筑',      'IMAGE_GEN', '建筑',  '中国传统建筑，水墨风格，飞檐翘角，红墙绿瓦，云雾缭绕，诗意意境',                 '现代建筑，照片感',           true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('星空银河风景',      'IMAGE_GEN', '自然',  '夜空星河壮观，银河清晰，流星划过，山脉剪影，长曝光摄影风格，超写实',             '白天，城市灯光，模糊',       true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
+('赛博朋克城市夜景',  'IMAGE_GEN', '科幻',  '赛博朋克风格城市夜景，霓虹灯璀璨，雨后街道倒影，高楼林立，超写实，8K 细节',     '模糊，低质量，变形，水印',   'SYSTEM', 0, 'GENERATION', NULL, NULL, NULL, NOW(), NOW(), 0, false),
+('油画风格山水',      'IMAGE_GEN', '风景',  '中国传统山水画风格，云雾缭绕，古松苍劲，墨韵流动，意境深远，写意风格',           '现代元素，摄影感，低质量',   'SYSTEM', 0, 'GENERATION', NULL, NULL, NULL, NOW(), NOW(), 0, false),
+('写实人物肖像',      'IMAGE_GEN', '人物',  '专业摄影棚人物肖像，自然光，浅景深，清晰五官，高清细节，胶片质感',               '变形，模糊，水印，多人',     'SYSTEM', 0, 'GENERATION', NULL, NULL, NULL, NOW(), NOW(), 0, false),
+('极简风格产品图',    'IMAGE_GEN', '商业',  '极简白色背景产品摄影，专业打光，高光反射，商业级品质，超清细节',                  '杂乱背景，阴影过重，变形',   'SYSTEM', 0, 'GENERATION', NULL, NULL, NULL, NOW(), NOW(), 0, false),
 -- ===== 图像编辑模板（需配合参考图使用）=====
-('水墨题诗',          'IMAGE_GEN', '修图', '在画面右下角石板路旁、靠近树干根部的位置，以浅灰墨色手写体题写一首七言绝句，字体为行楷风格，笔触自然流畅、略带飞白，大小适中（约占画面高度1/10），与整体水墨淡雅氛围协调。诗文内容为："青石桥畔柳风轻， 素手拈花闭目听。 一水碧痕浮旧梦， 半篙烟雨入空舲。"诗句横向排列，四句分两行书写（前两句一行，后两句一行），末句"舲"字右下角钤一枚朱红小印，印文为"江南"二字篆书，尺寸约等于单字高度的1/3。', '低分辨率，低画质，文字模糊，扭曲', true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('爆款文字渲染',      'IMAGE_GEN', '修图', '在画面适当位置以醒目字体添加以下文字内容，文字与背景融合自然，字体样式与整体画面风格协调，确保文字清晰可读，不遮挡主体核心区域。文字内容：[请替换为你的文字]', '文字模糊，扭曲，难以辨认', true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('风格迁移',          'IMAGE_GEN', '修图', '将参考图中的主体保持不变，将整体画面风格转换为[请替换：水彩/油画/赛博朋克/动漫/写实摄影]风格，保留主体的形状、姿态和主要特征，调整色彩和纹理以匹配目标风格，使整体效果自然协调。', '风格不明显，主体变形，失真', true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('局部修改',          'IMAGE_GEN', '修图', '对参考图进行局部修改：[请替换具体修改要求，例如：将背景替换为日落海边场景 / 去除画面中的杂物 / 为人物换上红色连衣裙]，保持其他区域与原图完全一致，修改区域过渡自然。', '大幅改变主体，失真，低质量', true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('场景扩充',          'IMAGE_GEN', '修图', '基于参考图，向[请替换：左/右/上/下/四周]方向扩展画面，补全超出原图边界的场景内容，保持画面的光线、透视、风格与原图高度一致，新增区域与原图无缝融合。', '边界不自然，风格不统一，低质量', true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
+('水墨题诗',          'IMAGE_GEN', '修图', '在画面右下角石板路旁、靠近树干根部的位置，以浅灰墨色手写体题写一首七言绝句，字体为行楷风格，笔触自然流畅、略带飞白，大小适中（约占画面高度1/10），与整体水墨淡雅氛围协调。诗文内容为："青石桥畔柳风轻， 素手拈花闭目听。 一水碧痕浮旧梦， 半篙烟雨入空舲。"诗句横向排列，四句分两行书写（前两句一行，后两句一行），末句"舲"字右下角钤一枚朱红小印，印文为"江南"二字篆书，尺寸约等于单字高度的1/3。', '低分辨率，低画质，文字模糊，扭曲', 'SYSTEM', 0, 'GENERATION', NULL, NULL, NULL, NOW(), NOW(), 0, false),
 -- ===== 视频生成模板 =====
-('城市延时摄影',      'VIDEO_GEN', '城市',  '城市街道延时摄影，车流光轨，霓虹闪烁，人流穿梭，动感十足，电影质感',             null, true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('自然风光流动',      'VIDEO_GEN', '自然',  '自然风光，流水潺潺，云彩流动，光影变换，宁静氛围，4K 超清',                      null, true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('产品展示动画',      'VIDEO_GEN', '商业',  '产品 360 度旋转展示，专业光效，粒子特效，科技感十足，商业级品质',                 null, true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('人物动态表情',      'VIDEO_GEN', '人物',  '人物面部表情自然变化，微笑，真实感，情感丰富，电影质感镜头',                     null, true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
+('城市延时摄影',      'VIDEO_GEN', '城市',  '城市街道延时摄影，车流光轨，霓虹闪烁，人流穿梭，动感十足，电影质感',             null, 'SYSTEM', 0, 'GENERATION', NULL, NULL, NULL, NOW(), NOW(), 0, false),
+('产品展示动画',      'VIDEO_GEN', '商业',  '产品 360 度旋转展示，专业光效，粒子特效，科技感十足，商业级品质',                 null, 'SYSTEM', 0, 'GENERATION', NULL, NULL, NULL, NOW(), NOW(), 0, false),
 -- ===== 文案生成模板 =====
-('小红书种草文案',   'COPYWRITING', '社交媒体', '请为以下产品写一篇小红书种草文案，要求：标题吸引眼球含 emoji，正文分段清晰，突出产品亮点，加入使用体验，结尾引导互动，字数 200-300 字。产品：', null, true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('抖音口播脚本',     'COPYWRITING', '视频脚本', '请为以下主题写一段 30 秒抖音口播脚本，要求：开头 3 秒抓眼球，中间说清楚一个核心卖点，结尾引导点赞关注，口语化表达，节奏紧凑。主题：',      null, true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('产品详情页文案',   'COPYWRITING', '电商',     '请为以下产品写电商详情页文案，要求：标题突出核心卖点，分模块描述产品特点、使用场景、用户痛点解决方案，结尾引导购买，语言专业有说服力。产品：', null, true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('公众号推文开头',   'COPYWRITING', '内容营销', '请为以下主题写一个公众号推文开头，要求：用故事或问题引入，制造悬念，激发读者继续阅读的欲望，字数 100 字左右。主题：',              null, true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
--- ===== 图像：更多风格 =====
-('电影感胶片',      'IMAGE_GEN', '通用', '电影胶片质感，变形镜头，黄金时刻光效，低饱和色调，浅景深虚化，写实摄影风格', '模糊，低质量，噪点过重', true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('水彩插画',        'IMAGE_GEN', '通用', '水彩插画风格，柔和边缘，马卡龙色调，纸张纹理质感，手绘效果',                  '照片感，锐利，数字感',   true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('油画质感',        'IMAGE_GEN', '通用', '油画风格，印象派笔触，丰富肌理，博物馆级别品质',                              '低质量，现代感，模糊',   true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('极简主义',        'IMAGE_GEN', '通用', '极简构图，干净背景，单一主体，平面设计感，包豪斯风格',                         '杂乱，过度装饰，低质量', true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
--- ===== 人像摄影 =====
-('商业人像',        'IMAGE_GEN', '摄影', '专业商业人像，摄影棚打光，白色背景，商务着装，眼神清晰锐利',                   '变形，模糊，多人',       true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('时尚大片',        'IMAGE_GEN', '摄影', '时尚杂志大片风格，戏剧性光影，大胆构图，高端奢侈品牌质感',                     '普通，低质量，过时',     true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('街拍风格',        'IMAGE_GEN', '摄影', '街头抓拍风格，自然光，城市背景，真实表情，纪实摄影风格',                       '摆拍感，模糊，低质量',   true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
--- ===== 产品电商 =====
-('白底产品图',      'IMAGE_GEN', '电商', '产品摄影，纯白背景，摄影棚打光，商业级品质，超高清细节，电商平台风格',          '杂乱背景，阴影过重，变形', true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('场景产品图',      'IMAGE_GEN', '电商', '生活方式产品摄影，自然场景，情景化陈设，暖色调，富有向往感',                    '白底，孤立感，低质量',    true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('科技产品风',      'IMAGE_GEN', '电商', '科技产品渲染，深色背景，霓虹点缀光效，未来感材质，3D 渲染品质',                '普通背景，低质量，模糊',  true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
--- ===== 文案：口播 =====
-('产品口播脚本',    'COPYWRITING', '口播', '开头3秒痛点钩子，中间产品解决方案，结尾限时优惠+行动号召，总字数≤200字',                              null, true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('知识科普口播',    'COPYWRITING', '口播', '问题引入→核心知识点3条→实用建议，语言口语化，节奏明快，适合15-60秒短视频',                            null, true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('品牌故事口播',    'COPYWRITING', '口播', '创始人视角叙述品牌起源，强调核心价值观，情感共鸣，结尾点明品牌使命',                                   null, true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
--- ===== 文案：小红书细分 =====
-('测评攻略',        'COPYWRITING', '小红书', '专业测评框架：外观→成分→使用感→性价比，数据量化，客观正反评价，适合护肤/美妆/数码',                  null, true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('旅行日记',        'COPYWRITING', '小红书', '沉浸式旅行叙述，五感描写，推荐 tips 清单，附地点/价格/交通信息，引发向往感',                          null, true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
-('穿搭分享',        'COPYWRITING', '小红书', '场合定位+整体搭配思路+单品来源+价格，语气时髦轻松，突出性价比或独特性',                               null, true, 0, 1, NOW(), NOW(), 0, false, 'GENERATION'),
--- ===== 项目级：视觉风格（IMAGE） =====
-('品牌视觉规范',    'IMAGE_GEN', '项目风格', '统一使用品牌主色调，构图留白充足，字体简洁无衬线，光线柔和漫射，整体调性专业现代',                        null, true, 0, 1, NOW(), NOW(), 0, false, 'PROJECT'),
-('暖调生活方式',    'IMAGE_GEN', '项目风格', '暖黄橙色系，自然光优先，生活场景真实感，浅景深虚化背景，营造温馨治愈氛围',                               null, true, 0, 1, NOW(), NOW(), 0, false, 'PROJECT'),
-('冷淡高级感',      'IMAGE_GEN', '项目风格', '冷灰蓝白色系，高对比度，极简构图，大面积留白，奢侈品/时尚品牌质感',                                      null, true, 0, 1, NOW(), NOW(), 0, false, 'PROJECT'),
-('国潮东方美学',    'IMAGE_GEN', '项目风格', '中式色彩（朱红·墨黑·松石绿），传统纹样点缀，留白意境，水墨渐变，东方现代融合',                           null, true, 0, 1, NOW(), NOW(), 0, false, 'PROJECT'),
--- ===== 项目级：视频基调（VIDEO） =====
-('品牌宣传片基调',  'VIDEO_GEN', '项目风格', '稳定运镜为主，慢推/慢拉，色彩饱和统一，背景音乐大气舒缓，叙事节奏从容，突出品质感',                      null, true, 0, 1, NOW(), NOW(), 0, false, 'PROJECT'),
-('快节奏爆款短视频','VIDEO_GEN', '项目风格', '卡点剪辑，3秒一个画面切换，饱和高对比色调，字幕动效强烈，适合 15-30 秒竖版内容',                         null, true, 0, 1, NOW(), NOW(), 0, false, 'PROJECT'),
-('纪录片人文风',    'VIDEO_GEN', '项目风格', '手持跟拍+固定机位交替，自然同期声，低饱和复古色调，慢速叙事，画外音温柔有力',                             null, true, 0, 1, NOW(), NOW(), 0, false, 'PROJECT'),
--- ===== 项目级：内容定位（COPYWRITING） =====
-('美妆护肤账号定位','COPYWRITING', '项目定位', '目标受众：18-35岁女性；内容方向：真实测评+成分科普+妆容教程；语气：专业但亲切；避免：夸大效果、绝对化用词',                                      null, true, 0, 1, NOW(), NOW(), 0, false, 'PROJECT'),
-('科技数码账号定位','COPYWRITING', '项目定位', '目标受众：20-40岁科技爱好者；内容方向：新品体验+横向对比+性价比分析；语气：理性客观；核心价值：帮用户做决策',                                      null, true, 0, 1, NOW(), NOW(), 0, false, 'PROJECT'),
-('生活方式账号定位','COPYWRITING', '项目定位', '目标受众：25-40岁都市白领；内容方向：精致生活方式+好物推荐+轻松自救攻略；语气：轻松有温度；调性：向往感+可实现感',                                  null, true, 0, 1, NOW(), NOW(), 0, false, 'PROJECT'),
-('知识创业账号定位','COPYWRITING', '项目定位', '目标受众：对个人成长/副业感兴趣的职场人；内容方向：干货方法论+案例拆解+思维框架；语气：直接有力；避免：鸡汤泛泛而谈',                              null, true, 0, 1, NOW(), NOW(), 0, false, 'PROJECT')
+('小红书种草文案',    'COPYWRITING', '社交媒体', '请为以下产品写一篇小红书种草文案，要求：标题吸引眼球含 emoji，正文分段清晰，突出产品亮点，加入使用体验，结尾引导互动，字数 200-300 字。产品：', null, 'SYSTEM', 0, 'GENERATION', NULL, NULL, NULL, NOW(), NOW(), 0, false),
+('抖音口播脚本',      'COPYWRITING', '视频脚本', '请为以下主题写一段 30 秒抖音口播脚本，要求：开头 3 秒抓眼球，中间说清楚一个核心卖点，结尾引导点赞关注，口语化表达，节奏紧凑。主题：',      null, 'SYSTEM', 0, 'GENERATION', NULL, NULL, NULL, NOW(), NOW(), 0, false),
+('产品详情页文案',    'COPYWRITING', '电商',     '请为以下产品写电商详情页文案，要求：标题突出核心卖点，分模块描述产品特点、使用场景、用户痛点解决方案，结尾引导购买，语言专业有说服力。产品：', null, 'SYSTEM', 0, 'GENERATION', NULL, NULL, NULL, NOW(), NOW(), 0, false),
+-- ===== 高阶文案模板 =====
+('爆款结构拆解器',    'COPYWRITING', '爆款拆解', E'分析以下内容的爆款结构，按格式输出：\n\n1）核心观点（一句话）\n2）目标读者与使用场景\n3）内容展开路径\n4）注意力钩子（类型 + 原句）\n5）情绪变化曲线（开头 / 中段 / 结尾）\n6）论证方式（故事 / 对比 / 权威 / 反直觉）\n7）可复用表达结构（3-5 个模板）\n8）复用判断（是否值得复用 + 原因）', null, 'SYSTEM', 0, 'COPYWRITING', NULL, NULL, NULL, NOW(), NOW(), 0, false),
+('内容裂变多平台',    'COPYWRITING', '内容裂变', E'将以上内容裂变为多平台版本（保持观点一致，表达方式不同）：\n\n1）短内容 × 5（100-200 字）\n2）强钩子 × 3（一句话）\n3）公众号版（800-1500 字）\n4）小红书版（300-500 字 + 配图建议）\n5）抖音口播脚本（含前 3 秒钩子）', null, 'SYSTEM', 0, 'COPYWRITING', NULL, NULL, NULL, NOW(), NOW(), 0, false),
+('标题创意 10 版',    'COPYWRITING', '标题优化', E'为以上主题生成 10 个标题，覆盖以下角度：\n- 数字型（如：3 个方法…）\n- 悬念型（如：为什么 90% 的人…）\n- 利益型（如：学会这个…）\n- 反直觉型（如：越努力越…）\n- 对话型（如：你有没有…）', null, 'SYSTEM', 0, 'COPYWRITING', NULL, NULL, NULL, NOW(), NOW(), 0, false),
+-- ===== 项目级模板 =====
+('品牌视觉规范',      'IMAGE_GEN', '项目风格', '统一使用品牌主色调，构图留白充足，字体简洁无衬线，光线柔和漫射，整体调性专业现代',                        null, 'SYSTEM', 0, 'PROJECT', NULL, NULL, NULL, NOW(), NOW(), 0, false),
+('品牌宣传片基调',    'VIDEO_GEN', '项目风格', '稳定运镜为主，慢推/慢拉，色彩饱和统一，背景音乐大气舒缓，叙事节奏从容，突出品质感',                      null, 'SYSTEM', 0, 'PROJECT', NULL, NULL, NULL, NOW(), NOW(), 0, false),
+('美妆护肤账号定位',  'COPYWRITING', '项目定位', '目标受众：18-35岁女性；内容方向：真实测评+成分科普+妆容教程；语气：专业但亲切；避免：夸大效果、绝对化用词',                                      null, 'SYSTEM', 0, 'PROJECT', NULL, NULL, NULL, NOW(), NOW(), 0, false)
 ON CONFLICT DO NOTHING;
-
 
 -- ============================================================
 -- 积分充值套餐
@@ -966,46 +948,6 @@ VALUES
     ('旗舰包',   10000,  2500, 8800,'高级',   false, 'ENABLED', 6)
 ON CONFLICT DO NOTHING;
 
-
--- ============================================================
--- 内置写作提示词模板（type=COPYWRITING）
--- ============================================================
-
-INSERT INTO generation_template (name, type, category, prompt, scope, is_public, user_id, create_time, update_time) VALUES
-
-('爆款结构拆解器', 'COPYWRITING', '爆款拆解',
-E'分析以下内容的爆款结构，按格式输出：\n\n1）核心观点（一句话）\n2）目标读者与使用场景\n3）内容展开路径\n4）注意力钩子（类型 + 原句）\n5）情绪变化曲线（开头 / 中段 / 结尾）\n6）论证方式（故事 / 对比 / 权威 / 反直觉）\n7）可复用表达结构（3-5 个模板）\n8）复用判断（是否值得复用 + 原因）',
-'COPYWRITING', TRUE, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-
-('写作前元思考澄清', 'COPYWRITING', '写作准备',
-E'在开始写作前，请逐一引导我回答以下 6 个问题（每次只问一个）：\n\n1. 目标读者是谁？（具体画像，不是"所有人"）\n2. 发布平台是什么？\n3. 读者此刻的真实痛点或欲望是什么？\n4. 这次内容的核心结论是什么？（一句话）\n5. 内容将基于哪些经验 / 案例 / 证据？\n6. 整体表达风格？（教学 / 故事 / 对话 / 清单 / 反直觉）\n\n6 个问题回答完后，输出一份「写作决策摘要」。',
-'COPYWRITING', TRUE, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-
-('母内容结构构建', 'COPYWRITING', '内容结构',
-E'基于以上核心观点，构建可长期复用的内容结构：\n\n1）一句话承诺（读完能获得什么）\n2）开头钩子方案（3 个备选）\n3）正文结构（段落标题 + 段落目的 + 核心要点）\n4）CTA 设计（软 CTA + 硬 CTA 各一）\n5）后续可裂变方向（5 个）',
-'COPYWRITING', TRUE, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-
-('内容裂变多平台', 'COPYWRITING', '内容裂变',
-E'将以上内容裂变为多平台版本（保持观点一致，表达方式不同）：\n\n1）短内容 × 5（100-200 字）\n2）强钩子 × 3（一句话）\n3）公众号版（800-1500 字）\n4）小红书版（300-500 字 + 配图建议）\n5）抖音口播脚本（含前 3 秒钩子）',
-'COPYWRITING', TRUE, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-
-('小红书爆款笔记', 'COPYWRITING', '平台适配',
-E'将以上内容改写为小红书风格笔记：\n- 标题带数字或悬念，不超过 20 字\n- 开头 3 行必须抓住眼球\n- 正文 300-500 字，分段清晰\n- 结尾引导互动\n- 附 5 个相关话题标签',
-'COPYWRITING', TRUE, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-
-('公众号深度文章', 'COPYWRITING', '平台适配',
-E'将以上内容扩写为公众号深度文章：\n- 标题：情绪 + 悬念 + 利益点三选二\n- 开头：故事或反直觉结论，150 字内\n- 正文：800-1500 字，每段有小标题\n- 结尾：行动号召 + 软 CTA',
-'COPYWRITING', TRUE, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-
-('标题创意 10 版', 'COPYWRITING', '标题优化',
-E'为以上主题生成 10 个标题，覆盖以下角度：\n- 数字型（如：3 个方法…）\n- 悬念型（如：为什么 90% 的人…）\n- 利益型（如：学会这个…）\n- 反直觉型（如：越努力越…）\n- 对话型（如：你有没有…）',
-'COPYWRITING', TRUE, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-
-('开头钩子生成', 'COPYWRITING', '钩子设计',
-E'为以上主题生成 5 个开头钩子（每个不超过 30 字）：\n- 制造悬念或反差\n- 直击读者痛点或欲望\n- 让人想继续读下去',
-'COPYWRITING', TRUE, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-
-ON CONFLICT DO NOTHING;
 
 -- 注：AIGC Mock 参数、会员与积分 FAQ、订阅到期提醒天数已合并至文件顶部「系统配置」INSERT 块
 
@@ -1374,22 +1316,3 @@ INSERT INTO ai_assistant_role (
 ON CONFLICT (assistant_id, role_id) DO NOTHING;
 
 -- 平台向导知识文档、run 与 chunk 移至 db/seed/v301__nexus_knowledge_seed.sql。
-
--- ============================================================
--- 视频生成提示词模板——品牌 + 口播 两个分类
--- ============================================================
-INSERT INTO generation_template (name, type, category, prompt, is_public, scope, user_id, create_time, update_time, version, deleted)
-VALUES
-('品牌产品展示',   'VIDEO_GEN', '品牌', '产品从白色极简背景中缓缓旋转呈现，光线从左上方打入，突出产品质感与细节，镜头缓慢推近，专业商业摄影风格，4K 画质',                                           TRUE, 'GENERATION', 1, NOW(), NOW(), 0, FALSE),
-('品牌故事开场',   'VIDEO_GEN', '品牌', '城市清晨，金色阳光透过落地窗照进现代办公室，一双手正在翻阅品牌产品，画面温暖有质感，慢动作，电影级调色',                                                    TRUE, 'GENERATION', 1, NOW(), NOW(), 0, FALSE),
-('品牌活动预热',   'VIDEO_GEN', '品牌', '动态粒子汇聚成品牌 Logo，背景为深邃星空，科技感强，配合节奏感强的光效闪烁，适合发布会倒计时开场',                                                            TRUE, 'GENERATION', 1, NOW(), NOW(), 0, FALSE),
-('奢侈品广告大片', 'VIDEO_GEN', '品牌', '模特在巴黎街头行走，穿着精致服装，镜头以慢动作跟随，背景虚化，自然光线，胶片质感，高端时尚大片风格',                                                          TRUE, 'GENERATION', 1, NOW(), NOW(), 0, FALSE),
-('产品使用场景',   'VIDEO_GEN', '品牌', '用户在咖啡馆使用产品的自然场景，浅景深，暖色调，画面宁静舒适，真实生活感，手持镜头微微晃动',                                                                  TRUE, 'GENERATION', 1, NOW(), NOW(), 0, FALSE),
-('品牌环保理念',   'VIDEO_GEN', '品牌', '绿色森林中阳光穿透树叶，画面从自然切换到产品，传达可持续发展理念，色调清新自然，无人机俯拍与近景交替',                                                          TRUE, 'GENERATION', 1, NOW(), NOW(), 0, FALSE),
-('口播直播间开场', 'VIDEO_GEN', '口播', '主播站在整洁明亮的直播间，面对镜头微笑，背景有产品陈列，打光均匀，画面稳定，真实自然的对话感',                                                                  TRUE, 'GENERATION', 1, NOW(), NOW(), 0, FALSE),
-('产品开箱口播',   'VIDEO_GEN', '口播', '双手从精美包装盒中取出产品，动作流畅，特写镜头展示细节，背景简洁，自然光，ASMR 风格，聚焦产品质感',                                                            TRUE, 'GENERATION', 1, NOW(), NOW(), 0, FALSE),
-('教程讲解口播',   'VIDEO_GEN', '口播', '讲师坐在桌前，正对镜头进行步骤演示，画面清晰，构图居中，背景为书架或白板，专业教学感，自然光补光',                                                              TRUE, 'GENERATION', 1, NOW(), NOW(), 0, FALSE),
-('户外实景口播',   'VIDEO_GEN', '口播', '博主在户外场景手持产品讲解，背景为自然风景，自然光线，轻微背景虚化，真实感强，竖屏构图适配手机观看',                                                            TRUE, 'GENERATION', 1, NOW(), NOW(), 0, FALSE),
-('测评对比口播',   'VIDEO_GEN', '口播', '桌面上并排放置两款产品，手逐一指向展示差异，俯拍与正面切换，干净白色背景，专业测评风格，细节特写',                                                              TRUE, 'GENERATION', 1, NOW(), NOW(), 0, FALSE),
-('情感共鸣口播',   'VIDEO_GEN', '口播', '主人公坐在温馨室内，面向镜头真诚讲述，画面温暖，浅景深，背景灯光柔和，情感真实自然，适合故事型内容',                                                            TRUE, 'GENERATION', 1, NOW(), NOW(), 0, FALSE)
-ON CONFLICT DO NOTHING;

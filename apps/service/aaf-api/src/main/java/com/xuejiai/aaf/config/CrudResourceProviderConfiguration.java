@@ -11,12 +11,12 @@ import com.xuejiai.aaf.framework.crud.definition.TenantScope;
 import com.xuejiai.aaf.framework.crud.resource.CrudResourceDefinitionProvider;
 import com.xuejiai.aaf.framework.crud.resource.CrudResourceDefinitions;
 import com.xuejiai.aaf.module.ai.aigc.avatar.controller.AiDigitalAvatarController;
-import com.xuejiai.aaf.module.ai.aigc.image.controller.GenerationTemplateController;
 import com.xuejiai.aaf.module.ai.aigc.video.controller.VideoTemplateController;
 import com.xuejiai.aaf.module.ai.aigc.voice.controller.AiClonedVoiceController;
 import com.xuejiai.aaf.module.ai.aigc.workflow.controller.UserWorkflowTemplateController;
 import com.xuejiai.aaf.module.ai.flow.controller.AiFlowController;
 import com.xuejiai.aaf.module.ai.persona.outfit.controller.AvatarOutfitController;
+import com.xuejiai.aaf.module.ai.prompt.controller.PromptTemplateController;
 import com.xuejiai.aaf.module.ai.role.AiRoleController;
 import com.xuejiai.aaf.module.ai.role.PersonaController;
 import com.xuejiai.aaf.module.ai.skill.SkillController;
@@ -78,15 +78,15 @@ public class CrudResourceProviderConfiguration {
     }
 
     @Bean
-    CrudResourceDefinitionProvider<?> generationTemplateResource() {
+    CrudResourceDefinitionProvider<?> promptTemplateResource() {
         return CrudResourceDefinitions.crud(
-                "aigc.generation-template",
-                "参数模板",
-                GenerationTemplateController.class,
-                "/api/aigc/templates",
-                "system:generation-template",
-                TenantScope.GLOBAL,
-                PersonalScope.byProperty("userId"));
+                "ai.prompt-template",
+                "提示词资产",
+                PromptTemplateController.class,
+                "/api/aigc/prompt-templates",
+                "system:prompt-template",
+                TENANT,
+                PersonalScope.none());
     }
 
     @Bean

@@ -11,7 +11,7 @@ import { ChevronRight, Plus } from "lucide-react"
 import Link from "next/link"
 import { LottieIcon } from "@/components/animate"
 import { GlassCard, GlowButton, NeonChip } from "@/components/studio"
-import { Empty, EmptyContent, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
+import { Empty, EmptyContent, EmptyHeader } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { AigcProject } from "@/lib/api/rest/ai/aigc"
 import { useAigcProjects } from "@/lib/api/rest/ai/aigc"
@@ -80,7 +80,6 @@ export function RecentProjectGrid() {
           <Empty className="min-h-44">
             <EmptyHeader>
               <LottieIcon name="cat" width={100} height={100} loop />
-              <EmptyTitle>暂无项目</EmptyTitle>
             </EmptyHeader>
             <EmptyContent>
               <GlowButton

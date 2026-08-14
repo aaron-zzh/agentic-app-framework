@@ -36,7 +36,7 @@ import lombok.extern.slf4j.Slf4j;
  * intelligent/core/model/AiModelRepository}），完全绕过本切面。 现在改为对任意 {@code JpaRepository}
  * 子接口生效（不看包路径），一次性覆盖此前遗漏的全部仓储。为此已将其中 13 个 全局配置类实体补标 {@link
  * OrgIgnore}（AgentDefinition/AiAssistantRole/AiModelProvider/ModelPreference/
- * CreditAccount/CreditTransaction/PromptTemplate/Persona/ValueRule/PermissionTuple/TeamEntity/
+ * CreditAccount/CreditTransaction/Persona/ValueRule/PermissionTuple/TeamEntity/
  * AccessPolicy/AccessPolicySnapshot/AuthorizationAudit），避免切面扩面后把这些表误套组织过滤导致查询静默返回空。
  *
  * <p>后台任务（{@code @Scheduled}）运行在无 HTTP 请求上下文的独立线程，{@code OrgContext} 中不会有 orgId，需要在方法/类上显式加

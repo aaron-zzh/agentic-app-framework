@@ -1,59 +1,56 @@
-/**
- * Prompt 引擎默认实现。
- *
- * @author AaronZZH & Kiro
- */
 package com.xuejiai.aaf.framework.engine.prompt;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.framework.intelligent.core.llm.LlmClient;
 import com.xuejiai.aaf.framework.intelligent.core.llm.LlmClient.LlmMessage;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** Prompt 引擎实现：存储/版本/渲染/链式组装/评估。 */
+/** Prompt 引擎实现：只管理明确标记为 ENGINE 的内部系统 Prompt。 */
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@OrgIgnore
 public class DefaultPromptEngine implements PromptEngine {
 
-    private static final Pattern VAR_PATTERN = Pattern.compile("\\$\\{(\\w+)}");
-
     private final PromptTemplateRepository repository;
+    private final PromptTemplateCompiler compiler;
     private final LlmClient llmClient;
-
-    // ─── 存储与版本 ───
 
     @Override
     @Transactional
     public PromptTemplate create(PromptTemplate template) {
+        makeSystemGlobal(template);
         template.setTemplateVersion(1);
         template.setActive(true);
+        template.setVariables(
+                compiler.serializeDeclarations(
+                        template.getContent(), template.getNegativePrompt(), null));
         return repository.save(template);
     }
 
     @Override
     @Transactional
     public PromptTemplate createNewVersion(String name, String content) {
-        var existing = repository.findByNameOrderByTemplateVersionDesc(name);
+        var existing =
+                repository.findByNameAndVisibilityOrderByTemplateVersionDesc(
+                        name, PromptTemplate.VISIBILITY_ENGINE);
         int nextVersion = existing.isEmpty() ? 1 : existing.getFirst().getTemplateVersion() + 1;
-
-        // 失活旧版本
         existing.stream()
                 .filter(PromptTemplate::getActive)
                 .forEach(
-                        t -> {
-                            t.setActive(false);
-                            repository.save(t);
+                        template -> {
+                            template.setActive(false);
+                            repository.save(template);
                         });
 
         var template = new PromptTemplate();
@@ -62,76 +59,76 @@ public class DefaultPromptEngine implements PromptEngine {
         template.setTemplateVersion(nextVersion);
         template.setActive(true);
         if (!existing.isEmpty()) {
-            template.setDescription(existing.getFirst().getDescription());
-            template.setCategory(existing.getFirst().getCategory());
-            template.setVariables(existing.getFirst().getVariables());
+            var latest = existing.getFirst();
+            template.setDescription(latest.getDescription());
+            template.setCategory(latest.getCategory());
+            template.setNegativePrompt(latest.getNegativePrompt());
+            template.setModel(latest.getModel());
         }
+        makeSystemGlobal(template);
+        template.setVariables(
+                compiler.serializeDeclarations(content, template.getNegativePrompt(), null));
         return repository.save(template);
     }
 
     @Override
     public Optional<PromptTemplate> findActive(String name) {
-        return repository.findByNameAndActiveTrue(name);
+        return repository.findByNameAndActiveTrueAndVisibility(
+                name, PromptTemplate.VISIBILITY_ENGINE);
     }
 
     @Override
     public Optional<PromptTemplate> findByVersion(String name, int version) {
-        return repository.findByNameAndTemplateVersion(name, version);
+        return repository.findByNameAndTemplateVersionAndVisibility(
+                name, version, PromptTemplate.VISIBILITY_ENGINE);
     }
 
     @Override
     public List<PromptTemplate> findAllVersions(String name) {
-        return repository.findByNameOrderByTemplateVersionDesc(name);
+        return repository.findByNameAndVisibilityOrderByTemplateVersionDesc(
+                name, PromptTemplate.VISIBILITY_ENGINE);
     }
 
     @Override
     public List<PromptTemplate> findByCategory(String category) {
-        return repository.findByCategory(category);
+        return repository.findByCategoryAndVisibility(category, PromptTemplate.VISIBILITY_ENGINE);
     }
-
-    // ─── 渲染与组装 ───
 
     @Override
     public String render(String templateName, Map<String, String> variables) {
         var template =
-                repository
-                        .findByNameAndActiveTrue(templateName)
+                findActive(templateName)
                         .orElseThrow(() -> new IllegalArgumentException("模板不存在: " + templateName));
-        return interpolate(template.getContent(), variables);
+        return compile(template, variables, false);
     }
 
     @Override
     public String render(String templateName, int version, Map<String, String> variables) {
         var template =
-                repository
-                        .findByNameAndTemplateVersion(templateName, version)
+                findByVersion(templateName, version)
                         .orElseThrow(
                                 () ->
                                         new IllegalArgumentException(
                                                 "模板版本不存在: " + templateName + " v" + version));
-        return interpolate(template.getContent(), variables);
+        return compile(template, variables, false);
     }
 
     @Override
     public String chain(List<String> templateNames, Map<String, String> variables) {
-        var sb = new StringBuilder();
-        for (var name : templateNames) {
-            findActive(name)
-                    .ifPresent(
-                            t -> {
-                                sb.append(interpolate(t.getContent(), variables));
-                                sb.append("\n\n");
-                            });
-        }
-        return sb.toString().trim();
+        var fragments =
+                templateNames.stream()
+                        .map(this::findActive)
+                        .flatMap(Optional::stream)
+                        .map(
+                                template ->
+                                        compile(
+                                                template,
+                                                variablesForTemplate(template, variables),
+                                                false))
+                        .toList();
+        return String.join("\n\n", fragments);
     }
 
-    /**
-     * 渲染并注入 Few-shot 示例——尚未实现。
-     *
-     * <p>占位修复：原实现直接 {@code return render(...)}，调用方以为拿到了带示例的 Prompt， 实际是普通渲染结果（示例数 maxExamples
-     * 被静默忽略），属静默降级。 Few-shot 示例存储与相关度排序落地后再放开，在此之前显式报错。
-     */
     @Override
     public String renderWithExamples(
             String templateName, Map<String, String> variables, int maxExamples) {
@@ -139,39 +136,34 @@ public class DefaultPromptEngine implements PromptEngine {
                 "Few-shot 示例渲染尚未实现，请改用 render(templateName, variables)");
     }
 
-    // ─── 评估 ───
-
     @Override
     public PromptEvalResult evaluate(String templateName, List<PromptEvalCase> testCases) {
         if (testCases == null || testCases.isEmpty()) {
             return new PromptEvalResult(templateName, 0.0, "无测试用例");
         }
-
-        var template = repository.findByNameAndActiveTrue(templateName).orElse(null);
+        var template = findActive(templateName).orElse(null);
         if (template == null) {
             return new PromptEvalResult(templateName, 0.0, "模板不存在: " + templateName);
         }
 
         int passed = 0;
         var details = new StringBuilder();
-
-        for (int i = 0; i < testCases.size(); i++) {
-            var tc = testCases.get(i);
-            var rendered = interpolate(template.getContent(), tc.variables());
+        for (int index = 0; index < testCases.size(); index++) {
+            var testCase = testCases.get(index);
+            var rendered = compile(template, testCase.variables(), false);
             try {
                 var actual =
                         llmClient.call(List.of(LlmMessage.user(rendered)), "prompt_eval", null);
-                var similarity = computeSimilarity(actual, tc.expectedOutput());
+                var similarity = computeSimilarity(actual, testCase.expectedOutput());
                 if (similarity >= 0.6) {
                     passed++;
                 }
-                details.append("#%d: %.2f ".formatted(i + 1, similarity));
-            } catch (Exception e) {
-                log.warn("[PromptEval] 用例 #{} 执行失败: {}", i + 1, e.getMessage());
-                details.append("#%d: ERROR ".formatted(i + 1));
+                details.append("#%d: %.2f ".formatted(index + 1, similarity));
+            } catch (Exception exception) {
+                log.warn("[PromptEval] 用例 #{} 执行失败: {}", index + 1, exception.getMessage());
+                details.append("#%d: ERROR ".formatted(index + 1));
             }
         }
-
         double score = (double) passed / testCases.size();
         return new PromptEvalResult(
                 templateName,
@@ -179,33 +171,58 @@ public class DefaultPromptEngine implements PromptEngine {
                 "通过 %d/%d | %s".formatted(passed, testCases.size(), details.toString().trim()));
     }
 
-    /** 简单相似度：基于公共子序列长度占比 */
-    private double computeSimilarity(String actual, String expected) {
-        if (expected == null || expected.isBlank()) return 1.0;
-        if (actual == null || actual.isBlank()) return 0.0;
-        // 关键词命中率
-        var keywords = expected.split("[\\s,;，；。.]+");
-        long hits = 0;
-        for (var kw : keywords) {
-            if (!kw.isBlank() && actual.contains(kw)) hits++;
-        }
-        return keywords.length > 0 ? (double) hits / keywords.length : 0.0;
+    private String compile(
+            PromptTemplate template, Map<String, String> variables, boolean negativePrompt) {
+        return compiler.compile(
+                template.getContent(),
+                template.getNegativePrompt(),
+                template.getVariables(),
+                variables,
+                negativePrompt);
     }
 
-    // ─── 内部方法 ───
-
-    private String interpolate(String content, Map<String, String> variables) {
+    private Map<String, String> variablesForTemplate(
+            PromptTemplate template, Map<String, String> variables) {
         if (variables == null || variables.isEmpty()) {
-            return content;
+            return Map.of();
         }
-        Matcher matcher = VAR_PATTERN.matcher(content);
-        StringBuilder sb = new StringBuilder();
-        while (matcher.find()) {
-            String key = matcher.group(1);
-            String value = variables.getOrDefault(key, matcher.group(0));
-            matcher.appendReplacement(sb, Matcher.quoteReplacement(value));
+        var selected = new LinkedHashMap<String, String>();
+        compiler.readDeclarations(
+                        template.getContent(),
+                        template.getNegativePrompt(),
+                        template.getVariables())
+                .forEach(
+                        name -> {
+                            if (variables.containsKey(name)) {
+                                selected.put(name, variables.get(name));
+                            }
+                        });
+        return selected;
+    }
+
+    private void makeSystemGlobal(PromptTemplate template) {
+        template.setOwnerId(null);
+        template.setOrgId(null);
+        template.setWorkspaceId(null);
+        template.setType("SYSTEM");
+        template.setScope("SYSTEM");
+        template.setVisibility(PromptTemplate.VISIBILITY_ENGINE);
+    }
+
+    private double computeSimilarity(String actual, String expected) {
+        if (expected == null || expected.isBlank()) {
+            return 1.0;
         }
-        matcher.appendTail(sb);
-        return sb.toString();
+        if (actual == null || actual.isBlank()) {
+            return 0.0;
+        }
+        var keywords = expected.split("[\\s,;，；。.]+");
+        long hits = 0;
+        for (var keyword : keywords) {
+            if (!keyword.isBlank() && actual.contains(keyword)) {
+                hits++;
+            }
+        }
+        return keywords.length > 0 ? (double) hits / keywords.length : 0.0;
     }
 }

@@ -209,12 +209,22 @@ CREATE TABLE ai_prompt_template (
     org_id           BIGINT,
     workspace_id     BIGINT,
     name             VARCHAR(128) NOT NULL,
-    template_version INTEGER          NOT NULL DEFAULT 1,
+    template_version INTEGER      NOT NULL DEFAULT 1,
     content          TEXT         NOT NULL,
     description      VARCHAR(512),
     variables        TEXT,
     active           BOOLEAN      NOT NULL DEFAULT TRUE,
     category         VARCHAR(64),
+    type             VARCHAR(30)  NOT NULL DEFAULT 'PROMPT',
+    negative_prompt  TEXT,
+    model            VARCHAR(100),
+    width            INTEGER,
+    height           INTEGER,
+    steps            INTEGER,
+    seed             BIGINT,
+    visibility       VARCHAR(16)  NOT NULL DEFAULT 'PRIVATE',
+    usage_count      INTEGER      NOT NULL DEFAULT 0,
+    scope            VARCHAR(20)  NOT NULL DEFAULT 'GENERATION',
     owner_id         BIGINT,
     create_by        BIGINT,
     create_by_type   VARCHAR(16),
@@ -225,10 +235,26 @@ CREATE TABLE ai_prompt_template (
     delete_time      TIMESTAMP(6),
     deleted          BOOLEAN      NOT NULL DEFAULT FALSE,
     remark           TEXT,
-    UNIQUE (name, template_version)
+    CONSTRAINT chk_ai_prompt_template_visibility
+        CHECK (visibility IN ('ENGINE', 'PRIVATE', 'PUBLIC', 'SYSTEM'))
 );
 
-COMMENT ON TABLE ai_prompt_template IS 'Prompt 模板';
+COMMENT ON TABLE ai_prompt_template IS '统一提示词资产：引擎 Prompt 与 Studio 私有、公开、系统模板';
+COMMENT ON COLUMN ai_prompt_template.visibility IS 'ENGINE 内部 / PRIVATE 我的 / PUBLIC 当前组织工作区公开 / SYSTEM Studio 系统目录';
+COMMENT ON COLUMN ai_prompt_template.variables IS '服务端安全编译使用的变量名 JSON 数组';
+
+CREATE UNIQUE INDEX uk_ai_prompt_template_engine_name_version
+    ON ai_prompt_template (name, template_version)
+    WHERE visibility = 'ENGINE' AND deleted = FALSE;
+CREATE INDEX idx_ai_prompt_template_tenant_visibility
+    ON ai_prompt_template (org_id, workspace_id, visibility)
+    WHERE deleted = FALSE;
+CREATE INDEX idx_ai_prompt_template_owner
+    ON ai_prompt_template (owner_id)
+    WHERE deleted = FALSE;
+CREATE INDEX idx_ai_prompt_template_type_scope
+    ON ai_prompt_template (type, scope)
+    WHERE deleted = FALSE;
 
 -- ============================================================
 -- Token 用量

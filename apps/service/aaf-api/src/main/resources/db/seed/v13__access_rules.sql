@@ -17,10 +17,6 @@ VALUES
     ('notice',
      '["*"]',
      '{"field":"ownerId","op":"eq","value":"$user.id"}',
-     'allow'),
-    ('generation-template',
-     '["*"]',
-     '{"or":[{"field":"ownerId","op":"eq","value":"$user.id"},{"field":"isPublic","op":"eq","value":true}]}',
      'allow')
 ON CONFLICT DO NOTHING;
 
