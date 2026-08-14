@@ -19,13 +19,13 @@ import { FieldText } from "@/components/form/field-text"
 import { Form } from "@/components/form/form"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { authApi, organizationApi } from "@/lib/api/rest/user"
+import { authApi } from "@/lib/api/rest/user"
+import { useAuth } from "@/lib/auth/use-auth"
 import { APP } from "@/lib/config"
 import { paths } from "@/lib/constants/paths"
 import { useEsaCaptcha } from "@/lib/hooks/use-esa-captcha"
 import { notify } from "@/lib/notification"
 import { useAuthStore } from "@/lib/store/auth-store"
-import { useOrgStore } from "@/lib/store/org-store"
 import { clearRefCode, readRefCode } from "@/lib/utils/ref-code"
 
 // ==================== 邮箱密码注册 ====================
@@ -373,6 +373,7 @@ function RegisterPageInner() {
   const searchParams = useSearchParams()
   const initialEmail = searchParams.get("email") ?? undefined
   const { setTokens, setUser } = useAuthStore()
+  const { ensureOrgContext } = useAuth()
   // 受控 Tab：切换时卸载另一个面板，确保同一时刻只有一个 useEsaCaptcha 实例，
   // 避免 ESA SDK 多实例绑定冲突（keepMounted 会导致两个实例同时初始化互相覆盖）
   const [activeTab, setActiveTab] = useState<"phone" | "email">("phone")
@@ -384,8 +385,7 @@ function RegisterPageInner() {
     // 新用户注册后端已自动创建 personal 组织（AuthService.createPersonalOrg），
     // 但前端 X-Org-Id 仍需显式拉取写入，否则跳转后的页面请求会因缺少组织上下文被拒绝
     try {
-      const orgs = await organizationApi.list()
-      useOrgStore.getState().ensureDefaultOrg(orgs, roles)
+      await ensureOrgContext()
     } catch {
       // 拉取组织列表失败不阻塞注册流程，后续由 checkAuth 兜底纠正
     }

@@ -97,9 +97,7 @@ describe("SearchBar", () => {
     fireEvent.change(input, { target: { value: "100" } })
     fireEvent.keyDown(input, { key: "Enter" })
 
-    expect(onChange).toHaveBeenCalledWith([
-      { field: "amount", operator: "gt", values: ["100"] }
-    ])
+    expect(onChange).toHaveBeenCalledWith([{ field: "amount", operator: "gt", values: ["100"] }])
   })
 
   it("在搜索下拉中选择预设筛选时应用完整条件", () => {

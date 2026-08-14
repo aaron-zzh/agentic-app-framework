@@ -24,6 +24,7 @@ import com.xuejiai.aaf.framework.engine.meta.runtime.ExecutionMeta;
 import com.xuejiai.aaf.framework.engine.meta.runtime.TaskExecutionInProgressException;
 import com.xuejiai.aaf.framework.engine.meta.runtime.TaskResult;
 import com.xuejiai.aaf.framework.engine.meta.runtime.TaskRuntime;
+import com.xuejiai.aaf.framework.task.AsyncQueueTaskService;
 import com.xuejiai.aaf.framework.task.TaskProperties;
 import com.xuejiai.aaf.framework.task.queue.AsyncTaskMessage;
 import com.xuejiai.aaf.framework.task.queue.RedisStreamTaskQueue;
@@ -33,6 +34,7 @@ class RetryableTaskConsumerTest extends BaseMockitoUnitTest {
 
     @Mock private RedisStreamTaskQueue taskQueue;
     @Mock private TaskRuntime taskRuntime;
+    @Mock private AsyncQueueTaskService asyncTaskService;
     @Mock private StringRedisTemplate redisTemplate;
     @Mock private ValueOperations<String, String> valueOperations;
 
@@ -46,7 +48,11 @@ class RetryableTaskConsumerTest extends BaseMockitoUnitTest {
                 .thenReturn(true);
         consumer =
                 new RetryableTaskConsumer(
-                        taskQueue, taskRuntime, redisTemplate, new TaskProperties());
+                        taskQueue,
+                        taskRuntime,
+                        asyncTaskService,
+                        redisTemplate,
+                        new TaskProperties());
     }
 
     @Test

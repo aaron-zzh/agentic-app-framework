@@ -7,11 +7,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useCallback } from "react"
 import { authApi, organizationApi, workspaceApi } from "@/lib/api/rest/user"
 import { type AuthUser, useAuthStore } from "@/lib/store/auth-store"
-import {
-  hasSuperAdminRole,
-  type ScopeSelection,
-  useOrgStore
-} from "@/lib/store/org-store"
+import { hasSuperAdminRole, type ScopeSelection, useOrgStore } from "@/lib/store/org-store"
 import {
   isMockAuthEnabled,
   MOCK_AUTH_ACCESS_TOKEN,
@@ -159,6 +155,7 @@ export function useAuth() {
     isChecking,
     isAdmin: user?.roles?.some((r) => r === "admin" || r === "super_admin") ?? false,
     checkAuth,
+    ensureOrgContext,
     refreshUser,
     login,
     logout

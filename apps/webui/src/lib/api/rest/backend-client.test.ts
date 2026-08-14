@@ -4,10 +4,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import {
-  backendApi,
-  setBackendOrgContext
-} from "@/lib/api/rest/backend-client"
+import { backendApi, setBackendOrgContext } from "@/lib/api/rest/backend-client"
 import {
   installMockBackendClient,
   mockBackendRequest,

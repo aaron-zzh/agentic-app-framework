@@ -11,21 +11,16 @@ vi.mock("@/lib/api/rest/backend-client", () => ({ setBackendOrgContext }))
 
 import {
   isAggregateScope,
+  type ScopeSelection,
   scopeHeaders,
   selectScopeReadOnly,
-  type ScopeSelection,
   useOrgStore
 } from "./org-store"
 
 const scopes: Array<[ScopeSelection, string | null, string | null, boolean]> = [
   [{ kind: "all-organizations" }, "all", null, true],
   [{ kind: "all-workspaces", orgId: "org-1" }, "org-1", "all", true],
-  [
-    { kind: "workspace", orgId: "org-1", workspaceId: "workspace-1" },
-    "org-1",
-    "workspace-1",
-    false
-  ]
+  [{ kind: "workspace", orgId: "org-1", workspaceId: "workspace-1" }, "org-1", "workspace-1", false]
 ]
 
 describe("org-store", () => {

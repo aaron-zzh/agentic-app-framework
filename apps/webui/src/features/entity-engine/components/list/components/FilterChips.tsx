@@ -10,6 +10,7 @@
 import { Trash2, X } from "lucide-react"
 import type { DataFieldDef, EntityDef } from "../../../types"
 import type { FilterCondition } from "./FilterBuilder"
+import { formatFilterValue } from "./filter-value-label"
 
 interface FilterChipsProps {
   entity: EntityDef
@@ -35,8 +36,8 @@ export function FilterChips({ entity, filters, onChange }: FilterChipsProps) {
       fieldDef?.type === "select" && "options" in fieldDef
         ? ((fieldDef as unknown as { options?: { value: string; label: string }[] }).options?.find(
             (option) => option.value === value
-          )?.label ?? value)
-        : value
+          )?.label ?? formatFilterValue(value))
+        : formatFilterValue(value)
     )
     return { fieldLabel, valueLabel: labels.join(filter.operator === "between" ? " 至 " : "、") }
   }

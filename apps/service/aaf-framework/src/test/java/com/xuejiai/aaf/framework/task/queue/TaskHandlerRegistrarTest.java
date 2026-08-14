@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,17 +26,14 @@ class TaskHandlerRegistrarTest extends BaseMockitoUnitTest {
     @Mock private TaskInboxExecutor taskInboxExecutor;
 
     @Test
-    @DisplayName("Given Spring 中存在 TaskHandler When Bean 初始化 Then 注册适配任务并可执行 payload")
+    @DisplayName("Given Spring 中存在 TaskHandler When Bean 初始化 Then 注册适配任务并返回结果摘要")
     void should_register_and_adapt_handler_when_initialized() throws Exception {
         // 准备参数
         when(handler.taskType()).thenReturn("TODO_CLEAR_DONE");
         when(handler.timeoutSeconds()).thenReturn(30L);
-        when(taskInboxExecutor.execute(anyString(), anyString(), anyString(), any(Runnable.class)))
-                .thenAnswer(
-                        invocation -> {
-                            invocation.getArgument(3, Runnable.class).run();
-                            return true;
-                        });
+        when(handler.handle("task-1", "{\"id\":1}")).thenReturn("{\"deletedCount\":3}");
+        when(taskInboxExecutor.execute(anyString(), anyString(), anyString(), any(Supplier.class)))
+                .thenAnswer(invocation -> invocation.getArgument(3, Supplier.class).get());
         var registrar = new TaskHandlerRegistrar(List.of(handler), taskRuntime, taskInboxExecutor);
         var captor = ArgumentCaptor.forClass(AafTask.class);
 
@@ -51,8 +49,9 @@ class TaskHandlerRegistrarTest extends BaseMockitoUnitTest {
         assertThat(task.taskType()).isEqualTo("TODO_CLEAR_DONE");
         assertThat(task.timeoutSeconds()).isEqualTo(30L);
         assertThat(result.success()).isTrue();
+        assertThat(result.output()).isEqualTo("{\"deletedCount\":3}");
         verify(taskInboxExecutor)
-                .execute(anyString(), anyString(), anyString(), any(Runnable.class));
+                .execute(anyString(), anyString(), anyString(), any(Supplier.class));
         verify(handler).handle("task-1", "{\"id\":1}");
     }
 }

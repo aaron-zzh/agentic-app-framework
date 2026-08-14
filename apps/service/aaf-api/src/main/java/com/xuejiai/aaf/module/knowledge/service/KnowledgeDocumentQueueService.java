@@ -69,7 +69,7 @@ public class KnowledgeDocumentQueueService implements TaskHandler {
     }
 
     @Override
-    public void handle(String taskId, String payloadJson) {
+    public String handle(String taskId, String payloadJson) {
         var payload = JsonUtils.parseObject(payloadJson, ProcessDocumentPayload.class);
         requireValid(payload);
         if (!taskId(payload.documentId()).equals(taskId)) {
@@ -85,6 +85,7 @@ public class KnowledgeDocumentQueueService implements TaskHandler {
                                         executionLeaseService.execute(
                                                 payload.documentId(),
                                                 guard -> process(payload, guard))));
+        return null;
     }
 
     private void process(ProcessDocumentPayload payload, Runnable executionGuard) {

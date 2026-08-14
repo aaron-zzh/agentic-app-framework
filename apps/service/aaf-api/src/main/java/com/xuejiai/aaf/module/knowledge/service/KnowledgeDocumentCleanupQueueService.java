@@ -55,7 +55,7 @@ public class KnowledgeDocumentCleanupQueueService implements TaskHandler {
     }
 
     @Override
-    public void handle(String taskId, String payloadJson) {
+    public String handle(String taskId, String payloadJson) {
         var payload = JsonUtils.parseObject(payloadJson, CleanupDocumentPayload.class);
         requireValid(payload);
         if (!taskId(payload.documentId()).equals(taskId)) {
@@ -64,6 +64,7 @@ public class KnowledgeDocumentCleanupQueueService implements TaskHandler {
         if (payload.filePath() != null && !payload.filePath().isBlank()) {
             fileService.delete(payload.filePath());
         }
+        return null;
     }
 
     private void requireValid(CleanupDocumentPayload payload) {

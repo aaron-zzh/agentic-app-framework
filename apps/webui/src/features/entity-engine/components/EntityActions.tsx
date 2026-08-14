@@ -13,7 +13,6 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
-import { AsyncTaskStatusIndicator, type AsyncTaskStatus } from "./AsyncTaskStatusIndicator"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
   DropdownMenu,
@@ -23,10 +22,11 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import type { EntityAction, EntityDef } from "@/features/entity-engine/types"
+import { buildApiUrl, buildSseUrl } from "@/lib/api/config"
 import { backendApi } from "@/lib/api/rest/backend-client"
 import { crudKey, fromEntityDef } from "@/lib/api/rest/crud"
 import { ApiError } from "@/lib/api/rest/entity"
-import { buildApiUrl, buildSseUrl } from "@/lib/api/config"
+import { type AsyncTaskStatus, AsyncTaskStatusIndicator } from "./AsyncTaskStatusIndicator"
 
 const ASYNC_TASK_EVENT_NAME = "async-task.status"
 const ASYNC_TASK_EVENTS_URL = buildSseUrl("/async-tasks/events")
@@ -159,7 +159,7 @@ export function EntityActions({ entity, position, record, selectedIds }: EntityA
   const eventSourceRef = useRef<EventSource | null>(null)
   const [runningActionKey, setRunningActionKey] = useState<string>()
   const [pendingAction, setPendingAction] = useState<EntityAction>()
-  const [trackedTask, setTrackedTask] = useState<(AsyncTaskResult & { label: string })>()
+  const [trackedTask, setTrackedTask] = useState<AsyncTaskResult & { label: string }>()
   const actions = (entity.actions ?? []).filter(
     (action) =>
       action.position === position &&
@@ -179,7 +179,6 @@ export function EntityActions({ entity, position, record, selectedIds }: EntityA
 
   const executeAction = useCallback(
     async (action: EntityAction) => {
-
       const controller = new AbortController()
       eventSourceRef.current?.close()
       eventSourceRef.current = null
@@ -195,10 +194,14 @@ export function EntityActions({ entity, position, record, selectedIds }: EntityA
           body.ids = selectedIds
         }
 
-        const result = await backendApi.post<ActionSubmitResult>(buildApiUrl(action.endpoint), body, {
-          signal: controller.signal,
-          showError: false
-        })
+        const result = await backendApi.post<ActionSubmitResult>(
+          buildApiUrl(action.endpoint),
+          body,
+          {
+            signal: controller.signal,
+            showError: false
+          }
+        )
 
         if (action.execution === "async") {
           if (!result.taskId) {
@@ -305,7 +308,9 @@ export function EntityActions({ entity, position, record, selectedIds }: EntityA
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
-        {trackedTask && <AsyncTaskStatusIndicator {...trackedTask} onClose={() => setTrackedTask(undefined)} />}
+        {trackedTask && (
+          <AsyncTaskStatusIndicator {...trackedTask} onClose={() => setTrackedTask(undefined)} />
+        )}
         {confirmationDialog}
       </>
     )

@@ -18,7 +18,7 @@ public record ExecutionMeta(
     }
 
     public static ExecutionMeta queue(short priority, String taskId, String payload) {
-        return new ExecutionMeta("QUEUE", priority, null, payload, taskId);
+        return new ExecutionMeta("QUEUE", priority, taskId, payload, taskId);
     }
 
     public static ExecutionMeta request() {

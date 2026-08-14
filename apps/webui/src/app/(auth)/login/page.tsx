@@ -17,13 +17,13 @@ import { ConsentDialog } from "@/components/common/ConsentDialog"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { type LegalDocument, legalApi } from "@/lib/api/rest/legal"
-import { authApi, organizationApi } from "@/lib/api/rest/user"
+import { authApi } from "@/lib/api/rest/user"
+import { useAuth } from "@/lib/auth/use-auth"
 import { clearAxiosAuth, setAxiosAuth } from "@/lib/auth/utils"
 import { paths } from "@/lib/constants/paths"
 import { useEsaCaptcha } from "@/lib/hooks/use-esa-captcha"
 import { notify } from "@/lib/notification"
 import { type AuthUser, useAuthStore } from "@/lib/store/auth-store"
-import { useOrgStore } from "@/lib/store/org-store"
 import { LoginSuccessOverlay } from "./LoginSuccessOverlay"
 import { PasswordLoginPanel, type PasswordLoginPanelRef } from "./PasswordLoginPanel"
 import { PhoneLoginPanel, type PhoneLoginPanelRef } from "./PhoneLoginPanel"
@@ -32,6 +32,7 @@ function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { setTokens, setUser } = useAuthStore()
+  const { ensureOrgContext } = useAuth()
   const [successUser, setSuccessUser] = useState<string | null>(null)
   const [pendingConsent, setPendingConsent] = useState<LegalDocument[] | null>(null)
   const [activeTab, setActiveTab] = useState<"password" | "phone">("password")
@@ -63,14 +64,13 @@ function LoginContent() {
       const authUser = { ...user, roles } as AuthUser
       setUser(authUser)
       try {
-        const orgs = await organizationApi.list()
-        useOrgStore.getState().ensureDefaultOrg(orgs, roles)
+        await ensureOrgContext()
       } catch {
         // 拉取组织列表失败不阻塞登录流程
       }
       router.replace(redirectTo)
     })
-  }, [searchParams, setTokens, setUser, router, redirectTo])
+  }, [searchParams, setTokens, setUser, router, redirectTo, ensureOrgContext])
 
   /**
    * 登录成功处理：
@@ -138,8 +138,7 @@ function LoginContent() {
     setUser(pending.user)
     // 确保登录后有有效的当前组织，否则后续请求会因缺少 X-Org-Id 被拒绝
     try {
-      const orgs = await organizationApi.list()
-      useOrgStore.getState().ensureDefaultOrg(orgs, pending.user.roles)
+      await ensureOrgContext()
     } catch {
       // 拉取组织列表失败不阻塞登录流程，后续页面可自行重试
     }
@@ -147,7 +146,7 @@ function LoginContent() {
       ? `${redirectTo.split("?")[0]}?welcome=1`
       : redirectTo
     router.push(dest)
-  }, [router, redirectTo, setTokens, setUser])
+  }, [router, redirectTo, setTokens, setUser, ensureOrgContext])
 
   // 验证码通过后，根据当前 tab 分发到对应面板
   const captcha = useEsaCaptcha({

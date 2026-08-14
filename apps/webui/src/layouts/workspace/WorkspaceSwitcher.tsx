@@ -6,14 +6,7 @@
 "use client"
 
 import { useQueryClient } from "@tanstack/react-query"
-import {
-  Building2,
-  ChevronsUpDown,
-  Layers3,
-  LockKeyhole,
-  Network,
-  Pencil
-} from "lucide-react"
+import { Building2, ChevronsUpDown, Layers3, LockKeyhole, Network, Pencil } from "lucide-react"
 import { type FormEvent, useId, useMemo, useRef, useState } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -71,8 +64,10 @@ function isCurrentScope(current: ScopeSelection | null, target: ScopeSelection):
   if (target.kind === "all-organizations") return true
   if (current.kind === "all-organizations") return false
   if (current.orgId !== target.orgId) return false
-  return target.kind !== "workspace" ||
+  return (
+    target.kind !== "workspace" ||
     (current.kind === "workspace" && current.workspaceId === target.workspaceId)
+  )
 }
 
 export function WorkspaceSwitcher() {
@@ -85,9 +80,8 @@ export function WorkspaceSwitcher() {
   const { data: organizations } = useOrganizations()
   const orgs = organizations ?? []
   const canSelectAllOrganizations = isSuperAdmin || orgs.length >= 2
-  const currentOrgId = currentScope && currentScope.kind !== "all-organizations"
-    ? currentScope.orgId
-    : null
+  const currentOrgId =
+    currentScope && currentScope.kind !== "all-organizations" ? currentScope.orgId : null
   const queryOrgId = canSelectAllOrganizations ? "all" : (currentOrgId ?? orgs[0]?.id ?? null)
   const { data: workspacePage } = useWorkspaces(
     status === "ready" ? queryOrgId : null,
@@ -291,13 +285,7 @@ export function WorkspaceSwitcher() {
   )
 }
 
-function RenameActionButton({
-  ariaLabel,
-  onRename
-}: {
-  ariaLabel: string
-  onRename: () => void
-}) {
+function RenameActionButton({ ariaLabel, onRename }: { ariaLabel: string; onRename: () => void }) {
   return (
     <Button
       type="button"

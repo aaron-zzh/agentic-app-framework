@@ -33,11 +33,7 @@ vi.mock("@/lib/api/rest/entity", async (importOriginal) => {
 
 import { entityQueryWindowKey, type PageResult } from "@/lib/api/rest/entity"
 import type { EntityDef, FormViewOverrideProps } from "@/lib/types/entity"
-import {
-  RecordWindowNavigationControls,
-  ViewEngine,
-  withExpectedVersion
-} from "./ViewEngine"
+import { RecordWindowNavigationControls, ViewEngine, withExpectedVersion } from "./ViewEngine"
 
 const mockEntity: Partial<EntityDef> = {
   slug: "test",

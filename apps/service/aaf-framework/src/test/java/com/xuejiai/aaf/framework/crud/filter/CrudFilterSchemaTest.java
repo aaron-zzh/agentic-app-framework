@@ -134,8 +134,7 @@ class CrudFilterSchemaTest {
                 .containsExactly("status", "category", "title", "dueDate");
         assertThat(metas.get(0).operators()).doesNotContain(CrudFilterOperator.IS_NULL.toMeta());
         assertThat(metas.get(1).operators()).contains(CrudFilterOperator.IS_NULL.toMeta());
-        assertThat(metas.getLast().operators())
-                .contains(CrudFilterOperator.BETWEEN.toMeta());
+        assertThat(metas.getLast().operators()).contains(CrudFilterOperator.BETWEEN.toMeta());
         assertThat(metas.getLast().variables())
                 .containsExactly("$now", "$todayStart", "$tomorrowStart", "$nowPlus3Days");
         assertThat(none.mode()).isEqualTo(CrudFilterSchema.Mode.NONE);
@@ -163,11 +162,7 @@ class CrudFilterSchemaTest {
     }
 
     private record FilterView(
-            String status,
-            String category,
-            String title,
-            LocalDateTime dueDate,
-            Long internalId) {}
+            String status, String category, String title, LocalDateTime dueDate, Long internalId) {}
 
     private static final class FilterPage extends PageParam {
         @InEnum(FilterStatus.class)

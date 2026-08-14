@@ -19,6 +19,7 @@ import type { CrudFilterFieldMeta } from "@/lib/api/rest/crud"
 import type { QuickFilter } from "@/lib/types/entity"
 import { buildDateRangeFilter } from "../../../lib/date-range-filter"
 import type { FilterCondition } from "./FilterBuilder"
+import { formatFilterValue } from "./filter-value-label"
 
 type InputPhase = "idle" | "selectField" | "inputValue"
 
@@ -111,10 +112,7 @@ export function SearchBar({ entity, filters, onChange, capabilities }: SearchBar
         operators?.[0]?.value
       if (!operator) return
 
-      onChange([
-        ...filters,
-        { field: selectedField.name, operator, values: [value.trim()] }
-      ])
+      onChange([...filters, { field: selectedField.name, operator, values: [value.trim()] }])
       setSelectedField(null)
       setPhase("idle")
       setQuery("")
@@ -260,8 +258,9 @@ export function SearchBar({ entity, filters, onChange, capabilities }: SearchBar
                 fieldDef?.type === "select" && "options" in fieldDef
                   ? ((
                       fieldDef as unknown as { options?: { value: string; label: string }[] }
-                    ).options?.find((option) => option.value === value)?.label ?? value)
-                  : value
+                    ).options?.find((option) => option.value === value)?.label ??
+                    formatFilterValue(value))
+                  : formatFilterValue(value)
               )
               .join(filter.operator === "between" ? " 至 " : "、")
             const operatorLabel = OPERATOR_LABELS[filter.operator] ?? filter.operator
