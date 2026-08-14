@@ -78,6 +78,7 @@ public record StorageProperties(
                             "image/png",
                             "image/gif",
                             "image/webp",
+                            "video/mp4",
                             "audio/mpeg",
                             "application/pdf",
                             "application/msword",

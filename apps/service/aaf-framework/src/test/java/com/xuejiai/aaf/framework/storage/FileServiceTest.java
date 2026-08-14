@@ -46,6 +46,18 @@ class FileServiceTest {
         assertThat(vo.key()).isEqualTo("2026/05/30/abc.png");
     }
 
+    /** AIGC 视频结果使用 video/mp4 时应通过默认白名单。 */
+    @Test
+    void upload_videoMp4允许() {
+        when(storage.upload(any(), any(), any())).thenReturn("aigc/video.mp4");
+        when(storage.getUrl("aigc/video.mp4")).thenReturn("/files/aigc/video.mp4");
+        var video = new MockMultipartFile("file", "video.mp4", "video/mp4", new byte[] {0, 1});
+
+        var file = service.upload(video);
+
+        assertThat(file.contentType()).isEqualTo("video/mp4");
+    }
+
     /** B13：SVG 属主动内容，即使伪装扩展名也应拒绝（存储型 XSS）。 */
     @Test
     void upload_svg主动内容拒绝() {
@@ -82,10 +94,7 @@ class FileServiceTest {
     void uploadFromBase64_无dataUrl时按png签名推断类型() {
         when(storage.upload(any(), any(), any())).thenReturn("aigc/image.png");
         when(storage.getUrl("aigc/image.png")).thenReturn("/files/aigc/image.png");
-        var pngBytes =
-                new byte[] {
-                    (byte) 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a
-                };
+        var pngBytes = new byte[] {(byte) 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a};
         var rawBase64 = java.util.Base64.getEncoder().encodeToString(pngBytes);
 
         var file = service.uploadFromBase64(rawBase64, "aigc/image.png");
