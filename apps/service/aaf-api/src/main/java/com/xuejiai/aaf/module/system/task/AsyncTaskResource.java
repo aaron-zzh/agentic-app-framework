@@ -86,7 +86,7 @@ public final class AsyncTaskResource {
                     CrudMutationDefinition.forTypes(TYPES),
                     VIEW,
                     List.of(),
-                    TenantScope.GLOBAL,
+                    TenantScope.WORKSPACE_REQUIRED,
                     PersonalScope.none(),
                     Set.of(CrudResourceExposure.HTTP, CrudResourceExposure.ENTITY_DEF),
                     CrudResourceDefinition.CURRENT_SCHEMA_VERSION);
