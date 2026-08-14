@@ -48,8 +48,8 @@ import com.xuejiai.aaf.module.system.notify.controller.NoticeController;
 import com.xuejiai.aaf.module.system.org.controller.WorkspaceController;
 import com.xuejiai.aaf.module.system.role.controller.DataAccessRuleController;
 import com.xuejiai.aaf.module.system.role.controller.RoleController;
-import com.xuejiai.aaf.module.system.task.TodoResource;
-import com.xuejiai.aaf.module.system.task.controller.TodoController;
+import com.xuejiai.aaf.module.system.todo.TodoResource;
+import com.xuejiai.aaf.module.system.todo.controller.TodoController;
 import com.xuejiai.aaf.module.system.user.controller.UserController;
 import com.xuejiai.aaf.module.system.user.favorite.controller.UserFavoriteController;
 

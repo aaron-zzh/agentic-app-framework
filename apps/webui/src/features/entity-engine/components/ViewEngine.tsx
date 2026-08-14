@@ -296,7 +296,7 @@ function ConnectedFormView({
       key={recordId}
       entity={entity}
       data={data ?? undefined}
-      loading={isLoading || updating}
+      loading={isLoading}
       onSubmit={handleSubmit}
       externalFormId={externalFormId}
       readOnly={isReadOnly}

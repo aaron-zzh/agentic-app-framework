@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.module.system.task;
+package com.xuejiai.aaf.module.system.todo;
 
 import java.util.Set;
 
@@ -16,8 +16,8 @@ import com.xuejiai.aaf.framework.crud.definition.PersonalScope;
 import com.xuejiai.aaf.framework.crud.definition.ResourceKey;
 import com.xuejiai.aaf.framework.crud.definition.TenantScope;
 import com.xuejiai.aaf.framework.crud.filter.CrudFilterSchema;
-import com.xuejiai.aaf.module.system.task.controller.TodoController;
-import com.xuejiai.aaf.module.system.task.domain.Todo;
+import com.xuejiai.aaf.module.system.todo.controller.TodoController;
+import com.xuejiai.aaf.module.system.todo.domain.Todo;
 
 /** Todo CRUD 资源定义。 */
 public final class TodoResource {

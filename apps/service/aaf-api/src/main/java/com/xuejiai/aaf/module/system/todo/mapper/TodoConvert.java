@@ -1,11 +1,11 @@
-package com.xuejiai.aaf.module.system.task.mapper;
+package com.xuejiai.aaf.module.system.todo.mapper;
 
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.factory.Mappers;
 
-import com.xuejiai.aaf.module.system.task.domain.Todo;
-import com.xuejiai.aaf.module.system.task.vo.TodoCreateDTO;
+import com.xuejiai.aaf.module.system.todo.domain.Todo;
+import com.xuejiai.aaf.module.system.todo.vo.TodoCreateDTO;
 
 /** 待办创建对象转换器；更新由 Patch 应用，输出由通用视图组装器生成。 */
 @Mapper

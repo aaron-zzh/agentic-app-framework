@@ -39,6 +39,7 @@ export interface TodoVO {
   status: TodoStatus
   dueDate?: string
   createTime: string
+  updateTime: string
   assignee?: UserResourceRef
   participants?: UserResourceRef[]
   createBy?: UserResourceRef

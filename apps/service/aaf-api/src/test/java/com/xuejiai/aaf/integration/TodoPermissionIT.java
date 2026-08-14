@@ -42,8 +42,8 @@ import com.xuejiai.aaf.module.system.role.domain.UserRole;
 import com.xuejiai.aaf.module.system.role.repository.RolePermissionRepository;
 import com.xuejiai.aaf.module.system.role.repository.RoleRepository;
 import com.xuejiai.aaf.module.system.role.repository.UserRoleRepository;
-import com.xuejiai.aaf.module.system.task.domain.Todo;
-import com.xuejiai.aaf.module.system.task.repository.TodoRepository;
+import com.xuejiai.aaf.module.system.todo.domain.Todo;
+import com.xuejiai.aaf.module.system.todo.repository.TodoRepository;
 import com.xuejiai.aaf.module.system.user.domain.User;
 import com.xuejiai.aaf.module.system.user.repository.UserRepository;
 

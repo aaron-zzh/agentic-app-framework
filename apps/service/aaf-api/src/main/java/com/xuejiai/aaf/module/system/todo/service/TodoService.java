@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.module.system.task.service;
+package com.xuejiai.aaf.module.system.todo.service;
 
 import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
 
@@ -27,14 +27,14 @@ import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationPlan;
 import com.xuejiai.aaf.module.system.role.relation.GrantRelationDTO;
 import com.xuejiai.aaf.module.system.role.relation.ResourceRelationService;
-import com.xuejiai.aaf.module.system.task.TodoResource;
-import com.xuejiai.aaf.module.system.task.domain.Todo;
-import com.xuejiai.aaf.module.system.task.mapper.TodoConvert;
-import com.xuejiai.aaf.module.system.task.repository.TodoRepository;
-import com.xuejiai.aaf.module.system.task.vo.TodoCreateDTO;
-import com.xuejiai.aaf.module.system.task.vo.TodoPageDTO;
-import com.xuejiai.aaf.module.system.task.vo.TodoUpdateDTO;
-import com.xuejiai.aaf.module.system.task.vo.TodoVO;
+import com.xuejiai.aaf.module.system.todo.TodoResource;
+import com.xuejiai.aaf.module.system.todo.domain.Todo;
+import com.xuejiai.aaf.module.system.todo.mapper.TodoConvert;
+import com.xuejiai.aaf.module.system.todo.repository.TodoRepository;
+import com.xuejiai.aaf.module.system.todo.vo.TodoCreateDTO;
+import com.xuejiai.aaf.module.system.todo.vo.TodoPageDTO;
+import com.xuejiai.aaf.module.system.todo.vo.TodoUpdateDTO;
+import com.xuejiai.aaf.module.system.todo.vo.TodoVO;
 
 import lombok.RequiredArgsConstructor;
 

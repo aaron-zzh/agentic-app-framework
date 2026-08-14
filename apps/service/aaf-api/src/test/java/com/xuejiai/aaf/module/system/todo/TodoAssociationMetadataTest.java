@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.module.system.task;
+package com.xuejiai.aaf.module.system.todo;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -9,8 +9,8 @@ import com.xuejiai.aaf.framework.crud.reference.CrudReference;
 import com.xuejiai.aaf.framework.crud.relation.AssociationKind;
 import com.xuejiai.aaf.framework.crud.relation.CrudAssociation;
 import com.xuejiai.aaf.framework.crud.relation.RelationDefinition;
-import com.xuejiai.aaf.module.system.task.domain.Todo;
-import com.xuejiai.aaf.module.system.task.domain.TodoParticipant;
+import com.xuejiai.aaf.module.system.todo.domain.Todo;
+import com.xuejiai.aaf.module.system.todo.domain.TodoParticipant;
 
 class TodoAssociationMetadataTest {
 

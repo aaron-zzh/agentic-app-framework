@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.module.system.task;
+package com.xuejiai.aaf.module.system.todo;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -6,8 +6,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.xuejiai.aaf.framework.crud.definition.CrudOperation;
-import com.xuejiai.aaf.module.system.task.domain.Todo;
-import com.xuejiai.aaf.module.system.task.vo.TodoVO;
+import com.xuejiai.aaf.module.system.todo.domain.Todo;
+import com.xuejiai.aaf.module.system.todo.vo.TodoVO;
 
 class TodoResourceTest {
 

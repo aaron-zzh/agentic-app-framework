@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.module.system.task.vo;
+package com.xuejiai.aaf.module.system.todo.vo;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -25,6 +25,7 @@ public record TodoVO(
         @DictFormat(DictType.Sys.TODO_STATUS) String status,
         LocalDateTime dueDate,
         LocalDateTime createTime,
+        LocalDateTime updateTime,
         ResourceRefDTO assignee,
         List<ResourceRefDTO> participants,
         ResourceRefDTO createBy,

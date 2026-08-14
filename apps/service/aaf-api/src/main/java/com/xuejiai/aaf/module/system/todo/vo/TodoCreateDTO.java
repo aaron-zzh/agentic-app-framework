@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.module.system.task.vo;
+package com.xuejiai.aaf.module.system.todo.vo;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -39,7 +39,7 @@ public record TodoCreateDTO(
             @JsonProperty("assigneeId") Long assigneeId,
             @JsonProperty("source") JsonNode source,
             @JsonProperty("dueDate") LocalDateTime dueDate,
-            @JsonProperty("participants") JsonNode participants) {
+            @JsonProperty("participantIds") JsonNode participants) {
         return new TodoCreateDTO(
                 title,
                 category,

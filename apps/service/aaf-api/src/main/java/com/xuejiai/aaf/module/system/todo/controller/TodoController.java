@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.module.system.task.controller;
+package com.xuejiai.aaf.module.system.todo.controller;
 
 import java.util.List;
 
@@ -15,15 +15,15 @@ import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.crud.BaseCrudController;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.crud.definition.Patch;
-import com.xuejiai.aaf.module.system.task.domain.Todo;
-import com.xuejiai.aaf.module.system.task.service.TodoQueueService;
-import com.xuejiai.aaf.module.system.task.service.TodoService;
-import com.xuejiai.aaf.module.system.task.vo.ShareTodoDTO;
-import com.xuejiai.aaf.module.system.task.vo.TodoCreateDTO;
-import com.xuejiai.aaf.module.system.task.vo.TodoPageDTO;
-import com.xuejiai.aaf.module.system.task.vo.TodoStatusDTO;
-import com.xuejiai.aaf.module.system.task.vo.TodoUpdateDTO;
-import com.xuejiai.aaf.module.system.task.vo.TodoVO;
+import com.xuejiai.aaf.module.system.todo.domain.Todo;
+import com.xuejiai.aaf.module.system.todo.service.TodoQueueService;
+import com.xuejiai.aaf.module.system.todo.service.TodoService;
+import com.xuejiai.aaf.module.system.todo.vo.ShareTodoDTO;
+import com.xuejiai.aaf.module.system.todo.vo.TodoCreateDTO;
+import com.xuejiai.aaf.module.system.todo.vo.TodoPageDTO;
+import com.xuejiai.aaf.module.system.todo.vo.TodoStatusDTO;
+import com.xuejiai.aaf.module.system.todo.vo.TodoUpdateDTO;
+import com.xuejiai.aaf.module.system.todo.vo.TodoVO;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

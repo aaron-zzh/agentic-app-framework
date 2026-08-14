@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.module.system.task.service;
+package com.xuejiai.aaf.module.system.todo.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -24,10 +24,10 @@ import com.xuejiai.aaf.framework.crud.enforcement.ReferenceEnforcementService;
 import com.xuejiai.aaf.framework.crud.reference.ResourceReference;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.system.role.relation.ResourceRelationService;
-import com.xuejiai.aaf.module.system.task.domain.Todo;
-import com.xuejiai.aaf.module.system.task.repository.TodoRepository;
-import com.xuejiai.aaf.module.system.task.vo.TodoCreateDTO;
-import com.xuejiai.aaf.module.system.task.vo.TodoUpdateDTO;
+import com.xuejiai.aaf.module.system.todo.domain.Todo;
+import com.xuejiai.aaf.module.system.todo.repository.TodoRepository;
+import com.xuejiai.aaf.module.system.todo.vo.TodoCreateDTO;
+import com.xuejiai.aaf.module.system.todo.vo.TodoUpdateDTO;
 import com.xuejiai.aaf.test.BaseMockitoUnitTest;
 
 class TodoServiceTest extends BaseMockitoUnitTest {

@@ -1,4 +1,4 @@
-package com.xuejiai.aaf.module.system.task.vo;
+package com.xuejiai.aaf.module.system.todo.vo;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -43,7 +43,7 @@ public record TodoUpdateDTO(
             @JsonProperty("assigneeId") JsonNode assigneeId,
             @JsonProperty("dueDate") JsonNode dueDate,
             @JsonProperty("source") JsonNode source,
-            @JsonProperty("participants") JsonNode participants,
+            @JsonProperty("participantIds") JsonNode participants,
             @JsonProperty("expectedVersion") Integer expectedVersion) {
         return new TodoUpdateDTO(
                 Patch.parse(title, node -> decodeText(node, "title")),
