@@ -273,8 +273,20 @@ VALUES
     ('提示词模板读取',     'system:prompt-template:read',        'system',    'prompt-template',   'read',    0),
     ('提示词模板创建',     'system:prompt-template:create',      'system',    'prompt-template',   'create',  0),
     ('提示词模板更新',     'system:prompt-template:update',      'system',    'prompt-template',   'update',  0),
-    ('提示词模板删除',     'system:prompt-template:delete',      'system',    'prompt-template',   'delete',  0)
+    ('提示词模板删除',     'system:prompt-template:delete',      'system',    'prompt-template',   'delete',  0),
+    ('文件存储配置读取',   'system:file-config:read',            'system',    'file-config',       'read',    0),
+    ('文件存储配置创建',   'system:file-config:create',          'system',    'file-config',       'create',  0),
+    ('文件存储配置更新',   'system:file-config:update',          'system',    'file-config',       'update',  0),
+    ('文件存储配置删除',   'system:file-config:delete',          'system',    'file-config',       'delete',  0)
 ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
+
+-- 文件存储配置允许普通登录角色读取；写权限仅由管理员角色的全量权限映射获得。
+INSERT INTO sys_role_permission (role_id, permission_id)
+SELECT r.id, p.id
+FROM sys_role r
+JOIN sys_permission_code p ON p.code = 'system:file-config:read'
+WHERE r.code IN ('super_admin', 'member', 'user', 'guest')
+ON CONFLICT DO NOTHING;
 
 -- ==================== 角色菜单与权限挂接 ====================
 
@@ -398,7 +410,7 @@ items (group_title, title, path, icon, sort_order, visible) AS (
     ('系统',     '预设管理',   '/system/dashboard-presets',   'layout-template',   5,  true),
     ('系统',     '操作日志',   '/admin/operation-log',        'clipboard-list',    6,  true),
     ('系统',     '演示模式',   '/admin/demo',                 'flask-conical',     7,  true),
-    ('系统',     '文件存储配置','/module/file-config',        'hard-drive',        10, true),
+    ('系统',     '存储配置',   '/module/file-config',        'database',          10, true),
     -- 开发工具（隐藏）
     ('开发工具', '文档管理',   '/dev/docs',                   'file-text',         0,  false),
     ('开发工具', '开发日志',   '/dev/log',                    'scroll-text',       1,  false),

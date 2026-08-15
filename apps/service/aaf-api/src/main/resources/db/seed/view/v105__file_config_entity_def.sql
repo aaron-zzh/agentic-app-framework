@@ -12,7 +12,7 @@ VALUES (
       "resource": "system.file-config",
       "label": "文件存储配置",
       "labelPlural": "文件存储配置",
-      "icon": "hard-drive",
+      "icon": "database",
       "group": "system",
       "groupLabel": "系统管理",
       "fields": [
