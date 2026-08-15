@@ -1,13 +1,13 @@
 /**
- * 创作-文案 智能体技能矩阵
+ * 创作-文案 智能体技能矩阵。
  *
- * 左：技能卡列表；右：点击技能后展开编辑区（inline，无弹窗）
- *
+ * 左：我的/公共技能目录；右：点击技能后展开编辑区（inline，无弹窗）。
  * @author AaronZZH & Kiro
  */
 
 "use client"
 
+import { useBoolean, useTabs } from "@aaf/hooks"
 import {
   BarChart3,
   Briefcase,
@@ -16,27 +16,41 @@ import {
   Hash,
   Heart,
   Mic,
+  Pencil,
+  Plus,
   Save,
   Target,
   Video,
   Wand2
 } from "lucide-react"
 import { useSearchParams } from "next/navigation"
-import { useEffect } from "react"
+import { useEffect, useMemo, useState } from "react"
+
 import { LottieIcon } from "@/components/animate"
 import { AnimateBorder } from "@/components/animate/animate-border"
 import { ModelSelector } from "@/components/common/ModelSelector"
 import { GlassCard, NeonChip } from "@/components/studio"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle
+} from "@/components/ui/empty"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CopywritingReferenceImages } from "@/features/aigc/copywriting/CopywritingReferenceImages"
 import { TRANSLATE_OPTIONS } from "@/features/aigc/copywriting/constants"
 import { useCopywriting } from "@/features/aigc/copywriting/use-copywriting"
+import { SkillEditorDialog } from "@/features/aigc/skills/SkillEditorDialog"
 import { useAigcStore } from "@/features/aigc/store"
 import { StreamingEditor } from "@/features/rich-text-editor"
-import { type AiSkillVO, useAiSkills } from "@/lib/api/rest/ai"
+import { type AiSkillVO, useAiSkillMeta, useMyAiSkills, usePublicAiSkills } from "@/lib/api/rest/ai"
 import { useModelSelector } from "@/lib/hooks/use-model-selector"
 import { cn } from "@/lib/utils/index"
 
@@ -62,14 +76,24 @@ const TONE_MAP: Record<string, "violet" | "cyan" | "emerald" | "amber" | "rose">
 
 const HOT_CODES = new Set(["voiceover", "redbook"])
 
+type SkillDirectoryView = "MINE" | "PUBLIC"
+
+function sourceLabel(skill: AiSkillVO): string {
+  return skill.ownerId === null ? "内置" : "工作区"
+}
+
 function SkillItem({
   skill,
   active,
-  onSelect
+  showSource,
+  onSelect,
+  onEdit
 }: {
   skill: AiSkillVO
   active: boolean
+  showSource: boolean
   onSelect: (code: string) => void
+  onEdit?: () => void
 }) {
   const code = skill.code ?? ""
   const Icon = ICON_MAP[code] ?? Wand2
@@ -88,16 +112,17 @@ function SkillItem({
         <div
           className={`flex size-9 shrink-0 items-center justify-center rounded-xl bg-foreground/[0.04] text-${tone}-300`}
         >
-          <Icon className="size-4" />
+          <Icon />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <p className="truncate font-medium text-sm">{skill.name}</p>
-            {HOT_CODES.has(code) && (
+            {HOT_CODES.has(code) ? (
               <NeonChip tone="rose" size="sm">
                 热
               </NeonChip>
-            )}
+            ) : null}
+            {showSource ? <Badge variant="secondary">{sourceLabel(skill)}</Badge> : null}
           </div>
           <p className="text-muted-foreground text-xs leading-4">{skill.description ?? ""}</p>
         </div>
@@ -106,19 +131,32 @@ function SkillItem({
   )
 
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(code)}
-      className="w-full text-left focus-visible:outline-none"
-    >
-      {active ? (
-        <AnimateBorder rounded="xl" borderWidth={1} className="w-full">
-          {card}
-        </AnimateBorder>
-      ) : (
-        card
-      )}
-    </button>
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => onSelect(code)}
+        className="w-full text-left focus-visible:outline-none"
+      >
+        {active ? (
+          <AnimateBorder rounded="xl" borderWidth={1} className="w-full">
+            {card}
+          </AnimateBorder>
+        ) : (
+          card
+        )}
+      </button>
+      {onEdit ? (
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="absolute top-4 right-4"
+          onClick={onEdit}
+          aria-label={`编辑${skill.name}`}
+        >
+          <Pencil />
+        </Button>
+      ) : null}
+    </div>
   )
 }
 
@@ -136,14 +174,14 @@ function SkillSkeleton() {
   )
 }
 
-/** 精简参数栏：只保留模型 + 长度 + 翻译 */
+/** 精简参数栏：只保留模型 + 长度 + 翻译。 */
 function SkillParamsBar() {
-  const length = useAigcStore((s) => s.copywritingLength)
-  const setLength = useAigcStore((s) => s.setCopywritingLength)
-  const translateTo = useAigcStore((s) => s.copywritingTranslateTo)
-  const setTranslateTo = useAigcStore((s) => s.setCopywritingTranslateTo)
-  const model = useAigcStore((s) => s.copywritingModel)
-  const setModel = useAigcStore((s) => s.setCopywritingModel)
+  const length = useAigcStore((state) => state.copywritingLength)
+  const setLength = useAigcStore((state) => state.setCopywritingLength)
+  const translateTo = useAigcStore((state) => state.copywritingTranslateTo)
+  const setTranslateTo = useAigcStore((state) => state.setCopywritingTranslateTo)
+  const model = useAigcStore((state) => state.copywritingModel)
+  const setModel = useAigcStore((state) => state.setCopywritingModel)
   const { options, modelId, setModelId } = useModelSelector("CHAT", {
     value: model,
     onChange: (id) => setModel(id)
@@ -151,7 +189,10 @@ function SkillParamsBar() {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <ModelSelector variant="select" options={options} value={modelId} onChange={setModelId} />
-      <Select value={length} onValueChange={(v) => setLength(v as "short" | "medium" | "long")}>
+      <Select
+        value={length}
+        onValueChange={(value) => setLength(value as "short" | "medium" | "long")}
+      >
         <SelectTrigger className="h-8 w-[110px] text-xs">
           <span className="shrink-0 text-muted-foreground">长度</span>
           <span>{{ short: "短篇", medium: "中篇", long: "长篇" }[length]}</span>
@@ -162,15 +203,17 @@ function SkillParamsBar() {
           <SelectItem value="long">长篇（≤3000字）</SelectItem>
         </SelectContent>
       </Select>
-      <Select value={translateTo} onValueChange={(v) => setTranslateTo(v ?? "")}>
+      <Select value={translateTo} onValueChange={(value) => setTranslateTo(value ?? "")}>
         <SelectTrigger className="h-8 w-[110px] text-xs">
           <span className="shrink-0 text-muted-foreground">翻译</span>
-          <span>{TRANSLATE_OPTIONS.find((o) => o.value === translateTo)?.label ?? "不翻译"}</span>
+          <span>
+            {TRANSLATE_OPTIONS.find((option) => option.value === translateTo)?.label ?? "不翻译"}
+          </span>
         </SelectTrigger>
         <SelectContent>
-          {TRANSLATE_OPTIONS.map((o) => (
-            <SelectItem key={o.value} value={o.value}>
-              {o.label}
+          {TRANSLATE_OPTIONS.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
             </SelectItem>
           ))}
         </SelectContent>
@@ -179,7 +222,7 @@ function SkillParamsBar() {
   )
 }
 
-/** 内联编辑区——复用 useCopywriting 逻辑，无弹窗容器 */
+/** 内联编辑区——复用 useCopywriting 逻辑，无弹窗容器。 */
 function CopywritingWorkspace({ skillName }: { skillName: string }) {
   const {
     content,
@@ -194,7 +237,6 @@ function CopywritingWorkspace({ skillName }: { skillName: string }) {
 
   return (
     <div className="flex h-full flex-col gap-3">
-      {/* 顶部：技能名 + 保存按钮 */}
       <div className="flex items-center justify-between">
         <h2 className="font-medium text-sm">{skillName}</h2>
         <Button
@@ -204,7 +246,7 @@ function CopywritingWorkspace({ skillName }: { skillName: string }) {
           disabled={saved || createDoc.isPending || !content.trim()}
           onClick={handleSaveDoc}
         >
-          {saved ? <Check className="size-3" /> : <Save className="size-3" />}
+          {saved ? <Check /> : <Save />}
           {saved ? "已保存" : "保存文档"}
         </Button>
       </div>
@@ -232,7 +274,7 @@ function CopywritingWorkspace({ skillName }: { skillName: string }) {
             onClick={handleGenerate}
             className="h-8 gap-1 bg-linear-to-r from-emerald-500 to-teal-500 text-white text-xs hover:from-emerald-600 hover:to-teal-600"
           >
-            <FileText className="size-3" />
+            <FileText />
             {generating ? "生成中..." : "生成"}
           </Button>
         </div>
@@ -242,24 +284,40 @@ function CopywritingWorkspace({ skillName }: { skillName: string }) {
 }
 
 export default function StudioCreateCopyPage() {
-  const { data: skills, isLoading } = useAiSkills({ category: "COPYWRITING", activeOnly: true })
-  const sorted = skills ? [...skills].sort((a, b) => b.priority - a.priority) : []
+  const directory = useTabs("MINE")
+  const editDialog = useBoolean()
+  const [editTarget, setEditTarget] = useState<AiSkillVO | null>(null)
+  const queryParams = {
+    category: "COPYWRITING",
+    activeOnly: true,
+    pageNo: 1,
+    pageSize: 100
+  }
+  const mineQuery = useMyAiSkills(queryParams, directory.value === "MINE")
+  const publicQuery = usePublicAiSkills(queryParams, directory.value === "PUBLIC")
+  const metaQuery = useAiSkillMeta()
+  const activeQuery = directory.value === "PUBLIC" ? publicQuery : mineQuery
+  const operations = useMemo(
+    () => new Set(metaQuery.data?.operations ?? []),
+    [metaQuery.data?.operations]
+  )
+  const canCreate = directory.value === "MINE" && operations.has("create")
+  const canUpdate = operations.has("update")
+  const sorted = useMemo(
+    () => [...(activeQuery.data?.list ?? [])].sort((left, right) => right.priority - left.priority),
+    [activeQuery.data?.list]
+  )
 
-  const type = useAigcStore((s) => s.copywritingType)
-  const setType = useAigcStore((s) => s.setCopywritingType)
-  const setContent = useAigcStore((s) => s.setCopywritingContent)
-
+  const type = useAigcStore((state) => state.copywritingType)
+  const setType = useAigcStore((state) => state.setCopywritingType)
+  const setContent = useAigcStore((state) => state.setCopywritingContent)
   const searchParams = useSearchParams()
 
-  // 热点借势：从 query params 预填内容，选中第一个可用技能
-  // biome-ignore lint/correctness/useExhaustiveDependencies: setter 稳定引用无需列入，仅响应 searchParams/技能列表变化
   useEffect(() => {
-    // 技能选中：skillCode 参数直接选中
     const skillCode = searchParams.get("skillCode")
-    if (skillCode && sorted.find((s) => s.code === skillCode)) {
+    if (skillCode && sorted.find((skill) => skill.code === skillCode)) {
       setType(skillCode)
     }
-    // 预填内容：sessionStorage 优先（长文），fallback 到 topic query
     const stored = sessionStorage.getItem("aaf:launcher:prompt")
     const topic = stored ?? searchParams.get("topic")
     if (stored) sessionStorage.removeItem("aaf:launcher:prompt")
@@ -270,37 +328,100 @@ export default function StudioCreateCopyPage() {
     if (!type && !skillCode && sorted.length > 0) {
       setType(sorted[0].code ?? "")
     }
-  }, [searchParams, sorted.length, type])
+  }, [searchParams, setContent, setType, sorted, type])
 
-  const selectedSkill = sorted.find((s) => s.code === type)
+  const selectedSkill = sorted.find((skill) => skill.code === type)
 
-  const handleSelect = (code: string) => {
+  function handleSelect(code: string) {
     if (type === code) return
     setType(code)
     setContent("")
   }
 
+  function openCreate() {
+    if (!canCreate) return
+    setEditTarget(null)
+    editDialog.onTrue()
+  }
+
+  function openEdit(skill: AiSkillVO) {
+    if (!canUpdate || !skill.ownedByCurrentUser) return
+    setEditTarget(skill)
+    editDialog.onTrue()
+  }
+
+  function handleSaved(skill: AiSkillVO) {
+    if (skill.code) setType(skill.code)
+  }
+
+  const directoryView = directory.value as SkillDirectoryView
+
   return (
     <div className="flex h-full gap-0">
-      {/* 左：技能列表 */}
       <aside className="flex w-72 shrink-0 flex-col gap-2 overflow-y-auto border-r p-4">
-        <div className="mb-2 flex items-center gap-2">
-          <Wand2 className="size-4 text-violet-400" />
-          <h1 className="font-semibold text-sm">智能体文案</h1>
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Wand2 className="text-violet-400" />
+            <h1 className="font-semibold text-sm">文案生成</h1>
+          </div>
+          {canCreate ? (
+            <Button variant="ghost" size="icon-sm" onClick={openCreate} aria-label="新建技能">
+              <Plus />
+            </Button>
+          ) : null}
         </div>
-        {isLoading
-          ? Array.from({ length: 6 }).map((_, i) => <SkillSkeleton key={i} />)
-          : sorted.map((skill) => (
-              <SkillItem
-                key={skill.id}
-                skill={skill}
-                active={type === (skill.code ?? "")}
-                onSelect={handleSelect}
-              />
-            ))}
+
+        <Tabs value={directory.value} onValueChange={directory.onChange}>
+          <TabsList className="w-full">
+            <TabsTrigger value="MINE">我的</TabsTrigger>
+            <TabsTrigger value="PUBLIC">公共</TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {activeQuery.isLoading ? (
+          ["one", "two", "three", "four", "five", "six"].map((key) => <SkillSkeleton key={key} />)
+        ) : sorted.length === 0 ? (
+          <Empty className="min-h-64">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Wand2 />
+              </EmptyMedia>
+              <EmptyTitle>
+                {directoryView === "MINE" ? "还没有文案技能" : "暂无公共文案技能"}
+              </EmptyTitle>
+              <EmptyDescription>
+                {directoryView === "MINE"
+                  ? "创建技能后即可在此选择并开始创作。"
+                  : "公共目录包含平台内置和工作区公开技能。"}
+              </EmptyDescription>
+            </EmptyHeader>
+            {canCreate ? (
+              <EmptyContent>
+                <Button size="sm" onClick={openCreate}>
+                  <Plus data-icon="inline-start" />
+                  新建技能
+                </Button>
+              </EmptyContent>
+            ) : null}
+          </Empty>
+        ) : (
+          sorted.map((skill) => (
+            <SkillItem
+              key={skill.id}
+              skill={skill}
+              active={type === (skill.code ?? "")}
+              showSource={directoryView === "PUBLIC"}
+              onSelect={handleSelect}
+              onEdit={
+                directoryView === "MINE" && canUpdate && skill.ownedByCurrentUser
+                  ? () => openEdit(skill)
+                  : undefined
+              }
+            />
+          ))
+        )}
       </aside>
 
-      {/* 右：编辑区 */}
       <main className="flex min-w-0 flex-1 flex-col p-6">
         {selectedSkill ? (
           <CopywritingWorkspace skillName={selectedSkill.name} />
@@ -311,6 +432,14 @@ export default function StudioCreateCopyPage() {
           </div>
         )}
       </main>
+
+      <SkillEditorDialog
+        open={editDialog.value}
+        onOpenChange={editDialog.setValue}
+        initial={editTarget}
+        defaultCategory="COPYWRITING"
+        onSaved={handleSaved}
+      />
     </div>
   )
 }

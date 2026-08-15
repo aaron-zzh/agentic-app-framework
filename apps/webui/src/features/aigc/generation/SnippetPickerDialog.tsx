@@ -345,10 +345,7 @@ export function SnippetPickerDialog({
                               {snippet.name.slice(0, 1)}
                             </span>
                           }
-                          className={cn(
-                            "mt-0.5 size-9",
-                            selected && "bg-primary/20 text-primary"
-                          )}
+                          className={cn("mt-0.5 size-9", selected && "bg-primary/20 text-primary")}
                         />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5">

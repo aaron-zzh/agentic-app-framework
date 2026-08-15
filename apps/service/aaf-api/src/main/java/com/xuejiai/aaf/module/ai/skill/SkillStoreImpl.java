@@ -21,51 +21,53 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class SkillStoreImpl implements SkillStore {
 
+    private static final String STATUS_ACTIVE = "active";
+
     private final SkillDefinitionRepository repository;
 
     @Override
     public List<SkillRecord> findByAgentId(Long agentId) {
-        return repository.findByAgentIdAndStatus(agentId, "active").stream()
+        return repository.findByAgentIdAndStatus(agentId, STATUS_ACTIVE).stream()
                 .map(this::toRecord)
                 .toList();
     }
 
     @Override
     public List<SkillRecord> findBuiltIn() {
-        return repository.findByBuiltInTrueAndStatus("active").stream()
+        return repository.findByBuiltInTrueAndStatus(STATUS_ACTIVE).stream()
                 .map(this::toRecord)
                 .toList();
     }
 
     @Override
     public List<SkillRecord> findGlobal() {
-        return repository.findByIsGlobalTrueAndStatus("active").stream()
+        return repository.findByIsGlobalTrueAndStatus(STATUS_ACTIVE).stream()
                 .map(this::toRecord)
                 .toList();
     }
 
     @Override
     public Optional<SkillRecord> findByCode(String skillCode) {
-        return repository.findByCode(skillCode).map(this::toRecord);
+        return repository.findByCodeAndStatus(skillCode, STATUS_ACTIVE).map(this::toRecord);
     }
 
     @Override
     public Optional<SkillRecord> findBySkillId(Long skillId) {
-        return repository.findById(skillId).map(this::toRecord);
+        return repository.findByIdAndStatus(skillId, STATUS_ACTIVE).map(this::toRecord);
     }
 
-    private SkillRecord toRecord(SkillDefinition e) {
+    private SkillRecord toRecord(SkillDefinition entity) {
         return new SkillRecord(
-                e.getId(),
-                e.getName(),
-                e.getDescription(),
-                e.getAgentId(),
-                e.getTriggerIntent(),
-                e.getSystemPrompt(),
-                e.getInstructions(),
-                e.getPriority(),
-                Boolean.TRUE.equals(e.getBuiltIn()),
-                Boolean.TRUE.equals(e.getIsGlobal()));
+                entity.getId(),
+                entity.getName(),
+                entity.getDescription(),
+                entity.getAgentId(),
+                entity.getTriggerIntent(),
+                entity.getSystemPrompt(),
+                entity.getInstructions(),
+                entity.getPriority(),
+                Boolean.TRUE.equals(entity.getBuiltIn()),
+                Boolean.TRUE.equals(entity.getIsGlobal()));
     }
 }
 
@@ -77,30 +79,9 @@ interface SkillDefinitionRepository extends CrudEntityRepository<SkillDefinition
 
     List<SkillDefinition> findByIsGlobalTrueAndStatus(String status);
 
-    java.util.Optional<SkillDefinition> findByNameAndBuiltInTrue(String name);
+    Optional<SkillDefinition> findByNameAndBuiltInTrue(String name);
 
-    java.util.Optional<SkillDefinition> findByCode(String code);
+    Optional<SkillDefinition> findByCodeAndStatus(String code, String status);
 
-    /** 查询全局技能（owner_id 为空）+ 指定 owner 的私有技能。 */
-    @org.springframework.data.jpa.repository.Query(
-            "SELECT s FROM SkillDefinition s WHERE s.status = 'active' "
-                    + "AND (s.ownerId IS NULL OR s.ownerId = :ownerId)")
-    List<SkillDefinition> findGlobalOrOwned(
-            @org.springframework.data.repository.query.Param("ownerId") Long ownerId);
-
-    /**
-     * 按 category 过滤的全局技能列表（owner_id 为空），按 priority 降序。
-     *
-     * @param category 分类，null=不按分类过滤
-     * @param activeOnly true=仅 status='active'
-     */
-    @org.springframework.data.jpa.repository.Query(
-            "SELECT s FROM SkillDefinition s WHERE s.ownerId IS NULL "
-                    + "AND s.category IS NOT NULL "
-                    + "AND (:category IS NULL OR s.category = :category) "
-                    + "AND (:activeOnly = false OR s.status = 'active') "
-                    + "ORDER BY s.priority DESC")
-    List<SkillDefinition> findByCategoryFilter(
-            @org.springframework.data.repository.query.Param("category") String category,
-            @org.springframework.data.repository.query.Param("activeOnly") boolean activeOnly);
+    Optional<SkillDefinition> findByIdAndStatus(Long id, String status);
 }

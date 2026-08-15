@@ -22,8 +22,8 @@ import {
   PopoverTitle,
   PopoverTrigger
 } from "@/components/ui/popover"
-import { WsAsrButton } from "@/features/livechat/voice/WsAsrButton"
 import { CoverThumbnail } from "@/features/aigc/generation/CoverThumbnail"
+import { WsAsrButton } from "@/features/livechat/voice/WsAsrButton"
 import { MediaPromptInput } from "@/features/studio/media-generation/MediaPromptInput"
 import type { MediaCreditEstimate } from "@/features/studio/media-generation/types"
 import type { AigcSnippet } from "@/lib/api/rest/ai/aigc"
@@ -81,7 +81,7 @@ export function MediaComposerShell({
       <div className="flex max-h-[min(55vh,22rem)] flex-col gap-2 overflow-y-auto px-4 pt-3 pb-1">
         {attachments ? <div className="flex flex-wrap gap-2">{attachments}</div> : null}
         {selectedSnippets.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5" aria-label="已选片段">
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="已选片段">
             {selectedSnippets.map((snippet) => {
               const sourceLabel = snippet.builtin
                 ? "内置"

@@ -27,12 +27,7 @@ interface StoredFile {
 export interface OssUploadOptions
   extends Pick<
     FileUploadOptions,
-    | "storagePurpose"
-    | "maxWidth"
-    | "maxHeight"
-    | "quality"
-    | "outputFormat"
-    | "skipCompressBelow"
+    "storagePurpose" | "maxWidth" | "maxHeight" | "quality" | "outputFormat" | "skipCompressBelow"
   > {}
 
 export function useOssUpload(options: OssUploadOptions = {}) {
@@ -121,14 +116,7 @@ export function useOssUpload(options: OssUploadOptions = {}) {
         abortRef.current = null
       }
     },
-    [
-      storagePurpose,
-      maxWidth,
-      maxHeight,
-      quality,
-      outputFormat,
-      skipCompressBelow
-    ]
+    [storagePurpose, maxWidth, maxHeight, quality, outputFormat, skipCompressBelow]
   )
 
   const cancel = useCallback(() => {

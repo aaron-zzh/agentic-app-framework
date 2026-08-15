@@ -162,7 +162,8 @@ public class CrudResourceProviderConfiguration {
                 "技能",
                 SkillController.class,
                 "/api/system/skills",
-                "system:skill-definition");
+                "system:skill-definition",
+                "ownerId");
     }
 
     @Bean

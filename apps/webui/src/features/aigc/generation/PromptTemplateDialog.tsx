@@ -386,9 +386,7 @@ export function PromptTemplateDialog({
                         src={template.coverUrl}
                         alt={`${template.name}封面`}
                         fallback={
-                          <span className="font-semibold text-sm">
-                            {template.name.slice(0, 1)}
-                          </span>
+                          <span className="font-semibold text-sm">{template.name.slice(0, 1)}</span>
                         }
                         className="mt-0.5 size-9"
                       />

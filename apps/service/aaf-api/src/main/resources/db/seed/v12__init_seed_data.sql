@@ -286,6 +286,10 @@ VALUES
     ('提示词模板创建',     'system:prompt-template:create',      'system',    'prompt-template',   'create',  0),
     ('提示词模板更新',     'system:prompt-template:update',      'system',    'prompt-template',   'update',  0),
     ('提示词模板删除',     'system:prompt-template:delete',      'system',    'prompt-template',   'delete',  0),
+    ('技能定义读取',       'system:skill-definition:read',       'system',    'skill-definition',  'read',    0),
+    ('技能定义创建',       'system:skill-definition:create',     'system',    'skill-definition',  'create',  0),
+    ('技能定义更新',       'system:skill-definition:update',     'system',    'skill-definition',  'update',  0),
+    ('技能定义删除',       'system:skill-definition:delete',     'system',    'skill-definition',  'delete',  0),
     ('文件存储配置读取',   'system:file-config:read',            'system',    'file-config',       'read',    0),
     ('文件存储配置创建',   'system:file-config:create',          'system',    'file-config',       'create',  0),
     ('文件存储配置更新',   'system:file-config:update',          'system',    'file-config',       'update',  0),
@@ -322,7 +326,11 @@ WHERE r.code = 'member'
       'system:prompt-template:read',
       'system:prompt-template:create',
       'system:prompt-template:update',
-      'system:prompt-template:delete'
+      'system:prompt-template:delete',
+      'system:skill-definition:read',
+      'system:skill-definition:create',
+      'system:skill-definition:update',
+      'system:skill-definition:delete'
   )
 ON CONFLICT DO NOTHING;
 
@@ -334,7 +342,8 @@ WHERE r.code IN ('user', 'guest')
   AND p.code IN (
       'system:workspace:read',
       'system:workspace:export',
-      'system:workspace:reference'
+      'system:workspace:reference',
+      'system:skill-definition:read'
   )
 ON CONFLICT DO NOTHING;
 
@@ -359,7 +368,11 @@ ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 
 INSERT INTO sys_role_permission (role_id, permission_id)
 SELECT r.id, p.id FROM sys_role r
-JOIN sys_permission_code p ON p.code IN ('tool:default:execute', 'tool:image-generate:execute')
+JOIN sys_permission_code p ON p.code IN (
+    'tool:default:execute',
+    'tool:image-generate:execute',
+    'system:skill-definition:read'
+)
 WHERE r.code = 'sales'
 ON CONFLICT DO NOTHING;
 

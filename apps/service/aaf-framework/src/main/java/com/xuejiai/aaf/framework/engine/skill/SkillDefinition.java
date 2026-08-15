@@ -1,8 +1,13 @@
 package com.xuejiai.aaf.framework.engine.skill;
 
+import org.hibernate.annotations.SQLDelete;
+
 import com.xuejiai.aaf.common.model.BaseEntity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Index;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -15,7 +20,19 @@ import lombok.Setter;
 @Entity
 @Table(
         name = "ai_skill_definition",
-        indexes = {@Index(columnList = "triggerIntent"), @Index(columnList = "builtIn")})
+        indexes = {
+            @Index(columnList = "triggerIntent"),
+            @Index(columnList = "builtIn"),
+            @Index(
+                    name = "idx_skill_public_scope",
+                    columnList = "is_public,org_id,workspace_id,status"),
+            @Index(
+                    name = "idx_skill_owner_scope",
+                    columnList = "owner_id,org_id,workspace_id,status")
+        })
+@SQLDelete(
+        sql =
+                "UPDATE ai_skill_definition SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class SkillDefinition extends BaseEntity {
 
     /** 业务唯一码（用于前端 deep-link，如 ?skill=voiceover；nullable 容忍历史技能） */
@@ -60,6 +77,10 @@ public class SkillDefinition extends BaseEntity {
     /** 是否全局（全局技能注入到所有 Agent 的 SkillBox） */
     @Column(name = "is_global", nullable = false)
     private Boolean isGlobal = false;
+
+    /** 是否公开展示给当前组织/工作区用户。 */
+    @Column(name = "is_public", nullable = false)
+    private Boolean isPublic = false;
 
     /** 版本号（内置技能升级时用于 upsert 判断） */
     @Column(name = "skill_version", length = 16)

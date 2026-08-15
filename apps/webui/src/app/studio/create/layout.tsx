@@ -1,7 +1,7 @@
 /**
  * 创作功能分区 Layout——创作能力 sub-tab 切换
  *
- * 顶部 sub-tab Bar：创作台 / 文案 / 爆款 / 抠图。
+ * 顶部 sub-tab Bar：创作 / 文案 / 爆款 / 抠图。
  * 工具箱虽复用 /studio/create 路由树，但属于独立一级功能分区，不显示创作子导航。
  * 详见 docs/design/apps/webui/user-studio-mvp.md B 创作功能分区
  *

@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.ai.skill;
 
+import java.time.LocalDateTime;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
@@ -9,6 +11,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
  */
 public record SkillVO(
         @Schema(description = "主键 ID") Long id,
+        @Schema(description = "实体版本") Integer version,
         @Schema(description = "业务唯一码（前端 deep-link 用，可为空）") String code,
         @Schema(description = "技能名称") String name,
         @Schema(description = "技能描述") String description,
@@ -18,4 +21,10 @@ public record SkillVO(
         @Schema(description = "系统提示词") String systemPrompt,
         @Schema(description = "优先级") Integer priority,
         @Schema(description = "是否内置") Boolean builtIn,
-        @Schema(description = "状态") String status) {}
+        @Schema(description = "是否全局注入所有 Agent") Boolean isGlobal,
+        @Schema(description = "是否公开给当前组织/工作区") Boolean isPublic,
+        @Schema(description = "状态") String status,
+        @Schema(description = "归属用户 ID") Long ownerId,
+        @Schema(description = "是否归属当前用户") Boolean ownedByCurrentUser,
+        @Schema(description = "创建时间") LocalDateTime createTime,
+        @Schema(description = "更新时间") LocalDateTime updateTime) {}

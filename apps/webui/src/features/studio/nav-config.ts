@@ -113,7 +113,7 @@ export const STUDIO_NAV: StudioSectionConfig[] = [
     icon: Sparkles,
     path: "/studio/create",
     children: [
-      { key: "overview", label: "创作台", icon: Sparkles, path: "/studio/create", default: true },
+      { key: "overview", label: "创作", icon: Sparkles, path: "/studio/create", default: true },
       { key: "copy", label: "文案", icon: Wand2, path: "/studio/create/copy" },
       { key: "viral", label: "爆款", icon: Zap, path: "/studio/create/viral", badge: "热" },
       { key: "matting", label: "抠图", icon: Scissors, path: "/studio/create/matting" }
@@ -135,6 +135,7 @@ export const STUDIO_NAV: StudioSectionConfig[] = [
       { key: "materials", label: "素材", icon: ImageIcon, path: "/studio/assets/materials" },
       { key: "works", label: "作品", icon: Images, path: "/studio/assets/works" },
       { key: "prompts", label: "提示词", icon: Tag, path: "/studio/assets/prompts" },
+      { key: "skills", label: "技能", icon: Wand2, path: "/studio/assets/skills" },
       { key: "snippets", label: "片段", icon: FileText, path: "/studio/assets/snippets" },
       { key: "brands", label: "品牌 · IP", icon: CircleUser, path: "/studio/assets/brands" }
     ]
