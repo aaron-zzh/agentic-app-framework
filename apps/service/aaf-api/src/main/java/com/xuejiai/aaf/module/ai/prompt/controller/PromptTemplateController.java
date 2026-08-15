@@ -50,7 +50,7 @@ public class PromptTemplateController
         return service;
     }
 
-    @Operation(summary = "查询当前组织/工作区公开提示词")
+    @Operation(summary = "查询统一公共提示词目录")
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/public")
     public Result<PageResult<PromptTemplateVO>> listPublic(

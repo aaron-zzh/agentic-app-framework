@@ -38,7 +38,14 @@ export function SnippetPickerDialog({
   const [debouncedSearch] = useDebounce(search.trim(), 300)
   const [activeCategory, setActiveCategory] = useState("全部")
   const [selectedSnippets, setSelectedSnippets] = useState<AigcSnippet[]>([])
-  const snippetQuery = useInfiniteAigcSnippets({ search: debouncedSearch || undefined }, open)
+  const snippetQuery = useInfiniteAigcSnippets(
+    {
+      search: debouncedSearch || undefined,
+      ownerOnly: source === "MINE" || undefined,
+      publicOnly: source === "COMMON" || undefined
+    },
+    open
+  )
 
   const snippets = useMemo(() => {
     const byId = new Map<number, AigcSnippet>()

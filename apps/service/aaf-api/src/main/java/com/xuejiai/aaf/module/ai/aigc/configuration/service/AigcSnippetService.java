@@ -117,10 +117,17 @@ public class AigcSnippetService
 
     @Override
     protected Specification<AigcSnippet> buildSpec(AigcSnippetPageDTO request) {
-        return SpecificationBuilder.<AigcSnippet>builder()
-                .eqIfPresent("category", request.getCategory())
-                .eqIfPresent("projectTypeCode", request.getProjectTypeCode())
-                .build();
+        var builder =
+                SpecificationBuilder.<AigcSnippet>builder()
+                        .eqIfPresent("category", request.getCategory())
+                        .eqIfPresent("projectTypeCode", request.getProjectTypeCode());
+        if (Boolean.TRUE.equals(request.getOwnerOnly())) {
+            builder.eqIfPresent("ownerId", operatorContext.currentOwnerId().orElse(-1L));
+        }
+        if (Boolean.TRUE.equals(request.getPublicOnly())) {
+            builder.eqIfPresent("isPublic", true);
+        }
+        return builder.build();
     }
 
     @Override

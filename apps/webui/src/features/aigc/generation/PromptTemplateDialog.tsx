@@ -1,5 +1,5 @@
 /**
- * 提示词资产选择器：按公共、我的、当前工作区公开三个视图筛选并安全应用模板。
+ * 提示词资产选择器：按我的与公共两个视图筛选并安全应用模板。
  * @author AaronZZH & Kiro
  */
 
@@ -21,12 +21,11 @@ import {
   type PromptTemplateAssetVO,
   useInfiniteMyPromptTemplates,
   useInfinitePublicPromptTemplates,
-  useInfiniteSystemPromptTemplates,
   usePromptTemplate
 } from "@/lib/api/rest/ai"
 import { cn } from "@/lib/utils/cn"
 
-type TemplateSource = "SYSTEM" | "MINE" | "WORKSPACE"
+type TemplateSource = "MINE" | "PUBLIC"
 
 interface PromptTemplateDialogProps {
   type: string
@@ -39,7 +38,7 @@ interface PromptTemplateDialogProps {
 }
 
 function isTemplateSource(value: string): value is TemplateSource {
-  return value === "SYSTEM" || value === "MINE" || value === "WORKSPACE"
+  return value === "MINE" || value === "PUBLIC"
 }
 
 /** 以技能选择器同款 Popover 展示并应用提示词资产。 */
@@ -57,12 +56,10 @@ export function PromptTemplateDialog({
   const [selectedTemplate, setSelectedTemplate] = useState<PromptTemplateAssetVO | null>(null)
   const [variableValues, setVariableValues] = useState<Record<string, string>>({})
   const queryParams = { type, scope, search: debouncedSearch || undefined }
-  const systemQuery = useInfiniteSystemPromptTemplates(queryParams, open && source === "SYSTEM")
-  const publicQuery = useInfinitePublicPromptTemplates(queryParams, open && source === "WORKSPACE")
+  const publicQuery = useInfinitePublicPromptTemplates(queryParams, open && source === "PUBLIC")
   const mineQuery = useInfiniteMyPromptTemplates(queryParams, open && source === "MINE")
   const useTemplate = usePromptTemplate()
-  const activeQuery =
-    source === "SYSTEM" ? systemQuery : source === "WORKSPACE" ? publicQuery : mineQuery
+  const activeQuery = source === "PUBLIC" ? publicQuery : mineQuery
 
   const sourceTemplates = useMemo(() => {
     const byId = new Map<number, PromptTemplateAssetVO>()
@@ -220,8 +217,7 @@ export function PromptTemplateDialog({
                 <Tabs value={source} onValueChange={handleSourceChange}>
                   <TabsList>
                     <TabsTrigger value="MINE">我的</TabsTrigger>
-                    <TabsTrigger value="SYSTEM">公共</TabsTrigger>
-                    <TabsTrigger value="WORKSPACE">当前工作区公开</TabsTrigger>
+                    <TabsTrigger value="PUBLIC">公共</TabsTrigger>
                   </TabsList>
                 </Tabs>
                 <div className="relative ml-auto w-44">
@@ -278,6 +274,11 @@ export function PromptTemplateDialog({
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
                           <span className="truncate font-medium text-sm">{template.name}</span>
+                          {source === "PUBLIC" ? (
+                            <Badge variant="outline" className="h-4 px-1.5 text-[10px]">
+                              {template.visibility === "SYSTEM" ? "内置" : "工作区"}
+                            </Badge>
+                          ) : null}
                           {template.category ? (
                             <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
                               {template.category}

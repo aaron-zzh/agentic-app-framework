@@ -133,7 +133,7 @@ export function useSystemPromptTemplates(params: SystemPromptTemplateParams = {}
   })
 }
 
-/** 当前组织/工作区内公开的提示词资产。 */
+/** 平台内置与当前组织/工作区公开的统一提示词目录。 */
 export function usePublicPromptTemplates(params: PublicPromptTemplateParams = {}, enabled = true) {
   return useQuery({
     queryKey: [...PROMPT_TEMPLATE_KEY, "public", params] as const,
@@ -169,7 +169,7 @@ export function useInfiniteSystemPromptTemplates(
   })
 }
 
-/** 当前工作区公开提示词滚动分页。 */
+/** 统一公共提示词滚动分页。 */
 export function useInfinitePublicPromptTemplates(
   params: PublicPromptTemplateParams = {},
   enabled = true

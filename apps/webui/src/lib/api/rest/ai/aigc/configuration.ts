@@ -128,6 +128,8 @@ export interface AigcProjectBlueprintParams extends AigcStatusPageParams {
 export interface AigcSnippetParams extends AigcPageParams {
   category?: string
   projectTypeCode?: AigcProjectTypeCode
+  ownerOnly?: boolean
+  publicOnly?: boolean
   search?: string
   sort?: string
 }

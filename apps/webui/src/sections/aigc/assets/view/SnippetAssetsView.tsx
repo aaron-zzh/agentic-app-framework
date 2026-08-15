@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { useLoadMoreOnVisible } from "@/features/studio/assets/useLoadMoreOnVisible"
 import {
@@ -34,6 +35,12 @@ import {
   useInfiniteAigcSnippets,
   useUpdateAigcSnippet
 } from "@/lib/api/rest/ai/aigc"
+
+type SnippetView = "MINE" | "PUBLIC"
+
+function isSnippetView(value: string): value is SnippetView {
+  return value === "MINE" || value === "PUBLIC"
+}
 
 interface SnippetEditDialogProps {
   initial?: AigcSnippet | null
@@ -140,10 +147,15 @@ function SnippetEditDialog({ initial, onClose }: SnippetEditDialogProps) {
 
 /** Studio 创作片段资产工作台。 */
 export function SnippetAssetsView() {
+  const [view, setView] = useState<SnippetView>("MINE")
   const [search, setSearch] = useState("")
   const [debouncedSearch] = useDebounce(search.trim(), 300)
   const [editTarget, setEditTarget] = useState<AigcSnippet | null | undefined>(undefined)
-  const snippetQuery = useInfiniteAigcSnippets({ search: debouncedSearch || undefined })
+  const snippetQuery = useInfiniteAigcSnippets({
+    search: debouncedSearch || undefined,
+    ownerOnly: view === "MINE" || undefined,
+    publicOnly: view === "PUBLIC" || undefined
+  })
   const metaQuery = useAigcSnippetMeta()
   const deleteSnippet = useDeleteAigcSnippet()
   const operations = useMemo(
@@ -157,16 +169,18 @@ export function SnippetAssetsView() {
         byId.set(snippet.id, snippet)
       })
     })
-    return [...byId.values()].sort(
-      (left, right) => Number(right.ownedByCurrentUser) - Number(left.ownedByCurrentUser)
-    )
+    return [...byId.values()]
   }, [snippetQuery.data?.pages])
   const loadMoreRef = useLoadMoreOnVisible({
     hasNextPage: snippetQuery.hasNextPage,
     isFetchingNextPage: snippetQuery.isFetchingNextPage,
     fetchNextPage: snippetQuery.fetchNextPage
   })
-  const canCreate = operations.has("create")
+  const canCreate = view === "MINE" && operations.has("create")
+
+  function handleViewChange(value: string) {
+    if (isSnippetView(value)) setView(value)
+  }
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-4 p-6">
@@ -184,6 +198,13 @@ export function SnippetAssetsView() {
           </GlowButton>
         ) : null}
       </header>
+
+      <Tabs value={view} onValueChange={handleViewChange}>
+        <TabsList>
+          <TabsTrigger value="MINE">我的</TabsTrigger>
+          <TabsTrigger value="PUBLIC">公共</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       <div className="relative">
         <Search className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground" />
@@ -208,9 +229,19 @@ export function SnippetAssetsView() {
             <EmptyMedia variant="icon">
               <FileText />
             </EmptyMedia>
-            <EmptyTitle>{debouncedSearch ? "没有匹配的片段" : "还没有创作片段"}</EmptyTitle>
+            <EmptyTitle>
+              {debouncedSearch
+                ? "没有匹配的片段"
+                : view === "MINE"
+                  ? "还没有创作片段"
+                  : "暂无公共片段"}
+            </EmptyTitle>
             <EmptyDescription>
-              {debouncedSearch ? "尝试更换标题或内容关键词。" : "新建片段，积累你的创作表达库。"}
+              {debouncedSearch
+                ? "尝试更换标题或内容关键词。"
+                : view === "MINE"
+                  ? "新建片段，积累你的创作表达库。"
+                  : "公开片段和平台内置片段会显示在这里。"}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>

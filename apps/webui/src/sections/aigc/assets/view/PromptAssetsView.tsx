@@ -1,5 +1,5 @@
 /**
- * /studio/assets/prompts——统一提示词资产的公共、我的与工作区公开视图。
+ * /studio/assets/prompts——统一提示词资产的我的与公共视图。
  * @author AaronZZH & Kiro
  */
 
@@ -47,36 +47,30 @@ import {
   useDeletePromptTemplate,
   useInfiniteMyPromptTemplates,
   useInfinitePublicPromptTemplates,
-  useInfiniteSystemPromptTemplates,
   usePromptTemplateMeta,
   useUpdatePromptTemplate
 } from "@/lib/api/rest/ai"
 
-type AssetView = "SYSTEM" | "MINE" | "WORKSPACE"
+type AssetView = "MINE" | "PUBLIC"
 
 const VIEW_COPY: Record<AssetView, { title: string; description: string; empty: string }> = {
-  SYSTEM: {
-    title: "公共提示词",
-    description: "平台维护的公共提示词，可直接使用或复制到我的资产",
-    empty: "暂无公共提示词"
-  },
   MINE: {
     title: "我的提示词",
     description: "管理你在当前组织或工作区创建的提示词",
     empty: "还没有提示词资产"
   },
-  WORKSPACE: {
-    title: "当前工作区公开",
-    description: "当前组织或工作区成员公开共享的提示词",
-    empty: "当前工作区暂无公开提示词"
+  PUBLIC: {
+    title: "公共提示词",
+    description: "浏览平台内置和当前组织或工作区成员公开共享的提示词",
+    empty: "暂无公共提示词"
   }
 }
 
 const VISIBILITY_LABEL: Record<PromptTemplateVisibility, string> = {
   ENGINE: "引擎内部",
-  SYSTEM: "公共",
+  SYSTEM: "内置",
   PRIVATE: "私有",
-  PUBLIC: "公开"
+  PUBLIC: "工作区公开"
 }
 
 function optionalNumber(value: string) {
@@ -304,7 +298,7 @@ function EditDialog({ open, onClose, initial }: EditDialogProps) {
 }
 
 function isAssetView(value: string): value is AssetView {
-  return value === "SYSTEM" || value === "MINE" || value === "WORKSPACE"
+  return value === "MINE" || value === "PUBLIC"
 }
 
 export function PromptAssetsView() {
@@ -313,8 +307,7 @@ export function PromptAssetsView() {
   const [debouncedSearch] = useDebounce(search.trim(), 300)
   const [editTarget, setEditTarget] = useState<PromptTemplateAssetVO | null | undefined>(undefined)
   const searchParams = { search: debouncedSearch || undefined }
-  const systemQuery = useInfiniteSystemPromptTemplates(searchParams, view === "SYSTEM")
-  const publicQuery = useInfinitePublicPromptTemplates(searchParams, view === "WORKSPACE")
+  const publicQuery = useInfinitePublicPromptTemplates(searchParams, view === "PUBLIC")
   const mineQuery = useInfiniteMyPromptTemplates(searchParams, view === "MINE")
   const metaQuery = usePromptTemplateMeta()
   const deletePrompt = useDeletePromptTemplate()
@@ -324,8 +317,7 @@ export function PromptAssetsView() {
     () => new Set(metaQuery.data?.operations ?? []),
     [metaQuery.data?.operations]
   )
-  const activeQuery =
-    view === "SYSTEM" ? systemQuery : view === "WORKSPACE" ? publicQuery : mineQuery
+  const activeQuery = view === "PUBLIC" ? publicQuery : mineQuery
   const assets = useMemo(() => {
     const byId = new Map<number, PromptTemplateAssetVO>()
     activeQuery.data?.pages.forEach((page) => {
@@ -366,8 +358,7 @@ export function PromptAssetsView() {
       <Tabs value={view} onValueChange={handleViewChange}>
         <TabsList>
           <TabsTrigger value="MINE">我的</TabsTrigger>
-          <TabsTrigger value="SYSTEM">公共</TabsTrigger>
-          <TabsTrigger value="WORKSPACE">当前工作区公开</TabsTrigger>
+          <TabsTrigger value="PUBLIC">公共</TabsTrigger>
         </TabsList>
       </Tabs>
 
@@ -425,8 +416,7 @@ export function PromptAssetsView() {
             const canUpdate = canWrite && operations.has("update")
             const canDelete = canWrite && operations.has("delete")
             const canCopy =
-              (view === "SYSTEM" && asset.visibility === "SYSTEM") ||
-              (view === "WORKSPACE" && asset.visibility === "PUBLIC")
+              view === "PUBLIC" && (asset.visibility === "SYSTEM" || asset.visibility === "PUBLIC")
             return (
               <GlassCard key={asset.id} glow="none" className="border border-foreground/6">
                 <div className="flex items-start gap-3 p-4">

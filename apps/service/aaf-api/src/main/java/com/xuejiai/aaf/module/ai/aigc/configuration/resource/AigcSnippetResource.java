@@ -55,7 +55,7 @@ public final class AigcSnippetResource {
                     CrudMutationDefinition.forTypes(TYPES),
                     CrudViewDefinition.forTypes(TYPES),
                     TenantScope.ORG_SHARED_WORKSPACE_OPTIONAL,
-                    PersonalScope.byProperty("ownerId"));
+                    PersonalScope.none());
 
     private AigcSnippetResource() {}
 }

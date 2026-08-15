@@ -200,11 +200,49 @@ public class PromptTemplateAssetService
         return List.of("name", "content");
     }
 
-    /** 当前组织/工作区内公开模板。 */
+    /** 平台内置与当前组织/工作区公开模板的统一公共目录。 */
     public PageResult<PromptTemplateVO> pagePublic(PromptTemplatePageDTO query) {
-        query.setIsPublic(true);
-        query.setOwnerOnly(false);
-        return page(query);
+        var decision = enforce(CrudOperation.PAGE, AccessMode.DEFAULT);
+        var directorySpec =
+                (org.springframework.data.jpa.domain.Specification<PromptTemplate>)
+                        (root, criteriaQuery, criteriaBuilder) -> {
+                            var system =
+                                    criteriaBuilder.equal(
+                                            root.get("visibility"),
+                                            PromptTemplate.VISIBILITY_SYSTEM);
+                            var tenantPublic = criteriaBuilder.disjunction();
+                            if (decision.orgId() != null) {
+                                var organization =
+                                        criteriaBuilder.equal(root.get("orgId"), decision.orgId());
+                                var workspace =
+                                        decision.workspaceId() == null
+                                                ? criteriaBuilder.isNull(root.get("workspaceId"))
+                                                : criteriaBuilder.or(
+                                                        criteriaBuilder.isNull(
+                                                                root.get("workspaceId")),
+                                                        criteriaBuilder.equal(
+                                                                root.get("workspaceId"),
+                                                                decision.workspaceId()));
+                                tenantPublic =
+                                        criteriaBuilder.and(
+                                                criteriaBuilder.equal(
+                                                        root.get("visibility"),
+                                                        PromptTemplate.VISIBILITY_PUBLIC),
+                                                organization,
+                                                workspace);
+                            }
+                            return criteriaBuilder.or(system, tenantPublic);
+                        };
+        var commonSpec =
+                SpecificationBuilder.<PromptTemplate>builder()
+                        .eqIfPresent("type", query.getType())
+                        .eqIfPresent("scope", query.getScope())
+                        .eqIfPresent("category", query.getCategory())
+                        .build();
+        var spec =
+                org.springframework.data.jpa.domain.Specification.allOf(
+                        directorySpec, commonSpec, buildSearchSpec(query.getSearch()));
+        return pageDirectory(query, spec);
     }
 
     /** 当前创建者的私有或公开模板。 */
@@ -227,6 +265,12 @@ public class PromptTemplateAssetService
         var spec =
                 org.springframework.data.jpa.domain.Specification.allOf(
                         directorySpec, buildSearchSpec(query.getSearch()));
+        return pageDirectory(query, spec);
+    }
+
+    private PageResult<PromptTemplateVO> pageDirectory(
+            PromptTemplatePageDTO query,
+            org.springframework.data.jpa.domain.Specification<PromptTemplate> spec) {
         var pageNo = Math.max(query.getPageNo(), 1);
         var pageSize = Math.max(1, Math.min(query.getPageSize(), DIRECTORY_MAX_PAGE_SIZE));
         var result =
