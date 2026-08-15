@@ -11,6 +11,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.framework.crud.definition.Patch;
 import com.xuejiai.aaf.framework.engine.prompt.PromptTemplate;
 import com.xuejiai.aaf.framework.engine.prompt.PromptTemplateCompiler;
 import com.xuejiai.aaf.framework.engine.prompt.PromptTemplateRepository;
@@ -35,8 +36,21 @@ class PromptTemplateAssetServiceTest extends BaseMockitoUnitTest {
         when(operatorContext.currentOwnerId()).thenReturn(Optional.of(8L));
         var request =
                 new PromptTemplateUpdateDTO(
-                        "新名称", null, null, null, null, null, null, null, null, null, null, null,
-                        null, null);
+                        "新名称",
+                        null,
+                        null,
+                        Patch.absent(),
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null);
 
         assertThatThrownBy(() -> service.beforeUpdate(template, request))
                 .isInstanceOf(BusinessException.class);

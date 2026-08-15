@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import com.xuejiai.aaf.framework.storage.StorageClient;
 import com.xuejiai.aaf.framework.storage.StorageType;
 import com.xuejiai.aaf.module.system.file.domain.FileRecord;
+import com.xuejiai.aaf.module.system.file.enums.FileStoragePurpose;
 
 import lombok.RequiredArgsConstructor;
 
@@ -47,6 +48,19 @@ public class FileStorageReferenceService {
 
     public StorageRouter.ResolvedStorage resolveCurrentMaster() {
         return storageRouter.currentMaster();
+    }
+
+    /** 按服务端定义的用途选择上传目标，客户端不能直接指定配置 ID。 */
+    public StorageRouter.ResolvedStorage resolveUploadTarget(FileStoragePurpose purpose) {
+        return switch (purpose) {
+            case MASTER -> storageRouter.currentMaster();
+            case PUBLIC_ASSET -> {
+                var master = storageRouter.currentMaster();
+                yield master.storageType() == StorageType.LOCAL
+                        ? master
+                        : storageRouter.publicAsset();
+            }
+        };
     }
 
     public StorageClient resolveByConfigId(Long storageConfigId) {

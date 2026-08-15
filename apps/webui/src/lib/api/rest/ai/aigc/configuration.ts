@@ -98,6 +98,7 @@ export interface AigcSnippet {
   version: number
   name: string
   category?: string
+  coverUrl?: string | null
   content?: string
   referenceMediaVersionIds: number[]
   variableSlots?: Record<string, unknown>
@@ -112,6 +113,7 @@ export interface AigcSnippet {
 export interface AigcSnippetInput {
   name: string
   category?: string
+  coverUrl?: string | null
   content: string
   isPublic: boolean
 }

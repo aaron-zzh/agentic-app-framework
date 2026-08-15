@@ -70,6 +70,7 @@ WHERE NOT EXISTS (
     SELECT 1 FROM sys_file_config WHERE name = 'S3 兼容存储（私有示例）' AND deleted = FALSE
 );
 
+-- PUBLIC_ASSET 路由选择唯一 ACTIVE、enablePublicAccess=true 的 OSS 配置；部署时替换占位值后仅启用一条。
 INSERT INTO sys_file_config (name, storage_type, config, master, status)
 SELECT
     '阿里云 OSS（公开示例）',

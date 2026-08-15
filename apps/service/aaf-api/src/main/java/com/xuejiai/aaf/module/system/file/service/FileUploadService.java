@@ -20,6 +20,7 @@ import com.xuejiai.aaf.module.system.file.api.FileReference;
 import com.xuejiai.aaf.module.system.file.api.FileStoragePort;
 import com.xuejiai.aaf.module.system.file.api.StoredFile;
 import com.xuejiai.aaf.module.system.file.config.FileStorageProperties;
+import com.xuejiai.aaf.module.system.file.enums.FileStoragePurpose;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +37,12 @@ public class FileUploadService implements FileStoragePort {
 
     @Override
     public StoredFile uploadCurrent(MultipartFile file) {
-        var target = currentUploadTarget();
+        return uploadCurrent(file, FileStoragePurpose.MASTER);
+    }
+
+    @Override
+    public StoredFile uploadCurrent(MultipartFile file, FileStoragePurpose storagePurpose) {
+        var target = uploadTarget(storagePurpose);
         var policy = uploadPolicy();
         policy.validate(file.getOriginalFilename(), file.getContentType(), file.getSize());
         try {
@@ -141,7 +147,11 @@ public class FileUploadService implements FileStoragePort {
     }
 
     private UploadTarget currentUploadTarget() {
-        var storage = storageReferenceService.resolveCurrentMaster();
+        return uploadTarget(FileStoragePurpose.MASTER);
+    }
+
+    private UploadTarget uploadTarget(FileStoragePurpose storagePurpose) {
+        var storage = storageReferenceService.resolveUploadTarget(storagePurpose);
         return new UploadTarget(storage.storageConfigId(), storage.client());
     }
 

@@ -215,6 +215,7 @@ CREATE TABLE ai_prompt_template (
     variables        TEXT,
     active           BOOLEAN      NOT NULL DEFAULT TRUE,
     category         VARCHAR(64),
+    cover_url        VARCHAR(1000),
     type             VARCHAR(30)  NOT NULL DEFAULT 'PROMPT',
     negative_prompt  TEXT,
     model            VARCHAR(100),

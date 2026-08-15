@@ -1185,6 +1185,7 @@ CREATE TABLE aigc_snippet (
     name VARCHAR(200) NOT NULL,
     category VARCHAR(64),
     content TEXT,
+    cover_url VARCHAR(1000),
     reference_media_version_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
     variable_slots JSONB,
     project_type_code VARCHAR(64),

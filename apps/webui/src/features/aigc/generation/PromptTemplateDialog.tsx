@@ -5,8 +5,9 @@
 
 "use client"
 
-import { Search, Sparkles } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useBoolean } from "@aaf/hooks"
+import { Plus, Search, Sparkles } from "lucide-react"
+import { useId, useMemo, useState } from "react"
 import { useDebounce } from "use-debounce"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -16,12 +17,17 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Textarea } from "@/components/ui/textarea"
+import { CoverImageUpload } from "@/features/aigc/generation/CoverImageUpload"
+import { CoverThumbnail } from "@/features/aigc/generation/CoverThumbnail"
 import { useLoadMoreOnVisible } from "@/features/studio/assets/useLoadMoreOnVisible"
 import {
   type PromptTemplateAssetVO,
+  useCreatePromptTemplate,
   useInfiniteMyPromptTemplates,
   useInfinitePublicPromptTemplates,
-  usePromptTemplate
+  usePromptTemplate,
+  usePromptTemplateMeta
 } from "@/lib/api/rest/ai"
 import { cn } from "@/lib/utils/cn"
 
@@ -48,6 +54,8 @@ export function PromptTemplateDialog({
   scope = "GENERATION",
   triggerClassName
 }: PromptTemplateDialogProps) {
+  const uid = useId()
+  const quickCreate = useBoolean()
   const [open, setOpen] = useState(false)
   const [source, setSource] = useState<TemplateSource>("MINE")
   const [activeCategory, setActiveCategory] = useState("全部")
@@ -55,11 +63,18 @@ export function PromptTemplateDialog({
   const [debouncedSearch] = useDebounce(search.trim(), 300)
   const [selectedTemplate, setSelectedTemplate] = useState<PromptTemplateAssetVO | null>(null)
   const [variableValues, setVariableValues] = useState<Record<string, string>>({})
+  const [createName, setCreateName] = useState("")
+  const [createCategory, setCreateCategory] = useState("DEFAULT")
+  const [createCoverUrl, setCreateCoverUrl] = useState<string | null>(null)
+  const [createPrompt, setCreatePrompt] = useState("")
   const queryParams = { type, scope, search: debouncedSearch || undefined }
   const publicQuery = useInfinitePublicPromptTemplates(queryParams, open && source === "PUBLIC")
   const mineQuery = useInfiniteMyPromptTemplates(queryParams, open && source === "MINE")
   const useTemplate = usePromptTemplate()
+  const createTemplate = useCreatePromptTemplate()
+  const metaQuery = usePromptTemplateMeta(open)
   const activeQuery = source === "PUBLIC" ? publicQuery : mineQuery
+  const canCreate = source === "MINE" && Boolean(metaQuery.data?.operations.includes("create"))
 
   const sourceTemplates = useMemo(() => {
     const byId = new Map<number, PromptTemplateAssetVO>()
@@ -105,6 +120,14 @@ export function PromptTemplateDialog({
     setVariableValues({})
   }
 
+  function resetQuickCreate() {
+    quickCreate.onFalse()
+    setCreateName("")
+    setCreateCategory("DEFAULT")
+    setCreateCoverUrl(null)
+    setCreatePrompt("")
+  }
+
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen)
     if (nextOpen) {
@@ -112,6 +135,7 @@ export function PromptTemplateDialog({
       setActiveCategory("全部")
       setSearch("")
       resetSelection()
+      resetQuickCreate()
     }
   }
 
@@ -120,6 +144,32 @@ export function PromptTemplateDialog({
     setSource(value)
     setActiveCategory("全部")
     resetSelection()
+    resetQuickCreate()
+  }
+
+  function handleCreate() {
+    const name = createName.trim()
+    const prompt = createPrompt.trim()
+    if (!name || !prompt) return
+    createTemplate.mutate(
+      {
+        name,
+        category: createCategory.trim() || "DEFAULT",
+        coverUrl: createCoverUrl,
+        prompt,
+        type,
+        scope,
+        isPublic: false,
+        variables: []
+      },
+      {
+        onSuccess: (created) => {
+          onSelect(created.prompt)
+          setOpen(false)
+          resetQuickCreate()
+        }
+      }
+    )
   }
 
   function applyTemplate(template: PromptTemplateAssetVO, variables: Record<string, string>) {
@@ -161,18 +211,82 @@ export function PromptTemplateDialog({
         提示词库
       </PopoverTrigger>
       <PopoverContent align="end" sideOffset={6} className="w-[30rem] max-w-[calc(100vw-2rem)] p-0">
-        <div className="flex items-center justify-between border-foreground/6 border-b px-4 py-3">
-          <span className="font-semibold text-sm">
-            {selectedTemplate ? `填写变量 · ${selectedTemplate.name}` : "选择提示词"}
+        <div className="flex items-center justify-between gap-3 border-foreground/6 border-b px-4 py-3">
+          <span className="min-w-0 truncate font-semibold text-sm">
+            {quickCreate.value
+              ? "快速创建提示词"
+              : selectedTemplate
+                ? `填写变量 · ${selectedTemplate.name}`
+                : "选择提示词"}
           </span>
-          <Badge variant="secondary">
-            {selectedTemplate
-              ? `${selectedTemplate.variables.length} 个变量`
-              : `${filteredTemplates.length} 个`}
-          </Badge>
+          <div className="flex shrink-0 items-center gap-2">
+            {!quickCreate.value && !selectedTemplate && canCreate ? (
+              <Button type="button" size="sm" variant="outline" onClick={quickCreate.onTrue}>
+                <Plus className="size-3.5" />
+                新建
+              </Button>
+            ) : null}
+            <Badge variant="secondary">
+              {quickCreate.value
+                ? "保存到我的"
+                : selectedTemplate
+                  ? `${selectedTemplate.variables.length} 个变量`
+                  : `${filteredTemplates.length} 个`}
+            </Badge>
+          </div>
         </div>
 
-        {selectedTemplate ? (
+        {quickCreate.value ? (
+          <div className="flex flex-col gap-3 p-4">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={`${uid}-quick-name`}>名称</Label>
+              <Input
+                id={`${uid}-quick-name`}
+                value={createName}
+                onChange={(event) => setCreateName(event.target.value)}
+                placeholder="提示词名称"
+                autoFocus
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={`${uid}-quick-category`}>分类</Label>
+              <Input
+                id={`${uid}-quick-category`}
+                value={createCategory}
+                onChange={(event) => setCreateCategory(event.target.value)}
+                placeholder="例如：图像生成"
+              />
+            </div>
+            <CoverImageUpload
+              id={`${uid}-quick-cover`}
+              value={createCoverUrl}
+              onChange={setCreateCoverUrl}
+              disabled={createTemplate.isPending}
+            />
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={`${uid}-quick-prompt`}>提示词内容</Label>
+              <Textarea
+                id={`${uid}-quick-prompt`}
+                value={createPrompt}
+                onChange={(event) => setCreatePrompt(event.target.value)}
+                placeholder="输入提示词…"
+                className="min-h-32"
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button type="button" variant="outline" onClick={resetQuickCreate}>
+                返回
+              </Button>
+              <Button
+                type="button"
+                disabled={createTemplate.isPending || !createName.trim() || !createPrompt.trim()}
+                onClick={handleCreate}
+              >
+                {createTemplate.isPending ? "创建中…" : "创建并应用"}
+              </Button>
+            </div>
+          </div>
+        ) : selectedTemplate ? (
           <div className="flex flex-col gap-4 p-4">
             <p className="text-muted-foreground text-xs">
               变量由服务端校验并编译，填写完成后再应用提示词。
@@ -268,9 +382,16 @@ export function PromptTemplateDialog({
                       onClick={() => handleSelect(template)}
                       className="flex w-full items-start gap-3 rounded-xl border border-foreground/6 bg-foreground/2 px-3 py-2.5 text-left transition-colors hover:bg-foreground/5 disabled:opacity-50"
                     >
-                      <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-foreground/8 font-semibold text-foreground/60 text-sm">
-                        {template.name.slice(0, 1)}
-                      </div>
+                      <CoverThumbnail
+                        src={template.coverUrl}
+                        alt={`${template.name}封面`}
+                        fallback={
+                          <span className="font-semibold text-sm">
+                            {template.name.slice(0, 1)}
+                          </span>
+                        }
+                        className="mt-0.5 size-9"
+                      />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
                           <span className="truncate font-medium text-sm">{template.name}</span>

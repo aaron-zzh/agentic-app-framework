@@ -11,6 +11,7 @@ public record PromptTemplateCreateDTO(
         @NotBlank @Size(max = 128) String name,
         @Size(max = 30) String type,
         @Size(max = 64) String category,
+        @Size(max = 1000) String coverUrl,
         @NotBlank @Size(max = 100_000) String prompt,
         @Size(max = 100_000) String negativePrompt,
         @Size(max = 100) String model,

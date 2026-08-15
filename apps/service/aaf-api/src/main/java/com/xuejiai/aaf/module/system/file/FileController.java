@@ -26,9 +26,11 @@ import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.storage.PresignedUploadRequest;
 import com.xuejiai.aaf.framework.storage.PresignedUploadTicket;
+import com.xuejiai.aaf.framework.storage.UploadPolicy;
 import com.xuejiai.aaf.module.system.file.api.FileStoragePort;
 import com.xuejiai.aaf.module.system.file.api.StoredFile;
 import com.xuejiai.aaf.module.system.file.config.FileStorageProperties;
+import com.xuejiai.aaf.module.system.file.enums.FileStoragePurpose;
 import com.xuejiai.aaf.module.system.file.service.FileRecordService;
 import com.xuejiai.aaf.module.system.file.service.FileStorageReferenceService;
 import com.xuejiai.aaf.module.system.file.vo.FileConfirmDTO;
@@ -73,8 +75,10 @@ public class FileController {
 
     @Operation(summary = "上传文件")
     @PostMapping("/upload")
-    public Result<StoredFile> upload(@RequestParam("file") MultipartFile file) {
-        return Result.success(fileStoragePort.uploadCurrent(file));
+    public Result<StoredFile> upload(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(defaultValue = "MASTER") FileStoragePurpose storagePurpose) {
+        return Result.success(fileStoragePort.uploadCurrent(file, storagePurpose));
     }
 
     @Operation(summary = "前端直传完成确认")
@@ -96,9 +100,12 @@ public class FileController {
     @Operation(summary = "获取预签名上传 URL")
     @GetMapping("/presigned-url")
     public Result<PresignedUploadTicket> getPresignedUrl(
-            @RequestParam String filename, @RequestParam String contentType) {
-        var target = storageReferenceService.resolveCurrentMaster();
+            @RequestParam String filename,
+            @RequestParam String contentType,
+            @RequestParam(defaultValue = "MASTER") FileStoragePurpose storagePurpose) {
+        var target = storageReferenceService.resolveUploadTarget(storagePurpose);
         var limits = storageProperties.uploadLimits();
+        new UploadPolicy(limits).validate(filename, contentType, -1);
         var ticket =
                 target.client()
                         .getPresignedUploadUrl(

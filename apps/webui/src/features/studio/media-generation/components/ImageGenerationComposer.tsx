@@ -9,49 +9,93 @@
 "use client"
 
 import { Plus, Wand2 } from "lucide-react"
-import { useRef, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import { ModelParamsPopover } from "@/components/common/ModelParamsPopover"
 import { ModelSelector } from "@/components/common/ModelSelector"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { BrandProfilePicker } from "@/features/aigc/generation/BrandProfilePicker"
 import { PromptTemplateDialog } from "@/features/aigc/generation/PromptTemplateDialog"
 import { SkillPickerContent } from "@/features/aigc/generation/SkillPicker"
-import { SnippetPickerDialog } from "@/features/aigc/generation/SnippetPickerDialog"
+import {
+  buildPromptWithSnippets,
+  SnippetPickerDialog
+} from "@/features/aigc/generation/SnippetPickerDialog"
 import { ImageUploadChip } from "@/features/studio/home/ImageUploadChip"
 import { MediaComposerShell } from "@/features/studio/media-generation/components/MediaComposerShell"
 import { useImageGenerationController } from "@/features/studio/media-generation/hooks/use-image-generation-controller"
-import type { MediaGenerationComposerProps } from "@/features/studio/media-generation/types"
+import type {
+  MediaGenerationComposerProps,
+  MediaTaskSubmission
+} from "@/features/studio/media-generation/types"
+import type { AigcSnippet } from "@/lib/api/rest/ai/aigc"
 import { cn } from "@/lib/utils"
 
 /** 渲染图像生成输入、模型、技能和参数控件。 */
 export function ImageGenerationComposer(props: MediaGenerationComposerProps) {
-  const controller = useImageGenerationController(props)
+  const [prompt, setPrompt] = useState(props.initialDraft?.prompt ?? "")
+  const [selectedSnippets, setSelectedSnippets] = useState<AigcSnippet[]>([])
+  const handleTaskSubmitted = useCallback(
+    (submission: MediaTaskSubmission) => {
+      setPrompt("")
+      setSelectedSnippets([])
+      props.onTaskSubmitted?.(submission)
+    },
+    [props.onTaskSubmitted]
+  )
+  const controller = useImageGenerationController({
+    projectId: props.projectId,
+    initialDraft: props.initialDraft,
+    onTaskSubmitted: handleTaskSubmitted
+  })
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [skillPickerOpen, setSkillPickerOpen] = useState(false)
+
+  const handlePromptChange = useCallback(
+    (nextPrompt: string) => {
+      setPrompt(nextPrompt)
+      controller.setPrompt(buildPromptWithSnippets(nextPrompt, selectedSnippets))
+    },
+    [controller.setPrompt, selectedSnippets]
+  )
+  const handleSelectedSnippetsChange = useCallback(
+    (nextSnippets: AigcSnippet[]) => {
+      setSelectedSnippets(nextSnippets)
+      controller.setPrompt(buildPromptWithSnippets(prompt, nextSnippets))
+    },
+    [controller.setPrompt, prompt]
+  )
+  const handleRemoveSnippet = useCallback(
+    (snippetId: number) => {
+      handleSelectedSnippetsChange(selectedSnippets.filter((snippet) => snippet.id !== snippetId))
+    },
+    [handleSelectedSnippetsChange, selectedSnippets]
+  )
 
   const attachment = controller.pendingImage ?? controller.referenceImage
 
   return (
     <MediaComposerShell
-      prompt={controller.prompt}
-      onPromptChange={controller.setPrompt}
+      prompt={prompt}
+      onPromptChange={handlePromptChange}
       onSubmit={controller.submit}
       placeholder="描述你想生成的图像内容..."
       canSubmit={controller.canSubmit}
       isSubmitting={controller.isSubmitting}
       creditEstimate={controller.creditEstimate}
+      selectedSnippets={selectedSnippets}
+      onRemoveSnippet={handleRemoveSnippet}
       leadingTools={props.leadingTools}
       headerTools={
         <div className="flex items-center gap-1.5">
           <PromptTemplateDialog
             type="IMAGE_GEN"
             hasReferenceImages={Boolean(controller.referenceImage)}
-            onSelect={controller.setPrompt}
+            onSelect={handlePromptChange}
             triggerClassName="flex h-8 shrink-0 items-center gap-1 rounded-lg border border-foreground/8 px-2.5 text-muted-foreground text-xs transition-colors hover:bg-foreground/[0.06]"
           />
           <SnippetPickerDialog
-            value={controller.prompt}
-            onChange={controller.setPrompt}
+            selectedSnippets={selectedSnippets}
+            onSelectedSnippetsChange={handleSelectedSnippetsChange}
             triggerClassName="flex h-8 shrink-0 items-center gap-1 rounded-lg border border-foreground/8 px-2.5 text-muted-foreground text-xs transition-colors hover:bg-foreground/[0.06]"
           />
           <BrandProfilePicker

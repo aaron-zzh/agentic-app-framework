@@ -63,6 +63,7 @@ public class PromptTemplateAssetService
                 template.getType(),
                 template.getName(),
                 template.getCategory(),
+                template.getCoverUrl(),
                 template.getContent(),
                 template.getNegativePrompt(),
                 template.getModel(),
@@ -90,6 +91,7 @@ public class PromptTemplateAssetService
         template.setName(requireText(request.name(), "模板名称不能为空"));
         template.setType(defaultText(request.type(), "IMAGE_GEN"));
         template.setCategory(request.category());
+        template.setCoverUrl(request.coverUrl());
         template.setContent(requireText(request.prompt(), "提示词不能为空"));
         template.setNegativePrompt(request.negativePrompt());
         template.setModel(request.model());
@@ -122,6 +124,9 @@ public class PromptTemplateAssetService
         }
         if (request.category() != null) {
             template.setCategory(request.category());
+        }
+        if (!request.coverUrl().isAbsent()) {
+            template.setCoverUrl(request.coverUrl().valueOrNull());
         }
         if (request.prompt() != null) {
             template.setContent(requireText(request.prompt(), "提示词不能为空"));
@@ -336,6 +341,7 @@ public class PromptTemplateAssetService
                         name,
                         source.getType(),
                         source.getCategory(),
+                        source.getCoverUrl(),
                         source.getContent(),
                         source.getNegativePrompt(),
                         source.getModel(),

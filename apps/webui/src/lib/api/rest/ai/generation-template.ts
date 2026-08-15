@@ -25,6 +25,7 @@ export interface PromptTemplateAssetVO {
   type: string
   name: string
   category: string | null
+  coverUrl?: string | null
   prompt: string
   negativePrompt: string | null
   model: string | null
@@ -69,6 +70,7 @@ export interface CreatePromptTemplateInput {
   name: string
   type?: string
   category?: string
+  coverUrl?: string | null
   prompt: string
   negativePrompt?: string
   model?: string

@@ -10,6 +10,7 @@ public record PromptTemplateVO(
         String type,
         String name,
         String category,
+        String coverUrl,
         String prompt,
         String negativePrompt,
         String model,

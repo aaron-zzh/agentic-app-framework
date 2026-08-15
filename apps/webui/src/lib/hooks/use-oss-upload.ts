@@ -1,7 +1,7 @@
 /**
  * useOssUpload——预签名 PUT 直传 hook。
  *
- * <p>服务端签发受文件类型和用户命名空间约束的单对象票据，浏览器不会取得可复用的 OSS STS 凭证。
+ * <p>服务端签发受文件类型、用户命名空间和存储用途约束的单对象票据，浏览器不会取得可复用的 OSS STS 凭证。
  */
 
 "use client"
@@ -27,11 +27,17 @@ interface StoredFile {
 export interface OssUploadOptions
   extends Pick<
     FileUploadOptions,
-    "maxWidth" | "maxHeight" | "quality" | "outputFormat" | "skipCompressBelow"
+    | "storagePurpose"
+    | "maxWidth"
+    | "maxHeight"
+    | "quality"
+    | "outputFormat"
+    | "skipCompressBelow"
   > {}
 
 export function useOssUpload(options: OssUploadOptions = {}) {
   const {
+    storagePurpose = "MASTER",
     maxWidth = 1920,
     maxHeight = 1920,
     quality = 0.8,
@@ -69,7 +75,8 @@ export function useOssUpload(options: OssUploadOptions = {}) {
 
         const query = new URLSearchParams({
           filename: compressed.name,
-          contentType: compressed.type
+          contentType: compressed.type,
+          storagePurpose
         })
         const ticket = await backendRequest<PresignedUploadTicket>(
           `/api/system/files/presigned-url?${query.toString()}`
@@ -114,7 +121,14 @@ export function useOssUpload(options: OssUploadOptions = {}) {
         abortRef.current = null
       }
     },
-    [maxWidth, maxHeight, quality, outputFormat, skipCompressBelow]
+    [
+      storagePurpose,
+      maxWidth,
+      maxHeight,
+      quality,
+      outputFormat,
+      skipCompressBelow
+    ]
   )
 
   const cancel = useCallback(() => {

@@ -52,6 +52,7 @@ public class AigcSnippetService
                 entity.getName(),
                 entity.getCategory(),
                 entity.getContent(),
+                entity.getCoverUrl(),
                 entity.getReferenceMediaVersionIds(),
                 entity.getVariableSlots(),
                 entity.getProjectTypeCode(),
@@ -73,6 +74,7 @@ public class AigcSnippetService
         entity.setName(dto.name());
         entity.setCategory(dto.category());
         entity.setContent(dto.content());
+        entity.setCoverUrl(dto.coverUrl());
         entity.setReferenceMediaVersionIds(mediaVersionIds);
         entity.setVariableSlots(dto.variableSlots());
         entity.setProjectTypeCode(dto.projectTypeCode());
@@ -95,6 +97,7 @@ public class AigcSnippetService
         AigcConfigurationPatchSupport.required(dto.name(), "name", entity::setName);
         AigcConfigurationPatchSupport.nullable(dto.category(), entity::setCategory);
         AigcConfigurationPatchSupport.nullable(dto.content(), entity::setContent);
+        AigcConfigurationPatchSupport.nullable(dto.coverUrl(), entity::setCoverUrl);
         AigcConfigurationPatchSupport.required(
                 dto.referenceMediaVersionIds(),
                 "referenceMediaVersionIds",

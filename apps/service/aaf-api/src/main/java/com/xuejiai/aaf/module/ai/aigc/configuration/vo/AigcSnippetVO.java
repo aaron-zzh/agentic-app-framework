@@ -10,6 +10,7 @@ public record AigcSnippetVO(
         String name,
         String category,
         String content,
+        String coverUrl,
         List<Long> referenceMediaVersionIds,
         Map<String, Object> variableSlots,
         String projectTypeCode,

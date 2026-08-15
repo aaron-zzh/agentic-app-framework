@@ -167,6 +167,8 @@ public interface ErrorCodeConstants {
     ErrorCode FILE_STORAGE_CONFIG_NOT_ACTIVE = ErrorCode.of(1_014_005, "只有启用中的文件存储配置可设为主配置");
     ErrorCode FILE_STORAGE_ACCESS_FAILED = ErrorCode.of(1_014_006, "文件存储访问失败");
     ErrorCode FILE_NOT_FOUND = ErrorCode.of(1_014_007, "文件不存在或无权访问");
+    ErrorCode FILE_STORAGE_PUBLIC_ASSET_NOT_FOUND =
+            ErrorCode.of(1_014_008, "公开资产存储必须唯一配置为启用且允许公开访问的 OSS");
 
     // ========== PROFILE 模块 1_015_000 ==========
     ErrorCode PROFILE_DIMENSION_CODE_EXISTS = ErrorCode.of(1_015_000, "维度编码已存在: {0}");

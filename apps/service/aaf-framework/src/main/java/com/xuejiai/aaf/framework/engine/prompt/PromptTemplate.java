@@ -58,6 +58,10 @@ public class PromptTemplate extends BaseEntity {
     @Column(length = 64)
     private String category;
 
+    /** 封面地址。 */
+    @Column(name = "cover_url", length = 1000)
+    private String coverUrl;
+
     /** 资产类型：SYSTEM / PROMPT / IMAGE_GEN / VIDEO_GEN / COPYWRITING。 */
     @Column(nullable = false, length = 30)
     private String type = "PROMPT";

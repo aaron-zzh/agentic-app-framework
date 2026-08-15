@@ -45,6 +45,7 @@ public final class AigcSnippetResource {
                                     "name",
                                     "category",
                                     "content",
+                                    "coverUrl",
                                     "referenceMediaVersionIds",
                                     "variableSlots",
                                     "projectTypeCode",

@@ -27,7 +27,11 @@ import { useOssUpload } from "./use-oss-upload"
 
 // ─── 类型定义 ───────────────────────────────────────────────────────────────
 
+export type FileStoragePurpose = "MASTER" | "PUBLIC_ASSET"
+
 export interface FileUploadOptions {
+  /** 服务端存储用途；默认 MASTER，禁止直接指定存储配置 ID */
+  storagePurpose?: FileStoragePurpose
   /** 图片最大宽度（px），超过则等比缩放，默认 1920 */
   maxWidth?: number
   /** 图片最大高度（px），超过则等比缩放，默认 1920 */
@@ -132,6 +136,7 @@ export async function compressImage(
 
 export function useFileUpload(options: FileUploadOptions = {}) {
   const {
+    storagePurpose = "MASTER",
     maxWidth = 1920,
     maxHeight = 1920,
     quality = 0.9,
@@ -150,6 +155,7 @@ export function useFileUpload(options: FileUploadOptions = {}) {
       form.append("file", file)
 
       const vo = await backendApi.post<StoredFile>("/system/files/upload", form, {
+        params: { storagePurpose },
         // 让 axios 自动设置 multipart boundary
         headers: { "Content-Type": undefined as unknown as string },
         signal,
@@ -159,7 +165,7 @@ export function useFileUpload(options: FileUploadOptions = {}) {
       })
       return vo
     },
-    []
+    [storagePurpose]
   )
 
   /** 上传单个文件（图片自动压缩） */
@@ -233,6 +239,7 @@ export function useFileUpload(options: FileUploadOptions = {}) {
   // ─── env 切链路：NEXT_PUBLIC_UPLOAD_MODE=oss 时委托给 useOssUpload（预签名 PUT） ───
   // hook 顺序固定：始终调用 useOssUpload，不依赖 env 开关条件
   const ossHook = useOssUpload({
+    storagePurpose,
     maxWidth,
     maxHeight,
     quality,

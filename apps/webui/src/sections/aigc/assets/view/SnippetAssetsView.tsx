@@ -26,6 +26,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import { CoverImageUpload } from "@/features/aigc/generation/CoverImageUpload"
+import { CoverThumbnail } from "@/features/aigc/generation/CoverThumbnail"
 import { useLoadMoreOnVisible } from "@/features/studio/assets/useLoadMoreOnVisible"
 import {
   type AigcSnippet,
@@ -51,6 +53,7 @@ function SnippetEditDialog({ initial, onClose }: SnippetEditDialogProps) {
   const uid = useId()
   const [name, setName] = useState(initial?.name ?? "")
   const [category, setCategory] = useState(initial?.category ?? "")
+  const [coverUrl, setCoverUrl] = useState<string | null>(initial?.coverUrl ?? null)
   const [content, setContent] = useState(initial?.content ?? "")
   const [isPublic, setIsPublic] = useState(initial?.isPublic ?? false)
   const createSnippet = useCreateAigcSnippet()
@@ -61,6 +64,7 @@ function SnippetEditDialog({ initial, onClose }: SnippetEditDialogProps) {
     const input = {
       name: name.trim(),
       category: category.trim() || undefined,
+      coverUrl,
       content: content.trim(),
       isPublic
     }
@@ -91,6 +95,12 @@ function SnippetEditDialog({ initial, onClose }: SnippetEditDialogProps) {
               placeholder="例如：电影感光影"
             />
           </div>
+          <CoverImageUpload
+            id={`${uid}-cover`}
+            value={coverUrl}
+            onChange={setCoverUrl}
+            disabled={isPending}
+          />
           <div className="flex flex-col gap-1.5">
             <Label htmlFor={`${uid}-content`}>片段内容</Label>
             <Textarea
@@ -253,6 +263,14 @@ export function SnippetAssetsView() {
             return (
               <GlassCard key={snippet.id} glow="none" className="border border-foreground/6">
                 <div className="flex items-start gap-3 p-4">
+                  <CoverThumbnail
+                    src={snippet.coverUrl}
+                    alt={`${snippet.name}封面`}
+                    fallback={
+                      <span className="font-semibold text-sm">{snippet.name.slice(0, 1)}</span>
+                    }
+                    className="size-12"
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="truncate font-medium text-sm">{snippet.name}</p>

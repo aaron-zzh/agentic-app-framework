@@ -38,6 +38,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import { CoverImageUpload } from "@/features/aigc/generation/CoverImageUpload"
+import { CoverThumbnail } from "@/features/aigc/generation/CoverThumbnail"
 import { useLoadMoreOnVisible } from "@/features/studio/assets/useLoadMoreOnVisible"
 import {
   type PromptTemplateAssetVO,
@@ -101,6 +103,7 @@ function EditDialog({ open, onClose, initial }: EditDialogProps) {
   const uid = useId()
   const [name, setName] = useState(initial?.name ?? "")
   const [category, setCategory] = useState(initial?.category ?? "DEFAULT")
+  const [coverUrl, setCoverUrl] = useState<string | null>(initial?.coverUrl ?? null)
   const [prompt, setPrompt] = useState(initial?.prompt ?? "")
   const [isPublic, setIsPublic] = useState(initial?.visibility === "PUBLIC")
   const [description, setDescription] = useState(initial?.description ?? "")
@@ -119,6 +122,7 @@ function EditDialog({ open, onClose, initial }: EditDialogProps) {
     const input = {
       name: name.trim(),
       category: category.trim() || "DEFAULT",
+      coverUrl,
       prompt: prompt.trim(),
       description: initial ? description.trim() : description.trim() || undefined,
       negativePrompt: initial ? negativePrompt.trim() : negativePrompt.trim() || undefined,
@@ -164,6 +168,12 @@ function EditDialog({ open, onClose, initial }: EditDialogProps) {
               placeholder="例如：图像生成"
             />
           </div>
+          <CoverImageUpload
+            id={`${uid}-cover`}
+            value={coverUrl}
+            onChange={setCoverUrl}
+            disabled={isPending}
+          />
           <div className="flex flex-col gap-1.5">
             <Label htmlFor={`${uid}-prompt`}>提示词内容</Label>
             <Textarea
@@ -420,6 +430,14 @@ export function PromptAssetsView() {
             return (
               <GlassCard key={asset.id} glow="none" className="border border-foreground/6">
                 <div className="flex items-start gap-3 p-4">
+                  <CoverThumbnail
+                    src={asset.coverUrl}
+                    alt={`${asset.name}封面`}
+                    fallback={
+                      <span className="font-semibold text-sm">{asset.name.slice(0, 1)}</span>
+                    }
+                    className="size-12"
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="truncate font-medium text-sm">{asset.name}</p>

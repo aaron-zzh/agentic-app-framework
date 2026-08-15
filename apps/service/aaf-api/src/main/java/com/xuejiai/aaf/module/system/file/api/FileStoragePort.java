@@ -6,10 +6,14 @@ import java.util.List;
 
 import org.springframework.web.multipart.MultipartFile;
 
+import com.xuejiai.aaf.module.system.file.enums.FileStoragePurpose;
+
 /** 文件子域对外暴露的上传、查询与引用生命周期边界。 */
 public interface FileStoragePort {
 
     StoredFile uploadCurrent(MultipartFile file);
+
+    StoredFile uploadCurrent(MultipartFile file, FileStoragePurpose storagePurpose);
 
     StoredFile uploadFromUrl(String url, String path, String contentType, Long uploaderId);
 

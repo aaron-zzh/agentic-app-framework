@@ -37,6 +37,9 @@ public class AigcSnippet extends BaseEntity {
     @Column(name = "content", columnDefinition = "text")
     private String content;
 
+    @Column(name = "cover_url", length = 1000)
+    private String coverUrl;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "reference_media_version_ids", nullable = false, columnDefinition = "jsonb")
     private List<Long> referenceMediaVersionIds = List.of();
