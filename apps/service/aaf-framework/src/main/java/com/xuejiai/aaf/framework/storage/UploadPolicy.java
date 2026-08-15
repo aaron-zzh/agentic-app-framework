@@ -9,19 +9,8 @@ import java.util.Set;
 /**
  * 上传策略（B13）——类型、大小与主动内容的**唯一**校验入口。
  *
- * <p>修复前的问题：只有 {@code MultipartFile} 入口做了 MIME 与大小校验，URL / byte[] / Base64 三个入口 以及直接调用 {@link
- * StorageService#upload} 的代码可完全绕过校验；且默认白名单包含 {@code image/svg+xml} 与 {@code
- * text/html}，在同域对象访问下可形成存储型 XSS，超大远程文件也没有读取上限。
- *
- * <p>现在：
- *
- * <ul>
- *   <li>所有 {@link FileService} 入口共享 {@link #validate}
- *   <li>主动内容（SVG/HTML/XHTML/XML/JS 等可被浏览器执行的类型）一律拒绝，见 {@link #assertNotActiveContent}
- *   <li>{@link StorageService} 各实现在 upload 入口调用静态 {@link #assertNotActiveContent} 兜底， 即使有人绕过
- *       FileService 直调存储层也拦得住
- *   <li>URL/字节流读取有上限，见 {@link #readWithLimit}
- * </ul>
+ * <p>所有应用层上传入口共享 {@link #validate}；各 {@link StorageClient} 实现在 upload 入口调用静态 {@link
+ * #assertNotActiveContent} 兜底，防止绕过业务校验。URL/字节流读取通过 {@link #readWithLimit} 限制大小。
  */
 public final class UploadPolicy {
 
@@ -42,9 +31,9 @@ public final class UploadPolicy {
     private static final Set<String> ACTIVE_CONTENT_EXTENSIONS =
             Set.of("svg", "html", "htm", "xhtml", "xml", "js", "mjs", "vbs", "swf");
 
-    private final StorageProperties.UploadLimits limits;
+    private final UploadLimits limits;
 
-    public UploadPolicy(StorageProperties.UploadLimits limits) {
+    public UploadPolicy(UploadLimits limits) {
         this.limits = limits;
     }
 

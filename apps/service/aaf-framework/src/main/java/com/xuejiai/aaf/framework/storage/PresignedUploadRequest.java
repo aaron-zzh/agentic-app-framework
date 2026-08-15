@@ -8,7 +8,7 @@ import java.util.UUID;
 /**
  * 预签名上传请求（M29 / m20）。
  *
- * <p>M29：{@link StorageService#getPresignedUploadUrl} 原先接受调用方给的**裸 key**，owner 命名空间规则只存在于 API
+ * <p>M29：{@link StorageClient#getPresignedUploadUrl} 原先接受调用方给的**裸 key**，owner 命名空间规则只存在于 API
  * 层（{@code FileRecordService#requireCurrentOwnerNamespace}），新增调用方很容易误签到别人的命名空间。 现在把 key
  * 生成收进框架：调用方只能给 {@code ownerScope + filename}，key 由 {@link #toKey()} 生成。
  *

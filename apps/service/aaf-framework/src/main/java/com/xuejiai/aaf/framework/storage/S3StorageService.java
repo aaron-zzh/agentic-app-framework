@@ -29,19 +29,20 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
  * <p>通过 AWS S3 SDK 统一访问，配置 endpoint 切换后端。
  */
 @Slf4j
-public class S3StorageService implements StorageService {
+public class S3StorageService implements StorageClient {
 
     private final S3Client s3Client;
     private final S3Presigner presigner;
     private final String bucketName;
     private final String endpoint;
 
-    public S3StorageService(StorageProperties.S3Properties props) {
+    public S3StorageService(S3StorageSpec spec, StorageCredential credential) {
         var credentials =
                 StaticCredentialsProvider.create(
-                        AwsBasicCredentials.create(props.accessKey(), props.secretKey()));
-        var region = Region.of(props.region() != null ? props.region() : "us-east-1");
-        var endpointUri = URI.create(props.endpoint());
+                        AwsBasicCredentials.create(
+                                credential.accessKeyId(), credential.accessKeySecret()));
+        var region = Region.of(spec.region() != null ? spec.region() : "us-east-1");
+        var endpointUri = URI.create(spec.endpoint());
 
         this.s3Client =
                 S3Client.builder()
@@ -58,13 +59,13 @@ public class S3StorageService implements StorageService {
                         .credentialsProvider(credentials)
                         .build();
 
-        this.bucketName = props.bucketName();
-        this.endpoint = props.endpoint();
+        this.bucketName = spec.bucketName();
+        this.endpoint = spec.endpoint();
     }
 
     @Override
     public String upload(InputStream input, String filename, String contentType) {
-        // B13：存储层兜底拒绝主动内容，防止绕过 FileService 直调
+        // 存储客户端兜底拒绝主动内容，防止绕过应用层上传策略
         UploadPolicy.assertNotActiveContent(filename, contentType);
         var key = generateKey(filename);
         Path tempFile = null;
@@ -145,6 +146,12 @@ public class S3StorageService implements StorageService {
                         .getObjectRequest(r -> r.bucket(bucketName).key(key))
                         .build();
         return presigner.presignGetObject(request).url().toString();
+    }
+
+    @Override
+    public void close() {
+        presigner.close();
+        s3Client.close();
     }
 
     private String generateKey(String filename) {

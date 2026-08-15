@@ -21,6 +21,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
+import { buildFieldContext, evaluateCondition } from "@/features/entity-engine/lib/field-context"
 import type { EntityAction, EntityDef } from "@/features/entity-engine/types"
 import { buildApiUrl, buildSseUrl } from "@/lib/api/config"
 import { backendApi } from "@/lib/api/rest/backend-client"
@@ -163,7 +164,9 @@ export function EntityActions({ entity, position, record, selectedIds }: EntityA
   const actions = (entity.actions ?? []).filter(
     (action) =>
       action.position === position &&
-      (action.type !== "batch" || (selectedIds != null && selectedIds.length > 0))
+      (action.type !== "batch" || (selectedIds != null && selectedIds.length > 0)) &&
+      (action.visibleWhen == null ||
+        evaluateCondition(action.visibleWhen, buildFieldContext(record ?? {})))
   )
 
   useEffect(
@@ -324,7 +327,10 @@ export function EntityActions({ entity, position, record, selectedIds }: EntityA
             key={action.key}
             type="button"
             className="inline-flex h-7 items-center gap-1 rounded border px-2 text-xs hover:bg-muted disabled:opacity-50"
-            onClick={() => requestAction(action)}
+            onClick={(event) => {
+              event.stopPropagation()
+              requestAction(action)
+            }}
             disabled={runningActionKey != null}
           >
             {action.icon && <span>{action.icon}</span>}

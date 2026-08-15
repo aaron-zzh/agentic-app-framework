@@ -11,5 +11,4 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record FileConfigUpdateDTO(
         @Schema(description = "配置名称") String name,
         @Schema(description = "存储类型：LOCAL/S3/OSS") String storageType,
-        @Schema(description = "配置内容（JSON）") String config,
-        @Schema(description = "状态（0 正常 / 1 禁用）") Integer status) {}
+        @Schema(description = "配置内容（JSON，不含真实凭证）") String config) {}

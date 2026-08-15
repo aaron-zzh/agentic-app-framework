@@ -13,12 +13,12 @@ import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.knowledge.pipeline.KnowledgePipelineService;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.PermissionExecutionService;
-import com.xuejiai.aaf.framework.storage.StorageService;
 import com.xuejiai.aaf.framework.task.queue.AsyncTaskMessage;
 import com.xuejiai.aaf.framework.task.queue.TaskHandler;
 import com.xuejiai.aaf.framework.task.queue.TaskQueue;
 import com.xuejiai.aaf.module.knowledge.domain.KnowledgeDocument;
 import com.xuejiai.aaf.module.knowledge.repository.KnowledgeDocumentRepository;
+import com.xuejiai.aaf.module.system.file.api.FileStoragePort;
 
 import lombok.RequiredArgsConstructor;
 
@@ -32,7 +32,7 @@ public class KnowledgeDocumentQueueService implements TaskHandler {
 
     private final TaskQueue taskQueue;
     private final KnowledgeDocumentRepository documentRepository;
-    private final StorageService storageService;
+    private final FileStoragePort fileStoragePort;
     private final KnowledgePipelineService pipelineService;
     private final PermissionExecutionService permissionExecutionService;
     private final KnowledgeDocumentExecutionLeaseService executionLeaseService;
@@ -101,7 +101,7 @@ public class KnowledgeDocumentQueueService implements TaskHandler {
         if (document.getFilePath() == null || document.getFilePath().isBlank()) {
             throw new IllegalStateException("知识库文档缺少存储文件");
         }
-        try (var input = storageService.download(document.getFilePath())) {
+        try (var input = fileStoragePort.openByKey(document.getFilePath())) {
             var result =
                     pipelineService.process(
                             document.getKnowledgeBaseId(),

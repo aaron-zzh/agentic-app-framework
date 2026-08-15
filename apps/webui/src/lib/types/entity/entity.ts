@@ -120,6 +120,8 @@ export interface EntityAction {
   /** POST 动作端点。 */
   endpoint: string
   confirmMessage?: string
+  /** 仅当前记录满足条件时显示，使用 $record 字段表达式。 */
+  visibleWhen?: string
   position: "formHeader" | "listToolbar" | "rowAction" | "contextMenu"
 }
 

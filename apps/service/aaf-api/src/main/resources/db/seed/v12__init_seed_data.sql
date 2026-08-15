@@ -53,9 +53,33 @@ $$[{"q":"什么是积分，我如何获得？","a":"积分是 AAF 平台的标�
  TRUE, TRUE)
 ON CONFLICT (config_key) WHERE deleted = FALSE DO NOTHING;
 
+-- 动态存储规格保存在 sys_file_config；真实 AK/SK 仅由 credentialRef 从 YAML/ENV 解析。
+-- 云端示例默认退役，填写实际 bucket、roleArn（如需 STS）并确认凭证后可通过管理 API 启用和设为主配置。
 INSERT INTO sys_file_config (name, storage_type, config, master, status)
-SELECT '本地存储', 'LOCAL', '{"basePath":"/data/aaf/files"}', TRUE, 0
+SELECT '本地存储', 'LOCAL', '{"basePath":"./aaf-files","urlPrefix":"http://localhost:8080/api/system/files"}', TRUE, 'ACTIVE'
 WHERE NOT EXISTS (SELECT 1 FROM sys_file_config WHERE master = TRUE AND deleted = FALSE);
+
+INSERT INTO sys_file_config (name, storage_type, config, master, status)
+SELECT
+    'S3 兼容存储（示例）',
+    'S3',
+    '{"endpoint":"https://s3.amazonaws.com","bucketName":"aaf-example-bucket","region":"us-east-1","credentialRef":"s3-default"}',
+    FALSE,
+    'RETIRED'
+WHERE NOT EXISTS (
+    SELECT 1 FROM sys_file_config WHERE name = 'S3 兼容存储（示例）' AND deleted = FALSE
+);
+
+INSERT INTO sys_file_config (name, storage_type, config, master, status)
+SELECT
+    '阿里云 OSS（示例）',
+    'OSS',
+    '{"endpoint":"oss-cn-hangzhou.aliyuncs.com","bucketName":"aaf-example-bucket","roleArn":"","stsEndpoint":"sts.aliyuncs.com","urlPrefix":"","durationSeconds":3600,"credentialRef":"oss-default"}',
+    FALSE,
+    'RETIRED'
+WHERE NOT EXISTS (
+    SELECT 1 FROM sys_file_config WHERE name = '阿里云 OSS（示例）' AND deleted = FALSE
+);
 
 -- ==================== 短信模板 ====================
 -- code 与认证场景 type（register/login/reset）对齐，统一映射到同一厂商模板
@@ -374,6 +398,7 @@ items (group_title, title, path, icon, sort_order, visible) AS (
     ('系统',     '预设管理',   '/system/dashboard-presets',   'layout-template',   5,  true),
     ('系统',     '操作日志',   '/admin/operation-log',        'clipboard-list',    6,  true),
     ('系统',     '演示模式',   '/admin/demo',                 'flask-conical',     7,  true),
+    ('系统',     '文件存储配置','/module/file-config',        'hard-drive',        10, true),
     -- 开发工具（隐藏）
     ('开发工具', '文档管理',   '/dev/docs',                   'file-text',         0,  false),
     ('开发工具', '开发日志',   '/dev/log',                    'scroll-text',       1,  false),
@@ -394,6 +419,11 @@ JOIN all_groups g ON g.title = i.group_title
 WHERE NOT EXISTS (
   SELECT 1 FROM sys_menu WHERE path = i.path AND deleted = false
 );
+
+UPDATE sys_menu
+SET permission_code = 'system:file-config:read',
+    update_time = CURRENT_TIMESTAMP
+WHERE path = '/module/file-config' AND deleted = FALSE;
 
 
 -- ==================== 画像维度预置数据 ====================

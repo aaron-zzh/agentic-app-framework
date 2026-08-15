@@ -22,6 +22,11 @@ export const entityDefJsonSchema = {
     group: { type: "string", description: "侧边栏分组（英文 slug）" },
     groupLabel: { type: "string", description: "分组显示名称" },
     description: { type: "string", description: "实体描述" },
+    actions: {
+      type: "array",
+      description: "实体操作定义",
+      items: { $ref: "#/definitions/EntityAction" }
+    },
     mixins: { type: "array", items: { type: "string" }, description: "Mixin 名称列表" },
     extends: { type: "string", description: "继承的父实体 slug" },
     fields: {
@@ -107,6 +112,24 @@ export const entityDefJsonSchema = {
         max: { type: "number", description: "最大值" },
         accept: { type: "string", description: "上传文件类型" },
         maxSize: { type: "number", description: "上传文件大小限制" }
+      }
+    },
+    EntityAction: {
+      type: "object",
+      required: ["key", "label", "type", "endpoint", "position"],
+      properties: {
+        key: { type: "string", description: "稳定动作标识" },
+        label: { type: "string", description: "操作显示名称" },
+        icon: { type: "string", description: "图标名称" },
+        type: { type: "string", enum: ["entity", "single", "batch"] },
+        execution: { type: "string", enum: ["sync", "async"] },
+        endpoint: { type: "string", description: "POST 动作端点" },
+        confirmMessage: { type: "string", description: "执行前确认提示" },
+        visibleWhen: { type: "string", description: "当前记录条件可见性表达式" },
+        position: {
+          type: "string",
+          enum: ["formHeader", "listToolbar", "rowAction", "contextMenu"]
+        }
       }
     },
     ListViewConfig: {

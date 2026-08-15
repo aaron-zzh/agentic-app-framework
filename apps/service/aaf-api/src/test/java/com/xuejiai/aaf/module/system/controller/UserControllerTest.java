@@ -26,7 +26,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.util.JsonUtils;
-import com.xuejiai.aaf.config.StorageWebConfig;
 import com.xuejiai.aaf.framework.logging.RequestMetricsFilter;
 import com.xuejiai.aaf.framework.security.SecurityConfig;
 import com.xuejiai.aaf.framework.security.apikey.ApiKeyAuthFilter;
@@ -45,7 +44,6 @@ import com.xuejiai.aaf.module.system.user.vo.UserVO;
                 @ComponentScan.Filter(
                         type = FilterType.ASSIGNABLE_TYPE,
                         classes = {
-                            StorageWebConfig.class,
                             RequestMetricsFilter.class,
                             SecurityConfig.class,
                             ApiKeyAuthFilter.class,

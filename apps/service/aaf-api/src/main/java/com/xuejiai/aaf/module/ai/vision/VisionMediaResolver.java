@@ -10,8 +10,7 @@ import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.intelligent.ai.vision.VisionAttachment;
 import com.xuejiai.aaf.framework.intelligent.ai.vision.VisionAttachment.AttachmentType;
-import com.xuejiai.aaf.framework.storage.StorageService;
-import com.xuejiai.aaf.module.system.file.repository.FileRecordRepository;
+import com.xuejiai.aaf.module.system.file.api.FileStoragePort;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +22,7 @@ import lombok.extern.slf4j.Slf4j;
  *
  * <ul>
  *   <li>从 {@code sys_file} 读取 fileKey 对应的 mimeType（缺失即拒绝，避免下游 AI 模型下载失败）
- *   <li>调 {@link StorageService#getPresignedDownloadUrl} 生成 1 小时有效期的 OSS 签名 GET URL
+ *   <li>通过 {@link FileStoragePort} 按文件绑定配置生成短时访问 URL
  *   <li>按 mimeType 前缀分类为 IMAGE 或 VIDEO
  * </ul>
  *
@@ -37,8 +36,7 @@ public class VisionMediaResolver {
     /** 签名 URL 默认有效期：1 小时。视觉模型典型调用 < 1 分钟，留余量给重试与并行调用。 */
     private static final Duration DEFAULT_EXPIRY = Duration.ofHours(1);
 
-    private final StorageService storageService;
-    private final FileRecordRepository fileRecordRepository;
+    private final FileStoragePort fileStoragePort;
 
     /**
      * 批量解析 fileKey 列表为 {@link VisionAttachment}。
@@ -54,19 +52,13 @@ public class VisionMediaResolver {
 
     private VisionAttachment resolveOne(String fileKey) {
         if (fileKey == null || fileKey.isBlank()) return null;
-        var record =
-                fileRecordRepository
-                        .findByKey(fileKey)
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                GlobalErrorCode.NOT_FOUND, "文件不存在: " + fileKey));
-        var mime = record.getMimeType();
+        var record = fileStoragePort.getByKey(fileKey);
+        var mime = record.mimeType();
         if (mime == null || mime.isBlank()) {
             throw new BusinessException(
                     GlobalErrorCode.BAD_REQUEST, "文件 mimeType 缺失，无法用于视觉理解: " + fileKey);
         }
-        var url = storageService.getPresignedDownloadUrl(fileKey, DEFAULT_EXPIRY);
+        var url = fileStoragePort.prepareExternalAccessByKey(fileKey, DEFAULT_EXPIRY);
         var type = mime.startsWith("video/") ? AttachmentType.VIDEO : AttachmentType.IMAGE;
         log.debug("视觉附件解析: fileKey={}, mime={}, type={}", fileKey, mime, type);
         return new VisionAttachment(fileKey, mime, url, type);

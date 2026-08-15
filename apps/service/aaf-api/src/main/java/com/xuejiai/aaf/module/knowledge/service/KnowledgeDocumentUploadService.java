@@ -13,7 +13,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.xuejiai.aaf.common.enums.knowledge.DocumentStatusEnum;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
-import com.xuejiai.aaf.framework.storage.FileService;
 import com.xuejiai.aaf.module.document.api.DocumentSourceApi;
 import com.xuejiai.aaf.module.document.api.DocumentSourceApi.SourceDocumentCommand;
 import com.xuejiai.aaf.module.knowledge.domain.KnowledgeBase;
@@ -32,7 +31,6 @@ public class KnowledgeDocumentUploadService {
 
     private final KnowledgeDocumentRepository documentRepository;
     private final KnowledgeDocumentQueueService queueService;
-    private final FileService fileService;
     private final FileStoragePort fileUploadService;
     private final DocumentSourceApi documentSourceApi;
 
@@ -116,7 +114,7 @@ public class KnowledgeDocumentUploadService {
                         }
                         for (var key : uploadedKeys) {
                             try {
-                                fileService.delete(key);
+                                fileUploadService.requestDeleteByKey(key);
                             } catch (RuntimeException failure) {
                                 log.warn("回滚后清理知识库文件失败，key={}", key, failure);
                             }

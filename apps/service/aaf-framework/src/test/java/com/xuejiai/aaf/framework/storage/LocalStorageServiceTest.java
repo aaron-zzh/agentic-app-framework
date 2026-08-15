@@ -13,13 +13,11 @@ class LocalStorageServiceTest {
 
     @TempDir Path baseDir;
 
-    private StorageService service;
+    private StorageClient service;
 
     @BeforeEach
     void setUp() {
-        service =
-                new LocalStorageService(
-                        new StorageProperties.LocalProperties(baseDir.toString(), "/files"));
+        service = new LocalStorageService(new LocalStorageSpec(baseDir.toString(), "/files"));
     }
 
     /** B14：下载越过 basePath 的相对路径 → 非法路径拒绝。 */
@@ -36,6 +34,16 @@ class LocalStorageServiceTest {
         assertThatThrownBy(() -> service.delete("../outside.txt"))
                 .isInstanceOf(StorageException.class)
                 .hasMessageContaining("非法路径");
+    }
+
+    /** 本地配置缺少 URL 前缀时，禁止生成形如 null/key 的无效访问地址。 */
+    @Test
+    void getUrl_缺少前缀拒绝() {
+        var withoutPrefix = new LocalStorageService(new LocalStorageSpec(baseDir.toString(), null));
+
+        assertThatThrownBy(() -> withoutPrefix.getUrl("2026/08/15/image.png"))
+                .isInstanceOf(StorageException.class)
+                .hasMessageContaining("缺少对象访问 URL 前缀");
     }
 
     /** 合法 key 通过路径校验（文件不存在时报下载失败，而非非法路径）。 */

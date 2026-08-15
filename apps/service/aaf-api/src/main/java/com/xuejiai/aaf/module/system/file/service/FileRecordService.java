@@ -17,15 +17,15 @@ import com.xuejiai.aaf.common.exception.QuotaExceededException;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
 import com.xuejiai.aaf.framework.security.OperatorContext;
-import com.xuejiai.aaf.framework.storage.StorageProperties;
 import com.xuejiai.aaf.framework.storage.UploadPolicy;
 import com.xuejiai.aaf.module.billing.repository.EntitlementQuotaRepository;
 import com.xuejiai.aaf.module.system.file.api.FileRecordApi;
 import com.xuejiai.aaf.module.system.file.api.FileReference;
 import com.xuejiai.aaf.module.system.file.api.StoredFile;
+import com.xuejiai.aaf.module.system.file.config.FileStorageProperties;
 import com.xuejiai.aaf.module.system.file.domain.FileRecord;
 import com.xuejiai.aaf.module.system.file.domain.FileReferenceRecord;
-import com.xuejiai.aaf.module.system.file.repository.FileConfigRepository;
+import com.xuejiai.aaf.module.system.file.enums.FileStorageStatus;
 import com.xuejiai.aaf.module.system.file.repository.FileRecordRepository;
 import com.xuejiai.aaf.module.system.file.repository.FileReferenceRepository;
 import com.xuejiai.aaf.module.system.file.vo.FileRecordPageDTO;
@@ -46,10 +46,10 @@ public class FileRecordService implements FileRecordApi {
 
     private final FileRecordRepository fileRecordRepository;
     private final FileReferenceRepository fileReferenceRepository;
-    private final FileConfigRepository fileConfigRepository;
     private final EntitlementQuotaRepository entitlementQuotaRepository;
     private final FileStorageReferenceService storageReferenceService;
-    private final StorageProperties storageProperties;
+    private final FileAccessService fileAccessService;
+    private final FileStorageProperties storageProperties;
     private final OperatorContext operatorContext;
 
     /** 按存储 key 删除文件记录。 */
@@ -91,11 +91,12 @@ public class FileRecordService implements FileRecordApi {
         return "users/" + requireCurrentOwnerId();
     }
 
-    /** 当前用户按存储配置隔离的直传命名空间，配置 ID 同时作为确认时的不可变路由标识。 */
+    /** 当前用户按存储配置隔离的直传命名空间。 */
     public String currentOwnerStorageNamespace(Long storageConfigId) {
-        return currentOwnerNamespace()
-                + "/storage/"
-                + (storageConfigId == null ? "default" : storageConfigId);
+        if (storageConfigId == null) {
+            throw new IllegalArgumentException("storageConfigId 不能为空");
+        }
+        return currentOwnerNamespace() + "/storage/" + storageConfigId;
     }
 
     /** 从服务端生成的直传 key 提取创建时绑定的存储配置 ID。 */
@@ -110,7 +111,6 @@ public class FileRecordService implements FileRecordApi {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "直传文件 key 格式无效");
         }
         var configId = suffix.substring(0, slash);
-        if ("default".equals(configId)) return null;
         try {
             return Long.valueOf(configId);
         } catch (NumberFormatException e) {
@@ -131,7 +131,7 @@ public class FileRecordService implements FileRecordApi {
     public StoredFile confirmCurrentUpload(
             String key, String originalName, String mimeType, long declaredSize) {
         var storageConfigId = storageConfigIdFromCurrentOwnerKey(key);
-        var policy = new UploadPolicy(storageProperties.uploadOrDefault());
+        var policy = new UploadPolicy(storageProperties.uploadLimits());
         policy.validate(originalName, mimeType, declaredSize);
         long actualSize = countUploadedObject(key, storageConfigId, policy.maxSizeBytes());
         if (actualSize != declaredSize) {
@@ -206,6 +206,9 @@ public class FileRecordService implements FileRecordApi {
             String contentHash,
             Long uploaderId,
             Long storageConfigId) {
+        if (storageConfigId == null) {
+            throw new IllegalArgumentException("storageConfigId 不能为空");
+        }
         if (uploaderId != null) {
             checkStorageQuota(uploaderId, size);
         }
@@ -216,7 +219,7 @@ public class FileRecordService implements FileRecordApi {
         record.setMimeType(mimeType);
         record.setSize(size);
         record.setContentHash(contentHash);
-        record.setStorageStatus("ACTIVE");
+        record.setStorageStatus(FileStorageStatus.ACTIVE.name());
         record.setUploaderId(uploaderId);
         return toStoredFile(fileRecordRepository.save(record));
     }
@@ -224,6 +227,11 @@ public class FileRecordService implements FileRecordApi {
     @Override
     public StoredFile get(Long fileId) {
         return toStoredFile(requireFile(fileId));
+    }
+
+    @Override
+    public StoredFile getByKey(String key) {
+        return toStoredFile(requireFileByKey(key));
     }
 
     @Override
@@ -255,8 +263,24 @@ public class FileRecordService implements FileRecordApi {
 
     @Override
     public String getAccessibleUrl(Long fileId) {
-        var file = requireFile(fileId);
-        return storageReferenceService.resolve(file).getUrl(file.getKey());
+        requireFile(fileId);
+        return fileAccessService.accessUrl(fileId);
+    }
+
+    @Override
+    public InputStream openByKey(String key) {
+        return fileAccessService.open(requireFileByKey(key));
+    }
+
+    @Override
+    public String prepareExternalAccessByKey(String key, java.time.Duration expiry) {
+        return storageReferenceService.prepareExternalAccess(requireFileByKey(key), expiry);
+    }
+
+    @Override
+    @Transactional
+    public void requestDeleteByKey(String key) {
+        requestDelete(requireFileByKey(key).getId());
     }
 
     @Override
@@ -277,8 +301,8 @@ public class FileRecordService implements FileRecordApi {
         operatorContext.currentOwnerId().ifPresent(record::setOwnerId);
         fileReferenceRepository.save(record);
 
-        if (!"ACTIVE".equals(file.getStorageStatus())) {
-            file.setStorageStatus("ACTIVE");
+        if (!FileStorageStatus.ACTIVE.name().equals(file.getStorageStatus())) {
+            file.setStorageStatus(FileStorageStatus.ACTIVE.name());
             file.setDeleteAfter(null);
             fileRecordRepository.save(file);
         }
@@ -294,7 +318,7 @@ public class FileRecordService implements FileRecordApi {
                 .ifPresent(fileReferenceRepository::delete);
         fileReferenceRepository.flush();
         if (fileReferenceRepository.countByFileId(fileId) == 0) {
-            file.setStorageStatus("PENDING_DELETE");
+            file.setStorageStatus(FileStorageStatus.PENDING_DELETE.name());
             file.setDeleteAfter(LocalDateTime.now().plusDays(DELETE_GRACE_DAYS));
             fileRecordRepository.save(file);
         }
@@ -307,7 +331,7 @@ public class FileRecordService implements FileRecordApi {
         if (fileReferenceRepository.countByFileId(fileId) > 0) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "文件仍被业务对象引用，不能进入删除队列");
         }
-        file.setStorageStatus("PENDING_DELETE");
+        file.setStorageStatus(FileStorageStatus.PENDING_DELETE.name());
         file.setDeleteAfter(LocalDateTime.now());
         fileRecordRepository.save(file);
     }
@@ -326,13 +350,25 @@ public class FileRecordService implements FileRecordApi {
                 page.getContent().stream().map(this::toVO).toList(), page.getTotalElements());
     }
 
+    private FileRecord requireFileByKey(String key) {
+        var file =
+                fileRecordRepository
+                        .findByKey(key)
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "文件不存在"));
+        if (FileStorageStatus.DELETED.name().equals(file.getStorageStatus())) {
+            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "文件已删除");
+        }
+        return file;
+    }
+
     private FileRecord requireFile(Long fileId) {
         var file =
                 fileRecordRepository
                         .findById(fileId)
                         .orElseThrow(
                                 () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "文件不存在"));
-        if ("DELETED".equals(file.getStorageStatus())) {
+        if (FileStorageStatus.DELETED.name().equals(file.getStorageStatus())) {
             throw new BusinessException(GlobalErrorCode.NOT_FOUND, "文件已删除");
         }
         return file;
@@ -345,7 +381,7 @@ public class FileRecordService implements FileRecordApi {
     }
 
     private Long currentStorageConfigId() {
-        return fileConfigRepository.findByMasterTrue().map(config -> config.getId()).orElse(null);
+        return storageReferenceService.resolveCurrentMaster().storageConfigId();
     }
 
     private void checkStorageQuota(Long userId, long newFileSize) {
@@ -362,7 +398,7 @@ public class FileRecordService implements FileRecordApi {
         return new StoredFile(
                 file.getId(),
                 file.getKey(),
-                storageReferenceService.resolve(file).getUrl(file.getKey()),
+                fileAccessService.accessUrl(file.getId()),
                 file.getOriginalName(),
                 file.getMimeType(),
                 file.getSize(),
@@ -374,7 +410,7 @@ public class FileRecordService implements FileRecordApi {
         return new FileRecordVO(
                 entity.getId(),
                 entity.getKey(),
-                storageReferenceService.resolve(entity).getUrl(entity.getKey()),
+                fileAccessService.accessUrl(entity.getId()),
                 entity.getOriginalName(),
                 entity.getMimeType(),
                 entity.getSize(),

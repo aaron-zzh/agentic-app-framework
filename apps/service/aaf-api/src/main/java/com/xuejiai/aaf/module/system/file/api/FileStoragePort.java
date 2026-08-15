@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.system.file.api;
 
+import java.io.InputStream;
+import java.time.Duration;
 import java.util.List;
 
 import org.springframework.web.multipart.MultipartFile;
@@ -17,11 +19,19 @@ public interface FileStoragePort {
 
     StoredFile get(Long fileId);
 
+    StoredFile getByKey(String key);
+
     StoredFile requireCurrentOwner(Long fileId);
 
     List<String> prepareCurrentOwnerImageInputs(List<Long> fileIds);
 
     String getAccessibleUrl(Long fileId);
+
+    InputStream openByKey(String key);
+
+    void requestDeleteByKey(String key);
+
+    String prepareExternalAccessByKey(String key, Duration expiry);
 
     void retain(Long fileId, FileReference reference);
 

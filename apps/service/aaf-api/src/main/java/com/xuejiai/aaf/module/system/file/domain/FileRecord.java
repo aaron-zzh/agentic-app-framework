@@ -75,8 +75,8 @@ public class FileRecord {
     @Column(name = "remark", length = 255)
     private String remark;
 
-    /** 实际存储配置 ID；配置化完成前允许为空。 */
-    @Column(name = "storage_config_id")
+    /** 创建时绑定且不可变的实际存储配置 ID。 */
+    @Column(name = "storage_config_id", nullable = false)
     private Long storageConfigId;
 
     /** 文件内容 SHA-256。 */

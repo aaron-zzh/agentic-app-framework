@@ -7,7 +7,7 @@ package com.xuejiai.aaf.framework.intelligent.ai.vision;
  *
  * <ul>
  *   <li>前端只传 fileKey，不传 URL（避免 URL 伪造与过期问题）
- *   <li>后端 {@link VisionMediaResolver} 从 sys_file 读取 mimeType，从 StorageService 生成签名 URL
+ *   <li>上层文件子域读取元数据，并按文件绑定的存储配置生成短时访问 URL
  *   <li>该对象后续被两条业务路径消费：Spring AI 链路转 {@code Spring AI Media}、AgentScope 链路转 {@code Msg
  *       ImageBlock/VideoBlock}
  * </ul>

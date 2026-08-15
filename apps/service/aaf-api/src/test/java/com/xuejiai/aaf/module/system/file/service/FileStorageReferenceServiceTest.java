@@ -7,17 +7,15 @@ import static org.mockito.Mockito.when;
 
 import java.nio.file.Files;
 import java.time.Duration;
-import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.xuejiai.aaf.common.util.JsonUtils;
-import com.xuejiai.aaf.framework.storage.StorageProperties;
-import com.xuejiai.aaf.framework.storage.StorageService;
-import com.xuejiai.aaf.module.system.file.domain.FileConfig;
+import com.xuejiai.aaf.framework.storage.LocalStorageService;
+import com.xuejiai.aaf.framework.storage.LocalStorageSpec;
+import com.xuejiai.aaf.framework.storage.StorageClient;
+import com.xuejiai.aaf.framework.storage.StorageType;
 import com.xuejiai.aaf.module.system.file.domain.FileRecord;
-import com.xuejiai.aaf.module.system.file.repository.FileConfigRepository;
 
 class FileStorageReferenceServiceTest {
 
@@ -27,25 +25,14 @@ class FileStorageReferenceServiceTest {
         // 准备参数
         var directory = Files.createTempDirectory("aaf-reference-image-");
         Files.write(directory.resolve("image.png"), new byte[] {1, 2, 3});
-        var config = new FileConfig();
-        config.setId(1L);
-        config.setStorageType("LOCAL");
-        config.setConfig(
-                JsonUtils.toJsonString(
-                        new StorageProperties.LocalProperties(directory.toString(), "/files")));
-        var file = imageFile(1L, "image.png");
-        var configRepository = mock(FileConfigRepository.class);
-        when(configRepository.findById(1L)).thenReturn(Optional.of(config));
-        var defaultStorage = mock(StorageService.class);
-        var service =
-                new FileStorageReferenceService(
-                        configRepository,
-                        defaultStorage,
-                        new StorageProperties(
-                                StorageProperties.StorageType.OSS, null, null, null, null));
+        var client = new LocalStorageService(new LocalStorageSpec(directory.toString(), "/unused"));
+        var router = mock(StorageRouter.class);
+        when(router.byConfigId(1L))
+                .thenReturn(new StorageRouter.ResolvedStorage(1L, StorageType.LOCAL, client));
+        var service = new FileStorageReferenceService(router);
 
         // 调用
-        var result = service.prepareImageInput(file);
+        var result = service.prepareImageInput(imageFile(1L, "image.png"));
 
         // 断言
         assertThat(result).isEqualTo("data:image/png;base64,AQID");
@@ -55,28 +42,20 @@ class FileStorageReferenceServiceTest {
     @DisplayName("Given 文件绑定 OSS 配置 When 准备参考图 Then 返回短时签名 URL")
     void should_returnPresignedUrl_when_fileUsesOssStorageConfig() {
         // 准备参数
-        var config = new FileConfig();
-        config.setId(2L);
-        config.setStorageType("OSS");
-        var file = imageFile(2L, "image.png");
-        var configRepository = mock(FileConfigRepository.class);
-        when(configRepository.findById(2L)).thenReturn(Optional.of(config));
-        var defaultStorage = mock(StorageService.class);
-        when(defaultStorage.getPresignedDownloadUrl("image.png", Duration.ofMinutes(5)))
+        var client = mock(StorageClient.class);
+        when(client.getPresignedDownloadUrl("image.png", Duration.ofMinutes(5)))
                 .thenReturn("https://oss.example.com/image.png?signature=temporary");
-        var service =
-                new FileStorageReferenceService(
-                        configRepository,
-                        defaultStorage,
-                        new StorageProperties(
-                                StorageProperties.StorageType.OSS, null, null, null, null));
+        var router = mock(StorageRouter.class);
+        when(router.byConfigId(2L))
+                .thenReturn(new StorageRouter.ResolvedStorage(2L, StorageType.OSS, client));
+        var service = new FileStorageReferenceService(router);
 
         // 调用
-        var result = service.prepareImageInput(file);
+        var result = service.prepareImageInput(imageFile(2L, "image.png"));
 
         // 断言
         assertThat(result).isEqualTo("https://oss.example.com/image.png?signature=temporary");
-        verify(defaultStorage).getPresignedDownloadUrl("image.png", Duration.ofMinutes(5));
+        verify(client).getPresignedDownloadUrl("image.png", Duration.ofMinutes(5));
     }
 
     private static FileRecord imageFile(Long storageConfigId, String key) {

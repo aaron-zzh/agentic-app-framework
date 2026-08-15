@@ -11,25 +11,20 @@ import java.util.UUID;
 
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * 本地文件系统存储实现。
- *
- * <p>文件按日期分目录存储：{basePath}/{yyyy/MM/dd}/{uuid}.{ext}
- */
+/** 本地文件系统存储客户端。 */
 @Slf4j
-public class LocalStorageService implements StorageService {
+public class LocalStorageService implements StorageClient {
 
     private static final DateTimeFormatter DATE_PATH = DateTimeFormatter.ofPattern("yyyy/MM/dd");
 
-    private final StorageProperties.LocalProperties config;
+    private final LocalStorageSpec config;
 
-    public LocalStorageService(StorageProperties.LocalProperties config) {
+    public LocalStorageService(LocalStorageSpec config) {
         this.config = config;
     }
 
     @Override
     public String upload(InputStream input, String filename, String contentType) {
-        // B13：存储层兜底拒绝主动内容，防止绕过 FileService 直调
         UploadPolicy.assertNotActiveContent(filename, contentType);
         var ext = extractExtension(filename);
         var key = LocalDate.now().format(DATE_PATH) + "/" + UUID.randomUUID() + ext;
@@ -62,7 +57,6 @@ public class LocalStorageService implements StorageService {
         }
     }
 
-    /** 安全路径解析——防止路径穿越 */
     private Path resolveSafe(String key) {
         var base = Path.of(config.basePath()).toAbsolutePath().normalize();
         var target = base.resolve(key).normalize();
@@ -74,7 +68,11 @@ public class LocalStorageService implements StorageService {
 
     @Override
     public String getUrl(String key) {
-        return config.urlPrefix() + "/" + key;
+        var urlPrefix = config.urlPrefix();
+        if (urlPrefix == null || urlPrefix.isBlank()) {
+            throw new StorageException("本地存储缺少对象访问 URL 前缀", null);
+        }
+        return urlPrefix.endsWith("/") ? urlPrefix + key : urlPrefix + "/" + key;
     }
 
     @Override
@@ -84,7 +82,6 @@ public class LocalStorageService implements StorageService {
 
     @Override
     public String getPresignedDownloadUrl(String key, Duration expiry) {
-        // 本地存储无签名概念，直接返回普通 URL；调用方需保证该 URL 公网可访问
         return getUrl(key);
     }
 

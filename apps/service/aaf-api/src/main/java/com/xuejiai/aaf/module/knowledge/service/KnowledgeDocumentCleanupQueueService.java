@@ -8,11 +8,11 @@ import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.util.JsonUtils;
-import com.xuejiai.aaf.framework.storage.FileService;
 import com.xuejiai.aaf.framework.task.queue.AsyncTaskMessage;
 import com.xuejiai.aaf.framework.task.queue.TaskHandler;
 import com.xuejiai.aaf.framework.task.queue.TaskQueue;
 import com.xuejiai.aaf.module.knowledge.domain.KnowledgeDocument;
+import com.xuejiai.aaf.module.system.file.api.FileStoragePort;
 
 import lombok.RequiredArgsConstructor;
 
@@ -25,7 +25,7 @@ public class KnowledgeDocumentCleanupQueueService implements TaskHandler {
     private static final String TASK_ID_PREFIX = "knowledge-document-cleanup:";
 
     private final TaskQueue taskQueue;
-    private final FileService fileService;
+    private final FileStoragePort fileStoragePort;
 
     public String enqueue(KnowledgeDocument document) {
         var payload =
@@ -62,7 +62,7 @@ public class KnowledgeDocumentCleanupQueueService implements TaskHandler {
             throw exception(GlobalErrorCode.BAD_REQUEST);
         }
         if (payload.filePath() != null && !payload.filePath().isBlank()) {
-            fileService.delete(payload.filePath());
+            fileStoragePort.requestDeleteByKey(payload.filePath());
         }
         return null;
     }

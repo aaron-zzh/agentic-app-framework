@@ -1,45 +1,29 @@
 package com.xuejiai.aaf.framework.storage;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
-/**
- * 存储服务自动配置。
- *
- * <p>根据 aaf.storage.type 条件注册对应实现 Bean。
- */
-@Configuration
-@EnableConfigurationProperties(StorageProperties.class)
-@ConditionalOnProperty(prefix = "aaf.storage", name = "type")
+/** 存储 SPI 自动配置；只注册无状态工厂，不创建任何默认运行时客户端。 */
+@AutoConfiguration
 public class StorageAutoConfiguration {
 
     @Bean
-    @ConditionalOnProperty(prefix = "aaf.storage", name = "type", havingValue = "local")
-    public StorageService localStorageService(StorageProperties properties) {
-        return new LocalStorageService(properties.local());
+    public StorageClientFactory<LocalStorageSpec> localStorageClientFactory() {
+        return new LocalStorageClientFactory();
     }
 
     @Bean
-    @ConditionalOnProperty(prefix = "aaf.storage", name = "type", havingValue = "s3")
-    public StorageService s3StorageService(StorageProperties properties) {
-        return new S3StorageService(properties.s3());
+    public StorageClientFactory<S3StorageSpec> s3StorageClientFactory() {
+        return new S3StorageClientFactory();
     }
 
     @Bean
-    @ConditionalOnProperty(prefix = "aaf.storage", name = "type", havingValue = "oss")
-    public OssStorageService ossStorageService(StorageProperties properties) {
-        return new OssStorageService(properties.oss());
+    public StorageClientFactory<OssStorageSpec> ossStorageClientFactory() {
+        return new OssStorageClientFactory();
     }
 
     @Bean
     public ImageProcessor imageProcessor() {
         return new ImageProcessor();
-    }
-
-    @Bean
-    public FileService fileService(StorageService storageService, StorageProperties properties) {
-        return new FileService(storageService, properties.uploadOrDefault());
     }
 }

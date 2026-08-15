@@ -102,10 +102,11 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ('sys_operate_type', '导入', '6', 6, 'default')
 ON CONFLICT DO NOTHING;
 
--- sys_file_storage 文件存储类型（与 StorageProperties.StorageType 枚举一致）
+-- sys_file_storage 文件存储类型（与 framework StorageType 枚举一致）
 INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ('sys_file_storage', '本地存储', 'LOCAL', 1, 'default'),
-('sys_file_storage', 'S3 兼容（MinIO / 阿里云 OSS / AWS S3）', 'S3', 2, 'primary')
+('sys_file_storage', 'S3 兼容（MinIO / AWS S3）', 'S3', 2, 'primary'),
+('sys_file_storage', '阿里云 OSS', 'OSS', 3, 'success')
 ON CONFLICT DO NOTHING;
 
 -- sys_oauth_provider OAuth 提供商

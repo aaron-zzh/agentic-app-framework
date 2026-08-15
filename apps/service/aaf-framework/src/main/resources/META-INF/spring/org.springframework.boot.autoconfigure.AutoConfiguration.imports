@@ -15,3 +15,5 @@ com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentScop
 com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.spring.AssistantInfrastructureAutoConfiguration
 # 自动化任务恢复与调度基础设施
 com.xuejiai.aaf.framework.intelligent.infrastructure.automation.spring.AutomationInfrastructureAutoConfiguration
+# 动态文件存储底层客户端工厂（不创建默认运行时客户端）
+com.xuejiai.aaf.framework.storage.StorageAutoConfiguration

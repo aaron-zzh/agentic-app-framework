@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.system.file.api;
 
+import java.io.InputStream;
+import java.time.Duration;
 import java.util.List;
 
 /** 文件子域对其他业务模块暴露的稳定接口。 */
@@ -18,6 +20,8 @@ public interface FileRecordApi {
 
     StoredFile get(Long fileId);
 
+    StoredFile getByKey(String key);
+
     /** 校验当前用户所有权后返回文件记录。 */
     StoredFile requireCurrentOwner(Long fileId);
 
@@ -25,6 +29,12 @@ public interface FileRecordApi {
     List<String> prepareCurrentOwnerImageInputs(List<Long> fileIds);
 
     String getAccessibleUrl(Long fileId);
+
+    InputStream openByKey(String key);
+
+    void requestDeleteByKey(String key);
+
+    String prepareExternalAccessByKey(String key, Duration expiry);
 
     void retain(Long fileId, FileReference reference);
 

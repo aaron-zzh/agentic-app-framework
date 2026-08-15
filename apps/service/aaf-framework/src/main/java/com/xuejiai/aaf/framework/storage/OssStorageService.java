@@ -26,29 +26,31 @@ import lombok.extern.slf4j.Slf4j;
  * <p>使用永久 AccessKey 操作 OSS，并提供 getStsCredentials() 供前端直传分片上传使用。
  */
 @Slf4j
-public class OssStorageService implements StorageService {
+public class OssStorageService implements StorageClient {
 
-    private final StorageProperties.OssProperties props;
+    private final OssStorageSpec props;
     private final OSS ossClient;
     private final DefaultAcsClient stsClient;
 
-    public OssStorageService(StorageProperties.OssProperties props) {
+    public OssStorageService(OssStorageSpec props, StorageCredential credential) {
         this.props = props;
         this.ossClient =
                 OSSClientBuilder.create()
                         .endpoint(props.endpoint())
                         .credentialsProvider(
                                 new com.aliyun.oss.common.auth.DefaultCredentialProvider(
-                                        props.accessKeyId(), props.accessKeySecret()))
+                                        credential.accessKeyId(), credential.accessKeySecret()))
                         .build();
-        var profile = DefaultProfile.getProfile("", props.accessKeyId(), props.accessKeySecret());
+        var profile =
+                DefaultProfile.getProfile(
+                        "", credential.accessKeyId(), credential.accessKeySecret());
         DefaultProfile.addEndpoint("", "Sts", props.stsEndpointOrDefault());
         this.stsClient = new DefaultAcsClient(profile);
     }
 
     @Override
     public String upload(InputStream input, String filename, String contentType) {
-        // B13：存储层兜底拒绝主动内容，防止绕过 FileService 直调
+        // 存储客户端兜底拒绝主动内容，防止绕过应用层上传策略
         UploadPolicy.assertNotActiveContent(filename, contentType);
         var key = buildKey(filename);
         var meta = new com.aliyun.oss.model.ObjectMetadata();
@@ -142,6 +144,12 @@ public class OssStorageService implements StorageService {
         } catch (ClientException e) {
             throw new StorageException("获取 STS 临时凭证失败: " + e.getErrMsg(), e);
         }
+    }
+
+    @Override
+    public void close() {
+        ossClient.shutdown();
+        stsClient.shutdown();
     }
 
     private String buildKey(String filename) {

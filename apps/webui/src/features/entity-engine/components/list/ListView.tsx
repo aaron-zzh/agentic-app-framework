@@ -18,6 +18,7 @@ import { useColumnPreferences } from "@/lib/hooks/use-column-preferences"
 import { useUIStore } from "@/lib/store/ui-store"
 import { buildColumns } from "../../lib/build-columns"
 import type { DataFieldDef, EntityDef } from "../../types"
+import { EntityActions } from "../EntityActions"
 import { registerDefaultComponents } from "../register"
 import type { ViewSettings } from "./components"
 import { ColumnConfigPanel, DataTable, GroupedListView } from "./components"
@@ -153,6 +154,9 @@ export function ListView({
     />
   )
 
+  const hasEntityRowActions =
+    entity.actions?.some((action) => action.position === "rowAction") ?? false
+
   return (
     <DataTable
       columns={tableColumns}
@@ -185,7 +189,8 @@ export function ListView({
         else if (action === "detail") router.push(recordHref(entity.slug, id, queryToken))
       }}
       renderRowActions={
-        !readOnly && (entity.access?.update !== false || entity.access?.delete !== false)
+        !readOnly &&
+        (hasEntityRowActions || entity.access?.update !== false || entity.access?.delete !== false)
           ? (row) => <RowActions row={row} entity={entity} queryToken={queryToken} />
           : undefined
       }
@@ -228,6 +233,7 @@ function RowActions({
   return (
     <>
       <div className="flex items-center gap-1">
+        <EntityActions entity={entity} position="rowAction" record={row} />
         {entity.access?.update !== false && (
           <button
             type="button"

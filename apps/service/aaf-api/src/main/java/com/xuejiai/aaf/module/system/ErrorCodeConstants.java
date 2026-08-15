@@ -160,6 +160,13 @@ public interface ErrorCodeConstants {
 
     // ========== FILE 模块 1_014_000 ==========
     ErrorCode FILE_CONFIG_NOT_FOUND = ErrorCode.of(1_014_000, "文件存储配置不存在");
+    ErrorCode FILE_STORAGE_MASTER_NOT_FOUND = ErrorCode.of(1_014_001, "未配置可用的主文件存储");
+    ErrorCode FILE_STORAGE_CONFIG_INVALID = ErrorCode.of(1_014_002, "文件存储配置无效: {0}");
+    ErrorCode FILE_STORAGE_CONFIG_REFERENCED = ErrorCode.of(1_014_003, "文件存储配置已被引用，只能退役");
+    ErrorCode FILE_STORAGE_CONFIG_MASTER_RETIRED = ErrorCode.of(1_014_004, "主文件存储不能退役，请先切换主配置");
+    ErrorCode FILE_STORAGE_CONFIG_NOT_ACTIVE = ErrorCode.of(1_014_005, "只有启用中的文件存储配置可设为主配置");
+    ErrorCode FILE_STORAGE_ACCESS_FAILED = ErrorCode.of(1_014_006, "文件存储访问失败");
+    ErrorCode FILE_NOT_FOUND = ErrorCode.of(1_014_007, "文件不存在或无权访问");
 
     // ========== PROFILE 模块 1_015_000 ==========
     ErrorCode PROFILE_DIMENSION_CODE_EXISTS = ErrorCode.of(1_015_000, "维度编码已存在: {0}");
