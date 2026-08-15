@@ -75,7 +75,9 @@ public class StorageClientRegistry {
         String key = null;
         RuntimeException originalFailure = null;
         try {
-            key = client.upload(new ByteArrayInputStream(expected), filename, VALIDATION_CONTENT_TYPE);
+            key =
+                    client.upload(
+                            new ByteArrayInputStream(expected), filename, VALIDATION_CONTENT_TYPE);
             try (var downloaded = client.download(key)) {
                 if (downloaded == null || !Arrays.equals(expected, downloaded.readAllBytes())) {
                     throw new StorageException("存储配置回读内容不一致", null);

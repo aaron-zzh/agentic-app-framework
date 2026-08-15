@@ -48,10 +48,10 @@ const BRAND_ICON_RULES: [keyword: string, icon: string][] = [
   ["qwen", "/assets/brand/qwen.png"],
   ["claude", "/assets/brand/claude.svg"],
   ["gemini", "/assets/brand/gemini.svg"],
-  ["gpt", "/assets/brand/chatgpt.svg"],
-  ["o1-", "/assets/brand/chatgpt.svg"],
-  ["o3-", "/assets/brand/chatgpt.svg"],
-  ["o4-", "/assets/brand/chatgpt.svg"]
+  ["gpt", "/assets/brand/gpt-image-2.png"],
+  ["o1-", "/assets/brand/gpt-image-2.png"],
+  ["o3-", "/assets/brand/gpt-image-2.png"],
+  ["o4-", "/assets/brand/gpt-image-2.png"]
 ]
 
 function getBrandIcon(option: ModelOption): string | null {
