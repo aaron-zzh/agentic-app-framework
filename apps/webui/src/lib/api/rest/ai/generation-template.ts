@@ -6,7 +6,7 @@
  * @author AaronZZH & Kiro
  */
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import type { PageResult } from "@/lib/api/types"
 import { notify } from "@/lib/notification"
@@ -48,6 +48,7 @@ export interface PromptTemplateDirectoryParams extends Record<string, QueryParam
   type?: string
   category?: string
   scope?: string
+  search?: string
   page?: number
   size?: number
 }
@@ -59,6 +60,7 @@ export interface MyPromptTemplateParams extends Record<string, QueryParamValue> 
   type?: string
   category?: string
   scope?: string
+  search?: string
   pageNo?: number
   pageSize?: number
 }
@@ -145,6 +147,57 @@ export function useMyPromptTemplates(params: MyPromptTemplateParams = {}, enable
   return useQuery({
     queryKey: [...PROMPT_TEMPLATE_KEY, "me", params] as const,
     queryFn: () => promptTemplateAssetApi.listMine(params),
+    enabled
+  })
+}
+
+/** Studio 系统提示词滚动分页。 */
+export function useInfiniteSystemPromptTemplates(
+  params: SystemPromptTemplateParams = {},
+  enabled = true
+) {
+  return useInfiniteQuery({
+    queryKey: [...PROMPT_TEMPLATE_KEY, "system", "infinite", params] as const,
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) =>
+      promptTemplateAssetApi.listSystem({ ...params, page: pageParam, size: 20 }),
+    getNextPageParam: (lastPage, pages) => {
+      const loaded = pages.reduce((total, page) => total + page.list.length, 0)
+      return loaded < lastPage.total ? pages.length : undefined
+    },
+    enabled
+  })
+}
+
+/** 当前工作区公开提示词滚动分页。 */
+export function useInfinitePublicPromptTemplates(
+  params: PublicPromptTemplateParams = {},
+  enabled = true
+) {
+  return useInfiniteQuery({
+    queryKey: [...PROMPT_TEMPLATE_KEY, "public", "infinite", params] as const,
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) =>
+      promptTemplateAssetApi.listPublic({ ...params, page: pageParam, size: 20 }),
+    getNextPageParam: (lastPage, pages) => {
+      const loaded = pages.reduce((total, page) => total + page.list.length, 0)
+      return loaded < lastPage.total ? pages.length : undefined
+    },
+    enabled
+  })
+}
+
+/** 我的提示词滚动分页。 */
+export function useInfiniteMyPromptTemplates(params: MyPromptTemplateParams = {}, enabled = true) {
+  return useInfiniteQuery({
+    queryKey: [...PROMPT_TEMPLATE_KEY, "me", "infinite", params] as const,
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) =>
+      promptTemplateAssetApi.listMine({ ...params, pageNo: pageParam, pageSize: 20 }),
+    getNextPageParam: (lastPage, pages) => {
+      const loaded = pages.reduce((total, page) => total + page.list.length, 0)
+      return loaded < lastPage.total ? pages.length + 1 : undefined
+    },
     enabled
   })
 }

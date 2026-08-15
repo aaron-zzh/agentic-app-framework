@@ -1181,6 +1181,7 @@ CREATE TABLE aigc_snippet (
     version INTEGER NOT NULL DEFAULT 0,
     org_id BIGINT,
     workspace_id BIGINT,
+    builtin_code VARCHAR(64),
     name VARCHAR(200) NOT NULL,
     category VARCHAR(64),
     content TEXT,
@@ -1202,6 +1203,9 @@ CREATE TABLE aigc_snippet (
     remark VARCHAR(255)
 );
 COMMENT ON TABLE aigc_snippet IS '可复用轻量创作片段，参考文件使用媒体版本 ID';
+CREATE UNIQUE INDEX uk_aigc_snippet_builtin_active
+    ON aigc_snippet (org_id, builtin_code)
+    WHERE deleted = FALSE AND builtin_code IS NOT NULL;
 CREATE INDEX idx_aigc_snippet_owner ON aigc_snippet (owner_id) WHERE deleted = FALSE;
 CREATE INDEX idx_aigc_snippet_category_type ON aigc_snippet (category, project_type_code) WHERE deleted = FALSE;
 

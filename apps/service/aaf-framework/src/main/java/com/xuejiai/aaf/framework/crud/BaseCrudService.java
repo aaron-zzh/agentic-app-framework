@@ -1073,6 +1073,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         if (tableName == null) {
             throw new IllegalStateException("无法解析 CRUD 实体表名: " + getClass().getName());
         }
+        entities.forEach(this::beforeDelete);
         var entityIds = entities.stream().map(BaseEntity::getId).toList();
         genericRelationHandler.cleanupSourceLinks(resourceDefinition().relations(), entityIds);
         entityManager
@@ -1083,6 +1084,8 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
                                 + " WHERE id IN (:ids) AND deleted = false")
                 .setParameter("ids", entityIds)
                 .executeUpdate();
+        entities.forEach(this::afterDelete);
+        consumeEntitlement(-entities.size());
     }
 
     /** 从实体的 {@link Table} 注解解析物理表名，供批量软删除使用；解析失败时返回 null 由调用方拒绝执行 */

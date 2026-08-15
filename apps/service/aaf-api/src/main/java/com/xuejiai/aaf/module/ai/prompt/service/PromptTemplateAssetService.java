@@ -195,6 +195,11 @@ public class PromptTemplateAssetService
         return builder.build();
     }
 
+    @Override
+    protected List<String> optionSearchFields() {
+        return List.of("name", "content");
+    }
+
     /** 当前组织/工作区内公开模板。 */
     public PageResult<PromptTemplateVO> pagePublic(PromptTemplatePageDTO query) {
         query.setIsPublic(true);
@@ -212,19 +217,25 @@ public class PromptTemplateAssetService
     /** Studio 明确标记为 SYSTEM 的全局系统模板；ENGINE 内部 Prompt 永不进入该目录。 */
     public PageResult<PromptTemplateVO> pageSystem(PromptTemplatePageDTO query) {
         enforce(CrudOperation.PAGE, AccessMode.DEFAULT);
-        var spec =
+        var directorySpec =
                 SpecificationBuilder.<PromptTemplate>builder()
                         .eqIfPresent("visibility", PromptTemplate.VISIBILITY_SYSTEM)
                         .eqIfPresent("type", query.getType())
                         .eqIfPresent("scope", query.getScope())
                         .eqIfPresent("category", query.getCategory())
                         .build();
+        var spec =
+                org.springframework.data.jpa.domain.Specification.allOf(
+                        directorySpec, buildSearchSpec(query.getSearch()));
         var pageNo = Math.max(query.getPageNo(), 1);
         var pageSize = Math.max(1, Math.min(query.getPageSize(), DIRECTORY_MAX_PAGE_SIZE));
         var result =
                 repository.findAll(
                         spec,
-                        PageRequest.of(pageNo - 1, pageSize, Sort.by("usageCount").descending()));
+                        PageRequest.of(
+                                pageNo - 1,
+                                pageSize,
+                                Sort.by(Sort.Order.desc("usageCount"), Sort.Order.desc("id"))));
         return new PageResult<>(
                 result.getContent().stream().map(this::toVO).toList(),
                 result.getTotalElements(),

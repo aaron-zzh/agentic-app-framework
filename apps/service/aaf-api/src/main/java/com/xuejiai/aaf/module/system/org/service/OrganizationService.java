@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +30,7 @@ import com.xuejiai.aaf.module.system.org.domain.OrgMember;
 import com.xuejiai.aaf.module.system.org.domain.Organization;
 import com.xuejiai.aaf.module.system.org.domain.Workspace;
 import com.xuejiai.aaf.module.system.org.domain.WorkspaceMember;
+import com.xuejiai.aaf.module.system.org.event.OrganizationCreatedEvent;
 import com.xuejiai.aaf.module.system.org.repository.OrgMemberRepository;
 import com.xuejiai.aaf.module.system.org.repository.OrganizationRepository;
 import com.xuejiai.aaf.module.system.org.repository.WorkspaceMemberRepository;
@@ -63,6 +65,7 @@ public class OrganizationService {
     private final EntitlementChecker entitlementChecker;
     private final OperatorContext operatorContext;
     private final AuthorizationService authorizationService;
+    private final ApplicationEventPublisher eventPublisher;
 
     /** 获取用户可切换的组织；super_admin 可切换全部组织，其他用户仅返回成员组织。 */
     public List<OrganizationVO> listByUser(Long userId) {
@@ -142,6 +145,7 @@ public class OrganizationService {
         member.setRole("owner");
         memberRepository.save(member);
 
+        eventPublisher.publishEvent(new OrganizationCreatedEvent(org.getId()));
         return toVO(org, "owner");
     }
 
@@ -195,6 +199,7 @@ public class OrganizationService {
         workspaceMember.setOwnerId(userId);
         workspaceMemberRepository.save(workspaceMember);
 
+        eventPublisher.publishEvent(new OrganizationCreatedEvent(org.getId()));
         return org;
     }
 

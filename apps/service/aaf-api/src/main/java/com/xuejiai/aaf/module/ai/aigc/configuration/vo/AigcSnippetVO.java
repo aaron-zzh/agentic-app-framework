@@ -15,4 +15,6 @@ public record AigcSnippetVO(
         String projectTypeCode,
         Long brandProfileId,
         Integer useCount,
-        Boolean isPublic) {}
+        Boolean isPublic,
+        boolean builtin,
+        boolean ownedByCurrentUser) {}

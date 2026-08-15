@@ -116,13 +116,17 @@ VALUES
      'allow')
 ON CONFLICT DO NOTHING;
 
--- 创作片段同接口数据范围：普通成员即使伪造 X-Scope: all 也只能访问自己的片段。
+-- 创作片段同接口数据范围：成员可读取自己的片段和公开片段，写操作仍由服务层校验所有权。
 
 INSERT INTO sys_data_access_rule (entity_slug, roles, condition, effect)
 VALUES
     ('snippet',
      '["*"]',
      '{"field":"ownerId","op":"eq","value":"$user.id"}',
+     'allow'),
+    ('snippet',
+     '["*"]',
+     '{"field":"isPublic","op":"eq","value":true}',
      'allow'),
     ('snippet',
      '["org_admin","admin"]',

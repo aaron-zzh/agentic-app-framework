@@ -1,5 +1,5 @@
 /**
- * 创作片段选择器：按通用/我的、分类和关键词筛选，多选后追加到提示词。
+ * 创作片段选择器：按公共/我的、分类和关键词筛选，多选后追加到提示词。
  * @author AaronZZH & Kiro
  */
 
@@ -7,13 +7,15 @@
 
 import { Check, Library, Search } from "lucide-react"
 import { useMemo, useState } from "react"
+import { useDebounce } from "use-debounce"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useAigcSnippets } from "@/lib/api/rest/ai/aigc"
+import { useLoadMoreOnVisible } from "@/features/studio/assets/useLoadMoreOnVisible"
+import { type AigcSnippet, useInfiniteAigcSnippets } from "@/lib/api/rest/ai/aigc"
 import { cn } from "@/lib/utils/cn"
 
 type SnippetSource = "COMMON" | "MINE"
@@ -31,18 +33,27 @@ export function SnippetPickerDialog({
   triggerClassName
 }: SnippetPickerDialogProps) {
   const [open, setOpen] = useState(false)
-  const [source, setSource] = useState<SnippetSource>("COMMON")
+  const [source, setSource] = useState<SnippetSource>("MINE")
   const [search, setSearch] = useState("")
+  const [debouncedSearch] = useDebounce(search.trim(), 300)
   const [activeCategory, setActiveCategory] = useState("全部")
-  const [selectedIds, setSelectedIds] = useState<number[]>([])
-  const { data: page, isLoading } = useAigcSnippets({ pageSize: 200 })
+  const [selectedSnippets, setSelectedSnippets] = useState<AigcSnippet[]>([])
+  const snippetQuery = useInfiniteAigcSnippets({ search: debouncedSearch || undefined }, open)
 
-  const snippets = useMemo(
-    () => (page?.list ?? []).filter((snippet) => Boolean(snippet.content?.trim())),
-    [page?.list]
-  )
+  const snippets = useMemo(() => {
+    const byId = new Map<number, AigcSnippet>()
+    snippetQuery.data?.pages.forEach((page) => {
+      page.list.forEach((snippet) => {
+        if (snippet.content?.trim()) byId.set(snippet.id, snippet)
+      })
+    })
+    return [...byId.values()]
+  }, [snippetQuery.data?.pages])
   const sourceSnippets = useMemo(
-    () => (source === "COMMON" ? snippets.filter((snippet) => snippet.isPublic) : snippets),
+    () =>
+      source === "COMMON"
+        ? snippets.filter((snippet) => snippet.isPublic)
+        : snippets.filter((snippet) => snippet.ownedByCurrentUser),
     [snippets, source]
   )
   const categories = useMemo(
@@ -58,30 +69,28 @@ export function SnippetPickerDialog({
     ],
     [sourceSnippets]
   )
-  const visibleSnippets = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase()
-    return sourceSnippets.filter((snippet) => {
-      if (activeCategory !== "全部" && snippet.category !== activeCategory) return false
-      if (!normalizedSearch) return true
-      return `${snippet.name} ${snippet.content ?? ""} ${snippet.category ?? ""}`
-        .toLowerCase()
-        .includes(normalizedSearch)
-    })
-  }, [activeCategory, search, sourceSnippets])
-  const selectedSnippets = useMemo(() => {
-    const byId = new Map(snippets.map((snippet) => [snippet.id, snippet]))
-    return selectedIds.map((id) => byId.get(id)).filter((snippet) => snippet !== undefined)
-  }, [selectedIds, snippets])
+  const visibleSnippets = useMemo(
+    () =>
+      activeCategory === "全部"
+        ? sourceSnippets
+        : sourceSnippets.filter((snippet) => snippet.category === activeCategory),
+    [activeCategory, sourceSnippets]
+  )
+  const loadMoreRef = useLoadMoreOnVisible({
+    hasNextPage: Boolean(snippetQuery.hasNextPage),
+    isFetchingNextPage: snippetQuery.isFetchingNextPage,
+    fetchNextPage: snippetQuery.fetchNextPage
+  })
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen)
     if (nextOpen) {
-      setSource("COMMON")
+      setSource("MINE")
       setSearch("")
       setActiveCategory("全部")
       return
     }
-    setSelectedIds([])
+    setSelectedSnippets([])
   }
 
   function handleSourceChange(nextSource: SnippetSource) {
@@ -89,9 +98,11 @@ export function SnippetPickerDialog({
     setActiveCategory("全部")
   }
 
-  function toggleSnippet(id: number) {
-    setSelectedIds((current) =>
-      current.includes(id) ? current.filter((selectedId) => selectedId !== id) : [...current, id]
+  function toggleSnippet(snippet: AigcSnippet) {
+    setSelectedSnippets((current) =>
+      current.some((selected) => selected.id === snippet.id)
+        ? current.filter((selected) => selected.id !== snippet.id)
+        : [...current, snippet]
     )
   }
 
@@ -106,7 +117,7 @@ export function SnippetPickerDialog({
     const separator = current && !/[,，;；\s]$/.test(current) ? ", " : ""
     onChange(current ? `${current}${separator}${addition}` : addition)
     setOpen(false)
-    setSelectedIds([])
+    setSelectedSnippets([])
   }
 
   return (
@@ -128,15 +139,15 @@ export function SnippetPickerDialog({
       <PopoverContent align="end" sideOffset={6} className="w-[28rem] max-w-[calc(100vw-2rem)] p-0">
         <div className="flex items-center justify-between border-foreground/6 border-b px-4 py-3">
           <span className="font-semibold text-sm">选择片段</span>
-          <Badge variant="secondary">已选 {selectedIds.length} 个</Badge>
+          <Badge variant="secondary">已选 {selectedSnippets.length} 个</Badge>
         </div>
 
         <div className="flex flex-col gap-2 border-foreground/6 border-b px-3 py-2">
           <div className="flex items-center gap-1">
             {(
               [
-                ["COMMON", "通用"],
-                ["MINE", "我的"]
+                ["MINE", "我的"],
+                ["COMMON", "公共"]
               ] as const
             ).map(([sourceValue, label]) => (
               <button
@@ -184,7 +195,7 @@ export function SnippetPickerDialog({
 
         <ScrollArea className="h-[300px]">
           <div className="flex flex-col gap-1.5 p-3">
-            {isLoading ? (
+            {snippetQuery.isLoading ? (
               Array.from({ length: 3 }).map((_, index) => (
                 <Skeleton key={`snippet-skeleton-${index}`} className="h-16 w-full rounded-xl" />
               ))
@@ -193,18 +204,18 @@ export function SnippetPickerDialog({
                 {search.trim()
                   ? "没有匹配的片段"
                   : source === "COMMON"
-                    ? "暂无通用片段"
+                    ? "暂无公共片段"
                     : "暂无个人片段，请先在资产中心创建"}
               </p>
             ) : (
               visibleSnippets.map((snippet) => {
-                const selected = selectedIds.includes(snippet.id)
+                const selected = selectedSnippets.some((item) => item.id === snippet.id)
                 return (
                   <button
                     key={snippet.id}
                     type="button"
                     aria-pressed={selected}
-                    onClick={() => toggleSnippet(snippet.id)}
+                    onClick={() => toggleSnippet(snippet)}
                     className={cn(
                       "flex w-full items-start gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors",
                       selected
@@ -240,6 +251,18 @@ export function SnippetPickerDialog({
                 )
               })
             )}
+            <div
+              ref={loadMoreRef}
+              className="flex h-8 items-center justify-center text-muted-foreground text-xs"
+            >
+              {snippetQuery.isFetchingNextPage
+                ? "正在加载更多…"
+                : snippetQuery.hasNextPage
+                  ? "继续向下滚动加载"
+                  : visibleSnippets.length > 0
+                    ? "已加载全部片段"
+                    : null}
+            </div>
           </div>
         </ScrollArea>
 
@@ -250,10 +273,10 @@ export function SnippetPickerDialog({
           <Button
             type="button"
             size="sm"
-            disabled={selectedIds.length === 0}
+            disabled={selectedSnippets.length === 0}
             onClick={appendSelected}
           >
-            追加{selectedIds.length > 0 ? ` ${selectedIds.length} 个` : ""}片段
+            追加{selectedSnippets.length > 0 ? ` ${selectedSnippets.length} 个` : ""}片段
           </Button>
         </div>
       </PopoverContent>

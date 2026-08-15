@@ -15,6 +15,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
+import org.springframework.context.ApplicationEventPublisher;
 
 import com.xuejiai.aaf.framework.engine.entitlement.EntitlementChecker;
 import com.xuejiai.aaf.framework.security.OperatorContext;
@@ -23,6 +24,7 @@ import com.xuejiai.aaf.module.system.org.domain.OrgMember;
 import com.xuejiai.aaf.module.system.org.domain.Organization;
 import com.xuejiai.aaf.module.system.org.domain.Workspace;
 import com.xuejiai.aaf.module.system.org.domain.WorkspaceMember;
+import com.xuejiai.aaf.module.system.org.event.OrganizationCreatedEvent;
 import com.xuejiai.aaf.module.system.org.repository.OrgMemberRepository;
 import com.xuejiai.aaf.module.system.org.repository.OrganizationRepository;
 import com.xuejiai.aaf.module.system.org.repository.WorkspaceMemberRepository;
@@ -38,6 +40,7 @@ class OrganizationServiceTest extends BaseMockitoUnitTest {
     @Mock private EntitlementChecker entitlementChecker;
     @Mock private OperatorContext operatorContext;
     @Mock private AuthorizationService authorizationService;
+    @Mock private ApplicationEventPublisher eventPublisher;
 
     private OrganizationService service;
 
@@ -51,7 +54,8 @@ class OrganizationServiceTest extends BaseMockitoUnitTest {
                         workspaceMemberRepository,
                         entitlementChecker,
                         operatorContext,
-                        authorizationService);
+                        authorizationService,
+                        eventPublisher);
     }
 
     @Test
@@ -127,6 +131,12 @@ class OrganizationServiceTest extends BaseMockitoUnitTest {
                                         member.getOrgId().equals(10L)
                                                 && member.getWorkspaceId().equals(20L)
                                                 && member.getUserId().equals(7L)));
+        verify(eventPublisher)
+                .publishEvent(
+                        argThat(
+                                event ->
+                                        event instanceof OrganizationCreatedEvent created
+                                                && created.organizationId().equals(10L)));
     }
 
     @Test

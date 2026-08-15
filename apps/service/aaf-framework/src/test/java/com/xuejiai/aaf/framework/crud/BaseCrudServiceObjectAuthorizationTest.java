@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.framework.crud;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.inOrder;
@@ -12,6 +13,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
@@ -281,6 +283,26 @@ class BaseCrudServiceObjectAuthorizationTest extends BaseMockitoUnitTest {
     }
 
     @Test
+    @DisplayName("Given 批量删除包含业务不可删对象 When 执行 Then 调用逐对象 Hook 并拒绝整批写入")
+    void should_reject_entire_batch_when_before_delete_hook_fails() {
+        var decision = decision(CrudOperation.DELETE_BATCH);
+        var entities = List.of(entity(1L, "OPEN"), entity(2L, "PROTECTED"));
+        when(enforcementService.<TestEntity>enforceRequest(
+                        entry, CrudOperation.DELETE_BATCH, AccessMode.DEFAULT))
+                .thenReturn(decision);
+        when(repository.findAll(any(Specification.class))).thenReturn(entities);
+        service.rejectDelete(2L);
+
+        assertThatThrownBy(() -> service.deleteBatch(List.of(1L, 2L)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("拒绝删除");
+
+        assertThat(service.beforeDeleteIds()).containsExactly(1L, 2L);
+        verify(entityManager, never()).createNativeQuery(any(String.class));
+        verify(genericRelationHandler, never()).cleanupSourceLinks(any(), any());
+    }
+
+    @Test
     @DisplayName("Given GET 详情方法 When 检查事务声明 Then continuation 消费与读取映射共享事务")
     void should_declare_transaction_boundary_for_get_details() throws Exception {
         assertThat(
@@ -359,6 +381,8 @@ class BaseCrudServiceObjectAuthorizationTest extends BaseMockitoUnitTest {
             extends BaseCrudService<TestEntity, String, MutationDTO, MutationDTO, PageParam> {
 
         private final CrudEntityRepository<TestEntity> repository;
+        private final List<Long> beforeDeleteIds = new ArrayList<>();
+        private Long rejectedDeleteId;
 
         private TestCrudService(CrudEntityRepository<TestEntity> repository) {
             this.repository = repository;
@@ -384,6 +408,22 @@ class BaseCrudServiceObjectAuthorizationTest extends BaseMockitoUnitTest {
         @Override
         protected void updateEntity(TestEntity entity, MutationDTO updateDTO) {
             entity.setStatus(updateDTO.status());
+        }
+
+        @Override
+        protected void beforeDelete(TestEntity entity) {
+            beforeDeleteIds.add(entity.getId());
+            if (entity.getId().equals(rejectedDeleteId)) {
+                throw new IllegalStateException("拒绝删除受保护对象");
+            }
+        }
+
+        private void rejectDelete(Long id) {
+            rejectedDeleteId = id;
+        }
+
+        private List<Long> beforeDeleteIds() {
+            return List.copyOf(beforeDeleteIds);
         }
 
         @Override

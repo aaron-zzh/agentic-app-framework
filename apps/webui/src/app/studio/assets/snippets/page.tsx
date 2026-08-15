@@ -1,10 +1,10 @@
 /**
- * /studio/assets/snippets——个人创作片段管理。
+ * /studio/assets/snippets——个人创作片段工作台。
  * @author AaronZZH & Kiro
  */
 
-import { EntityModuleRoute } from "@/sections/entity/view"
+import { SnippetAssetsView } from "@/sections/aigc/assets/view/SnippetAssetsView"
 
 export default function StudioAssetSnippetsPage() {
-  return <EntityModuleRoute kind="list" module="snippet" />
+  return <SnippetAssetsView />
 }

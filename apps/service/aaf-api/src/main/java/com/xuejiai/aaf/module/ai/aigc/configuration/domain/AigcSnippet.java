@@ -25,6 +25,9 @@ import lombok.Setter;
                 "UPDATE aigc_snippet SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class AigcSnippet extends BaseEntity {
 
+    @Column(name = "builtin_code", length = 64)
+    private String builtinCode;
+
     @Column(name = "name", nullable = false, length = 200)
     private String name;
 

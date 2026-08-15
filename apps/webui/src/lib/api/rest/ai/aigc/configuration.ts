@@ -3,9 +3,11 @@
  * @author AaronZZH & Kiro
  */
 
-import { useQuery } from "@tanstack/react-query"
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { notify } from "@/lib/notification"
 import type { PageResult } from "../../../types"
 import { backendApi } from "../../backend-client"
+import type { CrudMeta } from "../../crud/client"
 
 export type AigcConfigStatus = "draft" | "verifying" | "published" | "deprecated" | "withdrawn"
 export type AigcProductionMode = "standard" | "short_drama" | "motion_comic"
@@ -103,6 +105,15 @@ export interface AigcSnippet {
   brandProfileId?: number
   useCount: number
   isPublic: boolean
+  builtin: boolean
+  ownedByCurrentUser: boolean
+}
+
+export interface AigcSnippetInput {
+  name: string
+  category?: string
+  content: string
+  isPublic: boolean
 }
 
 export interface AigcStatusPageParams extends AigcPageParams {
@@ -117,6 +128,8 @@ export interface AigcProjectBlueprintParams extends AigcStatusPageParams {
 export interface AigcSnippetParams extends AigcPageParams {
   category?: string
   projectTypeCode?: AigcProjectTypeCode
+  search?: string
+  sort?: string
 }
 
 const withPage = <T extends AigcPageParams>(
@@ -147,7 +160,20 @@ export const aigcConfigurationApi = {
   snippets: (params: AigcSnippetParams = {}) =>
     backendApi.get<PageResult<AigcSnippet>>("/aigc/snippets", {
       params: withPage(params)
-    })
+    }),
+  snippetMeta: () => backendApi.get<CrudMeta>("/aigc/snippets/_meta"),
+  createSnippet: (input: AigcSnippetInput) =>
+    backendApi.post<AigcSnippet>("/aigc/snippets", {
+      ...input,
+      referenceMediaVersionIds: [],
+      useCount: 0
+    }),
+  updateSnippet: ({ id, version, ...input }: AigcSnippetInput & { id: number; version: number }) =>
+    backendApi.put<AigcSnippet>(`/aigc/snippets/${id}`, {
+      ...input,
+      expectedVersion: version
+    }),
+  deleteSnippet: (id: number) => backendApi.delete<void>(`/aigc/snippets/${id}`)
 }
 
 export const aigcConfigurationKeys = {
@@ -160,7 +186,10 @@ export const aigcConfigurationKeys = {
     ["aigc.configuration", "channel-specs", params] as const,
   domainExtensions: (params: AigcStatusPageParams) =>
     ["aigc.configuration", "domain-extensions", params] as const,
-  snippets: (params: AigcSnippetParams) => ["aigc.configuration", "snippets", params] as const
+  snippets: (params: AigcSnippetParams) => ["aigc.configuration", "snippets", params] as const,
+  infiniteSnippets: (params: AigcSnippetParams) =>
+    ["aigc.configuration", "snippets", "infinite", params] as const,
+  snippetMeta: ["aigc.configuration", "snippets", "meta"] as const
 }
 
 export function useAigcProjectTypes(params: AigcPageParams = {}) {
@@ -196,5 +225,67 @@ export function useAigcSnippets(params: AigcSnippetParams = {}) {
   return useQuery({
     queryKey: aigcConfigurationKeys.snippets(params),
     queryFn: () => aigcConfigurationApi.snippets(params)
+  })
+}
+
+/** 分页追加加载创作片段。 */
+export function useInfiniteAigcSnippets(params: AigcSnippetParams = {}, enabled = true) {
+  return useInfiniteQuery({
+    queryKey: aigcConfigurationKeys.infiniteSnippets(params),
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) =>
+      aigcConfigurationApi.snippets({
+        ...params,
+        pageNo: pageParam,
+        pageSize: 20,
+        sort: params.sort ?? "id:desc"
+      }),
+    getNextPageParam: (lastPage, pages) => {
+      const loaded = pages.reduce((total, page) => total + page.list.length, 0)
+      return loaded < lastPage.total ? pages.length + 1 : undefined
+    },
+    enabled
+  })
+}
+
+/** 后端声明的片段操作能力。 */
+export function useAigcSnippetMeta() {
+  return useQuery({
+    queryKey: aigcConfigurationKeys.snippetMeta,
+    queryFn: aigcConfigurationApi.snippetMeta,
+    staleTime: 5 * 60 * 1000
+  })
+}
+
+export function useCreateAigcSnippet() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: aigcConfigurationApi.createSnippet,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: aigcConfigurationKeys.all })
+      notify.success("片段已创建")
+    }
+  })
+}
+
+export function useUpdateAigcSnippet() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: aigcConfigurationApi.updateSnippet,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: aigcConfigurationKeys.all })
+      notify.success("片段已更新")
+    }
+  })
+}
+
+export function useDeleteAigcSnippet() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: aigcConfigurationApi.deleteSnippet,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: aigcConfigurationKeys.all })
+      notify.success("片段已删除")
+    }
   })
 }

@@ -1,5 +1,5 @@
 /**
- * 提示词资产选择器：按系统、我的、当前工作区公开三个视图筛选并安全应用模板。
+ * 提示词资产选择器：按公共、我的、当前工作区公开三个视图筛选并安全应用模板。
  * @author AaronZZH & Kiro
  */
 
@@ -7,6 +7,7 @@
 
 import { Search, Sparkles } from "lucide-react"
 import { useMemo, useState } from "react"
+import { useDebounce } from "use-debounce"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,12 +16,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useLoadMoreOnVisible } from "@/features/studio/assets/useLoadMoreOnVisible"
 import {
   type PromptTemplateAssetVO,
-  useMyPromptTemplates,
-  usePromptTemplate,
-  usePublicPromptTemplates,
-  useSystemPromptTemplates
+  useInfiniteMyPromptTemplates,
+  useInfinitePublicPromptTemplates,
+  useInfiniteSystemPromptTemplates,
+  usePromptTemplate
 } from "@/lib/api/rest/ai"
 import { cn } from "@/lib/utils/cn"
 
@@ -44,35 +46,33 @@ function isTemplateSource(value: string): value is TemplateSource {
 export function PromptTemplateDialog({
   type,
   onSelect,
-  hasReferenceImages,
   scope = "GENERATION",
   triggerClassName
 }: PromptTemplateDialogProps) {
   const [open, setOpen] = useState(false)
-  const [source, setSource] = useState<TemplateSource>("SYSTEM")
+  const [source, setSource] = useState<TemplateSource>("MINE")
   const [activeCategory, setActiveCategory] = useState("全部")
   const [search, setSearch] = useState("")
+  const [debouncedSearch] = useDebounce(search.trim(), 300)
   const [selectedTemplate, setSelectedTemplate] = useState<PromptTemplateAssetVO | null>(null)
   const [variableValues, setVariableValues] = useState<Record<string, string>>({})
-  const systemQuery = useSystemPromptTemplates(
-    { type, scope, page: 0, size: 100 },
-    open && source === "SYSTEM"
-  )
-  const publicQuery = usePublicPromptTemplates(
-    { type, scope, page: 0, size: 100 },
-    open && source === "WORKSPACE"
-  )
-  const mineQuery = useMyPromptTemplates(
-    { type, scope, pageNo: 1, pageSize: 100 },
-    open && source === "MINE"
-  )
+  const queryParams = { type, scope, search: debouncedSearch || undefined }
+  const systemQuery = useInfiniteSystemPromptTemplates(queryParams, open && source === "SYSTEM")
+  const publicQuery = useInfinitePublicPromptTemplates(queryParams, open && source === "WORKSPACE")
+  const mineQuery = useInfiniteMyPromptTemplates(queryParams, open && source === "MINE")
   const useTemplate = usePromptTemplate()
+  const activeQuery =
+    source === "SYSTEM" ? systemQuery : source === "WORKSPACE" ? publicQuery : mineQuery
 
   const sourceTemplates = useMemo(() => {
-    if (source === "SYSTEM") return systemQuery.data?.list ?? []
-    if (source === "WORKSPACE") return publicQuery.data?.list ?? []
-    return mineQuery.data?.list ?? []
-  }, [mineQuery.data?.list, publicQuery.data?.list, source, systemQuery.data?.list])
+    const byId = new Map<number, PromptTemplateAssetVO>()
+    activeQuery.data?.pages.forEach((page) => {
+      page.list.forEach((template) => {
+        byId.set(template.id, template)
+      })
+    })
+    return [...byId.values()]
+  }, [activeQuery.data?.pages])
   const categories = useMemo(
     () => [
       "全部",
@@ -86,22 +86,19 @@ export function PromptTemplateDialog({
     ],
     [sourceTemplates]
   )
-  const filteredTemplates = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase()
-    return sourceTemplates.filter((template) => {
-      if (activeCategory !== "全部" && template.category !== activeCategory) return false
-      if (!normalizedSearch) return true
-      return `${template.name} ${template.prompt} ${template.category ?? ""}`
-        .toLowerCase()
-        .includes(normalizedSearch)
-    })
-  }, [activeCategory, search, sourceTemplates])
-  const isLoading =
-    source === "SYSTEM"
-      ? systemQuery.isLoading
-      : source === "WORKSPACE"
-        ? publicQuery.isLoading
-        : mineQuery.isLoading
+  const filteredTemplates = useMemo(
+    () =>
+      activeCategory === "全部"
+        ? sourceTemplates
+        : sourceTemplates.filter((template) => template.category === activeCategory),
+    [activeCategory, sourceTemplates]
+  )
+  const loadMoreRef = useLoadMoreOnVisible({
+    hasNextPage: Boolean(activeQuery.hasNextPage),
+    isFetchingNextPage: activeQuery.isFetchingNextPage,
+    fetchNextPage: activeQuery.fetchNextPage
+  })
+  const isLoading = activeQuery.isLoading
   const allVariablesReady =
     selectedTemplate?.variables.every((variable) => Boolean(variableValues[variable]?.trim())) ??
     false
@@ -114,8 +111,8 @@ export function PromptTemplateDialog({
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen)
     if (nextOpen) {
-      setSource("SYSTEM")
-      setActiveCategory(hasReferenceImages ? "图像编辑" : "全部")
+      setSource("MINE")
+      setActiveCategory("全部")
       setSearch("")
       resetSelection()
     }
@@ -222,8 +219,8 @@ export function PromptTemplateDialog({
               <div className="flex flex-wrap items-center gap-2">
                 <Tabs value={source} onValueChange={handleSourceChange}>
                   <TabsList>
-                    <TabsTrigger value="SYSTEM">系统</TabsTrigger>
                     <TabsTrigger value="MINE">我的</TabsTrigger>
+                    <TabsTrigger value="SYSTEM">公共</TabsTrigger>
                     <TabsTrigger value="WORKSPACE">当前工作区公开</TabsTrigger>
                   </TabsList>
                 </Tabs>
@@ -299,6 +296,18 @@ export function PromptTemplateDialog({
                     </button>
                   ))
                 )}
+                <div
+                  ref={loadMoreRef}
+                  className="flex h-8 items-center justify-center text-muted-foreground text-xs"
+                >
+                  {activeQuery.isFetchingNextPage
+                    ? "正在加载更多…"
+                    : activeQuery.hasNextPage
+                      ? "继续向下滚动加载"
+                      : filteredTemplates.length > 0
+                        ? "已加载全部提示词"
+                        : null}
+                </div>
               </div>
             </ScrollArea>
           </>

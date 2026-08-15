@@ -197,11 +197,14 @@ public record CrudResourceDefinition<E extends BaseEntity>(
             CrudQueryDefinition<E> query,
             CrudViewDefinition view) {
         var resolvedSchema = CrudFilterSchema.resolve(query.filterSchema(), types, view);
-        if (resolvedSchema == query.filterSchema()) {
+        var resolvedSortableFields = new LinkedHashSet<>(query.sortableFields());
+        resolvedSortableFields.addAll(Set.of("id", "createTime", "updateTime"));
+        if (resolvedSchema == query.filterSchema()
+                && resolvedSortableFields.equals(query.sortableFields())) {
             return query;
         }
         return new CrudQueryDefinition<>(
-                resolvedSchema, query.sortableFields(), query.defaultSort());
+                resolvedSchema, Set.copyOf(resolvedSortableFields), query.defaultSort());
     }
 
     private static Map<String, Set<FieldCapability>> withQueryCapabilities(

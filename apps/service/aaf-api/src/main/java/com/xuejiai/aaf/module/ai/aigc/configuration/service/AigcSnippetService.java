@@ -1,11 +1,14 @@
 package com.xuejiai.aaf.module.ai.aigc.configuration.service;
 
 import java.util.List;
+import java.util.Objects;
 
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.security.OperatorContext;
@@ -42,6 +45,7 @@ public class AigcSnippetService
 
     @Override
     protected AigcSnippetVO toVO(AigcSnippet entity) {
+        var currentOwnerId = operatorContext.currentOwnerId().orElse(null);
         return new AigcSnippetVO(
                 entity.getId(),
                 entity.getVersion(),
@@ -53,7 +57,9 @@ public class AigcSnippetService
                 entity.getProjectTypeCode(),
                 entity.getBrandProfileId(),
                 entity.getUseCount(),
-                entity.getIsPublic());
+                entity.getIsPublic(),
+                entity.getOwnerId() == null,
+                Objects.equals(entity.getOwnerId(), currentOwnerId));
     }
 
     @Override
@@ -74,6 +80,11 @@ public class AigcSnippetService
         entity.setUseCount(dto.useCount() == null ? 0 : dto.useCount());
         entity.setIsPublic(Boolean.TRUE.equals(dto.isPublic()));
         return entity;
+    }
+
+    @Override
+    protected void beforeUpdate(AigcSnippet entity, AigcSnippetUpdateDTO dto) {
+        requireOwned(entity);
     }
 
     @Override
@@ -99,9 +110,9 @@ public class AigcSnippetService
         AigcConfigurationPatchSupport.required(dto.isPublic(), "isPublic", entity::setIsPublic);
     }
 
-    private void lockMediaVersions(List<Long> mediaVersionIds) {
-        var userId = operatorContext.currentOwnerId().orElseThrow();
-        mediaVersionIds.forEach(mediaVersionId -> mediaApi.getByVersionId(mediaVersionId, userId));
+    @Override
+    protected void beforeDelete(AigcSnippet entity) {
+        requireOwned(entity);
     }
 
     @Override
@@ -110,5 +121,22 @@ public class AigcSnippetService
                 .eqIfPresent("category", request.getCategory())
                 .eqIfPresent("projectTypeCode", request.getProjectTypeCode())
                 .build();
+    }
+
+    @Override
+    protected List<String> optionSearchFields() {
+        return List.of("name", "content");
+    }
+
+    private void lockMediaVersions(List<Long> mediaVersionIds) {
+        var userId = operatorContext.currentOwnerId().orElseThrow();
+        mediaVersionIds.forEach(mediaVersionId -> mediaApi.getByVersionId(mediaVersionId, userId));
+    }
+
+    private void requireOwned(AigcSnippet entity) {
+        var currentOwnerId = operatorContext.currentOwnerId().orElse(null);
+        if (currentOwnerId == null || !Objects.equals(entity.getOwnerId(), currentOwnerId)) {
+            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "创作片段不存在或无权操作");
+        }
     }
 }

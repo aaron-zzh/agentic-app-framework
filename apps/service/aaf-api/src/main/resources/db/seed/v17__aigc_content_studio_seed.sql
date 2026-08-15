@@ -403,6 +403,50 @@ ON CONFLICT (project_type_id, package_version) WHERE deleted = FALSE DO NOTHING;
 -- CRUD 权限与 Resource capability 对齐；业务命令单独声明。
 -- ============================================================
 
+
+-- ============================================================
+-- 内置创作片段
+-- owner_id 为空表示平台内置，只读；is_public=true 允许所有创作者复用。
+-- ============================================================
+
+INSERT INTO aigc_snippet
+    (org_id, workspace_id, builtin_code, name, category, content,
+     reference_media_version_ids, variable_slots, project_type_code, use_count,
+     is_public, owner_id)
+SELECT organization.id,
+       NULL,
+       seed.builtin_code,
+       seed.name,
+       seed.category,
+       seed.content,
+       '[]'::jsonb,
+       NULL,
+       seed.project_type_code,
+       0,
+       TRUE,
+       NULL
+FROM sys_organization organization
+CROSS JOIN (VALUES
+    ('cinematic-lighting', '电影感光影', '风格',
+     '电影级布光，柔和体积光与自然阴影，冷暖色调平衡，层次丰富，高动态范围，画面具有叙事感',
+     NULL::varchar),
+    ('commercial-product-shot', '商业产品棚拍', '产品',
+     '专业商业产品摄影，主体居中，材质纹理清晰，干净渐变背景，柔光箱反射，高级广告质感，细节锐利',
+     'new_product'::varchar),
+    ('natural-portrait', '自然人像质感', '人像',
+     '自然真实的人像摄影，肤色准确，保留细腻皮肤纹理，眼神清晰，柔和轮廓光，浅景深，背景虚化自然',
+     'personal_ip'::varchar),
+    ('golden-ratio-composition', '黄金比例构图', '构图',
+     '黄金比例构图，视觉焦点明确，前中后景层次分明，主体与留白平衡，引导线自然，画面稳定且富有张力',
+     NULL::varchar),
+    ('high-quality-details', '高质量细节增强', '画质',
+     '高清细节，边缘干净，纹理真实，光照一致，色彩自然，避免过度锐化与塑料质感，专业级成片质量',
+     NULL::varchar)
+) AS seed(builtin_code, name, category, content, project_type_code)
+WHERE organization.deleted = FALSE
+ON CONFLICT (org_id, builtin_code) WHERE deleted = FALSE AND builtin_code IS NOT NULL
+DO NOTHING;
+
 INSERT INTO sys_permission_code (name, code, module, resource, action, status)
 VALUES
     ('品牌/IP 资料读取', 'aigc:brand-profile:read', 'aigc', 'brand-profile', 'read', 0),

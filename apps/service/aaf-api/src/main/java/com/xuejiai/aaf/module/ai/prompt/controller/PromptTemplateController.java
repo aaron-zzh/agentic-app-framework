@@ -57,12 +57,14 @@ public class PromptTemplateController
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String scope,
             @RequestParam(required = false) String category,
+            @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
         var query = new PromptTemplatePageDTO();
         query.setType(type);
         query.setScope(scope);
         query.setCategory(category);
+        query.setSearch(search);
         query.setPageNo(page + 1);
         query.setPageSize(size);
         return Result.success(service.pagePublic(query));
@@ -75,12 +77,14 @@ public class PromptTemplateController
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String scope,
             @RequestParam(required = false) String category,
+            @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
         var query = new PromptTemplatePageDTO();
         query.setType(type);
         query.setScope(scope);
         query.setCategory(category);
+        query.setSearch(search);
         query.setPageNo(page + 1);
         query.setPageSize(size);
         return Result.success(service.pageSystem(query));
@@ -93,12 +97,14 @@ public class PromptTemplateController
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String scope,
             @RequestParam(required = false) String category,
+            @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "1") int pageNo,
             @RequestParam(defaultValue = "20") int pageSize) {
         var query = new PromptTemplatePageDTO();
         query.setType(type);
         query.setScope(scope);
         query.setCategory(category);
+        query.setSearch(search);
         query.setPageNo(pageNo);
         query.setPageSize(pageSize);
         return Result.success(service.pageMine(query));
