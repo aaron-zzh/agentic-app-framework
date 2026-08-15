@@ -19,7 +19,9 @@ public final class S3StorageClientFactory implements StorageClientFactory<S3Stor
                 || spec.endpoint() == null
                 || spec.endpoint().isBlank()
                 || spec.bucketName() == null
-                || spec.bucketName().isBlank()) {
+                || spec.bucketName().isBlank()
+                || spec.enablePublicAccess() == null
+                || spec.downloadUrlExpirySeconds() == null) {
             throw new StorageException("S3 存储规格不完整", null);
         }
         return new S3StorageService(spec, credentialProvider.require(spec.credentialRef()));

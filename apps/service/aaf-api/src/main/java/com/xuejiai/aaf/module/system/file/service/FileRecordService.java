@@ -263,8 +263,7 @@ public class FileRecordService implements FileRecordApi {
 
     @Override
     public String getAccessibleUrl(Long fileId) {
-        requireFile(fileId);
-        return fileAccessService.accessUrl(fileId);
+        return fileAccessService.accessUrl(requireFile(fileId));
     }
 
     @Override
@@ -398,7 +397,7 @@ public class FileRecordService implements FileRecordApi {
         return new StoredFile(
                 file.getId(),
                 file.getKey(),
-                fileAccessService.accessUrl(file.getId()),
+                fileAccessService.accessUrl(file),
                 file.getOriginalName(),
                 file.getMimeType(),
                 file.getSize(),
@@ -410,7 +409,7 @@ public class FileRecordService implements FileRecordApi {
         return new FileRecordVO(
                 entity.getId(),
                 entity.getKey(),
-                fileAccessService.accessUrl(entity.getId()),
+                fileAccessService.accessUrl(entity),
                 entity.getOriginalName(),
                 entity.getMimeType(),
                 entity.getSize(),

@@ -19,7 +19,9 @@ public final class OssStorageClientFactory implements StorageClientFactory<OssSt
                 || spec.endpoint() == null
                 || spec.endpoint().isBlank()
                 || spec.bucketName() == null
-                || spec.bucketName().isBlank()) {
+                || spec.bucketName().isBlank()
+                || spec.enablePublicAccess() == null
+                || spec.downloadUrlExpirySeconds() == null) {
             throw new StorageException("OSS 存储规格不完整", null);
         }
         return new OssStorageService(spec, credentialProvider.require(spec.credentialRef()));

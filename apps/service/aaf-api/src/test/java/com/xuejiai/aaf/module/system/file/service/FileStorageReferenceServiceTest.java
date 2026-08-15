@@ -28,7 +28,14 @@ class FileStorageReferenceServiceTest {
         var client = new LocalStorageService(new LocalStorageSpec(directory.toString(), "/unused"));
         var router = mock(StorageRouter.class);
         when(router.byConfigId(1L))
-                .thenReturn(new StorageRouter.ResolvedStorage(1L, StorageType.LOCAL, client));
+                .thenReturn(
+                        new StorageRouter.ResolvedStorage(
+                                1L,
+                                StorageType.LOCAL,
+                                "http://localhost:8080",
+                                false,
+                                Duration.ofHours(1),
+                                client));
         var service = new FileStorageReferenceService(router);
 
         // 调用
@@ -43,11 +50,13 @@ class FileStorageReferenceServiceTest {
     void should_returnPresignedUrl_when_fileUsesOssStorageConfig() {
         // 准备参数
         var client = mock(StorageClient.class);
-        when(client.getPresignedDownloadUrl("image.png", Duration.ofMinutes(5)))
+        when(client.getPresignedDownloadUrl("image.png", Duration.ofMinutes(30)))
                 .thenReturn("https://oss.example.com/image.png?signature=temporary");
         var router = mock(StorageRouter.class);
         when(router.byConfigId(2L))
-                .thenReturn(new StorageRouter.ResolvedStorage(2L, StorageType.OSS, client));
+                .thenReturn(
+                        new StorageRouter.ResolvedStorage(
+                                2L, StorageType.OSS, "", false, Duration.ofHours(1), client));
         var service = new FileStorageReferenceService(router);
 
         // 调用
@@ -55,7 +64,7 @@ class FileStorageReferenceServiceTest {
 
         // 断言
         assertThat(result).isEqualTo("https://oss.example.com/image.png?signature=temporary");
-        verify(client).getPresignedDownloadUrl("image.png", Duration.ofMinutes(5));
+        verify(client).getPresignedDownloadUrl("image.png", Duration.ofMinutes(30));
     }
 
     private static FileRecord imageFile(Long storageConfigId, String key) {

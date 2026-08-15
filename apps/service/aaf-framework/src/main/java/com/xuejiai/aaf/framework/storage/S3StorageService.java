@@ -34,7 +34,7 @@ public class S3StorageService implements StorageClient {
     private final S3Client s3Client;
     private final S3Presigner presigner;
     private final String bucketName;
-    private final String endpoint;
+    private final String domain;
 
     public S3StorageService(S3StorageSpec spec, StorageCredential credential) {
         var credentials =
@@ -60,7 +60,7 @@ public class S3StorageService implements StorageClient {
                         .build();
 
         this.bucketName = spec.bucketName();
-        this.endpoint = spec.endpoint();
+        this.domain = spec.domainOrDefault();
     }
 
     @Override
@@ -112,7 +112,7 @@ public class S3StorageService implements StorageClient {
 
     @Override
     public String getUrl(String key) {
-        return endpoint + "/" + bucketName + "/" + key;
+        return domain + "/" + key;
     }
 
     /**

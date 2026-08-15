@@ -74,11 +74,7 @@ public class OssStorageService implements StorageClient {
 
     @Override
     public String getUrl(String key) {
-        var prefix = props.urlPrefix();
-        if (prefix != null && !prefix.isBlank()) {
-            return prefix.endsWith("/") ? prefix + key : prefix + "/" + key;
-        }
-        return "https://" + props.bucketName() + "." + props.endpoint() + "/" + key;
+        return props.domainOrDefault() + "/" + key;
     }
 
     /**
@@ -139,7 +135,7 @@ public class OssStorageService implements StorageClient {
                     props.bucketName(),
                     props.endpoint(),
                     region,
-                    props.urlPrefix(),
+                    props.domain(),
                     null);
         } catch (ClientException e) {
             throw new StorageException("获取 STS 临时凭证失败: " + e.getErrMsg(), e);
@@ -161,21 +157,14 @@ public class OssStorageService implements StorageClient {
     }
 
     /**
-     * 从访问 URL 反推存储 key（去掉 urlPrefix）。
+     * 从访问 URL 反推存储 key（去掉实际生效 domain）。
      *
      * @return key；无法解析时返回 null
      */
     public String urlToKey(String url) {
         if (url == null) return null;
-        var prefix = props.urlPrefix();
-        if (prefix != null && !prefix.isBlank()) {
-            String base = prefix.endsWith("/") ? prefix : prefix + "/";
-            if (url.startsWith(base)) return url.substring(base.length());
-        }
-        // fallback：去掉 https://bucket.endpoint/ 前缀
-        String base = "https://" + props.bucketName() + "." + props.endpoint() + "/";
-        if (url.startsWith(base)) return url.substring(base.length());
-        return null;
+        var base = props.domainOrDefault() + "/";
+        return url.startsWith(base) ? url.substring(base.length()) : null;
     }
 
     /**

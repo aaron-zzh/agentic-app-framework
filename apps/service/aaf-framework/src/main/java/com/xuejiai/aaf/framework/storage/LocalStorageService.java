@@ -68,11 +68,11 @@ public class LocalStorageService implements StorageClient {
 
     @Override
     public String getUrl(String key) {
-        var urlPrefix = config.urlPrefix();
-        if (urlPrefix == null || urlPrefix.isBlank()) {
-            throw new StorageException("本地存储缺少对象访问 URL 前缀", null);
+        var domain = config.domain();
+        if (domain == null || domain.isBlank()) {
+            throw new StorageException("本地存储缺少后端访问 domain", null);
         }
-        return urlPrefix.endsWith("/") ? urlPrefix + key : urlPrefix + "/" + key;
+        return domain.endsWith("/") ? domain + key : domain + "/" + key;
     }
 
     @Override

@@ -6,6 +6,7 @@ import static com.xuejiai.aaf.module.system.ErrorCodeConstants.FILE_STORAGE_CONF
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.FILE_STORAGE_CONFIG_NOT_ACTIVE;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.FILE_STORAGE_CONFIG_REFERENCED;
 
+import java.net.URI;
 import java.util.Objects;
 
 import org.springframework.stereotype.Service;
@@ -47,6 +48,7 @@ public class FileConfigService
     private final FileConfigRepository repository;
     private final FileRecordRepository fileRecordRepository;
     private final StorageClientRegistry storageClientRegistry;
+    private final StorageRouter storageRouter;
     private final StorageCredentialProvider credentialProvider;
 
     @Override
@@ -155,7 +157,10 @@ public class FileConfigService
                         (entity, ignored) -> entity.setMaster(true),
                         (entity, ignored) -> null,
                         true,
-                        (entity, ignored, result) -> repository.clearMasterExcept(entity.getId()),
+                        (entity, ignored, result) -> {
+                            repository.clearMasterExcept(entity.getId());
+                            invalidateMasterAfterCommit();
+                        },
                         (entity, ignored, result) -> toVO(entity)));
     }
 
@@ -256,21 +261,58 @@ public class FileConfigService
 
     private void validateLocal(LocalStorageSpec spec) {
         requireText(spec.basePath(), "本地存储配置缺少 basePath");
-        requireText(spec.urlPrefix(), "本地存储配置缺少对象访问 URL 前缀");
+        validateDomain(spec.domain(), true, "本地存储配置缺少或包含无效 domain");
     }
 
     private void validateS3(S3StorageSpec spec) {
         requireText(spec.endpoint(), "S3 存储配置缺少 endpoint");
         requireText(spec.bucketName(), "S3 存储配置缺少 bucketName");
         requireText(spec.credentialRef(), "S3 存储配置缺少 credentialRef");
+        validateRemoteAccess(
+                spec.domain(), spec.enablePublicAccess(), spec.downloadUrlExpirySeconds(), "S3");
     }
 
     private void validateOss(OssStorageSpec spec) {
         requireText(spec.endpoint(), "OSS 存储配置缺少 endpoint");
         requireText(spec.bucketName(), "OSS 存储配置缺少 bucketName");
         requireText(spec.credentialRef(), "OSS 存储配置缺少 credentialRef");
+        validateRemoteAccess(
+                spec.domain(), spec.enablePublicAccess(), spec.downloadUrlExpirySeconds(), "OSS");
         if (spec.durationSeconds() != null && spec.durationSeconds() < 900) {
             throw new IllegalArgumentException("OSS 存储配置 durationSeconds 不能小于 900");
+        }
+    }
+
+    private void validateRemoteAccess(
+            String domain, Boolean enablePublicAccess, Integer expirySeconds, String label) {
+        if (enablePublicAccess == null) {
+            throw new IllegalArgumentException(label + " 存储配置缺少 enablePublicAccess");
+        }
+        validateDomain(domain, false, label + " 存储配置包含无效 domain");
+        if (expirySeconds == null || expirySeconds < 60 || expirySeconds > 86_400) {
+            throw new IllegalArgumentException(
+                    label + " 存储配置 downloadUrlExpirySeconds 必须在 60 到 86400 之间");
+        }
+    }
+
+    private void validateDomain(String domain, boolean required, String message) {
+        if (domain == null || domain.isBlank()) {
+            if (required) {
+                throw new IllegalArgumentException(message);
+            }
+            return;
+        }
+        try {
+            var uri = URI.create(domain);
+            if (uri.getHost() == null
+                    || (!("http".equalsIgnoreCase(uri.getScheme()))
+                            && !("https".equalsIgnoreCase(uri.getScheme())))
+                    || uri.getQuery() != null
+                    || uri.getFragment() != null) {
+                throw new IllegalArgumentException(message);
+            }
+        } catch (RuntimeException failure) {
+            throw new IllegalArgumentException(message);
         }
     }
 
@@ -328,7 +370,14 @@ public class FileConfigService
     }
 
     private void invalidateAfterCommit(Long configId) {
-        var callback = (Runnable) () -> storageClientRegistry.invalidate(configId);
+        afterCommit(() -> storageRouter.invalidate(configId));
+    }
+
+    private void invalidateMasterAfterCommit() {
+        afterCommit(storageRouter::invalidateMaster);
+    }
+
+    private void afterCommit(Runnable callback) {
         if (TransactionSynchronizationManager.isActualTransactionActive()
                 && TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(

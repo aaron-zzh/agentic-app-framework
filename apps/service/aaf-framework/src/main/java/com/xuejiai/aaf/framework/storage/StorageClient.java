@@ -12,7 +12,7 @@ public interface StorageClient extends AutoCloseable {
 
     void delete(String key);
 
-    /** 返回存储提供方地址；浏览器访问必须由业务层 FileAccessService 统一代理。 */
+    /** 返回存储配置对应的稳定公开地址；私有访问由业务层按需生成预签名 URL。 */
     String getUrl(String key);
 
     PresignedUploadTicket getPresignedUploadUrl(PresignedUploadRequest request);
