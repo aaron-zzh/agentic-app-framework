@@ -13,8 +13,7 @@ import com.xuejiai.aaf.framework.storage.StorageCredentialProvider;
 /** 阿里云图像处理 SDK 自动配置，复用 {@code aaf.storage.credentials.oss-default} 凭证。 */
 @Configuration
 @ConditionalOnClass(name = "com.aliyun.imageenhan20190930.Client")
-@ConditionalOnProperty(
-        prefix = "aaf.ai.image-process", name = "enabled", havingValue = "true")
+@ConditionalOnProperty(prefix = "aaf.ai.image-process", name = "enabled", havingValue = "true")
 public class AliyunImageProcessAutoConfiguration {
 
     private static final String CREDENTIAL_REF = "oss-default";
