@@ -1,8 +1,13 @@
 package com.xuejiai.aaf.module.system.file.service;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.stereotype.Component;
@@ -11,6 +16,7 @@ import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.storage.StorageClient;
 import com.xuejiai.aaf.framework.storage.StorageClientFactory;
 import com.xuejiai.aaf.framework.storage.StorageCredentialProvider;
+import com.xuejiai.aaf.framework.storage.StorageException;
 import com.xuejiai.aaf.framework.storage.StorageSpec;
 import com.xuejiai.aaf.framework.storage.StorageType;
 import com.xuejiai.aaf.module.system.file.domain.FileConfig;
@@ -18,6 +24,8 @@ import com.xuejiai.aaf.module.system.file.domain.FileConfig;
 /** 单实例一期动态存储客户端注册表。 */
 @Component
 public class StorageClientRegistry {
+
+    private static final String VALIDATION_CONTENT_TYPE = "text/plain";
 
     private final Map<StorageType, StorageClientFactory<?>> factories;
     private final StorageCredentialProvider credentialProvider;
@@ -53,9 +61,48 @@ public class StorageClientRegistry {
         return registered.client();
     }
 
+    /** 通过上传、回读和删除临时对象验证存储配置的完整可用性。 */
     public void validate(StorageType type, String configJson) {
-        var client = create(type, configJson);
-        client.close();
+        try (var client = create(type, configJson)) {
+            probe(client);
+        }
+    }
+
+    private void probe(StorageClient client) {
+        var token = UUID.randomUUID().toString();
+        var filename = "aaf-storage-validation-" + token + ".txt";
+        var expected = ("AAF storage validation: " + token).getBytes(StandardCharsets.UTF_8);
+        String key = null;
+        RuntimeException originalFailure = null;
+        try {
+            key = client.upload(new ByteArrayInputStream(expected), filename, VALIDATION_CONTENT_TYPE);
+            try (var downloaded = client.download(key)) {
+                if (downloaded == null || !Arrays.equals(expected, downloaded.readAllBytes())) {
+                    throw new StorageException("存储配置回读内容不一致", null);
+                }
+            } catch (IOException failure) {
+                throw new StorageException("存储配置回读失败", failure);
+            }
+        } catch (RuntimeException failure) {
+            originalFailure = failure;
+            throw failure;
+        } finally {
+            if (key != null) {
+                deleteProbeObject(client, key, originalFailure);
+            }
+        }
+    }
+
+    private void deleteProbeObject(
+            StorageClient client, String key, RuntimeException originalFailure) {
+        try {
+            client.delete(key);
+        } catch (RuntimeException cleanupFailure) {
+            if (originalFailure == null) {
+                throw cleanupFailure;
+            }
+            originalFailure.addSuppressed(cleanupFailure);
+        }
     }
 
     public void invalidate(Long configId) {
