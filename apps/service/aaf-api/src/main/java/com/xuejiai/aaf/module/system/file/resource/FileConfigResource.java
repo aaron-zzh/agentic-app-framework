@@ -43,7 +43,7 @@ public final class FileConfigResource {
                                             CrudOperation.DELETE_BATCH),
                             new CrudQueryDefinition<>(
                                     CrudFilterSchema.auto(),
-                                    Set.of("name", "storageType", "master", "status"),
+                                    Set.of("id", "name", "storageType", "master", "status"),
                                     Sort.by("id").descending()),
                             com.xuejiai.aaf.framework.crud.definition.CrudMutationDefinition
                                     .forTypes(TYPES),

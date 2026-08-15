@@ -357,8 +357,13 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
      */
     private Pageable buildPageable(P request, CrudEnforcementDecision<E> decision) {
         var requestedSort = request.buildSort();
+        var declaredSortableFields = sortableFields();
         for (var order : requestedSort) {
-            decision.fieldPolicy().require(order.getProperty(), FieldCapability.SORT);
+            var field = order.getProperty();
+            if (!declaredSortableFields.contains(field)) {
+                throw exception(GlobalErrorCode.SORT_FIELD_NOT_SUPPORTED, field);
+            }
+            decision.fieldPolicy().require(field, FieldCapability.SORT);
         }
         return request.toPageable(defaultSort(), requestedSort);
     }
