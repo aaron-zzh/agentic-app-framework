@@ -257,8 +257,8 @@ export function SkillPickerContent({ defaultCategory, onClose }: SkillPickerCont
                 </EmptyTitle>
                 <EmptyDescription>
                   {directory.value === "MINE"
-                    ? "创建技能后可立即选择使用。"
-                    : "公共目录包含平台内置和工作区公开技能。"}
+                    ? "创建技能后可立即选择使用"
+                    : "平台内置和工作区公开技能"}
                 </EmptyDescription>
               </EmptyHeader>
               {canCreate && !debouncedSearch ? (

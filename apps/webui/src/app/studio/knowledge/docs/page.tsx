@@ -58,7 +58,15 @@ export default function StudioKnowledgeDocsPage() {
   const createDoc = (
     p: { title: string; content: string },
     opts: { onSuccess: (doc: { id: number }) => void }
-  ) => createDocMutate({ title: p.title, content: p.content, filePath: "", docType: "guide" }, opts)
+  ) =>
+    createDocMutate(
+      { title: p.title, content: p.content, filePath: "", docType: "guide" },
+      {
+        onSuccess: (doc) => {
+          if (doc.id !== null) opts.onSuccess({ id: doc.id })
+        }
+      }
+    )
 
   useDocEvents(typeof selectedId === "number" ? selectedId : null, () => {
     queryClient.invalidateQueries({ queryKey: docKeys.list })

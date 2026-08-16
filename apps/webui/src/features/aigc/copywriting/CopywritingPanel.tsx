@@ -39,7 +39,8 @@ export function CopywritingPanel({ actions, projectId }: Props) {
     setContent,
     generating,
     saved,
-    setSaved,
+    saving,
+    documentId,
     streamingEditorRef,
     viralStep,
     setViralStep,
@@ -50,8 +51,6 @@ export function CopywritingPanel({ actions, projectId }: Props) {
     analyzing,
     analysisEditorRef,
     resultEditorRef,
-    createDoc,
-    linkDoc,
     handleSaveDoc,
     handleGenerate,
     handleRewrite,
@@ -109,10 +108,7 @@ export function CopywritingPanel({ actions, projectId }: Props) {
               variant="ghost"
               size="icon-sm"
               className="absolute top-0.5 right-1 opacity-60 hover:opacity-100"
-              onClick={() => {
-                setSaved(false)
-                setOpen(false)
-              }}
+              onClick={() => setOpen(false)}
               aria-label="关闭"
             >
               <X className="size-4" />
@@ -124,7 +120,9 @@ export function CopywritingPanel({ actions, projectId }: Props) {
             <CopywritingHeader
               showDocActions={type !== "viral" || viralStep === 3}
               saved={saved}
-              savePending={createDoc.isPending || linkDoc.isPending}
+              saving={saving}
+              generating={generating}
+              documentId={documentId}
               onSaveDoc={handleSaveDoc}
             />
 

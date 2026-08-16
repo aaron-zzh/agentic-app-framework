@@ -2,8 +2,11 @@ package com.xuejiai.aaf.module.ai.aigc.project.service;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -20,6 +23,7 @@ import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.crud.definition.CrudOperation;
 import com.xuejiai.aaf.framework.crud.enforcement.AccessMode;
+import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionApi;
 import com.xuejiai.aaf.module.ai.aigc.image.api.AigcBatchGenerationApi;
@@ -228,6 +232,42 @@ public class AigcProjectService
     @Override
     public AigcProjectView requireProject(Long projectId) {
         return toApiView(requireEntity(projectId));
+    }
+
+    @Override
+    public Set<Long> findLinkedDocumentIds(
+            Long ownerId, Long orgId, Long workspaceId, Long projectId) {
+        requireCurrentScope(ownerId, orgId, workspaceId);
+        if (projectId != null) {
+            var project = requireEntity(projectId);
+            requireProjectScope(project, ownerId, orgId, workspaceId);
+        }
+        return new LinkedHashSet<>(
+                documentRefRepository.findLinkedDocumentIds(
+                        ownerId, orgId, workspaceId, projectId));
+    }
+
+    @Override
+    public List<DocumentProjectReference> findDocumentProjects(
+            Long ownerId, Long orgId, Long workspaceId, Collection<Long> documentIds) {
+        requireCurrentScope(ownerId, orgId, workspaceId);
+        if (documentIds == null || documentIds.isEmpty()) {
+            return List.of();
+        }
+        var ids = new LinkedHashSet<>(documentIds);
+        ids.remove(null);
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return documentRefRepository.findDocumentProjects(ownerId, orgId, workspaceId, ids).stream()
+                .map(
+                        row ->
+                                new DocumentProjectReference(
+                                        row.getDocumentId(),
+                                        row.getProjectId(),
+                                        row.getProjectName()))
+                .distinct()
+                .toList();
     }
 
     @Override
@@ -692,8 +732,11 @@ public class AigcProjectService
         if (request.objectId() != null) {
             requireObject(projectId, request.objectId(), false);
         }
-        documentReferenceApi.requireOwned(
-                List.of(request.documentVersionId()), project.getOwnerId());
+        documentReferenceApi.requireAccessible(
+                List.of(request.documentVersionId()),
+                project.getOwnerId(),
+                project.getOrgId(),
+                project.getWorkspaceId());
         var role =
                 request.role() == null || request.role().isBlank()
                         ? "project"
@@ -989,6 +1032,40 @@ public class AigcProjectService
         target.setOrgId(project.getOrgId());
         target.setWorkspaceId(project.getWorkspaceId());
         target.setOwnerId(project.getOwnerId());
+    }
+
+    private void requireCurrentScope(Long ownerId, Long orgId, Long workspaceId) {
+        if (ownerId == null || orgId == null) {
+            throw badRequest("文档查询范围不能为空");
+        }
+        var currentOwnerId =
+                operatorContext
+                        .currentOwnerId()
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.UNAUTHORIZED, "账号未登录"));
+        var currentOrgId = OrgContext.getCurrentOrgId();
+        if (currentOrgId == null) {
+            throw badRequest("当前组织不能为空");
+        }
+        if (!Objects.equals(ownerId, currentOwnerId)
+                || !Objects.equals(orgId, currentOrgId)
+                || !Objects.equals(workspaceId, OrgContext.getCurrentWorkspaceId())) {
+            throw new BusinessException(GlobalErrorCode.FORBIDDEN, "项目查询范围与当前上下文不一致");
+        }
+    }
+
+    private void requireProjectScope(
+            AigcProject project, Long ownerId, Long orgId, Long workspaceId) {
+        var workspaceAccessible =
+                workspaceId == null
+                        ? project.getWorkspaceId() == null
+                        : project.getWorkspaceId() == null
+                                || Objects.equals(project.getWorkspaceId(), workspaceId);
+        if (!Objects.equals(project.getOwnerId(), ownerId)
+                || !Objects.equals(project.getOrgId(), orgId)
+                || !workspaceAccessible) {
+            throw notFound("项目不存在");
+        }
     }
 
     private BusinessException badRequest(String message) {

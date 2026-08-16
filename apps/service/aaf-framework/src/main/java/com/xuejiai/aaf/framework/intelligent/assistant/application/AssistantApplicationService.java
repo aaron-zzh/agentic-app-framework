@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -107,8 +108,9 @@ public final class AssistantApplicationService implements AssistantCommandPort {
     }
 
     @Override
-    public Flux<ExecutionEvent> execute(AssistantCommand command) {
-        Objects.requireNonNull(command, "command 不能为空");
+    public Flux<ExecutionEvent> invoke(AssistantInvocation invocation) {
+        Objects.requireNonNull(invocation, "invocation 不能为空");
+        var command = invocation.command();
         if (command.controlMode()
                         == com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent
                                 .ControlMode.DELEGATED
@@ -127,9 +129,9 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         return Flux.defer(
                         () ->
                                 command.operation() == AssistantCommand.Operation.SUBTASK
-                                        ? executeSubTask(command)
+                                        ? executeSubTask(invocation)
                                         : command.operation().executesAgent()
-                                                ? executeAgent(command, taskRef, taskProgressed)
+                                                ? executeAgent(invocation, taskRef, taskProgressed)
                                                 : controlTask(command))
                 .doOnNext(event -> failureSequence.accumulateAndGet(event.sequence(), Math::max))
                 .onErrorResume(
@@ -147,19 +149,17 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                         : reactor.core.publisher.Mono.just(event));
     }
 
-    private Flux<ExecutionEvent> executeSubTask(AssistantCommand command) {
+    private Flux<ExecutionEvent> executeSubTask(AssistantInvocation invocation) {
+        var command = invocation.command();
         var definition = requireDefinition(command);
         definition.requireControlMode(command.controlMode());
         requirePublished(definition);
-        var route =
-                skillRouter
-                        .route(definition, command.input(), command.userId())
-                        .orElseThrow(() -> new IllegalStateException("子任务没有可用的 SkillRoute"));
+        var route = resolveRoute(invocation, definition, "子任务没有可用的 SkillRoute");
         if (!definition.toolPolicy().allows(command.controlMode(), route.actionEffect())) {
             throw new IllegalStateException("当前控制模式禁止子任务动作: " + route.actionKey());
         }
         var memoryContext =
-                longTermMemoryEnabled(command, definition)
+                longTermMemoryEnabled(invocation, definition)
                         ? memoryContexts.prepare(
                                 new RecallQuery(
                                         command.memorySubject(),
@@ -170,7 +170,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         : MemoryContextPort.MemoryContext.empty();
         return agentExecution.execute(
                 agentCommand(
-                        command,
+                        invocation,
                         route,
                         definition,
                         command.sequenceBase(),
@@ -178,9 +178,10 @@ public final class AssistantApplicationService implements AssistantCommandPort {
     }
 
     private Flux<ExecutionEvent> executeAgent(
-            AssistantCommand command,
+            AssistantInvocation invocation,
             AtomicReference<AssistantTask> taskRef,
             AtomicBoolean taskProgressed) {
+        var command = invocation.command();
         var sequence = new AtomicLong(command.sequenceBase());
         var emitted = new ArrayList<ExecutionEvent>();
         var task =
@@ -199,16 +200,13 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             task = prepareTask(command, sequence, emitted, taskRef, taskProgressed);
             taskRef.set(task);
         }
-        var route =
-                skillRouter
-                        .route(definition, command.input(), command.userId())
-                        .orElseThrow(() -> new IllegalStateException("没有可用的 SkillRoute"));
+        var route = resolveRoute(invocation, definition, "没有可用的 SkillRoute");
         if (!definition.toolPolicy().allows(command.controlMode(), route.actionEffect())) {
             throw new IllegalStateException("当前控制模式禁止业务动作: " + route.actionKey());
         }
 
         var memoryContext =
-                longTermMemoryEnabled(command, definition)
+                longTermMemoryEnabled(invocation, definition)
                         ? memoryContexts.prepare(
                                 new RecallQuery(
                                         command.memorySubject(),
@@ -245,7 +243,8 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         taskProgressed.set(true);
         var agentEvents = new ArrayList<ExecutionEvent>();
         var agentCommand =
-                agentCommand(command, route, definition, sequence.get(), memoryContext.messages());
+                agentCommand(
+                        invocation, route, definition, sequence.get(), memoryContext.messages());
 
         var executionEvents =
                 agentExecution
@@ -258,7 +257,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         return Flux.concat(
                 Flux.fromIterable(emitted),
                 executionEvents,
-                Flux.defer(() -> finalizeTask(command, taskRef, route, agentEvents, sequence)));
+                Flux.defer(() -> finalizeTask(invocation, taskRef, route, agentEvents, sequence)));
     }
 
     private Flux<ExecutionEvent> controlTask(AssistantCommand command) {
@@ -317,9 +316,36 @@ public final class AssistantApplicationService implements AssistantCommandPort {
      * 不触发结构化抽取/embedding/向量检索去重，也不参与登录后记忆合并。渠道内的多轮对话仍靠 {@code ShortTermMemoryService}
      * 维持上下文，仅访客登录转正后才会开始积累长期记忆。
      */
-    static boolean longTermMemoryEnabled(AssistantCommand command, AssistantDefinition definition) {
-        return definition.memoryStrategy().longTermEnabled()
+    static boolean longTermMemoryEnabled(
+            AssistantInvocation invocation, AssistantDefinition definition) {
+        var command = invocation.command();
+        return invocation.memoryMode() != AssistantInvocation.MemoryMode.DISABLED
+                && definition.memoryStrategy().longTermEnabled()
                 && command.memorySubject().kind() == SubjectKind.USER;
+    }
+
+    static boolean longTermMemoryEnabled(AssistantCommand command, AssistantDefinition definition) {
+        return longTermMemoryEnabled(AssistantInvocation.of(command), definition);
+    }
+
+    private SkillRoute resolveRoute(
+            AssistantInvocation invocation,
+            AssistantDefinition definition,
+            String missingRouteMessage) {
+        if (invocation.requestedSkillKey() == null) {
+            var command = invocation.command();
+            return skillRouter
+                    .route(definition, command.input(), command.userId())
+                    .orElseThrow(() -> new IllegalStateException(missingRouteMessage));
+        }
+        return definition.skillRoutes().stream()
+                .filter(route -> route.skillKey().equals(invocation.requestedSkillKey()))
+                .findFirst()
+                .orElseThrow(
+                        () ->
+                                new IllegalArgumentException(
+                                        "Assistant 未配置请求的 SkillRoute: "
+                                                + invocation.requestedSkillKey()));
     }
 
     private AssistantDefinition requireDefinition(AssistantCommand command) {
@@ -476,11 +502,12 @@ public final class AssistantApplicationService implements AssistantCommandPort {
     }
 
     private Flux<ExecutionEvent> finalizeTask(
-            AssistantCommand command,
+            AssistantInvocation invocation,
             AtomicReference<AssistantTask> taskRef,
             SkillRoute route,
             List<ExecutionEvent> agentEvents,
             AtomicLong sequence) {
+        var command = invocation.command();
         var canceled =
                 agentEvents.stream()
                         .anyMatch(event -> event.status() == ExecutionEventStatus.CANCELED);
@@ -541,7 +568,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                 assistantOwner(command),
                                 null);
                 var definition = requireDefinition(command);
-                if (longTermMemoryEnabled(command, definition)
+                if (longTermMemoryEnabled(invocation, definition)
                         && definition.memoryStrategy().writeScopes().contains("PERSONAL")) {
                     memoryGovernance.learn(
                             command.memorySubject(),
@@ -587,6 +614,15 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                 decision.reason(),
                                 eventAgentId(route),
                                 null));
+                events.add(
+                        taskEvent(
+                                command,
+                                sequence.incrementAndGet(),
+                                ExecutionEventType.EXECUTION_PAUSED,
+                                task,
+                                decision.reason(),
+                                eventAgentId(route),
+                                null));
             }
             case NEEDS_USER -> {
                 var awaitingAuthorization =
@@ -611,6 +647,15 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                 command,
                                 sequence.incrementAndGet(),
                                 ExecutionEventType.VALIDATION_FAILED,
+                                task,
+                                decision.reason(),
+                                eventAgentId(route),
+                                null));
+                events.add(
+                        taskEvent(
+                                command,
+                                sequence.incrementAndGet(),
+                                ExecutionEventType.EXECUTION_PAUSED,
                                 task,
                                 decision.reason(),
                                 eventAgentId(route),
@@ -649,6 +694,15 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                 command,
                                 sequence.incrementAndGet(),
                                 ExecutionEventType.OWNERSHIP_TRANSFERRED,
+                                task,
+                                decision.reason(),
+                                eventAgentId(route),
+                                null));
+                events.add(
+                        taskEvent(
+                                command,
+                                sequence.incrementAndGet(),
+                                ExecutionEventType.EXECUTION_PAUSED,
                                 task,
                                 decision.reason(),
                                 eventAgentId(route),
@@ -773,15 +827,16 @@ public final class AssistantApplicationService implements AssistantCommandPort {
     }
 
     private AgentExecutionCommand agentCommand(
-            AssistantCommand command,
+            AssistantInvocation invocation,
             SkillRoute route,
             AssistantDefinition definition,
             long sequenceBase,
             List<AgentMessage> memoryMessages) {
+        var command = invocation.command();
         var effectiveRole = definition.roleFor(route);
         var skillSystemPromptAppendix =
                 mergeSkillPrompts(effectiveSkillResolver.resolve(effectiveRole, route.skillKey()));
-        var roleAllowedToolNames = effectiveRole.toolKeys();
+        var roleAllowedToolNames = effectiveRoleToolNames(command, route, effectiveRole.toolKeys());
         var authorizationRules = new LinkedHashMap<String, ToolAuthorizationRule>();
         definition
                 .toolPolicy()
@@ -818,12 +873,15 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         command.executionContract(),
                         command.lease(),
                         toolAuthorization);
-        var messages = new ArrayList<>(memoryMessages);
+        var messages = new ArrayList<AgentMessage>();
+        messages.addAll(invocation.supplementalMessages());
+        messages.addAll(memoryMessages);
         messages.add(
                 new AgentMessage(
                         "user:" + command.runId().value(),
                         AgentMessage.Role.USER,
-                        command.input()));
+                        command.input(),
+                        invocation.userAttachments()));
         var executionModel =
                 switch (route.subagentSpec()) {
                     case SubagentSpec.Predefined ignored -> Optional.<ModelSpec>empty();
@@ -844,7 +902,10 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                                     null,
                                                     taskFeatures(
                                                             dynamic.modelRequirement(),
-                                                            command.input()));
+                                                            command.input(),
+                                                            !invocation
+                                                                    .userAttachments()
+                                                                    .isEmpty()));
                                 };
                         var selectedModel = models.resolve(routingContext);
                         yield Optional.of(
@@ -874,6 +935,17 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 context);
     }
 
+    private static Set<String> effectiveRoleToolNames(
+            AssistantCommand command, SkillRoute route, Set<String> configuredToolNames) {
+        if (!"system.assistant.default-user".equals(command.assistantId().value())
+                || !"system.role.content-creator".equals(route.roleKey())) {
+            return configuredToolNames;
+        }
+        return configuredToolNames.stream()
+                .filter("knowledge.search"::equals)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
     private static Long preferenceUserId(String value) {
         try {
             var userId = Long.parseLong(value);
@@ -884,14 +956,19 @@ public final class AssistantApplicationService implements AssistantCommandPort {
     }
 
     private static Map<String, Object> taskFeatures(
-            ModelSelectionRequirement requirement, String input) {
-        return Map.of(
+            ModelSelectionRequirement requirement, String input, boolean hasImage) {
+        var features = new LinkedHashMap<String, Object>();
+        features.put(
                 CapabilityRoutingContext.FEATURE_REASONING_REQUIRED,
-                requirement.reasoningRequired(),
-                CapabilityRoutingContext.FEATURE_COST_SENSITIVE,
-                requirement.costSensitive(),
+                requirement.reasoningRequired());
+        features.put(CapabilityRoutingContext.FEATURE_COST_SENSITIVE, requirement.costSensitive());
+        features.put(
                 CapabilityRoutingContext.FEATURE_INPUT_LENGTH,
                 input.codePointCount(0, input.length()));
+        if (hasImage) {
+            features.put(CapabilityRoutingContext.FEATURE_HAS_IMAGE, true);
+        }
+        return Map.copyOf(features);
     }
 
     static String mergeSkillPrompts(List<SkillDef> skills) {

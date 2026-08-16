@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.document.domain.Document;
 import com.xuejiai.aaf.module.document.repository.DocumentRepository;
 import com.xuejiai.aaf.module.system.file.api.FileStoragePort;
@@ -26,11 +25,11 @@ public class DocImportService {
 
     private final FileStoragePort fileUploadService;
     private final DocumentRepository documentRepository;
-    private final OperatorContext operatorContext;
 
     /** 导入 PDF：上传原始文件 → 提取文本 → 存入 doc_document。 */
     @Transactional
-    public Document importPdf(MultipartFile file) throws IOException {
+    public Document importPdf(MultipartFile file, Long ownerId, Long orgId, Long workspaceId)
+            throws IOException {
         var storedFile = fileUploadService.uploadCurrent(file);
         var text = extractText(file);
 
@@ -41,7 +40,9 @@ public class DocImportService {
         document.setStatus("active");
         document.setPublish("draft");
         document.setSourceFileId(storedFile.fileId());
-        document.setOwnerId(operatorContext.currentOwnerId().orElseThrow());
+        document.setOwnerId(ownerId);
+        document.setOrgId(orgId);
+        document.setWorkspaceId(workspaceId);
         documentRepository.save(document);
 
         log.info("PDF 导入完成：file={}, docId={}", file.getOriginalFilename(), document.getId());

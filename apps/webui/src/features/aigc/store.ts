@@ -19,8 +19,22 @@ interface AigcStore {
   generationPanelOpen: boolean
   /** 文案面板是否展开 */
   copywritingPanelOpen: boolean
-  /** 文案内容 */
+  /** 文案输入提示词，仅作为当前生成表单草稿。 */
+  copywritingPrompt: string
+  /** 文案输出内容。 */
   copywritingContent: string
+  /** 当前持久化身份所属的用户与组织/工作区范围。 */
+  copywritingScopeKey: string | null
+  /** 当前编辑会话已持久化的文档 ID。 */
+  copywritingDocumentId: number | null
+  /** 最近一次成功保存到文档的内容快照。 */
+  copywritingPersistedContent: string
+  /** 当前文档已成功关联的项目 ID。 */
+  copywritingLinkedProjectIds: number[]
+  /** 任一文案入口正在生成或改写。 */
+  copywritingGenerating: boolean
+  /** 任一文案入口正在保存。 */
+  copywritingSaving: boolean
   /** 文案生成类型：直接传 ai_skill_definition.code（如 voiceover=口播 redbook=小红书），viral=爆款复制固定值 */
   copywritingType: string
   /** 文案生成模板 */
@@ -96,7 +110,13 @@ interface AigcStore {
   setGenerationType: (type: "IMAGE_GEN" | "VIDEO_GEN" | "VOICE" | "MUSIC") => void
   setAgentRole: (roleId: string) => void
   setCopywritingPanelOpen: (open: boolean) => void
+  setCopywritingPrompt: (prompt: string) => void
   setCopywritingContent: (content: string) => void
+  bindCopywritingScope: (scopeKey: string | null) => void
+  setCopywritingPersistedDocument: (scopeKey: string, id: number, content: string) => void
+  markCopywritingProjectLinked: (scopeKey: string, projectId: number) => void
+  setCopywritingGenerating: (generating: boolean) => void
+  setCopywritingSaving: (saving: boolean) => void
   setCopywritingType: (type: string) => void
   setCopywritingTemplate: (template: string) => void
   setCopywritingTranslateTo: (lang: string) => void
@@ -142,7 +162,14 @@ export const useAigcStore = create<AigcStore>((set, _get) => ({
   generationType: "IMAGE_GEN",
   videoDuration: "5s",
   copywritingPanelOpen: false,
+  copywritingPrompt: "",
   copywritingContent: "",
+  copywritingScopeKey: null,
+  copywritingDocumentId: null,
+  copywritingPersistedContent: "",
+  copywritingLinkedProjectIds: [],
+  copywritingGenerating: false,
+  copywritingSaving: false,
   copywritingType: "voiceover",
   copywritingTemplate: "",
   copywritingTranslateTo: "",
@@ -181,7 +208,36 @@ export const useAigcStore = create<AigcStore>((set, _get) => ({
   setGenerationType: (type) => set({ generationType: type }),
   setAgentRole: (roleId) => set({ agentRole: roleId }),
   setCopywritingPanelOpen: (open) => set({ copywritingPanelOpen: open }),
+  setCopywritingPrompt: (copywritingPrompt) => set({ copywritingPrompt }),
   setCopywritingContent: (content) => set({ copywritingContent: content }),
+  bindCopywritingScope: (copywritingScopeKey) =>
+    set((state) =>
+      state.copywritingScopeKey === copywritingScopeKey
+        ? state
+        : {
+            copywritingScopeKey,
+            copywritingDocumentId: null,
+            copywritingPersistedContent: "",
+            copywritingLinkedProjectIds: []
+          }
+    ),
+  setCopywritingPersistedDocument: (scopeKey, copywritingDocumentId, copywritingPersistedContent) =>
+    set((state) =>
+      state.copywritingScopeKey === scopeKey
+        ? { copywritingDocumentId, copywritingPersistedContent }
+        : state
+    ),
+  markCopywritingProjectLinked: (scopeKey, projectId) =>
+    set((state) =>
+      state.copywritingScopeKey !== scopeKey ||
+      state.copywritingLinkedProjectIds.includes(projectId)
+        ? state
+        : {
+            copywritingLinkedProjectIds: [...state.copywritingLinkedProjectIds, projectId]
+          }
+    ),
+  setCopywritingGenerating: (copywritingGenerating) => set({ copywritingGenerating }),
+  setCopywritingSaving: (copywritingSaving) => set({ copywritingSaving }),
   setCopywritingType: (type) => set({ copywritingType: type }),
   setCopywritingTemplate: (template) => set({ copywritingTemplate: template }),
   setCopywritingTranslateTo: (lang) => set({ copywritingTranslateTo: lang }),

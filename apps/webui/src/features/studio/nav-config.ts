@@ -134,6 +134,12 @@ export const STUDIO_NAV: StudioSectionConfig[] = [
       },
       { key: "materials", label: "素材", icon: ImageIcon, path: "/studio/assets/materials" },
       { key: "works", label: "作品", icon: Images, path: "/studio/assets/works" },
+      {
+        key: "copywriting",
+        label: "文案",
+        icon: FileText,
+        path: "/studio/assets/copywriting"
+      },
       { key: "prompts", label: "提示词", icon: Tag, path: "/studio/assets/prompts" },
       { key: "skills", label: "技能", icon: Wand2, path: "/studio/assets/skills" },
       { key: "snippets", label: "片段", icon: FileText, path: "/studio/assets/snippets" },

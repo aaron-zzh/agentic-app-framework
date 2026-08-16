@@ -205,12 +205,11 @@ public class SkillService
         return repository.findAll(spec, DIRECTORY_SORT).stream().map(this::toVO).toList();
     }
 
-    /** 按 code 查询当前用户可见的激活技能系统提示词，未找到返回 null。 */
+    /** 按 code 获取当前用户可见且激活的技能上下文；未知、不可见或无提示词时直接失败。 */
     @OrgIgnore
-    public String getSystemPromptByCode(String code) {
-        if (code == null || code.isBlank()) {
-            return null;
-        }
+    public VisibleSkillContext requireVisibleActive(String code) {
+        enforce(CrudOperation.PAGE, AccessMode.DEFAULT);
+        var normalizedCode = requireText(code, "技能代码不能为空");
         var spec =
                 Specification.allOf(
                         visibleDirectorySpec(
@@ -218,10 +217,27 @@ public class SkillService
                                 OrgContext.getCurrentOrgId(),
                                 OrgContext.getCurrentWorkspaceId()),
                         (root, query, criteriaBuilder) ->
-                                criteriaBuilder.equal(root.get("code"), code),
+                                criteriaBuilder.equal(root.get("code"), normalizedCode),
                         activeSpec(true));
-        return repository.findOne(spec).map(SkillDefinition::getSystemPrompt).orElse(null);
+        var skill =
+                repository
+                        .findOne(spec)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.NOT_FOUND, "技能不存在或不可见"));
+        if (skill.getSystemPrompt() == null || skill.getSystemPrompt().isBlank()) {
+            throw badRequest("技能未配置系统提示词");
+        }
+        return new VisibleSkillContext(
+                skill.getCode(),
+                skill.getName(),
+                skill.getVersion(),
+                skill.getSystemPrompt().trim());
     }
+
+    public record VisibleSkillContext(
+            String code, String name, Integer version, String systemPrompt) {}
 
     private PageResult<SkillVO> pageDirectory(
             SkillPageDTO query, Specification<SkillDefinition> directorySpec) {

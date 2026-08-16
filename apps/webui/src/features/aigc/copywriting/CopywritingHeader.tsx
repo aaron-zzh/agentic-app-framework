@@ -3,7 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
-import { Check, Image, Save, Sparkles } from "lucide-react"
+import { Check, Image, Loader2, Save, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -15,7 +15,11 @@ interface CopywritingHeaderProps {
   /** 文档是否已保存 */
   saved: boolean
   /** 保存请求进行中 */
-  savePending: boolean
+  saving: boolean
+  /** 文案生成或改写进行中 */
+  generating: boolean
+  /** 已持久化的文档 ID；为空表示尚未首次保存 */
+  documentId: number | null
   /** 保存为文档 */
   onSaveDoc: () => void
 }
@@ -23,7 +27,9 @@ interface CopywritingHeaderProps {
 export function CopywritingHeader({
   showDocActions,
   saved,
-  savePending,
+  saving,
+  generating,
+  documentId,
   onSaveDoc
 }: CopywritingHeaderProps) {
   const type = useAigcStore((s) => s.copywritingType)
@@ -70,12 +76,24 @@ export function CopywritingHeader({
             variant="outline"
             size="xs"
             className="gap-1"
-            title="保存为文档"
-            disabled={saved || savePending || !content.trim()}
+            title={documentId === null ? "保存文案" : "保存文案更新"}
+            disabled={generating || saved || saving || !content.trim()}
             onClick={onSaveDoc}
           >
-            {saved ? <Check className="size-3" /> : <Save className="size-3" />}
-            {saved ? "已保存" : "保存文档"}
+            {saving ? (
+              <Loader2 className="size-3 animate-spin" />
+            ) : saved ? (
+              <Check className="size-3" />
+            ) : (
+              <Save className="size-3" />
+            )}
+            {saving
+              ? "保存中..."
+              : saved
+                ? "已保存"
+                : documentId === null
+                  ? "保存文案"
+                  : "保存更新"}
           </Button>
         </div>
       )}

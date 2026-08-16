@@ -62,8 +62,6 @@ export function CopywritingReferenceImages() {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="text-muted-foreground text-xs">参考图</span>
-
       {/* 已上传缩略图 */}
       {images.map((img) => (
         <div
@@ -96,17 +94,18 @@ export function CopywritingReferenceImages() {
           type="button"
           disabled={uploading}
           onClick={() => inputRef.current?.click()}
-          className="flex size-14 items-center justify-center rounded-md border border-dashed text-muted-foreground transition-colors hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex size-14 shrink-0 flex-col items-center justify-center gap-1 rounded-md border border-foreground/15 border-dashed bg-foreground/[0.03] text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
           aria-label="上传参考图"
         >
           {uploading ? (
-            <div className="flex flex-col items-center gap-0.5">
-              <Loader2 className="size-4 animate-spin" />
-              <span className="text-[10px]">{progress}%</span>
-            </div>
+            <Loader2 className="size-4 animate-spin" />
           ) : (
-            <ImagePlus className="size-5" />
+            <ImagePlus className="size-4" />
           )}
+          <span className="text-[10px] leading-none">参考图</span>
+          {uploading ? (
+            <span className="text-[9px] tabular-nums leading-none">{progress}%</span>
+          ) : null}
         </button>
       )}
 

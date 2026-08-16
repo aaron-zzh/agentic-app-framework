@@ -44,7 +44,7 @@ export const documentApi = {
   get: (id: number) => backendApi.get<Document>(`${BASE}/${id}`),
 
   /** 新建文档 */
-  create: (params: DocCreateParams) => backendApi.post<Document>(BASE, params),
+  create: (params: DocCreateParams) => backendApi.post<DocTreeNode>(BASE, params),
 
   /** 更新文档 */
   update: (id: number, params: DocUpdateParams) =>

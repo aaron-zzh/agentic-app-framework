@@ -66,15 +66,18 @@ public class AigcProjectMaterializer {
                                 command.channelSpecVersionIds(),
                                 command.productionMode()));
         var ownerId = operatorContext.currentOwnerId().orElseThrow();
-        var documents = documentReferenceApi.requireOwned(command.documentVersionIds(), ownerId);
+        var orgId = OrgContext.getCurrentOrgId();
         var workspaceId =
                 command.workspaceId() == null
                         ? OrgContext.getCurrentWorkspaceId()
                         : command.workspaceId();
+        var documents =
+                documentReferenceApi.requireAccessible(
+                        command.documentVersionIds(), ownerId, orgId, workspaceId);
         var profiles = brandApi.requireVersions(command.brandProfileVersionIds(), workspaceId);
 
         var project = new AigcProject();
-        project.setOrgId(OrgContext.getCurrentOrgId());
+        project.setOrgId(orgId);
         project.setWorkspaceId(workspaceId);
         project.setOwnerId(ownerId);
         project.setUserId(ownerId);

@@ -5,13 +5,15 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.xuejiai.aaf.module.document.domain.Document;
 import com.xuejiai.aaf.module.document.vo.DocListItemVO;
 
-public interface DocumentRepository extends JpaRepository<Document, Long> {
+public interface DocumentRepository
+        extends JpaRepository<Document, Long>, JpaSpecificationExecutor<Document> {
 
     Optional<Document> findByFilePath(String filePath);
 
@@ -40,10 +42,15 @@ public interface DocumentRepository extends JpaRepository<Document, Long> {
     @Query(
             value =
                     "SELECT * FROM doc_document WHERE deleted = false AND owner_id = :ownerId "
+                            + "AND org_id = :orgId AND (workspace_id IS NULL OR workspace_id = :workspaceId) "
                             + "AND status = 'active' "
                             + "AND to_tsvector('simple', coalesce(title,'') || ' ' || coalesce(content,'')) @@ plainto_tsquery('simple', :q) "
                             + "ORDER BY ts_rank(to_tsvector('simple', coalesce(title,'') || ' ' || coalesce(content,'')), plainto_tsquery('simple', :q)) DESC "
                             + "LIMIT 20",
             nativeQuery = true)
-    List<Document> fullTextSearch(@Param("q") String query, @Param("ownerId") Long ownerId);
+    List<Document> fullTextSearch(
+            @Param("q") String query,
+            @Param("ownerId") Long ownerId,
+            @Param("orgId") Long orgId,
+            @Param("workspaceId") Long workspaceId);
 }

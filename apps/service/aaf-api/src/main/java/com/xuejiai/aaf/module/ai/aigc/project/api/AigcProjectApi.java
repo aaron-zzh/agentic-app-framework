@@ -1,10 +1,19 @@
 package com.xuejiai.aaf.module.ai.aigc.project.api;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.Set;
+
 public interface AigcProjectApi {
 
     AigcProjectView materialize(AigcProjectMaterializeCommand command);
 
     AigcProjectView requireProject(Long projectId);
+
+    Set<Long> findLinkedDocumentIds(Long ownerId, Long orgId, Long workspaceId, Long projectId);
+
+    List<DocumentProjectReference> findDocumentProjects(
+            Long ownerId, Long orgId, Long workspaceId, Collection<Long> documentIds);
 
     void lockForGeneratedResource(Long projectId, Long userId);
 
@@ -35,4 +44,6 @@ public interface AigcProjectApi {
     AigcProjectView complete(Long projectId, Integer expectedVersion);
 
     AigcProjectView archive(Long projectId, Integer expectedVersion);
+
+    record DocumentProjectReference(Long documentId, Long projectId, String projectName) {}
 }
