@@ -5,7 +5,7 @@
  * 不读取或暴露模型原始思维链。
  *
  * @example
- * await executeAssistant("copywriter", request, {
+ * await executeAssistant(request, {
  *   onEvent: (event) => observe(event),
  *   onChunk: (delta) => editor.push(delta),
  *   onDone: () => editor.done(),
@@ -37,6 +37,43 @@ export const ASSISTANT_EVENT_TYPES = [
 export type KnownAssistantEventType = (typeof ASSISTANT_EVENT_TYPES)[number]
 export type AssistantEventType = string
 export type AssistantMemoryMode = "DEFAULT" | "DISABLED"
+export type AssistantOutputLocale = "EN" | "JA" | "KO" | "FR" | "ES"
+export type AssistantOutputFormat = "JSON"
+
+export const ASSISTANT_FAILURE_CODES = [
+  "ASSISTANT_EXECUTION_FAILED",
+  "ASSISTANT_OUTPUT_CONTRACT_VIOLATION"
+] as const
+
+export type KnownAssistantFailureCode = (typeof ASSISTANT_FAILURE_CODES)[number]
+
+export interface AssistantTarget {
+  id?: string
+}
+
+export type AssistantExecutionAttachment =
+  | {
+      type: "TEXT"
+      name?: string
+      content: string
+      resourceId?: never
+    }
+  | {
+      type: "IMAGE"
+      name?: string
+      content?: never
+      resourceId: string
+    }
+
+export interface AssistantExecutionInput {
+  text: string
+  variables: Record<string, unknown>
+  attachments: AssistantExecutionAttachment[]
+}
+
+export interface AssistantSkillSelection {
+  code: string
+}
 
 export interface AssistantKnowledgeOptions {
   knowledgeBaseIds: string[]
@@ -49,30 +86,24 @@ export type AssistantModelOptions =
   | { mode: "AUTO"; modelId: null }
   | { mode: "EXPLICIT"; modelId: string }
 
-export type AssistantExecutionMaterial =
-  | {
-      type: "TEXT"
-      name?: string
-      content: string
-      resourceId?: never
-      url?: never
-    }
-  | {
-      type: "IMAGE"
-      name?: string
-      content?: never
-      resourceId: string
-      url?: never
-    }
+export interface AssistantMemoryOptions {
+  mode: AssistantMemoryMode
+}
+
+export interface AssistantOutputOptions {
+  maxCharLen?: number
+  locale?: AssistantOutputLocale
+  format?: AssistantOutputFormat
+}
 
 export interface AssistantExecutionRequest {
-  assistantVersion: number
-  input: string
-  skillKey: string | null
+  assistant?: AssistantTarget
+  input: AssistantExecutionInput
+  skill?: AssistantSkillSelection
   knowledge: AssistantKnowledgeOptions
   model: AssistantModelOptions
-  materials: AssistantExecutionMaterial[]
-  memoryMode: AssistantMemoryMode
+  memory: AssistantMemoryOptions
+  output: AssistantOutputOptions
 }
 
 export type AssistantEventPayload = Record<string, unknown>
@@ -155,6 +186,7 @@ export function assistantCompletedText(event: AssistantSafeEvent): string | null
 export function isAssistantFailureEvent(event: AssistantSafeEvent): boolean {
   const status = event.status.toUpperCase()
   return (
+    event.payload.errorCode === "ASSISTANT_OUTPUT_CONTRACT_VIOLATION" ||
     event.type === "COMMAND_REJECTED" ||
     event.type === "EXECUTION_FAILED" ||
     event.type === "EXECUTION_PAUSED" ||
@@ -341,15 +373,10 @@ export async function postAssistantEventStream(
   await readAssistantEventStream(response.body, options)
 }
 
-/** 调用 Headless Assistant execution 接口。 */
+/** 调用统一 Headless Assistant execution 接口。 */
 export function executeAssistant(
-  assistantId: string | number,
   request: AssistantExecutionRequest,
   options: AssistantSseOptions
 ): Promise<void> {
-  return postAssistantEventStream(
-    `/assistants/${encodeURIComponent(String(assistantId))}/executions`,
-    request,
-    options
-  )
+  return postAssistantEventStream("/assistant-executions", request, options)
 }

@@ -55,13 +55,14 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { CopywritingReferenceImages } from "@/features/aigc/copywriting/CopywritingReferenceImages"
-import { TRANSLATE_OPTIONS } from "@/features/aigc/copywriting/constants"
 import { useCopywriting } from "@/features/aigc/copywriting/use-copywriting"
 import { SkillEditorDialog } from "@/features/aigc/skills/SkillEditorDialog"
 import { useAigcStore } from "@/features/aigc/store"
 import { StreamingEditor } from "@/features/rich-text-editor"
 import type { AssistantExecutionPhase } from "@/lib/api/headless-assistant"
 import { type AiSkillVO, useAiSkillMeta, useMyAiSkills, usePublicAiSkills } from "@/lib/api/rest/ai"
+import { DictType } from "@/lib/constants/dict-type"
+import { useDict } from "@/lib/hooks/use-dict"
 import { useModelSelector } from "@/lib/hooks/use-model-selector"
 import { cn } from "@/lib/utils/index"
 
@@ -135,7 +136,7 @@ function SkillItem({
             ) : null}
             {showSource ? <Badge variant="secondary">{sourceLabel(skill)}</Badge> : null}
           </div>
-          <p className="text-muted-foreground text-xs leading-4">{skill.description ?? ""}</p>
+          <p className="text-muted-foreground text-xs leading-4">{skill.summary}</p>
         </div>
       </div>
     </GlassCard>
@@ -187,12 +188,16 @@ function SkillSkeleton() {
 
 /** 精简参数栏：只保留模型 + 长度 + 翻译。 */
 function SkillParamsBar() {
+  const noSelectionValue = "__none__"
   const length = useAigcStore((state) => state.copywritingLength)
   const setLength = useAigcStore((state) => state.setCopywritingLength)
   const translateTo = useAigcStore((state) => state.copywritingTranslateTo)
   const setTranslateTo = useAigcStore((state) => state.setCopywritingTranslateTo)
   const model = useAigcStore((state) => state.copywritingModel)
   const setModel = useAigcStore((state) => state.setCopywritingModel)
+  const { options: localeOptions, getLabel: getLocaleLabel } = useDict(
+    DictType.Ai.COPYWRITING_OUTPUT_LOCALE
+  )
   const { options, modelId, setModelId } = useModelSelector("CHAT", {
     value: model,
     onChange: (id) => setModel(id)
@@ -214,15 +219,17 @@ function SkillParamsBar() {
           <SelectItem value="long">长篇（≤3000字）</SelectItem>
         </SelectContent>
       </Select>
-      <Select value={translateTo} onValueChange={(value) => setTranslateTo(value ?? "")}>
+      <Select
+        value={translateTo ?? noSelectionValue}
+        onValueChange={(value) => setTranslateTo(value === noSelectionValue ? null : value)}
+      >
         <SelectTrigger className="h-8 w-[110px] text-xs">
           <span className="shrink-0 text-muted-foreground">翻译</span>
-          <span>
-            {TRANSLATE_OPTIONS.find((option) => option.value === translateTo)?.label ?? "不翻译"}
-          </span>
+          <span>{translateTo === null ? "不翻译" : getLocaleLabel(translateTo)}</span>
         </SelectTrigger>
         <SelectContent>
-          {TRANSLATE_OPTIONS.map((option) => (
+          <SelectItem value={noSelectionValue}>不翻译</SelectItem>
+          {localeOptions.map((option) => (
             <SelectItem key={option.value} value={option.value}>
               {option.label}
             </SelectItem>
@@ -495,8 +502,6 @@ export default function StudioCreateCopyPage() {
   const launcherPrefillRef = useRef<string | null>(null)
   const [editTarget, setEditTarget] = useState<AiSkillVO | null>(null)
   const queryParams = {
-    category: "COPYWRITING",
-    activeOnly: true,
     pageNo: 1,
     pageSize: 100
   }
@@ -510,10 +515,7 @@ export default function StudioCreateCopyPage() {
   )
   const canCreate = directory.value === "MINE" && operations.has("create")
   const canUpdate = operations.has("update")
-  const sorted = useMemo(
-    () => [...(activeQuery.data?.list ?? [])].sort((left, right) => right.priority - left.priority),
-    [activeQuery.data?.list]
-  )
+  const skills = useMemo(() => activeQuery.data?.list ?? [], [activeQuery.data?.list])
 
   const type = useAigcStore((state) => state.copywritingType)
   const setType = useAigcStore((state) => state.setCopywritingType)
@@ -522,7 +524,7 @@ export default function StudioCreateCopyPage() {
 
   useEffect(() => {
     const skillCode = searchParams.get("skillCode")
-    if (skillCode && sorted.find((skill) => skill.code === skillCode)) {
+    if (skillCode && skills.find((skill) => skill.code === skillCode)) {
       setType(skillCode)
     }
     const stored = sessionStorage.getItem("aaf:launcher:prompt")
@@ -535,12 +537,12 @@ export default function StudioCreateCopyPage() {
       launcherPrefillRef.current = prefill
       setPrompt(prefill)
     }
-    if (!type && !skillCode && sorted.length > 0) {
-      setType(sorted[0].code ?? "")
+    if (!type && !skillCode && skills.length > 0) {
+      setType(skills[0].code ?? "")
     }
-  }, [searchParams, setPrompt, setType, sorted, type])
+  }, [searchParams, setPrompt, setType, skills, type])
 
-  const selectedSkill = sorted.find((skill) => skill.code === type)
+  const selectedSkill = skills.find((skill) => skill.code === type)
 
   function handleSelect(code: string) {
     if (type === code) return
@@ -589,7 +591,7 @@ export default function StudioCreateCopyPage() {
 
         {activeQuery.isLoading ? (
           ["one", "two", "three", "four", "five", "six"].map((key) => <SkillSkeleton key={key} />)
-        ) : sorted.length === 0 ? (
+        ) : skills.length === 0 ? (
           <Empty className="min-h-64">
             <EmptyHeader>
               <EmptyMedia variant="icon">
@@ -612,7 +614,7 @@ export default function StudioCreateCopyPage() {
             ) : null}
           </Empty>
         ) : (
-          sorted.map((skill) => (
+          skills.map((skill) => (
             <SkillItem
               key={skill.id}
               skill={skill}
@@ -644,7 +646,6 @@ export default function StudioCreateCopyPage() {
         open={editDialog.value}
         onOpenChange={editDialog.setValue}
         initial={editTarget}
-        defaultCategory="COPYWRITING"
         onSaved={handleSaved}
       />
     </div>

@@ -26,8 +26,6 @@ export interface ChatterTarget {
   userId?: string
   /** 稳定 Assistant ID，由 AG-UI initialState 发送。 */
   assistantId?: string
-  /** Assistant 发布版本。 */
-  assistantVersion?: number
 }
 
 /** 拖放数据项 */

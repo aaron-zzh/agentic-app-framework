@@ -12,16 +12,15 @@ import type { AiSseOptions } from "@/lib/api/ai-stream"
 import {
   type AssistantContextSource,
   type AssistantExecutionPhase,
+  type AssistantExecutionRequest,
+  type AssistantOutputLocale,
   type AssistantSafeEvent,
   assistantCompletedText,
+  executeAssistant,
   isAssistantCompletedEvent,
   isAssistantFailureEvent
 } from "@/lib/api/headless-assistant"
-import {
-  aigcProjectApi,
-  copywritingKeys,
-  useAttachAigcProjectDocument
-} from "@/lib/api/rest/ai"
+import { aigcProjectApi, copywritingKeys, useAttachAigcProjectDocument } from "@/lib/api/rest/ai"
 import { useCreateDocument, useUpdateDocument } from "@/lib/api/rest/system"
 import { type ScopeSelection, useOrgStore } from "@/lib/store/org-store"
 import { useAigcStore } from "../store"
@@ -54,6 +53,52 @@ interface StructuredStreamOptions {
   fallbackContent: string
   success: (content: string) => void
   errorMessage: string
+}
+
+interface CopywritingExecutionOptions {
+  text: string
+  skillCode: string
+  variables?: Record<string, unknown>
+  modelId?: string
+  maxCharLen?: number
+  locale?: string | null
+  imageResourceIds?: string[]
+}
+
+function copywritingExecutionRequest({
+  text,
+  skillCode,
+  variables = {},
+  modelId,
+  maxCharLen,
+  locale,
+  imageResourceIds = []
+}: CopywritingExecutionOptions): AssistantExecutionRequest {
+  return {
+    input: {
+      text,
+      variables,
+      attachments: imageResourceIds.map((resourceId) => ({ type: "IMAGE", resourceId }))
+    },
+    skill: { code: skillCode },
+    knowledge: {
+      knowledgeBaseIds: [],
+      includePublic: false,
+      topK: 5,
+      similarityThreshold: 0.2
+    },
+    model: modelId ? { mode: "EXPLICIT", modelId } : { mode: "AUTO", modelId: null },
+    memory: { mode: "DISABLED" },
+    output: {
+      maxCharLen,
+      locale:
+        locale === null || locale === undefined ? undefined : (locale as AssistantOutputLocale)
+    }
+  }
+}
+
+function maxCharLen(length: "short" | "medium" | "long"): number {
+  return { short: 200, medium: 500, long: 3000 }[length]
 }
 
 function payloadText(payload: Record<string, unknown>, ...keys: string[]): string | null {
@@ -117,7 +162,7 @@ function currentCopywritingScopeKey(): string | null {
   return copywritingScopeKey(orgState.activeUserId, orgState.currentScope)
 }
 
-/** 文案生成相关状态与动作；参数（type/template/length 等）直接读 store */
+/** 文案生成相关状态与动作；参数（type、length 等）直接读 store */
 export function useCopywriting(projectId?: number) {
   const activeUserId = useOrgStore((state) => state.activeUserId)
   const currentScope = useOrgStore((state) => state.currentScope)
@@ -360,19 +405,15 @@ export function useCopywriting(projectId?: number) {
     try {
       await runStructuredStream({
         start: (streamOptions) =>
-          copywritingApi.generate(
-            {
-              prompt: state.copywritingPrompt,
-              type: state.copywritingType,
-              template: state.copywritingTemplate,
-              length: state.copywritingLength,
-              translateTo: state.copywritingTranslateTo || undefined,
+          executeAssistant(
+            copywritingExecutionRequest({
+              text: state.copywritingPrompt,
+              skillCode: state.copywritingType,
               modelId: state.copywritingModel || undefined,
-              referenceImageKeys:
-                state.copywritingReferenceImages.length > 0
-                  ? state.copywritingReferenceImages.map((image) => image.key)
-                  : undefined
-            },
+              maxCharLen: maxCharLen(state.copywritingLength),
+              locale: state.copywritingTranslateTo,
+              imageResourceIds: state.copywritingReferenceImages.map((image) => image.key)
+            }),
             streamOptions
           ),
         editor: streamingEditorRef.current,
@@ -394,8 +435,13 @@ export function useCopywriting(projectId?: number) {
     try {
       await runStructuredStream({
         start: (streamOptions) =>
-          copywritingApi.rewrite(
-            { content: original, modelId: state.copywritingModel || undefined },
+          executeAssistant(
+            copywritingExecutionRequest({
+              text: "请改写提供的文案",
+              skillCode: "aigc-copywriting",
+              variables: { content: original },
+              modelId: state.copywritingModel || undefined
+            }),
             streamOptions
           ),
         editor: streamingEditorRef.current,
@@ -416,8 +462,13 @@ export function useCopywriting(projectId?: number) {
     try {
       await runStructuredStream({
         start: (streamOptions) =>
-          copywritingApi.analyze(
-            { content: viralSource, modelId: model || undefined },
+          executeAssistant(
+            copywritingExecutionRequest({
+              text: "请分析提供的爆款内容结构",
+              skillCode: "aigc-copywriting",
+              variables: { content: viralSource },
+              modelId: model || undefined
+            }),
             streamOptions
           ),
         editor: analysisEditorRef.current,
@@ -440,8 +491,13 @@ export function useCopywriting(projectId?: number) {
     try {
       await runStructuredStream({
         start: (streamOptions) =>
-          copywritingApi.generateFromAnalysis(
-            { analysis: viralAnalysis, modelId: state.copywritingModel || undefined },
+          executeAssistant(
+            copywritingExecutionRequest({
+              text: "请根据提供的爆款结构分析创作文案",
+              skillCode: "aigc-copywriting",
+              variables: { analysis: viralAnalysis },
+              modelId: state.copywritingModel || undefined
+            }),
             streamOptions
           ),
         editor: resultEditorRef.current,

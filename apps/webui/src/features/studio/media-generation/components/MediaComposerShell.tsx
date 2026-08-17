@@ -81,7 +81,8 @@ export function MediaComposerShell({
       <div className="flex max-h-[min(55vh,22rem)] flex-col gap-2 overflow-y-auto px-4 pt-3 pb-1">
         {attachments ? <div className="flex flex-wrap gap-2">{attachments}</div> : null}
         {selectedSnippets.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="已选片段">
+          <fieldset className="m-0 flex min-w-0 flex-wrap gap-1.5 border-0 p-0">
+            <legend className="sr-only">已选片段</legend>
             {selectedSnippets.map((snippet) => {
               const sourceLabel = snippet.builtin
                 ? "内置"
@@ -134,7 +135,7 @@ export function MediaComposerShell({
                 </Badge>
               )
             })}
-          </div>
+          </fieldset>
         ) : null}
         <MediaPromptInput
           value={prompt}

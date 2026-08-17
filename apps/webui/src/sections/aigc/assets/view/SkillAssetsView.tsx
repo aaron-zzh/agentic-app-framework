@@ -1,5 +1,8 @@
 /**
- * /studio/assets/skills——技能资产的我的与公共视图。
+ * 技能资产的“我的/公共”根对象与不可变版本目录视图。
+ *
+ * 列表展示稳定根元数据及当前可执行版本状态，编辑时由 SkillEditorDialog 追加新版本。
+ *
  * @author AaronZZH & Kiro
  */
 
@@ -26,6 +29,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SkillEditorDialog } from "@/features/aigc/skills/SkillEditorDialog"
 import {
+  type AiSkillVersionStatus,
+  type AiSkillVisibility,
   type AiSkillVO,
   useAiSkillMeta,
   useDeleteAiSkill,
@@ -38,18 +43,32 @@ type SkillAssetView = "MINE" | "PUBLIC"
 const VIEW_COPY: Record<SkillAssetView, { title: string; description: string; empty: string }> = {
   MINE: {
     title: "我的技能",
-    description: "管理你在当前组织或工作区创建的技能",
+    description: "管理你在当前组织或工作区创建的技能根对象与版本",
     empty: "还没有技能资产"
   },
   PUBLIC: {
     title: "公共技能",
-    description: "浏览平台内置和当前组织或工作区成员公开共享的技能",
+    description: "浏览平台内置及当前组织或工作区共享的已发布技能",
     empty: "暂无公共技能"
   }
 }
 
+const VISIBILITY_LABELS: Record<AiSkillVisibility, string> = {
+  PRIVATE: "仅自己",
+  WORKSPACE: "工作区",
+  PUBLIC: "公开"
+}
+
+const VERSION_STATUS_LABELS: Record<AiSkillVersionStatus, string> = {
+  DRAFT: "草稿",
+  IN_REVIEW: "审核中",
+  APPROVED: "已通过",
+  REJECTED: "已拒绝",
+  RETIRED: "已退役"
+}
+
 function sourceLabel(skill: AiSkillVO): string {
-  return skill.ownerId === null ? "内置" : "工作区"
+  return skill.builtIn ? "内置" : "工作区"
 }
 
 export function SkillAssetsView() {
@@ -57,15 +76,11 @@ export function SkillAssetsView() {
   const editDialog = useBoolean()
   const [editTarget, setEditTarget] = useState<AiSkillVO | null>(null)
   const [search, setSearch] = useState("")
-  const [category, setCategory] = useState("")
   const [pageNo, setPageNo] = useState(1)
   const [debouncedSearch] = useDebounce(search.trim(), 300)
-  const [debouncedCategory] = useDebounce(category.trim(), 300)
   const pageSize = 20
   const queryParams = {
     search: debouncedSearch || undefined,
-    category: debouncedCategory || undefined,
-    activeOnly: false,
     pageNo,
     pageSize
   }
@@ -108,7 +123,9 @@ export function SkillAssetsView() {
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="font-semibold text-xl">技能资产</h1>
-          <p className="mt-1 text-muted-foreground text-sm">统一管理和复用生成式任务技能</p>
+          <p className="mt-1 text-muted-foreground text-sm">
+            管理稳定技能身份、可见范围与不可变执行版本
+          </p>
         </div>
         {canCreate ? (
           <GlowButton tone="primary" size="sm" onClick={openCreate}>
@@ -125,28 +142,17 @@ export function SkillAssetsView() {
         </TabsList>
       </Tabs>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_240px]">
-        <div className="relative">
-          <Search className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(event) => {
-              setSearch(event.target.value)
-              setPageNo(1)
-            }}
-            placeholder="搜索名称、描述或提示词"
-            aria-label="搜索技能资产"
-            className="pl-9"
-          />
-        </div>
+      <div className="relative">
+        <Search className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground" />
         <Input
-          value={category}
+          value={search}
           onChange={(event) => {
-            setCategory(event.target.value)
+            setSearch(event.target.value)
             setPageNo(1)
           }}
-          placeholder="按分类筛选，例如 COPYWRITING"
-          aria-label="按技能分类筛选"
+          placeholder="搜索代码、名称、摘要或版本正文"
+          aria-label="搜索技能资产"
+          className="pl-9"
         />
       </div>
 
@@ -167,18 +173,16 @@ export function SkillAssetsView() {
             <EmptyMedia variant="icon">
               <Sparkles />
             </EmptyMedia>
-            <EmptyTitle>
-              {debouncedSearch || debouncedCategory ? "没有匹配的技能" : viewCopy.empty}
-            </EmptyTitle>
+            <EmptyTitle>{debouncedSearch ? "没有匹配的技能" : viewCopy.empty}</EmptyTitle>
             <EmptyDescription>
-              {debouncedSearch || debouncedCategory
-                ? "尝试更换搜索词或分类。"
+              {debouncedSearch
+                ? "尝试更换搜索词。"
                 : currentView === "MINE"
-                  ? "创建技能后，可选择仅自己使用或公开到当前工作区。"
+                  ? "创建技能后，可配置仅自己、工作区或公开可见。"
                   : viewCopy.description}
             </EmptyDescription>
           </EmptyHeader>
-          {!debouncedSearch && !debouncedCategory && canCreate ? (
+          {!debouncedSearch && canCreate ? (
             <EmptyContent>
               <Button onClick={openCreate}>
                 <Plus data-icon="inline-start" />
@@ -194,6 +198,9 @@ export function SkillAssetsView() {
               currentView === "MINE" && skill.ownedByCurrentUser && operations.has("update")
             const canDelete =
               currentView === "MINE" && skill.ownedByCurrentUser && operations.has("delete")
+            const displayedVersion =
+              currentView === "MINE" ? skill.latestVersion : skill.currentVersion
+            const versionStatus = displayedVersion?.status
             return (
               <GlassCard key={skill.id} glow="none" className="border border-foreground/6">
                 <div className="flex items-start gap-3 p-4">
@@ -206,14 +213,17 @@ export function SkillAssetsView() {
                       {currentView === "PUBLIC" ? (
                         <Badge variant="secondary">{sourceLabel(skill)}</Badge>
                       ) : (
-                        <Badge variant="secondary">{skill.isPublic ? "公开" : "私有"}</Badge>
+                        <Badge variant="secondary">{VISIBILITY_LABELS[skill.visibility]}</Badge>
                       )}
-                      {skill.category ? <Badge variant="outline">{skill.category}</Badge> : null}
-                      <Badge variant="outline">{skill.status === "active" ? "启用" : "停用"}</Badge>
+                      <Badge variant="outline">{skill.locale}</Badge>
+                      <Badge variant="outline">
+                        {versionStatus ? VERSION_STATUS_LABELS[versionStatus] : "无版本"}
+                      </Badge>
                     </div>
                     <p className="mt-1 line-clamp-2 text-muted-foreground text-xs leading-5">
-                      {skill.description || skill.systemPrompt || "暂无描述"}
+                      {skill.summary}
                     </p>
+                    <p className="mt-1 truncate text-muted-foreground text-xs">{skill.code}</p>
                   </div>
                   {canUpdate || canDelete ? (
                     <div className="flex shrink-0 gap-1">

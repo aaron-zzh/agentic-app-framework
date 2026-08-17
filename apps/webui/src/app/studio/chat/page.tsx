@@ -20,15 +20,14 @@ export default function StudioChatPage() {
   const router = useRouter()
   const skillCode = searchParams.get("skill")
 
-  // 查询技能详情（带 system_prompt）
-  const { data: skills } = useAiSkills({ activeOnly: true })
+  // 查询当前可见且有已发布版本的技能。
+  const { data: skills } = useAiSkills()
   const skill = useMemo(
     () => (skillCode ? skills?.find((s) => s.code === skillCode) : undefined),
     [skills, skillCode]
   )
 
-  // 用技能 system_prompt 注入 agentRole（Chatter 通过 agentRole 路由到对应后端助理）
-  // 同时将 skill.systemPrompt 作为 systemPrompt prop 传给 Chatter（若 Chatter 支持）
+  // code 作为稳定路由键交给后端助理选择已发布版本。
   const agentRole = skillCode ?? undefined
 
   const handleClearSkill = () => {

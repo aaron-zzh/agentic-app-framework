@@ -3,9 +3,7 @@
  *
  * 步骤：输入爆款内容 → AI 分析结构 → 调整说明 → 生成文案
  *
- * 后端接口：
- * - /aigc/copywriting/analyze                { content }            → 分析爆款套路（SSE）
- * - /aigc/copywriting/generate-from-analysis  { analysis, userNotes } → 生成复刻文案（SSE）
+ * 通用 Assistant 执行：分析爆款套路并生成复刻文案
  *
  * @author AaronZZH & Kiro
  */
@@ -26,7 +24,7 @@ import { useSearchParams } from "next/navigation"
 import { useCallback, useRef, useState } from "react"
 import { GlassCard, GlowButton, NeonChip } from "@/components/studio"
 import { Textarea } from "@/components/ui/textarea"
-import { postAiStream } from "@/lib/api/ai-stream"
+import { executeAssistant } from "@/lib/api/headless-assistant"
 import { useCreateDocument } from "@/lib/api/rest/system"
 import { notify } from "@/lib/notification"
 import { cn } from "@/lib/utils/index"
@@ -73,9 +71,24 @@ export default function StudioCreateViralPage() {
     setAnalysis("")
     abortRef.current = new AbortController()
     try {
-      await postAiStream(
-        "/aigc/copywriting/analyze",
-        { content: viralContent.trim() },
+      await executeAssistant(
+        {
+          input: {
+            text: "请分析提供的爆款内容结构",
+            variables: { content: viralContent.trim() },
+            attachments: []
+          },
+          skill: { code: "aigc-copywriting" },
+          knowledge: {
+            knowledgeBaseIds: [],
+            includePublic: false,
+            topK: 5,
+            similarityThreshold: 0.2
+          },
+          model: { mode: "AUTO", modelId: null },
+          memory: { mode: "DISABLED" },
+          output: {}
+        },
         {
           onChunk: (chunk) => setAnalysis((prev) => prev + chunk),
           onDone: () => setIsAnalyzing(false),
@@ -106,9 +119,24 @@ export default function StudioCreateViralPage() {
         setAnalysis("")
         abortRef.current = new AbortController()
         try {
-          await postAiStream(
-            "/aigc/copywriting/analyze",
-            { content: viralContent.trim() },
+          await executeAssistant(
+            {
+              input: {
+                text: "请分析提供的爆款内容结构",
+                variables: { content: viralContent.trim() },
+                attachments: []
+              },
+              skill: { code: "aigc-copywriting" },
+              knowledge: {
+                knowledgeBaseIds: [],
+                includePublic: false,
+                topK: 5,
+                similarityThreshold: 0.2
+              },
+              model: { mode: "AUTO", modelId: null },
+              memory: { mode: "DISABLED" },
+              output: {}
+            },
             {
               onChunk: (chunk) => setAnalysis((prev) => prev + chunk),
               onDone: () => setIsAnalyzing(false),
@@ -143,9 +171,24 @@ export default function StudioCreateViralPage() {
       setIsGenerating(true)
       setResult("")
       abortRef.current = new AbortController()
-      postAiStream(
-        "/aigc/copywriting/generate-from-analysis",
-        { analysis, userNotes },
+      executeAssistant(
+        {
+          input: {
+            text: "请根据提供的爆款结构分析创作文案",
+            variables: { analysis, userNotes },
+            attachments: []
+          },
+          skill: { code: "aigc-copywriting" },
+          knowledge: {
+            knowledgeBaseIds: [],
+            includePublic: false,
+            topK: 5,
+            similarityThreshold: 0.2
+          },
+          model: { mode: "AUTO", modelId: null },
+          memory: { mode: "DISABLED" },
+          output: {}
+        },
         {
           onChunk: (chunk) => setResult((prev) => prev + chunk),
           onDone: () => setIsGenerating(false),

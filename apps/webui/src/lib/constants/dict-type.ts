@@ -18,6 +18,10 @@ export const DictType = {
     /** 待办状态，见 TodoStatusEnum */
     TODO_STATUS: "sys_todo_status"
   },
+  Ai: {
+    /** 文案输出语言，见 AssistantOutputLocale。 */
+    COPYWRITING_OUTPUT_LOCALE: "ai.copywriting.output-locale"
+  },
   Aigc: {
     /** AIGC 任务类型，见 AigcTaskType（features/aigc/types.ts） */
     TASK_TYPE: "aigc_task_type",

@@ -3,7 +3,7 @@
  * @author AaronZZH & Kiro
  *
  * 触发：工具栏 ✨ 或 /ai 命令
- * 调用 copywritingApi.generate，生成内容流式插入到光标位置
+ * 调用通用 Assistant 执行接口，生成内容流式插入到光标位置
  */
 
 "use client"
@@ -18,7 +18,7 @@ import {
 } from "lexical"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { copywritingApi } from "@/lib/api/rest/ai"
+import { executeAssistant } from "@/lib/api/headless-assistant"
 import { AIWriteDialog } from "./AIWriteDialog"
 
 export const OPEN_AI_WRITE_COMMAND: LexicalCommand<void> = createCommand("OPEN_AI_WRITE")
@@ -51,10 +51,23 @@ export function AIWritePlugin() {
       editor.focus()
       await new Promise((r) => requestAnimationFrame(r))
 
-      await copywritingApi.generate(
+      await executeAssistant(
         {
-          type: "rich-text-write",
-          prompt: selectedText ? `${prompt}\n\n参考上下文：\n${selectedText}` : prompt
+          input: {
+            text: selectedText ? `${prompt}\n\n参考上下文：\n${selectedText}` : prompt,
+            variables: {},
+            attachments: []
+          },
+          skill: { code: "rich-text-write" },
+          knowledge: {
+            knowledgeBaseIds: [],
+            includePublic: false,
+            topK: 5,
+            similarityThreshold: 0.2
+          },
+          model: { mode: "AUTO", modelId: null },
+          memory: { mode: "DISABLED" },
+          output: {}
         },
         {
           signal: abortRef.current.signal,

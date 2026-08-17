@@ -124,7 +124,7 @@ export function useImageGenerationController({
         seed: params.seed && params.seed > 0 ? params.seed : undefined,
         imageFileIds: referenceImage?.fileId ? [referenceImage.fileId] : undefined,
         systemPrompt: mergeAigcSystemPrompts(
-          selectedSkill?.systemPrompt,
+          selectedSkill?.currentVersion?.content,
           selectedBrandProfile?.systemPrompt
         )
       })

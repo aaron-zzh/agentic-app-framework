@@ -10,7 +10,6 @@ import {
 } from "@/features/chatter/types"
 
 export const DEFAULT_CHATTER_ASSISTANT_ID = "system.assistant.default-user"
-export const DEFAULT_CHATTER_ASSISTANT_VERSION = 1
 
 interface ChatterPageRuntimeConfig {
   preset?: string
@@ -39,14 +38,12 @@ export function buildChatterInitialState({
     : undefined
   const assistantId =
     target.assistantId ?? (usesAssistantRuntime ? DEFAULT_CHATTER_ASSISTANT_ID : undefined)
-  const assistantVersion =
-    target.assistantVersion ?? (assistantId ? DEFAULT_CHATTER_ASSISTANT_VERSION : undefined)
 
   return {
     pageId: currentPageId,
     preset: pageConfig?.preset,
     ...(isAuthenticated ? {} : { agentRole: target.agentRole ?? pageConfig?.agentRole }),
-    ...(assistantId ? { assistantId, assistantVersion } : {}),
+    ...(assistantId ? { assistantId } : {}),
     ...(effectiveTaskModelSelection ? { taskModelSelection: effectiveTaskModelSelection } : {})
   }
 }

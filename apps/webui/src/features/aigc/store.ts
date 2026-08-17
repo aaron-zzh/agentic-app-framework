@@ -37,10 +37,8 @@ interface AigcStore {
   copywritingSaving: boolean
   /** 文案生成类型：直接传 ai_skill_definition.code（如 voiceover=口播 redbook=小红书），viral=爆款复制固定值 */
   copywritingType: string
-  /** 文案生成模板 */
-  copywritingTemplate: string
-  /** 文案生成语言/翻译目标 */
-  copywritingTranslateTo: string
+  /** 文案生成语言/翻译目标；未选时为 null。 */
+  copywritingTranslateTo: string | null
   /** 文案生成长度（字数） */
   copywritingLength: "short" | "medium" | "long"
   /** 文案模型 */
@@ -118,8 +116,7 @@ interface AigcStore {
   setCopywritingGenerating: (generating: boolean) => void
   setCopywritingSaving: (saving: boolean) => void
   setCopywritingType: (type: string) => void
-  setCopywritingTemplate: (template: string) => void
-  setCopywritingTranslateTo: (lang: string) => void
+  setCopywritingTranslateTo: (lang: string | null) => void
   setCopywritingLength: (length: "short" | "medium" | "long") => void
   setCopywritingModel: (model: string) => void
   addCopywritingReferenceImage: (image: { key: string; url: string; name: string }) => void
@@ -171,8 +168,7 @@ export const useAigcStore = create<AigcStore>((set, _get) => ({
   copywritingGenerating: false,
   copywritingSaving: false,
   copywritingType: "voiceover",
-  copywritingTemplate: "",
-  copywritingTranslateTo: "",
+  copywritingTranslateTo: null,
   copywritingLength: "medium",
   copywritingModel: "",
   copywritingReferenceImages: [],
@@ -239,7 +235,6 @@ export const useAigcStore = create<AigcStore>((set, _get) => ({
   setCopywritingGenerating: (copywritingGenerating) => set({ copywritingGenerating }),
   setCopywritingSaving: (copywritingSaving) => set({ copywritingSaving }),
   setCopywritingType: (type) => set({ copywritingType: type }),
-  setCopywritingTemplate: (template) => set({ copywritingTemplate: template }),
   setCopywritingTranslateTo: (lang) => set({ copywritingTranslateTo: lang }),
   setCopywritingLength: (length) => set({ copywritingLength: length }),
   setCopywritingModel: (model) => set({ copywritingModel: model }),

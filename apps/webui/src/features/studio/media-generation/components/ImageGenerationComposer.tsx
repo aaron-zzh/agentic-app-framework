@@ -166,10 +166,7 @@ export function ImageGenerationComposer(props: MediaGenerationComposerProps) {
               {controller.selectedSkill ? controller.selectedSkill.name : "技能"}
             </PopoverTrigger>
             <PopoverContent align="start" className="w-80 p-0" sideOffset={6}>
-              <SkillPickerContent
-                defaultCategory="IMAGE_GEN"
-                onClose={() => setSkillPickerOpen(false)}
-              />
+              <SkillPickerContent onClose={() => setSkillPickerOpen(false)} />
             </PopoverContent>
           </Popover>
 

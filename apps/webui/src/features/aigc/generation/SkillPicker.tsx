@@ -1,17 +1,17 @@
 /**
  * 技能选择弹窗内容。
  *
- * 展示“我的/公共”技能目录，按 category 与搜索词查询；创建成功后可立即选中。
+ * 展示“我的/公共”技能目录，按搜索词查询；创建成功后可立即选中。
  *
  * @example
- * <SkillPickerContent defaultCategory="IMAGE_GEN" onClose={() => setOpen(false)} />
+ * <SkillPickerContent onClose={() => setOpen(false)} />
  * @author AaronZZH & Kiro
  */
 
 "use client"
 
 import { useBoolean, useTabs } from "@aaf/hooks"
-import { Check, Image, Pencil, Plus, Search, Type, Zap } from "lucide-react"
+import { Check, Pencil, Plus, Search, Zap } from "lucide-react"
 import { useMemo, useState } from "react"
 import { useDebounce } from "use-debounce"
 
@@ -33,16 +33,6 @@ import { SkillEditorDialog } from "@/features/aigc/skills/SkillEditorDialog"
 import { useAigcStore } from "@/features/aigc/store"
 import { type AiSkillVO, useAiSkillMeta, useMyAiSkills, usePublicAiSkills } from "@/lib/api/rest/ai"
 import { cn } from "@/lib/utils"
-
-const CATEGORY_TABS: Array<{
-  key: string | null
-  label: string
-  icon: React.FC<{ className?: string }>
-}> = [
-  { key: null, label: "全部", icon: Zap },
-  { key: "IMAGE_GEN", label: "生图", icon: Image },
-  { key: "COPYWRITING", label: "文案", icon: Type }
-]
 
 function sourceLabel(skill: AiSkillVO): string {
   return skill.ownerId === null ? "内置" : "工作区"
@@ -88,8 +78,8 @@ function SkillCard({
             {showSource ? <Badge variant="secondary">{sourceLabel(skill)}</Badge> : null}
             {selected ? <Check className="shrink-0 text-primary" /> : null}
           </div>
-          {skill.description ? (
-            <p className="mt-0.5 line-clamp-2 text-muted-foreground text-xs">{skill.description}</p>
+          {skill.summary ? (
+            <p className="mt-0.5 line-clamp-2 text-muted-foreground text-xs">{skill.summary}</p>
           ) : null}
         </div>
       </button>
@@ -110,25 +100,20 @@ function SkillCard({
 }
 
 interface SkillPickerContentProps {
-  /** 约束只展示与当前 feature 匹配的 category，null=不约束。 */
-  defaultCategory?: string | null
   onClose?: () => void
 }
 
-export function SkillPickerContent({ defaultCategory, onClose }: SkillPickerContentProps) {
+export function SkillPickerContent({ onClose }: SkillPickerContentProps) {
   const directory = useTabs("MINE")
   const editorDialog = useBoolean()
   const [editTarget, setEditTarget] = useState<AiSkillVO | null>(null)
-  const [activeCategory, setActiveCategory] = useState<string | null>(defaultCategory ?? null)
   const [search, setSearch] = useState("")
   const [debouncedSearch] = useDebounce(search.trim(), 300)
 
   const selectedSkillId = useAigcStore((state) => state.selectedSkillId)
   const setSelectedSkillId = useAigcStore((state) => state.setSelectedSkillId)
   const queryParams = {
-    category: activeCategory ?? undefined,
     search: debouncedSearch || undefined,
-    activeOnly: true,
     pageNo: 1,
     pageSize: 100
   }
@@ -204,25 +189,6 @@ export function SkillPickerContent({ defaultCategory, onClose }: SkillPickerCont
         </TabsList>
       </Tabs>
 
-      <div className="flex gap-1 border-foreground/6 border-b px-3 py-2">
-        {CATEGORY_TABS.map((tab) => (
-          <button
-            key={tab.key ?? "all"}
-            type="button"
-            onClick={() => setActiveCategory(tab.key)}
-            className={cn(
-              "flex items-center gap-1 rounded-full px-2.5 py-1 text-xs transition-colors",
-              activeCategory === tab.key
-                ? "bg-primary/15 text-primary"
-                : "text-muted-foreground hover:bg-foreground/6 hover:text-foreground"
-            )}
-          >
-            <tab.icon />
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
       <div className="px-3 py-2">
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-muted-foreground" />
@@ -293,7 +259,6 @@ export function SkillPickerContent({ defaultCategory, onClose }: SkillPickerCont
         open={editorDialog.value}
         onOpenChange={handleEditorOpenChange}
         initial={editTarget}
-        defaultCategory={activeCategory ?? defaultCategory ?? undefined}
         onSaved={handleSaved}
       />
     </div>

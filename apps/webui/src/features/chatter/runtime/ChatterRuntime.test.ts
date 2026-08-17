@@ -8,7 +8,6 @@ import { type ChatterTarget, DEFAULT_TASK_MODEL_SELECTION } from "@/features/cha
 import {
   buildChatterInitialState,
   DEFAULT_CHATTER_ASSISTANT_ID,
-  DEFAULT_CHATTER_ASSISTANT_VERSION,
   resolveChatterAguiPath
 } from "./chatter-runtime-state"
 
@@ -28,7 +27,6 @@ describe("Chatter 任务模型 initialState", () => {
 
     expect(state).toMatchObject({
       assistantId: DEFAULT_CHATTER_ASSISTANT_ID,
-      assistantVersion: DEFAULT_CHATTER_ASSISTANT_VERSION,
       taskModelSelection: { mode: "AUTO" }
     })
     expect(state).not.toHaveProperty("modelId")
@@ -43,7 +41,6 @@ describe("Chatter 任务模型 initialState", () => {
 
     expect(state).toMatchObject({
       assistantId: DEFAULT_CHATTER_ASSISTANT_ID,
-      assistantVersion: DEFAULT_CHATTER_ASSISTANT_VERSION,
       taskModelSelection: { mode: "EXPLICIT", modelId: "qwen-plus" }
     })
   })

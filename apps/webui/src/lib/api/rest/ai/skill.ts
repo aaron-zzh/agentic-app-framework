@@ -1,8 +1,8 @@
 /**
- * AI 技能 API、DTO 与 TanStack Query Hook。
+ * AI 技能根对象、不可变版本 API 与 TanStack Query Hook。
  *
  * @example
- * const { data } = useMyAiSkills({ category: "COPYWRITING", pageNo: 1, pageSize: 20 })
+ * const { data } = useMyAiSkills({ search: "写作", pageNo: 1, pageSize: 20 })
  * @author AaronZZH & Kiro
  */
 
@@ -19,61 +19,124 @@ const SKILL_QUERY_KEY = ["ai-skills"] as const
 
 type SkillQueryParamValue = string | number | boolean | string[] | undefined
 
-export type AiSkillStatus = "active" | "inactive"
+export type AiSkillVisibility = "PRIVATE" | "WORKSPACE" | "PUBLIC"
+export type AiSkillVersionStatus = "DRAFT" | "IN_REVIEW" | "APPROVED" | "REJECTED" | "RETIRED"
+export type AiSkillToolAccessMode = "RESTRICT" | "INHERIT"
+
+export interface AiSkillToolRequirementVO {
+  id: number
+  toolId: string
+  toolVersion: number | null
+  toolName: string
+  required: boolean
+  usagePurpose: string
+  sortOrder: number
+}
+
+export interface AiSkillModelRequirementVO {
+  id: number
+  capability: string
+  required: boolean
+  minimumContextTokens: number | null
+  rationale: string
+}
+
+export interface AiSkillVersionVO {
+  id: number
+  version: number
+  status: AiSkillVersionStatus
+  content: string
+  inputSchema: string | null
+  outputSchema: string | null
+  outputContract: string | null
+  toolAccessMode: AiSkillToolAccessMode
+  toolRequirements: AiSkillToolRequirementVO[]
+  modelRequirements: AiSkillModelRequirementVO[]
+  changeSummary: string | null
+  contentHash: string
+  authoredBy: number | null
+  createTime: string
+}
 
 export interface AiSkillVO {
   id: number
   version: number
-  code: string | null
+  code: string
   name: string
-  description: string | null
-  category: string | null
-  agentId: number | null
-  triggerIntent: string | null
-  systemPrompt: string | null
-  priority: number
+  summary: string
+  locale: string
+  visibility: AiSkillVisibility
   builtIn: boolean
-  isGlobal: boolean
-  isPublic: boolean
+  currentVersionId: number | null
+  sourceSkillId: number | null
+  currentVersion: AiSkillVersionVO | null
+  latestVersion: AiSkillVersionVO | null
   ownerId: number | null
   ownedByCurrentUser: boolean
-  status: AiSkillStatus
   createTime: string
   updateTime: string
 }
 
 export interface AiSkillsParams extends Record<string, SkillQueryParamValue> {
-  category?: string
-  activeOnly?: boolean
+  locale?: string
+  publishedOnly?: boolean
 }
 
 export interface AiSkillDirectoryParams extends AiSkillsParams {
   search?: string
+  visibility?: AiSkillVisibility
+  builtIn?: boolean
   pageNo?: number
   pageSize?: number
 }
 
-export interface CreateAiSkillInput {
-  code?: string
-  name: string
-  description?: string
-  category?: string
-  agentId?: number
-  triggerIntent?: string
-  systemPrompt?: string
-  priority?: number
-  isPublic?: boolean
+export interface AiSkillToolRequirementInput {
+  toolId: string
+  toolVersion?: number
+  toolName: string
+  required?: boolean
+  usagePurpose: string
+  sortOrder?: number
 }
 
-export type UpdateAiSkillInput = Partial<CreateAiSkillInput> & { status?: AiSkillStatus }
+export interface AiSkillModelRequirementInput {
+  capability: string
+  required?: boolean
+  minimumContextTokens?: number
+  rationale: string
+}
+
+export interface CreateAiSkillInput {
+  code: string
+  name: string
+  summary: string
+  locale: string
+  visibility: AiSkillVisibility
+  sourceSkillId?: number
+  content: string
+  inputSchema?: string
+  outputSchema?: string
+  outputContract?: string
+  toolAccessMode: AiSkillToolAccessMode
+  toolRequirements?: AiSkillToolRequirementInput[]
+  modelRequirements?: AiSkillModelRequirementInput[]
+  changeSummary?: string
+  status: AiSkillVersionStatus
+}
+
+export type UpdateAiSkillInput = Partial<CreateAiSkillInput>
 
 export const skillApi = {
-  listActive: (params: AiSkillsParams = {}): Promise<AiSkillVO[]> =>
-    backendApi.get(`${SKILL_PATH}/active${buildQuery(params)}`),
+  listVisible: (params: AiSkillsParams = {}): Promise<AiSkillVO[]> =>
+    backendApi.get(`${SKILL_PATH}/visible${buildQuery(params)}`),
   listMine: (params: AiSkillDirectoryParams = {}): Promise<PageResult<AiSkillVO>> =>
     backendApi.get(`${SKILL_PATH}/me${buildQuery(params)}`),
   listPublic: (params: AiSkillDirectoryParams = {}): Promise<PageResult<AiSkillVO>> =>
     backendApi.get(`${SKILL_PATH}/public${buildQuery(params)}`),
+  versions: (skillId: number): Promise<AiSkillVersionVO[]> =>
+    backendApi.get(`${SKILL_PATH}/${skillId}/versions`),
+  publishVersion: (skillId: number, versionId: number): Promise<AiSkillVO> =>
+    backendApi.post(`${SKILL_PATH}/${skillId}/versions/${versionId}/publish`),
   meta: (): Promise<CrudMeta> => backendApi.get(`${SKILL_PATH}/_meta`),
   create: (input: CreateAiSkillInput): Promise<AiSkillVO> => backendApi.post(SKILL_PATH, input),
   update: (id: number, input: UpdateAiSkillInput): Promise<AiSkillVO> =>
@@ -81,19 +144,14 @@ export const skillApi = {
   delete: (id: number): Promise<void> => backendApi.delete(`${SKILL_PATH}/${id}`)
 }
 
-/** 当前用户可见的启用技能合集。 */
-export function useActiveAiSkills(params: AiSkillsParams = {}, enabled = true) {
+/** 当前用户可见且有已发布版本的技能合集。 */
+export function useAiSkills(params: AiSkillsParams = {}, enabled = true) {
   return useQuery({
-    queryKey: [...SKILL_QUERY_KEY, "active", params] as const,
-    queryFn: () => skillApi.listActive(params),
+    queryKey: [...SKILL_QUERY_KEY, "visible", params] as const,
+    queryFn: () => skillApi.listVisible(params),
     enabled,
     staleTime: 5 * 60 * 1000
   })
-}
-
-/** 兼容聊天与生成控制器的原技能查询入口。 */
-export function useAiSkills(params: AiSkillsParams = {}, enabled = true) {
-  return useActiveAiSkills(params, enabled)
 }
 
 /** 当前用户创建的技能目录。 */
@@ -105,12 +163,21 @@ export function useMyAiSkills(params: AiSkillDirectoryParams = {}, enabled = tru
   })
 }
 
-/** 平台内置与当前组织/工作区公开的技能目录。 */
+/** 平台内置与当前组织/工作区共享的技能目录。 */
 export function usePublicAiSkills(params: AiSkillDirectoryParams = {}, enabled = true) {
   return useQuery({
     queryKey: [...SKILL_QUERY_KEY, "public", params] as const,
     queryFn: () => skillApi.listPublic(params),
     enabled
+  })
+}
+
+/** 指定技能的不可变版本历史。 */
+export function useAiSkillVersions(skillId: number | null, enabled = true) {
+  return useQuery({
+    queryKey: [...SKILL_QUERY_KEY, skillId ?? 0, "versions"] as const,
+    queryFn: () => skillApi.versions(skillId ?? 0),
+    enabled: enabled && skillId !== null
   })
 }
 
@@ -124,7 +191,7 @@ export function useAiSkillMeta(enabled = true) {
   })
 }
 
-/** 创建当前用户技能。 */
+/** 创建技能根对象与首个不可变版本。 */
 export function useCreateAiSkill() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -136,7 +203,7 @@ export function useCreateAiSkill() {
   })
 }
 
-/** 更新当前用户拥有的技能。 */
+/** 更新技能根元数据并追加不可变版本。 */
 export function useUpdateAiSkill() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -149,7 +216,20 @@ export function useUpdateAiSkill() {
   })
 }
 
-/** 删除当前用户拥有的技能。 */
+/** 将已审核版本设置为当前发布版本。 */
+export function usePublishAiSkillVersion() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ skillId, versionId }: { skillId: number; versionId: number }) =>
+      skillApi.publishVersion(skillId, versionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: SKILL_QUERY_KEY })
+      notify.success("技能版本已发布")
+    }
+  })
+}
+
+/** 删除当前用户拥有的技能根对象。 */
 export function useDeleteAiSkill() {
   const queryClient = useQueryClient()
   return useMutation({

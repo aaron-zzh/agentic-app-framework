@@ -305,7 +305,7 @@ export function useVideoGenerationController({
           : {}),
         duration: Number(params.videoDuration?.replace("s", "")) || undefined,
         systemPrompt: mergeAigcSystemPrompts(
-          selectedSkill?.systemPrompt,
+          selectedSkill?.currentVersion?.content,
           selectedBrandProfile?.systemPrompt
         )
       })
