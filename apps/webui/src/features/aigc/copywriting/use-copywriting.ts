@@ -19,7 +19,6 @@ import {
 } from "@/lib/api/headless-assistant"
 import {
   aigcProjectApi,
-  copywritingApi,
   copywritingKeys,
   useAttachAigcProjectDocument
 } from "@/lib/api/rest/ai"
