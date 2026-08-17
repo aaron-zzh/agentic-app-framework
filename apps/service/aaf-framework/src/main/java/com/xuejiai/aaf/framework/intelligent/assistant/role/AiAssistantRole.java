@@ -9,8 +9,7 @@ import lombok.Setter;
 /**
  * 助理-角色关联（M:N）。
  *
- * <p>角色为可复用定义，可跨助理挂载；一个助理可挂载多个角色。 助理的默认角色仍由 {@code ai_assistant.default_role_id} 指向，本表的 {@code
- * isDefault} 为冗余标记，便于按助理查询其默认角色。
+ * <p>角色为可复用定义，可跨助理挂载；一个助理可挂载多个角色。{@code isDefault} 是默认角色的唯一真理源， 每个 Assistant 必须且只能有一个未删除的默认关联。
  *
  * <p>标注 {@link OrgIgnore}：纯 M:N 关联表，无自己的组织语义，归属由 assistant/role 各自决定，{@code org_id} 恒为 NULL。
  */
@@ -45,4 +44,8 @@ public class AiAssistantRole extends BaseEntity {
     /** 排序值（越小越靠前） */
     @Column(name = "sort_order", nullable = false)
     private Integer sortOrder = 100;
+
+    /** 是否参与当前 Assistant 的 Role Scope。 */
+    @Column(name = "enabled", nullable = false)
+    private Boolean enabled = true;
 }

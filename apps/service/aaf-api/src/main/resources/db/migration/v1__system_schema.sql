@@ -1911,7 +1911,6 @@ CREATE TABLE channel_bot_binding (
     platform_id       BIGINT       NOT NULL,
     name              VARCHAR(100) NOT NULL,
     assistant_id      VARCHAR(128) NOT NULL,
-    assistant_version BIGINT       NOT NULL CHECK (assistant_version > 0),
     route_rule        JSONB,
     fallback_reply  VARCHAR(500),
     status          INT          NOT NULL DEFAULT 0,
@@ -1932,8 +1931,7 @@ CREATE TABLE channel_bot_binding (
 
 COMMENT ON TABLE channel_bot_binding IS '机器人绑定 Assistant';
 COMMENT ON COLUMN channel_bot_binding.platform_id IS '关联 channel_platform.id';
-COMMENT ON COLUMN channel_bot_binding.assistant_id IS 'Assistant v2 稳定标识';
-COMMENT ON COLUMN channel_bot_binding.assistant_version IS 'Assistant v2 精确定义版本';
+COMMENT ON COLUMN channel_bot_binding.assistant_id IS 'Assistant 稳定标识';
 COMMENT ON COLUMN channel_bot_binding.route_rule IS '触发规则 JSON（关键词/群 ID 等）';
 
 CREATE INDEX idx_bot_binding_platform ON channel_bot_binding (platform_id) WHERE deleted = FALSE;
@@ -2160,7 +2158,6 @@ CREATE TABLE wecom_kf_account_binding (
     open_kf_id        VARCHAR(64)  NOT NULL,
     account_name      VARCHAR(128),
     assistant_id      VARCHAR(128) NOT NULL,
-    assistant_version BIGINT       NOT NULL CHECK (assistant_version > 0),
     enabled           BOOLEAN      NOT NULL DEFAULT TRUE,
     owner_id        BIGINT,
     create_by       BIGINT,
@@ -2174,9 +2171,8 @@ CREATE TABLE wecom_kf_account_binding (
     remark          VARCHAR(256)
 );
 
-COMMENT ON TABLE wecom_kf_account_binding IS '企微客服账号与 Assistant v2 精确版本绑定';
-COMMENT ON COLUMN wecom_kf_account_binding.assistant_id IS 'Assistant v2 稳定标识';
-COMMENT ON COLUMN wecom_kf_account_binding.assistant_version IS 'Assistant v2 精确定义版本';
+COMMENT ON TABLE wecom_kf_account_binding IS '企微客服账号与当前 Assistant 绑定';
+COMMENT ON COLUMN wecom_kf_account_binding.assistant_id IS 'Assistant 稳定标识';
 CREATE UNIQUE INDEX idx_wecom_kf_open_kf_id
     ON wecom_kf_account_binding (open_kf_id)
     WHERE deleted = FALSE;

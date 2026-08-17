@@ -7,7 +7,6 @@ import java.util.Optional;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantTask;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionCriteria;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionDecision;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillRoute;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 
@@ -18,14 +17,12 @@ public interface CompletionValidator {
 
     record ValidationRequest(
             AssistantTask task,
-            SkillRoute route,
             CompletionCriteria criteria,
             Optional<TaskBoard> taskBoard,
             List<ExecutionEvent> events) {
 
         public ValidationRequest {
             Objects.requireNonNull(task, "task 不能为空");
-            Objects.requireNonNull(route, "route 不能为空");
             Objects.requireNonNull(criteria, "criteria 不能为空");
             taskBoard = Objects.requireNonNull(taskBoard, "taskBoard Optional 不能为空");
             events = List.copyOf(Objects.requireNonNull(events, "events 不能为空"));

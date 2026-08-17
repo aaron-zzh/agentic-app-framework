@@ -17,15 +17,21 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 
+import com.xuejiai.aaf.framework.intelligent.agent.model.ActivatedSkill;
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentExecutionCommand;
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentMessage;
+import com.xuejiai.aaf.framework.intelligent.agent.model.AuthorizedSkillSummary;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ExecutionPolicy;
 import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
+import com.xuejiai.aaf.framework.intelligent.agent.model.SkillExecutionProfile;
+import com.xuejiai.aaf.framework.intelligent.agent.model.SkillSelectionManifest;
 import com.xuejiai.aaf.framework.intelligent.agent.model.SubagentSpec;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentDefinitionPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillSelectionMode;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
+import com.xuejiai.aaf.framework.intelligent.core.skill.SkillVersionRef;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.compiler.AgentScopeSpecCompiler;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeEventMapper;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeMessageMapper;
@@ -131,6 +137,34 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
                         com.xuejiai.aaf.framework.intelligent.agent.model.ModelSelectionRequirement
                                 .balanced(),
                         false);
+        var skillVersion = new SkillVersionRef(1L, 1L, 1);
+        var selection =
+                new SkillSelectionManifest(
+                        "test.route",
+                        "test.skill",
+                        SkillSelectionMode.FIXED,
+                        1,
+                        List.of(
+                                new AuthorizedSkillSummary(
+                                        "test.skill",
+                                        "测试技能",
+                                        "验证临时生命周期",
+                                        List.of(),
+                                        Set.of(),
+                                        Set.of())));
+        var skillExecutionProfile =
+                new SkillExecutionProfile(
+                        selection,
+                        List.of(
+                                new ActivatedSkill(
+                                        "test.skill",
+                                        skillVersion,
+                                        "技能提示",
+                                        Set.of(),
+                                        Set.of(),
+                                        List.of(),
+                                        List.of())),
+                        List.of());
         return new AgentExecutionCommand(
                 dynamic,
                 Optional.of(
@@ -138,8 +172,7 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
                                 "system.role.test", "测试角色", List.of("执行测试"), List.of("越权操作"))),
                 AgentExecutionCommand.ExecutionMode.DELEGATE,
                 Optional.of(executionModel),
-                "技能提示",
-                Set.of(),
+                skillExecutionProfile,
                 0,
                 List.of(new AgentMessage("message-1", AgentMessage.Role.USER, "执行")),
                 invocationContext);
@@ -157,7 +190,7 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
                         (SubagentSpec.Dynamic) command.subagentSpec(),
                         executionModel,
                         command.effectiveSystemPromptAppendix(),
-                        command.roleAllowedToolNames()))
+                        command.skillExecutionProfile().effectiveTools()))
                 .thenReturn(agent);
         when(agent.streamEvents(anyList(), eq(runtimeContext))).thenReturn(events);
     }

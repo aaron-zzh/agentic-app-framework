@@ -17,7 +17,6 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantCommand;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantVersion;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionCriteria;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskModelSelection;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
@@ -56,7 +55,6 @@ public class AssistantAguiController {
                                 .orElseThrow(() -> new AccessDeniedException("请求未认证")));
         var state = request.state();
         var assistantId = requireText(state, "assistantId");
-        var assistantVersion = requireVersion(state);
         var taskModelSelection = taskModelSelection(state);
         var input = lastUserMessageText(request.messages());
         var parentRunId = normalizeOptional(request.parentRunId());
@@ -68,7 +66,6 @@ public class AssistantAguiController {
                         userId,
                         new MemorySubject(tenantId, SubjectKind.USER, userId.value()),
                         new AssistantId(assistantId),
-                        assistantVersion,
                         new ConversationId(request.threadId()),
                         new SessionId(request.threadId()),
                         new TaskId("agui:" + request.runId()),
@@ -113,14 +110,6 @@ public class AssistantAguiController {
         var orgId = OrgContext.getCurrentOrgId();
         if (orgId == null) throw new AccessDeniedException("请求缺少组织上下文");
         return new TenantId(orgId.toString());
-    }
-
-    private static AssistantVersion requireVersion(JsonNode state) {
-        var value = state.get("assistantVersion");
-        if (value == null || !value.isIntegralNumber()) {
-            throw new IllegalArgumentException("state.assistantVersion 必须是整数");
-        }
-        return new AssistantVersion(value.longValue());
     }
 
     private static TaskModelSelection taskModelSelection(JsonNode state) {

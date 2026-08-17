@@ -16,6 +16,7 @@ import org.mockito.Mock;
 import com.xuejiai.aaf.framework.intelligent.agent.port.SkillCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Role;
 import com.xuejiai.aaf.framework.intelligent.core.skill.SkillDef;
+import com.xuejiai.aaf.framework.intelligent.core.skill.SkillVersionRef;
 import com.xuejiai.aaf.test.BaseMockitoUnitTest;
 
 class DefaultEffectiveSkillResolverTest extends BaseMockitoUnitTest {
@@ -36,20 +37,20 @@ class DefaultEffectiveSkillResolverTest extends BaseMockitoUnitTest {
         var role = role("writer", Set.of("selected", "other"));
         when(skillCatalog.findByCode("selected")).thenReturn(Optional.of(selected));
 
-        var result = resolver.resolve(role, "selected");
+        var result = resolver.resolve(role, Set.of("selected"));
 
         assertThat(result).containsExactly(selected);
     }
 
     @Test
-    @DisplayName("Given Skill 目录不存在命中项 When 解析 Then 返回空列表")
-    void should_return_empty_when_selected_skill_is_missing() {
+    @DisplayName("Given Skill 目录不存在命中项 When 解析 Then 拒绝未发布技能")
+    void should_reject_missing_selected_skill() {
         var role = role("writer", Set.of("selected"));
         when(skillCatalog.findByCode("selected")).thenReturn(Optional.empty());
 
-        var result = resolver.resolve(role, "selected");
-
-        assertThat(result).isEmpty();
+        assertThatThrownBy(() -> resolver.resolve(role, Set.of("selected")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("不存在已发布 Skill");
     }
 
     @Test
@@ -57,7 +58,7 @@ class DefaultEffectiveSkillResolverTest extends BaseMockitoUnitTest {
     void should_reject_skill_outside_effective_role() {
         var role = role("writer", Set.of("selected"));
 
-        assertThatThrownBy(() -> resolver.resolve(role, "other"))
+        assertThatThrownBy(() -> resolver.resolve(role, Set.of("other")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("不属于当前有效 Role");
     }
@@ -66,7 +67,16 @@ class DefaultEffectiveSkillResolverTest extends BaseMockitoUnitTest {
         return new Role(key, key, List.of("执行指定职责"), List.of(), skillKeys, Set.of());
     }
 
-    private SkillDef skill(Long id, String name) {
-        return new SkillDef(id, name, name + "描述", null, List.of(), name + "提示词", 10, false);
+    private SkillDef skill(Long id, String code) {
+        return new SkillDef(
+                id,
+                code,
+                code,
+                code + "描述",
+                new SkillVersionRef(id, id, 1),
+                code + "提示词",
+                Set.of(),
+                Set.of(),
+                false);
     }
 }

@@ -3,16 +3,17 @@ package com.xuejiai.aaf.module.ai.aigc.execution.service;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentExecutionCommand;
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentMessage;
+import com.xuejiai.aaf.framework.intelligent.agent.model.FixedSkillExecutionProfile;
 import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.model.SubagentSpec;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolAuthorizationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
+import com.xuejiai.aaf.framework.intelligent.agent.port.SkillCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ExecutionEventStatus;
@@ -40,6 +41,7 @@ import lombok.RequiredArgsConstructor;
 public class FrameworkAigcAgentExecutionAdapter implements AigcAgentExecutionPort {
 
     private final AgentExecutionPort agentExecutionPort;
+    private final SkillCatalogPort skillCatalog;
 
     @Override
     public Submission submit(Command command) {
@@ -72,8 +74,7 @@ public class FrameworkAigcAgentExecutionAdapter implements AigcAgentExecutionPor
                         Optional.empty(),
                         AgentExecutionCommand.ExecutionMode.DIRECT,
                         Optional.empty(),
-                        "",
-                        Set.of(),
+                        FixedSkillExecutionProfile.from(requireSystemSkill(), List.of()),
                         0,
                         List.of(
                                 new AgentMessage(
@@ -86,6 +87,15 @@ public class FrameworkAigcAgentExecutionAdapter implements AigcAgentExecutionPor
                         .map(this::toResult)
                         .toFuture();
         return new Submission(executionId.value(), runId.value(), completion);
+    }
+
+    private com.xuejiai.aaf.framework.intelligent.core.skill.SkillDef requireSystemSkill() {
+        return skillCatalog
+                .findByCode("builtin-agent-execution")
+                .orElseThrow(
+                        () ->
+                                new IllegalStateException(
+                                        "系统内建 Skill 未初始化: builtin-agent-execution"));
     }
 
     private Result toResult(List<ExecutionEvent> events) {

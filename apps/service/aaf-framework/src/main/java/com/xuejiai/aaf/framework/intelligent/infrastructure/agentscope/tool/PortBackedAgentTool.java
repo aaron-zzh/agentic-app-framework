@@ -65,6 +65,9 @@ final class PortBackedAgentTool extends ToolBase {
                                     result.metadata(),
                                     definition.reversible(),
                                     definition.requireConfirm());
+                            if (Boolean.TRUE.equals(result.metadata().get("handoff"))) {
+                                throw new ToolSuspendException("任务已移交人工支持");
+                            }
                             return ToolResultBlock.of(
                                     TextBlock.builder().text(result.output()).build(),
                                     result.metadata());

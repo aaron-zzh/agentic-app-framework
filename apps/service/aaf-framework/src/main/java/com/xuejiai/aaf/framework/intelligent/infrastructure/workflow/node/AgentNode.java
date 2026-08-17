@@ -17,11 +17,13 @@ import org.springframework.stereotype.Component;
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry;
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentExecutionCommand;
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentMessage;
+import com.xuejiai.aaf.framework.intelligent.agent.model.FixedSkillExecutionProfile;
 import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.model.SubagentSpec;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolAuthorizationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolAuthorizationContext.ToolAuthorizationRule;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
+import com.xuejiai.aaf.framework.intelligent.agent.port.SkillCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
@@ -47,6 +49,7 @@ import lombok.extern.slf4j.Slf4j;
 public class AgentNode implements JavaDelegate {
 
     private final AgentExecutionPort agentExecutionPort;
+    private final SkillCatalogPort skillCatalog;
     private final ToolRegistry toolRegistry;
 
     @Override
@@ -104,6 +107,9 @@ public class AgentNode implements JavaDelegate {
         var processId = execution.getProcessInstanceId();
         var activityId = execution.getCurrentActivityId();
         var tools = configuredTools(execution);
+        if (!tools.isEmpty()) {
+            throw new IllegalArgumentException("Agent 节点 tools 必须迁移为 Assistant 执行画像中的版本化 ToolRef");
+        }
         var context =
                 new InvocationContext(
                         new TenantId(orgId),
@@ -127,11 +133,19 @@ public class AgentNode implements JavaDelegate {
                 Optional.empty(),
                 AgentExecutionCommand.ExecutionMode.DELEGATE,
                 Optional.empty(),
-                "",
-                tools,
+                FixedSkillExecutionProfile.from(requireSystemSkill(), List.of()),
                 0,
                 List.of(new AgentMessage("workflow:" + unique, AgentMessage.Role.USER, prompt)),
                 context);
+    }
+
+    private com.xuejiai.aaf.framework.intelligent.core.skill.SkillDef requireSystemSkill() {
+        return skillCatalog
+                .findByCode("builtin-agent-execution")
+                .orElseThrow(
+                        () ->
+                                new IllegalStateException(
+                                        "系统内建 Skill 未初始化: builtin-agent-execution"));
     }
 
     private ToolAuthorizationContext toolAuthorization(Set<String> tools) {

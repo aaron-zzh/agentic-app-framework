@@ -29,12 +29,21 @@ INSERT INTO sys_dict_type (name, type, status, remark) VALUES
 ('AIGC 发布状态', 'aigc_publication_status', 0, '渠道发布生命周期状态'),
 ('AIGC 时间线状态', 'aigc_timeline_status', 0, '轻时间线编辑和归档状态'),
 ('AIGC 时间线轨道类型', 'aigc_timeline_track_type', 0, '视频、语音、音乐、字幕和叠加轨道'),
+('文案输出语言', 'ai.copywriting.output-locale', 0, '文案生成的受控输出语言'),
 ('AIGC 动作', 'aigc_action_key', 0, '内置动作展示标签')
 ON CONFLICT DO NOTHING;
 
 -- ============================================================
 -- 字典数据
 -- ============================================================
+
+INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
+('ai.copywriting.output-locale', '英文', 'EN', 1, 'primary'),
+('ai.copywriting.output-locale', '日文', 'JA', 2, 'info'),
+('ai.copywriting.output-locale', '韩文', 'KO', 3, 'success'),
+('ai.copywriting.output-locale', '法文', 'FR', 4, 'warning'),
+('ai.copywriting.output-locale', '西班牙文', 'ES', 5, 'danger')
+ON CONFLICT DO NOTHING;
 
 INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ('aigc_project_status', '草稿', 'draft', 1, 'default'),

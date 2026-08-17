@@ -62,6 +62,8 @@ public final class DictType {
         private Ai() {}
 
         public static final String OCR_DOCUMENT_TYPE = "ai_ocr_document_type"; // OCR 证件/票据类型
+        public static final String COPYWRITING_OUTPUT_LOCALE =
+                "ai.copywriting.output-locale"; // 文案输出语言
     }
 
     /** AIGC 模块 */

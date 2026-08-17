@@ -7,7 +7,6 @@ import static org.mockito.Mockito.when;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 
@@ -24,7 +23,6 @@ import com.xuejiai.aaf.framework.intelligent.agent.model.ToolRef;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolCatalogPort.ToolDefinition;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolGatewayPort;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultEffectiveToolResolver;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.model.AgentScopeModelResolver;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.AgentScopeToolkitFactory;
@@ -51,12 +49,7 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
         var toolkitFactory =
                 new AgentScopeToolkitFactory(
                         toolCatalog, toolGateway, new ToolResultEvidenceStore());
-        compiler =
-                new AgentScopeSpecCompiler(
-                        stateStore,
-                        toolkitFactory,
-                        modelResolver,
-                        new DefaultEffectiveToolResolver());
+        compiler = new AgentScopeSpecCompiler(stateStore, toolkitFactory, modelResolver);
         when(modelResolver.resolve(any(ModelSpec.class))).thenReturn(model);
         when(toolCatalog.resolve(any()))
                 .thenAnswer(
@@ -72,13 +65,13 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
     }
 
     @Test
-    @DisplayName("Given Agent 允许两个工具且 Role 仅允许一个 When 编译 Then Toolkit 只注册交集工具")
-    void should_register_only_intersected_tools() {
+    @DisplayName("Given Agent 声明两个工具但最终画像只有一个 When 编译 Then Toolkit 只注册最终工具")
+    void should_register_only_effective_tools() {
         var search = tool("knowledge.search");
         var generate = tool("content.generate");
         var spec = agentSpec(List.of(search, generate));
 
-        var agent = compiler.compile(spec, "技能提示", Set.of(search.name()));
+        var agent = compiler.compile(spec, "技能提示", List.of(search));
 
         assertThat(spec.tools()).hasSize(2);
         assertThat(agent.getToolkit().getToolNames())
@@ -93,8 +86,8 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
         var search = tool("knowledge.search");
         var spec = agentSpec(List.of(search));
 
-        var first = compiler.compile(spec, "稳定技能提示", Set.of(search.name()));
-        var second = compiler.compile(spec, "稳定技能提示", Set.of(search.name()));
+        var first = compiler.compile(spec, "稳定技能提示", List.of(search));
+        var second = compiler.compile(spec, "稳定技能提示", List.of(search));
 
         assertThat(second).isSameAs(first);
     }
@@ -106,10 +99,8 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
         var spec = dynamicSpec(List.of(search));
         var executionModel = new ModelSpec("1");
 
-        var first =
-                compiler.compileDirect(spec, executionModel, "Role 与技能提示", Set.of(search.name()));
-        var second =
-                compiler.compileDirect(spec, executionModel, "Role 与技能提示", Set.of(search.name()));
+        var first = compiler.compileDirect(spec, executionModel, "Role 与技能提示", List.of(search));
+        var second = compiler.compileDirect(spec, executionModel, "Role 与技能提示", List.of(search));
 
         assertThat(second).isSameAs(first);
     }
@@ -119,8 +110,8 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
     void should_isolate_predefined_cache_by_effective_prompt() {
         var spec = agentSpec(List.of());
 
-        var first = compiler.compile(spec, "技能 A", Set.of());
-        var second = compiler.compile(spec, "技能 B", Set.of());
+        var first = compiler.compile(spec, "技能 A", List.of());
+        var second = compiler.compile(spec, "技能 B", List.of());
 
         assertThat(second).isNotSameAs(first);
         assertThat(first.getDelegate().getSysPrompt()).endsWith("技能 A");
@@ -137,10 +128,10 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
         try {
             var searchFuture =
                     CompletableFuture.supplyAsync(
-                            () -> compiler.compile(spec, "", Set.of(search.name())), executor);
+                            () -> compiler.compile(spec, "", List.of(search)), executor);
             var generateFuture =
                     CompletableFuture.supplyAsync(
-                            () -> compiler.compile(spec, "", Set.of(generate.name())), executor);
+                            () -> compiler.compile(spec, "", List.of(generate)), executor);
 
             var searchAgent = searchFuture.join();
             var generateAgent = generateFuture.join();
@@ -172,13 +163,13 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
                     CompletableFuture.supplyAsync(
                             () ->
                                     compiler.compileDynamic(
-                                            spec, executionModel, "技能 A", Set.of(search.name())),
+                                            spec, executionModel, "技能 A", List.of(search)),
                             executor);
             var generateFuture =
                     CompletableFuture.supplyAsync(
                             () ->
                                     compiler.compileDynamic(
-                                            spec, executionModel, "技能 B", Set.of(generate.name())),
+                                            spec, executionModel, "技能 B", List.of(generate)),
                             executor);
 
             searchAgent = searchFuture.join();

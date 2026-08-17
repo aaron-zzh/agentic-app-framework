@@ -8,8 +8,9 @@ import com.xuejiai.aaf.framework.engine.skill.SkillStore;
 import com.xuejiai.aaf.framework.engine.skill.SkillStore.SkillRecord;
 import com.xuejiai.aaf.framework.intelligent.agent.port.SkillCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.core.skill.SkillDef;
+import com.xuejiai.aaf.framework.intelligent.core.skill.SkillVersionRef;
 
-/** 基于既有 SkillStore 的技能目录只读适配器。 */
+/** 基于 AAF 版本化 SkillStore 的只读技能目录适配器。 */
 public final class JpaSkillCatalogAdapter implements SkillCatalogPort {
 
     private final SkillStore skillStore;
@@ -35,18 +36,13 @@ public final class JpaSkillCatalogAdapter implements SkillCatalogPort {
     private SkillDef toDomain(SkillRecord record) {
         return new SkillDef(
                 record.skillId(),
+                record.code(),
                 record.name(),
-                record.description(),
-                record.agentId(),
-                parseTriggerKeywords(record.triggerIntent()),
-                record.systemPrompt(),
-                record.priority(),
+                record.summary(),
+                new SkillVersionRef(record.skillId(), record.versionId(), record.version()),
+                record.content(),
+                record.requiredToolNames(),
+                record.requiredModelCapabilities(),
                 record.builtIn());
-    }
-
-    private List<String> parseTriggerKeywords(String triggerIntent) {
-        return triggerIntent == null
-                ? List.of()
-                : List.of(triggerIntent.replaceAll("[\\[\\]\"]", "").split(","));
     }
 }

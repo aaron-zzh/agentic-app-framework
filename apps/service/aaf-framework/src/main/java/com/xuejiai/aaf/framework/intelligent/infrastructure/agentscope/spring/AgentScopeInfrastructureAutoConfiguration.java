@@ -106,10 +106,8 @@ public class AgentScopeInfrastructureAutoConfiguration {
     AgentScopeSpecCompiler agentScopeSpecCompiler(
             AgentStateStore stateStore,
             AgentScopeToolkitFactory toolkitFactory,
-            AgentScopeModelResolver modelResolver,
-            EffectiveToolResolver effectiveToolResolver) {
-        return new AgentScopeSpecCompiler(
-                stateStore, toolkitFactory, modelResolver, effectiveToolResolver);
+            AgentScopeModelResolver modelResolver) {
+        return new AgentScopeSpecCompiler(stateStore, toolkitFactory, modelResolver);
     }
 
     @Bean

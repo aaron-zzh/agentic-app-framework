@@ -11,18 +11,17 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 public record EffectiveContextManifest(
         TaskId taskId,
         AssistantId assistantId,
-        AssistantVersion assistantVersion,
-        String skillKey,
+        long assistantRevision,
+        String roleKey,
         List<SourceReference> sources,
         Instant createdAt) {
 
     public EffectiveContextManifest {
         Objects.requireNonNull(taskId, "taskId 不能为空");
         Objects.requireNonNull(assistantId, "assistantId 不能为空");
-        Objects.requireNonNull(assistantVersion, "assistantVersion 不能为空");
-        if (skillKey == null || skillKey.isBlank()) {
-            throw new IllegalArgumentException("skillKey 不能为空白");
-        }
+        if (assistantRevision < 0) throw new IllegalArgumentException("assistantRevision 不能小于 0");
+        if (roleKey == null || roleKey.isBlank())
+            throw new IllegalArgumentException("roleKey 不能为空白");
         sources = List.copyOf(Objects.requireNonNull(sources, "sources 不能为空"));
         Objects.requireNonNull(createdAt, "createdAt 不能为空");
     }
@@ -44,16 +43,12 @@ public record EffectiveContextManifest(
             scope = requireText(scope, "scope");
             reason = requireText(reason, "reason");
             summary = summary == null ? "" : summary.trim();
-            if (summary.length() > 256) {
-                throw new IllegalArgumentException("上下文摘要长度不能超过 256");
-            }
+            if (summary.length() > 256) throw new IllegalArgumentException("上下文摘要长度不能超过 256");
         }
 
         private static String requireText(String value, String name) {
             Objects.requireNonNull(value, name + " 不能为空");
-            if (value.isBlank()) {
-                throw new IllegalArgumentException(name + " 不能为空白");
-            }
+            if (value.isBlank()) throw new IllegalArgumentException(name + " 不能为空白");
             return value;
         }
     }

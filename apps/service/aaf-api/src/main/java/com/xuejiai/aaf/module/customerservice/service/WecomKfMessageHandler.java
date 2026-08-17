@@ -17,7 +17,7 @@ import com.xuejiai.aaf.module.customerservice.repository.WecomKfAccountBindingRe
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 消息处理器：企微客服协议接入后统一调用 Assistant v2。 */
+/** 消息处理器：企微客服协议接入后统一调用 Assistant。 */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -71,7 +71,7 @@ public class WecomKfMessageHandler {
     private String routeToAssistant(MsgItem msg, String userMessage) {
         var binding = bindingRepo.findByOpenKfIdAndEnabledTrue(msg.getOpenKfId()).orElse(null);
         if (binding == null) {
-            log.warn("企微客服账号没有启用的 Assistant v2 绑定: openKfId={}", msg.getOpenKfId());
+            log.warn("企微客服账号没有启用的 Assistant 绑定: openKfId={}", msg.getOpenKfId());
             return properties.getFallbackReply();
         }
 
@@ -79,7 +79,7 @@ public class WecomKfMessageHandler {
             return assistants.execute(request(binding, msg, userMessage));
         } catch (RuntimeException failure) {
             log.error(
-                    "企微客服 Assistant v2 执行失败: bindingId={}, errorType={}",
+                    "企微客服 Assistant 执行失败: bindingId={}, errorType={}",
                     binding.getId(),
                     failure.getClass().getSimpleName());
             return properties.getFallbackReply();
@@ -91,7 +91,6 @@ public class WecomKfMessageHandler {
                 binding.getOrgId(),
                 binding.getOwnerId(),
                 binding.getAssistantId(),
-                binding.getAssistantVersion() == null ? 0 : binding.getAssistantVersion(),
                 "wecom_kf",
                 binding.getId().toString(),
                 msg.getExternalUserId(),

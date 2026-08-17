@@ -24,10 +24,10 @@ public class RoleStoreImpl implements RoleStore {
     private final AiAssistantRoleRepository assistantRoleRepository;
 
     @Override
-    public List<Long> getSkillIds(Long roleId) {
+    public List<String> getSkillCodes(Long roleId) {
         return roleRepository
                 .findById(roleId)
-                .map(role -> parseJsonArrayAsLong(role.getSkillIds()))
+                .map(role -> parseJsonArray(role.getSkillIds()))
                 .orElse(List.of());
     }
 
@@ -42,25 +42,10 @@ public class RoleStoreImpl implements RoleStore {
     @Override
     public List<Long> getRoleIdsByAssistant(Long assistantId) {
         if (assistantId == null) return List.of();
-        return assistantRoleRepository.findByAssistantIdOrderBySortOrderAsc(assistantId).stream()
+        return assistantRoleRepository
+                .findByAssistantIdAndEnabledTrueOrderBySortOrderAsc(assistantId)
+                .stream()
                 .map(AiAssistantRole::getRoleId)
-                .toList();
-    }
-
-    private List<Long> parseJsonArrayAsLong(String json) {
-        if (json == null || json.isBlank()) return List.of();
-        return List.of(json.replaceAll("[\\[\\]\"]", "").split(",")).stream()
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .map(
-                        s -> {
-                            try {
-                                return Long.parseLong(s);
-                            } catch (NumberFormatException e) {
-                                return null;
-                            }
-                        })
-                .filter(java.util.Objects::nonNull)
                 .toList();
     }
 

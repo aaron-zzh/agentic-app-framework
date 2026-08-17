@@ -89,7 +89,6 @@ public final class AutomationApplicationService {
                 new TaskTemplate(
                         source.userId(),
                         command.assistantId(),
-                        command.assistantVersion(),
                         command.memorySubject(),
                         command.input(),
                         command.completionCriteria(),

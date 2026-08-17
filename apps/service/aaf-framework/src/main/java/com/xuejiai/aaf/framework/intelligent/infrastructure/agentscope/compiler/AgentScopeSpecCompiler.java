@@ -2,14 +2,12 @@ package com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.compiler
 
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentSpec;
 import com.xuejiai.aaf.framework.intelligent.agent.model.SubagentSpec;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolRef;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveToolResolver;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.model.AgentScopeModelResolver;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.AgentScopeToolkitFactory;
@@ -29,7 +27,6 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
     private final AgentStateStore stateStore;
     private final AgentScopeToolkitFactory toolkitFactory;
     private final AgentScopeModelResolver modelResolver;
-    private final EffectiveToolResolver effectiveToolResolver;
 
     /** 预定义 Agent 缓存：键含版本号与生效画像，画像变化即视为新条目。 */
     private final ConcurrentMap<DefinitionKey, HarnessAgent> cache = new ConcurrentHashMap<>();
@@ -40,41 +37,34 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
     public AgentScopeSpecCompiler(
             AgentStateStore stateStore,
             AgentScopeToolkitFactory toolkitFactory,
-            AgentScopeModelResolver modelResolver,
-            EffectiveToolResolver effectiveToolResolver) {
+            AgentScopeModelResolver modelResolver) {
         this.stateStore = Objects.requireNonNull(stateStore, "stateStore 不能为空");
         this.toolkitFactory = Objects.requireNonNull(toolkitFactory, "toolkitFactory 不能为空");
         this.modelResolver = Objects.requireNonNull(modelResolver, "modelResolver 不能为空");
-        this.effectiveToolResolver =
-                Objects.requireNonNull(effectiveToolResolver, "effectiveToolResolver 不能为空");
     }
 
     /** 按完整不可变执行画像命中预定义 Agent 编译产物。 */
     public HarnessAgent compile(
-            AgentSpec spec, String skillSystemPromptAppendix, Set<String> roleAllowedToolNames) {
+            AgentSpec spec, String executionPromptAppendix, List<ToolRef> effectiveTools) {
         Objects.requireNonNull(spec, "spec 不能为空");
-        Objects.requireNonNull(skillSystemPromptAppendix, "skillSystemPromptAppendix 不能为空");
-        Objects.requireNonNull(roleAllowedToolNames, "roleAllowedToolNames 不能为空");
-        // 生效工具 = Role 白名单 ∩ Agent 声明工具，Toolkit 只暴露交集
-        var effectiveTools =
-                List.copyOf(effectiveToolResolver.resolve(roleAllowedToolNames, spec.tools()));
-        var effectiveSystemPrompt = appendPrompt(spec.systemPrompt(), skillSystemPromptAppendix);
+        Objects.requireNonNull(executionPromptAppendix, "executionPromptAppendix 不能为空");
+        var finalTools = List.copyOf(Objects.requireNonNull(effectiveTools, "effectiveTools 不能为空"));
+        var effectiveSystemPrompt = appendPrompt(spec.systemPrompt(), executionPromptAppendix);
         var key =
                 new DefinitionKey(
-                        spec.agentId(), spec.version(), effectiveTools, effectiveSystemPrompt);
+                        spec.agentId(), spec.version(), finalTools, effectiveSystemPrompt);
         return cache.computeIfAbsent(
-                key, ignored -> compileNew(spec, effectiveTools, effectiveSystemPrompt));
+                key, ignored -> compileNew(spec, finalTools, effectiveSystemPrompt));
     }
 
     /** 按完整任务执行画像编译并缓存默认 Role 的主助理执行体。 */
     public HarnessAgent compileDirect(
             SubagentSpec.Dynamic spec,
             ModelSpec executionModel,
-            String skillSystemPromptAppendix,
-            Set<String> roleAllowedToolNames) {
+            String executionPromptAppendix,
+            List<ToolRef> effectiveTools) {
         var resolved =
-                resolveDynamic(
-                        spec, executionModel, skillSystemPromptAppendix, roleAllowedToolNames);
+                resolveDynamic(spec, executionModel, executionPromptAppendix, effectiveTools);
         var key =
                 new DirectKey(
                         spec.identifier(),
@@ -92,31 +82,28 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
     public HarnessAgent compileDynamic(
             SubagentSpec.Dynamic spec,
             ModelSpec executionModel,
-            String skillSystemPromptAppendix,
-            Set<String> roleAllowedToolNames) {
+            String executionPromptAppendix,
+            List<ToolRef> effectiveTools) {
         var resolved =
-                resolveDynamic(
-                        spec, executionModel, skillSystemPromptAppendix, roleAllowedToolNames);
+                resolveDynamic(spec, executionModel, executionPromptAppendix, effectiveTools);
         return compileDynamicNew(spec, executionModel, resolved.tools(), resolved.systemPrompt());
     }
 
-    /** 校验动态规格并解析出生效工具与系统提示词。 */
+    /** 校验动态规格并使用 AAF 已计算的最终工具集。 */
     private DynamicExecutionProfile resolveDynamic(
             SubagentSpec.Dynamic spec,
             ModelSpec executionModel,
-            String skillSystemPromptAppendix,
-            Set<String> roleAllowedToolNames) {
+            String executionPromptAppendix,
+            List<ToolRef> effectiveTools) {
         Objects.requireNonNull(spec, "spec 不能为空");
         Objects.requireNonNull(executionModel, "executionModel 不能为空");
-        Objects.requireNonNull(skillSystemPromptAppendix, "skillSystemPromptAppendix 不能为空");
-        Objects.requireNonNull(roleAllowedToolNames, "roleAllowedToolNames 不能为空");
+        Objects.requireNonNull(executionPromptAppendix, "executionPromptAppendix 不能为空");
+        effectiveTools = List.copyOf(Objects.requireNonNull(effectiveTools, "effectiveTools 不能为空"));
         if (spec.inheritParentTools()) {
             throw new IllegalArgumentException("Dynamic 子智能体暂不支持继承父 Agent 工具");
         }
-        var effectiveTools =
-                List.copyOf(effectiveToolResolver.resolve(roleAllowedToolNames, spec.tools()));
         var effectiveSystemPrompt =
-                appendPrompt(spec.systemPromptFragment(), skillSystemPromptAppendix);
+                appendPrompt(spec.systemPromptFragment(), executionPromptAppendix);
         return new DynamicExecutionProfile(effectiveTools, effectiveSystemPrompt);
     }
 

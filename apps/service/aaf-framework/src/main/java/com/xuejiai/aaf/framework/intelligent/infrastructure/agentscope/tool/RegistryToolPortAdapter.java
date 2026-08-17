@@ -6,12 +6,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import org.springframework.beans.factory.ObjectProvider;
+
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.tool.ConnectorToolCallback;
 import com.xuejiai.aaf.framework.engine.tool.ToolCatalogEntry;
 import com.xuejiai.aaf.framework.engine.tool.ToolCatalogProvider;
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolRef;
+import com.xuejiai.aaf.framework.intelligent.agent.port.ContextAwareToolHandler;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort;
 
@@ -36,10 +39,15 @@ public final class RegistryToolPortAdapter implements ToolCatalogPort, ToolInvoc
 
     private final ToolRegistry registry;
     private final ToolCatalogProvider catalog;
+    private final ObjectProvider<ContextAwareToolHandler> handlers;
 
-    public RegistryToolPortAdapter(ToolRegistry registry, ToolCatalogProvider catalog) {
+    public RegistryToolPortAdapter(
+            ToolRegistry registry,
+            ToolCatalogProvider catalog,
+            ObjectProvider<ContextAwareToolHandler> handlers) {
         this.registry = Objects.requireNonNull(registry, "registry 不能为空");
         this.catalog = Objects.requireNonNull(catalog, "catalog 不能为空");
+        this.handlers = Objects.requireNonNull(handlers, "handlers 不能为空");
     }
 
     /** 逐项解析并保持与入参同序，供 Toolkit 做对位校验。 */
@@ -49,17 +57,20 @@ public final class RegistryToolPortAdapter implements ToolCatalogPort, ToolInvoc
         return tools.stream().map(this::resolveOne).toList();
     }
 
-    /** 同步 callback 放到 boundedElastic 执行，避免阻塞事件循环线程。 */
+    /** 本地 callback 与上下文感知内置工具均在 boundedElastic 执行，避免阻塞事件循环线程。 */
     @Override
     public Mono<ToolInvocationResult> invoke(ToolInvocation invocation) {
         Objects.requireNonNull(invocation, "invocation 不能为空");
+        var definition = resolveOne(invocation.tool());
+        if (definition.connectorAction()) {
+            return Mono.error(new IllegalStateException("Connector 禁止绕过 ConnectorActionPort 调用"));
+        }
+        var handler = handler(invocation.tool().name());
+        if (handler != null) {
+            return handler.invoke(invocation).subscribeOn(Schedulers.boundedElastic());
+        }
         return Mono.fromCallable(
                         () -> {
-                            var definition = resolveOne(invocation.tool());
-                            if (definition.connectorAction()) {
-                                throw new IllegalStateException(
-                                        "Connector 禁止绕过 ConnectorActionPort 调用");
-                            }
                             var callback =
                                     registry.getCallback(invocation.tool().name())
                                             .orElseThrow(
@@ -80,7 +91,7 @@ public final class RegistryToolPortAdapter implements ToolCatalogPort, ToolInvoc
                 .subscribeOn(Schedulers.boundedElastic());
     }
 
-    /** 解析单个工具：版本与标识校验 → 目录元数据 → callback → schema，任一环节缺失即失败。 */
+    /** 解析单个工具：版本与标识校验 → 目录元数据 → 内置处理器或 callback → schema。 */
     private ToolDefinition resolveOne(ToolRef ref) {
         Objects.requireNonNull(ref, "tool ref 不能为空");
         if (ref.version() != SUPPORTED_VERSION) {
@@ -95,10 +106,11 @@ public final class RegistryToolPortAdapter implements ToolCatalogPort, ToolInvoc
                         .orElseThrow(
                                 () -> new IllegalArgumentException("工具目录不存在: " + ref.toolId()));
         requireEnabled(entry);
-        var callback =
-                registry.getCallback(ref.name())
-                        .orElseThrow(
-                                () -> new IllegalStateException("工具 callback 未注册: " + ref.name()));
+        var handler = handler(ref.name());
+        var callback = registry.getCallback(ref.name()).orElse(null);
+        if (handler == null && callback == null) {
+            throw new IllegalStateException("工具执行器未注册: " + ref.name());
+        }
         var schema = inputSchema(entry);
         if (connectorAction(entry)) {
             if (!(callback instanceof ConnectorToolCallback)) {
@@ -107,9 +119,14 @@ public final class RegistryToolPortAdapter implements ToolCatalogPort, ToolInvoc
             }
             validateConnectorSchema(entry, schema);
         }
+        var description =
+                handler != null
+                        ? handler.description()
+                        : Objects.requireNonNullElse(
+                                callback.getToolDefinition().description(), "");
         return new ToolDefinition(
                 ref,
-                Objects.requireNonNullElse(callback.getToolDefinition().description(), ""),
+                description,
                 schema,
                 entry.source(),
                 entry.permissionCode(),
@@ -117,6 +134,13 @@ public final class RegistryToolPortAdapter implements ToolCatalogPort, ToolInvoc
                 entry.reversible(),
                 entry.requireConfirm(),
                 entry.idempotencyRequired());
+    }
+
+    private ContextAwareToolHandler handler(String toolName) {
+        return handlers.orderedStream()
+                .filter(candidate -> candidate.toolName().equals(toolName))
+                .findFirst()
+                .orElse(null);
     }
 
     /** 目录元数据自洽性校验：启用状态、只读与可撤销互斥、Connector 写动作必须幂等。 */

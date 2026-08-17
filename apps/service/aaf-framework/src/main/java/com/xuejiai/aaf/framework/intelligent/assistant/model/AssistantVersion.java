@@ -1,11 +1,11 @@
 package com.xuejiai.aaf.framework.intelligent.assistant.model;
 
-/** Assistant 定义的单调版本。 */
+/** Assistant 当前行修订号，仅用于执行快照审计，不作为运行时选择参数。 */
 public record AssistantVersion(long value) implements Comparable<AssistantVersion> {
 
     public AssistantVersion {
-        if (value < 1) {
-            throw new IllegalArgumentException("AssistantVersion 必须大于 0");
+        if (value < 0) {
+            throw new IllegalArgumentException("AssistantVersion 不能小于 0");
         }
     }
 

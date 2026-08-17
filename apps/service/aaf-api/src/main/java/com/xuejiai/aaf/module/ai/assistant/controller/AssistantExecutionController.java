@@ -2,7 +2,6 @@ package com.xuejiai.aaf.module.ai.assistant.controller;
 
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,7 +20,7 @@ import reactor.core.publisher.Flux;
 /** 通用 Assistant 无会话执行接口。 */
 @Tag(name = "Assistant 执行")
 @RestController
-@RequestMapping("/api/assistants")
+@RequestMapping("/api/assistant-executions")
 @RequiredArgsConstructor
 @PreAuthorize("isAuthenticated()")
 public class AssistantExecutionController {
@@ -30,12 +29,10 @@ public class AssistantExecutionController {
 
     @Operation(summary = "流式执行 Assistant")
     @PostMapping(
-            value = "/{assistantId}/executions",
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<AssistantExecutionEventVO> execute(
-            @PathVariable String assistantId,
             @Valid @RequestBody AssistantExecutionRequest request) {
-        return assistantExecutionService.execute(assistantId, request);
+        return assistantExecutionService.execute(request);
     }
 }

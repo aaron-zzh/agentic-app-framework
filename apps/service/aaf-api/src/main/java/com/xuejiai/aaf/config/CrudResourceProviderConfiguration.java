@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.config;
 
+import java.util.Map;
 import java.util.Set;
 
 import org.springframework.context.annotation.Bean;
@@ -157,13 +158,36 @@ public class CrudResourceProviderConfiguration {
 
     @Bean
     CrudResourceDefinitionProvider<?> skillResource() {
-        return crud(
-                "ai.skill",
-                "技能",
-                SkillController.class,
-                "/api/system/skills",
-                "system:skill-definition",
-                "ownerId");
+        var provider =
+                crud(
+                        "ai.skill",
+                        "技能",
+                        SkillController.class,
+                        "/api/system/skills",
+                        "system:skill-definition",
+                        "ownerId");
+        return CrudResourceDefinitions.withCustomUpdateCommands(
+                provider,
+                Map.of(
+                        com.xuejiai.aaf.module.ai.skill.SkillService.COMMAND_VERSIONED_UPDATE,
+                                Set.of(
+                                        "code",
+                                        "name",
+                                        "summary",
+                                        "locale",
+                                        "visibility",
+                                        "sourceSkillId",
+                                        "content",
+                                        "inputSchema",
+                                        "outputSchema",
+                                        "outputContract",
+                                        "toolAccessMode",
+                                        "toolRequirements",
+                                        "modelRequirements",
+                                        "changeSummary",
+                                        "status"),
+                        com.xuejiai.aaf.module.ai.skill.SkillService.COMMAND_PUBLISH,
+                                Set.of("currentVersionId")));
     }
 
     @Bean

@@ -83,6 +83,16 @@ public record AssistantExecutionEventVO(
                 List.of());
     }
 
+    public static AssistantExecutionEventVO outputValidationFailure(long sequence, String message) {
+        return new AssistantExecutionEventVO(
+                sequence,
+                "EXECUTION_FAILED",
+                "FAILED",
+                Instant.now(),
+                Map.of("errorCode", "ASSISTANT_OUTPUT_CONTRACT_VIOLATION", "message", message),
+                List.of());
+    }
+
     private static Map<String, Object> safePayload(
             ExecutionEventType type, Map<String, Object> values) {
         var result = new LinkedHashMap<String, Object>();

@@ -3,9 +3,9 @@ package com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.spring;
 import java.lang.management.ManagementFactory;
 import java.time.Clock;
 import java.time.Duration;
-import java.util.List;
 import java.util.UUID;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
@@ -23,41 +23,48 @@ import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantAppl
 import com.xuejiai.aaf.framework.intelligent.assistant.application.CompletionValidator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultCompletionValidator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultEffectiveSkillResolver;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultRoleSelector;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultSkillSelectionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveSkillResolver;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.InstallSystemAssistantTemplatesUseCase;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.ModelSkillRouter;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.SkillRouter;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveToolResolver;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.ModelSkillSelectionPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.RoleSelector;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.SkillSelectionPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.SupportHandoffTool;
+import com.xuejiai.aaf.framework.intelligent.assistant.persona.PersonaRepository;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskDispatchPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.EffectiveContextPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.ExecutionProfileSnapshotPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.NotificationPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.RoleDefinitionPort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.SystemAssistantTemplateContributor;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.SystemAssistantTemplateInstaller;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.SkillDecisionAuditPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskBoardPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskControlPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskRecoveryDispatchPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskRecoveryPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.role.AiAssistantRoleRepository;
 import com.xuejiai.aaf.framework.intelligent.assistant.role.AiRoleRepository;
 import com.xuejiai.aaf.framework.intelligent.cognition.application.MemoryGovernanceService;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryContextPort;
 import com.xuejiai.aaf.framework.intelligent.core.llm.LlmClient;
+import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agent.persistence.JpaSkillCatalogAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentScopeInfrastructureAutoConfiguration;
-import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.DefaultUserAssistantTemplate;
-import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.AssistantDefinitionVersionRepository;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.AssistantRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.AssistantTaskControlRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.ContextSourcePreferenceRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.EffectiveContextManifestRepository;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.ExecutionProfileSnapshotRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaAssistantDefinitionAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaEffectiveContextAdapter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaExecutionProfileSnapshotAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaRoleDefinitionAdapter;
-import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaSystemAssistantTemplateInstaller;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaTaskControlAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.governance.ApprovalRecoveryDispatcher;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
@@ -70,8 +77,12 @@ public class AssistantInfrastructureAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(AssistantDefinitionPort.class)
     AssistantDefinitionPort assistantDefinitionPort(
-            AssistantDefinitionVersionRepository repository) {
-        return new JpaAssistantDefinitionAdapter(repository);
+            AssistantRepository assistants,
+            PersonaRepository personas,
+            AiAssistantRoleRepository bindings,
+            AiRoleRepository roles,
+            AiModelRepository models) {
+        return new JpaAssistantDefinitionAdapter(assistants, personas, bindings, roles, models);
     }
 
     @Bean
@@ -102,17 +113,35 @@ public class AssistantInfrastructureAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean(SystemAssistantTemplateInstaller.class)
-    SystemAssistantTemplateInstaller systemAssistantTemplateInstaller(
-            AssistantDefinitionVersionRepository repository) {
-        return new JpaSystemAssistantTemplateInstaller(repository);
+    @ConditionalOnMissingBean(SupportHandoffTool.class)
+    SupportHandoffTool supportHandoffTool(TaskControlPort tasks, ExecutionEventStorePort events) {
+        return new SupportHandoffTool(tasks, events);
     }
 
     @Bean
-    @ConditionalOnBean({LlmClient.class, SkillCatalogPort.class})
-    @ConditionalOnMissingBean(SkillRouter.class)
-    SkillRouter assistantSkillRouter(LlmClient llmClient, SkillCatalogPort skillCatalog) {
-        return new ModelSkillRouter(llmClient, skillCatalog);
+    @ConditionalOnMissingBean(RoleSelector.class)
+    RoleSelector roleSelector() {
+        return new DefaultRoleSelector();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(ExecutionProfileSnapshotPort.class)
+    ExecutionProfileSnapshotPort executionProfileSnapshotPort(
+            ExecutionProfileSnapshotRepository repository) {
+        return new JpaExecutionProfileSnapshotAdapter(repository);
+    }
+
+    @Bean
+    @ConditionalOnBean(LlmClient.class)
+    @ConditionalOnMissingBean(SkillSelectionPort.class)
+    SkillSelectionPort modelSkillSelectionPort(LlmClient llmClient) {
+        return new ModelSkillSelectionPort(llmClient);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(SkillSelectionPort.class)
+    SkillSelectionPort defaultSkillSelectionPort() {
+        return new DefaultSkillSelectionPort();
     }
 
     @Bean
@@ -130,17 +159,15 @@ public class AssistantInfrastructureAutoConfiguration {
     }
 
     @Bean
-    SystemAssistantTemplateContributor defaultUserAssistantTemplate() {
-        return new DefaultUserAssistantTemplate();
-    }
-
-    @Bean
     @ConditionalOnBean({
         AssistantDefinitionPort.class,
         TaskControlPort.class,
         TaskBoardPort.class,
         AgentExecutionPort.class,
-        SkillRouter.class,
+        EffectiveToolResolver.class,
+        RoleSelector.class,
+        SkillSelectionPort.class,
+        ExecutionProfileSnapshotPort.class,
         EffectiveSkillResolver.class,
         EffectiveContextPort.class,
         MemoryContextPort.class,
@@ -155,8 +182,12 @@ public class AssistantInfrastructureAutoConfiguration {
             AssistantDefinitionPort definitions,
             TaskControlPort tasks,
             TaskBoardPort taskBoards,
-            SkillRouter skillRouter,
+            RoleSelector roleSelector,
             EffectiveSkillResolver effectiveSkillResolver,
+            SkillSelectionPort skillSelection,
+            EffectiveToolResolver effectiveToolResolver,
+            ObjectProvider<SkillDecisionAuditPort> skillDecisionAudits,
+            ExecutionProfileSnapshotPort executionProfiles,
             EffectiveContextPort effectiveContexts,
             MemoryContextPort memoryContexts,
             MemoryGovernanceService memoryGovernance,
@@ -169,8 +200,12 @@ public class AssistantInfrastructureAutoConfiguration {
                 definitions,
                 tasks,
                 taskBoards,
-                skillRouter,
+                roleSelector,
                 effectiveSkillResolver,
+                skillSelection,
+                effectiveToolResolver,
+                skillDecisionAudits.getIfAvailable(SkillDecisionAuditPort::noop),
+                executionProfiles,
                 effectiveContexts,
                 memoryContexts,
                 memoryGovernance,
@@ -255,20 +290,5 @@ public class AssistantInfrastructureAutoConfiguration {
             AgentTaskRuntime agentTaskRuntime) {
         return () ->
                 agentTaskRuntime.register(new DelegatedTaskAgentTaskAdapter(coordinator, tasks));
-    }
-
-    @Bean
-    @ConditionalOnBean(SystemAssistantTemplateInstaller.class)
-    InstallSystemAssistantTemplatesUseCase installSystemAssistantTemplatesUseCase(
-            List<SystemAssistantTemplateContributor> contributors,
-            SystemAssistantTemplateInstaller installer) {
-        return new InstallSystemAssistantTemplatesUseCase(contributors, installer);
-    }
-
-    @Bean
-    @ConditionalOnBean(InstallSystemAssistantTemplatesUseCase.class)
-    SystemAssistantTemplateBootstrap systemAssistantTemplateBootstrap(
-            InstallSystemAssistantTemplatesUseCase useCase) {
-        return new SystemAssistantTemplateBootstrap(useCase);
     }
 }

@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantVersion;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionCriteria;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceReference;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract;
@@ -35,7 +34,6 @@ public record AssistantCommand(
         UserId userId,
         MemorySubject memorySubject,
         AssistantId assistantId,
-        AssistantVersion assistantVersion,
         ConversationId conversationId,
         SessionId sessionId,
         TaskId taskId,
@@ -68,7 +66,6 @@ public record AssistantCommand(
             throw new IllegalArgumentException("USER memorySubject 必须绑定当前 userId");
         }
         Objects.requireNonNull(assistantId, "assistantId 不能为空");
-        Objects.requireNonNull(assistantVersion, "assistantVersion 不能为空");
         Objects.requireNonNull(conversationId, "conversationId 不能为空");
         Objects.requireNonNull(sessionId, "sessionId 不能为空");
         Objects.requireNonNull(taskId, "taskId 不能为空");
@@ -114,7 +111,6 @@ public record AssistantCommand(
                 userId,
                 memorySubject,
                 assistantId,
-                assistantVersion,
                 conversationId,
                 sessionId,
                 taskId,
@@ -142,7 +138,6 @@ public record AssistantCommand(
                 userId,
                 memorySubject,
                 assistantId,
-                assistantVersion,
                 conversationId,
                 sessionId,
                 taskId,
@@ -175,7 +170,6 @@ public record AssistantCommand(
                 userId,
                 memorySubject,
                 assistantId,
-                assistantVersion,
                 conversationId,
                 nextSessionId,
                 taskId,
@@ -203,7 +197,6 @@ public record AssistantCommand(
                 userId,
                 memorySubject,
                 assistantId,
-                assistantVersion,
                 conversationId,
                 sessionId,
                 taskId,
@@ -246,7 +239,6 @@ public record AssistantCommand(
                 userId,
                 memorySubject,
                 assistantId,
-                assistantVersion,
                 conversationId,
                 subTask.sessionId(),
                 taskId,

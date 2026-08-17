@@ -68,7 +68,6 @@ class DefaultChannelAssistantExecutionAdapterTest extends BaseMockitoUnitTest {
         assertThat(command.tenantId().value()).isEqualTo("10");
         assertThat(command.userId().value()).isEqualTo("20");
         assertThat(command.assistantId().value()).isEqualTo("system.assistant.default-user");
-        assertThat(command.assistantVersion().value()).isEqualTo(1);
         assertThat(command.memorySubject().kind().name()).isEqualTo("VISITOR");
     }
 
@@ -123,7 +122,6 @@ class DefaultChannelAssistantExecutionAdapterTest extends BaseMockitoUnitTest {
                 10L,
                 20L,
                 "system.assistant.default-user",
-                1,
                 "feishu",
                 "binding-1",
                 "external-user",

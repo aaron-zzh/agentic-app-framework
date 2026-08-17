@@ -13,8 +13,8 @@ import lombok.Setter;
 @Table(name = "ai_role")
 public class Role extends BaseEntity {
 
-    /** 稳定业务码；历史未知角色允许为空。 */
-    @Column(length = 64, unique = true)
+    /** 稳定业务码。 */
+    @Column(nullable = false, length = 64)
     private String code;
 
     /** 显示名称（如"代码助理能力集"） */
@@ -25,7 +25,7 @@ public class Role extends BaseEntity {
     @Column(length = 512)
     private String description;
 
-    /** 绑定的技能 ID 列表（JSON 数组）。 对应 engine/skill/SkillDefinition.skillId。 */
+    /** 绑定的稳定 Skill code 列表（JSON 数组）。 */
     @Column(columnDefinition = "TEXT")
     private String skillIds;
 

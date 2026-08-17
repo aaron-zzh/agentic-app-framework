@@ -37,6 +37,7 @@ public class AiRoleCrudService
     protected RoleVO toVO(Role e) {
         return new RoleVO(
                 e.getId(),
+                e.getCode(),
                 e.getName(),
                 e.getDescription(),
                 e.getSkillIds(),
@@ -49,6 +50,7 @@ public class AiRoleCrudService
     @Override
     protected Role toEntity(RoleCreateDTO dto) {
         var entity = new Role();
+        entity.setCode(dto.code());
         entity.setName(dto.name());
         entity.setDescription(dto.description());
         entity.setSkillIds(dto.skillIds());
@@ -58,6 +60,9 @@ public class AiRoleCrudService
 
     @Override
     protected void updateEntity(Role entity, RoleCreateDTO dto) {
+        if (!entity.getCode().equals(dto.code())) {
+            throw new IllegalArgumentException("Role code 创建后不可修改");
+        }
         entity.setName(dto.name());
         entity.setDescription(dto.description());
         entity.setSkillIds(dto.skillIds());

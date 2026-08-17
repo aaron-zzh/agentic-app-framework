@@ -16,6 +16,9 @@ public interface AiAssistantRoleRepository
     /** 查询助理挂载的全部角色关联（按排序值升序）。 */
     List<AiAssistantRole> findByAssistantIdOrderBySortOrderAsc(Long assistantId);
 
+    /** 查询参与当前运行时 Scope 的启用角色关联（按排序值升序）。 */
+    List<AiAssistantRole> findByAssistantIdAndEnabledTrueOrderBySortOrderAsc(Long assistantId);
+
     /** 查询某角色被哪些助理挂载。 */
     List<AiAssistantRole> findByRoleId(Long roleId);
 

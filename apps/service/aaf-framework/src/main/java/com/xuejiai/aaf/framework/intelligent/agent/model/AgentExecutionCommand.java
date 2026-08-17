@@ -3,7 +3,6 @@ package com.xuejiai.aaf.framework.intelligent.agent.model;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
 
@@ -13,8 +12,7 @@ public record AgentExecutionCommand(
         Optional<RoleAssignment> roleAssignment,
         ExecutionMode executionMode,
         Optional<ModelSpec> executionModel,
-        String skillSystemPromptAppendix,
-        Set<String> roleAllowedToolNames,
+        SkillExecutionProfile skillExecutionProfile,
         long sequenceBase,
         List<AgentMessage> messages,
         InvocationContext context) {
@@ -24,18 +22,7 @@ public record AgentExecutionCommand(
         roleAssignment = Objects.requireNonNull(roleAssignment, "roleAssignment Optional 不能为空");
         Objects.requireNonNull(executionMode, "executionMode 不能为空");
         executionModel = Objects.requireNonNull(executionModel, "executionModel Optional 不能为空");
-        skillSystemPromptAppendix =
-                Objects.requireNonNull(skillSystemPromptAppendix, "skillSystemPromptAppendix 不能为空")
-                        .trim();
-        roleAllowedToolNames =
-                Set.copyOf(
-                        Objects.requireNonNull(roleAllowedToolNames, "roleAllowedToolNames 不能为空"));
-        roleAllowedToolNames.forEach(
-                name -> {
-                    if (name.isBlank()) {
-                        throw new IllegalArgumentException("roleAllowedToolNames 不能包含空白名称");
-                    }
-                });
+        Objects.requireNonNull(skillExecutionProfile, "skillExecutionProfile 不能为空");
         Objects.requireNonNull(context, "context 不能为空");
         if (sequenceBase < 0) {
             throw new IllegalArgumentException("sequenceBase 不能小于 0");
@@ -46,16 +33,11 @@ public record AgentExecutionCommand(
         }
     }
 
-    /** 将前注意选出的任务 Role 与命中技能共同编译进子智能体系统提示。 */
+    /** 将 Role 约束和仅已激活版本正文拼接进正式执行提示词。 */
     public String effectiveSystemPromptAppendix() {
         var rolePrompt = roleAssignment.map(RoleAssignment::systemPromptAppendix).orElse("");
-        if (rolePrompt.isBlank()) {
-            return skillSystemPromptAppendix;
-        }
-        if (skillSystemPromptAppendix.isBlank()) {
-            return rolePrompt;
-        }
-        return rolePrompt + "\n\n" + skillSystemPromptAppendix;
+        var skillPrompt = skillExecutionProfile.contentAppendix();
+        return rolePrompt.isBlank() ? skillPrompt : rolePrompt + "\n\n" + skillPrompt;
     }
 
     public enum ExecutionMode {

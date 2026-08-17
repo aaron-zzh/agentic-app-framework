@@ -3,7 +3,7 @@ package com.xuejiai.aaf.module.ai.assistant.port;
 import java.time.Instant;
 import java.util.Objects;
 
-/** 外部消息渠道调用 Assistant v2 的唯一业务边界。 */
+/** 外部消息渠道调用当前 Assistant 的唯一业务边界。 */
 public interface ChannelAssistantExecutionPort {
 
     String execute(Request request);
@@ -12,7 +12,6 @@ public interface ChannelAssistantExecutionPort {
             Long tenantId,
             Long ownerId,
             String assistantId,
-            long assistantVersion,
             String channelCode,
             String bindingKey,
             String externalUserId,
@@ -28,9 +27,6 @@ public interface ChannelAssistantExecutionPort {
                 throw new IllegalArgumentException("渠道绑定缺少有效 ownerId");
             }
             assistantId = requireText(assistantId, "assistantId");
-            if (assistantId.startsWith("legacy:") || assistantVersion <= 0) {
-                throw new IllegalArgumentException("渠道绑定尚未迁移到 Assistant v2");
-            }
             channelCode = requireText(channelCode, "channelCode");
             bindingKey = requireText(bindingKey, "bindingKey");
             externalUserId = requireText(externalUserId, "externalUserId");

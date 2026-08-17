@@ -200,7 +200,6 @@ public final class DelegatedTaskCoordinator {
                 command.userId(),
                 command.memorySubject(),
                 command.assistantId(),
-                command.assistantVersion(),
                 command.conversationId(),
                 command.sessionId(),
                 command.taskId(),

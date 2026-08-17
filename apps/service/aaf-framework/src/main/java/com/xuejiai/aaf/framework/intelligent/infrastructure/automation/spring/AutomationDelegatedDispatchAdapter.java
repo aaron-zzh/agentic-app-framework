@@ -49,7 +49,6 @@ public final class AutomationDelegatedDispatchAdapter implements DispatchPort {
                         template.ownerId(),
                         template.memorySubject(),
                         template.assistantId(),
-                        template.assistantVersion(),
                         new ConversationId("automation:" + seed),
                         new SessionId("automation:" + seed),
                         taskId,

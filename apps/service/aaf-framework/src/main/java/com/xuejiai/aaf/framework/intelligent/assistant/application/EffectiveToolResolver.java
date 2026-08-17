@@ -5,15 +5,16 @@ import java.util.Set;
 
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolRef;
 
-/** 解析角色业务边界与 Agent 技术边界共同允许的工具。 */
+/** 解析已激活 Skill、Role 与 Agent 共同允许的工具。 */
 public interface EffectiveToolResolver {
 
     /**
-     * 计算全部角色工具白名单与 Agent 允许工具的交集。
+     * 计算 Skill 工具要求 ∩ Role 工具白名单 ∩ Agent 声明工具。
      *
-     * @param roleAllowedToolNames 助理全部角色允许工具名称的合并结果；空集表示角色层未限制
-     * @param agentAllowedTools Agent 执行环境允许的工具
-     * @return 两层共同允许的工具
+     * <p>任何 Skill 工具声明只能收窄当前权限，不能扩张权限。
      */
-    List<ToolRef> resolve(Set<String> roleAllowedToolNames, List<ToolRef> agentAllowedTools);
+    List<ToolRef> resolve(
+            Set<String> skillRequiredToolNames,
+            Set<String> roleAllowedToolNames,
+            List<ToolRef> agentAllowedTools);
 }

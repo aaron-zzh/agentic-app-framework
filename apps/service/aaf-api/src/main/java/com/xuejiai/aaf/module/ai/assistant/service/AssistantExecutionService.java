@@ -7,12 +7,14 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.knowledge.rag.HybridSearchService;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeSearchContracts.AuthorizedQuery;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeSearchContracts.ChannelWeights;
@@ -23,15 +25,18 @@ import com.xuejiai.aaf.framework.intelligent.agent.model.AgentMessage.Attachment
 import com.xuejiai.aaf.framework.intelligent.ai.vision.VisionAttachment;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantCommand;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantInvocation;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantVersion;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionCriteria;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceReference;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceType;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskModelSelection;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.MemorySubject;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.SubjectKind;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AssistantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ConversationId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.CorrelationId;
@@ -51,6 +56,8 @@ import com.xuejiai.aaf.module.ai.vision.VisionMediaResolver;
 
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Flux;
+import tools.jackson.core.StreamReadFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 /** 通用 Assistant 无会话执行 facade；负责授权上下文组装与对外事件脱敏。 */
 @Service
@@ -61,16 +68,28 @@ public class AssistantExecutionService {
     private static final int MAX_KNOWLEDGE_BASES = 20;
     private static final int MATERIAL_BUDGET = 8_000;
     private static final int KNOWLEDGE_BUDGET = 6_000;
+    private static final int MAX_OUTPUT_CHAR_LEN = 32_000;
+    private static final JsonMapper OUTPUT_JSON_MAPPER =
+            JsonMapper.builder().enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION).build();
 
     private final AssistantCommandPort assistants;
+    private final AssistantDefinitionPort assistantDefinitions;
     private final HybridSearchService hybridSearchService;
     private final OperatorContext operatorContext;
     private final VisionMediaResolver visionMediaResolver;
 
-    public Flux<AssistantExecutionEventVO> execute(
-            String assistantId, AssistantExecutionRequest request) {
+    public Flux<AssistantExecutionEventVO> execute(AssistantExecutionRequest request) {
         if (request == null) {
             throw badRequest("请求体不能为空");
+        }
+        if (request.input() == null) {
+            throw badRequest("input 不能为空");
+        }
+        if (request.input().variables() == null) {
+            throw badRequest("input.variables 不能为空");
+        }
+        if (request.input().attachments() == null) {
+            throw badRequest("input.attachments 不能为空");
         }
         var knowledge = request.knowledge();
         if (knowledge == null) {
@@ -89,43 +108,49 @@ public class AssistantExecutionService {
             throw badRequest("knowledge.similarityThreshold 不能为空");
         }
         if (knowledge.includePublic()) {
-            throw badRequest("headless Assistant 执行不允许包含公共知识库");
+            throw badRequest("Assistant 执行不允许包含公共知识库");
         }
         if (request.model() == null) {
             throw badRequest("model 不能为空");
         }
-        if (request.materials() == null) {
-            throw badRequest("materials 不能为空");
+        if (request.memory() == null || request.memory().mode() == null) {
+            throw badRequest("memory.mode 不能为空");
         }
-        if (request.memoryMode() == null) {
-            throw badRequest("memoryMode 不能为空");
+        if (request.output() == null) {
+            throw badRequest("output 不能为空");
         }
-        var version = requireVersion(request.assistantVersion());
-        var knowledgeBaseIds = normalizeKnowledgeBaseIds(knowledge.knowledgeBaseIds());
-        var materials = parseMaterials(request.materials());
+
+        var identity = identity();
+        var definition = resolveAssistant(request.assistant(), identity);
+        var parsedInput = parseInput(request.input());
+        var outputContract = mergeOutputContract(request.output());
         var spec =
                 new ExecutionSpec(
-                        requireText(assistantId, "assistantId 不能为空"),
-                        version,
-                        requireText(request.input(), "input 不能为空"),
-                        normalize(request.skillKey()),
-                        knowledgeBaseIds,
+                        definition.assistantId().value(),
+                        requireText(request.input().text(), "input.text 不能为空"),
+                        request.skill() == null ? null : normalize(request.skill().code()),
+                        normalizeKnowledgeBaseIds(knowledge.knowledgeBaseIds()),
                         knowledge.topK(),
                         knowledge.similarityThreshold(),
                         modelSelection(request.model()),
-                        memoryMode(request.memoryMode()),
-                        materials.textMaterials(),
-                        materials.imageFileKeys(),
+                        memoryMode(request.memory().mode()),
+                        parsedInput.textMaterials(),
+                        parsedInput.imageFileKeys(),
                         List.of());
-        return execute(spec);
+        return execute(spec, identity, outputContract);
     }
 
     public Flux<AssistantExecutionEventVO> execute(ExecutionSpec spec) {
+        return execute(spec, identity(), null);
+    }
+
+    private Flux<AssistantExecutionEventVO> execute(
+            ExecutionSpec spec, Identity identity, EffectiveOutputContract outputContract) {
         validate(spec);
-        var identity = identity();
         var executionKey = UUID.randomUUID().toString();
         var supplemental = new ArrayList<AgentMessage>();
         var contextCandidates = new ArrayList<SourceReference>();
+        appendOutputContract(outputContract, executionKey, supplemental, contextCandidates);
         appendControlledContexts(
                 spec.controlledContexts(), executionKey, supplemental, contextCandidates);
         appendMaterials(spec.materials(), executionKey, supplemental, contextCandidates);
@@ -140,14 +165,87 @@ public class AssistantExecutionService {
                         spec.memoryMode(),
                         supplemental,
                         userAttachments);
+        var events = assistants.invoke(invocation);
+        return outputContract != null && "JSON".equals(outputContract.format())
+                ? outputContractProjection(events, outputContract)
+                : safeProjection(events);
+    }
+
+    private static Flux<AssistantExecutionEventVO> safeProjection(Flux<ExecutionEvent> events) {
         var lastSequence = new AtomicLong();
-        return assistants
-                .invoke(invocation)
-                .map(
+        return events.map(
                         event -> {
                             lastSequence.accumulateAndGet(event.sequence(), Math::max);
                             return AssistantExecutionEventVO.from(event);
                         })
+                .onErrorResume(
+                        ignored ->
+                                Flux.just(
+                                        AssistantExecutionEventVO.unexpectedFailure(
+                                                lastSequence.incrementAndGet())));
+    }
+
+    private static Flux<AssistantExecutionEventVO> outputContractProjection(
+            Flux<ExecutionEvent> events, EffectiveOutputContract contract) {
+        var lastSequence = new AtomicLong();
+        var deferred = new AtomicReference<List<ExecutionEvent>>();
+        return events.concatMap(
+                        event -> {
+                            lastSequence.accumulateAndGet(event.sequence(), Math::max);
+                            var pending = deferred.get();
+                            if (pending == null
+                                    && event.type() == ExecutionEventType.EXECUTION_COMPLETED) {
+                                return Flux.just(
+                                        AssistantExecutionEventVO.outputValidationFailure(
+                                                lastSequence.incrementAndGet(),
+                                                "Assistant 未返回可验证的终态文本"));
+                            }
+                            if (pending == null
+                                    && event.type() != ExecutionEventType.MESSAGE_COMPLETED) {
+                                return Flux.just(AssistantExecutionEventVO.from(event));
+                            }
+                            if (pending == null) {
+                                pending = new ArrayList<>();
+                                deferred.set(pending);
+                            }
+                            pending.add(event);
+                            if (event.type() == ExecutionEventType.EXECUTION_COMPLETED) {
+                                var failure = validateTerminalOutput(pending, contract);
+                                deferred.set(null);
+                                if (failure != null) {
+                                    return Flux.just(
+                                            AssistantExecutionEventVO.outputValidationFailure(
+                                                    lastSequence.incrementAndGet(), failure));
+                                }
+                                return Flux.fromIterable(pending)
+                                        .map(AssistantExecutionEventVO::from);
+                            }
+                            if (terminalFailure(event.type())) {
+                                var failedEvents =
+                                        pending.stream()
+                                                .filter(
+                                                        pendingEvent ->
+                                                                pendingEvent.type()
+                                                                        != ExecutionEventType
+                                                                                .MESSAGE_COMPLETED)
+                                                .map(AssistantExecutionEventVO::from)
+                                                .toList();
+                                deferred.set(null);
+                                return Flux.fromIterable(failedEvents);
+                            }
+                            return Flux.empty();
+                        })
+                .concatWith(
+                        Flux.defer(
+                                () ->
+                                        deferred.get() == null
+                                                ? Flux.empty()
+                                                : Flux.just(
+                                                        AssistantExecutionEventVO
+                                                                .outputValidationFailure(
+                                                                        lastSequence
+                                                                                .incrementAndGet(),
+                                                                        "Assistant 执行未形成可验证终态"))))
                 .onErrorResume(
                         ignored ->
                                 Flux.just(
@@ -169,7 +267,6 @@ public class AssistantExecutionService {
                 userId,
                 new MemorySubject(tenantId, SubjectKind.USER, userId.value()),
                 new AssistantId(spec.assistantId()),
-                new AssistantVersion(spec.assistantVersion()),
                 new ConversationId(executionKey),
                 new SessionId(executionKey),
                 new TaskId(executionKey),
@@ -319,6 +416,57 @@ public class AssistantExecutionService {
         return List.copyOf(attachments);
     }
 
+    private static void appendOutputContract(
+            EffectiveOutputContract outputContract,
+            String executionKey,
+            List<AgentMessage> supplemental,
+            List<SourceReference> contextCandidates) {
+        if (outputContract == null) {
+            return;
+        }
+        var instruction = new StringBuilder();
+        if (outputContract.maxCharLen() != null) {
+            instruction
+                    .append("最终正文应尽量控制在 ")
+                    .append(outputContract.maxCharLen())
+                    .append(" 个字符以内；这是文案篇幅提示，不要求通过截断或填充精确满足该长度。");
+        }
+        if (outputContract.locale() != null) {
+            instruction
+                    .append("最终正文必须使用 BCP 47 语言区域 `")
+                    .append(outputContract.locale())
+                    .append("` 对应的语言输出。");
+        }
+        if ("JSON".equals(outputContract.format())) {
+            instruction.append("最终正文必须是单一有效 JSON 值，不得输出 Markdown、解释或额外文本。");
+        }
+        if (instruction.isEmpty()) {
+            return;
+        }
+        supplemental.add(
+                new AgentMessage(
+                        "output-contract:" + executionKey,
+                        AgentMessage.Role.SYSTEM,
+                        instruction.toString()));
+        var summary =
+                (outputContract.maxCharLen() == null
+                                ? ""
+                                : "篇幅提示≤" + outputContract.maxCharLen() + "字符")
+                        + (outputContract.locale() == null
+                                ? ""
+                                : "，语言区域=" + outputContract.locale())
+                        + (outputContract.format() == null ? "" : "，格式=" + outputContract.format());
+        contextCandidates.add(
+                new SourceReference(
+                        SourceType.RULE,
+                        "assistant.output.contract",
+                        "1",
+                        "REQUEST",
+                        "统一 Assistant 输出契约",
+                        summary,
+                        false));
+    }
+
     private static void appendControlledContexts(
             List<ControlledContext> contexts,
             String executionKey,
@@ -343,6 +491,71 @@ public class AssistantExecutionService {
         }
     }
 
+    private AssistantDefinition resolveAssistant(
+            AssistantExecutionRequest.AssistantTarget target, Identity identity) {
+        var tenantId = new TenantId(identity.orgId().toString());
+        var userId = new UserId(identity.ownerId().toString());
+        var requestedId = target == null ? null : normalize(target.id());
+        var definition =
+                requestedId == null
+                        ? assistantDefinitions
+                                .findDefaultForUser(tenantId, userId)
+                                .orElseThrow(() -> notFound("当前认证用户没有可用的默认 Assistant"))
+                        : assistantDefinitions
+                                .findById(tenantId, new AssistantId(requestedId))
+                                .orElseThrow(() -> notFound("Assistant 定义不存在: " + requestedId));
+        if (definition.lifecycle() != AssistantDefinition.Lifecycle.PUBLISHED) {
+            throw badRequest("Assistant 定义不可执行: " + definition.lifecycle());
+        }
+        return definition;
+    }
+
+    private static EffectiveOutputContract mergeOutputContract(
+            AssistantExecutionRequest.OutputOptions requested) {
+        var maxCharLen = requested.maxCharLen();
+        if (maxCharLen != null && (maxCharLen <= 0 || maxCharLen > MAX_OUTPUT_CHAR_LEN)) {
+            throw badRequest("output.maxCharLen 必须在 1 到 " + MAX_OUTPUT_CHAR_LEN + " 之间");
+        }
+        var locale = requested.locale() == null ? null : requested.locale().languageTag();
+        var requestedFormat = normalize(requested.format());
+        if (requestedFormat != null && !"JSON".equalsIgnoreCase(requestedFormat)) {
+            throw badRequest("output.format 当前仅支持 JSON 严格验证");
+        }
+        return new EffectiveOutputContract(
+                maxCharLen, locale, requestedFormat == null ? null : "JSON");
+    }
+
+    private static String validateTerminalOutput(
+            List<ExecutionEvent> events, EffectiveOutputContract contract) {
+        var text =
+                events.stream()
+                        .filter(event -> event.type() == ExecutionEventType.MESSAGE_COMPLETED)
+                        .map(event -> event.payload().values().get("text"))
+                        .filter(String.class::isInstance)
+                        .map(String.class::cast)
+                        .reduce((first, second) -> second)
+                        .orElse(null);
+        if (text == null) {
+            return "Assistant 未返回可验证的终态文本";
+        }
+        try (var parser = OUTPUT_JSON_MAPPER.createParser(text)) {
+            var root = OUTPUT_JSON_MAPPER.readTree(parser);
+            if (root == null || parser.nextToken() != null) {
+                return "Assistant 终态文本不是单一有效 JSON 值";
+            }
+        } catch (Exception failure) {
+            return "Assistant 终态文本不是有效 JSON";
+        }
+        return null;
+    }
+
+    private static boolean terminalFailure(ExecutionEventType type) {
+        return type == ExecutionEventType.COMMAND_REJECTED
+                || type == ExecutionEventType.EXECUTION_FAILED
+                || type == ExecutionEventType.EXECUTION_PAUSED
+                || type == ExecutionEventType.EXECUTION_CANCELED;
+    }
+
     private Identity identity() {
         var orgId = OrgContext.getCurrentOrgId();
         if (orgId == null) {
@@ -361,7 +574,6 @@ public class AssistantExecutionService {
             throw badRequest("执行规格不能为空");
         }
         requireText(spec.assistantId(), "assistantId 不能为空");
-        requireVersion(spec.assistantVersion());
         requireText(spec.input(), "input 不能为空");
         if (spec.knowledgeBaseIds().size() > MAX_KNOWLEDGE_BASES) {
             throw badRequest("knowledgeBaseIds 最多允许 20 个");
@@ -377,38 +589,60 @@ public class AssistantExecutionService {
         }
     }
 
-    private static ParsedMaterials parseMaterials(
-            List<AssistantExecutionRequest.Material> materials) {
-        if (materials == null || materials.isEmpty()) {
+    private static ParsedMaterials parseInput(AssistantExecutionRequest.Input input) {
+        var parsed = parseAttachments(input.attachments());
+        if (input.variables().isEmpty()) {
+            return parsed;
+        }
+        if (input.variables().size() > 100) {
+            throw badRequest("input.variables 最多允许 100 个变量");
+        }
+        input.variables().keySet().forEach(key -> requireText(key, "input.variables 变量名不能为空"));
+        final String variables;
+        try {
+            variables = JsonUtils.toJsonString(input.variables());
+        } catch (RuntimeException failure) {
+            throw badRequest("input.variables 必须可序列化为 JSON");
+        }
+        var materials = new ArrayList<TextMaterial>(parsed.textMaterials().size() + 1);
+        materials.add(new TextMaterial("结构化输入变量", variables));
+        materials.addAll(parsed.textMaterials());
+        return new ParsedMaterials(List.copyOf(materials), parsed.imageFileKeys());
+    }
+
+    private static ParsedMaterials parseAttachments(
+            List<AssistantExecutionRequest.Attachment> attachments) {
+        if (attachments == null || attachments.isEmpty()) {
             return new ParsedMaterials(List.of(), List.of());
         }
         var textMaterials = new ArrayList<TextMaterial>();
         var imageFileKeys = new ArrayList<String>();
-        for (var index = 0; index < materials.size(); index++) {
-            var material = materials.get(index);
-            if (material == null || material.type() == null) {
-                throw badRequest("materials[%d].type 不能为空".formatted(index));
+        for (var index = 0; index < attachments.size(); index++) {
+            var attachment = attachments.get(index);
+            if (attachment == null || attachment.type() == null) {
+                throw badRequest("input.attachments[%d].type 不能为空".formatted(index));
             }
-            switch (material.type()) {
+            switch (attachment.type()) {
                 case TEXT -> {
-                    if (material.resourceId() != null && !material.resourceId().isBlank()) {
-                        throw badRequest("TEXT 材料不允许设置 resourceId");
+                    if (attachment.resourceId() != null && !attachment.resourceId().isBlank()) {
+                        throw badRequest("TEXT 附件不允许设置 resourceId");
                     }
                     textMaterials.add(
                             new TextMaterial(
-                                    normalizeMaterialName(material.name(), index),
+                                    normalizeMaterialName(attachment.name(), index),
                                     requireText(
-                                            material.content(),
-                                            "materials[%d].content 不能为空".formatted(index))));
+                                            attachment.content(),
+                                            "input.attachments[%d].content 不能为空"
+                                                    .formatted(index))));
                 }
                 case IMAGE -> {
-                    if (material.content() != null && !material.content().isBlank()) {
-                        throw badRequest("IMAGE 材料不允许设置 content");
+                    if (attachment.content() != null && !attachment.content().isBlank()) {
+                        throw badRequest("IMAGE 附件不允许设置 content");
                     }
                     imageFileKeys.add(
                             requireText(
-                                    material.resourceId(),
-                                    "materials[%d].resourceId 不能为空".formatted(index)));
+                                    attachment.resourceId(),
+                                    "input.attachments[%d].resourceId 不能为空".formatted(index)));
                 }
             }
         }
@@ -467,20 +701,6 @@ public class AssistantExecutionService {
         return fileKeys.stream().map(key -> requireText(key, "图片 fileKey 不能为空")).toList();
     }
 
-    private static long requireVersion(Long value) {
-        if (value == null || value <= 0) {
-            throw badRequest("assistantVersion 必须大于 0");
-        }
-        return value;
-    }
-
-    private static long requireVersion(long value) {
-        if (value <= 0) {
-            throw badRequest("assistantVersion 必须大于 0");
-        }
-        return value;
-    }
-
     private static String requireText(String value, String message) {
         if (value == null || value.isBlank()) {
             throw badRequest(message);
@@ -492,15 +712,15 @@ public class AssistantExecutionService {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
-    private static String limitCodePoints(String value, int maxCodePoints) {
-        if (value == null || maxCodePoints <= 0) {
+    private static String limitCodePoints(String value, int maxCodePointCount) {
+        if (value == null || maxCodePointCount <= 0) {
             return "";
         }
         var count = value.codePointCount(0, value.length());
-        if (count <= maxCodePoints) {
+        if (count <= maxCodePointCount) {
             return value;
         }
-        var end = value.offsetByCodePoints(0, maxCodePoints);
+        var end = value.offsetByCodePoints(0, maxCodePointCount);
         return value.substring(0, end);
     }
 
@@ -508,9 +728,12 @@ public class AssistantExecutionService {
         return new BusinessException(GlobalErrorCode.BAD_REQUEST, message);
     }
 
+    private static BusinessException notFound(String message) {
+        return new BusinessException(GlobalErrorCode.NOT_FOUND, message);
+    }
+
     public record ExecutionSpec(
             String assistantId,
-            long assistantVersion,
             String input,
             String requestedSkillKey,
             Set<UUID> knowledgeBaseIds,
@@ -562,6 +785,8 @@ public class AssistantExecutionService {
     }
 
     private record ParsedMaterials(List<TextMaterial> textMaterials, List<String> imageFileKeys) {}
+
+    private record EffectiveOutputContract(Integer maxCharLen, String locale, String format) {}
 
     private record Identity(Long operatorId, Long ownerId, Long orgId, Long workspaceId) {}
 }

@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -19,15 +20,13 @@ import com.xuejiai.aaf.framework.intelligent.agent.model.ToolRef;
 import com.xuejiai.aaf.framework.intelligent.agent.port.SkillCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultEffectiveSkillResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultEffectiveToolResolver;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultSkillRouter;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveSkillResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveToolResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Role;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillRoute;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ToolPolicy;
 import com.xuejiai.aaf.framework.intelligent.core.skill.SkillDef;
-import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
+import com.xuejiai.aaf.framework.intelligent.core.skill.SkillVersionRef;
 import com.xuejiai.aaf.test.BaseMockitoUnitTest;
 
 class DefaultUserAssistantTemplateTest extends BaseMockitoUnitTest {
@@ -46,92 +45,61 @@ class DefaultUserAssistantTemplateTest extends BaseMockitoUnitTest {
     }
 
     @Test
-    @DisplayName("Given 系统默认用户助理模板 When 查看定义和路由 Then 默认平台向导并可切换内容创作者")
-    void should_define_one_default_user_assistant_with_two_routable_roles() {
-        var templates = new DefaultUserAssistantTemplate().templates();
-        var router = new DefaultSkillRouter();
-
-        assertThat(templates).hasSize(1);
+    @DisplayName("Given 系统默认用户助理模板 When 查看当前定义 Then v3 默认平台向导且无旧 Agent 标识")
+    void should_define_v3_default_user_assistant_with_default_platform_guide() {
         assertThat(template.assistantId().value())
                 .isEqualTo(DefaultUserAssistantTemplate.ASSISTANT_ID);
-        assertThat(template.defaultRoleKey())
+        assertThat(template.version()).isEqualTo(DefaultUserAssistantTemplate.VERSION);
+        assertThat(template.defaultRole().key())
                 .isEqualTo(DefaultUserAssistantTemplate.PLATFORM_GUIDE_ROLE_KEY);
         assertThat(template.roles())
                 .extracting(Role::key)
                 .containsExactlyInAnyOrder(
                         DefaultUserAssistantTemplate.PLATFORM_GUIDE_ROLE_KEY,
-                        DefaultUserAssistantTemplate.CONTENT_CREATOR_ROLE_KEY);
-
-        var userId = new UserId("1");
-        var defaultRoute = router.route(template, "你好", userId).orElseThrow();
-        var contentRoute = router.route(template, "请帮我写一篇文章草稿", userId).orElseThrow();
-        assertThat(defaultRoute.skillKey()).isEqualTo("support.read");
-        assertThat(defaultRoute.handlingMode()).isEqualTo(SkillRoute.HandlingMode.DIRECT);
-        assertThat(template.roleFor(defaultRoute).key())
-                .isEqualTo(DefaultUserAssistantTemplate.PLATFORM_GUIDE_ROLE_KEY);
-        assertThat(contentRoute.skillKey()).isEqualTo("content.draft");
-        assertThat(contentRoute.handlingMode()).isEqualTo(SkillRoute.HandlingMode.DELEGATE);
-        assertThat(template.roleFor(contentRoute).key())
-                .isEqualTo(DefaultUserAssistantTemplate.CONTENT_CREATOR_ROLE_KEY);
-        assertThat(template.capabilityManifest().roleKeys())
-                .containsExactlyInAnyOrder(
-                        DefaultUserAssistantTemplate.PLATFORM_GUIDE_ROLE_KEY,
-                        DefaultUserAssistantTemplate.CONTENT_CREATOR_ROLE_KEY);
+                        DefaultUserAssistantTemplate.CONTENT_CREATOR_ROLE_KEY)
+                .allSatisfy(key -> assertThat(key).doesNotStartWith("system.agent."));
+        assertThat(template.capabilityManifest().skillKeys())
+                .contains("builtin-self-awareness", "aigc-copywriting")
+                .allSatisfy(key -> assertThat(key).doesNotStartWith("system.agent."));
     }
 
     @Test
-    @DisplayName("Given 默认助理 Route When 解析有效技能 Then 只加载当前命中的 Skill")
-    void should_resolve_only_the_skill_selected_by_route() {
+    @DisplayName("Given Role 声明技能范围 When 解析有效技能 Then 仅加载该 Role 内已批准版本")
+    void should_resolve_only_approved_skills_within_role_scope() {
         var skillsByCode = skillsByCode();
         when(skillCatalog.findByCode(anyString()))
                 .thenAnswer(
                         invocation ->
                                 Optional.ofNullable(skillsByCode.get(invocation.getArgument(0))));
 
-        for (var route : template.skillRoutes()) {
-            var result = skillResolver.resolve(template.roleFor(route), route.skillKey());
+        for (var role : template.roles()) {
+            var result = skillResolver.resolve(role, role.skillKeys());
 
-            assertThat(result).extracting(SkillDef::name).containsExactly(route.skillKey());
+            assertThat(result)
+                    .extracting(SkillDef::name)
+                    .containsExactlyInAnyOrderElementsOf(role.skillKeys());
         }
     }
 
     @Test
     @DisplayName("Given 默认助理的两个 Role When 解析有效工具 Then 不泄漏另一个 Role 的工具")
     void should_restrict_tools_to_the_effective_role() {
-        var agentTools =
+        var roleTools =
                 template.roles().stream()
                         .flatMap(role -> role.toolKeys().stream())
                         .distinct()
                         .map(DefaultUserAssistantTemplateTest::tool)
                         .toList();
-        var unrestrictedTools = new ArrayList<>(agentTools);
+        var unrestrictedTools = new ArrayList<>(roleTools);
         unrestrictedTools.add(tool("system.unrestricted"));
 
         for (var role : template.roles()) {
-            var result = toolResolver.resolve(role.toolKeys(), unrestrictedTools);
+            var result = toolResolver.resolve(Set.of(), role.toolKeys(), unrestrictedTools);
 
             assertThat(result)
                     .extracting(ToolRef::name)
                     .containsExactlyInAnyOrderElementsOf(role.toolKeys());
         }
-        assertThat(
-                        toolResolver.resolve(
-                                template.requireRole(
-                                                DefaultUserAssistantTemplate
-                                                        .PLATFORM_GUIDE_ROLE_KEY)
-                                        .toolKeys(),
-                                unrestrictedTools))
-                .extracting(ToolRef::name)
-                .doesNotContain("content.generate", "content.draft.create");
-        assertThat(
-                        toolResolver.resolve(
-                                template.requireRole(
-                                                DefaultUserAssistantTemplate
-                                                        .CONTENT_CREATOR_ROLE_KEY)
-                                        .toolKeys(),
-                                unrestrictedTools))
-                .extracting(ToolRef::name)
-                .doesNotContain("support.diagnostics.read", "support.handoff");
     }
 
     @Test
@@ -142,47 +110,9 @@ class DefaultUserAssistantTemplateTest extends BaseMockitoUnitTest {
                                 rebuild(
                                         template.roles(),
                                         "system.role.missing",
-                                        template.skillRoutes(),
                                         template.toolPolicy()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("defaultRoleKey");
-    }
-
-    @Test
-    @DisplayName("Given Route 引用不存在 Role When 构造定义 Then 拒绝定义")
-    void should_reject_route_with_missing_role() {
-        var routes = new ArrayList<>(template.skillRoutes());
-        routes.set(0, routeWithRole(routes.getFirst(), "system.role.missing"));
-
-        assertThatThrownBy(
-                        () ->
-                                rebuild(
-                                        template.roles(),
-                                        template.defaultRoleKey(),
-                                        routes,
-                                        template.toolPolicy()))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("未配置 Role");
-    }
-
-    @Test
-    @DisplayName("Given Route 技能不属于所绑 Role When 构造定义 Then 拒绝定义")
-    void should_reject_route_with_skill_outside_bound_role() {
-        var routes = new ArrayList<>(template.skillRoutes());
-        routes.set(
-                0,
-                routeWithRole(
-                        routes.getFirst(), DefaultUserAssistantTemplate.PLATFORM_GUIDE_ROLE_KEY));
-
-        assertThatThrownBy(
-                        () ->
-                                rebuild(
-                                        template.roles(),
-                                        template.defaultRoleKey(),
-                                        routes,
-                                        template.toolPolicy()))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Role.skillKeys");
     }
 
     @Test
@@ -196,17 +126,13 @@ class DefaultUserAssistantTemplateTest extends BaseMockitoUnitTest {
                                 rebuild(
                                         template.roles(),
                                         template.defaultRoleKey(),
-                                        template.skillRoutes(),
                                         new ToolPolicy(rules)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("并集");
     }
 
     private AssistantDefinition rebuild(
-            List<Role> roles,
-            String defaultRoleKey,
-            List<SkillRoute> routes,
-            ToolPolicy toolPolicy) {
+            List<Role> roles, String defaultRoleKey, ToolPolicy toolPolicy) {
         return new AssistantDefinition(
                 template.assistantId(),
                 template.systemKey(),
@@ -218,24 +144,11 @@ class DefaultUserAssistantTemplateTest extends BaseMockitoUnitTest {
                 roles,
                 defaultRoleKey,
                 template.memoryStrategy(),
-                routes,
+                template.modelId(),
                 toolPolicy,
                 template.supportedControlModes(),
                 template.defaultRiskPolicy(),
                 template.lifecycle());
-    }
-
-    private SkillRoute routeWithRole(SkillRoute route, String roleKey) {
-        return new SkillRoute(
-                route.skillKey(),
-                roleKey,
-                route.intentTerms(),
-                route.subagentSpec(),
-                route.actionKey(),
-                route.actionEffect(),
-                route.handlingMode(),
-                route.priority(),
-                route.defaultRoute());
     }
 
     private LinkedHashMap<String, SkillDef> skillsByCode() {
@@ -247,8 +160,17 @@ class DefaultUserAssistantTemplateTest extends BaseMockitoUnitTest {
         return result;
     }
 
-    private SkillDef skill(long id, String code) {
-        return new SkillDef(id, code, code + "描述", null, List.of(), code + "提示词", 10, false);
+    private static SkillDef skill(long id, String code) {
+        return new SkillDef(
+                id,
+                code,
+                code,
+                code + "描述",
+                new SkillVersionRef(id, id, 1),
+                code + "提示词",
+                Set.of(),
+                Set.of(),
+                false);
     }
 
     private static ToolRef tool(String name) {

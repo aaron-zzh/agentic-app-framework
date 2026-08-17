@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
@@ -12,6 +13,7 @@ import com.xuejiai.aaf.framework.engine.tool.ToolCatalogProvider;
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentDefinitionRepository;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentDefinitionPort;
+import com.xuejiai.aaf.framework.intelligent.agent.port.ContextAwareToolHandler;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelManagementService;
@@ -51,7 +53,9 @@ public class AgentRuntimePortAutoConfiguration {
     @ConditionalOnBean({ToolRegistry.class, ToolCatalogProvider.class})
     @ConditionalOnMissingBean({ToolCatalogPort.class, ToolInvocationPort.class})
     RegistryToolPortAdapter registryToolPortAdapter(
-            ToolRegistry registry, ToolCatalogProvider catalog) {
-        return new RegistryToolPortAdapter(registry, catalog);
+            ToolRegistry registry,
+            ToolCatalogProvider catalog,
+            ObjectProvider<ContextAwareToolHandler> handlers) {
+        return new RegistryToolPortAdapter(registry, catalog, handlers);
     }
 }

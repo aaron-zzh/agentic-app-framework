@@ -8,9 +8,10 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Schema(description = "AI Role（能力配置）信息")
 public record RoleVO(
         @Schema(description = "编号") Long id,
+        @Schema(description = "稳定业务码") String code,
         @Schema(description = "名称") String name,
         @Schema(description = "描述") String description,
-        @Schema(description = "技能 ID 列表（JSON）") String skillIds,
+        @Schema(description = "Skill code 列表（JSON）") String skillIds,
         @Schema(description = "工具授权池（JSON）") String toolWhitelist,
         @Schema(description = "状态") String status,
         @Schema(description = "创建时间") LocalDateTime createTime,

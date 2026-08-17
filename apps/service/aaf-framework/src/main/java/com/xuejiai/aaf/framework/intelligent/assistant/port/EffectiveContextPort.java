@@ -4,12 +4,11 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 
-import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantTask;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceReference;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceType;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillRoute;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionProfileSnapshot;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AssistantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
@@ -20,9 +19,8 @@ public interface EffectiveContextPort {
     EffectiveContextManifest resolve(
             TenantId tenantId,
             UserId userId,
-            AssistantDefinition definition,
+            ExecutionProfileSnapshot profile,
             AssistantTask task,
-            SkillRoute route,
             List<SourceReference> candidates,
             Instant at);
 

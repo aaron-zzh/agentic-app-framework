@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantVersion;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionCriteria;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceReference;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract;
@@ -108,7 +107,6 @@ public record AutomationDefinition(
     public record TaskTemplate(
             UserId ownerId,
             AssistantId assistantId,
-            AssistantVersion assistantVersion,
             MemorySubject memorySubject,
             String goal,
             CompletionCriteria completionCriteria,
@@ -119,7 +117,6 @@ public record AutomationDefinition(
         public TaskTemplate {
             Objects.requireNonNull(ownerId, "ownerId 不能为空");
             Objects.requireNonNull(assistantId, "assistantId 不能为空");
-            Objects.requireNonNull(assistantVersion, "assistantVersion 不能为空");
             Objects.requireNonNull(memorySubject, "memorySubject 不能为空");
             goal = text(goal, "goal");
             Objects.requireNonNull(completionCriteria, "completionCriteria 不能为空");

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskModelSelection;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.MemorySubject;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.SubjectKind;
 import com.xuejiai.aaf.framework.intelligent.core.skill.SkillDef;
+import com.xuejiai.aaf.framework.intelligent.core.skill.SkillVersionRef;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.DefaultUserAssistantTemplate;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AssistantId;
@@ -31,27 +33,24 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 class AssistantApplicationServiceTest {
 
     @Test
-    @DisplayName("Given 有效技能顺序不稳定且提示重复 When 合并 Then 按优先级和标识稳定排序并去重")
-    void should_merge_skill_prompts_deterministically() {
+    @DisplayName("Given 有效技能内容顺序固定且内容重复 When 合并 Then 保持输入顺序并去重")
+    void should_merge_skill_content_deterministically() {
         var skills =
                 List.of(
-                        skill(2L, "技能 B", "提示 B", 10),
-                        skill(4L, "重复技能", "提示 A", 5),
-                        skill(3L, "高优技能", "提示 高", 20),
-                        skill(1L, "技能 A", " 提示 A ", 10),
-                        skill(5L, "空提示", "   ", 30));
+                        skill(2L, "skill-b", "技能 B", "提示 B"),
+                        skill(4L, "duplicate", "重复技能", "提示 A"),
+                        skill(3L, "high", "高优技能", "提示 高"),
+                        skill(1L, "skill-a", "技能 A", " 提示 A "));
 
         var result = AssistantApplicationService.mergeSkillPrompts(skills);
 
-        assertThat(result).isEqualTo("提示 高\n\n提示 A\n\n提示 B");
+        assertThat(result).isEqualTo("提示 B\n\n提示 A\n\n提示 高");
     }
 
     @Test
-    @DisplayName("Given 技能没有可用系统提示 When 合并 Then 返回空附录")
-    void should_return_empty_appendix_when_skill_prompts_are_unavailable() {
-        var skills = List.of(skill(1L, "空白", " ", 10), skill(2L, "缺失", null, 20));
-
-        var result = AssistantApplicationService.mergeSkillPrompts(skills);
+    @DisplayName("Given 没有有效技能 When 合并 Then 返回空附录")
+    void should_return_empty_appendix_when_skills_are_unavailable() {
+        var result = AssistantApplicationService.mergeSkillPrompts(List.of());
 
         assertThat(result).isEmpty();
     }
@@ -85,8 +84,17 @@ class AssistantApplicationServiceTest {
                 .isFalse();
     }
 
-    private static SkillDef skill(Long id, String name, String systemPrompt, int priority) {
-        return new SkillDef(id, name, name + "描述", null, List.of(), systemPrompt, priority, false);
+    private static SkillDef skill(Long id, String code, String name, String content) {
+        return new SkillDef(
+                id,
+                code,
+                name,
+                name + "描述",
+                new SkillVersionRef(id, id, 1),
+                content,
+                Set.of(),
+                Set.of(),
+                false);
     }
 
     private static AssistantDefinition definitionWithLongTermMemory(boolean longTermEnabled) {
@@ -104,7 +112,7 @@ class AssistantApplicationServiceTest {
                 template.roles(),
                 template.defaultRoleKey(),
                 strategy,
-                template.skillRoutes(),
+                template.modelId(),
                 template.toolPolicy(),
                 template.supportedControlModes(),
                 template.defaultRiskPolicy(),
@@ -126,7 +134,6 @@ class AssistantApplicationServiceTest {
                 userId,
                 memorySubject,
                 new AssistantId("system.assistant.default-user"),
-                new com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantVersion(1),
                 new ConversationId("conversation-1"),
                 new SessionId("session-1"),
                 new TaskId("task-1"),

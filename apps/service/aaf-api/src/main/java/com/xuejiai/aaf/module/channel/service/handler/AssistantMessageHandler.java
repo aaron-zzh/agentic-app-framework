@@ -20,7 +20,7 @@ import com.xuejiai.aaf.module.channel.service.MessageHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 将通用机器人渠道消息转换为 Assistant v2 命令。 */
+/** 将通用机器人渠道消息转换为 Assistant 命令。 */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -57,9 +57,6 @@ public class AssistantMessageHandler implements MessageHandler {
                                     binding.getOrgId(),
                                     binding.getOwnerId(),
                                     binding.getAssistantId(),
-                                    binding.getAssistantVersion() == null
-                                            ? 0
-                                            : binding.getAssistantVersion(),
                                     message.channelType().getCode(),
                                     binding.getId().toString(),
                                     message.externalUserId(),
@@ -69,7 +66,7 @@ public class AssistantMessageHandler implements MessageHandler {
             return reply(message, reply);
         } catch (RuntimeException failure) {
             log.error(
-                    "渠道 Assistant v2 执行失败: channel={}, bindingId={}, errorType={}",
+                    "渠道 Assistant 执行失败: channel={}, bindingId={}, errorType={}",
                     message.channelType().getCode(),
                     binding.getId(),
                     failure.getClass().getSimpleName());

@@ -9,7 +9,6 @@ import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantCommand;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantVersion;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionCriteria;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.Source;
@@ -42,7 +41,6 @@ import reactor.core.publisher.Mono;
 public class DelegatedTaskService {
     private static final AssistantId DEFAULT_ASSISTANT_ID =
             new AssistantId("system.assistant.default-user");
-    private static final AssistantVersion DEFAULT_ASSISTANT_VERSION = new AssistantVersion(1);
 
     private final DelegatedTaskPort tasks;
     private final TaskBoardPort boards;
@@ -143,7 +141,6 @@ public class DelegatedTaskService {
                 userId,
                 new MemorySubject(tenantId, SubjectKind.USER, userId.value()),
                 DEFAULT_ASSISTANT_ID,
-                DEFAULT_ASSISTANT_VERSION,
                 new ConversationId(conversationId),
                 new SessionId("delegated-session:" + seed),
                 taskId,

@@ -9,13 +9,11 @@ import java.util.Objects;
 
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.framework.intelligent.agent.model.SubagentSpec;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantTask;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceReference;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceType;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillRoute;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionProfileSnapshot;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.EffectiveContextPort;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AssistantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
@@ -39,47 +37,25 @@ public class JpaEffectiveContextAdapter implements EffectiveContextPort {
     public EffectiveContextManifest resolve(
             TenantId tenantId,
             UserId userId,
-            AssistantDefinition definition,
+            ExecutionProfileSnapshot profile,
             AssistantTask task,
-            SkillRoute route,
             List<SourceReference> candidates,
             Instant at) {
-        var configured = listPreferences(tenantId, userId, definition.assistantId());
+        var role = profile.roleAssignment();
+        var configured = listPreferences(tenantId, userId, profile.assistantId());
         var dispositions = new LinkedHashMap<String, Disposition>();
         configured.forEach(
                 p -> dispositions.put(key(p.sourceType(), p.sourceKey()), p.disposition()));
         var unique = new LinkedHashMap<String, SourceReference>();
-        var subagentSpec = route.subagentSpec();
-        var sourceVersion =
-                switch (subagentSpec) {
-                    case SubagentSpec.Predefined predefined -> Long.toString(predefined.version());
-                    case SubagentSpec.Dynamic ignored -> "dynamic";
-                };
-        var displayName =
-                switch (subagentSpec) {
-                    case SubagentSpec.Predefined predefined -> predefined.identifier();
-                    case SubagentSpec.Dynamic dynamic -> "动态子智能体：" + dynamic.identifier();
-                };
-        var effectiveRole = definition.roleFor(route);
         add(
                 unique,
                 new SourceReference(
                         SourceType.RULE,
-                        effectiveRole.key(),
-                        definition.version().toString(),
+                        role.roleKey(),
+                        Long.toString(profile.assistantRevision()),
                         "ASSISTANT",
-                        "当前任务生效的 Assistant 角色与职责边界",
-                        effectiveRole.name(),
-                        false));
-        add(
-                unique,
-                new SourceReference(
-                        SourceType.SKILL,
-                        route.skillKey(),
-                        sourceVersion,
-                        "TASK",
-                        "用户意图命中该技能路由",
-                        displayName,
+                        "RoleSelector 选定的当前任务职责边界",
+                        role.roleName(),
                         false));
         candidates.stream()
                 .filter(
@@ -107,9 +83,9 @@ public class JpaEffectiveContextAdapter implements EffectiveContextPort {
         var manifest =
                 new EffectiveContextManifest(
                         task.taskId(),
-                        definition.assistantId(),
-                        definition.version(),
-                        route.skillKey(),
+                        profile.assistantId(),
+                        profile.assistantRevision(),
+                        role.roleKey(),
                         new ArrayList<>(unique.values()),
                         at);
         var entity =

@@ -27,13 +27,9 @@ public class BotBinding extends BaseEntity {
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
-    /** 绑定的 Assistant v2 稳定 ID */
+    /** 绑定的 Assistant 稳定 ID */
     @Column(name = "assistant_id", nullable = false, length = 128)
     private String assistantId;
-
-    /** 绑定的 Assistant v2 精确定义版本 */
-    @Column(name = "assistant_version", nullable = false)
-    private Long assistantVersion;
 
     /** 触发规则 JSON（可选，如关键词匹配、群 ID 过滤等） */
     @Column(name = "route_rule", columnDefinition = "jsonb")

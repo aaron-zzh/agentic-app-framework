@@ -120,6 +120,7 @@ public class AiRoleService {
     @Transactional
     public RoleVO createRole(RoleCreateDTO dto) {
         var entity = new Role();
+        entity.setCode(dto.code());
         entity.setName(dto.name());
         entity.setDescription(dto.description());
         entity.setSkillIds(dto.skillIds());
@@ -137,6 +138,9 @@ public class AiRoleService {
     @Transactional
     public RoleVO updateRole(Long id, RoleCreateDTO dto) {
         var entity = getRoleEntity(id);
+        if (!entity.getCode().equals(dto.code())) {
+            throw new IllegalArgumentException("Role code 创建后不可修改");
+        }
         entity.setName(dto.name());
         entity.setDescription(dto.description());
         entity.setSkillIds(dto.skillIds());
@@ -183,6 +187,7 @@ public class AiRoleService {
     private RoleVO toRoleVO(Role e) {
         return new RoleVO(
                 e.getId(),
+                e.getCode(),
                 e.getName(),
                 e.getDescription(),
                 e.getSkillIds(),

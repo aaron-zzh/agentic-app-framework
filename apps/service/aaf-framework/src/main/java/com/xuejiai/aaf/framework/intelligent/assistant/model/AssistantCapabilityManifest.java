@@ -14,23 +14,24 @@ public record AssistantCapabilityManifest(
         String maintainer,
         String name,
         String defaultRoleKey,
+        String modelId,
         Set<String> roleKeys,
         List<String> responsibilities,
         List<String> nonResponsibilities,
         Set<ControlMode> supportedControlModes,
-        Set<String> businessActions,
+        Set<String> skillKeys,
         Set<String> memoryScopes,
         AssistantDefinition.RiskPolicy defaultRiskPolicy,
         AssistantDefinition.Lifecycle lifecycle) {
 
     public static AssistantCapabilityManifest from(AssistantDefinition definition) {
-        var actions =
-                definition.skillRoutes().stream()
-                        .map(SkillRoute::actionKey)
-                        .collect(java.util.stream.Collectors.toUnmodifiableSet());
         var roleKeys =
                 definition.roles().stream()
                         .map(Role::key)
+                        .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        var skillKeys =
+                definition.roles().stream()
+                        .flatMap(role -> role.skillKeys().stream())
                         .collect(java.util.stream.Collectors.toUnmodifiableSet());
         var responsibilities =
                 definition.roles().stream()
@@ -49,11 +50,12 @@ public record AssistantCapabilityManifest(
                 definition.maintainer(),
                 definition.actor().name(),
                 definition.defaultRoleKey(),
+                definition.modelId(),
                 roleKeys,
                 responsibilities,
                 nonResponsibilities,
                 definition.supportedControlModes(),
-                actions,
+                skillKeys,
                 definition.memoryStrategy().recallScopes(),
                 definition.defaultRiskPolicy(),
                 definition.lifecycle());

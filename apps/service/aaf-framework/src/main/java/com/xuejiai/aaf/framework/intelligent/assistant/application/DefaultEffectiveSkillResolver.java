@@ -2,12 +2,13 @@ package com.xuejiai.aaf.framework.intelligent.assistant.application;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import com.xuejiai.aaf.framework.intelligent.agent.port.SkillCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Role;
 import com.xuejiai.aaf.framework.intelligent.core.skill.SkillDef;
 
-/** {@link EffectiveSkillResolver} 的默认实现。 */
+/** Role 边界内的 immutable APPROVED Skill 解析器。 */
 public final class DefaultEffectiveSkillResolver implements EffectiveSkillResolver {
 
     private final SkillCatalogPort skillCatalog;
@@ -17,12 +18,24 @@ public final class DefaultEffectiveSkillResolver implements EffectiveSkillResolv
     }
 
     @Override
-    public List<SkillDef> resolve(Role effectiveRole, String skillKey) {
+    public List<SkillDef> resolve(Role effectiveRole, Set<String> skillKeys) {
         Objects.requireNonNull(effectiveRole, "effectiveRole 不能为空");
-        Objects.requireNonNull(skillKey, "skillKey 不能为空");
-        if (!effectiveRole.skillKeys().contains(skillKey)) {
-            throw new IllegalArgumentException("Skill 不属于当前有效 Role: " + skillKey);
+        var requested = Set.copyOf(Objects.requireNonNull(skillKeys, "skillKeys 不能为空"));
+        if (requested.isEmpty()) {
+            return List.of();
         }
-        return skillCatalog.findByCode(skillKey).stream().toList();
+        if (!effectiveRole.skillKeys().containsAll(requested)) {
+            throw new IllegalArgumentException("Skill 不属于当前有效 Role");
+        }
+        return requested.stream()
+                .map(
+                        skillKey ->
+                                skillCatalog
+                                        .findByCode(skillKey)
+                                        .orElseThrow(
+                                                () ->
+                                                        new IllegalArgumentException(
+                                                                "不存在 APPROVED Skill: " + skillKey)))
+                .toList();
     }
 }

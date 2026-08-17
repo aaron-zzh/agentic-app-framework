@@ -8,7 +8,6 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantCommand;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantVersion;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionCriteria;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskModelSelection;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
@@ -30,7 +29,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 import com.xuejiai.aaf.module.ai.assistant.port.ChannelAssistantExecutionPort;
 
-/** 将外部渠道消息转换为 Assistant v2 命令，并同步聚合最终回复。 */
+/** 将外部渠道消息转换为 Assistant 命令，并同步聚合最终回复。 */
 @Service
 public class DefaultChannelAssistantExecutionAdapter implements ChannelAssistantExecutionPort {
 
@@ -64,7 +63,6 @@ public class DefaultChannelAssistantExecutionAdapter implements ChannelAssistant
                                 SubjectKind.VISITOR,
                                 stable("channel-visitor", conversationKey)),
                         new AssistantId(request.assistantId()),
-                        new AssistantVersion(request.assistantVersion()),
                         new ConversationId(stable("channel-conversation-id", conversationKey)),
                         new SessionId(stable("channel-session-id", conversationKey)),
                         new TaskId(stable("channel-task-id", messageKey)),
@@ -86,7 +84,7 @@ public class DefaultChannelAssistantExecutionAdapter implements ChannelAssistant
 
         var events = assistants.execute(command).collectList().block(EXECUTION_TIMEOUT);
         if (events == null || events.isEmpty()) {
-            throw new IllegalStateException("Assistant v2 未返回执行事件");
+            throw new IllegalStateException("Assistant 未返回执行事件");
         }
         requireCompleted(events);
         return events.stream()
@@ -96,7 +94,7 @@ public class DefaultChannelAssistantExecutionAdapter implements ChannelAssistant
                 .map(String.class::cast)
                 .filter(text -> !text.isBlank())
                 .reduce((first, second) -> second)
-                .orElseThrow(() -> new IllegalStateException("Assistant v2 未返回最终文本"));
+                .orElseThrow(() -> new IllegalStateException("Assistant 未返回最终文本"));
     }
 
     private static void requireCompleted(List<ExecutionEvent> events) {
@@ -113,7 +111,7 @@ public class DefaultChannelAssistantExecutionAdapter implements ChannelAssistant
                                                 || event.status() == ExecutionEventStatus.CANCELED
                                                 || event.status() == ExecutionEventStatus.REJECTED);
         if (failed) {
-            throw new IllegalStateException("Assistant v2 渠道执行失败");
+            throw new IllegalStateException("Assistant 渠道执行失败");
         }
         var completed =
                 events.stream()
@@ -123,7 +121,7 @@ public class DefaultChannelAssistantExecutionAdapter implements ChannelAssistant
                                                 && event.status()
                                                         == ExecutionEventStatus.COMPLETED);
         if (!completed) {
-            throw new IllegalStateException("Assistant v2 渠道执行未完成");
+            throw new IllegalStateException("Assistant 渠道执行未完成");
         }
     }
 

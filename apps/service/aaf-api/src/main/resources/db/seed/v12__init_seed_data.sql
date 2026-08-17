@@ -1,4 +1,4 @@
--- ============================================================
+﻿-- ============================================================
 -- 生产必需种子数据（随应用一起部署，所有环境均执行）
 -- ============================================================
 
@@ -638,7 +638,10 @@ INSERT INTO ai_tool_catalog (
  301, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('recognizeOcr', 'LOCAL', TRUE, 'FUNCTION', 'OCR', 'LOW', TRUE, FALSE, 'tool:ocr:execute', NULL, NULL,
  '{"type":"object","required":["requestJson"],"properties":{"requestJson":{"type":"string","description":"JSON 参数：imageUrl 必填；task 可选（TEXT_RECOGNITION/KEY_INFORMATION_EXTRACTION/TABLE_PARSING/DOCUMENT_PARSING/FORMULA_RECOGNITION/MULTI_LAN）；prompt 可选"}}}',
- 220, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+ 220, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('support.handoff', 'LOCAL', TRUE, 'FUNCTION', 'SUPPORT', 'MEDIUM', FALSE, TRUE, NULL, NULL, NULL,
+ '{"type":"object","required":["reason"],"properties":{"reason":{"type":"string","description":"不超过 256 个字符的脱敏人工交接原因；不得包含完整对话、凭证或个人敏感信息"}}}',
+ 240, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON CONFLICT (tool_name) WHERE deleted = FALSE DO UPDATE SET
     source = EXCLUDED.source,
     enabled = EXCLUDED.enabled,
@@ -747,56 +750,196 @@ ON CONFLICT DO NOTHING;
 -- 内容创作助理：内置技能 + Agent + Role 种子数据
 -- ============================================================
 
--- 内置技能：content-judge（爆款结构拆解器）
-INSERT INTO ai_skill_definition (name, description, trigger_intent, instructions, priority, built_in, skill_version, status, create_time, update_time)
-VALUES (
-    '爆款结构拆解器',
-    '分析爆款内容结构，判断是否值得复用。输入任意内容，输出核心观点、目标读者、展开路径、注意力钩子、情绪曲线、论证方式和可复用表达结构。',
-    '["分析爆款","拆解结构","为什么火","分析内容","爆款分析","内容拆解"]',
-    E'# 爆款结构拆解器 (Content-Judge)\n\n## 目标\n不是学写作，而是学「判断什么值得写」。\n\n## 规则\n- 不改写、不润色原内容\n- 不主观夸赞\n- 信息不足请标注「未知」\n- 判断基于结构与传播机制，而非个人喜好\n\n## 输出格式（严格按以下结构）\n\n1）核心观点（一句话）\n2）目标读者与使用场景\n3）内容展开路径（编号列表）\n4）注意力钩子（类型 + 原句）\n5）情绪变化曲线（开头 / 中段 / 结尾）\n6）论证方式（如：故事 / 对比 / 权威 / 反直觉）\n7）可复用表达结构（3-5 个模板）\n8）复用判断（是否值得复用 + 原因）',
-    10, true, '1.0', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-);
+-- 内置技能：稳定根对象 + 已批准不可变执行版本
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- 内置技能：content-clarify（写作前元思考澄清器）
-INSERT INTO ai_skill_definition (name, description, trigger_intent, instructions, priority, built_in, skill_version, status, create_time, update_time)
-VALUES (
-    '写作前元思考澄清器',
-    '解决「我知道要写什么，但就是写不出来」。在写作前强制澄清 6 个关键决策变量。',
-    '["不知道写什么","写作卡壳","逻辑混乱","想法很多","写不出来","澄清思路"]',
-    E'# 写作前元思考澄清器 (Content-Clarify)\n\n## 目标\n在写作前强制澄清关键决策变量。\n\n## 引导用户回答以下 6 个问题\n\n1. 目标读者是谁？（具体画像，不是"所有人"）\n2. 发布平台是什么？（决定格式和语气）\n3. 读者此刻的真实痛点或欲望是什么？\n4. 这次内容的核心判断或结论是什么？（一句话）\n5. 内容将基于哪些经验/案例/证据？\n6. 整体表达风格偏向哪一种？（教学/故事/对话/清单/反直觉）\n\n## 规则\n- 逐个引导，不要一次性抛出所有问题\n- 用户回答模糊时追问细化\n- 6 个问题回答完毕后，输出一份「写作决策摘要」',
-    10, true, '1.0', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-);
+WITH seeded_skill (code, name, summary, content) AS (
+    VALUES
+        ('content-judge', '爆款结构拆解器', '分析爆款内容结构，判断是否值得复用。输入任意内容，输出核心观点、目标读者、展开路径、注意力钩子、情绪曲线、论证方式和可复用表达结构。', $skill$
+# 爆款结构拆解器 (Content-Judge)
 
--- 内置技能：content-architect（母内容结构构建器）
-INSERT INTO ai_skill_definition (name, description, trigger_intent, instructions, priority, built_in, skill_version, status, create_time, update_time)
-VALUES (
-    '母内容结构构建器',
-    '将已验证观点升级为可长期复用的核心内容结构。生成完整结构蓝图，包括钩子方案、正文结构、CTA 和裂变方向。',
-    '["设计结构","写母内容","内容结构","构建文章","文章大纲","内容架构"]',
-    E'# 母内容结构构建器 (Content-Architect)\n\n## 目标\n将已验证观点升级为「可长期复用的核心内容」。\n\n## 输出格式\n\n1）一句话承诺（读完能获得什么）\n2）开头钩子方案（3 个备选）\n3）正文结构\n   - 段落标题\n   - 段落目的\n   - 核心要点\n4）CTA 设计（软 CTA + 硬 CTA 各一）\n5）后续可裂变方向（5 个）\n\n## 规则\n- 基于用户提供的核心观点和素材\n- 结构必须可直接用于写作\n- 每个段落有明确目的，不允许「凑字数」段落',
-    10, true, '1.0', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-);
+## 目标
+不是学写作，而是学「判断什么值得写」。
 
--- 内置技能：content-build（内容裂变与复利引擎）
-INSERT INTO ai_skill_definition (name, description, trigger_intent, instructions, priority, built_in, skill_version, status, create_time, update_time)
-VALUES (
-    '内容裂变与复利引擎',
-    '将一份母内容最大化利用，一次思考多次分发。生成短内容、强钩子、多平台版本、视频脚本和 CTA。',
-    '["裂变内容","多平台分发","复用内容","改写成小红书","改写成公众号","一稿多用"]',
-    E'# 内容裂变与复利引擎 (Content-Build)\n\n## 目标\n保持观点一致，生成多样表达，一次思考多平台使用。\n\n## 规则\n- 不新增核心观点，只拆观点\n- 每条内容只表达一个点\n- 表达方式必须不同\n\n## 输出格式\n\n1）短内容 × 10（100-200 字，适合社交媒体）\n2）强钩子 × 5（一句话，吸引点击）\n3）平台适配版本 × 3\n   - 公众号版（长图文，800-1500 字）\n   - 小红书版（图文笔记，300-500 字 + 配图建议）\n   - 抖音/视频号版（口播脚本，含前 3 秒钩子）\n4）CTA 备选 × 5',
-    10, true, '1.0', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-);
+## 规则
+- 不改写、不润色原内容
+- 不主观夸赞
+- 信息不足请标注「未知」
+- 判断基于结构与传播机制，而非个人喜好
 
--- 内置技能：content-schedule（内容创作调度器）
-INSERT INTO ai_skill_definition (name, description, trigger_intent, instructions, priority, built_in, skill_version, status, create_time, update_time)
-VALUES (
-    '内容创作调度器',
-    '协调调度内容创作全流程。按「拆解→澄清→构建→裂变」顺序引导用户，判断当前阶段并调用对应技能。',
-    '["内容创作","写文章","创作内容","帮我写","内容永动机","系统化创作"]',
-    E'# 内容创作调度器 (Content-Schedule)\n\n## 目标\n按照「拆解→想清楚→写一次→用到极致」的顺序调度创作流程。\n\n## 阶段判断标准\n\n**阶段 1 - 拆解**：用户提到分析爆款、学习结构 → 调用 content-judge\n**阶段 2 - 澄清**：用户不知道写什么、逻辑混乱 → 调用 content-clarify\n**阶段 3 - 构建**：用户有验证过的观点、要写正文 → 调用 content-architect\n**阶段 4 - 裂变**：用户已完成内容、要多平台分发 → 调用 content-build\n\n## 规则\n- 首次交互时评估用户处于哪个阶段\n- 如果用户直接说「帮我写一篇 XXX」，从阶段 2（澄清）开始\n- 如果用户提供了爆款内容要分析，从阶段 1 开始\n- 每个阶段完成后，主动引导进入下一阶段\n- 全程可调用文档工具保存中间产出',
-    20, true, '1.0', 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-);
+## 输出格式（严格按以下结构）
 
+1）核心观点（一句话）
+2）目标读者与使用场景
+3）内容展开路径（编号列表）
+4）注意力钩子（类型 + 原句）
+5）情绪变化曲线（开头 / 中段 / 结尾）
+6）论证方式（如：故事 / 对比 / 权威 / 反直觉）
+7）可复用表达结构（3-5 个模板）
+8）复用判断（是否值得复用 + 原因）$skill$),
+        ('content-clarify', '写作前元思考澄清器', '解决「我知道要写什么，但就是写不出来」。在写作前强制澄清 6 个关键决策变量。', $skill$
+# 写作前元思考澄清器 (Content-Clarify)
+
+## 目标
+在写作前强制澄清关键决策变量。
+
+## 引导用户回答以下 6 个问题
+
+1. 目标读者是谁？（具体画像，不是"所有人"）
+2. 发布平台是什么？（决定格式和语气）
+3. 读者此刻的真实痛点或欲望是什么？
+4. 这次内容的核心判断或结论是什么？（一句话）
+5. 内容将基于哪些经验/案例/证据？
+6. 整体表达风格偏向哪一种？（教学/故事/对话/清单/反直觉）
+
+## 规则
+- 逐个引导，不要一次性抛出所有问题
+- 用户回答模糊时追问细化
+- 6 个问题回答完毕后，输出一份「写作决策摘要」$skill$),
+        ('content-architect', '母内容结构构建器', '将已验证观点升级为可长期复用的核心内容结构。生成完整结构蓝图，包括钩子方案、正文结构、CTA 和裂变方向。', $skill$
+# 母内容结构构建器 (Content-Architect)
+
+## 目标
+将已验证观点升级为「可长期复用的核心内容」。
+
+## 输出格式
+
+1）一句话承诺（读完能获得什么）
+2）开头钩子方案（3 个备选）
+3）正文结构
+   - 段落标题
+   - 段落目的
+   - 核心要点
+4）CTA 设计（软 CTA + 硬 CTA 各一）
+5）后续可裂变方向（5 个）
+
+## 规则
+- 基于用户提供的核心观点和素材
+- 结构必须可直接用于写作
+- 每个段落有明确目的，不允许「凑字数」段落$skill$),
+        ('content-build', '内容裂变与复利引擎', '将一份母内容最大化利用，一次思考多次分发。生成短内容、强钩子、多平台版本、视频脚本和 CTA。', $skill$
+# 内容裂变与复利引擎 (Content-Build)
+
+## 目标
+保持观点一致，生成多样表达，一次思考多平台使用。
+
+## 规则
+- 不新增核心观点，只拆观点
+- 每条内容只表达一个点
+- 表达方式必须不同
+
+## 输出格式
+
+1）短内容 × 10（100-200 字，适合社交媒体）
+2）强钩子 × 5（一句话，吸引点击）
+3）平台适配版本 × 3
+   - 公众号版（长图文，800-1500 字）
+   - 小红书版（图文笔记，300-500 字 + 配图建议）
+   - 抖音/视频号版（口播脚本，含前 3 秒钩子）
+4）CTA 备选 × 5$skill$),
+        ('content-schedule', '内容创作调度器', '协调调度内容创作全流程。按「拆解→澄清→构建→裂变」顺序引导用户，判断当前阶段并调用对应技能。', $skill$
+# 内容创作调度器 (Content-Schedule)
+
+## 目标
+按照「拆解→想清楚→写一次→用到极致」的顺序调度创作流程。
+
+## 阶段判断标准
+
+**阶段 1 - 拆解**：用户提到分析爆款、学习结构 → 调用 content-judge
+**阶段 2 - 澄清**：用户不知道写什么、逻辑混乱 → 调用 content-clarify
+**阶段 3 - 构建**：用户有验证过的观点、要写正文 → 调用 content-architect
+**阶段 4 - 裂变**：用户已完成内容、要多平台分发 → 调用 content-build
+
+## 规则
+- 首次交互时评估用户处于哪个阶段
+- 如果用户直接说「帮我写一篇 XXX」，从阶段 2（澄清）开始
+- 如果用户提供了爆款内容要分析，从阶段 1 开始
+- 每个阶段完成后，主动引导进入下一阶段
+- 全程可调用文档工具保存中间产出$skill$)
+), inserted_versions AS (
+    INSERT INTO ai_skill_definition (
+        code, name, summary, locale, visibility, built_in, create_time, update_time
+    )
+    SELECT code, name, summary, 'zh-CN', 'PUBLIC', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+    FROM seeded_skill
+    RETURNING id, code
+), created_versions AS (
+    INSERT INTO ai_skill_version (
+        skill_id, version, status, content, tool_access_mode, change_summary, content_hash, create_time
+    )
+    SELECT definition.id, 1, 'APPROVED', seeded.content, 'RESTRICT', '内置初始版本',
+           encode(digest(seeded.content, 'sha256'), 'hex'), CURRENT_TIMESTAMP
+    FROM inserted_versions definition
+    JOIN seeded_skill seeded ON seeded.code = definition.code
+    RETURNING id, skill_id
+)
+UPDATE ai_skill_definition definition
+SET current_version_id = version.id, update_time = CURRENT_TIMESTAMP
+FROM created_versions version
+WHERE definition.id = version.skill_id;
+-- ============================================================
+-- AAF 框架内建 Skill（稳定根对象 + 已批准不可变执行版本）
+-- 唯一真理源：SQL Seed；运行时仅按 code 读取 current APPROVED version。
+-- ============================================================
+WITH seeded_skill (code, name, summary, content) AS (
+    VALUES
+        ($skill$builtin-self-awareness$skill$, $skill$自我认知$skill$, $skill$USE WHEN 用户询问助理的身份、能力或受限边界。$skill$, $skill$
+# 自我认知
+
+介绍当前助理的人格、已授权能力与边界。只陈述当前执行画像中确实可用的能力；未知或未授权能力必须明确说明不能使用。$skill$),
+        ($skill$builtin-user-understanding$skill$, $skill$理解用户$skill$, $skill$USE WHEN 用户希望助理了解其背景、偏好或沟通方式。$skill$, $skill$
+# 理解用户
+
+主动澄清用户职业背景、目标、偏好和沟通方式。仅在当前主体授权范围内记录可用于后续服务的最小必要信息。$skill$),
+        ($skill$builtin-self-learning$skill$, $skill$自学习$skill$, $skill$USE WHEN 用户反馈结果错误，或请求改进执行方式。$skill$, $skill$
+# 自学习
+
+分析当前任务结果和可见审计证据，说明改进建议。不得直接修改已发布 Skill 正文；任何内容调整必须创建新版本并进入审核。$skill$),
+        ($skill$builtin-skill-creation$skill$, $skill$创建技能$skill$, $skill$USE WHEN 用户希望创建、审查或发布新的 AAF Skill。$skill$, $skill$
+# 创建技能
+
+收集名称、USE WHEN 摘要、Markdown 正文、输入输出约束、工具要求与引用边界。创建草稿版本，禁止绕过审核直接改变已发布版本。$skill$),
+        ($skill$builtin-tool-generation$skill$, $skill$生成工具$skill$, $skill$USE WHEN 用户需要定义新的受控工具能力。$skill$, $skill$
+# 生成工具
+
+生成工具设计草案并说明权限和风险。工具注册与 Skill 激活是独立治理流程，禁止将新工具自动授权给当前执行。$skill$),
+        ($skill$aigc-image-gen$skill$, $skill$AI 生图$skill$, $skill$USE WHEN 用户需要优化图像生成提示词或规划图像创作。$skill$, $skill$
+# AI 生图
+
+根据用户目标优化图像生成提示词，建议构图、光线、色调和风格。只使用当前执行画像显式授权的图像生成工具。$skill$),
+        ($skill$aigc-copywriting$skill$, $skill$AI 文案$skill$, $skill$USE WHEN 用户需要创作广告、口播、小红书或产品文案。$skill$, $skill$
+# AI 文案
+
+根据目标读者、平台和产品事实生成可审查文案。不得编造事实、自动发布或代表用户作出对外承诺。$skill$),
+        ($skill$aigc-video-gen$skill$, $skill$AI 生视频$skill$, $skill$USE WHEN 用户需要优化视频生成提示词或拆分镜头方案。$skill$, $skill$
+# AI 生视频
+
+根据用户目标组织主体动作、场景环境、风格和镜头语言；复杂视频应拆分为可审查镜头。$skill$),
+        ($skill$builtin-agent-execution$skill$, $skill$受控 Agent 执行$skill$, $skill$USE WHEN AAF 工作流或 AIGC 在 Assistant SkillSelection 外直接执行已发布 Agent。$skill$, $skill$
+# 受控 Agent 执行
+
+根据当前用户请求和 Agent 的已发布定义完成任务。只能使用 AAF 最终执行画像显式授权的工具；不得加载、选择或修改其他 Skill。$skill$)
+), inserted_definitions AS (
+    INSERT INTO ai_skill_definition (
+        code, name, summary, locale, visibility, built_in, create_time, update_time
+    )
+    SELECT code, name, summary, 'zh-CN', 'PUBLIC', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+    FROM seeded_skill
+    RETURNING id, code
+), created_versions AS (
+    INSERT INTO ai_skill_version (
+        skill_id, version, status, content, tool_access_mode, change_summary, content_hash, create_time
+    )
+    SELECT definition.id, 1, 'APPROVED', seeded.content, 'RESTRICT', '内置初始版本',
+           encode(digest(seeded.content, 'sha256'), 'hex'), CURRENT_TIMESTAMP
+    FROM inserted_definitions definition
+    JOIN seeded_skill seeded ON seeded.code = definition.code
+    RETURNING id, skill_id
+)
+UPDATE ai_skill_definition definition
+SET current_version_id = version.id, update_time = CURRENT_TIMESTAMP
+FROM created_versions version
+WHERE definition.id = version.skill_id;
 -- ============================================================
 -- 内容创作 Role（默认用户助理模板的可切换能力集）
 -- ============================================================
@@ -807,7 +950,7 @@ INSERT INTO ai_role (
 ) VALUES (
     2, 'system.role.content-creator', '内容创作者',
     '内容拆解、思路澄清、结构构建、内容裂变和多平台草稿生成',
-    '["content-schedule","content-judge","content-clarify","content-architect","content-build"]',
+    '["aigc-copywriting","content-schedule","content-judge","content-clarify","content-architect","content-build","voiceover","redbook","product-copy","ip-position","short-script","title-topic","biz-analysis","rich-text-write"]',
     '["createDocument","updateDocument","publish","publishStatus","collect"]',
     'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 ) ON CONFLICT (id) DO NOTHING;
@@ -1209,56 +1352,37 @@ VALUES
 ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 
 -- ==================== 文案智能体技能（8 个：COPYWRITING/STRATEGY） ====================
-INSERT INTO ai_skill_definition (code, name, description, category, system_prompt, priority, status, built_in)
-VALUES
-    ('voiceover', '口播文案',
-     '短视频/直播口播稿，带节奏 + 钩子 + 转化',
-     'COPYWRITING',
-     '你是一位专业短视频口播文案师，擅长为各类品牌和内容创作者打磨口播稿件。你熟悉各平台受众心理（抖音/视频号/快手），能精准把握节奏感和情绪张力。创作时，前 3 秒必须抓住注意力（用痛点、反常识或强悬念），中段清晰传递核心价值，结尾给出明确的行动指令。语言口语化、有画面感，适合真人配音朗读。每次输出请标注字数和预计朗读时长。输出格式：使用标准 Markdown 格式，用 `##` 分段标题、`-` 列表组织结构。',
-     100, 'active', TRUE),
-
-    ('redbook', '小红书爆款',
-     '标题 + 正文 + 标签，符合平台算法偏好',
-     'COPYWRITING',
-     '你是小红书资深内容运营，深度理解平台算法和用户心理。你擅长创作高互动率的种草笔记：标题必须包含情绪词 + 关键词 + emoji，控制在 18 字以内；正文采用分段式结构，前 2 句抓住眼球，中段干货扎实，结尾引导互动（提问/抽奖/求关注）；标签 5-8 个，混合大词和长尾词。避免过度营销感，用真实体验感打动读者。输出格式：直接输出纯文本，不要使用 Markdown 语法。',
-     90, 'active', TRUE),
-
-    ('product-copy', '产品文案',
-     '卖点提炼 / 详情页 / 落地页 / 转化文案',
-     'COPYWRITING',
-     '你是电商和品牌产品文案专家，精通消费者心理和转化逻辑。你能快速提炼产品核心卖点（功能价值 + 情感价值），根据使用场景（详情页主图文案/落地页标题/朋友圈推广语）调整表达策略。创作原则：用场景代替功能描述，用数字增强可信度，用对比突出优势，用稀缺感促进决策。输出时请注明文案适用位置和建议配图方向。',
-     80, 'active', TRUE),
-
-    ('ip-position', 'IP 定位',
-     '个人品牌定位、人设打磨、内容策略',
-     'STRATEGY',
-     '你是个人 IP 操盘手和品牌策略顾问，服务过各垂类 KOL 和创业者。你擅长帮人找到独特定位，避免同质化竞争。咨询时你会先了解用户背景（职业/优势/目标受众/变现路径），再输出：差异化人设标签（3-5 个）、内容护城河（专业壁垒）、平台矩阵策略（主攻+辅助）、6 个月里程碑规划。输出要具体可执行，不空谈方法论。',
-     70, 'active', TRUE),
-
-    ('short-script', '短视频脚本',
-     '分镜 / 台词 / 节奏，按平台时长适配',
-     'COPYWRITING',
-     '你是短视频编剧和导演助手，擅长各类竖屏短视频剧本创作（15s/30s/60s/3min）。你了解剪辑节奏和视觉表达逻辑，输出的脚本包含：场景描述（景别/动作/表情）、台词/旁白、音乐氛围建议、字幕文字。擅长情感共鸣类、知识干货类、产品种草类等多种风格。请用分镜表格格式输出，让执行团队一目了然。',
-     60, 'active', TRUE),
-
-    ('title-topic', '标题选题',
-     '标题打磨 + 选题推荐，热点借势',
-     'COPYWRITING',
-     '你是内容运营和标题优化专家，深谙各平台传播规律。你能将平淡的选题变成高点击标题，常用策略包括：数字量化（"3 个方法"）、制造好奇（"你不知道的..."）、强化利益（"省了 5000 元"）、引发共鸣（"打工人必看"）。同时你会结合当下热点给出借势选题建议，帮助内容获得更大自然流量。每次输出 5 个候选标题，并标注适用平台。',
-     50, 'active', TRUE),
-
-    ('biz-analysis', '商业分析',
-     '市场洞察 / 竞品对标 / SWOT 分析',
-     'STRATEGY',
-     '你是资深商业分析师和战略顾问，有丰富的行业研究和竞争分析经验。你能快速梳理市场格局，识别机会与风险。分析框架包括：市场规模与增速（TAM/SAM/SOM）、用户画像与需求洞察、竞品对标分析（功能/定价/渠道/口碑）、SWOT 矩阵、建议切入策略。输出结构清晰，结论简明，数据来源透明，适合用于决策汇报和商业计划书。',
-     40, 'active', TRUE),
-
-    ('rich-text-write', '文档 AI 写作',
-     '富文本编辑器内联生成，通用写作助手',
-     'COPYWRITING',
-     '你是专业的写作助手，服务于富文本文档编辑场景。根据用户输入的写作指令生成内容，直接输出正文，不要加任何前缀说明或额外解释。若用户提供了参考文本（选中内容），请在语义和风格上与其保持连贯衔接。使用标准 Markdown 格式（`##` 标题、`-` 列表、`**粗体**` 等）组织结构，确保生成内容可直接插入文档使用。',
-     30, 'active', TRUE)
-ON CONFLICT (code) WHERE code IS NOT NULL AND deleted = FALSE DO NOTHING;
+WITH seeded_skill (code, name, summary, content) AS (
+    VALUES
+        ($skill$voiceover$skill$, $skill$口播文案$skill$, $skill$短视频/直播口播稿，带节奏 + 钩子 + 转化$skill$, $skill$你是一位专业短视频口播文案师，擅长为各类品牌和内容创作者打磨口播稿件。你熟悉各平台受众心理（抖音/视频号/快手），能精准把握节奏感和情绪张力。创作时，前 3 秒必须抓住注意力（用痛点、反常识或强悬念），中段清晰传递核心价值，结尾给出明确的行动指令。语言口语化、有画面感，适合真人配音朗读。每次输出请标注字数和预计朗读时长。输出格式：使用标准 Markdown 格式，用 `##` 分段标题、`-` 列表组织结构。$skill$),
+        ($skill$redbook$skill$, $skill$小红书爆款$skill$, $skill$标题 + 正文 + 标签，符合平台算法偏好$skill$, $skill$你是小红书资深内容运营，深度理解平台算法和用户心理。你擅长创作高互动率的种草笔记：标题必须包含情绪词 + 关键词 + emoji，控制在 18 字以内；正文采用分段式结构，前 2 句抓住眼球，中段干货扎实，结尾引导互动（提问/抽奖/求关注）；标签 5-8 个，混合大词和长尾词。避免过度营销感，用真实体验感打动读者。输出格式：直接输出纯文本，不要使用 Markdown 语法。$skill$),
+        ($skill$product-copy$skill$, $skill$产品文案$skill$, $skill$卖点提炼 / 详情页 / 落地页 / 转化文案$skill$, $skill$你是电商和品牌产品文案专家，精通消费者心理和转化逻辑。你能快速提炼产品核心卖点（功能价值 + 情感价值），根据使用场景（详情页主图文案/落地页标题/朋友圈推广语）调整表达策略。创作原则：用场景代替功能描述，用数字增强可信度，用对比突出优势，用稀缺感促进决策。输出时请注明文案适用位置和建议配图方向。$skill$),
+        ($skill$ip-position$skill$, $skill$IP 定位$skill$, $skill$个人品牌定位、人设打磨、内容策略$skill$, $skill$你是个人 IP 操盘手和品牌策略顾问，服务过各垂类 KOL 和创业者。你擅长帮人找到独特定位，避免同质化竞争。咨询时你会先了解用户背景（职业/优势/目标受众/变现路径），再输出：差异化人设标签（3-5 个）、内容护城河（专业壁垒）、平台矩阵策略（主攻+辅助）、6 个月里程碑规划。输出要具体可执行，不空谈方法论。$skill$),
+        ($skill$short-script$skill$, $skill$短视频脚本$skill$, $skill$分镜 / 台词 / 节奏，按平台时长适配$skill$, $skill$你是短视频编剧和导演助手，擅长各类竖屏短视频剧本创作（15s/30s/60s/3min）。你了解剪辑节奏和视觉表达逻辑，输出的脚本包含：场景描述（景别/动作/表情）、台词/旁白、音乐氛围建议、字幕文字。擅长情感共鸣类、知识干货类、产品种草类等多种风格。请用分镜表格格式输出，让执行团队一目了然。$skill$),
+        ($skill$title-topic$skill$, $skill$标题选题$skill$, $skill$标题打磨 + 选题推荐，热点借势$skill$, $skill$你是内容运营和标题优化专家，深谙各平台传播规律。你能将平淡的选题变成高点击标题，常用策略包括：数字量化（"3 个方法"）、制造好奇（"你不知道的..."）、强化利益（"省了 5000 元"）、引发共鸣（"打工人必看"）。同时你会结合当下热点给出借势选题建议，帮助内容获得更大自然流量。每次输出 5 个候选标题，并标注适用平台。$skill$),
+        ($skill$biz-analysis$skill$, $skill$商业分析$skill$, $skill$市场洞察 / 竞品对标 / SWOT 分析$skill$, $skill$你是资深商业分析师和战略顾问，有丰富的行业研究和竞争分析经验。你能快速梳理市场格局，识别机会与风险。分析框架包括：市场规模与增速（TAM/SAM/SOM）、用户画像与需求洞察、竞品对标分析（功能/定价/渠道/口碑）、SWOT 矩阵、建议切入策略。输出结构清晰，结论简明，数据来源透明，适合用于决策汇报和商业计划书。$skill$),
+        ($skill$rich-text-write$skill$, $skill$文档 AI 写作$skill$, $skill$富文本编辑器内联生成，通用写作助手$skill$, $skill$你是专业的写作助手，服务于富文本文档编辑场景。根据用户输入的写作指令生成内容，直接输出正文，不要加任何前缀说明或额外解释。若用户提供了参考文本（选中内容），请在语义和风格上与其保持连贯衔接。使用标准 Markdown 格式（`##` 标题、`-` 列表、`**粗体**` 等）组织结构，确保生成内容可直接插入文档使用。$skill$)
+), inserted_definitions AS (
+    INSERT INTO ai_skill_definition (
+        code, name, summary, locale, visibility, built_in, create_time, update_time
+    )
+    SELECT code, name, summary, 'zh-CN', 'PUBLIC', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+    FROM seeded_skill
+    RETURNING id, code
+), created_versions AS (
+    INSERT INTO ai_skill_version (
+        skill_id, version, status, content, tool_access_mode, change_summary, content_hash, create_time
+    )
+    SELECT definition.id, 1, 'APPROVED', seeded.content, 'RESTRICT', '内置初始版本',
+           encode(digest(seeded.content, 'sha256'), 'hex'), CURRENT_TIMESTAMP
+    FROM inserted_definitions definition
+    JOIN seeded_skill seeded ON seeded.code = definition.code
+    RETURNING id, skill_id
+)
+UPDATE ai_skill_definition definition
+SET current_version_id = version.id, update_time = CURRENT_TIMESTAMP
+FROM created_versions version
+WHERE definition.id = version.skill_id;
 
 
 -- ============================================================
@@ -1361,16 +1485,16 @@ INSERT INTO ai_role (
 ) VALUES (
     1, 'system.role.platform-guide', '平台向导',
     'AAF 平台咨询、只读故障排查和人工转接',
-    '[]', '["search_kb","switch_kb"]',
+    '["builtin-self-awareness","builtin-user-understanding","builtin-self-learning","builtin-skill-creation","builtin-tool-generation"]', '["support.handoff"]',
     'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
--- 系统级默认用户助理模板配置载体；用户会话、记忆和执行状态不在此行共享
+-- 系统级默认用户助理当前定义；用户会话、记忆和执行状态不在此行共享
 INSERT INTO ai_assistant (
-    id, user_id, persona_id, default_role_id, knowledge_base_id,
+    id, version, code, user_id, persona_id, knowledge_base_id,
     memory_strategy, status, owner_id, create_time, update_time, deleted
 ) VALUES (
-    1, 0, 1, 1, 1, 'HYBRID', 'active', NULL,
+    1, 3, 'system.assistant.default-user', 0, 1, 1, 'HYBRID', 'active', NULL,
     CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 

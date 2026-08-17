@@ -7,7 +7,7 @@ import java.util.Set;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AssistantId;
 
-/** Assistant 的版本化纯领域定义，是内置、自建和复制助理的统一配置源。 */
+/** Assistant 当前定义聚合；运行时只读取当前行，不提供版本选择。 */
 public record AssistantDefinition(
         AssistantId assistantId,
         String systemKey,
@@ -19,7 +19,7 @@ public record AssistantDefinition(
         List<Role> roles,
         String defaultRoleKey,
         MemoryStrategy memoryStrategy,
-        List<SkillRoute> skillRoutes,
+        String modelId,
         ToolPolicy toolPolicy,
         Set<ControlMode> supportedControlModes,
         RiskPolicy defaultRiskPolicy,
@@ -34,7 +34,7 @@ public record AssistantDefinition(
         roles = List.copyOf(Objects.requireNonNull(roles, "roles 不能为空"));
         defaultRoleKey = requireText(defaultRoleKey, "defaultRoleKey");
         Objects.requireNonNull(memoryStrategy, "memoryStrategy 不能为空");
-        skillRoutes = List.copyOf(Objects.requireNonNull(skillRoutes, "skillRoutes 不能为空"));
+        modelId = modelId == null || modelId.isBlank() ? null : modelId.trim();
         Objects.requireNonNull(toolPolicy, "toolPolicy 不能为空");
         supportedControlModes =
                 Set.copyOf(
@@ -44,23 +44,16 @@ public record AssistantDefinition(
         Objects.requireNonNull(lifecycle, "lifecycle 不能为空");
         validateIdentity(ownership, systemKey, sourceSystemKey);
         validateRoles(roles, defaultRoleKey);
-        validateRoutes(roles, defaultRoleKey, skillRoutes);
         validateToolPolicy(roles, toolPolicy);
         validateModes(supportedControlModes);
     }
 
-    /** 能力清单由定义实时投影，不形成第二份配置源。 */
     public AssistantCapabilityManifest capabilityManifest() {
         return AssistantCapabilityManifest.from(this);
     }
 
     public Role defaultRole() {
         return requireRole(defaultRoleKey);
-    }
-
-    public Role roleFor(SkillRoute route) {
-        Objects.requireNonNull(route, "route 不能为空");
-        return requireRole(route.roleKey());
     }
 
     public Role requireRole(String roleKey) {
@@ -108,47 +101,8 @@ public record AssistantDefinition(
             throw new IllegalArgumentException("roles 不能包含重复 key");
         }
         if (!roleKeys.contains(defaultRoleKey)) {
-            throw new IllegalArgumentException("defaultRoleKey 必须引用已配置 Role");
-        }
-    }
-
-    private static void validateRoutes(
-            List<Role> roles, String defaultRoleKey, List<SkillRoute> routes) {
-        if (routes.isEmpty()) {
-            throw new IllegalArgumentException("skillRoutes 不能为空");
-        }
-        var keys = routes.stream().map(SkillRoute::skillKey).toList();
-        if (keys.size() != Set.copyOf(keys).size()) {
-            throw new IllegalArgumentException("skillRoutes 不能包含重复 skillKey");
-        }
-        for (var route : routes) {
-            var role =
-                    roles.stream()
-                            .filter(candidate -> candidate.key().equals(route.roleKey()))
-                            .findFirst()
-                            .orElseThrow(
-                                    () ->
-                                            new IllegalArgumentException(
-                                                    "SkillRoute 引用了未配置 Role: " + route.roleKey()));
-            if (!role.skillKeys().contains(route.skillKey())) {
-                throw new IllegalArgumentException(
-                        "SkillRoute 必须属于对应 Role.skillKeys: " + route.skillKey());
-            }
-            var expectedMode =
-                    route.roleKey().equals(defaultRoleKey)
-                            ? SkillRoute.HandlingMode.DIRECT
-                            : SkillRoute.HandlingMode.DELEGATE;
-            if (route.handlingMode() != expectedMode) {
-                throw new IllegalArgumentException(
-                        "默认 Role 必须 DIRECT，非默认 Role 必须 DELEGATE: " + route.skillKey());
-            }
-        }
-        var defaultRoutes = routes.stream().filter(SkillRoute::defaultRoute).toList();
-        if (defaultRoutes.size() != 1) {
-            throw new IllegalArgumentException("Assistant 必须且只能有一个默认 SkillRoute");
-        }
-        if (!defaultRoutes.getFirst().roleKey().equals(defaultRoleKey)) {
-            throw new IllegalArgumentException("默认 SkillRoute 必须属于默认 Role");
+            throw new IllegalArgumentException(
+                    "defaultRoleKey 必须引用 ai_assistant_role.is_default 关联的 Role");
         }
     }
 
