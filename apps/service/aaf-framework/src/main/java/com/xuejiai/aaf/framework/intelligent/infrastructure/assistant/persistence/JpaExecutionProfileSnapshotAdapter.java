@@ -11,7 +11,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 
 /** executionId 级不可变执行画像存储。 */
-public final class JpaExecutionProfileSnapshotAdapter implements ExecutionProfileSnapshotPort {
+public class JpaExecutionProfileSnapshotAdapter implements ExecutionProfileSnapshotPort {
 
     private final ExecutionProfileSnapshotRepository repository;
 

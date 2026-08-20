@@ -17,4 +17,10 @@ public interface EffectiveToolResolver {
             Set<String> skillRequiredToolNames,
             Set<String> roleAllowedToolNames,
             List<ToolRef> agentAllowedTools);
+
+    /** Assistant Skill 只能获得其必需工具与 Assistant、Agent 白名单的严格交集。 */
+    List<ToolRef> resolveAssistant(
+            Set<String> skillRequiredToolNames,
+            Set<String> assistantAllowedToolNames,
+            List<ToolRef> agentAllowedTools);
 }

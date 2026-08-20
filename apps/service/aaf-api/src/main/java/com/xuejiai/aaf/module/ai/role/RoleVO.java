@@ -1,6 +1,9 @@
 package com.xuejiai.aaf.module.ai.role;
 
 import java.time.LocalDateTime;
+import java.util.List;
+
+import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillBinding;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -11,8 +14,13 @@ public record RoleVO(
         @Schema(description = "稳定业务码") String code,
         @Schema(description = "名称") String name,
         @Schema(description = "描述") String description,
-        @Schema(description = "Skill code 列表（JSON）") String skillIds,
+        @Schema(description = "Skill 绑定对象数组") List<SkillBinding> skillBindings,
         @Schema(description = "工具授权池（JSON）") String toolWhitelist,
         @Schema(description = "状态") String status,
         @Schema(description = "创建时间") LocalDateTime createTime,
-        @Schema(description = "更新时间") LocalDateTime updateTime) {}
+        @Schema(description = "更新时间") LocalDateTime updateTime) {
+
+    public RoleVO {
+        skillBindings = SkillBinding.copyOf(skillBindings, "skillBindings");
+    }
+}

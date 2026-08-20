@@ -12,14 +12,12 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantCommand;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.BudgetUsage;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.Owner;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.OwnerKind;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.Status;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionInput;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort.Lease;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
@@ -35,48 +33,47 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 public class JpaDelegatedTaskAdapter implements DelegatedTaskPort {
     private final DelegatedTaskRepository repository;
     private final TaskBoardRepository taskBoards;
+    private final TaskInputRepository inputs;
     private final ConversationLeasePort leases;
 
     public JpaDelegatedTaskAdapter(
             DelegatedTaskRepository repository,
             TaskBoardRepository taskBoards,
+            TaskInputRepository inputs,
             ConversationLeasePort leases) {
         this.repository = Objects.requireNonNull(repository, "repository 不能为空");
         this.taskBoards = Objects.requireNonNull(taskBoards, "taskBoards 不能为空");
+        this.inputs = Objects.requireNonNull(inputs, "inputs 不能为空");
         this.leases = Objects.requireNonNull(leases, "leases 不能为空");
     }
 
     @Override
     @Transactional
-    public StoredTask create(DelegatedTask task, AssistantCommand command, TaskBoard board) {
-        Objects.requireNonNull(task, "task 不能为空");
-        Objects.requireNonNull(command, "command 不能为空");
-        Objects.requireNonNull(board, "board 不能为空");
-        if (repository
-                        .findByTenantIdAndTaskId(task.tenantId().value(), task.taskId().value())
-                        .isPresent()
-                || taskBoards
-                        .findByTenantIdAndTaskId(task.tenantId().value(), task.taskId().value())
-                        .isPresent()) {
-            throw new IllegalStateException("委托任务已存在: " + task.taskId().value());
+    public BufferedInput bufferInput(ExecutionInput input) {
+        Objects.requireNonNull(input, "input 不能为空");
+        var task = requireOwned(input.tenantId(), input.userId(), input.taskId()).getTask();
+        var existing = inputs.findById(input.inputId()).orElse(null);
+        if (existing != null) {
+            if (!existing.getInput().equals(input)) {
+                throw new IllegalStateException("inputId 已绑定不同输入事实: " + input.inputId());
+            }
+            return new BufferedInput(existing.getInput(), false);
         }
-        if (!task.tenantId().equals(command.tenantId())
-                || !task.taskId().equals(command.taskId())
-                || !task.taskId().equals(board.taskId())
-                || command.executionContract() == null) {
-            throw new IllegalArgumentException("委托任务、命令与 TaskBoard 边界不一致");
+        if (task.terminal()) {
+            throw new IllegalStateException("终态任务不再接受输入");
         }
-        var entity = new DelegatedTaskEntity();
-        entity.setCommand(command);
-        apply(entity, task);
-        var boardEntity = new TaskBoardEntity();
-        boardEntity.setTenantId(task.tenantId().value());
-        boardEntity.setTaskId(task.taskId().value());
-        boardEntity.setBoard(board);
-        boardEntity.setFencingToken(0L);
-        var saved = repository.saveAndFlush(entity);
-        taskBoards.saveAndFlush(boardEntity);
-        return stored(saved);
+        if ((input.kind() == ExecutionInput.Kind.MODIFY
+                        || input.kind() == ExecutionInput.Kind.SUPPLEMENT)
+                && task.status() != Status.AWAITING_CLARIFICATION) {
+            throw new IllegalStateException("结构化参数只能补充当前待澄清任务");
+        }
+        var entity = new TaskInputEntity();
+        entity.setInputId(input.inputId());
+        entity.setTenantId(input.tenantId().value());
+        entity.setTaskId(input.taskId().value());
+        entity.setReceivedAt(input.receivedAt());
+        entity.setInput(input);
+        return new BufferedInput(inputs.saveAndFlush(entity).getInput(), true);
     }
 
     @Override
@@ -375,61 +372,6 @@ public class JpaDelegatedTaskAdapter implements DelegatedTaskPort {
 
     @Override
     @Transactional
-    public DelegatedTask awaitAuthorization(InvocationContext context, String reason, Instant at) {
-        var entity = locked(context);
-        var current = entity.getTask();
-        var waiting =
-                copy(
-                        current,
-                        Status.AWAITING_AUTHORIZATION,
-                        current.owner(),
-                        current.budgetUsage(),
-                        current.attempts(),
-                        current.consecutiveFailures(),
-                        current.nextRunAt(),
-                        null,
-                        null,
-                        current.fencingToken(),
-                        merge(current.checkpoint(), "authorizationGap", reason),
-                        at,
-                        current.sessionId(),
-                        current.executionId());
-        return save(entity, waiting);
-    }
-
-    @Override
-    @Transactional
-    public DelegatedTask resumeAfterAuthorization(
-            TenantId tenantId, UserId userId, TaskId taskId, Lease lease, Instant at) {
-        leases.requireCurrent(lease);
-        var entity = requireOwned(tenantId, userId, taskId);
-        var current = entity.getTask();
-        requireLeaseBoundary(current, lease);
-        if (current.status() != Status.AWAITING_AUTHORIZATION) {
-            throw new IllegalStateException("任务当前不在等待授权状态");
-        }
-        entity.setCommand(entity.getCommand().asResume(at));
-        var resumed =
-                copy(
-                        current,
-                        Status.PENDING,
-                        current.owner(),
-                        current.budgetUsage(),
-                        current.attempts(),
-                        current.consecutiveFailures(),
-                        at,
-                        null,
-                        null,
-                        lease.fencingToken(),
-                        current.checkpoint(),
-                        at,
-                        current.sessionId(),
-                        current.executionId());
-        return save(entity, resumed);
-    }
-
-    @Override
-    @Transactional
     public DelegatedTask complete(
             InvocationContext context, Map<String, Object> result, Instant at) {
         var entity = locked(context);
@@ -476,64 +418,6 @@ public class JpaDelegatedTaskAdapter implements DelegatedTaskPort {
                         at,
                         current.sessionId(),
                         current.executionId()));
-    }
-
-    @Override
-    @Transactional
-    public DelegatedTask failOrRetry(
-            InvocationContext context, String failure, boolean transientFailure, Instant at) {
-        var entity = locked(context);
-        var current = entity.getTask();
-        var failures = current.consecutiveFailures() + 1;
-        var policy = current.contract().retryPolicy();
-        var retry =
-                current.attempts() < policy.maxAttempts()
-                        && (!policy.retryTransientOnly() || transientFailure)
-                        && current.contract().deadline().isAfter(at.plus(policy.initialBackoff()));
-        var checkpoint = merge(current.checkpoint(), "lastFailure", failure);
-        if (!retry) {
-            return save(
-                    entity,
-                    copy(
-                            current,
-                            Status.FAILED,
-                            current.owner(),
-                            current.budgetUsage(),
-                            current.attempts(),
-                            failures,
-                            current.nextRunAt(),
-                            null,
-                            null,
-                            current.fencingToken(),
-                            checkpoint,
-                            at,
-                            current.sessionId(),
-                            current.executionId()));
-        }
-        var nextAt = at.plus(policy.initialBackoff().multipliedBy(Math.max(1, current.attempts())));
-        var nextExecution = new ExecutionId(randomId());
-        var nextSession = new SessionId(randomId());
-        var nextRun = new RunId(randomId());
-        entity.setCommand(
-                entity.getCommand()
-                        .newExecution(nextExecution, nextSession, nextRun, context.lease(), at));
-        return save(
-                entity,
-                copy(
-                        current,
-                        Status.PENDING,
-                        new Owner(OwnerKind.ASSISTANT, entity.getCommand().assistantId().value()),
-                        current.budgetUsage(),
-                        current.attempts(),
-                        failures,
-                        nextAt,
-                        null,
-                        null,
-                        current.fencingToken(),
-                        checkpoint,
-                        at,
-                        nextSession,
-                        nextExecution));
     }
 
     @Override
@@ -647,72 +531,6 @@ public class JpaDelegatedTaskAdapter implements DelegatedTaskPort {
                         executionId);
         apply(entity, returned);
         return stored(repository.saveAndFlush(entity));
-    }
-
-    @Override
-    @Transactional
-    public DelegatedTask applyInput(ExecutionInput input, Lease lease) {
-        leases.requireCurrent(lease);
-        var entity = requireOwned(input.tenantId(), input.userId(), input.taskId());
-        var current = entity.getTask();
-        requireLeaseBoundary(current, lease);
-        if (input.kind() == ExecutionInput.Kind.UNRELATED) return current;
-        var checkpoint =
-                merge(
-                        current.checkpoint(),
-                        "input:" + input.inputId(),
-                        Map.of(
-                                "kind",
-                                input.kind().name(),
-                                "content",
-                                input.content(),
-                                "receivedAt",
-                                input.receivedAt().toString()));
-        if (input.kind() == ExecutionInput.Kind.CANCEL) {
-            return save(
-                    entity,
-                    copy(
-                            current,
-                            Status.CANCELED,
-                            new Owner(OwnerKind.HUMAN, input.userId().value()),
-                            current.budgetUsage(),
-                            current.attempts(),
-                            current.consecutiveFailures(),
-                            input.receivedAt(),
-                            null,
-                            null,
-                            lease.fencingToken(),
-                            checkpoint,
-                            input.receivedAt(),
-                            current.sessionId(),
-                            current.executionId()));
-        }
-        var nextExecution = new ExecutionId(randomId());
-        var nextSession = new SessionId(randomId());
-        var nextRun = new RunId(randomId());
-        entity.setCommand(
-                entity.getCommand()
-                        .newExecution(
-                                nextExecution, nextSession, nextRun, lease, input.receivedAt())
-                        .withInput(input.content(), lease, input.receivedAt()));
-        var nextCheckpoint = merge(checkpoint, "resumeInput", input.content());
-        return save(
-                entity,
-                copy(
-                        current,
-                        Status.PENDING,
-                        new Owner(OwnerKind.ASSISTANT, entity.getCommand().assistantId().value()),
-                        current.budgetUsage(),
-                        current.attempts(),
-                        current.consecutiveFailures(),
-                        input.receivedAt(),
-                        null,
-                        null,
-                        lease.fencingToken(),
-                        nextCheckpoint,
-                        input.receivedAt(),
-                        nextSession,
-                        nextExecution));
     }
 
     @Override
@@ -853,6 +671,11 @@ public class JpaDelegatedTaskAdapter implements DelegatedTaskPort {
                 || !task.conversationId().equals(lease.conversationId())) {
             throw stale("conversation lease 与任务边界不一致");
         }
+    }
+
+    private DelegatedTaskEntity saveEntity(DelegatedTaskEntity entity, DelegatedTask task) {
+        apply(entity, task);
+        return repository.saveAndFlush(entity);
     }
 
     private DelegatedTask save(DelegatedTaskEntity entity, DelegatedTask task) {

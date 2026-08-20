@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.framework.intelligent.ai.chat;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.springframework.ai.chat.messages.Message;
@@ -16,6 +17,7 @@ import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
+import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 
 import lombok.RequiredArgsConstructor;
@@ -75,6 +77,33 @@ public class ResilientChatService {
             }
             log.warn("主模型 [{}] 调用失败，尝试降级: {}", model.getModelId(), e.getMessage());
             return callFallback(messages, model, ownerId, billingCapability);
+        }
+    }
+
+    /** 使用冻结的 ai_model 主键精确调用；上下文摘要禁止路由和 fallback。 */
+    public ChatResponse callExact(List<Message> messages, ModelSpec modelSpec, Long userId) {
+        Objects.requireNonNull(modelSpec, "modelSpec 不能为空");
+        var model =
+                modelRepository
+                        .findById(databaseId(modelSpec))
+                        .filter(candidate -> Boolean.TRUE.equals(candidate.getEnabled()))
+                        .orElseThrow(() -> new IllegalArgumentException("摘要模型不存在或未启用"));
+        var ownerId = billingOwnerId(userId);
+        creditGuard.precheck(
+                ownerId,
+                CreditTransactionCategoryEnum.fromCapability(CapabilityRoutingContext.CAP_CHAT),
+                AiCreditGuard.INESTIMABLE_COST);
+        var response = doCall(messages, model.getModelId());
+        publishUsage(response, ownerId, model.getId(), detectBillingCapability(messages));
+        return response;
+    }
+
+    private static long databaseId(ModelSpec modelSpec) {
+        try {
+            return Long.parseLong(modelSpec.modelId());
+        } catch (NumberFormatException failure) {
+            throw new IllegalArgumentException(
+                    "摘要模型规格必须引用 ai_model 主键: " + modelSpec.modelId(), failure);
         }
     }
 

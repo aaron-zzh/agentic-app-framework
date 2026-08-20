@@ -40,7 +40,7 @@ public class AiRoleCrudService
                 e.getCode(),
                 e.getName(),
                 e.getDescription(),
-                e.getSkillIds(),
+                RoleSkillBindingJson.read(e.getSkillIds()),
                 e.getToolWhitelist(),
                 e.getStatus(),
                 e.getCreateTime(),
@@ -53,7 +53,7 @@ public class AiRoleCrudService
         entity.setCode(dto.code());
         entity.setName(dto.name());
         entity.setDescription(dto.description());
-        entity.setSkillIds(dto.skillIds());
+        entity.setSkillIds(RoleSkillBindingJson.write(dto.skillBindings()));
         entity.setToolWhitelist(dto.toolWhitelist());
         return entity;
     }
@@ -65,7 +65,7 @@ public class AiRoleCrudService
         }
         entity.setName(dto.name());
         entity.setDescription(dto.description());
-        entity.setSkillIds(dto.skillIds());
+        entity.setSkillIds(RoleSkillBindingJson.write(dto.skillBindings()));
         entity.setToolWhitelist(dto.toolWhitelist());
     }
 }

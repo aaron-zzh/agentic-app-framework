@@ -45,8 +45,8 @@ class DefaultUserAssistantTemplateTest extends BaseMockitoUnitTest {
     }
 
     @Test
-    @DisplayName("Given 系统默认用户助理模板 When 查看当前定义 Then v3 默认平台向导且无旧 Agent 标识")
-    void should_define_v3_default_user_assistant_with_default_platform_guide() {
+    @DisplayName("Given 系统默认用户助理模板 When 查看当前定义 Then v6 默认平台向导且无旧 Agent 标识")
+    void should_define_v6_default_user_assistant_with_default_platform_guide() {
         assertThat(template.assistantId().value())
                 .isEqualTo(DefaultUserAssistantTemplate.ASSISTANT_ID);
         assertThat(template.version()).isEqualTo(DefaultUserAssistantTemplate.VERSION);
@@ -58,8 +58,20 @@ class DefaultUserAssistantTemplateTest extends BaseMockitoUnitTest {
                         DefaultUserAssistantTemplate.PLATFORM_GUIDE_ROLE_KEY,
                         DefaultUserAssistantTemplate.CONTENT_CREATOR_ROLE_KEY)
                 .allSatisfy(key -> assertThat(key).doesNotStartWith("system.agent."));
+        assertThat(
+                        template.requireRole(DefaultUserAssistantTemplate.CONTENT_CREATOR_ROLE_KEY)
+                                .skillKeys())
+                .containsExactlyInAnyOrderElementsOf(
+                        DefaultUserAssistantTemplate.CONTENT_CREATION_SKILL_KEYS);
         assertThat(template.capabilityManifest().skillKeys())
-                .contains("builtin-self-awareness", "aigc-copywriting")
+                .contains(
+                        "builtin-user-understanding",
+                        "aigc-copywriting",
+                        "content-schedule",
+                        "content-judge",
+                        "content-clarify",
+                        "content-architect",
+                        "content-build")
                 .allSatisfy(key -> assertThat(key).doesNotStartWith("system.agent."));
     }
 
@@ -73,7 +85,7 @@ class DefaultUserAssistantTemplateTest extends BaseMockitoUnitTest {
                                 Optional.ofNullable(skillsByCode.get(invocation.getArgument(0))));
 
         for (var role : template.roles()) {
-            var result = skillResolver.resolve(role, role.skillKeys());
+            var result = skillResolver.resolve(template.candidateSkillKeys(role), role.skillKeys());
 
             assertThat(result)
                     .extracting(SkillDef::name)
@@ -103,6 +115,26 @@ class DefaultUserAssistantTemplateTest extends BaseMockitoUnitTest {
     }
 
     @Test
+    @DisplayName("Given 内容创作 Role When 查看工具边界 Then 使用受控草稿 upsert 且不允许发布")
+    void should_use_governed_draft_upsert_without_publish_tool() {
+        var contentRole =
+                template.roles().stream()
+                        .filter(
+                                role ->
+                                        role.key()
+                                                .equals(
+                                                        DefaultUserAssistantTemplate
+                                                                .CONTENT_CREATOR_ROLE_KEY))
+                        .findFirst()
+                        .orElseThrow();
+
+        assertThat(contentRole.toolKeys())
+                .contains("content.draft.upsert")
+                .noneMatch(tool -> tool.toLowerCase(java.util.Locale.ROOT).contains("publish"));
+        assertThat(template.toolPolicy().rules().get("content.draft.upsert").reversible()).isTrue();
+    }
+
+    @Test
     @DisplayName("Given 不存在的默认 Role When 构造定义 Then 拒绝定义")
     void should_reject_missing_default_role() {
         assertThatThrownBy(
@@ -119,7 +151,7 @@ class DefaultUserAssistantTemplateTest extends BaseMockitoUnitTest {
     @DisplayName("Given ToolPolicy 少于所有 Role 工具并集 When 构造定义 Then 拒绝定义")
     void should_reject_tool_policy_not_equal_to_role_tool_union() {
         var rules = new LinkedHashMap<>(template.toolPolicy().rules());
-        rules.remove("content.generate");
+        rules.remove("support.handoff");
 
         assertThatThrownBy(
                         () ->
@@ -142,6 +174,8 @@ class DefaultUserAssistantTemplateTest extends BaseMockitoUnitTest {
                 template.maintainer(),
                 template.actor(),
                 roles,
+                template.assistantSkillBindings(),
+                template.assistantToolKeys(),
                 defaultRoleKey,
                 template.memoryStrategy(),
                 template.modelId(),

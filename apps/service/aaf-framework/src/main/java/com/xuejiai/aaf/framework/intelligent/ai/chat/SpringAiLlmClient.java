@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.intelligent.core.llm.LlmClient;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
+import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
 
 import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Flux;
@@ -28,6 +29,12 @@ public class SpringAiLlmClient implements LlmClient {
         var springMessages = toSpringMessages(messages);
         var ctx = CapabilityRoutingContext.ofCapability(userId, scene != null ? scene : "CHAT");
         var response = chatService.call(springMessages, ctx);
+        return response.getResult().getOutput().getText();
+    }
+
+    @Override
+    public String callExact(List<LlmMessage> messages, ModelSpec model, Long userId) {
+        var response = chatService.callExact(toSpringMessages(messages), model, userId);
         return response.getResult().getOutput().getText();
     }
 

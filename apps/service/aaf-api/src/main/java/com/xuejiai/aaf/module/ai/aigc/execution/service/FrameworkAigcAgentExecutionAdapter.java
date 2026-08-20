@@ -12,8 +12,11 @@ import com.xuejiai.aaf.framework.intelligent.agent.model.FixedSkillExecutionProf
 import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.model.SubagentSpec;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolAuthorizationContext;
+import com.xuejiai.aaf.framework.intelligent.agent.port.AgentDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.SkillCatalogPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.PromptAssembler;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.InvocationPolicy;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ExecutionEventStatus;
@@ -41,7 +44,9 @@ import lombok.RequiredArgsConstructor;
 public class FrameworkAigcAgentExecutionAdapter implements AigcAgentExecutionPort {
 
     private final AgentExecutionPort agentExecutionPort;
+    private final AgentDefinitionPort agentDefinitions;
     private final SkillCatalogPort skillCatalog;
+    private final PromptAssembler promptAssembler;
 
     @Override
     public Submission submit(Command command) {
@@ -49,10 +54,30 @@ public class FrameworkAigcAgentExecutionAdapter implements AigcAgentExecutionPor
         var identity = "aigc:" + command.executionRunId();
         var executionId = new ExecutionId(identity);
         var runId = new RunId(identity);
+        var agentId = new AgentId(target.agentId());
+        var agentSpec =
+                agentDefinitions
+                        .findByIdAndVersion(agentId, target.version())
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "Agent 定义不存在: "
+                                                        + target.agentId()
+                                                        + "@"
+                                                        + target.version()));
+        var skillExecutionProfile =
+                FixedSkillExecutionProfile.from(requireSystemSkill(), List.of());
+        var compiledSystemPrompt =
+                promptAssembler.compileAgent(
+                        agentSpec,
+                        executionId.value(),
+                        skillExecutionProfile,
+                        InvocationPolicy.AIGC);
         var invocation =
                 new InvocationContext(
                         new TenantId(command.orgId().toString()),
                         new UserId(command.userId().toString()),
+                        command.workspaceId(),
                         null,
                         new ConversationId("aigc-project:" + command.projectId()),
                         new SessionId(identity),
@@ -69,12 +94,12 @@ public class FrameworkAigcAgentExecutionAdapter implements AigcAgentExecutionPor
                         new ToolAuthorizationContext(Map.of()));
         var runtimeCommand =
                 new AgentExecutionCommand(
-                        new SubagentSpec.Predefined(
-                                new AgentId(target.agentId()), target.version()),
+                        new SubagentSpec.Predefined(agentId, target.version()),
                         Optional.empty(),
                         AgentExecutionCommand.ExecutionMode.DIRECT,
                         Optional.empty(),
-                        FixedSkillExecutionProfile.from(requireSystemSkill(), List.of()),
+                        skillExecutionProfile,
+                        compiledSystemPrompt,
                         0,
                         List.of(
                                 new AgentMessage(

@@ -12,6 +12,8 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantVersion;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.MemoryStrategy;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Role;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillActivationMode;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillBinding;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ToolPolicy;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ToolPolicy.ActionEffect;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ToolPolicy.ToolRule;
@@ -26,10 +28,19 @@ public final class DefaultUserAssistantTemplate implements SystemAssistantTempla
     public static final String SYSTEM_KEY = "aaf.assistant.default-user";
     public static final String PLATFORM_GUIDE_ROLE_KEY = "system.role.platform-guide";
     public static final String CONTENT_CREATOR_ROLE_KEY = "system.role.content-creator";
+    public static final String SYSTEM_SELF_AWARENESS_SKILL_KEY = "builtin-self-awareness";
+    public static final String USER_UNDERSTANDING_SKILL_KEY = "builtin-user-understanding";
     public static final String DEFAULT_COPYWRITING_SKILL_KEY = "aigc-copywriting";
-    static final Set<String> CONTENT_CREATION_SKILL_KEYS =
-            Set.of(
+    public static final String JAVASCRIPT_COMPUTE_SKILL_KEY = "builtin-javascript-compute";
+    public static final String JAVASCRIPT_EXECUTION_TOOL_KEY = "script.execute.javascript";
+    static final List<String> CONTENT_CREATION_SKILL_KEYS =
+            List.of(
                     DEFAULT_COPYWRITING_SKILL_KEY,
+                    "content-schedule",
+                    "content-judge",
+                    "content-clarify",
+                    "content-architect",
+                    "content-build",
                     "voiceover",
                     "redbook",
                     "product-copy",
@@ -38,7 +49,7 @@ public final class DefaultUserAssistantTemplate implements SystemAssistantTempla
                     "title-topic",
                     "biz-analysis",
                     "rich-text-write");
-    public static final AssistantVersion VERSION = new AssistantVersion(3);
+    public static final AssistantVersion VERSION = new AssistantVersion(6);
 
     @Override
     public List<AssistantDefinition> templates() {
@@ -50,14 +61,11 @@ public final class DefaultUserAssistantTemplate implements SystemAssistantTempla
                 new Actor(
                         "system.actor.default-user",
                         "AAF 助理",
-                        "帮助用户使用 AAF，并在需要时协助完成内容创作",
+                        "帮助用户使用 AAF，并在需要时协助内容创作或使用受控计算技能",
                         "友好、准确、审慎、尊重用户表达与隐私",
                         "简洁、具体，未知事实不猜测，生成内容先提供可审查草稿",
                         "只使用授权资料和工具；不得发布、删除、付费或代表用户对外承诺",
                         "system://assistant/default-user");
-        var platformGuideRole = platformGuideRole();
-        var contentCreatorRole = contentCreatorRole();
-
         return new AssistantDefinition(
                 new AssistantId(ASSISTANT_ID),
                 SYSTEM_KEY,
@@ -66,7 +74,11 @@ public final class DefaultUserAssistantTemplate implements SystemAssistantTempla
                 VERSION,
                 "AAF",
                 actor,
-                List.of(platformGuideRole, contentCreatorRole),
+                List.of(platformGuideRole(), contentCreatorRole()),
+                List.of(
+                        binding(USER_UNDERSTANDING_SKILL_KEY, SkillActivationMode.ALWAYS),
+                        binding(JAVASCRIPT_COMPUTE_SKILL_KEY, SkillActivationMode.ON_DEMAND)),
+                Set.of(JAVASCRIPT_EXECUTION_TOOL_KEY),
                 PLATFORM_GUIDE_ROLE_KEY,
                 MemoryStrategy.hybridDefault(),
                 null,
@@ -82,13 +94,11 @@ public final class DefaultUserAssistantTemplate implements SystemAssistantTempla
                 "平台向导",
                 List.of("AAF 平台咨询", "只读故障排查", "转人工"),
                 List.of("修改工单", "修改用户数据", "访问未授权隐私数据"),
-                Set.of(
-                        "builtin-self-awareness",
-                        "builtin-user-understanding",
-                        "builtin-self-learning",
-                        "builtin-skill-creation",
-                        "builtin-tool-generation"),
-                Set.of("knowledge.search", "support.diagnostics.read", "support.handoff"));
+                List.of(
+                        binding("builtin-self-learning", SkillActivationMode.ON_DEMAND),
+                        binding("builtin-skill-creation", SkillActivationMode.ON_DEMAND),
+                        binding("builtin-tool-generation", SkillActivationMode.ON_DEMAND)),
+                Set.of("support.handoff"));
     }
 
     private static Role contentCreatorRole() {
@@ -97,27 +107,26 @@ public final class DefaultUserAssistantTemplate implements SystemAssistantTempla
                 "内容创作者",
                 List.of("内容策划", "生成草稿", "润色与事实核查"),
                 List.of("自动发布", "不可逆删除", "未经确认的付费动作"),
-                CONTENT_CREATION_SKILL_KEYS,
-                Set.of("knowledge.search", "content.generate", "content.draft.create"));
+                CONTENT_CREATION_SKILL_KEYS.stream()
+                        .map(code -> binding(code, SkillActivationMode.ON_DEMAND))
+                        .toList(),
+                Set.of("content.draft.upsert"));
+    }
+
+    private static SkillBinding binding(String skillKey, SkillActivationMode activationMode) {
+        return new SkillBinding(skillKey, activationMode);
     }
 
     private static ToolPolicy toolPolicy() {
         return new ToolPolicy(
                 Map.of(
-                        "knowledge.search",
-                        new ToolRule("knowledge.search", ActionEffect.READ, false, false),
-                        "support.diagnostics.read",
-                        new ToolRule("support.diagnostics.read", ActionEffect.READ, false, false),
                         "support.handoff",
                         new ToolRule("support.handoff", ActionEffect.HUMAN_HANDOFF, false, false),
-                        "content.generate",
+                        "content.draft.upsert",
                         new ToolRule(
-                                "content.generate", ActionEffect.GENERATED_CONTENT, false, false),
-                        "content.draft.create",
+                                "content.draft.upsert", ActionEffect.REVERSIBLE_WRITE, true, true),
+                        JAVASCRIPT_EXECUTION_TOOL_KEY,
                         new ToolRule(
-                                "content.draft.create",
-                                ActionEffect.REVERSIBLE_WRITE,
-                                true,
-                                true)));
+                                JAVASCRIPT_EXECUTION_TOOL_KEY, ActionEffect.READ, false, true)));
     }
 }

@@ -65,6 +65,18 @@ public class JpaTaskBoardAdapter implements TaskBoardPort {
 
     @Override
     @Transactional
+    public TaskBoard applyCoordinationPlan(
+            TenantId tenantId,
+            TaskId taskId,
+            com.xuejiai.aaf.framework.intelligent.assistant.model.CoordinationPlan plan,
+            Lease lease) {
+        var entity = requireLocked(tenantId, taskId, lease);
+        entity.setBoard(entity.getBoard().applyCoordinationPlan(plan));
+        return saveFenced(entity, lease);
+    }
+
+    @Override
+    @Transactional
     public TaskBoard completeSubTask(
             TenantId tenantId, TaskId taskId, String subTaskId, String result, Lease lease) {
         var entity = requireLocked(tenantId, taskId, lease);

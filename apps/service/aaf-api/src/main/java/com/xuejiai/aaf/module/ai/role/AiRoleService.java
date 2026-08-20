@@ -123,7 +123,7 @@ public class AiRoleService {
         entity.setCode(dto.code());
         entity.setName(dto.name());
         entity.setDescription(dto.description());
-        entity.setSkillIds(dto.skillIds());
+        entity.setSkillIds(RoleSkillBindingJson.write(dto.skillBindings()));
         entity.setToolWhitelist(dto.toolWhitelist());
         return toRoleVO(roleRepository.save(entity));
     }
@@ -143,7 +143,7 @@ public class AiRoleService {
         }
         entity.setName(dto.name());
         entity.setDescription(dto.description());
-        entity.setSkillIds(dto.skillIds());
+        entity.setSkillIds(RoleSkillBindingJson.write(dto.skillBindings()));
         entity.setToolWhitelist(dto.toolWhitelist());
         return toRoleVO(roleRepository.save(entity));
     }
@@ -190,7 +190,7 @@ public class AiRoleService {
                 e.getCode(),
                 e.getName(),
                 e.getDescription(),
-                e.getSkillIds(),
+                RoleSkillBindingJson.read(e.getSkillIds()),
                 e.getToolWhitelist(),
                 e.getStatus(),
                 e.getCreateTime(),

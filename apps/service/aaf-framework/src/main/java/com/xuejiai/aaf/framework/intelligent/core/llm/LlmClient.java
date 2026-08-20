@@ -2,6 +2,8 @@ package com.xuejiai.aaf.framework.intelligent.core.llm;
 
 import java.util.List;
 
+import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
+
 import reactor.core.publisher.Flux;
 
 /** LLM 调用接口——统一 Spring AI 和 AgentScope 两种实现。 上层只依赖此接口，底层实现可替换。 */
@@ -16,6 +18,9 @@ public interface LlmClient {
      * @return LLM 响应文本
      */
     String call(List<LlmMessage> messages, String scene, Long userId);
+
+    /** 使用已冻结模型精确调用，不执行模型路由或 fallback。 */
+    String callExact(List<LlmMessage> messages, ModelSpec model, Long userId);
 
     /**
      * 流式调用 LLM。

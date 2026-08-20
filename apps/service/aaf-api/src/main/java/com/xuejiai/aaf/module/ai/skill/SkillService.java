@@ -21,10 +21,15 @@ import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.crud.definition.CrudOperation;
 import com.xuejiai.aaf.framework.crud.enforcement.AccessMode;
+import com.xuejiai.aaf.framework.engine.skill.SkillCategory;
 import com.xuejiai.aaf.framework.engine.skill.SkillDefinition;
 import com.xuejiai.aaf.framework.engine.skill.SkillModelRequirement;
 import com.xuejiai.aaf.framework.engine.skill.SkillToolRequirement;
 import com.xuejiai.aaf.framework.engine.skill.SkillVersion;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionPort;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.framework.security.OperatorContext;
@@ -47,12 +52,21 @@ public class SkillService
 
     private static final String STATUS_DRAFT = "DRAFT";
     private static final String STATUS_APPROVED = "APPROVED";
+    private static final String COPYWRITING_CATEGORY = "copywriting";
+    private static final String CONTENT_DRAFT_UPSERT_TOOL = "content.draft.upsert";
     private static final Set<String> VERSION_STATUSES =
             Set.of(STATUS_DRAFT, "IN_REVIEW", STATUS_APPROVED, "REJECTED", "RETIRED");
     private static final Set<String> VISIBILITIES = Set.of("PRIVATE", "WORKSPACE", "PUBLIC");
     private static final Set<String> TOOL_ACCESS_MODES = Set.of("RESTRICT", "INHERIT");
     private static final Set<String> ROOT_UPDATE_FIELDS =
-            Set.of("code", "name", "summary", "locale", "visibility", "sourceSkillId");
+            Set.of(
+                    "code",
+                    "name",
+                    "summary",
+                    "locale",
+                    "visibility",
+                    "sourceSkillId",
+                    "categoryCodes");
     private static final Set<String> VERSION_UPDATE_FIELDS =
             Set.of(
                     "content",
@@ -80,10 +94,12 @@ public class SkillService
             Sort.by(Sort.Order.desc("updateTime"), Sort.Order.desc("id"));
 
     private final SkillDefinitionRepository repository;
+    private final SkillCategoryRepository categoryRepository;
     private final SkillVersionRepository versionRepository;
     private final SkillToolRequirementRepository toolRequirementRepository;
     private final SkillModelRequirementRepository modelRequirementRepository;
     private final OperatorContext operatorContext;
+    private final AssistantDefinitionPort assistantDefinitions;
 
     @Override
     protected SkillDefinitionRepository getRepository() {
@@ -115,6 +131,12 @@ public class SkillService
                 entity.getBuiltIn(),
                 entity.getCurrentVersionId(),
                 entity.getSourceSkillId(),
+                entity.getCategories().stream()
+                        .map(
+                                category ->
+                                        new SkillVO.SkillCategoryVO(
+                                                category.getCode(), category.getName()))
+                        .toList(),
                 currentView,
                 latestView,
                 entity.getOwnerId(),
@@ -183,6 +205,9 @@ public class SkillService
         entity.setVisibility(defaultText(request.visibility(), "PRIVATE"));
         entity.setBuiltIn(false);
         entity.setSourceSkillId(request.sourceSkillId());
+        if (request.categoryCodes() != null) {
+            entity.setCategories(resolveCategories(request.categoryCodes()));
+        }
         return entity;
     }
 
@@ -243,7 +268,7 @@ public class SkillService
                         Set.of("currentVersionId"),
                         (entity, request) -> {
                             enforceUserOwned(entity);
-                            requireApprovedVersion(entity.getId(), request.versionId());
+                            validatePublish(entity, request.versionId());
                         },
                         (entity, request) -> entity.setCurrentVersionId(request.versionId()),
                         (entity, request) -> null,
@@ -270,6 +295,7 @@ public class SkillService
                         : unrestrictedSpec();
         return Specification.allOf(
                 textSpec("locale", query.getLocale()),
+                categorySpec(query.getCategoryCode()),
                 textSpec("visibility", query.getVisibility()),
                 booleanSpec("builtIn", query.getBuiltIn()),
                 publishedSpec(Boolean.TRUE.equals(query.getPublishedOnly())),
@@ -316,8 +342,10 @@ public class SkillService
 
     /** 当前用户可见 Skill：我的、系统公开及当前工作区共享。 */
     @OrgIgnore
-    public List<SkillVO> listVisible(String locale, boolean publishedOnly) {
+    public List<SkillVO> listVisible(
+            String locale, boolean publishedOnly, String categoryCode, String roleKey) {
         enforce(CrudOperation.PAGE, AccessMode.DEFAULT);
+        var roleSkillKeys = resolveRoleSkillKeys(roleKey);
         var spec =
                 Specification.allOf(
                         visibleDirectorySpec(
@@ -325,6 +353,8 @@ public class SkillService
                                 OrgContext.getCurrentOrgId(),
                                 OrgContext.getCurrentWorkspaceId()),
                         textSpec("locale", locale),
+                        categorySpec(categoryCode),
+                        codeInSpec(roleSkillKeys),
                         publishedSpec(publishedOnly));
         return repository.findAll(spec, DIRECTORY_SORT).stream().map(this::toVO).toList();
     }
@@ -332,6 +362,12 @@ public class SkillService
     /** 按 code 获取当前用户可见的已发布 Skill 执行上下文。 */
     @OrgIgnore
     public VisibleSkillContext requireVisiblePublished(String code) {
+        return requireVisiblePublished(code, null);
+    }
+
+    /** 按 code 与受控分类获取当前用户可见的已发布 Skill 执行上下文。 */
+    @OrgIgnore
+    public VisibleSkillContext requireVisiblePublished(String code, String categoryCode) {
         enforce(CrudOperation.PAGE, AccessMode.DEFAULT);
         var normalizedCode = requireText(code, "Skill 代码不能为空");
         var spec =
@@ -341,6 +377,7 @@ public class SkillService
                                 OrgContext.getCurrentOrgId(),
                                 OrgContext.getCurrentWorkspaceId()),
                         textSpec("code", normalizedCode),
+                        categorySpec(categoryCode),
                         publishedSpec(true));
         var skill =
                 repository
@@ -348,7 +385,10 @@ public class SkillService
                         .orElseThrow(
                                 () ->
                                         new BusinessException(
-                                                GlobalErrorCode.NOT_FOUND, "Skill 不存在或不可见"));
+                                                GlobalErrorCode.NOT_FOUND,
+                                                categoryCode == null || categoryCode.isBlank()
+                                                        ? "Skill 不存在或不可见"
+                                                        : "指定分类的 Skill 不存在或不可见"));
         var version = requireApprovedVersion(skill.getId(), skill.getCurrentVersionId());
         return new VisibleSkillContext(
                 skill.getCode(), skill.getName(), version.getVersion(), version.getContent());
@@ -514,6 +554,7 @@ public class SkillService
                 Specification.allOf(
                         directorySpec,
                         textSpec("locale", query.getLocale()),
+                        categorySpec(query.getCategoryCode()),
                         textSpec("visibility", query.getVisibility()),
                         booleanSpec("builtIn", query.getBuiltIn()),
                         publishedSpec(Boolean.TRUE.equals(query.getPublishedOnly())),
@@ -607,6 +648,52 @@ public class SkillService
         return (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get(property), value);
     }
 
+    private Set<String> resolveRoleSkillKeys(String roleKey) {
+        if (roleKey == null || roleKey.isBlank()) {
+            return null;
+        }
+        var orgId = OrgContext.getCurrentOrgId();
+        if (orgId == null) {
+            throw new BusinessException(GlobalErrorCode.UNAUTHORIZED, "请求缺少组织上下文");
+        }
+        var ownerId = currentOwnerId();
+        var definition =
+                assistantDefinitions
+                        .findDefaultForUser(
+                                new TenantId(orgId.toString()), new UserId(ownerId.toString()))
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.NOT_FOUND,
+                                                "当前认证用户没有可用的默认 Assistant"));
+        if (definition.lifecycle() != AssistantDefinition.Lifecycle.PUBLISHED) {
+            throw badRequest("默认 Assistant 定义不可执行");
+        }
+        try {
+            return definition.requireRole(requireText(roleKey, "Role 不能为空")).skillKeys();
+        } catch (IllegalArgumentException exception) {
+            throw badRequest("请求 Role 不属于当前 Assistant");
+        }
+    }
+
+    private Specification<SkillDefinition> codeInSpec(Set<String> skillCodes) {
+        if (skillCodes == null) {
+            return unrestrictedSpec();
+        }
+        if (skillCodes.isEmpty()) {
+            return (root, query, criteriaBuilder) -> criteriaBuilder.disjunction();
+        }
+        return (root, query, criteriaBuilder) -> root.get("code").in(skillCodes);
+    }
+
+    private Specification<SkillDefinition> categorySpec(String categoryCode) {
+        if (categoryCode == null || categoryCode.isBlank()) {
+            return unrestrictedSpec();
+        }
+        return (root, query, criteriaBuilder) ->
+                criteriaBuilder.equal(root.join("categories").get("code"), categoryCode.trim());
+    }
+
     private Specification<SkillDefinition> publishedSpec(boolean publishedOnly) {
         if (!publishedOnly) {
             return unrestrictedSpec();
@@ -641,6 +728,11 @@ public class SkillService
         if (request.toolAccessMode() != null) {
             requireToolAccessMode(request.toolAccessMode());
         }
+        if (request.categoryCodes() != null
+                && normalizeCategoryCodes(request.categoryCodes()).contains(COPYWRITING_CATEGORY)
+                && entity.getCurrentVersionId() != null) {
+            requireDraftTool(entity.getCurrentVersionId());
+        }
         requireVisibleSource(request.sourceSkillId(), entity.getId());
     }
 
@@ -671,6 +763,33 @@ public class SkillService
         return (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get("id"), id);
     }
 
+    private void validatePublish(SkillDefinition skill, Long versionId) {
+        requireApprovedVersion(skill.getId(), versionId);
+        validateCopywritingArtifactPolicy(
+                skill.getCategories().stream()
+                        .map(SkillCategory::getCode)
+                        .collect(java.util.stream.Collectors.toUnmodifiableSet()),
+                toolNames(versionId));
+    }
+
+    private void requireDraftTool(Long versionId) {
+        validateCopywritingArtifactPolicy(Set.of(COPYWRITING_CATEGORY), toolNames(versionId));
+    }
+
+    private Set<String> toolNames(Long versionId) {
+        return toolRequirementRepository.findBySkillVersionId(versionId).stream()
+                .map(SkillToolRequirement::getToolName)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
+    static void validateCopywritingArtifactPolicy(
+            Set<String> categoryCodes, Set<String> toolNames) {
+        if (categoryCodes.contains(COPYWRITING_CATEGORY)
+                && !toolNames.contains(CONTENT_DRAFT_UPSERT_TOOL)) {
+            throw badRequest("文案生成分类的 Skill 必须声明 content.draft.upsert 工具");
+        }
+    }
+
     private SkillVersion requireApprovedVersion(Long skillId, Long versionId) {
         if (versionId == null) {
             throw badRequest("Skill 尚无可发布版本");
@@ -699,6 +818,9 @@ public class SkillService
         if (request.sourceSkillId() != null) {
             entity.setSourceSkillId(request.sourceSkillId());
         }
+        if (request.categoryCodes() != null) {
+            entity.setCategories(resolveCategories(request.categoryCodes()));
+        }
     }
 
     private Set<String> modifiedFields(SkillUpdateDTO request) {
@@ -709,6 +831,7 @@ public class SkillService
         if (request.locale() != null) fields.add("locale");
         if (request.visibility() != null) fields.add("visibility");
         if (request.sourceSkillId() != null) fields.add("sourceSkillId");
+        if (request.categoryCodes() != null) fields.add("categoryCodes");
         if (request.content() != null) fields.add("content");
         if (request.inputSchema() != null) fields.add("inputSchema");
         if (request.outputSchema() != null) fields.add("outputSchema");
@@ -719,6 +842,38 @@ public class SkillService
         if (request.changeSummary() != null) fields.add("changeSummary");
         if (request.status() != null) fields.add("status");
         return Set.copyOf(fields);
+    }
+
+    static Set<String> normalizeCategoryCodes(List<String> categoryCodes) {
+        var normalizedCodes = new java.util.LinkedHashSet<String>();
+        for (var categoryCode : categoryCodes) {
+            var normalizedCode = requireText(categoryCode, "分类代码不能为空");
+            if (!normalizedCodes.add(normalizedCode)) {
+                throw badRequest("分类代码不能重复");
+            }
+        }
+        return normalizedCodes;
+    }
+
+    private Set<SkillCategory> resolveCategories(List<String> categoryCodes) {
+        var normalizedCodes = normalizeCategoryCodes(categoryCodes);
+        var categories = categoryRepository.findByCodeIn(normalizedCodes);
+        if (categories.size() != normalizedCodes.size()) {
+            var foundCodes =
+                    categories.stream()
+                            .map(SkillCategory::getCode)
+                            .collect(java.util.stream.Collectors.toSet());
+            var missingCodes =
+                    normalizedCodes.stream()
+                            .filter(code -> !foundCodes.contains(code))
+                            .collect(java.util.stream.Collectors.joining(", "));
+            throw badRequest("分类不存在: " + missingCodes);
+        }
+        var categoriesByCode = new java.util.HashMap<String, SkillCategory>();
+        categories.forEach(category -> categoriesByCode.put(category.getCode(), category));
+        var resolved = new java.util.LinkedHashSet<SkillCategory>();
+        normalizedCodes.forEach(code -> resolved.add(categoriesByCode.get(code)));
+        return resolved;
     }
 
     private boolean hasVersionChanges(SkillUpdateDTO request) {
@@ -764,7 +919,7 @@ public class SkillService
         return value == null || value.isBlank() ? defaultValue : value.trim();
     }
 
-    private String requireText(String value, String message) {
+    private static String requireText(String value, String message) {
         if (value == null || value.isBlank()) {
             throw badRequest(message);
         }
@@ -809,7 +964,7 @@ public class SkillService
         }
     }
 
-    private BusinessException badRequest(String message) {
+    private static BusinessException badRequest(String message) {
         return new BusinessException(GlobalErrorCode.BAD_REQUEST, message);
     }
 

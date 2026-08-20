@@ -71,6 +71,14 @@ public final class AutomationDelegatedDispatchAdapter implements DispatchPort {
                         template.completionCriteria(),
                         template.contextCandidates(),
                         TaskModelSelection.auto(),
+                        com.xuejiai.aaf.framework.intelligent.assistant.application
+                                .InvocationProfile.primary(
+                                null,
+                                com.xuejiai.aaf.framework.intelligent.assistant.application
+                                        .AssistantInvocation.MemoryMode.DEFAULT,
+                                java.util.List.of(),
+                                com.xuejiai.aaf.framework.intelligent.assistant.model
+                                        .ExecutionIntent.conversationalAuto(null)),
                         now);
         coordinator.submit(command, copyBoard(template.board(), taskId));
     }
@@ -89,8 +97,13 @@ public final class AutomationDelegatedDispatchAdapter implements DispatchPort {
                                         item.subTaskId(),
                                         TaskBoard.SubTask.pending(
                                                 item.subTaskId(),
+                                                item.kind(),
                                                 item.description(),
                                                 item.dependsOn(),
+                                                item.inputBindings(),
+                                                item.roleKey(),
+                                                item.skillKey(),
+                                                item.modelSelection(),
                                                 item.maxAttempts())));
         return new TaskBoard(taskId, source.goal(), source.maxParallelism(), tasks);
     }

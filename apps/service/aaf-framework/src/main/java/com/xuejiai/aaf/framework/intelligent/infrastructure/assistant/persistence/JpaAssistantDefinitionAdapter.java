@@ -15,6 +15,8 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantVersion;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.MemoryStrategy;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Role;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillActivationMode;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillBinding;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ToolPolicy;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ToolPolicy.ActionEffect;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ToolPolicy.ToolRule;
@@ -106,6 +108,10 @@ public final class JpaAssistantDefinitionAdapter implements AssistantDefinitionP
                 assistant.getUserId() == 0
                         ? TemplateOwnership.SYSTEM_MANAGED
                         : TemplateOwnership.USER_OWNED;
+        var assistantSkillBindings =
+                parseRequiredBindings(assistant.getSkillIds(), "ai_assistant.skill_ids");
+        var assistantToolKeys =
+                parseRequiredKeys(assistant.getToolWhitelist(), "ai_assistant.tool_whitelist");
         return new AssistantDefinition(
                 new AssistantId(assistant.getCode()),
                 ownership == TemplateOwnership.SYSTEM_MANAGED ? assistant.getCode() : null,
@@ -124,10 +130,12 @@ public final class JpaAssistantDefinitionAdapter implements AssistantDefinitionP
                         text(persona.getSystemPrompt(), "只使用已授权的 Skill 与工具"),
                         persona.getAvatarUrl()),
                 roleDefinitions,
+                assistantSkillBindings,
+                assistantToolKeys,
                 defaultRoleKey,
                 memoryStrategy(assistant.getMemoryStrategy()),
                 modelId(assistant),
-                toolPolicy(roleDefinitions),
+                toolPolicy(roleDefinitions, assistantToolKeys),
                 Set.of(ControlMode.READ_ONLY, ControlMode.COLLABORATIVE, ControlMode.DELEGATED),
                 RiskPolicy.CONFIRM_WRITES,
                 ACTIVE.equals(assistant.getStatus()) ? Lifecycle.PUBLISHED : Lifecycle.DISABLED);
@@ -148,14 +156,15 @@ public final class JpaAssistantDefinitionAdapter implements AssistantDefinitionP
                 entity.getName(),
                 List.of(text(entity.getDescription(), entity.getName())),
                 List.of(),
-                parseKeys(entity.getSkillIds(), "skillIds"),
+                parseBindings(entity.getSkillIds(), "ai_role.skill_ids"),
                 parseKeys(entity.getToolWhitelist(), "toolWhitelist"));
     }
 
-    private static ToolPolicy toolPolicy(List<Role> roles) {
+    private static ToolPolicy toolPolicy(List<Role> roles, Set<String> assistantToolKeys) {
         var rules = new LinkedHashMap<String, ToolRule>();
-        roles.stream()
-                .flatMap(role -> role.toolKeys().stream())
+        java.util.stream.Stream.concat(
+                        roles.stream().flatMap(role -> role.toolKeys().stream()),
+                        assistantToolKeys.stream())
                 .distinct()
                 .sorted()
                 .forEach(
@@ -167,7 +176,8 @@ public final class JpaAssistantDefinitionAdapter implements AssistantDefinitionP
                                             tool,
                                             effect,
                                             effect == ActionEffect.REVERSIBLE_WRITE,
-                                            effect == ActionEffect.REVERSIBLE_WRITE
+                                            "script.execute.javascript".equals(tool)
+                                                    || effect == ActionEffect.REVERSIBLE_WRITE
                                                     || effect == ActionEffect.IRREVERSIBLE_WRITE));
                         });
         return new ToolPolicy(rules);
@@ -180,6 +190,7 @@ public final class JpaAssistantDefinitionAdapter implements AssistantDefinitionP
             return ActionEffect.IRREVERSIBLE_WRITE;
         if (normalized.contains("create")
                 || normalized.contains("update")
+                || normalized.contains("upsert")
                 || normalized.contains("write")) return ActionEffect.REVERSIBLE_WRITE;
         if (normalized.contains("generate")) return ActionEffect.GENERATED_CONTENT;
         return ActionEffect.READ;
@@ -213,11 +224,68 @@ public final class JpaAssistantDefinitionAdapter implements AssistantDefinitionP
         };
     }
 
+    private static List<SkillBinding> parseRequiredBindings(String json, String fieldName) {
+        Objects.requireNonNull(json, fieldName + " 不能为空");
+        if (json.isBlank()) {
+            throw new IllegalStateException(fieldName + " 必须是合法 SkillBinding JSON 数组");
+        }
+        return parseBindings(json, fieldName);
+    }
+
+    private static List<SkillBinding> parseBindings(String json, String fieldName) {
+        if (json == null || json.isBlank()) return List.of();
+        try {
+            var root = JsonUtils.readTreeStrict(json);
+            if (!root.isArray()) {
+                throw new IllegalStateException(fieldName + " 必须是 SkillBinding JSON 数组");
+            }
+            var result = new java.util.ArrayList<SkillBinding>();
+            for (var item : root) {
+                if (!item.isObject()
+                        || item.size() != 2
+                        || !item.path("skillKey").isTextual()
+                        || !item.path("activationMode").isTextual()) {
+                    throw new IllegalStateException(
+                            fieldName + " 每项必须且只能包含 skillKey/activationMode");
+                }
+                result.add(
+                        new SkillBinding(
+                                item.get("skillKey").textValue(),
+                                SkillActivationMode.valueOf(
+                                        item.get("activationMode").textValue())));
+            }
+            return SkillBinding.copyOf(result, fieldName);
+        } catch (IllegalStateException exception) {
+            throw exception;
+        } catch (RuntimeException failure) {
+            throw new IllegalStateException(fieldName + " 必须是合法 SkillBinding JSON 数组", failure);
+        }
+    }
+
+    private static Set<String> parseRequiredKeys(String json, String fieldName) {
+        Objects.requireNonNull(json, fieldName + " 不能为空");
+        if (json.isBlank()) {
+            throw new IllegalStateException(fieldName + " 必须是合法 JSON 字符串数组");
+        }
+        return parseKeys(json, fieldName);
+    }
+
     private static Set<String> parseKeys(String json, String fieldName) {
         if (json == null || json.isBlank()) return Set.of();
         try {
-            var values = JsonUtils.parseArray(json, String.class);
-            return Set.copyOf(values);
+            var root = JsonUtils.readTreeStrict(json);
+            if (!root.isArray()) {
+                throw new IllegalStateException(fieldName + " 必须是 JSON 字符串数组");
+            }
+            var values = new java.util.LinkedHashSet<String>();
+            for (var item : root) {
+                if (!item.isTextual() || !values.add(item.textValue())) {
+                    throw new IllegalStateException(fieldName + " 必须是无重复值的 JSON 字符串数组");
+                }
+            }
+            return java.util.Collections.unmodifiableSet(values);
+        } catch (IllegalStateException exception) {
+            throw exception;
         } catch (RuntimeException failure) {
             throw new IllegalStateException(fieldName + " 必须是合法 JSON 字符串数组", failure);
         }

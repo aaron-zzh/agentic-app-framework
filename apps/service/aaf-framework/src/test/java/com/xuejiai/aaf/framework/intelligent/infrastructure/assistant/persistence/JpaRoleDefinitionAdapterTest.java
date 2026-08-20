@@ -32,7 +32,8 @@ class JpaRoleDefinitionAdapterTest extends BaseMockitoUnitTest {
     void should_map_role_when_code_exists() {
         // 准备参数
         var entity = role("system.role.customer-service");
-        entity.setSkillIds("[\"knowledge-search\",\"faq-answer\"]");
+        entity.setSkillIds(
+                "[{\"skillKey\":\"knowledge-search\",\"activationMode\":\"ALWAYS\"},{\"skillKey\":\"faq-answer\",\"activationMode\":\"ON_DEMAND\"}]");
         entity.setToolWhitelist("[\"search_kb\",\"switch_kb\"]");
         when(repository.findByCode("system.role.customer-service")).thenReturn(Optional.of(entity));
 
@@ -62,17 +63,17 @@ class JpaRoleDefinitionAdapterTest extends BaseMockitoUnitTest {
     }
 
     @Test
-    @DisplayName("Given 技能列表包含数字 When 查询角色 Then 拒绝猜测转换")
-    void should_reject_numeric_skill_ids() {
+    @DisplayName("Given 技能列表是旧字符串数组 When 查询角色 Then 拒绝兼容解析")
+    void should_reject_legacy_string_skill_ids() {
         // 准备参数
         var entity = role("system.role.invalid");
-        entity.setSkillIds("[1]");
+        entity.setSkillIds("[\"knowledge-search\"]");
         when(repository.findByCode("system.role.invalid")).thenReturn(Optional.of(entity));
 
         // 调用 + 断言
         assertThatThrownBy(() -> adapter.findByCode("system.role.invalid"))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("skillIds 必须是 JSON 字符串数组");
+                .hasMessageContaining("skillKey/activationMode");
     }
 
     @Test

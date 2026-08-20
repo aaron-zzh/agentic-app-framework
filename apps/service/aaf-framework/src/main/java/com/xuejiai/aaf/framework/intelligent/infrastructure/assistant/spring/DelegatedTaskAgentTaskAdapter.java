@@ -6,7 +6,6 @@ import com.xuejiai.aaf.framework.engine.task.agent.AgentTask;
 import com.xuejiai.aaf.framework.engine.task.agent.AgentTaskContext;
 import com.xuejiai.aaf.framework.engine.task.agent.AgentTaskOutcome;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.Status;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ExecutionEventStatus;
@@ -52,13 +51,12 @@ public final class DelegatedTaskAgentTaskAdapter implements AgentTask {
                         .task();
         return switch (task.status()) {
             case COMPLETED -> AgentTaskOutcome.completed();
-            case FAILED, CANCELED ->
-                    AgentTaskOutcome.terminal(detail(task.status(), dispatchFailure));
-            case PAUSED, AWAITING_INPUT, AWAITING_AUTHORIZATION ->
+            case FAILED, CANCELED -> AgentTaskOutcome.terminal(task.status().name());
+            case PAUSED, AWAITING_CLARIFICATION, AWAITING_AUTHORIZATION ->
                     AgentTaskOutcome.pending(task.status().name());
             case PENDING ->
                     isRetryable(task.consecutiveFailures(), lastEvent, dispatchFailure)
-                            ? AgentTaskOutcome.retryable(detail(task.status(), dispatchFailure))
+                            ? AgentTaskOutcome.retryable(task.status().name())
                             : AgentTaskOutcome.pending(task.status().name());
             case RUNNING -> AgentTaskOutcome.pending(task.status().name());
         };
@@ -72,12 +70,5 @@ public final class DelegatedTaskAgentTaskAdapter implements AgentTask {
         return lastEvent != null
                 && (lastEvent.status() == ExecutionEventStatus.FAILED
                         || lastEvent.status() == ExecutionEventStatus.REJECTED);
-    }
-
-    private static String detail(Status status, RuntimeException failure) {
-        if (failure == null || failure.getMessage() == null || failure.getMessage().isBlank()) {
-            return status.name();
-        }
-        return failure.getMessage();
     }
 }

@@ -350,16 +350,8 @@ INSERT INTO aigc_execution_binding
     (action_key, target_type, target_ref, binding_version, priority,
      confirmation_required, estimated_credits, status)
 VALUES
-('brief.refine', 'tool', 'copywriting.generate', '1.0.0', 0, TRUE, 1.00, 'published'),
-('concept.generate', 'tool', 'copywriting.generate', '1.0.0', 0, TRUE, 1.00, 'published'),
-('copy.generate', 'tool', 'copywriting.generate', '1.0.0', 0, TRUE, 1.00, 'published'),
 ('image.generate', 'tool', 'aigc.image.generate', '1.0.0', 0, TRUE, 10.00, 'published'),
-('image.edit', 'tool', 'aigc.image.edit', '1.0.0', 0, TRUE, 10.00, 'published'),
-('deliverable.regenerate', 'tool', 'copywriting.generate', '1.0.0', 0, TRUE, 1.00, 'published'),
-('outline.generate', 'tool', 'copywriting.generate', '1.0.0', 0, TRUE, 1.00, 'published'),
-('article.draft', 'tool', 'copywriting.generate', '1.0.0', 0, TRUE, 2.00, 'published'),
-('article.rewrite', 'tool', 'copywriting.generate', '1.0.0', 0, TRUE, 2.00, 'published'),
-('article.seo_optimize', 'tool', 'copywriting.generate', '1.0.0', 0, TRUE, 1.00, 'published')
+('image.edit', 'tool', 'aigc.image.edit', '1.0.0', 0, TRUE, 10.00, 'published')
 ON CONFLICT DO NOTHING;
 
 -- ============================================================

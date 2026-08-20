@@ -4,11 +4,16 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillActivationMode;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillScope;
+
 /** 选择阶段唯一可见的 Skill 元数据，禁止包含正文或业务工具句柄。 */
 public record AuthorizedSkillSummary(
         String code,
         String name,
         String summary,
+        SkillScope scope,
+        SkillActivationMode activationMode,
         List<String> categories,
         Set<String> modelCapabilities,
         Set<String> toolPurposeTags) {
@@ -17,6 +22,8 @@ public record AuthorizedSkillSummary(
         code = requireText(code, "code");
         name = requireText(name, "name");
         summary = requireText(summary, "summary");
+        Objects.requireNonNull(scope, "scope 不能为空");
+        Objects.requireNonNull(activationMode, "activationMode 不能为空");
         categories = List.copyOf(Objects.requireNonNull(categories, "categories 不能为空"));
         modelCapabilities =
                 Set.copyOf(Objects.requireNonNull(modelCapabilities, "modelCapabilities 不能为空"));

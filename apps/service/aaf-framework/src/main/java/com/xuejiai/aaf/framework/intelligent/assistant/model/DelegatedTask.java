@@ -113,7 +113,7 @@ public record DelegatedTask(
         RUNNING,
         PAUSED,
         AWAITING_AUTHORIZATION,
-        AWAITING_INPUT,
+        AWAITING_CLARIFICATION,
         COMPLETED,
         CANCELED,
         FAILED

@@ -350,8 +350,13 @@ public final class AutomationApplicationService {
                                         item.subTaskId(),
                                         TaskBoard.SubTask.pending(
                                                 item.subTaskId(),
+                                                item.kind(),
                                                 item.description(),
                                                 item.dependsOn(),
+                                                item.inputBindings(),
+                                                item.roleKey(),
+                                                item.skillKey(),
+                                                item.modelSelection(),
                                                 item.maxAttempts())));
         return new TaskBoard(taskId, source.goal(), source.maxParallelism(), reset);
     }

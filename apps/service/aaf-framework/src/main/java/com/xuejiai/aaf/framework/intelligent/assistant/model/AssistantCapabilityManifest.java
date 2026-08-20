@@ -30,8 +30,10 @@ public record AssistantCapabilityManifest(
                         .map(Role::key)
                         .collect(java.util.stream.Collectors.toUnmodifiableSet());
         var skillKeys =
-                definition.roles().stream()
-                        .flatMap(role -> role.skillKeys().stream())
+                java.util.stream.Stream.concat(
+                                definition.roles().stream()
+                                        .flatMap(role -> role.skillKeys().stream()),
+                                definition.assistantSkillKeys().stream())
                         .collect(java.util.stream.Collectors.toUnmodifiableSet());
         var responsibilities =
                 definition.roles().stream()

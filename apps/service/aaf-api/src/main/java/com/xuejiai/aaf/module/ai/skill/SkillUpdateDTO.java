@@ -4,6 +4,7 @@ import java.util.List;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
@@ -17,6 +18,8 @@ public record SkillUpdateDTO(
                 @Pattern(regexp = "PRIVATE|WORKSPACE|PUBLIC")
                 String visibility,
         @Schema(description = "来源 Skill ID") Long sourceSkillId,
+        @Schema(description = "分类业务码集合；null 不修改，空列表清空") @Valid
+                List<@NotBlank @Size(max = 64) String> categoryCodes,
         @Schema(description = "规范 Markdown 正文；为空则继承上一版本") String content,
         @Schema(description = "输入 JSON Schema；为空则继承上一版本") String inputSchema,
         @Schema(description = "输出 JSON Schema；为空则继承上一版本") String outputSchema,

@@ -111,7 +111,7 @@ public record ExecutionEvent(
         DRAFT,
         PLANNING,
         AWAITING_AUTHORIZATION,
-        AWAITING_INPUT,
+        AWAITING_CLARIFICATION,
         RUNNING,
         VERIFYING,
         PAUSED,

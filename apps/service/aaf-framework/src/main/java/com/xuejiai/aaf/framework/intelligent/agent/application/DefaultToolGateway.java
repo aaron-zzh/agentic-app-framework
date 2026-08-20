@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -29,20 +30,29 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolInvocation;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolInvocationResult;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolParameterPolicyPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.HumanApproval;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskTransition.AuthorizationRequestTransition;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.HitlCoordinatorPort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.HitlCoordinatorPort.ApprovalCommand;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskTransitionPort;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ExecutionEventStatus;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.OwnerType;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventPayload;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.EventId;
 
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 
 /** Agent 工具唯一生产入口：授权、fencing、预算和统一 receipt 均 fail-closed。 */
+@Slf4j
 public final class DefaultToolGateway implements ToolGatewayPort {
     private static final String TASK_SCOPE = "TASK";
 
     private final AuthorizationGrantPort grants;
     private final ToolParameterPolicyPort parameterPolicy;
-    private final HitlCoordinatorPort hitl;
+    private final TaskTransitionPort transitions;
     private final ToolInvocationPort localTools;
     private final ConnectorActionPort connectors;
     private final ConversationLeasePort leases;
@@ -52,7 +62,7 @@ public final class DefaultToolGateway implements ToolGatewayPort {
     public DefaultToolGateway(
             AuthorizationGrantPort grants,
             ToolParameterPolicyPort parameterPolicy,
-            HitlCoordinatorPort hitl,
+            TaskTransitionPort transitions,
             ToolInvocationPort localTools,
             ConnectorActionPort connectors,
             ConversationLeasePort leases,
@@ -60,7 +70,7 @@ public final class DefaultToolGateway implements ToolGatewayPort {
             InvocationReceiptPort receipts) {
         this.grants = Objects.requireNonNull(grants, "grants 不能为空");
         this.parameterPolicy = Objects.requireNonNull(parameterPolicy, "parameterPolicy 不能为空");
-        this.hitl = Objects.requireNonNull(hitl, "hitl 不能为空");
+        this.transitions = Objects.requireNonNull(transitions, "transitions 不能为空");
         this.localTools = Objects.requireNonNull(localTools, "localTools 不能为空");
         this.connectors = Objects.requireNonNull(connectors, "connectors 不能为空");
         this.leases = Objects.requireNonNull(leases, "leases 不能为空");
@@ -89,6 +99,19 @@ public final class DefaultToolGateway implements ToolGatewayPort {
                         || definition.connectorAction()
                         || rule.authorizationRequired()
                         || definition.requireConfirm();
+        log.debug(
+                "[工具网关] 工具调用已通过可见性校验：taskId={}，tool={}，只读={}，可撤销={}，需要授权={}",
+                context.taskId().value(),
+                definition.ref().name(),
+                definition.readOnly(),
+                definition.reversible(),
+                grantRequired);
+        if (rule.missingGrantBehavior()
+                == com.xuejiai.aaf.framework.intelligent.agent.model.ToolAuthorizationContext
+                        .MissingGrantBehavior.DENY) {
+            return Mono.error(
+                    new AuthorizationDeniedException("当前执行策略拒绝授权工具动作: " + definition.ref().name()));
+        }
         AuthorizationGrant grant = null;
         if (grantRequired) {
             grant =
@@ -102,23 +125,47 @@ public final class DefaultToolGateway implements ToolGatewayPort {
                                     definition.reversible(),
                                     Instant.now())
                             .orElse(null);
+            if (grant == null
+                    && rule.missingGrantBehavior()
+                            == com.xuejiai.aaf.framework.intelligent.agent.model
+                                    .ToolAuthorizationContext.MissingGrantBehavior
+                                    .PREAUTHORIZED_ONLY) {
+                return Mono.error(new IllegalStateException("工具缺少预授权: " + definition.ref().name()));
+            }
             if (grant == null) {
                 var requested = new LinkedHashMap<>(conditions);
                 requested.put("scope", TASK_SCOPE);
                 requested.put("expiresAt", Instant.now().plus(15, ChronoUnit.MINUTES).toString());
+                var approvalId = UUID.randomUUID().toString().replace("-", "");
+                var requestedAt = Instant.now();
+                var pendingApproval =
+                        new HumanApproval(
+                                approvalId,
+                                context,
+                                definition.ref().name(),
+                                resource,
+                                "当前任务需要执行受控工具动作",
+                                "将访问或修改受控资源",
+                                "仅使用当前工具 schema 中声明的参数",
+                                definition.reversible() ? "可通过对应补偿动作撤销" : "不可自动撤销，需人工补救",
+                                requested,
+                                definition.reversible(),
+                                HumanApproval.Status.PENDING,
+                                requestedAt,
+                                null,
+                                null,
+                                null);
                 var approval =
-                        hitl.request(
-                                new ApprovalCommand(
-                                        context,
-                                        definition.ref().name(),
-                                        resource,
-                                        "当前任务需要执行受控工具动作",
-                                        "将访问或修改资源 " + resource,
-                                        "仅使用当前工具 schema 中声明的参数",
-                                        definition.reversible() ? "可通过对应补偿动作撤销" : "不可自动撤销，需人工补救",
-                                        requested,
-                                        definition.reversible(),
-                                        Instant.now()));
+                        transitions.requestAuthorization(
+                                new AuthorizationRequestTransition(
+                                        pendingApproval,
+                                        authorizationRequestEvent(pendingApproval)));
+                log.debug(
+                        "[工具网关] 未找到有效授权，已原子提交 HITL 等待状态：taskId={}，tool={}，approvalId={}，可撤销={}",
+                        context.taskId().value(),
+                        definition.ref().name(),
+                        approval.approvalId(),
+                        definition.reversible());
                 return Mono.error(
                         new ApprovalRequiredException(
                                 approval.approvalId(), "工具需要用户授权: " + definition.ref().name()));
@@ -182,6 +229,13 @@ public final class DefaultToolGateway implements ToolGatewayPort {
             delegatedTasks.reserveToolCall(context, definition.ref().name(), Instant.now());
         }
         Mono<ToolInvocationResult> execution;
+        log.debug(
+                "[工具网关] 授权与参数策略校验通过，开始派发工具：taskId={}，tool={}，连接器={}，写入={}，委托执行={}",
+                context.taskId().value(),
+                definition.ref().name(),
+                definition.connectorAction(),
+                !definition.readOnly(),
+                delegated);
         if (!definition.connectorAction()) {
             execution = localTools.invoke(invocation);
         } else {
@@ -289,6 +343,39 @@ public final class DefaultToolGateway implements ToolGatewayPort {
         }
     }
 
+    private static ExecutionEvent authorizationRequestEvent(HumanApproval approval) {
+        var context = approval.invocationContext();
+        return new ExecutionEvent(
+                new EventId("approval-request-" + approval.approvalId()),
+                context.tenantId(),
+                context.conversationId(),
+                context.sessionId(),
+                context.taskId(),
+                context.executionId(),
+                context.runId(),
+                context.parentExecutionId(),
+                1,
+                ExecutionEventType.AUTHORIZATION_REQUESTED,
+                ExecutionEventStatus.AWAITING_AUTHORIZATION,
+                context.controlMode(),
+                OwnerType.SYSTEM,
+                context.assistantId(),
+                null,
+                context.userId(),
+                context.correlationId(),
+                context.causationId(),
+                context.idempotencyKey(),
+                new ExecutionEventPayload(
+                        Map.of(
+                                "approvalId",
+                                approval.approvalId(),
+                                "action",
+                                approval.action(),
+                                "reversible",
+                                approval.reversible())),
+                approval.createdAt());
+    }
+
     private static long longMetadata(ToolInvocationResult result, String key, long fallback) {
         var value = result.metadata().get(key);
         return value instanceof Number number ? number.longValue() : fallback;
@@ -325,6 +412,12 @@ public final class DefaultToolGateway implements ToolGatewayPort {
     private static String resource(Map<String, Object> arguments, String defaultResource) {
         var value = arguments.getOrDefault("resource", arguments.get("resourceId"));
         return value == null || value.toString().isBlank() ? defaultResource : value.toString();
+    }
+
+    public static final class AuthorizationDeniedException extends IllegalStateException {
+        public AuthorizationDeniedException(String message) {
+            super(message);
+        }
     }
 
     public static final class ConnectorCredentialUnavailableException

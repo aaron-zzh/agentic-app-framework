@@ -46,4 +46,35 @@ public final class DefaultEffectiveToolResolver implements EffectiveToolResolver
         }
         return result;
     }
+
+    @Override
+    public List<ToolRef> resolveAssistant(
+            Set<String> skillRequiredToolNames,
+            Set<String> assistantAllowedToolNames,
+            List<ToolRef> agentAllowedTools) {
+        var skillRequirements =
+                Set.copyOf(
+                        Objects.requireNonNull(
+                                skillRequiredToolNames, "skillRequiredToolNames 不能为空"));
+        var assistantWhitelist =
+                Set.copyOf(
+                        Objects.requireNonNull(
+                                assistantAllowedToolNames, "assistantAllowedToolNames 不能为空"));
+        var agentWhitelist =
+                List.copyOf(Objects.requireNonNull(agentAllowedTools, "agentAllowedTools 不能为空"));
+        if (skillRequirements.isEmpty()) {
+            return List.of();
+        }
+        var result =
+                agentWhitelist.stream()
+                        .filter(tool -> assistantWhitelist.contains(tool.name()))
+                        .filter(tool -> skillRequirements.contains(tool.name()))
+                        .toList();
+        var resolved =
+                result.stream().map(ToolRef::name).collect(java.util.stream.Collectors.toSet());
+        if (!resolved.containsAll(skillRequirements)) {
+            throw new IllegalStateException("Assistant Skill 的必需工具不在 Assistant 与 Agent 交集内");
+        }
+        return result;
+    }
 }

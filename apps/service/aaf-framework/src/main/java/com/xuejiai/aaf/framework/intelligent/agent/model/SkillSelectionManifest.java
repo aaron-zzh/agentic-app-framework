@@ -2,10 +2,12 @@ package com.xuejiai.aaf.framework.intelligent.agent.model;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
+import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillActivationMode;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillSelectionMode;
 
-/** Assistant 在选定 Role 后计算的受限 Skill 候选清单。 */
+/** 仅包含选择阶段可见摘要的 Skill 清单。 */
 public record SkillSelectionManifest(
         String roleKey,
         String defaultSkillKey,
@@ -15,18 +17,37 @@ public record SkillSelectionManifest(
 
     public SkillSelectionManifest {
         roleKey = requireText(roleKey, "roleKey");
-        defaultSkillKey = requireText(defaultSkillKey, "defaultSkillKey");
+        defaultSkillKey = normalize(defaultSkillKey);
         Objects.requireNonNull(selectionMode, "selectionMode 不能为空");
         candidates = List.copyOf(Objects.requireNonNull(candidates, "candidates 不能为空"));
-        if (candidates.isEmpty()) {
-            throw new IllegalArgumentException("candidates 不能为空");
+        var candidateKeys = candidates.stream().map(AuthorizedSkillSummary::code).toList();
+        if (candidateKeys.size() != Set.copyOf(candidateKeys).size()) {
+            throw new IllegalArgumentException("candidates 不能包含重复 Skill");
         }
-        if (maxActivatedSkills < 1 || maxActivatedSkills > candidates.size()) {
-            throw new IllegalArgumentException("maxActivatedSkills 超出候选范围");
+        if (candidates.stream()
+                .anyMatch(
+                        candidate -> candidate.activationMode() != SkillActivationMode.ON_DEMAND)) {
+            throw new IllegalArgumentException("SkillSelection candidates 只能包含 ON_DEMAND Skill");
         }
-        if (candidates.stream().noneMatch(candidate -> candidate.code().equals(defaultSkillKey))) {
-            throw new IllegalArgumentException("defaultSkillKey 不在候选范围内");
+        if (selectionMode == SkillSelectionMode.FIXED) {
+            if (candidates.size() != 1
+                    || maxActivatedSkills != 1
+                    || defaultSkillKey == null
+                    || !candidateKeys.contains(defaultSkillKey)) {
+                throw new IllegalArgumentException("FIXED 必须精确绑定一个 ON_DEMAND Skill");
+            }
+        } else {
+            if (defaultSkillKey != null) {
+                throw new IllegalArgumentException("非 FIXED 选择不得配置默认 Skill");
+            }
+            if (maxActivatedSkills != candidates.size()) {
+                throw new IllegalArgumentException("ON_DEMAND 激活上限必须等于候选总数");
+            }
         }
+    }
+
+    private static String normalize(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private static String requireText(String value, String field) {

@@ -34,7 +34,8 @@ public final class DefaultCompletionValidator implements CompletionValidator {
                 .anyMatch(
                         event ->
                                 event.status() == ExecutionEventStatus.AWAITING_AUTHORIZATION
-                                        || event.status() == ExecutionEventStatus.AWAITING_INPUT)) {
+                                        || event.status()
+                                                == ExecutionEventStatus.AWAITING_CLARIFICATION)) {
             return decision(Outcome.NEEDS_USER, "任务需要用户输入或授权", "user-input");
         }
         if (events.stream().anyMatch(event -> event.status() == ExecutionEventStatus.PAUSED)) {

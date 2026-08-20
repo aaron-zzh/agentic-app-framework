@@ -7,7 +7,6 @@ import java.util.Objects;
 import java.util.UUID;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionCriteria;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceReference;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard.SubTask;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskModelSelection;
@@ -49,8 +48,12 @@ public record AssistantCommand(
         long sequenceBase,
         String input,
         CompletionCriteria completionCriteria,
-        List<SourceReference> contextCandidates,
+        List<
+                        com.xuejiai.aaf.framework.intelligent.assistant.model
+                                .EffectiveContextManifest.SourceReference>
+                contextCandidates,
         TaskModelSelection taskModelSelection,
+        InvocationProfile invocationProfile,
         Instant requestedAt) {
 
     public AssistantCommand {
@@ -74,6 +77,7 @@ public record AssistantCommand(
         Objects.requireNonNull(correlationId, "correlationId 不能为空");
         Objects.requireNonNull(controlMode, "controlMode 不能为空");
         Objects.requireNonNull(taskModelSelection, "taskModelSelection 不能为空");
+        Objects.requireNonNull(invocationProfile, "invocationProfile 不能为空");
         Objects.requireNonNull(requestedAt, "requestedAt 不能为空");
         contextCandidates =
                 List.copyOf(Objects.requireNonNull(contextCandidates, "contextCandidates 不能为空"));
@@ -85,14 +89,16 @@ public record AssistantCommand(
                 && controlMode != ControlMode.DELEGATED) {
             throw new IllegalArgumentException("仅支持 READ_ONLY、COLLABORATIVE 和 DELEGATED");
         }
-        if (controlMode == ControlMode.DELEGATED) {
-            Objects.requireNonNull(executionContract, "DELEGATED 必须携带 ExecutionContract");
+        if (controlMode == ControlMode.DELEGATED && executionContract == null) {
+            throw new IllegalArgumentException("DELEGATED 必须携带 ExecutionContract");
+        }
+        if (executionContract != null) {
             executionContract.requireUsableAt(requestedAt);
-            if (lease != null
-                    && (!tenantId.equals(lease.tenantId())
-                            || !conversationId.equals(lease.conversationId()))) {
-                throw new IllegalArgumentException("委托命令与 conversation lease 边界不一致");
-            }
+        }
+        if (lease != null
+                && (!tenantId.equals(lease.tenantId())
+                        || !conversationId.equals(lease.conversationId()))) {
+            throw new IllegalArgumentException("持久命令与 conversation lease 边界不一致");
         }
         if (operation.executesAgent()) {
             if (input == null || input.isBlank()) {
@@ -105,56 +111,32 @@ public record AssistantCommand(
     }
 
     public AssistantCommand asResume(Instant at) {
-        return new AssistantCommand(
-                Operation.RESUME,
-                tenantId,
-                userId,
-                memorySubject,
-                assistantId,
-                conversationId,
+        return copy(
+                operation == Operation.START ? Operation.RESUME : operation,
                 sessionId,
-                taskId,
                 executionId,
                 runId,
                 parentExecutionId,
-                correlationId,
-                causationId,
-                idempotencyKey,
-                controlMode,
-                executionContract,
                 lease,
                 sequenceBase,
                 input,
-                completionCriteria,
-                contextCandidates,
                 taskModelSelection,
+                invocationProfile,
                 at);
     }
 
     public AssistantCommand withLease(Lease nextLease, Instant at) {
-        return new AssistantCommand(
+        return copy(
                 operation,
-                tenantId,
-                userId,
-                memorySubject,
-                assistantId,
-                conversationId,
                 sessionId,
-                taskId,
                 executionId,
                 runId,
                 parentExecutionId,
-                correlationId,
-                causationId,
-                idempotencyKey,
-                controlMode,
-                executionContract,
                 nextLease,
                 sequenceBase,
                 input,
-                completionCriteria,
-                contextCandidates,
                 taskModelSelection,
+                invocationProfile,
                 at);
     }
 
@@ -164,61 +146,41 @@ public record AssistantCommand(
             RunId nextRunId,
             Lease nextLease,
             Instant at) {
-        return new AssistantCommand(
+        return copy(
                 Operation.RESUME,
-                tenantId,
-                userId,
-                memorySubject,
-                assistantId,
-                conversationId,
                 nextSessionId,
-                taskId,
                 nextExecutionId,
                 nextRunId,
                 executionId,
-                correlationId,
-                causationId,
-                idempotencyKey,
-                controlMode,
-                executionContract,
                 nextLease,
                 0,
                 input,
-                completionCriteria,
-                contextCandidates,
                 taskModelSelection,
+                invocationProfile,
                 at);
     }
 
     public AssistantCommand withInput(String nextInput, Lease nextLease, Instant at) {
-        return new AssistantCommand(
+        return copy(
                 operation,
-                tenantId,
-                userId,
-                memorySubject,
-                assistantId,
-                conversationId,
                 sessionId,
-                taskId,
                 executionId,
                 runId,
                 parentExecutionId,
-                correlationId,
-                causationId,
-                idempotencyKey,
-                controlMode,
-                executionContract,
                 nextLease,
                 sequenceBase,
                 nextInput,
-                completionCriteria,
-                contextCandidates,
                 taskModelSelection,
+                invocationProfile,
                 at);
     }
 
-    public AssistantCommand forSubTask(SubTask subTask, Lease nextLease, Instant at) {
+    public AssistantCommand forSubTask(
+            SubTask subTask, String resolvedInput, Lease nextLease, Instant at) {
         Objects.requireNonNull(subTask, "subTask 不能为空");
+        if (resolvedInput == null || resolvedInput.isBlank()) {
+            throw new IllegalArgumentException("resolvedInput 不能为空白");
+        }
         var idempotencyRoot =
                 UUID.nameUUIDFromBytes(
                                 (taskId.value() + '|' + subTask.subTaskId())
@@ -233,14 +195,30 @@ public record AssistantCommand(
                                                 + subTask.executionId().value())
                                         .getBytes(StandardCharsets.UTF_8))
                         .toString();
+        var baseChildProfile =
+                switch (subTask.kind()) {
+                    case COORDINATOR -> invocationProfile.forCoordinator(subTask.subTaskId());
+                    case AGGREGATOR -> invocationProfile.forAggregator(subTask.subTaskId());
+                    case EXECUTOR, EVALUATOR -> invocationProfile.forExecutor(subTask.subTaskId());
+                };
+        var target = subTask.assistantTarget();
+        var childProfile =
+                target == null
+                        ? baseChildProfile
+                        : baseChildProfile.forAssistantTarget(
+                                target.assistantRevision(),
+                                target.roleKey(),
+                                target.skillKey(),
+                                target.allowedToolKeys());
+        var childAssistantId = target == null ? assistantId : new AssistantId(target.assistantId());
         return new AssistantCommand(
                 Operation.SUBTASK,
                 tenantId,
                 userId,
                 memorySubject,
-                assistantId,
+                childAssistantId,
                 conversationId,
-                subTask.sessionId(),
+                sessionId,
                 taskId,
                 subTask.executionId(),
                 new RunId(childRunId),
@@ -252,10 +230,50 @@ public record AssistantCommand(
                 executionContract,
                 nextLease,
                 0,
-                subTask.description(),
+                resolvedInput,
                 completionCriteria,
                 contextCandidates,
-                taskModelSelection,
+                subTask.modelSelection(),
+                childProfile,
+                at);
+    }
+
+    private AssistantCommand copy(
+            Operation nextOperation,
+            SessionId nextSessionId,
+            ExecutionId nextExecutionId,
+            RunId nextRunId,
+            ExecutionId nextParentExecutionId,
+            Lease nextLease,
+            long nextSequenceBase,
+            String nextInput,
+            TaskModelSelection nextModelSelection,
+            InvocationProfile nextInvocationProfile,
+            Instant at) {
+        return new AssistantCommand(
+                nextOperation,
+                tenantId,
+                userId,
+                memorySubject,
+                assistantId,
+                conversationId,
+                nextSessionId,
+                taskId,
+                nextExecutionId,
+                nextRunId,
+                nextParentExecutionId,
+                correlationId,
+                causationId,
+                idempotencyKey,
+                controlMode,
+                executionContract,
+                nextLease,
+                nextSequenceBase,
+                nextInput,
+                completionCriteria,
+                contextCandidates,
+                nextModelSelection,
+                nextInvocationProfile,
                 at);
     }
 

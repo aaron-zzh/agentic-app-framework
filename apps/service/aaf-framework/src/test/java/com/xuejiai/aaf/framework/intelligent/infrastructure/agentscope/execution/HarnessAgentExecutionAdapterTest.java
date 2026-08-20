@@ -21,12 +21,18 @@ import com.xuejiai.aaf.framework.intelligent.agent.model.ActivatedSkill;
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentExecutionCommand;
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentMessage;
 import com.xuejiai.aaf.framework.intelligent.agent.model.AuthorizedSkillSummary;
+import com.xuejiai.aaf.framework.intelligent.agent.model.CompiledSystemPrompt;
+import com.xuejiai.aaf.framework.intelligent.agent.model.CompiledSystemPrompt.PromptLayerKind;
+import com.xuejiai.aaf.framework.intelligent.agent.model.CompiledSystemPrompt.PromptLayerSource;
+import com.xuejiai.aaf.framework.intelligent.agent.model.CompiledSystemPrompt.PromptSourceKind;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ExecutionPolicy;
 import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.model.SkillExecutionProfile;
 import com.xuejiai.aaf.framework.intelligent.agent.model.SkillSelectionManifest;
 import com.xuejiai.aaf.framework.intelligent.agent.model.SubagentSpec;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentDefinitionPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillActivationMode;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillScope;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillSelectionMode;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
@@ -41,10 +47,13 @@ import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.SessionId;
 import com.xuejiai.aaf.test.BaseMockitoUnitTest;
 
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.agent.RuntimeContext;
+import io.agentscope.core.state.AgentState;
+import io.agentscope.core.state.AgentStateStore;
 import io.agentscope.harness.agent.HarnessAgent;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -55,6 +64,7 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
     @Mock private AgentScopeSpecCompiler compiler;
     @Mock private AgentScopeMessageMapper messageMapper;
     @Mock private AgentScopeRuntimeContextMapper contextMapper;
+    @Mock private AgentStateStore stateStore;
     @Mock private AgentScopeEventMapper eventMapper;
     @Mock private AgentScopeTokenMeteringObserver meteringObserver;
     @Mock private ExecutionEventStorePort eventStore;
@@ -77,6 +87,7 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
                         compiler,
                         messageMapper,
                         contextMapper,
+                        stateStore,
                         eventMapper,
                         meteringObserver,
                         eventStore,
@@ -86,6 +97,10 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
         executionModel = new ModelSpec("1");
         when(invocationContext.controlMode()).thenReturn(ControlMode.READ_ONLY);
         when(invocationContext.executionId()).thenReturn(new ExecutionId("execution-test"));
+        when(invocationContext.sessionId()).thenReturn(new SessionId("session-test"));
+        when(contextMapper.stateUserKey(invocationContext)).thenReturn("state-user");
+        when(stateStore.get("state-user", "session-test", "agent_state", AgentState.class))
+                .thenReturn(Optional.empty());
         when(contextMapper.toAgentScope(invocationContext)).thenReturn(runtimeContext);
         when(messageMapper.toAgentScope(anyList())).thenReturn(List.of());
     }
@@ -149,6 +164,8 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
                                         "test.skill",
                                         "测试技能",
                                         "验证临时生命周期",
+                                        SkillScope.SYSTEM,
+                                        SkillActivationMode.ON_DEMAND,
                                         List.of(),
                                         Set.of(),
                                         Set.of())));
@@ -159,6 +176,8 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
                                 new ActivatedSkill(
                                         "test.skill",
                                         skillVersion,
+                                        SkillScope.SYSTEM,
+                                        SkillActivationMode.ON_DEMAND,
                                         "技能提示",
                                         Set.of(),
                                         Set.of(),
@@ -173,9 +192,39 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
                 AgentExecutionCommand.ExecutionMode.DELEGATE,
                 Optional.of(executionModel),
                 skillExecutionProfile,
+                compiled(dynamic.identifier()),
                 0,
                 List.of(new AgentMessage("message-1", AgentMessage.Role.USER, "执行")),
                 invocationContext);
+    }
+
+    private static CompiledSystemPrompt compiled(String identity) {
+        return CompiledSystemPrompt.compile(
+                List.of(
+                        new PromptLayerSource(
+                                PromptLayerKind.CONSTITUTION,
+                                PromptSourceKind.ENGINE_TEMPLATE,
+                                CompiledSystemPrompt.CONSTITUTION_NAME,
+                                "1",
+                                "测试 Constitution"),
+                        new PromptLayerSource(
+                                PromptLayerKind.IDENTITY,
+                                PromptSourceKind.AAF_POLICY,
+                                identity,
+                                "1",
+                                "测试执行身份"),
+                        new PromptLayerSource(
+                                PromptLayerKind.IDENTITY,
+                                PromptSourceKind.ASSISTANT_ACTOR,
+                                "assistant.test",
+                                "1",
+                                "测试 Actor"),
+                        new PromptLayerSource(
+                                PromptLayerKind.INVOCATION_POLICY,
+                                PromptSourceKind.AAF_POLICY,
+                                "invocation:test",
+                                "1",
+                                "测试调用策略")));
     }
 
     private void stubTerminalFailure() {
@@ -189,7 +238,7 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
         when(compiler.compileDynamic(
                         (SubagentSpec.Dynamic) command.subagentSpec(),
                         executionModel,
-                        command.effectiveSystemPromptAppendix(),
+                        command.compiledSystemPrompt(),
                         command.skillExecutionProfile().effectiveTools()))
                 .thenReturn(agent);
         when(agent.streamEvents(anyList(), eq(runtimeContext))).thenReturn(events);

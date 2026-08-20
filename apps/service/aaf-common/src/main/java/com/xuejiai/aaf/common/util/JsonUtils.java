@@ -4,6 +4,7 @@ import java.util.List;
 
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.core.StreamReadFeature;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -22,6 +23,8 @@ import tools.jackson.databind.node.ObjectNode;
 public class JsonUtils {
 
     private static JsonMapper jsonMapper = JsonMapper.builder().build();
+    private static final JsonMapper STRICT_JSON_MAPPER =
+            JsonMapper.builder().enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION).build();
 
     /** 由 Spring 启动时注入，复用统一配置的 JsonMapper Bean */
     public static void init(JsonMapper mapper) {
@@ -85,6 +88,16 @@ public class JsonUtils {
         } catch (Exception e) {
             log.error("JSON readTree 失败: {}", json, e);
             throw new RuntimeException(e);
+        }
+    }
+
+    /** 严格解析安全契约 JSON；重复字段直接拒绝。 */
+    public static JsonNode readTreeStrict(String json) {
+        try {
+            return STRICT_JSON_MAPPER.readTree(json);
+        } catch (Exception e) {
+            log.warn("严格 JSON 解析失败");
+            throw new IllegalArgumentException("JSON 包含重复字段或格式非法", e);
         }
     }
 

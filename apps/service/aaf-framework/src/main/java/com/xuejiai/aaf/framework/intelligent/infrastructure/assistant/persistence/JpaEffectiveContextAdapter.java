@@ -59,6 +59,11 @@ public class JpaEffectiveContextAdapter implements EffectiveContextPort {
                         false));
         candidates.stream()
                 .filter(
+                        source ->
+                                profile.contextDisclosurePolicy()
+                                        .allowedSourceTypes()
+                                        .contains(source.type()))
+                .filter(
                         source -> {
                             var disposition =
                                     dispositions.getOrDefault(
@@ -79,6 +84,7 @@ public class JpaEffectiveContextAdapter implements EffectiveContextPort {
                                                         == Disposition.PREFERRED
                                                 ? 0
                                                 : 1))
+                .limit(Math.max(0, profile.contextDisclosurePolicy().maxSources() - 1L))
                 .forEach(source -> add(unique, source));
         var manifest =
                 new EffectiveContextManifest(

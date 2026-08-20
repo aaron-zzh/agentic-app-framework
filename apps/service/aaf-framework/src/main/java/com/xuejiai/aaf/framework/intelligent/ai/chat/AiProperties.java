@@ -117,34 +117,13 @@ public class AiProperties {
         /** 规则裁剪后仍超预算时是否启用摘要模型。 */
         private Boolean enableSummary = true;
 
-        /** 摘要模型 ID；为空时使用本次主模型。 */
+        /** 摘要模型 ai_model 主键；为空时使用本次 Harness 主模型。 */
         private String summaryModelId;
 
         /** 摘要模型超时时间（毫秒）。 */
         private Long summaryTimeoutMs = 8000L;
 
-        /** 摘要系统提示词，可通过系统参数覆盖。 */
-        private String summarySystemPrompt =
-                "你是 AAF 的上下文压缩器。你的任务是压缩历史上下文，保留用户目标、关键事实、已确认决策、约束、未完成事项和必要引用。只输出可继续推理的摘要，不要输出解释。";
-
-        /** 摘要用户提示词模板，支持 ${budgetTokens} 和 ${messages}。 */
-        private String summaryUserPrompt =
-                """
-                请将以下对话上下文压缩到不超过 ${budgetTokens} tokens。
-
-                保留：
-                - 当前任务目标和用户明确要求
-                - 关键业务数据、ID、路径、错误信息
-                - 已做决策和不可违反约束
-                - 未完成的下一步
-
-                可以删除：
-                - 重复寒暄
-                - 已被后续内容覆盖的中间过程
-                - 大段原始数据中的低价值细节
-
-                待压缩上下文：
-                ${messages}
-                """;
+        /** 严格 JSON 摘要结果最大字符数。 */
+        private Integer summaryMaxChars = 12000;
     }
 }

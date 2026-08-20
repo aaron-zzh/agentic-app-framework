@@ -1,12 +1,20 @@
 package com.xuejiai.aaf.framework.engine.skill;
 
+import java.util.LinkedHashSet;
+import java.util.Set;
+
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -63,4 +71,13 @@ public class SkillDefinition extends BaseEntity {
     /** 克隆或派生时的来源 Skill。 */
     @Column(name = "source_skill_id")
     private Long sourceSkillId;
+
+    /** 用于目录发现的全局受控分类。 */
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "ai_skill_category_relation",
+            joinColumns = @JoinColumn(name = "skill_id"),
+            inverseJoinColumns = @JoinColumn(name = "category_id"))
+    @OrderBy("sortOrder ASC, id ASC")
+    private Set<SkillCategory> categories = new LinkedHashSet<>();
 }

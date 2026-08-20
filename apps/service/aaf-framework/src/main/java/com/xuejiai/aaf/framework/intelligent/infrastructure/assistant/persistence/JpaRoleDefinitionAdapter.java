@@ -7,6 +7,8 @@ import java.util.Set;
 
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Role;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillActivationMode;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillBinding;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.RoleDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.role.AiRoleRepository;
 
@@ -34,8 +36,40 @@ public final class JpaRoleDefinitionAdapter implements RoleDefinitionPort {
                 entity.getName(),
                 responsibilities(entity.getDescription(), entity.getCode()),
                 List.of(),
-                parseKeys(entity.getSkillIds(), "skillIds"),
+                parseBindings(entity.getSkillIds(), "ai_role.skill_ids"),
                 parseKeys(entity.getToolWhitelist(), "toolWhitelist"));
+    }
+
+    private List<SkillBinding> parseBindings(String json, String fieldName) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            var root = JsonUtils.readTreeStrict(json);
+            if (!root.isArray()) {
+                throw new IllegalStateException(fieldName + " 必须是 SkillBinding JSON 数组");
+            }
+            var result = new java.util.ArrayList<SkillBinding>();
+            for (var item : root) {
+                if (!item.isObject()
+                        || item.size() != 2
+                        || !item.path("skillKey").isTextual()
+                        || !item.path("activationMode").isTextual()) {
+                    throw new IllegalStateException(
+                            fieldName + " 每项必须且只能包含 skillKey/activationMode");
+                }
+                result.add(
+                        new SkillBinding(
+                                item.get("skillKey").textValue(),
+                                SkillActivationMode.valueOf(
+                                        item.get("activationMode").textValue())));
+            }
+            return SkillBinding.copyOf(result, fieldName);
+        } catch (IllegalStateException exception) {
+            throw exception;
+        } catch (RuntimeException failure) {
+            throw new IllegalStateException(fieldName + " 必须是合法 SkillBinding JSON 数组", failure);
+        }
     }
 
     private Set<String> parseKeys(String json, String fieldName) {
@@ -43,7 +77,7 @@ public final class JpaRoleDefinitionAdapter implements RoleDefinitionPort {
             return Set.of();
         }
         try {
-            var node = JsonUtils.readTree(json);
+            var node = JsonUtils.readTreeStrict(json);
             if (!node.isArray()) {
                 throw new IllegalStateException(fieldName + " 必须是 JSON 字符串数组");
             }

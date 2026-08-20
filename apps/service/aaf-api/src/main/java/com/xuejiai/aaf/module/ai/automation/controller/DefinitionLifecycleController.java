@@ -30,7 +30,8 @@ public class DefinitionLifecycleController {
             @PathVariable String id,
             @PathVariable long version,
             @RequestBody DraftDTO dto) {
-        return Result.success(service.draft(tenant(), kind, id, version, dto.impact()));
+        return Result.success(
+                service.draft(tenant(), kind, id, version, dto.impact(), dto.teamDefinition()));
     }
 
     @PostMapping("/{kind}/{id}/versions/{version}/review")
@@ -89,7 +90,9 @@ public class DefinitionLifecycleController {
                 .orElseThrow(() -> new AccessDeniedException("请求未认证"));
     }
 
-    public record DraftDTO(CompatibilityImpact impact) {}
+    public record DraftDTO(
+            CompatibilityImpact impact,
+            com.xuejiai.aaf.framework.intelligent.team.model.TeamDefinition teamDefinition) {}
 
     public record ReviewDTO(ReviewStatus status, String reason) {}
 }

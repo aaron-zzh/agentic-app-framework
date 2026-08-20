@@ -10,7 +10,6 @@ import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantCommand;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionInput;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ConversationId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.SessionId;
@@ -21,7 +20,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 /** 委托任务、调度和预算的 PostgreSQL 唯一事实端口。 */
 public interface DelegatedTaskPort {
 
-    StoredTask create(DelegatedTask task, AssistantCommand command, TaskBoard board);
+    BufferedInput bufferInput(ExecutionInput input);
 
     Optional<StoredTask> find(TenantId tenantId, TaskId taskId);
 
@@ -67,21 +66,9 @@ public interface DelegatedTaskPort {
             String reason,
             Instant at);
 
-    DelegatedTask awaitAuthorization(InvocationContext context, String reason, Instant at);
-
-    DelegatedTask resumeAfterAuthorization(
-            TenantId tenantId,
-            UserId userId,
-            TaskId taskId,
-            ConversationLeasePort.Lease lease,
-            Instant at);
-
     DelegatedTask complete(InvocationContext context, Map<String, Object> result, Instant at);
 
     DelegatedTask fail(InvocationContext context, String failure, Instant at);
-
-    DelegatedTask failOrRetry(
-            InvocationContext context, String failure, boolean transientFailure, Instant at);
 
     DelegatedTask cancel(
             TenantId tenantId,
@@ -108,11 +95,15 @@ public interface DelegatedTaskPort {
             ConversationLeasePort.Lease lease,
             Instant at);
 
-    DelegatedTask applyInput(ExecutionInput input, ConversationLeasePort.Lease lease);
-
     int recoverExpired(Instant now);
 
     record StoredTask(DelegatedTask task, AssistantCommand command) {}
+
+    record BufferedInput(ExecutionInput input, boolean created) {
+        public BufferedInput {
+            java.util.Objects.requireNonNull(input, "input 不能为空");
+        }
+    }
 
     final class BudgetExceededException extends IllegalStateException {
         public BudgetExceededException(String message) {

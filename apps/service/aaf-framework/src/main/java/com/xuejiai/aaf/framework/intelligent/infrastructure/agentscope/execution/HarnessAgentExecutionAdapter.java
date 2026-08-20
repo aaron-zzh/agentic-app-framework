@@ -12,6 +12,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.AgentDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
+import com.xuejiai.aaf.framework.intelligent.cognition.model.ContextBudgetExceededException;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.compiler.AgentScopeSpecCompiler;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeEventMapper;
@@ -26,7 +27,10 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.event.AgentEvent;
 import io.agentscope.core.event.AgentEventType;
+import io.agentscope.core.state.AgentState;
+import io.agentscope.core.state.AgentStateStore;
 import io.agentscope.harness.agent.HarnessAgent;
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -35,12 +39,14 @@ import reactor.core.publisher.Mono;
  *
  * <p>职责：解析执行规格 → 编译 HarnessAgent → 订阅 {@code streamEvents} 事件流 → 映射为 AAF 事件并顺序入库。同时维护活跃执行表以支持取消与中断。
  */
+@Slf4j
 public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
 
     private final AgentDefinitionPort definitions;
     private final AgentScopeSpecCompiler compiler;
     private final AgentScopeMessageMapper messageMapper;
     private final AgentScopeRuntimeContextMapper contextMapper;
+    private final AgentStateStore stateStore;
     private final AgentScopeEventMapper eventMapper;
     private final AgentScopeTokenMeteringObserver meteringObserver;
     private final ExecutionEventStorePort eventStore;
@@ -56,6 +62,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
             AgentScopeSpecCompiler compiler,
             AgentScopeMessageMapper messageMapper,
             AgentScopeRuntimeContextMapper contextMapper,
+            AgentStateStore stateStore,
             AgentScopeEventMapper eventMapper,
             AgentScopeTokenMeteringObserver meteringObserver,
             ExecutionEventStorePort eventStore,
@@ -65,6 +72,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         this.compiler = Objects.requireNonNull(compiler, "compiler 不能为空");
         this.messageMapper = Objects.requireNonNull(messageMapper, "messageMapper 不能为空");
         this.contextMapper = Objects.requireNonNull(contextMapper, "contextMapper 不能为空");
+        this.stateStore = Objects.requireNonNull(stateStore, "stateStore 不能为空");
         this.eventMapper = Objects.requireNonNull(eventMapper, "eventMapper 不能为空");
         this.meteringObserver = Objects.requireNonNull(meteringObserver, "meteringObserver 不能为空");
         this.eventStore = Objects.requireNonNull(eventStore, "eventStore 不能为空");
@@ -86,11 +94,26 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         return Mono.fromSupplier(
                 () -> {
                     var active = activeExecutions.get(executionId);
-                    if (active == null
-                            || active.sourceCompleted().get()
-                            || !active.cancelled().compareAndSet(false, true)) {
+                    if (active == null) {
+                        log.debug(
+                                "[AgentLoop] 忽略中断请求：executionId={}，原因=未找到活跃执行",
+                                executionId.value());
                         return false;
                     }
+                    if (active.sourceCompleted().get()) {
+                        log.debug(
+                                "[AgentLoop] 忽略中断请求：executionId={}，原因=事件流已结束", executionId.value());
+                        return false;
+                    }
+                    if (!active.cancelled().compareAndSet(false, true)) {
+                        log.debug(
+                                "[AgentLoop] 忽略中断请求：executionId={}，原因=已标记取消", executionId.value());
+                        return false;
+                    }
+                    log.debug(
+                            "[AgentLoop] 已接收中断请求：executionId={}，Agent已启动={}，将按状态下发中断",
+                            executionId.value(),
+                            active.started().get());
                     interruptIfCancelledAndStarted(active);
                     return true;
                 });
@@ -101,7 +124,24 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         requireCurrent(command);
         var mappingState = new MappingState(command.sequenceBase());
         try {
-            return executeResolved(command, mappingState, resolveExecution(command));
+            command.compiledSystemPrompt().verify();
+            command.compiledSystemPrompt().requireCompatible(command.subagentSpec());
+            var execution = resolveExecution(command);
+            log.debug(
+                    "[AgentLoop] AgentScope 执行体已就绪：executionId={}，AAF规格类型={}，agent={}，执行模式={}，现场编译临时实例={}，模型={}，工具数={}，消息数={}，promptSha256={}，promptLength={}",
+                    command.context().executionId().value(),
+                    command.subagentSpec().getClass().getSimpleName(),
+                    execution.agentIdentifier(),
+                    command.executionMode(),
+                    execution.ephemeral(),
+                    execution.model().modelId(),
+                    command.skillExecutionProfile().effectiveTools().size(),
+                    command.messages().size(),
+                    command.compiledSystemPrompt().sha256(),
+                    command.compiledSystemPrompt()
+                            .content()
+                            .codePointCount(0, command.compiledSystemPrompt().content().length()));
+            return executeResolved(command, mappingState, execution);
         } catch (RuntimeException failure) {
             return eventStore
                     .append(
@@ -121,6 +161,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         final RuntimeContext runtimeContext;
         try {
             runtimeContext = contextMapper.toAgentScope(command.context());
+            requireNoHiddenPersistentHistory(command);
         } catch (RuntimeException failure) {
             release(execution);
             throw failure;
@@ -135,6 +176,11 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                 return Flux.error(
                         new IllegalStateException("executionId 已存在活跃执行: " + executionId.value()));
             }
+            log.debug(
+                    "[AgentLoop] 已注册活跃执行并订阅 Harness 事件流：executionId={}，agent={}，临时实例={}",
+                    executionId.value(),
+                    execution.agentIdentifier(),
+                    execution.ephemeral());
 
             return execution
                     .agent()
@@ -199,6 +245,29 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         }
     }
 
+    /** AgentScope 会先恢复 agent_state 再追加 command messages；隐藏历史未纳入冻结画像时必须拒绝。 */
+    private void requireNoHiddenPersistentHistory(AgentExecutionCommand command) {
+        var context = command.context();
+        final java.util.Optional<AgentState> state;
+        try {
+            state =
+                    stateStore.get(
+                            contextMapper.stateUserKey(context),
+                            context.sessionId().value(),
+                            "agent_state",
+                            AgentState.class);
+        } catch (RuntimeException failure) {
+            throw new ContextBudgetExceededException("无法验证 AgentScope 持久历史，拒绝进入模型", failure);
+        }
+        if (state.isEmpty()) {
+            return;
+        }
+        var persisted = state.orElseThrow();
+        if (!persisted.getContext().isEmpty() || !persisted.getSummary().isBlank()) {
+            throw new ContextBudgetExceededException("检测到未纳入冻结画像的 AgentScope 持久历史，拒绝进入模型");
+        }
+    }
+
     /**
      * 解析执行规格：预定义 Agent 走版本化定义 + 共享缓存；动态规格按执行模式取用。
      *
@@ -220,7 +289,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                 yield new ResolvedExecution(
                         compiler.compile(
                                 spec,
-                                command.effectiveSystemPromptAppendix(),
+                                command.compiledSystemPrompt(),
                                 command.skillExecutionProfile().effectiveTools()),
                         spec.model(),
                         predefined.identifier(),
@@ -237,12 +306,12 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                                 ? compiler.compileDirect(
                                         dynamic,
                                         executionModel,
-                                        command.effectiveSystemPromptAppendix(),
+                                        command.compiledSystemPrompt(),
                                         command.skillExecutionProfile().effectiveTools())
                                 : compiler.compileDynamic(
                                         dynamic,
                                         executionModel,
-                                        command.effectiveSystemPromptAppendix(),
+                                        command.compiledSystemPrompt(),
                                         command.skillExecutionProfile().effectiveTools());
                 yield new ResolvedExecution(
                         agent,
@@ -285,6 +354,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
     private void interruptOnce(ActiveExecution active) {
         if (active.interruptIssued().compareAndSet(false, true)) {
             active.agent().getDelegate().interrupt(active.runtimeContext());
+            log.debug("[AgentLoop] 已向 Harness ReAct 执行体下发中断");
         }
     }
 

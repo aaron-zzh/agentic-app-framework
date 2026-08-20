@@ -4,40 +4,37 @@ import java.util.List;
 import java.util.Objects;
 
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentMessage;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.InvocationPolicy;
 
-/** Assistant 单次调用的非持久执行选项；恢复快照仍只保存 {@link AssistantCommand}。 */
+/** Assistant 单次调用选项；执行意图会冻结到 ExecutionProfileSnapshot 供恢复复用。 */
 public record AssistantInvocation(
         AssistantCommand command,
         String requestedSkillKey,
         MemoryMode memoryMode,
-        List<AgentMessage> supplementalMessages,
-        List<AgentMessage.Attachment> userAttachments) {
+        InvocationPolicy invocationPolicy,
+        List<AgentMessage.Attachment> userAttachments,
+        ExecutionIntent executionIntent) {
 
     public AssistantInvocation {
         Objects.requireNonNull(command, "command 不能为空");
         requestedSkillKey = normalize(requestedSkillKey);
         Objects.requireNonNull(memoryMode, "memoryMode 不能为空");
-        supplementalMessages =
-                List.copyOf(
-                        Objects.requireNonNull(supplementalMessages, "supplementalMessages 不能为空"));
+        Objects.requireNonNull(invocationPolicy, "invocationPolicy 不能为空");
         userAttachments =
                 List.copyOf(Objects.requireNonNull(userAttachments, "userAttachments 不能为空"));
-        if (supplementalMessages.stream()
-                .anyMatch(message -> message.role() != AgentMessage.Role.SYSTEM)) {
-            throw new IllegalArgumentException("supplementalMessages 仅允许 SYSTEM 消息");
-        }
-    }
-
-    public AssistantInvocation(
-            AssistantCommand command,
-            String requestedSkillKey,
-            MemoryMode memoryMode,
-            List<AgentMessage> supplementalMessages) {
-        this(command, requestedSkillKey, memoryMode, supplementalMessages, List.of());
+        Objects.requireNonNull(executionIntent, "executionIntent 不能为空");
     }
 
     public static AssistantInvocation of(AssistantCommand command) {
-        return new AssistantInvocation(command, null, MemoryMode.DEFAULT, List.of(), List.of());
+        var profile = command.invocationProfile();
+        return new AssistantInvocation(
+                command,
+                profile.requestedSkillKey(),
+                profile.memoryMode(),
+                profile.invocationPolicy(),
+                profile.userAttachments(),
+                profile.executionIntent());
     }
 
     private static String normalize(String value) {

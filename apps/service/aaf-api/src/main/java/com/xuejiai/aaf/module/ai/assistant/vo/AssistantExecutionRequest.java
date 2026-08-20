@@ -12,12 +12,25 @@ import jakarta.validation.constraints.NotNull;
 /** 通用 Assistant 无会话执行请求。 */
 public record AssistantExecutionRequest(
         @Valid AssistantTarget assistant,
+        @NotNull @Valid ExecutionOptions execution,
         @NotNull @Valid Input input,
+        @Valid RoleSelection role,
         @Valid SkillSelection skill,
         @NotNull @Valid KnowledgeOptions knowledge,
         @NotNull @Valid ModelSelection model,
         @NotNull @Valid MemoryOptions memory,
         @NotNull @Valid OutputOptions output) {
+
+    /** 客户端执行偏好；固定 Route 的 Role/Skill 可由客户端声明，服务端必须校验 Assistant 归属。 */
+    public record ExecutionOptions(
+            @NotNull InteractionMode interactionMode,
+            @NotNull RouteConstraint routeConstraint,
+            @NotNull ClarificationPolicy clarificationPolicy,
+            @NotNull ActionAuthorizationPolicy actionAuthorizationPolicy,
+            @NotNull ArtifactPersistence artifactPersistence) {}
+
+    /** 固定 Route 的 Role 选择；仅作为待校验输入。 */
+    public record RoleSelection(String key) {}
 
     /** 可选 Assistant 目标；省略时解析当前用户的唯一默认 Assistant。 */
     public record AssistantTarget(String id) {}
@@ -31,10 +44,10 @@ public record AssistantExecutionRequest(
     /** 可选 Skill 收窄条件。 */
     public record SkillSelection(String code) {}
 
-    /** 单次任务知识选项。 */
+    /** 单次任务知识选项；DEFAULT 仅解析 Assistant 已授权绑定，绝不扩大到全局公共库。 */
     public record KnowledgeOptions(
+            @NotNull KnowledgeMode mode,
             @NotNull Set<UUID> knowledgeBaseIds,
-            @NotNull Boolean includePublic,
             @NotNull Integer topK,
             @NotNull Double similarityThreshold) {}
 
@@ -50,6 +63,39 @@ public record AssistantExecutionRequest(
     /** 补充附件；TEXT 使用 content，IMAGE 使用 resourceId。 */
     public record Attachment(
             @NotNull AttachmentType type, String name, String content, String resourceId) {}
+
+    public enum InteractionMode {
+        TASK,
+        CONVERSATIONAL
+    }
+
+    public enum RouteConstraint {
+        FIXED,
+        AUTO
+    }
+
+    public enum ClarificationPolicy {
+        MINIMAL,
+        FAIL_ON_BLOCKER,
+        INTERACTIVE
+    }
+
+    public enum ActionAuthorizationPolicy {
+        REQUEST_ON_DEMAND,
+        PREAUTHORIZED_ONLY,
+        DENY_AUTHORIZED_ACTIONS
+    }
+
+    public enum ArtifactPersistence {
+        AUTO_SAVE_DRAFT,
+        RETURN_ONLY
+    }
+
+    public enum KnowledgeMode {
+        DEFAULT,
+        EXPLICIT,
+        DISABLED
+    }
 
     public enum ModelMode {
         AUTO,

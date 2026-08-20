@@ -13,6 +13,7 @@ public record AgentExecutionCommand(
         ExecutionMode executionMode,
         Optional<ModelSpec> executionModel,
         SkillExecutionProfile skillExecutionProfile,
+        CompiledSystemPrompt compiledSystemPrompt,
         long sequenceBase,
         List<AgentMessage> messages,
         InvocationContext context) {
@@ -23,6 +24,7 @@ public record AgentExecutionCommand(
         Objects.requireNonNull(executionMode, "executionMode 不能为空");
         executionModel = Objects.requireNonNull(executionModel, "executionModel Optional 不能为空");
         Objects.requireNonNull(skillExecutionProfile, "skillExecutionProfile 不能为空");
+        Objects.requireNonNull(compiledSystemPrompt, "compiledSystemPrompt 不能为空");
         Objects.requireNonNull(context, "context 不能为空");
         if (sequenceBase < 0) {
             throw new IllegalArgumentException("sequenceBase 不能小于 0");
@@ -31,13 +33,6 @@ public record AgentExecutionCommand(
         if (messages.isEmpty()) {
             throw new IllegalArgumentException("messages 不能为空");
         }
-    }
-
-    /** 将 Role 约束和仅已激活版本正文拼接进正式执行提示词。 */
-    public String effectiveSystemPromptAppendix() {
-        var rolePrompt = roleAssignment.map(RoleAssignment::systemPromptAppendix).orElse("");
-        var skillPrompt = skillExecutionProfile.contentAppendix();
-        return rolePrompt.isBlank() ? skillPrompt : rolePrompt + "\n\n" + skillPrompt;
     }
 
     public enum ExecutionMode {

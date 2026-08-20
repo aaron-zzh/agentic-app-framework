@@ -35,6 +35,13 @@ public interface PromptTemplateRepository extends CrudEntityRepository<PromptTem
 
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query(
+            "update PromptTemplate template set template.active = false"
+                    + " where template.name = :name and template.visibility = 'ENGINE'"
+                    + " and template.active = true and template.deleted = false")
+    int deactivateActiveEngineVersions(@Param("name") String name);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query(
             "update PromptTemplate template set template.usageCount = template.usageCount + 1"
                     + " where template.id = :id and template.deleted = false")
     int incrementUsageCount(@Param("id") Long id);

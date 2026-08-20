@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.framework.intelligent.assistant.model;
 
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -17,6 +19,8 @@ public record AssistantDefinition(
         String maintainer,
         Actor actor,
         List<Role> roles,
+        List<SkillBinding> assistantSkillBindings,
+        Set<String> assistantToolKeys,
         String defaultRoleKey,
         MemoryStrategy memoryStrategy,
         String modelId,
@@ -32,6 +36,9 @@ public record AssistantDefinition(
         maintainer = requireText(maintainer, "maintainer");
         Objects.requireNonNull(actor, "actor 不能为空");
         roles = List.copyOf(Objects.requireNonNull(roles, "roles 不能为空"));
+        assistantSkillBindings =
+                SkillBinding.copyOf(assistantSkillBindings, "assistantSkillBindings");
+        assistantToolKeys = copyTextSet(assistantToolKeys, "assistantToolKeys");
         defaultRoleKey = requireText(defaultRoleKey, "defaultRoleKey");
         Objects.requireNonNull(memoryStrategy, "memoryStrategy 不能为空");
         modelId = modelId == null || modelId.isBlank() ? null : modelId.trim();
@@ -44,7 +51,8 @@ public record AssistantDefinition(
         Objects.requireNonNull(lifecycle, "lifecycle 不能为空");
         validateIdentity(ownership, systemKey, sourceSystemKey);
         validateRoles(roles, defaultRoleKey);
-        validateToolPolicy(roles, toolPolicy);
+        validateSkillOwnership(roles, SkillBinding.skillKeys(assistantSkillBindings));
+        validateToolPolicy(roles, assistantToolKeys, toolPolicy);
         validateModes(supportedControlModes);
     }
 
@@ -61,6 +69,59 @@ public record AssistantDefinition(
                 .filter(role -> role.key().equals(roleKey))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("Assistant 未配置 Role: " + roleKey));
+    }
+
+    public Set<String> assistantSkillKeys() {
+        return SkillBinding.skillKeys(assistantSkillBindings);
+    }
+
+    public Set<String> assistantAlwaysSkillKeys() {
+        return SkillBinding.skillKeys(assistantSkillBindings, SkillActivationMode.ALWAYS);
+    }
+
+    public Set<String> assistantOnDemandSkillKeys() {
+        return SkillBinding.skillKeys(assistantSkillBindings, SkillActivationMode.ON_DEMAND);
+    }
+
+    public Set<String> candidateSkillKeys(Role role) {
+        var configuredRole = requireConfiguredRole(role);
+        var candidates = new LinkedHashSet<String>();
+        assistantSkillKeys().forEach(candidates::add);
+        configuredRole.skillKeys().forEach(candidates::add);
+        return Collections.unmodifiableSet(candidates);
+    }
+
+    public Set<String> candidateOnDemandSkillKeys(Role role) {
+        var configuredRole = requireConfiguredRole(role);
+        var candidates = new LinkedHashSet<String>();
+        assistantOnDemandSkillKeys().forEach(candidates::add);
+        configuredRole.onDemandSkillKeys().forEach(candidates::add);
+        return Collections.unmodifiableSet(candidates);
+    }
+
+    public Set<String> candidateToolKeys(Role role) {
+        var configuredRole = requireConfiguredRole(role);
+        var candidates = new LinkedHashSet<String>();
+        configuredRole.toolKeys().stream().sorted().forEach(candidates::add);
+        assistantToolKeys.stream().sorted().forEach(candidates::add);
+        return Collections.unmodifiableSet(candidates);
+    }
+
+    public boolean isRoleSkill(Role role, String skillKey) {
+        return requireConfiguredRole(role).skillKeys().contains(requireText(skillKey, "skillKey"));
+    }
+
+    public boolean isAssistantSkill(String skillKey) {
+        return assistantSkillKeys().contains(requireText(skillKey, "skillKey"));
+    }
+
+    private Role requireConfiguredRole(Role role) {
+        Objects.requireNonNull(role, "role 不能为空");
+        var configured = requireRole(role.key());
+        if (!configured.equals(role)) {
+            throw new IllegalArgumentException("Role 内容与 Assistant 当前定义不一致: " + role.key());
+        }
+        return configured;
     }
 
     public void requireControlMode(ControlMode mode) {
@@ -106,14 +167,34 @@ public record AssistantDefinition(
         }
     }
 
-    private static void validateToolPolicy(List<Role> roles, ToolPolicy toolPolicy) {
-        var roleToolKeys =
+    private static void validateSkillOwnership(List<Role> roles, Set<String> assistantSkillKeys) {
+        var roleSkillKeys =
                 roles.stream()
-                        .flatMap(role -> role.toolKeys().stream())
+                        .flatMap(role -> role.skillKeys().stream())
                         .collect(java.util.stream.Collectors.toUnmodifiableSet());
-        if (!roleToolKeys.equals(toolPolicy.rules().keySet())) {
-            throw new IllegalArgumentException("所有 Role.toolKeys 的并集必须与 ToolPolicy 完全一致");
+        var duplicates =
+                assistantSkillKeys.stream().filter(roleSkillKeys::contains).sorted().toList();
+        if (!duplicates.isEmpty()) {
+            throw new IllegalArgumentException("Assistant Skill 不能同时属于任一 Role: " + duplicates);
         }
+    }
+
+    private static void validateToolPolicy(
+            List<Role> roles, Set<String> assistantToolKeys, ToolPolicy toolPolicy) {
+        var allowedToolKeys = new LinkedHashSet<String>();
+        roles.stream().flatMap(role -> role.toolKeys().stream()).forEach(allowedToolKeys::add);
+        allowedToolKeys.addAll(assistantToolKeys);
+        if (!allowedToolKeys.equals(toolPolicy.rules().keySet())) {
+            throw new IllegalArgumentException(
+                    "所有 Role.toolKeys 与 Assistant.toolKeys 的并集必须与 ToolPolicy 完全一致");
+        }
+    }
+
+    private static Set<String> copyTextSet(Set<String> values, String name) {
+        Objects.requireNonNull(values, name + " 不能为空");
+        var copy = new LinkedHashSet<String>();
+        values.stream().map(value -> requireText(value, name)).sorted().forEach(copy::add);
+        return Collections.unmodifiableSet(copy);
     }
 
     private static void validateModes(Set<ControlMode> modes) {

@@ -17,6 +17,10 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentSpec;
+import com.xuejiai.aaf.framework.intelligent.agent.model.CompiledSystemPrompt;
+import com.xuejiai.aaf.framework.intelligent.agent.model.CompiledSystemPrompt.PromptLayerKind;
+import com.xuejiai.aaf.framework.intelligent.agent.model.CompiledSystemPrompt.PromptLayerSource;
+import com.xuejiai.aaf.framework.intelligent.agent.model.CompiledSystemPrompt.PromptSourceKind;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ExecutionPolicy;
 import com.xuejiai.aaf.framework.intelligent.agent.model.SubagentSpec;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolRef;
@@ -71,13 +75,14 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
         var generate = tool("content.generate");
         var spec = agentSpec(List.of(search, generate));
 
-        var agent = compiler.compile(spec, "技能提示", List.of(search));
+        var agent =
+                compiler.compile(spec, compiled("agent.compiler-test", "技能提示"), List.of(search));
 
         assertThat(spec.tools()).hasSize(2);
         assertThat(agent.getToolkit().getToolNames())
                 .contains(search.name())
                 .doesNotContain(generate.name());
-        assertThat(agent.getDelegate().getSysPrompt()).isEqualTo("仅执行测试允许的工具\n\n技能提示");
+        assertThat(agent.getDelegate().getSysPrompt()).contains("技能提示");
     }
 
     @Test
@@ -86,8 +91,10 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
         var search = tool("knowledge.search");
         var spec = agentSpec(List.of(search));
 
-        var first = compiler.compile(spec, "稳定技能提示", List.of(search));
-        var second = compiler.compile(spec, "稳定技能提示", List.of(search));
+        var first =
+                compiler.compile(spec, compiled("agent.compiler-test", "稳定技能提示"), List.of(search));
+        var second =
+                compiler.compile(spec, compiled("agent.compiler-test", "稳定技能提示"), List.of(search));
 
         assertThat(second).isSameAs(first);
     }
@@ -99,8 +106,18 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
         var spec = dynamicSpec(List.of(search));
         var executionModel = new ModelSpec("1");
 
-        var first = compiler.compileDirect(spec, executionModel, "Role 与技能提示", List.of(search));
-        var second = compiler.compileDirect(spec, executionModel, "Role 与技能提示", List.of(search));
+        var first =
+                compiler.compileDirect(
+                        spec,
+                        executionModel,
+                        compiled("agent.dynamic-test", "Role 与技能提示"),
+                        List.of(search));
+        var second =
+                compiler.compileDirect(
+                        spec,
+                        executionModel,
+                        compiled("agent.dynamic-test", "Role 与技能提示"),
+                        List.of(search));
 
         assertThat(second).isSameAs(first);
     }
@@ -110,12 +127,12 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
     void should_isolate_predefined_cache_by_effective_prompt() {
         var spec = agentSpec(List.of());
 
-        var first = compiler.compile(spec, "技能 A", List.of());
-        var second = compiler.compile(spec, "技能 B", List.of());
+        var first = compiler.compile(spec, compiled("agent.compiler-test", "技能 A"), List.of());
+        var second = compiler.compile(spec, compiled("agent.compiler-test", "技能 B"), List.of());
 
         assertThat(second).isNotSameAs(first);
-        assertThat(first.getDelegate().getSysPrompt()).endsWith("技能 A");
-        assertThat(second.getDelegate().getSysPrompt()).endsWith("技能 B");
+        assertThat(first.getDelegate().getSysPrompt()).contains("技能 A");
+        assertThat(second.getDelegate().getSysPrompt()).contains("技能 B");
     }
 
     @Test
@@ -128,10 +145,20 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
         try {
             var searchFuture =
                     CompletableFuture.supplyAsync(
-                            () -> compiler.compile(spec, "", List.of(search)), executor);
+                            () ->
+                                    compiler.compile(
+                                            spec,
+                                            compiled("agent.compiler-test", "并发测试"),
+                                            List.of(search)),
+                            executor);
             var generateFuture =
                     CompletableFuture.supplyAsync(
-                            () -> compiler.compile(spec, "", List.of(generate)), executor);
+                            () ->
+                                    compiler.compile(
+                                            spec,
+                                            compiled("agent.compiler-test", "并发测试"),
+                                            List.of(generate)),
+                            executor);
 
             var searchAgent = searchFuture.join();
             var generateAgent = generateFuture.join();
@@ -163,13 +190,19 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
                     CompletableFuture.supplyAsync(
                             () ->
                                     compiler.compileDynamic(
-                                            spec, executionModel, "技能 A", List.of(search)),
+                                            spec,
+                                            executionModel,
+                                            compiled("agent.dynamic-test", "技能 A"),
+                                            List.of(search)),
                             executor);
             var generateFuture =
                     CompletableFuture.supplyAsync(
                             () ->
                                     compiler.compileDynamic(
-                                            spec, executionModel, "技能 B", List.of(generate)),
+                                            spec,
+                                            executionModel,
+                                            compiled("agent.dynamic-test", "技能 B"),
+                                            List.of(generate)),
                             executor);
 
             searchAgent = searchFuture.join();
@@ -182,8 +215,8 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
             assertThat(generateAgent.getToolkit().getToolNames())
                     .contains(generate.name())
                     .doesNotContain(search.name());
-            assertThat(searchAgent.getDelegate().getSysPrompt()).endsWith("技能 A");
-            assertThat(generateAgent.getDelegate().getSysPrompt()).endsWith("技能 B");
+            assertThat(searchAgent.getDelegate().getSysPrompt()).contains("技能 A");
+            assertThat(generateAgent.getDelegate().getSysPrompt()).contains("技能 B");
         } finally {
             if (searchAgent != null) {
                 searchAgent.close();
@@ -193,6 +226,35 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
             }
             executor.shutdownNow();
         }
+    }
+
+    private CompiledSystemPrompt compiled(String identity, String content) {
+        return CompiledSystemPrompt.compile(
+                List.of(
+                        new PromptLayerSource(
+                                PromptLayerKind.CONSTITUTION,
+                                PromptSourceKind.ENGINE_TEMPLATE,
+                                CompiledSystemPrompt.CONSTITUTION_NAME,
+                                "1",
+                                "测试 Constitution"),
+                        new PromptLayerSource(
+                                PromptLayerKind.IDENTITY,
+                                PromptSourceKind.AAF_POLICY,
+                                identity,
+                                "1",
+                                content),
+                        new PromptLayerSource(
+                                PromptLayerKind.IDENTITY,
+                                PromptSourceKind.ASSISTANT_ACTOR,
+                                "assistant.test",
+                                "1",
+                                "测试 Actor"),
+                        new PromptLayerSource(
+                                PromptLayerKind.INVOCATION_POLICY,
+                                PromptSourceKind.AAF_POLICY,
+                                "invocation:test",
+                                "1",
+                                "测试调用策略")));
     }
 
     private AgentSpec agentSpec(List<ToolRef> tools) {

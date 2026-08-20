@@ -10,7 +10,7 @@ public record Role(
         String name,
         List<String> responsibilities,
         List<String> nonResponsibilities,
-        Set<String> skillKeys,
+        List<SkillBinding> skillBindings,
         Set<String> toolKeys) {
 
     public Role {
@@ -18,11 +18,23 @@ public record Role(
         name = requireText(name, "Role name");
         responsibilities = copyTexts(responsibilities, "responsibilities");
         nonResponsibilities = copyTexts(nonResponsibilities, "nonResponsibilities");
-        skillKeys = copyTextSet(skillKeys, "skillKeys");
+        skillBindings = SkillBinding.copyOf(skillBindings, "skillBindings");
         toolKeys = copyTextSet(toolKeys, "toolKeys");
         if (responsibilities.isEmpty()) {
             throw new IllegalArgumentException("Role responsibilities 不能为空");
         }
+    }
+
+    public Set<String> skillKeys() {
+        return SkillBinding.skillKeys(skillBindings);
+    }
+
+    public Set<String> alwaysSkillKeys() {
+        return SkillBinding.skillKeys(skillBindings, SkillActivationMode.ALWAYS);
+    }
+
+    public Set<String> onDemandSkillKeys() {
+        return SkillBinding.skillKeys(skillBindings, SkillActivationMode.ON_DEMAND);
     }
 
     private static List<String> copyTexts(List<String> values, String name) {

@@ -37,11 +37,25 @@ public record ToolAuthorizationContext(Map<String, ToolAuthorizationRule> rules)
     }
 
     public record ToolAuthorizationRule(
-            boolean readOnly, boolean reversible, boolean authorizationRequired) {
+            boolean readOnly,
+            boolean reversible,
+            boolean authorizationRequired,
+            MissingGrantBehavior missingGrantBehavior) {
         public ToolAuthorizationRule {
             if (readOnly && reversible) {
                 throw new IllegalArgumentException("只读工具不能标记为可撤销写入");
             }
+            Objects.requireNonNull(missingGrantBehavior, "missingGrantBehavior 不能为空");
+            if (!authorizationRequired
+                    && missingGrantBehavior != MissingGrantBehavior.REQUEST_ON_DEMAND) {
+                throw new IllegalArgumentException("非授权工具不能指定非默认缺失授权行为");
+            }
         }
+    }
+
+    public enum MissingGrantBehavior {
+        REQUEST_ON_DEMAND,
+        PREAUTHORIZED_ONLY,
+        DENY
     }
 }

@@ -79,8 +79,12 @@ public class SkillController
     @GetMapping("/visible")
     public Result<List<SkillVO>> listVisible(
             @RequestParam(required = false) String locale,
-            @RequestParam(required = false, defaultValue = "true") Boolean publishedOnly) {
-        return Result.success(skillService.listVisible(locale, Boolean.TRUE.equals(publishedOnly)));
+            @RequestParam(required = false, defaultValue = "true") Boolean publishedOnly,
+            @RequestParam(required = false) String categoryCode,
+            @RequestParam(required = false) String roleKey) {
+        return Result.success(
+                skillService.listVisible(
+                        locale, Boolean.TRUE.equals(publishedOnly), categoryCode, roleKey));
     }
 
     @Operation(summary = "查询 Skill 版本历史")

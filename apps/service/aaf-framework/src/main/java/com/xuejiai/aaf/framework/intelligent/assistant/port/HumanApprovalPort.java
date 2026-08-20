@@ -12,8 +12,6 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 /** 持久审批状态边界。 */
 public interface HumanApprovalPort {
 
-    HumanApproval create(HumanApproval approval);
-
     Optional<HumanApproval> find(TenantId tenantId, String approvalId);
 
     List<HumanApproval> pending(TenantId tenantId, TaskId taskId);

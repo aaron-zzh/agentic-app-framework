@@ -9,9 +9,11 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.data.jpa.autoconfigure.DataJpaRepositoriesAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 
+import com.xuejiai.aaf.framework.engine.tool.ScriptExecutor;
 import com.xuejiai.aaf.framework.engine.tool.ToolCatalogProvider;
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry;
 import com.xuejiai.aaf.framework.intelligent.agent.AgentDefinitionRepository;
+import com.xuejiai.aaf.framework.intelligent.agent.application.JavaScriptExecutionTool;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ContextAwareToolHandler;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolCatalogPort;
@@ -47,6 +49,13 @@ public class AgentRuntimePortAutoConfiguration {
     @ConditionalOnMissingBean(AgentScopeModelResolver.class)
     AgentScopeModelResolver agentScopeModelResolver(ModelManagementService models) {
         return new AgentScopeModelResolver(models);
+    }
+
+    @Bean
+    @ConditionalOnBean(ScriptExecutor.class)
+    @ConditionalOnMissingBean(JavaScriptExecutionTool.class)
+    JavaScriptExecutionTool javaScriptExecutionTool(ScriptExecutor scriptExecutor) {
+        return new JavaScriptExecutionTool(scriptExecutor);
     }
 
     @Bean

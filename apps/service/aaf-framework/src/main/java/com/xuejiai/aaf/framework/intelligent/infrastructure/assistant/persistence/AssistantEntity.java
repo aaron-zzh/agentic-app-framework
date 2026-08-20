@@ -30,6 +30,12 @@ public class AssistantEntity extends BaseEntity {
     @Column(name = "memory_strategy", nullable = false, length = 32)
     private String memoryStrategy;
 
+    @Column(name = "skill_ids", nullable = false, columnDefinition = "TEXT")
+    private String skillIds;
+
+    @Column(name = "tool_whitelist", nullable = false, columnDefinition = "TEXT")
+    private String toolWhitelist;
+
     @Column(nullable = false, length = 16)
     private String status;
 }

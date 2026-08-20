@@ -177,6 +177,7 @@ public class CrudResourceProviderConfiguration {
                                         "locale",
                                         "visibility",
                                         "sourceSkillId",
+                                        "categoryCodes",
                                         "content",
                                         "inputSchema",
                                         "outputSchema",

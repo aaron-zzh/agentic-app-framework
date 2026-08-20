@@ -1,20 +1,22 @@
 package com.xuejiai.aaf.framework.intelligent.assistant.model;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 
-/** 运行期输入的四种确定语义。 */
+/** 委托任务的结构化外部输入；MODIFY/SUPPLEMENT 仅承载澄清字段值。 */
 public record ExecutionInput(
         String inputId,
         TenantId tenantId,
         UserId userId,
         TaskId taskId,
         Kind kind,
-        String content,
+        Map<String, String> values,
         Instant receivedAt) {
 
     public ExecutionInput {
@@ -26,10 +28,25 @@ public record ExecutionInput(
         Objects.requireNonNull(taskId, "taskId 不能为空");
         Objects.requireNonNull(kind, "kind 不能为空");
         Objects.requireNonNull(receivedAt, "receivedAt 不能为空");
-        if (kind != Kind.CANCEL && (content == null || content.isBlank())) {
-            throw new IllegalArgumentException(kind + " 输入内容不能为空白");
+        var normalized = new LinkedHashMap<String, String>();
+        Objects.requireNonNull(values, "values 不能为空")
+                .forEach(
+                        (field, value) -> {
+                            if (field == null
+                                    || field.isBlank()
+                                    || value == null
+                                    || value.isBlank()) {
+                                throw new IllegalArgumentException("输入字段和值不能为空白");
+                            }
+                            normalized.put(field.trim(), value.trim());
+                        });
+        values = Map.copyOf(normalized);
+        if ((kind == Kind.MODIFY || kind == Kind.SUPPLEMENT) && values.isEmpty()) {
+            throw new IllegalArgumentException(kind + " 必须携带至少一个澄清字段值");
         }
-        content = content == null ? "" : content;
+        if ((kind == Kind.CANCEL || kind == Kind.UNRELATED) && !values.isEmpty()) {
+            throw new IllegalArgumentException(kind + " 禁止携带澄清字段值");
+        }
     }
 
     public enum Kind {

@@ -20,6 +20,9 @@ public interface PromptEngine {
     /** 创建新版本（旧版本自动失活） */
     PromptTemplate createNewVersion(String name, String content);
 
+    /** 按声明版本不可变注册内建 ENGINE Prompt */
+    PromptTemplate registerEngineVersion(EnginePromptRegistration registration);
+
     /** 查找当前激活版本 */
     Optional<PromptTemplate> findActive(String name);
 

@@ -121,7 +121,7 @@ public record AssistantTask(
                 TaskStatus.PLANNING,
                 Set.of(
                         TaskStatus.AWAITING_AUTHORIZATION,
-                        TaskStatus.AWAITING_INPUT,
+                        TaskStatus.AWAITING_CLARIFICATION,
                         TaskStatus.RUNNING,
                         TaskStatus.PAUSED,
                         TaskStatus.CANCELED,
@@ -130,7 +130,7 @@ public record AssistantTask(
                 TaskStatus.AWAITING_AUTHORIZATION,
                 Set.of(
                         TaskStatus.RUNNING,
-                        TaskStatus.AWAITING_INPUT,
+                        TaskStatus.AWAITING_CLARIFICATION,
                         TaskStatus.PAUSED,
                         TaskStatus.CANCELED,
                         TaskStatus.FAILED));
@@ -139,7 +139,7 @@ public record AssistantTask(
                 Set.of(
                         TaskStatus.VERIFYING,
                         TaskStatus.AWAITING_AUTHORIZATION,
-                        TaskStatus.AWAITING_INPUT,
+                        TaskStatus.AWAITING_CLARIFICATION,
                         TaskStatus.PAUSED,
                         TaskStatus.CANCELED,
                         TaskStatus.FAILED));
@@ -148,12 +148,12 @@ public record AssistantTask(
                 Set.of(
                         TaskStatus.COMPLETED,
                         TaskStatus.RUNNING,
-                        TaskStatus.AWAITING_INPUT,
+                        TaskStatus.AWAITING_CLARIFICATION,
                         TaskStatus.PAUSED,
                         TaskStatus.CANCELED,
                         TaskStatus.FAILED));
         allowed.put(
-                TaskStatus.AWAITING_INPUT,
+                TaskStatus.AWAITING_CLARIFICATION,
                 Set.of(
                         TaskStatus.PLANNING,
                         TaskStatus.RUNNING,
@@ -174,7 +174,7 @@ public record AssistantTask(
                 Set.of(
                         TaskStatus.PLANNING,
                         TaskStatus.RUNNING,
-                        TaskStatus.AWAITING_INPUT,
+                        TaskStatus.AWAITING_CLARIFICATION,
                         TaskStatus.CANCELED,
                         TaskStatus.FAILED));
         allowed.put(TaskStatus.COMPLETED, Set.of());
@@ -189,7 +189,7 @@ public record AssistantTask(
         RUNNING,
         VERIFYING,
         COMPLETED,
-        AWAITING_INPUT,
+        AWAITING_CLARIFICATION,
         PAUSED,
         CANCELED,
         FAILED,

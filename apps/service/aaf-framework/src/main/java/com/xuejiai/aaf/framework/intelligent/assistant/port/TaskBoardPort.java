@@ -16,6 +16,12 @@ public interface TaskBoardPort {
 
     ReadyClaim claimReady(TenantId tenantId, TaskId taskId, ConversationLeasePort.Lease lease);
 
+    TaskBoard applyCoordinationPlan(
+            TenantId tenantId,
+            TaskId taskId,
+            com.xuejiai.aaf.framework.intelligent.assistant.model.CoordinationPlan plan,
+            ConversationLeasePort.Lease lease);
+
     TaskBoard completeSubTask(
             TenantId tenantId,
             TaskId taskId,

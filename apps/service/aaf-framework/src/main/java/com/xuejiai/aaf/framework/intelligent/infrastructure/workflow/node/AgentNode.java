@@ -22,8 +22,11 @@ import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.model.SubagentSpec;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolAuthorizationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolAuthorizationContext.ToolAuthorizationRule;
+import com.xuejiai.aaf.framework.intelligent.agent.port.AgentDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.SkillCatalogPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.PromptAssembler;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.InvocationPolicy;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
@@ -49,8 +52,10 @@ import lombok.extern.slf4j.Slf4j;
 public class AgentNode implements JavaDelegate {
 
     private final AgentExecutionPort agentExecutionPort;
+    private final AgentDefinitionPort agentDefinitions;
     private final SkillCatalogPort skillCatalog;
     private final ToolRegistry toolRegistry;
+    private final PromptAssembler promptAssembler;
 
     @Override
     public void execute(DelegateExecution execution) {
@@ -106,6 +111,26 @@ public class AgentNode implements JavaDelegate {
         var unique = UUID.randomUUID().toString();
         var processId = execution.getProcessInstanceId();
         var activityId = execution.getCurrentActivityId();
+        var agentId = new AgentId(configuredAgentId);
+        var agentSpec =
+                agentDefinitions
+                        .findByIdAndVersion(agentId, version)
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "Agent 定义不存在: "
+                                                        + configuredAgentId
+                                                        + "@"
+                                                        + version));
+        var skillExecutionProfile =
+                FixedSkillExecutionProfile.from(requireSystemSkill(), List.of());
+        var executionId = new ExecutionId("workflow:" + unique);
+        var compiledSystemPrompt =
+                promptAssembler.compileAgent(
+                        agentSpec,
+                        executionId.value(),
+                        skillExecutionProfile,
+                        InvocationPolicy.WORKFLOW);
         var tools = configuredTools(execution);
         if (!tools.isEmpty()) {
             throw new IllegalArgumentException("Agent 节点 tools 必须迁移为 Assistant 执行画像中的版本化 ToolRef");
@@ -115,10 +140,11 @@ public class AgentNode implements JavaDelegate {
                         new TenantId(orgId),
                         new UserId(userId),
                         null,
+                        null,
                         new ConversationId("workflow:" + processId),
                         new SessionId("workflow:" + processId),
                         new TaskId("workflow:" + processId),
-                        new ExecutionId("workflow:" + unique),
+                        executionId,
                         new RunId("workflow:" + unique),
                         null,
                         new CorrelationId("workflow:" + processId),
@@ -129,11 +155,12 @@ public class AgentNode implements JavaDelegate {
                         null,
                         toolAuthorization(tools));
         return new AgentExecutionCommand(
-                new SubagentSpec.Predefined(new AgentId(configuredAgentId), version),
+                new SubagentSpec.Predefined(agentId, version),
                 Optional.empty(),
                 AgentExecutionCommand.ExecutionMode.DELEGATE,
                 Optional.empty(),
-                FixedSkillExecutionProfile.from(requireSystemSkill(), List.of()),
+                skillExecutionProfile,
+                compiledSystemPrompt,
                 0,
                 List.of(new AgentMessage("workflow:" + unique, AgentMessage.Role.USER, prompt)),
                 context);
@@ -159,7 +186,10 @@ public class AgentNode implements JavaDelegate {
                                                 new ToolAuthorizationRule(
                                                         tool.readOnly(),
                                                         !tool.readOnly(),
-                                                        !tool.readOnly())));
+                                                        !tool.readOnly(),
+                                                        ToolAuthorizationContext
+                                                                .MissingGrantBehavior
+                                                                .REQUEST_ON_DEMAND)));
         return new ToolAuthorizationContext(Map.copyOf(metadata));
     }
 

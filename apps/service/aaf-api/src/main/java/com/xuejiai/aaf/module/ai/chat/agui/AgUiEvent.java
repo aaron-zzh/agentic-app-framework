@@ -74,6 +74,16 @@ public record AgUiEvent(String type, Map<String, Object> fields) {
         return event;
     }
 
+    public static AgUiEvent custom(String runId, String name, Object value) {
+        if (name == null || !name.startsWith("aaf.")) {
+            throw new IllegalArgumentException("AG-UI CUSTOM name 必须使用 aaf.* 命名空间");
+        }
+        var event = of("CUSTOM", runId);
+        event.fields.put("name", name);
+        event.fields.put("value", value);
+        return event;
+    }
+
     private static AgUiEvent of(String type, String runId) {
         var fields = new LinkedHashMap<String, Object>();
         fields.put("runId", runId);

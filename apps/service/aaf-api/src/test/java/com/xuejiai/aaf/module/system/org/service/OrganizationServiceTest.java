@@ -134,7 +134,7 @@ class OrganizationServiceTest extends BaseMockitoUnitTest {
         verify(eventPublisher)
                 .publishEvent(
                         argThat(
-                                event ->
+                                (Object event) ->
                                         event instanceof OrganizationCreatedEvent created
                                                 && created.organizationId().equals(10L)));
     }

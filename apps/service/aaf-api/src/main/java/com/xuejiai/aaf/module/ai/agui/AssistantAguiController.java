@@ -1,12 +1,12 @@
 package com.xuejiai.aaf.module.ai.agui;
 
 import java.io.IOException;
-import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 import org.springframework.http.MediaType;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -14,31 +14,45 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.xuejiai.aaf.common.util.JsonUtils;
+import com.xuejiai.aaf.module.ai.assistant.service.AssistantExecutionService;
+import com.xuejiai.aaf.module.ai.assistant.service.AssistantExecutionService.ExecutionStream;
+import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest;
+import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.ActionAuthorizationPolicy;
+import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.ArtifactPersistence;
+import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.ClarificationPolicy;
+import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.ExecutionOptions;
+import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.Input;
+import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.InteractionMode;
+import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.KnowledgeMode;
+import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.KnowledgeOptions;
+import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.MemoryMode;
+import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.MemoryOptions;
+import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.ModelMode;
+import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.ModelSelection;
+import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.OutputOptions;
+import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.RouteConstraint;
+import com.xuejiai.aaf.module.ai.chat.agui.AgUiEvent;
+import com.xuejiai.aaf.module.ai.chat.service.ChatService;
 
-import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantCommand;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionCriteria;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskModelSelection;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
-import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.MemorySubject;
-import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.SubjectKind;
-import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
-import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
-import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.*;
-import com.xuejiai.aaf.framework.org.OrgContext;
-import com.xuejiai.aaf.framework.security.OperatorContext;
+import tools.jackson.databind.JsonNode;
 
 /** AG-UI 唯一入口；无固定 Assistant Bean、无 ThreadLocal、无 legacy fallback。 */
 @RestController
 @RequestMapping("/api/agui")
 @PreAuthorize("isAuthenticated()")
 public class AssistantAguiController {
-    private final AssistantCommandPort assistants;
-    private final OperatorContext operators;
+    private final AssistantExecutionService assistantExecutions;
+    private final ChatService chatService;
+    private final AgUiProjector agUiProjector;
 
-    public AssistantAguiController(AssistantCommandPort assistants, OperatorContext operators) {
-        this.assistants = assistants;
-        this.operators = operators;
+    public AssistantAguiController(
+            AssistantExecutionService assistantExecutions,
+            ChatService chatService,
+            AgUiProjector agUiProjector) {
+        this.assistantExecutions = assistantExecutions;
+        this.chatService = chatService;
+        this.agUiProjector = agUiProjector;
     }
 
     @PostMapping(
@@ -46,78 +60,93 @@ public class AssistantAguiController {
             consumes = MediaType.APPLICATION_JSON_VALUE,
             produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter run(@RequestBody RunRequest request) {
-        var tenantId = tenant();
-        var userId =
-                new UserId(
-                        operators
-                                .currentOwnerId()
-                                .map(String::valueOf)
-                                .orElseThrow(() -> new AccessDeniedException("请求未认证")));
-        var state = request.state();
-        var assistantId = requireText(state, "assistantId");
-        var taskModelSelection = taskModelSelection(state);
-        var input = lastUserMessageText(request.messages());
-        var parentRunId = normalizeOptional(request.parentRunId());
-        var now = Instant.now();
-        var command =
-                new AssistantCommand(
-                        AssistantCommand.Operation.START,
-                        tenantId,
-                        userId,
-                        new MemorySubject(tenantId, SubjectKind.USER, userId.value()),
-                        new AssistantId(assistantId),
-                        new ConversationId(request.threadId()),
-                        new SessionId(request.threadId()),
-                        new TaskId("agui:" + request.runId()),
-                        new ExecutionId(request.runId()),
-                        new RunId(request.runId()),
-                        parentRunId == null ? null : new ExecutionId(parentRunId),
-                        new CorrelationId(request.threadId()),
-                        parentRunId == null ? null : new CausationId(parentRunId),
-                        new IdempotencyKey("agui:" + request.runId()),
-                        ControlMode.READ_ONLY,
-                        null,
-                        null,
-                        0,
-                        input,
-                        CompletionCriteria.responseDelivered(),
-                        List.of(),
-                        taskModelSelection,
-                        now);
+        chatService.requireOwnedAiThread(request.threadId());
+        var stream = executionStream(request);
         var emitter = new SseEmitter(600_000L);
-        assistants
-                .execute(command)
+        stream.events()
                 .subscribe(
-                        event -> send(emitter, event),
-                        emitter::completeWithError,
+                        event -> send(emitter, agUiProjector.project(event), event.sequence()),
+                        failure -> sendError(emitter, request.runId()),
                         emitter::complete);
         return emitter;
     }
 
-    private static void send(SseEmitter emitter, ExecutionEvent event) {
+    private ExecutionStream executionStream(RunRequest request) {
+        var input = lastUserMessageText(request.messages());
+        final Mode mode;
         try {
-            emitter.send(
-                    SseEmitter.event()
-                            .id(Long.toString(event.sequence()))
-                            .name(event.type().name())
-                            .data(event, MediaType.APPLICATION_JSON));
-        } catch (IOException failure) {
-            emitter.completeWithError(failure);
+            mode = Mode.valueOf(requireText(request.state(), "mode"));
+        } catch (IllegalArgumentException failure) {
+            throw new IllegalArgumentException("state.mode 仅支持 CHAT、EXECUTION 或 TEAM", failure);
         }
+        return switch (mode) {
+            case CHAT ->
+                    assistantExecutions.start(
+                            chatRequest(request.state(), input),
+                            request.threadId(),
+                            request.runId());
+            case EXECUTION ->
+                    assistantExecutions.start(
+                            executionRequest(request.state(), input),
+                            request.threadId(),
+                            request.runId());
+            case TEAM ->
+                    assistantExecutions.startTeam(
+                            executionRequest(request.state(), input),
+                            requireText(request.state(), "teamId"),
+                            requirePositiveLong(request.state(), "teamVersion"),
+                            request.threadId(),
+                            request.runId());
+        };
     }
 
-    private static TenantId tenant() {
-        var orgId = OrgContext.getCurrentOrgId();
-        if (orgId == null) throw new AccessDeniedException("请求缺少组织上下文");
-        return new TenantId(orgId.toString());
+    private static AssistantExecutionRequest executionRequest(JsonNode state, String input) {
+        var requestNode = requireObject(state.get("request"), "state.request");
+        final AssistantExecutionRequest executionRequest;
+        try {
+            executionRequest = JsonUtils.convertValue(requestNode, AssistantExecutionRequest.class);
+        } catch (RuntimeException failure) {
+            throw new IllegalArgumentException(
+                    "state.request 不是有效的 AssistantExecutionRequest", failure);
+        }
+        if (executionRequest == null
+                || executionRequest.input() == null
+                || !input.equals(executionRequest.input().text())) {
+            throw new IllegalArgumentException("state.request.input.text 必须与最后一条 user 消息一致");
+        }
+        return executionRequest;
     }
 
-    private static TaskModelSelection taskModelSelection(JsonNode state) {
+    private static AssistantExecutionRequest chatRequest(JsonNode state, String input) {
+        var assistantNode = state.get("assistantId");
+        var assistant =
+                assistantNode == null || assistantNode.isNull()
+                        ? null
+                        : new AssistantExecutionRequest.AssistantTarget(
+                                requireText(state, "assistantId"));
+        return new AssistantExecutionRequest(
+                assistant,
+                new ExecutionOptions(
+                        InteractionMode.CONVERSATIONAL,
+                        RouteConstraint.AUTO,
+                        ClarificationPolicy.MINIMAL,
+                        ActionAuthorizationPolicy.DENY_AUTHORIZED_ACTIONS,
+                        ArtifactPersistence.RETURN_ONLY),
+                new Input(input, Map.of(), List.of()),
+                null,
+                null,
+                new KnowledgeOptions(KnowledgeMode.DEFAULT, Set.of(), 5, 0.2),
+                modelSelection(state),
+                new MemoryOptions(MemoryMode.DEFAULT),
+                new OutputOptions(null, null, null));
+    }
+
+    private static ModelSelection modelSelection(JsonNode state) {
         var selection = requireObject(state.get("taskModelSelection"), "state.taskModelSelection");
         var modeValue = requireText(selection, "mode");
-        final TaskModelSelection.Mode mode;
+        final ModelMode mode;
         try {
-            mode = TaskModelSelection.Mode.valueOf(modeValue);
+            mode = ModelMode.valueOf(modeValue);
         } catch (IllegalArgumentException failure) {
             throw new IllegalArgumentException("不支持的任务模型选择模式: " + modeValue, failure);
         }
@@ -126,7 +155,35 @@ public class AssistantAguiController {
                 modelIdNode == null || modelIdNode.isNull()
                         ? null
                         : requireText(selection, "modelId");
-        return new TaskModelSelection(mode, modelId);
+        return new ModelSelection(mode, modelId);
+    }
+
+    private static void send(SseEmitter emitter, List<AgUiEvent> events, long cursor) {
+        try {
+            for (var event : events) {
+                emitter.send(
+                        SseEmitter.event()
+                                .id(Long.toString(cursor))
+                                .name(event.type())
+                                .data(event.toMap(), MediaType.APPLICATION_JSON));
+            }
+        } catch (IOException failure) {
+            emitter.complete();
+        }
+    }
+
+    private static void sendError(SseEmitter emitter, String runId) {
+        try {
+            var event = AgUiEvent.runError(runId, "Assistant 运行未完成");
+            emitter.send(
+                    SseEmitter.event()
+                            .name(event.type())
+                            .data(event.toMap(), MediaType.APPLICATION_JSON));
+        } catch (IOException failure) {
+            // 客户端已断开时无需继续发送。
+        } finally {
+            emitter.complete();
+        }
     }
 
     private static String lastUserMessageText(List<RunMessage> messages) {
@@ -192,8 +249,18 @@ public class AssistantAguiController {
         return value.trim();
     }
 
-    private static String normalizeOptional(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
+    private static long requirePositiveLong(JsonNode object, String field) {
+        var value = object.get(field);
+        if (value == null || !value.isIntegralNumber() || value.longValue() < 1) {
+            throw new IllegalArgumentException(field + " 必须是正整数");
+        }
+        return value.longValue();
+    }
+
+    private enum Mode {
+        CHAT,
+        EXECUTION,
+        TEAM
     }
 
     public record RunRequest(

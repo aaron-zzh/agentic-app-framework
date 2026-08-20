@@ -21,6 +21,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 public record InvocationContext(
         TenantId tenantId,
         UserId userId,
+        Long workspaceId,
         AssistantId assistantId,
         ConversationId conversationId,
         SessionId sessionId,

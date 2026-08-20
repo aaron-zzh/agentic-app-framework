@@ -21,17 +21,6 @@ public class JpaHumanApprovalAdapter implements HumanApprovalPort {
     }
 
     @Override
-    @Transactional
-    public HumanApproval create(HumanApproval approval) {
-        if (repository.existsById(approval.approvalId())) {
-            throw new IllegalStateException("approvalId 已存在: " + approval.approvalId());
-        }
-        var entity = new HumanApprovalEntity();
-        apply(entity, approval);
-        return repository.saveAndFlush(entity).getApproval();
-    }
-
-    @Override
     @Transactional(readOnly = true)
     public Optional<HumanApproval> find(TenantId tenantId, String approvalId) {
         return repository

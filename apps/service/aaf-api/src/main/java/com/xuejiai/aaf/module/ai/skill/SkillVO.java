@@ -17,12 +17,16 @@ public record SkillVO(
         @Schema(description = "是否内置") Boolean builtIn,
         @Schema(description = "当前已发布版本 ID") Long currentVersionId,
         @Schema(description = "来源 Skill ID") Long sourceSkillId,
+        @Schema(description = "分类") List<SkillCategoryVO> categories,
         @Schema(description = "当前已发布版本") SkillVersionVO currentVersion,
         @Schema(description = "最新创作版本") SkillVersionVO latestVersion,
         @Schema(description = "归属用户 ID") Long ownerId,
         @Schema(description = "是否归属当前用户") Boolean ownedByCurrentUser,
         @Schema(description = "创建时间") LocalDateTime createTime,
         @Schema(description = "更新时间") LocalDateTime updateTime) {
+
+    /** Skill 目录分类。 */
+    public record SkillCategoryVO(String code, String name) {}
 
     /** 不可变 Skill 版本。 */
     public record SkillVersionVO(

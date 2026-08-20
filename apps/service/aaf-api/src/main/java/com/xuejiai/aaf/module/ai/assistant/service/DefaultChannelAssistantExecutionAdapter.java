@@ -13,10 +13,9 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskModelSelection;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.MemorySubject;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.SubjectKind;
-import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ExecutionEventStatus;
-import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventReducer;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AssistantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ConversationId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.CorrelationId;
@@ -80,49 +79,28 @@ public class DefaultChannelAssistantExecutionAdapter implements ChannelAssistant
                         CompletionCriteria.responseDelivered(),
                         List.of(),
                         TaskModelSelection.auto(),
+                        com.xuejiai.aaf.framework.intelligent.assistant.application
+                                .InvocationProfile.primary(
+                                null,
+                                com.xuejiai.aaf.framework.intelligent.assistant.application
+                                        .AssistantInvocation.MemoryMode.DEFAULT,
+                                List.of(),
+                                com.xuejiai.aaf.framework.intelligent.assistant.model
+                                        .ExecutionIntent.conversationalAuto(null)),
                         request.receivedAt());
 
         var events = assistants.execute(command).collectList().block(EXECUTION_TIMEOUT);
         if (events == null || events.isEmpty()) {
             throw new IllegalStateException("Assistant 未返回执行事件");
         }
-        requireCompleted(events);
-        return events.stream()
-                .filter(event -> event.type() == ExecutionEventType.MESSAGE_COMPLETED)
-                .map(event -> event.payload().values().get("text"))
-                .filter(String.class::isInstance)
-                .map(String.class::cast)
-                .filter(text -> !text.isBlank())
-                .reduce((first, second) -> second)
-                .orElseThrow(() -> new IllegalStateException("Assistant 未返回最终文本"));
-    }
-
-    private static void requireCompleted(List<ExecutionEvent> events) {
-        var failed =
-                events.stream()
-                        .anyMatch(
-                                event ->
-                                        event.type() == ExecutionEventType.EXECUTION_FAILED
-                                                || event.type()
-                                                        == ExecutionEventType.EXECUTION_CANCELED
-                                                || event.type()
-                                                        == ExecutionEventType.COMMAND_REJECTED
-                                                || event.status() == ExecutionEventStatus.FAILED
-                                                || event.status() == ExecutionEventStatus.CANCELED
-                                                || event.status() == ExecutionEventStatus.REJECTED);
-        if (failed) {
-            throw new IllegalStateException("Assistant 渠道执行失败");
-        }
-        var completed =
-                events.stream()
-                        .anyMatch(
-                                event ->
-                                        event.type() == ExecutionEventType.EXECUTION_COMPLETED
-                                                && event.status()
-                                                        == ExecutionEventStatus.COMPLETED);
-        if (!completed) {
+        var state = ExecutionEventReducer.reduce(events);
+        if (!state.terminal() || state.status() != ExecutionEventStatus.COMPLETED) {
             throw new IllegalStateException("Assistant 渠道执行未完成");
         }
+        if (state.resultText().isBlank()) {
+            throw new IllegalStateException("Assistant 未返回最终文本");
+        }
+        return state.resultText();
     }
 
     private static String stable(String namespace, String... parts) {

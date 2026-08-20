@@ -5,7 +5,6 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Objects;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -18,15 +17,16 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantTask.TaskA
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantTask.TaskOwner;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantTask.TaskStatus;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.HumanApproval;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskTransition.AuthorizationDecision;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskDispatchPort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HitlCoordinatorPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HumanApprovalPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskControlPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskRecoveryPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskResumeSignalPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskResumeSignalPort.ResumeSignal;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskTransitionPort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ExecutionEventStatus;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.OwnerType;
@@ -35,7 +35,10 @@ import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePor
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.EventId;
 
+import lombok.extern.slf4j.Slf4j;
+
 /** 不轮询、不占用执行线程的持久 HITL 协调器。 */
+@Slf4j
 public final class PersistentHitlCoordinator implements HitlCoordinatorPort {
 
     private final HumanApprovalPort approvals;
@@ -45,7 +48,7 @@ public final class PersistentHitlCoordinator implements HitlCoordinatorPort {
     private final TaskRecoveryPort recoveries;
     private final TaskResumeSignalPort resumeSignals;
     private final ExecutionEventStorePort events;
-    private final DelegatedTaskPort delegatedTasks;
+    private final TaskTransitionPort transitions;
     private final DelegatedTaskDispatchPort delegatedDispatch;
     private final ConversationLeasePort leases;
 
@@ -57,7 +60,7 @@ public final class PersistentHitlCoordinator implements HitlCoordinatorPort {
             TaskRecoveryPort recoveries,
             TaskResumeSignalPort resumeSignals,
             ExecutionEventStorePort events,
-            DelegatedTaskPort delegatedTasks,
+            TaskTransitionPort transitions,
             DelegatedTaskDispatchPort delegatedDispatch,
             ConversationLeasePort leases) {
         this.approvals = Objects.requireNonNull(approvals, "approvals 不能为空");
@@ -67,33 +70,10 @@ public final class PersistentHitlCoordinator implements HitlCoordinatorPort {
         this.recoveries = Objects.requireNonNull(recoveries, "recoveries 不能为空");
         this.resumeSignals = Objects.requireNonNull(resumeSignals, "resumeSignals 不能为空");
         this.events = Objects.requireNonNull(events, "events 不能为空");
-        this.delegatedTasks = Objects.requireNonNull(delegatedTasks, "delegatedTasks 不能为空");
+        this.transitions = Objects.requireNonNull(transitions, "transitions 不能为空");
         this.delegatedDispatch =
                 Objects.requireNonNull(delegatedDispatch, "delegatedDispatch 不能为空");
         this.leases = Objects.requireNonNull(leases, "leases 不能为空");
-    }
-
-    @Override
-    public HumanApproval request(ApprovalCommand command) {
-        Objects.requireNonNull(command, "command 不能为空");
-        var approval =
-                new HumanApproval(
-                        randomId(),
-                        command.context(),
-                        command.action(),
-                        command.resource(),
-                        command.reason(),
-                        command.impact(),
-                        command.dataUsage(),
-                        command.remediation(),
-                        command.requestedConditions(),
-                        command.reversible(),
-                        HumanApproval.Status.PENDING,
-                        command.at(),
-                        null,
-                        null,
-                        null);
-        return approvals.create(approval);
     }
 
     @Override
@@ -107,6 +87,9 @@ public final class PersistentHitlCoordinator implements HitlCoordinatorPort {
                                         new IllegalArgumentException(
                                                 "审批不存在: " + command.approvalId()));
         requireDecisionOwner(pending, command.decidedBy());
+        if (isDelegated(pending.invocationContext())) {
+            return decideDelegated(pending, command);
+        }
         var result =
                 approvals.decide(
                         command.tenantId(),
@@ -117,43 +100,30 @@ public final class PersistentHitlCoordinator implements HitlCoordinatorPort {
                         command.at());
         var approval = result.approval();
         requireDecisionOwner(approval, command.decidedBy());
+        log.debug(
+                "[HITL] 已收到审批决策：taskId={}，executionId={}，approvalId={}，结果={}，委托执行=false",
+                approval.invocationContext().taskId().value(),
+                approval.invocationContext().executionId().value(),
+                approval.approvalId(),
+                approval.status());
         if (approval.status() == HumanApproval.Status.APPROVED) {
             ensureGrant(approval);
             appendDecisionEvent(approval);
             var context = approval.invocationContext();
-            if (isDelegated(context)) {
-                var lease =
-                        leases.acquire(
-                                        context.tenantId(),
-                                        context.conversationId(),
-                                        "approval-resume-" + approval.approvalId(),
-                                        Duration.ofSeconds(30))
-                                .orElseThrow(
-                                        () ->
-                                                new IllegalStateException(
-                                                        "无法取得授权恢复 conversation lease"));
-                try {
-                    delegatedTasks.resumeAfterAuthorization(
+            recoveries.schedule(approval, command.at());
+            resumeSignals.publish(
+                    new ResumeSignal(
                             context.tenantId(),
-                            context.userId(),
                             context.taskId(),
-                            lease,
-                            command.at());
-                } finally {
-                    leases.release(lease);
-                }
-                delegatedDispatch.signal(context.tenantId(), context.taskId());
-            } else {
-                recoveries.schedule(approval, command.at());
-                resumeSignals.publish(
-                        new ResumeSignal(
-                                context.tenantId(),
-                                context.taskId(),
-                                context.executionId(),
-                                approval.approvalId(),
-                                true,
-                                approval.decidedAt()));
-            }
+                            context.executionId(),
+                            approval.approvalId(),
+                            true,
+                            approval.decidedAt()));
+            log.debug(
+                    "[HITL] 普通任务已登记恢复计划并发布恢复信号：taskId={}，executionId={}，approvalId={}",
+                    context.taskId().value(),
+                    context.executionId().value(),
+                    approval.approvalId());
             return approval;
         }
         pauseRejectedTask(approval);
@@ -161,7 +131,84 @@ public final class PersistentHitlCoordinator implements HitlCoordinatorPort {
         return approval;
     }
 
+    private HumanApproval decideDelegated(HumanApproval current, DecisionCommand command) {
+        var decided = decidedApproval(current, command);
+        var grant =
+                decided.status() == HumanApproval.Status.APPROVED
+                        ? authorizationGrant(decided)
+                        : null;
+        var transition = new AuthorizationDecision(decided, grant, decisionEvent(decided));
+        var context = decided.invocationContext();
+        var lease =
+                leases.acquire(
+                                context.tenantId(),
+                                context.conversationId(),
+                                "approval-transition-" + decided.approvalId(),
+                                Duration.ofSeconds(30))
+                        .orElseThrow(
+                                () -> new IllegalStateException("无法取得授权决策 conversation lease"));
+        final HumanApproval stored;
+        try {
+            stored = transitions.decideAuthorization(transition, lease);
+        } finally {
+            leases.release(lease);
+        }
+        if (stored.status() == HumanApproval.Status.APPROVED) {
+            delegatedDispatch.signal(context.tenantId(), context.taskId());
+        }
+        log.debug(
+                "[HITL] 委托审批 transition 已提交：taskId={}，executionId={}，approvalId={}，结果={}",
+                context.taskId().value(),
+                context.executionId().value(),
+                stored.approvalId(),
+                stored.status());
+        return stored;
+    }
+
+    private static HumanApproval decidedApproval(HumanApproval current, DecisionCommand command) {
+        if (current.status() != HumanApproval.Status.PENDING) {
+            if (current.status() != command.decision()
+                    || !Objects.equals(current.decidedBy(), command.decidedBy())
+                    || !Objects.equals(current.decisionReason(), command.reason())) {
+                throw new IllegalStateException("approvalId 已绑定不同决定事实");
+            }
+            return current;
+        }
+        return new HumanApproval(
+                current.approvalId(),
+                current.invocationContext(),
+                current.action(),
+                current.resource(),
+                current.reason(),
+                current.impact(),
+                current.dataUsage(),
+                current.remediation(),
+                current.requestedConditions(),
+                current.reversible(),
+                command.decision(),
+                current.createdAt(),
+                command.at(),
+                command.decidedBy(),
+                command.reason());
+    }
+
     private void ensureGrant(HumanApproval approval) {
+        grants.grant(authorizationGrant(approval));
+    }
+
+    private AuthorizationGrant authorizationGrant(HumanApproval approval) {
+        var grantId = "approval-" + approval.approvalId();
+        var existing =
+                grants
+                        .list(
+                                approval.invocationContext().tenantId(),
+                                approval.invocationContext().taskId())
+                        .stream()
+                        .filter(grant -> grant.grantId().equals(grantId))
+                        .findFirst();
+        if (existing.isPresent()) {
+            return existing.get();
+        }
         var context = approval.invocationContext();
         var requested = new LinkedHashMap<>(approval.requestedConditions());
         var scope = requireCondition(requested.remove("scope"), "scope");
@@ -181,46 +228,24 @@ public final class PersistentHitlCoordinator implements HitlCoordinatorPort {
                                     () -> new IllegalStateException("当前认证用户没有满足 scope 的活跃连接器句柄"));
             credentialHandle = credential.handleId();
         }
-        grants.grant(
-                new AuthorizationGrant(
-                        "approval-" + approval.approvalId(),
-                        context.tenantId(),
-                        context.taskId(),
-                        approval.action(),
-                        approval.resource(),
-                        scope,
-                        expiresAt,
-                        requested,
-                        approval.reversible(),
-                        credentialHandle,
-                        approval.decidedBy(),
-                        approval.decidedAt(),
-                        null));
+        return new AuthorizationGrant(
+                grantId,
+                context.tenantId(),
+                context.taskId(),
+                approval.action(),
+                approval.resource(),
+                scope,
+                expiresAt,
+                requested,
+                approval.reversible(),
+                credentialHandle,
+                approval.decidedBy(),
+                approval.decidedAt(),
+                null);
     }
 
     private void pauseRejectedTask(HumanApproval approval) {
         var context = approval.invocationContext();
-        if (isDelegated(context)) {
-            var lease =
-                    leases.acquire(
-                                    context.tenantId(),
-                                    context.conversationId(),
-                                    "approval-reject-" + approval.approvalId(),
-                                    Duration.ofSeconds(30))
-                            .orElseThrow(
-                                    () -> new IllegalStateException("无法取得拒绝授权 conversation lease"));
-            try {
-                delegatedTasks.pause(
-                        context.tenantId(),
-                        context.taskId(),
-                        lease,
-                        "用户拒绝工具授权",
-                        approval.decidedAt());
-            } finally {
-                leases.release(lease);
-            }
-            return;
-        }
         var task =
                 tasks.find(context.tenantId(), context.taskId())
                         .orElseThrow(() -> new IllegalStateException("审批关联任务不存在"));
@@ -244,6 +269,11 @@ public final class PersistentHitlCoordinator implements HitlCoordinatorPort {
 
     private void appendDecisionEvent(HumanApproval approval) {
         var context = approval.invocationContext();
+        events.append(decisionEvent(approval), context.lease()).block();
+    }
+
+    private static ExecutionEvent decisionEvent(HumanApproval approval) {
+        var context = approval.invocationContext();
         var values = new LinkedHashMap<String, Object>();
         values.put("approvalId", approval.approvalId());
         values.put("action", approval.action());
@@ -253,53 +283,35 @@ public final class PersistentHitlCoordinator implements HitlCoordinatorPort {
                 approval.status() == HumanApproval.Status.APPROVED
                         ? ExecutionEventType.AUTHORIZATION_GRANTED
                         : ExecutionEventType.AUTHORIZATION_DENIED;
-        var event =
-                new ExecutionEvent(
-                        new EventId("approval-decision-" + approval.approvalId()),
-                        context.tenantId(),
-                        context.conversationId(),
-                        context.sessionId(),
-                        context.taskId(),
-                        context.executionId(),
-                        context.runId(),
-                        context.parentExecutionId(),
-                        1,
-                        type,
-                        approval.status() == HumanApproval.Status.APPROVED
-                                ? ExecutionEventStatus.RECOVERING
-                                : ExecutionEventStatus.PAUSED,
-                        context.controlMode(),
-                        OwnerType.HUMAN,
-                        context.assistantId(),
-                        null,
-                        context.userId(),
-                        context.correlationId(),
-                        context.causationId(),
-                        context.idempotencyKey(),
-                        new ExecutionEventPayload(values),
-                        approval.decidedAt());
-        if (!isDelegated(context)) {
-            events.append(event, context.lease()).block();
-            return;
-        }
-        var lease =
-                leases.acquire(
-                                context.tenantId(),
-                                context.conversationId(),
-                                "approval-" + approval.approvalId(),
-                                Duration.ofSeconds(30))
-                        .orElseThrow(
-                                () -> new IllegalStateException("无法取得授权决策 conversation lease"));
-        try {
-            events.append(event, lease).block();
-        } finally {
-            leases.release(lease);
-        }
+        return new ExecutionEvent(
+                new EventId("approval-decision-" + approval.approvalId()),
+                context.tenantId(),
+                context.conversationId(),
+                context.sessionId(),
+                context.taskId(),
+                context.executionId(),
+                context.runId(),
+                context.parentExecutionId(),
+                1,
+                type,
+                approval.status() == HumanApproval.Status.APPROVED
+                        ? ExecutionEventStatus.RECOVERING
+                        : ExecutionEventStatus.PAUSED,
+                context.controlMode(),
+                OwnerType.HUMAN,
+                context.assistantId(),
+                null,
+                context.userId(),
+                context.correlationId(),
+                context.causationId(),
+                context.idempotencyKey(),
+                new ExecutionEventPayload(values),
+                approval.decidedAt());
     }
 
     private static boolean isDelegated(
             com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext context) {
-        return context.controlMode() == ExecutionEvent.ControlMode.DELEGATED;
+        return context.parentExecutionId() != null && context.executionContract() != null;
     }
 
     private static void requireDecisionOwner(HumanApproval approval, String decidedBy) {
@@ -323,9 +335,5 @@ public final class PersistentHitlCoordinator implements HitlCoordinatorPort {
                 .map(String::trim)
                 .filter(scope -> !scope.isBlank())
                 .collect(Collectors.toUnmodifiableSet());
-    }
-
-    private static String randomId() {
-        return UUID.randomUUID().toString().replace("-", "");
     }
 }

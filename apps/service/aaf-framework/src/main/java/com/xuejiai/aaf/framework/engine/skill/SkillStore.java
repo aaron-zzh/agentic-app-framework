@@ -7,6 +7,12 @@ import java.util.Set;
 /** Skill 目录读取契约；仅暴露当前已发布的不可变执行版本。 */
 public interface SkillStore {
 
+    /** 按稳定业务码查询选择阶段摘要，不读取执行正文。 */
+    Optional<SkillSummaryRecord> findSummaryByCode(String skillCode);
+
+    /** 按根对象 ID 查询选择阶段摘要，不读取执行正文。 */
+    Optional<SkillSummaryRecord> findSummaryBySkillId(Long skillId);
+
     /** 按稳定业务码查询当前已发布版本。 */
     Optional<SkillRecord> findByCode(String skillCode);
 
@@ -15,6 +21,18 @@ public interface SkillStore {
 
     /** 查询可执行的系统内置 Skill。 */
     List<SkillRecord> findBuiltIn();
+
+    /** 根对象与当前可执行版本的选择阶段摘要，不包含正文。 */
+    record SkillSummaryRecord(
+            Long skillId,
+            String code,
+            String name,
+            String summary,
+            Long versionId,
+            int version,
+            Set<String> requiredToolNames,
+            Set<String> requiredModelCapabilities,
+            boolean builtIn) {}
 
     /** 根对象与当前可执行版本的只读投影。 */
     record SkillRecord(

@@ -5,8 +5,9 @@ import java.util.Objects;
 import java.util.Set;
 
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
+import com.xuejiai.aaf.framework.intelligent.team.model.TeamDefinition;
 
-/** Assistant、Skill、Automation、Connector 的统一版本生命周期；明确不包含 Team。 */
+/** Assistant、Skill、Automation、Connector、Team 的统一版本生命周期。 */
 public final class AutomationGovernance {
     private AutomationGovernance() {}
 
@@ -19,6 +20,7 @@ public final class AutomationGovernance {
             Review review,
             CompatibilityImpact compatibilityImpact,
             Long rollbackVersion,
+            TeamDefinition teamDefinition,
             Instant updatedAt) {
         public DefinitionLifecycle {
             Objects.requireNonNull(tenantId, "tenantId 不能为空");
@@ -28,6 +30,15 @@ public final class AutomationGovernance {
             Objects.requireNonNull(state, "state 不能为空");
             Objects.requireNonNull(review, "review 不能为空");
             Objects.requireNonNull(compatibilityImpact, "compatibilityImpact 不能为空");
+            if (kind == DefinitionKind.TEAM) {
+                Objects.requireNonNull(teamDefinition, "TEAM 必须携带 teamDefinition");
+                if (!definitionId.equals(teamDefinition.teamId())
+                        || version != teamDefinition.version()) {
+                    throw new IllegalArgumentException("Team payload 与 lifecycle id/version 不一致");
+                }
+            } else if (teamDefinition != null) {
+                throw new IllegalArgumentException("仅 TEAM lifecycle 可以携带 teamDefinition");
+            }
             Objects.requireNonNull(updatedAt, "updatedAt 不能为空");
         }
     }
@@ -77,7 +88,8 @@ public final class AutomationGovernance {
         ASSISTANT,
         SKILL,
         AUTOMATION,
-        CONNECTOR
+        CONNECTOR,
+        TEAM
     }
 
     public enum State {

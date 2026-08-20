@@ -404,7 +404,7 @@ CREATE TABLE ai_delegated_task (
     CONSTRAINT uk_delegated_task_tenant_task UNIQUE (tenant_id, task_id),
     CONSTRAINT ck_delegated_task_status CHECK (status IN (
         'PENDING', 'RUNNING', 'PAUSED', 'AWAITING_AUTHORIZATION',
-        'AWAITING_INPUT', 'COMPLETED', 'CANCELED', 'FAILED')),
+        'AWAITING_CLARIFICATION', 'COMPLETED', 'CANCELED', 'FAILED')),
     CONSTRAINT ck_delegated_task_owner CHECK (owner_kind IN ('ASSISTANT', 'AGENT', 'HUMAN')),
     CONSTRAINT ck_delegated_task_source CHECK (source IN ('CONVERSATION', 'MANUAL', 'AUTOMATION')),
     CONSTRAINT ck_delegated_task_fencing CHECK (fencing_token >= 0),
@@ -421,7 +421,7 @@ COMMENT ON COLUMN ai_delegated_task.user_id IS '委托任务所属用户标识';
 COMMENT ON COLUMN ai_delegated_task.task_id IS '委托任务稳定标识';
 COMMENT ON COLUMN ai_delegated_task.conversation_id IS '关联会话稳定标识';
 COMMENT ON COLUMN ai_delegated_task.execution_id IS '关联执行实例稳定标识';
-COMMENT ON COLUMN ai_delegated_task.status IS '任务状态：PENDING、RUNNING、PAUSED、等待授权或输入、完成、取消、失败';
+COMMENT ON COLUMN ai_delegated_task.status IS '任务状态：PENDING、RUNNING、PAUSED、AWAITING_AUTHORIZATION、AWAITING_CLARIFICATION、完成、取消或失败';
 COMMENT ON COLUMN ai_delegated_task.owner_kind IS '任务所有者类型：ASSISTANT、AGENT 或 HUMAN';
 COMMENT ON COLUMN ai_delegated_task.owner_id IS '任务所有者稳定标识';
 COMMENT ON COLUMN ai_delegated_task.source IS '任务来源：CONVERSATION、MANUAL 或 AUTOMATION';
@@ -458,6 +458,70 @@ COMMENT ON COLUMN ai_task_board.task_id IS '任务稳定标识';
 COMMENT ON COLUMN ai_task_board.board_payload IS '任务看板的完整 JSON 数据';
 COMMENT ON COLUMN ai_task_board.fencing_token IS '租约 fencing 令牌，防止过期执行者写入';
 COMMENT ON COLUMN ai_task_board.version IS '乐观锁版本号';
+
+CREATE TABLE ai_clarification_request (
+    request_id VARCHAR(128) PRIMARY KEY,
+    tenant_id VARCHAR(128) NOT NULL,
+    task_id VARCHAR(128) NOT NULL,
+    execution_id VARCHAR(128) NOT NULL,
+    status VARCHAR(16) NOT NULL,
+    deadline TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    resolved_at TIMESTAMPTZ,
+    request_payload JSONB NOT NULL,
+    version BIGINT NOT NULL DEFAULT 0,
+    CONSTRAINT ck_clarification_status
+        CHECK (status IN ('PENDING', 'RESOLVED', 'CANCELED', 'EXPIRED')),
+    CONSTRAINT ck_clarification_deadline CHECK (deadline > created_at),
+    CONSTRAINT ck_clarification_resolution CHECK (
+        (status = 'PENDING' AND resolved_at IS NULL)
+        OR (status <> 'PENDING' AND resolved_at IS NOT NULL))
+);
+
+COMMENT ON TABLE ai_clarification_request IS '结构化澄清请求：与动作授权独立，按字段收集任务缺失参数';
+COMMENT ON COLUMN ai_clarification_request.request_id IS '澄清请求稳定标识';
+COMMENT ON COLUMN ai_clarification_request.execution_id IS '等待澄清的同一子 execution 标识';
+COMMENT ON COLUMN ai_clarification_request.request_payload IS '字段、问题、选项、deadline、状态和值的完整 JSON';
+CREATE UNIQUE INDEX uk_clarification_pending_task
+    ON ai_clarification_request (tenant_id, task_id)
+    WHERE status = 'PENDING';
+CREATE INDEX idx_clarification_deadline
+    ON ai_clarification_request (status, deadline)
+    WHERE status = 'PENDING';
+
+CREATE TABLE ai_task_input_buffer (
+    input_id VARCHAR(128) PRIMARY KEY,
+    tenant_id VARCHAR(128) NOT NULL,
+    task_id VARCHAR(128) NOT NULL,
+    received_at TIMESTAMPTZ NOT NULL,
+    consumed_at TIMESTAMPTZ,
+    input_payload JSONB NOT NULL
+);
+
+COMMENT ON TABLE ai_task_input_buffer IS '任务输入缓冲：非阻塞接受输入事实，由持有 conversation lease 的调度者确定性消费';
+COMMENT ON COLUMN ai_task_input_buffer.input_id IS '调用方提供的输入幂等标识';
+COMMENT ON COLUMN ai_task_input_buffer.consumed_at IS '输入已合并到任务命令的时间，空值表示待消费';
+CREATE INDEX idx_task_input_pending
+    ON ai_task_input_buffer (tenant_id, task_id, received_at, input_id)
+    WHERE consumed_at IS NULL;
+
+CREATE TABLE ai_task_transition_outbox (
+    outbox_id VARCHAR(128) PRIMARY KEY,
+    tenant_id VARCHAR(128) NOT NULL,
+    task_id VARCHAR(128) NOT NULL,
+    event_id VARCHAR(128) NOT NULL,
+    status VARCHAR(16) NOT NULL,
+    event_payload JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    published_at TIMESTAMPTZ,
+    CONSTRAINT uk_task_transition_event UNIQUE (event_id),
+    CONSTRAINT ck_task_transition_outbox_status CHECK (status IN ('PENDING', 'PUBLISHED'))
+);
+
+COMMENT ON TABLE ai_task_transition_outbox IS '任务迁移发件箱：与 task、board、ai_task_event 同事务提交后可靠发布';
+CREATE INDEX idx_task_transition_outbox_pending
+    ON ai_task_transition_outbox (status, created_at)
+    WHERE status = 'PENDING';
 
 CREATE TABLE ai_tool_invocation_receipt (
     receipt_key VARCHAR(128) PRIMARY KEY,
@@ -602,6 +666,88 @@ COMMENT ON COLUMN ai_automation_policy.global_stop IS '租户自动化全局停�
 COMMENT ON COLUMN ai_automation_policy.policy_payload IS '租户自动化策略的完整 JSON 数据';
 COMMENT ON COLUMN ai_automation_policy.version IS '乐观锁版本号';
 
+-- 最小 L4 Team 复用统一定义生命周期；JSON schema 在数据库层 fail-closed。
+CREATE FUNCTION aaf_team_member_payload_valid(member_payload JSONB, expected_role TEXT)
+RETURNS BOOLEAN
+LANGUAGE sql
+IMMUTABLE
+RETURNS NULL ON NULL INPUT
+AS $$
+    SELECT CASE
+        WHEN jsonb_typeof(member_payload) IS DISTINCT FROM 'object' THEN FALSE
+        WHEN member_payload - ARRAY[
+                'memberKey', 'role', 'assistantId', 'assistantRevision',
+                'roleKey', 'skillKey', 'allowedToolKeys'
+            ] <> '{}'::JSONB THEN FALSE
+        WHEN jsonb_typeof(member_payload -> 'memberKey') IS DISTINCT FROM 'string' THEN FALSE
+        WHEN btrim(member_payload ->> 'memberKey') = '' THEN FALSE
+        WHEN member_payload ->> 'role' IS DISTINCT FROM expected_role THEN FALSE
+        WHEN jsonb_typeof(member_payload -> 'assistantId') IS DISTINCT FROM 'string' THEN FALSE
+        WHEN btrim(member_payload ->> 'assistantId') = '' THEN FALSE
+        WHEN jsonb_typeof(member_payload -> 'assistantRevision') IS DISTINCT FROM 'number' THEN FALSE
+        WHEN member_payload ->> 'assistantRevision' !~ '^(0|[1-9][0-9]*)$' THEN FALSE
+        WHEN jsonb_typeof(member_payload -> 'roleKey') IS DISTINCT FROM 'string' THEN FALSE
+        WHEN btrim(member_payload ->> 'roleKey') = '' THEN FALSE
+        WHEN jsonb_typeof(member_payload -> 'skillKey') IS DISTINCT FROM 'string' THEN FALSE
+        WHEN btrim(member_payload ->> 'skillKey') = '' THEN FALSE
+        WHEN jsonb_typeof(member_payload -> 'allowedToolKeys') IS DISTINCT FROM 'array' THEN FALSE
+        WHEN EXISTS (
+            SELECT 1
+            FROM jsonb_array_elements(member_payload -> 'allowedToolKeys') tool(value)
+            WHERE jsonb_typeof(tool.value) IS DISTINCT FROM 'string'
+               OR btrim(tool.value #>> '{}') = ''
+        ) THEN FALSE
+        WHEN (
+            SELECT count(*) <> count(DISTINCT tool.value #>> '{}')
+            FROM jsonb_array_elements(member_payload -> 'allowedToolKeys') tool(value)
+        ) THEN FALSE
+        ELSE TRUE
+    END;
+$$;
+
+CREATE FUNCTION aaf_team_definition_payload_valid(
+    payload JSONB,
+    expected_team_id TEXT,
+    expected_version BIGINT
+)
+RETURNS BOOLEAN
+LANGUAGE sql
+IMMUTABLE
+RETURNS NULL ON NULL INPUT
+AS $$
+    WITH team AS (
+        SELECT payload -> 'teamDefinition' AS value
+    )
+    SELECT CASE
+        WHEN jsonb_typeof(value) IS DISTINCT FROM 'object' THEN FALSE
+        WHEN value - ARRAY['teamId', 'version', 'strategy', 'leader', 'workers'] <> '{}'::JSONB THEN FALSE
+        WHEN jsonb_typeof(value -> 'teamId') IS DISTINCT FROM 'string' THEN FALSE
+        WHEN value ->> 'teamId' IS DISTINCT FROM expected_team_id THEN FALSE
+        WHEN jsonb_typeof(value -> 'version') IS DISTINCT FROM 'number' THEN FALSE
+        WHEN value ->> 'version' !~ '^[1-9][0-9]*$' THEN FALSE
+        WHEN value ->> 'version' IS DISTINCT FROM expected_version::TEXT THEN FALSE
+        WHEN value ->> 'strategy' IS DISTINCT FROM 'LEADER_COORDINATED' THEN FALSE
+        WHEN aaf_team_member_payload_valid(value -> 'leader', 'LEADER') IS NOT TRUE THEN FALSE
+        WHEN jsonb_typeof(value -> 'workers') IS DISTINCT FROM 'array' THEN FALSE
+        WHEN jsonb_array_length(value -> 'workers') NOT BETWEEN 1 AND 8 THEN FALSE
+        WHEN EXISTS (
+            SELECT 1
+            FROM jsonb_array_elements(value -> 'workers') worker(member)
+            WHERE aaf_team_member_payload_valid(worker.member, 'WORKER') IS NOT TRUE
+        ) THEN FALSE
+        WHEN (
+            SELECT count(*) <> count(DISTINCT worker.member ->> 'memberKey')
+            FROM jsonb_array_elements(value -> 'workers') worker(member)
+        ) THEN FALSE
+        WHEN value #>> '{leader,memberKey}' IN (
+            SELECT worker.member ->> 'memberKey'
+            FROM jsonb_array_elements(value -> 'workers') worker(member)
+        ) THEN FALSE
+        ELSE TRUE
+    END
+    FROM team;
+$$;
+
 CREATE TABLE ai_definition_lifecycle (
     id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
     tenant_id VARCHAR(128) NOT NULL,
@@ -612,17 +758,44 @@ CREATE TABLE ai_definition_lifecycle (
     lifecycle_payload JSONB NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
     CONSTRAINT uk_definition_lifecycle UNIQUE (tenant_id, definition_kind, definition_id, definition_version),
-    CONSTRAINT ck_definition_kind CHECK (definition_kind IN ('ASSISTANT','SKILL','AUTOMATION','CONNECTOR')),
-    CONSTRAINT ck_definition_state CHECK (state IN ('DRAFT','PUBLISHED','DEPRECATED','DISABLED'))
+    CONSTRAINT ck_definition_kind CHECK (definition_kind IN ('ASSISTANT','SKILL','AUTOMATION','CONNECTOR','TEAM')),
+    CONSTRAINT ck_definition_state CHECK (state IN ('DRAFT','PUBLISHED','DEPRECATED','DISABLED')),
+    CONSTRAINT ck_definition_team_payload CHECK (
+        (
+            definition_kind <> 'TEAM'
+            AND (
+                NOT (lifecycle_payload ? 'teamDefinition')
+                OR lifecycle_payload -> 'teamDefinition' = 'null'::JSONB
+            )
+        )
+        OR (
+            definition_kind = 'TEAM'
+            AND aaf_team_definition_payload_valid(
+                lifecycle_payload,
+                definition_id,
+                definition_version
+            )
+        )
+    ) IS TRUE
 );
 
-COMMENT ON TABLE ai_definition_lifecycle IS '统一定义生命周期：管理助理、技能、自动化和连接器定义的发布状态';
+COMMENT ON FUNCTION aaf_team_member_payload_valid(JSONB, TEXT) IS '校验 Team leader 或 worker 的闭世界冻结成员 JSON 载荷';
+COMMENT ON FUNCTION aaf_team_definition_payload_valid(JSONB, TEXT, BIGINT) IS '校验闭世界 TeamDefinition JSON 载荷与生命周期主键一致';
+COMMENT ON TABLE ai_definition_lifecycle IS '统一定义生命周期：管理助理、技能、自动化、连接器和 Team 的发布状态';
 COMMENT ON COLUMN ai_definition_lifecycle.tenant_id IS '租户标识，对应系统组织 ID 的字符串投影';
-COMMENT ON COLUMN ai_definition_lifecycle.definition_kind IS '定义类型：ASSISTANT、SKILL、AUTOMATION 或 CONNECTOR';
+COMMENT ON COLUMN ai_definition_lifecycle.definition_kind IS '定义类型：ASSISTANT、SKILL、AUTOMATION、CONNECTOR 或 TEAM';
 COMMENT ON COLUMN ai_definition_lifecycle.definition_id IS '定义稳定标识';
 COMMENT ON COLUMN ai_definition_lifecycle.definition_version IS '定义版本号';
 COMMENT ON COLUMN ai_definition_lifecycle.state IS '生命周期状态：DRAFT、PUBLISHED、DEPRECATED 或 DISABLED';
-COMMENT ON COLUMN ai_definition_lifecycle.lifecycle_payload IS '生命周期附加信息的完整 JSON 数据';
+COMMENT ON COLUMN ai_definition_lifecycle.lifecycle_payload IS '完整生命周期 JSON；TEAM 类型内嵌已版本化 TeamDefinition';
+
+CREATE INDEX idx_definition_team_state
+    ON ai_definition_lifecycle (tenant_id, definition_id, definition_version, state)
+    WHERE definition_kind = 'TEAM';
+CREATE INDEX idx_definition_team_payload
+    ON ai_definition_lifecycle
+    USING GIN ((lifecycle_payload -> 'teamDefinition') jsonb_path_ops)
+    WHERE definition_kind = 'TEAM';
 
 CREATE TABLE ai_automation_audit (
     audit_id VARCHAR(128) PRIMARY KEY,
@@ -643,3 +816,45 @@ COMMENT ON COLUMN ai_automation_audit.actor_id IS '执行管理动作的 Actor �
 COMMENT ON COLUMN ai_automation_audit.details IS '审计动作详情的 JSON 数据';
 COMMENT ON COLUMN ai_automation_audit.occurred_at IS '审计动作发生时间';
 CREATE INDEX idx_automation_audit_search ON ai_automation_audit (tenant_id, automation_id, occurred_at DESC);
+
+
+
+-- ============================================================
+-- LearningCandidate MVP：只记录可审查候选，不自动应用到任何运行时定义。
+-- ============================================================
+
+CREATE TABLE ai_learning_candidate (
+    candidate_id VARCHAR(128) PRIMARY KEY,
+    tenant_id VARCHAR(128) NOT NULL,
+    task_id VARCHAR(128) NOT NULL,
+    execution_id VARCHAR(128) NOT NULL,
+    run_id VARCHAR(128) NOT NULL,
+    session_id VARCHAR(128) NOT NULL,
+    source_event_id VARCHAR(128) NOT NULL REFERENCES ai_task_event(event_id),
+    source_event_offset BIGINT NOT NULL REFERENCES ai_task_event(event_offset),
+    status VARCHAR(16) NOT NULL,
+    schema_version INTEGER NOT NULL,
+    candidate_payload JSONB NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    version BIGINT NOT NULL DEFAULT 0,
+    CONSTRAINT uk_learning_candidate_source UNIQUE (tenant_id, source_event_id),
+    CONSTRAINT ck_learning_candidate_status
+        CHECK (status IN ('DRAFT', 'REVIEWED', 'PUBLISHED', 'REJECTED')),
+    CONSTRAINT ck_learning_candidate_schema_version CHECK (schema_version > 0),
+    CONSTRAINT ck_learning_candidate_version CHECK (version >= 0)
+);
+
+COMMENT ON TABLE ai_learning_candidate IS '学习候选：基于持久化执行事实显式创建，仅供人工审核与发布，不自动修改系统定义';
+COMMENT ON COLUMN ai_learning_candidate.run_id IS '来源任务运行标识，仅用于安全追溯';
+COMMENT ON COLUMN ai_learning_candidate.session_id IS '来源执行会话标识，仅用于安全追溯';
+COMMENT ON COLUMN ai_learning_candidate.source_event_id IS '独立行为依据，必须引用 ai_task_event 持久化事实';
+COMMENT ON COLUMN ai_learning_candidate.source_event_offset IS '来源事实的全局 cursor，用于校验与追溯';
+COMMENT ON COLUMN ai_learning_candidate.status IS '候选治理状态：DRAFT、REVIEWED、PUBLISHED 或 REJECTED';
+COMMENT ON COLUMN ai_learning_candidate.schema_version IS '候选载荷契约版本';
+COMMENT ON COLUMN ai_learning_candidate.candidate_payload IS '仅含安全摘要和稳定证据引用的 LearningCandidate JSON';
+COMMENT ON COLUMN ai_learning_candidate.version IS '乐观锁版本号';
+CREATE INDEX idx_learning_candidate_review
+    ON ai_learning_candidate (tenant_id, status, updated_at DESC);
+CREATE INDEX idx_learning_candidate_task
+    ON ai_learning_candidate (tenant_id, task_id, created_at DESC);

@@ -21,6 +21,9 @@ import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.module.document.api.DocumentDraftApi;
+import com.xuejiai.aaf.module.document.api.DocumentDraftApi.DraftDocument;
+import com.xuejiai.aaf.module.document.api.DocumentDraftApi.DraftUpsertCommand;
 import com.xuejiai.aaf.module.document.api.DocumentReferenceApi;
 import com.xuejiai.aaf.module.document.api.DocumentSourceApi;
 import com.xuejiai.aaf.module.document.api.DocumentSourceApi.SourceDocument;
@@ -33,7 +36,7 @@ import com.xuejiai.aaf.module.document.vo.*;
 
 /** 文档管理服务。 */
 @Service
-public class DocumentService implements DocumentSourceApi, DocumentReferenceApi {
+public class DocumentService implements DocumentSourceApi, DocumentReferenceApi, DocumentDraftApi {
 
     private static final Logger log = LoggerFactory.getLogger(DocumentService.class);
 
@@ -79,6 +82,36 @@ public class DocumentService implements DocumentSourceApi, DocumentReferenceApi 
         var saved = documentRepository.save(doc);
         return new SourceDocument(
                 saved.getId(), saved.getSourceFileId(), saved.getFilePath(), saved.getOwnerId());
+    }
+
+    /** 使用工具网关传入的可信范围保存数据库草稿，不读取请求线程上下文且永不发布。 */
+    @Override
+    @Transactional
+    public DraftDocument upsertDraft(DraftUpsertCommand command) {
+        if (command == null
+                || command.ownerId() == null
+                || command.ownerId() <= 0
+                || command.orgId() == null
+                || command.orgId() <= 0
+                || command.title() == null
+                || command.title().isBlank()
+                || command.content() == null
+                || command.content().isBlank()
+                || command.documentType() == null
+                || command.documentType().isBlank()) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "草稿参数不正确");
+        }
+        var document = new Document();
+        document.setTitle(command.title().trim());
+        document.setContent(command.content());
+        document.setDocType(command.documentType().trim());
+        document.setStatus("active");
+        document.setPublish("draft");
+        document.setOwnerId(command.ownerId());
+        document.setOrgId(command.orgId());
+        document.setWorkspaceId(command.workspaceId());
+        var saved = documentRepository.save(document);
+        return new DraftDocument(saved.getId());
     }
 
     /** 统计当前范围内的有效文档数量。 */

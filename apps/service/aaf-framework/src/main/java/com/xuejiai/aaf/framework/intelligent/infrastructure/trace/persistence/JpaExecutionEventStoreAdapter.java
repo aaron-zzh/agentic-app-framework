@@ -4,7 +4,6 @@ import java.util.Objects;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.ApplicationEventPublisherAware;
-import org.springframework.dao.DataIntegrityViolationException;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort.Lease;
@@ -24,15 +23,18 @@ import reactor.core.scheduler.Schedulers;
 public final class JpaExecutionEventStoreAdapter
         implements ExecutionEventStorePort, ApplicationEventPublisherAware {
     private final ExecutionEventRepository repository;
+    private final SynchronousExecutionEventWriter writer;
     private final ConversationLeasePort leases;
     private final DelegatedTaskPort tasks;
     private ApplicationEventPublisher applicationEventPublisher;
 
     public JpaExecutionEventStoreAdapter(
             ExecutionEventRepository repository,
+            SynchronousExecutionEventWriter writer,
             ConversationLeasePort leases,
             DelegatedTaskPort tasks) {
         this.repository = Objects.requireNonNull(repository, "repository 不能为空");
+        this.writer = Objects.requireNonNull(writer, "writer 不能为空");
         this.leases = Objects.requireNonNull(leases, "leases 不能为空");
         this.tasks = Objects.requireNonNull(tasks, "tasks 不能为空");
     }
@@ -52,42 +54,11 @@ public final class JpaExecutionEventStoreAdapter
 
     ExecutionEvent appendBlocking(ExecutionEvent requested, Lease lease) {
         requireLease(requested, lease);
-        var existing = repository.findById(requested.eventId().value());
-        if (existing.isPresent()) {
-            return requireSameEvent(existing.get().getEvent(), requested);
+        var result = writer.append(requested, lease == null ? 0L : lease.fencingToken());
+        if (result.created()) {
+            publishStoredEvent(result.storedEvent());
         }
-        var sequence =
-                repository.allocateSequence(
-                        requested.tenantId().value(), requested.executionId().value());
-        var event = withSequence(requested, sequence);
-        var entity = new ExecutionEventEntity();
-        entity.setEventId(event.eventId().value());
-        entity.setTenantId(event.tenantId().value());
-        entity.setTaskId(event.taskId().value());
-        entity.setExecutionId(event.executionId().value());
-        entity.setSequence(event.sequence());
-        entity.setFencingToken(lease == null ? 0L : lease.fencingToken());
-        entity.setCreatedAt(event.createdAt());
-        entity.setEvent(event);
-        try {
-            var storedEvent = repository.saveAndFlush(entity).getEvent();
-            publishStoredEvent(storedEvent);
-            return storedEvent;
-        } catch (DataIntegrityViolationException conflict) {
-            var concurrent =
-                    repository
-                            .findById(event.eventId().value())
-                            .map(ExecutionEventEntity::getEvent)
-                            .orElseThrow(
-                                    () ->
-                                            new IllegalStateException(
-                                                    "execution sequence 分配后写入失败: "
-                                                            + event.executionId().value()
-                                                            + "#"
-                                                            + event.sequence(),
-                                                    conflict));
-            return requireSameEvent(concurrent, requested);
-        }
+        return result.storedEvent().event();
     }
 
     @Override
@@ -131,21 +102,9 @@ public final class JpaExecutionEventStoreAdapter
                 .subscribeOn(Schedulers.boundedElastic());
     }
 
-    private void publishStoredEvent(ExecutionEvent event) {
-        var eventOffset = repository.findEventOffsetByEventId(event.eventId().value());
-        if (eventOffset == null) {
-            throw new IllegalStateException("执行事件落库后缺少 eventOffset: " + event.eventId().value());
-        }
+    private void publishStoredEvent(StoredExecutionEvent event) {
         Objects.requireNonNull(applicationEventPublisher, "ApplicationEventPublisher 尚未注入")
-                .publishEvent(new StoredExecutionEvent(eventOffset, event));
-    }
-
-    private static ExecutionEvent requireSameEvent(
-            ExecutionEvent existing, ExecutionEvent requested) {
-        if (!existing.equals(withSequence(requested, existing.sequence()))) {
-            throw new IllegalStateException("eventId 已绑定不同事件内容: " + requested.eventId().value());
-        }
-        return existing;
+                .publishEvent(event);
     }
 
     private void requireLease(ExecutionEvent event, Lease lease) {
@@ -165,30 +124,5 @@ public final class JpaExecutionEventStoreAdapter
                         .HUMAN) {
             tasks.requireExecution(event.tenantId(), event.taskId(), event.executionId(), lease);
         }
-    }
-
-    private static ExecutionEvent withSequence(ExecutionEvent event, long sequence) {
-        return new ExecutionEvent(
-                event.eventId(),
-                event.tenantId(),
-                event.conversationId(),
-                event.sessionId(),
-                event.taskId(),
-                event.executionId(),
-                event.runId(),
-                event.parentExecutionId(),
-                sequence,
-                event.type(),
-                event.status(),
-                event.controlMode(),
-                event.ownerType(),
-                event.assistantId(),
-                event.agentId(),
-                event.userId(),
-                event.correlationId(),
-                event.causationId(),
-                event.idempotencyKey(),
-                event.payload(),
-                event.createdAt());
     }
 }

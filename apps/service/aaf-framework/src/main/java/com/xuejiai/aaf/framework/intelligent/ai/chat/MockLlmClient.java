@@ -9,6 +9,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.intelligent.core.llm.LlmClient;
+import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
 
 import reactor.core.publisher.Flux;
 
@@ -49,6 +50,11 @@ public class MockLlmClient implements LlmClient {
 
     @Override
     public String call(List<LlmMessage> messages, String scene, Long userId) {
+        return generator.apply(messages);
+    }
+
+    @Override
+    public String callExact(List<LlmMessage> messages, ModelSpec model, Long userId) {
         return generator.apply(messages);
     }
 

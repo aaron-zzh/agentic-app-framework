@@ -6,6 +6,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentSpec;
+import com.xuejiai.aaf.framework.intelligent.agent.model.CompiledSystemPrompt;
 import com.xuejiai.aaf.framework.intelligent.agent.model.SubagentSpec;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolRef;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
@@ -15,6 +16,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AgentId;
 
 import io.agentscope.core.state.AgentStateStore;
 import io.agentscope.harness.agent.HarnessAgent;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 将版本化 AAF AgentSpec 编译并缓存为无状态 HarnessAgent。
@@ -22,6 +24,7 @@ import io.agentscope.harness.agent.HarnessAgent;
  * <p>HarnessAgent 是无状态引擎：实例只持有不可变配置（system prompt / 模型 / 工具集）， 会话数据由 AgentStateStore 按 (userId,
  * sessionId) 寻址，因此同一执行画像可跨请求共享一个实例。
  */
+@Slf4j
 public final class AgentScopeSpecCompiler implements AutoCloseable {
 
     private final AgentStateStore stateStore;
@@ -45,31 +48,37 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
 
     /** 按完整不可变执行画像命中预定义 Agent 编译产物。 */
     public HarnessAgent compile(
-            AgentSpec spec, String executionPromptAppendix, List<ToolRef> effectiveTools) {
+            AgentSpec spec,
+            CompiledSystemPrompt compiledSystemPrompt,
+            List<ToolRef> effectiveTools) {
         Objects.requireNonNull(spec, "spec 不能为空");
-        Objects.requireNonNull(executionPromptAppendix, "executionPromptAppendix 不能为空");
+        Objects.requireNonNull(compiledSystemPrompt, "compiledSystemPrompt 不能为空");
+        compiledSystemPrompt.verify();
         var finalTools = List.copyOf(Objects.requireNonNull(effectiveTools, "effectiveTools 不能为空"));
-        var effectiveSystemPrompt = appendPrompt(spec.systemPrompt(), executionPromptAppendix);
         var key =
                 new DefinitionKey(
-                        spec.agentId(), spec.version(), finalTools, effectiveSystemPrompt);
+                        spec.agentId(),
+                        spec.version(),
+                        finalTools,
+                        compiledSystemPrompt.sha256(),
+                        compiledSystemPrompt.content());
         return cache.computeIfAbsent(
-                key, ignored -> compileNew(spec, finalTools, effectiveSystemPrompt));
+                key, ignored -> compileNew(spec, finalTools, compiledSystemPrompt.content()));
     }
 
     /** 按完整任务执行画像编译并缓存默认 Role 的主助理执行体。 */
     public HarnessAgent compileDirect(
             SubagentSpec.Dynamic spec,
             ModelSpec executionModel,
-            String executionPromptAppendix,
+            CompiledSystemPrompt compiledSystemPrompt,
             List<ToolRef> effectiveTools) {
-        var resolved =
-                resolveDynamic(spec, executionModel, executionPromptAppendix, effectiveTools);
+        var resolved = resolveDynamic(spec, executionModel, compiledSystemPrompt, effectiveTools);
         var key =
                 new DirectKey(
                         spec.identifier(),
                         executionModel,
                         resolved.tools(),
+                        compiledSystemPrompt.sha256(),
                         resolved.systemPrompt());
         return directCache.computeIfAbsent(
                 key,
@@ -82,10 +91,14 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
     public HarnessAgent compileDynamic(
             SubagentSpec.Dynamic spec,
             ModelSpec executionModel,
-            String executionPromptAppendix,
+            CompiledSystemPrompt compiledSystemPrompt,
             List<ToolRef> effectiveTools) {
-        var resolved =
-                resolveDynamic(spec, executionModel, executionPromptAppendix, effectiveTools);
+        var resolved = resolveDynamic(spec, executionModel, compiledSystemPrompt, effectiveTools);
+        log.debug(
+                "[AgentScope编译] 现场编译 AAF 动态委托 HarnessAgent：identifier={}，模型={}，工具数={}；Harness 内建子智能体、动态技能、记忆和工作区能力均已关闭",
+                spec.identifier(),
+                executionModel.modelId(),
+                resolved.tools().size());
         return compileDynamicNew(spec, executionModel, resolved.tools(), resolved.systemPrompt());
     }
 
@@ -93,18 +106,17 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
     private DynamicExecutionProfile resolveDynamic(
             SubagentSpec.Dynamic spec,
             ModelSpec executionModel,
-            String executionPromptAppendix,
+            CompiledSystemPrompt compiledSystemPrompt,
             List<ToolRef> effectiveTools) {
         Objects.requireNonNull(spec, "spec 不能为空");
         Objects.requireNonNull(executionModel, "executionModel 不能为空");
-        Objects.requireNonNull(executionPromptAppendix, "executionPromptAppendix 不能为空");
+        Objects.requireNonNull(compiledSystemPrompt, "compiledSystemPrompt 不能为空");
+        compiledSystemPrompt.verify();
         effectiveTools = List.copyOf(Objects.requireNonNull(effectiveTools, "effectiveTools 不能为空"));
         if (spec.inheritParentTools()) {
             throw new IllegalArgumentException("Dynamic 子智能体暂不支持继承父 Agent 工具");
         }
-        var effectiveSystemPrompt =
-                appendPrompt(spec.systemPromptFragment(), executionPromptAppendix);
-        return new DynamicExecutionProfile(effectiveTools, effectiveSystemPrompt);
+        return new DynamicExecutionProfile(effectiveTools, compiledSystemPrompt.content());
     }
 
     private HarnessAgent compileDynamicNew(
@@ -189,15 +201,6 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
         return agent;
     }
 
-    /** 拼接系统提示词：Agent 基础人格 + 技能追加片段。 */
-    private static String appendPrompt(String basePrompt, String appendix) {
-        var normalizedBase = Objects.requireNonNull(basePrompt, "basePrompt 不能为空").trim();
-        var normalizedAppendix = Objects.requireNonNull(appendix, "appendix 不能为空").trim();
-        return normalizedAppendix.isEmpty()
-                ? normalizedBase
-                : normalizedBase + "\n\n" + normalizedAppendix;
-    }
-
     /** 容器销毁时释放全部缓存实例；一次性动态子智能体由调用方自行 close。 */
     @Override
     public void close() {
@@ -212,14 +215,16 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
             AgentId agentId,
             long version,
             List<ToolRef> effectiveTools,
-            String effectiveSystemPrompt) {}
+            String promptSha256,
+            String promptContent) {}
 
     /** 主助理直答缓存键。 */
     private record DirectKey(
             String identifier,
             ModelSpec model,
             List<ToolRef> effectiveTools,
-            String effectiveSystemPrompt) {}
+            String promptSha256,
+            String promptContent) {}
 
     /** 动态规格的生效画像。 */
     private record DynamicExecutionProfile(List<ToolRef> tools, String systemPrompt) {}

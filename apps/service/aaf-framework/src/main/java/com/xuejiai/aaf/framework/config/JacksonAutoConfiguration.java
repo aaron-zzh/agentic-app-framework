@@ -19,6 +19,7 @@ public class JacksonAutoConfiguration {
     public JsonMapper jsonMapper() {
         JsonMapper mapper =
                 JsonMapper.builder()
+                        .enable(tools.jackson.core.StreamReadFeature.STRICT_DUPLICATE_DETECTION)
                         .disable(
                                 tools.jackson.databind.DeserializationFeature
                                         .FAIL_ON_UNKNOWN_PROPERTIES)

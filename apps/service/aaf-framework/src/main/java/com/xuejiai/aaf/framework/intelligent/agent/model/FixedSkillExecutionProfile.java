@@ -3,6 +3,8 @@ package com.xuejiai.aaf.framework.intelligent.agent.model;
 import java.util.List;
 import java.util.Objects;
 
+import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillActivationMode;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillScope;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillSelectionMode;
 import com.xuejiai.aaf.framework.intelligent.core.skill.SkillDef;
 
@@ -13,11 +15,16 @@ public final class FixedSkillExecutionProfile {
 
     public static SkillExecutionProfile from(SkillDef skill, List<ToolRef> effectiveTools) {
         Objects.requireNonNull(skill, "skill 不能为空");
+        if (!skill.requiredToolNames().isEmpty()) {
+            throw new IllegalStateException("SYSTEM Skill 初版禁止声明工具要求: " + skill.code());
+        }
         var summary =
                 new AuthorizedSkillSummary(
                         skill.code(),
                         skill.name(),
                         skill.summary(),
+                        SkillScope.SYSTEM,
+                        SkillActivationMode.ON_DEMAND,
                         List.of(),
                         skill.requiredModelCapabilities(),
                         skill.requiredToolNames());
@@ -32,6 +39,8 @@ public final class FixedSkillExecutionProfile {
                 new ActivatedSkill(
                         skill.code(),
                         skill.version(),
+                        SkillScope.SYSTEM,
+                        SkillActivationMode.ON_DEMAND,
                         skill.content(),
                         skill.requiredToolNames(),
                         skill.requiredModelCapabilities(),

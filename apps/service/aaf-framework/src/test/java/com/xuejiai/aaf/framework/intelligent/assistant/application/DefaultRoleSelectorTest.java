@@ -3,6 +3,8 @@ package com.xuejiai.aaf.framework.intelligent.assistant.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.Set;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -37,15 +39,15 @@ class DefaultRoleSelectorTest {
     }
 
     @Test
-    @DisplayName("Given 显式 Skill 不属于任何 Role When 选择 Role Then 拒绝越界")
+    @DisplayName("Given 显式 Skill 不属于当前 ON_DEMAND Scope When 选择 Role Then 拒绝越界")
     void should_reject_requested_skill_outside_role_scope() {
         assertThatThrownBy(() -> selector.select(request("unknown-skill")))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Role Scope");
+                .hasMessageContaining("ON_DEMAND");
     }
 
     private RoleSelector.RoleSelectionRequest request(String preferredSkillKey) {
         return new RoleSelector.RoleSelectionRequest(
-                definition, "请处理当前任务", preferredSkillKey, new UserId("1"));
+                definition, Set.of(), "请处理当前任务", preferredSkillKey, new UserId("1"));
     }
 }

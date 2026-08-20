@@ -106,6 +106,30 @@ public class ChatService {
     }
 
     /**
+     * 校验当前用户拥有可作为 AG-UI 运行边界的 AI 会话 thread。
+     *
+     * <p>AG-UI 运行的 conversationId/sessionId 固定等于 threadId；因此必须在创建持久任务和 lease 前 拒绝其他用户的
+     * thread，避免跨用户共享同一租约或任务队列。
+     */
+    @Transactional(readOnly = true)
+    public void requireOwnedAiThread(String threadId) {
+        if (threadId == null || threadId.isBlank()) {
+            throw new BusinessException(ErrorCodeConstants.CHAT_SESSION_NOT_FOUND);
+        }
+        var conversation =
+                conversationRepository
+                        .findByThreadId(threadId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCodeConstants.CHAT_SESSION_NOT_FOUND));
+        if (conversation.getType() != ConversationTypeEnum.AI) {
+            throw new BusinessException(ErrorCodeConstants.CHAT_SESSION_NOT_FOUND);
+        }
+        requireOwnedConversation(conversation.getId());
+    }
+
+    /**
      * 分页获取会话消息（按时间倒序）
      *
      * @param sessionId 会话 ID

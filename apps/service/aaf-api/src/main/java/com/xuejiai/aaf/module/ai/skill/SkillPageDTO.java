@@ -16,6 +16,9 @@ public class SkillPageDTO extends PageParam {
     @Size(max = 32)
     private String locale;
 
+    @Size(max = 64)
+    private String categoryCode;
+
     @Pattern(regexp = "PRIVATE|WORKSPACE|PUBLIC")
     private String visibility;
 

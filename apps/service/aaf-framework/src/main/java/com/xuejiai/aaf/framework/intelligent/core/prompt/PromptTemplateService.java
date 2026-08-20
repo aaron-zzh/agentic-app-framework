@@ -7,7 +7,6 @@ package com.xuejiai.aaf.framework.intelligent.core.prompt;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 
@@ -44,8 +43,36 @@ public class PromptTemplateService {
         return promptEngine.renderWithExamples(templateName, variables, maxExamples);
     }
 
-    /** 查找当前激活版本 */
-    public Optional<PromptTemplate> findActive(String name) {
-        return promptEngine.findActive(name);
+    /** 要求同名 ENGINE Prompt 恰好存在一个 active 版本。 */
+    public ResolvedPromptTemplate requireActive(String name) {
+        var active =
+                promptEngine.findAllVersions(name).stream()
+                        .filter(template -> Boolean.TRUE.equals(template.getActive()))
+                        .toList();
+        if (active.size() != 1) {
+            throw new IllegalStateException(
+                    "ENGINE Prompt 必须恰好有一个 active 版本: %s，实际=%d".formatted(name, active.size()));
+        }
+        return resolve(active.getFirst());
+    }
+
+    /** 要求 ENGINE Prompt 的精确版本存在。 */
+    public ResolvedPromptTemplate requireVersion(String name, int version) {
+        return promptEngine
+                .findByVersion(name, version)
+                .map(PromptTemplateService::resolve)
+                .orElseThrow(
+                        () ->
+                                new IllegalStateException(
+                                        "ENGINE Prompt 精确版本不存在: %s@%d".formatted(name, version)));
+    }
+
+    private static ResolvedPromptTemplate resolve(PromptTemplate template) {
+        var content = template.getContent();
+        return new ResolvedPromptTemplate(
+                template.getName(),
+                template.getTemplateVersion(),
+                content,
+                com.xuejiai.aaf.framework.engine.prompt.EnginePromptRegistration.sha256(content));
     }
 }

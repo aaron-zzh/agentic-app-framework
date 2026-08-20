@@ -20,6 +20,8 @@ public record SkillCreateDTO(
                 @Pattern(regexp = "PRIVATE|WORKSPACE|PUBLIC")
                 String visibility,
         @Schema(description = "来源 Skill ID") Long sourceSkillId,
+        @Schema(description = "分类业务码集合") @Valid
+                List<@NotBlank @Size(max = 64) String> categoryCodes,
         @Schema(description = "规范 Markdown 正文") @NotBlank String content,
         @Schema(description = "输入 JSON Schema") String inputSchema,
         @Schema(description = "输出 JSON Schema") String outputSchema,

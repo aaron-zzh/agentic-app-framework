@@ -1,4 +1,4 @@
-﻿-- ============================================================
+-- ============================================================
 -- 生产必需种子数据（随应用一起部署，所有环境均执行）
 -- ============================================================
 
@@ -293,7 +293,8 @@ VALUES
     ('文件存储配置读取',   'system:file-config:read',            'system',    'file-config',       'read',    0),
     ('文件存储配置创建',   'system:file-config:create',          'system',    'file-config',       'create',  0),
     ('文件存储配置更新',   'system:file-config:update',          'system',    'file-config',       'update',  0),
-    ('文件存储配置删除',   'system:file-config:delete',          'system',    'file-config',       'delete',  0)
+    ('文件存储配置删除',   'system:file-config:delete',          'system',    'file-config',       'delete',  0),
+    ('AI 定义生命周期管理','ai:definition:manage',                'ai',        'definition',        'manage',  0)
 ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 
 -- 文件存储配置允许普通登录角色读取；写权限仅由管理员角色的全量权限映射获得。
@@ -657,6 +658,70 @@ ON CONFLICT (tool_name) WHERE deleted = FALSE DO UPDATE SET
     sort_order = EXCLUDED.sort_order,
     update_time = CURRENT_TIMESTAMP;
 
+-- 智能体生成脚本使用的 GraalVM 受限 JavaScript 计算工具。
+INSERT INTO ai_tool_catalog (
+    tool_name, source, enabled, tool_type, category, risk_level,
+    read_only, reversible, idempotency_required, require_confirm,
+    permission_code, entitlement_code, cost_expression,
+    input_schema, output_schema, sort_order, create_time, update_time
+) VALUES (
+    'script.execute.javascript', 'LOCAL', TRUE, 'SCRIPT', 'SCRIPT_EXECUTION', 'HIGH',
+    TRUE, FALSE, FALSE, TRUE,
+    'tool:script:execute', NULL, NULL,
+    '{"type":"object","required":["code"],"additionalProperties":false,"properties":{"code":{"type":"string","minLength":1,"maxLength":20000,"description":"纯 JavaScript 脚本；通过 args 读取参数并将返回值赋给 __result。对象结果应先用 JSON.stringify 序列化"},"arguments":{"type":"object","description":"注入脚本 args 变量的 JSON 对象","default":{}},"timeoutSeconds":{"type":"integer","minimum":1,"maximum":10,"default":5}}}',
+    '{"type":"object","required":["success","stdout","stderr","exitCode","runtime","truncated"],"additionalProperties":false,"properties":{"success":{"type":"boolean"},"stdout":{"type":"string"},"stderr":{"type":"string"},"exitCode":{"type":"integer"},"runtime":{"const":"graalvm"},"truncated":{"type":"boolean"}}}',
+    245, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+)
+ON CONFLICT (tool_name) WHERE deleted = FALSE DO UPDATE SET
+    source = EXCLUDED.source,
+    enabled = EXCLUDED.enabled,
+    tool_type = EXCLUDED.tool_type,
+    category = EXCLUDED.category,
+    risk_level = EXCLUDED.risk_level,
+    read_only = EXCLUDED.read_only,
+    reversible = EXCLUDED.reversible,
+    idempotency_required = EXCLUDED.idempotency_required,
+    require_confirm = EXCLUDED.require_confirm,
+    permission_code = EXCLUDED.permission_code,
+    entitlement_code = EXCLUDED.entitlement_code,
+    cost_expression = EXCLUDED.cost_expression,
+    input_schema = EXCLUDED.input_schema,
+    output_schema = EXCLUDED.output_schema,
+    sort_order = EXCLUDED.sort_order,
+    update_time = CURRENT_TIMESTAMP;
+
+-- 文案执行使用的可撤销数据库草稿工具。
+INSERT INTO ai_tool_catalog (
+    tool_name, source, enabled, tool_type, category, risk_level,
+    read_only, reversible, idempotency_required, require_confirm,
+    permission_code, entitlement_code, cost_expression,
+    input_schema, output_schema, sort_order, create_time, update_time
+) VALUES (
+    'content.draft.upsert', 'LOCAL', TRUE, 'FUNCTION', 'CONTENT', 'MEDIUM',
+    FALSE, TRUE, TRUE, TRUE,
+    NULL, NULL, NULL,
+    '{"type":"object","required":["title","content"],"additionalProperties":false,"properties":{"title":{"type":"string","minLength":1,"maxLength":200},"content":{"type":"string","minLength":1,"maxLength":1000000,"description":"规范 Markdown 正文"},"documentType":{"type":"string","maxLength":50,"default":"markdown"}}}',
+    '{"type":"object","required":["artifactId","artifactState","published"],"properties":{"artifactId":{"type":"integer"},"artifactState":{"const":"DRAFT"},"published":{"const":false}}}',
+    235, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+)
+ON CONFLICT (tool_name) WHERE deleted = FALSE DO UPDATE SET
+    source = EXCLUDED.source,
+    enabled = EXCLUDED.enabled,
+    tool_type = EXCLUDED.tool_type,
+    category = EXCLUDED.category,
+    risk_level = EXCLUDED.risk_level,
+    read_only = EXCLUDED.read_only,
+    reversible = EXCLUDED.reversible,
+    idempotency_required = EXCLUDED.idempotency_required,
+    require_confirm = EXCLUDED.require_confirm,
+    permission_code = EXCLUDED.permission_code,
+    entitlement_code = EXCLUDED.entitlement_code,
+    cost_expression = EXCLUDED.cost_expression,
+    input_schema = EXCLUDED.input_schema,
+    output_schema = EXCLUDED.output_schema,
+    sort_order = EXCLUDED.sort_order,
+    update_time = CURRENT_TIMESTAMP;
+
 -- 天气查询工具
 INSERT INTO ai_tool_catalog (tool_name, source, enabled, tool_type, category, risk_level, read_only, require_confirm, permission_code, entitlement_code, cost_expression, input_schema, sort_order, create_time, update_time)
 VALUES ('queryWeather', 'LOCAL', TRUE, 'HTTP', 'WEATHER', 'LOW', TRUE, FALSE, 'tool:weather:query', NULL, NULL,
@@ -915,6 +980,34 @@ WITH seeded_skill (code, name, summary, content) AS (
 # AI 生视频
 
 根据用户目标组织主体动作、场景环境、风格和镜头语言；复杂视频应拆分为可审查镜头。$skill$),
+        ($skill$builtin-javascript-compute$skill$, $skill$受控 JavaScript 计算$skill$, $skill$USE WHEN 用户要求基于明确输入完成复杂数值计算、统计汇总、结构化数据转换、排序去重或可验证算法处理，并需要实际运行得到确定结果；不用于系统命令、文件或网络访问，也不用于仅讲解代码。$skill$, $skill$
+# 受控 JavaScript 计算
+
+将用户提供的数据转换成最小纯 JavaScript 脚本，通过当前执行画像授权的受治理工具实际执行，并根据真实执行结果答复。
+
+## 适用范围
+
+- 复杂数值计算、统计汇总、单位换算或批量公式计算
+- JSON 对象或数组的映射、筛选、排序、分组、聚合与去重
+- 需要程序化复核的确定性算法和数据处理
+
+## 执行规则
+
+- 输入数据、计算规则或期望输出不明确时，先向用户澄清，不得猜测
+- 只把任务所需的最小数据放入 `arguments`，脚本仅通过 `args` 读取参数
+- 使用最小、确定性的标准 JavaScript，将最终结果赋给 `__result`
+- 对象或数组结果必须先通过 `JSON.stringify` 序列化
+- 必须以工具的真实返回值为准，不得用推测结果冒充执行结果
+- 若脚本语法或运行失败，可依据 `stderr` 修正并重试一次；仍失败则如实说明
+- 默认返回结果及必要的计算说明；用户要求时再附上生成的脚本
+
+## 安全边界
+
+- 只能调用 `script.execute.javascript`，不得改用 Shell、Python、Node.js 或其他执行路径
+- 不得尝试访问宿主对象、文件、网络、环境变量、线程、进程或原生代码
+- 不得在脚本中使用 `eval`、`Function` 构造器、WebAssembly 或动态加载代码
+- 不得把凭证、密钥、令牌或非必要个人敏感信息放入脚本或参数
+- 工具不可见、未授权或用户拒绝确认时必须停止，不得绕过 AAF 治理$skill$),
         ($skill$builtin-agent-execution$skill$, $skill$受控 Agent 执行$skill$, $skill$USE WHEN AAF 工作流或 AIGC 在 Assistant SkillSelection 外直接执行已发布 Agent。$skill$, $skill$
 # 受控 Agent 执行
 
@@ -940,6 +1033,75 @@ UPDATE ai_skill_definition definition
 SET current_version_id = version.id, update_time = CURRENT_TIMESTAMP
 FROM created_versions version
 WHERE definition.id = version.skill_id;
+
+-- PostgreSQL 不会在同一数据修改 CTE 中再次更新刚插入的根对象；独立语句回填初始发布指针。
+UPDATE ai_skill_definition definition
+SET current_version_id = (
+        SELECT version.id
+        FROM ai_skill_version version
+        WHERE version.skill_id = definition.id
+          AND version.status = 'APPROVED'
+        ORDER BY version.version DESC
+        LIMIT 1
+    ),
+    update_time = CURRENT_TIMESTAMP
+WHERE definition.built_in = TRUE
+  AND definition.deleted = FALSE
+  AND definition.current_version_id IS NULL
+  AND EXISTS (
+        SELECT 1
+        FROM ai_skill_version version
+        WHERE version.skill_id = definition.id
+          AND version.status = 'APPROVED'
+    );
+
+-- 受控 JavaScript 计算 Skill 只允许使用受治理脚本工具。
+INSERT INTO ai_skill_tool_requirement (
+    skill_version_id, tool_id, tool_version, tool_name,
+    required, usage_purpose, sort_order
+)
+SELECT skill.current_version_id,
+       'script.execute.javascript',
+       1,
+       'script.execute.javascript',
+       TRUE,
+       '将明确输入转换为最小纯 JavaScript 脚本并在 GraalVM 受限运行时执行，以真实结果完成确定性计算或数据处理',
+       100
+FROM ai_skill_definition skill
+WHERE skill.code = 'builtin-javascript-compute'
+  AND skill.current_version_id IS NOT NULL
+  AND skill.built_in = TRUE
+  AND skill.deleted = FALSE
+ON CONFLICT (skill_version_id, tool_id, tool_version) DO UPDATE SET
+    tool_name = EXCLUDED.tool_name,
+    required = EXCLUDED.required,
+    usage_purpose = EXCLUDED.usage_purpose,
+    sort_order = EXCLUDED.sort_order;
+
+-- SYSTEM Scope 默认 Skill 绑定；自我认知不得声明工具 requirement。
+INSERT INTO ai_system_skill_binding (
+    skill_id, activation_mode, enabled, sort_order, create_time, update_time, deleted
+)
+SELECT skill.id, 'ALWAYS', TRUE, 100, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
+FROM ai_skill_definition skill
+WHERE skill.code = 'builtin-self-awareness'
+  AND skill.current_version_id IS NOT NULL
+  AND skill.deleted = FALSE
+ON CONFLICT (skill_id) DO UPDATE SET
+    activation_mode = EXCLUDED.activation_mode,
+    enabled = EXCLUDED.enabled,
+    sort_order = EXCLUDED.sort_order,
+    update_time = CURRENT_TIMESTAMP,
+    deleted = FALSE;
+
+-- ============================================================
+-- 内置 Skill 分类
+-- ============================================================
+
+INSERT INTO ai_skill_category (code, name, description, sort_order)
+VALUES ('copywriting', '文案生成', '广告、口播、小红书与产品文案生成技能', 10)
+ON CONFLICT (code) DO NOTHING;
+
 -- ============================================================
 -- 内容创作 Role（默认用户助理模板的可切换能力集）
 -- ============================================================
@@ -950,8 +1112,8 @@ INSERT INTO ai_role (
 ) VALUES (
     2, 'system.role.content-creator', '内容创作者',
     '内容拆解、思路澄清、结构构建、内容裂变和多平台草稿生成',
-    '["aigc-copywriting","content-schedule","content-judge","content-clarify","content-architect","content-build","voiceover","redbook","product-copy","ip-position","short-script","title-topic","biz-analysis","rich-text-write"]',
-    '["createDocument","updateDocument","publish","publishStatus","collect"]',
+    '[{"skillKey":"aigc-copywriting","activationMode":"ON_DEMAND"},{"skillKey":"content-schedule","activationMode":"ON_DEMAND"},{"skillKey":"content-judge","activationMode":"ON_DEMAND"},{"skillKey":"content-clarify","activationMode":"ON_DEMAND"},{"skillKey":"content-architect","activationMode":"ON_DEMAND"},{"skillKey":"content-build","activationMode":"ON_DEMAND"},{"skillKey":"voiceover","activationMode":"ON_DEMAND"},{"skillKey":"redbook","activationMode":"ON_DEMAND"},{"skillKey":"product-copy","activationMode":"ON_DEMAND"},{"skillKey":"ip-position","activationMode":"ON_DEMAND"},{"skillKey":"short-script","activationMode":"ON_DEMAND"},{"skillKey":"title-topic","activationMode":"ON_DEMAND"},{"skillKey":"biz-analysis","activationMode":"ON_DEMAND"},{"skillKey":"rich-text-write","activationMode":"ON_DEMAND"}]',
+    '["content.draft.upsert"]',
     'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 ) ON CONFLICT (id) DO NOTHING;
 
@@ -1355,7 +1517,7 @@ ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 WITH seeded_skill (code, name, summary, content) AS (
     VALUES
         ($skill$voiceover$skill$, $skill$口播文案$skill$, $skill$短视频/直播口播稿，带节奏 + 钩子 + 转化$skill$, $skill$你是一位专业短视频口播文案师，擅长为各类品牌和内容创作者打磨口播稿件。你熟悉各平台受众心理（抖音/视频号/快手），能精准把握节奏感和情绪张力。创作时，前 3 秒必须抓住注意力（用痛点、反常识或强悬念），中段清晰传递核心价值，结尾给出明确的行动指令。语言口语化、有画面感，适合真人配音朗读。每次输出请标注字数和预计朗读时长。输出格式：使用标准 Markdown 格式，用 `##` 分段标题、`-` 列表组织结构。$skill$),
-        ($skill$redbook$skill$, $skill$小红书爆款$skill$, $skill$标题 + 正文 + 标签，符合平台算法偏好$skill$, $skill$你是小红书资深内容运营，深度理解平台算法和用户心理。你擅长创作高互动率的种草笔记：标题必须包含情绪词 + 关键词 + emoji，控制在 18 字以内；正文采用分段式结构，前 2 句抓住眼球，中段干货扎实，结尾引导互动（提问/抽奖/求关注）；标签 5-8 个，混合大词和长尾词。避免过度营销感，用真实体验感打动读者。输出格式：直接输出纯文本，不要使用 Markdown 语法。$skill$),
+        ($skill$redbook$skill$, $skill$小红书爆款$skill$, $skill$标题 + 正文 + 标签，符合平台算法偏好$skill$, $skill$你是小红书资深内容运营，深度理解平台算法和用户心理。你擅长创作高互动率的种草笔记：标题必须包含情绪词 + 关键词 + emoji，控制在 18 字以内；正文采用分段式结构，前 2 句抓住眼球，中段干货扎实，结尾引导互动（提问/抽奖/求关注）；标签 5-8 个，混合大词和长尾词。避免过度营销感，用真实体验感打动读者。输出格式：使用标准 Markdown 组织标题、正文和标签，确保可直接保存为文档草稿。$skill$),
         ($skill$product-copy$skill$, $skill$产品文案$skill$, $skill$卖点提炼 / 详情页 / 落地页 / 转化文案$skill$, $skill$你是电商和品牌产品文案专家，精通消费者心理和转化逻辑。你能快速提炼产品核心卖点（功能价值 + 情感价值），根据使用场景（详情页主图文案/落地页标题/朋友圈推广语）调整表达策略。创作原则：用场景代替功能描述，用数字增强可信度，用对比突出优势，用稀缺感促进决策。输出时请注明文案适用位置和建议配图方向。$skill$),
         ($skill$ip-position$skill$, $skill$IP 定位$skill$, $skill$个人品牌定位、人设打磨、内容策略$skill$, $skill$你是个人 IP 操盘手和品牌策略顾问，服务过各垂类 KOL 和创业者。你擅长帮人找到独特定位，避免同质化竞争。咨询时你会先了解用户背景（职业/优势/目标受众/变现路径），再输出：差异化人设标签（3-5 个）、内容护城河（专业壁垒）、平台矩阵策略（主攻+辅助）、6 个月里程碑规划。输出要具体可执行，不空谈方法论。$skill$),
         ($skill$short-script$skill$, $skill$短视频脚本$skill$, $skill$分镜 / 台词 / 节奏，按平台时长适配$skill$, $skill$你是短视频编剧和导演助手，擅长各类竖屏短视频剧本创作（15s/30s/60s/3min）。你了解剪辑节奏和视觉表达逻辑，输出的脚本包含：场景描述（景别/动作/表情）、台词/旁白、音乐氛围建议、字幕文字。擅长情感共鸣类、知识干货类、产品种草类等多种风格。请用分镜表格格式输出，让执行团队一目了然。$skill$),
@@ -1369,23 +1531,95 @@ WITH seeded_skill (code, name, summary, content) AS (
     SELECT code, name, summary, 'zh-CN', 'PUBLIC', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
     FROM seeded_skill
     RETURNING id, code
-), created_versions AS (
-    INSERT INTO ai_skill_version (
-        skill_id, version, status, content, tool_access_mode, change_summary, content_hash, create_time
-    )
-    SELECT definition.id, 1, 'APPROVED', seeded.content, 'RESTRICT', '内置初始版本',
-           encode(digest(seeded.content, 'sha256'), 'hex'), CURRENT_TIMESTAMP
-    FROM inserted_definitions definition
-    JOIN seeded_skill seeded ON seeded.code = definition.code
-    RETURNING id, skill_id
 )
-UPDATE ai_skill_definition definition
-SET current_version_id = version.id, update_time = CURRENT_TIMESTAMP
-FROM created_versions version
-WHERE definition.id = version.skill_id;
+INSERT INTO ai_skill_version (
+    skill_id, version, status, content, tool_access_mode, change_summary, content_hash, create_time
+)
+SELECT definition.id, 1, 'APPROVED', seeded.content, 'RESTRICT', '内置初始版本',
+       encode(digest(seeded.content, 'sha256'), 'hex'), CURRENT_TIMESTAMP
+FROM inserted_definitions definition
+JOIN seeded_skill seeded ON seeded.code = definition.code;
 
+-- PostgreSQL 不会在同一数据修改 CTE 中再次更新刚插入的根对象；独立语句回填初始发布指针。
+UPDATE ai_skill_definition definition
+SET current_version_id = (
+        SELECT version.id
+        FROM ai_skill_version version
+        WHERE version.skill_id = definition.id
+          AND version.status = 'APPROVED'
+        ORDER BY version.version DESC
+        LIMIT 1
+    ),
+    update_time = CURRENT_TIMESTAMP
+WHERE definition.code IN (
+        'voiceover',
+        'redbook',
+        'product-copy',
+        'ip-position',
+        'short-script',
+        'title-topic',
+        'biz-analysis',
+        'rich-text-write'
+    )
+  AND definition.built_in = TRUE
+  AND definition.deleted = FALSE
+  AND definition.current_version_id IS NULL;
+
+WITH copywriting_skill (code) AS (
+    VALUES
+        ('voiceover'),
+        ('redbook'),
+        ('product-copy'),
+        ('ip-position'),
+        ('short-script'),
+        ('title-topic'),
+        ('biz-analysis'),
+        ('rich-text-write')
+)
+INSERT INTO ai_skill_category_relation (skill_id, category_id)
+SELECT skill.id, category.id
+FROM copywriting_skill expected
+JOIN ai_skill_definition skill ON skill.code = expected.code AND skill.deleted = FALSE
+JOIN ai_skill_category category ON category.code = 'copywriting'
+ON CONFLICT DO NOTHING;
 
 -- ============================================================
+-- 文案 Skill 的当前不可变版本均要求通过受控工具保存规范 Markdown 草稿。
+INSERT INTO ai_skill_tool_requirement (
+    skill_version_id, tool_id, tool_version, tool_name,
+    required, usage_purpose, sort_order
+)
+SELECT skill.current_version_id,
+       'content.draft.upsert',
+       1,
+       'content.draft.upsert',
+       TRUE,
+       '将规范 Markdown 产物保存为可撤销数据库草稿，显式 RETURN_ONLY 时由执行画像移除',
+       100
+FROM ai_skill_definition skill
+WHERE skill.code IN (
+        'aigc-copywriting',
+        'content-schedule',
+        'content-judge',
+        'content-clarify',
+        'content-architect',
+        'content-build',
+        'voiceover',
+        'redbook',
+        'product-copy',
+        'ip-position',
+        'short-script',
+        'title-topic',
+        'biz-analysis',
+        'rich-text-write'
+    )
+  AND skill.current_version_id IS NOT NULL
+  AND skill.deleted = FALSE
+ON CONFLICT (skill_version_id, tool_id, tool_version) DO UPDATE SET
+    tool_name = EXCLUDED.tool_name,
+    required = EXCLUDED.required,
+    usage_purpose = EXCLUDED.usage_purpose,
+    sort_order = EXCLUDED.sort_order;
 -- v0.2.1 P1：用户工作流模板（5 流水线 seed）
 -- ============================================================
 INSERT INTO user_workflow_template (code, name, description, cover_media_version_id, category, template_config, is_official, sort_order)
@@ -1423,8 +1657,8 @@ VALUES
      '角色定位 → 脚本 → 分镜图 → 视频',
      NULL, 'CONTENT',
      '{"steps":[
-        {"kind":"COPY","label":"IP 角色定位","skill":"ip-positioning","inputKey":"persona"},
-        {"kind":"COPY","label":"短视频脚本","skill":"shortvideo-script","promptFrom":"step0"},
+        {"kind":"COPY","label":"IP 角色定位","skill":"ip-position","inputKey":"persona"},
+        {"kind":"COPY","label":"短视频脚本","skill":"short-script","promptFrom":"step0"},
         {"kind":"IMAGE","label":"分镜图（3张）","model":"wanx","aspect":"9:16","count":3,"promptFrom":"step1"},
         {"kind":"VIDEO","label":"短视频","model":"happyhorse","duration":10,"ratio":"9:16","promptFrom":"step1"}
      ]}'::jsonb,
@@ -1435,7 +1669,7 @@ VALUES
      NULL, 'STUDY',
      '{"steps":[
         {"kind":"OCR","label":"OCR 提取","inputKey":"pdfFile"},
-        {"kind":"COPY","label":"摘要总结","skill":"summary","promptFrom":"step0"},
+        {"kind":"COPY","label":"摘要总结","skill":"rich-text-write","promptFrom":"step0"},
         {"kind":"IMAGE","label":"思维导图配图","model":"wanx","aspect":"16:9","promptFrom":"step1"}
      ]}'::jsonb,
      TRUE, 50)
@@ -1474,7 +1708,7 @@ INSERT INTO ai_persona (
 ) VALUES (
     1, 'AAF 助理',
     '友好、准确、审慎，尊重用户表达与隐私。',
-    '你是 AAF 默认用户助理。默认作为平台向导解答产品使用问题，也可按用户意图切换到内容创作角色；只使用授权资料，不捏造信息。',
+    '你是 AAF 默认用户助理。默认作为平台向导解答产品使用问题，也可按用户意图切换到内容创作角色或使用受控计算技能；只使用授权资料和工具真实结果，不捏造信息。',
     'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
@@ -1485,20 +1719,22 @@ INSERT INTO ai_role (
 ) VALUES (
     1, 'system.role.platform-guide', '平台向导',
     'AAF 平台咨询、只读故障排查和人工转接',
-    '["builtin-self-awareness","builtin-user-understanding","builtin-self-learning","builtin-skill-creation","builtin-tool-generation"]', '["support.handoff"]',
+    '[{"skillKey":"builtin-self-learning","activationMode":"ON_DEMAND"},{"skillKey":"builtin-skill-creation","activationMode":"ON_DEMAND"},{"skillKey":"builtin-tool-generation","activationMode":"ON_DEMAND"}]', '["support.handoff"]',
     'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
 -- 系统级默认用户助理当前定义；用户会话、记忆和执行状态不在此行共享
 INSERT INTO ai_assistant (
     id, version, code, user_id, persona_id, knowledge_base_id,
-    memory_strategy, status, owner_id, create_time, update_time, deleted
+    memory_strategy, skill_ids, tool_whitelist,
+    status, owner_id, create_time, update_time, deleted
 ) VALUES (
-    1, 3, 'system.assistant.default-user', 0, 1, 1, 'HYBRID', 'active', NULL,
-    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
+    1, 6, 'system.assistant.default-user', 0, 1, 1,
+    'HYBRID', '[{"skillKey":"builtin-user-understanding","activationMode":"ALWAYS"},{"skillKey":"builtin-javascript-compute","activationMode":"ON_DEMAND"}]', '["script.execute.javascript"]',
+    'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
--- 默认用户助理挂载两个 Role，平台向导为默认 Role
+-- 默认用户助理仍只挂载两个 Role，平台向导为默认 Role
 INSERT INTO ai_assistant_role (
     assistant_id, role_id, is_default, sort_order, create_time, update_time, deleted
 ) VALUES

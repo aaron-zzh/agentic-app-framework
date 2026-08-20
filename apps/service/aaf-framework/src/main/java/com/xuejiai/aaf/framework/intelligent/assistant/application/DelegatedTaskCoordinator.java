@@ -3,8 +3,10 @@ package com.xuejiai.aaf.framework.intelligent.assistant.application;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -16,18 +18,26 @@ import com.xuejiai.aaf.framework.engine.task.agent.AgentTaskRuntime;
 import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolAuthorizationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ClarificationRequest;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.CoordinationPlan;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.CoordinationPlan.ExecutorAssignment;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.BudgetUsage;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.Owner;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.OwnerKind;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.Source;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.Status;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract.NotificationTrigger;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract.ResponsibleOwner;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionInput;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.IterationEvaluation;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard.SubTask;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskModelSelection;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskTransition;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskTransition.ClarificationRequestTransition;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskTransition.InputTransition;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskTransition.IterationEvaluationTransition;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskTransition.ParentFailureTransition;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort.Lease;
@@ -37,11 +47,11 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.NotificationPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.NotificationPort.Notification;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.NotificationPort.Type;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskBoardPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskTransitionPort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ExecutionEventStatus;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.OwnerType;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventPayload;
-import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ConversationId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.EventId;
@@ -51,21 +61,30 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import tools.jackson.core.StreamReadFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 /** DELEGATED 唯一应用入口；任务、DAG 与预算事实均在 PostgreSQL。 */
+@Slf4j
 public final class DelegatedTaskCoordinator {
+    private static final int MAX_COORDINATION_PLAN_CHARS = 12_000;
+    private static final JsonMapper COORDINATION_PLAN_JSON =
+            JsonMapper.builder().enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION).build();
     private static final String DELEGATED_TASK_TYPE = "delegated-task";
     private static final Set<String> CONVERSATION_ALLOWED_ACTIONS =
             Set.of("knowledge.search", "content.generate");
 
     private final DelegatedTaskPort tasks;
+    private final TaskTransitionPort transitions;
+    private final TaskIngress taskIngress;
     private final TaskBoardPort boards;
     private final ConversationLeasePort leases;
     private final AssistantCommandPort commands;
     private final AgentExecutionPort agentExecution;
-    private final ExecutionEventStorePort events;
     private final NotificationPort notifications;
     private final DelegatedTaskDispatchPort dispatch;
     private final AgentTaskRuntime agentTaskRuntime;
@@ -74,22 +93,24 @@ public final class DelegatedTaskCoordinator {
 
     public DelegatedTaskCoordinator(
             DelegatedTaskPort tasks,
+            TaskTransitionPort transitions,
+            TaskIngress taskIngress,
             TaskBoardPort boards,
             ConversationLeasePort leases,
             AssistantCommandPort commands,
             AgentExecutionPort agentExecution,
-            ExecutionEventStorePort events,
             NotificationPort notifications,
             DelegatedTaskDispatchPort dispatch,
             AgentTaskRuntime agentTaskRuntime,
             Clock clock,
             Duration leaseTtl) {
         this.tasks = Objects.requireNonNull(tasks, "tasks 不能为空");
+        this.transitions = Objects.requireNonNull(transitions, "transitions 不能为空");
+        this.taskIngress = Objects.requireNonNull(taskIngress, "taskIngress 不能为空");
         this.boards = Objects.requireNonNull(boards, "boards 不能为空");
         this.leases = Objects.requireNonNull(leases, "leases 不能为空");
         this.commands = Objects.requireNonNull(commands, "commands 不能为空");
         this.agentExecution = Objects.requireNonNull(agentExecution, "agentExecution 不能为空");
-        this.events = Objects.requireNonNull(events, "events 不能为空");
         this.notifications = Objects.requireNonNull(notifications, "notifications 不能为空");
         this.dispatch = Objects.requireNonNull(dispatch, "dispatch 不能为空");
         this.agentTaskRuntime = Objects.requireNonNull(agentTaskRuntime, "agentTaskRuntime 不能为空");
@@ -108,45 +129,34 @@ public final class DelegatedTaskCoordinator {
                 TaskBoard.single(
                         command.taskId(), command.input(), contract.retryPolicy().maxAttempts()),
                 Source.AUTOMATION,
-                0);
+                0,
+                true);
     }
 
     public DelegatedTask submit(AssistantCommand command, TaskBoard board) {
-        return submit(command, board, Source.AUTOMATION, 0);
+        return submit(command, board, Source.AUTOMATION, 0, true);
     }
 
-    public DelegatedTask submitConversationTask(
-            AssistantCommand command, String title, String description, int priority) {
-        var effectiveCommand = requireTaskCommand(command, title, null);
-        var board =
-                TaskBoard.single(effectiveCommand.taskId(), taskDescription(title, description), 3);
-        return submit(effectiveCommand, board, Source.CONVERSATION, priority);
-    }
-
-    public DelegatedTask submitManualTask(
-            AssistantCommand command,
-            String title,
-            String description,
-            int priority,
-            ExecutionContract contract) {
-        var effectiveCommand = requireTaskCommand(command, title, contract);
-        var board =
-                TaskBoard.single(
-                        effectiveCommand.taskId(),
-                        taskDescription(title, description),
-                        effectiveCommand.executionContract().retryPolicy().maxAttempts());
-        return submit(effectiveCommand, board, Source.MANUAL, priority);
+    /** 创建持久任务后由当前请求持有首个调度租约，供 Headless SSE 连续投影。 */
+    public Flux<ExecutionEvent> submitAndDispatch(
+            AssistantCommand command, TaskBoard board, String workerId) {
+        submit(command, board, Source.CONVERSATION, 0, false);
+        return dispatch(command.tenantId(), command.taskId(), workerId);
     }
 
     private DelegatedTask submit(
-            AssistantCommand command, TaskBoard board, Source source, int priority) {
+            AssistantCommand command,
+            TaskBoard board,
+            Source source,
+            int priority,
+            boolean signalDispatch) {
         Objects.requireNonNull(command, "command 不能为空");
         Objects.requireNonNull(board, "board 不能为空");
         Objects.requireNonNull(source, "source 不能为空");
-        if (command.controlMode() != ExecutionEvent.ControlMode.DELEGATED
+        if (!persistentControlMode(command.controlMode())
                 || command.executionContract() == null
                 || command.operation() != AssistantCommand.Operation.START) {
-            throw new IllegalArgumentException("委托任务必须由携带完整 ExecutionContract 的 START 命令创建");
+            throw new IllegalArgumentException("持久任务必须由合法 control mode、完整合同的 START 命令创建");
         }
         if (!command.taskId().equals(board.taskId())) {
             throw new IllegalArgumentException("TaskBoard 与委托命令 taskId 不一致");
@@ -176,82 +186,36 @@ public final class DelegatedTaskCoordinator {
                         Map.of(),
                         at,
                         at);
-        var stored = tasks.create(task, command, board);
-        notifyStatus(stored.task(), "委托任务已进入持久调度队列", "submitted");
-        dispatch.signal(command.tenantId(), command.taskId());
-        return stored.task();
-    }
-
-    private AssistantCommand requireTaskCommand(
-            AssistantCommand command, String title, ExecutionContract contract) {
-        Objects.requireNonNull(command, "command 不能为空");
-        if (title == null || title.isBlank()) {
-            throw new IllegalArgumentException("任务标题不能为空白");
+        var stored =
+                transitions.create(
+                        new TaskTransition(task, command, board, List.of(submittedEvent(command))));
+        notifyStatus(stored, "委托任务已进入持久调度队列", "submitted");
+        if (signalDispatch) {
+            dispatch.signal(command.tenantId(), command.taskId());
         }
-        var effectiveContract =
-                contract == null
-                        ? ExecutionContract.conversationDefault(
-                                CONVERSATION_ALLOWED_ACTIONS,
-                                new ResponsibleOwner("ASSISTANT", command.assistantId().value()))
-                        : contract;
-        return new AssistantCommand(
-                command.operation(),
-                command.tenantId(),
-                command.userId(),
-                command.memorySubject(),
-                command.assistantId(),
-                command.conversationId(),
-                command.sessionId(),
-                command.taskId(),
-                command.executionId(),
-                command.runId(),
-                command.parentExecutionId(),
-                command.correlationId(),
-                command.causationId(),
-                command.idempotencyKey(),
-                ExecutionEvent.ControlMode.DELEGATED,
-                effectiveContract,
-                command.lease(),
-                command.sequenceBase(),
-                command.input(),
-                command.completionCriteria(),
-                command.contextCandidates(),
-                command.taskModelSelection(),
-                command.requestedAt());
+        return stored;
     }
-
-    private static String taskDescription(String title, String description) {
-        return description == null || description.isBlank()
-                ? title
-                : title + "\n\n---\n\n" + description;
-    }
-
-    public static TitleDescription splitGoalDescription(String raw) {
-        if (raw == null) {
-            return new TitleDescription(null, null);
-        }
-        var separator = "\n\n---\n\n";
-        var separatorIndex = raw.indexOf(separator);
-        if (separatorIndex < 0) {
-            return new TitleDescription(raw, null);
-        }
-        return new TitleDescription(
-                raw.substring(0, separatorIndex),
-                raw.substring(separatorIndex + separator.length()));
-    }
-
-    public record TitleDescription(String title, String description) {}
 
     public Flux<ExecutionEvent> dispatch(TenantId tenantId, TaskId taskId, String workerId) {
         var stored =
                 tasks.find(tenantId, taskId)
                         .orElseThrow(
                                 () -> new IllegalArgumentException("委托任务不存在: " + taskId.value()));
-        var board = requireBoard(stored);
         var lease =
                 leases.acquire(tenantId, stored.task().conversationId(), workerId, leaseTtl)
                         .orElse(null);
         if (lease == null) return Flux.empty();
+        var now = clock.instant();
+        var inputCommand = stored.command().withLease(lease, now);
+        transitions.consumeInputs(new InputTransition(context(inputCommand), now));
+        stored = tasks.find(tenantId, taskId).orElseThrow();
+        if (stored.task().terminal()
+                || stored.task().status() == Status.AWAITING_CLARIFICATION
+                || stored.task().status() == Status.AWAITING_AUTHORIZATION
+                || stored.task().status() == Status.PAUSED) {
+            leases.release(lease);
+            return Flux.empty();
+        }
         var claimed = tasks.claim(tenantId, taskId, lease, clock.instant()).orElse(null);
         if (claimed == null) {
             leases.release(lease);
@@ -260,6 +224,7 @@ public final class DelegatedTaskCoordinator {
         }
         var command = claimed.command().withLease(lease, clock.instant());
         var parentContext = context(command);
+        var board = requireBoard(claimed);
         if (board.hasRunning()) {
             board = boards.interruptRunning(tenantId, taskId, true, lease);
         }
@@ -373,59 +338,21 @@ public final class DelegatedTaskCoordinator {
     }
 
     public Mono<DelegatedTask> acceptInput(ExecutionInput input) {
-        var stored = requireOwned(input.tenantId(), input.userId(), input.taskId());
-        if (input.kind() == ExecutionInput.Kind.UNRELATED) {
-            var leaseUse = diagnosticOrAcquiredLease(stored.task(), "unrelated-" + randomId());
-            try {
-                return appendInputEvent(
-                                stored.command().withLease(leaseUse.lease(), input.receivedAt()),
-                                input,
-                                leaseUse.lease())
-                        .map(ignored -> stored.task())
-                        .doFinally(
-                                ignored -> {
-                                    if (leaseUse.acquired()) leases.release(leaseUse.lease());
-                                });
-            } catch (RuntimeException failure) {
-                if (leaseUse.acquired()) leases.release(leaseUse.lease());
-                throw failure;
-            }
-        }
-        var lease =
-                leases.preempt(
-                        input.tenantId(),
-                        stored.task().conversationId(),
-                        "input-" + randomId(),
-                        leaseTtl);
-        var released = new AtomicBoolean();
-        try {
-            cancelRunningChildren(input.tenantId(), input.taskId());
-            boards.interruptRunning(
-                    input.tenantId(),
-                    input.taskId(),
-                    input.kind() != ExecutionInput.Kind.CANCEL,
-                    lease);
-            var changed = tasks.applyInput(input, lease);
-            return appendInputEvent(
-                            stored.command().withLease(lease, input.receivedAt()), input, lease)
-                    .map(ignored -> changed)
-                    .doOnSuccess(
-                            task -> {
-                                releaseOnce(lease, released);
-                                if (input.kind() == ExecutionInput.Kind.MODIFY
-                                        || input.kind() == ExecutionInput.Kind.SUPPLEMENT) {
-                                    dispatch.signal(input.tenantId(), input.taskId());
-                                }
-                            })
-                    .doFinally(ignored -> releaseOnce(lease, released));
-        } catch (RuntimeException failure) {
-            releaseOnce(lease, released);
-            throw failure;
-        }
+        return taskIngress
+                .accept(input)
+                .map(
+                        ignored ->
+                                requireOwned(input.tenantId(), input.userId(), input.taskId())
+                                        .task());
     }
 
     public int recoverAndDispatch(String workerId, int limit) {
         var recovered = tasks.recoverExpired(clock.instant());
+        try {
+            transitions.publishOutbox(Math.min(limit, 100));
+        } catch (TaskTransitionPort.OutboxRelayException ignored) {
+            // relay 已按安全失败类型计数；不得用异常正文污染恢复日志。
+        }
         try {
             notifications.retryFailed(Math.min(limit, 100));
         } catch (RuntimeException ignored) {
@@ -458,7 +385,11 @@ public final class DelegatedTaskCoordinator {
                     return Flux.fromIterable(claim.subTasks())
                             .flatMap(
                                     subTask ->
-                                            executeSubTask(parentCommand, parentContext, subTask),
+                                            executeSubTask(
+                                                    parentCommand,
+                                                    parentContext,
+                                                    claim.board(),
+                                                    subTask),
                                     parallelism)
                             .concatWith(
                                     Flux.defer(
@@ -471,61 +402,90 @@ public final class DelegatedTaskCoordinator {
     }
 
     private Flux<ExecutionEvent> executeSubTask(
-            AssistantCommand parentCommand, InvocationContext parentContext, SubTask subTask) {
+            AssistantCommand parentCommand,
+            InvocationContext parentContext,
+            TaskBoard board,
+            SubTask subTask) {
         var childCommand =
-                parentCommand.forSubTask(subTask, parentCommand.lease(), clock.instant());
+                parentCommand.forSubTask(
+                        subTask,
+                        board.resolveInput(subTask),
+                        parentCommand.lease(),
+                        clock.instant());
         var result = new AtomicReference<>("");
+        var observedEvents = new java.util.ArrayList<ExecutionEvent>();
         var failure = new AtomicReference<String>();
+        var clarification = new AtomicReference<ClarificationRequest>();
         var completed = new AtomicBoolean();
         var awaitingAuthorization = new AtomicBoolean();
+        log.debug(
+                "[Assistant协调] 子 Agent 即将执行：taskId={}，executionId={}，agentKind={}，agentKey={}，模型模式={}",
+                parentContext.taskId().value(),
+                subTask.executionId().value(),
+                subTask.kind(),
+                subTask.subTaskId(),
+                subTask.modelSelection().mode());
         return commands.execute(childCommand)
                 .doOnNext(
                         event -> {
+                            observedEvents.add(event);
                             notifyBudgetIfNeeded(parentContext);
                             if (event.type() == ExecutionEventType.MESSAGE_COMPLETED) {
                                 var text = event.payload().values().get("text");
                                 if (text != null) result.set(text.toString());
                             }
-                            if (event.type() == ExecutionEventType.EXECUTION_COMPLETED)
+                            if (event.type() == ExecutionEventType.EXECUTION_COMPLETED) {
                                 completed.set(true);
+                            }
                             if (event.status() == ExecutionEventStatus.AWAITING_AUTHORIZATION) {
                                 awaitingAuthorization.set(true);
-                                tasks.awaitAuthorization(
-                                        parentContext, "子任务等待工具授权", clock.instant());
                                 notify(
                                         parentContext,
                                         Type.AUTHORIZATION_GAP,
                                         "任务等待授权",
                                         event.eventId().value(),
-                                        event.payload().values());
+                                        Map.of("eventType", event.type().name()));
+                            }
+                            if (event.status() == ExecutionEventStatus.AWAITING_CLARIFICATION
+                                    && clarification.get() == null) {
+                                clarification.set(
+                                        decodeClarificationRequest(
+                                                parentContext, subTask, event, clock.instant()));
                             }
                             if (event.type() == ExecutionEventType.EXECUTION_FAILED
                                     || event.type() == ExecutionEventType.COMMAND_REJECTED
                                     || event.status() == ExecutionEventStatus.FAILED
                                     || event.status() == ExecutionEventStatus.REJECTED) {
-                                failure.compareAndSet(null, event.payload().values().toString());
+                                failure.compareAndSet(null, "子 Agent 执行未通过状态校验");
                             }
                         })
-                .takeUntil(event -> awaitingAuthorization.get())
+                .takeUntil(event -> awaitingAuthorization.get() || clarification.get() != null)
                 .onErrorResume(
                         error -> {
-                            failure.compareAndSet(
-                                    null, Objects.requireNonNullElse(error.getMessage(), "子任务失败"));
+                            failure.compareAndSet(null, "子任务执行异常");
                             return Flux.empty();
                         })
                 .concatWith(
                         Flux.defer(
                                 () -> {
                                     if (awaitingAuthorization.get()) {
-                                        boards.interruptSubTask(
-                                                parentContext.tenantId(),
-                                                parentContext.taskId(),
-                                                subTask.subTaskId(),
-                                                true,
-                                                parentContext.lease());
                                         return Flux.empty();
                                     }
-                                    if (failure.get() != null || !completed.get()) {
+                                    if (clarification.get() != null) {
+                                        var request = clarification.get();
+                                        var event =
+                                                clarificationRequestedEvent(
+                                                        parentContext, request, clock.instant());
+                                        transitions.requestClarification(
+                                                new ClarificationRequestTransition(
+                                                        parentContext, request, event));
+                                        return Flux.just(event);
+                                    }
+                                    if (failure.get() != null
+                                            || !completed.get()
+                                            || (subTask.kind() == SubTask.Kind.EXECUTOR
+                                                    && !completionEvidenceSatisfied(
+                                                            parentCommand, observedEvents))) {
                                         boards.failSubTask(
                                                 parentContext.tenantId(),
                                                 parentContext.taskId(),
@@ -535,6 +495,39 @@ public final class DelegatedTaskCoordinator {
                                                 failure.get() == null
                                                         || isTransientMessage(failure.get()),
                                                 parentContext.lease());
+                                    } else if (subTask.kind() == SubTask.Kind.COORDINATOR) {
+                                        var plan =
+                                                decodeAndValidatePlan(
+                                                        parentCommand, board, result.get());
+                                        boards.applyCoordinationPlan(
+                                                parentContext.tenantId(),
+                                                parentContext.taskId(),
+                                                plan,
+                                                parentContext.lease());
+                                        log.debug(
+                                                "[Assistant协调] 协调计划已冻结：taskId={}，coordinatorExecutionId={}，执行者数={}，并行度={}",
+                                                parentContext.taskId().value(),
+                                                subTask.executionId().value(),
+                                                plan.executors().size(),
+                                                plan.maxParallelism());
+                                    } else if (subTask.kind() == SubTask.Kind.EVALUATOR) {
+                                        var evaluation = decodeIterationEvaluation(result.get());
+                                        var at = clock.instant();
+                                        var event =
+                                                iterationEvent(
+                                                        parentContext,
+                                                        board.goal().iteration(),
+                                                        evaluation,
+                                                        at);
+                                        var committed =
+                                                transitions.evaluateIteration(
+                                                        new IterationEvaluationTransition(
+                                                                parentContext,
+                                                                subTask.subTaskId(),
+                                                                evaluation,
+                                                                event,
+                                                                at));
+                                        return Flux.just(committed.event());
                                     } else {
                                         boards.completeSubTask(
                                                 parentContext.tenantId(),
@@ -542,33 +535,598 @@ public final class DelegatedTaskCoordinator {
                                                 subTask.subTaskId(),
                                                 result.get(),
                                                 parentContext.lease());
+                                        log.debug(
+                                                "[Assistant协调] 执行子 Agent 已完成：taskId={}，executionId={}，agentKey={}",
+                                                parentContext.taskId().value(),
+                                                subTask.executionId().value(),
+                                                subTask.subTaskId());
                                     }
                                     return Flux.empty();
-                                }));
+                                }))
+                .filter(event -> visibleToTaskConsumer(subTask, event));
     }
 
     private Flux<ExecutionEvent> finalizeBoard(InvocationContext context, TaskBoard board) {
-        if (board.completed()) {
+        var consumed = transitions.consumeInputs(new InputTransition(context, clock.instant()));
+        if (consumed.isPresent() && consumed.orElseThrow().task().status() != Status.RUNNING) {
+            return Flux.empty();
+        }
+        var latestBoard = boards.find(context.tenantId(), context.taskId()).orElse(board);
+        var at = clock.instant();
+        if (latestBoard.completed()) {
             var results = new LinkedHashMap<String, Object>();
-            board.subTasks().forEach((id, subTask) -> results.put(id, subTask.result()));
-            var completed = tasks.complete(context, results, clock.instant());
-            notifyStatus(completed, "委托任务完成", "completed");
-            return Flux.empty();
+            latestBoard.subTasks().forEach((id, subTask) -> results.put(id, subTask.result()));
+            var executorCount =
+                    latestBoard.subTasks().values().stream()
+                            .filter(subTask -> subTask.kind() == SubTask.Kind.EXECUTOR)
+                            .count();
+            var committed =
+                    transitions.commitParent(
+                            new TaskTransition.ParentStateTransition(
+                                    context,
+                                    latestBoard,
+                                    Status.COMPLETED,
+                                    results,
+                                    null,
+                                    List.of(
+                                            parentEvent(
+                                                    context,
+                                                    ExecutionEventType.MESSAGE_COMPLETED,
+                                                    ExecutionEventStatus.RUNNING,
+                                                    Map.of(
+                                                            "text",
+                                                            latestBoard.aggregateResults(),
+                                                            "agentKind",
+                                                            "EXECUTOR"),
+                                                    at),
+                                            parentEvent(
+                                                    context,
+                                                    ExecutionEventType.EXECUTION_COMPLETED,
+                                                    ExecutionEventStatus.COMPLETED,
+                                                    Map.of(
+                                                            "agentKind",
+                                                            "ASSISTANT",
+                                                            "subtaskCount",
+                                                            Math.toIntExact(executorCount)),
+                                                    at)),
+                                    at));
+            notifyStatus(committed.task(), "委托任务完成", "completed");
+            return Flux.fromIterable(committed.events());
         }
-        if (board.hasTerminalFailure()) {
-            var failed = tasks.fail(context, "TaskBoard 存在不可重试失败", clock.instant());
-            notifyFailure(failed, "TaskBoard 存在不可重试失败");
-            return Flux.empty();
+        if (latestBoard.hasTerminalFailure()) {
+            var reason = "TaskBoard 存在不可重试失败";
+            var committed =
+                    transitions.commitParent(
+                            new TaskTransition.ParentStateTransition(
+                                    context,
+                                    latestBoard,
+                                    Status.FAILED,
+                                    Map.of(),
+                                    reason,
+                                    List.of(
+                                            parentEvent(
+                                                    context,
+                                                    ExecutionEventType.EXECUTION_FAILED,
+                                                    ExecutionEventStatus.FAILED,
+                                                    Map.of("agentKind", "ASSISTANT"),
+                                                    at)),
+                                    at));
+            notifyFailure(committed.task(), reason);
+            return Flux.fromIterable(committed.events());
         }
-        var paused =
-                tasks.pause(
-                        context.tenantId(),
-                        context.taskId(),
-                        context.lease(),
-                        "TaskBoard 无可运行节点",
-                        clock.instant());
-        notifyStatus(paused, "任务因 DAG 无可运行节点暂停", "dag-blocked");
-        return Flux.empty();
+        var reason = "TaskBoard 无可运行节点";
+        var committed =
+                transitions.commitParent(
+                        new TaskTransition.ParentStateTransition(
+                                context,
+                                latestBoard,
+                                Status.PAUSED,
+                                Map.of(),
+                                reason,
+                                List.of(
+                                        parentEvent(
+                                                context,
+                                                ExecutionEventType.EXECUTION_PAUSED,
+                                                ExecutionEventStatus.PAUSED,
+                                                Map.of("agentKind", "ASSISTANT"),
+                                                at)),
+                                at));
+        notifyStatus(committed.task(), "任务因 DAG 无可运行节点暂停", "dag-blocked");
+        return Flux.fromIterable(committed.events());
+    }
+
+    private static ExecutionEvent submittedEvent(AssistantCommand command) {
+        return new ExecutionEvent(
+                new EventId("task-submitted-" + command.taskId().value()),
+                command.tenantId(),
+                command.conversationId(),
+                command.sessionId(),
+                command.taskId(),
+                command.executionId(),
+                command.runId(),
+                command.parentExecutionId(),
+                1,
+                ExecutionEventType.TASK_STATUS_CHANGED,
+                ExecutionEventStatus.PLANNING,
+                command.controlMode(),
+                OwnerType.ASSISTANT,
+                command.assistantId(),
+                null,
+                command.userId(),
+                command.correlationId(),
+                command.causationId(),
+                command.idempotencyKey(),
+                new ExecutionEventPayload(Map.of("status", Status.PENDING.name())),
+                command.requestedAt());
+    }
+
+    private static ExecutionEvent parentEvent(
+            InvocationContext context,
+            ExecutionEventType type,
+            ExecutionEventStatus status,
+            Map<String, Object> payload,
+            Instant at) {
+        var eventId =
+                UUID.nameUUIDFromBytes(
+                                (context.taskId().value()
+                                                + '|'
+                                                + context.executionId().value()
+                                                + '|'
+                                                + type.name())
+                                        .getBytes(StandardCharsets.UTF_8))
+                        .toString();
+        return new ExecutionEvent(
+                new EventId(eventId),
+                context.tenantId(),
+                context.conversationId(),
+                context.sessionId(),
+                context.taskId(),
+                context.executionId(),
+                context.runId(),
+                context.parentExecutionId(),
+                1,
+                type,
+                status,
+                context.controlMode(),
+                OwnerType.ASSISTANT,
+                context.assistantId(),
+                null,
+                context.userId(),
+                context.correlationId(),
+                context.causationId(),
+                context.idempotencyKey(),
+                new ExecutionEventPayload(payload),
+                at);
+    }
+
+    private static boolean visibleToTaskConsumer(SubTask subTask, ExecutionEvent event) {
+        if (event.type() == ExecutionEventType.CLARIFICATION_REQUESTED
+                || event.type() == ExecutionEventType.ITERATION_EVALUATED
+                || event.type() == ExecutionEventType.ITERATION_STOPPED) {
+            return true;
+        }
+        if (subTask.kind() != SubTask.Kind.EXECUTOR) {
+            return false;
+        }
+        return switch (event.type()) {
+            case MESSAGE_COMPLETED,
+                    RUN_COMPLETED,
+                    EXECUTION_COMPLETED,
+                    EXECUTION_FAILED,
+                    EXECUTION_CANCELED,
+                    EXECUTION_PAUSED,
+                    COMMAND_REJECTED ->
+                    false;
+            default -> true;
+        };
+    }
+
+    private static IterationEvaluation decodeIterationEvaluation(String output) {
+        if (output == null || output.isBlank() || output.length() > 2_000) {
+            throw new IllegalArgumentException("evaluator 未返回合法大小的决策");
+        }
+        final JsonNode root;
+        try (var parser = COORDINATION_PLAN_JSON.createParser(output)) {
+            root = COORDINATION_PLAN_JSON.readTree(parser);
+            if (root == null || parser.nextToken() != null) {
+                throw new IllegalArgumentException("evaluator 输出必须是单一 JSON 对象");
+            }
+        } catch (Exception failure) {
+            throw new IllegalArgumentException("evaluator 输出不是严格 JSON 决策");
+        }
+        requireObject(root, "IterationEvaluation");
+        requireFields(root, Set.of("decision", "reason"), Set.of("decision", "reason"));
+        final IterationEvaluation.Decision decision;
+        try {
+            decision = IterationEvaluation.Decision.valueOf(requiredText(root, "decision"));
+        } catch (IllegalArgumentException failure) {
+            throw new IllegalArgumentException("evaluator decision 只允许 CONTINUE/COMPLETE/BLOCKED");
+        }
+        return new IterationEvaluation(decision, requiredText(root, "reason"));
+    }
+
+    private static ClarificationRequest decodeClarificationRequest(
+            InvocationContext parentContext,
+            SubTask subTask,
+            ExecutionEvent source,
+            Instant createdAt) {
+        var raw = source.payload().values().get("clarificationRequest");
+        if (raw == null) {
+            throw new IllegalArgumentException("AWAITING_CLARIFICATION 缺少 clarificationRequest");
+        }
+        var root = COORDINATION_PLAN_JSON.valueToTree(raw);
+        requireObject(root, "clarificationRequest");
+        requireFields(
+                root,
+                Set.of("requiredFields", "questions", "deadline"),
+                Set.of("requiredFields", "questions", "deadline"));
+        var requiredFields = stringList(root.get("requiredFields"), "requiredFields");
+        var questionNodes = root.get("questions");
+        if (questionNodes == null || !questionNodes.isArray()) {
+            throw new IllegalArgumentException("clarification questions 必须是数组");
+        }
+        var questions = new java.util.ArrayList<ClarificationRequest.Question>();
+        for (var questionNode : questionNodes) {
+            requireObject(questionNode, "clarification question");
+            requireFields(
+                    questionNode,
+                    Set.of("field", "question", "options"),
+                    Set.of("field", "question", "options"));
+            questions.add(
+                    new ClarificationRequest.Question(
+                            requiredText(questionNode, "field"),
+                            requiredText(questionNode, "question"),
+                            stringList(questionNode.get("options"), "options")));
+        }
+        final Instant deadline;
+        try {
+            deadline = Instant.parse(requiredText(root, "deadline"));
+        } catch (RuntimeException failure) {
+            throw new IllegalArgumentException("clarification deadline 必须是 ISO-8601 Instant");
+        }
+        if (deadline.isAfter(parentContext.executionContract().deadline())) {
+            throw new IllegalArgumentException("clarification deadline 不能晚于任务 deadline");
+        }
+        var requestId =
+                "clarification-"
+                        + UUID.nameUUIDFromBytes(
+                                (parentContext.taskId().value()
+                                                + '|'
+                                                + subTask.executionId().value()
+                                                + '|'
+                                                + subTask.subTaskId())
+                                        .getBytes(StandardCharsets.UTF_8));
+        return new ClarificationRequest(
+                requestId,
+                parentContext.taskId(),
+                subTask.executionId(),
+                subTask.subTaskId(),
+                requiredFields,
+                questions,
+                deadline,
+                ClarificationRequest.Status.PENDING,
+                Map.of(),
+                createdAt,
+                null,
+                null);
+    }
+
+    private static ExecutionEvent clarificationRequestedEvent(
+            InvocationContext context, ClarificationRequest request, Instant at) {
+        var questions =
+                request.questions().stream()
+                        .map(
+                                question ->
+                                        Map.<String, Object>of(
+                                                "field",
+                                                question.field(),
+                                                "question",
+                                                question.question(),
+                                                "options",
+                                                question.options()))
+                        .toList();
+        return new ExecutionEvent(
+                new EventId("clarification-requested-" + request.requestId()),
+                context.tenantId(),
+                context.conversationId(),
+                context.sessionId(),
+                context.taskId(),
+                context.executionId(),
+                context.runId(),
+                context.parentExecutionId(),
+                1,
+                ExecutionEventType.CLARIFICATION_REQUESTED,
+                ExecutionEventStatus.AWAITING_CLARIFICATION,
+                context.controlMode(),
+                OwnerType.ASSISTANT,
+                context.assistantId(),
+                null,
+                context.userId(),
+                context.correlationId(),
+                context.causationId(),
+                context.idempotencyKey(),
+                new ExecutionEventPayload(
+                        Map.of(
+                                "requestId", request.requestId(),
+                                "subTaskId", request.subTaskId(),
+                                "requiredFields", request.requiredFields(),
+                                "questions", questions,
+                                "deadline", request.deadline().toString())),
+                at);
+    }
+
+    private static ExecutionEvent iterationEvent(
+            InvocationContext context,
+            TaskBoard.IterationState iteration,
+            IterationEvaluation evaluation,
+            Instant at) {
+        var eventId =
+                "iteration-evaluated-"
+                        + context.taskId().value()
+                        + '-'
+                        + iteration.group().groupId()
+                        + '-'
+                        + iteration.currentIteration();
+        return new ExecutionEvent(
+                new EventId(eventId),
+                context.tenantId(),
+                context.conversationId(),
+                context.sessionId(),
+                context.taskId(),
+                context.executionId(),
+                context.runId(),
+                context.parentExecutionId(),
+                1,
+                ExecutionEventType.ITERATION_EVALUATED,
+                ExecutionEventStatus.RUNNING,
+                context.controlMode(),
+                OwnerType.ASSISTANT,
+                context.assistantId(),
+                null,
+                context.userId(),
+                context.correlationId(),
+                context.causationId(),
+                context.idempotencyKey(),
+                new ExecutionEventPayload(
+                        Map.of(
+                                "groupId", iteration.group().groupId(),
+                                "iteration", iteration.currentIteration(),
+                                "decision", evaluation.decision().name())),
+                at);
+    }
+
+    private static CoordinationPlan decodeAndValidatePlan(
+            AssistantCommand command, TaskBoard board, String output) {
+        if (output == null || output.isBlank() || output.length() > MAX_COORDINATION_PLAN_CHARS) {
+            throw new IllegalArgumentException("协调者未返回合法大小的 CoordinationPlan");
+        }
+        final JsonNode root;
+        try (var parser = COORDINATION_PLAN_JSON.createParser(output)) {
+            root = COORDINATION_PLAN_JSON.readTree(parser);
+            if (root == null || parser.nextToken() != null) {
+                throw new IllegalArgumentException("协调者输出必须是单一 JSON 对象");
+            }
+        } catch (Exception exception) {
+            throw new IllegalArgumentException("协调者输出不是严格 JSON 计划");
+        }
+        requireObject(root, "CoordinationPlan");
+        requireFields(
+                root,
+                Set.of("goal", "executors", "aggregationContract"),
+                Set.of(
+                        "goal",
+                        "executors",
+                        "maxParallelism",
+                        "aggregationContract",
+                        "iterationGroup"));
+        var executors = root.get("executors");
+        if (!executors.isArray() || executors.isEmpty() || executors.size() > 8) {
+            throw new IllegalArgumentException("协调计划必须包含 1..8 个执行者");
+        }
+        var teamTargets =
+                board.subTasks().values().stream()
+                        .filter(subTask -> subTask.kind() == SubTask.Kind.EXECUTOR)
+                        .filter(subTask -> subTask.assistantTarget() != null)
+                        .collect(
+                                java.util.stream.Collectors.toUnmodifiableMap(
+                                        SubTask::subTaskId, SubTask::assistantTarget));
+        var coordinator = board.subTasks().get("coordinator");
+        var teamBoard =
+                coordinator != null
+                        && coordinator.assistantTarget() != null
+                        && !teamTargets.isEmpty();
+        var route = command.invocationProfile().executionIntent().resolvedRoute();
+        if (!teamBoard && route == null) {
+            throw new IllegalStateException("协调计划只能用于已冻结 FIXED Route");
+        }
+        var assignments = new java.util.ArrayList<ExecutorAssignment>();
+        for (var node : executors) {
+            requireObject(node, "executor");
+            requireFields(
+                    node,
+                    Set.of("subTaskId", "description", "roleKey", "skillKey", "modelMode"),
+                    Set.of(
+                            "subTaskId",
+                            "description",
+                            "dependsOn",
+                            "inputBindings",
+                            "roleKey",
+                            "skillKey",
+                            "modelMode",
+                            "maxAttempts"));
+            var subTaskId = requiredText(node, "subTaskId");
+            var roleKey = requiredText(node, "roleKey");
+            var skillKey = requiredText(node, "skillKey");
+            if (teamBoard) {
+                var target = teamTargets.get(subTaskId);
+                if (target == null
+                        || !target.roleKey().equals(roleKey)
+                        || !target.skillKey().equals(skillKey)) {
+                    throw new IllegalArgumentException("Team 协调计划不能改变或跳过冻结 Worker");
+                }
+            } else if (!route.roleKey().equals(roleKey) || !route.skillKey().equals(skillKey)) {
+                throw new IllegalArgumentException("协调者不能更改已冻结的 Role 或 Skill");
+            }
+            var modelMode = requiredText(node, "modelMode");
+            final TaskModelSelection modelSelection;
+            if (command.taskModelSelection().mode() == TaskModelSelection.Mode.AUTO
+                    && TaskModelSelection.Mode.AUTO.name().equals(modelMode)) {
+                modelSelection = TaskModelSelection.auto();
+            } else if (command.taskModelSelection().mode() == TaskModelSelection.Mode.EXPLICIT
+                    && TaskModelSelection.Mode.EXPLICIT.name().equals(modelMode)) {
+                modelSelection =
+                        TaskModelSelection.explicit(command.taskModelSelection().modelId());
+            } else {
+                throw new IllegalArgumentException("协调者不能改变用户冻结的模型策略");
+            }
+            var dependsOn = stringSet(node.get("dependsOn"));
+            if (dependsOn.isEmpty()) dependsOn = Set.of("coordinator");
+            assignments.add(
+                    new ExecutorAssignment(
+                            subTaskId,
+                            requiredText(node, "description"),
+                            dependsOn,
+                            inputBindings(node.get("inputBindings")),
+                            roleKey,
+                            skillKey,
+                            modelSelection,
+                            optionalPositive(node, "maxAttempts", 3)));
+        }
+        var aggregation = aggregationContract(root.get("aggregationContract"));
+        var iterationGroup = iterationGroup(root.get("iterationGroup"));
+        return new CoordinationPlan(
+                requiredText(root, "goal"),
+                optionalPositive(root, "maxParallelism", 1),
+                aggregation,
+                assignments,
+                iterationGroup);
+    }
+
+    private static CoordinationPlan.IterationGroup iterationGroup(JsonNode node) {
+        if (node == null || node.isNull()) return null;
+        requireObject(node, "iterationGroup");
+        requireFields(
+                node,
+                Set.of("groupId", "memberSubTaskIds", "evaluatorSubTaskId", "maxIterations"),
+                Set.of("groupId", "memberSubTaskIds", "evaluatorSubTaskId", "maxIterations"));
+        return new CoordinationPlan.IterationGroup(
+                requiredText(node, "groupId"),
+                stringList(node.get("memberSubTaskIds"), "memberSubTaskIds"),
+                requiredText(node, "evaluatorSubTaskId"),
+                optionalPositive(node, "maxIterations", 1));
+    }
+
+    private static CoordinationPlan.AggregationContract aggregationContract(JsonNode node) {
+        requireObject(node, "aggregationContract");
+        requireFields(
+                node,
+                Set.of("kind", "executorOrder"),
+                Set.of("kind", "executorOrder", "separator"));
+        final CoordinationPlan.AggregationContract.Kind kind;
+        try {
+            kind = CoordinationPlan.AggregationContract.Kind.valueOf(requiredText(node, "kind"));
+        } catch (IllegalArgumentException failure) {
+            throw new IllegalArgumentException("不支持的 AggregationContract.kind");
+        }
+        var order = stringList(node.get("executorOrder"), "executorOrder");
+        var separatorNode = node.get("separator");
+        var separator = separatorNode == null ? "" : separatorNode.asText();
+        return new CoordinationPlan.AggregationContract(kind, order, separator);
+    }
+
+    private static Map<String, CoordinationPlan.InputBinding> inputBindings(JsonNode node) {
+        if (node == null || node.isNull()) return Map.of();
+        requireObject(node, "inputBindings");
+        var bindings = new LinkedHashMap<String, CoordinationPlan.InputBinding>();
+        node.propertyNames()
+                .forEach(
+                        name -> {
+                            var source = node.get(name);
+                            if (name.isBlank() || source == null || !source.isTextual()) {
+                                throw new IllegalArgumentException(
+                                        "inputBindings 必须是名称到 sourceSubTaskId 的字符串映射");
+                            }
+                            bindings.put(name, new CoordinationPlan.InputBinding(source.asText()));
+                        });
+        return Map.copyOf(bindings);
+    }
+
+    private static Set<String> stringSet(JsonNode node) {
+        return Set.copyOf(stringList(node, "dependsOn"));
+    }
+
+    private static List<String> stringList(JsonNode node, String field) {
+        if (node == null || node.isNull()) return List.of();
+        if (!node.isArray()) {
+            throw new IllegalArgumentException(field + " 必须是字符串数组");
+        }
+        var values = new java.util.ArrayList<String>();
+        for (var value : node) {
+            if (!value.isTextual() || value.asText().isBlank()) {
+                throw new IllegalArgumentException(field + " 只能包含非空字符串");
+            }
+            values.add(value.asText().trim());
+        }
+        return List.copyOf(values);
+    }
+
+    private static void requireObject(JsonNode node, String label) {
+        if (node == null || !node.isObject()) throw new IllegalArgumentException(label + " 必须是对象");
+    }
+
+    private static void requireFields(JsonNode node, Set<String> required, Set<String> allowed) {
+        var names = new java.util.HashSet<String>();
+        node.propertyNames().forEach(names::add);
+        if (!names.containsAll(required) || !allowed.containsAll(names)) {
+            throw new IllegalArgumentException("协调计划字段不符合契约");
+        }
+    }
+
+    private static String requiredText(JsonNode node, String field) {
+        var value = node.get(field);
+        if (value == null
+                || !value.isTextual()
+                || value.asText().isBlank()
+                || value.asText().length() > 4_000) {
+            throw new IllegalArgumentException("协调计划字段不合法: " + field);
+        }
+        return value.asText().trim();
+    }
+
+    private static int optionalPositive(JsonNode node, String field, int defaultValue) {
+        var value = node.get(field);
+        if (value == null) return defaultValue;
+        if (!value.canConvertToInt() || value.intValue() < 1) {
+            throw new IllegalArgumentException("协调计划字段必须为正整数: " + field);
+        }
+        return value.intValue();
+    }
+
+    private static boolean completionEvidenceSatisfied(
+            AssistantCommand command, List<ExecutionEvent> events) {
+        var criteria = command.completionCriteria();
+        var requiredTypesPresent =
+                criteria.requiredEventTypes().stream()
+                        .allMatch(
+                                required ->
+                                        events.stream()
+                                                .anyMatch(event -> event.type() == required));
+        var requiredPayloadPresent =
+                criteria.requiredPayloadValues().entrySet().stream()
+                        .allMatch(
+                                required ->
+                                        events.stream()
+                                                .map(
+                                                        event ->
+                                                                event.payload()
+                                                                        .values()
+                                                                        .get(required.getKey()))
+                                                .anyMatch(
+                                                        value ->
+                                                                Objects.equals(
+                                                                        value,
+                                                                        required.getValue())));
+        return requiredTypesPresent && requiredPayloadPresent;
     }
 
     private Flux<ExecutionEvent> withHeartbeat(
@@ -623,13 +1181,26 @@ public final class DelegatedTaskCoordinator {
 
     private void failParent(InvocationContext context, Throwable failure) {
         try {
-            var failed =
-                    tasks.failOrRetry(
-                            context,
-                            Objects.requireNonNullElse(failure.getMessage(), "执行失败"),
-                            isTransient(failure),
-                            clock.instant());
-            notifyFailure(failed, failure.getMessage());
+            var at = clock.instant();
+            var transientFailure = isTransient(failure);
+            var committed =
+                    transitions.failOrRetry(
+                            new ParentFailureTransition(
+                                    context,
+                                    "委托任务执行失败",
+                                    transientFailure,
+                                    parentEvent(
+                                            context,
+                                            ExecutionEventType.EXECUTION_FAILED,
+                                            ExecutionEventStatus.FAILED,
+                                            Map.of(
+                                                    "agentKind",
+                                                    "ASSISTANT",
+                                                    "retryable",
+                                                    transientFailure),
+                                            at),
+                                    at));
+            notifyFailure(committed.task(), "委托任务执行失败");
         } catch (DelegatedTaskPort.StaleExecutionException ignored) {
             // 新 fencing owner 已接管。
         }
@@ -730,55 +1301,11 @@ public final class DelegatedTaskCoordinator {
                         clock.instant()));
     }
 
-    private Mono<ExecutionEvent> appendInputEvent(
-            AssistantCommand command, ExecutionInput input, Lease lease) {
-        var type =
-                switch (input.kind()) {
-                    case CANCEL -> ExecutionEventType.INPUT_CANCELED;
-                    case MODIFY -> ExecutionEventType.INPUT_MODIFIED;
-                    case SUPPLEMENT -> ExecutionEventType.INPUT_SUPPLEMENTED;
-                    case UNRELATED -> ExecutionEventType.INPUT_UNRELATED;
-                };
-        var status =
-                switch (input.kind()) {
-                    case CANCEL -> ExecutionEventStatus.CANCELED;
-                    case MODIFY, SUPPLEMENT -> ExecutionEventStatus.PLANNING;
-                    case UNRELATED -> ExecutionEventStatus.RUNNING;
-                };
-        var payload = new LinkedHashMap<String, Object>();
-        payload.put("inputId", input.inputId());
-        payload.put("kind", input.kind().name());
-        payload.put("content", input.content());
-        var event =
-                new ExecutionEvent(
-                        new EventId("input-" + input.inputId()),
-                        command.tenantId(),
-                        command.conversationId(),
-                        command.sessionId(),
-                        command.taskId(),
-                        command.executionId(),
-                        command.runId(),
-                        command.parentExecutionId(),
-                        0,
-                        type,
-                        status,
-                        command.controlMode(),
-                        OwnerType.HUMAN,
-                        command.assistantId(),
-                        null,
-                        command.userId(),
-                        command.correlationId(),
-                        command.causationId(),
-                        command.idempotencyKey(),
-                        new ExecutionEventPayload(payload),
-                        input.receivedAt());
-        return events.append(event, lease);
-    }
-
     private InvocationContext context(AssistantCommand command) {
         return new InvocationContext(
                 command.tenantId(),
                 command.userId(),
+                null,
                 command.assistantId(),
                 command.conversationId(),
                 command.sessionId(),
@@ -836,6 +1363,12 @@ public final class DelegatedTaskCoordinator {
     private static String notificationId(TaskId taskId, String suffix) {
         var source = taskId.value() + '|' + suffix;
         return "notification-" + UUID.nameUUIDFromBytes(source.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static boolean persistentControlMode(ExecutionEvent.ControlMode mode) {
+        return mode == ExecutionEvent.ControlMode.READ_ONLY
+                || mode == ExecutionEvent.ControlMode.COLLABORATIVE
+                || mode == ExecutionEvent.ControlMode.DELEGATED;
     }
 
     private static String randomId() {
