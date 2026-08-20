@@ -1,16 +1,16 @@
 ---
 level: Practice
 layer: Model
-purpose: Layer 3 助理层 Assistant——面向人的交互入口功能设计
-status: draft
-version: 1.0.0
-date: 2026-05-28
+purpose: 已被统一 Assistant 运行时替代的历史功能设计
+status: deprecated
+version: 1.1.0
+date: 2026-08-20
 author: AaronZZH
 ---
 
 # 助理层 Assistant 功能设计
 
-> 会话级，面向人的交互入口，核心编排单元。
+> **已废弃的历史方案。** 本文保留早期概念，不再定义运行时或 API 合同；其中 `/agui/runs/**`、双入口、前端生成 threadId 和同步正文输出均不可实现。当前合同以[任务式 Assistant 统一执行路径设计](task-oriented-assistant-execution-design.md)为准：唯一启动入口为认证后的 `POST /api/agui/run`，正文只通过 AG-UI SSE 输出。
 
 ## 定位
 

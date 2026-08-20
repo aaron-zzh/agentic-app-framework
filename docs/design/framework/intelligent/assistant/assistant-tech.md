@@ -1,16 +1,16 @@
 ---
 level: Practice
 layer: Model
-purpose: Layer 3 助理层 Assistant——会话管理、多实例并行、输入缓冲、情感感知
-status: draft
-version: 1.0.0
-date: 2026-05-28
+purpose: 已被持久化统一 Assistant 运行时替代的历史技术方案
+status: deprecated
+version: 1.1.0
+date: 2026-08-20
 author: AaronZZH
 ---
 
 # Layer 3 助理层 Assistant 技术方案
 
-> 会话级，面向人的交互入口，核心编排单元。
+> **已废弃的历史方案。** 其中 AssistantService 双入口、长驻实例 fork、旧 A2A Team 和直接同步输出均不构成当前合同。现行运行时以[任务式 Assistant 统一执行路径设计](task-oriented-assistant-execution-design.md)为准。
 
 ## 认知循环
 

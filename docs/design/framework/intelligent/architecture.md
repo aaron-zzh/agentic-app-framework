@@ -3,8 +3,8 @@ level: Practice
 layer: Model
 purpose: 五层智能架构 v2——以智能助理为核心、对齐认知心理模型的领域模型设计
 status: draft
-version: 5.5.0
-date: 2026-07-31
+version: 5.6.2
+date: 2026-08-20
 author: AaronZZH
 related:
   - ../../../explanation/general-agent/general-agent-migration-design.md
@@ -47,6 +47,66 @@ AAF 五层智能架构以 Assistant 为面向用户的认知主体，由 Team �
 | L2 | **智能体（Agent）** | 具体任务的执行者 | 接收助理指派的明确任务，将目标拆成可验证步骤，调用获准的工具执行任务，检查结果并反馈执行过程 | 任务级；只保留执行期间的工作状态，无人格、无长期记忆 |
 | L1 | **认知基础（Cognition）** | 记忆与世界观的持久积淀 | 管理记忆、知识、价值观和决策依据，为助理与智能体提供回忆、知识检索、上下文组织和学习沉淀 | 持久级；区分个人私有、组织共享和审计留存 |
 | L0 | **内核（Core）** | 通用思考与生成能力 | 根据输入完成模型选择、理解、推理和生成，并控制上下文与资源消耗 | 请求级；无人格、无记忆，不感知具体用户和业务身份 |
+
+### 统一智能任务运行流程
+
+五层不是固定串行经过十个模块的流水线，各模块并非独立。为保持架构演进中的沟通连续性，现行流程继续保留“预处理、缓冲区、前注意、混合检索、上下文管理、Harness Agent Loop、人工干预 HITL、模型推理、事件消息、自学习”等术语，但按真实责任将其区分为主流程节点和横向机制。一次任务以 L3 Assistant 为责任主体，按目标选择 L2 Agent 或 L4 Team，L0 Core、L1 Cognition 及治理机制在多个节点横向参与。当前统一主流程如下：
+
+1. **预处理（接入与身份校验）**：用户请求经唯一 Assistant 入口进入既有会话；系统处理输入参数并校验主体、租户、Conversation 所有权、运行模式、模型选择约束、幂等键与 lease，固定 `ConversationId = SessionId = threadId`、`TaskId = ExecutionId = RunId = runId`。
+2. **缓冲区与输入接收**：L3 接收正文、附件和页面预设，通过输入缓冲区接住执行期追加输入并控制合并、排队和处理频率；服务端形成并校验 `ExecutionIntent`，客户端只能选择已授权能力，不能直接授予 Role、Skill、Tool 或写权限。
+3. **前注意、理解与规划**：Assistant 或受限 Coordinator 完成意图理解、目标澄清和前注意分流，判断阻塞项、固定或选择 Route、拆解目标并提出模型和聚合策略。固定 Role/Skill 只能在已授权范围内收窄，不能被规划结果替换。
+4. **混合检索与上下文管理**：L3 通过 `ContextRequest` 请求 L1；Cognition 对知识库、记忆及其他获权来源进行混合检索，并按 MemoryStrategy、知识绑定、主体权限和预算返回摘要、引用或局部内容。上下文管理负责渐进按需加载、提示词压缩和节点隔离；Coordinator 默认只获得规划所需摘要，Executor 只获得本节点目标、依赖结果和最小上下文。
+5. **执行画像与计划冻结**：Assistant 校验并冻结 Assistant revision、RoleAssignment、SkillVersion、模型、有效工具、授权、上下文清单、预算、完成条件及聚合契约，形成不可变 `ExecutionProfileSnapshot` 和 TaskBoard 版本。
+6. **按运行模式调度**：`CHAT` 简单回复使用 `TaskBoard.single`；`TASK + FIXED + copywriting` 使用 `TaskBoard.coordinated`，由 Coordinator 规划 1..8 个 Executor；`TEAM` 使用已发布 Team version 和 `TaskBoard.teamCoordinated`。预定义 Workflow 只约束确定性过程，不能绕过 Assistant 责任、Agent execution 或 ToolGateway。
+7. **Harness Agent Loop 与受限执行**：Coordinator、Executor 或 Aggregator 在各自独立的 Harness ReAct Loop 中管理任务内循环，按 TaskBoard 依赖并行、串行或有界迭代；支持暂停、取消和恢复。需要理解、推理和生成时调用 L0 Core，需要业务动作时只能调用执行画像中可见且获权的 Tool。
+8. **聚合、验证与终态**：TaskBoard 按冻结的 `AggregationContract` 收敛节点结果，Assistant 使用 CompletionValidator 检查输出、必需工具、产物和证据；不满足时进入修复、等待输入、等待授权、恢复、失败或人工接管，而不是把模型停止输出视为完成。
+9. **事件消息、反馈与自学习候选**：执行事实写入 `ai_task_event` 与 outbox；事件消息统一支撑状态演进、协议投影、重放和恢复，AG-UI 是用户正文的唯一 SSE 投影，任务查询、Snapshot 与公共任务事件只提供状态、审计摘要和 cursor。通过验证的结果、用户反馈和工具轨迹进入自学习候选，经治理后才可沉淀到 L1。
+
+以下机制横向贯穿上述流程，不单独构成某个顺序阶段：
+
+- **模型推理与模型路由**：L0 Core 承担模型调用、Prompt/消息处理、流式输出、结构化输出和 Token 计量，可被前注意、Coordinator、Executor、Aggregator、验证和学习评估多次调用，但不持有任务责任或业务状态。
+- **人工干预（HITL）与工具授权**：ToolGateway、用户控制模式、任务 grant、参数策略和风险门禁作用于每次业务动作；重点动作、未知参数或授权缺口触发询问、暂停、确认、接管或终止，不能由 Prompt、Skill 或模型补授权限。
+- **可靠执行控制**：TaskTransition、TaskBoard、lease/fencing、幂等 receipt、预算、超时、重试、取消、接管和恢复共同保证长任务及多副本一致性。
+- **上下文与资源治理**：知识、记忆、执行上下文、Token、并发、沙箱和工具可见性始终按最小必要原则装配，并在子任务间隔离。
+- **事件、审计与可观测性**：状态转换、计划、画像、工具、授权、产物、验证和终态统一留痕；正文、凭证、系统提示和思维链不得进入公共任务事件。
+- **自学习与学习反哺**：知识抽取、记忆沉淀、Skill 或任务编排优化只能先生成版本化候选，再经隐私、可信度、去重、冲突和审核门禁进入权威真理源。
+
+### 双层循环：AAF 任务编排与 AgentScope ReAct
+
+AAF 不在领域层重复实现 ReAct，也不把整个任务生命周期交给 AgentScope。两层循环通过 `AgentExecutionPort` 衔接：外层负责跨节点的持久任务推进，内层负责单个 Agent 节点如何借助模型和工具完成目标。
+
+```text
+AAF 外层任务循环（L3 Assistant / L4 Team）
+├─ 创建或恢复 DelegatedTask + TaskBoard
+├─ 冻结身份、Route、ExecutionProfileSnapshot、预算和授权
+├─ 按 TaskBoard 类型推进
+│  ├─ CHAT / single
+│  │  └─ 单执行节点 → AgentExecutionPort → AgentScope ReAct Loop
+│  ├─ TASK + FIXED + copywriting / coordinated
+│  │  ├─ Coordinator → AgentExecutionPort → AgentScope ReAct Loop
+│  │  ├─ AAF 解码、校验并冻结 CoordinationPlan
+│  │  ├─ Executor 1..8
+│  │  │  ├─ Executor 1 → AgentExecutionPort → AgentScope ReAct Loop
+│  │  │  ├─ Executor 2 → AgentExecutionPort → AgentScope ReAct Loop
+│  │  │  └─ ...
+│  │  └─ 按 AggregationContract 聚合全部结果 Executor
+│  └─ TEAM / teamCoordinated
+│     ├─ Leader → AgentExecutionPort → AgentScope ReAct Loop
+│     ├─ AAF 校验计划必须覆盖全部冻结 Worker
+│     ├─ Worker 1..8 → 各自 AgentScope ReAct Loop
+│     └─ 按冻结成员顺序和聚合契约收敛结果
+├─ CompletionValidator 检查输出、工具、产物与完成证据
+└─ 完成 / 继续修复 / 等待输入 / HITL / 暂停 / 恢复 / 失败 / 人工接管
+
+单个 AgentScope ReAct Loop（L2 Agent，当前基础设施实现）
+├─ AAF 编译不可变 Prompt、Model、Toolkit、Context 和迭代上限
+├─ LLM 推理并决定下一动作
+├─ 需要动作：Tool/MCP 请求 → AAF ToolGateway → Tool Result / Observation
+├─ 将 Observation 放回执行上下文并继续 LLM 推理
+└─ 形成节点 Final Result 或达到停止条件
+```
+
+外层循环的 TaskBoard、TaskTransition、lease/fencing、授权、重试、恢复、聚合、CompletionValidator、`ai_task_event` 和 outbox 均由 AAF 持有；内层循环当前由 AgentScope `HarnessAgent/ReActAgent` 提供。AAF 基础设施适配器关闭 AgentScope 内建的长期记忆、工作区、原生子智能体、动态 Skill、文件和 Shell 等旁路能力，只复用 ReAct、工具调用、执行工作态和流式事件。领域与应用层只依赖 `AgentExecutionPort`，因此替换内层 Agent 引擎不会改变外层任务合同。
 
 ### 借鉴人类认知心理模型
 
@@ -167,6 +227,8 @@ AAF 五层智能架构以 Assistant 为面向用户的认知主体，由 Team �
 - **状态**：会话焦点、任务进展、对用户的理解（私有）
 
 #### 群体（Team）——社会协作 · 共事
+
+> **当前实现边界。** 已交付的是 `LEADER_COORDINATED` Team：一个 Leader、1..8 个静态 Worker、版本冻结的 Assistant/Role/Skill/工具 target，以及由 `TaskBoard` 调度的确定性聚合。动态成员、项目级独立状态、自动冲突仲裁、Pipeline/Peer 协作和外部 A2A Worker 均是未来愿景，不能据此创建 `ai_team*` 表或旁路运行时；现行细节以[Team 技术方案](team/team-tech.md)为准。
 
 当一个目标超出单个助理的能力时，多个助理组成"群体"协作完成。群体由一位主导助理牵头，本身不执行具体工作——它是"社会层面的组织"，真正的行动仍由各助理调度自己的机能完成。
 
@@ -650,7 +712,7 @@ Assistant 并不等于一个永驻的有状态 Agent 对象。Assistant 是 AAF 
 | 流程骨架（节点 / 分支 / 进入退出条件） | AAF 工作流引擎（Flowable / DSL / flow-editor） |
 | 节点 = 调一个 Agent/Assistant | `AgentExecutor`（= `HarnessAgentExecutor`） |
 | 节点内执行 | HarnessAgent（ReAct + 可自主 spawn 子 agent） |
-| Team 级编排（多 Assistant） | AAF Team 层（Pipeline / Supervisor） |
+| Team 级编排（多 Assistant） | 版本冻结的 TeamDefinition + TaskBoard Leader/Worker 协调 |
 
 - **HarnessAgent 不感知编排**：它只是被工作流引擎在某节点调用、执行完返回。编排是 AAF 编排层（工作流引擎 + Team）的职责，HarnessAgent 天然适配、无需改动。
 - **混合模式（编排骨架 + 节点内自主）**：进入/退出条件由工作流引擎确定；节点内 HarnessAgent 自主 ReAct / 委派；节点内受预算/超时 middleware 约束；Agent 发现超出能力范围 → 返回信号让工作流分支或转人（HITL）。
@@ -879,7 +941,7 @@ HarnessAgent 的 `subagents/` 声明或 `.subagent(spec)` 由 AAF 适配层根�
   - 配置：`ai_persona`(Persona) · `ai_role`(能力) · `ai_skill_definition` · `ai_assistant`
   - 对话：`conversation` · `conversation_participant` · `conversation_message`
   - 编排态：`ai_chat_task` · `ai_task_execution` · `ai_task_checkpoint`（仅编排态）· `ai_task_event`
-- **群体 Team**：`ai_team` · `ai_team_member` · `ai_team_task`
+- **群体 Team**：`ai_definition_lifecycle` 的 `DefinitionKind.TEAM` 版本化 JSON 载荷；运行期分工与状态复用 `TaskBoard`、`DelegatedTask` 和 `ai_task_event`，不创建 `ai_team*` 表
 - **Agent 执行工作态**：**无业务 DB 表**——生产存入 Redis AgentStateStore，按 `(userId, sessionId)` 隔离；不再规划 `MysqlSession` 或第二套业务 checkpoint。
 
 ### 核心配置表关系
@@ -956,7 +1018,7 @@ PostgreSQL 是 source of truth，Neo4j 承担**关系遍历 / 多跳 / 拓扑分
 | 任务依赖图 `(:Task)-[:DEPENDS_ON]->(:Task)` | `ai_task_execution` / TaskBoard 依赖 | 子任务依赖的拓扑排序、阻塞分析 | 候选 |
 | 技能路由图 `(:Assistant)-[:HAS_ROLE]->(:Role)-[:INCLUDES_SKILL]->(:Skill)-[:ROUTES_TO]->(:Agent)` | `ai_assistant` / `ai_role` / `ai_skill_definition` / `ai_agent_definition` | 能力可达性发现："哪个助理经哪条技能能调到哪个 Agent" | 规划（待 `skill_ids` 从 TEXT 关系化） |
 | 决策链路图 `(:Task)-[:TRIGGERED]->(:Decision)-[:CHOSE]->(:Action)` | `ai_decision_log` + `ai_task_event` | 自主决策审计链的路径遍历 | 规划 |
-| Team 目标分解树 `(:Team)-[:PURSUES]->(:Goal)-[:DECOMPOSED_INTO]->(:SubGoal)-[:ASSIGNED_TO]->(:Assistant)` | `ai_team_task.parent_task_id` | 群体目标分解、分派与进度的层级遍历 | 候选（Team 落地后） |
+| Team 成员与任务目标关系 `(:Team)-[:HAS_MEMBER]->(:Assistant)` | `ai_definition_lifecycle.lifecycle_payload.teamDefinition` 与 TaskBoard 冻结 target | 仅在确认存在多跳图查询需求后再投影 | 候选 |
 | 记忆 ↔ 知识交叉引用 `(:MemoryEntity)-[:REFERENCES]->(:KnowledgeEntity)` | 跨 `ai_memory_*` / `ai_knowledge_*` | 个体记忆与共享知识的关联检索（增强混合检索） | 规划 |
 | 用户画像图 `(:User)-[:PREFERS]->(:Entity)` · `(:User)-[:HAS_TRAIT]->(:Trait)` | `ai_memory_atom`（画像类）/ Personalization | 偏好/情绪/关系画像遍历，供前注意分流与个性化 | 候选 |
 

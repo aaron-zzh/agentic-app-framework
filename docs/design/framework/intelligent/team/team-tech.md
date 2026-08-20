@@ -1,204 +1,96 @@
 ---
 level: Practice
 layer: Model
-purpose: Layer 4 协作层 Team 技术方案——Leader 协调 + AgentScope 编排模式
+purpose: 说明最小 L4 Team 的统一生命周期存储、冻结校验、TaskBoard 调度与 AG-UI 接口
 status: draft
-version: 1.1.0
-date: 2026-05-28
+version: 1.2.0
+date: 2026-08-20
 author: AaronZZH
 ---
 
 # Layer 4 协作层 Team 技术方案
 
-> 由 Leader Assistant 协调多个 Worker Assistant 协作，委托 AgentScope 编排能力。
+> Team 复用 Assistant 运行时、`DelegatedTask`、`TaskBoard`、`TaskTransition` 和 outbox；没有 `TeamOrchestrator`、AgentScope Pipeline/MsgHub 或独立 `ai_team*` 持久化模型。
 
-## 认知循环
-
-```text
-目标对齐 → 任务分发 → 进度同步 → 结果聚合 → 冲突仲裁
-```
-
-## 协作模式与 AgentScope 映射
-
-| 模式 | AgentScope 实现 | 说明 |
-|------|----------------|------|
-| Leader 协调 | Supervisor | Leader 分发任务，Worker 汇报，Leader 仲裁 |
-| 流水线 | Pipeline | 按顺序串行，上一个输出是下一个输入 |
-| 平等协作 | MsgHub | 多方平等讨论，轮流发言 |
-
-## 状态策略
-
-- **GoalTracker**：目标级任务管理，持久化到 DB（v0.6+）
-- **轻量会话级状态**：任务分配表、进度、仲裁结果
-- **不持有数据级状态**：数据统一由 Cognition 管理
-
-## 通信方式
-
-- **内部**：Leader Assistant 直接调用 Worker Assistant（AssistantExecutor.chat）
-- **跨系统**：A2A 协议（HTTP/SSE 双通道，Task 状态机）
-
-内部协作不走 A2A，直接方法调用，性能最优。
-
-## 与 Assistant 多实例的定位区分
-
-| 场景 | 用 Assistant 多实例 | 用 Team |
-|------|---------------------|---------|
-| 同一用户、同一目标的并行加速 | ✅ | ❌ |
-| 对抗性验证（写+审查） | ❌ | ✅ |
-| 跨领域协作 | ❌ | ✅ |
-| 跨系统外部 Agent | ❌ | ✅ |
-
-## 包结构
+## 架构边界
 
 ```text
-intelligent/team/
-  ├── TeamOrchestrator           协作规范容器（注册/查询团队定义）
-  │   ├── TeamDefinition         团队定义（内部类）
-  │   ├── TeamMember             成员定义（内部类）
-  │   └── CollaborationMode      协作模式枚举（内部类）
-  ├── TaskDistributor            任务分解 + 分发
-  ├── ProgressSyncService        进度同步
-  └── ConflictArbitrator         冲突仲裁
+POST /api/agui/run (state.mode = TEAM)
+  → AssistantAguiController：认证 AI thread 所有权
+  → AssistantExecutionService.startTeam
+  → DefinitionLifecycleService.requirePublishedTeam
+  → TaskBoard.teamCoordinated
+  → DelegatedTaskCoordinator.submitAndDispatch
+  → Leader CoordinationPlan 校验与 Worker 执行
+  → AgUiProjector：唯一正文 SSE
 ```
 
-**设计定位**：Team 是协作规范的容器（谁参与、什么模式、什么规则），实际执行由 coordinator Assistant 通过 A2A 协议驱动。Team 不直接调用 Agent/Pipeline，而是通过 coordinator Assistant 分发任务。
+`AssistantAguiController` 是 Assistant 唯一启动入口。所有模式均先验证当前用户拥有 `ConversationTypeEnum.AI` 的既有 `threadId`；Team 不可借用其他用户的会话取得 lease 或创建任务。
+
+## 持久化模型
+
+Team 存入统一的 `ai_definition_lifecycle`：
 
 ```text
-用户请求 → AssistantService（coordinator）→ TeamOrchestrator（查规则）
-  → coordinator 通过 A2A 分发给成员 Assistant → 汇总结果
+DefinitionKind.TEAM
+lifecycle_payload.teamDefinition
+  ├─ teamId = definitionId
+  ├─ version = definitionVersion
+  ├─ strategy = LEADER_COORDINATED
+  ├─ leader = Member(LEADER, Assistant target)
+  └─ workers = 1..8 × Member(WORKER, Assistant target)
 ```
+
+`v16__intelligent_runtime_schema.sql` 在创建 `ai_definition_lifecycle` 时原生包含 `TEAM`，并通过闭世界、fail-closed 的 JSON 校验函数约束 Team 载荷，同时建立 Team 生命周期状态和 JSON 查询索引。缺失字段、未知字段、非静态 Worker、重复成员 key 或越界成员数量均不能入库。
+
+Team 与其他定义共用管理 API 和 `ai:definition:manage` 权限。`v12__init_seed_data.sql` 直接初始化该权限、管理角色授权，以及文案 Assistant 的最终执行画像；基线不再先创建旧状态后用高版本 seed 修补。
+
+## TeamDefinition 与发布校验
+
+`TeamDefinition` 只接受：
+
+- `LEADER_COORDINATED`；
+- 一个 `LEADER`；
+- 一至八个 `WORKER`；
+- 不重复且不与 Leader 冲突的 `memberKey`；
+- 非空 `assistantId`、`roleKey`、`skillKey` 与工具 allowlist。
+
+`DefinitionLifecycleService` 在 draft、publish 和 rollback 时验证每名成员：
+
+- Assistant 存在且已发布；
+- revision 精确匹配；
+- 固定 Role 包含固定 Skill；
+- 成员工具 allowlist 不超出 Assistant 和 Role 白名单。
+
+运行时再次解析与验证成员，并要求成员 Assistant 是系统管理 Assistant 或当前用户维护的 Assistant。发布后的 Team 版本不可覆盖；运行只接受 `PUBLISHED` Team。
+
+## TaskBoard 冻结与调度
+
+`AssistantExecutionService.startTeam` 拒绝调用方提供 Assistant、Role 或 Skill 覆盖，并只接受 `CONVERSATIONAL`、`AUTO` 与 `RETURN_ONLY`。它基于发布 Team 的 Leader 与 Worker target 生成 `TaskBoard.teamCoordinated`：
+
+- Leader 是唯一初始 `COORDINATOR`；
+- Worker 预先成为依赖 Leader 的 `EXECUTOR` 子任务；
+- 每个子任务持有自己的冻结 `AssistantTarget`，不继承 Leader；
+- 最大并行度不超过 Worker 数且不超过八；
+- 默认聚合契约使用确定的 Worker 顺序。
+
+Leader 返回严格 JSON `CoordinationPlan` 后，`DelegatedTaskCoordinator.decodeAndValidatePlan` 与 `TaskBoard.applyCoordinationPlan` 双重校验：计划必须且只能覆盖所有冻结 Worker，且 `subTaskId`、Role、Skill 和模型策略都不能越出冻结边界。随后普通 `DelegatedTask` 状态机、租约 fencing、TaskTransition/outbox、停止、接管、归还和恢复逻辑统一调度 TaskBoard。
+
+## 身份、事件与恢复
+
+```text
+ConversationId = SessionId = threadId
+TaskId = ExecutionId = RunId = runId
+```
+
+会话跨轮稳定；每轮 Team 请求创建独立 `runId` 对应独立任务和执行。正文仅由内部 `MESSAGE_DELTA` 经 `AgUiProjector` 映射为 AG-UI `TEXT_MESSAGE_CONTENT.delta`。其他事件经 `ExecutionEventPublicMapper` 输出无正文 `aaf.*` CUSTOM 状态、审计或 cursor 数据。任务查询、Snapshot 与任务 SSE 不复制模型正文。
+
+## 非目标
+
+当前未实现 Pipeline、Fanout、MsgHub、Peer collaboration、动态 Worker、Team 专属 UI、外部 A2A Worker、独立 `ai_team*` 表、Team 专属事件表、自动冲突仲裁或兼容旧 `/agui/runs/**` 路径。新能力必须扩展这一版本化模型和 TaskBoard 契约，不能另建旁路运行时。
 
 ## 相关文档
 
 - [功能设计 — Team](team.md)
+- [任务式 Assistant 统一执行路径设计](../assistant/task-oriented-assistant-execution-design.md)
 - [五层智能架构总览](../architecture.md)
-- [A2A 协议](../../api/a2a.md)
-
----
-
-## AgentScope 接口映射
-
-### 核心类映射
-
-| AAF 组件 | AgentScope 类 | 说明 |
-|----------|--------------|------|
-| Leader 协调 | `io.agentscope.core.pipeline.SequentialPipeline` | 顺序编排多 Agent |
-| 并行协作 | `io.agentscope.core.pipeline.FanoutPipeline` | 并行分发同一输入给多 Agent |
-| 平等讨论 | `io.agentscope.core.pipeline.MsgHub` | 消息广播，多 Agent 轮流发言 |
-| 工具函数 | `io.agentscope.core.pipeline.Pipelines` | 静态工具方法（sequential/fanout） |
-| Pipeline 接口 | `io.agentscope.core.pipeline.Pipeline<T>` | 统一编排接口（`execute(Msg) → Mono<T>`） |
-
-### Pipeline 模式对照
-
-| AgentScope Pipeline | 执行模式 | AAF Team 场景 |
-|---------------------|---------|---------------|
-| `SequentialPipeline` | A→B→C 串行，上游输出是下游输入 | 流水线协作（需求→设计→编码） |
-| `FanoutPipeline(concurrent=true)` | 同一输入并行分发，收集所有结果 | 并行加速（多 Agent 同时分析） |
-| `FanoutPipeline(concurrent=false)` | 同一输入顺序分发，收集所有结果 | 对抗性验证（写→审查） |
-| `MsgHub` | 消息广播，参与者轮流发言 | 多方辩论/协商 |
-| `Pipelines.compose(p1, p2)` | 组合两个 Pipeline | 复杂编排 |
-
-### MsgHub 关键特性
-
-```text
-MsgHub 特性：
-  - 自动广播：任何参与者的输出自动广播给其他所有参与者
-  - 动态参与：运行时 add/remove Agent
-  - 公告消息：enter() 时广播初始消息
-  - 生命周期：try-with-resources 自动清理
-  - observe 模式：Agent 接收消息但不回复（旁听）
-```
-
-## 适配器实现
-
-### TeamOrchestrator（协作规范容器）
-
-```java
-package com.xuejiai.aaf.framework.intelligent.team;
-
-/**
- * 团队协作规范层——定义协作规则，不直接执行。
- *
- * 设计定位：
- * - Team 是协作规范的容器（谁参与、什么模式、什么规则）
- * - 实际执行由 coordinator（协调者 Assistant）通过 A2A 协议驱动
- * - Team 不直接调用 Agent/Pipeline，而是通过 coordinator Assistant 分发任务
- */
-@Service
-@RequiredArgsConstructor
-public class TeamOrchestrator {
-
-    private final Map<String, TeamDefinition> teams = new ConcurrentHashMap<>();
-
-    public void registerTeam(TeamDefinition team) { ... }
-    public TeamDefinition getTeam(String teamId) { ... }
-    public String getCoordinator(String teamId) { ... }
-    public List<TeamMember> getMembers(String teamId) { ... }
-
-    public enum CollaborationMode {
-        COORDINATOR_DRIVEN,    // 协调者统筹
-        PEER_COLLABORATION     // 平等协作
-    }
-}
-```
-
-**与文档设计的差异说明**：
-
-文档原设计中 `DefaultTeamOrchestrator` 直接使用 AgentScope `Pipeline`/`MsgHub` 编排多 Agent。实际实现采用更解耦的设计：Team 层只管规则定义，执行委托给 coordinator Assistant 通过 A2A 分发。
-
-理由：
-- 符合 AAF 五层架构分层——Team 层不应直接操作 Agent 层
-- coordinator Assistant 本身就是 AssistantExecutor，天然具备 Agent 调度能力
-- A2A 协议统一了内部/外部通信，未来可无缝扩展到分布式
-
-AgentScope 1.x `Pipeline`/`MsgHub` 不再作为目标选项。AgentScope 2.0 subagent 只用于单个 Assistant 内部委派；Team 的多 Assistant 分工、聚合与仲裁由 AAF Team 层通过稳定端口实现。
-
-## 关键 Hook 注入点
-
-Team 层不直接使用 Hook（Hook 是 Agent 级别的机制）。Team 通过以下方式与 AgentScope 交互：
-
-| 交互方式 | 说明 |
-|---------|------|
-| Pipeline 编排 | 直接使用 `Pipelines.sequential()` / `Pipelines.fanout()` |
-| MsgHub 广播 | 创建 MsgHub，管理参与者和消息流 |
-| Agent observe | 通过 `agent.observe(msg)` 让 Agent 旁听不回复 |
-| 结构化输出 | `pipeline.execute(input, ResultClass.class)` 最后一个 Agent 输出结构化结果 |
-
-## 配置与初始化
-
-```java
-// 创建 Team 编排
-// 1. Sequential（流水线）
-var pipeline = Pipelines.createSequential(List.of(
-        agentFactory.create(productDef),
-        agentFactory.create(architectDef),
-        agentFactory.create(developerDef)
-));
-pipeline.execute(requirementMsg).subscribe();
-
-// 2. Fanout（并行）
-var fanout = Pipelines.createFanout(List.of(
-        agentFactory.create(reviewerA),
-        agentFactory.create(reviewerB)
-));
-fanout.execute(codeMsg).subscribe();  // Mono<List<Msg>>
-
-// 3. MsgHub（讨论）
-try (var hub = MsgHub.builder()
-        .participants(leader, memberA, memberB)
-        .announcement(Msg.builder()
-                .role(MsgRole.SYSTEM)
-                .content(TextBlock.builder().text("讨论方案优劣").build())
-                .build())
-        .build()) {
-    hub.enter().block();
-    leader.call().block();   // leader 发言，自动广播
-    memberA.call().block();  // memberA 发言，自动广播
-    memberB.call().block();  // memberB 发言，自动广播
-}
-```
-
-## 相关文档（补充）
-
-- [五层智能架构](../architecture.md)
-- [AgentScope v2 使用指南](../../../../reference/dev/agentscope-usage-guide.md)

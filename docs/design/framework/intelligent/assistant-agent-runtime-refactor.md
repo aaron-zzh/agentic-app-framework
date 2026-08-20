@@ -1,10 +1,10 @@
 ---
 level: Practice
 layer: Model
-purpose: 对话入口统一重构——Assistant 作为唯一对外入口、Agent 作为内置 pool，与 AgentScope AG-UI 的绑定方式
-status: draft
-version: 1.0.0
-date: 2026-06-02
+purpose: 已被持久化统一 Assistant 运行时替代的历史重构提案
+status: deprecated
+version: 1.1.0
+date: 2026-08-20
 author: AaronZZH
 gains:
   - 看清 AgentDefinition 与 AssistantDefinition 的职责边界与对外暴露方式
@@ -15,8 +15,7 @@ gains:
 
 # 对话入口统一重构方案
 
-> Assistant 是用户唯一交互入口，Agent 是 Assistant 内部调度的无状态能力单元。
-> 本文是 [五层智能架构](architecture.md) 在「对话入口 + AgentScope 绑定」上的落地与纠偏，配套 [Assistant 技术方案](assistant/assistant-tech.md)、[Agent 技术方案](agent/agent-tech.md)、[AgentScope v2 使用指南](../../../reference/dev/agentscope-usage-guide.md)。
+> **已废弃的历史提案。** 本文保留早期 AgentScope 注册讨论，不再定义对外 API 或持久化模型。`/agui/runs/**`、按 agent/assistant 路由的启动方式和双入口均不可实现；当前设计见[任务式 Assistant 统一执行路径设计](assistant/task-oriented-assistant-execution-design.md)与[Team 技术方案](team/team-tech.md)。
 
 ## 背景与问题
 
