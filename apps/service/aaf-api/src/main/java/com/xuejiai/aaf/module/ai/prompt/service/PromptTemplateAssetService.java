@@ -425,10 +425,10 @@ public class PromptTemplateAssetService
     private void enforceUserOwned(PromptTemplate template) {
         if (Objects.equals(template.getVisibility(), PromptTemplate.VISIBILITY_ENGINE)
                 || Objects.equals(template.getVisibility(), PromptTemplate.VISIBILITY_SYSTEM)
-                || template.getOwnerId() == null) {
+                || template.getOwnerId() == null
+                || !Objects.equals(template.getOwnerId(), currentOwnerId())) {
             throw notFound();
         }
-        enforceOwnership(template);
     }
 
     private Long currentOwnerId() {
