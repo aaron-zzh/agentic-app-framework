@@ -42,7 +42,6 @@ export const restEndpoints = {
       `/system/chat/suggestions${agentId ? `?agentId=${agentId}` : ""}`,
     generationHistory: "/aigc/history",
     imageGeneration: "/system/images/draw",
-    delegatedTasks: "/ai/tasks",
     delegatedTaskList: "/ai/tasks/delegated",
     delegatedTask: (taskId: string) => `/ai/tasks/${taskId}/delegation`,
     delegatedTaskEvents: (taskId: string) => `/ai/tasks/${taskId}/events`,

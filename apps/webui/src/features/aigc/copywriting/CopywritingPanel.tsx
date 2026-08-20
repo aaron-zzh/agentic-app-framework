@@ -9,7 +9,7 @@
 "use client"
 
 import { AnimatePresence, m } from "framer-motion"
-import { FileText, RefreshCw, Sparkles, X } from "lucide-react"
+import { Check, FileText, Loader2, RefreshCw, ShieldCheck, Sparkles, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { useAigcStore } from "../store"
@@ -25,11 +25,9 @@ import { ViralWizardEditor } from "./ViralWizardEditor"
 interface Props {
   /** 自定义底部按钮列表，不传时使用默认的改写+生成 */
   actions?: CopywritingAction[]
-  /** 关联的 AIGC 项目 ID，传入时保存文档会自动关联到该项目 */
-  projectId?: number
 }
 
-export function CopywritingPanel({ actions, projectId }: Props) {
+export function CopywritingPanel({ actions }: Props) {
   const open = useAigcStore((s) => s.copywritingPanelOpen)
   const setOpen = useAigcStore((s) => s.setCopywritingPanelOpen)
   const type = useAigcStore((s) => s.copywritingType)
@@ -38,9 +36,11 @@ export function CopywritingPanel({ actions, projectId }: Props) {
     content,
     setContent,
     generating,
-    saved,
-    saving,
     documentId,
+    pendingApproval,
+    approvalReady,
+    approvalLoading,
+    handleApprovalDecision,
     streamingEditorRef,
     viralStep,
     setViralStep,
@@ -51,12 +51,11 @@ export function CopywritingPanel({ actions, projectId }: Props) {
     analyzing,
     analysisEditorRef,
     resultEditorRef,
-    handleSaveDoc,
     handleGenerate,
     handleRewrite,
     handleAnalyze,
     handleViralGenerate
-  } = useCopywriting(projectId)
+  } = useCopywriting()
 
   const { panelHeight, handleResizeDown, handleResizeMove, handleResizeUp } = usePanelResize()
 
@@ -119,12 +118,40 @@ export function CopywritingPanel({ actions, projectId }: Props) {
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4 pt-2">
             <CopywritingHeader
               showDocActions={type !== "viral" || viralStep === 3}
-              saved={saved}
-              saving={saving}
               generating={generating}
               documentId={documentId}
-              onSaveDoc={handleSaveDoc}
             />
+
+            {pendingApproval ? (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
+                <ShieldCheck className="size-4 text-amber-600" />
+                <span className="min-w-0 flex-1">
+                  {approvalReady
+                    ? `允许 ${pendingApproval.toolName} 保存可撤销草稿？`
+                    : "正在持久化安全暂停点…"}
+                </span>
+                <Button
+                  size="xs"
+                  disabled={!approvalReady || approvalLoading}
+                  onClick={() => void handleApprovalDecision("APPROVED")}
+                >
+                  {approvalLoading ? (
+                    <Loader2 className="size-3 animate-spin" />
+                  ) : (
+                    <Check className="size-3" />
+                  )}
+                  批准
+                </Button>
+                <Button
+                  size="xs"
+                  variant="outline"
+                  disabled={!approvalReady || approvalLoading}
+                  onClick={() => void handleApprovalDecision("REJECTED")}
+                >
+                  拒绝
+                </Button>
+              </div>
+            ) : null}
 
             {/* 爆款复制三步向导 */}
             {type === "viral" ? (

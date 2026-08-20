@@ -109,7 +109,11 @@ export function AgUiChatProvider({
   const agent = useMemo(() => {
     return new HttpAgent({
       url: url ?? DEFAULT_AGENT_URL,
-      initialState: { ...initialState, anonymousId: getOrCreateAnonymousId() },
+      initialState: {
+        ...initialState,
+        mode: "CHAT",
+        anonymousId: getOrCreateAnonymousId()
+      },
       headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
     })
   }, [url, initialStateKey, accessToken])

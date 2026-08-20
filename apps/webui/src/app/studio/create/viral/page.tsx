@@ -24,8 +24,7 @@ import { useSearchParams } from "next/navigation"
 import { useCallback, useRef, useState } from "react"
 import { GlassCard, GlowButton, NeonChip } from "@/components/studio"
 import { Textarea } from "@/components/ui/textarea"
-import { executeAssistant } from "@/lib/api/headless-assistant"
-import { useCreateDocument } from "@/lib/api/rest/system"
+import { executeAssistantAgUi } from "@/lib/api/assistant-agui"
 import { notify } from "@/lib/notification"
 import { cn } from "@/lib/utils/index"
 
@@ -71,22 +70,30 @@ export default function StudioCreateViralPage() {
     setAnalysis("")
     abortRef.current = new AbortController()
     try {
-      await executeAssistant(
+      await executeAssistantAgUi(
         {
+          execution: {
+            interactionMode: "TASK",
+            routeConstraint: "FIXED",
+            clarificationPolicy: "FAIL_ON_BLOCKER",
+            actionAuthorizationPolicy: "DENY_AUTHORIZED_ACTIONS",
+            artifactPersistence: "RETURN_ONLY"
+          },
           input: {
             text: "请分析提供的爆款内容结构",
             variables: { content: viralContent.trim() },
             attachments: []
           },
-          skill: { code: "aigc-copywriting" },
+          role: { key: "system.role.content-creator" },
+          skill: { code: "biz-analysis" },
           knowledge: {
+            mode: "DEFAULT",
             knowledgeBaseIds: [],
-            includePublic: false,
             topK: 5,
             similarityThreshold: 0.2
           },
           model: { mode: "AUTO", modelId: null },
-          memory: { mode: "DISABLED" },
+          memory: { mode: "DEFAULT" },
           output: {}
         },
         {
@@ -119,22 +126,30 @@ export default function StudioCreateViralPage() {
         setAnalysis("")
         abortRef.current = new AbortController()
         try {
-          await executeAssistant(
+          await executeAssistantAgUi(
             {
+              execution: {
+                interactionMode: "TASK",
+                routeConstraint: "FIXED",
+                clarificationPolicy: "FAIL_ON_BLOCKER",
+                actionAuthorizationPolicy: "DENY_AUTHORIZED_ACTIONS",
+                artifactPersistence: "RETURN_ONLY"
+              },
               input: {
                 text: "请分析提供的爆款内容结构",
                 variables: { content: viralContent.trim() },
                 attachments: []
               },
-              skill: { code: "aigc-copywriting" },
+              role: { key: "system.role.content-creator" },
+              skill: { code: "biz-analysis" },
               knowledge: {
+                mode: "DEFAULT",
                 knowledgeBaseIds: [],
-                includePublic: false,
                 topK: 5,
                 similarityThreshold: 0.2
               },
               model: { mode: "AUTO", modelId: null },
-              memory: { mode: "DISABLED" },
+              memory: { mode: "DEFAULT" },
               output: {}
             },
             {
@@ -171,22 +186,30 @@ export default function StudioCreateViralPage() {
       setIsGenerating(true)
       setResult("")
       abortRef.current = new AbortController()
-      executeAssistant(
+      executeAssistantAgUi(
         {
+          execution: {
+            interactionMode: "TASK",
+            routeConstraint: "FIXED",
+            clarificationPolicy: "FAIL_ON_BLOCKER",
+            actionAuthorizationPolicy: "DENY_AUTHORIZED_ACTIONS",
+            artifactPersistence: "RETURN_ONLY"
+          },
           input: {
             text: "请根据提供的爆款结构分析创作文案",
             variables: { analysis, userNotes },
             attachments: []
           },
-          skill: { code: "aigc-copywriting" },
+          role: { key: "system.role.content-creator" },
+          skill: { code: "redbook" },
           knowledge: {
+            mode: "DEFAULT",
             knowledgeBaseIds: [],
-            includePublic: false,
             topK: 5,
             similarityThreshold: 0.2
           },
           model: { mode: "AUTO", modelId: null },
-          memory: { mode: "DISABLED" },
+          memory: { mode: "DEFAULT" },
           output: {}
         },
         {
@@ -207,19 +230,6 @@ export default function StudioCreateViralPage() {
     if (!result) return
     navigator.clipboard.writeText(result).then(() => notify.success("文案已复制到剪贴板"))
   }, [result])
-
-  const createDoc = useCreateDocument()
-  const handleSaveDoc = useCallback(() => {
-    if (!result) return
-    const title = `爆款复制-${new Date().toLocaleDateString("zh-CN")}`
-    createDoc.mutate(
-      { title, docType: "markdown", content: result },
-      {
-        onSuccess: () => notify.success("已保存到文档，可在「知识-文档」中查看"),
-        onError: () => notify.error("保存失败")
-      }
-    )
-  }, [result, createDoc])
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-6">
@@ -359,14 +369,9 @@ export default function StudioCreateViralPage() {
                   <GlowButton tone="ghost" size="sm" onClick={handleSave}>
                     复制到剪贴板
                   </GlowButton>
-                  <GlowButton
-                    tone="violet"
-                    size="sm"
-                    onClick={handleSaveDoc}
-                    disabled={createDoc.isPending}
-                  >
-                    {createDoc.isPending ? "保存中..." : "保存文档"}
-                  </GlowButton>
+                  <span className="text-muted-foreground text-xs">
+                    本向导仅返回结果，不自动保存
+                  </span>
                 </div>
               )}
             </div>

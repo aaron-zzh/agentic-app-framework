@@ -25,16 +25,10 @@ interface AigcStore {
   copywritingContent: string
   /** 当前持久化身份所属的用户与组织/工作区范围。 */
   copywritingScopeKey: string | null
-  /** 当前编辑会话已持久化的文档 ID。 */
+  /** 当前执行由 Agent 保存并返回的数据库草稿 ID。 */
   copywritingDocumentId: number | null
-  /** 最近一次成功保存到文档的内容快照。 */
-  copywritingPersistedContent: string
-  /** 当前文档已成功关联的项目 ID。 */
-  copywritingLinkedProjectIds: number[]
-  /** 任一文案入口正在生成或改写。 */
+  /** 任一文案入口正在生成、改写或等待恢复。 */
   copywritingGenerating: boolean
-  /** 任一文案入口正在保存。 */
-  copywritingSaving: boolean
   /** 文案生成类型：直接传 ai_skill_definition.code（如 voiceover=口播 redbook=小红书），viral=爆款复制固定值 */
   copywritingType: string
   /** 文案生成语言/翻译目标；未选时为 null。 */
@@ -111,10 +105,8 @@ interface AigcStore {
   setCopywritingPrompt: (prompt: string) => void
   setCopywritingContent: (content: string) => void
   bindCopywritingScope: (scopeKey: string | null) => void
-  setCopywritingPersistedDocument: (scopeKey: string, id: number, content: string) => void
-  markCopywritingProjectLinked: (scopeKey: string, projectId: number) => void
+  setCopywritingPersistedDocument: (scopeKey: string, id: number | null) => void
   setCopywritingGenerating: (generating: boolean) => void
-  setCopywritingSaving: (saving: boolean) => void
   setCopywritingType: (type: string) => void
   setCopywritingTranslateTo: (lang: string | null) => void
   setCopywritingLength: (length: "short" | "medium" | "long") => void
@@ -163,10 +155,7 @@ export const useAigcStore = create<AigcStore>((set, _get) => ({
   copywritingContent: "",
   copywritingScopeKey: null,
   copywritingDocumentId: null,
-  copywritingPersistedContent: "",
-  copywritingLinkedProjectIds: [],
   copywritingGenerating: false,
-  copywritingSaving: false,
   copywritingType: "voiceover",
   copywritingTranslateTo: null,
   copywritingLength: "medium",
@@ -212,28 +201,12 @@ export const useAigcStore = create<AigcStore>((set, _get) => ({
         ? state
         : {
             copywritingScopeKey,
-            copywritingDocumentId: null,
-            copywritingPersistedContent: "",
-            copywritingLinkedProjectIds: []
+            copywritingDocumentId: null
           }
     ),
-  setCopywritingPersistedDocument: (scopeKey, copywritingDocumentId, copywritingPersistedContent) =>
-    set((state) =>
-      state.copywritingScopeKey === scopeKey
-        ? { copywritingDocumentId, copywritingPersistedContent }
-        : state
-    ),
-  markCopywritingProjectLinked: (scopeKey, projectId) =>
-    set((state) =>
-      state.copywritingScopeKey !== scopeKey ||
-      state.copywritingLinkedProjectIds.includes(projectId)
-        ? state
-        : {
-            copywritingLinkedProjectIds: [...state.copywritingLinkedProjectIds, projectId]
-          }
-    ),
+  setCopywritingPersistedDocument: (scopeKey, copywritingDocumentId) =>
+    set((state) => (state.copywritingScopeKey === scopeKey ? { copywritingDocumentId } : state)),
   setCopywritingGenerating: (copywritingGenerating) => set({ copywritingGenerating }),
-  setCopywritingSaving: (copywritingSaving) => set({ copywritingSaving }),
   setCopywritingType: (type) => set({ copywritingType: type }),
   setCopywritingTranslateTo: (lang) => set({ copywritingTranslateTo: lang }),
   setCopywritingLength: (length) => set({ copywritingLength: length }),

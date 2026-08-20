@@ -33,7 +33,7 @@ const STATUS_META: Record<DelegatedTaskStatus, StatusMeta> = {
   RUNNING: { icon: LoaderCircle, label: "执行中" },
   PAUSED: { icon: PauseCircle, label: "已暂停" },
   AWAITING_AUTHORIZATION: { icon: ShieldAlert, label: "等待授权" },
-  AWAITING_INPUT: { icon: MessageCircleQuestion, label: "等待输入" },
+  AWAITING_CLARIFICATION: { icon: MessageCircleQuestion, label: "等待澄清" },
   COMPLETED: { icon: CircleCheckBig, label: "已完成" },
   CANCELED: { icon: Ban, label: "已取消" },
   FAILED: { icon: CircleX, label: "失败" }

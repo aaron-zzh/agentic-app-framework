@@ -15,14 +15,12 @@ import type { ChatterTarget, TaskModelSelection } from "@/features/chatter/types
 import { LivechatProvider } from "@/features/livechat/LivechatProvider"
 import { AgUiChatProvider } from "@/features/livechat/runtime/ag-ui-runtime"
 import { buildApiUrl } from "@/lib/api/config"
-import { chatApi } from "@/lib/api/rest/ai"
-import { useAuthStore } from "@/lib/store/auth-store"
 import { useChatterStore } from "@/lib/store/chatter-store"
 import { buildChatterInitialState, resolveChatterAguiPath } from "./chatter-runtime-state"
 
 /** 构建对话端点 URL。 */
-function buildAguiUrl(target: ChatterTarget, isAuthenticated: boolean): string {
-  return buildApiUrl(resolveChatterAguiPath(target, isAuthenticated))
+function buildAguiUrl(target: ChatterTarget): string {
+  return buildApiUrl(resolveChatterAguiPath(target))
 }
 
 interface ChatterRuntimeProps {
@@ -50,9 +48,7 @@ export function ChatterRuntime({
   const currentPageId = useChatterStore((s) => s.currentPageId)
   const configs = useChatterStore((s) => s.configs)
   const pageConfig = currentPageId ? configs[currentPageId] : undefined
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
-
-  const aguiUrl = useMemo(() => buildAguiUrl(target, isAuthenticated), [target, isAuthenticated])
+  const aguiUrl = useMemo(() => buildAguiUrl(target), [target])
 
   const initialState = useMemo(
     () =>
@@ -60,28 +56,9 @@ export function ChatterRuntime({
         target,
         currentPageId,
         pageConfig,
-        isAuthenticated,
         taskModelSelection
       }),
-    [target, pageConfig, currentPageId, isAuthenticated, taskModelSelection]
-  )
-
-  // onNewThread 行为：
-  // - 已登录 + AI：调 chatApi.createSession 持久化新会话
-  // - 未登录 + AI：no-op（不调 sessions API 避免 401，runtime 自管 threadId）
-  // - kiro：不需要 session
-  const onNewThread = useMemo(
-    () =>
-      target.type === "kiro"
-        ? undefined
-        : isAuthenticated
-          ? async () => {
-              await chatApi.createSession({ type: "ai" })
-            }
-          : async () => {
-              /* 匿名访客新建 thread 不持久化到后端 */
-            },
-    [isAuthenticated, target.type]
+    [target, pageConfig, currentPageId, taskModelSelection]
   )
 
   // user 类型走 IM WebSocket
@@ -102,7 +79,7 @@ export function ChatterRuntime({
 
   // AI / Kiro 走统一 AgUiChatProvider
   return (
-    <AgUiChatProvider url={aguiUrl} initialState={initialState} onNewThread={onNewThread}>
+    <AgUiChatProvider url={aguiUrl} initialState={initialState}>
       {children}
     </AgUiChatProvider>
   )

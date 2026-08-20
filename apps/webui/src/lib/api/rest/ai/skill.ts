@@ -17,11 +17,18 @@ import { buildQuery, type CrudMeta } from "../crud/client"
 const SKILL_PATH = "/system/skills"
 const SKILL_QUERY_KEY = ["ai-skills"] as const
 
+export const COPYWRITING_SKILL_CATEGORY = "copywriting"
+
 type SkillQueryParamValue = string | number | boolean | string[] | undefined
 
 export type AiSkillVisibility = "PRIVATE" | "WORKSPACE" | "PUBLIC"
 export type AiSkillVersionStatus = "DRAFT" | "IN_REVIEW" | "APPROVED" | "REJECTED" | "RETIRED"
 export type AiSkillToolAccessMode = "RESTRICT" | "INHERIT"
+
+export interface AiSkillCategoryVO {
+  code: string
+  name: string
+}
 
 export interface AiSkillToolRequirementVO {
   id: number
@@ -69,6 +76,7 @@ export interface AiSkillVO {
   builtIn: boolean
   currentVersionId: number | null
   sourceSkillId: number | null
+  categories: AiSkillCategoryVO[]
   currentVersion: AiSkillVersionVO | null
   latestVersion: AiSkillVersionVO | null
   ownerId: number | null
@@ -79,7 +87,9 @@ export interface AiSkillVO {
 
 export interface AiSkillsParams extends Record<string, SkillQueryParamValue> {
   locale?: string
+  categoryCode?: string
   publishedOnly?: boolean
+  roleKey?: string
 }
 
 export interface AiSkillDirectoryParams extends AiSkillsParams {
@@ -113,6 +123,7 @@ export interface CreateAiSkillInput {
   locale: string
   visibility: AiSkillVisibility
   sourceSkillId?: number
+  categoryCodes?: string[]
   content: string
   inputSchema?: string
   outputSchema?: string

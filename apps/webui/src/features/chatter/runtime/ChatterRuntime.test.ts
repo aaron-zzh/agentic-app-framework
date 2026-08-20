@@ -21,7 +21,6 @@ describe("Chatter 任务模型 initialState", () => {
   it("AUTO 应发送固定 Assistant 身份且不伪造 modelId", () => {
     const state = buildChatterInitialState({
       target: aiTarget,
-      isAuthenticated: true,
       taskModelSelection: DEFAULT_TASK_MODEL_SELECTION
     })
 
@@ -35,7 +34,6 @@ describe("Chatter 任务模型 initialState", () => {
   it("EXPLICIT 应在 taskModelSelection 中发送业务 modelId", () => {
     const state = buildChatterInitialState({
       target: aiTarget,
-      isAuthenticated: true,
       taskModelSelection: { mode: "EXPLICIT", modelId: "qwen-plus" }
     })
 
@@ -45,26 +43,22 @@ describe("Chatter 任务模型 initialState", () => {
     })
   })
 
-  it("未启用任务模型选择的其他 Chatter 场景不应注入该状态", () => {
+  it("Kiro 场景不应注入 Assistant 执行状态", () => {
     const state = buildChatterInitialState({
-      target: { type: "ai", agentRole: "customer-service" },
-      isAuthenticated: false
+      target: { type: "kiro" }
     })
 
-    expect(state).toMatchObject({ agentRole: "customer-service" })
     expect(state).not.toHaveProperty("assistantId")
     expect(state).not.toHaveProperty("taskModelSelection")
   })
 })
 
 describe("Chatter AG-UI 路径", () => {
-  it("已登录 AI 应复用 /agui/run", () => {
-    expect(resolveChatterAguiPath(aiTarget, true)).toBe("/agui/run")
+  it("AI 统一复用 /agui/run", () => {
+    expect(resolveChatterAguiPath(aiTarget)).toBe("/agui/run")
   })
 
-  it("匿名 AI 应保留按角色区分的路径", () => {
-    expect(resolveChatterAguiPath({ type: "ai", agentRole: "customer-service" }, false)).toBe(
-      "/agui/run/customer-service"
-    )
+  it("AI 不保留按角色区分的匿名路径", () => {
+    expect(resolveChatterAguiPath({ type: "ai", agentRole: "customer-service" })).toBe("/agui/run")
   })
 })

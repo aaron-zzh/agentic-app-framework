@@ -7,7 +7,6 @@
 
 "use client"
 
-import { useBoolean, useTabs } from "@aaf/hooks"
 import {
   BarChart3,
   Briefcase,
@@ -20,17 +19,16 @@ import {
   Loader2,
   Mic,
   Pencil,
-  Plus,
   RefreshCw,
-  Save,
   ShieldCheck,
   Target,
   Video,
   Wand2,
-  Wrench
+  Wrench,
+  X
 } from "lucide-react"
 import { useSearchParams } from "next/navigation"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { LottieIcon } from "@/components/animate"
 import { AnimateBorder } from "@/components/animate/animate-border"
@@ -40,27 +38,18 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle
-} from "@/components/ui/empty"
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { CopywritingReferenceImages } from "@/features/aigc/copywriting/CopywritingReferenceImages"
-import { useCopywriting } from "@/features/aigc/copywriting/use-copywriting"
-import { SkillEditorDialog } from "@/features/aigc/skills/SkillEditorDialog"
+import { COPYWRITING_ROLE_KEY, useCopywriting } from "@/features/aigc/copywriting/use-copywriting"
 import { useAigcStore } from "@/features/aigc/store"
 import { StreamingEditor } from "@/features/rich-text-editor"
-import type { AssistantExecutionPhase } from "@/lib/api/headless-assistant"
-import { type AiSkillVO, useAiSkillMeta, useMyAiSkills, usePublicAiSkills } from "@/lib/api/rest/ai"
+import type { AssistantExecutionPhase } from "@/lib/api/assistant-agui"
+import { type AiSkillVO, COPYWRITING_SKILL_CATEGORY, useAiSkills } from "@/lib/api/rest/ai"
 import { DictType } from "@/lib/constants/dict-type"
 import { useDict } from "@/lib/hooks/use-dict"
 import { useModelSelector } from "@/lib/hooks/use-model-selector"
@@ -87,8 +76,7 @@ const TONE_MAP: Record<string, "violet" | "cyan" | "emerald" | "amber" | "rose">
 }
 
 const HOT_CODES = new Set(["voiceover", "redbook"])
-
-type SkillDirectoryView = "MINE" | "PUBLIC"
+const EMPTY_SKILLS: AiSkillVO[] = []
 
 function sourceLabel(skill: AiSkillVO): string {
   return skill.ownerId === null ? "内置" : "工作区"
@@ -245,6 +233,8 @@ function ExecutionPhaseBadge({ phase }: { phase: AssistantExecutionPhase }) {
   const label = {
     idle: "待开始",
     running: "执行中",
+    awaiting_authorization: "等待授权",
+    paused: "已暂停",
     success: "已完成",
     error: "失败"
   }[phase]
@@ -253,7 +243,7 @@ function ExecutionPhaseBadge({ phase }: { phase: AssistantExecutionPhase }) {
       ? "destructive"
       : phase === "success"
         ? "default"
-        : phase === "running"
+        : phase === "running" || phase === "awaiting_authorization"
           ? "secondary"
           : "outline"
   return <Badge variant={variant}>{label}</Badge>
@@ -266,10 +256,12 @@ function CopywritingWorkspace({ skillName }: { skillName: string }) {
     content,
     setContent,
     generating,
-    saved,
-    saving,
     documentId,
     phase,
+    pendingApproval,
+    approvalReady,
+    approvalLoading,
+    handleApprovalDecision,
     processEntries,
     contextSources,
     toolCalls,
@@ -277,7 +269,6 @@ function CopywritingWorkspace({ skillName }: { skillName: string }) {
     selectedModelId,
     selectedMaterials,
     streamingEditorRef,
-    handleSaveDoc,
     handleGenerate,
     handleRewrite
   } = useCopywriting()
@@ -288,6 +279,8 @@ function CopywritingWorkspace({ skillName }: { skillName: string }) {
     {
       idle: "尚未开始执行",
       running: "正在准备 Assistant 执行",
+      awaiting_authorization: "执行已暂停，等待确认受控工具操作",
+      paused: "执行保持暂停，可调整方案后重新发起",
       success: "文案生成已完成",
       error: "执行未完成，请展开查看详情"
     }[phase]
@@ -328,6 +321,53 @@ function CopywritingWorkspace({ skillName }: { skillName: string }) {
             <CopywritingReferenceImages />
           </CardContent>
         </Card>
+
+        {pendingApproval ? (
+          <Card className="border-amber-500/40 bg-amber-500/5">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <ShieldCheck className="size-4 text-amber-600" />
+                需要确认受控工具操作
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              <p className="text-muted-foreground text-sm">
+                {approvalReady
+                  ? "Assistant 已安全暂停。批准后将从持久恢复点继续执行，不会提升其他工具权限。"
+                  : "Assistant 正在保存暂停点，请稍候再确认工具操作。"}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="secondary">工具：{pendingApproval.toolName}</Badge>
+                <Badge variant="outline">
+                  {pendingApproval.reversible ? "操作可撤销" : "操作不可自动撤销"}
+                </Badge>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  disabled={!approvalReady || approvalLoading}
+                  onClick={() => void handleApprovalDecision("APPROVED")}
+                >
+                  {approvalLoading ? (
+                    <Loader2 data-icon="inline-start" className="animate-spin" />
+                  ) : (
+                    <Check data-icon="inline-start" />
+                  )}
+                  批准并继续
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!approvalReady || approvalLoading}
+                  onClick={() => void handleApprovalDecision("REJECTED")}
+                >
+                  <X data-icon="inline-start" />
+                  拒绝
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
 
         <Collapsible open={processOpen} onOpenChange={setProcessOpen}>
           <Card className="min-w-0">
@@ -456,27 +496,7 @@ function CopywritingWorkspace({ skillName }: { skillName: string }) {
               <RefreshCw data-icon="inline-start" />
               改写
             </Button>
-            <Button
-              variant="outline"
-              size="xs"
-              disabled={generating || saved || saving || !content.trim()}
-              onClick={handleSaveDoc}
-            >
-              {saving ? (
-                <Loader2 data-icon="inline-start" className="animate-spin" />
-              ) : saved ? (
-                <Check data-icon="inline-start" />
-              ) : (
-                <Save data-icon="inline-start" />
-              )}
-              {saving
-                ? "保存中..."
-                : saved
-                  ? "已保存"
-                  : documentId === null
-                    ? "保存文案"
-                    : "保存更新"}
-            </Button>
+            {documentId !== null ? <Badge variant="outline">数据库草稿 #{documentId}</Badge> : null}
           </CardAction>
         </CardHeader>
         <CardContent className="flex min-h-0 flex-1 flex-col">
@@ -485,7 +505,7 @@ function CopywritingWorkspace({ skillName }: { skillName: string }) {
               ref={streamingEditorRef}
               value={content}
               onChange={setContent}
-              placeholder="生成结果会显示在这里，也可以直接编辑已有内容。"
+              placeholder="生成结果会显示在这里。生成时的版本由 Assistant 保存为草稿；后续手动编辑仅保留在当前页面。"
               preset="minimal"
               className="relative h-full min-h-80 xl:min-h-0"
             />
@@ -497,25 +517,14 @@ function CopywritingWorkspace({ skillName }: { skillName: string }) {
 }
 
 export default function StudioCreateCopyPage() {
-  const directory = useTabs("PUBLIC")
-  const editDialog = useBoolean()
   const launcherPrefillRef = useRef<string | null>(null)
-  const [editTarget, setEditTarget] = useState<AiSkillVO | null>(null)
   const queryParams = {
-    pageNo: 1,
-    pageSize: 100
+    categoryCode: COPYWRITING_SKILL_CATEGORY,
+    publishedOnly: true,
+    roleKey: COPYWRITING_ROLE_KEY
   }
-  const mineQuery = useMyAiSkills(queryParams, directory.value === "MINE")
-  const publicQuery = usePublicAiSkills(queryParams, directory.value === "PUBLIC")
-  const metaQuery = useAiSkillMeta()
-  const activeQuery = directory.value === "PUBLIC" ? publicQuery : mineQuery
-  const operations = useMemo(
-    () => new Set(metaQuery.data?.operations ?? []),
-    [metaQuery.data?.operations]
-  )
-  const canCreate = directory.value === "MINE" && operations.has("create")
-  const canUpdate = operations.has("update")
-  const skills = useMemo(() => activeQuery.data?.list ?? [], [activeQuery.data?.list])
+  const skillsQuery = useAiSkills(queryParams, true)
+  const skills = skillsQuery.data ?? EMPTY_SKILLS
 
   const type = useAigcStore((state) => state.copywritingType)
   const setType = useAigcStore((state) => state.setCopywritingType)
@@ -523,9 +532,11 @@ export default function StudioCreateCopyPage() {
   const searchParams = useSearchParams()
 
   useEffect(() => {
-    const skillCode = searchParams.get("skillCode")
-    if (skillCode && skills.find((skill) => skill.code === skillCode)) {
-      setType(skillCode)
+    const requestedSkillCode = searchParams.get("skillCode")
+    if (requestedSkillCode && skills.some((skill) => skill.code === requestedSkillCode)) {
+      setType(requestedSkillCode)
+    } else if (!skills.some((skill) => skill.code === type) && skills[0]) {
+      setType(skills[0].code)
     }
     const stored = sessionStorage.getItem("aaf:launcher:prompt")
     const topic = stored ?? searchParams.get("topic")
@@ -537,9 +548,6 @@ export default function StudioCreateCopyPage() {
       launcherPrefillRef.current = prefill
       setPrompt(prefill)
     }
-    if (!type && !skillCode && skills.length > 0) {
-      setType(skills[0].code ?? "")
-    }
   }, [searchParams, setPrompt, setType, skills, type])
 
   const selectedSkill = skills.find((skill) => skill.code === type)
@@ -549,24 +557,6 @@ export default function StudioCreateCopyPage() {
     setType(code)
   }
 
-  function openCreate() {
-    if (!canCreate) return
-    setEditTarget(null)
-    editDialog.onTrue()
-  }
-
-  function openEdit(skill: AiSkillVO) {
-    if (!canUpdate || !skill.ownedByCurrentUser) return
-    setEditTarget(skill)
-    editDialog.onTrue()
-  }
-
-  function handleSaved(skill: AiSkillVO) {
-    if (skill.code) setType(skill.code)
-  }
-
-  const directoryView = directory.value as SkillDirectoryView
-
   return (
     <div className="flex h-full min-h-0 flex-col gap-0 lg:flex-row">
       <aside className="flex max-h-72 w-full shrink-0 flex-col gap-2 overflow-y-auto border-b p-4 lg:max-h-none lg:w-72 lg:border-r lg:border-b-0">
@@ -575,21 +565,9 @@ export default function StudioCreateCopyPage() {
             <Wand2 className="text-violet-400" />
             <h1 className="font-semibold text-sm">文案生成</h1>
           </div>
-          {canCreate ? (
-            <Button variant="ghost" size="icon-sm" onClick={openCreate} aria-label="新建技能">
-              <Plus />
-            </Button>
-          ) : null}
         </div>
 
-        <Tabs value={directory.value} onValueChange={directory.onChange}>
-          <TabsList className="w-full">
-            <TabsTrigger value="PUBLIC">公共</TabsTrigger>
-            <TabsTrigger value="MINE">我的</TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        {activeQuery.isLoading ? (
+        {skillsQuery.isLoading ? (
           ["one", "two", "three", "four", "five", "six"].map((key) => <SkillSkeleton key={key} />)
         ) : skills.length === 0 ? (
           <Empty className="min-h-64">
@@ -597,21 +575,11 @@ export default function StudioCreateCopyPage() {
               <EmptyMedia variant="icon">
                 <Wand2 />
               </EmptyMedia>
-              <EmptyTitle>暂无技能</EmptyTitle>
+              <EmptyTitle>暂无可用文案技能</EmptyTitle>
               <EmptyDescription>
-                {directoryView === "MINE"
-                  ? "创建技能后即可在此选择并开始创作"
-                  : "平台内置和工作区公开技能"}
+                管理员需发布 Skill、归入文案生成分类、声明草稿工具并挂入内容创作者 Role
               </EmptyDescription>
             </EmptyHeader>
-            {canCreate ? (
-              <EmptyContent>
-                <Button size="sm" onClick={openCreate}>
-                  <Plus data-icon="inline-start" />
-                  新建技能
-                </Button>
-              </EmptyContent>
-            ) : null}
           </Empty>
         ) : (
           skills.map((skill) => (
@@ -619,13 +587,8 @@ export default function StudioCreateCopyPage() {
               key={skill.id}
               skill={skill}
               active={type === (skill.code ?? "")}
-              showSource={directoryView === "PUBLIC"}
+              showSource
               onSelect={handleSelect}
-              onEdit={
-                directoryView === "MINE" && canUpdate && skill.ownedByCurrentUser
-                  ? () => openEdit(skill)
-                  : undefined
-              }
             />
           ))
         )}
@@ -641,13 +604,6 @@ export default function StudioCreateCopyPage() {
           </div>
         )}
       </main>
-
-      <SkillEditorDialog
-        open={editDialog.value}
-        onOpenChange={editDialog.setValue}
-        initial={editTarget}
-        onSaved={handleSaved}
-      />
     </div>
   )
 }

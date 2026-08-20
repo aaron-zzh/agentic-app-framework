@@ -18,7 +18,7 @@ import {
 } from "lexical"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
-import { executeAssistant } from "@/lib/api/headless-assistant"
+import { executeAssistantAgUi } from "@/lib/api/assistant-agui"
 import { AIWriteDialog } from "./AIWriteDialog"
 
 export const OPEN_AI_WRITE_COMMAND: LexicalCommand<void> = createCommand("OPEN_AI_WRITE")
@@ -51,22 +51,30 @@ export function AIWritePlugin() {
       editor.focus()
       await new Promise((r) => requestAnimationFrame(r))
 
-      await executeAssistant(
+      await executeAssistantAgUi(
         {
+          execution: {
+            interactionMode: "TASK",
+            routeConstraint: "FIXED",
+            clarificationPolicy: "FAIL_ON_BLOCKER",
+            actionAuthorizationPolicy: "DENY_AUTHORIZED_ACTIONS",
+            artifactPersistence: "RETURN_ONLY"
+          },
           input: {
             text: selectedText ? `${prompt}\n\n参考上下文：\n${selectedText}` : prompt,
             variables: {},
             attachments: []
           },
+          role: { key: "system.role.content-creator" },
           skill: { code: "rich-text-write" },
           knowledge: {
+            mode: "DEFAULT",
             knowledgeBaseIds: [],
-            includePublic: false,
             topK: 5,
             similarityThreshold: 0.2
           },
           model: { mode: "AUTO", modelId: null },
-          memory: { mode: "DISABLED" },
+          memory: { mode: "DEFAULT" },
           output: {}
         },
         {

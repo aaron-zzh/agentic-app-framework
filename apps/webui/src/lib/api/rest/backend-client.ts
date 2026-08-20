@@ -71,6 +71,32 @@ export function getBackendScope(): BackendScope {
   return currentBackendScope
 }
 
+function readBackendDefaultHeader(name: string): string | null {
+  const value = backendClient.defaults.headers.common[name]
+  return typeof value === "string" && value.length > 0 ? value : null
+}
+
+/**
+ * 获取非 Axios 请求也必须携带的后端请求上下文。
+ *
+ * @example
+ * const headers = getBackendRequestContextHeaders()
+ * await fetch(url, { headers })
+ */
+export function getBackendRequestContextHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { "X-Scope": currentBackendScope }
+  const authorization = axios.defaults.headers.common.Authorization
+  if (typeof authorization === "string" && authorization.length > 0) {
+    headers.Authorization = authorization
+  }
+
+  for (const name of ["X-Org-Id", "X-Workspace-Id", "X-Source-App"] as const) {
+    const value = readBackendDefaultHeader(name)
+    if (value) headers[name] = value
+  }
+  return headers
+}
+
 export function registerBackendTokenRefresh(handler: RefreshAccessToken): void {
   refreshAccessToken = handler
 }

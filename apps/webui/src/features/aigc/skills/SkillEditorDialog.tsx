@@ -72,6 +72,7 @@ export interface SkillEditorDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   initial?: AiSkillVO | null
+  requiredCategoryCode?: string
   onSaved?: (skill: AiSkillVO) => void
 }
 
@@ -102,6 +103,7 @@ export function SkillEditorDialog({
   open,
   onOpenChange,
   initial,
+  requiredCategoryCode,
   onSaved
 }: SkillEditorDialogProps) {
   const uid = useId()
@@ -138,12 +140,21 @@ export function SkillEditorDialog({
   function handleSave() {
     if (!canSave) return
 
+    const categoryCodes = requiredCategoryCode
+      ? Array.from(
+          new Set([
+            ...(initial?.categories.map((category) => category.code) ?? []),
+            requiredCategoryCode
+          ])
+        )
+      : undefined
     const input: CreateAiSkillInput = {
       code: code.trim(),
       name: name.trim(),
       summary: summary.trim(),
       locale: locale.trim(),
       visibility,
+      ...(categoryCodes ? { categoryCodes } : {}),
       content: content.trim(),
       inputSchema: inputSchema.trim(),
       outputSchema: outputSchema.trim(),

@@ -20,7 +20,6 @@ interface BuildChatterInitialStateOptions {
   target: ChatterTarget
   currentPageId?: string | null
   pageConfig?: ChatterPageRuntimeConfig
-  isAuthenticated: boolean
   taskModelSelection?: TaskModelSelection
 }
 
@@ -29,10 +28,9 @@ export function buildChatterInitialState({
   target,
   currentPageId,
   pageConfig,
-  isAuthenticated,
   taskModelSelection
 }: BuildChatterInitialStateOptions): Record<string, unknown> {
-  const usesAssistantRuntime = isAuthenticated && target.type === "ai"
+  const usesAssistantRuntime = target.type === "ai"
   const effectiveTaskModelSelection = usesAssistantRuntime
     ? (taskModelSelection ?? DEFAULT_TASK_MODEL_SELECTION)
     : undefined
@@ -42,19 +40,15 @@ export function buildChatterInitialState({
   return {
     pageId: currentPageId,
     preset: pageConfig?.preset,
-    ...(isAuthenticated ? {} : { agentRole: target.agentRole ?? pageConfig?.agentRole }),
     ...(assistantId ? { assistantId } : {}),
     ...(effectiveTaskModelSelection ? { taskModelSelection: effectiveTaskModelSelection } : {})
   }
 }
 
 /** 解析 Chatter 使用的 AG-UI API 路径。 */
-export function resolveChatterAguiPath(target: ChatterTarget, isAuthenticated: boolean): string {
+export function resolveChatterAguiPath(target: ChatterTarget): string {
   if (target.type === "kiro") {
     return "/autodev/kiro/run"
   }
-  if (isAuthenticated) {
-    return "/agui/run"
-  }
-  return `/agui/run/${target.agentRole ?? "customer-service"}`
+  return "/agui/run"
 }

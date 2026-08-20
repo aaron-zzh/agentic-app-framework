@@ -1,6 +1,6 @@
 "use client"
 /**
- * assistant-ui 示例页——使用 useLocalRuntime + postAiStream 对接 /api/chat/run 流式接口（自动携带 Bearer token）
+ * assistant-ui 示例页——使用 useLocalRuntime + AG-UI 正文客户端对接 /api/agui/run
  * 路由：/dev/examples/assistant-ui
  * @author AaronZZH & Kiro
  */
@@ -24,8 +24,8 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import { TypographyH1, TypographyMuted } from "@/components/ui/typography"
-import { postAiStream } from "@/lib/api/ai-stream"
-import { type AiModelVO, listTextModels } from "@/lib/api/rest/ai"
+import { executeAssistantChatAgUi } from "@/lib/api/assistant-agui"
+import { type AiModelVO, chatApi, listTextModels } from "@/lib/api/rest/ai"
 
 export default function AssistantUIExamplePage() {
   const [models, setModels] = useState<AiModelVO[]>([])
@@ -47,21 +47,21 @@ export default function AssistantUIExamplePage() {
 
   const chatModelAdapter: ChatModelAdapter = {
     async *run({ messages, abortSignal }) {
-      const body = {
-        threadId: `thread-${Date.now()}`,
-        modelId: modelIdRef.current,
-        messages: messages.map((m) => ({
-          role: m.role,
-          content: m.content
-            .filter((p) => p.type === "text")
-            .map((p) => p.text)
+      const session = await chatApi.createSession({ type: "ai" })
+      const request = {
+        threadId: session.threadId,
+        modelId: modelIdRef.current || undefined,
+        messages: messages.map((message) => ({
+          role: message.role,
+          text: message.content
+            .filter((part) => part.type === "text")
+            .map((part) => part.text)
             .join("")
-        })),
-        target: { type: "ai" },
-        state: { persist: false }
+        }))
       }
 
       let content = ""
+      let streamError: Error | null = null
       let resolver: ((v: string | null) => void) | null = null
       const queue: (string | null)[] = []
 
@@ -73,17 +73,16 @@ export default function AssistantUIExamplePage() {
         } else queue.push(val)
       }
 
-      const streamPromise = postAiStream("/chat/run", body, {
+      const streamPromise = executeAssistantChatAgUi(request, {
         onChunk: (text) => {
           content += text
           enqueue(content)
         },
-        onDone: () => enqueue(null),
-        onError: (err) => {
-          throw err
+        onError: (error) => {
+          streamError = error
         },
         signal: abortSignal ?? undefined
-      })
+      }).finally(() => enqueue(null))
 
       while (true) {
         const next: string | null =
@@ -97,6 +96,7 @@ export default function AssistantUIExamplePage() {
       }
 
       await streamPromise
+      if (streamError !== null) throw streamError
     }
   }
 
@@ -107,7 +107,7 @@ export default function AssistantUIExamplePage() {
       <div className="mb-6 space-y-2">
         <TypographyH1>assistant-ui 示例</TypographyH1>
         <TypographyMuted>
-          使用 useLocalRuntime + ChatModelAdapter 对接 /api/chat/run 流式接口
+          使用 useLocalRuntime + ChatModelAdapter 对接 /api/agui/run 正文流
         </TypographyMuted>
       </div>
 

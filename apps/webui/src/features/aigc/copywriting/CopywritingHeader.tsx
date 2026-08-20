@@ -3,34 +3,26 @@
  * @author AaronZZH & Kiro
  */
 
-import { Check, Image, Loader2, Save, Sparkles } from "lucide-react"
+import { Image, Sparkles } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAigcStore } from "../store"
 
 interface CopywritingHeaderProps {
-  /** 是否展示「生成图像 / 保存文档」动作（viral 仅在结果步展示） */
+  /** 是否展示文档关联动作（viral 仅在结果步展示） */
   showDocActions: boolean
-  /** 文档是否已保存 */
-  saved: boolean
-  /** 保存请求进行中 */
-  saving: boolean
   /** 文案生成或改写进行中 */
   generating: boolean
-  /** 已持久化的文档 ID；为空表示尚未首次保存 */
+  /** Agent 保存并由事件返回的数据库草稿 ID */
   documentId: number | null
-  /** 保存为文档 */
-  onSaveDoc: () => void
 }
 
 export function CopywritingHeader({
   showDocActions,
-  saved,
-  saving,
   generating,
-  documentId,
-  onSaveDoc
+  documentId
 }: CopywritingHeaderProps) {
   const type = useAigcStore((s) => s.copywritingType)
   const setType = useAigcStore((s) => s.setCopywritingType)
@@ -63,6 +55,7 @@ export function CopywritingHeader({
             size="xs"
             className="gap-1"
             title="将当前内容发送到图像生成"
+            disabled={generating || !content.trim()}
             onClick={() => {
               useAigcStore.getState().setPrompt(content.trim())
               useAigcStore.getState().setGenerationPanelOpen(true)
@@ -72,29 +65,7 @@ export function CopywritingHeader({
             <Image className="size-3" />
             生成图像
           </Button>
-          <Button
-            variant="outline"
-            size="xs"
-            className="gap-1"
-            title={documentId === null ? "保存文案" : "保存文案更新"}
-            disabled={generating || saved || saving || !content.trim()}
-            onClick={onSaveDoc}
-          >
-            {saving ? (
-              <Loader2 className="size-3 animate-spin" />
-            ) : saved ? (
-              <Check className="size-3" />
-            ) : (
-              <Save className="size-3" />
-            )}
-            {saving
-              ? "保存中..."
-              : saved
-                ? "已保存"
-                : documentId === null
-                  ? "保存文案"
-                  : "保存更新"}
-          </Button>
+          {documentId !== null ? <Badge variant="outline">数据库草稿 #{documentId}</Badge> : null}
         </div>
       )}
     </div>
