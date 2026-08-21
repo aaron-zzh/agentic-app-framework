@@ -1046,7 +1046,8 @@ public final class DelegatedTaskCoordinator {
                                 throw new IllegalArgumentException(
                                         "inputBindings 必须是名称到 sourceSubTaskId 的字符串映射");
                             }
-                            bindings.put(name, new CoordinationPlan.InputBinding(source.asString()));
+                            bindings.put(
+                                    name, new CoordinationPlan.InputBinding(source.asString()));
                         });
         return Map.copyOf(bindings);
     }

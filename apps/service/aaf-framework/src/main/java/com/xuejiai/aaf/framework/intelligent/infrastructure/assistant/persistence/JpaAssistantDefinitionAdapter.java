@@ -35,7 +35,6 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 public final class JpaAssistantDefinitionAdapter implements AssistantDefinitionPort {
 
     private static final String ACTIVE = "active";
-    private static final String DEFAULT_ASSISTANT_CODE = "system.assistant.default-user";
 
     private final AssistantRepository assistants;
     private final PersonaRepository personas;
@@ -68,12 +67,11 @@ public final class JpaAssistantDefinitionAdapter implements AssistantDefinitionP
         Objects.requireNonNull(tenantId, "tenantId 不能为空");
         Objects.requireNonNull(userId, "userId 不能为空");
         var numericUserId = numericId(userId.value());
-        var assistant =
-                numericUserId == null
-                        ? Optional.<AssistantEntity>empty()
-                        : assistants.findFirstByUserIdAndStatusOrderByIdAsc(numericUserId, ACTIVE);
-        return assistant
-                .or(() -> assistants.findByCodeAndStatus(DEFAULT_ASSISTANT_CODE, ACTIVE))
+        if (numericUserId == null) {
+            return Optional.empty();
+        }
+        return assistants
+                .findFirstByUserIdAndIsDefaultTrueAndStatusOrderByIdAsc(numericUserId, ACTIVE)
                 .map(this::toDomain);
     }
 
@@ -104,10 +102,7 @@ public final class JpaAssistantDefinitionAdapter implements AssistantDefinitionP
                         .map(this::role)
                         .map(Role::key)
                         .orElseThrow();
-        var ownership =
-                assistant.getUserId() == 0
-                        ? TemplateOwnership.SYSTEM_MANAGED
-                        : TemplateOwnership.USER_OWNED;
+        var ownership = ownership(assistant);
         var assistantSkillBindings =
                 parseRequiredBindings(assistant.getSkillIds(), "ai_assistant.skill_ids");
         var assistantToolKeys =
@@ -115,7 +110,7 @@ public final class JpaAssistantDefinitionAdapter implements AssistantDefinitionP
         return new AssistantDefinition(
                 new AssistantId(assistant.getCode()),
                 ownership == TemplateOwnership.SYSTEM_MANAGED ? assistant.getCode() : null,
-                null,
+                ownership == TemplateOwnership.USER_COPY ? assistant.getSourceSystemKey() : null,
                 ownership,
                 new AssistantVersion(assistant.getVersion()),
                 ownership == TemplateOwnership.SYSTEM_MANAGED
@@ -139,6 +134,15 @@ public final class JpaAssistantDefinitionAdapter implements AssistantDefinitionP
                 Set.of(ControlMode.READ_ONLY, ControlMode.COLLABORATIVE, ControlMode.DELEGATED),
                 RiskPolicy.CONFIRM_WRITES,
                 ACTIVE.equals(assistant.getStatus()) ? Lifecycle.PUBLISHED : Lifecycle.DISABLED);
+    }
+
+    private static TemplateOwnership ownership(AssistantEntity assistant) {
+        if (assistant.getUserId() == 0) {
+            return TemplateOwnership.SYSTEM_MANAGED;
+        }
+        return assistant.getSourceSystemKey() == null
+                ? TemplateOwnership.USER_OWNED
+                : TemplateOwnership.USER_COPY;
     }
 
     private Role role(AiAssistantRole binding) {

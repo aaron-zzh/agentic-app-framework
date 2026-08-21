@@ -8,5 +8,6 @@ public interface AssistantRepository extends JpaRepository<AssistantEntity, Long
 
     Optional<AssistantEntity> findByCodeAndStatus(String code, String status);
 
-    Optional<AssistantEntity> findFirstByUserIdAndStatusOrderByIdAsc(Long userId, String status);
+    Optional<AssistantEntity> findFirstByUserIdAndIsDefaultTrueAndStatusOrderByIdAsc(
+            Long userId, String status);
 }

@@ -38,6 +38,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskIngress;
 import com.xuejiai.aaf.framework.intelligent.assistant.persona.PersonaRepository;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantProvisioningPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskDispatchPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
@@ -72,6 +73,7 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistenc
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.EffectiveContextManifestRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.ExecutionProfileSnapshotRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaAssistantDefinitionAdapter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaAssistantProvisioningAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaEffectiveContextAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaExecutionProfileSnapshotAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaRoleDefinitionAdapter;
@@ -95,6 +97,13 @@ public class AssistantInfrastructureAutoConfiguration {
             AiRoleRepository roles,
             AiModelRepository models) {
         return new JpaAssistantDefinitionAdapter(assistants, personas, bindings, roles, models);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(AssistantProvisioningPort.class)
+    AssistantProvisioningPort assistantProvisioningPort(
+            AssistantRepository assistants, AiAssistantRoleRepository bindings) {
+        return new JpaAssistantProvisioningAdapter(assistants, bindings);
     }
 
     @Bean

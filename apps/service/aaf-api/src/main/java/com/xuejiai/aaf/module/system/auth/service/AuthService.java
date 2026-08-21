@@ -24,6 +24,8 @@ import com.xuejiai.aaf.common.enums.pay.CreditTransactionSourceEnum;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.common.util.NicknameGenerator;
 import com.xuejiai.aaf.framework.engine.credit.CreditService;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantProvisioningPort;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 import com.xuejiai.aaf.framework.messaging.MessageChannel;
 import com.xuejiai.aaf.framework.messaging.MessageRequest;
 import com.xuejiai.aaf.framework.messaging.MessageSendException;
@@ -84,6 +86,7 @@ public class AuthService {
             contactRepository;
     private final PhoneRegisterRateLimiter phoneRegisterRateLimiter;
     private final com.xuejiai.aaf.module.system.org.service.OrganizationService organizationService;
+    private final AssistantProvisioningPort assistantProvisioningPort;
 
     @Value("${aaf.app.company-name:学记智能}")
     private String companyName;
@@ -114,6 +117,7 @@ public class AuthService {
         if (!Boolean.TRUE.equals(user.getEmailVerified())) {
             throw exception(AUTH_EMAIL_NOT_VERIFIED);
         }
+        provisionDefaultAssistant(user);
         user.recordLoginSuccess(null);
         userRepository.save(user);
         return generateTokensWithSession(user, deviceId);
@@ -171,6 +175,7 @@ public class AuthService {
         userRepository.save(user);
         assignDefaultRole(user.getId());
         createDefaultOrg(user);
+        provisionDefaultAssistant(user);
         grantRegistrationCredits(user.getId());
         Long contactId = createContactForUser(user);
         bindReferrerIfPresent(contactId, dto.referrerCode());
@@ -200,6 +205,7 @@ public class AuthService {
         userRepository.save(user);
         assignDefaultRole(user.getId());
         createDefaultOrg(user);
+        provisionDefaultAssistant(user);
         grantRegistrationCredits(user.getId());
         Long contactId = createContactForUser(user);
         bindReferrerIfPresent(contactId, dto.referrerCode());
@@ -315,6 +321,7 @@ public class AuthService {
         if (!user.isActive()) {
             throw exception(AUTH_LOGIN_USER_DISABLED);
         }
+        provisionDefaultAssistant(user);
         user.recordLoginSuccess(null);
         userRepository.save(user);
         return generateTokensWithSession(user, deviceId);
@@ -342,6 +349,7 @@ public class AuthService {
             if (!user.isActive()) {
                 throw exception(AUTH_LOGIN_USER_DISABLED);
             }
+            provisionDefaultAssistant(user);
             user.recordLoginSuccess(null);
             userRepository.save(user);
             return generateTokensWithSession(user, deviceId, false);
@@ -368,6 +376,7 @@ public class AuthService {
         userRepository.save(user);
         assignDefaultRole(user.getId());
         createDefaultOrg(user);
+        provisionDefaultAssistant(user);
         grantRegistrationCredits(user.getId());
         Long contactId = createContactForUser(user);
         bindReferrerIfPresent(contactId, referrerCode);
@@ -535,6 +544,7 @@ public class AuthService {
             createOAuthBinding(user.getId(), userInfo);
         }
 
+        provisionDefaultAssistant(user);
         user.recordLoginSuccess(null);
         userRepository.save(user);
         return generateTokensWithSession(user, stateData.deviceId());
@@ -662,6 +672,7 @@ public class AuthService {
         userRepository.save(user);
         assignDefaultRole(user.getId());
         createDefaultOrg(user);
+        provisionDefaultAssistant(user);
         grantRegistrationCredits(user.getId());
         // OAuth 注册补齐 contact + 邀请绑定 + 分销资格初始化（与邮箱/手机注册保持对称）
         Long contactId = createContactForUser(user);
@@ -837,6 +848,10 @@ public class AuthService {
     /** 为新用户创建默认归属的个人工作空间（组织），保证多租户隔离下用户始终有 org 归属。 */
     private void createDefaultOrg(User user) {
         organizationService.createPersonalOrg(user.getId(), user.getUsername());
+    }
+
+    private void provisionDefaultAssistant(User user) {
+        assistantProvisioningPort.provisionDefaultForUser(new UserId(user.getId().toString()));
     }
 
     private void grantRegistrationCredits(Long userId) {

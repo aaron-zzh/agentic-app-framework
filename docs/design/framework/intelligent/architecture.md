@@ -308,20 +308,22 @@ AAF 外层任务循环（L3 Assistant / L4 Team）
 
 **会话与执行数量关系**：一个用户可以创建多个会话（1 用户 : N 会话）；同一个助理定义可以服务多个会话（1 `AssistantDefinition` : N 会话）。每个 AI 会话绑定一个主协调助理，负责会话内的规划、委派、聚合和最终反馈；其他 Assistant 或 Agent 可以作为参与方加入，但不改变主协调责任。一个会话可以产生多个任务（1 会话 : N 任务）；每个复杂任务对应一个 TaskBoard，并拆成 1..N 个子任务，在 `maxParallelism` 限制内并行执行。每个子任务拥有独立的 `executionId` 和 `sessionId`，并路由到一个预定义或动态子智能体。
 
-### 默认用户助理模板
+### 系统 Assistant 模板与主体隔离
 
-系统只预置一个 `SYSTEM_MANAGED` 的默认用户助理模板 `system.assistant.default-user`，由 `DefaultUserAssistantTemplate` 提供。它是可版本化、可复制的 `AssistantDefinition` 配置模板，不是所有用户共享可变状态的助理实例；模板定义可以共享，用户会话、记忆、任务、执行状态和沙箱仍按 tenant、用户及会话隔离。
+`ai_assistant`、`ai_persona`、`ai_role` 和 `ai_assistant_role` 的 seed 是系统模板配置的唯一真理源；不保留 Java 模板贡献者或第二套本地配置。系统预置两个 `SYSTEM_MANAGED` Assistant，均只共享不可变配置，绝不共享用户会话、记忆、任务、执行状态或沙箱：
 
-模板提供稳定的 `AAF 助理` Persona，并装配多个 Role 和一个默认 Role。刺激输入先进入默认 `CHAT` 模型驱动的语义前注意；模型只读取 Role 职责边界和 Skill 描述组成的精简目录，并输出 `roleKey + skillKey + confidence`。系统必须校验该组合已存在于 `SkillRoute`，模型不得创建能力或绕过授权；低置信度回到默认 Route，模型不可用或输出非法时才使用 `intentTerms + priority` 确定性规则兜底。
+| Assistant | 用途 | Role 与能力边界 |
+|---|---|---|
+| `system.assistant.default-user` | 新用户个人默认 Assistant 的复制源 | 默认 `system.role.platform-guide`，另挂 `system.role.content-creator`；保留受控内容草稿与计算能力，发布、支付、删除等动作仍受策略约束 |
+| `system.assistant.customer-service` | 外部渠道访客客服 | 仅挂 `system.role.customer-service`；仅产品咨询、知识问答与 `support.handoff`，不配置内容创作、脚本、发布、支付或删除能力 |
 
-默认 Role 的 Route 标记为 `DIRECT`：主助理加载稳定 Persona、默认 `RoleAssignment` 和命中的单一 Skill，按完整执行画像缓存复用，不创建短命子智能体。非默认 Role 的 Route 标记为 `DELEGATE`：系统将 Role 的 key、名称、职责和非职责封装为任务级 `RoleAssignment`，只加载命中的 Skill，并现场创建动态子智能体；任务结束后回收。两条路径都以有效 Role 的工具上限、ToolPolicy、任务授权和 Agent 工具边界共同收窄能力，不同子任务可以同时委托不同 Role。
+用户完成注册激活时，系统在同一事务中从 `system.assistant.default-user` 创建幂等的 `USER_COPY`：`code = user.assistant.default.<userId>`、`user_id/owner_id = userId`、`is_default = true`、`source_system_key = system.assistant.default-user`。副本复制 Assistant 主配置和 `ai_assistant_role` 关联，复用 Role、Persona、Model、Skill、Tool 等定义实体；之后用户修改副本不会影响模板，模板更新也不会覆盖副本。已登录用户默认解析只查询自己的 `is_default = true` Assistant；缺失副本是 provisioning 异常，不得回退为直接执行系统模板。
 
-| Role | 定位 | 路由与能力 | 权限边界 |
-|---|---|---|---|
-| `system.role.platform-guide`（默认） | AAF 平台向导与客服 | 普通咨询、只读故障排查、转人工 | 默认只读；未知事实不猜测，敏感查询需授权 |
-| `system.role.content-creator` | 内容创作 | 内容策划、草稿生成、润色与事实核查 | 可生成或保存可撤销草稿；发布、付费、删除等动作需确认或禁止 |
+访客不创建个人 Assistant。外部渠道必须在本租户内显式绑定 `system.assistant.customer-service` 或经审核的同等客服 Assistant；未绑定时返回渠道配置的 fallback，不跨租户猜测默认 Assistant。渠道执行统一使用 `VISITOR` 记忆主体及短期/TTL 记忆治理，登录用户记忆不与访客混用。
 
-内容创作和平台向导/客服是 Role，不是 Assistant 子类型，也不各自拥有专用 `AssistantDefinition`、运行时或 `HarnessAgent` 工厂。旧的两个系统 Assistant ID 直接删除，不提供别名或兼容层。用户可以从默认模板复制并形成自己拥有的定义，也可以从零创建 Assistant；用户副本不被系统模板升级覆盖。
+所有 Assistant 都通过同一条 `AssistantCommand → AssistantApplicationService → ExecutionProfile/Role/Skill/ToolPolicy → AgentScope` 运行时链路执行。`ai_assistant.code` 和 `AssistantId` 仅选择 AAF Assistant 配置；它们不是 AgentScope `AgentId`。AgentScope 的执行体 ID 由编译后的执行画像生成，系统、用户副本与客服 Assistant 不得分别注册专用 Agent 工厂或运行时。
+
+模板的输入仍先由受控 Role/Skill 目录完成语义前注意，系统校验输出的 `roleKey + skillKey` 已被授权；默认 Role 可复用主执行体，非默认 Role 可创建任务级短命执行体。两条路径都以有效 Role、ToolPolicy、任务授权与 Agent 工具边界的交集收窄能力，不能因模板来源或渠道来源扩权。
 
 ### 输入缓冲与执行期干预
 
@@ -487,11 +489,11 @@ MCP 只负责连接协议。连接器目录、OAuth scope、凭证托管、刷�
 
 > 本节是 v2 实现的约束性决策，优先级高于后续历史技术示例。后续示例若仍出现 `Session`、每会话 Agent 实例或工作区长期记忆等旧表述，均应按本节解释并在实现阶段清理。分阶段交付与验收见 [五层智能架构 v2 开发计划](architecture-v2-development-plan.md)。
 
-### 默认用户助理模板物化
+### 系统 Assistant 模板物化
 
-默认用户助理模板以 PostgreSQL 中版本化的系统预置 `AssistantDefinition` 存在，由 `DefaultUserAssistantTemplate` 贡献并通过通用 Assistant 应用服务安装、加载和物化。该定义同时保存稳定 Persona、Role 列表、`defaultRoleKey`、带 `roleKey + skillKey + handlingMode` 的 SkillRoute、MemoryStrategy 和 ToolPolicy。`ModelSkillRouter` 使用用户默认 `CHAT` 模型做语义前注意，`DefaultSkillRouter` 仅作故障兜底；框架不为平台向导或内容创作提供专用 Assistant 类型或专用 `HarnessAgent` 工厂。
+系统模板由 PostgreSQL seed 的 `ai_assistant`、Persona、Role 与关联行共同物化；数据库是唯一配置真理源，不存在 Java 模板贡献者安装步骤。`system.assistant.default-user` 仅在用户注册激活时复制为个人 `USER_COPY`，`system.assistant.customer-service` 仅由渠道显式绑定给访客会话。`source_system_key` 与 `is_default` 分别记录用户副本来源和个人默认选择；用户默认查询没有系统模板 fallback。
 
-用户入口以 `tenantId + assistantId + conversationId` 建立会话，以 `taskId + executionId` 标识任务及其执行；默认模板、用户自建定义和用户复制定义共享同一入口、权限检查、记忆策略、任务生命周期和事件流，不按定义来源注册不同执行端点。系统模板只共享不可变配置，不承载用户共享状态。所有调用必须显式携带 tenant 上下文；当 AgentScope 状态接口只暴露 `(userId, sessionId)` 时，适配层必须使用稳定 tenant store prefix 或规范化 state user key 隔离租户，不能假设跨租户 userId 全局唯一。
+用户入口以 `tenantId + assistantId + conversationId` 建立会话，以 `taskId + executionId` 标识任务及其执行；系统模板、用户自建定义、用户复制定义和渠道客服定义共享同一入口、权限检查、记忆策略、任务生命周期和事件流，不按定义来源注册不同执行端点。`assistantId` 只选择 AssistantDefinition，后续才由执行画像创建 AgentScope `AgentId`。系统模板只共享不可变配置，不承载用户共享状态。所有调用必须显式携带 tenant 上下文；当 AgentScope 状态接口只暴露 `(userId, sessionId)` 时，适配层必须使用稳定 tenant store prefix 或规范化 state user key 隔离租户，不能假设跨租户 userId 全局唯一。
 
 ### 包结构、适配边界与版本基线
 

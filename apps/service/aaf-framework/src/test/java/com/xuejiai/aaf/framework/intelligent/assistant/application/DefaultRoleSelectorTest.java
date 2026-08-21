@@ -1,5 +1,8 @@
 package com.xuejiai.aaf.framework.intelligent.assistant.application;
 
+import static com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantDefinitionFixtures.CONTENT_CREATOR_ROLE_KEY;
+import static com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantDefinitionFixtures.PLATFORM_GUIDE_ROLE_KEY;
+import static com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantDefinitionFixtures.defaultUser;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -9,22 +12,19 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
-import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.DefaultUserAssistantTemplate;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 
 class DefaultRoleSelectorTest {
 
     private final DefaultRoleSelector selector = new DefaultRoleSelector();
-    private final AssistantDefinition definition =
-            new DefaultUserAssistantTemplate().templates().getFirst();
+    private final AssistantDefinition definition = defaultUser();
 
     @Test
     @DisplayName("Given 未显式指定 Skill When 选择 Role Then 使用 is_default 对应 Role")
     void should_select_default_role_when_skill_is_not_requested() {
         var result = selector.select(request(null));
 
-        assertThat(result.role().key())
-                .isEqualTo(DefaultUserAssistantTemplate.PLATFORM_GUIDE_ROLE_KEY);
+        assertThat(result.role().key()).isEqualTo(PLATFORM_GUIDE_ROLE_KEY);
         assertThat(result.selectedBy()).isEqualTo("DEFAULT_BINDING");
     }
 
@@ -33,8 +33,7 @@ class DefaultRoleSelectorTest {
     void should_select_unique_role_for_requested_skill() {
         var result = selector.select(request("aigc-copywriting"));
 
-        assertThat(result.role().key())
-                .isEqualTo(DefaultUserAssistantTemplate.CONTENT_CREATOR_ROLE_KEY);
+        assertThat(result.role().key()).isEqualTo(CONTENT_CREATOR_ROLE_KEY);
         assertThat(result.selectedBy()).isEqualTo("REQUEST");
     }
 

@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.framework.intelligent.assistant.application;
 
+import static com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantDefinitionFixtures.defaultUser;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
@@ -14,7 +15,6 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.MemoryStrategy;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskModelSelection;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.MemorySubject;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.SubjectKind;
-import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.DefaultUserAssistantTemplate;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AssistantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ConversationId;
@@ -59,7 +59,7 @@ class AssistantApplicationServiceTest {
     }
 
     private static AssistantDefinition definitionWithLongTermMemory(boolean longTermEnabled) {
-        var template = new DefaultUserAssistantTemplate().templates().getFirst();
+        var template = defaultUser();
         var strategy =
                 longTermEnabled ? MemoryStrategy.hybridDefault() : MemoryStrategy.knowledgeOnly();
         return new AssistantDefinition(

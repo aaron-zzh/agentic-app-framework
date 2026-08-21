@@ -478,11 +478,13 @@ Agent 执行完成
 | 新建会话 | 创建会话 API 传入 assistantId（或用默认） | 写入 ChatSession |
 | 页面绑定 | 页面配置 roleId → 创建会话时传入 | 后端按 roleId + userId 查找助理 |
 
-#### 默认助理策略（系统参数控制）
+#### 默认助理策略（数据库模板与主体隔离）
 
-- 新用户注册时：系统参数控制是否自动创建个人助理，或使用全局默认助理（客服角色）
-- 用户可创建的助理数量：系统参数上限 0-100
-- 全局默认助理：所有用户共享，只读不可编辑
+- 用户注册激活时必须幂等创建个人默认 `USER_COPY` Assistant；已登录用户仅能把自己的 `is_default = true` Assistant 作为未指定 Assistant 时的默认值，绝不直接执行系统模板。
+- `system.assistant.default-user` 是数据库 seed 管理的复制源，不是共享可执行实例；用户副本记录 `source_system_key`，后续可独立演进且不被模板覆盖。
+- `system.assistant.customer-service` 仅供外部渠道在本租户显式绑定；访客不创建个人 Assistant，使用 `VISITOR` 记忆主体与 TTL，未绑定渠道只返回配置 fallback。
+- Assistant 的 `code`/`AssistantId` 选择 AAF 配置，不是 AgentScope `AgentId`；三类 Assistant 共享同一运行时链路。
+- 用户可创建的 Assistant 数量由系统参数上限 0–100 控制。
 
 #### 路由策略
 

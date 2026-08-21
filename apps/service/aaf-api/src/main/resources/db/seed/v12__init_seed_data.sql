@@ -1697,12 +1697,12 @@ ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 
 
 -- ============================================================
--- 默认用户助理模板种子数据
+-- 系统 Assistant 模板种子数据
 -- ============================================================
 
 -- 平台向导知识库及其可信代际数据移至 db/seed/v301__nexus_knowledge_seed.sql。
 
--- 默认用户助理的稳定 Persona
+-- 用户默认模板的稳定 Persona
 INSERT INTO ai_persona (
     id, name, persona, system_prompt, status, owner_id, create_time, update_time, deleted
 ) VALUES (
@@ -1712,7 +1712,17 @@ INSERT INTO ai_persona (
     'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
--- 默认平台向导 Role
+-- 访客客服的稳定 Persona；仅处理产品咨询、知识问答和人工转接。
+INSERT INTO ai_persona (
+    id, name, persona, system_prompt, status, owner_id, create_time, update_time, deleted
+) VALUES (
+    2, 'AAF 客服',
+    '专业、耐心、克制，优先解决访客问题并保护访客隐私。',
+    '你是 AAF 客服助理。仅回答已授权的产品与服务知识；信息不足时明确说明并转接人工。不得执行内容创作、脚本、发布、支付、删除或账户管理操作。',
+    'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
+) ON CONFLICT (id) DO NOTHING;
+
+-- 用户默认模板的 Role。内容创作者 Role（ID 2）由既有 seed 定义。
 INSERT INTO ai_role (
     id, code, name, description, skill_ids, tool_whitelist, status, owner_id,
     create_time, update_time, deleted
@@ -1723,23 +1733,115 @@ INSERT INTO ai_role (
     'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
--- 系统级默认用户助理当前定义；用户会话、记忆和执行状态不在此行共享
+-- 访客客服的最小权限 Role：不挂载内容生成、脚本或有副作用工具。
+INSERT INTO ai_role (
+    id, code, name, description, skill_ids, tool_whitelist, status, owner_id,
+    create_time, update_time, deleted
+) VALUES (
+    3, 'system.role.customer-service', '客服专员',
+    '面向访客的产品咨询、知识问答和人工转接',
+    '[{"skillKey":"builtin-self-learning","activationMode":"ON_DEMAND"}]', '["support.handoff"]',
+    'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
+) ON CONFLICT (id) DO NOTHING;
+
+-- 系统用户模板只用于复制，登录用户不得直接作为默认 Assistant 执行。
 INSERT INTO ai_assistant (
-    id, version, code, user_id, persona_id, knowledge_base_id,
+    id, version, code, user_id, source_system_key, is_default, persona_id, knowledge_base_id,
     memory_strategy, skill_ids, tool_whitelist,
     status, owner_id, create_time, update_time, deleted
 ) VALUES (
-    1, 6, 'system.assistant.default-user', 0, 1, 1,
+    1, 6, 'system.assistant.default-user', 0, NULL, FALSE, 1, 1,
     'HYBRID', '[{"skillKey":"builtin-user-understanding","activationMode":"ALWAYS"},{"skillKey":"builtin-javascript-compute","activationMode":"ON_DEMAND"}]', '["script.execute.javascript"]',
     'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
--- 默认用户助理仍只挂载两个 Role，平台向导为默认 Role
+-- 系统客服 Assistant 仅由外部渠道显式绑定；访客记忆主体和 TTL 由统一运行时治理。
+INSERT INTO ai_assistant (
+    id, version, code, user_id, source_system_key, is_default, persona_id, knowledge_base_id,
+    memory_strategy, skill_ids, tool_whitelist,
+    status, owner_id, create_time, update_time, deleted
+) VALUES (
+    2, 1, 'system.assistant.customer-service', 0, NULL, FALSE, 2, 1,
+    'HYBRID', '[{"skillKey":"builtin-user-understanding","activationMode":"ALWAYS"}]', '[]',
+    'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
+) ON CONFLICT (id) DO NOTHING;
+
+-- 用户模板的 Role 绑定；平台向导为默认 Role。
 INSERT INTO ai_assistant_role (
     assistant_id, role_id, is_default, sort_order, create_time, update_time, deleted
 ) VALUES
     (1, 1, TRUE, 100, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-    (1, 2, FALSE, 90, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE)
+    (1, 2, FALSE, 90, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+    (2, 3, TRUE, 100, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE)
+ON CONFLICT (assistant_id, role_id) DO NOTHING;
+
+-- 显式写入系统 Assistant ID 不会推进 identity sequence，后续用户副本使用生成 ID 前必须同步。
+SELECT setval(
+    pg_get_serial_sequence('ai_assistant', 'id'),
+    COALESCE((SELECT MAX(id) FROM ai_assistant), 1),
+    TRUE
+);
+
+-- 初始 admin 不经过注册流程，直接物化与注册 provisioning 等价的个人默认 Assistant。
+INSERT INTO ai_assistant (
+    code, user_id, source_system_key, is_default, persona_id, model_id,
+    memory_strategy, skill_ids, tool_whitelist, status, owner_id,
+    create_time, update_time, deleted
+)
+SELECT
+    'user.assistant.default.' || admin_user.id,
+    admin_user.id,
+    template.code,
+    TRUE,
+    template.persona_id,
+    template.model_id,
+    template.memory_strategy,
+    template.skill_ids,
+    template.tool_whitelist,
+    template.status,
+    admin_user.id,
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP,
+    FALSE
+FROM ai_assistant template
+JOIN sys_user admin_user ON admin_user.username = 'admin' AND admin_user.deleted = FALSE
+WHERE template.code = 'system.assistant.default-user'
+  AND template.status = 'active'
+  AND template.deleted = FALSE
+  AND NOT EXISTS (
+      SELECT 1
+      FROM ai_assistant copy
+      WHERE copy.user_id = admin_user.id
+        AND copy.is_default = TRUE
+        AND copy.deleted = FALSE
+  );
+
+-- 复制系统用户模板的 Role 关联，不复制 Role 定义实体。
+INSERT INTO ai_assistant_role (
+    assistant_id, role_id, is_default, sort_order, enabled, owner_id,
+    create_time, update_time, deleted
+)
+SELECT
+    admin_copy.id,
+    template_binding.role_id,
+    template_binding.is_default,
+    template_binding.sort_order,
+    template_binding.enabled,
+    admin_user.id,
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP,
+    FALSE
+FROM ai_assistant admin_copy
+JOIN sys_user admin_user ON admin_user.id = admin_copy.user_id AND admin_user.username = 'admin'
+JOIN ai_assistant template ON template.code = 'system.assistant.default-user'
+    AND template.status = 'active'
+    AND template.deleted = FALSE
+JOIN ai_assistant_role template_binding ON template_binding.assistant_id = template.id
+    AND template_binding.deleted = FALSE
+WHERE admin_copy.code = 'user.assistant.default.' || admin_user.id
+  AND admin_copy.source_system_key = template.code
+  AND admin_copy.is_default = TRUE
+  AND admin_copy.deleted = FALSE
 ON CONFLICT (assistant_id, role_id) DO NOTHING;
 
 -- 平台向导知识文档、run 与 chunk 移至 db/seed/v301__nexus_knowledge_seed.sql。

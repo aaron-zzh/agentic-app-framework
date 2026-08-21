@@ -21,6 +21,12 @@ public class AssistantEntity extends BaseEntity {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
+    @Column(name = "source_system_key", length = 128)
+    private String sourceSystemKey;
+
+    @Column(name = "is_default", nullable = false)
+    private Boolean isDefault = false;
+
     @Column(name = "persona_id", nullable = false)
     private Long personaId;
 

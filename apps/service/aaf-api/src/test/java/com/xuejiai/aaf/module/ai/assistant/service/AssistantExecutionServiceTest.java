@@ -15,12 +15,26 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.Actor;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition.Lifecycle;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition.RiskPolicy;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition.TemplateOwnership;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantVersion;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent.InteractionMode;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent.PersistenceMode;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent.RouteConstraint;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.MemoryStrategy;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.Role;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillActivationMode;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillBinding;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ToolPolicy;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ToolPolicy.ActionEffect;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ToolPolicy.ToolRule;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.automation.application.DefinitionLifecycleService;
-import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.DefaultUserAssistantTemplate;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AssistantId;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest;
@@ -155,9 +169,61 @@ class AssistantExecutionServiceTest {
                 .hasMessageContaining("ON_DEMAND");
     }
 
-    private static com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition
-            definition() {
-        return new DefaultUserAssistantTemplate().templates().getFirst();
+    private static AssistantDefinition definition() {
+        var platformGuide =
+                new Role(
+                        "system.role.platform-guide",
+                        "平台向导",
+                        List.of("产品咨询"),
+                        List.of("修改用户数据"),
+                        List.of(binding("builtin-self-learning", SkillActivationMode.ON_DEMAND)),
+                        Set.of("support.handoff"));
+        var contentCreator =
+                new Role(
+                        "system.role.content-creator",
+                        "内容创作者",
+                        List.of("生成草稿"),
+                        List.of("自动发布"),
+                        List.of(
+                                binding("aigc-copywriting", SkillActivationMode.ON_DEMAND),
+                                binding("voiceover", SkillActivationMode.ON_DEMAND),
+                                binding("redbook", SkillActivationMode.ON_DEMAND)),
+                        Set.of("content.draft.upsert"));
+        return new AssistantDefinition(
+                new AssistantId("test.assistant.execution"),
+                null,
+                null,
+                TemplateOwnership.USER_OWNED,
+                new AssistantVersion(1),
+                "test",
+                new Actor("test.actor", "测试助理", "测试", "审慎", "简洁", "仅测试", null),
+                List.of(platformGuide, contentCreator),
+                List.of(),
+                Set.of(),
+                platformGuide.key(),
+                MemoryStrategy.hybridDefault(),
+                null,
+                new ToolPolicy(
+                        Map.of(
+                                "support.handoff",
+                                new ToolRule(
+                                        "support.handoff",
+                                        ActionEffect.HUMAN_HANDOFF,
+                                        false,
+                                        false),
+                                "content.draft.upsert",
+                                new ToolRule(
+                                        "content.draft.upsert",
+                                        ActionEffect.REVERSIBLE_WRITE,
+                                        true,
+                                        true))),
+                Set.of(ControlMode.READ_ONLY, ControlMode.COLLABORATIVE, ControlMode.DELEGATED),
+                RiskPolicy.CONFIRM_WRITES,
+                Lifecycle.PUBLISHED);
+    }
+
+    private static SkillBinding binding(String key, SkillActivationMode activationMode) {
+        return new SkillBinding(key, activationMode);
     }
 
     private static AssistantExecutionRequest request(
