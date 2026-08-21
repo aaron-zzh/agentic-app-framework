@@ -9,6 +9,7 @@ import type { CrudRecord, CrudResource } from "./client"
  */
 export function fromEntityDef<TRecord = CrudRecord>(entity: EntityDef): CrudResource<TRecord> {
   return {
-    apiPath: entity.apiPath
+    apiPath: entity.apiPath,
+    accessMode: entity.accessMode
   }
 }

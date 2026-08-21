@@ -102,7 +102,7 @@ interface EditDialogProps {
 function EditDialog({ open, onClose, initial }: EditDialogProps) {
   const uid = useId()
   const [name, setName] = useState(initial?.name ?? "")
-  const [category, setCategory] = useState(initial?.category ?? "DEFAULT")
+  const [category, setCategory] = useState(initial?.categories.join(", ") ?? "DEFAULT")
   const [coverUrl, setCoverUrl] = useState<string | null>(initial?.coverUrl ?? null)
   const [prompt, setPrompt] = useState(initial?.prompt ?? "")
   const [isPublic, setIsPublic] = useState(initial?.visibility === "PUBLIC")
@@ -121,7 +121,10 @@ function EditDialog({ open, onClose, initial }: EditDialogProps) {
     if (!name.trim() || !prompt.trim()) return
     const input = {
       name: name.trim(),
-      category: category.trim() || "DEFAULT",
+      categories: category
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
       coverUrl,
       prompt: prompt.trim(),
       description: initial ? description.trim() : description.trim() || undefined,
@@ -442,7 +445,9 @@ export function PromptAssetsView() {
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="truncate font-medium text-sm">{asset.name}</p>
                       <Badge variant="secondary">{VISIBILITY_LABEL[asset.visibility]}</Badge>
-                      {asset.category ? <Badge variant="outline">{asset.category}</Badge> : null}
+                      {asset.categories.length > 0 ? (
+                        <Badge variant="outline">{asset.categories.join("、")}</Badge>
+                      ) : null}
                     </div>
                     <p className="mt-1 line-clamp-2 text-muted-foreground text-xs leading-5">
                       {asset.prompt}

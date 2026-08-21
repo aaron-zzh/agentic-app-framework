@@ -88,13 +88,7 @@ export function PromptTemplateDialog({
   const categories = useMemo(
     () => [
       "全部",
-      ...Array.from(
-        new Set(
-          sourceTemplates
-            .map((template) => template.category)
-            .filter((category): category is string => Boolean(category))
-        )
-      )
+      ...Array.from(new Set(sourceTemplates.flatMap((template) => template.categories)))
     ],
     [sourceTemplates]
   )
@@ -102,7 +96,7 @@ export function PromptTemplateDialog({
     () =>
       activeCategory === "全部"
         ? sourceTemplates
-        : sourceTemplates.filter((template) => template.category === activeCategory),
+        : sourceTemplates.filter((template) => template.categories.includes(activeCategory)),
     [activeCategory, sourceTemplates]
   )
   const loadMoreRef = useLoadMoreOnVisible({
@@ -154,7 +148,7 @@ export function PromptTemplateDialog({
     createTemplate.mutate(
       {
         name,
-        category: createCategory.trim() || "DEFAULT",
+        categories: [createCategory.trim() || "DEFAULT"],
         coverUrl: createCoverUrl,
         prompt,
         type,
@@ -398,9 +392,9 @@ export function PromptTemplateDialog({
                               {template.visibility === "SYSTEM" ? "内置" : "工作区"}
                             </Badge>
                           ) : null}
-                          {template.category ? (
+                          {template.categories.length > 0 ? (
                             <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
-                              {template.category}
+                              {template.categories.join("、")}
                             </Badge>
                           ) : null}
                           {template.variables.length > 0 ? (

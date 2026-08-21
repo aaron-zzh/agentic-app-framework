@@ -47,17 +47,6 @@ public final class SysConfigKeys {
         public static final String ALLOWED_TYPES = "storage.allowed_types"; // 允许上传的文件类型
     }
 
-    /** 知识入库配置 */
-    public static final class Knowledge {
-
-        private Knowledge() {}
-
-        public static final String EXTRACTION_SYSTEM_PROMPT =
-                "knowledge.extraction.system_prompt"; // 实体事实抽取系统 Prompt
-        public static final String ENTITY_RESOLUTION_SYSTEM_PROMPT =
-                "knowledge.entity_resolution.system_prompt"; // 实体消歧系统 Prompt
-    }
-
     /** AI 配置 */
     public static final class Ai {
 

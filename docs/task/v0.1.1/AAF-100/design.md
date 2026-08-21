@@ -364,17 +364,17 @@ class WeatherVO {
 
 集成方式：v0.1 用 OpenWeatherMap（开放 API）或 mock JSON（无 key 时降级）。
 
-### BE-7 个人提示词模板 `/api/aigc/prompt-templates`
+### BE-7 个人提示词模板 `/api/ai/prompts`
 
 复用现有 `GenerationTemplate` 表 + Controller。**仅前端封装个人视图**，后端给一个 `/me` 入口（强制 user_id 过滤）。
 
 | Method | Path | 描述 | 鉴权 |
 |--------|------|------|------|
-| GET | `/api/aigc/prompt-templates/me` | 我的提示词模板（分页 + tag 筛选）| `isAuthenticated()` |
-| POST | `/api/aigc/prompt-templates` | 新建（自动写 user_id）| `isAuthenticated()` |
-| PUT | `/api/aigc/prompt-templates/{id}` | 更新（校验 ownership）| 同上 |
-| DELETE | `/api/aigc/prompt-templates/{id}` | 删除 | 同上 |
-| POST | `/api/aigc/prompt-templates/{id}/use` | 使用（usage_count++ + 跳到 image composer）| 同上，前端用 |
+| GET | `/api/ai/prompts/me` | 我的提示词模板（分页 + tag 筛选）| `isAuthenticated()` |
+| POST | `/api/ai/prompts` | 新建（自动写 user_id）| `isAuthenticated()` |
+| PUT | `/api/ai/prompts/{id}` | 更新（校验 ownership）| 同上 |
+| DELETE | `/api/ai/prompts/{id}` | 删除 | 同上 |
+| POST | `/api/ai/prompts/{id}/use` | 使用（usage_count++ + 跳到 image composer）| 同上，前端用 |
 
 DTO 复用 `GenerationTemplateVO/CreateDTO/UpdateDTO`。
 

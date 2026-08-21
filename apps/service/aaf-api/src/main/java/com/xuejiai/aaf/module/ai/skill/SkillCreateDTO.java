@@ -15,6 +15,7 @@ public record SkillCreateDTO(
         @Schema(description = "稳定业务码；为空时由后端生成") @Size(max = 100) String code,
         @Schema(description = "Skill 名称") @NotBlank @Size(max = 128) String name,
         @Schema(description = "一句话摘要") @NotBlank @Size(max = 512) String summary,
+        @Schema(description = "实例输入提示词，仅用于界面 placeholder") @Size(max = 2000) String instancePrompt,
         @Schema(description = "默认语言地区") @Size(max = 32) String locale,
         @Schema(description = "可见性：PRIVATE/WORKSPACE/PUBLIC")
                 @Pattern(regexp = "PRIVATE|WORKSPACE|PUBLIC")

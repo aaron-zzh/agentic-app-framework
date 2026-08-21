@@ -26,6 +26,9 @@ aaf:
       enabled: false # B2：生产禁用 Mock 支付渠道（配置层显式关闭，Bean 层另有 @Profile("!prod") 兜底）
   security:
     mock-enable: false # 关闭 mock 认证，使用真实 JWT
+  prompt:
+    source-sync:
+      mode: PROD_DRAFT # 生产：MD 仅导入 Draft，必须调用 PromptPublicationService 手动发布
   messaging:
     sms:
       test-send:

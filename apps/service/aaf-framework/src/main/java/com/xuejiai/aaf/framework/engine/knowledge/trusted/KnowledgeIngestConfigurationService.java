@@ -4,49 +4,45 @@ import java.util.Objects;
 
 import org.springframework.stereotype.Component;
 
-import com.xuejiai.aaf.common.constant.SysConfigKeys;
 import com.xuejiai.aaf.framework.engine.knowledge.graph.EntityExtractionPrompt;
 import com.xuejiai.aaf.framework.engine.knowledge.graph.EntityResolutionPrompt;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelPreference;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelPreferenceRepository;
-import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptTemplateService;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.ResolvedPromptTemplate;
 
 import lombok.RequiredArgsConstructor;
 
-/** 解析并校验知识入库的系统级 Prompt 与模型配置。 */
+/** 解析知识入库的已发布 PROCESSING Prompt 与系统模型偏好。 */
 @Component
 @RequiredArgsConstructor
 public class KnowledgeIngestConfigurationService {
 
-    private final SystemConfigService systemConfigService;
+    public static final String EXTRACTION_SYSTEM_PROMPT = "aaf.knowledge.fact-extraction.system";
+    public static final String EXTRACTION_USER_PROMPT = "aaf.knowledge.fact-extraction.user";
+    public static final String RESOLUTION_SYSTEM_PROMPT = "aaf.knowledge.entity-resolution.system";
+    public static final String RESOLUTION_USER_PROMPT = "aaf.knowledge.entity-resolution.user";
+
+    private final PromptTemplateService promptTemplates;
     private final ModelPreferenceRepository preferenceRepository;
     private final AiModelRepository modelRepository;
 
     public Snapshot resolve() {
-        var extractionPrompt =
-                requiredPrompt(SysConfigKeys.Knowledge.EXTRACTION_SYSTEM_PROMPT, "知识事实抽取系统 Prompt");
-        var entityResolutionPrompt =
-                requiredPrompt(
-                        SysConfigKeys.Knowledge.ENTITY_RESOLUTION_SYSTEM_PROMPT, "知识实体消歧系统 Prompt");
+        var extractionSystem = promptTemplates.requirePublished(EXTRACTION_SYSTEM_PROMPT);
+        var extractionUser = promptTemplates.requirePublished(EXTRACTION_USER_PROMPT);
+        var resolutionSystem = promptTemplates.requirePublished(RESOLUTION_SYSTEM_PROMPT);
+        var resolutionUser = promptTemplates.requirePublished(RESOLUTION_USER_PROMPT);
         return new Snapshot(
-                extractionPrompt,
-                TrustedKnowledgeStore.sha256(extractionPrompt),
+                extractionSystem,
+                extractionUser,
                 EntityExtractionPrompt.OUTPUT_CONTRACT_VERSION,
                 resolveSystemChatModel(CapabilityRoutingContext.CAP_KNOWLEDGE_EXTRACTION),
-                entityResolutionPrompt,
-                TrustedKnowledgeStore.sha256(entityResolutionPrompt),
+                resolutionSystem,
+                resolutionUser,
                 EntityResolutionPrompt.OUTPUT_CONTRACT_VERSION,
                 resolveSystemChatModel(CapabilityRoutingContext.CAP_KNOWLEDGE_ENTITY_RESOLUTION));
-    }
-
-    private String requiredPrompt(String key, String name) {
-        var prompt = systemConfigService.getString(key);
-        if (prompt == null || prompt.isBlank()) {
-            throw new IllegalStateException(name + " 未配置");
-        }
-        return prompt.strip();
     }
 
     private String resolveSystemChatModel(String capability) {
@@ -73,12 +69,12 @@ public class KnowledgeIngestConfigurationService {
     }
 
     public record Snapshot(
-            String extractionSystemPrompt,
-            String extractionPromptDigest,
+            ResolvedPromptTemplate extractionSystem,
+            ResolvedPromptTemplate extractionUser,
             String extractionOutputContractVersion,
             String extractionModelId,
-            String entityResolutionSystemPrompt,
-            String entityResolutionPromptDigest,
+            ResolvedPromptTemplate entityResolutionSystem,
+            ResolvedPromptTemplate entityResolutionUser,
             String entityResolutionOutputContractVersion,
             String entityResolutionModelId) {}
 }

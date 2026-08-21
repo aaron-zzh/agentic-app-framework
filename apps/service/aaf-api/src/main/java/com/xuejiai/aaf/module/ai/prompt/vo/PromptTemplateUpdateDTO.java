@@ -13,11 +13,12 @@ import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Size;
 import tools.jackson.databind.JsonNode;
 
-/** 提示词资产更新请求。 */
+/** 提示词资产更新请求。DEFAULT 内容变更发布新版本；治理模式只编辑现有 Draft。 */
 public record PromptTemplateUpdateDTO(
         @Size(max = 128) String name,
         @Size(max = 30) String type,
-        @Size(max = 64) String category,
+        @Schema(description = "运营分类 code，多选") @Size(max = 20)
+                List<@Size(max = 64) String> categories,
         Patch<String> coverUrl,
         @Size(max = 100_000) String prompt,
         @Size(max = 100_000) String negativePrompt,
@@ -30,7 +31,8 @@ public record PromptTemplateUpdateDTO(
         @Size(max = 20) String scope,
         @Size(max = 512) String description,
         @Schema(description = "模板变量名；为空且提示词变化时由服务端重新推导") @Size(max = 50)
-                List<@Size(max = 64) String> variables) {
+                List<@Size(max = 64) String> variables,
+        @Size(max = 512) String changeSummary) {
 
     public PromptTemplateUpdateDTO {
         coverUrl = coverUrl == null ? Patch.absent() : coverUrl;
@@ -40,7 +42,7 @@ public record PromptTemplateUpdateDTO(
     public static PromptTemplateUpdateDTO fromJson(
             @JsonProperty("name") String name,
             @JsonProperty("type") String type,
-            @JsonProperty("category") String category,
+            @JsonProperty("categories") List<String> categories,
             @JsonProperty("coverUrl") JsonNode coverUrl,
             @JsonProperty("prompt") String prompt,
             @JsonProperty("negativePrompt") String negativePrompt,
@@ -52,11 +54,12 @@ public record PromptTemplateUpdateDTO(
             @JsonProperty("isPublic") Boolean isPublic,
             @JsonProperty("scope") String scope,
             @JsonProperty("description") String description,
-            @JsonProperty("variables") List<String> variables) {
+            @JsonProperty("variables") List<String> variables,
+            @JsonProperty("changeSummary") String changeSummary) {
         return new PromptTemplateUpdateDTO(
                 name,
                 type,
-                category,
+                categories,
                 Patch.parse(coverUrl, PromptTemplateUpdateDTO::decodeText),
                 prompt,
                 negativePrompt,
@@ -68,7 +71,8 @@ public record PromptTemplateUpdateDTO(
                 isPublic,
                 scope,
                 description,
-                variables);
+                variables,
+                changeSummary);
     }
 
     @JsonIgnore

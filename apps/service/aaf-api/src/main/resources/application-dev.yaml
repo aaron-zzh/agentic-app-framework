@@ -44,6 +44,9 @@ aaf:
     enabled: true  # dev 环境开启演示模式，暴露 /api/system/demo/load 和 /clean
   flyway:
     clean-on-start: true # ⚠️ 仅 dev：启动时清库重建
+  prompt:
+    source-sync:
+      mode: DEV_PUBLISH # 开发：MD 新版本直接成为当前 PUBLISHED 版本
   pay:
     # 开发环境启用模拟支付渠道；生产默认关闭（MockPayChannelAdapter @ConditionalOnProperty）
     mock:

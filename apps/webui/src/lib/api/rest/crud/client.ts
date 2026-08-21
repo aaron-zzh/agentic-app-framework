@@ -15,9 +15,18 @@ export type CrudData = Record<string, unknown>
 export type { ApiResult, ListParams, PageResult }
 export { ApiError }
 
+export type CrudAccessMode = "admin-maintenance"
+export const CRUD_ACCESS_MODE_HEADER = "X-AAF-Access-Mode"
+
 export interface CrudResource<TRecord = CrudRecord> {
   apiPath: string
+  accessMode?: CrudAccessMode
   __record?: TRecord
+}
+
+export function crudRequestConfig(resource: CrudResource): AxiosRequestConfig | undefined {
+  if (!resource.accessMode) return undefined
+  return { headers: { [CRUD_ACCESS_MODE_HEADER]: resource.accessMode } }
 }
 
 /** 服务端声明的筛选操作符及其值数量约束。 */
@@ -98,14 +107,20 @@ export function fetchList<TRecord extends CrudRecord = CrudRecord>(
   resource: CrudResource<TRecord>,
   params: ListParams = {}
 ): Promise<PageResult<TRecord>> {
-  return backendApi.get<PageResult<TRecord>>(`${resource.apiPath}${buildQuery(params)}`)
+  return backendApi.get<PageResult<TRecord>>(
+    `${resource.apiPath}${buildQuery(params)}`,
+    crudRequestConfig(resource)
+  )
 }
 
 export function fetchQueryWindow<TRecord extends CrudRecord = CrudRecord>(
   resource: CrudResource<TRecord>,
   params: CrudQueryWindowParams = {}
 ): Promise<PageResult<TRecord>> {
-  return backendApi.get<PageResult<TRecord>>(`${resource.apiPath}/_query${buildQuery(params)}`)
+  return backendApi.get<PageResult<TRecord>>(
+    `${resource.apiPath}/_query${buildQuery(params)}`,
+    crudRequestConfig(resource)
+  )
 }
 
 export function fetchRecord<TRecord extends CrudRecord = CrudRecord>(
@@ -113,7 +128,10 @@ export function fetchRecord<TRecord extends CrudRecord = CrudRecord>(
   id: CrudId,
   params: CrudDetailParams = {}
 ): Promise<TRecord> {
-  return backendApi.get<TRecord>(`${resource.apiPath}/${id}${buildQuery(params)}`)
+  return backendApi.get<TRecord>(
+    `${resource.apiPath}/${id}${buildQuery(params)}`,
+    crudRequestConfig(resource)
+  )
 }
 
 export function batchReadRecords<TRecord extends CrudRecord = CrudRecord>(
@@ -121,31 +139,39 @@ export function batchReadRecords<TRecord extends CrudRecord = CrudRecord>(
   ids: CrudId[],
   fieldSet = "detail"
 ): Promise<TRecord[]> {
-  return backendApi.post<TRecord[]>(`${resource.apiPath}/_batch-read`, { ids, fieldSet })
+  return backendApi.post<TRecord[]>(
+    `${resource.apiPath}/_batch-read`,
+    { ids, fieldSet },
+    crudRequestConfig(resource)
+  )
 }
 
 export function createRecord<
   TRecord extends CrudRecord = CrudRecord,
   TCreate extends CrudData = CrudData
 >(resource: CrudResource<TRecord>, data: TCreate): Promise<TRecord> {
-  return backendApi.post<TRecord>(resource.apiPath, data)
+  return backendApi.post<TRecord>(resource.apiPath, data, crudRequestConfig(resource))
 }
 
 export function updateRecord<
   TRecord extends CrudRecord = CrudRecord,
   TUpdate extends CrudData = CrudData
 >(resource: CrudResource<TRecord>, id: CrudId, data: TUpdate): Promise<TRecord> {
-  return backendApi.put<TRecord>(`${resource.apiPath}/${id}`, data)
+  return backendApi.put<TRecord>(`${resource.apiPath}/${id}`, data, crudRequestConfig(resource))
 }
 
 export function deleteRecord(resource: CrudResource, id: CrudId): Promise<void> {
-  return backendApi.delete<void>(`${resource.apiPath}/${id}`)
+  return backendApi.delete<void>(`${resource.apiPath}/${id}`, crudRequestConfig(resource))
 }
 
 export function deleteRecords(resource: CrudResource, ids: CrudId[]): Promise<void> {
-  return backendApi.post<void>(`${resource.apiPath}/_batch-delete`, { ids })
+  return backendApi.post<void>(
+    `${resource.apiPath}/_batch-delete`,
+    { ids },
+    crudRequestConfig(resource)
+  )
 }
 
 export function fetchCrudMeta<TMeta = CrudRecord>(resource: CrudResource): Promise<TMeta> {
-  return backendApi.get<TMeta>(`${resource.apiPath}/_meta`)
+  return backendApi.get<TMeta>(`${resource.apiPath}/_meta`, crudRequestConfig(resource))
 }

@@ -133,6 +133,10 @@ public class EntityDefService {
         if (config.has("slug") || config.has("apiPath")) {
             throw exception(ErrorCodeConstants.ENTITY_DEF_CONFIG_INVALID);
         }
+        if (config.has("accessMode")
+                && !"admin-maintenance".equals(config.path("accessMode").asString())) {
+            throw exception(ErrorCodeConstants.ENTITY_DEF_CONFIG_INVALID);
+        }
         var descriptor = requireCodeResource(config.path("resource").asString());
         if (!slug.equals(descriptor.slug())) {
             throw exception(ErrorCodeConstants.ENTITY_DEF_CONFIG_INVALID);

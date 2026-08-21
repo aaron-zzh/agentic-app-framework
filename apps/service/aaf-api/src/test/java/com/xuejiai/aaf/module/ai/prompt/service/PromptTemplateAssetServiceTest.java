@@ -15,6 +15,7 @@ import com.xuejiai.aaf.framework.crud.definition.Patch;
 import com.xuejiai.aaf.framework.engine.prompt.PromptTemplate;
 import com.xuejiai.aaf.framework.engine.prompt.PromptTemplateCompiler;
 import com.xuejiai.aaf.framework.engine.prompt.PromptTemplateRepository;
+import com.xuejiai.aaf.framework.engine.prompt.PromptVisibility;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.prompt.vo.PromptTemplateUpdateDTO;
 import com.xuejiai.aaf.test.BaseMockitoUnitTest;
@@ -32,7 +33,7 @@ class PromptTemplateAssetServiceTest extends BaseMockitoUnitTest {
     void should_reject_update_when_public_template_owned_by_another_user() {
         var template = new PromptTemplate();
         template.setOwnerId(7L);
-        template.setVisibility(PromptTemplate.VISIBILITY_PUBLIC);
+        template.setVisibility(PromptVisibility.PUBLIC);
         when(operatorContext.currentOwnerId()).thenReturn(Optional.of(8L));
         var request =
                 new PromptTemplateUpdateDTO(

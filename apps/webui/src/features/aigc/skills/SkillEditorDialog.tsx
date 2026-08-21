@@ -111,6 +111,7 @@ export function SkillEditorDialog({
   const [code, setCode] = useState("")
   const [name, setName] = useState("")
   const [summary, setSummary] = useState("")
+  const [instancePrompt, setInstancePrompt] = useState("")
   const [locale, setLocale] = useState("zh-CN")
   const [visibility, setVisibility] = useState<AiSkillVisibility>("PRIVATE")
   const [content, setContent] = useState("")
@@ -127,6 +128,7 @@ export function SkillEditorDialog({
     setCode(initial?.code ?? "")
     setName(initial?.name ?? "")
     setSummary(initial?.summary ?? "")
+    setInstancePrompt(initial?.instancePrompt ?? "")
     setLocale(initial?.locale ?? "zh-CN")
     setVisibility(initial?.visibility ?? "PRIVATE")
     setContent(latestVersion?.content ?? "")
@@ -152,6 +154,7 @@ export function SkillEditorDialog({
       code: code.trim(),
       name: name.trim(),
       summary: summary.trim(),
+      instancePrompt: initial ? instancePrompt.trim() : optionalText(instancePrompt),
       locale: locale.trim(),
       visibility,
       ...(categoryCodes ? { categoryCodes } : {}),
@@ -228,6 +231,18 @@ export function SkillEditorDialog({
               value={summary}
               onChange={(event) => setSummary(event.target.value)}
               placeholder="用一句话说明适用场景，建议采用 USE WHEN ... 表述"
+              className="min-h-20"
+              disabled={isPending}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={`${uid}-instance-prompt`}>实例提示词</Label>
+            <Textarea
+              id={`${uid}-instance-prompt`}
+              value={instancePrompt}
+              onChange={(event) => setInstancePrompt(event.target.value)}
+              placeholder="选择此技能后，展示在创作输入框中的示例需求"
               className="min-h-20"
               disabled={isPending}
             />

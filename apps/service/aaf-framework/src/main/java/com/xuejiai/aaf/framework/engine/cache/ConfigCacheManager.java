@@ -4,8 +4,6 @@ import java.time.Duration;
 
 import org.springframework.stereotype.Component;
 
-import com.xuejiai.aaf.framework.engine.prompt.PromptTemplate;
-import com.xuejiai.aaf.framework.engine.prompt.PromptTemplateRepository;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelPreference;
@@ -17,11 +15,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * 配置缓存管理器——启动时预热，运行时提供快速读取。
- *
- * <p>管理 3 个缓存实例：AiModel、PromptTemplate、ModelPreference。
- */
+/** 配置缓存管理器：只缓存模型与模型偏好；Prompt 由版本化 PromptEngine 解析。 */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -33,22 +27,17 @@ public class ConfigCacheManager {
 
     private final TwoLevelCacheFactory cacheFactory;
     private final AiModelRepository aiModelRepository;
-    private final PromptTemplateRepository promptTemplateRepository;
     private final ModelPreferenceRepository modelPreferenceRepository;
 
     private TwoLevelCache<Long, AiModel> aiModelCache;
     private final java.util.concurrent.ConcurrentHashMap<String, Long> aiModelIdIndex =
             new java.util.concurrent.ConcurrentHashMap<>();
-    private TwoLevelCache<Long, PromptTemplate> promptTemplateCache;
     private TwoLevelCache<Long, ModelPreference> modelPreferenceCache;
 
     @PostConstruct
     void init() {
         aiModelCache =
                 cacheFactory.create("ai_model", AiModel.class, MAX_SIZE, LOCAL_TTL, REDIS_TTL);
-        promptTemplateCache =
-                cacheFactory.create(
-                        "system_prompt_tpl", PromptTemplate.class, MAX_SIZE, LOCAL_TTL, REDIS_TTL);
         modelPreferenceCache =
                 cacheFactory.create(
                         "model_pref", ModelPreference.class, MAX_SIZE, LOCAL_TTL, REDIS_TTL);
@@ -56,28 +45,25 @@ public class ConfigCacheManager {
     }
 
     public AiModel getAiModel(Long id) {
-        return aiModelCache.get(id, k -> aiModelRepository.findById(k).orElse(null));
+        return aiModelCache.get(id, key -> aiModelRepository.findById(key).orElse(null));
     }
 
-    /** 按 modelId 字符串查询（如 "n1n:gpt-4o"），先走 id 索引再查缓存 */
+    /** 按 modelId 查询，索引失效时回查数据库并重建。 */
     public AiModel getAiModelByModelId(String modelId) {
         if (modelId == null) return null;
-        Long id =
+        var id =
                 aiModelIdIndex.computeIfAbsent(
                         modelId,
-                        k -> aiModelRepository.findByModelId(k).map(AiModel::getId).orElse(null));
+                        key ->
+                                aiModelRepository
+                                        .findByModelId(key)
+                                        .map(AiModel::getId)
+                                        .orElse(null));
         if (id == null) return null;
-        AiModel model = getAiModel(id);
-        // 校验一致性：DB 记录的 modelId 可能已变更，index 中的映射已过时
+        var model = getAiModel(id);
         if (model != null && !modelId.equals(model.getModelId())) {
-            log.warn(
-                    "[ConfigCache] aiModelIdIndex 过时: key={} → id={} 实际modelId={}, 重建索引",
-                    modelId,
-                    id,
-                    model.getModelId());
             aiModelIdIndex.remove(modelId);
-            Long freshId =
-                    aiModelRepository.findByModelId(modelId).map(AiModel::getId).orElse(null);
+            var freshId = aiModelRepository.findByModelId(modelId).map(AiModel::getId).orElse(null);
             if (freshId == null) return null;
             aiModelIdIndex.put(modelId, freshId);
             return getAiModel(freshId);
@@ -86,18 +72,9 @@ public class ConfigCacheManager {
     }
 
     @OrgIgnore
-    public PromptTemplate getPromptTemplate(Long id) {
-        return promptTemplateCache.get(
-                id,
-                key ->
-                        promptTemplateRepository
-                                .findByIdAndVisibility(key, PromptTemplate.VISIBILITY_ENGINE)
-                                .orElse(null));
-    }
-
     public ModelPreference getModelPreference(Long id) {
         return modelPreferenceCache.get(
-                id, k -> modelPreferenceRepository.findById(k).orElse(null));
+                id, key -> modelPreferenceRepository.findById(key).orElse(null));
     }
 
     private void warmUp() {
@@ -105,15 +82,14 @@ public class ConfigCacheManager {
         aiModelRepository
                 .findAll()
                 .forEach(
-                        m -> {
-                            aiModelCache.put(m.getId(), m);
-                            if (m.getModelId() != null)
-                                aiModelIdIndex.put(m.getModelId(), m.getId());
+                        model -> {
+                            aiModelCache.put(model.getId(), model);
+                            if (model.getModelId() != null)
+                                aiModelIdIndex.put(model.getModelId(), model.getId());
                         });
-        promptTemplateRepository
-                .findAllByVisibility(PromptTemplate.VISIBILITY_ENGINE)
-                .forEach(prompt -> promptTemplateCache.put(prompt.getId(), prompt));
-        modelPreferenceRepository.findAll().forEach(p -> modelPreferenceCache.put(p.getId(), p));
+        modelPreferenceRepository
+                .findAll()
+                .forEach(preference -> modelPreferenceCache.put(preference.getId(), preference));
         log.info("配置缓存预热完成");
     }
 }

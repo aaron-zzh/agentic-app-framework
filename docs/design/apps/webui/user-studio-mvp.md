@@ -115,7 +115,7 @@ User Studio 是**项目驱动 + 助理常驻 + 五度空间多 tab** 的 AI 创�
 |---|------|-----|------|
 | D1 | **作品** | 列表/分类/检索/下载/批量操作 | `/aigc/assets`（type=OUTPUT） |
 | D2 | **素材** | 上传/分类/检索/标签/拖拽 | `/aigc/assets`（type=INPUT） + `/aigc/categories` `/aigc/tags` |
-| D3 | **提示词** | 新建/分类/检索/收藏/复用到 Composer | `/aigc/prompt-templates`（沿用 `generation-templates`） |
+| D3 | **提示词** | 新建/分类/检索/收藏/复用到 Composer | `/ai/prompts`（沿用 `generation-templates`） |
 | D4 | **任务历史** | 分类查看（图/视频/3D/语音）+ 重做/撤销/失败重试 | `/aigc/history` `/aigc/tasks` |
 
 #### E. 知识空间 `/studio/knowledge`（D7 基础版，PARA 留 v0.2）
@@ -204,7 +204,7 @@ GET    /aigc/history                     ← 待审计
 GET    /aigc/tasks                       ← 待审计
 GET    /docs                             ← 待审计
 GET    /knowledge-bases                  ← 待审计
-GET    /aigc/prompt-templates            ← 待审计
+GET    /ai/prompts            ← 待审计
 POST   /aigc/projects/{id}/...           ← 写入需校验 ownership
 ```
 
@@ -385,7 +385,7 @@ apps/webui/src/
 | BE-4 | `avatar_outfit` + `user_avatar_inventory` 表（简化：仅 AVATAR/OUTFIT）+ Repo + Service + Controller + 种子数据 | 新表 + 5 endpoint | P0 |
 | BE-5 | `user_favorite` 表 + Repo + Service + Controller | 新表 + 3 endpoint | P1 |
 | BE-6 | `/tools/weather?city=` 外部 API 代理（缓存 30 分钟） | 1 endpoint | P1 |
-| BE-7 | `/aigc/prompt-templates` 个人提示词模板 CRUD（沿用 GenerationTemplate 加 user_id 过滤） | 加用户视图 endpoint | P0 |
+| BE-7 | `/ai/prompts` 个人提示词模板 CRUD（沿用 GenerationTemplate 加 user_id 过滤） | 加用户视图 endpoint | P0 |
 | BE-8 | **数据隔离审计** ：`module/ai/aigc/*` 全部 Controller 检查 user_id 过滤 | 横切修复 | P0 |
 | BE-9 | `ai_skill_definition` 种子补全（口播/小红书/产品文案/IP定位/标题选题等 7 个） | DML 种子 | P0 |
 | BE-10 | `aigc_task` 模型收费查询接口 `/credit-token-rules?modelType=...`（已有但需校验前端用法） | 校验 | P1 |
@@ -406,7 +406,7 @@ apps/webui/src/
 | 小工具-OCR | `/aigc/ocr` | ✅ |
 | 小工具-天气 | `/tools/weather` | 🚧 BE-6 |
 | 资产-作品/素材 | `/aigc/assets` `/aigc/categories` `/aigc/tags` | ✅ |
-| 资产-提示词 | `/aigc/prompt-templates` | 🚧 BE-7 |
+| 资产-提示词 | `/ai/prompts` | 🚧 BE-7 |
 | 资产-任务历史 | `/aigc/history` `/aigc/tasks` | ✅ |
 | 知识-文档 | `/docs/*` | ✅ |
 | 知识-知识库 | `/knowledge-bases/*` | ✅ |

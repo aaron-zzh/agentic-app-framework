@@ -6,6 +6,8 @@ public enum AccessMode {
     ADMIN_MAINTENANCE("admin-maintenance", true, true),
     SYSTEM_JOB("system-job", true, true);
 
+    public static final String HTTP_HEADER = "X-AAF-Access-Mode";
+
     private final String permissionSegment;
     private final boolean bypassRecordScope;
     private final boolean bypassPersonalScope;

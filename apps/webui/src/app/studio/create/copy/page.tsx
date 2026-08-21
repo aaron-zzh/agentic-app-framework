@@ -55,6 +55,8 @@ import { useDict } from "@/lib/hooks/use-dict"
 import { useModelSelector } from "@/lib/hooks/use-model-selector"
 import { cn } from "@/lib/utils/index"
 
+const DEFAULT_COPYWRITING_PROMPT = "例如：为新品咖啡机撰写一篇面向年轻上班族的小红书种草文案……"
+
 const ICON_MAP: Record<string, React.FC<{ className?: string }>> = {
   voiceover: Mic,
   redbook: Heart,
@@ -249,7 +251,13 @@ function ExecutionPhaseBadge({ phase }: { phase: AssistantExecutionPhase }) {
   return <Badge variant={variant}>{label}</Badge>
 }
 
-function CopywritingWorkspace({ skillName }: { skillName: string }) {
+function CopywritingWorkspace({
+  skillName,
+  instancePrompt
+}: {
+  skillName: string
+  instancePrompt: string | null
+}) {
   const {
     prompt,
     setPrompt,
@@ -299,7 +307,13 @@ function CopywritingWorkspace({ skillName }: { skillName: string }) {
                 id="copywriting-prompt"
                 value={prompt}
                 onChange={(event) => setPrompt(event.target.value)}
-                placeholder="例如：为新品咖啡机撰写一篇面向年轻上班族的小红书种草文案……"
+                onKeyDown={(event) => {
+                  const promptExample = instancePrompt?.trim()
+                  if (event.key !== "Tab" || prompt.trim() || !promptExample) return
+                  event.preventDefault()
+                  setPrompt(promptExample)
+                }}
+                placeholder={instancePrompt?.trim() || DEFAULT_COPYWRITING_PROMPT}
                 className="min-h-36 resize-y"
               />
             </div>
@@ -596,7 +610,10 @@ export default function StudioCreateCopyPage() {
 
       <main className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 lg:p-6">
         {selectedSkill ? (
-          <CopywritingWorkspace skillName={selectedSkill.name} />
+          <CopywritingWorkspace
+            skillName={selectedSkill.name}
+            instancePrompt={selectedSkill.instancePrompt}
+          />
         ) : (
           <div className="mb-20 flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">
             <LottieIcon name="cat" width={180} height={180} loop />

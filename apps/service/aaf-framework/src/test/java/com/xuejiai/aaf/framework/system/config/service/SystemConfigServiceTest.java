@@ -21,14 +21,14 @@ class SystemConfigServiceTest {
         TransactionSynchronizationManager.setActualTransactionActive(true);
         TransactionSynchronizationManager.initSynchronization();
         try {
-            service.evictAfterCommit("knowledge.extraction.system_prompt");
+            service.evictAfterCommit("prompt.cache.example");
 
-            verify(redisTemplate, never()).delete("sys:config:knowledge.extraction.system_prompt");
+            verify(redisTemplate, never()).delete("sys:config:prompt.cache.example");
             var synchronizations = TransactionSynchronizationManager.getSynchronizations();
             for (var synchronization : synchronizations) {
                 synchronization.afterCommit();
             }
-            verify(redisTemplate).delete("sys:config:knowledge.extraction.system_prompt");
+            verify(redisTemplate).delete("sys:config:prompt.cache.example");
         } finally {
             TransactionSynchronizationManager.clearSynchronization();
             TransactionSynchronizationManager.setActualTransactionActive(false);

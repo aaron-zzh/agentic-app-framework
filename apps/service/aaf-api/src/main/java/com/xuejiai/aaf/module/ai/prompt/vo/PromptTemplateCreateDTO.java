@@ -10,7 +10,8 @@ import jakarta.validation.constraints.Size;
 public record PromptTemplateCreateDTO(
         @NotBlank @Size(max = 128) String name,
         @Size(max = 30) String type,
-        @Size(max = 64) String category,
+        @Schema(description = "运营分类 code，多选") @Size(max = 20)
+                List<@Size(max = 64) String> categories,
         @Size(max = 1000) String coverUrl,
         @NotBlank @Size(max = 100_000) String prompt,
         @Size(max = 100_000) String negativePrompt,

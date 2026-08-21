@@ -158,6 +158,9 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     /** DELETE 主实体删除后、事务提交前的受控业务 Hook。 */
     protected void afterDelete(E entity) {}
 
+    /** CREATE 主实体保存并同步关系后、输出视图前的受控业务 Hook。 */
+    protected void afterCreate(E entity, C request) {}
+
     /**
      * 声明单条读取可使用的关系权限要求。
      *
@@ -310,6 +313,11 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         return (root, query, cb) -> null;
     }
 
+    /** 按访问模式构建业务筛选；默认复用普通筛选，治理资源可显式放宽领域种类。 */
+    protected Specification<E> buildSpec(P pageDTO, AccessMode accessMode) {
+        return buildSpec(pageDTO);
+    }
+
     /**
      * 构建普通列表的关键词搜索条件。
      *
@@ -342,7 +350,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
                 decision.scopeSpecification(),
                 buildFilterSpec(filters, filterContext),
                 buildSearchSpec(pageDTO.getSearch()),
-                buildSpec(pageDTO));
+                buildSpec(pageDTO, decision.accessMode()));
     }
 
     /** 返回资源定义声明的默认排序；业务子类不应再通过覆写静态 Hook 改变它 */
@@ -375,7 +383,12 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
      * #buildSpec(PageParam)}。
      */
     public PageResult<V> page(P request) {
-        var decision = enforce(CrudOperation.PAGE);
+        return pageWithAccess(request, AccessMode.DEFAULT);
+    }
+
+    /** 使用明确访问模式执行基础分页，供管理员维护等特殊入口复用完整安全管线。 */
+    protected final PageResult<V> pageWithAccess(P request, AccessMode accessMode) {
+        var decision = enforce(CrudOperation.PAGE, accessMode);
         var pageable = buildPageable(request, decision);
         Page<E> page =
                 getRepository().findAll(buildEffectiveSpec(request, List.of(), decision), pageable);
@@ -397,7 +410,13 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
      * {@link #buildSpec(PageParam)}。
      */
     public PageResult<V> queryWindow(P request, String fieldSet, List<CrudFilter> filters) {
-        return queryWindow(request, fieldSet, filters, enforce(CrudOperation.QUERY));
+        return queryWindowWithAccess(request, fieldSet, filters, AccessMode.DEFAULT);
+    }
+
+    /** 使用明确访问模式查询可导航窗口，并签发绑定该模式的 QueryToken。 */
+    protected final PageResult<V> queryWindowWithAccess(
+            P request, String fieldSet, List<CrudFilter> filters, AccessMode accessMode) {
+        return queryWindow(request, fieldSet, filters, enforce(CrudOperation.QUERY, accessMode));
     }
 
     /** 使用入口已生成的唯一决策执行查询窗口，避免导出等组合操作重复 preflight。 */
@@ -537,7 +556,17 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
      */
     @Transactional
     public V getById(Long id, String queryToken, String fieldSet) {
-        var decision = enforceObject(CrudOperation.GET, AccessMode.DEFAULT);
+        return getByIdWithAccess(id, queryToken, fieldSet, CrudOperation.GET, AccessMode.DEFAULT);
+    }
+
+    /** 以明确访问模式读取窗口详情，并校验与该模式绑定的 QueryToken。 */
+    protected final V getByIdWithAccess(
+            Long id,
+            String queryToken,
+            String fieldSet,
+            CrudOperation operation,
+            AccessMode accessMode) {
+        var decision = enforceObject(operation, accessMode);
         var normalizedFieldSet = normalizeFieldSet(fieldSet);
         validateQueryToken(id, queryToken, normalizedFieldSet, decision);
         return toView(requireCurrentEntity(id, decision), normalizedFieldSet, decision);
@@ -816,6 +845,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         validateRelationPatches(entity, request, decision);
         getRepository().save(entity);
         synchronizeRelationPatches(entity, request, decision);
+        afterCreate(entity, request);
         consumeEntitlement(1);
         return toView(entity, "detail", decision);
     }
@@ -905,7 +935,13 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     /** 以明确主实体 ID 执行具名自定义 UPDATE。 */
     protected final <C0, A, R> R executeCustomUpdateCommand(
             Long id, C0 command, CustomUpdatePlan<E, C0, A, R> plan) {
-        return executeCustomUpdateCommand(() -> id, command, plan);
+        return executeCustomUpdateCommand(() -> id, command, plan, AccessMode.DEFAULT);
+    }
+
+    /** 以明确访问模式和主实体 ID 执行具名自定义 UPDATE。 */
+    protected final <C0, A, R> R executeCustomUpdateCommand(
+            Long id, C0 command, CustomUpdatePlan<E, C0, A, R> plan, AccessMode accessMode) {
+        return executeCustomUpdateCommand(() -> id, command, plan, accessMode);
     }
 
     /**
@@ -917,13 +953,23 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
             java.util.function.Supplier<Long> objectIdResolver,
             C0 command,
             CustomUpdatePlan<E, C0, A, R> plan) {
+        return executeCustomUpdateCommand(objectIdResolver, command, plan, AccessMode.DEFAULT);
+    }
+
+    /** 以明确访问模式执行具名自定义 UPDATE，特殊入口仍保留字段、L3 与对象 L4 校验。 */
+    protected final <C0, A, R> R executeCustomUpdateCommand(
+            java.util.function.Supplier<Long> objectIdResolver,
+            C0 command,
+            CustomUpdatePlan<E, C0, A, R> plan,
+            AccessMode accessMode) {
         Objects.requireNonNull(objectIdResolver, "objectIdResolver");
         Objects.requireNonNull(command, "command");
         Objects.requireNonNull(plan, "plan");
+        Objects.requireNonNull(accessMode, "accessMode");
         var entry = resourceEntry();
         CrudEnforcementDecision<E> decision =
                 crudEnforcementService.<E>enforceCustomUpdatePreflight(
-                        entry, AccessMode.DEFAULT, plan.commandType(), plan.modifiedFields());
+                        entry, accessMode, plan.commandType(), plan.modifiedFields());
         decision.fieldPolicy().requireAll(plan.modifiedFields(), FieldCapability.WRITE);
         var id = objectIdResolver.get();
         if (id == null || id <= 0) {
@@ -981,8 +1027,13 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
      */
     @Transactional
     public V update(Long id, U request) {
+        return updateWithAccess(id, request, AccessMode.DEFAULT);
+    }
+
+    /** 使用明确访问模式更新记录，供管理员维护等特殊入口复用完整安全管线。 */
+    protected final V updateWithAccess(Long id, U request, AccessMode accessMode) {
         var payloadDigest = payloadDigest(request);
-        var decision = enforceObject(CrudOperation.UPDATE, AccessMode.DEFAULT);
+        var decision = enforceObject(CrudOperation.UPDATE, accessMode);
         var modifiedFields = requireWritableFields(request, decision.fieldPolicy());
         if (modifiedFields.isEmpty()) {
             throw exception(GlobalErrorCode.BAD_REQUEST);
@@ -1169,6 +1220,16 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
      */
     protected List<V> toVOList(List<E> entities, String fieldSet) {
         return entities.stream().map(entity -> toVO(entity, fieldSet)).toList();
+    }
+
+    /** 按访问模式转换单条视图。默认复用普通视图；仅明确支持治理模式的业务资源可覆写。 */
+    protected V toVO(E entity, String fieldSet, AccessMode accessMode) {
+        return toVO(entity, fieldSet);
+    }
+
+    /** 按访问模式批量转换视图，供特殊入口在同一资源定义内选择受控字段形状。 */
+    protected List<V> toVOList(List<E> entities, String fieldSet, AccessMode accessMode) {
+        return entities.stream().map(entity -> toVO(entity, fieldSet, accessMode)).toList();
     }
 
     /**
@@ -1805,7 +1866,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
                         .get(fieldSet)
                         .restrictTo(decision.fieldPolicy().fields(FieldCapability.READ));
         if (!plan.usesViewMapper()) {
-            return toVOList(entities, fieldSet).stream()
+            return toVOList(entities, fieldSet, decision.accessMode()).stream()
                     .map(view -> applyReadFieldPolicy(view, decision.fieldPolicy()))
                     .toList();
         }

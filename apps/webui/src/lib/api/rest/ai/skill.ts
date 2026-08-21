@@ -71,6 +71,7 @@ export interface AiSkillVO {
   code: string
   name: string
   summary: string
+  instancePrompt: string | null
   locale: string
   visibility: AiSkillVisibility
   builtIn: boolean
@@ -120,6 +121,7 @@ export interface CreateAiSkillInput {
   code: string
   name: string
   summary: string
+  instancePrompt?: string
   locale: string
   visibility: AiSkillVisibility
   sourceSkillId?: number

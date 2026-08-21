@@ -79,7 +79,7 @@ public class IncrementalEntityResolver {
                     "不支持的实体消歧输出契约: " + run.entityResolutionOutputContractVersion());
         }
         var payload = JsonUtils.toJsonString(Map.of("mention", mention, "candidates", candidates));
-        var prompt = EntityResolutionPrompt.USER_PROMPT_TEMPLATE.replace("{payload}", payload);
+        var prompt = run.entityResolutionUserPrompt().replace("{payload}", payload);
         var meteredInput =
                 run.entityResolutionPromptDigest()
                         + "|"

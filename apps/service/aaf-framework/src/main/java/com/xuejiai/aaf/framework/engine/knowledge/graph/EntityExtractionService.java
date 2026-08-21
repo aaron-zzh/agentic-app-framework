@@ -42,7 +42,7 @@ public class EntityExtractionService {
                     "不支持的事实抽取输出契约: " + run.extractionOutputContractVersion());
         }
         var prompt =
-                EntityExtractionPrompt.USER_PROMPT_TEMPLATE
+                run.extractionUserPrompt()
                         .replace("{previous}", join(context.previousChunks()))
                         .replace("{focus}", context.focusContent())
                         .replace("{next}", join(context.nextChunks()));

@@ -63,6 +63,7 @@ public class SkillService
                     "code",
                     "name",
                     "summary",
+                    "instancePrompt",
                     "locale",
                     "visibility",
                     "sourceSkillId",
@@ -126,6 +127,7 @@ public class SkillService
                 entity.getCode(),
                 entity.getName(),
                 entity.getSummary(),
+                entity.getInstancePrompt(),
                 entity.getLocale(),
                 entity.getVisibility(),
                 entity.getBuiltIn(),
@@ -201,6 +203,7 @@ public class SkillService
         entity.setCode(generatedCodeIfBlank(request.code()));
         entity.setName(requireText(request.name(), "Skill 名称不能为空"));
         entity.setSummary(requireText(request.summary(), "Skill 摘要不能为空"));
+        entity.setInstancePrompt(nullableText(request.instancePrompt()));
         entity.setLocale(defaultText(request.locale(), "zh-CN"));
         entity.setVisibility(defaultText(request.visibility(), "PRIVATE"));
         entity.setBuiltIn(false);
@@ -222,7 +225,16 @@ public class SkillService
     /** 创建根对象后在同一事务中追加首个不可变版本。 */
     @Transactional
     public SkillVO createVersioned(SkillCreateDTO request) {
-        var created = super.create(request);
+        return createVersioned(request, AccessMode.DEFAULT);
+    }
+
+    @Transactional
+    public SkillVO createVersionedGovernance(SkillCreateDTO request) {
+        return createVersioned(request, AccessMode.ADMIN_MAINTENANCE);
+    }
+
+    private SkillVO createVersioned(SkillCreateDTO request, AccessMode accessMode) {
+        var created = createWithAccess(request, accessMode);
         var entity =
                 repository
                         .findById(created.id())
@@ -234,6 +246,16 @@ public class SkillService
     /** 根字段按标准授权更新；正文或需求变化时追加完整不可变版本快照。 */
     @Transactional
     public SkillVO updateVersioned(Long id, SkillUpdateDTO request) {
+        return updateVersioned(id, request, AccessMode.DEFAULT, true);
+    }
+
+    @Transactional
+    public SkillVO updateVersionedGovernance(Long id, SkillUpdateDTO request) {
+        return updateVersioned(id, request, AccessMode.ADMIN_MAINTENANCE, false);
+    }
+
+    private SkillVO updateVersioned(
+            Long id, SkillUpdateDTO request, AccessMode accessMode, boolean requireOwner) {
         var modifiedFields = modifiedFields(request);
         if (modifiedFields.isEmpty()) {
             throw badRequest("至少需要修改一个字段");
@@ -244,7 +266,9 @@ public class SkillService
                         COMMAND_VERSIONED_UPDATE,
                         modifiedFields,
                         (entity, command) -> {
-                            enforceUserOwned(entity);
+                            if (requireOwner) {
+                                enforceUserOwned(entity);
+                            }
                             validateUpdate(entity, command);
                         },
                         this::applyRootUpdate,
@@ -255,19 +279,30 @@ public class SkillService
                         rootChanged,
                         (entity, command, version) -> {},
                         (entity, command, version) -> toVO(entity));
-        return executeCustomUpdateCommand(id, request, plan);
+        return executeCustomUpdateCommand(id, request, plan, accessMode);
     }
 
     /** 只有属于当前根对象的 APPROVED 版本才能成为 current。 */
     @Transactional
     public SkillVO publish(Long id, Long versionId) {
+        return publish(id, versionId, AccessMode.DEFAULT, true);
+    }
+
+    @Transactional
+    public SkillVO publishGovernance(Long id, Long versionId) {
+        return publish(id, versionId, AccessMode.ADMIN_MAINTENANCE, false);
+    }
+
+    private SkillVO publish(Long id, Long versionId, AccessMode accessMode, boolean requireOwner) {
         var command = new PublishCommand(versionId);
         var plan =
                 new CustomUpdatePlan<SkillDefinition, PublishCommand, Void, SkillVO>(
                         COMMAND_PUBLISH,
                         Set.of("currentVersionId"),
                         (entity, request) -> {
-                            enforceUserOwned(entity);
+                            if (requireOwner) {
+                                enforceUserOwned(entity);
+                            }
                             validatePublish(entity, request.versionId());
                         },
                         (entity, request) -> entity.setCurrentVersionId(request.versionId()),
@@ -275,16 +310,51 @@ public class SkillService
                         true,
                         (entity, request, ignored) -> {},
                         (entity, request, ignored) -> toVO(entity));
-        return executeCustomUpdateCommand(id, command, plan);
+        return executeCustomUpdateCommand(id, command, plan, accessMode);
     }
 
     /** 读取当前用户拥有的完整版本历史。 */
     public List<SkillVO.SkillVersionVO> listVersions(Long id) {
         var entity = requireEntity(id, CrudOperation.GET, AccessMode.DEFAULT);
         enforceUserOwned(entity);
+        return versions(id);
+    }
+
+    public List<SkillVO.SkillVersionVO> listVersionsGovernance(Long id) {
+        requireEntity(id, CrudOperation.GET, AccessMode.ADMIN_MAINTENANCE);
+        return versions(id);
+    }
+
+    private List<SkillVO.SkillVersionVO> versions(Long id) {
         return versionRepository.findBySkillIdOrderByVersionDesc(id).stream()
                 .map(this::toVersionVO)
                 .toList();
+    }
+
+    public PageResult<SkillVO> pageGovernance(SkillPageDTO request) {
+        return pageWithAccess(request, AccessMode.ADMIN_MAINTENANCE);
+    }
+
+    public PageResult<SkillVO> queryWindowGovernance(
+            SkillPageDTO request,
+            String fieldSet,
+            List<com.xuejiai.aaf.framework.crud.filter.CrudFilter> filters) {
+        return queryWindowWithAccess(request, fieldSet, filters, AccessMode.ADMIN_MAINTENANCE);
+    }
+
+    public SkillVO getGovernance(Long id, String queryToken, String fieldSet) {
+        return getByIdWithAccess(
+                id, queryToken, fieldSet, CrudOperation.GET, AccessMode.ADMIN_MAINTENANCE);
+    }
+
+    @Transactional
+    public SkillVO publishLatestApprovedGovernance(Long id) {
+        requireEntity(id, CrudOperation.UPDATE, AccessMode.ADMIN_MAINTENANCE);
+        var version =
+                versionRepository
+                        .findFirstBySkillIdAndStatusOrderByVersionDesc(id, STATUS_APPROVED)
+                        .orElseThrow(() -> badRequest("Skill 尚无 APPROVED 版本"));
+        return publishGovernance(id, version.getId());
     }
 
     @Override
@@ -809,6 +879,9 @@ public class SkillService
         if (request.summary() != null) {
             entity.setSummary(requireText(request.summary(), "Skill 摘要不能为空"));
         }
+        if (request.instancePrompt() != null) {
+            entity.setInstancePrompt(nullableText(request.instancePrompt()));
+        }
         if (request.locale() != null) {
             entity.setLocale(requireText(request.locale(), "locale 不能为空"));
         }
@@ -828,6 +901,7 @@ public class SkillService
         if (request.code() != null) fields.add("code");
         if (request.name() != null) fields.add("name");
         if (request.summary() != null) fields.add("summary");
+        if (request.instancePrompt() != null) fields.add("instancePrompt");
         if (request.locale() != null) fields.add("locale");
         if (request.visibility() != null) fields.add("visibility");
         if (request.sourceSkillId() != null) fields.add("sourceSkillId");

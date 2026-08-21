@@ -13,6 +13,7 @@ public record SkillUpdateDTO(
         @Schema(description = "稳定业务码") @Size(min = 1, max = 100) String code,
         @Schema(description = "Skill 名称") @Size(min = 1, max = 128) String name,
         @Schema(description = "一句话摘要") @Size(min = 1, max = 512) String summary,
+        @Schema(description = "实例输入提示词，仅用于界面 placeholder") @Size(max = 2000) String instancePrompt,
         @Schema(description = "默认语言地区") @Size(min = 1, max = 32) String locale,
         @Schema(description = "可见性：PRIVATE/WORKSPACE/PUBLIC")
                 @Pattern(regexp = "PRIVATE|WORKSPACE|PUBLIC")

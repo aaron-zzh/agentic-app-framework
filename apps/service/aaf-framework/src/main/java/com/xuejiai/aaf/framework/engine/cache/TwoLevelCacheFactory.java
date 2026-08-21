@@ -22,10 +22,10 @@ public class TwoLevelCacheFactory {
     private final Map<String, TwoLevelCache<?, ?>> registry = new ConcurrentHashMap<>();
 
     /** 创建二级缓存实例 */
-    public <V> TwoLevelCache<Long, V> create(
+    public <K, V> TwoLevelCache<K, V> create(
             String name, Class<V> type, int maxSize, Duration localTtl, Duration redisTtl) {
         var cache =
-                new TwoLevelCache<Long, V>(
+                new TwoLevelCache<K, V>(
                         name, type, maxSize, localTtl, redisTtl, redisTemplate, jsonMapper);
         registry.put(name, cache);
         return cache;

@@ -80,14 +80,58 @@ public class CrudResourceProviderConfiguration {
 
     @Bean
     CrudResourceDefinitionProvider<?> promptTemplateResource() {
-        return CrudResourceDefinitions.crud(
-                "ai.prompt-template",
-                "提示词资产",
-                PromptTemplateController.class,
-                "/api/aigc/prompt-templates",
-                "system:prompt-template",
-                TENANT,
-                PersonalScope.none());
+        var provider =
+                CrudResourceDefinitions.crud(
+                        "ai.prompt-template",
+                        "提示词资产",
+                        PromptTemplateController.class,
+                        "/api/ai/prompts",
+                        "system:prompt-template",
+                        TENANT,
+                        PersonalScope.none());
+        var versionFields =
+                Set.of(
+                        "name",
+                        "type",
+                        "categories",
+                        "coverUrl",
+                        "isPublic",
+                        "visibility",
+                        "scope",
+                        "description",
+                        "prompt",
+                        "negativePrompt",
+                        "model",
+                        "width",
+                        "height",
+                        "steps",
+                        "seed",
+                        "variables",
+                        "changeSummary");
+        return CrudResourceDefinitions.withCustomUpdateCommands(
+                provider,
+                Map.of(
+                        com.xuejiai.aaf.module.ai.prompt.service.PromptTemplateAssetService
+                                .COMMAND_STUDIO_VERSIONED_UPDATE,
+                        versionFields,
+                        com.xuejiai.aaf.module.ai.prompt.service.PromptTemplateAssetService
+                                .COMMAND_GOVERNANCE_DRAFT_UPDATE,
+                        versionFields,
+                        com.xuejiai.aaf.module.ai.prompt.service.PromptTemplateAssetService
+                                .COMMAND_GOVERNANCE_DRAFT_CREATE,
+                        Set.of(
+                                "prompt",
+                                "negativePrompt",
+                                "model",
+                                "width",
+                                "height",
+                                "steps",
+                                "seed",
+                                "variables",
+                                "changeSummary"),
+                        com.xuejiai.aaf.module.ai.prompt.service.PromptTemplateAssetService
+                                .COMMAND_GOVERNANCE_PUBLISH,
+                        Set.of("prompt")));
     }
 
     @Bean
@@ -174,6 +218,7 @@ public class CrudResourceProviderConfiguration {
                                         "code",
                                         "name",
                                         "summary",
+                                        "instancePrompt",
                                         "locale",
                                         "visibility",
                                         "sourceSkillId",

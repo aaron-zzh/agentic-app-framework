@@ -25,7 +25,7 @@ import { buildFieldContext, evaluateCondition } from "@/features/entity-engine/l
 import type { EntityAction, EntityDef } from "@/features/entity-engine/types"
 import { buildApiUrl, buildSseUrl } from "@/lib/api/config"
 import { backendApi } from "@/lib/api/rest/backend-client"
-import { crudKey, fromEntityDef } from "@/lib/api/rest/crud"
+import { crudKey, crudRequestConfig, fromEntityDef } from "@/lib/api/rest/crud"
 import { ApiError } from "@/lib/api/rest/entity"
 import { type AsyncTaskStatus, AsyncTaskStatusIndicator } from "./AsyncTaskStatusIndicator"
 
@@ -197,10 +197,12 @@ export function EntityActions({ entity, position, record, selectedIds }: EntityA
           body.ids = selectedIds
         }
 
+        const resource = fromEntityDef(entity)
         const result = await backendApi.post<ActionSubmitResult>(
           buildApiUrl(action.endpoint),
           body,
           {
+            ...crudRequestConfig(resource),
             signal: controller.signal,
             showError: false
           }

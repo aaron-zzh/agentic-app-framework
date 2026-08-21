@@ -12,6 +12,7 @@ public record SkillVO(
         @Schema(description = "稳定业务码") String code,
         @Schema(description = "Skill 名称") String name,
         @Schema(description = "一句话摘要") String summary,
+        @Schema(description = "实例输入提示词，仅用于界面 placeholder") String instancePrompt,
         @Schema(description = "默认语言地区") String locale,
         @Schema(description = "可见性") String visibility,
         @Schema(description = "是否内置") Boolean builtIn,

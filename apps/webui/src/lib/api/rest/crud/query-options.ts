@@ -30,7 +30,7 @@ import {
  */
 
 export function crudKey(resource: CrudResource): readonly unknown[] {
-  return ["crud", resource.apiPath]
+  return ["crud", resource.apiPath, resource.accessMode ?? "default"]
 }
 
 export function crudListKey(resource: CrudResource, params: ListParams = {}): readonly unknown[] {

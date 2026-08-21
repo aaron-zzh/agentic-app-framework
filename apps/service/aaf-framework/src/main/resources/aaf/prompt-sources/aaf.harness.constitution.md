@@ -1,9 +1,7 @@
 ---
-aaf-prompt-format: 1
-name: aaf.harness.constitution
-template-version: 1
-sha256: e412d33aaa2d3cacb2f9207b2cfd503fddfa11982eba47a8328a57b74cc6881b
-category: HARNESS
+code: aaf.harness.constitution
+version: 1
+changeSummary: 受治理 Markdown 初始源
 ---
 # AAF Harness Constitution
 

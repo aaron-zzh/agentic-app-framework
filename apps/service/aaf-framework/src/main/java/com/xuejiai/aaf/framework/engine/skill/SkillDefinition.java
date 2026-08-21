@@ -52,6 +52,10 @@ public class SkillDefinition extends BaseEntity {
     @Column(nullable = false, length = 512)
     private String summary;
 
+    /** 目录选中后展示给用户的实例输入示例；不参与 Skill 执行 prompt。 */
+    @Column(name = "instance_prompt", columnDefinition = "TEXT")
+    private String instancePrompt;
+
     /** 默认语言地区。 */
     @Column(nullable = false, length = 32)
     private String locale = "zh-CN";

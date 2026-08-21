@@ -192,6 +192,9 @@ interface SkillVersionRepository extends JpaRepository<SkillVersion, Long> {
 
     Optional<SkillVersion> findFirstBySkillIdOrderByVersionDesc(Long skillId);
 
+    Optional<SkillVersion> findFirstBySkillIdAndStatusOrderByVersionDesc(
+            Long skillId, String status);
+
     List<SkillVersion> findBySkillIdOrderByVersionDesc(Long skillId);
 }
 

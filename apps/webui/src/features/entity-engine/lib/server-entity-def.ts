@@ -102,6 +102,9 @@ export function parseServerEntityDef(record: EntityDefRecord): EntityDef | strin
   if (config.kind !== "code") return `${record.slug}: 仅支持 kind=code`
   if (!isNonBlankString(config.resource)) return `${record.slug}: 缺少 resource`
   if (!isNonBlankString(config.label)) return `${record.slug}: 缺少 label`
+  if (config.accessMode !== undefined && config.accessMode !== "admin-maintenance") {
+    return `${record.slug}: accessMode 非法`
+  }
   if (!isFieldDefArray(config.fields)) return `${record.slug}: fields 非法`
   if (!isRecord(config.listView)) return `${record.slug}: listView 非法`
 

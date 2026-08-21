@@ -14,17 +14,19 @@ import { notify } from "@/lib/notification"
 import { backendApi } from "../backend-client"
 import { buildQuery, type CrudMeta } from "../crud/client"
 
-const PROMPT_TEMPLATE_PATH = "/aigc/prompt-templates"
+const PROMPT_TEMPLATE_PATH = "/ai/prompts"
 const PROMPT_TEMPLATE_KEY = ["prompt-template-assets"] as const
 
 export type PromptTemplateVisibility = "ENGINE" | "SYSTEM" | "PRIVATE" | "PUBLIC"
 
 export interface PromptTemplateAssetVO {
   id: number
+  code: string
   version: number
+  kind: string
   type: string
   name: string
-  category: string | null
+  categories: string[]
   coverUrl?: string | null
   prompt: string
   negativePrompt: string | null
@@ -69,7 +71,7 @@ export interface MyPromptTemplateParams extends Record<string, QueryParamValue> 
 export interface CreatePromptTemplateInput {
   name: string
   type?: string
-  category?: string
+  categories?: string[]
   coverUrl?: string | null
   prompt: string
   negativePrompt?: string

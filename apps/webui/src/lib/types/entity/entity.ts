@@ -22,6 +22,8 @@ export interface EntityDef {
   kind?: "code"
   /** 后端受信任代码资源标识；服务端解析后的运行期定义必填。 */
   resource?: string
+  /** 代码资源访问模式；仅治理 EntityDef 可声明 admin-maintenance。 */
+  accessMode?: "admin-maintenance"
   /** 是否可作为跨实体记录来源；由 bootstrap 资源目录决定。 */
   referenceable?: boolean
 
