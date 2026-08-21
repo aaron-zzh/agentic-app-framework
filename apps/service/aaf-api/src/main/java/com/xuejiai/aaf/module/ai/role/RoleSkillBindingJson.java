@@ -26,8 +26,8 @@ final class RoleSkillBindingJson {
             for (var item : root) {
                 if (!item.isObject()
                         || item.size() != 2
-                        || !item.path("skillKey").isTextual()
-                        || !item.path("activationMode").isTextual()) {
+                        || !item.path("skillKey").isString()
+                        || !item.path("activationMode").isString()) {
                     throw new IllegalStateException(
                             "ai_role.skill_ids 每项必须且只能包含 skillKey/activationMode");
                 }

@@ -760,7 +760,7 @@ CREATE TABLE ai_definition_lifecycle (
     CONSTRAINT uk_definition_lifecycle UNIQUE (tenant_id, definition_kind, definition_id, definition_version),
     CONSTRAINT ck_definition_kind CHECK (definition_kind IN ('ASSISTANT','SKILL','AUTOMATION','CONNECTOR','TEAM')),
     CONSTRAINT ck_definition_state CHECK (state IN ('DRAFT','PUBLISHED','DEPRECATED','DISABLED')),
-    CONSTRAINT ck_definition_team_payload CHECK (
+    CONSTRAINT ck_definition_team_payload CHECK ((
         (
             definition_kind <> 'TEAM'
             AND (
@@ -777,7 +777,7 @@ CREATE TABLE ai_definition_lifecycle (
             )
         )
     ) IS TRUE
-);
+));
 
 COMMENT ON FUNCTION aaf_team_member_payload_valid(JSONB, TEXT) IS '校验 Team leader 或 worker 的闭世界冻结成员 JSON 载荷';
 COMMENT ON FUNCTION aaf_team_definition_payload_valid(JSONB, TEXT, BIGINT) IS '校验闭世界 TeamDefinition JSON 载荷与生命周期主键一致';

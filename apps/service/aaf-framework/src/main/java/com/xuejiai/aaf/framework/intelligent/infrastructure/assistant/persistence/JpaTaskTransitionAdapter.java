@@ -58,7 +58,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.SessionId;
 import io.micrometer.core.instrument.MeterRegistry;
 
 /** PostgreSQL TaskTransition 原子提交适配器。 */
-public final class JpaTaskTransitionAdapter implements TaskTransitionPort {
+public class JpaTaskTransitionAdapter implements TaskTransitionPort {
     private final DelegatedTaskRepository tasks;
     private final TaskBoardRepository boards;
     private final HumanApprovalRepository approvals;

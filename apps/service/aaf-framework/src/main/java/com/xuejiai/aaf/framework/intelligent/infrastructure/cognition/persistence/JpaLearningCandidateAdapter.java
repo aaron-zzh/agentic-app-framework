@@ -18,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 /** LearningCandidate JPA 适配器；日志仅记录稳定标识和状态，不记录摘要正文。 */
 @Component
 @Slf4j
-public final class JpaLearningCandidateAdapter implements LearningCandidatePort {
+public class JpaLearningCandidateAdapter implements LearningCandidatePort {
 
     private final LearningCandidateRepository repository;
     private final ExecutionEventRepository executionEvents;

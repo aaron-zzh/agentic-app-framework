@@ -85,7 +85,7 @@ public final class DefaultRoleSelector implements RoleSelector {
                 return null;
             }
             var roleKey = root.get("roleKey");
-            if (roleKey == null || !roleKey.isTextual()) {
+            if (roleKey == null || !roleKey.isString()) {
                 return null;
             }
             return request.definition().roles().stream()

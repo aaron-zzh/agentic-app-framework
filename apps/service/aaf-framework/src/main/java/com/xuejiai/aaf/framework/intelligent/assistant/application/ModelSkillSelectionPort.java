@@ -59,7 +59,7 @@ public final class ModelSkillSelectionPort implements SkillSelectionPort {
                         .collect(java.util.stream.Collectors.toUnmodifiableSet());
         var selected = new LinkedHashSet<String>();
         for (var value : values) {
-            if (!value.isTextual() || !allowed.contains(value.textValue())) {
+            if (!value.isString() || !allowed.contains(value.textValue())) {
                 throw new IllegalArgumentException("skillKeys 包含候选范围外或非字符串值");
             }
             if (!selected.add(value.textValue())) {

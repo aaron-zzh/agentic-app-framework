@@ -205,7 +205,7 @@ public class AssistantAguiController {
         if (content == null || content.isNull()) {
             return "";
         }
-        if (content.isTextual()) {
+        if (content.isString()) {
             return content.textValue();
         }
         if (!content.isArray()) {
@@ -214,9 +214,9 @@ public class AssistantAguiController {
         var text = new StringBuilder();
         for (var part : content) {
             var partText = part.get("text");
-            if (!"text".equals(part.path("type").asText())
+            if (!"text".equals(part.path("type").asString())
                     || partText == null
-                    || !partText.isTextual()) {
+                    || !partText.isString()) {
                 continue;
             }
             if (!text.isEmpty()) {
@@ -236,7 +236,7 @@ public class AssistantAguiController {
 
     private static String requireText(JsonNode object, String field) {
         var value = object.get(field);
-        if (value == null || !value.isTextual() || value.textValue().isBlank()) {
+        if (value == null || !value.isString() || value.textValue().isBlank()) {
             throw new IllegalArgumentException(field + " 不能为空白");
         }
         return value.textValue().trim();

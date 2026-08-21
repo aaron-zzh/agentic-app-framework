@@ -293,6 +293,7 @@ function CopywritingWorkspace({ skillName }: { skillName: string }) {
             <CardTitle>创作主题与要求</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
+            <CopywritingReferenceImages />
             <div className="flex flex-col gap-2">
               <Textarea
                 id="copywriting-prompt"
@@ -318,7 +319,6 @@ function CopywritingWorkspace({ skillName }: { skillName: string }) {
                 {generating ? "生成中..." : "生成"}
               </Button>
             </div>
-            <CopywritingReferenceImages />
           </CardContent>
         </Card>
 

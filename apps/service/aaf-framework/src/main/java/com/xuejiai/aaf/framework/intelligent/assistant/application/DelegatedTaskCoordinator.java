@@ -1030,7 +1030,7 @@ public final class DelegatedTaskCoordinator {
         }
         var order = stringList(node.get("executorOrder"), "executorOrder");
         var separatorNode = node.get("separator");
-        var separator = separatorNode == null ? "" : separatorNode.asText();
+        var separator = separatorNode == null ? "" : separatorNode.asString();
         return new CoordinationPlan.AggregationContract(kind, order, separator);
     }
 
@@ -1042,11 +1042,11 @@ public final class DelegatedTaskCoordinator {
                 .forEach(
                         name -> {
                             var source = node.get(name);
-                            if (name.isBlank() || source == null || !source.isTextual()) {
+                            if (name.isBlank() || source == null || !source.isString()) {
                                 throw new IllegalArgumentException(
                                         "inputBindings 必须是名称到 sourceSubTaskId 的字符串映射");
                             }
-                            bindings.put(name, new CoordinationPlan.InputBinding(source.asText()));
+                            bindings.put(name, new CoordinationPlan.InputBinding(source.asString()));
                         });
         return Map.copyOf(bindings);
     }
@@ -1062,10 +1062,10 @@ public final class DelegatedTaskCoordinator {
         }
         var values = new java.util.ArrayList<String>();
         for (var value : node) {
-            if (!value.isTextual() || value.asText().isBlank()) {
+            if (!value.isString() || value.asString().isBlank()) {
                 throw new IllegalArgumentException(field + " 只能包含非空字符串");
             }
-            values.add(value.asText().trim());
+            values.add(value.asString().trim());
         }
         return List.copyOf(values);
     }
@@ -1085,12 +1085,12 @@ public final class DelegatedTaskCoordinator {
     private static String requiredText(JsonNode node, String field) {
         var value = node.get(field);
         if (value == null
-                || !value.isTextual()
-                || value.asText().isBlank()
-                || value.asText().length() > 4_000) {
+                || !value.isString()
+                || value.asString().isBlank()
+                || value.asString().length() > 4_000) {
             throw new IllegalArgumentException("协调计划字段不合法: " + field);
         }
-        return value.asText().trim();
+        return value.asString().trim();
     }
 
     private static int optionalPositive(JsonNode node, String field, int defaultValue) {

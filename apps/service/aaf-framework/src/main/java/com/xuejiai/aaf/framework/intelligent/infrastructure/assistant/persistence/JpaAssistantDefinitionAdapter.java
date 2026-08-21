@@ -243,8 +243,8 @@ public final class JpaAssistantDefinitionAdapter implements AssistantDefinitionP
             for (var item : root) {
                 if (!item.isObject()
                         || item.size() != 2
-                        || !item.path("skillKey").isTextual()
-                        || !item.path("activationMode").isTextual()) {
+                        || !item.path("skillKey").isString()
+                        || !item.path("activationMode").isString()) {
                     throw new IllegalStateException(
                             fieldName + " 每项必须且只能包含 skillKey/activationMode");
                 }
@@ -279,7 +279,7 @@ public final class JpaAssistantDefinitionAdapter implements AssistantDefinitionP
             }
             var values = new java.util.LinkedHashSet<String>();
             for (var item : root) {
-                if (!item.isTextual() || !values.add(item.textValue())) {
+                if (!item.isString() || !values.add(item.textValue())) {
                     throw new IllegalStateException(fieldName + " 必须是无重复值的 JSON 字符串数组");
                 }
             }

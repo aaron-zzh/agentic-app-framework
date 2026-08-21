@@ -62,8 +62,8 @@ public class RoleStoreImpl implements RoleStore {
             for (var item : root) {
                 if (!item.isObject()
                         || item.size() != 2
-                        || !item.path("skillKey").isTextual()
-                        || !item.path("activationMode").isTextual()) {
+                        || !item.path("skillKey").isString()
+                        || !item.path("activationMode").isString()) {
                     throw new IllegalStateException(
                             fieldName + " 每项必须且只能包含 skillKey/activationMode");
                 }
@@ -90,7 +90,7 @@ public class RoleStoreImpl implements RoleStore {
             }
             var values = new ArrayList<String>();
             for (var item : root) {
-                if (!item.isTextual()) {
+                if (!item.isString()) {
                     throw new IllegalStateException(fieldName + " 必须是 JSON 字符串数组");
                 }
                 values.add(item.textValue());
