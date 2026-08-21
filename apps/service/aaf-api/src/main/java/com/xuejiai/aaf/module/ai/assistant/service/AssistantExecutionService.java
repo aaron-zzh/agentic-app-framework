@@ -1,21 +1,16 @@
 package com.xuejiai.aaf.module.ai.assistant.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+import static com.xuejiai.aaf.module.ai.assistant.AssistantErrorCode.*;
+
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.common.exception.ErrorCode;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentMessage;
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentMessage.Attachment;
@@ -26,20 +21,13 @@ import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantInvo
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.InvocationProfile;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.InvocationProfile.ContextPlan;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionCriteria;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.*;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceReference;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceType;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract.ResponsibleOwner;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent.ArtifactPolicy;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent.OutputKind;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillActivationMode;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillBinding;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard.AssistantTarget;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskModelSelection;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.SystemSkillBindingPort;
 import com.xuejiai.aaf.framework.intelligent.automation.application.DefinitionLifecycleService;
@@ -50,16 +38,7 @@ import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.Subjec
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
-import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AssistantId;
-import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ConversationId;
-import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.CorrelationId;
-import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
-import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.IdempotencyKey;
-import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.RunId;
-import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.SessionId;
-import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
-import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
-import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.*;
 import com.xuejiai.aaf.framework.intelligent.team.model.TeamDefinition;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
@@ -110,66 +89,21 @@ public class AssistantExecutionService {
         return start(
                 request,
                 RunIdentity.create(threadId, runId),
-                new TeamTarget(requireText(teamId, "teamId 不能为空"), teamVersion));
+                new TeamTarget(requireText(teamId, EXECUTION_TEAM_ID_REQUIRED), teamVersion));
     }
 
     private ExecutionStream start(
             AssistantExecutionRequest request, RunIdentity runIdentity, TeamTarget teamTarget) {
         Objects.requireNonNull(runIdentity, "runIdentity 不能为空");
-        if (request == null) {
-            throw badRequest("请求体不能为空");
-        }
-        if (request.input() == null) {
-            throw badRequest("input 不能为空");
-        }
-        if (request.input().variables() == null) {
-            throw badRequest("input.variables 不能为空");
-        }
-        if (request.input().attachments() == null) {
-            throw badRequest("input.attachments 不能为空");
-        }
-        if (request.execution() == null
-                || request.execution().interactionMode() == null
-                || request.execution().routeConstraint() == null
-                || request.execution().clarificationPolicy() == null
-                || request.execution().actionAuthorizationPolicy() == null
-                || request.execution().artifactPersistence() == null) {
-            throw badRequest("execution 及其模式字段不能为空");
-        }
         var knowledge = request.knowledge();
-        if (knowledge == null) {
-            throw badRequest("knowledge 不能为空");
-        }
-        if (knowledge.mode() == null) {
-            throw badRequest("knowledge.mode 不能为空");
-        }
-        if (knowledge.knowledgeBaseIds() == null) {
-            throw badRequest("knowledge.knowledgeBaseIds 不能为空");
-        }
-        if (knowledge.topK() == null) {
-            throw badRequest("knowledge.topK 不能为空");
-        }
-        if (knowledge.similarityThreshold() == null) {
-            throw badRequest("knowledge.similarityThreshold 不能为空");
-        }
         if (knowledge.mode() == AssistantExecutionRequest.KnowledgeMode.EXPLICIT
                 && knowledge.knowledgeBaseIds().isEmpty()) {
-            throw badRequest("EXPLICIT knowledge 必须指定 knowledgeBaseIds");
+            throw exception(EXECUTION_EXPLICIT_KNOWLEDGE_IDS_REQUIRED);
         }
         if (knowledge.mode() != AssistantExecutionRequest.KnowledgeMode.EXPLICIT
                 && !knowledge.knowledgeBaseIds().isEmpty()) {
-            throw badRequest("仅 EXPLICIT knowledge 可以指定 knowledgeBaseIds");
+            throw exception(EXECUTION_KNOWLEDGE_IDS_REQUIRE_EXPLICIT_MODE);
         }
-        if (request.model() == null) {
-            throw badRequest("model 不能为空");
-        }
-        if (request.memory() == null || request.memory().mode() == null) {
-            throw badRequest("memory.mode 不能为空");
-        }
-        if (request.output() == null) {
-            throw badRequest("output 不能为空");
-        }
-
         log.debug(
                 "[文案执行] 收到任务请求：assistantTarget={}，声明Role={}，声明Skill={}，模型模式={}，记忆模式={}，知识库数={}，附件数={}，变量数={}，输入长度={}",
                 request.assistant() == null ? null : request.assistant().id(),
@@ -193,7 +127,7 @@ public class AssistantExecutionService {
                 && (request.assistant() != null
                         || request.role() != null
                         || request.skill() != null)) {
-            throw badRequest("TEAM 模式由已发布 Team 冻结 Assistant/Role/Skill，请求不得覆盖");
+            throw exception(EXECUTION_TEAM_OVERRIDE_FORBIDDEN);
         }
         if (resolvedTeam != null
                 && (request.execution().interactionMode()
@@ -202,7 +136,7 @@ public class AssistantExecutionService {
                                 != AssistantExecutionRequest.RouteConstraint.AUTO
                         || request.execution().artifactPersistence()
                                 != AssistantExecutionRequest.ArtifactPersistence.RETURN_ONLY)) {
-            throw badRequest("TEAM 模式仅支持 CONVERSATIONAL/AUTO/RETURN_ONLY");
+            throw exception(EXECUTION_TEAM_OPTIONS_UNSUPPORTED);
         }
         var definition =
                 resolvedTeam == null
@@ -239,12 +173,12 @@ public class AssistantExecutionService {
         }
         if (executionIntent.interactionMode() == ExecutionIntent.InteractionMode.TASK
                 && "JSON".equals(outputContract.format())) {
-            throw badRequest("文案 TASK/FIXED 的规范输出必须是 text/markdown");
+            throw exception(EXECUTION_TASK_JSON_OUTPUT_UNSUPPORTED);
         }
         var spec =
                 new ExecutionSpec(
                         definition.assistantId().value(),
-                        requireText(request.input().text(), "input.text 不能为空"),
+                        requireText(request.input().text(), EXECUTION_INPUT_TEXT_REQUIRED),
                         requestedSkillKey,
                         normalizeKnowledgeBaseIds(knowledge.knowledgeBaseIds()),
                         knowledge.topK(),
@@ -589,12 +523,12 @@ public class AssistantExecutionService {
         }
         var resolved = visionMediaResolver.resolve(imageFileKeys);
         if (resolved.size() != imageFileKeys.size()) {
-            throw badRequest("图片材料解析结果不完整");
+            throw exception(EXECUTION_IMAGE_RESOLUTION_INCOMPLETE);
         }
         var attachments = new ArrayList<Attachment>(resolved.size());
         for (var image : resolved) {
             if (image.type() != VisionAttachment.AttachmentType.IMAGE) {
-                throw badRequest("IMAGE 材料必须引用图片文件: " + image.fileKey());
+                throw exception(EXECUTION_IMAGE_TYPE_INVALID);
             }
             attachments.add(
                     new Attachment(
@@ -675,13 +609,13 @@ public class AssistantExecutionService {
         if (interactionMode == ExecutionIntent.InteractionMode.CONVERSATIONAL) {
             if (options.artifactPersistence()
                     != AssistantExecutionRequest.ArtifactPersistence.RETURN_ONLY) {
-                throw badRequest("CONVERSATIONAL 执行仅支持 RETURN_ONLY");
+                throw exception(EXECUTION_CONVERSATIONAL_RETURN_ONLY_REQUIRED);
             }
             var roleKey = request.role() == null ? null : normalize(request.role().key());
             var skillKey = request.skill() == null ? null : normalize(request.skill().code());
             if (roleKey == null && skillKey == null) {
                 if (routeConstraint != ExecutionIntent.RouteConstraint.AUTO) {
-                    throw badRequest("未指定 Role+Skill 的 CONVERSATIONAL 执行必须使用 AUTO Route");
+                    throw exception(EXECUTION_CONVERSATIONAL_AUTO_ROUTE_REQUIRED);
                 }
                 return new ExecutionIntent(
                         interactionMode,
@@ -694,20 +628,20 @@ public class AssistantExecutionService {
                         trustedWorkspaceId);
             }
             if (roleKey == null || skillKey == null) {
-                throw badRequest("显式对话路由必须同时指定 Role 和 Skill");
+                throw exception(EXECUTION_CONVERSATIONAL_ROUTE_INCOMPLETE);
             }
             if (routeConstraint != ExecutionIntent.RouteConstraint.FIXED) {
-                throw badRequest("显式 Role+Skill 的 CONVERSATIONAL 执行必须使用 FIXED Route");
+                throw exception(EXECUTION_CONVERSATIONAL_FIXED_ROUTE_REQUIRED);
             }
             final com.xuejiai.aaf.framework.intelligent.assistant.model.Role role;
             try {
                 role = definition.requireRole(roleKey);
             } catch (IllegalArgumentException exception) {
-                throw badRequest("请求 Role 不属于当前 Assistant");
+                throw exception(EXECUTION_ROUTE_ROLE_NOT_FOUND);
             }
             if (!candidateOnDemandSkillKeys(definition, role, systemOnDemandSkillKeys)
                     .contains(skillKey)) {
-                throw badRequest("FIXED Route 只能引用当前 Scope 的 ON_DEMAND Skill");
+                throw exception(EXECUTION_ROUTE_SKILL_NOT_AVAILABLE);
             }
             return new ExecutionIntent(
                     interactionMode,
@@ -721,22 +655,22 @@ public class AssistantExecutionService {
                     trustedWorkspaceId);
         }
         if (routeConstraint != ExecutionIntent.RouteConstraint.FIXED) {
-            throw badRequest("TASK 执行必须使用 FIXED Route");
+            throw exception(EXECUTION_TASK_FIXED_ROUTE_REQUIRED);
         }
         var roleKey = request.role() == null ? null : normalize(request.role().key());
         var skillKey = request.skill() == null ? null : normalize(request.skill().code());
         if (roleKey == null || skillKey == null) {
-            throw badRequest("TASK/FIXED 必须指定 Role 和 Skill");
+            throw exception(EXECUTION_TASK_ROUTE_INCOMPLETE);
         }
         final com.xuejiai.aaf.framework.intelligent.assistant.model.Role role;
         try {
             role = definition.requireRole(roleKey);
         } catch (IllegalArgumentException exception) {
-            throw badRequest("请求 Role 不属于当前 Assistant");
+            throw exception(EXECUTION_ROUTE_ROLE_NOT_FOUND);
         }
         if (!candidateOnDemandSkillKeys(definition, role, systemOnDemandSkillKeys)
                 .contains(skillKey)) {
-            throw badRequest("FIXED Route 只能引用当前 Scope 的 ON_DEMAND Skill");
+            throw exception(EXECUTION_ROUTE_SKILL_NOT_AVAILABLE);
         }
         var artifactPolicy =
                 options.artifactPersistence()
@@ -843,7 +777,8 @@ public class AssistantExecutionService {
             switch (context.sourceType()) {
                 case TASK_MATERIAL, RULE, SKILL ->
                         taskMaterials.add(new TaskMaterial(reference, message));
-                case MEMORY, KNOWLEDGE -> throw badRequest("MEMORY/KNOWLEDGE 上下文必须由执行期 L1 授权检索");
+                case MEMORY, KNOWLEDGE ->
+                        throw exception(EXECUTION_CONTROLLED_CONTEXT_SOURCE_FORBIDDEN);
             }
         }
     }
@@ -857,12 +792,12 @@ public class AssistantExecutionService {
                 requestedId == null
                         ? assistantDefinitions
                                 .findDefaultForUser(tenantId, userId)
-                                .orElseThrow(() -> notFound("当前认证用户没有可用的默认 Assistant"))
+                                .orElseThrow(() -> exception(EXECUTION_DEFAULT_ASSISTANT_NOT_FOUND))
                         : assistantDefinitions
                                 .findById(tenantId, new AssistantId(requestedId))
-                                .orElseThrow(() -> notFound("Assistant 定义不存在: " + requestedId));
+                                .orElseThrow(() -> exception(EXECUTION_ASSISTANT_NOT_FOUND));
         if (definition.lifecycle() != AssistantDefinition.Lifecycle.PUBLISHED) {
-            throw badRequest("Assistant 定义不可执行: " + definition.lifecycle());
+            throw exception(EXECUTION_ASSISTANT_NOT_EXECUTABLE);
         }
         requireExecutableBy(identity, definition);
         return definition;
@@ -870,7 +805,7 @@ public class AssistantExecutionService {
 
     private ResolvedTeam resolveTeam(TeamTarget target, Identity identity) {
         if (target.version() < 1) {
-            throw badRequest("teamVersion 必须大于 0");
+            throw exception(EXECUTION_TEAM_VERSION_INVALID);
         }
         var tenantId = new TenantId(identity.orgId().toString());
         final TeamDefinition definition;
@@ -879,9 +814,9 @@ public class AssistantExecutionService {
                     definitionLifecycles.requirePublishedTeam(
                             tenantId, target.teamId(), target.version());
         } catch (IllegalArgumentException failure) {
-            throw notFound("Team 定义版本不存在");
+            throw exception(EXECUTION_TEAM_NOT_FOUND);
         } catch (IllegalStateException failure) {
-            throw badRequest("Team 定义版本不可执行");
+            throw exception(EXECUTION_TEAM_NOT_EXECUTABLE);
         }
         var leader = resolveTeamMember(tenantId, identity, definition.leader());
         var workers = new LinkedHashMap<String, AssistantTarget>();
@@ -891,7 +826,7 @@ public class AssistantExecutionService {
                         member -> {
                             var resolved = resolveTeamMember(tenantId, identity, member);
                             if (workers.put(member.memberKey(), resolved.target()) != null) {
-                                throw badRequest("Team Worker memberKey 重复");
+                                throw exception(EXECUTION_TEAM_WORKER_KEY_DUPLICATE);
                             }
                         });
         return new ResolvedTeam(
@@ -903,21 +838,26 @@ public class AssistantExecutionService {
         var definition =
                 assistantDefinitions
                         .findById(tenantId, new AssistantId(member.assistantId()))
-                        .orElseThrow(() -> notFound("Team 成员 Assistant 定义不存在"));
+                        .orElseThrow(() -> exception(EXECUTION_TEAM_MEMBER_ASSISTANT_NOT_FOUND));
         if (definition.lifecycle() != AssistantDefinition.Lifecycle.PUBLISHED
                 || definition.version().value() != member.assistantRevision()) {
-            throw badRequest("Team 成员 Assistant revision 不可执行");
+            throw exception(EXECUTION_TEAM_MEMBER_REVISION_INVALID);
         }
         requireExecutableBy(identity, definition);
-        var role = definition.requireRole(member.roleKey());
+        final com.xuejiai.aaf.framework.intelligent.assistant.model.Role role;
+        try {
+            role = definition.requireRole(member.roleKey());
+        } catch (IllegalArgumentException failure) {
+            throw exception(EXECUTION_TEAM_MEMBER_ROLE_NOT_FOUND);
+        }
         var systemOnDemandSkillKeys = systemOnDemandSkillKeys();
         if (!candidateOnDemandSkillKeys(definition, role, systemOnDemandSkillKeys)
                 .contains(member.skillKey())) {
-            throw badRequest("Team 成员 FIXED Route 只能引用当前 Scope 的 ON_DEMAND Skill");
+            throw exception(EXECUTION_TEAM_MEMBER_SKILL_NOT_AVAILABLE);
         }
         if (!definition.toolPolicy().rules().keySet().containsAll(member.allowedToolKeys())
                 || !definition.candidateToolKeys(role).containsAll(member.allowedToolKeys())) {
-            throw badRequest("Team member 工具权限只能收窄 Assistant 与 Role 联合白名单");
+            throw exception(EXECUTION_TEAM_MEMBER_TOOL_SCOPE_INVALID);
         }
         return new ResolvedMember(
                 definition,
@@ -951,12 +891,12 @@ public class AssistantExecutionService {
             AssistantExecutionRequest.OutputOptions requested) {
         var maxCharLen = requested.maxCharLen();
         if (maxCharLen != null && (maxCharLen <= 0 || maxCharLen > MAX_OUTPUT_CHAR_LEN)) {
-            throw badRequest("output.maxCharLen 必须在 1 到 " + MAX_OUTPUT_CHAR_LEN + " 之间");
+            throw exception(EXECUTION_OUTPUT_MAX_LENGTH_INVALID);
         }
         var locale = requested.locale() == null ? null : requested.locale().languageTag();
         var requestedFormat = normalize(requested.format());
         if (requestedFormat != null && !"JSON".equalsIgnoreCase(requestedFormat)) {
-            throw badRequest("output.format 当前仅支持 JSON 严格验证");
+            throw exception(EXECUTION_OUTPUT_FORMAT_UNSUPPORTED);
         }
         return new EffectiveOutputContract(
                 maxCharLen, locale, requestedFormat == null ? null : "JSON");
@@ -1017,21 +957,24 @@ public class AssistantExecutionService {
 
     private static void validate(ExecutionSpec spec) {
         if (spec == null) {
-            throw badRequest("执行规格不能为空");
+            throw exception(EXECUTION_SPEC_REQUIRED);
         }
-        requireText(spec.assistantId(), "assistantId 不能为空");
-        requireText(spec.input(), "input 不能为空");
+        requireText(spec.assistantId(), EXECUTION_ASSISTANT_ID_REQUIRED);
+        requireText(spec.input(), EXECUTION_INPUT_REQUIRED);
         if (spec.knowledgeBaseIds().size() > MAX_KNOWLEDGE_BASES) {
-            throw badRequest("knowledgeBaseIds 最多允许 20 个");
+            throw exception(EXECUTION_KNOWLEDGE_BASE_LIMIT_EXCEEDED);
         }
         if (spec.topK() <= 0 || spec.topK() > MAX_TOP_K) {
-            throw badRequest("topK 必须在 1 到 20 之间");
+            throw exception(EXECUTION_TOP_K_OUT_OF_RANGE);
         }
         if (!Double.isFinite(spec.threshold()) || spec.threshold() < 0 || spec.threshold() > 1) {
-            throw badRequest("similarityThreshold 必须在 0 到 1 之间");
+            throw exception(EXECUTION_SIMILARITY_THRESHOLD_OUT_OF_RANGE);
         }
-        if (spec.modelSelection() == null || spec.memoryMode() == null) {
-            throw badRequest("modelSelection 和 memoryMode 不能为空");
+        if (spec.modelSelection() == null) {
+            throw exception(EXECUTION_MODEL_SELECTION_REQUIRED);
+        }
+        if (spec.memoryMode() == null) {
+            throw exception(EXECUTION_MEMORY_MODE_REQUIRED);
         }
     }
 
@@ -1041,14 +984,16 @@ public class AssistantExecutionService {
             return parsed;
         }
         if (input.variables().size() > 100) {
-            throw badRequest("input.variables 最多允许 100 个变量");
+            throw exception(EXECUTION_INPUT_VARIABLE_LIMIT_EXCEEDED);
         }
-        input.variables().keySet().forEach(key -> requireText(key, "input.variables 变量名不能为空"));
+        input.variables()
+                .keySet()
+                .forEach(key -> requireText(key, EXECUTION_INPUT_VARIABLE_NAME_REQUIRED));
         final String variables;
         try {
             variables = JsonUtils.toJsonString(input.variables());
         } catch (RuntimeException failure) {
-            throw badRequest("input.variables 必须可序列化为 JSON");
+            throw exception(EXECUTION_INPUT_VARIABLES_NOT_SERIALIZABLE);
         }
         var materials = new ArrayList<TextMaterial>(parsed.textMaterials().size() + 1);
         materials.add(new TextMaterial("结构化输入变量", variables));
@@ -1066,29 +1011,28 @@ public class AssistantExecutionService {
         for (var index = 0; index < attachments.size(); index++) {
             var attachment = attachments.get(index);
             if (attachment == null || attachment.type() == null) {
-                throw badRequest("input.attachments[%d].type 不能为空".formatted(index));
+                throw exception(EXECUTION_ATTACHMENT_TYPE_REQUIRED);
             }
             switch (attachment.type()) {
                 case TEXT -> {
                     if (attachment.resourceId() != null && !attachment.resourceId().isBlank()) {
-                        throw badRequest("TEXT 附件不允许设置 resourceId");
+                        throw exception(EXECUTION_TEXT_ATTACHMENT_RESOURCE_FORBIDDEN);
                     }
                     textMaterials.add(
                             new TextMaterial(
                                     normalizeMaterialName(attachment.name(), index),
                                     requireText(
                                             attachment.content(),
-                                            "input.attachments[%d].content 不能为空"
-                                                    .formatted(index))));
+                                            EXECUTION_TEXT_ATTACHMENT_CONTENT_REQUIRED)));
                 }
                 case IMAGE -> {
                     if (attachment.content() != null && !attachment.content().isBlank()) {
-                        throw badRequest("IMAGE 附件不允许设置 content");
+                        throw exception(EXECUTION_IMAGE_ATTACHMENT_CONTENT_FORBIDDEN);
                     }
                     imageFileKeys.add(
                             requireText(
                                     attachment.resourceId(),
-                                    "input.attachments[%d].resourceId 不能为空".formatted(index)));
+                                    EXECUTION_IMAGE_ATTACHMENT_RESOURCE_REQUIRED));
                 }
             }
         }
@@ -1102,27 +1046,28 @@ public class AssistantExecutionService {
     private static TaskModelSelection modelSelection(
             AssistantExecutionRequest.ModelSelection model) {
         if (model == null) {
-            throw badRequest("model 不能为空");
+            throw exception(EXECUTION_MODEL_REQUIRED);
         }
         if (model.mode() == null) {
-            throw badRequest("model.mode 不能为空");
+            throw exception(EXECUTION_MODEL_MODE_REQUIRED);
         }
         return switch (model.mode()) {
             case AUTO -> {
                 if (model.modelId() != null) {
-                    throw badRequest("AUTO model 不允许指定 modelId");
+                    throw exception(EXECUTION_AUTO_MODEL_ID_FORBIDDEN);
                 }
                 yield TaskModelSelection.auto();
             }
             case EXPLICIT ->
-                    TaskModelSelection.explicit(requireText(model.modelId(), "model.modelId 不能为空"));
+                    TaskModelSelection.explicit(
+                            requireText(model.modelId(), EXECUTION_EXPLICIT_MODEL_ID_REQUIRED));
         };
     }
 
     private static AssistantInvocation.MemoryMode memoryMode(
             AssistantExecutionRequest.MemoryMode mode) {
         if (mode == null) {
-            throw badRequest("memoryMode 不能为空");
+            throw exception(EXECUTION_MEMORY_MODE_REQUIRED);
         }
         return switch (mode) {
             case DEFAULT -> AssistantInvocation.MemoryMode.DEFAULT;
@@ -1135,7 +1080,7 @@ public class AssistantExecutionService {
             return Set.of();
         }
         if (ids.contains(null)) {
-            throw badRequest("knowledgeBaseIds 不能包含 null");
+            throw exception(EXECUTION_KNOWLEDGE_BASE_ID_REQUIRED);
         }
         return Set.copyOf(new LinkedHashSet<>(ids));
     }
@@ -1144,12 +1089,14 @@ public class AssistantExecutionService {
         if (fileKeys == null || fileKeys.isEmpty()) {
             return List.of();
         }
-        return fileKeys.stream().map(key -> requireText(key, "图片 fileKey 不能为空")).toList();
+        return fileKeys.stream()
+                .map(key -> requireText(key, EXECUTION_IMAGE_FILE_KEY_REQUIRED))
+                .toList();
     }
 
-    private static String requireText(String value, String message) {
+    private static String requireText(String value, ErrorCode errorCode) {
         if (value == null || value.isBlank()) {
-            throw badRequest(message);
+            throw exception(errorCode);
         }
         return value.trim();
     }
@@ -1178,19 +1125,11 @@ public class AssistantExecutionService {
         return value.substring(0, end);
     }
 
-    private static BusinessException badRequest(String message) {
-        return new BusinessException(GlobalErrorCode.BAD_REQUEST, message);
-    }
-
-    private static BusinessException notFound(String message) {
-        return new BusinessException(GlobalErrorCode.NOT_FOUND, message);
-    }
-
     public record ExecutionStream(String executionId, Flux<ExecutionEvent> events) {
         public ExecutionStream {
-            executionId = requireText(executionId, "executionId 不能为空");
+            executionId = requireText(executionId, EXECUTION_ID_REQUIRED);
             if (events == null) {
-                throw badRequest("events 不能为空");
+                throw exception(EXECUTION_EVENTS_REQUIRED);
             }
         }
     }
@@ -1216,15 +1155,15 @@ public class AssistantExecutionService {
             controlledContexts =
                     controlledContexts == null ? List.of() : List.copyOf(controlledContexts);
             if (executionIntent == null) {
-                throw badRequest("executionIntent 不能为空");
+                throw exception(EXECUTION_INTENT_REQUIRED);
             }
         }
     }
 
     public record TextMaterial(String name, String content) {
         public TextMaterial {
-            name = requireText(name, "材料名称不能为空");
-            content = requireText(content, "材料内容不能为空");
+            name = requireText(name, EXECUTION_MATERIAL_NAME_REQUIRED);
+            content = requireText(content, EXECUTION_MATERIAL_CONTENT_REQUIRED);
         }
     }
 
@@ -1240,14 +1179,14 @@ public class AssistantExecutionService {
 
         public ControlledContext {
             if (sourceType == null) {
-                throw badRequest("受控上下文 sourceType 不能为空");
+                throw exception(EXECUTION_CONTEXT_SOURCE_TYPE_REQUIRED);
             }
-            sourceKey = requireText(sourceKey, "受控上下文 sourceKey 不能为空");
-            version = requireText(version, "受控上下文 version 不能为空");
-            scope = requireText(scope, "受控上下文 scope 不能为空");
-            reason = requireText(reason, "受控上下文 reason 不能为空");
+            sourceKey = requireText(sourceKey, EXECUTION_CONTEXT_SOURCE_KEY_REQUIRED);
+            version = requireText(version, EXECUTION_CONTEXT_VERSION_REQUIRED);
+            scope = requireText(scope, EXECUTION_CONTEXT_SCOPE_REQUIRED);
+            reason = requireText(reason, EXECUTION_CONTEXT_REASON_REQUIRED);
             summary = limitCodePoints(summary == null ? "" : summary.trim(), 256);
-            text = requireText(text, "受控上下文 text 不能为空");
+            text = requireText(text, EXECUTION_CONTEXT_TEXT_REQUIRED);
         }
     }
 
@@ -1287,8 +1226,10 @@ public class AssistantExecutionService {
             ExecutionId executionId,
             RunId runId) {
         private static RunIdentity create(String threadId, String runId) {
-            threadId = requireBoundedId(threadId, "threadId");
-            runId = requireBoundedId(runId, "runId");
+            threadId =
+                    requireBoundedId(
+                            threadId, EXECUTION_THREAD_ID_REQUIRED, EXECUTION_THREAD_ID_TOO_LONG);
+            runId = requireBoundedId(runId, EXECUTION_RUN_ID_REQUIRED, EXECUTION_RUN_ID_TOO_LONG);
             return new RunIdentity(
                     threadId,
                     new ConversationId(threadId),
@@ -1298,10 +1239,11 @@ public class AssistantExecutionService {
                     new RunId(runId));
         }
 
-        private static String requireBoundedId(String value, String field) {
-            value = requireText(value, field + " 不能为空白");
+        private static String requireBoundedId(
+                String value, ErrorCode requiredCode, ErrorCode tooLongCode) {
+            value = requireText(value, requiredCode);
             if (value.length() > 128) {
-                throw badRequest(field + " 长度不能超过 128");
+                throw exception(tooLongCode);
             }
             return value;
         }

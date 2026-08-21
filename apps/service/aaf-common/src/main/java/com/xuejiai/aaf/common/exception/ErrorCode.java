@@ -15,11 +15,27 @@ public interface ErrorCode {
     /** 错误提示信息 */
     String message();
 
-    /** 快捷创建错误码实例 */
+    /** HTTP 响应状态；未显式指定时沿用既有全局错误码映射。 */
+    default int httpStatus() {
+        return switch (code()) {
+            case 401, 403, 404, 409 -> code();
+            default -> 400;
+        };
+    }
+
+    /** 快捷创建错误码实例。 */
     static ErrorCode of(int code, String message) {
         return new SimpleErrorCode(code, message);
     }
 
-    /** 不可变错误码实现 */
+    /** 创建带 HTTP 响应状态的错误码实例。 */
+    static ErrorCode of(int code, int httpStatus, String message) {
+        return new HttpStatusErrorCode(code, httpStatus, message);
+    }
+
+    /** 不可变错误码实现。 */
     record SimpleErrorCode(int code, String message) implements ErrorCode {}
+
+    /** 带 HTTP 响应状态的不可变错误码实现。 */
+    record HttpStatusErrorCode(int code, int httpStatus, String message) implements ErrorCode {}
 }

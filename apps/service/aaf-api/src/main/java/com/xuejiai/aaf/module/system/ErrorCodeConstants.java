@@ -74,7 +74,18 @@ public interface ErrorCodeConstants {
     ErrorCode DICT_TYPE_HAS_DATA = ErrorCode.of(1_005_003, "该字典类型下存在字典数据，请先删除");
 
     // ========== TODO 模块 1_006_000 ==========
-    ErrorCode TODO_NOT_FOUND = ErrorCode.of(1_006_000, "待办不存在");
+    ErrorCode TODO_NOT_FOUND = ErrorCode.of(1_006_000, 404, "待办不存在");
+    ErrorCode TODO_SOURCE_RESOURCE_NOT_FOUND = ErrorCode.of(1_006_001, 404, "待办来源记录不存在");
+    ErrorCode TODO_SHARE_COMMAND_INVALID = ErrorCode.of(1_006_002, "待办分享命令不合法");
+    ErrorCode TODO_SOURCE_TYPE_REQUIRED = ErrorCode.of(1_006_003, "待办来源类型不能为空");
+    ErrorCode TODO_SOURCE_UPDATE_FORBIDDEN = ErrorCode.of(1_006_004, "当前待办来源不可修改");
+    ErrorCode TODO_ASSIGNEE_REQUIRED = ErrorCode.of(1_006_005, "待办执行人不能为空");
+    ErrorCode TODO_SOURCE_REFERENCE_INVALID = ErrorCode.of(1_006_006, "待办来源引用不合法");
+    ErrorCode TODO_VERSION_CONFLICT = ErrorCode.of(1_006_007, 409, "待办已被其他请求修改，请刷新后重试");
+    ErrorCode TODO_TITLE_REQUIRED = ErrorCode.of(1_006_008, "待办标题不能为空");
+    ErrorCode TODO_CATEGORY_INVALID = ErrorCode.of(1_006_009, "待办分类不合法");
+    ErrorCode TODO_STATUS_INVALID = ErrorCode.of(1_006_010, "待办状态不合法");
+    ErrorCode TODO_QUEUE_PAYLOAD_INVALID = ErrorCode.of(1_006_011, "待办清理任务载荷不合法");
 
     // ========== ORG 模块 1_007_000 ==========
     ErrorCode ORG_NOT_FOUND = ErrorCode.of(1_007_000, "组织不存在");

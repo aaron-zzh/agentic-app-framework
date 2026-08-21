@@ -149,15 +149,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<Result<?>> handleBusinessException(BusinessException e) {
         log.info("业务异常: code={}, message={}", e.getCode(), e.getMessage());
-        HttpStatus httpStatus =
-                switch (e.getCode()) {
-                    case 400 -> HttpStatus.BAD_REQUEST;
-                    case 401 -> HttpStatus.UNAUTHORIZED;
-                    case 403 -> HttpStatus.FORBIDDEN;
-                    case 404 -> HttpStatus.NOT_FOUND;
-                    case 409 -> HttpStatus.CONFLICT;
-                    default -> HttpStatus.BAD_REQUEST;
-                };
+        var httpStatus = HttpStatus.resolve(e.getHttpStatus());
+        if (httpStatus == null) {
+            httpStatus = HttpStatus.BAD_REQUEST;
+        }
         return ResponseEntity.status(httpStatus).body(Result.error(e.getCode(), e.getMessage()));
     }
 

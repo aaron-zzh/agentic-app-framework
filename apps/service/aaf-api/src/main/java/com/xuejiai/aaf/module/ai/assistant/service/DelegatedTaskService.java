@@ -1,5 +1,8 @@
 package com.xuejiai.aaf.module.ai.assistant.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+import static com.xuejiai.aaf.module.ai.assistant.AssistantErrorCode.DELEGATED_TASK_NOT_FOUND;
+
 import java.time.Instant;
 import java.util.List;
 
@@ -52,7 +55,7 @@ public class DelegatedTaskService {
     public DelegatedTaskVO get(String taskId) {
         var task =
                 tasks.find(tenantId(), new TaskId(taskId))
-                        .orElseThrow(() -> new IllegalArgumentException("委托任务不存在"))
+                        .orElseThrow(() -> exception(DELEGATED_TASK_NOT_FOUND))
                         .task();
         if (!task.userId().equals(userId())) throw new AccessDeniedException("无权访问该委托任务");
         return toVO(task);

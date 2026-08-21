@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.system.todo.service;
 
 import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.*;
 
 import java.util.Arrays;
 import java.util.List;
@@ -8,14 +9,14 @@ import java.util.function.Consumer;
 
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.enums.sys.TodoCategoryEnum;
 import com.xuejiai.aaf.common.enums.sys.TodoSourceTypeEnum;
 import com.xuejiai.aaf.common.enums.sys.TodoStatusEnum;
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.common.exception.ErrorCode;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.crud.definition.CrudOperation;
@@ -77,9 +78,10 @@ public class TodoService
     @Override
     protected void updateEntity(Todo todo, TodoUpdateDTO dto) {
         requireExpectedVersion(todo, dto.expectedVersion());
-        applyRequired(dto.title(), "title", this::requireTitle, todo::setTitle);
-        applyRequired(dto.category(), "category", this::requireCategory, todo::setCategory);
-        applyRequired(dto.status(), "status", this::requireStatus, todo::setStatus);
+        applyRequired(dto.title(), TODO_TITLE_REQUIRED, this::requireTitle, todo::setTitle);
+        applyRequired(
+                dto.category(), TODO_CATEGORY_INVALID, this::requireCategory, todo::setCategory);
+        applyRequired(dto.status(), TODO_STATUS_INVALID, this::requireStatus, todo::setStatus);
         applyAssignee(todo, dto.assigneeId());
         applyNullable(dto.dueDate(), todo::setDueDate);
         applySourcePatch(todo, dto.source());
@@ -102,7 +104,7 @@ public class TodoService
         var reference = new ResourceReference(sourceEntity, sourceId);
         requireValidReference(reference);
         if (!referenceEnforcementService.canRead(TodoResource.KEY, null, "source", reference)) {
-            throw exception(GlobalErrorCode.CRUD_RESOURCE_NOT_FOUND, "来源记录");
+            throw exception(TODO_SOURCE_RESOURCE_NOT_FOUND);
         }
         var spec =
                 SpecificationBuilder.<Todo>builder()
@@ -146,13 +148,13 @@ public class TodoService
                 || command.subjectId() <= 0
                 || command.relation() == null
                 || command.relation().isBlank()) {
-            throw exception(GlobalErrorCode.BAD_REQUEST);
+            throw exception(TODO_SHARE_COMMAND_INVALID);
         }
         try {
             com.xuejiai.aaf.common.enums.sys.RebacRelationEnum.valueOf(
                     command.relation().trim().toUpperCase(java.util.Locale.ROOT));
         } catch (IllegalArgumentException cause) {
-            throw exception(GlobalErrorCode.BAD_REQUEST);
+            throw exception(TODO_SHARE_COMMAND_INVALID);
         }
     }
 
@@ -179,7 +181,7 @@ public class TodoService
             Long sourceId) {
         requireTitle(title);
         if (sourceType == null) {
-            throw exception(GlobalErrorCode.BAD_REQUEST);
+            throw exception(TODO_SOURCE_TYPE_REQUIRED);
         }
         var source = new ResourceReference(sourceEntity, sourceId);
         var todo = new Todo();
@@ -222,7 +224,7 @@ public class TodoService
             return;
         }
         if (!TodoSourceTypeEnum.isSourceEditable(todo.getSourceType())) {
-            throw exception(GlobalErrorCode.BAD_REQUEST);
+            throw exception(TODO_SOURCE_UPDATE_FORBIDDEN);
         }
         if (source == null) {
             todo.setSourceEntity(null);
@@ -243,7 +245,7 @@ public class TodoService
             return;
         }
         if (patch.isNullValue()) {
-            throw exception(GlobalErrorCode.BAD_REQUEST);
+            throw exception(TODO_ASSIGNEE_REQUIRED);
         }
         var assigneeId = patch.valueOrNull();
         todo.setAssigneeId(assigneeId);
@@ -255,19 +257,19 @@ public class TodoService
                 || target.resource().isBlank()
                 || target.id() == null
                 || target.id() <= 0) {
-            throw exception(GlobalErrorCode.BAD_REQUEST);
+            throw exception(TODO_SOURCE_REFERENCE_INVALID);
         }
     }
 
     private Long currentSubjectId() {
         return operatorContext
                 .currentOwnerId()
-                .orElseThrow(() -> exception(GlobalErrorCode.UNAUTHORIZED));
+                .orElseThrow(() -> new AccessDeniedException("请求未认证"));
     }
 
     private void requireExpectedVersion(Todo todo, Integer expectedVersion) {
         if (expectedVersion == null || expectedVersion != currentVersion(todo)) {
-            throw new BusinessException(409, "待办已被其他请求修改，请刷新后重试");
+            throw exception(TODO_VERSION_CONFLICT);
         }
     }
 
@@ -283,12 +285,12 @@ public class TodoService
     }
 
     private <T> void applyRequired(
-            Patch<T> patch, String field, Consumer<T> validator, Consumer<T> setter) {
+            Patch<T> patch, ErrorCode nullCode, Consumer<T> validator, Consumer<T> setter) {
         if (patch.isAbsent()) {
             return;
         }
         if (patch.isNullValue()) {
-            throw new BusinessException(400, field + " 不能为 null");
+            throw exception(nullCode);
         }
         var value = patch.valueOrNull();
         validator.accept(value);
@@ -303,19 +305,19 @@ public class TodoService
 
     private void requireTitle(String title) {
         if (title == null || title.isBlank()) {
-            throw exception(GlobalErrorCode.BAD_REQUEST);
+            throw exception(TODO_TITLE_REQUIRED);
         }
     }
 
     private void requireCategory(String category) {
         if (Arrays.stream(TodoCategoryEnum.ARRAYS).noneMatch(category::equals)) {
-            throw exception(GlobalErrorCode.BAD_REQUEST);
+            throw exception(TODO_CATEGORY_INVALID);
         }
     }
 
     private void requireStatus(String status) {
         if (Arrays.stream(TodoStatusEnum.ARRAYS).noneMatch(status::equals)) {
-            throw exception(GlobalErrorCode.BAD_REQUEST);
+            throw exception(TODO_STATUS_INVALID);
         }
     }
 }

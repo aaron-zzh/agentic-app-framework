@@ -13,6 +13,6 @@ public final class ExceptionUtil {
 
     public static BusinessException exception(ErrorCode errorCode, Object... params) {
         String message = MessageFormat.format(errorCode.message(), params);
-        return new BusinessException(errorCode.code(), message);
+        return new BusinessException(errorCode, message);
     }
 }

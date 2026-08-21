@@ -35,6 +35,8 @@ import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.RouteCon
 import com.xuejiai.aaf.module.ai.chat.agui.AgUiEvent;
 import com.xuejiai.aaf.module.ai.chat.service.ChatService;
 
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Validator;
 import tools.jackson.databind.JsonNode;
 
 /** AG-UI 唯一入口；无固定 Assistant Bean、无 ThreadLocal、无 legacy fallback。 */
@@ -45,14 +47,17 @@ public class AssistantAguiController {
     private final AssistantExecutionService assistantExecutions;
     private final ChatService chatService;
     private final AgUiProjector agUiProjector;
+    private final Validator validator;
 
     public AssistantAguiController(
             AssistantExecutionService assistantExecutions,
             ChatService chatService,
-            AgUiProjector agUiProjector) {
+            AgUiProjector agUiProjector,
+            Validator validator) {
         this.assistantExecutions = assistantExecutions;
         this.chatService = chatService;
         this.agUiProjector = agUiProjector;
+        this.validator = validator;
     }
 
     @PostMapping(
@@ -100,7 +105,7 @@ public class AssistantAguiController {
         };
     }
 
-    private static AssistantExecutionRequest executionRequest(JsonNode state, String input) {
+    private AssistantExecutionRequest executionRequest(JsonNode state, String input) {
         var requestNode = requireObject(state.get("request"), "state.request");
         final AssistantExecutionRequest executionRequest;
         try {
@@ -109,9 +114,14 @@ public class AssistantAguiController {
             throw new IllegalArgumentException(
                     "state.request 不是有效的 AssistantExecutionRequest", failure);
         }
-        if (executionRequest == null
-                || executionRequest.input() == null
-                || !input.equals(executionRequest.input().text())) {
+        if (executionRequest == null) {
+            throw new IllegalArgumentException("state.request 不能为空");
+        }
+        var violations = validator.validate(executionRequest);
+        if (!violations.isEmpty()) {
+            throw new ConstraintViolationException(violations);
+        }
+        if (!input.equals(executionRequest.input().text())) {
             throw new IllegalArgumentException("state.request.input.text 必须与最后一条 user 消息一致");
         }
         return executionRequest;

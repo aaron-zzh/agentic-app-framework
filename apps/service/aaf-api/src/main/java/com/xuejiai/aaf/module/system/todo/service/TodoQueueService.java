@@ -1,12 +1,13 @@
 package com.xuejiai.aaf.module.system.todo.service;
 
 import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.TODO_QUEUE_PAYLOAD_INVALID;
 
 import java.util.function.Supplier;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
@@ -33,7 +34,7 @@ public class TodoQueueService implements TaskHandler {
         var ownerId =
                 operatorContext
                         .currentOwnerId()
-                        .orElseThrow(() -> exception(GlobalErrorCode.UNAUTHORIZED));
+                        .orElseThrow(() -> new AccessDeniedException("请求未认证"));
         var payload =
                 new ClearDonePayload(
                         ownerId, OrgContext.getCurrentOrgId(), OrgContext.getCurrentWorkspaceId());
@@ -56,7 +57,7 @@ public class TodoQueueService implements TaskHandler {
     public String handle(String taskId, String payloadJson) {
         var payload = JsonUtils.parseObject(payloadJson, ClearDonePayload.class);
         if (payload == null || payload.ownerId() == null || payload.ownerId() <= 0) {
-            throw exception(GlobalErrorCode.BAD_REQUEST);
+            throw exception(TODO_QUEUE_PAYLOAD_INVALID);
         }
         var deletedCount =
                 permissionExecutionService.runAsOwner(

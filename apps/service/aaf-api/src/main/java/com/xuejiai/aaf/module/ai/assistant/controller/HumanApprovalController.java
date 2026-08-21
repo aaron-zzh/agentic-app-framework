@@ -1,10 +1,14 @@
 package com.xuejiai.aaf.module.ai.assistant.controller;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+import static com.xuejiai.aaf.module.ai.assistant.AssistantErrorCode.*;
+
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
 
 import org.springframework.http.MediaType;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -14,8 +18,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HitlCoordinatorPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HitlCoordinatorPort.DecisionCommand;
@@ -86,7 +88,7 @@ public class HumanApprovalController {
         if (approval.status()
                 != com.xuejiai.aaf.framework.intelligent.assistant.model.HumanApproval.Status
                         .APPROVED) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "仅批准决定可恢复执行");
+            throw exception(APPROVAL_RECOVERY_REQUIRES_APPROVED);
         }
         return Result.success(recoveries.recover(currentTenant(), approvalId));
     }
@@ -143,10 +145,9 @@ public class HumanApprovalController {
         var approval =
                 approvals
                         .find(currentTenant(), approvalId)
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "审批不存在"));
+                        .orElseThrow(() -> exception(APPROVAL_NOT_FOUND));
         if (!approval.invocationContext().userId().value().equals(currentUser())) {
-            throw new BusinessException(GlobalErrorCode.FORBIDDEN);
+            throw new AccessDeniedException("无权访问该审批");
         }
         return approval;
     }
@@ -155,13 +156,13 @@ public class HumanApprovalController {
         return operatorContext
                 .currentOwnerId()
                 .map(String::valueOf)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.UNAUTHORIZED));
+                .orElseThrow(() -> new AccessDeniedException("请求未认证"));
     }
 
     private TenantId currentTenant() {
         var orgId = OrgContext.getCurrentOrgId();
         if (orgId == null) {
-            throw new BusinessException(GlobalErrorCode.FORBIDDEN, "请求缺少已校验的组织上下文");
+            throw new AccessDeniedException("请求缺少已校验的组织上下文");
         }
         return new TenantId(orgId.toString());
     }
