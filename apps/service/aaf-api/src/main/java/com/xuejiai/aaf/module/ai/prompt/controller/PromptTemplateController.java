@@ -20,7 +20,6 @@ import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.crud.BaseCrudController;
-import com.xuejiai.aaf.framework.crud.dto.FilterPayloadParser;
 import com.xuejiai.aaf.framework.crud.enforcement.AccessMode;
 import com.xuejiai.aaf.framework.engine.prompt.PromptTemplate;
 import com.xuejiai.aaf.framework.security.license.FeatureRequired;
@@ -83,7 +82,7 @@ public class PromptTemplateController
             @Validated PromptTemplatePageDTO request,
             @RequestParam(defaultValue = "list") String fieldSet,
             @RequestParam(required = false) String filter) {
-        var filters = FilterPayloadParser.parse(filter);
+        var filters = parseFilters(filter);
         return Result.success(
                 governanceRequested()
                         ? service.queryWindowGovernance(request, fieldSet, filters)

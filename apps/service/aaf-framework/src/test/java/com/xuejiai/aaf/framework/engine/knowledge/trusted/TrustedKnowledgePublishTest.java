@@ -179,10 +179,18 @@ class TrustedKnowledgePublishTest {
                 status,
                 "prompt",
                 "prompt-digest",
+                1,
+                "user prompt",
+                "user-prompt-digest",
+                1,
                 EntityExtractionPrompt.OUTPUT_CONTRACT_VERSION,
                 "extraction-model",
                 "resolution prompt",
                 "resolution-prompt-digest",
+                1,
+                "resolution user prompt",
+                "resolution-user-prompt-digest",
+                1,
                 EntityResolutionPrompt.OUTPUT_CONTRACT_VERSION,
                 "resolution-model");
     }

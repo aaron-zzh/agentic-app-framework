@@ -21,6 +21,7 @@ import com.xuejiai.aaf.common.model.PageParam;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.crud.dto.*;
+import com.xuejiai.aaf.framework.crud.filter.CrudFilter;
 import com.xuejiai.aaf.framework.util.ExcelUtils;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -78,6 +79,15 @@ public abstract class BaseCrudController<E extends BaseEntity, V, C, U, P extend
                     String filter) {
         return Result.success(
                 getService().queryWindow(request, fieldSet, FilterPayloadParser.parse(filter)));
+    }
+
+    /**
+     * 解析 Base64URL 编码的 AND 筛选条件。
+     *
+     * <p>子类自定义列表接口时复用同一套解析规则，解析器本身保持包内可见，不外泄到框架使用方。
+     */
+    protected static List<CrudFilter> parseFilters(String filter) {
+        return FilterPayloadParser.parse(filter);
     }
 
     /**

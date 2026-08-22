@@ -68,6 +68,11 @@ public class KnowledgeIngestConfigurationService {
                         () -> new IllegalStateException("系统模型偏好没有已启用的 CHAT 模型: " + capability));
     }
 
+    /**
+     * 入库配置快照。
+     *
+     * <p>指纹使用的摘要必须同时覆盖 system 与 user 两个模板——只取其一时，改动另一个不会让指纹失效，会导致复用陈旧的入库结果。
+     */
     public record Snapshot(
             ResolvedPromptTemplate extractionSystem,
             ResolvedPromptTemplate extractionUser,
@@ -76,5 +81,21 @@ public class KnowledgeIngestConfigurationService {
             ResolvedPromptTemplate entityResolutionSystem,
             ResolvedPromptTemplate entityResolutionUser,
             String entityResolutionOutputContractVersion,
-            String entityResolutionModelId) {}
+            String entityResolutionModelId) {
+
+        /** 事实抽取 system + user 模板对的合并摘要。 */
+        public String extractionPromptPairDigest() {
+            return pairDigest(extractionSystem, extractionUser);
+        }
+
+        /** 实体归一 system + user 模板对的合并摘要。 */
+        public String entityResolutionPromptPairDigest() {
+            return pairDigest(entityResolutionSystem, entityResolutionUser);
+        }
+
+        private static String pairDigest(
+                ResolvedPromptTemplate system, ResolvedPromptTemplate user) {
+            return TrustedKnowledgeStore.sha256(system.sha256() + "|" + user.sha256());
+        }
+    }
 }

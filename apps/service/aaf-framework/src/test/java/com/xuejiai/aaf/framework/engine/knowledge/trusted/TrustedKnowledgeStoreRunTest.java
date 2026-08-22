@@ -19,6 +19,7 @@ import com.xuejiai.aaf.framework.engine.knowledge.graph.EntityExtractionPrompt;
 import com.xuejiai.aaf.framework.engine.knowledge.graph.EntityResolutionPrompt;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeUsagePort.BillingContext;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore.RunContext;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.ResolvedPromptTemplate;
 
 class TrustedKnowledgeStoreRunTest {
 
@@ -145,10 +146,18 @@ class TrustedKnowledgeStoreRunTest {
                         "PROCESSING",
                         "prompt snapshot",
                         "prompt-digest",
+                        1,
+                        "user prompt snapshot",
+                        "user-prompt-digest",
+                        1,
                         EntityExtractionPrompt.OUTPUT_CONTRACT_VERSION,
                         "extraction-model",
                         "resolution prompt snapshot",
                         "resolution-prompt-digest",
+                        1,
+                        "resolution user prompt snapshot",
+                        "resolution-user-prompt-digest",
+                        1,
                         EntityResolutionPrompt.OUTPUT_CONTRACT_VERSION,
                         "resolution-model");
         var jdbc =
@@ -209,14 +218,24 @@ class TrustedKnowledgeStoreRunTest {
 
     private KnowledgeIngestConfigurationService.Snapshot snapshot() {
         return new KnowledgeIngestConfigurationService.Snapshot(
-                "prompt snapshot",
-                "prompt-digest",
+                template("aaf.knowledge.fact-extraction.system", "prompt snapshot", 'a'),
+                template("aaf.knowledge.fact-extraction.user", "user prompt snapshot", 'b'),
                 EntityExtractionPrompt.OUTPUT_CONTRACT_VERSION,
                 "extraction-model",
-                "resolution prompt snapshot",
-                "resolution-prompt-digest",
+                template(
+                        "aaf.knowledge.entity-resolution.system",
+                        "resolution prompt snapshot",
+                        'c'),
+                template(
+                        "aaf.knowledge.entity-resolution.user",
+                        "resolution user prompt snapshot",
+                        'd'),
                 EntityResolutionPrompt.OUTPUT_CONTRACT_VERSION,
                 "resolution-model");
+    }
+
+    private static ResolvedPromptTemplate template(String name, String content, char digestFill) {
+        return new ResolvedPromptTemplate(name, 1, content, String.valueOf(digestFill).repeat(64));
     }
 
     private int indexOf(List<String> sql, String fragment) {
