@@ -59,28 +59,30 @@ public final class PromptAssembler {
                                         assistant.version().value(),
                                         request.executionSpec().identifier(),
                                         request.executionSpec().description())));
-        sources.add(
-                source(
-                        PromptLayerKind.IDENTITY,
-                        PromptSourceKind.ASSISTANT_PERSONA,
-                        persona.personaKey(),
-                        Integer.toString(persona.personaRevision()),
-                        """
-                        ## Assistant Persona
-                        personaKey：%s
-                        名称：%s
-                        定位：%s
-                        人格：%s
-                        表达风格：%s
-                        基础约束：%s
-                        """
-                                .formatted(
-                                        persona.personaKey(),
-                                        persona.name(),
-                                        persona.description(),
-                                        persona.personality(),
-                                        persona.speakingStyle(),
-                                        persona.instructions())));
+        if (personaApplies(request.invocationPolicy())) {
+            sources.add(
+                    source(
+                            PromptLayerKind.IDENTITY,
+                            PromptSourceKind.ASSISTANT_PERSONA,
+                            persona.personaKey(),
+                            Integer.toString(persona.personaRevision()),
+                            """
+                            ## Assistant Persona
+                            personaKey：%s
+                            名称：%s
+                            定位：%s
+                            人格：%s
+                            表达风格：%s
+                            基础约束：%s
+                            """
+                                    .formatted(
+                                            persona.personaKey(),
+                                            persona.name(),
+                                            persona.description(),
+                                            persona.personality(),
+                                            persona.speakingStyle(),
+                                            persona.instructions())));
+        }
         sources.add(
                 source(
                         PromptLayerKind.ROLE,
@@ -165,6 +167,16 @@ public final class PromptAssembler {
                                             skill.activationMode(),
                                             skill.content())));
         }
+    }
+
+    /**
+     * 人格与表达风格是否适用于当前调用阶段。
+     *
+     * <p>COORDINATOR 必须输出严格 JSON 的 CoordinationPlan，注入人格与表达风格会污染格式，宪章要求「严格结构化输出场景以输出合同为准」。
+     * 其余阶段的产出会进入用户可见的答复或最终业务内容，人格必须保留。
+     */
+    private static boolean personaApplies(InvocationPolicy policy) {
+        return policy != InvocationPolicy.COORDINATOR;
     }
 
     private static PromptLayerSource invocationSource(
