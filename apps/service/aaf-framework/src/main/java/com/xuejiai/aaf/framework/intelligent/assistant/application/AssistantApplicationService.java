@@ -1868,7 +1868,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             Role role,
             List<ToolRef> effectiveTools,
             ModelSelectionRequirement modelRequirement) {
-        var actor = definition.actor();
+        var persona = definition.persona();
         var systemPrompt =
                 """
                 你是 %s。
@@ -1878,11 +1878,11 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 基础约束：%s
                 """
                         .formatted(
-                                actor.name(),
-                                actor.description(),
-                                actor.personality(),
-                                actor.speakingStyle(),
-                                actor.instructions())
+                                persona.name(),
+                                persona.description(),
+                                persona.personality(),
+                                persona.speakingStyle(),
+                                persona.instructions())
                         .trim();
         return new SubagentSpec.Dynamic(
                 runtimeAgentIdentifier(command, role),

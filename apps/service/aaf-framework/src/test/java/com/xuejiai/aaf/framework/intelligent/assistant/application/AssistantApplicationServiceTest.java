@@ -69,7 +69,7 @@ class AssistantApplicationServiceTest {
                 template.ownership(),
                 template.version(),
                 template.maintainer(),
-                template.actor(),
+                template.persona(),
                 template.roles(),
                 template.assistantSkillBindings(),
                 template.assistantToolKeys(),

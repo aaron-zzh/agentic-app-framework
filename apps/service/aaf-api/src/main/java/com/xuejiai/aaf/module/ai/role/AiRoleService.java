@@ -1,5 +1,5 @@
 /**
- * AI 角色管理 Service（Persona + Role 统一管理）。
+ * AI Role 管理 Service；Persona CRUD 由 PersonaCrudService 唯一承载。
  *
  * @author AaronZZH & Kiro
  */
@@ -12,8 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
-import com.xuejiai.aaf.framework.intelligent.assistant.persona.Persona;
-import com.xuejiai.aaf.framework.intelligent.assistant.persona.PersonaRepository;
 import com.xuejiai.aaf.framework.intelligent.assistant.role.AiRoleRepository;
 import com.xuejiai.aaf.framework.intelligent.assistant.role.Role;
 
@@ -23,72 +21,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AiRoleService {
 
-    private final PersonaRepository personaRepository;
     private final AiRoleRepository roleRepository;
-
-    // ─── Persona ───
-
-    /**
-     * 查询所有 Persona
-     *
-     * @return Persona 列表
-     */
-    public List<PersonaVO> listActors() {
-        return personaRepository.findAll().stream().map(this::toPersonaVO).toList();
-    }
-
-    /**
-     * 获取 Persona 详情
-     *
-     * @param id 编号
-     * @return Persona 信息
-     */
-    public PersonaVO getActorById(Long id) {
-        return toPersonaVO(getActorEntity(id));
-    }
-
-    /**
-     * 创建 Persona
-     *
-     * @param dto 创建请求
-     * @return Persona 信息
-     */
-    @Transactional
-    public PersonaVO createActor(PersonaCreateDTO dto) {
-        var entity = new Persona();
-        entity.setName(dto.name());
-        entity.setPersona(dto.persona());
-        entity.setSystemPrompt(dto.systemPrompt());
-        entity.setAvatarUrl(dto.avatarUrl());
-        return toPersonaVO(personaRepository.save(entity));
-    }
-
-    /**
-     * 更新 Persona
-     *
-     * @param id 编号
-     * @param dto 更新请求
-     * @return 更新后的 Persona 信息
-     */
-    @Transactional
-    public PersonaVO updateActor(Long id, PersonaCreateDTO dto) {
-        var entity = getActorEntity(id);
-        entity.setName(dto.name());
-        entity.setPersona(dto.persona());
-        entity.setSystemPrompt(dto.systemPrompt());
-        entity.setAvatarUrl(dto.avatarUrl());
-        return toPersonaVO(personaRepository.save(entity));
-    }
-
-    /**
-     * 删除 Persona
-     *
-     * @param id 编号
-     */
-    @Transactional
-    public void deleteActor(Long id) {
-        personaRepository.deleteById(id);
-    }
 
     // ─── Role ───
 
@@ -160,28 +93,10 @@ public class AiRoleService {
 
     // ─── 内部方法 ───
 
-    private Persona getActorEntity(Long id) {
-        return personaRepository
-                .findById(id)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "Persona 不存在"));
-    }
-
     private Role getRoleEntity(Long id) {
         return roleRepository
                 .findById(id)
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "Role 不存在"));
-    }
-
-    private PersonaVO toPersonaVO(Persona e) {
-        return new PersonaVO(
-                e.getId(),
-                e.getName(),
-                e.getPersona(),
-                e.getSystemPrompt(),
-                e.getAvatarUrl(),
-                e.getStatus(),
-                e.getCreateTime(),
-                e.getUpdateTime());
     }
 
     private RoleVO toRoleVO(Role e) {

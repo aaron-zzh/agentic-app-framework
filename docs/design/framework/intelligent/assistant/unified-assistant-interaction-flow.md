@@ -85,7 +85,7 @@ flowchart TD
     FIXED_ROUTE --> SKILLS
 
     RETRIEVE["④ 受控混合检索<br/>按需获取知识与记忆"]:::common
-    CONTEXT["⑤ 最小上下文与执行画像<br/>装配提示、Actor、Role、ActivatedSkill、偏好与检索摘要<br/>冻结 Scope、激活方式、模型、计划和工具上限"]:::common
+    CONTEXT["⑤ 最小上下文与执行画像<br/>装配提示、Persona、Role、ActivatedSkill、偏好与检索摘要<br/>冻结 Scope、激活方式、模型、计划和工具上限"]:::common
     PLAN{选择执行形态}
     DIRECT["对话式简单任务<br/>直接回复或单执行单元"]:::chat
     TASK_PLAN["任务式差异<br/>冻结计划、完成合同、产物与恢复边界"]:::task

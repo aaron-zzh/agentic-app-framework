@@ -3,8 +3,8 @@ level: Practice
 layer: Model
 purpose: 五层智能架构 v2——以智能助理为核心、对齐认知心理模型的领域模型设计
 status: draft
-version: 5.6.2
-date: 2026-08-20
+version: 5.7.0
+date: 2026-08-22
 author: AaronZZH
 related:
   - ../../../explanation/general-agent/general-agent-migration-design.md
@@ -57,7 +57,7 @@ AAF 五层智能架构以 Assistant 为面向用户的认知主体，由 Team �
 3. **前注意、理解与规划**：Assistant 或受限 Coordinator 完成意图理解、目标澄清和前注意分流，判断阻塞项、固定或选择 Route、拆解目标并提出模型和聚合策略。固定 Role/Skill 只能在已授权范围内收窄，不能被规划结果替换。
 4. **混合检索与上下文管理**：L3 通过 `ContextRequest` 请求 L1；Cognition 对知识库、记忆及其他获权来源进行混合检索，并按 MemoryStrategy、知识绑定、主体权限和预算返回摘要、引用或局部内容。上下文管理负责渐进按需加载、提示词压缩和节点隔离；Coordinator 默认只获得规划所需摘要，Executor 只获得本节点目标、依赖结果和最小上下文。
 5. **执行画像与计划冻结**：Assistant 校验并冻结 Assistant revision、RoleAssignment、SkillVersion、模型、有效工具、授权、上下文清单、预算、完成条件及聚合契约，形成不可变 `ExecutionProfileSnapshot` 和 TaskBoard 版本。
-6. **按运行模式调度**：`CHAT` 简单回复使用 `TaskBoard.single`；`TASK + FIXED + copywriting` 使用 `TaskBoard.coordinated`，由 Coordinator 规划 1..8 个 Executor；`TEAM` 使用已发布 Team version 和 `TaskBoard.teamCoordinated`。预定义 Workflow 只约束确定性过程，不能绕过 Assistant 责任、Agent execution 或 ToolGateway。
+6. **按运行模式调度**：`CHAT` 简单回复使用 `TaskBoard.single`；`TASK + FIXED + copywriting` 使用 `TaskBoard.coordinated`，由 Coordinator 按默认预算规划 1..5 个 Executor；`TEAM` 使用已发布 Team version 和 `TaskBoard.teamCoordinated`，固定 roster 可为 1..8 个 Worker。预定义 Workflow 只约束确定性过程，不能绕过 Assistant 责任、Agent execution 或 ToolGateway。
 7. **Harness Agent Loop 与受限执行**：Coordinator、Executor 或 Aggregator 在各自独立的 Harness ReAct Loop 中管理任务内循环，按 TaskBoard 依赖并行、串行或有界迭代；支持暂停、取消和恢复。需要理解、推理和生成时调用 L0 Core，需要业务动作时只能调用执行画像中可见且获权的 Tool。
 8. **聚合、验证与终态**：TaskBoard 按冻结的 `AggregationContract` 收敛节点结果，Assistant 使用 CompletionValidator 检查输出、必需工具、产物和证据；不满足时进入修复、等待输入、等待授权、恢复、失败或人工接管，而不是把模型停止输出视为完成。
 9. **事件消息、反馈与自学习候选**：执行事实写入 `ai_task_event` 与 outbox；事件消息统一支撑状态演进、协议投影、重放和恢复，AG-UI 是用户正文的唯一 SSE 投影，任务查询、Snapshot 与公共任务事件只提供状态、审计摘要和 cursor。通过验证的结果、用户反馈和工具轨迹进入自学习候选，经治理后才可沉淀到 L1。
@@ -70,6 +70,24 @@ AAF 五层智能架构以 Assistant 为面向用户的认知主体，由 Team �
 - **上下文与资源治理**：知识、记忆、执行上下文、Token、并发、沙箱和工具可见性始终按最小必要原则装配，并在子任务间隔离。
 - **事件、审计与可观测性**：状态转换、计划、画像、工具、授权、产物、验证和终态统一留痕；正文、凭证、系统提示和思维链不得进入公共任务事件。
 - **自学习与学习反哺**：知识抽取、记忆沉淀、Skill 或任务编排优化只能先生成版本化候选，再经隐私、可信度、去重、冲突和审核门禁进入权威真理源。
+
+### 五层、Prompt 优先级与模型调用形态
+
+L0–L4 与 P0–P8 是两个正交维度。L0–L4 表示 Core、Cognition、Agent、Assistant、Team 的状态和责任分层；P0–P8 只表示一次自主 Harness 模型调用中的治理与 Prompt 输入优先级，不得将其称为 L0–L8。
+
+| 维度 | 回答的问题 | 取值 |
+|---|---|---|
+| 智能层级 | 谁持有状态和责任 | L0 Core、L1 Cognition、L2 Agent、L3 Assistant、L4 Team |
+| 调用形态 | 本次模型调用是否持有自主任务循环 | `AUTONOMOUS_HARNESS`、`NON_AUTONOMOUS_L0` |
+| Prompt 优先级 | 自主调用的约束和数据如何排序 | P0 代码硬治理，P1–P7 System 片段，P8 上下文与消息数据 |
+
+所有 Prompt 型模型调用在实际发送前都冻结一个 [`PromptEnvelope`](core/prompt.md)，但按调用形态使用不同装配画像：
+
+- `AUTONOMOUS_HARNESS` 装配 Constitution、执行身份与任务循环、Assistant Delivery、Role、冻结任务合同、ActivatedSkill、可选 Persona Profile 和 P8 数据；每个 ReAct 回合及模型尝试均生成独立 Envelope。
+- `NON_AUTONOMOUS_L0` 只装配版本化 Function Contract、严格 Output Contract 和最小数据，不注入 Harness Constitution、Persona、Role、Skill 或自主任务循环。
+- P0 权限、HITL、预算、状态机、工具可见性与 Schema 校验不渲染为授权文本，只在 Envelope 中保存治理决策引用和摘要。
+
+Role/Skill 选择、意图或情绪分类、上下文摘要、参数提取、记忆抽取/去重和 LLM-as-Judge 都属于非自主 L0。它们必须是可单独计量、追踪和冻结的模型 invocation，但默认只是当前流程中的 child invocation，不创建 Assistant、Agent、Harness Loop 或持久 Task。只有在需要异步调度、租约、独立状态、耐久恢复或业务级重试时才提升为显式系统节点；显式节点仍可保持 `NON_AUTONOMOUS_L0`。只有需要自主多轮推理、工具观察与修正时才升级为 Harness Agent。
 
 ### 双层循环：AAF 任务编排与 AgentScope ReAct
 
@@ -85,11 +103,11 @@ AAF 外层任务循环（L3 Assistant / L4 Team）
 │  ├─ TASK + FIXED + copywriting / coordinated
 │  │  ├─ Coordinator → AgentExecutionPort → AgentScope ReAct Loop
 │  │  ├─ AAF 解码、校验并冻结 CoordinationPlan
-│  │  ├─ Executor 1..8
+│  │  ├─ Executor 1..5（普通动态计划默认预算）
 │  │  │  ├─ Executor 1 → AgentExecutionPort → AgentScope ReAct Loop
 │  │  │  ├─ Executor 2 → AgentExecutionPort → AgentScope ReAct Loop
 │  │  │  └─ ...
-│  │  └─ 按 AggregationContract 聚合全部结果 Executor
+│  │  └─ PASS_THROUGH / ORDERED_CONCAT 由 TaskBoard 确定性收敛；语义归并创建独立 Aggregator execution
 │  └─ TEAM / teamCoordinated
 │     ├─ Leader → AgentExecutionPort → AgentScope ReAct Loop
 │     ├─ AAF 校验计划必须覆盖全部冻结 Worker
@@ -107,6 +125,34 @@ AAF 外层任务循环（L3 Assistant / L4 Team）
 ```
 
 外层循环的 TaskBoard、TaskTransition、lease/fencing、授权、重试、恢复、聚合、CompletionValidator、`ai_task_event` 和 outbox 均由 AAF 持有；内层循环当前由 AgentScope `HarnessAgent/ReActAgent` 提供。AAF 基础设施适配器关闭 AgentScope 内建的长期记忆、工作区、原生子智能体、动态 Skill、文件和 Shell 等旁路能力，只复用 ReAct、工具调用、执行工作态和流式事件。领域与应用层只依赖 `AgentExecutionPort`，因此替换内层 Agent 引擎不会改变外层任务合同。
+
+### 有界任务分解预算
+
+“五度空间”不是机械执行 `5^5` 递归，而是对分支、并行、深度、总节点和循环分别设限。目标合同为：
+
+```java
+public record DecompositionBudget(
+    int maxChildrenPerPlan,
+    int maxParallelAgents,
+    int maxDecompositionDepth,
+    int maxTotalAgentNodes,
+    int maxOuterIterations
+) {}
+```
+
+默认策略为每次动态计划最多 5 个子节点、最多 5 个并行 Agent、分解深度 2、总 Agent 节点 25、外层迭代 5；领域绝对硬上限仍为 8，禁止静默 clamp。固定 Team 是显式发布并冻结的 roster：当 Worker 数为 6–8 时，生效 children/parallel 上限至少覆盖该 roster，但仍不得超过硬上限 8；普通动态 TASK 不因 Team 例外获得额外分支。
+
+当前基础切片只在已有可靠观测点执行三个维度：
+
+| 维度 | 当前执行点 | 状态 |
+|---|---|---|
+| `maxChildrenPerPlan` | `DelegatedTaskCoordinator` 解码模型 `CoordinationPlan` | 已执行；普通计划默认 5，固定 Team 覆盖冻结 roster |
+| `maxParallelAgents` | 计划解码后由 `TaskBoard.maxParallelism` 调度 | 已执行；超限拒绝，不自动收窄 |
+| `maxOuterIterations` | `CoordinationPlan.IterationGroup` | 已执行；默认策略 5，领域硬上限 8 |
+| `maxDecompositionDepth` | 需要父子节点深度进入冻结执行合同 | 目标态；当前不得声称已执行 |
+| `maxTotalAgentNodes` | 需要跨计划累计节点计数进入持久预算账本 | 目标态；当前不得声称已执行 |
+
+Harness ReAct 迭代和模型重试不属于 `DecompositionBudget`，继续由每个 Agent 的 `ExecutionPolicy.maxIterations` 与 `maxModelRetries` 管理，避免两个预算真理源。修复循环只有在形成独立、可观测状态后才进入结构化预算。
 
 ### 借鉴人类认知心理模型
 
@@ -279,7 +325,7 @@ AAF 外层任务循环（L3 Assistant / L4 Team）
 | 群体 → 助理 | 群体由多个助理组成（1 群体 : N 助理）；协作的执行仍归各助理调度；跨系统时可与外部智能体协作 |
 | 学习反哺（横切） | 各组件执行与交互的所得，经评估后异步沉淀回认知基础——贯穿各层的反哺通道，不专属某一层 |
 
-> 交互边界：接入助理有两类通道——**面向人**的交互界面（AG-UI）与外部渠道（微信、钉钉、飞书等），以及**面向系统/智能体**的 A2A 协议（跨系统智能体互联，后期实现）。渠道适配与多端接入属**交互层（L5）**，不在本五层智能架构内——本文从"消息到达助理"起建模。
+> 交互边界：接入助理有两类通道——**面向人**的交互界面（AG-UI）与外部渠道（微信、钉钉、飞书等），以及**面向系统/智能体**的 A2A 协议（跨系统智能体互联，后期实现）。渠道适配与多端接入属于**智能架构外的交互层，不使用 L 编号**——本文从“消息到达助理”起建模。
 
 - **私有与共享分离**：助理的会话焦点是私有的；记忆、知识、价值观下沉到认知基础，供多主体共享。
 - **状态归属分明**：数据级状态（记忆、知识、价值观）统一归认知基础（持久 · 共享），会话级状态（注意焦点、任务进展、对用户的理解）归助理（私有），内核与智能体不持有长期状态——无自我者不持久。
@@ -295,14 +341,14 @@ AAF 外层任务循环（L3 Assistant / L4 Team）
 助理装配分为**定义期的稳定配置**与**任务期的动态生效上下文**。`AssistantDefinition` 保存可版本化、可复制的 Persona、Role 快照、`defaultRoleKey`、SkillRoute 和 MemoryStrategy；运行时只从定义已授权的范围内选择，不把模型判断本身当作授权。工具策略、用户控制模式、风险策略和生命周期等仍是完整定义的一部分，不能把下列三要素等同于助理的全部定义。
 
 - **人格（Persona）**：助理稳定的“我是谁”——名字、性格、说话风格、表达指引和形象。Persona 属于 Assistant，不随一次任务选中的 Role、创建的 Agent 或委托生命周期切换；同一 Persona 可以与多个 Role 组合。`Actor` 保留表示 Human、Assistant、Agent、System 等行为与责任主体，不再表示人格。
-- **角色（Role）**：任务上下文中的“我此刻负责什么、能做什么、不能做什么”——定义职责与非职责，以及技能和工具能力上限。单个 `AssistantDefinition` 可装配多个 Role，但默认 Role 只是低置信或未命中特定任务时的安全兜底，不会永久锁定助理。默认 `CHAT` 模型通过精简目录对输入做语义前注意，原子选择定义中已声明的 `roleKey + skillKey`；系统校验组合合法后，把有效 Role 映射为任务级 `RoleAssignment`，并只加载命中的单一 Skill。默认 Role 的 Route 以 `DIRECT` 复用主助理执行体，非默认 Role 的 Route 以 `DELEGATE` 创建任务级短命子智能体；无论哪种路径，都不能突破 Role、ToolPolicy、任务授权与 Agent 工具边界的交集。
+- **角色（Role）**：任务上下文中的“我此刻负责什么、能做什么、不能做什么”——定义职责与非职责，以及技能和工具能力上限。单个 `AssistantDefinition` 可装配多个 Role，但默认 Role 只是低置信、模型不可用或未命中时的确定性安全绑定。AUTO 路径先由无副作用 Role Selector 在已发布 Role 摘要中选择 `roleKey`，系统校验并冻结 `RoleAssignment`；再由独立 Skill Selector 在 Route 与 Role 的授权候选交集中选择 ActivatedSkill。两次调用都属于 `NON_AUTONOMOUS_L0`，不能授予权限。`DIRECT` 可复用主执行体，`DELEGATE` 创建任务级 Agent execution；无论哪种路径，都不能突破 Role、ToolPolicy、任务授权与 Agent 工具边界的交集。
 - **记忆策略（MemoryStrategy）**：助理的“我从哪里回忆、向哪里沉淀”——分别限定回忆范围、写入范围和长期记忆开关。MemoryStrategy 属于 Assistant 的认知治理，不随 Role 切换，也不随 DIRECT 主执行体复用或 DELEGATE 子智能体回收而迁移；Role 和 Skill 只能在策略允许范围内进一步收窄本次记忆上下文，不能扩张读写边界。可读取共享知识不代表可直接写入共享知识，公共知识写入仍需独立治理。
 
 因此，某次任务的有效上下文可概括为：**稳定 Persona + 任务级 RoleAssignment + 命中 Skill + MemoryStrategy 允许的记忆上下文 + 逐层取交集后的工具集**。Agent 只是该上下文的执行载体，不拥有 Assistant 的稳定人格或长期记忆。
 
 ### 子智能体并行
 
-面对可拆分目标，主助理将目标组织为带依赖关系的 TaskBoard 子任务 DAG，并按技能路由为各子任务选择预定义或动态子智能体，在并行度限制内执行，最后由主助理聚合和验证结果。动态子智能体只持有本次执行所需的上下文和能力，执行结束后即可回收；预定义 Agent 的定义可跨任务复用。
+面对可拆分目标，主 Assistant 先冻结目标与能力边界，Coordinator 提议带依赖关系的子任务 DAG，AAF 校验后写入 TaskBoard，并为每个节点解析预定义或动态 Agent 规格，在并行度限制内执行，最后确定性聚合或创建独立 Aggregator，再由 Assistant 验证和交付。动态 Agent 只持有本次执行所需的上下文和能力，执行结束后即可回收；预定义 Agent 的定义可跨任务复用。
 
 这里的并行单元是**子任务及其 Agent 执行**。若多个协作者需要独立人格、长期责任和协作关系，应建模为 Team 中的多个 Assistant，而不是主助理的临时“分身”。
 
@@ -323,7 +369,7 @@ AAF 外层任务循环（L3 Assistant / L4 Team）
 
 所有 Assistant 都通过同一条 `AssistantCommand → AssistantApplicationService → ExecutionProfile/Role/Skill/ToolPolicy → AgentScope` 运行时链路执行。`ai_assistant.code` 和 `AssistantId` 仅选择 AAF Assistant 配置；它们不是 AgentScope `AgentId`。AgentScope 的执行体 ID 由编译后的执行画像生成，系统、用户副本与客服 Assistant 不得分别注册专用 Agent 工厂或运行时。
 
-模板的输入仍先由受控 Role/Skill 目录完成语义前注意，系统校验输出的 `roleKey + skillKey` 已被授权；默认 Role 可复用主执行体，非默认 Role 可创建任务级短命执行体。两条路径都以有效 Role、ToolPolicy、任务授权与 Agent 工具边界的交集收窄能力，不能因模板来源或渠道来源扩权。
+模板输入仍先经过受控 Role Selector，再由 Skill Selector 在已冻结 Role 与 Route 候选交集中收窄；系统分别校验 `roleKey` 和 `skillKeys`，最终冻结 `RoleAssignment + ActivatedSkill`。`DIRECT` 可复用主执行体，`DELEGATE` 可创建任务级短命执行体。两条路径都以有效 Role、ToolPolicy、任务授权与 Agent 工具边界的交集收窄能力，不能因模板来源或渠道来源扩权。
 
 ### 输入缓冲与执行期干预
 
@@ -340,10 +386,10 @@ AAF 外层任务循环（L3 Assistant / L4 Team）
 
 ### 技能与工具
 
-- **技能（Skill）**：粗粒度、任务级。是"哪类意图交给哪种处理"的路由规则——匹配到某类意图后，激活对应的处理方式与专属指引。
+- **技能（Skill）**：粗粒度、任务级的可复用执行知识与约束，说明“任务应如何完成”，不承担“哪类意图交给谁”的路由责任，也不归属于某个 Agent。Assistant 的 `SkillRoute` 定义候选范围和选择策略，非自主 Selector 只在授权候选中收窄，最终激活的 SkillVersion 才进入执行画像。
 - **工具（Tool）**：细粒度、原子级。是一次具体动作的能力单元（查、写、算、调用外部服务）。
 
-助理可装配多个角色；每条技能路由显式绑定 `roleKey + skillKey`。前注意可以在内部先召回候选 Role、再在 Role 内选择 Skill，但对外必须原子返回一个已授权组合。Role 的 `skillKeys` 只是能力上限，执行时只加载当前 Route 命中的单一 Skill，不把该 Role 的全部 Skill Prompt 注入上下文；工具再与 ToolPolicy、任务授权及 Agent 工具边界取交集。一句话：**前注意选择角色和路径，渐进披露只加载这条路所需的技能与工具**。
+助理可装配多个角色；每条 `SkillRoute` 显式绑定 `roleKey` 与候选 Skill 范围。前注意可以在内部先选择 Role，再由独立非自主 Skill Selector 在 Role 与 Route 的交集中选择最终 Skill，但对外必须形成已校验的原子组合。Role 的 `skillKeys` 只是能力上限，执行时只加载最终 ActivatedSkill，不把全部 Skill Prompt 注入上下文；工具再与 ToolPolicy、任务授权及 Agent 工具边界取交集。一句话：**前注意选择角色和路径，Selector 收窄候选，渐进披露只加载当前执行所需的技能与工具**。
 
 ### 认知基础的内容
 
@@ -564,7 +610,7 @@ JPA Entity、Spring Data Repository 与 `JdbcTemplate` 实现放在纯领域包�
 
 > 本节是**技术参考**（非领域内容），用于说明本领域模型可由什么技术承载，呼应"技术实现可替换"的定位。
 
-AgentScope 的 `HarnessAgent` 是在裸推理循环（`ReActAgent`）之上的一层薄包装，把"长期运行的智能体"所需的工程能力打包进一个构建器：工作区驱动的人格、会话持久化、长期记忆与对话压缩、子智能体编排、沙箱隔离、技能装配、计划模式、工具白名单。它的核心理念与本模型高度同构——**能力叠加在推理循环的关键时机上、彼此不依赖、只通过共享上下文通信**，正好对应本文「支撑性领域能力」的思路。
+AgentScope 的 `HarnessAgent` 是在裸推理循环（`ReActAgent`）之上的一层薄包装；上游框架可选提供工作区、长期记忆、压缩、子智能体、技能和计划模式等能力。**AAF 目标运行时并不启用这些旁路能力**：`AgentScopeSpecCompiler` 关闭原生 subagent/dynamic subagent、动态 Skill、工作区、文件、Shell、内建记忆与 compaction，只复用单节点 ReAct、AAF Toolkit、执行工作态和流式事件。跨节点编排始终由 AAF TaskBoard 持有。
 
 本模型的领域概念可大致映射到 Harness 的原生能力：
 
@@ -573,7 +619,7 @@ AgentScope 的 `HarnessAgent` 是在裸推理循环（`ReActAgent`）之上的�
 | 人格（Persona）· 工作区驱动 | 工作区驱动的人格（`AGENTS.md`） |
 | 会话持久化 · 可恢复（会话级） | 会话持久化（同 `sessionId` 跨请求/进程/副本恢复） |
 | 沉淀（写入记忆）· 编排式回忆 | 双层长期记忆（`MEMORY.md`）+ 对话压缩 |
-| 子任务并行（部分） | 子智能体编排（同步/后台 + 反向通知） |
+| 子任务并行 | AAF TaskBoard 创建多个独立 Harness execution；不使用 Harness 原生 subagent |
 | 执行隔离（沙箱） | 可插拔文件系统 + 沙箱隔离 |
 | 渐进决策（只读思考 + HITL） | 计划模式（只读阶段 + HITL 退出） |
 | 技能装配 | 技能装配（多来源合成 + 自学习闭环） |
@@ -588,7 +634,7 @@ AgentScope 的 `HarnessAgent` 是在裸推理循环（`ReActAgent`）之上的�
 
 ### 核心概念
 
-- **薄包装、能力叠加而非改写循环**：`HarnessAgent` 组合一个 `ReActAgent`，通过 middleware 叠加工作区、压缩、沙箱、技能、MCP、计划模式和子 Agent 能力。
+- **薄包装、能力可裁剪**：`HarnessAgent` 组合一个 `ReActAgent`；AAF 只启用单节点 ReAct、AAF Toolkit、状态存储和事件映射，关闭工作区、内建压缩、原生 Skill、计划模式和子 Agent 等会形成第二套治理路径的能力。
 - **RuntimeContext 是 per-call 上下文**：每次调用显式传入 `userId`、`sessionId` 和 AAF typed context；自由属性不持久化，禁止用 ThreadLocal 或全局 fallback 代替。
 - **AgentState 是执行工作态**：对话工作集、摘要、权限、Plan、todo 和工具状态按 `(userId, sessionId)` 隔离。
 - **AgentStateStore 负责跨调用恢复**：调用入口加载、调用结束保存；开发可用内存/文件实现，生产使用 Redis 等分布式实现。
@@ -621,9 +667,9 @@ AgentScope 的 `HarnessAgent` 是在裸推理循环（`ReActAgent`）之上的�
 | 会话 / 会话级状态 | `sessionId` ↔ `AgentState` |
 | 工作记忆 | AgentState 调用内状态 |
 | 执行隔离 / 沙箱 | sandbox |
-| 技能 / 工具 | Skill / Tool（白名单 + MCP） |
-| 计划模式 / 渐进决策（只读 + HITL） | Plan Mode + HITL |
-| 子任务 / 子智能体并行 | 子 agent 编排 |
+| ActivatedSkill / 工具 | Skill content 编译进 P6；工具通过 AAF Toolkit 精确注册，原生 Skill 关闭 |
+| 渐进决策 / HITL | 版本化 TaskLoopContract + AAF ToolGateway/HITL；不使用原生 Plan Mode |
+| 子任务 / Agent execution 并行 | AAF TaskBoard + 多个独立 Harness 调用；关闭原生 subagent |
 | 智能体无自我 · 借记忆 | 无状态 + Session 装卸（**已天然对齐**） |
 
 ### 保留（我们的差异化，框架没有或更弱，不为对齐而调整）
@@ -656,14 +702,14 @@ AgentScope 的 `HarnessAgent` 是在裸推理循环（`ReActAgent`）之上的�
 
 | 运行时 | 归属 | 管什么 |
 |---|---|---|
-| 编排层（围绕助理 / Agent） | AAF 自管 | 前注意分流/路由、记忆策略选择、子智能体编排、TaskBoard / GoalTracker、编排态 Checkpoint(DB)、缓存层 |
-| 执行层（Agent 执行） | HarnessAgent 承载 | 无状态执行引擎；AgentStateStore、沙箱、子 agent、压缩、Plan/HITL、工具执行 |
+| 编排层（围绕助理 / Agent） | AAF 自管 | 前注意分流/路由、记忆策略、Coordinator/Executor/Aggregator 编排、TaskBoard / GoalTracker、HITL、预算、编排态 Checkpoint(DB) |
+| 执行层（单个 Agent 节点） | HarnessAgent 承载 | 无状态单节点 ReAct、AAF Toolkit 调用、AgentStateStore 和流式执行事件；不持有跨节点编排 |
 
 关键：**Assistant 是 AAF 领域主体，不是 HarnessAgent 的别名**。AAF 应用层负责前注意、路由、TaskBoard 和子智能体编排；需要推理时经 `AgentExecutor` 调用 AgentScope 适配器。记忆、计量、权限和轨迹通过稳定 AAF 端口与 middleware 衔接。
 
 ### 缓存层：DB 配置作为"编译源"
 
-DB 配置（Persona / Role / SkillDef / AgentDef / Model）→ 本地缓存（+Redis 二级，变更事件刷新）→ **编译成 `HarnessAgent.builder()`**（name / sysPrompt / model / skills / tools / workspace）。HarnessAgent 本是 builder 驱动，缓存配置充当编译源，**DB 仍是真理源**。Persona / Role 纯配置不池化。
+DB 配置（Persona / Role / SkillVersion / AgentDefinition / Model）→ 本地缓存（+Redis 二级，变更事件刷新）→ AAF `PromptAssembler` 与 `AgentScopeSpecCompiler` 编译为 `CompiledSystemPrompt + ModelSpec + AAF Toolkit + AgentStateStore`。Harness builder 只消费这些已冻结产物，并显式关闭工作区、原生 Skill、subagent 等旁路；**DB 仍是真理源**。Persona / Role 纯配置不池化。
 
 ### 实例与状态生命周期
 
@@ -679,25 +725,25 @@ Assistant 并不等于一个永驻的有状态 Agent 对象。Assistant 是 AAF 
 每次用户消息先过助理的**决策前路**：前注意分流（规则/小模型快速判断，简单的就地短路）→ 情绪/意图理解 → 技能匹配 + 置信度评估 → 选处理路径。不同场景走不同路径：
 
 **闲聊 / 简单问答（自主 · 直接回复）**
-前注意判定无需深想 → 助理直接生成回复，不 spawn 任何子 agent。决策：低复杂度、高置信 → 本层自动执行。
+前注意判定无需深想 → 助理直接生成回复，不创建额外 Agent execution。决策：低复杂度、高置信 → 本层自动执行。
 
 **单一任务（自主 · 助理 → 单 Agent）**
-意图理解 → 技能匹配到某 `agentId` → 助理 spawn 一个任务型子 agent 执行 → 结果整合回复。决策：明确单一目标 → 委派一个 Agent。
+意图理解 → Role/Skill 与责任模式冻结 → AAF 创建一个任务型 Agent execution → 结果整合回复。决策：明确单一目标 → 委派一个 Agent。
 
 **复杂任务（自主 · 助理协调多 Agent）——复杂任务如何协调**
 
 ```text
 用户消息
   → 前注意分流（简单？→ 直接回复 ｜ 复杂？↓）
-  → 意图理解 + 技能匹配 + 置信度
-  → 规划：拆为可验证子任务 → 写入 TaskBoard（状态 + 依赖）
-  → 并行 spawn 子 agent：[后端] [前端] …（各自隔离沙箱执行）
-  → 子 agent 完成 → 反向通知 → TaskBoard 更新
-  → 助理聚合 + 验证 →（置信不足？→ 置信度门控转人）→ 统一回复
+  → 意图理解 + Role/Skill 选择 + 置信度
+  → Coordinator 提议计划 → AAF 校验并写入 TaskBoard（状态 + 依赖）
+  → AAF 并行调度独立 Agent execution：[后端] [前端] …
+  → Executor 完成 → TaskBoard 更新
+  → 确定性聚合或独立 Aggregator → Assistant 验证 → 统一回复
   ↑ 执行期：用户追加输入 → 输入缓冲 → 分类干预（取消/修改/补充/无关）
 ```
 
-要点：助理是**协调者**——它负责拆解、派发、跟踪、聚合、仲裁，但不亲自执行子任务；可并行的子任务由预定义或动态子智能体执行，串行依赖按 TaskBoard 依赖关系调度。
+要点：Assistant 持有最终责任，Coordinator 只规划；TaskBoard 负责派发、跟踪和依赖调度，Executor 执行子任务，按需创建的 Aggregator 负责语义归并。每个节点是独立 Harness execution，Harness 本身不得继续 spawn 原生子 Agent。
 
 **固定业务流程（编排 · 助理调用 AI 工作流工具）——助理通过工具调用执行 AI 工作流**
 预定义的确定性流程（如"需求→设计→编码→评审"的 AI 编排）被**封装成一个工具/技能**。助理在推理中以**工具调用（function calling）**触发它 → 工作流引擎按既定节点（LLM 节点 / 知识库节点 / 条件分支等）执行 → 结果返回助理整合。决策：流程确定 → 用编排而非自主，助理只管"何时调用、如何用结果"，流程骨架交给工作流引擎。这正是「编排骨架 + 节点内自主」的落地——工作流是骨架（工具），节点内仍可自主调 LLM/Agent。
@@ -713,15 +759,15 @@ Assistant 并不等于一个永驻的有状态 Agent 对象。Assistant 是 AAF 
 |---|---|
 | 流程骨架（节点 / 分支 / 进入退出条件） | AAF 工作流引擎（Flowable / DSL / flow-editor） |
 | 节点 = 调一个 Agent/Assistant | `AgentExecutor`（= `HarnessAgentExecutor`） |
-| 节点内执行 | HarnessAgent（ReAct + 可自主 spawn 子 agent） |
+| 节点内执行 | HarnessAgent（单节点 ReAct + AAF Toolkit） |
 | Team 级编排（多 Assistant） | 版本冻结的 TeamDefinition + TaskBoard Leader/Worker 协调 |
 
-- **HarnessAgent 不感知编排**：它只是被工作流引擎在某节点调用、执行完返回。编排是 AAF 编排层（工作流引擎 + Team）的职责，HarnessAgent 天然适配、无需改动。
-- **混合模式（编排骨架 + 节点内自主）**：进入/退出条件由工作流引擎确定；节点内 HarnessAgent 自主 ReAct / 委派；节点内受预算/超时 middleware 约束；Agent 发现超出能力范围 → 返回信号让工作流分支或转人（HITL）。
-- **双向**：编排 → 调 Agent（工作流节点调 HarnessAgent）；Agent → 调工作流（HarnessAgent 用 function calling 把工作流当工具，见上「固定业务流程」）。
-- **三正交维度全覆盖**：运行模式（编排/自主，可混）· 编排对象（Team→Assistant→Agent）· 执行模式（HarnessAgent 核心即 ReAct + function calling，CoT 为节点内 prompt 风格）。
+- **HarnessAgent 不感知编排**：它只是被工作流引擎或 TaskBoard 在某节点调用、执行完返回。编排是 AAF 编排层（工作流引擎 + TaskBoard + Team）的职责。
+- **混合模式（编排骨架 + 节点内自主）**：进入/退出条件由工作流引擎确定；节点内 HarnessAgent 只在当前目标、工具和迭代上限内自主 ReAct，不继续委派子 Agent。超出能力时返回信号，由 AAF 分支、重规划或转人。
+- **双向**：编排可以调用 Agent；Agent 也可以在获权时把已发布工作流作为业务工具调用，但不能借此绕过 TaskBoard、ToolGateway 或 HITL。
+- **三正交维度全覆盖**：运行模式（编排/自主，可混）· 编排对象（Team→Assistant→Agent）· 执行模式（单节点 ReAct + function calling）。
 
-> 边界：**HarnessAgent 本身不提供工作流引擎**——它的 Plan Mode / subagent 只是 agent 级的轻量规划/委派。企业级编排骨架、Team Supervisor、DSL/可视化编辑器是 **AAF 自研**（基于 Flowable）；HarnessAgent 只作被编排的节点执行单元。
+> 边界：HarnessAgent 只作被编排的单节点执行单元。AgentScope 原生 Plan/subagent、工作区、动态 Skill、文件与 Shell 主路径均关闭；企业级编排骨架、任务拆分、Team Supervisor、DSL/可视化编辑器、HITL 与预算由 AAF 持有。
 
 ### 并发、性能与多副本
 
@@ -744,9 +790,9 @@ Assistant 并不等于一个永驻的有状态 Agent 对象。Assistant 是 AAF 
 - **Agent 执行工作态 → Redis AgentStateStore**：AgentState（上下文工作集/权限/plan/todo/工具状态）由 AgentScope 自动加载和保存；AAF 不为同一执行快照另做 checkpoint。
 - **恢复缝合**：重启 → AAF 扫 DB 编排 checkpoint 恢复主助理/TaskBoard → 每个 RUNNING 子任务按其 sessionId 让 HarnessAgent 从 Redis 自动恢复 AgentState → 续跑。编排态 AAF 管、执行态 Session 管，**按 sessionId 缝合**。
 
-### 技能与工具：DB 定义编译进 HarnessAgent
+### 技能与工具：AAF 冻结后编译进单节点 Harness
 
-Role 的 Skill 集 → skillRepositories；Tool 白名单 → tools.json / 工具过滤；MCP server → HarnessAgent MCP 集成。高风险动作经权限 middleware HITL。Skill / Tool 真理源在 DB，HarnessAgent 配置是编译产物，不反向为源。
+最终 `ActivatedSkillVersion.content` 由 `PromptAssembler` 编译到 P6 `CompiledSystemPrompt`；EffectiveTools 经过 Role、Skill、Assistant、请求、任务授权与主体策略取交集后，由 `AgentScopeToolkitFactory` 精确注册到 AAF Toolkit。AgentScope 原生 `skillRepositories`、动态 Skill、默认工作区 Skill 与 `tools.json` 配置旁路始终关闭。高风险动作统一进入 AAF ToolGateway/HITL；Skill、Tool 与授权真理源仍在 AAF DB 和冻结执行画像中。
 
 ### 记忆衔接：认知基础为真理源
 
@@ -769,7 +815,7 @@ Agent 不走 HarnessAgent 的 `MEMORY.md` 自管：每轮由 AAF `MemoryContext`
         │
    ┌────▼────────────────────────────────────────┐  HarnessAgent 执行运行时
    │ HarnessAgent（按定义版本共享的无状态实例）      │  AgentState → Redis AgentStateStore
-   │  ReAct 循环 · 沙箱(per-user) · 子 agent · 压缩 · Plan/HITL │
+   │  单节点 ReAct · AAF Toolkit · 执行工作态 · 流式事件 │
    └────┬────────────────────────────────────────┘
         │ 记忆注入 ↑ / 反哺写回 ↓（真理源）
    ┌────▼────────────────────────────────────────┐
@@ -785,11 +831,11 @@ Agent 不走 HarnessAgent 的 `MEMORY.md` 自管：每轮由 AAF `MemoryContext`
 - State：Redis `AgentStateStore` 按 `(userId, sessionId)` 隔离；AAF lease/fencing 保证跨副本串行
 - Sandbox：per-user（`DockerFilesystemSpec` + `IsolationScope.USER`）
 
-## 复杂任务全流程实现（结合 AgentScope 运行时）
+## 历史参考：AgentScope 原生复杂任务能力（已废弃）
 
-> 技术可行性参考。把上文「场景会话流程」的复杂任务，逐步映射到 AgentScope HarnessAgent 的真实能力，验证可实现性。代码为示意（API 形状取自 `HarnessAgent` builder 与 harness 扩展），落地以实际版本签名为准。
+> 本节直到“数据架构”之前保留早期框架调研材料，仅用于追溯，**不构成目标架构或实现依据**。其中 `.subagent(...)`、`AgentSpawnTool`、`SubagentsMiddleware`、原生 Plan Mode、工作区 Skill/Memory、Harness 内任务拆分及节点内继续委派等路径已被现行双层循环否决。目标态统一由 AAF Coordinator、TaskBoard、独立 Executor/Aggregator execution、ToolGateway/HITL 和 `PromptEnvelope` 管理，Harness 只承担单节点 ReAct。
 
-**结论：能实现。** 大部分步骤是 HarnessAgent 原生能力；AAF 差异化（记忆/知识真理源、DB 配置、计量）经 builder 编译 + middleware 注入（官方扩展点）实现。
+**历史结论（已废弃）**：以下内容曾用于验证上游 Harness 原生能力，不得据此启用 AAF 已关闭的旁路。
 
 | 流程步骤 | AgentScope 承载 | 归属 |
 |---|---|---|
@@ -804,8 +850,8 @@ Agent 不走 HarnessAgent 的 `MEMORY.md` 自管：每轮由 AAF `MemoryContext`
 
 ```java
 HarnessAgent assistant = HarnessAgent.builder()
-    .name(actor.name())                 // 人格（Persona）；当前实现变量名为 actor
-    .sysPrompt(actor.systemPrompt())    // 人格的系统提示
+    .name(persona.name())               // 人格（Persona）
+    .sysPrompt(persona.instructions())  // Persona 基础系统指引
     .model(resolveModel(assistant))     // 助理对话主模型：assistant.model_id，缺省走 CapabilityRouter
     .stateStore(redisAgentStateStore)   // 多副本共享、跨进程恢复
     .filesystem(new DockerFilesystemSpec()
@@ -948,7 +994,7 @@ HarnessAgent 的 `subagents/` 声明或 `.subagent(spec)` 由 AAF 适配层根�
 
 ### 核心配置表关系
 
-配置装配链（FK 为主，串起"助理 → 角色 → 技能 → Agent → 模型/工具"）：
+配置装配链以“助理 → Role/Route → SkillVersion”和“执行计划 → AgentDefinition”为两条正交关系，不再串成“Skill 路由到 Agent”：
 
 ```text
 用户 user_id
@@ -957,22 +1003,24 @@ HarnessAgent 的 `subagents/` 声明或 `.subagent(spec)` 由 AAF 适配层根�
 ai_assistant ── persona_id ──▶ ai_persona             人格(Persona：我是谁)
   ├─ default_role_id ──▶ ai_role                      默认能力(Role：默认我负责什么)
   ├─ ai_assistant_role ──▶ ai_role                    可切换 Role 集合
-  │                         ├─ skill_ids(逻辑) ──▶ ai_skill_definition   技能(任务级路由)
+  │                         ├─ skill_ids(逻辑) ──▶ ai_skill_definition   Skill 能力上限
   │                         └─ tool_whitelist(逻辑) ──▶ ai_tool_catalog  工具白名单
+  ├─ SkillRoute(roleKey + candidateSkillKeys)          路由候选与选择策略
   ├─ model_id(可空，缺省走能力路由) ──▶ ai_model         对话主模型
   ├─ memory_strategy                                   记忆策略(如何用认知基础)
   └─ knowledge_base_id(逻辑) ──▶ ai_knowledge_base      绑定知识库
 
-ai_skill_definition ── agent_id ──▶ ai_agent_definition   技能路由到的 Agent
-                                     ├─ model_id ──▶ ai_model        绑定模型
-                                     ├─ tools/allowed_tools ──▶ ai_tool_catalog
-                                     └─ mcp_servers ──▶ ai_mcp_server
+冻结 CoordinationPlan / TaskBoard
+  └─ 每个节点 target ──▶ ai_agent_definition 或动态 Agent 规格
+                           ├─ model_id ──▶ ai_model
+                           ├─ tools/allowed_tools ──▶ ai_tool_catalog
+                           └─ mcp_servers ──▶ ai_mcp_server
 ```
 
 - **助理身份装配 = 人格 + 多 Role + 默认 Role + 记忆策略**：`ai_assistant.persona_id → ai_persona`、`ai_assistant_role → ai_role`、`default_role_id → ai_role`（真 FK），`memory_strategy` 为字段；完整运行定义还需结合带 `roleKey` 的技能路由、工具策略、控制模式、风险策略、版本和生命周期。
 - **助理对话主模型**：`ai_assistant.model_id → ai_model`（FK，**可空**）。Assistant 经 `AgentExecutor` 调用按定义编译的 HarnessAgent，需要模型完成对话推理；为空时由 `CapabilityRouter` 按 `ai_model_preference`（USER/SYSTEM × capability）路由。模型是多级多用途的：前注意分流（小模型）/ 助理对话主模型 / Agent 任务模型（`ai_agent_definition.model_id`）/ 嵌入检索（capability=EMBEDDING），优先级链：**显式绑定 → 用户偏好 → 系统默认**，逐级降级。
 - **角色 = 职责边界 + 技能集 + 工具能力上限**：`ai_role.skill_ids` / `tool_whitelist` 是列表，**逻辑引用** `ai_skill_definition` / `ai_tool_catalog`（非 FK，便于灵活组合）；`AssistantDefinition.skillRoutes[*].roleKey` 将任务路由绑定到其中一个 Role，某次任务的有效技能与工具只来自该 Role，并继续与 ToolPolicy、任务授权及 Agent 工具边界取交集。
-- **技能路由到 Agent**：`ai_skill_definition.agent_id → ai_agent_definition`（FK）——「Skill 决定把任务交给哪个 Agent」。
+- **Agent execution 独立解析**：SkillVersion 不保存 `agent_id`，也不决定执行者。Assistant 或 Coordinator 依据冻结的执行责任和计划选择预定义 `ai_agent_definition` 或构造动态 Agent 规格；Role、ActivatedSkill、模型和工具边界随后共同冻结进该节点的 `ExecutionProfileSnapshot`。
 - **Agent 绑模型与工具**：`ai_agent_definition.model_id → ai_model`（FK）；`tools/allowed_tools → ai_tool_catalog`（**工具级**白名单，含 MCP 工具）；`mcp_servers → ai_mcp_server`（**服务级**，声明连接哪些 MCP 服务）。二者互补不冗余：`mcp_servers` 决定"连哪些服务（带来哪些工具）"，`allowed_tools` 决定"这些工具里允许哪几个"——对齐 HarnessAgent 的 `tools.json`（声明 MCP server + 工具 allow/deny）。`ai_mcp_server` 是连接配置真理源，**连接本身是全局共享重资源**（由 `McpConnectionService` 管，一服务一连接、所有 Agent 共用），Agent 只声明引用、不持有连接。（若所有 MCP 工具预注册进 `ai_tool_catalog` 且只做工具级白名单，`mcp_servers` 可省。）
 - **默认 Role 一致性**：`ai_assistant.default_role_id` 必须同时存在于 `ai_assistant_role`，且每个助理只能有一个默认 Role；领域构造器对版本化 `AssistantDefinition` 执行同等约束。
 
@@ -1018,7 +1066,7 @@ PostgreSQL 是 source of truth，Neo4j 承担**关系遍历 / 多跳 / 拓扑分
 |---|---|---|---|
 | 子 agent 委派拓扑 `(:Session)-[:SPAWNED]->(:Subagent)-[:FOR]->(:Task)` | `ai_task_execution.parent_execution_id` | 复杂任务的 spawn 树、并行与反向通知链路、可观测/回溯 | 规划（扩展 `AgentNode`） |
 | 任务依赖图 `(:Task)-[:DEPENDS_ON]->(:Task)` | `ai_task_execution` / TaskBoard 依赖 | 子任务依赖的拓扑排序、阻塞分析 | 候选 |
-| 技能路由图 `(:Assistant)-[:HAS_ROLE]->(:Role)-[:INCLUDES_SKILL]->(:Skill)-[:ROUTES_TO]->(:Agent)` | `ai_assistant` / `ai_role` / `ai_skill_definition` / `ai_agent_definition` | 能力可达性发现："哪个助理经哪条技能能调到哪个 Agent" | 规划（待 `skill_ids` 从 TEXT 关系化） |
+| 能力装配图 `(:Assistant)-[:HAS_ROLE]->(:Role)-[:ALLOWS_SKILL]->(:Skill)` 与执行谱系 `(:Task)-[:EXECUTED_BY]->(:Agent)` | Assistant/Role/Skill 配置与 `ai_task_execution` 冻结画像 | 分别分析能力可达范围和实际执行者，不建立 Skill 归属于 Agent 的边 | 候选 |
 | 决策链路图 `(:Task)-[:TRIGGERED]->(:Decision)-[:CHOSE]->(:Action)` | `ai_decision_log` + `ai_task_event` | 自主决策审计链的路径遍历 | 规划 |
 | Team 成员与任务目标关系 `(:Team)-[:HAS_MEMBER]->(:Assistant)` | `ai_definition_lifecycle.lifecycle_payload.teamDefinition` 与 TaskBoard 冻结 target | 仅在确认存在多跳图查询需求后再投影 | 候选 |
 | 记忆 ↔ 知识交叉引用 `(:MemoryEntity)-[:REFERENCES]->(:KnowledgeEntity)` | 跨 `ai_memory_*` / `ai_knowledge_*` | 个体记忆与共享知识的关联检索（增强混合检索） | 规划 |

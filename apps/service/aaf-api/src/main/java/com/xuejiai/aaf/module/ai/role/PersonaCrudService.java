@@ -58,6 +58,8 @@ public class PersonaCrudService
 
     @Override
     protected void updateEntity(Persona entity, PersonaCreateDTO dto) {
+        // BaseEntity.version 不是 JPA @Version；Persona 更新必须显式递增来源修订号。
+        entity.setVersion(Math.incrementExact(entity.getVersion()));
         entity.setName(dto.name());
         entity.setPersona(dto.persona());
         entity.setSystemPrompt(dto.systemPrompt());

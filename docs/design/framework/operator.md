@@ -3,12 +3,13 @@ level: Practice
 layer: Pattern
 purpose: 定义 AAF 统一 Operator 抽象——让 Agent 和 Human 共享操作者接口
 status: draft
-version: 0.3.0
-date: 2026-05-28
+version: 0.4.0
+date: 2026-08-22
 author: AaronZZH
 changelog:
+  - 2026-08-22 | Assistant 人格载体统一为 Persona；Actor 只表示任务与审计责任主体
   - 2026-05-28 | 加入 BaseEntity 字段设计、OperatorContext 接口、AI 权限委托模型
-  - 2026-05-28 | 重命名 Actor → Operator，避免与 Assistant 层 Actor（人格载体）冲突；移至 framework/ 顶层
+  - 2026-05-28 | 重命名系统操作者 Actor → Operator，避免与当时的 Assistant 人格旧名冲突；移至 framework/ 顶层
   - 2026-05-06 | 初版，定义 Actor 抽象、类型枚举、审计协议
 ---
 
@@ -18,12 +19,14 @@ changelog:
 
 ## 命名说明
 
-- **Operator**（本文档）：系统级操作者标识，回答"谁执行了操作"，跨层通用（审计、权限、日志）
-- **Actor**（`intelligent/agent.md` 中）：Assistant 层的人格载体，回答"助理以什么人格面对用户"
+- **Persona**：Assistant 的稳定人格载体，回答“助理以什么人格面对用户”；当前不可变领域值为 `PersonaSnapshot`。
+- **Actor**：任务、事件和审计中的行为或责任主体，回答“谁发起、执行或承担责任”，例如 `TaskActor`。
+- **Operator**（本文档）：系统级操作者标识，统一 Human 与 Agent 的权限、审计和日志身份。
 
-两者职责不同，包路径不同：
-- `com.xuejiai.aaf.common.operator.Operator` — 操作者标识
-- `com.xuejiai.aaf.framework.intelligent.assistant.actor.Actor` — 人格载体
+三者职责不同，代表性代码位置如下：
+- `com.xuejiai.aaf.common.operator.Operator` — 系统操作者标识
+- `com.xuejiai.aaf.framework.intelligent.assistant.model.PersonaSnapshot` — Assistant 人格快照
+- `com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantTask.TaskActor` — 任务行为与责任主体
 
 ## 核心抽象
 

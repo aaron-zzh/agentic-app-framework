@@ -245,10 +245,10 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
                                 content),
                         new PromptLayerSource(
                                 PromptLayerKind.IDENTITY,
-                                PromptSourceKind.ASSISTANT_ACTOR,
-                                "assistant.test",
+                                PromptSourceKind.ASSISTANT_PERSONA,
+                                "persona:test",
                                 "1",
-                                "测试 Actor"),
+                                "测试 Persona"),
                         new PromptLayerSource(
                                 PromptLayerKind.INVOCATION_POLICY,
                                 PromptSourceKind.AAF_POLICY,

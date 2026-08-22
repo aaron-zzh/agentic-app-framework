@@ -196,7 +196,7 @@ public class CrudResourceProviderConfiguration {
                 "ai.persona",
                 "Persona",
                 PersonaController.class,
-                "/api/ai/actors",
+                "/api/ai/personas",
                 "system:persona");
     }
 

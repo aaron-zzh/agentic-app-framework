@@ -3,8 +3,8 @@ level: Practice
 layer: Model
 purpose: 定义指定角色与技能的任务式 Assistant 如何复用统一运行时并实现有界工具、产物、委派与审计
 status: draft
-version: 1.2.0
-date: 2026-08-20
+version: 1.3.0
+date: 2026-08-22
 author: Kiro
 tags:
   - Assistant
@@ -104,6 +104,36 @@ AAF 当前的 `CHAT`、`EXECUTION` 与 `TEAM` 都经唯一 AG-UI 入口进入同
 
 默认不追问偏好类信息；可采用安全默认值并在结果中标注假设。只有缺少凭证、关键输入、不可替代授权，或即将执行不可逆动作时才进入 `AWAITING_INPUT` / `AWAITING_AUTHORIZATION`。
 
+### 自主身份的目标驱动任务循环
+
+所有自主 Harness Agent 共享 `Understand → Resolve Gaps → Plan → Execute → Verify → Deliver / Iterate / Escalate` 有界循环，但不同执行身份必须注入独立、版本化的 `TaskLoopContract`。通用 Constitution 只规定共同方法，P2 Execution Identity 决定每种身份在“目的理解、澄清、查漏补缺、计划、拆分、执行、验证和完成”中的具体责任。
+
+| 身份 | 目的理解与查漏补缺 | 计划、拆分与执行 | 验证、完成与升级 |
+|---|---|---|---|
+| `PRIMARY` | 理解用户真实目标、显式约束、预期交付和成功标准；只在关键输入、授权或不可逆选择缺失时最少澄清 | 决定直答、单 Agent、TaskBoard 或 Team；冻结交付、任务和聚合合同，不把计划冒充执行结果 | 验证整体结果、产物和证据，向用户交付；披露假设、风险和未验证项，对最终目标负责 |
+| `COORDINATOR` | 只基于冻结目标和规划摘要识别不可替代阻塞项；没有用户沟通权限时向 PRIMARY 返回澄清建议 | 将目标拆成可验证子任务，标明输入、输出、依赖、并行、模型和聚合建议；不调用业务工具或生成最终业务内容 | 输出严格 `CoordinationPlan`；以 Schema、候选边界和无环依赖为完成条件，非法或冲突时 fail-closed |
+| `EXECUTOR` | 理解被分配的单一子目标、完成条件和局部上下文；不扩大上级目标 | 补齐非阻塞缺口或采用安全假设，选择下一项最小行动，执行并观察真实结果，可在迭代上限内修复 | 返回子任务结果、证据、假设和阻塞；只有满足子任务合同才声明完成，重复失败或越界时停止升级 |
+| `AGGREGATOR` | 核对冻结结果集合、聚合合同、顺序和覆盖范围 | 检查冲突、重复、缺失和格式，按合同进行透传、拼接或归并；不补造未执行内容 | 验证覆盖和输出格式，返回聚合结果及缺口；缺失必需结果时报告而不是静默完成 |
+
+`TaskLoopContract` 至少冻结 `key/version/agentKind/goal/phases/allowedActions/completion/stop/evidence/maxIterations`。达到预算、风险、循环边界，或没有新信息和实质进展时必须停止；COORDINATOR、EXECUTOR、AGGREGATOR 不得绕过上级直接向用户追问。
+
+严格 JSON 身份默认不加载 Persona 表达风格。Persona 只能调整自然语言表达，不能修改任务循环、输出 Schema、Role、Skill、工具或授权。
+
+### 非自主 L0 调用在任务流程中的位置
+
+Role/Skill 选择、分类、摘要、抽取、重排和 Judge 是单独的模型 invocation，但不是自主 Agent 阶段：
+
+```text
+Assistant / TaskBoard 当前步骤
+→ 提交结构化 FunctionInvocationRequest
+→ NON_AUTONOMOUS_L0 PromptEnvelope
+→ 单次模型函数调用或专用模型 API
+→ Schema / 候选边界校验
+→ 结构化结果回到当前步骤
+```
+
+它们默认以内联 child invocation 执行，拥有独立调用 ID、Prompt 快照、计量和有限重试，不创建 `ExecutionProfileSnapshot`、Harness Loop 或 TaskBoard 子任务。需要异步、租约、耐久恢复或独立业务重试时可以提升为显式系统节点，但仍不因此成为 Agent；只有需要多轮自主推理和工具观察时才采用 Harness。完整装配合同见 [PromptEnvelope 与模型调用装配设计](../core/prompt.md)。
+
 ## 统一执行模型
 
 ### 统一执行意图
@@ -196,7 +226,7 @@ Role                    system.role.content-creator
 Interaction / Route     TASK + FIXED(roleKey, skillKey)
 handlingMode            DELEGATE
 processMode             默认 AUTONOMOUS；确定性过程可显式选择 PREDEFINED_WORKFLOW
-coordination            TaskBoard.coordinated + Coordinator + 1..8 Executor
+coordination            TaskBoard.coordinated + Coordinator + 1..5 Executor
 outputKind               DOCUMENT
 canonicalMediaType       text/markdown
 defaultPersistence       AUTO_SAVE_DRAFT；显式 RETURN_ONLY 优先
@@ -222,7 +252,7 @@ TASK/FIXED/copywriting
 
 `AgentScopeSpecCompiler` 必须继续关闭 native subagent 与 dynamic subagent。Harness 仅承担单个 Agent Loop；任务创建、取消、恢复、权限、预算和事件谱系完全由 AAF 的 `DelegatedTask`、`TaskBoard`、ToolGateway、HITL 与 `ai_task_event` 管理。`ExecutionMode.DELEGATE` 仅表示动态 Harness 编译，不能被解释为已完成多 Agent 委派。
 
-协调者可为执行节点提议 `AUTO`，或在根请求是 `EXPLICIT` 时保留该同一显式模型；它不得任意指定其他 explicit model。当前 copywriting `CoordinationPlan` 允许 1..8 个 `EXECUTOR`：不可拆分目标使用一个执行者与 `PASS_THROUGH`，可拆分目标可使用多个执行者与 `ORDERED_CONCAT` 或 `COORDINATOR_REDUCE`。`AggregationContract` 必须且只能覆盖全部结果执行者，`PASS_THROUGH` 仅允许一个执行者；TaskBoard 聚合后由父任务形成唯一最终结果与终态。Assistant 对每个节点独立调用模型路由并把最终 `ModelSpec` 冻结到该节点的 `ExecutionProfileSnapshot`。计划策略保存在 TaskBoard，具体解析后的模型保存于该 execution 画像；协调者、执行者和重试节点不能复用父节点的画像。
+协调者可为执行节点提议 `AUTO`，或在根请求是 `EXPLICIT` 时保留该同一显式模型；它不得任意指定其他 explicit model。当前 copywriting `CoordinationPlan` 允许 1..5 个 `EXECUTOR`：不可拆分目标使用一个执行者与 `PASS_THROUGH`，可拆分目标可使用多个执行者与 `ORDERED_CONCAT` 或现有枚举 `COORDINATOR_REDUCE`。`PASS_THROUGH` 和 `ORDERED_CONCAT` 由 TaskBoard 确定性收敛；`COORDINATOR_REDUCE` 只是历史枚举名，TaskBoard 实际创建独立 `AgentKind.AGGREGATOR` 子任务，使用 AGGREGATOR TaskLoop 和独立 `ExecutionProfileSnapshot`/`PromptEnvelope` 完成语义归并，绝不让原 Coordinator 再次执行或生成最终业务内容。目标命名应收敛为 `AGGREGATOR_REDUCE`，实现迁移时直接替换旧枚举，不保留双语义。`AggregationContract` 必须且只能覆盖全部结果执行者，`PASS_THROUGH` 仅允许一个执行者；TaskBoard 聚合后由父任务形成唯一最终结果与终态。Assistant 对 Coordinator、每个 Executor 和按需创建的 Aggregator 分别调用模型路由，并把最终 `ModelSpec` 冻结到各节点的 `ExecutionProfileSnapshot`。计划策略保存在 TaskBoard，具体解析后的模型保存于对应 execution 画像；各节点和重试节点不能复用父节点画像。
 
 `FIXED(roleKey, skillKey)` 表示调用方已经确定主能力方向，不再让通用助理替换主 Role 或主 Skill：
 
@@ -235,7 +265,7 @@ TASK/FIXED/copywriting
 → Workflow 另行校验 key/version、节点责任和 DELEGATE Agent execution
 ```
 
-复杂度与执行计划仍由主 Assistant 判断，但不得突破冻结的 `ownerMode`。一般 Assistant 运行时中，`DIRECT` 可以采用自主过程或启动确定性 Workflow；`DELEGATE` 无论自主还是 Workflow 都至少创建一个任务级 Agent execution。当前 `TASK + FIXED + copywriting` 是明确例外：入口校验固定文案 Skill，并始终创建 `TaskBoard.coordinated`；简单文案使用 Coordinator + 一个 Executor，可拆分文案使用 Coordinator + 1..8 个 Executor。`CHAT` 的简单回复才使用 `TaskBoard.single`。主 Assistant 可以在白名单内继续委派研究、审校、文档组装等子任务，但不得替换主目标、切换到未授权 Role，或扩大工具和资源范围。
+复杂度与执行计划仍由主 Assistant 判断，但不得突破冻结的 `ownerMode`。一般 Assistant 运行时中，`DIRECT` 可以采用自主过程或启动确定性 Workflow；`DELEGATE` 无论自主还是 Workflow 都至少创建一个任务级 Agent execution。当前 `TASK + FIXED + copywriting` 是明确例外：入口校验固定文案 Skill，并始终创建 `TaskBoard.coordinated`；简单文案使用 Coordinator + 一个 Executor，可拆分文案使用 Coordinator + 1..5 个 Executor。固定 Team 仍可冻结 1..8 个 Worker，6–8 只用于覆盖已发布 roster，不扩大普通动态计划预算。`CHAT` 的简单回复才使用 `TaskBoard.single`。主 Assistant 可以在白名单内继续委派研究、审校、文档组装等子任务，但不得替换主目标、切换到未授权 Role，或扩大工具和资源范围。
 
 ### 统一事件投影
 
@@ -390,16 +420,16 @@ expiresAt: 任务截止时间
 ```text
 Assistant 校验固定 copywriting Route 与 ExecutionIntent
 → TaskBoard.coordinated 创建 Coordinator 节点
-→ Coordinator 形成 1..8 Executor 的 CoordinationPlan 与 AggregationContract
+→ Coordinator 形成 1..5 Executor 的 CoordinationPlan 与 AggregationContract
 → Assistant 校验并冻结每个节点的 Role / Skill / Model / Profile / Budget
 → Executor 在各自 Harness Agent Loop 中按 Skill 检索、生成、审校和产生产物证据
-→ PASS_THROUGH / ORDERED_CONCAT / COORDINATOR_REDUCE 收敛全部结果 Executor
+→ PASS_THROUGH / ORDERED_CONCAT 确定性收敛，或 COORDINATOR_REDUCE 历史枚举触发独立 AGGREGATOR 归并全部 Executor 结果
 → 需要保存时由获权执行体经 ToolGateway 调用 content.draft.upsert
 → AG-UI 投影唯一正文，任务事件仅投影状态、审计和 cursor
 → CompletionValidator 验证输出、产物、工具和完成证据
 ```
 
-简单文案由 Coordinator 规划一个内容 Executor，并使用 `PASS_THROUGH`；可拆分文案规划多个 Executor，并使用 `ORDERED_CONCAT` 或 `COORDINATOR_REDUCE`。系统不固定增加“文档 Agent”：保存数据库记录是产物工具职责，只有多章节组装、引用编排、模板套用或独立审校确有必要时，Coordinator 才在 1..8 上限内增加对应 Executor。若法规、审批、副作用顺序或跨系统补偿要求确定性骨架，可使用 `PREDEFINED_WORKFLOW`，但 Workflow 不能取代 Coordinator、TaskBoard、节点执行画像或 ToolGateway。
+简单文案由 Coordinator 规划一个内容 Executor，并使用 `PASS_THROUGH`；可拆分文案规划多个 Executor，并使用确定性的 `ORDERED_CONCAT`，或由现有 `COORDINATOR_REDUCE` 枚举触发独立 AGGREGATOR 进行语义归并。系统不固定增加“文档 Agent”：保存数据库记录是产物工具职责，只有多章节组装、引用编排、模板套用或独立审校确有必要时，Coordinator 才在 1..5 上限内增加对应 Executor。若法规、审批、副作用顺序或跨系统补偿要求确定性骨架，可使用 `PREDEFINED_WORKFLOW`，但 Workflow 不能取代 Coordinator、TaskBoard、节点执行画像或 ToolGateway。
 
 ### 产物创建时序
 

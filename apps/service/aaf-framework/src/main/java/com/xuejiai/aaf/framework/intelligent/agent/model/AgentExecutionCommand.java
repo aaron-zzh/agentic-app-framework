@@ -33,6 +33,10 @@ public record AgentExecutionCommand(
         if (messages.isEmpty()) {
             throw new IllegalArgumentException("messages 不能为空");
         }
+        if (messages.stream().anyMatch(message -> message.role() == AgentMessage.Role.SYSTEM)) {
+            throw new IllegalArgumentException(
+                    "Agent messages 禁止追加 SYSTEM；SYSTEM 只能来自 CompiledSystemPrompt");
+        }
     }
 
     public enum ExecutionMode {

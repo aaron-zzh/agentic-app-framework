@@ -1,11 +1,15 @@
 package com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.execution;
 
+import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentExecutionCommand;
+import com.xuejiai.aaf.framework.intelligent.agent.model.AgentMessage;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ExecutionPolicy;
 import com.xuejiai.aaf.framework.intelligent.agent.model.SubagentSpec;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentDefinitionPort;
@@ -14,6 +18,10 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePor
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.ContextBudgetExceededException;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.InvocationMode;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.InvocationPurpose;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptInputKind;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptLengthSummary;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.compiler.AgentScopeSpecCompiler;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeEventMapper;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeEventMapper.MappingState;
@@ -127,20 +135,6 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
             command.compiledSystemPrompt().verify();
             command.compiledSystemPrompt().requireCompatible(command.subagentSpec());
             var execution = resolveExecution(command);
-            log.debug(
-                    "[AgentLoop] AgentScope 执行体已就绪：executionId={}，AAF规格类型={}，agent={}，执行模式={}，现场编译临时实例={}，模型={}，工具数={}，消息数={}，promptSha256={}，promptLength={}",
-                    command.context().executionId().value(),
-                    command.subagentSpec().getClass().getSimpleName(),
-                    execution.agentIdentifier(),
-                    command.executionMode(),
-                    execution.ephemeral(),
-                    execution.model().modelId(),
-                    command.skillExecutionProfile().effectiveTools().size(),
-                    command.messages().size(),
-                    command.compiledSystemPrompt().sha256(),
-                    command.compiledSystemPrompt()
-                            .content()
-                            .codePointCount(0, command.compiledSystemPrompt().content().length()));
             return executeResolved(command, mappingState, execution);
         } catch (RuntimeException failure) {
             return eventStore
@@ -155,11 +149,102 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         }
     }
 
+    /** 这里只能观察 Harness invocation 初始输入，不包含后续 ReAct Tool Result、最终 Tool Schema 或 provider 包装。 */
+    private static void logPromptPreflight(AgentExecutionCommand command, ModelSpec model) {
+        var contents = new EnumMap<PromptInputKind, List<String>>(PromptInputKind.class);
+        for (var kind : PromptInputKind.values()) {
+            contents.put(kind, new ArrayList<>());
+        }
+        contents.get(PromptInputKind.SYSTEM).add(command.compiledSystemPrompt().content());
+        for (var message : command.messages()) {
+            contents.get(promptInputKind(command, message)).add(message.text());
+        }
+        command.skillExecutionProfile().effectiveTools().stream()
+                .map(tool -> "%s@%d:%s".formatted(tool.toolId(), tool.version(), tool.name()))
+                .forEach(contents.get(PromptInputKind.TOOL_REFERENCE)::add);
+        var attachmentCount =
+                command.messages().stream().mapToInt(message -> message.attachments().size()).sum();
+        var lengths = PromptLengthSummary.measure(contents, attachmentCount);
+        var system = lengths.input(PromptInputKind.SYSTEM);
+        var currentUser = lengths.input(PromptInputKind.CURRENT_USER_INPUT);
+        var otherUser = lengths.input(PromptInputKind.OTHER_USER_INPUT);
+        var assistantHistory = lengths.input(PromptInputKind.ASSISTANT_HISTORY);
+        var controlledContext = lengths.input(PromptInputKind.CONTROLLED_CONTEXT);
+        var toolResult = lengths.input(PromptInputKind.TOOL_RESULT);
+        var toolReference = lengths.input(PromptInputKind.TOOL_REFERENCE);
+        log.info(
+                "[Prompt预检] boundary=HARNESS_INVOCATION mode={} logicalInvocationId={} purpose={} model={} systemChars={} systemEstimatedTokens={} currentUserChars={} currentUserEstimatedTokens={} otherUserChars={} otherUserEstimatedTokens={} assistantHistoryChars={} assistantHistoryEstimatedTokens={} controlledContextChars={} controlledContextEstimatedTokens={} toolResultChars={} toolResultEstimatedTokens={} toolReferenceChars={} toolReferenceEstimatedTokens={} attachmentCount={} totalChars={} totalEstimatedTokens={}",
+                InvocationMode.AUTONOMOUS_HARNESS,
+                command.context().runId().value(),
+                InvocationPurpose.HARNESS_EXECUTION,
+                model.modelId(),
+                system.characters(),
+                system.estimatedTokensAtFourCodePoints(),
+                currentUser.characters(),
+                currentUser.estimatedTokensAtFourCodePoints(),
+                otherUser.characters(),
+                otherUser.estimatedTokensAtFourCodePoints(),
+                assistantHistory.characters(),
+                assistantHistory.estimatedTokensAtFourCodePoints(),
+                controlledContext.characters(),
+                controlledContext.estimatedTokensAtFourCodePoints(),
+                toolResult.characters(),
+                toolResult.estimatedTokensAtFourCodePoints(),
+                toolReference.characters(),
+                toolReference.estimatedTokensAtFourCodePoints(),
+                lengths.attachmentCount(),
+                lengths.totalCharacters(),
+                lengths.totalEstimatedTokens());
+    }
+
+    private static PromptInputKind promptInputKind(
+            AgentExecutionCommand command, AgentMessage message) {
+        return switch (message.role()) {
+            case SYSTEM ->
+                    throw new IllegalArgumentException(
+                            "Harness messages 禁止追加 SYSTEM；SYSTEM 只能来自 CompiledSystemPrompt");
+            case ASSISTANT -> PromptInputKind.ASSISTANT_HISTORY;
+            case TOOL -> PromptInputKind.TOOL_RESULT;
+            case USER -> {
+                var currentMessageId = "user:" + command.context().runId().value();
+                if (currentMessageId.equals(message.messageId())) {
+                    yield PromptInputKind.CURRENT_USER_INPUT;
+                }
+                yield controlledContextMessage(message.messageId())
+                        ? PromptInputKind.CONTROLLED_CONTEXT
+                        : PromptInputKind.OTHER_USER_INPUT;
+            }
+        };
+    }
+
+    private static boolean controlledContextMessage(String messageId) {
+        return "controlled-context-summary".equals(messageId)
+                || messageId.startsWith("l1-knowledge:")
+                || messageId.startsWith("memory-context:")
+                || messageId.startsWith("aaf-context-summary:")
+                || messageId.startsWith("task-material:");
+    }
+
     private Flux<ExecutionEvent> executeResolved(
             AgentExecutionCommand command, MappingState mappingState, ResolvedExecution execution) {
         var executionId = command.context().executionId();
         final RuntimeContext runtimeContext;
         try {
+            logPromptPreflight(command, execution.model());
+            log.debug(
+                    "[AgentLoop] AgentScope 执行体已就绪：executionId={}，AAF规格类型={}，agent={}，执行模式={}，现场编译临时实例={}，模型={}，工具数={}，消息数={}，promptSha256={}，promptLength={}",
+                    command.context().executionId().value(),
+                    command.subagentSpec().getClass().getSimpleName(),
+                    execution.agentIdentifier(),
+                    command.executionMode(),
+                    execution.ephemeral(),
+                    execution.model().modelId(),
+                    command.skillExecutionProfile().effectiveTools().size(),
+                    command.messages().size(),
+                    command.compiledSystemPrompt().sha256(),
+                    command.compiledSystemPrompt()
+                            .content()
+                            .codePointCount(0, command.compiledSystemPrompt().content().length()));
             runtimeContext = contextMapper.toAgentScope(command.context());
             requireNoHiddenPersistentHistory(command);
         } catch (RuntimeException failure) {

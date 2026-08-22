@@ -460,7 +460,7 @@ CREATE TABLE ai_assistant (
     remark            TEXT
 );
 
-COMMENT ON TABLE  ai_assistant                IS 'Assistant 当前定义（Actor + 记忆策略），不支持运行时版本切换';
+COMMENT ON TABLE  ai_assistant                IS 'Assistant 当前定义（Persona + 记忆策略），不支持运行时版本切换';
 COMMENT ON COLUMN ai_assistant.code            IS 'Assistant 稳定业务标识；运行时只按当前行读取';
 COMMENT ON COLUMN ai_assistant.source_system_key IS 'USER_COPY 的系统模板稳定业务码；NULL 表示系统受管或用户自建定义';
 COMMENT ON COLUMN ai_assistant.is_default      IS '用户个人默认 Assistant 标记；系统模板恒为 FALSE';

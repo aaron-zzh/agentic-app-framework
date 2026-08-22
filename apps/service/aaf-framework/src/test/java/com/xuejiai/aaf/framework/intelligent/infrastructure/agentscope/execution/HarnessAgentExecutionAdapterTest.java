@@ -47,6 +47,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.RunId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.SessionId;
 import com.xuejiai.aaf.test.BaseMockitoUnitTest;
 
@@ -97,6 +98,7 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
         executionModel = new ModelSpec("1");
         when(invocationContext.controlMode()).thenReturn(ControlMode.READ_ONLY);
         when(invocationContext.executionId()).thenReturn(new ExecutionId("execution-test"));
+        when(invocationContext.runId()).thenReturn(new RunId("run-test"));
         when(invocationContext.sessionId()).thenReturn(new SessionId("session-test"));
         when(contextMapper.stateUserKey(invocationContext)).thenReturn("state-user");
         when(stateStore.get("state-user", "session-test", "agent_state", AgentState.class))
@@ -215,10 +217,10 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
                                 "测试执行身份"),
                         new PromptLayerSource(
                                 PromptLayerKind.IDENTITY,
-                                PromptSourceKind.ASSISTANT_ACTOR,
-                                "assistant.test",
+                                PromptSourceKind.ASSISTANT_PERSONA,
+                                "persona:test",
                                 "1",
-                                "测试 Actor"),
+                                "测试 Persona"),
                         new PromptLayerSource(
                                 PromptLayerKind.INVOCATION_POLICY,
                                 PromptSourceKind.AAF_POLICY,

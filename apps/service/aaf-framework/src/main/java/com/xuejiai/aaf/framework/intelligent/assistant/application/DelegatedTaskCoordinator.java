@@ -21,6 +21,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ClarificationRequest;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CoordinationPlan;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CoordinationPlan.ExecutorAssignment;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.DecompositionBudget;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.BudgetUsage;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.Owner;
@@ -88,6 +89,7 @@ public final class DelegatedTaskCoordinator {
     private final NotificationPort notifications;
     private final DelegatedTaskDispatchPort dispatch;
     private final AgentTaskRuntime agentTaskRuntime;
+    private final DecompositionBudget decompositionBudget;
     private final Clock clock;
     private final Duration leaseTtl;
 
@@ -102,6 +104,7 @@ public final class DelegatedTaskCoordinator {
             NotificationPort notifications,
             DelegatedTaskDispatchPort dispatch,
             AgentTaskRuntime agentTaskRuntime,
+            DecompositionBudget decompositionBudget,
             Clock clock,
             Duration leaseTtl) {
         this.tasks = Objects.requireNonNull(tasks, "tasks 不能为空");
@@ -114,6 +117,8 @@ public final class DelegatedTaskCoordinator {
         this.notifications = Objects.requireNonNull(notifications, "notifications 不能为空");
         this.dispatch = Objects.requireNonNull(dispatch, "dispatch 不能为空");
         this.agentTaskRuntime = Objects.requireNonNull(agentTaskRuntime, "agentTaskRuntime 不能为空");
+        this.decompositionBudget =
+                Objects.requireNonNull(decompositionBudget, "decompositionBudget 不能为空");
         this.clock = Objects.requireNonNull(clock, "clock 不能为空");
         this.leaseTtl = Objects.requireNonNull(leaseTtl, "leaseTtl 不能为空");
         if (leaseTtl.isZero() || leaseTtl.isNegative()) {
@@ -895,7 +900,7 @@ public final class DelegatedTaskCoordinator {
                 at);
     }
 
-    private static CoordinationPlan decodeAndValidatePlan(
+    private CoordinationPlan decodeAndValidatePlan(
             AssistantCommand command, TaskBoard board, String output) {
         if (output == null || output.isBlank() || output.length() > MAX_COORDINATION_PLAN_CHARS) {
             throw new IllegalArgumentException("协调者未返回合法大小的 CoordinationPlan");
@@ -992,11 +997,29 @@ public final class DelegatedTaskCoordinator {
                             modelSelection,
                             optionalPositive(node, "maxAttempts", 3)));
         }
+        if (teamBoard) {
+            var plannedWorkerIds =
+                    assignments.stream()
+                            .map(ExecutorAssignment::subTaskId)
+                            .collect(java.util.stream.Collectors.toUnmodifiableSet());
+            if (!plannedWorkerIds.equals(teamTargets.keySet())) {
+                throw new IllegalArgumentException("Team 协调计划必须且只能覆盖全部冻结 Worker");
+            }
+        }
         var aggregation = aggregationContract(root.get("aggregationContract"));
         var iterationGroup = iterationGroup(root.get("iterationGroup"));
+        var maxParallelism = optionalPositive(root, "maxParallelism", 1);
+        var effectiveBudget =
+                teamBoard
+                        ? decompositionBudget.effectiveForFixedTeam(teamTargets.size())
+                        : decompositionBudget;
+        effectiveBudget.requireWithin(
+                assignments.size(),
+                maxParallelism,
+                iterationGroup == null ? 1 : iterationGroup.maxIterations());
         return new CoordinationPlan(
                 requiredText(root, "goal"),
-                optionalPositive(root, "maxParallelism", 1),
+                maxParallelism,
                 aggregation,
                 assignments,
                 iterationGroup);

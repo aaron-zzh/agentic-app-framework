@@ -14,7 +14,7 @@ export const crudResources = {
     dataAccessRules: { apiPath: "/admin/data-access-rules" } satisfies CrudResource
   },
   ai: {
-    actors: { apiPath: "/ai/actors" } satisfies CrudResource,
+    personas: { apiPath: "/ai/personas" } satisfies CrudResource,
     roles: { apiPath: "/ai/roles" } satisfies CrudResource,
     workflows: { apiPath: "/ai/workflows" } satisfies CrudResource
   },

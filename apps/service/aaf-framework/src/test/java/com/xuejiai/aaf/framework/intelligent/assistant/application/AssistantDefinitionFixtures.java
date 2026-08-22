@@ -4,13 +4,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.xuejiai.aaf.framework.intelligent.assistant.model.Actor;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition.Lifecycle;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition.RiskPolicy;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition.TemplateOwnership;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantVersion;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.MemoryStrategy;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.PersonaSnapshot;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Role;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillActivationMode;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillBinding;
@@ -52,7 +52,7 @@ public final class AssistantDefinitionFixtures {
                 TemplateOwnership.USER_OWNED,
                 new AssistantVersion(1),
                 "test",
-                new Actor("test.actor", "测试助理", "测试", "审慎", "简洁", "仅测试", null),
+                new PersonaSnapshot("persona:test", 1, "测试助理", "测试", "审慎", "简洁", "仅测试", null),
                 List.of(platformGuide, contentCreator),
                 List.of(binding("builtin-user-understanding", SkillActivationMode.ALWAYS)),
                 Set.of("script.execute.javascript"),

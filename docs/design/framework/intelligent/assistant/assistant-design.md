@@ -23,7 +23,7 @@ Assistant 是用户唯一交互入口。持有人格、角色、技能、工具�
 - **情感感知**：识别用户情绪，动态调整回应风格和信息密度
 - **技能匹配**：根据意图+关键词匹配最合适的执行路径
 - **Agent 调度**：选择 Agent + 并发派发 + 结果聚合
-- **多实例并行**：同 Actor + 多 Role fork 子实例，主实例协调聚合
+- **多实例并行**：同 Persona + 多 Role fork 子实例，主实例协调聚合
 - **输入缓冲**：执行期间接收用户追加输入（取消/修改/补充/无关）
 - **记忆管道编排**：按 MemoryStrategy 决定从哪些源拉取上下文
 - **置信度门控**：>0.9 自动 / 0.7-0.9 确认 / <0.7 转人工
@@ -31,10 +31,10 @@ Assistant 是用户唯一交互入口。持有人格、角色、技能、工具�
 ## 组成结构
 
 ```text
-Assistant = Actor + Role + MemoryStrategy
+Assistant = Persona + Role + MemoryStrategy
 
-Actor（人格载体）：可复用·跨 Role
-Role（能力配置）：Skill 集 + Tool 白名单，可复用·跨 Actor
+Persona（人格载体）：可复用·跨 Role
+Role（能力配置）：Skill 集 + Tool 白名单，可复用·跨 Persona
 MemoryStrategy：MEMORY_ONLY / KNOWLEDGE_ONLY / HYBRID / PROCEDURAL_FIRST / FULL
 ```
 
@@ -73,7 +73,7 @@ MemoryStrategy：MEMORY_ONLY / KNOWLEDGE_ONLY / HYBRID / PROCEDURAL_FIRST / FULL
 用户消息到达
   │
   ├─ ✅ 1. 加载 Assistant 配置（AssistantDefinitionRepository）
-  │       Actor（人格）+ Role（技能集 + 工具白名单）+ MemoryStrategy
+  │       Persona（人格）+ Role（技能集 + 工具白名单）+ MemoryStrategy
   │
   ├─ ✅ 2. 会话管理（SessionManager）
   │       已有会话 → 恢复；无会话 → 创建；更新状态 PROCESSING
@@ -109,7 +109,7 @@ MemoryStrategy：MEMORY_ONLY / KNOWLEDGE_ONLY / HYBRID / PROCEDURAL_FIRST / FULL
   │
   ├─ 🔲 前注意分流判断：简单请求
   │
-  ├─ 🔲 直接用 Actor.systemPrompt + MemoryContext 构建提示词
+  ├─ 🔲 直接用 Persona.systemPrompt + MemoryContext 构建提示词
   │
   ├─ 🔲 调用 Core 层 LlmClient（不走 AgentPool）
   │

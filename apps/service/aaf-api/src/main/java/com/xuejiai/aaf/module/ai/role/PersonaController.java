@@ -17,7 +17,7 @@ import lombok.RequiredArgsConstructor;
 
 @Tag(name = "AI 角色管理 - Persona")
 @RestController
-@RequestMapping("/api/ai/actors")
+@RequestMapping("/api/ai/personas")
 @RequiredArgsConstructor
 public class PersonaController
         extends BaseCrudController<

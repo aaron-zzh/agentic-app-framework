@@ -21,15 +21,15 @@ author: AaronZZH
 ## 组成结构
 
 ```text
-Assistant = Actor + Role + MemoryStrategy
+Assistant = Persona + Role + MemoryStrategy
 
-Actor（人格载体）：name / persona / systemPrompt / avatar
+Persona（人格载体）：name / persona / systemPrompt / avatar
   - 纯配置，无运行时状态，从缓存引用
   - 可复用·跨 Role
 
 Role（能力配置）：Skill 集 + Tool 白名单
   - 纯配置，无运行时状态，从缓存引用
-  - 可复用·跨 Actor
+  - 可复用·跨 Persona
 
 MemoryStrategy：决定从哪些源拉取上下文
   - MEMORY_ONLY / KNOWLEDGE_ONLY / HYBRID / PROCEDURAL_FIRST / FULL
@@ -52,7 +52,7 @@ MemoryStrategy：决定从哪些源拉取上下文
   └── 子实例销毁（GC 回收）
 ```
 
-**为什么不池化**：实例 = Actor 引用 + Role 引用 + 会话上下文，创建成本极低；每个子实例上下文独立不可互换。
+**为什么不池化**：实例 = Persona 引用 + Role 引用 + 会话上下文，创建成本极低；每个子实例上下文独立不可互换。
 
 **子实例上下文策略**：fork 时拷贝主实例上下文只读快照，各子实例独立写入，主实例 merge 结果。
 
@@ -118,12 +118,12 @@ Agent 执行期间，用户可继续输入。InputBuffer 在 Assistant 层接收
 intelligent/assistant/
   ├── DefaultAssistantExecutor    实现 AssistantExecutor
   ├── AssistantService            统一入口（意图→Skill→Agent 认知循环→学习）
-  ├── AssistantDefinition         @Entity：Actor + Role + MemoryStrategy
+  ├── AssistantDefinition         @Entity：Persona + Role + MemoryStrategy
   ├── AssistantDefinitionRepository
   ├── AssistantPermissionEvaluator 权限评估
   ├── PermissionScope             权限范围枚举
-  ├── actor/Actor                 @Entity：人格载体
-  ├── actor/ActorRepository
+  ├── persona/Persona             @Entity：人格载体
+  ├── persona/PersonaRepository
   ├── role/Role                   @Entity：能力配置
   ├── role/AiRoleRepository
   ├── role/RoleStore              角色存储接口
@@ -143,7 +143,7 @@ intelligent/assistant/
 ## 相关文档
 
 - [五层智能架构总览](../architecture.md)
-- Actor 模型（待建）
+- Persona 模型（待建）
 - [用户感知与个性化](../cognition/personalization.md)
 
 ---

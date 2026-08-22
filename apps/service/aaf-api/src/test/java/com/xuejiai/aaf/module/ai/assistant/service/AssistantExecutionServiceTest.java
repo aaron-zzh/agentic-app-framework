@@ -15,7 +15,6 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.Actor;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition.Lifecycle;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition.RiskPolicy;
@@ -25,6 +24,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent.Int
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent.PersistenceMode;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent.RouteConstraint;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.MemoryStrategy;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.PersonaSnapshot;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Role;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillActivationMode;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillBinding;
@@ -196,7 +196,7 @@ class AssistantExecutionServiceTest {
                 TemplateOwnership.USER_OWNED,
                 new AssistantVersion(1),
                 "test",
-                new Actor("test.actor", "测试助理", "测试", "审慎", "简洁", "仅测试", null),
+                new PersonaSnapshot("persona:test", 1, "测试助理", "测试", "审慎", "简洁", "仅测试", null),
                 List.of(platformGuide, contentCreator),
                 List.of(),
                 Set.of(),

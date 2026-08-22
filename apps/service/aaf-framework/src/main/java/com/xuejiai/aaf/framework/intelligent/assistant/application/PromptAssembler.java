@@ -31,7 +31,7 @@ public final class PromptAssembler {
         Objects.requireNonNull(request, "request 不能为空");
         var constitution = promptTemplates.requireActive(CompiledSystemPrompt.CONSTITUTION_NAME);
         var assistant = request.assistant();
-        var actor = assistant.actor();
+        var persona = assistant.persona();
         var sources = new ArrayList<PromptLayerSource>();
         sources.add(
                 source(
@@ -62,12 +62,12 @@ public final class PromptAssembler {
         sources.add(
                 source(
                         PromptLayerKind.IDENTITY,
-                        PromptSourceKind.ASSISTANT_ACTOR,
-                        "%s:actor".formatted(assistant.assistantId().value()),
-                        Long.toString(assistant.version().value()),
+                        PromptSourceKind.ASSISTANT_PERSONA,
+                        persona.personaKey(),
+                        Integer.toString(persona.personaRevision()),
                         """
-                        ## Assistant Actor
-                        actorKey：%s
+                        ## Assistant Persona
+                        personaKey：%s
                         名称：%s
                         定位：%s
                         人格：%s
@@ -75,12 +75,12 @@ public final class PromptAssembler {
                         基础约束：%s
                         """
                                 .formatted(
-                                        actor.key(),
-                                        actor.name(),
-                                        actor.description(),
-                                        actor.personality(),
-                                        actor.speakingStyle(),
-                                        actor.instructions())));
+                                        persona.personaKey(),
+                                        persona.name(),
+                                        persona.description(),
+                                        persona.personality(),
+                                        persona.speakingStyle(),
+                                        persona.instructions())));
         sources.add(
                 source(
                         PromptLayerKind.ROLE,

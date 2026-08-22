@@ -3,8 +3,8 @@ level: Practice
 layer: Model
 purpose: 定义 AAF Skill 的在线版本模型、渐进加载机制、参考资料与知识库边界及运行时授权链
 status: draft
-version: 1.0.0
-date: 2026-08-16
+version: 1.1.0
+date: 2026-08-22
 author: Kiro
 related:
   - ../architecture.md
@@ -81,9 +81,9 @@ AssistantInvocation
 
 ## 目标执行模型
 
-### Assistant 限定 Scope，执行 Agent 选择最终 Skill
+### Assistant 限定 Scope，非自主 L0 选择最终 Skill
 
-目标态采用两阶段模型：Assistant 协调者不直接把所有候选 Skill 正文交给执行 Agent，也不让执行 Agent 自由浏览全局目录。Assistant 先选择受限候选 Scope；执行 Agent 再根据该 Scope 中的摘要选择最终激活的主 Skill 和有限的辅助 Skill。
+目标态采用两阶段模型：Assistant 不把所有候选 Skill 正文交给执行 Agent，也不让执行 Agent 自由浏览全局目录。Assistant 先确定受限候选 Scope；独立的无副作用 Skill Selector 再根据该 Scope 中的摘要选择最终激活 Skill。Selector 属于 `NON_AUTONOMOUS_L0` 单一函数调用，不是 Executor、Harness Agent 或自主任务循环。
 
 ```text
 用户输入
@@ -91,12 +91,14 @@ AssistantInvocation
   → 解析当前 Role 与受限 Skill Scope
   → Scope = Route 候选范围 ∩ Role.skillKeys ∩ 发布与租户可见范围
   → 生成候选 Skill 摘要清单
-  → 无副作用选择阶段：执行 Agent 选择最终 Skill 集合
-  → AAF 校验并激活确定的 SkillVersion
+  → NON_AUTONOMOUS_L0 Skill Selector（无工具、严格 JSON、独立 PromptEnvelope）
+  → AAF 校验候选边界并冻结选择结果
   → 加载每个已激活版本的 content
   → 计算精确工具交集并编译最终执行画像
-  → AgentScope 执行阶段
+  → AgentScope Harness 执行阶段
 ```
+
+Role Selector 与 Skill Selector 是两个可独立计量和追踪的函数调用：Role 先确定能力上限，Skill 只能在选定 Role 与 Route 的交集中继续收窄。它们默认是当前 Assistant 流程中的 child invocation，不创建 TaskBoard 子任务或 `ExecutionProfileSnapshot`；需要异步、耐久恢复或独立业务重试时可提升为显式系统节点，但仍不自动成为 Agent。其动态 Prompt 只包含版本化 Function Contract、授权候选摘要、当前输入和严格 Output Contract，不注入 Harness Constitution、Persona、Role 正文、Skill 正文或自主任务循环。完整合同见 [PromptEnvelope 与模型调用装配设计](../core/prompt.md)。
 
 `SkillRoute` 从“唯一最终 `skillKey`”调整为任务领域入口和选择策略。其目标契约为：
 
@@ -113,17 +115,17 @@ SkillRoute
 
 三种选择策略如下：
 
-| 策略 | Assistant 行为 | 执行 Agent 行为 | 适用场景 |
+| 策略 | Assistant 行为 | Skill Selector 行为 | 适用场景 |
 |---|---|---|---|
-| `FIXED` | 直接指定 `defaultSkillKey` | 不可更换或补充 Skill | 高风险、合规、强流程任务 |
-| `SELECT_PRIMARY` | 提供候选摘要与默认项 | 从候选中选择一个主 Skill | 普通多意图业务任务 |
-| `SELECT_AND_AUGMENT` | 提供候选摘要、默认项和最大数量 | 选择主 Skill，必要时补充少量辅助 Skill | 复合创作、研究、分析任务 |
+| `FIXED` | 直接指定 `defaultSkillKey` | 不调用模型，确定性使用默认项 | 高风险、合规、强流程任务 |
+| `SELECT_PRIMARY` | 提供候选摘要与默认项 | 从候选中返回一个主 Skill code | 普通多意图业务任务 |
+| `SELECT_AND_AUGMENT` | 提供候选摘要、默认项和最大数量 | 返回主 Skill 和不超过上限的辅助 Skill code | 复合创作、研究、分析任务 |
 
-候选摘要只包含 `code`、`name`、`summary`、分类、输入输出标签、模型能力和工具用途标签；不包含完整 `content`、reference 正文、知识库内容或可直接调用的业务工具。`summary` 应采用意图式 `USE WHEN ...` 表述，以支持执行 Agent 的细粒度判断。
+候选摘要只包含 `code`、`name`、`summary`、分类、输入输出标签、模型能力和工具用途标签；不包含完整 `content`、reference 正文、知识库内容或可直接调用的业务工具。`summary` 应采用意图式 `USE WHEN ...` 表述，以支持 Selector 的细粒度判断。
 
 ### 选择、激活与最终执行画像
 
-执行 Agent 的选择阶段接收 `SkillSelectionManifest`，并且只拥有选择相关的无副作用能力：
+Skill Selector 接收 `SkillSelectionManifest` 和当前任务输入，并且只承担无副作用候选选择：
 
 ```java
 public record SkillSelectionManifest(
@@ -134,7 +136,7 @@ public record SkillSelectionManifest(
         List<AuthorizedSkillSummary> candidates) {}
 ```
 
-它可以请求 AAF 激活候选中的某一项，例如 `activate_skill("social-post")`。该请求不是 AgentScope 原生 Skill 激活，也不会立即打开任何 ToolGroup；AAF 只记录选择结果并执行版本、可见性、Role、模型和必需资源校验。
+Selector 只返回候选中的 code 列表。AAF 随后校验数量、重复项、候选范围、Role、版本、可见性、模型和必需资源，再冻结激活结果；非法输出按 Function Contract fail-closed 或采用已声明的确定性安全默认值。选择结果本身不会打开任何 ToolGroup，也不授予工具权限。
 
 选择完成后，AAF 构建不可变 `SkillExecutionProfile`，替换当前无来源语义的 `String skillSystemPromptAppendix`：
 

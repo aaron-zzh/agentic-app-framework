@@ -7,13 +7,13 @@ import java.util.Optional;
 import java.util.Set;
 
 import com.xuejiai.aaf.common.util.JsonUtils;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.Actor;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition.Lifecycle;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition.RiskPolicy;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition.TemplateOwnership;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantVersion;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.MemoryStrategy;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.PersonaSnapshot;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Role;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillActivationMode;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillBinding;
@@ -116,8 +116,9 @@ public final class JpaAssistantDefinitionAdapter implements AssistantDefinitionP
                 ownership == TemplateOwnership.SYSTEM_MANAGED
                         ? "AAF"
                         : assistant.getUserId().toString(),
-                new Actor(
+                new PersonaSnapshot(
                         "persona:" + persona.getId(),
+                        persona.getVersion(),
                         persona.getName(),
                         text(persona.getPersona(), persona.getName()),
                         text(persona.getPersona(), "专业、审慎"),

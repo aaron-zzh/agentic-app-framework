@@ -24,7 +24,7 @@ gains:
 | 实体 | 表 | 本质 | 数量级 |
 |------|----|------|--------|
 | `AgentDefinition` | `ai_agent_definition` | AgentScope ReActAgent 的蓝图（无状态模板，可池化） | 少量、受治理 |
-| `AssistantDefinition` | `ai_assistant` | 面向用户的有状态实体 = Actor + Role + MemoryStrategy + PermissionScope + 知识库 | 海量、per-user |
+| `AssistantDefinition` | `ai_assistant` | 面向用户的有状态实体 = Persona + Role + MemoryStrategy + PermissionScope + 知识库 | 海量、per-user |
 
 两条入口：
 
@@ -50,7 +50,7 @@ gains:
 |------|----------------------|------------------|
 | 面向 | 人（唯一交互入口） | Assistant（内部调度，不对外） |
 | 状态 | 有状态（会话级） | 无状态（任务级，池化） |
-| 组成 | Actor 人格 + Role 能力 + MemoryStrategy + PermissionScope + 知识库 | sysPrompt + model + tools + mcpServers |
+| 组成 | Persona 人格 + Role 能力 + MemoryStrategy + PermissionScope + 知识库 | sysPrompt + model + tools + mcpServers |
 | 数量 | per-user，海量 | 少量、受治理的内置能力单元 |
 | AG-UI | **注册类型工厂，按上下文物化** | **不直接注册**，作为工具暴露给 Assistant |
 
@@ -65,7 +65,7 @@ AG-UI 协议需要一个 AgentScope `Agent` 来产出事件流。因此 Assistan
    │
    ▼
 AssistantRuntime.materialize(ctx)          ← 按 threadId 上下文物化
-   │  Actor.systemPrompt   → ReActAgent.sysPrompt
+   │  Persona.systemPrompt   → ReActAgent.sysPrompt
    │  Role.tools(白名单)    → Toolkit
    │  Role.skills          → SkillBox（按需披露）
    │  MemoryStrategy       → memory adapter（AutoContext + 记忆管道）
@@ -109,7 +109,7 @@ registry.registerFactory("assistant",
 | AAF 领域概念 | AgentScope 机制 | 说明 |
 |--------------|----------------|------|
 | Assistant（协调者） | `ReActAgent`（一条 AG-UI 流） | 由 `AssistantRuntime` 物化 |
-| Actor 人格 | `sysPrompt` | persona/systemPrompt 注入 |
+| Persona 人格 | `sysPrompt` | persona/systemPrompt 注入 |
 | Role 工具白名单 | `Toolkit` + `AafToolWhitelistHook` | 细粒度工具边界 |
 | Role 技能集 | `SkillBox` | 按需披露，激活后才暴露绑定工具 |
 | MemoryStrategy | memory adapter（`AafAutoContextMemoryAdapter` + 记忆管道） | 决定拉取哪些源 |
@@ -217,7 +217,7 @@ intelligent/
     assistant/AssistantExecutor · assistant/AssistantRuntime(新增)
     memory/ llm/ skill/ function/ model/(接口) …
   agent/                         Agent 领域（AgentDefinition/Registry/Factory · runtime/ · run/ · trace/）
-  assistant/                     Assistant 领域（AssistantDefinition · actor/ · role/ · SkillMatch · SessionManager）
+  assistant/                     Assistant 领域（AssistantDefinition · persona/ · role/ · SkillMatch · SessionManager）
   cognition/                     认知领域（memory/ retrieval/ pipeline/ personalization/ learning/）
   agentscope/                    ★ 唯一 AgentScope 适配器环
     runtime/    AgentScopeRuntime · AssistantScopeRuntime · ReActAgentBuilderFactory(共享) · AgentScopeAgentAdapter
@@ -283,7 +283,7 @@ module/ai/
 
 - **Phase 1 入口对齐**：registry 注册 `assistant` 类型工厂；resolver/`ChatSessionResolver` key 切 assistantId；前端路由切 `/agui/runs/{assistantId}`。物化暂时仍按「Assistant 选一个默认 Agent」过渡。
   影响：`AafAguiRegistryCustomizer`、`AafAgentResolver`、`ChatSessionResolver`、`ChatterRuntime.tsx`。
-- **Phase 2 Assistant 物化**：新增 `AssistantRuntime`，将 Actor/Role/MemoryStrategy/PermissionScope 映射到协调者 ReActAgent；内置 Agent 以 `call_agent` 工具暴露。
+- **Phase 2 Assistant 物化**：新增 `AssistantRuntime`，将 Persona/Role/MemoryStrategy/PermissionScope 映射到协调者 ReActAgent；内置 Agent 以 `call_agent` 工具暴露。
   影响：新增 `AssistantRuntime`/实现、`McpToolService`（注册 `call_agent`）、`AgentScopeRuntime`（复用 build 逻辑）。
 - **Phase 3 收敛并行抽象**：`DefaultAssistantExecutor` 的意图/情感/前注意迁入 Hook；删除/收敛 `AgentDispatcher`；`AgentManagementService.execute` 降级 admin。
   影响：`DefaultAssistantExecutor`、`AssistantService`、`AgentDispatcher`、`AgentManagementService`。
@@ -291,7 +291,7 @@ module/ai/
 ## 风险与门控
 
 - 🔴 **高风险架构调整**：改对外入口契约 + 跨 ≥5 文件 + 前后端联动，按 [协作红线](../../../../.kiro/steering/collaboration.md) 必须人类审核后再开发。
-- **数据**：不新增表；需确认 `actor` / `role` / `ai_skill_definition` 的 seed 数据齐备，且每个 `AssistantDefinition` 能解析出有效 Actor+Role。
+- **数据**：不新增表；需确认 `persona` / `role` / `ai_skill_definition` 的 seed 数据齐备，且每个 `AssistantDefinition` 能解析出有效 Persona+Role。
 - **回滚**：按 Phase 粒度回滚；Phase 1 可独立验证（前端能按 assistantId 跑通即通过）。
 
 ## 开放问题

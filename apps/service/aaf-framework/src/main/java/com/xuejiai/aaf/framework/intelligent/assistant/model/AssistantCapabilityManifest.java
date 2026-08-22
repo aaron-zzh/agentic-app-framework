@@ -50,7 +50,7 @@ public record AssistantCapabilityManifest(
                 definition.systemKey(),
                 definition.version(),
                 definition.maintainer(),
-                definition.actor().name(),
+                definition.persona().name(),
                 definition.defaultRoleKey(),
                 definition.modelId(),
                 roleKeys,

@@ -13,7 +13,7 @@ import java.util.Objects;
 public record CompiledSystemPrompt(
         String compilerVersion, List<PromptLayerSnapshot> layers, String content, String sha256) {
 
-    public static final String COMPILER_VERSION = "aaf-prompt-v1";
+    public static final String COMPILER_VERSION = "aaf-prompt-v2";
     public static final String CONSTITUTION_NAME = "aaf.harness.constitution";
 
     public CompiledSystemPrompt {
@@ -60,10 +60,16 @@ public record CompiledSystemPrompt(
                             Long.toString(predefined.version()));
             case SubagentSpec.Dynamic dynamic -> {
                 requireSource(PromptSourceKind.AAF_POLICY, dynamic.identifier(), "1");
-                if (layers.stream()
-                        .noneMatch(
-                                layer -> layer.sourceKind() == PromptSourceKind.ASSISTANT_ACTOR)) {
-                    throw new IllegalStateException("动态 Harness Prompt 缺少 Assistant Actor 层");
+                var personaCount =
+                        layers.stream()
+                                .filter(
+                                        layer ->
+                                                layer.sourceKind()
+                                                        == PromptSourceKind.ASSISTANT_PERSONA)
+                                .count();
+                if (personaCount != 1) {
+                    throw new IllegalStateException(
+                            "动态 Harness Prompt 必须且只能包含一个 Assistant Persona 层");
                 }
             }
         }
@@ -273,7 +279,7 @@ public record CompiledSystemPrompt(
     public enum PromptSourceKind {
         ENGINE_TEMPLATE,
         AGENT_DEFINITION,
-        ASSISTANT_ACTOR,
+        ASSISTANT_PERSONA,
         ASSISTANT_ROLE,
         SKILL_VERSION,
         AAF_POLICY

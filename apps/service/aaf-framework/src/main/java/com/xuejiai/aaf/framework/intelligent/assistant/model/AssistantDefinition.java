@@ -17,7 +17,7 @@ public record AssistantDefinition(
         TemplateOwnership ownership,
         AssistantVersion version,
         String maintainer,
-        Actor actor,
+        PersonaSnapshot persona,
         List<Role> roles,
         List<SkillBinding> assistantSkillBindings,
         Set<String> assistantToolKeys,
@@ -34,7 +34,7 @@ public record AssistantDefinition(
         Objects.requireNonNull(ownership, "ownership 不能为空");
         Objects.requireNonNull(version, "version 不能为空");
         maintainer = requireText(maintainer, "maintainer");
-        Objects.requireNonNull(actor, "actor 不能为空");
+        Objects.requireNonNull(persona, "persona 不能为空");
         roles = List.copyOf(Objects.requireNonNull(roles, "roles 不能为空"));
         assistantSkillBindings =
                 SkillBinding.copyOf(assistantSkillBindings, "assistantSkillBindings");

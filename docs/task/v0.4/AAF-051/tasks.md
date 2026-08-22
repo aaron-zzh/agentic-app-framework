@@ -40,7 +40,7 @@ author: AaronZZH
 - [ ] **[架构修正]** `AssistantDefinition` 拆分为三个概念：
   - `Actor`：人格载体（name/persona/systemPrompt/avatar），可复用跨 Role
   - `Role`：能力配置（Skill 集 + Tool 白名单），可复用跨 Actor
-  - `AssistantDefinition`：Actor + Role + MemoryStrategy 的组合，是运行时实体
+  - `AssistantDefinition`：Persona + Role + MemoryStrategy 的组合，是运行时实体
 
 ### #5102 意图理解（核心补充）
 

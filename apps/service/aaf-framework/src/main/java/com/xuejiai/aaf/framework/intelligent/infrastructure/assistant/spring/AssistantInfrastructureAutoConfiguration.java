@@ -35,6 +35,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.application.RoleSelector;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.SkillSelectionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.SupportHandoffTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskIngress;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.DecompositionBudget;
 import com.xuejiai.aaf.framework.intelligent.assistant.persona.PersonaRepository;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionPort;
@@ -64,6 +65,7 @@ import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryContextPort;
 import com.xuejiai.aaf.framework.intelligent.core.llm.LlmClient;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptInvocationGateway;
 import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptTemplateService;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agent.persistence.JpaSkillCatalogAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentScopeInfrastructureAutoConfiguration;
@@ -149,11 +151,19 @@ public class AssistantInfrastructureAutoConfiguration {
 
     @Bean
     @ConditionalOnBean(LlmClient.class)
-    @ConditionalOnMissingBean(RoleSelector.class)
-    RoleSelector modelRoleSelector(LlmClient llmClient) {
-        return new DefaultRoleSelector(llmClient);
+    @ConditionalOnMissingBean(PromptInvocationGateway.class)
+    PromptInvocationGateway promptInvocationGateway(LlmClient llmClient) {
+        return new PromptInvocationGateway(llmClient);
     }
 
+    @Bean
+    @ConditionalOnBean(LlmClient.class)
+    @ConditionalOnMissingBean(RoleSelector.class)
+    RoleSelector modelRoleSelector(PromptInvocationGateway promptGateway) {
+        return new DefaultRoleSelector(promptGateway);
+    }
+
+    /** 无 LlmClient 时执行版本化默认 Role 安全策略，不创建模型调用或扩大候选。 */
     @Bean
     @ConditionalOnMissingBean(RoleSelector.class)
     RoleSelector roleSelector() {
@@ -170,14 +180,20 @@ public class AssistantInfrastructureAutoConfiguration {
     @Bean
     @ConditionalOnBean(LlmClient.class)
     @ConditionalOnMissingBean(SkillSelectionPort.class)
-    SkillSelectionPort modelSkillSelectionPort(LlmClient llmClient) {
-        return new ModelSkillSelectionPort(llmClient);
+    SkillSelectionPort modelSkillSelectionPort(PromptInvocationGateway promptGateway) {
+        return new ModelSkillSelectionPort(promptGateway);
     }
 
     @Bean
     @ConditionalOnMissingBean(SkillSelectionPort.class)
     SkillSelectionPort defaultSkillSelectionPort() {
         return new DefaultSkillSelectionPort();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(DecompositionBudget.class)
+    DecompositionBudget decompositionBudget() {
+        return DecompositionBudget.defaults();
     }
 
     @Bean
@@ -337,6 +353,7 @@ public class AssistantInfrastructureAutoConfiguration {
             NotificationPort notifications,
             DelegatedTaskDispatchPort dispatchSignals,
             AgentTaskRuntime agentTaskRuntime,
+            DecompositionBudget decompositionBudget,
             Environment environment) {
         var leaseTtl =
                 Duration.ofSeconds(
@@ -353,6 +370,7 @@ public class AssistantInfrastructureAutoConfiguration {
                 notifications,
                 dispatchSignals,
                 agentTaskRuntime,
+                decompositionBudget,
                 Clock.systemUTC(),
                 leaseTtl);
     }
