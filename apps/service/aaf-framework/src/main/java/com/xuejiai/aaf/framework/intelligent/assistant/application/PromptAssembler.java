@@ -13,6 +13,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.model.CompiledSystemPrompt.Pr
 import com.xuejiai.aaf.framework.intelligent.agent.model.SkillExecutionProfile;
 import com.xuejiai.aaf.framework.intelligent.agent.model.SubagentSpec;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionCriteria;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.InvocationPolicy;
 import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptTemplateService;
@@ -59,10 +60,23 @@ public final class PromptAssembler {
                                         assistant.version().value(),
                                         request.executionSpec().identifier(),
                                         request.executionSpec().description())));
+        sources.add(
+                invocationSource(
+                        request.invocationPolicy(),
+                        request.executionIntent(),
+                        request.completionCriteria()));
+        sources.add(
+                source(
+                        PromptLayerKind.ROLE,
+                        PromptSourceKind.ASSISTANT_ROLE,
+                        request.roleAssignment().roleKey(),
+                        Long.toString(assistant.version().value()),
+                        roleContent(request.roleAssignment())));
+        appendSkills(sources, request.skillExecutionProfile());
         if (personaApplies(request.invocationPolicy())) {
             sources.add(
                     source(
-                            PromptLayerKind.IDENTITY,
+                            PromptLayerKind.PERSONA,
                             PromptSourceKind.ASSISTANT_PERSONA,
                             persona.personaKey(),
                             Integer.toString(persona.personaRevision()),
@@ -83,15 +97,6 @@ public final class PromptAssembler {
                                             persona.speakingStyle(),
                                             persona.instructions())));
         }
-        sources.add(
-                source(
-                        PromptLayerKind.ROLE,
-                        PromptSourceKind.ASSISTANT_ROLE,
-                        request.roleAssignment().roleKey(),
-                        Long.toString(assistant.version().value()),
-                        roleContent(request.roleAssignment())));
-        appendSkills(sources, request.skillExecutionProfile());
-        sources.add(invocationSource(request.invocationPolicy(), request.executionIntent()));
         return CompiledSystemPrompt.compile(sources);
     }
 
@@ -134,8 +139,8 @@ public final class PromptAssembler {
                         spec.agentId().value(),
                         Long.toString(spec.version()),
                         spec.systemPrompt()));
+        sources.add(invocationSource(invocationPolicy, null, null));
         appendSkills(sources, skillExecutionProfile);
-        sources.add(invocationSource(invocationPolicy, null));
         return CompiledSystemPrompt.compile(sources);
     }
 
@@ -180,7 +185,9 @@ public final class PromptAssembler {
     }
 
     private static PromptLayerSource invocationSource(
-            InvocationPolicy policy, ExecutionIntent executionIntent) {
+            InvocationPolicy policy,
+            ExecutionIntent executionIntent,
+            CompletionCriteria completionCriteria) {
         var content = new StringBuilder();
         content.append("## 受信调用策略\n");
         content.append("阶段：").append(policy).append('\n');
@@ -194,6 +201,7 @@ public final class PromptAssembler {
             content.append("持久化模式：").append(artifact.persistenceMode()).append('\n');
             content.append("发布策略：").append(artifact.publishPolicy()).append('\n');
         }
+        appendCompletionContract(content, completionCriteria);
         content.append("本层只定义行为和输出契约；工具授权、人工批准、预算与持久化许可由 Prompt 外部确定性机制裁决。\n");
         return source(
                 PromptLayerKind.INVOCATION_POLICY,
@@ -201,6 +209,36 @@ public final class PromptAssembler {
                 "invocation:" + policy.name().toLowerCase(java.util.Locale.ROOT),
                 policy.contractVersion(),
                 content.toString());
+    }
+
+    /**
+     * 渲染显式完成标准。
+     *
+     * <p>只暴露模型能影响的部分：完成语义和产物断言。{@code requiredEventTypes} 是服务端事件流断言，模型无法直接产生也无法验证，打印它只会增加噪声和误导。
+     */
+    private static void appendCompletionContract(
+            StringBuilder content, CompletionCriteria completionCriteria) {
+        if (completionCriteria == null) {
+            return;
+        }
+        content.append("完成标准：")
+                .append(
+                        switch (completionCriteria.kind()) {
+                            case RESPONSE_DELIVERED -> "交付一次满足上述输出契约的完整答复";
+                            case REVERSIBLE_DRAFT_CREATED -> "产出可撤销草稿，并确认保存动作真实成功";
+                            case CUSTOM -> "满足下列产物断言";
+                        })
+                .append('\n');
+        if (!completionCriteria.requiredPayloadValues().isEmpty()) {
+            content.append("产物断言：")
+                    .append(
+                            completionCriteria.requiredPayloadValues().entrySet().stream()
+                                    .sorted(java.util.Map.Entry.comparingByKey())
+                                    .map(entry -> entry.getKey() + "=" + entry.getValue())
+                                    .collect(java.util.stream.Collectors.joining("、")))
+                    .append('\n');
+        }
+        content.append("生成内容不等于完成任务；未满足完成标准时必须如实报告未完成。\n");
     }
 
     private static String roleContent(RoleAssignment role) {
@@ -231,6 +269,7 @@ public final class PromptAssembler {
             SkillExecutionProfile skillExecutionProfile,
             InvocationPolicy invocationPolicy,
             ExecutionIntent executionIntent,
+            CompletionCriteria completionCriteria,
             ExecutionId executionId) {
 
         public AssistantPromptRequest {
@@ -240,6 +279,7 @@ public final class PromptAssembler {
             Objects.requireNonNull(skillExecutionProfile, "skillExecutionProfile 不能为空");
             Objects.requireNonNull(invocationPolicy, "invocationPolicy 不能为空");
             Objects.requireNonNull(executionIntent, "executionIntent 不能为空");
+            Objects.requireNonNull(completionCriteria, "completionCriteria 不能为空");
             Objects.requireNonNull(executionId, "executionId 不能为空");
         }
     }

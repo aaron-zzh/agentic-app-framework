@@ -1416,6 +1416,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                 skillExecutionProfile,
                                 invocation.invocationPolicy(),
                                 intent,
+                                command.completionCriteria(),
                                 command.executionId()));
         var snapshot =
                 new ExecutionProfileSnapshot(

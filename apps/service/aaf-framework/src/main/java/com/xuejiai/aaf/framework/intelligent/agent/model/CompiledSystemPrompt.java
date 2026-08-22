@@ -13,7 +13,7 @@ import java.util.Objects;
 public record CompiledSystemPrompt(
         String compilerVersion, List<PromptLayerSnapshot> layers, String content, String sha256) {
 
-    public static final String COMPILER_VERSION = "aaf-prompt-v2";
+    public static final String COMPILER_VERSION = "aaf-prompt-v3";
     public static final String CONSTITUTION_NAME = "aaf.harness.constitution";
 
     public CompiledSystemPrompt {
@@ -140,9 +140,8 @@ public record CompiledSystemPrompt(
         if (constitutionCount != 1 || layers.getFirst().kind() != PromptLayerKind.CONSTITUTION) {
             throw new IllegalStateException("冻结 Prompt 必须以唯一 Constitution 开始");
         }
-        if (invocationPolicyCount != 1
-                || layers.getLast().kind() != PromptLayerKind.INVOCATION_POLICY) {
-            throw new IllegalStateException("冻结 Prompt 必须以唯一 InvocationPolicy 结束");
+        if (invocationPolicyCount != 1) {
+            throw new IllegalStateException("冻结 Prompt 必须包含唯一身份职责与交付契约层");
         }
         if (!render(layers).equals(content)) {
             throw new IllegalStateException("冻结 Prompt content 与 layers 不一致");
@@ -156,9 +155,10 @@ public record CompiledSystemPrompt(
         return switch (kind) {
             case CONSTITUTION -> 0;
             case IDENTITY -> 1;
-            case ROLE -> 2;
-            case SKILL -> 3;
-            case INVOCATION_POLICY -> 4;
+            case INVOCATION_POLICY -> 2;
+            case ROLE -> 3;
+            case SKILL -> 4;
+            case PERSONA -> 5;
         };
     }
 
@@ -267,12 +267,19 @@ public record CompiledSystemPrompt(
         }
     }
 
+    /**
+     * System Prompt 的层类型，声明顺序即优先级顺序。
+     *
+     * <p>排序原则是「不可协商程度」降序：跨身份治理 → 冻结身份与身份职责合同 → 交付与完成契约 → Role 边界 → 领域方法 → 表达风格。冲突时靠前者胜出，
+     * 因此表达风格必须排在最后——它只能改变怎么说，不能改变做什么。
+     */
     public enum PromptLayerKind {
         CONSTITUTION,
         IDENTITY,
+        INVOCATION_POLICY,
         ROLE,
         SKILL,
-        INVOCATION_POLICY
+        PERSONA
     }
 
     public enum PromptSourceKind {
