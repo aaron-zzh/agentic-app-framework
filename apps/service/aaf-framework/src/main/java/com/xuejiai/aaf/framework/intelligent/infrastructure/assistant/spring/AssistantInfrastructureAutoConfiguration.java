@@ -288,7 +288,8 @@ public class AssistantInfrastructureAutoConfiguration {
             CapabilityRouter models,
             CompletionValidator completionValidator,
             ExecutionEventStorePort eventStore,
-            TaskRecoveryPort recoveries) {
+            TaskRecoveryPort recoveries,
+            AiProperties aiProperties) {
         return new AssistantApplicationService(
                 definitions,
                 tasks,
@@ -310,7 +311,8 @@ public class AssistantInfrastructureAutoConfiguration {
                 models,
                 completionValidator,
                 eventStore,
-                recoveries);
+                recoveries,
+                aiProperties.getContext().getDefaultContextWindow());
     }
 
     @Bean

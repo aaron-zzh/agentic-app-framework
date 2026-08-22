@@ -150,7 +150,8 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
     }
 
     /** 这里只能观察 Harness invocation 初始输入，不包含后续 ReAct Tool Result、最终 Tool Schema 或 provider 包装。 */
-    private static void logPromptPreflight(AgentExecutionCommand command, ModelSpec model) {
+    private static void logPromptPreflight(
+            AgentExecutionCommand command, ResolvedExecution execution) {
         var contents = new EnumMap<PromptInputKind, List<String>>(PromptInputKind.class);
         for (var kind : PromptInputKind.values()) {
             contents.put(kind, new ArrayList<>());
@@ -165,19 +166,21 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         var attachmentCount =
                 command.messages().stream().mapToInt(message -> message.attachments().size()).sum();
         var lengths = PromptLengthSummary.measure(contents, attachmentCount);
+        var contextWindow = execution.executionPolicy().contextWindow();
         var system = lengths.input(PromptInputKind.SYSTEM);
         var currentUser = lengths.input(PromptInputKind.CURRENT_USER_INPUT);
         var otherUser = lengths.input(PromptInputKind.OTHER_USER_INPUT);
         var assistantHistory = lengths.input(PromptInputKind.ASSISTANT_HISTORY);
+        var assistantReasoning = lengths.input(PromptInputKind.ASSISTANT_REASONING);
         var controlledContext = lengths.input(PromptInputKind.CONTROLLED_CONTEXT);
         var toolResult = lengths.input(PromptInputKind.TOOL_RESULT);
         var toolReference = lengths.input(PromptInputKind.TOOL_REFERENCE);
         log.info(
-                "[Prompt预检] boundary=HARNESS_INVOCATION mode={} logicalInvocationId={} purpose={} model={} systemChars={} systemEstimatedTokens={} currentUserChars={} currentUserEstimatedTokens={} otherUserChars={} otherUserEstimatedTokens={} assistantHistoryChars={} assistantHistoryEstimatedTokens={} controlledContextChars={} controlledContextEstimatedTokens={} toolResultChars={} toolResultEstimatedTokens={} toolReferenceChars={} toolReferenceEstimatedTokens={} attachmentCount={} totalChars={} totalEstimatedTokens={}",
+                "[Prompt预检] boundary=HARNESS_INVOCATION mode={} logicalInvocationId={} purpose={} model={} systemChars={} systemEstimatedTokens={} currentUserChars={} currentUserEstimatedTokens={} otherUserChars={} otherUserEstimatedTokens={} assistantHistoryChars={} assistantHistoryEstimatedTokens={} assistantReasoningChars={} assistantReasoningEstimatedTokens={} controlledContextChars={} controlledContextEstimatedTokens={} toolResultChars={} toolResultEstimatedTokens={} toolReferenceChars={} toolReferenceEstimatedTokens={} attachmentCount={} totalChars={} totalEstimatedTokens={} contextWindow={} contextUsagePercent={}",
                 InvocationMode.AUTONOMOUS_HARNESS,
                 command.context().runId().value(),
                 InvocationPurpose.HARNESS_EXECUTION,
-                model.modelId(),
+                execution.model().modelId(),
                 system.characters(),
                 system.estimatedTokensAtFourCodePoints(),
                 currentUser.characters(),
@@ -186,6 +189,8 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                 otherUser.estimatedTokensAtFourCodePoints(),
                 assistantHistory.characters(),
                 assistantHistory.estimatedTokensAtFourCodePoints(),
+                assistantReasoning.characters(),
+                assistantReasoning.estimatedTokensAtFourCodePoints(),
                 controlledContext.characters(),
                 controlledContext.estimatedTokensAtFourCodePoints(),
                 toolResult.characters(),
@@ -194,7 +199,9 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                 toolReference.estimatedTokensAtFourCodePoints(),
                 lengths.attachmentCount(),
                 lengths.totalCharacters(),
-                lengths.totalEstimatedTokens());
+                lengths.totalEstimatedTokens(),
+                contextWindow,
+                lengths.usagePercentOf(contextWindow));
     }
 
     private static PromptInputKind promptInputKind(
@@ -204,6 +211,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                     throw new IllegalArgumentException(
                             "Harness messages 禁止追加 SYSTEM；SYSTEM 只能来自 CompiledSystemPrompt");
             case ASSISTANT -> PromptInputKind.ASSISTANT_HISTORY;
+            case REASONING -> PromptInputKind.ASSISTANT_REASONING;
             case TOOL -> PromptInputKind.TOOL_RESULT;
             case USER -> {
                 var currentMessageId = "user:" + command.context().runId().value();
@@ -230,7 +238,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         var executionId = command.context().executionId();
         final RuntimeContext runtimeContext;
         try {
-            logPromptPreflight(command, execution.model());
+            logPromptPreflight(command, execution);
             log.debug(
                     "[AgentLoop] AgentScope 执行体已就绪：executionId={}，AAF规格类型={}，agent={}，执行模式={}，现场编译临时实例={}，模型={}，工具数={}，消息数={}，promptSha256={}，promptLength={}",
                     command.context().executionId().value(),

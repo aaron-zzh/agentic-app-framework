@@ -64,6 +64,24 @@ public record PromptLengthSummary(
         return inputs.get(Objects.requireNonNull(kind, "kind 不能为空"));
     }
 
+    /**
+     * 估算总长度占模型上下文窗口的百分比，向上取整。
+     *
+     * <p>基于每四个 code point 一个 Token 的启发式估算，只用于容量趋势、压缩触发和排障，不得用于计费或精确门控。返回值不设上限，超过 100 表示已越界。
+     */
+    public int usagePercentOf(int contextWindow) {
+        if (contextWindow < 1) {
+            throw new IllegalArgumentException("contextWindow 必须大于 0");
+        }
+        if (totalEstimatedTokens == 0) {
+            return 0;
+        }
+        return (int)
+                Math.min(
+                        Integer.MAX_VALUE,
+                        (totalEstimatedTokens * 100 + contextWindow - 1) / contextWindow);
+    }
+
     private static InputLength measure(Collection<String> contents) {
         long characters = 0;
         var itemCount = 0;

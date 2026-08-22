@@ -383,6 +383,7 @@ public final class DefaultHybridContextCompressor implements ContextCompressionP
     private static boolean isProtected(AgentMessage message, String currentUserMessageId) {
         return message.messageId().equals(currentUserMessageId)
                 || message.role() == AgentMessage.Role.SYSTEM
+                || message.role() == AgentMessage.Role.REASONING
                 || message.role() == AgentMessage.Role.TOOL
                 || !message.attachments().isEmpty()
                 || PROTECTED_STATE_PATTERN.matcher(message.text()).find()

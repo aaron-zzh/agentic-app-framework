@@ -26,6 +26,9 @@ public final class AgentScopeMessageMapper {
     }
 
     private Msg toAgentScope(AgentMessage message) {
+        if (message.role() == AgentMessage.Role.REASONING) {
+            throw new IllegalArgumentException("推理块回放尚未接入 AgentScope，禁止映射 REASONING 消息");
+        }
         var role = MsgRole.valueOf(message.role().name());
         var content = new ArrayList<ContentBlock>();
         content.add(TextBlock.builder().text(message.text()).build());

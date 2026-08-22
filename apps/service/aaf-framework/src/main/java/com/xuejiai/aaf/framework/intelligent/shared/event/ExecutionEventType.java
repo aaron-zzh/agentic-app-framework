@@ -59,6 +59,8 @@ public enum ExecutionEventType {
 
     TASK_STATUS_CHANGED,
     CONTROL_MODE_CHANGED,
+    /** 本次执行冻结的 Role 已解析；同一任务内前后 roleKey 不同即为角色接力。 */
+    ROLE_RESOLVED,
 
     INPUT_CANCELED,
     INPUT_MODIFIED,

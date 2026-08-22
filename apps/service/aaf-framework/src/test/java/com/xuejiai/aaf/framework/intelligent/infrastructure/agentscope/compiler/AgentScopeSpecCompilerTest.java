@@ -282,7 +282,7 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
     }
 
     private ExecutionPolicy policy() {
-        return new ExecutionPolicy(3, 1, Duration.ofSeconds(30));
+        return new ExecutionPolicy(3, 1, Duration.ofSeconds(30), 128000);
     }
 
     private ToolDefinition definition(ToolRef ref) {

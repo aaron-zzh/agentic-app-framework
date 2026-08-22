@@ -6,6 +6,8 @@ public enum PromptInputKind {
     CURRENT_USER_INPUT,
     OTHER_USER_INPUT,
     ASSISTANT_HISTORY,
+    /** 推理模型的加密推理块回放；不可裁剪、不可改写。 */
+    ASSISTANT_REASONING,
     CONTROLLED_CONTEXT,
     TOOL_RESULT,
     TOOL_REFERENCE,

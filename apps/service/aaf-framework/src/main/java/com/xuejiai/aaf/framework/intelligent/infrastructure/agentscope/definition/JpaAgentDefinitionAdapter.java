@@ -26,9 +26,14 @@ public final class JpaAgentDefinitionAdapter implements AgentDefinitionPort {
     private static final int DEFAULT_MODEL_RETRIES = 2;
 
     private final AgentDefinitionRepository repository;
+    private final int contextWindow;
 
-    public JpaAgentDefinitionAdapter(AgentDefinitionRepository repository) {
+    public JpaAgentDefinitionAdapter(AgentDefinitionRepository repository, int contextWindow) {
         this.repository = Objects.requireNonNull(repository, "repository 不能为空");
+        if (contextWindow < 1) {
+            throw new IllegalArgumentException("contextWindow 必须大于 0");
+        }
+        this.contextWindow = contextWindow;
     }
 
     /** 仅返回 active 版本；非法或越界版本号按"定义不存在"处理。 */
@@ -64,6 +69,7 @@ public final class JpaAgentDefinitionAdapter implements AgentDefinitionPort {
                 new ExecutionPolicy(
                         entity.getMaxIterations(),
                         DEFAULT_MODEL_RETRIES,
-                        Duration.ofSeconds(entity.getTimeoutSeconds())));
+                        Duration.ofSeconds(entity.getTimeoutSeconds()),
+                        contextWindow));
     }
 }

@@ -50,10 +50,17 @@ public record AgentMessage(String messageId, Role role, String text, List<Attach
         IMAGE
     }
 
-    /** 消息作者角色。 */
+    /**
+     * 消息作者角色。
+     *
+     * <p>{@code REASONING} 承载推理模型的加密推理块，只能由基础设施适配器从上一轮模型输出回放，不允许调用方自行构造，也不允许被上下文压缩器裁剪或改写——
+     * 一旦内容变化，模型会拒绝或丢失推理链。当前尚未接入 AgentScope 回放（见 AgentScopeMessageMapper），领域契约先立住以避免用 {@code
+     * ASSISTANT} 混装造成不可逆的历史污染。
+     */
     public enum Role {
         USER,
         ASSISTANT,
+        REASONING,
         SYSTEM,
         TOOL
     }

@@ -18,6 +18,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.AgentDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ContextAwareToolHandler;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort;
+import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelManagementService;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.definition.JpaAgentDefinitionAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.model.AgentScopeModelResolver;
@@ -40,8 +41,10 @@ public class AgentRuntimePortAutoConfiguration {
     @Bean
     @ConditionalOnBean(AgentDefinitionRepository.class)
     @ConditionalOnMissingBean(AgentDefinitionPort.class)
-    AgentDefinitionPort agentDefinitionPort(AgentDefinitionRepository repository) {
-        return new JpaAgentDefinitionAdapter(repository);
+    AgentDefinitionPort agentDefinitionPort(
+            AgentDefinitionRepository repository, AiProperties aiProperties) {
+        return new JpaAgentDefinitionAdapter(
+                repository, aiProperties.getContext().getDefaultContextWindow());
     }
 
     @Bean

@@ -23,7 +23,7 @@ class JpaAgentDefinitionAdapterTest extends BaseMockitoUnitTest {
 
     @BeforeEach
     void setUp() {
-        adapter = new JpaAgentDefinitionAdapter(repository);
+        adapter = new JpaAgentDefinitionAdapter(repository, 128000);
     }
 
     @Test

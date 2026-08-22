@@ -925,8 +925,11 @@ public final class DelegatedTaskCoordinator {
                         "aggregationContract",
                         "iterationGroup"));
         var executors = root.get("executors");
-        if (!executors.isArray() || executors.isEmpty() || executors.size() > 8) {
-            throw new IllegalArgumentException("协调计划必须包含 1..8 个执行者");
+        if (!executors.isArray()
+                || executors.isEmpty()
+                || executors.size() > DecompositionBudget.HARD_LIMIT) {
+            throw new IllegalArgumentException(
+                    "协调计划必须包含 1.." + DecompositionBudget.HARD_LIMIT + " 个执行者");
         }
         var teamTargets =
                 board.subTasks().values().stream()
@@ -997,14 +1000,14 @@ public final class DelegatedTaskCoordinator {
                             modelSelection,
                             optionalPositive(node, "maxAttempts", 3)));
         }
-        if (teamBoard) {
-            var plannedWorkerIds =
-                    assignments.stream()
-                            .map(ExecutorAssignment::subTaskId)
-                            .collect(java.util.stream.Collectors.toUnmodifiableSet());
-            if (!plannedWorkerIds.equals(teamTargets.keySet())) {
-                throw new IllegalArgumentException("Team 协调计划必须且只能覆盖全部冻结 Worker");
+        var plannedExecutorIds = new java.util.LinkedHashSet<String>();
+        for (var assignment : assignments) {
+            if (!plannedExecutorIds.add(assignment.subTaskId())) {
+                throw new IllegalArgumentException("协调计划不能重复声明同一 subTaskId");
             }
+        }
+        if (teamBoard && !plannedExecutorIds.equals(teamTargets.keySet())) {
+            throw new IllegalArgumentException("Team 协调计划必须且只能覆盖全部冻结 Worker");
         }
         var aggregation = aggregationContract(root.get("aggregationContract"));
         var iterationGroup = iterationGroup(root.get("iterationGroup"));
@@ -1017,6 +1020,13 @@ public final class DelegatedTaskCoordinator {
                 assignments.size(),
                 maxParallelism,
                 iterationGroup == null ? 1 : iterationGroup.maxIterations());
+        var cumulativeExecutorIds = new java.util.LinkedHashSet<String>();
+        board.subTasks().values().stream()
+                .filter(subTask -> subTask.kind() == SubTask.Kind.EXECUTOR)
+                .map(SubTask::subTaskId)
+                .forEach(cumulativeExecutorIds::add);
+        cumulativeExecutorIds.addAll(plannedExecutorIds);
+        effectiveBudget.requireCumulativeWithin(cumulativeExecutorIds.size());
         return new CoordinationPlan(
                 requiredText(root, "goal"),
                 maxParallelism,

@@ -150,7 +150,7 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
                         "验证临时生命周期",
                         "只执行测试任务",
                         List.of(),
-                        new ExecutionPolicy(3, 1, timeout),
+                        new ExecutionPolicy(3, 1, timeout, 128000),
                         com.xuejiai.aaf.framework.intelligent.agent.model.ModelSelectionRequirement
                                 .balanced(),
                         false);

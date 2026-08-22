@@ -56,6 +56,7 @@ public final class AafAiTaskEventRegistry {
                     case OWNERSHIP_TRANSFERRED -> "aaf.ownership.transferred";
                     case TASK_STATUS_CHANGED -> "aaf.task.status_changed";
                     case CONTROL_MODE_CHANGED -> "aaf.control_mode.changed";
+                    case ROLE_RESOLVED -> "aaf.role.resolved";
                     case INPUT_CANCELED -> "aaf.input.canceled";
                     case INPUT_MODIFIED -> "aaf.input.modified";
                     case INPUT_SUPPLEMENTED -> "aaf.input.supplemented";

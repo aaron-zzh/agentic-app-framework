@@ -17,8 +17,12 @@ public record ControlledContextSnapshot(
     public ControlledContextSnapshot {
         messages = List.copyOf(Objects.requireNonNull(messages, "messages 不能为空"));
         references = List.copyOf(Objects.requireNonNull(references, "references 不能为空"));
-        if (messages.stream().anyMatch(message -> message.role() == AgentMessage.Role.SYSTEM)) {
-            throw new IllegalArgumentException("L1 动态 Context 禁止使用 SYSTEM 角色");
+        if (messages.stream()
+                .anyMatch(
+                        message ->
+                                message.role() == AgentMessage.Role.SYSTEM
+                                        || message.role() == AgentMessage.Role.REASONING)) {
+            throw new IllegalArgumentException("L1 动态 Context 禁止使用 SYSTEM 或 REASONING 角色");
         }
         digest = Objects.requireNonNullElse(digest, "").trim();
         Objects.requireNonNull(frozenAt, "frozenAt 不能为空");

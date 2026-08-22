@@ -83,7 +83,8 @@ public final class PromptInvocationGateway {
                         case CURRENT_USER_INPUT, OTHER_USER_INPUT, CONTROLLED_CONTEXT ->
                                 "user".equals(message.role());
                         case ASSISTANT_HISTORY -> "assistant".equals(message.role());
-                        case TOOL_RESULT, TOOL_REFERENCE, TOOL_DEFINITION -> false;
+                        case ASSISTANT_REASONING, TOOL_RESULT, TOOL_REFERENCE, TOOL_DEFINITION ->
+                                false;
                     };
             if (!compatible) {
                 throw new IllegalArgumentException(
