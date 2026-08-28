@@ -50,7 +50,6 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.EffectiveContextPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ExecutionProfileSnapshotPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.NotificationPort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.PromptEnvelopePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.RoleDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.SkillDecisionAuditPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.SystemSkillBindingPort;
@@ -84,11 +83,9 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistenc
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaAssistantProvisioningAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaEffectiveContextAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaExecutionProfileSnapshotAdapter;
-import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaPromptEnvelopeAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaRoleDefinitionAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaSystemSkillBindingAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaTaskControlAdapter;
-import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.PromptEnvelopeRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.SystemSkillBindingRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.governance.ApprovalRecoveryDispatcher;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
@@ -197,12 +194,6 @@ public class AssistantInfrastructureAutoConfiguration {
     ExecutionProfileSnapshotPort executionProfileSnapshotPort(
             ExecutionProfileSnapshotRepository repository) {
         return new JpaExecutionProfileSnapshotAdapter(repository);
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(PromptEnvelopePort.class)
-    PromptEnvelopePort promptEnvelopePort(PromptEnvelopeRepository repository) {
-        return new JpaPromptEnvelopeAdapter(repository);
     }
 
     @Bean

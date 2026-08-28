@@ -39,6 +39,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HitlCoordinatorPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HumanApprovalPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.NotificationPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.PromptEnvelopePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskBoardPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskControlPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskRecoveryPort;
@@ -62,8 +63,10 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistenc
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.DelegatedTaskRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaDelegatedTaskAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaNotificationOutboxAdapter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaPromptEnvelopeAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaTaskBoardAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaTaskTransitionAdapter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.PromptEnvelopeRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.TaskBoardRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.TaskInputRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.TaskNotificationOutboxRepository;
@@ -226,6 +229,18 @@ public class IntelligentGovernanceAutoConfiguration {
     @ConditionalOnMissingBean(DelegatedTaskDispatchPort.class)
     DelegatedTaskDispatchPort delegatedTaskDispatchPort(ApplicationEventPublisher publisher) {
         return new SpringDelegatedTaskDispatchAdapter(publisher);
+    }
+
+    /**
+     * PromptEnvelope 端口须在 AgentScopeInfrastructureAutoConfiguration 之前可用：
+     * 该配置类的 promptEnvelopeCaptureMiddleware Bean 依赖此端口，而
+     * AgentScopeInfrastructureAutoConfiguration 早于（原属地）AssistantInfrastructureAutoConfiguration
+     * 装配，定义在此处以匹配 @AutoConfigureBefore(AgentScopeInfrastructureAutoConfiguration.class) 顺序。
+     */
+    @Bean
+    @ConditionalOnMissingBean(PromptEnvelopePort.class)
+    PromptEnvelopePort promptEnvelopePort(PromptEnvelopeRepository repository) {
+        return new JpaPromptEnvelopeAdapter(repository);
     }
 
     @Bean
