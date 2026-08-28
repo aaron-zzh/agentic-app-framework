@@ -9,9 +9,9 @@ import java.util.List;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.hibernate.Session;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 
 import com.xuejiai.aaf.framework.org.OrgContext;
@@ -24,7 +24,17 @@ class OrgFilterAspectTest extends BaseMockitoUnitTest {
     @Mock private EntityManager entityManager;
     @Mock private Session session;
     @Mock private ProceedingJoinPoint joinPoint;
-    @InjectMocks private OrgFilterAspect aspect;
+
+    private OrgFilterAspect aspect;
+
+    @BeforeEach
+    void setUp() {
+        // 显式构造而非 @InjectMocks：OrgFilterAspect 除 entityManager 外还有三个非 final 的
+        // ConcurrentHashMap 字段（各查询缓存），@InjectMocks 的字段/构造混合注入策略在这种场景下
+        // 曾经把 entityManager 解析成另一个未 stub 的实例，导致 unwrap 返回 null 而非测试里配置的
+        // session mock。显式调用唯一构造函数没有任何歧义，行为可预期。
+        aspect = new OrgFilterAspect(entityManager);
+    }
 
     @AfterEach
     void tearDown() {

@@ -39,19 +39,19 @@ public class AiOutputController {
     /** 产出详情 */
     @GetMapping("/{id}")
     public Result<AiOutputVO> detail(@PathVariable Long id) {
-        return Result.success(outputService.getById(id));
+        return Result.success(outputService.getById(id, currentOwnerId()));
     }
 
     /** 调整产出 */
     @PostMapping("/{id}/adjust")
     public Result<AiOutputVO> adjust(@PathVariable Long id, @RequestBody AdjustDTO dto) {
-        return Result.success(outputService.adjust(id, dto.note()));
+        return Result.success(outputService.adjust(id, currentOwnerId(), dto.note()));
     }
 
     /** 回退产出 */
     @PostMapping("/{id}/revert")
     public Result<AiOutputVO> revert(@PathVariable Long id, @RequestBody RevertDTO dto) {
-        return Result.success(outputService.revert(id, dto.reason()));
+        return Result.success(outputService.revert(id, currentOwnerId(), dto.reason()));
     }
 
     /** 统计 */
@@ -64,4 +64,8 @@ public class AiOutputController {
     record AdjustDTO(String note) {}
 
     record RevertDTO(String reason) {}
+
+    private Long currentOwnerId() {
+        return operatorContext.currentOwnerId().orElseThrow();
+    }
 }

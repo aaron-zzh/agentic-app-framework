@@ -67,6 +67,10 @@ class AuthServiceTest extends BaseMockitoUnitTest {
     @Mock private PhoneRegisterRateLimiter phoneRegisterRateLimiter;
     @Mock private com.xuejiai.aaf.module.system.org.service.OrganizationService organizationService;
 
+    @Mock
+    private com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantProvisioningPort
+            assistantProvisioningPort;
+
     @InjectMocks private AuthService authService;
 
     @BeforeEach

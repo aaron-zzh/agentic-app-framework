@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
@@ -14,6 +13,7 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultTaskComplexityAnalyzer;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition.Lifecycle;
@@ -52,7 +52,6 @@ import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.ModelSel
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.OutputOptions;
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.RoleSelection;
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.SkillSelection;
-import com.xuejiai.aaf.module.ai.skill.SkillService;
 import com.xuejiai.aaf.module.ai.vision.VisionMediaResolver;
 
 class AssistantExecutionServiceTest {
@@ -80,10 +79,9 @@ class AssistantExecutionServiceTest {
     }
 
     @Test
-    void executeValidatesActualAssistantRoleAndCopywritingDirectoryTogether() {
+    void executeAcceptsAnyPublishedSkillWithoutCapabilityFamilyRestriction() {
         var assistantDefinitions = mock(AssistantDefinitionPort.class);
         var operatorContext = mock(OperatorContext.class);
-        var skillService = mock(SkillService.class);
         when(operatorContext.currentOwnerId()).thenReturn(Optional.of(7L));
         when(operatorContext.currentOperatorId()).thenReturn(Optional.of(7L));
         when(assistantDefinitions.findDefaultForUser(any(), any()))
@@ -98,23 +96,24 @@ class AssistantExecutionServiceTest {
                         mock(DefinitionLifecycleService.class),
                         operatorContext,
                         mock(VisionMediaResolver.class),
-                        skillService);
+                        new DefaultTaskComplexityAnalyzer());
         OrgContext.setCurrentOrgId(11L);
         OrgContext.setCurrentWorkspaceId(13L);
         try {
-            service.start(
-                    request(
-                            AssistantExecutionRequest.InteractionMode.TASK,
-                            AssistantExecutionRequest.RouteConstraint.FIXED,
-                            ArtifactPersistence.AUTO_SAVE_DRAFT,
-                            "voiceover"),
-                    "thread-test",
-                    "run-test");
+            // 非 copywriting 类目的已发布 Skill 不再被同步拒绝：任务式已通用化
+            var stream =
+                    service.start(
+                            request(
+                                    AssistantExecutionRequest.InteractionMode.TASK,
+                                    AssistantExecutionRequest.RouteConstraint.FIXED,
+                                    ArtifactPersistence.AUTO_SAVE_DRAFT,
+                                    "voiceover"),
+                            "thread-test",
+                            "run-test");
+            assertThat(stream).isNotNull();
         } finally {
             OrgContext.clear();
         }
-
-        verify(skillService).requireVisiblePublished("voiceover", "copywriting");
     }
 
     @Test
@@ -195,7 +194,7 @@ class AssistantExecutionServiceTest {
                 null,
                 TemplateOwnership.USER_OWNED,
                 new AssistantVersion(1),
-                "test",
+                "7",
                 new PersonaSnapshot("persona:test", 1, "测试助理", "测试", "审慎", "简洁", "仅测试", null),
                 List.of(platformGuide, contentCreator),
                 List.of(),

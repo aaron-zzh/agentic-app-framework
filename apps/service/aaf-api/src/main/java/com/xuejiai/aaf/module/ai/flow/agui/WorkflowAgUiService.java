@@ -29,7 +29,18 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 工作流 AG-UI 服务——启动工作流并将执行日志转换为 AG-UI 事件流。
+ * 工作流 AG-UI 服务——编排画布试跑通道：启动调试流程并将执行日志转换为 AG-UI 事件流。
+ *
+ * <p>这里是**编排调试通道**，不是用户对话正文通道。两者是不同契约：
+ *
+ * <ul>
+ *   <li>用户对话正文只经 Assistant 主入口的 AG-UI SSE 投影（唯一正文通道）
+ *   <li>本通道的 {@code TEXT_MESSAGE_*} 投影的是最后一条已完成节点的执行日志 output，供 flow-editor 展示试跑结果， 不得用于终端用户对话
+ *   <li>{@code activeEmitters} 是进程内内存态，多副本部署下不保证跨实例恢复；调试场景可接受，生产运行不可
+ * </ul>
+ *
+ * <p>因此本端点只接受 {@code debug=true} 且仅创建者可调用。已发布工作流被终端用户触发的生产运行属于统一运行时的 {@code
+ * processMode=PREDEFINED_WORKFLOW} 分支，该分支尚未实现，不在本通道兜底。
  *
  * @author AaronZZH
  */
@@ -282,6 +293,10 @@ public class WorkflowAgUiService {
     }
 
     private AiFlowDefinition requireRunnableFlow(WorkflowRunRequest request, RunIdentity identity) {
+        if (!request.debug()) {
+            throw new BusinessException(
+                    GlobalErrorCode.BAD_REQUEST, "本端点仅用于编排调试，生产运行请走 Assistant 主入口");
+        }
         var flow =
                 flowRepository
                         .findById(request.flowId())
@@ -292,13 +307,9 @@ public class WorkflowAgUiService {
                 || !identity.workspaceId().equals(flowWorkspaceId)) {
             throw new BusinessException(GlobalErrorCode.NOT_FOUND, "工作流不存在");
         }
-        if (request.debug()) {
-            var ownerId = flow.getOwnerId() != null ? flow.getOwnerId() : flow.getCreateBy();
-            if (!identity.userId().equals(ownerId)) {
-                throw new BusinessException(GlobalErrorCode.FORBIDDEN, "仅创建者可调试");
-            }
-        } else if (!"PUBLISHED".equals(flow.getStatus())) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "工作流未发布，无法运行");
+        var ownerId = flow.getOwnerId() != null ? flow.getOwnerId() : flow.getCreateBy();
+        if (!identity.userId().equals(ownerId)) {
+            throw new BusinessException(GlobalErrorCode.FORBIDDEN, "仅创建者可调试");
         }
         return flow;
     }

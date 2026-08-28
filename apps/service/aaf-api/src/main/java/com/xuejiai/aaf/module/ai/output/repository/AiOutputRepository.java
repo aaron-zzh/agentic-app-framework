@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.ai.output.repository;
 
+import java.util.Optional;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,6 +15,9 @@ public interface AiOutputRepository extends JpaRepository<AiOutput, Long> {
 
     Page<AiOutput> findByCreatorIdAndDeletedFalseOrderByCreateTimeDesc(
             Long creatorId, Pageable pageable);
+
+    /** 按归属主体精确读取，防止跨用户越权访问单条产出。 */
+    Optional<AiOutput> findByIdAndCreatorIdAndDeletedFalse(Long id, Long creatorId);
 
     @Query(
             """

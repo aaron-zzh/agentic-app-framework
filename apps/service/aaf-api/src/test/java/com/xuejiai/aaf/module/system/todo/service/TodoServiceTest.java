@@ -112,7 +112,7 @@ class TodoServiceTest extends BaseMockitoUnitTest {
         assertThatThrownBy(() -> todoService.updateEntity(todo, request))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
-                .isEqualTo(409);
+                .isEqualTo(1_006_007);
         assertThat(todo.getTitle()).isEqualTo("原待办");
         assertThat(todo.getVersion()).isEqualTo(2);
     }

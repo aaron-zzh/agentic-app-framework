@@ -19,11 +19,14 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 /**
- * 工作流 AG-UI 协议端点——通过 AG-UI 协议启动工作流并返回 SSE 事件流。
+ * 工作流 AG-UI 协议端点——编排画布试跑通道，启动调试流程并返回 SSE 事件流。
+ *
+ * <p>仅接受 {@code debug=true} 且仅工作流创建者可调用；不承载用户对话正文（唯一正文通道是 Assistant 主入口）。 契约区分与限制见 {@link
+ * WorkflowAgUiService}。
  *
  * @author AaronZZH
  */
-@Tag(name = "工作流 AG-UI")
+@Tag(name = "工作流 AG-UI（编排调试）")
 @RestController
 @RequestMapping("/api/workflow")
 @RequiredArgsConstructor
@@ -32,13 +35,13 @@ public class WorkflowAgUiController {
 
     private final WorkflowAgUiService workflowAgUiService;
 
-    @Operation(summary = "启动工作流并返回 AG-UI SSE 事件流")
+    @Operation(summary = "启动工作流调试并返回 AG-UI SSE 事件流")
     @PostMapping("/run")
     public SseEmitter run(@RequestBody @Valid WorkflowRunRequest request) {
         return workflowAgUiService.startAndStream(request);
     }
 
-    @Operation(summary = "恢复工作流 AG-UI SSE 事件流")
+    @Operation(summary = "恢复工作流调试 AG-UI SSE 事件流")
     @GetMapping("/run/{runId}/events")
     public SseEmitter resume(@PathVariable String runId) {
         return workflowAgUiService.resumeStream(runId);

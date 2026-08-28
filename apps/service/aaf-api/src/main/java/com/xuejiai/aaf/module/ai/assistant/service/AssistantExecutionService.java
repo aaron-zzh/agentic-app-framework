@@ -21,6 +21,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantInvo
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.InvocationProfile;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.InvocationProfile.ContextPlan;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskComplexityAnalyzer;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.*;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceReference;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceType;
@@ -44,7 +45,6 @@ import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationSubject;
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest;
-import com.xuejiai.aaf.module.ai.skill.SkillService;
 import com.xuejiai.aaf.module.ai.vision.VisionMediaResolver;
 
 import lombok.RequiredArgsConstructor;
@@ -63,7 +63,6 @@ public class AssistantExecutionService {
     private static final int MAX_KNOWLEDGE_BASES = 20;
     private static final int MATERIAL_BUDGET = 8_000;
     private static final int MAX_OUTPUT_CHAR_LEN = 32_000;
-    private static final String COPYWRITING_SKILL_CATEGORY = "copywriting";
     private static final String CONTENT_DRAFT_UPSERT_TOOL = "content.draft.upsert";
     private static final JsonMapper OUTPUT_JSON_MAPPER =
             JsonMapper.builder().enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION).build();
@@ -74,7 +73,7 @@ public class AssistantExecutionService {
     private final DefinitionLifecycleService definitionLifecycles;
     private final OperatorContext operatorContext;
     private final VisionMediaResolver visionMediaResolver;
-    private final SkillService skillService;
+    private final TaskComplexityAnalyzer complexityAnalyzer;
 
     public ExecutionStream start(AssistantExecutionRequest request, String threadId, String runId) {
         return start(request, RunIdentity.create(threadId, runId), null);
@@ -168,9 +167,6 @@ public class AssistantExecutionService {
                 executionIntent.resolvedRoute() == null
                         ? request.skill() == null ? null : normalize(request.skill().code())
                         : executionIntent.resolvedRoute().skillKey();
-        if (executionIntent.interactionMode() == ExecutionIntent.InteractionMode.TASK) {
-            requireCopywritingSkill(executionIntent, skillService);
-        }
         if (executionIntent.interactionMode() == ExecutionIntent.InteractionMode.TASK
                 && "JSON".equals(outputContract.format())) {
             throw exception(EXECUTION_TASK_JSON_OUTPUT_UNSUPPORTED);
@@ -202,7 +198,13 @@ public class AssistantExecutionService {
                 outputContract.format());
         return new ExecutionStream(
                 runIdentity.executionId().value(),
-                execute(spec, identity, outputContract, runIdentity, resolvedTeam));
+                execute(
+                        spec,
+                        identity,
+                        outputContract,
+                        runIdentity,
+                        resolvedTeam,
+                        definition.defaultRoleKey()));
     }
 
     private Flux<ExecutionEvent> execute(
@@ -210,7 +212,8 @@ public class AssistantExecutionService {
             Identity identity,
             EffectiveOutputContract outputContract,
             RunIdentity runIdentity,
-            ResolvedTeam resolvedTeam) {
+            ResolvedTeam resolvedTeam,
+            String defaultRoleKey) {
         var executionKey = runIdentity.executionId().value();
         var taskKey = runIdentity.taskId().value();
         validate(spec);
@@ -264,26 +267,8 @@ public class AssistantExecutionService {
                                     final TaskBoard board;
                                     if (resolvedTeam != null) {
                                         board = teamBoard(command, resolvedTeam);
-                                    } else if (spec.executionIntent().interactionMode()
-                                            == ExecutionIntent.InteractionMode.TASK) {
-                                        var route = spec.executionIntent().resolvedRoute();
-                                        board =
-                                                TaskBoard.coordinated(
-                                                        command.taskId(),
-                                                        command.input(),
-                                                        route.roleKey(),
-                                                        route.skillKey(),
-                                                        command.executionContract()
-                                                                .retryPolicy()
-                                                                .maxAttempts());
                                     } else {
-                                        board =
-                                                TaskBoard.single(
-                                                        command.taskId(),
-                                                        command.input(),
-                                                        command.executionContract()
-                                                                .retryPolicy()
-                                                                .maxAttempts());
+                                        board = analyzedBoard(spec, command, defaultRoleKey);
                                     }
                                     return delegatedTasks.submitAndDispatch(
                                             command,
@@ -567,14 +552,6 @@ public class AssistantExecutionService {
                         false));
     }
 
-    static void requireCopywritingSkill(ExecutionIntent intent, SkillService skillService) {
-        var route = intent.resolvedRoute();
-        if (route == null) {
-            throw new IllegalArgumentException("文案 TASK 缺少已解析 Route");
-        }
-        skillService.requireVisiblePublished(route.skillKey(), COPYWRITING_SKILL_CATEGORY);
-    }
-
     private Set<String> systemOnDemandSkillKeys() {
         return SkillBinding.skillKeys(
                 systemSkillBindings.findEnabled(), SkillActivationMode.ON_DEMAND);
@@ -783,6 +760,20 @@ public class AssistantExecutionService {
         }
     }
 
+    /**
+     * 校验显式指定的 Assistant 对当前登录用户可执行。
+     *
+     * <p>渠道绑定这类"先配置、后由系统代为执行"的入口复用执行入口的同一规则（存在性 + 已发布 + 非裸系统模板 +
+     * 归属校验），不另建第二套可执行性判断；绑定保存时校验失败即拒绝，避免把不可执行的目标留到消息到达时才失败。
+     */
+    public void requireExplicitlyExecutable(String assistantId) {
+        var normalized = normalize(assistantId);
+        if (normalized == null) {
+            throw exception(EXECUTION_ASSISTANT_NOT_FOUND);
+        }
+        resolveAssistant(new AssistantExecutionRequest.AssistantTarget(normalized), identity());
+    }
+
     private AssistantDefinition resolveAssistant(
             AssistantExecutionRequest.AssistantTarget target, Identity identity) {
         var tenantId = new TenantId(identity.orgId().toString());
@@ -797,6 +788,12 @@ public class AssistantExecutionService {
                                 .findById(tenantId, new AssistantId(requestedId))
                                 .orElseThrow(() -> exception(EXECUTION_ASSISTANT_NOT_FOUND));
         if (definition.lifecycle() != AssistantDefinition.Lifecycle.PUBLISHED) {
+            throw exception(EXECUTION_ASSISTANT_NOT_EXECUTABLE);
+        }
+        if (requestedId != null
+                && definition.ownership() == AssistantDefinition.TemplateOwnership.SYSTEM_MANAGED) {
+            // SYSTEM_MANAGED 只能通过隐式默认路径触达（解析为调用者自己的副本），
+            // 不允许用户显式指定 assistantId 命中裸系统模板。
             throw exception(EXECUTION_ASSISTANT_NOT_EXECUTABLE);
         }
         requireExecutableBy(identity, definition);
@@ -885,6 +882,48 @@ public class AssistantExecutionService {
                 team.leaderTarget(),
                 team.workers(),
                 command.executionContract().retryPolicy().maxAttempts());
+    }
+
+    /**
+     * 按 {@link TaskAnalysis} 判定结果构造看板。
+     *
+     * <p>编排形态由复杂度判定决定，不再按 {@code interactionMode} 硬绑定：对话式与任务式共用同一判定链。
+     */
+    private TaskBoard analyzedBoard(
+            ExecutionSpec spec, AssistantCommand command, String defaultRoleKey) {
+        var route = spec.executionIntent().resolvedRoute();
+        var analysis =
+                complexityAnalyzer.analyze(
+                        new TaskComplexityAnalyzer.AnalysisInput(
+                                command.input(),
+                                spec.imageFileKeys().size(),
+                                spec.materials().size(),
+                                route != null,
+                                null));
+        var maxAttempts = command.executionContract().retryPolicy().maxAttempts();
+        log.debug(
+                "[AssistantExecution] stage=task_analyzed executionId={} taskId={} ownerMode={} "
+                        + "processMode={} coordinationMode={} analyzedBy={} rationale={}",
+                command.executionId().value(),
+                command.taskId().value(),
+                analysis.ownerMode(),
+                analysis.processMode(),
+                analysis.coordinationMode(),
+                analysis.analyzedBy(),
+                analysis.rationale());
+        if (analysis.requiresTaskBoard()) {
+            // 协调者只需一个本 Assistant 已配置的 Role 用于 Prompt 装配，并作为 executor 的授权衰减基准。
+            // FIXED 用已解析路由；AUTO 用默认 Role 且不预置业务技能。
+            var coordinatorRoleKey = route != null ? route.roleKey() : defaultRoleKey;
+            var coordinatorSkillKey = route != null ? route.skillKey() : null;
+            return TaskBoard.coordinated(
+                    command.taskId(),
+                    command.input(),
+                    coordinatorRoleKey,
+                    coordinatorSkillKey,
+                    maxAttempts);
+        }
+        return TaskBoard.single(command.taskId(), command.input(), maxAttempts);
     }
 
     private static EffectiveOutputContract mergeOutputContract(
