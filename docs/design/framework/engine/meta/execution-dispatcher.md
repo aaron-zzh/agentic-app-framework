@@ -122,5 +122,5 @@ core/pipeline/
 ## 相关文档
 
 - [元引擎设计](meta-engine.md)
-- [置信度门控器](../../intelligent/core/confidence-gate.md)
+- [置信度门控器](../../intelligent/bak/core/confidence-gate.md)
 - [状态管理器](state-manager.md)

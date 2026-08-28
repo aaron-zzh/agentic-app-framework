@@ -120,13 +120,13 @@ DSL 是元引擎的核心语言，贯穿开发时和运行时。具备三重身�
 
 | 特性 | 一句话说明 | 详细设计 |
 |---|---|---|
-| 开发时能力 | 核心引擎开发（规范→DSL→代码生成→热部署）+ 业务系统开发（四层无代码运行时覆盖 ~80% 场景） | [dev-capability.md](../../intelligent/core/dev-capability.md) |
+| 开发时能力 | 核心引擎开发（规范→DSL→代码生成→热部署）+ 业务系统开发（四层无代码运行时覆盖 ~80% 场景） | [dev-capability.md](../../intelligent/bak/core/dev-capability.md) |
 | 运行时能力 | 工作流执行、智能体编排、知识记忆集成、智能降级、沙箱隔离 | [runtime-capability.md](runtime-capability.md) |
 | 自进化机制 | 引擎自进化（强制人工审核）+ 业务系统自进化（置信度分级），共用 `aaf-auto-dev` | [evolution.md](evolution.md) |
 | 知识能力一体 | 工具与知识库强绑定，运行时强制一致性校验，「工具执行 → 知识生长」正向闭环 | [metadata-manager.md](metadata-manager.md) · [nexus-knowledge.md](../data-knowledge/nexus-knowledge.md) |
 | 预算感知 | 四维预估（Token/时间/工具调用/费用）+ 三档监控（70%/90%/100%）+ 用户决策 | [budget-control.md](../governance/budget-control.md) |
-| 人类计算支撑 | 用户贡献群体智慧，积分引擎量化，结算引擎链上透明 | [human-computation.md](../../intelligent/core/human-computation.md) |
-| 复杂性封装 | 默认隐藏，四层按需展开；查看无需权限，修改按角色分级 | [complexity-encapsulation.md](../../intelligent/core/complexity-encapsulation.md) |
+| 人类计算支撑 | 用户贡献群体智慧，积分引擎量化，结算引擎链上透明 | [human-computation.md](../../intelligent/bak/core/human-computation.md) |
+| 复杂性封装 | 默认隐藏，四层按需展开；查看无需权限，修改按角色分级 | [complexity-encapsulation.md](../../intelligent/bak/core/complexity-encapsulation.md) |
 | 对话式交互 | 意图表达与结果呈现，与元引擎通过 DSL 和事件解耦 | 对话式交互设计（待建） |
 
 ## 技术映射
@@ -175,7 +175,7 @@ DSL 域与上下文的对应关系：
 
 ### 五度空间约束
 
-每个子模块复杂度不超过 5，超出则强制递归分解。后端核心和引擎编排层均已达上限 5，不允许再添加新模块而不分解。详见 [复杂性封装策略](../../intelligent/core/complexity-encapsulation.md#五度空间约束)。
+每个子模块复杂度不超过 5，超出则强制递归分解。后端核心和引擎编排层均已达上限 5，不允许再添加新模块而不分解。详见 [复杂性封装策略](../../intelligent/bak/core/complexity-encapsulation.md#五度空间约束)。
 
 ### 安全执行链路
 

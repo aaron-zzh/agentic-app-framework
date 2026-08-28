@@ -195,5 +195,5 @@ public interface DataProcessEngine {
 
 - [actormesh 引擎开发框架](../../../../../apps/actormesh/Readme.md)
 - [SemanticCalc 语义计算引擎](semantic-compute.md)
-- [Cognition 认知层设计](../../intelligent/cognition/cognition.md)
+- [Cognition 认知层设计](../../intelligent/bak/cognition/cognition.md)
 - [路线图 - v2.0 actormesh](../../../../prd/roadmap.md)

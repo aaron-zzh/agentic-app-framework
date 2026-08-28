@@ -132,7 +132,7 @@ flowchart TB
 
 Core（LLM 推理）→ Cognition（记忆/知识，横向共享底座）→ Agent（无状态任务执行）→ Assistant（会话/情感/调度）→ Team（多 Assistant 协作）
 
-> 详见 [智能体系统设计](framework/intelligent/agent/agent-design.md)
+> 详见 [智能体系统设计](framework/intelligent/bak/agent/agent-design.md)
 
 ## Layer 2 引擎层
 
@@ -231,8 +231,8 @@ Core（LLM 推理）→ Cognition（记忆/知识，横向共享底座）→ Age
 | [生态架构](ecosystem.md) | 框架、产品、运营生态三层定位 |
 | [AgentScope v2 使用指南](../reference/dev/agentscope-usage-guide.md) | Harness、Middleware、状态流转与多智能体运行参考 |
 | [元引擎设计](framework/engine/meta/meta-engine.md) | 核心引擎：调度机制、引擎编排、DSL 调度、自进化机制 |
-| [智能体系统设计](framework/intelligent/agent/agent-design.md) | 五层智能架构详细设计 |
-| [认知层设计](framework/intelligent/cognition/cognition.md) | Cognition：记忆/知识/价值观/检索管道 |
+| [智能体系统设计](framework/intelligent/bak/agent/agent-design.md) | 五层智能架构详细设计 |
+| [认知层设计](framework/intelligent/bak/cognition/cognition.md) | Cognition：记忆/知识/价值观/检索管道 |
 
 ### 技术选型
 

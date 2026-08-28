@@ -83,29 +83,29 @@ OPC / 自定义模块。用户在 AAF 上构建的具体业务，可由元引擎
 
 智能层接口定义层。AgentExecutor / AssistantExecutor / MemoryPipeline / SkillDef / FunctionDefinition 等核心抽象，被 Agent/Assistant/Cognition 共同依赖，零框架依赖。
 
-- [功能设计 — Core 核心接口](intelligent/core/core.md)
-- [技术方案 — Core 接口与包结构](intelligent/core/core-tech.md)
+- [功能设计 — Core 核心接口](intelligent/bak/core/core.md)
+- [技术方案 — Core 接口与包结构](intelligent/bak/core/core-tech.md)
 
 ### 模型管理与路由 `core/model`
 
 ai_model 表统一管理所有 LLM 的 apiKey/baseUrl/capabilities。ModelRouter 六层决策链（显式→编排→AI辅助→用户偏好→系统默认→yaml兜底），DynamicChatClientFactory 按 modelId 动态构建 ChatClient。
 
-- [功能设计 — 模型管理与路由](intelligent/core/model-router.md)
-- [技术方案 — 模型路由](intelligent/core/model-router-tech.md)
+- [功能设计 — 模型管理与路由](intelligent/bak/core/model-router.md)
+- [技术方案 — 模型路由](intelligent/bak/core/model-router-tech.md)
 
 ### 置信度门控 `core/confidence`
 
 置信度×可验证性二维矩阵，三档决策（>0.9自动 / 0.7-0.9确认 / <0.7转人工）。防退化约束——人类未响应不超时执行。不可逆操作无论置信度强制人工确认。异步审查——高置信操作先执行暂存，异步通知人类审查。
 
-- [功能设计 — 置信度门控器](intelligent/core/confidence-gate.md)
-- [技术方案 — 置信度门控器](intelligent/core/confidence-gate.md)
+- [功能设计 — 置信度门控器](intelligent/bak/core/confidence-gate.md)
+- [技术方案 — 置信度门控器](intelligent/bak/core/confidence-gate.md)
 
 ### AI 服务调用 `ai`
 
 模型调用（弹性降级 + 流式输出 + 上下文组装）+ 多模态能力封装（图像生成/处理 + 语音 ASR/TTS + 视频生成 + Embedding + Rerank）。非 Agent 场景的 LLM 和多模态统一入口。
 
-- [功能设计 — AI 服务](intelligent/ai/ai-service.md)
-- [技术方案 — AI 服务](intelligent/ai/ai-service-tech.md)
+- [功能设计 — AI 服务](intelligent/bak/ai/ai-service.md)
+- [技术方案 — AI 服务](intelligent/bak/ai/ai-service-tech.md)
 
 ## 认知层 `cognition`
 
@@ -115,29 +115,29 @@ ai_model 表统一管理所有 LLM 的 apiKey/baseUrl/capabilities。ModelRouter
 
 可编排的记忆处理流水线。读管道按 MemoryStrategy 从多源检索并组装上下文（步骤可配置）；写管道固定四步（提取→去重→写入→遗忘），保障数据一致性不可跳过。
 
-- [功能设计 — 记忆管道](intelligent/cognition/memory-pipeline.md)
-- [技术方案 — 记忆管道](intelligent/cognition/memory-pipeline-tech.md)
+- [功能设计 — 记忆管道](intelligent/bak/cognition/memory-pipeline.md)
+- [技术方案 — 记忆管道](intelligent/bak/cognition/memory-pipeline-tech.md)
 
 ### 混合检索 `retrieval`
 
 记忆+知识库统一检索门面。多源并行检索（向量+图谱+关键词+时序），RRF 跨源融合，LLM 重排，Value 过滤后输出 MemoryContext 注入 Prompt。
 
-- [功能设计 — 混合检索](intelligent/cognition/retrieval.md)
-- [技术方案 — 混合检索](intelligent/cognition/retrieval-tech.md)
+- [功能设计 — 混合检索](intelligent/bak/cognition/retrieval.md)
+- [技术方案 — 混合检索](intelligent/bak/cognition/retrieval-tech.md)
 
 ### 学习反哺 `learning`
 
 Agent 执行结果异步反哺认知基础。轨迹采集→效果评估→程序化蒸馏→知识生长→技能生成，失败教训同样入库，系统从错误中学习。
 
-- [功能设计 — 学习反哺](intelligent/cognition/learning.md)
-- [技术方案 — 学习反哺](intelligent/cognition/learning-tech.md)
+- [功能设计 — 学习反哺](intelligent/bak/cognition/learning.md)
+- [技术方案 — 学习反哺](intelligent/bak/cognition/learning-tech.md)
 
 ### 用户理解 `personalization`
 
 全面用户理解组件。实时感知（意图理解+情感感知，同步）+ 长期画像（被动接收各层事件→异步提炼）→ 统一输出当次意图、当前情绪、用户画像、偏好参数、端适配参数。
 
-- [功能设计 — 用户感知与个性化](intelligent/cognition/personalization.md)
-- [技术方案 — 用户理解](intelligent/cognition/personalization-tech.md)
+- [功能设计 — 用户感知与个性化](intelligent/bak/cognition/personalization.md)
+- [技术方案 — 用户理解](intelligent/bak/cognition/personalization-tech.md)
 
 ## 智能体层 `agent`
 
@@ -147,8 +147,8 @@ Agent 执行结果异步反哺认知基础。轨迹采集→效果评估→程�
 
 认知循环（感知→规划→执行→评估）+ 子任务步骤规划（PlanNotebook）+ AgentScope 适配 + 池化 + 沙箱 + 断点续跑 + 事件总线 + 工作记忆 + 注意力预算 + 执行轨迹。
 
-- [功能设计 — 智能体层 Agent](intelligent/agent/agent-design.md)
-- [技术方案 — Agent 执行](intelligent/agent/agent-tech.md)
+- [功能设计 — 智能体层 Agent](intelligent/bak/agent/agent-design.md)
+- [技术方案 — Agent 执行](intelligent/bak/agent/agent-tech.md)
 
 ## 助理层 `assistant`
 
@@ -158,8 +158,8 @@ Agent 执行结果异步反哺认知基础。轨迹采集→效果评估→程�
 
 前注意分流（规则+小模型快速路由+缓存命中）+ 会话管理 + 任务拆解与规划 + Agent 调度 + 技能匹配 + 结果聚合与验证 + 记忆管道编排 + 学习反馈。
 
-- [功能设计 — 助理层 Assistant](intelligent/assistant/assistant-design.md)
-- [技术方案 — 助手执行](intelligent/assistant/assistant-tech.md)
+- [功能设计 — 助理层 Assistant](intelligent/bak/assistant/assistant-design.md)
+- [技术方案 — 助手执行](intelligent/bak/assistant/assistant-tech.md)
 
 ### 角色与技能 `assistant/role`
 
@@ -176,8 +176,8 @@ Role 定义（系统 Prompt + 能力边界 + 工具白名单）+ 内置技能（
 
 编排模式（Pipeline/Supervisor/MsgHub）+ 任务分发 + 进度同步 + 冲突仲裁。委托 AgentScope 多 Agent 编排能力。
 
-- [功能设计 — 协作层 Team](intelligent/team/team.md)
-- [技术方案 — 团队协作](intelligent/team/team-tech.md)
+- [功能设计 — 协作层 Team](intelligent/bak/team/team.md)
+- [技术方案 — 团队协作](intelligent/bak/team/team-tech.md)
 
 ## 引擎层 `aaf-framework/engine`
 
@@ -277,7 +277,7 @@ Flowable 封装 + BPMN + Agent 节点嵌入。确定性流程骨架，节点内 
 提示词库管理 + 版本控制 + 链式组装 + Few-shot 管理 + 评估优化。`core/prompt/` 保留调用门面，引擎层承载完整生命周期。
 
 - [功能设计 — Prompt 引擎](engine/content/prompt.md)
-- [技术方案 — Prompt 引擎](intelligent/core/prompt.md)
+- [技术方案 — Prompt 引擎](intelligent/bak/core/prompt.md)
 
 #### 文档引擎 `document`
 

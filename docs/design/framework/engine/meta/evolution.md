@@ -119,5 +119,5 @@ core/evolution/
 ## 相关文档
 
 - [元引擎设计](meta-engine.md)
-- [置信度门控器](../../intelligent/core/confidence-gate.md)
+- [置信度门控器](../../intelligent/bak/core/confidence-gate.md)
 - [auto-dev 引擎](../../auto-dev/auto-dev.md)

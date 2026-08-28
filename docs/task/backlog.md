@@ -2,7 +2,7 @@
 
 所有用户故事的唯一来源。条目由 product agent 细化后登记，协调者维护编号和状态。
 
-编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-101**，新一级用户故事从 AAF-102 开始。添加新条目后必须同步更新此行。
+编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-102**，新一级用户故事从 AAF-103 开始。添加新条目后必须同步更新此行。
 
 ## 待排期
 
@@ -27,6 +27,7 @@
 ### v0.2 — 用户体系与基础设施
 
 - [ ] AAF-101 (创建: 06-22) User Studio v0.2 演进（M4 主题 token 深扩 + N1-N10 技术债清理 11 项；任务清单见 docs/task/v0.1.1/AAF-100/next-iteration.md）依赖 AAF-100 v0.1 发布完成
+- [ ] AAF-102 (创建: 08-27) PromptEnvelope 逐次物理调用冻结与技能动态加载（第一步：拆分 ExecutionProfileSnapshot 为执行不变量 + 新增 ai_prompt_envelope 表/端口 + 注册 AgentScope onModelCall 捕获中间件 + 恢复改为取最新 envelope；第二步：skill.load / skill.reference.load 工具经 ToolSuspendException 挂起续跑，让 ON_DEMAND 与 ai_skill_reference.load_mode 具备真实语义）设计文档: docs/task/v0.1.1/AAF-102/design.md
 
 - [ ] AAF-038 (创建: 05-19) 认证与登录（邮箱注册、微信绑定登录、企业微信/钉钉 OAuth、JWT + Refresh Token、多端会话管理）
 - [ ] AAF-039 (创建: 05-19) 存储服务（本地存储 + 阿里云 OSS + MinIO 统一抽象、文件上传/下载/预览、图片处理）

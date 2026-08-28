@@ -326,6 +326,6 @@ payerUserId = document.uploaderId != null
 ## 相关文档
 
 - [NexusKB 技术设计](nexus-knowledge-tech.md)
-- [Cognition 认知层设计](../../intelligent/cognition/cognition.md)
+- [Cognition 认知层设计](../../intelligent/bak/cognition/cognition.md)
 - [AtomMemory 原子记忆引擎](atom-memory.md)
 - [文档引擎](../content/document-engine.md)

@@ -159,7 +159,7 @@ author: AaronZZH
 两条路径共享：ai_model 表（唯一来源）+ TokenUsageEvent（统一计量）+ ModelPreference（用户偏好）
 ```
 
-> 详细技术方案见 [模型管理与路由技术方案](intelligent/core/model-router-tech.md)。
+> 详细技术方案见 [模型管理与路由技术方案](intelligent/bak/core/model-router-tech.md)。
 
 ## 场景时序视图
 
@@ -481,27 +481,27 @@ AAF 自研：五层接口定义 / 模型路由决策链 / 记忆管道 / 知识�
 |------|------|
 | [AgentScope v2 使用指南](../../reference/dev/agentscope-usage-guide.md) | Harness、Middleware、状态流转与多智能体运行参考 |
 | [intelligent/agent.md](intelligent/architecture.md) | 五层智能架构详细设计 |
-| [intelligent/cognition.md](intelligent/cognition/cognition.md) | Cognition 层详细设计（含分层 Agentic 策略） |
-| [personalization.md](intelligent/cognition/personalization.md) | 用户感知与个性化 |
-| [model-router-tech.md](intelligent/core/model-router-tech.md) | 模型管理与路由技术方案（两条 LLM 调用路径详细） |
+| [intelligent/cognition.md](intelligent/bak/cognition/cognition.md) | Cognition 层详细设计（含分层 Agentic 策略） |
+| [personalization.md](intelligent/bak/cognition/personalization.md) | 用户感知与个性化 |
+| [model-router-tech.md](intelligent/bak/core/model-router-tech.md) | 模型管理与路由技术方案（两条 LLM 调用路径详细） |
 | [meta-engine.md](engine/meta/meta-engine.md) | 元引擎核心设计（调度/状态/门控/自进化） |
 | [execution-dispatcher.md](engine/meta/execution-dispatcher.md) | 执行调度器详细设计 |
 | [state-manager.md](engine/meta/state-manager.md) | 状态管理器四层状态 |
-| [confidence-gate.md](intelligent/core/confidence-gate.md) | 置信度门控器二维模型 |
+| [confidence-gate.md](intelligent/bak/core/confidence-gate.md) | 置信度门控器二维模型 |
 | [metadata-manager.md](engine/meta/metadata-manager.md) | 元数据管理器与语义漂移检测 |
 | [evolution.md](engine/meta/evolution.md) | 自进化机制 |
 | [runtime-capability.md](engine/meta/runtime-capability.md) | 运行时能力（工作流/智能体/降级/沙箱） |
-| [dev-capability.md](intelligent/core/dev-capability.md) | 开发时能力（自开发/四层无代码运行时） |
-| [complexity-encapsulation.md](intelligent/core/complexity-encapsulation.md) | 复杂性封装策略 |
-| [human-computation.md](intelligent/core/human-computation.md) | 人类计算支撑 |
+| [dev-capability.md](intelligent/bak/core/dev-capability.md) | 开发时能力（自开发/四层无代码运行时） |
+| [complexity-encapsulation.md](intelligent/bak/core/complexity-encapsulation.md) | 复杂性封装策略 |
+| [human-computation.md](intelligent/bak/core/human-computation.md) | 人类计算支撑 |
 | [budget-control.md](engine/governance/budget-control.md) | 预算控制引擎 |
 | [credit-settlement.md](engine/governance/credit-settlement.md) | 积分与结算引擎 |
 | [monitor.md](engine/governance/monitor.md) | 监控引擎 |
 | [orchestration.md](engine/meta/orchestration.md) | 编排引擎 |
 | [security.md](security/security.md) | 安全架构 |
 | [access-control.md](security/access-control.md) | 访问控制 |
-| [memory-pipeline.md](intelligent/cognition/memory-pipeline.md) | 记忆管道详细设计 |
-| [retrieval.md](intelligent/cognition/retrieval.md) | 混合检索详细设计 |
+| [memory-pipeline.md](intelligent/bak/cognition/memory-pipeline.md) | 记忆管道详细设计 |
+| [retrieval.md](intelligent/bak/cognition/retrieval.md) | 混合检索详细设计 |
 | [module-structure.md](../apps/service/module-structure.md) | Maven 模块结构 |
 
 

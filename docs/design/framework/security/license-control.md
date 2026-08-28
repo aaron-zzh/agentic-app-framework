@@ -1,10 +1,10 @@
 ---
 level: Practice
 layer: Model
-purpose: AAF 商业授权控制技术设计
+purpose: AAF 商业授权控制与开发者商业化技术设计
 status: draft
-version: 0.1.0
-date: 2026-05-06
+version: 0.2.0
+date: 2026-08-23
 author: AaronZZH
 ---
 
@@ -298,13 +298,122 @@ public class AgentScheduler {
 }
 ```
 
-## 6. 相关文档
+## 6. 开发者商业化与托管额度
+
+> License 控制功能入口，本节控制开发者侧的额度与资格。两者都不是最终安全边界——官方 Gateway 服务端校验才是。
+
+### 6.1 两类计费主体
+
+计费与授权必须分层：
+
+| 主体 | 消耗什么 | 授权来源 |
+|------|----------|----------|
+| 框架开发者 | AAF 托管模型额度，或自带第三方模型 Key | 开发者授权与订阅 |
+| 产品最终用户 | 开发者交付的产品内积分、权益或套餐额度 | 产品侧账户 |
+
+开发者额度不等于最终用户积分；开发者子代理资格不等于产品用户权限。
+
+### 6.2 模块边界
+
+```text
+module/developer        开发者商业授权与额度事实
+module/ai/gateway       模型代理执行层，合规确认后启用
+module/billing/pay      产品最终用户订阅、积分与支付
+module/ops              运营后台视图、审计、统计
+```
+
+`module/developer` 子域：`license`（授权与托管网关资格）、`subscription`（订阅套餐）、`quota`（Token 池与流水）、`redeem`（兑换码）、`apikey`（Gateway 调用 Key）、`proxy`（子代理与分销资格）。`ops` 只做运营视图，不拥有核心业务事实。
+
+### 6.3 合规边界
+
+当前版本只实现开发者管理，**不实现公网模型代理服务**。面向第三方提供模型代理或转售可能涉及：
+
+- 域名、网站或应用的 ICP 备案或经营性许可
+- 面向境内公众提供生成式 AI 服务时的备案或登记
+- 调用已备案模型能力时的属地网信办登记，并在产品显著位置公示模型名称与备案号
+
+因此 `developer_api_key` 当前只作为未来 Gateway 的身份凭证管理，不代表已开放模型代理调用。
+
+### 6.4 两层额度模型
+
+```text
+AAF 托管模型资源
+  → developer_token_account     开发者总 Token 池
+    → credit_account            产品最终用户积分账户
+```
+
+Gateway 启用后，一次托管模型调用必须同时满足：开发者授权允许 `allow_managed_gateway`、子代理链未超过 `max_proxy_depth`、开发者 Token 池余额充足、最终用户积分或权益充足、模型与地域与内容安全策略允许。
+
+### 6.5 BYOK 与托管模式
+
+| 模式 | 上游 Key | 本模块控制 | 说明 |
+|------|----------|------------|------|
+| BYOK | 开发者自有 | 不控制上游成本 | AAF 只提供配置、路由与审计能力 |
+| AAF 托管自用 | 官方 Gateway | 控制授权与总池 | 不允许再分销 |
+| AAF 托管子代理 | 官方 Gateway | 控制授权、层级与总池 | 仅授权开发者可开通 |
+
+源码交付无法阻止开发者改代码直连其他供应商。可控边界只是官方托管资源：只有通过官方 Gateway 验证的 developer key、license、proxy chain 与额度才能消耗官方资源。
+
+### 6.6 数据模型
+
+`developer_account`（账户与授权状态）、`developer_subscription_plan`、`developer_subscription`、`developer_token_account`（总 Token 池）、`developer_token_transaction`（流水）、`developer_redeem_code`、`developer_api_key`（Gateway 调用 Key）、`developer_proxy`（子代理关系）。
+
+开发者管理表放 `v2__ai_schema.sql`，因为它服务于 AI 托管能力与模型网关资格；字典放 `v8__init_dict_data.sql`，演示套餐放 `v9__init_seed_data.sql`。
+
+### 6.7 开发者自助接口
+
+```text
+GET  /api/developer/account/current
+GET  /api/developer/subscription/plans
+POST /api/developer/subscription/subscribe
+GET  /api/developer/subscription/current
+GET  /api/developer/tokens/account
+GET  /api/developer/tokens/transactions
+POST /api/developer/tokens/redeem
+POST /api/developer/api-keys
+GET  /api/developer/api-keys
+POST /api/developer/proxies
+GET  /api/developer/proxies
+```
+
+运营侧接口、权限码与管理员代开流程见 4.1 的 `developer` 模块门控说明。
+
+### 6.8 Gateway 预留流程
+
+```text
+验证 developer_api_key
+→ 校验 developer_account 授权
+→ 校验 proxy chain 与 max_proxy_depth
+→ 开发者 Token 池预检
+→ 最终用户积分或权益预检
+→ 调用模型
+→ 写 ai_token_usage 与 gateway audit
+→ 扣开发者 Token 池
+→ 扣最终用户积分
+```
+
+真实扣费证明由官方服务返回，避免本地源码被修改后伪造用量或绕过扣费。
+
+### 6.9 License 与最终安全边界
+
+本地 License 只控制功能入口：是否显示 AAF 托管模型配置、是否显示子代理管理、是否允许创建 `developer_api_key`、是否允许选择托管模型来源。
+
+**License 不是最终安全边界。** 最终边界由官方 Gateway 服务端校验 developer key、license fingerprint、proxy chain、nonce、timestamp、签名与额度。
+
+### 6.10 后续任务
+
+- 接入开发者订阅支付，替换当前直接开通的演示流程
+- 增加开发者管理后台与运营审计视图
+- 引入 License Runtime，把 `allow_managed_gateway` 与 `allow_sub_proxy` 绑定到签名 License
+- 合规确认后再启用 `module/ai/gateway` 执行入口
+
+## 7. 相关文档
 
 - [需求规格](../../../task/v0.1.0/AAF-018/requirement.md) — 用户故事、验收标准、技术约束
 - [访问控制设计](access-control.md) — 认证、授权（正交维度）
 - [安全架构设计](security.md) — 加密、审计（正交维度）
 
-## 7. 决策记录
+## 8. 决策记录
 
 | 日期 | 决策点 | 结论 | 理由 |
 |------|--------|------|------|

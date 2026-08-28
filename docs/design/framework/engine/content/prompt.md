@@ -29,7 +29,7 @@ related:
 L0 Core 模型适配器
 ```
 
-Prompt 引擎不理解 Assistant、Role、Skill、AgentKind、TaskBoard 或 Harness Loop，也不决定 P0–P8 顺序。运行时片段白名单、优先级、信任边界、消息装配、工具定义和最终 canonical hash 统一由 [PromptEnvelope 与模型调用装配设计](../../intelligent/core/prompt.md) 定义。
+Prompt 引擎不理解 Assistant、Role、Skill、AgentKind、TaskBoard 或 Harness Loop，也不决定 P0–P8 顺序。运行时片段白名单、优先级、信任边界、消息装配、工具定义和最终 canonical hash 统一由 [PromptEnvelope 与模型调用装配设计](../../intelligent/bak/core/prompt.md) 定义。
 
 ## 核心能力
 
@@ -78,5 +78,5 @@ Assistant Delivery、Role、Frozen Execution Contract、ActivatedSkill 和 Perso
 
 ## 相关文档
 
-- [PromptEnvelope 与模型调用装配设计](../../intelligent/core/prompt.md) — 运行时分层、信任、任务循环和最终调用快照
+- [PromptEnvelope 与模型调用装配设计](../../intelligent/bak/core/prompt.md) — 运行时分层、信任、任务循环和最终调用快照
 - [五层智能架构](../../intelligent/architecture.md) — L0–L4 状态责任和模型调用位置
