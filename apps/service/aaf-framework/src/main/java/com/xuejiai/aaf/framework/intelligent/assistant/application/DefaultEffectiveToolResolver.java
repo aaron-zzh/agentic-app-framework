@@ -26,22 +26,24 @@ public final class DefaultEffectiveToolResolver implements EffectiveToolResolver
         if (agentWhitelist.isEmpty() && !skillRequirements.isEmpty()) {
             throw new IllegalStateException("Agent 未声明工具，无法满足已激活 Skill 的必需工具");
         }
+        // RESTRICT + 空集合：Skill 未声明任何工具需求时不放开业务工具，避免与
+        // resolveAssistant() 的空集合语义相反（同一输入两种解释）。BaseToolProfile
+        // 落地前，Skill 空需求的有效工具集恒为空，不随 Role 白名单放宽。
+        if (skillRequirements.isEmpty()) {
+            return List.of();
+        }
         var result =
                 agentWhitelist.stream()
                         .filter(
                                 tool ->
                                         roleWhitelist.isEmpty()
                                                 || roleWhitelist.contains(tool.name()))
-                        .filter(
-                                tool ->
-                                        skillRequirements.isEmpty()
-                                                || skillRequirements.contains(tool.name()))
+                        .filter(tool -> skillRequirements.contains(tool.name()))
                         .toList();
-        if (!skillRequirements.isEmpty()
-                && !result.stream()
-                        .map(ToolRef::name)
-                        .collect(java.util.stream.Collectors.toSet())
-                        .containsAll(skillRequirements)) {
+        if (!result.stream()
+                .map(ToolRef::name)
+                .collect(java.util.stream.Collectors.toSet())
+                .containsAll(skillRequirements)) {
             throw new IllegalStateException("已激活 Skill 的必需工具不在 Role 与 Agent 交集内");
         }
         return result;

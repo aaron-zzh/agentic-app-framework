@@ -16,6 +16,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.ObjectProvider;
+
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentExecutionCommand;
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentMessage;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ExecutionPolicy;
@@ -61,6 +63,7 @@ import com.xuejiai.aaf.framework.intelligent.cognition.model.ContextRequest.Disc
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.SubjectKind;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.ContextCompressionPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.L1ContextPort;
+import com.xuejiai.aaf.framework.intelligent.cognition.port.SessionMemoryPort;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
@@ -111,6 +114,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
     private final CompletionValidator completionValidator;
     private final ExecutionEventStorePort eventStore;
     private final TaskRecoveryPort recoveries;
+    private final ObjectProvider<SessionMemoryPort> sessionMemories;
 
     public AssistantApplicationService(
             AssistantDefinitionPort definitions,
@@ -134,7 +138,9 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             CompletionValidator completionValidator,
             ExecutionEventStorePort eventStore,
             TaskRecoveryPort recoveries,
+            ObjectProvider<SessionMemoryPort> sessionMemories,
             int contextWindow) {
+        this.sessionMemories = Objects.requireNonNull(sessionMemories, "sessionMemories 不能为空");
         this.runtimeExecutionPolicy =
                 new ExecutionPolicy(
                         RUNTIME_MAX_ITERATIONS,
@@ -350,7 +356,26 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         command.contextCandidates(),
                         contextPlan.taskMaterials(),
                         contextPlan.knowledgeQuery(),
+                        command.conversationId().value(),
                         command.requestedAt()));
+    }
+
+    /** 写入本轮短期会话上下文；失败只记录，不影响已完成的执行。 */
+    private void appendSessionTurn(AssistantCommand command, String reply) {
+        var sessions = sessionMemories.getIfAvailable();
+        if (sessions == null) {
+            return;
+        }
+        try {
+            sessions.appendTurn(
+                    command.tenantId(),
+                    command.userId(),
+                    command.conversationId().value(),
+                    command.input(),
+                    reply);
+        } catch (RuntimeException exception) {
+            log.warn("[会话上下文] 短期会话写入失败，不影响本轮结果：{}", exception.getMessage());
+        }
     }
 
     private Flux<ExecutionEvent> executeAgent(
@@ -776,13 +801,15 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                 assistantOwner(command),
                                 null);
                 var definition = requireDefinition(command);
+                var reply = completedReply(agentEvents);
+                // 短期会话上下文：只受 MemoryMode 控制，与长期沉淀的写 scope 无关
+                if (invocation.memoryMode() != AssistantInvocation.MemoryMode.DISABLED) {
+                    appendSessionTurn(command, reply);
+                }
                 if (longTermMemoryEnabled(invocation, definition)
                         && definition.memoryStrategy().writeScopes().contains("PERSONAL")) {
                     memoryGovernance.learn(
-                            command.memorySubject(),
-                            command.input(),
-                            completedReply(agentEvents),
-                            Instant.now());
+                            command.memorySubject(), command.input(), reply, Instant.now());
                 }
                 events.add(
                         taskEvent(
@@ -1076,38 +1103,13 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                     || !snapshot.assistantId().equals(command.assistantId())) {
                 throw new IllegalStateException("ExecutionProfileSnapshot 与恢复命令边界不一致");
             }
-            snapshot.compiledSystemPrompt().verify();
-            snapshot.compiledSystemPrompt().requireCompatible(snapshot.executionSpec());
-            if (snapshot.contextCompression().isEmpty()) {
-                throw new IllegalStateException("已冻结 ExecutionProfileSnapshot 缺少上下文压缩快照");
-            }
             if (snapshot.invocationPolicy() != invocation.invocationPolicy()) {
                 throw new IllegalStateException("已冻结 InvocationPolicy 与恢复命令不一致");
             }
-            var requestedRoute = invocation.executionIntent().resolvedRoute();
-            if (requestedRoute != null
-                    && (!snapshot.roleAssignment().roleKey().equals(requestedRoute.roleKey())
-                            || snapshot.skillExecutionProfile().activatedSkills().stream()
-                                            .filter(
-                                                    skill ->
-                                                            skill.activationMode()
-                                                                    == SkillActivationMode
-                                                                            .ON_DEMAND)
-                                            .count()
-                                    != 1
-                            || snapshot.skillExecutionProfile().activatedSkills().stream()
-                                    .noneMatch(
-                                            skill ->
-                                                    skill.activationMode()
-                                                                    == SkillActivationMode.ON_DEMAND
-                                                            && skill.code()
-                                                                    .equals(
-                                                                            requestedRoute
-                                                                                    .skillKey()))
-                            || snapshot.assistantRevision()
-                                    != requestedRoute.assistantRevision())) {
-                throw new IllegalStateException("已冻结 ExecutionProfileSnapshot 与显式 Route 不一致");
-            }
+            // skillExecutionProfile / compiledSystemPrompt / toolAuthorizationRules /
+            // contextCompression 是随物理调用推进的可变量（PerCallProfile），此处取的已是该
+            // execution 最新一条记录的真实状态，不再要求与当次请求路由或历史冻结值完全一致——
+            // 那种比较只在"整条执行只冻结一次"的旧模型下才有意义。
             log.debug(
                     "[AssistantExecution] stage=execution_profile_reused executionId={} taskId={} "
                             + "roleKey={} skillCodes={} modelId={}",
@@ -1214,9 +1216,11 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         var decision =
                 route != null
                         ? new SkillSelectionPort.SkillSelectionDecision(
-                                List.of(route.skillKey()),
+                                route.skillKey() == null ? List.of() : List.of(route.skillKey()),
                                 "SERVER_FIXED_ROUTE",
-                                "使用服务端固定 ON_DEMAND Skill")
+                                route.skillKey() == null
+                                        ? "服务端已解析 Role 且未选定 ON_DEMAND Skill"
+                                        : "使用服务端固定 ON_DEMAND Skill")
                         : selectionCandidates.isEmpty()
                                 ? new SkillSelectionPort.SkillSelectionDecision(
                                         List.of(),
@@ -1444,14 +1448,15 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         roleAssignment,
                         executionMode,
                         executionModel,
-                        skillExecutionProfile,
                         invocation.invocationPolicy(),
-                        compiledSystemPrompt,
                         longTermMemoryEnabled(invocation, definition),
                         invocation.userAttachments(),
-                        authorizationRules,
-                        Optional.empty(),
-                        command.requestedAt());
+                        command.requestedAt(),
+                        new ExecutionProfileSnapshot.PerCallProfile(
+                                skillExecutionProfile,
+                                compiledSystemPrompt,
+                                authorizationRules,
+                                Optional.empty()));
         log.debug(
                 "[Assistant协调] Agent 画像候选已决策：executionId={}，taskId={}，agentKind={}，agentKey={}，模型模式={}，assistantRevision={}，roleKey={}，执行模式={}，技能数={}，有效工具数={}，模型={}",
                 command.executionId().value(),

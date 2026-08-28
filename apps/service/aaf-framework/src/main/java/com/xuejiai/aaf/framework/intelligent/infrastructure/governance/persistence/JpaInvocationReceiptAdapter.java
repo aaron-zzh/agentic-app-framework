@@ -11,6 +11,9 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolI
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 public class JpaInvocationReceiptAdapter implements InvocationReceiptPort {
     private static final String PENDING = "PENDING";
     private static final String SUCCEEDED = "SUCCEEDED";
@@ -66,6 +69,16 @@ public class JpaInvocationReceiptAdapter implements InvocationReceiptPort {
             if (existing.getFencingToken() >= nextToken) {
                 return new Claim(Disposition.IN_PROGRESS, null);
             }
+            log.warn(
+                    "[工具网关] receipt 处于 PENDING 且 fencingToken 提升，允许重新领取执行——"
+                            + "若上一次尝试已完成外部副作用但未落盘为 SUCCEEDED，此次重试可能重复副作用："
+                            + "receiptKey={}, toolId={}, actionKey={}, taskId={}, oldFencingToken={}, newFencingToken={}",
+                    request.receiptKey(),
+                    request.toolId(),
+                    request.actionKey(),
+                    request.context().taskId().value(),
+                    existing.getFencingToken(),
+                    nextToken);
             existing.setExecutionId(request.context().executionId().value());
             existing.setFencingToken(nextToken);
             existing.setUpdatedAt(request.requestedAt());

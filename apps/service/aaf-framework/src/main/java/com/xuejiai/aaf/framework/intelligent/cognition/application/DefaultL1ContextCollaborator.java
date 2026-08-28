@@ -94,6 +94,7 @@ public final class DefaultL1ContextCollaborator implements L1ContextPort {
                                 request.query(),
                                 memoryLimit,
                                 request.budget().characterBudget(),
+                                request.sessionId(),
                                 request.requestedAt()));
         var acceptedReferences = memory.references().stream().limit(memoryLimit).toList();
         acceptedReferences.forEach(

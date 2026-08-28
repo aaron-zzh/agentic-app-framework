@@ -2,6 +2,7 @@ package com.xuejiai.aaf.framework.intelligent.infrastructure.governance.spring;
 
 import java.nio.file.Path;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
@@ -46,11 +47,13 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskTransitionPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.application.DefaultL1ContextCollaborator;
 import com.xuejiai.aaf.framework.intelligent.cognition.application.DefaultMemoryContextCollaborator;
 import com.xuejiai.aaf.framework.intelligent.cognition.application.MemoryGovernanceService;
+import com.xuejiai.aaf.framework.intelligent.cognition.memory.ShortTermMemoryService;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.L1ContextPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryContextPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryGovernancePort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryRecallPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryWritePort;
+import com.xuejiai.aaf.framework.intelligent.cognition.port.SessionMemoryPort;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelManagementService;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentRuntimePortAutoConfiguration;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentScopeInfrastructureAutoConfiguration;
@@ -68,6 +71,7 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistenc
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.spring.SpringDelegatedTaskDispatchAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.cognition.KnowledgeEmbeddingAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.cognition.RuleBasedMemoryGovernanceAdapter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.cognition.memory.RedisSessionMemoryAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.cognition.persistence.CognitionMemoryRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.cognition.persistence.JpaCognitionMemoryAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.governance.GovernedMcpAdapter;
@@ -252,8 +256,16 @@ public class IntelligentGovernanceAutoConfiguration {
     }
 
     @Bean
-    MemoryContextPort memoryContextPort(MemoryRecallPort recall) {
-        return new DefaultMemoryContextCollaborator(recall);
+    @ConditionalOnBean(ShortTermMemoryService.class)
+    @ConditionalOnMissingBean(SessionMemoryPort.class)
+    SessionMemoryPort sessionMemoryPort(ShortTermMemoryService shortTermMemories) {
+        return new RedisSessionMemoryAdapter(shortTermMemories);
+    }
+
+    @Bean
+    MemoryContextPort memoryContextPort(
+            MemoryRecallPort recall, ObjectProvider<SessionMemoryPort> sessions) {
+        return new DefaultMemoryContextCollaborator(recall, sessions.getIfAvailable());
     }
 
     @Bean

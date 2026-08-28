@@ -94,15 +94,25 @@ class TrustedKnowledgeStoreRunTest {
                                 when(rs.getString(9)).thenReturn("PROCESSING");
                                 when(rs.getString(10)).thenReturn("stored prompt");
                                 when(rs.getString(11)).thenReturn("stored-prompt-digest");
-                                when(rs.getString(12))
-                                        .thenReturn(EntityExtractionPrompt.OUTPUT_CONTRACT_VERSION);
-                                when(rs.getString(13)).thenReturn("stored-extraction-model");
-                                when(rs.getString(14)).thenReturn("stored-resolution-prompt");
-                                when(rs.getString(15))
-                                        .thenReturn("stored-resolution-prompt-digest");
+                                when(rs.getInt(12)).thenReturn(1);
+                                when(rs.getString(13)).thenReturn("stored-extraction-user-prompt");
+                                when(rs.getString(14))
+                                        .thenReturn("stored-extraction-user-prompt-digest");
+                                when(rs.getInt(15)).thenReturn(1);
                                 when(rs.getString(16))
+                                        .thenReturn(EntityExtractionPrompt.OUTPUT_CONTRACT_VERSION);
+                                when(rs.getString(17)).thenReturn("stored-extraction-model");
+                                when(rs.getString(18)).thenReturn("stored-resolution-prompt");
+                                when(rs.getString(19))
+                                        .thenReturn("stored-resolution-prompt-digest");
+                                when(rs.getInt(20)).thenReturn(1);
+                                when(rs.getString(21)).thenReturn("stored-resolution-user-prompt");
+                                when(rs.getString(22))
+                                        .thenReturn("stored-resolution-user-prompt-digest");
+                                when(rs.getInt(23)).thenReturn(1);
+                                when(rs.getString(24))
                                         .thenReturn(EntityResolutionPrompt.OUTPUT_CONTRACT_VERSION);
-                                when(rs.getString(17)).thenReturn("stored-resolution-model");
+                                when(rs.getString(25)).thenReturn("stored-resolution-model");
                                 return List.of(mapper.mapRow(rs, 0));
                             }
                             return org.mockito.Answers.RETURNS_DEFAULTS.answer(invocation);

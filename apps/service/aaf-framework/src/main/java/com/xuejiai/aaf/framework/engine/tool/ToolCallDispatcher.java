@@ -202,11 +202,21 @@ public class ToolCallDispatcher {
             return null;
         }
         var verifiable = extractBoolean(arguments, "verifiable", meta.readOnly());
+        var irreversible =
+                !meta.readOnly()
+                        && (meta.riskLevel() == ToolRiskLevel.HIGH
+                                || meta.riskLevel() == ToolRiskLevel.CRITICAL);
         var decision =
                 gate.evaluate(
                         new ConfidenceGate.GateInput(
-                                confidence, verifiable, "tool:%s".formatted(functionName)));
-        if (decision.action() != ConfidenceGate.Action.PAUSE_FOR_HUMAN) {
+                                confidence,
+                                verifiable,
+                                irreversible,
+                                meta.readOnly(),
+                                "tool:%s".formatted(functionName)));
+        // 只有自动执行与「执行后异步审查」可继续；确认区间与转人工都必须先取得人工放行
+        if (decision.action() == ConfidenceGate.Action.AUTO_EXECUTE
+                || decision.action() == ConfidenceGate.Action.EXECUTE_WITH_AUDIT) {
             return null;
         }
         var approval =

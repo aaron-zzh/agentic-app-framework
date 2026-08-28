@@ -175,7 +175,7 @@ public record CoordinationPlan(
         public enum Kind {
             PASS_THROUGH,
             ORDERED_CONCAT,
-            COORDINATOR_REDUCE
+            AGGREGATOR_REDUCE
         }
     }
 

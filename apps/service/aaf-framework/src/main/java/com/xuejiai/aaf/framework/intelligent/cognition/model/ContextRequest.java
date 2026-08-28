@@ -33,6 +33,7 @@ public record ContextRequest(
         List<SourceReference> authorizedCandidates,
         List<TaskMaterial> taskMaterials,
         KnowledgeQuery knowledgeQuery,
+        String sessionId,
         Instant requestedAt) {
 
     public ContextRequest {
@@ -55,10 +56,15 @@ public record ContextRequest(
                         Objects.requireNonNull(authorizedCandidates, "authorizedCandidates 不能为空"));
         taskMaterials = List.copyOf(Objects.requireNonNull(taskMaterials, "taskMaterials 不能为空"));
         knowledgeQuery = Objects.requireNonNull(knowledgeQuery, "knowledgeQuery 不能为空");
+        sessionId = sessionId == null || sessionId.isBlank() ? null : sessionId.trim();
         Objects.requireNonNull(requestedAt, "requestedAt 不能为空");
         if ((purpose == AgentPurpose.COORDINATION || purpose == AgentPurpose.AGGREGATION)
                 && disclosure != Disclosure.SUMMARY_ONLY) {
             throw new IllegalArgumentException("协调与聚合只能请求摘要上下文");
+        }
+        // 协调与聚合只消费冻结目标与结果，不得回看用户会话历史
+        if (purpose == AgentPurpose.COORDINATION || purpose == AgentPurpose.AGGREGATION) {
+            sessionId = null;
         }
         validateScopes(scopes, taskMaterials, knowledgeQuery);
         validateTaskMaterials(authorizedCandidates, taskMaterials);

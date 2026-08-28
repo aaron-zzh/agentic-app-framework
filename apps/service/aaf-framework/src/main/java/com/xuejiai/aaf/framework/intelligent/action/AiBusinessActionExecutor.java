@@ -155,8 +155,12 @@ public class AiBusinessActionExecutor {
                         new ConfidenceGate.GateInput(
                                 request.confidence(),
                                 verifiable,
+                                isIrreversibleAction(action),
+                                isReadAction(action) || isReversibleWriteAction(action),
                                 "action:%s.%s".formatted(adapter.entitySlug(), action.action())));
-        if (decision.action() != ConfidenceGate.Action.PAUSE_FOR_HUMAN) {
+        // 只有自动执行与「执行后异步审查」可继续；确认区间与转人工都必须先取得人工放行
+        if (decision.action() == ConfidenceGate.Action.AUTO_EXECUTE
+                || decision.action() == ConfidenceGate.Action.EXECUTE_WITH_AUDIT) {
             return null;
         }
         var userId = operatorContext.currentOwnerId().orElse(null);
@@ -249,6 +253,32 @@ public class AiBusinessActionExecutor {
         return switch (action) {
             case QUERY, DETAIL, BATCH_READ, OPTIONS, META -> true;
             case CREATE, UPDATE, DELETE, BATCH_DELETE, EXPORT, VALIDATE, ARCHIVE, RESTORE -> false;
+        };
+    }
+
+    /** 无可靠恢复点的删除与对外导出视为不可逆，任何置信度都必须人工确认。 */
+    private boolean isIrreversibleAction(AiBusinessActionType action) {
+        return switch (action) {
+            case DELETE, BATCH_DELETE, EXPORT -> true;
+            case QUERY,
+                    DETAIL,
+                    BATCH_READ,
+                    OPTIONS,
+                    META,
+                    CREATE,
+                    UPDATE,
+                    VALIDATE,
+                    ARCHIVE,
+                    RESTORE ->
+                    false;
+        };
+    }
+
+    /** 可撤销写动作：有对应补偿路径，可在获权后暂存执行并异步审查。 */
+    private boolean isReversibleWriteAction(AiBusinessActionType action) {
+        return switch (action) {
+            case CREATE, UPDATE, VALIDATE, ARCHIVE, RESTORE -> true;
+            case QUERY, DETAIL, BATCH_READ, OPTIONS, META, DELETE, BATCH_DELETE, EXPORT -> false;
         };
     }
 }

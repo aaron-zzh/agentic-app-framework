@@ -188,6 +188,15 @@ public record TaskBoard(
             if (!plannedKeys.equals(teamTargets.keySet())) {
                 throw new IllegalArgumentException("Team 协调计划必须且只能覆盖全部静态 Worker");
             }
+            // 冻结 roster 为 R 时并行槽位必须恰好等于 R：容量不足只能在领取时排队，
+            // 不允许 Leader 在计划里收窄并行度把固定 Team 静默串行化。
+            if (plan.maxParallelism() != teamTargets.size()) {
+                throw new IllegalArgumentException(
+                        "Team 协调计划并行度必须等于冻结 roster: "
+                                + plan.maxParallelism()
+                                + "/"
+                                + teamTargets.size());
+            }
         }
         var copy = new LinkedHashMap<String, SubTask>();
         copy.put(coordinator.subTaskId(), coordinator.completed(plan.goal()));
@@ -224,7 +233,7 @@ public record TaskBoard(
         }
         var completionEvidence = Set.copyOf(plan.aggregationContract().executorOrder());
         if (plan.aggregationContract().kind()
-                == CoordinationPlan.AggregationContract.Kind.COORDINATOR_REDUCE) {
+                == CoordinationPlan.AggregationContract.Kind.AGGREGATOR_REDUCE) {
             var aggregatorId = "aggregator";
             if (copy.containsKey(aggregatorId)) {
                 throw new IllegalArgumentException("协调计划不能使用保留子任务标识: " + aggregatorId);
@@ -259,7 +268,7 @@ public record TaskBoard(
         var iteration =
                 plan.iterationGroup() == null
                         ? null
-                        : new IterationState(plan.iterationGroup(), 1, null, null, null);
+                        : new IterationState(plan.iterationGroup(), 1, null, null, null, null, 0);
         return new TaskBoard(
                 taskId,
                 new Goal(
@@ -388,7 +397,7 @@ public record TaskBoard(
         return switch (aggregation.kind()) {
             case PASS_THROUGH -> values.getFirst();
             case ORDERED_CONCAT -> String.join(aggregation.separator(), values);
-            case COORDINATOR_REDUCE -> requireSubTask("aggregator").result();
+            case AGGREGATOR_REDUCE -> requireSubTask("aggregator").result();
         };
     }
 
@@ -416,11 +425,23 @@ public record TaskBoard(
         if (evaluator.kind() != Kind.EVALUATOR || evaluator.status() != Status.RUNNING) {
             throw new IllegalStateException("只有 RUNNING evaluator 可以提交迭代决策");
         }
+        // 无新进展检测：不依赖 evaluator 自报，按结构化成员结果比对——连续两轮成员结果与上一轮完全一致
+        // 即认定未增加新证据，强制停止并升级，避免盲目消耗迭代预算（agent.md#无新进展停止）。
+        var currentResults =
+                iteration.group().memberSubTaskIds().stream()
+                        .collect(
+                                java.util.stream.Collectors.toUnmodifiableMap(
+                                        id -> id, id -> requireSubTask(id).result()));
+        var unchanged = currentResults.equals(iteration.lastIterationResults());
+        var unchangedStreak = unchanged ? iteration.unchangedStreak() + 1 : 0;
         var copy = new LinkedHashMap<>(subTasks);
         copy.put(evaluatorSubTaskId, evaluator.completed(evaluation.decision().name()));
         var stop = boundaryStop;
         if (stop == null && evaluation.decision() == IterationEvaluation.Decision.BLOCKED) {
             stop = IterationStopReason.BLOCKED;
+        }
+        if (stop == null && unchangedStreak >= 2) {
+            stop = IterationStopReason.NO_PROGRESS;
         }
         if (stop == null
                 && evaluation.decision() == IterationEvaluation.Decision.CONTINUE
@@ -435,7 +456,9 @@ public record TaskBoard(
                             iteration.currentIteration(),
                             evaluation,
                             stop,
-                            evaluatedAt));
+                            evaluatedAt,
+                            currentResults,
+                            unchangedStreak));
         }
         iteration.group().memberSubTaskIds().stream()
                 .map(this::requireSubTask)
@@ -448,7 +471,9 @@ public record TaskBoard(
                         iteration.currentIteration() + 1,
                         evaluation,
                         null,
-                        evaluatedAt));
+                        evaluatedAt,
+                        currentResults,
+                        unchangedStreak));
     }
 
     private TaskBoard withIteration(Map<String, SubTask> changed, IterationState nextIteration) {
@@ -661,7 +686,9 @@ public record TaskBoard(
             int currentIteration,
             IterationEvaluation lastEvaluation,
             IterationStopReason stopReason,
-            Instant evaluatedAt) {
+            Instant evaluatedAt,
+            Map<String, String> lastIterationResults,
+            int unchangedStreak) {
         public IterationState {
             Objects.requireNonNull(group, "iteration group 不能为空");
             if (currentIteration < 1 || currentIteration > group.maxIterations()) {
@@ -672,6 +699,11 @@ public record TaskBoard(
             }
             if (stopReason != null && lastEvaluation == null) {
                 throw new IllegalArgumentException("迭代停止必须携带 evaluator 决策");
+            }
+            lastIterationResults =
+                    lastIterationResults == null ? Map.of() : Map.copyOf(lastIterationResults);
+            if (unchangedStreak < 0) {
+                throw new IllegalArgumentException("unchangedStreak 不能为负数");
             }
         }
 
@@ -752,8 +784,9 @@ public record TaskBoard(
             }
             Objects.requireNonNull(modelSelection, "modelSelection 不能为空");
             Objects.requireNonNull(status, "status 不能为空");
-            if (kind == Kind.COORDINATOR && (blank(roleKey) || blank(skillKey))) {
-                throw new IllegalArgumentException("协调者必须绑定固定 Role 和 Skill");
+            // 协调者必须绑定 Role 用于 Prompt 装配与授权衰减；但不持有业务技能，skillKey 可空
+            if (kind == Kind.COORDINATOR && blank(roleKey)) {
+                throw new IllegalArgumentException("协调者必须绑定固定 Role");
             }
             if (attempts < 0 || maxAttempts < 1 || attempts > maxAttempts) {
                 throw new IllegalArgumentException("子任务尝试次数不合法");
@@ -993,7 +1026,8 @@ public record TaskBoard(
         BLOCKED,
         MAX_ITERATIONS,
         DEADLINE_REACHED,
-        BUDGET_EXHAUSTED
+        BUDGET_EXHAUSTED,
+        NO_PROGRESS
     }
 
     public enum Status {

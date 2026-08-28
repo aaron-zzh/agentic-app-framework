@@ -406,7 +406,8 @@ public final class DelegatedTaskCoordinator {
                 });
     }
 
-    private Flux<ExecutionEvent> executeSubTask(
+    // 包内可见以便测试直接驱动单个子任务完成判定，不代表对外 API。
+    Flux<ExecutionEvent> executeSubTask(
             AssistantCommand parentCommand,
             InvocationContext parentContext,
             TaskBoard board,
@@ -488,7 +489,9 @@ public final class DelegatedTaskCoordinator {
                                     }
                                     if (failure.get() != null
                                             || !completed.get()
-                                            || (subTask.kind() == SubTask.Kind.EXECUTOR
+                                            || ((subTask.kind() == SubTask.Kind.EXECUTOR
+                                                            || subTask.kind()
+                                                                    == SubTask.Kind.AGGREGATOR)
                                                     && !completionEvidenceSatisfied(
                                                             parentCommand, observedEvents))) {
                                         boards.failSubTask(
@@ -503,7 +506,10 @@ public final class DelegatedTaskCoordinator {
                                     } else if (subTask.kind() == SubTask.Kind.COORDINATOR) {
                                         var plan =
                                                 decodeAndValidatePlan(
-                                                        parentCommand, board, result.get());
+                                                        parentCommand,
+                                                        board,
+                                                        result.get(),
+                                                        decompositionBudget);
                                         boards.applyCoordinationPlan(
                                                 parentContext.tenantId(),
                                                 parentContext.taskId(),
@@ -900,8 +906,11 @@ public final class DelegatedTaskCoordinator {
                 at);
     }
 
-    private CoordinationPlan decodeAndValidatePlan(
-            AssistantCommand command, TaskBoard board, String output) {
+    static CoordinationPlan decodeAndValidatePlan(
+            AssistantCommand command,
+            TaskBoard board,
+            String output,
+            DecompositionBudget decompositionBudget) {
         if (output == null || output.isBlank() || output.length() > MAX_COORDINATION_PLAN_CHARS) {
             throw new IllegalArgumentException("协调者未返回合法大小的 CoordinationPlan");
         }
@@ -944,8 +953,24 @@ public final class DelegatedTaskCoordinator {
                         && coordinator.assistantTarget() != null
                         && !teamTargets.isEmpty();
         var route = command.invocationProfile().executionIntent().resolvedRoute();
-        if (!teamBoard && route == null) {
-            throw new IllegalStateException("协调计划只能用于已冻结 FIXED Route");
+        // 授权衰减基准是委派方自身：协调者子任务上已冻结的 Role/Skill。
+        // FIXED 时它等于根路由；AUTO 时它是本 Assistant 已配置的默认 Role。
+        // executor 只能等于该基准，不得放大到基准之外的 Role 或 Skill。
+        final String baselineRoleKey;
+        final String baselineSkillKey;
+        if (teamBoard) {
+            baselineRoleKey = null;
+            baselineSkillKey = null;
+        } else if (coordinator != null
+                && coordinator.roleKey() != null
+                && !coordinator.roleKey().isBlank()) {
+            baselineRoleKey = coordinator.roleKey();
+            baselineSkillKey = coordinator.skillKey();
+        } else if (route != null) {
+            baselineRoleKey = route.roleKey();
+            baselineSkillKey = route.skillKey();
+        } else {
+            throw new IllegalStateException("协调计划缺少可用于授权衰减的已冻结 Role");
         }
         var assignments = new java.util.ArrayList<ExecutorAssignment>();
         for (var node : executors) {
@@ -972,7 +997,8 @@ public final class DelegatedTaskCoordinator {
                         || !target.skillKey().equals(skillKey)) {
                     throw new IllegalArgumentException("Team 协调计划不能改变或跳过冻结 Worker");
                 }
-            } else if (!route.roleKey().equals(roleKey) || !route.skillKey().equals(skillKey)) {
+            } else if (!baselineRoleKey.equals(roleKey)
+                    || !Objects.equals(baselineSkillKey, skillKey)) {
                 throw new IllegalArgumentException("协调者不能更改已冻结的 Role 或 Skill");
             }
             var modelMode = requiredText(node, "modelMode");

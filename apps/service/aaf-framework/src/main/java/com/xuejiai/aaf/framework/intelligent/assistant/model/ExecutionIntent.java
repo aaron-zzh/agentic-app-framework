@@ -100,10 +100,15 @@ public record ExecutionIntent(
         NEVER_BY_DEFAULT
     }
 
+    /**
+     * 已解析路由。
+     *
+     * <p>{@code skillKey} 可为空：`ON_DEMAND` 技能筛选允许选择 {@code 0..N}，因此"Role 已定、未选技能"是合法状态。
+     */
     public record ResolvedRoute(String roleKey, String skillKey, long assistantRevision) {
         public ResolvedRoute {
             roleKey = requireText(roleKey, "roleKey");
-            skillKey = requireText(skillKey, "skillKey");
+            skillKey = skillKey == null || skillKey.isBlank() ? null : skillKey.trim();
             if (assistantRevision < 0) {
                 throw new IllegalArgumentException("assistantRevision 不能小于 0");
             }
