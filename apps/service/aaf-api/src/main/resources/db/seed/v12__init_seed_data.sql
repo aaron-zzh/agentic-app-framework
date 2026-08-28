@@ -1416,10 +1416,16 @@ $p$, NULL),
 )
 -- content 与 content_hash 统一按 LF 归一：Windows 检出会让 .sql 变成 CRLF，而 Markdown 源同步器在解析时
 -- 已把 CRLF 归一为 LF；两侧不归一会导致同一 version 的 contentHash 不一致，dev 启动即抛「不可变 Prompt 版本内容不匹配」。
+-- root 必须来自 inserted（本语句内新插入）UNION 已存在记录（历史遗留、跨语句可见），
+-- 因为同一语句内所有 CTE 共享同一快照，直接 FROM ai_prompt_template 在全新库上看不到 inserted 刚写入的行（PG CTE 快照隔离语义）。
 INSERT INTO ai_prompt_template_version (prompt_template_id, template_version, status, content, negative_prompt, variables, content_hash, change_summary, create_time, update_time, deleted)
 SELECT root.id, 1, 'PUBLISHED', replace(seeded.content, E'\r\n', E'\n'), seeded.negative_prompt, '[]', encode(digest(replace(seeded.content, E'\r\n', E'\n'), 'sha256'), 'hex'), '初始受治理版本', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
-FROM ai_prompt_template root JOIN seeded ON seeded.code = root.code
-WHERE root.current_version_id IS NULL
+FROM (
+    SELECT id, code FROM inserted
+    UNION
+    SELECT id, code FROM ai_prompt_template WHERE current_version_id IS NULL AND deleted = FALSE
+) root
+JOIN seeded ON seeded.code = root.code
 ON CONFLICT (prompt_template_id, template_version) DO NOTHING;
 
 UPDATE ai_prompt_template root
