@@ -642,7 +642,10 @@ INSERT INTO ai_tool_catalog (
  220, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('support.handoff', 'LOCAL', TRUE, 'FUNCTION', 'SUPPORT', 'MEDIUM', FALSE, TRUE, NULL, NULL, NULL,
  '{"type":"object","required":["reason"],"properties":{"reason":{"type":"string","description":"不超过 256 个字符的脱敏人工交接原因；不得包含完整对话、凭证或个人敏感信息"}}}',
- 240, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+ 240, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('context.load', 'LOCAL', TRUE, 'FUNCTION', 'SKILL', 'LOW', TRUE, FALSE, NULL, NULL, NULL,
+ '{"type":"object","required":["kind","key"],"properties":{"kind":{"type":"string","enum":["SKILL","SKILL_REFERENCE"],"description":"SKILL 加载技能正文；SKILL_REFERENCE 加载技能挂载的参考文档"},"key":{"type":"string","description":"kind=SKILL 时为技能 code；kind=SKILL_REFERENCE 时为 \"技能code:referenceKey\""}}}',
+ 250, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON CONFLICT (tool_name) WHERE deleted = FALSE DO UPDATE SET
     source = EXCLUDED.source,
     enabled = EXCLUDED.enabled,
@@ -1888,7 +1891,7 @@ INSERT INTO ai_role (
 ) VALUES (
     1, 'system.role.platform-guide', '平台向导',
     'AAF 平台咨询、只读故障排查和人工转接',
-    '[{"skillKey":"builtin-self-learning","activationMode":"ON_DEMAND"},{"skillKey":"builtin-skill-creation","activationMode":"ON_DEMAND"},{"skillKey":"builtin-tool-generation","activationMode":"ON_DEMAND"}]', '["support.handoff"]',
+    '[{"skillKey":"builtin-self-learning","activationMode":"ON_DEMAND"},{"skillKey":"builtin-skill-creation","activationMode":"ON_DEMAND"},{"skillKey":"builtin-tool-generation","activationMode":"ON_DEMAND"}]', '["support.handoff","context.load"]',
     'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
@@ -1910,7 +1913,7 @@ INSERT INTO ai_assistant (
     status, owner_id, create_time, update_time, deleted
 ) VALUES (
     1, 6, 'system.assistant.default-user', 0, NULL, FALSE, 1, 1,
-    'HYBRID', '[{"skillKey":"builtin-user-understanding","activationMode":"ALWAYS"},{"skillKey":"builtin-javascript-compute","activationMode":"ON_DEMAND"}]', '["script.execute.javascript"]',
+    'HYBRID', '[{"skillKey":"builtin-user-understanding","activationMode":"ALWAYS"},{"skillKey":"builtin-javascript-compute","activationMode":"ON_DEMAND"}]', '["script.execute.javascript","context.load"]',
     'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 

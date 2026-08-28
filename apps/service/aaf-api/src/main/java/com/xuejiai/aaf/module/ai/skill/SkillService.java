@@ -834,12 +834,20 @@ public class SkillService
     }
 
     private void validatePublish(SkillDefinition skill, Long versionId) {
-        requireApprovedVersion(skill.getId(), versionId);
+        var approved = requireApprovedVersion(skill.getId(), versionId);
+        requireInheritOnlyForBuiltIn(skill, approved.getToolAccessMode());
         validateCopywritingArtifactPolicy(
                 skill.getCategories().stream()
                         .map(SkillCategory::getCode)
                         .collect(java.util.stream.Collectors.toUnmodifiableSet()),
                 toolNames(versionId));
+    }
+
+    /** INHERIT 只能由已审核系统 Skill 声明；用户 Skill 发布时拒绝该值。 */
+    static void requireInheritOnlyForBuiltIn(SkillDefinition skill, String toolAccessMode) {
+        if ("INHERIT".equals(toolAccessMode) && !Boolean.TRUE.equals(skill.getBuiltIn())) {
+            throw badRequest("toolAccessMode=INHERIT 仅限已审核系统 Skill，用户 Skill 不能发布该值");
+        }
     }
 
     private void requireDraftTool(Long versionId) {

@@ -9,6 +9,8 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import com.xuejiai.aaf.framework.engine.skill.SkillDefinition;
+
 class SkillServiceTest {
 
     @Test
@@ -41,6 +43,34 @@ class SkillServiceTest {
                         () ->
                                 SkillService.validateCopywritingArtifactPolicy(
                                         Set.of("analysis"), Set.of()))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void rejectsInheritToolAccessModeForNonBuiltInSkill() {
+        var skill = new SkillDefinition();
+        skill.setBuiltIn(false);
+
+        assertThatThrownBy(() -> SkillService.requireInheritOnlyForBuiltIn(skill, "INHERIT"))
+                .hasMessageContaining("INHERIT")
+                .hasMessageContaining("系统 Skill");
+    }
+
+    @Test
+    void acceptsInheritToolAccessModeForBuiltInSkill() {
+        var skill = new SkillDefinition();
+        skill.setBuiltIn(true);
+
+        assertThatCode(() -> SkillService.requireInheritOnlyForBuiltIn(skill, "INHERIT"))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void acceptsRestrictToolAccessModeRegardlessOfBuiltIn() {
+        var skill = new SkillDefinition();
+        skill.setBuiltIn(false);
+
+        assertThatCode(() -> SkillService.requireInheritOnlyForBuiltIn(skill, "RESTRICT"))
                 .doesNotThrowAnyException();
     }
 }
