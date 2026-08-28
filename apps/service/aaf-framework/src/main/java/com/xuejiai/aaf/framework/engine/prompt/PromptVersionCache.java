@@ -6,8 +6,10 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.xuejiai.aaf.framework.engine.cache.CacheInvalidationBroadcaster;
 import com.xuejiai.aaf.framework.engine.cache.TwoLevelCache;
@@ -29,6 +31,7 @@ public class PromptVersionCache {
     private final CacheInvalidationBroadcaster broadcaster;
     private final PromptTemplateRepository templateRepository;
     private final PromptTemplateVersionRepository versionRepository;
+    private final TransactionTemplate transactionTemplate;
 
     private final TwoLevelCache<String, CachedPromptVersion> activeCache;
     private final TwoLevelCache<String, CachedPromptVersion> versionCache;
@@ -37,11 +40,14 @@ public class PromptVersionCache {
             TwoLevelCacheFactory cacheFactory,
             CacheInvalidationBroadcaster broadcaster,
             PromptTemplateRepository templateRepository,
-            PromptTemplateVersionRepository versionRepository) {
+            PromptTemplateVersionRepository versionRepository,
+            PlatformTransactionManager transactionManager) {
         this.cacheFactory = cacheFactory;
         this.broadcaster = broadcaster;
         this.templateRepository = templateRepository;
         this.versionRepository = versionRepository;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
+        this.transactionTemplate.setReadOnly(true);
         this.activeCache =
                 cacheFactory.create(
                         ACTIVE_CACHE, CachedPromptVersion.class, MAX_SIZE, LOCAL_TTL, REDIS_TTL);
@@ -75,22 +81,26 @@ public class PromptVersionCache {
         broadcaster.broadcast(ACTIVE_CACHE, version.code());
     }
 
-    private CachedPromptVersion loadActive(String code) {
-        return templateRepository
-                .findByCodeAndDeletedFalse(code)
-                .map(PromptTemplate::getCurrentVersion)
-                .filter(version -> version.getStatus() == PromptVersionStatus.PUBLISHED)
-                .filter(version -> !Boolean.TRUE.equals(version.getDeleted()))
-                .map(this::snapshot)
-                .orElse(null);
+    CachedPromptVersion loadActive(String code) {
+        return transactionTemplate.execute(
+                status ->
+                        templateRepository
+                                .findByCodeAndDeletedFalse(code)
+                                .map(PromptTemplate::getCurrentVersion)
+                                .filter(version -> version.getStatus() == PromptVersionStatus.PUBLISHED)
+                                .filter(version -> !Boolean.TRUE.equals(version.getDeleted()))
+                                .map(this::snapshot)
+                                .orElse(null));
     }
 
-    private CachedPromptVersion loadVersion(String code, int version) {
-        return versionRepository
-                .findByTemplateCodeAndTemplateVersionAndStatusAndDeletedFalse(
-                        code, version, PromptVersionStatus.PUBLISHED)
-                .map(this::snapshot)
-                .orElse(null);
+    CachedPromptVersion loadVersion(String code, int version) {
+        return transactionTemplate.execute(
+                status ->
+                        versionRepository
+                                .findByTemplateCodeAndTemplateVersionAndStatusAndDeletedFalse(
+                                        code, version, PromptVersionStatus.PUBLISHED)
+                                .map(this::snapshot)
+                                .orElse(null));
     }
 
     private CachedPromptVersion snapshot(PromptTemplateVersion version) {
