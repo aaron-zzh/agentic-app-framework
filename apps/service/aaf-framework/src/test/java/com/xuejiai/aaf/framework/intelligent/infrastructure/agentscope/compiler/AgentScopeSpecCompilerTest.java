@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -27,7 +28,9 @@ import com.xuejiai.aaf.framework.intelligent.agent.model.ToolRef;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolCatalogPort.ToolDefinition;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolGatewayPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.PromptEnvelopePort;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.middleware.PromptEnvelopeCaptureMiddleware;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.model.AgentScopeModelResolver;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.AgentScopeToolkitFactory;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.ToolResultEvidenceStore;
@@ -45,6 +48,7 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
     @Mock private ToolGatewayPort toolGateway;
     @Mock private AgentScopeModelResolver modelResolver;
     @Mock private Model model;
+    @Mock private PromptEnvelopePort promptEnvelopes;
 
     private AgentScopeSpecCompiler compiler;
 
@@ -53,7 +57,12 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
         var toolkitFactory =
                 new AgentScopeToolkitFactory(
                         toolCatalog, toolGateway, new ToolResultEvidenceStore());
-        compiler = new AgentScopeSpecCompiler(stateStore, toolkitFactory, modelResolver);
+        compiler =
+                new AgentScopeSpecCompiler(
+                        stateStore,
+                        toolkitFactory,
+                        modelResolver,
+                        new PromptEnvelopeCaptureMiddleware(promptEnvelopes, Clock.systemUTC()));
         when(modelResolver.resolve(any(ModelSpec.class))).thenReturn(model);
         when(toolCatalog.resolve(any()))
                 .thenAnswer(

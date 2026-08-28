@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring;
 
+import java.time.Clock;
+
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -16,12 +18,14 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.ToolGatewayPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultEffectiveToolResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveToolResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.PromptEnvelopePort;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.compiler.AgentScopeSpecCompiler;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.execution.HarnessAgentExecutionAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeEventMapper;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeMessageMapper;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeRuntimeContextMapper;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.middleware.AgentScopeTokenMeteringObserver;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.middleware.PromptEnvelopeCaptureMiddleware;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.model.AgentScopeModelResolver;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.state.SpringRedisClientAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.AgentScopeToolkitFactory;
@@ -34,7 +38,7 @@ import io.agentscope.extensions.redis.state.RedisAgentStateStore;
 /**
  * Core + Agent 唯一 AgentScope 基础设施接线。
  *
- * <p>五个必需端口齐备时才装配，缺任一端口整个 AgentScope 运行时不生效。
+ * <p>六个必需端口齐备时才装配，缺任一端口整个 AgentScope 运行时不生效。
  */
 @AutoConfiguration
 @AutoConfigureAfter(DataRedisAutoConfiguration.class)
@@ -43,7 +47,8 @@ import io.agentscope.extensions.redis.state.RedisAgentStateStore;
     ToolCatalogPort.class,
     ToolGatewayPort.class,
     TokenMeteringPort.class,
-    ExecutionEventStorePort.class
+    ExecutionEventStorePort.class,
+    PromptEnvelopePort.class
 })
 public class AgentScopeInfrastructureAutoConfiguration {
 
@@ -101,13 +106,21 @@ public class AgentScopeInfrastructureAutoConfiguration {
         return new DefaultEffectiveToolResolver();
     }
 
+    /** 每次物理模型调用在 provider 发送前冻结一份 PromptEnvelope。 */
+    @Bean
+    PromptEnvelopeCaptureMiddleware promptEnvelopeCaptureMiddleware(PromptEnvelopePort envelopes) {
+        return new PromptEnvelopeCaptureMiddleware(envelopes, Clock.systemUTC());
+    }
+
     /** 编译器持有 HarnessAgent 缓存，销毁时须 close 释放。 */
     @Bean(destroyMethod = "close")
     AgentScopeSpecCompiler agentScopeSpecCompiler(
             AgentStateStore stateStore,
             AgentScopeToolkitFactory toolkitFactory,
-            AgentScopeModelResolver modelResolver) {
-        return new AgentScopeSpecCompiler(stateStore, toolkitFactory, modelResolver);
+            AgentScopeModelResolver modelResolver,
+            PromptEnvelopeCaptureMiddleware envelopeCapture) {
+        return new AgentScopeSpecCompiler(
+                stateStore, toolkitFactory, modelResolver, envelopeCapture);
     }
 
     @Bean

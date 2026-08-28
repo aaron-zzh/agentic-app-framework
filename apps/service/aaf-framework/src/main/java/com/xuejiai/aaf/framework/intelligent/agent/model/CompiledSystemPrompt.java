@@ -68,7 +68,8 @@ public record CompiledSystemPrompt(
                                                         == PromptSourceKind.ASSISTANT_PERSONA)
                                 .count();
                 if (personaCount > 1) {
-                    throw new IllegalStateException("动态 Harness Prompt 最多只能包含一个 Assistant Persona 层");
+                    throw new IllegalStateException(
+                            "动态 Harness Prompt 最多只能包含一个 Assistant Persona 层");
                 }
             }
         }

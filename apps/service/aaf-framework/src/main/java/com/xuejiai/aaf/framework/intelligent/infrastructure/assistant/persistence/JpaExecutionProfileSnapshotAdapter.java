@@ -10,7 +10,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.ExecutionProfileSnap
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 
-/** executionId 级不可变执行画像存储。 */
+/** executionId 级追加式画像存储：每次物理调用推进的画像追加一条新记录，恢复取最新一条。 */
 public class JpaExecutionProfileSnapshotAdapter implements ExecutionProfileSnapshotPort {
 
     private final ExecutionProfileSnapshotRepository repository;
@@ -23,16 +23,6 @@ public class JpaExecutionProfileSnapshotAdapter implements ExecutionProfileSnaps
     @Transactional
     public ExecutionProfileSnapshot freeze(ExecutionProfileSnapshot snapshot) {
         Objects.requireNonNull(snapshot, "snapshot 不能为空");
-        var existing =
-                repository.findByTenantIdAndExecutionId(
-                        snapshot.tenantId().value(), snapshot.executionId().value());
-        if (existing.isPresent()) {
-            var frozen = existing.orElseThrow().getSnapshot();
-            if (!frozen.equals(snapshot)) {
-                throw new IllegalStateException("executionId 已冻结不同的 ExecutionProfileSnapshot");
-            }
-            return frozen;
-        }
         var entity = new ExecutionProfileSnapshotEntity();
         entity.setTenantId(snapshot.tenantId().value());
         entity.setTaskId(snapshot.taskId().value());
@@ -49,7 +39,8 @@ public class JpaExecutionProfileSnapshotAdapter implements ExecutionProfileSnaps
         Objects.requireNonNull(tenantId, "tenantId 不能为空");
         Objects.requireNonNull(executionId, "executionId 不能为空");
         return repository
-                .findByTenantIdAndExecutionId(tenantId.value(), executionId.value())
+                .findFirstByTenantIdAndExecutionIdOrderByFrozenAtDesc(
+                        tenantId.value(), executionId.value())
                 .map(ExecutionProfileSnapshotEntity::getSnapshot);
     }
 }

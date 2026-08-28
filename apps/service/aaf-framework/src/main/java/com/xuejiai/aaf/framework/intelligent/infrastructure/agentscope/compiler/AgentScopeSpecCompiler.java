@@ -10,6 +10,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.model.CompiledSystemPrompt;
 import com.xuejiai.aaf.framework.intelligent.agent.model.SubagentSpec;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolRef;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.middleware.PromptEnvelopeCaptureMiddleware;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.model.AgentScopeModelResolver;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.AgentScopeToolkitFactory;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AgentId;
@@ -30,6 +31,7 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
     private final AgentStateStore stateStore;
     private final AgentScopeToolkitFactory toolkitFactory;
     private final AgentScopeModelResolver modelResolver;
+    private final PromptEnvelopeCaptureMiddleware envelopeCapture;
 
     /** 预定义 Agent 缓存：键含版本号与生效画像，画像变化即视为新条目。 */
     private final ConcurrentMap<DefinitionKey, HarnessAgent> cache = new ConcurrentHashMap<>();
@@ -40,10 +42,12 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
     public AgentScopeSpecCompiler(
             AgentStateStore stateStore,
             AgentScopeToolkitFactory toolkitFactory,
-            AgentScopeModelResolver modelResolver) {
+            AgentScopeModelResolver modelResolver,
+            PromptEnvelopeCaptureMiddleware envelopeCapture) {
         this.stateStore = Objects.requireNonNull(stateStore, "stateStore 不能为空");
         this.toolkitFactory = Objects.requireNonNull(toolkitFactory, "toolkitFactory 不能为空");
         this.modelResolver = Objects.requireNonNull(modelResolver, "modelResolver 不能为空");
+        this.envelopeCapture = Objects.requireNonNull(envelopeCapture, "envelopeCapture 不能为空");
     }
 
     /** 按完整不可变执行画像命中预定义 Agent 编译产物。 */
@@ -136,6 +140,7 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
                         .model(modelResolver.resolve(executionModel))
                         .toolkit(toolkit)
                         .stateStore(stateStore)
+                        .middleware(envelopeCapture)
                         .maxIters(spec.executionPolicy().maxIterations())
                         .maxRetries(spec.executionPolicy().maxModelRetries())
                         .disableMemoryTools()
@@ -175,6 +180,7 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
                         .model(modelResolver.resolve(spec.model()))
                         .toolkit(toolkit)
                         .stateStore(stateStore)
+                        .middleware(envelopeCapture)
                         .maxIters(spec.executionPolicy().maxIterations())
                         .maxRetries(spec.executionPolicy().maxModelRetries())
                         .disableMemoryTools()

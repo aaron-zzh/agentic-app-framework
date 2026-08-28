@@ -18,14 +18,17 @@ import com.xuejiai.aaf.framework.engine.skill.SkillStore;
 import com.xuejiai.aaf.framework.engine.task.agent.AgentTaskRuntime;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.SkillCatalogPort;
+import com.xuejiai.aaf.framework.intelligent.agent.port.SkillReferenceCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.AiAutoConfiguration;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantApplicationService;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.CompletionValidator;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.ContextLoadTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultCompletionValidator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultEffectiveSkillResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultRoleSelector;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultSkillSelectionPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultTaskComplexityAnalyzer;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveSkillResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveToolResolver;
@@ -34,6 +37,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.application.PromptAssembl
 import com.xuejiai.aaf.framework.intelligent.assistant.application.RoleSelector;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.SkillSelectionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.SupportHandoffTool;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskComplexityAnalyzer;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskIngress;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DecompositionBudget;
 import com.xuejiai.aaf.framework.intelligent.assistant.persona.PersonaRepository;
@@ -46,6 +50,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.EffectiveContextPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ExecutionProfileSnapshotPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.NotificationPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.PromptEnvelopePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.RoleDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.SkillDecisionAuditPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.SystemSkillBindingPort;
@@ -62,6 +67,7 @@ import com.xuejiai.aaf.framework.intelligent.cognition.model.ContextCompressionS
 import com.xuejiai.aaf.framework.intelligent.cognition.port.ContextCompressionPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.L1ContextPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryContextPort;
+import com.xuejiai.aaf.framework.intelligent.cognition.port.SessionMemoryPort;
 import com.xuejiai.aaf.framework.intelligent.core.llm.LlmClient;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
@@ -78,9 +84,11 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistenc
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaAssistantProvisioningAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaEffectiveContextAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaExecutionProfileSnapshotAdapter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaPromptEnvelopeAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaRoleDefinitionAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaSystemSkillBindingAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaTaskControlAdapter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.PromptEnvelopeRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.SystemSkillBindingRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.governance.ApprovalRecoveryDispatcher;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
@@ -137,6 +145,12 @@ public class AssistantInfrastructureAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnMissingBean(TaskComplexityAnalyzer.class)
+    TaskComplexityAnalyzer taskComplexityAnalyzer() {
+        return new DefaultTaskComplexityAnalyzer();
+    }
+
+    @Bean
     @ConditionalOnMissingBean(TaskControlPort.class)
     TaskControlPort assistantTaskControlPort(
             AssistantTaskControlRepository repository, ConversationLeasePort leases) {
@@ -147,6 +161,14 @@ public class AssistantInfrastructureAutoConfiguration {
     @ConditionalOnMissingBean(SupportHandoffTool.class)
     SupportHandoffTool supportHandoffTool(TaskControlPort tasks, ExecutionEventStorePort events) {
         return new SupportHandoffTool(tasks, events);
+    }
+
+    @Bean
+    @ConditionalOnBean({SkillCatalogPort.class, SkillReferenceCatalogPort.class})
+    @ConditionalOnMissingBean(ContextLoadTool.class)
+    ContextLoadTool contextLoadTool(
+            SkillCatalogPort skills, SkillReferenceCatalogPort skillReferences) {
+        return new ContextLoadTool(skills, skillReferences);
     }
 
     @Bean
@@ -175,6 +197,12 @@ public class AssistantInfrastructureAutoConfiguration {
     ExecutionProfileSnapshotPort executionProfileSnapshotPort(
             ExecutionProfileSnapshotRepository repository) {
         return new JpaExecutionProfileSnapshotAdapter(repository);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(PromptEnvelopePort.class)
+    PromptEnvelopePort promptEnvelopePort(PromptEnvelopeRepository repository) {
+        return new JpaPromptEnvelopeAdapter(repository);
     }
 
     @Bean
@@ -289,6 +317,7 @@ public class AssistantInfrastructureAutoConfiguration {
             CompletionValidator completionValidator,
             ExecutionEventStorePort eventStore,
             TaskRecoveryPort recoveries,
+            ObjectProvider<SessionMemoryPort> sessionMemories,
             AiProperties aiProperties) {
         return new AssistantApplicationService(
                 definitions,
@@ -312,6 +341,7 @@ public class AssistantInfrastructureAutoConfiguration {
                 completionValidator,
                 eventStore,
                 recoveries,
+                sessionMemories,
                 aiProperties.getContext().getDefaultContextWindow());
     }
 

@@ -7,6 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ExecutionProfileSnapshotRepository
         extends JpaRepository<ExecutionProfileSnapshotEntity, Long> {
 
-    Optional<ExecutionProfileSnapshotEntity> findByTenantIdAndExecutionId(
+    Optional<ExecutionProfileSnapshotEntity> findFirstByTenantIdAndExecutionIdOrderByFrozenAtDesc(
             String tenantId, String executionId);
 }
