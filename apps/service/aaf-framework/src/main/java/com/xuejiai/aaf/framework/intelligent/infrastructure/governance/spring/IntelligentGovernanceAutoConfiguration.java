@@ -15,6 +15,7 @@ import org.springframework.core.env.Environment;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.engine.knowledge.embedding.EmbeddingProperties;
 import com.xuejiai.aaf.framework.engine.knowledge.rag.HybridSearchService;
+import com.xuejiai.aaf.framework.engine.memory.AtomMemoryEngine;
 import com.xuejiai.aaf.framework.engine.lease.LeaseAutoConfiguration;
 import com.xuejiai.aaf.framework.engine.lease.RedisDistributedLeaseAdapter;
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry;
@@ -47,14 +48,19 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskResumeSignalPort
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskTransitionPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.application.DefaultL1ContextCollaborator;
 import com.xuejiai.aaf.framework.intelligent.cognition.application.DefaultMemoryContextCollaborator;
+import com.xuejiai.aaf.framework.intelligent.cognition.application.DefaultMemoryRetrievalPort;
+import com.xuejiai.aaf.framework.intelligent.cognition.application.DefaultUnifiedRetrievalPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.application.MemoryGovernanceService;
+import com.xuejiai.aaf.framework.intelligent.cognition.memory.MemoryRerankerService;
 import com.xuejiai.aaf.framework.intelligent.cognition.memory.ShortTermMemoryService;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.L1ContextPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryContextPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryGovernancePort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryRecallPort;
+import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryRetrievalPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryWritePort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.SessionMemoryPort;
+import com.xuejiai.aaf.framework.intelligent.cognition.port.UnifiedRetrievalPort;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelManagementService;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentRuntimePortAutoConfiguration;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentScopeInfrastructureAutoConfiguration;
@@ -284,17 +290,35 @@ public class IntelligentGovernanceAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnMissingBean(MemoryRetrievalPort.class)
+    MemoryRetrievalPort memoryRetrievalPort(AtomMemoryEngine atomMemoryEngine) {
+        return new DefaultMemoryRetrievalPort(atomMemoryEngine);
+    }
+
+    @Bean
+    @ConditionalOnBean({MemoryRetrievalPort.class, HybridSearchService.class})
+    @ConditionalOnMissingBean(UnifiedRetrievalPort.class)
+    UnifiedRetrievalPort unifiedRetrievalPort(
+            MemoryRetrievalPort memoryRetrieval,
+            HybridSearchService knowledgeSearch,
+            com.xuejiai.aaf.framework.engine.knowledge.embedding.EmbeddingService embeddingService,
+            MemoryRerankerService reranker) {
+        return new DefaultUnifiedRetrievalPort(
+                memoryRetrieval, knowledgeSearch, embeddingService, reranker);
+    }
+
+    @Bean
     MemoryGovernanceService memoryGovernanceService(
             MemoryGovernancePort governance, MemoryWritePort writer) {
         return new MemoryGovernanceService(governance, writer);
     }
 
     @Bean
-    @ConditionalOnBean({MemoryContextPort.class, HybridSearchService.class})
+    @ConditionalOnBean(UnifiedRetrievalPort.class)
     @ConditionalOnMissingBean(L1ContextPort.class)
     L1ContextPort l1ContextPort(
-            MemoryContextPort memoryContexts, HybridSearchService knowledgeSearch) {
-        return new DefaultL1ContextCollaborator(memoryContexts, knowledgeSearch);
+            UnifiedRetrievalPort unifiedRetrieval, ObjectProvider<SessionMemoryPort> sessions) {
+        return new DefaultL1ContextCollaborator(unifiedRetrieval, sessions.getIfAvailable());
     }
 
     @Bean

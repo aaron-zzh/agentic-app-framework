@@ -134,4 +134,44 @@ public class MemoryRerankerService {
         long hits = queryTerms.stream().filter(lower::contains).count();
         return (double) hits / queryTerms.size();
     }
+
+    // ===== 通用内容重排（跨源候选，非 MemoryAtom） =====
+
+    /**
+     * 对任意内容列表按融合序重排，返回按相关性降序的原始下标。
+     *
+     * <p>用于 {@code UnifiedRetrievalPort} 融合后的跨源候选重排——候选来自记忆与知识库多个通道，不是单一
+     * {@link MemoryAtom} 列表，因此按下标返回而非按对象返回。候选数达门控下限才调用专用模型，模型不可用或失败时降级为原融合序（下标恒等映射）。
+     *
+     * @param query 查询文本
+     * @param contents 融合后的候选内容，按融合序排列
+     * @param topK 返回前 K 个下标
+     * @return 按相关性降序排列的原始下标；候选数不足或未启用模型时返回原融合序下标
+     */
+    public List<Integer> rerankContents(String query, List<String> contents, int topK) {
+        if (contents == null || contents.size() <= 1) {
+            return identityIndexes(contents);
+        }
+        if (contents.size() < MIN_FOR_MODEL) {
+            return identityIndexes(contents);
+        }
+        var svc = rerankServiceProvider.getIfAvailable();
+        if (svc == null) {
+            return identityIndexes(contents);
+        }
+        try {
+            return svc.rerank(query, contents, topK).stream()
+                    .map(RerankService.RankedDocument::index)
+                    .filter(i -> i >= 0 && i < contents.size())
+                    .toList();
+        } catch (Exception e) {
+            log.warn("[混合检索] 跨源候选重排失败，降级为融合序: {}", e.getMessage());
+            return identityIndexes(contents);
+        }
+    }
+
+    private static List<Integer> identityIndexes(List<String> contents) {
+        if (contents == null) return List.of();
+        return java.util.stream.IntStream.range(0, contents.size()).boxed().toList();
+    }
 }

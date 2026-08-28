@@ -161,7 +161,7 @@ L3 通过 `ContextRequest` 请求上下文；L1 按已授权候选、主体、�
 | 受控上下文按 scope、披露与双预算返回 | ✅ 已实现 · `ContextRequest.java:21-190`、`DefaultL1ContextCollaborator.java:25-286` |
 | 节点级上下文隔离 | ⚠️ 部分实现 · Coordinator/Aggregator 的 `SUMMARY_ONLY` 已强制（`ContextRequest.java:55-63`）；Executor 的材料与依赖隔离仍依赖上游预先收窄 `authorizedCandidates`，请求本身无节点/依赖边界（`ContextRequest.java:77-105`） |
 | 本会话短期上下文接入 L1 | 🎯 目标态，`MemoryRecallPort` 无会话维度（`MemoryRecallPort.java:11-26`），当前不得声称已执行 |
-| 记忆检索并行抽象已消除 | 🎯 目标态，`MemoryRetrievalService.java:32-211` 与主链端口并存，当前不得声称已执行 |
+| 记忆检索并行抽象已消除 | ✅ 已实现 · `MemoryRetrievalService`/`UnifiedRetrievalService` 已删除，收敛为 `MemoryRetrievalPort` + `UnifiedRetrievalPort` 两层门面（见 [memory.md](memory.md)、[retrieval.md](retrieval.md)） |
 | 四分区隔离 | ⚠️ 部分实现 · 个人记忆按 tenant/subject 隔离（`MemoryRecord.java:11-55`），任务材料按任务与执行身份授权（`ContextRequest.java:21-105`）；缺少统一的共享、工作区、审计分区模型与跨分区写入门禁 |
 | 用户画像与偏好证据模型 | 🎯 目标态，当前不得声称已执行 |
 | 有效上下文清单可持久化并应用偏好 | ✅ 已实现 · `JpaEffectiveContextAdapter.java:39-136` |

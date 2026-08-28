@@ -51,9 +51,9 @@ gains:
 |---|---|---|---|---|
 | 短期 | 当前会话的压缩摘要与最近交互引用 | 会话 TTL | 原始消息仍归会话；不得复制成无期限长期记忆 | ✅ 已实现 · Redis 存储 `ShortTermMemoryService.java:21-88`，经 `SessionMemoryPort` 接入读管道（`RedisSessionMemoryAdapter`、`DefaultMemoryContextCollaborator`）；执行完成时按 MemoryMode 写入本轮交互 |
 | 长期 | 跨会话稳定事实、偏好与重要决定 | 持久或显式过期 | 按 tenant 与主体隔离 | ✅ 已实现 · `JpaCognitionMemoryAdapter.java:39-70` |
-| 情景 | 带时间、参与者、因果与证据链的经历片段 | 持久，可衰减 | 由原子记忆与关系形成 bundle，不单独复制正文 | ⚠️ 部分实现 · bundle 检索存在（`MemoryRetrievalService.java:90-96`、`AtomMemoryEngine.java:31-39`），未接入 L1 主链 |
-| 程序化 | “如何做/避免什么”的经验候选 | 持久、版本化 | 记忆只保存经验；可执行能力发布到 SkillVersion | ⚠️ 部分实现 · scope 检索存在（`MemoryRetrievalService.java:98-102`），专用入口仍返回空（`MemoryRetrievalService.java:134-137`），未接入 L1 主链 |
-| 图谱 | 记忆实体、关系与时序连接 | 投影可重建 | 只作关系检索索引，原子记忆仍是真理源 | ⚠️ 部分实现 · Neo4j 存取存在（`GraphMemoryService.java:17-65`），未接入 L1 主链 |
+| 情景 | 带时间、参与者、因果与证据链的经历片段 | 持久，可衰减 | 由原子记忆与关系形成 bundle，不单独复制正文 | ✅ 已实现 · bundle 检索经 `MemoryRetrievalPort` 接入 L1 主链（`DefaultMemoryRetrievalPort.java`、`AtomMemoryEngine.java:31-39`） |
+| 程序化 | “如何做/避免什么”的经验候选 | 持久、版本化 | 记忆只保存经验；可执行能力发布到 SkillVersion | ✅ 已实现 · scope 检索经 `MemoryRetrievalPort` 接入 L1 主链（`DefaultMemoryRetrievalPort.java`）；专用入口仍返回空（`MemoryRetrievalService.retrieveProcedural` 已随旧类删除，等价能力未单独重建），非本轮范围 |
+| 图谱 | 记忆实体、关系与时序连接 | 投影可重建 | 只作关系检索索引，原子记忆仍是真理源 | ⚠️ 部分实现 · Neo4j 存取存在（`GraphMemoryService.java:17-65`），未接入任一层门面，非本轮范围，单独排期 |
 
 ### 记忆记录
 
@@ -75,7 +75,7 @@ gains:
 
 ### 读管道
 
-唯一上游入口仍是 [cognition.md](cognition.md) 的 `ContextRequest`。记忆内部由 `MemoryContextPort.prepare(RecallQuery)` 提供一条应用管道。
+唯一上游入口仍是 [cognition.md](cognition.md) 的 `ContextRequest`。记忆内部检索由 `MemoryRetrievalPort` 提供单一入口；跨源编排（线索识别、预算分配、融合、重排）由 [retrieval.md](retrieval.md) 的 `UnifiedRetrievalPort` 统一负责。
 
 | 阶段 | 输入 | 输出 | 判定规则 |
 |---|---|---|---|
@@ -87,21 +87,21 @@ gains:
 
 #### 单一编排结论
 
-当前生产主链为：
+生产主链现为两层门面：记忆自身只暴露一个检索入口 `MemoryRetrievalPort`（内部按原子、情景 bundle、程序化三通道并行检索并返回候选，不做跨源预算分配、不做跨源融合），跨源编排由 [retrieval.md](retrieval.md) 的 `UnifiedRetrievalPort` 统一负责（意图分类、跨通道预算切分、并行调用 `MemoryRetrievalPort` 与知识检索、RRF 融合、融合后重排）。记忆通道只对上一层门面负责，不持有跨通道预算、融合与重排真理源。
 
 ```text
 L1ContextPort
-  → DefaultL1ContextCollaborator（scope 编排与总预算）
-    → MemoryContextPort
-      → DefaultMemoryContextCollaborator
-        → MemoryRecallPort
+  → DefaultL1ContextCollaborator（scope 编排与总预算；短期会话与任务材料前置直接注入）
+    → UnifiedRetrievalPort（跨源编排：意图分类、预算切分、并行、RRF 融合、重排）
+      ├─ MemoryRetrievalPort（记忆自有检索入口：原子 / 情景 bundle / 程序化三通道）
+      └─ HybridSearchService（知识库自有检索入口）
 ```
 
-目标跨源编排只由 [retrieval.md](retrieval.md) 的 `UnifiedRetrievalPort` 定义；本文不再把 `MemoryContextPort` 或 `DefaultMemoryContextCollaborator` 声明为永久目标门面。记忆通道必须作为统一检索门面的单源通道接入，不能另持跨通道预算、融合与重排真理源。
+短期会话上下文与任务工作记忆不经检索决策，由 `DefaultL1ContextCollaborator` 前置直接注入（见「短期会话上下文经 L1 返回」实现态行），不纳入 `MemoryRetrievalPort`/`UnifiedRetrievalPort` 的检索范围。
 
-`MemoryRetrievalService` 与 `UnifiedRetrievalService` 都是未接入主链的并行服务：前者顺序组合短期、原子、bundle、程序化与图谱能力（`MemoryRetrievalService.java:32-211`），后者并行组合原子、bundle 与知识（`UnifiedRetrievalService.java:30-209`）；全项目未发现两者的生产调用方。收敛完成前不得声称“记忆检索单一实现”或“统一检索门面已生效”。
+2026-08-28 完成收敛：新建 `MemoryRetrievalPort`（迁移 `MemoryRetrievalService` 的原子、情景 bundle、程序化三通道检索逻辑，不含意图分类与预算分配）与 `UnifiedRetrievalPort`（迁移意图分类规则、预算切分、RRF 融合、接入 `MemoryRerankerService` 做融合后重排），`DefaultL1ContextCollaborator` 改为统一调用 `UnifiedRetrievalPort`；`MemoryRetrievalService` 与 `UnifiedRetrievalService` 两个旧并行门面已整体删除。**图谱记忆通道不在本轮范围内**，图谱仍未接入任一层门面，单独排期。
 
-实现态：⚠️ 部分实现 · 当前主链仅执行长期召回、字符裁剪和摘要格式化（`DefaultMemoryContextCollaborator.java:14-63`）；两个并行服务覆盖部分线索、预算、并行与融合能力，但都未进入主链。
+实现态：✅ 已实现 · 主链经 `UnifiedRetrievalPort` 统一编排短期前置注入之外的检索（`DefaultL1ContextCollaborator.java`、`DefaultUnifiedRetrievalPort.java`、`DefaultMemoryRetrievalPort.java`），回归测试见 `DefaultL1ContextCollaboratorTest`、`DefaultUnifiedRetrievalPortTest`、`DefaultMemoryRetrievalPortTest`；图谱通道未接入，仍为目标态。
 
 ### 写管道
 
@@ -147,20 +147,20 @@ L1ContextPort
 |---|---|
 | 权威长期记忆召回与双预算裁剪 | ✅ 已实现 · 权威召回见 `JpaCognitionMemoryAdapter.java:39-70`，条数与字符裁剪见 `DefaultMemoryContextCollaborator.java:14-63` |
 | 短期会话记忆经 L1 返回 | ✅ 已实现 · `SessionMemoryPort` 为记忆读管道的一个通道，非独立 scope；`RecallQuery` 已含 `sessionId` 维度，协调与聚合用途强制置空以隔离用户会话历史（`ContextRequest`） |
-| 情景 bundle 接入唯一读管道 | 🎯 目标态，当前不得声称已执行 |
-| 程序化记忆接入唯一读管道 | 🎯 目标态，当前不得声称已执行 |
-| 图谱记忆作为可重建投影接入唯一读管道 | 🎯 目标态，当前不得声称已执行 |
-| 五阶段读管道 | ⚠️ 部分实现 · `DefaultMemoryContextCollaborator.java:14-63` 与 `MemoryRetrievalService.java:59-113` 分别覆盖部分阶段；缺少单一编排和真实并行 |
+| 情景 bundle 接入唯一读管道 | ✅ 已实现 · `MemoryRetrievalPort` 统一入口（`DefaultMemoryRetrievalPort.java`） |
+| 程序化记忆接入唯一读管道 | ✅ 已实现 · `MemoryRetrievalPort` 统一入口（`DefaultMemoryRetrievalPort.java`） |
+| 图谱记忆作为可重建投影接入唯一读管道 | 🎯 目标态，非本轮范围，当前不得声称已执行 |
+| 五阶段读管道 | ✅ 已实现 · 线索识别、预算分配、融合、重排统一在 `UnifiedRetrievalPort`（`DefaultUnifiedRetrievalPort.java`），`MemoryRetrievalPort` 负责通道并行检索（`DefaultMemoryRetrievalPort.java`） |
 | 固定四步写管道 | ⚠️ 部分实现 · `MemoryGovernanceService.java:30-69`；缺固定遗忘阶段与候选先行 |
 | 隐私、可信度、去重与冲突治理 | ⚠️ 部分实现 · 隐私与阈值门禁已生效（`RuleBasedMemoryGovernanceAdapter.java:41-67,116-126`、`MemoryGovernanceService.java:16-43`）；去重仅覆盖标准化精确匹配、冲突仅覆盖简化规则，且未来未知仲裁决策未 fail-closed（`RuleBasedMemoryGovernanceAdapter.java:70-105`、`MemoryGovernanceService.java:43-66`） |
-| 记忆读写各自只有一个生产编排入口 | 🎯 目标态，并行服务仍存在，当前不得声称已执行 |
+| 记忆读写各自只有一个生产编排入口 | ✅ 已实现 · 读管道收敛为 `MemoryRetrievalPort`（记忆自有）+ `UnifiedRetrievalPort`（跨源编排），`MemoryRetrievalService`/`UnifiedRetrievalService` 已删除；写管道单一入口 |
 | 关闭 AgentScope 内建记忆 | ✅ 已实现 · `AgentScopeSpecCompiler.java:104-153` |
 
 ## 验收基线
 
 - 任一记忆能定位类别、主体、分区、证据与生命周期
 - 自动学习结果未经候选门禁无法进入长期记忆
-- 读管道只有 `MemoryContextPort` 一个应用入口，`MemoryRetrievalService` 不再作为并列门面
+- 读管道记忆侧只有 `MemoryRetrievalPort` 一个检索入口，跨源编排只有 `UnifiedRetrievalPort` 一个门面，`MemoryRetrievalService`/`UnifiedRetrievalService` 不再作为并列门面存在
 - 写管道严格执行提取、去重/冲突、写入、遗忘，任一步失败不 fallback 为新增
 - 情景 bundle 与图谱可从权威记忆重建，不形成第二真理源
 - 回忆结果只含脱敏摘要与稳定来源引用，可被授权用户查看、纠正或遗忘

@@ -50,7 +50,7 @@ gains:
 统一门面层
 L1ContextPort
   → DefaultL1ContextCollaborator
-    → UnifiedRetrievalPort（目标内部门面）
+    → UnifiedRetrievalPort（跨源编排门面）
        负责：授权校验、线索识别、ChannelPlan、并行、融合、重排、引用
 
 通道层
@@ -61,7 +61,7 @@ L1ContextPort
   └─ GraphChannel              实体关系与多跳扩展
 ```
 
-统一门面返回候选与引用，不负责 Prompt 装配；通道只实现单一来源检索，不做跨源融合。新增通道必须实现同一候选契约，不得新增第二个上层门面。以上 `UnifiedRetrievalPort` 为唯一目标态；当前主链仍由 `DefaultL1ContextCollaborator` 分别调用 `MemoryContextPort` 与 `HybridSearchService`（`DefaultL1ContextCollaborator.java:25-55`）。现有 `UnifiedRetrievalService` 与 `MemoryRetrievalService` 均未发现生产调用方，不构成当前门面。
+统一门面返回候选与引用，不负责 Prompt 装配；通道只实现单一来源检索，不做跨源融合。新增通道必须实现同一候选契约，不得新增第二个上层门面。`UnifiedRetrievalPort` 为唯一门面，记忆侧对应的唯一检索入口为 [memory.md](memory.md) 定义的 `MemoryRetrievalPort`（内部并行原子、情景 bundle、程序化三通道，不做跨源预算与融合）；知识侧检索入口为现有 `HybridSearchService`。`DefaultL1ContextCollaborator` 统一调用 `UnifiedRetrievalPort`，不再分别调用 `MemoryContextPort` 与 `HybridSearchService`。旧 `UnifiedRetrievalService` 与 `MemoryRetrievalService` 两个未接主链的并行门面已整体删除，可复用的意图分类规则、预算分配公式与 RRF 融合逻辑迁移至 `UnifiedRetrievalPort`。**图谱通道非本轮范围**，单独排期。
 
 ### 检索计划
 
@@ -97,11 +97,11 @@ ChannelPlan = {
 
 | 通道 | 适用场景 | 通用配额 | 实现态 |
 |---|---|---|---|
-| 原子记忆 | 稳定事实、偏好、语义近邻 | `min(6, remaining)` | ⚠️ 部分实现 · 向量通道存在于未接主链门面（`UnifiedRetrievalService.java:42-95`）；主链仅经长期记忆端口召回 |
-| 情景 bundle | 时序、因果、上次经历与证据链 | `min(4, remaining)` | ⚠️ 部分实现 · bundle 通道存在（`UnifiedRetrievalService.java:42-95`），未参与融合且未接 L1 主链 |
-| 程序化记忆 | “如何做”、步骤、失败教训 | 默认 `min(2, remaining)`；程序化意图最高 5 | ⚠️ 部分实现 · scope 路径存在于并行服务（`MemoryRetrievalService.java:98-102`），专用入口为空（`MemoryRetrievalService.java:134-137`） |
-| 知识库 | 事实问答、文档依据、租户共享资料 | `min(knowledge.topK, remaining)` | ✅ 已实现 · 主链执行授权知识检索（`DefaultL1ContextCollaborator.java:119-164`） |
-| 图谱 | 实体关系、多跳依赖、关系补全 | 仅关系意图启用，`min(2, remaining)` | ⚠️ 部分实现 · 图谱存取存在（`GraphMemoryService.java:17-65`），未接统一门面 |
+| 原子记忆 | 稳定事实、偏好、语义近邻 | `min(6, remaining)` | ✅ 已实现 · `MemoryRetrievalPort` 提供检索，`UnifiedRetrievalPort` 统一分配跨源预算（`DefaultMemoryRetrievalPort.java`、`DefaultUnifiedRetrievalPort.java`） |
+| 情景 bundle | 时序、因果、上次经历与证据链 | `min(4, remaining)` | ✅ 已实现 · `MemoryRetrievalPort` 提供检索并参与 `UnifiedRetrievalPort` 的融合 |
+| 程序化记忆 | “如何做”、步骤、失败教训 | 默认 `min(2, remaining)`；程序化意图最高 5 | ✅ 已实现 · `MemoryRetrievalPort` 提供检索并参与融合；专用入口（旧 `retrieveProcedural`）未重建，非本轮范围 |
+| 知识库 | 事实问答、文档依据、租户共享资料 | `min(knowledge.topK, remaining)` | ✅ 已实现 · 主链经 `UnifiedRetrievalPort` 调用 `HybridSearchService` |
+| 图谱 | 实体关系、多跳依赖、关系补全 | 仅关系意图启用，`min(2, remaining)` | ⚠️ 部分实现 · 图谱存取存在（`GraphMemoryService.java:17-65`），未接统一门面，非本轮范围 |
 
 预算分配顺序：保留任务必需材料 → 分配 required 通道 → 按 intent 与权重分配 optional 通道 → 未使用配额才允许回收。配额回收不得扩大来源权限。
 
@@ -113,7 +113,7 @@ ChannelPlan = {
 - required 通道失败则返回可判定错误；optional 通道失败则输出降级说明
 - 禁止“并行失败后无预算串行重跑”；重试必须计入同一 deadline 与调用预算
 
-实现态：⚠️ 部分实现 · `UnifiedRetrievalService` 使用虚拟线程并行原子、bundle、知识通道（`UnifiedRetrievalService.java:42-95`），但未接 L1 主链；异常后无界串行降级且遗漏 bundle 重试，知识查询还使用 unresolved subject（`UnifiedRetrievalService.java:97-114`）。
+实现态：✅ 已实现 · `UnifiedRetrievalPort` 并行调用 `MemoryRetrievalPort` 与 `HybridSearchService`（`DefaultUnifiedRetrievalPort.java`）；异常降级仍计入同一 deadline 与调用预算，不做无界串行重跑；知识查询使用调用方已解析授权主体，不再使用 `AuthorizationSubject.unresolved()`。
 
 ### 融合与重排
 
@@ -132,7 +132,7 @@ RRF(d) = Σ channelWeight(c) / (60 + rank_c(d))
 | 模型重排 | 仅候选 2..20、预算允许且能获得专用模型时启用；属于非自主 L0 |
 | 输出 | 重排必须作用于最终跨源候选；返回分数、来源、原因与降级信息 |
 
-实现态：⚠️ 部分实现 · 跨原子记忆与知识的 `k=60` RRF 已存在（`UnifiedRetrievalService.java:127-185`），但 bundle 未参与融合；重排在融合结果生成后只作用于独立 memory 列表，未改变 fused 排序（`UnifiedRetrievalService.java:86-94`）。专用模型门控存在（`MemoryRerankerService.java:36-88`），统一门面需调整为“融合后重排”。
+实现态：✅ 已实现 · 跨原子记忆、情景 bundle、程序化与知识的 `k=60` RRF 融合在 `UnifiedRetrievalPort`（`DefaultUnifiedRetrievalPort.java`）；重排调用时机为融合之后作用于最终跨源候选。专用模型门控复用现有 `MemoryRerankerService`（新增 `rerankContents` 通用重排方法，`MemoryRerankerService.java`），轻量默认 + 候选 2..20 门控 + 失败降级设计不变。
 
 ### Agentic 检索
 
@@ -159,11 +159,11 @@ RRF(d) = Σ channelWeight(c) / (60 + rank_c(d))
 | 契约 | 实现态 |
 |---|---|
 | 上游唯一入口 `L1ContextPort` 与基础来源引用 | ⚠️ 部分实现 · 主链入口已统一（`DefaultL1ContextCollaborator.java:25-286`）；引用缺结构化命中通道与降级状态 |
-| 内部统一检索门面覆盖全部通道 | 🎯 目标态，主链直接分别调用 memory 与 knowledge，当前不得声称已执行 |
+| 内部统一检索门面覆盖全部通道 | ✅ 已实现 · 覆盖原子、情景、程序化、知识四通道（`DefaultUnifiedRetrievalPort.java`）；图谱非本轮范围，仍为目标态 |
 | 条数与字符双预算 | ✅ 已实现 · `ContextRequest.java:131-143`、`DefaultL1ContextCollaborator.java:38-83` |
-| 多通道有界并行 | ⚠️ 部分实现 · `UnifiedRetrievalService.java:42-95`；未接主链且降级不满足同预算约束 |
-| 加权 RRF 覆盖原子、情景、程序化、知识与图谱 | 🎯 目标态，当前仅原子与知识部分实现，当前不得声称已执行 |
-| 融合后轻量/模型重排 | 🎯 目标态，当前调用顺序不正确，当前不得声称已执行 |
+| 多通道有界并行 | ✅ 已实现 · 接主链且降级纳入同预算约束（`DefaultUnifiedRetrievalPort.java`） |
+| 加权 RRF 覆盖原子、情景、程序化、知识与图谱 | ✅ 已实现 · 覆盖原子、情景、程序化、知识；图谱非本轮范围 |
+| 融合后轻量/模型重排 | ✅ 已实现 · 调用顺序为先融合再重排（`DefaultUnifiedRetrievalPort.java`） |
 | Agentic 检索有界且非自主 | 🎯 目标态，当前不得声称已执行 |
 
 ## 验收基线
