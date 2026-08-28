@@ -97,7 +97,7 @@ ModelRouter 按优先级从高到低依次尝试，命中即返回 modelId：
 
 ## 相关文档
 
-- [执行流程全景](../../execution-flow.md)
-- [Core 层设计](../architecture.md)
-- [预算控制引擎](../../engine/governance/budget-control.md)
-- [积分与结算引擎](../../engine/governance/credit-settlement.md)
+- [执行流程全景](../../../execution-flow.md)
+- [Core 层设计](../../architecture.md)
+- [预算控制引擎](../../../engine/governance/budget-control.md)
+- [积分与结算引擎](../../../engine/governance/credit-settlement.md)

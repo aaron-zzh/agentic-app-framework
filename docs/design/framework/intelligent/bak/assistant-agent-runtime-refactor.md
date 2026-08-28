@@ -15,7 +15,7 @@ gains:
 
 # 对话入口统一重构方案
 
-> **已废弃的历史提案。** 本文保留早期 AgentScope 注册讨论，不再定义对外 API 或持久化模型。`/agui/runs/**`、按 agent/assistant 路由的启动方式和双入口均不可实现；当前设计见[任务式 Assistant 统一执行路径设计](assistant/task-oriented-assistant-execution-design.md)与[Team 技术方案](team/team-tech.md)。
+> **已废弃的历史提案。** 本文保留早期 AgentScope 注册讨论，不再定义对外 API 或持久化模型。`/agui/runs/**`、按 agent/assistant 路由的启动方式和双入口均不可实现；当前设计见[任务式 Assistant 统一执行路径设计](bak/assistant/task-oriented-assistant-execution-design.md)与[Team 技术方案](bak/team/team-tech.md)。
 
 ## 背景与问题
 
@@ -133,7 +133,7 @@ AgentScope 把「知识库」和「长期记忆」各抽象成一个 2 方法 SP
 | 长期记忆 | `memory.LongTermMemory` + `LongTermMemoryMode.STATIC_CONTROL` | `advanced/Mem0Example`、`AutoMemoryExample` | **`AafLongTermMemory` 已实现，但未接线** |
 | 程序化记忆 | `ReMeLongTermMemory` | `advanced/ReMeExample` | 可选复用（参考 `tmp/mem/ReMe`） |
 | 上下文压缩 | `AutoContextMemory` + `AutoContextHook` | `AutoMemoryExample` | `AafAutoContextMemoryAdapter` 已用 ✅ |
-| 会话持久化 | `Session`(Json/Redis) + `agent.loadIfExists/saveTo` | `AutoMemoryExample` | 见 [assistant-tech.md](assistant/assistant-tech.md) |
+| 会话持久化 | `Session`(Json/Redis) + `agent.loadIfExists/saveTo` | `AutoMemoryExample` | 见 [assistant-tech.md](bak/assistant/assistant-tech.md) |
 | per-user 物化 | 共享 `ReActAgent.Builder` + 按 userId build 注入 LTM | `consult-sub-agent/AgentScopeRunner` | 印证 `AssistantRuntime.materialize` ✅ |
 
 ### 两个 SPI 与绑定方式
@@ -408,8 +408,8 @@ AI 执行中 → HumanApprovalService.request() → 存入 pending Map + 生成 
 ## 相关文档
 
 - [五层智能架构](architecture.md)
-- [Assistant 技术方案](assistant/assistant-tech.md)
-- [Agent 技术方案](agent/agent-tech.md)
+- [Assistant 技术方案](bak/assistant/assistant-tech.md)
+- [Agent 技术方案](bak/agent/agent-tech.md)
 - [AgentScope v2 使用指南](../../../reference/dev/agentscope-usage-guide.md)
 
 ## 架构重构意见：以认知模型驱动，AgentScope 仅为执行层（2026-06-02）

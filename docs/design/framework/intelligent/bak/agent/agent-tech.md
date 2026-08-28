@@ -371,7 +371,7 @@ var persistence = StatePersistence.builder()
 
 ## 相关文档
 
-- [五层智能架构总览](../architecture.md)
+- [五层智能架构总览](../../architecture.md)
 - [执行轨迹](execution-trace.md)
-- [工具权限](../../engine/execution/tool-permission.md)
-- [AgentScope v2 使用指南](../../../../reference/dev/agentscope-usage-guide.md)
+- [工具权限](../../../engine/execution/tool-permission.md)
+- [AgentScope v2 使用指南](../../../../../reference/dev/agentscope-usage-guide.md)

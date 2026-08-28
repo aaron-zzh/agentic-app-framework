@@ -15,7 +15,7 @@ gains:
 # 用户感知与个性化
 
 > 本文档是串联视角，聚焦"如何让系统感知用户、记住用户、服务用户"。
-> 各组件详细设计见：[Cognition](cognition.md) · [AtomMemory](../../engine/data-knowledge/atom-memory.md) · [NexusKB](../../engine/data-knowledge/nexus-knowledge.md) · [状态管理器](../../engine/meta/state-manager.md)
+> 各组件详细设计见：[Cognition](cognition.md) · [AtomMemory](../../../engine/data-knowledge/atom-memory.md) · [NexusKB](../../../engine/data-knowledge/nexus-knowledge.md) · [状态管理器](../../../engine/meta/state-manager.md)
 
 ## 四层数据的职责分工
 
@@ -291,11 +291,11 @@ public class AafLongTermMemory implements LongTermMemory {
 | 文档 | 内容 |
 |------|------|
 | [cognition.md](cognition.md) | Cognition 层详细设计（记忆分区/检索管道/价值观） |
-| [atom-memory.md](../../engine/data-knowledge/atom-memory.md) | AtomMemory 引擎（原子化存储/双时态索引/遗忘策略） |
-| [nexus-knowledge.md](../../engine/data-knowledge/nexus-knowledge.md) | NexusKB 知识引擎（向量检索/知识图谱/RAG） |
-| [state-manager.md](../../engine/meta/state-manager.md) | 状态管理器（四层状态/渐进提交/存储映射） |
-| [agent.md](../architecture.md) | Agent 工作记忆与注意力预算 |
-| [AgentScope v2 使用指南](../../../../reference/dev/agentscope-usage-guide.md) | Harness、Middleware、状态与多智能体运行方式 |
+| [atom-memory.md](../../../engine/data-knowledge/atom-memory.md) | AtomMemory 引擎（原子化存储/双时态索引/遗忘策略） |
+| [nexus-knowledge.md](../../../engine/data-knowledge/nexus-knowledge.md) | NexusKB 知识引擎（向量检索/知识图谱/RAG） |
+| [state-manager.md](../../../engine/meta/state-manager.md) | 状态管理器（四层状态/渐进提交/存储映射） |
+| [agent.md](../../architecture.md) | Agent 工作记忆与注意力预算 |
+| [AgentScope v2 使用指南](../../../../../reference/dev/agentscope-usage-guide.md) | Harness、Middleware、状态与多智能体运行方式 |
 
 ## 三层数据的职责分工
 
@@ -532,6 +532,6 @@ Assistant 层只"消费"个性化结果（读取画像→注入 Prompt），不�
 | 文档 | 内容 |
 |------|------|
 | [cognition.md](cognition.md) | Cognition 层详细设计（记忆分区/检索管道/价值观） |
-| [atom-memory.md](../../engine/data-knowledge/atom-memory.md) | AtomMemory 引擎（原子化存储/双时态索引/遗忘策略） |
-| [state-manager.md](../../engine/meta/state-manager.md) | 状态管理器（四层状态/渐进提交/存储映射） |
-| [agent.md](../architecture.md) | Agent 工作记忆与注意力预算 |
+| [atom-memory.md](../../../engine/data-knowledge/atom-memory.md) | AtomMemory 引擎（原子化存储/双时态索引/遗忘策略） |
+| [state-manager.md](../../../engine/meta/state-manager.md) | 状态管理器（四层状态/渐进提交/存储映射） |
+| [agent.md](../../architecture.md) | Agent 工作记忆与注意力预算 |

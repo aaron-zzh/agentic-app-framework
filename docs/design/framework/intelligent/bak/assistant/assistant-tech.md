@@ -142,7 +142,7 @@ intelligent/assistant/
 
 ## 相关文档
 
-- [五层智能架构总览](../architecture.md)
+- [五层智能架构总览](../../architecture.md)
 - Persona 模型（待建）
 - [用户感知与个性化](../cognition/personalization.md)
 
@@ -330,4 +330,4 @@ public class AssistantSessionConfig {
 
 ## 相关文档（补充）
 
-- [AgentScope v2 使用指南](../../../../reference/dev/agentscope-usage-guide.md)
+- [AgentScope v2 使用指南](../../../../../reference/dev/agentscope-usage-guide.md)

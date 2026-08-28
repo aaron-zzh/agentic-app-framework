@@ -98,8 +98,8 @@ intelligent/cognition/memory/
 
 - [功能设计 — 混合检索](retrieval.md)
 - [记忆管道](memory-pipeline.md)
-- [AtomMemory 记忆引擎](../../engine/data-knowledge/atom-memory.md)
-- [NexusKB 知识引擎](../../engine/data-knowledge/nexus-knowledge.md)
+- [AtomMemory 记忆引擎](../../../engine/data-knowledge/atom-memory.md)
+- [NexusKB 知识引擎](../../../engine/data-knowledge/nexus-knowledge.md)
 
 ---
 
@@ -231,4 +231,4 @@ toolkit.registerObject(ragTools);
 
 ## 相关文档（补充）
 
-- [AgentScope v2 使用指南](../../../../reference/dev/agentscope-usage-guide.md)
+- [AgentScope v2 使用指南](../../../../../reference/dev/agentscope-usage-guide.md)

@@ -1,267 +1,165 @@
 ---
 level: Practice
 layer: Model
-purpose: AI 长任务持久执行：可恢复、可观测、状态一致
-status: published
-version: 1.0.0
-date: 2026-05-29
-author: AaronZZH
+purpose: 定义长任务的持久执行机制——租约与 fencing、幂等、重试、取消、恢复与多副本一致性
+status: draft
+version: 1.0.1
+date: 2026-08-25
+author: Kiro
+tags:
+  - 持久执行
+  - 租约
+  - 幂等
+  - 恢复
+dependencies:
+  - ./architecture.md
+  - ./runtime.md
+related:
+  - ./runtime-event.md
+scope:
+  includes:
+    - 持久任务模型与状态真理源划分
+    - 多副本协调：租约、续租、抢占与 fencing
+    - 幂等 receipt、重试、取消与接管
+    - 断点恢复与状态一致性保障
+  excludes:
+    - 事件契约与对外投影（见 runtime-event.md）
+    - 完成门禁判定（见 runtime.md）
+    - 动作授权与预算门禁（见 action-governance.md）
+gains:
+  - 能说明长任务在进程重启或多副本切换后如何续跑而不重复副作用
+  - 能定位某项状态的真理源是 TaskBoard、事件流还是 Agent 工作态
+  - 能判断一次重试是否安全
 ---
 
-# AI 长任务持久执行
+# 持久执行
 
-> 让 AI 助理的长任务像分布式系统一样可靠：可恢复、可观测、状态一致。
+> 长任务必须可恢复、可观测、状态一致。**恢复与 fencing 只在持久任务模型内进行**，不依赖内存态或连接生命周期。
 
-## 问题背景
+## 状态真理源划分
 
-AI 助理执行长任务（分钟到小时级）时面临的核心挑战：
+| 状态 | 真理源 | 说明 |
+|---|---|---|
+| 当前编排状态 | TaskBoard（PostgreSQL） | 节点拓扑、依赖、进度的业务真理源 |
+| 执行事实与变化 | `ai_task_event` | 追加记录，不覆盖；支持重放 |
+| Agent 可恢复工作态 | AgentState | 仅保存单个 Agent 的执行工作态 |
+| 会话与任务身份 | `threadId` / `runId` | 见 [runtime.md](runtime.md) |
 
-| 问题 | 场景 | 后果 |
-|------|------|------|
-| 重复执行 | 多实例/多线程同时扫描到同一任务 | 副作用重复（重复发邮件等） |
-| 孤儿状态 | 进程崩溃，任务停在 running | 永远不会被重新拾起 |
-| 不可恢复 | 无检查点，崩溃后丢失中间进度 | 长任务从头重来，浪费 Token |
-| 不可观测 | 无事件日志 | 无法审计"做了什么、为什么做" |
-| 多实例协调丢失 | 主实例崩溃，子任务状态散落 | 不知道哪些子任务完成了 |
+三者不互相替代：**TaskBoard 是状态，事件是事实，AgentState 是工作态**。
 
-## 设计原则
+## 多副本协调
 
-- **Durable Execution**：任务进度持久化，进程死亡不丢失
-- **Checkpoint + Resume**：从最近检查点恢复，不重放已完成步骤
-- **Event Sourcing**：append-only 事件日志，完整审计轨迹
-- **CAS 抢占**：数据库行级锁防止重复执行，多实例安全
-- **分层检查点**：coordinator / subtask / agent_step 三层粒度
+| 机制 | 契约 | 实现态 |
+|---|---|---|
+| 会话级租约 | 按 conversation 获取租约后才调度，防止同一会话并发执行 | ✅ 已实现 · `RedisConversationLeaseAdapter.java:22-62` |
+| 续租 | 执行期周期续租，过期后才允许新 owner 抢占 | ✅ 已实现 · 适配器支持续租（`RedisConversationLeaseAdapter.java:28-38`），协调器按 TTL/3 周期续租（`DelegatedTaskCoordinator.java:1173-1190`） |
+| 抢占与 fencing | 抢占后旧持有者的状态、事件与 TaskBoard 写入被 token 拒绝 | ✅ 已实现 · `JpaTaskTransitionAdapter.java:1050-1135` |
+| 调度前校验 | 租约不可得时不进入执行 | ✅ 已实现 · `DelegatedTaskCoordinator.java:204-262` |
 
-## 架构总览
+> ⚠️ 部分实现 · 租约不可得、任务已等待或暂停时当前可能返回空流（`DelegatedTaskCoordinator.java:204-262`），客户端拿不到持久终态帧；终态投影契约见 [runtime-event.md](runtime-event.md)。
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  ChatTask（用户可见的任务）                                       │
-│  状态机：pending → running → done / failed / cancelled           │
-└──────────────────────────────┬──────────────────────────────────┘
-                               ↓ 触发执行
-┌─────────────────────────────────────────────────────────────────┐
-│  TaskExecution（执行实例，支持重试）                               │
-│  一个 Task 可能多次执行（attempt_no 递增）                        │
-│  支持 parent_execution_id 表达主/子关系                           │
-└──────────────────────────────┬──────────────────────────────────┘
-                               ↓ 执行过程中
-┌─────────────────────────────────────────────────────────────────┐
-│  TaskCheckpoint（检查点快照）                                     │
-│  scope: coordinator / subtask / agent_step                       │
-│  保存：completedSteps, workingMemory, nextAction, taskBoard      │
-└──────────────────────────────┬──────────────────────────────────┘
-                               ↓ 每个动作
-┌─────────────────────────────────────────────────────────────────┐
-│  TaskEvent（事件日志，append-only）                               │
-│  类型：task_started / step_completed / tool_called /             │
-│        checkpoint_saved / subtask_forked / error / completed      │
-└─────────────────────────────────────────────────────────────────┘
-```
+## 幂等与重试
 
-## 多实例协调
+| 机制 | 契约 | 实现态 |
+|---|---|---|
+| 输入幂等 | 以 `inputId` 落库，相同 ID 不同事实拒绝 | ✅ 已实现 · `JpaDelegatedTaskAdapter.java:50-77` |
+| 事件幂等 | 以 `eventId` 为主键，同 ID 内容一致时幂等返回 | ✅ 已实现 · `SynchronousExecutionEventWriter.java:28-78` |
+| 动作幂等 | 写工具以稳定 action key 领取 receipt；成功 receipt 可重放跳过，但外部副作用与 receipt 完成非原子 | ⚠️ 部分实现 · 稳定 key、摘要冲突与成功重放已实现（`DefaultToolGateway.java:123-171,255-293`）；崩溃发生在外部动作成功后、receipt 完成前时，更高 fence 可重新领取 `PENDING` 并重复动作（`JpaInvocationReceiptAdapter.java:33-78`） |
+| 工具侧 fencing | 当前 lease/fence 必须在调用前后有效，外部资源写入还须携带版本前置条件或下游幂等键 | ⚠️ 部分实现 · 网关调用前后会校验当前 lease（`DefaultToolGateway.java:67-69,218-230`），但本地工具/外部连接器未统一证明在资源提交点拒绝旧 fence |
+| 重试边界 | 重试节点不复用父节点执行画像，各 execution 独立冻结 | ✅ 已实现 · `JpaExecutionProfileSnapshotAdapter.java:22-45` |
 
-对齐五层架构中 Assistant fork 多实例 + 多子 Agent 协调的场景：
+⚠️ 无源 ID 的投影合成事件仍使用随机 `eventId`，跨重试不稳定（`ExecutionEventPublicMapper.java:31-75`）。
 
-```text
-主 TaskExecution（协调者）
-  checkpoint.scope = 'coordinator'
-  checkpoint.state = { taskBoard, forkPlan, aggregatedResults }
-  │
-  ├── 子 TaskExecution #1 (role: 后端)
-  │   checkpoint.scope = 'subtask'
-  │   checkpoint.state = { step: 3/5, workingMemory, completedSteps }
-  │
-  ├── 子 TaskExecution #2 (role: 前端)
-  │   checkpoint.scope = 'subtask'
-  │   checkpoint.state = { step: 1/3, workingMemory, completedSteps }
-  │
-  └── join → 聚合验证 → 继续或返回
-```
+## 取消、暂停与接管
 
-### TaskBoard 结构
+任务状态独立于聊天回合，支持暂停、取消、继续、接管与验证失败后继续修复。执行期追加输入按四类处置：
 
-```json
-{
-  "subtasks": [
-    {"key": "backend", "role": "后端", "status": "DONE", "executionId": 101},
-    {"key": "frontend", "role": "前端", "status": "RUNNING", "executionId": 102},
-    {"key": "test", "role": "测试", "status": "PENDING", "dependsOn": ["backend", "frontend"]}
-  ],
-  "phase": "EXECUTING",
-  "completedCount": 1,
-  "totalCount": 3
-}
-```
+| 类别 | 处置 |
+|---|---|
+| 取消 | 中断当前执行 |
+| 修改 | 重新规划 |
+| 补充 | 注入上下文 |
+| 无关 | 排队待处理 |
+
+实现态：⚠️ 部分实现 · 结构化补参在 `AWAITING_CLARIFICATION` 状态可用（`TaskIngress.java:13-40`、`JpaTaskTransitionAdapter.java:215-361`）；运行中的自然语言追加输入当前被拒绝。
+
+## 恢复
+
+### 可恢复粒度
+
+| 粒度 | 恢复对象 | 最近安全恢复点 | 恢复规则 |
+|---|---|---|---|
+| 步骤级 | 单个 L2 execution / TaskBoard 子节点 | 已提交工具 receipt、步骤结果、iteration 判定或 AgentState checkpoint | 跳过已完成副作用；从首个未提交步骤继续。找不到工作态时重建该节点，不回写旧 execution |
+| 会话级 | L3 Assistant 的稳定 task、TaskBoard、InputBuffer 与会话焦点 | 已原子提交的 TaskBoard + 任务状态 + 事件 offset + 节点画像引用 | 取得新 lease/fence 后重放事件校验状态；完成节点跳过，运行节点恢复或重置为待调度，依赖满足后继续 |
+| 目标级 | L4 Team/长期业务目标及其 Assistant 子目标 | 已发布目标版本、成员/责任分工、子任务完成证据与聚合状态 | 保持 goal/task 身份，已验证子目标跳过；未完成子目标创建新 execution；成员或目标版本变化必须重新规划并留决策事实 |
+
+三层是递进边界，不是三份可独立修改的状态：步骤级工作态归 AgentState，会话级编排归 TaskBoard，目标级责任与分工归 Team/Goal；事件只记录变化。
+
+### 恢复点写入时机
+
+恢复点必须与对应状态、事件和 outbox 在同一事务或可证明一致的提交边界内写入：
+
+| 时机 | 必须冻结/记录 |
+|---|---|
+| 意图、Route、画像与计划首次生效后 | execution 画像引用、TaskBoard 版本、预算与聚合合同 |
+| 进入授权、澄清、暂停或人工接管前 | 等待原因、待处理 ID、当前 owner、下一恢复动作 |
+| 每次有副作用工具完成后 | receipt、结果安全引用、资源版本与下一步骤；禁止先推进状态后补 receipt |
+| 子任务、iteration group 或聚合阶段完成后 | 完成证据、依赖释放、剩余预算与下一可运行节点 |
+| 取消、失败、完成或 ownership 转移前 | 规范终态/恢复原因、最后 eventOffset、责任主体 |
+
+产物类长任务生成期间**不逐 token 更新数据库**。正文只经流传输；恢复缓冲按段落、稳定块或时间窗口写入受控产物 checkpoint，事件仅保存引用与摘要。
+
+### 检查点策略
+
+- **先持久事实后确认推进**：只有状态、事件、receipt/outbox 已提交才算恢复点成立
+- **全量基线 + 增量事实**：TaskBoard/AgentState 保存最近完整快照，之后用追加事件校验；事件不反向成为第二状态表
+- **稳定身份与版本**：检查点含 task/execution/session、快照版本、摘要哈希和 fencing token；版本不兼容时 fail-closed
+- **有界频率**：步骤边界必写；长计算按时间/内容窗口写；纯 token delta 不写
+- **单写者**：只有当前 lease/fence 持有者可写；迟到 owner 的状态、事件、AgentState 与产物提交全部拒绝
+- **保留与清理**：终态确认、审计保留期和产物提交完成后才清理中间 checkpoint；清理不删除执行事实
 
 ### 恢复流程
 
 ```text
-服务重启 / 崩溃恢复：
-  1. 扫描 status=running 且超时的 TaskExecution
-  2. 加载主实例 checkpoint → 恢复 TaskBoard
-  3. 遍历子任务：
-     ├── DONE → 跳过
-     ├── RUNNING → 查找子 TaskExecution checkpoint
-     │   ├── 有 → 从 checkpoint 恢复
-     │   └── 无 → 重置为 PENDING，重新 fork
-     └── PENDING → 检查依赖 → 满足则 fork
-  4. 通知用户："任务已恢复，继续执行中..."
+领取恢复任务并取得新 lease / fencing token
+→ 加载 TaskBoard、任务状态、最近 checkpoint 与已持久事件
+→ 校验 checkpoint 版本、哈希、身份和 eventOffset 一致性
+→ 加载该 execution 的 ExecutionProfileSnapshot，不按当前配置重新解析
+→ 重新校验动态授权、凭证、预算与平台硬策略
+→ 跳过已有 receipt 和已完成节点，恢复首个未提交边界
+→ 原子写入 RECOVERING/RUNNING 事实后继续调度
 ```
 
-## 状态一致性保障
+画像与授权采用不同规则：
 
-### CAS 抢占
+| 项 | 恢复约束 |
+|---|---|
+| 冻结画像 | 必须复用原 `ExecutionProfileSnapshot` 的 Assistant revision、Role、Skill、模型、Prompt、上下文压缩和工具授权规则；不同快照拒绝。新重试/接管节点用新 execution 独立冻结 |
+| 主体与租户 | 重新校验当前认证主体、租户、任务所有权和资源归属；不得因旧快照跳过 |
+| grant | 重新检查 action/resource/scope、有效期、撤销状态、条件、reversible 与当前主体；失效则进入同步 HITL |
+| 凭证 | 重新解析有效 credential handle；过期、撤销或 scope 变化时暂停，不得使用快照中的明文或旧句柄绕过 |
+| 平台硬策略 | 当前 deny/安全策略可以进一步收窄旧画像，但不能扩大工具与权限；策略冲突时暂停并记录原因 |
+| 预算 | 以持久账本扣除已消费量后继续；恢复不得重置调用、Token、时间或迭代预算 |
 
-```sql
-UPDATE ai_task_execution SET status='running', update_time=now()
-WHERE id=? AND status='pending'
--- affected=1 才执行，否则说明被其他实例抢走
-```
+实现态：⚠️ 部分实现 · `TaskRecoveryPort` 仅持久化 Assistant 命令和 approvalId 恢复作业（`TaskRecoveryPort.java:13-48`、`JpaTaskRecoveryAdapter.java:31-141`）；TaskBoard、任务状态、事件与 outbox 的原子迁移已实现（`JpaTaskTransitionAdapter.java:99-125,524-563`），过期运行任务可回到待调度（`JpaDelegatedTaskAdapter.java:536-565`）。通用 Agent 步骤 checkpoint、会话级完整重建、目标级恢复及恢复后统一动态授权重校验尚未闭合。
 
-### 孤儿回收
+## 实现态
 
-```sql
-UPDATE ai_task_execution SET status='pending', update_time=now()
-WHERE status='running' AND update_time < now() - interval '10 minutes'
-```
+| 契约 | 实现态 |
+|---|---|
+| 会话租约、续租、抢占与 fencing | ✅ 已实现 · `RedisConversationLeaseAdapter.java:22-62`、`JpaTaskTransitionAdapter.java:1050-1135` |
+| 输入与事件幂等 | ✅ 已实现 · `JpaDelegatedTaskAdapter.java:50-77`、`SynchronousExecutionEventWriter.java:28-78` |
+| TaskBoard 作为编排状态真理源 | ✅ 已实现 · `JpaTaskTransitionAdapter.java:99-125,524-563` |
+| 空流与异常路径的持久终态 | ⚠️ 部分实现 · `AssistantAguiController.java:185-197` 仍发送临时错误帧 |
+| 运行中自然语言追加输入的合并 | 🎯 目标态 · 当前不得声称已执行 |
+| `eventId` 跨重试稳定 | 🎯 目标态 · 当前不得声称已执行；投影合成事件仍随机 |
+| 三层恢复粒度完整落地 | ⚠️ 部分实现 · 审批恢复与过期任务回收已落地；通用步骤、会话重建与目标级恢复未闭合，见 `TaskRecoveryPort.java:13-48`、`JpaDelegatedTaskAdapter.java:536-565` |
 
-### 并发控制
+## 验收基线
 
-- 主实例：串行决策（fork/join/仲裁），单线程
-- 子实例：多虚拟线程并发，各自独立 checkpoint
-- 子任务完成：CAS 更新 TaskBoard 中对应状态
-
-## 数据模型
-
-### ai_task_execution
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| id | BIGSERIAL | 主键 |
-| task_id | BIGINT | 关联 ai_chat_task |
-| parent_execution_id | BIGINT | 子任务指向主执行（NULL=主执行） |
-| subtask_key | VARCHAR(100) | 子任务标识（如 backend/frontend） |
-| attempt_no | INTEGER | 第几次尝试 |
-| status | VARCHAR(20) | pending/running/done/failed/cancelled |
-| role | VARCHAR(100) | 执行角色 |
-| checkpoint_id | BIGINT | 最新检查点 ID |
-| started_at | TIMESTAMP | 开始时间 |
-| ended_at | TIMESTAMP | 结束时间 |
-
-### ai_task_checkpoint
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| id | BIGSERIAL | 主键 |
-| execution_id | BIGINT | 关联执行实例 |
-| scope | VARCHAR(20) | coordinator/subtask/agent_step |
-| step_index | INTEGER | 步骤序号 |
-| state_json | JSONB | 状态快照 |
-| created_at | TIMESTAMP | 创建时间 |
-
-### ai_task_event
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| id | BIGSERIAL | 主键 |
-| task_id | BIGINT | 关联任务 |
-| execution_id | BIGINT | 关联执行实例 |
-| subtask_key | VARCHAR(100) | 子任务标识（可选） |
-| type | VARCHAR(50) | 事件类型 |
-| payload_json | JSONB | 事件载荷 |
-| created_at | TIMESTAMP | 创建时间 |
-
-## 事件类型
-
-| type | 说明 | payload 示例 |
-|------|------|-------------|
-| task_started | 任务开始执行 | {attempt_no, model} |
-| subtask_forked | fork 子任务 | {subtaskKey, role, executionId} |
-| step_started | Agent 步骤开始 | {stepIndex, action} |
-| step_completed | Agent 步骤完成 | {stepIndex, result} |
-| tool_called | 工具调用 | {tool, input_hash} |
-| tool_completed | 工具完成 | {tool, duration_ms} |
-| checkpoint_saved | 检查点保存 | {checkpointId, scope} |
-| subtask_completed | 子任务完成 | {subtaskKey, result} |
-| join_completed | 聚合完成 | {completedCount} |
-| error | 错误 | {message, recoverable} |
-| task_completed | 任务完成 | {result_summary} |
-
-## 与五层架构对齐
-
-### 各层任务管理完整链路
-
-```text
-Layer 4  Team（v0.6+）
-  GoalTracker：目标级，持久化到 DB
-  目标拆分为子目标 → 分发给多个 Assistant
-
-Layer 3  Assistant 主实例
-  TaskBoard：子任务级，内存 + Checkpoint 持久化
-  子目标拆分为子任务 → fork 多子实例并行 → join 聚合
-  InputBuffer：执行期接收追加输入
-  Checkpoint：TaskBoard + 会话上下文 + InputBuffer
-
-Layer 3  Assistant 子实例
-  SubTaskContext：当前任务，fork→完成→销毁
-  调度 Agent 执行具体任务
-
-Layer 2  Agent
-  WorkingMemory（PlanNotebook）：步骤级，执行期存在
-  CognitiveCycleExecutor：感知→规划→执行→评估→学习
-  AgentCheckpointService：步骤级检查点 + 指数退避重试
-
-Layer 1  Cognition（不变）
-  被动底座：记忆/知识/价值观/检查点存储
-  Agent 执行前拉取（MemoryPipeline），执行后写回
-```
-
-### 组件委托关系
-
-```text
-DurableTaskExecutor (aaf-api，入口 + 事件日志 + DB 持久化)
-  │
-  ├── TaskBoard (framework，子任务管理 + 依赖 + 快照/恢复)
-  │     └── fork 子实例 → 各自独立执行
-  │
-  ├── CognitiveCycleExecutor (framework，Agent 认知循环)
-  │     ├── AgentCheckpointService (步骤级检查点 + 重试)
-  │     ├── WorkingMemory (注意焦点，执行期)
-  │     └── AgentSandbox (虚拟线程隔离 + 超时)
-  │
-  ├── CheckpointStore (framework/engine，通用检查点持久化)
-  │     └── 实现：PostgreSQL JSONB
-  │
-  ├── TaskEvent → ai_task_event (事件日志，append-only)
-  │     └── SSE 推送给前端 TaskBoardPanel
-  │
-  └── SessionRecoveryService (服务重启恢复)
-        └── 扫描活跃会话 → 加载 Checkpoint → 恢复 TaskBoard
-```
-
-### 可视化（前端已有）
-
-| 组件 | 前端展示 | 数据来源 |
-|------|---------|---------|
-| TaskBoardPanel | 子任务列表 + 进度条 + 依赖关系 + 结果摘要 | SSE 订阅 TaskBoard 状态 |
-| RecoveryNotification | 恢复通知 | SessionRecoveredEvent |
-| TaskEvent 日志 | 事件时间线（待实现） | GET /api/chat/tasks/{id}/events |
-
-### 持久化层对应
-
-| 架构概念 | 实现组件 |
-|---------|---------|
-| Agent Checkpoint（步骤级） | AgentCheckpointService → CheckpointStore |
-| Assistant TaskBoard（会话级） | TaskBoard.toSnapshot() → CheckpointStore |
-| DurableTaskExecutor 事件日志 | ai_task_event（PostgreSQL） |
-| DurableTaskExecutor 执行实例 | ai_task_execution（PostgreSQL） |
-| DurableTaskExecutor 检查点 | ai_task_checkpoint（PostgreSQL） |
-| 置信度门控 → 转人工 | execution status=waiting_approval |
-| InputBuffer | coordinator checkpoint 中的 pendingInputs |
-
-## 相关文档
-
-- [五层智能架构](architecture.md)
-- [Assistant 技术方案](assistant/assistant-tech.md)
-- [Agent 技术方案](agent/agent-tech.md)
+- 进程重启或副本切换后任务能从最近安全恢复点续跑
+- 失败、重试、恢复与多副本切换不产生重复文档或重复外部副作用
+- 被抢占的旧持有者无法写入任何状态、事件、AgentState 或产物
+- 任一时刻能定位某项状态的唯一真理源
+- 取消与暂停在下一个可中断点生效，且写入恢复点
+- 恢复复用冻结画像但重新校验动态授权；任何过期 grant、凭证或更严格平台策略都 fail-closed

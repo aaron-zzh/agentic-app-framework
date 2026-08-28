@@ -90,5 +90,5 @@ author: AaronZZH
 
 ## 相关文档
 
-- [元引擎设计](../../engine/meta/meta-engine.md)
-- [积分与结算引擎](../../engine/governance/credit-settlement.md)
+- [元引擎设计](../../../engine/meta/meta-engine.md)
+- [积分与结算引擎](../../../engine/governance/credit-settlement.md)

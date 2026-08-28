@@ -10,7 +10,7 @@ author: AaronZZH
 
 # Assistant 运行要点历史记录
 
-> **不构成现行设计合同。** 以下保留早期总结的十项运行要点及其原始表述，用于追溯五层智能架构的设计演进；现行流程以[五层智能架构](../architecture.md#统一智能任务运行流程)和[任务式 Assistant 统一执行路径设计](task-oriented-assistant-execution-design.md)为准。
+> **不构成现行设计合同。** 以下保留早期总结的十项运行要点及其原始表述，用于追溯五层智能架构的设计演进；现行流程以[五层智能架构](../../architecture.md#统一智能任务运行流程)和[任务式 Assistant 统一执行路径设计](task-oriented-assistant-execution-design.md)为准。
 
 助理访问入口（任务式+对话式），五层智能架构是一条可循环、可恢复的智能任务流水线，文案生成任务只是指定角色技能的一个具体应用场景：
 

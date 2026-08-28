@@ -76,6 +76,6 @@ LlmClient（接口）
 
 ## 相关文档
 
-- [五层智能架构总览](../architecture.md)
+- [五层智能架构总览](../../architecture.md)
 - [模型路由技术方案](model-router-tech.md)
 - [置信度门控器](confidence-gate.md)

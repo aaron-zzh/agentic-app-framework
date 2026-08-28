@@ -141,7 +141,7 @@ AI 提出实现方案（选择哪层实现、影响范围、风险提示）
 
 ## 相关文档
 
-- [元引擎设计](../../engine/meta/meta-engine.md)
-- [自进化机制](../../engine/meta/evolution.md)
-- [auto-dev 引擎](../../auto-dev/auto-dev.md)
+- [元引擎设计](../../../engine/meta/meta-engine.md)
+- [自进化机制](../../../engine/meta/evolution.md)
+- [auto-dev 引擎](../../../auto-dev/auto-dev.md)
 - [置信度门控器](confidence-gate.md)

@@ -1,87 +1,106 @@
 ---
 level: Practice
 layer: Model
-purpose: 定义所有 Prompt 型模型调用的 PromptEnvelope、分层信任边界、任务循环与非自主 L0 调用画像
+purpose: 定义所有 Prompt 型模型调用的 PromptEnvelope、分层信任边界与两种装配画像
 status: draft
-version: 1.0.0
-date: 2026-08-22
-author: AaronZZH & Kiro
-related:
+version: 1.2.0
+date: 2026-08-25
+author: Kiro
+tags:
+  - PromptEnvelope
+  - 分层优先级
+  - 信任边界
+dependencies:
   - ../architecture.md
-  - ../assistant/task-oriented-assistant-execution-design.md
-  - ../../engine/content/prompt.md
+  - ./core.md
 scope:
   includes:
-    - 自主 Harness Agent 的分层 System Prompt
-    - 非自主 L0 模型调用的最小函数合同
-    - PromptEnvelope 数据结构、冻结时点和审计边界
-    - PRIMARY、COORDINATOR、EXECUTOR、AGGREGATOR 的任务循环
+    - PromptEnvelope 的字段与冻结时机
+    - P0–P8 分层优先级与信任边界
+    - 自主与非自主两种装配画像
+    - 输入分类与脱敏遥测
+    - AI 与程序化治理的分工
   excludes:
-    - Prompt 资产 CRUD、评估页面与版本发布接口
-    - 权限、HITL、预算和状态机的具体实现
-    - Embedding 与原生 Rerank API 的请求协议
+    - 模型择选（见 model-router.md）
+    - 任务循环合同的身份职责（见 agent/agent.md）
+    - Skill 正文与 references（见 skill/skill.md）
+gains:
+  - 能为一次模型调用装配符合优先级的 Envelope
+  - 能判断某项约束应写入 Prompt 还是由代码硬治理
+  - 能识别哪些内容禁止渲染为授权文本
 ---
 
-# PromptEnvelope 与模型调用装配设计
+# Prompt 装配
 
-> Prompt 不是一个可任意追加的字符串。AAF 在每次 Prompt 型模型调用前生成带来源、优先级、信任边界、版本和摘要的 `PromptEnvelope`；权限、HITL、预算、工具可见性和状态转换仍由 Prompt 外部的确定性代码保证。
+> **目标合同**：所有 Prompt 型模型调用在实际发送前都冻结一个 `PromptEnvelope`；当前代码中不存在该类型，不得声称已执行。
+> **P0 目标边界**：权限、HITL、预算、状态机、工具可见性与 Schema 校验不渲染为授权文本，只在 Envelope 中保存治理决策引用与摘要。当前仅自主装配器局部遵守，尚无全调用链代码门禁。
 
-## 术语边界
+## 定位与边界
 
-AAF 智能架构只有 **L0–L4 五层**。本文的 **P0–P8 是 Prompt 治理优先级**，不是新的智能层级：
+L0–L4 智能层级与 P0–P8 Prompt 优先级正交；调用形态由 [总体架构](../architecture.md) 定义。本文只定义一次模型调用的输入装配与追溯合同，不定义任务身份职责、Skill 正文或 Prompt 资产发布流程。
 
-| 术语 | 含义 |
+| 承担 | 不承担 |
 |---|---|
-| L0–L4 | Core、Cognition、Agent、Assistant、Team 五层智能架构 |
-| P0–P8 | 一次自主 Harness 调用中的治理和输入优先级 |
-| 自主 Harness 调用 | PRIMARY、COORDINATOR、EXECUTOR、AGGREGATOR 等持有有界任务循环的 Agent 调用 |
-| 非自主 L0 调用 | 选择、分类、抽取、摘要、重排、Judge 等单一函数式模型调用；不持有任务责任和循环状态 |
-| 逻辑调用 | 一次业务语义上的模型请求，可包含传输重试或模型路由尝试 |
-| 物理调用 | 实际发送给某一精确模型的一次请求；每次都生成独立 Envelope |
+| 受信片段排序、来源冻结、输入分类、输出合同与调用快照 | 用文本授予权限、提高预算或迁移任务状态 |
+| 自主与非自主画像白名单 | 把 P8 外部内容升级为系统指令 |
+| 物理调用级 hash、受限快照引用和脱敏遥测 | 在普通日志、公共事件或 AG-UI 暴露正文与思维链 |
 
-`PromptEnvelope` 适用于 Chat/Completion 等 Prompt 型调用。Embedding 和提供商原生 Rerank API 不应伪装成消息 Prompt；它们使用同一调用谱系与审计原则，但采用各自的模型请求信封。
+## 领域模型
 
-## 分层优先级
+| 对象 | 不变量 |
+|---|---|
+| `PromptEnvelope` | 对应一次物理模型请求；发送前冻结，append-only，不回写 `ExecutionProfileSnapshot` |
+| `PromptSectionSnapshot` | 具有优先级、来源、精确版本、信任级别、正文 hash 与连续序号 |
+| `PromptMessageSnapshot` | 消息角色与来源信任正交；P8 始终是数据 |
+| `OutputContractSnapshot` | 精确 Schema/媒体类型、合同版本和校验策略可追溯 |
+| `GovernanceSnapshot` | 只保存 P0 决策引用、规则版本和摘要，不含可被模型解释为授权的正文 |
+| `PromptLengthSummary` | 只保存分类长度、启发式 Token 和条目数，不持有正文 |
 
-### 自主 Harness 画像
+`ExecutionProfileSnapshot` 是自主节点的运行画像，冻结身份、Role、Skill、Model、Tool 与任务合同；`PromptEnvelope` 是该节点某回合、某次模型尝试的真实请求。前者只能被引用，不能被后者修改。非自主 L0 调用没有执行画像。
 
-| 优先级 | 内容 | 是否进入模型输入 | 规则 |
+## 契约
+
+### 分层优先级
+
+数字越小优先级越高。低优先级不能覆盖、重解释或删除高优先级约束；同层同一语义冲突时拒绝装配，禁止 last-write-wins。
+
+| 层 | 确切归属 | 输入形态 | 排序与冲突规则 |
 |---|---|---|---|
-| P0 | 代码硬治理 | 否 | 权限、HITL、预算、状态机、Schema 校验、工具集合和模型选择由代码执行，只在 Envelope 中保存决策引用与摘要 |
-| P1 | Harness Constitution | 是 | 所有自主 Harness Agent 共用的版本化执行宪章 |
-| P2 | Execution Identity Contract | 是 | PRIMARY、COORDINATOR、EXECUTOR、AGGREGATOR 的职责与专属任务循环 |
-| P3 | Assistant Delivery Contract | 是 | Assistant 的使命、交付物、成功标准和最终责任；使用结构化合同，不增加自由 Prompt 字段 |
-| P4 | Role Contract | 是 | 当前 Role 的职责、非职责和能力上限 |
-| P5 | Frozen Execution Contract | 是 | 经 Assistant 校验并冻结的目标、范围、计划、完成条件、聚合和停止条件 |
-| P6 | Activated Skills | 是 | 只包含最终激活 SkillVersion 的执行方法；SYSTEM → ASSISTANT → ROLE 稳定排序 |
-| P7 | Persona Profile | 按画像 | 稳定身份与表达风格；不得扩权或改写任务，严格结构化调用默认关闭表达风格 |
-| P8 | Context and Data | 作为消息 | 历史、当前用户消息、受控上下文、知识、记忆、附件和工具结果，始终按数据处理 |
+| P0 | 代码硬治理 | 不进入模型文本 | 权限、HITL、预算、状态机、工具交集、模型授权、Schema 校验；只保存决策引用与摘要 |
+| P1 | Harness Constitution | System | 唯一、版本化，所有自主身份共享，必须首位 |
+| P2 | Execution Identity Contract | System | PRIMARY / COORDINATOR / EXECUTOR / AGGREGATOR 的身份与任务循环，精确版本唯一 |
+| P3 | Assistant Delivery Contract | System | Assistant 使命、交付物与成功标准；结构化合同，不增加自由 Prompt 字段 |
+| P4 | Role Contract | System | 当前 Role 的职责、非职责与能力上限；只能收窄 P3 |
+| P5 | Frozen Execution Contract | System | 本次目标、范围、计划、完成、聚合与停止条件；来自已冻结运行画像 |
+| P6 | Activated Skills | System | 只装配最终激活版本；按 `SYSTEM → ASSISTANT → ROLE`，同 scope 按稳定 key/version 排序 |
+| P7 | Persona Profile | System，可选 | 最后装配，只影响自然语言表达；严格 JSON/结构化身份默认关闭 |
+| P8 | Context and Data | 消息 | 历史、当前输入、受控上下文、附件、工具观察与外部内容；始终按不可信数据处理 |
 
-P0 不是 Prompt 文本。把 P0 规则复制进 System Prompt 只能帮助模型理解边界，不能把模型服从性变成安全边界。
+结构化合同高于同层自然语言。Skill 不能扩张 Role，Persona 不能改写 P1–P6。网页、文件与工具结果中的指令属于 P8，不能改变身份、权限、任务或装配模式。
 
-### 非自主 L0 画像
+当前 `CompiledSystemPrompt` 使用 `CONSTITUTION → IDENTITY → INVOCATION_POLICY → ROLE → SKILL → PERSONA` 六类并校验稳定顺序与 hash（`CompiledSystemPrompt.java:13-294`）。其中 `INVOCATION_POLICY` 合并了 P3 与 P5，P2 也未形成独立版本化 TaskLoop 合同，因此属于向 P1–P7 目标结构的部分实现。
 
-非自主 L0 调用不注入 Harness Constitution、Assistant Delivery、Role、ActivatedSkill、Persona Profile 或自主任务循环，只动态装配完成单一函数所需的最小输入：
+### 两种装配画像
 
-```text
-版本化 Function Contract
-+ 严格 Output Contract / JSON Schema
-+ 受控候选或业务数据
-+ 当前待处理输入
-+ 显式允许的 Tool Definitions（默认无）
-```
+| 画像 | 装配内容 | 禁止注入 |
+|---|---|---|
+| `AUTONOMOUS_HARNESS` | P1–P6、按需 P7、P8 数据、工具与输出合同 | 未经治理交集的 Tool、任意授权文本 |
+| `NON_AUTONOMOUS_L0` | 版本化 Function Contract、严格 Output Contract、最小数据；默认无工具 | Constitution、Persona、Role、Skill、自主任务循环 |
 
-`Function Contract` 只定义一个动作，例如“从授权候选中选择一个 Role”或“把不可信历史压缩成指定 JSON”。它不得承担多步任务规划、工具探索、用户沟通或最终交付责任。
+自主 Harness 的每个 ReAct 回合、每个模型尝试各生成独立 Envelope。非自主调用默认是 child invocation，不创建 Agent、Harness Loop、Task 或 `ExecutionProfileSnapshot`。
 
-## PromptEnvelope 数据结构
+当前 `PromptInvocationGateway` 只生成逻辑调用 ID、计算长度并委托 `LlmClient`（`PromptInvocationGateway.java:29-61`）；其现有调用方 `DefaultRoleSelector` 与 `ModelSkillSelectionPort` 只完成选择并返回值（`DefaultRoleSelector.java:80-105`、`ModelSkillSelectionPort.java:35-53`），不会为该 invocation 新建持久 Task。调用发生在既有 Assistant Task 内时，仍是该 Task 的 child invocation，不能误解为“完全脱离任务上下文”。
 
-目标结构沿用现有 `CompiledSystemPrompt`、`ExecutionProfileSnapshot` 和 `AgentMessage`，不新建并行 Prompt 真理源：
+### PromptEnvelope 目标数据结构
+
+> 🎯 目标态：代码库当前不存在 `PromptEnvelope` 类型。下列 Java 仅定义目标合同，当前不得声称已实例化、持久化或在 provider 发送前冻结。
 
 ```java
 public record PromptEnvelope(
     String specVersion,
     String envelopeId,
     InvocationDescriptor invocation,
+    ExecutionProfileRef executionProfile,
     ModelRequestSnapshot model,
     CompiledSystemPrompt systemPrompt,
     List<PromptMessageSnapshot> messages,
@@ -96,249 +115,82 @@ public record PromptEnvelope(
 public record InvocationDescriptor(
     String logicalInvocationId,
     String parentInvocationId,
+    String physicalInvocationId,
     int attemptNo,
     InvocationMode mode,
     InvocationPurpose purpose,
     String functionKey,
-    AgentKind agentKind,
-    String tenantId,
-    String taskId,
     String executionId,
     String nodeId
 ) {}
-
-public enum InvocationMode {
-    AUTONOMOUS_HARNESS,
-    NON_AUTONOMOUS_L0
-}
 ```
 
-字段约束：
-
-| 字段 | 约束 |
+| 字段 | 合同 |
 |---|---|
-| `logicalInvocationId` | 同一语义调用的传输重试共享；不同模型尝试仍以 `attemptNo` 区分 |
-| `parentInvocationId` | 摘要、选择、Judge 等子调用关联父调用；没有父级时为空 |
-| `model` | 保存精确 `ModelSpec`、参数和提供商能力，不只保存路由场景名 |
-| `systemPrompt` | 自主调用使用分层 `CompiledSystemPrompt`；非自主调用只编译 Function/Output Contract |
-| `messages` | 保存真实发送顺序、角色、来源、信任级别、附件引用和每条摘要 |
-| `tools` | 保存实际发送给模型的函数定义及 Schema hash；工具可见不等于动作获权 |
-| `outputContract` | 文本、JSON Schema 或其他严格输出合同；解析和候选越界由代码校验 |
-| `governance` | 只保存 P0 决策引用、规则版本和摘要，不把权限文本渲染给模型作为授权 |
-| `audit` | 保存 priority scheme、canonical hash、各片段 hash 和受限快照引用 |
+| `envelopeId` | 全局唯一；一次 provider 发送一个，不因重试复用 |
+| `logicalInvocationId` | 同一业务语义调用稳定；模型切换与传输重试共享 |
+| `physicalInvocationId` / `attemptNo` | 精确区分每次 provider 请求，严格递增且可关联 usage |
+| `executionProfile` | 自主调用引用 `{executionId, snapshotHash}`；非自主调用为空；不复制画像为第二真理源 |
+| `model` | 精确 `ModelSpec`、参数和能力快照，不只保存 route scene |
+| `systemPrompt` | 自主调用保存 P1–P7 编译快照；非自主调用保存 Function/Output Contract 编译结果 |
+| `messages` | 保存实际发送顺序、角色、purpose、source、trust、附件引用与逐条 hash |
+| `tools` | 保存实际 provider Function Schema 与 hash；工具可见不代表动作获权 |
+| `governance` | 保存 P0 决策引用、规则版本与摘要，不保存授权正文 |
+| `audit` | 保存优先级方案、canonical hash、片段 hash 和受限正文快照引用 |
 
-完整 Prompt 正文、用户数据和工具结果只能进入受限 Prompt 快照存储，不得进入公共任务事件、普通日志或 AG-UI 状态投影。
+冻结时机是**完成 provider 适配之后、请求发送之前**：此时最终模型参数、消息顺序、工具 Schema 与输出 Schema 均已确定。完整正文只进入访问受控的 Prompt 快照存储；普通索引只保存 hash、摘要与引用。
 
-### System Prompt 片段
+### 输入分类与脱敏遥测
 
-现有 `CompiledSystemPrompt.PromptLayerSnapshot` 目标态扩展为：
-
-```java
-public record PromptSectionSnapshot(
-    int ordinal,
-    PromptPriority priority,
-    PromptSectionKind kind,
-    PromptSourceKind sourceKind,
-    String sourceKey,
-    String sourceVersion,
-    TrustLevel trustLevel,
-    boolean required,
-    String content,
-    String contentSha256
-) {}
-```
-
-自主调用允许的 `PromptSectionKind` 为 `CONSTITUTION`、`EXECUTION_IDENTITY`、`ASSISTANT_DELIVERY`、`ROLE_CONTRACT`、`EXECUTION_CONTRACT`、`ACTIVATED_SKILL`、`PERSONA_PROFILE`。非自主调用只允许 `FUNCTION_CONTRACT` 与 `OUTPUT_CONTRACT`。装配器按 `InvocationMode` 使用白名单拒绝越界片段。
-
-`TrustLevel` 与消息角色正交。数据库文本、用户配置或其他 Agent 输出即使被包装成 SYSTEM，也不会自动获得平台治理信任。
-
-当前实现的人格片段使用 `PromptSourceKind.ASSISTANT_PERSONA`，`sourceKey/sourceVersion` 分别冻结 `PersonaSnapshot.personaKey/personaRevision`；不得再以 Assistant revision 冒充 Persona 版本。该 canonical 合同从 `aaf-prompt-v2` 生效。旧 `aaf-prompt-v1` 执行画像中的 `ASSISTANT_ACTOR`、`:actor`、旧正文及其 hash 是历史冻结事实，不能原地字符串替换或由运行时兼容读取；部署 v2 前必须终止不可恢复的在途执行，并按发布环境的数据保留策略完成一次性清理或离线重编译迁移。本次源码迁移不执行数据删除。
-
-### P8 消息
-
-```java
-public record PromptMessageSnapshot(
-    String messageId,
-    MessageRole role,
-    MessagePurpose purpose,
-    PromptSourceKind sourceKind,
-    String sourceRef,
-    TrustLevel trustLevel,
-    String content,
-    String contentSha256,
-    List<AttachmentSnapshot> attachments
-) {}
-```
-
-`MessagePurpose` 至少区分 `HISTORY`、`CONTROLLED_CONTEXT`、`CURRENT_USER_INPUT`、`OTHER_USER_INPUT`、`TOOL_RESULT` 和 `FEW_SHOT_EXAMPLE`。受控上下文仍属于数据，不得因经过 L1 摘要而升级成治理指令。只有来源协议已明确标识为知识、记忆、任务材料或上下文摘要的 USER 消息才归入 `CONTROLLED_CONTEXT`；无法证明来源的 USER 消息必须保守归入 `OTHER_USER_INPUT`，不能为了报表整齐而升级信任。上下文摘要必须保存其子 `PromptEnvelope` 引用、输入摘要和输出摘要。
-
-## 输入分类与脱敏长度遥测
-
-每次 Prompt 型调用在发送前生成只含长度和计数的 `PromptLengthSummary`。普通日志不得包含 System Prompt、用户正文、历史正文、附件内容、工具结果或 Tool Schema；完整正文只能进入受限快照。
-
-| 分类 | 统计内容 | 不包含 |
-|---|---|---|
-| `SYSTEM` | 实际装配的 System 文本 | P0 代码治理规则正文 |
-| `CURRENT_USER_INPUT` | 能由当前 run/message 协议精确识别的用户输入 | 其他来源不明 USER 消息 |
-| `OTHER_USER_INPUT` | 无法进一步证明来源的 USER 消息 | 不得自动视为受控上下文 |
-| `ASSISTANT_HISTORY` | 发送给模型的 Assistant 历史 | 模型内部思维链 |
-| `CONTROLLED_CONTEXT` | 明确标识的知识、记忆、任务材料和上下文摘要 | 未标识 USER 文本 |
-| `TOOL_RESULT` | 发送给模型的 Tool 消息 | 工具凭证和未发送结果 |
-| `TOOL_REFERENCE` | 当前调用边界可见的稳定 ToolRef 元数据 | 最终 provider Function JSON Schema |
-| `TOOL_DEFINITION` | 目标态物理请求中的实际函数定义及 Schema | 仅有 ToolRef 时不得伪报此项 |
-
-字符数使用 Unicode code point 计算。当前启发式 Token 只按每四个 code point 向上取整，用于容量趋势和日志排查，不得用于计费、额度扣减或精确上下文门控。供应商返回的真实 usage 仍是 Token 计量事实。
-
-长度日志必须明确观测边界：
-
-- `PromptInvocationGateway` 当前记录一次 `NON_AUTONOMOUS_L0` **逻辑调用 preflight**。底层路由或 fallback 可能产生多个物理请求，Gateway 看不到最终精确模型、attempt 和 provider 包装，因此不能把该记录称为物理调用 Envelope。
-- `HarnessAgentExecutionAdapter` 当前记录一次 `AUTONOMOUS_HARNESS` **invocation 级 preflight 近似值**。它可观察已编译 System、初始压缩消息、附件计数和 ToolRef，但看不到 Harness 内每个 ReAct 回合追加的 Tool Result、最终 Tool JSON Schema 或 provider 包装。
-- 目标态仍在真正 provider 发送边界为每个物理请求生成 `PromptEnvelope`，调用后关联真实 usage。逻辑 preflight 与物理 Envelope 使用调用谱系关联，不能互相冒充。
-
-首个迁移样板只覆盖 Role Selector 与 Skill Selector。两者以稳定 `functionKey` 标识代码冻结的 Function/Output Contract，并由调用方为每条消息显式声明 `PromptInputKind`；候选摘要记为 `CONTROLLED_CONTEXT`，当前任务记为 `CURRENT_USER_INPUT`。Role Selector 的 `default-role-on-unavailable-or-invalid.v1` 是候选范围内的确定性安全策略：模型不可用、输出非法或未命中时使用已发布 Assistant 默认 Role，不扩大候选或权限；Skill Selector 继续 fail-closed，不激活 ON_DEMAND Skill。目标态仍需把这些代码冻结合同迁移为 Prompt 引擎中的不可变已发布 Function Contract，并在 Envelope 中冻结精确版本。
-
-上下文摘要、参数抽取、记忆抽取/去重、意图/情绪分类和 Judge 仍是后续迁移项；文档和日志不得宣称所有直接 `LlmClient` 调用已统一。
-
-## AI 与程序化治理分工
-
-> AI 提议语义决策；代码限定候选、验证结果、冻结合同并控制副作用。
-
-| AI 负责 | 代码负责 |
+| 分类 | 统计边界 |
 |---|---|
-| 理解目标、歧义和上下文语义 | 身份、租户、幂等与调用谱系 |
-| 提议最少澄清、计划、依赖与聚合方式 | 候选范围、Schema、Role/Skill/Tool 上限 |
-| 生成内容并做语义验证 | 权限、HITL、预算、状态机和副作用执行 |
-| 从冻结候选中做 Role/Skill 等语义选择 | 校验模型输出、拒绝越界并冻结精确版本 |
-| 提取记忆、知识和学习候选 | 隐私、去重、冲突、发布和持久化门禁 |
+| `SYSTEM` | 实际发送的 System 文本；不含 P0 规则正文 |
+| `CURRENT_USER_INPUT` | 可由当前 run/message 协议精确识别的用户输入 |
+| `OTHER_USER_INPUT` | 来源无法证明为当前输入或受控上下文的 USER 消息 |
+| `ASSISTANT_HISTORY` | 实际发送的 Assistant 历史，不含内部思维链 |
+| `ASSISTANT_REASONING` | 提供商协议要求回放的加密推理块；只统计长度，不输出正文 |
+| `CONTROLLED_CONTEXT` | 明确标识的知识、记忆、任务材料与摘要；仍是 P8 数据 |
+| `TOOL_RESULT` | 实际发送的工具观察，不含凭证与未发送结果 |
+| `TOOL_REFERENCE` | Harness 调用边界可见的稳定 ToolRef 元数据 |
+| `TOOL_DEFINITION` | 最终发给 provider 的函数定义与 Schema；只有真实可见时才能统计 |
 
-Prompt、用户、Role、Skill、Actor 或其他 Agent 的文本都不能授予权限。Selector 的输出只是候选内提议；程序必须验证后才能冻结。默认值只能是已发布函数合同中的确定性安全策略，不能扩大候选、工具或副作用范围。
+字符数按 Unicode code point 计算；启发式 Token 为 `ceil(codePoints / 4)`，只用于容量趋势、压缩触发和排障，禁止用于计费、额度扣减或精确上下文门控。真实计量以提供商 usage 为准。
 
-## 版本化任务循环
+允许进入普通日志或内部遥测：调用谱系 ID、mode、purpose、functionKey、非敏感 route scene/模型标识、分类字符数、估算 Token、条目/附件数、hash、耗时与状态。允许进入公共任务事件的范围更小，只含调用/决策引用、状态与汇总 usage。以下内容禁止进入普通日志、公共事件和 AG-UI：System/用户/历史正文、附件、工具结果、Tool Schema、凭证、完整 Prompt、思维链与加密推理块。
 
-通用 Constitution 只规定所有自主 Agent 共享的有界循环：
+当前 `PromptLengthSummary` 已按上述分类计算 code point 与四字符估算（`PromptLengthSummary.java:15-110`），`PromptInvocationGateway` 记录非自主逻辑调用 preflight（`PromptInvocationGateway.java:20-161`），Harness 只记录 invocation 初始输入近似值（`HarnessAgentExecutionAdapter.java:129-231`）。两者都不是物理调用 Envelope。
 
-```text
-Understand
-→ Resolve Gaps
-→ Plan
-→ Execute
-→ Verify
-→ Deliver / Iterate / Escalate
-```
+### AI 与程序化治理分工
 
-每个自主身份必须通过版本化 `TaskLoopContract` 说明如何执行该循环，而不是只追加一句身份描述：
-
-```java
-public record TaskLoopContract(
-    String key,
-    String version,
-    AgentKind agentKind,
-    String goal,
-    List<TaskPhase> phases,
-    Set<String> allowedActions,
-    CompletionCondition completion,
-    StopCondition stop,
-    EvidenceContract evidence,
-    int maxIterations
-) {}
-```
-
-| 身份 | 专属循环重点 | 完成条件 |
-|---|---|---|
-| PRIMARY | 理解用户目标 → 最少澄清 → 查漏补缺 → 决定直答或委派 → 冻结交付标准 → 验证整体结果 → 面向用户交付 | Assistant Delivery Contract 满足，未验证项和风险已披露 |
-| COORDINATOR | 理解冻结目标 → 识别不可替代阻塞 → 补齐安全假设 → 拆分可验证子目标 → 标明依赖与并行关系 → 提议聚合和停止条件 → 输出严格计划 | `CoordinationPlan` 可解析、候选和依赖合法；不产生业务执行结果 |
-| EXECUTOR | 理解单一委派目标 → 检查局部缺口 → 制定最小行动 → 执行/观察 → 验证子目标 → 修复或返回证据 | 子任务完成条件满足，或明确返回阻塞、失败和已有证据 |
-| AGGREGATOR | 核对冻结结果集合 → 检查覆盖、冲突和缺口 → 按聚合合同合并 → 验证格式和证据 → 返回聚合结果 | 仅使用已冻结结果完成聚合；缺失结果不被伪造或静默忽略 |
-
-没有直接用户沟通权限的 COORDINATOR、EXECUTOR、AGGREGATOR 不能自行向用户提问，只能向上级返回阻塞项、选项和推荐默认值。达到预算、循环、风险边界，或重复失败且没有新信息时必须停止并升级。
-
-`TaskLoopContract` 属于 P2 Execution Identity；P5 只填入本次任务目标和完成标准，避免把通用循环复制到每个 Execution Contract。
-
-## 动态装配流程
-
-### 自主 Harness
-
-```text
-解析节点身份、Role、Skill、模型、工具、任务合同与 P1–P7 精确版本引用
-→ 校验 Assistant Delivery、Role、Execution Contract、Skill 和 Persona
-→ 冻结节点级 ExecutionProfileSnapshot
-→ 按 P1–P7 白名单编译本轮 CompiledSystemPrompt
-→ 装配 P8 消息、附件、工具定义、输出合同与预算
-→ 计算 PromptEnvelope canonical hash
-→ 在模型适配边界发起一次物理调用
-→ Tool Result 或下一 ReAct 回合产生新的 PromptEnvelope
-```
-
-`ExecutionProfileSnapshot` 冻结自主节点的身份、Role、Skill、精确 Prompt/TaskLoop 版本引用、Model、Tool、上下文清单和任务合同；它不是最终模型请求。Harness 每一回合的实际历史和 Tool Result 不同，因此必须在每次物理调用前生成新 Envelope，并通过独立、append-only 的 invocation/execution 索引关联 `parentInvocationId`、`executionId` 和 Envelope 引用，不得回写或修改已冻结画像。
-
-### 非自主 L0
-
-```text
-业务组件提交结构化 FunctionInvocationRequest
-→ PromptInvocationGateway 解析已发布 Function Contract
-→ 校验输入 Schema、候选边界和工具策略
-→ 装配最小消息与严格 Output Contract
-→ 冻结 NON_AUTONOMOUS_L0 PromptEnvelope
-→ 调用精确模型或受控模型路由
-→ 解析与 Schema 校验
-→ 返回结构化结果或执行该函数声明的 fail-closed/default 策略
-```
-
-业务代码不得继续直接向 `LlmClient` 或 `ChatClient` 提交裸 System/User 字符串。Role/Skill Selector、上下文摘要、意图/情绪分类、参数抽取、记忆抽取/去重和 LLM-as-Judge 应逐步收敛到该网关。
-
-## 非自主调用是否拆成独立执行
-
-非自主 L0 **必须是独立模型 invocation，但默认不是独立 Agent、Harness Loop 或持久 Task**：
-
-| 情况 | 执行形态 |
+| 模型可提议/生成 | 程序必须判定/执行 |
 |---|---|
-| Role/Skill 选择、分类、一次抽取、同步摘要 | 当前流程内的 child invocation；独立 Envelope 和计量记录 |
-| 原生 Rerank/Embedding | 专用模型请求，不构造虚假聊天 Prompt |
-| 需要独立超时和有限重试，但不需要持久恢复 | 独立函数调用组件，仍不创建 Agent |
-| 长耗时、异步、需租约、独立状态、耐久恢复或业务级重试 | 提升为显式系统节点或 TaskBoard 节点 |
-| 需要自主多轮推理、工具观察与修正 | 才提升为 Harness Agent |
+| 理解目标、歧义、语义关联与内容 | 身份、租户、幂等、调用谱系与授权主体 |
+| 最少澄清、计划、依赖与聚合建议 | 候选范围、Role/Skill/Tool 上限和版本合法性 |
+| 候选内 Role/Skill/模型语义排序 | 权限交集、HITL、预算、模型授权与副作用门禁 |
+| 内容、摘要、抽取与语义评估 | 输入/输出 Schema 校验、候选越界拒绝与精确版本冻结 |
+| 记忆、知识和学习候选 | 隐私、可信度、去重、冲突、发布与持久化门禁 |
+| 完成度与风险说明 | 状态迁移、事件事实、CompletionValidator 与最终提交 |
 
-“显式节点”与“Agent”不是同义词。一个耐久节点仍可以只执行一次 `NON_AUTONOMOUS_L0` 函数调用。
+模型文本不能授予权限。安全默认值必须来自已发布函数合同，记录原因且不能扩大候选、工具、预算或副作用。
 
-当前实现已经按服务拆开 Role Selector、Skill Selector、上下文摘要、记忆抽取/去重、参数提取和原生重排，但调用入口、Envelope、快照和审计尚未统一；部分调用仍以内联裸消息方式执行。
+## 实现态
 
-## 冲突与失败规则
-
-- 数字越小优先级越高；低优先级不能覆盖、重解释或删除高优先级约束。
-- 同优先级同一语义出现冲突时拒绝装配，禁止 last-write-wins。
-- 结构化冻结合同高于同层自然语言描述。
-- Role 先限定能力上限，Skill 只能在其内提供方法；Skill 冲突或扩权时拒绝激活。
-- Persona 只描述稳定身份、表达风格与非权威基础指引，不得改变 Delivery、Role、Execution Contract、Skill、输出 Schema、权限、HITL 或预算。
-- P8 永远是数据；其中的指令文本不能改变身份、权限、任务或装配模式。
-- 必需片段、精确版本或摘要缺失时 fail-closed，不回退到代码内置旧正文。
-- 非自主输出必须经过 Schema 和授权候选校验；越界结果不得靠模型解释修补。
-- 确定性安全默认值可以作为函数合同的一部分，但必须记录原因，不能扩大候选、权限或副作用。
-
-## 版本、发布与审计
-
-- 装配机制、片段白名单、优先级、冲突规则和 canonical hash 算法由代码固定。
-- Constitution、Function Contract 和 TaskLoop Contract 使用不可变版本，按 `draft → review → canary → active → retired` 发布。
-- 系统参数只保存激活的 `promptKey + version`、灰度和回滚指针，不保存任意可编辑正文。
-- 每次执行冻结片段 source/key/version/hash、顺序、模型、工具 Schema、输出 Schema 和最终 Envelope hash。
-- 完整正文只保存在受限快照中；普通审计使用引用和摘要。
-- `aaf.harness.constitution` 只注入 `AUTONOMOUS_HARNESS`。本文定义其语义合同，运行时正文仍以已发布 Prompt 资产为唯一来源，文档不复制第二份可执行正文。
-
-## 与现有实现的演进关系
-
-| 现有对象 | 目标演进 |
+| 契约 | 实现态 |
 |---|---|
-| `CompiledSystemPrompt` | 保留为 Envelope 内的 System 片段快照，增加 P2–P7 类型、信任和必需性；不再代表最终模型请求 |
-| `PromptAssembler` | 按 InvocationMode 拆分自主与非自主白名单装配，不接受无来源字符串追加 |
-| `ExecutionProfileSnapshot` | 增加 Delivery、Execution Contract、TaskLoop、Context Manifest 与 P1–P7 精确版本引用；仅用于自主执行，不持有或回写逐回合 Envelope |
-| invocation/execution 索引 | 新增 append-only 关系，记录 execution 与每个 PromptEnvelope、父子调用及 attempt 的关联 |
-| `InvocationPolicy` | 拆分为 InvocationMode、InvocationPurpose、AgentKind 与版本化 TaskLoop Contract |
-| `AgentMessage` | 演进为带 purpose、source、trust 和 hash 的 P8 消息快照 |
-| `LlmClient` / `ChatClient` 直接调用 | 收敛到 `PromptInvocationGateway`；底层客户端只接收已冻结 Envelope |
-| `PromptVersionCache` | 继续提供已发布精确版本和 hash 校验；版本缺失 fail-closed |
+| P1–P7 来源、顺序与 hash 冻结 | ⚠️ 部分实现 · `CompiledSystemPrompt.java:13-294` 已冻结六类 System 层；P2/P3/P5 尚未按目标合同分离 |
+| 每次物理调用冻结完整 `PromptEnvelope` | 🎯 目标态，当前不得声称已执行 |
+| P0 不作为授权文本进入 Prompt | ⚠️ 部分实现 · `PromptAssembler.java:23-286` 明确把工具授权、预算与许可交给外部机制；Envelope 中尚无治理引用快照 |
+| 两种画像白名单隔离 | ⚠️ 部分实现 · `PromptInvocationGateway.java:20-161` 不加载自主画像；迁移仅覆盖部分非自主调用，仍有裸 `LlmClient` 调用 |
+| 每个 ReAct 回合与模型尝试独立 Envelope | 🎯 目标态，当前不得声称已执行；`HarnessAgentExecutionAdapter.java:129-231` 仅有 invocation 级 preflight |
+| Persona 不改变 Schema 与授权 | ⚠️ 部分实现 · `PromptAssembler.java:170-184` 对 Coordinator 关闭 Persona 且 Persona 排末位；完整输出 Schema 与治理快照尚未进入 Envelope |
+| 输入分类与脱敏长度遥测 | ✅ 已实现 · `PromptInputKind.java:4-15`、`PromptLengthSummary.java:15-110` |
+| 受限正文快照与 append-only Envelope 索引 | 🎯 目标态，当前不得声称已执行 |
 
-## 相关文档
+## 验收基线
 
-- [五层智能架构](../architecture.md) — L0–L4、外层任务循环与 Harness 内循环
-- [任务式 Assistant 统一执行路径](../assistant/task-oriented-assistant-execution-design.md) — Assistant、TaskBoard 和身份任务循环
-- [Skill 渐进加载与在线知识边界](../assistant/skill-progressive-loading-design.md) — Skill Selector 与 ActivatedSkill 装配
-- [Prompt 引擎](../../engine/content/prompt.md) — Prompt 资产、版本、发布和评估能力
+- 任一次物理模型调用可回溯唯一 Envelope、父子调用、attempt、模型和真实 usage
+- 自主画像按 P1–P7 稳定排序，同层冲突拒绝装配；P8 无法改变高优先级约束
+- 非自主 Envelope 不含 Constitution、Persona、Role、Skill 或自主任务循环
+- `ExecutionProfileSnapshot` 只被引用，不因回合或重试被回写
+- 普通日志、公共事件与 AG-UI 不泄露 Prompt 正文、工具结果、凭证、Tool Schema 或思维链
+- Persona 只能影响自然语言表达，结构化输出与授权结果由程序验证

@@ -56,6 +56,6 @@ Agent 是五层智能架构的执行层。接收 Assistant 派发的原子任务
 ## 相关文档
 
 - [技术方案 — Agent](agent-tech.md)
-- [五层智能架构总览](../architecture.md)
+- [五层智能架构总览](../../architecture.md)
 - [执行轨迹](execution-trace.md)
-- [工具权限](../../engine/execution/tool-permission.md)
+- [工具权限](../../../engine/execution/tool-permission.md)

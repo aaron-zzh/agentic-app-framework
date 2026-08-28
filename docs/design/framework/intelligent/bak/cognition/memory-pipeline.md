@@ -194,7 +194,7 @@ MemoryContext：
 
 - [技术方案 — 记忆管道](memory-pipeline-tech.md)
 - [技术方案 — 混合检索](retrieval-tech.md)
-- [AtomMemory 记忆引擎](../../engine/data-knowledge/atom-memory.md)
-- [NexusKB 知识引擎](../../engine/data-knowledge/nexus-knowledge.md)
+- [AtomMemory 记忆引擎](../../../engine/data-knowledge/atom-memory.md)
+- [NexusKB 知识引擎](../../../engine/data-knowledge/nexus-knowledge.md)
 - [Cognition 层设计](cognition.md)
 - [用户感知与个性化](personalization.md)

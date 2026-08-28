@@ -93,4 +93,4 @@ TaskId = ExecutionId = RunId = runId
 
 - [功能设计 — Team](team.md)
 - [任务式 Assistant 统一执行路径设计](../assistant/task-oriented-assistant-execution-design.md)
-- [五层智能架构总览](../architecture.md)
+- [五层智能架构总览](../../architecture.md)

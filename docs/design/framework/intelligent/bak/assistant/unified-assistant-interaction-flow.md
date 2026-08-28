@@ -35,7 +35,7 @@ gains:
 
 > 对话式是通用智能助理的默认交互表面，普通问答、内容生成、计算、检索和复杂协作任务都从同一会话进入。任务式不是另一套 Assistant 或运行时，而是在同一主链上采用更固定的路由、更少的非阻塞追问、更明确的执行计划、完成合同和产物呈现。
 
-本文是整体场景流程视图，不重复定义底层合同。运行时、身份、事件及权限细节以[五层智能架构](../architecture.md#统一智能任务运行流程)和[任务式 Assistant 统一执行路径设计](task-oriented-assistant-execution-design.md)为准。
+本文是整体场景流程视图，不重复定义底层合同。运行时、身份、事件及权限细节以[五层智能架构](../../architecture.md#统一智能任务运行流程)和[任务式 Assistant 统一执行路径设计](task-oriented-assistant-execution-design.md)为准。
 
 ## 图例
 

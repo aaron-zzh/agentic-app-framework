@@ -298,7 +298,7 @@ Agent 执行完成
 ## 相关文档
 
 - [技术方案 — Assistant](assistant-tech.md)
-- [五层智能架构总览](../architecture.md)
+- [五层智能架构总览](../../architecture.md)
 - [用户感知与个性化](../cognition/personalization.md)
 
 ## 对话场景分类

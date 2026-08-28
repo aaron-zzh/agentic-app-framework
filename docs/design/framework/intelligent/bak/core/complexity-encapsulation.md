@@ -74,5 +74,5 @@ author: AaronZZH
 
 ## 相关文档
 
-- [元引擎设计](../../engine/meta/meta-engine.md)
+- [元引擎设计](../../../engine/meta/meta-engine.md)
 - [置信度门控器](confidence-gate.md)

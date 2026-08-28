@@ -11,7 +11,7 @@ author: AaronZZH
 # 用户自定义字段（Custom Fields）
 
 > **状态：未来提案，尚未实现。** 当前 EntityDef 仅服务于由 `@EntityView` 和 Controller 契约自动发现的代码资源；它不支持运行时加列、动态实体、通用记录 CRUD 或本文件中的 API。
-> 所属体系：[结构化视图模式](../../../apps/webui/interaction-mode-structured-view.md) | [元引擎](../../engine/meta/meta-engine.md)
+> 所属体系：[结构化视图模式](../../../../apps/webui/interaction-mode-structured-view.md) | [元引擎](../../../engine/meta/meta-engine.md)
 
 ## 一、定位
 

@@ -152,6 +152,6 @@ public interface ConfidenceGate {
 
 ## 相关文档
 
-- [元引擎设计](../../engine/meta/meta-engine.md)
-- [执行调度器](../../engine/meta/execution-dispatcher.md)
-- [自进化机制](../../engine/meta/evolution.md)
+- [元引擎设计](../../../engine/meta/meta-engine.md)
+- [执行调度器](../../../engine/meta/execution-dispatcher.md)
+- [自进化机制](../../../engine/meta/evolution.md)
