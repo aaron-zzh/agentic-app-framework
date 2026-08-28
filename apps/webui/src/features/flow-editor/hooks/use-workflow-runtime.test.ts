@@ -46,7 +46,7 @@ describe("useWorkflowRuntime", () => {
       expect.stringContaining("/workflow/run"),
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({ flowId: 42, debug: false, variables: { input: "hello" } })
+        body: JSON.stringify({ flowId: 42, debug: true, variables: { input: "hello" } })
       })
     )
   })

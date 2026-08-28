@@ -209,9 +209,9 @@ export function useWorkflowRuntime() {
     })
   }, [])
 
-  /** 启动工作流。 */
+  /** 启动工作流调试试跑——该端点仅接受调试运行，生产运行走 Assistant 主入口。 */
   const startWorkflow = useCallback(
-    (flowId: string | number, variables?: Record<string, unknown>, debug = false) => {
+    (flowId: string | number, variables?: Record<string, unknown>) => {
       abortControllerRef.current?.abort()
       const controller = new AbortController()
       abortControllerRef.current = controller
@@ -231,7 +231,11 @@ export function useWorkflowRuntime() {
             method: "POST",
             credentials: "include",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ flowId: Number(flowId), debug, variables: variables ?? {} }),
+            body: JSON.stringify({
+              flowId: Number(flowId),
+              debug: true,
+              variables: variables ?? {}
+            }),
             signal: controller.signal
           })
           let terminal = await readEventStream(response, handleEvent, controller.signal)

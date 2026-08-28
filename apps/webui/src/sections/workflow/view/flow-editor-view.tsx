@@ -73,7 +73,7 @@ export function FlowEditorView({ flowId }: FlowEditorViewProps) {
     try {
       const saved = await saveDraft()
       if (!saved) return
-      runtime.startWorkflow(saved.id, {}, true)
+      runtime.startWorkflow(saved.id, {})
     } catch (debugError) {
       toast.error(debugError instanceof Error ? debugError.message : "调试启动失败")
     }
