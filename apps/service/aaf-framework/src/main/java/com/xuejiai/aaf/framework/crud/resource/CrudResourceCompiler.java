@@ -844,7 +844,9 @@ public final class CrudResourceCompiler implements SmartInitializingSingleton {
             CrudResourceDefinition<?> definition,
             CrudResourceEndpointBinding endpoint,
             Instant builtAt) {
-        var fields = viewFields(definition.types().viewType());
+        var fields = new LinkedHashSet<>(viewFields(definition.types().viewType()));
+        definition.mutation().customUpdateCommands().values().forEach(fields::addAll);
+        var orderedFields = List.copyOf(fields);
         return new CrudResourceSnapshot(
                 definition.key(),
                 definition.entitySlug(),
@@ -856,7 +858,7 @@ public final class CrudResourceCompiler implements SmartInitializingSingleton {
                 definition.tenantScope(),
                 definition.exposures(),
                 definition.schemaVersion(),
-                fields,
+                orderedFields,
                 definition.references().stream()
                         .sorted(Comparator.comparing(CrudReferenceDefinition::key))
                         .toList(),
