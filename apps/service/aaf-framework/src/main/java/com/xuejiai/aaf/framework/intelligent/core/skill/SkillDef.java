@@ -13,7 +13,8 @@ public record SkillDef(
         String content,
         Set<String> requiredToolNames,
         Set<String> requiredModelCapabilities,
-        boolean builtIn) {
+        boolean builtIn,
+        boolean inheritRoleTools) {
 
     public SkillDef {
         Objects.requireNonNull(skillId, "skillId 不能为空");

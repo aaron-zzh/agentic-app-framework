@@ -67,6 +67,7 @@ class DefaultEffectiveSkillResolverTest extends BaseMockitoUnitTest {
                 code + "提示词",
                 Set.of(),
                 Set.of(),
+                false,
                 false);
     }
 }

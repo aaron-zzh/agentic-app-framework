@@ -45,7 +45,8 @@ public final class FixedSkillExecutionProfile {
                         skill.requiredToolNames(),
                         skill.requiredModelCapabilities(),
                         List.of(),
-                        List.of());
+                        List.of(),
+                        skill.inheritRoleTools());
         return new SkillExecutionProfile(selection, List.of(activated), effectiveTools);
     }
 }

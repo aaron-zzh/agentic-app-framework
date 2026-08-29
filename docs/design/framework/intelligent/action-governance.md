@@ -49,7 +49,7 @@ gains:
 
 基础工具不是“所有通用工具”。`BaseToolProfile` 必须**版本化**，只包含无副作用且参数受控的能力。网络工具需要域名策略、SSRF 防护、响应大小与超时限制，并把外部内容视为**不可信数据**。
 
-实现态：🎯 目标态 · `BaseToolProfile` 当前不存在，当前不得声称已执行。
+实现态：⚠️ 部分实现 · `BaseToolProfile` 已落地为版本化常量清单（`BaseToolProfile.java`，`VERSION=1`），收录 4 个 `ai_tool_catalog` 中 `risk_level=LOW` 且 `read_only=TRUE` 的工具；网络工具域名策略、SSRF 防护、响应大小与超时限制未落地，当前清单不含网络工具。
 
 ## 有效工具交集
 
@@ -78,7 +78,7 @@ INHERIT                 → 基础工具 + Role 业务工具
 
 `INHERIT` 只适用于经过审核的系统 Skill；用户 Skill 默认 `RESTRICT`。
 
-> ⚠️ 部分实现 · 解析器只处理 Skill required、Role allowlist、Agent tools 三组，`BaseToolProfile` 尚不存在。空集合语义已统一为 RESTRICT + 空集合恒拒绝业务工具（`resolve()`/`resolveAssistant()` 一致，`DefaultEffectiveToolResolver.java:14-52,54-81`），不再是"空即放开"；仍缺失的是显式 `RESTRICT`/`INHERIT` 三态字段（当前 Skill 模型只有 `requiredToolNames: Set<String>`，无访问模式标记）与 `BaseToolProfile` 本身，`INHERIT` 语义（基础工具 + Role 业务工具）当前不得声称已执行。
+> ⚠️ 部分实现 · 解析器处理 Skill required、Role/Assistant allowlist、Agent tools 三组并入 `BaseToolProfile`（`DefaultEffectiveToolResolver.java`）。三态语义简化为布尔开关（`ActivatedSkill.inheritRoleTools()`，不新增枚举类型）：`RESTRICT`（false）+ 空集合 → 仅 `BaseToolProfile`；`RESTRICT` + 声明工具 → `BaseToolProfile` + 声明工具；`INHERIT`（true）→ `BaseToolProfile` + Role/Assistant 与 Agent 交集全部业务工具，跳过 Skill 必需工具限制。`toolAccessMode` 到 `inheritRoleTools` 的映射与发布门禁见 `skill-tool-resolution.md`。`BaseToolProfile` 恒定并入候选集，但仍需工具本身在 Agent 声明范围内且通过 Role/Assistant 白名单交集——不绕过 `RoleCapabilityCeiling`。
 
 ## 动作放行门禁链
 
@@ -217,7 +217,7 @@ expiresAt:  任务截止时间
 | ToolGateway 七道门禁 | ⚠️ 部分实现 · 可见性、策略、grant、参数、lease 与写动作 receipt 已接线（`DefaultToolGateway.java:67-171`）；调用预算只在委派分支记账，非委派路径及 Token/时限预算未闭合（`DefaultToolGateway.java:174-229`） |
 | 任务级可撤销窄授权 | ✅ 已实现 · `PersistentHitlCoordinator.java:132-190` |
 | 同步 HITL 全过程控制 | ⚠️ 部分实现 · 授权请求、批准/拒绝与恢复已接线（`PersistentHitlCoordinator.java:72-190`）；通用补参、显式暂停/继续/重试/取消尚未统一闭合 |
-| 工具三态与 `BaseToolProfile` | ⚠️ 部分实现 · 空集合语义相反已修复（`DefaultEffectiveToolResolver.java:14-52,54-81` 统一为 RESTRICT+空集合恒拒绝）；显式 `RESTRICT`/`INHERIT` 字段与 `BaseToolProfile` 仍不存在，不得声称已执行 |
+| 工具三态与 `BaseToolProfile` | ⚠️ 部分实现 · `BaseToolProfile` 已落地（`BaseToolProfile.java`，4 个 LOW+read_only 工具：`listBusinessActions`/`list_workflows`/`recognizeOcr`/`queryWeather`），恒定并入候选集但仍受 `RoleCapabilityCeiling`/`AgentDeclaredTools` 交集约束，不绕过 Role 白名单；`toolAccessMode` 简化为布尔开关 `ActivatedSkill.inheritRoleTools()`（不新增枚举类型），`RESTRICT`（false）维持原交集逻辑，`INHERIT`（true）跳过 Skill 必需工具限制直接放行 Role/Assistant 与 Agent 交集，接线见 `DefaultEffectiveToolResolver.java`、`AssistantApplicationService` 的 `roleInheritRoleTools`/`assistantInheritRoleTools`；仍缺失的是网络工具域名/SSRF 策略等参数受控细节，本轮不做 |
 | 八层交集在单一解析器内闭合 | ⚠️ 部分实现 · 三组在解析器内，其余在上层分散预过滤，`DefaultEffectiveToolResolver.java:27-38,62-66` |
 | required / optional 区分 | 🎯 目标态 · 当前不得声称已执行；现有声明统一 fail-closed |
 | 异步人工审查接入统一门禁 | ⚠️ 部分实现 · 独立 `AiOutput` 模块已存在，但未接入智能运行时，`AiOutputService.java:20-78` |

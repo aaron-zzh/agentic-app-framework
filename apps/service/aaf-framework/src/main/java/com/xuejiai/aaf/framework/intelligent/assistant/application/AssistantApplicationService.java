@@ -1296,10 +1296,20 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 activatedRoleSkills.stream()
                         .flatMap(skill -> skill.requiredToolNames().stream())
                         .collect(Collectors.toUnmodifiableSet());
+        var roleInheritRoleTools =
+                activatedRoleSkills.stream()
+                        .anyMatch(
+                                com.xuejiai.aaf.framework.intelligent.agent.model.ActivatedSkill
+                                        ::inheritRoleTools);
         var assistantSkillRequirements =
                 activatedAssistantSkills.stream()
                         .flatMap(skill -> skill.requiredToolNames().stream())
                         .collect(Collectors.toUnmodifiableSet());
+        var assistantInheritRoleTools =
+                activatedAssistantSkills.stream()
+                        .anyMatch(
+                                com.xuejiai.aaf.framework.intelligent.agent.model.ActivatedSkill
+                                        ::inheritRoleTools);
         var roleAllowedToolNames = allowedToolNames(role.toolKeys(), command, definition, "Role");
         var assistantAllowedToolNames =
                 allowedToolNames(definition.assistantToolKeys(), command, definition, "Assistant");
@@ -1328,12 +1338,16 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 roleAllowedToolNames.isEmpty() ? List.<ToolRef>of() : agentAllowedTools;
         var roleEffectiveTools =
                 effectiveToolResolver.resolve(
-                        roleSkillRequirements, roleAllowedToolNames, roleAgentAllowedTools);
+                        roleSkillRequirements,
+                        roleInheritRoleTools,
+                        roleAllowedToolNames,
+                        roleAgentAllowedTools);
         var assistantEffectiveTools =
                 activatedAssistantSkills.isEmpty()
                         ? List.<ToolRef>of()
                         : effectiveToolResolver.resolveAssistant(
                                 assistantSkillRequirements,
+                                assistantInheritRoleTools,
                                 assistantAllowedToolNames,
                                 agentAllowedTools);
         var resolvedTools = mergeEffectiveTools(roleEffectiveTools, assistantEffectiveTools);
@@ -1690,7 +1704,8 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                             skill.requiredToolNames(),
                                             skill.requiredModelCapabilities(),
                                             List.of(),
-                                            List.of());
+                                            List.of(),
+                                            skill.inheritRoleTools());
                                 })
                         .toList();
         if (activated.size() != resolvedSkills.size()) {

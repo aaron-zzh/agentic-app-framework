@@ -18,7 +18,8 @@ public record ActivatedSkill(
         Set<String> requiredToolNames,
         Set<String> requiredModelCapabilities,
         List<String> referenceKeys,
-        List<Long> knowledgeBindingIds) {
+        List<Long> knowledgeBindingIds,
+        boolean inheritRoleTools) {
 
     public ActivatedSkill {
         code = requireText(code, "code");

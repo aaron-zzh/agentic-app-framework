@@ -45,5 +45,6 @@ public interface SkillStore {
             String content,
             Set<String> requiredToolNames,
             Set<String> requiredModelCapabilities,
-            boolean builtIn) {}
+            boolean builtIn,
+            boolean inheritRoleTools) {}
 }

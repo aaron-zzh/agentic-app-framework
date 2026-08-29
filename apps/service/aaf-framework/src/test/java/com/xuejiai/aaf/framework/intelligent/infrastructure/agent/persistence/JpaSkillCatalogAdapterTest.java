@@ -53,6 +53,7 @@ class JpaSkillCatalogAdapterTest extends BaseMockitoUnitTest {
                                 "逐项检查",
                                 Set.of("contentReview"),
                                 Set.of("TEXT"),
+                                false,
                                 false));
         verify(skillStore).findByCode("content-review");
     }
@@ -109,6 +110,7 @@ class JpaSkillCatalogAdapterTest extends BaseMockitoUnitTest {
                 "逐项检查",
                 requiredToolNames,
                 Set.of("TEXT"),
-                builtIn);
+                builtIn,
+                false);
     }
 }

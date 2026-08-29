@@ -128,7 +128,7 @@ Skill 解析结果作为 `SkillExecutionProfile` 进入 [runtime.md 的 `Executi
 | 角色 / 内置两层合并、角色同 key 优先 | ⚠️ 部分实现 · `SkillCatalogPort.java:10-17` 与 `JpaSkillCatalogAdapter.java:16-72` 已提供内置目录读取，`DefaultEffectiveSkillResolver.java:19-42` 已做授权边界、精确加载和 code 稳定排序；生产调用链未调用 `findBuiltIn`，且 `AssistantApplicationService.java:1574-1602` 对跨 Scope 同 key 直接拒绝，当前不得声称已执行两层覆盖 |
 | 合并结果稳定排序 | ⚠️ 部分实现 · `DefaultEffectiveSkillResolver.java:31-41` 已对请求集合按 code 排序；内置合并后的统一排序尚未接线，当前不得声称完整两层结果已稳定排序 |
 | Role allowlist 与 Agent 声明工具取交集 | ✅ 已实现 · 调用接线及空 Role 收敛见 `AssistantApplicationService.java:1323-1327`；双层过滤与 required 缺失拒绝见 `DefaultEffectiveToolResolver.java:30-44` |
-| 工具三态 | 🎯 目标态；当前不得声称已执行 |
+| 工具三态 | ⚠️ 部分实现 · 简化为布尔开关而非新增枚举类型：`SkillVersion.toolAccessMode`（"RESTRICT"/"INHERIT"）映射为 `ActivatedSkill.inheritRoleTools()`，贯通 `SkillStore.SkillRecord`→`SkillDef`→`ActivatedSkill` 全链路；`EffectiveToolResolver.resolve/resolveAssistant` 新增 `inheritRoleTools` 参数，`INHERIT` 时跳过 `skillRequiredToolNames` 限制直接放行 Role/Assistant 与 Agent 交集（`DefaultEffectiveToolResolver.java`）；`BaseToolProfile` 已落地（4 个 LOW+read_only 工具）恒定并入候选集但不绕过 Role 白名单 |
 | required / optional 区分 | ⚠️ 部分实现 · `SkillToolRequirement.java:13-43` 已持久化 required 标记；`DefaultEffectiveToolResolver.java:10-44` 仍把输入集合统一当必需工具 |
 | 用户 Skill 禁止 `INHERIT` | ⚠️ 部分实现 · `SkillVersion.java:52-53`、`SkillService.java:976-986` 已有 `RESTRICT` 默认值与枚举校验；发布路径已校验 `builtIn + 已审核版本`（`SkillService.java:833-846` `requireInheritOnlyForBuiltIn`，`requireApprovedVersion` 保证版本已人工审核），非内置 Skill 发布 `INHERIT` 即拒绝；create/update 草稿阶段仍允许暂存该值，只在发布时兜底 |
 | 工具排除层归因完整 | 🎯 目标态；当前不得声称已执行 |

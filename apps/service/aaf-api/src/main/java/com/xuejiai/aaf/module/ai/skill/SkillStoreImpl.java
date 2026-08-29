@@ -113,7 +113,8 @@ public class SkillStoreImpl implements SkillStore {
                                                 .collect(
                                                         java.util.stream.Collectors
                                                                 .toUnmodifiableSet()),
-                                        Boolean.TRUE.equals(definition.getBuiltIn())));
+                                        Boolean.TRUE.equals(definition.getBuiltIn()),
+                                        "INHERIT".equals(version.getToolAccessMode())));
     }
 }
 

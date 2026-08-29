@@ -184,7 +184,8 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
                                         Set.of(),
                                         Set.of(),
                                         List.of(),
-                                        List.of())),
+                                        List.of(),
+                                        false)),
                         List.of());
         return new AgentExecutionCommand(
                 dynamic,

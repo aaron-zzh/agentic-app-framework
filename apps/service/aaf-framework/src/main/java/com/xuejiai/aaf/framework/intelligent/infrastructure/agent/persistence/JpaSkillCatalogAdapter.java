@@ -67,6 +67,7 @@ public final class JpaSkillCatalogAdapter implements SkillCatalogPort {
                 record.content(),
                 record.requiredToolNames(),
                 record.requiredModelCapabilities(),
-                record.builtIn());
+                record.builtIn(),
+                record.inheritRoleTools());
     }
 }
