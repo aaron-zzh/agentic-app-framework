@@ -46,7 +46,7 @@ public class WorkflowTool {
         return result.toString();
     }
 
-    @Tool(name = "start_workflow", description = "按 workflow_id 启动当前租户允许智能体调用的已发布 AI Flow。")
+    @Tool(name = "start_workflow", description = "按 workflow_id 启动当前租户允许智能体调用的已发布 AI Flow，并同步等待其执行完成。")
     public String startWorkflow(
             @ToolParam(name = "workflow_id", description = "AI Flow 业务 ID") Long workflowId,
             @ToolParam(
@@ -60,11 +60,14 @@ public class WorkflowTool {
                 workflowPort.start(
                         workflowId, parsedVariables, invocation.scope(), invocation.agentRunId());
         log.info(
-                "AI Flow 已启动: workflowId={}, instanceId={}",
+                "AI Flow 执行完成: workflowId={}, instanceId={}",
                 started.workflowId(),
                 started.processInstanceId());
-        return "AI Flow「%s」已成功启动（实例 ID: %s）。"
-                .formatted(started.workflowName(), started.processInstanceId());
+        if (started.outputText().isBlank()) {
+            return "AI Flow「%s」已成功执行完成。".formatted(started.workflowName());
+        }
+        return "AI Flow「%s」已成功执行完成，输出：%s"
+                .formatted(started.workflowName(), started.outputText());
     }
 
     private Map<String, Object> parseVariables(String variables) {

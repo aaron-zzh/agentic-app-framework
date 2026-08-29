@@ -9,6 +9,11 @@ public interface AgentCallableWorkflowPort {
 
     List<WorkflowSummary> list(TrustedScope scope);
 
+    /**
+     * 启动已发布工作流并同步等待其完成。
+     *
+     * <p>超时未完成时抛出 {@link IllegalStateException}；工作流以 {@code terminated} 状态结束时同样视为失败。
+     */
     WorkflowStartResult start(
             Long workflowId, Map<String, Object> variables, TrustedScope scope, String agentRunId);
 
@@ -23,6 +28,15 @@ public interface AgentCallableWorkflowPort {
     record WorkflowSummary(
             Long workflowId, String name, String description, boolean requireConfirm) {}
 
+    /**
+     * 工作流执行结果。
+     *
+     * @param outputText 结束节点约定输出变量 {@code output} 的文本值；未配置时为空字符串，代表成功但无文字产出
+     */
     record WorkflowStartResult(
-            Long workflowId, String workflowName, String processInstanceId, String businessKey) {}
+            Long workflowId,
+            String workflowName,
+            String processInstanceId,
+            String businessKey,
+            String outputText) {}
 }

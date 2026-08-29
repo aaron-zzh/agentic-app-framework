@@ -26,7 +26,7 @@ public class AiFlowBpmnCompiler {
 
     private static final Map<String, String> DELEGATES =
             Map.of(
-                    "llm", "llmNode",
+                    "llm", "agentNode",
                     "agent", "agentNode",
                     "knowledge", "searchKnowledgeNode",
                     "code", "codeExecutionNode",
@@ -129,7 +129,7 @@ public class AiFlowBpmnCompiler {
                 .append("\" isExecutable=\"true\">\n");
 
         for (var node : nodes) {
-            renderNode(xml, node, defaultEdges.get(requiredText(node, "id")), signals);
+            renderNode(xml, flowId, node, defaultEdges.get(requiredText(node, "id")), signals);
         }
         for (var edge : edges) {
             renderEdge(xml, edge, nodeById.get(requiredText(edge, "source")));
@@ -141,7 +141,11 @@ public class AiFlowBpmnCompiler {
     }
 
     private void renderNode(
-            StringBuilder xml, JsonNode node, String defaultEdge, Map<String, String> signals) {
+            StringBuilder xml,
+            Long flowId,
+            JsonNode node,
+            String defaultEdge,
+            Map<String, String> signals) {
         var id = requiredText(node, "id");
         var type = requiredText(node, "type");
         var data = node.path("data");
@@ -160,8 +164,29 @@ public class AiFlowBpmnCompiler {
                                     : " default=\"" + escape(defaultEdge) + "\"");
             case "parallel" -> emptyElement(xml, "parallelGateway", id, name, null);
             case "wait" -> renderWait(xml, id, name, data, signals);
+            case "subworkflow" -> renderSubworkflow(xml, flowId, id, name, data);
             default -> renderServiceTask(xml, id, name, type, data);
         }
+    }
+
+    private void renderSubworkflow(
+            StringBuilder xml, Long flowId, String id, String name, JsonNode data) {
+        var childFlowId = data.path("flowId").asLong(0L);
+        if (childFlowId <= 0) {
+            throw badRequest("子工作流节点必须配置 flowId: " + id);
+        }
+        if (childFlowId.equals(flowId)) {
+            throw badRequest("子工作流节点不能引用自身: " + id);
+        }
+        xml.append("    <callActivity id=\"")
+                .append(escape(id))
+                .append("\" name=\"")
+                .append(escape(name))
+                .append("\" calledElement=\"")
+                .append(escape(processKey(childFlowId)))
+                .append("\" flowable:inheritVariables=\"true\">\n");
+        renderExecutionListeners(xml, data);
+        xml.append("    </callActivity>\n");
     }
 
     private void renderServiceTask(
@@ -414,6 +439,7 @@ public class AiFlowBpmnCompiler {
                         "wait",
                         "llm",
                         "agent",
+                        "subworkflow",
                         "knowledge",
                         "code",
                         "iteration",

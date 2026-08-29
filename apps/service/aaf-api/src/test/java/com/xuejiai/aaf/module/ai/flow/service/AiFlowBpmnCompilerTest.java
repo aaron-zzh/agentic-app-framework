@@ -32,7 +32,7 @@ class AiFlowBpmnCompilerTest {
 
         assertThat(xml)
                 .contains("<process id=\"ai_flow_42\"")
-                .contains("flowable:delegateExpression=\"${llmNode}\"")
+                .contains("flowable:delegateExpression=\"${agentNode}\"")
                 .contains("<bpmndi:BPMNDiagram");
     }
 
@@ -69,5 +69,65 @@ class AiFlowBpmnCompilerTest {
         assertThatThrownBy(() -> compiler.compile(1L, definition))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("不支持的工作流节点类型");
+    }
+
+    @Test
+    void shouldCompileSubworkflowNodeAsCallActivity() {
+        var definition =
+                """
+                {"nodes":[
+                  {"id":"start","type":"start","position":{"x":0,"y":0},"data":{}},
+                  {"id":"sub_1","type":"subworkflow","position":{"x":100,"y":0},"data":{"label":"子流程","flowId":99}},
+                  {"id":"end","type":"end","position":{"x":200,"y":0},"data":{}}
+                ],"edges":[
+                  {"id":"e1","source":"start","target":"sub_1"},
+                  {"id":"e2","source":"sub_1","target":"end"}
+                ]}
+                """;
+
+        var xml = compiler.compile(1L, definition);
+
+        assertThat(xml)
+                .contains("<callActivity id=\"sub_1\"")
+                .contains("calledElement=\"ai_flow_99\"")
+                .contains("flowable:inheritVariables=\"true\"");
+    }
+
+    @Test
+    void shouldRejectSelfReferencingSubworkflow() {
+        var definition =
+                """
+                {"nodes":[
+                  {"id":"start","type":"start","position":{"x":0,"y":0},"data":{}},
+                  {"id":"sub_1","type":"subworkflow","position":{"x":100,"y":0},"data":{"flowId":1}},
+                  {"id":"end","type":"end","position":{"x":200,"y":0},"data":{}}
+                ],"edges":[
+                  {"id":"e1","source":"start","target":"sub_1"},
+                  {"id":"e2","source":"sub_1","target":"end"}
+                ]}
+                """;
+
+        assertThatThrownBy(() -> compiler.compile(1L, definition))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("不能引用自身");
+    }
+
+    @Test
+    void shouldRejectSubworkflowNodeWithoutFlowId() {
+        var definition =
+                """
+                {"nodes":[
+                  {"id":"start","type":"start","position":{"x":0,"y":0},"data":{}},
+                  {"id":"sub_1","type":"subworkflow","position":{"x":100,"y":0},"data":{}},
+                  {"id":"end","type":"end","position":{"x":200,"y":0},"data":{}}
+                ],"edges":[
+                  {"id":"e1","source":"start","target":"sub_1"},
+                  {"id":"e2","source":"sub_1","target":"end"}
+                ]}
+                """;
+
+        assertThatThrownBy(() -> compiler.compile(1L, definition))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("必须配置 flowId");
     }
 }

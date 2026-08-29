@@ -1,36 +1,30 @@
 package com.xuejiai.aaf.framework.intelligent.infrastructure.workflow.node;
 
 import java.time.Duration;
-import java.util.Arrays;
+import java.time.Instant;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import org.flowable.engine.delegate.DelegateExecution;
 import org.flowable.engine.delegate.JavaDelegate;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Component;
 
-import com.xuejiai.aaf.framework.engine.tool.ToolRegistry;
-import com.xuejiai.aaf.framework.intelligent.agent.model.AgentExecutionCommand;
-import com.xuejiai.aaf.framework.intelligent.agent.model.AgentMessage;
-import com.xuejiai.aaf.framework.intelligent.agent.model.FixedSkillExecutionProfile;
-import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
-import com.xuejiai.aaf.framework.intelligent.agent.model.SubagentSpec;
-import com.xuejiai.aaf.framework.intelligent.agent.model.ToolAuthorizationContext;
-import com.xuejiai.aaf.framework.intelligent.agent.model.ToolAuthorizationContext.ToolAuthorizationRule;
-import com.xuejiai.aaf.framework.intelligent.agent.port.AgentDefinitionPort;
-import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
-import com.xuejiai.aaf.framework.intelligent.agent.port.SkillCatalogPort;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.PromptAssembler;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.InvocationPolicy;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantCommand;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantInvocation;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.InvocationProfile;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionCriteria;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskModelSelection;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionPort;
+import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.MemorySubject;
+import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.SubjectKind;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
-import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
-import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AgentId;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventReducer;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AssistantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ConversationId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.CorrelationId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
@@ -44,53 +38,38 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** Agent 节点——通过 AgentExecutionPort 执行已发布的 AgentScope Agent。 */
+/**
+ * Agent 节点——以当前触发用户身份构造单轮任务式 Assistant 调用。
+ *
+ * <p>未配置 {@code roleKey} 时回退到该用户默认 Assistant 的 {@code defaultRoleKey}（{@code TASK}
+ * 交互模式的不可变量要求必须使用 {@code FIXED} Route，不存在 {@code AUTO}+{@code TASK} 组合）；{@code
+ * skillKey} 可留空，表示"Role 已定、未选技能"的合法状态。工作流节点执行不写入用户长期记忆。
+ */
 @Slf4j
 @Component("agentNode")
-@ConditionalOnBean(AgentExecutionPort.class)
+@ConditionalOnBean(AssistantCommandPort.class)
 @RequiredArgsConstructor
 public class AgentNode implements JavaDelegate {
 
-    private final AgentExecutionPort agentExecutionPort;
-    private final AgentDefinitionPort agentDefinitions;
-    private final SkillCatalogPort skillCatalog;
-    private final ToolRegistry toolRegistry;
-    private final PromptAssembler promptAssembler;
+    private static final Duration EXECUTION_TIMEOUT = Duration.ofMinutes(5);
+
+    private final AssistantCommandPort assistants;
+    private final AssistantDefinitionPort assistantDefinitions;
 
     @Override
     public void execute(DelegateExecution execution) {
         try {
             var command = command(execution);
-            var events =
-                    agentExecutionPort.execute(command).collectList().block(Duration.ofMinutes(5));
-            if (events == null) {
-                throw new IllegalStateException("Agent 未返回执行事件");
+            var events = assistants.execute(command).collectList().block(EXECUTION_TIMEOUT);
+            if (events == null || events.isEmpty()) {
+                throw new IllegalStateException("Assistant 未返回执行事件");
             }
-            var failure =
-                    events.stream()
-                            .filter(ExecutionEvent::isTerminal)
-                            .filter(
-                                    event ->
-                                            event.status()
-                                                    == ExecutionEvent.ExecutionEventStatus.FAILED)
-                            .findFirst();
-            if (failure.isPresent()) {
-                throw new IllegalStateException(
-                        String.valueOf(
-                                failure.get()
-                                        .payload()
-                                        .values()
-                                        .getOrDefault("error", "Agent 执行失败")));
+            var state = ExecutionEventReducer.reduce(events);
+            if (!state.terminal()
+                    || state.status() != ExecutionEvent.ExecutionEventStatus.COMPLETED) {
+                throw new IllegalStateException("Assistant 工作流节点执行未完成: " + state.status());
             }
-            var output =
-                    events.stream()
-                            .filter(event -> event.type() == ExecutionEventType.MESSAGE_COMPLETED)
-                            .map(event -> event.payload().values().get("text"))
-                            .filter(java.util.Objects::nonNull)
-                            .map(String::valueOf)
-                            .reduce((left, right) -> right)
-                            .orElse("");
-            execution.setVariable("output", output);
+            execution.setVariable("output", state.resultText());
             execution.setVariable("success", true);
         } catch (RuntimeException failure) {
             log.error("Agent 节点执行失败: nodeId={}", execution.getCurrentActivityId(), failure);
@@ -99,109 +78,70 @@ public class AgentNode implements JavaDelegate {
         }
     }
 
-    private AgentExecutionCommand command(DelegateExecution execution) {
-        var configuredAgentId = requiredString(execution, "agentId");
+    private AssistantCommand command(DelegateExecution execution) {
         var input = stringVariable(execution, "input", "");
         var promptOverride = stringVariable(execution, "promptOverride", "");
         var prompt = promptOverride.isBlank() ? input : promptOverride.replace("{{input}}", input);
-        var version = intVariable(execution, "agentVersion", 1);
         var orgId = requiredString(execution, "_aafOrgId");
         var userId = requiredString(execution, "_aafUserId");
+        var configuredRoleKey = stringVariable(execution, "roleKey", "");
+        var configuredSkillKey = stringVariable(execution, "skillKey", "");
+
+        var tenantId = new TenantId(orgId);
+        var userIdValue = new UserId(userId);
+        var definition = requireDefaultAssistant(tenantId, userIdValue);
+        var roleKey =
+                configuredRoleKey.isBlank() ? definition.defaultRoleKey() : configuredRoleKey;
+        var skillKey = configuredSkillKey.isBlank() ? null : configuredSkillKey;
 
         var unique = UUID.randomUUID().toString();
         var processId = execution.getProcessInstanceId();
         var activityId = execution.getCurrentActivityId();
-        var agentId = new AgentId(configuredAgentId);
-        var agentSpec =
-                agentDefinitions
-                        .findByIdAndVersion(agentId, version)
-                        .orElseThrow(
-                                () ->
-                                        new IllegalArgumentException(
-                                                "Agent 定义不存在: "
-                                                        + configuredAgentId
-                                                        + "@"
-                                                        + version));
-        var skillExecutionProfile =
-                FixedSkillExecutionProfile.from(requireSystemSkill(), List.of());
         var executionId = new ExecutionId("workflow:" + unique);
-        var compiledSystemPrompt =
-                promptAssembler.compileAgent(
-                        agentSpec,
-                        executionId.value(),
-                        skillExecutionProfile,
-                        InvocationPolicy.WORKFLOW);
-        var tools = configuredTools(execution);
-        if (!tools.isEmpty()) {
-            throw new IllegalArgumentException("Agent 节点 tools 必须迁移为 Assistant 执行画像中的版本化 ToolRef");
-        }
-        var context =
-                new InvocationContext(
-                        new TenantId(orgId),
-                        new UserId(userId),
-                        null,
-                        null,
-                        new ConversationId("workflow:" + processId),
-                        new SessionId("workflow:" + processId),
-                        new TaskId("workflow:" + processId),
-                        executionId,
-                        new RunId("workflow:" + unique),
-                        null,
-                        new CorrelationId("workflow:" + processId),
-                        null,
-                        new IdempotencyKey("workflow:" + processId + ":" + activityId),
-                        ControlMode.COLLABORATIVE,
-                        null,
-                        null,
-                        toolAuthorization(tools));
-        return new AgentExecutionCommand(
-                new SubagentSpec.Predefined(agentId, version),
-                Optional.empty(),
-                AgentExecutionCommand.ExecutionMode.DELEGATE,
-                Optional.empty(),
-                skillExecutionProfile,
-                compiledSystemPrompt,
+        var executionIntent =
+                ExecutionIntent.taskFixed(
+                        roleKey,
+                        skillKey,
+                        definition.version().value(),
+                        ExecutionIntent.ArtifactPolicy.returnOnly(
+                                ExecutionIntent.OutputKind.MESSAGE, "text/markdown"),
+                        ExecutionIntent.ActionAuthorizationPolicy.requestOnDemand(),
+                        null);
+        var invocationProfile =
+                InvocationProfile.primary(
+                        skillKey, AssistantInvocation.MemoryMode.DISABLED, List.of(), executionIntent);
+
+        return new AssistantCommand(
+                AssistantCommand.Operation.START,
+                tenantId,
+                userIdValue,
+                new MemorySubject(tenantId, SubjectKind.USER, userId),
+                definition.assistantId(),
+                new ConversationId("workflow:" + processId),
+                new SessionId("workflow:" + processId),
+                new TaskId("workflow:" + processId),
+                executionId,
+                new RunId("workflow:" + unique),
+                null,
+                new CorrelationId("workflow:" + processId),
+                null,
+                new IdempotencyKey("workflow:" + processId + ":" + activityId),
+                ControlMode.COLLABORATIVE,
+                null,
+                null,
                 0,
-                List.of(new AgentMessage("workflow:" + unique, AgentMessage.Role.USER, prompt)),
-                context);
+                prompt,
+                CompletionCriteria.responseDelivered(),
+                List.of(),
+                TaskModelSelection.auto(),
+                invocationProfile,
+                Instant.now());
     }
 
-    private com.xuejiai.aaf.framework.intelligent.core.skill.SkillDef requireSystemSkill() {
-        return skillCatalog
-                .findByCode("builtin-agent-execution")
-                .orElseThrow(
-                        () ->
-                                new IllegalStateException(
-                                        "系统内建 Skill 未初始化: builtin-agent-execution"));
-    }
-
-    private ToolAuthorizationContext toolAuthorization(Set<String> tools) {
-        var metadata =
-                toolRegistry.listAll().stream()
-                        .filter(tool -> tools.contains(tool.name()))
-                        .collect(
-                                Collectors.toMap(
-                                        ToolRegistry.ToolMeta::name,
-                                        tool ->
-                                                new ToolAuthorizationRule(
-                                                        tool.readOnly(),
-                                                        !tool.readOnly(),
-                                                        !tool.readOnly(),
-                                                        ToolAuthorizationContext
-                                                                .MissingGrantBehavior
-                                                                .REQUEST_ON_DEMAND)));
-        return new ToolAuthorizationContext(Map.copyOf(metadata));
-    }
-
-    private Set<String> configuredTools(DelegateExecution execution) {
-        var value = stringVariable(execution, "tools", "");
-        if (value.isBlank()) {
-            return Set.of();
-        }
-        return Arrays.stream(value.split(","))
-                .map(String::trim)
-                .filter(item -> !item.isBlank())
-                .collect(Collectors.toUnmodifiableSet());
+    private AssistantDefinition requireDefaultAssistant(TenantId tenantId, UserId userId) {
+        return assistantDefinitions
+                .findDefaultForUser(tenantId, userId)
+                .orElseThrow(() -> new IllegalStateException("用户默认 Assistant 不存在: " + userId.value()));
     }
 
     private String requiredString(DelegateExecution execution, String name) {
@@ -215,13 +155,5 @@ public class AgentNode implements JavaDelegate {
     private String stringVariable(DelegateExecution execution, String name, String defaultValue) {
         var value = execution.getVariable(name);
         return value == null ? defaultValue : String.valueOf(value);
-    }
-
-    private int intVariable(DelegateExecution execution, String name, int defaultValue) {
-        var value = execution.getVariable(name);
-        if (value instanceof Number number) {
-            return number.intValue();
-        }
-        return value == null ? defaultValue : Integer.parseInt(String.valueOf(value));
     }
 }
