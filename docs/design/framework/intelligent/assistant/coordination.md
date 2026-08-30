@@ -150,6 +150,21 @@ Coordinator 严格 JSON
 
 Reservation 只创建任务级产物或不可见 `GENERATING` 草稿；生成期间不逐 token 写数据库。正文只经 AG-UI 输出；产物事件的安全字段只引用 [runtime-event.md](../runtime-event.md#产物事件)。
 
+> **状态机拍板（方案 A，2026-08-29）**：四工具与四事件按此状态机完整实现，协议一次性拍板，允许分阶段落地（①Artifact 聚合+reserve/checkpoint+恢复 ②commit/fail+outbox/事件 ③完成门禁与清理），阶段间不得对外宣称已具备完整断点续跑。
+
+```text
+不存在 → [reserve] → GENERATING → [checkpoint]* → GENERATING
+                          ↓ [commit]              ↓ [fail]
+                        DRAFT                    FAILED
+```
+
+- **状态主线**：发布不属于本状态机，`commit` 后的 `DRAFT` 与 `content.draft.upsert` 产出的 `DRAFT` 是同一发布前状态；`checkpoint` 只递增版本，不改变 `GENERATING` 状态
+- **单写者**：lease/fencing + `expectedVersion` 双门禁；版本冲突直接失败，不做最后写覆盖；旧 fence 在资源提交点被拒绝
+- **checkpoint 粒度**：服务端受控 `bufferRef`，按稳定段落/时间窗口有界写入，不逐 token；事件只存引用与摘要哈希，不存正文
+- **commit 原子性**：`commit` 至少对同库的 artifact/version、最终 Document、`ARTIFACT_COMMITTED` 事件与 outbox 做单事务提交，消除当前 `content.draft.upsert` 已知的"外部动作成功、receipt 未完成"崩溃窗口
+- **fail 与重试**："逻辑 artifact"与"generation attempt"分离：`fail` 只终结当前 attempt（保留最后 checkpoint 到审计/恢复 TTL），`retryable=true` 时重试创建新 attempt 并显式继承合法 checkpoint，不是原地复活旧 attempt
+- **可见性**：`GENERATING` 状态的产物在普通列表不可见，仅任务上下文内可查
+
 ### 产物工具 Schema
 
 可信的 `tenantId`、`userId/visitorId`、`workspaceId`、`taskId`、`executionId`、fencing token 和幂等 receipt 来自 ToolGateway 上下文，模型参数不得覆盖。

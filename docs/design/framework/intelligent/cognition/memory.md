@@ -49,7 +49,7 @@ gains:
 
 | 类别 | 内容 | 生命周期 | 真理源与边界 | 实现态 |
 |---|---|---|---|---|
-| 短期 | 当前会话的压缩摘要与最近交互引用 | 会话 TTL | 原始消息仍归会话；不得复制成无期限长期记忆 | ✅ 已实现 · Redis 存储 `ShortTermMemoryService.java:21-88`，经 `SessionMemoryPort` 接入读管道（`RedisSessionMemoryAdapter`、`DefaultMemoryContextCollaborator`）；执行完成时按 MemoryMode 写入本轮交互 |
+| 短期 | 当前会话的压缩摘要与最近交互引用 | 会话 TTL | 原始消息仍归会话；不得复制成无期限长期记忆 | ⚠️ 部分实现（方案 C 已拍板，2026-08-29） · Redis 存储 `ShortTermMemoryService.java:21-88`，经 `SessionMemoryPort` 接入读管道（`RedisSessionMemoryAdapter`、`DefaultMemoryContextCollaborator`）；执行完成时按 MemoryMode 写入本轮交互；**当前只按预算裁剪原文，压缩摘要未做**——目标态为分层增量压缩：Redis 同时维护"已冻结结构化摘要 + 最近原文尾部"，未超阈值只读原文，超字符/轮次阈值后仅对被挤出窗口的旧轮次异步生成摘要（不阻塞主执行）；最近 4-8 条/2-4 轮始终保留原文精度；摘要严格区分"已确认决定/已验证事实/未决问题"，无来源不得升级为事实，统一标记低信任上下文并携带 `sourceMessageIds`；LLM 失败/超时/校验失败时保留旧摘要+最新尾部，不覆盖不阻断。新建独立会话语义端口承载（不直接复用执行级 `ContextCompressionPort`，两者作用对象与生命周期不同），但复用其底层 LLM 调用/超时/计量/严格 JSON 校验/防提示注入基础设施 |
 | 长期 | 跨会话稳定事实、偏好与重要决定 | 持久或显式过期 | 按 tenant 与主体隔离 | ✅ 已实现 · `JpaCognitionMemoryAdapter.java:39-70` |
 | 情景 | 带时间、参与者、因果与证据链的经历片段 | 持久，可衰减 | 由原子记忆与关系形成 bundle，不单独复制正文 | ✅ 已实现 · bundle 检索经 `MemoryRetrievalPort` 接入 L1 主链（`DefaultMemoryRetrievalPort.java`、`AtomMemoryEngine.java:31-39`） |
 | 程序化 | “如何做/避免什么”的经验候选 | 持久、版本化 | 记忆只保存经验；可执行能力发布到 SkillVersion | ✅ 已实现 · scope 检索经 `MemoryRetrievalPort` 接入 L1 主链（`DefaultMemoryRetrievalPort.java`）；专用入口仍返回空（`MemoryRetrievalService.retrieveProcedural` 已随旧类删除，等价能力未单独重建），非本轮范围 |
