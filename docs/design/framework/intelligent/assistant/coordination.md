@@ -150,7 +150,7 @@ Coordinator 严格 JSON
 
 Reservation 只创建任务级产物或不可见 `GENERATING` 草稿；生成期间不逐 token 写数据库。正文只经 AG-UI 输出；产物事件的安全字段只引用 [runtime-event.md](../runtime-event.md#产物事件)。
 
-> **状态机拍板（方案 A，2026-08-29）**：四工具与四事件按此状态机完整实现，协议一次性拍板，允许分阶段落地（①Artifact 聚合+reserve/checkpoint+恢复 ②commit/fail+outbox/事件 ③完成门禁与清理），阶段间不得对外宣称已具备完整断点续跑。
+> **状态机方案已撤销（2026-08-30 复核）**：排查发现当前无任何触发路径选中 Reservation 优先时序（`ArtifactPolicy.saveTool` 唯一真实赋值只有 `content.draft.upsert`），四工具做出来会是零调用方的死代码；长内容生成现状是流式一次性吐出+整体落库，不是四工具解决的"多次物理调用分段产出中断续跑"场景。以下状态机描述保留仅供未来若出现真实场景时参考，当前不实现，不得声称已按此设计。详见 [改进意见](../../../../prd/improvements.md)。
 
 ```text
 不存在 → [reserve] → GENERATING → [checkpoint]* → GENERATING
