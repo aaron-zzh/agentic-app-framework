@@ -29,10 +29,10 @@ import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultEffect
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultInputClassifier;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultRoleSelector;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultSkillSelectionPort;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultTaskComplexityAnalyzer;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveSkillResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveToolResolver;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.ModelDrivenTaskComplexityAnalyzer;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.ModelSkillSelectionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.PromptAssembler;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.RoleSelector;
@@ -145,8 +145,12 @@ public class AssistantInfrastructureAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(TaskComplexityAnalyzer.class)
-    TaskComplexityAnalyzer taskComplexityAnalyzer() {
-        return new DefaultTaskComplexityAnalyzer();
+    TaskComplexityAnalyzer taskComplexityAnalyzer(
+            ObjectProvider<PromptInvocationGateway> promptGateway) {
+        var gateway = promptGateway.getIfAvailable();
+        return gateway == null
+                ? new ModelDrivenTaskComplexityAnalyzer()
+                : new ModelDrivenTaskComplexityAnalyzer(gateway);
     }
 
     @Bean
