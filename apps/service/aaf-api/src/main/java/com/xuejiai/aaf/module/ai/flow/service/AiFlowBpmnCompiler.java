@@ -175,7 +175,7 @@ public class AiFlowBpmnCompiler {
         if (childFlowId <= 0) {
             throw badRequest("子工作流节点必须配置 flowId: " + id);
         }
-        if (childFlowId.equals(flowId)) {
+        if (flowId != null && childFlowId == flowId.longValue()) {
             throw badRequest("子工作流节点不能引用自身: " + id);
         }
         xml.append("    <callActivity id=\"")
