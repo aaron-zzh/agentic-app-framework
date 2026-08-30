@@ -55,6 +55,9 @@ public class AiProperties {
     /** 上下文压缩策略配置 */
     private ContextConfig context = new ContextConfig();
 
+    /** 短期会话上下文分层增量压缩配置 */
+    private SessionSummaryConfig sessionSummary = new SessionSummaryConfig();
+
     /** 单个模型配置 */
     @Getter
     @Setter
@@ -125,5 +128,23 @@ public class AiProperties {
 
         /** 严格 JSON 摘要结果最大字符数。 */
         private Integer summaryMaxChars = 12000;
+    }
+
+    /** 短期会话上下文分层增量压缩配置（方案 C，2026-08-29 拍板）。 */
+    @Getter
+    @Setter
+    public static class SessionSummaryConfig {
+
+        /** 是否启用会话摘要；关闭时短期记忆退化为纯原文裁剪。 */
+        private Boolean enabled = true;
+
+        /** 会话摘要模型调用场景名，用于模型路由。 */
+        private String scene = "session-summary";
+
+        /** 会话摘要模型超时时间（毫秒）。 */
+        private Long timeoutMs = 5000L;
+
+        /** 严格 JSON 摘要结果最大字符数。 */
+        private Integer maxChars = 8000;
     }
 }

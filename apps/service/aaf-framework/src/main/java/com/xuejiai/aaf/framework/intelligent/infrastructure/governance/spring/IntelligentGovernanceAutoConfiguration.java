@@ -32,6 +32,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.TokenMeteringPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolGatewayPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolParameterPolicyPort;
+import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
 import com.xuejiai.aaf.framework.intelligent.ai.embedding.EmbeddingService;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.PersistentHitlCoordinator;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
@@ -49,18 +50,22 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskTransitionPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.application.DefaultL1ContextCollaborator;
 import com.xuejiai.aaf.framework.intelligent.cognition.application.DefaultMemoryContextCollaborator;
 import com.xuejiai.aaf.framework.intelligent.cognition.application.DefaultMemoryRetrievalPort;
+import com.xuejiai.aaf.framework.intelligent.cognition.application.DefaultSessionContextCompressor;
 import com.xuejiai.aaf.framework.intelligent.cognition.application.DefaultUnifiedRetrievalPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.application.MemoryGovernanceService;
 import com.xuejiai.aaf.framework.intelligent.cognition.memory.MemoryRerankerService;
 import com.xuejiai.aaf.framework.intelligent.cognition.memory.ShortTermMemoryService;
+import com.xuejiai.aaf.framework.intelligent.cognition.port.ConversationHistoryPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.L1ContextPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryContextPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryGovernancePort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryRecallPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryRetrievalPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryWritePort;
+import com.xuejiai.aaf.framework.intelligent.cognition.port.SessionContextCompressionPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.SessionMemoryPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.UnifiedRetrievalPort;
+import com.xuejiai.aaf.framework.intelligent.core.llm.LlmClient;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelManagementService;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentRuntimePortAutoConfiguration;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentScopeInfrastructureAutoConfiguration;
@@ -277,10 +282,28 @@ public class IntelligentGovernanceAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnBean(LlmClient.class)
+    @ConditionalOnMissingBean(SessionContextCompressionPort.class)
+    SessionContextCompressionPort sessionContextCompressionPort(
+            LlmClient llmClient, AiProperties aiProperties) {
+        var config = aiProperties.getSessionSummary();
+        return new DefaultSessionContextCompressor(
+                llmClient, config.getScene(), config.getTimeoutMs(), config.getMaxChars());
+    }
+
+    @Bean
     @ConditionalOnBean(ShortTermMemoryService.class)
     @ConditionalOnMissingBean(SessionMemoryPort.class)
-    SessionMemoryPort sessionMemoryPort(ShortTermMemoryService shortTermMemories) {
-        return new RedisSessionMemoryAdapter(shortTermMemories);
+    SessionMemoryPort sessionMemoryPort(
+            ShortTermMemoryService shortTermMemories,
+            AiProperties aiProperties,
+            ObjectProvider<SessionContextCompressionPort> compressor,
+            ObjectProvider<ConversationHistoryPort> history) {
+        var enabled = Boolean.TRUE.equals(aiProperties.getSessionSummary().getEnabled());
+        return new RedisSessionMemoryAdapter(
+                shortTermMemories,
+                enabled ? compressor.getIfAvailable() : null,
+                history.getIfAvailable());
     }
 
     @Bean

@@ -14,6 +14,14 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
  */
 public interface SessionMemoryPort {
 
+    /**
+     * 标准短期会话读取窗口——L1 编排召回时的默认 {@code maxTurns}，也是存储层裁剪保留数的下限依据。
+     *
+     * <p>两处必须共用同一个值：存储层裁剪保留的原文条数若小于本值，召回时可能读不到已被裁剪掉的轮次，
+     * 造成"既不在摘要里、又因裁剪丢失"的信息空洞。
+     */
+    int DEFAULT_MAX_TURNS = 12;
+
     /** 按会话取最近若干轮交互；无记录时返回空列表。 */
     List<SessionTurn> recentTurns(SessionRecallQuery query);
 
@@ -47,7 +55,7 @@ public interface SessionMemoryPort {
     /**
      * 一条会话交互。
      *
-     * @param role 发言角色，取 {@code user} 或 {@code assistant}
+     * @param role 发言角色，取 {@code user}、{@code assistant} 或 {@code summary}（被挤出最近窗口的旧轮次低信任摘要）
      * @param content 交互正文；由调用方按字符预算裁剪
      */
     record SessionTurn(String role, String content) {
