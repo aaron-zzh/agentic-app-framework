@@ -10,6 +10,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantCommand;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionInput;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskCheckpoint;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ConversationId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.SessionId;
@@ -54,10 +55,7 @@ public interface DelegatedTaskPort {
             InvocationContext context, long units, BigDecimal credits, Instant at);
 
     DelegatedTask checkpoint(
-            InvocationContext context,
-            Map<String, Object> checkpoint,
-            Instant nextRunAt,
-            Instant at);
+            InvocationContext context, TaskCheckpoint checkpoint, Instant nextRunAt, Instant at);
 
     DelegatedTask pause(
             TenantId tenantId,

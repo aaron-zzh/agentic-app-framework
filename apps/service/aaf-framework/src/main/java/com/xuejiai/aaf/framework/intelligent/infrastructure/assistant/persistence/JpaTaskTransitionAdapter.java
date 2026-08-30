@@ -1,7 +1,6 @@
 package com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence;
 
 import java.time.Instant;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -23,6 +22,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.Statu
 import com.xuejiai.aaf.framework.intelligent.assistant.model.HumanApproval;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.InputBuffer;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard.IterationStopReason;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskCheckpoint;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskTransition;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskTransition.AuthorizationDecision;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskTransition.AuthorizationRequestTransition;
@@ -455,7 +455,7 @@ public class JpaTaskTransitionAdapter implements TaskTransitionPort {
                         && current.contract()
                                 .deadline()
                                 .isAfter(transition.at().plus(policy.initialBackoff()));
-        var checkpoint = merge(current.checkpoint(), "lastFailure", transition.reason());
+        var checkpoint = current.checkpoint().withAnnotation("lastFailure", transition.reason());
         final DelegatedTask changed;
         if (retry) {
             var nextAt =
@@ -764,7 +764,7 @@ public class JpaTaskTransitionAdapter implements TaskTransitionPort {
                 null,
                 null,
                 lease.fencingToken(),
-                merge(current.checkpoint(), "clarificationRequestId", requestId),
+                current.checkpoint().withAnnotation("clarificationRequestId", requestId),
                 at,
                 current.sessionId(),
                 current.executionId());
@@ -800,7 +800,7 @@ public class JpaTaskTransitionAdapter implements TaskTransitionPort {
                 null,
                 null,
                 lease.fencingToken(),
-                merge(current.checkpoint(), "inputCanceled", true),
+                current.checkpoint().withAnnotation("inputCanceled", true),
                 at,
                 current.sessionId(),
                 current.executionId());
@@ -931,7 +931,7 @@ public class JpaTaskTransitionAdapter implements TaskTransitionPort {
                 null,
                 null,
                 lease.fencingToken(),
-                merge(current.checkpoint(), "authorizationGap", reason),
+                current.checkpoint().withAnnotation("authorizationGap", reason),
                 at,
                 current.sessionId(),
                 current.executionId());
@@ -950,7 +950,7 @@ public class JpaTaskTransitionAdapter implements TaskTransitionPort {
                 null,
                 null,
                 lease.fencingToken(),
-                result,
+                current.checkpoint().withAnnotations(result),
                 at,
                 current.sessionId(),
                 current.executionId());
@@ -969,7 +969,7 @@ public class JpaTaskTransitionAdapter implements TaskTransitionPort {
                 null,
                 null,
                 lease.fencingToken(),
-                merge(current.checkpoint(), "lastFailure", failure),
+                current.checkpoint().withAnnotation("lastFailure", failure),
                 at,
                 current.sessionId(),
                 current.executionId());
@@ -988,7 +988,7 @@ public class JpaTaskTransitionAdapter implements TaskTransitionPort {
                 null,
                 null,
                 lease.fencingToken(),
-                merge(current.checkpoint(), "pauseReason", reason),
+                current.checkpoint().withAnnotation("pauseReason", reason),
                 at,
                 current.sessionId(),
                 current.executionId());
@@ -1204,12 +1204,6 @@ public class JpaTaskTransitionAdapter implements TaskTransitionPort {
         entity.setUpdatedAt(task.updatedAt());
     }
 
-    private static Map<String, Object> merge(Map<String, Object> source, String key, Object value) {
-        var result = new LinkedHashMap<>(source);
-        result.put(key, value == null ? "" : value);
-        return Map.copyOf(result);
-    }
-
     private static DelegatedTask copy(
             DelegatedTask source,
             Status status,
@@ -1221,7 +1215,7 @@ public class JpaTaskTransitionAdapter implements TaskTransitionPort {
             String leaseOwner,
             Instant leaseUntil,
             long fencingToken,
-            Map<String, Object> checkpoint,
+            TaskCheckpoint checkpoint,
             Instant updatedAt,
             SessionId sessionId,
             ExecutionId executionId) {

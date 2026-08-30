@@ -18,6 +18,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.Owner
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.OwnerKind;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.Status;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionInput;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskCheckpoint;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort.Lease;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
@@ -140,7 +141,7 @@ public class JpaDelegatedTaskAdapter implements DelegatedTaskPort {
                             null,
                             null,
                             current.fencingToken(),
-                            merge(current.checkpoint(), "deadlineReached", now.toString()),
+                            current.checkpoint().withAnnotation("deadlineReached", now.toString()),
                             now,
                             current.sessionId(),
                             current.executionId());
@@ -317,10 +318,7 @@ public class JpaDelegatedTaskAdapter implements DelegatedTaskPort {
     @Override
     @Transactional
     public DelegatedTask checkpoint(
-            InvocationContext context,
-            Map<String, Object> checkpoint,
-            Instant nextRunAt,
-            Instant at) {
+            InvocationContext context, TaskCheckpoint checkpoint, Instant nextRunAt, Instant at) {
         var entity = locked(context);
         var current = entity.getTask();
         var changed =
@@ -350,7 +348,7 @@ public class JpaDelegatedTaskAdapter implements DelegatedTaskPort {
         var entity = requireForUpdate(tenantId, taskId);
         var current = entity.getTask();
         requireLeaseBoundary(current, lease);
-        var checkpoint = merge(current.checkpoint(), "pauseReason", reason);
+        var checkpoint = current.checkpoint().withAnnotation("pauseReason", reason);
         var paused =
                 copy(
                         current,
@@ -388,7 +386,7 @@ public class JpaDelegatedTaskAdapter implements DelegatedTaskPort {
                         null,
                         null,
                         current.fencingToken(),
-                        result,
+                        current.checkpoint().withAnnotations(result),
                         at,
                         current.sessionId(),
                         current.executionId());
@@ -400,7 +398,7 @@ public class JpaDelegatedTaskAdapter implements DelegatedTaskPort {
     public DelegatedTask fail(InvocationContext context, String failure, Instant at) {
         var entity = locked(context);
         var current = entity.getTask();
-        var checkpoint = merge(current.checkpoint(), "lastFailure", failure);
+        var checkpoint = current.checkpoint().withAnnotation("lastFailure", failure);
         return save(
                 entity,
                 copy(
@@ -447,7 +445,7 @@ public class JpaDelegatedTaskAdapter implements DelegatedTaskPort {
                         null,
                         null,
                         lease.fencingToken(),
-                        merge(current.checkpoint(), "cancelReason", reason),
+                        current.checkpoint().withAnnotation("cancelReason", reason),
                         at,
                         current.sessionId(),
                         current.executionId()));
@@ -486,7 +484,7 @@ public class JpaDelegatedTaskAdapter implements DelegatedTaskPort {
                         null,
                         null,
                         lease.fencingToken(),
-                        merge(current.checkpoint(), "takeoverReason", reason),
+                        current.checkpoint().withAnnotation("takeoverReason", reason),
                         at,
                         current.sessionId(),
                         current.executionId()));
@@ -552,7 +550,7 @@ public class JpaDelegatedTaskAdapter implements DelegatedTaskPort {
                                     null,
                                     null,
                                     current.fencingToken(),
-                                    merge(current.checkpoint(), "recoveredAt", now.toString()),
+                                    current.checkpoint().withAnnotation("recoveredAt", now.toString()),
                                     now,
                                     current.sessionId(),
                                     current.executionId());
@@ -626,7 +624,7 @@ public class JpaDelegatedTaskAdapter implements DelegatedTaskPort {
                         null,
                         null,
                         current.fencingToken(),
-                        merge(current.checkpoint(), "budgetPause", reason),
+                        current.checkpoint().withAnnotation("budgetPause", reason),
                         at,
                         current.sessionId(),
                         current.executionId());
@@ -718,7 +716,7 @@ public class JpaDelegatedTaskAdapter implements DelegatedTaskPort {
             String leaseOwner,
             Instant leaseUntil,
             long fencingToken,
-            Map<String, Object> checkpoint,
+            TaskCheckpoint checkpoint,
             Instant updatedAt,
             SessionId sessionId,
             ExecutionId executionId) {
@@ -745,12 +743,6 @@ public class JpaDelegatedTaskAdapter implements DelegatedTaskPort {
                 checkpoint,
                 source.createdAt(),
                 updatedAt);
-    }
-
-    private static Map<String, Object> merge(Map<String, Object> source, String key, Object value) {
-        var result = new java.util.LinkedHashMap<>(source);
-        result.put(key, value == null ? "" : value);
-        return Map.copyOf(result);
     }
 
     private static String randomId() {

@@ -33,6 +33,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionInput;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.IterationEvaluation;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard.SubTask;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskCheckpoint;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskModelSelection;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskTransition;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskTransition.ClarificationRequestTransition;
@@ -47,6 +48,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.NotificationPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.NotificationPort.Notification;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.NotificationPort.Type;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.RecoveryPreflight;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskBoardPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskTransitionPort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
@@ -92,6 +94,7 @@ public final class DelegatedTaskCoordinator {
     private final DecompositionBudget decompositionBudget;
     private final Clock clock;
     private final Duration leaseTtl;
+    private final RecoveryPreflight recoveryPreflight;
 
     public DelegatedTaskCoordinator(
             DelegatedTaskPort tasks,
@@ -107,6 +110,38 @@ public final class DelegatedTaskCoordinator {
             DecompositionBudget decompositionBudget,
             Clock clock,
             Duration leaseTtl) {
+        this(
+                tasks,
+                transitions,
+                taskIngress,
+                boards,
+                leases,
+                commands,
+                agentExecution,
+                notifications,
+                dispatch,
+                agentTaskRuntime,
+                decompositionBudget,
+                clock,
+                leaseTtl,
+                new DefaultRecoveryPreflight());
+    }
+
+    public DelegatedTaskCoordinator(
+            DelegatedTaskPort tasks,
+            TaskTransitionPort transitions,
+            TaskIngress taskIngress,
+            TaskBoardPort boards,
+            ConversationLeasePort leases,
+            AssistantCommandPort commands,
+            AgentExecutionPort agentExecution,
+            NotificationPort notifications,
+            DelegatedTaskDispatchPort dispatch,
+            AgentTaskRuntime agentTaskRuntime,
+            DecompositionBudget decompositionBudget,
+            Clock clock,
+            Duration leaseTtl,
+            RecoveryPreflight recoveryPreflight) {
         this.tasks = Objects.requireNonNull(tasks, "tasks 不能为空");
         this.transitions = Objects.requireNonNull(transitions, "transitions 不能为空");
         this.taskIngress = Objects.requireNonNull(taskIngress, "taskIngress 不能为空");
@@ -121,6 +156,8 @@ public final class DelegatedTaskCoordinator {
                 Objects.requireNonNull(decompositionBudget, "decompositionBudget 不能为空");
         this.clock = Objects.requireNonNull(clock, "clock 不能为空");
         this.leaseTtl = Objects.requireNonNull(leaseTtl, "leaseTtl 不能为空");
+        this.recoveryPreflight =
+                Objects.requireNonNull(recoveryPreflight, "recoveryPreflight 不能为空");
         if (leaseTtl.isZero() || leaseTtl.isNegative()) {
             throw new IllegalArgumentException("leaseTtl 必须为正数");
         }
@@ -188,7 +225,7 @@ public final class DelegatedTaskCoordinator {
                         null,
                         null,
                         0,
-                        Map.of(),
+                        TaskCheckpoint.empty(),
                         at,
                         at);
         var stored =
@@ -363,10 +400,17 @@ public final class DelegatedTaskCoordinator {
         } catch (RuntimeException ignored) {
             // 通知 outbox 故障不改变任务事实或阻断任务恢复。
         }
-        tasks.findDispatchable(clock.instant(), limit)
+        var now = clock.instant();
+        tasks.findDispatchable(now, limit)
                 .forEach(
-                        stored ->
-                                dispatch.signal(stored.task().tenantId(), stored.task().taskId()));
+                        stored -> {
+                            var preflight = recoveryPreflight.check(stored.task(), now);
+                            if (preflight.allowed()) {
+                                dispatch.signal(stored.task().tenantId(), stored.task().taskId());
+                            }
+                            // preflight 拒绝的任务保持原状态，不调度也不强行终结；
+                            // 留给下一轮恢复扫描或人工介入处理，不得静默丢弃。
+                        });
         return recovered;
     }
 

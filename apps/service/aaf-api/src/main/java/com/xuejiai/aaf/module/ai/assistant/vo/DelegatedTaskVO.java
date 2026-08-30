@@ -54,7 +54,7 @@ public record DelegatedTaskVO(
                 task.consecutiveFailures(),
                 task.nextRunAt(),
                 task.leaseUntil(),
-                task.checkpoint(),
+                task.checkpoint().annotations(),
                 task.createdAt(),
                 task.updatedAt());
     }

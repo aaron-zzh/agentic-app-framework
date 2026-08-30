@@ -2,7 +2,6 @@ package com.xuejiai.aaf.framework.intelligent.assistant.model;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.Map;
 import java.util.Objects;
 
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ConversationId;
@@ -33,7 +32,7 @@ public record DelegatedTask(
         String leaseOwner,
         Instant leaseUntil,
         long fencingToken,
-        Map<String, Object> checkpoint,
+        TaskCheckpoint checkpoint,
         Instant createdAt,
         Instant updatedAt) {
 
@@ -50,7 +49,7 @@ public record DelegatedTask(
         Objects.requireNonNull(contract, "contract 不能为空");
         Objects.requireNonNull(budgetUsage, "budgetUsage 不能为空");
         Objects.requireNonNull(nextRunAt, "nextRunAt 不能为空");
-        checkpoint = checkpoint == null ? Map.of() : Map.copyOf(checkpoint);
+        checkpoint = checkpoint == null ? TaskCheckpoint.empty() : checkpoint;
         Objects.requireNonNull(createdAt, "createdAt 不能为空");
         Objects.requireNonNull(updatedAt, "updatedAt 不能为空");
         if (attempts < 0 || consecutiveFailures < 0 || fencingToken < 0) {
