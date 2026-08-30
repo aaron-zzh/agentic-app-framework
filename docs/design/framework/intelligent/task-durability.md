@@ -74,18 +74,18 @@ gains:
 
 任务状态独立于聊天回合，支持暂停、取消、继续、接管与验证失败后继续修复。
 
-> **分类拍板（方案 C，2026-08-29）**：当前信任客户端传入的 `kind`（`CANCEL`/`MODIFY`/`SUPPLEMENT`/`UNRELATED`），须改为服务端分类且不信任客户端标注。目标态处置：
+> **分类拍板（方案 C，2026-08-30 复核收窄）**：当前信任客户端传入的 `kind`（`CANCEL`/`MODIFY`/`SUPPLEMENT`/`UNRELATED`），须改为服务端分类且不信任客户端标注。不引入版本化的 `BoardRevision`/历史快照——审计留痕交给既有事件流，Board 是被正常更新的状态，不需要额外版本标记。目标态处置：
 
 | 类别 | 识别方式 | 处置 |
 |---|---|---|
 | 取消 | 走既有确定性 `/stop` 端点，不经通用输入 `kind` 判定 | 中断当前执行 |
-| 修改 | 非自主分类判定为修改意图 | 生成新的不可变 `BoardRevision`，语义边界**包含目标/约束修改，也包含执行计划/DAG 修改**（新增/删除步骤、改变依赖、角色或工具）；人工确认后原子激活，v1 运行中节点默认中断未完成部分，已发生事实不自动复用（除非确定性兼容检查通过） |
+| 修改 | 非自主分类判定为修改意图 | 语义边界**包含目标/约束修改，也包含执行计划/DAG 修改**（新增/删除步骤、改变依赖、角色或工具）；先终止冲突的运行中/未执行子任务（复用既有 `TaskBoard.interruptRunning`，终止后的节点状态天然拒绝旧执行流程的滞后写回），再按新目标重新走一次协调规划生成新 `subTasks`，原地更新 `ai_task_board` 这一行；已完成节点结果不自动复用到新计划 |
 | 补充 | 非自主分类判定为补充意图 | 注入上下文；仅在 `AWAITING_CLARIFICATION` 状态合并进 `requiredFields` |
 | 无关 | 非自主分类兜底 | 排队待处理，不消费为已处理事实 |
 
-`BoardRevision` 记录 `baseVersion`/`createdBy`/`reason`/`inputId`；同一时刻只有一个 active version；激活需与 lease fencing、父任务状态、outbox 事件原子提交；execution/event/result 全部绑定 boardVersion。
+修改生效事实追加一条任务事件（复用既有 `ai_task_event` 追加式事实流），不在 Board 实体上重复记录版本信息；`(tenant_id, task_id)` 唯一约束不变，不新增表或字段。
 
-实现态：⚠️ 部分实现 · 结构化补参在 `AWAITING_CLARIFICATION` 状态可用（`TaskIngress.java:13-40`、`JpaTaskTransitionAdapter.java:215-361`）；运行中的自然语言追加输入当前被拒绝；服务端分类与 `BoardRevision` 均为目标态，当前直接信任客户端 `kind`。
+实现态：⚠️ 部分实现 · 结构化补参在 `AWAITING_CLARIFICATION` 状态可用（`TaskIngress.java:13-40`、`JpaTaskTransitionAdapter.java:215-361`）；运行中的自然语言追加输入当前被拒绝；服务端分类与终止冲突节点+原地重规划均为目标态，当前直接信任客户端 `kind`。
 
 ## 恢复
 
