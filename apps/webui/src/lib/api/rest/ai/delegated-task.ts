@@ -139,8 +139,11 @@ export interface AafAiTaskSnapshot {
 
 export interface DelegatedTaskInputRequest {
   inputId: string
-  kind: "CANCEL" | "MODIFY" | "SUPPLEMENT" | "UNRELATED"
-  content?: string
+  /** 服务端会重新分类判定，不直接信任本字段；取消不走本接口，使用 stop。 */
+  kind: "MODIFY" | "SUPPLEMENT" | "UNRELATED"
+  /** 原始自然语言输入；MODIFY 据此重新协调规划。 */
+  text?: string
+  values?: Record<string, string>
 }
 export interface HumanApprovalDecisionRequest {
   decision: "APPROVED" | "REJECTED"

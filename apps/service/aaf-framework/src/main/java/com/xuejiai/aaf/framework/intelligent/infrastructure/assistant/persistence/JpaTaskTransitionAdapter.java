@@ -21,6 +21,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.Owner
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.Status;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.HumanApproval;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.InputBuffer;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard.IterationStopReason;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskCheckpoint;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskTransition;
@@ -240,39 +241,44 @@ public class JpaTaskTransitionAdapter implements TaskTransitionPort {
                 inputs.findPendingForUpdate(context.tenantId().value(), context.taskId().value());
         if (pending.isEmpty()) return Optional.empty();
         var buffered = pending.stream().map(TaskInputEntity::getInput).toList();
-        var cancel =
+        var modifyInput =
                 buffered.stream()
-                        .anyMatch(
+                        .filter(
                                 input ->
                                         input.kind()
                                                 == com.xuejiai.aaf.framework.intelligent.assistant
-                                                        .model.ExecutionInput.Kind.CANCEL);
+                                                        .model.ExecutionInput.Kind.MODIFY)
+                        .filter(input -> input.text() != null)
+                        .reduce((first, second) -> second) // 同批次多条 MODIFY 只取最新一条为准
+                        .orElse(null);
         var board = boardEntity.getBoard();
+        var coordinatorSource = board.subTasks().get("coordinator");
+        // single 类型 Board 无 coordinator 角色，不支持重新协调规划语义；本次 MODIFY 按未生效处理，
+        // 仅记录输入事实，不触发重规划——与其余分支一致的 fail-closed 风格，不猜测替代语义。
+        var replanEligible = modifyInput != null && coordinatorSource != null;
         var changedTask = current;
         ClarificationRequest changedClarification =
                 clarificationEntity == null ? null : clarificationEntity.getRequest();
         var transitionEvents = new java.util.ArrayList<ExecutionEvent>();
+        var replanned = false;
 
-        if (cancel) {
-            if (changedClarification != null) {
-                changedClarification = changedClarification.cancel(transition.at());
-                board =
-                        board.stopClarification(
-                                changedClarification.executionId(),
-                                changedClarification.subTaskId());
-                apply(clarificationEntity, context.tenantId().value(), changedClarification);
-                clarifications.save(clarificationEntity);
-                transitionEvents.add(
-                        clarificationStateEvent(
-                                taskEntity.getCommand(),
-                                changedClarification,
-                                ExecutionEventType.CLARIFICATION_CANCELED,
-                                ExecutionEventStatus.CANCELED,
-                                transition.at()));
-            } else {
-                board = board.interruptRunning(false);
-            }
-            changedTask = cancelByInput(current, lease, transition.at());
+        if (changedClarification == null && replanEligible) {
+            // MODIFY 且当前不在等待澄清：按新目标终止冲突节点并原地重新协调规划（方案 C，2026-08-30 拍板）。
+            // 旧 Board 整体被新 Board 替换，不保留旧子任务 key；若旧节点执行流程恰好在此刻写回结果，
+            // 会因 key 不存在而按异常处理（DelegatedTaskCoordinator.executeSubTask 的 onErrorResume
+            // 兜底为子任务失败，不产生错误副作用），这是可接受的低概率时序边界，不为此增加两阶段持久化。
+            board =
+                    TaskBoard.coordinated(
+                            context.taskId(),
+                            modifyInput.text(),
+                            coordinatorSource.roleKey(),
+                            coordinatorSource.skillKey(),
+                            current.contract().retryPolicy().maxAttempts());
+            taskEntity.setCommand(taskEntity.getCommand().asResume(transition.at()));
+            changedTask = resume(current, lease, transition.at());
+            // 留痕交由下方 buffered.forEach 为本条 MODIFY 输入生成的 INPUT_MODIFIED 事件承担，
+            // 不额外发第二条事件重复记录同一件事实。
+            replanned = true;
         } else if (changedClarification != null) {
             changedClarification =
                     new InputBuffer(buffered)
@@ -319,27 +325,23 @@ public class JpaTaskTransitionAdapter implements TaskTransitionPort {
             apply(clarificationEntity, context.tenantId().value(), changedClarification);
             clarifications.save(clarificationEntity);
         }
-        if (!cancel
+        if (!replanned
                 && changedTask.status() != Status.RUNNING
                 && changedTask.status() != Status.PENDING) {
             changedTask = retainWaiting(changedTask, lease, transition.at());
         }
 
         var inputStatus =
-                cancel
-                        ? ExecutionEventStatus.CANCELED
-                        : switch (changedTask.status()) {
-                            case PENDING -> ExecutionEventStatus.RECOVERING;
-                            case RUNNING -> ExecutionEventStatus.RUNNING;
-                            case AWAITING_CLARIFICATION ->
-                                    ExecutionEventStatus.AWAITING_CLARIFICATION;
-                            case AWAITING_AUTHORIZATION ->
-                                    ExecutionEventStatus.AWAITING_AUTHORIZATION;
-                            case PAUSED -> ExecutionEventStatus.PAUSED;
-                            case COMPLETED -> ExecutionEventStatus.COMPLETED;
-                            case FAILED -> ExecutionEventStatus.FAILED;
-                            case CANCELED -> ExecutionEventStatus.CANCELED;
-                        };
+                switch (changedTask.status()) {
+                    case PENDING -> ExecutionEventStatus.RECOVERING;
+                    case RUNNING -> ExecutionEventStatus.RUNNING;
+                    case AWAITING_CLARIFICATION -> ExecutionEventStatus.AWAITING_CLARIFICATION;
+                    case AWAITING_AUTHORIZATION -> ExecutionEventStatus.AWAITING_AUTHORIZATION;
+                    case PAUSED -> ExecutionEventStatus.PAUSED;
+                    case COMPLETED -> ExecutionEventStatus.COMPLETED;
+                    case FAILED -> ExecutionEventStatus.FAILED;
+                    case CANCELED -> ExecutionEventStatus.CANCELED;
+                };
         buffered.forEach(
                 input ->
                         transitionEvents.add(
@@ -788,24 +790,6 @@ public class JpaTaskTransitionAdapter implements TaskTransitionPort {
                 current.executionId());
     }
 
-    private static DelegatedTask cancelByInput(DelegatedTask current, Lease lease, Instant at) {
-        return copy(
-                current,
-                Status.CANCELED,
-                new Owner(OwnerKind.HUMAN, current.userId().value()),
-                current.budgetUsage(),
-                current.attempts(),
-                current.consecutiveFailures(),
-                current.nextRunAt(),
-                null,
-                null,
-                lease.fencingToken(),
-                current.checkpoint().withAnnotation("inputCanceled", true),
-                at,
-                current.sessionId(),
-                current.executionId());
-    }
-
     private static ExecutionEvent inputEvent(
             AssistantCommand command,
             com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionInput input,
@@ -813,7 +797,6 @@ public class JpaTaskTransitionAdapter implements TaskTransitionPort {
             Instant at) {
         var type =
                 switch (input.kind()) {
-                    case CANCEL -> ExecutionEventType.INPUT_CANCELED;
                     case MODIFY -> ExecutionEventType.INPUT_MODIFIED;
                     case SUPPLEMENT -> ExecutionEventType.INPUT_SUPPLEMENTED;
                     case UNRELATED -> ExecutionEventType.INPUT_UNRELATED;

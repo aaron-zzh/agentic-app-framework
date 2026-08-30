@@ -81,6 +81,7 @@ public class DelegatedTaskService {
                         userId(),
                         new TaskId(taskId),
                         input.kind(),
+                        input.text(),
                         input.values(),
                         Instant.now());
         return coordinator.acceptInput(command).map(this::toVO);

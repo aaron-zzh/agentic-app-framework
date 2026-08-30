@@ -26,6 +26,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.application.CompletionVal
 import com.xuejiai.aaf.framework.intelligent.assistant.application.ContextLoadTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultCompletionValidator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultEffectiveSkillResolver;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultInputClassifier;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultRoleSelector;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultSkillSelectionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultTaskComplexityAnalyzer;
@@ -49,6 +50,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskDispatc
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.EffectiveContextPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ExecutionProfileSnapshotPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.InputClassifier;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.NotificationPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.RoleDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.SkillDecisionAuditPort;
@@ -344,10 +346,22 @@ public class AssistantInfrastructureAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnBean(PromptInvocationGateway.class)
+    @ConditionalOnMissingBean(InputClassifier.class)
+    InputClassifier inputClassifier(PromptInvocationGateway promptGateway) {
+        return new DefaultInputClassifier(promptGateway);
+    }
+
+    @Bean
     @ConditionalOnBean({DelegatedTaskPort.class, DelegatedTaskDispatchPort.class})
     @ConditionalOnMissingBean(TaskIngress.class)
-    TaskIngress taskIngress(DelegatedTaskPort tasks, DelegatedTaskDispatchPort dispatchSignals) {
-        return new TaskIngress(tasks, dispatchSignals);
+    TaskIngress taskIngress(
+            DelegatedTaskPort tasks,
+            DelegatedTaskDispatchPort dispatchSignals,
+            ObjectProvider<TaskBoardPort> boards,
+            ObjectProvider<InputClassifier> classifier) {
+        return new TaskIngress(
+                tasks, dispatchSignals, boards.getIfAvailable(), classifier.getIfAvailable());
     }
 
     @Bean
