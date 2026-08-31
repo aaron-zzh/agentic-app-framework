@@ -2,21 +2,45 @@
 level: Thought
 layer: Principle
 purpose: 对比 AAF 的三条 AgentScope 演进路线并给出唯一推荐、迁移路径与可观测切换判据
-status: draft
-version: 1.0.0
+status: superseded
+superseded-by: docs/design/adr/ADR-005-agentscope-boundary-and-orchestration.md
+version: 1.1.0
 date: 2026-08-30
 author: AaronZZH
+changelog:
+  - 2026-08-30 初版，产出三条路线定义、六维对比矩阵与单一推荐（路线三）
+  - 2026-09-01 标记为 superseded：路线推荐被 ADR-005 改判，新增「被 ADR-005 改判的部分」并清理已过期行动项
 ---
 
 # AAF AgentScope 演进路线决策建议
 
+> **本文的路线推荐已被 [ADR-005](../../adr/ADR-005-agentscope-boundary-and-orchestration.md) 改判，不再是当前决策。**
+> 本文保留为 ADR-005 的输入材料与 2026-08-30 时点的事实基线（路线定义、对比矩阵、迁移路径、切换判据仍可引用）。哪些结论失效见下方[被 ADR-005 改判的部分](#被-adr-005-改判的部分)。
+
 ## 决策摘要
 
-**单一推荐：路线三——保留 `agentscope-harness`，收窄 AAF 自研边界，把横切治理迁入官方 Middleware/Toolkit/Repository 等扩展点，再按风险逐步启用 Harness 原生能力。**
+**单一推荐：路线三——保留 `agentscope-harness`，收窄 AAF 自研边界，把横切治理迁入官方 Middleware/Toolkit/Repository 等扩展点，再按风险逐步启用 Harness 原生能力。**（⚠️ 本推荐已被 ADR-005 改判，见[被 ADR-005 改判的部分](#被-adr-005-改判的部分)）
 
 该推荐不是维持现状。当前 59 项能力中只有 10 项复用、47 项由 AAF 自研替代、2 项未使用，且 `HarnessAgent` 仍非预期装配 workspace/filesystem/message bus、`InboxMiddleware` 与 `WaitAsyncResultsTool`；路线三必须先封住这些默认表面，再执行边界收窄，不能把现状直接视为目标态。证据见 [01-reuse-map.md](01-reuse-map.md) 的“结论摘要”“Harness 默认开启项与 AAF 实际结果”。
 
 推荐顺序固定为：**先修运行正确性 → 再迁移扩展点与收窄边界 → 最后启用原生能力**。原因是当前存在 RQ-01 一个 blocker 与 RQ-02～RQ-10 九个 major；换成 core 或 Spring AI 都不会自动修复其中大部分 AAF 执行注册、取消、事件、状态和幂等协议问题。证据见 [02-runtime-quality.md](02-runtime-quality.md) 的“风险清单”与“最终判定”。
+
+## 被 ADR-005 改判的部分
+
+[ADR-005](../../adr/ADR-005-agentscope-boundary-and-orchestration.md) 在本文基础上做了代码级验证并定案，实际取的是**路线二的执行面骨架 + 本文路线三第二阶段的扩展点迁移**，不是本文推荐的完整路线三。逐条对应关系如下。
+
+| 本文结论 | ADR-005 实际决定 | 当前状态 |
+| --- | --- | --- |
+| 单一推荐路线三：以 Harness 为执行面，不自研 harness 层 | 议题三选 B：编译目标改为 `io.agentscope.core.ReActAgent`（core 包），理由是 15 个 `disableXxx()` 使用率为零且 `WaitAsyncResultsTool` 构成真实工具泄漏 | **失效**。执行面外层（builder、生命周期、缓存、middleware 装配、中断、能力启停）由 AAF 自持，即本文路线二的技术含义 |
+| 路线三第三阶段：Harness 原生能力分批启用 | 议题二选 A：不采用原生 Subagent/Plan Mode，保留自建 TaskBoard 外部编排（两者是容器关系 vs 平级编排关系，结构不同不可互换） | **基本作废**。workspace/filesystem/shell/sandbox 保持关闭；仅 `PermissionMode` 仍在采纳评估中——它是 `ReActAgent.builder()` 基础参数，非 Harness 专属 |
+| 路线三第二阶段：横切治理迁入官方 Middleware/Toolkit/AgentStateStore/repository 扩展点 | ADR-005 未改判 | **仍有效**。这些扩展点位于 core，不依赖 `HarnessAgent` |
+| 第一阶段：生产正确性封口（RQ-01 blocker + 9 项 major + `JsonSchemaUtils` shadow 退出） | ADR-005 明确「本 ADR 不改变这份工作量」 | **仍有效**，且是 ADR-005 后续动作第 1、2 项 |
+| AG-UI 收敛到官方 adapter（见 [04-reuse-correctness.md](04-reuse-correctness.md)） | 议题一选 B：采用 `agentscope-extensions-agui` 的**事件模型库**，删除自研 `AgUiEvent`；**不采用** starter/`AguiAgentAdapter`（抽象层级错配：starter 的货币单位是"一个 Agent"，AAF 的执行单元是"一个任务"） | **部分改判**。收敛止于数据层，协议入口与入参 record 仍由 AAF 自持 |
+| 切换判据表中「Harness 默认表面持续漂移」「上游提供稳定最小模式（minimalMode）」两行 | — | **失效**。两者均以 `HarnessAgent` 为执行面为前提 |
+
+本文的一处表述瑕疵一并记录：路线三定义写作"继续以 `HarnessAgent`/`ReActAgent` 作为执行面，不新建 AAF ReAct 或自研 Harness"，把 `ReActAgent` 也纳入路线三，与同句"不自研 Harness"自相矛盾。区分路线二与路线三的真正判据是**谁拥有 Agent 外层装配与生命周期**，不是编译目标类名。
+
+ADR-005 留下的未决口子（不属本文范围，已回流至 ADR-005 后续动作）：依赖坐标是否由 `agentscope-harness` 降为 `agentscope-core`。ADR-005 只决定了编译目标类，而 `aaf-dependencies/pom.xml` 与 `aaf-framework/pom.xml` 目前仍声明 harness 坐标。
 
 ## 证据基线与估算口径
 
@@ -117,6 +141,8 @@ author: AaronZZH
 ## 推荐路线与论据
 
 ### 推荐结论
+
+> 本节推荐已被 ADR-005 改判，见[被 ADR-005 改判的部分](#被-adr-005-改判的部分)。下述"执行面/企业控制面"的**边界划分**仍成立，改判的是执行面由谁装配以及是否启用 Harness 原生能力。
 
 选择**路线三**，目标边界固定为：
 
@@ -234,6 +260,8 @@ author: AaronZZH
 
 以下阈值是决策门，不是对当前事实的描述。任一信号达到阈值即创建新 ADR 重新评估；达到“立即动作”条件时停止依赖升级或回切对应路线。
 
+> 其中「Harness 默认表面持续漂移」与「上游提供稳定最小模式」两行以 `HarnessAgent` 为执行面为前提，ADR-005 议题三改判后已失效；ADR-005 自带的 [Reversal Triggers](../../adr/ADR-005-agentscope-boundary-and-orchestration.md) 是当前的回切判据。其余各行仍适用。
+
 | 可观测信号 | 明确阈值 | 动作方向 |
 | --- | --- | --- |
 | Harness 默认表面持续漂移 | 任一候选升级出现 **1 个未授权 tool/middleware**，或连续 **2 个上游版本**无法通过最终 Toolkit/middleware 契约 | 暂停升级；若 core 契约测试仍通过，评估从路线三切到路线二。当前存在 Wait/Inbox 默认注入的事实基线见 [01-reuse-map.md](01-reuse-map.md)“Harness 默认开启项与 AAF 实际结果”。 |
@@ -250,7 +278,9 @@ author: AaronZZH
 
 ### 🔴 需人类审核后才能动代码
 
-- 批准路线三及“执行面/企业控制面”边界；该决策涉及架构、跨模块和依赖替换，符合高风险条件。
+> 首条已由 [ADR-005](../../adr/ADR-005-agentscope-boundary-and-orchestration.md) 取代（实际定案为路线二执行面骨架 + 扩展点迁移，见[被 ADR-005 改判的部分](#被-adr-005-改判的部分)）；其余四条仍待审核。
+
+- ~~批准路线三及“执行面/企业控制面”边界~~——已由 ADR-005 定案，不再按本文路线三批准。
 - 批准 AgentScope 独立坐标最小 fork、整体替换官方 core/harness、删除 `JsonSchemaUtils` shadow，并确定上游 PR 与退出 fork 的责任人。[04-reuse-correctness.md](04-reuse-correctness.md)“推荐方案”。
 - 批准 RQ-01 终态协议、execution idempotency、AgentState 身份/恢复语义；这些变化影响持久状态、事件与恢复合同。[02-runtime-quality.md](02-runtime-quality.md) RQ-01、RQ-05、RQ-08～RQ-09。
 - 批准 HITL/Permission、Role-Skill runtime、AG-UI protocol、filesystem/sandbox、subagent/message bus 的每个切换批次；这些改动涉及安全、接口或跨模块真理源。[03-capability-gap.md](03-capability-gap.md)“按风险分批替换”。
@@ -261,12 +291,7 @@ author: AaronZZH
 - 为 59 项能力表、31 项事件处置、最终 Toolkit/middleware surface 建只读清单与契约测试设计，不改变运行路径。[01-reuse-map.md](01-reuse-map.md)“立即收紧运行边界”；[04-reuse-correctness.md](04-reuse-correctness.md)“AgentEvent 与 AgentEventType”。
 - 将 RQ-01～RQ-13、10 项缺失、7 项可迁扩展点、8 项重复能力改造项拆成 backlog 候选并标注依赖，不修改代码。
 - 建立 AgentScope 上游发布、最后提交日期、fork diff 行数、契约测试失败数与未授权 surface 数的观测看板，为切换判据提供数据。
-- 修正 ADR 索引中“显示编号 ADR-004、链接文件 ADR-003”的编号不一致；现有实体文件为 ADR-001、ADR-002、ADR-003，目录证据见 [`docs/design/adr/Readme.md`](../../adr/Readme.md) 与 [`ADR-003-virtual-threads-over-webflux.md`](../../adr/ADR-003-virtual-threads-over-webflux.md)。
 
-### ADR 落地建议
+### ADR 落地结果
 
-本结论必须形成 ADR，但本次不创建 ADR 文件。现有实体 ADR 文件编号为 001～003，因此建议使用：
-
-> **ADR-004：AgentScope Harness 执行面与 AAF 企业控制面边界**
-
-建议文件名：`docs/design/adr/ADR-004-agentscope-runtime-boundary.md`。ADR 应按 [`docs/design/adr/_template.md`](../../adr/_template.md) 记录三条候选路线、路线三的负面后果和本文“可观测切换判据”；创建时同时修正 ADR 索引的现有编号显示错误，但不要把索引中的误标当成已占用的 ADR-004 实体文件。
+已落地为 [ADR-005：AgentScope 复用边界与双层编排模型定案](../../adr/ADR-005-agentscope-boundary-and-orchestration.md)（2026-08-31，status `proposed`）。本文初版建议的编号 ADR-004 与文件名 `ADR-004-agentscope-runtime-boundary.md` **未采用**；ADR 索引的编号不一致已在创建 ADR-005 时同步修正，该遗留提示不再有效。
