@@ -21,13 +21,13 @@ import io.agentscope.core.agui.event.AguiEvent;
 /**
  * 内部执行事件到 AG-UI 标准事件的唯一映射。
  *
- * <p>事件模型使用官方 {@code io.agentscope.core.agui.event.AguiEvent}，不再自研——字段契约由前端
- * {@code @ag-ui/core} 的 zod schema 强制校验（{@code EventSchemas.parse}），自研模型无法保证对齐。
+ * <p>事件模型使用官方 {@code io.agentscope.core.agui.event.AguiEvent}，不再自研——字段契约由前端 {@code @ag-ui/core} 的
+ * zod schema 强制校验（{@code EventSchemas.parse}），自研模型无法保证对齐。
  *
- * <p>投影是有状态的：AG-UI 要求 {@code TEXT_MESSAGE_START/END} 与 {@code TOOL_CALL_START/END} 成对，
- * 而 AAF 的 {@code MESSAGE_STARTED} 来自 AgentScope {@code TEXT_BLOCK_START}（ReAct 每轮都可能触发），
- * {@code MESSAGE_COMPLETED} 来自 {@code AGENT_RESULT}（一次执行仅一次）。因此必须按 run 跟踪
- * started/ended 集合去重，并在流结束时兜底闭合。每次 run 通过 {@link #openSession} 取独立会话。
+ * <p>投影是有状态的：AG-UI 要求 {@code TEXT_MESSAGE_START/END} 与 {@code TOOL_CALL_START/END} 成对， 而 AAF 的
+ * {@code MESSAGE_STARTED} 来自 AgentScope {@code TEXT_BLOCK_START}（ReAct 每轮都可能触发）， {@code
+ * MESSAGE_COMPLETED} 来自 {@code AGENT_RESULT}（一次执行仅一次）。因此必须按 run 跟踪 started/ended 集合去重，并在流结束时兜底闭合。每次
+ * run 通过 {@link #openSession} 取独立会话。
  */
 @Component
 public final class AgUiProjector {
@@ -176,8 +176,7 @@ public final class AgUiProjector {
         /**
          * 工具结果：先补 TOOL_CALL_END 关闭参数阶段，再发 TOOL_CALL_RESULT。
          *
-         * <p>AG-UI 的 {@code content} 契约是字符串，因此把脱敏后的安全字段序列化为 JSON 文本；结构化消费
-         * 仍可解析该字符串。
+         * <p>AG-UI 的 {@code content} 契约是字符串，因此把脱敏后的安全字段序列化为 JSON 文本；结构化消费 仍可解析该字符串。
          */
         private List<AguiEvent> toolCallResult(
                 String threadId, String runId, String toolCallId, Map<String, Object> data) {
@@ -207,9 +206,9 @@ public final class AgUiProjector {
         /**
          * CUSTOM 载荷显式建 Map，不直接传 record。
          *
-         * <p>{@code AguiEventEncoder} 用 agentscope-core 的 Jackson 2 codec 序列化，其 JavaTimeModule
-         * 默认把 {@code Instant} 写成数字时间戳；前端 {@code isAafAiTaskEvent} 要求 {@code createdAt}
-         * 是字符串。这里固定输出 ISO-8601，避免依赖上游日期策略。
+         * <p>{@code AguiEventEncoder} 用 agentscope-core 的 Jackson 2 codec 序列化，其 JavaTimeModule 默认把
+         * {@code Instant} 写成数字时间戳；前端 {@code isAafAiTaskEvent} 要求 {@code createdAt} 是字符串。这里固定输出
+         * ISO-8601，避免依赖上游日期策略。
          */
         private static Map<String, Object> customValue(AafAiTaskEvent publicEvent) {
             var value = new LinkedHashMap<String, Object>();
@@ -237,9 +236,8 @@ public final class AgUiProjector {
         /**
          * AG-UI 的 threadId 对应 AAF 的 conversationId。
          *
-         * <p>{@code AssistantExecutionService.RunIdentity.create} 用同一个 threadId 构造
-         * ConversationId / SessionId，且 {@code ExecutionEvent} 对 conversationId 有非空约束，
-         * 因此这里必然拿到调用方传入的 threadId。
+         * <p>{@code AssistantExecutionService.RunIdentity.create} 用同一个 threadId 构造 ConversationId /
+         * SessionId，且 {@code ExecutionEvent} 对 conversationId 有非空约束， 因此这里必然拿到调用方传入的 threadId。
          */
         private static String threadId(ExecutionEvent event) {
             return event.conversationId().value();
@@ -248,8 +246,8 @@ public final class AgUiProjector {
         /**
          * 当前用 executionId 作为 messageId。
          *
-         * <p>AgentScope 的 replyId/blockId 尚未在 {@code AgentScopeEventMapper} 的 TEXT_BLOCK_START
-         * 分支进入 payload，因此无法按 block 分消息。配对跟踪已消除重复 START，语义正确性待补 replyId。
+         * <p>AgentScope 的 replyId/blockId 尚未在 {@code AgentScopeEventMapper} 的 TEXT_BLOCK_START 分支进入
+         * payload，因此无法按 block 分消息。配对跟踪已消除重复 START，语义正确性待补 replyId。
          */
         private static String messageId(ExecutionEvent event) {
             return event.executionId().value();

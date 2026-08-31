@@ -3,7 +3,6 @@ package com.xuejiai.aaf.module.ai.agui;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.DisplayName;
@@ -84,11 +83,11 @@ class AgUiProjectorTest {
         var session = projector.openSession();
 
         var events =
-                session.project(
-                        event(1, ExecutionEventType.MESSAGE_DELTA, Map.of("delta", "你好")));
+                session.project(event(1, ExecutionEventType.MESSAGE_DELTA, Map.of("delta", "你好")));
 
         assertThat(events.stream().map(AguiEvent::getType))
-                .containsExactly(AguiEventType.TEXT_MESSAGE_START, AguiEventType.TEXT_MESSAGE_CONTENT);
+                .containsExactly(
+                        AguiEventType.TEXT_MESSAGE_START, AguiEventType.TEXT_MESSAGE_CONTENT);
         assertThat(json(events.get(1))).contains("\"delta\":\"你好\"");
     }
 

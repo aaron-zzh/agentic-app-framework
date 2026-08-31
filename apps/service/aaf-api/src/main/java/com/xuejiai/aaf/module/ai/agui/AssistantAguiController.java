@@ -80,7 +80,10 @@ public class AssistantAguiController {
                         event -> send(emitter, session.project(event), event.sequence()),
                         failure -> {
                             // 事件流以异常终止时补 RUN_ERROR + RUN_FINISHED，保证 run 在协议上闭合
-                            send(emitter, session.fail(threadId, runId, "ASSISTANT_STREAM_FAILED"), 0);
+                            send(
+                                    emitter,
+                                    session.fail(threadId, runId, "ASSISTANT_STREAM_FAILED"),
+                                    0);
                             emitter.complete();
                         },
                         () -> {
@@ -186,12 +189,11 @@ public class AssistantAguiController {
     /**
      * 发送一批 AG-UI 事件。
      *
-     * <p>序列化必须走 {@link AguiEventEncoder}：官方 {@code AguiEvent} 用 Jackson 2 注解，Spring Boot 4
-     * 的 Jackson 3 {@code HttpMessageConverter} 不认这些注解。encoder 自带 Jackson 2 codec 且返回带前导
-     * 空格的 JSON，与 SSE 的 {@code data:} 前缀拼成标准 {@code data: {...}}。
+     * <p>序列化必须走 {@link AguiEventEncoder}：官方 {@code AguiEvent} 用 Jackson 2 注解，Spring Boot 4 的
+     * Jackson 3 {@code HttpMessageConverter} 不认这些注解。encoder 自带 Jackson 2 codec 且返回带前导 空格的 JSON，与
+     * SSE 的 {@code data:} 前缀拼成标准 {@code data: {...}}。
      *
-     * <p>SSE id 按「事件游标.批内序号」生成：一条 ExecutionEvent 可投影出多条 AG-UI 事件，复用同一 id 会
-     * 让 Last-Event-ID 断线续传错位。
+     * <p>SSE id 按「事件游标.批内序号」生成：一条 ExecutionEvent 可投影出多条 AG-UI 事件，复用同一 id 会 让 Last-Event-ID 断线续传错位。
      */
     private static void send(SseEmitter emitter, List<AguiEvent> events, long cursor) {
         try {

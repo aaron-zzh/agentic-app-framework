@@ -31,9 +31,9 @@ import com.xuejiai.aaf.module.ai.agui.AgUiProjector;
 import com.xuejiai.aaf.module.ai.assistant.service.AssistantApprovalEventService;
 import com.xuejiai.aaf.module.ai.assistant.vo.HumanApprovalDecisionDTO;
 import com.xuejiai.aaf.module.ai.assistant.vo.HumanApprovalVO;
+
 import io.agentscope.core.agui.encoder.AguiEventEncoder;
 import io.agentscope.core.agui.event.AguiEvent;
-
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -113,10 +113,7 @@ public class HumanApprovalController {
                                         session.project(stored.event()),
                                         stored.eventOffset()),
                         failure -> {
-                            send(
-                                    emitter,
-                                    session.fail(runId, runId, "ASSISTANT_STREAM_FAILED"),
-                                    0);
+                            send(emitter, session.fail(runId, runId, "ASSISTANT_STREAM_FAILED"), 0);
                             emitter.complete();
                         },
                         () -> {

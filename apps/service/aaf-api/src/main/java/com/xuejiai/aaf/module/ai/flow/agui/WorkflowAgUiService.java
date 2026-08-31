@@ -20,12 +20,12 @@ import com.xuejiai.aaf.framework.engine.workflow.runtime.WorkflowExecutionLog;
 import com.xuejiai.aaf.framework.engine.workflow.runtime.WorkflowExecutionLogger;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
-import io.agentscope.core.agui.encoder.AguiEventEncoder;
-import io.agentscope.core.agui.event.AguiEvent;
 import com.xuejiai.aaf.module.ai.flow.domain.AiFlowDefinition;
 import com.xuejiai.aaf.module.ai.flow.repository.AiFlowDefinitionRepository;
 import com.xuejiai.aaf.module.ai.flow.service.AiFlowBpmnCompiler;
 
+import io.agentscope.core.agui.encoder.AguiEventEncoder;
+import io.agentscope.core.agui.event.AguiEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -51,8 +51,10 @@ import lombok.extern.slf4j.Slf4j;
 public class WorkflowAgUiService {
 
     private static final long SSE_TIMEOUT = 30 * 60 * 1000L;
+
     /** 线程安全且无状态，可跨请求共享。 */
     private static final AguiEventEncoder ENCODER = new AguiEventEncoder();
+
     private static final long POLL_INTERVAL_MS = 500L;
     private static final long HEARTBEAT_INTERVAL_MS = 15_000L;
     private static final Set<String> RESERVED_VARIABLES =
@@ -110,7 +112,15 @@ public class WorkflowAgUiService {
         bpmnEngine.completeTask(currentTask.taskId(), safeVariables, identity.userId().toString());
         var emitter = activeEmitters.get(runId);
         if (emitter != null) {
-            sendEvent(emitter, new AguiEvent.ToolCallResult(runId, runId, "user_input_" + runId, "用户已提交输入", "tool", "user_input_" + runId));
+            sendEvent(
+                    emitter,
+                    new AguiEvent.ToolCallResult(
+                            runId,
+                            runId,
+                            "user_input_" + runId,
+                            "用户已提交输入",
+                            "tool",
+                            "user_input_" + runId));
         }
     }
 
@@ -162,7 +172,9 @@ public class WorkflowAgUiService {
                     && bpmnEngine.findInstanceByBusinessKey(businessKey(runId)) == null) {
                 deleteDebugDeployment(tempDeploymentId);
             }
-            sendEvent(emitter, new AguiEvent.RunError(runId, runId, safeMessage(e), "WORKFLOW_RUN_FAILED"));
+            sendEvent(
+                    emitter,
+                    new AguiEvent.RunError(runId, runId, safeMessage(e), "WORKFLOW_RUN_FAILED"));
             completeEmitter(emitter, e);
         }
     }
@@ -191,7 +203,9 @@ public class WorkflowAgUiService {
             completeEmitter(emitter, e);
         } catch (RuntimeException e) {
             log.error("推送执行状态失败: runId={}", runId, e);
-            sendEvent(emitter, new AguiEvent.RunError(runId, runId, safeMessage(e), "WORKFLOW_RUN_FAILED"));
+            sendEvent(
+                    emitter,
+                    new AguiEvent.RunError(runId, runId, safeMessage(e), "WORKFLOW_RUN_FAILED"));
             completeEmitter(emitter, e);
         }
     }
@@ -406,8 +420,8 @@ public class WorkflowAgUiService {
     /**
      * 发送工作流 AG-UI 事件。
      *
-     * <p>序列化走 {@link AguiEventEncoder}（Jackson 2 codec），不能用 AAF 的 Jackson 3 JsonUtils——官方
-     * {@code AguiEvent} 的字段注解是 Jackson 2 的。
+     * <p>序列化走 {@link AguiEventEncoder}（Jackson 2 codec），不能用 AAF 的 Jackson 3 JsonUtils——官方 {@code
+     * AguiEvent} 的字段注解是 Jackson 2 的。
      */
     private void sendEvent(SseEmitter emitter, AguiEvent event) {
         try {
