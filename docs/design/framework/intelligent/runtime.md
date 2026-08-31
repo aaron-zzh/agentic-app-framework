@@ -51,7 +51,7 @@ gains:
 |---|---|---|
 | Assistant 正文入口 | `POST /api/agui/run`，认证后调用；Assistant 三模式共用 | ✅ 已实现 · `AssistantAguiController.java:63-106` |
 | 会话前置 | 必须使用当前用户拥有的既有 AI `Conversation.threadId` | ✅ 已实现 · `AssistantAguiController.java:68-78` |
-| 运行模式 | `state.mode` 仅允许 `CHAT`、`EXECUTION`、`TEAM` | ✅ 已实现 · `AssistantAguiController.java:80-106` |
+| 运行模式 | `forwardedProps.mode` 仅允许 `CHAT`、`EXECUTION`、`TEAM`；模式只决定请求组装，执行链唯一 | ✅ 已实现 · `AssistantAguiController.Mode.plan`（每种模式各自组装 `AssistantExecutionRequest` + 可选 Team 目标）→ `AssistantExecutionService.start` |
 | 会话身份 | `threadId = ConversationId = SessionId` | ✅ 已实现 · `AssistantExecutionService.java:1221-1243` |
 | 运行身份 | 每轮独立 `runId = TaskId = ExecutionId = RunId` | ✅ 已实现 · `AssistantExecutionService.java:1221-1243` |
 | 正文投影 | Assistant 主链以 AG-UI SSE 投影正文；公共任务事件与 Snapshot 不返回正文 | ✅ 已实现 · 主入口统一见 `AssistantAguiController.java:63-78`；`POST /api/workflow/run` 已收窄为编排调试通道（仅 `debug=true`、仅创建者，`WorkflowAgUiService.requireRunnableFlow`），是独立契约而非第二正文通路 |
@@ -83,23 +83,27 @@ Assistant 主链不存在同步 REST 正文接口，也不保留旧 Assistant �
 | `messages[].id` | 全部 | 可选协议标识；当前不参与服务端幂等 |
 | `messages[].role` | 全部 | 必填非空；正文只取大小写不敏感的 `user` |
 | `messages[].content` | 全部 | 字符串，或 `[{"type":"text","text":"..."}]`；其他 part 不进入正文 |
-| `state.mode` | 全部 | 必填：`CHAT` / `EXECUTION` / `TEAM` |
-| `state.assistantId` | `CHAT` | 可选；省略时解析当前用户默认 Assistant |
-| `state.taskModelSelection` | `CHAT` | 必填对象；见下表。`EXECUTION/TEAM` 使用 `state.request.model`，不得依赖本字段 |
-| `state.request` | `EXECUTION/TEAM` | 必填且可反序列化为 `AssistantExecutionRequest`；`input.text` 必须与最后一条 user 正文完全一致 |
-| `state.teamId` | `TEAM` | 必填非空，引用当前租户 Team |
-| `state.teamVersion` | `TEAM` | 必填正整数，且该版本必须已发布 |
+| `forwardedProps.mode` | 全部 | 必填：`CHAT` / `EXECUTION` / `TEAM` |
+| `forwardedProps.assistantId` | `CHAT` | 可选；省略时解析当前用户默认 Assistant |
+| `forwardedProps.taskModelSelection` | `CHAT` | 必填对象；见下表。`EXECUTION/TEAM` 使用 `forwardedProps.request.model`，不得依赖本字段 |
+| `forwardedProps.request` | `EXECUTION/TEAM` | 必填且可反序列化为 `AssistantExecutionRequest`；`input.text` 必须与最后一条 user 正文完全一致 |
+| `forwardedProps.teamId` | `TEAM` | 必填非空，引用当前租户 Team |
+| `forwardedProps.teamVersion` | `TEAM` | 必填正整数，且该版本必须已发布 |
+| `state` | 全部 | 可选；协议语义是线程级共享状态（可被 `STATE_SNAPSHOT` 回吐），只放页面感知上下文。服务端当前不消费，**禁止**放调用参数 |
+| `tools` / `context` | 全部 | 可选协议字段；标准客户端会发，AAF 不接受前端提供的工具与上下文，接收后丢弃 |
 
-实现态：✅ 已实现 · `AssistantAguiController.java:68-169,203-288`。`parentRunId` 当前未消费是已知契约限制，不表示恢复谱系已建立。
+> **为什么调用参数走 `forwardedProps` 而不是 `state`**：协议里 `state` 是双向共享状态，`forwardedProps` 是本次 run 的一次性单向透传参数；官方 starter 自身也用 `forwardedProps.agentId` 做路由。放在 `state` 会让一次性参数具备"可被回写/回放"的语义，客户端持久化 thread state 后可能把上一轮参数带进下一轮。
 
-### `state.taskModelSelection`
+实现态：✅ 已实现 · `AssistantAguiController.RunRequest`（字段形状对齐协议 `RunAgentInput`，不复用官方 Jackson 2 类）、`AssistantAguiController.Mode.plan`。`parentRunId` 当前未消费是已知契约限制，不表示恢复谱系已建立。
+
+### `forwardedProps.taskModelSelection`
 
 | 字段 | 契约 | 校验 |
 |---|---|---|
 | `mode` | 必填：`AUTO` / `EXPLICIT` | 未知值拒绝 |
 | `modelId` | `EXPLICIT` 必填非空；`AUTO` 必须省略 | 转为 `TaskModelSelection` 后再次 fail-closed 校验 |
 
-实现态：✅ 已实现 · `AssistantAguiController.java:154-169`、`TaskModelSelection.java:6-32`。
+实现态：✅ 已实现 · `AssistantAguiController.modelSelection`、`TaskModelSelection.java:6-32`。
 
 ### `state.request`
 
@@ -197,7 +201,7 @@ Assistant 主链不存在同步 REST 正文接口，也不保留旧 Assistant �
 
 | 步 | 输入字段 | 输出字段 | 实现态 |
 |---|---|---|---|
-| 一 接入与身份校验 | `threadId`、`runId`、`state.mode`、认证 `userId`、`tenantId/workspaceId` | `ConversationId/SessionId`、`TaskId/ExecutionId/RunId`、已验证所有权 | ✅ 已实现 · `AssistantAguiController.java:63-106`、`AssistantExecutionService.java:938-956,1221-1243` |
+| 一 接入与身份校验 | `threadId`、`runId`、`forwardedProps.mode`、认证 `userId`、`tenantId/workspaceId` | `ConversationId/SessionId`、`TaskId/ExecutionId/RunId`、已验证所有权 | ✅ 已实现 · `AssistantAguiController.run/executionStream`、`AssistantExecutionService.RunIdentity` |
 | 二 输入接收与意图冻结 | 最后一条 user `text`、`variables`、`attachments`、`state.request` | `ExecutionIntent`、规范化材料、输入幂等事实 | ⚠️ 部分实现 · 请求与意图已冻结（`AssistantExecutionService.java:95-191`）；运行中自然语言追加输入尚未合并 |
 | 三 前注意、理解与路由 | Assistant revision、候选 Role/Skill、`routeConstraint`、模型选择 | `resolvedRoute`、ActivatedSkill、任务策略建议 | ✅ 已实现 · `AssistantExecutionService.java:598-700` |
 | 四 受控检索与最小上下文 | 主体/租户、知识 IDs、`topK`、阈值、MemoryMode、任务材料、预算 | `EffectiveContextManifest`、SourceReference、受控消息/压缩候选 | ⚠️ 部分实现 · 长期记忆与知识已接入；`MemoryRecallPort.java:9-25` 缺本会话短期上下文维度 |

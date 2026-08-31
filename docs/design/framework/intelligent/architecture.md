@@ -251,9 +251,9 @@ Harness ReAct 迭代与模型重试**不属于** `DecompositionBudget`，由每�
 
 | 约束 | 实现态 |
 |---|---|
-| Assistant 统一入口与三种运行模式 | ⚠️ 部分实现 · `/api/agui/run` 已统一 `CHAT/EXECUTION/TEAM`（`AssistantAguiController.java:63-106`）；工作流仍保留独立正文入口（`WorkflowAgUiController.java:31-48`） |
-| 任务身份固定为 `threadId` 与 `runId` 两组等价关系 | ✅ 已实现 · `AssistantExecutionService.java:1221-1243` |
-| 编排形态由 `TaskAnalysis` 三维（owner / process / coordination）显式冻结并驱动调度，交互模式不绑定调度 | 🎯 目标态，当前不得声称已执行 · 现状按 `interactionMode` 硬绑定 `CHAT → single`、`EXECUTION → coordinated`、`TEAM → teamCoordinated`（`AssistantExecutionService.java:267-284`、`TaskBoard.java:49-166`），判定决策未落成审计事实 |
+| Assistant 统一入口与三种运行模式 | ⚠️ 部分实现 · `/api/agui/run` 已统一 `CHAT/EXECUTION/TEAM`：三种模式只决定请求组装（`AssistantAguiController.Mode.plan`），执行链唯一（`AssistantExecutionService.start`，Team 目标以可选参数传入）；工作流仍保留独立正文入口（`WorkflowAgUiController`） |
+| 任务身份固定为 `threadId` 与 `runId` 两组等价关系 | ✅ 已实现 · `AssistantExecutionService.RunIdentity` |
+| 编排形态由 `TaskAnalysis` 三维（owner / process / coordination）显式冻结并驱动调度，交互模式不绑定调度 | ⚠️ 部分实现 · 判定已驱动调度且不再按 `interactionMode` 硬绑定：`AssistantExecutionService.analyzedBoard` 按 `TaskAnalysis` 选 `single`/`coordinated`，`CHAT` 的 AUTO 路由同样可进 `coordinated`；`TEAM` 由冻结 Team version 进入 `teamCoordinated`。缺口：判定决策未落成审计事实。实现态以 [runtime.md](runtime.md#任务复杂度判定) 为准 |
 | `EXECUTION` 当前仅支持 copywriting 能力族 | ⚠️ 分期约束 · `AssistantExecutionService.java:172`；通用任务式为目标态 |
 | L1 提供受控上下文 | ⚠️ 部分实现 · 长期记忆已接入；本会话短期上下文缺失，`MemoryRecallPort.java:9-25` 无会话维度 |
 | 关闭 AgentScope 原生子智能体与旁路能力 | ✅ 已实现 · `AgentScopeSpecCompiler.java:108-184` |
