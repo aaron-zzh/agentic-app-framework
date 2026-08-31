@@ -3,7 +3,7 @@ level: Practice
 layer: Principle
 purpose: 定案 AAF 对 AgentScope Java v2 的复用边界、AG-UI 协议对齐方式与双层编排模型的本质与去向
 status: proposed
-version: 1.1.0
+version: 1.2.0
 date: 2026-08-31
 author: AaronZZH
 ---
@@ -97,6 +97,32 @@ related-tasks: [docs/design/audit/2026-08-30-agentscope-boundary/]
 3. `agentscope-extensions-agui` 库的事件模型演进出与 AAF 场景冲突的破坏性变更，且官方 starter/adapter 在届时已支持自定义 `AgentResolver`+跨层治理接管点
 4. `ReActAgent.builder()` 与 `HarnessAgent.builder()` 的 API 差异在实测中超出"builder 接口大体一致"的官方承诺，导致迁移成本远超预期
 
+## 勘误与决策补充（2026-09-01 核实）
+
+对 AgentScope 2.0.2 源码逐项复核后，本 ADR 有三处需要更正或补齐。**三个议题的结论均不变**，更正的是论据与已过期表述。核实过程与证据见 [2026-09-01 Harness 落地计划](../audit/2026-09-01-harness-landing-plan.md)。
+
+### 议题一论据更正：官方 starter 确有扩展点
+
+上文「核心论据」第 1 条与「议题一 C」列出的理由中，"`AguiMvcController.Builder` 无 `agentResolver()` 注入点""`AguiAgentAdapter` 无法发出 `Custom`/`ActivitySnapshot`/`outcome.interrupt`"**失实**：
+
+- `io.agentscope.core.agui.processor.AguiRequestProcessor.Builder` 明确提供 `agentResolver()` 与 `adapterFactory()` 两个注入点
+- `Custom` 与 interrupt outcome 已内置（`CustomAgentEventConverter`、`AgentLifecycleEventConverter`），Activity 可由自定义 converter 发出
+- starter 会收集 converter / enricher / adapterFactory bean
+
+**"不采用 starter"的结论保留**，但正确理由是：`AguiMvcController.Builder` 本身仍不暴露 resolver，默认以 registry 的单 Agent 为执行货币，与 AAF"一个任务可含多节点"的执行粒度不匹配；官方 `AguiResumeCoordinator` 的 active run 与 pending interrupt 都只是进程内 `ConcurrentHashMap`，无法承载 AAF 持久 HITL；starter 的 cached thread pool 丢失 SecurityContext/租户上下文且违反 ADR-003；starter 无法替代 TaskBoard、租约、画像冻结与事件溯源入口。
+
+### 已过期表述：RQ 工作量
+
+「Negative Consequences」中"已确认的 13 条 RQ 仍需逐条修复，本 ADR 不改变这份工作量"已过期。2026-08-31 复评结论：RQ-01 blocker 与 RQ-02～RQ-10 九条 major 均已修复并有测试锁定，剩余 RQ-11/12/13 三条 minor 不阻断上线。本 ADR「后续动作」第 1、2 项已标记完成。`docs/design/audit/2026-08-30-agentscope-boundary/02-runtime-quality.md`
+
+### 补充定案：依赖坐标降为 core
+
+「后续动作」第 4 项已定案：`aaf-framework` 直接依赖由 `io.agentscope:agentscope-harness` **降为 `io.agentscope:agentscope-core`**，不保留 optional/fallback harness。依据是全仓 `io.agentscope.harness.*` 只引入一个类型 `HarnessAgent`（compiler、execution 及两个对应测试共 4 处），切换编译目标后无任何编译依据；保留 harness 会让隐式 workspace 能力重新进入可见 classpath。同批删除两个零使用坐标 `agentscope-extensions-skill-postgresql-repository` 与 `agentscope-extensions-oss`；victools 的两个 `<exclusion>` 原样迁到 core 坐标。`apps/service/aaf-framework/pom.xml`
+
+### 补充定案：`JsonSchemaUtils` shadow 保留
+
+「后续动作」隐含的"删除 shadow"方向不可行。上游 2.0.x 的 `io.agentscope.core.util.JsonSchemaUtils` 仍使用 Jackson 2 的 `com.fasterxml.jackson.databind.JsonNode` 与 victools 4 风格的 `JacksonModule`，AgentScope BOM 钉 `jackson 2.21.1` + `jsonschema-generator 4.38.0`；AAF 钉 victools `5.0.0`（Spring AI on Jackson 3 要求）。两边 API 不兼容，删除 shadow 必然 `NoSuchMethodError`。决定**保留 shadow**，修正其失真的版本注释，并登记为「禁兼容层」硬规则的显式例外；退出路径（独立坐标最小 fork 或上游 PR）另立任务。
+
 ## Pros and Cons of the Options
 
 ### 议题一 A（继续自研 AgUiEvent）
@@ -129,6 +155,7 @@ related-tasks: [docs/design/audit/2026-08-30-agentscope-boundary/]
   1. ~~修复 RQ-01（终态仲裁 blocker）~~ ✅ 已完成（`426a5f51`）——五个 `AtomicBoolean` 收敛为单一原子状态枚举
   2. ~~依次修复 9 条 major~~ ✅ 已完成（2026-08-31）——RQ-02～RQ-10 逐条修复做法见 02-runtime-quality.md「修复记录」
   3. 评估并执行议题三（`HarnessAgent` → `ReActAgent` 编译目标切换），独立于 RQ-01 修复，不与状态机改动混合提交
-  4. 议题三落地后决定依赖坐标去向：`io.agentscope.harness` 当前仅有 4 处 import（`AgentScopeSpecCompiler`、`HarnessAgentExecutionAdapter` 及两个对应测试），切换后 `aaf-dependencies/pom.xml` 与 `aaf-framework/pom.xml` 是否由 `agentscope-harness` 降为 `agentscope-core` 需单独定案（本 ADR 只决定编译目标类，未决定坐标）
+  4. ~~议题三落地后决定依赖坐标去向~~ ✅ 已定案（2026-09-01）——降为 `agentscope-core`，见「勘误与决策补充」
   5. `PermissionMode` 采纳评估（04 文档已列入"应改造为官方扩展点"）
+  6. 落地执行按 [2026-09-01 Harness 落地计划](../audit/2026-09-01-harness-landing-plan.md) 的七阶段路线拆任务
 - 待关闭的编号错位：本 ADR 编号为 005，修正前 ADR 索引因 `ADR-003-virtual-threads-over-webflux.md` 正文误标 `ADR-004` 而产生的编号不一致（05-evolution-options.md 初版曾提示此项），本次已同步修正，该遗留提示已在 05 与 audit README 中标注失效。
