@@ -3,8 +3,8 @@ level: Reality
 layer: Model
 purpose: AgentScope 复用边界专项评估的索引与结论摘要
 status: draft
-version: 1.1.0
-date: 2026-08-31
+version: 1.2.0
+date: 2026-09-01
 author: AaronZZH
 scope:
   includes:
@@ -22,6 +22,7 @@ changelog:
   - 2026-08-30 初次评估，覆盖 8 个确认问题，产出 5 篇文档
   - 2026-08-31 补录官方 v2 文档入口、模块划分与单项对比议题顺序
   - 2026-08-31 追加后续修正：Plan Mode / Subagent 判定改判，重复清单增至 19 项
+  - 2026-09-01 05 的路线推荐被 ADR-005 改判，标记 superseded 并更新「往哪走」「下一步」两节
 ---
 
 # AgentScope 复用边界专项评估
@@ -40,7 +41,7 @@ AAF 把 HarnessAgent 当作纯 ReAct 内核，Harness 模块 215 个类中的绝
 | [02-runtime-quality.md](02-runtime-quality.md) | 自研编排层是否可行、稳定、可靠 | 13 条风险（RQ-01…RQ-13）+ 必查项逐项判断 + 缺失测试清单 |
 | [03-capability-gap.md](03-capability-gap.md) | 相对官方 Harness 缺什么、等价什么、超越什么；超越部分是否值得自研 | 缺失/等价/超越三类清单 + 每个超越项的"刚需自研 / 可改造为扩展点 / 可削减"判定 |
 | [04-reuse-correctness.md](04-reuse-correctness.md) | 是否正确使用 agentscope-core；哪里重复造轮子 | 扩展点使用正确性逐项判定 + 18 项重复造轮子清单 + `JsonSchemaUtils` 包名覆盖风险专章 |
-| [05-evolution-options.md](05-evolution-options.md) | 往哪走 | 三条路线定义 + 六维对比矩阵 + 单一推荐 + 三阶段迁移路径 + 可观测切换判据 |
+| [05-evolution-options.md](05-evolution-options.md) ⚠️ 路线推荐已被 ADR-005 改判 | 往哪走 | 三条路线定义 + 六维对比矩阵 + 单一推荐（已失效）+ 三阶段迁移路径 + 可观测切换判据 |
 
 ## 结论摘要
 
@@ -55,7 +56,7 @@ AAF 把 HarnessAgent 当作纯 ReAct 内核，Harness 模块 215 个类中的绝
 
 ### 自研编排层能不能上生产（02）
 
-**不能，卡在一条 blocker**。问题统计 blocker 1 / major 9 / minor 3。
+**可以上线（2026-08-31 复评）**。审计时点统计 blocker 1 / major 9 / minor 3；blocker 与九条 major 已全部修复并有测试锁定，剩余 3 条 minor（RQ-11/12/13）不阻断上线。逐条修复做法见 [02 文档 · 修复记录](02-runtime-quality.md#修复记录)。以下为审计时点的原始判断。
 
 RQ-01：取消与源流完成没有原子终态仲裁器。`HarnessAgentExecutionAdapter` 用五个 `AtomicBoolean` 表达状态机，只能保证单标志原子性，存在两个确定竞态窗口——要么持久事件出现"COMPLETED 与 CANCELED 并存"的矛盾终态，要么 `cancel()` 返回 `true` 却没有任何 `EXECUTION_CANCELED` 事件落库。
 
@@ -84,9 +85,11 @@ Toolkit/ToolBase、Model、RuntimeContext **用法正确**；Middleware 与 Redi
 
 ### 往哪走（05）
 
-**推荐路线三：保留 agentscope-harness，收窄 AAF 自研边界，把横切治理迁入官方 Middleware/Toolkit/Repository 扩展点，再分批启用 Harness 原生能力。**
+> **05 的路线推荐已被 [ADR-005](../../adr/ADR-005-agentscope-boundary-and-orchestration.md) 改判。** 实际定案是 **路线二的执行面骨架（编译目标切到 `io.agentscope.core.ReActAgent`，Agent 外层装配由 AAF 自持）+ 路线三第二阶段的扩展点迁移**，并**不采用**原生 Subagent/Plan Mode。下文保留初版推荐作为 ADR 的输入基线，逐条改判对应关系见 [05 被 ADR-005 改判的部分](05-evolution-options.md#被-adr-005-改判的部分)。
 
-三条核心论据：
+初版推荐路线三：保留 agentscope-harness，收窄 AAF 自研边界，把横切治理迁入官方 Middleware/Toolkit/Repository 扩展点，再分批启用 Harness 原生能力。
+
+三条核心论据（其中第 1 条被 ADR-005 采纳并延续，第 2、3 条被改判或部分改判）：
 
 1. 换核不解决正确性问题。RQ-01～RQ-05、RQ-08～RQ-10 全部位于 AAF 自己的取消、事件、状态、幂等与证据协议，路线一和路线二照样要修。
 2. Harness 已提供 AAF 当前缺失的 10 项通用能力。完整替代或自研 Harness 意味着重新承担 tool eviction、session search、Plan Mode、async tool、skill runtime、filesystem/sandbox、gateway/bus 的实现与维护成本。
@@ -111,11 +114,11 @@ Toolkit/ToolBase、Model、RuntimeContext **用法正确**；Middleware 与 Redi
 
 ## 下一步
 
-本评估的结论需要落成一条 ADR 后才能驱动代码改动。建议标题 **ADR-004：AgentScope Harness 执行面与 AAF 企业控制面边界**，status 起始为 `proposed`，等人类审核。
+本评估的结论已落成 [**ADR-005：AgentScope 复用边界与双层编排模型定案**](../../adr/ADR-005-agentscope-boundary-and-orchestration.md)（2026-08-31，status `proposed`，待人类审核）。ADR-005 在本评估基础上对三个议题做了代码级验证并定案：AG-UI 事件模型改用官方 `agentscope-extensions-agui` 库（不用 starter/adapter）、双层编排保持自建 TaskBoard、编译目标由 `HarnessAgent` 切到 `ReActAgent`。
 
-注意 ADR 目录存在编号显示错误：`docs/design/adr/Readme.md` 索引把 `ADR-003-virtual-threads-over-webflux.md` 标为 ADR-004，而该文件正文标题也写作 `# ADR-004`。创建新 ADR 时需同时修正编号一致性，不要把索引里的误标当成已占用的实体文件。
+因此本目录的路线推荐（05）不再是当前决策；05 的路线定义、六维矩阵、三阶段迁移路径与第一阶段 RQ 修复清单仍然有效。初版建议的编号 ADR-004 与文件名未采用，ADR 目录的编号显示错误已在创建 ADR-005 时一并修正。
 
-按协作红线，路线选择属 🔴 高风险架构决策，**必须人类审核后才能开始编码**。可直接执行的低风险项与需审核项的划分见 [05-evolution-options.md](05-evolution-options.md#后续动作)。
+按协作红线，路线选择属 🔴 高风险架构决策，**必须人类审核 ADR-005 后才能开始编码**。可直接执行的低风险项与需审核项的划分见 [05-evolution-options.md](05-evolution-options.md#后续动作)。
 
 ## 参考资料
 

@@ -2,8 +2,8 @@
 level: Practice
 layer: Principle
 purpose: 定案 AAF 对 AgentScope Java v2 的复用边界、AG-UI 协议对齐方式与双层编排模型的本质与去向
-status: draft
-version: 1.0.0
+status: proposed
+version: 1.1.0
 date: 2026-08-31
 author: AaronZZH
 ---
@@ -22,6 +22,16 @@ related-tasks: [docs/design/audit/2026-08-30-agentscope-boundary/]
 ## Context and Problem Statement
 
 2026-08-30 的专项评估（`docs/design/audit/2026-08-30-agentscope-boundary/`）测绘了 AAF 对 AgentScope Java v2 的复用边界，发现自研编排层存在 1 个 blocker + 9 个 major 问题，并推荐路线三（保留 harness、收窄自研边界）。本次对话在评估文档基础上，针对三个此前未决的具体问题做了代码级验证与决策：AG-UI 协议对齐、双层编排的本质与是否可替换、AgentScope 依赖版本与编译目标。三者共同回答一个问题——**AAF 与 AgentScope 的边界该划在哪，为什么划在这，以及现在该做什么**。
+
+### 与评估推荐路线的关系（本 ADR 改判 05）
+
+本 ADR **改判** `05-evolution-options.md` 的单一推荐。评估推荐的路线三实质是"以 Harness 为执行面 + 不自研 harness 层 + 第三阶段分批启用 Harness 原生能力"；本 ADR 的议题二选 A（不用原生 Subagent/Plan Mode）与议题三选 B（编译目标改为 core 的 `ReActAgent`）合起来抽掉了这两个支柱，实际采纳的是：
+
+> **路线二的执行面骨架（Agent 外层的 builder、生命周期、缓存、middleware 装配、中断、能力启停由 AAF 自持）+ 路线三第二阶段的扩展点迁移（横切治理迁入 core 的 Middleware/Toolkit/AgentStateStore/repository 扩展点）。**
+
+未被改判、继续有效的部分：05 第一阶段的生产正确性封口（RQ-01 blocker + 9 项 major + `JsonSchemaUtils` shadow 退出）、第二阶段的扩展点迁移清单、路线定义与六维矩阵作为事实基线。已失效的部分：路线三第三阶段的原生能力启用计划（仅 `PermissionMode` 例外——它是 `ReActAgent.builder()` 基础参数，非 Harness 专属），以及切换判据中以 `HarnessAgent` 为执行面前提的两行（"Harness 默认表面持续漂移""上游提供稳定最小模式"），后者由本 ADR 的 Reversal Triggers 取代。
+
+需要指出 05 的一处表述瑕疵：其路线三定义写作"继续以 `HarnessAgent`/`ReActAgent` 作为执行面，不新建 AAF ReAct 或自研 Harness"，把 `ReActAgent` 也纳入路线三，与同句"不自研 Harness"自相矛盾。区分路线二与路线三的真正判据是**谁拥有 Agent 外层装配与生命周期**，不是编译目标类名——按此判据，AAF 当前（`AgentScopeSpecCompiler` + `HarnessAgentExecutionAdapter`）已经在自持该层。
 
 ## Decision Drivers
 
@@ -108,14 +118,15 @@ related-tasks: [docs/design/audit/2026-08-30-agentscope-boundary/]
 
 ## More Information
 
-- 输入材料：`docs/design/audit/2026-08-30-agentscope-boundary/`（01-reuse-map.md、02-runtime-quality.md、03-capability-gap.md、04-reuse-correctness.md、05-evolution-options.md）
+- 输入材料：`docs/design/audit/2026-08-30-agentscope-boundary/`（01-reuse-map.md、02-runtime-quality.md、03-capability-gap.md、04-reuse-correctness.md、05-evolution-options.md——其中 05 的路线推荐已由本 ADR 改判，标记为 `superseded`）
 - 本次对话验证的关键代码位置：
   - AG-UI：`apps/service/aaf-api/src/main/java/com/xuejiai/aaf/module/ai/agui/AgUiProjector.java`（本次改写）、`AssistantAguiController.java`
   - 双层循环：`apps/service/aaf-framework/.../assistant/application/DelegatedTaskCoordinator.java`（`decodeAndValidatePlan`、`TaskBoard.coordinated`）、`CoordinationPlan.java`、`TaskBoard.java`
   - 编译路径：`apps/service/aaf-framework/.../infrastructure/agentscope/compiler/AgentScopeSpecCompiler.java`
 - 后续动作：
-  1. 修复 RQ-01（终态仲裁 blocker）——`HarnessAgentExecutionAdapter` 五个 `AtomicBoolean` 收敛为单一原子状态枚举
-  2. 依次修复 9 条 major（02-runtime-quality.md「上线前修复」「近期加固」清单）
+  1. ~~修复 RQ-01（终态仲裁 blocker）~~ ✅ 已完成（`426a5f51`）——五个 `AtomicBoolean` 收敛为单一原子状态枚举
+  2. ~~依次修复 9 条 major~~ ✅ 已完成（2026-08-31）——RQ-02～RQ-10 逐条修复做法见 02-runtime-quality.md「修复记录」
   3. 评估并执行议题三（`HarnessAgent` → `ReActAgent` 编译目标切换），独立于 RQ-01 修复，不与状态机改动混合提交
-  4. `PermissionMode` 采纳评估（04 文档已列入"应改造为官方扩展点"）
-- 待关闭的编号错位：本 ADR 编号为 005，修正前 ADR 索引因 `ADR-003-virtual-threads-over-webflux.md` 正文误标 `ADR-004` 而产生的编号不一致（见 `docs/design/audit/2026-08-30-agentscope-boundary/05-evolution-options.md` 遗留提示），本次已同步修正。
+  4. 议题三落地后决定依赖坐标去向：`io.agentscope.harness` 当前仅有 4 处 import（`AgentScopeSpecCompiler`、`HarnessAgentExecutionAdapter` 及两个对应测试），切换后 `aaf-dependencies/pom.xml` 与 `aaf-framework/pom.xml` 是否由 `agentscope-harness` 降为 `agentscope-core` 需单独定案（本 ADR 只决定编译目标类，未决定坐标）
+  5. `PermissionMode` 采纳评估（04 文档已列入"应改造为官方扩展点"）
+- 待关闭的编号错位：本 ADR 编号为 005，修正前 ADR 索引因 `ADR-003-virtual-threads-over-webflux.md` 正文误标 `ADR-004` 而产生的编号不一致（05-evolution-options.md 初版曾提示此项），本次已同步修正，该遗留提示已在 05 与 audit README 中标注失效。

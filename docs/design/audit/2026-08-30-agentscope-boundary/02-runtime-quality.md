@@ -3,8 +3,8 @@ level: Reality
 layer: Model
 purpose: 评估 AAF 自研 AgentScope Harness 编排适配层的可行性、稳定性与可靠性
 status: draft
-version: 1.0.0
-date: 2026-08-30
+version: 1.2.0
+date: 2026-08-31
 author: AaronZZH
 ---
 
@@ -12,15 +12,18 @@ author: AaronZZH
 
 ## 评估结论
 
-当前实现具备继续演进的可行性，但**尚不满足生产级可靠性门槛**。正向基础包括：事件顺序入库、数据库原子重分配 sequence、临时 Agent 释放、同一 `executionId` 并发执行拒绝、AgentScope v2 按会话隔离与串行化均已形成明确实现。阻断上线的问题是取消与源流完成没有一个原子终态仲裁器：在确定竞态时序下会产生相互矛盾的两个终态，或 `cancel()` 返回 `true` 却没有 `EXECUTION_CANCELED` 事件。
+> **修复状态（2026-08-31 复评）**：RQ-01 blocker 与 RQ-02～RQ-10 九条 major 均已修复，逐条修复位置见风险清单"修复"列。剩余 3 条 minor（RQ-11/12/13）未修复，均不阻断上线。
+> 复评基线：`pnpm check:affected` 全绿，新增 P0/P1 测试见"测试覆盖现状"。
 
-问题统计：**blocker 1 / major 9 / minor 3**。统计按本文唯一问题编号 `RQ-*` 去重；风险为“无”的正确性判断不计入问题数。
+当前实现具备继续演进的可行性。正向基础包括：事件顺序入库、数据库原子重分配 sequence、临时 Agent 释放、同一 `executionId` 并发执行拒绝、AgentScope v2 按会话隔离与串行化均已形成明确实现。原先阻断上线的取消/完成双终态竞态已由单一 CAS 终态机消除；本轮进一步补齐了阻塞 I/O 线程隔离、时限语义分离、失败分类契约、终态重放幂等、有界缓存、执行私有状态槽与工具证据兜底清理。
+
+问题统计：**blocker 1（已修）/ major 9（已修）/ minor 3（未修）**。统计按本文唯一问题编号 `RQ-*` 去重；风险为"无"的正确性判断不计入问题数。
 
 | 维度 | 判定 | 证据 | 风险 |
 |---|---|---|---|
-| 可行性 | 可行。AAF 只复用 ReAct 循环、模型与工具调用，关闭 Harness 内建记忆、工作区、子智能体、技能和压缩，边界清晰 | `AgentScopeSpecCompiler.compileDynamicNew`（126-168 行）、`compileNew`（170-208 行） | 无 |
-| 稳定性 | 有条件稳定。正常单流顺序与资源释放成立，但并发取消可破坏终态一致性 | `HarnessAgentExecutionAdapter.executeResolved`（236-339 行）、`cancel`（99-128 行） | blocker |
-| 可靠性 | 未达生产门槛。同步 I/O、非总时限 timeout、弱重放幂等、无界缓存和状态预检竞态均需修复 | `HarnessAgentExecutionAdapter.executeResolved`（236-339 行）、`AgentScopeSpecCompiler`（28-237 行）、`requireNoHiddenPersistentHistory`（342-362 行） | major |
+| 可行性 | 可行。AAF 只复用 ReAct 循环、模型与工具调用，关闭 Harness 内建记忆、工作区、子智能体、技能和压缩，边界清晰 | `AgentScopeSpecCompiler.compileDynamicNew`、`compileNew` | 无 |
+| 稳定性 | 稳定。终态由 `AtomicReference<TerminalState>` 单点 CAS 仲裁，取消与完成互斥且各自恰好一次 | `HarnessAgentExecutionAdapter.cancel`、`executeResolved` 的 `onErrorResume` / `concatWith` 分支 | 已修（RQ-01） |
+| 可靠性 | 达到上线门槛。阻塞 I/O 已离开事件发射线程；总时限 / 静默时限 / 入库 SLA 三条边界分离；终态重放幂等；缓存有界；状态槽按 Agent + execution 私有 | `HarnessAgentExecutionAdapter`（重放守卫 / 边界校验 / `totalDeadline`）、`AgentScopeSpecCompiler.BoundedAgentCache`、`AgentScopeRuntimeContextMapper.stateUserKey` | 已修（RQ-02～RQ-10） |
 
 ## 调查范围与方法
 
@@ -29,6 +32,8 @@ author: AaronZZH
 为核实缓存实例是否可并发复用，进一步检查了仓库内 `tmp/agentscope-java` 的 AgentScope v2 源码与测试。`HarnessAgent` 明确声明跨用户/会话共享安全（152 行附近类注释），实际委托的 `ReActAgent.callSerializationKey` 按 `(userId, sessionId)` 串行同槽调用（502-513 行），`AgentBase.serializeOnKey` 在完成、错误和取消时释放队列槽（约 326-352 行），不同会话可并行；上游测试 `ReActAgentPerSessionStateTest.concurrentSameSessionIsSerialized`（248-275 行）和 `concurrentStreamEventsAreIsolated`（277-309 行）验证了该语义。`ReActAgent` 类头“单实例不线程安全”的旧注释与当前实现及测试冲突，应视为上游文档陈旧，而不能据此否定实际并发实现。
 
 ## 风险清单
+
+> 下表与后续"必查项逐项判断"是**审计时点**（2026-08-30）的原始发现记录，行号对应当时代码，不随修复更新；当前状态见本节末的[修复记录](#修复记录)。
 
 | 编号 | 结论 | 发生条件与后果 | 证据 | 风险 |
 |---|---|---|---|---|
@@ -45,6 +50,33 @@ author: AaronZZH
 | RQ-11 | `activeExecutions` 的 map 原语使用正确，但重复订阅失败没有统一事件化 | `putIfAbsent` 保证同一 `executionId` 只有一个并发赢家，失败方的临时 Agent 会释放；`remove(key,value)` 不会误删后来注册的新句柄。失败方直接收到 `IllegalStateException`，不会落 `RUN_FAILED`，与“解析异常也事件化”的接口说明不一致 | `HarnessAgentExecutionAdapter.executeResolved`（约 267-279 行）、`release(executionId, active)`（455-460 行）、`executeDeferred` 注释与实现（131-150 行） | minor |
 | RQ-12 | AAF 侧 interrupt 下发幂等，但 cancel 与临时 Agent close 没有时序互斥 | `interruptIssued.compareAndSet` 保证一次执行只调用一次 delegate interrupt。若 cancel 已取得 ActiveExecution 引用，另一线程随后 `doFinally` 出表并 close，cancel 仍可在 close 之后调用 interrupt。当前 AAF 关闭了 Harness 资源型能力且 `ReActAgent.close` 是 no-op，所以现状后果仅是不必要调用；未来启用子智能体/工作区资源后该顺序会触碰已关闭资源 | `HarnessAgentExecutionAdapter.interruptOnce`（447-452 行）、`release`（455-460 行）；AgentScope `HarnessAgent.close`（375-388 行）、`ReActAgent.close`（3821-3825 行） | minor |
 | RQ-13 | Redis 状态值与 `_keys` 登记不是原子写，模式扫描使用阻塞 `KEYS` | 进程在 `SET state` 与 `SADD _keys` 之间失败时，状态值成为无法由 `exists/delete/listSessionIds` 完整管理的孤儿；反向中断则 `_keys` 可指向缺失值。`findKeysByPattern` 直接调用 `StringRedisTemplate.keys`，当会话键数量大时会阻塞 Redis。常规单次 get/set 可用，但批量管理与故障恢复可靠性不足 | `SpringRedisClientAdapter.set`（24-27 行）、`addToSet`（58-61 行）、`findKeysByPattern`（80-84 行）；AgentScope `RedisAgentStateStore.save`（211-224 行）、`listSessionIds`（345-364 行） | minor |
+
+## 修复记录
+
+> 2026-08-31 复评。RQ-01 由 `426a5f51` 修复，RQ-02～RQ-10 本轮修复。行号不再登记——修复点均带 `RQ-NN` 注释，按编号搜索即可定位。
+
+| 编号 | 修复做法 | 主要改动位置 | 验证 |
+|---|---|---|---|
+| RQ-01 | 三个独立布尔量收敛为 `AtomicReference<TerminalState>` 单点 CAS（`ACTIVE→CANCELLING→TERMINATED`），`cancel()` 返回值与终态仲裁同源 | `HarnessAgentExecutionAdapter.TerminalState` / `cancel` / `cancelWonRace` | `HarnessAgentExecutionAdapterTest` 5 个 P0 并发用例（Sinks 精确控时序） |
+| RQ-02 | 源事件校验与计量改为 `concatMap` + 注入的 `blockingScheduler`（生产 `boundedElastic`，单测 `immediate`），并收窄到 `GUARDED_EVENT_TYPES` 边界事件；fail-closed 语义不变，文本增量不再逐条查 Redis/DB | `HarnessAgentExecutionAdapter`（`blockingScheduler`、`GUARDED_EVENT_TYPES`）、`AgentScopeInfrastructureAutoConfiguration` | `should_guard_only_boundary_events_for_delegated_execution` |
+| RQ-03 | `ExecutionPolicy` 拆为 `totalTimeout`（订阅起算的墙钟硬时限）/ `idleTimeout`（相邻已映射事件静默）/ `persistTimeout`（单条入库 SLA）三条独立边界；总时限用"主流终止信号 + `timeout`"实现，超时走终态仲裁落 RUN_FAILED 而非裸异常 | `ExecutionPolicy`、`HarnessAgentExecutionAdapter.totalDeadline` | `should_terminate_on_total_deadline_even_when_events_keep_arriving`（持续产出事件仍按总时限终止） |
+| RQ-04 | 失败事件新增稳定契约字段 `failureCategory` / `retryable` / `failureId`，分类由 `AgentScopeFailureClassifier` 按语义归类并穿透 cause 链，未知类别保守判不可重试；原异常堆栈只写服务端日志 | `AgentScopeFailureClassifier`、`AgentScopeEventMapper.failure` | `AgentScopeFailureClassifierTest`（4）、`AgentScopeEventMapperFailureTest`（2） |
+| RQ-05 | 执行入口增加持久重放守卫：`sequenceBase` 之后已存在 AGENT 终态事件即跳过模型调用，直接回放已持久事件；仅有非终态历史（崩溃在中途）时继续执行并 warn，跨进程在途重复仍由租约 fencing 拦截 | `HarnessAgentExecutionAdapter.replaySettledExecution` | `should_replay_persisted_events_and_skip_model_when_execution_already_settled`、`should_execute_when_history_has_no_terminal_event` |
+| RQ-06 | 两个 Agent 缓存改为有界 LRU（`BoundedAgentCache`，默认容量 128），淘汰时立即 `close` 被淘汰实例并 warn；新增 `cachedAgentCount()` 供监控 | `AgentScopeSpecCompiler` | `should_evict_and_close_least_recently_used_agent_when_capacity_reached` |
+| RQ-07 | `DirectKey` 纳入完整 `ExecutionPolicy`，`maxIterations` / `maxModelRetries` 不同不再复用同一实例 | `AgentScopeSpecCompiler.DirectKey` | `should_not_reuse_direct_agent_when_execution_policy_differs`（断言 `getMaxIters()` 3 vs 9） |
+| RQ-08 | 状态槽键加入 `executionId` 后按执行私有化，两个并发执行不可能读到彼此历史，隐藏历史预检的 TOCTOU 窗口消失；槽在 `doFinally` 中删除，避免 Redis 无界增长 | `AgentScopeRuntimeContextMapper.stateUserKey`、`HarnessAgentExecutionAdapter.deleteExecutionState` | `AgentScopeRuntimeContextMapperTest`、`should_clear_tool_evidence_and_execution_state_on_termination` |
+| RQ-09 | 同一键同时加入 Agent 身份，换 Agent/Assistant 不再共享 `agent_state` | 同上 | `should_isolate_state_slot_by_agent_identity` |
+| RQ-10 | `ToolResultEvidenceStore` 增加 `clear(executionId)`（`doFinally` 无条件调用）+ TTL 淘汰 + 容量上限三道防线，并暴露 `size()` | `ToolResultEvidenceStore`、`HarnessAgentExecutionAdapter.release` | `ToolResultEvidenceStoreTest`（4）、`should_clear_tool_evidence_and_execution_state_on_termination` |
+
+### 未修复项（minor，不阻断上线）
+
+- RQ-11：重复订阅失败方仍收到裸 `IllegalStateException`，未事件化
+- RQ-12：`cancel` 与临时 Agent `close` 无时序互斥；当前 `ReActAgent.close` 为 no-op，实际后果仅为多余调用
+- RQ-13：Redis 状态值与 `_keys` 登记非原子，`findKeysByPattern` 仍用阻塞 `KEYS`
+
+### 残留风险（RQ-05 边界）
+
+崩溃恢复走 `JpaTaskRecoveryAdapter.asResume` 会保留原 `executionId` 与 `sequenceBase`。终态已存在时命中重放守卫，不会重复调用模型；**中途崩溃**（无终态、有部分事件）时新一代执行会追加一套新的 AGENT 事件，前缀事件出现重复。DELEGATED 下旧写入方被租约 fencing 拒绝，因此同一时刻只有一个活写入方，不会出现两套并发写入。彻底消除前缀重复需要持久执行声明（含 checkpoint 续跑），属独立需求，不在本轮范围。
 
 ## 必查项逐项判断
 
@@ -104,7 +136,25 @@ author: AaronZZH
 
 现有测试没有直接覆盖 `AgentScopeEventMapper`、`AgentScopeMessageMapper`、`AgentScopeRuntimeContextMapper`、`AgentScopeTokenMeteringObserver`、`PortBackedAgentTool`、`AgentScopeToolkitFactory`、`ToolResultEvidenceStore`、`SpringRedisClientAdapter` 以及 AAF 适配层和真实事件存储的组合路径；证据是目标测试目录仅有 execution/compiler/middleware/definition 四组文件，且其中只有前三组与本次范围相关。
 
+### 本轮新增测试（2026-08-31）
+
+| 测试 | 覆盖不变量 | 对应风险 |
+|---|---|---|
+| `HarnessAgentExecutionAdapterTest.should_replay_persisted_events_and_skip_model_when_execution_already_settled` | 已有终态时不调用模型、不追加第二套事件，只回放持久事件 | RQ-05 |
+| `HarnessAgentExecutionAdapterTest.should_execute_when_history_has_no_terminal_event` | 只有非终态历史时不得被重放守卫误拦 | RQ-05 |
+| `HarnessAgentExecutionAdapterTest.should_terminate_on_total_deadline_even_when_events_keep_arriving` | 持续产出已映射事件不能延长总时限；超时异常类型为 `ExecutionDeadlineExceededException` | RQ-03 |
+| `HarnessAgentExecutionAdapterTest.should_clear_tool_evidence_and_execution_state_on_termination` | 终止路径无条件清工具证据 + 删执行状态槽 | RQ-10、RQ-08 |
+| `HarnessAgentExecutionAdapterTest.should_guard_only_boundary_events_for_delegated_execution` | 租约/任务校验只发生在边界事件，文本增量不触发 | RQ-02 |
+| `AgentScopeRuntimeContextMapperTest`（4） | 状态槽按 Agent 身份与 executionId 隔离；`userId` 与状态键同源；空 agentIdentifier 拒绝 | RQ-08、RQ-09 |
+| `AgentScopeFailureClassifierTest`（4） | 分类表稳定、穿透 cause 链、未知类别不可重试 | RQ-04 |
+| `AgentScopeEventMapperFailureTest`（2） | RUN_FAILED 载荷含 `failureCategory`/`retryable`/`failureId` | RQ-04 |
+| `ToolResultEvidenceStoreTest`（4） | 按执行清零、TTL 淘汰、容量有界、一次性消费 | RQ-10 |
+| `AgentScopeSpecCompilerTest.should_not_reuse_direct_agent_when_execution_policy_differs` | 执行策略不同不得复用同一实例 | RQ-07 |
+| `AgentScopeSpecCompilerTest.should_evict_and_close_least_recently_used_agent_when_capacity_reached` | 超容量淘汰并 close，缓存有界 | RQ-06 |
+
 ### 缺失测试清单
+
+> 审计时点清单。已补齐：P0 全部 5 项（cancel 交错 / cancel 与 AGENT_START 时序 / 总时限 / 重放幂等 / 状态槽隔离取代 TOCTOU 并发预检）、P1 的 Direct 策略键、缓存淘汰、工具证据清理。仍缺：并发双订阅事件化（RQ-11）、interrupt 与 close 竞态（RQ-12）、ephemeral 同步异常矩阵、事件映射与持久顺序组合、Redis 故障注入（RQ-13）。
 
 | 优先级 | 缺失测试 | 应验证的不变量 | 对应风险证据 |
 |---|---|---|---|
@@ -123,6 +173,8 @@ author: AaronZZH
 | P2 | Redis 故障注入测试 | SET/SADD 任一步失败后可恢复或清理；生产扫描不用 KEYS | RQ-13；`SpringRedisClientAdapter`（24-84 行） |
 
 ## 演进路线建议
+
+> 审计时点建议。"上线前修复"与"近期加固"两节已全部落地，做法见[修复记录](#修复记录)；下面保留原文作为决策依据的历史记录。仅"取消主动 dispose 上游"一条被评估后调整为：取消通过 interrupt + 终态 CAS 表达，不额外 dispose 上游订阅——dispose 会绕过 AgentScope 自身的槽释放路径，收益不抵风险。
 
 ### 上线前修复
 
@@ -146,5 +198,9 @@ author: AaronZZH
 - 跟踪 AgentScope v2 上游文档一致性：当前 `HarnessAgent` 的线程安全说明、ReActAgent 实现和并发测试相互印证，但 `ReActAgent` 类头仍残留“不线程安全”描述；升级依赖时必须重跑共享实例并发契约测试。依据：AgentScope `HarnessAgent` 类注释、`ReActAgent.callSerializationKey`（502-513 行）及 `ReActAgentPerSessionStateTest`（248-309 行）。
 
 ## 最终判定
+
+> 2026-08-31 复评结论：blocker 与九条 major 已全部修复并有测试锁定，该适配器达到上线门槛。剩余 3 条 minor（RQ-11/12/13）与 RQ-05 的"中途崩溃前缀事件重复"残留风险已明确记录，不阻断上线，按后续迭代排期处理。
+
+### 审计时点判定（2026-08-30）
 
 自研层没有重复实现 ReAct 推理循环本身，复用边界总体合理；主要质量问题集中在 AAF 为治理要求新增的“执行注册—取消—事件落库—状态预检”协议没有形成单一原子状态机。完成 RQ-01 和 P0 测试前，不应把该适配器作为无人值守生产执行的可靠底座；完成上线前修复与近期加固后，可以保留当前“AgentScope 执行内核 + AAF 治理外壳”的总体方向。
