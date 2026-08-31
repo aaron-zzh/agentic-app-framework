@@ -17,7 +17,7 @@ informed: []
 related-tasks: [AAF-023 / #17]
 ---
 
-# ADR-004: 全量采用 Virtual Threads + JDBC，放弃 WebFlux + R2DBC 全栈响应式
+# ADR-003: 全量采用 Virtual Threads + JDBC，放弃 WebFlux + R2DBC 全栈响应式
 
 ## Context and Problem Statement
 

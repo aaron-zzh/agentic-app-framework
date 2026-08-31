@@ -43,7 +43,8 @@ changelog:
 |------|------|------|---------|
 | [ADR-001](ADR-001-vitest-vs-jest.md) | 前端测试框架选型：Vitest vs Jest | accepted | 前端单测工具链、AAF-023 #6 |
 | [ADR-002](ADR-002-local-env-vs-testcontainers.md) | 后端测试环境：本地真实 DB vs Testcontainers | accepted | 后端测试环境、CI 配置、AAF-023 #8 |
-| [ADR-004](ADR-003-virtual-threads-over-webflux.md) | 全量 Virtual Threads + JDBC，放弃 WebFlux + R2DBC | accepted | 后端并发模型、依赖清理、编码规范、AAF-023 #17 |
+| [ADR-003](ADR-003-virtual-threads-over-webflux.md) | 全量 Virtual Threads + JDBC，放弃 WebFlux + R2DBC | accepted | 后端并发模型、依赖清理、编码规范、AAF-023 #17 |
+| [ADR-005](ADR-005-agentscope-boundary-and-orchestration.md) | AgentScope 复用边界与双层编排模型定案 | proposed | 智能层 Agent/Assistant 运行时、AG-UI 协议、TaskBoard 编排、AgentScopeSpecCompiler |
 
 ## 与其他文档的关系
 

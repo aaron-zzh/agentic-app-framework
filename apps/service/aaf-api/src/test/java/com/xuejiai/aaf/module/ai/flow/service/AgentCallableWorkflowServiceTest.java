@@ -12,8 +12,10 @@ import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.jpa.domain.Specification;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.framework.engine.bpmn.api.BpmnEngine;
@@ -41,7 +43,7 @@ class AgentCallableWorkflowServiceTest {
     void should_return_output_text_when_workflow_completes() {
         service = new AgentCallableWorkflowService(repository, bpmnCompiler, bpmnEngine);
         var flow = flow(10L, "摘要流程");
-        when(repository.findOne(any())).thenReturn(Optional.of(flow));
+        when(repository.findOne(ArgumentMatchers.<Specification<AiFlowDefinition>>any())).thenReturn(Optional.of(flow));
         when(bpmnCompiler.processKey(10L)).thenReturn("ai_flow_10");
         when(bpmnEngine.startProcess(eq("ai_flow_10"), any(), any())).thenReturn("proc-1");
         when(bpmnEngine.isProcessRunning("proc-1")).thenReturn(false);
@@ -60,7 +62,7 @@ class AgentCallableWorkflowServiceTest {
     void should_return_empty_text_when_output_variable_missing() {
         service = new AgentCallableWorkflowService(repository, bpmnCompiler, bpmnEngine);
         var flow = flow(11L, "无输出流程");
-        when(repository.findOne(any())).thenReturn(Optional.of(flow));
+        when(repository.findOne(ArgumentMatchers.<Specification<AiFlowDefinition>>any())).thenReturn(Optional.of(flow));
         when(bpmnCompiler.processKey(11L)).thenReturn("ai_flow_11");
         when(bpmnEngine.startProcess(eq("ai_flow_11"), any(), any())).thenReturn("proc-2");
         when(bpmnEngine.isProcessRunning("proc-2")).thenReturn(false);
@@ -78,7 +80,7 @@ class AgentCallableWorkflowServiceTest {
     void should_throw_when_workflow_terminated() {
         service = new AgentCallableWorkflowService(repository, bpmnCompiler, bpmnEngine);
         var flow = flow(12L, "被终止流程");
-        when(repository.findOne(any())).thenReturn(Optional.of(flow));
+        when(repository.findOne(ArgumentMatchers.<Specification<AiFlowDefinition>>any())).thenReturn(Optional.of(flow));
         when(bpmnCompiler.processKey(12L)).thenReturn("ai_flow_12");
         when(bpmnEngine.startProcess(eq("ai_flow_12"), any(), any())).thenReturn("proc-3");
         when(bpmnEngine.isProcessRunning("proc-3")).thenReturn(false);
