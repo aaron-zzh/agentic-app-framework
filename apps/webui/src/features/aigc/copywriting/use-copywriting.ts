@@ -15,6 +15,7 @@ import {
   type AssistantExecutionRequest,
   type AssistantOutputLocale,
   executeAssistantAgUi,
+  parseToolResultContent,
   streamApprovedAssistantAgUi
 } from "@/lib/api/assistant-agui"
 import { type AafAiTaskEvent, type AafAiTaskEventData, humanApprovalApi } from "@/lib/api/rest/ai"
@@ -133,13 +134,14 @@ function dataText(data: AafAiTaskEventData, ...keys: string[]): string | null {
 
 function toolCallFromEvent(event: AssistantAgUiEvent): CopywritingToolCall | null {
   if (event.type === "TOOL_CALL_START") {
-    return { id: event.toolCallId, name: event.toolName, status: "RUNNING" }
+    return { id: event.toolCallId, name: event.toolCallName, status: "RUNNING" }
   }
   if (event.type === "TOOL_CALL_RESULT") {
+    const result = parseToolResultContent(event.content)
     return {
       id: event.toolCallId,
-      name: dataText(event.result, "toolName") ?? "受控工具",
-      status: dataText(event.result, "resultState") ?? "COMPLETED"
+      name: dataText(result, "toolName") ?? "受控工具",
+      status: dataText(result, "resultState") ?? "COMPLETED"
     }
   }
   if (event.type !== "CUSTOM" || !event.value.type.startsWith("aaf.tool.")) return null
@@ -160,7 +162,8 @@ function draftArtifactId(data: AafAiTaskEventData): number | null {
 }
 
 export function assistantDraftArtifactId(event: AssistantAgUiEvent): number | null {
-  if (event.type === "TOOL_CALL_RESULT") return draftArtifactId(event.result)
+  if (event.type === "TOOL_CALL_RESULT")
+    return draftArtifactId(parseToolResultContent(event.content))
   return event.type === "CUSTOM" && event.value.type === "aaf.tool.completed"
     ? draftArtifactId(event.value.data)
     : null
@@ -220,11 +223,12 @@ function safeEventSummary(event: AssistantAgUiEvent): {
     return { kind: "message", summary: "安全输出已完成" }
   }
   if (event.type === "TOOL_CALL_START") {
-    return { kind: "tool", summary: `${event.toolName}：RUNNING` }
+    return { kind: "tool", summary: `${event.toolCallName}：RUNNING` }
   }
   if (event.type === "TOOL_CALL_RESULT") {
-    const tool = dataText(event.result, "toolName") ?? "受控工具"
-    const status = dataText(event.result, "resultState") ?? "COMPLETED"
+    const result = parseToolResultContent(event.content)
+    const tool = dataText(result, "toolName") ?? "受控工具"
+    const status = dataText(result, "resultState") ?? "COMPLETED"
     return { kind: "tool", summary: `${tool}：${status}` }
   }
   if (event.type === "CUSTOM") return aafEventSummary(event.value)
@@ -238,7 +242,7 @@ function eventStatus(event: AssistantAgUiEvent): string {
   if (event.type === "RUN_ERROR") return "FAILED"
   if (event.type === "TOOL_CALL_START") return "RUNNING"
   if (event.type === "TOOL_CALL_RESULT") {
-    return dataText(event.result, "resultState") ?? "COMPLETED"
+    return dataText(parseToolResultContent(event.content), "resultState") ?? "COMPLETED"
   }
   return "STREAMING"
 }

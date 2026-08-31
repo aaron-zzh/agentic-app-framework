@@ -31,7 +31,8 @@ import com.xuejiai.aaf.module.ai.agui.AgUiProjector;
 import com.xuejiai.aaf.module.ai.assistant.service.AssistantApprovalEventService;
 import com.xuejiai.aaf.module.ai.assistant.vo.HumanApprovalDecisionDTO;
 import com.xuejiai.aaf.module.ai.assistant.vo.HumanApprovalVO;
-import com.xuejiai.aaf.module.ai.chat.agui.AgUiEvent;
+import io.agentscope.core.agui.encoder.AguiEventEncoder;
+import io.agentscope.core.agui.event.AguiEvent;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -44,6 +45,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @org.springframework.security.access.prepost.PreAuthorize("isAuthenticated()")
 public class HumanApprovalController {
+    /** 线程安全且无状态，可跨请求共享。 */
+    private static final AguiEventEncoder ENCODER = new AguiEventEncoder();
 
     private final HitlCoordinatorPort hitl;
     private final HumanApprovalPort approvals;
@@ -100,42 +103,43 @@ public class HumanApprovalController {
     public SseEmitter events(@PathVariable String approvalId) {
         var stream = approvalEvents.stream(ownedApproval(approvalId));
         var emitter = new SseEmitter(300_000L);
+        var session = agUiProjector.openSession();
+        var runId = stream.runId();
         stream.events()
                 .subscribe(
                         stored ->
                                 send(
                                         emitter,
-                                        agUiProjector.project(stored.event()),
+                                        session.project(stored.event()),
                                         stored.eventOffset()),
-                        failure -> sendError(emitter, stream.runId()),
-                        emitter::complete);
+                        failure -> {
+                            send(
+                                    emitter,
+                                    session.fail(runId, runId, "ASSISTANT_STREAM_FAILED"),
+                                    0);
+                            emitter.complete();
+                        },
+                        () -> {
+                            send(emitter, session.close(runId, runId), Long.MAX_VALUE);
+                            emitter.complete();
+                        });
         return emitter;
     }
 
-    private static void send(SseEmitter emitter, List<AgUiEvent> events, long cursor) {
+    // TODO(agentscope-boundary): 该恢复端点应替换为 AG-UI 原生 interrupt/resume——
+    // RUN_FINISHED.outcome={type:"interrupt",interrupts:[...]} + 客户端 runAgent({resume:[...]})，
+    // 届时本端点与前端 streamApprovedAssistantAgUi 一并删除。当前 close/fail 用 runId 兼作 threadId
+    // 是权宜之计（本端点无会话上下文），迁移后由统一入口提供真实 threadId。
+    // 依据：docs/design/audit/2026-08-30-agentscope-boundary/03-capability-gap.md 后续修正
+    private static void send(SseEmitter emitter, List<AguiEvent> events, long cursor) {
         try {
-            for (var event : events) {
+            for (var index = 0; index < events.size(); index++) {
                 emitter.send(
                         SseEmitter.event()
-                                .id(Long.toString(cursor))
-                                .name(event.type())
-                                .data(event.toMap(), MediaType.APPLICATION_JSON));
+                                .id(cursor + "." + index)
+                                .data(ENCODER.encodeToJson(events.get(index))));
             }
         } catch (IOException failure) {
-            emitter.complete();
-        }
-    }
-
-    private static void sendError(SseEmitter emitter, String runId) {
-        try {
-            var event = AgUiEvent.runError(runId, "Assistant 运行未完成");
-            emitter.send(
-                    SseEmitter.event()
-                            .name(event.type())
-                            .data(event.toMap(), MediaType.APPLICATION_JSON));
-        } catch (IOException failure) {
-            // 客户端已断开时无需继续发送。
-        } finally {
             emitter.complete();
         }
     }

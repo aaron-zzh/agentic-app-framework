@@ -17,6 +17,12 @@
 			<groupId>com.xuejiai</groupId>
 			<artifactId>aaf-framework</artifactId>
 		</dependency>
+		<!-- AG-UI 官方事件模型与编码器：AgUiProjector 输出 AguiEvent，SSE 由 AguiEventEncoder 序列化。
+		     版本由 aaf-dependencies 统一管理，取舍理由见该 pom 的对应注释。 -->
+		<dependency>
+			<groupId>io.agentscope</groupId>
+			<artifactId>agentscope-extensions-agui</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>com.xuejiai</groupId>
 			<artifactId>aaf-auto-dev</artifactId>

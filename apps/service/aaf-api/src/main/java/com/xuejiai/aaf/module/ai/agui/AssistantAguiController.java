@@ -32,9 +32,10 @@ import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.ModelMod
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.ModelSelection;
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.OutputOptions;
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.RouteConstraint;
-import com.xuejiai.aaf.module.ai.chat.agui.AgUiEvent;
 import com.xuejiai.aaf.module.ai.chat.service.ChatService;
 
+import io.agentscope.core.agui.encoder.AguiEventEncoder;
+import io.agentscope.core.agui.event.AguiEvent;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
 import tools.jackson.databind.JsonNode;
@@ -44,6 +45,9 @@ import tools.jackson.databind.JsonNode;
 @RequestMapping("/api/agui")
 @PreAuthorize("isAuthenticated()")
 public class AssistantAguiController {
+    /** 线程安全且无状态，可跨请求共享。 */
+    private static final AguiEventEncoder ENCODER = new AguiEventEncoder();
+
     private final AssistantExecutionService assistantExecutions;
     private final ChatService chatService;
     private final AgUiProjector agUiProjector;
@@ -68,11 +72,22 @@ public class AssistantAguiController {
         chatService.requireOwnedAiThread(request.threadId());
         var stream = executionStream(request);
         var emitter = new SseEmitter(600_000L);
+        var session = agUiProjector.openSession();
+        var threadId = request.threadId();
+        var runId = request.runId();
         stream.events()
                 .subscribe(
-                        event -> send(emitter, agUiProjector.project(event), event.sequence()),
-                        failure -> sendError(emitter, request.runId()),
-                        emitter::complete);
+                        event -> send(emitter, session.project(event), event.sequence()),
+                        failure -> {
+                            // 事件流以异常终止时补 RUN_ERROR + RUN_FINISHED，保证 run 在协议上闭合
+                            send(emitter, session.fail(threadId, runId, "ASSISTANT_STREAM_FAILED"), 0);
+                            emitter.complete();
+                        },
+                        () -> {
+                            // 兜底闭合未配对的 message/toolCall 与未终结的 run
+                            send(emitter, session.close(threadId, runId), Long.MAX_VALUE);
+                            emitter.complete();
+                        });
         return emitter;
     }
 
@@ -168,30 +183,25 @@ public class AssistantAguiController {
         return new ModelSelection(mode, modelId);
     }
 
-    private static void send(SseEmitter emitter, List<AgUiEvent> events, long cursor) {
+    /**
+     * 发送一批 AG-UI 事件。
+     *
+     * <p>序列化必须走 {@link AguiEventEncoder}：官方 {@code AguiEvent} 用 Jackson 2 注解，Spring Boot 4
+     * 的 Jackson 3 {@code HttpMessageConverter} 不认这些注解。encoder 自带 Jackson 2 codec 且返回带前导
+     * 空格的 JSON，与 SSE 的 {@code data:} 前缀拼成标准 {@code data: {...}}。
+     *
+     * <p>SSE id 按「事件游标.批内序号」生成：一条 ExecutionEvent 可投影出多条 AG-UI 事件，复用同一 id 会
+     * 让 Last-Event-ID 断线续传错位。
+     */
+    private static void send(SseEmitter emitter, List<AguiEvent> events, long cursor) {
         try {
-            for (var event : events) {
+            for (var index = 0; index < events.size(); index++) {
                 emitter.send(
                         SseEmitter.event()
-                                .id(Long.toString(cursor))
-                                .name(event.type())
-                                .data(event.toMap(), MediaType.APPLICATION_JSON));
+                                .id(cursor + "." + index)
+                                .data(ENCODER.encodeToJson(events.get(index))));
             }
         } catch (IOException failure) {
-            emitter.complete();
-        }
-    }
-
-    private static void sendError(SseEmitter emitter, String runId) {
-        try {
-            var event = AgUiEvent.runError(runId, "Assistant 运行未完成");
-            emitter.send(
-                    SseEmitter.event()
-                            .name(event.type())
-                            .data(event.toMap(), MediaType.APPLICATION_JSON));
-        } catch (IOException failure) {
-            // 客户端已断开时无需继续发送。
-        } finally {
             emitter.complete();
         }
     }

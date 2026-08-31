@@ -145,13 +145,14 @@ export interface AssistantTextMessageEndEvent extends RunEvent {
 export interface AssistantToolCallStartEvent extends RunEvent {
   type: "TOOL_CALL_START"
   toolCallId: string
-  toolName: string
+  toolCallName: string
 }
 
 export interface AssistantToolCallResultEvent extends RunEvent {
   type: "TOOL_CALL_RESULT"
   toolCallId: string
-  result: AafAiTaskEventData
+  /** AG-UI 契约中 content 是字符串；后端把脱敏后的安全字段序列化为 JSON 文本。 */
+  content: string
 }
 
 export interface AssistantCustomEvent extends RunEvent {
@@ -237,6 +238,22 @@ function requiredText(value: Record<string, unknown>, key: string): string {
   return field
 }
 
+/**
+ * 解析 TOOL_CALL_RESULT 的 content。
+ *
+ * <p>AG-UI 的 content 契约是字符串，后端把脱敏后的安全字段序列化为 JSON 文本；解析失败或含非标量值时
+ * 返回空对象，调用方按缺省处理。
+ */
+export function parseToolResultContent(content: string): AafAiTaskEventData {
+  let value: unknown
+  try {
+    value = JSON.parse(content)
+  } catch {
+    return {}
+  }
+  return isAafEventData(value) ? value : {}
+}
+
 function isAafEventData(value: unknown): value is AafAiTaskEventData {
   return (
     isRecord(value) &&
@@ -281,17 +298,14 @@ export function parseAssistantAgUiEvent(data: string): AssistantAgUiEvent {
         type,
         runId,
         toolCallId: requiredText(value, "toolCallId"),
-        toolName: requiredText(value, "toolName")
+        toolCallName: requiredText(value, "toolCallName")
       }
     case "TOOL_CALL_RESULT":
-      if (!isAafEventData(value.result)) {
-        throw new Error("AG-UI TOOL_CALL_RESULT 缺少安全 result")
-      }
       return {
         type,
         runId,
         toolCallId: requiredText(value, "toolCallId"),
-        result: value.result
+        content: requiredText(value, "content")
       }
     case "CUSTOM": {
       const name = requiredText(value, "name")
