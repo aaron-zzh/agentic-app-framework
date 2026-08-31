@@ -2,7 +2,7 @@
 
 所有用户故事的唯一来源。条目由 product agent 细化后登记，协调者维护编号和状态。
 
-编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-102**，新一级用户故事从 AAF-103 开始。添加新条目后必须同步更新此行。
+编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-108**，新一级用户故事从 AAF-109 开始。添加新条目后必须同步更新此行。
 
 ## 待排期
 
@@ -22,7 +22,8 @@
 - [ ] AAF-099 (创建: 06-21) 会员套餐订阅与积分系统补全（取消订阅 + 升级补差价（时间比例）+ 立即结算积分（三笔流水）+ 降级排队（end_at 切换）+ 撤销降级 + 到期提醒/冻结至 FREE + AIGC 失败积分退还 + 充值积分 2 年统一 + INVITE seed 修正 500/30；自动续费扣款接口预留不实现）设计文档: docs/design/apps/service/membership-completion.md
 - [ ] AAF-100 (创建: 06-22) User Studio v0.1 MVP 驾驶舱（驾驶舱外壳 + 五度空间多 tab + 助理常驻 + 创作工作区 5 sub-tab（图像 6 模型 / 视频 2 模型 / 文案 7 智能体 / 爆款 4 步 / 小工具箱）+ 项目工作区（含模板市场 + 项目-资源关联）+ 资产 4 类 + 知识空间基础版 + 个人中心 6 子 + 助理装扮简化版 + 数据隔离硬约束；后端补 5 张新表 + ~20 接口 + 1 张 ALTER + 数据隔离横切审计）设计文档: docs/design/apps/webui/user-studio-mvp.md
 
-## 未来迭代（v0.2 ~ v0.11）
+## 未来迭代（v0.2 ~ v0.12）
+
 
 ### v0.2 — 用户体系与基础设施
 
@@ -115,6 +116,18 @@
 - [ ] AAF-084 (创建: 05-19) 文档与示例（用户文档、API 文档、快速开始示例、部署指南）
 - [ ] AAF-085 (创建: 05-19) 质量加固（Bug 修复、性能优化、安全加固、可访问性合规）
 - [ ] AAF-086 (创建: 05-19) Beta 发布（发布说明、迁移指南、已知问题列表、反馈渠道建立）
+
+### v0.12 — 智能层运行时（AgentScope 边界落地）
+
+> 落地计划（唯一技术真理源）：docs/design/audit/2026-09-01-harness-landing-plan.md ｜ 决策依据：ADR-005
+> 六个故事按序依赖：AAF-103 → AAF-104 → AAF-105 → AAF-106 / AAF-107 → AAF-108。当前开发阶段约束（不新增 SQL 迁移文件、不新增测试文件、不跑 check，准出最低要求 `pnpm nx compile service`）见计划文档「当前开发阶段约束」。
+
+- [ ] AAF-103 (创建: 09-01) AgentScope core 复用收缩（编译目标 `HarnessAgent.builder()` → `ReActAgent.builder()`；删除 15 个 Harness-only 开关并冻结最终工具面消除 `WaitAsyncResultsTool`/`InboxMiddleware` 泄漏；中断改 core API；framework 直接依赖降为 `agentscope-core` 并删除两个零使用扩展；关闭 RQ-11/12/13）→ v0.12
+- [ ] AAF-104 (创建: 09-01) AG-UI 事件完整性（31 项 AgentEvent 显式处置策略；建 AAF converter registry/context/enricher 并瘦身 AgUiProjector；补齐 tool args、state、step、messages、activity 与 success/interrupt outcome；resume 接 AAF 持久 HITL 不用官方内存 coordinator）(依赖: AAF-103) → v0.12
+- [ ] AAF-105 (创建: 09-01) 非自主 L0 单栈（新增 `NonAutonomousModelInvoker` 同步端口 + AgentScope `Model` 直调实现，原子删除 `LlmClient`/`SpringAiLlmClient` 消除双模型栈；结构化输出统一入口删 `callExact`；`CapabilityRouter` 调用前定唯一模型、provider 层不静默 fallback；签名保持同步依 ADR-003）(依赖: AAF-103) → v0.12
+- [ ] AAF-106 (创建: 09-01) 思考模式与推理块回放（分离 `reasoning_content`/`content` 双通道使思考开启后正文不断流；`enableThinking`/`thinkingBudget`/`reasoningEffort` 按模型能力参数化；`THINKING_BLOCK_*` 在 mapper 层拦截不外发 CoT；接通 `AgentMessage.Role.REASONING` 推理块回放，替换当前直接抛异常的分支）(依赖: AAF-105) → v0.12
+- [ ] AAF-107 (创建: 09-01) EXECUTOR 先规划再执行（新增 `ai_executor_plan`/`ai_executor_plan_step` 两表追加进 v16；执行 Agent 自产计划走独立 planning execution + acting gate 只放只读工具；确定性白名单自动批准、其余走持久 HITL；只对 policy 标记任务生效；8 个计划事件经 outbox 投影 AG-UI）(依赖: AAF-104) → v0.12
+- [ ] AAF-108 (创建: 09-01) 门禁恢复与集成收口（一次性跑通 `pnpm check` + `pnpm acceptance` 并修复累积失败；补齐阶段约束期间欠下的测试文件；同步 architecture/runtime-event/model-router/usage-guide 真理源，`AUTONOMOUS_HARNESS` 重命名，登记 `JsonSchemaUtils` shadow 例外）(依赖: AAF-103～AAF-107) → v0.12
 
 ## 已完成
 

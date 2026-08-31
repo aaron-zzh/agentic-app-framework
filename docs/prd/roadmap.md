@@ -184,6 +184,21 @@
 | AAF-085 质量加固 | Bug 修复、性能优化、安全加固、可访问性合规 |
 | AAF-086 Beta 发布 | 发布说明、迁移指南、已知问题列表、反馈渠道建立 |
 
+## v0.12 — 智能层运行时（AgentScope 边界落地）
+
+> 目标：把 ADR-005 定案的复用边界落成代码——AgentScope core 承担推理循环，AAF Harness 承担运行治理；AG-UI 出口可被标准客户端完整消费；消除 Spring AI / AgentScope 双模型栈；执行者具备可审计的持久计划能力。
+>
+> 技术真理源：[Harness 落地计划](../design/audit/2026-09-01-harness-landing-plan.md) ｜ 决策依据：[ADR-005](../design/adr/ADR-005-agentscope-boundary-and-orchestration.md)
+
+| 里程碑 | 内容 |
+|--------|------|
+| AAF-103 core 复用收缩 | 编译目标切 `ReActAgent`、冻结最终工具面消除隐式工具泄漏、依赖降为 `agentscope-core`、关闭 RQ-11/12/13 |
+| AAF-104 AG-UI 事件完整性 | 31 项 AgentEvent 显式处置、AAF converter registry、补齐 tool args/state/step/activity/outcome、持久 interrupt-resume |
+| AAF-105 非自主 L0 单栈 | `NonAutonomousModelInvoker` 同步端口 + AgentScope `Model` 直调，删除 `LlmClient`/`SpringAiLlmClient` |
+| AAF-106 思考模式与推理块 | 推理与正文双通道分离、思考参数化、CoT 不外发、推理块回放接入 |
+| AAF-107 EXECUTOR 持久计划 | 计划聚合与两表、planning execution + acting gate、白名单自动批准与持久 HITL、计划事件投影 |
+| AAF-108 门禁恢复与收口 | 全量 `check` + `acceptance` 一次性跑通、补齐欠下测试、同步设计与规范真理源 |
+
 ## v2.0+ — 一切皆文档 · 元引擎完全体（愿景）
 
 > 目标：在 v0.x 结构化视图元引擎基础上，开启"一切皆文档"模式——DSL 驱动执行、运行时动态 EntityDef、无代码可视化编排、开放生态。
