@@ -1,11 +1,15 @@
 package com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.execution;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -26,11 +30,15 @@ import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptLengthSummary;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.compiler.AgentScopeSpecCompiler;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeEventMapper;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeEventMapper.MappingState;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeFailureClassifier.ExecutionDeadlineExceededException;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeMessageMapper;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeRuntimeContextMapper;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.middleware.AgentScopeTokenMeteringObserver;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.ToolResultEvidenceStore;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.OwnerType;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
 
 import io.agentscope.core.agent.RuntimeContext;
@@ -42,6 +50,8 @@ import io.agentscope.harness.agent.HarnessAgent;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Sinks;
+import reactor.core.scheduler.Scheduler;
 
 /**
  * AgentExecutionPort 的唯一 AgentScope Harness 实现。
@@ -61,10 +71,36 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
     private final ExecutionEventStorePort eventStore;
     private final ConversationLeasePort leases;
     private final DelegatedTaskPort delegatedTasks;
+    private final ToolResultEvidenceStore evidenceStore;
+
+    /**
+     * 承载源事件校验与计量的阻塞调度器（RQ-02）。
+     *
+     * <p>租约校验走 Redis、任务校验与计量走 JPA，都是同步阻塞 I/O。它们绝不能在 AgentScope 事件发射线程上执行——那会让 Redis/DB
+     * 抖动直接转化为模型流背压与取消延迟，并且共享 SDK 线程被占用时会放大到其他执行。ADR-003 的请求虚拟线程不覆盖 Reactor 回调线程，必须显式切换。
+     */
+    private final Scheduler blockingScheduler;
 
     /** 活跃执行表：executionId → 运行态句柄，cancel 依赖它定位 Agent 与 RuntimeContext。 */
     private final ConcurrentMap<ExecutionId, ActiveExecution> activeExecutions =
             new ConcurrentHashMap<>();
+
+    /**
+     * 需要在进入模型/工具前做 fail-closed 校验的边界事件（RQ-02）。
+     *
+     * <p>逐个 token 增量都查一次 Redis + DB
+     * 属于纯粹浪费：真正需要"确认租约仍是当代、任务仍允许执行"的时刻是产生外部副作用之前——启动、每次模型调用、每次工具调用与其结果落地。文本增量不触发副作用，跳过校验不放宽任何安全边界。
+     */
+    private static final Set<AgentEventType> GUARDED_EVENT_TYPES =
+            EnumSet.of(
+                    AgentEventType.AGENT_START,
+                    AgentEventType.AGENT_END,
+                    AgentEventType.MODEL_CALL_START,
+                    AgentEventType.MODEL_CALL_END,
+                    AgentEventType.TOOL_CALL_START,
+                    AgentEventType.TOOL_RESULT_END,
+                    AgentEventType.REQUIRE_USER_CONFIRM,
+                    AgentEventType.REQUEST_STOP);
 
     public HarnessAgentExecutionAdapter(
             AgentDefinitionPort definitions,
@@ -76,7 +112,9 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
             AgentScopeTokenMeteringObserver meteringObserver,
             ExecutionEventStorePort eventStore,
             ConversationLeasePort leases,
-            DelegatedTaskPort delegatedTasks) {
+            DelegatedTaskPort delegatedTasks,
+            ToolResultEvidenceStore evidenceStore,
+            Scheduler blockingScheduler) {
         this.definitions = Objects.requireNonNull(definitions, "definitions 不能为空");
         this.compiler = Objects.requireNonNull(compiler, "compiler 不能为空");
         this.messageMapper = Objects.requireNonNull(messageMapper, "messageMapper 不能为空");
@@ -87,21 +125,65 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         this.eventStore = Objects.requireNonNull(eventStore, "eventStore 不能为空");
         this.leases = Objects.requireNonNull(leases, "leases 不能为空");
         this.delegatedTasks = Objects.requireNonNull(delegatedTasks, "delegatedTasks 不能为空");
+        this.evidenceStore = Objects.requireNonNull(evidenceStore, "evidenceStore 不能为空");
+        this.blockingScheduler =
+                Objects.requireNonNull(blockingScheduler, "blockingScheduler 不能为空");
     }
 
     /** 订阅时才真正解析与编译，保证每次 subscribe 都是独立执行。 */
     @Override
     public Flux<ExecutionEvent> execute(AgentExecutionCommand command) {
         Objects.requireNonNull(command, "command 不能为空");
-        return Flux.defer(() -> executeDeferred(command));
+        return Flux.defer(() -> replaySettledExecution(command))
+                .switchIfEmpty(Flux.defer(() -> executeDeferred(command)));
+    }
+
+    /**
+     * 重放守卫（RQ-05）：同一 {@code executionId} 已经产出过终态事件时，不得再次调用模型，只回放已持久事件。
+     *
+     * <p>{@code activeExecutions} 只能拒绝同进程内的并发重复订阅，覆盖不到"客户端重试 / 崩溃恢复 / 重复调度"这三种跨进程重投——{@code
+     * JpaTaskRecoveryAdapter} 的 {@code asResume} 保留原 {@code executionId} 与 {@code
+     * sequenceBase}，因此崩溃恢复必然重投同一执行。以持久事件里的终态 作为幂等判据：终态已存在即该执行已结算，回放 AGENT 事件即可，模型与工具副作用不再发生。
+     *
+     * <p>只查 {@code sequenceBase} 之后的事件：基线之前的事件属于 Assistant 在本次执行前写入的部分
+     * （ROLE_RESOLVED、任务状态变更等），不是本适配器的产物。
+     */
+    private Flux<ExecutionEvent> replaySettledExecution(AgentExecutionCommand command) {
+        var context = command.context();
+        return eventStore
+                .readExecution(context.tenantId(), context.executionId(), command.sequenceBase())
+                .filter(event -> event.ownerType() == OwnerType.AGENT)
+                .collectList()
+                .flatMapMany(
+                        stored -> {
+                            if (stored.stream().noneMatch(HarnessAgentExecutionAdapter::terminal)) {
+                                if (!stored.isEmpty()) {
+                                    log.warn(
+                                            "[AgentLoop] 检测到未终结的历史 AGENT 事件，按恢复继续执行：executionId={}，历史事件数={}",
+                                            context.executionId().value(),
+                                            stored.size());
+                                }
+                                return Flux.empty();
+                            }
+                            log.info(
+                                    "[AgentLoop] 命中重放守卫，跳过模型调用并回放已持久事件：executionId={}，事件数={}",
+                                    context.executionId().value(),
+                                    stored.size());
+                            return Flux.fromIterable(stored);
+                        });
+    }
+
+    private static boolean terminal(ExecutionEvent event) {
+        return event.type() == ExecutionEventType.RUN_COMPLETED
+                || event.type() == ExecutionEventType.RUN_FAILED
+                || event.type() == ExecutionEventType.EXECUTION_CANCELED;
     }
 
     /**
      * 取消：只在首次调用且执行未终结时生效，Agent 已启动才能下发 interrupt。
      *
-     * <p>返回值与终态仲裁同源——{@code compareAndSet} 到 {@code CANCELLING} 成功才返回
-     * {@code true}，因此不会出现"cancel 返回 true 但从未发出取消事件"或"取消与正常完成
-     * 都各自发了一次终态"的竞态（RQ-01）。
+     * <p>返回值与终态仲裁同源——{@code compareAndSet} 到 {@code CANCELLING} 成功才返回 {@code true}，因此不会出现"cancel 返回
+     * true 但从未发出取消事件"或"取消与正常完成 都各自发了一次终态"的竞态（RQ-01）。
      */
     @Override
     public Mono<Boolean> cancel(ExecutionId executionId) {
@@ -115,7 +197,8 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                                 executionId.value());
                         return false;
                     }
-                    if (!active.terminal().compareAndSet(TerminalState.ACTIVE, TerminalState.CANCELLING)) {
+                    if (!active.terminal()
+                            .compareAndSet(TerminalState.ACTIVE, TerminalState.CANCELLING)) {
                         log.debug(
                                 "[AgentLoop] 忽略中断请求：executionId={}，原因=已进入终态或已标记取消，当前={}",
                                 executionId.value(),
@@ -241,6 +324,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
             AgentExecutionCommand command, MappingState mappingState, ResolvedExecution execution) {
         var executionId = command.context().executionId();
         final RuntimeContext runtimeContext;
+        final String stateUserKey;
         try {
             logPromptPreflight(command, execution);
             log.debug(
@@ -257,8 +341,11 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                     command.compiledSystemPrompt()
                             .content()
                             .codePointCount(0, command.compiledSystemPrompt().content().length()));
-            runtimeContext = contextMapper.toAgentScope(command.context());
-            requireNoHiddenPersistentHistory(command);
+            stateUserKey =
+                    contextMapper.stateUserKey(command.context(), execution.agentIdentifier());
+            runtimeContext =
+                    contextMapper.toAgentScope(command.context(), execution.agentIdentifier());
+            requireNoHiddenPersistentHistory(command, stateUserKey);
         } catch (RuntimeException failure) {
             release(execution);
             throw failure;
@@ -279,16 +366,29 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                     execution.agentIdentifier(),
                     execution.ephemeral());
 
+            var policy = execution.executionPolicy();
+            // 总时限的完成信号：主流终止时置空，避免"等待一个永不完成的计时器"把正常完成拖到时限到点
+            var mainTerminated = Sinks.<ExecutionEvent>one();
             return execution
                     .agent()
                     .streamEvents(messageMapper.toAgentScope(command.messages()), runtimeContext)
-                    // 每个源事件：校验租约仍然有效 → 记录启动态 → 计量 token
-                    .doOnNext(
-                            event -> {
-                                requireCurrent(command);
-                                onSourceEvent(event, active);
-                                meteringObserver.observe(event, execution.model(), command);
-                            })
+                    // 每个源事件：边界事件校验租约与任务 → 记录启动态 → 计量 token。
+                    // 阻塞 I/O 一律切到 blockingScheduler，不占用 AgentScope 事件发射线程（RQ-02）；
+                    // concatMap 保持逐事件串行，fail-closed 语义与原先完全一致
+                    .concatMap(
+                            event ->
+                                    Mono.fromCallable(
+                                                    () -> {
+                                                        if (GUARDED_EVENT_TYPES.contains(
+                                                                event.getType())) {
+                                                            requireCurrent(command);
+                                                        }
+                                                        onSourceEvent(event, active);
+                                                        meteringObserver.observe(
+                                                                event, execution.model(), command);
+                                                        return event;
+                                                    })
+                                            .subscribeOn(blockingScheduler))
                     // 收敛为 AAF 事件，无对应语义的源事件被丢弃
                     .concatMap(
                             event ->
@@ -299,7 +399,13 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                                                     execution.agentIdentifier(),
                                                     execution.model(),
                                                     mappingState)))
-                    .timeout(execution.executionPolicy().timeout())
+                    // 事件静默超时：只约束相邻已映射事件之间的间隔，识别"连接未断但模型卡住"
+                    .timeout(policy.idleTimeout())
+                    .doOnComplete(mainTerminated::tryEmitEmpty)
+                    .doOnError(ignored -> mainTerminated.tryEmitEmpty())
+                    // 总墙钟硬时限：计时从订阅开始，与事件是否持续产出无关（RQ-03）。
+                    // 持续输出事件不再能无限延长执行，两个时限各自独立表达一种边界
+                    .mergeWith(totalDeadline(mainTerminated, policy.totalTimeout(), executionId))
                     .doOnError(ignored -> interruptOnce(active))
                     // 异常收口：终态是单一 CAS 仲裁的结果，不再由分散的布尔标志推断。
                     // 先抢 ACTIVE→TERMINATED：抢到即"这是一次未被取消覆盖的真实失败"，发 RUN_FAILED。
@@ -346,23 +452,53 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                                                                                     .agentIdentifier(),
                                                                             mappingState))
                                                             : Flux.empty()))
-                    // concatMap 保证串行入库，sequence 由存储层原子分配
-                    .concatMap(event -> eventStore.append(event, command.context().lease()))
-                    .doFinally(ignored -> release(executionId, active));
+                    // concatMap 保证串行入库，sequence 由存储层原子分配；写入 SLA 与模型侧时限解耦
+                    .concatMap(
+                            event ->
+                                    eventStore
+                                            .append(event, command.context().lease())
+                                            .timeout(policy.persistTimeout()))
+                    .doFinally(ignored -> release(executionId, active, command, stateUserKey));
         } catch (RuntimeException failure) {
-            release(executionId, active);
+            release(executionId, active, command, stateUserKey);
             throw failure;
         }
     }
 
+    /**
+     * 总时限信号：与事件流并行的独立计时器，到点即以 {@link ExecutionDeadlineExceededException} 终止整条流。
+     *
+     * <p>计时器等待的是"主流已终止"信号——主流正常结束时该信号立即置空，计时器随之完成，合并流不会被计时器拖住； 主流迟迟不结束时 {@code timeout}
+     * 触发，超时同样走终态仲裁与 {@code onErrorResume}，落成一条带 {@code failureCategory=TIMEOUT} 的 RUN_FAILED
+     * 事件，而不是把裸异常抛给调用方。
+     */
+    private static Flux<ExecutionEvent> totalDeadline(
+            Sinks.One<ExecutionEvent> mainTerminated,
+            Duration totalTimeout,
+            ExecutionId executionId) {
+        return mainTerminated
+                .asMono()
+                .timeout(totalTimeout)
+                .onErrorMap(
+                        TimeoutException.class,
+                        ignored ->
+                                new ExecutionDeadlineExceededException(
+                                        "执行总时限耗尽: executionId="
+                                                + executionId.value()
+                                                + "，totalTimeout="
+                                                + totalTimeout))
+                .flux();
+    }
+
     /** AgentScope 会先恢复 agent_state 再追加 command messages；隐藏历史未纳入冻结画像时必须拒绝。 */
-    private void requireNoHiddenPersistentHistory(AgentExecutionCommand command) {
+    private void requireNoHiddenPersistentHistory(
+            AgentExecutionCommand command, String stateUserKey) {
         var context = command.context();
         final java.util.Optional<AgentState> state;
         try {
             state =
                     stateStore.get(
-                            contextMapper.stateUserKey(context),
+                            stateUserKey,
                             context.sessionId().value(),
                             "agent_state",
                             AgentState.class);
@@ -461,12 +597,11 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
     }
 
     /**
-     * 在自然终态路径的 {@code ACTIVE→TERMINATED} 抢占失败后调用：把
-     * {@code CANCELLING→TERMINATED} 补到底，确认取消确实是本次终态的胜出方。
+     * 在自然终态路径的 {@code ACTIVE→TERMINATED} 抢占失败后调用：把 {@code CANCELLING→TERMINATED}
+     * 补到底，确认取消确实是本次终态的胜出方。
      *
      * <p>只在 {@link #onErrorResume} 与 {@link #executeResolved} 的 {@code concatWith} 分支被调用，
-     * 且两者在同一订阅内互斥执行，因此这里的 CAS 预期总是成功；失败只可能是已被其中一方处理过
-     * （不会发生，双重防御）。
+     * 且两者在同一订阅内互斥执行，因此这里的 CAS 预期总是成功；失败只可能是已被其中一方处理过 （不会发生，双重防御）。
      */
     private static boolean cancelWonRace(ActiveExecution active) {
         return active.terminal().compareAndSet(TerminalState.CANCELLING, TerminalState.TERMINATED);
@@ -478,6 +613,44 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
             active.agent().getDelegate().interrupt(active.runtimeContext());
             log.debug("[AgentLoop] 已向 Harness ReAct 执行体下发中断");
         }
+    }
+
+    /**
+     * 出表并释放本次执行占用的全部资源。
+     *
+     * <p>无论正常完成、失败、取消还是订阅 dispose 都会走到这里，因此把三类清理放在同一处：
+     *
+     * <ul>
+     *   <li>一次性 Agent 实例 close（缓存实例由 compiler 统一管理）
+     *   <li>工具证据残留清零——TOOL_RESULT_END 未到达的暂存项在这里兜底删除（RQ-10）
+     *   <li>本次执行私有的 AgentScope 状态槽删除，避免按 executionId 分槽后 Redis 无界增长（RQ-08/09 的配套清理）
+     * </ul>
+     *
+     * <p>状态槽清理失败不影响执行结论：槽键含 executionId，残留项不会被其他执行读到。
+     */
+    private void release(
+            ExecutionId executionId,
+            ActiveExecution active,
+            AgentExecutionCommand command,
+            String stateUserKey) {
+        release(executionId, active);
+        evidenceStore.clear(executionId);
+        deleteExecutionState(command, stateUserKey);
+    }
+
+    /** 状态槽清理走阻塞调度器：doFinally 可能运行在 AgentScope 事件线程上，Redis 删除不能占用它。 */
+    private void deleteExecutionState(AgentExecutionCommand command, String stateUserKey) {
+        blockingScheduler.schedule(
+                () -> {
+                    try {
+                        stateStore.delete(stateUserKey, command.context().sessionId().value());
+                    } catch (RuntimeException failure) {
+                        log.warn(
+                                "[AgentLoop] 执行状态槽清理失败，等待 Redis 侧过期：executionId={}，错误={}",
+                                command.context().executionId().value(),
+                                failure.getMessage());
+                    }
+                });
     }
 
     /** 出表并释放一次性实例；缓存实例由 compiler 统一管理，不在此关闭。 */
@@ -507,9 +680,8 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
      * 单次执行的终态仲裁状态机（RQ-01 修复）。
      *
      * <p>替代此前分散的 {@code cancelled}/{@code cancellationEmitted}/{@code sourceCompleted}
-     * 三个独立布尔量——它们各自原子但组合不原子，存在"取消与正常完成都各发一次终态"或"cancel()
-     * 返回 true 但从未发出取消事件"两个确定窗口。收敛为单一 {@link AtomicReference} 上的 CAS
-     * 转移后，任一时刻只有一条路径能把状态推进到 {@link #TERMINATED}，终态事件恰好发一次。
+     * 三个独立布尔量——它们各自原子但组合不原子，存在"取消与正常完成都各发一次终态"或"cancel() 返回 true 但从未发出取消事件"两个确定窗口。收敛为单一 {@link
+     * AtomicReference} 上的 CAS 转移后，任一时刻只有一条路径能把状态推进到 {@link #TERMINATED}，终态事件恰好发一次。
      *
      * <ul>
      *   <li>{@link #ACTIVE} → 初始态，执行进行中，未被请求取消

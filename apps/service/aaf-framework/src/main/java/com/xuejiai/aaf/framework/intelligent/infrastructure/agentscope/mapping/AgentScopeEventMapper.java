@@ -30,6 +30,7 @@ import io.agentscope.core.event.ToolCallStartEvent;
 import io.agentscope.core.event.ToolResultEndEvent;
 import io.agentscope.core.message.GenerateReason;
 import io.agentscope.core.message.ToolResultState;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 将 AgentScope 运行事件收敛为稳定、脱敏的 AAF 事件。
@@ -37,6 +38,7 @@ import io.agentscope.core.message.ToolResultState;
  * <p>AgentScope 侧有 20+ 类型化事件，AAF 只保留对外契约需要的子集；思考链、工具入参、 原始错误信息不出边界。工具业务证据从 {@link
  * ToolResultEvidenceStore} 取回后按白名单合并。
  */
+@Slf4j
 public final class AgentScopeEventMapper {
 
     private final ToolResultEvidenceStore evidenceStore;
@@ -131,20 +133,43 @@ public final class AgentScopeEventMapper {
         };
     }
 
-    /** 将基础设施异常收敛为无敏感详情的运行失败事件。 */
+    /**
+     * 将执行期异常收敛为无敏感详情的运行失败事件。
+     *
+     * <p>对外只给稳定契约字段：{@code failureCategory}（处置类别）、{@code retryable}（是否可自动重试）、 {@code
+     * failureId}（服务端日志关联键）。异常原文与堆栈只写服务端日志，调用方不得再靠异常类简单名 判断可重试性（RQ-04）。
+     */
     public ExecutionEvent failure(
             AgentExecutionCommand command,
             String agentIdentifier,
             MappingState state,
             Throwable failure) {
         state.status(ExecutionEventStatus.FAILED);
+        var category = AgentScopeFailureClassifier.classify(failure);
+        var failureId = randomId();
+        log.error(
+                "[AgentLoop] 执行失败：failureId={}，executionId={}，agent={}，失败类别={}，可重试={}",
+                failureId,
+                command.context().executionId().value(),
+                agentIdentifier,
+                category,
+                category.retryable(),
+                failure);
         return syntheticEvent(
                 command,
                 agentIdentifier,
                 state,
                 ExecutionEventType.RUN_FAILED,
                 ExecutionEventStatus.FAILED,
-                payload("errorType", failure.getClass().getSimpleName()));
+                payload(
+                        "failureCategory",
+                        category.name(),
+                        "retryable",
+                        category.retryable(),
+                        "failureId",
+                        failureId,
+                        "errorType",
+                        failure == null ? "UNKNOWN" : failure.getClass().getSimpleName()));
     }
 
     /** 创建按 executionId 取消的确定性终态事件。 */

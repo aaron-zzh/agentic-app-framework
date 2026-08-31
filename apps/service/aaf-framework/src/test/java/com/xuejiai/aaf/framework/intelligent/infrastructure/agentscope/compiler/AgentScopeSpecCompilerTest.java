@@ -62,7 +62,8 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
                         stateStore,
                         toolkitFactory,
                         modelResolver,
-                        new PromptEnvelopeCaptureMiddleware(promptEnvelopes, Clock.systemUTC()));
+                        new PromptEnvelopeCaptureMiddleware(promptEnvelopes, Clock.systemUTC()),
+                        AgentScopeSpecCompiler.DEFAULT_CACHE_CAPACITY);
         when(modelResolver.resolve(any(ModelSpec.class))).thenReturn(model);
         when(toolCatalog.resolve(any()))
                 .thenAnswer(
@@ -278,6 +279,73 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
                 policy());
     }
 
+    /**
+     * RQ-07：执行策略是 HarnessAgent 不可变配置的一部分。策略不同的两次直答若共享实例，后一次会沿用首次编译的 maxIterations /
+     * maxRetries，形成同一执行内部策略不一致。
+     */
+    @Test
+    @DisplayName("Given 画像相同但执行策略不同 When 直接编译 Then 不复用同一主助理")
+    void should_not_reuse_direct_agent_when_execution_policy_differs() {
+        var search = tool("knowledge.search");
+        var executionModel = new ModelSpec("1");
+        var relaxed = dynamicSpec(List.of(search));
+        var strict =
+                new SubagentSpec.Dynamic(
+                        relaxed.name(),
+                        relaxed.description(),
+                        relaxed.systemPromptFragment(),
+                        relaxed.tools(),
+                        ExecutionPolicy.withDefaultTimeouts(9, 4, Duration.ofSeconds(30), 128000),
+                        relaxed.modelRequirement(),
+                        false);
+
+        var first =
+                compiler.compileDirect(
+                        relaxed,
+                        executionModel,
+                        compiled("agent.dynamic-test", "策略对比"),
+                        List.of(search));
+        var second =
+                compiler.compileDirect(
+                        strict,
+                        executionModel,
+                        compiled("agent.dynamic-test", "策略对比"),
+                        List.of(search));
+
+        assertThat(second).isNotSameAs(first);
+        assertThat(first.getDelegate().getMaxIters()).isEqualTo(3);
+        assertThat(second.getDelegate().getMaxIters()).isEqualTo(9);
+    }
+
+    /** RQ-06：缓存必须有界。容量为 1 时写入第二个画像必须淘汰并 close 第一个，不再等容器关闭才回收。 */
+    @Test
+    @DisplayName("Given 缓存容量为 1 When 编译第二个画像 Then 淘汰并释放最早实例")
+    void should_evict_and_close_least_recently_used_agent_when_capacity_reached() {
+        var bounded =
+                new AgentScopeSpecCompiler(
+                        stateStore,
+                        new AgentScopeToolkitFactory(
+                                toolCatalog, toolGateway, new ToolResultEvidenceStore()),
+                        modelResolver,
+                        new PromptEnvelopeCaptureMiddleware(promptEnvelopes, Clock.systemUTC()),
+                        1);
+        try {
+            var spec = agentSpec(List.of());
+
+            var first = bounded.compile(spec, compiled("agent.compiler-test", "画像 A"), List.of());
+            var second = bounded.compile(spec, compiled("agent.compiler-test", "画像 B"), List.of());
+            var firstAgain =
+                    bounded.compile(spec, compiled("agent.compiler-test", "画像 A"), List.of());
+
+            assertThat(second).isNotSameAs(first);
+            // 画像 A 已被淘汰，重新编译得到新实例——证明淘汰真实发生而不是无界堆积
+            assertThat(firstAgain).isNotSameAs(first);
+            assertThat(bounded.cachedAgentCount()).isEqualTo(1);
+        } finally {
+            bounded.close();
+        }
+    }
+
     private SubagentSpec.Dynamic dynamicSpec(List<ToolRef> tools) {
         return new SubagentSpec.Dynamic(
                 "agent.dynamic-test",
@@ -291,7 +359,7 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
     }
 
     private ExecutionPolicy policy() {
-        return new ExecutionPolicy(3, 1, Duration.ofSeconds(30), 128000);
+        return ExecutionPolicy.withDefaultTimeouts(3, 1, Duration.ofSeconds(30), 128000);
     }
 
     private ToolDefinition definition(ToolRef ref) {

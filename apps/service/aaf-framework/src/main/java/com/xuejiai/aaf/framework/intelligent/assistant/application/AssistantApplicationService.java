@@ -142,7 +142,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             int contextWindow) {
         this.sessionMemories = Objects.requireNonNull(sessionMemories, "sessionMemories 不能为空");
         this.runtimeExecutionPolicy =
-                new ExecutionPolicy(
+                ExecutionPolicy.withDefaultTimeouts(
                         RUNTIME_MAX_ITERATIONS,
                         RUNTIME_MAX_MODEL_RETRIES,
                         RUNTIME_TIMEOUT,

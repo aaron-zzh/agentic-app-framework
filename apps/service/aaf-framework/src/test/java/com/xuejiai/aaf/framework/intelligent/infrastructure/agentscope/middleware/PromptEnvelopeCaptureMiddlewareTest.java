@@ -152,7 +152,7 @@ class PromptEnvelopeCaptureMiddlewareTest extends BaseMockitoUnitTest {
     }
 
     private static RuntimeContext runtimeContext() {
-        return new AgentScopeRuntimeContextMapper().toAgentScope(context());
+        return new AgentScopeRuntimeContextMapper().toAgentScope(context(), "agent.envelope-test");
     }
 
     private static ModelCallInput input() {

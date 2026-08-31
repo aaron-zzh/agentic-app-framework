@@ -66,7 +66,7 @@ public final class JpaAgentDefinitionAdapter implements AgentDefinitionPort {
                 entity.getSystemPrompt(),
                 new ModelSpec(entity.getModelId().toString()),
                 tools,
-                new ExecutionPolicy(
+                ExecutionPolicy.withDefaultTimeouts(
                         entity.getMaxIterations(),
                         DEFAULT_MODEL_RETRIES,
                         Duration.ofSeconds(entity.getTimeoutSeconds()),

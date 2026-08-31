@@ -34,6 +34,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePor
 
 import io.agentscope.core.state.AgentStateStore;
 import io.agentscope.extensions.redis.state.RedisAgentStateStore;
+import reactor.core.scheduler.Schedulers;
 
 /**
  * Core + Agent 唯一 AgentScope 基础设施接线。
@@ -120,7 +121,11 @@ public class AgentScopeInfrastructureAutoConfiguration {
             AgentScopeModelResolver modelResolver,
             PromptEnvelopeCaptureMiddleware envelopeCapture) {
         return new AgentScopeSpecCompiler(
-                stateStore, toolkitFactory, modelResolver, envelopeCapture);
+                stateStore,
+                toolkitFactory,
+                modelResolver,
+                envelopeCapture,
+                AgentScopeSpecCompiler.DEFAULT_CACHE_CAPACITY);
     }
 
     @Bean
@@ -135,7 +140,8 @@ public class AgentScopeInfrastructureAutoConfiguration {
             AgentScopeTokenMeteringObserver meteringObserver,
             ExecutionEventStorePort eventStore,
             com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort leases,
-            DelegatedTaskPort delegatedTasks) {
+            DelegatedTaskPort delegatedTasks,
+            ToolResultEvidenceStore evidenceStore) {
         return new HarnessAgentExecutionAdapter(
                 definitions,
                 compiler,
@@ -146,6 +152,9 @@ public class AgentScopeInfrastructureAutoConfiguration {
                 meteringObserver,
                 eventStore,
                 leases,
-                delegatedTasks);
+                delegatedTasks,
+                evidenceStore,
+                // 源事件上的租约 / 任务 / 计量校验是同步阻塞 I/O，必须离开 AgentScope 事件发射线程
+                Schedulers.boundedElastic());
     }
 }

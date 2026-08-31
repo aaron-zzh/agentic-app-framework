@@ -23,9 +23,9 @@ public final class AgentScopeRuntimeContextMapper {
     public static final String STATE_USER_KEY = "aaf.stateUserKey";
 
     /** AgentScope userId 使用不可歧义的 tenant namespace；完整上下文和身份键显式注入。 */
-    public RuntimeContext toAgentScope(InvocationContext context) {
+    public RuntimeContext toAgentScope(InvocationContext context, String agentIdentifier) {
         Objects.requireNonNull(context, "context 不能为空");
-        var stateUserKey = stateUserKey(context);
+        var stateUserKey = stateUserKey(context, agentIdentifier);
         return RuntimeContext.builder()
                 .userId(stateUserKey)
                 .sessionId(context.sessionId().value())
@@ -37,16 +37,33 @@ public final class AgentScopeRuntimeContextMapper {
                 .build();
     }
 
-    /** 返回 AgentStateStore 使用的 tenant/user/task 隔离键；委托态按 fencing 代际隔离。 */
-    public String stateUserKey(InvocationContext context) {
+    /**
+     * 返回 AgentStateStore 使用的隔离键：租户 / 用户 / 任务 / Agent 身份 / 本次执行，委托态再叠加租约代际。
+     *
+     * <p>加入 agent 身份与 executionId 是 RQ-08 + RQ-09 的修复：
+     *
+     * <ul>
+     *   <li>RQ-09：同一 (租户, 用户, 任务, 会话) 下换 Agent 身份不再共享 {@code agent_state}，杜绝跨 Agent 历史污染
+     *   <li>RQ-08：状态槽按 executionId 私有化后，两个并发执行不可能读到彼此写入的历史，隐藏历史预检不再有 "都通过空历史校验、第二个却加载到对方历史"的 TOCTOU
+     *       窗口
+     * </ul>
+     */
+    public String stateUserKey(InvocationContext context, String agentIdentifier) {
         Objects.requireNonNull(context, "context 不能为空");
+        if (agentIdentifier == null || agentIdentifier.isBlank()) {
+            throw new IllegalArgumentException("agentIdentifier 不能为空白");
+        }
         var key =
                 "tenant="
                         + context.tenantId().value()
                         + "|user="
                         + context.userId().value()
                         + "|task="
-                        + context.taskId().value();
+                        + context.taskId().value()
+                        + "|agent="
+                        + agentIdentifier
+                        + "|execution="
+                        + context.executionId().value();
         if (context.controlMode()
                 == com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode
                         .DELEGATED) {
