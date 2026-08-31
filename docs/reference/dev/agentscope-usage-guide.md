@@ -3,8 +3,8 @@ level: Practice
 layer: Framework
 purpose: AgentScope 使用方式与运行时原理参考——从 ReActAgent 基础用法到 HarnessAgent 多用户多智能体场景
 status: published
-version: 1.3.0
-date: 2026-07-31
+version: 1.5.0
+date: 2026-08-31
 author: AaronZZH & Kiro
 scope:
   includes:
@@ -25,6 +25,7 @@ gains:
   - 知道 Middleware、Subagents、执行保护和 Cognition 边界
   - 知道多智能体场景下 Agent 定义与实例的关系
   - 知道 Agent 定义来源的两种可选模式及适用场景
+  - 知道官方文档入口与模块划分，能定位到具体章节核实能力语义
 ---
 
 # AgentScope 使用方式与运行时原理参考
@@ -319,4 +320,35 @@ toolkit.registration()
 
 ## 相关文档
 
+### 官方真理源
+
+| 类型 | 位置 | 说明 |
+|------|------|------|
+| 官方文档（v2 中文） | <https://java.agentscope.io/v2/zh/docs/index.html> | 能力**语义**的权威源。本文与官方冲突时以官方为准。三层模块划分：核心组件 `building-blocks/` · Harness `harness/` · 集成 `integration/` |
+| 官方文档（v2 英文） | <https://java.agentscope.io/v2/en/docs/index.html> | 中文章节缺失时以英文版为准 |
+| 上生产检查清单 | <https://java.agentscope.io/v2/zh/docs/others/going-to-production.html> | 官方生产化要求，接线改动前对标 |
+| 迁移指南 | <https://java.agentscope.io/v2/zh/docs/change-log.html> | 升级 AgentScope 版本前必读 |
+| 本地源码副本 | `tmp/agentscope-java/` | 含 `agentscope-core`、`agentscope-harness`、`agentscope-extensions`；`SKILL.md` 是官方能力速查。**行为事实**的最终判据 |
+
+### 能力判定三条规则
+
+**一 · 不得凭模块名推断。** 判定"官方是否提供某能力"必须打开源码确认。模块名与实际能力经常不对应。
+
+**二 · 涉及安全边界时，不得凭官方文档推断，必须落到源码。** 官方文档之间会互相矛盾，且陈旧文档不会自动打标。
+
+实例：Plan Mode 的只读限制是否沿 `agent_spawn` 传播到子 Agent——
+
+| 来源 | 结论 | Last updated |
+|------|------|-------------|
+| [子 Agent](https://java.agentscope.io/v2/zh/docs/harness/subagent.html) 文档 | 会自动继承 | 2026-08-09 |
+| [计划模式](https://java.agentscope.io/v2/zh/docs/harness/plan-mode.html) 文档 | 标注「已知缺口」，不会继承 | 2026-07-16 |
+| `harness/agent/tool/AgentSpawnTool.java:299-301` | **会继承** | — |
+
+源码是 `parentState.getPlanModeContext().isPlanActive()` → `ha.enterPlanMode(currentUserId, sessionId)`。旧文档陈旧未更新。若当初按 plan-mode 文档判断"限制不传播"而自行补一层子 Agent 只读约束，就会写出一段永远为真的冗余代码。
+
+**三 · builder 默认值必须验证，不能假设"没调用就是关闭"。** Harness builder 在 `build()` 时会默认创建部分组件并注册工具与 middleware。已确认的例子：即使未启用工作区能力，builder 仍会创建 `LocalFilesystem`、`WorkspaceManager`、`WorkspaceMessageBus`、`WorkspaceAsyncToolRegistry`，装配 `InboxMiddleware` 并注册 `WaitAsyncResultsTool`。判定实际生效的工具集与 middleware 清单，应在 `build()` 之后对最终 Toolkit 与 middleware 做断言，而不是依据 builder 调用序列推断。
+
+### AAF 内部文档
+
 - [五层智能架构](../../design/framework/intelligent/architecture.md) — AAF 领域模型、AgentScope 映射决策、实施阶段与端口契约
+- [AgentScope 复用边界专项评估](../../design/audit/2026-08-30-agentscope-boundary/README.md) — 2026-08-30 时点的复用/自研测绘、编排层质量、能力差距与演进路线推荐

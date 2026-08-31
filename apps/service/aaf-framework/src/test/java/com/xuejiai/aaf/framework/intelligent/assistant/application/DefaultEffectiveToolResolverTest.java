@@ -14,10 +14,10 @@ import com.xuejiai.aaf.framework.intelligent.agent.model.ToolRef;
 /**
  * 有效工具交集解析器：RESTRICT/INHERIT 三态语义与 {@link BaseToolProfile} 并入。
  *
- * <p>{@code inheritRoleTools=false}（RESTRICT）时 Skill 空需求恒不放行业务工具，只保留基础工具；
- * {@code inheritRoleTools=true}（INHERIT）时跳过 Skill 必需工具限制，放行 Role/Assistant 与 Agent
- * 交集的全部工具。两种模式下 {@link BaseToolProfile} 中的工具只要在 Agent 声明范围内即恒定并入结果，
- * 与 {@code action-governance.md#有效工具交集} 的 RESTRICT/INHERIT 契约一致。
+ * <p>{@code inheritRoleTools=false}（RESTRICT）时 Skill 空需求恒不放行业务工具，只保留基础工具； {@code
+ * inheritRoleTools=true}（INHERIT）时跳过 Skill 必需工具限制，放行 Role/Assistant 与 Agent 交集的全部工具。两种模式下 {@link
+ * BaseToolProfile} 中的工具只要在 Agent 声明范围内即恒定并入结果， 与 {@code action-governance.md#有效工具交集} 的
+ * RESTRICT/INHERIT 契约一致。
  */
 class DefaultEffectiveToolResolverTest {
 
@@ -38,7 +38,10 @@ class DefaultEffectiveToolResolverTest {
     void should_return_empty_when_restrict_and_role_whitelist_present_but_skill_empty() {
         var result =
                 resolver.resolve(
-                        Set.of(), false, Set.of("search"), List.of(tool("search"), tool("browser")));
+                        Set.of(),
+                        false,
+                        Set.of("search"),
+                        List.of(tool("search"), tool("browser")));
 
         assertThat(result).isEmpty();
     }
@@ -162,9 +165,7 @@ class DefaultEffectiveToolResolverTest {
         var search = tool("search");
         var baseTool = tool("recognizeOcr");
 
-        var result =
-                resolver.resolve(
-                        Set.of("search"), false, Set.of(), List.of(search, baseTool));
+        var result = resolver.resolve(Set.of("search"), false, Set.of(), List.of(search, baseTool));
 
         assertThat(result).containsExactlyInAnyOrder(search, baseTool);
     }
@@ -175,8 +176,7 @@ class DefaultEffectiveToolResolverTest {
         var baseTool = tool("listBusinessActions");
 
         var result =
-                resolver.resolve(
-                        Set.of(), true, Set.of("listBusinessActions"), List.of(baseTool));
+                resolver.resolve(Set.of(), true, Set.of("listBusinessActions"), List.of(baseTool));
 
         assertThat(result).containsExactly(baseTool);
     }
@@ -198,7 +198,10 @@ class DefaultEffectiveToolResolverTest {
 
         var result =
                 resolver.resolveAssistant(
-                        Set.of("search"), false, Set.of("search"), List.of(search, tool("browser")));
+                        Set.of("search"),
+                        false,
+                        Set.of("search"),
+                        List.of(search, tool("browser")));
 
         assertThat(result).containsExactlyInAnyOrder(search);
     }
@@ -230,7 +233,8 @@ class DefaultEffectiveToolResolverTest {
     }
 
     @Test
-    @DisplayName("Given RESTRICT 且 Assistant Skill 空需求 When Agent 已声明基础工具 Then 恒定放行 BaseToolProfile")
+    @DisplayName(
+            "Given RESTRICT 且 Assistant Skill 空需求 When Agent 已声明基础工具 Then 恒定放行 BaseToolProfile")
     void should_include_base_tool_profile_when_resolve_assistant_restrict_and_skill_empty() {
         var baseTool = tool("list_workflows");
 

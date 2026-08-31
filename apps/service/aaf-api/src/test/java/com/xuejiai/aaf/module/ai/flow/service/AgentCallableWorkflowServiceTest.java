@@ -6,7 +6,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -24,8 +23,7 @@ import com.xuejiai.aaf.module.ai.flow.domain.AiFlowDefinition;
 import com.xuejiai.aaf.module.ai.flow.repository.AiFlowDefinitionRepository;
 
 /**
- * Agent 可调用 AI Flow 的同步等待语义：启动即等待完成，返回结束节点 {@code output} 变量文本；
- * 超时或以 {@code terminated} 状态结束时视为失败。
+ * Agent 可调用 AI Flow 的同步等待语义：启动即等待完成，返回结束节点 {@code output} 变量文本； 超时或以 {@code terminated} 状态结束时视为失败。
  */
 @ExtendWith(MockitoExtension.class)
 class AgentCallableWorkflowServiceTest {

@@ -14,8 +14,8 @@ import reactor.core.scheduler.Schedulers;
 /**
  * 非阻塞任务输入入口；accept 只持久输入事实并唤醒调度，不抢占 conversation lease。
  *
- * <p>写入前调用 {@link InputClassifier} 重新判定 {@code kind}，不直接信任客户端建议值
- * （方案 C，2026-08-30 拍板）；分类器未装配时保留客户端建议值作降级，不阻断输入接收。
+ * <p>写入前调用 {@link InputClassifier} 重新判定 {@code kind}，不直接信任客户端建议值 （方案 C，2026-08-30
+ * 拍板）；分类器未装配时保留客户端建议值作降级，不阻断输入接收。
  */
 public final class TaskIngress {
     private final DelegatedTaskPort tasks;

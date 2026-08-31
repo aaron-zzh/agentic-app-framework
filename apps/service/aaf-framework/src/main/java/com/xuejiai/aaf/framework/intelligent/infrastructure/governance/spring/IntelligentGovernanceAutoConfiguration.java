@@ -15,9 +15,9 @@ import org.springframework.core.env.Environment;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.engine.knowledge.embedding.EmbeddingProperties;
 import com.xuejiai.aaf.framework.engine.knowledge.rag.HybridSearchService;
-import com.xuejiai.aaf.framework.engine.memory.AtomMemoryEngine;
 import com.xuejiai.aaf.framework.engine.lease.LeaseAutoConfiguration;
 import com.xuejiai.aaf.framework.engine.lease.RedisDistributedLeaseAdapter;
+import com.xuejiai.aaf.framework.engine.memory.AtomMemoryEngine;
 import com.xuejiai.aaf.framework.engine.tool.ToolRegistry;
 import com.xuejiai.aaf.framework.intelligent.agent.application.DefaultToolGateway;
 import com.xuejiai.aaf.framework.intelligent.agent.application.DefaultToolParameterPolicy;
@@ -243,9 +243,9 @@ public class IntelligentGovernanceAutoConfiguration {
     }
 
     /**
-     * PromptEnvelope 端口须在 AgentScopeInfrastructureAutoConfiguration 之前可用：
-     * 该配置类的 promptEnvelopeCaptureMiddleware Bean 依赖此端口，而
-     * AgentScopeInfrastructureAutoConfiguration 早于（原属地）AssistantInfrastructureAutoConfiguration
+     * PromptEnvelope 端口须在 AgentScopeInfrastructureAutoConfiguration 之前可用： 该配置类的
+     * promptEnvelopeCaptureMiddleware Bean 依赖此端口，而 AgentScopeInfrastructureAutoConfiguration
+     * 早于（原属地）AssistantInfrastructureAutoConfiguration
      * 装配，定义在此处以匹配 @AutoConfigureBefore(AgentScopeInfrastructureAutoConfiguration.class) 顺序。
      */
     @Bean

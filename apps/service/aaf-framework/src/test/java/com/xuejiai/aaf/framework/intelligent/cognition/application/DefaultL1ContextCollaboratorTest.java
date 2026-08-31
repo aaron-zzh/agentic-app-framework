@@ -9,7 +9,6 @@ import static org.mockito.Mockito.when;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -79,7 +78,9 @@ class DefaultL1ContextCollaboratorTest {
         when(unifiedRetrieval.retrieve(any()))
                 .thenReturn(
                         new UnifiedRetrievalResult(
-                                List.of(new FusedCandidate("MEMORY:ATOMIC:1", "记忆内容", "atomic", 1.0)),
+                                List.of(
+                                        new FusedCandidate(
+                                                "MEMORY:ATOMIC:1", "记忆内容", "atomic", 1.0)),
                                 List.of()));
 
         var collaborator = new DefaultL1ContextCollaborator(unifiedRetrieval, sessions);
@@ -156,8 +157,9 @@ class DefaultL1ContextCollaboratorTest {
         private SubjectKind subjectKind = SubjectKind.USER;
         private String sessionId;
         private String query = "";
-        private List<com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest
-                        .SourceReference>
+        private List<
+                        com.xuejiai.aaf.framework.intelligent.assistant.model
+                                .EffectiveContextManifest.SourceReference>
                 authorizedCandidates = List.of();
         private List<ContextRequest.TaskMaterial> taskMaterials = List.of();
 
@@ -182,8 +184,9 @@ class DefaultL1ContextCollaboratorTest {
         }
 
         RequestBuilder authorizedCandidates(
-                List<com.xuejiai.aaf.framework.intelligent.assistant.model
-                                .EffectiveContextManifest.SourceReference>
+                List<
+                                com.xuejiai.aaf.framework.intelligent.assistant.model
+                                        .EffectiveContextManifest.SourceReference>
                         value) {
             this.authorizedCandidates = value;
             return this;

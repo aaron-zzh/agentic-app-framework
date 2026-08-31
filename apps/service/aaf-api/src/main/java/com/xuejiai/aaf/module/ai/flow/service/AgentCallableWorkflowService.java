@@ -91,8 +91,7 @@ public class AgentCallableWorkflowService implements AgentCallableWorkflowPort {
     /**
      * 轮询等待流程实例结束；超时或以 {@code terminated} 状态结束时视为失败。
      *
-     * <p>不引入挂起-恢复机制：工作流执行通常是秒级到分钟级，同步阻塞加超时更符合助理单次工具调用的语义，
-     * 与 {@code AgentNode} 阻塞取结果的风格一致。
+     * <p>不引入挂起-恢复机制：工作流执行通常是秒级到分钟级，同步阻塞加超时更符合助理单次工具调用的语义， 与 {@code AgentNode} 阻塞取结果的风格一致。
      */
     private String awaitCompletion(String processInstanceId) {
         var deadline = Instant.now().plus(COMPLETION_TIMEOUT);

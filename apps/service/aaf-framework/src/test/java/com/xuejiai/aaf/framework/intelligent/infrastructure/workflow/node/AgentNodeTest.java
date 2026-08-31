@@ -76,9 +76,7 @@ class AgentNodeTest extends BaseMockitoUnitTest {
     void should_use_configured_role_and_skill_when_present() {
         node = new AgentNode(assistants, assistantDefinitions);
         stubExecutionVariables(
-                "生成摘要",
-                AssistantDefinitionFixtures.CONTENT_CREATOR_ROLE_KEY,
-                "aigc-copywriting");
+                "生成摘要", AssistantDefinitionFixtures.CONTENT_CREATOR_ROLE_KEY, "aigc-copywriting");
         when(assistantDefinitions.findDefaultForUser(any(), any()))
                 .thenReturn(Optional.of(AssistantDefinitionFixtures.defaultUser()));
         var captor = ArgumentCaptor.forClass(AssistantCommand.class);
@@ -105,8 +103,7 @@ class AgentNodeTest extends BaseMockitoUnitTest {
         node.execute(execution);
 
         verify(execution).setVariable("success", false);
-        verify(execution)
-                .setVariable("error", "Assistant 工作流节点执行未完成: FAILED");
+        verify(execution).setVariable("error", "Assistant 工作流节点执行未完成: FAILED");
     }
 
     @Test
@@ -122,8 +119,7 @@ class AgentNodeTest extends BaseMockitoUnitTest {
         node.execute(execution);
 
         verify(execution).setVariable("success", false);
-        verify(execution)
-                .setVariable("error", "用户默认 Assistant 不存在: test");
+        verify(execution).setVariable("error", "用户默认 Assistant 不存在: test");
     }
 
     private void stubExecutionVariables(String input, String roleKey, String skillKey) {

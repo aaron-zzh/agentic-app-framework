@@ -11,10 +11,9 @@ import java.util.Objects;
 /**
  * 委托任务的通用检查点，替代原无结构 {@code Map<String, Object>}（方案 C，2026-08-29 拍板）。
  *
- * <p>{@code version}/{@code contentHash}/{@code eventOffset} 是恢复一致性校验所需的显式字段；
- * {@code annotations} 保留原有的自由文本注解用法（如 {@code pauseReason}、{@code lastFailure}
- * 等事实标注），不破坏既有调用点写入习惯。整体仍序列化进同一个 {@code ai_delegated_task.task_payload}
- * JSONB 列，不新增表或列。
+ * <p>{@code version}/{@code contentHash}/{@code eventOffset} 是恢复一致性校验所需的显式字段； {@code annotations}
+ * 保留原有的自由文本注解用法（如 {@code pauseReason}、{@code lastFailure} 等事实标注），不破坏既有调用点写入习惯。整体仍序列化进同一个 {@code
+ * ai_delegated_task.task_payload} JSONB 列，不新增表或列。
  */
 public record TaskCheckpoint(
         long version, String contentHash, Long eventOffset, Map<String, Object> annotations) {

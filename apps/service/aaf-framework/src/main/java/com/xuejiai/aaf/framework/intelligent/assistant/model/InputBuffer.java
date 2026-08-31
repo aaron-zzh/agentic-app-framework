@@ -38,7 +38,9 @@ public record InputBuffer(List<ExecutionInput> inputs) {
     }
 
     public record MergeResult(
-            ClarificationRequest clarification, boolean resolved, List<ExecutionInput> consumedInputs) {
+            ClarificationRequest clarification,
+            boolean resolved,
+            List<ExecutionInput> consumedInputs) {
         public MergeResult {
             Objects.requireNonNull(clarification, "clarification 不能为空");
             consumedInputs =

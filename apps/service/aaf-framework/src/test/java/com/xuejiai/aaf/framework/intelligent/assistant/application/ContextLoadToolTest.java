@@ -63,7 +63,9 @@ class ContextLoadToolTest extends BaseMockitoUnitTest {
         var result = tool.invoke(invocation(Map.of("kind", "SKILL", "key", "writer"))).block();
 
         assertThat(result).isNotNull();
-        assertThat(result.metadata()).containsEntry("kind", "SKILL").containsEntry("code", "writer");
+        assertThat(result.metadata())
+                .containsEntry("kind", "SKILL")
+                .containsEntry("code", "writer");
         assertThat(result.output()).contains("writer 技能正文");
     }
 
@@ -72,7 +74,9 @@ class ContextLoadToolTest extends BaseMockitoUnitTest {
         when(skills.findByCode("missing")).thenReturn(Optional.empty());
 
         assertThatThrownBy(
-                        () -> tool.invoke(invocation(Map.of("kind", "SKILL", "key", "missing"))).block())
+                        () ->
+                                tool.invoke(invocation(Map.of("kind", "SKILL", "key", "missing")))
+                                        .block())
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("不存在已发布 Skill: missing");
     }
@@ -200,7 +204,13 @@ class ContextLoadToolTest extends BaseMockitoUnitTest {
     void rejectsKnowledgeBindingAsNotYetSupported() {
         assertThatThrownBy(
                         () ->
-                                tool.invoke(invocation(Map.of("kind", "KNOWLEDGE_BINDING", "key", "kb-1")))
+                                tool.invoke(
+                                                invocation(
+                                                        Map.of(
+                                                                "kind",
+                                                                "KNOWLEDGE_BINDING",
+                                                                "key",
+                                                                "kb-1")))
                                         .block())
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("尚不支持 KNOWLEDGE_BINDING");
@@ -216,7 +226,9 @@ class ContextLoadToolTest extends BaseMockitoUnitTest {
     @Test
     void rejectsBlankKind() {
         assertThatThrownBy(
-                        () -> tool.invoke(invocation(Map.of("kind", "  ", "key", "writer"))).block())
+                        () ->
+                                tool.invoke(invocation(Map.of("kind", "  ", "key", "writer")))
+                                        .block())
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("context.load 需要非空 kind");
     }
@@ -241,7 +253,9 @@ class ContextLoadToolTest extends BaseMockitoUnitTest {
     @Test
     void rejectsBlankKey() {
         assertThatThrownBy(
-                        () -> tool.invoke(invocation(Map.of("kind", "SKILL", "key", "   "))).block())
+                        () ->
+                                tool.invoke(invocation(Map.of("kind", "SKILL", "key", "   ")))
+                                        .block())
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("context.load 需要非空 key");
     }
@@ -287,6 +301,9 @@ class ContextLoadToolTest extends BaseMockitoUnitTest {
                         null,
                         new ToolAuthorizationContext(Map.of()));
         return new ToolInvocation(
-                "call-1", new ToolRef(ContextLoadTool.TOOL_NAME, 1L, ContextLoadTool.TOOL_NAME), arguments, context);
+                "call-1",
+                new ToolRef(ContextLoadTool.TOOL_NAME, 1L, ContextLoadTool.TOOL_NAME),
+                arguments,
+                context);
     }
 }

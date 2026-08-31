@@ -38,7 +38,10 @@ public final class DefaultEffectiveToolResolver implements EffectiveToolResolver
         if (inheritRoleTools) {
             var inherited =
                     agentWhitelist.stream()
-                            .filter(tool -> roleWhitelist.isEmpty() || roleWhitelist.contains(tool.name()))
+                            .filter(
+                                    tool ->
+                                            roleWhitelist.isEmpty()
+                                                    || roleWhitelist.contains(tool.name()))
                             .collect(Collectors.toUnmodifiableSet());
             return mergeDistinct(baseTools, inherited);
         }
@@ -99,8 +102,7 @@ public final class DefaultEffectiveToolResolver implements EffectiveToolResolver
                         .filter(tool -> assistantWhitelist.contains(tool.name()))
                         .filter(tool -> skillRequirements.contains(tool.name()))
                         .toList();
-        var resolved =
-                restricted.stream().map(ToolRef::name).collect(Collectors.toSet());
+        var resolved = restricted.stream().map(ToolRef::name).collect(Collectors.toSet());
         if (!resolved.containsAll(skillRequirements)) {
             throw new IllegalStateException("Assistant Skill 的必需工具不在 Assistant 与 Agent 交集内");
         }

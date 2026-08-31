@@ -21,8 +21,8 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 /**
  * 非自主 L0 分类：无工具、无副作用的一次模型调用；异常或输出非法时安全默认 {@code UNRELATED}。
  *
- * <p>{@code promptGateway} 未装配时同样安全默认 {@code UNRELATED}，不阻断输入接收流程——分类失败的代价
- * 是这条输入被当作无关排队，不是错误地放大为 MODIFY 触发意外重规划。
+ * <p>{@code promptGateway} 未装配时同样安全默认 {@code UNRELATED}，不阻断输入接收流程——分类失败的代价 是这条输入被当作无关排队，不是错误地放大为
+ * MODIFY 触发意外重规划。
  */
 public final class DefaultInputClassifier implements InputClassifier {
 
@@ -52,8 +52,7 @@ public final class DefaultInputClassifier implements InputClassifier {
                                             ClassifiedMessage.controlledContext(
                                                     contextData(taskContext)),
                                             ClassifiedMessage.currentUser(
-                                                    JsonUtils.toJsonString(
-                                                            Map.of("text", text)))),
+                                                    JsonUtils.toJsonString(Map.of("text", text)))),
                                     "INPUT_CLASSIFICATION",
                                     numericUserId(userId)));
             var root = JsonUtils.readTreeStrict(response);

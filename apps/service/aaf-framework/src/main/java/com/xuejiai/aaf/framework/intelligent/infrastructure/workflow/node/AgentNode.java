@@ -24,7 +24,6 @@ import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.Subjec
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventReducer;
-import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AssistantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ConversationId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.CorrelationId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
@@ -41,9 +40,9 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Agent 节点——以当前触发用户身份构造单轮任务式 Assistant 调用。
  *
- * <p>未配置 {@code roleKey} 时回退到该用户默认 Assistant 的 {@code defaultRoleKey}（{@code TASK}
- * 交互模式的不可变量要求必须使用 {@code FIXED} Route，不存在 {@code AUTO}+{@code TASK} 组合）；{@code
- * skillKey} 可留空，表示"Role 已定、未选技能"的合法状态。工作流节点执行不写入用户长期记忆。
+ * <p>未配置 {@code roleKey} 时回退到该用户默认 Assistant 的 {@code defaultRoleKey}（{@code TASK} 交互模式的不可变量要求必须使用
+ * {@code FIXED} Route，不存在 {@code AUTO}+{@code TASK} 组合）；{@code skillKey} 可留空，表示"Role
+ * 已定、未选技能"的合法状态。工作流节点执行不写入用户长期记忆。
  */
 @Slf4j
 @Component("agentNode")
@@ -90,8 +89,7 @@ public class AgentNode implements JavaDelegate {
         var tenantId = new TenantId(orgId);
         var userIdValue = new UserId(userId);
         var definition = requireDefaultAssistant(tenantId, userIdValue);
-        var roleKey =
-                configuredRoleKey.isBlank() ? definition.defaultRoleKey() : configuredRoleKey;
+        var roleKey = configuredRoleKey.isBlank() ? definition.defaultRoleKey() : configuredRoleKey;
         var skillKey = configuredSkillKey.isBlank() ? null : configuredSkillKey;
 
         var unique = UUID.randomUUID().toString();
@@ -109,7 +107,10 @@ public class AgentNode implements JavaDelegate {
                         null);
         var invocationProfile =
                 InvocationProfile.primary(
-                        skillKey, AssistantInvocation.MemoryMode.DISABLED, List.of(), executionIntent);
+                        skillKey,
+                        AssistantInvocation.MemoryMode.DISABLED,
+                        List.of(),
+                        executionIntent);
 
         return new AssistantCommand(
                 AssistantCommand.Operation.START,
@@ -141,7 +142,8 @@ public class AgentNode implements JavaDelegate {
     private AssistantDefinition requireDefaultAssistant(TenantId tenantId, UserId userId) {
         return assistantDefinitions
                 .findDefaultForUser(tenantId, userId)
-                .orElseThrow(() -> new IllegalStateException("用户默认 Assistant 不存在: " + userId.value()));
+                .orElseThrow(
+                        () -> new IllegalStateException("用户默认 Assistant 不存在: " + userId.value()));
     }
 
     private String requiredString(DelegateExecution execution, String name) {

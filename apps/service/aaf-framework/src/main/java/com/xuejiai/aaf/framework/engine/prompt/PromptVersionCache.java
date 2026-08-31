@@ -87,7 +87,10 @@ public class PromptVersionCache {
                         templateRepository
                                 .findByCodeAndDeletedFalse(code)
                                 .map(PromptTemplate::getCurrentVersion)
-                                .filter(version -> version.getStatus() == PromptVersionStatus.PUBLISHED)
+                                .filter(
+                                        version ->
+                                                version.getStatus()
+                                                        == PromptVersionStatus.PUBLISHED)
                                 .filter(version -> !Boolean.TRUE.equals(version.getDeleted()))
                                 .map(this::snapshot)
                                 .orElse(null));

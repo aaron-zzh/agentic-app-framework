@@ -28,8 +28,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 混合检索统一门面的默认实现。
  *
- * <p>迁移自旧 {@code MemoryRetrievalService}（意图分类规则、预算分配公式）与旧 {@code
- * UnifiedRetrievalService}（RRF 融合结构、并行调用结构），并修正两处已知缺陷：
+ * <p>迁移自旧 {@code MemoryRetrievalService}（意图分类规则、预算分配公式）与旧 {@code UnifiedRetrievalService}（RRF
+ * 融合结构、并行调用结构），并修正两处已知缺陷：
  *
  * <ul>
  *   <li>知识检索改为使用调用方传入的已解析授权主体，不再使用 {@code AuthorizationSubject.unresolved()}
@@ -101,9 +101,7 @@ public final class DefaultUnifiedRetrievalPort implements UnifiedRetrievalPort {
                                                             Instant.now())))
                             : null;
             Future<List<Hit>> knowledgeFuture =
-                    wantKnowledge
-                            ? executor.submit(() -> searchKnowledge(request))
-                            : null;
+                    wantKnowledge ? executor.submit(() -> searchKnowledge(request)) : null;
 
             if (memoryFuture != null) {
                 memoryResult = awaitMemory(memoryFuture);
@@ -227,7 +225,9 @@ public final class DefaultUnifiedRetrievalPort implements UnifiedRetrievalPort {
     }
 
     private static void fuseKnowledge(
-            List<Hit> hits, Map<String, Double> scoreByKey, Map<String, FusedCandidate> candidateByKey) {
+            List<Hit> hits,
+            Map<String, Double> scoreByKey,
+            Map<String, FusedCandidate> candidateByKey) {
         IntStream.range(0, hits.size())
                 .forEach(
                         rank -> {

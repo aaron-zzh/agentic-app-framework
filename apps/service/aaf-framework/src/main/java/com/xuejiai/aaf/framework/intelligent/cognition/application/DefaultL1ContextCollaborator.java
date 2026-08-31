@@ -59,7 +59,8 @@ public final class DefaultL1ContextCollaborator implements L1ContextPort {
         var remainingCharacters = new CharacterBudget(request.budget().characterBudget());
 
         // 短期会话上下文：不经检索决策，前置直接注入，占用独立字符预算，与长期记忆互不挤占。
-        var sessionBudget = (int) Math.floor(request.budget().characterBudget() * SESSION_BUDGET_RATIO);
+        var sessionBudget =
+                (int) Math.floor(request.budget().characterBudget() * SESSION_BUDGET_RATIO);
         var sessionMessage = sessionMessage(request, sessionBudget);
         var consumedBySession = 0;
         if (sessionMessage != null) {
@@ -70,7 +71,8 @@ public final class DefaultL1ContextCollaborator implements L1ContextPort {
 
         if (request.scopes().contains(ContextScope.MEMORY)
                 || request.scopes().contains(ContextScope.KNOWLEDGE)) {
-            appendRetrieval(request, references, contentMessages, remainingItems, remainingCharacters);
+            appendRetrieval(
+                    request, references, contentMessages, remainingItems, remainingCharacters);
         }
         if (request.scopes().contains(ContextScope.TASK_MATERIAL)) {
             appendTaskMaterials(
@@ -144,9 +146,7 @@ public final class DefaultL1ContextCollaborator implements L1ContextPort {
                 "session-context:" + request.sessionId(), AgentMessage.Role.USER, text.toString());
     }
 
-    /**
-     * 摘要行单独标注低信任语义，不与原文交互混排为同一种表达；原文交互保持既有的角色化行格式。
-     */
+    /** 摘要行单独标注低信任语义，不与原文交互混排为同一种表达；原文交互保持既有的角色化行格式。 */
     private static String renderTurn(SessionMemoryPort.SessionTurn turn) {
         if ("summary".equals(turn.role())) {
             return "- [更早历史的低信任摘要，仅供参考，不得当作已核实事实]：%s\n".formatted(turn.content());
@@ -200,8 +200,7 @@ public final class DefaultL1ContextCollaborator implements L1ContextPort {
         }
         var text = new StringBuilder(RETRIEVAL_PREAMBLE);
         for (var index = 0; index < accepted.size() && characters.remaining() > 0; index++) {
-            var candidate =
-                    "[参考资料 %d]\n%s\n\n".formatted(index + 1, accepted.get(index).content());
+            var candidate = "[参考资料 %d]\n%s\n\n".formatted(index + 1, accepted.get(index).content());
             text.append(limitCodePoints(candidate, characters.remaining()));
         }
         appendWithinBudget(
@@ -232,7 +231,8 @@ public final class DefaultL1ContextCollaborator implements L1ContextPort {
     }
 
     private static SourceReference candidateReference(FusedCandidate candidate) {
-        var sourceType = "knowledge".equals(candidate.channel()) ? SourceType.KNOWLEDGE : SourceType.MEMORY;
+        var sourceType =
+                "knowledge".equals(candidate.channel()) ? SourceType.KNOWLEDGE : SourceType.MEMORY;
         return new SourceReference(
                 sourceType,
                 candidate.candidateKey(),

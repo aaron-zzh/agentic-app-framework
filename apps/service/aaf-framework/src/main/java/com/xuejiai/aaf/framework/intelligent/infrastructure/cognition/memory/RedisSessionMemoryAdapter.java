@@ -6,7 +6,6 @@ import java.util.Objects;
 import java.util.Optional;
 
 import com.xuejiai.aaf.framework.intelligent.cognition.memory.MemoryMessage;
-import com.xuejiai.aaf.framework.intelligent.cognition.memory.SessionSummary;
 import com.xuejiai.aaf.framework.intelligent.cognition.memory.ShortTermMemoryService;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.ConversationHistoryPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.SessionContextCompressionPort;
@@ -19,9 +18,9 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 短期会话记忆适配器——把 Redis 短期记忆暴露为 L1 读管道的一个通道。
  *
- * <p>分层增量压缩（方案 C，2026-08-29 拍板）：原文条数超过 {@link #SUMMARY_TRIGGER_MESSAGE_COUNT} 时，
- * 对被挤出最近 {@link #RETAINED_RAW_MESSAGE_COUNT} 条窗口之外的旧轮次异步生成结构化摘要并冻结；
- * 召回时返回"已冻结摘要 + 最近原文"，摘要以低信任 USER 角色单独一条呈现，不与原文混排改写。
+ * <p>分层增量压缩（方案 C，2026-08-29 拍板）：原文条数超过 {@link #SUMMARY_TRIGGER_MESSAGE_COUNT} 时， 对被挤出最近 {@link
+ * #RETAINED_RAW_MESSAGE_COUNT} 条窗口之外的旧轮次异步生成结构化摘要并冻结； 召回时返回"已冻结摘要 + 最近原文"，摘要以低信任 USER
+ * 角色单独一条呈现，不与原文混排改写。
  *
  * <p>摘要生成失败、超时或压缩端口未装配时静默降级为纯原文召回，不阻断主执行；旧摘要在新摘要生成成功前保持有效。
  */
@@ -35,7 +34,10 @@ public final class RedisSessionMemoryAdapter implements SessionMemoryPort {
     /** 原文条数超过该阈值才触发一次异步摘要；未超过时纯原文召回，不产生模型调用。 */
     private static final int SUMMARY_TRIGGER_MESSAGE_COUNT = 40;
 
-    /** 摘要只覆盖被挤出该窗口之外的旧轮次；窗口内消息始终保留原文精度，与 {@link SessionMemoryPort#DEFAULT_MAX_TURNS} 一致，避免裁剪吃掉召回还要读取的轮次。 */
+    /**
+     * 摘要只覆盖被挤出该窗口之外的旧轮次；窗口内消息始终保留原文精度，与 {@link SessionMemoryPort#DEFAULT_MAX_TURNS}
+     * 一致，避免裁剪吃掉召回还要读取的轮次。
+     */
     private static final int RETAINED_RAW_MESSAGE_COUNT = SessionMemoryPort.DEFAULT_MAX_TURNS;
 
     private final ShortTermMemoryService shortTermMemories;
@@ -76,7 +78,8 @@ public final class RedisSessionMemoryAdapter implements SessionMemoryPort {
             turns.add(new SessionTurn(ROLE_SUMMARY, summary.content()));
         }
         var messages =
-                shortTermMemories.getContext(tenantId, ownerId, query.sessionId(), query.maxTurns());
+                shortTermMemories.getContext(
+                        tenantId, ownerId, query.sessionId(), query.maxTurns());
         if (summary == null && messages.isEmpty()) {
             // Redis 短期记忆 TTL 已失效（或从未写入）：从会话历史兜底一次，并回填 Redis 避免每轮都查数据库。
             messages = fallbackToHistory(query, tenantId, ownerId);
@@ -161,7 +164,10 @@ public final class RedisSessionMemoryAdapter implements SessionMemoryPort {
         }
         Thread.ofVirtual()
                 .name("aaf-session-summary-trigger")
-                .start(() -> generateAndFreezeSummary(tenantId, ownerId, sessionId, toSummarizeCount));
+                .start(
+                        () ->
+                                generateAndFreezeSummary(
+                                        tenantId, ownerId, sessionId, toSummarizeCount));
     }
 
     private void generateAndFreezeSummary(

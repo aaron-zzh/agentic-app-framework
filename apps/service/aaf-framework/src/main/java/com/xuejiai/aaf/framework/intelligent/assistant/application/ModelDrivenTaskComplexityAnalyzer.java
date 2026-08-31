@@ -19,14 +19,12 @@ import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptInvocationGateway
 /**
  * 复杂度判定完全由模型驱动，不用字符数/关键词命中次数等表面特征猜复杂度（2026-08-30 人类拍板）。
  *
- * <p>只保留两类真正不需要语义理解的确定性短路：已发布工作流（{@code workflowKey}
- * 非空，过程形态本身已由发布决定，不是复杂度判断）与空白目标（模型没有输入无法判断，兜底 {@code
- * SINGLE_AGENT}）。其余全部情况——不论目标长短——都交给一次非自主 L0 模型调用做真正的语义判断：
+ * <p>只保留两类真正不需要语义理解的确定性短路：已发布工作流（{@code workflowKey} 非空，过程形态本身已由发布决定，不是复杂度判断）与空白目标（模型没有输入无法判断，兜底
+ * {@code SINGLE_AGENT}）。其余全部情况——不论目标长短——都交给一次非自主 L0 模型调用做真正的语义判断：
  * 这个目标是否包含多个可独立拆分执行的子任务、是否涉及不同领域/角色协作。
  *
  * <p>{@code promptGateway} 未装配、模型异常、超时或输出非法时一律 fail-closed 退回 {@code
- * SINGLE_AGENT}，不猜测重试，不降级到任何规则判断——没有能力判断时选择最安全的选项，而不是假装
- * 用规则算出了一个判断。
+ * SINGLE_AGENT}，不猜测重试，不降级到任何规则判断——没有能力判断时选择最安全的选项，而不是假装 用规则算出了一个判断。
  */
 public final class ModelDrivenTaskComplexityAnalyzer implements TaskComplexityAnalyzer {
 
@@ -41,8 +39,7 @@ public final class ModelDrivenTaskComplexityAnalyzer implements TaskComplexityAn
     }
 
     public ModelDrivenTaskComplexityAnalyzer(PromptInvocationGateway promptGateway) {
-        this.promptGateway =
-                java.util.Objects.requireNonNull(promptGateway, "promptGateway 不能为空");
+        this.promptGateway = java.util.Objects.requireNonNull(promptGateway, "promptGateway 不能为空");
     }
 
     @Override
@@ -73,7 +70,9 @@ public final class ModelDrivenTaskComplexityAnalyzer implements TaskComplexityAn
                                     "TASK_COMPLEXITY",
                                     null));
             var root = JsonUtils.readTreeStrict(response);
-            if (root == null || !root.isObject() || root.size() != 2
+            if (root == null
+                    || !root.isObject()
+                    || root.size() != 2
                     || !root.has("coordinationMode")
                     || !root.has("rationale")) {
                 return TaskAnalysis.singleAgent("模型输出契约外字段，fail-closed 退回单执行体");

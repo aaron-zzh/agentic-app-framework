@@ -16,8 +16,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 记忆自有检索入口的默认实现：并行检索原子、情景 bundle、程序化三通道。
  *
- * <p>迁移自旧 {@code MemoryRetrievalService}
- * 的通道检索逻辑；意图分类与预算分配已上移至调用方（{@code UnifiedRetrievalPort}），本类只按传入配额执行检索，通道间相互隔离，单通道失败不影响其他通道。
+ * <p>迁移自旧 {@code MemoryRetrievalService} 的通道检索逻辑；意图分类与预算分配已上移至调用方（{@code
+ * UnifiedRetrievalPort}），本类只按传入配额执行检索，通道间相互隔离，单通道失败不影响其他通道。
  */
 @Slf4j
 public final class DefaultMemoryRetrievalPort implements MemoryRetrievalPort {

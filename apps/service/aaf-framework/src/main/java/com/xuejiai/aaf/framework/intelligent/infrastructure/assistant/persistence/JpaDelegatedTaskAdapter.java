@@ -550,7 +550,8 @@ public class JpaDelegatedTaskAdapter implements DelegatedTaskPort {
                                     null,
                                     null,
                                     current.fencingToken(),
-                                    current.checkpoint().withAnnotation("recoveredAt", now.toString()),
+                                    current.checkpoint()
+                                            .withAnnotation("recoveredAt", now.toString()),
                                     now,
                                     current.sessionId(),
                                     current.executionId());

@@ -140,8 +140,8 @@ public class MemoryRerankerService {
     /**
      * 对任意内容列表按融合序重排，返回按相关性降序的原始下标。
      *
-     * <p>用于 {@code UnifiedRetrievalPort} 融合后的跨源候选重排——候选来自记忆与知识库多个通道，不是单一
-     * {@link MemoryAtom} 列表，因此按下标返回而非按对象返回。候选数达门控下限才调用专用模型，模型不可用或失败时降级为原融合序（下标恒等映射）。
+     * <p>用于 {@code UnifiedRetrievalPort} 融合后的跨源候选重排——候选来自记忆与知识库多个通道，不是单一 {@link MemoryAtom}
+     * 列表，因此按下标返回而非按对象返回。候选数达门控下限才调用专用模型，模型不可用或失败时降级为原融合序（下标恒等映射）。
      *
      * @param query 查询文本
      * @param contents 融合后的候选内容，按融合序排列

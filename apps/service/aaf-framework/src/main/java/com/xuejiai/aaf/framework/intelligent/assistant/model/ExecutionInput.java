@@ -12,9 +12,9 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 /**
  * 委托任务的结构化外部输入。
  *
- * <p><b>{@code kind} 是客户端建议值，不直接信任</b>——服务端须经 {@code InputClassifier} 重新判定后才生效
- * （方案 C，2026-08-30 拍板）。{@code text} 承载原始自然语言输入，MODIFY 场景下作为重新协调规划的目标描述来源；
- * CANCEL 不再作为本入口的合法输出值，取消统一走既有确定性 {@code /stop} 端点。
+ * <p><b>{@code kind} 是客户端建议值，不直接信任</b>——服务端须经 {@code InputClassifier} 重新判定后才生效 （方案 C，2026-08-30
+ * 拍板）。{@code text} 承载原始自然语言输入，MODIFY 场景下作为重新协调规划的目标描述来源； CANCEL 不再作为本入口的合法输出值，取消统一走既有确定性 {@code
+ * /stop} 端点。
  */
 public record ExecutionInput(
         String inputId,

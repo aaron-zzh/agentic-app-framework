@@ -10,9 +10,8 @@ import com.xuejiai.aaf.framework.engine.memory.MemoryBundle;
 /**
  * 记忆自有检索入口：原子记忆、情景 bundle、程序化记忆三通道并行检索。
  *
- * <p>只负责单一来源（记忆）内部的通道检索，不做跨源（记忆 + 知识库）预算分配、不做跨源融合与重排——这些职责属于上一层的
- * {@code UnifiedRetrievalPort}（见 retrieval.md）。短期会话上下文与任务工作记忆不经本入口，由 L1
- * 前置直接注入。
+ * <p>只负责单一来源（记忆）内部的通道检索，不做跨源（记忆 + 知识库）预算分配、不做跨源融合与重排——这些职责属于上一层的 {@code UnifiedRetrievalPort}（见
+ * retrieval.md）。短期会话上下文与任务工作记忆不经本入口，由 L1 前置直接注入。
  */
 public interface MemoryRetrievalPort {
 
