@@ -202,7 +202,8 @@ interface AssistantExecutionAgUiRunRequest {
   threadId: string
   runId: string
   parentRunId: null
-  state: {
+  /** 本次 run 的调用参数走协议的 forwardedProps；state 留给线程级共享状态。 */
+  forwardedProps: {
     mode: "EXECUTION"
     request: AssistantExecutionRequest
   }
@@ -213,7 +214,7 @@ interface AssistantChatAgUiRunRequest {
   threadId: string
   runId: string
   parentRunId: null
-  state: {
+  forwardedProps: {
     mode: "CHAT"
     taskModelSelection: { mode: "AUTO"; modelId: null } | { mode: "EXPLICIT"; modelId: string }
   }
@@ -518,7 +519,7 @@ export async function executeAssistantAgUi(
     threadId: session.threadId,
     runId: crypto.randomUUID(),
     parentRunId: null,
-    state: { mode: "EXECUTION", request },
+    forwardedProps: { mode: "EXECUTION", request },
     messages: [
       {
         id: crypto.randomUUID(),
@@ -559,7 +560,7 @@ export function executeAssistantChatAgUi(
     threadId: request.threadId,
     runId: crypto.randomUUID(),
     parentRunId: null,
-    state: {
+    forwardedProps: {
       mode: "CHAT",
       taskModelSelection: request.modelId
         ? { mode: "EXPLICIT", modelId: request.modelId }

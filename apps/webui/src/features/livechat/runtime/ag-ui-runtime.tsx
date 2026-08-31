@@ -3,14 +3,13 @@
  * 使用 @ag-ui/client HttpAgent 对接后端 AG-UI SSE 端点，
  * 通过 useAgUiRuntime 将事件流转为 assistant-ui 可消费的 runtime
  *
- * 支持自定义端点 url 和 initialState，供 ChatterRuntime 复用
+ * 支持自定义端点 url、线程共享状态（state）与本次 run 调用参数（forwardedProps），供 ChatterRuntime 复用
  *
  * @author AaronZZH & Kiro
  */
 
 "use client"
 
-import { HttpAgent } from "@ag-ui/client"
 import type { AttachmentAdapter, CompleteAttachment, PendingAttachment } from "@assistant-ui/react"
 import {
   AssistantRuntimeProvider,
@@ -21,6 +20,7 @@ import {
 } from "@assistant-ui/react"
 import { type UseAgUiThreadListAdapter, useAgUiRuntime } from "@assistant-ui/react-ag-ui"
 import { backendApi } from "@/lib/api/rest/backend-client"
+import { ForwardedPropsHttpAgent } from "./forwarded-props-http-agent"
 
 /** 文件上传返回结构（StoredFile）。 */
 interface StoredFile {
@@ -80,10 +80,16 @@ const DEFAULT_AGENT_URL = buildApiUrl("/agui/run")
 
 interface AgUiChatProviderProps {
   children: ReactNode
-  /** 自定义端点 URL，默认 /agui/runs */
+  /** 自定义端点 URL，默认 /agui/run */
   url?: string
-  /** Agent 初始状态（用于传递页面感知上下文） */
+  /**
+   * 线程级共享状态（AG-UI `state`）——只放页面感知上下文这类真正的状态。
+   *
+   * 调用参数不要放这里，放 {@link AgUiChatProviderProps.forwardedProps}。
+   */
   initialState?: Record<string, unknown>
+  /** 本次 run 的一次性调用参数（AG-UI `forwardedProps`）：assistantId、taskModelSelection 等。 */
+  forwardedProps?: Record<string, unknown>
   /** 初始线程 ID，传入时自动切换到该线程（用于匿名访客恢复历史） */
   initialThreadId?: string
   /** 新建会话回调（默认调用 chatApi.createSession） */
@@ -98,25 +104,30 @@ export function AgUiChatProvider({
   children,
   url,
   initialState,
+  forwardedProps,
   initialThreadId,
   onNewThread
 }: AgUiChatProviderProps) {
-  // 将 initialState 序列化为稳定字符串，避免每次渲染对象引用不同导致 agent 重建
+  // 将 initialState / forwardedProps 序列化为稳定字符串，避免每次渲染对象引用不同导致 agent 重建
   const initialStateKey = JSON.stringify(initialState)
+  const forwardedPropsKey = JSON.stringify(forwardedProps)
   const accessToken = useAuthStore((s) => s.accessToken)
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: initialState 通过 initialStateKey 跟踪
+  // biome-ignore lint/correctness/useExhaustiveDependencies: initialState/forwardedProps 通过序列化 key 跟踪
   const agent = useMemo(() => {
-    return new HttpAgent({
-      url: url ?? DEFAULT_AGENT_URL,
-      initialState: {
-        ...initialState,
+    return new ForwardedPropsHttpAgent(
+      {
+        url: url ?? DEFAULT_AGENT_URL,
+        initialState: initialState ?? {},
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
+      },
+      {
+        ...forwardedProps,
         mode: "CHAT",
         anonymousId: getOrCreateAnonymousId()
-      },
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
-    })
-  }, [url, initialStateKey, accessToken])
+      }
+    )
+  }, [url, initialStateKey, forwardedPropsKey, accessToken])
 
   // 当前 threadId——由后端创建会话时生成，通过此状态传给 threadList 适配器
   const THREAD_KEY = "aaf:chatter-thread-id"

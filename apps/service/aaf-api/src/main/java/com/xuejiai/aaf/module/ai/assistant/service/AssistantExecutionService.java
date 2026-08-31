@@ -75,20 +75,15 @@ public class AssistantExecutionService {
     private final VisionMediaResolver visionMediaResolver;
     private final TaskComplexityAnalyzer complexityAnalyzer;
 
-    public ExecutionStream start(AssistantExecutionRequest request, String threadId, String runId) {
-        return start(request, RunIdentity.create(threadId, runId), null);
-    }
-
-    public ExecutionStream startTeam(
-            AssistantExecutionRequest request,
-            String teamId,
-            long teamVersion,
-            String threadId,
-            String runId) {
-        return start(
-                request,
-                RunIdentity.create(threadId, runId),
-                new TeamTarget(requireText(teamId, EXECUTION_TEAM_ID_REQUIRED), teamVersion));
+    /**
+     * 唯一无会话执行入口。
+     *
+     * <p>{@code team} 为 {@code null} 表示非 Team 运行（CHAT / EXECUTION）；非 null 表示按已发布 Team version
+     * 的冻结成员目标执行。三种运行模式共用这一条执行链，差异只在请求组装与是否携带 Team 目标，不存在第二个启动入口。
+     */
+    public ExecutionStream start(
+            AssistantExecutionRequest request, TeamTarget team, String threadId, String runId) {
+        return start(request, RunIdentity.create(threadId, runId), team);
     }
 
     private ExecutionStream start(
@@ -801,9 +796,6 @@ public class AssistantExecutionService {
     }
 
     private ResolvedTeam resolveTeam(TeamTarget target, Identity identity) {
-        if (target.version() < 1) {
-            throw exception(EXECUTION_TEAM_VERSION_INVALID);
-        }
         var tenantId = new TenantId(identity.orgId().toString());
         final TeamDefinition definition;
         try {
@@ -1233,7 +1225,15 @@ public class AssistantExecutionService {
 
     private record EffectiveOutputContract(Integer maxCharLen, String locale, String format) {}
 
-    private record TeamTarget(String teamId, long version) {}
+    /** Team 运行目标：已发布 Team 的标识与冻结版本；校验前移到构造，入口不再各自校验。 */
+    public record TeamTarget(String teamId, long version) {
+        public TeamTarget {
+            teamId = requireText(teamId, EXECUTION_TEAM_ID_REQUIRED);
+            if (version < 1) {
+                throw exception(EXECUTION_TEAM_VERSION_INVALID);
+            }
+        }
+    }
 
     private record ResolvedMember(AssistantDefinition definition, AssistantTarget target) {}
 

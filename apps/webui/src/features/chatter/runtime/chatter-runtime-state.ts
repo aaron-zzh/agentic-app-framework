@@ -1,5 +1,8 @@
 /**
- * Chatter AG-UI 路径与 HttpAgent.initialState 纯构造逻辑。
+ * Chatter AG-UI 路径、线程共享状态与本次 run 调用参数的纯构造逻辑。
+ *
+ * 两者按 AG-UI 协议语义分开：`state` 只放页面感知上下文（pageId / preset），
+ * `forwardedProps` 放本次 run 的调用参数（assistantId / taskModelSelection）。
  * @author AaronZZH & Kiro
  */
 
@@ -16,20 +19,32 @@ interface ChatterPageRuntimeConfig {
   agentRole?: string
 }
 
-interface BuildChatterInitialStateOptions {
-  target: ChatterTarget
+interface BuildChatterStateOptions {
   currentPageId?: string | null
   pageConfig?: ChatterPageRuntimeConfig
+}
+
+interface BuildChatterForwardedPropsOptions {
+  target: ChatterTarget
   taskModelSelection?: TaskModelSelection
 }
 
-/** 构建传给 HttpAgent.initialState 的 Chatter 状态。 */
-export function buildChatterInitialState({
-  target,
+/** 构建 AG-UI `state`：仅页面感知上下文，可被服务端 STATE_SNAPSHOT 回吐。 */
+export function buildChatterState({
   currentPageId,
-  pageConfig,
+  pageConfig
+}: BuildChatterStateOptions): Record<string, unknown> {
+  return {
+    pageId: currentPageId,
+    preset: pageConfig?.preset
+  }
+}
+
+/** 构建 AG-UI `forwardedProps`：本次 run 的一次性调用参数。 */
+export function buildChatterForwardedProps({
+  target,
   taskModelSelection
-}: BuildChatterInitialStateOptions): Record<string, unknown> {
+}: BuildChatterForwardedPropsOptions): Record<string, unknown> {
   const usesAssistantRuntime = target.type === "ai"
   const effectiveTaskModelSelection = usesAssistantRuntime
     ? (taskModelSelection ?? DEFAULT_TASK_MODEL_SELECTION)
@@ -38,8 +53,6 @@ export function buildChatterInitialState({
     target.assistantId ?? (usesAssistantRuntime ? DEFAULT_CHATTER_ASSISTANT_ID : undefined)
 
   return {
-    pageId: currentPageId,
-    preset: pageConfig?.preset,
     ...(assistantId ? { assistantId } : {}),
     ...(effectiveTaskModelSelection ? { taskModelSelection: effectiveTaskModelSelection } : {})
   }

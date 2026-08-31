@@ -108,6 +108,7 @@ class AssistantExecutionServiceTest {
                                     AssistantExecutionRequest.RouteConstraint.FIXED,
                                     ArtifactPersistence.AUTO_SAVE_DRAFT,
                                     "voiceover"),
+                            null,
                             "thread-test",
                             "run-test");
             assertThat(stream).isNotNull();

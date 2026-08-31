@@ -17,6 +17,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.module.ai.assistant.service.AssistantExecutionService;
 import com.xuejiai.aaf.module.ai.assistant.service.AssistantExecutionService.ExecutionStream;
+import com.xuejiai.aaf.module.ai.assistant.service.AssistantExecutionService.TeamTarget;
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest;
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.ActionAuthorizationPolicy;
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.ArtifactPersistence;
@@ -96,62 +97,53 @@ public class AssistantAguiController {
 
     private ExecutionStream executionStream(RunRequest request) {
         var input = lastUserMessageText(request.messages());
-        final Mode mode;
-        try {
-            mode = Mode.valueOf(requireText(request.state(), "mode"));
-        } catch (IllegalArgumentException failure) {
-            throw new IllegalArgumentException("state.mode 仅支持 CHAT、EXECUTION 或 TEAM", failure);
-        }
-        return switch (mode) {
-            case CHAT ->
-                    assistantExecutions.start(
-                            chatRequest(request.state(), input),
-                            request.threadId(),
-                            request.runId());
-            case EXECUTION ->
-                    assistantExecutions.start(
-                            executionRequest(request.state(), input),
-                            request.threadId(),
-                            request.runId());
-            case TEAM ->
-                    assistantExecutions.startTeam(
-                            executionRequest(request.state(), input),
-                            requireText(request.state(), "teamId"),
-                            requirePositiveLong(request.state(), "teamVersion"),
-                            request.threadId(),
-                            request.runId());
-        };
+        var props = request.forwardedProps();
+        var plan = mode(props).plan(props, input, validator);
+        return assistantExecutions.start(
+                plan.request(), plan.team(), request.threadId(), request.runId());
     }
 
-    private AssistantExecutionRequest executionRequest(JsonNode state, String input) {
-        var requestNode = requireObject(state.get("request"), "state.request");
+    /** 运行模式来自 {@code forwardedProps.mode}——它是本次 run 的调用参数，不是线程共享状态。 */
+    private static Mode mode(JsonNode props) {
+        try {
+            return Mode.valueOf(requireText(props, "mode", "forwardedProps.mode"));
+        } catch (IllegalArgumentException failure) {
+            throw new IllegalArgumentException(
+                    "forwardedProps.mode 仅支持 CHAT、EXECUTION 或 TEAM", failure);
+        }
+    }
+
+    private static AssistantExecutionRequest executionRequest(
+            JsonNode props, String input, Validator validator) {
+        var requestNode = requireObject(props.get("request"), "forwardedProps.request");
         final AssistantExecutionRequest executionRequest;
         try {
             executionRequest = JsonUtils.convertValue(requestNode, AssistantExecutionRequest.class);
         } catch (RuntimeException failure) {
             throw new IllegalArgumentException(
-                    "state.request 不是有效的 AssistantExecutionRequest", failure);
+                    "forwardedProps.request 不是有效的 AssistantExecutionRequest", failure);
         }
         if (executionRequest == null) {
-            throw new IllegalArgumentException("state.request 不能为空");
+            throw new IllegalArgumentException("forwardedProps.request 不能为空");
         }
         var violations = validator.validate(executionRequest);
         if (!violations.isEmpty()) {
             throw new ConstraintViolationException(violations);
         }
         if (!input.equals(executionRequest.input().text())) {
-            throw new IllegalArgumentException("state.request.input.text 必须与最后一条 user 消息一致");
+            throw new IllegalArgumentException(
+                    "forwardedProps.request.input.text 必须与最后一条 user 消息一致");
         }
         return executionRequest;
     }
 
-    private static AssistantExecutionRequest chatRequest(JsonNode state, String input) {
-        var assistantNode = state.get("assistantId");
+    private static AssistantExecutionRequest chatRequest(JsonNode props, String input) {
+        var assistantNode = props.get("assistantId");
         var assistant =
                 assistantNode == null || assistantNode.isNull()
                         ? null
                         : new AssistantExecutionRequest.AssistantTarget(
-                                requireText(state, "assistantId"));
+                                requireText(props, "assistantId", "forwardedProps.assistantId"));
         return new AssistantExecutionRequest(
                 assistant,
                 new ExecutionOptions(
@@ -164,14 +156,15 @@ public class AssistantAguiController {
                 null,
                 null,
                 new KnowledgeOptions(KnowledgeMode.DEFAULT, Set.of(), 5, 0.2),
-                modelSelection(state),
+                modelSelection(props),
                 new MemoryOptions(MemoryMode.DEFAULT),
                 new OutputOptions(null, null, null));
     }
 
-    private static ModelSelection modelSelection(JsonNode state) {
-        var selection = requireObject(state.get("taskModelSelection"), "state.taskModelSelection");
-        var modeValue = requireText(selection, "mode");
+    private static ModelSelection modelSelection(JsonNode props) {
+        var selection =
+                requireObject(props.get("taskModelSelection"), "forwardedProps.taskModelSelection");
+        var modeValue = requireText(selection, "mode", "forwardedProps.taskModelSelection.mode");
         final ModelMode mode;
         try {
             mode = ModelMode.valueOf(modeValue);
@@ -182,7 +175,8 @@ public class AssistantAguiController {
         var modelId =
                 modelIdNode == null || modelIdNode.isNull()
                         ? null
-                        : requireText(selection, "modelId");
+                        : requireText(
+                                selection, "modelId", "forwardedProps.taskModelSelection.modelId");
         return new ModelSelection(mode, modelId);
     }
 
@@ -257,9 +251,13 @@ public class AssistantAguiController {
     }
 
     private static String requireText(JsonNode object, String field) {
+        return requireText(object, field, field);
+    }
+
+    private static String requireText(JsonNode object, String field, String path) {
         var value = object.get(field);
         if (value == null || !value.isString() || value.textValue().isBlank()) {
-            throw new IllegalArgumentException(field + " 不能为空白");
+            throw new IllegalArgumentException(path + " 不能为空白");
         }
         return value.textValue().trim();
     }
@@ -271,30 +269,84 @@ public class AssistantAguiController {
         return value.trim();
     }
 
-    private static long requirePositiveLong(JsonNode object, String field) {
+    private static long requirePositiveLong(JsonNode object, String field, String path) {
         var value = object.get(field);
         if (value == null || !value.isIntegralNumber() || value.longValue() < 1) {
-            throw new IllegalArgumentException(field + " 必须是正整数");
+            throw new IllegalArgumentException(path + " 必须是正整数");
         }
         return value.longValue();
     }
 
+    /**
+     * 运行模式：唯一职责是把 {@code forwardedProps} 组装成统一的 {@link AssistantExecutionRequest}（外加可选 Team 目标）。
+     *
+     * <p>三种模式共用同一条执行链——{@link
+     * AssistantExecutionService#start}，差异只在请求组装，因此把组装挂在枚举常量上而不是在入口写分支：新增模式必须在此实现组装，不会漏改调用点。
+     */
     private enum Mode {
-        CHAT,
-        EXECUTION,
-        TEAM
+        /** 多轮对话：调用方只给 assistantId 与模型选择，其余执行选项取对话默认值。 */
+        CHAT {
+            @Override
+            RunPlan plan(JsonNode props, String input, Validator validator) {
+                return new RunPlan(chatRequest(props, input), null);
+            }
+        },
+        /** 单轮任务：调用方给出完整 `forwardedProps.request`，按 VO 契约校验。 */
+        EXECUTION {
+            @Override
+            RunPlan plan(JsonNode props, String input, Validator validator) {
+                return new RunPlan(executionRequest(props, input, validator), null);
+            }
+        },
+        /** Team 协同：入参同 EXECUTION，额外指定已发布 Team 的冻结版本。 */
+        TEAM {
+            @Override
+            RunPlan plan(JsonNode props, String input, Validator validator) {
+                return new RunPlan(
+                        executionRequest(props, input, validator),
+                        new TeamTarget(
+                                requireText(props, "teamId", "forwardedProps.teamId"),
+                                requirePositiveLong(
+                                        props, "teamVersion", "forwardedProps.teamVersion")));
+            }
+        };
+
+        abstract RunPlan plan(JsonNode props, String input, Validator validator);
     }
 
+    /** 组装结果：统一执行请求 + 可选 Team 目标（非 Team 模式为 null）。 */
+    private record RunPlan(AssistantExecutionRequest request, TeamTarget team) {}
+
+    /**
+     * AG-UI 标准 run 入参。
+     *
+     * <p>字段形状对齐 AG-UI 协议 `RunAgentInput`（`@ag-ui/core` 的 `RunAgentInputSchema`），但不复用官方 Java 类：官方
+     * {@code io.agentscope.core.agui.model.RunAgentInput} 的注解是 Jackson 2 的，在 Spring Boot 4 的
+     * Jackson 3 {@code HttpMessageConverter} 下不生效，且该类落后于协议（缺 {@code parentRunId}）。详见 ADR-005 议题一。
+     *
+     * <p>两类入参的边界按协议语义划分，不可混用：
+     *
+     * <ul>
+     *   <li>{@code forwardedProps} —— 本次 run 的一次性调用参数（`mode`、`request`、`assistantId`、
+     *       `taskModelSelection`、`teamId`/`teamVersion`）。单向 client→server，不回写
+     *   <li>{@code state} —— 线程级共享状态（页面感知上下文等）。双向语义，可被 `STATE_SNAPSHOT` 回吐； 服务端当前不消费，不得把调用参数放这里
+     *   <li>{@code tools} / {@code context} —— 协议可选字段，标准客户端会发；AAF 不接受前端提供的工具与上下文，
+     *       声明出来只为让"接收但不消费"成为显式契约，而不是靠全局忽略未知字段兜住
+     * </ul>
+     */
     public record RunRequest(
             String threadId,
             String runId,
             String parentRunId,
+            JsonNode forwardedProps,
             JsonNode state,
-            List<RunMessage> messages) {
+            List<RunMessage> messages,
+            JsonNode tools,
+            JsonNode context) {
         public RunRequest {
             threadId = requireText(threadId, "threadId");
             runId = requireText(runId, "runId");
-            state = requireObject(state, "state");
+            forwardedProps = requireObject(forwardedProps, "forwardedProps");
             messages = List.copyOf(Objects.requireNonNull(messages, "messages 不能为空"));
         }
     }

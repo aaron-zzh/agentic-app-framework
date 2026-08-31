@@ -16,7 +16,11 @@ import { LivechatProvider } from "@/features/livechat/LivechatProvider"
 import { AgUiChatProvider } from "@/features/livechat/runtime/ag-ui-runtime"
 import { buildApiUrl } from "@/lib/api/config"
 import { useChatterStore } from "@/lib/store/chatter-store"
-import { buildChatterInitialState, resolveChatterAguiPath } from "./chatter-runtime-state"
+import {
+  buildChatterForwardedProps,
+  buildChatterState,
+  resolveChatterAguiPath
+} from "./chatter-runtime-state"
 
 /** 构建对话端点 URL。 */
 function buildAguiUrl(target: ChatterTarget): string {
@@ -51,14 +55,13 @@ export function ChatterRuntime({
   const aguiUrl = useMemo(() => buildAguiUrl(target), [target])
 
   const initialState = useMemo(
-    () =>
-      buildChatterInitialState({
-        target,
-        currentPageId,
-        pageConfig,
-        taskModelSelection
-      }),
-    [target, pageConfig, currentPageId, taskModelSelection]
+    () => buildChatterState({ currentPageId, pageConfig }),
+    [pageConfig, currentPageId]
+  )
+
+  const forwardedProps = useMemo(
+    () => buildChatterForwardedProps({ target, taskModelSelection }),
+    [target, taskModelSelection]
   )
 
   // user 类型走 IM WebSocket
@@ -79,7 +82,7 @@ export function ChatterRuntime({
 
   // AI / Kiro 走统一 AgUiChatProvider
   return (
-    <AgUiChatProvider url={aguiUrl} initialState={initialState}>
+    <AgUiChatProvider url={aguiUrl} initialState={initialState} forwardedProps={forwardedProps}>
       {children}
     </AgUiChatProvider>
   )
