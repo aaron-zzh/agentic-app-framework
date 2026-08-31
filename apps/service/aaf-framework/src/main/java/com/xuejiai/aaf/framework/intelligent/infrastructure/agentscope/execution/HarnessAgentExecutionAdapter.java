@@ -7,6 +7,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentExecutionCommand;
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentMessage;
@@ -95,7 +96,13 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         return Flux.defer(() -> executeDeferred(command));
     }
 
-    /** 取消：只在首次调用且源流未结束时生效，Agent 已启动才能下发 interrupt。 */
+    /**
+     * 取消：只在首次调用且执行未终结时生效，Agent 已启动才能下发 interrupt。
+     *
+     * <p>返回值与终态仲裁同源——{@code compareAndSet} 到 {@code CANCELLING} 成功才返回
+     * {@code true}，因此不会出现"cancel 返回 true 但从未发出取消事件"或"取消与正常完成
+     * 都各自发了一次终态"的竞态（RQ-01）。
+     */
     @Override
     public Mono<Boolean> cancel(ExecutionId executionId) {
         Objects.requireNonNull(executionId, "executionId 不能为空");
@@ -108,14 +115,11 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                                 executionId.value());
                         return false;
                     }
-                    if (active.sourceCompleted().get()) {
+                    if (!active.terminal().compareAndSet(TerminalState.ACTIVE, TerminalState.CANCELLING)) {
                         log.debug(
-                                "[AgentLoop] 忽略中断请求：executionId={}，原因=事件流已结束", executionId.value());
-                        return false;
-                    }
-                    if (!active.cancelled().compareAndSet(false, true)) {
-                        log.debug(
-                                "[AgentLoop] 忽略中断请求：executionId={}，原因=已标记取消", executionId.value());
+                                "[AgentLoop] 忽略中断请求：executionId={}，原因=已进入终态或已标记取消，当前={}",
+                                executionId.value(),
+                                active.terminal().get());
                         return false;
                     }
                     log.debug(
@@ -297,38 +301,51 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                                                     mappingState)))
                     .timeout(execution.executionPolicy().timeout())
                     .doOnError(ignored -> interruptOnce(active))
-                    // 异常收口：已取消发 EXECUTION_CANCELED，否则发 RUN_FAILED，流始终正常结束
+                    // 异常收口：终态是单一 CAS 仲裁的结果，不再由分散的布尔标志推断。
+                    // 先抢 ACTIVE→TERMINATED：抢到即"这是一次未被取消覆盖的真实失败"，发 RUN_FAILED。
+                    // 抢不到说明 cancel() 已先行 CAS 到 CANCELLING，退而抢 CANCELLING→TERMINATED
+                    // 发 EXECUTION_CANCELED——取消请求的调用方看到的必须是取消终态，不能是失败终态。
                     .onErrorResume(
-                            failure -> {
-                                if (active.cancelled().get()) {
-                                    active.cancellationEmitted().set(true);
-                                    return Flux.just(
-                                            eventMapper.canceled(
-                                                    command,
-                                                    execution.agentIdentifier(),
-                                                    mappingState));
-                                }
-                                return Flux.just(
-                                        eventMapper.failure(
-                                                command,
-                                                execution.agentIdentifier(),
-                                                mappingState,
-                                                failure));
-                            })
-                    .doOnComplete(() -> active.sourceCompleted().set(true))
-                    // 取消与正常完成竞态时补一条终态事件，CAS 保证只发一次
+                            failure ->
+                                    Flux.just(
+                                            active.terminal()
+                                                            .compareAndSet(
+                                                                    TerminalState.ACTIVE,
+                                                                    TerminalState.TERMINATED)
+                                                    ? eventMapper.failure(
+                                                            command,
+                                                            execution.agentIdentifier(),
+                                                            mappingState,
+                                                            failure)
+                                                    : cancelWonRace(active)
+                                                            ? eventMapper.canceled(
+                                                                    command,
+                                                                    execution.agentIdentifier(),
+                                                                    mappingState)
+                                                            : eventMapper.failure(
+                                                                    command,
+                                                                    execution.agentIdentifier(),
+                                                                    mappingState,
+                                                                    failure)))
+                    // 正常完成路径：同一套仲裁。抢到 ACTIVE→TERMINATED 即静默结束；
+                    // 抢不到说明 cancel() 已胜出，补发一次 EXECUTION_CANCELED——不会与上面的
+                    // onErrorResume 分支重复执行，两者是同一订阅里互斥的终态路径。
                     .concatWith(
                             Flux.defer(
                                     () ->
-                                            active.cancelled().get()
-                                                            && active.cancellationEmitted()
-                                                                    .compareAndSet(false, true)
-                                                    ? Flux.just(
-                                                            eventMapper.canceled(
-                                                                    command,
-                                                                    execution.agentIdentifier(),
-                                                                    mappingState))
-                                                    : Flux.empty()))
+                                            active.terminal()
+                                                            .compareAndSet(
+                                                                    TerminalState.ACTIVE,
+                                                                    TerminalState.TERMINATED)
+                                                    ? Flux.empty()
+                                                    : cancelWonRace(active)
+                                                            ? Flux.just(
+                                                                    eventMapper.canceled(
+                                                                            command,
+                                                                            execution
+                                                                                    .agentIdentifier(),
+                                                                            mappingState))
+                                                            : Flux.empty()))
                     // concatMap 保证串行入库，sequence 由存储层原子分配
                     .concatMap(event -> eventStore.append(event, command.context().lease()))
                     .doFinally(ignored -> release(executionId, active));
@@ -438,9 +455,21 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
     }
 
     private void interruptIfCancelledAndStarted(ActiveExecution active) {
-        if (active.cancelled().get() && active.started().get()) {
+        if (active.terminal().get() == TerminalState.CANCELLING && active.started().get()) {
             interruptOnce(active);
         }
+    }
+
+    /**
+     * 在自然终态路径的 {@code ACTIVE→TERMINATED} 抢占失败后调用：把
+     * {@code CANCELLING→TERMINATED} 补到底，确认取消确实是本次终态的胜出方。
+     *
+     * <p>只在 {@link #onErrorResume} 与 {@link #executeResolved} 的 {@code concatWith} 分支被调用，
+     * 且两者在同一订阅内互斥执行，因此这里的 CAS 预期总是成功；失败只可能是已被其中一方处理过
+     * （不会发生，双重防御）。
+     */
+    private static boolean cancelWonRace(ActiveExecution active) {
+        return active.terminal().compareAndSet(TerminalState.CANCELLING, TerminalState.TERMINATED);
     }
 
     /** interrupt 幂等：CAS 保证同一执行只向 ReActAgent 下发一次中断。 */
@@ -474,6 +503,26 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
             ExecutionPolicy executionPolicy,
             boolean ephemeral) {}
 
+    /**
+     * 单次执行的终态仲裁状态机（RQ-01 修复）。
+     *
+     * <p>替代此前分散的 {@code cancelled}/{@code cancellationEmitted}/{@code sourceCompleted}
+     * 三个独立布尔量——它们各自原子但组合不原子，存在"取消与正常完成都各发一次终态"或"cancel()
+     * 返回 true 但从未发出取消事件"两个确定窗口。收敛为单一 {@link AtomicReference} 上的 CAS
+     * 转移后，任一时刻只有一条路径能把状态推进到 {@link #TERMINATED}，终态事件恰好发一次。
+     *
+     * <ul>
+     *   <li>{@link #ACTIVE} → 初始态，执行进行中，未被请求取消
+     *   <li>{@link #CANCELLING} → {@code cancel()} 已 CAS 抢占，已发 interrupt，尚未确认终态
+     *   <li>{@link #TERMINATED} → 终态已确定并即将/已发出，之后任何 CAS 都会失败
+     * </ul>
+     */
+    private enum TerminalState {
+        ACTIVE,
+        CANCELLING,
+        TERMINATED
+    }
+
     /** 单次执行的运行态标志位，用于取消、中断与终态事件去重。 */
     private record ActiveExecution(
             HarnessAgent agent,
@@ -481,10 +530,8 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
             boolean ephemeral,
             AtomicBoolean released,
             AtomicBoolean started,
-            AtomicBoolean cancelled,
             AtomicBoolean interruptIssued,
-            AtomicBoolean cancellationEmitted,
-            AtomicBoolean sourceCompleted) {
+            AtomicReference<TerminalState> terminal) {
 
         private ActiveExecution(
                 HarnessAgent agent, RuntimeContext runtimeContext, boolean ephemeral) {
@@ -495,9 +542,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                     new AtomicBoolean(),
                     new AtomicBoolean(),
                     new AtomicBoolean(),
-                    new AtomicBoolean(),
-                    new AtomicBoolean(),
-                    new AtomicBoolean());
+                    new AtomicReference<>(TerminalState.ACTIVE));
         }
     }
 }
