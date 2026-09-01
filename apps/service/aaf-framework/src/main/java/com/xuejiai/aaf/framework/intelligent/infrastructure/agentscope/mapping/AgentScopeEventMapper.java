@@ -3,6 +3,7 @@ package com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
@@ -23,14 +24,25 @@ import io.agentscope.core.event.AgentEndEvent;
 import io.agentscope.core.event.AgentEvent;
 import io.agentscope.core.event.AgentResultEvent;
 import io.agentscope.core.event.AllToolsDeniedEvent;
+import io.agentscope.core.event.ConfirmResult;
 import io.agentscope.core.event.ExceedMaxItersEvent;
+import io.agentscope.core.event.ExternalExecutionResultEvent;
 import io.agentscope.core.event.ModelCallEndEvent;
 import io.agentscope.core.event.RequestStopEvent;
+import io.agentscope.core.event.RequireExternalExecutionEvent;
 import io.agentscope.core.event.RequireUserConfirmEvent;
 import io.agentscope.core.event.TextBlockDeltaEvent;
+import io.agentscope.core.event.TextBlockEndEvent;
+import io.agentscope.core.event.TextBlockStartEvent;
+import io.agentscope.core.event.ToolCallDeltaEvent;
+import io.agentscope.core.event.ToolCallEndEvent;
 import io.agentscope.core.event.ToolCallStartEvent;
 import io.agentscope.core.event.ToolResultEndEvent;
+import io.agentscope.core.event.ToolResultStartEvent;
+import io.agentscope.core.event.ToolResultTextDeltaEvent;
+import io.agentscope.core.event.UserConfirmResultEvent;
 import io.agentscope.core.message.GenerateReason;
+import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.message.ToolResultState;
 import io.agentscope.core.message.ToolUseBlock;
 import lombok.extern.slf4j.Slf4j;
@@ -65,8 +77,11 @@ public final class AgentScopeEventMapper {
      *   <li><b>不应出现</b> — 已关闭的官方能力（如原生 subagent），出现即记录配置漂移告警
      * </ul>
      *
-     * <p>另有一组标注"待映射"的类型：它们需要先定下 AG-UI 配对契约（messageId 派生规则、工具四段脱敏）才能决定落哪个 {@code
-     * ExecutionEventType}，见 AAF-104 #10403。当前显式返回 empty 并说明原因，不是遗漏。
+     * <p>全部 31 项已落地显式映射（AAF-104 #10403 第二增量补齐最后 8 项：{@code TEXT_BLOCK_END}、{@code
+     * TOOL_CALL_DELTA/END}、{@code TOOL_RESULT_START/TEXT_DELTA}、{@code USER_CONFIRM_RESULT}、{@code
+     * EXTERNAL_EXECUTION_RESULT}、{@code REQUIRE_EXTERNAL_EXECUTION}）。文本与工具流式事件的 payload 统一携带
+     * {@code replyId}（及 {@code blockId}/{@code toolCallId}），供 AG-UI 投影层按官方约定聚合还原；工具调用入参与
+     * 工具执行文本输出的增量正文暂不透出（只落长度），schema 脱敏留给消费方或后续投影层任务处理。
      */
     public Optional<ExecutionEvent> map(
             AgentEvent source,
@@ -116,15 +131,17 @@ public final class AgentScopeEventMapper {
             case MODEL_CALL_END ->
                     mapModelCallEnd(
                             (ModelCallEndEvent) source, command, agentIdentifier, model, state);
-            case TEXT_BLOCK_START ->
-                    event(
-                            source,
-                            command,
-                            agentIdentifier,
-                            state,
-                            ExecutionEventType.MESSAGE_STARTED,
-                            state.status(),
-                            ExecutionEventPayload.empty());
+            case TEXT_BLOCK_START -> {
+                var start = (TextBlockStartEvent) source;
+                yield event(
+                        source,
+                        command,
+                        agentIdentifier,
+                        state,
+                        ExecutionEventType.MESSAGE_STARTED,
+                        state.status(),
+                        payload("replyId", start.getReplyId(), "blockId", start.getBlockId()));
+            }
             case TEXT_BLOCK_DELTA ->
                     mapTextDelta((TextBlockDeltaEvent) source, command, agentIdentifier, state);
             case TOOL_CALL_START ->
@@ -178,19 +195,37 @@ public final class AgentScopeEventMapper {
             // ===== 安全忽略：core 内部提示，无对应 AAF 业务语义 =====
             case HINT_BLOCK, CUSTOM -> Optional.empty();
 
-            // ===== 待映射（AAF-104 #10403）：需要先定 AG-UI 配对契约再落 AAF 事件类型 =====
-            // TEXT_BLOCK_END 与 AGENT_RESULT 都表示"文本结束"，直接各发一次 MESSAGE_COMPLETED 会破坏配对；
-            // messageId 改用 replyId:blockId 派生后才能区分"单执行多文本块"。工具四段与 confirm/external
-            // 结果同理——先有配对不变量与脱敏规则，再决定落哪个 ExecutionEventType。
-            case TEXT_BLOCK_END,
-                    TOOL_CALL_DELTA,
-                    TOOL_CALL_END,
-                    TOOL_RESULT_START,
-                    TOOL_RESULT_TEXT_DELTA,
-                    USER_CONFIRM_RESULT,
-                    EXTERNAL_EXECUTION_RESULT,
-                    REQUIRE_EXTERNAL_EXECUTION ->
-                    Optional.empty();
+            // ===== 映射：文本块与工具四段生命周期（AAF-104 #10403 第二增量） =====
+            // TEXT_BLOCK_END 不复用 MESSAGE_COMPLETED（AGENT_RESULT 专用，表示整次回复结束），
+            // 而是落 MESSAGE_BLOCK_COMPLETED——两者各自一次配对，一次回复可含多个文本块。
+            case TEXT_BLOCK_END ->
+                    mapTextBlockEnd((TextBlockEndEvent) source, command, agentIdentifier, state);
+            case TOOL_CALL_DELTA ->
+                    mapToolCallDelta(
+                            (ToolCallDeltaEvent) source, command, agentIdentifier, state);
+            case TOOL_CALL_END ->
+                    mapToolCallEnd((ToolCallEndEvent) source, command, agentIdentifier, state);
+            case TOOL_RESULT_START ->
+                    mapToolResultStart(
+                            (ToolResultStartEvent) source, command, agentIdentifier, state);
+            case TOOL_RESULT_TEXT_DELTA ->
+                    mapToolResultTextDelta(
+                            (ToolResultTextDeltaEvent) source, command, agentIdentifier, state);
+            case USER_CONFIRM_RESULT ->
+                    mapUserConfirmResult(
+                            (UserConfirmResultEvent) source, command, agentIdentifier, state);
+            case REQUIRE_EXTERNAL_EXECUTION ->
+                    mapRequireExternalExecution(
+                            (RequireExternalExecutionEvent) source,
+                            command,
+                            agentIdentifier,
+                            state);
+            case EXTERNAL_EXECUTION_RESULT ->
+                    mapExternalExecutionResult(
+                            (ExternalExecutionResultEvent) source,
+                            command,
+                            agentIdentifier,
+                            state);
 
             // ===== 不应出现：配置漂移告警 =====
             // AAF 不启用官方 subagent（TaskBoard 是唯一外部编排），出现该事件说明工具面或 builder 配置被改动
@@ -303,7 +338,7 @@ public final class AgentScopeEventMapper {
                 new ExecutionEventPayload(values));
     }
 
-    /** 文本增量：按 replyId 聚合即可还原完整回复。 */
+    /** 文本增量：按 replyId + blockId 聚合即可还原完整回复的某个文本块（一次回复可含多个文本块）。 */
     private Optional<ExecutionEvent> mapTextDelta(
             TextBlockDeltaEvent source,
             AgentExecutionCommand command,
@@ -316,7 +351,13 @@ public final class AgentScopeEventMapper {
                 state,
                 ExecutionEventType.MESSAGE_DELTA,
                 state.status(),
-                payload("replyId", source.getReplyId(), "delta", source.getDelta()));
+                payload(
+                        "replyId",
+                        source.getReplyId(),
+                        "blockId",
+                        source.getBlockId(),
+                        "delta",
+                        source.getDelta()));
     }
 
     /** 工具开始：只暴露 toolCallId 与工具名，模型生成的入参不出边界。 */
@@ -386,6 +427,210 @@ public final class AgentScopeEventMapper {
         values.put("resultState", resultState == null ? "UNKNOWN" : resultState.name());
         values.putAll(evidence);
         return values;
+    }
+
+    /**
+     * 文本块结束：与 {@code MESSAGE_COMPLETED}（{@code AGENT_RESULT}，整次回复终态）不同，本事件是回复内某一个
+     * 文本块的终态，一次回复可含多个文本块，各自一次 START/END 配对，不可合并成同一个 AAF 事件类型。
+     */
+    private Optional<ExecutionEvent> mapTextBlockEnd(
+            TextBlockEndEvent source,
+            AgentExecutionCommand command,
+            String agentIdentifier,
+            MappingState state) {
+        return event(
+                source,
+                command,
+                agentIdentifier,
+                state,
+                ExecutionEventType.MESSAGE_BLOCK_COMPLETED,
+                state.status(),
+                payload("replyId", source.getReplyId(), "blockId", source.getBlockId()));
+    }
+
+    /**
+     * 工具调用入参流式增量：只落长度不落原始 JSON 片段。
+     *
+     * <p>入参可能携带模型从上下文摘取的业务敏感字段值，与 {@link #mapToolStart} 排除入参出边界的理由相同；按 schema
+     * 脱敏后再逐片透出留给 AAF-104 #10403 的 AG-UI 投影层决定，本层只保证身份与长度可追踪。
+     */
+    private Optional<ExecutionEvent> mapToolCallDelta(
+            ToolCallDeltaEvent source,
+            AgentExecutionCommand command,
+            String agentIdentifier,
+            MappingState state) {
+        var delta = source.getDelta();
+        return event(
+                source,
+                command,
+                agentIdentifier,
+                state,
+                ExecutionEventType.TOOL_CALL_ARGS_DELTA,
+                state.status(),
+                payload(
+                        "replyId",
+                        source.getReplyId(),
+                        "toolCallId",
+                        source.getToolCallId(),
+                        "toolName",
+                        source.getToolCallName(),
+                        "deltaLength",
+                        delta == null ? 0 : delta.codePointCount(0, delta.length())));
+    }
+
+    /** 工具调用入参流结束：区别于 {@code TOOL_CALL_COMPLETED}（工具执行结果成功），本事件只表示入参已拼齐。 */
+    private Optional<ExecutionEvent> mapToolCallEnd(
+            ToolCallEndEvent source,
+            AgentExecutionCommand command,
+            String agentIdentifier,
+            MappingState state) {
+        return event(
+                source,
+                command,
+                agentIdentifier,
+                state,
+                ExecutionEventType.TOOL_CALL_ARGS_COMPLETED,
+                state.status(),
+                payload(
+                        "replyId",
+                        source.getReplyId(),
+                        "toolCallId",
+                        source.getToolCallId(),
+                        "toolName",
+                        source.getToolCallName()));
+    }
+
+    /** 工具开始执行：入参已确定、结果尚未返回的中间态，供前端展示"执行中"。 */
+    private Optional<ExecutionEvent> mapToolResultStart(
+            ToolResultStartEvent source,
+            AgentExecutionCommand command,
+            String agentIdentifier,
+            MappingState state) {
+        return event(
+                source,
+                command,
+                agentIdentifier,
+                state,
+                ExecutionEventType.TOOL_RESULT_STARTED,
+                state.status(),
+                payload(
+                        "replyId",
+                        source.getReplyId(),
+                        "toolCallId",
+                        source.getToolCallId(),
+                        "toolName",
+                        source.getToolCallName()));
+    }
+
+    /** 工具执行期间的文本输出增量：与 {@link #mapToolCallDelta} 同理，只落长度，正文经工具证据链路传递。 */
+    private Optional<ExecutionEvent> mapToolResultTextDelta(
+            ToolResultTextDeltaEvent source,
+            AgentExecutionCommand command,
+            String agentIdentifier,
+            MappingState state) {
+        var delta = source.getDelta();
+        return event(
+                source,
+                command,
+                agentIdentifier,
+                state,
+                ExecutionEventType.TOOL_RESULT_DELTA,
+                state.status(),
+                payload(
+                        "replyId",
+                        source.getReplyId(),
+                        "toolCallId",
+                        source.getToolCallId(),
+                        "toolName",
+                        source.getToolCallName(),
+                        "deltaLength",
+                        delta == null ? 0 : delta.codePointCount(0, delta.length())));
+    }
+
+    /**
+     * 用户确认结果：{@code replyId} 与最初暂停时的 {@code REQUIRE_USER_CONFIRM} 相同，因此复用既有 {@code
+     * APPROVAL_RESOLVED}（与 {@link #mapConfirmation} 的 {@code APPROVAL_REQUESTED} 配对），不新增类型。
+     * 只暴露确认结果与工具名，被拒工具的修改后入参（{@code ConfirmResult.toolCall}）不出边界。
+     */
+    private Optional<ExecutionEvent> mapUserConfirmResult(
+            UserConfirmResultEvent source,
+            AgentExecutionCommand command,
+            String agentIdentifier,
+            MappingState state) {
+        state.status(ExecutionEventStatus.RUNNING);
+        var results = source.getConfirmResults();
+        var toolNames =
+                results.stream()
+                        .map(ConfirmResult::getToolCall)
+                        .filter(Objects::nonNull)
+                        .map(ToolUseBlock::getName)
+                        .toList();
+        var confirmedCount = results.stream().filter(ConfirmResult::isConfirmed).count();
+        return event(
+                source,
+                command,
+                agentIdentifier,
+                state,
+                ExecutionEventType.APPROVAL_RESOLVED,
+                ExecutionEventStatus.RUNNING,
+                payload(
+                        "replyId",
+                        source.getReplyId(),
+                        "tools",
+                        toolNames,
+                        "confirmedCount",
+                        confirmedCount,
+                        "totalCount",
+                        (long) results.size()));
+    }
+
+    /** 需要外部（进程外）执行：与 {@code AUTHORIZATION_REQUESTED} 不同，这是执行位置转移而非权限决策。 */
+    private Optional<ExecutionEvent> mapRequireExternalExecution(
+            RequireExternalExecutionEvent source,
+            AgentExecutionCommand command,
+            String agentIdentifier,
+            MappingState state) {
+        state.status(ExecutionEventStatus.PAUSED);
+        var toolNames = source.getToolCalls().stream().map(ToolUseBlock::getName).toList();
+        return event(
+                source,
+                command,
+                agentIdentifier,
+                state,
+                ExecutionEventType.EXTERNAL_EXECUTION_REQUESTED,
+                ExecutionEventStatus.PAUSED,
+                payload("replyId", source.getReplyId(), "tools", toolNames));
+    }
+
+    /**
+     * 外部执行结果已回填：{@code replyId} 与请求时的 {@code REQUIRE_EXTERNAL_EXECUTION} 相同。只暴露工具调用标识与结果数量，
+     * {@code ToolResultBlock} 的正文内容不出边界（与 {@link #mapToolResult} 对工具证据的处置一致）。
+     */
+    private Optional<ExecutionEvent> mapExternalExecutionResult(
+            ExternalExecutionResultEvent source,
+            AgentExecutionCommand command,
+            String agentIdentifier,
+            MappingState state) {
+        state.status(ExecutionEventStatus.RUNNING);
+        var toolCallIds =
+                source.getToolResults().stream()
+                        .map(ToolResultBlock::getId)
+                        .filter(Objects::nonNull)
+                        .toList();
+        return event(
+                source,
+                command,
+                agentIdentifier,
+                state,
+                ExecutionEventType.EXTERNAL_EXECUTION_SUPPLIED,
+                ExecutionEventStatus.RUNNING,
+                payload(
+                        "replyId",
+                        source.getReplyId(),
+                        "toolCallIds",
+                        toolCallIds,
+                        "resultCount",
+                        (long) source.getToolResults().size()));
     }
 
     /** 权限引擎 ASK 决策：转 APPROVAL_REQUESTED，只带待确认工具名。 */

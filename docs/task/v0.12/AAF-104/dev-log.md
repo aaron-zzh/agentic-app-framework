@@ -18,6 +18,7 @@
 
 - ⏳ #10401 部分完成 — 已建立编译器强制的穷举处置矩阵；**待做**：8 项"待映射"类型的实际映射，与 #10403 的 AG-UI 配对契约一并落地。（2026-09-01）
 - ✅ #10402 converter registry 结构 — 纯结构重构行为不变，`AgUiProjector` 从 248 行降到 107 行。（2026-09-01）
+- ✅ #10401 8 项待映射类型 + #10403 第二增量 — `AgentScopeEventMapper` 补齐全部 8 项，31 项 AgentEventType 无任何 empty 处置。（2026-09-01）
 
 > **配对不变量集中到 context 是这次重构的核心**：`AafAguiStreamContext` 是唯一能构造 message/toolCall/run 终态事件的地方，converter 只能调它的方法。此前这些 `new AguiEvent.Xxx(...)` 散在 projector 的私有方法里，新加一族事件很容易绕过 started/ended 去重与"finish 恰好一次"。现在绕过需要显式改 context，改动可见。
 
@@ -42,3 +43,37 @@
 
 - `pnpm nx compile service`：BUILD SUCCESS——**这本身就是 31 项全覆盖的证明**，缺任一常量都会编译失败。
 - `pnpm nx test service`：`AgUiProjectorTest` 8 个用例全绿（原地验证重构后配对与 finish 不变量未变）；framework 415 + auto-dev 2 + api 241 全绿，无回归。
+
+---
+
+## #10401 / #10403 第二增量：8 项待映射类型落地（2026-09-01）
+
+执行者：AI/developer-service
+
+### 实现文件
+
+| 文件 | 说明 |
+|------|------|
+| `.../infrastructure/agentscope/mapping/AgentScopeEventMapper.java` | 补齐 8 项映射方法；`TEXT_BLOCK_START/DELTA` 补 `replyId`/`blockId` |
+| `.../intelligent/shared/event/ExecutionEventType.java` | 新增 7 项：`MESSAGE_BLOCK_COMPLETED`、`TOOL_CALL_ARGS_DELTA/COMPLETED`、`TOOL_RESULT_STARTED/DELTA`、`EXTERNAL_EXECUTION_REQUESTED/SUPPLIED` |
+| `.../intelligent/shared/event/publication/AafAiTaskEventRegistry.java` | 同步补齐 7 项 public type 映射（穷举 switch，无 default，编译强制） |
+
+### 实现决策
+
+- **`USER_CONFIRM_RESULT` 不新增类型，复用 `APPROVAL_RESOLVED`** — `replyId` 与最初暂停的 `REQUIRE_USER_CONFIRM`（映射为 `APPROVAL_REQUESTED`）相同，是同一对配对的另一半，新增类型属并行抽象。
+- **`MESSAGE_BLOCK_COMPLETED` 与 `MESSAGE_COMPLETED` 严格分离** — 按 harness 落地计划的契约修正：`TEXT_BLOCK_END`（回复内某一文本块结束）与 `AGENT_RESULT`（整次回复结束）各自一次配对，合并会让 AG-UI 收到两次"消息完成"从而破坏 start/end 计数。
+- **`TOOL_CALL_ARGS_DELTA/COMPLETED` 与 `TOOL_CALL_COMPLETED/FAILED` 分离** — 前者是"入参已拼齐"（`TOOL_CALL_END`），后者是"工具执行结果成功/失败"（`TOOL_RESULT_END`），是完全不同的时间点，AgentScope 官方事件时序图也是分离的两段（推理阶段 vs 执行阶段）。
+- **`TOOL_CALL_DELTA`/`TOOL_RESULT_TEXT_DELTA` 只落长度不落正文** — 前者是工具入参的流式片段（可能含模型从上下文摘取的业务敏感字段值），后者是工具执行的流式文本输出（业务产出）。两者都需要 schema/证据规则脱敏才能安全外发，而脱敏规则属于 AG-UI 投影层职责（#10403 剩余部分），mapper 层没有 schema 可用，因此只保证身份（`toolCallId`/`toolName`/`replyId`）与长度可追踪，仿照 `PromptEnvelopeCaptureMiddleware` 对敏感正文"只落 hash/长度"的既有处置模式。
+- **`AGENT_RESULT` 没有加 `replyId`** — 核实 `AgentResultEvent` 源码（`io.agentscope.core.event.AgentResultEvent`）确认它只携带 `Msg result`，没有独立的 `replyId` 字段（这是 31 个事件类型里唯一的例外）。原计划"把 replyId/blockId 写入事件 payload"对该类型不适用，不能凭空捏造字段，`result.getId()` 已经承担消息标识职责。
+- **`USER_CONFIRM_RESULT`/`EXTERNAL_EXECUTION_RESULT` 只暴露标识** — 确认结果只给工具名列表与确认计数，`ConfirmResult.toolCall`（用户可能修改过的入参）不出边界；外部执行结果只给 `toolCallId` 列表与结果数量，`ToolResultBlock` 正文不出边界。与 `mapToolResult` 对工具执行证据的既有处置一致，不是新规则。
+
+> **`AafAiTaskEventRegistry.descriptor` 与 mapper 同为无 default 穷举**：新增 `ExecutionEventType` 常量后，若不同批补齐该 switch 的对应分支，整个模块编译失败——这是继续沿用 #10401"穷举强制"手法的自然结果，本次踩到但未额外设计，只是补全。`ExecutionEventPublicMapper.safeData` 有 `default` 分支，新类型暂不设计安全字段，留给 #10403 决定投影契约，避免越权设计对外协议（任务边界要求"纯 aaf-framework 侧，不碰对外协议"）。
+
+> **范围收敛为纯 `AgentScopeEventMapper` 改动**：原计划文档提到"messageId 改用 replyId:blockId 派生"，但派生逻辑属于 AG-UI 投影层（`AafAguiStreamContext`/converter），不在本增量。本增量只完成其共同前置——把 `replyId`/`blockId` 写入 `ExecutionEvent.payload()`，供投影层后续读取，未触碰 `apps/service/aaf-api` 下任何文件。
+
+### 验证
+
+- 按人类要求本次不执行 `pnpm nx compile service` / `pnpm nx test service`（人类手动验证）。
+- 人工复核：`AgentScopeEventMapper.map` 与 `AafAiTaskEventRegistry.descriptor` 两处穷举 switch 逐项核对覆盖全部 31 项 / 全部新增 7 项常量，未发现遗漏或重复 case 标签。
+- 人工复核：`ExecutionEventPayload` 的 key 校验规则（敏感字段名黑名单）对新增 key 名（`deltaLength`、`toolCallIds`、`resultCount`、`confirmedCount`、`totalCount`、`blockId`）逐一比对，均不匹配 `password/secret/credential/token/authorization/cookie/apikey/systemprompt` 等后缀规则。
+- 待 AAF-108 #10801 统一补齐：`compile` + `test` 验证、`AgentScopeEventMapperFailureTest` 之外的显式断言（当前 8 项新映射无专门单测，阶段约束下不新增测试文件，待门禁恢复阶段视需要补进既有测试）。
