@@ -205,6 +205,44 @@ gains:
 - 已修正上方"可恢复粒度"与"冻结画像"两表：**同一责任主体的步骤级中断续跑，应复用同一 `executionId`，延续原 AgentState 历史**；只有责任主体变化（接管/换权限）才强制新 execution 独立冻结画像。这吸收了 kiro-cli（完整历史重放减少模型重新探索成本）与 AgentScope core（`(userId, sessionId)` 自动续接是框架原生能力，无需业务层重新实现）的优势，同时保留 AAF 原有设计的两项正确性保障：`executionId` 编入状态槽命名空间防并发 TOCTOU、receipt/TaskBoard 作为不依赖模型记忆的恢复正确性锚点。
 - **AAF-110（执行中断续跑）的任务范围因此明确为**：解决 `HarnessAgentExecutionAdapter.doFinally` 当前无差别删除状态槽的问题——需要区分"责任主体不变的中断"（不删，允许下次同 `executionId` 续接）与"真正终态完成/失败/接管换主体"（删，符合三层恢复粒度表的默认行为）。这不再是"评估要不要引入续接"的开放问题，而是"实现分流逻辑"的确定性任务。
 
+### 接口设计：`AgentExecutionPort.cancel` 需携带终止原因
+
+> 全仓核实：`cancel(ExecutionId)` 当前只有两处调用方——[`DelegatedTaskCoordinator.cancelRunningChildren`](../../../../apps/service/aaf-framework/src/main/java/com/xuejiai/aaf/framework/intelligent/assistant/application/DelegatedTaskCoordinator.java)（被 `stop`/`takeOver` 共用同一行代码）与 [`AssistantApplicationService`](../../../../apps/service/aaf-framework/src/main/java/com/xuejiai/aaf/framework/intelligent/assistant/application/AssistantApplicationService.java)（被 `CANCEL`/`PAUSE`/`TAKE_OVER` 三种操作共用同一行代码）。签名 `Mono<Boolean> cancel(ExecutionId executionId)` 不带任何区分信息，责任主体是否变化这一事实在到达 `HarnessAgentExecutionAdapter` 前已经坍缩丢失，`doFinally` 无法凭 `executionId` 本身反推该不该删状态槽。
+
+**触发路径分类**（按对状态槽的正确处置分组，这是 `HarnessAgentExecutionAdapter.doFinally` 分流判断的依据）：
+
+| 触发路径 | 调用点 | 责任主体是否变化 | 状态槽处置 |
+|---|---|---|---|
+| 正常完成 | `HarnessAgentExecutionAdapter` 内部终态仲裁 | 否（任务走完） | 删（真正终态） |
+| 失败 | 同上 | 否 | 删（真正终态） |
+| `stop`（用户主动取消） | `DelegatedTaskCoordinator.stop` → `cancelRunningChildren` | 否，任务终止无需续接 | 删（真正终态，取消即终态，非"中断后还要续跑"） |
+| `PAUSE`（用户暂停） | `AssistantApplicationService`（`command.operation()==PAUSE`） | 否，同责任主体，代码已生成 `RecoveryPoint` 体现"可恢复"意图 | **不删**（保留状态槽，等 `RESUME` 复用同 `executionId` 续接） |
+| `takeOver`（人工接管） | `DelegatedTaskCoordinator.takeOver` / `AssistantApplicationService`（`TAKE_OVER`） | 是，`owner` 显式切换为 `humanOwner(command)` | 删（责任主体变化，新 execution 独立冻结） |
+| 进程重启/连接中断（非显式调用） | 无显式 `cancel` 调用，`doFinally` 由流终止触发 | 否 | **不删**（当前实现的缺口所在——这类路径根本不经过 `cancel()`，需要确认 `doFinally` 能否独立识别"非人为终止") |
+
+**方案推翻（2026-09-01，核实 `ReActAgent.loadOrCreateAgentStateForSlot` 源码后）**：下方"签名改动方向"曾提议给 `AgentExecutionPort.cancel` 加终止原因参数，现已推翻。核实 `tmp/agentscope-java` 的 `ReActAgent.loadOrCreateAgentStateForSlot` 源码后确认：**core 侧续跑逻辑只有"`stateStore.get()` 有值则用、没有则 `freshState()`"这一条判断，没有任何"这是续跑还是新对话"的显式标志，也不检查 `shutdownInterrupted`（那个标记只在 `GracefulShutdownMiddleware.onAgent` 单独消费）**。这意味着 `HarnessAgentExecutionAdapter.doFinally` 根本不需要知道"为什么终止"才能决定是否删除状态槽——它只需要知道"这次终止后，调用方是否期待下次还能查到状态"，这个决定权本就该在调用方，不需要靠 `cancel()` 携带终止原因反推。
+
+**轻量方案**：不改 `AgentExecutionPort.cancel` 签名。改为在 `AgentExecutionCommand`（唯一构造点在 [`AssistantApplicationService`](../../../../apps/service/aaf-framework/src/main/java/com/xuejiai/aaf/framework/intelligent/assistant/application/AssistantApplicationService.java) 内部私有方法，全仓只有一处 `new AgentExecutionCommand(...)`，改动面比 `cancel()` 的两处调用点更集中）上下文里携带一个"本次执行结束后是否保留状态槎"的信号，由发起 execution 的调用方（`DelegatedTaskCoordinator`/`AssistantApplicationService`）在构造命令时就决定好；`HarnessAgentExecutionAdapter.doFinally` 读这个信号决定是否跳过 `deleteExecutionState`，不需要理解"为什么终止"这件事本身。触发路径分类表（下方）不变，只是"如何让 `doFinally` 知道"这一层从"改 `cancel()` 签名反推"变成"调用方在发起时正向声明"。
+
+**触发路径分类**（按对状态槽的正确处置分组，这是 `HarnessAgentExecutionAdapter.doFinally` 分流判断的依据）：
+
+| 触发路径 | 调用点 | 责任主体是否变化 | 状态槽处置 |
+|---|---|---|---|
+| 正常完成 | `HarnessAgentExecutionAdapter` 内部终态仲裁 | 否（任务走完） | 删（真正终态） |
+| 失败 | 同上 | 否 | 删（真正终态） |
+| `stop`（用户主动取消） | `DelegatedTaskCoordinator.stop` → `cancelRunningChildren` | 否，任务终止无需续接 | 删（真正终态，取消即终态，非"中断后还要续跑"） |
+| `PAUSE`（用户暂停） | `AssistantApplicationService`（`command.operation()==PAUSE`） | 否，同责任主体，代码已生成 `RecoveryPoint` 体现"可恢复"意图 | **不删**（保留状态槽，等 `RESUME` 复用同 `executionId` 续接） |
+| `takeOver`（人工接管） | `DelegatedTaskCoordinator.takeOver` / `AssistantApplicationService`（`TAKE_OVER`） | 是，`owner` 显式切换为 `humanOwner(command)` | 删（责任主体变化，新 execution 独立冻结） |
+| 进程重启/连接中断（非显式调用） | 无显式 `cancel` 调用，`doFinally` 由流终止触发 | 否 | 见下方"复用 core 现成机制"——不需要 AAF 自建信号传递 |
+
+**落地方向**：`AgentExecutionCommand` 新增一个布尔字段（例如 `retainStateOnTermination`，命名待 #11001 定稿），由生成命令的调用方按上表设置；`HarnessAgentExecutionAdapter.deleteExecutionState` 调用前先读这个字段，为 `true` 时跳过删除。这是数据字段新增，不是接口方法签名变更，不影响 `AgentExecutionPort` 的方法契约，风险等级可视为 🟡 而非之前评估的 🔴。
+
+### 核实结果：`stop`/`PAUSE`/`takeOver` 需 AAF 自建分类，"进程重启"一行应复用 core 既有机制（2026-09-01 补充核实）
+
+> 读 [tmp/agentscope-java](../../../../tmp/agentscope-java) 源码（`agentscope-core/src/main/java/io/agentscope/core/shutdown/`、`.../interruption/`）后确认：core 已内置 `InterruptSource`（`USER`/`TOOL`/`SYSTEM`，只区分触发者身份，不区分"是否换责任主体"）与 `GracefulShutdownManager` + `AgentState.shutdownInterrupted`（进程优雅停机专用信号，持久化，下次同 `(userId, sessionId)` 加载时可被检测并区分处理）两套现成机制。
+
+- **`stop`/`PAUSE`/`takeOver` 三类业务语义无法复用 core 机制**：这是 AAF 自己的业务概念（谁能对任务做什么操作），`InterruptSource` 只回答"谁触发的"，不回答"是否换了责任主体"；`shutdownInterrupted` 专门绑定 JVM 优雅停机场景（`AgentScopeJvmShutdownHook`），触发源固定 `InterruptSource.SYSTEM`，语义上不能挪用来表达业务暂停。**上方触发路径分类表与签名改动方向不变，这部分是 AAF 侧必须自建的分类，不是重新发明轮子**。
+- **"进程重启/连接中断"一行应直接复用 core 现成生命周期，不需要 AAF 自建信号传递**：core 提供 `GracefulShutdownManager.bindStateSaver`/`registerRequest`/`bindRequestState`/`checkAndClearShutdownInterrupted` 完整链路，专门解决"优雅停机时把状态标记为 `shutdownInterrupted=true` 并持久化，下次加载时检测到该标记就走恢复路径而非当成全新请求"。**核实 AAF 当前接入情况**：`HarnessAgentExecutionAdapter` 目前只用了 `ReActAgent.close()`（连带触发 `unbindStateSaver`）和 `agent.interrupt(ctx)`（走 `InterruptControl`），**从未调用 `bindStateSaver`/`registerRequest` 注册进 `GracefulShutdownManager`**——这条 core 原生链路存在，但 AAF 没有接入，是真实缺口，属于 AAF-110 范围内的具体任务，不是"评估要不要发明新机制"，而是"接入已有机制"。
 
 
 
