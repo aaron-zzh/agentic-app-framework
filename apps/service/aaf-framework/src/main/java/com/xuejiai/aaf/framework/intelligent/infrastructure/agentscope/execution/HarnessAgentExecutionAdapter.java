@@ -30,6 +30,7 @@ import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptLengthSummary;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.compiler.AgentScopeSpecCompiler;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeEventMapper;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeEventMapper.MappingState;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeFailureClassifier.DuplicateExecutionSubscriptionException;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeFailureClassifier.ExecutionDeadlineExceededException;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeMessageMapper;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeRuntimeContextMapper;
@@ -358,8 +359,11 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
             var existing = activeExecutions.putIfAbsent(executionId, active);
             if (existing != null) {
                 release(executionId, active);
+                // RQ-11：抛可识别的稳定异常而非裸 IllegalStateException，且不写持久终态——
+                // 失败方与胜出方共享 executionId，写入 RUN_FAILED 会让重放守卫误判该执行已结算
                 return Flux.error(
-                        new IllegalStateException("executionId 已存在活跃执行: " + executionId.value()));
+                        new DuplicateExecutionSubscriptionException(
+                                "executionId 已存在活跃执行: " + executionId.value()));
             }
             log.debug(
                     "[AgentLoop] 已注册活跃执行并订阅 Harness 事件流：executionId={}，agent={}，临时实例={}",
@@ -608,8 +612,21 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         return active.terminal().compareAndSet(TerminalState.CANCELLING, TerminalState.TERMINATED);
     }
 
-    /** interrupt 幂等：CAS 保证同一执行只向 ReActAgent 下发一次中断。 */
+    /**
+     * interrupt 幂等且不越过释放边界（RQ-11 幂等 / RQ-12 时序）。
+     *
+     * <p>两道门：{@code released} 判定本次执行是否已进入释放流程——core {@code ReActAgent.close()} 会清空 {@code
+     * stateCache}，而 {@code interrupt(ctx)} 依赖 {@code getAgentState(uid, sid).interruptControl()}
+     * 定位在飞调用，释放后再下发会作用在新建的 AgentState 上，信号静默丢失；{@code interruptIssued} 的 CAS 保证同一执行 只向 core 下发一次中断。
+     *
+     * <p>残留窗口：检查与下发之间仍可能有 {@code release} 插入。该窗口无害——{@code release} 只在订阅终止后的 {@code doFinally}
+     * 执行，此时推理循环已在收尾，一次落空的中断不改变终态；且缓存实例不 close，根本不受影响。 彻底消除需要把中断与释放放进同一把锁，代价高于收益，故记录而不做。
+     */
     private void interruptOnce(ActiveExecution active) {
+        if (active.released().get()) {
+            log.debug("[AgentLoop] 执行已释放，不再下发中断（core close 已清空状态缓存，下发会落空）");
+            return;
+        }
         if (active.interruptIssued().compareAndSet(false, true)) {
             active.agent().interrupt(active.runtimeContext());
             log.debug("[AgentLoop] 已向 core ReAct 执行体下发中断");
@@ -659,10 +676,15 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                 });
     }
 
-    /** 出表并释放一次性实例；缓存实例由 compiler 统一管理，不在此关闭。 */
+    /**
+     * 出表并释放一次性实例；缓存实例由 compiler 统一管理，不在此关闭。
+     *
+     * <p>{@code released} 对所有执行置位（不只 ephemeral），因为它同时是 {@link #interruptOnce} 的释放边界门（RQ-12）：
+     * 一旦进入释放流程就不再下发中断。close 仍只对一次性实例执行。
+     */
     private void release(ExecutionId executionId, ActiveExecution active) {
         activeExecutions.remove(executionId, active);
-        if (active.ephemeral() && active.released().compareAndSet(false, true)) {
+        if (active.released().compareAndSet(false, true) && active.ephemeral()) {
             active.agent().close();
         }
     }

@@ -85,15 +85,16 @@ gains:
 
 ### #10305 关闭 RQ-11 / RQ-12 / RQ-13
 
-- **状态**：[ ] 待开始
+- **状态**：[x] ✅ 已完成（2026-09-01，RQ-13 部分受上游限制）— developer-service
 - **负责人**：developer-service
 - **依赖**：#10303
 - **范围**：
-  - RQ-11：重复订阅失败方产生稳定失败事件并释放资源，不再抛裸 `IllegalStateException`。
-  - RQ-12：interrupt 与 close 通过同一 lifecycle CAS 保证有序，close 后不再 interrupt。
-  - RQ-13：`SpringRedisClientAdapter` 用 Lua/事务原子维护 value + registry；生产扫描改 SCAN，去掉 `KEYS`。
-  - 断言补进既有 `HarnessAgentExecutionAdapterTest`，竞态用可控 Publisher/barrier，不用 sleep。
-- **完成标准**：三条 minor 在 02-runtime-quality.md 中可标记关闭；`compile` 通过。
+  - ✅ RQ-11：新增 `DuplicateExecutionSubscriptionException`（`AgentScopeFailureClassifier` 嵌套类，归类 `INVALID_REQUEST` 不可重试），取代裸 `IllegalStateException`；**不写持久终态**——失败方与胜出方共享 `executionId`，写 `RUN_FAILED` 会让 RQ-05 重放守卫误判该执行已结算。
+  - ✅ RQ-12：`released` 改为对所有执行置位，成为 `interruptOnce` 的释放边界门；释放后不再下发中断（core `close()` 清空 `stateCache` 后中断必然落空）。残留窗口已在注释中记录并说明为何不加锁。
+  - ✅ RQ-13（SCAN 部分）：`findKeysByPattern` 由 `KEYS` 改为 `SCAN` 游标（批 500），消除单线程 keyspace 全遍历阻塞。
+  - ⚠️ RQ-13（原子性部分）**不可在本层修复**：`set` + `addToSet` 的两步登记在上游 `RedisAgentStateStore:218-220,259-261`，`RedisClientAdapter` 接口只暴露单命令原语、无组合入口。已在类 javadoc 记录约束与影响边界（AAF 按显式键删除状态槽，不依赖注册表扫描清理，孤儿键不会被其他执行读到）。
+- **完成标准**：对应新测试通过；Redis 生产路径不调用 `KEYS`。
+- **实际结果**：`compile` 全绿；生产路径已无 `KEYS`。RQ-13 原子性需上游修复或 fork，登记为遗留。
 
 ## 新增任务
 

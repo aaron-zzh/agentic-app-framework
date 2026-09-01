@@ -52,6 +52,7 @@ public final class AgentScopeFailureClassifier {
         return switch (failure) {
             case TimeoutException ignored -> FailureCategory.TIMEOUT;
             case ExecutionDeadlineExceededException ignored -> FailureCategory.TIMEOUT;
+            case DuplicateExecutionSubscriptionException ignored -> FailureCategory.INVALID_REQUEST;
             case StaleExecutionException ignored -> FailureCategory.FENCED;
             case ContextBudgetExceededException ignored -> FailureCategory.BUDGET_EXCEEDED;
             case BudgetExceededException ignored -> FailureCategory.BUDGET_EXCEEDED;
@@ -79,6 +80,22 @@ public final class AgentScopeFailureClassifier {
     /** 总时限耗尽：与"事件静默超时"区分开，便于定位是整体太慢还是单点卡死。 */
     public static final class ExecutionDeadlineExceededException extends IllegalStateException {
         public ExecutionDeadlineExceededException(String message) {
+            super(message);
+        }
+    }
+
+    /**
+     * 同一 executionId 被并发重复订阅（RQ-11）。
+     *
+     * <p>取代此前的裸 {@link IllegalStateException}：失败方需要一个稳定可识别的信号，调用方才能把"重复订阅"与真实执行失败区分开，
+     * 而不是靠匹配异常文本。归类为 {@code INVALID_REQUEST}——同一执行被并发订阅两次永远是调用协议错误，重试无意义。
+     *
+     * <p><b>为什么不产出持久终态事件</b>：失败方与胜出方共享同一 {@code executionId}。若失败方写入 {@code RUN_FAILED}， 该终态会被 RQ-05
+     * 的重放守卫读到并判定"此执行已结算"，从而让仍在正常运行的胜出方在下一次重投时被跳过。因此这里只向订阅者 抛出可识别异常并释放自己占用的资源，不污染共享的事件账本。
+     */
+    public static final class DuplicateExecutionSubscriptionException
+            extends IllegalStateException {
+        public DuplicateExecutionSubscriptionException(String message) {
             super(message);
         }
     }
