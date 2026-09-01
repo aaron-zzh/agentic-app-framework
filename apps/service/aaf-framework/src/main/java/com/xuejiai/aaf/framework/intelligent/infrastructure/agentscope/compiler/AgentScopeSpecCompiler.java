@@ -1,10 +1,7 @@
 package com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.compiler;
 
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentSpec;
@@ -262,59 +259,4 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
 
     /** 动态规格的生效画像。 */
     private record DynamicExecutionProfile(List<ToolRef> tools, String systemPrompt) {}
-
-    /**
-     * 有界 LRU Agent 缓存：淘汰时立即 close 被淘汰实例，避免堆内 Agent / Toolkit / prompt 无界增长（RQ-06）。
-     *
-     * <p>用 {@code synchronized} 包裹 access-order {@link LinkedHashMap}：编译是纯内存操作（工具装配 + 模型解析），
-     * 串行代价可忽略，换来的是"命中即刷新 LRU 顺序、超限即淘汰并 close"的确定性语义。
-     */
-    private static final class BoundedAgentCache<K> {
-
-        private final String name;
-        private final int capacity;
-        private final LinkedHashMap<K, ReActAgent> entries;
-
-        private BoundedAgentCache(String name, int capacity) {
-            if (capacity < 1) {
-                throw new IllegalArgumentException("cacheCapacity 必须大于 0");
-            }
-            this.name = name;
-            this.capacity = capacity;
-            this.entries =
-                    new LinkedHashMap<>(16, 0.75f, true) {
-                        @Override
-                        protected boolean removeEldestEntry(Map.Entry<K, ReActAgent> eldest) {
-                            if (size() <= BoundedAgentCache.this.capacity) {
-                                return false;
-                            }
-                            log.warn(
-                                    "[AgentScope编译] {} 缓存达到上限，淘汰最近最少使用实例并释放：上限={}",
-                                    BoundedAgentCache.this.name,
-                                    BoundedAgentCache.this.capacity);
-                            eldest.getValue().close();
-                            return true;
-                        }
-                    };
-        }
-
-        private synchronized ReActAgent computeIfAbsent(K key, Function<K, ReActAgent> factory) {
-            var existing = entries.get(key);
-            if (existing != null) {
-                return existing;
-            }
-            var created = factory.apply(key);
-            entries.put(key, created);
-            return created;
-        }
-
-        private synchronized void closeAll() {
-            entries.values().forEach(ReActAgent::close);
-            entries.clear();
-        }
-
-        private synchronized int size() {
-            return entries.size();
-        }
-    }
 }

@@ -92,7 +92,7 @@ public final class DefaultRoleSelector implements RoleSelector {
                                                     currentUserData(request))),
                                     "ROLE_SELECTION",
                                     numericUserId(request.userId())));
-            var root = JsonUtils.readTreeStrict(response);
+            var root = JsonUtils.readTreeStrict(response.text());
             if (root == null || !root.isObject() || root.size() != 1 || !root.has("roleKey")) {
                 return null;
             }

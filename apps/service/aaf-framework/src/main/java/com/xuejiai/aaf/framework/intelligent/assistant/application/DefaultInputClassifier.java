@@ -55,7 +55,7 @@ public final class DefaultInputClassifier implements InputClassifier {
                                                     JsonUtils.toJsonString(Map.of("text", text)))),
                                     "INPUT_CLASSIFICATION",
                                     numericUserId(userId)));
-            var root = JsonUtils.readTreeStrict(response);
+            var root = JsonUtils.readTreeStrict(response.text());
             if (root == null || !root.isObject() || root.size() != 1 || !root.has("kind")) {
                 return ExecutionInput.Kind.UNRELATED;
             }

@@ -29,6 +29,12 @@ public final class AgentScopeModelResolver {
     public Model resolve(ModelSpec spec) {
         Objects.requireNonNull(spec, "model spec 不能为空");
         var model = models.getModel(databaseId(spec));
+        return resolve(model);
+    }
+
+    /** 直接按已解析出的 {@link AiModel} 构建；供 L0 复用 {@link CapabilityRouter} 路由结果时调用，不重复查库。 */
+    public Model resolve(AiModel model) {
+        Objects.requireNonNull(model, "model 不能为空");
         if (!model.hasCapability("CHAT")) {
             throw new IllegalStateException("Agent 模型不支持 CHAT: " + model.getModelId());
         }

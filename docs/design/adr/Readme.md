@@ -46,6 +46,7 @@ changelog:
 | [ADR-003](ADR-003-virtual-threads-over-webflux.md) | 全量 Virtual Threads + JDBC，放弃 WebFlux + R2DBC | accepted | 后端并发模型、依赖清理、编码规范、AAF-023 #17 |
 | [ADR-005](ADR-005-agentscope-boundary-and-orchestration.md) | AgentScope 复用边界与双层编排模型定案 | proposed | 智能层 Agent/Assistant 运行时、AG-UI 协议、TaskBoard 编排、AgentScopeSpecCompiler |
 | [ADR-006](ADR-006-executor-plan-mode.md) | EXECUTOR 先规划再执行（AAF 版 Plan Mode） | accepted | DelegatedTaskCoordinator EXECUTOR 分支、v16 新增两表、PersistentHitlCoordinator 审批复用 |
+| [ADR-007](ADR-007-l0-model-invoker-unification.md) | L0 非自主模型调用单栈化（复用零工具 ReActAgent） | proposed | PromptInvocationGateway 签名、5 个 L0 直调用点迁移、LlmClient/SpringAiLlmClient 删除、AAF-105 |
 
 ## 与其他文档的关系
 

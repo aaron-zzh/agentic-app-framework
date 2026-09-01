@@ -190,15 +190,10 @@ public class AssistantInfrastructureAutoConfiguration {
         return new ContextLoadTool(skills, skillReferences);
     }
 
-    @Bean
-    @ConditionalOnBean(LlmClient.class)
-    @ConditionalOnMissingBean(PromptInvocationGateway.class)
-    PromptInvocationGateway promptInvocationGateway(LlmClient llmClient) {
-        return new PromptInvocationGateway(llmClient);
-    }
+    /** 非自主 L0 逻辑调用入口已迁移至 AgentScopeInfrastructureAutoConfiguration.promptInvocationGateway（依 ADR-007），不再由本配置类基于 LlmClient 生产。 */
 
     @Bean
-    @ConditionalOnBean(LlmClient.class)
+    @ConditionalOnBean(PromptInvocationGateway.class)
     @ConditionalOnMissingBean(RoleSelector.class)
     RoleSelector modelRoleSelector(PromptInvocationGateway promptGateway) {
         return new DefaultRoleSelector(promptGateway);
@@ -226,7 +221,7 @@ public class AssistantInfrastructureAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnBean(LlmClient.class)
+    @ConditionalOnBean(PromptInvocationGateway.class)
     @ConditionalOnMissingBean(SkillSelectionPort.class)
     SkillSelectionPort modelSkillSelectionPort(PromptInvocationGateway promptGateway) {
         return new ModelSkillSelectionPort(promptGateway);

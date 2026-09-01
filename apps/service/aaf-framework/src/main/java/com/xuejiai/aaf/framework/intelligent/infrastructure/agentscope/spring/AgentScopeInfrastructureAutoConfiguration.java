@@ -15,10 +15,13 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.TokenMeteringPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolGatewayPort;
+import com.xuejiai.aaf.framework.intelligent.ai.chat.AiAutoConfiguration;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultEffectiveToolResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveToolResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.PromptEnvelopePort;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptInvocationGateway;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.compiler.AgentScopeSpecCompiler;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.execution.HarnessAgentExecutionAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeEventMapper;
@@ -27,6 +30,7 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.A
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.middleware.AgentScopeTokenMeteringObserver;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.middleware.PromptEnvelopeCaptureMiddleware;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.model.AgentScopeModelResolver;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.model.L0ReActAgentFactory;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.state.SpringRedisClientAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.AgentScopeToolkitFactory;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.ToolResultEvidenceStore;
@@ -42,7 +46,7 @@ import reactor.core.scheduler.Schedulers;
  * <p>六个必需端口齐备时才装配，缺任一端口整个 AgentScope 运行时不生效。
  */
 @AutoConfiguration
-@AutoConfigureAfter(DataRedisAutoConfiguration.class)
+@AutoConfigureAfter({DataRedisAutoConfiguration.class, AiAutoConfiguration.class})
 @ConditionalOnBean({
     AgentDefinitionPort.class,
     ToolCatalogPort.class,
@@ -126,6 +130,19 @@ public class AgentScopeInfrastructureAutoConfiguration {
                 modelResolver,
                 envelopeCapture,
                 AgentScopeSpecCompiler.DEFAULT_CACHE_CAPACITY);
+    }
+
+    /** L0 单例按 modelId 分桶缓存 ReActAgent，持有缓存，销毁时须 close 释放（依 ADR-007）。 */
+    @Bean(destroyMethod = "close")
+    L0ReActAgentFactory l0ReActAgentFactory(AgentScopeModelResolver modelResolver) {
+        return new L0ReActAgentFactory(modelResolver, AgentScopeSpecCompiler.DEFAULT_CACHE_CAPACITY);
+    }
+
+    /** 非自主 L0 逻辑调用入口，替代旧 LlmClient（依 ADR-007）。 */
+    @Bean
+    PromptInvocationGateway promptInvocationGateway(
+            L0ReActAgentFactory l0ReActAgentFactory, CapabilityRouter capabilityRouter) {
+        return new PromptInvocationGateway(l0ReActAgentFactory, capabilityRouter);
     }
 
     @Bean

@@ -48,7 +48,7 @@ public final class ModelSkillSelectionPort implements SkillSelectionPort {
                                     "SKILL_SELECTION",
                                     numericUserId(request.userId())));
             return new SkillSelectionDecision(
-                    selectedCodes(response, request), "SELECTION_MODEL", "无副作用选择模型结果");
+                    selectedCodes(response.text(), request), "SELECTION_MODEL", "无副作用选择模型结果");
         } catch (RuntimeException failure) {
             return new SkillSelectionDecision(
                     List.of(), "FAIL_CLOSED", "选择模型失败或返回非法输出，不激活 ON_DEMAND Skill");

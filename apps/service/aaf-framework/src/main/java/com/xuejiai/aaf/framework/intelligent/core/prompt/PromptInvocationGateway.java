@@ -5,30 +5,48 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
-import com.xuejiai.aaf.framework.intelligent.core.llm.LlmClient;
+import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
+
+import io.agentscope.core.ReActAgent;
+import io.agentscope.core.agent.RuntimeContext;
+import io.agentscope.core.message.AssistantMessage;
+import io.agentscope.core.message.Msg;
+import io.agentscope.core.message.UserMessage;
 
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * 非自主 L0 的逻辑调用入口。
  *
- * <p>当前切片只做最小消息校验、脱敏长度 preflight 和 {@link LlmClient} 委托，不加载 Constitution、Persona、Role、Skill
- * 或自主任务循环。底层模型路由与 fallback 可能产生多个物理请求，因此这里的 logicalInvocationId 不能视为物理请求 ID。
+ * <p>当前切片只做最小消息校验、脱敏长度 preflight 和对零工具 {@code ReActAgent} 的委托，不加载 Constitution、Persona、Role、Skill
+ * 或自主任务循环。模型选择完全由 {@link CapabilityRouter} 承担（依 ADR-007）——{@code CapabilityRouter} 是 per-call
+ * 路由，而 {@code ReActAgent.builder().model(...)} 是构造期固定参数，两者不能直接合一，因此按 {@link
+ * AiModel#getModelId()} 对 {@code ReActAgent} 实例分桶缓存，不是全局唯一单例：同一模型复用同一实例，不同模型各自持有独立实例；每个实例
+ * 均为零工具（不触发工具循环）、无状态（不设 {@code stateStore}）、不设 {@code fallbackModel}（不静默切模型）。
  */
 @Slf4j
 public final class PromptInvocationGateway {
     private static final Pattern MACHINE_KEY = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]{0,127}");
 
-    private final LlmClient llmClient;
+    private final ConcurrentHashMap<String, ReActAgent> agentsByModelId = new ConcurrentHashMap<>();
+    private final Function<AiModel, ReActAgent> agentFactory;
+    private final CapabilityRouter capabilityRouter;
 
-    public PromptInvocationGateway(LlmClient llmClient) {
-        this.llmClient = Objects.requireNonNull(llmClient, "llmClient 不能为空");
+    public PromptInvocationGateway(
+            Function<AiModel, ReActAgent> agentFactory, CapabilityRouter capabilityRouter) {
+        this.agentFactory = Objects.requireNonNull(agentFactory, "agentFactory 不能为空");
+        this.capabilityRouter =
+                Objects.requireNonNull(capabilityRouter, "capabilityRouter 不能为空");
     }
 
     /** 发起一次无工具的非自主逻辑调用；异常原样交给具体函数决定 fail-closed 或安全默认值。 */
-    public String call(NonAutonomousInvocation invocation) {
+    public ModelInvocationResult call(NonAutonomousInvocation invocation) {
         Objects.requireNonNull(invocation, "invocation 不能为空");
         var logicalInvocationId = UUID.randomUUID().toString().replace("-", "");
         var lengths = measure(invocation.messages());
@@ -56,8 +74,57 @@ public final class PromptInvocationGateway {
                 assistantHistory.estimatedTokensAtFourCodePoints(),
                 lengths.totalCharacters(),
                 lengths.totalEstimatedTokens());
-        var modelMessages = invocation.messages().stream().map(ClassifiedMessage::message).toList();
-        return llmClient.call(modelMessages, invocation.routeScene(), invocation.meteringUserId());
+
+        var routingContext =
+                CapabilityRoutingContext.ofCapability(
+                        invocation.meteringUserId(), invocation.routeScene());
+        var model = capabilityRouter.resolve(routingContext);
+        var agent = agentsByModelId.computeIfAbsent(model.getModelId(), key -> agentFactory.apply(model));
+
+        var systemPrompt =
+                invocation.messages().stream()
+                        .filter(m -> m.inputKind() == PromptInputKind.SYSTEM)
+                        .findFirst()
+                        .map(m -> m.message().content())
+                        .orElseThrow(
+                                () ->
+                                        new IllegalStateException(
+                                                "非自主 L0 缺少 SYSTEM 消息，无法构造 Function Contract"));
+        var agentMessages = toAgentScopeMessages(invocation.messages());
+
+        var ctx =
+                RuntimeContext.builder()
+                        .sessionId(logicalInvocationId)
+                        .put(
+                                FunctionContractSystemPrompt.class,
+                                new FunctionContractSystemPrompt(systemPrompt))
+                        .build();
+
+        var result = agent.call(agentMessages, ctx).block();
+        return toInvocationResult(result);
+    }
+
+    private static List<Msg> toAgentScopeMessages(List<ClassifiedMessage> messages) {
+        return messages.stream()
+                .filter(m -> m.inputKind() != PromptInputKind.SYSTEM)
+                .<Msg>map(
+                        m ->
+                                switch (m.message().role()) {
+                                    case "assistant" ->
+                                            new AssistantMessage(m.message().content());
+                                    default -> new UserMessage(m.message().content());
+                                })
+                .toList();
+    }
+
+    private static ModelInvocationResult toInvocationResult(Msg result) {
+        var text = result.getTextContent();
+        var usage = result.getUsage();
+        var inputTokens = usage != null ? usage.getInputTokens() : 0L;
+        var outputTokens = usage != null ? usage.getOutputTokens() : 0L;
+        var generateReason = result.getGenerateReason();
+        var finishReason = generateReason != null ? generateReason.toString() : null;
+        return new ModelInvocationResult(text, inputTokens, outputTokens, finishReason);
     }
 
     private static PromptLengthSummary measure(List<ClassifiedMessage> messages) {
@@ -70,8 +137,12 @@ public final class PromptInvocationGateway {
         return PromptLengthSummary.measure(contents, 0);
     }
 
+    /** L0 调用结果：文本 + usage + 结束原因。替代旧 {@code LlmClient} 的裸 {@code String} 返回值。 */
+    public record ModelInvocationResult(
+            String text, long inputTokens, long outputTokens, String finishReason) {}
+
     /** 带来源分类的 L0 消息；分类由调用方证明，Gateway 校验分类与模型角色兼容。 */
-    public record ClassifiedMessage(PromptInputKind inputKind, LlmClient.LlmMessage message) {
+    public record ClassifiedMessage(PromptInputKind inputKind, LlmMessage message) {
         public ClassifiedMessage {
             Objects.requireNonNull(inputKind, "inputKind 不能为空");
             Objects.requireNonNull(message, "message 不能为空");
@@ -93,23 +164,37 @@ public final class PromptInvocationGateway {
         }
 
         public static ClassifiedMessage system(String content) {
-            return new ClassifiedMessage(
-                    PromptInputKind.SYSTEM, LlmClient.LlmMessage.system(content));
+            return new ClassifiedMessage(PromptInputKind.SYSTEM, LlmMessage.system(content));
         }
 
         public static ClassifiedMessage currentUser(String content) {
             return new ClassifiedMessage(
-                    PromptInputKind.CURRENT_USER_INPUT, LlmClient.LlmMessage.user(content));
+                    PromptInputKind.CURRENT_USER_INPUT, LlmMessage.user(content));
         }
 
         public static ClassifiedMessage otherUser(String content) {
             return new ClassifiedMessage(
-                    PromptInputKind.OTHER_USER_INPUT, LlmClient.LlmMessage.user(content));
+                    PromptInputKind.OTHER_USER_INPUT, LlmMessage.user(content));
         }
 
         public static ClassifiedMessage controlledContext(String content) {
             return new ClassifiedMessage(
-                    PromptInputKind.CONTROLLED_CONTEXT, LlmClient.LlmMessage.user(content));
+                    PromptInputKind.CONTROLLED_CONTEXT, LlmMessage.user(content));
+        }
+    }
+
+    /** L0 消息载体，替代旧 {@code LlmClient.LlmMessage}。 */
+    public record LlmMessage(String role, String content) {
+        public static LlmMessage system(String content) {
+            return new LlmMessage("system", content);
+        }
+
+        public static LlmMessage user(String content) {
+            return new LlmMessage("user", content);
+        }
+
+        public static LlmMessage assistant(String content) {
+            return new LlmMessage("assistant", content);
         }
     }
 

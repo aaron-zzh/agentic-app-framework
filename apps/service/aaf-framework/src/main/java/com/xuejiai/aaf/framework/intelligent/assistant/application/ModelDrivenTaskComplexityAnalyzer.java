@@ -69,7 +69,7 @@ public final class ModelDrivenTaskComplexityAnalyzer implements TaskComplexityAn
                                             ClassifiedMessage.currentUser(currentUserData(input))),
                                     "TASK_COMPLEXITY",
                                     null));
-            var root = JsonUtils.readTreeStrict(response);
+            var root = JsonUtils.readTreeStrict(response.text());
             if (root == null
                     || !root.isObject()
                     || root.size() != 2
