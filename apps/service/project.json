@@ -9,6 +9,11 @@
       "inputs": ["{projectRoot}/**/src/**/*", "{projectRoot}/**/pom.xml"],
       "outputs": ["{projectRoot}/**/target"]
     },
+    "compile": {
+      "command": "node ../../scripts/mvnw.mjs test-compile",
+      "options": { "cwd": "apps/service" },
+      "inputs": ["{projectRoot}/**/src/**/*", "{projectRoot}/**/pom.xml"]
+    },
     "serve": {
       "command": "node ../../scripts/mvnw.mjs install -DskipTests -q && node ../../scripts/mvnw.mjs spring-boot:run -f aaf-api/pom.xml",
       "options": { "cwd": "apps/service" },
