@@ -461,7 +461,9 @@ public final class DelegatedTaskCoordinator {
                         subTask,
                         board.resolveInput(subTask),
                         parentCommand.lease(),
-                        clock.instant());
+                        clock.instant(),
+                        // 交付角色由聚合契约决定，在此处传入——建板信息只有编排层完整
+                        board.goal().aggregationContract().kind());
         var result = new AtomicReference<>("");
         var observedEvents = new java.util.ArrayList<ExecutionEvent>();
         var failure = new AtomicReference<String>();

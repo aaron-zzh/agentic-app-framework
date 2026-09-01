@@ -7,6 +7,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionCriteria;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.CoordinationPlan;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard.SubTask;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskModelSelection;
@@ -240,7 +241,11 @@ public record AssistantCommand(
     }
 
     public AssistantCommand forSubTask(
-            SubTask subTask, String resolvedInput, Lease nextLease, Instant at) {
+            SubTask subTask,
+            String resolvedInput,
+            Lease nextLease,
+            Instant at,
+            CoordinationPlan.AggregationContract.Kind aggregationKind) {
         Objects.requireNonNull(subTask, "subTask 不能为空");
         if (resolvedInput == null || resolvedInput.isBlank()) {
             throw new IllegalArgumentException("resolvedInput 不能为空白");
@@ -300,7 +305,7 @@ public record AssistantCommand(
                 subTask.modelSelection(),
                 childProfile,
                 at,
-                nodeIdentityOf(subTask));
+                nodeIdentityOf(subTask, aggregationKind));
     }
 
     private AssistantCommand copy(
@@ -352,7 +357,8 @@ public record AssistantCommand(
      * 不反向依赖 编排层——映射责任归产生该身份的一方。{@code subTaskId} 在动态分解模式下由协调者命名，`NodeIdentity` 的构造器会
      * 校验它是安全键（不含斜杠等会破坏 AG-UI source 路径的字符）。
      */
-    private static NodeIdentity nodeIdentityOf(SubTask subTask) {
+    private static NodeIdentity nodeIdentityOf(
+            SubTask subTask, CoordinationPlan.AggregationContract.Kind aggregationKind) {
         var kind =
                 switch (subTask.kind()) {
                     case COORDINATOR -> NodeIdentity.NodeKind.COORDINATOR;
@@ -360,7 +366,20 @@ public record AssistantCommand(
                     case EVALUATOR -> NodeIdentity.NodeKind.EVALUATOR;
                     case AGGREGATOR -> NodeIdentity.NodeKind.AGGREGATOR;
                 };
-        return new NodeIdentity(subTask.subTaskId(), kind, subTask.roleKey(), subTask.skillKey());
+        // 交付角色按聚合契约算定，不按 kind 推导：AGGREGATOR_REDUCE 下交付者是 aggregator 而非 coordinator，
+        // 否则一块板会出现两个交付节点、客户端收到两条「最终回复」
+        var delivery =
+                switch (kind) {
+                    case COORDINATOR ->
+                            aggregationKind
+                                    != CoordinationPlan.AggregationContract.Kind.AGGREGATOR_REDUCE;
+                    case AGGREGATOR ->
+                            aggregationKind
+                                    == CoordinationPlan.AggregationContract.Kind.AGGREGATOR_REDUCE;
+                    case EXECUTOR, EVALUATOR -> false;
+                };
+        return new NodeIdentity(
+                subTask.subTaskId(), kind, subTask.roleKey(), subTask.skillKey(), delivery);
     }
 
     public enum Operation {

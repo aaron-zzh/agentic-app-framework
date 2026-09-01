@@ -26,7 +26,8 @@ import java.util.regex.Pattern;
  * @param roleKey 角色键，稳定聚合维度；可空
  * @param skillKey 技能键，稳定聚合维度；可空
  */
-public record NodeIdentity(String subTaskId, NodeKind kind, String roleKey, String skillKey) {
+public record NodeIdentity(
+        String subTaskId, NodeKind kind, String roleKey, String skillKey, boolean delivery) {
 
     /** 节点键只允许安全字符：它会进入 AG-UI 的 source 路径，不能带斜杠或控制字符。 */
     private static final Pattern SAFE_NODE_KEY =
@@ -35,17 +36,17 @@ public record NodeIdentity(String subTaskId, NodeKind kind, String roleKey, Stri
     /**
      * 编排节点类型；与 {@code TaskBoard.Kind} 一一对应，由编排层映射，避免跨层依赖。
      *
-     * <p>四类节点分两组：<b>交付类</b>（COORDINATOR / AGGREGATOR）产出面向用户的最终回复；<b>内部类</b> （EXECUTOR /
-     * EVALUATOR）产出中间产物。该分组决定 AG-UI 走标准事件还是降级 CUSTOM。
+     * <p>四类 kind 保留在领域模型里（各有真实职责），但下游投影只关心 {@code delivery} 这个**二分**结论：交付类节点的输出
+     * 是面向用户的最终回复，内部类节点的输出是中间产物。二分的判定不能只看 kind，见 {@link #userFacing()}。
      */
     public enum NodeKind {
-        /** 协调者：分解与调度；PASS_THROUGH 聚合契约下其输出即最终回复。 */
+        /** 协调者：前注意、拆解、产计划；在 PASS_THROUGH / ORDERED_CONCAT 契约下同时是交付者。 */
         COORDINATOR,
-        /** 执行者：内部节点，输出是中间产物。 */
+        /** 执行者：处理分配的子任务，恒为内部节点。 */
         EXECUTOR,
-        /** 评估者：迭代组的收敛判定者，输出是判定结论而非用户回复。 */
+        /** 评估者：有界迭代组的收敛判定者，本质是被标记的执行者，恒为内部节点。 */
         EVALUATOR,
-        /** 聚合者：按聚合契约合成最终回复。 */
+        /** 聚合者：仅在 AGGREGATOR_REDUCE 契约下由系统追加，此时它是唯一交付者。 */
         AGGREGATOR
     }
 
@@ -54,6 +55,9 @@ public record NodeIdentity(String subTaskId, NodeKind kind, String roleKey, Stri
         if (subTaskId == null || !SAFE_NODE_KEY.matcher(subTaskId).matches()) {
             throw new IllegalArgumentException("subTaskId 必须是安全节点键（模型输出需经此校验）: " + subTaskId);
         }
+        if (delivery && (kind == NodeKind.EXECUTOR || kind == NodeKind.EVALUATOR)) {
+            throw new IllegalArgumentException("执行者与评估者不能是交付节点: " + kind);
+        }
         roleKey = blankToNull(roleKey);
         skillKey = blankToNull(skillKey);
     }
@@ -61,12 +65,16 @@ public record NodeIdentity(String subTaskId, NodeKind kind, String roleKey, Stri
     /**
      * 是否面向用户的应答者：只有它的事件走标准 AG-UI 文本事件，内部节点一律降级 CUSTOM。
      *
-     * <p><b>未决约束</b>：AGGREGATOR 是否与 COORDINATOR 同时出现在一块板上尚未核实。若会，则一块板出现两个交付类节点， 各发一次 {@code
-     * TEXT_MESSAGE} 会让客户端收到两条"最终回复"。AAF-104 #10403 实施标准/CUSTOM 分流时必须先确认
-     * 「每板至多一个交付类节点」这条不变量，不成立则需按聚合契约（PASS_THROUGH / ORDERED_CONCAT）决定唯一应答者。
+     * <p><b>为什么是存储字段而非按 kind 推导</b>：交付角色取决于本板的聚合契约，光看 kind 判不出—— {@code AGGREGATOR_REDUCE}
+     * 契约下板上同时存在 COORDINATOR 与 AGGREGATOR，若按 {@code kind == COORDINATOR || kind == AGGREGATOR}
+     * 推导会出现两个交付节点、客户端收到两条"最终回复"。判定因此前移到建板期（那里才知道契约）， 一次算定后随事件流走；投影层不反查板结构，否则 AG-UI 层会依赖编排层。
+     *
+     * <p>映射规则见 {@code AssistantCommand.nodeIdentityOf}：{@code PASS_THROUGH} / {@code
+     * ORDERED_CONCAT} → COORDINATOR 交付；{@code AGGREGATOR_REDUCE} → AGGREGATOR 交付且 COORDINATOR
+     * 转为内部；EXECUTOR / EVALUATOR 恒内部（构造器强制）。
      */
     public boolean userFacing() {
-        return kind == NodeKind.COORDINATOR || kind == NodeKind.AGGREGATOR;
+        return delivery;
     }
 
     /**
