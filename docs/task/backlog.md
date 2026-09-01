@@ -2,12 +2,13 @@
 
 所有用户故事的唯一来源。条目由 product agent 细化后登记，协调者维护编号和状态。
 
-编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-108**，新一级用户故事从 AAF-109 开始。添加新条目后必须同步更新此行。
+编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-110**，新一级用户故事从 AAF-111 开始。添加新条目后必须同步更新此行。
 
 ## 待排期
 
 - [ ] AAF-027 (创建: 05-10) LLM 调用录制与回放（测试基础设施：拦截 LLM API 请求录制为 JSON，测试时回放，避免真实调用，保证确定性 + 降低成本）参考：Mastra `_llm-recorder`、WireMock、Spring AI MockChatModel
 - [ ] AAF-035 (创建: 05-14) Nx 工程化持续优化（lefthook 迁移 + enforce-module-boundaries + publint/attw + 共享 tsconfig 包 + Changeset 版本管理）(依赖: AAF-028 packages/ 落地后)
+- [ ] AAF-109 (创建: 09-01) 工具权限运行时安全加固（对齐官方 AgentScope Permission System 后发现的缺口：① Built-in Checks——工具按真实调用参数做动态安全检查，不可被 mode/rules 覆盖，如检测目标是否为生产资源；② 危险资源硬编码黑名单——`.env`/`.ssh`/`.git` 等命中即强制人工确认，连最宽松授权模式都不能绕过。AAF 当前只按工具名静态属性 `readOnly`/`reversible` 判定，全靠人工配置 `ai_tool_catalog`/`ToolPolicy`，无运行时兜底。技术方案见 AAF-107 dev-log 2026-09-01 对比分析）
 
 ## 下一迭代（v0.1.1）
 
@@ -128,6 +129,7 @@
 - [ ] AAF-106 (创建: 09-01) 思考模式与推理块回放（分离 `reasoning_content`/`content` 双通道使思考开启后正文不断流；`enableThinking`/`thinkingBudget`/`reasoningEffort` 按模型能力参数化；`THINKING_BLOCK_*` 在 mapper 层拦截不外发 CoT；接通 `AgentMessage.Role.REASONING` 推理块回放，替换当前直接抛异常的分支）(依赖: AAF-105) → v0.12
 - [ ] AAF-107 (创建: 09-01) EXECUTOR 先规划再执行（新增 `ai_executor_plan`/`ai_executor_plan_step` 两表追加进 v16；执行 Agent 自产计划走独立 planning execution + acting gate 只放只读工具；确定性白名单自动批准、其余走持久 HITL；只对 policy 标记任务生效；8 个计划事件经 outbox 投影 AG-UI）(依赖: AAF-104) → v0.12
 - [ ] AAF-108 (创建: 09-01) 门禁恢复与集成收口（一次性跑通 `pnpm check` + `pnpm acceptance` 并修复累积失败；补齐阶段约束期间欠下的测试文件；同步 architecture/runtime-event/model-router/usage-guide 真理源，`AUTONOMOUS_HARNESS` 重命名，登记 `JsonSchemaUtils` shadow 例外）(依赖: AAF-103～AAF-107) → v0.12
+- [ ] AAF-110 (创建: 09-01) 执行中断续跑（第一性原理复核确认：恢复正确性锚定 receipt/TaskBoard/事件流不变，AgentState 历史续接是独立的效率/体验优化，与正确性无关；`HarnessAgentExecutionAdapter.doFinally` 当前无差别删除状态槽需按"责任主体是否变化"分流——同责任主体中断续跑复用原 `executionId` 不删状态槽，真正终态/接管换主体才删；EXECUTOR Plan Mode 步骤级恢复依赖此能力）(依赖: AAF-103) → v0.12
 
 ## 已完成
 

@@ -3,8 +3,8 @@ level: Practice
 layer: Model
 purpose: 定义长任务的持久执行机制——租约与 fencing、幂等、重试、取消、恢复与多副本一致性
 status: draft
-version: 1.0.1
-date: 2026-08-25
+version: 1.1.0
+date: 2026-09-01
 author: Kiro
 tags:
   - 持久执行
@@ -91,15 +91,19 @@ gains:
 
 > **范围拍板（方案 C，2026-08-29）**：恢复边界是"从最近安全提交点重启"，不是"从 ReAct 内部任意步骤续跑"。不承诺任意 token/内部思考断点续跑；L2 只在 receipt 或节点完成边界重启，找不到安全边界即整节点重建。三层实现顺序按分层方向推进（各自建设 + 共享恢复门禁），不引入统一 Recovery Aggregate（避免其持有业务状态形成第二真理源）。
 
+> **范围修正（2026-09-01，第一性原理复核）**：原"步骤级找不到安全边界即以新 execution 重建，不迁移 AgentState"的表述，把"恢复正确性"和"恢复效率/体验"两个独立维度混为一谈。拆解后确认：正确性只能锚定在 receipt/TaskBoard/事件流（确定性事实，无可替代），这条不变；而"是否携带原 AgentState 对话历史重新发起"纯粹是效率与体验问题，与正确性无关——即使模型看到的历史不完整或"记错进度"，工具调用层的 receipt 幂等（见上方"幂等与重试"）已独立挡住重复副作用。因此**同一责任主体的中断续跑应复用同一 `executionId`、延续 AgentState 历史**；只有责任主体变化（接管/换权限）才强制新 execution 独立冻结画像，见下方"可恢复粒度"表更新。
+
 ### 可恢复粒度
 
 | 粒度 | 恢复对象 | 最近安全恢复点 | 恢复规则 |
 |---|---|---|---|
-| 步骤级 | 单个 L2 execution / TaskBoard 子节点 | 已提交工具 receipt、步骤结果或 iteration 判定（**不含** AgentState 内部工作态） | 跳过已完成副作用；找不到安全边界时**以新 execution 重建该节点**，不迁移旧 fence 的 AgentState，不回写旧 execution |
+| 步骤级 | 单个 L2 execution / TaskBoard 子节点 | 已提交工具 receipt、步骤结果或 iteration 判定为正确性锚点；AgentState 对话历史为可选效率优化，不参与正确性判定 | 跳过已完成副作用（receipt 幂等保证，与是否延续历史无关）；**同一责任主体的中断续跑复用原 `executionId`，续接原 AgentState 历史**（若已被清理或找不到安全边界，退化为新 execution 重建，不视为异常）；**责任主体变化（接管/换权限）强制新 execution，不迁移旧 fence 的 AgentState** |
 | 会话级 | L3 Assistant 的稳定 task、TaskBoard、InputBuffer 与会话焦点 | 已原子提交的 TaskBoard + 任务状态 + 事件 offset + 节点画像引用 | 取得新 lease/fence 后重放事件校验状态；完成节点跳过，运行节点恢复或重置为待调度，依赖满足后继续 |
 | 目标级 | L4 Team/长期业务目标及其 Assistant 子目标 | 已发布目标版本、成员/责任分工、子任务完成证据与聚合状态 | 保持 goal/task 身份，已验证子目标跳过；未完成子目标创建新 execution；**成员或目标版本变化一律转人工重规划，不自动迁移** |
 
-三层是递进边界，不是三份可独立修改的状态：步骤级工作态归 AgentState，会话级编排归 TaskBoard，目标级责任与分工归 Team/Goal；事件只记录变化。
+三层是递进边界，不是三份可独立修改的状态：步骤级工作态归 AgentState，会话级编排归 TaskBoard，目标级责任与分工归 Team/Goal；事件只记录变化。**AgentState 在步骤级恢复中的角色是"可选延续的推理素材"，不是恢复正确性的判定依据**——这一点与会话级/目标级完全一致，三层都不把 AgentState 当真理源。
+
+
 
 ### 恢复前置校验（RecoveryPreflight）
 
@@ -154,7 +158,7 @@ gains:
 
 | 项 | 恢复约束 |
 |---|---|
-| 冻结画像 | 必须复用原 `ExecutionProfileSnapshot` 的 Assistant revision、Role、Skill、模型、Prompt、上下文压缩和工具授权规则；不同快照拒绝。新重试/接管节点用新 execution 独立冻结 |
+| 冻结画像 | 必须复用原 `ExecutionProfileSnapshot` 的 Assistant revision、Role、Skill、模型、Prompt、上下文压缩和工具授权规则；不同快照拒绝。**责任主体变化的重试/接管节点用新 execution 独立冻结**；同责任主体的中断续跑复用原 `executionId` 与原画像，不重新冻结 |
 | 主体与租户 | 重新校验当前认证主体、租户、任务所有权和资源归属；不得因旧快照跳过 |
 | grant | 重新检查 action/resource/scope、有效期、撤销状态、条件、reversible 与当前主体；失效则进入同步 HITL |
 | 凭证 | 重新解析有效 credential handle；过期、撤销或 scope 变化时暂停，不得使用快照中的明文或旧句柄绕过 |
@@ -175,7 +179,35 @@ gains:
 | `eventId` 跨重试稳定 | 🎯 目标态 · 当前不得声称已执行；投影合成事件仍随机 |
 | 三层恢复粒度完整落地 | 🎯 目标态（方案 C，2026-08-29 已拍板范围） · 审批恢复与过期任务回收已落地；通用步骤级 checkpoint 类型化、会话完整重建、目标级恢复与统一 `RecoveryPreflight` 未闭合，见 `TaskRecoveryPort.java:13-48`、`JpaDelegatedTaskAdapter.java:536-565` |
 
-## 验收基线
+## AgentState 与外部会话持久化机制对比（2026-09-01 补充）
+
+> **背景**：AAF-107 EXECUTOR Plan Mode 设计"中断后续跑"时，参照 kiro-cli 自身的会话持久化机制（完整对话历史落盘 + 重启整段重放）反查 AgentScope core 官方 [Context & AgentState](https://java.agentscope.io/v2/zh/docs/building-blocks/context.html) 文档，发现 AAF 当前实现与两种参照对象都存在系统性差异，记录于此供后续任务（AAF-110）判断取舍。
+
+### 三方机制对照
+
+| 维度 | kiro-cli（本工具自身） | AgentScope core `AgentStateStore` | AAF `HarnessAgentExecutionAdapter` |
+|---|---|---|---|
+| 持久化对象 | 完整 `user_turn_metadatas`：每轮含 assistant 消息全文（含 thinking 块）、message_ids、token 用量 | `AgentState`：`getContext()` 完整对话历史 + summary + 权限/计划/任务/工具组上下文 | 同 core：经 `stateUserKey` 命名空间存入 Redis（`RedisAgentStateStore`） |
+| 寻址方式 | `session_id`（会话文件） | `(userId, sessionId)` 二元组 | `userId` 字段实际承载复合键 `tenant=..|user=..|task=..|agent=..|execution=..`；`sessionId` 用 `context.sessionId().value()` |
+| 落盘时机 | 每个 user turn 结束后追加写入会话文件 | `call()` 正常返回时整份覆盖写入（含 `interrupt()` 触发的提前返回，非逐 token） | 同 core 落盘时机，写入由 `ReActAgent` 内部完成，AAF 不控制写入本身 |
+| 续接方式 | 重启后**整段历史重放给模型**，模型自己判断进度 | 同 `(userId, sessionId)` 重新 `call()` 时**自动**从存储加载并注入 | 理论上同 core；但因 `executionId` 被编码进 `stateUserKey`，**每次 execution 天然分配独立槽位**，除非显式复用同一 `executionId` 否则不会读到任何历史 |
+| 结束时清理 | 不清理，会话文件长期保留供任意时间续接 | 无内置清理策略，由调用方决定 | `doFinally` 无差别 `stateStore.delete(...)`——execution 结束（含被取消）立即清空槽位 |
+
+### 已识别的系统性差异（非缺陷，是刻意设计取舍）
+
+1. **AAF 把 `executionId` 编入状态槽命名空间，kiro-cli/官方默认不这样做**。这是 [`AgentScopeRuntimeContextMapper.stateUserKey`](../../../../apps/service/aaf-framework/src/main/java/com/xuejiai/aaf/framework/intelligent/infrastructure/agentscope/mapping/AgentScopeRuntimeContextMapper.java) 的 RQ-08 设计（防止两个并发 execution 读到彼此历史的 TOCTOU 窗口）。代价是"同一逻辑会话跨多次 execution 自动续接历史"这一官方默认能力，在 AAF 里必须靠**显式复用同一个 `executionId`** 才能触发，不是自动发生。
+2. **AAF 恢复哲学是"新 execution 重建"，不是"续接旧历史"**。上方"恢复"章节已拍板：步骤级找不到安全边界时"以新 execution 重建该节点，不迁移旧 fence 的 AgentState"——这与 kiro-cli/官方"同 session 自动续接完整历史"的默认取向相反,是 AAF 主动选择的更保守路径：**恢复正确性靠 TaskBoard + receipt + 事件流这条持久事实链路，AgentState 工作态只是执行期缓存，不作为恢复的事实来源**。
+3. **`doFinally` 无差别删除与"中断应保留"存在潜在冲突**。官方文档确认 `interrupt()` 触发的提前返回仍走"call 正常返回"路径，状态会被保存；但 AAF 当前无论正常完成、失败还是被取消，`release`→`deleteExecutionState` 都会立即清空该 execution 的状态槽。如果未来某个场景需要"复用同一 `executionId` 续接"（例如 EXECUTOR Plan Mode 的已批准计划分步执行），当前实现会在中断后把刚保存的历史立即删除，导致续接失败。
+
+### 结论与后续任务指向（2026-09-01 第一性原理复核后修正）
+
+- **"恢复正确性"与"恢复效率/体验"是两个独立维度，不是二选一的两种哲学**。TaskBoard/receipt/事件流继续是唯一的正确性锚点，不因是否延续历史而改变；AgentState 对话历史是否延续，纯粹是成本/体验优化，工具调用层的 receipt 幂等已独立保证不重复副作用，与是否"续接历史"无关。
+- 已修正上方"可恢复粒度"与"冻结画像"两表：**同一责任主体的步骤级中断续跑，应复用同一 `executionId`，延续原 AgentState 历史**；只有责任主体变化（接管/换权限）才强制新 execution 独立冻结画像。这吸收了 kiro-cli（完整历史重放减少模型重新探索成本）与 AgentScope core（`(userId, sessionId)` 自动续接是框架原生能力，无需业务层重新实现）的优势，同时保留 AAF 原有设计的两项正确性保障：`executionId` 编入状态槽命名空间防并发 TOCTOU、receipt/TaskBoard 作为不依赖模型记忆的恢复正确性锚点。
+- **AAF-110（执行中断续跑）的任务范围因此明确为**：解决 `HarnessAgentExecutionAdapter.doFinally` 当前无差别删除状态槽的问题——需要区分"责任主体不变的中断"（不删，允许下次同 `executionId` 续接）与"真正终态完成/失败/接管换主体"（删，符合三层恢复粒度表的默认行为）。这不再是"评估要不要引入续接"的开放问题，而是"实现分流逻辑"的确定性任务。
+
+
+
+
 
 - 进程重启或副本切换后任务能从最近安全恢复点续跑
 - 失败、重试、恢复与多副本切换不产生重复文档或重复外部副作用
