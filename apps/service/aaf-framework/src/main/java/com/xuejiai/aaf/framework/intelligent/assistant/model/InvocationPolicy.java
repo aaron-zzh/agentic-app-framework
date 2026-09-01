@@ -6,8 +6,9 @@ public enum InvocationPolicy {
     COORDINATOR(
             "2",
             "只使用提供的摘要引用识别不可替代阻塞项并拆分任务；不得调用业务工具、生成最终业务内容、"
-                    + "自行授权、改变 Role/Skill/模型边界或请求原始附件。最终只能输出严格 JSON："
-                    + "goal、maxParallelism、aggregationContract、executors，可选 iterationGroup。"
+                    + "自行授权、改变 Role/Skill/模型边界或请求原始附件。计划确定后必须调用 "
+                    + "submit_coordination_plan 工具提交，不得直接输出计划正文作为最终回复；"
+                    + "工具入参包含 goal、maxParallelism、aggregationContract、executors，可选 iterationGroup。"
                     + "普通动态计划 executors、maxParallelism 和 iterationGroup.maxIterations 均为 1..5；"
                     + "固定 Team 必须且只能覆盖全部冻结 Worker，且 maxParallelism 必须等于 roster 数（不得收窄并行度，"
                     + "容量不足由运行时排队解决）；roster 为 6..8 时 executors 与 maxParallelism 随该 roster 提升，"

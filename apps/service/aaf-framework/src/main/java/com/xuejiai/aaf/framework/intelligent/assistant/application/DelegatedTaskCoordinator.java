@@ -76,7 +76,6 @@ import tools.jackson.databind.json.JsonMapper;
 /** DELEGATED 唯一应用入口；任务、DAG 与预算事实均在 PostgreSQL。 */
 @Slf4j
 public final class DelegatedTaskCoordinator {
-    private static final int MAX_COORDINATION_PLAN_CHARS = 12_000;
     private static final JsonMapper COORDINATION_PLAN_JSON =
             JsonMapper.builder().enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION).build();
     private static final String DELEGATED_TASK_TYPE = "delegated-task";
@@ -605,29 +604,35 @@ public final class DelegatedTaskCoordinator {
                                                         || isTransientMessage(failure.get()),
                                                 parentContext.lease());
                                     } else if (subTask.kind() == SubTask.Kind.COORDINATOR) {
-                                        var plan =
-                                                decodeAndValidatePlan(
-                                                        parentCommand,
-                                                        board,
-                                                        result.get(),
-                                                        decompositionBudget);
-                                        boards.applyCoordinationPlan(
-                                                parentContext.tenantId(),
-                                                parentContext.taskId(),
-                                                plan,
-                                                parentContext.lease(),
-                                                assignment ->
-                                                        planRequirement.requiresPlan(
-                                                                assignment.subTaskId(),
-                                                                assignment.roleKey(),
-                                                                assignment.skillKey(),
-                                                                assignment.suggestsPlan()));
-                                        log.debug(
-                                                "[Assistant协调] 协调计划已冻结：taskId={}，coordinatorExecutionId={}，执行者数={}，并行度={}",
-                                                parentContext.taskId().value(),
-                                                subTask.executionId().value(),
-                                                plan.executors().size(),
-                                                plan.maxParallelism());
+                                        // 计划已在 submit_coordination_plan 工具调用时同步落地
+                                        // （SubmitCoordinationPlanTool.submit → boards.applyCoordinationPlan），
+                                        // 这里不再重复解析 result.get()。只需重新查询最新板状态确认协调者是否真的
+                                        // 调用过该工具——board 变量是本轮 executeBoard 开始前的旧快照，工具调用
+                                        // 发生在 execution 期间，必须重新查询而非信任内存里的旧引用。
+                                        var latestBoard =
+                                                boards.find(
+                                                                parentContext.tenantId(),
+                                                                parentContext.taskId())
+                                                        .orElseThrow();
+                                        var latestCoordinator =
+                                                latestBoard.subTasks().get(subTask.subTaskId());
+                                        if (latestCoordinator == null
+                                                || latestCoordinator.status()
+                                                        != TaskBoard.Status.COMPLETED) {
+                                            // "只说不做"：模型产出了文本回复但从未调用 submit_coordination_plan
+                                            boards.failSubTask(
+                                                    parentContext.tenantId(),
+                                                    parentContext.taskId(),
+                                                    subTask.subTaskId(),
+                                                    "协调者未调用 submit_coordination_plan 提交计划",
+                                                    true,
+                                                    parentContext.lease());
+                                        } else {
+                                            log.debug(
+                                                    "[Assistant协调] 协调计划已冻结：taskId={}，coordinatorExecutionId={}",
+                                                    parentContext.taskId().value(),
+                                                    subTask.executionId().value());
+                                        }
                                     } else if (subTask.kind() == SubTask.Kind.EVALUATOR) {
                                         var evaluation = decodeIterationEvaluation(result.get());
                                         var at = clock.instant();
@@ -1230,232 +1235,6 @@ public final class DelegatedTaskCoordinator {
                 at);
     }
 
-    static CoordinationPlan decodeAndValidatePlan(
-            AssistantCommand command,
-            TaskBoard board,
-            String output,
-            DecompositionBudget decompositionBudget) {
-        if (output == null || output.isBlank() || output.length() > MAX_COORDINATION_PLAN_CHARS) {
-            throw new IllegalArgumentException("协调者未返回合法大小的 CoordinationPlan");
-        }
-        final JsonNode root;
-        try (var parser = COORDINATION_PLAN_JSON.createParser(output)) {
-            root = COORDINATION_PLAN_JSON.readTree(parser);
-            if (root == null || parser.nextToken() != null) {
-                throw new IllegalArgumentException("协调者输出必须是单一 JSON 对象");
-            }
-        } catch (Exception exception) {
-            throw new IllegalArgumentException("协调者输出不是严格 JSON 计划");
-        }
-        requireObject(root, "CoordinationPlan");
-        requireFields(
-                root,
-                Set.of("goal", "executors", "aggregationContract"),
-                Set.of(
-                        "goal",
-                        "executors",
-                        "maxParallelism",
-                        "aggregationContract",
-                        "iterationGroup"));
-        var executors = root.get("executors");
-        if (!executors.isArray()
-                || executors.isEmpty()
-                || executors.size() > DecompositionBudget.HARD_LIMIT) {
-            throw new IllegalArgumentException(
-                    "协调计划必须包含 1.." + DecompositionBudget.HARD_LIMIT + " 个执行者");
-        }
-        var teamTargets =
-                board.subTasks().values().stream()
-                        .filter(subTask -> subTask.kind() == SubTask.Kind.EXECUTOR)
-                        .filter(subTask -> subTask.assistantTarget() != null)
-                        .collect(
-                                java.util.stream.Collectors.toUnmodifiableMap(
-                                        SubTask::subTaskId, SubTask::assistantTarget));
-        var coordinator = board.subTasks().get("coordinator");
-        var teamBoard =
-                coordinator != null
-                        && coordinator.assistantTarget() != null
-                        && !teamTargets.isEmpty();
-        var route = command.invocationProfile().executionIntent().resolvedRoute();
-        // 授权衰减基准是委派方自身：协调者子任务上已冻结的 Role/Skill。
-        // FIXED 时它等于根路由；AUTO 时它是本 Assistant 已配置的默认 Role。
-        // executor 只能等于该基准，不得放大到基准之外的 Role 或 Skill。
-        final String baselineRoleKey;
-        final String baselineSkillKey;
-        if (teamBoard) {
-            baselineRoleKey = null;
-            baselineSkillKey = null;
-        } else if (coordinator != null
-                && coordinator.roleKey() != null
-                && !coordinator.roleKey().isBlank()) {
-            baselineRoleKey = coordinator.roleKey();
-            baselineSkillKey = coordinator.skillKey();
-        } else if (route != null) {
-            baselineRoleKey = route.roleKey();
-            baselineSkillKey = route.skillKey();
-        } else {
-            throw new IllegalStateException("协调计划缺少可用于授权衰减的已冻结 Role");
-        }
-        var assignments = new java.util.ArrayList<ExecutorAssignment>();
-        for (var node : executors) {
-            requireObject(node, "executor");
-            requireFields(
-                    node,
-                    Set.of("subTaskId", "description", "roleKey", "skillKey", "modelMode"),
-                    Set.of(
-                            "subTaskId",
-                            "description",
-                            "dependsOn",
-                            "inputBindings",
-                            "roleKey",
-                            "skillKey",
-                            "modelMode",
-                            "maxAttempts",
-                            "suggestsPlan"));
-            var subTaskId = requiredText(node, "subTaskId");
-            var roleKey = requiredText(node, "roleKey");
-            var skillKey = requiredText(node, "skillKey");
-            if (teamBoard) {
-                var target = teamTargets.get(subTaskId);
-                if (target == null
-                        || !target.roleKey().equals(roleKey)
-                        || !target.skillKey().equals(skillKey)) {
-                    throw new IllegalArgumentException("Team 协调计划不能改变或跳过冻结 Worker");
-                }
-            } else if (!baselineRoleKey.equals(roleKey)
-                    || !Objects.equals(baselineSkillKey, skillKey)) {
-                throw new IllegalArgumentException("协调者不能更改已冻结的 Role 或 Skill");
-            }
-            var modelMode = requiredText(node, "modelMode");
-            final TaskModelSelection modelSelection;
-            if (command.taskModelSelection().mode() == TaskModelSelection.Mode.AUTO
-                    && TaskModelSelection.Mode.AUTO.name().equals(modelMode)) {
-                modelSelection = TaskModelSelection.auto();
-            } else if (command.taskModelSelection().mode() == TaskModelSelection.Mode.EXPLICIT
-                    && TaskModelSelection.Mode.EXPLICIT.name().equals(modelMode)) {
-                modelSelection =
-                        TaskModelSelection.explicit(command.taskModelSelection().modelId());
-            } else {
-                throw new IllegalArgumentException("协调者不能改变用户冻结的模型策略");
-            }
-            var dependsOn = stringSet(node.get("dependsOn"));
-            if (dependsOn.isEmpty()) dependsOn = Set.of("coordinator");
-            assignments.add(
-                    new ExecutorAssignment(
-                            subTaskId,
-                            requiredText(node, "description"),
-                            dependsOn,
-                            inputBindings(node.get("inputBindings")),
-                            roleKey,
-                            skillKey,
-                            modelSelection,
-                            optionalPositive(node, "maxAttempts", 3),
-                            optionalBoolean(node, "suggestsPlan")));
-        }
-        var plannedExecutorIds = new java.util.LinkedHashSet<String>();
-        for (var assignment : assignments) {
-            if (!plannedExecutorIds.add(assignment.subTaskId())) {
-                throw new IllegalArgumentException("协调计划不能重复声明同一 subTaskId");
-            }
-        }
-        if (teamBoard && !plannedExecutorIds.equals(teamTargets.keySet())) {
-            throw new IllegalArgumentException("Team 协调计划必须且只能覆盖全部冻结 Worker");
-        }
-        var aggregation = aggregationContract(root.get("aggregationContract"));
-        var iterationGroup = iterationGroup(root.get("iterationGroup"));
-        var maxParallelism = optionalPositive(root, "maxParallelism", 1);
-        var effectiveBudget =
-                teamBoard
-                        ? decompositionBudget.effectiveForFixedTeam(teamTargets.size())
-                        : decompositionBudget;
-        effectiveBudget.requireWithin(
-                assignments.size(),
-                maxParallelism,
-                iterationGroup == null ? 1 : iterationGroup.maxIterations());
-        var cumulativeExecutorIds = new java.util.LinkedHashSet<String>();
-        board.subTasks().values().stream()
-                .filter(subTask -> subTask.kind() == SubTask.Kind.EXECUTOR)
-                .map(SubTask::subTaskId)
-                .forEach(cumulativeExecutorIds::add);
-        cumulativeExecutorIds.addAll(plannedExecutorIds);
-        effectiveBudget.requireCumulativeWithin(cumulativeExecutorIds.size());
-        return new CoordinationPlan(
-                requiredText(root, "goal"),
-                maxParallelism,
-                aggregation,
-                assignments,
-                iterationGroup);
-    }
-
-    private static CoordinationPlan.IterationGroup iterationGroup(JsonNode node) {
-        if (node == null || node.isNull()) return null;
-        requireObject(node, "iterationGroup");
-        requireFields(
-                node,
-                Set.of("groupId", "memberSubTaskIds", "evaluatorSubTaskId", "maxIterations"),
-                Set.of("groupId", "memberSubTaskIds", "evaluatorSubTaskId", "maxIterations"));
-        return new CoordinationPlan.IterationGroup(
-                requiredText(node, "groupId"),
-                stringList(node.get("memberSubTaskIds"), "memberSubTaskIds"),
-                requiredText(node, "evaluatorSubTaskId"),
-                optionalPositive(node, "maxIterations", 1));
-    }
-
-    private static CoordinationPlan.AggregationContract aggregationContract(JsonNode node) {
-        requireObject(node, "aggregationContract");
-        requireFields(
-                node,
-                Set.of("kind", "executorOrder"),
-                Set.of("kind", "executorOrder", "separator"));
-        final CoordinationPlan.AggregationContract.Kind kind;
-        try {
-            kind = CoordinationPlan.AggregationContract.Kind.valueOf(requiredText(node, "kind"));
-        } catch (IllegalArgumentException failure) {
-            throw new IllegalArgumentException("不支持的 AggregationContract.kind");
-        }
-        var order = stringList(node.get("executorOrder"), "executorOrder");
-        var separatorNode = node.get("separator");
-        var separator = separatorNode == null ? "" : separatorNode.asString();
-        return new CoordinationPlan.AggregationContract(kind, order, separator);
-    }
-
-    private static Map<String, CoordinationPlan.InputBinding> inputBindings(JsonNode node) {
-        if (node == null || node.isNull()) return Map.of();
-        requireObject(node, "inputBindings");
-        var bindings = new LinkedHashMap<String, CoordinationPlan.InputBinding>();
-        node.propertyNames()
-                .forEach(
-                        name -> {
-                            var source = node.get(name);
-                            if (name.isBlank() || source == null || !source.isString()) {
-                                throw new IllegalArgumentException(
-                                        "inputBindings 必须是名称到 sourceSubTaskId 的字符串映射");
-                            }
-                            bindings.put(
-                                    name, new CoordinationPlan.InputBinding(source.asString()));
-                        });
-        return Map.copyOf(bindings);
-    }
-
-    private static Set<String> stringSet(JsonNode node) {
-        return Set.copyOf(stringList(node, "dependsOn"));
-    }
-
-    private static List<String> stringList(JsonNode node, String field) {
-        if (node == null || node.isNull()) return List.of();
-        if (!node.isArray()) {
-            throw new IllegalArgumentException(field + " 必须是字符串数组");
-        }
-        var values = new java.util.ArrayList<String>();
-        for (var value : node) {
-            if (!value.isString() || value.asString().isBlank()) {
-                throw new IllegalArgumentException(field + " 只能包含非空字符串");
-            }
-            values.add(value.asString().trim());
-        }
-        return List.copyOf(values);
-    }
-
     private static void requireObject(JsonNode node, String label) {
         if (node == null || !node.isObject()) throw new IllegalArgumentException(label + " 必须是对象");
     }
@@ -1479,23 +1258,19 @@ public final class DelegatedTaskCoordinator {
         return value.asString().trim();
     }
 
-    private static int optionalPositive(JsonNode node, String field, int defaultValue) {
-        var value = node.get(field);
-        if (value == null) return defaultValue;
-        if (!value.canConvertToInt() || value.intValue() < 1) {
-            throw new IllegalArgumentException("协调计划字段必须为正整数: " + field);
+    private static List<String> stringList(JsonNode node, String field) {
+        if (node == null || node.isNull()) return List.of();
+        if (!node.isArray()) {
+            throw new IllegalArgumentException(field + " 必须是字符串数组");
         }
-        return value.intValue();
-    }
-
-    /** 解析协调者的规划建议信号；未给出即 {@code null}，不得默认为 {@code true}/{@code false}——那会掩盖"未给建议"这一状态。 */
-    private static Boolean optionalBoolean(JsonNode node, String field) {
-        var value = node.get(field);
-        if (value == null || value.isNull()) return null;
-        if (!value.isBoolean()) {
-            throw new IllegalArgumentException("协调计划字段必须为布尔值: " + field);
+        var values = new java.util.ArrayList<String>();
+        for (var value : node) {
+            if (!value.isString() || value.asString().isBlank()) {
+                throw new IllegalArgumentException(field + " 只能包含非空字符串");
+            }
+            values.add(value.asString().trim());
         }
-        return value.asBoolean();
+        return List.copyOf(values);
     }
 
     private static boolean completionEvidenceSatisfied(

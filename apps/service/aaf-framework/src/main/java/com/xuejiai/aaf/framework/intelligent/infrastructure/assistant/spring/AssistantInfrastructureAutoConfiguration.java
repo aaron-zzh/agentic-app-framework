@@ -36,8 +36,10 @@ import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveTool
 import com.xuejiai.aaf.framework.intelligent.assistant.application.ModelDrivenTaskComplexityAnalyzer;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.ModelSkillSelectionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.PromptAssembler;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.PlanRequirementPolicy;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.RoleSelector;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.SkillSelectionPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.SubmitCoordinationPlanTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.SupportHandoffTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskComplexityAnalyzer;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskIngress;
@@ -180,6 +182,31 @@ public class AssistantInfrastructureAutoConfiguration {
     @ConditionalOnMissingBean(SubmitExecutorPlanTool.class)
     SubmitExecutorPlanTool submitExecutorPlanTool(ExecutorPlanPort plans) {
         return new SubmitExecutorPlanTool(plans, Clock.systemUTC());
+    }
+
+    /**
+     * 建议信号 + 确定性规则兜底的最终判定（ADR-006 补充决策二）。默认恒 false，与 {@code delegatedTaskCoordinator}
+     * Bean 现有的保守默认一致（AAF-107 dev-log：是否启用协调者建议规划能力是独立决定，留给后续任务或人类明确指示，本次
+     * 迁移计划提交方式不顺带改变这一决定）。
+     */
+    @Bean
+    @ConditionalOnMissingBean(PlanRequirementPolicy.class)
+    PlanRequirementPolicy planRequirementPolicy() {
+        return (nodeSubTaskId, roleKey, skillKey, coordinatorSuggestsPlan) -> false;
+    }
+
+    /**
+     * 协调者 execution 内唯一允许调用的写工具：提交协调计划，替代手工 JSON 文本解析（迁移自
+     * {@code DelegatedTaskCoordinator.decodeAndValidatePlan}，业务规则原样保留）。
+     */
+    @Bean
+    @ConditionalOnBean(TaskBoardPort.class)
+    @ConditionalOnMissingBean(SubmitCoordinationPlanTool.class)
+    SubmitCoordinationPlanTool submitCoordinationPlanTool(
+            TaskBoardPort boards,
+            DecompositionBudget decompositionBudget,
+            PlanRequirementPolicy planRequirement) {
+        return new SubmitCoordinationPlanTool(boards, decompositionBudget, planRequirement);
     }
 
     @Bean

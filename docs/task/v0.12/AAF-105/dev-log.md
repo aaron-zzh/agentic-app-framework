@@ -1,3 +1,50 @@
+## #10506 协调者计划提交改用工具调用（2026-09-01）
+
+- ✅ developer-service：新建 `SubmitCoordinationPlanTool`，删除 `decodeAndValidatePlan`，`compile` 通过
+
+### 起因：#10503 结构化输出可行性调查引出的架构发现
+
+调查 L0 gateway 是否需要支持结构化输出（#10503）时，人类提出"协调者/执行者拆分任务是否可以用结构化输出"。核实 `tmp/agentscope-java` 官方 `ReActAgent` 源码：
+
+- `call(msgs, structuredOutputClass, ctx)` 支持原生 `response_format` 与合成 `generate_response` 降级两条路径，但两者的关键实现（`buildAgentStream` 收敛逻辑、`doFallbackStructuredCall`）**均为 `private`**，无法从 `streamEvents` 场景复用
+- `streamEvents` 与 `call` 共享同一个 `buildAgentStream` 内核，但 `call` 内部把中间事件 `.filter(e -> e instanceof AgentResultEvent)` 过滤掉了，只留最终结果——这是 API 设计选择，不是能力缺失，但 AAF 无法绕过
+- 协调者当前依赖 `streamEvents` 产出的完整事件流：`MODEL_CALL_END`（Token 计量挂在这里）、`TEXT_BLOCK_*`（AG-UI 流式呈现）、`REQUIRE_USER_CONFIRM`（HITL）等，改用 `call()` 会让协调者这次 execution 失去这些能力，是不可接受的退化
+
+### 采用方案：不用结构化输出，改用工具调用（复用 AAF-107 SubmitExecutorPlanTool 模式）
+
+工具调用本身产生 `TOOL_CALL_START`/`TOOL_RESULT_END` 事件，天然在 `streamEvents` 事件流内，不需要在"事件流"和"结构化约束"之间二选一——这是解开最初"是否要放弃事件流"这个假两难的关键认识。
+
+### 实现文件
+
+| 文件 | 说明 |
+|------|------|
+| `.../assistant/application/SubmitCoordinationPlanTool.java` | 新增：协调者 execution 内唯一允许调用的写工具，业务规则从 `decodeAndValidatePlan` 原样迁移 |
+| `.../assistant/model/InvocationPolicy.java` | `COORDINATOR.instruction()` 改为要求调用工具，不再要求输出严格 JSON |
+| `.../assistant/application/DelegatedTaskCoordinator.java` | 删除 `decodeAndValidatePlan` 及 6 个专属辅助方法（`iterationGroup`/`aggregationContract`/`inputBindings`/`stringSet`/`optionalPositive`/`optionalBoolean`）与未使用常量 `MAX_COORDINATION_PLAN_CHARS`；协调者分支改为重新查询最新 `TaskBoard` 判断协调者节点是否已转 `COMPLETED` |
+| `.../infrastructure/assistant/spring/AssistantInfrastructureAutoConfiguration.java` | 新增 `planRequirementPolicy`（恒 false，与既有保守默认一致）、`submitCoordinationPlanTool` 两个 Bean |
+| `SubmitCoordinationPlanToolTest.java` | 新增（偏离阶段约束，见下） | 迁移授权衰减边界断言 |
+| `DelegatedTaskCoordinatorAuthorizationTest.java` | 删除（所测方法已不存在） | — |
+
+### 关键设计决策
+
+> **"只说不做"判定依据**：`TaskBoard.applyCoordinationPlan` 内部前置条件要求 `coordinator.status() == Status.RUNNING` 才允许执行，成功后把协调者节点标记为 `coordinator.completed(plan.goal())`。这给了协调者分支一个明确判据——execution 结束后重新查询最新 board（不能信任内存里的旧 `board` 快照，那是 `executeBoard` 递归开始前的一次性查询，工具调用发生在 execution 期间不会同步更新它），协调者节点若仍是 `RUNNING` 说明模型从未调用工具，转失败重试；若已是 `COMPLETED` 说明提交成功。
+
+> **业务规则依赖运行时状态的反查方式**：`decodeAndValidatePlan` 原本靠 `AssistantCommand`/`DecompositionBudget` 参数直接持有 `board`/`taskModelSelection`；工具执行时只有 `ToolInvocation.context()`（`InvocationContext`，不携带这些字段）。核实确认 `TaskBoard.SubTask` 已持久化 `roleKey`/`skillKey`/`modelSelection`，工具内部通过 `TaskBoardPort.find(tenantId, taskId)` 反查协调者节点自身即可拿到全部授权衰减基准，不需要额外设计传参路径。
+
+> **不借机启用协调者建议规划能力**：`SubmitCoordinationPlanTool` 需要 `PlanRequirementPolicy` 依赖，之前该类型没有 Bean 定义（`DelegatedTaskCoordinator` 旧构造器固定传恒 false lambda，未走 Bean）。新增 Bean 时特意保持恒 false 默认值，不用 `respectCoordinatorSuggestion()`——是否启用协调者建议规划是 AAF-107 记录过的独立决定，不因这次改动顺带打开。
+
+### 已核实但未采用的方向：ToolBase 直接继承
+
+人类提出"为什么不直接用官方 `ToolBase`"。核实确认 AAF 已经用了 `ToolBase`——`PortBackedAgentTool extends ToolBase` 是唯一真实工具边界，业务工具（`SubmitCoordinationPlanTool`/`SubmitExecutorPlanTool` 等）实现的是 AAF 自己的 `ContextAwareToolHandler`，通过 `RegistryToolPortAdapter`/`PortBackedAgentTool` 统一桥接进 `Toolkit`。这是刻意的两层设计：`PortBackedAgentTool.callAsync` 统一转发到 `DefaultToolGateway.invoke`，保证没有工具能绕过 AAF 自己的授权链路（`AuthorizationGrantPort`/HITL）；`checkPermissions` 未覆盖走 core 默认 `passthrough`，AAF 把等价判定放在 `callAsync` 内部（`ApprovalRequiredException`→`ToolSuspendException`），功能等价，不是安全缺口。本次沿用既有模式，不改。
+
+### 验证
+
+- 按人类要求本次不执行 `pnpm nx test service`；已执行 `pnpm nx compile service`，BUILD SUCCESS（6 模块全绿，含新测试文件编译）。
+- 人工核对：`SubmitCoordinationPlanToolTest` 三个测试场景（基准内通过、越权 Role 拒绝、越权 Skill 拒绝）与已删除的 `DelegatedTaskCoordinatorAuthorizationTest` 原有断言逐一对应，行为语义不变（同样的输入组合产生同样的拒绝/通过结果）。
+
+---
+
+
 ## #10501 立 ADR：L0 模型选择与 fallback 语义
 
 ## #10502 装配 L0 专用零工具 ReActAgent 单例与 Function Contract 注入

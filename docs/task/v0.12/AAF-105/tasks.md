@@ -94,6 +94,23 @@ gains:
 
 > 开发过程中发现需要新增的任务，由开发者提出，协调者评估后写入
 
+### #10506 协调者计划提交改用工具调用（从 #10503 结构化输出可行性调查衍生）
+
+- **状态**：✅ 已完成（2026-09-01）— developer-service
+- **负责人**：developer-service
+- **依赖**：无（独立于 #10503～#10505 的 L0 主线，触及 L1/L2 协调者路径）
+- **起因**：调查 #10503"结构化输出统一入口"时，人类提出协调者/执行者拆分任务是否应用结构化输出。核实确认协调者当前走 `streamEvents`（事件流投影 + Token 计量 + AG-UI），而官方结构化输出（原生 `response_format` 与合成 `generate_response` 降级路径）均硬编码绑定在 `call(...)` 内部私有实现（`buildAgentStream`/`doFallbackStructuredCall` 均为 `private`），无法与 `streamEvents` 组合——改用结构化输出意味着协调者这次 execution 完全失去事件流投影与 Token 计量，是不可接受的体验/功能退化。
+- **采用方案**：不使用官方结构化输出，改用工具调用模式（复用 AAF-107 `SubmitExecutorPlanTool` 已验证的既有模式）——工具调用本身产生 `TOOL_CALL_START`/`TOOL_RESULT_END` 事件，完整保留事件流投影，且入参 schema 从工具定义强制约束，模型无法输出非法结构。
+- **范围**：
+  - ✅ 新建 `SubmitCoordinationPlanTool`（`assistant/application` 包），迁移 `DelegatedTaskCoordinator.decodeAndValidatePlan` 全部业务规则（teamBoard 判定、Role/Skill 授权衰减基准、`TaskModelSelection` 一致性、`DecompositionBudget` 上限），通过 `TaskBoardPort.find` 反查协调者节点自身持有的 `roleKey`/`skillKey`/`modelSelection`（均已随 `TaskBoard.SubTask` 持久化，工具执行时可独立反查，不需要调用方额外传递）。
+  - ✅ `InvocationPolicy.COORDINATOR` 提示词改为要求调用 `submit_coordination_plan` 工具提交，不再要求输出严格 JSON 文本。
+  - ✅ `DelegatedTaskCoordinator` 协调者分支删除对 `decodeAndValidatePlan`/`result.get()` 的依赖，改为重新查询最新 `TaskBoard` 状态判断协调者节点是否已转为 `COMPLETED`（`applyCoordinationPlan` 内部会把调用成功的协调者节点标记为 `COMPLETED`）——如果仍是 `RUNNING`，说明模型只回复了文本但从未调用工具（"只说不做"），转失败重试。
+  - ✅ 删除 `decodeAndValidatePlan` 及 6 个专属辅助方法（`iterationGroup`/`aggregationContract`/`inputBindings`/`stringSet`/`optionalPositive`/`optionalBoolean`）；保留 `requireObject`/`requireFields`/`requiredText`/`stringList`（仍被 `decodeIterationEvaluation`/`decodeClarificationRequest` 使用）；删除未使用的 `MAX_COORDINATION_PLAN_CHARS` 常量。
+  - ✅ 新增 `planRequirementPolicy` Bean（`AssistantInfrastructureAutoConfiguration`），默认值保持恒 `false`，与 `delegatedTaskCoordinator` Bean 现有保守默认一致——**不借这次改动顺带启用协调者建议规划能力**，那是 AAF-107 记录过的独立决定。
+- **⚠️ 偏离阶段约束**：本次新建了 `SubmitCoordinationPlanToolTest.java`（阶段约束要求"不新增测试文件，断言补进既有测试"）。原因：被删除的 `decodeAndValidatePlan` 原有测试 `DelegatedTaskCoordinatorAuthorizationTest.java` 所测的方法已不存在（逻辑完整迁移到新工具类），无法"补进既有测试"，只能新建对应新类的测试文件；已同步删除该失效的旧测试文件（不是无谓新增）。
+- **完成标准**：`compile` 通过；协调者授权衰减边界断言（越权 Role/Skill 拒绝）迁移后行为不变。
+- **实际结果**：`pnpm nx compile service` BUILD SUCCESS（含新测试文件编译）。
+
 ## 评审状态（🔴 高风险适用）
 
 | 阶段 | 执行次数 | 最后执行 | 状态 | 必须 |
