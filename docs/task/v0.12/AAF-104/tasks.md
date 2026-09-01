@@ -34,15 +34,15 @@ gains:
 
 ### #10401 AgentEvent 31 项显式处置
 
-- **状态**：[ ] 待开始
+- **状态**：⏳ 进行中（2026-09-01）— developer-service
 - **负责人**：developer-service
 - **依赖**：AAF-103 #10301
 - **范围**：
-  - `AgentScopeEventMapper` 对 `AgentEventType` 全部 31 项建立"映射 / 安全忽略 / 拒绝"策略，禁止无说明 `default`。
-  - 补齐 `TEXT_BLOCK_END`、`TOOL_CALL_DELTA/END`、`TOOL_RESULT_*` 流、`USER_CONFIRM_RESULT`、`EXTERNAL_EXECUTION_RESULT`。
-  - `THINKING_BLOCK_*` 在本层拦截并注明原因（与 AAF-106 #10603 同一约束，先到先实现，不重复拦截逻辑）。
-  - 全程保留 `replyId`/`blockId`/`toolCallId` 以支撑下游配对。
+  - ✅ `AgentScopeEventMapper` 对 `AgentEventType` 全部 31 项建立"映射 / 安全忽略 / 不应出现"策略，**删除 `default` 分支**——穷举 switch 使上游新增枚举常量直接编译失败。
+  - ✅ `THINKING_BLOCK_*` 在本层拦截并注明原因（与 AAF-106 #10603 同一约束，只实现一次）；`DATA_BLOCK_*` 与 `TOOL_RESULT_DATA_DELTA` 安全忽略（二进制不进事件账本）；`SUBAGENT_EXPOSED` 记配置漂移 WARN。
+  - [ ] 补齐 8 项"待映射"类型：`TEXT_BLOCK_END`、`TOOL_CALL_DELTA/END`、`TOOL_RESULT_START/TEXT_DELTA`、`USER_CONFIRM_RESULT`、`EXTERNAL_EXECUTION_RESULT`、`REQUIRE_EXTERNAL_EXECUTION`——**与 #10403 合并实施**，因其落点取决于该任务确定的配对契约（messageId 改 `replyId:blockId` 派生）。
 - **完成标准**：枚举新增项会使既有测试失败；公共事件流不含思考内容；`compile` 通过。
+- **实际结果**：改为编译器强制穷举，比测试断言更硬；`compile` + `test` 全绿（framework 415 / auto-dev 2 / api 241）。
 
 ### #10402 AAF converter registry 结构
 

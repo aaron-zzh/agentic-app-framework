@@ -47,7 +47,24 @@ public final class AgentScopeEventMapper {
         this.evidenceStore = evidenceStore;
     }
 
-    /** 映射单个运行事件；不对外暴露思考链和工具参数。未识别类型返回 empty 直接丢弃。 */
+    /**
+     * 映射单个运行事件。
+     *
+     * <p><b>穷举无 default（RQ-04 配套 / AAF-104 #10401）</b>：本 switch 覆盖 {@code AgentEventType} 全部 31 项且
+     * 故意不写 {@code default}——上游任何版本新增枚举常量都会让本类**编译失败**，强制做出显式处置决定，而不是被 静默丢弃导致前端可见信息无声缺失。若运行时 jar
+     * 比编译期新，未匹配常量会抛 {@code MatchException} 并被执行 适配器收敛为 RUN_FAILED，属 fail-closed，优于静默降级。
+     *
+     * <p>三类处置各有明确理由，改动前先读对应注释：
+     *
+     * <ul>
+     *   <li><b>映射</b> — 有对应 AAF 业务语义，产出脱敏后的 {@code ExecutionEvent}
+     *   <li><b>安全忽略</b> — 思考内容（不外发原始 CoT）、二进制块（只传引用）、core 内部提示（无业务语义）
+     *   <li><b>不应出现</b> — 已关闭的官方能力（如原生 subagent），出现即记录配置漂移告警
+     * </ul>
+     *
+     * <p>另有一组标注"待映射"的类型：它们需要先定下 AG-UI 配对契约（messageId 派生规则、工具四段脱敏）才能决定落哪个 {@code
+     * ExecutionEventType}，见 AAF-104 #10403。当前显式返回 empty 并说明原因，不是遗漏。
+     */
     public Optional<ExecutionEvent> map(
             AgentEvent source,
             AgentExecutionCommand command,
@@ -129,7 +146,42 @@ public final class AgentScopeEventMapper {
                         ExecutionEventStatus.FAILED,
                         payload("reason", "ALL_TOOLS_DENIED"));
             }
-            default -> Optional.empty();
+
+            // ===== 安全忽略：思考内容不外发（AAF-106 #10603 同一约束，在本层拦截而非投影层过滤） =====
+            // 原始 CoT 属披露层决策，与模型是否开启思考无关；阶段感知由 STEP/Activity 表达，不伪造成 reasoning
+            case THINKING_BLOCK_START, THINKING_BLOCK_DELTA, THINKING_BLOCK_END -> Optional.empty();
+
+            // ===== 安全忽略：二进制块不进事件账本 =====
+            // 图片/音频等内容经工具证据与产物引用传递，事件里只放引用，避免把 base64 写进事件表
+            case DATA_BLOCK_START, DATA_BLOCK_DELTA, DATA_BLOCK_END, TOOL_RESULT_DATA_DELTA ->
+                    Optional.empty();
+
+            // ===== 安全忽略：core 内部提示，无对应 AAF 业务语义 =====
+            case HINT_BLOCK, CUSTOM -> Optional.empty();
+
+            // ===== 待映射（AAF-104 #10403）：需要先定 AG-UI 配对契约再落 AAF 事件类型 =====
+            // TEXT_BLOCK_END 与 AGENT_RESULT 都表示"文本结束"，直接各发一次 MESSAGE_COMPLETED 会破坏配对；
+            // messageId 改用 replyId:blockId 派生后才能区分"单执行多文本块"。工具四段与 confirm/external
+            // 结果同理——先有配对不变量与脱敏规则，再决定落哪个 ExecutionEventType。
+            case TEXT_BLOCK_END,
+                    TOOL_CALL_DELTA,
+                    TOOL_CALL_END,
+                    TOOL_RESULT_START,
+                    TOOL_RESULT_TEXT_DELTA,
+                    USER_CONFIRM_RESULT,
+                    EXTERNAL_EXECUTION_RESULT,
+                    REQUIRE_EXTERNAL_EXECUTION ->
+                    Optional.empty();
+
+            // ===== 不应出现：配置漂移告警 =====
+            // AAF 不启用官方 subagent（TaskBoard 是唯一外部编排），出现该事件说明工具面或 builder 配置被改动
+            case SUBAGENT_EXPOSED -> {
+                log.warn(
+                        "[AgentLoop] 收到官方 subagent 事件，但 AAF 未启用原生子智能体，疑似配置漂移：executionId={}，source={}",
+                        command.context().executionId().value(),
+                        source.getSource());
+                yield Optional.empty();
+            }
         };
     }
 
