@@ -57,6 +57,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ExecutionEventStatus;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.OwnerType;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventPayload;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ConversationId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.EventId;
@@ -98,6 +99,7 @@ public final class DelegatedTaskCoordinator {
     private final RecoveryPreflight recoveryPreflight;
     private final PlanRequirementPolicy planRequirement;
     private final ExecutorPlanPort plans;
+    private final ExecutionEventStorePort eventStore;
 
     public DelegatedTaskCoordinator(
             DelegatedTaskPort tasks,
@@ -161,6 +163,7 @@ public final class DelegatedTaskCoordinator {
                 leaseTtl,
                 recoveryPreflight,
                 (nodeSubTaskId, roleKey, skillKey, coordinatorSuggestsPlan) -> false,
+                null,
                 null);
     }
 
@@ -191,6 +194,50 @@ public final class DelegatedTaskCoordinator {
             RecoveryPreflight recoveryPreflight,
             PlanRequirementPolicy planRequirement,
             ExecutorPlanPort plans) {
+        this(
+                tasks,
+                transitions,
+                taskIngress,
+                boards,
+                leases,
+                commands,
+                agentExecution,
+                notifications,
+                dispatch,
+                agentTaskRuntime,
+                decompositionBudget,
+                clock,
+                leaseTtl,
+                recoveryPreflight,
+                planRequirement,
+                plans,
+                null);
+    }
+
+    /**
+     * 完整构造器（AAF-107 #10705 新增 {@code events}）：{@code events} 用于计划级事件（{@code
+     * EXECUTOR_PLAN_*}）的持久化——{@code ExecutorPlan} 是独立聚合根，不经过 {@code TaskTransition}
+     * 机制，需要本类直接持有 {@link ExecutionEventStorePort} 自行 {@code append}。允许为 {@code null}，语义与
+     * {@code plans} 一致：未接入计划能力的部署用不到它。
+     */
+    public DelegatedTaskCoordinator(
+            DelegatedTaskPort tasks,
+            TaskTransitionPort transitions,
+            TaskIngress taskIngress,
+            TaskBoardPort boards,
+            ConversationLeasePort leases,
+            AssistantCommandPort commands,
+            AgentExecutionPort agentExecution,
+            NotificationPort notifications,
+            DelegatedTaskDispatchPort dispatch,
+            AgentTaskRuntime agentTaskRuntime,
+            DecompositionBudget decompositionBudget,
+            Clock clock,
+            Duration leaseTtl,
+            RecoveryPreflight recoveryPreflight,
+            PlanRequirementPolicy planRequirement,
+            ExecutorPlanPort plans,
+            ExecutionEventStorePort eventStore) {
         this.tasks = Objects.requireNonNull(tasks, "tasks 不能为空");
         this.transitions = Objects.requireNonNull(transitions, "transitions 不能为空");
         this.taskIngress = Objects.requireNonNull(taskIngress, "taskIngress 不能为空");
@@ -209,6 +256,7 @@ public final class DelegatedTaskCoordinator {
                 Objects.requireNonNull(recoveryPreflight, "recoveryPreflight 不能为空");
         this.planRequirement = Objects.requireNonNull(planRequirement, "planRequirement 不能为空");
         this.plans = plans;
+        this.eventStore = eventStore;
         if (leaseTtl.isZero() || leaseTtl.isNegative()) {
             throw new IllegalArgumentException("leaseTtl 必须为正数");
         }
@@ -706,6 +754,12 @@ public final class DelegatedTaskCoordinator {
                             plan.planId(),
                             plan.lockVersion(),
                             clock.instant()));
+            emitPlanEvent(
+                    parentContext,
+                    ExecutionEventType.EXECUTOR_PLAN_EXECUTION_STARTED,
+                    ExecutionEventStatus.RUNNING,
+                    planValues(plan.planId(), ExecutorPlan.Status.EXECUTING.name()),
+                    "execution-started-" + plan.planId() + "-r" + plan.revision());
         } else if (plan.status() != ExecutorPlan.Status.EXECUTING) {
             log.debug(
                     "[Assistant协调] 计划处于非执行态，本轮暂停：taskId={}，planId={}，status={}",
@@ -720,15 +774,22 @@ public final class DelegatedTaskCoordinator {
     /** 派发一次只读规划 execution；模型只能调只读工具与 {@code submit_executor_plan}，不产生业务副作用。 */
     private Flux<ExecutionEvent> runPlanningExecution(
             AssistantCommand parentCommand, InvocationContext parentContext, SubTask subTask) {
-        plans.beginPlanning(
-                new ExecutorPlanPort.BeginPlanningCommand(
-                        parentContext.tenantId(),
-                        parentContext.taskId(),
-                        subTask.subTaskId(),
-                        subTask.subTaskId(),
-                        subTask.description(),
-                        Map.of("roleKey", subTask.roleKey(), "skillKey", subTask.skillKey()),
-                        clock.instant()));
+        var draft =
+                plans.beginPlanning(
+                        new ExecutorPlanPort.BeginPlanningCommand(
+                                parentContext.tenantId(),
+                                parentContext.taskId(),
+                                subTask.subTaskId(),
+                                subTask.subTaskId(),
+                                subTask.description(),
+                                Map.of("roleKey", subTask.roleKey(), "skillKey", subTask.skillKey()),
+                                clock.instant()));
+        emitPlanEvent(
+                parentContext,
+                ExecutionEventType.EXECUTOR_PLAN_CREATED,
+                ExecutionEventStatus.PLANNING,
+                planValues(draft.planId(), ExecutorPlan.Status.PLANNING.name()),
+                "created-" + draft.planId());
         var planningInput =
                 subTask.description()
                         + "\n\n本轮处于规划阶段（只读）：请先梳理完成本任务需要的有序步骤，"
@@ -803,7 +864,9 @@ public final class DelegatedTaskCoordinator {
                         subTask,
                         board.resolveInput(subTask)
                                 + "\n\n本轮处于已批准的执行阶段：请按你先前提交并已获批的计划步骤逐条推进，"
-                                + "不要重新规划，完成全部步骤后正常结束本次回复。",
+                                + "不要重新规划，完成全部步骤后正常结束本次回复。开始执行某个步骤前先调用"
+                                + " report_executor_step 上报 STARTED，执行完成后上报 COMPLETED，"
+                                + "遇到无法完成的失败上报 FAILED；必须逐条上报，不要跳过或提前上报未满足依赖的步骤。",
                         parentCommand.lease(),
                         clock.instant(),
                         board.goal().aggregationContract().kind());
@@ -843,33 +906,60 @@ public final class DelegatedTaskCoordinator {
                                                     parentContext.taskId(),
                                                     subTask.subTaskId());
                                     if (failure.get() != null || !completed.get()) {
+                                        var failureMessage =
+                                                Objects.requireNonNullElse(
+                                                        failure.get(), "计划执行未产生完整终态");
                                         active.ifPresent(
-                                                plan ->
-                                                        plans.fail(
-                                                                parentContext.tenantId(),
-                                                                plan.planId(),
-                                                                plan.lockVersion(),
-                                                                Objects.requireNonNullElse(
-                                                                        failure.get(),
-                                                                        "计划执行未产生完整终态"),
-                                                                clock.instant()));
+                                                plan -> {
+                                                    plans.fail(
+                                                            parentContext.tenantId(),
+                                                            plan.planId(),
+                                                            plan.lockVersion(),
+                                                            failureMessage,
+                                                            clock.instant());
+                                                    emitPlanEvent(
+                                                            parentContext,
+                                                            ExecutionEventType.EXECUTOR_PLAN_FAILED,
+                                                            ExecutionEventStatus.FAILED,
+                                                            planValues(
+                                                                    plan.planId(),
+                                                                    ExecutorPlan.Status.FAILED
+                                                                            .name()),
+                                                            "failed-"
+                                                                    + plan.planId()
+                                                                    + "-r"
+                                                                    + plan.revision());
+                                                });
                                         boards.failSubTask(
                                                 parentContext.tenantId(),
                                                 parentContext.taskId(),
                                                 subTask.subTaskId(),
-                                                Objects.requireNonNullElse(
-                                                        failure.get(), "计划执行未产生完整终态"),
+                                                failureMessage,
                                                 failure.get() == null
                                                         || isTransientMessage(failure.get()),
                                                 parentContext.lease());
                                     } else {
                                         active.ifPresent(
-                                                plan ->
-                                                        plans.complete(
-                                                                parentContext.tenantId(),
-                                                                plan.planId(),
-                                                                plan.lockVersion(),
-                                                                clock.instant()));
+                                                plan -> {
+                                                    plans.complete(
+                                                            parentContext.tenantId(),
+                                                            plan.planId(),
+                                                            plan.lockVersion(),
+                                                            clock.instant());
+                                                    emitPlanEvent(
+                                                            parentContext,
+                                                            ExecutionEventType
+                                                                    .EXECUTOR_PLAN_COMPLETED,
+                                                            ExecutionEventStatus.COMPLETED,
+                                                            planValues(
+                                                                    plan.planId(),
+                                                                    ExecutorPlan.Status.COMPLETED
+                                                                            .name()),
+                                                            "completed-"
+                                                                    + plan.planId()
+                                                                    + "-r"
+                                                                    + plan.revision());
+                                                });
                                         boards.completeSubTask(
                                                 parentContext.tenantId(),
                                                 parentContext.taskId(),
@@ -1298,6 +1388,55 @@ public final class DelegatedTaskCoordinator {
                                                                         value,
                                                                         required.getValue())));
         return requiredTypesPresent && requiredPayloadPresent;
+    }
+
+    /**
+     * 构造并持久化一个计划级事件（AAF-107 #10705）。{@code ExecutorPlan} 是独立聚合根，不经过 {@code
+     * TaskTransition} 机制，需要本类直接持有 {@link ExecutionEventStorePort} 自行 {@code append}——
+     * 复用 {@code AssistantApplicationService} 已确立的"事件产生方自己负责持久化后再流出"模式。{@code eventStore}
+     * 为 {@code null}（未接入计划能力的部署）时静默跳过，不阻塞主流程。
+     */
+    private void emitPlanEvent(
+            InvocationContext context,
+            ExecutionEventType type,
+            ExecutionEventStatus status,
+            Map<String, Object> payloadValues,
+            String eventIdSuffix) {
+        if (eventStore == null) {
+            return;
+        }
+        var event =
+                new ExecutionEvent(
+                        new EventId("executor-plan-" + eventIdSuffix),
+                        context.tenantId(),
+                        context.conversationId(),
+                        context.sessionId(),
+                        context.taskId(),
+                        context.executionId(),
+                        context.runId(),
+                        context.parentExecutionId(),
+                        0,
+                        type,
+                        status,
+                        context.controlMode(),
+                        OwnerType.SYSTEM,
+                        context.assistantId(),
+                        null,
+                        context.userId(),
+                        context.correlationId(),
+                        context.causationId(),
+                        context.idempotencyKey(),
+                        new ExecutionEventPayload(payloadValues),
+                        clock.instant(),
+                        context.nodeIdentity());
+        eventStore.append(event, context.lease()).subscribe();
+    }
+
+    private static Map<String, Object> planValues(String planId, String status) {
+        var values = new LinkedHashMap<String, Object>();
+        values.put("planId", planId);
+        values.put("status", status);
+        return values;
     }
 
     private Flux<ExecutionEvent> withHeartbeat(

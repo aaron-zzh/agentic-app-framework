@@ -78,29 +78,38 @@ gains:
   - `runPlanningExecution` 结束后把节点转 `RETRYABLE`（自动批准）或 `AWAITING_AUTHORIZATION`（转人工）时复用了既有 `interrupted(true)`/`awaitingAuthorization()` 领域方法，两者都会消耗 `attempts` 重试预算，多次规划-执行往返可能提前耗尽预算——不是本次引入的新机制缺陷，但组合使用后影响会被放大，需要评估是否要为 planning 往返单独计数。
   - `beginPlanning` 的 revision 分配（`max+1`）非事务串行化，同节点理论上的并发建计划请求可能因 `uk_executor_plan_revision` 冲突而失败（fail-closed），当前业务场景不存在真正并发触发，未做额外加锁。
 
-### #10704 计划步骤幂等推进 —— 范围因决策推翻与架构发现两次收窄
+### #10704 计划步骤幂等推进 —— 范围因决策推翻与架构发现三次收窄，最终判定为独立设计缺口
 
-- **状态**：⚠️ 原范围已失效（2026-09-01），待协调者重新定义
+- **状态**：⚠️ 已重新定义，实际归入 #10705 一并解决（2026-09-02）
 - **原范围**（已作废，见下方推翻说明）：
   - ~~白名单命中则系统原子 `SUBMITTED → APPROVED`；未命中进 `REVIEW_REQUIRED` 并走 `PersistentHitlCoordinator`~~
   - ~~executor 不得自行从 `REVIEW_REQUIRED` 进入执行~~
   - ~~任务重启/接管后从计划正确步骤继续、不重复已完成步骤副作用（"步骤级恢复"整体）~~
 - **推翻说明一**：ADR-006 新增「决策推翻」章节（2026-09-01）——对齐官方 `permission-system.html` 后确认"计划提交"这个动作不需要独立审批关卡，风险已由协调者派发子节点时的既有审批点与步骤执行阶段的工具授权链路覆盖。`ExecutorPlanAutoApprovalPolicy`（白名单判定）已随 #10703 一并删除，`REVIEW_REQUIRED` 状态在正常路径下不再产生。
 - **推翻说明二**（2026-09-01）：核实 AgentScope [Context & AgentState](https://java.agentscope.io/v2/zh/docs/building-blocks/context.html) 文档后确认——**"中断后续跑"从来不是 AAF 侧要维护的显式步骤状态机**，而是 AgentScope core 自带能力：`AgentState.getContext()` 按 `(userId, sessionId)` 持久化完整对话历史，同一 `(userId, sessionId)` 重新发起 `call()` 时 core 自动续接。真正的缺口在于 `HarnessAgentExecutionAdapter` 当前无差别在 `doFinally` 删除 `AgentState`（"结束即删"，AAF-103 遗留），未区分"真正终态"与"被中断但会话应继续"，导致中断后历史被误删——这是**执行器核心机制**层面的问题，不是 EXECUTOR Plan Mode 独有，已整体拆出为独立故事 **AAF-110**（登记于 `docs/task/backlog.md`），本任务不再包含"中断续跑"本身。
-- **收窄后剩余范围**：`ExecutorPlanStep.status` 转换（`startStep`/`completeStep`/`failStep`，已在 #10702 定义但从未被调用）在续跑场景下的**幂等接线**——即当 AAF-110 让同一 `sessionId` 的 execution 续接上历史后，模型继续调用步骤完成类工具时，AAF 侧记录不能因为"这一步之前可能已经上报过一次（例如中断发生在上报后、`completeStep` 落库前）"而产生重复副作用或状态机非法跳转。这是纯粹的审计记录幂等问题，不涉及"驱动该执行哪一步"。
-- **依赖**：AAF-110（✅ 已完成，2026-09-02——中断续跑机制已落地，`HarnessAgentExecutionAdapter` 现在按责任主体是否变化正确分流状态槎删除，"同一 execution 需要幂等接线"这个场景已具备可验证前提）。
-- **完成标准**（收窄后）：`startStep`/`completeStep`/`failStep` 在重复调用（同一步骤上报两次）时不产生非法状态跳转或重复副作用记录；`compile` 通过。
+- **推翻说明三**（2026-09-02，AAF-110 完成后重新核实 #10705 时发现）：原判断"`startStep`/`completeStep`/`failStep` 只需要幂等接线"建立在错误假设上——核实 `DelegatedTaskCoordinator.executeApprovedPlanSteps` 完整代码后发现，这个方法让模型在**一次 execution 内自由推进全部已批准步骤**（不逐步骤显式驱动，只在最终收敛处判断整体 `EXECUTION_COMPLETED`/`EXECUTION_FAILED`），`startStep`/`completeStep`/`failStep` **在任何路径下都从未被调用**，不存在"重复上报"的幂等问题——真正缺失的是"调用点"本身，不是"调用点的幂等性"。第一性原理判断：AAF 侧不介入模型的推理过程，`ExecutorPlanStep.Status` 要有真实数据，必须由模型自己显式上报步骤边界，而非从底层工具调用事件流反推（一个 step 可能对应 0~N 次工具调用，无法可靠映射回步骤边界）。**归入 #10705 一并解决**：新增 `ReportExecutorStepTool`（`report_executor_step`），复用 `SubmitExecutorPlanTool` 已确立的"模型主动上报"模式；工具内部按 `outcome` 分流调用 `startStep`/`completeStep`/`failStep`，`expectedLockVersion` 每次现查现用（`findSteps` 读最新行），天然具备幂等——重复上报同一 `outcome` 会因状态机校验失败（如 `completeStep` 要求当前必须是 `RUNNING`）而 fail-closed，不产生非法跳转或重复副作用记录，原任务"幂等接线"的诉求已通过"调用点即状态机守卫"的方式满足，不需要额外幂等层。
+- **完成标准**：随 #10705 一并验收。
 
-### #10705 计划事件与 AG-UI 投影
+### #10705 计划事件与 AG-UI 投影 —— 含 #10704 步骤上报缺口
 
-- **状态**：[ ] 待开始
+- **状态**：✅ 已完成（2026-09-02）— developer-service
 - **负责人**：developer-service
-- **依赖**：#10703（不再依赖已大幅收窄的 #10704）
-- **范围**：
-  - ~~8~~ **6** 个领域事件（`EXECUTOR_PLAN_CREATED` / `SUBMITTED` / `APPROVED` / `EXECUTION_STARTED` / `STEP_*` / 终态）先进 task transition/outbox——原 8 个事件中 `REVIEW_REQUIRED`/`REJECTED`/`EXECUTOR_REPLAN_REQUESTED` 三个随审批关卡取消而失效或需重新评估是否仍需要。
-  - AG-UI 侧投影为 Step / Activity / Custom；不再需要 interrupt outcome（原本对应"待人工审批"这个中间态，已不存在）。
-  - 禁止 planner 直接向 SSE 发"计划已批准"；Custom 不含计划正文或内部 Prompt。
-- **完成标准**：UI 可从 snapshot 重建计划进度；`compile` 通过。
+- **依赖**：#10703、AAF-110（均已完成）
+- **设计结论（第一性原理，人类已确认按此推进）**：
+  - **计划级 6 个事件**（对齐 `ExecutionEventType` 现有"终态一律拆成独立枚举值"模式，即 `SUBTASK_*` 五值先例，不用 outcome 字段合并）：`EXECUTOR_PLAN_CREATED`（`beginPlanning`）/`EXECUTOR_PLAN_SUBMITTED`（`submit`）/`EXECUTOR_PLAN_EXECUTION_STARTED`（`claimApproved`）/`EXECUTOR_PLAN_COMPLETED`（`complete`）/`EXECUTOR_PLAN_FAILED`（`fail`）/`EXECUTOR_PLAN_CANCELLED`（`cancel`）。不设 `EXECUTOR_PLAN_APPROVED`/`EXECUTOR_PLAN_REJECTED`——ADR-006 固定自动批准，`REVIEW_REQUIRED`/`REJECTED` 转换是死代码路径，`SUBMITTED` 与"批准"在当前实现里永远同时发生，拆分没有独立观察价值。
+  - **步骤级 3 个事件**：`EXECUTOR_PLAN_STEP_STARTED`/`EXECUTOR_PLAN_STEP_COMPLETED`/`EXECUTOR_PLAN_STEP_FAILED`，由新增 `ReportExecutorStepTool` 驱动（见 #10704 推翻说明三）。
+  - **事件持久化机制**：`ExecutorPlan` 是独立聚合根，不经过 `TaskTransition`（那是 `AssistantTask`/`TaskBoard` 级别机制）。复用 `SupportHandoffTool` 已确立的"工具直接注入 `ExecutionEventStorePort` 自行 `append`"模式；`DelegatedTaskCoordinator` 侧新增同名 `eventStore` 字段与 `emitPlanEvent` 辅助方法，在持有完整 `InvocationContext` 的方法内（`runPlanningExecution`/`executePlannedSubTask`/`executeApprovedPlanSteps` 终态收敛）构造并发出对应事件。
+  - **已知限制并接受**：`cancelRunningChildren`（`stop`/`takeOver` 级联取消场景，调用 `plans.cancel(...)`）方法作用域内没有 `InvocationContext`（只有 `TenantId`/`UserId`/`TaskId`/`Lease`，`AssistantTask` record 本身也不携带 `conversationId`/`sessionId`/`runId`），无法构造完整 `ExecutionEvent`。判断：审计事件流的完整性是可观测性问题，不是正确性问题（`ExecutorPlan.status` 数据库字段本身已经正确更新为 `CANCELLED`）——不为凑齐上下文引入额外查询，`EXECUTOR_PLAN_CANCELLED` 事件在此路径下不发出，只做状态转换。
+- **实施内容**：
+  - `ExecutionEventType` 新增 9 个枚举值；`AafAiTaskEventRegistry.descriptor` 穷举 switch 补齐 9 个分支（全仓核实这是唯一一处对 `ExecutionEventType` 做穷举 switch 的地方，其余 switch 均带 `default`）。
+  - 新增 `ReportExecutorStepTool.java`（`report_executor_step` 工具）。
+  - `SubmitExecutorPlanTool` 新增 `ExecutionEventStorePort` 依赖，`submit(...)` 成功后发出 `EXECUTOR_PLAN_SUBMITTED`。
+  - `DelegatedTaskCoordinator` 新增 `ExecutionEventStorePort eventStore` 字段（新构造器重载，向后兼容，`plans`/`eventStore` 均允许为 `null`）+ `emitPlanEvent`/`planValues` 辅助方法；4 个调用点（`beginPlanning`/`claimApproved`/`complete`/`fail`）接入事件发出。
+  - `executeApprovedPlanSteps` 的子执行 prompt 追加步骤上报指令（引导模型调用 `report_executor_step`）。
+  - Spring 配置：`submitExecutorPlanTool`/新增 `reportExecutorStepTool` 两个 Bean 追加 `ExecutionEventStorePort` 依赖前提；`delegatedTaskCoordinator` Bean 接入 `eventStore`（`plans` 仍传 `null`——是否启用规划能力是独立决定，见 #10703 dev-log，未启用时 `emitPlanEvent` 调用路径本身走不到）。
+  - **意外发现并修复的 AAF-110 测试回归**：`pnpm nx test service` 首次运行暴露 `HarnessAgentExecutionAdapterTest` 12 处失败——AAF-110 新增的 `GracefulShutdownManager.bindStateSaver(agent, ...)` 内部用 `ConcurrentHashMap.put(agent.getAgentId(), ...)`，测试 mock 的 `agent.getAgentId()` 未 stub 返回 `null`，`ConcurrentHashMap` 不允许 `null` key 直接抛 `NullPointerException` 中断整条执行链（AAF-110 当时只跑了 `compile`，未跑 `test`，遗漏了这批回归）。用 `git stash` 隔离验证确认这些失败在 AAF-110 提交（`f08a2a29`）之后即已存在，与 #10705 改动无关；修复方式：`HarnessAgentExecutionAdapterTest` 补充 `lenient().when(agent.getAgentId()).thenReturn("agent-test")` 公共桩（生产环境 `agentId` 由 `AgentBase` 构造时赋值永不为空，纯粹是 mock 契约缺失）。
+  - **意外发现并修复的 AAF-105 #10506 测试缺陷**：`SubmitCoordinationPlanToolTest.should_accept_plan_within_frozen_baseline` 同样在 stash 验证中确认为独立于本次改动的既有失败——测试 fixture 用 `TaskBoard.coordinated(...)` 构造协调者节点，初始态是 `PENDING`，但 `TaskBoard.applyCoordinationPlan` 要求协调者必须 `RUNNING`。改为手工构造 `RUNNING` 态的 `SubTask`（对齐 `DelegatedTaskCoordinatorAggregatorCompletionTest` 已确立的 fixture 模式）。
+- **完成标准**：UI 可从 snapshot 重建计划进度；`compile` 通过；`pnpm nx test service` 全绿（415 个 aaf-framework 测试 + aaf-api/aaf-auto-dev 全部测试，0 失败 0 错误）。
 
 ## 新增任务
 

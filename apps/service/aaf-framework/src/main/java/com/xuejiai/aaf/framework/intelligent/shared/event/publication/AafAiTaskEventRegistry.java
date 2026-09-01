@@ -55,6 +55,15 @@ public final class AafAiTaskEventRegistry {
                     case SUBTASK_COMPLETED -> "aaf.subtask.completed";
                     case SUBTASK_FAILED -> "aaf.subtask.failed";
                     case SUBTASK_CANCELED -> "aaf.subtask.canceled";
+                    case EXECUTOR_PLAN_CREATED -> "aaf.executor_plan.created";
+                    case EXECUTOR_PLAN_SUBMITTED -> "aaf.executor_plan.submitted";
+                    case EXECUTOR_PLAN_EXECUTION_STARTED -> "aaf.executor_plan.execution_started";
+                    case EXECUTOR_PLAN_COMPLETED -> "aaf.executor_plan.completed";
+                    case EXECUTOR_PLAN_FAILED -> "aaf.executor_plan.failed";
+                    case EXECUTOR_PLAN_CANCELLED -> "aaf.executor_plan.cancelled";
+                    case EXECUTOR_PLAN_STEP_STARTED -> "aaf.executor_plan.step_started";
+                    case EXECUTOR_PLAN_STEP_COMPLETED -> "aaf.executor_plan.step_completed";
+                    case EXECUTOR_PLAN_STEP_FAILED -> "aaf.executor_plan.step_failed";
                     case VALIDATION_STARTED -> "aaf.validation.started";
                     case VALIDATION_COMPLETED -> "aaf.validation.completed";
                     case VALIDATION_FAILED -> "aaf.validation.failed";

@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,6 +19,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolI
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CoordinationPlan;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DecompositionBudget;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskModelSelection;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskBoardPort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
@@ -90,8 +92,44 @@ class SubmitCoordinationPlanToolTest {
                 (nodeSubTaskId, roleKey, skillKey, coordinatorSuggestsPlan) -> false);
     }
 
+    /**
+     * 协调者节点必须处于 {@code RUNNING} 才能提交计划（{@code TaskBoard.applyCoordinationPlan} 前置校验），
+     * 不能用 {@code TaskBoard.coordinated(...)} 静态工厂——它产出的协调者初始态是 {@code PENDING}（等待调度领取），
+     * 需要手工构造一个已处于 {@code RUNNING} 的协调者节点，与 {@code
+     * DelegatedTaskCoordinatorAggregatorCompletionTest} 已确立的 fixture 模式一致。
+     */
     private static TaskBoard board() {
-        return TaskBoard.coordinated(TASK, "撰写品牌文案", ROLE, SKILL, 3);
+        var coordinator =
+                new TaskBoard.SubTask(
+                        "coordinator",
+                        TaskBoard.SubTask.Kind.COORDINATOR,
+                        "撰写品牌文案",
+                        Set.of(),
+                        Map.of(),
+                        ROLE,
+                        SKILL,
+                        null,
+                        TaskModelSelection.auto(),
+                        TaskBoard.Status.RUNNING,
+                        true,
+                        1,
+                        3,
+                        new ExecutionId("coordinator-execution-1"),
+                        new SessionId("coordinator-session-1"),
+                        null,
+                        null,
+                        Map.of(),
+                        false);
+        return new TaskBoard(
+                TASK,
+                new TaskBoard.Goal(
+                        "goal",
+                        "撰写品牌文案",
+                        Set.of("coordinator"),
+                        CoordinationPlan.AggregationContract.passThrough("coordinator"),
+                        null),
+                1,
+                Map.of(coordinator.subTaskId(), coordinator));
     }
 
     private static ToolInvocation invocation(String roleKey, String skillKey) {

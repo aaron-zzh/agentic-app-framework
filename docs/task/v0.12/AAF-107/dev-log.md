@@ -1,3 +1,24 @@
+
+- ✅ 2026-09-02 — Kiro：#10704 三次收窄+#10705 完成，`report_executor_step` 工具补齐步骤上报缺口，6+3 个计划事件落地
+
+### #10704 第三次推翻：从"幂等接线"改判为"补齐缺失调用点"
+
+核实 `DelegatedTaskCoordinator.executeApprovedPlanSteps` 完整代码后发现，原判断"`startStep`/`completeStep`/`failStep` 需要幂等接线"建立在错误假设上——这三个方法在任何路径下**从未被调用**，不是"可能重复调用需要防重"，是"完全没有调用点"。该方法让模型在一次 execution 内自由推进全部已批准步骤，AAF 侧不逐步骤显式驱动，只在最终收敛处判断整体完成/失败。
+
+第一性原理判断（对齐行业最佳实践：LangGraph plan-and-execute、Claude Code TodoWrite 模式）：AAF 侧不介入模型推理过程，`ExecutorPlanStep.Status` 要有真实数据必须由模型自己显式上报步骤边界，不能从底层工具调用事件流反推（一个 step 可能对应 0~N 次工具调用，无法可靠映射）。解法：新增 `ReportExecutorStepTool`（`report_executor_step`），复用 `SubmitExecutorPlanTool` 已确立的"模型主动上报"模式。`expectedLockVersion` 每次现查现用，天然幂等——重复上报同一 `outcome` 因状态机校验失败（如 `completeStep` 要求当前是 `RUNNING`）fail-closed，原"幂等接线"诉求已通过"调用点即状态机守卫"满足，不需要额外幂等层。#10704 归入 #10705 一并解决。
+
+### #10705 事件清单与持久化机制设计
+
+- 计划级 6 个（对齐 `SUBTASK_*` 五值先例，终态独立枚举值不用 outcome 合并）：`CREATED`/`SUBMITTED`/`EXECUTION_STARTED`/`COMPLETED`/`FAILED`/`CANCELLED`。不设 `APPROVED`/`REJECTED`——ADR-006 固定自动批准，两者是死代码路径。
+- 步骤级 3 个：`STEP_STARTED`/`STEP_COMPLETED`/`STEP_FAILED`，由 `ReportExecutorStepTool` 驱动。
+- **架构约束发现**：`ExecutorPlan` 是独立聚合根，不经过 `TaskTransition`（那是 `AssistantTask`/`TaskBoard` 级机制）。核实 `SupportHandoffTool` 后确认现成模式——工具直接注入 `ExecutionEventStorePort` 自行 `append`。`DelegatedTaskCoordinator` 新增同名字段+`emitPlanEvent` 辅助方法，在持有完整 `InvocationContext` 的方法内发出事件。
+- **已知限制（评估后接受，不处理）**：`cancelRunningChildren`（`stop`/`takeOver` 级联取消）作用域内没有 `InvocationContext`（`AssistantTask` record 不携带 `conversationId`/`sessionId`/`runId`），无法构造完整事件。判断审计事件完整性是可观测性问题不是正确性问题（`ExecutorPlan.status` 数据库字段本身已正确更新），不为凑上下文引入额外查询，此路径下 `EXECUTOR_PLAN_CANCELLED` 事件不发出。
+- **意外发现并修复的 AAF-110 测试回归**：`pnpm nx test service` 暴露 `HarnessAgentExecutionAdapterTest` 12 处失败——`GracefulShutdownManager.bindStateSaver` 内部 `ConcurrentHashMap.put(agent.getAgentId(), ...)`，mock 未 stub `getAgentId()` 返回 `null` 直接 NPE。`git stash` 隔离验证确认失败在 AAF-110 提交（`f08a2a29`）后即存在，与 #10705 无关（AAF-110 当时只跑 `compile` 未跑 `test`）。修复：补 `lenient().when(agent.getAgentId()).thenReturn("agent-test")`。
+- **意外发现并修复的 AAF-105 #10506 测试缺陷**：`SubmitCoordinationPlanToolTest` fixture 用 `TaskBoard.coordinated(...)`（协调者初始态 `PENDING`），但 `applyCoordinationPlan` 要求 `RUNNING`。改为手工构造 `RUNNING` 态 `SubTask`。
+- 验证：`pnpm nx compile service` BUILD SUCCESS；`pnpm nx test service` BUILD SUCCESS（415 个 aaf-framework 测试 + aaf-api/aaf-auto-dev 全部测试，0 失败 0 错误）。
+
+---
+
 ## #10704 设计对比：AAF 侧步骤驱动 vs AgentScope core 会话续接（2026-09-01）
 
 - ⚠️ 2026-09-01 — Kiro：核实 AgentScope [Context & AgentState](https://java.agentscope.io/v2/zh/docs/building-blocks/context.html) 后推翻此前"AAF 侧维护当前第几步驱动执行"的设计方向

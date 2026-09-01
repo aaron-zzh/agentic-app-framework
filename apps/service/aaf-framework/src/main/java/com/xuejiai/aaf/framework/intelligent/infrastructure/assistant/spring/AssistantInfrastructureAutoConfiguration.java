@@ -26,7 +26,9 @@ import com.xuejiai.aaf.framework.intelligent.assistant.application.CompletionVal
 import com.xuejiai.aaf.framework.intelligent.assistant.application.ContextLoadTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultCompletionValidator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultEffectiveSkillResolver;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultRecoveryPreflight;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.SubmitExecutorPlanTool;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.ReportExecutorStepTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultInputClassifier;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultRoleSelector;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultSkillSelectionPort;
@@ -177,10 +179,24 @@ public class AssistantInfrastructureAutoConfiguration {
      * 与步骤执行阶段具体工具调用前的既有授权链路，不为"提交步骤列表"这个动作重复建设审批机制。
      */
     @Bean
-    @ConditionalOnBean(ExecutorPlanPort.class)
+    @ConditionalOnBean({ExecutorPlanPort.class, ExecutionEventStorePort.class})
     @ConditionalOnMissingBean(SubmitExecutorPlanTool.class)
-    SubmitExecutorPlanTool submitExecutorPlanTool(ExecutorPlanPort plans) {
-        return new SubmitExecutorPlanTool(plans, Clock.systemUTC());
+    SubmitExecutorPlanTool submitExecutorPlanTool(
+            ExecutorPlanPort plans, ExecutionEventStorePort events) {
+        return new SubmitExecutorPlanTool(plans, events, Clock.systemUTC());
+    }
+
+    /**
+     * 已批准执行阶段内唯一允许模型上报步骤边界的工具（AAF-107 #10705）：{@code executeApprovedPlanSteps}
+     * 让模型在一次 execution 内自由推进全部已批准步骤，{@code ExecutorPlanStep.Status} 要有真实数据必须由模型自己
+     * 显式上报——与 {@code submitExecutorPlanTool} 同为"模型主动上报"模式，注册条件也保持一致。
+     */
+    @Bean
+    @ConditionalOnBean({ExecutorPlanPort.class, ExecutionEventStorePort.class})
+    @ConditionalOnMissingBean(ReportExecutorStepTool.class)
+    ReportExecutorStepTool reportExecutorStepTool(
+            ExecutorPlanPort plans, ExecutionEventStorePort events) {
+        return new ReportExecutorStepTool(plans, events, Clock.systemUTC());
     }
 
     /**
@@ -437,6 +453,7 @@ public class AssistantInfrastructureAutoConfiguration {
             ConversationLeasePort leases,
             AssistantCommandPort assistants,
             AgentExecutionPort agentExecutions,
+            ExecutionEventStorePort events,
             NotificationPort notifications,
             DelegatedTaskDispatchPort dispatchSignals,
             AgentTaskRuntime agentTaskRuntime,
@@ -446,6 +463,9 @@ public class AssistantInfrastructureAutoConfiguration {
                 Duration.ofSeconds(
                         environment.getProperty(
                                 "aaf.assistant.delegated.lease-seconds", Long.class, 60L));
+        // eventStore 已接入（AAF-107 #10705），plans 仍传 null——是否启用规划能力是独立决定（dev-log 已记录），
+        // 本次只是让计划级事件发布链路具备前提，未启用时 emitPlanEvent 的调用路径本身就走不到（挂在依赖 plans 的
+        // executePlannedSubTask 分支内）。
         return new DelegatedTaskCoordinator(
                 tasks,
                 transitions,
@@ -459,7 +479,11 @@ public class AssistantInfrastructureAutoConfiguration {
                 agentTaskRuntime,
                 decompositionBudget,
                 Clock.systemUTC(),
-                leaseTtl);
+                leaseTtl,
+                new DefaultRecoveryPreflight(),
+                (nodeSubTaskId, roleKey, skillKey, coordinatorSuggestsPlan) -> false,
+                null,
+                events);
     }
 
     @Bean

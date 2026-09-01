@@ -13,6 +13,13 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolI
 import com.xuejiai.aaf.framework.intelligent.assistant.port.plan.ExecutorPlanPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.plan.ExecutorPlanPort.StepDraft;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.plan.ExecutorPlanPort.SubmitPlanCommand;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ExecutionEventStatus;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.OwnerType;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventPayload;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.EventId;
 
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -40,10 +47,13 @@ public final class SubmitExecutorPlanTool implements ContextAwareToolHandler {
     public static final String TOOL_NAME = "submit_executor_plan";
 
     private final ExecutorPlanPort plans;
+    private final ExecutionEventStorePort events;
     private final Clock clock;
 
-    public SubmitExecutorPlanTool(ExecutorPlanPort plans, Clock clock) {
+    public SubmitExecutorPlanTool(
+            ExecutorPlanPort plans, ExecutionEventStorePort events, Clock clock) {
         this.plans = Objects.requireNonNull(plans, "plans 不能为空");
+        this.events = Objects.requireNonNull(events, "events 不能为空");
         this.clock = Objects.requireNonNull(clock, "clock 不能为空");
     }
 
@@ -62,10 +72,14 @@ public final class SubmitExecutorPlanTool implements ContextAwareToolHandler {
     public Mono<ToolInvocationResult> invoke(ToolInvocation invocation) {
         Objects.requireNonNull(invocation, "invocation 不能为空");
         return Mono.fromCallable(() -> submit(invocation))
-                .subscribeOn(Schedulers.boundedElastic());
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMap(
+                        outcome ->
+                                events.append(outcome.event(), invocation.context().lease())
+                                        .thenReturn(outcome.result()));
     }
 
-    private ToolInvocationResult submit(ToolInvocation invocation) {
+    private SubmitOutcome submit(ToolInvocation invocation) {
         var context = invocation.context();
         var nodeIdentity = context.nodeIdentity();
         if (nodeIdentity == null) {
@@ -100,7 +114,32 @@ public final class SubmitExecutorPlanTool implements ContextAwareToolHandler {
         values.put("planId", plan.planId());
         values.put("status", plan.status().name());
         values.put("stepCount", steps.size());
-        return new ToolInvocationResult("计划已提交并批准，可以开始执行。", values);
+        var result = new ToolInvocationResult("计划已提交并批准，可以开始执行。", values);
+        var event =
+                new ExecutionEvent(
+                        new EventId("executor-plan-submitted-" + invocation.toolCallId()),
+                        context.tenantId(),
+                        context.conversationId(),
+                        context.sessionId(),
+                        context.taskId(),
+                        context.executionId(),
+                        context.runId(),
+                        context.parentExecutionId(),
+                        0,
+                        ExecutionEventType.EXECUTOR_PLAN_SUBMITTED,
+                        ExecutionEventStatus.RUNNING,
+                        context.controlMode(),
+                        OwnerType.AGENT,
+                        context.assistantId(),
+                        null,
+                        context.userId(),
+                        context.correlationId(),
+                        context.causationId(),
+                        context.idempotencyKey(),
+                        new ExecutionEventPayload(values),
+                        clock.instant(),
+                        context.nodeIdentity());
+        return new SubmitOutcome(result, event);
     }
 
     @SuppressWarnings("unchecked")
@@ -167,4 +206,6 @@ public final class SubmitExecutorPlanTool implements ContextAwareToolHandler {
         }
         return Map.copyOf((Map<String, Object>) rawMap);
     }
+
+    private record SubmitOutcome(ToolInvocationResult result, ExecutionEvent event) {}
 }

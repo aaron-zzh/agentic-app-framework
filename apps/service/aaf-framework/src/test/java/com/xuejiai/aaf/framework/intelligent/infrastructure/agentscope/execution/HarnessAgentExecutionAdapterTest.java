@@ -133,6 +133,11 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
         lenient().when(messageMapper.toAgentScope(anyList())).thenReturn(List.of());
         // 默认无历史事件：重放守卫放行，进入真实执行
         lenient().when(eventStore.readExecution(any(), any(), anyLong())).thenReturn(Flux.empty());
+        // AAF-110 #11004 接入 GracefulShutdownManager 单例：真实 core 内部用 ConcurrentHashMap 以
+        // agentId 为 key（bindStateSaver/registerRequest/unregisterRequest），mock 未 stub 时
+        // getAgentId() 返回 null 会在 put(null, ...) 处直接 NPE，中断整条执行链。生产环境 agentId
+        // 由 AgentBase 构造时赋值，永不为空，这里只是补齐 mock 契约。
+        lenient().when(agent.getAgentId()).thenReturn("agent-test");
     }
 
     @Test
