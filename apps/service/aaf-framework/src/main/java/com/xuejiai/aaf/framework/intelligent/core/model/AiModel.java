@@ -95,6 +95,23 @@ public class AiModel extends BaseEntity {
     @Column(name = "enable_thinking")
     private Boolean enableThinking = false;
 
+    /**
+     * 思考预算（最大推理 token 数），透传到 core {@code GenerateOptions.thinkingBudget}。
+     *
+     * <p>为 null 时不下发该字段（AAF-106 #10602）；仅思考型模型（{@code enableThinking=true}）需要配置，非思考型模型忽略。
+     */
+    @Column(name = "thinking_budget")
+    private Integer thinkingBudget;
+
+    /**
+     * 推理强度（部分 provider 的 {@code reasoning_effort} 扩展参数，如 {@code low}/{@code medium}/{@code high}），
+     * 透传到 core {@code GenerateOptions.reasoningEffort}。
+     *
+     * <p>为 null 时不下发该字段（AAF-106 #10602）。
+     */
+    @Column(name = "reasoning_effort")
+    private String reasoningEffort;
+
     /** 输入 Token 单价（元/千Token，用于积分结算） */
     @Column(name = "input_price_per_k", precision = 10, scale = 6)
     private BigDecimal inputPricePerK;

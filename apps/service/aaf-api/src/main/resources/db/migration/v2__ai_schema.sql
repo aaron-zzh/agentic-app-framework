@@ -102,6 +102,8 @@ CREATE TABLE ai_model (
     max_tokens          INTEGER,
     context_window      INTEGER,
     enable_thinking     BOOLEAN              DEFAULT FALSE,
+    thinking_budget     INTEGER,
+    reasoning_effort    VARCHAR(16),
     enabled             BOOLEAN          NOT NULL DEFAULT TRUE,
     capabilities        VARCHAR(256),
     input_price_per_k   NUMERIC(10, 6),
