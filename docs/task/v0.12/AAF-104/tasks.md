@@ -59,6 +59,24 @@ gains:
 - **完成标准**：每个 converter 独立单测；同 run 的 start/end 配对且 finish 只一次。
 - **实际结果**：本次为**纯结构重构、行为不变**；`AgUiProjectorTest` 8 个既有用例全绿（原地验证配对与 finish 不变量），三模块 415/2/241 全绿。
 
+### #10407 事件身份维度补全（#10403 硬前置）
+
+- **状态**：[ ] 待开始
+- **负责人**：developer-service
+- **依赖**：#10402
+- **为什么独立成任务**：它同时是「协调者/执行者事件区分」与「按 agent 类型监控」两件事的共同前置，且影响面超出事件投影——`ExecutionEvent` 本体、全部构造点、事件表 schema 与公共事件都要动。核实结果：`ExecutionEvent` 现有 21 个字段中身份相关的只有 `executionId`/`parentExecutionId`/`ownerType`/`assistantId`/`agentId`/`taskId`，**没有 `subTaskId`、`kind`、`roleKey`、`skillKey`**（`shared/` 包下这三个词分别只出现 2/1/2 次，均不在事件结构内）；`AafAiTaskEvent` 连 `agentId` 都没透出。
+- **范围**：
+  - `ExecutionEvent` 新增一个可空的聚合字段 `NodeIdentity(subTaskId, kind, roleKey, skillKey)`，而不是平铺 4 个字段——DIRECT 模式无 TaskBoard 时整体为 `null`，语义是"本事件属于某个 TaskBoard 节点"。
+  - 在子任务派发处填充：`SubTask` 已有全部四项（`TaskBoard.java` 的 `SubTask` record），随 child command 传到执行适配器与事件映射器。
+  - 事件表 schema 与 JPA 实体同步（按 v0.12 阶段约束直接改 `v16__intelligent_runtime_schema.sql`）。
+  - `AafAiTaskEvent` 透出 `parentExecutionId` 与 `NodeIdentity`，供 `#10403` 合成 `source` 路径与判定标准/CUSTOM 分支。
+- **安全约束（🔴 必须遵守）**：
+  - `subTaskId` 在动态分解模式下是**模型生成的自由字符串**（`CoordinationPlan.ExecutorAssignment.subTaskId` 来自 plan JSON，经 `decodeAndValidatePlan` 仅校验格式）。它只能作为展示用标签与 `source` 路径段，**禁止用作授权、隔离或幂等键**——那些仍用 `executionId`/`tenantId`。且需评估模型自选名称是否泄漏内部意图。
+  - `roleKey`/`skillKey` 是配置定义的稳定值，是监控聚合应使用的维度；`agentId` 是 Agent 定义 ID，不等于"角色"。
+  - 静态 Team 模式下 `subTaskId`/`roleKey`/`skillKey` 必须匹配预定义 worker（`TaskBoard.java:124`），协调者无命名权——两种模式的命名权差异要在实现中区分。
+- **完成标准**：事件可按 `roleKey` 聚合；`source` 路径可从 `parentExecutionId` + `subTaskId` 合成；DIRECT 模式 `NodeIdentity` 为 null 且行为不变；`compile` + `test` 全绿。
+- **待人类确认**：事件表已有存量数据时的兼容处理（阶段约束是直接改 v16 不新增迁移，但存量事件行的新列为 null 是否可接受）。
+
 ### #10403 补齐必需事件族
 
 - **状态**：[ ] 待开始（🔴 契约需 architect 先审，见下方"契约修正"）
