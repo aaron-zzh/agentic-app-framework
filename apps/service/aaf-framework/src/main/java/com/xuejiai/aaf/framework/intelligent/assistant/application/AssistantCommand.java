@@ -14,6 +14,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePor
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.MemorySubject;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.SubjectKind;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
+import com.xuejiai.aaf.framework.intelligent.shared.event.NodeIdentity;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AssistantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.CausationId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ConversationId;
@@ -54,7 +55,70 @@ public record AssistantCommand(
                 contextCandidates,
         TaskModelSelection taskModelSelection,
         InvocationProfile invocationProfile,
-        Instant requestedAt) {
+        Instant requestedAt,
+        NodeIdentity nodeIdentity) {
+
+    /**
+     * 无编排节点身份的命令：START / RESUME / PAUSE 等 Assistant 自身发起的操作不属于任何板上节点。
+     *
+     * <p>{@code nodeIdentity == null} 是有意义的取值而非占位。执行者由 {@link #forSubTask} 派生，必须携带节点身份， 否则 AG-UI
+     * 无法区分应答者与内部执行者、事件也无法按角色聚合。
+     */
+    public AssistantCommand(
+            Operation operation,
+            TenantId tenantId,
+            UserId userId,
+            MemorySubject memorySubject,
+            AssistantId assistantId,
+            ConversationId conversationId,
+            SessionId sessionId,
+            TaskId taskId,
+            ExecutionId executionId,
+            RunId runId,
+            ExecutionId parentExecutionId,
+            CorrelationId correlationId,
+            CausationId causationId,
+            IdempotencyKey idempotencyKey,
+            ControlMode controlMode,
+            ExecutionContract executionContract,
+            Lease lease,
+            long sequenceBase,
+            String input,
+            CompletionCriteria completionCriteria,
+            List<
+                            com.xuejiai.aaf.framework.intelligent.assistant.model
+                                    .EffectiveContextManifest.SourceReference>
+                    contextCandidates,
+            TaskModelSelection taskModelSelection,
+            InvocationProfile invocationProfile,
+            Instant requestedAt) {
+        this(
+                operation,
+                tenantId,
+                userId,
+                memorySubject,
+                assistantId,
+                conversationId,
+                sessionId,
+                taskId,
+                executionId,
+                runId,
+                parentExecutionId,
+                correlationId,
+                causationId,
+                idempotencyKey,
+                controlMode,
+                executionContract,
+                lease,
+                sequenceBase,
+                input,
+                completionCriteria,
+                contextCandidates,
+                taskModelSelection,
+                invocationProfile,
+                requestedAt,
+                null);
+    }
 
     public AssistantCommand {
         Objects.requireNonNull(operation, "operation 不能为空");
@@ -235,7 +299,8 @@ public record AssistantCommand(
                 contextCandidates,
                 subTask.modelSelection(),
                 childProfile,
-                at);
+                at,
+                nodeIdentityOf(subTask));
     }
 
     private AssistantCommand copy(
@@ -274,7 +339,28 @@ public record AssistantCommand(
                 contextCandidates,
                 nextModelSelection,
                 nextInvocationProfile,
-                at);
+                at,
+                // 派生命令必须保留节点身份：asResume / withLease / newExecution / withInput 都经此处，
+                // 丢掉后恢复或换租约的执行者会退化为「无节点」，AG-UI 将把它误判为面向用户的应答者
+                nodeIdentity);
+    }
+
+    /**
+     * 从板上节点派生事件身份。
+     *
+     * <p>在此处映射 {@code TaskBoard.Kind} → {@code NodeIdentity.NodeKind}，是为了让 {@code shared/event}
+     * 不反向依赖 编排层——映射责任归产生该身份的一方。{@code subTaskId} 在动态分解模式下由协调者命名，`NodeIdentity` 的构造器会
+     * 校验它是安全键（不含斜杠等会破坏 AG-UI source 路径的字符）。
+     */
+    private static NodeIdentity nodeIdentityOf(SubTask subTask) {
+        var kind =
+                switch (subTask.kind()) {
+                    case COORDINATOR -> NodeIdentity.NodeKind.COORDINATOR;
+                    case EXECUTOR -> NodeIdentity.NodeKind.EXECUTOR;
+                    case EVALUATOR -> NodeIdentity.NodeKind.EVALUATOR;
+                    case AGGREGATOR -> NodeIdentity.NodeKind.AGGREGATOR;
+                };
+        return new NodeIdentity(subTask.subTaskId(), kind, subTask.roleKey(), subTask.skillKey());
     }
 
     public enum Operation {

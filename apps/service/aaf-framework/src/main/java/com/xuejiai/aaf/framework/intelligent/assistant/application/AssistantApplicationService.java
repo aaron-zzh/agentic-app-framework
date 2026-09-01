@@ -1563,7 +1563,8 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         command.controlMode(),
                         command.executionContract(),
                         command.lease(),
-                        new ToolAuthorizationContext(profile.toolAuthorizationRules()));
+                        new ToolAuthorizationContext(profile.toolAuthorizationRules()),
+                        command.nodeIdentity());
         log.debug(
                 "[Assistant协调] Agent 上下文已拼装：executionId={}，promptSha256={}，最终压缩消息数={}，用户附件数={}，草稿策略={}",
                 command.executionId().value(),

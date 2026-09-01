@@ -32,12 +32,21 @@ public record NodeIdentity(String subTaskId, NodeKind kind, String roleKey, Stri
     private static final Pattern SAFE_NODE_KEY =
             Pattern.compile("[A-Za-z0-9][A-Za-z0-9._\\-]{0,127}");
 
-    /** 编排节点类型；与 {@code TaskBoard.Kind} 一一对应，由编排层映射，避免跨层依赖。 */
+    /**
+     * 编排节点类型；与 {@code TaskBoard.Kind} 一一对应，由编排层映射，避免跨层依赖。
+     *
+     * <p>四类节点分两组：<b>交付类</b>（COORDINATOR / AGGREGATOR）产出面向用户的最终回复；<b>内部类</b> （EXECUTOR /
+     * EVALUATOR）产出中间产物。该分组决定 AG-UI 走标准事件还是降级 CUSTOM。
+     */
     public enum NodeKind {
-        /** 协调者：面向用户的应答者，其输出即最终助手回复。 */
+        /** 协调者：分解与调度；PASS_THROUGH 聚合契约下其输出即最终回复。 */
         COORDINATOR,
-        /** 执行者：内部节点，输出是中间产物而非最终回复。 */
-        EXECUTOR
+        /** 执行者：内部节点，输出是中间产物。 */
+        EXECUTOR,
+        /** 评估者：迭代组的收敛判定者，输出是判定结论而非用户回复。 */
+        EVALUATOR,
+        /** 聚合者：按聚合契约合成最终回复。 */
+        AGGREGATOR
     }
 
     public NodeIdentity {
@@ -49,9 +58,15 @@ public record NodeIdentity(String subTaskId, NodeKind kind, String roleKey, Stri
         skillKey = blankToNull(skillKey);
     }
 
-    /** 是否面向用户的应答者：只有它的事件走标准 AG-UI 文本事件，执行者一律降级 CUSTOM。 */
+    /**
+     * 是否面向用户的应答者：只有它的事件走标准 AG-UI 文本事件，内部节点一律降级 CUSTOM。
+     *
+     * <p><b>未决约束</b>：AGGREGATOR 是否与 COORDINATOR 同时出现在一块板上尚未核实。若会，则一块板出现两个交付类节点， 各发一次 {@code
+     * TEXT_MESSAGE} 会让客户端收到两条"最终回复"。AAF-104 #10403 实施标准/CUSTOM 分流时必须先确认
+     * 「每板至多一个交付类节点」这条不变量，不成立则需按聚合契约（PASS_THROUGH / ORDERED_CONCAT）决定唯一应答者。
+     */
     public boolean userFacing() {
-        return kind == NodeKind.COORDINATOR;
+        return kind == NodeKind.COORDINATOR || kind == NodeKind.AGGREGATOR;
     }
 
     /**

@@ -1423,7 +1423,8 @@ public final class DelegatedTaskCoordinator {
                 command.controlMode(),
                 command.executionContract(),
                 command.lease(),
-                new ToolAuthorizationContext(Map.of()));
+                new ToolAuthorizationContext(Map.of()),
+                command.nodeIdentity());
     }
 
     private DelegatedTaskPort.StoredTask requireOwned(

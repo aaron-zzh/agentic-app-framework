@@ -7,10 +7,21 @@
 |------|------|
 | `.../intelligent/shared/event/NodeIdentity.java` | 新增：编排节点身份（subTaskId / kind / roleKey / skillKey），含安全键校验与 source 路径合成 |
 | `.../intelligent/agent/model/InvocationContext.java` | 新增 `nodeIdentity` 字段 + 无节点身份场景的次级构造器 |
+| `.../intelligent/assistant/application/AssistantCommand.java` | 新增 `nodeIdentity` 字段；`forSubTask` 填真值；`copy` 保留身份；次级构造器兼容非子任务操作 |
+| `.../intelligent/assistant/application/AssistantApplicationService.java` | `agentCommand` 把 `command.nodeIdentity()` 传入 InvocationContext |
+| `.../intelligent/assistant/application/DelegatedTaskCoordinator.java` | `context(command)` 同上 |
 
 ## 实现决策
 
-- ⏳ #10407 载体已落地 — `NodeIdentity` + `InvocationContext.nodeIdentity`；**待做**：穿透 `AssistantCommand` 填真值、落 `ExecutionEvent`、透出公共事件。（2026-09-01）
+- ⏳ #10407 载体 + 穿透已完成 — `NodeIdentity` → `AssistantCommand` → `InvocationContext` 全链路可传；**待做**：落 `ExecutionEvent`、透出 `AafAiTaskEvent`。（2026-09-01）
+
+> **纠正一处此前的错误判断**：我曾据 `AggregationContract` 是"契约而非节点"断言"`TaskBoard.Kind` 只有 COORDINATOR 与 EXECUTOR、没有 AGGREGATOR"。**错的**——`Kind` 实际有四个值：`COORDINATOR` / `EXECUTOR` / `EVALUATOR` / `AGGREGATOR`。是穷举 switch 的编译错误逮出来的，不是我复查发现的。`NodeKind` 已补齐四项并按"交付类（COORDINATOR/AGGREGATOR）vs 内部类（EXECUTOR/EVALUATOR）"分组。
+
+> **由此引出一条 #10403 的未决不变量**：若 AGGREGATOR 与 COORDINATOR 可同时出现在一块板上，就有两个交付类节点，各发一次 `TEXT_MESSAGE` 会让客户端收到两条"最终回复"。实施标准/CUSTOM 分流前必须先确认「每板至多一个交付类节点」；不成立则需按聚合契约（PASS_THROUGH / ORDERED_CONCAT）决定唯一应答者。已写入 `NodeIdentity.userFacing()` 的 javadoc。
+
+> **`copy(...)` 必须保留 nodeIdentity**。`asResume` / `withLease` / `newExecution` / `withInput` 四个派生方法共用 `copy`，它走的是不带 nodeIdentity 的构造器。若不显式传递，恢复或换租约后的执行者会退化为"无节点"，AG-UI 将把它误判为面向用户的应答者——这是一条静默的语义降级，编译不会报错。已在该处加注释说明。
+
+> **改错过一次位置**：`forSubTask` 的 `return new AssistantCommand(...)` 在第 278 行，而我按"最后一个 return"定位改到了第 317 行的 `copy(...)`。编译器以"找不到符号 subTask"报出。教训是定位构造点不能用"最后一个匹配"这类位置启发式，必须先确认它属于哪个方法。
 
 > **放 `shared/event` 而非 `assistant/model`**：首版写在 `agent/model` 并 import `TaskBoard.Kind`，这让 L2 反向依赖 L3，违反"上层可调下层、禁止下层调上层"。改放 `shared/event`（`ExecutionEvent` 所在处）并自带 `NodeKind` 枚举，由编排层负责从 `TaskBoard.Kind` 映射。ArchUnit 的 `LayeringTest` 当前 0 条真实规则，抓不到这类问题，只能靠人工守。
 
@@ -26,5 +37,6 @@
 
 ## 验证
 
-- `pnpm nx compile service`：BUILD SUCCESS。
-- `pnpm nx test service`：framework 415 / auto-dev 2 / api 241 全绿，无回归。
+- `pnpm nx compile service`：BUILD SUCCESS（六模块，含 test 源码）。
+- 本轮按人类指示「尽量不执行测试」，未跑 `pnpm nx test service`。曾尝试定向跑 `DelegatedTaskCoordinator*Test` 等三个类，因 `-pl aaf-framework` 单模块构建不解析 `aaf-common` 符号而失败——是构建配置问题、与本次改动无关，全量 `compile` 为绿。欠下的测试验证记入 AAF-108 #10801。
+- 值得单独测的点（留给 #10801）：`copy(...)` 保留 nodeIdentity 的行为（`asResume`/`withLease` 后节点身份不丢），以及 `NodeIdentity` 对非法 `subTaskId` 的 fail-fast。
