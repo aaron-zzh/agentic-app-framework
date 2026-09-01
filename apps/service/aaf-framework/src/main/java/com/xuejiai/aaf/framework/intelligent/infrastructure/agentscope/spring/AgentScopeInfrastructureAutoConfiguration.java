@@ -113,7 +113,7 @@ public class AgentScopeInfrastructureAutoConfiguration {
         return new PromptEnvelopeCaptureMiddleware(envelopes, Clock.systemUTC());
     }
 
-    /** 编译器持有 HarnessAgent 缓存，销毁时须 close 释放。 */
+    /** 编译器持有 ReActAgent 缓存，销毁时须 close 释放。 */
     @Bean(destroyMethod = "close")
     AgentScopeSpecCompiler agentScopeSpecCompiler(
             AgentStateStore stateStore,

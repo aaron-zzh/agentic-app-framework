@@ -627,6 +627,11 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
      *   <li>本次执行私有的 AgentScope 状态槽删除，避免按 executionId 分槽后 Redis 无界增长（RQ-08/09 的配套清理）
      * </ul>
      *
+     * <p><b>close 不是空操作</b>：core {@code ReActAgent.close()} 会 {@code unbindStateSaver} 并清空本地 {@code
+     * stateCache}。而 {@code interrupt(ctx)} 是通过 {@code getAgentState(uid, sid).interruptControl()}
+     * 定位在飞调用的，因此"先 close 再 interrupt"会拿到一个新建的 AgentState，中断信号静默丢失。当前 close 只发生在 订阅终止后的 {@code
+     * doFinally}，此时循环已在收尾，故后果有限；该时序缺口登记为 RQ-12，由 #10305 用统一 lifecycle 门控关闭。
+     *
      * <p>状态槽清理失败不影响执行结论：槽键含 executionId，残留项不会被其他执行读到。
      */
     private void release(

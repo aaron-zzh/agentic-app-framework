@@ -59,14 +59,16 @@ gains:
 
 ### #10303 中断与生命周期改用 core API
 
-- **状态**：[ ] 待开始
+- **状态**：[x] ✅ 已完成（2026-09-01）— developer-service
 - **负责人**：developer-service
 - **依赖**：#10301
 - **范围**：
-  - `active.agent().getDelegate().interrupt(context)` 改为 `active.agent().interrupt(context)`；`streamEvents` 与 `close` 走 core 原生调用。
-  - 保留既有唯一终态 CAS、三类 timeout、顺序落库与 `doFinally` 清理，不与本次类型切换混合改动状态机语义。
-  - 调整 `HarnessAgentExecutionAdapterTest` 的 5 个 P0 并发用例使其在 core 类型下继续锁定行为。
+  - ✅ `interrupt` 改为 `active.agent().interrupt(context)`（随 #10301 落地）；`streamEvents` 与 `close` 走 core 原生调用。
+  - ✅ 核实执行管线语义未变：三类 timeout（idle / total / persist）、`AtomicReference<TerminalState>` 单点 CAS 仲裁、`doFinally` 释放全是 AAF 侧逻辑，不随 Agent 类型改变。
+  - ✅ 更正已失真注释：`package-info`（执行内核改述为 core ReActAgent）、`AgentScopeRuntimeContextMapper`、AutoConfiguration 缓存注释。
+  - ✅ 在 `release(...)` 处记录 close 的真实语义与 interrupt 的时序缺口，指向 #10305。
 - **完成标准**：cancel/complete 竞争仍只产生一个终态，close 恰好一次；`compile` 通过。
+- **实际结果**：`compile` 全绿。**行为等价性已核实**——`ReActAgent.streamEvents(List<Msg>, RuntimeContext)` 与 `interrupt(RuntimeContext)` 是 `HarnessAgent` 此前直接委托的同一实现；`HarnessAgent.close()` 多做的两件事（`shutdownTaskRepository`、`ownedWorkspaceIndex.close()`）AAF 从未使用。5 个 P0 并发用例的双层 mock 已在 #10301 合并为单 mock，断言对象由 `delegate` 改为 `agent`。
 
 ### #10304 依赖坐标降为 core 并清理僵尸扩展
 

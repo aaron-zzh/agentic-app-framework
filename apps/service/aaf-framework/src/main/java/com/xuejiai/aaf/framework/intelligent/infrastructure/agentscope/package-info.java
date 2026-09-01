@@ -1,15 +1,16 @@
 /**
  * AgentScope 2.0 基础设施适配层：AAF 智能层端口的唯一 AgentScope 实现。
  *
- * <p>AAF 只借用 AgentScope 的 ReAct 推理循环与工具调用能力，Harness 内置的工作区、记忆、技能、 子智能体、文件与 Shell 工具全部关闭——这些职责由 AAF
- * 自身承担，避免出现第二套真理源。
+ * <p>执行内核是 <b>core {@code ReActAgent}</b>，不是官方 {@code HarnessAgent}（ADR-005 议题三）：AAF 只借用 ReAct
+ * 推理循环与工具调用能力，工作区、记忆、技能、子智能体、文件与 Shell 都不在 core 执行面内，这些职责由 AAF 自身承担， 避免出现第二套真理源。Agent
+ * 外层的规格冻结、生命周期、缓存、中断、事件与治理由本包承担，即 AAF Harness 层。
  *
  * <p>一次执行的链路：
  *
  * <pre>
  * AgentExecutionCommand
- *   → definition（取定义）→ compiler（编译 HarnessAgent）→ mapping（消息/上下文入向）
- *   → HarnessAgent.streamEvents → mapping（事件出向）+ middleware（计量）→ ExecutionEventStore
+ *   → definition（取定义）→ compiler（编译 ReActAgent）→ mapping（消息/上下文入向）
+ *   → ReActAgent.streamEvents → mapping（事件出向）+ middleware（计量）→ ExecutionEventStore
  * </pre>
  *
  * <p>各子包与类的职责：
@@ -21,8 +22,8 @@
  *       </ul>
  *   <li><b>compiler</b>
  *       <ul>
- *         <li>{@code AgentScopeSpecCompiler} — 把 AgentSpec / 动态子智能体规格编译为无状态 HarnessAgent，并按执行画像（版本
- *             + 生效工具 + 系统提示词）缓存
+ *         <li>{@code AgentScopeSpecCompiler} — 把 AgentSpec / 动态子智能体规格编译为无状态 ReActAgent，按执行画像（版本 +
+ *             生效工具 + 系统提示词）缓存，并在构建后断言最终工具面等于 AAF 冻结白名单
  *       </ul>
  *   <li><b>execution</b>
  *       <ul>

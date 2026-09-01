@@ -9,7 +9,7 @@ import io.agentscope.core.agent.RuntimeContext;
 /**
  * 将显式 AAF 调用上下文映射为 per-call AgentScope 上下文。
  *
- * <p>HarnessAgent 实例被多租户共享，隔离完全依赖每次调用传入的 RuntimeContext。
+ * <p>ReActAgent 实例被多租户共享，隔离完全依赖每次调用传入的 RuntimeContext。
  */
 public final class AgentScopeRuntimeContextMapper {
 
