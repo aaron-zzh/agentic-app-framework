@@ -1,4 +1,4 @@
-﻿---
+---
 level: Practice
 layer: Product
 purpose: 将 ADR-005 的 AgentScope core 复用边界、AAF Harness、AG-UI、非自主 L0 与 EXECUTOR 计划能力转化为可直接实施的分阶段方案
@@ -225,24 +225,47 @@ private ReActAgent buildAgent(
 
 ### 当前覆盖度与目标处置
 
-官方 Java 库覆盖 28/28 个当前非废弃 AG-UI 事件，只缺 5 个已废弃 `THINKING_*` 别名；AAF 当前实际产生 10 种。目标不是机械发满 28 种，而是为每种事件做“必须产出 / 按需产出 / 明确不产出”的协议决策，并用配对测试证明完整性。`tmp/agentscope-java/agentscope-extensions/agentscope-extensions-protocol/agentscope-extensions-agui/src/main/java/io/agentscope/core/agui/event/AguiEventType.java:21-130`；`apps/service/aaf-api/src/main/java/com/xuejiai/aaf/module/ai/agui/AgUiProjector.java:61-203`
+官方 Java 库覆盖 28/28 个当前非废弃 AG-UI 事件，只缺 5 个已废弃 `THINKING_*` 别名；AAF 当前实际产生 10 种。目标不是机械发满 28 种，而是为每种事件做“必须产出 / 按需产出 / 明确不产出”的协议决策，并用配对测试证明完整性。`tmp/agentscope-java/agentscope-extensions/agentscope-extensions-protocol/agentscope-extensions-agui/src/main/java/io/agentscope/core/agui/event/AguiEventType.java:21-130`；`apps/service/aaf-api/src/main/java/com/xuejiai/aaf/module/ai/agui/AgUiProjector.java`
 
 | 事件族 | 当前 | 目标处置 | 上游输入改动 |
 |---|---|---|---|
-| `RUN_STARTED` | 已有，但缺 `parentRunId/input`。`apps/service/aaf-api/src/main/java/com/xuejiai/aaf/module/ai/agui/AgUiProjector.java:65-77` | 必须产出；补 `parentRunId`，`input` 只放协议允许且已脱敏的请求摘要，不放系统 Prompt。 | `ExecutionEvent`/run context 保留 parent run 关联。 |
-| `RUN_FINISHED` / `RUN_ERROR` | success/failure/cancel 都以空 outcome 结束；cancel 被错误化。`apps/service/aaf-api/src/main/java/com/xuejiai/aaf/module/ai/agui/AgUiProjector.java:73-74,130-145` | 成功用 `RunFinishedSuccessOutcome`；等待输入用 interrupt outcome，业务取消用稳定 code + finished；不可恢复失败才 `RunError`。 | 保留暂停原因、interruptId、toolCallId、schema、expiresAt。官方字段：`tmp/agentscope-java/agentscope-extensions/agentscope-extensions-protocol/agentscope-extensions-agui/src/main/java/io/agentscope/core/agui/event/AguiEvent.java:1633-1695`。 |
-| `TEXT_MESSAGE_START/CONTENT/END` | 已有，但 messageId 退化为 executionId。`apps/service/aaf-api/src/main/java/com/xuejiai/aaf/module/ai/agui/AgUiProjector.java:108-128,247-254` | 必须产出；使用 AgentScope `replyId:blockId` 派生稳定 messageId，支持单 execution 多文本块。 | mapper 补 `TEXT_BLOCK_END` 并在 start/delta/end 全程保留 replyId/blockId。`tmp/agentscope-java/agentscope-core/src/main/java/io/agentscope/core/event/TextBlockStartEvent.java:23-54`。 |
+| `RUN_STARTED` | 已有，但缺 `parentRunId/input`。`apps/service/aaf-api/src/main/java/com/xuejiai/aaf/module/ai/agui/AgUiProjector.java` | 必须产出；补 `parentRunId`，`input` 只放协议允许且已脱敏的请求摘要，不放系统 Prompt。 | `ExecutionEvent`/run context 保留 parent run 关联。 |
+| `RUN_FINISHED` / `RUN_ERROR` | success/failure/cancel 都以空 outcome 结束；cancel 被错误化。`apps/service/aaf-api/src/main/java/com/xuejiai/aaf/module/ai/agui/AgUiProjector.java` | 成功用 `RunFinishedSuccessOutcome`；等待输入用 interrupt outcome，业务取消用稳定 code + finished；不可恢复失败才 `RunError`。 | 保留暂停原因、interruptId、toolCallId、schema、expiresAt。官方字段：`tmp/agentscope-java/agentscope-extensions/agentscope-extensions-protocol/agentscope-extensions-agui/src/main/java/io/agentscope/core/agui/event/AguiEvent.java:1633-1695`。 |
+| `TEXT_MESSAGE_START/CONTENT/END` | 已有，但 messageId 退化为 executionId。`apps/service/aaf-api/src/main/java/com/xuejiai/aaf/module/ai/agui/AgUiProjector.java` | 必须产出；使用 AgentScope `replyId:blockId` 派生稳定 messageId，支持单 execution 多文本块。 | mapper 补 `TEXT_BLOCK_END` 并在 start/delta/end 全程保留 replyId/blockId。`tmp/agentscope-java/agentscope-core/src/main/java/io/agentscope/core/event/TextBlockStartEvent.java:23-54`。 |
 | `TEXT_MESSAGE_CHUNK` | 未用。 | 明确不产出；已有 canonical start/content/end，避免双路径。 | 无。 |
 | `TOOL_CALL_START/ARGS/END/RESULT` | 缺 ARGS，流式参数在 mapper 丢失。`apps/service/aaf-framework/src/main/java/com/xuejiai/aaf/framework/intelligent/infrastructure/agentscope/mapping/AgentScopeEventMapper.java:110-113,132` | 四类必须配对产出；ARGS 只输出按 schema 脱敏后的 JSON delta，无法安全逐片脱敏时缓冲到完整对象后再发一个 delta。 | 映射 `TOOL_CALL_DELTA/END`；保留 toolCallId/replyId/name。`tmp/agentscope-java/agentscope-core/src/main/java/io/agentscope/core/event/ToolCallDeltaEvent.java:26-74`。 |
 | `TOOL_CALL_CHUNK` | 未用。 | 明确不产出；采用 canonical 工具四段事件。 | 无。 |
 | `STATE_SNAPSHOT/DELTA` | 请求接收 state，但不消费、不回吐。`apps/service/aaf-api/src/main/java/com/xuejiai/aaf/module/ai/agui/AssistantAguiController.java:320-352` | 首次/重连发 snapshot，运行中发 task-view delta；state 只含页面感知上下文，禁止回吐 `forwardedProps`、凭证、Prompt 或完整 TaskBoard。 | 新增安全 `AgUiStateView`，从 TaskBoard snapshot/public event 生成。 |
 | `STEP_STARTED/FINISHED` | 未产出，阶段走 Custom。 | 对稳定 planning/execution/verification/aggregation 阶段必须成对产出；taskId 等完整拓扑仍走 Activity/Custom。 | 计划与 TaskBoard 状态事件需有稳定 step key。 |
 | `MESSAGES_SNAPSHOT` | 未产出。 | 断线重连或显式 snapshot 请求时产出，不在每次增量流重复发送。 | 从会话公共消息读取端口构造，不从 AgentState 隐式历史读取。 |
-| `ACTIVITY_SNAPSHOT/DELTA` | 未产出。`apps/service/aaf-api/src/main/java/com/xuejiai/aaf/module/ai/agui/AgUiProjector.java:148-164` | 用于 TaskBoard、executor plan、审批和子任务进度；snapshot 初始化，delta 用 JSON Patch。 | 从安全 TaskBoard view 和 public events 投影。官方字段：`tmp/agentscope-java/agentscope-extensions/agentscope-extensions-protocol/agentscope-extensions-agui/src/main/java/io/agentscope/core/agui/event/AguiEvent.java:1438-1566`。 |
+| `ACTIVITY_SNAPSHOT/DELTA` | 未产出。`apps/service/aaf-api/src/main/java/com/xuejiai/aaf/module/ai/agui/AgUiProjector.java` | 用于 TaskBoard、executor plan、审批和子任务进度；snapshot 初始化，delta 用 JSON Patch。 | 从安全 TaskBoard view 和 public events 投影。官方字段：`tmp/agentscope-java/agentscope-extensions/agentscope-extensions-protocol/agentscope-extensions-agui/src/main/java/io/agentscope/core/agui/event/AguiEvent.java:1438-1566`。 |
 | `REASONING_*` | 全缺。 | **不外发原始 CoT**（这是披露层决策，与模型是否思考无关，见[思考模式的三层边界](#思考模式的三层边界)）；provider 提供可公开 reasoning 摘要时，由租户级开关决定是否发摘要。"正在规划/执行"用 STEP/Activity 表达，不伪造成 reasoning。 | `THINKING_BLOCK_*` 在 `AgentScopeEventMapper` 层就不进入公共事件流（不是在投影层过滤），否则新增一个 converter 即可泄漏。 |
 | `REASONING_ENCRYPTED_VALUE` | 未产出。 | 当前明确不产出；只有端到端密文保真需求和独立安全设计后启用。 | 无。 |
 | `CUSTOM` | 已作为所有 AAF 事件兜底。 | 保留 `aaf.authorization.*`、审批、澄清、任务拓扑、证据等无一等协议类型的安全扩展；不再把可标准化事件全部降级为 Custom。 | 扩展 AAF converter registry。 |
 | `RAW` | 未产出。 | 明确不产出；不得绕过 `ExecutionEventPublicMapper` 暴露内部事件。 | 无。 |
+
+### 协调者与执行者的事件区分（2026-09-01 修正）
+
+AAF 的事件流是**编排层事件 + ReActAgent 事件的并集**，且 TaskBoard 多节点场景下协调者与执行者各自是独立 execution。区分机制定案如下，取代本节此前"三段 messageId + parentRunId + Activity 拓扑"的初步设想。
+
+**采用官方 `source` 路径约定，但由 AAF 自行指定。** 官方靠 `AgentEvent.getSource()` 区分父子（父为 `null`，子为 `"main/researcher"` 斜杠路径），前提是子事件被转发进父的同一条 `streamEvents()` 流——那是嵌套委派模型。AAF 是平级编排（ADR-005 议题二），每个节点是独立流，因此 core 给出的 `source` 对所有节点恒为 `null`，不能直接用。但 `source` 只是一套约定而非 core 的内生能力，AAF 内部有 `ExecutionEvent.parentExecutionId`，可以在映射层自行合成同形状的路径。这样线协议与官方一致，客户端与官方 converter 的既有理解不必改。参考：<https://java.agentscope.io/v2/zh/docs/harness/subagent.html#streamevents>
+
+**线协议形状对齐官方 `SubagentEventConverter`**：
+
+| 节点 | AG-UI 表达 | 理由 |
+|---|---|---|
+| 根节点（`parentExecutionId == null`，面向用户的应答者） | 标准事件：`TEXT_MESSAGE_*` / `TOOL_CALL_*` / `RUN_*` | 它的输出就是给用户看的助手回复 |
+| 非根节点（执行者、子任务） | `CUSTOM`，payload 带 `source` 路径 + 原始事件类型 | AG-UI 的 `TEXT_MESSAGE` 语义是"最终助手回复"，把执行者的中间推理混入会让客户端把碎片当主回复渲染。官方 `SubagentEventConverter` 正是这样处理（`source != null` 一律降级 CUSTOM，不按类型注册）。`tmp/agentscope-java/agentscope-extensions/agentscope-extensions-protocol/agentscope-extensions-agui/src/main/java/io/agentscope/core/agui/adapter/strategy/SubagentEventConverter.java:33,51,131-139` |
+
+由此产生的连带简化：**只有根节点发 `TEXT_MESSAGE`**，messageId 的跨执行冲突问题自然消失，`replyId:blockId` 即可满足唯一性；`executionId` 段保留但降为防御性前缀，不再是必需。`RunStarted.parentRunId` 仍建议填真值以表达 run 嵌套，但不再是区分的唯一依赖。
+
+**前置条件不变**：`AafAiTaskEvent` 必须补 `parentExecutionId` 与节点归属（角色或路径）。公共事件不透出这两者，投影层无法判断标准/CUSTOM 分支，也无法合成 `source`。这一步涉及"内部标识是否可对外暴露"的安全边界，需要人类确认暴露形式（原始 agentId 还是稳定节点标签）。
+
+**借鉴 `remoteStreamDetail` 的详细度分级**：官方对远程子 agent 提供 `STATUS` / `FULL` / `VERBOSE` 三档，理由是"对只渲染文本的调用方来说这些事件纯粹是额外流量"。AAF 多节点并行（协调者 + N 执行者）有同样问题，Activity/Step 的详细度应可配置，不一刀切全发。
+
+**已核实无需处理**：执行者失败不会中断整板事件流。`DelegatedTaskCoordinator.executeSubTask` 用 `onErrorResume` 就地吞掉子流异常并转 `Flux.empty()`，`onError` 不传播到 `executeBoard` 的 `flatMap`，因此不会取消其余并行节点——与官方"子 agent 出错写成 TOOL_RESULT、不传播 onError"等价。`apps/service/aaf-framework/src/main/java/com/xuejiai/aaf/framework/intelligent/assistant/application/DelegatedTaskCoordinator.java:513-517`
+
+**待确认**：哪个节点是面向用户的应答者。当前存在 AGGREGATOR 概念（`DelegatedTaskCoordinatorAggregatorCompletionTest`），最终文本可能来自聚合者而非协调者。判定规则暂定为 `parentExecutionId == null` 的根执行，实施前需与 `runtime.md` 的交付责任定义核对。
 
 ### converter/registry 结构决策
 
@@ -298,7 +321,7 @@ Controller 必须在启动新 execution 前以 `(tenantId, threadId, interruptId
 | 工作包 | 改动 | 验收判据 | 证据回链 |
 |---|---|---|---|
 | HLP-A1 | 先扩 `AgentScopeEventMapper`：补 text end、tool args/end、tool result 流、confirm/external result；对 31 项建立显式策略。 | 枚举新增项会使测试失败；无无说明 default；CoT 默认不外发。 | `tmp/agentscope-java/agentscope-core/src/main/java/io/agentscope/core/event/AgentEventType.java:40-90` |
-| HLP-A2 | 建 AAF converter registry/context/enricher，瘦身 `AgUiProjector`。 | 每个 converter 独立单测；同 run 的 start/end 配对且 finish 只一次。 | `apps/service/aaf-api/src/main/java/com/xuejiai/aaf/module/ai/agui/AgUiProjector.java:32-278` |
+| HLP-A2 | 建 AAF converter registry/context/enricher，瘦身 `AgUiProjector`。 | 每个 converter 独立单测；同 run 的 start/end 配对且 finish 只一次。 | `apps/service/aaf-api/src/main/java/com/xuejiai/aaf/module/ai/agui/AgUiProjector.java` |
 | HLP-A3 | 补 tool args、state、step、messages、activity、success/interrupt outcome。 | 官方 `@ag-ui/core` schema 契约测试通过；重连 snapshot 与增量一致。 | `tmp/agentscope-java/agentscope-extensions/agentscope-extensions-protocol/agentscope-extensions-agui/src/main/java/io/agentscope/core/agui/event/AguiEvent.java:43-1695` |
 | HLP-A4 | 增加 resume 输入并接 AAF 持久 HITL；不使用官方内存 coordinator。 | 重启/跨副本后可恢复；缺失、重复、未知、过期 interrupt 全部 fail closed。 | `tmp/agentscope-java/agentscope-extensions/agentscope-extensions-protocol/agentscope-extensions-agui/src/main/java/io/agentscope/core/agui/processor/AguiResumeCoordinator.java:53-198` |
 | HLP-A5 | 为 ADR-005 准备勘误提案，不在本任务修改 ADR。 | 人类确认后由协调者增补，保留历史决策链。 | `docs/design/adr/ADR-005-agentscope-boundary-and-orchestration.md` |
@@ -518,7 +541,7 @@ public record FrozenToolDescriptor(String name, String purpose) {}
 | `PromptInvocationGateway` / `AgentScopeNonAutonomousModelInvoker` | L0 不创建 Agent/Task；Function Contract、模型选择与 structured output 的责任边界；禁止 provider fallback。 | “调用大模型”。 | `apps/service/aaf-framework/src/main/java/com/xuejiai/aaf/framework/intelligent/core/prompt/PromptInvocationGateway.java:20-161` |
 | `DelegatedTaskCoordinator.executeSubTask` | CoordinatorPlan 与 ExecutorPlan 的父子边界；APPROVED 前禁止执行；replan 必须交回 coordinator。 | “先规划再执行”。 | `apps/service/aaf-framework/src/main/java/com/xuejiai/aaf/framework/intelligent/assistant/application/DelegatedTaskCoordinator.java:454-602` |
 | `ExecutorPlan` / `ExecutorPlanStep` | 状态机、内容不可变 revision、单 RUNNING、工具子集、CAS；L3 持久而 L2 只读快照。 | 字段逐个复述。 | `docs/design/framework/intelligent/architecture.md` |
-| `AgUiProjector` / registry/context | 为什么只消费安全公共事件；start/end 配对、finish 一次、interrupt/resume 的持久真理源；Reasoning 默认关闭。 | 枚举 28 个事件的重复 Javadoc。 | `apps/service/aaf-api/src/main/java/com/xuejiai/aaf/module/ai/agui/AgUiProjector.java:32-278` |
+| `AgUiProjector` / registry/context | 为什么只消费安全公共事件；start/end 配对、finish 一次、interrupt/resume 的持久真理源；Reasoning 默认关闭。 | 枚举 28 个事件的重复 Javadoc。 | `apps/service/aaf-api/src/main/java/com/xuejiai/aaf/module/ai/agui/AgUiProjector.java` |
 | agentscope `package-info.java` 与 POM 注释 | AAF Harness 边界、core 依赖、组件链路；删除 HarnessAgent 推荐入口的过时叙事。 | 大段复制 ADR。 | `apps/service/aaf-framework/src/main/java/com/xuejiai/aaf/framework/intelligent/infrastructure/agentscope/package-info.java:11-41`；`apps/service/aaf-framework/pom.xml:140-144` |
 
 ## 分阶段路线
@@ -601,7 +624,7 @@ RQ-01～RQ-10 已在 2026-08-31 基线修复，本计划不重复实现，但 co
 | Harness 默认泄漏 | `tmp/agentscope-java/agentscope-harness/src/main/java/io/agentscope/harness/agent/HarnessAgent.java:2096-2621` | <https://java.agentscope.io/v2/zh/docs/harness/architecture.html> | `apps/service/aaf-framework/src/main/java/com/xuejiai/aaf/framework/intelligent/infrastructure/agentscope/compiler/AgentScopeSpecCompiler.java:148-213` |
 | 官方 Plan Mode | `tmp/agentscope-java/agentscope-harness/src/main/java/io/agentscope/harness/agent/middleware/PlanModeMiddleware.java:144-242` | <https://java.agentscope.io/v2/zh/docs/harness/plan-mode.html> | `apps/service/aaf-framework/src/main/java/com/xuejiai/aaf/framework/intelligent/assistant/application/DelegatedTaskCoordinator.java:454-602` |
 | 官方 Subagent | `tmp/agentscope-java/agentscope-harness/src/main/java/io/agentscope/harness/agent/tool/AgentSpawnTool.java:287-1285` | <https://java.agentscope.io/v2/zh/docs/harness/subagent.html> | `apps/service/aaf-framework/src/main/java/com/xuejiai/aaf/framework/intelligent/assistant/model/TaskBoard.java:74-282` |
-| AG-UI 事件模型 | `tmp/agentscope-java/agentscope-extensions/agentscope-extensions-protocol/agentscope-extensions-agui/src/main/java/io/agentscope/core/agui/event/AguiEvent.java:43-1747` | <https://java.agentscope.io/v2/zh/docs/integration/ag-ui.html> | `apps/service/aaf-api/src/main/java/com/xuejiai/aaf/module/ai/agui/AgUiProjector.java:32-278` |
+| AG-UI 事件模型 | `tmp/agentscope-java/agentscope-extensions/agentscope-extensions-protocol/agentscope-extensions-agui/src/main/java/io/agentscope/core/agui/event/AguiEvent.java:43-1747` | <https://java.agentscope.io/v2/zh/docs/integration/ag-ui.html> | `apps/service/aaf-api/src/main/java/com/xuejiai/aaf/module/ai/agui/AgUiProjector.java` |
 | AG-UI converter/context | `tmp/agentscope-java/agentscope-extensions/agentscope-extensions-protocol/agentscope-extensions-agui/src/main/java/io/agentscope/core/agui/adapter/strategy/AgentEventConverterRegistry.java:32-138` | <https://java.agentscope.io/v2/zh/docs/integration/ag-ui.html> | `apps/service/aaf-framework/src/main/java/com/xuejiai/aaf/framework/intelligent/shared/event/publication/ExecutionEventPublicMapper.java:16-206` |
 | AG-UI resume | `tmp/agentscope-java/agentscope-extensions/agentscope-extensions-protocol/agentscope-extensions-agui/src/main/java/io/agentscope/core/agui/processor/AguiResumeCoordinator.java:39-228` | <https://java.agentscope.io/v2/zh/docs/integration/ag-ui.html> | `apps/service/aaf-framework/src/main/java/com/xuejiai/aaf/framework/intelligent/assistant/application/PersistentHitlCoordinator.java:41-339` |
 | AgentState store | `tmp/agentscope-java/agentscope-core/src/main/java/io/agentscope/core/state/AgentStateStore.java:34-166` | <https://java.agentscope.io/v2/zh/docs/building-blocks/state.html> | `apps/service/aaf-framework/src/main/java/com/xuejiai/aaf/framework/intelligent/infrastructure/agentscope/state/SpringRedisClientAdapter.java:16-90` |

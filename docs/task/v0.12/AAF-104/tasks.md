@@ -61,16 +61,41 @@ gains:
 
 ### #10403 补齐必需事件族
 
-- **状态**：[ ] 待开始
+- **状态**：[ ] 待开始（🔴 契约需 architect 先审，见下方"契约修正"）
 - **负责人**：developer-service
-- **依赖**：#10402
+- **依赖**：#10402、#10405（勘误已完成）
+- **契约修正（2026-09-01，据官方文档与源码核实）**：
+  - **节点区分采用官方 `source` 路径约定，由 AAF 自行合成**。core 的 `AgentEvent.getSource()` 在 AAF 平级编排下对所有节点恒为 `null`（那是嵌套委派模型的产物），但 `source` 只是约定，AAF 用内部已有的 `parentExecutionId` 自行合成同形状路径即可。参考 <https://java.agentscope.io/v2/zh/docs/harness/subagent.html#streamevents>
+  - **线协议分两类，对齐官方 `SubagentEventConverter`**：根节点（`parentExecutionId == null`）发标准 `TEXT_MESSAGE_*`/`TOOL_CALL_*`；非根节点一律降级 `CUSTOM` 并在 payload 带 `source` + 原始事件类型。理由：`TEXT_MESSAGE` 语义是"最终助手回复"，执行者中间推理混入会被客户端当主回复渲染。
+  - **连带简化**：只有根节点发 `TEXT_MESSAGE`，messageId 跨执行冲突消失，`replyId:blockId` 即够；不再需要三段派生。
+  - **前置阻塞项**：`AafAiTaskEvent` 必须补 `parentExecutionId` 与节点归属，否则投影层无法判断分支也无法合成 `source`。该字段涉及"内部标识可否对外暴露"，🔴 需人类确认暴露形式（原始 agentId vs 稳定节点标签）。
+  - **借鉴 `remoteStreamDetail`**：Activity/Step 引入 `STATUS`/`FULL`/`VERBOSE` 类详细度档位，多节点并行时不一刀切全发。
+  - **待确认**：面向用户的应答者是协调者还是聚合者（存在 AGGREGATOR 概念），判定规则暂定 `parentExecutionId == null`，实施前与 `runtime.md` 交付责任定义核对。
 - **范围**：
+  - `AafAiTaskEvent` 补 `parentExecutionId` + 节点归属（前置）。
   - `TOOL_CALL_ARGS`：按 schema 脱敏后的 JSON delta；无法逐片安全脱敏时缓冲成完整对象再发一个 delta。
   - `STATE_SNAPSHOT/DELTA`：新增安全 `AgUiStateView`，从 TaskBoard snapshot 与公共事件生成；禁止回吐 `forwardedProps`、凭据、Prompt 或完整 TaskBoard。
   - `STEP_STARTED/FINISHED`：为 planning / execution / verification / aggregation 稳定阶段成对产出。
   - `MESSAGES_SNAPSHOT`、`ACTIVITY_SNAPSHOT/DELTA`、`RUN_FINISHED` 成功与 interrupt outcome。
-  - `TEXT_MESSAGE_*` 的 messageId 改用 `replyId:blockId` 派生，支持单 execution 多文本块。
-- **完成标准**：官方 `@ag-ui/core` schema 形状断言通过；重连 snapshot 与增量一致；`compile` 通过。
+  - 非根节点 CUSTOM 投影 converter（对齐官方形状）。
+  - `TEXT_MESSAGE_*` 的 messageId 改用 `replyId:blockId` 派生。
+  - 落地 #10401 欠的 8 项事件映射（`TEXT_BLOCK_END`、`TOOL_CALL_DELTA/END`、`TOOL_RESULT_START/TEXT_DELTA`、`USER_CONFIRM_RESULT`、`EXTERNAL_EXECUTION_RESULT`、`REQUIRE_EXTERNAL_EXECUTION`），并把 `replyId`/`blockId` 写入 payload。
+  - 统一 converter 输入为公共事件，修掉 #10402 记录的脱敏缺口（`MESSAGE_DELTA` 正文当前绕过 `ExecutionEventPublicMapper`）。
+  - 评估用官方 `AguiStreamContext` 替换自建 `AafAguiStreamContext` 的 ReActAgent 侧部分（见下）。
+- **完成标准**：官方 `@ag-ui/core` schema 形状断言通过；重连 snapshot 与增量一致；根/非根事件分类可验证；`compile` 通过。
+- **已核实无需处理**：执行者失败不中断整板流——`DelegatedTaskCoordinator:513-517` 的 `onErrorResume` 已就地吞掉子流异常转 `Flux.empty()`，`onError` 不传播到 `executeBoard` 的 `flatMap`，与官方"子 agent 出错写 TOOL_RESULT、不传播 onError"等价。
+- **顺带发现（不并入本任务）**：该 `onErrorResume` 把错误摊平为 `"子任务执行异常"` 字符串，丢弃了 `AgentScopeFailureClassifier` 已算出的 `failureCategory`/`retryable`，导致协调者无法区分"可重试的模型超时"与"不可重试的规格非法"。属编排层失败语义问题，非事件投影，建议独立登记。
+
+### #10403b 官方 AguiStreamContext 复用评估
+
+- **状态**：[ ] 待开始
+- **负责人**：architect + developer-service
+- **依赖**：#10402
+- **背景**：官方 `AguiStreamContext`（373 行）已覆盖 ReActAgent 侧全部配对面——text / reasoning / toolCall args / toolResult text 与 data / suspended / interrupt / `finishPendingEvents`，正是 #10403 要新建的东西。自建的 `AafAguiStreamContext` 只 135 行且功能是其子集。
+- **可行性已验证**：构造函数 `public AguiStreamContext(String threadId, String runId, AguiAdapterConfig config)` 公开；`config` 与 `runInput` 只存放不参与逻辑（全文除构造赋值与 getter 外零引用），不被官方入参模型绑住；发射模型 `emit()` + `drainEvents()` 可对接 AAF 现有 `List<AguiEvent>` 返回风格。
+- **边界**：官方 context **完全不含** `Custom`/`Activity`/`Step`/`StateSnapshot`/`MessagesSnapshot` 出口（grep 零命中），即**只覆盖 ReActAgent 侧，不覆盖 AAF 编排层事件**。因此结论是分层复用而非整体替换：ReActAgent 侧复用官方，编排层侧保留 AAF 自建并收窄职责。
+- **必须核对的默认值**（`AguiAdapterConfig`，属"builder 默认值必须验证"规则）：`emitStateEvents=true`（需关，用 AAF 的 state view）、`emitToolCallArgs=true`（**必须关**，否则工具参数原样外发绕过 schema 脱敏）、`enableReasoning=false`（与"CoT 默认不外发"一致，保持）、`emitTokenUsage=false`、`baseEventPropertiesEnricherEnabled=false`、`emitSubagentEventsAsNative=false`。
+- **完成标准**：给出"复用/不复用"结论与依据；若复用，`AafAguiStreamContext` 收窄为只管编排层事件出口。
 
 ### #10404 持久 interrupt / resume 闭环
 
