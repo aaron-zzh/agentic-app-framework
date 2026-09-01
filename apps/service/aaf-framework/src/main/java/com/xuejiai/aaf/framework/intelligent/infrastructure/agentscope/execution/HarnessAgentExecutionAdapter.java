@@ -41,12 +41,12 @@ import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePor
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
 
+import io.agentscope.core.ReActAgent;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.event.AgentEvent;
 import io.agentscope.core.event.AgentEventType;
 import io.agentscope.core.state.AgentState;
 import io.agentscope.core.state.AgentStateStore;
-import io.agentscope.harness.agent.HarnessAgent;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -56,7 +56,8 @@ import reactor.core.scheduler.Scheduler;
 /**
  * AgentExecutionPort 的唯一 AgentScope Harness 实现。
  *
- * <p>职责：解析执行规格 → 编译 HarnessAgent → 订阅 {@code streamEvents} 事件流 → 映射为 AAF 事件并顺序入库。同时维护活跃执行表以支持取消与中断。
+ * <p>职责：解析执行规格 → 编译 core ReActAgent → 订阅 {@code streamEvents} 事件流 → 映射为 AAF
+ * 事件并顺序入库。同时维护活跃执行表以支持取消与中断。
  */
 @Slf4j
 public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
@@ -610,8 +611,8 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
     /** interrupt 幂等：CAS 保证同一执行只向 ReActAgent 下发一次中断。 */
     private void interruptOnce(ActiveExecution active) {
         if (active.interruptIssued().compareAndSet(false, true)) {
-            active.agent().getDelegate().interrupt(active.runtimeContext());
-            log.debug("[AgentLoop] 已向 Harness ReAct 执行体下发中断");
+            active.agent().interrupt(active.runtimeContext());
+            log.debug("[AgentLoop] 已向 core ReAct 执行体下发中断");
         }
     }
 
@@ -670,7 +671,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
 
     /** 解析结果：可执行 Agent + 计量与超时所需元数据；ephemeral 表示用完即销毁。 */
     private record ResolvedExecution(
-            HarnessAgent agent,
+            ReActAgent agent,
             ModelSpec model,
             String agentIdentifier,
             ExecutionPolicy executionPolicy,
@@ -697,7 +698,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
 
     /** 单次执行的运行态标志位，用于取消、中断与终态事件去重。 */
     private record ActiveExecution(
-            HarnessAgent agent,
+            ReActAgent agent,
             RuntimeContext runtimeContext,
             boolean ephemeral,
             AtomicBoolean released,
@@ -706,7 +707,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
             AtomicReference<TerminalState> terminal) {
 
         private ActiveExecution(
-                HarnessAgent agent, RuntimeContext runtimeContext, boolean ephemeral) {
+                ReActAgent agent, RuntimeContext runtimeContext, boolean ephemeral) {
             this(
                     agent,
                     runtimeContext,

@@ -17,17 +17,23 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.model.Age
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.AgentScopeToolkitFactory;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AgentId;
 
+import io.agentscope.core.ReActAgent;
 import io.agentscope.core.state.AgentStateStore;
-import io.agentscope.harness.agent.HarnessAgent;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 将版本化 AAF AgentSpec 编译并缓存为无状态 HarnessAgent。
+ * 将版本化 AAF AgentSpec 编译并缓存为无状态 AgentScope core {@link ReActAgent}。
  *
- * <p>HarnessAgent 是无状态引擎：实例只持有不可变配置（system prompt / 模型 / 工具集）， 会话数据由 AgentStateStore 按 (userId,
- * sessionId) 寻址，因此同一执行画像可跨请求共享一个实例。
+ * <p><b>为什么是 core ReActAgent 而不是官方 HarnessAgent</b>（ADR-005 议题三）：AAF 对 Harness 十项工程能力的使用率为零， 而
+ * {@code HarnessAgent.builder()} 即便调用全部 15 个 {@code disableXxx()} 仍会构造 workspace / filesystem /
+ * message bus 并注册 {@code WaitAsyncResultsTool}——后者是真实的工具泄漏。AAF 只需要 ReAct 推理循环与工具调用， Agent
+ * 外层的规格冻结、生命周期、缓存、中断、事件与治理由本包自行承担（即 AAF Harness 层）。
  *
- * <p>两个缓存都是有界 LRU（RQ-06）：画像持续抖动（prompt / 模型 / 工具变化）时旧实例按最近最少使用淘汰并 close，不再等到容器关闭才回收。
+ * <p><b>无状态前提</b>：ReActAgent 实例只持有不可变配置（system prompt / 模型 / 工具集 / 迭代上限），会话数据由 AgentStateStore 按
+ * (userId, sessionId) 寻址，因此同一执行画像可跨请求共享一个实例。业务 agentId 不进入 core 运行时身份（core 无该 builder 参数），只存在于
+ * AgentSpec、缓存键、RuntimeContext 与事件中。
+ *
+ * <p><b>缓存不变量</b>：两个缓存都是有界 LRU（RQ-06），画像持续抖动（prompt / 模型 / 工具变化）时旧实例按最近最少使用淘汰 并 close，不再等到容器关闭才回收。
  */
 @Slf4j
 public final class AgentScopeSpecCompiler implements AutoCloseable {
@@ -61,7 +67,7 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
     }
 
     /** 按完整不可变执行画像命中预定义 Agent 编译产物。 */
-    public HarnessAgent compile(
+    public ReActAgent compile(
             AgentSpec spec,
             CompiledSystemPrompt compiledSystemPrompt,
             List<ToolRef> effectiveTools) {
@@ -81,13 +87,13 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
     }
 
     /** 按完整任务执行画像编译并缓存默认 Role 的主助理执行体。 */
-    public HarnessAgent compileDirect(
+    public ReActAgent compileDirect(
             SubagentSpec.Dynamic spec,
             ModelSpec executionModel,
             CompiledSystemPrompt compiledSystemPrompt,
             List<ToolRef> effectiveTools) {
         var resolved = resolveDynamic(spec, executionModel, compiledSystemPrompt, effectiveTools);
-        // 执行策略进入缓存键（RQ-07）：maxIterations / maxRetries 已写进 HarnessAgent 不可变配置，
+        // 执行策略进入缓存键（RQ-07）：maxIterations / maxRetries 已写进 ReActAgent 不可变配置，
         // 若不纳入键，策略不同的两次直答会复用首次编译的迭代与重试上限，形成执行策略内部不一致
         var key =
                 new DirectKey(
@@ -105,14 +111,14 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
     }
 
     /** 现场编译动态子智能体；规格没有稳定版本键，因此不进入定义缓存。 */
-    public HarnessAgent compileDynamic(
+    public ReActAgent compileDynamic(
             SubagentSpec.Dynamic spec,
             ModelSpec executionModel,
             CompiledSystemPrompt compiledSystemPrompt,
             List<ToolRef> effectiveTools) {
         var resolved = resolveDynamic(spec, executionModel, compiledSystemPrompt, effectiveTools);
         log.debug(
-                "[AgentScope编译] 现场编译 AAF 动态委托 HarnessAgent：identifier={}，模型={}，工具数={}；Harness 内建子智能体、动态技能、记忆和工作区能力均已关闭",
+                "[AgentScope编译] 现场编译 AAF 动态委托 ReActAgent：identifier={}，模型={}，工具数={}；工作区、记忆、子智能体、技能与文件 Shell 能力均不在 core 执行面内",
                 spec.identifier(),
                 executionModel.modelId(),
                 resolved.tools().size());
@@ -136,86 +142,65 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
         return new DynamicExecutionProfile(effectiveTools, compiledSystemPrompt.content());
     }
 
-    private HarnessAgent compileDynamicNew(
+    private ReActAgent compileDynamicNew(
             SubagentSpec.Dynamic spec,
             ModelSpec executionModel,
             List<ToolRef> effectiveTools,
             String effectiveSystemPrompt) {
-        var toolkit = toolkitFactory.create(effectiveTools);
-        // Harness 内置能力（工作区 / 记忆 / 子智能体 / 技能 / 文件与 Shell / 压缩）全部关闭：
-        // AAF 自己承担这些职责，只借用 ReAct 推理循环 + 工具调用，避免出现第二套真理源
-        var agent =
-                HarnessAgent.builder()
-                        .agentId(spec.identifier())
-                        .name(spec.name())
-                        .description(spec.description())
-                        .sysPrompt(effectiveSystemPrompt)
-                        .model(modelResolver.resolve(executionModel))
-                        .toolkit(toolkit)
-                        .stateStore(stateStore)
-                        .middleware(envelopeCapture)
-                        .maxIters(spec.executionPolicy().maxIterations())
-                        .maxRetries(spec.executionPolicy().maxModelRetries())
-                        .disableMemoryTools()
-                        .disableMemoryHooks()
-                        .disableWorkspaceContext()
-                        .disableAtPathExpansion()
-                        .disableSubagents()
-                        .disableDynamicSubagents()
-                        .disableDynamicSkills()
-                        .disableDefaultWorkspaceSkills()
-                        .disableToolsConfig()
-                        .disableFilesystemTools()
-                        .disableShellTool()
-                        .disableCompaction()
-                        .disableToolResultEviction()
-                        .skillsEnabled(false)
-                        .enableAgentTracingLog(false)
-                        .build();
-        // 兜底断言：状态必须落在共享 Redis Store，否则多副本会退化成本地 JsonFile 存储
-        if (agent.getStateStore() != stateStore) {
-            agent.close();
-            throw new IllegalStateException("HarnessAgent 未使用外部注入的 AgentStateStore");
-        }
-        return agent;
+        return buildAgent(
+                spec.name(),
+                spec.description(),
+                effectiveSystemPrompt,
+                executionModel,
+                effectiveTools,
+                spec.executionPolicy());
     }
 
-    private HarnessAgent compileNew(
+    private ReActAgent compileNew(
             AgentSpec spec, List<ToolRef> effectiveTools, String effectiveSystemPrompt) {
+        return buildAgent(
+                spec.name(),
+                spec.description(),
+                effectiveSystemPrompt,
+                spec.model(),
+                effectiveTools,
+                spec.executionPolicy());
+    }
+
+    /**
+     * 唯一的 Agent 构建入口：预定义与动态两条路径只负责准备冻结输入，装配规则在此处收敛，避免两套 builder 漂移。
+     *
+     * <p>三个显式关闭项不是冗余：core 的 {@code dynamicSkillsEnabled} 默认为 {@code true}，不显式关闭会向模型暴露 AAF
+     * 未授权的技能加载工具；{@code enableMetaTool} 与 {@code enablePendingToolRecovery} 当前默认关闭，
+     * 显式声明用于锁定意图并让上游改默认值时能被工具面断言发现。不调用 {@code enableTaskList()}——任务清单的 真理源是 AAF TaskBoard，不能出现第二份。
+     */
+    private ReActAgent buildAgent(
+            String name,
+            String description,
+            String systemPrompt,
+            ModelSpec model,
+            List<ToolRef> effectiveTools,
+            ExecutionPolicy executionPolicy) {
         var toolkit = toolkitFactory.create(effectiveTools);
-        // 关闭项含义同 compileDynamicNew
         var agent =
-                HarnessAgent.builder()
-                        .agentId(spec.agentId().value())
-                        .name(spec.name())
-                        .description(spec.description())
-                        .sysPrompt(effectiveSystemPrompt)
-                        .model(modelResolver.resolve(spec.model()))
+                ReActAgent.builder()
+                        .name(name)
+                        .description(description)
+                        .sysPrompt(systemPrompt)
+                        .model(modelResolver.resolve(model))
                         .toolkit(toolkit)
                         .stateStore(stateStore)
                         .middleware(envelopeCapture)
-                        .maxIters(spec.executionPolicy().maxIterations())
-                        .maxRetries(spec.executionPolicy().maxModelRetries())
-                        .disableMemoryTools()
-                        .disableMemoryHooks()
-                        .disableWorkspaceContext()
-                        .disableAtPathExpansion()
-                        .disableSubagents()
-                        .disableDynamicSubagents()
-                        .disableDynamicSkills()
-                        .disableDefaultWorkspaceSkills()
-                        .disableToolsConfig()
-                        .disableFilesystemTools()
-                        .disableShellTool()
-                        .disableCompaction()
-                        .disableToolResultEviction()
-                        .skillsEnabled(false)
-                        .enableAgentTracingLog(false)
+                        .maxIters(executionPolicy.maxIterations())
+                        .maxRetries(executionPolicy.maxModelRetries())
+                        .dynamicSkillsEnabled(false)
+                        .enableMetaTool(false)
+                        .enablePendingToolRecovery(false)
                         .build();
         // 兜底断言：状态必须落在共享 Redis Store，否则多副本会退化成本地 JsonFile 存储
         if (agent.getStateStore() != stateStore) {
             agent.close();
-            throw new IllegalStateException("HarnessAgent 未使用外部注入的 AgentStateStore");
+            throw new IllegalStateException("ReActAgent 未使用外部注入的 AgentStateStore");
         }
         return agent;
     }
@@ -240,7 +225,7 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
             String promptSha256,
             String promptContent) {}
 
-    /** 主助理直答缓存键；执行策略是 HarnessAgent 不可变配置的一部分，必须进键。 */
+    /** 主助理直答缓存键；执行策略是 ReActAgent 不可变配置的一部分，必须进键。 */
     private record DirectKey(
             String identifier,
             ModelSpec model,
@@ -262,7 +247,7 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
 
         private final String name;
         private final int capacity;
-        private final LinkedHashMap<K, HarnessAgent> entries;
+        private final LinkedHashMap<K, ReActAgent> entries;
 
         private BoundedAgentCache(String name, int capacity) {
             if (capacity < 1) {
@@ -273,7 +258,7 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
             this.entries =
                     new LinkedHashMap<>(16, 0.75f, true) {
                         @Override
-                        protected boolean removeEldestEntry(Map.Entry<K, HarnessAgent> eldest) {
+                        protected boolean removeEldestEntry(Map.Entry<K, ReActAgent> eldest) {
                             if (size() <= BoundedAgentCache.this.capacity) {
                                 return false;
                             }
@@ -287,8 +272,7 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
                     };
         }
 
-        private synchronized HarnessAgent computeIfAbsent(
-                K key, Function<K, HarnessAgent> factory) {
+        private synchronized ReActAgent computeIfAbsent(K key, Function<K, ReActAgent> factory) {
             var existing = entries.get(key);
             if (existing != null) {
                 return existing;
@@ -299,7 +283,7 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
         }
 
         private synchronized void closeAll() {
-            entries.values().forEach(HarnessAgent::close);
+            entries.values().forEach(ReActAgent::close);
             entries.clear();
         }
 

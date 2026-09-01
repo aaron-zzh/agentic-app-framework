@@ -37,9 +37,9 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.Tool
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AgentId;
 import com.xuejiai.aaf.test.BaseMockitoUnitTest;
 
+import io.agentscope.core.ReActAgent;
 import io.agentscope.core.model.Model;
 import io.agentscope.core.state.AgentStateStore;
-import io.agentscope.harness.agent.HarnessAgent;
 
 class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
 
@@ -92,7 +92,7 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
         assertThat(agent.getToolkit().getToolNames())
                 .contains(search.name())
                 .doesNotContain(generate.name());
-        assertThat(agent.getDelegate().getSysPrompt()).contains("技能提示");
+        assertThat(agent.getSysPrompt()).contains("技能提示");
     }
 
     @Test
@@ -141,8 +141,8 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
         var second = compiler.compile(spec, compiled("agent.compiler-test", "技能 B"), List.of());
 
         assertThat(second).isNotSameAs(first);
-        assertThat(first.getDelegate().getSysPrompt()).contains("技能 A");
-        assertThat(second.getDelegate().getSysPrompt()).contains("技能 B");
+        assertThat(first.getSysPrompt()).contains("技能 A");
+        assertThat(second.getSysPrompt()).contains("技能 B");
     }
 
     @Test
@@ -193,8 +193,8 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
         var spec = dynamicSpec(List.of(search, generate));
         var executionModel = new ModelSpec("1");
         var executor = Executors.newFixedThreadPool(2);
-        HarnessAgent searchAgent = null;
-        HarnessAgent generateAgent = null;
+        ReActAgent searchAgent = null;
+        ReActAgent generateAgent = null;
         try {
             var searchFuture =
                     CompletableFuture.supplyAsync(
@@ -225,8 +225,8 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
             assertThat(generateAgent.getToolkit().getToolNames())
                     .contains(generate.name())
                     .doesNotContain(search.name());
-            assertThat(searchAgent.getDelegate().getSysPrompt()).contains("技能 A");
-            assertThat(generateAgent.getDelegate().getSysPrompt()).contains("技能 B");
+            assertThat(searchAgent.getSysPrompt()).contains("技能 A");
+            assertThat(generateAgent.getSysPrompt()).contains("技能 B");
         } finally {
             if (searchAgent != null) {
                 searchAgent.close();
@@ -280,7 +280,7 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
     }
 
     /**
-     * RQ-07：执行策略是 HarnessAgent 不可变配置的一部分。策略不同的两次直答若共享实例，后一次会沿用首次编译的 maxIterations /
+     * RQ-07：执行策略是 ReActAgent 不可变配置的一部分。策略不同的两次直答若共享实例，后一次会沿用首次编译的 maxIterations /
      * maxRetries，形成同一执行内部策略不一致。
      */
     @Test
@@ -313,8 +313,8 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
                         List.of(search));
 
         assertThat(second).isNotSameAs(first);
-        assertThat(first.getDelegate().getMaxIters()).isEqualTo(3);
-        assertThat(second.getDelegate().getMaxIters()).isEqualTo(9);
+        assertThat(first.getMaxIters()).isEqualTo(3);
+        assertThat(second.getMaxIters()).isEqualTo(9);
     }
 
     /** RQ-06：缓存必须有界。容量为 1 时写入第二个画像必须淘汰并 close 第一个，不再等容器关闭才回收。 */

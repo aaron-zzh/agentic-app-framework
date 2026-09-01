@@ -34,7 +34,7 @@ gains:
 
 ### #10301 编译目标切为 ReActAgent
 
-- **状态**：[ ] 待开始
+- **状态**：[x] ✅ 已完成（2026-09-01）— developer-service
 - **负责人**：developer-service
 - **依赖**：无
 - **范围**：
@@ -42,17 +42,19 @@ gains:
   - 两条 builder 链收敛为唯一私有 `buildAgent(...)`，动态与预定义分支只准备冻结输入。
   - `ResolvedExecution`、`ActiveExecution` 改 core 类型；调整 `AgentScopeSpecCompilerTest` 既有断言。
 - **完成标准**：无 `io.agentscope.harness` import；预定义、DIRECT、ephemeral 三条路径行为不变；`compile` 通过。
+- **实际结果**：`compile` 6 模块全绿；`.agentId()` 因 core 无该 builder 参数而移除；15 个 `disableXxx()` 随之删除（见 #10302）。
 
 ### #10302 删除 Harness-only 开关并冻结最终工具面
 
-- **状态**：[ ] 待开始
+- **状态**：⏳ 进行中（2026-09-01）— developer-service
 - **负责人**：developer-service
 - **依赖**：#10301
 - **范围**：
-  - 删除 15 个 `disableXxx()`；显式 `dynamicSkillsEnabled(false)`、`enableMetaTool(false)`、`enablePendingToolRecovery(false)`，不调用 `enableTaskList()`。
-  - build 前显式校验 `model`、正数 `maxIters`/`maxRetries`、非空 Toolkit（core `build()` 无统一必填校验）。
-  - 在既有测试中补负向断言：最终工具名集合等于 AAF 白名单，不含 `wait_async_results`、filesystem、shell、`agent_spawn/send/list`。
+  - ✅ 删除 15 个 `disableXxx()`；显式 `dynamicSkillsEnabled(false)`、`enableMetaTool(false)`、`enablePendingToolRecovery(false)`，不调用 `enableTaskList()`。
+  - [ ] build 前显式校验 `model`、正数 `maxIters`/`maxRetries`、非空 Toolkit（core `build()` 无统一必填校验）。
+  - [ ] 在既有测试中补负向断言：最终工具名集合等于 AAF 白名单，不含 `wait_async_results`、filesystem、shell、`agent_spawn/send/list`。
 - **完成标准**：最终 Toolkit 与冻结白名单完全相等，负向断言覆盖上述工具名；`compile` 通过。
+- **备注**：`disableXxx()` 删除与 #10301 物理不可分（core 无这些方法），已随 #10301 落地。`dynamicSkillsEnabled` 上游默认 `true`，必须显式关闭。
 
 ### #10303 中断与生命周期改用 core API
 

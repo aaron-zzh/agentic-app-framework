@@ -65,7 +65,6 @@ import io.agentscope.core.event.AgentStartEvent;
 import io.agentscope.core.event.TextBlockDeltaEvent;
 import io.agentscope.core.state.AgentState;
 import io.agentscope.core.state.AgentStateStore;
-import io.agentscope.harness.agent.HarnessAgent;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
@@ -84,8 +83,7 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
     @Mock private ConversationLeasePort leases;
     @Mock private DelegatedTaskPort delegatedTasks;
     @Mock private ToolResultEvidenceStore evidenceStore;
-    @Mock private HarnessAgent agent;
-    @Mock private ReActAgent delegate;
+    @Mock private ReActAgent agent;
     @Mock private InvocationContext invocationContext;
     @Mock private ExecutionEvent failureEvent;
     @Mock private ExecutionEvent canceledEvent;
@@ -199,8 +197,7 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
 
         assertThat(cancelResult).isTrue();
         assertThat(results).containsExactly(canceledEvent);
-        verify(agent).getDelegate();
-        verify(delegate).interrupt(runtimeContext);
+        verify(agent).interrupt(runtimeContext);
     }
 
     /**
@@ -286,7 +283,7 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
         sink.tryEmitComplete();
 
         assertThat(cancelResult).isTrue();
-        verify(delegate, org.mockito.Mockito.times(1)).interrupt(runtimeContext);
+        verify(agent, org.mockito.Mockito.times(1)).interrupt(runtimeContext);
     }
 
     /**
@@ -405,7 +402,6 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
     }
 
     private void stubCanceled() {
-        when(agent.getDelegate()).thenReturn(delegate);
         when(eventMapper.canceled(any(), any(), any())).thenReturn(canceledEvent);
         when(eventStore.append(eq(canceledEvent), eq(null))).thenReturn(Mono.just(canceledEvent));
     }
@@ -502,7 +498,6 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
     }
 
     private void stubTerminalFailure() {
-        when(agent.getDelegate()).thenReturn(delegate);
         when(eventStore.append(eq(failureEvent), eq(null))).thenReturn(Mono.just(failureEvent));
         when(eventMapper.failure(any(), any(), any(), any())).thenReturn(failureEvent);
     }
