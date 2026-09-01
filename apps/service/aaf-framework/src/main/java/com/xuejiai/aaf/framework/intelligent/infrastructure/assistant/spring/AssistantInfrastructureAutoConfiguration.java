@@ -26,6 +26,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.application.CompletionVal
 import com.xuejiai.aaf.framework.intelligent.assistant.application.ContextLoadTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultCompletionValidator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultEffectiveSkillResolver;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.SubmitExecutorPlanTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultInputClassifier;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultRoleSelector;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultSkillSelectionPort;
@@ -60,6 +61,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskControlPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskRecoveryDispatchPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskRecoveryPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskTransitionPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.plan.ExecutorPlanPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.role.AiAssistantRoleRepository;
 import com.xuejiai.aaf.framework.intelligent.assistant.role.AiRoleRepository;
 import com.xuejiai.aaf.framework.intelligent.cognition.application.DefaultHybridContextCompressor;
@@ -89,6 +91,9 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistenc
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaSystemSkillBindingAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaTaskControlAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.SystemSkillBindingRepository;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.plan.ExecutorPlanRepository;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.plan.ExecutorPlanStepRepository;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.plan.JpaExecutorPlanAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.governance.ApprovalRecoveryDispatcher;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
 
@@ -166,6 +171,17 @@ public class AssistantInfrastructureAutoConfiguration {
         return new SupportHandoffTool(tasks, events);
     }
 
+    /**
+     * 计划提交后直接批准，不设独立审批关卡（ADR-006「决策推翻」2026-09-01）——风险控制交给协调者派发子节点时的既有审批点，
+     * 与步骤执行阶段具体工具调用前的既有授权链路，不为"提交步骤列表"这个动作重复建设审批机制。
+     */
+    @Bean
+    @ConditionalOnBean(ExecutorPlanPort.class)
+    @ConditionalOnMissingBean(SubmitExecutorPlanTool.class)
+    SubmitExecutorPlanTool submitExecutorPlanTool(ExecutorPlanPort plans) {
+        return new SubmitExecutorPlanTool(plans, Clock.systemUTC());
+    }
+
     @Bean
     @ConditionalOnBean({SkillCatalogPort.class, SkillReferenceCatalogPort.class})
     @ConditionalOnMissingBean(ContextLoadTool.class)
@@ -200,6 +216,13 @@ public class AssistantInfrastructureAutoConfiguration {
     ExecutionProfileSnapshotPort executionProfileSnapshotPort(
             ExecutionProfileSnapshotRepository repository) {
         return new JpaExecutionProfileSnapshotAdapter(repository);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(ExecutorPlanPort.class)
+    ExecutorPlanPort executorPlanPort(
+            ExecutorPlanRepository plans, ExecutorPlanStepRepository steps) {
+        return new JpaExecutorPlanAdapter(plans, steps);
     }
 
     @Bean

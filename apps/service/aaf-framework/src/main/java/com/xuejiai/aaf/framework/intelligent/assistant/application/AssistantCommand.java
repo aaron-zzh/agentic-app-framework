@@ -246,7 +246,26 @@ public record AssistantCommand(
             Lease nextLease,
             Instant at,
             CoordinationPlan.AggregationContract.Kind aggregationKind) {
+        return forSubTask(subTask, resolvedInput, nextLease, at, aggregationKind, controlMode);
+    }
+
+    /**
+     * 与 {@link #forSubTask(SubTask, String, Lease, Instant, CoordinationPlan.AggregationContract.Kind)}
+     * 相同，但允许为本次子执行显式覆盖 {@code controlMode}（ADR-006）。
+     *
+     * <p>用于 EXECUTOR 的 planning execution：它必须跑在 {@code READ_ONLY} 以复用 AAF 已有的工具可见性门控（{@code
+     * DefaultToolGateway} 对非只读工具的强制拒绝），而任务整体的 {@code controlMode} 可能是 {@code COLLABORATIVE}/{@code
+     * DELEGATED}。真正执行阶段（{@code executeApprovedPlan}）仍用任务原始 {@code controlMode}，不传覆盖值即可。
+     */
+    public AssistantCommand forSubTask(
+            SubTask subTask,
+            String resolvedInput,
+            Lease nextLease,
+            Instant at,
+            CoordinationPlan.AggregationContract.Kind aggregationKind,
+            ControlMode controlModeOverride) {
         Objects.requireNonNull(subTask, "subTask 不能为空");
+        Objects.requireNonNull(controlModeOverride, "controlModeOverride 不能为空");
         if (resolvedInput == null || resolvedInput.isBlank()) {
             throw new IllegalArgumentException("resolvedInput 不能为空白");
         }
@@ -295,7 +314,7 @@ public record AssistantCommand(
                 correlationId,
                 new CausationId(executionId.value()),
                 new IdempotencyKey(idempotencyRoot),
-                controlMode,
+                controlModeOverride,
                 executionContract,
                 nextLease,
                 0,

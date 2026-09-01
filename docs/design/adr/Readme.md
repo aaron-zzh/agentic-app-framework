@@ -45,6 +45,7 @@ changelog:
 | [ADR-002](ADR-002-local-env-vs-testcontainers.md) | 后端测试环境：本地真实 DB vs Testcontainers | accepted | 后端测试环境、CI 配置、AAF-023 #8 |
 | [ADR-003](ADR-003-virtual-threads-over-webflux.md) | 全量 Virtual Threads + JDBC，放弃 WebFlux + R2DBC | accepted | 后端并发模型、依赖清理、编码规范、AAF-023 #17 |
 | [ADR-005](ADR-005-agentscope-boundary-and-orchestration.md) | AgentScope 复用边界与双层编排模型定案 | proposed | 智能层 Agent/Assistant 运行时、AG-UI 协议、TaskBoard 编排、AgentScopeSpecCompiler |
+| [ADR-006](ADR-006-executor-plan-mode.md) | EXECUTOR 先规划再执行（AAF 版 Plan Mode） | accepted | DelegatedTaskCoordinator EXECUTOR 分支、v16 新增两表、PersistentHitlCoordinator 审批复用 |
 
 ## 与其他文档的关系
 
