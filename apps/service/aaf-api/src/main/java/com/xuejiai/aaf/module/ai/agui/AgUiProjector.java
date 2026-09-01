@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.publication.ExecutionEventPublicMapper;
+import com.xuejiai.aaf.module.ai.agui.converter.InternalNodeEventConverter;
 import com.xuejiai.aaf.module.ai.agui.converter.PublicEventFallbackConverter;
 import com.xuejiai.aaf.module.ai.agui.converter.RunLifecycleEventConverter;
 import com.xuejiai.aaf.module.ai.agui.converter.TextMessageEventConverter;
@@ -36,7 +37,8 @@ public final class AgUiProjector {
         this.registry =
                 new AafAguiConverterRegistry(
                         List.of(new RunLifecycleEventConverter(), new TextMessageEventConverter()),
-                        new PublicEventFallbackConverter(publicMapper));
+                        new PublicEventFallbackConverter(publicMapper),
+                        new InternalNodeEventConverter(publicMapper));
     }
 
     /** 开启一次 run 的投影会话；配对跟踪与兜底闭合依赖 per-run 状态，禁止跨 run 复用。 */
