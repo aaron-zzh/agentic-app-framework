@@ -96,6 +96,46 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
     }
 
     @Test
+    @DisplayName("Given 切换到 core ReActAgent When 编译 Then 最终工具面恰好等于白名单且无内建工具泄漏")
+    void should_expose_only_whitelisted_tools_without_builtin_leak() {
+        var search = tool("knowledge.search");
+        var spec = agentSpec(List.of(search));
+
+        var agent =
+                compiler.compile(spec, compiled("agent.compiler-test", "技能提示"), List.of(search));
+
+        // 恰好相等而非"包含"：多一个工具就是越权，少一个就是画像未生效
+        assertThat(agent.getToolkit().getToolNames()).containsExactly(search.name());
+        // 官方 Harness 在全部 disableXxx() 后仍会注册 wait_async_results；core 路径必须一个都没有
+        assertThat(agent.getToolkit().getToolNames())
+                .doesNotContain(
+                        "wait_async_results",
+                        "agent_spawn",
+                        "agent_send",
+                        "agent_list",
+                        "read_file",
+                        "write_file",
+                        "edit_file",
+                        "list_dir",
+                        "shell",
+                        "bash",
+                        "plan_enter",
+                        "plan_exit",
+                        "todo_write",
+                        "skill_load");
+    }
+
+    @Test
+    @DisplayName("Given 无工具画像 When 编译 Then 工具面为空而非注入默认工具")
+    void should_keep_tool_surface_empty_when_no_effective_tool() {
+        var spec = agentSpec(List.of(tool("knowledge.search")));
+
+        var agent = compiler.compile(spec, compiled("agent.compiler-test", "无工具提示"), List.of());
+
+        assertThat(agent.getToolkit().getToolNames()).isEmpty();
+    }
+
+    @Test
     @DisplayName("Given 相同完整执行画像 When 重复编译 Then 复用同一 Predefined Agent")
     void should_reuse_predefined_agent_for_same_execution_profile() {
         var search = tool("knowledge.search");

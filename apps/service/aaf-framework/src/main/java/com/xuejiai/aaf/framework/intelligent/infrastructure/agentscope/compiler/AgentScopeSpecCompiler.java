@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentSpec;
 import com.xuejiai.aaf.framework.intelligent.agent.model.CompiledSystemPrompt;
@@ -173,6 +174,9 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
      * <p>三个显式关闭项不是冗余：core 的 {@code dynamicSkillsEnabled} 默认为 {@code true}，不显式关闭会向模型暴露 AAF
      * 未授权的技能加载工具；{@code enableMetaTool} 与 {@code enablePendingToolRecovery} 当前默认关闭，
      * 显式声明用于锁定意图并让上游改默认值时能被工具面断言发现。不调用 {@code enableTaskList()}——任务清单的 真理源是 AAF TaskBoard，不能出现第二份。
+     *
+     * <p>不重复校验迭代与重试上限：{@link ExecutionPolicy} 的记录不变量已保证 {@code maxIterations >= 1} 与 {@code
+     * maxModelRetries >= 0}。这里只补 core {@code build()} 不做的两件事——解析后的模型非空，以及构建后的最终工具面 等于 AAF 白名单。
      */
     private ReActAgent buildAgent(
             String name,
@@ -181,13 +185,18 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
             ModelSpec model,
             List<ToolRef> effectiveTools,
             ExecutionPolicy executionPolicy) {
+        var resolvedModel = modelResolver.resolve(model);
+        if (resolvedModel == null) {
+            // core build() 不校验 model 非空，null 会一直漂到首次模型调用才以难定位的 NPE 暴露
+            throw new IllegalStateException("模型解析返回空实例: " + model);
+        }
         var toolkit = toolkitFactory.create(effectiveTools);
         var agent =
                 ReActAgent.builder()
                         .name(name)
                         .description(description)
                         .sysPrompt(systemPrompt)
-                        .model(modelResolver.resolve(model))
+                        .model(resolvedModel)
                         .toolkit(toolkit)
                         .stateStore(stateStore)
                         .middleware(envelopeCapture)
@@ -202,7 +211,24 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
             agent.close();
             throw new IllegalStateException("ReActAgent 未使用外部注入的 AgentStateStore");
         }
+        requireFrozenToolSurface(agent, effectiveTools);
         return agent;
+    }
+
+    /**
+     * 安全门：构建完成后校验模型可见工具集恰好等于 AAF 冻结白名单。
+     *
+     * <p>core {@code build()} 会 {@code toolkit.copy()}，因此这里读到的是 Agent 真正使用的那一份。断言而非依赖"没调用某个 builder
+     * 方法"——上游任何版本一旦新增默认注册的内建工具（Harness 的 {@code wait_async_results} 历史上就是这么进来的）， 都会在编译期 fail
+     * closed，而不是等到模型在生产环境调用了未授权工具才发现。
+     */
+    private static void requireFrozenToolSurface(ReActAgent agent, List<ToolRef> effectiveTools) {
+        var expected = effectiveTools.stream().map(ToolRef::name).collect(Collectors.toSet());
+        var actual = agent.getToolkit().getToolNames();
+        if (!expected.equals(actual)) {
+            agent.close();
+            throw new IllegalStateException("最终工具面与 AAF 冻结白名单不一致：期望=" + expected + "，实际=" + actual);
+        }
     }
 
     /** 容器销毁时释放全部缓存实例；一次性动态子智能体由调用方自行 close。 */

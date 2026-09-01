@@ -46,13 +46,14 @@ gains:
 
 ### #10302 删除 Harness-only 开关并冻结最终工具面
 
-- **状态**：⏳ 进行中（2026-09-01）— developer-service
+- **状态**：[x] ✅ 已完成（2026-09-01）— developer-service
 - **负责人**：developer-service
 - **依赖**：#10301
 - **范围**：
   - ✅ 删除 15 个 `disableXxx()`；显式 `dynamicSkillsEnabled(false)`、`enableMetaTool(false)`、`enablePendingToolRecovery(false)`，不调用 `enableTaskList()`。
-  - [ ] build 前显式校验 `model`、正数 `maxIters`/`maxRetries`、非空 Toolkit（core `build()` 无统一必填校验）。
-  - [ ] 在既有测试中补负向断言：最终工具名集合等于 AAF 白名单，不含 `wait_async_results`、filesystem、shell、`agent_spawn/send/list`。
+  - ✅ build 前校验解析后的 `Model` 非空（core `build()` 不校验，null 会漂到首次模型调用才 NPE）；迭代与重试上限不重复校验——`ExecutionPolicy` 记录不变量已保证。
+  - ✅ 新增 `requireFrozenToolSurface(...)` 运行期安全门：构建后校验 `agent.getToolkit().getToolNames()` 恰好等于白名单，不等则 close + 抛。
+  - ✅ 既有测试补两个负向用例：工具面 `containsExactly` 白名单且不含 14 个内建工具名；空画像时工具面为空。
 - **完成标准**：最终 Toolkit 与冻结白名单完全相等，负向断言覆盖上述工具名；`compile` 通过。
 - **备注**：`disableXxx()` 删除与 #10301 物理不可分（core 无这些方法），已随 #10301 落地。`dynamicSkillsEnabled` 上游默认 `true`，必须显式关闭。
 
