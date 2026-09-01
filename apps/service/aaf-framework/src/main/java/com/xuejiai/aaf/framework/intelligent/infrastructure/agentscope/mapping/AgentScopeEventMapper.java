@@ -291,6 +291,23 @@ public final class AgentScopeEventMapper {
                 ExecutionEventPayload.empty());
     }
 
+    /**
+     * 创建按 executionId 暂停的确定性终态事件（AAF-110）。与 {@link #canceled} 语义不同：责任主体不变，
+     * 状态槎不删除，下次同一 {@code executionId} 重新发起可续接对话历史——{@code pause(ExecutionId)}
+     * 版本的终态仲裁分支专用，不与 {@code RequestStopEvent} 驱动的 {@code mapStop} 共享调用路径。
+     */
+    public ExecutionEvent paused(
+            AgentExecutionCommand command, String agentIdentifier, MappingState state) {
+        state.status(ExecutionEventStatus.PAUSED);
+        return syntheticEvent(
+                command,
+                agentIdentifier,
+                state,
+                ExecutionEventType.EXECUTION_PAUSED,
+                ExecutionEventStatus.PAUSED,
+                ExecutionEventPayload.empty());
+    }
+
     /** AGENT_END → RUN_COMPLETED；已进入终态（失败/取消/待授权）时不再覆盖。 */
     private Optional<ExecutionEvent> mapAgentEnd(
             AgentEndEvent source,

@@ -495,8 +495,13 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         var changed =
                 task.transitionTo(
                         next, reason, humanActor(command), owner, recovery, command.requestedAt());
-        return agentExecution
-                .cancel(command.executionId())
+        // 责任主体是否变化决定状态槎处置（AAF-110）：PAUSE 同责任主体，走 pause() 保留状态槎供续接；
+        // CANCEL/TAKE_OVER 是真正终态或责任主体变化（owner 切换为 humanOwner），走 cancel() 删除状态槎。
+        var terminate =
+                command.operation() == AssistantCommand.Operation.PAUSE
+                        ? agentExecution.pause(command.executionId())
+                        : agentExecution.cancel(command.executionId());
+        return terminate
                 .flatMapMany(
                         ignored -> {
                             var saved = tasks.save(command.tenantId(), changed, command.lease());

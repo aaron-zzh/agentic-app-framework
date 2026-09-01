@@ -46,6 +46,7 @@ import io.agentscope.core.ReActAgent;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.event.AgentEvent;
 import io.agentscope.core.event.AgentEventType;
+import io.agentscope.core.shutdown.GracefulShutdownManager;
 import io.agentscope.core.state.AgentState;
 import io.agentscope.core.state.AgentStateStore;
 import lombok.extern.slf4j.Slf4j;
@@ -216,6 +217,40 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                 });
     }
 
+    /**
+     * 暂停当前活跃回合（AAF-110）：与 {@link #cancel} 的差异只在终态仲裁——{@code CANCELLING} 走常规取消收尾（删状态槎），
+     * {@code PAUSING} 让 {@code doFinally} 跳过删除，责任主体不变时下次同一 {@code executionId} 重新发起可续接对话历史。
+     * 中断下发逻辑与 {@code cancel} 完全一致，只是终态标记不同。
+     */
+    @Override
+    public Mono<Boolean> pause(ExecutionId executionId) {
+        Objects.requireNonNull(executionId, "executionId 不能为空");
+        return Mono.fromSupplier(
+                () -> {
+                    var active = activeExecutions.get(executionId);
+                    if (active == null) {
+                        log.debug(
+                                "[AgentLoop] 忽略暂停请求：executionId={}，原因=未找到活跃执行",
+                                executionId.value());
+                        return false;
+                    }
+                    if (!active.terminal()
+                            .compareAndSet(TerminalState.ACTIVE, TerminalState.PAUSING)) {
+                        log.debug(
+                                "[AgentLoop] 忽略暂停请求：executionId={}，原因=已进入终态或已标记取消，当前={}",
+                                executionId.value(),
+                                active.terminal().get());
+                        return false;
+                    }
+                    log.debug(
+                            "[AgentLoop] 已接收暂停请求：executionId={}，Agent已启动={}，将按状态下发中断",
+                            executionId.value(),
+                            active.started().get());
+                    interruptIfCancelledAndStarted(active);
+                    return true;
+                });
+    }
+
     /** 解析阶段的异常也要落成 RUN_FAILED 事件，避免调用方拿到空流。 */
     private Flux<ExecutionEvent> executeDeferred(AgentExecutionCommand command) {
         requireCurrent(command);
@@ -371,6 +406,22 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                     execution.agentIdentifier(),
                     execution.ephemeral());
 
+            // 接入 core 优雅停机生命周期（AAF-110 #11004）：JVM 优雅停机时状态由 core 原生标记
+            // shutdownInterrupted 并持久化，而不是被本适配器的 doFinally 无差别删除。绑定幂等
+            // （GracefulShutdownManager 内部按 agentId 覆盖式写入），缓存实例跨多次执行复用时重复
+            // 绑定同一 saver 无副作用。
+            GracefulShutdownManager.getInstance()
+                    .bindStateSaver(
+                            execution.agent(),
+                            state ->
+                                    stateStore.save(
+                                            state.getUserId(),
+                                            state.getSessionId(),
+                                            "agent_state",
+                                            state));
+            active.shutdownRequestId()
+                    .set(GracefulShutdownManager.getInstance().registerRequest(execution.agent()));
+
             var policy = execution.executionPolicy();
             // 总时限的完成信号：主流终止时置空，避免"等待一个永不完成的计时器"把正常完成拖到时限到点
             var mainTerminated = Sinks.<ExecutionEvent>one();
@@ -414,8 +465,9 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                     .doOnError(ignored -> interruptOnce(active))
                     // 异常收口：终态是单一 CAS 仲裁的结果，不再由分散的布尔标志推断。
                     // 先抢 ACTIVE→TERMINATED：抢到即"这是一次未被取消覆盖的真实失败"，发 RUN_FAILED。
-                    // 抢不到说明 cancel() 已先行 CAS 到 CANCELLING，退而抢 CANCELLING→TERMINATED
-                    // 发 EXECUTION_CANCELED——取消请求的调用方看到的必须是取消终态，不能是失败终态。
+                    // 抢不到依次退而抢 CANCELLING/PAUSING→TERMINATED：cancel() 已先行 CAS 到 CANCELLING 发
+                    // EXECUTION_CANCELED；pause() 已先行 CAS 到 PAUSING 发 EXECUTION_PAUSED（AAF-110，责任主体
+                    // 不变，状态槎不删除）——两者都不能被误判为失败终态。
                     .onErrorResume(
                             failure ->
                                     Flux.just(
@@ -433,13 +485,20 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                                                                     command,
                                                                     execution.agentIdentifier(),
                                                                     mappingState)
-                                                            : eventMapper.failure(
-                                                                    command,
-                                                                    execution.agentIdentifier(),
-                                                                    mappingState,
-                                                                    failure)))
+                                                            : pauseWonRace(active)
+                                                                    ? eventMapper.paused(
+                                                                            command,
+                                                                            execution
+                                                                                    .agentIdentifier(),
+                                                                            mappingState)
+                                                                    : eventMapper.failure(
+                                                                            command,
+                                                                            execution
+                                                                                    .agentIdentifier(),
+                                                                            mappingState,
+                                                                            failure)))
                     // 正常完成路径：同一套仲裁。抢到 ACTIVE→TERMINATED 即静默结束；
-                    // 抢不到说明 cancel() 已胜出，补发一次 EXECUTION_CANCELED——不会与上面的
+                    // 抢不到依次退而抢 CANCELLING/PAUSING→TERMINATED，补发对应终态事件——不会与上面的
                     // onErrorResume 分支重复执行，两者是同一订阅里互斥的终态路径。
                     .concatWith(
                             Flux.defer(
@@ -456,7 +515,14 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                                                                             execution
                                                                                     .agentIdentifier(),
                                                                             mappingState))
-                                                            : Flux.empty()))
+                                                            : pauseWonRace(active)
+                                                                    ? Flux.just(
+                                                                            eventMapper.paused(
+                                                                                    command,
+                                                                                    execution
+                                                                                            .agentIdentifier(),
+                                                                                    mappingState))
+                                                                    : Flux.empty()))
                     // concatMap 保证串行入库，sequence 由存储层原子分配；写入 SLA 与模型侧时限解耦
                     .concatMap(
                             event ->
@@ -586,17 +652,28 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         delegatedTasks.requireAgentExecution(context);
     }
 
-    /** AGENT_START 之后 Agent 才可被中断，因此在此补发早于启动到达的取消请求。 */
+    /**
+     * AGENT_START 之后 Agent 才可被中断，因此在此补发早于启动到达的取消请求；同时把 call-scoped {@code
+     * AgentState}（框架在 call 入口才注入到 {@code RuntimeContext}，建立 {@code active} 时读不到）绑定进
+     * {@code GracefulShutdownManager}（AAF-110 #11004），使优雅停机时精确定位到本次调用的 session。
+     */
     private void onSourceEvent(AgentEvent event, ActiveExecution active) {
         if (event.getType() != AgentEventType.AGENT_START) {
             return;
         }
         active.started().set(true);
         interruptIfCancelledAndStarted(active);
+        var requestId = active.shutdownRequestId().get();
+        var state = active.runtimeContext().getAgentState();
+        if (requestId != null && state != null) {
+            GracefulShutdownManager.getInstance().bindRequestState(requestId, state);
+        }
     }
 
     private void interruptIfCancelledAndStarted(ActiveExecution active) {
-        if (active.terminal().get() == TerminalState.CANCELLING && active.started().get()) {
+        if ((active.terminal().get() == TerminalState.CANCELLING
+                        || active.terminal().get() == TerminalState.PAUSING)
+                && active.started().get()) {
             interruptOnce(active);
         }
     }
@@ -610,6 +687,15 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
      */
     private static boolean cancelWonRace(ActiveExecution active) {
         return active.terminal().compareAndSet(TerminalState.CANCELLING, TerminalState.TERMINATED);
+    }
+
+    /** 与 {@link #cancelWonRace} 平级：{@code pause(ExecutionId)} 版本的终态仲裁（AAF-110）。 */
+    private static boolean pauseWonRace(ActiveExecution active) {
+        if (active.terminal().compareAndSet(TerminalState.PAUSING, TerminalState.TERMINATED)) {
+            active.pauseWon().set(true);
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -658,6 +744,19 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
             String stateUserKey) {
         release(executionId, active);
         evidenceStore.clear(executionId);
+        // 无论后续是否跳过状态槎删除，都要释放 GracefulShutdownManager 的追踪，避免 activeRequestsById 无界增长
+        // （AAF-110 #11004）。
+        var requestId = active.shutdownRequestId().get();
+        if (requestId != null) {
+            GracefulShutdownManager.getInstance().unregisterRequest(requestId);
+        }
+        if (active.pauseWon().get()) {
+            log.debug(
+                    "[AgentLoop] 暂停触发的终止，跳过状态槎删除：executionId={}，责任主体不变，下次同一 executionId"
+                            + " 重新发起可续接对话历史",
+                    executionId.value());
+            return;
+        }
         deleteExecutionState(command, stateUserKey);
     }
 
@@ -720,6 +819,12 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
     private enum TerminalState {
         ACTIVE,
         CANCELLING,
+        /**
+         * 暂停触发的终止（AAF-110）：与 {@code CANCELLING} 语义不同——责任主体不变，调用方期待下次同一
+         * {@code executionId} 能续接对话历史。{@code doFinally} 据此跳过状态槎删除，不进入 {@code CANCELLING}
+         * 的常规取消收尾路径。
+         */
+        PAUSING,
         TERMINATED
     }
 
@@ -731,7 +836,13 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
             AtomicBoolean released,
             AtomicBoolean started,
             AtomicBoolean interruptIssued,
-            AtomicReference<TerminalState> terminal) {
+            AtomicReference<TerminalState> terminal,
+            /** {@code pauseWonRace} 成功后置位（AAF-110）——{@code terminal} 最终统一收敛为 {@code TERMINATED}，
+             * 无法反推仲裁路径，需要独立标志供 {@code release(...)} 判断是否跳过状态槎删除。 */
+            AtomicBoolean pauseWon,
+            /** {@code GracefulShutdownManager.registerRequest(agent)} 返回的请求标识（AAF-110 #11004），
+             * 建立时为空，AGENT_START 到达后才能拿到 call-scoped AgentState 并绑定。 */
+            AtomicReference<String> shutdownRequestId) {
 
         private ActiveExecution(
                 ReActAgent agent, RuntimeContext runtimeContext, boolean ephemeral) {
@@ -742,7 +853,9 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                     new AtomicBoolean(),
                     new AtomicBoolean(),
                     new AtomicBoolean(),
-                    new AtomicReference<>(TerminalState.ACTIVE));
+                    new AtomicReference<>(TerminalState.ACTIVE),
+                    new AtomicBoolean(),
+                    new AtomicReference<>());
         }
     }
 }

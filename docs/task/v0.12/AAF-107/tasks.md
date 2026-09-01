@@ -88,7 +88,7 @@ gains:
 - **推翻说明一**：ADR-006 新增「决策推翻」章节（2026-09-01）——对齐官方 `permission-system.html` 后确认"计划提交"这个动作不需要独立审批关卡，风险已由协调者派发子节点时的既有审批点与步骤执行阶段的工具授权链路覆盖。`ExecutorPlanAutoApprovalPolicy`（白名单判定）已随 #10703 一并删除，`REVIEW_REQUIRED` 状态在正常路径下不再产生。
 - **推翻说明二**（2026-09-01）：核实 AgentScope [Context & AgentState](https://java.agentscope.io/v2/zh/docs/building-blocks/context.html) 文档后确认——**"中断后续跑"从来不是 AAF 侧要维护的显式步骤状态机**，而是 AgentScope core 自带能力：`AgentState.getContext()` 按 `(userId, sessionId)` 持久化完整对话历史，同一 `(userId, sessionId)` 重新发起 `call()` 时 core 自动续接。真正的缺口在于 `HarnessAgentExecutionAdapter` 当前无差别在 `doFinally` 删除 `AgentState`（"结束即删"，AAF-103 遗留），未区分"真正终态"与"被中断但会话应继续"，导致中断后历史被误删——这是**执行器核心机制**层面的问题，不是 EXECUTOR Plan Mode 独有，已整体拆出为独立故事 **AAF-110**（登记于 `docs/task/backlog.md`），本任务不再包含"中断续跑"本身。
 - **收窄后剩余范围**：`ExecutorPlanStep.status` 转换（`startStep`/`completeStep`/`failStep`，已在 #10702 定义但从未被调用）在续跑场景下的**幂等接线**——即当 AAF-110 让同一 `sessionId` 的 execution 续接上历史后，模型继续调用步骤完成类工具时，AAF 侧记录不能因为"这一步之前可能已经上报过一次（例如中断发生在上报后、`completeStep` 落库前）"而产生重复副作用或状态机非法跳转。这是纯粹的审计记录幂等问题，不涉及"驱动该执行哪一步"。
-- **依赖**：AAF-110（中断续跑机制落地后，才有"同一 execution 需要幂等接线"这个场景可验证）。
+- **依赖**：AAF-110（✅ 已完成，2026-09-02——中断续跑机制已落地，`HarnessAgentExecutionAdapter` 现在按责任主体是否变化正确分流状态槎删除，"同一 execution 需要幂等接线"这个场景已具备可验证前提）。
 - **完成标准**（收窄后）：`startStep`/`completeStep`/`failStep` 在重复调用（同一步骤上报两次）时不产生非法状态跳转或重复副作用记录；`compile` 通过。
 
 ### #10705 计划事件与 AG-UI 投影

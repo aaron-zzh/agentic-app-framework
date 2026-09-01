@@ -34,59 +34,73 @@ gains:
 
 ### #11001 立设计：状态槎保留信号与触发路径处置矩阵
 
-- **状态**：[ ] 待开始
+- **状态**：✅ 已完成（2026-09-02，方案在编码阶段被推翻并修正）— Kiro
 - **负责人**：architect
 - **依赖**：无
-- **范围**：
-  - 确认触发路径分类表（已在真理源文档给出：正常完成/失败/`stop`/`PAUSE`/`takeOver`/进程重启共 6 类）是否覆盖全部实际触发点，补齐真理源文档遗漏的路径。
-  - 确定 `AgentExecutionCommand` 新增字段的命名与类型（例如 `retainStateOnTermination: boolean`），及其在 record 规范构造器/现有唯一构造点（`AssistantApplicationService`）的赋值来源——由 `command.operation()`（`CANCEL`/`PAUSE`/`TAKE_OVER`）或 `DelegatedTaskCoordinator` 对应的 `stop`/`takeOver` 场景决定取值。
-  - **"进程重启/连接中断"一行应直接接入 core 现成机制，不新增字段**：core `GracefulShutdownManager.bindStateSaver`/`registerRequest`/`bindRequestState` 提供完整的"优雅停机标记状态+下次加载识别"链路（`AgentState.shutdownInterrupted`），AAF 当前 `HarnessAgentExecutionAdapter` 从未调用这组 API，只用了 `close()`/`interrupt(ctx)`。本任务需设计如何接入，交由 #11004 落地。
-  - 明确 `PAUSE` 场景下"不删状态槎"与既有 `RecoveryPoint` 机制的关系——`AssistantApplicationService` 中 `PAUSE` 分支已生成 `RecoveryPoint`，需确认 `RESUME` 时是否已经复用同一 `executionId`，还是需要额外改动才能触发续接。
+- **⚠️ 方案推翻**：原方案"`AgentExecutionCommand` 新增保留信号字段"建立在错误假设上——核实 `AssistantApplicationService.controlTask`（`PAUSE`/`TAKE_OVER`/`CANCEL` 唯一处理入口）后发现，这三种操作**都不构造新的 `AgentExecutionCommand`**，只调用 `agentExecution.cancel(command.executionId())` 终止一个已经在跑的旧 execution。`AgentExecutionCommand` 只在**发起**新 execution 时构造（`agentCommand(...)` 方法，两处调用点都是 `agentExecution.execute(...)`），跟**终止**现有 execution 是完全不相交的两条代码路径——保留信号不可能通过"预先声明"的方式挂在一份根本不会被重新构造的命令对象上。
+- **修正后方案**：回到"改动 `AgentExecutionPort` 接口"这条路——但不是改 `cancel(ExecutionId)` 签名（会牵动所有既有调用点被迫显式传参），而是**新增一个语义独立的 `pause(ExecutionId)` 方法**，跟 `cancel(ExecutionId)` 并列。`HarnessAgentExecutionAdapter` 内部新增 `TerminalState.PAUSING`（与 `CANCELLING` 平级）参与终态仲裁，`ActiveExecution` 新增 `pauseWon`（`AtomicBoolean`）标志——因为仲裁后 `terminal` 字段统一收敛为 `TERMINATED`，无法反推走的是哪条仲裁路径，需要独立标志供 `release(...)` 判断是否跳过状态槎删除。
+- **触发路径分类表**（最终版）：
+
+| 触发路径 | 调用点 | 责任主体是否变化 | 状态槎处置 |
+|---|---|---|---|
+| 正常完成 | `HarnessAgentExecutionAdapter` 内部终态仲裁 | 否 | 删（真正终态） |
+| 失败 | 同上 | 否 | 删（真正终态） |
+| `CANCEL`（用户主动取消） | `AssistantApplicationService.controlTask` → `agentExecution.cancel(...)` | 否，任务终止无需续接 | 删（真正终态） |
+| `PAUSE`（用户暂停） | `AssistantApplicationService.controlTask` → `agentExecution.pause(...)`（新方法） | 否，同责任主体 | **不删**（`TerminalState.PAUSING` 仲裁路径） |
+| `TAKE_OVER`（人工接管） | `AssistantApplicationService.controlTask` → `agentExecution.cancel(...)`（`owner` 切换为 `humanOwner`） | 是 | 删（责任主体变化） |
+| `stop`/`takeOver`（委托任务层，多子任务） | `DelegatedTaskCoordinator.cancelRunningChildren` → `agentExecution.cancel(...)` | 视场景，两者均对应真正终止或责任主体变化，无 PAUSE 语义 | 删 |
+| 进程重启/连接中断 | core `GracefulShutdownManager` 生命周期（#11004） | 否 | 不删（`shutdownInterrupted` 由 core 原生标记） |
+
 - **完成标准**：设计方案经审阅后方可启动 #11002。
+- **实际结果**：修正后方案已确认，#11002～#11004 按新方案实施（见下）。
 
-### #11002 `AgentExecutionCommand` 新增状态槎保留信号
+### #11002 `AgentExecutionPort` 新增 `pause(ExecutionId)` 方法
 
-- **状态**：[ ] 待开始
+- **状态**：✅ 已完成（2026-09-02）— developer-service
 - **负责人**：developer-service
 - **依赖**：#11001
 - **范围**：
-  - 按 #11001 拍板的字段命名与类型，在 `AgentExecutionCommand` record 新增字段。
-  - 唯一构造点 `AssistantApplicationService`（`new AgentExecutionCommand(...)`）按 `command.operation()` 正确赋值：`CANCEL`/正常终态 → 不保留；`PAUSE` → 保留。
-  - 全仓核实 `DelegatedTaskCoordinator.cancelRunningChildren`（`stop`/`takeOver` 共用）是否也需要经由同一构造路径传递这个信号，或该路径本就不涉及重新构造 `AgentExecutionCommand`（`cancel` 是终止已有 execution，不是新建命令，需确认信号实际生效点）。
-- **完成标准**：`compile` 通过；`PAUSE` 场景生成的命令携带保留信号为真，其余场景为假。
+  - ✅ `AgentExecutionPort` 新增 `Mono<Boolean> pause(ExecutionId executionId)`，与 `cancel(ExecutionId)` 并列（接口新增方法，不改既有方法签名）。全仓核实唯一实现是 `HarnessAgentExecutionAdapter`。
+  - ✅ `HarnessAgentExecutionAdapter.TerminalState` 新增 `PAUSING`；新增 `pauseWonRace(active)`（与 `cancelWonRace` 平级），CAS 成功时置位新增的 `ActiveExecution.pauseWon`（`AtomicBoolean`）。
+  - ✅ `AgentScopeEventMapper` 新增 `paused(...)` 公开方法（与 `canceled(...)` 平级），产出 `ExecutionEventType.EXECUTION_PAUSED`（复用既有枚举值，未新增）。
+  - ✅ `AssistantApplicationService.controlTask`：按 `command.operation()` 分流——`PAUSE` 走 `agentExecution.pause(...)`，`CANCEL`/`TAKE_OVER` 继续走 `agentExecution.cancel(...)`。`DelegatedTaskCoordinator.cancelRunningChildren`（`stop`/`takeOver` 共用）核实无 PAUSE 语义，保持 `cancel(...)` 不变。
+- **完成标准**：`compile` 通过；`PAUSE` 场景调用 `pause(...)`，其余场景调用 `cancel(...)`。
 
 ### #11003 `HarnessAgentExecutionAdapter.doFinally` 按保留信号分流状态槎处置
 
-- **状态**：[ ] 待开始
+- **状态**：✅ 已完成（2026-09-02，随 #11002 一并实施）— developer-service
 - **负责人**：developer-service
 - **依赖**：#11002
 - **范围**：
-  - `deleteExecutionState` 调用前读取 `command` 携带的保留信号，为真时跳过删除。
-  - 不改变 `stateUserKey` 命名空间构成（`executionId` 维度保留，继续防并发 TOCTOU），只改变"是否执行删除"这一步的判断条件。
-  - 核实"责任主体变化"场景（`takeOver`）下即使旧 execution 未被此信号标记保留，仍按现有逻辑正确删除，不与本次改动冲突。
-- **完成标准**：同责任主体的 `PAUSE`→`RESUME` 场景下状态槎不被误删；`stop`/`takeOver`/正常终态场景状态槎仍被正确删除；`compile` 通过。
+  - ✅ 两处终态仲裁分支（`onErrorResume`/`concatWith`）在 `cancelWonRace` 判断之后追加 `pauseWonRace` 判断，产出 `eventMapper.paused(...)` 而非误判为失败。
+  - ✅ `interruptIfCancelledAndStarted` 判断条件扩展为 `CANCELLING || PAUSING`，保证暂停请求同样能补发早到的中断信号。
+  - ✅ `release(executionId, active, command, stateUserKey)` 读取 `active.pauseWon().get()`：为真时跳过 `deleteExecutionState(...)`。
+  - ✅ 未改变 `stateUserKey` 命名空间构成（`executionId` 维度保留）。
+- **完成标准**：同责任主体的 `PAUSE`→`RESUME` 场景下状态槎不被误删；`CANCEL`/`TAKE_OVER`/正常终态场景状态槎仍被正确删除；`compile` 通过。
 
 ### #11004 接入 core `GracefulShutdownManager` 生命周期（进程重启路径）
 
-- **状态**：[ ] 待开始
+- **状态**：✅ 已完成（2026-09-02）— developer-service
 - **负责人**：developer-service
 - **依赖**：#11001
 - **范围**：
-  - `HarnessAgentExecutionAdapter` 在 execution 建立时调用 `GracefulShutdownManager.getInstance().registerRequest(agent)` 取得 `requestId`，并在 per-call `AgentState` 槎位解析后调用 `bindRequestState(requestId, state)`——目前完全没有接入这两步。
-  - 建立 `ShutdownStateSaver` 并通过 `bindStateSaver(agent, saver)` 注册，使优雅停机时状态被正确标记 `shutdownInterrupted=true` 并持久化，而不是被 AAF 自己的 `doFinally` 无差别删除。
-  - execution 正常结束（无论真正终态还是 #11003 判定"应保留"的场景）时调用 `unregisterRequest(requestId)` 释放追踪，避免 `activeRequestsById` 无界增长。
-  - 与 #11003 的分流逻辑对齐：`shutdownInterrupted=true` 的场景专属"进程级中断"，不与 `stop`/`PAUSE`/`takeOver` 的业务终止信号混用同一套判断分支，两条链路独立生效。
+  - ✅ `ActiveExecution` 新增 `shutdownRequestId`（`AtomicReference<String>`）。`executeResolved` 在 `activeExecutions.putIfAbsent(...)` 成功后调用 `GracefulShutdownManager.getInstance().bindStateSaver(agent, saver)`（`saver` 委托给既有 `stateStore.save(userId, sessionId, "agent_state", state)`）与 `registerRequest(agent)`，结果存入 `shutdownRequestId`。
+  - ✅ **关键发现**：`RuntimeContext.getAgentState()` 是"call-scoped"，只在框架于 `call()`/`streamEvents()` 入口注入后才有值——`executeResolved` 建立 `active` 那一刻读取会是 `null`。改为在 `onSourceEvent` 的 `AGENT_START` 分支（`active.started().set(true)` 之后）才调用 `bindRequestState(requestId, state)`，此时 `RuntimeContext` 已被框架填充。
+  - ✅ `release(...)` 方法（4 参数版本）无论后续是否跳过状态槎删除，都先调用 `unregisterRequest(requestId)` 释放追踪，避免 `activeRequestsById` 无界增长。
+  - ✅ 与 #11002/#11003 的分流逻辑对齐：`shutdownInterrupted` 由 core 原生标记（`GracefulShutdownManager` 内部逻辑），与 `PAUSING`/`CANCELLING` 是两条独立生效的链路，互不干扰。
 - **完成标准**：JVM 优雅停机场景下状态槎被 core 原生标记而非 AAF 误删；重启后同 `(userId, sessionId)` 加载可检测到 `shutdownInterrupted` 标记；`compile` 通过。
 
 ### #11005 验证与文档收口
 
-- **状态**：[ ] 待开始
+- **状态**：✅ 已完成（2026-09-02）— developer-service
 - **负责人**：developer-service
 - **依赖**：#11003、#11004
 - **范围**：
-  - 人工核对 #11001～#11004 的改动与 `task-durability.md` 真理源文档描述的触发路径分类表逐一对应，无遗漏或偏离。
-  - 更新 `docs/task/v0.12/AAF-107/tasks.md` #10704，确认其"计划步骤幂等接线"范围现在是否已具备可验证的前提（AAF-110 落地后，`executeApprovedPlanSteps` 恢复场景下复用同一 `executionId` 是否已天然生效）。
-- **完成标准**：`compile` 通过；AAF-107 #10704 的依赖前提已明确记录满足或不满足。
+  - ✅ 人工核对 #11001～#11004 的改动与触发路径分类表逐一对应，无遗漏或偏离。
+  - ✅ `pnpm nx compile service` BUILD SUCCESS（6 模块全绿，含测试代码编译）。
+  - ✅ 已确认 AAF-107 #10704 依赖前提：`executeApprovedPlanSteps` 恢复场景下复用同一 `executionId`/`sessionId` 重新发起 `execute(...)` 时，`HarnessAgentExecutionAdapter.doFinally` 现在按责任主体是否变化正确分流状态槎删除——`PAUSE` 场景不再无差别删除。#10704 收窄后的范围（`ExecutorPlanStep.status` 转换在续跑场景下的幂等接线）现在具备可验证的前提，可以推进。
+- **完成标准**：`compile` 通过；AAF-107 #10704 的依赖前提已明确记录满足。
+- **实际结果**：AAF-110 全部技术任务完成。
 
 ## 新增任务
 
