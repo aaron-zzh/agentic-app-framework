@@ -16,6 +16,9 @@
 - ✅ #10301 编译目标切为 ReActAgent — 15 个 `disableXxx()` 随之删除（core 无这些方法，与 #10302 物理不可分），`.agentId()` 去掉（core 无该 builder 参数，业务 agentId 只存于 AgentSpec/缓存键/RuntimeContext/事件）。（2026-09-01）
 - ✅ #10302 冻结最终工具面 — 新增 `requireFrozenToolSurface(...)` 运行期安全门（工具名集合恰好等于白名单，不等则 close + 抛）+ 解析后 Model 非空校验 + 两个负向测试用例。（2026-09-01）
 - ✅ #10303 中断与生命周期核实 — 执行管线语义未变（三类 timeout / CAS 终态 / doFinally 均为 AAF 侧逻辑）；更正 4 处失真注释。（2026-09-01）
+- ✅ #10304 依赖降为 core — 删 harness + 两个零使用扩展，victools exclusion 迁移，5 处 pom 注释与 shadow 类注释更正。（2026-09-01）
+
+> **依赖 diff 核验（替代无法用编译发现的传递依赖丢失）**：改动前后各采集 `dependency:list`。framework 与 api 各恰好移除 3 个坐标、新增 0——`agentscope-harness`、`agentscope-extensions-oss`、`agentscope-extensions-skill-postgresql-repository`，与预期完全一致。`aaf-auto-dev` 另少 24 个，是 `extensions-oss` 的阿里云 SDK 传递链（aliyun-sdk-oss / httpclient 4.x / jaxb / jdom2 / jettison / bouncycastle / opentracing），已逐项 grep 确认该模块 import 数为 0；其中 5 个 jaxb 相关坐标只是换路径后 scope 由 `compile` 变 `runtime`，并未消失。关键点：`OssStorageService` 用的 `aliyun-sdk-oss` 在 framework 是 `<optional>true</optional>` 的自有声明（此前同时也由 `extensions-oss` 非可选传递而来），改动后仍在 framework 与 api 清单中，不受影响。
 
 > **审计结论需更正（喂给 #10305）**：02-runtime-quality.md 的 RQ-12 写"`ReActAgent.close` 是 no-op，所以现状后果仅是不必要调用"。2.0.2 源码不是这样：`ReActAgent.close()` 执行 `shutdownManager.unbindStateSaver(this)` + `clearStateCache()`（`ReActAgent.java:4133-4137`），而 `interrupt(ctx)` 是通过 `getAgentState(uid, sid).interruptControl().trigger(...)` 定位在飞调用的（`ReActAgent.java:733-750`）。因此"先 close 再 interrupt"会拿到新建的 AgentState，**中断信号静默丢失**。该缺口与本次类型切换无关（`HarnessAgent.close()` 一直在内部调 `delegate.close()`），是 RQ-12 的严重性被低估，而非新引入。当前 close 只发生在订阅终止后的 `doFinally`，循环已在收尾，故实际后果有限。
 

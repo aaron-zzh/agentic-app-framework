@@ -51,7 +51,7 @@
 		<pdfbox.version>3.0.4</pdfbox.version>
 		<poi.version>5.4.1</poi.version>
 		<jsoup.version>1.18.3</jsoup.version>
-		<!-- AgentScope（2.0+ 用 agentscope-harness 作为核心入口） -->
+		<!-- AgentScope（2.0+ 执行内核用 agentscope-core，见 ADR-005 议题三） -->
 		<agentscope.version>2.0.2</agentscope.version>
 		<!-- A2A -->
 		<spring-ai-a2a.version>0.2.0</spring-ai-a2a.version>
@@ -124,11 +124,13 @@
 			</dependency>
 
 			<!-- ==================== Web / API ==================== -->
-			<!-- ===== AgentScope 2.0+：核心仅保留 agentscope-harness ===== -->
-			<!-- harness 自动传递 agentscope-core，HarnessAgent 是推荐入口 -->
+			<!-- ===== AgentScope 2.0+：执行内核用 agentscope-core ===== -->
+			<!-- 不用 agentscope-harness（ADR-005 议题三）：AAF 对 Harness 十项工程能力使用率为零，
+			     而 HarnessAgent 即便全部 disableXxx() 仍会构造 workspace / filesystem / message bus
+			     并注册 WaitAsyncResultsTool。Agent 外层治理由 AAF 自己承担。 -->
 			<dependency>
 				<groupId>io.agentscope</groupId>
-				<artifactId>agentscope-harness</artifactId>
+				<artifactId>agentscope-core</artifactId>
 				<version>${agentscope.version}</version>
 			</dependency>
 
@@ -161,25 +163,15 @@
 				<artifactId>agentscope-extensions-model-anthropic</artifactId>
 				<version>${agentscope.version}</version>
 			</dependency>
-			<!-- Skill 仓库（AAF 用 PostgreSQL，对齐 ai_skill_definition；MySQL/Git 版本暂不引入） -->
-			<dependency>
-				<groupId>io.agentscope</groupId>
-				<artifactId>agentscope-extensions-skill-postgresql-repository</artifactId>
-				<version>${agentscope.version}</version>
-			</dependency>
-			<!-- Redis 后端：AgentStateStore + BaseStore + Sandbox 共用 -->
+			<!-- Skill 仓库：官方 Skill 是磁盘/DB 上的自进化技能正文，与 AAF Skill（意图路由规则）同名不同物。
+			     零使用坐标已删除，不作为 AAF Skill 主仓的候选，详见 2026-09-01 Harness 落地计划「明确不做的事」。 -->
+			<!-- Redis 后端：AgentStateStore（SpringRedisClientAdapter 复用 Spring 连接） -->
 			<dependency>
 				<groupId>io.agentscope</groupId>
 				<artifactId>agentscope-extensions-redis</artifactId>
 				<version>${agentscope.version}</version>
 			</dependency>
-			<!-- OSS 后端：AgentStateStore + BaseStore，对接阿里云 OSS / S3 兼容存储 -->
-			<dependency>
-				<groupId>io.agentscope</groupId>
-				<artifactId>agentscope-extensions-oss</artifactId>
-				<version>${agentscope.version}</version>
-			</dependency>
-			<!-- Channel 公共接口：HarnessGateway 接入消息通道的基础抽象 -->
+			<!-- Channel 公共接口：消息通道接入的基础抽象（当前未在生产装配中使用） -->
 			<dependency>
 				<groupId>io.agentscope</groupId>
 				<artifactId>agentscope-extensions-channel-common</artifactId>

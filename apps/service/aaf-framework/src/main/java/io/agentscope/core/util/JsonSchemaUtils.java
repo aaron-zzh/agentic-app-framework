@@ -33,8 +33,17 @@ import io.agentscope.core.tool.ToolSchemaModule;
 import tools.jackson.databind.JsonNode;
 
 /**
- * Patched JsonSchemaUtils — 适配 jsonschema-generator 5.0.0 (Jackson 3.x) API。 原版 agentscope-core RC4
- * jar 用 Jackson 2.x 编译，与 Spring Boot 4 + Spring AI 冲突。 本类覆盖 jar 中同名类，解决 NoSuchMethodError。
+ * Patched JsonSchemaUtils —— 覆盖 jar 内同名类，适配 jsonschema-generator 5.0.0（Jackson 3.x）API。
+ *
+ * <p><b>为什么必须保留</b>：AgentScope 2.0.2 的 {@code agentscope-core} 用 Jackson 2 的 {@code
+ * com.fasterxml.jackson.databind.JsonNode} 与 victools 4 风格的 {@code JacksonModule} 编译，其 BOM 钉 {@code
+ * jackson 2.21.1} + {@code jsonschema-generator 4.38.0}；而 AAF 因 Spring AI on Jackson 3 必须钉 victools
+ * {@code 5.0.0}，并在 {@code aaf-framework/pom.xml} 排除 agentscope 带来的 victools。两边 API 不兼容，删除本类会 在工具
+ * schema 生成时 {@code NoSuchMethodError}。上游未修，不是"RC4 的历史问题"。
+ *
+ * <p><b>这是「禁兼容层」硬规则的显式例外</b>：本类确实是 classpath shadowing。退出路径是独立坐标的最小 AgentScope fork 或向上游提 Jackson 3
+ * / victools 5 兼容 PR，见 2026-09-01 Harness 落地计划决策六；在此之前保留并由工具 schema 相关测试锁定行为。升级 AgentScope
+ * 时必须重跑这些测试——上游一旦切到 victools 5，本类应立即删除。
  *
  * @hidden
  */

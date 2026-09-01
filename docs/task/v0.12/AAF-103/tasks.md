@@ -72,15 +72,16 @@ gains:
 
 ### #10304 依赖坐标降为 core 并清理僵尸扩展
 
-- **状态**：[ ] 待开始
+- **状态**：[x] ✅ 已完成（2026-09-01）— developer-service
 - **负责人**：developer-service
 - **依赖**：#10301、#10302、#10303
 - **范围**：
-  - `aaf-dependencies/pom.xml` 与 `aaf-framework/pom.xml` 的 `agentscope-harness` 改为 `agentscope-core`，victools 两个 `<exclusion>` 原样迁移。
-  - 删除零使用坐标 `agentscope-extensions-skill-postgresql-repository`、`agentscope-extensions-oss`；保留 redis 与三个 model 扩展。
-  - 修正 pom 注释中"harness 是推荐入口""harness 线程队列/元数据后端"等已失效叙述。
-  - 修正 `io/agentscope/core/util/JsonSchemaUtils.java` 的失真版本注释（保留该类，见计划文档决策六）。
-- **完成标准**：依赖树无直接 harness；`compile` 通过；shadow 注释准确说明 victools 4→5 断层。
+  - ✅ `aaf-dependencies/pom.xml` 与 `aaf-framework/pom.xml` 的 `agentscope-harness` 改为 `agentscope-core`，victools 两个 `<exclusion>` 原样迁移。
+  - ✅ 删除零使用坐标 `agentscope-extensions-skill-postgresql-repository`、`agentscope-extensions-oss`；保留 redis 与三个 model 扩展。
+  - ✅ 修正 pom 注释：BOM 顶部版本注释、Skill 仓库、Redis/OSS 用途、Channel、dashscope SDK 五处已失效叙述。
+  - ✅ 重写 `io/agentscope/core/util/JsonSchemaUtils.java` 类注释：说明保留原因（上游 2.0.2 仍是 Jackson 2 + victools 4，AAF 钉 victools 5，删除即 `NoSuchMethodError`）并登记为禁兼容层显式例外。
+- **完成标准**：依赖树无直接 harness；`compile` 通过；无兼容 shim。
+- **实际结果**：`compile` 全绿。**依赖清单前后 diff 已核验**——framework 与 api 各恰好移除 3 个坐标（harness / extensions-oss / skill-postgresql-repository），新增 0；aaf-auto-dev 另少 24 个（`extensions-oss` 的阿里云 SDK 传递链），已逐项确认该模块对这些库的 import 数为 0。`aliyun-sdk-oss` 在 framework 是 `<optional>true</optional>` 自有声明，改动后仍在 framework 与 api 的清单中，`OssStorageService` 不受影响。
 
 ### #10305 关闭 RQ-11 / RQ-12 / RQ-13
 

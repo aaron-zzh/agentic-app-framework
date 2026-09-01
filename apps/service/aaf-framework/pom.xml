@@ -138,10 +138,13 @@
 			<artifactId>spring-ai-starter-vector-store-pgvector</artifactId>
 		</dependency>
 		<!-- ===== AgentScope 2.0+ ===== -->
-		<!-- 核心：HarnessAgent（自动传递 agentscope-core） -->
+		<!-- 执行内核：core ReActAgent（ADR-005 议题三）。
+		     不用 agentscope-harness：AAF 对 Harness 十项工程能力使用率为零，而 HarnessAgent 即便调用全部
+		     15 个 disableXxx() 仍会构造 workspace / filesystem / message bus 并注册 WaitAsyncResultsTool。
+		     Agent 外层的规格冻结、生命周期、缓存、中断、事件与治理由 AAF 自己承担。 -->
 		<dependency>
 			<groupId>io.agentscope</groupId>
-			<artifactId>agentscope-harness</artifactId>
+			<artifactId>agentscope-core</artifactId>
 			<exclusions>
 				<!-- 排除 Jackson 2.x 的 jsonschema（Spring AI 需要 5.0.0/Jackson 3.x） -->
 				<exclusion>
@@ -168,23 +171,13 @@
 			<groupId>io.agentscope</groupId>
 			<artifactId>agentscope-extensions-model-anthropic</artifactId>
 		</dependency>
-		<!-- Skill PostgreSQL 仓库：与 AAF ai_skill_definition 表对接 -->
-		<dependency>
-			<groupId>io.agentscope</groupId>
-			<artifactId>agentscope-extensions-skill-postgresql-repository</artifactId>
-		</dependency>
-		<!-- Redis BaseStore：harness 线程队列/元数据后端 -->
+		<!-- Redis AgentStateStore：SpringRedisClientAdapter 让其复用 Spring 管理的连接 -->
 		<dependency>
 			<groupId>io.agentscope</groupId>
 			<artifactId>agentscope-extensions-redis</artifactId>
 		</dependency>
-		<!-- OSS BaseStore：大对象（生成内容快照）后端 -->
-		<dependency>
-			<groupId>io.agentscope</groupId>
-			<artifactId>agentscope-extensions-oss</artifactId>
-		</dependency>
 
-		<!-- DashScope SDK：HarnessAgent 默认 model provider 之一 -->
+		<!-- DashScope SDK：agentscope-extensions-model-dashscope 的底层 SDK -->
 		<dependency>
 			<groupId>com.alibaba</groupId>
 			<artifactId>dashscope-sdk-java</artifactId>
