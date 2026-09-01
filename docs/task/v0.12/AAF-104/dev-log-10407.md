@@ -10,10 +10,20 @@
 | `.../intelligent/assistant/application/AssistantCommand.java` | 新增 `nodeIdentity` 字段；`forSubTask` 填真值；`copy` 保留身份；次级构造器兼容非子任务操作 |
 | `.../intelligent/assistant/application/AssistantApplicationService.java` | `agentCommand` 把 `command.nodeIdentity()` 传入 InvocationContext |
 | `.../intelligent/assistant/application/DelegatedTaskCoordinator.java` | `context(command)` 同上 |
+| `.../intelligent/shared/event/ExecutionEvent.java` | 新增 `nodeIdentity` 字段 + 无节点场景次级构造器 |
+| `.../infrastructure/agentscope/mapping/AgentScopeEventMapper.java` | 从 `context.nodeIdentity()` 落入事件 |
+| `.../shared/event/publication/AafAiTaskEvent.java` | 新增 `parentExecutionId` 与 `nodeIdentity` 两字段 |
+| `.../shared/event/publication/ExecutionEventPublicMapper.java` | 两处构造点透出上述字段 |
 
 ## 实现决策
 
-- ⏳ #10407 载体 + 穿透已完成 — `NodeIdentity` → `AssistantCommand` → `InvocationContext` 全链路可传；**待做**：落 `ExecutionEvent`、透出 `AafAiTaskEvent`。（2026-09-01）
+- ✅ #10407 完成 — 链路端到端贯通：`SubTask` → `AssistantCommand.forSubTask` → `InvocationContext` → `ExecutionEvent` → `AafAiTaskEvent`。（2026-09-01）
+
+> **暴露形式选择：只出稳定/展示标签，不出原始 `agentId`**。此前登记的待确认项是"暴露 `agentId` 还是稳定节点标签"。实现选了后者——公共事件透出的是 `subTaskId`（展示标签）、`kind`、`roleKey`、`skillKey`（配置定义的稳定聚合维度），`agentId` 仍只留在内部 `ExecutionEvent`。四项都有下游必要用途：`kind` 决定标准/CUSTOM 分流、`subTaskId` 进 source 路径与拓扑展示、`roleKey`/`skillKey` 供监控聚合。
+
+> **`ExecutionEvent` 与 `AafAiTaskEvent` 的构造策略不同**：前者 18 处构造点用次级构造器避免 churn（含 5 处测试），后者只 2 处构造点直接改。判据是 churn 规模，不是"能不能加便利构造器"——2 处时加便利构造器反而多留一条可漏填的路径。
+
+> **投影兜底事件显式传 null**：`ExecutionEventPublicMapper` 第一处构造是无对应内部事件的合成投影（`projection:` 前缀），它不属于任何执行或板上节点，`parentExecutionId` 与 `nodeIdentity` 都是 null 且加了注释说明——不是漏填。
 
 > **纠正一处此前的错误判断**：我曾据 `AggregationContract` 是"契约而非节点"断言"`TaskBoard.Kind` 只有 COORDINATOR 与 EXECUTOR、没有 AGGREGATOR"。**错的**——`Kind` 实际有四个值：`COORDINATOR` / `EXECUTOR` / `EVALUATOR` / `AGGREGATOR`。是穷举 switch 的编译错误逮出来的，不是我复查发现的。`NodeKind` 已补齐四项并按"交付类（COORDINATOR/AGGREGATOR）vs 内部类（EXECUTOR/EVALUATOR）"分组。
 

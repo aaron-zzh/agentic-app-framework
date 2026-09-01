@@ -39,7 +39,61 @@ public record ExecutionEvent(
         CausationId causationId,
         IdempotencyKey idempotencyKey,
         ExecutionEventPayload payload,
-        Instant createdAt) {
+        Instant createdAt,
+        NodeIdentity nodeIdentity) {
+
+    /**
+     * 无编排节点身份的事件：DIRECT 直答、Assistant 自身的任务级事件本就不属于任何板上节点。
+     *
+     * <p>{@code nodeIdentity == null} 是有意义的取值。它是 {@code event_payload} JSONB 里的一个键，存量事件行缺该键即 反序列化为
+     * null，因此本次新增不需要 DDL 变更。
+     */
+    public ExecutionEvent(
+            EventId eventId,
+            TenantId tenantId,
+            ConversationId conversationId,
+            SessionId sessionId,
+            TaskId taskId,
+            ExecutionId executionId,
+            RunId runId,
+            ExecutionId parentExecutionId,
+            long sequence,
+            ExecutionEventType type,
+            ExecutionEventStatus status,
+            ControlMode controlMode,
+            OwnerType ownerType,
+            AssistantId assistantId,
+            AgentId agentId,
+            UserId userId,
+            CorrelationId correlationId,
+            CausationId causationId,
+            IdempotencyKey idempotencyKey,
+            ExecutionEventPayload payload,
+            Instant createdAt) {
+        this(
+                eventId,
+                tenantId,
+                conversationId,
+                sessionId,
+                taskId,
+                executionId,
+                runId,
+                parentExecutionId,
+                sequence,
+                type,
+                status,
+                controlMode,
+                ownerType,
+                assistantId,
+                agentId,
+                userId,
+                correlationId,
+                causationId,
+                idempotencyKey,
+                payload,
+                createdAt,
+                null);
+    }
 
     public ExecutionEvent {
         Objects.requireNonNull(eventId, "eventId 不能为空");

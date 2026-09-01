@@ -526,7 +526,9 @@ public final class AgentScopeEventMapper {
                 context.causationId(),
                 context.idempotencyKey(),
                 payload,
-                createdAt);
+                createdAt,
+                // 节点身份随调用上下文透传：AG-UI 投影据此区分交付类节点与内部节点
+                context.nodeIdentity());
     }
 
     /** 按 key-value 交替入参构造载荷，null 值直接跳过。 */

@@ -8,6 +8,8 @@ import java.util.Set;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
+import com.xuejiai.aaf.framework.intelligent.shared.event.NodeIdentity;
+
 /** 面向外部消费者的安全 AI 任务事件信封。 */
 public record AafAiTaskEvent(
         String eventId,
@@ -23,7 +25,9 @@ public record AafAiTaskEvent(
         Audience audience,
         Delivery delivery,
         ReferenceSafeData data,
-        Instant createdAt) {
+        Instant createdAt,
+        String parentExecutionId,
+        NodeIdentity nodeIdentity) {
 
     public AafAiTaskEvent {
         eventId = requireText(eventId, "eventId");

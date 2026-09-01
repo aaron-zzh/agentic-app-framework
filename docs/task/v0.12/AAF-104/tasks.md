@@ -61,7 +61,7 @@ gains:
 
 ### #10407 事件身份维度补全（#10403 硬前置）
 
-- **状态**：[ ] 待开始
+- **状态**：[x] ✅ 已完成（2026-09-01）— developer-service
 - **负责人**：developer-service
 - **依赖**：#10402
 - **为什么独立成任务**：它同时是「协调者/执行者事件区分」与「按 agent 类型监控」两件事的共同前置，且影响面超出事件投影——`ExecutionEvent` 本体、全部构造点、事件表 schema 与公共事件都要动。核实结果：`ExecutionEvent` 现有 21 个字段中身份相关的只有 `executionId`/`parentExecutionId`/`ownerType`/`assistantId`/`agentId`/`taskId`，**没有 `subTaskId`、`kind`、`roleKey`、`skillKey`**（`shared/` 包下这三个词分别只出现 2/1/2 次，均不在事件结构内）；`AafAiTaskEvent` 连 `agentId` 都没透出。
@@ -75,7 +75,9 @@ gains:
   - `roleKey`/`skillKey` 是配置定义的稳定值，是监控聚合应使用的维度；`agentId` 是 Agent 定义 ID，不等于"角色"。
   - 静态 Team 模式下 `subTaskId`/`roleKey`/`skillKey` 必须匹配预定义 worker（`TaskBoard.java:124`），协调者无命名权——两种模式的命名权差异要在实现中区分。
 - **完成标准**：事件可按 `roleKey` 聚合；`source` 路径可从 `parentExecutionId` + `subTaskId` 合成；DIRECT 模式 `NodeIdentity` 为 null 且行为不变；`compile` + `test` 全绿。
-- **待人类确认**：事件表已有存量数据时的兼容处理（阶段约束是直接改 v16 不新增迁移，但存量事件行的新列为 null 是否可接受）。
+- **实际结果**：链路端到端贯通（`SubTask` → `AssistantCommand.forSubTask` → `InvocationContext` → `ExecutionEvent` → `AafAiTaskEvent`）；`compile` 六模块全绿。暴露形式取"稳定/展示标签"一侧——透出 `subTaskId`/`kind`/`roleKey`/`skillKey`，`agentId` 仍只留内部。
+- **DB 无需改动**：`ExecutionEventEntity` 把整个 `ExecutionEvent` 存为 JSONB `event_payload`（表 `ai_task_event`），仅提升 7 个字段为索引列。新增字段自动进 JSONB，存量行缺键即 null，原"存量数据兼容"待确认项自行消解。若将来需按 `roleKey` 做 SQL 聚合，加 JSONB 表达式索引即可，属优化非阻塞。
+- **纠正**：`TaskBoard.Kind` 实为四值（COORDINATOR / EXECUTOR / EVALUATOR / AGGREGATOR），此前误判为两值。`NodeKind` 已补齐并按交付类/内部类分组；由此产生的「每板至多一个交付类节点」不变量待 #10403 确认。
 
 ### #10403 补齐必需事件族
 

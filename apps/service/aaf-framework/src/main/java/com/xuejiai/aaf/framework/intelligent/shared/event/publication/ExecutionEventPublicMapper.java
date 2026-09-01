@@ -72,7 +72,10 @@ public final class ExecutionEventPublicMapper {
                 Delivery.PROJECTION_ONLY,
                 new ReferenceSafeData(
                         Map.of("summaryCode", summaryCode, "errorCode", safeCode(errorCode))),
-                Instant.now());
+                Instant.now(),
+                // 投影兜底事件不属于任何执行或板上节点
+                null,
+                null);
     }
 
     private AafAiTaskEvent map(ExecutionEvent event, Long eventOffset, Delivery delivery) {
@@ -91,7 +94,11 @@ public final class ExecutionEventPublicMapper {
                 descriptor.audience(),
                 delivery,
                 new ReferenceSafeData(safeData(event)),
-                event.createdAt());
+                event.createdAt(),
+                // 透出节点身份与父执行：AG-UI 据此区分交付类节点与内部节点并合成 source 路径；
+                // 暴露的是 subTaskId / roleKey / skillKey 这类稳定或展示用标签，不含原始 agentId
+                event.parentExecutionId() == null ? null : event.parentExecutionId().value(),
+                event.nodeIdentity());
     }
 
     private static Map<String, Object> safeData(ExecutionEvent event) {
