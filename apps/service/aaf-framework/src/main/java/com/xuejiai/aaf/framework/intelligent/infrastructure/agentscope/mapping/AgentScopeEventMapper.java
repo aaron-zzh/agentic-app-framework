@@ -2,6 +2,7 @@ package com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
@@ -21,6 +22,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.EventId;
 import io.agentscope.core.event.AgentEndEvent;
 import io.agentscope.core.event.AgentEvent;
 import io.agentscope.core.event.AgentResultEvent;
+import io.agentscope.core.event.AllToolsDeniedEvent;
 import io.agentscope.core.event.ExceedMaxItersEvent;
 import io.agentscope.core.event.ModelCallEndEvent;
 import io.agentscope.core.event.RequestStopEvent;
@@ -30,6 +32,7 @@ import io.agentscope.core.event.ToolCallStartEvent;
 import io.agentscope.core.event.ToolResultEndEvent;
 import io.agentscope.core.message.GenerateReason;
 import io.agentscope.core.message.ToolResultState;
+import io.agentscope.core.message.ToolUseBlock;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -135,16 +138,32 @@ public final class AgentScopeEventMapper {
                     mapStop((RequestStopEvent) source, command, agentIdentifier, state);
             case EXCEED_MAX_ITERS ->
                     mapMaxIterations((ExceedMaxItersEvent) source, command, agentIdentifier, state);
+            // 全部工具被拒不是终态：core 只在某个 middleware 回应 RequestStopEvent 时才停止推理，
+            // 否则默认继续下一轮（ReActAgent.java:3495-3515 的 stopRef 分支 + 官方 message-and-event 文档）。
+            // AAF 只注册 PromptEnvelopeCaptureMiddleware，不处理该事件，因此 Agent 必然继续。
+            // 此前映射为 RUN_FAILED + status=FAILED 造成三重错误：终态事件让 RQ-05 重放守卫误判执行已结算；
+            // status 污染使 mapAgentEnd 的 RUNNING 守卫失效、RUN_COMPLETED 永不发出；AG-UI 侧 runFinished
+            // 置位后该 run 所有后续事件被抑制——用户看到"失败"后永久静默，而 Agent 仍在工作且可能成功。
+            // 语义正确的落点是既有的 AUTHORIZATION_DENIED（HITL 拒绝动作授权），公共事件 aaf.authorization.denied
+            // 前端已消费。若产品要求"全拒即停"，需另立任务注册发 RequestStopEvent 的 middleware，让终态成真。
             case ALL_TOOLS_DENIED -> {
-                state.status(ExecutionEventStatus.FAILED);
+                var denied = ((AllToolsDeniedEvent) source).getDeniedToolCalls();
                 yield event(
                         source,
                         command,
                         agentIdentifier,
                         state,
-                        ExecutionEventType.RUN_FAILED,
-                        ExecutionEventStatus.FAILED,
-                        payload("reason", "ALL_TOOLS_DENIED"));
+                        ExecutionEventType.AUTHORIZATION_DENIED,
+                        state.status(),
+                        payload(
+                                "reason",
+                                "ALL_TOOLS_DENIED",
+                                "deniedToolCount",
+                                denied == null ? 0 : denied.size(),
+                                "deniedToolNames",
+                                denied == null
+                                        ? List.of()
+                                        : denied.stream().map(ToolUseBlock::getName).toList()));
             }
 
             // ===== 安全忽略：思考内容不外发（AAF-106 #10603 同一约束，在本层拦截而非投影层过滤） =====
