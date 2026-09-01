@@ -65,7 +65,7 @@ import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryWritePort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.SessionContextCompressionPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.SessionMemoryPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.UnifiedRetrievalPort;
-import com.xuejiai.aaf.framework.intelligent.core.llm.LlmClient;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptInvocationGateway;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelManagementService;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentRuntimePortAutoConfiguration;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentScopeInfrastructureAutoConfiguration;
@@ -282,13 +282,13 @@ public class IntelligentGovernanceAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnBean(LlmClient.class)
+    @ConditionalOnBean(PromptInvocationGateway.class)
     @ConditionalOnMissingBean(SessionContextCompressionPort.class)
     SessionContextCompressionPort sessionContextCompressionPort(
-            LlmClient llmClient, AiProperties aiProperties) {
+            PromptInvocationGateway promptGateway, AiProperties aiProperties) {
         var config = aiProperties.getSessionSummary();
         return new DefaultSessionContextCompressor(
-                llmClient, config.getScene(), config.getTimeoutMs(), config.getMaxChars());
+                promptGateway, config.getScene(), config.getTimeoutMs(), config.getMaxChars());
     }
 
     @Bean

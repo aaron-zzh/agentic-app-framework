@@ -60,13 +60,15 @@ gains:
 
 ### #10503 结构化输出统一入口与前置能力检查
 
-- **状态**：[ ] 待开始
+- **状态**：⚠️ 已知限制，不实现（2026-09-01）— Kiro
 - **负责人**：developer-service
 - **依赖**：#10502
-- **范围**：
+- **范围**（原定，未执行）：
   - 删除 `callExact` 第二方法；gateway 按 Function Contract 需要结构化输出时，调用前先判断 `model.supportsNativeStructuredOutput()`（或 `supportsNativeStructuredOutputWithTools()`，取决于是否同时有工具），不满足直接 fail-closed，不调用 `ReActAgent.call(msgs, schemaClass, ctx)`——这是唯一需要 AAF 自己包一层的逻辑，因为 `ReActAgent` 内部的降级路径硬编码无法关闭。
   - 满足原生能力时统一走 `ReActAgent.call(msgs, schemaClass, ctx)`，复用官方的 schema 生成与解析，不重新实现。
-- **完成标准**：无 `callExact` 旁路；模型不支持原生结构化输出时在调用前 fail-closed，不产生一次实际的降级工具调用；`compile` 通过。
+- **未执行原因**：全仓核实确认**当前没有任何 L0 调用点使用模型原生结构化输出**。四个已接入 gateway 的调用点（`DefaultRoleSelector`/`DefaultInputClassifier`/`ModelDrivenTaskComplexityAnalyzer`/`ModelSkillSelectionPort`）与五个待迁移调用点全部是"提示模型输出 JSON 文本 + 手工 `JsonUtils.readTreeStrict()` 解析"，不依赖 `Model.supportsNativeStructuredOutput()` 这条能力线。旧 `LlmClient.callExact` 是"精确模型调用不路由"语义，跟"结构化输出"是不同概念，任务描述里两者被混在一起表述。按"不为假设需求预留"原则，本任务标记为已知限制，不写无调用方验证的代码；若未来出现真实结构化输出需求，届时再实现。
+- **附带发现（已处理，非本任务范围）**：调查过程中人类提出协调者/执行者拆分任务是否应用结构化输出，核实确认技术上不可行（官方结构化输出路径硬编码绑定 `call(...)` 内部私有实现，无法与协调者依赖的 `streamEvents` 事件流组合），改用工具调用模式解决，详见新增任务 #10506（已完成）。
+- **完成标准**：本任务无代码交付，`compile` 状态不受影响（承接 #10502 已验证的编译状态）。
 
 ### #10504 迁移剩余智能层 L0 调用点
 
@@ -81,14 +83,15 @@ gains:
 
 ### #10505 原子删除旧抽象
 
-- **状态**：[ ] 待开始
+- **状态**：✅ 已完成（2026-09-02）— developer-service
 - **负责人**：developer-service
 - **依赖**：#10504
 - **范围**：
-  - 删除 `LlmClient`、`SpringAiLlmClient`；`MockLlmClient` 改为测试 fixture。
-  - 调整 `AssistantInfrastructureAutoConfiguration` 的条件装配，确保生产 Bean 图无旧接口。
-  - `ResilientChatService` 保留给四个非 L0 用户（`TrendingService`、`MeetingOrganizeService`、`ToolGenerator`、`AiEnricher`），本批不重构它们，但标注其已退出智能层 L0。
+  - ✅ 全仓核实确认 `LlmClient`/`SpringAiLlmClient`/`MockLlmClient` 三个文件除自身声明外无任何引用（已完成 5 处调用点迁移 + `contextCompressionPort`/`sessionContextCompressionPort` 装配调整后），安全删除。
+  - ✅ 删除 `LlmClient.java`（接口）、`SpringAiLlmClient.java`（Spring AI 实现）、`MockLlmClient.java`（`@Component` 生产 Bean，非测试 fixture，且无消费方——全仓核实无任何类注入它，直接删除而非改造）。
+  - ✅ 核实 `AssistantInfrastructureAutoConfiguration`/`AgentScopeInfrastructureAutoConfiguration`/`PromptInvocationGateway`/`TurnOutcome` 里残留的 `LlmClient` 字样均为 Javadoc 注释（说明历史沿革"替代旧 LlmClient"），非代码依赖，保留不动。
 - **完成标准**：智能层生产 Bean 图无 `LlmClient`/`SpringAiLlmClient`；无 shim / 双 Bean；`compile` 通过。
+- **实际结果**：`pnpm nx compile service` BUILD SUCCESS（6 模块全绿）。AAF-105 全部技术任务（#10501～#10505 + 新增 #10506）完成。
 
 ## 新增任务
 

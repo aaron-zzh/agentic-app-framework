@@ -26,9 +26,11 @@ import com.xuejiai.aaf.framework.intelligent.cognition.model.ContextBudgetExceed
 import com.xuejiai.aaf.framework.intelligent.cognition.model.ContextCompressionSnapshot;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.ContextCompressionSnapshot.Policy;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.ContextCompressionPort;
-import com.xuejiai.aaf.framework.intelligent.core.llm.LlmClient;
-import com.xuejiai.aaf.framework.intelligent.core.llm.LlmClient.LlmMessage;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.InvocationPurpose;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptInvocationGateway;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptInvocationGateway.ClassifiedMessage;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptInvocationGateway.NonAutonomousInvocation;
 import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptTemplateService;
 
 import tools.jackson.databind.JsonNode;
@@ -38,6 +40,7 @@ public final class DefaultHybridContextCompressor implements ContextCompressionP
 
     public static final String POLICY_VERSION = "aaf-hybrid-context-v1";
     public static final String SUMMARY_PROMPT_NAME = "aaf.context.summary";
+    private static final String FUNCTION_KEY = "cognition.context-summary";
 
     private static final int MESSAGE_TOKEN_OVERHEAD = 4;
     private static final Set<String> SUMMARY_FIELDS =
@@ -60,17 +63,17 @@ public final class DefaultHybridContextCompressor implements ContextCompressionP
 
     private final Policy policy;
     private final String configuredSummaryModelId;
-    private final LlmClient llmClient;
+    private final PromptInvocationGateway promptGateway;
     private final PromptTemplateService promptTemplates;
 
     public DefaultHybridContextCompressor(
             Policy policy,
             String configuredSummaryModelId,
-            LlmClient llmClient,
+            PromptInvocationGateway promptGateway,
             PromptTemplateService promptTemplates) {
         this.policy = Objects.requireNonNull(policy, "policy 不能为空");
         this.configuredSummaryModelId = configuredSummaryModelId;
-        this.llmClient = Objects.requireNonNull(llmClient, "llmClient 不能为空");
+        this.promptGateway = Objects.requireNonNull(promptGateway, "promptGateway 不能为空");
         this.promptTemplates = Objects.requireNonNull(promptTemplates, "promptTemplates 不能为空");
     }
 
@@ -245,9 +248,8 @@ public final class DefaultHybridContextCompressor implements ContextCompressionP
         payload.put("messages", canonicalMessages(messages));
         var result =
                 callWithTimeout(
-                        List.of(
-                                LlmMessage.system(systemPrompt),
-                                LlmMessage.user(JsonUtils.toJsonString(payload))),
+                        systemPrompt,
+                        JsonUtils.toJsonString(payload),
                         summaryModel,
                         request.meteringUserId());
         if (codePointCount(result) > policy.summaryMaxChars()) {
@@ -270,9 +272,24 @@ public final class DefaultHybridContextCompressor implements ContextCompressionP
     }
 
     private String callWithTimeout(
-            List<LlmMessage> messages, ModelSpec summaryModel, Long meteringUserId) {
+            String systemPrompt, String userPayload, ModelSpec summaryModel, Long meteringUserId) {
         var task =
-                new FutureTask<>(() -> llmClient.callExact(messages, summaryModel, meteringUserId));
+                new FutureTask<>(
+                        () ->
+                                promptGateway
+                                        .call(
+                                                new NonAutonomousInvocation(
+                                                        InvocationPurpose.CONTEXT_SUMMARY,
+                                                        FUNCTION_KEY,
+                                                        List.of(
+                                                                ClassifiedMessage.system(
+                                                                        systemPrompt),
+                                                                ClassifiedMessage.currentUser(
+                                                                        userPayload)),
+                                                        "CONTEXT_SUMMARY",
+                                                        meteringUserId,
+                                                        summaryModel.modelId()))
+                                        .text());
         var thread = Thread.ofVirtual().name("aaf-context-summary").start(task);
         try {
             return task.get(policy.summaryTimeoutMs(), TimeUnit.MILLISECONDS);

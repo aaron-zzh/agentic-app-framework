@@ -12,8 +12,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.stereotype.Service;
 
-import com.xuejiai.aaf.framework.intelligent.core.llm.LlmClient;
-import com.xuejiai.aaf.framework.intelligent.core.llm.LlmClient.LlmMessage;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.InvocationPurpose;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptInvocationGateway;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptInvocationGateway.ClassifiedMessage;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptInvocationGateway.NonAutonomousInvocation;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -25,25 +27,32 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class EmotionPerceptionService {
 
-    private final LlmClient llmClient;
+    private static final String FUNCTION_KEY = "cognition.emotion-classify";
+
+    private final PromptInvocationGateway promptGateway;
 
     /** 用户情感历史（sessionId → 最近 N 条情感记录） */
     private final Map<String, LinkedList<EmotionState>> emotionHistory = new ConcurrentHashMap<>();
 
     private static final int MAX_HISTORY = 10;
 
-    private static final String EMOTION_PROMPT =
-            """
-            分析用户输入的情感状态，只返回一个词：NEUTRAL/POSITIVE/FRUSTRATED/CONFUSED/URGENT
-            用户输入：%s""";
+    private static final String EMOTION_SYSTEM_PROMPT =
+            "分析用户输入的情感状态，只返回一个词：NEUTRAL/POSITIVE/FRUSTRATED/CONFUSED/URGENT";
 
     /** 分析用户情感状态（LLM 驱动，规则兜底）。 */
     public EmotionState analyze(String userInput) {
         try {
-            var prompt = EMOTION_PROMPT.formatted(userInput);
             var response =
-                    llmClient.call(List.of(LlmMessage.user(prompt)), "emotion_classify", null);
-            return parseEmotion(response.trim());
+                    promptGateway.call(
+                            new NonAutonomousInvocation(
+                                    InvocationPurpose.CLASSIFICATION,
+                                    FUNCTION_KEY,
+                                    List.of(
+                                            ClassifiedMessage.system(EMOTION_SYSTEM_PROMPT),
+                                            ClassifiedMessage.currentUser(userInput)),
+                                    "EMOTION_CLASSIFY",
+                                    null));
+            return parseEmotion(response.text().trim());
         } catch (Exception e) {
             log.debug("LLM 情感分析降级为规则: {}", e.getMessage());
             return fallbackAnalyze(userInput);

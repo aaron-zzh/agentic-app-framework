@@ -73,7 +73,6 @@ import com.xuejiai.aaf.framework.intelligent.cognition.port.ContextCompressionPo
 import com.xuejiai.aaf.framework.intelligent.cognition.port.L1ContextPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.MemoryContextPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.SessionMemoryPort;
-import com.xuejiai.aaf.framework.intelligent.core.llm.LlmClient;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModelRepository;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptInvocationGateway;
@@ -287,10 +286,12 @@ public class AssistantInfrastructureAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnBean(LlmClient.class)
+    @ConditionalOnBean(PromptInvocationGateway.class)
     @ConditionalOnMissingBean(ContextCompressionPort.class)
     ContextCompressionPort contextCompressionPort(
-            LlmClient llmClient, PromptTemplateService promptTemplates, AiProperties aiProperties) {
+            PromptInvocationGateway promptGateway,
+            PromptTemplateService promptTemplates,
+            AiProperties aiProperties) {
         var context = aiProperties.getContext();
         var policy =
                 new Policy(
@@ -309,7 +310,7 @@ public class AssistantInfrastructureAutoConfiguration {
                         context.getSummaryMaxChars(),
                         context.getSummaryTimeoutMs());
         return new DefaultHybridContextCompressor(
-                policy, context.getSummaryModelId(), llmClient, promptTemplates);
+                policy, context.getSummaryModelId(), promptGateway, promptTemplates);
     }
 
     @Bean

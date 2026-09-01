@@ -6,8 +6,10 @@ import org.flowable.engine.delegate.DelegateExecution;
 import org.flowable.engine.delegate.JavaDelegate;
 import org.springframework.stereotype.Component;
 
-import com.xuejiai.aaf.framework.intelligent.core.llm.LlmClient;
-import com.xuejiai.aaf.framework.intelligent.core.llm.LlmClient.LlmMessage;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.InvocationPurpose;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptInvocationGateway;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptInvocationGateway.ClassifiedMessage;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptInvocationGateway.NonAutonomousInvocation;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +24,9 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class ParameterExtractionNode implements JavaDelegate {
 
-    private final LlmClient llmClient;
+    private static final String FUNCTION_KEY = "workflow.parameter-extraction";
+
+    private final PromptInvocationGateway promptGateway;
 
     @Override
     public void execute(DelegateExecution execution) {
@@ -36,10 +40,18 @@ public class ParameterExtractionNode implements JavaDelegate {
                 """
                         .formatted(extractionPrompt);
 
-        var messages = List.of(LlmMessage.system(systemPrompt), LlmMessage.user(input));
-        var result = llmClient.call(messages, "CHAT", null);
+        var response =
+                promptGateway.call(
+                        new NonAutonomousInvocation(
+                                InvocationPurpose.PARAMETER_EXTRACTION,
+                                FUNCTION_KEY,
+                                List.of(
+                                        ClassifiedMessage.system(systemPrompt),
+                                        ClassifiedMessage.currentUser(input)),
+                                "PARAMETER_EXTRACTION",
+                                null));
 
-        execution.setVariable("output", result);
+        execution.setVariable("output", response.text());
         execution.setVariable("success", true);
     }
 }

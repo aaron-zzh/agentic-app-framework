@@ -76,8 +76,10 @@ public final class PromptInvocationGateway {
                 lengths.totalEstimatedTokens());
 
         var routingContext =
-                CapabilityRoutingContext.ofCapability(
-                        invocation.meteringUserId(), invocation.routeScene());
+                CapabilityRoutingContext.of(
+                        invocation.meteringUserId(),
+                        invocation.routeScene(),
+                        invocation.explicitModelId());
         var model = capabilityRouter.resolve(routingContext);
         var agent = agentsByModelId.computeIfAbsent(model.getModelId(), key -> agentFactory.apply(model));
 
@@ -204,7 +206,8 @@ public final class PromptInvocationGateway {
             String functionKey,
             List<ClassifiedMessage> messages,
             String routeScene,
-            Long meteringUserId) {
+            Long meteringUserId,
+            String explicitModelId) {
         public NonAutonomousInvocation {
             Objects.requireNonNull(purpose, "purpose 不能为空");
             functionKey = requireMachineKey(functionKey, "functionKey");
@@ -234,6 +237,16 @@ public final class PromptInvocationGateway {
             if (userDataCount < 1) {
                 throw new IllegalArgumentException("非自主 L0 至少需要一个数据消息");
             }
+        }
+
+        /** 兼容既有调用方：不显式指定模型，完全走 {@code routeScene} 对应的路由决策链。 */
+        public NonAutonomousInvocation(
+                InvocationPurpose purpose,
+                String functionKey,
+                List<ClassifiedMessage> messages,
+                String routeScene,
+                Long meteringUserId) {
+            this(purpose, functionKey, messages, routeScene, meteringUserId, null);
         }
 
         private static String requireMachineKey(String value, String field) {

@@ -1,3 +1,37 @@
+## #10504～#10505 剩余调用点迁移与旧抽象删除（2026-09-02）
+
+- ✅ developer-service：5 个调用点迁移、`LlmClient`/`SpringAiLlmClient`/`MockLlmClient` 删除，`compile` 通过
+
+### 实现文件
+
+| 文件 | 说明 |
+|------|------|
+| `.../infrastructure/workflow/node/ParameterExtractionNode.java` | 迁移：`llmClient.call(...)` → `promptGateway.call(NonAutonomousInvocation)` |
+| `.../cognition/personalization/IntentUnderstandingService.java` | 迁移两处调用（`analyze`/`fillSlots`）；原单条 `LlmMessage.user(prompt)` 拆分为 system + controlledContext + currentUser 三段 |
+| `.../cognition/personalization/EmotionPerceptionService.java` | 迁移：情感分类 prompt 拆分为 system + currentUser |
+| `.../cognition/application/DefaultSessionContextCompressor.java` | 迁移：保留原有虚拟线程 + `FutureTask` 超时包装模式，内层调用换成 gateway |
+| `.../cognition/application/DefaultHybridContextCompressor.java` | 迁移：原 `callExact` 精确指定模型不走路由，`NonAutonomousInvocation` 新增 `explicitModelId` 字段（可空，向后兼容重载）承接这一需求 |
+| `.../core/prompt/PromptInvocationGateway.java` | `NonAutonomousInvocation` 新增 `explicitModelId` 字段；`call(...)` 内部改用 `CapabilityRoutingContext.of(userId, capability, explicitModelId)` |
+| `.../infrastructure/governance/spring/IntelligentGovernanceAutoConfiguration.java` | `sessionContextCompressionPort` Bean 改依赖 `PromptInvocationGateway`，条件从 `LlmClient` 改为 `PromptInvocationGateway` |
+| `.../infrastructure/assistant/spring/AssistantInfrastructureAutoConfiguration.java` | `contextCompressionPort` Bean 同上；删除未使用的 `LlmClient` import |
+| `LlmClient.java`、`SpringAiLlmClient.java`、`MockLlmClient.java` | 删除（全仓核实无残留引用） |
+
+### 关键发现
+
+> **`callExact` 精确指定模型的语义在 gateway 侧缺失，需要新增字段承接**：`DefaultHybridContextCompressor` 原来的摘要模型可以与执行模型不同（`configuredSummaryModelId` 配置项），通过 `llmClient.callExact(messages, summaryModel, userId)` 绕过路由直接指定。`PromptInvocationGateway.call(...)` 固定走 `CapabilityRouter.resolve(...)`，没有对应能力。核实 `CapabilityRoutingContext` 本身已支持 `explicitModelId`（路由决策链最高优先级），因此不需要新建旁路，只需给 `NonAutonomousInvocation` 加一个可选字段透传给路由上下文——这是"用足已有能力"而不是"新建能力"。
+
+> **`NonAutonomousInvocation` 强制恰好一个 SYSTEM 消息，暴露了两处历史写法的隐藏问题**：`IntentUnderstandingService` 的 `analyze`/`fillSlots` 原来把完整指令（含固定规则和可变输入）整个塞进一条 `LlmMessage.user(prompt)`，没有 SYSTEM/USER 的区分。迁移时必须拆分为"固定指令→system"+"可变数据→controlledContext/currentUser"，这是行为收紧（更符合 Function Contract 的既有约束），不是简单替换调用方式。
+
+> **`MockLlmClient` 不是测试 fixture，是孤立的生产 `@Component`**：全仓核实它除自身声明外无任何引用（没有测试注入它，没有生产代码依赖它），`aaf.llm.mock=true` 配置属性也没有在任何配置文件里被设置过。判定为死代码直接删除，不改造为测试 fixture（没有消费方，改造没有意义）。
+
+### 验证
+
+- 按人类要求本次不执行 `pnpm nx test service`；已执行 `pnpm nx compile service`，BUILD SUCCESS（6 模块全绿）。
+- 人工核对：全仓搜索 `LlmClient` 确认仅剩 4 处 Javadoc 注释残留（`PromptInvocationGateway`/`AgentScopeInfrastructureAutoConfiguration`/`AssistantInfrastructureAutoConfiguration`/`TurnOutcome`，均为"替代旧 LlmClient"历史说明，非代码依赖）；`ResilientChatService` 本身不依赖 `LlmClient`，四个非 L0 用户（`TrendingService`/`MeetingOrganizeService`/`ToolGenerator`/`AiEnricher`）未受影响。
+
+---
+
+
 ## #10506 协调者计划提交改用工具调用（2026-09-01）
 
 - ✅ developer-service：新建 `SubmitCoordinationPlanTool`，删除 `decodeAndValidatePlan`，`compile` 通过

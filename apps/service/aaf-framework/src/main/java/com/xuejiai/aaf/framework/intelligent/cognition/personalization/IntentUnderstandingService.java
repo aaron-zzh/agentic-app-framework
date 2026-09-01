@@ -11,8 +11,10 @@ import java.util.Map;
 
 import org.springframework.stereotype.Service;
 
-import com.xuejiai.aaf.framework.intelligent.core.llm.LlmClient;
-import com.xuejiai.aaf.framework.intelligent.core.llm.LlmClient.LlmMessage;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.InvocationPurpose;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptInvocationGateway;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptInvocationGateway.ClassifiedMessage;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptInvocationGateway.NonAutonomousInvocation;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -25,19 +27,17 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class IntentUnderstandingService {
 
-    private final LlmClient llmClient;
+    private static final String INTENT_FUNCTION_KEY = "cognition.intent-classify";
+    private static final String SLOT_FILL_FUNCTION_KEY = "cognition.slot-fill";
 
-    private static final String INTENT_PROMPT =
+    private final PromptInvocationGateway promptGateway;
+
+    private static final String INTENT_SYSTEM_PROMPT =
             """
             分析用户输入的意图，返回 JSON 格式（不要其他内容）：
             {"intent":"意图类型","confidence":0.0-1.0,"slots":{},"needsClarification":false,"clarificationQuestion":""}
 
-            意图类型：question（提问）、command（指令）、creation（创建）、modification（修改）、deletion（删除）、navigation（导航）、conversation（闲聊）
-
-            对话历史：
-            %s
-
-            用户输入：%s""";
+            意图类型：question（提问）、command（指令）、creation（创建）、modification（修改）、deletion（删除）、navigation（导航）、conversation（闲聊）""";
 
     /** 分析用户意图（LLM 驱动，规则兜底）。 */
     public IntentResult analyze(String userInput, List<String> conversationHistory) {
@@ -50,10 +50,19 @@ public class IntentUnderstandingService {
                                             Math.max(0, conversationHistory.size() - 5),
                                             conversationHistory.size()))
                             : "无";
-            var prompt = INTENT_PROMPT.formatted(historyText, userInput);
             var response =
-                    llmClient.call(List.of(LlmMessage.user(prompt)), "intent_classify", null);
-            return parseIntentResponse(response, userInput);
+                    promptGateway.call(
+                            new NonAutonomousInvocation(
+                                    InvocationPurpose.CLASSIFICATION,
+                                    INTENT_FUNCTION_KEY,
+                                    List.of(
+                                            ClassifiedMessage.system(INTENT_SYSTEM_PROMPT),
+                                            ClassifiedMessage.controlledContext(
+                                                    "对话历史：\n" + historyText),
+                                            ClassifiedMessage.currentUser(userInput)),
+                                    "INTENT_CLASSIFY",
+                                    null));
+            return parseIntentResponse(response.text(), userInput);
         } catch (Exception e) {
             log.warn("LLM 意图分类失败，降级为规则匹配: {}", e.getMessage());
             return fallbackAnalyze(userInput);
@@ -65,14 +74,21 @@ public class IntentUnderstandingService {
             IntentResult intent, Map<String, String> requiredSlots, List<String> history) {
         if (requiredSlots == null || requiredSlots.isEmpty()) return Map.of();
         try {
-            var prompt =
-                    "从以下对话中提取参数，返回 JSON：\n需要的参数：%s\n对话：%s\n用户最新输入：%s"
-                            .formatted(
-                                    requiredSlots.keySet(),
-                                    String.join("\n", history),
-                                    intent.getRawInput());
-            var response = llmClient.call(List.of(LlmMessage.user(prompt)), "slot_fill", null);
-            return parseSlots(response);
+            var response =
+                    promptGateway.call(
+                            new NonAutonomousInvocation(
+                                    InvocationPurpose.PARAMETER_EXTRACTION,
+                                    SLOT_FILL_FUNCTION_KEY,
+                                    List.of(
+                                            ClassifiedMessage.system(
+                                                    "从对话中提取参数，返回 JSON。需要的参数：%s"
+                                                            .formatted(requiredSlots.keySet())),
+                                            ClassifiedMessage.controlledContext(
+                                                    "对话：" + String.join("\n", history)),
+                                            ClassifiedMessage.currentUser(intent.getRawInput())),
+                                    "SLOT_FILL",
+                                    null));
+            return parseSlots(response.text());
         } catch (Exception e) {
             log.warn("槽位填充失败: {}", e.getMessage());
             return Map.of();

@@ -21,8 +21,10 @@ import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.intelligent.cognition.memory.MemoryMessage;
 import com.xuejiai.aaf.framework.intelligent.cognition.memory.SessionSummary;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.SessionContextCompressionPort;
-import com.xuejiai.aaf.framework.intelligent.core.llm.LlmClient;
-import com.xuejiai.aaf.framework.intelligent.core.llm.LlmClient.LlmMessage;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.InvocationPurpose;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptInvocationGateway;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptInvocationGateway.ClassifiedMessage;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptInvocationGateway.NonAutonomousInvocation;
 
 import tools.jackson.databind.JsonNode;
 
@@ -38,21 +40,23 @@ import tools.jackson.databind.JsonNode;
  */
 public final class DefaultSessionContextCompressor implements SessionContextCompressionPort {
 
+    private static final String FUNCTION_KEY = "cognition.session-summary";
+
     private static final Set<String> SUMMARY_FIELDS =
             Set.of("confirmedDecisions", "verifiedFacts", "openQuestions");
 
     /** 硬性拒绝阈值相对告知模型目标长度的容差倍数；模型偶尔小幅超出目标不应导致整次摘要被判定失败。 */
     private static final int HARD_LIMIT_TOLERANCE_MULTIPLIER = 2;
 
-    private final LlmClient llmClient;
+    private final PromptInvocationGateway promptGateway;
     private final String scene;
     private final long timeoutMs;
     private final int maxChars;
     private final int hardLimitChars;
 
     public DefaultSessionContextCompressor(
-            LlmClient llmClient, String scene, long timeoutMs, int maxChars) {
-        this.llmClient = Objects.requireNonNull(llmClient, "llmClient 不能为空");
+            PromptInvocationGateway promptGateway, String scene, long timeoutMs, int maxChars) {
+        this.promptGateway = Objects.requireNonNull(promptGateway, "promptGateway 不能为空");
         this.scene = Objects.requireNonNull(scene, "scene 不能为空");
         if (timeoutMs < 1) {
             throw new IllegalArgumentException("timeoutMs 必须大于 0");
@@ -87,10 +91,7 @@ public final class DefaultSessionContextCompressor implements SessionContextComp
                         + "openQuestions，均为字符串数组；无内容的字段返回空数组，不得省略字段，不得输出多余文本。";
         var result =
                 callWithTimeout(
-                        List.of(
-                                LlmMessage.system(systemPrompt),
-                                LlmMessage.user(JsonUtils.toJsonString(payload))),
-                        meteringUserId);
+                        systemPrompt, JsonUtils.toJsonString(payload), meteringUserId);
         var canonical = validateAndCanonicalize(result);
         var sourceIds =
                 messagesToSummarize.stream()
@@ -105,8 +106,23 @@ public final class DefaultSessionContextCompressor implements SessionContextComp
         return new SessionSummary(canonical, sourceIds, coveredThrough, Instant.now());
     }
 
-    private String callWithTimeout(List<LlmMessage> messages, Long meteringUserId) {
-        var task = new FutureTask<>(() -> llmClient.call(messages, scene, meteringUserId));
+    private String callWithTimeout(String systemPrompt, String userPayload, Long meteringUserId) {
+        var task =
+                new FutureTask<>(
+                        () ->
+                                promptGateway
+                                        .call(
+                                                new NonAutonomousInvocation(
+                                                        InvocationPurpose.CONTEXT_SUMMARY,
+                                                        FUNCTION_KEY,
+                                                        List.of(
+                                                                ClassifiedMessage.system(
+                                                                        systemPrompt),
+                                                                ClassifiedMessage.currentUser(
+                                                                        userPayload)),
+                                                        scene,
+                                                        meteringUserId))
+                                        .text());
         var thread = Thread.ofVirtual().name("aaf-session-summary").start(task);
         try {
             return task.get(timeoutMs, TimeUnit.MILLISECONDS);
