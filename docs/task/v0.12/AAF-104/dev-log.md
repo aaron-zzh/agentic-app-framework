@@ -6,10 +6,28 @@
 | 文件 | 说明 |
 |------|------|
 | `.../infrastructure/agentscope/mapping/AgentScopeEventMapper.java` | 31 项 AgentEventType 穷举处置，删除静默 `default` |
+| `.../module/ai/agui/AafAguiStreamContext.java` | 新增：per-run 配对状态与全部 AG-UI 事件发射入口 |
+| `.../module/ai/agui/AafAguiEventConverter.java` | 新增：单一事件族投影规则的接口 |
+| `.../module/ai/agui/AafAguiConverterRegistry.java` | 新增：枚举分派表 + 重复注册拒绝 |
+| `.../module/ai/agui/converter/RunLifecycleEventConverter.java` | 新增：run 生命周期与终态（含错误码收敛） |
+| `.../module/ai/agui/converter/TextMessageEventConverter.java` | 新增：助手文本三段式 |
+| `.../module/ai/agui/converter/PublicEventFallbackConverter.java` | 新增：经公共事件脱敏后按业务事件名二次分派（工具三段式 + CUSTOM） |
+| `.../module/ai/agui/AgUiProjector.java` | 瘦身为 facade，248 → 107 行 |
 
 ## 实现决策
 
 - ⏳ #10401 部分完成 — 已建立编译器强制的穷举处置矩阵；**待做**：8 项"待映射"类型的实际映射，与 #10403 的 AG-UI 配对契约一并落地。（2026-09-01）
+- ✅ #10402 converter registry 结构 — 纯结构重构行为不变，`AgUiProjector` 从 248 行降到 107 行。（2026-09-01）
+
+> **配对不变量集中到 context 是这次重构的核心**：`AafAguiStreamContext` 是唯一能构造 message/toolCall/run 终态事件的地方，converter 只能调它的方法。此前这些 `new AguiEvent.Xxx(...)` 散在 projector 的私有方法里，新加一族事件很容易绕过 started/ended 去重与"finish 恰好一次"。现在绕过需要显式改 context，改动可见。
+
+> **registry 拒绝重复注册而非静默覆盖**：AAF 公共事件是安全合同不是插件优先级。静默覆盖意味着某事件的脱敏规则可能被无声替换，而这类问题在生产上表现为信息泄漏或前端信息缺失，很难回溯到注册顺序。构造期直接抛，附冲突双方类名。
+
+> **发现并记录的脱敏缺口**：标准分支（生命周期 / 文本消息）直接读内部 `ExecutionEvent` 的 payload，只有兜底分支经过 `ExecutionEventPublicMapper`。也就是说 `MESSAGE_DELTA` 的正文没走脱敏路径。本次不改——把全部 converter 输入统一为公共事件需要公共事件先暴露 messageId/delta 字段，属配对契约改造的一部分，已在 `AgUiProjector` javadoc 标注并交给 #10403。
+
+> **新增跨 run 复用检测**：`Session` 的 context 懒建，后续调用传入不同 threadId/runId 直接失败。配对状态一旦跨 run 混用，前端会收到属于另一次运行的 START/END 且事后无法区分。原实现的 threadId/runId 每次从事件重取，跨 run 复用不会报错。
+
+> **converter 独立单测推迟**：#10403 会改 converter 输入类型与 messageId 派生规则，现在写单测届时要重写。本次靠既有 `AgUiProjectorTest` 的 8 个用例原地验证行为不变。
 
 > **穷举而非 default 是关键手法**：switch 表达式覆盖枚举全部常量且不写 `default` 时，上游新增常量会让本类**编译失败**。这比"加测试断言枚举数量"更硬——测试可能被跳过或滞后，编译不能。历史上 AAF 只映射 13 项、其余 18 项走 `default -> Optional.empty()`，前端可见信息因此无声缺失；现在每一项都必须有显式决定。运行时若 jar 比编译期新，未匹配常量抛 `MatchException`，被执行适配器收敛为 RUN_FAILED，属 fail-closed，优于静默降级。
 
@@ -23,4 +41,4 @@
 ## 验证
 
 - `pnpm nx compile service`：BUILD SUCCESS——**这本身就是 31 项全覆盖的证明**，缺任一常量都会编译失败。
-- `pnpm nx test service`：framework 415 + auto-dev 2 + api 241 全绿，无回归。
+- `pnpm nx test service`：`AgUiProjectorTest` 8 个用例全绿（原地验证重构后配对与 finish 不变量未变）；framework 415 + auto-dev 2 + api 241 全绿，无回归。

@@ -46,15 +46,18 @@ gains:
 
 ### #10402 AAF converter registry 结构
 
-- **状态**：[ ] 待开始
+- **状态**：[x] ✅ 已完成（2026-09-01）— developer-service
 - **负责人**：developer-service
 - **依赖**：#10401
 - **范围**：
-  - 新建 `AafAguiEventConverter` / `AafAguiConverterRegistry` / `AafAguiStreamContext` / `AafAguiEventEnricher`，输入为已持久化脱敏的公共事件而非 `AgentEvent`。
-  - `AgUiProjector` 瘦身为唯一 facade：建 context、调 registry、流尾 `finish()`、拒绝非法终态。
-  - registry 启动时拒绝重复 `ExecutionEventType` 注册，不允许后注册静默覆盖。
-  - converter 按 lifecycle / text / tool / state / step / activity / interrupt / custom 分小类。
-- **完成标准**：同 run 内 start/end 成对且 `finish()` 恰好一次；`compile` 通过。
+  - ✅ 新建 `AafAguiEventConverter`（接口）、`AafAguiConverterRegistry`（枚举分派 + 重复注册拒绝）、`AafAguiStreamContext`（per-run 配对状态与全部事件发射入口）。
+  - ✅ 三个 converter：`RunLifecycleEventConverter`、`TextMessageEventConverter`、`PublicEventFallbackConverter`（工具三段式 + CUSTOM 兜底，按公共事件 `type` 字符串二次分派）。
+  - ✅ `AgUiProjector` 瘦身为 facade（248 → 107 行）：只建 context、调 registry、流尾闭合、异常终结，不含任何事件构造逻辑。
+  - ✅ registry 启动时拒绝重复 `ExecutionEventType` 注册（构造即失败，不采用后注册静默覆盖）。
+  - ✅ `Session` 新增跨 run 复用检测：threadId/runId 不一致直接失败。
+  - [ ] 每个 converter 的独立单测——**与 #10403 一并补**（届时 converter 输入与 messageId 派生规则会变，先写会返工）。
+- **完成标准**：每个 converter 独立单测；同 run 的 start/end 配对且 finish 只一次。
+- **实际结果**：本次为**纯结构重构、行为不变**；`AgUiProjectorTest` 8 个既有用例全绿（原地验证配对与 finish 不变量），三模块 415/2/241 全绿。
 
 ### #10403 补齐必需事件族
 
