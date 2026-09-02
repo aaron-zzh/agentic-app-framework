@@ -66,7 +66,7 @@ PostgreSQL TaskBoard 是当前编排状态的唯一真理源；事件流只追�
 | `coordinated` | 一个无业务工具 `COORDINATOR`，冻结计划后替换为执行 DAG | `TaskAnalysis` 判定 `TASKBOARD`——多目标、跨领域或必须委派 |
 | `teamCoordinated` | 一个 Leader `COORDINATOR` + 1..8 个冻结 Worker `EXECUTOR` | 已发布 Team version，不经复杂度判定 |
 
-非 Team 的 `single` / `coordinated` 选择只依据 `TaskAnalysis`，与 `interactionMode` 无关；`TEAM` 则由已发布 Team version 直接选择 `teamCoordinated`，不执行复杂度判定。判定契约见 [runtime.md](../runtime.md#任务复杂度判定)。**对话式同样可以进入 `coordinated`**。
+非 Team 场景始终建 `coordinated` 板，与 `interactionMode` 无关；协调者在自己的一次 execution 内自主判断简单直答/拆步骤/拆多智能体三档，`TaskBoard.single` 不再有独立触发路径。`TEAM` 则由已发布 Team version 直接选择 `teamCoordinated`，不执行复杂度判定。判定机制见 [runtime.md](../runtime.md#任务复杂度判定)。**对话式同样可以进入 `coordinated`**。
 
 `SubTask` 字段合同：
 

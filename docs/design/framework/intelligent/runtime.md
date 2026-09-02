@@ -21,7 +21,7 @@ scope:
   includes:
     - 唯一启动入口与任务身份等价关系
     - ExecutionIntent 的字段、不变量与解析优先级
-    - TaskAnalysis 复杂度判定与调度依据
+    - 协调者 execution 内自主复杂度判定与调度依据
     - 一次运行从入口到终态的执行链与每步契约
     - CHAT / EXECUTION / TEAM 的差异落点
     - 执行画像冻结项与完成门禁
@@ -70,7 +70,7 @@ Assistant 主链不存在同步 REST 正文接口，也不保留旧 Assistant �
 | 事件与状态 | 统一事件流 + 租约 fencing，可跨实例恢复 | 进程内 `SseEmitter` + Flowable 轮询，不保证多副本恢复 |
 | 人工节点 | 统一 HITL 链 | 独立 `submitInput` 入口 |
 
-已发布工作流被终端用户触发的**生产运行**属于统一运行时的 `processMode = PREDEFINED_WORKFLOW` 分支。该分支当前**未实现**——`TaskAnalysis.processMode` 仅有判定产出（`DefaultTaskComplexityAnalyzer.java:26`）与日志消费（`AssistantExecutionService.java:910`），无执行分支；调试通道不为其兜底，原先 `requireRunnableFlow` 中的非 debug 生产分支已删除（零调用方）。
+已发布工作流被终端用户触发的**生产运行**属于统一运行时的 `PREDEFINED_WORKFLOW` 形态。该形态当前**未实现**——`processMode` 曾经是已删除的 `TaskAnalysis` 三维冻结结果之一（AAF-107 选项 B 架构改造，2026-09-02 起复杂度判定权已收归协调者 execution 内自主推理，不再有独立前置判定产出该字段），当前无执行分支；调试通道不为其兜底，原先 `requireRunnableFlow` 中的非 debug 生产分支已删除（零调用方）。
 
 ### 请求外壳
 
@@ -206,7 +206,7 @@ Assistant 主链不存在同步 REST 正文接口，也不保留旧 Assistant �
 | 三 前注意、理解与路由 | Assistant revision、候选 Role/Skill、`routeConstraint`、模型选择 | `resolvedRoute`、ActivatedSkill、任务策略建议 | ✅ 已实现 · `AssistantExecutionService.java:598-700` |
 | 四 受控检索与最小上下文 | 主体/租户、知识 IDs、`topK`、阈值、MemoryMode、任务材料、预算 | `EffectiveContextManifest`、SourceReference、受控消息/压缩候选 | ⚠️ 部分实现 · 长期记忆与知识已接入；`MemoryRecallPort.java:9-25` 缺本会话短期上下文维度 |
 | 五 执行画像与计划冻结 | 身份、Route、上下文、模型、Skill、工具规则、调用策略 | `ExecutionProfileSnapshot`、TaskBoard 版本 | ⚠️ 部分实现 · 画像持久冻结已实现（`ExecutionProfileSnapshot.java:24-99`）；工具空集语义仍有歧义（`DefaultEffectiveToolResolver.java:27-38,62-66`） |
-| 六 按判定结果调度 | `TaskAnalysis.coordinationMode`、Team roster、协调计划、并行/重试预算 | `TaskBoard.single/coordinated/teamCoordinated`、节点 DAG | ⚠️ 部分实现 · 三种看板类型齐备（`TaskBoard.java:49-166`）；输入仍是 `interactionMode` 而非 `TaskAnalysis`（`AssistantExecutionService.java:267-284`） |
+| 六 按判定结果调度 | 已发布 Team 冻结定义，否则始终建 `coordinated` 板 | `TaskBoard.coordinated/teamCoordinated`、节点 DAG | ✅ 已实现 · `AssistantExecutionService.analyzedBoard` 始终返回 `coordinated`（`AssistantExecutionService.java:888-896`），协调者在自己的 execution 内自主判断三档并直接调用 `submit_executor_plan`/`submit_coordination_plan` 或直答，见上「任务复杂度判定」。`TaskBoard.single` 工厂方法保留但无真实调用方 |
 | 七 Harness Loop 执行 | 节点 `executionId/sessionId`、冻结画像、局部上下文、授权规则、预算 | 节点结果、工具 Observation、receipt、执行事件 | ✅ 已实现 · `DefaultToolGateway.java:67-171` |
 | 八 聚合、验证与终态 | TaskBoard 节点状态、聚合合同、输出/产物/工具证据 | `CompletionDecision`、父终态、`RecoveryPoint` | ⚠️ 部分实现 · 通用验证器已存在（`DefaultCompletionValidator.java:15-84`），父委派任务仍可绕过验证器（`DelegatedTaskCoordinator.java:554-613`） |
 | 九 事件投影与学习候选 | 内部 `ExecutionEvent`、持久 `eventOffset`、安全映射规则 | `AafAiTaskEvent`、AG-UI frame、版本化学习候选 | ⚠️ 部分实现 · 安全 mapper 已统一（`ExecutionEventPublicMapper.java:20-163`），产物/计划/决策事件未齐备 |
@@ -242,7 +242,7 @@ Assistant 主链不存在同步 REST 正文接口，也不保留旧 Assistant �
 差异只在以下落点，其余完全共用。三条边界：
 
 - **模式不授予权限**：模式只改变交互与约束，不自动获得更多工具、写权限或外部动作权限。
-- **模式不决定编排形态**：拆不拆、拆几个由 `TaskAnalysis` 按目标复杂度判定，不由 `interactionMode` 绑定。任务式是"预先指定 Role/Skill + 以任务对象为交互焦点"的特化输入，不是独立的调度分支。
+- **模式不决定编排形态**：拆不拆、拆几个由协调者在自己的 execution 内按目标复杂度自主判定，不由 `interactionMode` 绑定。任务式是"预先指定 Role/Skill + 以任务对象为交互焦点"的特化输入，不是独立的调度分支。
 - **模式不决定轮次**：三种模式都可多轮推进。任务是持久对象，生命周期独立于聊天回合——提交目标后可追加输入、补充授权、暂停、接管与恢复，不存在"提交一次即终结"的模式。执行期追加输入的分类与处置见 [task-durability.md](task-durability.md#取消暂停与接管)。
 
 | 落点 | `CHAT` | `EXECUTION` | `TEAM` |
@@ -251,7 +251,7 @@ Assistant 主链不存在同步 REST 正文接口，也不保留旧 Assistant �
 | 路由 | 默认 `AUTO` 动态单选 Role，可随新消息重新路由 | `FIXED`，非法组合直接拒绝 | 使用已发布 Team version 的冻结成员目标；请求不得覆盖成员 Route |
 | 澄清 | 可自然追问，后续轮次继续理解 | 仅关键输入、凭证或不可替代授权缺失时阻塞；其余取安全默认值并记录假设 | Leader/Worker 各自按冻结合同阻塞；不得借澄清改变 roster |
 | 复杂度判断 | 新目标时判定；追加输入按执行期干预分类处理，不无条件重判 | 任务开始时判定并冻结初始策略，调整需可审计 | 不判定，roster 已冻结 |
-| 调度 | 按 `TaskAnalysis` 取 `single` 或 `coordinated` | 按 `TaskAnalysis` 取 `single` 或 `coordinated` | 固定 `teamCoordinated` |
+| 调度 | 协调者 execution 内自主判断，始终 `coordinated` 板 | 协调者 execution 内自主判断，始终 `coordinated` 板 | 固定 `teamCoordinated` |
 | 产物 | `RETURN_ONLY` | 按 `artifactPolicy` 解析，可 `AUTO_SAVE_DRAFT` | 使用已发布 Team 与根任务冻结的产物、聚合合同 |
 | 完成所需证据 | 输出契约满足即可；无产物与工具证据要求 | 结果、产物与完成证据齐备 | 全部冻结 Worker 证据齐备并通过聚合 |
 | 呈现 | 消息、流式正文、工具卡片 | 状态、步骤、阻塞、产物、最终结果；输入框可隐藏 | 同一任务事件流展示成员进度、阻塞、聚合与终态 |
@@ -262,24 +262,18 @@ Team version、roster 与成员冻结的领域合同见 [team/team.md](team/team
 
 ### 任务复杂度判定
 
-`TaskAnalysis` 是第三步的产出，随执行画像冻结，是选择 TaskBoard 类型的唯一依据。
+判定权收归协调者自身的一次 execution 内推理（AAF-107 选项 B 架构改造，2026-09-02），不再是第三步与第五步之间的独立前置分类步骤。第三步（前注意、理解与路由）职责不变，仍负责 Role/Skill 路由固定与校验；本节原描述的独立 `TaskAnalysis` 三维冻结产出与 `DefaultTaskComplexityAnalyzer` 前置判定已废弹。
 
-| 字段 | 取值 | 约束 |
-|---|---|---|
-| `ownerMode` | `DIRECT` / `DELEGATE` | `DIRECT` 只允许在无业务副作用时使用 |
-| `processMode` | `AUTONOMOUS` / `PREDEFINED_WORKFLOW` | 工作流形态仍必须保留 `ownerMode` |
-| `coordinationMode` | `NONE` / `SINGLE_AGENT` / `TASKBOARD` | 决定 `single` 还是 `coordinated` |
-| `rationale` | 判定依据摘要 | 进入决策事件，供事后审查 |
-| `analyzedBy` | `DETERMINISTIC` / `MODEL` | 确定性短路时不产生模型调用 |
+- 建板阶段始终建 `coordinated` 板（`AssistantExecutionService.analyzedBoard`），协调者节点承担原来"前注意"确定的 Role/Skill 装配，不再区分 `single`/`coordinated` 两条建板路径
+- 协调者在自己的一次 execution 内，结合完整上下文、记忆与技能自主判断三档并直接采取行动：
+  - **简单直答**：判断无需拆解，直接产出最终回复，不调用任何提交工具
+  - **拆步骤**：判断需要按顺序推进但不需要拆给其它执行者，调用 `submit_executor_plan` 提交步骤列表（`ExecutorPlan`/`ExecutorPlanStep`，见 [ADR-006](../adr/ADR-006-executor-plan-mode.md) 补充决策一）
+  - **拆多智能体**：判断存在可并行拆解的独立子任务，调用 `submit_coordination_plan` 派生执行者子任务（`CoordinationPlan`）
+- 三档判断依据由内置系统级 Skill `builtin-task-decomposition`（`ai_system_skill_binding` ALWAYS 绑定，`tool_access_mode=INHERIT`）承载指导文案，不硬编码在协调逻辑代码里；`INHERIT` 模式使该 Skill 声明的工具需求不受 Role 白名单为空的限制，不需要逐个 Role 显式配置即可默认可用（详见 [skill-tool-resolution.md](skill/skill-tool-resolution.md#有效工具交集)）
+- 不存在独立的只读规划阶段——单次 execution 内，模型调用 `submit_coordination_plan`/`submit_executor_plan` 的时机本身表达阶段切换，不需要先做一次只读 planning execution 再切一次执行 execution（借鉴官方 Harness Plan Mode 单次调用内工具序列表达阶段切换的设计思路，但计划持久化与状态机不复用其 workspace 实现，理由见 ADR-006）
+- 判断错误或识别到"只说不做"由 `CompletionValidator` 兜底判定为未完成，不做前置正确性保证
 
-判定顺序遵循量入为出：**先确定性短路，再模型判定**。
-
-- 无附件、无多目标信号、无跨领域动作的单句请求直接判 `SINGLE_AGENT`，不调模型
-- `TEAM` 与已发布工作流直接由冻结定义决定，不判定
-- 其余情况走 `NON_AUTONOMOUS_L0` 判定，属 child invocation，不创建 Assistant、Agent、Harness Loop 或持久 Task
-- 判定结果落成决策事实并可审计；模型输出非法时 fail-closed 退回 `SINGLE_AGENT`，不猜测修复
-
-实现态：⚠️ 部分实现 · 确定性判定已落地并驱动调度：`TaskAnalysis.java:14-89` 冻结三维结果，`DefaultTaskComplexityAnalyzer.java:22-70` 先确定性短路（短单句、无附件材料直判 `SINGLE_AGENT`，不调模型），`AssistantExecutionService.analyzedBoard` 按判定结果选 `single`/`coordinated`，已不再按 `interactionMode` 硬绑定。`CHAT` 的 AUTO 路由同样可进 `coordinated`：协调者以本 Assistant `defaultRoleKey` 装配且不预置业务技能。缺口：模型判定分支与决策审计事实尚未落地。
+实现态：✅ 已实现 · `DelegatedTaskCoordinator.executeSubTask`/`finalizeSubTaskExecution` 承载四态终态判断（授权等待/澄清等待/失败或未完成/成功，成功再细分协调派生成功、步骤计划成功、简单直答成功三种出口）；`TaskComplexityAnalyzer`/`ModelDrivenTaskComplexityAnalyzer`/`TaskAnalysis` 已删除，`AssistantExecutionService.analyzedBoard` 始终返回 `coordinated`。`TaskBoard.single` 工厂方法本身未删除（无真实调用方但属公开 API，按不做任务外重构原则保留，可复议）。
 
 ### 差异全景
 
@@ -306,15 +300,17 @@ flowchart TD
     ROUTE -->|任务式常用| FIXED["FIXED 校验指定 Role 与 Skill"]:::task --> SKILL
     SKILL["分层激活 Skill：ALWAYS 自动，AI 从 ON_DEMAND 选 0..N"]:::common
     SKILL --> CTX["四 受控检索与最小上下文"]:::common
-    CTX --> ANALYZE["TaskAnalysis 复杂度判定<br/>确定性短路优先"]:::common
-    ANALYZE --> FREEZE["五 执行画像与计划冻结"]:::common
-    FREEZE --> BOARD{六 按判定结果调度}
-    BOARD -->|无需拆分| SINGLE["single 单执行节点"]:::common
-    BOARD -->|需要拆分| COORD["coordinated 协调编排"]:::common
-    BOARD -->|已发布 Team| TEAMB["teamCoordinated"]:::task
+    CTX --> FREEZE["五 执行画像与计划冻结"]:::common
+    FREEZE --> BOARD{六 已发布 Team?}
+    BOARD -->|是| TEAMB["teamCoordinated<br/>冻结 Team version"]:::task --> LOOP
+    BOARD -->|否| COORDBOARD["始终建 coordinated 板"]:::common
+    COORDBOARD --> COORDEXEC["协调者 execution 内自主判断<br/>简单直答 / 拆步骤 / 拆多智能体"]:::common
+    COORDEXEC -->|简单直答| SINGLE["直接产出回复"]:::common
+    COORDEXEC -->|拆步骤| COORD["submit_executor_plan"]:::common
+    COORDEXEC -->|拆多智能体| SUBAGENT["submit_coordination_plan 派生执行者"]:::common
     SINGLE --> LOOP
     COORD --> LOOP
-    TEAMB --> LOOP
+    SUBAGENT --> LOOP
 
     LOOP["七 Harness Agent Loop"]:::common --> ACT{需要业务动作}
     ACT -->|否| AGG
@@ -371,7 +367,7 @@ flowchart TD
 | 唯一正文通道 | ✅ 已实现 · 用户对话正文只经 `AssistantAguiController.java:63-78`；工作流调试通道不承载用户对话正文 |
 | `EXECUTION` 支持通用任务式 | ✅ 已实现 · copywriting 能力族硬限制已移除，任务式接受任意已发布 Skill · `AssistantExecutionService.java:166-170` |
 | 完成门禁五项全覆盖并作用于父任务 | 🎯 目标态 · 当前不得声称已执行 |
-| `TaskAnalysis` 三维显式冻结并驱动调度 | ⚠️ 部分实现 · 确定性判定已驱动调度（`TaskAnalysis.java:14-89`、`DefaultTaskComplexityAnalyzer.java:22-77`）；模型判定与决策审计事实未落地 |
+| 编排形态由协调者 execution 内自主判定并驱动调度 | ✅ 已实现 · `AssistantExecutionService.analyzedBoard` 始终建 `coordinated` 板，协调者在自己的一次 execution 内自主判断三档（`DelegatedTaskCoordinator.executeSubTask`）；不再有独立前置 `TaskAnalysis` 模型调用与决策审计事实产出 |
 | `CHAT` 可按判定进入 `coordinated` | ✅ 已实现 · 判定链对三模式统一生效；AUTO 路由以 `defaultRoleKey` 装配协调者（`AssistantExecutionService.analyzedBoard`），`TaskBoard.java:754-757` 只强制协调者 Role、技能可空 |
 | 计划授权衰减：executor 不得放大到委派方之外 | ✅ 已实现 · 衰减基准为协调者自身已冻结 Role/Skill（`DelegatedTaskCoordinator.java:945-976`），越界 fail-closed；边界用例见 `DelegatedTaskCoordinatorAuthorizationTest` |
 
@@ -381,7 +377,7 @@ flowchart TD
 - 同一 `threadId` 内多轮运行各有独立 `runId`，恢复与 fencing 只在持久任务模型内进行
 - 客户端请求的意图经服务端解析后才生效，不能凭请求提权
 - 三种运行模式共用同一执行链，差异只出现在本文差异表
-- 编排形态只由 `TaskAnalysis` 决定；任一 TaskBoard 类型的选择都能回溯到判定依据与判定方式
-- 简单单句请求不产生复杂度判定的模型调用
+- 编排形态由协调者在自己的 execution 内自主判定；已发布 Team 走 `teamCoordinated`，其余始终建 `coordinated` 板由协调者判断简单直答/拆步骤/拆多智能体
+- 简单直答场景不产生额外的前置复杂度判定模型调用（判断本身就在协调者唯一一次 execution 内完成）
 - 每次运行都能定位其不可变画像，重试节点不复用父节点画像
 - 终态只取五个枚举之一，且必然伴随恢复点或完成证据

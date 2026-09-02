@@ -1,3 +1,29 @@
+- ✅ 2026-09-02 — Kiro：架构改造（选项 B）——协调者能力扩展为父集，两阶段规划合并为单次 execution，`TaskComplexityAnalyzer` 前置判断彻底删除
+
+### 架构改造：协调者一次 execution 内自主判断三档，删除独立前置复杂度分类步骤
+
+源于 #10705 讨论中发现的进一步简化机会，实质已超出 #10705 原定"计划事件与 AG-UI 投影"范围，是 ADR-006 的下一步演进（决策记录见 ADR-006 新增章节「架构改造：协调者能力扩展为父集，两阶段规划合并为单次 execution」）。
+
+**核心变更**：
+- `DelegatedTaskCoordinator.executeSubTask` 不再判断 `subTask.requiresPlan()`（字段已删），改为始终发起单次"完整能力 execution"——`submit_coordination_plan`/`submit_executor_plan`/全部业务工具同时可见，模型自主判断该调哪个。原 `executePlannedSubTask`/`runPlanningExecution`/`executeApprovedPlanSteps` 三方法整体删除，替换为统一的 `finalizeSubTaskExecution` 四态判断收尾（授权等待/澄清等待/失败或未完成/成功，成功再细分协调派生成功、步骤计划成功、简单直答成功）。
+- `SubmitExecutorPlanTool.submit(...)` 自持三步：无活跃计划先 `beginPlanning`，随后同一次调用内依次 `submit`+`claimApproved`，一步到位转 `EXECUTING`，不再有独立 `APPROVED` 等待中间态。
+- `TaskComplexityAnalyzer`/`ModelDrivenTaskComplexityAnalyzer`/`TaskAnalysis`/`PlanRequirementPolicy` 四个类型及全部消费方彻底删除（含 `AssistantInfrastructureAutoConfiguration` 对应 Bean、`AssistantExecutionServiceTest` 构造参数）；`AssistantExecutionService.analyzedBoard` 简化为始终返回 `TaskBoard.coordinated`。
+- `TaskBoard.SubTask.requiresPlan`、`CoordinationPlan.ExecutorAssignment.suggestsPlan` 字段删除；`TaskBoard.applyCoordinationPlan` 简化为单一方法（不再需要判定函数参数）。
+- 协调者三档判断依据改为新建内置 Skill `builtin-task-decomposition` 承载（对比 `builtin-self-learning` 既有模式，行为指导走 Skill 正文不硬编码 Java）；`tool_access_mode=INHERIT`（复用既有"已审核系统 Skill 默认工具"机制，跳过 `skillRequiredToolNames` 限制直接放行 Role/Agent 交集，不需要逐个 Role 配置白名单），`ai_system_skill_binding` `ALWAYS` 全局绑定不限定到具体 Role。
+
+**已核实不受影响**：AAF-110 中断续跑机制、事件投影机制均是通用机制，不依赖单/双 execution 模式；"前注意"（Role/Skill 路由解析，`runtime.md` 步骤三）与"任务复杂度判断"（步骤六）是两个独立职责，本次只删步骤六，前注意完整保留。
+
+**已核实的关键设计纠错**：最初尝试放开 `AssistantApplicationService` 两处"SYSTEM Skill 初版禁止声明工具要求"硬性校验，评估后判定不必要——核实 `DefaultEffectiveToolResolver.resolve` 发现 `INHERIT` 模式已是为此场景设计的既有机制（`requireInheritOnlyForBuiltIn` 门禁要求 `built_in=true`），复用比放开现有安全校验更贴合"优先已有模式"原则，两处校验已撤销改动维持原状。
+
+**已核实不需要采纳的方案**：手动给 `system.role.platform-guide.tool_whitelist` 追加工具名——用户指出"默认技能/工具不应该要求先绑定角色"，核实后确认 `INHERIT` 模式下 Role 白名单为空也不限制，该手动配置已撤销。
+
+**保留未删（可复议）**：`TaskBoard.single` 工厂方法、`DelegatedTaskCoordinator.submit(AssistantCommand)` 单参数重载——全仓无真实调用方，判断为公开 API 按不做任务外重构原则保留。
+
+**实现文件**：`TaskBoard.java`、`CoordinationPlan.java`、`DelegatedTaskCoordinator.java`、`SubmitExecutorPlanTool.java`、`AssistantInfrastructureAutoConfiguration.java`、`AssistantExecutionService.java`（aaf-api）、`v12__init_seed_data.sql`（新增 `builtin-task-decomposition` Skill + `INHERIT` 访问模式）；删除 `TaskComplexityAnalyzer.java`/`ModelDrivenTaskComplexityAnalyzer.java`/`TaskAnalysis.java`/`PlanRequirementPolicy.java`。同步更新真理源文档：`runtime.md`「任务复杂度判定」章节与流程图、`architecture.md`/`coordination.md` 关联表述、`ADR-006-executor-plan-mode.md` 新增决策章节。
+
+**验证**：`pnpm nx compile service` BUILD SUCCESS（main+test，多次验证，含最终 `INHERIT` 方案版本）。测试文件同步修复：`DelegatedTaskCoordinatorAggregatorCompletionTest.java`、`SubmitCoordinationPlanToolTest.java`。
+
+
 
 - ✅ 2026-09-02 — Kiro：#10704 三次收窄+#10705 完成，`report_executor_step` 工具补齐步骤上报缺口，6+3 个计划事件落地
 

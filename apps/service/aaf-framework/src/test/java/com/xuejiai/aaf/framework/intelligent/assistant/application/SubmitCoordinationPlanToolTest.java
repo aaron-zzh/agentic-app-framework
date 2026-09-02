@@ -87,9 +87,7 @@ class SubmitCoordinationPlanToolTest {
 
     private static SubmitCoordinationPlanTool tool(TaskBoard board) {
         return new SubmitCoordinationPlanTool(
-                new StubTaskBoardPort(board),
-                DecompositionBudget.defaults(),
-                (nodeSubTaskId, roleKey, skillKey, coordinatorSuggestsPlan) -> false);
+                new StubTaskBoardPort(board), DecompositionBudget.defaults());
     }
 
     /**
@@ -118,8 +116,7 @@ class SubmitCoordinationPlanToolTest {
                         new SessionId("coordinator-session-1"),
                         null,
                         null,
-                        Map.of(),
-                        false);
+                        Map.of());
         return new TaskBoard(
                 TASK,
                 new TaskBoard.Goal(
@@ -216,17 +213,7 @@ class SubmitCoordinationPlanToolTest {
         @Override
         public TaskBoard applyCoordinationPlan(
                 TenantId tenantId, TaskId taskId, CoordinationPlan plan, ConversationLeasePort.Lease lease) {
-            throw new UnsupportedOperationException("未使用");
-        }
-
-        @Override
-        public TaskBoard applyCoordinationPlan(
-                TenantId tenantId,
-                TaskId taskId,
-                CoordinationPlan plan,
-                ConversationLeasePort.Lease lease,
-                java.util.function.Function<CoordinationPlan.ExecutorAssignment, Boolean> planRequirement) {
-            board = board.applyCoordinationPlan(plan, planRequirement);
+            board = board.applyCoordinationPlan(plan);
             return board;
         }
 

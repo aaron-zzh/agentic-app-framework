@@ -45,16 +45,11 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
 
     private final TaskBoardPort boards;
     private final DecompositionBudget decompositionBudget;
-    private final PlanRequirementPolicy planRequirement;
 
-    public SubmitCoordinationPlanTool(
-            TaskBoardPort boards,
-            DecompositionBudget decompositionBudget,
-            PlanRequirementPolicy planRequirement) {
+    public SubmitCoordinationPlanTool(TaskBoardPort boards, DecompositionBudget decompositionBudget) {
         this.boards = Objects.requireNonNull(boards, "boards 不能为空");
         this.decompositionBudget =
                 Objects.requireNonNull(decompositionBudget, "decompositionBudget 不能为空");
-        this.planRequirement = Objects.requireNonNull(planRequirement, "planRequirement 不能为空");
     }
 
     @Override
@@ -66,6 +61,46 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
     public String description() {
         return "提交本次协调产出的执行计划：目标、并行度、聚合方式、执行者列表，可选迭代组。"
                 + "提交后立即生效冻结子任务，如需调整必须由协调者重新触发一次新的协调。";
+    }
+
+    /**
+     * 等效只读：产出的是协调计划草稿（派生子任务定义），不直接执行业务动作——风险已在协调者派发子节点时的既有审批点
+     * 与各子任务自己的工具授权链路覆盖，与 {@link SubmitExecutorPlanTool} 同一判断依据（ADR-006）。
+     */
+    @Override
+    public boolean readOnly() {
+        return true;
+    }
+
+    @Override
+    public Map<String, Object> inputSchema() {
+        return Map.of(
+                "type",
+                "object",
+                "properties",
+                Map.of(
+                        "goal",
+                        Map.of("type", "string", "description", "本次协调的目标概述"),
+                        "maxParallelism",
+                        Map.of("type", "integer", "description", "最大并行执行者数量"),
+                        "aggregationContract",
+                        Map.of(
+                                "type",
+                                "object",
+                                "description",
+                                "聚合方式：kind（PASS_THROUGH/ORDERED_CONCAT 等）与相关配置"),
+                        "executors",
+                        Map.of(
+                                "type",
+                                "array",
+                                "description",
+                                "执行者列表，每项含 subTaskId/description/roleKey/skillKey/modelMode",
+                                "items",
+                                Map.of("type", "object")),
+                        "iterationGroup",
+                        Map.of("type", "object", "description", "可选迭代组配置")),
+                "required",
+                List.of("goal", "aggregationContract", "executors"));
     }
 
     @Override
@@ -146,8 +181,7 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
                             roleKey,
                             skillKey,
                             modelSelection,
-                            optionalPositiveInt(node, "maxAttempts", 3),
-                            optionalBoolean(node, "suggestsPlan")));
+                            optionalPositiveInt(node, "maxAttempts", 3)));
         }
 
         var plannedExecutorIds = new LinkedHashSet<String>();
@@ -189,17 +223,7 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
                         assignments,
                         iterationGroup);
 
-        boards.applyCoordinationPlan(
-                context.tenantId(),
-                context.taskId(),
-                plan,
-                context.lease(),
-                assignment ->
-                        planRequirement.requiresPlan(
-                                assignment.subTaskId(),
-                                assignment.roleKey(),
-                                assignment.skillKey(),
-                                assignment.suggestsPlan()));
+        boards.applyCoordinationPlan(context.tenantId(), context.taskId(), plan, context.lease());
 
         var values = new LinkedHashMap<String, Object>();
         values.put("executorCount", assignments.size());
@@ -333,8 +357,4 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
         throw new IllegalArgumentException(field + " 必须是数字");
     }
 
-    private static Boolean optionalBoolean(Map<String, Object> map, String field) {
-        var value = map.get(field);
-        return value instanceof Boolean bool ? bool : null;
-    }
 }

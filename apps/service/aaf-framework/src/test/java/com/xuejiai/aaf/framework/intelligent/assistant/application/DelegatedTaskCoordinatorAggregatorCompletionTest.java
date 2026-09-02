@@ -168,8 +168,7 @@ class DelegatedTaskCoordinatorAggregatorCompletionTest {
                 new SessionId("aggregator-session-1"),
                 null,
                 null,
-                Map.of(),
-                false);
+                Map.of());
     }
 
     private static TaskBoard boardWithAggregator(SubTask aggregatorSubTask) {

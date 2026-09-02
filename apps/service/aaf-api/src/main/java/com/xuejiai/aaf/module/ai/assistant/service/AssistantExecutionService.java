@@ -21,7 +21,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantInvo
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.InvocationProfile;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.InvocationProfile.ContextPlan;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskComplexityAnalyzer;
+
 import com.xuejiai.aaf.framework.intelligent.assistant.model.*;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceReference;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceType;
@@ -73,7 +73,6 @@ public class AssistantExecutionService {
     private final DefinitionLifecycleService definitionLifecycles;
     private final OperatorContext operatorContext;
     private final VisionMediaResolver visionMediaResolver;
-    private final TaskComplexityAnalyzer complexityAnalyzer;
 
     /**
      * 唯一无会话执行入口。
@@ -877,45 +876,25 @@ public class AssistantExecutionService {
     }
 
     /**
-     * 按 {@link TaskAnalysis} 判定结果构造看板。
+     * 构造委托任务看板。
      *
-     * <p>编排形态由复杂度判定决定，不再按 {@code interactionMode} 硬绑定：对话式与任务式共用同一判定链。
+     * <p>不再前置调用 {@code TaskComplexityAnalyzer} 判断 single/coordinated（AAF-107 选项 B 架构改造，
+     * 2026-09-02）——协调者在自己的 execution 内自主判断"简单/拆步骤/拆多智能体"三档并直接采取行动（见
+     * {@code DelegatedTaskCoordinator.executeSubTask} 与内置 Skill {@code builtin-task-decomposition}），
+     * "简单"这一档已经被协调者直接回答覆盖，不需要在建板前再额外调一次模型做更粗粒度的相同判断——那是重复劳动，
+     * 且判断依据更差（{@code TaskComplexityAnalyzer} 只能看到目标文本本身，协调者的 execution 有完整上下文、
+     * 记忆与技能）。始终建 {@code coordinated} 板，协调者节点承担原来"前注意"的职责不变。
      */
     private TaskBoard analyzedBoard(
             ExecutionSpec spec, AssistantCommand command, String defaultRoleKey) {
         var route = spec.executionIntent().resolvedRoute();
-        var analysis =
-                complexityAnalyzer.analyze(
-                        new TaskComplexityAnalyzer.AnalysisInput(
-                                command.input(),
-                                spec.imageFileKeys().size(),
-                                spec.materials().size(),
-                                route != null,
-                                null));
         var maxAttempts = command.executionContract().retryPolicy().maxAttempts();
-        log.debug(
-                "[AssistantExecution] stage=task_analyzed executionId={} taskId={} ownerMode={} "
-                        + "processMode={} coordinationMode={} analyzedBy={} rationale={}",
-                command.executionId().value(),
-                command.taskId().value(),
-                analysis.ownerMode(),
-                analysis.processMode(),
-                analysis.coordinationMode(),
-                analysis.analyzedBy(),
-                analysis.rationale());
-        if (analysis.requiresTaskBoard()) {
-            // 协调者只需一个本 Assistant 已配置的 Role 用于 Prompt 装配，并作为 executor 的授权衰减基准。
-            // FIXED 用已解析路由；AUTO 用默认 Role 且不预置业务技能。
-            var coordinatorRoleKey = route != null ? route.roleKey() : defaultRoleKey;
-            var coordinatorSkillKey = route != null ? route.skillKey() : null;
-            return TaskBoard.coordinated(
-                    command.taskId(),
-                    command.input(),
-                    coordinatorRoleKey,
-                    coordinatorSkillKey,
-                    maxAttempts);
-        }
-        return TaskBoard.single(command.taskId(), command.input(), maxAttempts);
+        // 协调者只需一个本 Assistant 已配置的 Role 用于 Prompt 装配，并作为 executor 的授权衰减基准。
+        // FIXED 用已解析路由；AUTO 用默认 Role 且不预置业务技能。
+        var coordinatorRoleKey = route != null ? route.roleKey() : defaultRoleKey;
+        var coordinatorSkillKey = route != null ? route.skillKey() : null;
+        return TaskBoard.coordinated(
+                command.taskId(), command.input(), coordinatorRoleKey, coordinatorSkillKey, maxAttempts);
     }
 
     private static EffectiveOutputContract mergeOutputContract(

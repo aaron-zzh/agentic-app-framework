@@ -189,12 +189,12 @@ L0–L4 智能层级与 P0–P8 Prompt 优先级是两个正交维度，**禁止
 | 维度 | 回答的问题 | 取值 |
 |---|---|---|
 | 智能层级 | 谁持有状态和责任 | L0 Core、L1 Cognition、L2 Agent、L3 Assistant、L4 Team |
-| 调用形态 | 本次模型调用是否持有自主任务循环 | `AUTONOMOUS_HARNESS`、`NON_AUTONOMOUS_L0` |
+| 调用形态 | 本次模型调用是否持有自主任务循环 | `AUTONOMOUS_AGENT_LOOP`、`NON_AUTONOMOUS_L0` |
 | Prompt 优先级 | 自主调用的约束与数据如何排序 | P0 代码硬治理，P1–P7 System 片段，P8 上下文与消息数据 |
 
 两种调用形态的装配差异与 `PromptEnvelope` 字段见 [core/prompt.md](core/prompt.md)。核心区别：
 
-- `AUTONOMOUS_HARNESS` 装配 Constitution、执行身份与任务循环、Role、冻结任务合同、ActivatedSkill、可选 Persona 与 P8 数据；每个 ReAct 回合与模型尝试各生成独立 Envelope
+- `AUTONOMOUS_AGENT_LOOP` 装配 Constitution、执行身份与任务循环、Role、冻结任务合同、ActivatedSkill、可选 Persona 与 P8 数据；每个 ReAct 回合与模型尝试各生成独立 Envelope
 - `NON_AUTONOMOUS_L0` 只装配版本化 Function Contract、严格 Output Contract 与最小数据，不注入 Constitution、Persona、Role、Skill 或自主循环
 - P0 权限、HITL、预算、状态机、工具可见性与 Schema 校验**不渲染为授权文本**，只在 Envelope 中保存治理决策引用与摘要
 
@@ -202,7 +202,7 @@ Role/Skill 选择、意图与情绪分类、上下文摘要、参数提取、记
 
 ## 双层循环
 
-AAF 外层循环（L3/L4）持有跨节点 TaskBoard、状态迁移、租约、预算、授权、恢复、聚合与完成责任；L2 内层循环只通过 `AgentExecutionPort` 复用 AgentScope Harness 的 ReAct、工具观察、工作态与流式事件。TaskBoard 类型、字段与拓扑只在 [coordination.md](assistant/coordination.md) 定义，一次运行的推进与终态只在 [runtime.md](runtime.md) 定义。
+AAF 外层循环（L3/L4）持有跨节点 TaskBoard、状态迁移、租约、预算、授权、恢复、聚合与完成责任；L2 内层循环只通过 `AgentExecutionPort` 复用 **AAF Harness 包裹的 AgentScope core ReAct**（`HarnessAgentExecutionAdapter` 是唯一实现——AAF 自持外层装配、生命周期与治理，只借用 core 的推理循环、工具观察、工作态与流式事件；不依赖官方 AgentScope Harness 包装，见 [ADR-005](../../adr/ADR-005-agentscope-boundary-and-orchestration.md)）。TaskBoard 类型、字段与拓扑只在 [coordination.md](assistant/coordination.md) 定义，一次运行的推进与终态只在 [runtime.md](runtime.md) 定义。
 
 基础设施适配器关闭 AgentScope 内建的长期记忆、工作区、原生子智能体、动态 Skill、文件与 Shell 等旁路能力。领域与应用层只依赖 `AgentExecutionPort`，因此替换内层引擎不改变外层任务合同。
 
@@ -229,7 +229,7 @@ public record DecompositionBudget(
 | `maxTotalExecutorRuns` | 跨计划与迭代累计 Executor 运行数 | ✅ 已实现 · `DecompositionBudget.java:55-69`、`DelegatedTaskCoordinator.java:1027-1036` |
 | `maxDecompositionDepth` | 父子节点深度进入冻结执行合同 | 🎯 目标态，当前不得声称已执行 |
 
-Harness ReAct 迭代与模型重试**不属于** `DecompositionBudget`，由每个 Agent 的 `ExecutionPolicy.maxIterations` 与 `maxModelRetries` 管理，避免两个预算真理源。
+AgentScope core ReAct 迭代与模型重试**不属于** `DecompositionBudget`，由每个 Agent 的 `ExecutionPolicy.maxIterations` 与 `maxModelRetries` 管理，避免两个预算真理源。
 
 ## 认知心理映射
 
@@ -253,7 +253,7 @@ Harness ReAct 迭代与模型重试**不属于** `DecompositionBudget`，由每�
 |---|---|
 | Assistant 统一入口与三种运行模式 | ⚠️ 部分实现 · `/api/agui/run` 已统一 `CHAT/EXECUTION/TEAM`：三种模式只决定请求组装（`AssistantAguiController.Mode.plan`），执行链唯一（`AssistantExecutionService.start`，Team 目标以可选参数传入）；工作流仍保留独立正文入口（`WorkflowAgUiController`） |
 | 任务身份固定为 `threadId` 与 `runId` 两组等价关系 | ✅ 已实现 · `AssistantExecutionService.RunIdentity` |
-| 编排形态由 `TaskAnalysis` 三维（owner / process / coordination）显式冻结并驱动调度，交互模式不绑定调度 | ⚠️ 部分实现 · 判定已驱动调度且不再按 `interactionMode` 硬绑定：`AssistantExecutionService.analyzedBoard` 按 `TaskAnalysis` 选 `single`/`coordinated`，`CHAT` 的 AUTO 路由同样可进 `coordinated`；`TEAM` 由冻结 Team version 进入 `teamCoordinated`。缺口：判定决策未落成审计事实。实现态以 [runtime.md](runtime.md#任务复杂度判定) 为准 |
+| 编排形态由协调者在自己的 execution 内自主判定并驱动调度，交互模式不绑定调度 | ✅ 已实现 · `AssistantExecutionService.analyzedBoard` 始终建 `coordinated` 板，协调者在唯一一次 execution 内自主判断简单直答/拆步骤/拆多智能体三档（`DelegatedTaskCoordinator.executeSubTask`），`CHAT` 的 AUTO 路由同样可进 `coordinated`；`TEAM` 由冻结 Team version 进入 `teamCoordinated`。不再有独立前置 `TaskAnalysis` 分类步骤（AAF-107 选项 B 架构改造，2026-09-02 已删除 `TaskComplexityAnalyzer`/`TaskAnalysis`）。实现态以 [runtime.md](runtime.md#任务复杂度判定) 为准 |
 | `EXECUTION` 当前仅支持 copywriting 能力族 | ⚠️ 分期约束 · `AssistantExecutionService.java:172`；通用任务式为目标态 |
 | L1 提供受控上下文 | ⚠️ 部分实现 · 长期记忆已接入；本会话短期上下文缺失，`MemoryRecallPort.java:9-25` 无会话维度 |
 | 关闭 AgentScope 原生子智能体与旁路能力 | ✅ 已实现 · `AgentScopeSpecCompiler.java:108-184` |

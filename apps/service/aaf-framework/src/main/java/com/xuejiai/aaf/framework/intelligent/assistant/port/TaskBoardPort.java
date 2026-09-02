@@ -22,22 +22,6 @@ public interface TaskBoardPort {
             com.xuejiai.aaf.framework.intelligent.assistant.model.CoordinationPlan plan,
             ConversationLeasePort.Lease lease);
 
-    /**
-     * 与 {@link #applyCoordinationPlan(TenantId, TaskId, com.xuejiai.aaf.framework.intelligent.assistant.model.CoordinationPlan,
-     * ConversationLeasePort.Lease)} 相同，但通过 {@code planRequirement} 为每个新建执行者节点判定是否需要先规划（ADR-006
-     * 补充决策二）。
-     */
-    TaskBoard applyCoordinationPlan(
-            TenantId tenantId,
-            TaskId taskId,
-            com.xuejiai.aaf.framework.intelligent.assistant.model.CoordinationPlan plan,
-            ConversationLeasePort.Lease lease,
-            java.util.function.Function<
-                            com.xuejiai.aaf.framework.intelligent.assistant.model.CoordinationPlan
-                                    .ExecutorAssignment,
-                            Boolean>
-                    planRequirement);
-
     TaskBoard completeSubTask(
             TenantId tenantId,
             TaskId taskId,

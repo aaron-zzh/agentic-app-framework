@@ -1014,7 +1014,33 @@ WITH seeded_skill (code, name, summary, content) AS (
         ($skill$builtin-agent-execution$skill$, $skill$受控 Agent 执行$skill$, $skill$USE WHEN AAF 工作流或 AIGC 在 Assistant SkillSelection 外直接执行已发布 Agent。$skill$, $skill$
 # 受控 Agent 执行
 
-根据当前用户请求和 Agent 的已发布定义完成任务。只能使用 AAF 最终执行画像显式授权的工具；不得加载、选择或修改其他 Skill。$skill$)
+根据当前用户请求和 Agent 的已发布定义完成任务。只能使用 AAF 最终执行画像显式授权的工具；不得加载、选择或修改其他 Skill。$skill$),
+        ($skill$builtin-task-decomposition$skill$, $skill$任务复杂度判断与拆分$skill$, $skill$USE WHEN 协调者或执行者需要判断本轮任务该直接完成、拆成步骤还是拆给多个执行者。$skill$, $skill$
+# 任务复杂度判断与拆分
+
+按任务复杂度自主判断三档处理方式，三者只能选一种，不要同时拆步骤又派生执行者：
+
+## 简单任务
+
+任务是单一、连贯的工作，不需要拆分。直接给出最终答案，不调用任何计划或协调工具。
+
+## 需要按步骤推进（不需要多个执行者）
+
+调用 `submit_executor_plan` 提交有序步骤列表（目标、风险自评、验证方式、每一步的标题与说明）。提交后就地进入
+执行，不需要等待额外确认。开始执行某个步骤前调用 `report_executor_step` 上报 `STARTED`，完成后上报
+`COMPLETED`，遇到无法完成的失败上报 `FAILED`；必须按步骤声明的顺序与依赖关系逐条上报，不要跳过或提前上报
+未满足依赖的步骤。提交计划后应在同一次回复内继续完成全部步骤，不要中途转而派生执行者。
+
+## 需要多个执行者协作
+
+仅协调者可用。任务涉及不同领域分工、可并行拆解为独立子任务时，调用 `submit_coordination_plan` 派生执行者
+子任务，说明目标、并行度、聚合方式与每个执行者的角色。提交后协调者本轮工作结束，不需要再产出最终答案——
+派生的执行者会各自独立完成分配到的子任务。
+
+## 判断依据
+
+不要仅凭任务描述长短判断复杂度，只看语义上是否真的存在多个独立步骤或需要不同角色分工。用户明确要求"直接
+回答""不要拆解"时优先遵从用户意图。$skill$)
 ), inserted_definitions AS (
     INSERT INTO ai_skill_definition (
         code, name, summary, locale, visibility, built_in, create_time, update_time
@@ -1026,8 +1052,13 @@ WITH seeded_skill (code, name, summary, content) AS (
     INSERT INTO ai_skill_version (
         skill_id, version, status, content, tool_access_mode, change_summary, content_hash, create_time
     )
-    SELECT definition.id, 1, 'APPROVED', seeded.content, 'RESTRICT', '内置初始版本',
-           encode(digest(seeded.content, 'sha256'), 'hex'), CURRENT_TIMESTAMP
+    -- builtin-task-decomposition 用 INHERIT（AAF-107 选项 B 架构改造，2026-09-02）：任务复杂度判断是
+    -- 系统级默认能力，不应要求每个 Role 显式在 tool_whitelist 里配置协调/计划工具——INHERIT 只允许已审核
+    -- 系统 Skill 声明（本表 built_in 恒为 TRUE），跳过 skillRequiredToolNames 限制直接放行 Role 与 Agent
+    -- 声明工具的交集，不产生新的信任边界（DefaultEffectiveToolResolver.java:36-44）。
+    SELECT definition.id, 1, 'APPROVED', seeded.content,
+           CASE WHEN seeded.code = 'builtin-task-decomposition' THEN 'INHERIT' ELSE 'RESTRICT' END,
+           '内置初始版本', encode(digest(seeded.content, 'sha256'), 'hex'), CURRENT_TIMESTAMP
     FROM inserted_definitions definition
     JOIN seeded_skill seeded ON seeded.code = definition.code
     RETURNING id, skill_id
@@ -1088,6 +1119,24 @@ INSERT INTO ai_system_skill_binding (
 SELECT skill.id, 'ALWAYS', TRUE, 100, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 FROM ai_skill_definition skill
 WHERE skill.code = 'builtin-self-awareness'
+  AND skill.current_version_id IS NOT NULL
+  AND skill.deleted = FALSE
+ON CONFLICT (skill_id) DO UPDATE SET
+    activation_mode = EXCLUDED.activation_mode,
+    enabled = EXCLUDED.enabled,
+    sort_order = EXCLUDED.sort_order,
+    update_time = CURRENT_TIMESTAMP,
+    deleted = FALSE;
+
+-- 任务复杂度判断全局生效（AAF-107 选项 B 架构改造，2026-09-02）：不限定到某个 Role，
+-- 任何走 SkillSelection 的 Assistant/Role 都能看到判断指导，不声明工具 requirement
+-- （Skill 正文只是文字指导，工具白名单仍由各 Role/Assistant 的 tool_whitelist 独立控制）。
+INSERT INTO ai_system_skill_binding (
+    skill_id, activation_mode, enabled, sort_order, create_time, update_time, deleted
+)
+SELECT skill.id, 'ALWAYS', TRUE, 110, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
+FROM ai_skill_definition skill
+WHERE skill.code = 'builtin-task-decomposition'
   AND skill.current_version_id IS NOT NULL
   AND skill.deleted = FALSE
 ON CONFLICT (skill_id) DO UPDATE SET

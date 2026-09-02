@@ -204,3 +204,47 @@ related-tasks: [docs/task/v0.12/AAF-107/tasks.md, docs/design/audit/2026-09-01-h
 3. `TaskBoardPort.awaitSubTaskAuthorization`（#10703 新增，用于计划待审批时转板状态）大概率不再需要，因为不再产生 `REVIEW_REQUIRED` 这一状态；需要复核 `runPlanningExecution` 里判断"是否转人工"的分支是否可以整体删除。
 4. #10704（审批与恢复）范围需要重新定义或与 #10705 合并——具体如何拆分留给下一轮任务规划。
 5. 已发现的官方权限系统优势项（Built-in Checks 动态参数检查、危险资源硬编码黑名单）AAF 当前缺失，记入改进意见池单独评估，不在本次任务范围内补齐。
+
+## 架构改造：协调者能力扩展为父集，两阶段规划合并为单次 execution（2026-09-02，AAF-107 选项 B）
+
+本条是继上述"决策推翻"之后的下一步演进，源于 #10705 讨论中发现的两个进一步收窄机会。**议题一（两表持久化）、议题四（无独立审批关卡）不变**；本条实质推翻/取代议题二、三的原有实现形态，并连带删除议题二原本依赖的独立前置分类步骤。
+
+### 背景：两个进一步的简化信号
+
+1. **"只有 EXECUTOR 分支能规划"与"协调者能力应为父集"存在张力**——补充决策一已经把 `ExecutorPlan` 的适用节点从"仅 EXECUTOR"放宽为"任何自行执行的节点"，但落地时仍保留了"先只读 planning execution 判断要不要规划，再切一次执行 execution"的两阶段结构（对应原议题三选 B）。既然协调者和执行者现在共享同一套计划能力，且"决策推翻"已经证明计划提交本身不需要独立审批关卡，两阶段结构本身也失去了存在理由——它最初是为"画像冻结不变量 + HITL 挂起"服务的，而挂起分支已被决策推翻删除。
+2. **独立前置复杂度分类步骤与"三档判断"语义重复**——补充决策二把"是否需要规划"的判定权部分下放给协调者建议 + AAF 侧规则仲裁，但同时框架里还存在一个完全独立的前置步骤 `TaskComplexityAnalyzer`，只用来判断"简单直答还是拆解"这个更粗粒度的同一类问题，在协调者自己拿到完整上下文后再自主判断一次。两次判断用不同的输入（`TaskComplexityAnalyzer` 只看目标文本，协调者 execution 有完整上下文、记忆与技能）得出应该一致的结论，是重复劳动且判断质量更差的一次先做。
+
+### 新决策
+
+- **单次 execution 内自主判断三档，不再有独立前置分类步骤**：协调者在自己的一次 execution 内，结合完整上下文自主判断"简单直答 / 拆步骤 / 拆多智能体"三档并直接采取行动（调用 `submit_executor_plan`/`submit_coordination_plan` 或直接产出回复），工具调用序列本身表达阶段切换，不需要模型显式声明"进入/退出规划"。`TaskComplexityAnalyzer`/`ModelDrivenTaskComplexityAnalyzer`/`TaskAnalysis` 三个类型整体删除；`AssistantExecutionService.analyzedBoard` 简化为始终建 `coordinated` 板。
+- **协调者能力扩展为执行者能力的父集**：原本"只读 planning execution 只能调 `submit_executor_plan`，执行 execution 才能调业务工具"的能力分层被取消——单次 execution 内，`submit_coordination_plan`、`submit_executor_plan` 与全部业务工具同时可见，模型自主判断该调哪个。协调者与执行者不再有能力边界上的区别，只有"是否允许派生子节点"这一权限点仍由节点身份区分。
+- **`submit_executor_plan` 自持三步，`claimApproved` 与 `submit` 合并为一次原子操作**：`SubmitExecutorPlanTool.submit(...)` 内部自行处理"无活跃计划则先 `beginPlanning`"，随后在同一次工具调用内依次执行 `submit` 与 `claimApproved`，一步到位从无记录直接进入 `EXECUTING`。`ExecutorPlan.Status` 仍保留 `APPROVED` 枚举值（不破坏已落库数据与穷举 switch），但正常路径不再产生该状态作为独立中间态被外部观察到——这是"决策推翻"删除 `REVIEW_REQUIRED` 分支之后的自然延伸：既然没有人工审批会停留在 `APPROVED` 等待被批准，`APPROVED` 就没有理由作为一个需要外部驱动才能跨越的状态存在。
+- **协调者指导文案改为内置 Skill 承载，不硬编码**：三档判断依据（何时直答、何时拆步骤、何时拆多智能体）由新建内置 Skill `builtin-task-decomposition` 的正文承载，遵循 AAF 既有"行为指导走 Skill 正文"模式（对比 `builtin-self-learning` 等既有内置 Skill），不写入 `DelegatedTaskCoordinator` 的 Java 代码。该 Skill 通过 `ai_system_skill_binding` 以 `ALWAYS` 全局绑定生效，不限定到具体 Role。
+- **系统级默认 Skill 的工具需求通过既有 `INHERIT` 机制解决，不新增放松点**：`builtin-task-decomposition` 声明 `tool_access_mode=INHERIT`（`ai_skill_version` 已有字段，原为"已审核系统 Skill"设计），跳过 `skillRequiredToolNames` 限制，直接放行 Role 与 Agent 声明工具的交集（Role 白名单为空时不限制），使协调/计划工具默认对所有节点可用，不需要逐个 Role 在 `tool_whitelist` 里手动配置。评估放开 `SYSTEM` Skill 声明 `requiredToolNames` 限制（`AssistantApplicationService` 两处硬性校验）后判定该改动不必要——`INHERIT` 机制已完整覆盖本次需求，未采用，两处校验维持原状。
+
+### 核心论据
+
+1. **两阶段结构的存在理由已被前序决策依次拆除**：画像冻结不变量要求"一次 execution 对应一份不变画像"，这个前提在"决策推翻"删除 HITL 挂起分支后已经不再需要跨越阶段边界——不存在中途等待人工的情形，两次 execution 之间不会有配置漂移风险需要靠"边界即状态切换点"来规避。
+2. **官方 Harness Plan Mode 的"单次调用内工具序列表达阶段切换"经核实不能直接复用代码（深度耦合 `WorkspaceManager` 文件系统抽象），但设计思路可借鉴**：AAF 的计划存储是 DB 表，不需要 `plan_enter`/`plan_write`/`plan_exit` 三件套模拟文件系统读写边界，工具调用本身（调 `submit_executor_plan` 还是不调）已经足够表达阶段切换，两次 execution 反而是多余的往返。
+3. **能力父集设计消除了一类配置错误**：原本"协调者只能看只读工具，执行者才能看业务工具"的分层要求 AAF 侧精确控制每次 execution 暴露的工具集随阶段变化，任何遗漏都会导致模型在错误阶段调错工具而失败。合并为单次 execution 后不再需要这层动态控制，简化了 `EffectiveToolResolver` 的调用方职责。
+4. **`INHERIT` 优于放开 `SYSTEM` Skill 工具限制**：核实 `DefaultEffectiveToolResolver.resolve` 发现 `INHERIT` 模式正是为"已审核系统 Skill 需要默认对所有 Role 可用的工具"设计的既有机制（`requireInheritOnlyForBuiltIn` 门禁要求 `built_in=true`），复用它比放开一条现有安全校验（`SYSTEM Skill 初版禁止声明工具要求`）更贴合"优先已有模式，禁止并行抽象"的原则，且改动面更小。
+
+### Positive Consequences
+
+- `DelegatedTaskCoordinator` 删除 `executePlannedSubTask`/`runPlanningExecution`/`executeApprovedPlanSteps` 三个方法与相关分流判断，`executeSubTask` 逻辑显著简化
+- 不再需要维护 `PlanRequirementPolicy`、`ExecutorPlan.Status.REVIEW_REQUIRED` 分支判断、独立的 `TaskComplexityAnalyzer` 前置模型调用，减少一次模型往返的延迟与成本
+- 协调者指导文案可由运营方独立迭代措辞，不需要改代码重新部署
+- 系统级默认工具加载复用既有 `INHERIT` 机制，未引入新的权限放松点
+
+### Negative Consequences
+
+- 单次 execution 内同时暴露协调/计划/业务工具，对模型的工具选择判断力要求更高，错误调用的兜底完全依赖 `finalizeSubTaskExecution` 的四态判断与 `CompletionValidator`
+- `ExecutorPlan.Status.APPROVED` 状态在正常路径下永不被外部观察到但仍保留枚举值，属已知的表意冗余，接受作为过渡代价（避免破坏已落库数据与穷举 switch）
+- `TaskBoard.single` 工厂方法与 `DelegatedTaskCoordinator.submit(AssistantCommand)` 单参数重载判断为死代码但未删除（框架公开 API，按不做任务外重构原则保留），后续如需彻底清理需重新评估
+
+### 后续动作
+
+1. `docs/design/framework/intelligent/runtime.md`「任务复杂度判定」章节已同步重写，反映判定权收归协调者 execution 内自主推理。
+2. 已彻底删除 `TaskComplexityAnalyzer`、`ModelDrivenTaskComplexityAnalyzer`、`TaskAnalysis`、`PlanRequirementPolicy` 四个类型及全部消费方，`pnpm nx compile service` 验证 `BUILD SUCCESS`。
+3. 新增内置 Skill `builtin-task-decomposition`（`v12__init_seed_data.sql`），`tool_access_mode=INHERIT`，`ai_system_skill_binding` `ALWAYS` 全局绑定。
+4. 本次改造范围已超出 #10705 原定的"计划事件与 AG-UI 投影"，提交时需判断归档为新技术任务编号还是记录为 AAF-107 的追加范围。

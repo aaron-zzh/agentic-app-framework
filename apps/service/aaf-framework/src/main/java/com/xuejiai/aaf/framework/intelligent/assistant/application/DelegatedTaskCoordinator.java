@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -97,7 +98,6 @@ public final class DelegatedTaskCoordinator {
     private final Clock clock;
     private final Duration leaseTtl;
     private final RecoveryPreflight recoveryPreflight;
-    private final PlanRequirementPolicy planRequirement;
     private final ExecutorPlanPort plans;
     private final ExecutionEventStorePort eventStore;
 
@@ -162,20 +162,20 @@ public final class DelegatedTaskCoordinator {
                 clock,
                 leaseTtl,
                 recoveryPreflight,
-                (nodeSubTaskId, roleKey, skillKey, coordinatorSuggestsPlan) -> false,
                 null,
                 null);
     }
 
     /**
-     * 完整构造器：新增 {@code planRequirement}（ADR-006 补充决策二的最终判定）与 {@code plans}（EXECUTOR/COORDINATOR
-     * 自行执行时的局部计划状态机端口）。{@code plans} 允许为 {@code null}——尚未接入计划能力的部署（如测试固件）用不到它，
-     * {@code planRequirement} 恒返回 {@code false} 时也不会触达该依赖。
+     * 完整构造器：新增 {@code plans}（协调者/执行者节点在自己 execution 内自主决定要不要先规划的局部计划状态机端口，
+     * AAF-107 选项 B 架构改造，2026-09-02）与 {@code events}（计划级事件持久化——{@code ExecutorPlan} 是独立聚合根，
+     * 不经过 {@code TaskTransition} 机制，需要本类直接持有 {@link ExecutionEventStorePort} 自行 {@code
+     * append}）。两者均允许为 {@code null}——尚未接入计划能力的部署（如测试固件）用不到它们，此时 {@code
+     * executeSubTask} 每轮查询 {@code plans.findActive(...)} 前会先判空短路，等价于该能力从未启用。
      *
-     * <p>两个旧构造器都固定传入恒 {@code false} 的 {@code planRequirement} 而非 {@link
-     * PlanRequirementPolicy#respectCoordinatorSuggestion()}——若默认尊重协调者建议，未显式传入 {@code plans}
-     * 依赖的部署一旦协调者建议规划就会在 {@code executePlannedSubTask} 触发空指针。只有调用本构造器并显式提供 {@code
-     * plans} 时才有意义启用非恒 false 的策略。
+     * <p>是否规划不再由建板时的静态判定决定（原 {@code PlanRequirementPolicy}/{@code requiresPlan} 静态标志已随本次
+     * 改造删除）——任何节点（协调者或执行者）都在自己的 execution 内自主选择要不要调用 {@code
+     * submit_executor_plan}，{@code executeSubTask} 只负责运行时查询"这个节点现在有没有活跃计划"来决定分流。
      */
     public DelegatedTaskCoordinator(
             DelegatedTaskPort tasks,
@@ -192,50 +192,6 @@ public final class DelegatedTaskCoordinator {
             Clock clock,
             Duration leaseTtl,
             RecoveryPreflight recoveryPreflight,
-            PlanRequirementPolicy planRequirement,
-            ExecutorPlanPort plans) {
-        this(
-                tasks,
-                transitions,
-                taskIngress,
-                boards,
-                leases,
-                commands,
-                agentExecution,
-                notifications,
-                dispatch,
-                agentTaskRuntime,
-                decompositionBudget,
-                clock,
-                leaseTtl,
-                recoveryPreflight,
-                planRequirement,
-                plans,
-                null);
-    }
-
-    /**
-     * 完整构造器（AAF-107 #10705 新增 {@code events}）：{@code events} 用于计划级事件（{@code
-     * EXECUTOR_PLAN_*}）的持久化——{@code ExecutorPlan} 是独立聚合根，不经过 {@code TaskTransition}
-     * 机制，需要本类直接持有 {@link ExecutionEventStorePort} 自行 {@code append}。允许为 {@code null}，语义与
-     * {@code plans} 一致：未接入计划能力的部署用不到它。
-     */
-    public DelegatedTaskCoordinator(
-            DelegatedTaskPort tasks,
-            TaskTransitionPort transitions,
-            TaskIngress taskIngress,
-            TaskBoardPort boards,
-            ConversationLeasePort leases,
-            AssistantCommandPort commands,
-            AgentExecutionPort agentExecution,
-            NotificationPort notifications,
-            DelegatedTaskDispatchPort dispatch,
-            AgentTaskRuntime agentTaskRuntime,
-            DecompositionBudget decompositionBudget,
-            Clock clock,
-            Duration leaseTtl,
-            RecoveryPreflight recoveryPreflight,
-            PlanRequirementPolicy planRequirement,
             ExecutorPlanPort plans,
             ExecutionEventStorePort eventStore) {
         this.tasks = Objects.requireNonNull(tasks, "tasks 不能为空");
@@ -254,7 +210,6 @@ public final class DelegatedTaskCoordinator {
         this.leaseTtl = Objects.requireNonNull(leaseTtl, "leaseTtl 不能为空");
         this.recoveryPreflight =
                 Objects.requireNonNull(recoveryPreflight, "recoveryPreflight 不能为空");
-        this.planRequirement = Objects.requireNonNull(planRequirement, "planRequirement 不能为空");
         this.plans = plans;
         this.eventStore = eventStore;
         if (leaseTtl.isZero() || leaseTtl.isNegative()) {
@@ -550,14 +505,17 @@ public final class DelegatedTaskCoordinator {
     }
 
     // 包内可见以便测试直接驱动单个子任务完成判定，不代表对外 API。
+    //
+    // AAF-107 选项 B 架构改造（2026-09-02）：不再有独立的前置 L0 分类器判断 single/coordinated，也不再有
+    // "先只读规划、再切一次执行 execution"的两阶段流程——协调者或执行者在同一次 execution 内自主判断三档
+    // （直答/拆步骤/拆多智能体）并直接采取行动。任务复杂度判断指导文案走内置 Skill（builtin-task-decomposition，
+    // AAF-107 dev-log 已记录），不在这里硬编码——与 builtin-self-learning 等既有内置行为指导保持同一套机制，
+    // 运营方可独立迭代措辞而不需要改代码重新部署。
     Flux<ExecutionEvent> executeSubTask(
             AssistantCommand parentCommand,
             InvocationContext parentContext,
             TaskBoard board,
             SubTask subTask) {
-        if (subTask.requiresPlan()) {
-            return executePlannedSubTask(parentCommand, parentContext, board, subTask);
-        }
         var childCommand =
                 parentCommand.forSubTask(
                         subTask,
@@ -621,359 +579,172 @@ public final class DelegatedTaskCoordinator {
                         })
                 .concatWith(
                         Flux.defer(
-                                () -> {
-                                    if (awaitingAuthorization.get()) {
-                                        return Flux.empty();
-                                    }
-                                    if (clarification.get() != null) {
-                                        var request = clarification.get();
-                                        var event =
-                                                clarificationRequestedEvent(
-                                                        parentContext, request, clock.instant());
-                                        transitions.requestClarification(
-                                                new ClarificationRequestTransition(
-                                                        parentContext, request, event));
-                                        return Flux.just(event);
-                                    }
-                                    if (failure.get() != null
-                                            || !completed.get()
-                                            || ((subTask.kind() == SubTask.Kind.EXECUTOR
-                                                            || subTask.kind()
-                                                                    == SubTask.Kind.AGGREGATOR)
-                                                    && !completionEvidenceSatisfied(
-                                                            parentCommand, observedEvents))) {
-                                        boards.failSubTask(
-                                                parentContext.tenantId(),
-                                                parentContext.taskId(),
-                                                subTask.subTaskId(),
-                                                Objects.requireNonNullElse(
-                                                        failure.get(), "子任务未产生完整终态"),
-                                                failure.get() == null
-                                                        || isTransientMessage(failure.get()),
-                                                parentContext.lease());
-                                    } else if (subTask.kind() == SubTask.Kind.COORDINATOR) {
-                                        // 计划已在 submit_coordination_plan 工具调用时同步落地
-                                        // （SubmitCoordinationPlanTool.submit → boards.applyCoordinationPlan），
-                                        // 这里不再重复解析 result.get()。只需重新查询最新板状态确认协调者是否真的
-                                        // 调用过该工具——board 变量是本轮 executeBoard 开始前的旧快照，工具调用
-                                        // 发生在 execution 期间，必须重新查询而非信任内存里的旧引用。
-                                        var latestBoard =
-                                                boards.find(
-                                                                parentContext.tenantId(),
-                                                                parentContext.taskId())
-                                                        .orElseThrow();
-                                        var latestCoordinator =
-                                                latestBoard.subTasks().get(subTask.subTaskId());
-                                        if (latestCoordinator == null
-                                                || latestCoordinator.status()
-                                                        != TaskBoard.Status.COMPLETED) {
-                                            // "只说不做"：模型产出了文本回复但从未调用 submit_coordination_plan
-                                            boards.failSubTask(
-                                                    parentContext.tenantId(),
-                                                    parentContext.taskId(),
-                                                    subTask.subTaskId(),
-                                                    "协调者未调用 submit_coordination_plan 提交计划",
-                                                    true,
-                                                    parentContext.lease());
-                                        } else {
-                                            log.debug(
-                                                    "[Assistant协调] 协调计划已冻结：taskId={}，coordinatorExecutionId={}",
-                                                    parentContext.taskId().value(),
-                                                    subTask.executionId().value());
-                                        }
-                                    } else if (subTask.kind() == SubTask.Kind.EVALUATOR) {
-                                        var evaluation = decodeIterationEvaluation(result.get());
-                                        var at = clock.instant();
-                                        var event =
-                                                iterationEvent(
-                                                        parentContext,
-                                                        board.goal().iteration(),
-                                                        evaluation,
-                                                        at);
-                                        var committed =
-                                                transitions.evaluateIteration(
-                                                        new IterationEvaluationTransition(
-                                                                parentContext,
-                                                                subTask.subTaskId(),
-                                                                evaluation,
-                                                                event,
-                                                                at));
-                                        return Flux.just(committed.event());
-                                    } else {
-                                        boards.completeSubTask(
-                                                parentContext.tenantId(),
-                                                parentContext.taskId(),
-                                                subTask.subTaskId(),
+                                () ->
+                                        finalizeSubTaskExecution(
+                                                parentCommand,
+                                                parentContext,
+                                                board,
+                                                subTask,
+                                                awaitingAuthorization.get(),
+                                                clarification.get(),
+                                                failure.get(),
+                                                completed.get(),
                                                 result.get(),
-                                                parentContext.lease());
-                                        log.debug(
-                                                "[Assistant协调] 执行子 Agent 已完成：taskId={}，executionId={}，agentKey={}",
-                                                parentContext.taskId().value(),
-                                                subTask.executionId().value(),
-                                                subTask.subTaskId());
-                                    }
-                                    return Flux.empty();
-                                }))
+                                                observedEvents)))
                 .filter(event -> visibleToTaskConsumer(subTask, event));
     }
 
     /**
-     * ADR-006 三段式：{@code requiresPlan} 的节点先确保有已批准计划，再按计划步骤执行；未批准前零副作用。
+     * 单次 execution 结束后的统一收尾判断（AAF-107 选项 B 架构改造，2026-09-02，替代原两阶段
+     * {@code executePlannedSubTask}/{@code runPlanningExecution}/{@code executeApprovedPlanSteps}）。
      *
-     * <p><b>不设独立审批关卡（ADR-006「决策推翻」2026-09-01）</b>：提交计划这个动作不新增执行面、不引入新的
-     * Agent 身份，风险已由协调者派发子节点时的既有审批点与步骤执行阶段的工具授权链路覆盖，因此计划提交后固定批准，
-     * 不存在转人工的中间态。
-     *
-     * <p>状态流转（跨多次 {@code executeSubTask} 调用，节点每轮只处于一种）：
+     * <p>借鉴官方 Harness Plan Mode 的判断方式（核实 {@code plan-mode.html} 后确认"只看最终状态判断成功与否有歧义，
+     * 必须结合是否真的调用过计划/协调工具"）：不能只用一个布尔值判断，按以下优先级依次判定四态：
      *
      * <ul>
-     *   <li>无活跃计划 → {@link #runPlanningExecution} 派发一次 planning execution（{@code READ_ONLY}），
-     *       结束后节点按结果转 {@code RETRYABLE}（已提交并批准，等待重新领取）或 {@code RETRYABLE}（未提交，规划失败），
-     *       均不停留 {@code RUNNING}
-     *   <li>活跃计划为 {@code APPROVED} → {@code claimApproved} 冻结 revision 进入 {@code EXECUTING}，再走
-     *       {@link #executeApprovedPlanSteps} 用现有执行链路完成业务动作
-     *   <li>活跃计划为 {@code EXECUTING}（重入，如恢复场景）→ 直接走 {@link #executeApprovedPlanSteps}
+     *   <li><b>协调派生</b>：{@code kind==COORDINATOR} 且节点自身状态已被 {@code
+     *       SubmitCoordinationPlanTool.submit → boards.applyCoordinationPlan} 同步转 {@code COMPLETED}
+     *       ——查询最新板状态确认，{@code board} 是本轮 {@code executeBoard} 开始前的旧快照，工具调用发生在
+     *       execution 期间，必须重新查询而非信任内存里的旧引用
+     *   <li><b>步骤计划</b>：查询 {@code plans.findActive(...)} 发现本节点有活跃 {@code ExecutorPlan}
+     *       ——{@code submit_executor_plan} 提交即直接进入 {@code EXECUTING}（不再有独立 {@code APPROVED}
+     *       等待认领中间态，因为提交和执行在同一次 execution 里连续发生，没有"等待另一次调用认领"的时间差），
+     *       execution 结束时按完成证据判断计划成功/失败
+     *   <li><b>简单直答</b>：从未调用任何计划/协调工具，直接产出文本——按原有 {@code completionEvidenceSatisfied}
+     *       校验
+     *   <li><b>"只说不做"</b>：以上均不满足（如声称要拆步骤但从未真正提交计划）——按失败处理，不静默放行
      * </ul>
      */
-    private Flux<ExecutionEvent> executePlannedSubTask(
+    private Flux<ExecutionEvent> finalizeSubTaskExecution(
             AssistantCommand parentCommand,
             InvocationContext parentContext,
             TaskBoard board,
-            SubTask subTask) {
-        var active =
-                plans.findActive(
-                        parentContext.tenantId(), parentContext.taskId(), subTask.subTaskId());
-        if (active.isEmpty()) {
-            return runPlanningExecution(parentCommand, parentContext, subTask);
-        }
-        var plan = active.get();
-        if (plan.status() == ExecutorPlan.Status.APPROVED) {
-            plans.claimApproved(
-                    new ExecutorPlanPort.ClaimApprovedCommand(
-                            parentContext.tenantId(),
-                            plan.planId(),
-                            plan.lockVersion(),
-                            clock.instant()));
-            emitPlanEvent(
-                    parentContext,
-                    ExecutionEventType.EXECUTOR_PLAN_EXECUTION_STARTED,
-                    ExecutionEventStatus.RUNNING,
-                    planValues(plan.planId(), ExecutorPlan.Status.EXECUTING.name()),
-                    "execution-started-" + plan.planId() + "-r" + plan.revision());
-        } else if (plan.status() != ExecutorPlan.Status.EXECUTING) {
-            log.debug(
-                    "[Assistant协调] 计划处于非执行态，本轮暂停：taskId={}，planId={}，status={}",
-                    parentContext.taskId().value(),
-                    plan.planId(),
-                    plan.status());
+            SubTask subTask,
+            boolean awaitingAuthorization,
+            ClarificationRequest clarification,
+            String failureMessage,
+            boolean completed,
+            String result,
+            List<ExecutionEvent> observedEvents) {
+        if (awaitingAuthorization) {
             return Flux.empty();
         }
-        return executeApprovedPlanSteps(parentCommand, parentContext, board, subTask);
+        if (clarification != null) {
+            var event = clarificationRequestedEvent(parentContext, clarification, clock.instant());
+            transitions.requestClarification(
+                    new ClarificationRequestTransition(parentContext, clarification, event));
+            return Flux.just(event);
+        }
+        if (failureMessage != null || !completed) {
+            failOrRecordPlanFailure(
+                    parentContext,
+                    subTask,
+                    Objects.requireNonNullElse(failureMessage, "子任务未产生完整终态"),
+                    failureMessage == null || isTransientMessage(failureMessage));
+            return Flux.empty();
+        }
+        if (subTask.kind() == SubTask.Kind.COORDINATOR
+                && coordinatorSubmittedPlan(parentContext, subTask)) {
+            log.debug(
+                    "[Assistant协调] 协调计划已冻结：taskId={}，coordinatorExecutionId={}",
+                    parentContext.taskId().value(),
+                    subTask.executionId().value());
+            return Flux.empty();
+        }
+        if (subTask.kind() == SubTask.Kind.EVALUATOR) {
+            var evaluation = decodeIterationEvaluation(result);
+            var at = clock.instant();
+            var event = iterationEvent(parentContext, board.goal().iteration(), evaluation, at);
+            var committed =
+                    transitions.evaluateIteration(
+                            new IterationEvaluationTransition(
+                                    parentContext, subTask.subTaskId(), evaluation, event, at));
+            return Flux.just(committed.event());
+        }
+        var activePlan =
+                plans == null
+                        ? Optional.<ExecutorPlan>empty()
+                        : plans.findActive(
+                                parentContext.tenantId(), parentContext.taskId(), subTask.subTaskId());
+        if (activePlan.isPresent()) {
+            return finalizePlannedStepExecution(parentContext, subTask, activePlan.get(), result);
+        }
+        if ((subTask.kind() == SubTask.Kind.EXECUTOR || subTask.kind() == SubTask.Kind.AGGREGATOR)
+                && !completionEvidenceSatisfied(parentCommand, observedEvents)) {
+            // "只说不做"：产出了文本但完成证据不满足，也没有提交任何计划——不能静默放行
+            failOrRecordPlanFailure(parentContext, subTask, "子任务未产生完整终态", true);
+            return Flux.empty();
+        }
+        boards.completeSubTask(
+                parentContext.tenantId(), parentContext.taskId(), subTask.subTaskId(), result,
+                parentContext.lease());
+        log.debug(
+                "[Assistant协调] 执行子 Agent 已完成：taskId={}，executionId={}，agentKey={}",
+                parentContext.taskId().value(),
+                subTask.executionId().value(),
+                subTask.subTaskId());
+        return Flux.empty();
     }
 
-    /** 派发一次只读规划 execution；模型只能调只读工具与 {@code submit_executor_plan}，不产生业务副作用。 */
-    private Flux<ExecutionEvent> runPlanningExecution(
-            AssistantCommand parentCommand, InvocationContext parentContext, SubTask subTask) {
-        var draft =
-                plans.beginPlanning(
-                        new ExecutorPlanPort.BeginPlanningCommand(
-                                parentContext.tenantId(),
-                                parentContext.taskId(),
-                                subTask.subTaskId(),
-                                subTask.subTaskId(),
-                                subTask.description(),
-                                Map.of("roleKey", subTask.roleKey(), "skillKey", subTask.skillKey()),
-                                clock.instant()));
-        emitPlanEvent(
-                parentContext,
-                ExecutionEventType.EXECUTOR_PLAN_CREATED,
-                ExecutionEventStatus.PLANNING,
-                planValues(draft.planId(), ExecutorPlan.Status.PLANNING.name()),
-                "created-" + draft.planId());
-        var planningInput =
-                subTask.description()
-                        + "\n\n本轮处于规划阶段（只读）：请先梳理完成本任务需要的有序步骤，"
-                        + "只能调用只读工具进行调查，最后调用 submit_executor_plan 提交计划；不要尝试调用任何写工具。";
-        var planningCommand =
-                parentCommand.forSubTask(
-                        subTask,
-                        planningInput,
-                        parentCommand.lease(),
-                        clock.instant(),
-                        CoordinationPlan.AggregationContract.Kind.PASS_THROUGH,
-                        ExecutionEvent.ControlMode.READ_ONLY);
+    /** 重新查询最新板状态确认协调者是否真的调用过 {@code submit_coordination_plan}（"只说不做"防护）。 */
+    private boolean coordinatorSubmittedPlan(InvocationContext parentContext, SubTask subTask) {
+        var latestBoard = boards.find(parentContext.tenantId(), parentContext.taskId()).orElseThrow();
+        var latestCoordinator = latestBoard.subTasks().get(subTask.subTaskId());
+        return latestCoordinator != null && latestCoordinator.status() == TaskBoard.Status.COMPLETED;
+    }
+
+    /** 步骤计划的完成/失败判定：完成证据仍是唯一真理源，计划本身只是审计记录，不替代原有校验。 */
+    private Flux<ExecutionEvent> finalizePlannedStepExecution(
+            InvocationContext parentContext, SubTask subTask, ExecutorPlan plan, String result) {
+        if (plan.status() == ExecutorPlan.Status.EXECUTING) {
+            plans.complete(
+                    parentContext.tenantId(), plan.planId(), plan.lockVersion(), clock.instant());
+            emitPlanEvent(
+                    parentContext,
+                    ExecutionEventType.EXECUTOR_PLAN_COMPLETED,
+                    ExecutionEventStatus.COMPLETED,
+                    planValues(plan.planId(), ExecutorPlan.Status.COMPLETED.name()),
+                    "completed-" + plan.planId() + "-r" + plan.revision());
+        }
+        boards.completeSubTask(
+                parentContext.tenantId(), parentContext.taskId(), subTask.subTaskId(), result,
+                parentContext.lease());
         log.debug(
-                "[Assistant协调] 派发只读 planning execution：taskId={}，subTaskId={}",
+                "[Assistant协调] 计划执行已完成：taskId={}，subTaskId={}",
                 parentContext.taskId().value(),
                 subTask.subTaskId());
-        return commands.execute(planningCommand)
-                .onErrorResume(
-                        error -> {
-                            log.warn(
-                                    "[Assistant协调] planning execution 异常，本轮暂停等待重试：taskId={}，subTaskId={}",
-                                    parentContext.taskId().value(),
-                                    subTask.subTaskId(),
-                                    error);
-                            return Flux.empty();
-                        })
-                .filter(event -> visibleToTaskConsumer(subTask, event))
-                .concatWith(
-                        Flux.defer(
-                                () -> {
-                                    // planning execution 已结束：节点当前仍是 RUNNING，必须显式转出，否则
-                                    // finalizeBoard 会误判整板无可运行节点而暂停整个委托任务（其余并行节点应能继续跑）。
-                                    var latestPlan =
-                                            plans.findActive(
-                                                    parentContext.tenantId(),
-                                                    parentContext.taskId(),
-                                                    subTask.subTaskId());
-                                    if (latestPlan.isPresent()
-                                            && latestPlan.get().status()
-                                                    == ExecutorPlan.Status.APPROVED) {
-                                        // 提交即批准：转可重新领取，让外层下一轮 executeBoard 递归重新 claim
-                                        // 该节点，进入 executePlannedSubTask 后走向 executeApprovedPlanSteps。
-                                        boards.interruptSubTask(
-                                                parentContext.tenantId(),
-                                                parentContext.taskId(),
-                                                subTask.subTaskId(),
-                                                true,
-                                                parentContext.lease());
-                                        return Flux.empty();
-                                    }
-                                    // "只说不做"：规划期结束但未提交——视为本轮规划失败，按既有重试预算处理，
-                                    // 不留 RUNNING 悬空（官方文档也记录了模型可能只在文本里描述计划但不真正调用提交工具）。
-                                    boards.failSubTask(
-                                            parentContext.tenantId(),
-                                            parentContext.taskId(),
-                                            subTask.subTaskId(),
-                                            "规划阶段未产生已提交的计划",
-                                            true,
-                                            parentContext.lease());
-                                    return Flux.empty();
-                                }));
+        return Flux.empty();
     }
 
-    /** 计划已 {@code EXECUTING} 时，按已批准步骤复用现有执行链路推进业务动作。 */
-    private Flux<ExecutionEvent> executeApprovedPlanSteps(
-            AssistantCommand parentCommand,
-            InvocationContext parentContext,
-            TaskBoard board,
-            SubTask subTask) {
-        var childCommand =
-                parentCommand.forSubTask(
-                        subTask,
-                        board.resolveInput(subTask)
-                                + "\n\n本轮处于已批准的执行阶段：请按你先前提交并已获批的计划步骤逐条推进，"
-                                + "不要重新规划，完成全部步骤后正常结束本次回复。开始执行某个步骤前先调用"
-                                + " report_executor_step 上报 STARTED，执行完成后上报 COMPLETED，"
-                                + "遇到无法完成的失败上报 FAILED；必须逐条上报，不要跳过或提前上报未满足依赖的步骤。",
-                        parentCommand.lease(),
-                        clock.instant(),
-                        board.goal().aggregationContract().kind());
-        var result = new AtomicReference<>("");
-        var observedEvents = new java.util.ArrayList<ExecutionEvent>();
-        var failure = new AtomicReference<String>();
-        var completed = new AtomicBoolean();
-        return commands.execute(childCommand)
-                .doOnNext(
-                        event -> {
-                            observedEvents.add(event);
-                            if (event.type() == ExecutionEventType.MESSAGE_COMPLETED) {
-                                var text = event.payload().values().get("text");
-                                if (text != null) result.set(text.toString());
-                            }
-                            if (event.type() == ExecutionEventType.EXECUTION_COMPLETED) {
-                                completed.set(true);
-                            }
-                            if (event.type() == ExecutionEventType.EXECUTION_FAILED
-                                    || event.type() == ExecutionEventType.COMMAND_REJECTED
-                                    || event.status() == ExecutionEventStatus.FAILED
-                                    || event.status() == ExecutionEventStatus.REJECTED) {
-                                failure.compareAndSet(null, "计划执行未通过状态校验");
-                            }
-                        })
-                .onErrorResume(
-                        error -> {
-                            failure.compareAndSet(null, "计划执行异常");
-                            return Flux.empty();
-                        })
-                .concatWith(
-                        Flux.defer(
-                                () -> {
-                                    var active =
-                                            plans.findActive(
-                                                    parentContext.tenantId(),
-                                                    parentContext.taskId(),
-                                                    subTask.subTaskId());
-                                    if (failure.get() != null || !completed.get()) {
-                                        var failureMessage =
-                                                Objects.requireNonNullElse(
-                                                        failure.get(), "计划执行未产生完整终态");
-                                        active.ifPresent(
-                                                plan -> {
-                                                    plans.fail(
-                                                            parentContext.tenantId(),
-                                                            plan.planId(),
-                                                            plan.lockVersion(),
-                                                            failureMessage,
-                                                            clock.instant());
-                                                    emitPlanEvent(
-                                                            parentContext,
-                                                            ExecutionEventType.EXECUTOR_PLAN_FAILED,
-                                                            ExecutionEventStatus.FAILED,
-                                                            planValues(
-                                                                    plan.planId(),
-                                                                    ExecutorPlan.Status.FAILED
-                                                                            .name()),
-                                                            "failed-"
-                                                                    + plan.planId()
-                                                                    + "-r"
-                                                                    + plan.revision());
-                                                });
-                                        boards.failSubTask(
-                                                parentContext.tenantId(),
-                                                parentContext.taskId(),
-                                                subTask.subTaskId(),
-                                                failureMessage,
-                                                failure.get() == null
-                                                        || isTransientMessage(failure.get()),
-                                                parentContext.lease());
-                                    } else {
-                                        active.ifPresent(
-                                                plan -> {
-                                                    plans.complete(
-                                                            parentContext.tenantId(),
-                                                            plan.planId(),
-                                                            plan.lockVersion(),
-                                                            clock.instant());
-                                                    emitPlanEvent(
-                                                            parentContext,
-                                                            ExecutionEventType
-                                                                    .EXECUTOR_PLAN_COMPLETED,
-                                                            ExecutionEventStatus.COMPLETED,
-                                                            planValues(
-                                                                    plan.planId(),
-                                                                    ExecutorPlan.Status.COMPLETED
-                                                                            .name()),
-                                                            "completed-"
-                                                                    + plan.planId()
-                                                                    + "-r"
-                                                                    + plan.revision());
-                                                });
-                                        boards.completeSubTask(
-                                                parentContext.tenantId(),
-                                                parentContext.taskId(),
-                                                subTask.subTaskId(),
-                                                result.get(),
-                                                parentContext.lease());
-                                        log.debug(
-                                                "[Assistant协调] 计划执行已完成：taskId={}，subTaskId={}",
-                                                parentContext.taskId().value(),
-                                                subTask.subTaskId());
-                                    }
-                                    return Flux.empty();
-                                }))
-                .filter(event -> visibleToTaskConsumer(subTask, event));
+    /** 子任务失败统一入口：若存在活跃计划一并标记失败，保持计划与板状态一致。 */
+    private void failOrRecordPlanFailure(
+            InvocationContext parentContext, SubTask subTask, String failureMessage, boolean retryable) {
+        if (plans != null) {
+            plans.findActive(parentContext.tenantId(), parentContext.taskId(), subTask.subTaskId())
+                    .filter(plan -> plan.status() == ExecutorPlan.Status.EXECUTING)
+                    .ifPresent(
+                            plan -> {
+                                plans.fail(
+                                        parentContext.tenantId(),
+                                        plan.planId(),
+                                        plan.lockVersion(),
+                                        failureMessage,
+                                        clock.instant());
+                                emitPlanEvent(
+                                        parentContext,
+                                        ExecutionEventType.EXECUTOR_PLAN_FAILED,
+                                        ExecutionEventStatus.FAILED,
+                                        planValues(plan.planId(), ExecutorPlan.Status.FAILED.name()),
+                                        "failed-" + plan.planId() + "-r" + plan.revision());
+                            });
+        }
+        boards.failSubTask(
+                parentContext.tenantId(),
+                parentContext.taskId(),
+                subTask.subTaskId(),
+                failureMessage,
+                retryable,
+                parentContext.lease());
     }
 
     private Flux<ExecutionEvent> finalizeBoard(InvocationContext context, TaskBoard board) {

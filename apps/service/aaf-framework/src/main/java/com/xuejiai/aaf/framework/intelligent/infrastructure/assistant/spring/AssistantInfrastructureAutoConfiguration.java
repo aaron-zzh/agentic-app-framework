@@ -35,15 +35,14 @@ import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultSkillS
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveSkillResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveToolResolver;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.ModelDrivenTaskComplexityAnalyzer;
+
 import com.xuejiai.aaf.framework.intelligent.assistant.application.ModelSkillSelectionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.PromptAssembler;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.PlanRequirementPolicy;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.RoleSelector;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.SkillSelectionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.SubmitCoordinationPlanTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.SupportHandoffTool;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskComplexityAnalyzer;
+
 import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskIngress;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DecompositionBudget;
 import com.xuejiai.aaf.framework.intelligent.assistant.persona.PersonaRepository;
@@ -152,16 +151,6 @@ public class AssistantInfrastructureAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean(TaskComplexityAnalyzer.class)
-    TaskComplexityAnalyzer taskComplexityAnalyzer(
-            ObjectProvider<PromptInvocationGateway> promptGateway) {
-        var gateway = promptGateway.getIfAvailable();
-        return gateway == null
-                ? new ModelDrivenTaskComplexityAnalyzer()
-                : new ModelDrivenTaskComplexityAnalyzer(gateway);
-    }
-
-    @Bean
     @ConditionalOnMissingBean(TaskControlPort.class)
     TaskControlPort assistantTaskControlPort(
             AssistantTaskControlRepository repository, ConversationLeasePort leases) {
@@ -200,28 +189,17 @@ public class AssistantInfrastructureAutoConfiguration {
     }
 
     /**
-     * 建议信号 + 确定性规则兜底的最终判定（ADR-006 补充决策二）。默认恒 false，与 {@code delegatedTaskCoordinator}
-     * Bean 现有的保守默认一致（AAF-107 dev-log：是否启用协调者建议规划能力是独立决定，留给后续任务或人类明确指示，本次
-     * 迁移计划提交方式不顺带改变这一决定）。
-     */
-    @Bean
-    @ConditionalOnMissingBean(PlanRequirementPolicy.class)
-    PlanRequirementPolicy planRequirementPolicy() {
-        return (nodeSubTaskId, roleKey, skillKey, coordinatorSuggestsPlan) -> false;
-    }
-
-    /**
-     * 协调者 execution 内唯一允许调用的写工具：提交协调计划，替代手工 JSON 文本解析（迁移自
-     * {@code DelegatedTaskCoordinator.decodeAndValidatePlan}，业务规则原样保留）。
+     * 协调者 execution 内可用的写工具：提交协调计划，替代手工 JSON 文本解析（迁移自
+     * {@code DelegatedTaskCoordinator.decodeAndValidatePlan}，业务规则原样保留）。是否规划不再是建板时的静态
+     * 判定（AAF-107 选项 B 架构改造，2026-09-02，{@code PlanRequirementPolicy} 已随之删除），改为运行时查询是否存在
+     * 活跃 {@code ExecutorPlan}，与本工具无关。
      */
     @Bean
     @ConditionalOnBean(TaskBoardPort.class)
     @ConditionalOnMissingBean(SubmitCoordinationPlanTool.class)
     SubmitCoordinationPlanTool submitCoordinationPlanTool(
-            TaskBoardPort boards,
-            DecompositionBudget decompositionBudget,
-            PlanRequirementPolicy planRequirement) {
-        return new SubmitCoordinationPlanTool(boards, decompositionBudget, planRequirement);
+            TaskBoardPort boards, DecompositionBudget decompositionBudget) {
+        return new SubmitCoordinationPlanTool(boards, decompositionBudget);
     }
 
     @Bean
@@ -458,14 +436,15 @@ public class AssistantInfrastructureAutoConfiguration {
             DelegatedTaskDispatchPort dispatchSignals,
             AgentTaskRuntime agentTaskRuntime,
             DecompositionBudget decompositionBudget,
+            ObjectProvider<ExecutorPlanPort> plans,
             Environment environment) {
         var leaseTtl =
                 Duration.ofSeconds(
                         environment.getProperty(
                                 "aaf.assistant.delegated.lease-seconds", Long.class, 60L));
-        // eventStore 已接入（AAF-107 #10705），plans 仍传 null——是否启用规划能力是独立决定（dev-log 已记录），
-        // 本次只是让计划级事件发布链路具备前提，未启用时 emitPlanEvent 的调用路径本身就走不到（挂在依赖 plans 的
-        // executePlannedSubTask 分支内）。
+        // plans 直接接入（AAF-107 选项 B 架构改造，2026-09-02）：是否规划不再是需要独立开关的可选能力，
+        // 而是任何节点在自己 execution 内自主决定要不要调用 submit_executor_plan 的默认能力；
+        // ExecutorPlanPort Bean 本身已注册，用 ObjectProvider 兜底允许极简测试固件缺省。
         return new DelegatedTaskCoordinator(
                 tasks,
                 transitions,
@@ -481,8 +460,7 @@ public class AssistantInfrastructureAutoConfiguration {
                 Clock.systemUTC(),
                 leaseTtl,
                 new DefaultRecoveryPreflight(),
-                (nodeSubTaskId, roleKey, skillKey, coordinatorSuggestsPlan) -> false,
-                null,
+                plans.getIfAvailable(),
                 events);
     }
 

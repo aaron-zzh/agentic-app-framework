@@ -165,23 +165,16 @@ public record TaskBoard(
                 subTasks);
     }
 
-    /** 将已校验计划固化为协调者完成及其执行者 DAG；不判定是否需要先规划，等价于全部 {@code requiresPlan=false}。 */
-    public TaskBoard applyCoordinationPlan(CoordinationPlan plan) {
-        return applyCoordinationPlan(plan, assignment -> false);
-    }
-
     /**
-     * 与 {@link #applyCoordinationPlan(CoordinationPlan)} 相同，但通过 {@code planRequirement} 为每个新建执行者节点
-     * 判定是否需要先规划（ADR-006 补充决策二）。
+     * 将已校验计划固化为协调者完成及其执行者 DAG。
      *
-     * <p>本方法只接受一个纯函数完成"建议 → 最终判定"的转换，不直接依赖应用层的 {@code PlanRequirementPolicy} 接口类型——领域模型不引用应用层策略接口，调用方（{@code
-     * DelegatedTaskCoordinator}）负责绑定具体策略实现。协调者在 {@code ExecutorAssignment.suggestsPlan}
-     * 里给出的只是建议信号，最终结果必须由传入的函数决定，不得直接透传建议值。
+     * <p>不再判定新建执行者是否需要先规划（AAF-107 选项 B 架构改造，2026-09-02）——是否规划由每个节点自己在
+     * execution 内决定是否调用 {@code submit_executor_plan}，{@code DelegatedTaskCoordinator} 每轮运行时查询
+     * 该节点是否存在活跃 {@code ExecutorPlan} 来分流，不再由建板时的静态标志预先判定。原 {@code
+     * planRequirement} 判定函数与 {@code PlanRequirementPolicy} 随本次改造一并废弃。
      */
-    public TaskBoard applyCoordinationPlan(
-            CoordinationPlan plan, java.util.function.Function<ExecutorAssignment, Boolean> planRequirement) {
+    public TaskBoard applyCoordinationPlan(CoordinationPlan plan) {
         Objects.requireNonNull(plan, "plan 不能为空");
-        Objects.requireNonNull(planRequirement, "planRequirement 不能为空");
         var coordinator = requireSubTask("coordinator");
         if (coordinator.kind() != Kind.COORDINATOR || coordinator.status() != Status.RUNNING) {
             throw new IllegalStateException("仅运行中的协调者可以冻结执行计划");
@@ -243,9 +236,7 @@ public record TaskBoard(
                             assignment.skillKey(),
                             target,
                             assignment.modelSelection(),
-                            assignment.maxAttempts(),
-                            kind == Kind.EXECUTOR
-                                    && Boolean.TRUE.equals(planRequirement.apply(assignment))));
+                            assignment.maxAttempts()));
         }
         var completionEvidence = Set.copyOf(plan.aggregationContract().executorOrder());
         if (plan.aggregationContract().kind()
@@ -778,8 +769,7 @@ public record TaskBoard(
             SessionId sessionId,
             String result,
             String failure,
-            Map<String, String> clarifiedParameters,
-            boolean requiresPlan) {
+            Map<String, String> clarifiedParameters) {
         public SubTask {
             if (subTaskId == null
                     || subTaskId.isBlank()
@@ -838,40 +828,14 @@ public record TaskBoard(
                     skillKey,
                     null,
                     modelSelection,
-                    maxAttempts,
-                    false);
-        }
-
-        public static SubTask pending(
-                String subTaskId,
-                Kind kind,
-                String description,
-                Set<String> dependsOn,
-                Map<String, CoordinationPlan.InputBinding> inputBindings,
-                String roleKey,
-                String skillKey,
-                AssistantTarget assistantTarget,
-                TaskModelSelection modelSelection,
-                int maxAttempts) {
-            return pending(
-                    subTaskId,
-                    kind,
-                    description,
-                    dependsOn,
-                    inputBindings,
-                    roleKey,
-                    skillKey,
-                    assistantTarget,
-                    modelSelection,
-                    maxAttempts,
-                    false);
+                    maxAttempts);
         }
 
         /**
-         * 与其它 {@code pending} 重载相同，但显式传入 {@code requiresPlan}（ADR-006 补充决策二的最终判定结果）。
-         *
-         * <p>该值必须由 AAF 侧 {@code PlanRequirementPolicy} 计算后传入，不接受协调者的建议信号直接落地——建板时调用方
-         * 负责完成"建议 → 最终判定"的转换，本方法只接受已判定的最终值。
+         * 是否先规划再执行不再是建板时写死的静态字段（AAF-107 选项 B 架构改造，2026-09-02）：任何节点
+         * （协调者或执行者）在自己的 execution 内自主决定要不要调用 {@code submit_executor_plan}，
+         * {@code DelegatedTaskCoordinator.executeSubTask} 每轮改为运行时查询 {@code
+         * ExecutorPlanPort.findActive(...)} 判断是否存在活跃计划来决定分流，不再依赖本节点上的固定标志。
          */
         public static SubTask pending(
                 String subTaskId,
@@ -883,8 +847,7 @@ public record TaskBoard(
                 String skillKey,
                 AssistantTarget assistantTarget,
                 TaskModelSelection modelSelection,
-                int maxAttempts,
-                boolean requiresPlan) {
+                int maxAttempts) {
             return new SubTask(
                     subTaskId,
                     kind,
@@ -903,8 +866,7 @@ public record TaskBoard(
                     new SessionId(randomId()),
                     null,
                     null,
-                    Map.of(),
-                    requiresPlan);
+                    Map.of());
         }
 
         public boolean readyForClaim() {
@@ -1058,8 +1020,7 @@ public record TaskBoard(
                     nextSession,
                     nextResult,
                     nextFailure,
-                    nextParameters,
-                    requiresPlan);
+                    nextParameters);
         }
 
         private static boolean blank(String value) {

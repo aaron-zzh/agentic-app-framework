@@ -109,8 +109,7 @@ public record CoordinationPlan(
             String roleKey,
             String skillKey,
             TaskModelSelection modelSelection,
-            int maxAttempts,
-            Boolean suggestsPlan) {
+            int maxAttempts) {
         public ExecutorAssignment {
             subTaskId = requireText(subTaskId, "subTaskId");
             description = requireText(description, "description");
@@ -130,30 +129,6 @@ public record CoordinationPlan(
             if (maxAttempts < 1 || maxAttempts > 3) {
                 throw new IllegalArgumentException("maxAttempts 必须在 1..3");
             }
-        }
-
-        /**
-         * 兼容既有调用方：{@code suggestsPlan} 默认 {@code null}（协调者未给出规划建议，ADR-006 补充决策二）。
-         */
-        public ExecutorAssignment(
-                String subTaskId,
-                String description,
-                Set<String> dependsOn,
-                Map<String, InputBinding> inputBindings,
-                String roleKey,
-                String skillKey,
-                TaskModelSelection modelSelection,
-                int maxAttempts) {
-            this(
-                    subTaskId,
-                    description,
-                    dependsOn,
-                    inputBindings,
-                    roleKey,
-                    skillKey,
-                    modelSelection,
-                    maxAttempts,
-                    null);
         }
     }
 

@@ -115,6 +115,22 @@ gains:
 
 > 开发过程中发现需要新增的任务，由开发者提出，协调者评估后写入
 
+### #10706 架构改造：协调者能力扩展为父集，两阶段规划合并为单次 execution
+
+- **状态**：✅ 已完成（2026-09-02）— Kiro
+- **负责人**：developer-service
+- **依赖**：#10703、#10705（均已完成）
+- **提出背景**：#10705 落地后发现两个进一步收窄机会——(1) "只有 EXECUTOR 分支能规划"与"协调者能力应为父集"存在张力；(2) 独立前置复杂度分类步骤（`TaskComplexityAnalyzer`）与协调者自主判断三档语义重复，且判断质量更差（只看目标文本，无完整上下文）。完整决策依据见 [ADR-006](../../../design/adr/ADR-006-executor-plan-mode.md) 新增章节「架构改造：协调者能力扩展为父集，两阶段规划合并为单次 execution」。
+- **范围**：
+  - ✅ `TaskBoard.SubTask.requiresPlan`、`CoordinationPlan.ExecutorAssignment.suggestsPlan` 字段删除；`PlanRequirementPolicy.java` 接口整体删除。
+  - ✅ `DelegatedTaskCoordinator.executeSubTask` 重写为单次 execution 模式；`executePlannedSubTask`/`runPlanningExecution`/`executeApprovedPlanSteps` 三方法整体删除，替换为 `finalizeSubTaskExecution` 统一四态判断收尾（新增 `coordinatorSubmittedPlan`/`finalizePlannedStepExecution`/`failOrRecordPlanFailure` 三个辅助方法）。
+  - ✅ `SubmitExecutorPlanTool.submit(...)` 自持三步（`beginPlanning`+`submit`+`claimApproved` 同一次调用内完成），不再有独立 `APPROVED` 等待中间态。
+  - ✅ `TaskComplexityAnalyzer`/`ModelDrivenTaskComplexityAnalyzer`/`TaskAnalysis` 三个类型及全部消费方彻底删除；`AssistantExecutionService.analyzedBoard` 简化为始终返回 `coordinated`。
+  - ✅ 新建内置 Skill `builtin-task-decomposition` 承载三档判断指导文案（`v12__init_seed_data.sql`），`tool_access_mode=INHERIT`，`ai_system_skill_binding` `ALWAYS` 全局绑定，不限定到具体 Role。
+  - ✅ 真理源文档同步：`runtime.md`「任务复杂度判定」章节与流程图重写、`architecture.md`/`coordination.md` 关联表述更新、ADR-006 追加决策章节。
+- **完成标准**：`pnpm nx compile service` 通过（main+test）；不留独立前置分类步骤；协调者/执行者能力边界仅剩"是否允许派生子节点"这一权限点。
+- **实际结果**：全部范围完成，`pnpm nx compile service` BUILD SUCCESS。评估放开 `AssistantApplicationService` 两处"SYSTEM Skill 禁止声明工具要求"校验后判定不必要（`INHERIT` 机制已覆盖需求），未采用，两处校验维持原状。
+
 ## 评审状态（🔴 高风险适用）
 
 | 阶段 | 执行次数 | 最后执行 | 状态 | 必须 |

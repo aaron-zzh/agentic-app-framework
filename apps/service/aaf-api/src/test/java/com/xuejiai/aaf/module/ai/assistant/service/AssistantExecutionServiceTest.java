@@ -14,7 +14,7 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.ModelDrivenTaskComplexityAnalyzer;
+
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition.Lifecycle;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition.RiskPolicy;
@@ -95,8 +95,7 @@ class AssistantExecutionServiceTest {
                                         .SystemSkillBindingPort.class),
                         mock(DefinitionLifecycleService.class),
                         operatorContext,
-                        mock(VisionMediaResolver.class),
-                        new ModelDrivenTaskComplexityAnalyzer());
+                        mock(VisionMediaResolver.class));
         OrgContext.setCurrentOrgId(11L);
         OrgContext.setCurrentWorkspaceId(13L);
         try {
