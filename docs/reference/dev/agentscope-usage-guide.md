@@ -32,6 +32,8 @@ gains:
 
 > 基于 `tmp/agentscope-java` 官方源码、README_zh.md、SKILL.md 与 `docs/v2/zh` 官方文档站整理。仅描述 AgentScope 本身的用法，不涉及 AAF 领域决策。
 
+> **官方推荐 vs AAF 选型（ADR-005）**：本文档记录的 `HarnessAgent` 相关内容是 **AgentScope 官方** 的能力介绍与生产推荐路径，属于学习参考。**AAF 实际编译目标是 `agentscope-core` 的 `ReActAgent`，不使用官方 `HarnessAgent`**——AAF 自建 `HarnessAgentExecutionAdapter` 承担官方 Harness 同等定位的外层运行治理，两者代码不同源，注意区分"AgentScope 官方 Harness"与"AAF 自建 Harness（即 `HarnessAgentExecutionAdapter`）"这两个不同的概念。选型依据见 [ADR-005](../../design/adr/ADR-005-agentscope-boundary-and-orchestration.md)。
+
 ## ReActAgent 与 HarnessAgent 的关系
 
 > 本节依据官方 `docs/v2/zh/docs/harness/architecture.md`（Harness 架构）整理，是权威一手信息。
@@ -70,7 +72,7 @@ ReActAgent agent = ReActAgent.builder()
 Msg response = agent.call(userMsg).block();  // .block() 仅允许在 main()/测试中使用
 ```
 
-AAF 选用 `HarnessAgent` 而非裸 `ReActAgent` 承载 Agent 层执行，与官方生产环境推荐路径一致：需要会话持久化（`AgentStateStore`）、沙箱隔离、技能装配这些工程能力，恰恰是 `HarnessAgent` 相对 `ReActAgent` 补齐的部分。
+**AAF 选型说明（ADR-005，2026-08-31 改判）**：本节以上是 AgentScope 官方 `HarnessAgent` 的能力与选型依据介绍，属于官方推荐路径的客观描述。**AAF 实际落地不使用官方 `HarnessAgent`**——ADR-005 定案编译目标为 `agentscope-core` 的 `ReActAgent`，AAF 自建 `HarnessAgentExecutionAdapter` 作为唯一实现，在 core `ReActAgent` 之外自持外层装配（builder 参数、生命周期、缓存策略、middleware 装配、中断、能力启停），这个自建外层在 AAF 术语里叫"AAF Harness"，与本节介绍的官方 `HarnessAgent`（`agentscope-harness` 模块）是两个不同的东西，不要混淆。选型依据：`HarnessAgent` 对官方工程能力（工作区、长期记忆、原生子 Agent、动态 Skill、文件/Shell）的使用率为零（15 个 `disableXxx()` 全部禁用），AAF 已有的 TaskBoard、租约/fencing、预算、终态、事件事实、HITL、持久恢复等治理能力与官方 Harness 是平级不可替代关系而非包含关系，自建薄适配层复用 core 推理循环即可满足需求，不需要承担官方 Harness 的完整能力面与升级维护成本。详见 [ADR-005](../../design/adr/ADR-005-agentscope-boundary-and-orchestration.md)、[五层智能架构 · 双层循环](../../design/framework/intelligent/architecture.md#双层循环)。
 
 ### Harness 三条工作原理（官方原文）
 
@@ -214,7 +216,7 @@ HarnessAgent reviewer = ReviewerAgentFactory.create(
 | 模式 | 定义来源 | 适用场景 | 示例 |
 |---|---|---|---|
 | **代码静态定义** | Java Factory 方法，启动时确定 | Agent 种类少、职责固定、不需要业务侵入的运营/审核流程 | `CodingAgentFactory`/`ReviewerAgentFactory` |
-| **配置/数据持久化** | 数据库表或配置文件，运行时读取编译 | Agent 需要被业务方（管理员/租户）配置、版本化、审核后才能生效 | AAF `ai_agent_definition` → `AgentSpec` → 编译为 `HarnessAgent` |
+| **配置/数据持久化** | 数据库表或配置文件，运行时读取编译 | Agent 需要被业务方（管理员/租户）配置、版本化、审核后才能生效 | AAF `ai_agent_definition` → `AgentSpec` → 编译为 `ReActAgent`（`AgentScopeSpecCompiler`，ADR-005 后编译目标，不是官方 `HarnessAgent`） |
 
 两种模式的共同点（也是本文档最重要的结论）：**无论定义来源是代码还是数据库，Agent 的"实例"永远是运行时按需构造/复用的，不需要为每个用户或每次任务持久化一条新的定义记录**。持久化的是"定义"这份配置，不是"实例"。
 
@@ -280,7 +282,7 @@ AgentScope 2.0 的 Harness 通过 subagent middleware 支持单个 Assistant 内
 
 - Assistant 内探索性委派可使用 subagent。
 - Team 的多 Assistant 分工、聚合和仲裁由 AAF Team 层负责。
-- 确定性流程由 AAF 工作流引擎负责，HarnessAgent 只作为节点执行单元。
+- 确定性流程由 AAF 工作流引擎负责，节点执行单元是 `HarnessAgentExecutionAdapter` 包裹的 core `ReActAgent`（不是官方 `HarnessAgent`，见前文"AAF 选型说明"）。
 - 子 Agent 使用独立 executionId/sessionId；父任务只通过 AAF 任务契约和事件聚合。
 
 ### 长期记忆边界

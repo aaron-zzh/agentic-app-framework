@@ -2,6 +2,7 @@ package com.xuejiai.aaf.framework.intelligent.assistant.application;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -48,6 +49,29 @@ public final class SupportHandoffTool implements ContextAwareToolHandler {
     @Override
     public String description() {
         return "将当前任务移交人工支持队列。仅提供简短、脱敏的交接原因；调用后任务暂停，等待人工处理或恢复。";
+    }
+
+    /** 转移任务责任主体至人工队列，有真实副作用（`TaskStatus.PAUSED` + owner 切换），不可撤销回滚为自动执行前状态。 */
+    @Override
+    public boolean requireConfirm() {
+        return true;
+    }
+
+    @Override
+    public Map<String, Object> inputSchema() {
+        return Map.of(
+                "type",
+                "object",
+                "properties",
+                Map.of(
+                        "reason",
+                        Map.of(
+                                "type",
+                                "string",
+                                "description",
+                                "简短、脱敏的交接原因，不超过 256 个字符")),
+                "required",
+                List.of("reason"));
     }
 
     @Override

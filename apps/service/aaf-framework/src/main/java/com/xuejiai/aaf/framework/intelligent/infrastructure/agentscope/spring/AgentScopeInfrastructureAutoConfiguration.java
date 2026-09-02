@@ -2,6 +2,7 @@ package com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring;
 
 import java.time.Clock;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -12,6 +13,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
+import com.xuejiai.aaf.framework.intelligent.agent.port.ContextAwareToolHandler;
 import com.xuejiai.aaf.framework.intelligent.agent.port.TokenMeteringPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolGatewayPort;
@@ -101,8 +103,9 @@ public class AgentScopeInfrastructureAutoConfiguration {
     AgentScopeToolkitFactory agentScopeToolkitFactory(
             ToolCatalogPort toolCatalog,
             ToolGatewayPort toolGateway,
-            ToolResultEvidenceStore evidenceStore) {
-        return new AgentScopeToolkitFactory(toolCatalog, toolGateway, evidenceStore);
+            ToolResultEvidenceStore evidenceStore,
+            ObjectProvider<ContextAwareToolHandler> builtinHandlers) {
+        return new AgentScopeToolkitFactory(toolCatalog, toolGateway, evidenceStore, builtinHandlers);
     }
 
     @Bean

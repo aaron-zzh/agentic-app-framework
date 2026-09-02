@@ -100,6 +100,22 @@ gains:
 
 当前 `AiModel` 只有逗号分隔 `capabilities`、`contextWindow` 与 `enableThinking`（`AiModel.java:31-296`）；`SkillModelRequirement` 已保存 capability、required、minimumContextTokens（`SkillModelRequirement.java:13-37`），但运行时仅把包含 `reason` 的要求映射为布尔特征（`AssistantApplicationService.java:1948-1958`）。结构化输出、工具调用、模态集合和推理等级的类型化标签为目标态。
 
+### 模型侧思考参数（AAF-106）
+
+`AiModel` 新增 `thinkingBudget`（`Integer`）与 `reasoningEffort`（`String`）两个字段，与既有 `enableThinking`（布尔开关）配套：只有 `enableThinking=true` 的思考型模型才会下发这两个参数为 AgentScope core `GenerateOptions`，非思考型模型不得被强制开启（AAF-106 #10601 完成标准）；未配置字段时不下发对应参数，不用默认值掩盖"未配置"这一事实。
+
+`L0ReActAgentFactory.generateOptions(AiModel)` 是唯一下发点：
+
+```text
+enableThinking != true → 不构建 GenerateOptions（直接跳过）
+enableThinking == true 且 thinkingBudget/reasoningEffort 均未配置 → 不构建 GenerateOptions
+enableThinking == true 且至少一项已配置 → 构建 GenerateOptions，仅设置已配置的字段
+```
+
+### L0 唯一模型解析（AAF-105 ADR-007）
+
+非自主 L0 调用（`NON_AUTONOMOUS_L0`）复用零工具 `ReActAgent`（`L0ReActAgentFactory` 按 `AiModel.getModelId()` 分桶缓存），不设 `fallbackModel`——`CapabilityRouter` 已经在路由阶段解析出唯一确定的模型，provider 层不得静默切换到 fallback 模型掩盖路由失败，失败即失败（fail-closed），不产生"调用了非预期模型却无感知"的隐性风险。这与直连/Harness 场景允许 `ResilientChatService` 对可重试错误做一次 fallback 是不同的边界——L0 场景的"唯一模型"是设计约束，不是待补齐的能力缺口。
+
 ### 动态客户端与韧性
 
 | 组件 | 契约 |
@@ -123,6 +139,8 @@ gains:
 | 动态客户端缓存与显式失效 | ✅ 已实现 · 缓存与 `evict` 见 `DynamicChatClientFactory.java:38-57`；模型更新、删除、启停和导入均调用失效（`AiModelService.java:91-140,297-313`） |
 | 超时、重试、熔断、同步与流式统一降级事实 | ⚠️ 部分实现 · `ResilientChatService.java:36-388` 有超时、可重试分类和 fallback；缺熔断、统一 attempt 事实及订阅后流式降级 |
 | 完整类型化能力画像与授权候选门禁 | 🎯 目标态，当前不得声称已执行 |
+| 模型侧思考参数按 `enableThinking` 门禁下发 | ✅ 已实现 · `L0ReActAgentFactory.generateOptions(AiModel)`（AAF-106 #10602） |
+| L0 唯一模型解析（不设 fallback，路由失败即失败） | ✅ 已实现 · `L0ReActAgentFactory.build(AiModel)` 不设 `fallbackModel`（AAF-105 ADR-007） |
 
 ## 验收基线
 

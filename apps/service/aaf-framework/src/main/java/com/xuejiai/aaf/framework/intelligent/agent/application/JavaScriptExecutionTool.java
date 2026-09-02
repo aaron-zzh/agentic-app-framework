@@ -2,6 +2,7 @@ package com.xuejiai.aaf.framework.intelligent.agent.application;
 
 import java.time.Duration;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -42,6 +43,37 @@ public final class JavaScriptExecutionTool implements ContextAwareToolHandler {
     @Override
     public String description() {
         return "在受限 GraalVM JavaScript 运行时中执行纯计算脚本；通过 args 读取 JSON 参数，并将返回值赋给 __result。";
+    }
+
+    /** GraalVM 沙箱内执行的纯计算脚本，无外部 I/O、不修改任何持久状态——沙箱隔离本身已是安全边界。 */
+    @Override
+    public boolean readOnly() {
+        return true;
+    }
+
+    @Override
+    public Map<String, Object> inputSchema() {
+        return Map.of(
+                "type",
+                "object",
+                "properties",
+                Map.of(
+                        "code",
+                        Map.of(
+                                "type",
+                                "string",
+                                "description",
+                                "纯计算 JavaScript 代码，不超过 20000 个字符"),
+                        "arguments",
+                        Map.of("type", "object", "description", "脚本可读取的 JSON 参数（可选）"),
+                        "timeoutSeconds",
+                        Map.of(
+                                "type",
+                                "integer",
+                                "description",
+                                "超时秒数，1 到 10 之间（可选，默认 5）")),
+                "required",
+                List.of("code"));
     }
 
     @Override

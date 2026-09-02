@@ -2,6 +2,8 @@ package com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.compiler
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.time.Clock;
@@ -10,12 +12,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
+import org.springframework.beans.factory.ObjectProvider;
 
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentSpec;
 import com.xuejiai.aaf.framework.intelligent.agent.model.CompiledSystemPrompt;
@@ -25,6 +29,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.model.CompiledSystemPrompt.Pr
 import com.xuejiai.aaf.framework.intelligent.agent.model.ExecutionPolicy;
 import com.xuejiai.aaf.framework.intelligent.agent.model.SubagentSpec;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolRef;
+import com.xuejiai.aaf.framework.intelligent.agent.port.ContextAwareToolHandler;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolCatalogPort.ToolDefinition;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolGatewayPort;
@@ -56,7 +61,10 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
     void setUp() {
         var toolkitFactory =
                 new AgentScopeToolkitFactory(
-                        toolCatalog, toolGateway, new ToolResultEvidenceStore());
+                        toolCatalog,
+                        toolGateway,
+                        new ToolResultEvidenceStore(),
+                        emptyBuiltinHandlers());
         compiler =
                 new AgentScopeSpecCompiler(
                         stateStore,
@@ -64,8 +72,9 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
                         modelResolver,
                         new PromptEnvelopeCaptureMiddleware(promptEnvelopes, Clock.systemUTC()),
                         AgentScopeSpecCompiler.DEFAULT_CACHE_CAPACITY);
-        when(modelResolver.resolve(any(ModelSpec.class))).thenReturn(model);
-        when(toolCatalog.resolve(any()))
+        lenient().when(modelResolver.resolve(any(ModelSpec.class))).thenReturn(model);
+        lenient()
+                .when(toolCatalog.resolve(any()))
                 .thenAnswer(
                         invocation -> {
                             List<ToolRef> refs = invocation.getArgument(0);
@@ -365,7 +374,10 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
                 new AgentScopeSpecCompiler(
                         stateStore,
                         new AgentScopeToolkitFactory(
-                                toolCatalog, toolGateway, new ToolResultEvidenceStore()),
+                                toolCatalog,
+                                toolGateway,
+                                new ToolResultEvidenceStore(),
+                                emptyBuiltinHandlers()),
                         modelResolver,
                         new PromptEnvelopeCaptureMiddleware(promptEnvelopes, Clock.systemUTC()),
                         1);
@@ -400,6 +412,28 @@ class AgentScopeSpecCompilerTest extends BaseMockitoUnitTest {
 
     private ExecutionPolicy policy() {
         return ExecutionPolicy.withDefaultTimeouts(3, 1, Duration.ofSeconds(30), 128000);
+    }
+
+    /**
+     * 空的内置工具处理器集合（AAF-108 工具治理架构修正后 {@code AgentScopeToolkitFactory} 新增依赖）。
+     * 本测试文件全部走 {@code toolCatalog}（Connector/MCP 路径）验证 Toolkit 编译与缓存逻辑，不涉及内置工具，
+     * 因此提供空集合即可，不需要 mock 出具体的 {@code ContextAwareToolHandler} 行为。
+     *
+     * <p>用 {@code thenAnswer} 而非 {@code thenReturn(Stream.empty())}：{@link Stream} 只能消费一次，
+     * {@code thenReturn} 固定同一个流实例，被调用方多次调用 {@code orderedStream()} 时第二次即抛
+     * {@code IllegalStateException: stream has already been operated upon or closed}；每次调用现建新流可支持
+     * 任意次调用。用 {@code lenient()} 而非严格 {@code when}：{@code findBuiltinHandler} 只在遍历非空
+     * {@code effectiveTools} 时才调用 {@code orderedStream()}（见 {@code AgentScopeToolkitFactory.compile}），
+     * 部分测试传入空工具画像，该 stub 不会被触发，严格模式下会被判定为多余 stub 并抛
+     * {@code UnnecessaryStubbingException}。
+     */
+    private static ObjectProvider<ContextAwareToolHandler> emptyBuiltinHandlers() {
+        @SuppressWarnings("unchecked")
+        var provider = (ObjectProvider<ContextAwareToolHandler>) mock(ObjectProvider.class);
+        lenient()
+                .when(provider.orderedStream())
+                .thenAnswer(invocation -> Stream.<ContextAwareToolHandler>empty());
+        return provider;
     }
 
     private ToolDefinition definition(ToolRef ref) {

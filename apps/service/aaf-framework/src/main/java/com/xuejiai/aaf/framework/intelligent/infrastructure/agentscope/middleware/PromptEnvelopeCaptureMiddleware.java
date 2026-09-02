@@ -82,7 +82,7 @@ public final class PromptEnvelopeCaptureMiddleware implements MiddlewareBase {
                         context.executionId(),
                         retry ? latest.attemptNo() + 1 : 1,
                         retry ? PromptEnvelope.Trigger.RETRY : PromptEnvelope.Trigger.INITIAL,
-                        InvocationMode.AUTONOMOUS_HARNESS,
+                        InvocationMode.AUTONOMOUS_AGENT_LOOP,
                         InvocationPurpose.HARNESS_EXECUTION,
                         modelId,
                         optionsSha256,

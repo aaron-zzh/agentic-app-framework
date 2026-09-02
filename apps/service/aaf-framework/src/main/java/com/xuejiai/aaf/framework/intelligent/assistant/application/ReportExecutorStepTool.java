@@ -69,6 +69,37 @@ public final class ReportExecutorStepTool implements ContextAwareToolHandler {
                 + "必须按计划声明的顺序与依赖关系逐条上报，不要跳过或提前上报未满足依赖的步骤。";
     }
 
+    /** 纯审计记录，不产生业务副作用——状态机守卫（{@code startStep}/{@code completeStep}/{@code failStep}）本身即幂等边界。 */
+    @Override
+    public boolean readOnly() {
+        return true;
+    }
+
+    @Override
+    public Map<String, Object> inputSchema() {
+        return Map.of(
+                "type",
+                "object",
+                "properties",
+                Map.of(
+                        "stepKey",
+                        Map.of("type", "string", "description", "计划中声明的步骤标识"),
+                        "outcome",
+                        Map.of(
+                                "type",
+                                "string",
+                                "enum",
+                                List.of("STARTED", "COMPLETED", "FAILED"),
+                                "description",
+                                "步骤当前进度"),
+                        "resultRef",
+                        Map.of("type", "string", "description", "COMPLETED 时可选的结果引用"),
+                        "failureCode",
+                        Map.of("type", "string", "description", "FAILED 时必填的失败原因码")),
+                "required",
+                List.of("stepKey", "outcome"));
+    }
+
     @Override
     public Mono<ToolInvocationResult> invoke(ToolInvocation invocation) {
         Objects.requireNonNull(invocation, "invocation 不能为空");

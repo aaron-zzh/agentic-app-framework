@@ -63,6 +63,7 @@ gains:
 | `AUTHORIZATION_*` · `APPROVAL_*` | `aaf.authorization.*` | `INTERRUPT` / `aaf.*` CUSTOM | 待用户处理 |
 | `CLARIFICATION_*` | `aaf.clarification.*` | `aaf.*` CUSTOM | 待补输入 |
 | `SUBTASK_*` | `aaf.subtask.*` | STEP / `aaf.*` CUSTOM | 子任务 DAG 状态 |
+| `EXECUTOR_PLAN_*`（计划级 6 类 + 步骤级 3 类） | `aaf.executor_plan.*` | STEP / `aaf.*` CUSTOM | EXECUTOR 持久计划进度（AAF-107 #10705） |
 | `VALIDATION_*` | `aaf.validation.*` | `STATE_DELTA` | 验证结果 |
 | `EXECUTION_COMPLETED` / `_FAILED` / `_CANCELED` | `aaf.execution.completed` / `.failed` / `.canceled` | `RUN_FINISHED` / `RUN_ERROR` | 规范终态 |
 
@@ -177,7 +178,7 @@ Snapshot 是持久事件折叠后的安全读模型，不产生新事实、不�
 - 模型思维链
 - 工具原始参数（只公开安全摘要与引用）
 
-实现态：⚠️ 部分实现 · 公共 mapper 已按字段白名单输出（`ExecutionEventPublicMapper.java:97-163`）；内部 payload 的防敏只检查字段名与安全标量格式，未做内容级检测。
+实现态：⚠️ 部分实现 · 公共 mapper 已按字段白名单输出（`ExecutionEventPublicMapper.java:97-163`）；内部 payload 的防敏只检查字段名与安全标量格式，未做内容级检测。**模型思维链已在更早的拦截点封堵**：`AgentScopeEventMapper` 将 AgentScope core 的 `THINKING_BLOCK_START/DELTA/END` 三类源事件直接映射为空（不产生 `ExecutionEvent`），思考内容从源头就不进入内部事件流，不依赖公共 mapper 或字段白名单二次过滤（`AgentScopeEventMapper.java:188`，AAF-106 #10603 落地）。
 
 ## 实现态
 

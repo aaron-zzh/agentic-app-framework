@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.framework.intelligent.assistant.application;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -50,6 +51,37 @@ public final class ContextLoadTool implements ContextAwareToolHandler {
     public String description() {
         return "按需加载当前不在上下文中的内容。kind=SKILL 时 key 为技能 code，返回该技能正文；"
                 + "kind=SKILL_REFERENCE 时 key 为 \"技能code:referenceKey\"，返回该技能挂载的参考文档内容。";
+    }
+
+    /** 纯知识性读取，见类注释——不产生业务副作用。 */
+    @Override
+    public boolean readOnly() {
+        return true;
+    }
+
+    @Override
+    public Map<String, Object> inputSchema() {
+        return Map.of(
+                "type",
+                "object",
+                "properties",
+                Map.of(
+                        "kind",
+                        Map.of(
+                                "type",
+                                "string",
+                                "enum",
+                                List.of("SKILL", "SKILL_REFERENCE"),
+                                "description",
+                                "要加载的内容类型"),
+                        "key",
+                        Map.of(
+                                "type",
+                                "string",
+                                "description",
+                                "SKILL 时为技能 code；SKILL_REFERENCE 时为 \"技能code:referenceKey\"")),
+                "required",
+                List.of("kind", "key"));
     }
 
     @Override

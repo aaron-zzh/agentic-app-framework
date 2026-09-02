@@ -301,7 +301,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         var toolReference = lengths.input(PromptInputKind.TOOL_REFERENCE);
         log.info(
                 "[Prompt预检] boundary=HARNESS_INVOCATION mode={} logicalInvocationId={} purpose={} model={} systemChars={} systemEstimatedTokens={} currentUserChars={} currentUserEstimatedTokens={} otherUserChars={} otherUserEstimatedTokens={} assistantHistoryChars={} assistantHistoryEstimatedTokens={} assistantReasoningChars={} assistantReasoningEstimatedTokens={} controlledContextChars={} controlledContextEstimatedTokens={} toolResultChars={} toolResultEstimatedTokens={} toolReferenceChars={} toolReferenceEstimatedTokens={} attachmentCount={} totalChars={} totalEstimatedTokens={} contextWindow={} contextUsagePercent={}",
-                InvocationMode.AUTONOMOUS_HARNESS,
+                InvocationMode.AUTONOMOUS_AGENT_LOOP,
                 command.context().runId().value(),
                 InvocationPurpose.HARNESS_EXECUTION,
                 execution.model().modelId(),
