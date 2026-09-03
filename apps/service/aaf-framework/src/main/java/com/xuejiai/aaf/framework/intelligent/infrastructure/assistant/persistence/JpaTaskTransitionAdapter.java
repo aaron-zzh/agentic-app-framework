@@ -826,7 +826,8 @@ public class JpaTaskTransitionAdapter implements TaskTransitionPort {
                                 "inputId", input.inputId(),
                                 "kind", input.kind().name(),
                                 "fieldCount", input.values().size())),
-                at);
+                at,
+                command.nodeIdentity());
     }
 
     private static ExecutionEvent clarificationStateEvent(
@@ -865,7 +866,8 @@ public class JpaTaskTransitionAdapter implements TaskTransitionPort {
                                 "status", clarification.status().name(),
                                 "completedFieldCount", clarification.values().size(),
                                 "requiredFieldCount", clarification.requiredFields().size())),
-                at);
+                at,
+                command.nodeIdentity());
     }
 
     private static ExecutionEvent derivedEvent(
@@ -898,7 +900,8 @@ public class JpaTaskTransitionAdapter implements TaskTransitionPort {
                 source.causationId(),
                 source.idempotencyKey(),
                 new ExecutionEventPayload(payload),
-                at);
+                at,
+                source.nodeIdentity());
     }
 
     private static DelegatedTask awaitAuthorization(

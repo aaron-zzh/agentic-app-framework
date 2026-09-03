@@ -22,6 +22,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useChatSessions, useCreateSession } from "@/lib/api/rest/ai"
 import { useResponsive } from "@/lib/hooks/use-responsive"
 import { AgentRunStatus } from "./components/AgentRunStatus"
+import { SubTaskActivityList } from "./components/SubTaskActivityList"
 
 /** 会话列表侧边栏 */
 function SessionList() {
@@ -123,6 +124,7 @@ export function ChatLayout({ drawer = false }: ChatLayoutProps) {
                 )}
               </ThreadPrimitive.Messages>
             </ThreadPrimitive.Viewport>
+            <SubTaskActivityList />
             <AgentRunStatus />
             <ComposerPrimitive.Root className="border-t p-3">
               <ComposerPrimitive.Input
@@ -190,6 +192,7 @@ export function ChatLayout({ drawer = false }: ChatLayoutProps) {
                     )}
                   </ThreadPrimitive.Messages>
                 </ThreadPrimitive.Viewport>
+                <SubTaskActivityList />
                 <AgentRunStatus />
                 <ComposerPrimitive.Root className="border-t p-3">
                   <ComposerPrimitive.Input

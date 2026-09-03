@@ -50,11 +50,6 @@ public final class AafAiTaskEventRegistry {
                     case CLARIFICATION_EXPIRED -> "aaf.clarification.expired";
                     case ITERATION_EVALUATED -> "aaf.iteration.evaluated";
                     case ITERATION_STOPPED -> "aaf.iteration.stopped";
-                    case SUBTASK_CREATED -> "aaf.subtask.created";
-                    case SUBTASK_STARTED -> "aaf.subtask.started";
-                    case SUBTASK_COMPLETED -> "aaf.subtask.completed";
-                    case SUBTASK_FAILED -> "aaf.subtask.failed";
-                    case SUBTASK_CANCELED -> "aaf.subtask.canceled";
                     case EXECUTOR_PLAN_CREATED -> "aaf.executor_plan.created";
                     case EXECUTOR_PLAN_SUBMITTED -> "aaf.executor_plan.submitted";
                     case EXECUTOR_PLAN_EXECUTION_STARTED -> "aaf.executor_plan.execution_started";

@@ -373,7 +373,8 @@ public final class DefaultToolGateway implements ToolGatewayPort {
                                 approval.action(),
                                 "reversible",
                                 approval.reversible())),
-                approval.createdAt());
+                approval.createdAt(),
+                context.nodeIdentity());
     }
 
     private static long longMetadata(ToolInvocationResult result, String key, long fallback) {

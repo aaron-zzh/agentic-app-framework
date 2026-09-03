@@ -32,12 +32,25 @@ export interface AigcTaskCard {
   url?: string
 }
 
+/**
+ * 子任务活动卡片（AG-UI ActivitySnapshot/ActivityDelta，activityType="SUBTASK"）
+ * 由后端 InternalNodeEventConverter 随子任务 EXECUTION_STARTED/COMPLETED/FAILED/CANCELED 投影，
+ * key 为 messageId（等同后端 subTaskId）
+ */
+export interface SubTaskActivity {
+  subTaskId: string
+  kind: string
+  roleKey: string
+  status: string
+}
+
 interface AgentRunState {
   phase: AgentRunPhase
   activeTool: string | null
   entries: AgentRunEntry[]
   suggestions: AgentSuggestion[]
   aigcTasks: AigcTaskCard[]
+  subTaskActivities: Record<string, SubTaskActivity>
   startRun: () => void
   finishRun: () => void
   errorRun: (message?: string) => void
@@ -47,6 +60,7 @@ interface AgentRunState {
   setSuggestions: (suggestions: AgentSuggestion[]) => void
   pushAigcTask: (card: AigcTaskCard) => void
   updateAigcTask: (taskId: number, patch: Partial<AigcTaskCard>) => void
+  upsertSubTaskActivity: (activity: SubTaskActivity) => void
 }
 
 const MAX_ENTRIES = 50
@@ -62,7 +76,15 @@ export const useAgentRunStore = create<AgentRunState>((set) => ({
   entries: [],
   suggestions: [],
   aigcTasks: [],
-  startRun: () => set({ phase: "running", activeTool: null, entries: [], suggestions: [] }),
+  subTaskActivities: {},
+  startRun: () =>
+    set({
+      phase: "running",
+      activeTool: null,
+      entries: [],
+      suggestions: [],
+      subTaskActivities: {}
+    }),
   finishRun: () => set({ phase: "finished", activeTool: null }),
   errorRun: (message) =>
     set((s) => ({
@@ -86,5 +108,9 @@ export const useAgentRunStore = create<AgentRunState>((set) => ({
   updateAigcTask: (taskId, patch) =>
     set((s) => ({
       aigcTasks: s.aigcTasks.map((t) => (t.taskId === taskId ? { ...t, ...patch } : t))
+    })),
+  upsertSubTaskActivity: (activity) =>
+    set((s) => ({
+      subTaskActivities: { ...s.subTaskActivities, [activity.subTaskId]: activity }
     }))
 }))

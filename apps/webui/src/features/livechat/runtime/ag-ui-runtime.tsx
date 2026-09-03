@@ -75,6 +75,7 @@ import { getOrCreateAnonymousId } from "@/lib/utils/anonymous-id"
 import { OmniVoiceAdapter } from "@/lib/voice/omni-voice-adapter"
 import { aigcToolkit } from "../enhance/AigcGenerateToolUI"
 import { useAgentRunStore } from "./agent-run-store"
+import { applyJsonPatch, type JsonPatchOperation } from "./json-patch"
 
 const DEFAULT_AGENT_URL = buildApiUrl("/agui/run")
 
@@ -172,6 +173,31 @@ export function AgUiChatProvider({
       onRunErrorEvent: ({ event }) => run.errorRun(event.message),
       onToolCallStartEvent: ({ event }) => run.startTool(event.toolCallName),
       onToolCallEndEvent: () => run.endTool(),
+      onActivitySnapshotEvent: ({ event }) => {
+        if (event.activityType !== "SUBTASK") return
+        const content = event.content as Record<string, unknown>
+        run.upsertSubTaskActivity({
+          subTaskId: event.messageId,
+          kind: (content.kind as string) ?? "",
+          roleKey: (content.roleKey as string) ?? "",
+          status: (content.status as string) ?? ""
+        })
+      },
+      onActivityDeltaEvent: ({ event }) => {
+        if (event.activityType !== "SUBTASK") return
+        const current = useAgentRunStore.getState().subTaskActivities[event.messageId]
+        if (!current) return
+        const patched = applyJsonPatch(
+          current as unknown as Record<string, unknown>,
+          event.patch as JsonPatchOperation[]
+        )
+        run.upsertSubTaskActivity({
+          subTaskId: event.messageId,
+          kind: (patched.kind as string) ?? current.kind,
+          roleKey: (patched.roleKey as string) ?? current.roleKey,
+          status: (patched.status as string) ?? current.status
+        })
+      },
       onCustomEvent: ({ event }) => {
         if (event.name === "suggestions") {
           run.setSuggestions(event.value as { prompt: string; label?: string }[])

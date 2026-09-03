@@ -18,6 +18,9 @@ public final class TurnOutcomeAggregator {
         Objects.requireNonNull(events, "events 不能为空");
         var modelInvocations = 0;
         var toolCalls = 0;
+        // 恒为 0：原用于统计的 SUBTASK_CREATED 事件类型已删除（AAF-104 核实确认从未被任何生产代码发出，是
+        // DelegatedTaskCoordinator 落地前预留、后被 EXECUTION_STARTED+nodeIdentity 模式取代的孤儿枚举值）。
+        // 字段本身保留（不改 TurnOutcome 签名），避免超出本次任务范围的下游改动。
         var subTaskCount = 0;
         long inputTokens = 0;
         long outputTokens = 0;
@@ -32,7 +35,6 @@ public final class TurnOutcomeAggregator {
                 }
                 case MODEL_CALL_FAILED -> modelInvocations++;
                 case TOOL_CALL_COMPLETED, TOOL_CALL_FAILED -> toolCalls++;
-                case SUBTASK_CREATED -> subTaskCount++;
                 default -> {
                     // 其余事件不参与度量聚合。
                 }

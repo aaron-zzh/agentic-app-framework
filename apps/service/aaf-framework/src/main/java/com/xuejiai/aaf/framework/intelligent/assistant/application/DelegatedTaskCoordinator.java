@@ -20,10 +20,6 @@ import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolAuthorizationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ClarificationRequest;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.plan.ExecutorPlan;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.plan.ExecutorPlanPort;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.CoordinationPlan;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.CoordinationPlan.ExecutorAssignment;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DecompositionBudget;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.BudgetUsage;
@@ -37,12 +33,12 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.IterationEvaluation
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard.SubTask;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskCheckpoint;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskModelSelection;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskTransition;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskTransition.ClarificationRequestTransition;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskTransition.InputTransition;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskTransition.IterationEvaluationTransition;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskTransition.ParentFailureTransition;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.plan.ExecutorPlan;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort.Lease;
@@ -54,6 +50,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.NotificationPort.Typ
 import com.xuejiai.aaf.framework.intelligent.assistant.port.RecoveryPreflight;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskBoardPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskTransitionPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.plan.ExecutorPlanPort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ExecutionEventStatus;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.OwnerType;
@@ -167,15 +164,15 @@ public final class DelegatedTaskCoordinator {
     }
 
     /**
-     * 完整构造器：新增 {@code plans}（协调者/执行者节点在自己 execution 内自主决定要不要先规划的局部计划状态机端口，
-     * AAF-107 选项 B 架构改造，2026-09-02）与 {@code events}（计划级事件持久化——{@code ExecutorPlan} 是独立聚合根，
-     * 不经过 {@code TaskTransition} 机制，需要本类直接持有 {@link ExecutionEventStorePort} 自行 {@code
-     * append}）。两者均允许为 {@code null}——尚未接入计划能力的部署（如测试固件）用不到它们，此时 {@code
-     * executeSubTask} 每轮查询 {@code plans.findActive(...)} 前会先判空短路，等价于该能力从未启用。
+     * 完整构造器：新增 {@code plans}（协调者/执行者节点在自己 execution 内自主决定要不要先规划的局部计划状态机端口， AAF-107 选项 B
+     * 架构改造，2026-09-02）与 {@code events}（计划级事件持久化——{@code ExecutorPlan} 是独立聚合根， 不经过 {@code
+     * TaskTransition} 机制，需要本类直接持有 {@link ExecutionEventStorePort} 自行 {@code append}）。两者均允许为 {@code
+     * null}——尚未接入计划能力的部署（如测试固件）用不到它们，此时 {@code executeSubTask} 每轮查询 {@code plans.findActive(...)}
+     * 前会先判空短路，等价于该能力从未启用。
      *
      * <p>是否规划不再由建板时的静态判定决定（原 {@code PlanRequirementPolicy}/{@code requiresPlan} 静态标志已随本次
-     * 改造删除）——任何节点（协调者或执行者）都在自己的 execution 内自主选择要不要调用 {@code
-     * submit_executor_plan}，{@code executeSubTask} 只负责运行时查询"这个节点现在有没有活跃计划"来决定分流。
+     * 改造删除）——任何节点（协调者或执行者）都在自己的 execution 内自主选择要不要调用 {@code submit_executor_plan}，{@code
+     * executeSubTask} 只负责运行时查询"这个节点现在有没有活跃计划"来决定分流。
      */
     public DelegatedTaskCoordinator(
             DelegatedTaskPort tasks,
@@ -595,8 +592,8 @@ public final class DelegatedTaskCoordinator {
     }
 
     /**
-     * 单次 execution 结束后的统一收尾判断（AAF-107 选项 B 架构改造，2026-09-02，替代原两阶段
-     * {@code executePlannedSubTask}/{@code runPlanningExecution}/{@code executeApprovedPlanSteps}）。
+     * 单次 execution 结束后的统一收尾判断（AAF-107 选项 B 架构改造，2026-09-02，替代原两阶段 {@code
+     * executePlannedSubTask}/{@code runPlanningExecution}/{@code executeApprovedPlanSteps}）。
      *
      * <p>借鉴官方 Harness Plan Mode 的判断方式（核实 {@code plan-mode.html} 后确认"只看最终状态判断成功与否有歧义，
      * 必须结合是否真的调用过计划/协调工具"）：不能只用一个布尔值判断，按以下优先级依次判定四态：
@@ -604,14 +601,12 @@ public final class DelegatedTaskCoordinator {
      * <ul>
      *   <li><b>协调派生</b>：{@code kind==COORDINATOR} 且节点自身状态已被 {@code
      *       SubmitCoordinationPlanTool.submit → boards.applyCoordinationPlan} 同步转 {@code COMPLETED}
-     *       ——查询最新板状态确认，{@code board} 是本轮 {@code executeBoard} 开始前的旧快照，工具调用发生在
-     *       execution 期间，必须重新查询而非信任内存里的旧引用
-     *   <li><b>步骤计划</b>：查询 {@code plans.findActive(...)} 发现本节点有活跃 {@code ExecutorPlan}
-     *       ——{@code submit_executor_plan} 提交即直接进入 {@code EXECUTING}（不再有独立 {@code APPROVED}
-     *       等待认领中间态，因为提交和执行在同一次 execution 里连续发生，没有"等待另一次调用认领"的时间差），
-     *       execution 结束时按完成证据判断计划成功/失败
-     *   <li><b>简单直答</b>：从未调用任何计划/协调工具，直接产出文本——按原有 {@code completionEvidenceSatisfied}
-     *       校验
+     *       ——查询最新板状态确认，{@code board} 是本轮 {@code executeBoard} 开始前的旧快照，工具调用发生在 execution
+     *       期间，必须重新查询而非信任内存里的旧引用
+     *   <li><b>步骤计划</b>：查询 {@code plans.findActive(...)} 发现本节点有活跃 {@code ExecutorPlan} ——{@code
+     *       submit_executor_plan} 提交即直接进入 {@code EXECUTING}（不再有独立 {@code APPROVED}
+     *       等待认领中间态，因为提交和执行在同一次 execution 里连续发生，没有"等待另一次调用认领"的时间差）， execution 结束时按完成证据判断计划成功/失败
+     *   <li><b>简单直答</b>：从未调用任何计划/协调工具，直接产出文本——按原有 {@code completionEvidenceSatisfied} 校验
      *   <li><b>"只说不做"</b>：以上均不满足（如声称要拆步骤但从未真正提交计划）——按失败处理，不静默放行
      * </ul>
      */
@@ -665,7 +660,9 @@ public final class DelegatedTaskCoordinator {
                 plans == null
                         ? Optional.<ExecutorPlan>empty()
                         : plans.findActive(
-                                parentContext.tenantId(), parentContext.taskId(), subTask.subTaskId());
+                                parentContext.tenantId(),
+                                parentContext.taskId(),
+                                subTask.subTaskId());
         if (activePlan.isPresent()) {
             return finalizePlannedStepExecution(parentContext, subTask, activePlan.get(), result);
         }
@@ -676,7 +673,10 @@ public final class DelegatedTaskCoordinator {
             return Flux.empty();
         }
         boards.completeSubTask(
-                parentContext.tenantId(), parentContext.taskId(), subTask.subTaskId(), result,
+                parentContext.tenantId(),
+                parentContext.taskId(),
+                subTask.subTaskId(),
+                result,
                 parentContext.lease());
         log.debug(
                 "[Assistant协调] 执行子 Agent 已完成：taskId={}，executionId={}，agentKey={}",
@@ -688,9 +688,11 @@ public final class DelegatedTaskCoordinator {
 
     /** 重新查询最新板状态确认协调者是否真的调用过 {@code submit_coordination_plan}（"只说不做"防护）。 */
     private boolean coordinatorSubmittedPlan(InvocationContext parentContext, SubTask subTask) {
-        var latestBoard = boards.find(parentContext.tenantId(), parentContext.taskId()).orElseThrow();
+        var latestBoard =
+                boards.find(parentContext.tenantId(), parentContext.taskId()).orElseThrow();
         var latestCoordinator = latestBoard.subTasks().get(subTask.subTaskId());
-        return latestCoordinator != null && latestCoordinator.status() == TaskBoard.Status.COMPLETED;
+        return latestCoordinator != null
+                && latestCoordinator.status() == TaskBoard.Status.COMPLETED;
     }
 
     /** 步骤计划的完成/失败判定：完成证据仍是唯一真理源，计划本身只是审计记录，不替代原有校验。 */
@@ -707,7 +709,10 @@ public final class DelegatedTaskCoordinator {
                     "completed-" + plan.planId() + "-r" + plan.revision());
         }
         boards.completeSubTask(
-                parentContext.tenantId(), parentContext.taskId(), subTask.subTaskId(), result,
+                parentContext.tenantId(),
+                parentContext.taskId(),
+                subTask.subTaskId(),
+                result,
                 parentContext.lease());
         log.debug(
                 "[Assistant协调] 计划执行已完成：taskId={}，subTaskId={}",
@@ -718,7 +723,10 @@ public final class DelegatedTaskCoordinator {
 
     /** 子任务失败统一入口：若存在活跃计划一并标记失败，保持计划与板状态一致。 */
     private void failOrRecordPlanFailure(
-            InvocationContext parentContext, SubTask subTask, String failureMessage, boolean retryable) {
+            InvocationContext parentContext,
+            SubTask subTask,
+            String failureMessage,
+            boolean retryable) {
         if (plans != null) {
             plans.findActive(parentContext.tenantId(), parentContext.taskId(), subTask.subTaskId())
                     .filter(plan -> plan.status() == ExecutorPlan.Status.EXECUTING)
@@ -734,7 +742,8 @@ public final class DelegatedTaskCoordinator {
                                         parentContext,
                                         ExecutionEventType.EXECUTOR_PLAN_FAILED,
                                         ExecutionEventStatus.FAILED,
-                                        planValues(plan.planId(), ExecutorPlan.Status.FAILED.name()),
+                                        planValues(
+                                                plan.planId(), ExecutorPlan.Status.FAILED.name()),
                                         "failed-" + plan.planId() + "-r" + plan.revision());
                             });
         }
@@ -897,7 +906,8 @@ public final class DelegatedTaskCoordinator {
                 context.causationId(),
                 context.idempotencyKey(),
                 new ExecutionEventPayload(payload),
-                at);
+                at,
+                context.nodeIdentity());
     }
 
     private static boolean visibleToTaskConsumer(SubTask subTask, ExecutionEvent event) {
@@ -1053,7 +1063,8 @@ public final class DelegatedTaskCoordinator {
                                 "requiredFields", request.requiredFields(),
                                 "questions", questions,
                                 "deadline", request.deadline().toString())),
-                at);
+                at,
+                context.nodeIdentity());
     }
 
     private static ExecutionEvent iterationEvent(
@@ -1093,7 +1104,8 @@ public final class DelegatedTaskCoordinator {
                                 "groupId", iteration.group().groupId(),
                                 "iteration", iteration.currentIteration(),
                                 "decision", evaluation.decision().name())),
-                at);
+                at,
+                context.nodeIdentity());
     }
 
     private static void requireObject(JsonNode node, String label) {
@@ -1162,10 +1174,10 @@ public final class DelegatedTaskCoordinator {
     }
 
     /**
-     * 构造并持久化一个计划级事件（AAF-107 #10705）。{@code ExecutorPlan} 是独立聚合根，不经过 {@code
-     * TaskTransition} 机制，需要本类直接持有 {@link ExecutionEventStorePort} 自行 {@code append}——
-     * 复用 {@code AssistantApplicationService} 已确立的"事件产生方自己负责持久化后再流出"模式。{@code eventStore}
-     * 为 {@code null}（未接入计划能力的部署）时静默跳过，不阻塞主流程。
+     * 构造并持久化一个计划级事件（AAF-107 #10705）。{@code ExecutorPlan} 是独立聚合根，不经过 {@code TaskTransition}
+     * 机制，需要本类直接持有 {@link ExecutionEventStorePort} 自行 {@code append}—— 复用 {@code
+     * AssistantApplicationService} 已确立的"事件产生方自己负责持久化后再流出"模式。{@code eventStore} 为 {@code
+     * null}（未接入计划能力的部署）时静默跳过，不阻塞主流程。
      */
     private void emitPlanEvent(
             InvocationContext context,

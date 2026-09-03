@@ -10,6 +10,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.event.publication.ExecutionE
 import com.xuejiai.aaf.module.ai.agui.converter.InternalNodeEventConverter;
 import com.xuejiai.aaf.module.ai.agui.converter.PublicEventFallbackConverter;
 import com.xuejiai.aaf.module.ai.agui.converter.RunLifecycleEventConverter;
+import com.xuejiai.aaf.module.ai.agui.converter.StepEventConverter;
 import com.xuejiai.aaf.module.ai.agui.converter.TextMessageEventConverter;
 
 import io.agentscope.core.agui.event.AguiEvent;
@@ -36,7 +37,10 @@ public final class AgUiProjector {
         Objects.requireNonNull(publicMapper, "publicMapper 不能为空");
         this.registry =
                 new AafAguiConverterRegistry(
-                        List.of(new RunLifecycleEventConverter(), new TextMessageEventConverter()),
+                        List.of(
+                                new RunLifecycleEventConverter(),
+                                new TextMessageEventConverter(),
+                                new StepEventConverter()),
                         new PublicEventFallbackConverter(publicMapper),
                         new InternalNodeEventConverter(publicMapper));
     }

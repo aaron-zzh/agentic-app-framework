@@ -306,7 +306,8 @@ public final class PersistentHitlCoordinator implements HitlCoordinatorPort {
                 context.causationId(),
                 context.idempotencyKey(),
                 new ExecutionEventPayload(values),
-                approval.decidedAt());
+                approval.decidedAt(),
+                context.nodeIdentity());
     }
 
     private static boolean isDelegated(

@@ -99,7 +99,8 @@ public final class SynchronousExecutionEventWriter {
                 event.causationId(),
                 event.idempotencyKey(),
                 event.payload(),
-                event.createdAt());
+                event.createdAt(),
+                event.nodeIdentity());
     }
 
     public record WriteResult(StoredExecutionEvent storedEvent, boolean created) {

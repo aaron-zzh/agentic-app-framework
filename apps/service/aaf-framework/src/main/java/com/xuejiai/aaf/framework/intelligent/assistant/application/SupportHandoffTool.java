@@ -63,13 +63,7 @@ public final class SupportHandoffTool implements ContextAwareToolHandler {
                 "type",
                 "object",
                 "properties",
-                Map.of(
-                        "reason",
-                        Map.of(
-                                "type",
-                                "string",
-                                "description",
-                                "简短、脱敏的交接原因，不超过 256 个字符")),
+                Map.of("reason", Map.of("type", "string", "description", "简短、脱敏的交接原因，不超过 256 个字符")),
                 "required",
                 List.of("reason"));
     }
@@ -134,7 +128,8 @@ public final class SupportHandoffTool implements ContextAwareToolHandler {
                         context.causationId(),
                         context.idempotencyKey(),
                         new ExecutionEventPayload(values),
-                        now);
+                        now,
+                        context.nodeIdentity());
         var output =
                 JsonUtils.toJsonString(
                         Map.of(

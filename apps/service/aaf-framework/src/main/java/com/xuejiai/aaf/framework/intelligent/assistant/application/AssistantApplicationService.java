@@ -501,24 +501,23 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 command.operation() == AssistantCommand.Operation.PAUSE
                         ? agentExecution.pause(command.executionId())
                         : agentExecution.cancel(command.executionId());
-        return terminate
-                .flatMapMany(
-                        ignored -> {
-                            var saved = tasks.save(command.tenantId(), changed, command.lease());
-                            var type =
-                                    next == TaskStatus.CANCELED
-                                            ? ExecutionEventType.EXECUTION_CANCELED
-                                            : ExecutionEventType.EXECUTION_PAUSED;
-                            return Flux.just(
-                                    taskEvent(
-                                            command,
-                                            sequence.incrementAndGet(),
-                                            type,
-                                            saved,
-                                            reason,
-                                            null,
-                                            null));
-                        });
+        return terminate.flatMapMany(
+                ignored -> {
+                    var saved = tasks.save(command.tenantId(), changed, command.lease());
+                    var type =
+                            next == TaskStatus.CANCELED
+                                    ? ExecutionEventType.EXECUTION_CANCELED
+                                    : ExecutionEventType.EXECUTION_PAUSED;
+                    return Flux.just(
+                            taskEvent(
+                                    command,
+                                    sequence.incrementAndGet(),
+                                    type,
+                                    saved,
+                                    reason,
+                                    null,
+                                    null));
+                });
     }
 
     /**
@@ -2158,7 +2157,12 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 command.causationId(),
                 command.idempotencyKey(),
                 payload,
-                Instant.now());
+                Instant.now(),
+                // 节点身份随命令透传：AG-UI 投影据此区分交付类节点与内部节点（修复此前缺口——本方法此前调用不带
+                // nodeIdentity 的旧版 ExecutionEvent 构造器，导致 EXECUTION_STARTED/COMPLETED/FAILED/
+                // CANCELED、VALIDATION_* 这批"任务级"事件即使属于子任务也恒为 null，与 AgentScopeEventMapper
+                // 产生的"Agent 调用级"事件（RUN_STARTED/MESSAGE_*/TOOL_CALL_* 等）行为不一致）。
+                command.nodeIdentity());
     }
 
     private static ExecutionEventStatus status(TaskStatus status) {
