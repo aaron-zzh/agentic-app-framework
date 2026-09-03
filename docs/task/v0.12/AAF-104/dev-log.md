@@ -52,6 +52,11 @@
 
 ### 实现文件
 
+## #10403 剩余范围收尾（2026-09-03）
+
+- ✅ #10403 Step/State/Activity/messageId 补齐 — StepStarted/Finished、StateSnapshot/Delta、ActivitySnapshot/Delta 后端投影落地（复用官方 AguiStateConverter 做 RFC6902 diff），messageId 改 replyId:blockId 派生；顺带修复 nodeIdentity 传播缺口（10 处构造点）与清理 5 个死代码枚举值；webui 配套接入 Activity 卡片订阅与渲染。MessagesSnapshot 判定不做，#10403b 结论落定不复用官方 AguiStreamContext。（2026-09-03）
+
+
 | 文件 | 说明 |
 |------|------|
 | `.../infrastructure/agentscope/mapping/AgentScopeEventMapper.java` | 补齐 8 项映射方法；`TEXT_BLOCK_START/DELTA` 补 `replyId`/`blockId` |
