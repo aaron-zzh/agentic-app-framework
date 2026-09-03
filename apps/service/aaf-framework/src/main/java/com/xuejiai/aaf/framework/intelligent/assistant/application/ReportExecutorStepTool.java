@@ -31,7 +31,7 @@ import reactor.core.scheduler.Schedulers;
 /**
  * 已批准执行阶段内唯一允许模型上报步骤边界的工具（AAF-107 #10705）。
  *
- * <p>{@code executeApprovedPlanSteps} 让模型在一次 execution 内自由推进全部已批准步骤，AAF 侧不介入模型推理过程， 因此 {@code
+ * <p>{@code report_executor_step} 让模型在单次 execution 内自由推进已提交计划的全部步骤，AAF 侧不介入模型推理过程， 因此 {@code
  * ExecutorPlanStep.Status} 要有真实数据，必须由模型自己显式上报步骤边界——复用 {@link SubmitExecutorPlanTool}
  * 已确立的"模型主动上报"模式，而非从底层工具调用事件流反推（一个 step 可能对应 0~N 次工具调用， 无法可靠映射回步骤边界）。
  *
@@ -114,7 +114,7 @@ public final class ReportExecutorStepTool implements ContextAwareToolHandler {
         var context = invocation.context();
         var nodeIdentity = context.nodeIdentity();
         if (nodeIdentity == null) {
-            throw new IllegalStateException("report_executor_step 只能在编排板上的 EXECUTOR 节点内调用");
+            throw new IllegalStateException("当前节点不在编排板上，无法上报步骤进度");
         }
         var active =
                 plans.findActive(context.tenantId(), context.taskId(), nodeIdentity.subTaskId())

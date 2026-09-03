@@ -131,6 +131,49 @@ gains:
 - **完成标准**：`pnpm nx compile service` 通过（main+test）；不留独立前置分类步骤；协调者/执行者能力边界仅剩"是否允许派生子节点"这一权限点。
 - **实际结果**：全部范围完成，`pnpm nx compile service` BUILD SUCCESS。评估放开 `AssistantApplicationService` 两处"SYSTEM Skill 禁止声明工具要求"校验后判定不必要（`INHERIT` 机制已覆盖需求），未采用，两处校验维持原状。
 
+### #10707 `ReportExecutorStepTool` 异常提示文案与实际守卫逻辑不一致
+
+- **状态**：✅ 已完成（2026-09-03）— developer-service
+- **负责人**：developer-service
+- **依赖**：#10706
+- **提出背景**：v0.12 手动测试方案设计过程中，最初依据 `ReportExecutorStepTool.java:117` 的异常提示文案"`report_executor_step 只能在编排板上的 EXECUTOR 节点内调用`"判断协调者节点提交计划后无法合法上报步骤进度。深入核实实际守卫代码后确认该判断**不准确**：该方法只检查 `context.nodeIdentity() == null`，**没有检查 `nodeIdentity.kind()`**；`plans.findActive(...)` 按 `nodeIdentity.subTaskId()` 查询活跃计划，`SubmitExecutorPlanTool` 同样只检查非 null，不限定节点类型。`DelegatedTaskCoordinator.java:174` 注释与 `AssistantInfrastructureAutoConfiguration.java:446` 注释均明确记载 AAF-107 #10706 架构改造后"**任何节点（协调者或执行者）都在自己 execution 内自主决定要不要调用 `submit_executor_plan`**"是既定设计。协调者节点提交计划、上报步骤两个动作用的是同一个 `subTaskId="coordinator"`，链路上不存在阻断点。
+- **真实问题范围**：仅异常提示文案与 Javadoc 描述过时，属于遗留自更早版本（可能是 #10706 架构改造删除"只有 EXECUTOR 分支能规划"限制之前的措辞），未随代码改动同步更新，与实际允许的行为不一致，容易误导后续排查。**不是功能缺陷**。
+- **范围**：
+  - ✅ 更正 `ReportExecutorStepTool.java:117` 异常消息："report_executor_step 只能在编排板上的 EXECUTOR 节点内调用" → "当前节点不在编排板上，无法上报步骤进度"。
+  - ✅ 核查 `SubmitExecutorPlanTool.java:141` 确认当前文案"submit_executor_plan 只能在编排板上的节点内调用"本身准确，未改。
+  - ✅ 核查并修正三处过时 Javadoc（均提到已随 #10706 删除的 `executeApprovedPlanSteps` 方法作为"当前行为"描述）：`ReportExecutorStepTool.java` 类注释、`AssistantInfrastructureAutoConfiguration.java` Bean 方法注释、`ExecutionEventType.java` 的 `EXECUTOR_PLAN_STEP_*` 枚举注释。`DelegatedTaskCoordinator.java:596` 引用该方法名属于"替代原两阶段 XXX"的历史对比说法，合理保留未改。
+- **完成标准**：异常消息与实际代码行为一致；`pnpm nx compile service` 通过。
+- **实际结果**：`pnpm nx compile service` BUILD SUCCESS，`pnpm nx test service` 248 测试全绿，无回归。全仓核实无测试断言旧异常文案，无需同步测试。
+
+### #10708 CHAT 模式协议无 Role 显式指定通道——非 Team 模式协调计划禁止 Executor 使用不同 Role/Skill
+
+- **状态**：[ ] 待开始
+- **负责人**：architect + developer-service
+- **依赖**：#10706
+- **核实结论（拆分为两个独立问题，避免混淆）**：
+  1. **显式指定角色**：`EXECUTION` 模式（`AssistantExecutionRequest.role` + `routeConstraint`）**已完整支持**，`FIXED` 时直接锁定角色（`AssistantApplicationService.java:1146` `SERVER_FIXED_ROUTE` 分支），跳过任何选择逻辑。`CHAT` 模式**不支持**——`AssistantAguiController` CHAT 分支（`AssistantAguiController.java:255-271`）硬编码 `RouteConstraint.AUTO` 且 `role` 参数固定传 `null`，协议层面没有设计接收字段，`/ai/chat` 角色下拉框选择不会真正发送到后端。
+  2. **智能动态决策角色**（不指定，由模型按任务语义选择）：**后端已完整支持且是真实可用能力**，不需要新开发。`DefaultRoleSelector.selectByModel`（`DefaultRoleSelector.java:88-125`）在 `RouteConstraint.AUTO` 时触发，是一次独立的无副作用 L0 模型调用，依据候选 Role 的职责描述与任务输入语义选择，失败时安全回退 Assistant 默认 Role（`AssistantApplicationService.java:1160-1163` 接入）。
+- **提出背景**：`SubmitCoordinationPlanTool.java:135-162` 对非 Team board 强制要求所有 Executor 的 `roleKey`/`skillKey` 与协调者自身冻结的 Role/Skill 完全相等（"授权衰减基准是委派方自身，executor 只能等于该基准，不得放大到基准之外"，刻意的安全设计）。已发布的 Team board 允许协调计划引用已冻结的多个 Worker（各自可以有不同 Role/Skill），但 `apps/webui/src` 全仓核实未发现任何页面/调用发送 `forwardedProps.mode="TEAM"` 或 `teamId`。
+- **范围（架构评估后确定，当前仅记录发现，不预设方案）**：
+  - 评估 1：CHAT 模式的 `forwardedProps` 是否应新增可选 `role` 字段，对齐 `EXECUTION` 模式已有的 `role`+`routeConstraint` 语义——用户显式选择时走 `FIXED`（复用已有 `SERVER_FIXED_ROUTE` 分支），不选时保持 `AUTO`（复用已有 `DefaultRoleSelector.selectByModel`，不需要新增后端能力）。
+  - 评估 2：非 Team 模式的协调计划 Role/Skill 冻结约束是否需要放开、放开到什么程度——涉及授权衰减模型的安全边界调整，🔴 高风险，需要架构设计与人类审核。
+  - 评估 3：或维持当前设计不变，多角色/技能协作场景统一引导到 Team board 路径，同步评估 Team 入口前端补齐的优先级。
+- **完成标准**（待架构评估后细化）：给出评估 1/2/3 的结论与依据，若决定实施则补充设计文档与验收标准。
+
+### #10709 角色选定决策不投影到前端——用户无法看到"系统选择了哪个角色、为什么"
+
+- **状态**：[ ] 待开始
+- **负责人**：architect + developer-service
+- **依赖**：无（独立于 #10708，是"看不看得到"而非"能不能指定"的问题）
+- **提出背景**：核实 `AssistantApplicationService.appendRoleAudit`（`AssistantApplicationService.java:1731-1755`）确认角色选择结果（含 `roleKey`、`reason`、`selectedBy`——即选择方式是 `SERVER_FIXED_ROUTE`/`SELECTION_MODEL`/`DEFAULT_BINDING` 三者之一，`SELECTION_MODEL` 即模型语义动态选中）写入的是 `SkillDecisionAuditEvent`（`ROLE_SELECTED` 类型），只有 JPA 持久化实现（`JpaSkillDecisionAuditAdapter` 写 `ai_skill_decision_audit` 表），全仓核实**没有任何 REST controller 查询该表**，且该事件类型完全独立于 `ExecutionEvent`，不进入 AG-UI 事件流投影。
+  - 另外核实 `InternalNodeEventConverter.java:62,90,109` 的 Activity/State CUSTOM 投影确实携带 `roleKey` 字段，但这是 `NodeIdentity` 创建时固化的静态值（节点创建那一刻已经决定好写入的角色标识），**不是"角色决策"这个事件本身**——不包含选择原因、候选集合范围、是否为模型动态选择等信息，无法让用户理解"为什么是这个角色"。
+- **影响**：即便 #10708 评估后放开 CHAT 模式的显式角色指定或依赖模型动态决策，用户在界面上仍然完全看不到反馈——不知道当前对话使用的是哪个角色、是自己选的还是模型自动选的、选择依据是什么。这会削弱"角色切换"功能本身的可感知性与可信度。
+- **范围（待评估，当前仅记录发现）**：
+  - 评估是否需要新增一类 AG-UI CUSTOM 事件（如 `aaf.role.selected`），在角色选定后即时投影 `roleKey`/`selectedBy`/`reason`，供前端渲染"当前角色：XX（模型自动选择/用户指定）"提示。
+  - 评估是否复用 `appendRoleAudit` 的调用点直接追加一次事件写入（同 `PersistentHitlCoordinator` 等既有模式），还是需要新建独立投影路径。
+  - 需先确认 #10708 的评估结论（是否真的要支持前端显式指定/动态决策两种模式），再确定本任务的展示需求范围，避免在需求未定案前设计 UI。
+- **完成标准**（待评估后细化）：角色选定后用户能在界面上看到当前角色标识与选择方式，不需要打开 DevTools 检查请求体才能确认。
+
 ## 评审状态（🔴 高风险适用）
 
 | 阶段 | 执行次数 | 最后执行 | 状态 | 必须 |

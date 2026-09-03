@@ -81,8 +81,8 @@ public enum ExecutionEventType {
     EXECUTOR_PLAN_CANCELLED,
 
     /**
-     * EXECUTOR 计划步骤级事件（AAF-107 #10705）。由新增的 {@code report_executor_step} 工具驱动——模型在 {@code
-     * executeApprovedPlanSteps} 阶段显式上报步骤边界（复用 {@code submit_executor_plan}
+     * EXECUTOR 计划步骤级事件（AAF-107 #10705）。由新增的 {@code report_executor_step} 工具驱动——模型在单次 execution
+     * 内推进已提交计划时显式上报步骤边界（复用 {@code submit_executor_plan}
      * 已确立的"模型主动上报"模式，而非从底层工具调用事件流反推，后者无法可靠映射 0~N 次工具调用到一个 step 边界）。
      */
     EXECUTOR_PLAN_STEP_STARTED,

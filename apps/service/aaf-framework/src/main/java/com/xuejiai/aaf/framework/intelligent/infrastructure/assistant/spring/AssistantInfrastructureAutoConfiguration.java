@@ -174,8 +174,8 @@ public class AssistantInfrastructureAutoConfiguration {
     }
 
     /**
-     * 已批准执行阶段内唯一允许模型上报步骤边界的工具（AAF-107 #10705）：{@code executeApprovedPlanSteps} 让模型在一次 execution
-     * 内自由推进全部已批准步骤，{@code ExecutorPlanStep.Status} 要有真实数据必须由模型自己 显式上报——与 {@code
+     * 单次 execution 内唯一允许模型上报步骤边界的工具（AAF-107 #10705）：{@code report_executor_step} 让模型在单次 execution
+     * 内自由推进已提交计划的全部步骤，{@code ExecutorPlanStep.Status} 要有真实数据必须由模型自己 显式上报——与 {@code
      * submitExecutorPlanTool} 同为"模型主动上报"模式，注册条件也保持一致。
      */
     @Bean
