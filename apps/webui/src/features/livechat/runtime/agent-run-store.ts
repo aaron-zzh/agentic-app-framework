@@ -44,6 +44,17 @@ export interface SubTaskActivity {
   status: string
 }
 
+/**
+ * 本次执行冻结的角色（AG-UI CUSTOM `aaf.role.resolved`，AAF-107 #10709）。
+ * 由后端 AssistantApplicationService 每次执行无条件投影，走 PublicEventFallbackConverter 兜底 CUSTOM，
+ * 不区分是用户显式指定还是模型（DefaultRoleSelector.selectByModel）动态选择——routeConstraint 可用于区分。
+ */
+export interface SelectedRole {
+  roleKey: string
+  roleName: string
+  routeConstraint: string
+}
+
 interface AgentRunState {
   phase: AgentRunPhase
   activeTool: string | null
@@ -51,6 +62,7 @@ interface AgentRunState {
   suggestions: AgentSuggestion[]
   aigcTasks: AigcTaskCard[]
   subTaskActivities: Record<string, SubTaskActivity>
+  selectedRole: SelectedRole | null
   startRun: () => void
   finishRun: () => void
   errorRun: (message?: string) => void
@@ -61,6 +73,7 @@ interface AgentRunState {
   pushAigcTask: (card: AigcTaskCard) => void
   updateAigcTask: (taskId: number, patch: Partial<AigcTaskCard>) => void
   upsertSubTaskActivity: (activity: SubTaskActivity) => void
+  setSelectedRole: (role: SelectedRole) => void
 }
 
 const MAX_ENTRIES = 50
@@ -77,13 +90,15 @@ export const useAgentRunStore = create<AgentRunState>((set) => ({
   suggestions: [],
   aigcTasks: [],
   subTaskActivities: {},
+  selectedRole: null,
   startRun: () =>
     set({
       phase: "running",
       activeTool: null,
       entries: [],
       suggestions: [],
-      subTaskActivities: {}
+      subTaskActivities: {},
+      selectedRole: null
     }),
   finishRun: () => set({ phase: "finished", activeTool: null }),
   errorRun: (message) =>
@@ -112,5 +127,6 @@ export const useAgentRunStore = create<AgentRunState>((set) => ({
   upsertSubTaskActivity: (activity) =>
     set((s) => ({
       subTaskActivities: { ...s.subTaskActivities, [activity.subTaskId]: activity }
-    }))
+    })),
+  setSelectedRole: (role) => set({ selectedRole: role })
 }))

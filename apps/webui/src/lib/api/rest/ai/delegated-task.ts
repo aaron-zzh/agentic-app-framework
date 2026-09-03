@@ -91,6 +91,7 @@ export const AAF_AI_TASK_EVENT_TYPES = [
   "aaf.ownership.transferred",
   "aaf.task.status_changed",
   "aaf.control_mode.changed",
+  "aaf.role.resolved",
   "aaf.input.canceled",
   "aaf.input.modified",
   "aaf.input.supplemented",

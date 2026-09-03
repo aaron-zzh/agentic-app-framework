@@ -19,6 +19,7 @@ import {
   useVoiceControls
 } from "@assistant-ui/react"
 import { type UseAgUiThreadListAdapter, useAgUiRuntime } from "@assistant-ui/react-ag-ui"
+import type { AafAiTaskEvent } from "@/lib/api/rest/ai"
 import { backendApi } from "@/lib/api/rest/backend-client"
 import { ForwardedPropsHttpAgent } from "./forwarded-props-http-agent"
 
@@ -199,6 +200,20 @@ export function AgUiChatProvider({
         })
       },
       onCustomEvent: ({ event }) => {
+        if (event.name === "aaf.role.resolved") {
+          const value = event.value as AafAiTaskEvent | undefined
+          const roleKey = value?.data.roleKey
+          const roleName = value?.data.roleName
+          const routeConstraint = value?.data.routeConstraint
+          if (typeof roleKey === "string" && typeof roleName === "string") {
+            run.setSelectedRole({
+              roleKey,
+              roleName,
+              routeConstraint: typeof routeConstraint === "string" ? routeConstraint : "AUTO"
+            })
+          }
+          return
+        }
         if (event.name === "suggestions") {
           run.setSuggestions(event.value as { prompt: string; label?: string }[])
           return

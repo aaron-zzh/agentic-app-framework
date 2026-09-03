@@ -162,6 +162,12 @@ public final class ExecutionEventPublicMapper {
             case COMMAND_REJECTED -> safe.put("errorCode", "ASSISTANT_COMMAND_REJECTED");
             case RUN_FAILED, EXECUTION_FAILED ->
                     safe.put("errorCode", "ASSISTANT_EXECUTION_FAILED");
+            case ROLE_RESOLVED -> {
+                copyText(source, safe, "roleKey");
+                copyText(source, safe, "roleName");
+                copyText(source, safe, "routeConstraint");
+                copyText(source, safe, "interactionMode");
+            }
             default -> {
                 // 未显式注册的 payload 字段一律不公开。
             }
