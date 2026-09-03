@@ -1,12 +1,14 @@
 package com.xuejiai.aaf.module.ai.agui;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
 import org.springframework.http.MediaType;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -15,6 +17,14 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.xuejiai.aaf.common.util.JsonUtils;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.HumanApproval;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.HitlCoordinatorPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.HumanApprovalPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskRecoveryDispatchPort;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
+import com.xuejiai.aaf.framework.org.OrgContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.module.ai.assistant.service.AssistantApprovalEventService;
 import com.xuejiai.aaf.module.ai.assistant.service.AssistantExecutionService;
 import com.xuejiai.aaf.module.ai.assistant.service.AssistantExecutionService.ExecutionStream;
 import com.xuejiai.aaf.module.ai.assistant.service.AssistantExecutionService.TeamTarget;
@@ -53,16 +63,31 @@ public class AssistantAguiController {
     private final ChatService chatService;
     private final AgUiProjector agUiProjector;
     private final Validator validator;
+    private final HitlCoordinatorPort hitl;
+    private final HumanApprovalPort approvals;
+    private final TaskRecoveryDispatchPort recoveries;
+    private final AssistantApprovalEventService approvalEvents;
+    private final OperatorContext operatorContext;
 
     public AssistantAguiController(
             AssistantExecutionService assistantExecutions,
             ChatService chatService,
             AgUiProjector agUiProjector,
-            Validator validator) {
+            Validator validator,
+            HitlCoordinatorPort hitl,
+            HumanApprovalPort approvals,
+            TaskRecoveryDispatchPort recoveries,
+            AssistantApprovalEventService approvalEvents,
+            OperatorContext operatorContext) {
         this.assistantExecutions = assistantExecutions;
         this.chatService = chatService;
         this.agUiProjector = agUiProjector;
         this.validator = validator;
+        this.hitl = hitl;
+        this.approvals = approvals;
+        this.recoveries = recoveries;
+        this.approvalEvents = approvalEvents;
+        this.operatorContext = operatorContext;
     }
 
     @PostMapping(
@@ -71,6 +96,11 @@ public class AssistantAguiController {
             produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter run(@RequestBody RunRequest request) {
         chatService.requireOwnedAiThread(request.threadId());
+        return request.resume().isEmpty() ? startRun(request) : resumeRun(request);
+    }
+
+    /** 新建 execution：无 {@code resume}，走既有逻辑。 */
+    private SseEmitter startRun(RunRequest request) {
         var stream = executionStream(request);
         var emitter = new SseEmitter(600_000L);
         var session = agUiProjector.openSession();
@@ -93,6 +123,88 @@ public class AssistantAguiController {
                             emitter.complete();
                         });
         return emitter;
+    }
+
+    /**
+     * 恢复 execution（AAF-104 #10404）：{@code resume} 非空时不新建 execution，逐条按 {@code interruptId} （即
+     * {@code approvalId}）调用 {@link HitlCoordinatorPort#decide} 落定决定。批准时触发 {@link
+     * TaskRecoveryDispatchPort#recover} 驱动真正的续接执行（{@code AssistantApplicationService} 的 {@code
+     * Operation.RESUME} 分支，沿用原 {@code executionId} 续接 core 对话历史，AAF-110 已实现）， 再用 {@link
+     * AssistantApprovalEventService#stream} 续读已持久化事件（不占用执行线程等待恢复）。
+     *
+     * <p>拒绝决定不驱动恢复：{@link AssistantApprovalEventService#stream} 要求 {@code approval.status() ==
+     * APPROVED}，拒绝后任务转为 {@code PAUSED}（非终态，不会产生新的可续读事件）， 因此拒绝分支直接闭合本次 run，不调用 {@code stream}。
+     *
+     * <p>仅处理 {@code resume} 的第一条：AAF 当前每次 {@code AUTHORIZATION_REQUESTED} 只对应一个 {@code
+     * approvalId}，暂无真实的批量场景（协议允许数组，实现先满足单条，为未来扩展留出空间）。
+     */
+    private SseEmitter resumeRun(RunRequest request) {
+        var entry = request.resume().getFirst();
+        var tenantId = currentTenant();
+        hitl.decide(
+                new HitlCoordinatorPort.DecisionCommand(
+                        tenantId,
+                        entry.interruptId(),
+                        entry.approved()
+                                ? HumanApproval.Status.APPROVED
+                                : HumanApproval.Status.REJECTED,
+                        currentUser(),
+                        entry.status(),
+                        Instant.now()));
+        var approval =
+                approvals
+                        .find(tenantId, entry.interruptId())
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "未知的 interruptId: " + entry.interruptId()));
+        var emitter = new SseEmitter(600_000L);
+        var session = agUiProjector.openSession();
+        var threadId = request.threadId();
+        var runId = request.runId();
+        if (approval.status() != HumanApproval.Status.APPROVED) {
+            // 拒绝决定已落定，任务转为 PAUSED（非终态事件），不驱动恢复执行，无新事件可续读——
+            // 直接闭合本次 run，AUTHORIZATION_DENIED 会在下次用户交互产生的事件流中自然呈现。
+            send(emitter, session.close(threadId, runId), Long.MAX_VALUE);
+            emitter.complete();
+            return emitter;
+        }
+        recoveries.recover(tenantId, entry.interruptId());
+        approvalEvents.stream(approval)
+                .events()
+                .subscribe(
+                        stored ->
+                                send(
+                                        emitter,
+                                        session.project(stored.event()),
+                                        stored.eventOffset()),
+                        failure -> {
+                            send(
+                                    emitter,
+                                    session.fail(threadId, runId, "ASSISTANT_STREAM_FAILED"),
+                                    0);
+                            emitter.complete();
+                        },
+                        () -> {
+                            send(emitter, session.close(threadId, runId), Long.MAX_VALUE);
+                            emitter.complete();
+                        });
+        return emitter;
+    }
+
+    private TenantId currentTenant() {
+        var orgId = OrgContext.getCurrentOrgId();
+        if (orgId == null) {
+            throw new AccessDeniedException("请求缺少已校验的组织上下文");
+        }
+        return new TenantId(orgId.toString());
+    }
+
+    private String currentUser() {
+        return operatorContext
+                .currentOwnerId()
+                .map(String::valueOf)
+                .orElseThrow(() -> new AccessDeniedException("请求未认证"));
     }
 
     private ExecutionStream executionStream(RunRequest request) {
@@ -332,6 +444,9 @@ public class AssistantAguiController {
      *   <li>{@code state} —— 线程级共享状态（页面感知上下文等）。双向语义，可被 `STATE_SNAPSHOT` 回吐； 服务端当前不消费，不得把调用参数放这里
      *   <li>{@code tools} / {@code context} —— 协议可选字段，标准客户端会发；AAF 不接受前端提供的工具与上下文，
      *       声明出来只为让"接收但不消费"成为显式契约，而不是靠全局忽略未知字段兜住
+     *   <li>{@code resume} —— AG-UI 标准 interrupt 恢复入口（AAF-104 #10404）。非空时本次调用不新建 execution， 而是逐条按
+     *       {@code interruptId}（对应 AAF {@code HumanApproval.approvalId}）解析审批决定并触发恢复， 见 {@link
+     *       #run}。
      * </ul>
      */
     public record RunRequest(
@@ -342,12 +457,37 @@ public class AssistantAguiController {
             JsonNode state,
             List<RunMessage> messages,
             JsonNode tools,
-            JsonNode context) {
+            JsonNode context,
+            List<ResumeEntry> resume) {
         public RunRequest {
             threadId = requireText(threadId, "threadId");
             runId = requireText(runId, "runId");
             forwardedProps = requireObject(forwardedProps, "forwardedProps");
             messages = List.copyOf(Objects.requireNonNull(messages, "messages 不能为空"));
+            resume = resume == null ? List.of() : List.copyOf(resume);
+        }
+    }
+
+    /**
+     * AG-UI 标准 resume 条目：{@code interruptId} 对应 {@code AUTHORIZATION_REQUESTED} 事件 payload 里的
+     * {@code approvalId}；{@code status=resolved} 时 {@code payload.approved} 决定批准/拒绝， {@code
+     * status=cancelled} 等效拒绝。
+     */
+    public record ResumeEntry(String interruptId, String status, JsonNode payload) {
+        public ResumeEntry {
+            interruptId = requireText(interruptId, "resume[].interruptId");
+            status = requireText(status, "resume[].status");
+            if (!"resolved".equals(status) && !"cancelled".equals(status)) {
+                throw new IllegalArgumentException("resume[].status 仅支持 resolved 或 cancelled");
+            }
+        }
+
+        boolean approved() {
+            if ("cancelled".equals(status)) {
+                return false;
+            }
+            var approvedNode = payload == null ? null : payload.get("approved");
+            return approvedNode != null && approvedNode.isBoolean() && approvedNode.asBoolean();
         }
     }
 

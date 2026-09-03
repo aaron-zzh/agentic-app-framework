@@ -267,7 +267,6 @@ function CopywritingWorkspace({
     documentId,
     phase,
     pendingApproval,
-    approvalReady,
     approvalLoading,
     handleApprovalDecision,
     processEntries,
@@ -346,12 +345,10 @@ function CopywritingWorkspace({
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
               <p className="text-muted-foreground text-sm">
-                {approvalReady
-                  ? "Assistant 已安全暂停。批准后将从持久恢复点继续执行，不会提升其他工具权限。"
-                  : "Assistant 正在保存暂停点，请稍候再确认工具操作。"}
+                Assistant 已安全暂停。批准后将从持久恢复点继续执行，不会提升其他工具权限。
               </p>
               <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary">工具：{pendingApproval.toolName}</Badge>
+                <Badge variant="secondary">工具：{pendingApproval.toolCallId}</Badge>
                 <Badge variant="outline">
                   {pendingApproval.reversible ? "操作可撤销" : "操作不可自动撤销"}
                 </Badge>
@@ -359,7 +356,7 @@ function CopywritingWorkspace({
               <div className="flex gap-2">
                 <Button
                   size="sm"
-                  disabled={!approvalReady || approvalLoading}
+                  disabled={approvalLoading}
                   onClick={() => void handleApprovalDecision("APPROVED")}
                 >
                   {approvalLoading ? (
@@ -372,7 +369,7 @@ function CopywritingWorkspace({
                 <Button
                   size="sm"
                   variant="outline"
-                  disabled={!approvalReady || approvalLoading}
+                  disabled={approvalLoading}
                   onClick={() => void handleApprovalDecision("REJECTED")}
                 >
                   <X data-icon="inline-start" />

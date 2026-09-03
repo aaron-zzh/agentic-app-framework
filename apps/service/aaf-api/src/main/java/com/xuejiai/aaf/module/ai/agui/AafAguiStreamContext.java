@@ -201,6 +201,27 @@ public final class AafAguiStreamContext {
         return List.of(new AguiEvent.RunFinished(threadId, runId));
     }
 
+    /**
+     * 暂停终态（AAF-104 #10404）：run 因需要人工审批而暂停，携带 {@code outcome:{type:"interrupt"}}，
+     * 与成功/失败终态同层次的第三种终态方法——都遵循"run 必须终结、且只终结一次"的既有不变量。
+     *
+     * <p>与官方 AG-UI Interrupts 契约对齐：客户端识别到 {@code interrupt} 终态后，收集用户决策，下一次 {@code RunAgentInput} 携带
+     * {@code resume[]}（{@code interruptId}/{@code status}/{@code payload}）重新发起请求；本次暂停不是失败，不发 {@code
+     * RunError}。
+     */
+    public List<AguiEvent> runInterrupted(List<AguiEvent.Interrupt> interrupts) {
+        if (runFinished) {
+            return List.of();
+        }
+        runFinished = true;
+        return List.of(
+                new AguiEvent.RunFinished(
+                        threadId,
+                        runId,
+                        null,
+                        new AguiEvent.RunFinishedInterruptOutcome(interrupts)));
+    }
+
     /** 失败终态：RUN_ERROR 后必须紧跟 RUN_FINISHED，AG-UI 要求 run 必须终结。 */
     public List<AguiEvent> runError(String code) {
         if (runFinished) {

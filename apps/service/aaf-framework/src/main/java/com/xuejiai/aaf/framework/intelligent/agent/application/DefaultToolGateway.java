@@ -371,6 +371,8 @@ public final class DefaultToolGateway implements ToolGatewayPort {
                                 approval.approvalId(),
                                 "action",
                                 approval.action(),
+                                "reason",
+                                approval.reason(),
                                 "reversible",
                                 approval.reversible())),
                 approval.createdAt(),

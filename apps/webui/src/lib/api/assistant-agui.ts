@@ -119,6 +119,21 @@ export interface AssistantRunStartedEvent extends RunEvent {
 
 export interface AssistantRunFinishedEvent extends RunEvent {
   type: "RUN_FINISHED"
+  /**
+   * AG-UI 标准 interrupt 终态（AAF-104 #10404）。非空时表示本次 run 因需要人工审批而暂停，
+   * 不是失败——客户端应展示确认 UI 并通过 {@link resumeAssistantAgUi} 携带 {@code resume[]} 恢复。
+   */
+  interrupts: AssistantInterrupt[]
+}
+
+export interface AssistantInterrupt {
+  id: string
+  reason: string
+  message: string | null
+  /** AAF 语义：工具名（{@code RunLifecycleEventConverter} 用 {@code action} 承载，非调用实例 ID）。 */
+  toolCallId: string | null
+  /** 该受控操作是否具备真实补偿/撤销能力，来自 {@code HumanApproval.reversible()}。 */
+  reversible: boolean
 }
 
 export interface AssistantRunErrorEvent extends RunEvent {
@@ -172,23 +187,14 @@ export type AssistantAgUiEvent =
   | AssistantToolCallResultEvent
   | AssistantCustomEvent
 
-export interface AssistantAuthorizationRequest {
-  approvalId: string
-  toolName: string
-  toolCallId: string | null
-  reversible: boolean
-}
-
 export interface AssistantAgUiStreamOptions {
   onEvent?: (event: AssistantAgUiEvent) => void
   onChunk?: (delta: string, event: AssistantTextMessageContentEvent) => void
-  onApprovalRequired?: (
-    approval: AssistantAuthorizationRequest,
-    event: AssistantCustomEvent
-  ) => void
-  onPaused?: (event: AssistantCustomEvent) => void
+  /** 携带 {@code interrupts} 数组（AAF-104 #10404）；非空时是审批暂停而非成功完成，见 {@link AssistantRunFinishedEvent}。 */
   onDone?: (event: AssistantRunFinishedEvent) => void
   onError?: (error: Error, event?: AssistantRunErrorEvent) => void
+  /** {@link executeAssistantAgUi} 创建会话后立即回调，供调用方保留 threadId 以便后续 {@link resumeAssistantAgUi}。 */
+  onSessionReady?: (session: { threadId: string }) => void
   signal?: AbortSignal
 }
 
@@ -225,6 +231,19 @@ export interface AssistantChatRequest {
   threadId: string
   modelId?: string
   messages: { role: string; text: string }[]
+}
+
+interface AssistantResumeAgUiRunRequest {
+  threadId: string
+  runId: string
+  parentRunId: null
+  forwardedProps: Record<string, never>
+  messages: never[]
+  resume: {
+    interruptId: string
+    status: "resolved" | "cancelled"
+    payload: { approved: boolean }
+  }[]
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -264,6 +283,21 @@ function isAafEventData(value: unknown): value is AafAiTaskEventData {
   )
 }
 
+/** 解析 {@code RUN_FINISHED.outcome}：无 outcome 或非 interrupt 类型时返回空数组（正常完成）。 */
+function parseInterrupts(value: Record<string, unknown>): AssistantInterrupt[] {
+  const outcome = value.outcome
+  if (!isRecord(outcome) || outcome.type !== "interrupt") return []
+  const interrupts = outcome.interrupts
+  if (!Array.isArray(interrupts)) return []
+  return interrupts.filter(isRecord).map((entry) => ({
+    id: requiredText(entry, "id"),
+    reason: requiredText(entry, "reason"),
+    message: typeof entry.message === "string" ? entry.message : null,
+    toolCallId: typeof entry.toolCallId === "string" ? entry.toolCallId : null,
+    reversible: isRecord(entry.metadata) && entry.metadata.reversible === true
+  }))
+}
+
 /** 校验并解析单条 Assistant AG-UI 事件。 */
 export function parseAssistantAgUiEvent(data: string): AssistantAgUiEvent {
   let value: unknown
@@ -280,7 +314,7 @@ export function parseAssistantAgUiEvent(data: string): AssistantAgUiEvent {
     case "RUN_STARTED":
       return { type, runId }
     case "RUN_FINISHED":
-      return { type, runId }
+      return { type, runId, interrupts: parseInterrupts(value) }
     case "RUN_ERROR":
       return { type, runId, message: requiredText(value, "message") }
     case "TEXT_MESSAGE_START":
@@ -320,27 +354,6 @@ export function parseAssistantAgUiEvent(data: string): AssistantAgUiEvent {
   }
 }
 
-function authorizationRequest(event: AssistantCustomEvent): AssistantAuthorizationRequest | null {
-  if (event.value.type !== "aaf.authorization.requested") return null
-  const { approvalId, toolName, toolCallId, reversible } = event.value.data
-  if (typeof approvalId !== "string" || approvalId.length === 0) return null
-  if (typeof toolName !== "string" || toolName.length === 0) return null
-  return {
-    approvalId,
-    toolName,
-    toolCallId: typeof toolCallId === "string" && toolCallId.length > 0 ? toolCallId : null,
-    reversible: reversible === true
-  }
-}
-
-function isAuthorizationPause(event: AssistantAgUiEvent): event is AssistantCustomEvent {
-  return (
-    event.type === "CUSTOM" &&
-    event.value.type === "aaf.task.paused" &&
-    event.value.status === "AWAITING_AUTHORIZATION"
-  )
-}
-
 function responseErrorMessage(value: unknown, fallback: string): string {
   if (!isRecord(value)) return fallback
   return typeof value.message === "string" && value.message.length > 0 ? value.message : fallback
@@ -362,14 +375,6 @@ async function dispatchEventData(
 
   options.onEvent?.(event)
   if (event.type === "TEXT_MESSAGE_CONTENT") options.onChunk?.(event.delta, event)
-  if (event.type === "CUSTOM") {
-    const approval = authorizationRequest(event)
-    if (approval !== null) options.onApprovalRequired?.(approval, event)
-  }
-  if (isAuthorizationPause(event)) {
-    options.onPaused?.(event)
-    return "stop"
-  }
   if (event.type === "RUN_ERROR") {
     options.onError?.(new Error(event.message), event)
     return "stop"
@@ -394,11 +399,6 @@ export async function readAssistantAgUiEventStream(
 
   const settledOptions: AssistantAgUiStreamOptions = {
     ...options,
-    onPaused: (event) => {
-      if (settled) return
-      settled = true
-      options.onPaused?.(event)
-    },
     onDone: (event) => {
       if (settled) return
       settled = true
@@ -515,6 +515,7 @@ export async function executeAssistantAgUi(
     options.onError?.(error instanceof Error ? error : new Error(String(error)))
     return
   }
+  options.onSessionReady?.(session)
   const envelope: AssistantExecutionAgUiRunRequest = {
     threadId: session.threadId,
     runId: crypto.randomUUID(),
@@ -539,14 +540,37 @@ export async function executeAssistantAgUi(
   )
 }
 
-/** 续读工具授权批准后由持久恢复作业产生的 AG-UI 事件。 */
-export function streamApprovedAssistantAgUi(
-  approvalId: string,
+/**
+ * 携带审批决定恢复因 interrupt 而暂停的 run（AAF-104 #10404）。
+ *
+ * 与新建 run 走同一 {@code POST /agui/run} 入口，仅 {@code resume} 非空——不新建 execution，
+ * 服务端按 {@code interruptId}（即 {@code approvalId}）落定决定后续接原 execution。
+ */
+export function resumeAssistantAgUi(
+  params: { threadId: string; approvalId: string; approved: boolean },
   options: AssistantAgUiStreamOptions
 ): Promise<void> {
+  const envelope: AssistantResumeAgUiRunRequest = {
+    threadId: params.threadId,
+    runId: crypto.randomUUID(),
+    parentRunId: null,
+    forwardedProps: {},
+    messages: [],
+    resume: [
+      {
+        interruptId: params.approvalId,
+        status: "resolved",
+        payload: { approved: params.approved }
+      }
+    ]
+  }
   return requestAssistantAgUiStream(
-    `/agui/approvals/${encodeURIComponent(approvalId)}/events`,
-    { method: "GET" },
+    "/agui/run",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(envelope)
+    },
     options
   )
 }

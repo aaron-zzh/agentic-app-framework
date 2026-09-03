@@ -646,13 +646,21 @@ public final class AgentScopeEventMapper {
                         (long) source.getToolResults().size()));
     }
 
-    /** 权限引擎 ASK 决策：转 APPROVAL_REQUESTED，只带待确认工具名。 */
+    /**
+     * 权限引擎 ASK 决策：转 APPROVAL_REQUESTED，带 replyId 与每个待确认工具的 toolCallId/工具名。
+     *
+     * <p><b>当前生产路径不可达（AAF-104 #10404 核实确认）</b>：{@code RequireUserConfirmEvent} 只在构建 {@code
+     * ReActAgent} 时配置 {@code PermissionContextState} 才会触发——全仓核实 AAF 从未配置。真正驱动 AAF 授权确认的是 {@code
+     * DefaultToolGateway.invoke} → {@code AUTHORIZATION_REQUESTED}，与本方法完全 独立。本方法的 {@code replyId}
+     * 补全是修正 Javadoc 声称与代码实际不一致的既有 bug，不代表该路径已被启用； 若未来 AAF 配置了 core 权限系统，这里的映射已经就位。
+     */
     private Optional<ExecutionEvent> mapConfirmation(
             RequireUserConfirmEvent source,
             AgentExecutionCommand command,
             String agentIdentifier,
             MappingState state) {
         state.status(ExecutionEventStatus.AWAITING_AUTHORIZATION);
+        var toolCallIds = source.getToolCalls().stream().map(call -> call.getId()).toList();
         var toolNames = source.getToolCalls().stream().map(call -> call.getName()).toList();
         return event(
                 source,
@@ -661,7 +669,10 @@ public final class AgentScopeEventMapper {
                 state,
                 ExecutionEventType.APPROVAL_REQUESTED,
                 ExecutionEventStatus.AWAITING_AUTHORIZATION,
-                payload("tools", toolNames));
+                payload(
+                        "replyId", source.getReplyId(),
+                        "toolCallIds", toolCallIds,
+                        "tools", toolNames));
     }
 
     /** 停止请求：权限等待与工具挂起只改状态不发事件（由授权事件表达），其余为 EXECUTION_PAUSED。 */

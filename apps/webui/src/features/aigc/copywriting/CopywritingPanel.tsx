@@ -38,7 +38,6 @@ export function CopywritingPanel({ actions }: Props) {
     generating,
     documentId,
     pendingApproval,
-    approvalReady,
     approvalLoading,
     handleApprovalDecision,
     streamingEditorRef,
@@ -126,13 +125,11 @@ export function CopywritingPanel({ actions }: Props) {
               <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
                 <ShieldCheck className="size-4 text-amber-600" />
                 <span className="min-w-0 flex-1">
-                  {approvalReady
-                    ? `允许 ${pendingApproval.toolName} 保存可撤销草稿？`
-                    : "正在持久化安全暂停点…"}
+                  {`允许 ${pendingApproval.toolCallId} 保存可撤销草稿？`}
                 </span>
                 <Button
                   size="xs"
-                  disabled={!approvalReady || approvalLoading}
+                  disabled={approvalLoading}
                   onClick={() => void handleApprovalDecision("APPROVED")}
                 >
                   {approvalLoading ? (
@@ -145,7 +142,7 @@ export function CopywritingPanel({ actions }: Props) {
                 <Button
                   size="xs"
                   variant="outline"
-                  disabled={!approvalReady || approvalLoading}
+                  disabled={approvalLoading}
                   onClick={() => void handleApprovalDecision("REJECTED")}
                 >
                   拒绝

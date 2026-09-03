@@ -187,9 +187,7 @@ export const delegatedTaskApi = {
 
 export const humanApprovalApi = {
   decide: (approvalId: string, request: HumanApprovalDecisionRequest) =>
-    backendApi.post<HumanApprovalVO>(restEndpoints.ai.humanApprovalDecision(approvalId), request),
-  recover: (approvalId: string) =>
-    backendApi.post<boolean>(restEndpoints.ai.humanApprovalRecover(approvalId))
+    backendApi.post<HumanApprovalVO>(restEndpoints.ai.humanApprovalDecision(approvalId), request)
 }
 
 export function getDelegatedTaskEventStreamUrl(taskId: string, afterEventOffset = 0): string {

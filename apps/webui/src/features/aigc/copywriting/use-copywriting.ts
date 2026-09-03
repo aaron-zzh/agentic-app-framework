@@ -10,15 +10,15 @@ import type { StreamingEditorHandle } from "@/features/rich-text-editor"
 import {
   type AssistantAgUiEvent,
   type AssistantAgUiStreamOptions,
-  type AssistantAuthorizationRequest,
   type AssistantExecutionPhase,
   type AssistantExecutionRequest,
+  type AssistantInterrupt,
   type AssistantOutputLocale,
   executeAssistantAgUi,
   parseToolResultContent,
-  streamApprovedAssistantAgUi
+  resumeAssistantAgUi
 } from "@/lib/api/assistant-agui"
-import { type AafAiTaskEvent, type AafAiTaskEventData, humanApprovalApi } from "@/lib/api/rest/ai"
+import type { AafAiTaskEvent, AafAiTaskEventData } from "@/lib/api/rest/ai"
 import { type ScopeSelection, useOrgStore } from "@/lib/store/org-store"
 import { useAigcStore } from "../store"
 
@@ -214,7 +214,11 @@ function safeEventSummary(event: AssistantAgUiEvent): {
   summary: string
 } {
   if (event.type === "RUN_STARTED") return { kind: "phase", summary: "执行已开始" }
-  if (event.type === "RUN_FINISHED") return { kind: "phase", summary: "执行已安全完成" }
+  if (event.type === "RUN_FINISHED") {
+    return event.interrupts.length > 0
+      ? { kind: "safety", summary: "等待用户授权" }
+      : { kind: "phase", summary: "执行已安全完成" }
+  }
   if (event.type === "RUN_ERROR") return { kind: "phase", summary: "执行失败" }
   if (event.type === "TEXT_MESSAGE_CONTENT") {
     return { kind: "message", summary: "正在接收安全输出" }
@@ -238,7 +242,8 @@ function safeEventSummary(event: AssistantAgUiEvent): {
 function eventStatus(event: AssistantAgUiEvent): string {
   if (event.type === "CUSTOM") return event.value.status
   if (event.type === "RUN_STARTED") return "RUNNING"
-  if (event.type === "RUN_FINISHED") return "COMPLETED"
+  if (event.type === "RUN_FINISHED")
+    return event.interrupts.length > 0 ? "AWAITING_AUTHORIZATION" : "COMPLETED"
   if (event.type === "RUN_ERROR") return "FAILED"
   if (event.type === "TOOL_CALL_START") return "RUNNING"
   if (event.type === "TOOL_CALL_RESULT") {
@@ -277,10 +282,9 @@ export function useCopywriting() {
   const [phase, setPhase] = useState<AssistantExecutionPhase>("idle")
   const [processEntries, setProcessEntries] = useState<CopywritingProcessEntry[]>([])
   const [toolCalls, setToolCalls] = useState<CopywritingToolCall[]>([])
-  const [pendingApproval, setPendingApproval] = useState<AssistantAuthorizationRequest | null>(null)
-  const [approvalReady, setApprovalReady] = useState(false)
+  const [pendingApproval, setPendingApproval] = useState<AssistantInterrupt | null>(null)
   const [approvalLoading, setApprovalLoading] = useState(false)
-  const pausedStreamRef = useRef<StructuredStreamOptions | null>(null)
+  const threadIdRef = useRef<string | null>(null)
   const streamingEditorRef = useRef<StreamingEditorHandle>(null)
 
   const [viralStep, setViralStep] = useState<1 | 2 | 3>(1)
@@ -313,8 +317,7 @@ export function useCopywriting() {
       useAigcStore.getState().setCopywritingPersistedDocument(scopeKey, null)
     }
     setPendingApproval(null)
-    setApprovalReady(false)
-    pausedStreamRef.current = null
+    threadIdRef.current = null
     setToolCalls([])
     setProcessEntries([
       {
@@ -353,12 +356,9 @@ export function useCopywriting() {
       useAigcStore.getState().setCopywritingPersistedDocument(scopeKey, artifactId)
     }
     if (event.type === "RUN_STARTED") setPhase("running")
-    if (event.type === "RUN_FINISHED") setPhase("success")
+    if (event.type === "RUN_FINISHED" && event.interrupts.length === 0) setPhase("success")
     if (event.type === "RUN_ERROR") setPhase("error")
     if (event.type === "CUSTOM") {
-      if (event.value.type === "aaf.authorization.requested") {
-        setPhase("awaiting_authorization")
-      }
       if (
         event.value.type === "aaf.authorization.granted" ||
         event.value.type === "aaf.recovery.started"
@@ -385,7 +385,6 @@ export function useCopywriting() {
     }
     editor?.start()
     let accumulated = ""
-    let settled = false
 
     await start({
       onEvent: recordEvent,
@@ -394,35 +393,24 @@ export function useCopywriting() {
         success(accumulated)
         editor?.push(chunk)
       },
-      onApprovalRequired: (approval) => {
-        pausedStreamRef.current = options
-        setPendingApproval(approval)
-        setApprovalReady(false)
-        setPhase("awaiting_authorization")
+      onSessionReady: (session) => {
+        threadIdRef.current = session.threadId
       },
-      onPaused: () => {
-        if (settled) return
-        settled = true
-        success(fallbackContent)
-        editor?.reset()
-        setApprovalReady(true)
-        setPhase("awaiting_authorization")
-      },
-      onDone: () => {
-        if (settled) return
-        settled = true
+      onDone: (event) => {
+        if (event.interrupts.length > 0) {
+          setPendingApproval(event.interrupts[0])
+          setPhase("awaiting_authorization")
+          success(fallbackContent)
+          editor?.reset()
+          return
+        }
         setPendingApproval(null)
-        setApprovalReady(false)
-        pausedStreamRef.current = null
         const finalContent = accumulated || fallbackContent
         success(finalContent)
         editor?.done(finalContent)
         setPhase("success")
       },
       onError: (error) => {
-        if (settled) return
-        settled = true
-        pausedStreamRef.current = null
         success(fallbackContent)
         editor?.reset()
         setPhase("error")
@@ -441,18 +429,13 @@ export function useCopywriting() {
 
   async function handleApprovalDecision(decision: "APPROVED" | "REJECTED") {
     const approval = pendingApproval
-    if (approval === null || !approvalReady || approvalLoading) return
+    const threadId = threadIdRef.current
+    if (approval === null || threadId === null || approvalLoading) return
 
     setApprovalLoading(true)
     try {
-      await humanApprovalApi.decide(approval.approvalId, {
-        decision,
-        reason: decision === "REJECTED" ? "用户拒绝了工具授权" : undefined
-      })
       if (decision === "REJECTED") {
         setPendingApproval(null)
-        setApprovalReady(false)
-        pausedStreamRef.current = null
         setPhase("paused")
         appendProcessEntry({
           id: `approval-rejected-${Date.now()}`,
@@ -462,19 +445,26 @@ export function useCopywriting() {
           summary: "已拒绝受控工具操作，执行保持暂停",
           createdAt: new Date().toISOString()
         })
+        await resumeAssistantAgUi(
+          { threadId, approvalId: approval.id, approved: false },
+          { onError: (error) => toast.error(error.message) }
+        )
         toast.info("已拒绝工具授权")
         return
       }
 
-      const continuation = pausedStreamRef.current
-      if (continuation === null) throw new Error("缺少可恢复的 Assistant 执行上下文")
       setPendingApproval(null)
-      setApprovalReady(false)
       useAigcStore.getState().setCopywritingGenerating(true)
       try {
         await runStructuredStream({
-          ...continuation,
-          start: (streamOptions) => streamApprovedAssistantAgUi(approval.approvalId, streamOptions),
+          start: (streamOptions) =>
+            resumeAssistantAgUi(
+              { threadId, approvalId: approval.id, approved: true },
+              streamOptions
+            ),
+          editor: streamingEditorRef.current,
+          fallbackContent: content,
+          success: setContent,
           errorMessage: "授权后恢复执行失败",
           continuation: true
         })
@@ -616,7 +606,6 @@ export function useCopywriting() {
     documentId,
     phase,
     pendingApproval,
-    approvalReady,
     approvalLoading,
     handleApprovalDecision,
     processEntries,
