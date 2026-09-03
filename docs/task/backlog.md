@@ -2,13 +2,14 @@
 
 所有用户故事的唯一来源。条目由 product agent 细化后登记，协调者维护编号和状态。
 
-编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-110**，新一级用户故事从 AAF-111 开始。添加新条目后必须同步更新此行。
+编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-111**，新一级用户故事从 AAF-112 开始。添加新条目后必须同步更新此行。
 
 ## 待排期
 
 - [ ] AAF-027 (创建: 05-10) LLM 调用录制与回放（测试基础设施：拦截 LLM API 请求录制为 JSON，测试时回放，避免真实调用，保证确定性 + 降低成本）参考：Mastra `_llm-recorder`、WireMock、Spring AI MockChatModel
 - [ ] AAF-035 (创建: 05-14) Nx 工程化持续优化（lefthook 迁移 + enforce-module-boundaries + publint/attw + 共享 tsconfig 包 + Changeset 版本管理）(依赖: AAF-028 packages/ 落地后)
 - [ ] AAF-109 (创建: 09-01) 工具权限运行时安全加固（对齐官方 AgentScope Permission System 后发现的缺口：① Built-in Checks——工具按真实调用参数做动态安全检查，不可被 mode/rules 覆盖，如检测目标是否为生产资源；② 危险资源硬编码黑名单——`.env`/`.ssh`/`.git` 等命中即强制人工确认，连最宽松授权模式都不能绕过。AAF 当前只按工具名静态属性 `readOnly`/`reversible` 判定，全靠人工配置 `ai_tool_catalog`/`ToolPolicy`，无运行时兜底。技术方案见 AAF-107 dev-log 2026-09-01 对比分析）
+- [ ] AAF-111 (创建: 09-03) Team 多角色协作前端入口（后端 `teamCoordinated`/`SubmitCoordinationPlanTool` 已完整支持已发布 Team board 引用冻结多 Worker 各自不同 Role/Skill 协作，但 `apps/webui/src` 全仓核实无任何页面/调用发送 `forwardedProps.mode="TEAM"` 或 `teamId`，webui 无 Team 创建/发布/Worker 配置任何入口。这是当前唯一能让"复杂任务拆分给不同角色/技能子智能体协作"安全落地的路径——非 Team 模式下协调计划强制 Executor Role/Skill 与协调者自身冻结值完全相等，是刻意的安全设计不应放开。技术背景见 AAF-107 #10708 架构评估 3）
 
 ## 下一迭代（v0.1.1）
 

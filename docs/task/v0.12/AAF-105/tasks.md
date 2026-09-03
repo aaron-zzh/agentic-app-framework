@@ -72,14 +72,15 @@ gains:
 
 ### #10504 迁移剩余智能层 L0 调用点
 
-- **状态**：[ ] 待开始
+- **状态**：✅ 已完成（2026-09-02 核实同步——此前状态字段未同步更新，代码实际已随 #10505 一并验证完成）— developer-service
 - **负责人**：developer-service
 - **依赖**：#10503
 - **范围**：
   - ⚠️ 范围已收窄——4 个原计划迁移的调用点（`DefaultRoleSelector`/`DefaultInputClassifier`/`ModelDrivenTaskComplexityAnalyzer`/`ModelSkillSelectionPort`）已随 #10502 提前完成（新旧 gateway 构造器冲突无法分割处理）。
-  - 剩余五个直接调用 `LlmClient` 的类改走 gateway：`ParameterExtractionNode`、`IntentUnderstandingService`、`EmotionPerceptionService`、`DefaultSessionContextCompressor`、`DefaultHybridContextCompressor`（含 `AssistantInfrastructureAutoConfiguration.contextCompressionPort` 装配同步调整，不再依赖 `LlmClient`）。
-  - 业务类不得直接注入 `L0ReActAgentFactory`/`ReActAgent`；只能经 gateway。
+  - ✅ 剩余五个调用点已核实全部改走 `PromptInvocationGateway`：`ParameterExtractionNode`、`IntentUnderstandingService`、`EmotionPerceptionService`、`DefaultSessionContextCompressor`、`DefaultHybridContextCompressor`（`AssistantInfrastructureAutoConfiguration.contextCompressionPort` 装配同步调整，不再依赖 `LlmClient`）。
+  - ✅ 全仓核实业务类无直接注入 `L0ReActAgentFactory`/`ReActAgent`，均经 gateway。
 - **完成标准**：所有 L0 调用都有 Function Contract、preflight、logicalInvocationId；`compile` 通过。
+- **实际结果**：随 #10505 一并验证——`pnpm nx compile service` BUILD SUCCESS（6 模块全绿）。
 
 ### #10505 原子删除旧抽象
 

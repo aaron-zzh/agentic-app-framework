@@ -147,32 +147,41 @@ gains:
 
 ### #10708 CHAT 模式协议无 Role 显式指定通道——非 Team 模式协调计划禁止 Executor 使用不同 Role/Skill
 
-- **状态**：[ ] 待开始
-- **负责人**：architect + developer-service
+- **状态**：✅ 已完成（2026-09-03）— developer-service
+- **负责人**：developer-service
 - **依赖**：#10706
 - **核实结论（拆分为两个独立问题，避免混淆）**：
   1. **显式指定角色**：`EXECUTION` 模式（`AssistantExecutionRequest.role` + `routeConstraint`）**已完整支持**，`FIXED` 时直接锁定角色（`AssistantApplicationService.java:1146` `SERVER_FIXED_ROUTE` 分支），跳过任何选择逻辑。`CHAT` 模式**不支持**——`AssistantAguiController` CHAT 分支（`AssistantAguiController.java:255-271`）硬编码 `RouteConstraint.AUTO` 且 `role` 参数固定传 `null`，协议层面没有设计接收字段，`/ai/chat` 角色下拉框选择不会真正发送到后端。
   2. **智能动态决策角色**（不指定，由模型按任务语义选择）：**后端已完整支持且是真实可用能力**，不需要新开发。`DefaultRoleSelector.selectByModel`（`DefaultRoleSelector.java:88-125`）在 `RouteConstraint.AUTO` 时触发，是一次独立的无副作用 L0 模型调用，依据候选 Role 的职责描述与任务输入语义选择，失败时安全回退 Assistant 默认 Role（`AssistantApplicationService.java:1160-1163` 接入）。
 - **提出背景**：`SubmitCoordinationPlanTool.java:135-162` 对非 Team board 强制要求所有 Executor 的 `roleKey`/`skillKey` 与协调者自身冻结的 Role/Skill 完全相等（"授权衰减基准是委派方自身，executor 只能等于该基准，不得放大到基准之外"，刻意的安全设计）。已发布的 Team board 允许协调计划引用已冻结的多个 Worker（各自可以有不同 Role/Skill），但 `apps/webui/src` 全仓核实未发现任何页面/调用发送 `forwardedProps.mode="TEAM"` 或 `teamId`。
-- **范围（架构评估后确定，当前仅记录发现，不预设方案）**：
-  - 评估 1：CHAT 模式的 `forwardedProps` 是否应新增可选 `role` 字段，对齐 `EXECUTION` 模式已有的 `role`+`routeConstraint` 语义——用户显式选择时走 `FIXED`（复用已有 `SERVER_FIXED_ROUTE` 分支），不选时保持 `AUTO`（复用已有 `DefaultRoleSelector.selectByModel`，不需要新增后端能力）。
-  - 评估 2：非 Team 模式的协调计划 Role/Skill 冻结约束是否需要放开、放开到什么程度——涉及授权衰减模型的安全边界调整，🔴 高风险，需要架构设计与人类审核。
-  - 评估 3：或维持当前设计不变，多角色/技能协作场景统一引导到 Team board 路径，同步评估 Team 入口前端补齐的优先级。
-- **完成标准**（待架构评估后细化）：给出评估 1/2/3 的结论与依据，若决定实施则补充设计文档与验收标准。
+- **架构评估结论（2026-09-03，人类已确认）**：
+  - **评估 1（采纳）**：CHAT 模式 `forwardedProps` 新增可选 `role`/`skill` 字段，对齐 `EXECUTION` 模式语义。改动范围可控，纯粹补齐协议对称性，不改变任何安全边界。
+  - **评估 2（不采纳）**：不放开非 Team 模式的 Role/Skill 冻结约束——这会让协调者能指使 Executor 使用比自身更高权限的 Role/Skill 组合，实质扩大攻击面。真正的多角色协作应走已有 Team 机制（发布时人工审核冻结组合，边界审查在发布时完成，不是运行时动态决定）。
+  - **评估 3（记录为独立 backlog，本次不实施）**：Team 机制后端完整存在但 webui 无任何页面入口；补齐是独立的、有意义的新功能，工作量超出本任务范围（涉及 Team 创建/发布/Worker 配置整套 UI）。
+- **实现范围**：
+  - ✅ `AssistantExecutionService.executionIntent(...)` CONVERSATIONAL 分支重写：`roleKey`/`skillKey` 各自独立判断是否为空，支持四种组合——都空 = `AUTO`；只给 `role` = `FIXED` 且 `ResolvedRoute.skillKey()=null`（角色锁定、技能仍开放）；只给 `skill` = 新增 `roleByExplicitSkill(...)` 静态方法按技能唯一定位角色（与 `DefaultRoleSelector.selectByExplicitSkill` 同一匹配规则，含默认 Role 兜底；命中多个非默认 Role 时 fail closed，新增 `EXECUTION_SKILL_AMBIGUOUS_ROLE`(`7_003_069`)）；都给 = 原有行为不变。
+  - ✅ 删除孤儿异常码 `EXECUTION_CONVERSATIONAL_ROUTE_INCOMPLETE`（`7_003_011`，原"必须同时指定"约束的错误码，改动后不再有触发条件，编号留空不复用）。
+  - ✅ 修复 `AssistantApplicationService` FIXED 分支的隐藏 bug：`route.skillKey()==null` 时原 `selectionBindings.size() != 1` 校验必然失败（`null` 用 `.equals` 永远不匹配），导致"角色已锁、技能未锁"这个 `ResolvedRoute` 本就支持的合法状态在消费端实际会报错。修复为该场景保持角色下全部候选技能开放，`selectionMode=SELECT_AND_AUGMENT`。
+  - ✅ 核实确认 `DefaultRoleSelector.selectByExplicitSkill`（早已写好但从未被真实调用路径触达的逻辑）在本次改动后**仍然是不可达路径**——`executionIntent(...)` 在请求解析阶段已经把"仅凭 Skill 反推 Role"判断前移完成，`AUTO`+`preferredSkillKey` 非空这个组合不会再发生。保留代码 + 加注释说明现状，不删除（`RoleSelectionRequest.preferredSkillKey` 是公开接口字段，删除属接口签名变更，需独立评估，不在本次任务范围内擅自做）。
+  - ✅ CHAT 模式（`AssistantAguiController.chatRequest`）新增可选 `role`/`skill` 字段解析，两者都空时 `AUTO`，任一非空时 `FIXED`。
+  - ✅ **前端接线时发现并修复的连带问题**（范围扩大，详见 dev-log）：`useAssistants()` 调用的 `/ai/assistants/available` 后端从未实现，角色下拉框一直靠硬编码假数据运行；新增完整后端能力链路（`AssistantDefinitionPort.findAvailableForUser` → `AssistantExecutionService.availableAssistants()` → `AssistantAvailabilityController`）与前端真实数据消费改造；修正 3 处硬编码假 Role key（`"customer-service"` 缺 `system.role.` 前缀、`"default-generalist"` 不存在）；修正 `/studio/chat?skill=xxx` 把技能 code 误传进 `agentRole` 字段的历史错配，新增独立 `agentSkill` 字段。
+- **完成标准**：显式指定角色/技能可独立生效；不指定时走既有 `AUTO` 动态决策；`compile` 通过。
+- **实际结果**：`pnpm nx compile service` BUILD SUCCESS；`pnpm nx test service` 252 测试全绿（新增 4 个组合场景单测）；`pnpm nx typecheck webui`/`pnpm nx lint webui` 通过；`pnpm nx test webui` 299 通过/1 既有失败（与本次改动无关，已核实）。
 
 ### #10709 角色选定决策不投影到前端——用户无法看到"系统选择了哪个角色、为什么"
 
-- **状态**：[ ] 待开始
-- **负责人**：architect + developer-service
+- **状态**：✅ 已完成（2026-09-03）— developer-service
+- **负责人**：developer-service
 - **依赖**：无（独立于 #10708，是"看不看得到"而非"能不能指定"的问题）
-- **提出背景**：核实 `AssistantApplicationService.appendRoleAudit`（`AssistantApplicationService.java:1731-1755`）确认角色选择结果（含 `roleKey`、`reason`、`selectedBy`——即选择方式是 `SERVER_FIXED_ROUTE`/`SELECTION_MODEL`/`DEFAULT_BINDING` 三者之一，`SELECTION_MODEL` 即模型语义动态选中）写入的是 `SkillDecisionAuditEvent`（`ROLE_SELECTED` 类型），只有 JPA 持久化实现（`JpaSkillDecisionAuditAdapter` 写 `ai_skill_decision_audit` 表），全仓核实**没有任何 REST controller 查询该表**，且该事件类型完全独立于 `ExecutionEvent`，不进入 AG-UI 事件流投影。
-  - 另外核实 `InternalNodeEventConverter.java:62,90,109` 的 Activity/State CUSTOM 投影确实携带 `roleKey` 字段，但这是 `NodeIdentity` 创建时固化的静态值（节点创建那一刻已经决定好写入的角色标识），**不是"角色决策"这个事件本身**——不包含选择原因、候选集合范围、是否为模型动态选择等信息，无法让用户理解"为什么是这个角色"。
-- **影响**：即便 #10708 评估后放开 CHAT 模式的显式角色指定或依赖模型动态决策，用户在界面上仍然完全看不到反馈——不知道当前对话使用的是哪个角色、是自己选的还是模型自动选的、选择依据是什么。这会削弱"角色切换"功能本身的可感知性与可信度。
-- **范围（待评估，当前仅记录发现）**：
-  - 评估是否需要新增一类 AG-UI CUSTOM 事件（如 `aaf.role.selected`），在角色选定后即时投影 `roleKey`/`selectedBy`/`reason`，供前端渲染"当前角色：XX（模型自动选择/用户指定）"提示。
-  - 评估是否复用 `appendRoleAudit` 的调用点直接追加一次事件写入（同 `PersistentHitlCoordinator` 等既有模式），还是需要新建独立投影路径。
-  - 需先确认 #10708 的评估结论（是否真的要支持前端显式指定/动态决策两种模式），再确定本任务的展示需求范围，避免在需求未定案前设计 UI。
-- **完成标准**（待评估后细化）：角色选定后用户能在界面上看到当前角色标识与选择方式，不需要打开 DevTools 检查请求体才能确认。
+- **核实纠正（关键，避免未来重复排查）**：最初判断需要新增 `ExecutionEventType` 枚举值或新 converter 才能投影角色选定事件。深入核实后发现**该判断不准确**——`ExecutionEventType.ROLE_RESOLVED` 枚举值与 `AssistantApplicationService.roleResolvedEvent(...)` **早已存在**且每次执行无条件触发（`AssistantApplicationService.java:406`），`AafAiTaskEventRegistry` 也已注册公共事件名 `aaf.role.resolved`，走 `PublicEventFallbackConverter` 兜底投影为 CUSTOM 事件，链路本身完整存在。**真实缺口只有一处**：`ExecutionEventPublicMapper.safeData` 的 `default` 分支注释明确写着"未显式注册的 payload 字段一律不公开"——`ROLE_RESOLVED` 没有专属 `case`，导致 `roleKey`/`roleName`/`routeConstraint`/`interactionMode` 全部被过滤，前端收到的 CUSTOM 事件 `data` 是空对象。
+- **范围**：
+  - ✅ `ExecutionEventPublicMapper.safeData` 新增 `ROLE_RESOLVED` 专属 `case`，显式透出 `roleKey`/`roleName`/`routeConstraint`/`interactionMode` 四个字段。
+  - ✅ 前端类型：`delegated-task.ts` 的 `AAF_AI_TASK_EVENT_TYPES` 补充 `"aaf.role.resolved"`。
+  - ✅ 前端状态：`agent-run-store.ts` 新增 `SelectedRole` 类型 + `selectedRole` 状态 + `setSelectedRole` action（`startRun` 时重置，避免残留上一轮角色）。
+  - ✅ 前端订阅：`ag-ui-runtime.tsx` 的 `onCustomEvent` 新增 `"aaf.role.resolved"` 分派分支，解析 `data.roleKey`/`data.roleName`/`data.routeConstraint` 后调用 `setSelectedRole`。
+  - ✅ 前端展示：新建 `SelectedRoleBadge.tsx`（风格参照既有 `AgentRunStatus.tsx`），显示角色名 + 选定方式（`routeConstraint="FIXED"` 显示"已指定"，否则显示"AI 自动选择"）；`ChatLayout.tsx` 两处 `ThreadPrimitive.Root` 挂载点顶部插入。
+- **完成标准**：角色选定后用户能在界面上看到当前角色标识与选择方式，不需要打开 DevTools 检查请求体才能确认。
+- **实际结果**：`pnpm nx compile service` BUILD SUCCESS，`pnpm nx test service` 252 测试全绿（无既有测试覆盖 `ROLE_RESOLVED` 公共 payload 形状，无需同步）；`pnpm nx typecheck webui`/`pnpm nx lint webui` 通过。
 
 ## 评审状态（🔴 高风险适用）
 

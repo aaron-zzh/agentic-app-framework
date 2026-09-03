@@ -230,3 +230,14 @@
 - 按人类要求本次不执行 `pnpm nx compile service` / `pnpm nx test service`。
 - 人工复核：全仓搜索所有 `findActive`/`ExecutorAssignment`/`SubTask` 构造点，确认签名变更后的调用点（`DelegatedTaskCoordinatorAggregatorCompletionTest`、`CoordinationPlanTest` 等）均已同步或天然兼容（向后兼容重载覆盖全部既有测试调用）。
 - 待 AAF-108 #10801 统一补齐：`compile` + `test`；届时应补齐 `executePlannedSubTask` 三段式的状态转换测试（尤其"只说不做"分支、自动批准后重新 claim、REVIEW_REQUIRED 转 AWAITING_AUTHORIZATION）。
+
+
+## #10708 CHAT 模式 Role/Skill 独立锁定 + #10709 角色选定事件投影
+
+- ✅ 2026-09-03 — developer-service
+- `executionIntent(...)` CONVERSATIONAL 分支重写：role/skill 各自独立判断，支持只锁角色/只锁技能/都锁/都不锁四种组合
+- 只锁技能场景新增 `roleByExplicitSkill` 复用 `DefaultRoleSelector.selectByExplicitSkill` 匹配规则，歧义 fail closed（`EXECUTION_SKILL_AMBIGUOUS_ROLE`）
+- 修复 `AssistantApplicationService` FIXED 分支隐藏 bug：`route.skillKey()==null` 时 `.equals(null)` 永远不匹配导致误报错
+- 架构评估：不放开非 Team 模式 Role/Skill 冻结约束（扩大攻击面）；Team 前端入口记录为 AAF-111 独立故事
+- `#10709` 核实纠正：`ROLE_RESOLVED` 事件与投影链路早已存在，真实缺口只是 `ExecutionEventPublicMapper.safeData` 缺 case 导致字段被过滤，非需要新枚举/新 converter
+- 前端连带发现并修复：`/ai/assistants/available` 后端从未实现导致角色下拉框长期靠假数据运行；3 处硬编码假 Role key；技能 code 误传 `agentRole` 字段的历史错配
