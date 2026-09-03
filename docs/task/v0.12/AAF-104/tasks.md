@@ -134,14 +134,18 @@ gains:
 
 ### #10404 持久 interrupt / resume 闭环
 
-- **状态**：[ ] 待开始
+- **状态**：✅ 已完成（2026-09-03）— developer-service
 - **负责人**：developer-service
 - **依赖**：#10403
-- **范围**：
-  - 请求 record 增加 `resume[]`，字段严格为 `interruptId/status/payload`；`status` 只允许 `RESOLVED`/`CANCELLED`，业务拒绝是 `RESOLVED + {approved:false}`。
-  - Controller 在启动新 execution 前以 `(tenantId, threadId, interruptId)` 原子 resolve AAF 持久记录，校验调用人、过期时间、run 关联与精确全集。
-  - 不实例化官方 `AguiResumeCoordinator` 作为状态仓库（其状态仅进程内 `ConcurrentHashMap`）。
-- **完成标准**：跨重启/跨副本可恢复；缺失、重复、未知、过期 interrupt 全部 fail closed；`compile` 通过。
+- **契约修正（实现中核实纠正，2026-09-03）**：设计阶段曾把 interrupt 触发点误判为 core 权限系统的 `RequireUserConfirmEvent`/`APPROVAL_REQUESTED`——核实全仓 `PermissionContextState` 零命中后确认 AAF 从未配置 core 权限系统，这是死代码路径。真正驱动 AAF 授权确认的是完全独立的应用层治理：`DefaultToolGateway.invoke` → `ToolAuthorizationContext.requireVisible` → `HumanApproval` 持久化 → `AUTHORIZATION_REQUESTED`，这才是每次真实工具调用都会走的代码路径，已纠正为该事件。
+- **已实现**：
+  - `RunRequest` 新增 `resume[]`（`ResumeEntry(interruptId, status, payload)`，`status` 仅 `resolved`/`cancelled`，拒绝走 `resolved + {approved:false}`）。
+  - `RunLifecycleEventConverter` 新增 `AUTHORIZATION_REQUESTED` 处理：投影为 AG-UI 标准 `RunFinished{outcome:{type:"interrupt"}}`（`approvalId` 直接作为 `interruptId`，`action`（工具名）与 `reversible` 落入 `Interrupt.toolCallId`/`metadata`）。分派顺序天然保证只有根节点授权等待才会触发（子任务被 `InternalNodeEventConverter` 先降级为 CUSTOM）。
+  - `AssistantAguiController.run` 按 `resume` 是否非空拆分 `startRun`/`resumeRun` 两条路径。`resumeRun`：调 `HitlCoordinatorPort.decide` 落定决定；批准时触发 `TaskRecoveryDispatchPort.recover`（复用 AAF-110 `Operation.RESUME`，沿用原 `executionId` 续接 core 对话历史），事件流走 `AssistantApprovalEventService.stream` 续读（不占用执行线程等待恢复）；**拒绝分支不调用 `stream`**——`AssistantApprovalEventService.stream` 要求 `approval.status() == APPROVED`，拒绝后任务转 `PAUSED`（非终态，无新事件可续读），直接闭合本次 run。
+  - 未删除 `HumanApprovalController` 的 `decide`/`recover`/`events` 三个临时端点——本次任务范围是新增标准协议入口，webui 已同步迁移（见下），但保留旧端点供后续独立任务清理确认无其它消费方后再删。
+  - **webui 同步迁移**（`use-copywriting.ts`/`assistant-agui.ts`/`CopywritingPanel.tsx`/`page.tsx`）：`RUN_FINISHED` 携带 `interrupts[]`，`onApprovalRequired`/`onPaused` 两个从未被正确触发过的死回调（`onPaused` 依赖的 `"aaf.task.paused"` 事件名从未被任何后端逻辑发出）与 `streamApprovedAssistantAgUi`/`humanApprovalApi.decide`+`recover` 两步式旧调用一并删除，改为单次 `resumeAssistantAgUi({threadId, approvalId, approved}, options)`。新增 `onSessionReady` 回调让调用方获取 `executeAssistantAgUi` 内部创建的 `threadId` 供恢复复用。`ToolConfirmOverlay.tsx`（独立 REST 轮询场景，不消费 AG-UI SSE）不受影响，`humanApprovalApi.decide` 继续保留。
+- **完成标准**：跨重启/跨副本可恢复（`recover` 走持久 `TaskRecoveryDispatchPort`，非进程内状态）；缺失 interrupt fail closed（`approvals.find` 未找到直接抛 `IllegalArgumentException`）；`compile` 通过。
+- **验证**：`pnpm nx compile service`/`pnpm nx test service`（248 测试全绿）/`pnpm nx typecheck webui`/`pnpm nx lint webui`/`pnpm nx build webui` 均通过；`pnpm nx test webui` 唯一失败（`use-entity-list.test.ts`）已核实为改动前既有失败（`git stash` 后在干净基线复现），与本次改动无关。
 
 ### #10405 ADR-005 勘误提案
 

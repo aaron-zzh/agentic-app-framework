@@ -82,3 +82,13 @@
 - 人工复核：`AgentScopeEventMapper.map` 与 `AafAiTaskEventRegistry.descriptor` 两处穷举 switch 逐项核对覆盖全部 31 项 / 全部新增 7 项常量，未发现遗漏或重复 case 标签。
 - 人工复核：`ExecutionEventPayload` 的 key 校验规则（敏感字段名黑名单）对新增 key 名（`deltaLength`、`toolCallIds`、`resultCount`、`confirmedCount`、`totalCount`、`blockId`）逐一比对，均不匹配 `password/secret/credential/token/authorization/cookie/apikey/systemprompt` 等后缀规则。
 - 待 AAF-108 #10801 统一补齐：`compile` + `test` 验证、`AgentScopeEventMapperFailureTest` 之外的显式断言（当前 8 项新映射无专门单测，阶段约束下不新增测试文件，待门禁恢复阶段视需要补进既有测试）。
+
+
+## #10404 持久 interrupt / resume 闭环
+
+- ✅ 2026-09-03 — developer-service
+- 核实纠正：interrupt 触发点从误判的 `APPROVAL_REQUESTED`（core 权限系统，AAF 从未配置，死代码）改为真实生产路径 `AUTHORIZATION_REQUESTED`（`DefaultToolGateway`）
+- `RunRequest` 新增 `resume[]`，`AssistantAguiController.run` 按非空拆分 `startRun`/`resumeRun`
+- `resumeRun` 拒绝分支不调用 `AssistantApprovalEventService.stream`（要求 `APPROVED`，拒绝后无新事件可续读），直接闭合 run
+- webui 同步迁移：删除从未被正确触发过的 `onPaused`/`onApprovalRequired` 死回调与两步式旧调用，改用单次 `resumeAssistantAgUi`
+- `HumanApprovalController` 临时端点未删除，留待后续任务确认无其它消费方
