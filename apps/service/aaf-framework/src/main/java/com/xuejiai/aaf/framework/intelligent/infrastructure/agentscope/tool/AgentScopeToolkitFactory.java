@@ -18,14 +18,14 @@ import io.agentscope.core.tool.Toolkit;
  *
  * <p>Toolkit 只包含精确匹配请求版本的工具，且每个工具都被包成 {@link PortBackedAgentTool}， 确保模型无法绕过 AAF 权限与审计链路。
  *
- * <p><b>内置工具绕开 {@code ai_tool_catalog}（架构修正，见 {@link ContextAwareToolHandler} 类注释）</b>：实现
- * {@link ContextAwareToolHandler} 的内置系统工具（{@code submit_executor_plan}、{@code
- * report_executor_step} 等）随代码发布，治理元数据是编译期确定的代码属性，不需要运营方在数据库里配置——本工厂优先按
- * {@code ref.name()} 查找已注册的 {@link ContextAwareToolHandler}，命中则直接用它自身声明的 {@code
- * readOnly()}/{@code reversible()}/{@code inputSchema()} 构造 {@link ToolDefinition}，不查目录；
- * 只有查不到对应内置处理器的工具（Connector/MCP，回调运行时动态注册，权限确需运营方随时调整）才继续走
- * {@code toolCatalog.resolve(...)} 的数据库治理路径。两条路径最终都汇入同一个 {@link PortBackedAgentTool}，
- * 鉴权链路（{@code DefaultToolGateway}）完全不受影响——只是元数据来源换了，授权检查、fencing、receipt 均照常生效。
+ * <p><b>内置工具绕开 {@code ai_tool_catalog}（架构修正，见 {@link ContextAwareToolHandler} 类注释）</b>：实现 {@link
+ * ContextAwareToolHandler} 的内置系统工具（{@code submit_executor_plan}、{@code report_executor_step}
+ * 等）随代码发布，治理元数据是编译期确定的代码属性，不需要运营方在数据库里配置——本工厂优先按 {@code ref.name()} 查找已注册的 {@link
+ * ContextAwareToolHandler}，命中则直接用它自身声明的 {@code readOnly()}/{@code reversible()}/{@code
+ * inputSchema()} 构造 {@link ToolDefinition}，不查目录；
+ * 只有查不到对应内置处理器的工具（Connector/MCP，回调运行时动态注册，权限确需运营方随时调整）才继续走 {@code toolCatalog.resolve(...)}
+ * 的数据库治理路径。两条路径最终都汇入同一个 {@link PortBackedAgentTool}， 鉴权链路（{@code
+ * DefaultToolGateway}）完全不受影响——只是元数据来源换了，授权检查、fencing、receipt 均照常生效。
  */
 public final class AgentScopeToolkitFactory {
 
@@ -97,7 +97,8 @@ public final class AgentScopeToolkitFactory {
     }
 
     private ContextAwareToolHandler findBuiltinHandler(String toolName) {
-        return builtinHandlers.orderedStream()
+        return builtinHandlers
+                .orderedStream()
                 .filter(handler -> handler.toolName().equals(toolName))
                 .findFirst()
                 .orElse(null);

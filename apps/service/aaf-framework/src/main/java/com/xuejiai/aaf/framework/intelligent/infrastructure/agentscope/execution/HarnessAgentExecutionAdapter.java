@@ -218,9 +218,9 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
     }
 
     /**
-     * 暂停当前活跃回合（AAF-110）：与 {@link #cancel} 的差异只在终态仲裁——{@code CANCELLING} 走常规取消收尾（删状态槎），
-     * {@code PAUSING} 让 {@code doFinally} 跳过删除，责任主体不变时下次同一 {@code executionId} 重新发起可续接对话历史。
-     * 中断下发逻辑与 {@code cancel} 完全一致，只是终态标记不同。
+     * 暂停当前活跃回合（AAF-110）：与 {@link #cancel} 的差异只在终态仲裁——{@code CANCELLING} 走常规取消收尾（删状态槎）， {@code
+     * PAUSING} 让 {@code doFinally} 跳过删除，责任主体不变时下次同一 {@code executionId} 重新发起可续接对话历史。 中断下发逻辑与 {@code
+     * cancel} 完全一致，只是终态标记不同。
      */
     @Override
     public Mono<Boolean> pause(ExecutionId executionId) {
@@ -653,9 +653,9 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
     }
 
     /**
-     * AGENT_START 之后 Agent 才可被中断，因此在此补发早于启动到达的取消请求；同时把 call-scoped {@code
-     * AgentState}（框架在 call 入口才注入到 {@code RuntimeContext}，建立 {@code active} 时读不到）绑定进
-     * {@code GracefulShutdownManager}（AAF-110 #11004），使优雅停机时精确定位到本次调用的 session。
+     * AGENT_START 之后 Agent 才可被中断，因此在此补发早于启动到达的取消请求；同时把 call-scoped {@code AgentState}（框架在 call
+     * 入口才注入到 {@code RuntimeContext}，建立 {@code active} 时读不到）绑定进 {@code
+     * GracefulShutdownManager}（AAF-110 #11004），使优雅停机时精确定位到本次调用的 session。
      */
     private void onSourceEvent(AgentEvent event, ActiveExecution active) {
         if (event.getType() != AgentEventType.AGENT_START) {
@@ -820,9 +820,8 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         ACTIVE,
         CANCELLING,
         /**
-         * 暂停触发的终止（AAF-110）：与 {@code CANCELLING} 语义不同——责任主体不变，调用方期待下次同一
-         * {@code executionId} 能续接对话历史。{@code doFinally} 据此跳过状态槎删除，不进入 {@code CANCELLING}
-         * 的常规取消收尾路径。
+         * 暂停触发的终止（AAF-110）：与 {@code CANCELLING} 语义不同——责任主体不变，调用方期待下次同一 {@code executionId}
+         * 能续接对话历史。{@code doFinally} 据此跳过状态槎删除，不进入 {@code CANCELLING} 的常规取消收尾路径。
          */
         PAUSING,
         TERMINATED
@@ -837,11 +836,15 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
             AtomicBoolean started,
             AtomicBoolean interruptIssued,
             AtomicReference<TerminalState> terminal,
-            /** {@code pauseWonRace} 成功后置位（AAF-110）——{@code terminal} 最终统一收敛为 {@code TERMINATED}，
-             * 无法反推仲裁路径，需要独立标志供 {@code release(...)} 判断是否跳过状态槎删除。 */
+            /**
+             * {@code pauseWonRace} 成功后置位（AAF-110）——{@code terminal} 最终统一收敛为 {@code TERMINATED}，
+             * 无法反推仲裁路径，需要独立标志供 {@code release(...)} 判断是否跳过状态槎删除。
+             */
             AtomicBoolean pauseWon,
-            /** {@code GracefulShutdownManager.registerRequest(agent)} 返回的请求标识（AAF-110 #11004），
-             * 建立时为空，AGENT_START 到达后才能拿到 call-scoped AgentState 并绑定。 */
+            /**
+             * {@code GracefulShutdownManager.registerRequest(agent)} 返回的请求标识（AAF-110 #11004），
+             * 建立时为空，AGENT_START 到达后才能拿到 call-scoped AgentState 并绑定。
+             */
             AtomicReference<String> shutdownRequestId) {
 
         private ActiveExecution(

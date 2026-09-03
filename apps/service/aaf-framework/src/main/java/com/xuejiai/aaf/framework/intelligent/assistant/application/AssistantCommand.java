@@ -250,8 +250,8 @@ public record AssistantCommand(
     }
 
     /**
-     * 与 {@link #forSubTask(SubTask, String, Lease, Instant, CoordinationPlan.AggregationContract.Kind)}
-     * 相同，但允许为本次子执行显式覆盖 {@code controlMode}（ADR-006）。
+     * 与 {@link #forSubTask(SubTask, String, Lease, Instant,
+     * CoordinationPlan.AggregationContract.Kind)} 相同，但允许为本次子执行显式覆盖 {@code controlMode}（ADR-006）。
      *
      * <p>用于 EXECUTOR 的 planning execution：它必须跑在 {@code READ_ONLY} 以复用 AAF 已有的工具可见性门控（{@code
      * DefaultToolGateway} 对非只读工具的强制拒绝），而任务整体的 {@code controlMode} 可能是 {@code COLLABORATIVE}/{@code

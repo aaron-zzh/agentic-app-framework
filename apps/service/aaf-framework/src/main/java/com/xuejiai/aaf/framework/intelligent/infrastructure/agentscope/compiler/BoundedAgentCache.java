@@ -10,8 +10,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 有界 LRU 的 {@link ReActAgent} 实例缓存，触及容量上限即淘汰最近最少使用条目并 {@code close()} 释放。
  *
- * <p>从 {@link AgentScopeSpecCompiler} 提取为独立类，供智能层其它需要"按某维度缓存 ReActAgent 实例"的场景复用（例如 L0
- * 场景按 {@code modelId} 分桶缓存零工具实例），避免各自重新实现淘汰与释放逻辑（RQ-06 的通用化）。
+ * <p>从 {@link AgentScopeSpecCompiler} 提取为独立类，供智能层其它需要"按某维度缓存 ReActAgent 实例"的场景复用（例如 L0 场景按 {@code
+ * modelId} 分桶缓存零工具实例），避免各自重新实现淘汰与释放逻辑（RQ-06 的通用化）。
  */
 @Slf4j
 public final class BoundedAgentCache<K> {

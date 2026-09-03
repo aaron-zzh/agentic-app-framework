@@ -25,26 +25,23 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 /**
- * 单次 execution 内可用的步骤计划提交工具（AAF-107 选项 B 架构改造，2026-09-02，替代原"只在独立只读 planning
- * execution 内可见"设计）。
+ * 单次 execution 内可用的步骤计划提交工具（AAF-107 选项 B 架构改造，2026-09-02，替代原"只在独立只读 planning execution 内可见"设计）。
  *
  * <p>不再区分"规划阶段"与"执行阶段"两次独立 execution——协调者或执行者节点在自己的一次完整能力 execution 里，
- * 判断需要按步骤推进时随时可以调用本工具。首次调用时若本节点还没有活跃计划，本工具自己先原子完成 {@code
- * beginPlanning}，紧接着 {@code submit} 与 {@code claimApproved}（提交即批准且立即进入
- * {@code EXECUTING}，不再有独立 {@code APPROVED} 等待认领中间态——提交与执行在同一次 execution 内连续发生，
- * 没有"等待另一次调用认领"的时间差），模型只感知到调了一次工具。
+ * 判断需要按步骤推进时随时可以调用本工具。首次调用时若本节点还没有活跃计划，本工具自己先原子完成 {@code beginPlanning}，紧接着 {@code submit} 与 {@code
+ * claimApproved}（提交即批准且立即进入 {@code EXECUTING}，不再有独立 {@code APPROVED} 等待认领中间态——提交与执行在同一次 execution
+ * 内连续发生， 没有"等待另一次调用认领"的时间差），模型只感知到调了一次工具。
  *
  * <p>只暴露 {@code goal}、{@code risks}、{@code verification}、{@code steps} 四个入参；{@code planId} 与 {@code
  * expectedLockVersion} 由本工具通过 {@code ExecutorPlanPort.findActive} 按 {@code (tenantId, taskId)}
  * 现查现用，不接受模型传入——防止模型跨计划提交或伪造版本号绕过 CAS。查出的活跃计划还必须归属调用者自己的板节点（{@code
  * nodeIdentity.subTaskId()}），杜绝跨节点提交。
  *
- * <p><b>不设独立审批关卡（ADR-006「决策推翻」2026-09-01）</b>：对齐官方 {@code
- * permission-system.html} 后确认，权限系统按具体工具调用分级（ALLOW/DENY/ASK），没有"计划本身要不要审"这一层概念。
- * "提交步骤列表"这个动作不新增执行面、不引入新的 Agent 身份，风险已在两处覆盖：协调者产出 {@code CoordinationPlan}
- * 派生新节点时的既有审批点、步骤执行阶段具体工具调用前的 {@code DefaultToolGateway}/{@code AuthorizationGrant}
- * 授权链路。因此本工具提交后固定转 {@code APPROVED} 再转 {@code EXECUTING}，不判定白名单、不产生 {@code
- * REVIEW_REQUIRED}。
+ * <p><b>不设独立审批关卡（ADR-006「决策推翻」2026-09-01）</b>：对齐官方 {@code permission-system.html}
+ * 后确认，权限系统按具体工具调用分级（ALLOW/DENY/ASK），没有"计划本身要不要审"这一层概念。 "提交步骤列表"这个动作不新增执行面、不引入新的 Agent
+ * 身份，风险已在两处覆盖：协调者产出 {@code CoordinationPlan} 派生新节点时的既有审批点、步骤执行阶段具体工具调用前的 {@code
+ * DefaultToolGateway}/{@code AuthorizationGrant} 授权链路。因此本工具提交后固定转 {@code APPROVED} 再转 {@code
+ * EXECUTING}，不判定白名单、不产生 {@code REVIEW_REQUIRED}。
  */
 public final class SubmitExecutorPlanTool implements ContextAwareToolHandler {
 
@@ -68,14 +65,13 @@ public final class SubmitExecutorPlanTool implements ContextAwareToolHandler {
 
     @Override
     public String description() {
-        return "提交本次规划产出的执行计划：目标、风险自评、验证方式与有序步骤列表。提交后不可再修改正文，"
-                + "如需调整必须由协调者重新触发一次新的规划。";
+        return "提交本次规划产出的执行计划：目标、风险自评、验证方式与有序步骤列表。提交后不可再修改正文，" + "如需调整必须由协调者重新触发一次新的规划。";
     }
 
     /**
      * 等效只读（ADR-006「决策推翻」）：产出的是计划草稿而非业务动作，不新增执行面、不引入新的 Agent 身份，
-     * 风险已由协调者派发子节点时的既有审批点与步骤执行阶段的工具授权链路覆盖。对齐官方 {@code ActionEffect.GENERATED_CONTENT}
-     * 语义，在 {@code ControlMode.READ_ONLY} 下允许调用。
+     * 风险已由协调者派发子节点时的既有审批点与步骤执行阶段的工具授权链路覆盖。对齐官方 {@code ActionEffect.GENERATED_CONTENT} 语义，在 {@code
+     * ControlMode.READ_ONLY} 下允许调用。
      */
     @Override
     public boolean readOnly() {
@@ -106,14 +102,7 @@ public final class SubmitExecutorPlanTool implements ContextAwareToolHandler {
                         stepProperties,
                         "required",
                         List.of("stepKey", "title", "instruction"));
-        var stepsSchema =
-                Map.of(
-                        "type",
-                        "array",
-                        "description",
-                        "有序步骤列表",
-                        "items",
-                        stepItemSchema);
+        var stepsSchema = Map.of("type", "array", "description", "有序步骤列表", "items", stepItemSchema);
         var properties =
                 Map.of(
                         "goal",
@@ -130,7 +119,8 @@ public final class SubmitExecutorPlanTool implements ContextAwareToolHandler {
                         Map.of("type", "object", "description", "验证方式的自由结构说明"),
                         "steps",
                         stepsSchema);
-        return Map.of("type", "object", "properties", properties, "required", List.of("goal", "steps"));
+        return Map.of(
+                "type", "object", "properties", properties, "required", List.of("goal", "steps"));
     }
 
     @Override
@@ -189,7 +179,10 @@ public final class SubmitExecutorPlanTool implements ContextAwareToolHandler {
         var executing =
                 plans.claimApproved(
                         new ExecutorPlanPort.ClaimApprovedCommand(
-                                context.tenantId(), plan.planId(), plan.lockVersion(), clock.instant()));
+                                context.tenantId(),
+                                plan.planId(),
+                                plan.lockVersion(),
+                                clock.instant()));
         var values = new LinkedHashMap<String, Object>();
         values.put("planId", executing.planId());
         values.put("status", executing.status().name());

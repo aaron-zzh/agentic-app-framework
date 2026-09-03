@@ -91,9 +91,9 @@ import io.agentscope.core.message.ToolUseBlock;
  * {@link AgentScopeEventMapper#map} 穷举 switch 的正常映射路径断言（AAF-108 #10802 补齐门禁恢复阶段欠下的测试）。
  *
  * <p>此前只有 {@link AgentScopeEventMapperFailureTest}（专测 {@code failure(...)}）、{@link
- * AgentScopeFailureClassifierTest}、{@link AgentScopeRuntimeContextMapperTest} 三个文件，均不覆盖 {@code map(...)}
- * 本体——AAF-104 落地时"阶段约束不新增测试文件"曾要求断言补进既有文件，但三者职责均与"31 项事件正常映射"无关，塞入会破坏单一职责，
- * 按 AAF-105 已确立的处理模式（发现例外时新建并如实记录偏离）新建本文件。
+ * AgentScopeFailureClassifierTest}、{@link AgentScopeRuntimeContextMapperTest} 三个文件，均不覆盖 {@code
+ * map(...)} 本体——AAF-104 落地时"阶段约束不新增测试文件"曾要求断言补进既有文件，但三者职责均与"31 项事件正常映射"无关，塞入会破坏单一职责， 按 AAF-105
+ * 已确立的处理模式（发现例外时新建并如实记录偏离）新建本文件。
  */
 class AgentScopeEventMapperTest {
 
@@ -139,7 +139,10 @@ class AgentScopeEventMapperTest {
 
         var event =
                 mapper.map(
-                        new AgentResultEvent(result), command(), "agent.mapper-test", model(),
+                        new AgentResultEvent(result),
+                        command(),
+                        "agent.mapper-test",
+                        model(),
                         new MappingState(0));
 
         assertThat(event).isPresent();
@@ -158,7 +161,10 @@ class AgentScopeEventMapperTest {
 
         var event =
                 mapper.map(
-                        new AgentEndEvent("reply-1"), command(), "agent.mapper-test", model(),
+                        new AgentEndEvent("reply-1"),
+                        command(),
+                        "agent.mapper-test",
+                        model(),
                         state);
 
         assertThat(event).isPresent();
@@ -174,7 +180,10 @@ class AgentScopeEventMapperTest {
 
         var event =
                 mapper.map(
-                        new AgentEndEvent("reply-1"), command(), "agent.mapper-test", model(),
+                        new AgentEndEvent("reply-1"),
+                        command(),
+                        "agent.mapper-test",
+                        model(),
                         state);
 
         assertThat(event).isEmpty();
@@ -188,8 +197,11 @@ class AgentScopeEventMapperTest {
     void should_map_model_call_start() {
         var event =
                 mapper.map(
-                        new ModelCallStartEvent("reply-1"), command(), "agent.mapper-test",
-                        model(), new MappingState(0));
+                        new ModelCallStartEvent("reply-1"),
+                        command(),
+                        "agent.mapper-test",
+                        model(),
+                        new MappingState(0));
 
         assertThat(event).isPresent();
         assertThat(event.orElseThrow().type()).isEqualTo(ExecutionEventType.MODEL_CALL_STARTED);
@@ -202,8 +214,11 @@ class AgentScopeEventMapperTest {
 
         var event =
                 mapper.map(
-                        new ModelCallEndEvent("reply-1", usage), command(), "agent.mapper-test",
-                        model(), new MappingState(0));
+                        new ModelCallEndEvent("reply-1", usage),
+                        command(),
+                        "agent.mapper-test",
+                        model(),
+                        new MappingState(0));
 
         assertThat(event).isPresent();
         assertThat(event.orElseThrow().type()).isEqualTo(ExecutionEventType.MODEL_CALL_COMPLETED);
@@ -218,8 +233,11 @@ class AgentScopeEventMapperTest {
     void should_map_model_call_end_without_usage() {
         var event =
                 mapper.map(
-                        new ModelCallEndEvent("reply-1", null), command(), "agent.mapper-test",
-                        model(), new MappingState(0));
+                        new ModelCallEndEvent("reply-1", null),
+                        command(),
+                        "agent.mapper-test",
+                        model(),
+                        new MappingState(0));
 
         assertThat(event).isPresent();
         assertThat(event.orElseThrow().payload().values())
@@ -234,8 +252,11 @@ class AgentScopeEventMapperTest {
     void should_map_text_block_start() {
         var event =
                 mapper.map(
-                        new TextBlockStartEvent("reply-1", "block-1"), command(),
-                        "agent.mapper-test", model(), new MappingState(0));
+                        new TextBlockStartEvent("reply-1", "block-1"),
+                        command(),
+                        "agent.mapper-test",
+                        model(),
+                        new MappingState(0));
 
         assertThat(event).isPresent();
         assertThat(event.orElseThrow().type()).isEqualTo(ExecutionEventType.MESSAGE_STARTED);
@@ -249,8 +270,11 @@ class AgentScopeEventMapperTest {
     void should_map_text_block_delta() {
         var event =
                 mapper.map(
-                        new TextBlockDeltaEvent("reply-1", "block-1", "增量文本"), command(),
-                        "agent.mapper-test", model(), new MappingState(0));
+                        new TextBlockDeltaEvent("reply-1", "block-1", "增量文本"),
+                        command(),
+                        "agent.mapper-test",
+                        model(),
+                        new MappingState(0));
 
         assertThat(event).isPresent();
         assertThat(event.orElseThrow().type()).isEqualTo(ExecutionEventType.MESSAGE_DELTA);
@@ -258,12 +282,16 @@ class AgentScopeEventMapperTest {
     }
 
     @Test
-    @DisplayName("Given TEXT_BLOCK_END When 映射 Then 产出 MESSAGE_BLOCK_COMPLETED 而非 MESSAGE_COMPLETED")
+    @DisplayName(
+            "Given TEXT_BLOCK_END When 映射 Then 产出 MESSAGE_BLOCK_COMPLETED 而非 MESSAGE_COMPLETED")
     void should_map_text_block_end_to_block_completed() {
         var event =
                 mapper.map(
-                        new TextBlockEndEvent("reply-1", "block-1"), command(),
-                        "agent.mapper-test", model(), new MappingState(0));
+                        new TextBlockEndEvent("reply-1", "block-1"),
+                        command(),
+                        "agent.mapper-test",
+                        model(),
+                        new MappingState(0));
 
         assertThat(event).isPresent();
         assertThat(event.orElseThrow().type())
@@ -277,8 +305,11 @@ class AgentScopeEventMapperTest {
     void should_map_tool_call_start_without_arguments() {
         var event =
                 mapper.map(
-                        new ToolCallStartEvent("reply-1", "call-1", "search"), command(),
-                        "agent.mapper-test", model(), new MappingState(0));
+                        new ToolCallStartEvent("reply-1", "call-1", "search"),
+                        command(),
+                        "agent.mapper-test",
+                        model(),
+                        new MappingState(0));
 
         assertThat(event).isPresent();
         assertThat(event.orElseThrow().type()).isEqualTo(ExecutionEventType.TOOL_CALL_STARTED);
@@ -293,7 +324,10 @@ class AgentScopeEventMapperTest {
         var event =
                 mapper.map(
                         new ToolCallDeltaEvent("reply-1", "call-1", "search", "{\"q\":\"x\"}"),
-                        command(), "agent.mapper-test", model(), new MappingState(0));
+                        command(),
+                        "agent.mapper-test",
+                        model(),
+                        new MappingState(0));
 
         assertThat(event).isPresent();
         assertThat(event.orElseThrow().type()).isEqualTo(ExecutionEventType.TOOL_CALL_ARGS_DELTA);
@@ -307,8 +341,11 @@ class AgentScopeEventMapperTest {
     void should_map_tool_call_end_to_args_completed() {
         var event =
                 mapper.map(
-                        new ToolCallEndEvent("reply-1", "call-1", "search"), command(),
-                        "agent.mapper-test", model(), new MappingState(0));
+                        new ToolCallEndEvent("reply-1", "call-1", "search"),
+                        command(),
+                        "agent.mapper-test",
+                        model(),
+                        new MappingState(0));
 
         assertThat(event).isPresent();
         assertThat(event.orElseThrow().type())
@@ -320,8 +357,11 @@ class AgentScopeEventMapperTest {
     void should_map_tool_result_start() {
         var event =
                 mapper.map(
-                        new ToolResultStartEvent("reply-1", "call-1", "search"), command(),
-                        "agent.mapper-test", model(), new MappingState(0));
+                        new ToolResultStartEvent("reply-1", "call-1", "search"),
+                        command(),
+                        "agent.mapper-test",
+                        model(),
+                        new MappingState(0));
 
         assertThat(event).isPresent();
         assertThat(event.orElseThrow().type()).isEqualTo(ExecutionEventType.TOOL_RESULT_STARTED);
@@ -333,7 +373,10 @@ class AgentScopeEventMapperTest {
         var event =
                 mapper.map(
                         new ToolResultTextDeltaEvent("reply-1", "call-1", "search", "结果片段"),
-                        command(), "agent.mapper-test", model(), new MappingState(0));
+                        command(),
+                        "agent.mapper-test",
+                        model(),
+                        new MappingState(0));
 
         assertThat(event).isPresent();
         assertThat(event.orElseThrow().type()).isEqualTo(ExecutionEventType.TOOL_RESULT_DELTA);
@@ -349,7 +392,10 @@ class AgentScopeEventMapperTest {
                 mapper.map(
                         new ToolResultEndEvent(
                                 "reply-1", "call-1", "search", ToolResultState.SUCCESS),
-                        command(), "agent.mapper-test", model(), new MappingState(0));
+                        command(),
+                        "agent.mapper-test",
+                        model(),
+                        new MappingState(0));
 
         assertThat(event).isPresent();
         assertThat(event.orElseThrow().type()).isEqualTo(ExecutionEventType.TOOL_CALL_COMPLETED);
@@ -362,7 +408,10 @@ class AgentScopeEventMapperTest {
                 mapper.map(
                         new ToolResultEndEvent(
                                 "reply-1", "call-1", "search", ToolResultState.ERROR),
-                        command(), "agent.mapper-test", model(), new MappingState(0));
+                        command(),
+                        "agent.mapper-test",
+                        model(),
+                        new MappingState(0));
 
         assertThat(event).isPresent();
         assertThat(event.orElseThrow().type()).isEqualTo(ExecutionEventType.TOOL_CALL_FAILED);
@@ -380,7 +429,10 @@ class AgentScopeEventMapperTest {
                 mapperWithEvidence.map(
                         new ToolResultEndEvent(
                                 "reply-1", "call-1", "search", ToolResultState.ERROR),
-                        command(), "agent.mapper-test", model(), new MappingState(0));
+                        command(),
+                        "agent.mapper-test",
+                        model(),
+                        new MappingState(0));
 
         assertThat(event).isPresent();
         assertThat(event.orElseThrow().type())
@@ -398,8 +450,11 @@ class AgentScopeEventMapperTest {
 
         var event =
                 mapper.map(
-                        new RequireUserConfirmEvent("reply-1", List.of(toolCall)), command(),
-                        "agent.mapper-test", model(), new MappingState(0));
+                        new RequireUserConfirmEvent("reply-1", List.of(toolCall)),
+                        command(),
+                        "agent.mapper-test",
+                        model(),
+                        new MappingState(0));
 
         assertThat(event).isPresent();
         assertThat(event.orElseThrow().type()).isEqualTo(ExecutionEventType.APPROVAL_REQUESTED);
@@ -415,8 +470,11 @@ class AgentScopeEventMapperTest {
 
         var event =
                 mapper.map(
-                        new UserConfirmResultEvent("reply-1", List.of(confirmResult)), command(),
-                        "agent.mapper-test", model(), new MappingState(0));
+                        new UserConfirmResultEvent("reply-1", List.of(confirmResult)),
+                        command(),
+                        "agent.mapper-test",
+                        model(),
+                        new MappingState(0));
 
         assertThat(event).isPresent();
         assertThat(event.orElseThrow().type()).isEqualTo(ExecutionEventType.APPROVAL_RESOLVED);
@@ -434,8 +492,11 @@ class AgentScopeEventMapperTest {
 
         var event =
                 mapper.map(
-                        new AllToolsDeniedEvent(List.of(toolCall)), command(),
-                        "agent.mapper-test", model(), state);
+                        new AllToolsDeniedEvent(List.of(toolCall)),
+                        command(),
+                        "agent.mapper-test",
+                        model(),
+                        state);
 
         assertThat(event).isPresent();
         assertThat(event.orElseThrow().type()).isEqualTo(ExecutionEventType.AUTHORIZATION_DENIED);
@@ -444,14 +505,18 @@ class AgentScopeEventMapperTest {
     }
 
     @Test
-    @DisplayName("Given REQUIRE_EXTERNAL_EXECUTION When 映射 Then 转 PAUSED 且产出 EXTERNAL_EXECUTION_REQUESTED")
+    @DisplayName(
+            "Given REQUIRE_EXTERNAL_EXECUTION When 映射 Then 转 PAUSED 且产出 EXTERNAL_EXECUTION_REQUESTED")
     void should_map_require_external_execution() {
         var toolCall = ToolUseBlock.builder().id("call-1").name("local_shell").build();
 
         var event =
                 mapper.map(
                         new RequireExternalExecutionEvent("reply-1", List.of(toolCall)),
-                        command(), "agent.mapper-test", model(), new MappingState(0));
+                        command(),
+                        "agent.mapper-test",
+                        model(),
+                        new MappingState(0));
 
         assertThat(event).isPresent();
         assertThat(event.orElseThrow().type())
@@ -472,7 +537,10 @@ class AgentScopeEventMapperTest {
         var event =
                 mapper.map(
                         new ExternalExecutionResultEvent("reply-1", List.of(toolResult)),
-                        command(), "agent.mapper-test", model(), new MappingState(0));
+                        command(),
+                        "agent.mapper-test",
+                        model(),
+                        new MappingState(0));
 
         assertThat(event).isPresent();
         assertThat(event.orElseThrow().type())
@@ -495,7 +563,10 @@ class AgentScopeEventMapperTest {
                         new RequestStopEvent(
                                 "等待授权",
                                 io.agentscope.core.message.GenerateReason.PERMISSION_ASKING),
-                        command(), "agent.mapper-test", model(), state);
+                        command(),
+                        "agent.mapper-test",
+                        model(),
+                        state);
 
         assertThat(event).isEmpty();
         assertThat(state.status()).isEqualTo(ExecutionEventStatus.AWAITING_AUTHORIZATION);
@@ -506,8 +577,11 @@ class AgentScopeEventMapperTest {
     void should_map_request_stop_to_execution_paused() {
         var event =
                 mapper.map(
-                        new RequestStopEvent("用户主动暂停"), command(), "agent.mapper-test",
-                        model(), new MappingState(0));
+                        new RequestStopEvent("用户主动暂停"),
+                        command(),
+                        "agent.mapper-test",
+                        model(),
+                        new MappingState(0));
 
         assertThat(event).isPresent();
         assertThat(event.orElseThrow().type()).isEqualTo(ExecutionEventType.EXECUTION_PAUSED);
@@ -518,8 +592,11 @@ class AgentScopeEventMapperTest {
     void should_map_exceed_max_iters_to_run_failed() {
         var event =
                 mapper.map(
-                        new ExceedMaxItersEvent("reply-1", 10, 10), command(),
-                        "agent.mapper-test", model(), new MappingState(0));
+                        new ExceedMaxItersEvent("reply-1", 10, 10),
+                        command(),
+                        "agent.mapper-test",
+                        model(),
+                        new MappingState(0));
 
         assertThat(event).isPresent();
         assertThat(event.orElseThrow().type()).isEqualTo(ExecutionEventType.RUN_FAILED);
@@ -535,18 +612,27 @@ class AgentScopeEventMapperTest {
     void should_ignore_thinking_block_events() {
         assertThat(
                         mapper.map(
-                                new ThinkingBlockStartEvent("reply-1", "block-1"), command(),
-                                "agent.mapper-test", model(), new MappingState(0)))
+                                new ThinkingBlockStartEvent("reply-1", "block-1"),
+                                command(),
+                                "agent.mapper-test",
+                                model(),
+                                new MappingState(0)))
                 .isEmpty();
         assertThat(
                         mapper.map(
                                 new ThinkingBlockDeltaEvent("reply-1", "block-1", "思考中"),
-                                command(), "agent.mapper-test", model(), new MappingState(0)))
+                                command(),
+                                "agent.mapper-test",
+                                model(),
+                                new MappingState(0)))
                 .isEmpty();
         assertThat(
                         mapper.map(
-                                new ThinkingBlockEndEvent("reply-1", "block-1"), command(),
-                                "agent.mapper-test", model(), new MappingState(0)))
+                                new ThinkingBlockEndEvent("reply-1", "block-1"),
+                                command(),
+                                "agent.mapper-test",
+                                model(),
+                                new MappingState(0)))
                 .isEmpty();
     }
 
@@ -555,18 +641,27 @@ class AgentScopeEventMapperTest {
     void should_ignore_binary_block_events() {
         assertThat(
                         mapper.map(
-                                new DataBlockStartEvent("reply-1", "block-1"), command(),
-                                "agent.mapper-test", model(), new MappingState(0)))
+                                new DataBlockStartEvent("reply-1", "block-1"),
+                                command(),
+                                "agent.mapper-test",
+                                model(),
+                                new MappingState(0)))
                 .isEmpty();
         assertThat(
                         mapper.map(
                                 new DataBlockDeltaEvent("reply-1", "block-1", "base64片段"),
-                                command(), "agent.mapper-test", model(), new MappingState(0)))
+                                command(),
+                                "agent.mapper-test",
+                                model(),
+                                new MappingState(0)))
                 .isEmpty();
         assertThat(
                         mapper.map(
-                                new DataBlockEndEvent("reply-1", "block-1"), command(),
-                                "agent.mapper-test", model(), new MappingState(0)))
+                                new DataBlockEndEvent("reply-1", "block-1"),
+                                command(),
+                                "agent.mapper-test",
+                                model(),
+                                new MappingState(0)))
                 .isEmpty();
         assertThat(
                         mapper.map(
@@ -575,7 +670,10 @@ class AgentScopeEventMapperTest {
                                         "call-1",
                                         "search",
                                         TextBlock.builder().text("data片段").build()),
-                                command(), "agent.mapper-test", model(), new MappingState(0)))
+                                command(),
+                                "agent.mapper-test",
+                                model(),
+                                new MappingState(0)))
                 .isEmpty();
     }
 
@@ -585,12 +683,18 @@ class AgentScopeEventMapperTest {
         assertThat(
                         mapper.map(
                                 new HintBlockEvent("reply-1", "block-1", "core", "提示"),
-                                command(), "agent.mapper-test", model(), new MappingState(0)))
+                                command(),
+                                "agent.mapper-test",
+                                model(),
+                                new MappingState(0)))
                 .isEmpty();
         assertThat(
                         mapper.map(
-                                new CustomEvent("custom.metric"), command(), "agent.mapper-test",
-                                model(), new MappingState(0)))
+                                new CustomEvent("custom.metric"),
+                                command(),
+                                "agent.mapper-test",
+                                model(),
+                                new MappingState(0)))
                 .isEmpty();
     }
 
@@ -602,7 +706,10 @@ class AgentScopeEventMapperTest {
         var event =
                 mapper.map(
                         new SubagentExposedEvent("subagent-1", "agent-1", "session-1", "label"),
-                        command(), "agent.mapper-test", model(), new MappingState(0));
+                        command(),
+                        "agent.mapper-test",
+                        model(),
+                        new MappingState(0));
 
         assertThat(event).isEmpty();
     }

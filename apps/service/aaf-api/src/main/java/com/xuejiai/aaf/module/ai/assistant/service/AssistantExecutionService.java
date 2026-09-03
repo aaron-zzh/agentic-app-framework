@@ -21,7 +21,6 @@ import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantInvo
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.InvocationProfile;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.InvocationProfile.ContextPlan;
-
 import com.xuejiai.aaf.framework.intelligent.assistant.model.*;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceReference;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceType;
@@ -879,11 +878,10 @@ public class AssistantExecutionService {
      * 构造委托任务看板。
      *
      * <p>不再前置调用 {@code TaskComplexityAnalyzer} 判断 single/coordinated（AAF-107 选项 B 架构改造，
-     * 2026-09-02）——协调者在自己的 execution 内自主判断"简单/拆步骤/拆多智能体"三档并直接采取行动（见
-     * {@code DelegatedTaskCoordinator.executeSubTask} 与内置 Skill {@code builtin-task-decomposition}），
-     * "简单"这一档已经被协调者直接回答覆盖，不需要在建板前再额外调一次模型做更粗粒度的相同判断——那是重复劳动，
-     * 且判断依据更差（{@code TaskComplexityAnalyzer} 只能看到目标文本本身，协调者的 execution 有完整上下文、
-     * 记忆与技能）。始终建 {@code coordinated} 板，协调者节点承担原来"前注意"的职责不变。
+     * 2026-09-02）——协调者在自己的 execution 内自主判断"简单/拆步骤/拆多智能体"三档并直接采取行动（见 {@code
+     * DelegatedTaskCoordinator.executeSubTask} 与内置 Skill {@code builtin-task-decomposition}），
+     * "简单"这一档已经被协调者直接回答覆盖，不需要在建板前再额外调一次模型做更粗粒度的相同判断——那是重复劳动， 且判断依据更差（{@code TaskComplexityAnalyzer}
+     * 只能看到目标文本本身，协调者的 execution 有完整上下文、 记忆与技能）。始终建 {@code coordinated} 板，协调者节点承担原来"前注意"的职责不变。
      */
     private TaskBoard analyzedBoard(
             ExecutionSpec spec, AssistantCommand command, String defaultRoleKey) {
@@ -894,7 +892,11 @@ public class AssistantExecutionService {
         var coordinatorRoleKey = route != null ? route.roleKey() : defaultRoleKey;
         var coordinatorSkillKey = route != null ? route.skillKey() : null;
         return TaskBoard.coordinated(
-                command.taskId(), command.input(), coordinatorRoleKey, coordinatorSkillKey, maxAttempts);
+                command.taskId(),
+                command.input(),
+                coordinatorRoleKey,
+                coordinatorSkillKey,
+                maxAttempts);
     }
 
     private static EffectiveOutputContract mergeOutputContract(

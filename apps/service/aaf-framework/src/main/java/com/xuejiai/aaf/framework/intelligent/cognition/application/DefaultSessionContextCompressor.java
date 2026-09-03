@@ -89,9 +89,7 @@ public final class DefaultSessionContextCompressor implements SessionContextComp
         var systemPrompt =
                 "你是会话历史摘要器。只输出严格 JSON，字段为 confirmedDecisions、verifiedFacts、"
                         + "openQuestions，均为字符串数组；无内容的字段返回空数组，不得省略字段，不得输出多余文本。";
-        var result =
-                callWithTimeout(
-                        systemPrompt, JsonUtils.toJsonString(payload), meteringUserId);
+        var result = callWithTimeout(systemPrompt, JsonUtils.toJsonString(payload), meteringUserId);
         var canonical = validateAndCanonicalize(result);
         var sourceIds =
                 messagesToSummarize.stream()

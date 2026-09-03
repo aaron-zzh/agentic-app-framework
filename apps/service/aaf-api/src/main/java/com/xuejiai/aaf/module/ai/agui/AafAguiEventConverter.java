@@ -28,9 +28,8 @@ public interface AafAguiEventConverter {
     /**
      * 是否绕过"内部节点一律降级 CUSTOM"的分派规则，无论事件来自根节点还是非根节点都按类型分派本 converter。
      *
-     * <p>默认 {@code false}（维持既有行为：内部节点事件优先降级 CUSTOM）。只有进度类信息（如阶段边界）需要对所有节点
-     * 一致投影时才应覆写为 {@code true}——"面向用户的最终正文"类事件（文本消息、工具结果）绝不应绕过该规则，否则执行者的
-     * 中间产物会被客户端当最终回复渲染。
+     * <p>默认 {@code false}（维持既有行为：内部节点事件优先降级 CUSTOM）。只有进度类信息（如阶段边界）需要对所有节点 一致投影时才应覆写为 {@code
+     * true}——"面向用户的最终正文"类事件（文本消息、工具结果）绝不应绕过该规则，否则执行者的 中间产物会被客户端当最终回复渲染。
      */
     default boolean bypassesInternalNodeDowngrade() {
         return false;

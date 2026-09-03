@@ -26,23 +26,21 @@ import com.xuejiai.aaf.framework.intelligent.assistant.application.CompletionVal
 import com.xuejiai.aaf.framework.intelligent.assistant.application.ContextLoadTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultCompletionValidator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultEffectiveSkillResolver;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultRecoveryPreflight;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.SubmitExecutorPlanTool;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.ReportExecutorStepTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultInputClassifier;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultRecoveryPreflight;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultRoleSelector;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultSkillSelectionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveSkillResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveToolResolver;
-
 import com.xuejiai.aaf.framework.intelligent.assistant.application.ModelSkillSelectionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.PromptAssembler;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.ReportExecutorStepTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.RoleSelector;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.SkillSelectionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.SubmitCoordinationPlanTool;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.SubmitExecutorPlanTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.SupportHandoffTool;
-
 import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskIngress;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DecompositionBudget;
 import com.xuejiai.aaf.framework.intelligent.assistant.persona.PersonaRepository;
@@ -176,9 +174,9 @@ public class AssistantInfrastructureAutoConfiguration {
     }
 
     /**
-     * 已批准执行阶段内唯一允许模型上报步骤边界的工具（AAF-107 #10705）：{@code executeApprovedPlanSteps}
-     * 让模型在一次 execution 内自由推进全部已批准步骤，{@code ExecutorPlanStep.Status} 要有真实数据必须由模型自己
-     * 显式上报——与 {@code submitExecutorPlanTool} 同为"模型主动上报"模式，注册条件也保持一致。
+     * 已批准执行阶段内唯一允许模型上报步骤边界的工具（AAF-107 #10705）：{@code executeApprovedPlanSteps} 让模型在一次 execution
+     * 内自由推进全部已批准步骤，{@code ExecutorPlanStep.Status} 要有真实数据必须由模型自己 显式上报——与 {@code
+     * submitExecutorPlanTool} 同为"模型主动上报"模式，注册条件也保持一致。
      */
     @Bean
     @ConditionalOnBean({ExecutorPlanPort.class, ExecutionEventStorePort.class})
@@ -189,10 +187,10 @@ public class AssistantInfrastructureAutoConfiguration {
     }
 
     /**
-     * 协调者 execution 内可用的写工具：提交协调计划，替代手工 JSON 文本解析（迁移自
-     * {@code DelegatedTaskCoordinator.decodeAndValidatePlan}，业务规则原样保留）。是否规划不再是建板时的静态
-     * 判定（AAF-107 选项 B 架构改造，2026-09-02，{@code PlanRequirementPolicy} 已随之删除），改为运行时查询是否存在
-     * 活跃 {@code ExecutorPlan}，与本工具无关。
+     * 协调者 execution 内可用的写工具：提交协调计划，替代手工 JSON 文本解析（迁移自 {@code
+     * DelegatedTaskCoordinator.decodeAndValidatePlan}，业务规则原样保留）。是否规划不再是建板时的静态 判定（AAF-107 选项 B
+     * 架构改造，2026-09-02，{@code PlanRequirementPolicy} 已随之删除），改为运行时查询是否存在 活跃 {@code
+     * ExecutorPlan}，与本工具无关。
      */
     @Bean
     @ConditionalOnBean(TaskBoardPort.class)
@@ -210,8 +208,10 @@ public class AssistantInfrastructureAutoConfiguration {
         return new ContextLoadTool(skills, skillReferences);
     }
 
-    /** 非自主 L0 逻辑调用入口已迁移至 AgentScopeInfrastructureAutoConfiguration.promptInvocationGateway（依 ADR-007），不再由本配置类基于 LlmClient 生产。 */
-
+    /**
+     * 非自主 L0 逻辑调用入口已迁移至 AgentScopeInfrastructureAutoConfiguration.promptInvocationGateway（依
+     * ADR-007），不再由本配置类基于 LlmClient 生产。
+     */
     @Bean
     @ConditionalOnBean(PromptInvocationGateway.class)
     @ConditionalOnMissingBean(RoleSelector.class)

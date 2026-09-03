@@ -59,19 +59,11 @@ public final class JavaScriptExecutionTool implements ContextAwareToolHandler {
                 "properties",
                 Map.of(
                         "code",
-                        Map.of(
-                                "type",
-                                "string",
-                                "description",
-                                "纯计算 JavaScript 代码，不超过 20000 个字符"),
+                        Map.of("type", "string", "description", "纯计算 JavaScript 代码，不超过 20000 个字符"),
                         "arguments",
                         Map.of("type", "object", "description", "脚本可读取的 JSON 参数（可选）"),
                         "timeoutSeconds",
-                        Map.of(
-                                "type",
-                                "integer",
-                                "description",
-                                "超时秒数，1 到 10 之间（可选，默认 5）")),
+                        Map.of("type", "integer", "description", "超时秒数，1 到 10 之间（可选，默认 5）")),
                 "required",
                 List.of("code"));
     }

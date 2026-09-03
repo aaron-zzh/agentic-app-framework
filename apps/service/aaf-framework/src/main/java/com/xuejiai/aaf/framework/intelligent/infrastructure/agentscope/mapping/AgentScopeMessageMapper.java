@@ -42,18 +42,21 @@ public final class AgentScopeMessageMapper {
 
     /**
      * {@code REASONING} 回放为携带 {@link ThinkingBlock} 的 {@code ASSISTANT} 消息——{@code MsgRole} 没有对应的
-     * REASONING 枚举值，推理块本就是模型上一轮输出内容的一部分（AAF-106 #10604）。禁止携带附件（构造器已保证 REASONING
-     * 消息不允许附件，此处不重复校验）。
+     * REASONING 枚举值，推理块本就是模型上一轮输出内容的一部分（AAF-106 #10604）。禁止携带附件（构造器已保证 REASONING 消息不允许附件，此处不重复校验）。
      */
     private Msg reasoningMsg(AgentMessage message) {
-        var content = List.<ContentBlock>of(ThinkingBlock.builder().thinking(message.text()).build());
+        var content =
+                List.<ContentBlock>of(ThinkingBlock.builder().thinking(message.text()).build());
         return Msg.builderForRole(MsgRole.ASSISTANT)
                 .id(message.messageId())
                 .content(content)
                 .build();
     }
 
-    /** 附件统一映射为 {@link DataBlock}——官方 {@code ImageBlock}/{@code AudioBlock}/{@code VideoBlock} 仅为向后兼容保留，新代码优先用 {@code DataBlock}。 */
+    /**
+     * 附件统一映射为 {@link DataBlock}——官方 {@code ImageBlock}/{@code AudioBlock}/{@code VideoBlock}
+     * 仅为向后兼容保留，新代码优先用 {@code DataBlock}。
+     */
     private ContentBlock attachmentBlock(AgentMessage.Attachment attachment) {
         return DataBlock.builder()
                 .source(

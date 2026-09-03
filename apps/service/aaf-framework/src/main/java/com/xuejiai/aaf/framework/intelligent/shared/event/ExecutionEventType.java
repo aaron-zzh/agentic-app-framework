@@ -66,8 +66,8 @@ public enum ExecutionEventType {
 
     /**
      * EXECUTOR 计划生命周期事件（AAF-107 #10705）。计划级 6 个，"终态一律拆成独立枚举值"，不用 outcome 字段合并。{@code
-     * REVIEW_REQUIRED}/{@code REJECTED} 转换在当前架构下是死代码路径（ADR-006 固定自动批准，人工审批分支从未被触发），因此不设
-     * {@code EXECUTOR_PLAN_APPROVED}/{@code EXECUTOR_PLAN_REJECTED} 独立事件——{@code SUBMITTED}
+     * REVIEW_REQUIRED}/{@code REJECTED} 转换在当前架构下是死代码路径（ADR-006 固定自动批准，人工审批分支从未被触发），因此不设 {@code
+     * EXECUTOR_PLAN_APPROVED}/{@code EXECUTOR_PLAN_REJECTED} 独立事件——{@code SUBMITTED}
      * 与"批准"在当前实现里永远同时发生，拆分没有独立观察价值。
      */
     EXECUTOR_PLAN_CREATED,

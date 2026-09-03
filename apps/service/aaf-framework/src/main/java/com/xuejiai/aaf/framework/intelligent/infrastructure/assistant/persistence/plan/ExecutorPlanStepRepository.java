@@ -20,6 +20,7 @@ public interface ExecutorPlanStepRepository extends JpaRepository<ExecutorPlanSt
             "select s from ExecutorPlanStepEntity s where s.planId = :planId and s.stepKey = :stepKey")
     Optional<ExecutorPlanStepEntity> findForUpdate(String planId, String stepKey);
 
-    @Query("select s from ExecutorPlanStepEntity s where s.planId = :planId and s.status = 'RUNNING'")
+    @Query(
+            "select s from ExecutorPlanStepEntity s where s.planId = :planId and s.status = 'RUNNING'")
     List<ExecutorPlanStepEntity> findRunning(String planId);
 }

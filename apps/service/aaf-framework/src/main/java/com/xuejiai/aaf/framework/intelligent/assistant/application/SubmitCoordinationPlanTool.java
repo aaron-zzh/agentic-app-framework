@@ -29,15 +29,14 @@ import reactor.core.scheduler.Schedulers;
  * 协调者 execution 内唯一允许调用的写工具：提交协调计划，替代此前"输出严格 JSON 文本 + {@code
  * DelegatedTaskCoordinator.decodeAndValidatePlan} 手工解析"的模式。
  *
- * <p>动机：手工解析依赖 {@code streamEvents} 收敛到的最终文本，模型必须自己保证输出是严格单一 JSON 对象；改为工具调用后，
- * 输入结构由工具入参 schema 强制约束（模型侧无法输出非法结构），且工具调用本身产生 {@code TOOL_CALL_START}/{@code
- * TOOL_RESULT_END} 事件，不像"改用结构化输出 {@code call(...)}"那样需要放弃协调者 execution 的完整事件流投影与 Token
- * 计量（核实 core {@code ReActAgent} 源码确认原生结构化输出与合成降级路径均硬编码绑定在 {@code call(...)} 内部私有实现，无法与
- * {@code streamEvents} 组合）。
+ * <p>动机：手工解析依赖 {@code streamEvents} 收敛到的最终文本，模型必须自己保证输出是严格单一 JSON 对象；改为工具调用后， 输入结构由工具入参 schema
+ * 强制约束（模型侧无法输出非法结构），且工具调用本身产生 {@code TOOL_CALL_START}/{@code TOOL_RESULT_END} 事件，不像"改用结构化输出 {@code
+ * call(...)}"那样需要放弃协调者 execution 的完整事件流投影与 Token 计量（核实 core {@code ReActAgent}
+ * 源码确认原生结构化输出与合成降级路径均硬编码绑定在 {@code call(...)} 内部私有实现，无法与 {@code streamEvents} 组合）。
  *
- * <p>业务规则从 {@code decodeAndValidatePlan} 原样迁移，通过 {@link TaskBoardPort#find} 反查协调者节点自身持有的
- * {@code roleKey}/{@code skillKey}/{@code modelSelection} 作为授权衰减与模型策略一致性的比对基准——这些字段已随
- * {@link TaskBoard.SubTask} 持久化，工具执行时可独立反查，不需要调用方额外传递。
+ * <p>业务规则从 {@code decodeAndValidatePlan} 原样迁移，通过 {@link TaskBoardPort#find} 反查协调者节点自身持有的 {@code
+ * roleKey}/{@code skillKey}/{@code modelSelection} 作为授权衰减与模型策略一致性的比对基准——这些字段已随 {@link
+ * TaskBoard.SubTask} 持久化，工具执行时可独立反查，不需要调用方额外传递。
  */
 public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler {
 
@@ -46,7 +45,8 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
     private final TaskBoardPort boards;
     private final DecompositionBudget decompositionBudget;
 
-    public SubmitCoordinationPlanTool(TaskBoardPort boards, DecompositionBudget decompositionBudget) {
+    public SubmitCoordinationPlanTool(
+            TaskBoardPort boards, DecompositionBudget decompositionBudget) {
         this.boards = Objects.requireNonNull(boards, "boards 不能为空");
         this.decompositionBudget =
                 Objects.requireNonNull(decompositionBudget, "decompositionBudget 不能为空");
@@ -59,13 +59,12 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
 
     @Override
     public String description() {
-        return "提交本次协调产出的执行计划：目标、并行度、聚合方式、执行者列表，可选迭代组。"
-                + "提交后立即生效冻结子任务，如需调整必须由协调者重新触发一次新的协调。";
+        return "提交本次协调产出的执行计划：目标、并行度、聚合方式、执行者列表，可选迭代组。" + "提交后立即生效冻结子任务，如需调整必须由协调者重新触发一次新的协调。";
     }
 
     /**
-     * 等效只读：产出的是协调计划草稿（派生子任务定义），不直接执行业务动作——风险已在协调者派发子节点时的既有审批点
-     * 与各子任务自己的工具授权链路覆盖，与 {@link SubmitExecutorPlanTool} 同一判断依据（ADR-006）。
+     * 等效只读：产出的是协调计划草稿（派生子任务定义），不直接执行业务动作——风险已在协调者派发子节点时的既有审批点 与各子任务自己的工具授权链路覆盖，与 {@link
+     * SubmitExecutorPlanTool} 同一判断依据（ADR-006）。
      */
     @Override
     public boolean readOnly() {
@@ -316,7 +315,8 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
     @SuppressWarnings("unchecked")
     private static List<String> decodeStringList(Object value) {
         if (!(value instanceof List<?> rawList)) {
-            throw new IllegalArgumentException("期望字符串数组，实际: " + (value == null ? "null" : value.getClass()));
+            throw new IllegalArgumentException(
+                    "期望字符串数组，实际: " + (value == null ? "null" : value.getClass()));
         }
         return ((List<Object>) rawList).stream().map(item -> requireString(item, "数组元素")).toList();
     }
@@ -356,5 +356,4 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
         }
         throw new IllegalArgumentException(field + " 必须是数字");
     }
-
 }

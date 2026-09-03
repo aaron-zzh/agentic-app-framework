@@ -37,9 +37,8 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 
 /**
- * 协调计划的授权衰减边界（迁移自已删除的 {@code DelegatedTaskCoordinator.decodeAndValidatePlan}，业务规则随
- * {@link SubmitCoordinationPlanTool} 原样迁移——计划提交方式从"输出严格 JSON 文本 + 手工解析"改为"调用工具"，
- * 见 dev-log 方案变更记录）。
+ * 协调计划的授权衰减边界（迁移自已删除的 {@code DelegatedTaskCoordinator.decodeAndValidatePlan}，业务规则随 {@link
+ * SubmitCoordinationPlanTool} 原样迁移——计划提交方式从"输出严格 JSON 文本 + 手工解析"改为"调用工具"， 见 dev-log 方案变更记录）。
  *
  * <p>规划模型只能在委派方自身已冻结的 Role/Skill 内组合，不得放大到基准之外——即使模型输出了越界值也必须 fail-closed。
  */
@@ -67,9 +66,7 @@ class SubmitCoordinationPlanToolTest {
         var tool = tool(board());
 
         assertThatThrownBy(
-                        () ->
-                                tool.invoke(invocation("system.role.admin-escalated", SKILL))
-                                        .block())
+                        () -> tool.invoke(invocation("system.role.admin-escalated", SKILL)).block())
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("不能更改已冻结的 Role 或 Skill");
     }
@@ -79,8 +76,7 @@ class SubmitCoordinationPlanToolTest {
     void should_reject_plan_widening_skill_beyond_baseline() {
         var tool = tool(board());
 
-        assertThatThrownBy(
-                        () -> tool.invoke(invocation(ROLE, "unauthorized-skill")).block())
+        assertThatThrownBy(() -> tool.invoke(invocation(ROLE, "unauthorized-skill")).block())
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("不能更改已冻结的 Role 或 Skill");
     }
@@ -91,10 +87,9 @@ class SubmitCoordinationPlanToolTest {
     }
 
     /**
-     * 协调者节点必须处于 {@code RUNNING} 才能提交计划（{@code TaskBoard.applyCoordinationPlan} 前置校验），
-     * 不能用 {@code TaskBoard.coordinated(...)} 静态工厂——它产出的协调者初始态是 {@code PENDING}（等待调度领取），
-     * 需要手工构造一个已处于 {@code RUNNING} 的协调者节点，与 {@code
-     * DelegatedTaskCoordinatorAggregatorCompletionTest} 已确立的 fixture 模式一致。
+     * 协调者节点必须处于 {@code RUNNING} 才能提交计划（{@code TaskBoard.applyCoordinationPlan} 前置校验）， 不能用 {@code
+     * TaskBoard.coordinated(...)} 静态工厂——它产出的协调者初始态是 {@code PENDING}（等待调度领取）， 需要手工构造一个已处于 {@code
+     * RUNNING} 的协调者节点，与 {@code DelegatedTaskCoordinatorAggregatorCompletionTest} 已确立的 fixture 模式一致。
      */
     private static TaskBoard board() {
         var coordinator =
@@ -132,23 +127,26 @@ class SubmitCoordinationPlanToolTest {
     private static ToolInvocation invocation(String roleKey, String skillKey) {
         var arguments =
                 Map.<String, Object>of(
-                        "goal", "完成品牌文案",
-                        "maxParallelism", 1,
+                        "goal",
+                        "完成品牌文案",
+                        "maxParallelism",
+                        1,
                         "aggregationContract",
-                                Map.of(
-                                        "kind", "PASS_THROUGH",
-                                        "executorOrder", List.of("executor-copy")),
+                        Map.of("kind", "PASS_THROUGH", "executorOrder", List.of("executor-copy")),
                         "executors",
-                                List.of(
-                                        Map.of(
-                                                "subTaskId", "executor-copy",
-                                                "description", "输出 Markdown 文案",
-                                                "roleKey", roleKey,
-                                                "skillKey", skillKey,
-                                                "modelMode", "AUTO")));
+                        List.of(
+                                Map.of(
+                                        "subTaskId", "executor-copy",
+                                        "description", "输出 Markdown 文案",
+                                        "roleKey", roleKey,
+                                        "skillKey", skillKey,
+                                        "modelMode", "AUTO")));
         return new ToolInvocation(
                 "tool-call-1",
-                new ToolRef(SubmitCoordinationPlanTool.TOOL_NAME, 1, SubmitCoordinationPlanTool.TOOL_NAME),
+                new ToolRef(
+                        SubmitCoordinationPlanTool.TOOL_NAME,
+                        1,
+                        SubmitCoordinationPlanTool.TOOL_NAME),
                 arguments,
                 context());
     }
@@ -184,7 +182,8 @@ class SubmitCoordinationPlanToolTest {
                                         .ExecutionContract.ResponsibleOwner("AI", "system")),
                 lease,
                 new ToolAuthorizationContext(Map.of()),
-                new NodeIdentity("coordinator", NodeIdentity.NodeKind.COORDINATOR, ROLE, SKILL, false));
+                new NodeIdentity(
+                        "coordinator", NodeIdentity.NodeKind.COORDINATOR, ROLE, SKILL, false));
     }
 
     /** 只实现本测试用到的两个方法；其它方法调用即测试设计错误，直接抛异常暴露。 */
@@ -206,20 +205,28 @@ class SubmitCoordinationPlanToolTest {
         }
 
         @Override
-        public TaskBoard.ReadyClaim claimReady(TenantId tenantId, TaskId taskId, ConversationLeasePort.Lease lease) {
+        public TaskBoard.ReadyClaim claimReady(
+                TenantId tenantId, TaskId taskId, ConversationLeasePort.Lease lease) {
             throw new UnsupportedOperationException("未使用");
         }
 
         @Override
         public TaskBoard applyCoordinationPlan(
-                TenantId tenantId, TaskId taskId, CoordinationPlan plan, ConversationLeasePort.Lease lease) {
+                TenantId tenantId,
+                TaskId taskId,
+                CoordinationPlan plan,
+                ConversationLeasePort.Lease lease) {
             board = board.applyCoordinationPlan(plan);
             return board;
         }
 
         @Override
         public TaskBoard completeSubTask(
-                TenantId tenantId, TaskId taskId, String subTaskId, String result, ConversationLeasePort.Lease lease) {
+                TenantId tenantId,
+                TaskId taskId,
+                String subTaskId,
+                String result,
+                ConversationLeasePort.Lease lease) {
             throw new UnsupportedOperationException("未使用");
         }
 
@@ -236,13 +243,20 @@ class SubmitCoordinationPlanToolTest {
 
         @Override
         public TaskBoard interruptSubTask(
-                TenantId tenantId, TaskId taskId, String subTaskId, boolean retryable, ConversationLeasePort.Lease lease) {
+                TenantId tenantId,
+                TaskId taskId,
+                String subTaskId,
+                boolean retryable,
+                ConversationLeasePort.Lease lease) {
             throw new UnsupportedOperationException("未使用");
         }
 
         @Override
         public TaskBoard interruptRunning(
-                TenantId tenantId, TaskId taskId, boolean retryable, ConversationLeasePort.Lease lease) {
+                TenantId tenantId,
+                TaskId taskId,
+                boolean retryable,
+                ConversationLeasePort.Lease lease) {
             throw new UnsupportedOperationException("未使用");
         }
     }

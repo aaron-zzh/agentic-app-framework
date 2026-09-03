@@ -168,10 +168,9 @@ public record TaskBoard(
     /**
      * 将已校验计划固化为协调者完成及其执行者 DAG。
      *
-     * <p>不再判定新建执行者是否需要先规划（AAF-107 选项 B 架构改造，2026-09-02）——是否规划由每个节点自己在
-     * execution 内决定是否调用 {@code submit_executor_plan}，{@code DelegatedTaskCoordinator} 每轮运行时查询
-     * 该节点是否存在活跃 {@code ExecutorPlan} 来分流，不再由建板时的静态标志预先判定。原 {@code
-     * planRequirement} 判定函数与 {@code PlanRequirementPolicy} 随本次改造一并废弃。
+     * <p>不再判定新建执行者是否需要先规划（AAF-107 选项 B 架构改造，2026-09-02）——是否规划由每个节点自己在 execution 内决定是否调用 {@code
+     * submit_executor_plan}，{@code DelegatedTaskCoordinator} 每轮运行时查询 该节点是否存在活跃 {@code ExecutorPlan}
+     * 来分流，不再由建板时的静态标志预先判定。原 {@code planRequirement} 判定函数与 {@code PlanRequirementPolicy} 随本次改造一并废弃。
      */
     public TaskBoard applyCoordinationPlan(CoordinationPlan plan) {
         Objects.requireNonNull(plan, "plan 不能为空");
@@ -832,10 +831,9 @@ public record TaskBoard(
         }
 
         /**
-         * 是否先规划再执行不再是建板时写死的静态字段（AAF-107 选项 B 架构改造，2026-09-02）：任何节点
-         * （协调者或执行者）在自己的 execution 内自主决定要不要调用 {@code submit_executor_plan}，
-         * {@code DelegatedTaskCoordinator.executeSubTask} 每轮改为运行时查询 {@code
-         * ExecutorPlanPort.findActive(...)} 判断是否存在活跃计划来决定分流，不再依赖本节点上的固定标志。
+         * 是否先规划再执行不再是建板时写死的静态字段（AAF-107 选项 B 架构改造，2026-09-02）：任何节点 （协调者或执行者）在自己的 execution
+         * 内自主决定要不要调用 {@code submit_executor_plan}， {@code DelegatedTaskCoordinator.executeSubTask}
+         * 每轮改为运行时查询 {@code ExecutorPlanPort.findActive(...)} 判断是否存在活跃计划来决定分流，不再依赖本节点上的固定标志。
          */
         public static SubTask pending(
                 String subTaskId,

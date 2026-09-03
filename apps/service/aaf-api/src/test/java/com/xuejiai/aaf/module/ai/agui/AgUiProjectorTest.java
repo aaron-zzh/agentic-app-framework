@@ -12,9 +12,9 @@ import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ExecutionEventStatus;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.OwnerType;
-import com.xuejiai.aaf.framework.intelligent.shared.event.NodeIdentity;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventPayload;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
+import com.xuejiai.aaf.framework.intelligent.shared.event.NodeIdentity;
 import com.xuejiai.aaf.framework.intelligent.shared.event.publication.ExecutionEventPublicMapper;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ConversationId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.CorrelationId;
@@ -204,17 +204,19 @@ class AgUiProjectorTest {
         var finished =
                 session.project(event(2, ExecutionEventType.EXECUTOR_PLAN_SUBMITTED, Map.of()));
 
-        assertThat(started.stream().map(AguiEvent::getType)).containsExactly(AguiEventType.STEP_STARTED);
+        assertThat(started.stream().map(AguiEvent::getType))
+                .containsExactly(AguiEventType.STEP_STARTED);
         assertThat(json(started.getFirst())).contains("\"stepName\":\"planning\"");
-        assertThat(finished.stream().map(AguiEvent::getType)).containsExactly(AguiEventType.STEP_STARTED);
+        assertThat(finished.stream().map(AguiEvent::getType))
+                .containsExactly(AguiEventType.STEP_STARTED);
     }
 
     @Test
-    @DisplayName("内部节点 EXECUTION_STARTED/COMPLETED 追加 State/Activity 快照增量与 execution 阶段事件，且不替代 CUSTOM 投影")
+    @DisplayName(
+            "内部节点 EXECUTION_STARTED/COMPLETED 追加 State/Activity 快照增量与 execution 阶段事件，且不替代 CUSTOM 投影")
     void should_append_execution_step_alongside_custom_for_internal_node() {
         var session = projector.openSession();
-        var node =
-                new NodeIdentity("sub-1", NodeIdentity.NodeKind.EXECUTOR, "role-1", null, false);
+        var node = new NodeIdentity("sub-1", NodeIdentity.NodeKind.EXECUTOR, "role-1", null, false);
 
         var started = session.project(stepEvent(1, ExecutionEventType.EXECUTION_STARTED, node));
         var finished = session.project(stepEvent(2, ExecutionEventType.EXECUTION_COMPLETED, node));
@@ -244,8 +246,7 @@ class AgUiProjectorTest {
     @DisplayName("同一子任务重复终态不产生多余 StateDelta/ActivityDelta：无变化时不发状态事件")
     void should_not_emit_state_delta_when_status_unchanged() {
         var session = projector.openSession();
-        var node =
-                new NodeIdentity("sub-1", NodeIdentity.NodeKind.EXECUTOR, "role-1", null, false);
+        var node = new NodeIdentity("sub-1", NodeIdentity.NodeKind.EXECUTOR, "role-1", null, false);
         session.project(stepEvent(1, ExecutionEventType.EXECUTION_STARTED, node));
 
         // 同一节点、同一事件类型重复到达（如客户端重试导致的重复投递）：status 不变，不应产生噪声 StateDelta/ActivityDelta
@@ -265,27 +266,20 @@ class AgUiProjectorTest {
         var session = projector.openSession();
         // AGGREGATOR_REDUCE 契约下 AGGREGATOR 是唯一交付者：delivery=true 时按根节点路径处理，
         // 走 RunLifecycleEventConverter 的 run 生命周期语义（RUN_STARTED/RUN_FINISHED），不产生 Step 事件。
-        var events =
-                session.project(
-                        event(
-                                1,
-                                ExecutionEventType.EXECUTION_STARTED,
-                                Map.of()));
+        var events = session.project(event(1, ExecutionEventType.EXECUTION_STARTED, Map.of()));
 
-        assertThat(events.stream().map(AguiEvent::getType)).containsExactly(AguiEventType.RUN_STARTED);
+        assertThat(events.stream().map(AguiEvent::getType))
+                .containsExactly(AguiEventType.RUN_STARTED);
     }
 
     @Test
     @DisplayName("VALIDATION_STARTED/COMPLETED 映射为 verification 阶段，不受内部节点降级影响")
     void should_map_validation_events_to_verification_step_even_for_internal_node() {
         var session = projector.openSession();
-        var node =
-                new NodeIdentity("sub-1", NodeIdentity.NodeKind.EXECUTOR, "role-1", null, false);
+        var node = new NodeIdentity("sub-1", NodeIdentity.NodeKind.EXECUTOR, "role-1", null, false);
 
-        var started =
-                session.project(stepEvent(1, ExecutionEventType.VALIDATION_STARTED, node));
-        var finished =
-                session.project(stepEvent(2, ExecutionEventType.VALIDATION_COMPLETED, node));
+        var started = session.project(stepEvent(1, ExecutionEventType.VALIDATION_STARTED, node));
+        var finished = session.project(stepEvent(2, ExecutionEventType.VALIDATION_COMPLETED, node));
 
         assertThat(started.getFirst().getType()).isEqualTo(AguiEventType.STEP_STARTED);
         assertThat(json(started.getFirst())).contains("\"stepName\":\"verification\"");
@@ -336,8 +330,8 @@ class AgUiProjectorTest {
      * 带 {@code nodeIdentity} 的事件构造，用于验证 Step/State 事件按节点类型与事件语义区分。
      *
      * <p>{@code status} 按 {@code type} 推导而非恒定 {@code RUNNING}——{@code EXECUTION_COMPLETED} 等终态
-     * 类型若仍标 {@code RUNNING} 会让 {@code StateSnapshot}/{@code StateDelta} 的测试断言失真（真实事件的
-     * {@code status} 与 {@code type} 语义一致，如 {@code AssistantApplicationService.status(TaskStatus)}）。
+     * 类型若仍标 {@code RUNNING} 会让 {@code StateSnapshot}/{@code StateDelta} 的测试断言失真（真实事件的 {@code
+     * status} 与 {@code type} 语义一致，如 {@code AssistantApplicationService.status(TaskStatus)}）。
      */
     private static ExecutionEvent stepEvent(
             long sequence, ExecutionEventType type, NodeIdentity nodeIdentity) {

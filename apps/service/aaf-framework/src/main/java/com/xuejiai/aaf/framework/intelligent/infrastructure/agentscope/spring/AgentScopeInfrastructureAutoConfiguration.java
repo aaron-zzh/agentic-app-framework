@@ -105,7 +105,8 @@ public class AgentScopeInfrastructureAutoConfiguration {
             ToolGatewayPort toolGateway,
             ToolResultEvidenceStore evidenceStore,
             ObjectProvider<ContextAwareToolHandler> builtinHandlers) {
-        return new AgentScopeToolkitFactory(toolCatalog, toolGateway, evidenceStore, builtinHandlers);
+        return new AgentScopeToolkitFactory(
+                toolCatalog, toolGateway, evidenceStore, builtinHandlers);
     }
 
     @Bean
@@ -138,7 +139,8 @@ public class AgentScopeInfrastructureAutoConfiguration {
     /** L0 单例按 modelId 分桶缓存 ReActAgent，持有缓存，销毁时须 close 释放（依 ADR-007）。 */
     @Bean(destroyMethod = "close")
     L0ReActAgentFactory l0ReActAgentFactory(AgentScopeModelResolver modelResolver) {
-        return new L0ReActAgentFactory(modelResolver, AgentScopeSpecCompiler.DEFAULT_CACHE_CAPACITY);
+        return new L0ReActAgentFactory(
+                modelResolver, AgentScopeSpecCompiler.DEFAULT_CACHE_CAPACITY);
     }
 
     /** 非自主 L0 逻辑调用入口，替代旧 LlmClient（依 ADR-007）。 */

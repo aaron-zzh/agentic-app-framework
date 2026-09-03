@@ -20,8 +20,9 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
  * {@link ExecutorPlanPort} 的 PostgreSQL 实现。
  *
  * <p>全部转换先按 {@code planId}/{@code (planId, stepKey)} 悲观加锁读出当前行，比对调用方携带的 {@code
- * expectedLockVersion}，不一致立即 {@link com.xuejiai.aaf.framework.intelligent.assistant.port.plan.ExecutorPlanPort.StaleExecutorPlanException}——这给出比等 JPA
- * flush 时抛 {@code OptimisticLockException} 更早、更明确的失败点，且不依赖 {@code @Version} 自动比对的异常类型。
+ * expectedLockVersion}，不一致立即 {@link
+ * com.xuejiai.aaf.framework.intelligent.assistant.port.plan.ExecutorPlanPort.StaleExecutorPlanException}——这给出比等
+ * JPA flush 时抛 {@code OptimisticLockException} 更早、更明确的失败点，且不依赖 {@code @Version} 自动比对的异常类型。
  */
 public class JpaExecutorPlanAdapter implements ExecutorPlanPort {
 
@@ -40,7 +41,8 @@ public class JpaExecutorPlanAdapter implements ExecutorPlanPort {
         // revision 由本层按 (tenant, task, board) 现有最大值 +1 分配，调用方不猜测——避免并发建两次
         // planning 时用同一 revision 号相互覆盖；重复调用仍会在 uk_executor_plan_revision 上失败。
         var nextRevision =
-                plans.findActiveCandidates(
+                plans
+                        .findActiveCandidates(
                                 command.tenantId().value(),
                                 command.delegatedTaskId().value(),
                                 command.boardId())
@@ -50,7 +52,11 @@ public class JpaExecutorPlanAdapter implements ExecutorPlanPort {
                         .map(current -> current + 1)
                         .orElse(1);
         var planId =
-                "plan-" + command.delegatedTaskId().value() + "-" + command.boardId() + "-r"
+                "plan-"
+                        + command.delegatedTaskId().value()
+                        + "-"
+                        + command.boardId()
+                        + "-r"
                         + nextRevision;
         if (plans.findByPlanId(planId).isPresent()) {
             throw new IllegalStateException("计划 revision 已存在: " + planId);
@@ -119,9 +125,7 @@ public class JpaExecutorPlanAdapter implements ExecutorPlanPort {
         Objects.requireNonNull(command, "command 不能为空");
         var entity = lockPlan(command.tenantId(), command.planId(), command.expectedLockVersion());
         requireStatus(
-                entity,
-                Set.of(ExecutorPlan.Status.REVIEW_REQUIRED),
-                "只能在 REVIEW_REQUIRED 状态审批");
+                entity, Set.of(ExecutorPlan.Status.REVIEW_REQUIRED), "只能在 REVIEW_REQUIRED 状态审批");
         entity.setStatus(
                 (command.approved() ? ExecutorPlan.Status.APPROVED : ExecutorPlan.Status.REJECTED)
                         .name());
@@ -163,7 +167,8 @@ public class JpaExecutorPlanAdapter implements ExecutorPlanPort {
         }
         var stepEntity =
                 steps.findForUpdate(command.planId(), command.stepKey())
-                        .orElseThrow(() -> new IllegalArgumentException("步骤不存在: " + command.stepKey()));
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("步骤不存在: " + command.stepKey()));
         requireStepLockVersion(stepEntity, command.expectedLockVersion());
         requireStepStatus(stepEntity, ExecutorPlanStep.Status.PENDING, "只能从 PENDING 启动步骤");
         var allSteps = steps.findByPlanIdOrderByOrdinalAsc(command.planId());
@@ -198,7 +203,8 @@ public class JpaExecutorPlanAdapter implements ExecutorPlanPort {
         requirePlanForStepOp(command.tenantId(), command.planId());
         var stepEntity =
                 steps.findForUpdate(command.planId(), command.stepKey())
-                        .orElseThrow(() -> new IllegalArgumentException("步骤不存在: " + command.stepKey()));
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("步骤不存在: " + command.stepKey()));
         requireStepLockVersion(stepEntity, command.expectedLockVersion());
         requireStepStatus(stepEntity, ExecutorPlanStep.Status.RUNNING, "只能完成 RUNNING 步骤");
         stepEntity.setStatus(ExecutorPlanStep.Status.COMPLETED.name());
@@ -214,7 +220,8 @@ public class JpaExecutorPlanAdapter implements ExecutorPlanPort {
         requirePlanForStepOp(command.tenantId(), command.planId());
         var stepEntity =
                 steps.findForUpdate(command.planId(), command.stepKey())
-                        .orElseThrow(() -> new IllegalArgumentException("步骤不存在: " + command.stepKey()));
+                        .orElseThrow(
+                                () -> new IllegalArgumentException("步骤不存在: " + command.stepKey()));
         requireStepLockVersion(stepEntity, command.expectedLockVersion());
         requireStepStatus(stepEntity, ExecutorPlanStep.Status.RUNNING, "只能标记 RUNNING 步骤失败");
         stepEntity.setStatus(ExecutorPlanStep.Status.FAILED.name());
@@ -273,11 +280,13 @@ public class JpaExecutorPlanAdapter implements ExecutorPlanPort {
     }
 
     @Override
-    public Optional<ExecutorPlan> findActive(TenantId tenantId, TaskId delegatedTaskId, String boardId) {
+    public Optional<ExecutorPlan> findActive(
+            TenantId tenantId, TaskId delegatedTaskId, String boardId) {
         Objects.requireNonNull(tenantId, "tenantId 不能为空");
         Objects.requireNonNull(delegatedTaskId, "delegatedTaskId 不能为空");
         Objects.requireNonNull(boardId, "boardId 不能为空");
-        return plans.findActiveCandidates(tenantId.value(), delegatedTaskId.value(), boardId)
+        return plans
+                .findActiveCandidates(tenantId.value(), delegatedTaskId.value(), boardId)
                 .stream()
                 .findFirst()
                 .map(JpaExecutorPlanAdapter::toDomain);
@@ -360,8 +369,7 @@ public class JpaExecutorPlanAdapter implements ExecutorPlanPort {
         for (var draft : drafts) {
             for (var dependency : draft.dependencies()) {
                 if (!declaredKeys.contains(dependency)) {
-                    throw new IllegalArgumentException(
-                            "步骤依赖引用了未声明的 stepKey: " + dependency);
+                    throw new IllegalArgumentException("步骤依赖引用了未声明的 stepKey: " + dependency);
                 }
             }
         }
@@ -404,9 +412,7 @@ public class JpaExecutorPlanAdapter implements ExecutorPlanPort {
                 entity.getInstruction(),
                 entity.getDependencies() == null ? List.of() : entity.getDependencies(),
                 entity.getRequiredTools() == null ? List.of() : entity.getRequiredTools(),
-                entity.getCompletionCriteria() == null
-                        ? List.of()
-                        : entity.getCompletionCriteria(),
+                entity.getCompletionCriteria() == null ? List.of() : entity.getCompletionCriteria(),
                 ExecutorPlanStep.Status.valueOf(entity.getStatus()),
                 entity.getResultRef(),
                 entity.getFailureCode(),

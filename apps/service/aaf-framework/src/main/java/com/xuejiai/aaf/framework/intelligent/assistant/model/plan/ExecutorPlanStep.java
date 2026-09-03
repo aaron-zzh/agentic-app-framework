@@ -2,15 +2,14 @@ package com.xuejiai.aaf.framework.intelligent.assistant.model.plan;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
 /**
  * {@link ExecutorPlan} 内的一个可验证步骤。
  *
- * <p><b>步骤不变量（ADR-006）</b>：同一 plan 最多一个 {@code RUNNING}；依赖未完成不得启动；{@code requiredTools}
- * 必须是该 execution 冻结工具白名单的子集（由应用层在 {@code startStep} 时校验，本记录不持有白名单引用）。
+ * <p><b>步骤不变量（ADR-006）</b>：同一 plan 最多一个 {@code RUNNING}；依赖未完成不得启动；{@code requiredTools} 必须是该
+ * execution 冻结工具白名单的子集（由应用层在 {@code startStep} 时校验，本记录不持有白名单引用）。
  *
  * @param stepKey 板内步骤键，随 plan 生成，{@code UNIQUE(plan_id, step_key)}
  * @param ordinal 步骤在 plan 内的顺序号，{@code UNIQUE(plan_id, ordinal)}；仅用于展示排序，实际调度依据 {@code
@@ -53,8 +52,7 @@ public record ExecutorPlanStep(
         }
         requiredTools = List.copyOf(Objects.requireNonNull(requiredTools, "requiredTools 不能为空"));
         completionCriteria =
-                List.copyOf(
-                        Objects.requireNonNull(completionCriteria, "completionCriteria 不能为空"));
+                List.copyOf(Objects.requireNonNull(completionCriteria, "completionCriteria 不能为空"));
         Objects.requireNonNull(status, "status 不能为空");
         if (lockVersion < 0) {
             throw new IllegalArgumentException("lockVersion 不能小于 0");

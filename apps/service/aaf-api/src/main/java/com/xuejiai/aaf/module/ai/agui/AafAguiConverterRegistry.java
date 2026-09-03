@@ -50,13 +50,11 @@ public final class AafAguiConverterRegistry {
     }
 
     /**
-     * 分派顺序：先查类型表里"不受内部节点降级约束"的类型（如 {@code StepEventConverter} 声明的阶段边界），
-     * 再判「是否来自内部节点」，最后按类型查表分派剩余类型。
+     * 分派顺序：先查类型表里"不受内部节点降级约束"的类型（如 {@code StepEventConverter} 声明的阶段边界）， 再判「是否来自内部节点」，最后按类型查表分派剩余类型。
      *
-     * <p>阶段边界（Step）是进度类信息，不是"面向用户的最终正文"，无论来自根节点还是内部节点都应一致投影，因此必须先于内部节点
-     * 判断被识别；除此之外的分派顺序与官方 {@code AgentEventConverterRegistry} 对 {@code source != null} 的处理一致——
-     * 交付者才发标准 AG-UI 事件，内部节点一律降级 CUSTOM。若反过来先按类型分派，执行者的文本会走进 {@code
-     * TEXT_MESSAGE_*}，客户端会把中间产物当最终回复渲染。
+     * <p>阶段边界（Step）是进度类信息，不是"面向用户的最终正文"，无论来自根节点还是内部节点都应一致投影，因此必须先于内部节点 判断被识别；除此之外的分派顺序与官方 {@code
+     * AgentEventConverterRegistry} 对 {@code source != null} 的处理一致—— 交付者才发标准 AG-UI 事件，内部节点一律降级
+     * CUSTOM。若反过来先按类型分派，执行者的文本会走进 {@code TEXT_MESSAGE_*}，客户端会把中间产物当最终回复渲染。
      *
      * <p>{@code nodeIdentity == null} 表示本次调用不在编排板上（DIRECT 直答），按交付者处理。
      */

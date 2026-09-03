@@ -10,25 +10,24 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
-import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.message.AssistantMessage;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.UserMessage;
-
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * 非自主 L0 的逻辑调用入口。
  *
  * <p>当前切片只做最小消息校验、脱敏长度 preflight 和对零工具 {@code ReActAgent} 的委托，不加载 Constitution、Persona、Role、Skill
- * 或自主任务循环。模型选择完全由 {@link CapabilityRouter} 承担（依 ADR-007）——{@code CapabilityRouter} 是 per-call
- * 路由，而 {@code ReActAgent.builder().model(...)} 是构造期固定参数，两者不能直接合一，因此按 {@link
- * AiModel#getModelId()} 对 {@code ReActAgent} 实例分桶缓存，不是全局唯一单例：同一模型复用同一实例，不同模型各自持有独立实例；每个实例
- * 均为零工具（不触发工具循环）、无状态（不设 {@code stateStore}）、不设 {@code fallbackModel}（不静默切模型）。
+ * 或自主任务循环。模型选择完全由 {@link CapabilityRouter} 承担（依 ADR-007）——{@code CapabilityRouter} 是 per-call 路由，而
+ * {@code ReActAgent.builder().model(...)} 是构造期固定参数，两者不能直接合一，因此按 {@link AiModel#getModelId()} 对
+ * {@code ReActAgent} 实例分桶缓存，不是全局唯一单例：同一模型复用同一实例，不同模型各自持有独立实例；每个实例 均为零工具（不触发工具循环）、无状态（不设 {@code
+ * stateStore}）、不设 {@code fallbackModel}（不静默切模型）。
  */
 @Slf4j
 public final class PromptInvocationGateway {
@@ -41,8 +40,7 @@ public final class PromptInvocationGateway {
     public PromptInvocationGateway(
             Function<AiModel, ReActAgent> agentFactory, CapabilityRouter capabilityRouter) {
         this.agentFactory = Objects.requireNonNull(agentFactory, "agentFactory 不能为空");
-        this.capabilityRouter =
-                Objects.requireNonNull(capabilityRouter, "capabilityRouter 不能为空");
+        this.capabilityRouter = Objects.requireNonNull(capabilityRouter, "capabilityRouter 不能为空");
     }
 
     /** 发起一次无工具的非自主逻辑调用；异常原样交给具体函数决定 fail-closed 或安全默认值。 */
@@ -81,7 +79,9 @@ public final class PromptInvocationGateway {
                         invocation.routeScene(),
                         invocation.explicitModelId());
         var model = capabilityRouter.resolve(routingContext);
-        var agent = agentsByModelId.computeIfAbsent(model.getModelId(), key -> agentFactory.apply(model));
+        var agent =
+                agentsByModelId.computeIfAbsent(
+                        model.getModelId(), key -> agentFactory.apply(model));
 
         var systemPrompt =
                 invocation.messages().stream()
@@ -112,8 +112,7 @@ public final class PromptInvocationGateway {
                 .<Msg>map(
                         m ->
                                 switch (m.message().role()) {
-                                    case "assistant" ->
-                                            new AssistantMessage(m.message().content());
+                                    case "assistant" -> new AssistantMessage(m.message().content());
                                     default -> new UserMessage(m.message().content());
                                 })
                 .toList();

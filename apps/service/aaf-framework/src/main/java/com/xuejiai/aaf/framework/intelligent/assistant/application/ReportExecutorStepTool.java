@@ -31,13 +31,12 @@ import reactor.core.scheduler.Schedulers;
 /**
  * 已批准执行阶段内唯一允许模型上报步骤边界的工具（AAF-107 #10705）。
  *
- * <p>{@code executeApprovedPlanSteps} 让模型在一次 execution 内自由推进全部已批准步骤，AAF 侧不介入模型推理过程，
- * 因此 {@code ExecutorPlanStep.Status} 要有真实数据，必须由模型自己显式上报步骤边界——复用 {@link
- * SubmitExecutorPlanTool} 已确立的"模型主动上报"模式，而非从底层工具调用事件流反推（一个 step 可能对应 0~N 次工具调用，
- * 无法可靠映射回步骤边界）。
+ * <p>{@code executeApprovedPlanSteps} 让模型在一次 execution 内自由推进全部已批准步骤，AAF 侧不介入模型推理过程， 因此 {@code
+ * ExecutorPlanStep.Status} 要有真实数据，必须由模型自己显式上报步骤边界——复用 {@link SubmitExecutorPlanTool}
+ * 已确立的"模型主动上报"模式，而非从底层工具调用事件流反推（一个 step 可能对应 0~N 次工具调用， 无法可靠映射回步骤边界）。
  *
- * <p>{@code planId}/{@code expectedLockVersion} 由本工具按 {@code (tenantId, taskId, boardId)} 现查现用，不接受模型
- * 传入，理由与 {@link SubmitExecutorPlanTool} 相同：防止模型跨计划上报或伪造版本号绕过 CAS。
+ * <p>{@code planId}/{@code expectedLockVersion} 由本工具按 {@code (tenantId, taskId, boardId)}
+ * 现查现用，不接受模型 传入，理由与 {@link SubmitExecutorPlanTool} 相同：防止模型跨计划上报或伪造版本号绕过 CAS。
  *
  * <p>事件直接由本工具构造并 {@code append}（复用 {@link SupportHandoffTool} 已确立的"工具直接注入 {@link
  * ExecutionEventStorePort} 写事件"模式），不经过 {@code TaskTransition}——{@code ExecutorPlan} 是独立聚合根，有自己的
@@ -119,10 +118,7 @@ public final class ReportExecutorStepTool implements ContextAwareToolHandler {
         }
         var active =
                 plans.findActive(context.tenantId(), context.taskId(), nodeIdentity.subTaskId())
-                        .orElseThrow(
-                                () ->
-                                        new IllegalStateException(
-                                                "当前任务没有处于执行阶段的计划，无法上报步骤进度"));
+                        .orElseThrow(() -> new IllegalStateException("当前任务没有处于执行阶段的计划，无法上报步骤进度"));
         if (!active.boardId().equals(nodeIdentity.subTaskId())) {
             throw new IllegalStateException("当前活跃计划不属于本节点，禁止跨节点上报");
         }
@@ -262,8 +258,7 @@ public final class ReportExecutorStepTool implements ContextAwareToolHandler {
     }
 
     private static ToolInvocationResult successResult(String outcome, String stepKey) {
-        var output =
-                JsonUtils.toJsonString(Map.of("status", outcome, "stepKey", stepKey));
+        var output = JsonUtils.toJsonString(Map.of("status", outcome, "stepKey", stepKey));
         return new ToolInvocationResult(output, Map.of("stepReported", true));
     }
 

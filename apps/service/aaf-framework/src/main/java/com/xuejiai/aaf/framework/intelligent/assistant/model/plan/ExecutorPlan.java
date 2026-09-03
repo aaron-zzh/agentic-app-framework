@@ -13,12 +13,12 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
  * EXECUTOR 局部执行计划：某一个已分配 executor 在不扩权、不新增兄弟节点的前提下，按可验证步骤完成自己的子任务。
  *
  * <p>与 {@code CoordinationPlan} 的关系（ADR-006 议题三）：{@code CoordinationPlan} 回答"由哪些 executor
- * 以什么聚合合同完成根目标"，是父计划；本类回答"某一个 executor 具体怎么做"，是局部执行计划。两者不是竞争的 TaskBoard，L3
- * 持有本聚合的持久状态，L2 Agent 只在当前 execution 中读取不可变 {@code revision} 快照并执行。
+ * 以什么聚合合同完成根目标"，是父计划；本类回答"某一个 executor 具体怎么做"，是局部执行计划。两者不是竞争的 TaskBoard，L3 持有本聚合的持久状态，L2 Agent 只在当前
+ * execution 中读取不可变 {@code revision} 快照并执行。
  *
- * <p><b>不可变 revision（ADR-006 议题一/三推论）</b>：{@code SUBMITTED} 之后正文不可变；需要修订时创建新 revision，不
- * update 旧正文。这与 {@code ExecutionProfileSnapshot} 的"单次执行单一画像"不变量对应——一次 planning execution
- * 产出一个 revision，{@code APPROVED → EXECUTING} 时把该 revision 冻结进执行 execution 的画像，恢复只能复用同 revision。
+ * <p><b>不可变 revision（ADR-006 议题一/三推论）</b>：{@code SUBMITTED} 之后正文不可变；需要修订时创建新 revision，不 update
+ * 旧正文。这与 {@code ExecutionProfileSnapshot} 的"单次执行单一画像"不变量对应——一次 planning execution 产出一个
+ * revision，{@code APPROVED → EXECUTING} 时把该 revision 冻结进执行 execution 的画像，恢复只能复用同 revision。
  *
  * <p><b>状态机</b>：
  *
@@ -31,8 +31,8 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
  * PLANNING/SUBMITTED/REVIEW_REQUIRED/APPROVED → CANCELLED
  * </pre>
  *
- * <p>只有 {@link ExecutorPlanPort} 的方法能产生状态转换，且全部转换必须 CAS（{@code lock_version}），不允许业务代码直接
- * 修改 {@link #status}。
+ * <p>只有 {@link ExecutorPlanPort} 的方法能产生状态转换，且全部转换必须 CAS（{@code lock_version}），不允许业务代码直接 修改 {@link
+ * #status}。
  */
 public record ExecutorPlan(
         String planId,

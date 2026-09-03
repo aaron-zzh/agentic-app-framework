@@ -21,8 +21,8 @@ import lombok.Setter;
 /**
  * {@code ai_executor_plan} 的 JPA 映射。
  *
- * <p>用显式关系列而非单一 JSONB（对比 {@code TaskBoardEntity.board_payload}），因为计划需要独立的 revision 唯一约束、
- * 审批人留痕列和 {@code REVIEW_REQUIRED} 队列索引——这些是 SQL 层不变量，JSONB 表达式索引无法直接承担唯一约束。
+ * <p>用显式关系列而非单一 JSONB（对比 {@code TaskBoardEntity.board_payload}），因为计划需要独立的 revision 唯一约束、 审批人留痕列和
+ * {@code REVIEW_REQUIRED} 队列索引——这些是 SQL 层不变量，JSONB 表达式索引无法直接承担唯一约束。
  */
 @Getter
 @Setter

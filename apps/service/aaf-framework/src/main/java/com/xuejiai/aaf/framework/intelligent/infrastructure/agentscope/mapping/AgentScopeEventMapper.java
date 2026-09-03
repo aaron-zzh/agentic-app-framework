@@ -79,8 +79,8 @@ public final class AgentScopeEventMapper {
      *
      * <p>全部 31 项已落地显式映射（AAF-104 #10403 第二增量补齐最后 8 项：{@code TEXT_BLOCK_END}、{@code
      * TOOL_CALL_DELTA/END}、{@code TOOL_RESULT_START/TEXT_DELTA}、{@code USER_CONFIRM_RESULT}、{@code
-     * EXTERNAL_EXECUTION_RESULT}、{@code REQUIRE_EXTERNAL_EXECUTION}）。文本与工具流式事件的 payload 统一携带
-     * {@code replyId}（及 {@code blockId}/{@code toolCallId}），供 AG-UI 投影层按官方约定聚合还原；工具调用入参与
+     * EXTERNAL_EXECUTION_RESULT}、{@code REQUIRE_EXTERNAL_EXECUTION}）。文本与工具流式事件的 payload 统一携带 {@code
+     * replyId}（及 {@code blockId}/{@code toolCallId}），供 AG-UI 投影层按官方约定聚合还原；工具调用入参与
      * 工具执行文本输出的增量正文暂不透出（只落长度），schema 脱敏留给消费方或后续投影层任务处理。
      */
     public Optional<ExecutionEvent> map(
@@ -201,8 +201,7 @@ public final class AgentScopeEventMapper {
             case TEXT_BLOCK_END ->
                     mapTextBlockEnd((TextBlockEndEvent) source, command, agentIdentifier, state);
             case TOOL_CALL_DELTA ->
-                    mapToolCallDelta(
-                            (ToolCallDeltaEvent) source, command, agentIdentifier, state);
+                    mapToolCallDelta((ToolCallDeltaEvent) source, command, agentIdentifier, state);
             case TOOL_CALL_END ->
                     mapToolCallEnd((ToolCallEndEvent) source, command, agentIdentifier, state);
             case TOOL_RESULT_START ->
@@ -222,10 +221,7 @@ public final class AgentScopeEventMapper {
                             state);
             case EXTERNAL_EXECUTION_RESULT ->
                     mapExternalExecutionResult(
-                            (ExternalExecutionResultEvent) source,
-                            command,
-                            agentIdentifier,
-                            state);
+                            (ExternalExecutionResultEvent) source, command, agentIdentifier, state);
 
             // ===== 不应出现：配置漂移告警 =====
             // AAF 不启用官方 subagent（TaskBoard 是唯一外部编排），出现该事件说明工具面或 builder 配置被改动
@@ -292,9 +288,9 @@ public final class AgentScopeEventMapper {
     }
 
     /**
-     * 创建按 executionId 暂停的确定性终态事件（AAF-110）。与 {@link #canceled} 语义不同：责任主体不变，
-     * 状态槎不删除，下次同一 {@code executionId} 重新发起可续接对话历史——{@code pause(ExecutionId)}
-     * 版本的终态仲裁分支专用，不与 {@code RequestStopEvent} 驱动的 {@code mapStop} 共享调用路径。
+     * 创建按 executionId 暂停的确定性终态事件（AAF-110）。与 {@link #canceled} 语义不同：责任主体不变， 状态槎不删除，下次同一 {@code
+     * executionId} 重新发起可续接对话历史——{@code pause(ExecutionId)} 版本的终态仲裁分支专用，不与 {@code RequestStopEvent}
+     * 驱动的 {@code mapStop} 共享调用路径。
      */
     public ExecutionEvent paused(
             AgentExecutionCommand command, String agentIdentifier, MappingState state) {
@@ -468,8 +464,8 @@ public final class AgentScopeEventMapper {
     /**
      * 工具调用入参流式增量：只落长度不落原始 JSON 片段。
      *
-     * <p>入参可能携带模型从上下文摘取的业务敏感字段值，与 {@link #mapToolStart} 排除入参出边界的理由相同；按 schema
-     * 脱敏后再逐片透出留给 AAF-104 #10403 的 AG-UI 投影层决定，本层只保证身份与长度可追踪。
+     * <p>入参可能携带模型从上下文摘取的业务敏感字段值，与 {@link #mapToolStart} 排除入参出边界的理由相同；按 schema 脱敏后再逐片透出留给 AAF-104
+     * #10403 的 AG-UI 投影层决定，本层只保证身份与长度可追踪。
      */
     private Optional<ExecutionEvent> mapToolCallDelta(
             ToolCallDeltaEvent source,
@@ -620,8 +616,8 @@ public final class AgentScopeEventMapper {
     }
 
     /**
-     * 外部执行结果已回填：{@code replyId} 与请求时的 {@code REQUIRE_EXTERNAL_EXECUTION} 相同。只暴露工具调用标识与结果数量，
-     * {@code ToolResultBlock} 的正文内容不出边界（与 {@link #mapToolResult} 对工具证据的处置一致）。
+     * 外部执行结果已回填：{@code replyId} 与请求时的 {@code REQUIRE_EXTERNAL_EXECUTION} 相同。只暴露工具调用标识与结果数量， {@code
+     * ToolResultBlock} 的正文内容不出边界（与 {@link #mapToolResult} 对工具证据的处置一致）。
      */
     private Optional<ExecutionEvent> mapExternalExecutionResult(
             ExternalExecutionResultEvent source,
