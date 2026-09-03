@@ -167,6 +167,103 @@ class AssistantExecutionServiceTest {
                 .hasMessageContaining("ON_DEMAND");
     }
 
+    @Test
+    void conversationalFixedRoleOnlyLeavesSkillOpen() {
+        var intent =
+                AssistantExecutionService.executionIntent(
+                        conversationalRequest("system.role.content-creator", null),
+                        definition(),
+                        Set.of(),
+                        8L);
+
+        assertThat(intent.routeConstraint()).isEqualTo(RouteConstraint.FIXED);
+        assertThat(intent.resolvedRoute().roleKey()).isEqualTo("system.role.content-creator");
+        assertThat(intent.resolvedRoute().skillKey()).isNull();
+    }
+
+    @Test
+    void conversationalFixedSkillOnlyResolvesUniqueRole() {
+        var intent =
+                AssistantExecutionService.executionIntent(
+                        conversationalRequest(null, "voiceover"), definition(), Set.of(), 8L);
+
+        assertThat(intent.routeConstraint()).isEqualTo(RouteConstraint.FIXED);
+        assertThat(intent.resolvedRoute().roleKey()).isEqualTo("system.role.content-creator");
+        assertThat(intent.resolvedRoute().skillKey()).isEqualTo("voiceover");
+    }
+
+    @Test
+    void conversationalFixedRoleAndSkillBothLocked() {
+        var intent =
+                AssistantExecutionService.executionIntent(
+                        conversationalRequest("system.role.content-creator", "redbook"),
+                        definition(),
+                        Set.of(),
+                        8L);
+
+        assertThat(intent.routeConstraint()).isEqualTo(RouteConstraint.FIXED);
+        assertThat(intent.resolvedRoute().roleKey()).isEqualTo("system.role.content-creator");
+        assertThat(intent.resolvedRoute().skillKey()).isEqualTo("redbook");
+    }
+
+    @Test
+    void conversationalExplicitSkillAmbiguousAcrossNonDefaultRolesFailsClosed() {
+        var contentCreatorTwo =
+                new Role(
+                        "system.role.content-creator-2",
+                        "第二内容创作者",
+                        List.of("生成草稿"),
+                        List.of("自动发布"),
+                        List.of(binding("shared-skill", SkillActivationMode.ON_DEMAND)),
+                        Set.of());
+        var contentCreatorThree =
+                new Role(
+                        "system.role.content-creator-3",
+                        "第三内容创作者",
+                        List.of("生成草稿"),
+                        List.of("自动发布"),
+                        List.of(binding("shared-skill", SkillActivationMode.ON_DEMAND)),
+                        Set.of());
+        var platformGuide =
+                new Role(
+                        "system.role.platform-guide",
+                        "平台向导",
+                        List.of("产品咨询"),
+                        List.of("修改用户数据"),
+                        List.of(),
+                        Set.of());
+        var ambiguousDefinition =
+                new AssistantDefinition(
+                        new AssistantId("test.assistant.ambiguous"),
+                        null,
+                        null,
+                        TemplateOwnership.USER_OWNED,
+                        new AssistantVersion(1),
+                        "7",
+                        new PersonaSnapshot(
+                                "persona:test", 1, "测试助理", "测试", "审慎", "简洁", "仅测试", null),
+                        List.of(platformGuide, contentCreatorTwo, contentCreatorThree),
+                        List.of(),
+                        Set.of(),
+                        // 默认 Role 不持有 shared-skill，模拟"命中多个非默认 Role"的歧义场景
+                        platformGuide.key(),
+                        MemoryStrategy.hybridDefault(),
+                        null,
+                        new ToolPolicy(Map.of()),
+                        Set.of(ControlMode.READ_ONLY),
+                        RiskPolicy.CONFIRM_WRITES,
+                        Lifecycle.PUBLISHED);
+
+        assertThatThrownBy(
+                        () ->
+                                AssistantExecutionService.executionIntent(
+                                        conversationalRequest(null, "shared-skill"),
+                                        ambiguousDefinition,
+                                        Set.of(),
+                                        8L))
+                .hasMessageContaining("无法唯一确定 Role");
+    }
+
     private static AssistantDefinition definition() {
         var platformGuide =
                 new Role(
@@ -242,6 +339,30 @@ class AssistantExecutionServiceTest {
                         ? new RoleSelection("system.role.content-creator")
                         : null,
                 skill == null ? null : new SkillSelection(skill),
+                new KnowledgeOptions(KnowledgeMode.DEFAULT, Set.of(), 5, 0.2),
+                new ModelSelection(ModelMode.AUTO, null),
+                new MemoryOptions(MemoryMode.DEFAULT),
+                new OutputOptions(null, null, null));
+    }
+
+    /** CONVERSATIONAL 场景下 role/skill 各自独立可选的请求构造（AAF-107 #10708）。 */
+    private static AssistantExecutionRequest conversationalRequest(
+            String roleKey, String skillKey) {
+        var routeConstraint =
+                roleKey == null && skillKey == null
+                        ? AssistantExecutionRequest.RouteConstraint.AUTO
+                        : AssistantExecutionRequest.RouteConstraint.FIXED;
+        return new AssistantExecutionRequest(
+                null,
+                new ExecutionOptions(
+                        AssistantExecutionRequest.InteractionMode.CONVERSATIONAL,
+                        routeConstraint,
+                        ClarificationPolicy.MINIMAL,
+                        ActionAuthorizationPolicy.DENY_AUTHORIZED_ACTIONS,
+                        ArtifactPersistence.RETURN_ONLY),
+                new Input("测试", Map.of(), List.of()),
+                roleKey == null ? null : new RoleSelection(roleKey),
+                skillKey == null ? null : new SkillSelection(skillKey),
                 new KnowledgeOptions(KnowledgeMode.DEFAULT, Set.of(), 5, 0.2),
                 new ModelSelection(ModelMode.AUTO, null),
                 new MemoryOptions(MemoryMode.DEFAULT),

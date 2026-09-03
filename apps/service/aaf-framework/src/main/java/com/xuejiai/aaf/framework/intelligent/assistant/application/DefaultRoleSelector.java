@@ -29,6 +29,14 @@ public final class DefaultRoleSelector implements RoleSelector {
     public RoleSelection select(RoleSelectionRequest request) {
         var proposal = request.candidateProposal();
         var preferredSkillKey = request.preferredSkillKey();
+        // 注（AAF-107 #10708 核实记录）：CONVERSATIONAL 场景下"仅凭 Skill 反推 Role"的判断已上移到
+        // AssistantExecutionService.roleByExplicitSkill（请求解析阶段，同一匹配规则含默认 Role 兜底），
+        // 上移后 executionIntent(...) 会把该场景直接解析为 FIXED Route，AssistantApplicationService
+        // 走 SERVER_FIXED_ROUTE 分支而不会再构造带非空 preferredSkillKey 的 RoleSelectionRequest——
+        // 全仓核实当前唯一调用点（AssistantApplicationService 的 AUTO 分支）不会产生这个组合，
+        // 本分支在生产环境暂无可达路径。保留而非删除：RoleSelectionRequest.preferredSkillKey 是
+        // 公开接口契约字段，删除属于接口签名变更，需独立评估；且该逻辑仍是未来可能复用的正确实现
+        // （如 Team 场景引入运行时技能路由时）。
         if (preferredSkillKey != null) {
             return selectByExplicitSkill(request, preferredSkillKey);
         }

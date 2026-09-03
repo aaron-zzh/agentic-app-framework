@@ -256,21 +256,55 @@ public class AssistantAguiController {
                         ? null
                         : new AssistantExecutionRequest.AssistantTarget(
                                 requireText(props, "assistantId", "forwardedProps.assistantId"));
+        var role = chatRoleSelection(props);
+        var skill = chatSkillSelection(props);
         return new AssistantExecutionRequest(
                 assistant,
                 new ExecutionOptions(
                         InteractionMode.CONVERSATIONAL,
-                        RouteConstraint.AUTO,
+                        role == null && skill == null
+                                ? RouteConstraint.AUTO
+                                : RouteConstraint.FIXED,
                         ClarificationPolicy.MINIMAL,
                         ActionAuthorizationPolicy.DENY_AUTHORIZED_ACTIONS,
                         ArtifactPersistence.RETURN_ONLY),
                 new Input(input, Map.of(), List.of()),
-                null,
-                null,
+                role,
+                skill,
                 new KnowledgeOptions(KnowledgeMode.DEFAULT, Set.of(), 5, 0.2),
                 modelSelection(props),
                 new MemoryOptions(MemoryMode.DEFAULT),
                 new OutputOptions(null, null, null));
+    }
+
+    /**
+     * CHAT 模式可选 Role 显式指定（AAF-107 #10708）：与 {@code EXECUTION} 模式的 {@code
+     * forwardedProps.request.role} 同一形状，但省略时不报错——CHAT 允许省略走 AUTO 动态决策， {@code EXECUTION}
+     * 模式的显式协议校验（{@link Validator}）不适用于此。
+     */
+    private static AssistantExecutionRequest.RoleSelection chatRoleSelection(JsonNode props) {
+        var node = props.get("role");
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        return new AssistantExecutionRequest.RoleSelection(
+                requireText(
+                        requireObject(node, "forwardedProps.role"),
+                        "key",
+                        "forwardedProps.role.key"));
+    }
+
+    /** CHAT 模式可选 Skill 显式指定（AAF-107 #10708），与 {@link #chatRoleSelection} 同一模式。 */
+    private static AssistantExecutionRequest.SkillSelection chatSkillSelection(JsonNode props) {
+        var node = props.get("skill");
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        return new AssistantExecutionRequest.SkillSelection(
+                requireText(
+                        requireObject(node, "forwardedProps.skill"),
+                        "code",
+                        "forwardedProps.skill.code"));
     }
 
     private static ModelSelection modelSelection(JsonNode props) {

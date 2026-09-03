@@ -24,8 +24,6 @@ public interface AssistantErrorCode {
             ErrorCode.of(7_003_009, "CONVERSATIONAL 执行仅支持 RETURN_ONLY");
     ErrorCode EXECUTION_CONVERSATIONAL_AUTO_ROUTE_REQUIRED =
             ErrorCode.of(7_003_010, "未指定 Role 和 Skill 的 CONVERSATIONAL 执行必须使用 AUTO Route");
-    ErrorCode EXECUTION_CONVERSATIONAL_ROUTE_INCOMPLETE =
-            ErrorCode.of(7_003_011, "显式对话路由必须同时指定 Role 和 Skill");
     ErrorCode EXECUTION_CONVERSATIONAL_FIXED_ROUTE_REQUIRED =
             ErrorCode.of(7_003_012, "显式 Role 和 Skill 的 CONVERSATIONAL 执行必须使用 FIXED Route");
     ErrorCode EXECUTION_ROUTE_ROLE_NOT_FOUND = ErrorCode.of(7_003_013, "请求 Role 不属于当前 Assistant");
@@ -112,6 +110,8 @@ public interface AssistantErrorCode {
     ErrorCode EXECUTION_RUN_ID_REQUIRED = ErrorCode.of(7_003_066, "runId 不能为空白");
     ErrorCode EXECUTION_RUN_ID_TOO_LONG = ErrorCode.of(7_003_067, "runId 长度不能超过 128");
     ErrorCode EXECUTION_ID_REQUIRED = ErrorCode.of(7_003_068, "executionId 不能为空");
+    ErrorCode EXECUTION_SKILL_AMBIGUOUS_ROLE =
+            ErrorCode.of(7_003_069, "显式 Skill 同时属于多个非默认 Role，无法唯一确定 Role");
 
     // 审批
     ErrorCode APPROVAL_RECOVERY_REQUIRES_APPROVED = ErrorCode.of(7_003_100, "仅批准决定可恢复执行");

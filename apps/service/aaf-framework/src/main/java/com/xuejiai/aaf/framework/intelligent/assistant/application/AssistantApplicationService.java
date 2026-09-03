@@ -1182,7 +1182,9 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                                 == SkillActivationMode.ON_DEMAND)
                         .toList();
         var selectionBindings = onDemandBindings;
-        if (route != null) {
+        // route.skillKey()==null 表示只锁角色、技能仍开放（AAF-107 #10708）：候选集合保持角色下全部
+        // ON_DEMAND Skill，不做精确匹配收窄；只有技能也被锁定时才要求候选集合精确命中该技能。
+        if (route != null && route.skillKey() != null) {
             selectionBindings =
                     onDemandBindings.stream()
                             .filter(
@@ -1197,11 +1199,11 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         var selectionCandidates =
                 selectionBindings.stream().map(this::authorizedSkillSummary).toList();
         var selectionMode =
-                route == null
+                route != null && route.skillKey() != null
                         ? com.xuejiai.aaf.framework.intelligent.assistant.model.SkillSelectionMode
-                                .SELECT_AND_AUGMENT
+                                .FIXED
                         : com.xuejiai.aaf.framework.intelligent.assistant.model.SkillSelectionMode
-                                .FIXED;
+                                .SELECT_AND_AUGMENT;
         var selection =
                 new com.xuejiai.aaf.framework.intelligent.agent.model.SkillSelectionManifest(
                         role.key(),

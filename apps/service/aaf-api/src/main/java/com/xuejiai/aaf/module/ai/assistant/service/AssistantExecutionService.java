@@ -44,6 +44,7 @@ import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationSubject;
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest;
+import com.xuejiai.aaf.module.ai.assistant.vo.AssistantSummaryVO;
 import com.xuejiai.aaf.module.ai.vision.VisionMediaResolver;
 
 import lombok.RequiredArgsConstructor;
@@ -82,6 +83,28 @@ public class AssistantExecutionService {
     public ExecutionStream start(
             AssistantExecutionRequest request, TeamTarget team, String threadId, String runId) {
         return start(request, RunIdentity.create(threadId, runId), team);
+    }
+
+    /** 当前用户可用 Assistant 摘要（AAF-107 #10708），供前端角色/技能选择器展示真实可选项。 */
+    public List<AssistantSummaryVO> availableAssistants() {
+        var identity = identity();
+        var tenantId = new TenantId(identity.orgId().toString());
+        var userId = new UserId(identity.ownerId().toString());
+        return assistantDefinitions.findAvailableForUser(tenantId, userId).stream()
+                .map(
+                        definition ->
+                                new AssistantSummaryVO(
+                                        definition.assistantId().value(),
+                                        definition.persona().name(),
+                                        definition.defaultRole().key(),
+                                        definition.roles().stream()
+                                                .map(
+                                                        role ->
+                                                                new AssistantSummaryVO
+                                                                        .RoleSummaryVO(
+                                                                        role.key(), role.name()))
+                                                .toList()))
+                .toList();
     }
 
     private ExecutionStream start(
@@ -560,6 +583,34 @@ public class AssistantExecutionService {
         return java.util.Collections.unmodifiableSet(candidates);
     }
 
+    /**
+     * 仅凭显式 Skill 唯一定位 Role（AAF-107 #10708）：与 {@code DefaultRoleSelector.selectByExplicitSkill}
+     * 同一匹配规则——只在当前 Assistant 已发布 Role 范围内查找， SYSTEM/Assistant 层 ON_DEMAND Skill（不挂在任何 Role
+     * 下）视为技能无法定位角色，直接 fail closed。 命中多个非默认 Role 时，若默认 Role 恰好也持有该 Skill 则采用默认 Role 兜底，否则 fail
+     * closed 不猜测。
+     */
+    private static com.xuejiai.aaf.framework.intelligent.assistant.model.Role roleByExplicitSkill(
+            AssistantDefinition definition, String skillKey, Set<String> systemOnDemandSkillKeys) {
+        if (systemOnDemandSkillKeys.contains(skillKey)) {
+            throw exception(EXECUTION_ROUTE_SKILL_NOT_AVAILABLE);
+        }
+        var matches =
+                definition.roles().stream()
+                        .filter(role -> role.onDemandSkillKeys().contains(skillKey))
+                        .toList();
+        if (matches.isEmpty()) {
+            throw exception(EXECUTION_ROUTE_SKILL_NOT_AVAILABLE);
+        }
+        if (matches.size() > 1) {
+            var defaultRole = definition.defaultRole();
+            if (defaultRole.onDemandSkillKeys().contains(skillKey)) {
+                return defaultRole;
+            }
+            throw exception(EXECUTION_SKILL_AMBIGUOUS_ROLE);
+        }
+        return matches.getFirst();
+    }
+
     static ExecutionIntent executionIntent(
             AssistantExecutionRequest request,
             AssistantDefinition definition,
@@ -597,28 +648,34 @@ public class AssistantExecutionService {
                                 actionAuthorizationMode, Set.of()),
                         trustedWorkspaceId);
             }
-            if (roleKey == null || skillKey == null) {
-                throw exception(EXECUTION_CONVERSATIONAL_ROUTE_INCOMPLETE);
-            }
             if (routeConstraint != ExecutionIntent.RouteConstraint.FIXED) {
                 throw exception(EXECUTION_CONVERSATIONAL_FIXED_ROUTE_REQUIRED);
             }
+            // role/skill 各自独立锁定（AAF-107 #10708）：只锁角色时技能仍开放选择（route.skillKey()==null，
+            // 消费方 AssistantApplicationService 据此保持技能候选集不收窄）；只锁技能时按技能唯一定位角色
+            // （与 DefaultRoleSelector.selectByExplicitSkill 同一匹配规则：唯一命中直接采用，命中多个非默认
+            // Role 时 fail closed，不猜测）；两者都给时行为不变。
             final com.xuejiai.aaf.framework.intelligent.assistant.model.Role role;
-            try {
-                role = definition.requireRole(roleKey);
-            } catch (IllegalArgumentException exception) {
-                throw exception(EXECUTION_ROUTE_ROLE_NOT_FOUND);
-            }
-            if (!candidateOnDemandSkillKeys(definition, role, systemOnDemandSkillKeys)
-                    .contains(skillKey)) {
-                throw exception(EXECUTION_ROUTE_SKILL_NOT_AVAILABLE);
+            if (roleKey != null) {
+                try {
+                    role = definition.requireRole(roleKey);
+                } catch (IllegalArgumentException exception) {
+                    throw exception(EXECUTION_ROUTE_ROLE_NOT_FOUND);
+                }
+                if (skillKey != null
+                        && !candidateOnDemandSkillKeys(definition, role, systemOnDemandSkillKeys)
+                                .contains(skillKey)) {
+                    throw exception(EXECUTION_ROUTE_SKILL_NOT_AVAILABLE);
+                }
+            } else {
+                role = roleByExplicitSkill(definition, skillKey, systemOnDemandSkillKeys);
             }
             return new ExecutionIntent(
                     interactionMode,
                     routeConstraint,
                     clarificationPolicy,
                     new ExecutionIntent.ResolvedRoute(
-                            roleKey, skillKey, definition.version().value()),
+                            role.key(), skillKey, definition.version().value()),
                     ArtifactPolicy.returnOnly(OutputKind.MESSAGE, "text/markdown"),
                     new ExecutionIntent.ActionAuthorizationPolicy(
                             actionAuthorizationMode, Set.of()),
