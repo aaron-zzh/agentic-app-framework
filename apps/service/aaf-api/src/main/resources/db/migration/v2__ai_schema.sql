@@ -547,7 +547,7 @@ CREATE TABLE ai_skill_definition (
     deleted            BOOLEAN      NOT NULL DEFAULT FALSE,
     remark             TEXT,
     CONSTRAINT chk_ai_skill_definition_visibility
-        CHECK (visibility IN ('PRIVATE', 'WORKSPACE', 'PUBLIC'))
+        CHECK (visibility IN ('PRIVATE', 'WORKSPACE', 'PUBLIC', 'INTERNAL'))
 );
 
 CREATE TABLE ai_system_skill_binding (

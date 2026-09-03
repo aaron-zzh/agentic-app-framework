@@ -1045,7 +1045,15 @@ WITH seeded_skill (code, name, summary, content) AS (
     INSERT INTO ai_skill_definition (
         code, name, summary, locale, visibility, built_in, create_time, update_time
     )
-    SELECT code, name, summary, 'zh-CN', 'PUBLIC', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+    -- builtin-* 是模型内部语义指导（自我认知/自学习/理解用户/任务复杂度判断等元认知能力，通过 USE WHEN
+    -- 触发），不是用户主动选用的功能模板，visibility=INTERNAL 使其不出现在 /system/skills/public、
+    -- /visible 等用户可见目录（SkillService.publicDirectorySpec/visibleDirectorySpec 只认
+    -- PUBLIC/WORKSPACE），但不影响 Role/Assistant/ai_system_skill_binding 的绑定与运行时执行——
+    -- 那条链路（DefaultRoleSelector/SkillSelectionPort 等）按 code 精确查找，不经过 visibility 过滤。
+    -- 本 CTE 块同时包含 aigc-image-gen/aigc-copywriting/aigc-video-gen 三个业务类技能，保持 PUBLIC。
+    SELECT code, name, summary, 'zh-CN',
+           CASE WHEN code LIKE 'builtin-%' THEN 'INTERNAL' ELSE 'PUBLIC' END,
+           TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
     FROM seeded_skill
     RETURNING id, code
 ), created_versions AS (
@@ -1119,6 +1127,23 @@ INSERT INTO ai_system_skill_binding (
 SELECT skill.id, 'ALWAYS', TRUE, 100, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 FROM ai_skill_definition skill
 WHERE skill.code = 'builtin-self-awareness'
+  AND skill.current_version_id IS NOT NULL
+  AND skill.deleted = FALSE
+ON CONFLICT (skill_id) DO UPDATE SET
+    activation_mode = EXCLUDED.activation_mode,
+    enabled = EXCLUDED.enabled,
+    sort_order = EXCLUDED.sort_order,
+    update_time = CURRENT_TIMESTAMP,
+    deleted = FALSE;
+
+-- 自学习全局生效（原绑定在 platform-guide Role，2026-09-03 迁移）：与 builtin-self-awareness 同类，
+-- 是任何对话场景都可能触发的元认知能力（用户反馈结果错误时），不应局限于某个具体 Role 才能使用。
+INSERT INTO ai_system_skill_binding (
+    skill_id, activation_mode, enabled, sort_order, create_time, update_time, deleted
+)
+SELECT skill.id, 'ALWAYS', TRUE, 105, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
+FROM ai_skill_definition skill
+WHERE skill.code = 'builtin-self-learning'
   AND skill.current_version_id IS NOT NULL
   AND skill.deleted = FALSE
 ON CONFLICT (skill_id) DO UPDATE SET
@@ -1946,7 +1971,19 @@ INSERT INTO ai_role (
 ) VALUES (
     1, 'system.role.platform-guide', '平台向导',
     'AAF 平台咨询、只读故障排查和人工转接',
-    '[{"skillKey":"builtin-self-learning","activationMode":"ON_DEMAND"},{"skillKey":"builtin-skill-creation","activationMode":"ON_DEMAND"},{"skillKey":"builtin-tool-generation","activationMode":"ON_DEMAND"}]', '["support.handoff","context.load"]',
+    '[{"skillKey":"builtin-skill-creation","activationMode":"ON_DEMAND"},{"skillKey":"builtin-tool-generation","activationMode":"ON_DEMAND"}]', '["support.handoff","context.load"]',
+    'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
+) ON CONFLICT (id) DO NOTHING;
+
+-- 默认用户模板的中立通用 Role：不限定具体领域职能，作为兜底入口按用户意图动态路由到其他 Role/Skill；
+-- "平台向导"改为普通非默认 Role，避免默认 Role 的命名限定了其"应覆盖任意任务"的定位。
+INSERT INTO ai_role (
+    id, code, name, description, skill_ids, tool_whitelist, status, owner_id,
+    create_time, update_time, deleted
+) VALUES (
+    4, 'system.role.generalist', '通用助理',
+    '不限定具体领域，按用户意图动态路由到其他角色或技能；无匹配意图时提供通用协助',
+    '[]', '["context.load"]',
     'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
@@ -1957,7 +1994,7 @@ INSERT INTO ai_role (
 ) VALUES (
     3, 'system.role.customer-service', '客服专员',
     '面向访客的产品咨询、知识问答和人工转接',
-    '[{"skillKey":"builtin-self-learning","activationMode":"ON_DEMAND"}]', '["support.handoff"]',
+    '[]', '["support.handoff"]',
     'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
@@ -1983,12 +2020,13 @@ INSERT INTO ai_assistant (
     'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
--- 用户模板的 Role 绑定；平台向导为默认 Role。
+-- 用户模板的 Role 绑定；通用助理为默认 Role，平台向导降级为普通角色。
 INSERT INTO ai_assistant_role (
     assistant_id, role_id, is_default, sort_order, create_time, update_time, deleted
 ) VALUES
-    (1, 1, TRUE, 100, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
-    (1, 2, FALSE, 90, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+    (1, 1, FALSE, 90, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+    (1, 2, FALSE, 80, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+    (1, 4, TRUE, 100, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
     (2, 3, TRUE, 100, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE)
 ON CONFLICT (assistant_id, role_id) DO NOTHING;
 
