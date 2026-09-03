@@ -28,7 +28,7 @@ import {
   X
 } from "lucide-react"
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
@@ -56,8 +56,8 @@ interface ChatterToolbarProps {
 }
 
 const FALLBACK_ROLES = [
-  { roleId: "default-generalist", name: "通用助理", avatar: undefined },
-  { roleId: "content-creator-role", name: "内容创作", avatar: undefined }
+  { roleKey: "default-generalist", name: "通用助理" },
+  { roleKey: "content-creator-role", name: "内容创作" }
 ]
 
 function getAvailableTargets(preset: ChatterPreset): ChatterTarget["type"][] {
@@ -112,14 +112,13 @@ export function ChatterToolbar({
   const roles = assistants
     ? assistants.flatMap((a) =>
         (a.roles ?? []).map((r) => ({
-          roleId: r.roleId,
-          name: (a.roles?.length ?? 0) > 1 ? `${a.name} · ${r.name}` : a.name,
-          avatar: a.avatar
+          roleKey: r.roleKey,
+          name: (a.roles?.length ?? 0) > 1 ? `${a.name} · ${r.name}` : a.name
         }))
       )
     : FALLBACK_ROLES
   const currentRole =
-    roles.find((r) => r.roleId === (target.agentRole ?? "default-generalist")) ?? roles[0]
+    roles.find((r) => r.roleKey === (target.agentRole ?? "default-generalist")) ?? roles[0]
 
   return (
     <div
@@ -164,7 +163,6 @@ export function ChatterToolbar({
             >
               <SelectTrigger className="h-7 w-auto gap-1.5 border-none bg-muted/50 px-2 text-xs">
                 <Avatar className="size-4">
-                  <AvatarImage src={currentRole?.avatar} />
                   <AvatarFallback className="text-[8px]">
                     {currentRole?.name?.charAt(0)}
                   </AvatarFallback>
@@ -173,10 +171,9 @@ export function ChatterToolbar({
               </SelectTrigger>
               <SelectContent>
                 {roles.map((r, i) => (
-                  <SelectItem key={r.roleId ?? i} value={r.roleId}>
+                  <SelectItem key={r.roleKey ?? i} value={r.roleKey}>
                     <span className="flex items-center gap-2">
                       <Avatar className="size-5">
-                        <AvatarImage src={r.avatar} />
                         <AvatarFallback className="text-[9px]">{r.name.charAt(0)}</AvatarFallback>
                       </Avatar>
                       <span>{r.name}</span>

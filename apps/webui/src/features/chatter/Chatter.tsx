@@ -45,9 +45,9 @@ function presetToTarget(props: ChatterProps): ChatterTarget {
     case "livechat":
       return { type: "user", userId: props.targetUserId }
     case "guest":
-      return { type: "ai", agentRole: "customer-service" }
+      return { type: "ai", agentRole: "system.role.customer-service" }
     default:
-      return { type: "ai", agentRole: props.agentRole }
+      return { type: "ai", agentRole: props.agentRole, agentSkill: props.agentSkill }
   }
 }
 

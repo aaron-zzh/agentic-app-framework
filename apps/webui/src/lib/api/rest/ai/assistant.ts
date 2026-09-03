@@ -7,19 +7,17 @@ import { useQuery } from "@tanstack/react-query"
 
 import { backendApi } from "../backend-client"
 
-/** 助理下的角色条目 */
+/** 助理下的角色条目；{@code roleKey} 是稳定业务码（如 system.role.content-creator），非数据库自增 ID。 */
 export interface RoleItem {
-  roleId: string
+  roleKey: string
   name: string
-  description?: string
 }
 
 /** 助理列表项（含角色列表） */
 export interface AssistantItem {
   assistantId: string
   name: string
-  avatar?: string
-  defaultRoleId: string
+  defaultRoleKey: string
   roles: RoleItem[]
 }
 

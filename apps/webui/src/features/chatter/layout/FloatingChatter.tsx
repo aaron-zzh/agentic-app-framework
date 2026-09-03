@@ -47,8 +47,8 @@ export function FloatingChatter({ availableModes }: FloatingChatterProps = {}) {
     isAuthenticated && currentPageId
       ? getConfig(currentPageId)
       : isAuthenticated
-        ? { preset: "ai" as const, agentRole: "default-generalist" }
-        : { preset: "guest" as const, agentRole: "customer-service" }
+        ? { preset: "ai" as const, agentRole: undefined }
+        : { preset: "guest" as const, agentRole: "system.role.customer-service" }
 
   // 未登录访客挂载时记录一条 VISIT lead；24h 节流避免每次跳页/刷新刷数据
   useEffect(() => {

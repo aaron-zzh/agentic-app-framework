@@ -56,8 +56,8 @@ export function GlobalChatter({ availableModes = [] }: GlobalChatterProps = {}) 
     isAuthenticated && currentPageId
       ? getConfig(currentPageId)
       : isAuthenticated
-        ? { preset: "ai" as const, open: false, agentRole: "default-generalist" }
-        : { preset: "guest" as const, open: false, agentRole: "customer-service" }
+        ? { preset: "ai" as const, open: false, agentRole: undefined }
+        : { preset: "guest" as const, open: false, agentRole: "system.role.customer-service" }
 
   const [target, setTarget] = useState<ChatterTarget>({ type: "ai", agentRole: config.agentRole })
   const [attachments, setAttachments] = useState<ChatterDropItem[]>([])

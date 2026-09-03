@@ -28,7 +28,7 @@ export default function StudioChatPage() {
   )
 
   // code 作为稳定路由键交给后端助理选择已发布版本。
-  const agentRole = skillCode ?? undefined
+  const agentSkill = skillCode ?? undefined
 
   const handleClearSkill = () => {
     router.replace("/studio/chat")
@@ -55,7 +55,7 @@ export default function StudioChatPage() {
       )}
 
       <div className="min-h-0 flex-1">
-        <Chatter preset="ai" layout="page" agentRole={agentRole} persist hideToolbar />
+        <Chatter preset="ai" layout="page" agentSkill={agentSkill} persist hideToolbar />
       </div>
     </div>
   )

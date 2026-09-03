@@ -7,7 +7,7 @@
 
 import { Check, ChevronDown } from "lucide-react"
 import { useState } from "react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   Command,
   CommandEmpty,
@@ -21,7 +21,7 @@ import { useAssistants } from "@/lib/api/rest/ai"
 
 interface RoleSelectorProps {
   value: string
-  onChange: (roleId: string) => void
+  onChange: (roleKey: string) => void
 }
 
 export function RoleSelector({ value, onChange }: RoleSelectorProps) {
@@ -29,9 +29,9 @@ export function RoleSelector({ value, onChange }: RoleSelectorProps) {
   const { data: assistants = [] } = useAssistants()
 
   const currentAssistant = assistants.find(
-    (a) => a.assistantId === value || (a.roles ?? []).some((r) => r.roleId === value)
+    (a) => a.assistantId === value || (a.roles ?? []).some((r) => r.roleKey === value)
   )
-  const currentRole = currentAssistant?.roles?.find((r) => r.roleId === value)
+  const currentRole = currentAssistant?.roles?.find((r) => r.roleKey === value)
   const displayName = currentAssistant
     ? currentRole
       ? `${currentAssistant.name} · ${currentRole.name}`
@@ -44,7 +44,6 @@ export function RoleSelector({ value, onChange }: RoleSelectorProps) {
         {currentAssistant ? (
           <>
             <Avatar className="size-4">
-              <AvatarImage src={currentAssistant.avatar} />
               <AvatarFallback className="text-[8px]">
                 {currentAssistant.name.charAt(0)}
               </AvatarFallback>
@@ -76,7 +75,6 @@ export function RoleSelector({ value, onChange }: RoleSelectorProps) {
                     className={`gap-2 text-xs${idx > 0 ? "mt-1" : ""}`}
                   >
                     <Avatar className="size-4 shrink-0">
-                      <AvatarImage src={assistant.avatar} />
                       <AvatarFallback className="text-[8px]">
                         {assistant.name.charAt(0)}
                       </AvatarFallback>
@@ -86,16 +84,16 @@ export function RoleSelector({ value, onChange }: RoleSelectorProps) {
                   </CommandItem>
                   {(assistant.roles ?? []).map((role) => (
                     <CommandItem
-                      key={role.roleId}
+                      key={role.roleKey}
                       value={`${assistant.name} ${role.name}`}
                       onSelect={() => {
-                        onChange(role.roleId)
+                        onChange(role.roleKey)
                         setOpen(false)
                       }}
                       className="gap-2 pl-8 text-xs"
                     >
                       <span className="flex-1 truncate text-muted-foreground">{role.name}</span>
-                      {value === role.roleId && <Check className="size-3 shrink-0" />}
+                      {value === role.roleKey && <Check className="size-3 shrink-0" />}
                     </CommandItem>
                   ))}
                 </>

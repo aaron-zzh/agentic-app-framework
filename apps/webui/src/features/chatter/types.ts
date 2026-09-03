@@ -23,6 +23,8 @@ export const DEFAULT_TASK_MODEL_SELECTION: TaskModelSelection = { mode: "AUTO" }
 export interface ChatterTarget {
   type: "ai" | "kiro" | "user"
   agentRole?: string
+  /** 显式指定 Skill code（AAF-107 #10708），与 agentRole 各自独立可选。 */
+  agentSkill?: string
   userId?: string
   /** 稳定 Assistant ID，由 AG-UI initialState 发送。 */
   assistantId?: string
@@ -57,6 +59,8 @@ export interface ChatterProps {
   layout: ChatterLayout
   targetUserId?: string
   agentRole?: string
+  /** 显式指定 Skill code（AAF-107 #10708），与 agentRole 各自独立可选。 */
+  agentSkill?: string
   persist?: boolean
   defaultSize?: number
   minSize?: number

@@ -75,6 +75,22 @@ public final class JpaAssistantDefinitionAdapter implements AssistantDefinitionP
                 .map(this::toDomain);
     }
 
+    @Override
+    public List<AssistantDefinition> findAvailableForUser(TenantId tenantId, UserId userId) {
+        Objects.requireNonNull(tenantId, "tenantId 不能为空");
+        Objects.requireNonNull(userId, "userId 不能为空");
+        var numericUserId = numericId(userId.value());
+        if (numericUserId == null) {
+            return List.of();
+        }
+        // userId=0 是 SYSTEM_MANAGED（全局共享）Assistant 的 sentinel 值，见 ownership(...)。
+        return assistants
+                .findByUserIdInAndStatusOrderByIdAsc(List.of(0L, numericUserId), ACTIVE)
+                .stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
     private AssistantDefinition toDomain(AssistantEntity assistant) {
         var persona =
                 personas.findById(assistant.getPersonaId())
