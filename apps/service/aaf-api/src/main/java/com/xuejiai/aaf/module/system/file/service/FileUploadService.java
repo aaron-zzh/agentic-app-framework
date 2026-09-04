@@ -107,8 +107,8 @@ public class FileUploadService implements FileStoragePort {
     }
 
     @Override
-    public List<String> prepareCurrentOwnerImageInputs(List<Long> fileIds) {
-        return fileRecordService.prepareCurrentOwnerImageInputs(fileIds);
+    public List<String> resolveImageData(List<Long> fileIds) {
+        return fileRecordService.resolveImageData(fileIds);
     }
 
     @Override

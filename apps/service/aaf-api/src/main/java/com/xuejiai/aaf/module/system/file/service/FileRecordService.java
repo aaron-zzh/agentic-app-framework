@@ -244,7 +244,7 @@ public class FileRecordService implements FileRecordApi {
     }
 
     @Override
-    public List<String> prepareCurrentOwnerImageInputs(List<Long> fileIds) {
+    public List<String> resolveImageData(List<Long> fileIds) {
         if (fileIds == null || fileIds.isEmpty()) {
             return List.of();
         }

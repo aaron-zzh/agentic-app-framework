@@ -196,17 +196,17 @@ public class AigcTaskController
                     }
                     case IMAGE_PROCESS -> {
                         var p = dto.params() != null ? dto.params() : Map.of();
-                        String imageUrl = toString(p.get("imageUrl"));
-                        if (imageUrl == null || imageUrl.isBlank()) {
+                        Long imageFileId = toLong(p.get("imageFileId"));
+                        if (imageFileId == null) {
                             throw new BusinessException(
-                                    GlobalErrorCode.BAD_REQUEST, "IMAGE_PROCESS 缺少 imageUrl");
+                                    GlobalErrorCode.BAD_REQUEST, "IMAGE_PROCESS 缺少 imageFileId");
                         }
                         String method = toString(p.get("method"));
                         if (method == null || method.isBlank()) {
                             method = "SEGMENT_HD_COMMON_IMAGE";
                         }
                         yield taskService.submitImageProcessTask(
-                                userId, imageUrl, method, dto.projectId());
+                                userId, imageFileId, method, dto.projectId());
                     }
                 };
         // 技能 systemPrompt 回写（不影响任务提交本身）

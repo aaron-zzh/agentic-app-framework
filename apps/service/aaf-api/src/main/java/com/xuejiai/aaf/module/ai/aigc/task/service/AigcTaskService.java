@@ -474,21 +474,26 @@ public class AigcTaskService
      * <p>积分按 {@code IMAGE_PROCESS} 分类预检。计费标准：阿里云高清人体分割 0.007 元/次， 乘以系统加价倍率（默认 5x），向上取整为积分（100 积分 =
      * 1 元），最低 1 积分。
      *
+     * <p>图像输入统一按 fileId 传递并校验所有权，避免本地存储场景下把受权限保护的 {@code /api/system/files/{id}/content} URL 直接交给外部
+     * SDK 下载（会 401）。真正的图像输入串（本地 data: URL / OSS 签名 URL）延迟到执行时通过 {@link
+     * FileStoragePort#resolveImageData} 解析。
+     *
      * @param userId 用户 ID
-     * @param imageUrl 待处理图像 URL
+     * @param imageFileId 待处理图像的文件 ID
      * @param method 处理方式（如 SEGMENT_HD_BODY）
      * @param projectId 所属项目 ID，可空
      * @return 任务 ID
      */
     @Transactional
     public Long submitImageProcessTask(
-            Long userId, String imageUrl, String method, Long projectId) {
-        if (imageUrl == null || imageUrl.isBlank()) {
+            Long userId, Long imageFileId, String method, Long projectId) {
+        if (imageFileId == null) {
             throw exception(ErrorCodeConstants.AIGC_TASK_IMAGE_URL_EMPTY);
         }
         if (method == null || method.isBlank()) {
             throw exception(ErrorCodeConstants.AIGC_TASK_METHOD_EMPTY);
         }
+        var sourceFile = fileService.requireCurrentOwner(imageFileId);
 
         // 0.002~0.007 元/次 × 100 积分/元 × 加价倍率，向上取整，最低 1 积分
         long estimatedCost =
@@ -506,11 +511,21 @@ public class AigcTaskService
                 buildTask(
                         userId,
                         AigcTaskTypeEnum.IMAGE_PROCESS.getCode(),
-                        imageUrl,
+                        sourceFile.url(),
                         "aliyun:imageseg",
                         "阿里云图像处理",
                         projectId);
-        task.setParams(JsonUtils.toJsonString(Map.of("imageUrl", imageUrl, "method", method)));
+        task.setParams(
+                JsonUtils.toJsonString(Map.of("imageFileId", imageFileId, "method", method)));
+
+        // 固定单价即时扣减（图像分割非模型驱动计费，不走 settleByUsage），失败时任务转失败并自动退还
+        Long creditTxId =
+                creditGuard.settleFixedReturningTxId(
+                        userId,
+                        estimatedCost,
+                        CreditTransactionCategoryEnum.IMAGE_PROCESS.getCode(),
+                        "图像处理-" + method);
+        task.setCreditTxId(creditTxId);
         taskRepo.save(task);
         eventService.push(userId, EVENT_CREATED, toVO(task));
 
@@ -520,7 +535,7 @@ public class AigcTaskService
                 new TransactionSynchronization() {
                     @Override
                     public void afterCommit() {
-                        taskExecutor.submitImageProcessSync(taskId, imageUrl, method, mockUrl);
+                        taskExecutor.submitImageProcessSync(taskId, imageFileId, method, mockUrl);
                     }
                 });
         log.info("[submitImageProcessTask] 图像处理任务已创建: taskId={}, method={}", task.getId(), method);

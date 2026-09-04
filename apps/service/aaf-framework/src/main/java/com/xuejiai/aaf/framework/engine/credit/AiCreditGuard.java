@@ -37,6 +37,17 @@ public interface AiCreditGuard {
         // 实现类按需覆写。
     }
 
+    /**
+     * 按固定单价结算并返回积分流水 ID（用于非模型驱动的固定计费场景，如图像分割）。
+     *
+     * @return 扣减成功的积分流水 ID；未覆写或扣减失败返回 null
+     */
+    default Long settleFixedReturningTxId(
+            Long userId, long creditCost, String capability, String remark) {
+        settleFixed(userId, creditCost, capability);
+        return null;
+    }
+
     /** 按真实模型与用量结算。model 不能为空。 */
     void settleByUsage(Long userId, AiModel model, AiUsage usage, String capability, String remark);
 

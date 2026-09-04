@@ -249,7 +249,7 @@ public class AigcTaskExecutor {
         }
         var svc = aiServiceRegistry.get(ImageGenerationService.class, aiModel);
         if (p.getImageFileIds() != null && !p.getImageFileIds().isEmpty()) {
-            p.setImageUrls(fileService.prepareCurrentOwnerImageInputs(p.getImageFileIds()));
+            p.setImageUrls(fileService.resolveImageData(p.getImageFileIds()));
         }
         log.info(
                 "[图片任务] modelId={}, imageFileCount={}, prompt={}",
@@ -764,14 +764,11 @@ public class AigcTaskExecutor {
                             : null;
 
             List<Long> referenceImageFileIds = toParamLongList(p.get("referenceImageFileIds"));
-            List<String> referenceImageUrls =
-                    fileService.prepareCurrentOwnerImageInputs(referenceImageFileIds);
+            List<String> referenceImageUrls = fileService.resolveImageData(referenceImageFileIds);
             Long imageFileId = toParamLong(p.get("imageFileId"));
             String imageUrl =
                     imageFileId != null
-                            ? fileService
-                                    .prepareCurrentOwnerImageInputs(List.of(imageFileId))
-                                    .getFirst()
+                            ? fileService.resolveImageData(List.of(imageFileId)).getFirst()
                             : null;
 
             boolean isVolcengine =
@@ -905,7 +902,7 @@ public class AigcTaskExecutor {
      * <p>{@code @OrgIgnore} 用途见 {@link #submitSync}。
      *
      * @param taskId 内部任务 ID
-     * @param imageUrl 待处理图像 URL
+     * @param imageFileId 待处理图像的文件 ID
      * @param method 处理方式，如 SEGMENT_HD_BODY
      * @param mockUrl Mock 模式固定返回 URL，null 表示真实调用
      */
@@ -913,17 +910,17 @@ public class AigcTaskExecutor {
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void submitImageProcessSync(
-            Long taskId, String imageUrl, String method, String mockUrl) {
+            Long taskId, Long imageFileId, String method, String mockUrl) {
         var task = taskRepo.findById(taskId).orElse(null);
         if (task == null) return;
         runInOwnerContext(
                 task,
                 "aigc-image-process",
-                () -> submitImageProcessSyncInternal(task, taskId, imageUrl, method, mockUrl));
+                () -> submitImageProcessSyncInternal(task, taskId, imageFileId, method, mockUrl));
     }
 
     private void submitImageProcessSyncInternal(
-            AigcTask task, Long taskId, String imageUrl, String method, String mockUrl) {
+            AigcTask task, Long taskId, Long imageFileId, String method, String mockUrl) {
         try {
             task.setStatus(AigcTaskStatusEnum.RUNNING.getCode());
             taskRepo.save(task);
@@ -941,9 +938,12 @@ public class AigcTaskExecutor {
                 if (imageProcessService == null) {
                     throw new IllegalStateException("ImageProcessService 未配置，请检查阿里云 OSS 凭证");
                 }
+                // 按存储类型分流解析图像输入：本地存储→data: Base64 URL（避免受权限保护的
+                // /api/system/files/{id}/content 直接暴露给外部 SDK 导致 401）；OSS/远程存储→签名 URL。
+                String imageInput = fileService.resolveImageData(List.of(imageFileId)).get(0);
                 var result =
                         imageProcessService.process(
-                                new ImageProcessService.ProcessRequest(imageUrl, method));
+                                new ImageProcessService.ProcessRequest(imageInput, method));
 
                 if ("PENDING".equals(result.status())) {
                     task.setProviderTaskId(result.taskId());
@@ -979,7 +979,8 @@ public class AigcTaskExecutor {
                             null,
                             null,
                             null,
-                            JsonUtils.toJsonString(Map.of("imageUrl", imageUrl, "method", method)));
+                            JsonUtils.toJsonString(
+                                    Map.of("imageFileId", imageFileId, "method", method)));
             task.setOutputMediaVersionId(media.currentVersion().id());
             task.setStatus(AigcTaskStatusEnum.SUCCESS.getCode());
             task.setUpdateTime(LocalDateTime.now());
@@ -991,6 +992,7 @@ public class AigcTaskExecutor {
                     task.getOutputMediaVersionId());
         } catch (Exception e) {
             log.error("[submitImageProcessSync] 处理失败: taskId={}", taskId, e);
+            refundIfSettled(task, e.getMessage());
             task.setStatus(AigcTaskStatusEnum.FAIL.getCode());
             task.setErrorMsg(e.getMessage());
             task.setUpdateTime(LocalDateTime.now());

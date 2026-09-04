@@ -266,6 +266,25 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
     }
 
     @Override
+    public Long settleFixedReturningTxId(
+            Long userId, long creditCost, String capability, String remark) {
+        Long creditTxId =
+                doSpend(
+                        userId,
+                        creditCost,
+                        CreditTransactionCategoryEnum.fromCapability(capability),
+                        remark);
+        if (creditTxId == null) return null;
+        log.info(
+                "AI 固定价结算成功: userId={}, capability={}, credit={}, txId={}",
+                userId,
+                capability,
+                creditCost,
+                creditTxId);
+        return creditTxId;
+    }
+
+    @Override
     public Long refund(Long creditTxId, String reason) {
         if (creditTxId == null) return null;
         try {

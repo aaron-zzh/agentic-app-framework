@@ -20,6 +20,6 @@ public interface ErrorCodeConstants {
     ErrorCode AIGC_TASK_NOT_FOUND = ErrorCode.of(7_000_003, "任务不存在");
     ErrorCode AIGC_TASK_VOICE_TEXT_EMPTY = ErrorCode.of(7_000_004, "配音文本不能为空");
     ErrorCode AIGC_TASK_VOICE_TEXT_TOO_LONG = ErrorCode.of(7_000_005, "配音文本不能超过 {0} 字");
-    ErrorCode AIGC_TASK_IMAGE_URL_EMPTY = ErrorCode.of(7_000_006, "图像 URL 不能为空");
+    ErrorCode AIGC_TASK_IMAGE_URL_EMPTY = ErrorCode.of(7_000_006, "图像文件 ID 不能为空");
     ErrorCode AIGC_TASK_METHOD_EMPTY = ErrorCode.of(7_000_007, "处理方式不能为空");
 }
