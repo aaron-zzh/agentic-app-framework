@@ -37,6 +37,7 @@ import {
   useMaterializeAigcProject
 } from "@/lib/api/rest/ai/aigc"
 import { useDocList } from "@/lib/api/rest/system/document"
+import { paths } from "@/lib/constants/paths"
 import { cn } from "@/lib/utils"
 
 const PRODUCTION_MODE_LABELS: Record<AigcProductionMode, string> = {
@@ -192,7 +193,7 @@ function CreateProjectDialog({
     submitLock.current = true
     try {
       const selectedProfile = profiles.find((profile) => profile.id === brandProfileId)
-      const project = await materialize.mutateAsync({
+      const result = await materialize.mutateAsync({
         name: trimmedName,
         projectTypeCode: blueprint.projectTypeCode,
         blueprintVersionId: blueprint.id,
@@ -204,10 +205,11 @@ function CreateProjectDialog({
           .filter((channel) => channels.includes(channel.code))
           .map((channel) => channel.id),
         documentVersionIds,
-        briefJson: brief.trim() || undefined
+        briefJson: brief.trim() || undefined,
+        coverMode: "NONE"
       })
       onOpenChange(false)
-      router.push(`/studio/projects/${project.id}`)
+      router.push(paths.studio.project(result.project.id))
     } catch (error) {
       setSubmitError(materializeErrorMessage(error))
     } finally {

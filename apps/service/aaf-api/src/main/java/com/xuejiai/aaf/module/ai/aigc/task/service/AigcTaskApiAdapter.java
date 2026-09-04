@@ -10,7 +10,6 @@ import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.security.OperatorContext;
-import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
 import com.xuejiai.aaf.module.ai.aigc.task.api.AigcTaskApi;
 import com.xuejiai.aaf.module.ai.aigc.task.api.AigcTaskSubmitCommand;
 import com.xuejiai.aaf.module.ai.aigc.task.api.AigcTaskView;
@@ -29,7 +28,6 @@ public class AigcTaskApiAdapter implements AigcTaskApi {
 
     private final AigcTaskService taskService;
     private final AigcTaskRepository taskRepository;
-    private final AigcProjectApi projectApi;
     private final OperatorContext operatorContext;
 
     @Override
@@ -39,9 +37,6 @@ public class AigcTaskApiAdapter implements AigcTaskApi {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "AIGC 子任务类型不能为空");
         }
         var userId = operatorContext.currentOwnerId().orElseThrow();
-        if (command.projectId() != null) {
-            projectApi.lockForGeneratedResource(command.projectId(), userId);
-        }
         var parameters = parseParameters(command.parametersJson());
         var taskId =
                 switch (command.taskType().toUpperCase()) {

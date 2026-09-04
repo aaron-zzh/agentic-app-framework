@@ -6,7 +6,7 @@ import java.util.Set;
 
 public interface AigcProjectApi {
 
-    AigcProjectView materialize(AigcProjectMaterializeCommand command);
+    AigcProjectMaterializeView materialize(AigcProjectMaterializeCommand command);
 
     AigcProjectView requireProject(Long projectId);
 
@@ -16,6 +16,14 @@ public interface AigcProjectApi {
             Long ownerId, Long orgId, Long workspaceId, Collection<Long> documentIds);
 
     void lockForGeneratedResource(Long projectId, Long userId);
+
+    void lockForCoverMutation(Long projectId, Long userId);
+
+    boolean applyGeneratedCover(
+            Long projectId,
+            Long mediaVersionId,
+            Long expectedCoverMediaVersionId,
+            Long executionRunId);
 
     AigcProjectGraphView getGraph(Long projectId);
 

@@ -6,6 +6,7 @@ import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -39,6 +40,10 @@ public interface AigcTaskRepository extends CrudEntityRepository<AigcTask> {
     List<AigcTask> findByStatusAndType(String status, String type);
 
     List<AigcTask> findByProjectIdOrderByIdAsc(Long projectId);
+
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select task from AigcTask task where task.id = :id")
+    Optional<AigcTask> findLockedById(@Param("id") Long id);
 
     @Modifying
     @Query(

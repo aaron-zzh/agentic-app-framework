@@ -6,11 +6,12 @@
 "use client"
 
 import { useBoolean } from "@aaf/hooks"
-import { FolderKanban } from "lucide-react"
+import { FolderKanban, Pencil } from "lucide-react"
 import Link from "next/link"
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useState } from "react"
 import { GlowButton } from "@/components/studio"
+import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   ContentActionBar,
@@ -19,6 +20,7 @@ import {
   getObjectStage,
   ObjectDetailPanel,
   PROJECT_GRAPH_STAGES,
+  ProjectBasicInfoDialog,
   ProjectDocumentPanel,
   type ProjectGraphStage,
   ProjectGraphView,
@@ -66,6 +68,7 @@ export default function StudioProjectDetailPage() {
   const [canvasSession, setCanvasSession] = useState<CanvasSession | null>(null)
   const detailPanel = useBoolean(false)
   const documentPanel = useBoolean(false)
+  const basicInfoDialog = useBoolean(false)
   const setGraphFocus = useProjectGraphViewState((state) => state.setFocusObjectId)
   const { data: project, isLoading: projectLoading } = useAigcProject(validProjectId)
   const { data: documentRefs = [] } = useAigcProjectDocumentRefs(validProjectId)
@@ -164,7 +167,15 @@ export default function StudioProjectDetailPage() {
       <ProjectWorkbenchHeader
         project={project}
         view={view}
-        lifecycleActions={<ProjectLifecycleActions project={project} objects={graph.objects} />}
+        lifecycleActions={
+          <>
+            <Button variant="outline" size="sm" onClick={basicInfoDialog.onTrue}>
+              <Pencil />
+              基础信息
+            </Button>
+            <ProjectLifecycleActions project={project} objects={graph.objects} />
+          </>
+        }
         onViewChange={(nextView) => updateUrl({ view: nextView })}
         onOpenDocuments={documentPanel.onTrue}
         documentsOpen={documentPanel.value}
@@ -211,6 +222,12 @@ export default function StudioProjectDetailPage() {
           <span className="text-amber-500">已归档 · 只读</span>
         ) : null}
       </footer>
+
+      <ProjectBasicInfoDialog
+        open={basicInfoDialog.value}
+        project={project}
+        onOpenChange={basicInfoDialog.setValue}
+      />
 
       <ProjectDocumentPanel
         open={documentPanel.value}

@@ -9,7 +9,7 @@ import { backendApi } from "../../backend-client"
 import { aigcProjectKeys } from "./project"
 
 export type AigcExecutionStatus = "pending" | "running" | "succeeded" | "failed" | "canceled"
-export type AigcExecutionTargetType = "agent" | "tool" | "workflow"
+export type AigcExecutionTargetType = "agent" | "tool" | "workflow" | "unresolved"
 
 export interface AigcActionOption {
   actionKey: string

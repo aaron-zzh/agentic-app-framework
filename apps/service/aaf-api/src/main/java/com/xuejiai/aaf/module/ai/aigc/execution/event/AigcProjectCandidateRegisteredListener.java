@@ -10,6 +10,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionRunRepository;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
 import com.xuejiai.aaf.module.ai.aigc.project.event.AigcProjectCandidateRegisteredEvent;
 
 import lombok.RequiredArgsConstructor;
@@ -20,11 +21,21 @@ import lombok.RequiredArgsConstructor;
 public class AigcProjectCandidateRegisteredListener {
 
     private final AigcExecutionRunRepository runRepository;
+    private final AigcProjectApi projectApi;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onCandidateRegistered(AigcProjectCandidateRegisteredEvent event) {
-        var run = runRepository.findById(event.executionRunId()).orElse(null);
+        var snapshot = runRepository.findById(event.executionRunId()).orElse(null);
+        if (snapshot == null || !event.projectId().equals(snapshot.getProjectId())) {
+            return;
+        }
+        var project = projectApi.requireProject(event.projectId());
+        projectApi.lockForGeneratedResource(event.projectId(), project.userId());
+        if ("archived".equals(projectApi.requireProject(event.projectId()).lifecycleStage())) {
+            return;
+        }
+        var run = runRepository.findLockedById(event.executionRunId()).orElse(null);
         if (run == null
                 || !event.projectId().equals(run.getProjectId())
                 || !"running".equals(run.getStatus())) {

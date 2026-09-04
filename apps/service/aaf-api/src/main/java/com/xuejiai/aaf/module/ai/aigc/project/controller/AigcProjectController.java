@@ -70,13 +70,14 @@ public class AigcProjectController
 
     @Operation(summary = "按已发布配置物化项目")
     @PostMapping("/_materialize")
-    public Result<AigcProjectView> materialize(
-            @Valid @RequestBody AigcProjectMaterializeDTO request) {
+    public Result<com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectMaterializeView>
+            materialize(@Valid @RequestBody AigcProjectMaterializeDTO request) {
         return Result.success(
                 service.materialize(
                         new AigcProjectMaterializeCommand(
                                 OrgContext.getCurrentWorkspaceId(),
                                 request.name(),
+                                request.description(),
                                 request.projectTypeCode(),
                                 request.blueprintVersionId(),
                                 request.domainExtensionVersionId(),
@@ -84,7 +85,11 @@ public class AigcProjectController
                                 request.channelSpecVersionIds(),
                                 request.documentVersionIds(),
                                 request.productionMode(),
-                                request.briefJson())));
+                                request.briefJson(),
+                                request.coverMode(),
+                                request.coverFileId(),
+                                request.coverPrompt(),
+                                request.coverIdempotencyKey())));
     }
 
     @Operation(summary = "获取项目图谱")

@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.ai.aigc.media.controller;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -43,6 +44,12 @@ public class AigcMediaController
     @Override
     protected AigcMediaService getService() {
         return mediaService;
+    }
+
+    @Operation(summary = "按媒体版本获取媒体")
+    @GetMapping("/versions/{mediaVersionId}")
+    public Result<AigcMediaVO> getByVersionId(@PathVariable Long mediaVersionId) {
+        return Result.success(mediaService.getByVersionId(mediaVersionId));
     }
 
     @Operation(summary = "将媒体保存到资产库")

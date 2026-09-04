@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -27,7 +26,6 @@ import com.xuejiai.aaf.module.ai.aigc.media.vo.AigcMediaPageDTO;
 import com.xuejiai.aaf.module.ai.aigc.media.vo.AigcMediaUpdateDTO;
 import com.xuejiai.aaf.module.ai.aigc.media.vo.AigcMediaVO;
 import com.xuejiai.aaf.module.ai.aigc.media.vo.AigcMediaVersionVO;
-import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
 import com.xuejiai.aaf.module.system.file.api.FileRecordApi;
 import com.xuejiai.aaf.module.system.file.api.FileReference;
 
@@ -56,7 +54,6 @@ public class AigcMediaService
     private final FileRecordApi fileRecordApi;
     private final OperatorContext operatorContext;
     private final EntityManager entityManager;
-    private final ObjectProvider<AigcProjectApi> projectApiProvider;
 
     @Override
     protected AigcMediaRepository getRepository() {
@@ -107,6 +104,14 @@ public class AigcMediaService
             }
             return builder.and(predicates.toArray(Predicate[]::new));
         };
+    }
+
+    public AigcMediaVO getByVersionId(Long mediaVersionId) {
+        var userId =
+                operatorContext
+                        .currentOwnerId()
+                        .orElseThrow(() -> new BusinessException(GlobalErrorCode.UNAUTHORIZED));
+        return getByVersionId(mediaVersionId, userId);
     }
 
     @Override
@@ -163,6 +168,56 @@ public class AigcMediaService
     }
 
     @Override
+    @Transactional
+    public AigcMediaVO createFromUploadedFile(
+            com.xuejiai.aaf.module.ai.aigc.media.api.AigcUploadedMediaCommand command) {
+        Objects.requireNonNull(command, "command 不能为空");
+        Objects.requireNonNull(command.userId(), "userId 不能为空");
+        Objects.requireNonNull(command.mediaType(), "mediaType 不能为空");
+        Objects.requireNonNull(command.fileId(), "fileId 不能为空");
+        var file = fileRecordApi.requireCurrentOwner(command.fileId());
+        requireGeneratedFileOwner(command.userId(), file.uploaderId(), "上传文件");
+        if (command.mediaType() != com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaType.IMAGE
+                || file.mimeType() == null
+                || !file.mimeType().startsWith("image/")) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "项目封面必须是图片文件");
+        }
+
+        var media = new AigcMedia();
+        media.setName(
+                command.name() == null || command.name().isBlank()
+                        ? file.originalName()
+                        : command.name());
+        media.setMediaType(command.mediaType());
+        media.setSourceType(AigcMediaSourceType.UPLOAD);
+        media.setOriginalProjectId(command.originalProjectId());
+        media.setUserId(command.userId());
+        media.setOwnerId(command.userId());
+        media.setOrgId(com.xuejiai.aaf.framework.org.OrgContext.getCurrentOrgId());
+        media.setWorkspaceId(com.xuejiai.aaf.framework.org.OrgContext.getCurrentWorkspaceId());
+        media = mediaRepository.saveAndFlush(media);
+
+        var version = new AigcMediaVersion();
+        version.setMediaId(media.getId());
+        version.setVersionNo(1);
+        version.setFileId(file.fileId());
+        version.setMimeType(file.mimeType());
+        version.setSize(file.size());
+        version.setChecksum(file.contentHash());
+        version.setOwnerId(command.userId());
+        version.setOrgId(media.getOrgId());
+        version.setWorkspaceId(media.getWorkspaceId());
+        version = mediaVersionRepository.saveAndFlush(version);
+        fileRecordApi.retain(
+                version.getFileId(),
+                new FileReference(MEDIA_VERSION_REF_TYPE, version.getId(), "FILE", "PRIMARY"));
+
+        media.setCurrentVersionId(version.getId());
+        mediaRepository.save(media);
+        return toVO(media);
+    }
+
+    @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public AigcMediaVO createFromGeneratedFile(AigcGeneratedMediaCommand command) {
         Objects.requireNonNull(command, "command 不能为空");
@@ -176,11 +231,6 @@ public class AigcMediaService
         }
 
         try {
-            if (command.originalProjectId() != null) {
-                projectApiProvider
-                        .getObject()
-                        .lockForGeneratedResource(command.originalProjectId(), command.userId());
-            }
             var media = new AigcMedia();
             media.setName(
                     command.name() == null || command.name().isBlank()

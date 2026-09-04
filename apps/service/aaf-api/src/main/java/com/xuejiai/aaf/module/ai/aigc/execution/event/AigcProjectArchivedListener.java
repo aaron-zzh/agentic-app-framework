@@ -32,8 +32,16 @@ public class AigcProjectArchivedListener {
     public void onArchived(AigcProjectArchivedEvent event) {
         runRepository
                 .findByProjectIdAndStatusIn(event.projectId(), List.of("pending", "running"))
+                .stream()
+                .map(run -> run.getId())
                 .forEach(
-                        run -> {
+                        runId -> {
+                            var run = runRepository.findLockedById(runId).orElse(null);
+                            if (run == null
+                                    || !("pending".equals(run.getStatus())
+                                            || "running".equals(run.getStatus()))) {
+                                return;
+                            }
                             var runtimeTraceId = runtimeTraceId(run.getOutputPayload());
                             if (runtimeTraceId != null) {
                                 runtimeCancellationPort.cancel(

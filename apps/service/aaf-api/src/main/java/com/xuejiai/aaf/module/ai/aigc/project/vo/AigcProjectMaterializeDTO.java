@@ -2,11 +2,15 @@ package com.xuejiai.aaf.module.ai.aigc.project.vo;
 
 import java.util.List;
 
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverMode;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 public record AigcProjectMaterializeDTO(
-        @NotBlank String name,
+        @NotBlank @Size(max = 200) String name,
+        String description,
         @NotBlank String projectTypeCode,
         @NotNull Long blueprintVersionId,
         Long domainExtensionVersionId,
@@ -14,7 +18,11 @@ public record AigcProjectMaterializeDTO(
         List<Long> channelSpecVersionIds,
         List<Long> documentVersionIds,
         @NotBlank String productionMode,
-        String briefJson) {
+        String briefJson,
+        @NotNull AigcProjectCoverMode coverMode,
+        Long coverFileId,
+        String coverPrompt,
+        String coverIdempotencyKey) {
 
     public AigcProjectMaterializeDTO {
         brandProfileVersionIds =

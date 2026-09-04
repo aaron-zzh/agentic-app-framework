@@ -58,10 +58,11 @@ public class AigcActionCommandService implements AigcExecutionApi {
     private final AigcRuntimeCancellationPort runtimeCancellationPort;
     private final OperatorContext operatorContext;
     private final List<AigcActionExecutor> executors;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
     public List<AigcActionOptionVO> listActions(Long projectId) {
-        var project = requireWritableProject(projectId);
+        var project = requireWritableProject(projectId, null);
         return ACTION_LABELS.keySet().stream()
                 .map(actionKey -> toOption(project, actionKey))
                 .flatMap(Optional::stream)
@@ -72,6 +73,146 @@ public class AigcActionCommandService implements AigcExecutionApi {
     @Transactional(noRollbackFor = BusinessException.class)
     public AigcExecutionRunView submit(AigcActionCommand command) {
         return submitInternal(command, null, 0);
+    }
+
+    @Override
+    @Transactional(noRollbackFor = BusinessException.class)
+    public AigcExecutionRunView submitDeferred(AigcActionCommand command) {
+        var project = requireWritableProject(command.projectId(), command.actionKey());
+        var existing = findIdempotentRun(command);
+        if (existing.isPresent()) {
+            var run = existing.orElseThrow();
+            if ("pending".equals(run.getStatus())) {
+                publishDispatch(run, command);
+            }
+            return toApiView(run);
+        }
+
+        AigcProjectObjectView object = null;
+        AigcExecutionRun run = null;
+        try {
+            command.attachmentMediaVersionIds()
+                    .forEach(
+                            mediaVersionId ->
+                                    mediaApi.getByVersionId(mediaVersionId, project.userId()));
+            if ("project.cover.generate".equals(command.actionKey())) {
+                supersedeCoverRuns(command.projectId(), "已提交新的封面生成请求");
+            }
+            object = resolveObject(project, command);
+            var binding = bindingResolver.resolve(project, command.actionKey());
+            validateBudget(project, binding);
+            if (Boolean.TRUE.equals(binding.getConfirmationRequired()) && !command.confirmed()) {
+                throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "动作需要确认后执行");
+            }
+            run = createRun(project, object, binding, command, null, 0);
+            publishDispatch(run, command);
+            return toApiView(run);
+        } catch (RuntimeException failure) {
+            if (!"project.cover.generate".equals(command.actionKey())) {
+                throw failure;
+            }
+            var failedRun =
+                    run == null
+                            ? createFailedStartRun(project, object, command, failure)
+                            : failStartRun(run, failure);
+            return toApiView(failedRun);
+        }
+    }
+
+    @Transactional
+    public void dispatchDeferred(Long executionRunId, AigcActionCommand command) {
+        var snapshot = runRepository.findById(executionRunId).orElse(null);
+        if (snapshot == null) {
+            return;
+        }
+        var project = lockDispatchProject(snapshot);
+        if (project == null) {
+            return;
+        }
+        var run = runRepository.findLockedById(executionRunId).orElse(null);
+        if (run == null
+                || !snapshot.getProjectId().equals(run.getProjectId())
+                || !"pending".equals(run.getStatus())) {
+            return;
+        }
+        AigcProjectObjectView object = null;
+        if (run.getObjectId() != null) {
+            object =
+                    projectApi.getGraph(run.getProjectId()).objects().stream()
+                            .filter(candidate -> run.getObjectId().equals(candidate.id()))
+                            .findFirst()
+                            .orElseThrow(
+                                    () ->
+                                            new BusinessException(
+                                                    GlobalErrorCode.NOT_FOUND, "项目对象不存在"));
+        }
+        var binding = new AigcExecutionBinding();
+        binding.setTargetType(run.getTargetType());
+        binding.setTargetRef(run.getTargetRef());
+        var executor = requireExecutor(run.getTargetType());
+        executor.execute(new AigcActionContext(project, object, binding, run, command));
+    }
+
+    @Transactional
+    public void failDeferredDispatch(Long executionRunId, String errorMessage) {
+        var snapshot = runRepository.findById(executionRunId).orElse(null);
+        if (snapshot == null || lockDispatchProject(snapshot) == null) {
+            return;
+        }
+        var run = runRepository.findLockedById(executionRunId).orElse(null);
+        if (run == null
+                || !snapshot.getProjectId().equals(run.getProjectId())
+                || !"pending".equals(run.getStatus())) {
+            return;
+        }
+        run.setStatus("failed");
+        run.setErrorMessage(
+                errorMessage == null || errorMessage.isBlank() ? "执行派发失败" : errorMessage);
+        run.setEndTime(LocalDateTime.now());
+        run.setVersion(run.getVersion() + 1);
+        runRepository.save(run);
+    }
+
+    private AigcProjectView lockDispatchProject(AigcExecutionRun run) {
+        var project = projectApi.requireProject(run.getProjectId());
+        if ("project.cover.generate".equals(run.getActionKey())) {
+            projectApi.lockForCoverMutation(run.getProjectId(), project.userId());
+        } else {
+            projectApi.lockForGeneratedResource(run.getProjectId(), project.userId());
+        }
+        var currentProject = projectApi.requireProject(run.getProjectId());
+        return "archived".equals(currentProject.lifecycleStage()) ? null : currentProject;
+    }
+
+    private void publishDispatch(AigcExecutionRun run, AigcActionCommand command) {
+        eventPublisher.publishEvent(
+                new com.xuejiai.aaf.module.ai.aigc.execution.event
+                        .AigcExecutionRunDispatchRequestedEvent(run.getId(), command));
+    }
+
+    private Optional<AigcExecutionRun> findIdempotentRun(AigcActionCommand command) {
+        if (command.idempotencyKey() == null || command.idempotencyKey().isBlank()) {
+            return Optional.empty();
+        }
+        return runRepository
+                .findByProjectIdAndActionKeyAndDeletedFalseOrderByIdDesc(
+                        command.projectId(), command.actionKey())
+                .stream()
+                .filter(
+                        run ->
+                                command.idempotencyKey()
+                                        .equals(text(run.getInputPayload(), "idempotencyKey")))
+                .findFirst();
+    }
+
+    private AigcActionExecutor requireExecutor(String targetType) {
+        return executors.stream()
+                .filter(candidate -> candidate.supports(targetType))
+                .findFirst()
+                .orElseThrow(
+                        () ->
+                                new BusinessException(
+                                        GlobalErrorCode.BAD_REQUEST, "不支持的执行目标: " + targetType));
     }
 
     @Override
@@ -124,9 +265,92 @@ public class AigcActionCommandService implements AigcExecutionApi {
         return toApiView(requireAccessibleRun(executionRunId));
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public AigcExecutionRunView latestProjectCoverRun(Long projectId) {
+        projectApi.requireProject(projectId);
+        return runRepository
+                .findByProjectIdAndActionKeyAndDeletedFalseOrderByIdDesc(
+                        projectId, "project.cover.generate")
+                .stream()
+                .filter(
+                        run ->
+                                !Boolean.TRUE.equals(
+                                        value(run.getOutputPayload(), "coverSuperseded")))
+                .findFirst()
+                .map(this::toApiView)
+                .orElse(null);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isCurrentProjectCoverRun(Long projectId, Long executionRunId) {
+        if (executionRunId == null) {
+            return false;
+        }
+        return runRepository.findActiveProjectCoverRunIds(projectId).stream()
+                .findFirst()
+                .filter(executionRunId::equals)
+                .isPresent();
+    }
+
+    @Override
+    @Transactional
+    public void cancelProjectCoverRuns(Long projectId, String reason) {
+        var userId = operatorContext.currentOwnerId().orElseThrow();
+        projectApi.lockForCoverMutation(projectId, userId);
+        supersedeCoverRuns(projectId, reason == null || reason.isBlank() ? "封面已手动变更" : reason);
+    }
+
+    private void supersedeCoverRuns(Long projectId, String reason) {
+        runRepository
+                .findByProjectIdAndActionKeyAndDeletedFalseOrderByIdDesc(
+                        projectId, "project.cover.generate")
+                .forEach(
+                        run -> {
+                            if ("pending".equals(run.getStatus())
+                                    || "running".equals(run.getStatus())) {
+                                cancelCoverRun(run, reason);
+                                return;
+                            }
+                            var output = new LinkedHashMap<String, Object>();
+                            if (run.getOutputPayload() != null) {
+                                output.putAll(run.getOutputPayload());
+                            }
+                            output.put("coverSuperseded", true);
+                            run.setOutputPayload(output);
+                            runRepository.save(run);
+                        });
+    }
+
+    private void cancelCoverRun(AigcExecutionRun run, String reason) {
+        var runtimeTraceId = text(run.getOutputPayload(), "runtimeTraceId");
+        if (runtimeTraceId != null) {
+            runtimeCancellationPort.cancel(run.getTargetType(), runtimeTraceId, reason);
+        }
+        taskRefRepository
+                .findByExecutionRunIdAndDeletedFalseOrderBySortOrderAsc(run.getId())
+                .forEach(reference -> taskApi.cancel(reference.getTaskId(), reason));
+        var output = new LinkedHashMap<String, Object>();
+        if (run.getOutputPayload() != null) {
+            output.putAll(run.getOutputPayload());
+        }
+        output.put("coverSuperseded", true);
+        run.setOutputPayload(output);
+        run.setStatus("canceled");
+        run.setErrorMessage(reason);
+        run.setEndTime(LocalDateTime.now());
+        run.setVersion(run.getVersion() + 1);
+        runRepository.save(run);
+    }
+
     private AigcExecutionRunView submitInternal(
             AigcActionCommand command, Long retryOfRunId, int retryCount) {
-        var project = requireWritableProject(command.projectId());
+        var project = requireWritableProject(command.projectId(), command.actionKey());
+        var existing = findIdempotentRun(command);
+        if (existing.isPresent()) {
+            return toApiView(existing.orElseThrow());
+        }
         command.attachmentMediaVersionIds()
                 .forEach(
                         mediaVersionId ->
@@ -138,15 +362,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "动作需要确认后执行");
         }
         var run = createRun(project, object, binding, command, retryOfRunId, retryCount);
-        var executor =
-                executors.stream()
-                        .filter(candidate -> candidate.supports(binding.getTargetType()))
-                        .findFirst()
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                GlobalErrorCode.BAD_REQUEST,
-                                                "不支持的执行目标: " + binding.getTargetType()));
+        var executor = requireExecutor(binding.getTargetType());
         try {
             executor.execute(new AigcActionContext(project, object, binding, run, command));
         } catch (RuntimeException exception) {
@@ -160,10 +376,20 @@ public class AigcActionCommandService implements AigcExecutionApi {
         return toApiView(runRepository.findById(run.getId()).orElse(run));
     }
 
-    private AigcProjectView requireWritableProject(Long projectId) {
+    private AigcProjectView requireWritableProject(Long projectId, String actionKey) {
         var userId = operatorContext.currentOwnerId().orElseThrow();
-        projectApi.lockForGeneratedResource(projectId, userId);
+        if ("project.cover.generate".equals(actionKey)) {
+            projectApi.lockForCoverMutation(projectId, userId);
+        } else {
+            projectApi.lockForGeneratedResource(projectId, userId);
+        }
         var project = projectApi.requireProject(projectId);
+        if ("project.cover.generate".equals(actionKey)) {
+            if ("archived".equals(project.lifecycleStage())) {
+                throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "已归档项目不可生成封面");
+            }
+            return project;
+        }
         if (!"draft".equals(project.lifecycleStage())
                 && !"in_progress".equals(project.lifecycleStage())) {
             throw new BusinessException(
@@ -174,6 +400,9 @@ public class AigcActionCommandService implements AigcExecutionApi {
 
     private AigcProjectObjectView resolveObject(
             AigcProjectView project, AigcActionCommand command) {
+        if ("project.cover.generate".equals(command.actionKey())) {
+            return null;
+        }
         var objects = projectApi.getGraph(project.id()).objects();
         if (command.projectObjectId() != null) {
             return objects.stream()
@@ -188,6 +417,29 @@ public class AigcActionCommandService implements AigcExecutionApi {
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "未找到动作目标对象"));
     }
 
+    private AigcExecutionRun createFailedStartRun(
+            AigcProjectView project,
+            AigcProjectObjectView object,
+            AigcActionCommand command,
+            RuntimeException failure) {
+        var unresolvedBinding = new AigcExecutionBinding();
+        unresolvedBinding.setTargetType("unresolved");
+        return failStartRun(
+                createRun(project, object, unresolvedBinding, command, null, 0), failure);
+    }
+
+    private AigcExecutionRun failStartRun(AigcExecutionRun run, RuntimeException failure) {
+        var message = failure.getMessage();
+        if (message == null || message.isBlank()) {
+            message = failure.getClass().getSimpleName();
+        }
+        run.setStatus("failed");
+        run.setErrorMessage(message.length() > 1000 ? message.substring(0, 1000) : message);
+        run.setEndTime(LocalDateTime.now());
+        run.setVersion(run.getVersion() + 1);
+        return runRepository.save(run);
+    }
+
     private AigcExecutionRun createRun(
             AigcProjectView project,
             AigcProjectObjectView object,
@@ -200,7 +452,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
         run.setWorkspaceId(OrgContext.getCurrentWorkspaceId());
         run.setOwnerId(operatorContext.currentOwnerId().orElseThrow());
         run.setProjectId(project.id());
-        run.setObjectId(object.id());
+        run.setObjectId(object == null ? null : object.id());
         run.setActionKey(command.actionKey());
         run.setTargetType(binding.getTargetType());
         run.setTargetRef(binding.getTargetRef());
@@ -213,9 +465,15 @@ public class AigcActionCommandService implements AigcExecutionApi {
         run.setRetryCount(retryCount);
         var input = new LinkedHashMap<String, Object>();
         input.put("actionKey", command.actionKey());
-        input.put("objectId", object.id());
+        if (object != null) {
+            input.put("objectId", object.id());
+        }
         if (command.prompt() != null) {
             input.put("prompt", command.prompt());
+        }
+        if ("project.cover.generate".equals(command.actionKey())
+                && project.coverMediaVersionId() != null) {
+            input.put("expectedCoverMediaVersionId", project.coverMediaVersionId());
         }
         input.put("attachmentMediaVersionIds", command.attachmentMediaVersionIds());
         input.put("idempotencyKey", command.idempotencyKey());
@@ -336,11 +594,16 @@ public class AigcActionCommandService implements AigcExecutionApi {
                 run.getCostCredits() == null ? null : run.getCostCredits().longValue());
     }
 
+    private Object value(Map<String, Object> payload, String field) {
+        return payload == null ? null : payload.get(field);
+    }
+
     private String text(Map<String, Object> payload, String field) {
-        if (payload == null || payload.get(field) == null) {
+        var value = value(payload, field);
+        if (value == null) {
             return null;
         }
-        return String.valueOf(payload.get(field));
+        return String.valueOf(value);
     }
 
     private List<Long> longList(Map<String, Object> payload, String field) {

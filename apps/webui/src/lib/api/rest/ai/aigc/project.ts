@@ -15,6 +15,9 @@ export type AigcProjectStatus =
   | "delivering"
   | "completed"
   | "archived"
+export type AigcProjectCoverMode = "NONE" | "UPLOAD" | "AI_GENERATE"
+export type AigcProjectCoverStatus = "NONE" | "READY" | "PENDING" | "FAILED"
+export type AigcProjectCoverOperation = "UPLOAD" | "AI_GENERATE" | "REMOVE"
 export type AigcGenerationMode = "manual" | "auto"
 export type AigcObjectStatus =
   | "empty"
@@ -63,44 +66,56 @@ export interface AigcProject {
   id: number
   version: number
   name: string
-  description?: string
+  description: string | null
   projectTypeCode: AigcProjectTypeCode
-  blueprintCode?: string
-  blueprintVersion?: string
-  domainExtensionCode?: string
-  domainExtensionVersion?: string
+  blueprintCode: string | null
+  blueprintVersion: string | null
+  domainExtensionCode: string | null
+  domainExtensionVersion: string | null
   productionMode: AigcProductionMode
   generationMode: AigcGenerationMode
   status: AigcProjectStatus
-  brief?: string
-  prompt?: string
-  coverMediaVersionId?: number
-  configSnapshotId?: number
+  brief: string | null
+  prompt: string | null
+  coverMediaVersionId: number | null
+  coverStatus: AigcProjectCoverStatus
+  coverExecutionRunId: number | null
+  configSnapshotId: number | null
   graphRevision: number
-  primaryBrandProfileId?: number
-  assistantId?: number
-  budgetLimit?: number
+  primaryBrandProfileId: number | null
+  assistantId: number | null
+  budgetLimit: number | null
   costUsed: number
-  lastActiveTime?: string
+  lastActiveTime: string | null
   createTime: string
   updateTime: string
 }
 
 export interface AigcProjectView {
   id: number
+  orgId: number
+  workspaceId: number | null
   name: string
   lifecycleStage: AigcProjectStatus
   version: number
   configurationSnapshotId: number
   projectTypeCode: AigcProjectTypeCode
-  domainExtensionCode?: string
+  domainExtensionCode: string | null
   productionMode: AigcProductionMode
   generationMode: AigcGenerationMode
   channelSpecVersionIds: number[]
-  budgetLimit?: number
+  budgetLimit: number | null
   costUsed: number
-  brief?: string
+  description: string | null
+  brief: string | null
+  coverMediaVersionId: number | null
   userId: number
+}
+
+export interface AigcProjectMaterializeResult {
+  project: AigcProjectView
+  coverStatus: AigcProjectCoverStatus
+  runId: number | null
 }
 
 export interface AigcProjectObject {
@@ -212,6 +227,7 @@ export interface AigcObjectVersionView {
 
 export interface AigcProjectMaterializeInput {
   name: string
+  description?: string
   projectTypeCode: AigcProjectTypeCode
   blueprintVersionId: number
   domainExtensionVersionId?: number
@@ -220,16 +236,24 @@ export interface AigcProjectMaterializeInput {
   documentVersionIds?: number[]
   productionMode: AigcProductionMode
   briefJson?: string
+  coverMode: AigcProjectCoverMode
+  coverFileId?: number
+  coverPrompt?: string
+  coverIdempotencyKey?: string
+}
+
+export interface AigcProjectCoverPatchInput {
+  operation: AigcProjectCoverOperation
+  fileId?: number
+  prompt?: string
+  idempotencyKey?: string
 }
 
 export interface AigcProjectUpdateInput {
   name?: string
-  description?: string
-  brief?: string
-  prompt?: string
-  coverMediaVersionId?: number
-  assistantId?: number
-  budgetLimit?: number
+  description?: string | null
+  brief?: string | null
+  cover?: AigcProjectCoverPatchInput
   expectedVersion: number
 }
 
@@ -265,7 +289,7 @@ export const aigcProjectApi = {
     }),
   project: (id: number) => backendApi.get<AigcProject>(`/aigc/projects/${id}`),
   materialize: (data: AigcProjectMaterializeInput) =>
-    backendApi.post<AigcProjectView>("/aigc/projects/_materialize", data),
+    backendApi.post<AigcProjectMaterializeResult>("/aigc/projects/_materialize", data),
   update: (id: number, data: AigcProjectUpdateInput) =>
     backendApi.put<AigcProject>(`/aigc/projects/${id}`, data),
   delete: (id: number) => backendApi.delete<void>(`/aigc/projects/${id}`),
@@ -333,7 +357,8 @@ export function useAigcProject(id: number | null) {
   return useQuery({
     queryKey: aigcProjectKeys.detail(id ?? 0),
     queryFn: () => aigcProjectApi.project(id as number),
-    enabled: id !== null
+    enabled: id !== null,
+    refetchInterval: (query) => (query.state.data?.coverStatus === "PENDING" ? 3000 : false)
   })
 }
 

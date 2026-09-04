@@ -18,7 +18,9 @@ public record AigcProjectView(
         List<Long> channelSpecVersionIds,
         BigDecimal budgetLimit,
         BigDecimal costUsed,
+        String description,
         String brief,
+        Long coverMediaVersionId,
         Long userId) {
 
     public AigcProjectView {

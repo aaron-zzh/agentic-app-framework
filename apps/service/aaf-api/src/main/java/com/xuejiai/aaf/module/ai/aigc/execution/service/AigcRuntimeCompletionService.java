@@ -20,6 +20,7 @@ import com.xuejiai.aaf.framework.security.PermissionExecutionService;
 import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcRuntimeExecution.Result;
 import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcRuntimeExecution.Submission;
 import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionRunRepository;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
 import com.xuejiai.aaf.module.ai.aigc.project.event.AigcExecutionCandidateProducedEvent;
 import com.xuejiai.aaf.module.ai.aigc.project.event.AigcObjectCandidatePayload;
 
@@ -31,6 +32,7 @@ import lombok.RequiredArgsConstructor;
 public class AigcRuntimeCompletionService {
 
     private final AigcExecutionRunRepository runRepository;
+    private final AigcProjectApi projectApi;
     private final PermissionExecutionService permissionExecutionService;
     private final PlatformTransactionManager transactionManager;
     private final ApplicationEventPublisher eventPublisher;
@@ -89,7 +91,12 @@ public class AigcRuntimeCompletionService {
     }
 
     private void persistCompletion(AigcActionContext context, Result result, Throwable failure) {
-        var run = runRepository.findById(context.executionRun().getId()).orElse(null);
+        var project = context.project();
+        projectApi.lockForGeneratedResource(project.id(), project.userId());
+        if ("archived".equals(projectApi.requireProject(project.id()).lifecycleStage())) {
+            return;
+        }
+        var run = runRepository.findLockedById(context.executionRun().getId()).orElse(null);
         if (run == null || !"running".equals(run.getStatus())) {
             return;
         }

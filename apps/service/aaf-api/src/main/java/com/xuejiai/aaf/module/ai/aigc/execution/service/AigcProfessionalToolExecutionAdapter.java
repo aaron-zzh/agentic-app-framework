@@ -40,7 +40,11 @@ public class AigcProfessionalToolExecutionAdapter implements AigcToolExecutionPo
 
     private ToolResult executeImage(Command command, boolean edit) {
         var parameters =
-                edit ? JsonUtils.toJsonString(Map.of("sourceImages", mediaUrls(command))) : "{}";
+                edit
+                        ? JsonUtils.toJsonString(Map.of("sourceImages", mediaUrls(command)))
+                        : "project.cover.generate".equals(command.actionKey())
+                                ? JsonUtils.toJsonString(Map.of("imageCount", 1))
+                                : "{}";
         var task =
                 taskApi.submit(
                         new AigcTaskSubmitCommand(

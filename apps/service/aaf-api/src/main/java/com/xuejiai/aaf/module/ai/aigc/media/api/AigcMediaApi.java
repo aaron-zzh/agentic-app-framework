@@ -4,6 +4,8 @@ package com.xuejiai.aaf.module.ai.aigc.media.api;
 public interface AigcMediaApi {
     AigcMediaView createFromGeneratedFile(AigcGeneratedMediaCommand command);
 
+    AigcMediaView createFromUploadedFile(AigcUploadedMediaCommand command);
+
     AigcMediaView getByVersionId(Long mediaVersionId, Long userId);
 
     void lockMediaForReference(Long mediaId, Long userId);

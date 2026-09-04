@@ -90,6 +90,8 @@ export const mediaApi = {
   list: (params: MediaListParams = {}): Promise<PageResult<AigcMedia>> =>
     backendApi.get<PageResult<AigcMedia>>(`/aigc/media${buildQuery(params)}`),
   getById: (id: number): Promise<AigcMedia> => backendApi.get<AigcMedia>(`/aigc/media/${id}`),
+  getByVersionId: (mediaVersionId: number): Promise<AigcMedia> =>
+    backendApi.get<AigcMedia>(`/aigc/media/versions/${mediaVersionId}`),
   saveAsAsset: async (id: number, params?: SaveMediaAsAssetParams): Promise<AigcAsset> =>
     normalizeAsset(await backendApi.post<AigcAsset>(`/aigc/media/${id}/asset`, params))
 }
@@ -147,6 +149,15 @@ export function useAssetList(params: AssetListParams = {}) {
   return useQuery({
     queryKey: [...ASSET_QUERY_KEY, "list", params] as const,
     queryFn: () => assetApi.list(params)
+  })
+}
+
+/** 按单个媒体版本 ID 查询封面预览，查询结果按版本独立缓存。 */
+export function useMediaByVersionId(mediaVersionId: number | null) {
+  return useQuery({
+    queryKey: [...MEDIA_QUERY_KEY, "version", mediaVersionId] as const,
+    queryFn: () => mediaApi.getByVersionId(mediaVersionId as number),
+    enabled: mediaVersionId !== null
   })
 }
 

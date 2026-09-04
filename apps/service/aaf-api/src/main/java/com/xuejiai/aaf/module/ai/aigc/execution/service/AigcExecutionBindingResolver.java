@@ -30,8 +30,10 @@ public class AigcExecutionBindingResolver {
 
     public Optional<AigcExecutionBinding> resolveOptional(
             AigcProjectView project, String actionKey) {
+        var bindingActionKey =
+                "project.cover.generate".equals(actionKey) ? "image.generate" : actionKey;
         return repository
-                .findByActionKeyAndStatusOrderByPriorityDesc(actionKey, "published")
+                .findByActionKeyAndStatusOrderByPriorityDesc(bindingActionKey, "published")
                 .stream()
                 .filter(binding -> matches(binding, project))
                 .max(

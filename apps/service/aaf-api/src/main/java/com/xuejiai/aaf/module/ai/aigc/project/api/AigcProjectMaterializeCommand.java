@@ -5,6 +5,7 @@ import java.util.List;
 public record AigcProjectMaterializeCommand(
         Long workspaceId,
         String name,
+        String description,
         String projectTypeCode,
         Long blueprintVersionId,
         Long domainExtensionVersionId,
@@ -12,7 +13,11 @@ public record AigcProjectMaterializeCommand(
         List<Long> channelSpecVersionIds,
         List<Long> documentVersionIds,
         String productionMode,
-        String briefJson) {
+        String briefJson,
+        AigcProjectCoverMode coverMode,
+        Long coverFileId,
+        String coverPrompt,
+        String coverIdempotencyKey) {
 
     public AigcProjectMaterializeCommand {
         brandProfileVersionIds =

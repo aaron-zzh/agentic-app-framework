@@ -53,10 +53,15 @@ public class AigcProjectMaterializer {
     private final AigcProjectRelationRepository relationRepository;
     private final AigcProjectRevisionRepository revisionRepository;
     private final DocumentReferenceApi documentReferenceApi;
+    private final com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi mediaApi;
+    private final com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectMediaRefRepository
+            mediaRefRepository;
     private final OperatorContext operatorContext;
 
     @Transactional
     public AigcProject materialize(AigcProjectMaterializeCommand command) {
+        var projectName = requireProjectName(command.name());
+        validateCover(command);
         var resolved =
                 configurationApi.resolve(
                         new AigcConfigurationResolveCommand(
@@ -81,7 +86,8 @@ public class AigcProjectMaterializer {
         project.setWorkspaceId(workspaceId);
         project.setOwnerId(ownerId);
         project.setUserId(ownerId);
-        project.setName(command.name());
+        project.setName(projectName);
+        project.setDescription(command.description());
         project.setProjectTypeCode(command.projectTypeCode());
         project.setBlueprintCode(resolved.blueprintCode());
         project.setBlueprintVersion(resolved.blueprintVersion());
@@ -97,6 +103,27 @@ public class AigcProjectMaterializer {
         project.setCostUsed(BigDecimal.ZERO);
         project.setLastActiveTime(LocalDateTime.now());
         projectRepository.save(project);
+        if (command.coverMode()
+                == com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverMode.UPLOAD) {
+            var cover =
+                    mediaApi.createFromUploadedFile(
+                            new com.xuejiai.aaf.module.ai.aigc.media.api.AigcUploadedMediaCommand(
+                                    ownerId,
+                                    projectName + "封面",
+                                    com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaType.IMAGE,
+                                    command.coverFileId(),
+                                    project.getId()));
+            var mediaVersionId = cover.currentVersion().id();
+            var reference = new com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectMediaRef();
+            copyScope(project, reference);
+            reference.setProjectId(project.getId());
+            reference.setMediaVersionId(mediaVersionId);
+            reference.setRole("cover");
+            reference.setAdoptionStatus("adopted");
+            mediaRefRepository.save(reference);
+            project.setCoverMediaVersionId(mediaVersionId);
+            projectRepository.save(project);
+        }
 
         var snapshot = new AigcProjectConfigSnapshot();
         copyScope(project, snapshot);
@@ -204,6 +231,55 @@ public class AigcProjectMaterializer {
         revision.setSummary("项目蓝图物化");
         revisionRepository.save(revision);
         return project;
+    }
+
+    private String requireProjectName(String name) {
+        if (name == null || name.isBlank()) {
+            throw new com.xuejiai.aaf.common.exception.BusinessException(
+                    com.xuejiai.aaf.common.exception.GlobalErrorCode.BAD_REQUEST, "项目名称不能为空");
+        }
+        if (name.length() > 200) {
+            throw new com.xuejiai.aaf.common.exception.BusinessException(
+                    com.xuejiai.aaf.common.exception.GlobalErrorCode.BAD_REQUEST, "项目名称长度不能超过 200");
+        }
+        return name.trim();
+    }
+
+    private void validateCover(AigcProjectMaterializeCommand command) {
+        if (command.coverMode() == null) {
+            throw new com.xuejiai.aaf.common.exception.BusinessException(
+                    com.xuejiai.aaf.common.exception.GlobalErrorCode.BAD_REQUEST, "封面模式不能为空");
+        }
+        var hasPrompt = command.coverPrompt() != null && !command.coverPrompt().isBlank();
+        var hasKey =
+                command.coverIdempotencyKey() != null && !command.coverIdempotencyKey().isBlank();
+        switch (command.coverMode()) {
+            case NONE -> {
+                if (command.coverFileId() != null || hasPrompt || hasKey) {
+                    throw invalidCover();
+                }
+            }
+            case UPLOAD -> {
+                if (command.coverFileId() == null || hasPrompt || hasKey) {
+                    throw invalidCover();
+                }
+            }
+            case AI_GENERATE -> {
+                if (command.coverFileId() != null || !hasKey) {
+                    throw invalidCover();
+                }
+                if (command.coverIdempotencyKey().length() > 100) {
+                    throw new com.xuejiai.aaf.common.exception.BusinessException(
+                            com.xuejiai.aaf.common.exception.GlobalErrorCode.BAD_REQUEST,
+                            "封面幂等键长度不能超过 100");
+                }
+            }
+        }
+    }
+
+    private com.xuejiai.aaf.common.exception.BusinessException invalidCover() {
+        return new com.xuejiai.aaf.common.exception.BusinessException(
+                com.xuejiai.aaf.common.exception.GlobalErrorCode.BAD_REQUEST, "封面模式与参数不匹配");
     }
 
     private Map<String, Object> parseMap(String json) {

@@ -100,6 +100,7 @@ public class AigcProjectService
     private static final Set<String> MUTABLE_STATUSES = Set.of("draft", "in_progress");
 
     private final AigcProjectRepository repository;
+    private final jakarta.persistence.EntityManager entityManager;
     private final AigcProjectObjectRepository objectRepository;
     private final AigcProjectRelationRepository relationRepository;
     private final AigcObjectVersionRepository versionRepository;
@@ -131,6 +132,7 @@ public class AigcProjectService
 
     @Override
     protected AigcProjectVO toVO(AigcProject project) {
+        var coverState = coverState(project);
         return new AigcProjectVO(
                 project.getId(),
                 project.getVersion(),
@@ -147,6 +149,8 @@ public class AigcProjectService
                 project.getBrief(),
                 project.getPrompt(),
                 project.getCoverMediaVersionId(),
+                coverState.status(),
+                coverState.runId(),
                 project.getConfigSnapshotId(),
                 project.getGraphRevision(),
                 project.getPrimaryBrandProfileId(),
@@ -166,19 +170,170 @@ public class AigcProjectService
     @Override
     protected void updateEntity(AigcProject project, AigcProjectUpdateDTO request) {
         requireExpectedVersion(project, request.expectedVersion());
-        requireWritable(project);
-        if (request.name() != null) project.setName(request.name());
-        if (request.description() != null) project.setDescription(request.description());
-        if (request.brief() != null) project.setBrief(request.brief());
-        if (request.prompt() != null) project.setPrompt(request.prompt());
-        if (request.coverMediaVersionId() != null) {
-            mediaApi.getByVersionId(request.coverMediaVersionId(), project.getUserId());
-            project.setCoverMediaVersionId(request.coverMediaVersionId());
+        if (isEmptyPatch(request)) {
+            return;
         }
-        if (request.assistantId() != null) project.setAssistantId(request.assistantId());
-        if (request.budgetLimit() != null) project.setBudgetLimit(request.budgetLimit());
+        requireDisplayInfoWritable(project);
+        if (!request.name().isAbsent()) {
+            var name = request.name().valueOrNull();
+            if (name == null || name.isBlank()) {
+                throw badRequest("项目名称不能为空");
+            }
+            if (name.length() > 200) {
+                throw badRequest("项目名称长度不能超过 200");
+            }
+            project.setName(name.trim());
+        }
+        if (!request.description().isAbsent()) {
+            var description = request.description().valueOrNull();
+            if (description != null && description.length() > 500) {
+                throw badRequest("项目描述长度不能超过 500");
+            }
+            project.setDescription(description);
+        }
+        if (!request.brief().isAbsent()) {
+            project.setBrief(request.brief().valueOrNull());
+        }
+        if (!request.cover().isAbsent()) {
+            if (request.cover().isNullValue()) {
+                throw badRequest("封面必须使用明确操作更新");
+            }
+            updateCover(project, request.cover().valueOrNull());
+        }
         project.setVersion(project.getVersion() + 1);
         project.setLastActiveTime(LocalDateTime.now());
+    }
+
+    private boolean isEmptyPatch(AigcProjectUpdateDTO request) {
+        return request.name().isAbsent()
+                && request.description().isAbsent()
+                && request.brief().isAbsent()
+                && request.cover().isAbsent();
+    }
+
+    private void updateCover(
+            AigcProject project,
+            com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectCoverPatchDTO cover) {
+        if (cover == null || cover.operation() == null) {
+            throw badRequest("封面更新操作不能为空");
+        }
+        switch (cover.operation()) {
+            case UPLOAD -> replaceUploadedCover(project, cover);
+            case AI_GENERATE -> requestGeneratedCover(project, cover);
+            case REMOVE -> removeCover(project, cover);
+        }
+    }
+
+    private void replaceUploadedCover(
+            AigcProject project,
+            com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectCoverPatchDTO cover) {
+        if (cover.fileId() == null || hasText(cover.prompt()) || hasText(cover.idempotencyKey())) {
+            throw badRequest("上传封面参数不匹配");
+        }
+        var media =
+                mediaApi.createFromUploadedFile(
+                        new com.xuejiai.aaf.module.ai.aigc.media.api.AigcUploadedMediaCommand(
+                                project.getUserId(),
+                                project.getName() + "封面",
+                                com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaType.IMAGE,
+                                cover.fileId(),
+                                project.getId()));
+        var mediaVersionId = media.currentVersion().id();
+        linkCoverMedia(project, mediaVersionId, "adopted");
+        executionApiProvider.getObject().cancelProjectCoverRuns(project.getId(), "封面已手动替换");
+        project.setCoverMediaVersionId(mediaVersionId);
+    }
+
+    private void requestGeneratedCover(
+            AigcProject project,
+            com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectCoverPatchDTO cover) {
+        if (cover.fileId() != null || !hasText(cover.idempotencyKey())) {
+            throw badRequest("AI 封面参数不匹配");
+        }
+        if (cover.idempotencyKey().length() > 100) {
+            throw badRequest("封面幂等键长度不能超过 100");
+        }
+        executionApiProvider
+                .getObject()
+                .submitDeferred(
+                        new com.xuejiai.aaf.module.ai.aigc.execution.api.AigcActionCommand(
+                                project.getId(),
+                                null,
+                                "project.cover.generate",
+                                coverPrompt(project, cover.prompt()),
+                                List.of(),
+                                true,
+                                cover.idempotencyKey()));
+    }
+
+    private void removeCover(
+            AigcProject project,
+            com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectCoverPatchDTO cover) {
+        if (cover.fileId() != null || hasText(cover.prompt()) || hasText(cover.idempotencyKey())) {
+            throw badRequest("移除封面参数不匹配");
+        }
+        supersedeAdoptedCoverRefs(project.getId(), null);
+        executionApiProvider.getObject().cancelProjectCoverRuns(project.getId(), "封面已移除");
+        project.setCoverMediaVersionId(null);
+    }
+
+    private AigcProjectMediaRef linkCoverMedia(
+            AigcProject project, Long mediaVersionId, String adoptionStatus) {
+        if ("adopted".equals(adoptionStatus)) {
+            supersedeAdoptedCoverRefs(project.getId(), mediaVersionId);
+        }
+        var existing =
+                mediaRefRepository.findByProjectIdOrderBySortOrderAscIdAsc(project.getId()).stream()
+                        .filter(reference -> mediaVersionId.equals(reference.getMediaVersionId()))
+                        .filter(reference -> "cover".equals(reference.getRole()))
+                        .filter(reference -> reference.getObjectId() == null)
+                        .findFirst();
+        if (existing.isPresent()) {
+            var reference = existing.orElseThrow();
+            if ("adopted".equals(adoptionStatus)) {
+                reference.setAdoptionStatus("adopted");
+                mediaRefRepository.save(reference);
+            }
+            return reference;
+        }
+        var reference = new AigcProjectMediaRef();
+        copyScope(project, reference);
+        reference.setProjectId(project.getId());
+        reference.setMediaVersionId(mediaVersionId);
+        reference.setRole("cover");
+        reference.setAdoptionStatus(adoptionStatus);
+        return mediaRefRepository.save(reference);
+    }
+
+    private void supersedeAdoptedCoverRefs(Long projectId, Long retainedMediaVersionId) {
+        mediaRefRepository.findByProjectIdOrderBySortOrderAscIdAsc(projectId).stream()
+                .filter(reference -> "cover".equals(reference.getRole()))
+                .filter(reference -> reference.getObjectId() == null)
+                .filter(reference -> "adopted".equals(reference.getAdoptionStatus()))
+                .filter(
+                        reference ->
+                                !Objects.equals(
+                                        retainedMediaVersionId, reference.getMediaVersionId()))
+                .forEach(
+                        reference -> {
+                            reference.setAdoptionStatus("superseded");
+                            mediaRefRepository.save(reference);
+                        });
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private String coverPrompt(AigcProject project, String requestedPrompt) {
+        if (hasText(requestedPrompt)) {
+            return requestedPrompt.trim();
+        }
+        return "%s\n%s\n%s"
+                .formatted(
+                        project.getName(),
+                        project.getBrief() == null ? "" : project.getBrief(),
+                        project.getProjectTypeCode());
     }
 
     @Override
@@ -224,9 +379,37 @@ public class AigcProjectService
     }
 
     @Override
-    @Transactional
-    public AigcProjectView materialize(AigcProjectMaterializeCommand command) {
-        return toApiView(materializer.materialize(command));
+    @Transactional(
+            propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
+    public com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectMaterializeView materialize(
+            AigcProjectMaterializeCommand command) {
+        var project = materializer.materialize(command);
+        var coverStatus =
+                project.getCoverMediaVersionId() == null
+                        ? com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus.NONE
+                        : com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus.READY;
+        Long runId = null;
+        if (command.coverMode()
+                == com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverMode.AI_GENERATE) {
+            var run =
+                    executionApiProvider
+                            .getObject()
+                            .submitDeferred(
+                                    new com.xuejiai.aaf.module.ai.aigc.execution.api
+                                            .AigcActionCommand(
+                                            project.getId(),
+                                            null,
+                                            "project.cover.generate",
+                                            coverPrompt(project, command.coverPrompt()),
+                                            List.of(),
+                                            true,
+                                            command.coverIdempotencyKey()));
+            runId = run.id();
+            coverStatus = coverStatus(run.status(), project.getCoverMediaVersionId());
+        }
+        var refreshed = repository.findById(project.getId()).orElseThrow();
+        return new com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectMaterializeView(
+                toApiView(refreshed), coverStatus, runId);
     }
 
     @Override
@@ -272,9 +455,57 @@ public class AigcProjectService
 
     @Override
     public void lockForGeneratedResource(Long projectId, Long userId) {
-        repository
-                .findActiveSharedLockedByIdAndUserId(projectId, userId)
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "项目不存在或已删除"));
+        var project =
+                repository
+                        .findActiveSharedLockedByIdAndUserId(projectId, userId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.NOT_FOUND, "项目不存在或已删除"));
+        entityManager.refresh(project, jakarta.persistence.LockModeType.PESSIMISTIC_READ);
+    }
+
+    @Override
+    @Transactional
+    public void lockForCoverMutation(Long projectId, Long userId) {
+        var project =
+                repository
+                        .findLockedById(projectId)
+                        .filter(candidate -> !Boolean.TRUE.equals(candidate.getDeleted()))
+                        .filter(candidate -> Objects.equals(candidate.getUserId(), userId))
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.NOT_FOUND, "项目不存在或已删除"));
+        entityManager.refresh(project, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+    }
+
+    @Override
+    @Transactional
+    public boolean applyGeneratedCover(
+            Long projectId,
+            Long mediaVersionId,
+            Long expectedCoverMediaVersionId,
+            Long executionRunId) {
+        var project = repository.findLockedById(projectId).orElseThrow(() -> notFound("项目不存在"));
+        entityManager.refresh(project, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        mediaApi.getByVersionId(mediaVersionId, project.getUserId());
+        var currentRequest =
+                !"archived".equals(project.getStatus())
+                        && Objects.equals(
+                                project.getCoverMediaVersionId(), expectedCoverMediaVersionId)
+                        && executionApiProvider
+                                .getObject()
+                                .isCurrentProjectCoverRun(projectId, executionRunId);
+        linkCoverMedia(project, mediaVersionId, currentRequest ? "adopted" : "candidate");
+        if (!currentRequest) {
+            return false;
+        }
+        project.setCoverMediaVersionId(mediaVersionId);
+        project.setVersion(project.getVersion() + 1);
+        project.setLastActiveTime(LocalDateTime.now());
+        repository.save(project);
+        return true;
     }
 
     public AigcProjectVO requireProjectVO(Long projectId) {
@@ -420,12 +651,15 @@ public class AigcProjectService
     @Override
     @Transactional
     public AigcObjectVersionView appendCandidate(AigcObjectVersionCandidateCommand command) {
+        requireEntity(command.projectId());
+        var project =
+                repository.findLockedById(command.projectId()).orElseThrow(() -> notFound("项目不存在"));
+        entityManager.refresh(project, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        requireWritable(project);
         var existing = versionRepository.findByExecutionRunIdOrderByIdAsc(command.executionRunId());
         if (!existing.isEmpty()) {
             return toApiVersionView(existing.getFirst());
         }
-        var project = requireEntity(command.projectId());
-        requireWritable(project);
         var object = requireObject(project.getId(), command.objectId(), true);
         var version = new AigcObjectVersion();
         copyScope(project, version);
@@ -834,6 +1068,7 @@ public class AigcProjectService
     private AigcProject requireLockedProject(Long projectId, Integer expectedVersion) {
         requireEntity(projectId, CrudOperation.UPDATE, AccessMode.DEFAULT);
         var project = repository.findLockedById(projectId).orElseThrow(() -> notFound("项目不存在"));
+        entityManager.refresh(project, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
         requireExpectedVersion(project, expectedVersion);
         return project;
     }
@@ -866,6 +1101,42 @@ public class AigcProjectService
     private void requireWritable(AigcProject project) {
         if (!MUTABLE_STATUSES.contains(project.getStatus())) {
             throw badRequest("当前项目阶段只读: " + project.getStatus());
+        }
+    }
+
+    private record CoverState(String status, Long runId) {}
+
+    private CoverState coverState(AigcProject project) {
+        var run = executionApiProvider.getObject().latestProjectCoverRun(project.getId());
+        if (run == null) {
+            return new CoverState(coverStatus(null, project.getCoverMediaVersionId()), null);
+        }
+        return new CoverState(
+                coverStatus(run.status(), project.getCoverMediaVersionId()), run.id());
+    }
+
+    private String coverStatus(String runStatus, Long coverMediaVersionId) {
+        if (runStatus == null) {
+            return coverMediaVersionId == null
+                    ? com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus.NONE
+                    : com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus.READY;
+        }
+        return switch (runStatus) {
+            case "pending", "running" ->
+                    com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus.PENDING;
+            case "failed" ->
+                    com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus.FAILED;
+            default ->
+                    coverMediaVersionId == null
+                            ? com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus.NONE
+                            : com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus
+                                    .READY;
+        };
+    }
+
+    private void requireDisplayInfoWritable(AigcProject project) {
+        if ("archived".equals(project.getStatus())) {
+            throw badRequest("已归档项目的基础信息只读");
         }
     }
 
@@ -911,7 +1182,9 @@ public class AigcProjectService
                 channelIds,
                 project.getBudgetLimit(),
                 project.getCostUsed(),
+                project.getDescription(),
                 project.getBrief(),
+                project.getCoverMediaVersionId(),
                 project.getUserId());
     }
 

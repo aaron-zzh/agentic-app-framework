@@ -70,6 +70,7 @@ import tools.jackson.core.type.TypeReference;
 public class AigcTaskExecutor {
 
     private final AigcTaskRepository taskRepo;
+    private final AigcTaskClaimService taskClaimService;
     private final AigcTaskEventService eventService;
     private final AigcTaskMapper taskMapper;
     private final FileStoragePort fileService;
@@ -127,15 +128,15 @@ public class AigcTaskExecutor {
      * {@link ImageRequest} 后调用对应服务。 REQUIRES_NEW 表示：不管外部是否有事务，都新建一个独立事务。
      * 外部事务挂起，这个方法在自己的事务里执行，完成后提交/回滚，再恢复外部事务。
      *
-     * <p>{@code @OrgIgnore}：方法入口 {@code taskRepo.findById} 执行时尚未知道 task 的 orgId （先有鸡蛋问题，同 {@code
-     * OrgFilter} 处理 {@code X-Org-Id} 自校验查询的场景），需豁免这段空窗期的 fail-closed 拒绝；查到 task 后 {@link
-     * #runInOwnerContext} 会恢复真实 orgId， 使后续查询/持久化按真实组织语义执行。
+     * <p>{@code @OrgIgnore}：方法入口通过 {@link AigcTaskClaimService} 按 ID 认领任务时尚未知道 task 的 orgId
+     * （先有鸡蛋问题，同 {@code OrgFilter} 处理 {@code X-Org-Id} 自校验查询的场景），需豁免这段空窗期的 fail-closed 拒绝；认领 task 后
+     * {@link #runInOwnerContext} 会恢复真实 orgId，使后续查询/持久化按真实组织语义执行。
      */
     @OrgIgnore
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void submitSync(Long taskId, String prompt, String modelId, String mockUrl) {
-        var task = taskRepo.findById(taskId).orElse(null);
+        var task = taskClaimService.claimPending(taskId).orElse(null);
         if (task == null) return;
         runInOwnerContext(
                 task,
@@ -146,9 +147,6 @@ public class AigcTaskExecutor {
     private void submitSyncInternal(
             AigcTask task, Long taskId, String prompt, String modelId, String mockUrl) {
         try {
-            task.setStatus(AigcTaskStatusEnum.RUNNING.getCode());
-            taskRepo.save(task);
-
             var p = parseImageParams(prompt, modelId, task.getParams());
             // 设置了技能时，将 systemPrompt 前置拼接到 prompt
             if (task.getSystemPrompt() != null && !task.getSystemPrompt().isBlank()) {

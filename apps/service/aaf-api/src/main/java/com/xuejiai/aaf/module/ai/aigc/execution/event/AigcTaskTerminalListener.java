@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.ai.aigc.execution.event;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
@@ -11,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import com.xuejiai.aaf.module.ai.aigc.execution.domain.AigcExecutionRun;
 import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionRunRepository;
 import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionTaskRefRepository;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
@@ -20,7 +22,7 @@ import com.xuejiai.aaf.module.ai.aigc.task.event.AigcTaskTerminalEvent;
 
 import lombok.RequiredArgsConstructor;
 
-/** 汇总媒体子任务终态；成功时只发布候选，不直接写 Project 仓储。 */
+/** 汇总媒体子任务终态；项目封面通过明确命令回填，其他结果发布候选。 */
 @Component
 @RequiredArgsConstructor
 public class AigcTaskTerminalListener {
@@ -41,15 +43,32 @@ public class AigcTaskTerminalListener {
         if (reference == null) {
             return;
         }
-        var run = runRepository.findById(reference.getExecutionRunId()).orElse(null);
+        var snapshot = runRepository.findById(reference.getExecutionRunId()).orElse(null);
+        if (snapshot == null) {
+            return;
+        }
+        var project = projectApi.requireProject(snapshot.getProjectId());
+        if ("project.cover.generate".equals(snapshot.getActionKey())) {
+            projectApi.lockForCoverMutation(snapshot.getProjectId(), project.userId());
+        } else {
+            projectApi.lockForGeneratedResource(snapshot.getProjectId(), project.userId());
+        }
+        var currentProject = projectApi.requireProject(snapshot.getProjectId());
+        if ("archived".equals(currentProject.lifecycleStage())) {
+            return;
+        }
+        var run = runRepository.findLockedById(snapshot.getId()).orElse(null);
         if (run == null || !"running".equals(run.getStatus())) {
             return;
         }
+        if ("project.cover.generate".equals(run.getActionKey())) {
+            handleCoverTerminal(run, event);
+            return;
+        }
         if ("SUCCESS".equals(event.status()) && event.outputMediaVersionId() != null) {
-            var project = projectApi.requireProject(run.getProjectId());
-            mediaApi.getByVersionId(event.outputMediaVersionId(), project.userId());
+            mediaApi.getByVersionId(event.outputMediaVersionId(), currentProject.userId());
             run.setOutputPayload(
-                    java.util.Map.of(
+                    Map.of(
                             "taskIds", List.of(event.taskId()),
                             "mediaVersionIds", List.of(event.outputMediaVersionId())));
             run.setVersion(run.getVersion() + 1);
@@ -65,8 +84,46 @@ public class AigcTaskTerminalListener {
                             Instant.now()));
             return;
         }
+        failRun(run, event.failureCode());
+    }
+
+    private void handleCoverTerminal(AigcExecutionRun run, AigcTaskTerminalEvent event) {
+        if ("SUCCESS".equals(event.status()) && event.outputMediaVersionId() != null) {
+            var applied =
+                    projectApi.applyGeneratedCover(
+                            run.getProjectId(),
+                            event.outputMediaVersionId(),
+                            longValue(run.getInputPayload(), "expectedCoverMediaVersionId"),
+                            run.getId());
+            if (!applied
+                    && runRepository.findActiveProjectCoverRunIds(run.getProjectId()).stream()
+                            .noneMatch(run.getId()::equals)) {
+                return;
+            }
+            run.setOutputPayload(
+                    Map.of(
+                            "taskIds", List.of(event.taskId()),
+                            "mediaVersionIds", List.of(event.outputMediaVersionId()),
+                            "coverApplied", applied));
+            run.setStatus("succeeded");
+            run.setEndTime(LocalDateTime.now());
+            run.setVersion(run.getVersion() + 1);
+            runRepository.save(run);
+            return;
+        }
+        failRun(run, event.failureCode());
+    }
+
+    private Long longValue(Map<String, Object> payload, String field) {
+        if (payload == null || !(payload.get(field) instanceof Number value)) {
+            return null;
+        }
+        return value.longValue();
+    }
+
+    private void failRun(AigcExecutionRun run, String failureCode) {
         run.setStatus("failed");
-        run.setErrorMessage(event.failureCode());
+        run.setErrorMessage(failureCode);
         run.setEndTime(LocalDateTime.now());
         run.setVersion(run.getVersion() + 1);
         runRepository.save(run);

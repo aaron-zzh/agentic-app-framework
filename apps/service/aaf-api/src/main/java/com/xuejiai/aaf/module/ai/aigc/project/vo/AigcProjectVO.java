@@ -19,6 +19,8 @@ public record AigcProjectVO(
         String brief,
         String prompt,
         Long coverMediaVersionId,
+        String coverStatus,
+        Long coverExecutionRunId,
         Long configSnapshotId,
         Integer graphRevision,
         Long primaryBrandProfileId,
