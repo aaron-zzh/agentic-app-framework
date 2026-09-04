@@ -13,7 +13,7 @@
 "use client"
 
 import { useMutation } from "@tanstack/react-query"
-import { Coins, Download, Scissors, Upload, Wand2 } from "lucide-react"
+import { Coins, Download, ImagePlus, Scissors, Wand2 } from "lucide-react"
 import { useCallback, useRef, useState } from "react"
 import { toast } from "sonner"
 import { GlassCard, GlowButton, NeonChip } from "@/components/studio"
@@ -24,6 +24,7 @@ import { useEstimateAigcCredits } from "@/lib/hooks/use-estimate-aigc-credits"
 import { useFileUpload } from "@/lib/hooks/use-file-upload"
 import { notify } from "@/lib/notification"
 import { downloadFileWithToast } from "@/lib/utils"
+import { cn } from "@/lib/utils/index"
 
 // ─── 分割方式配置（含阿里云接口限制） ─────────────────────
 
@@ -146,19 +147,14 @@ function validateFile(file: File, method: MethodValue): string | null {
   return null
 }
 
-function validateUrl(url: string): string | null {
-  if (/[\u4e00-\u9fa5]/.test(url)) return "URL 中不能包含中文字符"
-  return null
-}
-
 // ─── 主页面 ─────────────────────────────────────────────────
 
 export default function MattingPage() {
   const [method, setMethod] = useState<MethodValue>("SEGMENT_HD_BODY")
-  const [imageUrl, setImageUrl] = useState("")
+  const [imageFileId, setImageFileId] = useState<number | null>(null)
   const [previewUrl, setPreviewUrl] = useState("")
-  const [urlError, setUrlError] = useState<string | null>(null)
   const [tasks, setTasks] = useState<AigcTaskEvent[]>([])
+  const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { upload, uploading } = useFileUpload()
 
@@ -169,20 +165,29 @@ export default function MattingPage() {
       return
     }
     setPreviewUrl(URL.createObjectURL(file))
-    setImageUrl("")
-    setUrlError(null)
+    setImageFileId(null)
     try {
       const result = await upload(file)
-      setImageUrl(result.url)
+      setImageFileId(result.fileId)
+      setPreviewUrl(result.url)
     } catch {
       setPreviewUrl("")
     }
   }
 
-  const handleUrlChange = (val: string) => {
-    setImageUrl(val)
-    setPreviewUrl(val)
-    setUrlError(val ? validateUrl(val) : null)
+  const onDragOver = (e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes("Files")) {
+      e.preventDefault()
+      setDragOver(true)
+    }
+  }
+  const onDragLeave = () => setDragOver(false)
+  const onDrop = (e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes("Files")) return
+    e.preventDefault()
+    setDragOver(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) void handleFile(file)
   }
 
   const { mutate: submit, isPending } = useMutation({
@@ -191,9 +196,10 @@ export default function MattingPage() {
         method: "POST",
         body: JSON.stringify({
           type: "IMAGE_PROCESS",
-          prompt: imageUrl,
+          // 抠图无文本提示词概念，用 method 占位满足统一提交接口的 prompt 非空校验
+          prompt: method,
           projectId: null,
-          params: { imageUrl, method }
+          params: { imageFileId, method }
         })
       }),
     onSuccess: () => {
@@ -219,7 +225,7 @@ export default function MattingPage() {
     }, [])
   })
 
-  const canSubmit = imageUrl.startsWith("http") && !isPending && !uploading && !urlError
+  const canSubmit = imageFileId !== null && !isPending && !uploading
   const selectedMethod = METHODS.find((m) => m.value === method) ?? METHODS[0]
 
   const { credits, sufficient } = useEstimateAigcCredits({
@@ -230,7 +236,7 @@ export default function MattingPage() {
   })
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6">
+    <div className="mx-auto max-w-7xl space-y-6 p-6">
       {/* 标题 */}
       <header className="space-y-1">
         <div className="flex items-center gap-2">
@@ -242,53 +248,74 @@ export default function MattingPage() {
         </p>
       </header>
 
-      {/* Composer */}
-      <GlassCard glow="violet">
-        <div className="space-y-5 p-5">
-          {/* 模式切换 */}
-          <div className="space-y-2">
-            <Label className="text-xs">分割模式</Label>
-            <div className="grid grid-cols-2 gap-2">
-              {METHODS.map((m) => (
-                <button
-                  key={m.value}
-                  type="button"
-                  onClick={() => setMethod(m.value)}
-                  className={`rounded-xl border p-3 text-left transition-all ${
-                    method === m.value
-                      ? "border-primary/50 bg-primary/10"
-                      : "border-foreground/8 bg-foreground/2 hover:bg-foreground/4"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-sm">{m.label}</span>
-                  </div>
-                  <p className="mt-0.5 text-muted-foreground text-xs">{m.desc}</p>
-                </button>
-              ))}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
+        {/* Composer */}
+        <GlassCard glow="violet">
+          <div className="space-y-5 p-5">
+            {/* 模式切换 */}
+            <div className="space-y-2">
+              <Label className="text-xs">分割模式</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {METHODS.map((m) => (
+                  <button
+                    key={m.value}
+                    type="button"
+                    onClick={() => setMethod(m.value)}
+                    className={`rounded-xl border p-3 text-left transition-all ${
+                      method === m.value
+                        ? "border-primary/50 bg-primary/10"
+                        : "border-foreground/8 bg-foreground/2 hover:bg-foreground/4"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-sm">{m.label}</span>
+                    </div>
+                    <p className="mt-0.5 text-muted-foreground text-xs">{m.desc}</p>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* 图片 URL 输入 */}
-          <div className="space-y-2">
-            <Label className="text-xs">图片 URL</Label>
-            <div className="flex gap-2">
-              <input
-                type="url"
-                value={imageUrl.startsWith("blob:") ? "" : imageUrl}
-                onChange={(e) => handleUrlChange(e.target.value)}
-                placeholder="粘贴图片 URL（https://...）"
-                className={`flex-1 rounded-lg border bg-foreground/2 px-3 py-2 text-sm outline-none focus:border-primary/50 ${
-                  urlError ? "border-destructive" : "border-foreground/8"
-                }`}
-              />
+            {/* 图片上传：大尺寸拖拽占位区，未选择时显示占位提示，已选择时直接展示预览 */}
+            <div className="space-y-2">
+              <Label className="text-xs">待处理图片</Label>
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-1.5 rounded-lg border border-foreground/8 px-3 py-2 text-muted-foreground text-sm hover:bg-foreground/[0.04]"
+                onDragOver={onDragOver}
+                onDragLeave={onDragLeave}
+                onDrop={onDrop}
+                disabled={uploading}
+                className={cn(
+                  "group relative flex aspect-video w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border border-dashed transition-colors",
+                  dragOver
+                    ? "border-primary bg-primary/5"
+                    : "border-foreground/10 bg-foreground/2 hover:border-primary/40 hover:bg-foreground/4",
+                  previewUrl && "border-foreground/6 border-solid p-0"
+                )}
               >
-                <Upload className="size-3.5" />
-                本地
+                {previewUrl ? (
+                  <>
+                    {/* biome-ignore lint/performance/noImgElement: 用户上传预览图，无固定尺寸 */}
+                    <img
+                      src={previewUrl}
+                      alt="待处理图片预览"
+                      className="size-full bg-[repeating-conic-gradient(#80808020_0%_25%,transparent_0%_50%)] bg-size-[20px_20px] object-contain"
+                    />
+                    <span className="absolute inset-0 flex items-center justify-center bg-background/60 text-sm opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100">
+                      <ImagePlus className="mr-1.5 size-4" />
+                      更换图片
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <ImagePlus className="size-8 text-muted-foreground" />
+                    <span className="text-muted-foreground text-sm">点击选择图片或拖拽到此处</span>
+                    <span className="text-muted-foreground/70 text-xs">
+                      {selectedMethod.formats}　≤ {selectedMethod.maxSizeMB} MB
+                    </span>
+                  </>
+                )}
               </button>
               <input
                 ref={fileInputRef}
@@ -297,108 +324,97 @@ export default function MattingPage() {
                 className="hidden"
                 onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
               />
+              {uploading && <p className="text-muted-foreground text-xs">图片上传中，请稍候...</p>}
             </div>
-            {/* URL 校验错误 */}
-            {urlError && <p className="text-destructive text-xs">{urlError}</p>}
-            {uploading && <p className="text-muted-foreground text-xs">图片上传中，请稍候...</p>}
-            {!uploading && imageUrl.startsWith("blob:") && (
-              <p className="text-amber-400 text-xs">
-                本地预览仅供参考，提交需先将图片上传至可访问的 URL
-              </p>
-            )}
-            {/* 当前模式限制说明 */}
-            <div className="space-y-0.5 rounded-lg border border-foreground/6 bg-foreground/2 px-3 py-2 text-muted-foreground text-xs">
-              <p>
-                格式：{selectedMethod.formats} 大小：≤ {selectedMethod.maxSizeMB} MB　分辨率：
-                {selectedMethod.resolution}
-              </p>
-            </div>
-          </div>
 
-          {/* 预览 + 提交 */}
-          {previewUrl && (
-            <div className="overflow-hidden rounded-xl border border-foreground/6">
-              {/* biome-ignore lint/performance/noImgElement: 用户上传预览图，无固定尺寸 */}
-              <img
-                src={previewUrl}
-                alt="预览"
-                className="max-h-48 w-full bg-[repeating-conic-gradient(#80808020_0%_25%,transparent_0%_50%)] bg-size-[20px_20px] object-contain"
-              />
-            </div>
-          )}
-
-          <div className="flex items-center justify-between border-foreground/6 border-t pt-3">
-            <div className="flex items-center gap-3 text-muted-foreground text-xs">
-              <span>
-                当前模式：
-                <NeonChip tone="violet" size="sm" className="ml-1">
-                  {selectedMethod.label}
-                </NeonChip>
-              </span>
-              {credits !== null && credits > 0 ? (
-                <span className={`flex items-center gap-1 ${!sufficient ? "text-amber-400" : ""}`}>
-                  <Coins className="size-3" />
-                  {credits} 积分/次
+            <div className="flex items-center justify-between border-foreground/6 border-t pt-3">
+              <div className="flex items-center gap-3 text-muted-foreground text-xs">
+                <span>
+                  当前模式：
+                  <NeonChip tone="violet" size="sm" className="ml-1">
+                    {selectedMethod.label}
+                  </NeonChip>
                 </span>
-              ) : (
-                <span className="opacity-40">费用以后台为准</span>
-              )}
-            </div>
-            <GlowButton tone="violet" size="default" onClick={() => submit()} disabled={!canSubmit}>
-              <Wand2 className="size-4" />
-              {uploading ? "上传中..." : isPending ? "提交中..." : "开始抠图"}
-            </GlowButton>
-          </div>
-        </div>
-      </GlassCard>
-
-      {/* 结果列表（含分割线对比） */}
-      {tasks.length > 0 && (
-        <GlassCard glow="violet" className="overflow-hidden">
-          <div className="border-foreground/6 border-b px-4 py-3">
-            <p className="font-medium text-sm">抠图结果</p>
-          </div>
-          <div className="divide-y divide-foreground/4">
-            {tasks.map((task) => (
-              <div key={task.id} className="space-y-3 p-4">
-                <div className="flex items-center justify-between gap-2 text-sm">
-                  <div className="flex items-center gap-2">
-                    {task.status === "SUCCESS" ? (
-                      <span className="text-emerald-400">✓ 完成</span>
-                    ) : task.status === "FAIL" ? (
-                      <span className="text-destructive">
-                        ✕ 失败 {task.errorMsg && `· ${task.errorMsg.slice(0, 40)}`}
-                      </span>
-                    ) : (
-                      <span className="animate-pulse text-muted-foreground">
-                        {task.status === "RUNNING" ? "处理中..." : "排队中..."}
-                      </span>
-                    )}
-                  </div>
-                  {task.status === "SUCCESS" && task.outputUrl && (
-                    <button
-                      type="button"
-                      className="flex items-center gap-1 rounded-md border border-foreground/8 px-2 py-1 text-muted-foreground text-xs hover:bg-foreground/[0.06] hover:text-foreground"
-                      onClick={() => {
-                        const url = task.outputUrl
-                        if (!url) return
-                        downloadFileWithToast(url, `matting-${task.id}.png`)
-                      }}
-                    >
-                      <Download className="size-3" />
-                      下载
-                    </button>
-                  )}
-                </div>
-
-                {task.status === "SUCCESS" && task.outputUrl && task.prompt && (
-                  <ImageSplitViewer original={task.prompt} result={task.outputUrl} />
+                {credits !== null && credits > 0 ? (
+                  <span
+                    className={`flex items-center gap-1 ${!sufficient ? "text-amber-400" : ""}`}
+                  >
+                    <Coins className="size-3" />
+                    {credits} 积分/次
+                  </span>
+                ) : (
+                  <span className="opacity-40">费用以后台为准</span>
                 )}
               </div>
-            ))}
+              <GlowButton
+                tone="violet"
+                size="default"
+                onClick={() => submit()}
+                disabled={!canSubmit}
+              >
+                <Wand2 className="size-4" />
+                {uploading ? "上传中..." : isPending ? "提交中..." : "开始抠图"}
+              </GlowButton>
+            </div>
           </div>
         </GlassCard>
-      )}
+
+        {/* 结果列表（含分割线对比） */}
+        {tasks.length > 0 && (
+          <GlassCard glow="violet" className="overflow-hidden">
+            <div className="border-foreground/6 border-b px-4 py-3">
+              <p className="font-medium text-sm">抠图结果</p>
+            </div>
+            <div className="divide-y divide-foreground/4">
+              {tasks.map((task) => (
+                <div key={task.id} className="space-y-3 p-4">
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <div className="flex items-center gap-2">
+                      {task.status === "SUCCESS" ? (
+                        <span className="text-emerald-400">✓ 完成</span>
+                      ) : task.status === "FAIL" ? (
+                        <span className="text-destructive">
+                          ✕ 失败 {task.errorMsg && `· ${task.errorMsg.slice(0, 40)}`}
+                        </span>
+                      ) : (
+                        <span className="animate-pulse text-muted-foreground">
+                          {task.status === "RUNNING" ? "处理中..." : "排队中..."}
+                        </span>
+                      )}
+                    </div>
+                    {task.status === "SUCCESS" && task.outputUrl && (
+                      <button
+                        type="button"
+                        className="flex items-center gap-1 rounded-md border border-foreground/8 px-2 py-1 text-muted-foreground text-xs hover:bg-foreground/[0.06] hover:text-foreground"
+                        onClick={() => {
+                          const url = task.outputUrl
+                          if (!url) return
+                          downloadFileWithToast(url, `matting-${task.id}.png`)
+                        }}
+                      >
+                        <Download className="size-3" />
+                        下载
+                      </button>
+                    )}
+                  </div>
+
+                  {task.status === "SUCCESS" && task.outputUrl && task.prompt && (
+                    <ImageSplitViewer original={task.prompt} result={task.outputUrl} />
+                  )}
+                </div>
+              ))}
+            </div>
+          </GlassCard>
+        )}
+        {tasks.length === 0 && (
+          <GlassCard
+            glow="violet"
+            className="hidden lg:flex lg:min-h-[420px] lg:items-center lg:justify-center"
+          >
+            <p className="text-muted-foreground text-sm">抠图结果将在这里展示</p>
+          </GlassCard>
+        )}
+      </div>
     </div>
   )
 }
