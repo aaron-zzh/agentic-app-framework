@@ -6,6 +6,17 @@
 
 import { StudioLayout } from "@/layouts/studio/StudioLayout"
 
-export default function Layout({ children }: { children: React.ReactNode }) {
-  return <StudioLayout>{children}</StudioLayout>
+export default function Layout({
+  children,
+  modal
+}: {
+  children: React.ReactNode
+  modal: React.ReactNode
+}) {
+  return (
+    <StudioLayout>
+      {children}
+      {modal}
+    </StudioLayout>
+  )
 }

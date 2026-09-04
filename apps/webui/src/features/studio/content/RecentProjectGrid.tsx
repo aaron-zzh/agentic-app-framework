@@ -17,6 +17,22 @@ import type { AigcProject } from "@/lib/api/rest/ai/aigc"
 import { useAigcProjects } from "@/lib/api/rest/ai/aigc"
 import { getProjectTypeConfig, PROJECT_STATUS_CONFIG } from "./project-type-config"
 
+function NewProjectCard() {
+  return (
+    <Link href="/studio/projects/new" className="group block focus-visible:outline-none">
+      <GlassCard interactive className="h-full">
+        <div className="flex aspect-video items-center justify-center bg-muted/40 text-muted-foreground">
+          <Plus className="size-10 transition-transform duration-300 group-hover:scale-110" />
+        </div>
+        <div className="flex flex-col gap-2 px-4 py-3">
+          <p className="font-medium text-sm">新建项目</p>
+          <p className="text-muted-foreground text-xs">从项目类型开始创作</p>
+        </div>
+      </GlassCard>
+    </Link>
+  )
+}
+
 function RecentProjectCard({ project }: { project: AigcProject }) {
   const type = getProjectTypeConfig({ code: project.projectTypeCode, name: "" })
   const TypeIcon = type.icon
@@ -55,7 +71,7 @@ function RecentProjectCard({ project }: { project: AigcProject }) {
 }
 
 export function RecentProjectGrid() {
-  const { data, isLoading } = useAigcProjects({ pageSize: 5 })
+  const { data, isLoading } = useAigcProjects({ pageSize: 4 })
   const projects = data?.list ?? []
 
   return (
@@ -96,6 +112,7 @@ export function RecentProjectGrid() {
         </GlassCard>
       ) : (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+          <NewProjectCard />
           {projects.map((project) => (
             <RecentProjectCard key={project.id} project={project} />
           ))}
