@@ -1,5 +1,7 @@
 package com.xuejiai.aaf.module.ai.aigc.image.controller;
 
+import java.util.List;
+
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -20,17 +22,20 @@ import com.xuejiai.aaf.framework.intelligent.core.registry.AiServiceRegistry;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.security.license.FeatureRequired;
 import com.xuejiai.aaf.framework.security.license.LicenseFeature;
+import com.xuejiai.aaf.module.system.file.api.FileStoragePort;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 
 /**
- * 图像编辑接口（图生图 / 局部编辑）。
+ * 图像编辑接口（局部编辑）。
  *
- * <p>文生图和 Midjourney 任务统一走 {@code /api/aigc/tasks} AIGC 任务接口提交。
+ * <p>文生图、图生图（多参考图）和 Midjourney 任务统一走 {@code /api/aigc/tasks} AIGC 任务接口提交； 局部编辑（原图 +
+ * 蒙版）尚未纳入统一任务链，保留本接口作为独立入口。
  *
  * @author AaronZZH & Kiro
  */
@@ -46,67 +51,45 @@ public class ImageController {
     private final CapabilityRouter capabilityRouter;
     private final OperatorContext operatorContext;
     private final AiCreditGuard creditGuard;
+    private final FileStoragePort fileService;
 
     // ========== 请求 DTO ==========
 
-    /** 图生图请求 DTO。 */
-    public record ImageToImageRequest(
-            @NotBlank String sourceUrl,
-            @NotBlank String prompt,
-            @NotBlank String modelId,
-            Double strength) {}
-
-    /** 局部编辑请求 DTO。 */
+    /**
+     * 局部编辑请求 DTO。
+     *
+     * <p>图像以 fileId 传递并校验当前用户所有权，不接受裸 URL——避免本地存储场景下把受权限保护的 {@code /api/system/files/{id}/content}
+     * 直接交给外部 AI 服务下载导致 401。
+     */
     public record ImageEditDTO(
-            @NotBlank String sourceUrl,
-            String maskUrl,
+            @NotNull Long sourceFileId,
+            Long maskFileId,
             @NotBlank String prompt,
             @NotBlank String modelId) {}
 
-    // ========== 图生图 / 局部编辑 ==========
-
-    @Operation(summary = "图生图（参考图 + 风格 Prompt + 强度）")
-    @PostMapping("/image-to-image")
-    public Result<ImageResult> imageToImage(@RequestBody @Valid ImageToImageRequest request) {
-        Long userId = requireOwnerId();
-        var model =
-                capabilityRouter.resolve(
-                        CapabilityRoutingContext.of(
-                                userId, CapabilityRoutingContext.CAP_IMAGE_GEN, request.modelId()));
-        var editRequest =
-                new ImageEditRequest(
-                        request.sourceUrl(),
-                        null,
-                        request.prompt(),
-                        request.strength() != null ? request.strength() : 0.75,
-                        model.getModelId());
-        var service = aiServiceRegistry.get(ImageGenerationService.class, model);
-        // M23：接回统一权益 precheck——原实现直接调用底层服务，跳过了余额预检；
-        // AiServiceRegistry 返回的实例已被 ImageGenServiceDecorator 包裹，调用成功后会自动结算，
-        // 但结算前若未预检，透支/欠费账户仍可发起真实调用。estimateCost 与统一任务链
-        // （AigcTaskService#submitImageTask）用的是同一套默认估算逻辑。
-        var estimatedCost = service.estimateCost(model, editRequest, creditGuard.getMarkupRate());
-        creditGuard.precheck(
-                userId, CreditTransactionCategoryEnum.IMAGE_GEN.getCode(), estimatedCost);
-        var result = service.imageToImage(model, editRequest);
-        return Result.success(result);
-    }
+    // ========== 局部编辑 ==========
 
     @Operation(summary = "局部编辑（原图 + 蒙版 + 编辑 Prompt）")
     @PostMapping("/edit")
     public Result<ImageResult> editImage(@RequestBody @Valid ImageEditDTO request) {
         Long userId = requireOwnerId();
+        fileService.requireCurrentOwner(request.sourceFileId());
+        if (request.maskFileId() != null) {
+            fileService.requireCurrentOwner(request.maskFileId());
+        }
         var model =
                 capabilityRouter.resolve(
                         CapabilityRoutingContext.of(
                                 userId, CapabilityRoutingContext.CAP_IMAGE_GEN, request.modelId()));
+        // 按存储类型分流解析图像数据（本地→data URL，OSS→签名 URL），避免裸 URL 直传外部服务 401。
+        String sourceData = fileService.resolveImageData(List.of(request.sourceFileId())).get(0);
+        String maskData =
+                request.maskFileId() != null
+                        ? fileService.resolveImageData(List.of(request.maskFileId())).get(0)
+                        : null;
         var editRequest =
                 new ImageEditRequest(
-                        request.sourceUrl(),
-                        request.maskUrl(),
-                        request.prompt(),
-                        null,
-                        model.getModelId());
+                        sourceData, maskData, request.prompt(), null, model.getModelId());
         var service = aiServiceRegistry.get(ImageGenerationService.class, model);
         // M23：同上，接回统一权益 precheck。
         var estimatedCost = service.estimateCost(model, editRequest, creditGuard.getMarkupRate());

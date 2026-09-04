@@ -181,8 +181,14 @@ public final class HappyhorseParams {
         return list;
     }
 
-    /** 构建单个 media 条目：公网 URL 直接用 url 字段，否则下载转 base64。 */
+    /**
+     * 构建单个 media 条目：已经是 data: URL 直接原样传（上游 {@code resolveImageData} 等方法已按存储类型转换过）；公网 URL 直接用 url
+     * 字段；否则下载转 base64。
+     */
     private static Map<String, Object> mediaItem(String type, String url) {
+        if (url != null && url.startsWith("data:")) {
+            return Map.of("type", type, "url", url);
+        }
         if (isPublicUrl(url)) {
             return Map.of("type", type, "url", url);
         }
@@ -198,8 +204,9 @@ public final class HappyhorseParams {
         }
     }
 
+    /** 判断是否为可公网直连下载的 URL；data: scheme 不算，需在调用前单独识别。 */
     private static boolean isPublicUrl(String url) {
-        if (url == null) return false;
+        if (url == null || url.startsWith("data:")) return false;
         return !url.contains("localhost") && !url.contains("127.0.0.1") && !url.startsWith("file:");
     }
 

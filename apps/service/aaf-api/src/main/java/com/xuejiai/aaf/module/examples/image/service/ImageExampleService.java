@@ -60,9 +60,9 @@ public class ImageExampleService {
                         req.imageUrl(), req.method(), req.options()));
     }
 
-    /** 查询异步任务（卡通化等） */
+    /** 查询异步任务（卡通化等，imageenhan 类目） */
     public ImageProcessService.ProcessResult queryTask(String taskId) {
-        return imageProcessService.queryTask(taskId);
+        return imageProcessService.queryTask(taskId, "CARTOONIZE");
     }
 
     public record GenerateRequest(

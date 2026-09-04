@@ -223,17 +223,16 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
                         mediaType);
             }
             if (req.getMaskUrl() != null) {
-                byte[] maskBytes =
-                        java.net.URI.create(req.getMaskUrl()).toURL().openStream().readAllBytes();
+                var maskImage = ImageInputReader.read(req.getMaskUrl());
                 multipart.part(
                         "mask",
-                        new ByteArrayResource(maskBytes) {
+                        new ByteArrayResource(maskImage.bytes()) {
                             @Override
                             public String getFilename() {
-                                return "mask.png";
+                                return "mask." + maskImage.extension();
                             }
                         },
-                        MediaType.IMAGE_PNG);
+                        MediaType.parseMediaType(maskImage.mimeType()));
             }
             if (req.getQuality() != null) multipart.part("quality", req.getQuality());
             if (req.getFormat() != null) multipart.part("output_format", req.getFormat());

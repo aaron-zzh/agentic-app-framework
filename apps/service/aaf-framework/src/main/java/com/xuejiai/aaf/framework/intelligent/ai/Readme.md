@@ -112,8 +112,8 @@ String resultUrl = result.resultUrl();
 // 卡通化（异步，需轮询）
 var pending = imageProcessService.process(
     new ImageProcessService.ProcessRequest("https://example.com/img.jpg", "CARTOONIZE"));
-// 轮询
-var done = imageProcessService.queryTask(pending.taskId());
+// 轮询（method 用于路由到正确的类目客户端查询）
+var done = imageProcessService.queryTask(pending.taskId(), "CARTOONIZE");
 ```
 
 **支持的处理方式**：
