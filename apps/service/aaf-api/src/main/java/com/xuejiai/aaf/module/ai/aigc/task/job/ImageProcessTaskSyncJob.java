@@ -67,7 +67,10 @@ public class ImageProcessTaskSyncJob {
                 processOne(task);
             } catch (Exception e) {
                 log.warn(
-                        "[ImageProcessSync] 同步失败: taskId={}, err={}", task.getId(), e.getMessage());
+                        "[ImageProcessSync] 同步失败: taskId={}, err={}",
+                        task.getId(),
+                        e.getMessage(),
+                        e);
             }
         }
     }
@@ -76,7 +79,14 @@ public class ImageProcessTaskSyncJob {
         String jobId = task.getProviderTaskId();
         if (jobId == null) return;
 
-        var result = imageProcessService.queryTask(jobId);
+        String method = extractMethod(task.getParams());
+        log.debug(
+                "[ImageProcessSync] 轮询任务: taskId={}, jobId={}, method={}, params={}",
+                task.getId(),
+                jobId,
+                method,
+                task.getParams());
+        var result = imageProcessService.queryTask(jobId, method);
 
         if ("SUCCESS".equals(result.status())) {
             permissionExecutionService.runAsOwner(
@@ -134,6 +144,17 @@ public class ImageProcessTaskSyncJob {
 
     private static String imageContentType(String extension) {
         return "jpg".equals(extension) ? "image/jpeg" : "image/" + extension;
+    }
+
+    /** 从任务参数 JSON 中提取 method 字段，用于路由到正确的类目客户端查询异步结果。 */
+    private static String extractMethod(String paramsJson) {
+        if (paramsJson == null || paramsJson.isBlank()) return null;
+        try {
+            var node = JsonUtils.readTree(paramsJson);
+            return node.path("method").asString();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static String guessExt(String url) {
