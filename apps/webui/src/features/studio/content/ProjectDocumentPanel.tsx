@@ -5,12 +5,15 @@
 
 "use client"
 
-import { BookOpen, FileText, Link2, Loader2, Trash2 } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
+import { BookOpen, FilePlus2, FileText, Link2, Loader2, Trash2 } from "lucide-react"
+import { useEffect, useId, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Select,
   SelectContent,
@@ -33,7 +36,7 @@ import {
   useAttachAigcProjectDocument,
   useDetachAigcProjectDocument
 } from "@/lib/api/rest/ai/aigc"
-import { useDocList } from "@/lib/api/rest/system/document"
+import { useCreateDocument, useDocList } from "@/lib/api/rest/system/document"
 import { cn } from "@/lib/utils/index"
 import { DocumentEditor } from "./DocumentEditor"
 
@@ -55,9 +58,13 @@ export function ProjectDocumentPanel({
   const { data: documents = [], isLoading: docsLoading } = useDocList()
   const attachDocument = useAttachAigcProjectDocument()
   const detachDocument = useDetachAigcProjectDocument()
+  const createDocument = useCreateDocument()
+  const uid = useId()
   const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null)
   const [documentToAttach, setDocumentToAttach] = useState("")
   const [referenceToDetach, setReferenceToDetach] = useState<AigcProjectDocumentRef | null>(null)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [newDocTitle, setNewDocTitle] = useState("")
 
   const referencedIds = useMemo(
     () => new Set(references.map((reference) => reference.documentVersionId)),
@@ -126,10 +133,48 @@ export function ProjectDocumentPanel({
     )
   }
 
+  function handleCreateDocument(e: React.FormEvent) {
+    e.preventDefault()
+    const title = newDocTitle.trim()
+    if (!title) return
+    createDocument.mutate(
+      { title, filePath: `docs/project/${project.id}/${Date.now()}.md`, docType: "reference" },
+      {
+        onSuccess: (created) => {
+          setCreateOpen(false)
+          setNewDocTitle("")
+          const createdId = created.id
+          if (createdId === null) {
+            toast.success("文档创建成功")
+            return
+          }
+          attachDocument.mutate(
+            {
+              projectId: project.id,
+              documentVersionId: createdId,
+              role: "project",
+              expectedProjectVersion: project.version
+            },
+            {
+              onSuccess: () => {
+                setSelectedDocumentId(createdId)
+                toast.success("文档已创建并关联到项目")
+              },
+              onError: (error) =>
+                toast.error(`关联失败：${error instanceof Error ? error.message : "未知错误"}`)
+            }
+          )
+        },
+        onError: (error) =>
+          toast.error(`创建失败：${error instanceof Error ? error.message : "未知错误"}`)
+      }
+    )
+  }
+
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent className="w-[min(96vw,1100px)] gap-0 p-0 sm:max-w-[1100px]">
+        <SheetContent className="w-[min(96vw,1870px)] gap-0 p-0 sm:max-w-[1870px]">
           <SheetHeader className="border-b pr-12">
             <SheetTitle className="flex items-center gap-2">
               <BookOpen />
@@ -168,6 +213,14 @@ export function ProjectDocumentPanel({
                     onClick={handleAttach}
                   >
                     {attachDocument.isPending ? <Loader2 className="animate-spin" /> : <Link2 />}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    aria-label="新建文档"
+                    onClick={() => setCreateOpen(true)}
+                  >
+                    <FilePlus2 />
                   </Button>
                 </div>
               ) : null}
@@ -268,6 +321,34 @@ export function ProjectDocumentPanel({
         variant="destructive"
         onConfirm={handleDetach}
       />
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>新建文档</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreateDocument} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor={`${uid}-new-doc-title`}>标题</Label>
+              <Input
+                id={`${uid}-new-doc-title`}
+                value={newDocTitle}
+                onChange={(e) => setNewDocTitle(e.target.value)}
+                placeholder="文档标题"
+                required
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
+                取消
+              </Button>
+              <Button type="submit" disabled={createDocument.isPending || attachDocument.isPending}>
+                {createDocument.isPending || attachDocument.isPending ? "创建中..." : "创建并关联"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
