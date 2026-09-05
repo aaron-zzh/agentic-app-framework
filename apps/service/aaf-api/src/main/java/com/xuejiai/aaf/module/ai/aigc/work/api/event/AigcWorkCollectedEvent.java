@@ -7,6 +7,6 @@ public record AigcWorkCollectedEvent(
         UUID eventId,
         Long workId,
         Long projectId,
-        Long deliverableObjectId,
-        Long adoptedObjectVersionId,
+        Long deliverableSetObjectId,
+        Long manifestObjectVersionId,
         Instant occurredAt) {}

@@ -10,6 +10,7 @@ import jakarta.validation.constraints.Size;
 
 public record AigcTimelineCreateDTO(
         @NotNull Long projectId,
+        @NotNull @PositiveOrZero Integer expectedProjectVersion,
         Long deliverableObjectId,
         @NotBlank @Size(max = 200) String title,
         @PositiveOrZero Long durationMs,

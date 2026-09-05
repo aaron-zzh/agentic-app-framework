@@ -1,11 +1,10 @@
 package com.xuejiai.aaf.module.ai.aigc.work.api;
 
-import java.time.Instant;
-
-public record AigcWorkPublishCommand(
+public record AigcPublicationCancelCommand(
         Long workId,
+        Long publicationId,
         Integer expectedProjectVersion,
         Integer expectedWorkVersion,
-        Long channelSpecVersionId,
-        Instant scheduledAt,
+        Integer expectedPublicationVersion,
+        String reason,
         String idempotencyKey) {}

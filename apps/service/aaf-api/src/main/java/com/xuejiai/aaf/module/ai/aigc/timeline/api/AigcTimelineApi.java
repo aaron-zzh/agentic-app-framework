@@ -12,5 +12,5 @@ public interface AigcTimelineApi {
 
     List<AigcStoryboardExportView> storyboardExports(Long timelineId);
 
-    void deleteProjectResources(Long projectId);
+    void deleteComposition(AigcTimelineDeleteCommand command);
 }

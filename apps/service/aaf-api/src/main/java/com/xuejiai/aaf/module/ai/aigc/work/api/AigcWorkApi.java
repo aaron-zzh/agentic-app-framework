@@ -6,9 +6,12 @@ public interface AigcWorkApi {
 
     AigcPublicationView publish(AigcWorkPublishCommand command);
 
+    AigcPublicationView cancelPublication(AigcPublicationCancelCommand command);
+
+    AigcPublicationView retryPublication(AigcPublicationRetryCommand command);
+
+    /** 仅渠道执行适配器调用，不暴露普通用户 REST。 */
     AigcPublicationView markPublicationResult(AigcPublicationResultCommand command);
 
-    AigcWorkView archive(Long workId, Integer expectedVersion);
-
-    void deleteProjectResources(Long projectId);
+    AigcWorkView archive(AigcWorkArchiveCommand command);
 }

@@ -11,8 +11,12 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum AigcTaskStatusEnum implements ArrayValuable<String> {
+    PREPARED("PREPARED", "已准备"),
+    SUBMITTING("SUBMITTING", "提交中"),
+    NEEDS_RECONCILIATION("NEEDS_RECONCILIATION", "待对账"),
     PENDING("PENDING", "等待中"),
     RUNNING("RUNNING", "运行中"),
+    COMPLETING("COMPLETING", "完成中"),
     SUCCESS("SUCCESS", "成功"),
     FAIL("FAIL", "失败");
 

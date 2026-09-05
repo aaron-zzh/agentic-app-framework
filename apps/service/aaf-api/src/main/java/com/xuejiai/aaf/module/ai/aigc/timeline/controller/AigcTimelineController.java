@@ -14,8 +14,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.crud.BaseCrudController;
+import com.xuejiai.aaf.module.ai.aigc.AigcAuthorities;
 import com.xuejiai.aaf.module.ai.aigc.timeline.api.AigcTimelineClipInput;
 import com.xuejiai.aaf.module.ai.aigc.timeline.api.AigcTimelineCreateCommand;
+import com.xuejiai.aaf.module.ai.aigc.timeline.api.AigcTimelineDeleteCommand;
 import com.xuejiai.aaf.module.ai.aigc.timeline.api.AigcTimelineReplaceCommand;
 import com.xuejiai.aaf.module.ai.aigc.timeline.api.AigcTimelineTrackInput;
 import com.xuejiai.aaf.module.ai.aigc.timeline.api.AigcTimelineView;
@@ -24,6 +26,7 @@ import com.xuejiai.aaf.module.ai.aigc.timeline.service.AigcTimelineService;
 import com.xuejiai.aaf.module.ai.aigc.timeline.vo.AigcStoryboardExportVO;
 import com.xuejiai.aaf.module.ai.aigc.timeline.vo.AigcTimelineCompositionVO;
 import com.xuejiai.aaf.module.ai.aigc.timeline.vo.AigcTimelineCreateDTO;
+import com.xuejiai.aaf.module.ai.aigc.timeline.vo.AigcTimelineDeleteDTO;
 import com.xuejiai.aaf.module.ai.aigc.timeline.vo.AigcTimelinePageDTO;
 import com.xuejiai.aaf.module.ai.aigc.timeline.vo.AigcTimelineReplaceDTO;
 
@@ -34,6 +37,7 @@ import lombok.RequiredArgsConstructor;
 @Tag(name = "AIGC 轻时间线")
 @RestController
 @RequestMapping("/api/aigc/timelines")
+@PreAuthorize("isAuthenticated()")
 @RequiredArgsConstructor
 public class AigcTimelineController
         extends BaseCrudController<
@@ -51,7 +55,7 @@ public class AigcTimelineController
     }
 
     @Operation(summary = "创建 Timeline Composition")
-    @PreAuthorize("hasAuthority('aigc:timeline:create')")
+    @PreAuthorize(AigcAuthorities.HAS_TIMELINE_CREATE)
     @PostMapping("/_create")
     public Result<AigcTimelineView> createComposition(
             @Validated @RequestBody AigcTimelineCreateDTO request) {
@@ -59,6 +63,7 @@ public class AigcTimelineController
                 service.create(
                         new AigcTimelineCreateCommand(
                                 request.projectId(),
+                                request.expectedProjectVersion(),
                                 request.deliverableObjectId(),
                                 request.title(),
                                 request.durationMs(),
@@ -68,14 +73,14 @@ public class AigcTimelineController
     }
 
     @Operation(summary = "读取完整 Timeline Composition")
-    @PreAuthorize("hasAuthority('aigc:timeline:read')")
+    @PreAuthorize(AigcAuthorities.HAS_TIMELINE_READ)
     @GetMapping("/{id}/composition")
     public Result<AigcTimelineCompositionVO> composition(@PathVariable Long id) {
         return Result.success(service.composition(id));
     }
 
     @Operation(summary = "整体替换 Timeline Track 与 Clip")
-    @PreAuthorize("hasAuthority('aigc:timeline:update')")
+    @PreAuthorize(AigcAuthorities.HAS_TIMELINE_UPDATE)
     @PutMapping("/{id}/composition")
     public Result<AigcTimelineView> replaceComposition(
             @PathVariable Long id, @Validated @RequestBody AigcTimelineReplaceDTO request) {
@@ -111,13 +116,32 @@ public class AigcTimelineController
                         .toList();
         return Result.success(
                 service.replaceComposition(
-                        new AigcTimelineReplaceCommand(id, request.expectedVersion(), tracks)));
+                        new AigcTimelineReplaceCommand(
+                                request.projectId(),
+                                id,
+                                request.expectedProjectVersion(),
+                                request.expectedVersion(),
+                                tracks)));
     }
 
     @Operation(summary = "查询只读 Storyboard 导出记录")
-    @PreAuthorize("hasAuthority('aigc:timeline:read')")
+    @PreAuthorize(AigcAuthorities.HAS_TIMELINE_READ)
     @GetMapping("/{id}/storyboard-exports")
     public Result<List<AigcStoryboardExportVO>> storyboardExports(@PathVariable Long id) {
         return Result.success(service.storyboardExportVOs(id));
+    }
+
+    @Operation(summary = "删除 Timeline Composition")
+    @PreAuthorize(AigcAuthorities.HAS_TIMELINE_DELETE)
+    @PostMapping("/{id}/_delete")
+    public Result<Void> deleteComposition(
+            @PathVariable Long id, @Validated @RequestBody AigcTimelineDeleteDTO request) {
+        service.deleteComposition(
+                new AigcTimelineDeleteCommand(
+                        request.projectId(),
+                        id,
+                        request.expectedProjectVersion(),
+                        request.expectedVersion()));
+        return Result.success();
     }
 }

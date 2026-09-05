@@ -1,13 +1,10 @@
 package com.xuejiai.aaf.module.ai.aigc.work.vo;
 
-import java.time.Instant;
-
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-public record AigcWorkPublishDTO(
+public record AigcWorkArchiveDTO(
         @NotNull Integer expectedProjectVersion,
         @NotNull Integer expectedWorkVersion,
-        @NotNull Long channelSpecVersionId,
-        Instant scheduledAt,
-        @NotBlank String idempotencyKey) {}
+        @NotBlank String idempotencyKey,
+        @NotBlank String reason) {}

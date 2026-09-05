@@ -18,8 +18,11 @@ public interface AigcWorkRepository extends CrudEntityRepository<AigcWork> {
 
     List<AigcWork> findByProjectIdOrderByIdAsc(Long projectId);
 
-    Optional<AigcWork> findByDeliverableObjectIdAndAdoptedObjectVersionId(
-            Long deliverableObjectId, Long adoptedObjectVersionId);
+    Optional<AigcWork> findByProjectIdAndCollectIdempotencyKey(
+            Long projectId, String collectIdempotencyKey);
+
+    Optional<AigcWork> findByDeliverableSetObjectIdAndManifestObjectVersionId(
+            Long deliverableSetObjectId, Long manifestObjectVersionId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select work from AigcWork work where work.id = :id")

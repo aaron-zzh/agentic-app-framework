@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 
 public record AigcTimelineCreateCommand(
         Long projectId,
+        Integer expectedProjectVersion,
         Long deliverableObjectId,
         String title,
         Long durationMs,

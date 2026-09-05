@@ -23,6 +23,7 @@ import com.xuejiai.aaf.module.ai.aigc.timeline.api.AigcStoryboardExportView;
 import com.xuejiai.aaf.module.ai.aigc.timeline.api.AigcTimelineApi;
 import com.xuejiai.aaf.module.ai.aigc.timeline.api.AigcTimelineClipInput;
 import com.xuejiai.aaf.module.ai.aigc.timeline.api.AigcTimelineCreateCommand;
+import com.xuejiai.aaf.module.ai.aigc.timeline.api.AigcTimelineDeleteCommand;
 import com.xuejiai.aaf.module.ai.aigc.timeline.api.AigcTimelineReplaceCommand;
 import com.xuejiai.aaf.module.ai.aigc.timeline.api.AigcTimelineTrackInput;
 import com.xuejiai.aaf.module.ai.aigc.timeline.api.AigcTimelineView;
@@ -86,10 +87,7 @@ public class AigcTimelineService
     @Override
     @Transactional
     protected void beforeDelete(AigcTimelineComposition composition) {
-        var project = projectApi.requireProject(composition.getProjectId());
-        requireCurrentOwner(project.userId());
-        requireProjectWritable(project.lifecycleStage());
-        deleteChildren(composition.getId());
+        throw badRequest("Timeline 必须使用带 expectedVersion 的 composition 删除命令");
     }
 
     @Override
@@ -113,10 +111,19 @@ public class AigcTimelineService
 
     @Override
     @Transactional
+    @org.springframework.security.access.prepost.PreAuthorize(
+            com.xuejiai.aaf.module.ai.aigc.AigcAuthorities.HAS_TIMELINE_CREATE)
     public AigcTimelineView create(AigcTimelineCreateCommand command) {
-        var project = projectApi.requireProject(command.projectId());
-        requireCurrentOwner(project.userId());
-        requireProjectWritable(project.lifecycleStage());
+        var ownerId =
+                operatorContext
+                        .currentOwnerId()
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.UNAUTHORIZED, "当前用户未登录"));
+        var project =
+                projectApi.lockForCreativeMutation(
+                        command.projectId(), ownerId, command.expectedProjectVersion());
         if (command.deliverableObjectId() != null) {
             var object =
                     projectApi.getGraph(command.projectId()).objects().stream()
@@ -149,15 +156,25 @@ public class AigcTimelineService
 
     @Override
     @Transactional
+    @org.springframework.security.access.prepost.PreAuthorize(
+            com.xuejiai.aaf.module.ai.aigc.AigcAuthorities.HAS_TIMELINE_UPDATE)
     public AigcTimelineView replaceComposition(AigcTimelineReplaceCommand command) {
+        var ownerId =
+                operatorContext
+                        .currentOwnerId()
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.UNAUTHORIZED, "当前用户未登录"));
+        var project =
+                projectApi.lockForCreativeMutation(
+                        command.projectId(), ownerId, command.expectedProjectVersion());
         var composition =
                 repository
                         .findLockedById(command.timelineId())
+                        .filter(candidate -> command.projectId().equals(candidate.getProjectId()))
                         .orElseThrow(() -> notFound("Timeline 不存在"));
         requireExpectedVersion(composition, command.expectedVersion());
-        var project = projectApi.requireProject(composition.getProjectId());
-        requireCurrentOwner(project.userId());
-        requireProjectWritable(project.lifecycleStage());
         var graph = projectApi.getGraph(composition.getProjectId());
         var objectById = new HashMap<Long, AigcProjectObjectView>();
         graph.objects().forEach(object -> objectById.put(object.id(), object));
@@ -179,6 +196,8 @@ public class AigcTimelineService
         return toApiView(composition);
     }
 
+    @org.springframework.security.access.prepost.PreAuthorize(
+            com.xuejiai.aaf.module.ai.aigc.AigcAuthorities.HAS_TIMELINE_READ)
     public AigcTimelineCompositionVO composition(Long timelineId) {
         var composition = requireEntity(timelineId);
         var project = projectApi.requireProject(composition.getProjectId());
@@ -239,13 +258,26 @@ public class AigcTimelineService
 
     @Override
     @Transactional
-    public void deleteProjectResources(Long projectId) {
-        storyboardExportRepository.deleteAll(
-                storyboardExportRepository.findByProjectIdOrderBySourceRevisionNoDescIdDesc(
-                        projectId));
-        var compositions = repository.findByProjectId(projectId);
-        compositions.forEach(composition -> deleteChildren(composition.getId()));
-        repository.deleteAll(compositions);
+    @org.springframework.security.access.prepost.PreAuthorize(
+            com.xuejiai.aaf.module.ai.aigc.AigcAuthorities.HAS_TIMELINE_DELETE)
+    public void deleteComposition(AigcTimelineDeleteCommand command) {
+        var ownerId =
+                operatorContext
+                        .currentOwnerId()
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.UNAUTHORIZED, "当前用户未登录"));
+        projectApi.lockForCreativeMutation(
+                command.projectId(), ownerId, command.expectedProjectVersion());
+        var composition =
+                repository
+                        .findLockedById(command.timelineId())
+                        .filter(candidate -> command.projectId().equals(candidate.getProjectId()))
+                        .orElseThrow(() -> notFound("Timeline 不存在"));
+        requireExpectedVersion(composition, command.expectedVersion());
+        deleteChildren(composition.getId());
+        repository.delete(composition);
     }
 
     @Transactional
@@ -427,12 +459,6 @@ public class AigcTimelineService
             AigcTimelineComposition composition, Integer expectedVersion) {
         if (expectedVersion == null || !expectedVersion.equals(composition.getVersion())) {
             throw badRequest("Timeline 已被其他操作更新，请刷新后重试");
-        }
-    }
-
-    private void requireProjectWritable(String lifecycleStage) {
-        if ("archived".equals(lifecycleStage)) {
-            throw badRequest("归档项目不能修改 Timeline");
         }
     }
 

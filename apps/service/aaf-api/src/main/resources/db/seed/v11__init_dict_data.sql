@@ -725,7 +725,7 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO sys_dict_type (name, type, status, remark) VALUES
 ('AIGC 任务类型', 'aigc_task_type',   0, 'AigcTask.type：IMAGE/VIDEO/MODEL_3D/MUSIC/VOICE/IMAGE_PROCESS，与 AigcTaskController#submit 分支一致'),
-('AIGC 任务状态', 'aigc_task_status', 0, 'AigcTask.status：PENDING/RUNNING/SUCCESS/FAIL')
+('AIGC 任务状态', 'aigc_task_status', 0, 'AigcTask.status：PREPARED/SUBMITTING/NEEDS_RECONCILIATION/PENDING/RUNNING/COMPLETING/SUCCESS/FAIL')
 ON CONFLICT DO NOTHING;
 
 -- aigc_task_type AIGC 任务类型
@@ -740,8 +740,12 @@ ON CONFLICT DO NOTHING;
 
 -- aigc_task_status AIGC 任务状态
 INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
-('aigc_task_status', '等待中', 'PENDING', 1, 'default'),
-('aigc_task_status', '运行中', 'RUNNING', 2, 'primary'),
-('aigc_task_status', '成功',   'SUCCESS', 3, 'success'),
-('aigc_task_status', '失败',   'FAIL',    4, 'danger')
+('aigc_task_status', '已准备', 'PREPARED', 1, 'info'),
+('aigc_task_status', '提交中', 'SUBMITTING', 2, 'warning'),
+('aigc_task_status', '待对账', 'NEEDS_RECONCILIATION', 3, 'warning'),
+('aigc_task_status', '等待中', 'PENDING', 4, 'default'),
+('aigc_task_status', '运行中', 'RUNNING', 5, 'primary'),
+('aigc_task_status', '完成中', 'COMPLETING', 6, 'primary'),
+('aigc_task_status', '成功',   'SUCCESS', 7, 'success'),
+('aigc_task_status', '失败',   'FAIL',    8, 'danger')
 ON CONFLICT DO NOTHING;

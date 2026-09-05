@@ -20,6 +20,9 @@ public interface AigcWorkPublicationRepository extends JpaRepository<AigcWorkPub
 
     Optional<AigcWorkPublication> findByWorkIdAndIdempotencyKey(Long workId, String idempotencyKey);
 
+    List<AigcWorkPublication> findByRetryOfPublicationIdOrderByRetryCountDesc(
+            Long retryOfPublicationId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select publication from AigcWorkPublication publication where publication.id = :id")
     Optional<AigcWorkPublication> findLockedById(@Param("id") Long id);

@@ -37,6 +37,8 @@ public final class AigcTimelineResource {
                             .without(
                                     CrudOperation.CREATE,
                                     CrudOperation.UPDATE,
+                                    CrudOperation.DELETE,
+                                    CrudOperation.DELETE_BATCH,
                                     CrudOperation.IMPORT,
                                     CrudOperation.RESTORE,
                                     CrudOperation.ARCHIVE),

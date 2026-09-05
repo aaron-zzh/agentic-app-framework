@@ -3,7 +3,7 @@ package com.xuejiai.aaf.module.ai.aigc.work.api;
 public record AigcWorkView(
         Long id,
         Long projectId,
-        Long deliverableObjectId,
-        Long adoptedObjectVersionId,
+        Long deliverableSetObjectId,
+        Long manifestObjectVersionId,
         String status,
         Integer version) {}

@@ -2,10 +2,11 @@ package com.xuejiai.aaf.module.ai.aigc.work.api;
 
 import java.time.Instant;
 
-public record AigcWorkPublishCommand(
+public record AigcPublicationRetryCommand(
         Long workId,
+        Long failedPublicationId,
         Integer expectedProjectVersion,
         Integer expectedWorkVersion,
-        Long channelSpecVersionId,
+        Integer expectedPublicationVersion,
         Instant scheduledAt,
         String idempotencyKey) {}

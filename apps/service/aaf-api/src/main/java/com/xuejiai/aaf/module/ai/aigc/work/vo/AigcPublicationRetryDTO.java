@@ -5,9 +5,9 @@ import java.time.Instant;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-public record AigcWorkPublishDTO(
+public record AigcPublicationRetryDTO(
         @NotNull Integer expectedProjectVersion,
         @NotNull Integer expectedWorkVersion,
-        @NotNull Long channelSpecVersionId,
+        @NotNull Integer expectedPublicationVersion,
         Instant scheduledAt,
         @NotBlank String idempotencyKey) {}

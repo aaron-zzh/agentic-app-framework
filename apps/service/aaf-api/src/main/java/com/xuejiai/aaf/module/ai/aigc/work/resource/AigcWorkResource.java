@@ -44,8 +44,8 @@ public final class AigcWorkResource {
                             CrudFilterSchema.auto(),
                             Set.of(
                                     "projectId",
-                                    "deliverableObjectId",
-                                    "adoptedObjectVersionId",
+                                    "deliverableSetObjectId",
+                                    "manifestObjectVersionId",
                                     "title",
                                     "coverMediaVersionId",
                                     "status",

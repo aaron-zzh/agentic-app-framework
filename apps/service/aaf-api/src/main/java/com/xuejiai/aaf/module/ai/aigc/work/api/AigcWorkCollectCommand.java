@@ -2,7 +2,9 @@ package com.xuejiai.aaf.module.ai.aigc.work.api;
 
 public record AigcWorkCollectCommand(
         Long projectId,
-        Long deliverableObjectId,
-        Long adoptedObjectVersionId,
+        Long deliverableSetObjectId,
+        Long manifestObjectVersionId,
+        Integer expectedProjectVersion,
         Long coverMediaVersionId,
-        String visibility) {}
+        String visibility,
+        String idempotencyKey) {}
