@@ -178,11 +178,12 @@ public class AigcProjectTypePackageService
             throw exception(CONFIGURATION_INCOMPATIBLE, "项目类型、蓝图与生产模式不匹配");
         }
         var bindingIds = distinct(packageEntity.getExecutionBindingIds());
-        if (bindingIds.isEmpty() && !blueprint.getActionKeys().isEmpty()) {
+        var blueprintActionKeys = actionKeys(blueprint);
+        if (bindingIds.isEmpty() && !blueprintActionKeys.isEmpty()) {
             throw exception(CONFIGURATION_INCOMPATIBLE, "执行绑定不能为空");
         }
         if (!bindingIds.isEmpty()) {
-            var actionKeys = blueprint.getActionKeys().stream().distinct().toList();
+            var actionKeys = blueprintActionKeys.stream().distinct().toList();
             var validation =
                     bindingCompatibilityPort.validate(
                             bindingIds,
@@ -205,8 +206,22 @@ public class AigcProjectTypePackageService
         result.put(
                 "domainExtensionCode", domainExtension == null ? null : domainExtension.getCode());
         result.put("channelCodes", channels.stream().map(AigcChannelSpec::getCode).toList());
-        result.put("coveredActionKeys", blueprint.getActionKeys());
+        result.put("coveredActionKeys", blueprintActionKeys);
         return java.util.Collections.unmodifiableMap(result);
+    }
+
+    private List<String> actionKeys(AigcProjectBlueprint blueprint) {
+        if (blueprint.getActionSpec() == null
+                || !(blueprint.getActionSpec().get("actions") instanceof List<?> actions)) {
+            return List.of();
+        }
+        return actions.stream()
+                .filter(java.util.Map.class::isInstance)
+                .map(java.util.Map.class::cast)
+                .map(action -> action.get("actionKey"))
+                .filter(java.util.Objects::nonNull)
+                .map(String::valueOf)
+                .toList();
     }
 
     private AigcProjectType requirePublishedProjectType(Long id) {

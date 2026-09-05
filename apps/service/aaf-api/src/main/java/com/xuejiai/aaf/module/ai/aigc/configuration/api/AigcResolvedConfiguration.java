@@ -15,8 +15,25 @@ public record AigcResolvedConfiguration(
         String domainExtensionCode,
         String domainExtensionVersion,
         List<Long> channelSpecVersionIds,
-        List<Long> executionBindingVersionIds,
+        List<AigcExecutionBindingVersionRef> executionBindings,
         String productionMode,
-        String snapshotJson,
-        List<AigcBlueprintObjectSpec> objects,
-        List<AigcBlueprintRelationSpec> relations) {}
+        String budgetTier,
+        String qualityTier,
+        List<AigcBlueprintSlotTemplateSpec> slotTemplates,
+        List<AigcResolvedObjectSpec> resolvedObjects,
+        List<AigcBlueprintRelationSpec> relations,
+        List<AigcBlueprintActionSpec> actions,
+        List<AigcDeliverableSetSpec> deliverableSets,
+        AigcBlueprintProcessPolicy processPolicy,
+        String snapshotJson) {
+
+    public AigcResolvedConfiguration {
+        channelSpecVersionIds = List.copyOf(channelSpecVersionIds);
+        executionBindings = List.copyOf(executionBindings);
+        slotTemplates = List.copyOf(slotTemplates);
+        resolvedObjects = List.copyOf(resolvedObjects);
+        relations = List.copyOf(relations);
+        actions = List.copyOf(actions);
+        deliverableSets = List.copyOf(deliverableSets);
+    }
+}

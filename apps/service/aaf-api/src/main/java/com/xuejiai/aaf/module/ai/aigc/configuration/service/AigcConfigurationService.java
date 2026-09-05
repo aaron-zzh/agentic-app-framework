@@ -16,11 +16,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.util.JsonUtils;
-import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcBlueprintObjectSpec;
+import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcBlueprintActionSpec;
+import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcBlueprintProcessPolicy;
 import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcBlueprintRelationSpec;
+import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcBlueprintSlotTemplateSpec;
 import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcConfigurationApi;
 import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcConfigurationResolveCommand;
+import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcDeliverableSetSpec;
+import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcExecutionBindingVersionRef;
 import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcResolvedConfiguration;
+import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcResolvedObjectSpec;
 import com.xuejiai.aaf.module.ai.aigc.configuration.domain.AigcChannelSpec;
 import com.xuejiai.aaf.module.ai.aigc.configuration.domain.AigcDomainExtension;
 import com.xuejiai.aaf.module.ai.aigc.configuration.domain.AigcProjectBlueprint;
@@ -57,6 +62,20 @@ public class AigcConfigurationService implements AigcConfigurationApi {
         var domainExtension = requireDomainExtension(packageEntity.getDomainExtensionId());
         var channelIds = selectedChannelIds(command.channelSpecVersionIds(), packageEntity);
         var channels = requireChannels(channelIds);
+        var templates = slotTemplates(blueprint);
+        var objects =
+                resolvedObjects(
+                        blueprint,
+                        templates,
+                        command,
+                        packageEntity.getProductionMode(),
+                        domainExtension,
+                        channels);
+        var relations = relationSpecs(blueprint, objects);
+        var actions = actionSpecs(blueprint);
+        var deliverableSets = deliverableSets(blueprint);
+        var processPolicy = processPolicy(blueprint);
+        var bindings = executionBindings(packageEntity);
 
         var snapshot = new LinkedHashMap<String, Object>();
         snapshot.put("package", packageSnapshot(packageEntity));
@@ -66,8 +85,17 @@ public class AigcConfigurationService implements AigcConfigurationApi {
                 "domainExtension",
                 domainExtension == null ? null : domainExtensionSnapshot(domainExtension));
         snapshot.put("channels", channels.stream().map(this::channelSnapshot).toList());
-        snapshot.put("executionBindingVersionIds", packageEntity.getExecutionBindingIds());
+        snapshot.put("executionBindings", bindings);
         snapshot.put("productionMode", packageEntity.getProductionMode());
+        snapshot.put("budgetTier", command.budgetTier());
+        snapshot.put("qualityTier", command.qualityTier());
+        snapshot.put("slotOverrides", command.slotOverrides());
+        snapshot.put("slotTemplates", templates);
+        snapshot.put("resolvedObjects", objects);
+        snapshot.put("relations", relations);
+        snapshot.put("actions", actions);
+        snapshot.put("deliverableSets", deliverableSets);
+        snapshot.put("processPolicy", processPolicy);
 
         return new AigcResolvedConfiguration(
                 packageEntity.getId(),
@@ -81,11 +109,17 @@ public class AigcConfigurationService implements AigcConfigurationApi {
                 domainExtension == null ? null : domainExtension.getCode(),
                 domainExtension == null ? null : domainExtension.getExtensionVersion(),
                 channelIds,
-                packageEntity.getExecutionBindingIds(),
+                bindings,
                 packageEntity.getProductionMode(),
-                JsonUtils.toJsonString(snapshot),
-                objectSpecs(blueprint),
-                relationSpecs(blueprint));
+                command.budgetTier(),
+                command.qualityTier(),
+                templates,
+                objects,
+                relations,
+                actions,
+                deliverableSets,
+                processPolicy,
+                JsonUtils.toJsonString(snapshot));
     }
 
     private AigcProjectTypePackage requireCompatiblePackage(
@@ -168,40 +202,413 @@ public class AigcConfigurationService implements AigcConfigurationApi {
         return values == null ? List.of() : values.stream().distinct().toList();
     }
 
-    private List<AigcBlueprintObjectSpec> objectSpecs(AigcProjectBlueprint blueprint) {
-        var result = new ArrayList<AigcBlueprintObjectSpec>();
-        for (var item : mapList(blueprint.getObjectSpec(), "objects")) {
-            var key = text(item, "key");
-            var type = text(item, "type");
-            if (key == null || type == null) {
-                throw exception(CONFIGURATION_INCOMPATIBLE, "Blueprint 对象缺少 key/type");
+    private List<AigcBlueprintSlotTemplateSpec> slotTemplates(AigcProjectBlueprint blueprint) {
+        return mapList(blueprint.getSlotTemplateSpec(), "slotTemplates").stream()
+                .map(
+                        item -> {
+                            var templateKey = text(item, "templateKey");
+                            var stableKeyPattern = text(item, "stableKeyPattern");
+                            var objectType = text(item, "objectType");
+                            if (templateKey == null || stableKeyPattern == null || objectType == null) {
+                                throw exception(
+                                        CONFIGURATION_INCOMPATIBLE,
+                                        "Blueprint 槽位模板缺少 templateKey/stableKeyPattern/objectType");
+                            }
+                            return new AigcBlueprintSlotTemplateSpec(
+                                    templateKey,
+                                    stableKeyPattern,
+                                    objectType,
+                                    text(item, "displayNamePattern"),
+                                    text(item, "description"),
+                                    text(item, "parentTemplateKey"),
+                                    integer(item.get("orderNo"), 0),
+                                    integer(item.get("defaultCount"), 1),
+                                    integer(item.get("minCount"), 0),
+                                    integer(item.get("maxCount"), 1),
+                                    bool(item.get("userAddable")),
+                                    bool(item.get("userRemovable")),
+                                    defaultText(item, "defaultContractRole", "REQUIRED"),
+                                    defaultText(item, "adoptionPolicy", "SINGLE_ADOPTED"),
+                                    json(item.get("activationCondition")),
+                                    json(item.get("userInstruction")),
+                                    JsonUtils.toJsonString(item));
+                        })
+                .toList();
+    }
+
+    private List<AigcResolvedObjectSpec> resolvedObjects(
+            AigcProjectBlueprint blueprint,
+            List<AigcBlueprintSlotTemplateSpec> templates,
+            AigcConfigurationResolveCommand command,
+            String productionMode,
+            AigcDomainExtension domainExtension,
+            List<AigcChannelSpec> channels) {
+        var rawByTemplate =
+                mapList(blueprint.getSlotTemplateSpec(), "slotTemplates").stream()
+                        .collect(
+                                Collectors.toMap(
+                                        item -> text(item, "templateKey"),
+                                        Function.identity(),
+                                        (left, ignored) -> left,
+                                        LinkedHashMap::new));
+        var overrideByTemplate = new LinkedHashMap<String, Integer>();
+        for (var override : command.slotOverrides()) {
+            if (override == null
+                    || override.templateKey() == null
+                    || override.requestedCount() == null
+                    || override.requestedCount() < 0
+                    || overrideByTemplate.putIfAbsent(
+                                    override.templateKey(), override.requestedCount())
+                            != null) {
+                throw exception(CONFIGURATION_INCOMPATIBLE, "slotOverrides 非法或重复");
             }
-            result.add(
-                    new AigcBlueprintObjectSpec(
-                            key,
-                            type,
-                            text(item, "parentKey"),
-                            integer(item.get("sortOrder")),
-                            JsonUtils.toJsonString(item)));
+        }
+        if (!rawByTemplate.keySet().containsAll(overrideByTemplate.keySet())) {
+            throw exception(CONFIGURATION_INCOMPATIBLE, "slotOverrides 包含未知模板");
+        }
+
+        var seeds = new ArrayList<ResolvedSeed>();
+        for (var template : templates) {
+            var raw = rawByTemplate.get(template.templateKey());
+            var count = template.defaultCount();
+            count = tierCount(raw, "countByProductionMode", productionMode, count);
+            count = tierCount(raw, "countByBudgetTier", command.budgetTier(), count);
+            count = tierCount(raw, "countByQualityTier", command.qualityTier(), count);
+            count = overrideByTemplate.getOrDefault(template.templateKey(), count);
+            count =
+                    constrainCount(
+                            count,
+                            template,
+                            domainExtension,
+                            channels,
+                            overrideByTemplate.containsKey(template.templateKey()));
+            if (!isActive(
+                    raw.get("activationCondition"), command, productionMode, channels)) {
+                count = 0;
+            }
+            if (count < 0 || count > template.maxCount() || (count > 0 && count < template.minCount())) {
+                throw exception(
+                        CONFIGURATION_INCOMPATIBLE,
+                        "槽位数量越界: %s=%s".formatted(template.templateKey(), count));
+            }
+            for (var instanceNo = 1; instanceNo <= count; instanceNo++) {
+                seeds.add(
+                        new ResolvedSeed(
+                                template,
+                                instanceNo,
+                                formatPattern(
+                                        template.stableKeyPattern(), instanceNo, count, "stableKey"),
+                                formatPattern(
+                                        template.displayNamePattern() == null
+                                                ? template.templateKey()
+                                                : template.displayNamePattern(),
+                                        instanceNo,
+                                        count,
+                                        "displayName")));
+            }
+        }
+        var stableKeys = new java.util.HashSet<String>();
+        seeds.forEach(
+                seed -> {
+                    if (!stableKeys.add(seed.stableKey())) {
+                        throw exception(CONFIGURATION_INCOMPATIBLE, "项目对象 stableKey 不唯一");
+                    }
+                });
+        var seedsByTemplate =
+                seeds.stream().collect(Collectors.groupingBy(seed -> seed.template().templateKey()));
+        return seeds.stream()
+                .map(
+                        seed -> {
+                            var parentKey =
+                                    resolveParentKey(
+                                            seed.template().parentTemplateKey(),
+                                            seed.instanceNo(),
+                                            seedsByTemplate);
+                            return new AigcResolvedObjectSpec(
+                                    seed.stableKey(),
+                                    seed.template().templateKey(),
+                                    seed.instanceNo(),
+                                    seed.template().objectType(),
+                                    seed.displayName(),
+                                    parentKey,
+                                    seed.template().orderNo() + seed.instanceNo() - 1,
+                                    seed.template().defaultContractRole(),
+                                    seed.template().adoptionPolicy(),
+                                    seed.template().userInstructionJson(),
+                                    seed.template().schemaJson());
+                        })
+                .toList();
+    }
+
+    private List<AigcBlueprintRelationSpec> relationSpecs(
+            AigcProjectBlueprint blueprint, List<AigcResolvedObjectSpec> objects) {
+        var stableByTemplate =
+                objects.stream()
+                        .collect(
+                                Collectors.groupingBy(
+                                        AigcResolvedObjectSpec::blueprintTemplateKey,
+                                        LinkedHashMap::new,
+                                        Collectors.mapping(
+                                                AigcResolvedObjectSpec::stableKey,
+                                                Collectors.toList())));
+        var result = new ArrayList<AigcBlueprintRelationSpec>();
+        for (var item : mapList(blueprint.getRelationSpec(), "relations")) {
+            var source = text(item, "sourceTemplateKey");
+            var target = text(item, "targetTemplateKey");
+            var type = text(item, "type");
+            if (source == null || target == null || type == null) {
+                throw exception(
+                        CONFIGURATION_INCOMPATIBLE,
+                        "Blueprint 关系缺少 sourceTemplateKey/targetTemplateKey/type");
+            }
+            var sources = stableByTemplate.getOrDefault(source, List.of());
+            var targets = stableByTemplate.getOrDefault(target, List.of());
+            for (var sourceKey : sources) {
+                for (var targetKey : targets) {
+                    result.add(
+                            new AigcBlueprintRelationSpec(
+                                    sourceKey, targetKey, type, JsonUtils.toJsonString(item)));
+                }
+            }
         }
         return List.copyOf(result);
     }
 
-    private List<AigcBlueprintRelationSpec> relationSpecs(AigcProjectBlueprint blueprint) {
-        var result = new ArrayList<AigcBlueprintRelationSpec>();
-        for (var item : mapList(blueprint.getRelationSpec(), "relations")) {
-            var source = text(item, "sourceKey");
-            var target = text(item, "targetKey");
-            var type = text(item, "type");
-            if (source == null || target == null || type == null) {
-                throw exception(CONFIGURATION_INCOMPATIBLE, "Blueprint 关系缺少 source/target/type");
-            }
+    private List<AigcBlueprintActionSpec> actionSpecs(AigcProjectBlueprint blueprint) {
+        return mapList(blueprint.getActionSpec(), "actions").stream()
+                .map(
+                        item -> {
+                            var actionKey = text(item, "actionKey");
+                            if (actionKey == null) {
+                                throw exception(CONFIGURATION_INCOMPATIBLE, "Blueprint action 缺少 actionKey");
+                            }
+                            return new AigcBlueprintActionSpec(
+                                    actionKey,
+                                    text(item, "targetTemplateKey"),
+                                    stringList(item.get("dependencyTemplateKeys")),
+                                    defaultText(item, "confirmationPolicy", "NONE"),
+                                    json(item.get("inputPreset")));
+                        })
+                .toList();
+    }
+
+    private List<AigcDeliverableSetSpec> deliverableSets(AigcProjectBlueprint blueprint) {
+        return mapList(blueprint.getDeliverableSpec(), "sets").stream()
+                .map(
+                        item ->
+                                new AigcDeliverableSetSpec(
+                                        text(item, "setTemplateKey"),
+                                        stringList(item.get("allowedSlotTemplateKeys")),
+                                        stringList(item.get("allowedCustomObjectTypes")),
+                                        defaultText(
+                                                item,
+                                                "defaultUserAddedContractRole",
+                                                "OPTIONAL"),
+                                        defaultText(item, "completionMode", "ALL_REQUIRED"),
+                                        defaultText(item, "reviewMode", "PROJECT"),
+                                        defaultText(item, "publicationPolicy", "OPTIONAL")))
+                .toList();
+    }
+
+    private AigcBlueprintProcessPolicy processPolicy(AigcProjectBlueprint blueprint) {
+        var policy = blueprint.getProcessPolicy();
+        return new AigcBlueprintProcessPolicy(
+                policy != null && bool(policy.get("reviewRequired")),
+                policy == null ? "OPTIONAL" : defaultText(policy, "publicationPolicy", "OPTIONAL"),
+                policy == null ? List.of() : stringList(policy.get("autoActionKeys")),
+                policy == null ? List.of() : stringList(policy.get("confirmationGateKeys")));
+    }
+
+    private List<AigcExecutionBindingVersionRef> executionBindings(
+            AigcProjectTypePackage packageEntity) {
+        var actionKeys =
+                stringList(
+                        packageEntity.getCompatibilityResult() == null
+                                ? null
+                                : packageEntity.getCompatibilityResult().get("coveredActionKeys"));
+        if (actionKeys.size() != packageEntity.getExecutionBindingIds().size()) {
+            throw exception(CONFIGURATION_INCOMPATIBLE, "兼容包动作与执行绑定数量不一致");
+        }
+        var result = new ArrayList<AigcExecutionBindingVersionRef>();
+        for (var index = 0; index < actionKeys.size(); index++) {
             result.add(
-                    new AigcBlueprintRelationSpec(
-                            source, target, type, JsonUtils.toJsonString(item)));
+                    new AigcExecutionBindingVersionRef(
+                            actionKeys.get(index), packageEntity.getExecutionBindingIds().get(index)));
         }
         return List.copyOf(result);
     }
+
+    private int tierCount(
+            Map<String, Object> item, String policyKey, String tier, int currentCount) {
+        if (tier == null || !(item.get(policyKey) instanceof Map<?, ?> policy)) {
+            return currentCount;
+        }
+        var value = policy.get(tier);
+        return value instanceof Number number ? number.intValue() : currentCount;
+    }
+
+    private int constrainCount(
+            int requested,
+            AigcBlueprintSlotTemplateSpec template,
+            AigcDomainExtension extension,
+            List<AigcChannelSpec> channels,
+            boolean rejectAdjustment) {
+        var count = requested;
+        if (extension != null) {
+            count =
+                    applyConstraint(
+                            count,
+                            extension.getActionConstraints(),
+                            template.templateKey(),
+                            rejectAdjustment);
+            count =
+                    applyConstraint(
+                            count,
+                            extension.getChannelOverrides(),
+                            template.templateKey(),
+                            rejectAdjustment);
+        }
+        for (var channel : channels) {
+            count =
+                    applyConstraint(
+                            count,
+                            channel.getCopyStructure(),
+                            template.templateKey(),
+                            rejectAdjustment);
+        }
+        return count;
+    }
+
+    private int applyConstraint(
+            int value,
+            Map<String, Object> source,
+            String templateKey,
+            boolean rejectAdjustment) {
+        if (source == null || !(source.get("slotConstraints") instanceof List<?> constraints)) {
+            return value;
+        }
+        var result = value;
+        for (var constraint : constraints) {
+            if (!(constraint instanceof Map<?, ?> map)
+                    || !templateKey.equals(String.valueOf(map.get("templateKey")))) {
+                continue;
+            }
+            if (map.get("exactCount") instanceof Number exact) {
+                if (rejectAdjustment && result != exact.intValue()) {
+                    throw exception(
+                            CONFIGURATION_INCOMPATIBLE,
+                            "slotOverrides 违反槽位硬约束: %s=%s".formatted(templateKey, value));
+                }
+                result = exact.intValue();
+            }
+            if (map.get("minCount") instanceof Number min) {
+                if (rejectAdjustment && result < min.intValue()) {
+                    throw exception(
+                            CONFIGURATION_INCOMPATIBLE,
+                            "slotOverrides 违反槽位硬约束: %s=%s".formatted(templateKey, value));
+                }
+                result = Math.max(result, min.intValue());
+            }
+            if (map.get("maxCount") instanceof Number max) {
+                if (rejectAdjustment && result > max.intValue()) {
+                    throw exception(
+                            CONFIGURATION_INCOMPATIBLE,
+                            "slotOverrides 违反槽位硬约束: %s=%s".formatted(templateKey, value));
+                }
+                result = Math.min(result, max.intValue());
+            }
+        }
+        return result;
+    }
+
+    private boolean isActive(
+            Object value,
+            AigcConfigurationResolveCommand command,
+            String productionMode,
+            List<AigcChannelSpec> channels) {
+        if (!(value instanceof Map<?, ?> condition)) {
+            return true;
+        }
+        if (condition.get("productionModes") instanceof List<?> modes
+                && !modes.contains(productionMode)) {
+            return false;
+        }
+        if (condition.get("budgetTiers") instanceof List<?> tiers
+                && !tiers.contains(command.budgetTier())) {
+            return false;
+        }
+        if (condition.get("qualityTiers") instanceof List<?> tiers
+                && !tiers.contains(command.qualityTier())) {
+            return false;
+        }
+        if (condition.get("channelsAny") instanceof List<?> expectedChannels) {
+            var channelCodes = channels.stream().map(AigcChannelSpec::getCode).toList();
+            return expectedChannels.stream().anyMatch(channelCodes::contains);
+        }
+        return true;
+    }
+
+    private String resolveParentKey(
+            String parentTemplateKey,
+            int instanceNo,
+            Map<String, List<ResolvedSeed>> seedsByTemplate) {
+        if (parentTemplateKey == null) {
+            return null;
+        }
+        var parents = seedsByTemplate.getOrDefault(parentTemplateKey, List.of());
+        if (parents.isEmpty()) {
+            throw exception(CONFIGURATION_INCOMPATIBLE, "父槽位模板没有具体实例: " + parentTemplateKey);
+        }
+        return parents.size() >= instanceNo
+                ? parents.get(instanceNo - 1).stableKey()
+                : parents.getFirst().stableKey();
+    }
+
+    private String formatPattern(String pattern, int instanceNo, int count, String field) {
+        if (pattern.contains("{instanceNo:02d}")) {
+            return pattern.replace("{instanceNo:02d}", "%02d".formatted(instanceNo));
+        }
+        if (pattern.contains("{instanceNo}")) {
+            return pattern.replace("{instanceNo}", String.valueOf(instanceNo));
+        }
+        if (pattern.contains("%")) {
+            try {
+                return pattern.formatted(instanceNo);
+            } catch (java.util.IllegalFormatException error) {
+                throw exception(CONFIGURATION_INCOMPATIBLE, field + " pattern 非法");
+            }
+        }
+        if (count > 1) {
+            throw exception(CONFIGURATION_INCOMPATIBLE, field + " 重复槽位必须包含 instanceNo");
+        }
+        return pattern;
+    }
+
+    private List<String> stringList(Object value) {
+        if (!(value instanceof List<?> list)) {
+            return List.of();
+        }
+        return list.stream().map(String::valueOf).toList();
+    }
+
+    private String json(Object value) {
+        return value == null ? null : JsonUtils.toJsonString(value);
+    }
+
+    private String defaultText(Map<String, Object> source, String key, String fallback) {
+        var value = text(source, key);
+        return value == null ? fallback : value;
+    }
+
+    private boolean bool(Object value) {
+        return Boolean.TRUE.equals(value);
+    }
+
+    private record ResolvedSeed(
+            AigcBlueprintSlotTemplateSpec template,
+            int instanceNo,
+            String stableKey,
+            String displayName) {}
 
     private List<Map<String, Object>> mapList(Map<String, Object> source, String key) {
         if (source == null || !(source.get(key) instanceof List<?> values)) {
@@ -240,11 +647,11 @@ public class AigcConfigurationService implements AigcConfigurationApi {
         result.put("id", value.getId());
         result.put("code", value.getCode());
         result.put("version", value.getBlueprintVersion());
-        result.put("objectSpec", value.getObjectSpec());
+        result.put("slotTemplateSpec", value.getSlotTemplateSpec());
         result.put("relationSpec", value.getRelationSpec());
+        result.put("actionSpec", value.getActionSpec());
         result.put("deliverableSpec", value.getDeliverableSpec());
-        result.put("actionKeys", value.getActionKeys());
-        result.put("confirmationGates", value.getConfirmationGates());
+        result.put("processPolicy", value.getProcessPolicy());
         return result;
     }
 
@@ -283,5 +690,10 @@ public class AigcConfigurationService implements AigcConfigurationApi {
 
     private Integer integer(Object value) {
         return value instanceof Number number ? number.intValue() : null;
+    }
+
+    private int integer(Object value, int fallback) {
+        var parsed = integer(value);
+        return parsed == null ? fallback : parsed;
     }
 }

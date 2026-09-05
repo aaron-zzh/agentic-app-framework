@@ -27,11 +27,11 @@ public record AigcProjectBlueprintUpdateDTO(
         Patch<String> productionMode,
         Patch<String> description,
         Patch<String> coverUrl,
-        Patch<Map<String, Object>> objectSpec,
+        Patch<Map<String, Object>> slotTemplateSpec,
         Patch<Map<String, Object>> relationSpec,
+        Patch<Map<String, Object>> actionSpec,
         Patch<Map<String, Object>> deliverableSpec,
-        Patch<List<String>> actionKeys,
-        Patch<List<String>> confirmationGates,
+        Patch<Map<String, Object>> processPolicy,
         Patch<List<String>> briefFields,
         @NotNull @PositiveOrZero Integer expectedVersion) {
 
@@ -43,11 +43,11 @@ public record AigcProjectBlueprintUpdateDTO(
         productionMode = normalize(productionMode);
         description = normalize(description);
         coverUrl = normalize(coverUrl);
-        objectSpec = normalize(objectSpec);
+        slotTemplateSpec = normalize(slotTemplateSpec);
         relationSpec = normalize(relationSpec);
+        actionSpec = normalize(actionSpec);
         deliverableSpec = normalize(deliverableSpec);
-        actionKeys = normalize(actionKeys);
-        confirmationGates = normalize(confirmationGates);
+        processPolicy = normalize(processPolicy);
         briefFields = normalize(briefFields);
     }
 
@@ -60,11 +60,11 @@ public record AigcProjectBlueprintUpdateDTO(
             @JsonProperty("productionMode") JsonNode productionMode,
             @JsonProperty("description") JsonNode description,
             @JsonProperty("coverUrl") JsonNode coverUrl,
-            @JsonProperty("objectSpec") JsonNode objectSpec,
+            @JsonProperty("slotTemplateSpec") JsonNode slotTemplateSpec,
             @JsonProperty("relationSpec") JsonNode relationSpec,
+            @JsonProperty("actionSpec") JsonNode actionSpec,
             @JsonProperty("deliverableSpec") JsonNode deliverableSpec,
-            @JsonProperty("actionKeys") JsonNode actionKeys,
-            @JsonProperty("confirmationGates") JsonNode confirmationGates,
+            @JsonProperty("processPolicy") JsonNode processPolicy,
             @JsonProperty("briefFields") JsonNode briefFields,
             @JsonProperty("expectedVersion") Integer expectedVersion) {
         return new AigcProjectBlueprintUpdateDTO(
@@ -75,11 +75,11 @@ public record AigcProjectBlueprintUpdateDTO(
                 Patch.parse(productionMode, AigcConfigurationPatchDecoder::text),
                 Patch.parse(description, AigcConfigurationPatchDecoder::text),
                 Patch.parse(coverUrl, AigcConfigurationPatchDecoder::text),
-                Patch.parse(objectSpec, AigcConfigurationPatchDecoder::objectMap),
+                Patch.parse(slotTemplateSpec, AigcConfigurationPatchDecoder::objectMap),
                 Patch.parse(relationSpec, AigcConfigurationPatchDecoder::objectMap),
+                Patch.parse(actionSpec, AigcConfigurationPatchDecoder::objectMap),
                 Patch.parse(deliverableSpec, AigcConfigurationPatchDecoder::objectMap),
-                Patch.parse(actionKeys, AigcConfigurationPatchDecoder::stringList),
-                Patch.parse(confirmationGates, AigcConfigurationPatchDecoder::stringList),
+                Patch.parse(processPolicy, AigcConfigurationPatchDecoder::objectMap),
                 Patch.parse(briefFields, AigcConfigurationPatchDecoder::stringList),
                 expectedVersion);
     }

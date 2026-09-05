@@ -4,5 +4,7 @@ package com.xuejiai.aaf.module.ai.aigc.media.api;
 public interface AigcMediaVersionView {
     Long id();
 
+    Long fileId();
+
     String url();
 }

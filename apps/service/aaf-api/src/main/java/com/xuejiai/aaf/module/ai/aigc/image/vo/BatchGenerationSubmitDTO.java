@@ -12,5 +12,4 @@ public record BatchGenerationSubmitDTO(
                 List<@NotBlank String> prompts,
         @Schema(description = "模型名称", example = "dall-e-3") String model,
         @Schema(description = "生成宽度（像素）", example = "1024") Integer width,
-        @Schema(description = "生成高度（像素）", example = "1024") Integer height,
-        @Schema(description = "所属项目 ID，空表示全局批量任务") Long projectId) {}
+        @Schema(description = "生成高度（像素）", example = "1024") Integer height) {}

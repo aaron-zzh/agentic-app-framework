@@ -21,9 +21,9 @@ public record AigcProjectBlueprintVO(
         String description,
         String coverUrl,
         String status,
-        Map<String, Object> objectSpec,
+        Map<String, Object> slotTemplateSpec,
         Map<String, Object> relationSpec,
+        Map<String, Object> actionSpec,
         Map<String, Object> deliverableSpec,
-        List<String> actionKeys,
-        List<String> confirmationGates,
+        Map<String, Object> processPolicy,
         List<String> briefFields) {}

@@ -18,13 +18,11 @@ import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 import com.xuejiai.aaf.framework.intelligent.core.registry.AiServiceRegistry;
 import com.xuejiai.aaf.framework.security.OperatorContext;
-import com.xuejiai.aaf.module.ai.aigc.image.api.AigcBatchGenerationApi;
 import com.xuejiai.aaf.module.ai.aigc.image.domain.BatchGenerationTask;
 import com.xuejiai.aaf.module.ai.aigc.image.repository.BatchGenerationTaskRepository;
 import com.xuejiai.aaf.module.ai.aigc.image.vo.BatchGenerationSubmitDTO;
 import com.xuejiai.aaf.module.ai.aigc.image.vo.BatchGenerationTaskVO;
 import com.xuejiai.aaf.module.ai.aigc.image.vo.BatchTaskStatus;
-import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,7 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class BatchGenerationService implements AigcBatchGenerationApi {
+public class BatchGenerationService {
 
     private static final String QUEUE_KEY = "aigc:batch:queue";
     private static final String RATE_LIMIT_KEY = "aigc:batch:rate_limit";
@@ -49,7 +47,6 @@ public class BatchGenerationService implements AigcBatchGenerationApi {
     private final AiServiceRegistry aiServiceRegistry;
     private final CapabilityRouter capabilityRouter;
     private final OperatorContext operatorContext;
-    private final ObjectProvider<AigcProjectApi> projectApiProvider;
     private final ObjectProvider<BatchGenerationService> selfProvider;
 
     /**
@@ -65,12 +62,8 @@ public class BatchGenerationService implements AigcBatchGenerationApi {
                 operatorContext
                         .currentOwnerId()
                         .orElseThrow(() -> new BusinessException(GlobalErrorCode.UNAUTHORIZED));
-        if (dto.projectId() != null) {
-            projectApiProvider.getObject().lockForGeneratedResource(dto.projectId(), userId);
-        }
         var task = new BatchGenerationTask();
         task.setUserId(userId);
-        task.setProjectId(dto.projectId());
         task.setStatus(BatchTaskStatus.PENDING);
         task.setTotalCount(dto.prompts().size());
         task.setCompletedCount(0);
@@ -90,15 +83,6 @@ public class BatchGenerationService implements AigcBatchGenerationApi {
         selfProvider.getObject().processQueue();
 
         return toVO(task);
-    }
-
-    @Override
-    @Transactional
-    public void deleteProjectResources(Long projectId) {
-        var tasks = taskRepository.findByProjectIdOrderByIdAsc(projectId);
-        tasks.forEach(task -> task.setStatus(BatchTaskStatus.CANCELLED));
-        taskRepository.saveAllAndFlush(tasks);
-        taskRepository.deleteAll(tasks);
     }
 
     /**

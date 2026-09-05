@@ -59,24 +59,24 @@ public class AigcProjectBlueprint extends BaseEntity {
     private String status = AigcConfigStatus.DRAFT.getCode();
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "object_spec", columnDefinition = "jsonb")
-    private Map<String, Object> objectSpec;
+    @Column(name = "slot_template_spec", nullable = false, columnDefinition = "jsonb")
+    private Map<String, Object> slotTemplateSpec;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "relation_spec", columnDefinition = "jsonb")
+    @Column(name = "relation_spec", nullable = false, columnDefinition = "jsonb")
     private Map<String, Object> relationSpec;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "deliverable_spec", columnDefinition = "jsonb")
+    @Column(name = "action_spec", nullable = false, columnDefinition = "jsonb")
+    private Map<String, Object> actionSpec;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "deliverable_spec", nullable = false, columnDefinition = "jsonb")
     private Map<String, Object> deliverableSpec;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "action_keys", columnDefinition = "jsonb")
-    private List<String> actionKeys = List.of();
-
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "confirmation_gates", columnDefinition = "jsonb")
-    private List<String> confirmationGates = List.of();
+    @Column(name = "process_policy", nullable = false, columnDefinition = "jsonb")
+    private Map<String, Object> processPolicy;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "brief_fields", columnDefinition = "jsonb")

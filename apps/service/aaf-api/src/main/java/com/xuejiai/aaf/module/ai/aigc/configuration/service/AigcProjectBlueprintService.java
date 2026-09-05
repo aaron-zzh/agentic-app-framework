@@ -56,11 +56,11 @@ public class AigcProjectBlueprintService
                 entity.getDescription(),
                 entity.getCoverUrl(),
                 entity.getStatus(),
-                entity.getObjectSpec(),
+                entity.getSlotTemplateSpec(),
                 entity.getRelationSpec(),
+                entity.getActionSpec(),
                 entity.getDeliverableSpec(),
-                entity.getActionKeys(),
-                entity.getConfirmationGates(),
+                entity.getProcessPolicy(),
                 entity.getBriefFields());
     }
 
@@ -98,13 +98,13 @@ public class AigcProjectBlueprintService
                 request.productionMode(), "productionMode", entity::setProductionMode);
         AigcConfigurationPatchSupport.nullable(request.description(), entity::setDescription);
         AigcConfigurationPatchSupport.nullable(request.coverUrl(), entity::setCoverUrl);
-        AigcConfigurationPatchSupport.nullable(request.objectSpec(), entity::setObjectSpec);
+        AigcConfigurationPatchSupport.nullable(
+                request.slotTemplateSpec(), entity::setSlotTemplateSpec);
         AigcConfigurationPatchSupport.nullable(request.relationSpec(), entity::setRelationSpec);
+        AigcConfigurationPatchSupport.nullable(request.actionSpec(), entity::setActionSpec);
         AigcConfigurationPatchSupport.nullable(
                 request.deliverableSpec(), entity::setDeliverableSpec);
-        AigcConfigurationPatchSupport.nullable(request.actionKeys(), entity::setActionKeys);
-        AigcConfigurationPatchSupport.nullable(
-                request.confirmationGates(), entity::setConfirmationGates);
+        AigcConfigurationPatchSupport.nullable(request.processPolicy(), entity::setProcessPolicy);
         AigcConfigurationPatchSupport.nullable(request.briefFields(), entity::setBriefFields);
     }
 

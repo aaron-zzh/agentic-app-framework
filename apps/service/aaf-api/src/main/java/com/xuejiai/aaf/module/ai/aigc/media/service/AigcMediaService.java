@@ -180,7 +180,7 @@ public class AigcMediaService
         if (command.mediaType() != com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaType.IMAGE
                 || file.mimeType() == null
                 || !file.mimeType().startsWith("image/")) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "项目封面必须是图片文件");
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "上传媒体必须是图片文件");
         }
 
         var media = new AigcMedia();

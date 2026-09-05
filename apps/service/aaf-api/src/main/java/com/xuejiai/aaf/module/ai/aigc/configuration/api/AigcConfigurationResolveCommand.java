@@ -8,4 +8,14 @@ public record AigcConfigurationResolveCommand(
         Long blueprintVersionId,
         Long domainExtensionVersionId,
         List<Long> channelSpecVersionIds,
-        String productionMode) {}
+        String productionMode,
+        String budgetTier,
+        String qualityTier,
+        List<AigcSlotCountOverride> slotOverrides) {
+
+    public AigcConfigurationResolveCommand {
+        channelSpecVersionIds =
+                channelSpecVersionIds == null ? List.of() : List.copyOf(channelSpecVersionIds);
+        slotOverrides = slotOverrides == null ? List.of() : List.copyOf(slotOverrides);
+    }
+}

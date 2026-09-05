@@ -9,10 +9,15 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.crud.BaseCrudController;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.security.license.FeatureRequired;
 import com.xuejiai.aaf.framework.security.license.LicenseFeature;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaType;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcUploadedMediaCommand;
 import com.xuejiai.aaf.module.ai.aigc.media.domain.AigcMedia;
 import com.xuejiai.aaf.module.ai.aigc.media.service.AigcAssetService;
 import com.xuejiai.aaf.module.ai.aigc.media.service.AigcMediaService;
@@ -21,9 +26,12 @@ import com.xuejiai.aaf.module.ai.aigc.media.vo.AigcAssetVO;
 import com.xuejiai.aaf.module.ai.aigc.media.vo.AigcMediaPageDTO;
 import com.xuejiai.aaf.module.ai.aigc.media.vo.AigcMediaUpdateDTO;
 import com.xuejiai.aaf.module.ai.aigc.media.vo.AigcMediaVO;
+import com.xuejiai.aaf.module.ai.aigc.media.vo.AigcUploadedImageMaterializeDTO;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 /** AIGC 媒体管理接口。 */
@@ -40,6 +48,8 @@ public class AigcMediaController
 
     private final AigcMediaService mediaService;
     private final AigcAssetService assetService;
+    private final OperatorContext operatorContext;
+    private final AigcProjectApi projectApi;
 
     @Override
     protected AigcMediaService getService() {
@@ -50,6 +60,31 @@ public class AigcMediaController
     @GetMapping("/versions/{mediaVersionId}")
     public Result<AigcMediaVO> getByVersionId(@PathVariable Long mediaVersionId) {
         return Result.success(mediaService.getByVersionId(mediaVersionId));
+    }
+
+    @Operation(summary = "将当前用户上传图片物化为媒体版本")
+    @PostMapping("/uploaded-images/_materialize")
+    public Result<AigcMediaVO> materializeUploadedImage(
+            @Valid @RequestBody AigcUploadedImageMaterializeDTO request) {
+        var userId =
+                operatorContext
+                        .currentOwnerId()
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.UNAUTHORIZED, "未登录"));
+        if (request.originalProjectId() != null) {
+            var project = projectApi.requireProject(request.originalProjectId());
+            if (!userId.equals(project.userId())) {
+                throw new BusinessException(GlobalErrorCode.FORBIDDEN, "项目不属于当前用户");
+            }
+        }
+        return Result.success(
+                mediaService.createFromUploadedFile(
+                        new AigcUploadedMediaCommand(
+                                userId,
+                                request.name(),
+                                AigcMediaType.IMAGE,
+                                request.fileId(),
+                                request.originalProjectId())));
     }
 
     @Operation(summary = "将媒体保存到资产库")
