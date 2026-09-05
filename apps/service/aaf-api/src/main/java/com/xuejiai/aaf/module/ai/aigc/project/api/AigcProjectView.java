@@ -8,7 +8,7 @@ public record AigcProjectView(
         Long orgId,
         Long workspaceId,
         String name,
-        String lifecycleStage,
+        AigcProjectLifecycle lifecycleStage,
         Integer version,
         Long configurationSnapshotId,
         String projectTypeCode,
@@ -16,6 +16,8 @@ public record AigcProjectView(
         String productionMode,
         String generationMode,
         List<Long> channelSpecVersionIds,
+        List<com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcExecutionBindingVersionRef>
+                executionBindings,
         BigDecimal budgetLimit,
         BigDecimal costUsed,
         String description,
@@ -26,5 +28,7 @@ public record AigcProjectView(
     public AigcProjectView {
         channelSpecVersionIds =
                 channelSpecVersionIds == null ? List.of() : List.copyOf(channelSpecVersionIds);
+        executionBindings =
+                executionBindings == null ? List.of() : List.copyOf(executionBindings);
     }
 }

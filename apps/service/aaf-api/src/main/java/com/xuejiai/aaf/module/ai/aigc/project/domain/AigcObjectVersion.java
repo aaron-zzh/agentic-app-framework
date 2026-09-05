@@ -58,4 +58,25 @@ public class AigcObjectVersion extends BaseEntity {
 
     @Column(name = "superseded_by_version_id")
     private Long supersededByVersionId;
+
+    @Column(name = "replaced_version_id")
+    private Long replacedVersionId;
+
+    @Column(name = "idempotency_key", length = 100)
+    private String idempotencyKey;
+
+    @Column(name = "request_hash", length = 64)
+    private String requestHash;
+
+    @Column(name = "decision_mode", length = 32)
+    private String decisionMode;
+
+    @Column(name = "decision_reason", length = 1000)
+    private String decisionReason;
+
+    @Column(name = "decided_time")
+    private LocalDateTime decidedTime;
+
+    @Column(name = "decided_by")
+    private Long decidedBy;
 }

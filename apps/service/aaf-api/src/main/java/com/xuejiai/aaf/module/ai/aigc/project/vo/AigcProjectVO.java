@@ -3,6 +3,9 @@ package com.xuejiai.aaf.module.ai.aigc.project.vo;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycle;
+
 public record AigcProjectVO(
         Long id,
         Integer version,
@@ -15,11 +18,11 @@ public record AigcProjectVO(
         String domainExtensionVersion,
         String productionMode,
         String generationMode,
-        String status,
+        AigcProjectLifecycle status,
         String brief,
         String prompt,
         Long coverMediaVersionId,
-        String coverStatus,
+        AigcProjectCoverStatus coverStatus,
         Long coverExecutionRunId,
         Long configSnapshotId,
         Integer graphRevision,

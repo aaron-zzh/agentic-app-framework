@@ -1,8 +1,12 @@
 package com.xuejiai.aaf.module.ai.aigc.project.service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.HexFormat;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -10,7 +14,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -25,37 +28,61 @@ import com.xuejiai.aaf.framework.crud.definition.CrudOperation;
 import com.xuejiai.aaf.framework.crud.enforcement.AccessMode;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
-import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionApi;
-import com.xuejiai.aaf.module.ai.aigc.image.api.AigcBatchGenerationApi;
+import com.xuejiai.aaf.module.ai.aigc.AigcCanonicalRequest;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
+import com.xuejiai.aaf.module.ai.aigc.event.service.AigcActivityEventService;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcApprovedManifestView;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcCompletionEvaluationView;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcDeliverableSetCompletionView;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcDeliverableSetEvaluateCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcDeliverableSetManifestFreezeCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionAdoptCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionCandidateCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionComparisonView;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionRejectCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionView;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectExecutionReservationBindCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectExecutionReservationCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectExecutionReservationReleaseCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectExecutionReservationView;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectGraphView;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectMaterializeCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectMediaRefCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectMediaRefView;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectObjectCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectObjectContractCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectObjectRemoveCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectObjectView;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectRelationView;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycle;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycleCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectView;
-import com.xuejiai.aaf.module.ai.aigc.project.api.AigcReviewApproveCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcReviewDecisionCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcReviewSubmitCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcReviewView;
 import com.xuejiai.aaf.module.ai.aigc.project.api.CompletionEvidencePort;
 import com.xuejiai.aaf.module.ai.aigc.project.api.ExecutionEvidencePort;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcObjectVersion;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProject;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectDocumentRef;
+import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectExecutionReservation;
+import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectExecutionReservationTarget;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectMediaRef;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectObject;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectRevision;
 import com.xuejiai.aaf.module.ai.aigc.project.event.AigcObjectVersionAdoptedEvent;
 import com.xuejiai.aaf.module.ai.aigc.project.event.AigcProjectArchivedEvent;
+import com.xuejiai.aaf.module.ai.aigc.project.event.AigcProjectCoverGenerationRequestedEvent;
+import com.xuejiai.aaf.module.ai.aigc.project.event.AigcProjectCoverSupersededEvent;
 import com.xuejiai.aaf.module.ai.aigc.project.event.AigcProjectReviewApprovedEvent;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcObjectVersionRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectChannelRefRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectConfigSnapshotRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectDocumentRefRepository;
+import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectExecutionReservationRepository;
+import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectExecutionReservationTargetRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectMediaRefRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectObjectRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectProfileRefRepository;
@@ -80,9 +107,6 @@ import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectRevisionVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectSummaryVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectUpdateDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectVO;
-import com.xuejiai.aaf.module.ai.aigc.task.api.AigcTaskApi;
-import com.xuejiai.aaf.module.ai.aigc.timeline.api.AigcTimelineApi;
-import com.xuejiai.aaf.module.ai.aigc.work.api.AigcWorkApi;
 import com.xuejiai.aaf.module.document.api.DocumentReferenceApi;
 
 import lombok.RequiredArgsConstructor;
@@ -97,12 +121,18 @@ public class AigcProjectService
                 AigcProject, AigcProjectVO, Void, AigcProjectUpdateDTO, AigcProjectPageDTO>
         implements AigcProjectApi {
 
-    private static final Set<String> MUTABLE_STATUSES = Set.of("draft", "in_progress");
+    private static final Set<AigcProjectLifecycle> MUTABLE_STATUSES =
+            Set.of(
+                    AigcProjectLifecycle.CREATING,
+                    AigcProjectLifecycle.EXECUTING,
+                    AigcProjectLifecycle.ADOPTING);
 
     private final AigcProjectRepository repository;
     private final jakarta.persistence.EntityManager entityManager;
     private final AigcProjectObjectRepository objectRepository;
     private final AigcProjectRelationRepository relationRepository;
+    private final AigcProjectExecutionReservationRepository reservationRepository;
+    private final AigcProjectExecutionReservationTargetRepository reservationTargetRepository;
     private final AigcObjectVersionRepository versionRepository;
     private final AigcProjectRevisionRepository revisionRepository;
     private final AigcProjectConfigSnapshotRepository snapshotRepository;
@@ -113,17 +143,14 @@ public class AigcProjectService
     private final AigcProjectResourceRefRepository resourceRefRepository;
     private final AigcProjectMediaRefRepository mediaRefRepository;
     private final AigcProjectMaterializer materializer;
+    private final AigcProjectDeliveryService deliveryService;
     private final CompletionEvidencePort completionEvidencePort;
     private final ExecutionEvidencePort executionEvidencePort;
-    private final ObjectProvider<AigcExecutionApi> executionApiProvider;
-    private final ObjectProvider<AigcTaskApi> taskApiProvider;
-    private final ObjectProvider<AigcWorkApi> workApiProvider;
-    private final ObjectProvider<AigcTimelineApi> timelineApiProvider;
-    private final AigcBatchGenerationApi batchGenerationApi;
     private final AigcMediaApi mediaApi;
     private final DocumentReferenceApi documentReferenceApi;
     private final OperatorContext operatorContext;
     private final ApplicationEventPublisher eventPublisher;
+    private final AigcActivityEventService activityEventService;
 
     @Override
     protected AigcProjectRepository getRepository() {
@@ -240,8 +267,11 @@ public class AigcProjectService
                                 project.getId()));
         var mediaVersionId = media.currentVersion().id();
         linkCoverMedia(project, mediaVersionId, "adopted");
-        executionApiProvider.getObject().cancelProjectCoverRuns(project.getId(), "封面已手动替换");
+        eventPublisher.publishEvent(
+                new AigcProjectCoverSupersededEvent(project.getId(), "封面已手动替换"));
         project.setCoverMediaVersionId(mediaVersionId);
+        project.setCoverExecutionRunId(null);
+        project.setCoverStatus(AigcProjectCoverStatus.READY);
     }
 
     private void requestGeneratedCover(
@@ -253,17 +283,14 @@ public class AigcProjectService
         if (cover.idempotencyKey().length() > 100) {
             throw badRequest("封面幂等键长度不能超过 100");
         }
-        executionApiProvider
-                .getObject()
-                .submitDeferred(
-                        new com.xuejiai.aaf.module.ai.aigc.execution.api.AigcActionCommand(
-                                project.getId(),
-                                null,
-                                "project.cover.generate",
-                                coverPrompt(project, cover.prompt()),
-                                List.of(),
-                                true,
-                                cover.idempotencyKey()));
+        project.setCoverStatus(AigcProjectCoverStatus.PENDING);
+        project.setCoverExecutionRunId(null);
+        eventPublisher.publishEvent(
+                new AigcProjectCoverGenerationRequestedEvent(
+                        project.getId(),
+                        coverPrompt(project, cover.prompt()),
+                        project.getGraphRevision().longValue(),
+                        cover.idempotencyKey()));
     }
 
     private void removeCover(
@@ -273,8 +300,10 @@ public class AigcProjectService
             throw badRequest("移除封面参数不匹配");
         }
         supersedeAdoptedCoverRefs(project.getId(), null);
-        executionApiProvider.getObject().cancelProjectCoverRuns(project.getId(), "封面已移除");
+        eventPublisher.publishEvent(new AigcProjectCoverSupersededEvent(project.getId(), "封面已移除"));
         project.setCoverMediaVersionId(null);
+        project.setCoverExecutionRunId(null);
+        project.setCoverStatus(AigcProjectCoverStatus.NONE);
     }
 
     private AigcProjectMediaRef linkCoverMedia(
@@ -347,35 +376,7 @@ public class AigcProjectService
 
     @Override
     protected void beforeDelete(AigcProject project) {
-        var projectId = project.getId();
-
-        workApiProvider.getObject().deleteProjectResources(projectId);
-        timelineApiProvider.getObject().deleteProjectResources(projectId);
-
-        mediaRefRepository.deleteAll(
-                mediaRefRepository.findByProjectIdOrderBySortOrderAscIdAsc(projectId));
-        documentRefRepository.deleteAll(
-                documentRefRepository.findByProjectIdOrderBySortOrderAscIdAsc(projectId));
-        resourceRefRepository.deleteAll(
-                resourceRefRepository.findByProjectIdOrderBySortOrderAscIdAsc(projectId));
-        profileRefRepository.deleteAll(profileRefRepository.findByProjectIdOrderByIdAsc(projectId));
-        channelRefRepository.deleteAll(channelRefRepository.findByProjectIdOrderByIdAsc(projectId));
-
-        relationRepository.deleteAll(relationRepository.findByProjectIdOrderByIdAsc(projectId));
-        revisionRepository.deleteAll(
-                revisionRepository.findByProjectIdOrderByRevisionNoDesc(projectId));
-        versionRepository.deleteAll(versionRepository.findByProjectIdOrderByIdAsc(projectId));
-        objectRepository.deleteAll(
-                objectRepository.findByProjectIdOrderBySortOrderAscIdAsc(projectId));
-        resolvedDomainContextRepository.deleteAll(
-                resolvedDomainContextRepository.findByProjectIdOrderByRevisionNoDesc(projectId));
-        snapshotRepository.deleteAll(
-                snapshotRepository.findByProjectIdOrderByRevisionNoDesc(projectId));
-
-        batchGenerationApi.deleteProjectResources(projectId);
-        executionApiProvider.getObject().deleteProjectResources(projectId);
-        taskApiProvider.getObject().deleteProjectResources(projectId);
-        mediaApi.deleteExclusiveGeneratedByProject(projectId);
+        throw badRequest("AIGC 项目不允许物理删除，请使用归档命令");
     }
 
     @Override
@@ -386,35 +387,111 @@ public class AigcProjectService
         var project = materializer.materialize(command);
         var coverStatus =
                 project.getCoverMediaVersionId() == null
-                        ? com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus.NONE
-                        : com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus.READY;
-        Long runId = null;
-        if (command.coverMode()
-                == com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverMode.AI_GENERATE) {
-            var run =
-                    executionApiProvider
-                            .getObject()
-                            .submitDeferred(
-                                    new com.xuejiai.aaf.module.ai.aigc.execution.api
-                                            .AigcActionCommand(
-                                            project.getId(),
-                                            null,
-                                            "project.cover.generate",
-                                            coverPrompt(project, command.coverPrompt()),
-                                            List.of(),
-                                            true,
-                                            command.coverIdempotencyKey()));
-            runId = run.id();
-            coverStatus = coverStatus(run.status(), project.getCoverMediaVersionId());
+                        ? AigcProjectCoverStatus.NONE
+                        : AigcProjectCoverStatus.READY;
+        project.setCoverStatus(coverStatus);
+        repository.save(project);
+        var generateCover =
+                command.coverMode()
+                        == com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverMode
+                                .AI_GENERATE;
+        if (generateCover) {
+            coverStatus = AigcProjectCoverStatus.PENDING;
+            project.setCoverStatus(coverStatus);
+            repository.save(project);
+        }
+        activityEventService.publish(
+                project.getUserId(),
+                "project.materialized",
+                project.getId(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                Map.of(
+                        "status", project.getStatus().name(),
+                        "coverStatus", project.getCoverStatus().name()));
+        if (generateCover) {
+            eventPublisher.publishEvent(
+                    new AigcProjectCoverGenerationRequestedEvent(
+                            project.getId(),
+                            coverPrompt(project, command.coverPrompt()),
+                            project.getGraphRevision().longValue(),
+                            command.coverIdempotencyKey()));
         }
         var refreshed = repository.findById(project.getId()).orElseThrow();
         return new com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectMaterializeView(
-                toApiView(refreshed), coverStatus, runId);
+                toApiView(refreshed), coverStatus, refreshed.getCoverExecutionRunId());
     }
 
     @Override
     public AigcProjectView requireProject(Long projectId) {
         return toApiView(requireEntity(projectId));
+    }
+
+    @Override
+    @Transactional
+    public AigcProjectView lockForCreativeMutation(Long projectId, Long userId) {
+        var project = requireLockedProject(projectId, null, false);
+        if (!Objects.equals(project.getUserId(), userId)) {
+            throw notFound("项目不存在");
+        }
+        requireWritable(project);
+        return toApiView(project);
+    }
+
+    @Override
+    @Transactional
+    public AigcProjectView lockForCreativeMutation(
+            Long projectId, Long userId, Integer expectedProjectVersion) {
+        var project = requireLockedProject(projectId, expectedProjectVersion, true);
+        if (!Objects.equals(project.getUserId(), userId)) {
+            throw notFound("项目不存在");
+        }
+        requireWritable(project);
+        return toApiView(project);
+    }
+
+    @Override
+    @Transactional
+    public AigcProjectView lockForWorkMutation(
+            Long projectId, Long userId, Integer expectedProjectVersion) {
+        var project = requireLockedProject(projectId, expectedProjectVersion, true);
+        if (!Objects.equals(project.getUserId(), userId)) {
+            throw notFound("项目不存在");
+        }
+        if (project.getStatus() != AigcProjectLifecycle.DELIVERING) {
+            throw badRequest("只有 DELIVERING 阶段允许修改 Work 与 Publication");
+        }
+        return toApiView(project);
+    }
+
+    @Override
+    @Transactional
+    public AigcProjectExecutionReservationView requireBoundExecution(
+            Long reservationId, Long executionSubmissionId, Long rootExecutionRunId) {
+        var snapshot =
+                reservationRepository
+                        .findById(reservationId)
+                        .orElseThrow(() -> notFound("执行 reservation 不存在"));
+        var project = requireLockedProject(snapshot.getProjectId(), null, false);
+        var reservation =
+                reservationRepository
+                        .findLockedById(reservationId)
+                        .orElseThrow(() -> notFound("执行 reservation 不存在"));
+        requireProjectScope(
+                project,
+                operatorContext.currentOwnerId().orElse(null),
+                OrgContext.getCurrentOrgId(),
+                OrgContext.getCurrentWorkspaceId());
+        requireSameSubmission(reservation, executionSubmissionId);
+        if (!"BOUND".equals(reservation.getStatus())
+                || !Objects.equals(reservation.getRootExecutionRunId(), rootExecutionRunId)) {
+            throw badRequest("执行 reservation 未绑定到指定 root");
+        }
+        return toReservationView(reservation);
     }
 
     @Override
@@ -463,6 +540,7 @@ public class AigcProjectService
                                         new BusinessException(
                                                 GlobalErrorCode.NOT_FOUND, "项目不存在或已删除"));
         entityManager.refresh(project, jakarta.persistence.LockModeType.PESSIMISTIC_READ);
+        requireWritable(project);
     }
 
     @Override
@@ -478,6 +556,45 @@ public class AigcProjectService
                                         new BusinessException(
                                                 GlobalErrorCode.NOT_FOUND, "项目不存在或已删除"));
         entityManager.refresh(project, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        requireWritable(project);
+    }
+
+    @Override
+    @Transactional
+    public void markCoverExecutionStarted(Long projectId, Long executionRunId) {
+        var project = requireLockedProject(projectId, null, false);
+        if (project.getCoverStatus() != AigcProjectCoverStatus.PENDING) {
+            return;
+        }
+        if (project.getCoverExecutionRunId() != null
+                && !Objects.equals(project.getCoverExecutionRunId(), executionRunId)) {
+            throw badRequest("封面执行证据冲突");
+        }
+        project.setCoverExecutionRunId(executionRunId);
+        repository.save(project);
+    }
+
+    @Override
+    @Transactional
+    public void markCoverGenerationFailed(Long projectId) {
+        var project = requireLockedProject(projectId, null, false);
+        if (project.getCoverStatus() == AigcProjectCoverStatus.PENDING
+                && project.getCoverExecutionRunId() == null) {
+            project.setCoverStatus(AigcProjectCoverStatus.FAILED);
+            repository.save(project);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void markCoverExecutionTerminal(
+            Long projectId, Long executionRunId, AigcProjectCoverStatus status) {
+        var project = requireLockedProject(projectId, null, false);
+        if (!Objects.equals(project.getCoverExecutionRunId(), executionRunId)) {
+            return;
+        }
+        project.setCoverStatus(status);
+        repository.save(project);
     }
 
     @Override
@@ -487,21 +604,21 @@ public class AigcProjectService
             Long mediaVersionId,
             Long expectedCoverMediaVersionId,
             Long executionRunId) {
-        var project = repository.findLockedById(projectId).orElseThrow(() -> notFound("项目不存在"));
-        entityManager.refresh(project, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        var project = requireLockedProject(projectId, null, false);
         mediaApi.getByVersionId(mediaVersionId, project.getUserId());
+        if (!MUTABLE_STATUSES.contains(project.getStatus())) {
+            return false;
+        }
         var currentRequest =
-                !"archived".equals(project.getStatus())
-                        && Objects.equals(
-                                project.getCoverMediaVersionId(), expectedCoverMediaVersionId)
-                        && executionApiProvider
-                                .getObject()
-                                .isCurrentProjectCoverRun(projectId, executionRunId);
+                Objects.equals(project.getCoverMediaVersionId(), expectedCoverMediaVersionId)
+                        && Objects.equals(project.getCoverExecutionRunId(), executionRunId)
+                        && project.getCoverStatus() == AigcProjectCoverStatus.PENDING;
         linkCoverMedia(project, mediaVersionId, currentRequest ? "adopted" : "candidate");
         if (!currentRequest) {
             return false;
         }
         project.setCoverMediaVersionId(mediaVersionId);
+        project.setCoverStatus(AigcProjectCoverStatus.READY);
         project.setVersion(project.getVersion() + 1);
         project.setLastActiveTime(LocalDateTime.now());
         repository.save(project);
@@ -559,6 +676,7 @@ public class AigcProjectService
                         .toList();
         var executionEvidence = executionEvidencePort.load(projectId);
         var completionEvidence = completionEvidencePort.load(projectId);
+        var completionEvaluation = deliveryService.completion(projectId);
         return new AigcProjectSummaryVO(
                 projectId,
                 objects.size(),
@@ -576,8 +694,8 @@ public class AigcProjectService
                 versions.stream().filter(version -> "adopted".equals(version.getStatus())).count(),
                 completionEvidence.activeWorkCount(),
                 completionEvidence.publicationCount(),
-                completionEvidence.unpublishedPublicationCount(),
-                completionEvidence.hasActiveWork() && completionEvidence.publicationsCompleted(),
+                completionEvidence.activePublicationCount(),
+                completionEvaluation.satisfied(),
                 project.getCostUsed());
     }
 
@@ -586,28 +704,356 @@ public class AigcProjectService
     public AigcProjectObjectView appendObject(AigcProjectObjectCommand command) {
         var project = requireLockedProject(command.projectId(), command.expectedProjectVersion());
         requireWritable(project);
-        if (objectRepository
-                .findByProjectIdAndObjectKey(project.getId(), command.stableKey())
-                .isPresent()) {
-            throw badRequest("项目对象 stableKey 已存在");
+        if (command.objectType() == null || command.objectType().isBlank()) {
+            throw badRequest("对象类型不能为空");
         }
-        if (command.parentObjectId() != null) {
-            requireObject(project.getId(), command.parentObjectId(), false);
+        if (command.displayName() == null || command.displayName().isBlank()) {
+            throw badRequest("对象名称不能为空");
+        }
+        var parentObject =
+                command.parentObjectId() == null
+                        ? null
+                        : requireObject(project.getId(), command.parentObjectId(), false);
+        var template =
+                command.blueprintTemplateKey() == null
+                        ? null
+                        : requireSlotTemplate(project, command.blueprintTemplateKey());
+        if (template != null && !Boolean.TRUE.equals(template.get("userAddable"))) {
+            throw badRequest("该槽位模板不允许用户追加实例");
+        }
+        if (template != null
+                && !command.objectType().equals(String.valueOf(template.get("objectType")))) {
+            throw badRequest("对象类型与槽位模板不匹配");
+        }
+        if (template != null) {
+            if (!(template.get("maxCount") instanceof Number maxCountValue)) {
+                throw badRequest("槽位模板 maxCount 非法");
+            }
+            var currentCount =
+                    objectRepository.findByProjectIdOrderBySortOrderAscIdAsc(project.getId()).stream()
+                            .filter(
+                                    object ->
+                                            command.blueprintTemplateKey()
+                                                    .equals(object.getBlueprintTemplateKey()))
+                            .count();
+            if (currentCount >= maxCountValue.intValue()) {
+                throw badRequest("模板实例数已达上限");
+            }
+        } else {
+            if (parentObject == null) {
+                throw badRequest("自定义对象必须指定所属 DeliverableSet");
+            }
+            var snapshot =
+                    snapshotRepository
+                            .findFirstByProjectIdOrderByRevisionNoDesc(project.getId())
+                            .orElseThrow(
+                                    () ->
+                                            badRequest(
+                                                    "对象类型不在交付包允许的自定义对象白名单内"));
+            var deliverableSets = snapshot.getSnapshot().get("deliverableSets");
+            if (!(deliverableSets instanceof List<?> sets)) {
+                throw badRequest("对象类型不在交付包允许的自定义对象白名单内");
+            }
+            var setTemplateKey = parentObject.getBlueprintTemplateKey();
+            var allowedCustomObjectTypes =
+                    sets.stream()
+                            .filter(Map.class::isInstance)
+                            .map(Map.class::cast)
+                            .filter(
+                                    set ->
+                                            Objects.equals(
+                                                    setTemplateKey, set.get("setTemplateKey")))
+                            .map(set -> set.get("allowedCustomObjectTypes"))
+                            .filter(List.class::isInstance)
+                            .map(List.class::cast)
+                            .findFirst()
+                            .orElseThrow(
+                                    () ->
+                                            badRequest(
+                                                    "对象类型不在交付包允许的自定义对象白名单内"));
+            if (!allowedCustomObjectTypes.contains(command.objectType())) {
+                throw badRequest("对象类型不在交付包允许的自定义对象白名单内");
+            }
+        }
+        var instanceNo =
+                template == null
+                        ? objectRepository.findHistoricalMaxCustomInstanceNo(
+                                        project.getId(), command.objectType())
+                                + 1
+                        : objectRepository.findHistoricalMaxInstanceNo(
+                                        project.getId(), command.blueprintTemplateKey())
+                                + 1;
+        var stableKey =
+                template == null
+                        ? "custom.%s.%02d".formatted(command.objectType(), instanceNo)
+                        : formatStableKey(
+                                String.valueOf(template.get("stableKeyPattern")), instanceNo);
+        if (objectRepository.findByProjectIdAndStableKey(project.getId(), stableKey).isPresent()) {
+            throw badRequest("项目对象 stableKey 已存在");
         }
         var object = new AigcProjectObject();
         copyScope(project, object);
         object.setProjectId(project.getId());
         object.setParentId(command.parentObjectId());
-        object.setObjectKey(command.stableKey());
+        object.setStableKey(stableKey);
+        object.setBlueprintTemplateKey(command.blueprintTemplateKey());
+        object.setInstanceNo(instanceNo);
+        object.setContractRole(requireContractRole(command.contractRole()));
         object.setObjectType(command.objectType());
         object.setSortOrder(command.orderNo() == null ? 0 : command.orderNo());
+        object.setTitle(command.displayName().trim());
         object.setStatus("draft");
         object.setSource("user");
         object.setSchemaVersion(command.schemaVersion());
         object.setPayload(parseMap(command.payloadJson()));
         objectRepository.save(object);
         bumpRevision(project, List.of(object.getId()), List.of(), null, "追加项目对象");
+        deliveryService.staleReviews(
+                project.getId(),
+                command.parentObjectId() == null
+                        ? List.of(object.getId())
+                        : List.of(command.parentObjectId(), object.getId()),
+                "DeliverableSet 结构已变化");
         return toApiObjectView(object);
+    }
+
+    @Override
+    @Transactional
+    public AigcProjectObjectView updateObjectContract(AigcProjectObjectContractCommand command) {
+        var project = requireLockedProject(command.projectId(), command.expectedProjectVersion());
+        requireWritable(project);
+        var object = requireObject(project.getId(), command.objectId(), true);
+        var contractRole = requireContractRole(command.contractRole());
+        if ("EXCLUDED".equals(contractRole)
+                && reservationTargetRepository.existsActiveReservationByProjectObjectId(
+                        object.getId())) {
+            throw badRequest("对象正被执行占用，不能排除");
+        }
+        object.setContractRole(contractRole);
+        if ("EXCLUDED".equals(contractRole)) {
+            object.setStatus("EXCLUDED");
+        }
+        objectRepository.save(object);
+        bumpRevision(project, List.of(object.getId()), List.of(), null, "更新对象合同");
+        deliveryService.staleReviews(
+                project.getId(),
+                object.getParentId() == null
+                        ? List.of(object.getId())
+                        : List.of(object.getId(), object.getParentId()),
+                "交付对象合同角色已变化");
+        return toApiObjectView(object);
+    }
+
+    @Override
+    @Transactional
+    public AigcProjectObjectView removeObject(AigcProjectObjectRemoveCommand command) {
+        var project = requireLockedProject(command.projectId(), command.expectedProjectVersion());
+        requireWritable(project);
+        var object = requireObject(project.getId(), command.objectId(), true);
+        var parentId = object.getParentId();
+        if (objectRepository.existsByProjectIdAndParentIdAndDeletedFalse(
+                project.getId(), object.getId())) {
+            throw badRequest("存在子对象，不能删除");
+        }
+        if (reservationTargetRepository.existsActiveReservationByProjectObjectId(object.getId())) {
+            throw badRequest("对象正被执行占用，不能删除");
+        }
+        var hasHistory =
+                versionRepository.existsByObjectId(object.getId())
+                        || relationRepository.existsBySourceObjectIdOrTargetObjectId(
+                                object.getId(), object.getId())
+                        || reservationTargetRepository.existsByProjectObjectId(object.getId());
+        if (hasHistory) {
+            object.setContractRole("EXCLUDED");
+            object.setStatus("EXCLUDED");
+            objectRepository.save(object);
+        } else {
+            objectRepository.delete(object);
+        }
+        bumpRevision(
+                project,
+                List.of(object.getId()),
+                List.of(),
+                null,
+                command.reason() == null ? "移除项目对象" : command.reason());
+        deliveryService.staleReviews(
+                project.getId(),
+                parentId == null
+                        ? List.of(object.getId())
+                        : List.of(object.getId(), parentId),
+                "交付对象已移除或排除");
+        return toApiObjectView(object);
+    }
+
+    @Override
+    @Transactional
+    public AigcProjectExecutionReservationView reserveExecution(
+            AigcProjectExecutionReservationCommand command) {
+        requireEntity(command.projectId(), CrudOperation.UPDATE, AccessMode.DEFAULT);
+        var project =
+                repository
+                        .findLockedById(command.projectId())
+                        .orElseThrow(() -> notFound("项目不存在"));
+        entityManager.refresh(project, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        var requestHash = reservationRequestHash(command);
+        var existingBySubmission =
+                reservationRepository.findByProjectIdAndExecutionSubmissionId(
+                        project.getId(), command.executionSubmissionId());
+        var existingByKey =
+                reservationRepository.findByProjectIdAndIdempotencyKey(
+                        project.getId(), command.idempotencyKey());
+        if (existingBySubmission.isPresent() || existingByKey.isPresent()) {
+            var existing = existingBySubmission.orElseGet(existingByKey::orElseThrow);
+            if (existingBySubmission.isPresent()
+                    && existingByKey.isPresent()
+                    && !existingBySubmission.get().getId().equals(existingByKey.get().getId())) {
+                throw new BusinessException(409, "执行 reservation 幂等键冲突");
+            }
+            if (!requestHash.equals(existing.getRequestHash())) {
+                throw new BusinessException(409, "执行 reservation 同幂等键请求参数冲突");
+            }
+            return toReservationView(existing);
+        }
+        requireWritable(project);
+        if (command.expectedGraphRevision() == null
+                || command.expectedGraphRevision() != project.getGraphRevision().longValue()) {
+            throw badRequest("项目图谱版本已变化");
+        }
+        if (command.commandObjectId() != null) {
+            requireObject(project.getId(), command.commandObjectId(), true);
+        }
+        var targetIds = resolveReservationTargets(project.getId(), command);
+        var reservation = new AigcProjectExecutionReservation();
+        copyScope(project, reservation);
+        reservation.setExecutionSubmissionId(command.executionSubmissionId());
+        reservation.setProjectId(project.getId());
+        reservation.setCommandObjectId(command.commandObjectId());
+        reservation.setActionKey(command.actionKey());
+        reservation.setTargetGraphRevision(command.expectedGraphRevision());
+        reservation.setStatus("PREPARED");
+        reservation.setIdempotencyKey(command.idempotencyKey());
+        reservation.setRequestHash(requestHash);
+        reservationRepository.saveAndFlush(reservation);
+        for (var targetId : targetIds) {
+            var target = new AigcProjectExecutionReservationTarget();
+            target.setReservationId(reservation.getId());
+            target.setProjectObjectId(targetId);
+            reservationTargetRepository.save(target);
+        }
+        deliveryService.staleReviews(project.getId(), targetIds, "交付对象进入执行 reservation");
+        return toReservationView(reservation);
+    }
+
+    @Override
+    @Transactional
+    public AigcProjectExecutionReservationView bindExecution(
+            AigcProjectExecutionReservationBindCommand command) {
+        var snapshot =
+                reservationRepository
+                        .findById(command.reservationId())
+                        .orElseThrow(() -> notFound("执行 reservation 不存在"));
+        requireEntity(snapshot.getProjectId(), CrudOperation.UPDATE, AccessMode.DEFAULT);
+        var project =
+                repository
+                        .findLockedById(snapshot.getProjectId())
+                        .orElseThrow(() -> notFound("项目不存在"));
+        entityManager.refresh(project, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        var reservation =
+                reservationRepository
+                        .findLockedById(command.reservationId())
+                        .filter(candidate -> Objects.equals(candidate.getProjectId(), project.getId()))
+                        .orElseThrow(() -> notFound("执行 reservation 不存在"));
+        requireSameSubmission(reservation, command.executionSubmissionId());
+        if ("BOUND".equals(reservation.getStatus())
+                && Objects.equals(
+                        reservation.getRootExecutionRunId(), command.rootExecutionRunId())) {
+            return toReservationView(reservation);
+        }
+        if ("RELEASED".equals(reservation.getStatus())
+                && "ROOT_TERMINAL".equals(reservation.getReleaseReason())
+                && Objects.equals(
+                        reservation.getRootExecutionRunId(), command.rootExecutionRunId())) {
+            reservation.setStatus("BOUND");
+            reservation.setReleaseReason(null);
+            reservationRepository.save(reservation);
+        } else {
+            if (!"PREPARED".equals(reservation.getStatus())
+                    || reservation.getRootExecutionRunId() != null) {
+                throw badRequest("执行 reservation 不能绑定");
+            }
+            reservation.setRootExecutionRunId(command.rootExecutionRunId());
+            reservation.setStatus("BOUND");
+            reservationRepository.save(reservation);
+        }
+        if (!AigcProjectLifecycle.EXECUTING.equals(project.getStatus())) {
+            if (!MUTABLE_STATUSES.contains(project.getStatus())) {
+                throw badRequest("当前项目阶段不能绑定执行");
+            }
+            project.setStatus(AigcProjectLifecycle.EXECUTING);
+            project.setVersion(project.getVersion() + 1);
+            project.setLastActiveTime(LocalDateTime.now());
+            repository.save(project);
+        }
+        return toReservationView(reservation);
+    }
+
+    @Override
+    @Transactional
+    public AigcProjectExecutionReservationView releaseExecution(
+            AigcProjectExecutionReservationReleaseCommand command) {
+        var snapshot =
+                reservationRepository
+                        .findById(command.reservationId())
+                        .orElseThrow(() -> notFound("执行 reservation 不存在"));
+        requireEntity(snapshot.getProjectId(), CrudOperation.UPDATE, AccessMode.DEFAULT);
+        var project =
+                repository
+                        .findLockedById(snapshot.getProjectId())
+                        .orElseThrow(() -> notFound("项目不存在"));
+        entityManager.refresh(project, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        var reservation =
+                reservationRepository
+                        .findLockedById(command.reservationId())
+                        .filter(candidate -> Objects.equals(candidate.getProjectId(), project.getId()))
+                        .orElseThrow(() -> notFound("执行 reservation 不存在"));
+        requireSameSubmission(reservation, command.executionSubmissionId());
+        if ("RELEASED".equals(reservation.getStatus())) {
+            if (Objects.equals(reservation.getReleaseReason(), command.releaseReason())
+                    && Objects.equals(
+                            reservation.getRootExecutionRunId(), command.rootExecutionRunId())) {
+                return toReservationView(reservation);
+            }
+            throw badRequest("执行 reservation 释放参数冲突");
+        }
+        var valid =
+                switch (command.releaseReason()) {
+                    case "PRE_BIND_CANCEL" ->
+                            "PREPARED".equals(reservation.getStatus())
+                                    && reservation.getRootExecutionRunId() == null
+                                    && command.rootExecutionRunId() == null;
+                    case "ROOT_TERMINAL" ->
+                            "BOUND".equals(reservation.getStatus())
+                                    && Objects.equals(
+                                            reservation.getRootExecutionRunId(),
+                                            command.rootExecutionRunId());
+                    default -> false;
+                };
+        if (!valid) {
+            throw badRequest("执行 reservation 释放状态冲突");
+        }
+        reservation.setStatus("RELEASED");
+        reservation.setReleaseReason(command.releaseReason());
+        reservationRepository.saveAndFlush(reservation);
+        if ("ROOT_TERMINAL".equals(command.releaseReason())
+                && AigcProjectLifecycle.EXECUTING.equals(project.getStatus())
+                && !reservationRepository.existsByProjectIdAndStatusIn(
+                        project.getId(), Set.of("PREPARED", "BOUND"))) {
+            project.setStatus(AigcProjectLifecycle.CREATING);
+            project.setVersion(project.getVersion() + 1);
+            project.setLastActiveTime(LocalDateTime.now());
+            repository.save(project);
+        }
+        return toReservationView(reservation);
     }
 
     @Override
@@ -630,6 +1076,10 @@ public class AigcProjectService
                 command.adoptionStatus() == null ? "candidate" : command.adoptionStatus());
         mediaRefRepository.save(reference);
         bumpRevision(project, List.of(), List.of(), null, "关联项目媒体");
+        if (command.projectObjectId() != null) {
+            deliveryService.staleReviews(
+                    project.getId(), List.of(command.projectObjectId()), "交付对象媒体引用已变化");
+        }
         return toApiMediaRefView(reference);
     }
 
@@ -646,50 +1096,17 @@ public class AigcProjectService
                         .orElseThrow(() -> notFound("项目媒体引用不存在"));
         mediaRefRepository.delete(reference);
         bumpRevision(project, List.of(), List.of(), null, "解除项目媒体引用");
+        if (reference.getObjectId() != null) {
+            deliveryService.staleReviews(
+                    project.getId(), List.of(reference.getObjectId()), "交付对象媒体引用已变化");
+        }
     }
 
     @Override
     @Transactional
     public AigcObjectVersionView appendCandidate(AigcObjectVersionCandidateCommand command) {
-        requireEntity(command.projectId());
-        var project =
-                repository.findLockedById(command.projectId()).orElseThrow(() -> notFound("项目不存在"));
-        entityManager.refresh(project, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
-        requireWritable(project);
-        var existing = versionRepository.findByExecutionRunIdOrderByIdAsc(command.executionRunId());
-        if (!existing.isEmpty()) {
-            return toApiVersionView(existing.getFirst());
-        }
-        var object = requireObject(project.getId(), command.objectId(), true);
-        var version = new AigcObjectVersion();
-        copyScope(project, version);
-        version.setProjectId(project.getId());
-        version.setObjectId(object.getId());
-        version.setVersionNo(
-                versionRepository
-                                .findFirstByObjectIdOrderByVersionNoDesc(object.getId())
-                                .map(AigcObjectVersion::getVersionNo)
-                                .orElse(0)
-                        + 1);
-        version.setStatus("candidate");
-        version.setContentPayload(parseMap(command.contentJson()));
-        version.setDocumentVersionId(command.documentVersionId());
-        version.setExecutionRunId(command.executionRunId());
-        version.setSummary("执行候选");
-        versionRepository.save(version);
-        for (var mediaVersionId : command.mediaVersionIds()) {
-            mediaApi.getByVersionId(mediaVersionId, project.getUserId());
-            var reference = new AigcProjectMediaRef();
-            copyScope(project, reference);
-            reference.setProjectId(project.getId());
-            reference.setObjectId(object.getId());
-            reference.setObjectVersionId(version.getId());
-            reference.setMediaVersionId(mediaVersionId);
-            reference.setRole("candidate");
-            reference.setAdoptionStatus("candidate");
-            mediaRefRepository.save(reference);
-        }
-        return toApiVersionView(version);
+        requireEntity(command.projectId(), CrudOperation.UPDATE, AccessMode.DEFAULT);
+        return deliveryService.appendCandidate(command);
     }
 
     @Override
@@ -698,6 +1115,14 @@ public class AigcProjectService
         requireEntity(projectId);
         requireObject(projectId, objectId, false);
         return toApiVersionView(requireVersion(projectId, objectId, objectVersionId));
+    }
+
+    @Override
+    public AigcObjectVersionComparisonView compareObjectVersions(
+            Long projectId, Long objectId, Long leftObjectVersionId, Long rightObjectVersionId) {
+        requireEntity(projectId);
+        return deliveryService.compare(
+                projectId, objectId, leftObjectVersionId, rightObjectVersionId);
     }
 
     @Override
@@ -715,170 +1140,149 @@ public class AigcProjectService
 
     @Override
     @Transactional
+    @org.springframework.security.access.prepost.PreAuthorize(
+            com.xuejiai.aaf.module.ai.aigc.AigcAuthorities.HAS_OBJECT_VERSION_ADOPT)
     public AigcObjectVersionView adoptVersion(AigcObjectVersionAdoptCommand command) {
-        var project = requireLockedProject(command.projectId(), command.expectedProjectVersion());
-        requireWritable(project);
-        var object = requireObject(project.getId(), command.objectId(), true);
-        var version = requireVersion(project.getId(), object.getId(), command.objectVersionId());
-        if ("adopted".equals(version.getStatus())
-                && version.getId().equals(object.getAdoptedVersionId())) {
-            return toApiVersionView(version);
-        }
-        if (!"candidate".equals(version.getStatus())) {
-            throw badRequest("只有候选版本可以采用");
-        }
-        versionRepository
-                .findByObjectIdAndStatus(object.getId(), "adopted")
-                .forEach(
-                        previous -> {
-                            previous.setStatus("superseded");
-                            previous.setSupersededByVersionId(version.getId());
-                            versionRepository.save(previous);
-                        });
-        version.setStatus("adopted");
-        version.setAdoptedTime(LocalDateTime.now());
-        version.setAdoptedBy(operatorContext.currentOwnerId().orElseThrow());
-        versionRepository.save(version);
-        object.setAdoptedVersionId(version.getId());
-        object.setStatus("adopted");
-        objectRepository.save(object);
-        mediaRefRepository.findByProjectIdOrderBySortOrderAscIdAsc(project.getId()).stream()
-                .filter(reference -> version.getId().equals(reference.getObjectVersionId()))
-                .forEach(
-                        reference -> {
-                            reference.setAdoptionStatus("adopted");
-                            mediaRefRepository.save(reference);
-                        });
-        var revision =
-                bumpRevision(
-                        project,
-                        List.of(object.getId()),
-                        List.of(),
-                        version.getExecutionRunId(),
-                        command.reason() == null ? "采用对象版本" : command.reason());
-        eventPublisher.publishEvent(
-                new AigcObjectVersionAdoptedEvent(
-                        UUID.randomUUID(),
-                        project.getId(),
-                        object.getId(),
-                        version.getId(),
-                        revision.getRevisionNo().longValue(),
-                        Instant.now()));
-        return toApiVersionView(version);
+        requireEntity(command.projectId(), CrudOperation.UPDATE, AccessMode.DEFAULT);
+        return deliveryService.adopt(command);
     }
 
     @Override
     @Transactional
-    public AigcObjectVersionView rejectVersion(
-            Long projectId, Long objectId, Long objectVersionId, Integer expectedProjectVersion) {
-        var project = requireLockedProject(projectId, expectedProjectVersion);
-        requireWritable(project);
-        var version = requireVersion(projectId, objectId, objectVersionId);
-        if (!"candidate".equals(version.getStatus()) && !"rejected".equals(version.getStatus())) {
-            throw badRequest("只有候选版本可以否决");
-        }
-        version.setStatus("rejected");
-        versionRepository.save(version);
-        bumpRevision(project, List.of(objectId), List.of(), version.getExecutionRunId(), "否决对象版本");
-        return toApiVersionView(version);
+    @org.springframework.security.access.prepost.PreAuthorize(
+            com.xuejiai.aaf.module.ai.aigc.AigcAuthorities.HAS_OBJECT_VERSION_ADOPT)
+    public AigcObjectVersionView rejectVersion(AigcObjectVersionRejectCommand command) {
+        requireEntity(command.projectId(), CrudOperation.UPDATE, AccessMode.DEFAULT);
+        return deliveryService.reject(command);
+    }
+
+    @Override
+    public AigcDeliverableSetCompletionView evaluateDeliverableSet(
+            AigcDeliverableSetEvaluateCommand command) {
+        requireEntity(command.projectId());
+        return deliveryService.evaluate(command);
     }
 
     @Override
     @Transactional
-    public AigcProjectView submitReview(Long projectId, Integer expectedVersion) {
-        var project = requireLockedProject(projectId, expectedVersion);
-        requireWritable(project);
-        if (objectRepository.findByProjectIdOrderBySortOrderAscIdAsc(projectId).stream()
-                .noneMatch(object -> object.getAdoptedVersionId() != null)) {
-            throw badRequest("至少采用一个对象版本后才能提交审核");
-        }
-        project.setStatus("reviewing");
-        project.setVersion(project.getVersion() + 1);
-        project.setLastActiveTime(LocalDateTime.now());
-        repository.save(project);
-        return toApiView(project);
+    @org.springframework.security.access.prepost.PreAuthorize(
+            com.xuejiai.aaf.module.ai.aigc.AigcAuthorities.HAS_PROJECT_UPDATE)
+    public AigcObjectVersionView freezeDeliverableSetManifest(
+            AigcDeliverableSetManifestFreezeCommand command) {
+        requireEntity(command.projectId(), CrudOperation.UPDATE, AccessMode.DEFAULT);
+        return deliveryService.freeze(command);
     }
 
     @Override
     @Transactional
-    public AigcProjectView approveReview(AigcReviewApproveCommand command) {
-        var project = requireLockedProject(command.projectId(), command.expectedProjectVersion());
-        if (!"reviewing".equals(project.getStatus())) {
-            throw badRequest("只有审核中的项目可以通过审核");
-        }
-        var review = requireObject(project.getId(), command.reviewObjectId(), true);
-        review.setStatus("done");
-        review.setSummary(command.conclusion());
-        objectRepository.save(review);
-        var deliverables =
-                objectRepository.findByProjectIdOrderBySortOrderAscIdAsc(project.getId()).stream()
-                        .filter(object -> object.getObjectType().endsWith("_deliverable"))
-                        .filter(object -> object.getAdoptedVersionId() != null)
-                        .map(AigcProjectObject::getId)
-                        .toList();
-        bumpRevision(project, List.of(review.getId()), List.of(), null, "项目审核通过");
-        project.setStatus("delivering");
-        project.setLastActiveTime(LocalDateTime.now());
-        repository.save(project);
-        eventPublisher.publishEvent(
-                new AigcProjectReviewApprovedEvent(
-                        UUID.randomUUID(),
-                        project.getId(),
-                        review.getId(),
-                        deliverables,
-                        Instant.now()));
-        return toApiView(project);
+    @org.springframework.security.access.prepost.PreAuthorize(
+            com.xuejiai.aaf.module.ai.aigc.AigcAuthorities.HAS_PROJECT_REVIEW)
+    public AigcReviewView submitReview(AigcReviewSubmitCommand command) {
+        requireEntity(command.projectId(), CrudOperation.UPDATE, AccessMode.DEFAULT);
+        return deliveryService.submitReview(command);
     }
 
     @Override
     @Transactional
-    public AigcProjectView complete(Long projectId, Integer expectedVersion) {
-        var project = requireLockedProject(projectId, expectedVersion);
-        if (!"delivering".equals(project.getStatus())) {
-            throw badRequest("项目必须先完成审核并进入交付阶段");
-        }
-        var evidence = completionEvidencePort.load(projectId);
-        if (!evidence.hasActiveWork()) {
-            throw badRequest("项目必须先收录至少一个未归档 Work");
-        }
-        if (!evidence.publicationsCompleted()) {
-            throw badRequest("项目存在未发布成功的 Publication");
-        }
-        project.setStatus("completed");
-        project.setVersion(project.getVersion() + 1);
-        project.setLastActiveTime(LocalDateTime.now());
-        repository.save(project);
-        return toApiView(project);
+    @org.springframework.security.access.prepost.PreAuthorize(
+            com.xuejiai.aaf.module.ai.aigc.AigcAuthorities.HAS_PROJECT_REVIEW)
+    public AigcReviewView approveReview(AigcReviewDecisionCommand command) {
+        requireEntity(command.projectId(), CrudOperation.UPDATE, AccessMode.DEFAULT);
+        return deliveryService.approveReview(command);
     }
 
     @Override
     @Transactional
-    public AigcProjectView archive(Long projectId, Integer expectedVersion) {
-        var project = requireLockedProject(projectId, expectedVersion);
-        if ("archived".equals(project.getStatus())) {
+    @org.springframework.security.access.prepost.PreAuthorize(
+            com.xuejiai.aaf.module.ai.aigc.AigcAuthorities.HAS_PROJECT_REVIEW)
+    public AigcReviewView returnReview(AigcReviewDecisionCommand command) {
+        requireEntity(command.projectId(), CrudOperation.UPDATE, AccessMode.DEFAULT);
+        return deliveryService.returnReview(command);
+    }
+
+    @Override
+    public List<AigcReviewView> reviews(Long projectId) {
+        requireEntity(projectId);
+        return deliveryService.reviews(projectId);
+    }
+
+    @Override
+    public AigcApprovedManifestView requireApprovedManifest(
+            Long projectId, Long deliverableSetObjectId, Long manifestObjectVersionId) {
+        requireEntity(projectId);
+        return deliveryService.requireApprovedManifest(
+                projectId, deliverableSetObjectId, manifestObjectVersionId);
+    }
+
+    @Override
+    public AigcCompletionEvaluationView completionEvidence(Long projectId) {
+        requireEntity(projectId);
+        return deliveryService.completion(projectId);
+    }
+
+    @Override
+    @Transactional
+    @org.springframework.security.access.prepost.PreAuthorize(
+            com.xuejiai.aaf.module.ai.aigc.AigcAuthorities.HAS_PROJECT_LIFECYCLE)
+    public AigcProjectView complete(AigcProjectLifecycleCommand command) {
+        requireLifecycleCommand(command, false);
+        var requestHash = lifecycleRequestHash("COMPLETE", command);
+        requireEntity(command.projectId(), CrudOperation.UPDATE, AccessMode.DEFAULT);
+        var project =
+                repository
+                        .findLockedById(command.projectId())
+                        .orElseThrow(() -> notFound("项目不存在"));
+        entityManager.refresh(project, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        if (AigcProjectLifecycle.COMPLETED.equals(project.getStatus())) {
+            requireLifecycleReplay(project, command.idempotencyKey(), requestHash);
             return toApiView(project);
         }
-        project.setStatus("archived");
+        requireExpectedVersion(project, command.expectedProjectVersion());
+        if (!AigcProjectLifecycle.DELIVERING.equals(project.getStatus())) {
+            throw badRequest("项目必须先进入 DELIVERING 阶段");
+        }
+        var evaluation = deliveryService.completion(project.getId());
+        if (!evaluation.satisfied()) {
+            throw badRequest("项目完成条件未满足: " + String.join("；", evaluation.blockers()));
+        }
+        project.setStatus(AigcProjectLifecycle.COMPLETED);
+        project.setLifecycleIdempotencyKey(command.idempotencyKey());
+        project.setLifecycleRequestHash(requestHash);
         project.setVersion(project.getVersion() + 1);
         project.setLastActiveTime(LocalDateTime.now());
         repository.save(project);
-        eventPublisher.publishEvent(
-                new AigcProjectArchivedEvent(UUID.randomUUID(), projectId, Instant.now()));
+        publishProjectLifecycle(project);
         return toApiView(project);
     }
 
+    @Override
     @Transactional
-    public AigcProjectVO updateStatus(Long projectId, String status, Integer expectedVersion) {
-        if (!MUTABLE_STATUSES.contains(status)) {
-            throw badRequest("通用状态更新只支持 draft/in_progress，其他生命周期请使用专用命令");
+    @org.springframework.security.access.prepost.PreAuthorize(
+            com.xuejiai.aaf.module.ai.aigc.AigcAuthorities.HAS_PROJECT_LIFECYCLE)
+    public AigcProjectView archive(AigcProjectLifecycleCommand command) {
+        requireLifecycleCommand(command, true);
+        var requestHash = lifecycleRequestHash("ARCHIVE", command);
+        requireEntity(command.projectId(), CrudOperation.UPDATE, AccessMode.DEFAULT);
+        var project =
+                repository
+                        .findLockedById(command.projectId())
+                        .orElseThrow(() -> notFound("项目不存在"));
+        entityManager.refresh(project, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        if (AigcProjectLifecycle.ARCHIVED.equals(project.getStatus())) {
+            requireLifecycleReplay(project, command.idempotencyKey(), requestHash);
+            return toApiView(project);
         }
-        var project = requireLockedProject(projectId, expectedVersion);
-        requireWritable(project);
-        project.setStatus(status);
+        requireExpectedVersion(project, command.expectedProjectVersion());
+        project.setStatus(AigcProjectLifecycle.ARCHIVED);
+        project.setLifecycleIdempotencyKey(command.idempotencyKey());
+        project.setLifecycleRequestHash(requestHash);
         project.setVersion(project.getVersion() + 1);
         project.setLastActiveTime(LocalDateTime.now());
         repository.save(project);
-        return toVO(project);
+        publishProjectLifecycle(project);
+        eventPublisher.publishEvent(
+                new AigcProjectArchivedEvent(UUID.randomUUID(), project.getId(), Instant.now()));
+        return toApiView(project);
     }
 
     public List<AigcProjectObjectVO> objects(Long projectId) {
@@ -1038,6 +1442,9 @@ public class AigcProjectService
     public void registerExternalResource(
             Long projectId, String resourceType, String resourceId, String role) {
         var project = requireEntity(projectId);
+        if (AigcProjectLifecycle.ARCHIVED.equals(project.getStatus())) {
+            return;
+        }
         var existing =
                 resourceRefRepository.findByProjectIdAndResourceTypeAndResourceId(
                         projectId, resourceType, resourceId);
@@ -1066,10 +1473,17 @@ public class AigcProjectService
     }
 
     private AigcProject requireLockedProject(Long projectId, Integer expectedVersion) {
+        return requireLockedProject(projectId, expectedVersion, true);
+    }
+
+    private AigcProject requireLockedProject(
+            Long projectId, Integer expectedVersion, boolean requireVersion) {
         requireEntity(projectId, CrudOperation.UPDATE, AccessMode.DEFAULT);
         var project = repository.findLockedById(projectId).orElseThrow(() -> notFound("项目不存在"));
         entityManager.refresh(project, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
-        requireExpectedVersion(project, expectedVersion);
+        if (requireVersion) {
+            requireExpectedVersion(project, expectedVersion);
+        }
         return project;
     }
 
@@ -1104,39 +1518,35 @@ public class AigcProjectService
         }
     }
 
-    private record CoverState(String status, Long runId) {}
+    private record CoverState(AigcProjectCoverStatus status, Long runId) {}
 
     private CoverState coverState(AigcProject project) {
-        var run = executionApiProvider.getObject().latestProjectCoverRun(project.getId());
-        if (run == null) {
-            return new CoverState(coverStatus(null, project.getCoverMediaVersionId()), null);
-        }
-        return new CoverState(
-                coverStatus(run.status(), project.getCoverMediaVersionId()), run.id());
+        var status =
+                project.getCoverStatus() == null
+                        ? (project.getCoverMediaVersionId() == null
+                                ? AigcProjectCoverStatus.NONE
+                                : AigcProjectCoverStatus.READY)
+                        : project.getCoverStatus();
+        return new CoverState(status, project.getCoverExecutionRunId());
     }
 
-    private String coverStatus(String runStatus, Long coverMediaVersionId) {
-        if (runStatus == null) {
-            return coverMediaVersionId == null
-                    ? com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus.NONE
-                    : com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus.READY;
-        }
-        return switch (runStatus) {
-            case "pending", "running" ->
-                    com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus.PENDING;
-            case "failed" ->
-                    com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus.FAILED;
-            default ->
-                    coverMediaVersionId == null
-                            ? com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus.NONE
-                            : com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus
-                                    .READY;
-        };
+    private void publishProjectLifecycle(AigcProject project) {
+        activityEventService.publish(
+                project.getUserId(),
+                "project.lifecycle.changed",
+                project.getId(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                Map.of("lifecycle", project.getStatus().name()));
     }
 
     private void requireDisplayInfoWritable(AigcProject project) {
-        if ("archived".equals(project.getStatus())) {
-            throw badRequest("已归档项目的基础信息只读");
+        if (!MUTABLE_STATUSES.contains(project.getStatus())) {
+            throw badRequest("当前项目阶段基础信息只读: " + project.getStatus());
         }
     }
 
@@ -1150,6 +1560,20 @@ public class AigcProjectService
         project.setVersion(project.getVersion() + 1);
         project.setLastActiveTime(LocalDateTime.now());
         repository.save(project);
+        activityEventService.publish(
+                project.getUserId(),
+                "project.changed",
+                project.getId(),
+                executionRunId,
+                null,
+                null,
+                null,
+                null,
+                null,
+                Map.of(
+                        "lifecycle", project.getStatus().name(),
+                        "graphRevision", project.getGraphRevision(),
+                        "summary", summary));
         var revision = new AigcProjectRevision();
         revision.setProjectId(project.getId());
         revision.setRevisionNo(project.getGraphRevision());
@@ -1167,6 +1591,14 @@ public class AigcProjectService
                 channelRefRepository.findByProjectIdOrderByIdAsc(project.getId()).stream()
                         .map(reference -> reference.getChannelSpecId())
                         .toList();
+        var executionBindings =
+                snapshotRepository
+                        .findFirstByProjectIdOrderByRevisionNoDesc(project.getId())
+                        .map(
+                                com.xuejiai.aaf.module.ai.aigc.project.domain
+                                                .AigcProjectConfigSnapshot::
+                                        getExecutionBindingVersions)
+                        .orElse(List.of());
         return new AigcProjectView(
                 project.getId(),
                 project.getOrgId(),
@@ -1180,6 +1612,7 @@ public class AigcProjectService
                 project.getProductionMode(),
                 project.getGenerationMode(),
                 channelIds,
+                executionBindings,
                 project.getBudgetLimit(),
                 project.getCostUsed(),
                 project.getDescription(),
@@ -1192,7 +1625,17 @@ public class AigcProjectService
         return new AigcProjectObjectView(
                 object.getId(),
                 object.getProjectId(),
+                object.getStableKey(),
+                object.getBlueprintTemplateKey(),
+                object.getInstanceNo(),
                 object.getObjectType(),
+                object.getTitle(),
+                object.getContractRole(),
+                object.getPayload() == null
+                                || object.getPayload().get("defaultActionKey") == null
+                        ? null
+                        : String.valueOf(object.getPayload().get("defaultActionKey")),
+                object.getParentId(),
                 object.getStatus(),
                 object.getAdoptedVersionId());
     }
@@ -1232,8 +1675,10 @@ public class AigcProjectService
                 object.getVersion(),
                 object.getProjectId(),
                 object.getObjectType(),
-                object.getObjectKey(),
-                object.getBlueprintNodeKey(),
+                object.getStableKey(),
+                object.getBlueprintTemplateKey(),
+                object.getInstanceNo(),
+                object.getContractRole(),
                 object.getParentId(),
                 object.getSortOrder(),
                 object.getTitle(),
@@ -1292,6 +1737,157 @@ public class AigcProjectService
                 reference.getRole(),
                 reference.getSortOrder(),
                 reference.getAdoptionStatus());
+    }
+
+    private Map<String, Object> requireSlotTemplate(AigcProject project, String templateKey) {
+        var snapshot =
+                snapshotRepository
+                        .findFirstByProjectIdOrderByRevisionNoDesc(project.getId())
+                        .orElseThrow(() -> notFound("项目配置快照不存在"));
+        var value = snapshot.getSnapshot().get("slotTemplates");
+        if (!(value instanceof List<?> templates)) {
+            throw badRequest("项目配置快照缺少槽位模板");
+        }
+        for (var candidate : templates) {
+            if (!(candidate instanceof Map<?, ?> raw)
+                    || !templateKey.equals(String.valueOf(raw.get("templateKey")))) {
+                continue;
+            }
+            var result = new java.util.LinkedHashMap<String, Object>();
+            raw.forEach((key, item) -> result.put(String.valueOf(key), item));
+            return Map.copyOf(result);
+        }
+        throw badRequest("项目配置中不存在槽位模板: " + templateKey);
+    }
+
+    private String formatStableKey(String pattern, int instanceNo) {
+        if (pattern == null || pattern.isBlank()) {
+            throw badRequest("槽位模板 stableKeyPattern 不能为空");
+        }
+        if (pattern.contains("{instanceNo:02d}")) {
+            return pattern.replace("{instanceNo:02d}", "%02d".formatted(instanceNo));
+        }
+        if (pattern.contains("{instanceNo}")) {
+            return pattern.replace("{instanceNo}", String.valueOf(instanceNo));
+        }
+        if (pattern.contains("%")) {
+            try {
+                return pattern.formatted(instanceNo);
+            } catch (java.util.IllegalFormatException error) {
+                throw badRequest("槽位模板 stableKeyPattern 非法");
+            }
+        }
+        if (instanceNo > 1) {
+            throw badRequest("可重复槽位模板 stableKeyPattern 必须包含 instanceNo");
+        }
+        return pattern;
+    }
+
+    private String requireContractRole(String role) {
+        if (!Set.of("REQUIRED", "OPTIONAL", "EXCLUDED").contains(role)) {
+            throw badRequest("对象合同角色必须为 REQUIRED/OPTIONAL/EXCLUDED");
+        }
+        return role;
+    }
+
+    private List<Long> resolveReservationTargets(
+            Long projectId, AigcProjectExecutionReservationCommand command) {
+        var requested = command.requestedProjectObjectIds().stream().distinct().sorted().toList();
+        if (command.commandObjectId() == null && requested.isEmpty()) {
+            return List.of();
+        }
+        var targetIds =
+                requested.isEmpty()
+                        ? objectRepository
+                                .findByProjectIdAndParentIdOrderBySortOrderAscIdAsc(
+                                        projectId, command.commandObjectId())
+                                .stream()
+                                .filter(object -> !"EXCLUDED".equals(object.getContractRole()))
+                                .map(AigcProjectObject::getId)
+                                .toList()
+                        : requested;
+        if (targetIds.isEmpty()) {
+            targetIds = List.of(command.commandObjectId());
+        }
+        for (var targetId : targetIds) {
+            var object = requireObject(projectId, targetId, true);
+            if ("EXCLUDED".equals(object.getContractRole())) {
+                throw badRequest("不能冻结已排除的项目对象");
+            }
+        }
+        return targetIds.stream().sorted().toList();
+    }
+
+    private String reservationRequestHash(AigcProjectExecutionReservationCommand command) {
+        var business = new java.util.TreeMap<String, Object>();
+        business.put("projectId", command.projectId());
+        business.put("commandObjectId", command.commandObjectId());
+        business.put("actionKey", command.actionKey());
+        business.put(
+                "requestedProjectObjectIds",
+                command.requestedProjectObjectIds().stream().distinct().sorted().toList());
+        var cas = new java.util.TreeMap<String, Object>();
+        cas.put("expectedGraphRevision", command.expectedGraphRevision());
+        return AigcCanonicalRequest.of("project.reserve-execution", business, cas).sha256();
+    }
+
+    private String lifecycleRequestHash(String action, AigcProjectLifecycleCommand command) {
+        var business = new java.util.TreeMap<String, Object>();
+        business.put("projectId", command.projectId());
+        business.put("reason", command.reason());
+        return AigcCanonicalRequest.of(
+                        "project.lifecycle." + action,
+                        business,
+                        Map.of("expectedProjectVersion", command.expectedProjectVersion()))
+                .sha256();
+    }
+
+    private void requireLifecycleCommand(
+            AigcProjectLifecycleCommand command, boolean reasonRequired) {
+        if (command == null
+                || command.projectId() == null
+                || command.expectedProjectVersion() == null
+                || command.idempotencyKey() == null
+                || command.idempotencyKey().isBlank()) {
+            throw badRequest("生命周期命令缺少 projectId、expectedProjectVersion 或 idempotencyKey");
+        }
+        if (reasonRequired && (command.reason() == null || command.reason().isBlank())) {
+            throw badRequest("归档原因不能为空");
+        }
+    }
+
+    private void requireLifecycleReplay(
+            AigcProject project, String idempotencyKey, String requestHash) {
+        if (!Objects.equals(project.getLifecycleIdempotencyKey(), idempotencyKey)
+                || !Objects.equals(project.getLifecycleRequestHash(), requestHash)) {
+            throw new BusinessException(409, "生命周期幂等键或请求参数与原请求不一致");
+        }
+    }
+
+    private void requireSameSubmission(
+            AigcProjectExecutionReservation reservation, Long executionSubmissionId) {
+        if (!Objects.equals(reservation.getExecutionSubmissionId(), executionSubmissionId)) {
+            throw badRequest("执行 reservation 与 submission 不匹配");
+        }
+    }
+
+    private AigcProjectExecutionReservationView toReservationView(
+            AigcProjectExecutionReservation reservation) {
+        var targetIds =
+                reservationTargetRepository
+                        .findByReservationIdOrderByIdAsc(reservation.getId())
+                        .stream()
+                        .map(AigcProjectExecutionReservationTarget::getProjectObjectId)
+                        .toList();
+        return new AigcProjectExecutionReservationView(
+                reservation.getId(),
+                reservation.getExecutionSubmissionId(),
+                reservation.getProjectId(),
+                reservation.getCommandObjectId(),
+                reservation.getTargetGraphRevision(),
+                targetIds,
+                reservation.getStatus(),
+                reservation.getRootExecutionRunId());
     }
 
     private Map<String, Object> parseMap(String json) {

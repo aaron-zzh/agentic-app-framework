@@ -8,5 +8,10 @@ public record AigcObjectVersionAdoptedEvent(
         Long projectId,
         Long projectObjectId,
         Long objectVersionId,
+        Long replacedObjectVersionId,
+        String adoptionMode,
+        String actorType,
+        Long actorId,
+        Long sourceExecutionRunId,
         Long projectRevisionNo,
         Instant occurredAt) {}

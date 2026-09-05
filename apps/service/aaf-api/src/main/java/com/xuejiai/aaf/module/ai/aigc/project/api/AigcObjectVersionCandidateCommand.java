@@ -6,6 +6,9 @@ public record AigcObjectVersionCandidateCommand(
         Long projectId,
         Long objectId,
         Long executionRunId,
+        Long executionSubmissionId,
+        Long executionReservationId,
+        Long rootExecutionRunId,
         String contentJson,
         Long documentVersionId,
         List<Long> mediaVersionIds) {

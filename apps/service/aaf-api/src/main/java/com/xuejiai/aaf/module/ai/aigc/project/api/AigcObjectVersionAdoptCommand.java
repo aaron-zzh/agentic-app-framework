@@ -4,5 +4,8 @@ public record AigcObjectVersionAdoptCommand(
         Long projectId,
         Long objectId,
         Long objectVersionId,
+        Long expectedAdoptedVersionId,
         Integer expectedProjectVersion,
-        String reason) {}
+        boolean confirmedReplacement,
+        String reason,
+        String idempotencyKey) {}

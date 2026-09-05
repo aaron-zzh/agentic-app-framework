@@ -46,7 +46,8 @@ public class AigcProjectConfigSnapshot extends BaseEntity {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "execution_binding_versions", columnDefinition = "jsonb")
-    private List<Long> executionBindingVersions = List.of();
+    private List<com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcExecutionBindingVersionRef>
+            executionBindingVersions = List.of();
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "compatibility_result", columnDefinition = "jsonb")

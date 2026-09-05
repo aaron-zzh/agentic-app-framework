@@ -69,7 +69,10 @@ public class AigcProjectMaterializer {
                                 command.blueprintVersionId(),
                                 command.domainExtensionVersionId(),
                                 command.channelSpecVersionIds(),
-                                command.productionMode()));
+                                command.productionMode(),
+                                command.budgetTier(),
+                                command.qualityTier(),
+                                command.slotOverrides()));
         var ownerId = operatorContext.currentOwnerId().orElseThrow();
         var orgId = OrgContext.getCurrentOrgId();
         var workspaceId =
@@ -95,7 +98,8 @@ public class AigcProjectMaterializer {
         project.setDomainExtensionVersion(resolved.domainExtensionVersion());
         project.setProductionMode(resolved.productionMode());
         project.setGenerationMode("manual");
-        project.setStatus("draft");
+        project.setStatus(
+                com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycle.CREATING);
         project.setBrief(command.briefJson());
         project.setGraphRevision(1);
         project.setPrimaryBrandProfileId(
@@ -133,7 +137,7 @@ public class AigcProjectMaterializer {
         snapshot.setBlueprintVersion(resolved.blueprintVersion());
         snapshot.setDomainExtensionVersion(resolved.domainExtensionVersion());
         snapshot.setChannelVersions(resolved.channelSpecVersionIds());
-        snapshot.setExecutionBindingVersions(resolved.executionBindingVersionIds());
+        snapshot.setExecutionBindingVersions(resolved.executionBindings());
         snapshot.setCompatibilityResult(
                 Map.of(
                         "compatible", true,
@@ -172,23 +176,30 @@ public class AigcProjectMaterializer {
         }
 
         var objects = new LinkedHashMap<String, AigcProjectObject>();
-        for (var spec : resolved.objects()) {
+        for (var spec : resolved.resolvedObjects()) {
             var object = new AigcProjectObject();
             copyScope(project, object);
             object.setProjectId(project.getId());
-            object.setObjectKey(spec.stableKey());
-            object.setBlueprintNodeKey(spec.stableKey());
+            object.setStableKey(spec.stableKey());
+            object.setBlueprintTemplateKey(spec.blueprintTemplateKey());
+            object.setInstanceNo(spec.instanceNo());
+            object.setContractRole(spec.contractRole());
             object.setObjectType(spec.objectType());
             object.setSortOrder(spec.orderNo() == null ? 0 : spec.orderNo());
-            object.setTitle(spec.stableKey());
+            object.setTitle(spec.displayName());
             object.setStatus("empty");
             object.setSource("blueprint");
             object.setSchemaVersion("1.0.0");
-            object.setPayload(parseMap(spec.schemaJson()));
+            var payload = new LinkedHashMap<>(parseMap(spec.schemaJson()));
+            resolved.actions().stream()
+                    .filter(action -> spec.blueprintTemplateKey().equals(action.targetTemplateKey()))
+                    .findFirst()
+                    .ifPresent(action -> payload.put("defaultActionKey", action.actionKey()));
+            object.setPayload(Map.copyOf(payload));
             objectRepository.save(object);
             objects.put(spec.stableKey(), object);
         }
-        for (var spec : resolved.objects()) {
+        for (var spec : resolved.resolvedObjects()) {
             if (spec.parentKey() == null) {
                 continue;
             }

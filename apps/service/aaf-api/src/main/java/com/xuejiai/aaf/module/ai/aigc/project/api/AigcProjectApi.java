@@ -10,6 +10,24 @@ public interface AigcProjectApi {
 
     AigcProjectView requireProject(Long projectId);
 
+    AigcProjectView lockForCreativeMutation(Long projectId, Long userId);
+
+    AigcProjectView lockForCreativeMutation(
+            Long projectId, Long userId, Integer expectedProjectVersion);
+
+    AigcProjectView lockForWorkMutation(
+            Long projectId, Long userId, Integer expectedProjectVersion);
+
+    AigcProjectExecutionReservationView requireBoundExecution(
+            Long reservationId, Long executionSubmissionId, Long rootExecutionRunId);
+
+    void markCoverExecutionStarted(Long projectId, Long executionRunId);
+
+    void markCoverGenerationFailed(Long projectId);
+
+    void markCoverExecutionTerminal(
+            Long projectId, Long executionRunId, AigcProjectCoverStatus status);
+
     Set<Long> findLinkedDocumentIds(Long ownerId, Long orgId, Long workspaceId, Long projectId);
 
     List<DocumentProjectReference> findDocumentProjects(
@@ -29,6 +47,19 @@ public interface AigcProjectApi {
 
     AigcProjectObjectView appendObject(AigcProjectObjectCommand command);
 
+    AigcProjectExecutionReservationView reserveExecution(
+            AigcProjectExecutionReservationCommand command);
+
+    AigcProjectExecutionReservationView bindExecution(
+            AigcProjectExecutionReservationBindCommand command);
+
+    AigcProjectExecutionReservationView releaseExecution(
+            AigcProjectExecutionReservationReleaseCommand command);
+
+    AigcProjectObjectView updateObjectContract(AigcProjectObjectContractCommand command);
+
+    AigcProjectObjectView removeObject(AigcProjectObjectRemoveCommand command);
+
     AigcProjectMediaRefView attachMedia(AigcProjectMediaRefCommand command);
 
     void detachMedia(Long projectId, Long projectMediaRefId, Integer expectedProjectVersion);
@@ -40,18 +71,35 @@ public interface AigcProjectApi {
     AigcProjectMediaRefView requireAdoptedMediaVersion(
             Long projectId, Long objectId, Long mediaVersionId);
 
+    AigcObjectVersionComparisonView compareObjectVersions(
+            Long projectId, Long objectId, Long leftObjectVersionId, Long rightObjectVersionId);
+
     AigcObjectVersionView adoptVersion(AigcObjectVersionAdoptCommand command);
 
-    AigcObjectVersionView rejectVersion(
-            Long projectId, Long objectId, Long objectVersionId, Integer expectedProjectVersion);
+    AigcObjectVersionView rejectVersion(AigcObjectVersionRejectCommand command);
 
-    AigcProjectView submitReview(Long projectId, Integer expectedVersion);
+    AigcDeliverableSetCompletionView evaluateDeliverableSet(
+            AigcDeliverableSetEvaluateCommand command);
 
-    AigcProjectView approveReview(AigcReviewApproveCommand command);
+    AigcObjectVersionView freezeDeliverableSetManifest(
+            AigcDeliverableSetManifestFreezeCommand command);
 
-    AigcProjectView complete(Long projectId, Integer expectedVersion);
+    AigcReviewView submitReview(AigcReviewSubmitCommand command);
 
-    AigcProjectView archive(Long projectId, Integer expectedVersion);
+    AigcReviewView approveReview(AigcReviewDecisionCommand command);
+
+    AigcReviewView returnReview(AigcReviewDecisionCommand command);
+
+    List<AigcReviewView> reviews(Long projectId);
+
+    AigcApprovedManifestView requireApprovedManifest(
+            Long projectId, Long deliverableSetObjectId, Long manifestObjectVersionId);
+
+    AigcCompletionEvaluationView completionEvidence(Long projectId);
+
+    AigcProjectView complete(AigcProjectLifecycleCommand command);
+
+    AigcProjectView archive(AigcProjectLifecycleCommand command);
 
     record DocumentProjectReference(Long documentId, Long projectId, String projectName) {}
 }

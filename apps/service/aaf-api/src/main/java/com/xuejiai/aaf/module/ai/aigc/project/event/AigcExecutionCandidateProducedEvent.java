@@ -7,6 +7,9 @@ import java.util.UUID;
 public record AigcExecutionCandidateProducedEvent(
         UUID eventId,
         Long executionRunId,
+        Long executionSubmissionId,
+        Long executionReservationId,
+        Long rootExecutionRunId,
         Long projectId,
         Long projectObjectId,
         List<AigcObjectCandidatePayload> objectCandidates,

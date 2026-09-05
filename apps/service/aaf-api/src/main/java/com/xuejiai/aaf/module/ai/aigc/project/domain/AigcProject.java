@@ -6,9 +6,13 @@ import java.time.LocalDateTime;
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycle;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -50,8 +54,9 @@ public class AigcProject extends BaseEntity {
     @Column(name = "generation_mode", nullable = false, length = 32)
     private String generationMode = "manual";
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
-    private String status = "draft";
+    private AigcProjectLifecycle status = AigcProjectLifecycle.CONFIGURING;
 
     @Column(columnDefinition = "TEXT")
     private String brief;
@@ -61,6 +66,13 @@ public class AigcProject extends BaseEntity {
 
     @Column(name = "cover_media_version_id")
     private Long coverMediaVersionId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "cover_status", nullable = false, length = 20)
+    private AigcProjectCoverStatus coverStatus = AigcProjectCoverStatus.NONE;
+
+    @Column(name = "cover_execution_run_id")
+    private Long coverExecutionRunId;
 
     @Column(name = "config_snapshot_id")
     private Long configSnapshotId;
@@ -82,6 +94,12 @@ public class AigcProject extends BaseEntity {
 
     @Column(name = "last_active_time")
     private LocalDateTime lastActiveTime;
+
+    @Column(name = "lifecycle_idempotency_key", length = 100)
+    private String lifecycleIdempotencyKey;
+
+    @Column(name = "lifecycle_request_hash", length = 64)
+    private String lifecycleRequestHash;
 
     @Column(name = "user_id", nullable = false)
     private Long userId;

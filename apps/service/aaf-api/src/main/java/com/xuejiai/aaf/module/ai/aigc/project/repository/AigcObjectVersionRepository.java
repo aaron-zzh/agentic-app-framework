@@ -17,5 +17,13 @@ public interface AigcObjectVersionRepository extends JpaRepository<AigcObjectVer
 
     List<AigcObjectVersion> findByExecutionRunIdOrderByIdAsc(Long executionRunId);
 
+    Optional<AigcObjectVersion> findByObjectIdAndExecutionRunIdAndRequestHash(
+            Long objectId, Long executionRunId, String requestHash);
+
+    Optional<AigcObjectVersion> findByObjectIdAndIdempotencyKey(
+            Long objectId, String idempotencyKey);
+
     Optional<AigcObjectVersion> findFirstByObjectIdOrderByVersionNoDesc(Long objectId);
+
+    boolean existsByObjectId(Long objectId);
 }

@@ -6,8 +6,10 @@ import jakarta.validation.constraints.PositiveOrZero;
 
 public record AigcProjectObjectCommandDTO(
         Long parentObjectId,
-        @NotBlank String stableKey,
+        String blueprintTemplateKey,
         @NotBlank String objectType,
+        @NotBlank String displayName,
+        @NotBlank String contractRole,
         Integer orderNo,
         String schemaVersion,
         String payloadJson,

@@ -9,4 +9,6 @@ import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectRelation;
 public interface AigcProjectRelationRepository extends JpaRepository<AigcProjectRelation, Long> {
 
     List<AigcProjectRelation> findByProjectIdOrderByIdAsc(Long projectId);
+
+    boolean existsBySourceObjectIdOrTargetObjectId(Long sourceObjectId, Long targetObjectId);
 }

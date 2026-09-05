@@ -13,6 +13,9 @@ public record AigcProjectMaterializeCommand(
         List<Long> channelSpecVersionIds,
         List<Long> documentVersionIds,
         String productionMode,
+        String budgetTier,
+        String qualityTier,
+        List<com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcSlotCountOverride> slotOverrides,
         String briefJson,
         AigcProjectCoverMode coverMode,
         Long coverFileId,
@@ -26,5 +29,6 @@ public record AigcProjectMaterializeCommand(
                 channelSpecVersionIds == null ? List.of() : List.copyOf(channelSpecVersionIds);
         documentVersionIds =
                 documentVersionIds == null ? List.of() : List.copyOf(documentVersionIds);
+        slotOverrides = slotOverrides == null ? List.of() : List.copyOf(slotOverrides);
     }
 }

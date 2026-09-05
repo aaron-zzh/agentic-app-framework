@@ -36,6 +36,9 @@ public class AigcExecutionCandidateProducedListener {
                                     event.projectId(),
                                     event.projectObjectId(),
                                     event.executionRunId(),
+                                    event.executionSubmissionId(),
+                                    event.executionReservationId(),
+                                    event.rootExecutionRunId(),
                                     candidate.contentJson(),
                                     candidate.documentVersionId(),
                                     candidate.mediaVersionIds()));
@@ -48,6 +51,9 @@ public class AigcExecutionCandidateProducedListener {
                                     event.projectId(),
                                     event.projectObjectId(),
                                     event.executionRunId(),
+                                    event.executionSubmissionId(),
+                                    event.executionReservationId(),
+                                    event.rootExecutionRunId(),
                                     JsonUtils.toJsonString(
                                             java.util.Map.of(
                                                     "mediaVersionIds", event.mediaVersionIds())),

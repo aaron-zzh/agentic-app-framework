@@ -30,11 +30,17 @@ public class AigcProjectObject extends BaseEntity {
     @Column(name = "object_type", nullable = false, length = 48)
     private String objectType;
 
-    @Column(name = "object_key", nullable = false, length = 100)
-    private String objectKey;
+    @Column(name = "stable_key", nullable = false, length = 100)
+    private String stableKey;
 
-    @Column(name = "blueprint_node_key", length = 100)
-    private String blueprintNodeKey;
+    @Column(name = "blueprint_template_key", length = 100)
+    private String blueprintTemplateKey;
+
+    @Column(name = "instance_no", nullable = false)
+    private Integer instanceNo;
+
+    @Column(name = "contract_role", nullable = false, length = 32)
+    private String contractRole = "OPTIONAL";
 
     @Column(name = "parent_id")
     private Long parentId;
