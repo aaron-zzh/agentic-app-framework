@@ -38,7 +38,16 @@ public class AigcExecutionRunService
                 run.getId(),
                 run.getProjectId(),
                 run.getObjectId(),
-                run.getParentRunId(),
+                run.getParentExecutionRunId(),
+                run.getRootExecutionRunId(),
+                run.getRunKind(),
+                run.getWorkflowNodeKey(),
+                run.getExecutionSubmissionId(),
+                run.getExecutionReservationId(),
+                run.getTargetGraphRevision(),
+                run.getFrozenProjectObjectIds(),
+                run.getEffectiveInput(),
+                run.getBindingVersionId(),
                 run.getActionKey(),
                 run.getTargetType(),
                 run.getTargetRef(),
@@ -72,11 +81,21 @@ public class AigcExecutionRunService
 
     @Override
     protected Specification<AigcExecutionRun> buildSpec(AigcExecutionRunPageDTO request) {
-        return SpecificationBuilder.<AigcExecutionRun>builder()
-                .eqIfPresent("projectId", request.getProjectId())
-                .eqIfPresent("objectId", request.getObjectId())
-                .eqIfPresent("status", request.getStatus())
-                .build();
+        var specification =
+                SpecificationBuilder.<AigcExecutionRun>builder()
+                        .eqIfPresent("projectId", request.getProjectId())
+                        .eqIfPresent("objectId", request.getObjectId())
+                        .eqIfPresent("status", request.getStatus())
+                        .build();
+        if (!Boolean.TRUE.equals(request.getRootOnly())) {
+            return specification;
+        }
+        return specification.and(
+                (root, query, criteriaBuilder) ->
+                        criteriaBuilder.and(
+                                criteriaBuilder.isNull(root.get("parentExecutionRunId")),
+                                criteriaBuilder.equal(
+                                        root.get("id"), root.get("rootExecutionRunId"))));
     }
 
     private List<Long> taskIds(Long runId) {

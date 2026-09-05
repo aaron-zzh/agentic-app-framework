@@ -27,6 +27,7 @@ public class AigcTaskMapper {
                 task.getType(),
                 task.getStatus(),
                 task.getProvider(),
+                task.getProviderKey(),
                 task.getModel(),
                 task.getPrompt(),
                 task.getProviderTaskId(),
@@ -39,6 +40,9 @@ public class AigcTaskMapper {
                 task.getErrorMsg(),
                 task.getParams(),
                 task.getProjectId(),
+                task.getExecutionRunId(),
+                task.getProjectObjectId(),
+                task.getIdempotencyKey(),
                 task.getCreateTime(),
                 task.getUpdateTime());
     }

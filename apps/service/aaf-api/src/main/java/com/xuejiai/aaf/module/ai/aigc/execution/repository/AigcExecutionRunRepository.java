@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.xuejiai.aaf.framework.crud.CrudEntityRepository;
+import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus;
 import com.xuejiai.aaf.module.ai.aigc.execution.domain.AigcExecutionRun;
 
 import jakarta.persistence.LockModeType;
@@ -18,26 +19,24 @@ public interface AigcExecutionRunRepository extends CrudEntityRepository<AigcExe
     List<AigcExecutionRun> findByProjectIdAndActionKeyAndDeletedFalseOrderByIdDesc(
             Long projectId, String actionKey);
 
-    @Query(
-            """
-            select run.id from AigcExecutionRun run
-            where run.projectId = :projectId
-              and run.actionKey = 'project.cover.generate'
-              and run.status in ('pending', 'running')
-              and run.deleted = false
-            order by run.id desc
-            """)
-    List<Long> findActiveProjectCoverRunIds(@Param("projectId") Long projectId);
-
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select run from AigcExecutionRun run where run.id = :id")
     Optional<AigcExecutionRun> findLockedById(@Param("id") Long id);
 
-    long countByProjectIdAndStatus(Long projectId, String status);
+    long countByProjectIdAndStatus(Long projectId, AigcExecutionRunStatus status);
 
-    List<AigcExecutionRun> findByProjectIdAndStatusIn(Long projectId, List<String> statuses);
+    List<AigcExecutionRun> findByProjectIdAndStatusIn(
+            Long projectId, List<AigcExecutionRunStatus> statuses);
 
     List<AigcExecutionRun> findByProjectIdOrderByIdAsc(Long projectId);
+
+    Optional<AigcExecutionRun> findByExecutionSubmissionId(Long executionSubmissionId);
+
+    List<AigcExecutionRun> findByRootExecutionRunIdOrderByIdAsc(Long rootExecutionRunId);
+
+    Optional<AigcExecutionRun>
+            findFirstByParentExecutionRunIdAndWorkflowNodeKeyAndObjectIdAndRetryOfExecutionRunIdIsNull(
+                    Long parentExecutionRunId, String workflowNodeKey, Long objectId);
 
     @Modifying
     @Query(
@@ -53,5 +52,6 @@ public interface AigcExecutionRunRepository extends CrudEntityRepository<AigcExe
             nativeQuery = true)
     int softDeleteGenerationHistoryByProjectId(@Param("projectId") Long projectId);
 
-    Optional<AigcExecutionRun> findFirstByRetryOfRunIdOrderByRetryCountDesc(Long retryOfRunId);
+    Optional<AigcExecutionRun> findFirstByRetryOfExecutionRunIdOrderByRetryCountDesc(
+            Long retryOfExecutionRunId);
 }

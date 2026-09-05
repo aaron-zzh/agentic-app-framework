@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.ai.aigc.execution.service;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus;
 import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionRunRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.api.ExecutionEvidencePort;
 
@@ -18,6 +19,8 @@ public class AigcProjectExecutionEvidenceAdapter implements ExecutionEvidencePor
 
     @Override
     public ExecutionEvidence load(Long projectId) {
-        return new ExecutionEvidence(repository.countByProjectIdAndStatus(projectId, "running"));
+        return new ExecutionEvidence(
+                repository.countByProjectIdAndStatus(
+                        projectId, AigcExecutionRunStatus.RUNNING));
     }
 }

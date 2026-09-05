@@ -6,17 +6,16 @@ public interface AigcExecutionApi {
 
     AigcExecutionRunView submitDeferred(AigcActionCommand command);
 
+    AigcExecutionRunView submitChild(AigcChildActionCommand command);
+
+    AigcExecutionRunTreeView requireRunTree(Long rootExecutionRunId);
+
     AigcExecutionRunView cancel(Long executionRunId, String reason);
 
     AigcExecutionRunView retry(Long executionRunId, String idempotencyKey);
 
     AigcExecutionRunView requireRun(Long executionRunId);
 
-    AigcExecutionRunView latestProjectCoverRun(Long projectId);
-
-    boolean isCurrentProjectCoverRun(Long projectId, Long executionRunId);
-
     void cancelProjectCoverRuns(Long projectId, String reason);
 
-    void deleteProjectResources(Long projectId);
 }

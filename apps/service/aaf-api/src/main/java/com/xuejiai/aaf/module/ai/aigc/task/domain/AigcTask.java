@@ -37,6 +37,18 @@ public class AigcTask extends BaseEntity {
     @Column(name = "status", nullable = false, length = 20)
     private String status = "PENDING";
 
+    /** provider 提交前持久化的稳定幂等键。 */
+    @Column(name = "provider_key", nullable = false, length = 160)
+    private String providerKey;
+
+    /** 当前拥有 provider submit 权限的 CAS owner。 */
+    @Column(name = "submit_owner", length = 36)
+    private String submitOwner;
+
+    /** SUBMITTING owner 租约到期时间，过期后允许 recovery 重新 CAS。 */
+    @Column(name = "submit_lease_until")
+    private java.time.LocalDateTime submitLeaseUntil;
+
     /** 提供商（wanx / midjourney / ...） */
     @Column(name = "provider", length = 50)
     private String provider;
@@ -78,6 +90,18 @@ public class AigcTask extends BaseEntity {
     /** 所属项目 ID，NULL 表示全局任务 */
     @Column(name = "project_id")
     private Long projectId;
+
+    @Column(name = "execution_run_id")
+    private Long executionRunId;
+
+    @Column(name = "project_object_id")
+    private Long projectObjectId;
+
+    @Column(name = "idempotency_key", length = 100)
+    private String idempotencyKey;
+
+    @Column(name = "request_hash", length = 64)
+    private String requestHash;
 
     /**
      * 关联积分流水 ID，settleByUsage 成功时回填。

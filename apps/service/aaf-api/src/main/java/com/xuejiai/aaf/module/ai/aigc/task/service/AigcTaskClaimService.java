@@ -21,6 +21,29 @@ public class AigcTaskClaimService {
     private final AigcTaskRepository taskRepository;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Optional<AigcTask> claimIntent(Long taskId, String owner) {
+        var now = LocalDateTime.now();
+        var claimed = taskRepository.claimIntent(taskId, owner, now.plusMinutes(30));
+        if (claimed != 1) {
+            return Optional.empty();
+        }
+        return taskRepository
+                .findById(taskId)
+                .filter(task -> owner.equals(task.getSubmitOwner()));
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Optional<AigcTask> claimCompletion(String providerTaskId, String taskType) {
+        if (taskRepository.claimCompletion(providerTaskId, taskType) != 1) {
+            return Optional.empty();
+        }
+        return taskRepository
+                .findByProviderTaskId(providerTaskId)
+                .filter(task -> "COMPLETING".equals(task.getStatus()))
+                .filter(task -> taskType.equals(task.getType()));
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Optional<AigcTask> claimPending(Long taskId) {
         var task = taskRepository.findLockedById(taskId).orElse(null);
         if (task == null || !AigcTaskStatusEnum.PENDING.getCode().equals(task.getStatus())) {

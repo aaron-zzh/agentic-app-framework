@@ -15,6 +15,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 import com.xuejiai.aaf.module.ai.aigc.execution.domain.AigcExecutionRun;
 import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionRunRepository;
 import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionTaskRefRepository;
+import com.xuejiai.aaf.module.ai.aigc.execution.service.AigcExecutionTerminalService;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
 import com.xuejiai.aaf.module.ai.aigc.project.event.AigcExecutionCandidateProducedEvent;
@@ -31,6 +32,7 @@ public class AigcTaskTerminalListener {
     private final AigcExecutionRunRepository runRepository;
     private final AigcProjectApi projectApi;
     private final AigcMediaApi mediaApi;
+    private final AigcExecutionTerminalService terminalService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -54,11 +56,11 @@ public class AigcTaskTerminalListener {
             projectApi.lockForGeneratedResource(snapshot.getProjectId(), project.userId());
         }
         var currentProject = projectApi.requireProject(snapshot.getProjectId());
-        if ("archived".equals(currentProject.lifecycleStage())) {
+        if (com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycle.ARCHIVED.equals(currentProject.lifecycleStage())) {
             return;
         }
         var run = runRepository.findLockedById(snapshot.getId()).orElse(null);
-        if (run == null || !"running".equals(run.getStatus())) {
+        if (run == null || !com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus.RUNNING.equals(run.getStatus())) {
             return;
         }
         if ("project.cover.generate".equals(run.getActionKey())) {
@@ -77,6 +79,9 @@ public class AigcTaskTerminalListener {
                     new AigcExecutionCandidateProducedEvent(
                             event.eventId(),
                             run.getId(),
+                            run.getExecutionSubmissionId(),
+                            run.getExecutionReservationId(),
+                            run.getRootExecutionRunId(),
                             run.getProjectId(),
                             run.getObjectId(),
                             List.of(),
@@ -93,24 +98,24 @@ public class AigcTaskTerminalListener {
                     projectApi.applyGeneratedCover(
                             run.getProjectId(),
                             event.outputMediaVersionId(),
-                            longValue(run.getInputPayload(), "expectedCoverMediaVersionId"),
+                            longValue(run.getEffectiveInput(), "expectedCoverMediaVersionId"),
                             run.getId());
-            if (!applied
-                    && runRepository.findActiveProjectCoverRunIds(run.getProjectId()).stream()
-                            .noneMatch(run.getId()::equals)) {
-                return;
-            }
             run.setOutputPayload(
                     Map.of(
                             "taskIds", List.of(event.taskId()),
                             "mediaVersionIds", List.of(event.outputMediaVersionId()),
                             "coverApplied", applied));
-            run.setStatus("succeeded");
+            run.setStatus(com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus.SUCCEEDED);
             run.setEndTime(LocalDateTime.now());
             run.setVersion(run.getVersion() + 1);
             runRepository.save(run);
+            terminalService.onRunTerminal(run);
             return;
         }
+        projectApi.markCoverExecutionTerminal(
+                run.getProjectId(),
+                run.getId(),
+                com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus.FAILED);
         failRun(run, event.failureCode());
     }
 
@@ -122,10 +127,11 @@ public class AigcTaskTerminalListener {
     }
 
     private void failRun(AigcExecutionRun run, String failureCode) {
-        run.setStatus("failed");
+        run.setStatus(com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus.FAILED);
         run.setErrorMessage(failureCode);
         run.setEndTime(LocalDateTime.now());
         run.setVersion(run.getVersion() + 1);
         runRepository.save(run);
+        terminalService.onRunTerminal(run);
     }
 }

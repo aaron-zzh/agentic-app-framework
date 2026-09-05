@@ -7,7 +7,6 @@ import java.util.Map;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.xuejiai.aaf.common.enums.aigc.AigcTaskTypeEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
@@ -22,7 +21,6 @@ import com.xuejiai.aaf.module.ai.aigc.ErrorCodeConstants;
 import com.xuejiai.aaf.module.ai.aigc.task.api.AigcTaskApi;
 import com.xuejiai.aaf.module.ai.aigc.task.api.AigcTaskView;
 import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
-import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskEventService;
 import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskService;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.AigcTaskPageDTO;
 import com.xuejiai.aaf.module.ai.aigc.task.vo.AigcTaskVO;
@@ -51,7 +49,6 @@ public class AigcTaskController
 
     private final AigcTaskService taskService;
     private final AigcTaskApi taskApi;
-    private final AigcTaskEventService eventService;
     private final OperatorContext operatorContext;
 
     @Override
@@ -66,8 +63,6 @@ public class AigcTaskController
             /** 用于展示/命名的用户原始输入（不含项目提示词前缀），为空时使用 prompt */
             String displayPrompt,
             String model,
-            /** 所属项目 ID，null 表示全局任务 */
-            Long projectId,
             /** 技能专属系统提示词（来自 SkillDefinition），执行时注入到 prompt 语境 */
             String systemPrompt,
             Map<String, Object> params) {}
@@ -142,7 +137,7 @@ public class AigcTaskController
                                         dto.displayPrompt(),
                                         null,
                                         null,
-                                        dto.projectId()));
+                                        null));
                     }
                     case VIDEO -> {
                         var p = dto.params() != null ? dto.params() : Map.of();
@@ -151,7 +146,7 @@ public class AigcTaskController
                                 new VideoTaskRequest(
                                         dto.prompt(),
                                         dto.model(),
-                                        dto.projectId(),
+                                        null,
                                         toString(p.get("resolution")),
                                         toInt(p.get("duration")),
                                         toString(p.get("ratio")),
@@ -173,7 +168,7 @@ public class AigcTaskController
                                 dto.model(),
                                 toString(p.get("source")),
                                 toString(p.get("textureQuality")),
-                                dto.projectId());
+                                null);
                     }
                     case MUSIC -> {
                         var p = dto.params() != null ? dto.params() : Map.of();
@@ -183,7 +178,7 @@ public class AigcTaskController
                                 dto.model(),
                                 toString(p.get("lyrics")),
                                 toString(p.get("gender")),
-                                dto.projectId());
+                                null);
                     }
                     case VOICE -> {
                         var p = dto.params() != null ? dto.params() : Map.of();
@@ -192,7 +187,7 @@ public class AigcTaskController
                                 dto.prompt(),
                                 toString(p.get("voice")),
                                 dto.model(),
-                                dto.projectId());
+                                null);
                     }
                     case IMAGE_PROCESS -> {
                         var p = dto.params() != null ? dto.params() : Map.of();
@@ -206,7 +201,7 @@ public class AigcTaskController
                             method = "SEGMENT_HD_COMMON_IMAGE";
                         }
                         yield taskService.submitImageProcessTask(
-                                userId, imageFileId, method, dto.projectId());
+                                userId, imageFileId, method, null);
                     }
                 };
         // 技能 systemPrompt 回写（不影响任务提交本身）
@@ -224,22 +219,6 @@ public class AigcTaskController
     public Result<AigcTaskView> cancel(
             @PathVariable Long id, @RequestBody(required = false) CancelTaskDTO request) {
         return Result.success(taskApi.cancel(id, request == null ? null : request.reason()));
-    }
-
-    /**
-     * SSE 订阅当前用户的所有 AIGC 任务事件。
-     *
-     * @return SSE 事件流
-     */
-    @Operation(summary = "SSE 订阅 AIGC 任务事件")
-    @GetMapping("/stream")
-    public SseEmitter stream() {
-        Long userId =
-                operatorContext
-                        .currentOwnerId()
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.UNAUTHORIZED, "未登录"));
-        return eventService.subscribe(userId);
     }
 
     /** 统计今日生成任务数。 */

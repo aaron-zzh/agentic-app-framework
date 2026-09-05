@@ -8,5 +8,4 @@ public interface AigcTaskApi {
 
     AigcTaskView requireTask(Long taskId);
 
-    void deleteProjectResources(Long projectId);
 }

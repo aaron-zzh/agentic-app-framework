@@ -37,9 +37,62 @@ public interface AigcTaskRepository extends CrudEntityRepository<AigcTask> {
     long countByUserIdAndCreateTimeAfter(Long userId, LocalDateTime after);
 
     /** 按状态和任务类型查询 */
+
+    @Query(
+            """
+            select task from AigcTask task
+            where task.status = 'PREPARED'
+            order by task.id asc
+            """)
+    List<AigcTask> findRecoverableIntents();
+
+    @Query(
+            """
+            select task from AigcTask task
+            where task.status = 'SUBMITTING'
+              and task.submitLeaseUntil < :now
+            order by task.id asc
+            """)
+    List<AigcTask> findStaleSubmitting(@Param("now") LocalDateTime now);
+
+    @Modifying
+    @Query(
+            """
+            update AigcTask task
+               set task.status = 'SUBMITTING',
+                   task.submitOwner = :owner,
+                   task.submitLeaseUntil = :leaseUntil,
+                   task.updateTime = CURRENT_TIMESTAMP,
+                   task.version = task.version + 1
+             where task.id = :taskId
+               and task.status = 'PREPARED'
+            """)
+    int claimIntent(
+            @Param("taskId") Long taskId,
+            @Param("owner") String owner,
+            @Param("leaseUntil") LocalDateTime leaseUntil);
+
     List<AigcTask> findByStatusAndType(String status, String type);
 
     List<AigcTask> findByProjectIdOrderByIdAsc(Long projectId);
+
+    Optional<AigcTask> findByExecutionRunIdAndIdempotencyKey(
+            Long executionRunId, String idempotencyKey);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+            """
+            update AigcTask task
+               set task.status = 'COMPLETING',
+                   task.updateTime = CURRENT_TIMESTAMP,
+                   task.version = task.version + 1
+             where task.providerTaskId = :providerTaskId
+               and task.type = :taskType
+               and task.status in ('PENDING', 'RUNNING')
+            """)
+    int claimCompletion(
+            @Param("providerTaskId") String providerTaskId,
+            @Param("taskType") String taskType);
 
     @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @Query("select task from AigcTask task where task.id = :id")

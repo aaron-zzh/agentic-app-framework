@@ -19,7 +19,7 @@ import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaType;
 import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
 import com.xuejiai.aaf.module.ai.aigc.task.mapper.AigcTaskMapper;
 import com.xuejiai.aaf.module.ai.aigc.task.repository.AigcTaskRepository;
-import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskEventService;
+import com.xuejiai.aaf.module.ai.aigc.event.service.AigcActivityEventService;
 import com.xuejiai.aaf.module.ai.aigc.task.service.AigcTaskService;
 import com.xuejiai.aaf.module.system.file.api.FileStoragePort;
 
@@ -48,7 +48,7 @@ public class ImageProcessTaskSyncJob {
 
     private final FileStoragePort fileService;
     private final AigcMediaApi mediaApi;
-    private final AigcTaskEventService eventService;
+    private final AigcActivityEventService eventService;
     private final AigcTaskMapper taskMapper;
     private final PermissionExecutionService permissionExecutionService;
 
@@ -122,7 +122,7 @@ public class ImageProcessTaskSyncJob {
                         taskRepo.save(task);
 
                         try {
-                            eventService.push(
+                            eventService.publish(
                                     task.getUserId(), "task.completed", taskMapper.toVO(task));
                         } catch (Exception ignored) {
                         }

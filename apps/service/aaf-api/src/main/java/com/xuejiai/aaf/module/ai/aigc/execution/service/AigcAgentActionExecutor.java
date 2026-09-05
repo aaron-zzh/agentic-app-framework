@@ -41,6 +41,6 @@ public class AigcAgentActionExecutor implements AigcActionExecutor {
                 run.getActionKey(),
                 prompt == null || prompt.isBlank() ? project.brief() : prompt,
                 context.command().idempotencyKey(),
-                run.getInputPayload());
+                run.getEffectiveInput());
     }
 }

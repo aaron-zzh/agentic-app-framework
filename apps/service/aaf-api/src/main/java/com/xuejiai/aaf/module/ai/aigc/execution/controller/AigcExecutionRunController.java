@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.ai.aigc.execution.controller;
 
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -9,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.crud.BaseCrudController;
+import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunTreeView;
 import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunView;
 import com.xuejiai.aaf.module.ai.aigc.execution.domain.AigcExecutionRun;
 import com.xuejiai.aaf.module.ai.aigc.execution.service.AigcActionCommandService;
@@ -34,6 +36,12 @@ public class AigcExecutionRunController
     @Override
     protected AigcExecutionRunService getService() {
         return service;
+    }
+
+    @PreAuthorize("hasAuthority('aigc:execution-run:read')")
+    @GetMapping("/{id}/tree")
+    public Result<AigcExecutionRunTreeView> tree(@PathVariable Long id) {
+        return Result.success(commandService.requireRunTree(id));
     }
 
     @PreAuthorize("hasAuthority('aigc:execution-run:execute')")

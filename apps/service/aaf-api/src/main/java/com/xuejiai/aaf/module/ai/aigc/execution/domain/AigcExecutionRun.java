@@ -10,9 +10,12 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.type.SqlTypes;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -33,8 +36,33 @@ public class AigcExecutionRun extends BaseEntity {
     @Column(name = "object_id")
     private Long objectId;
 
-    @Column(name = "parent_run_id")
-    private Long parentRunId;
+    @Column(name = "parent_execution_run_id")
+    private Long parentExecutionRunId;
+
+    @Column(name = "root_execution_run_id")
+    private Long rootExecutionRunId;
+
+    @Column(name = "run_kind", nullable = false, length = 24)
+    private String runKind = "ACTIVITY";
+
+    @Column(name = "workflow_node_key", length = 100)
+    private String workflowNodeKey;
+
+    @Column(name = "execution_submission_id", nullable = false)
+    private Long executionSubmissionId;
+
+    @Column(name = "execution_reservation_id", nullable = false)
+    private Long executionReservationId;
+
+    @Column(name = "target_graph_revision", nullable = false)
+    private Long targetGraphRevision;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "frozen_project_object_ids_json", nullable = false, columnDefinition = "jsonb")
+    private List<Long> frozenProjectObjectIds = List.of();
+
+    @Column(name = "binding_version_id")
+    private Long bindingVersionId;
 
     @Column(name = "action_key", nullable = false, length = 100)
     private String actionKey;
@@ -45,8 +73,9 @@ public class AigcExecutionRun extends BaseEntity {
     @Column(name = "target_ref", length = 200)
     private String targetRef;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
-    private String status = "pending";
+    private AigcExecutionRunStatus status = AigcExecutionRunStatus.PENDING_BIND;
 
     @Column(name = "generation_mode", length = 32)
     private String generationMode;
@@ -83,8 +112,8 @@ public class AigcExecutionRun extends BaseEntity {
     private Map<String, Object> contextSnapshot;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "input_payload", columnDefinition = "jsonb")
-    private Map<String, Object> inputPayload;
+    @Column(name = "effective_input_json", nullable = false, columnDefinition = "jsonb")
+    private Map<String, Object> effectiveInput;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "output_payload", columnDefinition = "jsonb")
@@ -93,8 +122,8 @@ public class AigcExecutionRun extends BaseEntity {
     @Column(name = "cost_credits", precision = 12, scale = 2)
     private BigDecimal costCredits;
 
-    @Column(name = "retry_of_run_id")
-    private Long retryOfRunId;
+    @Column(name = "retry_of_execution_run_id")
+    private Long retryOfExecutionRunId;
 
     @Column(name = "retry_count", nullable = false)
     private Integer retryCount = 0;

@@ -3,8 +3,11 @@ package com.xuejiai.aaf.module.ai.aigc.task.service;
 import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -31,11 +34,14 @@ import com.xuejiai.aaf.framework.intelligent.ai.speech.SpeechService;
 import com.xuejiai.aaf.framework.intelligent.ai.video.VideoGenerationService;
 import com.xuejiai.aaf.framework.intelligent.ai.video.vo.VideoRequest;
 import com.xuejiai.aaf.framework.intelligent.ai.video.vo.VideoTaskResult;
+import com.xuejiai.aaf.framework.intelligent.core.AiUsage;
+import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 import com.xuejiai.aaf.framework.intelligent.core.registry.AiServiceRegistry;
 import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
 import com.xuejiai.aaf.module.ai.aigc.ErrorCodeConstants;
+import com.xuejiai.aaf.module.ai.aigc.event.service.AigcActivityEventService;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcGeneratedMediaCommand;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaType;
@@ -96,12 +102,13 @@ public class AigcTaskService
     private static final String EVENT_FAILED = "task.failed";
 
     private final AigcTaskRepository taskRepo;
-    private final AigcTaskEventService eventService;
+    private final AigcActivityEventService eventService;
     private final AigcTaskMapper taskMapper;
     private final FileStoragePort fileService;
     private final AigcMediaApi mediaApi;
     private final CapabilityRouter capabilityRouter;
     private final AigcTaskExecutor taskExecutor;
+    private final AigcTaskClaimService taskClaimService;
     private final AiCreditGuard creditGuard;
     private final SystemConfigService systemConfigService;
     private final ConfigCacheManager configCacheManager;
@@ -190,7 +197,7 @@ public class AigcTaskService
         task.setParams(req.toParamsJson());
         taskRepo.save(task);
         retainImageTaskInputs(task.getId(), req.imageFileIds());
-        eventService.push(userId, EVENT_CREATED, toVO(task));
+        eventService.publish(userId, EVENT_CREATED, toVO(task));
 
         final Long taskId = task.getId();
         final String prompt = req.prompt();
@@ -257,7 +264,7 @@ public class AigcTaskService
 
         taskRepo.save(task);
         retainVideoTaskInputs(task.getId(), req);
-        eventService.push(userId, EVENT_CREATED, toVO(task));
+        eventService.publish(userId, EVENT_CREATED, toVO(task));
 
         final Long taskId = task.getId();
         final String mockUrl = isMockEnabled() ? getMockValue("video") : null;
@@ -337,7 +344,7 @@ public class AigcTaskService
         paramsMap.put("textureQuality", textureQuality != null ? textureQuality : "none");
         task.setParams(JsonUtils.toJsonString(paramsMap));
         taskRepo.save(task);
-        eventService.push(userId, EVENT_CREATED, toVO(task));
+        eventService.publish(userId, EVENT_CREATED, toVO(task));
 
         final Long taskId = task.getId();
         final String mockUrl3d = isMockEnabled() ? getMockValue("model3d") : null;
@@ -387,7 +394,7 @@ public class AigcTaskService
                         null,
                         projectId);
         taskRepo.save(task);
-        eventService.push(userId, EVENT_CREATED, toVO(task));
+        eventService.publish(userId, EVENT_CREATED, toVO(task));
 
         final Long taskId = task.getId();
         final String resolvedGender = gender != null ? gender : "female";
@@ -449,7 +456,7 @@ public class AigcTaskService
             task.setParams(JsonUtils.toJsonString(Map.of("voice", voice)));
         }
         taskRepo.save(task);
-        eventService.push(userId, EVENT_CREATED, toVO(task));
+        eventService.publish(userId, EVENT_CREATED, toVO(task));
 
         final Long taskId = task.getId();
         final String mockUrlVoice = isMockEnabled() ? getMockValue("audio") : null;
@@ -527,7 +534,7 @@ public class AigcTaskService
                         "图像处理-" + method);
         task.setCreditTxId(creditTxId);
         taskRepo.save(task);
-        eventService.push(userId, EVENT_CREATED, toVO(task));
+        eventService.publish(userId, EVENT_CREATED, toVO(task));
 
         final Long taskId = task.getId();
         final String mockUrl = isMockEnabled() ? getMockValue("image") : null;
@@ -726,16 +733,12 @@ public class AigcTaskService
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void completeTask(String providerTaskId, VideoTaskResult result) {
-        var task = taskRepo.findByProviderTaskId(providerTaskId).orElse(null);
+        var task =
+                taskClaimService
+                        .claimCompletion(providerTaskId, AigcTaskTypeEnum.VIDEO.getCode())
+                        .orElse(null);
         if (task == null) {
-            log.warn("[completeTask] 任务不存在: providerTaskId={}", providerTaskId);
-            return;
-        }
-        if (!isCompletable(task)) {
-            log.info(
-                    "[completeTask] 忽略终态任务回调: taskId={}, status={}",
-                    task.getId(),
-                    task.getStatus());
+            log.info("[completeTask] 视频完成回调未获认领: providerTaskId={}", providerTaskId);
             return;
         }
         task.setProviderResult(JsonUtils.toJsonString(result));
@@ -744,11 +747,13 @@ public class AigcTaskService
         try {
             var aiModel = configCacheManager.getAiModelByModelId(task.getModel());
             creditTxId =
-                    creditGuard.settleByUsageReturningTxId(
-                            task.getUserId(),
+                    settleIdempotently(
+                            task,
+                            providerTaskId,
                             aiModel,
                             result,
                             CreditTransactionCategoryEnum.VIDEO.getCode(),
+                            videoCostYuan(aiModel, result),
                             "视频生成");
         } catch (Exception e) {
             log.warn("[completeTask] 积分结算失败: taskId={}, err={}", task.getId(), e.getMessage());
@@ -787,16 +792,12 @@ public class AigcTaskService
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void completeTask(
             String providerTaskId, Model3dGenerationService.Model3dTaskResult result) {
-        var task = taskRepo.findByProviderTaskId(providerTaskId).orElse(null);
+        var task =
+                taskClaimService
+                        .claimCompletion(providerTaskId, AigcTaskTypeEnum.MODEL_3D.getCode())
+                        .orElse(null);
         if (task == null) {
-            log.warn("[completeTask] 任务不存在: providerTaskId={}", providerTaskId);
-            return;
-        }
-        if (!isCompletable(task)) {
-            log.info(
-                    "[completeTask] 忽略终态任务回调: taskId={}, status={}",
-                    task.getId(),
-                    task.getStatus());
+            log.info("[completeTask] 3D 完成回调未获认领: providerTaskId={}", providerTaskId);
             return;
         }
         task.setProviderResult(JsonUtils.toJsonString(result));
@@ -855,16 +856,79 @@ public class AigcTaskService
                     task.getId(),
                     source,
                     texture);
-            return creditGuard.settleByUsageReturningTxId(
-                    task.getUserId(),
+            return settleIdempotently(
+                    task,
+                    thirdTaskId,
                     aiModel,
                     usage,
                     CreditTransactionCategoryEnum.MODEL_3D.getCode(),
+                    BigDecimal.valueOf(
+                            Model3dGenerationService.lookupPrice(aiModel, source, texture)),
                     "3D 生成");
         } catch (Exception e) {
             log.warn("[completeTask] 3D 积分结算失败: taskId={}, err={}", task.getId(), e.getMessage());
             return null;
         }
+    }
+
+    private Long settleIdempotently(
+            AigcTask task,
+            String providerTaskId,
+            AiModel aiModel,
+            AiUsage usage,
+            String capability,
+            BigDecimal costYuan,
+            String remark) {
+        var usageKey =
+                "aigc-task:%d:provider:%s"
+                        .formatted(task.getId(), Objects.requireNonNull(task.getProviderKey()));
+        var occurredAt =
+                task.getCreateTime() == null
+                        ? Instant.EPOCH
+                        : task.getCreateTime().toInstant(ZoneOffset.UTC);
+        return creditGuard
+                .settleIdempotently(
+                        new AiCreditGuard.IdempotentUsageSettlement(
+                                usageKey,
+                                settlementTenant(task),
+                                String.valueOf(task.getId()),
+                                providerTaskId,
+                                0,
+                                task.getUserId(),
+                                aiModel,
+                                usage,
+                                capability,
+                                costYuan,
+                                occurredAt,
+                                remark))
+                .creditTxId();
+    }
+
+    private String settlementTenant(AigcTask task) {
+        return "org:%s:workspace:%s:owner:%d"
+                .formatted(task.getOrgId(), task.getWorkspaceId(), task.getUserId());
+    }
+
+    private BigDecimal videoCostYuan(AiModel aiModel, VideoTaskResult result) {
+        var duration = Objects.requireNonNull(result.getDuration(), "视频实际用量缺少 duration");
+        var videoConfig = aiModel.getVideoConfigParsed();
+        if (videoConfig != null && videoConfig.pricing() != null && !videoConfig.pricing().isEmpty()) {
+            var resolution = Objects.requireNonNull(result.getResolution(), "视频实际用量缺少 resolution");
+            return videoConfig.pricing().stream()
+                    .filter(item -> resolution.equalsIgnoreCase(item.resolution()))
+                    .map(item -> item.pricePerSecond().multiply(BigDecimal.valueOf(duration)))
+                    .findFirst()
+                    .orElseThrow(
+                            () ->
+                                    new IllegalStateException(
+                                            "模型缺少视频分辨率价格: " + resolution));
+        }
+        var modelPrice = Objects.requireNonNull(aiModel.getModelPrice(), "视频模型缺少固定价格");
+        return switch (aiModel.getQuotaType() == null ? 0 : aiModel.getQuotaType()) {
+            case 1, 3 -> modelPrice;
+            case 2 -> modelPrice.multiply(BigDecimal.valueOf(Math.max(1, duration)));
+            default -> throw new IllegalStateException("视频模型不支持 token 计费");
+        };
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -906,7 +970,7 @@ public class AigcTaskService
         task.setStatus(AigcTaskStatusEnum.FAIL.getCode());
         task.setErrorMsg(errorMsg);
         taskRepo.save(task);
-        eventService.push(task.getUserId(), EVENT_FAILED, toVO(task));
+        eventService.publish(task.getUserId(), EVENT_FAILED, toVO(task));
         eventPublisher.publishEvent(AigcTaskTerminalEvent.from(task));
         log.info("[failTask] 任务失败: taskId={}, reason={}", task.getId(), errorMsg);
     }
@@ -962,6 +1026,7 @@ public class AigcTaskService
         task.setModel(model);
         task.setModelName(modelName);
         task.setProjectId(projectId);
+        task.setProviderKey("standalone-" + UUID.randomUUID());
         if (model != null) {
             int colon = model.indexOf(':');
             task.setProvider(colon > 0 ? model.substring(0, colon) : model);
@@ -1021,7 +1086,7 @@ public class AigcTaskService
     }
 
     private void publishCompleted(AigcTask task) {
-        eventService.push(task.getUserId(), EVENT_COMPLETED, toVO(task));
+        eventService.publish(task.getUserId(), EVENT_COMPLETED, toVO(task));
         eventPublisher.publishEvent(AigcTaskTerminalEvent.from(task));
         log.info(
                 "[completeTask] 任务完成: taskId={}, mediaVersionId={}",

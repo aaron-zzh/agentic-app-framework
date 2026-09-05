@@ -19,7 +19,7 @@ public record AigcTaskTerminalEvent(
         return new AigcTaskTerminalEvent(
                 UUID.randomUUID(),
                 task.getId(),
-                null,
+                task.getExecutionRunId(),
                 task.getStatus(),
                 task.getOutputMediaVersionId(),
                 task.getErrorMsg(),

@@ -41,6 +41,6 @@ public class AigcWorkflowActionExecutor implements AigcActionExecutor {
                 run.getActionKey(),
                 prompt == null || prompt.isBlank() ? project.brief() : prompt,
                 context.command().idempotencyKey(),
-                run.getInputPayload());
+                run.getEffectiveInput());
     }
 }

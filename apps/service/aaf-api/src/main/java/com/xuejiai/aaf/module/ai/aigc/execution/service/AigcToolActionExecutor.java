@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcRuntimeExecution.Command;
+import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus;
 import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcToolExecutionPort;
 import com.xuejiai.aaf.module.ai.aigc.execution.domain.AigcExecutionRun;
 import com.xuejiai.aaf.module.ai.aigc.execution.domain.AigcExecutionTaskRef;
@@ -64,11 +65,11 @@ public class AigcToolActionExecutor implements AigcActionExecutor {
                 run.getActionKey(),
                 prompt == null || prompt.isBlank() ? project.brief() : prompt,
                 context.command().idempotencyKey(),
-                run.getInputPayload());
+                run.getEffectiveInput());
     }
 
     private AigcExecutionRun markRunning(AigcExecutionRun run) {
-        run.setStatus("running");
+        run.setStatus(AigcExecutionRunStatus.RUNNING);
         run.setStartTime(LocalDateTime.now());
         run.setVersion(run.getVersion() + 1);
         return runRepository.save(run);
@@ -92,6 +93,9 @@ public class AigcToolActionExecutor implements AigcActionExecutor {
                 new AigcExecutionCandidateProducedEvent(
                         UUID.randomUUID(),
                         run.getId(),
+                        run.getExecutionSubmissionId(),
+                        run.getExecutionReservationId(),
+                        run.getRootExecutionRunId(),
                         run.getProjectId(),
                         run.getObjectId(),
                         List.of(

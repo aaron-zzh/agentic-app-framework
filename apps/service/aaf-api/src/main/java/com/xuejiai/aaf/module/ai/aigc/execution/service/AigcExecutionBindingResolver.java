@@ -1,6 +1,5 @@
 package com.xuejiai.aaf.module.ai.aigc.execution.service;
 
-import java.util.Comparator;
 import java.util.Optional;
 
 import org.springframework.stereotype.Component;
@@ -13,7 +12,7 @@ import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectView;
 
 import lombok.RequiredArgsConstructor;
 
-/** 按项目上下文选择最具体且优先级最高的已发布执行绑定。 */
+/** 仅解析项目快照固定的动作执行绑定版本。 */
 @Component
 @RequiredArgsConstructor
 public class AigcExecutionBindingResolver {
@@ -32,15 +31,22 @@ public class AigcExecutionBindingResolver {
             AigcProjectView project, String actionKey) {
         var bindingActionKey =
                 "project.cover.generate".equals(actionKey) ? "image.generate" : actionKey;
-        return repository
-                .findByActionKeyAndStatusOrderByPriorityDesc(bindingActionKey, "published")
-                .stream()
-                .filter(binding -> matches(binding, project))
-                .max(
-                        Comparator.comparingInt(
-                                        (AigcExecutionBinding binding) ->
-                                                specificity(binding, project))
-                                .thenComparingInt(AigcExecutionBinding::getPriority));
+        var bindingRef =
+                project.executionBindings().stream()
+                        .filter(reference -> bindingActionKey.equals(reference.actionKey()))
+                        .findFirst();
+        if (bindingRef.isEmpty()) {
+            return Optional.empty();
+        }
+        var binding = repository.findById(bindingRef.get().executionBindingVersionId());
+        if (binding.isEmpty()
+                || !"published".equals(binding.get().getStatus())
+                || !bindingActionKey.equals(binding.get().getActionKey())
+                || !matches(binding.get(), project)) {
+            throw new BusinessException(
+                    GlobalErrorCode.BAD_REQUEST, "项目固定的动作执行绑定无效: " + bindingActionKey);
+        }
+        return binding;
     }
 
     private boolean matches(AigcExecutionBinding binding, AigcProjectView project) {
@@ -54,15 +60,4 @@ public class AigcExecutionBindingResolver {
         return expected == null || expected.equals(actual);
     }
 
-    private int specificity(AigcExecutionBinding binding, AigcProjectView project) {
-        var score = 0;
-        score += exact(binding.getProjectTypeCode(), project.projectTypeCode());
-        score += exact(binding.getDomainExtensionCode(), project.domainExtensionCode());
-        score += exact(binding.getProductionMode(), project.productionMode());
-        return score;
-    }
-
-    private int exact(String expected, String actual) {
-        return expected != null && expected.equals(actual) ? 1 : 0;
-    }
 }

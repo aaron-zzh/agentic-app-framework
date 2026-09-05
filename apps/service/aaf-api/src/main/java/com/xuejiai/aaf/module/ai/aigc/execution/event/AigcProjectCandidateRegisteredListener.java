@@ -10,6 +10,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionRunRepository;
+import com.xuejiai.aaf.module.ai.aigc.execution.service.AigcExecutionTerminalService;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
 import com.xuejiai.aaf.module.ai.aigc.project.event.AigcProjectCandidateRegisteredEvent;
 
@@ -22,6 +23,7 @@ public class AigcProjectCandidateRegisteredListener {
 
     private final AigcExecutionRunRepository runRepository;
     private final AigcProjectApi projectApi;
+    private final AigcExecutionTerminalService terminalService;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
@@ -32,13 +34,13 @@ public class AigcProjectCandidateRegisteredListener {
         }
         var project = projectApi.requireProject(event.projectId());
         projectApi.lockForGeneratedResource(event.projectId(), project.userId());
-        if ("archived".equals(projectApi.requireProject(event.projectId()).lifecycleStage())) {
+        if (com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycle.ARCHIVED.equals(projectApi.requireProject(event.projectId()).lifecycleStage())) {
             return;
         }
         var run = runRepository.findLockedById(event.executionRunId()).orElse(null);
         if (run == null
                 || !event.projectId().equals(run.getProjectId())
-                || !"running".equals(run.getStatus())) {
+                || !com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus.RUNNING.equals(run.getStatus())) {
             return;
         }
         var output =
@@ -47,9 +49,11 @@ public class AigcProjectCandidateRegisteredListener {
                         : new LinkedHashMap<>(run.getOutputPayload());
         output.put("objectVersionIds", event.objectVersionIds());
         run.setOutputPayload(output);
-        run.setStatus("succeeded");
+        run.setStatus(com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus.SUCCEEDED);
         run.setEndTime(LocalDateTime.now());
         run.setVersion(run.getVersion() + 1);
         runRepository.save(run);
+        terminalService.onRunTerminal(run);
+
     }
 }
