@@ -11,6 +11,7 @@ import type { ReactNode } from "react"
 import { ChatterComposer } from "@/features/chatter/composer"
 import { DroppableComposer } from "@/features/chatter/dnd/DroppableComposer"
 import { useTaskBoard } from "@/features/chatter/hooks/use-task-board"
+import { UiBlockPanel } from "@/features/chatter/runtime/ui-block/UiBlockPanel"
 import { TaskBoardPanel } from "@/features/chatter/task/TaskBoardPanel"
 import { ToolConfirmOverlay } from "@/features/chatter/task/ToolConfirmOverlay"
 import { ChatterThread } from "@/features/chatter/thread"
@@ -52,6 +53,7 @@ export function ChatterPanel({
     <div className="flex h-full flex-col">
       {toolbar}
       <ChatterThread showThinking={displayPreferences.showThinking} />
+      <UiBlockPanel />
       <ToolConfirmOverlay tasks={tasks} />
       {displayPreferences.showPlan && (
         <TaskBoardPanel tasks={tasks} progress={progress} isLoading={isLoading} />

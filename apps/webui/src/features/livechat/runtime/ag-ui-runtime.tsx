@@ -23,6 +23,7 @@ import {
   useVoiceControls
 } from "@assistant-ui/react"
 import { type UseAgUiThreadListAdapter, useAgUiRuntime } from "@assistant-ui/react-ag-ui"
+import { UiBlockProjector } from "@/features/chatter/runtime/ui-block/ui-block-projector"
 import type { AafAiTaskEvent } from "@/lib/api/rest/ai"
 import { backendApi } from "@/lib/api/rest/backend-client"
 import { ForwardedPropsHttpAgent } from "./forwarded-props-http-agent"
@@ -199,8 +200,12 @@ export function AgUiChatProvider({
   // 订阅 AG-UI 事件流，把运行状态/工具调用/AAF 专有 CUSTOM 事件写入运行状态 store
   useEffect(() => {
     const run = useAgentRunStore.getState()
+    const uiBlockProjector = new UiBlockProjector()
     const sub = agent.subscribe({
-      onRunStartedEvent: () => run.startRun(),
+      onRunStartedEvent: () => {
+        uiBlockProjector.reset()
+        run.startRun()
+      },
       onRunFinishedEvent: () => run.finishRun(),
       onRunErrorEvent: ({ event }) => run.errorRun(event.message),
       onToolCallStartEvent: ({ event }) => run.startTool(event.toolCallName),
@@ -259,6 +264,16 @@ export function AgUiChatProvider({
               prompt: (value.prompt as string) ?? "",
               message: (value.message as string) ?? "生成中…"
             })
+            return
+          }
+          // AafUiBlock v1（AAF-114 #11407）：唯一投影入口，去重 + 结构校验后写入展示状态。
+          const projection = uiBlockProjector.project({
+            name: event.name,
+            eventId: typeof value?.eventId === "string" ? value.eventId : undefined,
+            value
+          })
+          if (projection?.kind === "ui-block") {
+            run.pushUiBlock(projection.block)
           }
           return
         }
