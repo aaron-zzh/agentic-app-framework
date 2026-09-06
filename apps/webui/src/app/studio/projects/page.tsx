@@ -7,14 +7,13 @@
 
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
-import { Archive, FolderKanban, Layers, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react"
+import { Archive, FolderKanban, Layers, MoreHorizontal, Pencil, Plus } from "lucide-react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { useId, useState } from "react"
 import { toast } from "sonner"
 import { GlassCard, GlowButton, NeonChip, SectionHaze } from "@/components/studio"
 import { Button } from "@/components/ui/button"
-import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
   Dialog,
   DialogContent,
@@ -42,30 +41,32 @@ import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
-import { getProjectTypeConfig, PROJECT_STATUS_CONFIG } from "@/features/studio/content"
+import { getProjectTypeConfig, isProjectContentWritable, PROJECT_STATUS_CONFIG } from "@/features/studio/content"
 import type { AigcProject, AigcProjectStatus } from "@/lib/api/rest/ai/aigc"
 import {
   useAigcProjectLifecycle,
   useAigcProjects,
   useAigcProjectTypes,
-  useDeleteAigcProject,
   useUpdateAigcProject
 } from "@/lib/api/rest/ai/aigc"
+import { useEntityAccess } from "@/lib/api/rest/user/permission"
+import { usePermissionGuard } from "@/lib/hooks/use-permission-guard"
 import { cn } from "@/lib/utils/index"
 
 const STATUS_TABS: { value: "all" | AigcProjectStatus; label: string }[] = [
   { value: "all", label: "全部" },
-  { value: "in_progress", label: "进行中" },
-  { value: "reviewing", label: "审核中" },
-  { value: "delivering", label: "交付中" },
-  { value: "completed", label: "已完成" },
-  { value: "archived", label: "已归档" }
+  { value: "CONFIGURING", label: "配置中" },
+  { value: "MATERIALIZED", label: "已物化" },
+  { value: "CREATING", label: "创作中" },
+  { value: "EXECUTING", label: "生成中" },
+  { value: "ADOPTING", label: "待采用" },
+  { value: "REVIEWING", label: "审核中" },
+  { value: "DELIVERING", label: "交付中" },
+  { value: "COMPLETED", label: "已完成" },
+  { value: "ARCHIVED", label: "已归档" }
 ]
 
-type PendingProjectAction = {
-  type: "archive" | "delete"
-  project: AigcProject
-}
+type PendingProjectAction = { projectId: number }
 
 function buildFilterHref(status: string, type?: string): string {
   const params = new URLSearchParams()
@@ -77,16 +78,16 @@ function buildFilterHref(status: string, type?: string): string {
 
 interface ProjectCardProps {
   project: AigcProject
+  canUpdate: boolean
   onEdit: (project: AigcProject) => void
   onArchive: (project: AigcProject) => void
-  onDelete: (project: AigcProject) => void
 }
 
-function ProjectCard({ project, onEdit, onArchive, onDelete }: ProjectCardProps) {
+function ProjectCard({ project, canUpdate, onEdit, onArchive }: ProjectCardProps) {
   const type = getProjectTypeConfig({ code: project.projectTypeCode, name: "" })
   const TypeIcon = type.icon
   const status = PROJECT_STATUS_CONFIG[project.status]
-  const editable = project.status === "draft" || project.status === "in_progress"
+  const editable = canUpdate && isProjectContentWritable(project.status)
 
   return (
     <GlassCard interactive className="group relative h-full">
@@ -123,7 +124,7 @@ function ProjectCard({ project, onEdit, onArchive, onDelete }: ProjectCardProps)
         </div>
       </Link>
 
-      <div className="absolute top-2 right-2 z-10">
+      {canUpdate ? <div className="absolute top-2 right-2 z-10">
         <DropdownMenu>
           <DropdownMenuTrigger
             type="button"
@@ -139,29 +140,27 @@ function ProjectCard({ project, onEdit, onArchive, onDelete }: ProjectCardProps)
                 编辑
               </DropdownMenuItem>
               <DropdownMenuItem
-                disabled={project.status === "archived"}
+                disabled={project.status === "ARCHIVED"}
                 onClick={() => onArchive(project)}
               >
                 <Archive />
-                归档
-              </DropdownMenuItem>
-              <DropdownMenuItem variant="destructive" onClick={() => onDelete(project)}>
-                <Trash2 />
-                删除
+                {project.status === "COMPLETED" ? "完成后归档" : "放弃并归档"}
               </DropdownMenuItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
-      </div>
+      </div> : null}
     </GlassCard>
   )
 }
 
 function ProjectEditDialog({
   project,
+  mutable,
   onOpenChange
 }: {
   project: AigcProject
+  mutable: boolean
   onOpenChange: (open: boolean) => void
 }) {
   const nameId = useId()
@@ -173,7 +172,7 @@ function ProjectEditDialog({
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const trimmedName = name.trim()
-    if (!trimmedName) return
+    if (!mutable || !trimmedName) return
     updateProject.mutate(
       {
         id: project.id,
@@ -230,7 +229,7 @@ function ProjectEditDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               取消
             </Button>
-            <Button type="submit" disabled={!name.trim() || updateProject.isPending}>
+            <Button type="submit" disabled={!mutable || !name.trim() || updateProject.isPending}>
               {updateProject.isPending ? "保存中…" : "保存"}
             </Button>
           </DialogFooter>
@@ -242,6 +241,8 @@ function ProjectEditDialog({
 
 export default function StudioProjectsPage() {
   const searchParams = useSearchParams()
+  const { data: projectAccess } = useEntityAccess("project")
+  const { canCreate, canUpdate } = usePermissionGuard(projectAccess)
   const rawStatus = searchParams.get("status") ?? "all"
   const status = STATUS_TABS.some((tab) => tab.value === rawStatus) ? rawStatus : "all"
   const type = searchParams.get("type")
@@ -253,34 +254,32 @@ export default function StudioProjectsPage() {
   })
   const projects = data?.list ?? []
   const projectTypes = typePage?.list ?? []
-  const [editingProject, setEditingProject] = useState<AigcProject | null>(null)
+  const [editingProjectId, setEditingProjectId] = useState<number | null>(null)
   const [pendingAction, setPendingAction] = useState<PendingProjectAction | null>(null)
+  const [archiveReason, setArchiveReason] = useState("")
   const lifecycle = useAigcProjectLifecycle()
-  const deleteProject = useDeleteAigcProject()
+  const editingProject = projects.find((project) => project.id === editingProjectId)
+  const pendingProject = projects.find((project) => project.id === pendingAction?.projectId)
 
   function executePendingAction() {
-    if (!pendingAction) return
-    const action = pendingAction
-    if (action.type === "archive") {
-      lifecycle.mutate(
-        {
-          projectId: action.project.id,
-          action: "archive",
-          expectedVersion: action.project.version
+    if (!canUpdate || !pendingProject || pendingProject.status === "ARCHIVED" || !archiveReason.trim()) return
+    lifecycle.mutate(
+      {
+        projectId: pendingProject.id,
+        action: "archive",
+        expectedProjectVersion: pendingProject.version,
+        reason: archiveReason.trim(),
+        idempotencyKey: crypto.randomUUID()
+      },
+      {
+        onSuccess: () => {
+          toast.success("项目已归档并保留全部历史")
+          setPendingAction(null)
+          setArchiveReason("")
         },
-        {
-          onSuccess: () => toast.success("项目已归档"),
-          onError: (error) =>
-            toast.error(`归档失败：${error instanceof Error ? error.message : "未知错误"}`)
-        }
-      )
-      return
-    }
-    deleteProject.mutate(action.project.id, {
-      onSuccess: () => toast.success("项目已删除"),
-      onError: (error) =>
-        toast.error(`删除失败：${error instanceof Error ? error.message : "未知错误"}`)
-    })
+        onError: (error) => toast.error(`归档失败：${error instanceof Error ? error.message : "未知错误"}`)
+      }
+    )
   }
 
   return (
@@ -292,13 +291,13 @@ export default function StudioProjectsPage() {
             <FolderKanban className="size-5 text-primary" />
             <h1 className="font-semibold text-xl">我的项目</h1>
           </div>
-          <GlowButton
+          {canCreate ? <GlowButton
             nativeButton={false}
             render={<Link href="/studio/projects/new" />}
             tone="violet"
           >
             <Plus /> 新建项目
-          </GlowButton>
+          </GlowButton> : null}
         </header>
 
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -362,7 +361,7 @@ export default function StudioProjectsPage() {
                 <EmptyTitle>没有匹配的项目</EmptyTitle>
                 <EmptyDescription>调整状态或类型筛选，或创建一个新的内容项目。</EmptyDescription>
               </EmptyHeader>
-              <EmptyContent>
+              {canCreate ? <EmptyContent>
                 <GlowButton
                   nativeButton={false}
                   render={<Link href="/studio/projects/new" />}
@@ -371,7 +370,7 @@ export default function StudioProjectsPage() {
                   <Plus />
                   创建项目
                 </GlowButton>
-              </EmptyContent>
+              </EmptyContent> : null}
             </Empty>
           </GlassCard>
         ) : (
@@ -380,39 +379,36 @@ export default function StudioProjectsPage() {
               <ProjectCard
                 key={project.id}
                 project={project}
-                onEdit={setEditingProject}
-                onArchive={(target) => setPendingAction({ type: "archive", project: target })}
-                onDelete={(target) => setPendingAction({ type: "delete", project: target })}
+                canUpdate={canUpdate}
+                onEdit={(target) => {
+                  if (canUpdate && isProjectContentWritable(target.status)) setEditingProjectId(target.id)
+                }}
+                onArchive={(target) => {
+                  if (canUpdate && target.status !== "ARCHIVED") setPendingAction({ projectId: target.id })
+                }}
               />
             ))}
           </div>
         )}
 
-        {editingProject ? (
+        {editingProject && canUpdate && isProjectContentWritable(editingProject.status) ? (
           <ProjectEditDialog
             key={editingProject.id}
             project={editingProject}
+            mutable={canUpdate && isProjectContentWritable(editingProject.status)}
             onOpenChange={(open) => {
-              if (!open) setEditingProject(null)
+              if (!open) setEditingProjectId(null)
             }}
           />
         ) : null}
 
-        <ConfirmDialog
-          open={pendingAction !== null}
-          onOpenChange={(open) => {
-            if (!open) setPendingAction(null)
-          }}
-          title={pendingAction?.type === "delete" ? "删除项目" : "归档项目"}
-          description={
-            pendingAction?.type === "delete"
-              ? `确定删除「${pendingAction.project.name}」吗？该项目独立生成的对象、版本、执行记录、生成任务、作品、时间线，以及项目独占的生成媒体、媒体版本和文件引用将一并删除；共享文档、品牌资料、渠道配置、已保存为资产或被其他资源引用的媒体不会被删除。此操作不可撤销。`
-              : `确定归档「${pendingAction?.project.name ?? ""}」吗？归档后项目将变为只读。`
-          }
-          confirmText={pendingAction?.type === "delete" ? "删除" : "确认归档"}
-          variant={pendingAction?.type === "delete" ? "destructive" : "default"}
-          onConfirm={executePendingAction}
-        />
+        <Dialog open={pendingProject !== undefined && pendingProject.status !== "ARCHIVED" && canUpdate} onOpenChange={(open) => { if (!open) { setPendingAction(null); setArchiveReason("") } }}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>{pendingProject?.status === "COMPLETED" ? "完成后归档" : "放弃并归档项目"}</DialogTitle><DialogDescription>归档后项目全局只读，但图谱、版本、Run、Review、Work 和 Publication 历史全部保留。</DialogDescription></DialogHeader>
+            <Textarea value={archiveReason} onChange={(event) => setArchiveReason(event.target.value)} placeholder="填写归档或放弃原因（必填）" />
+            <DialogFooter><Button type="button" variant="outline" onClick={() => setPendingAction(null)}>取消</Button><Button type="button" variant="destructive" disabled={!archiveReason.trim() || lifecycle.isPending} onClick={executePendingAction}>确认归档</Button></DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   )

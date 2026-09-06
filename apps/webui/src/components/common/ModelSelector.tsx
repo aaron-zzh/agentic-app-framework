@@ -13,7 +13,7 @@
 
 "use client"
 
-import { ChevronDownIcon } from "lucide-react"
+import { ChevronDownIcon, SparklesIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -122,12 +122,18 @@ export function ModelSelector({
       <Select value={selectedValue} onValueChange={handleSelect}>
         <SelectTrigger className={className ?? "h-8 w-[180px] text-xs"}>
           <div className="flex min-w-0 items-center gap-1.5">
+            {selection.type === "auto" && <SparklesIcon className="size-4 shrink-0" />}
             {currentModel && <ModelAvatar option={currentModel} />}
             <span className="truncate">{currentLabel ?? value ?? placeholder}</span>
           </div>
         </SelectTrigger>
         <SelectContent>
-          {autoOption && <SelectItem value={AUTO_OPTION_VALUE}>{autoOption.label}</SelectItem>}
+          {autoOption && (
+            <SelectItem value={AUTO_OPTION_VALUE}>
+              <SparklesIcon className="size-4" />
+              <span>{autoOption.label}</span>
+            </SelectItem>
+          )}
           {options.map((o) => (
             <SelectItem key={o.value} value={o.value}>
               <div className="flex items-center gap-2">
@@ -154,6 +160,7 @@ export function ModelSelector({
           />
         }
       >
+        {selection.type === "auto" && <SparklesIcon className="size-4 shrink-0" />}
         {currentModel && <ModelAvatar option={currentModel} />}
         <span className="max-w-40 truncate">{currentLabel ?? placeholder}</span>
         <ChevronDownIcon className="size-3" />
@@ -164,6 +171,7 @@ export function ModelSelector({
             onClick={autoOption.onSelect}
             className={autoOption.selected ? "bg-accent" : ""}
           >
+            <SparklesIcon className="size-4" />
             <span>{autoOption.label}</span>
           </DropdownMenuItem>
         )}

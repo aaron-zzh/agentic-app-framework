@@ -2,7 +2,12 @@
 
 所有用户故事的唯一来源。条目由 product agent 细化后登记，协调者维护编号和状态。
 
-编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-111**，新一级用户故事从 AAF-112 开始。添加新条目后必须同步更新此行。
+编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-114**，新一级用户故事从 AAF-115 开始。添加新条目后必须同步更新此行。
+
+## 当前迭代（v0.13）
+
+- [ ] AAF-112 (创建: 09-05) Content Studio 项目先行完整闭环（项目动态物化与双视图工作台；对象创作、素材版本、可靠执行与候选采用；DeliverableSet manifest、审核退回/stale、Work/Publication、完成归档；完全不依赖 Chatter）任务: docs/task/v0.13/AAF-112/tasks.md
+- [ ] AAF-113 (创建: 09-05) 对话式项目创作（复用现有助理与 `/agui/run`，只读项目上下文→内容创作 Skill→受控项目 Tool→富媒体素材协作；依赖 AAF-112 及项目先行门）任务: docs/task/v0.13/AAF-113/tasks.md
 
 ## 待排期
 
@@ -131,6 +136,7 @@
 - [ ] AAF-107 (创建: 09-01) EXECUTOR 先规划再执行（新增 `ai_executor_plan`/`ai_executor_plan_step` 两表追加进 v16；执行 Agent 自产计划走独立 planning execution + acting gate 只放只读工具；确定性白名单自动批准、其余走持久 HITL；只对 policy 标记任务生效；8 个计划事件经 outbox 投影 AG-UI）(依赖: AAF-104) → v0.12
 - [ ] AAF-108 (创建: 09-01) 门禁恢复与集成收口（一次性跑通 `pnpm check` + `pnpm acceptance` 并修复累积失败；补齐阶段约束期间欠下的测试文件；同步 architecture/runtime-event/model-router/usage-guide 真理源，`AUTONOMOUS_HARNESS` 重命名，登记 `JsonSchemaUtils` shadow 例外）(依赖: AAF-103～AAF-107) → v0.12
 - [ ] AAF-110 (创建: 09-01) 执行中断续跑（第一性原理复核确认：恢复正确性锚定 receipt/TaskBoard/事件流不变，AgentState 历史续接是独立的效率/体验优化，与正确性无关；`HarnessAgentExecutionAdapter.doFinally` 当前无差别删除状态槽需按"责任主体是否变化"分流——同责任主体中断续跑复用原 `executionId` 不删状态槽，真正终态/接管换主体才删；EXECUTOR Plan Mode 步骤级恢复依赖此能力）(依赖: AAF-103) → v0.12
+- [ ] AAF-114 (创建: 09-05) 助理对话框体验优化（标题展示并原子切换 Assistant + Role；模型“自动”入口；图片/文本附件真实发送；计划与安全思考展示偏好；复用 TaskBoard、ExecutorPlan 和 reasoning 单一状态源）任务: docs/task/v0.12/AAF-114/tasks.md → v0.12
 
 ## 已完成
 

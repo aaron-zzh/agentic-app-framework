@@ -14,12 +14,13 @@
 
 import { useMutation } from "@tanstack/react-query"
 import { Coins, Download, ImagePlus, Scissors, Wand2 } from "lucide-react"
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import { GlassCard, GlowButton, NeonChip } from "@/components/studio"
 import { Label } from "@/components/ui/label"
+import type { AigcTaskEvent } from "@/lib/api/rest/ai/aigc-task"
 import { request } from "@/lib/api/rest/entity"
-import { type AigcTaskEvent, useAigcTaskStream } from "@/lib/hooks/use-aigc-task-stream"
+import type { PageResult } from "@/lib/api/types"
 import { useEstimateAigcCredits } from "@/lib/hooks/use-estimate-aigc-credits"
 import { useFileUpload } from "@/lib/hooks/use-file-upload"
 import { notify } from "@/lib/notification"
@@ -198,7 +199,6 @@ export default function MattingPage() {
           type: "IMAGE_PROCESS",
           // 抠图无文本提示词概念，用 method 占位满足统一提交接口的 prompt 非空校验
           prompt: method,
-          projectId: null,
           params: { imageFileId, method }
         })
       }),
@@ -208,22 +208,25 @@ export default function MattingPage() {
     onError: () => notify.error("提交失败")
   })
 
-  useAigcTaskStream({
-    onCreated: useCallback((task: AigcTaskEvent) => {
-      if (task.type !== "IMAGE_PROCESS") return
-      setTasks((prev) => [task, ...prev.filter((item) => item.id !== task.id)])
-    }, []),
-    onCompleted: useCallback((task: AigcTaskEvent) => {
-      if (task.type !== "IMAGE_PROCESS") return
-      setTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
-      toast.success("抠图完成，媒体已入库")
-    }, []),
-    onFailed: useCallback((task: AigcTaskEvent) => {
-      if (task.type !== "IMAGE_PROCESS") return
-      setTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
-      toast.error(task.errorMsg ?? "抠图失败")
-    }, [])
-  })
+  useEffect(() => {
+    let active = true
+    const loadTasks = async () => {
+      try {
+        const page = await request<PageResult<AigcTaskEvent>>(
+          "/aigc/tasks?pageNo=1&pageSize=20&sort=id:desc"
+        )
+        if (active) setTasks(page.list.filter((task) => task.type === "IMAGE_PROCESS"))
+      } catch {
+        // 下一轮刷新重试
+      }
+    }
+    loadTasks()
+    const timer = window.setInterval(loadTasks, 3_000)
+    return () => {
+      active = false
+      window.clearInterval(timer)
+    }
+  }, [])
 
   const canSubmit = imageFileId !== null && !isPending && !uploading
   const selectedMethod = METHODS.find((m) => m.value === method) ?? METHODS[0]

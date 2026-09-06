@@ -11,7 +11,7 @@ import { PendingOverlay } from "@/components/animate/PendingOverlay"
 import { Skeleton } from "@/components/ui/skeleton"
 import { type PageResult, request } from "@/lib/api/rest/entity"
 import { useMediaList } from "@/lib/api/rest/media"
-import type { AigcTaskEvent } from "@/lib/hooks/use-aigc-task-stream"
+import type { AigcTaskEvent } from "@/lib/api/rest/ai/aigc-task"
 import { useAigcStore } from "../store"
 import { DraggableAssetCard } from "./DraggableAssetCard"
 

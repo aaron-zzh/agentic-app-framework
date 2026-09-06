@@ -1,5 +1,5 @@
 /**
- * 任务进度面板——挂载时加载最近 5 条任务，同时监听 AIGC SSE 流实时更新
+ * 任务进度面板——挂载时加载最近 5 条任务并周期刷新
  * @author AaronZZH & Kiro
  */
 
@@ -7,36 +7,37 @@
 
 import { CheckCircle2, Loader2, Trash2, XCircle } from "lucide-react"
 import Link from "next/link"
-import { useCallback, useEffect, useState } from "react"
-import { useCancelAigcTask } from "@/lib/api/rest/ai"
+import { useEffect, useState } from "react"
+import { type AigcTaskEvent, useCancelAigcTask } from "@/lib/api/rest/ai"
 import { request } from "@/lib/api/rest/crud/client"
 import type { PageResult } from "@/lib/api/types"
-import { type AigcTaskEvent, useAigcTaskStream } from "@/lib/hooks/use-aigc-task-stream"
 
 export function RecentTasksPanel() {
   const [tasks, setTasks] = useState<AigcTaskEvent[]>([])
   const [loading, setLoading] = useState(true)
   const deleteTask = useCancelAigcTask()
 
-  // 挂载时拉最近 5 条历史任务
   useEffect(() => {
-    request<PageResult<AigcTaskEvent>>("/aigc/tasks?pageNo=1&pageSize=5")
-      .then((res) => setTasks(res.list ?? []))
-      .catch(() => {})
-      .finally(() => setLoading(false))
+    let active = true
+    const loadTasks = async () => {
+      try {
+        const result = await request<PageResult<AigcTaskEvent>>(
+          "/aigc/tasks?pageNo=1&pageSize=5&sort=id:desc"
+        )
+        if (active) setTasks(result.list ?? [])
+      } catch {
+        // 下一轮刷新重试
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+    loadTasks()
+    const timer = window.setInterval(loadTasks, 3_000)
+    return () => {
+      active = false
+      window.clearInterval(timer)
+    }
   }, [])
-
-  useAigcTaskStream({
-    onCreated: useCallback((task: AigcTaskEvent) => {
-      setTasks((prev) => [task, ...prev.filter((t) => t.id !== task.id)].slice(0, 5))
-    }, []),
-    onCompleted: useCallback((task: AigcTaskEvent) => {
-      setTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
-    }, []),
-    onFailed: useCallback((task: AigcTaskEvent) => {
-      setTasks((prev) => prev.map((t) => (t.id === task.id ? task : t)))
-    }, [])
-  })
 
   if (loading) {
     return (

@@ -3,10 +3,13 @@ level: Practice
 layer: Product
 purpose: 设计 Content Studio 产品工作台及其在统一 AIGC 工程领域中的项目、创作、审核、作品与发布闭环
 status: active
-version: 1.8.1
-date: 2026-08-05
+version: 1.9.2
+date: 2026-09-04
 author: AaronZZH & Kiro
 changelog:
+  - 2026-09-04 | v1.9.2 闭合动态槽位的实例身份、执行占用与父 Run 冻结快照，统一字段术语
+  - 2026-09-04 | v1.9.1 将固定五槽位修正为按项目设置解析的默认槽位模板，支持用户增减与动态 fan-out
+  - 2026-09-04 | v1.9.0 定稿父内容包、显式子槽位、包级工作流、采用策略与四阶段过程投影
   - 2026-08-05 | v1.8.1 最终源码静态审查后标记项目到 Publication 闭环为 active
   - 2026-08-04 | v1.8.0 明确八个 AIGC 核心领域子模块、ExecutionBinding 归 execution 及专业能力适配器边界
   - 2026-08-04 | v1.7.1 对齐八个 AIGC 子模块、配置版本映射、媒体所有权及 Work/Publication 生命周期条件
@@ -640,10 +643,10 @@ flowchart LR
 → ExecutionRun
 → AigcTask（可选，仅媒体子任务）
 → Media / ObjectVersion candidate
-→ 明确采用
+→ 用户选择或蓝图固定策略采用
 → 质检与审核
 → Work（成功交付必须收录）
-→ Publication（0..N，可选渠道发布）
+→ Publication（0..N，是否必需由蓝图发布策略决定）
 → 项目完成；完成后可归档
 
 创作中放弃的项目可从创作阶段直接归档，但不得标记为完成。
@@ -658,12 +661,12 @@ flowchart LR
 | 图谱创作 | 用户、Assistant 和系统围绕 ProjectGraph 编辑对象并发起动作 | 动作有稳定 actionKey、目标对象和确认上下文 |
 | 受控执行 | `ActionCommand` 经过权限、预算、规则和确认门后形成 `ExecutionRun` | 执行目标确定；仅媒体动作按需关联 `AigcTask` |
 | 候选产生 | 文本/结构候选进入 ObjectVersion，持久媒体进入 `AigcMedia` 及媒体版本 | 候选可比较、来源可追溯、失败不移动采用指针 |
-| 采用 | 用户或蓝图允许的确定规则明确选择候选 | 采用指针更新并形成项目修订；下游影响已提示 |
-| 审核 | 完成校验、品牌/领域/渠道质检及人工或企业审批 | 所有阻断项解决，交付物达到完成契约 |
-| 作品与发布 | 审核通过且计入成功交付的成果必须收录为 `AigcWork`，并可形成零到多个 Publication | 已收录至少一个 Work；Publication 已成功、明确无需发布，或用户明确仅保留为作品 |
+| 采用 | 用户选择候选，或 project 执行蓝图固定的 `AUTO_ADOPT_IF_EMPTY` 条件采用 | 采用指针以 CAS 更新并形成项目修订；已有采用版替换已确认，下游影响已提示 |
+| 审核 | 完成校验、品牌/领域/渠道质检及人工或企业审批 | 所有阻断项解决，交付物达到完成契约并冻结 package manifest |
+| 作品与发布 | 审核通过的 package manifest 必须收录为 `AigcWork`，并可形成零到多个 Publication | 已收录至少一个 Work；满足蓝图固定的 `NONE/OPTIONAL/AT_LEAST_ONE_SUCCESS/ALL_SELECTED_CHANNELS` 发布策略 |
 | 完成与归档 | 项目完成后可归档并保留图谱、版本、执行、审核和作品追溯；创作中放弃也可直接归档 | 完成要求交付契约满足且无进行中的阻断任务；归档不触发文件物理删除 |
 
-产品阶段与技术状态唯一映射为：定义目标 `CONFIGURING`、蓝图物化 `MATERIALIZED`、图谱创作 `CREATING`、受控执行 `EXECUTING`、候选比较与采用 `ADOPTING`、审核 `REVIEWING`、作品收录与可选发布 `DELIVERING`、完成 `COMPLETED`、归档 `ARCHIVED`。状态枚举、迁移条件与接口以 [技术设计的唯一 AigcProject 聚合](./content-studio-tech.md#唯一-aigcproject-聚合) 为工程真理源。
+产品阶段与技术状态唯一映射为：定义目标 `CONFIGURING`、蓝图物化 `MATERIALIZED`、图谱创作 `CREATING`、受控执行 `EXECUTING`、候选比较与采用 `ADOPTING`、审核 `REVIEWING`、作品收录与策略化发布 `DELIVERING`、完成 `COMPLETED`、归档 `ARCHIVED`。状态枚举、迁移条件与接口以 [技术设计的唯一 AigcProject 聚合](./content-studio-tech.md#唯一-aigcproject-聚合) 为工程真理源。
 
 “执行成功”“采用”“审核通过”“收录作品”“发布”和“项目完成”是六个不同事实，不得用单个任务状态替代。Asset 也不在主线中自动产生：只有用户明确将某个 Media 标记为跨项目可复用时，才登记为 `AigcAsset`。
 
@@ -1079,7 +1082,104 @@ ProjectType + productionMode
 
 `ProjectGraph` 是蓝图版本在具体项目中的物化实例，也是项目持续演进的领域状态图。一个蓝图版本可创建多个项目，一个项目只有一个逻辑 ProjectGraph；项目固定保存不可变 ProjectConfigurationSnapshot。蓝图、领域扩展或渠道规格升级都不静默修改已有项目，只能通过差异预览和受控 Graph Migration 应用。
 
-并非所有图谱节点都来自蓝图。节点应记录 `BLUEPRINT / USER / ASSISTANT / WORKFLOW / IMPORT` 来源；从蓝图物化的节点额外记录稳定 `blueprintNodeKey`。创建后用户和 Assistant 可增删可选交付物、切换渠道、增加素材和生成版本，图谱不再实时按蓝图重新计算。自定义项目也使用最小 `BlankProjectBlueprint`，保持统一生命周期。
+并非所有图谱节点都来自蓝图。节点应记录 `BLUEPRINT / USER / ASSISTANT / WORKFLOW / IMPORT` 来源；从蓝图槽位模板物化的对象额外记录稳定 `blueprintTemplateKey`。创建后用户和 Assistant 可增删可选交付物、切换渠道、增加素材和生成版本，图谱不再实时按蓝图重新计算。自定义项目也使用最小 `BlankProjectBlueprint`，保持统一生命周期。
+
+### 父内容包、子交付槽位与完成契约
+
+项目蓝图可以声明“父内容包 + 子交付元素 + 包级动作 + 过程门”，但四者必须保持不同语义。`DeliverableSet` 是 `AigcProject` 聚合内的父 `ProjectObject` 和交付完成契约，不是新聚合根；子交付物是 ProjectGraph 中可独立生成、采用、审核和重试的真实对象；Workflow 是动作的可替换执行实现，不是第六个内容对象；过程阶段是既有领域事实的投影，不保存第二状态机。
+
+新品推广标准蓝图声明一个父内容包和可重复的子槽位模板；“图像 3、视频 1、文案 1”只是推荐默认值，不是所有项目的固定数量：
+
+| 槽位模板 key | 对象类型 | 推荐默认数 | 数量约束 | 默认合同角色 | 用户调整 |
+|---|---|---:|---|---|---|
+| `deliverables.package` | `deliverable_set` | 1 | 固定一个父包 | `REQUIRED` | 不可删除，可重命名 |
+| `deliverables.image` | `image_deliverable` | 3 | min/max 由蓝图和渠道约束声明 | `REQUIRED` | 可增减、重命名、调整必需性 |
+| `deliverables.video` | `video_deliverable` | 1 | 未选择视频渠道时可解析为 0 | `OPTIONAL` | 可新增或移出当前契约 |
+| `deliverables.copy` | `copy_deliverable` | 1 | 可按渠道生成多个变体 | `REQUIRED` | 可增减、重命名、调整必需性 |
+
+项目创建时按以下顺序解析默认实例；预算档、质量档和数量覆盖都进入不可变 ProjectConfigurationSnapshot，保证同一创建请求可复现：
+
+```text
+Blueprint 槽位模板与推荐数量
++ 项目设置（渠道、productionMode、budgetTier、qualityTier、用户数量覆盖）
++ DomainExtension 与 ChannelSpecification 硬约束
+→ Resolved Deliverable Plan
+→ 物化具体 ProjectObject
+```
+
+例如默认设置可以物化：
+
+```text
+DeliverableSet：新品推广内容包
+├─ deliverables.image.01：品牌主视觉
+├─ deliverables.image.02：产品卖点图
+├─ deliverables.image.03：产品场景图
+├─ deliverables.video.01：推广短视频
+└─ deliverables.copy.01：推广文案
+```
+
+若用户在创建时把图片数改为 5、关闭视频并增加两份渠道文案，物化结果就变为 5 图、0 视频、2 文案。每个模板解析实例都保存 `blueprintTemplateKey + instanceNo`，并由服务端按模板确定性生成项目内唯一且不可复用的 `stableKey`；每个实例仍拥有独立对象 ID、ExecutionRun、候选版本、采用指针、审核证据和局部重试能力，不从 stableKey 字符串反推实例身份。“数量可变”不等于把多个交付物压进一个对象的 `count` 字段。
+
+创建后用户仍可在当前 DeliverableSet 下新增允许的对象类型。匹配允许槽位模板时，由服务端分配该模板下下一个永不复用的 `instanceNo` 并生成 stableKey；不匹配模板的自定义对象保存 `blueprintTemplateKey=null`，由 DeliverableSet 允许类型和领域策略校验。新增对象默认是 `OPTIONAL`，用户可明确改为 `REQUIRED`；也可将已有对象设为 `EXCLUDED`，使其退出当前交付契约。
+
+尚无版本、依赖、审核引用或执行占用历史的对象可以物理移除；已有历史的对象只允许改为 `EXCLUDED` 并保留追溯。任一单对象或包级执行在创建 Run 前，必须先在 Project 聚合内按 expected graphRevision 建立不可变目标 reservation；PREPARED 或 BOUND reservation 阻止目标对象物理删除，终态后保留只读历史引用。因此运行期间的“移除”只能改变当前合同角色，不能让已冻结目标在子 Run 派发前消失。所有增减、角色调整和排序都通过 ProjectGraph 命令提交并推进 graphRevision，不反向修改 Blueprint。
+
+父子归属以 ProjectObject 的 `parentObjectId` 为唯一事实，结构视图和图谱中的包含连线由父级投影，不再持久化一条重复的 `contains` 关系。
+
+DeliverableSet 的完成状态由 Completion Validator 根据当前 graphRevision、ProjectObject 合同角色和领域事实派生，不能由前端、Blueprint 或 Workflow 直接写成“已完成”。送审前至少满足：
+
+- 当前 DeliverableSet 下所有 `contractRole=REQUIRED` 的对象都有 adopted ObjectVersion。
+- `OPTIONAL` 对象不阻断完成；存在采用版时可由用户选择纳入本次 manifest。
+- `EXCLUDED` 对象不参与完成和本次 manifest，但历史版本与 Run 继续可追溯。
+- 必需品牌、领域、渠道与内容安全校验通过。
+- 没有 PREPARED/BOUND execution reservation 占用任何 `REQUIRED` 或本次选择纳入 manifest 的 `OPTIONAL` 对象；Project 依据本聚合内的 reservation 投影判断，不反向查询 ExecutionRun。
+- 当前采用版本相对 Brief、品牌事实和上游对象不存在未处理的失效影响。
+- 发布策略、渠道范围和人工确认点已经确定。
+
+送审前，用户可从已有采用版的 OPTIONAL 对象中选择本次纳入项；这只是 evaluate/freeze 命令输入，不写回 ProjectObject，也不形成“当前选择”第二状态。服务端将当前全部 REQUIRED 与显式选择的 OPTIONAL 规范化为 included object IDs，按当前 graphRevision 返回 evidenceHash。冻结命令必须携带同一 OPTIONAL 选择、expectedGraphRevision 和 expectedEvidenceHash，并在同一聚合事务内重算；图谱、角色、采用版、校验或活动 reservation 任一变化都拒绝冻结。
+
+冻结成功后生成 DeliverableSet 的不可变 **package manifest ObjectVersion**，记录 graphRevision、配置快照、规范化 included object IDs，以及每个 `{stableKey, objectId, contractRole, adoptedObjectVersionId}`、校验证据摘要和证据哈希，并将该 manifest 设为父 DeliverableSet 的当前采用版本。Review 审核该 manifest，而不是审核持续变化的“当前内容包”；AigcWork 收录同一 manifest，Publication 也从该 Work 发布。对象增减、contractRole 调整或采用版替换后，父包仍保留历史 manifest 供追溯，但旧 manifest 和 Review 对当前内容包标记为 stale，必须重新选择 OPTIONAL、冻结并送审。
+
+### 包级动作与 Workflow
+
+Workflow 不作为 DeliverableSet 的子元素物化，也不计入图像、视频或文案数量。Blueprint 只声明稳定业务动作 `package.generate`、允许参与的槽位模板和依赖规则；ExecutionBinding 将该 actionKey 解析到已发布的 Agent、Tool 或 WorkflowDefinition 版本。这样可以替换执行实现而不修改蓝图、ProjectGraph 和用户内容。
+
+提交包级生成时先基于当前 ProjectGraph 做预检，由用户确认目标对象、成本和高成本媒体。Execution 先按幂等键持久化 durable submission intent，再调用 Project 在同一 graphRevision 下原子校验最终目标并建立 execution reservation；随后以 submission 唯一创建 `PENDING_BIND` 父 Run，保存 `executionReservationId + targetGraphRevision + frozenProjectObjectIds + effectiveInputJson`。只有 Project 将 reservation CAS 绑定为 BOUND 后，父 Run 才可派发、调用供应商或扣费；崩溃恢复从 durable submission 继续，不按超时盲目释放 reservation。包级执行再按该冻结快照动态 fan-out：
+
+```text
+ActionCommand(package.generate, deliverables.package)
+→ ExecutionSubmission（durable intent，幂等唯一）
+→ Project reserve targets at expectedGraphRevision
+→ 父 ExecutionRun（ORCHESTRATION / PENDING_BIND，保存冻结目标与 effective input）
+→ reservation BOUND
+  └─ for each frozen ready ProjectObject
+       → 子 ExecutionRun（ACTIVITY，按对象类型解析 actionKey）
+```
+
+默认选择当前合同中 `REQUIRED`、尚无采用版、依赖满足且动作可解析的对象；用户可以增减本次目标，也可以明确选择为已有对象生成新候选。WorkflowDefinition 不写死五个节点，而使用受控的 foreach/fan-out 节点逐个调用内部 `submitChild`。服务端只允许为父 Run 冻结列表中的对象创建子 Run，每个子 Run 只面向一个 ProjectObject，并产生该对象自己的 ObjectVersion candidate；媒体候选关联各自的 MediaVersion。
+
+父 Run 只汇总编排状态、费用和子 Run，取消时向活动子 Run 传播取消；局部失败后默认只重试失败或缺失对象。运行开始后新增对象，或把冻结对象调整为 OPTIONAL/EXCLUDED，都不改变本次目标；活动 reservation 阻止物理删除，子 Run 始终按父 Run 快照派发。上述变更只影响下一次包级执行，避免运行中拓扑漂移。父 Run 进入终态后释放活动占用，但 reservation 与 Run 引用作为历史证据保留。
+
+### 候选采用与确认替换
+
+每次生成必须先创建不可变 candidate。`AUTO_ADOPT_IF_EMPTY` 不是“执行成功直接覆盖对象”，而是候选登记后的独立、可审计条件采用：仅当槽位 `adoptedVersionId` 仍为空时，通过 compare-and-set 自动采用，并形成单独 ProjectRevision 与采用事件。并发候选只允许一个自动采用成功，其余候选保留待比较。
+
+槽位已经存在采用版时，生成、重试、事件重放和包级 Workflow 都不得移动采用指针。替换必须由用户或有权审批者明确确认，携带预期采用版本和替换原因；预期值不一致时返回冲突。由此同时满足“空槽位生成后直接成为采用版”和“已有内容不被旧异步结果静默覆盖”。
+
+### 四阶段过程模板
+
+普通用户看到“草稿 → 生成中 → 审核 → 发布”，但系统不持久化第二个 `uiStage`。四阶段由 AigcProject 生命周期、ExecutionRun、Review、Work 和 Publication 实时派生：
+
+| UI 阶段 | 权威事实 | 允许回退 |
+|---|---|---|
+| 草稿 `DRAFT` | `CONFIGURING / MATERIALIZED / CREATING / ADOPTING`；对象填充、候选比较和采用均属于内容形成过程 | 可继续编辑或发起生成 |
+| 生成中 `GENERATING` | Project 为 `EXECUTING`，或包级父 Run/任一子 Run 仍处于活动状态 | 失败、取消或部分成功后回草稿 |
+| 审核 `REVIEW` | Project 为 `REVIEWING`，Review 引用当前 package manifest | 退回后回草稿或重新生成 |
+| 发布 `PUBLISHING` | Project 为 `DELIVERING`；已收录 Work，Publication 待创建、执行中、失败或成功 | 发布失败留在本阶段重试 |
+
+`COMPLETED` 作为发布阶段完成后的终态徽标，`ARCHIVED` 是只读终态覆盖层。过程策略可以声明审核是否必需、是否允许低成本动作自动推进，以及发布门为 `NONE`、`OPTIONAL`、`AT_LEAST_ONE_SUCCESS` 或 `ALL_SELECTED_CHANNELS`；它只能约束既有生命周期，不能定义任意第二流程。本新品推广模板若要求走到“发布”，采用 `AT_LEAST_ONE_SUCCESS`；其他只需作品收录的蓝图仍可使用 `OPTIONAL`。
+
+这套分层遵循定义与实例分离、领域状态与执行状态正交、不可变版本加采用指针、工作流可替换和发布快照可追溯等内容供应链通用原则。Blueprint 在过程方面只声明策略和门，不保存运行实例、Workflow 节点状态或 Publication 结果。
 
 ### 创作方式、Skill、ExecutionBinding 与 Workflow
 
@@ -1117,13 +1217,13 @@ ActionCommand
 → ExecutionRun
 → 可选 AigcTask（仅媒体生成、处理或合成）
 → Media / ObjectVersion candidate
-→ 用户或规则明确采用后更新 adoptedVersionRef
+→ 用户选择或已固定的采用策略更新 adoptedVersionRef
 → 质检 / 审核
 → 可选收录 AigcWork 与创建 Publication
 → Project 完成或归档
 ```
 
-`ExecutionBinding` 的目标类型为 `AGENT | TOOL | WORKFLOW`。WorkflowTool 只是 Agent 调用 WorkflowRuntime 的适配器，不是直接 Workflow 分支的必经层；所有分支统一产生 ExecutionRun。AigcTask 只在图像、视频、音频、3D、转码或合成等媒体动作中按需创建，一个 ExecutionRun 可关联零到多个 AigcTask。成功执行先产生 Media 或 ObjectVersion 候选，只有通过明确采用门才更新所属 AigcProjectObject 的 adoptedVersionRef，并提交项目修订/领域事件；失败、取消和重试不得移动采用指针，费用结算与终态保留在 ExecutionRun。采用后仍须分别经过质检/审核、AigcWork 收录、Publication 和项目完成/归档，不得把执行成功视为作品完成。同一蓝图可切换快速/专业执行策略，同一 Workflow 也可服务多个项目类型。配置发布时，`ProjectTypePackage` 只固定兼容的 ProjectType、ProjectBlueprintVersion、DomainExtensionVersion、ChannelSpecificationVersion、productionMode 约束与 ExecutionBinding 版本，用于安装、灰度和回滚，不成为新的领域真理源。
+`ExecutionBinding` 的目标类型为 `AGENT | TOOL | WORKFLOW`。WorkflowTool 只是 Agent 调用 WorkflowRuntime 的适配器，不是直接 Workflow 分支的必经层；所有分支统一产生 ExecutionRun。AigcTask 只在图像、视频、音频、3D、转码或合成等媒体动作中按需创建，一个 ExecutionRun 可关联零到多个 AigcTask。成功执行总是先产生 Media 或 ObjectVersion 候选；蓝图固定为 `AUTO_ADOPT_IF_EMPTY` 时，project 在候选登记后仅对空槽位执行独立、可审计的 CAS 条件采用，已有采用版仍必须通过明确采用门确认替换。失败、取消和重试不得移动采用指针，费用结算与终态保留在 ExecutionRun。采用后仍须分别经过质检/审核、AigcWork 收录、Publication 和项目完成/归档，不得把执行成功视为作品完成。同一蓝图可切换快速/专业执行策略，同一 Workflow 也可服务多个项目类型。配置发布时，`ProjectTypePackage` 只固定兼容的 ProjectType、ProjectBlueprintVersion、DomainExtensionVersion、ChannelSpecificationVersion、productionMode 约束与 ExecutionBinding 版本，用于安装、灰度和回滚，不成为新的领域真理源。
 
 首期不建设独立的 Template/Recipe CRUD。稳定做法优先通过“复制项目 / Remix / 从成功项目创建相似项目”复用；只有同类项目高频重复且步骤稳定时，才将运行轨迹沉淀为内部 Workflow 或面向高级用户的创作方式。
 
