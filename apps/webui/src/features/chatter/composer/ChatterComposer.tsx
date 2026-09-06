@@ -9,7 +9,7 @@
 
 "use client"
 
-import { AuiIf, ComposerPrimitive, useAui, useAuiEvent } from "@assistant-ui/react"
+import { AuiIf, ComposerPrimitive, useAui, useAuiEvent, useAuiState } from "@assistant-ui/react"
 import {
   ArrowUpIcon,
   BrainCircuitIcon,
@@ -311,6 +311,9 @@ function DisplayPreferenceToggles({
 
 /**
  * 模型选择槽——仅在需要展示时渲染，避免未登录场景调用 /ai/models 触发 401
+ *
+ * <p>含图片附件时只展示具备 VISION 能力的模型：前端过滤仅为体验提示，不替代服务端在
+ * EXPLICIT 模式下对非视觉模型的强制拒绝（AAF-114 #11406）。
  */
 function ModelSelectorSlot({
   taskModelSelection,
@@ -319,6 +322,9 @@ function ModelSelectorSlot({
   taskModelSelection: TaskModelSelection
   onTaskModelSelectionChange: (selection: TaskModelSelection) => void
 }) {
+  const hasImageAttachment = useAuiState((s) =>
+    s.composer.attachments.some((attachment) => attachment.type === "image")
+  )
   const selectedModelId = taskModelSelection.mode === "EXPLICIT" ? taskModelSelection.modelId : null
   const { options, modelId, setModelId } = useModelSelector("CHAT", {
     value: selectedModelId,
@@ -326,10 +332,13 @@ function ModelSelectorSlot({
     onChange: (nextModelId) =>
       onTaskModelSelectionChange({ mode: "EXPLICIT", modelId: nextModelId })
   })
+  const visibleOptions = hasImageAttachment
+    ? options.filter((option) => option.meta.capabilities.includes("VISION"))
+    : options
 
   return (
     <ModelSelector
-      options={options}
+      options={visibleOptions}
       value={modelId}
       onChange={setModelId}
       placeholder="任务模型"

@@ -1920,11 +1920,14 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             AssistantDefinition definition,
             ModelSelectionRequirement requirement) {
         var modelSelection = command.taskModelSelection();
+        var hasImage = !invocation.userAttachments().isEmpty();
         return switch (modelSelection.mode()) {
             case EXPLICIT ->
                     CapabilityRoutingContext.of(
                             preferenceUserId(command.userId().value()),
-                            CapabilityRoutingContext.CAP_CHAT,
+                            hasImage
+                                    ? CapabilityRoutingContext.CAP_VISION
+                                    : CapabilityRoutingContext.CAP_CHAT,
                             modelSelection.modelId());
             case AUTO ->
                     new CapabilityRoutingContext(
@@ -1932,10 +1935,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                             CapabilityRoutingContext.CAP_CHAT,
                             null,
                             definition.modelId(),
-                            taskFeatures(
-                                    requirement,
-                                    command.input(),
-                                    !invocation.userAttachments().isEmpty()));
+                            taskFeatures(requirement, command.input(), hasImage));
         };
     }
 

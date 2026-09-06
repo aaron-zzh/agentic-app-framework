@@ -536,7 +536,8 @@ public class AssistantExecutionService {
                             AttachmentType.IMAGE,
                             image.fileKey(),
                             image.signedUrl(),
-                            image.mimeType()));
+                            image.mimeType(),
+                            image.fileName()));
             contextCandidates.add(
                     new SourceReference(
                             SourceType.TASK_MATERIAL,

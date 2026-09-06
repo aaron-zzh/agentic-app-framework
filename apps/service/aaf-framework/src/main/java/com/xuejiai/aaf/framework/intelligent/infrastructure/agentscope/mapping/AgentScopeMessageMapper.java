@@ -56,9 +56,14 @@ public final class AgentScopeMessageMapper {
     /**
      * 附件统一映射为 {@link DataBlock}——官方 {@code ImageBlock}/{@code AudioBlock}/{@code VideoBlock}
      * 仅为向后兼容保留，新代码优先用 {@code DataBlock}。
+     *
+     * <p>{@code id} 固定取 AAF opaque {@code resourceId}（即文件 key），{@code name} 取原始文件名；
+     * 不使用 SDK 默认生成的随机 UUID，保证同一附件在多轮消息、审计映射与 provider 调用间可稳定关联，不泄露存储布局。
      */
     private ContentBlock attachmentBlock(AgentMessage.Attachment attachment) {
         return DataBlock.builder()
+                .id(attachment.resourceId())
+                .name(attachment.fileName())
                 .source(
                         URLSource.builder()
                                 .url(attachment.signedUrl())

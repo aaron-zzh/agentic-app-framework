@@ -33,6 +33,7 @@ public record CapabilityRoutingContext(
     /** 能力常量 */
     public static final String CAP_CHAT = "CHAT";
 
+    public static final String CAP_VISION = "VISION";
     public static final String CAP_IMAGE_GEN = "IMAGE_GEN";
     public static final String CAP_VIDEO_GEN = "VIDEO_GEN";
     public static final String CAP_SPEECH_ASR = "SPEECH_ASR";

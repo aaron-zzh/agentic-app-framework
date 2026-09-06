@@ -41,7 +41,7 @@ public class AiModelSelector {
         if (Boolean.TRUE.equals(features.get(CapabilityRoutingContext.FEATURE_HAS_IMAGE))
                 || Boolean.TRUE.equals(features.get(CapabilityRoutingContext.FEATURE_HAS_VIDEO))) {
             return modelRepository.findByEnabledTrueOrderBySortOrder().stream()
-                    .filter(m -> m.hasCapability("VISION"))
+                    .filter(m -> m.hasCapability(CapabilityRoutingContext.CAP_VISION))
                     .findFirst()
                     .orElse(null);
         }

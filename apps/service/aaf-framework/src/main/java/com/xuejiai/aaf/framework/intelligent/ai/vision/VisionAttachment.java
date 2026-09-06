@@ -12,13 +12,14 @@ package com.xuejiai.aaf.framework.intelligent.ai.vision;
  *       ImageBlock/VideoBlock}
  * </ul>
  *
- * @param fileKey OSS 内部 key（与 sys_file.file_key 一致）
+ * @param fileKey OSS 内部 key（与 sys_file.file_key 一致），作为跨层稳定的 opaque resource ID
+ * @param fileName 原始文件名，仅用于展示与审计，不参与鉴权
  * @param mimeType MIME 类型，如 image/png、video/mp4，必须非空
  * @param signedUrl OSS 预签名 GET URL，调用方使用前需自行判断是否在有效期内
  * @param type 附件类型，由 mimeType 解析得到
  */
 public record VisionAttachment(
-        String fileKey, String mimeType, String signedUrl, AttachmentType type) {
+        String fileKey, String fileName, String mimeType, String signedUrl, AttachmentType type) {
 
     /** 视觉附件类型——按 mimeType 前缀简单分类。 */
     public enum AttachmentType {

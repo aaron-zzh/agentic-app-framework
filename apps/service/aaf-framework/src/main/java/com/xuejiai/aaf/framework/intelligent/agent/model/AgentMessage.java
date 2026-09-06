@@ -25,13 +25,18 @@ public record AgentMessage(String messageId, Role role, String text, List<Attach
 
     /** 消息附件。 */
     public record Attachment(
-            AttachmentType type, String resourceId, String signedUrl, String mimeType) {
+            AttachmentType type,
+            String resourceId,
+            String signedUrl,
+            String mimeType,
+            String fileName) {
 
         public Attachment {
             Objects.requireNonNull(type, "附件 type 不能为空");
             resourceId = requireText(resourceId, "附件 resourceId 不能为空");
             signedUrl = requireText(signedUrl, "附件 signedUrl 不能为空");
             mimeType = requireText(mimeType, "附件 mimeType 不能为空");
+            fileName = fileName == null || fileName.isBlank() ? null : fileName.trim();
             if (type == AttachmentType.IMAGE && !mimeType.startsWith("image/")) {
                 throw new IllegalArgumentException("IMAGE 附件 mimeType 必须为 image/*");
             }

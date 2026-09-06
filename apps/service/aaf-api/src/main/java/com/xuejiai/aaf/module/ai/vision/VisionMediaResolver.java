@@ -63,6 +63,6 @@ public class VisionMediaResolver {
         }
         var url = fileStoragePort.prepareCurrentOwnerExternalAccessByKey(fileKey, DEFAULT_EXPIRY);
         log.debug("视觉附件解析: fileKey={}, mime={}, type=IMAGE", fileKey, mime);
-        return new VisionAttachment(fileKey, mime, url, AttachmentType.IMAGE);
+        return new VisionAttachment(fileKey, record.originalName(), mime, url, AttachmentType.IMAGE);
     }
 }
