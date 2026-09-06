@@ -24,6 +24,7 @@ import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantApplicationService;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.CompletionValidator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.ContextLoadTool;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.RenderUiBlockTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultCompletionValidator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultEffectiveSkillResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultInputClassifier;
@@ -206,6 +207,13 @@ public class AssistantInfrastructureAutoConfiguration {
     ContextLoadTool contextLoadTool(
             SkillCatalogPort skills, SkillReferenceCatalogPort skillReferences) {
         return new ContextLoadTool(skills, skillReferences);
+    }
+
+    /** 结构化展示卡片工具（AAF-114 官方模式改造）；无外部依赖，始终可注册。 */
+    @Bean
+    @ConditionalOnMissingBean(RenderUiBlockTool.class)
+    RenderUiBlockTool renderUiBlockTool() {
+        return new RenderUiBlockTool();
     }
 
     /**

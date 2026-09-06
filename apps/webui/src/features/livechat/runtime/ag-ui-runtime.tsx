@@ -23,7 +23,6 @@ import {
   useVoiceControls
 } from "@assistant-ui/react"
 import { type UseAgUiThreadListAdapter, useAgUiRuntime } from "@assistant-ui/react-ag-ui"
-import { UiBlockProjector } from "@/features/chatter/runtime/ui-block/ui-block-projector"
 import type { AafAiTaskEvent } from "@/lib/api/rest/ai"
 import { backendApi } from "@/lib/api/rest/backend-client"
 import { ForwardedPropsHttpAgent } from "./forwarded-props-http-agent"
@@ -99,13 +98,21 @@ class LimitedTextAttachmentAdapter extends SimpleTextAttachmentAdapter {
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 import { buildApiUrl } from "@/lib/api/config"
-import { chatApi } from "@/lib/api/rest/ai"
+import {
+  chatApi,
+  useArchiveSession,
+  useChatSessions,
+  useDeleteSession,
+  useRenameSession,
+  useUnarchiveSession
+} from "@/lib/api/rest/ai"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { getOrCreateAnonymousId } from "@/lib/utils/anonymous-id"
 import { OmniVoiceAdapter } from "@/lib/voice/omni-voice-adapter"
 import { aigcToolkit } from "../enhance/AigcGenerateToolUI"
 import { useAgentRunStore } from "./agent-run-store"
 import { applyJsonPatch, type JsonPatchOperation } from "./json-patch"
+import { renderUiBlockToolkit } from "@/features/chatter/runtime/ui-block/render-ui-block-toolkit"
 
 const DEFAULT_AGENT_URL = buildApiUrl("/agui/run")
 
@@ -200,12 +207,8 @@ export function AgUiChatProvider({
   // 订阅 AG-UI 事件流，把运行状态/工具调用/AAF 专有 CUSTOM 事件写入运行状态 store
   useEffect(() => {
     const run = useAgentRunStore.getState()
-    const uiBlockProjector = new UiBlockProjector()
     const sub = agent.subscribe({
-      onRunStartedEvent: () => {
-        uiBlockProjector.reset()
-        run.startRun()
-      },
+      onRunStartedEvent: () => run.startRun(),
       onRunFinishedEvent: () => run.finishRun(),
       onRunErrorEvent: ({ event }) => run.errorRun(event.message),
       onToolCallStartEvent: ({ event }) => run.startTool(event.toolCallName),
@@ -264,16 +267,6 @@ export function AgUiChatProvider({
               prompt: (value.prompt as string) ?? "",
               message: (value.message as string) ?? "生成中…"
             })
-            return
-          }
-          // AafUiBlock v1（AAF-114 #11407）：唯一投影入口，去重 + 结构校验后写入展示状态。
-          const projection = uiBlockProjector.project({
-            name: event.name,
-            eventId: typeof value?.eventId === "string" ? value.eventId : undefined,
-            value
-          })
-          if (projection?.kind === "ui-block") {
-            run.pushUiBlock(projection.block)
           }
           return
         }
@@ -294,36 +287,82 @@ export function AgUiChatProvider({
     toast.error(classifyError(error))
   }, [])
 
+  // AAF-114 官方模式改造：threadList 从"仅 threadId+切换回调"扩展为完整
+  // ExternalStoreThreadListAdapter 契约（threads/archivedThreads + rename/archive/unarchive/delete），
+  // 交由 ThreadListPrimitive 消费；列表数据源统一由 TanStack Query 管理（useChatSessions），
+  // 不再由 SessionPopover 自行维护并行状态。
+  const { data: chatSessions } = useChatSessions({ enabled: isAuthenticated })
+  const renameSessionMutation = useRenameSession()
+  const archiveSessionMutation = useArchiveSession()
+  const unarchiveSessionMutation = useUnarchiveSession()
+  const deleteSessionMutation = useDeleteSession()
+
+  const regularThreads = useMemo(
+    () =>
+      (chatSessions ?? [])
+        .filter((s) => s.status !== "ARCHIVED")
+        .map((s) => ({ status: "regular" as const, id: s.threadId, title: s.title })),
+    [chatSessions]
+  )
+  const archivedThreads = useMemo(
+    () =>
+      (chatSessions ?? [])
+        .filter((s) => s.status === "ARCHIVED")
+        .map((s) => ({ status: "archived" as const, id: s.threadId, title: s.title })),
+    [chatSessions]
+  )
+
   const threadList: UseAgUiThreadListAdapter = useMemo(
     () => ({
       threadId: currentThreadId,
+      threads: regularThreads,
+      archivedThreads,
       onSwitchToNewThread: async () => {
         const session = await chatApi.createSession({ type: "ai" })
         setCurrentThreadId(session.threadId)
         await onNewThread?.()
       },
       onSwitchToThread: async (threadId: string) => {
+        // AAF-114 #11411：历史加载失败不伪装成空会话——只有成功后才切换 currentThreadId，
+        // 失败时保留在原线程并把异常原样抛给调用方（SessionPopover 捕获后提示用户重试）。
+        const history = await chatApi.getMessages(threadId)
+        const messages = history.map((msg) => ({
+          id: String(msg.id),
+          role: msg.role === "user" ? ("user" as const) : ("assistant" as const),
+          content: [{ type: "text" as const, text: msg.content }],
+          createdAt: new Date(msg.createdAt),
+          ...(msg.role !== "user" && {
+            status: { type: "complete" as const, reason: "stop" as const }
+          }),
+          ...(msg.role === "user" && { attachments: [] }),
+          metadata: { custom: {} }
+        })) as ThreadMessage[]
         setCurrentThreadId(threadId)
-        try {
-          const history = await chatApi.getMessages(threadId)
-          const messages = history.map((msg) => ({
-            id: msg.id,
-            role: msg.role === "user" ? ("user" as const) : ("assistant" as const),
-            content: [{ type: "text" as const, text: msg.content }],
-            createdAt: new Date(msg.createdAt),
-            ...(msg.role !== "user" && {
-              status: { type: "complete" as const, reason: "stop" as const }
-            }),
-            ...(msg.role === "user" && { attachments: [] }),
-            metadata: { custom: {} }
-          })) as ThreadMessage[]
-          return { messages }
-        } catch {
-          return { messages: [] }
-        }
+        return { messages }
+      },
+      onRename: async (threadId, newTitle) => {
+        await renameSessionMutation.mutateAsync({ threadId, title: newTitle })
+      },
+      onArchive: async (threadId) => {
+        await archiveSessionMutation.mutateAsync(threadId)
+      },
+      onUnarchive: async (threadId) => {
+        await unarchiveSessionMutation.mutateAsync(threadId)
+      },
+      onDelete: async (threadId) => {
+        await deleteSessionMutation.mutateAsync(threadId)
       }
     }),
-    [onNewThread, currentThreadId]
+    [
+      onNewThread,
+      currentThreadId,
+      regularThreads,
+      archivedThreads,
+      renameSessionMutation,
+      archiveSessionMutation,
+      unarchiveSessionMutation,
+      deleteSessionMutation
+    ]
   )
 
   const voiceAdapter = useMemo(
@@ -348,7 +387,7 @@ export function AgUiChatProvider({
     adapters: { threadList, voice: voiceAdapter, attachments: attachmentAdapter }
   })
 
-  const aui = useAui({ tools: Tools({ toolkit: aigcToolkit }) })
+  const aui = useAui({ tools: Tools({ toolkit: { ...aigcToolkit, ...renderUiBlockToolkit } }) })
 
   // 初始线程恢复：currentThreadId 就绪后切换（含从 sessionStorage 恢复 + 新建 session）
   const switchedRef = useRef(false)

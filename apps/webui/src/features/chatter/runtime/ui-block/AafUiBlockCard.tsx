@@ -1,14 +1,12 @@
 /**
- * UiBlockPanel——AafUiBlock v1 展示面板（AAF-114 #11407）。
+ * AafUiBlock 渲染组件——INFO_CARD/CHOICE/FORM 三类卡片的纯展示实现。
  *
- * 渲染服务端投影的结构化卡片：
- * - INFO_CARD：只读展示，无交互。
- * - CHOICE / FORM：展示服务端 Clarification 的只读快照；本轮只做展示与本地未提交草稿
- *   （选中态/输入态），不接提交——提交闭环（typed value、`delegatedTaskApi.submitInput`
- *   幂等写入）属于 #11408 范围，此处不越界实现。
+ * AAF-114 官方模式改造：由 render_ui_block 工具的 tool-call 消息 part 触发渲染
+ * （见 render-ui-block-toolkit.tsx），不再依赖 AG-UI CUSTOM 事件旁路。
  *
- * 与 TaskBoardPanel 同级接入 ChatterPanel，不进入 assistant-ui 消息 content
- * （react-ag-ui 0.0.41 的 RunAggregator 不支持外部注入 part，见 design.md #11407 详细设计）。
+ * CHOICE / FORM 展示服务端 Clarification 的只读快照；本轮只做展示与本地未提交草稿
+ * （选中态/输入态），不接提交——提交闭环（typed value、`delegatedTaskApi.submitInput`
+ * 幂等写入）属于 #11408 范围，此处不越界实现。
  *
  * @author AaronZZH & Kiro
  */
@@ -27,12 +25,11 @@ import type {
   AafUiBlockChoiceOption,
   AafUiBlockFormField
 } from "@/features/chatter/runtime/ui-block/aaf-ui-block"
-import { useAgentRunStore } from "@/features/livechat/runtime/agent-run-store"
 import { cn } from "@/lib/utils"
 
-function InfoCard({ block }: { block: Extract<AafUiBlock, { type: "INFO_CARD" }> }) {
+export function InfoCard({ block }: { block: Extract<AafUiBlock, { type: "INFO_CARD" }> }) {
   return (
-    <div className="rounded-lg border bg-card p-3">
+    <div className="my-1 rounded-lg border bg-card p-3">
       <p className="font-medium text-sm">{block.title}</p>
       {block.description && (
         <p className="mt-0.5 text-muted-foreground text-xs">{block.description}</p>
@@ -52,7 +49,7 @@ function InfoCard({ block }: { block: Extract<AafUiBlock, { type: "INFO_CARD" }>
 }
 
 /** 本地未提交选中态——仅 UI 草稿，不代表服务端状态；#11408 接入提交后由服务端投影覆盖。 */
-function ChoiceCard({ block }: { block: Extract<AafUiBlock, { type: "CHOICE" }> }) {
+export function ChoiceCard({ block }: { block: Extract<AafUiBlock, { type: "CHOICE" }> }) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
   function toggle(option: AafUiBlockChoiceOption) {
@@ -68,7 +65,7 @@ function ChoiceCard({ block }: { block: Extract<AafUiBlock, { type: "CHOICE" }> 
   }
 
   return (
-    <div className="rounded-lg border bg-card p-3">
+    <div className="my-1 rounded-lg border bg-card p-3">
       <div className="flex items-center justify-between">
         <p className="font-medium text-sm">{block.title}</p>
         <Badge variant="outline">待确认</Badge>
@@ -150,11 +147,11 @@ function FormFieldInput({
   }
 }
 
-function FormCard({ block }: { block: Extract<AafUiBlock, { type: "FORM" }> }) {
+export function FormCard({ block }: { block: Extract<AafUiBlock, { type: "FORM" }> }) {
   const [draft, setDraft] = useState<Record<string, string>>({})
 
   return (
-    <div className="rounded-lg border bg-card p-3">
+    <div className="my-1 rounded-lg border bg-card p-3">
       <div className="flex items-center justify-between">
         <p className="font-medium text-sm">{block.title}</p>
         <Badge variant="outline">待确认</Badge>
@@ -181,24 +178,16 @@ function FormCard({ block }: { block: Extract<AafUiBlock, { type: "FORM" }> }) {
   )
 }
 
-export function UiBlockPanel() {
-  const uiBlocks = useAgentRunStore((s) => s.uiBlocks)
-  if (uiBlocks.length === 0) return null
-
-  return (
-    <div className="space-y-2 border-t px-3 py-2">
-      {uiBlocks.map((block) => {
-        switch (block.type) {
-          case "INFO_CARD":
-            return <InfoCard key={block.id} block={block} />
-          case "CHOICE":
-            return <ChoiceCard key={block.id} block={block} />
-          case "FORM":
-            return <FormCard key={block.id} block={block} />
-          default:
-            return null
-        }
-      })}
-    </div>
-  )
+/** 按 block.type 分发到对应渲染组件；未知类型返回 null（由调用方决定 fallback 展示）。 */
+export function AafUiBlockCard({ block }: { block: AafUiBlock }) {
+  switch (block.type) {
+    case "INFO_CARD":
+      return <InfoCard block={block} />
+    case "CHOICE":
+      return <ChoiceCard block={block} />
+    case "FORM":
+      return <FormCard block={block} />
+    default:
+      return null
+  }
 }

@@ -4,7 +4,6 @@
  * @author AaronZZH & Kiro
  */
 import { create } from "zustand"
-import type { AafUiBlock } from "./ui-block/aaf-ui-block"
 
 export type AgentRunPhase = "idle" | "running" | "finished" | "error"
 
@@ -64,12 +63,6 @@ interface AgentRunState {
   aigcTasks: AigcTaskCard[]
   subTaskActivities: Record<string, SubTaskActivity>
   selectedRole: SelectedRole | null
-  /**
-   * 服务端投影的结构化展示卡片（AAF-114 #11407）。
-   * 只读快照——CHOICE/FORM 的提交与状态变化由服务端下一次投影或历史重载驱动，
-   * 不在本 store 内直接翻转已提交卡片的状态。
-   */
-  uiBlocks: AafUiBlock[]
   startRun: () => void
   finishRun: () => void
   errorRun: (message?: string) => void
@@ -81,7 +74,6 @@ interface AgentRunState {
   updateAigcTask: (taskId: number, patch: Partial<AigcTaskCard>) => void
   upsertSubTaskActivity: (activity: SubTaskActivity) => void
   setSelectedRole: (role: SelectedRole) => void
-  pushUiBlock: (block: AafUiBlock) => void
 }
 
 const MAX_ENTRIES = 50
@@ -99,7 +91,6 @@ export const useAgentRunStore = create<AgentRunState>((set) => ({
   aigcTasks: [],
   subTaskActivities: {},
   selectedRole: null,
-  uiBlocks: [],
   startRun: () =>
     set({
       phase: "running",
@@ -137,10 +128,5 @@ export const useAgentRunStore = create<AgentRunState>((set) => ({
     set((s) => ({
       subTaskActivities: { ...s.subTaskActivities, [activity.subTaskId]: activity }
     })),
-  setSelectedRole: (role) => set({ selectedRole: role }),
-  pushUiBlock: (block) =>
-    set((s) => ({
-      // 按 id 去重覆盖：同一卡片重新投影（如 CHOICE 刷新选项）替换旧版本，不累加重复卡片。
-      uiBlocks: [...s.uiBlocks.filter((b) => b.id !== block.id), block]
-    }))
+  setSelectedRole: (role) => set({ selectedRole: role })
 }))
