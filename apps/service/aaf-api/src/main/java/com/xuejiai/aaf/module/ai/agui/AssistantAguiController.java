@@ -22,6 +22,8 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.HumanApproval;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HitlCoordinatorPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HumanApprovalPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskRecoveryDispatchPort;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
@@ -52,9 +54,11 @@ import io.agentscope.core.agui.encoder.AguiEventEncoder;
 import io.agentscope.core.agui.event.AguiEvent;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
+import lombok.extern.slf4j.Slf4j;
 import tools.jackson.databind.JsonNode;
 
 /** AG-UI 唯一入口；无固定 Assistant Bean、无 ThreadLocal、无 legacy fallback。 */
+@Slf4j
 @RestController
 @RequestMapping("/api/agui")
 @PreAuthorize("isAuthenticated()")
@@ -109,9 +113,13 @@ public class AssistantAguiController {
         var session = agUiProjector.openSession();
         var threadId = request.threadId();
         var runId = request.runId();
+        persistUserMessage(threadId, request.messages());
         stream.events()
                 .subscribe(
-                        event -> send(emitter, session.project(event), event.sequence()),
+                        event -> {
+                            persistAssistantMessageIfCompleted(threadId, event);
+                            send(emitter, session.project(event), event.sequence());
+                        },
                         failure -> {
                             // 事件流以异常终止时补 RUN_ERROR + RUN_FINISHED，保证 run 在协议上闭合
                             send(
@@ -327,6 +335,44 @@ public class AssistantAguiController {
                         : requireText(
                                 selection, "modelId", "forwardedProps.taskModelSelection.modelId");
         return new ModelSelection(mode, modelId);
+    }
+
+    /**
+     * 持久化本次 run 的用户消息（AAF-114 #11411）。
+     *
+     * <p>只在 {@code startRun}（新建 execution）调用；{@code resumeRun} 是审批恢复续跑，不是新用户输入，不重复持久化。
+     * 失败仅记录警告，不阻断执行——历史持久化是执行链路的旁路能力，不应影响核心对话可用性。
+     */
+    private void persistUserMessage(String threadId, List<RunMessage> messages) {
+        try {
+            var input = lastUserInput(messages);
+            if (!input.text().isBlank()) {
+                chatService.saveMessageByThreadId(threadId, null, "HUMAN", "user", input.text());
+            }
+        } catch (RuntimeException failure) {
+            log.warn("用户消息持久化失败 threadId={}: {}", threadId, failure.getMessage());
+        }
+    }
+
+    /**
+     * 收到 {@code MESSAGE_COMPLETED} 事件时持久化 AI 回复全文（AAF-114 #11411）。
+     *
+     * <p>只在整次回复结束时落库一次，不按 {@code MESSAGE_DELTA} 逐块写入；{@code text} 取自内部 payload，
+     * 与 {@link com.xuejiai.aaf.framework.intelligent.shared.event.publication.ExecutionEventPublicMapper}
+     * 脱敏后只暴露 {@code contentLength} 的公共视图是两条独立路径，互不影响。
+     */
+    private void persistAssistantMessageIfCompleted(String threadId, ExecutionEvent event) {
+        if (event.type() != ExecutionEventType.MESSAGE_COMPLETED) {
+            return;
+        }
+        try {
+            var text = event.payload().values().get("text");
+            if (text instanceof String content && !content.isBlank()) {
+                chatService.saveMessageByThreadId(threadId, null, "AI", "assistant", content);
+            }
+        } catch (RuntimeException failure) {
+            log.warn("AI 回复持久化失败 threadId={}: {}", threadId, failure.getMessage());
+        }
     }
 
     /**
