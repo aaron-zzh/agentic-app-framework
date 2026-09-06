@@ -24,6 +24,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
+  type AigcBlueprintSlotTemplate,
   type AigcBrandProfile,
   type AigcChannelCode,
   type AigcProductionMode,
@@ -32,12 +33,15 @@ import {
   type AigcProjectType,
   type AigcProjectTypeCode,
   useAigcBrandProfiles,
+  useAigcChannelSpecs,
   useAigcProjectBlueprints,
   useAigcProjectTypes,
   useMaterializeAigcProject
 } from "@/lib/api/rest/ai/aigc"
+import { useEntityAccess } from "@/lib/api/rest/user/permission"
 import { paths } from "@/lib/constants/paths"
 import { type UploadResult, useFileUpload } from "@/lib/hooks/use-file-upload"
+import { usePermissionGuard } from "@/lib/hooks/use-permission-guard"
 import { getChannelLabel, getProjectTypeConfig } from "./project-type-config"
 
 interface BrandProfileSelectProps {
@@ -236,6 +240,19 @@ function createCoverIdempotencyKey(): string {
   return `project-cover-${globalThis.crypto.randomUUID()}`
 }
 
+function resolvedSlotCount(
+  template: AigcBlueprintSlotTemplate,
+  productionMode: AigcProductionMode,
+  budgetTier: string,
+  qualityTier: string,
+  overrides: Record<string, number>
+): number {
+  const byProduction = template.countByProductionMode?.[productionMode]
+  const byBudget = template.countByBudgetTier?.[budgetTier]
+  const byQuality = template.countByQualityTier?.[qualityTier]
+  return overrides[template.templateKey] ?? byQuality ?? byBudget ?? byProduction ?? template.defaultCount
+}
+
 export interface NewProjectLauncherProps {
   mode?: "compact" | "full"
   className?: string
@@ -243,6 +260,8 @@ export interface NewProjectLauncherProps {
 
 export function NewProjectLauncher({ mode = "compact", className }: NewProjectLauncherProps) {
   const router = useRouter()
+  const { data: projectAccess } = useEntityAccess("project")
+  const { canCreate } = usePermissionGuard(projectAccess)
   const nameId = useId()
   const briefId = useId()
   const coverFileId = useId()
@@ -252,6 +271,9 @@ export function NewProjectLauncher({ mode = "compact", className }: NewProjectLa
   )
   const { data: typePage, isLoading: typesLoading } = useAigcProjectTypes()
   const { data: profilePage, isLoading: profilesLoading } = useAigcBrandProfiles()
+  const { data: channelPage, isLoading: channelsLoading } = useAigcChannelSpecs({
+    status: "published"
+  })
   const materialize = useMaterializeAigcProject()
   const {
     upload: uploadCover,
@@ -263,6 +285,10 @@ export function NewProjectLauncher({ mode = "compact", className }: NewProjectLa
   const [brandProfileId, setBrandProfileId] = useState<number>()
   const [projectTypeCode, setProjectTypeCode] = useState<AigcProjectTypeCode>()
   const [productionMode, setProductionMode] = useState<AigcProductionMode>("standard")
+  const [channelCodes, setChannelCodes] = useState<AigcChannelCode[]>([])
+  const [budgetTier, setBudgetTier] = useState("MEDIUM")
+  const [qualityTier, setQualityTier] = useState("STANDARD")
+  const [slotOverrides, setSlotOverrides] = useState<Record<string, number>>({})
   const [blueprintVersionId, setBlueprintVersionId] = useState<number>()
   const [brief, setBrief] = useState("")
   const [coverMode, setCoverMode] = useState<AigcProjectCoverMode>("NONE")
@@ -276,6 +302,7 @@ export function NewProjectLauncher({ mode = "compact", className }: NewProjectLa
   const profiles = (profilePage?.list ?? []).filter(
     (profile) => profile.currentVersionId !== undefined
   )
+  const channels = (channelPage?.list ?? []).filter((channel) => channel.status === "published")
   const selectedType = allTypes.find((type) => type.code === projectTypeCode)
   const { data: blueprintPage, isLoading: blueprintsLoading } = useAigcProjectBlueprints(
     {
@@ -291,17 +318,25 @@ export function NewProjectLauncher({ mode = "compact", className }: NewProjectLa
   )
   const selectedBlueprint =
     blueprints.find((blueprint) => blueprint.id === blueprintVersionId) ?? blueprints.at(0)
+  const slotTemplates = selectedBlueprint?.slotTemplateSpec?.slotTemplates ?? []
+  const resolvedSlots = slotTemplates.map((template) => ({
+    template,
+    count: resolvedSlotCount(template, productionMode, budgetTier, qualityTier, slotOverrides)
+  }))
 
   function handleTypeChange(code: AigcProjectTypeCode) {
     const type = allTypes.find((item) => item.code === code)
     setProjectTypeCode(code)
     setProductionMode(type?.defaultProductionMode ?? "standard")
+    setChannelCodes(type?.defaultChannels ?? [])
+    setSlotOverrides({})
     setBlueprintVersionId(undefined)
     if (!nameEdited && type) setName(`${type.name} · ${projectDate}`)
   }
 
   function handleProductionModeChange(value: AigcProductionMode) {
     setProductionMode(value)
+    setSlotOverrides({})
     setBlueprintVersionId(undefined)
   }
 
@@ -331,6 +366,7 @@ export function NewProjectLauncher({ mode = "compact", className }: NewProjectLa
   function handleCreate() {
     const trimmedName = name.trim()
     if (
+      !canCreate ||
       !trimmedName ||
       !selectedType ||
       !selectedBlueprint ||
@@ -349,7 +385,16 @@ export function NewProjectLauncher({ mode = "compact", className }: NewProjectLa
         brandProfileVersionIds: selectedProfile?.currentVersionId
           ? [selectedProfile.currentVersionId]
           : [],
+        channelSpecVersionIds: channels
+          .filter((channel) => channelCodes.includes(channel.code))
+          .map((channel) => channel.id),
         productionMode,
+        budgetTier,
+        qualityTier,
+        slotOverrides: Object.entries(slotOverrides).map(([templateKey, requestedCount]) => ({
+          templateKey,
+          requestedCount
+        })),
         coverMode,
         ...(coverMode === "UPLOAD" && coverUpload ? { coverFileId: coverUpload.fileId } : {}),
         ...(coverMode === "AI_GENERATE"
@@ -429,13 +474,101 @@ export function NewProjectLauncher({ mode = "compact", className }: NewProjectLa
               <ProjectBlueprintPicker
                 blueprints={blueprints}
                 value={selectedBlueprint?.id}
-                onChange={setBlueprintVersionId}
+                onChange={(value) => {
+                  setBlueprintVersionId(value)
+                  setSlotOverrides({})
+                }}
               />
             ) : (
               <p className="text-destructive text-sm">
                 当前项目类型和生产模式没有已发布蓝图，暂不能创建。
               </p>
             )}
+          </div>
+        ) : null}
+
+        {selectedBlueprint ? (
+          <div className="grid gap-5 rounded-xl border bg-muted/20 p-4 lg:grid-cols-2">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
+                <span className="font-medium text-sm">投放渠道</span>
+                {channelsLoading ? (
+                  <p className="text-muted-foreground text-sm">正在加载渠道…</p>
+                ) : (
+                  <ChannelPicker
+                    channels={channels.map((channel) => channel.code)}
+                    value={channelCodes}
+                    onChange={setChannelCodes}
+                  />
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <span className="font-medium text-sm">预算档</span>
+                <ToggleGroup
+                  value={[budgetTier]}
+                  onValueChange={(values: string[]) => values.at(-1) && setBudgetTier(values.at(-1) as string)}
+                  variant="outline"
+                  size="sm"
+                >
+                  <ToggleGroupItem value="LOW">精简</ToggleGroupItem>
+                  <ToggleGroupItem value="MEDIUM">均衡</ToggleGroupItem>
+                  <ToggleGroupItem value="HIGH">充足</ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+              <div className="flex flex-col gap-2">
+                <span className="font-medium text-sm">质量档</span>
+                <ToggleGroup
+                  value={[qualityTier]}
+                  onValueChange={(values: string[]) => values.at(-1) && setQualityTier(values.at(-1) as string)}
+                  variant="outline"
+                  size="sm"
+                >
+                  <ToggleGroupItem value="DRAFT">草案</ToggleGroupItem>
+                  <ToggleGroupItem value="STANDARD">标准</ToggleGroupItem>
+                  <ToggleGroupItem value="PREMIUM">精制</ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <div>
+                <p className="font-medium text-sm">动态交付预览</p>
+                <p className="text-muted-foreground text-xs">服务端将结合渠道硬约束再次解析并固化。</p>
+              </div>
+              {resolvedSlots.length === 0 ? (
+                <p className="rounded-lg border border-dashed p-3 text-muted-foreground text-sm">该蓝图没有可调整槽位。</p>
+              ) : (
+                resolvedSlots.map(({ template, count }) => (
+                  <div key={template.templateKey} className="flex items-center gap-3 rounded-lg border bg-background/60 p-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm">{template.displayNamePattern || template.templateKey}</p>
+                      <p className="text-muted-foreground text-xs">
+                        {template.objectType} · {template.defaultContractRole ?? "REQUIRED"} · {template.minCount}-{template.maxCount}
+                      </p>
+                    </div>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={template.maxCount}
+                      value={count}
+                      aria-label={`${template.displayNamePattern || template.templateKey}数量`}
+                      className="w-20"
+                      onChange={(event) => {
+                        const value = Number(event.target.value)
+                        if (!Number.isFinite(value)) return
+                        setSlotOverrides((current) => ({
+                          ...current,
+                          [template.templateKey]: Math.max(0, Math.min(template.maxCount, value))
+                        }))
+                      }}
+                    />
+                  </div>
+                ))
+              )}
+              <p className="text-muted-foreground text-xs">
+                预计物化 {resolvedSlots.reduce((total, item) => total + item.count, 0)} 个项目对象；每个对象拥有独立候选、采用与重试历史。
+              </p>
+            </div>
           </div>
         ) : null}
 
@@ -560,11 +693,13 @@ export function NewProjectLauncher({ mode = "compact", className }: NewProjectLa
           />
         </div>
 
+        {!canCreate ? <p className="text-amber-600 text-sm">当前账号没有创建项目的权限。</p> : null}
         <div className="flex justify-end">
           <GlowButton
             tone="violet"
             size="lg"
             disabled={
+              !canCreate ||
               !name.trim() ||
               !selectedType ||
               !selectedBlueprint ||

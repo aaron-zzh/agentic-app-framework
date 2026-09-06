@@ -5,7 +5,7 @@
 
 "use client"
 
-import { ArrowLeft, BookOpen, GitBranch, LayoutList, MessageSquare } from "lucide-react"
+import { ArrowLeft, BookOpen, GitBranch, LayoutList } from "lucide-react"
 import Link from "next/link"
 import type { ReactNode } from "react"
 import { NeonChip } from "@/components/studio"
@@ -25,8 +25,6 @@ export interface ProjectWorkbenchHeaderProps {
   onOpenDocuments: () => void
   documentsOpen: boolean
   documentCount: number
-  onToggleChat: () => void
-  chatOpen: boolean
 }
 
 export function ProjectWorkbenchHeader({
@@ -36,9 +34,7 @@ export function ProjectWorkbenchHeader({
   onViewChange,
   onOpenDocuments,
   documentsOpen,
-  documentCount,
-  onToggleChat,
-  chatOpen
+  documentCount
 }: ProjectWorkbenchHeaderProps) {
   const type = getProjectTypeConfig({ code: project.projectTypeCode, name: "" })
   const status = PROJECT_STATUS_CONFIG[project.status]
@@ -99,16 +95,6 @@ export function ProjectWorkbenchHeader({
         >
           <BookOpen />
           文档{documentCount > 0 ? ` (${documentCount})` : ""}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          aria-label="打开项目对话"
-          className={cn(chatOpen && "border-primary/40 bg-primary/10 text-primary")}
-          onClick={onToggleChat}
-        >
-          <MessageSquare />
-          对话
         </Button>
       </div>
     </header>

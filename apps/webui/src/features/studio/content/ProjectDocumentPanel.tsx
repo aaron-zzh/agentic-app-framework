@@ -10,7 +10,7 @@ import { useEffect, useId, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -91,6 +91,7 @@ export function ProjectDocumentPanel({
   }, [open, references, selectedDocumentId])
 
   function handleAttach() {
+    if (readOnly) return
     const documentId = Number(documentToAttach)
     if (!Number.isFinite(documentId) || documentId <= 0) return
     attachDocument.mutate(
@@ -113,7 +114,7 @@ export function ProjectDocumentPanel({
   }
 
   function handleDetach() {
-    if (!referenceToDetach) return
+    if (readOnly || !referenceToDetach) return
     const detachedDocumentId = referenceToDetach.documentVersionId
     detachDocument.mutate(
       {
@@ -135,6 +136,7 @@ export function ProjectDocumentPanel({
 
   function handleCreateDocument(e: React.FormEvent) {
     e.preventDefault()
+    if (readOnly) return
     const title = newDocTitle.trim()
     if (!title) return
     createDocument.mutate(
@@ -326,6 +328,7 @@ export function ProjectDocumentPanel({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>新建文档</DialogTitle>
+            <DialogDescription>创建后将自动关联到当前项目。</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateDocument} className="space-y-4">
             <div className="space-y-2">

@@ -41,9 +41,10 @@ const CONTENT_CONFIRMATION_REQUIRED = 8_000_022
 export interface ContentActionBarProps {
   project: AigcProject
   focusedObject?: AigcProjectObject
+  canAction: boolean
 }
 
-export function ContentActionBar({ project, focusedObject }: ContentActionBarProps) {
+export function ContentActionBar({ project, focusedObject, canAction }: ContentActionBarProps) {
   const promptId = useId()
   const context = useBoolean(true)
   const confirmation = useBoolean(false)
@@ -51,7 +52,7 @@ export function ContentActionBar({ project, focusedObject }: ContentActionBarPro
   const [selectedActionKey, setSelectedActionKey] = useState("")
   const [selectedSnippetIds, setSelectedSnippetIds] = useState<number[]>([])
   const [attachmentMediaVersionIds, setAttachmentMediaVersionIds] = useState<number[]>([])
-  const { data: actions = [], isLoading: actionsLoading } = useAigcProjectActions(project.id)
+  const { data: actions = [], isLoading: actionsLoading } = useAigcProjectActions(canAction ? project.id : null)
   const { data: mediaPage, isLoading: mediaLoading } = useMediaList({
     pageNo: 1,
     pageSize: 20
@@ -62,7 +63,7 @@ export function ContentActionBar({ project, focusedObject }: ContentActionBarPro
   const runAction = useRunAigcAction()
   const snippets = snippetPage?.list ?? []
   const media = mediaPage?.list ?? []
-  const writable = project.status === "draft" || project.status === "in_progress"
+  const writable = canAction
   const availableActions = focusedObject
     ? actions.filter(
         (action) =>
@@ -108,6 +109,7 @@ export function ContentActionBar({ project, focusedObject }: ContentActionBarPro
           objectId: focusedObject?.id,
           prompt: prompt.trim() || undefined,
           attachmentMediaVersionIds,
+          expectedGraphRevision: project.graphRevision,
           confirmed,
           idempotencyKey: crypto.randomUUID()
         }
@@ -166,7 +168,7 @@ export function ContentActionBar({ project, focusedObject }: ContentActionBarPro
             onChange={(event) => setPrompt(event.target.value)}
             placeholder={
               focusedObject
-                ? `描述要如何生成或修改「${focusedObject.title || focusedObject.objectKey}」…`
+                ? `描述要如何生成或修改「${focusedObject.title || focusedObject.stableKey}」…`
                 : "先聚焦一个对象，或描述要推进的项目级动作…"
             }
             className="min-h-20 resize-y border-0 bg-transparent shadow-none focus-visible:ring-0"

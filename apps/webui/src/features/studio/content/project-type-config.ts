@@ -139,13 +139,26 @@ export function getChannelLabel(channel: AigcChannelCode): string {
 
 export const PROJECT_STATUS_CONFIG: Record<AigcProjectStatus, { label: string; tone: StudioTone }> =
   {
-    draft: { label: "草稿", tone: "neutral" },
-    in_progress: { label: "进行中", tone: "cyan" },
-    reviewing: { label: "审核中", tone: "amber" },
-    delivering: { label: "交付中", tone: "violet" },
-    completed: { label: "已完成", tone: "emerald" },
-    archived: { label: "已归档", tone: "neutral" }
+    CONFIGURING: { label: "配置中", tone: "neutral" },
+    MATERIALIZED: { label: "已物化", tone: "cyan" },
+    CREATING: { label: "创作中", tone: "cyan" },
+    EXECUTING: { label: "生成中", tone: "violet" },
+    ADOPTING: { label: "待采用", tone: "amber" },
+    REVIEWING: { label: "审核中", tone: "amber" },
+    DELIVERING: { label: "交付中", tone: "violet" },
+    COMPLETED: { label: "已完成", tone: "emerald" },
+    ARCHIVED: { label: "已归档", tone: "neutral" }
   }
+
+export const PROJECT_CREATION_STAGES: readonly AigcProjectStatus[] = [
+  "CREATING",
+  "EXECUTING",
+  "ADOPTING"
+]
+
+export function isProjectContentWritable(status: AigcProjectStatus): boolean {
+  return PROJECT_CREATION_STAGES.includes(status)
+}
 
 export function getProjectTypeConfig(
   type: Pick<AigcProjectType, "code" | "name" | "briefPlaceholder">

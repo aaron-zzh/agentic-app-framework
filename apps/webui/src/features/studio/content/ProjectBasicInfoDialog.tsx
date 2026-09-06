@@ -35,6 +35,7 @@ import { getProjectTypeConfig } from "./project-type-config"
 interface ProjectBasicInfoDialogProps {
   open: boolean
   project: AigcProject
+  readOnly: boolean
   onOpenChange: (open: boolean) => void
 }
 
@@ -69,6 +70,7 @@ function coverStatusVariant(
 export function ProjectBasicInfoDialog({
   open,
   project,
+  readOnly,
   onOpenChange
 }: ProjectBasicInfoDialogProps) {
   const nameId = useId()
@@ -92,7 +94,7 @@ export function ProjectBasicInfoDialog({
   const [coverPrompt, setCoverPrompt] = useState("")
   const [coverIdempotencyKey, setCoverIdempotencyKey] = useState(createCoverIdempotencyKey)
   const [coverError, setCoverError] = useState<string | null>(null)
-  const archived = project.status === "archived"
+  const archived = readOnly
   const projectTypeLabel = getProjectTypeConfig({ code: project.projectTypeCode, name: "" }).label
 
   useEffect(() => {
@@ -187,7 +189,7 @@ export function ProjectBasicInfoDialog({
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
           <DialogHeader className="shrink-0 border-b px-5 py-4 pr-12">
             <DialogTitle>项目基础信息</DialogTitle>
-            <DialogDescription>编辑展示信息与项目封面。已归档项目仅支持查看。</DialogDescription>
+            <DialogDescription>编辑展示信息与项目封面；审核、交付、完成和归档阶段仅支持查看。</DialogDescription>
           </DialogHeader>
 
           <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-5">

@@ -15,7 +15,15 @@ import {
   ReactFlow,
   type Viewport
 } from "@xyflow/react"
-import { ChevronDown, ChevronRight, Eye, Layers3, PanelTopOpen, ScanLine } from "lucide-react"
+import {
+  ChevronDown,
+  ChevronRight,
+  Eye,
+  Layers3,
+  PanelTopOpen,
+  ScanLine,
+  Sparkles
+} from "lucide-react"
 import { createContext, memo, useContext, useMemo } from "react"
 import "@xyflow/react/dist/style.css"
 import { GlassCard } from "@/components/studio"
@@ -49,10 +57,15 @@ const STATUS_VARIANT = {
 } as const
 
 interface GraphNodeActions {
+  projectId: number
   readOnly: boolean
-  onOpenDetails: (id: number) => void
-  onOpenCanvas: (id: number) => void
-  onAnnotateImage: (id: number) => void
+  selectionMode: boolean
+  selectableObjectIds: ReadonlySet<number>
+  generatableObjectIds: ReadonlySet<number>
+  onOpenDetails?: (id: number) => void
+  onOpenCanvas?: (id: number) => void
+  onAnnotateImage?: (id: number) => void
+  onGenerateObject?: (id: number) => void
 }
 
 const GraphNodeActionsContext = createContext<GraphNodeActions | null>(null)
@@ -65,11 +78,16 @@ function ObjectTypeIcon({ type }: { type: NonNullable<ContentGraphNodeData["obje
 function ContentDomainNodeComponent({ data, selected }: NodeProps) {
   const node = data as ContentGraphNodeData
   const actions = useContext(GraphNodeActionsContext)
-  const toggleCollapsedGroup = useProjectGraphViewState((state) => state.toggleCollapsedGroup)
+  const toggleCollapsedGroup = useProjectGraphViewState(
+    actions?.projectId ?? 0,
+    (state) => state.toggleCollapsedGroup
+  )
   const isGroup = node.kind === "group"
   const objectId = node.objectId
   const canOpenCanvas = node.objectType === "canvas_board"
   const canAnnotate = node.objectType === "image_deliverable" || node.objectType === "shot_keyframe"
+  const selectable =
+    objectId !== undefined && (!actions?.selectionMode || actions.selectableObjectIds.has(objectId))
 
   return (
     <GlassCard
@@ -77,7 +95,9 @@ function ContentDomainNodeComponent({ data, selected }: NodeProps) {
       className={cn(
         "w-56 border border-border/60 transition-shadow",
         isGroup && "w-60",
-        selected && "ring-2 ring-primary"
+        selected && "ring-2 ring-primary",
+        actions?.selectionMode && selectable && "cursor-pointer hover:ring-2 hover:ring-primary/50",
+        actions?.selectionMode && !selectable && "opacity-45"
       )}
     >
       <Handle type="target" position={Position.Left} className="!size-2 !bg-muted-foreground" />
@@ -92,7 +112,7 @@ function ContentDomainNodeComponent({ data, selected }: NodeProps) {
               <p className="truncate text-muted-foreground text-xs">{node.description}</p>
             ) : null}
           </div>
-          {isGroup ? (
+          {isGroup && !actions?.selectionMode ? (
             <Button
               type="button"
               variant="ghost"
@@ -119,7 +139,7 @@ function ContentDomainNodeComponent({ data, selected }: NodeProps) {
             {node.summary}
           </p>
         )}
-        {!isGroup && objectId !== undefined ? (
+        {!isGroup && objectId !== undefined && !actions?.selectionMode ? (
           <div className="nodrag flex gap-1">
             <Button
               type="button"
@@ -128,11 +148,25 @@ function ContentDomainNodeComponent({ data, selected }: NodeProps) {
               className="flex-1"
               onClick={(event) => {
                 event.stopPropagation()
-                actions?.onOpenDetails(objectId)
+                actions?.onOpenDetails?.(objectId)
               }}
             >
               <Eye />
               详情
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="xs"
+              className="flex-1"
+              disabled={actions?.readOnly || !actions?.generatableObjectIds.has(objectId)}
+              onClick={(event) => {
+                event.stopPropagation()
+                actions?.onGenerateObject?.(objectId)
+              }}
+            >
+              <Sparkles />
+              生成
             </Button>
             {canOpenCanvas || canAnnotate ? (
               <Button
@@ -143,8 +177,8 @@ function ContentDomainNodeComponent({ data, selected }: NodeProps) {
                 disabled={actions?.readOnly}
                 onClick={(event) => {
                   event.stopPropagation()
-                  if (canOpenCanvas) actions?.onOpenCanvas(objectId)
-                  else actions?.onAnnotateImage(objectId)
+                  if (canOpenCanvas) actions?.onOpenCanvas?.(objectId)
+                  else actions?.onAnnotateImage?.(objectId)
                 }}
               >
                 {canOpenCanvas ? <PanelTopOpen /> : <ScanLine />}
@@ -155,7 +189,9 @@ function ContentDomainNodeComponent({ data, selected }: NodeProps) {
         ) : null}
         {node.zoomTier === "detail" && !isGroup ? (
           <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-            <span>点击聚焦</span>
+            <span>
+              {actions?.selectionMode ? (selectable ? "点击选择" : "无可用图片") : "点击聚焦"}
+            </span>
             <span>#{node.objectId}</span>
           </div>
         ) : null}
@@ -169,13 +205,19 @@ const ContentDomainNode = memo(ContentDomainNodeComponent)
 const NODE_TYPES = { contentDomain: ContentDomainNode }
 
 export interface ProjectGraphViewProps {
+  projectId?: number
   graph: AigcProjectGraph
   focusObjectId?: number
   readOnly?: boolean
-  onFocusObject: (id: number) => void
-  onOpenDetails: (id: number) => void
-  onOpenCanvas: (id: number) => void
-  onAnnotateImage: (id: number) => void
+  selectionMode?: boolean
+  selectableObjectIds?: number[]
+  generatableObjectIds?: number[]
+  onFocusObject?: (id: number) => void
+  onSelectObject?: (id: number) => void
+  onOpenDetails?: (id: number) => void
+  onOpenCanvas?: (id: number) => void
+  onAnnotateImage?: (id: number) => void
+  onGenerateObject?: (id: number) => void
 }
 
 function tierForZoom(zoom: number) {
@@ -185,34 +227,66 @@ function tierForZoom(zoom: number) {
 }
 
 export function ProjectGraphView({
+  projectId: requestedProjectId,
   graph,
   focusObjectId,
   readOnly = false,
+  selectionMode = false,
+  selectableObjectIds = [],
+  generatableObjectIds = [],
   onFocusObject,
+  onSelectObject,
   onOpenDetails,
   onOpenCanvas,
-  onAnnotateImage
+  onAnnotateImage,
+  onGenerateObject
 }: ProjectGraphViewProps) {
-  const viewport = useProjectGraphViewState((state) => state.viewport)
-  const collapsedGroups = useProjectGraphViewState((state) => state.collapsedGroups)
-  const activeLayers = useProjectGraphViewState((state) => state.activeLayers)
-  const zoomTier = useProjectGraphViewState((state) => state.zoomTier)
-  const setViewport = useProjectGraphViewState((state) => state.setViewport)
-  const setZoomTier = useProjectGraphViewState((state) => state.setZoomTier)
-  const toggleLayer = useProjectGraphViewState((state) => state.toggleLayer)
+  const projectId = requestedProjectId ?? graph.project.id
+  const viewport = useProjectGraphViewState(projectId, (state) => state.viewport)
+  const collapsedGroups = useProjectGraphViewState(projectId, (state) => state.collapsedGroups)
+  const activeLayers = useProjectGraphViewState(projectId, (state) => state.activeLayers)
+  const zoomTier = useProjectGraphViewState(projectId, (state) => state.zoomTier)
+  const setViewport = useProjectGraphViewState(projectId, (state) => state.setViewport)
+  const setZoomTier = useProjectGraphViewState(projectId, (state) => state.setZoomTier)
+  const toggleLayer = useProjectGraphViewState(projectId, (state) => state.toggleLayer)
   const projection = useMemo(
     () =>
       toGraphProjection(graph, {
-        collapsedGroups,
-        activeLayers,
-        focusObjectId,
-        zoomTier
+        collapsedGroups: selectionMode ? [] : collapsedGroups,
+        activeLayers: selectionMode ? LAYER_OPTIONS.map((option) => option.value) : activeLayers,
+        focusObjectId: selectionMode ? undefined : focusObjectId,
+        zoomTier: selectionMode ? "detail" : zoomTier
       }),
-    [graph, collapsedGroups, activeLayers, focusObjectId, zoomTier]
+    [graph, collapsedGroups, activeLayers, focusObjectId, selectionMode, zoomTier]
+  )
+  const selectableObjectIdSet = useMemo(() => new Set(selectableObjectIds), [selectableObjectIds])
+  const generatableObjectIdSet = useMemo(
+    () => new Set(generatableObjectIds),
+    [generatableObjectIds]
   )
   const nodeActions = useMemo(
-    () => ({ readOnly, onOpenDetails, onOpenCanvas, onAnnotateImage }),
-    [readOnly, onOpenDetails, onOpenCanvas, onAnnotateImage]
+    () => ({
+      projectId,
+      readOnly,
+      selectionMode,
+      selectableObjectIds: selectableObjectIdSet,
+      generatableObjectIds: generatableObjectIdSet,
+      onOpenDetails,
+      onOpenCanvas,
+      onAnnotateImage,
+      onGenerateObject
+    }),
+    [
+      projectId,
+      readOnly,
+      selectionMode,
+      selectableObjectIdSet,
+      generatableObjectIdSet,
+      onOpenDetails,
+      onOpenCanvas,
+      onAnnotateImage,
+      onGenerateObject
+    ]
   )
 
   function handleMoveEnd(_event: MouseEvent | TouchEvent | null, nextViewport: Viewport) {
@@ -223,45 +297,52 @@ export function ProjectGraphView({
   return (
     <GraphNodeActionsContext.Provider value={nodeActions}>
       <div className="relative h-full min-h-[520px] overflow-hidden rounded-2xl border bg-background/40">
-        <div className="absolute top-3 left-3 z-10 flex flex-wrap items-center gap-2 rounded-xl border bg-background/90 p-2 shadow-sm backdrop-blur">
-          <Layers3 className="size-4 text-muted-foreground" />
-          <ToggleGroup
-            value={activeLayers}
-            onValueChange={(values: string[]) => {
-              for (const option of LAYER_OPTIONS) {
-                if (values.includes(option.value) !== activeLayers.includes(option.value)) {
-                  toggleLayer(option.value)
+        {!selectionMode ? (
+          <div className="absolute top-3 left-3 z-10 flex flex-wrap items-center gap-2 rounded-xl border bg-background/90 p-2 shadow-sm backdrop-blur">
+            <Layers3 className="size-4 text-muted-foreground" />
+            <ToggleGroup
+              value={activeLayers}
+              onValueChange={(values: string[]) => {
+                for (const option of LAYER_OPTIONS) {
+                  if (values.includes(option.value) !== activeLayers.includes(option.value)) {
+                    toggleLayer(option.value)
+                  }
                 }
-              }
-            }}
-            variant="outline"
-            size="sm"
-            spacing={0}
-          >
-            {LAYER_OPTIONS.map((layer) => (
-              <ToggleGroupItem
-                key={layer.value}
-                value={layer.value}
-                aria-label={`${layer.label}图层`}
-              >
-                {layer.label}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-          <Badge variant="secondary">
-            {zoomTier === "global" ? "全局" : zoomTier === "overview" ? "概览" : "详情"}
-          </Badge>
-        </div>
+              }}
+              variant="outline"
+              size="sm"
+              spacing={0}
+            >
+              {LAYER_OPTIONS.map((layer) => (
+                <ToggleGroupItem
+                  key={layer.value}
+                  value={layer.value}
+                  aria-label={`${layer.label}图层`}
+                >
+                  {layer.label}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+            <Badge variant="secondary">
+              {zoomTier === "global" ? "全局" : zoomTier === "overview" ? "概览" : "详情"}
+            </Badge>
+          </div>
+        ) : null}
 
         <ReactFlow
           nodes={projection.nodes}
           edges={projection.edges}
           nodeTypes={NODE_TYPES}
-          defaultViewport={viewport}
-          onMoveEnd={handleMoveEnd}
+          viewport={viewport}
+          onMove={selectionMode ? undefined : handleMoveEnd}
           onNodeClick={(_event, node) => {
             const objectId = (node.data as ContentGraphNodeData).objectId
-            if (objectId !== undefined) onFocusObject(objectId)
+            if (objectId === undefined) return
+            if (selectionMode) {
+              if (selectableObjectIdSet.has(objectId)) onSelectObject?.(objectId)
+              return
+            }
+            onFocusObject?.(objectId)
           }}
           nodesDraggable={false}
           nodesConnectable={false}

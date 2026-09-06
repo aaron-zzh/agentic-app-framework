@@ -5,7 +5,7 @@
 
 "use client"
 
-import { AlertTriangle, ArrowRight, CheckCircle2, CircleDashed, Eye } from "lucide-react"
+import { AlertTriangle, ArrowRight, CheckCircle2, CircleDashed, Eye, FilePenLine, Plus, Sparkles, Trash2 } from "lucide-react"
 import { GlassCard, GlassCardBody, NeonChip } from "@/components/studio"
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
@@ -18,7 +18,7 @@ import {
   TableRow
 } from "@/components/ui/table"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import type { AigcObjectType, AigcProjectGraph } from "@/lib/api/rest/ai/aigc"
+import type { AigcObjectType, AigcProjectGraph, AigcProjectObject } from "@/lib/api/rest/ai/aigc"
 import {
   getObjectStage,
   OBJECT_STATUS_LABELS,
@@ -47,8 +47,13 @@ export interface ProjectStructureViewProps {
   activeStage: ProjectGraphStage
   focusObjectId?: number
   readOnly?: boolean
+  generatableObjectIds?: number[]
   onStageChange: (stage: ProjectGraphStage) => void
+  onAppendObject: () => void
+  onUpdateContract: (object: AigcProjectObject) => void
+  onRemoveObject: (object: AigcProjectObject) => void
   onOpenDetails: (id: number) => void
+  onGenerateObject: (id: number) => void
   onOpenCanvas: (id: number) => void
   onAnnotateImage: (id: number) => void
 }
@@ -58,11 +63,17 @@ export function ProjectStructureView({
   activeStage,
   focusObjectId,
   readOnly = false,
+  generatableObjectIds = [],
   onStageChange,
+  onAppendObject,
+  onUpdateContract,
+  onRemoveObject,
   onOpenDetails,
+  onGenerateObject,
   onOpenCanvas,
   onAnnotateImage
 }: ProjectStructureViewProps) {
+  const generatableObjectIdSet = new Set(generatableObjectIds)
   const stageObjects = graph.objects
     .filter((object) => getObjectStage(object) === activeStage)
     .toSorted((left, right) => left.sortOrder - right.sortOrder || left.id - right.id)
@@ -134,6 +145,7 @@ export function ProjectStructureView({
             <NeonChip tone="amber">{pendingCount} 待确认</NeonChip>
             <NeonChip tone="rose">{blockedCount} 阻断</NeonChip>
             <NeonChip tone="cyan">{gapCount} 缺口</NeonChip>
+            {!readOnly ? <Button type="button" size="sm" onClick={onAppendObject}><Plus />追加对象</Button> : null}
           </div>
         </div>
 
@@ -173,7 +185,7 @@ export function ProjectStructureView({
                     <TableHead>对象</TableHead>
                     <TableHead>状态</TableHead>
                     <TableHead className="hidden md:table-cell">摘要</TableHead>
-                    <TableHead className="w-48 text-right">操作</TableHead>
+                    <TableHead className="w-64 text-right">操作</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -186,7 +198,7 @@ export function ProjectStructureView({
                         <p className="font-medium text-sm">
                           {object.title || OBJECT_TYPE_LABELS[object.objectType]}
                         </p>
-                        <p className="text-muted-foreground text-xs">#{object.objectKey}</p>
+                        <p className="text-muted-foreground text-xs">#{object.stableKey}</p>
                       </TableCell>
                       <TableCell>
                         <NeonChip tone={OBJECT_STATUS_TONE[object.status]} size="sm">
@@ -198,6 +210,16 @@ export function ProjectStructureView({
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
+                          {!readOnly ? (
+                            <>
+                              <Button type="button" variant="ghost" size="sm" onClick={() => onUpdateContract(object)}>
+                                <FilePenLine />合同
+                              </Button>
+                              <Button type="button" variant="ghost" size="sm" onClick={() => onRemoveObject(object)}>
+                                <Trash2 />移除
+                              </Button>
+                            </>
+                          ) : null}
                           <Button
                             variant="ghost"
                             size="sm"
@@ -205,6 +227,15 @@ export function ProjectStructureView({
                           >
                             <Eye />
                             详情
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={readOnly || !generatableObjectIdSet.has(object.id)}
+                            onClick={() => onGenerateObject(object.id)}
+                          >
+                            <Sparkles />
+                            生成
                           </Button>
                           {object.objectType === "canvas_board" ? (
                             <Button
