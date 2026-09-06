@@ -23,8 +23,7 @@ public class AigcBoundTaskEvidenceAdapter implements AigcBoundTaskEvidencePort {
     private final AigcExecutionSubmissionRepository submissionRepository;
 
     @Override
-    public BoundEvidence requireBound(
-            Long executionRunId, Long projectId, Long projectObjectId) {
+    public BoundEvidence requireBound(Long executionRunId, Long projectId, Long projectObjectId) {
         var run =
                 runRepository
                         .findById(executionRunId)
@@ -43,11 +42,11 @@ public class AigcBoundTaskEvidenceAdapter implements AigcBoundTaskEvidencePort {
                 || !Objects.equals(run.getProjectId(), projectId)
                 || !Objects.equals(run.getObjectId(), projectObjectId)
                 || !Objects.equals(submission.getProjectId(), projectId)
-                || !Objects.equals(
-                        submission.getRootExecutionRunId(), run.getRootExecutionRunId())
+                || !Objects.equals(submission.getRootExecutionRunId(), run.getRootExecutionRunId())
                 || !Objects.equals(
                         submission.getReservationId(), run.getExecutionReservationId())) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "项目 Task 缺少 BOUND execution 证据");
+            throw new BusinessException(
+                    GlobalErrorCode.BAD_REQUEST, "项目 Task 缺少 BOUND execution 证据");
         }
         return new BoundEvidence(
                 run.getOwnerId(),

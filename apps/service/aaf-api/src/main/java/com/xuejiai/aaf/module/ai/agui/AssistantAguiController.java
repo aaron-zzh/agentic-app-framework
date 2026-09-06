@@ -374,7 +374,7 @@ public class AssistantAguiController {
             return new UserInput("", List.of());
         }
         if (content.isString()) {
-            return new UserInput(content.textValue(), List.of());
+            return new UserInput(content.asString(), List.of());
         }
         if (!content.isArray()) {
             return new UserInput("", List.of());
@@ -391,7 +391,7 @@ public class AssistantAguiController {
                 if (!text.isEmpty()) {
                     text.append('\n');
                 }
-                text.append(partText.textValue());
+                text.append(partText.asString());
                 continue;
             }
             if (!"image".equals(type)) {
@@ -403,7 +403,8 @@ public class AssistantAguiController {
             }
             requireText(source, "value", "messages[].content[].source.value");
             var metadata = requireObject(part.get("metadata"), "messages[].content[].metadata");
-            var fileKey = requireText(metadata, "filename", "messages[].content[].metadata.filename");
+            var fileKey =
+                    requireText(metadata, "filename", "messages[].content[].metadata.filename");
             attachments.add(new Attachment(AttachmentType.IMAGE, fileKey, null, fileKey));
         }
         return new UserInput(text.toString(), List.copyOf(attachments));
@@ -422,10 +423,10 @@ public class AssistantAguiController {
 
     private static String requireText(JsonNode object, String field, String path) {
         var value = object.get(field);
-        if (value == null || !value.isString() || value.textValue().isBlank()) {
+        if (value == null || !value.isString() || value.asString().isBlank()) {
             throw new IllegalArgumentException(path + " 不能为空白");
         }
-        return value.textValue().trim();
+        return value.asString().trim();
     }
 
     private static String requireText(String value, String field) {

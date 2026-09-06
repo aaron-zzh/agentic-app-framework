@@ -84,8 +84,7 @@ class AigcExecutionTerminalServiceTest extends BaseMockitoUnitTest {
                 .releaseExecution(any(AigcProjectExecutionReservationReleaseCommand.class));
     }
 
-    private AigcExecutionRun run(
-            Long id, AigcExecutionRunStatus status, String runKind) {
+    private AigcExecutionRun run(Long id, AigcExecutionRunStatus status, String runKind) {
         var run = new AigcExecutionRun();
         run.setId(id);
         run.setRootExecutionRunId(1L);

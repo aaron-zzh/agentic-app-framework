@@ -31,15 +31,20 @@ public class AigcWorkCompletionEvidenceAdapter implements CompletionEvidencePort
         }
         var workIds = activeWorks.stream().map(work -> work.getId()).toList();
         var publications = publicationRepository.findByWorkIdIn(workIds);
-        var activeCount = publications.stream()
-                .filter(publication -> ACTIVE_PUBLICATION_STATUSES.contains(publication.getStatus()))
-                .count();
-        var succeededChannels = publications.stream()
-                .filter(publication -> "SUCCEEDED".equals(publication.getStatus()))
-                .map(publication -> publication.getChannelSpecVersionId())
-                .distinct()
-                .sorted()
-                .toList();
+        var activeCount =
+                publications.stream()
+                        .filter(
+                                publication ->
+                                        ACTIVE_PUBLICATION_STATUSES.contains(
+                                                publication.getStatus()))
+                        .count();
+        var succeededChannels =
+                publications.stream()
+                        .filter(publication -> "SUCCEEDED".equals(publication.getStatus()))
+                        .map(publication -> publication.getChannelSpecVersionId())
+                        .distinct()
+                        .sorted()
+                        .toList();
         return new CompletionEvidence(
                 activeWorks.size(), publications.size(), activeCount, succeededChannels);
     }

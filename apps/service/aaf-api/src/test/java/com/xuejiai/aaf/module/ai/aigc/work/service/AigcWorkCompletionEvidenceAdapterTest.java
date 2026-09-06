@@ -31,8 +31,7 @@ class AigcWorkCompletionEvidenceAdapterTest extends BaseMockitoUnitTest {
         var pending = publication(21L, "PENDING", 101L);
         var succeeded = publication(22L, "SUCCEEDED", 102L);
         var duplicateChannel = publication(23L, "SUCCEEDED", 102L);
-        when(workRepository.findByProjectIdAndStatusNot(7L, "ARCHIVED"))
-                .thenReturn(List.of(work));
+        when(workRepository.findByProjectIdAndStatusNot(7L, "ARCHIVED")).thenReturn(List.of(work));
         when(publicationRepository.findByWorkIdIn(List.of(11L)))
                 .thenReturn(List.of(pending, succeeded, duplicateChannel));
 

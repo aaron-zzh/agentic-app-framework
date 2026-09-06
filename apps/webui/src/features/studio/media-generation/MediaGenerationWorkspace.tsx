@@ -36,7 +36,7 @@ import {
   TASK_TYPE_BY_MODE
 } from "@/features/studio/media-generation/types"
 import { useSlotStore } from "@/features/studio/slots/store"
-import { type AigcTaskEvent } from "@/lib/api/rest/ai/aigc-task"
+import type { AigcTaskEvent } from "@/lib/api/rest/ai/aigc-task"
 import { request } from "@/lib/api/rest/entity"
 import type { PageResult } from "@/lib/api/types"
 

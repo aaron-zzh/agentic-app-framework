@@ -6,7 +6,13 @@
 "use client"
 
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { AigcObjectVersionComparisonItem } from "@/lib/api/rest/ai/aigc"
 import { useAigcVersionComparison } from "@/lib/api/rest/ai/aigc"
@@ -23,10 +29,14 @@ function CandidatePane({ item }: { item: AigcObjectVersionComparisonItem }) {
         <Badge variant={item.status === "adopted" ? "default" : "outline"}>{item.status}</Badge>
       </div>
       {typeof textValue === "string" && textValue.trim() ? (
-        <div className="max-h-56 overflow-auto whitespace-pre-wrap rounded-lg border bg-muted/30 p-3 text-sm">{textValue}</div>
+        <div className="max-h-56 overflow-auto whitespace-pre-wrap rounded-lg border bg-muted/30 p-3 text-sm">
+          {textValue}
+        </div>
       ) : null}
       {Object.keys(item.content).length > 0 ? (
-        <pre className="max-h-64 overflow-auto rounded-lg border bg-muted/30 p-3 text-xs">{JSON.stringify(item.content, null, 2)}</pre>
+        <pre className="max-h-64 overflow-auto rounded-lg border bg-muted/30 p-3 text-xs">
+          {JSON.stringify(item.content, null, 2)}
+        </pre>
       ) : null}
       {mediaQueries.length > 0 ? (
         <div className="grid gap-2 sm:grid-cols-2">
@@ -34,14 +44,30 @@ function CandidatePane({ item }: { item: AigcObjectVersionComparisonItem }) {
             const media = query.data
             const mediaVersionId = item.mediaVersionIds[index]
             if (query.isLoading) return <Skeleton key={mediaVersionId} className="aspect-video" />
-            if (!media) return <p key={mediaVersionId} className="text-destructive text-xs">MediaVersion #{mediaVersionId} 加载失败</p>
+            if (!media)
+              return (
+                <p key={mediaVersionId} className="text-destructive text-xs">
+                  MediaVersion #{mediaVersionId} 加载失败
+                </p>
+              )
             return (
               <div key={mediaVersionId} className="overflow-hidden rounded-lg border bg-black/20">
                 {media.mediaType === "VIDEO" ? (
-                  <video src={media.currentVersion.url} controls preload="metadata" className="aspect-video w-full object-contain" />
+                  <video
+                    src={media.currentVersion.url}
+                    controls
+                    preload="metadata"
+                    className="aspect-video w-full object-contain"
+                  >
+                    <track kind="captions" />
+                  </video>
                 ) : (
                   // biome-ignore lint/performance/noImgElement: MediaVersion URL 可能为签名地址
-                  <img src={media.currentVersion.url} alt={media.name} className="aspect-video w-full object-contain" />
+                  <img
+                    src={media.currentVersion.url}
+                    alt={media.name}
+                    className="aspect-video w-full object-contain"
+                  />
                 )}
                 <p className="truncate px-2 py-1 text-xs">{media.name}</p>
               </div>
@@ -54,7 +80,9 @@ function CandidatePane({ item }: { item: AigcObjectVersionComparisonItem }) {
         <span>费用 {item.creditCost ?? "-"}</span>
         <span>{new Date(item.createdTime).toLocaleString("zh-CN")}</span>
       </div>
-      {item.documentVersionId ? <p className="text-muted-foreground text-xs">DocumentVersion #{item.documentVersionId}</p> : null}
+      {item.documentVersionId ? (
+        <p className="text-muted-foreground text-xs">DocumentVersion #{item.documentVersionId}</p>
+      ) : null}
     </section>
   )
 }
@@ -68,7 +96,14 @@ interface CandidateComparisonDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-export function CandidateComparisonDialog({ open, projectId, objectId, leftVersionId, rightVersionId, onOpenChange }: CandidateComparisonDialogProps) {
+export function CandidateComparisonDialog({
+  open,
+  projectId,
+  objectId,
+  leftVersionId,
+  rightVersionId,
+  onOpenChange
+}: CandidateComparisonDialogProps) {
   const comparison = useAigcVersionComparison(projectId, objectId, leftVersionId, rightVersionId)
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -78,11 +113,19 @@ export function CandidateComparisonDialog({ open, projectId, objectId, leftVersi
           <DialogDescription>双选比较不会移动采用指针；采用仍需单独确认。</DialogDescription>
         </DialogHeader>
         {comparison.isLoading ? (
-          <div className="grid gap-4 md:grid-cols-2"><Skeleton className="h-96" /><Skeleton className="h-96" /></div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Skeleton className="h-96" />
+            <Skeleton className="h-96" />
+          </div>
         ) : comparison.data ? (
-          <div className="grid gap-4 md:grid-cols-2"><CandidatePane item={comparison.data.left} /><CandidatePane item={comparison.data.right} /></div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <CandidatePane item={comparison.data.left} />
+            <CandidatePane item={comparison.data.right} />
+          </div>
         ) : (
-          <p className="rounded-xl border border-dashed p-6 text-center text-muted-foreground">无法加载比较结果，请刷新权威版本后重试。</p>
+          <p className="rounded-xl border border-dashed p-6 text-center text-muted-foreground">
+            无法加载比较结果，请刷新权威版本后重试。
+          </p>
         )}
       </DialogContent>
     </Dialog>

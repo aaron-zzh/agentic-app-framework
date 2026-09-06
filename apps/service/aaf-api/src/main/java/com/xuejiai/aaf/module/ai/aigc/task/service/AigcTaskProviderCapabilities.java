@@ -15,13 +15,8 @@ public class AigcTaskProviderCapabilities {
             throw new IllegalStateException("Task provider 类型不能为空");
         }
         return switch (providerType) {
-            case OPENAI_COMPAT,
-                    ANTHROPIC,
-                    OLLAMA,
-                    DASHSCOPE,
-                    VOLCENGINE,
-                    MIDJOURNEY,
-                    MESHY -> NO_RECOVERY;
+            case OPENAI_COMPAT, ANTHROPIC, OLLAMA, DASHSCOPE, VOLCENGINE, MIDJOURNEY, MESHY ->
+                    NO_RECOVERY;
         };
     }
 

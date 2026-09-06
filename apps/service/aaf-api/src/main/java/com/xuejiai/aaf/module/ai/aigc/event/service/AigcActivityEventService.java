@@ -128,7 +128,8 @@ public class AigcActivityEventService {
             }
             var subscriber = new LiveSubscriber(scope, emitter, upperBound);
             subscriber.registerCallbacks();
-            subscribers.computeIfAbsent(scope, ignored -> ConcurrentHashMap.newKeySet())
+            subscribers
+                    .computeIfAbsent(scope, ignored -> ConcurrentHashMap.newKeySet())
                     .add(subscriber);
             subscriber.comment("connected");
         } catch (IOException error) {
@@ -165,8 +166,7 @@ public class AigcActivityEventService {
 
     void broadcast(AigcActivityEvent event) {
         var scope =
-                new SubscriptionScope(
-                        event.getOwnerId(), event.getOrgId(), event.getWorkspaceId());
+                new SubscriptionScope(event.getOwnerId(), event.getOrgId(), event.getWorkspaceId());
         var scopeLock = scopeLocks.computeIfAbsent(scope, ignored -> new ReentrantLock());
         scopeLock.lock();
         try {

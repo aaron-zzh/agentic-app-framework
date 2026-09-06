@@ -69,9 +69,9 @@ public class RoleStoreImpl implements RoleStore {
                 }
                 result.add(
                         new SkillBinding(
-                                item.get("skillKey").textValue(),
+                                item.get("skillKey").asString(),
                                 SkillActivationMode.valueOf(
-                                        item.get("activationMode").textValue())));
+                                        item.get("activationMode").asString())));
             }
             return SkillBinding.copyOf(result, fieldName);
         } catch (IllegalStateException exception) {
@@ -93,7 +93,7 @@ public class RoleStoreImpl implements RoleStore {
                 if (!item.isString()) {
                     throw new IllegalStateException(fieldName + " 必须是 JSON 字符串数组");
                 }
-                values.add(item.textValue());
+                values.add(item.asString());
             }
             return List.copyOf(values);
         } catch (IllegalStateException exception) {

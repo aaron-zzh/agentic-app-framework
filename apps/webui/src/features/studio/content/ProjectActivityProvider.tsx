@@ -12,10 +12,10 @@ import { useEffect } from "react"
 import { aigcExecutionKeys } from "@/lib/api/rest/ai/aigc/execution"
 import { aigcProjectKeys } from "@/lib/api/rest/ai/aigc/project"
 import { aigcWorkKeys } from "@/lib/api/rest/ai/aigc/work"
-import { backendStreamFetch } from "@/lib/api/streaming-client"
 import { MEDIA_QUERY_KEY } from "@/lib/api/rest/media/media-asset"
+import { backendStreamFetch } from "@/lib/api/streaming-client"
 import { useAuthStore } from "@/lib/store/auth-store"
-import { scopeHeaders, type ScopeSelection, useOrgStore } from "@/lib/store/org-store"
+import { type ScopeSelection, scopeHeaders, useOrgStore } from "@/lib/store/org-store"
 
 const CURSOR_KEY_PREFIX = "aaf.aigc.activity.cursor.v1"
 const RECONNECT_DELAY_MS = 1_000
@@ -63,7 +63,9 @@ export function parseActivityEnvelope(data: string): AigcActivityEnvelope | null
     ] as const
     const hasValidRelations = relationFields.every((field) => {
       const value = envelope[field]
-      return value === null || (typeof value === "number" && Number.isSafeInteger(value) && value > 0)
+      return (
+        value === null || (typeof value === "number" && Number.isSafeInteger(value) && value > 0)
+      )
     })
     if (
       typeof envelope.id !== "number" ||

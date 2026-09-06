@@ -6,11 +6,11 @@ import java.util.Objects;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.module.ai.aigc.event.service.AigcActivityEventService;
 import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus;
 import com.xuejiai.aaf.module.ai.aigc.execution.domain.AigcExecutionRun;
 import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionRunRepository;
 import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionSubmissionRepository;
-import com.xuejiai.aaf.module.ai.aigc.event.service.AigcActivityEventService;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectExecutionReservationReleaseCommand;
 
@@ -61,9 +61,7 @@ public class AigcExecutionTerminalService {
             return;
         }
         var submission =
-                submissionRepository
-                        .findLockedById(root.getExecutionSubmissionId())
-                        .orElse(null);
+                submissionRepository.findLockedById(root.getExecutionSubmissionId()).orElse(null);
         if (submission == null || "TERMINAL".equals(submission.getStatus())) {
             return;
         }
@@ -120,8 +118,7 @@ public class AigcExecutionTerminalService {
         if (succeeded > 0) {
             return AigcExecutionRunStatus.PARTIALLY_SUCCEEDED;
         }
-        return children.stream()
-                        .anyMatch(run -> run.getStatus() == AigcExecutionRunStatus.FAILED)
+        return children.stream().anyMatch(run -> run.getStatus() == AigcExecutionRunStatus.FAILED)
                 ? AigcExecutionRunStatus.FAILED
                 : AigcExecutionRunStatus.CANCELED;
     }

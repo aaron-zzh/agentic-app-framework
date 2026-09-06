@@ -61,7 +61,14 @@ function createProjectStore(projectId: number): ProjectViewStore {
       {
         name: `aaf.studio.project-view.${projectId}`,
         version: 1,
-        partialize: ({ view, focusObjectId, viewport, collapsedGroups, activeLayers, zoomTier }) => ({
+        partialize: ({
+          view,
+          focusObjectId,
+          viewport,
+          collapsedGroups,
+          activeLayers,
+          zoomTier
+        }) => ({
           view,
           focusObjectId,
           viewport,

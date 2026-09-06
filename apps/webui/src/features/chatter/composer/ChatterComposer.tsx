@@ -24,12 +24,7 @@ import { toast } from "sonner"
 import { ModelSelector } from "@/components/common/ModelSelector"
 import { Button } from "@/components/ui/button"
 import { Toggle } from "@/components/ui/toggle"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
-} from "@/components/ui/tooltip"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { ContextChip } from "@/features/chatter/dnd/ContextChip"
 import {
   type ChatterDisplayPreferences,
@@ -71,8 +66,7 @@ export function ChatterComposer({
   onDisplayPreferencesChange
 }: ChatterComposerProps) {
   const api = useAui()
-  useAuiEvent("composer.attachmentAddError", ({ reason, message, error }) => {
-    if (error) console.error(error)
+  useAuiEvent("composer.attachmentAddError", ({ reason, message }) => {
     if (reason === "not-accepted") {
       toast.error("仅支持图片和文本文件")
       return
@@ -151,110 +145,115 @@ export function ChatterComposer({
   return (
     <ComposerPrimitive.AttachmentDropzone className="data-[dragging=true]:rounded-xl data-[dragging=true]:ring-2 data-[dragging=true]:ring-primary/50">
       <ComposerPrimitive.Root className="px-3 pb-3">
-      <div
-        ref={composerBoxRef}
-        className="rounded-xl border border-border bg-background transition-colors focus-within:border-foreground/60"
-      >
-        {/* 文件附件由 assistant-ui composer 作为唯一状态源管理。 */}
-        <ComposerPrimitive.Attachments>
-          {({ attachment }) => {
-            const AttachmentIcon = attachment.type === "image" ? ImageIcon : FileTextIcon
-            return (
-              <div className="relative mx-2 mt-2 inline-flex max-w-[calc(100%-1rem)] items-center gap-2 rounded-lg border border-border bg-muted/40 py-1.5 pr-7 pl-2">
-                <AttachmentIcon className="size-4 shrink-0 text-muted-foreground" />
-                <span className="truncate text-xs" title={attachment.name}>
-                  {attachment.name}
-                </span>
-                <button
+        <div
+          ref={composerBoxRef}
+          className="rounded-xl border border-border bg-background transition-colors focus-within:border-foreground/60"
+        >
+          {/* 文件附件由 assistant-ui composer 作为唯一状态源管理。 */}
+          <ComposerPrimitive.Attachments>
+            {({ attachment }) => {
+              const AttachmentIcon = attachment.type === "image" ? ImageIcon : FileTextIcon
+              return (
+                <div className="relative mx-2 mt-2 inline-flex max-w-[calc(100%-1rem)] items-center gap-2 rounded-lg border border-border bg-muted/40 py-1.5 pr-7 pl-2">
+                  <AttachmentIcon className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="truncate text-xs" title={attachment.name}>
+                    {attachment.name}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`移除附件 ${attachment.name}`}
+                    onClick={() => api.composer().attachment({ id: attachment.id }).remove()}
+                    className="absolute right-1 flex size-5 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    <span className="text-sm leading-none">×</span>
+                  </button>
+                </div>
+              )
+            }}
+          </ComposerPrimitive.Attachments>
+          {/* 自定义 text/doc chip */}
+          {attachments.length > 0 && (
+            <div className="flex flex-wrap gap-1 px-3 pt-2">
+              {attachments.map((item, i) => (
+                <ContextChip
+                  key={`${item.type}-${item.id ?? i}`}
+                  item={item}
+                  onRemove={() => onAttachmentRemove(i)}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* 输入框 */}
+          <ComposerPrimitive.Input
+            placeholder="输入消息..."
+            className="field-sizing-content max-h-36 w-full resize-none bg-transparent px-3 pt-2.5 pb-2 text-sm leading-5 placeholder:text-muted-foreground focus:outline-none"
+            rows={1}
+          />
+
+          {/* 底部工具栏 */}
+          <div className="relative flex items-center justify-between px-1.5 pb-1.5">
+            {/* 左：附件 + 模型 + 展示偏好 */}
+            <div className="flex min-w-0 items-center gap-0.5">
+              <ComposerPrimitive.AddAttachment asChild>
+                <Button
                   type="button"
-                  aria-label={`移除附件 ${attachment.name}`}
-                  onClick={() => api.composer().attachment({ id: attachment.id }).remove()}
-                  className="absolute right-1 flex size-5 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 shrink-0 rounded-lg"
+                  aria-label="添加图片或文本附件"
                 >
-                  <span className="text-sm leading-none">×</span>
-                </button>
-              </div>
-            )
-          }}
-        </ComposerPrimitive.Attachments>
-        {/* 自定义 text/doc chip */}
-        {attachments.length > 0 && (
-          <div className="flex flex-wrap gap-1 px-3 pt-2">
-            {attachments.map((item, i) => (
-              <ContextChip
-                key={`${item.type}-${item.id ?? i}`}
-                item={item}
-                onRemove={() => onAttachmentRemove(i)}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* 输入框 */}
-        <ComposerPrimitive.Input
-          placeholder="输入消息..."
-          className="field-sizing-content max-h-36 w-full resize-none bg-transparent px-3 pt-2.5 pb-2 text-sm leading-5 placeholder:text-muted-foreground focus:outline-none"
-          rows={1}
-        />
-
-        {/* 底部工具栏 */}
-        <div className="relative flex items-center justify-between px-1.5 pb-1.5">
-          {/* 左：附件 + 模型 + 展示偏好 */}
-          <div className="flex min-w-0 items-center gap-0.5">
-            <ComposerPrimitive.AddAttachment asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-7 shrink-0 rounded-lg"
-                aria-label="添加图片或文本附件"
-              >
-                <PaperclipIcon className="size-4" />
-              </Button>
-            </ComposerPrimitive.AddAttachment>
-
-            {showModelSelector && (
-              <ModelSelectorSlot
-                taskModelSelection={taskModelSelection}
-                onTaskModelSelectionChange={onTaskModelSelectionChange}
-              />
-            )}
-
-            <DisplayPreferenceToggles
-              preferences={displayPreferences}
-              onChange={onDisplayPreferencesChange}
-            />
-          </div>
-
-          {/* 右：3D波形（语音激活时）+ 麦克风 + 发送/停止 */}
-          <div className="flex items-center gap-1">
-            {waveformCtx && (
-              <div className="pointer-events-none absolute inset-y-1.5 right-[100px] left-[100px] overflow-hidden rounded-lg">
-                <VoiceWaveform3D stream={waveformCtx} />
-              </div>
-            )}
-
-            <WsAsrButton
-              onResult={handleVoiceResult}
-              onInterim={handleVoiceResult}
-              onRecordingChange={handleVoiceRecordingChange}
-            />
-
-            <AuiIf condition={(s) => !s.thread.isRunning}>
-              <Button size="icon" className="size-7 rounded-lg" onClick={handleSend}>
-                <ArrowUpIcon className="size-4" />
-              </Button>
-            </AuiIf>
-            <AuiIf condition={(s) => s.thread.isRunning}>
-              <ComposerPrimitive.Cancel asChild>
-                <Button type="button" variant="secondary" size="icon" className="size-7 rounded-lg">
-                  <SquareIcon className="size-3 fill-current" />
+                  <PaperclipIcon className="size-4" />
                 </Button>
-              </ComposerPrimitive.Cancel>
-            </AuiIf>
+              </ComposerPrimitive.AddAttachment>
+
+              {showModelSelector && (
+                <ModelSelectorSlot
+                  taskModelSelection={taskModelSelection}
+                  onTaskModelSelectionChange={onTaskModelSelectionChange}
+                />
+              )}
+
+              <DisplayPreferenceToggles
+                preferences={displayPreferences}
+                onChange={onDisplayPreferencesChange}
+              />
+            </div>
+
+            {/* 右：3D波形（语音激活时）+ 麦克风 + 发送/停止 */}
+            <div className="flex items-center gap-1">
+              {waveformCtx && (
+                <div className="pointer-events-none absolute inset-y-1.5 right-[100px] left-[100px] overflow-hidden rounded-lg">
+                  <VoiceWaveform3D stream={waveformCtx} />
+                </div>
+              )}
+
+              <WsAsrButton
+                onResult={handleVoiceResult}
+                onInterim={handleVoiceResult}
+                onRecordingChange={handleVoiceRecordingChange}
+              />
+
+              <AuiIf condition={(s) => !s.thread.isRunning}>
+                <Button size="icon" className="size-7 rounded-lg" onClick={handleSend}>
+                  <ArrowUpIcon className="size-4" />
+                </Button>
+              </AuiIf>
+              <AuiIf condition={(s) => s.thread.isRunning}>
+                <ComposerPrimitive.Cancel asChild>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon"
+                    className="size-7 rounded-lg"
+                  >
+                    <SquareIcon className="size-3 fill-current" />
+                  </Button>
+                </ComposerPrimitive.Cancel>
+              </AuiIf>
+            </div>
           </div>
         </div>
-      </div>
       </ComposerPrimitive.Root>
     </ComposerPrimitive.AttachmentDropzone>
   )

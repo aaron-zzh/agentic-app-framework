@@ -17,9 +17,21 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import type { AigcContractRole, AigcObjectType, AigcProject, AigcProjectObject } from "@/lib/api/rest/ai/aigc"
+import type {
+  AigcContractRole,
+  AigcObjectType,
+  AigcProject,
+  AigcProjectObject
+} from "@/lib/api/rest/ai/aigc"
 import {
   useAppendAigcProjectObject,
   useRemoveAigcProjectObject,
@@ -70,7 +82,9 @@ export function ProjectObjectStructureDialog({
     if (!action) return
     setDisplayName("")
     setObjectType("copy_deliverable")
-    setContractRole(action.kind === "contract" ? action.object.contractRole ?? "OPTIONAL" : "OPTIONAL")
+    setContractRole(
+      action.kind === "contract" ? (action.object.contractRole ?? "OPTIONAL") : "OPTIONAL"
+    )
     setParentObjectId(undefined)
     setReason("")
   }, [action])
@@ -92,7 +106,12 @@ export function ProjectObjectStructureDialog({
           contractRole,
           expectedProjectVersion: project.version
         },
-        { onSuccess: () => { notify.success("项目对象已追加"); onOpenChange(false) } }
+        {
+          onSuccess: () => {
+            notify.success("项目对象已追加")
+            onOpenChange(false)
+          }
+        }
       )
       return
     }
@@ -104,7 +123,12 @@ export function ProjectObjectStructureDialog({
           contractRole,
           expectedProjectVersion: project.version
         },
-        { onSuccess: () => { notify.success("对象合同角色已更新"); onOpenChange(false) } }
+        {
+          onSuccess: () => {
+            notify.success("对象合同角色已更新")
+            onOpenChange(false)
+          }
+        }
       )
       return
     }
@@ -116,14 +140,29 @@ export function ProjectObjectStructureDialog({
         expectedProjectVersion: project.version,
         reason: reason.trim()
       },
-      { onSuccess: () => { notify.success("项目对象已移除"); onOpenChange(false) } }
+      {
+        onSuccess: () => {
+          notify.success("项目对象已移除")
+          onOpenChange(false)
+        }
+      }
     )
   }
 
-  const title = action?.kind === "append" ? "追加项目对象" : action?.kind === "contract" ? "更新合同角色" : "移除项目对象"
+  const title =
+    action?.kind === "append"
+      ? "追加项目对象"
+      : action?.kind === "contract"
+        ? "更新合同角色"
+        : "移除项目对象"
 
   return (
-    <Dialog open={action !== null && mutable} onOpenChange={(open) => { if (!open) close() }}>
+    <Dialog
+      open={action !== null && mutable}
+      onOpenChange={(open) => {
+        if (!open) close()
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
@@ -140,21 +179,57 @@ export function ProjectObjectStructureDialog({
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor={displayNameId}>对象名称</Label>
-              <Input id={displayNameId} value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength={200} />
+              <Input
+                id={displayNameId}
+                value={displayName}
+                onChange={(event) => setDisplayName(event.target.value)}
+                maxLength={200}
+              />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-2">
                 <Label htmlFor={objectTypeId}>对象类型</Label>
-                <Select value={objectType} onValueChange={(value) => { if (value) setObjectType(value as AigcObjectType) }}>
-                  <SelectTrigger id={objectTypeId} className="w-full"><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectGroup>{OBJECT_TYPES.map((type) => <SelectItem key={type} value={type}>{OBJECT_TYPE_CONFIG[type].label}</SelectItem>)}</SelectGroup></SelectContent>
+                <Select
+                  value={objectType}
+                  onValueChange={(value) => {
+                    if (value) setObjectType(value as AigcObjectType)
+                  }}
+                >
+                  <SelectTrigger id={objectTypeId} className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {OBJECT_TYPES.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {OBJECT_TYPE_CONFIG[type].label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
                 </Select>
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor={parentSelectId}>父对象</Label>
-                <Select value={parentObjectId ? String(parentObjectId) : "none"} onValueChange={(value) => setParentObjectId(value && value !== "none" ? Number(value) : undefined)}>
-                  <SelectTrigger id={parentSelectId} className="w-full"><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectGroup><SelectItem value="none">无父对象</SelectItem>{objects.map((object) => <SelectItem key={object.id} value={String(object.id)}>{object.title || object.stableKey}</SelectItem>)}</SelectGroup></SelectContent>
+                <Select
+                  value={parentObjectId ? String(parentObjectId) : "none"}
+                  onValueChange={(value) =>
+                    setParentObjectId(value && value !== "none" ? Number(value) : undefined)
+                  }
+                >
+                  <SelectTrigger id={parentSelectId} className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="none">无父对象</SelectItem>
+                      {objects.map((object) => (
+                        <SelectItem key={object.id} value={String(object.id)}>
+                          {object.title || object.stableKey}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
                 </Select>
               </div>
             </div>
@@ -164,9 +239,24 @@ export function ProjectObjectStructureDialog({
         {action?.kind === "append" || action?.kind === "contract" ? (
           <div className="flex flex-col gap-2">
             <Label htmlFor={contractRoleId}>合同角色</Label>
-            <Select value={contractRole} onValueChange={(value) => { if (value) setContractRole(value as AigcContractRole) }}>
-              <SelectTrigger id={contractRoleId} className="w-full"><SelectValue /></SelectTrigger>
-              <SelectContent><SelectGroup>{CONTRACT_ROLES.map((role) => <SelectItem key={role} value={role}>{role}</SelectItem>)}</SelectGroup></SelectContent>
+            <Select
+              value={contractRole}
+              onValueChange={(value) => {
+                if (value) setContractRole(value as AigcContractRole)
+              }}
+            >
+              <SelectTrigger id={contractRoleId} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {CONTRACT_ROLES.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {role}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
             </Select>
           </div>
         ) : null}
@@ -174,16 +264,28 @@ export function ProjectObjectStructureDialog({
         {action?.kind === "remove" ? (
           <div className="flex flex-col gap-2">
             <Label htmlFor={reasonId}>移除原因</Label>
-            <Textarea id={reasonId} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="填写移除原因（必填）" />
+            <Textarea
+              id={reasonId}
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              placeholder="填写移除原因（必填）"
+            />
           </div>
         ) : null}
 
         <DialogFooter>
-          <Button type="button" variant="outline" disabled={pending} onClick={close}>取消</Button>
+          <Button type="button" variant="outline" disabled={pending} onClick={close}>
+            取消
+          </Button>
           <Button
             type="button"
             variant={action?.kind === "remove" ? "destructive" : "default"}
-            disabled={!mutable || pending || (action?.kind === "append" && !displayName.trim()) || (action?.kind === "remove" && !reason.trim())}
+            disabled={
+              !mutable ||
+              pending ||
+              (action?.kind === "append" && !displayName.trim()) ||
+              (action?.kind === "remove" && !reason.trim())
+            }
             onClick={submit}
           >
             确认

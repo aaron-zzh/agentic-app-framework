@@ -60,9 +60,9 @@ public final class JpaRoleDefinitionAdapter implements RoleDefinitionPort {
                 }
                 result.add(
                         new SkillBinding(
-                                item.get("skillKey").textValue(),
+                                item.get("skillKey").asString(),
                                 SkillActivationMode.valueOf(
-                                        item.get("activationMode").textValue())));
+                                        item.get("activationMode").asString())));
             }
             return SkillBinding.copyOf(result, fieldName);
         } catch (IllegalStateException exception) {

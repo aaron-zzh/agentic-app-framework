@@ -68,8 +68,7 @@ class AigcProjectDeliveryServiceTest extends BaseMockitoUnitTest {
         review.setObjectType("review");
         review.setStatus("PENDING");
         review.setVersion(2);
-        review.setPayload(
-                Map.of("subjectObjectId", 3L, "subjectObjectVersionId", 99L));
+        review.setPayload(Map.of("subjectObjectId", 3L, "subjectObjectVersionId", 99L));
         when(projectRepository.findLockedById(1L)).thenReturn(Optional.of(project));
         when(objectRepository.findLockedById(2L)).thenReturn(Optional.of(review));
         var command = new AigcReviewDecisionCommand(1L, 2L, 100L, 4, 2, "通过", "decision-1");
@@ -91,15 +90,11 @@ class AigcProjectDeliveryServiceTest extends BaseMockitoUnitTest {
         snapshot.setProjectId(1L);
         snapshot.setChannelVersions(List.of(101L, 102L));
         snapshot.setSnapshot(
-                Map.of(
-                        "processPolicy",
-                        Map.of("publicationPolicy", "ALL_SELECTED_CHANNELS")));
+                Map.of("processPolicy", Map.of("publicationPolicy", "ALL_SELECTED_CHANNELS")));
         when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
         when(snapshotRepository.findById(5L)).thenReturn(Optional.of(snapshot));
         when(completionEvidencePort.load(1L))
-                .thenReturn(
-                        new CompletionEvidencePort.CompletionEvidence(
-                                1, 1, 0, List.of(101L)));
+                .thenReturn(new CompletionEvidencePort.CompletionEvidence(1, 1, 0, List.of(101L)));
 
         // 调用
         var evaluation = service.completion(1L);
@@ -128,9 +123,7 @@ class AigcProjectDeliveryServiceTest extends BaseMockitoUnitTest {
         when(versionRepository.findById(91L)).thenReturn(Optional.of(desired));
         when(versionRepository.findByObjectIdAndIdempotencyKey(2L, "adopt-1"))
                 .thenReturn(Optional.empty());
-        var command =
-                new AigcObjectVersionAdoptCommand(
-                        1L, 2L, 91L, 89L, 4, true, "替换", "adopt-1");
+        var command = new AigcObjectVersionAdoptCommand(1L, 2L, 91L, 89L, 4, true, "替换", "adopt-1");
 
         // 调用 + 断言
         assertThatThrownBy(() -> service.adopt(command))
@@ -177,8 +170,7 @@ class AigcProjectDeliveryServiceTest extends BaseMockitoUnitTest {
                 .hasMessageContaining("已被处理或已 stale");
     }
 
-    private AigcProject project(
-            int version, Long graphRevision, AigcProjectLifecycle lifecycle) {
+    private AigcProject project(int version, Long graphRevision, AigcProjectLifecycle lifecycle) {
         var project = new AigcProject();
         project.setId(1L);
         project.setVersion(version);

@@ -60,10 +60,10 @@ public final class DefaultInputClassifier implements InputClassifier {
                 return ExecutionInput.Kind.UNRELATED;
             }
             var kind = root.get("kind");
-            if (kind == null || !kind.isString() || !ALLOWED_KINDS.contains(kind.textValue())) {
+            if (kind == null || !kind.isString() || !ALLOWED_KINDS.contains(kind.asString())) {
                 return ExecutionInput.Kind.UNRELATED;
             }
-            return ExecutionInput.Kind.valueOf(kind.textValue());
+            return ExecutionInput.Kind.valueOf(kind.asString());
         } catch (RuntimeException ignored) {
             // 非 JSON、契约外字段或模型异常一律安全默认为无关，不放大为 MODIFY。
             return ExecutionInput.Kind.UNRELATED;

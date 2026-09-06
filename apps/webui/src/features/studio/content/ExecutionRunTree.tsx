@@ -48,7 +48,7 @@ type DisplayRun = AigcExecutionRun | AigcExecutionRunView
 type RunChildren = ReadonlyMap<number, AigcExecutionRunView[]>
 
 function runCredit(run: DisplayRun): number | undefined {
-  return "creditCost" in run ? run.creditCost : run.costCredits
+  return "candidateObjectVersionIds" in run ? run.creditCost : run.costCredits
 }
 
 function runOutput(run: DisplayRun): string | undefined {
@@ -94,7 +94,9 @@ function RunNode({
           <span>graph r{run.targetGraphRevision}</span>
           <span>{run.frozenProjectObjectIds.length} 个冻结目标</span>
           <span>{run.taskIds.length} 个媒体 Task</span>
-          <span>{run.retryOfExecutionRunId ? `retry-of #${run.retryOfExecutionRunId}` : "原始执行"}</span>
+          <span>
+            {run.retryOfExecutionRunId ? `retry-of #${run.retryOfExecutionRunId}` : "原始执行"}
+          </span>
           <span>费用 {runCredit(run) ?? "-"}</span>
         </div>
         {output ? <p className="break-words text-muted-foreground text-xs">{output}</p> : null}
@@ -112,7 +114,8 @@ function RunNode({
               )
             }}
           >
-            <CircleStop />取消
+            <CircleStop />
+            取消
           </Button>
           <Button
             type="button"
@@ -126,7 +129,8 @@ function RunNode({
               })
             }}
           >
-            <RotateCcw />重试
+            <RotateCcw />
+            重试
           </Button>
           {treeAction}
         </div>

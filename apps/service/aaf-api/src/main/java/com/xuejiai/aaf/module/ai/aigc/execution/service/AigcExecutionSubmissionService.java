@@ -65,10 +65,11 @@ public class AigcExecutionSubmissionService {
                                                 requestPayload.get("selectedProjectObjectIds")),
                                 Map.of(
                                         "expectedGraphRevision",
-                                                command.expectedGraphRevision() == null
-                                                        ? -1L
-                                                        : command.expectedGraphRevision(),
-                                        "confirmed", command.confirmed()))
+                                        command.expectedGraphRevision() == null
+                                                ? -1L
+                                                : command.expectedGraphRevision(),
+                                        "confirmed",
+                                        command.confirmed()))
                         .sha256();
         var ownerId = operatorContext.currentOwnerId().orElseThrow();
         var row =
@@ -149,8 +150,7 @@ public class AigcExecutionSubmissionService {
                         .orElseThrow(
                                 () ->
                                         new BusinessException(
-                                                GlobalErrorCode.NOT_FOUND,
-                                                "执行 submission 不存在"));
+                                                GlobalErrorCode.NOT_FOUND, "执行 submission 不存在"));
         if ("TERMINAL".equals(submission.getStatus())
                 || "RECOVERY_FAILED".equals(submission.getStatus())) {
             return;
@@ -161,8 +161,7 @@ public class AigcExecutionSubmissionService {
         var retryAfter = LocalDateTime.now().plusSeconds(backoffSeconds);
         submission.setLastError(truncateError(errorMessage));
         submission.setRemark(
-                JsonUtils.toJsonString(
-                        new RecoveryRetry(attempt, backoffSeconds, retryAfter)));
+                JsonUtils.toJsonString(new RecoveryRetry(attempt, backoffSeconds, retryAfter)));
         repository.save(submission);
     }
 
@@ -258,11 +257,9 @@ public class AigcExecutionSubmissionService {
         result.put("requestedModelId", command.requestedModelId());
         result.put(
                 "actionArguments",
-                AigcCanonicalRequest.of(
-                                "execution.payload", command.actionArguments(), Map.of())
+                AigcCanonicalRequest.of("execution.payload", command.actionArguments(), Map.of())
                         .business());
-        result.put(
-                "attachmentMediaVersionIds", List.copyOf(command.attachmentMediaVersionIds()));
+        result.put("attachmentMediaVersionIds", List.copyOf(command.attachmentMediaVersionIds()));
         result.put(
                 "selectedProjectObjectIds",
                 command.selectedProjectObjectIds().stream().distinct().sorted().toList());

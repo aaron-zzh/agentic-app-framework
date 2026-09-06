@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.ai.aigc.project.service;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Map;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
@@ -55,8 +56,7 @@ public class AigcExecutionCandidateProducedListener {
                                     event.executionReservationId(),
                                     event.rootExecutionRunId(),
                                     JsonUtils.toJsonString(
-                                            java.util.Map.of(
-                                                    "mediaVersionIds", event.mediaVersionIds())),
+                                            Map.of("mediaVersionIds", event.mediaVersionIds())),
                                     null,
                                     event.mediaVersionIds()));
             versionIds.add(version.id());

@@ -56,11 +56,14 @@ public class AigcTaskTerminalListener {
             projectApi.lockForGeneratedResource(snapshot.getProjectId(), project.userId());
         }
         var currentProject = projectApi.requireProject(snapshot.getProjectId());
-        if (com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycle.ARCHIVED.equals(currentProject.lifecycleStage())) {
+        if (com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycle.ARCHIVED.equals(
+                currentProject.lifecycleStage())) {
             return;
         }
         var run = runRepository.findLockedById(snapshot.getId()).orElse(null);
-        if (run == null || !com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus.RUNNING.equals(run.getStatus())) {
+        if (run == null
+                || !com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus.RUNNING
+                        .equals(run.getStatus())) {
             return;
         }
         if ("project.cover.generate".equals(run.getActionKey())) {
@@ -105,7 +108,8 @@ public class AigcTaskTerminalListener {
                             "taskIds", List.of(event.taskId()),
                             "mediaVersionIds", List.of(event.outputMediaVersionId()),
                             "coverApplied", applied));
-            run.setStatus(com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus.SUCCEEDED);
+            run.setStatus(
+                    com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus.SUCCEEDED);
             run.setEndTime(LocalDateTime.now());
             run.setVersion(run.getVersion() + 1);
             runRepository.save(run);

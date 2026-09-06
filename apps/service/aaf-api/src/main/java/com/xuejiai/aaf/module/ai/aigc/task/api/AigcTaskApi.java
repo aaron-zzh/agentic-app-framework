@@ -7,5 +7,4 @@ public interface AigcTaskApi {
     AigcTaskView cancel(Long taskId, String reason);
 
     AigcTaskView requireTask(Long taskId);
-
 }

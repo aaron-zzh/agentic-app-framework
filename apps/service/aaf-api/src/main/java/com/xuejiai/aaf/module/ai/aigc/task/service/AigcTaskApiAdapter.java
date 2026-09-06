@@ -56,8 +56,7 @@ public class AigcTaskApiAdapter implements AigcTaskApi {
         }
         if (command.executionRunId() == null) {
             if (command.projectId() != null || command.projectObjectId() != null) {
-                throw new BusinessException(
-                        GlobalErrorCode.BAD_REQUEST, "独立 Task 不允许绑定 project");
+                throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "独立 Task 不允许绑定 project");
             }
             return toView(requireTaskEntity(submitIndependent(command)));
         }
@@ -108,24 +107,30 @@ public class AigcTaskApiAdapter implements AigcTaskApi {
                 AigcCanonicalRequest.of(
                                 "task.submit",
                                 Map.of(
-                                        "taskType", taskType,
-                                        "modelId", model.getModelId(),
-                                        "prompt", command.prompt() == null ? "" : command.prompt(),
-                                        "parameters", parameters),
+                                        "taskType",
+                                        taskType,
+                                        "modelId",
+                                        model.getModelId(),
+                                        "prompt",
+                                        command.prompt() == null ? "" : command.prompt(),
+                                        "parameters",
+                                        parameters),
                                 Map.of(
-                                        "projectId", command.projectId(),
+                                        "projectId",
+                                        command.projectId(),
                                         "projectObjectId",
-                                                command.projectObjectId() == null
-                                                        ? 0L
-                                                        : command.projectObjectId(),
-                                        "executionRunId", command.executionRunId(),
-                                        "providerKey", providerKey))
+                                        command.projectObjectId() == null
+                                                ? 0L
+                                                : command.projectObjectId(),
+                                        "executionRunId",
+                                        command.executionRunId(),
+                                        "providerKey",
+                                        providerKey))
                         .sha256();
         var estimatedCredits =
                 taskService.estimateCredits(
                         evidence.ownerId(), taskType, model.getModelId(), parameters);
-        creditGuard.precheck(
-                evidence.ownerId(), creditCategory(taskType), estimatedCredits);
+        creditGuard.precheck(evidence.ownerId(), creditCategory(taskType), estimatedCredits);
 
         var intent = new AigcTask();
         intent.setUserId(evidence.ownerId());
@@ -148,8 +153,15 @@ public class AigcTaskApiAdapter implements AigcTaskApi {
         var prepared = intentStore.prepare(intent);
         if (prepared.created()) {
             activityEventService.publish(
-                    intent.getUserId(), "task.created", intent.getProjectId(),
-                    intent.getExecutionRunId(), prepared.task().getId(), null, null, null, null,
+                    intent.getUserId(),
+                    "task.created",
+                    intent.getProjectId(),
+                    intent.getExecutionRunId(),
+                    prepared.task().getId(),
+                    null,
+                    null,
+                    null,
+                    null,
                     toView(prepared.task()));
             afterCommit(() -> taskExecutor.resumeIntent(prepared.task().getId()));
         }
@@ -171,8 +183,7 @@ public class AigcTaskApiAdapter implements AigcTaskApi {
             case "MODEL_3D" -> submitModel3d(userId, command, parameters);
             default ->
                     throw new BusinessException(
-                            GlobalErrorCode.BAD_REQUEST,
-                            "不支持的 AIGC 子任务类型: " + command.taskType());
+                            GlobalErrorCode.BAD_REQUEST, "不支持的 AIGC 子任务类型: " + command.taskType());
         };
     }
 
@@ -215,7 +226,6 @@ public class AigcTaskApiAdapter implements AigcTaskApi {
                     }
                 });
     }
-
 
     private Long submitImage(
             Long userId, AigcTaskSubmitCommand command, Map<String, Object> parameters) {

@@ -59,12 +59,9 @@ public class VisionMediaResolver {
                     GlobalErrorCode.BAD_REQUEST, "文件 mimeType 缺失，无法用于视觉理解: " + fileKey);
         }
         if (!mime.startsWith("image/")) {
-            throw new BusinessException(
-                    GlobalErrorCode.BAD_REQUEST, "视觉附件仅支持图片: " + fileKey);
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "视觉附件仅支持图片: " + fileKey);
         }
-        var url =
-                fileStoragePort.prepareCurrentOwnerExternalAccessByKey(
-                        fileKey, DEFAULT_EXPIRY);
+        var url = fileStoragePort.prepareCurrentOwnerExternalAccessByKey(fileKey, DEFAULT_EXPIRY);
         log.debug("视觉附件解析: fileKey={}, mime={}, type=IMAGE", fileKey, mime);
         return new VisionAttachment(fileKey, mime, url, AttachmentType.IMAGE);
     }

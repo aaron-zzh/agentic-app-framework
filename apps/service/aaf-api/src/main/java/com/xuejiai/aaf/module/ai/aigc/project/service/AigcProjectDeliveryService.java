@@ -1,14 +1,10 @@
 package com.xuejiai.aaf.module.ai.aigc.project.service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,20 +14,20 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import tools.jackson.core.type.TypeReference;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.security.OperatorContext;
-import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
 import com.xuejiai.aaf.module.ai.aigc.AigcCanonicalRequest;
 import com.xuejiai.aaf.module.ai.aigc.event.service.AigcActivityEventService;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcApprovedManifestView;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcCompletionEvaluationView;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcDeliverableSetCompletionView;
@@ -66,6 +62,7 @@ import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectRevisionRepository;
 
 import lombok.RequiredArgsConstructor;
+import tools.jackson.core.type.TypeReference;
 
 /** Project 交付事实服务：候选、采用、清单、审核与完成策略均在同一聚合锁内闭环。 */
 @Service
@@ -73,7 +70,10 @@ import lombok.RequiredArgsConstructor;
 public class AigcProjectDeliveryService {
 
     private static final Set<AigcProjectLifecycle> CONTENT_WRITABLE =
-            Set.of(AigcProjectLifecycle.CREATING, AigcProjectLifecycle.EXECUTING, AigcProjectLifecycle.ADOPTING);
+            Set.of(
+                    AigcProjectLifecycle.CREATING,
+                    AigcProjectLifecycle.EXECUTING,
+                    AigcProjectLifecycle.ADOPTING);
     private static final Set<String> ACTIVE_REVIEW_STATUSES = Set.of("PENDING", "APPROVED");
 
     private final AigcProjectRepository projectRepository;
@@ -106,7 +106,9 @@ public class AigcProjectDeliveryService {
         var reservation =
                 reservationRepository
                         .findLockedById(command.executionReservationId())
-                        .filter(candidate -> Objects.equals(candidate.getProjectId(), project.getId()))
+                        .filter(
+                                candidate ->
+                                        Objects.equals(candidate.getProjectId(), project.getId()))
                         .orElseThrow(() -> badRequest("候选版本缺少项目执行 reservation 证据"));
         if (!"BOUND".equals(reservation.getStatus())
                 || !Objects.equals(
@@ -160,9 +162,10 @@ public class AigcProjectDeliveryService {
         versionRepository
                 .findByObjectIdAndIdempotencyKey(object.getId(), command.idempotencyKey())
                 .filter(existing -> !existing.getId().equals(desired.getId()))
-                .ifPresent(existing -> {
-                    throw conflict("采用幂等键已用于其他对象版本");
-                });
+                .ifPresent(
+                        existing -> {
+                            throw conflict("采用幂等键已用于其他对象版本");
+                        });
         if (Objects.equals(desired.getIdempotencyKey(), command.idempotencyKey())) {
             requireAdoptReplay(desired, command, requestHash);
             return toVersionView(desired);
@@ -208,9 +211,10 @@ public class AigcProjectDeliveryService {
         versionRepository
                 .findByObjectIdAndIdempotencyKey(object.getId(), command.idempotencyKey())
                 .filter(existing -> !existing.getId().equals(version.getId()))
-                .ifPresent(existing -> {
-                    throw conflict("否决幂等键已用于其他对象版本");
-                });
+                .ifPresent(
+                        existing -> {
+                            throw conflict("否决幂等键已用于其他对象版本");
+                        });
         if ("rejected".equals(version.getStatus())) {
             if (!Objects.equals(version.getIdempotencyKey(), command.idempotencyKey())
                     || !Objects.equals(version.getRequestHash(), requestHash)) {
@@ -247,10 +251,15 @@ public class AigcProjectDeliveryService {
     public AigcDeliverableSetCompletionView evaluate(AigcDeliverableSetEvaluateCommand command) {
         var project = requireProject(command.projectId());
         if (command.expectedGraphRevision() != null
-                && !command.expectedGraphRevision().equals(project.getGraphRevision().longValue())) {
+                && !command.expectedGraphRevision()
+                        .equals(project.getGraphRevision().longValue())) {
             throw conflict("项目图谱修订已变化，请重新评估");
         }
-        return evaluateInternal(project, command.setObjectId(), command.includedOptionalObjectIds(), project.getGraphRevision().longValue());
+        return evaluateInternal(
+                project,
+                command.setObjectId(),
+                command.includedOptionalObjectIds(),
+                project.getGraphRevision().longValue());
     }
 
     @Transactional
@@ -259,7 +268,9 @@ public class AigcProjectDeliveryService {
         var project = requireLockedProject(command.projectId());
         var setObject = requireDeliverableSet(project.getId(), command.setObjectId(), true);
         var requestHash = freezeRequestHash(command);
-        var replay = versionRepository.findByObjectIdAndIdempotencyKey(setObject.getId(), command.idempotencyKey());
+        var replay =
+                versionRepository.findByObjectIdAndIdempotencyKey(
+                        setObject.getId(), command.idempotencyKey());
         if (replay.isPresent()) {
             if (!Objects.equals(replay.get().getRequestHash(), requestHash)) {
                 throw conflict("同一 manifest 幂等键对应不同请求");
@@ -268,10 +279,16 @@ public class AigcProjectDeliveryService {
         }
         requireExpectedVersion(project, command.expectedProjectVersion());
         requireContentWritable(project);
-        if (!Objects.equals(command.expectedGraphRevision(), project.getGraphRevision().longValue())) {
+        if (!Objects.equals(
+                command.expectedGraphRevision(), project.getGraphRevision().longValue())) {
             throw conflict("项目图谱修订已变化，请重新评估");
         }
-        var evaluated = evaluateInternal(project, setObject.getId(), command.includedOptionalObjectIds(), project.getGraphRevision().longValue());
+        var evaluated =
+                evaluateInternal(
+                        project,
+                        setObject.getId(),
+                        command.includedOptionalObjectIds(),
+                        project.getGraphRevision().longValue());
         if (!Objects.equals(command.expectedEvidenceHash(), evaluated.evidenceHash())) {
             throw conflict("交付证据已变化，请重新评估");
         }
@@ -279,7 +296,12 @@ public class AigcProjectDeliveryService {
             throw badRequest("DeliverableSet 尚不完整: " + String.join("；", evaluated.blockers()));
         }
         var finalRevision = project.getGraphRevision().longValue() + 1;
-        var finalEvaluation = evaluateInternal(project, setObject.getId(), command.includedOptionalObjectIds(), finalRevision);
+        var finalEvaluation =
+                evaluateInternal(
+                        project,
+                        setObject.getId(),
+                        command.includedOptionalObjectIds(),
+                        finalRevision);
         var manifest = new AigcObjectVersion();
         copyScope(project, manifest);
         manifest.setProjectId(project.getId());
@@ -304,8 +326,8 @@ public class AigcProjectDeliveryService {
         bumpRevision(project, List.of(setObject.getId()), null, "冻结 DeliverableSet manifest");
         staleReviews(
                 project.getId(),
-                java.util.stream.Stream.concat(
-                                java.util.stream.Stream.of(setObject.getId()),
+                Stream.concat(
+                                Stream.of(setObject.getId()),
                                 finalEvaluation.includedProjectObjectIds().stream())
                         .toList(),
                 "交付清单已重新冻结");
@@ -322,22 +344,22 @@ public class AigcProjectDeliveryService {
         business.put("manifestObjectVersionId", command.manifestObjectVersionId());
         var cas = new TreeMap<String, Object>();
         cas.put("expectedProjectVersion", command.expectedProjectVersion());
-        var requestHash =
-                AigcCanonicalRequest.of("project.review.submit", business, cas).sha256();
-        var stableKey =
-                "review.command."
-                        + hash(command.idempotencyKey()).substring(0, 32);
+        var requestHash = AigcCanonicalRequest.of("project.review.submit", business, cas).sha256();
+        var stableKey = "review.command." + hash(command.idempotencyKey()).substring(0, 32);
         var replay = objectRepository.findByProjectIdAndStableKey(project.getId(), stableKey);
         if (replay.isPresent()) {
             requirePayloadEquals(replay.get(), "requestHash", requestHash, "同一送审幂等键对应不同 manifest");
             return toReviewView(replay.get());
         }
         requireExpectedVersion(project, command.expectedProjectVersion());
-        if (!Set.of(AigcProjectLifecycle.CREATING, AigcProjectLifecycle.ADOPTING).contains(project.getStatus())) {
+        if (!Set.of(AigcProjectLifecycle.CREATING, AigcProjectLifecycle.ADOPTING)
+                .contains(project.getStatus())) {
             throw badRequest("当前项目阶段不能送审");
         }
         var setObject = requireDeliverableSet(project.getId(), command.setObjectId(), true);
-        var manifest = requireVersion(project.getId(), setObject.getId(), command.manifestObjectVersionId());
+        var manifest =
+                requireVersion(
+                        project.getId(), setObject.getId(), command.manifestObjectVersionId());
         requireCurrentManifest(setObject, manifest);
         requireManifestCurrentEvidence(project, setObject, manifest);
         var review = new AigcProjectObject();
@@ -345,13 +367,15 @@ public class AigcProjectDeliveryService {
         review.setProjectId(project.getId());
         review.setObjectType("review");
         review.setStableKey(stableKey);
-        review.setInstanceNo(objectRepository.findHistoricalMaxCustomInstanceNo(project.getId(), "review") + 1);
+        review.setInstanceNo(
+                objectRepository.findHistoricalMaxCustomInstanceNo(project.getId(), "review") + 1);
         review.setContractRole("EXCLUDED");
         review.setParentId(setObject.getId());
         review.setTitle("Review for manifest " + manifest.getId());
         review.setStatus("PENDING");
         review.setSource("user");
-        review.setPayload(reviewPayload(manifest, setObject, command.idempotencyKey(), requestHash));
+        review.setPayload(
+                reviewPayload(manifest, setObject, command.idempotencyKey(), requestHash));
         objectRepository.saveAndFlush(review);
         project.setStatus(AigcProjectLifecycle.REVIEWING);
         touchProject(project);
@@ -378,23 +402,33 @@ public class AigcProjectDeliveryService {
 
     @Transactional(readOnly = true)
     public List<AigcReviewView> reviews(Long projectId) {
-        return objectRepository.findByProjectIdAndObjectTypeOrderByIdAsc(projectId, "review").stream()
+        return objectRepository
+                .findByProjectIdAndObjectTypeOrderByIdAsc(projectId, "review")
+                .stream()
                 .map(this::toReviewView)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public AigcApprovedManifestView requireApprovedManifest(Long projectId, Long setObjectId, Long manifestVersionId) {
+    public AigcApprovedManifestView requireApprovedManifest(
+            Long projectId, Long setObjectId, Long manifestVersionId) {
         var project = requireProject(projectId);
         var setObject = requireDeliverableSet(projectId, setObjectId, false);
         var manifest = requireVersion(projectId, setObjectId, manifestVersionId);
         requireCurrentManifest(setObject, manifest);
         requireManifestCurrentEvidence(project, setObject, manifest);
-        var review = objectRepository.findByProjectIdAndObjectTypeOrderByIdAsc(projectId, "review").stream()
-                .filter(candidate -> "APPROVED".equals(candidate.getStatus()))
-                .filter(candidate -> Objects.equals(payloadLong(candidate, "subjectObjectVersionId"), manifestVersionId))
-                .findFirst()
-                .orElseThrow(() -> badRequest("manifest 尚未通过审核或审核已 stale"));
+        var review =
+                objectRepository
+                        .findByProjectIdAndObjectTypeOrderByIdAsc(projectId, "review")
+                        .stream()
+                        .filter(candidate -> "APPROVED".equals(candidate.getStatus()))
+                        .filter(
+                                candidate ->
+                                        Objects.equals(
+                                                payloadLong(candidate, "subjectObjectVersionId"),
+                                                manifestVersionId))
+                        .findFirst()
+                        .orElseThrow(() -> badRequest("manifest 尚未通过审核或审核已 stale"));
         return new AigcApprovedManifestView(
                 projectId,
                 setObjectId,
@@ -404,7 +438,8 @@ public class AigcProjectDeliveryService {
     }
 
     @Transactional(readOnly = true)
-    public AigcObjectVersionComparisonView compare(Long projectId, Long objectId, Long leftId, Long rightId) {
+    public AigcObjectVersionComparisonView compare(
+            Long projectId, Long objectId, Long leftId, Long rightId) {
         var left = requireVersion(projectId, objectId, leftId);
         var right = requireVersion(projectId, objectId, rightId);
         return new AigcObjectVersionComparisonView(toComparisonItem(left), toComparisonItem(right));
@@ -413,9 +448,11 @@ public class AigcProjectDeliveryService {
     @Transactional(readOnly = true)
     public AigcCompletionEvaluationView completion(Long projectId) {
         var project = requireProject(projectId);
-        var snapshot = snapshotRepository.findById(project.getConfigSnapshotId())
-                .filter(value -> projectId.equals(value.getProjectId()))
-                .orElseThrow(() -> notFound("项目配置快照不存在"));
+        var snapshot =
+                snapshotRepository
+                        .findById(project.getConfigSnapshotId())
+                        .filter(value -> projectId.equals(value.getProjectId()))
+                        .orElseThrow(() -> notFound("项目配置快照不存在"));
         var policy = publicationPolicy(snapshot.getSnapshot());
         var evidence = completionEvidencePort.load(projectId);
         var requiredChannels =
@@ -440,7 +477,10 @@ public class AigcProjectDeliveryService {
                 }
             }
             case "ALL_SELECTED_CHANNELS" -> {
-                var missing = requiredChannels.stream().filter(id -> !succeededChannels.contains(id)).toList();
+                var missing =
+                        requiredChannels.stream()
+                                .filter(id -> !succeededChannels.contains(id))
+                                .toList();
                 if (!missing.isEmpty()) {
                     blockers.add("以下已选渠道尚未发布成功: " + missing);
                 }
@@ -463,8 +503,9 @@ public class AigcProjectDeliveryService {
         }
         var changed = Set.copyOf(changedObjectIds);
         var project = requireProject(projectId);
-        var reviews = objectRepository.findByProjectIdAndObjectTypeAndStatusInOrderByIdAsc(
-                projectId, "review", ACTIVE_REVIEW_STATUSES);
+        var reviews =
+                objectRepository.findByProjectIdAndObjectTypeAndStatusInOrderByIdAsc(
+                        projectId, "review", ACTIVE_REVIEW_STATUSES);
         for (var review : reviews) {
             var included = payloadLongList(review, "includedObjectIds");
             if (changed.stream().noneMatch(included::contains)
@@ -498,15 +539,8 @@ public class AigcProjectDeliveryService {
         }
         if (Objects.equals(review.getStatus(), decision)) {
             requirePayloadEquals(
-                    review,
-                    "decisionIdempotencyKey",
-                    command.idempotencyKey(),
-                    "审核决策幂等键冲突");
-            requirePayloadEquals(
-                    review,
-                    "decisionRequestHash",
-                    requestHash,
-                    "审核决策摘要与原请求不一致");
+                    review, "decisionIdempotencyKey", command.idempotencyKey(), "审核决策幂等键冲突");
+            requirePayloadEquals(review, "decisionRequestHash", requestHash, "审核决策摘要与原请求不一致");
             return toReviewView(review);
         }
         requireExpectedVersion(project, command.expectedProjectVersion());
@@ -539,7 +573,10 @@ public class AigcProjectDeliveryService {
         review.setStatus(decision);
         review.setVersion(review.getVersion() + 1);
         objectRepository.save(review);
-        project.setStatus("APPROVED".equals(decision) ? AigcProjectLifecycle.DELIVERING : AigcProjectLifecycle.CREATING);
+        project.setStatus(
+                "APPROVED".equals(decision)
+                        ? AigcProjectLifecycle.DELIVERING
+                        : AigcProjectLifecycle.CREATING);
         touchProject(project);
         publishDeliveryActivity(
                 project,
@@ -549,8 +586,14 @@ public class AigcProjectDeliveryService {
                 review.getId(),
                 Map.of("status", decision));
         if ("APPROVED".equals(decision)) {
-            eventPublisher.publishEvent(new AigcProjectReviewApprovedEvent(
-                    UUID.randomUUID(), project.getId(), review.getId(), setObjectId, manifestId, Instant.now()));
+            eventPublisher.publishEvent(
+                    new AigcProjectReviewApprovedEvent(
+                            UUID.randomUUID(),
+                            project.getId(),
+                            review.getId(),
+                            setObjectId,
+                            manifestId,
+                            Instant.now()));
         }
         return toReviewView(review);
     }
@@ -558,11 +601,15 @@ public class AigcProjectDeliveryService {
     private AigcDeliverableSetCompletionView evaluateInternal(
             AigcProject project, Long setObjectId, List<Long> optionalIds, long graphRevision) {
         var setObject = requireDeliverableSet(project.getId(), setObjectId, false);
-        var children = objectRepository.findByProjectIdAndParentIdOrderBySortOrderAscIdAsc(project.getId(), setObject.getId());
+        var children =
+                objectRepository.findByProjectIdAndParentIdOrderBySortOrderAscIdAsc(
+                        project.getId(), setObject.getId());
         if (optionalIds.size() != optionalIds.stream().distinct().count()) {
             throw badRequest("显式 OPTIONAL 对象不能重复");
         }
-        var byId = children.stream().collect(Collectors.toMap(AigcProjectObject::getId, Function.identity()));
+        var byId =
+                children.stream()
+                        .collect(Collectors.toMap(AigcProjectObject::getId, Function.identity()));
         for (var optionalId : optionalIds) {
             var optional = byId.get(optionalId);
             if (optional == null || !"OPTIONAL".equals(optional.getContractRole())) {
@@ -570,12 +617,18 @@ public class AigcProjectDeliveryService {
             }
         }
         var selectedOptional = Set.copyOf(optionalIds);
-        var included = children.stream()
-                .filter(child -> "REQUIRED".equals(child.getContractRole())
-                        || ("OPTIONAL".equals(child.getContractRole()) && selectedOptional.contains(child.getId())))
-                .sorted(Comparator.comparing(AigcProjectObject::getId))
-                .toList();
-        var activeReservations = activeReservations(included.stream().map(AigcProjectObject::getId).toList());
+        var included =
+                children.stream()
+                        .filter(
+                                child ->
+                                        "REQUIRED".equals(child.getContractRole())
+                                                || ("OPTIONAL".equals(child.getContractRole())
+                                                        && selectedOptional.contains(
+                                                                child.getId())))
+                        .sorted(Comparator.comparing(AigcProjectObject::getId))
+                        .toList();
+        var activeReservations =
+                activeReservations(included.stream().map(AigcProjectObject::getId).toList());
         var slots = new ArrayList<AigcDeliverableSlotEvidence>();
         var blockers = new ArrayList<String>();
         for (var child : included) {
@@ -589,21 +642,30 @@ public class AigcProjectDeliveryService {
                 blockers.add("%s 校验未通过: %s".formatted(child.getStableKey(), validationStatus));
             }
             if (reservation != null) {
-                blockers.add("%s 正被 reservation %d 占用".formatted(child.getStableKey(), reservation.getId()));
+                blockers.add(
+                        "%s 正被 reservation %d 占用"
+                                .formatted(child.getStableKey(), reservation.getId()));
             }
-            slots.add(new AigcDeliverableSlotEvidence(
-                    child.getStableKey(),
-                    child.getId(),
-                    child.getContractRole(),
-                    adoptedId,
-                    validationStatus,
-                    reservation == null ? null : reservation.getId(),
-                    reservation == null ? null : reservation.getRootExecutionRunId()));
+            slots.add(
+                    new AigcDeliverableSlotEvidence(
+                            child.getStableKey(),
+                            child.getId(),
+                            child.getContractRole(),
+                            adoptedId,
+                            validationStatus,
+                            reservation == null ? null : reservation.getId(),
+                            reservation == null ? null : reservation.getRootExecutionRunId()));
         }
         var includedIds = included.stream().map(AigcProjectObject::getId).toList();
         var evidenceHash = evidenceHash(graphRevision, slots);
         return new AigcDeliverableSetCompletionView(
-                setObjectId, graphRevision, includedIds, blockers.isEmpty(), slots, blockers, evidenceHash);
+                setObjectId,
+                graphRevision,
+                includedIds,
+                blockers.isEmpty(),
+                slots,
+                blockers,
+                evidenceHash);
     }
 
     private Map<Long, AigcProjectExecutionReservation> activeReservations(List<Long> objectIds) {
@@ -611,10 +673,22 @@ public class AigcProjectDeliveryService {
             return Map.of();
         }
         var targets = reservationTargetRepository.findByProjectObjectIdInOrderByIdAsc(objectIds);
-        var reservations = reservationRepository.findAllById(
-                targets.stream().map(target -> target.getReservationId()).distinct().toList()).stream()
-                .filter(reservation -> Set.of("PREPARED", "BOUND").contains(reservation.getStatus()))
-                .collect(Collectors.toMap(AigcProjectExecutionReservation::getId, Function.identity()));
+        var reservations =
+                reservationRepository
+                        .findAllById(
+                                targets.stream()
+                                        .map(target -> target.getReservationId())
+                                        .distinct()
+                                        .toList())
+                        .stream()
+                        .filter(
+                                reservation ->
+                                        Set.of("PREPARED", "BOUND")
+                                                .contains(reservation.getStatus()))
+                        .collect(
+                                Collectors.toMap(
+                                        AigcProjectExecutionReservation::getId,
+                                        Function.identity()));
         var result = new LinkedHashMap<Long, AigcProjectExecutionReservation>();
         for (var target : targets) {
             var reservation = reservations.get(target.getReservationId());
@@ -633,7 +707,10 @@ public class AigcProjectDeliveryService {
         if (!Set.of("adopted", "superseded").contains(version.getStatus())) {
             return "INVALID_VERSION_STATE";
         }
-        var value = version.getContentPayload() == null ? null : version.getContentPayload().get("validationStatus");
+        var value =
+                version.getContentPayload() == null
+                        ? null
+                        : version.getContentPayload().get("validationStatus");
         return value == null ? "VALID" : String.valueOf(value).toUpperCase();
     }
 
@@ -662,7 +739,8 @@ public class AigcProjectDeliveryService {
         object.setAdoptedVersionId(desired.getId());
         object.setStatus("adopted");
         objectRepository.save(object);
-        for (var reference : mediaRefRepository.findByProjectIdOrderBySortOrderAscIdAsc(project.getId())) {
+        for (var reference :
+                mediaRefRepository.findByProjectIdOrderBySortOrderAscIdAsc(project.getId())) {
             if (desired.getId().equals(reference.getObjectVersionId())) {
                 reference.setAdoptionStatus("adopted");
                 mediaRefRepository.save(reference);
@@ -671,7 +749,8 @@ public class AigcProjectDeliveryService {
                 mediaRefRepository.save(reference);
             }
         }
-        var revision = bumpRevision(project, List.of(object.getId()), desired.getExecutionRunId(), reason);
+        var revision =
+                bumpRevision(project, List.of(object.getId()), desired.getExecutionRunId(), reason);
         staleReviews(project.getId(), List.of(object.getId()), "交付对象采用版本已变化");
         publishDeliveryActivity(
                 project,
@@ -680,25 +759,27 @@ public class AigcProjectDeliveryService {
                 desired.getId(),
                 null,
                 Map.of("objectId", object.getId(), "mode", mode));
-        eventPublisher.publishEvent(new AigcObjectVersionAdoptedEvent(
-                UUID.randomUUID(),
-                project.getId(),
-                object.getId(),
-                desired.getId(),
-                replacedId,
-                mode,
-                operatorContext.currentOperatorType().name(),
-                operatorContext.currentOperatorId().orElse(null),
-                desired.getExecutionRunId(),
-                revision.getRevisionNo().longValue(),
-                Instant.now()));
+        eventPublisher.publishEvent(
+                new AigcObjectVersionAdoptedEvent(
+                        UUID.randomUUID(),
+                        project.getId(),
+                        object.getId(),
+                        desired.getId(),
+                        replacedId,
+                        mode,
+                        operatorContext.currentOperatorType().name(),
+                        operatorContext.currentOperatorId().orElse(null),
+                        desired.getExecutionRunId(),
+                        revision.getRevisionNo().longValue(),
+                        Instant.now()));
     }
 
     private void supersedeCurrent(AigcProjectObject object, AigcObjectVersion desired) {
         if (object.getAdoptedVersionId() == null) {
             return;
         }
-        var previous = requireVersion(object.getProjectId(), object.getId(), object.getAdoptedVersionId());
+        var previous =
+                requireVersion(object.getProjectId(), object.getId(), object.getAdoptedVersionId());
         previous.setStatus("superseded");
         previous.setSupersededByVersionId(desired.getId());
         versionRepository.save(previous);
@@ -706,9 +787,7 @@ public class AigcProjectDeliveryService {
     }
 
     private void requireAdoptReplay(
-            AigcObjectVersion desired,
-            AigcObjectVersionAdoptCommand command,
-            String requestHash) {
+            AigcObjectVersion desired, AigcObjectVersionAdoptCommand command, String requestHash) {
         if (!Objects.equals(desired.getIdempotencyKey(), command.idempotencyKey())
                 || !Objects.equals(desired.getRequestHash(), requestHash)) {
             throw conflict("采用重放幂等键或摘要与原请求不一致");
@@ -737,9 +816,11 @@ public class AigcProjectDeliveryService {
     }
 
     private boolean isAutoAdoptIfEmpty(AigcProject project, AigcProjectObject object) {
-        var snapshot = snapshotRepository.findById(project.getConfigSnapshotId())
-                .filter(value -> project.getId().equals(value.getProjectId()))
-                .orElseThrow(() -> notFound("项目配置快照不存在"));
+        var snapshot =
+                snapshotRepository
+                        .findById(project.getConfigSnapshotId())
+                        .filter(value -> project.getId().equals(value.getProjectId()))
+                        .orElseThrow(() -> notFound("项目配置快照不存在"));
         var resolved = snapshot.getSnapshot().get("resolvedObjects");
         if (!(resolved instanceof List<?> objects)) {
             return false;
@@ -753,7 +834,8 @@ public class AigcProjectDeliveryService {
         return false;
     }
 
-    private Map<String, Object> manifestPayload(AigcProject project, AigcDeliverableSetCompletionView evidence) {
+    private Map<String, Object> manifestPayload(
+            AigcProject project, AigcDeliverableSetCompletionView evidence) {
         var payload = new LinkedHashMap<String, Object>();
         payload.put("kind", "DELIVERABLE_SET_MANIFEST");
         payload.put("configurationSnapshotId", project.getConfigSnapshotId());
@@ -794,17 +876,26 @@ public class AigcProjectDeliveryService {
 
     private String evidenceHash(long graphRevision, List<AigcDeliverableSlotEvidence> slots) {
         var root = new TreeMap<String, Object>();
-        root.put("slots", slots.stream().map(slot -> {
-            var value = new TreeMap<String, Object>();
-            value.put("stableKey", slot.stableKey());
-            value.put("objectId", slot.objectId());
-            value.put("contractRole", slot.contractRole());
-            value.put("adoptedObjectVersionId", slot.adoptedObjectVersionId());
-            value.put("validationStatus", slot.validationStatus());
-            value.put("activeExecutionReservationId", slot.activeExecutionReservationId());
-            value.put("activeExecutionRunId", slot.activeExecutionRunId());
-            return value;
-        }).toList());
+        root.put(
+                "slots",
+                slots.stream()
+                        .map(
+                                slot -> {
+                                    var value = new TreeMap<String, Object>();
+                                    value.put("stableKey", slot.stableKey());
+                                    value.put("objectId", slot.objectId());
+                                    value.put("contractRole", slot.contractRole());
+                                    value.put(
+                                            "adoptedObjectVersionId",
+                                            slot.adoptedObjectVersionId());
+                                    value.put("validationStatus", slot.validationStatus());
+                                    value.put(
+                                            "activeExecutionReservationId",
+                                            slot.activeExecutionReservationId());
+                                    value.put("activeExecutionRunId", slot.activeExecutionRunId());
+                                    return value;
+                                })
+                        .toList());
         return hash(root);
     }
 
@@ -832,8 +923,7 @@ public class AigcProjectDeliveryService {
         return AigcCanonicalRequest.of("project.object-version.reject", business, cas).sha256();
     }
 
-    private String reviewDecisionRequestHash(
-            AigcReviewDecisionCommand command, String decision) {
+    private String reviewDecisionRequestHash(AigcReviewDecisionCommand command, String decision) {
         var business = new TreeMap<String, Object>();
         business.put("projectId", command.projectId());
         business.put("reviewObjectId", command.reviewObjectId());
@@ -846,7 +936,8 @@ public class AigcProjectDeliveryService {
         return AigcCanonicalRequest.of("project.review.decision", business, cas).sha256();
     }
 
-    private String candidateRequestHash(AigcObjectVersionCandidateCommand command, Map<String, Object> content) {
+    private String candidateRequestHash(
+            AigcObjectVersionCandidateCommand command, Map<String, Object> content) {
         var value = new TreeMap<String, Object>();
         value.put("projectId", command.projectId());
         value.put("objectId", command.objectId());
@@ -875,8 +966,7 @@ public class AigcProjectDeliveryService {
     }
 
     private String hash(Object value) {
-        return AigcCanonicalRequest.of(
-                        "project.delivery", Map.of("value", value), Map.of())
+        return AigcCanonicalRequest.of("project.delivery", Map.of("value", value), Map.of())
                 .sha256();
     }
 
@@ -911,12 +1001,16 @@ public class AigcProjectDeliveryService {
     }
 
     private AigcProjectObject requireObject(Long projectId, Long objectId, boolean locked) {
-        var result = locked ? objectRepository.findLockedById(objectId) : objectRepository.findById(objectId);
+        var result =
+                locked
+                        ? objectRepository.findLockedById(objectId)
+                        : objectRepository.findById(objectId);
         return result.filter(object -> projectId.equals(object.getProjectId()))
                 .orElseThrow(() -> notFound("项目对象不存在"));
     }
 
-    private AigcProjectObject requireDeliverableSet(Long projectId, Long setObjectId, boolean locked) {
+    private AigcProjectObject requireDeliverableSet(
+            Long projectId, Long setObjectId, boolean locked) {
         var object = requireObject(projectId, setObjectId, locked);
         if ("deliverable_set".equals(object.getObjectType())) {
             return object;
@@ -943,8 +1037,12 @@ public class AigcProjectDeliveryService {
     }
 
     private AigcObjectVersion requireVersion(Long projectId, Long objectId, Long versionId) {
-        return versionRepository.findById(versionId)
-                .filter(version -> projectId.equals(version.getProjectId()) && objectId.equals(version.getObjectId()))
+        return versionRepository
+                .findById(versionId)
+                .filter(
+                        version ->
+                                projectId.equals(version.getProjectId())
+                                        && objectId.equals(version.getObjectId()))
                 .orElseThrow(() -> notFound("对象版本不存在"));
     }
 
@@ -1000,16 +1098,19 @@ public class AigcProjectDeliveryService {
     }
 
     private int nextVersionNo(Long objectId) {
-        return versionRepository.findFirstByObjectIdOrderByVersionNoDesc(objectId)
-                .map(AigcObjectVersion::getVersionNo)
-                .orElse(0) + 1;
+        return versionRepository
+                        .findFirstByObjectIdOrderByVersionNoDesc(objectId)
+                        .map(AigcObjectVersion::getVersionNo)
+                        .orElse(0)
+                + 1;
     }
 
     private Map<String, Object> parseMap(String contentJson) {
         if (contentJson == null || contentJson.isBlank()) {
             return Map.of();
         }
-        var result = JsonUtils.parseObject(contentJson, new TypeReference<Map<String, Object>>() {});
+        var result =
+                JsonUtils.parseObject(contentJson, new TypeReference<Map<String, Object>>() {});
         return result == null ? Map.of() : result;
     }
 
@@ -1056,12 +1157,16 @@ public class AigcProjectDeliveryService {
                 payload);
     }
 
-    private AigcObjectVersionComparisonView.AigcObjectVersionComparisonItem toComparisonItem(AigcObjectVersion version) {
-        var mediaIds = mediaRefRepository.findByProjectIdOrderBySortOrderAscIdAsc(version.getProjectId()).stream()
-                .filter(reference -> version.getId().equals(reference.getObjectVersionId()))
-                .map(AigcProjectMediaRef::getMediaVersionId)
-                .toList();
-        java.math.BigDecimal cost = null;
+    private AigcObjectVersionComparisonView.AigcObjectVersionComparisonItem toComparisonItem(
+            AigcObjectVersion version) {
+        var mediaIds =
+                mediaRefRepository
+                        .findByProjectIdOrderBySortOrderAscIdAsc(version.getProjectId())
+                        .stream()
+                        .filter(reference -> version.getId().equals(reference.getObjectVersionId()))
+                        .map(AigcProjectMediaRef::getMediaVersionId)
+                        .toList();
+        Long creditCost = null;
         return new AigcObjectVersionComparisonView.AigcObjectVersionComparisonItem(
                 version.getId(),
                 version.getStatus(),
@@ -1069,13 +1174,17 @@ public class AigcProjectDeliveryService {
                 version.getDocumentVersionId(),
                 mediaIds,
                 version.getExecutionRunId(),
-                cost,
+                creditCost,
                 version.getCreateTime());
     }
 
     private AigcObjectVersionView toVersionView(AigcObjectVersion version) {
         return new AigcObjectVersionView(
-                version.getId(), version.getObjectId(), version.getVersionNo(), version.getStatus(), version.getExecutionRunId());
+                version.getId(),
+                version.getObjectId(),
+                version.getVersionNo(),
+                version.getStatus(),
+                version.getExecutionRunId());
     }
 
     private void copyScope(AigcProject project, BaseEntity target) {
@@ -1085,18 +1194,24 @@ public class AigcProjectDeliveryService {
     }
 
     private Map<String, Object> mutablePayload(AigcProjectObject object) {
-        return object.getPayload() == null ? new LinkedHashMap<>() : new LinkedHashMap<>(object.getPayload());
+        return object.getPayload() == null
+                ? new LinkedHashMap<>()
+                : new LinkedHashMap<>(object.getPayload());
     }
 
-    private void requirePayloadEquals(AigcProjectObject object, String key, Object expected, String message) {
-        if (!Objects.equals(object.getPayload() == null ? null : object.getPayload().get(key), expected)) {
+    private void requirePayloadEquals(
+            AigcProjectObject object, String key, Object expected, String message) {
+        if (!Objects.equals(
+                object.getPayload() == null ? null : object.getPayload().get(key), expected)) {
             throw conflict(message);
         }
     }
 
     private Long payloadLong(AigcProjectObject object, String key) {
         var value = object.getPayload() == null ? null : object.getPayload().get(key);
-        return value instanceof Number number ? number.longValue() : value == null ? null : Long.valueOf(String.valueOf(value));
+        return value instanceof Number number
+                ? number.longValue()
+                : value == null ? null : Long.valueOf(String.valueOf(value));
     }
 
     private List<Long> payloadLongList(AigcProjectObject object, String key) {
@@ -1104,7 +1219,13 @@ public class AigcProjectDeliveryService {
         if (!(value instanceof List<?> list)) {
             return List.of();
         }
-        return list.stream().map(item -> item instanceof Number number ? number.longValue() : Long.valueOf(String.valueOf(item))).toList();
+        return list.stream()
+                .map(
+                        item ->
+                                item instanceof Number number
+                                        ? number.longValue()
+                                        : Long.valueOf(String.valueOf(item)))
+                .toList();
     }
 
     private String payloadString(AigcProjectObject object, String key) {

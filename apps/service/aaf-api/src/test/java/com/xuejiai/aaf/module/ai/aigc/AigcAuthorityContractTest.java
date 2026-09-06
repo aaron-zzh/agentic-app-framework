@@ -152,22 +152,16 @@ class AigcAuthorityContractTest {
         assertNamedGuard(AigcWorkController.class, "collect", AigcAuthorities.HAS_WORK_COLLECT);
         assertNamedGuard(AigcWorkController.class, "publish", AigcAuthorities.HAS_WORK_PUBLISH);
         assertNamedGuard(
-                AigcWorkController.class,
-                "cancelPublication",
-                AigcAuthorities.HAS_WORK_PUBLISH);
+                AigcWorkController.class, "cancelPublication", AigcAuthorities.HAS_WORK_PUBLISH);
         assertNamedGuard(
-                AigcWorkController.class,
-                "retryPublication",
-                AigcAuthorities.HAS_WORK_PUBLISH);
+                AigcWorkController.class, "retryPublication", AigcAuthorities.HAS_WORK_PUBLISH);
         assertNamedGuard(AigcWorkController.class, "archiveWork", AigcAuthorities.HAS_WORK_ARCHIVE);
         assertNamedGuard(
                 AigcTimelineController.class,
                 "createComposition",
                 AigcAuthorities.HAS_TIMELINE_CREATE);
         assertNamedGuard(
-                AigcTimelineController.class,
-                "composition",
-                AigcAuthorities.HAS_TIMELINE_READ);
+                AigcTimelineController.class, "composition", AigcAuthorities.HAS_TIMELINE_READ);
         assertNamedGuard(
                 AigcTimelineController.class,
                 "replaceComposition",
@@ -211,9 +205,7 @@ class AigcAuthorityContractTest {
                         .findFirst()
                         .orElseThrow();
         var annotation = method.getAnnotation(PreAuthorize.class);
-        assertThat(annotation)
-                .as(type.getSimpleName() + "." + methodName + " guard")
-                .isNotNull();
+        assertThat(annotation).as(type.getSimpleName() + "." + methodName + " guard").isNotNull();
         assertThat(annotation.value()).isEqualTo(expected);
     }
 
@@ -222,9 +214,7 @@ class AigcAuthorityContractTest {
             throws NoSuchMethodException {
         var annotation =
                 type.getMethod(methodName, parameterTypes).getAnnotation(PreAuthorize.class);
-        assertThat(annotation)
-                .as(type.getSimpleName() + "." + methodName + " guard")
-                .isNotNull();
+        assertThat(annotation).as(type.getSimpleName() + "." + methodName + " guard").isNotNull();
         assertThat(annotation.value()).isEqualTo(expected);
     }
 }

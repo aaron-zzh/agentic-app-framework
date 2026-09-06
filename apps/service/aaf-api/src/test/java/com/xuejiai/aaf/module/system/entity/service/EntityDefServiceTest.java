@@ -142,6 +142,47 @@ class EntityDefServiceTest {
     }
 
     @Test
+    @DisplayName("Given 蓝图定义使用当前展示字段 When 启动审计 Then 通过")
+    void should_accept_current_blueprint_view_fields() {
+        var blueprintDefinition = new EntityDef();
+        blueprintDefinition.setSlug("blueprint");
+        blueprintDefinition.setEnabled(true);
+        blueprintDefinition.setConfig(
+                """
+                {
+                  "kind": "code",
+                  "resource": "aigc.blueprint",
+                  "fields": [
+                    {"type": "json", "name": "slotTemplateSpec"},
+                    {"type": "json", "name": "relationSpec"},
+                    {"type": "json", "name": "actionSpec"},
+                    {"type": "json", "name": "deliverableSpec"},
+                    {"type": "json", "name": "processPolicy"},
+                    {"type": "json", "name": "briefFields"}
+                  ]
+                }
+                """);
+        when(entityDefRepository.findAll()).thenReturn(List.of(blueprintDefinition));
+        var blueprintEntry =
+                catalogEntry(
+                        "aigc.blueprint",
+                        "blueprint",
+                        "/aigc/project-blueprints",
+                        List.of(
+                                "slotTemplateSpec",
+                                "relationSpec",
+                                "actionSpec",
+                                "deliverableSpec",
+                                "processPolicy",
+                                "briefFields"),
+                        false);
+        when(crudResourceRegistry.find("aigc.blueprint"))
+                .thenReturn(Optional.of(blueprintEntry));
+
+        entityDefService.auditPersistedCodeDefinitions();
+    }
+
+    @Test
     @DisplayName("Given 未声明筛选字段 When 创建代码实体定义 Then 拒绝")
     void should_reject_undeclared_filter_field() {
         when(entityDefRepository.existsBySlug("todo")).thenReturn(false);

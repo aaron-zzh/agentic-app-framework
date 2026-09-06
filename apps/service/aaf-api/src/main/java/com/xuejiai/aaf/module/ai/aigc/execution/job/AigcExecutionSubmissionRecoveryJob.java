@@ -60,9 +60,7 @@ public class AigcExecutionSubmissionRecoveryJob {
             submissionService.clearRecoveryFailure(submission.getId());
         } catch (RuntimeException error) {
             var message =
-                    error.getMessage() == null
-                            ? "execution submission 恢复失败"
-                            : error.getMessage();
+                    error.getMessage() == null ? "execution submission 恢复失败" : error.getMessage();
             var businessError = permanentBusinessError(error);
             if (businessError != null) {
                 log.warn(

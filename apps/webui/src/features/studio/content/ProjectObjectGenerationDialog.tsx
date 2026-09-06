@@ -69,7 +69,9 @@ export function ProjectObjectGenerationDialog({
   onOpenChange,
   onSubmitted
 }: ProjectObjectGenerationDialogProps) {
-  const { data: actions = [], isLoading } = useAigcProjectActions(open && mutable ? project.id : null)
+  const { data: actions = [], isLoading } = useAigcProjectActions(
+    open && mutable ? project.id : null
+  )
   const projectTargets = useMemo(
     () => (object ? buildProjectMediaTargets(actions, project.id, object) : {}),
     [actions, object, project.id]

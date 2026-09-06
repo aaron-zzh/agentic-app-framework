@@ -71,7 +71,9 @@ describe("DeliveryWorkflowPanel capability gates", () => {
   })
 
   it("无 capability 时不渲染可变更入口", () => {
-    render(<DeliveryWorkflowPanel project={project("CREATING")} objects={[deliverableSet]} {...denied} />)
+    render(
+      <DeliveryWorkflowPanel project={project("CREATING")} objects={[deliverableSet]} {...denied} />
+    )
     expect(screen.queryByRole("button", { name: /评估证据/ })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /冻结 Manifest/ })).not.toBeInTheDocument()
     expect(screen.queryByRole("button", { name: /提交 Review/ })).not.toBeInTheDocument()
@@ -117,14 +119,16 @@ describe("DeliveryWorkflowPanel capability gates", () => {
     fireEvent.click(screen.getByRole("button", { name: /提交 Review/ }))
     expect(state.submit.mutate).toHaveBeenCalledOnce()
 
-    state.reviews = [{
-      reviewObjectId: 51,
-      reviewVersion: 1,
-      subjectObjectId: 12,
-      subjectObjectVersionId: 31,
-      evidenceHash: "hash-4",
-      status: "PENDING"
-    } as AigcReview]
+    state.reviews = [
+      {
+        reviewObjectId: 51,
+        reviewVersion: 1,
+        subjectObjectId: 12,
+        subjectObjectVersionId: 31,
+        evidenceHash: "hash-4",
+        status: "PENDING"
+      } as AigcReview
+    ]
     rerender(
       <DeliveryWorkflowPanel
         project={project("REVIEWING")}
@@ -138,14 +142,16 @@ describe("DeliveryWorkflowPanel capability gates", () => {
   })
 
   it("collect capability 仅在交付状态开放收录 handler", () => {
-    state.reviews = [{
-      reviewObjectId: 51,
-      reviewVersion: 1,
-      subjectObjectId: 12,
-      subjectObjectVersionId: 31,
-      evidenceHash: "hash-4",
-      status: "APPROVED"
-    } as AigcReview]
+    state.reviews = [
+      {
+        reviewObjectId: 51,
+        reviewVersion: 1,
+        subjectObjectId: 12,
+        subjectObjectVersionId: 31,
+        evidenceHash: "hash-4",
+        status: "APPROVED"
+      } as AigcReview
+    ]
     render(
       <DeliveryWorkflowPanel
         project={project("DELIVERING")}

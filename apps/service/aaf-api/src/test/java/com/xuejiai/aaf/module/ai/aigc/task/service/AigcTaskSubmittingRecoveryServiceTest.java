@@ -51,12 +51,10 @@ class AigcTaskSubmittingRecoveryServiceTest extends BaseMockitoUnitTest {
         assertThat(changed).isTrue();
         assertThat(task.getStatus()).isEqualTo("NEEDS_RECONCILIATION");
         assertThat(task.getProviderResult())
-                .contains(
-                        "task-stable-key",
-                        "accepted-or-unknown",
-                        "NEEDS_RECONCILIATION");
+                .contains("task-stable-key", "accepted-or-unknown", "NEEDS_RECONCILIATION");
         verify(repository).saveAndFlush(task);
-        verify(eventPublisher).publishEvent(org.mockito.ArgumentMatchers.any(AigcTaskTerminalEvent.class));
+        verify(eventPublisher)
+                .publishEvent(org.mockito.ArgumentMatchers.any(AigcTaskTerminalEvent.class));
     }
 
     @Test

@@ -201,7 +201,7 @@ export const aigcTaskApi = {
 export function useCancelAigcTask() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: aigcTaskApi.cancel,
+    mutationFn: (taskId: number) => aigcTaskApi.cancel(taskId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["aigc.task"] })
       queryClient.invalidateQueries({ queryKey: ["aigc.task", "history"] })

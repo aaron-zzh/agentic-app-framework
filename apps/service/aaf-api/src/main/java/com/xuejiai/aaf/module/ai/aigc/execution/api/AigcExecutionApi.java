@@ -17,5 +17,4 @@ public interface AigcExecutionApi {
     AigcExecutionRunView requireRun(Long executionRunId);
 
     void cancelProjectCoverRuns(Long projectId, String reason);
-
 }

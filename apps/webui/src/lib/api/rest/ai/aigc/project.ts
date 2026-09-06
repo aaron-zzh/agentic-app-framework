@@ -22,7 +22,13 @@ export type AigcProjectCoverMode = "NONE" | "UPLOAD" | "AI_GENERATE"
 export type AigcProjectCoverStatus = "NONE" | "READY" | "PENDING" | "FAILED"
 export type AigcProjectCoverOperation = "UPLOAD" | "AI_GENERATE" | "REMOVE"
 export type AigcGenerationMode = "manual" | "auto"
-export type AigcObjectStatus = "empty" | "draft" | "pending_confirm" | "adopted" | "blocked" | "done"
+export type AigcObjectStatus =
+  | "empty"
+  | "draft"
+  | "pending_confirm"
+  | "adopted"
+  | "blocked"
+  | "done"
 export type AigcObjectVersionStatus = "candidate" | "adopted" | "rejected" | "superseded"
 export type AigcObjectSource = "blueprint" | "user" | "assistant" | "workflow" | "import"
 export type AigcContractRole = "REQUIRED" | "OPTIONAL" | "EXCLUDED"
@@ -271,7 +277,11 @@ export interface AigcReview {
   decidedTime?: string
 }
 
-export type AigcPublicationPolicy = "NONE" | "OPTIONAL" | "AT_LEAST_ONE_SUCCESS" | "ALL_SELECTED_CHANNELS"
+export type AigcPublicationPolicy =
+  | "NONE"
+  | "OPTIONAL"
+  | "AT_LEAST_ONE_SUCCESS"
+  | "ALL_SELECTED_CHANNELS"
 export interface AigcCompletionEvaluation {
   publicationPolicy: AigcPublicationPolicy
   satisfied: boolean
@@ -405,26 +415,42 @@ export interface AigcProjectDocumentDetachInput {
 
 export const aigcProjectApi = {
   projects: (params: AigcProjectParams = {}) =>
-    backendApi.get<PageResult<AigcProject>>("/aigc/projects", { params: { pageNo: 1, pageSize: 50, ...params } }),
+    backendApi.get<PageResult<AigcProject>>("/aigc/projects", {
+      params: { pageNo: 1, pageSize: 50, ...params }
+    }),
   project: (id: number) => backendApi.get<AigcProject>(`/aigc/projects/${id}`),
   materialize: (data: AigcProjectMaterializeInput) =>
     backendApi.post<AigcProjectMaterializeResult>("/aigc/projects/_materialize", data),
-  update: (id: number, data: AigcProjectUpdateInput) => backendApi.put<AigcProject>(`/aigc/projects/${id}`, data),
+  update: (id: number, data: AigcProjectUpdateInput) =>
+    backendApi.put<AigcProject>(`/aigc/projects/${id}`, data),
   graph: (id: number) => backendApi.get<AigcProjectGraph>(`/aigc/projects/${id}/graph`),
   summary: (id: number) => backendApi.get<AigcProjectSummary>(`/aigc/projects/${id}/summary`),
-  channelRefs: (id: number) => backendApi.get<AigcProjectChannelRef[]>(`/aigc/projects/${id}/channel-refs`),
-  documentRefs: (id: number) => backendApi.get<AigcProjectDocumentRef[]>(`/aigc/projects/${id}/document-refs`),
-  mediaRefs: (id: number) => backendApi.get<AigcProjectMediaRef[]>(`/aigc/projects/${id}/media-refs`),
+  channelRefs: (id: number) =>
+    backendApi.get<AigcProjectChannelRef[]>(`/aigc/projects/${id}/channel-refs`),
+  documentRefs: (id: number) =>
+    backendApi.get<AigcProjectDocumentRef[]>(`/aigc/projects/${id}/document-refs`),
+  mediaRefs: (id: number) =>
+    backendApi.get<AigcProjectMediaRef[]>(`/aigc/projects/${id}/media-refs`),
   attachDocument: ({ projectId, ...data }: AigcProjectDocumentRefInput) =>
     backendApi.post<AigcProjectDocumentRef>(`/aigc/projects/${projectId}/document-refs`, data),
   detachDocument: ({ projectId, refId, expectedProjectVersion }: AigcProjectDocumentDetachInput) =>
-    backendApi.delete<void>(`/aigc/projects/${projectId}/document-refs/${refId}`, { params: { expectedProjectVersion } }),
+    backendApi.delete<void>(`/aigc/projects/${projectId}/document-refs/${refId}`, {
+      params: { expectedProjectVersion }
+    }),
   versions: (projectId: number, objectId: number) =>
     backendApi.get<AigcObjectVersion[]>(`/aigc/projects/${projectId}/objects/${objectId}/versions`),
-  compareVersions: (projectId: number, objectId: number, leftVersionId: number, rightVersionId: number) =>
-    backendApi.get<AigcObjectVersionComparison>(`/aigc/projects/${projectId}/objects/${objectId}/versions/_compare`, {
-      params: { leftVersionId, rightVersionId }
-    }),
+  compareVersions: (
+    projectId: number,
+    objectId: number,
+    leftVersionId: number,
+    rightVersionId: number
+  ) =>
+    backendApi.get<AigcObjectVersionComparison>(
+      `/aigc/projects/${projectId}/objects/${objectId}/versions/_compare`,
+      {
+        params: { leftVersionId, rightVersionId }
+      }
+    ),
   adoptVersion: (input: AigcVersionAdoptInput) =>
     backendApi.post<AigcObjectVersionView>(
       `/aigc/projects/${input.projectId}/objects/${input.objectId}/versions/${input.versionId}/_adopt`,
@@ -440,13 +466,20 @@ export const aigcProjectApi = {
   rejectVersion: (input: AigcVersionRejectInput) =>
     backendApi.post<AigcObjectVersionView>(
       `/aigc/projects/${input.projectId}/objects/${input.objectId}/versions/${input.versionId}/_reject`,
-      { expectedProjectVersion: input.expectedProjectVersion, reason: input.reason, idempotencyKey: input.idempotencyKey },
+      {
+        expectedProjectVersion: input.expectedProjectVersion,
+        reason: input.reason,
+        idempotencyKey: input.idempotencyKey
+      },
       { showError: false }
     ),
   evaluateDeliverableSet: (input: AigcDeliverableSetEvaluateInput) =>
     backendApi.post<AigcDeliverableSetCompletion>(
       `/aigc/projects/${input.projectId}/deliverable-sets/${input.setObjectId}/_evaluate`,
-      { includedOptionalObjectIds: input.includedOptionalObjectIds, expectedGraphRevision: input.expectedGraphRevision }
+      {
+        includedOptionalObjectIds: input.includedOptionalObjectIds,
+        expectedGraphRevision: input.expectedGraphRevision
+      }
     ),
   freezeDeliverableSet: (input: AigcDeliverableSetFreezeInput) =>
     backendApi.post<AigcObjectVersionView>(
@@ -460,7 +493,8 @@ export const aigcProjectApi = {
       },
       { showError: false }
     ),
-  reviews: (projectId: number) => backendApi.get<AigcReview[]>(`/aigc/projects/${projectId}/reviews`),
+  reviews: (projectId: number) =>
+    backendApi.get<AigcReview[]>(`/aigc/projects/${projectId}/reviews`),
   submitReview: (input: AigcReviewSubmitInput) =>
     backendApi.post<AigcReview>(`/aigc/projects/${input.projectId}/reviews`, {
       setObjectId: input.setObjectId,
@@ -469,21 +503,29 @@ export const aigcProjectApi = {
       idempotencyKey: input.idempotencyKey
     }),
   approveReview: (input: AigcReviewDecisionInput) =>
-    backendApi.post<AigcReview>(`/aigc/projects/${input.projectId}/reviews/${input.reviewObjectId}/_approve`, {
-      expectedManifestObjectVersionId: input.expectedManifestObjectVersionId,
-      expectedProjectVersion: input.expectedProjectVersion,
-      expectedReviewVersion: input.expectedReviewVersion,
-      comment: input.comment,
-      idempotencyKey: input.idempotencyKey
-    }, { showError: false }),
+    backendApi.post<AigcReview>(
+      `/aigc/projects/${input.projectId}/reviews/${input.reviewObjectId}/_approve`,
+      {
+        expectedManifestObjectVersionId: input.expectedManifestObjectVersionId,
+        expectedProjectVersion: input.expectedProjectVersion,
+        expectedReviewVersion: input.expectedReviewVersion,
+        comment: input.comment,
+        idempotencyKey: input.idempotencyKey
+      },
+      { showError: false }
+    ),
   returnReview: (input: AigcReviewDecisionInput) =>
-    backendApi.post<AigcReview>(`/aigc/projects/${input.projectId}/reviews/${input.reviewObjectId}/_return`, {
-      expectedManifestObjectVersionId: input.expectedManifestObjectVersionId,
-      expectedProjectVersion: input.expectedProjectVersion,
-      expectedReviewVersion: input.expectedReviewVersion,
-      comment: input.comment,
-      idempotencyKey: input.idempotencyKey
-    }, { showError: false }),
+    backendApi.post<AigcReview>(
+      `/aigc/projects/${input.projectId}/reviews/${input.reviewObjectId}/_return`,
+      {
+        expectedManifestObjectVersionId: input.expectedManifestObjectVersionId,
+        expectedProjectVersion: input.expectedProjectVersion,
+        expectedReviewVersion: input.expectedReviewVersion,
+        comment: input.comment,
+        idempotencyKey: input.idempotencyKey
+      },
+      { showError: false }
+    ),
   completionEvidence: (projectId: number) =>
     backendApi.get<AigcCompletionEvaluation>(`/aigc/projects/${projectId}/completion-evidence`),
   lifecycle: (input: AigcLifecycleInput) =>
@@ -503,36 +545,63 @@ export const aigcProjectKeys = {
   channelRefs: (id: number) => ["aigc.project", "channel-refs", id] as const,
   documentRefs: (id: number) => ["aigc.project", "document-refs", id] as const,
   mediaRefs: (id: number) => ["aigc.project", "media-refs", id] as const,
-  versions: (projectId: number, objectId: number) => ["aigc.project", "versions", projectId, objectId] as const,
+  versions: (projectId: number, objectId: number) =>
+    ["aigc.project", "versions", projectId, objectId] as const,
   comparison: (projectId: number, objectId: number, left: number, right: number) =>
     ["aigc.project", "comparison", projectId, objectId, left, right] as const,
   reviews: (projectId: number) => ["aigc.project", "reviews", projectId] as const,
-  completionEvidence: (projectId: number) => ["aigc.project", "completion-evidence", projectId] as const
+  completionEvidence: (projectId: number) =>
+    ["aigc.project", "completion-evidence", projectId] as const
 }
 
 export function useAigcProjects(params: AigcProjectParams = {}) {
-  return useQuery({ queryKey: aigcProjectKeys.list(params), queryFn: () => aigcProjectApi.projects(params) })
+  return useQuery({
+    queryKey: aigcProjectKeys.list(params),
+    queryFn: () => aigcProjectApi.projects(params)
+  })
 }
 export function useAigcProject(id: number | null) {
   return useQuery({
-    queryKey: aigcProjectKeys.detail(id ?? 0), queryFn: () => aigcProjectApi.project(id as number), enabled: id !== null,
+    queryKey: aigcProjectKeys.detail(id ?? 0),
+    queryFn: () => aigcProjectApi.project(id as number),
+    enabled: id !== null,
     refetchInterval: (query) => (query.state.data?.coverStatus === "PENDING" ? 3000 : false)
   })
 }
 export function useAigcProjectGraph(id: number | null) {
-  return useQuery({ queryKey: aigcProjectKeys.graph(id ?? 0), queryFn: () => aigcProjectApi.graph(id as number), enabled: id !== null })
+  return useQuery({
+    queryKey: aigcProjectKeys.graph(id ?? 0),
+    queryFn: () => aigcProjectApi.graph(id as number),
+    enabled: id !== null
+  })
 }
 export function useAigcProjectSummary(id: number | null) {
-  return useQuery({ queryKey: aigcProjectKeys.summary(id ?? 0), queryFn: () => aigcProjectApi.summary(id as number), enabled: id !== null })
+  return useQuery({
+    queryKey: aigcProjectKeys.summary(id ?? 0),
+    queryFn: () => aigcProjectApi.summary(id as number),
+    enabled: id !== null
+  })
 }
 export function useAigcProjectChannelRefs(id: number | null) {
-  return useQuery({ queryKey: aigcProjectKeys.channelRefs(id ?? 0), queryFn: () => aigcProjectApi.channelRefs(id as number), enabled: id !== null })
+  return useQuery({
+    queryKey: aigcProjectKeys.channelRefs(id ?? 0),
+    queryFn: () => aigcProjectApi.channelRefs(id as number),
+    enabled: id !== null
+  })
 }
 export function useAigcProjectDocumentRefs(id: number | null) {
-  return useQuery({ queryKey: aigcProjectKeys.documentRefs(id ?? 0), queryFn: () => aigcProjectApi.documentRefs(id as number), enabled: id !== null })
+  return useQuery({
+    queryKey: aigcProjectKeys.documentRefs(id ?? 0),
+    queryFn: () => aigcProjectApi.documentRefs(id as number),
+    enabled: id !== null
+  })
 }
 export function useAigcProjectMediaRefs(id: number | null) {
-  return useQuery({ queryKey: aigcProjectKeys.mediaRefs(id ?? 0), queryFn: () => aigcProjectApi.mediaRefs(id as number), enabled: id !== null })
+  return useQuery({
+    queryKey: aigcProjectKeys.mediaRefs(id ?? 0),
+    queryFn: () => aigcProjectApi.mediaRefs(id as number),
+    enabled: id !== null
+  })
 }
 export function useAigcObjectVersions(projectId: number | null, objectId: number | null) {
   return useQuery({
@@ -541,21 +610,38 @@ export function useAigcObjectVersions(projectId: number | null, objectId: number
     enabled: projectId !== null && objectId !== null
   })
 }
-export function useAigcVersionComparison(projectId: number, objectId: number, left: number | null, right: number | null) {
+export function useAigcVersionComparison(
+  projectId: number,
+  objectId: number,
+  left: number | null,
+  right: number | null
+) {
   return useQuery({
     queryKey: aigcProjectKeys.comparison(projectId, objectId, left ?? 0, right ?? 0),
-    queryFn: () => aigcProjectApi.compareVersions(projectId, objectId, left as number, right as number),
+    queryFn: () =>
+      aigcProjectApi.compareVersions(projectId, objectId, left as number, right as number),
     enabled: left !== null && right !== null && left !== right
   })
 }
 export function useAigcReviews(projectId: number | null) {
-  return useQuery({ queryKey: aigcProjectKeys.reviews(projectId ?? 0), queryFn: () => aigcProjectApi.reviews(projectId as number), enabled: projectId !== null })
+  return useQuery({
+    queryKey: aigcProjectKeys.reviews(projectId ?? 0),
+    queryFn: () => aigcProjectApi.reviews(projectId as number),
+    enabled: projectId !== null
+  })
 }
 export function useAigcCompletionEvidence(projectId: number | null) {
-  return useQuery({ queryKey: aigcProjectKeys.completionEvidence(projectId ?? 0), queryFn: () => aigcProjectApi.completionEvidence(projectId as number), enabled: projectId !== null })
+  return useQuery({
+    queryKey: aigcProjectKeys.completionEvidence(projectId ?? 0),
+    queryFn: () => aigcProjectApi.completionEvidence(projectId as number),
+    enabled: projectId !== null
+  })
 }
 
-export function invalidateAigcProject(queryClient: ReturnType<typeof useQueryClient>, projectId: number) {
+export function invalidateAigcProject(
+  queryClient: ReturnType<typeof useQueryClient>,
+  projectId: number
+) {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: aigcProjectKeys.detail(projectId) }),
     queryClient.invalidateQueries({ queryKey: aigcProjectKeys.graph(projectId) }),
@@ -569,50 +655,97 @@ export function invalidateAigcProject(queryClient: ReturnType<typeof useQueryCli
 
 export function useMaterializeAigcProject() {
   const queryClient = useQueryClient()
-  return useMutation({ mutationFn: aigcProjectApi.materialize, onSuccess: () => queryClient.invalidateQueries({ queryKey: aigcProjectKeys.all }) })
+  return useMutation({
+    mutationFn: aigcProjectApi.materialize,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: aigcProjectKeys.all })
+  })
 }
 export function useUpdateAigcProject() {
   const queryClient = useQueryClient()
-  return useMutation({ mutationFn: ({ id, data }: { id: number; data: AigcProjectUpdateInput }) => aigcProjectApi.update(id, data), onSuccess: (project) => invalidateAigcProject(queryClient, project.id) })
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: AigcProjectUpdateInput }) =>
+      aigcProjectApi.update(id, data),
+    onSuccess: (project) => invalidateAigcProject(queryClient, project.id)
+  })
 }
-function versionMutation<T extends AigcVersionAdoptInput | AigcVersionRejectInput>(mutationFn: (input: T) => Promise<AigcObjectVersionView>) {
+function useVersionMutation<T extends AigcVersionAdoptInput | AigcVersionRejectInput>(
+  mutationFn: (input: T) => Promise<AigcObjectVersionView>
+) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn,
     onSettled: (_data, _error, input) => {
       invalidateAigcProject(queryClient, input.projectId)
-      queryClient.invalidateQueries({ queryKey: aigcProjectKeys.versions(input.projectId, input.objectId) })
+      queryClient.invalidateQueries({
+        queryKey: aigcProjectKeys.versions(input.projectId, input.objectId)
+      })
     }
   })
 }
-export function useAdoptAigcObjectVersion() { return versionMutation(aigcProjectApi.adoptVersion) }
-export function useRejectAigcObjectVersion() { return versionMutation(aigcProjectApi.rejectVersion) }
-export function useEvaluateAigcDeliverableSet() { return useMutation({ mutationFn: aigcProjectApi.evaluateDeliverableSet }) }
+export function useAdoptAigcObjectVersion() {
+  return useVersionMutation(aigcProjectApi.adoptVersion)
+}
+export function useRejectAigcObjectVersion() {
+  return useVersionMutation(aigcProjectApi.rejectVersion)
+}
+export function useEvaluateAigcDeliverableSet() {
+  return useMutation({ mutationFn: aigcProjectApi.evaluateDeliverableSet })
+}
 export function useFreezeAigcDeliverableSet() {
   const queryClient = useQueryClient()
-  return useMutation({ mutationFn: aigcProjectApi.freezeDeliverableSet, onSettled: (_value, _error, input) => invalidateAigcProject(queryClient, input.projectId) })
+  return useMutation({
+    mutationFn: aigcProjectApi.freezeDeliverableSet,
+    onSettled: (_value, _error, input) => invalidateAigcProject(queryClient, input.projectId)
+  })
 }
 export function useSubmitAigcReview() {
   const queryClient = useQueryClient()
-  return useMutation({ mutationFn: aigcProjectApi.submitReview, onSuccess: (_value, input) => invalidateAigcProject(queryClient, input.projectId) })
+  return useMutation({
+    mutationFn: aigcProjectApi.submitReview,
+    onSuccess: (_value, input) => invalidateAigcProject(queryClient, input.projectId)
+  })
 }
-function reviewMutation(mutationFn: (input: AigcReviewDecisionInput) => Promise<AigcReview>) {
+function useReviewMutation(mutationFn: (input: AigcReviewDecisionInput) => Promise<AigcReview>) {
   const queryClient = useQueryClient()
-  return useMutation({ mutationFn, onSettled: (_value, _error, input) => invalidateAigcProject(queryClient, input.projectId) })
+  return useMutation({
+    mutationFn,
+    onSettled: (_value, _error, input) => invalidateAigcProject(queryClient, input.projectId)
+  })
 }
-export function useApproveAigcProjectReview() { return reviewMutation(aigcProjectApi.approveReview) }
-export function useReturnAigcProjectReview() { return reviewMutation(aigcProjectApi.returnReview) }
+export function useApproveAigcProjectReview() {
+  return useReviewMutation(aigcProjectApi.approveReview)
+}
+export function useReturnAigcProjectReview() {
+  return useReviewMutation(aigcProjectApi.returnReview)
+}
 export function useAigcProjectLifecycle() {
   const queryClient = useQueryClient()
-  return useMutation({ mutationFn: aigcProjectApi.lifecycle, onSuccess: (_project, input) => invalidateAigcProject(queryClient, input.projectId) })
+  return useMutation({
+    mutationFn: aigcProjectApi.lifecycle,
+    onSuccess: (_project, input) => invalidateAigcProject(queryClient, input.projectId)
+  })
 }
 export function useAttachAigcProjectDocument() {
   const queryClient = useQueryClient()
-  return useMutation({ mutationFn: aigcProjectApi.attachDocument, onSuccess: async (_ref, input) => Promise.all([queryClient.invalidateQueries({ queryKey: aigcProjectKeys.documentRefs(input.projectId) }), invalidateAigcProject(queryClient, input.projectId)]) })
+  return useMutation({
+    mutationFn: aigcProjectApi.attachDocument,
+    onSuccess: async (_ref, input) =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: aigcProjectKeys.documentRefs(input.projectId) }),
+        invalidateAigcProject(queryClient, input.projectId)
+      ])
+  })
 }
 export function useDetachAigcProjectDocument() {
   const queryClient = useQueryClient()
-  return useMutation({ mutationFn: aigcProjectApi.detachDocument, onSuccess: async (_result, input) => Promise.all([queryClient.invalidateQueries({ queryKey: aigcProjectKeys.documentRefs(input.projectId) }), invalidateAigcProject(queryClient, input.projectId)]) })
+  return useMutation({
+    mutationFn: aigcProjectApi.detachDocument,
+    onSuccess: async (_result, input) =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: aigcProjectKeys.documentRefs(input.projectId) }),
+        invalidateAigcProject(queryClient, input.projectId)
+      ])
+  })
 }
 
 export interface AigcProjectObjectAppendInput {
@@ -645,14 +778,25 @@ export interface AigcProjectObjectRemoveInput {
 /** 项目对象结构写 API。 */
 export const aigcProjectStructureApi = {
   appendObject: ({ projectId, ...data }: AigcProjectObjectAppendInput) =>
-    backendApi.post<AigcProjectObject>(`/aigc/projects/${projectId}/objects`, data, { showError: false }),
+    backendApi.post<AigcProjectObject>(`/aigc/projects/${projectId}/objects`, data, {
+      showError: false
+    }),
   updateObjectContract: ({ projectId, objectId, ...data }: AigcProjectObjectContractInput) =>
-    backendApi.put<AigcProjectObject>(`/aigc/projects/${projectId}/objects/${objectId}/contract`, data, { showError: false }),
+    backendApi.put<AigcProjectObject>(
+      `/aigc/projects/${projectId}/objects/${objectId}/contract`,
+      data,
+      { showError: false }
+    ),
   removeObject: ({ projectId, objectId, ...data }: AigcProjectObjectRemoveInput) =>
-    backendApi.delete<AigcProjectObject>(`/aigc/projects/${projectId}/objects/${objectId}`, { data, showError: false })
+    backendApi.delete<AigcProjectObject>(`/aigc/projects/${projectId}/objects/${objectId}`, {
+      data,
+      showError: false
+    })
 }
 
-function projectStructureMutation<TInput extends { projectId: number }>(mutationFn: (input: TInput) => Promise<AigcProjectObject>) {
+function useProjectStructureMutation<TInput extends { projectId: number }>(
+  mutationFn: (input: TInput) => Promise<AigcProjectObject>
+) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn,
@@ -663,13 +807,13 @@ function projectStructureMutation<TInput extends { projectId: number }>(mutation
 }
 
 export function useAppendAigcProjectObject() {
-  return projectStructureMutation(aigcProjectStructureApi.appendObject)
+  return useProjectStructureMutation(aigcProjectStructureApi.appendObject)
 }
 
 export function useUpdateAigcProjectObjectContract() {
-  return projectStructureMutation(aigcProjectStructureApi.updateObjectContract)
+  return useProjectStructureMutation(aigcProjectStructureApi.updateObjectContract)
 }
 
 export function useRemoveAigcProjectObject() {
-  return projectStructureMutation(aigcProjectStructureApi.removeObject)
+  return useProjectStructureMutation(aigcProjectStructureApi.removeObject)
 }

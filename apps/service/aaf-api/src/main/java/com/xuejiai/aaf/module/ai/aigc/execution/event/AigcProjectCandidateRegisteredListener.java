@@ -34,13 +34,15 @@ public class AigcProjectCandidateRegisteredListener {
         }
         var project = projectApi.requireProject(event.projectId());
         projectApi.lockForGeneratedResource(event.projectId(), project.userId());
-        if (com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycle.ARCHIVED.equals(projectApi.requireProject(event.projectId()).lifecycleStage())) {
+        if (com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycle.ARCHIVED.equals(
+                projectApi.requireProject(event.projectId()).lifecycleStage())) {
             return;
         }
         var run = runRepository.findLockedById(event.executionRunId()).orElse(null);
         if (run == null
                 || !event.projectId().equals(run.getProjectId())
-                || !com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus.RUNNING.equals(run.getStatus())) {
+                || !com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus.RUNNING
+                        .equals(run.getStatus())) {
             return;
         }
         var output =
@@ -49,11 +51,11 @@ public class AigcProjectCandidateRegisteredListener {
                         : new LinkedHashMap<>(run.getOutputPayload());
         output.put("objectVersionIds", event.objectVersionIds());
         run.setOutputPayload(output);
-        run.setStatus(com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus.SUCCEEDED);
+        run.setStatus(
+                com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus.SUCCEEDED);
         run.setEndTime(LocalDateTime.now());
         run.setVersion(run.getVersion() + 1);
         runRepository.save(run);
         terminalService.onRunTerminal(run);
-
     }
 }

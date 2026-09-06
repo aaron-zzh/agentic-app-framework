@@ -41,16 +41,26 @@ class AigcExecutionSubmissionServiceTest extends BaseMockitoUnitTest {
         submission.setIdempotencyKey("idem-replay");
         submission.setRequestPayload(
                 Map.of(
-                        "projectId", 1L,
-                        "projectObjectId", 2L,
-                        "actionKey", "video.generate",
-                        "prompt", "生成视频",
-                        "requestedModelId", "model-v2",
-                        "actionArguments", Map.of("duration", 8),
-                        "attachmentMediaVersionIds", List.of(9L, 3L),
-                        "selectedProjectObjectIds", List.of(2L, 4L),
-                        "expectedGraphRevision", 6L,
-                        "confirmed", true));
+                        "projectId",
+                        1L,
+                        "projectObjectId",
+                        2L,
+                        "actionKey",
+                        "video.generate",
+                        "prompt",
+                        "生成视频",
+                        "requestedModelId",
+                        "model-v2",
+                        "actionArguments",
+                        Map.of("duration", 8),
+                        "attachmentMediaVersionIds",
+                        List.of(9L, 3L),
+                        "selectedProjectObjectIds",
+                        List.of(2L, 4L),
+                        "expectedGraphRevision",
+                        6L,
+                        "confirmed",
+                        true));
 
         // 调用
         var command = service.toCommand(submission);
@@ -108,9 +118,7 @@ class AigcExecutionSubmissionServiceTest extends BaseMockitoUnitTest {
         var normalized = service.normalize(command);
 
         // 断言
-        assertThat(normalized.get("attachmentMediaVersionIds"))
-                .isEqualTo(List.of(9L, 3L, 7L));
-        assertThat(normalized.get("actionArguments"))
-                .isEqualTo(Map.of("a", 2, "z", 1));
+        assertThat(normalized.get("attachmentMediaVersionIds")).isEqualTo(List.of(9L, 3L, 7L));
+        assertThat(normalized.get("actionArguments")).isEqualTo(Map.of("a", 2, "z", 1));
     }
 }

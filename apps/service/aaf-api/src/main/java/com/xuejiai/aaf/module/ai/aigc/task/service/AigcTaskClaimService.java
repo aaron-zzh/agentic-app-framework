@@ -27,9 +27,7 @@ public class AigcTaskClaimService {
         if (claimed != 1) {
             return Optional.empty();
         }
-        return taskRepository
-                .findById(taskId)
-                .filter(task -> owner.equals(task.getSubmitOwner()));
+        return taskRepository.findById(taskId).filter(task -> owner.equals(task.getSubmitOwner()));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

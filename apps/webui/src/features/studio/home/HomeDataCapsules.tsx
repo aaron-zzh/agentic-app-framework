@@ -49,11 +49,27 @@ function CapsuleArrow() {
 }
 
 export function HomeDataCapsules() {
-  const { data: projectPage, isLoading: projectLoading } = useAigcProjects({
+  const { data: creatingProjects, isLoading: creatingProjectsLoading } = useAigcProjects({
     pageNo: 1,
     pageSize: 1,
-    status: "in_progress"
+    status: "CREATING"
   })
+  const { data: executingProjects, isLoading: executingProjectsLoading } = useAigcProjects({
+    pageNo: 1,
+    pageSize: 1,
+    status: "EXECUTING"
+  })
+  const { data: adoptingProjects, isLoading: adoptingProjectsLoading } = useAigcProjects({
+    pageNo: 1,
+    pageSize: 1,
+    status: "ADOPTING"
+  })
+  const projectTotal =
+    (creatingProjects?.total ?? 0) +
+    (executingProjects?.total ?? 0) +
+    (adoptingProjects?.total ?? 0)
+  const projectLoading =
+    creatingProjectsLoading || executingProjectsLoading || adoptingProjectsLoading
   const { data: taskCounts, isLoading: taskLoading } = useTaskStatusCounts()
   const { data: mediaPage, isLoading: mediaLoading } = useMediaList({ pageNo: 1, pageSize: 1 })
   const { data: workPage, isLoading: workLoading } = useAigcWorks({ pageNo: 1, pageSize: 1 })
@@ -63,7 +79,7 @@ export function HomeDataCapsules() {
       <Link href="/studio/projects?status=in_progress" className="group">
         <DataCapsule
           label="进行中项目"
-          value={projectPage?.total ?? 0}
+          value={projectTotal}
           unit="个"
           loading={projectLoading}
           icon={<FolderKanban className="size-4" />}

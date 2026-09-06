@@ -31,7 +31,8 @@ public record AigcExecutionRunView(
     public AigcExecutionRunView {
         frozenProjectObjectIds =
                 frozenProjectObjectIds == null ? List.of() : List.copyOf(frozenProjectObjectIds);
-        effectiveInput = effectiveInput == null ? java.util.Map.of() : java.util.Map.copyOf(effectiveInput);
+        effectiveInput =
+                effectiveInput == null ? java.util.Map.of() : java.util.Map.copyOf(effectiveInput);
         taskIds = taskIds == null ? List.of() : List.copyOf(taskIds);
         candidateObjectVersionIds =
                 candidateObjectVersionIds == null

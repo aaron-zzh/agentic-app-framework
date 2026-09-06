@@ -3,6 +3,8 @@ package com.xuejiai.aaf.module.ai.aigc.project.api;
 import java.math.BigDecimal;
 import java.util.List;
 
+import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcExecutionBindingVersionRef;
+
 public record AigcProjectView(
         Long id,
         Long orgId,
@@ -16,8 +18,7 @@ public record AigcProjectView(
         String productionMode,
         String generationMode,
         List<Long> channelSpecVersionIds,
-        List<com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcExecutionBindingVersionRef>
-                executionBindings,
+        List<AigcExecutionBindingVersionRef> executionBindings,
         BigDecimal budgetLimit,
         BigDecimal costUsed,
         String description,
@@ -28,7 +29,6 @@ public record AigcProjectView(
     public AigcProjectView {
         channelSpecVersionIds =
                 channelSpecVersionIds == null ? List.of() : List.copyOf(channelSpecVersionIds);
-        executionBindings =
-                executionBindings == null ? List.of() : List.copyOf(executionBindings);
+        executionBindings = executionBindings == null ? List.of() : List.copyOf(executionBindings);
     }
 }

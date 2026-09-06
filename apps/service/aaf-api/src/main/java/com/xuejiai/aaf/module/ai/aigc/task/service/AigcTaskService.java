@@ -912,16 +912,15 @@ public class AigcTaskService
     private BigDecimal videoCostYuan(AiModel aiModel, VideoTaskResult result) {
         var duration = Objects.requireNonNull(result.getDuration(), "视频实际用量缺少 duration");
         var videoConfig = aiModel.getVideoConfigParsed();
-        if (videoConfig != null && videoConfig.pricing() != null && !videoConfig.pricing().isEmpty()) {
+        if (videoConfig != null
+                && videoConfig.pricing() != null
+                && !videoConfig.pricing().isEmpty()) {
             var resolution = Objects.requireNonNull(result.getResolution(), "视频实际用量缺少 resolution");
             return videoConfig.pricing().stream()
                     .filter(item -> resolution.equalsIgnoreCase(item.resolution()))
                     .map(item -> item.pricePerSecond().multiply(BigDecimal.valueOf(duration)))
                     .findFirst()
-                    .orElseThrow(
-                            () ->
-                                    new IllegalStateException(
-                                            "模型缺少视频分辨率价格: " + resolution));
+                    .orElseThrow(() -> new IllegalStateException("模型缺少视频分辨率价格: " + resolution));
         }
         var modelPrice = Objects.requireNonNull(aiModel.getModelPrice(), "视频模型缺少固定价格");
         return switch (aiModel.getQuotaType() == null ? 0 : aiModel.getQuotaType()) {

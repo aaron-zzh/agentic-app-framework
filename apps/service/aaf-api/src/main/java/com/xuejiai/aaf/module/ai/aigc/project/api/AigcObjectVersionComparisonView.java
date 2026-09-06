@@ -1,6 +1,8 @@
 package com.xuejiai.aaf.module.ai.aigc.project.api;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -21,8 +23,7 @@ public record AigcObjectVersionComparisonView(
             content =
                     content == null
                             ? Map.of()
-                            : java.util.Collections.unmodifiableMap(
-                                    new java.util.LinkedHashMap<>(content));
+                            : Collections.unmodifiableMap(new LinkedHashMap<>(content));
             mediaVersionIds = mediaVersionIds == null ? List.of() : List.copyOf(mediaVersionIds);
         }
     }

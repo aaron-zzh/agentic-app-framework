@@ -5,7 +5,17 @@
 
 "use client"
 
-import { AlertTriangle, ArrowRight, CheckCircle2, CircleDashed, Eye, FilePenLine, Plus, Sparkles, Trash2 } from "lucide-react"
+import {
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
+  CircleDashed,
+  Eye,
+  FilePenLine,
+  Plus,
+  Sparkles,
+  Trash2
+} from "lucide-react"
 import { GlassCard, GlassCardBody, NeonChip } from "@/components/studio"
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
@@ -145,7 +155,12 @@ export function ProjectStructureView({
             <NeonChip tone="amber">{pendingCount} 待确认</NeonChip>
             <NeonChip tone="rose">{blockedCount} 阻断</NeonChip>
             <NeonChip tone="cyan">{gapCount} 缺口</NeonChip>
-            {!readOnly ? <Button type="button" size="sm" onClick={onAppendObject}><Plus />追加对象</Button> : null}
+            {!readOnly ? (
+              <Button type="button" size="sm" onClick={onAppendObject}>
+                <Plus />
+                追加对象
+              </Button>
+            ) : null}
           </div>
         </div>
 
@@ -212,11 +227,23 @@ export function ProjectStructureView({
                         <div className="flex justify-end gap-1">
                           {!readOnly ? (
                             <>
-                              <Button type="button" variant="ghost" size="sm" onClick={() => onUpdateContract(object)}>
-                                <FilePenLine />合同
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onUpdateContract(object)}
+                              >
+                                <FilePenLine />
+                                合同
                               </Button>
-                              <Button type="button" variant="ghost" size="sm" onClick={() => onRemoveObject(object)}>
-                                <Trash2 />移除
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onRemoveObject(object)}
+                              >
+                                <Trash2 />
+                                移除
                               </Button>
                             </>
                           ) : null}

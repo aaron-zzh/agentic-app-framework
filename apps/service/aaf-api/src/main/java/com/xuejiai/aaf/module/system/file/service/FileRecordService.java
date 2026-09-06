@@ -287,8 +287,7 @@ public class FileRecordService implements FileRecordApi {
         return storageReferenceService.prepareExternalAccess(requireFileByKey(key), expiry);
     }
 
-    public String prepareCurrentOwnerExternalAccessByKey(
-            String key, java.time.Duration expiry) {
+    public String prepareCurrentOwnerExternalAccessByKey(String key, java.time.Duration expiry) {
         return storageReferenceService.prepareExternalAccess(requireOwnedByKey(key), expiry);
     }
 
@@ -366,10 +365,7 @@ public class FileRecordService implements FileRecordApi {
     }
 
     private FileRecord requireFileByKey(String key) {
-        var file =
-                fileRecordRepository
-                        .findByKey(key)
-                        .orElseThrow(() -> exception(FILE_NOT_FOUND));
+        var file = fileRecordRepository.findByKey(key).orElseThrow(() -> exception(FILE_NOT_FOUND));
         if (FileStorageStatus.DELETED.name().equals(file.getStorageStatus())) {
             throw exception(FILE_NOT_FOUND);
         }
@@ -378,9 +374,7 @@ public class FileRecordService implements FileRecordApi {
 
     private FileRecord requireFile(Long fileId) {
         var file =
-                fileRecordRepository
-                        .findById(fileId)
-                        .orElseThrow(() -> exception(FILE_NOT_FOUND));
+                fileRecordRepository.findById(fileId).orElseThrow(() -> exception(FILE_NOT_FOUND));
         if (FileStorageStatus.DELETED.name().equals(file.getStorageStatus())) {
             throw exception(FILE_NOT_FOUND);
         }

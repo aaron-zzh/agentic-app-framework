@@ -20,7 +20,6 @@ public class AigcProjectExecutionEvidenceAdapter implements ExecutionEvidencePor
     @Override
     public ExecutionEvidence load(Long projectId) {
         return new ExecutionEvidence(
-                repository.countByProjectIdAndStatus(
-                        projectId, AigcExecutionRunStatus.RUNNING));
+                repository.countByProjectIdAndStatus(projectId, AigcExecutionRunStatus.RUNNING));
     }
 }

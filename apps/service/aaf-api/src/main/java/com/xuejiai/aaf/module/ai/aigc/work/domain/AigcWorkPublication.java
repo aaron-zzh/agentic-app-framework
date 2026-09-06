@@ -20,7 +20,9 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "aigc_work_publication")
-@SQLDelete(sql = "UPDATE aigc_work_publication SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@SQLDelete(
+        sql =
+                "UPDATE aigc_work_publication SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class AigcWorkPublication extends BaseEntity {
 
     @Column(name = "work_id", nullable = false)

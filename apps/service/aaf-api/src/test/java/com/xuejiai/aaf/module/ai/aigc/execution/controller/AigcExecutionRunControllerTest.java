@@ -51,7 +51,6 @@ class AigcExecutionRunControllerTest extends BaseMockitoUnitTest {
 
         // 断言
         assertThat(mapping.value()).containsExactly("/{id}/tree");
-        assertThat(authorization.value())
-                .isEqualTo("hasAuthority('aigc:execution-run:read')");
+        assertThat(authorization.value()).isEqualTo("hasAuthority('aigc:execution-run:read')");
     }
 }

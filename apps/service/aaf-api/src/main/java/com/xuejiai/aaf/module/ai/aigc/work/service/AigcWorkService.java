@@ -1,13 +1,9 @@
 package com.xuejiai.aaf.module.ai.aigc.work.service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -27,8 +23,8 @@ import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.crud.definition.CrudOperation;
 import com.xuejiai.aaf.framework.crud.enforcement.AccessMode;
 import com.xuejiai.aaf.framework.security.OperatorContext;
-import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcChannelSpecApi;
 import com.xuejiai.aaf.module.ai.aigc.AigcCanonicalRequest;
+import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcChannelSpecApi;
 import com.xuejiai.aaf.module.ai.aigc.event.service.AigcActivityEventService;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycle;
@@ -192,7 +188,8 @@ public class AigcWorkService
                         command.deliverableSetObjectId(), command.manifestObjectVersionId());
         if (existing.isPresent()) {
             requireOwner(existing.get());
-            requireRequestHash(existing.get().getCollectRequestHash(), requestHash, "该 manifest 已以不同参数收录");
+            requireRequestHash(
+                    existing.get().getCollectRequestHash(), requestHash, "该 manifest 已以不同参数收录");
             return toApiView(existing.get());
         }
         projectApi.requireApprovedManifest(
@@ -236,11 +233,11 @@ public class AigcWorkService
             com.xuejiai.aaf.module.ai.aigc.AigcAuthorities.HAS_WORK_PUBLISH)
     public AigcPublicationView publish(AigcWorkPublishCommand command) {
         requireText(command.idempotencyKey(), "发布幂等键不能为空");
-        var work =
-                requireProjectThenWork(
-                        command.workId(), command.expectedProjectVersion());
+        var work = requireProjectThenWork(command.workId(), command.expectedProjectVersion());
         var requestHash = publishRequestHash(command);
-        var replay = publicationRepository.findByWorkIdAndIdempotencyKey(work.getId(), command.idempotencyKey());
+        var replay =
+                publicationRepository.findByWorkIdAndIdempotencyKey(
+                        work.getId(), command.idempotencyKey());
         if (replay.isPresent()) {
             requireRequestHash(replay.get().getRequestHash(), requestHash, "同一发布幂等键对应不同请求");
             return toApiView(replay.get());
@@ -253,15 +250,16 @@ public class AigcWorkService
             throw badRequest("发布渠道规格版本未绑定到项目");
         }
         var channel = channelSpecApi.requirePublishedVersion(command.channelSpecVersionId());
-        var publication = newPublication(
-                work,
-                channel.id(),
-                channel.code(),
-                command.scheduledAt(),
-                command.idempotencyKey(),
-                requestHash,
-                null,
-                0);
+        var publication =
+                newPublication(
+                        work,
+                        channel.id(),
+                        channel.code(),
+                        command.scheduledAt(),
+                        command.idempotencyKey(),
+                        requestHash,
+                        null,
+                        0);
         touchWork(work);
         publishPublicationEvent(work, publication);
         return toApiView(publication);
@@ -275,9 +273,7 @@ public class AigcWorkService
         requireText(command.reason(), "取消原因不能为空");
         requireText(command.idempotencyKey(), "取消幂等键不能为空");
         var requestHash = cancelRequestHash(command);
-        var work =
-                requireProjectThenWork(
-                        command.workId(), command.expectedProjectVersion());
+        var work = requireProjectThenWork(command.workId(), command.expectedProjectVersion());
         requireMutable(work);
         var publication = requireLockedPublication(work.getId(), command.publicationId());
         if ("CANCELED".equals(publication.getStatus())) {
@@ -310,31 +306,32 @@ public class AigcWorkService
             com.xuejiai.aaf.module.ai.aigc.AigcAuthorities.HAS_WORK_PUBLISH)
     public AigcPublicationView retryPublication(AigcPublicationRetryCommand command) {
         requireText(command.idempotencyKey(), "重试幂等键不能为空");
-        var work =
-                requireProjectThenWork(
-                        command.workId(), command.expectedProjectVersion());
+        var work = requireProjectThenWork(command.workId(), command.expectedProjectVersion());
         requireMutable(work);
         var failed = requireLockedPublication(work.getId(), command.failedPublicationId());
         if (!"FAILED".equals(failed.getStatus())) {
             throw badRequest("只有 FAILED Publication 可以重试");
         }
         var requestHash = retryRequestHash(command, failed);
-        var replay = publicationRepository.findByWorkIdAndIdempotencyKey(work.getId(), command.idempotencyKey());
+        var replay =
+                publicationRepository.findByWorkIdAndIdempotencyKey(
+                        work.getId(), command.idempotencyKey());
         if (replay.isPresent()) {
             requireRequestHash(replay.get().getRequestHash(), requestHash, "同一重试幂等键对应不同请求");
             return toApiView(replay.get());
         }
         requireExpectedVersion(work, command.expectedWorkVersion());
         requirePublicationVersion(failed, command.expectedPublicationVersion());
-        var publication = newPublication(
-                work,
-                failed.getChannelSpecVersionId(),
-                failed.getChannelCode(),
-                command.scheduledAt(),
-                command.idempotencyKey(),
-                requestHash,
-                failed.getId(),
-                failed.getRetryCount() + 1);
+        var publication =
+                newPublication(
+                        work,
+                        failed.getChannelSpecVersionId(),
+                        failed.getChannelCode(),
+                        command.scheduledAt(),
+                        command.idempotencyKey(),
+                        requestHash,
+                        failed.getId(),
+                        failed.getRetryCount() + 1);
         touchWork(work);
         publishPublicationEvent(work, publication);
         return toApiView(publication);
@@ -343,9 +340,7 @@ public class AigcWorkService
     @Override
     @Transactional
     public AigcPublicationView markPublicationResult(AigcPublicationResultCommand command) {
-        var work =
-                requireProjectThenWork(
-                        command.workId(), command.expectedProjectVersion());
+        var work = requireProjectThenWork(command.workId(), command.expectedProjectVersion());
         requireMutable(work);
         var publication = requireLockedPublication(command.workId(), command.publicationId());
         requirePublicationVersion(publication, command.expectedPublicationVersion());
@@ -369,7 +364,8 @@ public class AigcWorkService
         }
         if ("FAILED".equals(target)) {
             publication.setFailureCode(requireText(command.failureCode(), "失败结果必须包含 failureCode"));
-            publication.setFailureMessage(requireText(command.failureMessage(), "失败结果必须包含 failureMessage"));
+            publication.setFailureMessage(
+                    requireText(command.failureMessage(), "失败结果必须包含 failureMessage"));
         }
         publicationRepository.save(publication);
         refreshWorkPublicationStatus(work, false);
@@ -384,9 +380,7 @@ public class AigcWorkService
     public AigcWorkView archive(AigcWorkArchiveCommand command) {
         requireText(command.idempotencyKey(), "归档幂等键不能为空");
         requireText(command.reason(), "归档原因不能为空");
-        var work =
-                requireProjectThenWork(
-                        command.workId(), command.expectedProjectVersion());
+        var work = requireProjectThenWork(command.workId(), command.expectedProjectVersion());
         var business = new TreeMap<String, Object>();
         business.put("workId", command.workId());
         business.put("reason", command.reason().trim());
@@ -403,8 +397,7 @@ public class AigcWorkService
         }
         requireExpectedVersion(work, command.expectedWorkVersion());
         var active =
-                hasActivePublication(
-                        publicationRepository.findByWorkIdOrderByIdDesc(work.getId()));
+                hasActivePublication(publicationRepository.findByWorkIdOrderByIdDesc(work.getId()));
         if (active) {
             throw badRequest("存在活动 Publication，不能归档 Work");
         }
@@ -454,19 +447,21 @@ public class AigcWorkService
     }
 
     private void requirePublicationTransition(String current, String target) {
-        var allowed = switch (current) {
-            case "PENDING", "SCHEDULED" -> Set.of("PUBLISHING", "FAILED").contains(target);
-            case "PUBLISHING" -> Set.of("SUCCEEDED", "FAILED").contains(target);
-            default -> false;
-        };
+        var allowed =
+                switch (current) {
+                    case "PENDING", "SCHEDULED" -> Set.of("PUBLISHING", "FAILED").contains(target);
+                    case "PUBLISHING" -> Set.of("SUCCEEDED", "FAILED").contains(target);
+                    default -> false;
+                };
         if (!allowed) {
             throw badRequest("不支持的 Publication 状态流转: " + current + " -> " + target);
         }
     }
 
     private void refreshWorkPublicationStatus(AigcWork work, boolean forceTouch) {
-        var succeeded = publicationRepository.findByWorkIdOrderByIdDesc(work.getId()).stream()
-                .anyMatch(publication -> "SUCCEEDED".equals(publication.getStatus()));
+        var succeeded =
+                publicationRepository.findByWorkIdOrderByIdDesc(work.getId()).stream()
+                        .anyMatch(publication -> "SUCCEEDED".equals(publication.getStatus()));
         var target = succeeded ? "PUBLISHED" : "COLLECTED";
         if (!target.equals(work.getStatus())) {
             work.setStatus(target);
@@ -492,7 +487,8 @@ public class AigcWorkService
     }
 
     private AigcWorkPublication requireLockedPublication(Long workId, Long publicationId) {
-        return publicationRepository.findLockedById(publicationId)
+        return publicationRepository
+                .findLockedById(publicationId)
                 .filter(publication -> workId.equals(publication.getWorkId()))
                 .orElseThrow(() -> notFound("Publication 不存在"));
     }
@@ -639,8 +635,7 @@ public class AigcWorkService
                                 ACTIVE_PUBLICATION_STATUSES.contains(publication.getStatus()));
     }
 
-    void requirePublicationVersion(
-            AigcWorkPublication publication, Integer expectedVersion) {
+    void requirePublicationVersion(AigcWorkPublication publication, Integer expectedVersion) {
         if (expectedVersion == null || !expectedVersion.equals(publication.getVersion())) {
             throw conflict("Publication 已被其他操作更新，请刷新后重试");
         }
@@ -683,7 +678,8 @@ public class AigcWorkService
     }
 
     private String requireVisibility(String visibility) {
-        var normalized = visibility == null || visibility.isBlank() ? "PRIVATE" : visibility.toUpperCase();
+        var normalized =
+                visibility == null || visibility.isBlank() ? "PRIVATE" : visibility.toUpperCase();
         if (!VISIBILITIES.contains(normalized)) {
             throw badRequest("不支持的可见范围");
         }

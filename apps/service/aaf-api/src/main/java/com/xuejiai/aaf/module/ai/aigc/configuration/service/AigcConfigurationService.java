@@ -209,7 +209,9 @@ public class AigcConfigurationService implements AigcConfigurationApi {
                             var templateKey = text(item, "templateKey");
                             var stableKeyPattern = text(item, "stableKeyPattern");
                             var objectType = text(item, "objectType");
-                            if (templateKey == null || stableKeyPattern == null || objectType == null) {
+                            if (templateKey == null
+                                    || stableKeyPattern == null
+                                    || objectType == null) {
                                 throw exception(
                                         CONFIGURATION_INCOMPATIBLE,
                                         "Blueprint 槽位模板缺少 templateKey/stableKeyPattern/objectType");
@@ -282,11 +284,12 @@ public class AigcConfigurationService implements AigcConfigurationApi {
                             domainExtension,
                             channels,
                             overrideByTemplate.containsKey(template.templateKey()));
-            if (!isActive(
-                    raw.get("activationCondition"), command, productionMode, channels)) {
+            if (!isActive(raw.get("activationCondition"), command, productionMode, channels)) {
                 count = 0;
             }
-            if (count < 0 || count > template.maxCount() || (count > 0 && count < template.minCount())) {
+            if (count < 0
+                    || count > template.maxCount()
+                    || (count > 0 && count < template.minCount())) {
                 throw exception(
                         CONFIGURATION_INCOMPATIBLE,
                         "槽位数量越界: %s=%s".formatted(template.templateKey(), count));
@@ -297,7 +300,10 @@ public class AigcConfigurationService implements AigcConfigurationApi {
                                 template,
                                 instanceNo,
                                 formatPattern(
-                                        template.stableKeyPattern(), instanceNo, count, "stableKey"),
+                                        template.stableKeyPattern(),
+                                        instanceNo,
+                                        count,
+                                        "stableKey"),
                                 formatPattern(
                                         template.displayNamePattern() == null
                                                 ? template.templateKey()
@@ -315,7 +321,8 @@ public class AigcConfigurationService implements AigcConfigurationApi {
                     }
                 });
         var seedsByTemplate =
-                seeds.stream().collect(Collectors.groupingBy(seed -> seed.template().templateKey()));
+                seeds.stream()
+                        .collect(Collectors.groupingBy(seed -> seed.template().templateKey()));
         return seeds.stream()
                 .map(
                         seed -> {
@@ -380,7 +387,9 @@ public class AigcConfigurationService implements AigcConfigurationApi {
                         item -> {
                             var actionKey = text(item, "actionKey");
                             if (actionKey == null) {
-                                throw exception(CONFIGURATION_INCOMPATIBLE, "Blueprint action 缺少 actionKey");
+                                throw exception(
+                                        CONFIGURATION_INCOMPATIBLE,
+                                        "Blueprint action 缺少 actionKey");
                             }
                             return new AigcBlueprintActionSpec(
                                     actionKey,
@@ -401,9 +410,7 @@ public class AigcConfigurationService implements AigcConfigurationApi {
                                         stringList(item.get("allowedSlotTemplateKeys")),
                                         stringList(item.get("allowedCustomObjectTypes")),
                                         defaultText(
-                                                item,
-                                                "defaultUserAddedContractRole",
-                                                "OPTIONAL"),
+                                                item, "defaultUserAddedContractRole", "OPTIONAL"),
                                         defaultText(item, "completionMode", "ALL_REQUIRED"),
                                         defaultText(item, "reviewMode", "PROJECT"),
                                         defaultText(item, "publicationPolicy", "OPTIONAL")))
@@ -433,7 +440,8 @@ public class AigcConfigurationService implements AigcConfigurationApi {
         for (var index = 0; index < actionKeys.size(); index++) {
             result.add(
                     new AigcExecutionBindingVersionRef(
-                            actionKeys.get(index), packageEntity.getExecutionBindingIds().get(index)));
+                            actionKeys.get(index),
+                            packageEntity.getExecutionBindingIds().get(index)));
         }
         return List.copyOf(result);
     }
@@ -480,10 +488,7 @@ public class AigcConfigurationService implements AigcConfigurationApi {
     }
 
     private int applyConstraint(
-            int value,
-            Map<String, Object> source,
-            String templateKey,
-            boolean rejectAdjustment) {
+            int value, Map<String, Object> source, String templateKey, boolean rejectAdjustment) {
         if (source == null || !(source.get("slotConstraints") instanceof List<?> constraints)) {
             return value;
         }

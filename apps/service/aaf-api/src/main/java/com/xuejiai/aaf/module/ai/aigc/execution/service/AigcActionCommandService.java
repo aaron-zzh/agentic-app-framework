@@ -105,8 +105,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
                         .orElseThrow(
                                 () ->
                                         new BusinessException(
-                                                GlobalErrorCode.NOT_FOUND,
-                                                "执行 submission 不存在"));
+                                                GlobalErrorCode.NOT_FOUND, "执行 submission 不存在"));
         if ("TERMINAL".equals(submission.getStatus())
                 || "RECOVERY_FAILED".equals(submission.getStatus())) {
             return;
@@ -178,8 +177,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
                         .orElseThrow(
                                 () ->
                                         new BusinessException(
-                                                GlobalErrorCode.NOT_FOUND,
-                                                "执行 submission 不存在"));
+                                                GlobalErrorCode.NOT_FOUND, "执行 submission 不存在"));
         if (submission.getRootExecutionRunId() == null) {
             prepareSubmission(command);
             return;
@@ -219,9 +217,10 @@ public class AigcActionCommandService implements AigcExecutionApi {
                         .orElseThrow(
                                 () ->
                                         new BusinessException(
-                                                GlobalErrorCode.NOT_FOUND,
-                                                "执行 submission 不存在"));
-        var existingRoot = runRepository.findByExecutionSubmissionIdAndParentExecutionRunIdIsNull(submission.getId());
+                                                GlobalErrorCode.NOT_FOUND, "执行 submission 不存在"));
+        var existingRoot =
+                runRepository.findByExecutionSubmissionIdAndParentExecutionRunIdIsNull(
+                        submission.getId());
         if (submission.getRootExecutionRunId() == null && existingRoot.isPresent()) {
             submission.setRootExecutionRunId(existingRoot.get().getId());
             submission.setReservationId(existingRoot.get().getExecutionReservationId());
@@ -267,7 +266,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
         if (Boolean.TRUE.equals(binding.getConfirmationRequired()) && !command.confirmed()) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "动作需要确认后执行");
         }
-        var currentGraphRevision = projectApi.getGraph(project.id()).graphRevision();
+        var currentGraphRevision = projectApi.getGraph(project.id()).revisionNo();
         if (command.expectedGraphRevision() != null
                 && !command.expectedGraphRevision().equals(currentGraphRevision)) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "项目图谱版本已变化");
@@ -289,7 +288,8 @@ public class AigcActionCommandService implements AigcExecutionApi {
         submissionRepository.save(submission);
         var run =
                 runRepository
-                        .findByExecutionSubmissionIdAndParentExecutionRunIdIsNull(submission.getId())
+                        .findByExecutionSubmissionIdAndParentExecutionRunIdIsNull(
+                                submission.getId())
                         .orElseGet(
                                 () ->
                                         createRootRun(
@@ -402,7 +402,10 @@ public class AigcActionCommandService implements AigcExecutionApi {
             projectApi.lockForGeneratedResource(run.getProjectId(), project.userId());
         }
         var currentProject = projectApi.requireProject(run.getProjectId());
-        return com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycle.ARCHIVED.equals(currentProject.lifecycleStage()) ? null : currentProject;
+        return com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycle.ARCHIVED.equals(
+                        currentProject.lifecycleStage())
+                ? null
+                : currentProject;
     }
 
     private int fanOutOrchestration(
@@ -521,9 +524,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
                         .filter(candidate -> command.projectObjectId().equals(candidate.id()))
                         .findFirst()
                         .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                GlobalErrorCode.NOT_FOUND, "项目对象不存在"));
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "项目对象不存在"));
         var binding = bindingResolver.resolve(project, command.actionKey());
         var childCommand =
                 new AigcActionCommand(
@@ -611,7 +612,9 @@ public class AigcActionCommandService implements AigcExecutionApi {
                                 && "ORCHESTRATION".equals(requested.getRunKind())
                         ? tree
                         : tree.stream()
-                                .filter(candidate -> isInSubtree(candidate, requested.getId(), byId))
+                                .filter(
+                                        candidate ->
+                                                isInSubtree(candidate, requested.getId(), byId))
                                 .toList();
         targets.stream()
                 .sorted(java.util.Comparator.comparing(AigcExecutionRun::getId).reversed())
@@ -621,9 +624,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
                 runRepository
                         .findById(requested.getId())
                         .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                GlobalErrorCode.NOT_FOUND, "执行记录不存在"));
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "执行记录不存在"));
         if (preBindRoot) {
             projectApi.releaseExecution(
                     new AigcProjectExecutionReservationReleaseCommand(
@@ -768,9 +769,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
     }
 
     private void createLocalRetry(
-            AigcExecutionRun root,
-            AigcExecutionRun previous,
-            String idempotencyKey) {
+            AigcExecutionRun root, AigcExecutionRun previous, String idempotencyKey) {
         var retry = new AigcExecutionRun();
         retry.setOrgId(root.getOrgId());
         retry.setWorkspaceId(root.getWorkspaceId());
@@ -861,8 +860,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
         var project = projectApi.requireProject(projectId);
         if (!project.lifecycleStage().allowsCreativeMutation()) {
             throw new BusinessException(
-                    GlobalErrorCode.BAD_REQUEST,
-                    "当前项目阶段不可执行新动作: " + project.lifecycleStage());
+                    GlobalErrorCode.BAD_REQUEST, "当前项目阶段不可执行新动作: " + project.lifecycleStage());
         }
         return project;
     }
@@ -937,9 +935,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
     }
 
     private Map<String, Object> effectiveInput(
-            AigcProjectView project,
-            AigcProjectObjectView object,
-            AigcActionCommand command) {
+            AigcProjectView project, AigcProjectObjectView object, AigcActionCommand command) {
         var input = new LinkedHashMap<String, Object>();
         input.put("actionKey", command.actionKey());
         if (object != null) {
@@ -1004,9 +1000,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
     }
 
     private boolean isInSubtree(
-            AigcExecutionRun candidate,
-            Long subtreeRootId,
-            Map<Long, AigcExecutionRun> byId) {
+            AigcExecutionRun candidate, Long subtreeRootId, Map<Long, AigcExecutionRun> byId) {
         var current = candidate;
         while (current != null) {
             if (Objects.equals(current.getId(), subtreeRootId)) {
@@ -1045,8 +1039,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
         var sameRequest =
                 Objects.equals(existing.getProjectId(), command.projectId())
                         && Objects.equals(
-                                existing.getParentExecutionRunId(),
-                                command.parentExecutionRunId())
+                                existing.getParentExecutionRunId(), command.parentExecutionRunId())
                         && Objects.equals(
                                 existing.getRootExecutionRunId(), command.rootExecutionRunId())
                         && Objects.equals(existing.getObjectId(), command.projectObjectId())
@@ -1060,7 +1053,6 @@ public class AigcActionCommandService implements AigcExecutionApi {
         }
         return existing;
     }
-
 
     private AigcExecutionRun requireAccessibleRun(Long executionRunId) {
         var run =

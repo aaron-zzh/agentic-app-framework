@@ -62,6 +62,7 @@ import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcReviewSubmitDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 
 /** 唯一 AIGC 项目聚合 REST 接口。 */
@@ -171,10 +172,7 @@ public class AigcProjectController
         return Result.success(
                 service.removeObject(
                         new AigcProjectObjectRemoveCommand(
-                                id,
-                                objectId,
-                                request.expectedProjectVersion(),
-                                request.reason())));
+                                id, objectId, request.expectedProjectVersion(), request.reason())));
     }
 
     @PreAuthorize(AigcAuthorities.HAS_PROJECT_READ)
@@ -298,7 +296,7 @@ public class AigcProjectController
     public Result<Void> detachMedia(
             @PathVariable Long id,
             @PathVariable Long refId,
-            @jakarta.validation.constraints.NotNull Integer expectedProjectVersion) {
+            @NotNull Integer expectedProjectVersion) {
         service.detachMedia(id, refId, expectedProjectVersion);
         return Result.success();
     }
@@ -339,7 +337,7 @@ public class AigcProjectController
     public Result<Void> detachDocument(
             @PathVariable Long id,
             @PathVariable Long refId,
-            @jakarta.validation.constraints.NotNull Integer expectedProjectVersion) {
+            @NotNull Integer expectedProjectVersion) {
         service.detachDocument(id, refId, expectedProjectVersion);
         return Result.success();
     }

@@ -185,24 +185,20 @@ class AigcActionCommandServiceTest extends BaseMockitoUnitTest {
         service.retry(50L, "idem-retry");
 
         // 断言
-        var eventCaptor =
-                ArgumentCaptor.forClass(AigcExecutionRunDispatchRequestedEvent.class);
+        var eventCaptor = ArgumentCaptor.forClass(AigcExecutionRunDispatchRequestedEvent.class);
         verify(eventPublisher).publishEvent(eventCaptor.capture());
         var command = eventCaptor.getValue().command();
         assertThat(command.requestedModelId()).isEqualTo("video-model-v3");
         assertThat(command.actionArguments())
-                .containsExactlyInAnyOrderEntriesOf(
-                        Map.of("resolution", "1080p", "duration", 8));
+                .containsExactlyInAnyOrderEntriesOf(Map.of("resolution", "1080p", "duration", 8));
         assertThat(command.attachmentMediaVersionIds()).containsExactly(301L, 302L);
         assertThat(savedRun.get().getSelectedModelVersion()).isEqualTo("video-model-v3");
         assertThat(savedRun.get().getEffectiveInput())
                 .containsEntry("requestedModelId", "video-model-v3")
-                .containsEntry(
-                        "actionArguments", Map.of("resolution", "1080p", "duration", 8));
+                .containsEntry("actionArguments", Map.of("resolution", "1080p", "duration", 8));
         assertThat(savedRun.get().getRetryOfExecutionRunId()).isEqualTo(50L);
         assertThat(savedRun.get().getRetryCount()).isEqualTo(1);
     }
-
 
     @Test
     @DisplayName("Given submission 未 BOUND When 提交 child Then 拒绝创建子 Run")
@@ -269,8 +265,7 @@ class AigcActionCommandServiceTest extends BaseMockitoUnitTest {
         submission.setStatus("ROOT_CREATED");
         var root = orchestrationRun(60L, null, AigcExecutionRunStatus.PENDING_BIND);
         when(submissionRepository.findLockedById(80L)).thenReturn(Optional.of(submission));
-        when(runRepository.findByRootExecutionRunIdOrderByIdAsc(60L))
-                .thenReturn(List.of(root));
+        when(runRepository.findByRootExecutionRunIdOrderByIdAsc(60L)).thenReturn(List.of(root));
         when(runRepository.findLockedById(60L)).thenReturn(Optional.of(root));
 
         // 调用
@@ -317,7 +312,6 @@ class AigcActionCommandServiceTest extends BaseMockitoUnitTest {
                 .hasMessageContaining("已被其他 owner 认领");
         verify(projectApi, never()).reserveExecution(any());
     }
-
 
     private AigcExecutionRun orchestrationRun(
             Long id, Long parentId, AigcExecutionRunStatus status) {

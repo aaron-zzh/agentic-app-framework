@@ -8,6 +8,7 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.type.SqlTypes;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcExecutionBindingVersionRef;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -46,8 +47,7 @@ public class AigcProjectConfigSnapshot extends BaseEntity {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "execution_binding_versions", columnDefinition = "jsonb")
-    private List<com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcExecutionBindingVersionRef>
-            executionBindingVersions = List.of();
+    private List<AigcExecutionBindingVersionRef> executionBindingVersions = List.of();
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "compatibility_result", columnDefinition = "jsonb")

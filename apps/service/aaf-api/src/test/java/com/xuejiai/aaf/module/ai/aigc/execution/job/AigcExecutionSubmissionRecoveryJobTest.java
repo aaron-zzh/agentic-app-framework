@@ -103,8 +103,7 @@ class AigcExecutionSubmissionRecoveryJobTest extends BaseMockitoUnitTest {
         job.recover();
 
         // 断言
-        verify(submissionService)
-                .recordRetryableRecoveryFailure(1L, "数据库暂不可用");
+        verify(submissionService).recordRetryableRecoveryFailure(1L, "数据库暂不可用");
         verify(commandService, never()).failRecovery(any(), any());
     }
 

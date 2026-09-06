@@ -39,9 +39,12 @@ public final class AigcAuthorities {
     public static final String HAS_WORK_PUBLISH = "hasPermission(null, '" + WORK_PUBLISH + "')";
     public static final String HAS_WORK_ARCHIVE = "hasPermission(null, '" + WORK_ARCHIVE + "')";
     public static final String HAS_TIMELINE_READ = "hasPermission(null, '" + TIMELINE_READ + "')";
-    public static final String HAS_TIMELINE_CREATE = "hasPermission(null, '" + TIMELINE_CREATE + "')";
-    public static final String HAS_TIMELINE_UPDATE = "hasPermission(null, '" + TIMELINE_UPDATE + "')";
-    public static final String HAS_TIMELINE_DELETE = "hasPermission(null, '" + TIMELINE_DELETE + "')";
+    public static final String HAS_TIMELINE_CREATE =
+            "hasPermission(null, '" + TIMELINE_CREATE + "')";
+    public static final String HAS_TIMELINE_UPDATE =
+            "hasPermission(null, '" + TIMELINE_UPDATE + "')";
+    public static final String HAS_TIMELINE_DELETE =
+            "hasPermission(null, '" + TIMELINE_DELETE + "')";
 
     private AigcAuthorities() {}
 }

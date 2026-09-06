@@ -126,8 +126,7 @@ export const aigcExecutionApi = {
     backendApi.get<PageResult<AigcExecutionRun>>("/aigc/execution-runs", {
       params: { pageNo: 1, pageSize: 20, ...params }
     }),
-  tree: (id: number) =>
-    backendApi.get<AigcExecutionRunTreeView>(`/aigc/execution-runs/${id}/tree`),
+  tree: (id: number) => backendApi.get<AigcExecutionRunTreeView>(`/aigc/execution-runs/${id}/tree`),
   cancel: (id: number, reason?: string) =>
     backendApi.post<AigcExecutionRunView>(`/aigc/execution-runs/${id}/_cancel`, undefined, {
       params: { reason }
@@ -170,22 +169,38 @@ export function useAigcExecutionRunTree(rootRunId: number, enabled = true) {
   })
 }
 
-export function invalidateAigcExecution(queryClient: ReturnType<typeof useQueryClient>, projectId: number, objectId?: number) {
+export function invalidateAigcExecution(
+  queryClient: ReturnType<typeof useQueryClient>,
+  projectId: number,
+  objectId?: number
+) {
   queryClient.invalidateQueries({ queryKey: aigcExecutionKeys.all })
   queryClient.invalidateQueries({ queryKey: aigcProjectKeys.mediaRefs(projectId) })
-  if (objectId !== undefined) queryClient.invalidateQueries({ queryKey: aigcProjectKeys.versions(projectId, objectId) })
+  if (objectId !== undefined)
+    queryClient.invalidateQueries({ queryKey: aigcProjectKeys.versions(projectId, objectId) })
   return invalidateAigcProject(queryClient, projectId)
 }
 
 export function useRunAigcAction() {
   const queryClient = useQueryClient()
-  return useMutation({ mutationFn: ({ projectId, data }: { projectId: number; data: AigcActionCommand }) => aigcExecutionApi.execute(projectId, data), onSuccess: (run) => invalidateAigcExecution(queryClient, run.projectId, run.projectObjectId) })
+  return useMutation({
+    mutationFn: ({ projectId, data }: { projectId: number; data: AigcActionCommand }) =>
+      aigcExecutionApi.execute(projectId, data),
+    onSuccess: (run) => invalidateAigcExecution(queryClient, run.projectId, run.projectObjectId)
+  })
 }
 export function useCancelAigcExecutionRun() {
   const queryClient = useQueryClient()
-  return useMutation({ mutationFn: ({ id, reason }: { id: number; reason?: string }) => aigcExecutionApi.cancel(id, reason), onSuccess: (run) => invalidateAigcExecution(queryClient, run.projectId, run.projectObjectId) })
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: number; reason?: string }) =>
+      aigcExecutionApi.cancel(id, reason),
+    onSuccess: (run) => invalidateAigcExecution(queryClient, run.projectId, run.projectObjectId)
+  })
 }
 export function useRetryAigcExecutionRun() {
   const queryClient = useQueryClient()
-  return useMutation({ mutationFn: (id: number) => aigcExecutionApi.retry(id, crypto.randomUUID()), onSuccess: (run) => invalidateAigcExecution(queryClient, run.projectId, run.projectObjectId) })
+  return useMutation({
+    mutationFn: (id: number) => aigcExecutionApi.retry(id, crypto.randomUUID()),
+    onSuccess: (run) => invalidateAigcExecution(queryClient, run.projectId, run.projectObjectId)
+  })
 }

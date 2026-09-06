@@ -60,12 +60,10 @@ class PermissionSecurityServiceTest extends BaseMockitoUnitTest {
         var authorityCodes = service.authorityCodes(7L);
 
         // 断言
-        assertThat(authorityCodes)
-                .containsExactly("aigc:project:action", "aigc:work:publish");
+        assertThat(authorityCodes).containsExactly("aigc:project:action", "aigc:work:publish");
         assertThat(service.hasPermission(7L, "aigc:project:action")).isTrue();
         verify(permissionCacheService)
-                .putPermissions(
-                        7L, List.of("aigc:project:action", "aigc:work:publish"));
+                .putPermissions(7L, List.of("aigc:project:action", "aigc:work:publish"));
     }
 
     private PermissionCode permission(Long id, String code, int status) {

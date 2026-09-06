@@ -183,7 +183,8 @@ export function TimelinePanel({
                 setDeleteOpen(true)
               }}
             >
-              <Trash2 />删除
+              <Trash2 />
+              删除
             </Button>
           ) : null}
         </div>
@@ -223,11 +224,22 @@ export function TimelinePanel({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>删除轻时间线</DialogTitle>
-            <DialogDescription>将删除当前 Composition 与全部 Track/Clip，请确认权威版本未变化。</DialogDescription>
+            <DialogDescription>
+              将删除当前 Composition 与全部 Track/Clip，请确认权威版本未变化。
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setDeleteOpen(false)}>取消</Button>
-            <Button type="button" variant="destructive" disabled={deleteTimeline.isPending} onClick={removeTimeline}>确认删除</Button>
+            <Button type="button" variant="outline" onClick={() => setDeleteOpen(false)}>
+              取消
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deleteTimeline.isPending}
+              onClick={removeTimeline}
+            >
+              确认删除
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -1,26 +1,28 @@
 package com.xuejiai.aaf.module.ai.aigc.project.service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Collection;
-import java.util.HexFormat;
+import java.util.IllegalFormatException;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
@@ -28,9 +30,12 @@ import com.xuejiai.aaf.framework.crud.definition.CrudOperation;
 import com.xuejiai.aaf.framework.crud.enforcement.AccessMode;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.module.ai.aigc.AigcAuthorities;
 import com.xuejiai.aaf.module.ai.aigc.AigcCanonicalRequest;
-import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
 import com.xuejiai.aaf.module.ai.aigc.event.service.AigcActivityEventService;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaType;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcUploadedMediaCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcApprovedManifestView;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcCompletionEvaluationView;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcDeliverableSetCompletionView;
@@ -42,13 +47,17 @@ import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionComparisonVie
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionRejectCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionView;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverMode;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectExecutionReservationBindCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectExecutionReservationCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectExecutionReservationReleaseCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectExecutionReservationView;
-import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectGraphView;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycle;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycleCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectMaterializeCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectMaterializeView;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectMediaRefCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectMediaRefView;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectObjectCommand;
@@ -56,8 +65,6 @@ import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectObjectContractComma
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectObjectRemoveCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectObjectView;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectRelationView;
-import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycle;
-import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycleCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectView;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcReviewDecisionCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcReviewSubmitCommand;
@@ -66,17 +73,18 @@ import com.xuejiai.aaf.module.ai.aigc.project.api.CompletionEvidencePort;
 import com.xuejiai.aaf.module.ai.aigc.project.api.ExecutionEvidencePort;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcObjectVersion;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProject;
+import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectConfigSnapshot;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectDocumentRef;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectExecutionReservation;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectExecutionReservationTarget;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectMediaRef;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectObject;
+import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectRelation;
+import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectResourceRef;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectRevision;
-import com.xuejiai.aaf.module.ai.aigc.project.event.AigcObjectVersionAdoptedEvent;
 import com.xuejiai.aaf.module.ai.aigc.project.event.AigcProjectArchivedEvent;
 import com.xuejiai.aaf.module.ai.aigc.project.event.AigcProjectCoverGenerationRequestedEvent;
 import com.xuejiai.aaf.module.ai.aigc.project.event.AigcProjectCoverSupersededEvent;
-import com.xuejiai.aaf.module.ai.aigc.project.event.AigcProjectReviewApprovedEvent;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcObjectVersionRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectChannelRefRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectConfigSnapshotRepository;
@@ -94,6 +102,7 @@ import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcResolvedDomainConte
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcObjectVersionVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectChannelRefVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectConfigSnapshotVO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectCoverPatchDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentRefDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentRefVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectGraphVO;
@@ -109,6 +118,8 @@ import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectUpdateDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectVO;
 import com.xuejiai.aaf.module.document.api.DocumentReferenceApi;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import lombok.RequiredArgsConstructor;
 import tools.jackson.core.type.TypeReference;
 
@@ -128,7 +139,7 @@ public class AigcProjectService
                     AigcProjectLifecycle.ADOPTING);
 
     private final AigcProjectRepository repository;
-    private final jakarta.persistence.EntityManager entityManager;
+    private final EntityManager entityManager;
     private final AigcProjectObjectRepository objectRepository;
     private final AigcProjectRelationRepository relationRepository;
     private final AigcProjectExecutionReservationRepository reservationRepository;
@@ -238,9 +249,7 @@ public class AigcProjectService
                 && request.cover().isAbsent();
     }
 
-    private void updateCover(
-            AigcProject project,
-            com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectCoverPatchDTO cover) {
+    private void updateCover(AigcProject project, AigcProjectCoverPatchDTO cover) {
         if (cover == null || cover.operation() == null) {
             throw badRequest("封面更新操作不能为空");
         }
@@ -251,18 +260,16 @@ public class AigcProjectService
         }
     }
 
-    private void replaceUploadedCover(
-            AigcProject project,
-            com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectCoverPatchDTO cover) {
+    private void replaceUploadedCover(AigcProject project, AigcProjectCoverPatchDTO cover) {
         if (cover.fileId() == null || hasText(cover.prompt()) || hasText(cover.idempotencyKey())) {
             throw badRequest("上传封面参数不匹配");
         }
         var media =
                 mediaApi.createFromUploadedFile(
-                        new com.xuejiai.aaf.module.ai.aigc.media.api.AigcUploadedMediaCommand(
+                        new AigcUploadedMediaCommand(
                                 project.getUserId(),
                                 project.getName() + "封面",
-                                com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaType.IMAGE,
+                                AigcMediaType.IMAGE,
                                 cover.fileId(),
                                 project.getId()));
         var mediaVersionId = media.currentVersion().id();
@@ -274,9 +281,7 @@ public class AigcProjectService
         project.setCoverStatus(AigcProjectCoverStatus.READY);
     }
 
-    private void requestGeneratedCover(
-            AigcProject project,
-            com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectCoverPatchDTO cover) {
+    private void requestGeneratedCover(AigcProject project, AigcProjectCoverPatchDTO cover) {
         if (cover.fileId() != null || !hasText(cover.idempotencyKey())) {
             throw badRequest("AI 封面参数不匹配");
         }
@@ -293,9 +298,7 @@ public class AigcProjectService
                         cover.idempotencyKey()));
     }
 
-    private void removeCover(
-            AigcProject project,
-            com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectCoverPatchDTO cover) {
+    private void removeCover(AigcProject project, AigcProjectCoverPatchDTO cover) {
         if (cover.fileId() != null || hasText(cover.prompt()) || hasText(cover.idempotencyKey())) {
             throw badRequest("移除封面参数不匹配");
         }
@@ -380,10 +383,8 @@ public class AigcProjectService
     }
 
     @Override
-    @Transactional(
-            propagation = org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED)
-    public com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectMaterializeView materialize(
-            AigcProjectMaterializeCommand command) {
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public AigcProjectMaterializeView materialize(AigcProjectMaterializeCommand command) {
         var project = materializer.materialize(command);
         var coverStatus =
                 project.getCoverMediaVersionId() == null
@@ -391,10 +392,7 @@ public class AigcProjectService
                         : AigcProjectCoverStatus.READY;
         project.setCoverStatus(coverStatus);
         repository.save(project);
-        var generateCover =
-                command.coverMode()
-                        == com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverMode
-                                .AI_GENERATE;
+        var generateCover = command.coverMode() == AigcProjectCoverMode.AI_GENERATE;
         if (generateCover) {
             coverStatus = AigcProjectCoverStatus.PENDING;
             project.setCoverStatus(coverStatus);
@@ -422,7 +420,7 @@ public class AigcProjectService
                             command.coverIdempotencyKey()));
         }
         var refreshed = repository.findById(project.getId()).orElseThrow();
-        return new com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectMaterializeView(
+        return new AigcProjectMaterializeView(
                 toApiView(refreshed), coverStatus, refreshed.getCoverExecutionRunId());
     }
 
@@ -539,7 +537,7 @@ public class AigcProjectService
                                 () ->
                                         new BusinessException(
                                                 GlobalErrorCode.NOT_FOUND, "项目不存在或已删除"));
-        entityManager.refresh(project, jakarta.persistence.LockModeType.PESSIMISTIC_READ);
+        entityManager.refresh(project, LockModeType.PESSIMISTIC_READ);
         requireWritable(project);
     }
 
@@ -555,7 +553,7 @@ public class AigcProjectService
                                 () ->
                                         new BusinessException(
                                                 GlobalErrorCode.NOT_FOUND, "项目不存在或已删除"));
-        entityManager.refresh(project, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        entityManager.refresh(project, LockModeType.PESSIMISTIC_WRITE);
         requireWritable(project);
     }
 
@@ -730,7 +728,9 @@ public class AigcProjectService
                 throw badRequest("槽位模板 maxCount 非法");
             }
             var currentCount =
-                    objectRepository.findByProjectIdOrderBySortOrderAscIdAsc(project.getId()).stream()
+                    objectRepository
+                            .findByProjectIdOrderBySortOrderAscIdAsc(project.getId())
+                            .stream()
                             .filter(
                                     object ->
                                             command.blueprintTemplateKey()
@@ -746,10 +746,7 @@ public class AigcProjectService
             var snapshot =
                     snapshotRepository
                             .findFirstByProjectIdOrderByRevisionNoDesc(project.getId())
-                            .orElseThrow(
-                                    () ->
-                                            badRequest(
-                                                    "对象类型不在交付包允许的自定义对象白名单内"));
+                            .orElseThrow(() -> badRequest("对象类型不在交付包允许的自定义对象白名单内"));
             var deliverableSets = snapshot.getSnapshot().get("deliverableSets");
             if (!(deliverableSets instanceof List<?> sets)) {
                 throw badRequest("对象类型不在交付包允许的自定义对象白名单内");
@@ -767,10 +764,7 @@ public class AigcProjectService
                             .filter(List.class::isInstance)
                             .map(List.class::cast)
                             .findFirst()
-                            .orElseThrow(
-                                    () ->
-                                            badRequest(
-                                                    "对象类型不在交付包允许的自定义对象白名单内"));
+                            .orElseThrow(() -> badRequest("对象类型不在交付包允许的自定义对象白名单内"));
             if (!allowedCustomObjectTypes.contains(command.objectType())) {
                 throw badRequest("对象类型不在交付包允许的自定义对象白名单内");
             }
@@ -878,9 +872,7 @@ public class AigcProjectService
                 command.reason() == null ? "移除项目对象" : command.reason());
         deliveryService.staleReviews(
                 project.getId(),
-                parentId == null
-                        ? List.of(object.getId())
-                        : List.of(object.getId(), parentId),
+                parentId == null ? List.of(object.getId()) : List.of(object.getId(), parentId),
                 "交付对象已移除或排除");
         return toApiObjectView(object);
     }
@@ -891,10 +883,8 @@ public class AigcProjectService
             AigcProjectExecutionReservationCommand command) {
         requireEntity(command.projectId(), CrudOperation.UPDATE, AccessMode.DEFAULT);
         var project =
-                repository
-                        .findLockedById(command.projectId())
-                        .orElseThrow(() -> notFound("项目不存在"));
-        entityManager.refresh(project, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+                repository.findLockedById(command.projectId()).orElseThrow(() -> notFound("项目不存在"));
+        entityManager.refresh(project, LockModeType.PESSIMISTIC_WRITE);
         var requestHash = reservationRequestHash(command);
         var existingBySubmission =
                 reservationRepository.findByProjectIdAndExecutionSubmissionId(
@@ -957,11 +947,13 @@ public class AigcProjectService
                 repository
                         .findLockedById(snapshot.getProjectId())
                         .orElseThrow(() -> notFound("项目不存在"));
-        entityManager.refresh(project, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        entityManager.refresh(project, LockModeType.PESSIMISTIC_WRITE);
         var reservation =
                 reservationRepository
                         .findLockedById(command.reservationId())
-                        .filter(candidate -> Objects.equals(candidate.getProjectId(), project.getId()))
+                        .filter(
+                                candidate ->
+                                        Objects.equals(candidate.getProjectId(), project.getId()))
                         .orElseThrow(() -> notFound("执行 reservation 不存在"));
         requireSameSubmission(reservation, command.executionSubmissionId());
         if ("BOUND".equals(reservation.getStatus())
@@ -1010,11 +1002,13 @@ public class AigcProjectService
                 repository
                         .findLockedById(snapshot.getProjectId())
                         .orElseThrow(() -> notFound("项目不存在"));
-        entityManager.refresh(project, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        entityManager.refresh(project, LockModeType.PESSIMISTIC_WRITE);
         var reservation =
                 reservationRepository
                         .findLockedById(command.reservationId())
-                        .filter(candidate -> Objects.equals(candidate.getProjectId(), project.getId()))
+                        .filter(
+                                candidate ->
+                                        Objects.equals(candidate.getProjectId(), project.getId()))
                         .orElseThrow(() -> notFound("执行 reservation 不存在"));
         requireSameSubmission(reservation, command.executionSubmissionId());
         if ("RELEASED".equals(reservation.getStatus())) {
@@ -1153,8 +1147,7 @@ public class AigcProjectService
 
     @Override
     @Transactional
-    @org.springframework.security.access.prepost.PreAuthorize(
-            com.xuejiai.aaf.module.ai.aigc.AigcAuthorities.HAS_OBJECT_VERSION_ADOPT)
+    @PreAuthorize(AigcAuthorities.HAS_OBJECT_VERSION_ADOPT)
     public AigcObjectVersionView adoptVersion(AigcObjectVersionAdoptCommand command) {
         requireEntity(command.projectId(), CrudOperation.UPDATE, AccessMode.DEFAULT);
         return deliveryService.adopt(command);
@@ -1162,8 +1155,7 @@ public class AigcProjectService
 
     @Override
     @Transactional
-    @org.springframework.security.access.prepost.PreAuthorize(
-            com.xuejiai.aaf.module.ai.aigc.AigcAuthorities.HAS_OBJECT_VERSION_ADOPT)
+    @PreAuthorize(AigcAuthorities.HAS_OBJECT_VERSION_ADOPT)
     public AigcObjectVersionView rejectVersion(AigcObjectVersionRejectCommand command) {
         requireEntity(command.projectId(), CrudOperation.UPDATE, AccessMode.DEFAULT);
         return deliveryService.reject(command);
@@ -1178,8 +1170,7 @@ public class AigcProjectService
 
     @Override
     @Transactional
-    @org.springframework.security.access.prepost.PreAuthorize(
-            com.xuejiai.aaf.module.ai.aigc.AigcAuthorities.HAS_PROJECT_UPDATE)
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_UPDATE)
     public AigcObjectVersionView freezeDeliverableSetManifest(
             AigcDeliverableSetManifestFreezeCommand command) {
         requireEntity(command.projectId(), CrudOperation.UPDATE, AccessMode.DEFAULT);
@@ -1188,8 +1179,7 @@ public class AigcProjectService
 
     @Override
     @Transactional
-    @org.springframework.security.access.prepost.PreAuthorize(
-            com.xuejiai.aaf.module.ai.aigc.AigcAuthorities.HAS_PROJECT_REVIEW)
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_REVIEW)
     public AigcReviewView submitReview(AigcReviewSubmitCommand command) {
         requireEntity(command.projectId(), CrudOperation.UPDATE, AccessMode.DEFAULT);
         return deliveryService.submitReview(command);
@@ -1197,8 +1187,7 @@ public class AigcProjectService
 
     @Override
     @Transactional
-    @org.springframework.security.access.prepost.PreAuthorize(
-            com.xuejiai.aaf.module.ai.aigc.AigcAuthorities.HAS_PROJECT_REVIEW)
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_REVIEW)
     public AigcReviewView approveReview(AigcReviewDecisionCommand command) {
         requireEntity(command.projectId(), CrudOperation.UPDATE, AccessMode.DEFAULT);
         return deliveryService.approveReview(command);
@@ -1206,8 +1195,7 @@ public class AigcProjectService
 
     @Override
     @Transactional
-    @org.springframework.security.access.prepost.PreAuthorize(
-            com.xuejiai.aaf.module.ai.aigc.AigcAuthorities.HAS_PROJECT_REVIEW)
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_REVIEW)
     public AigcReviewView returnReview(AigcReviewDecisionCommand command) {
         requireEntity(command.projectId(), CrudOperation.UPDATE, AccessMode.DEFAULT);
         return deliveryService.returnReview(command);
@@ -1235,17 +1223,14 @@ public class AigcProjectService
 
     @Override
     @Transactional
-    @org.springframework.security.access.prepost.PreAuthorize(
-            com.xuejiai.aaf.module.ai.aigc.AigcAuthorities.HAS_PROJECT_LIFECYCLE)
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_LIFECYCLE)
     public AigcProjectView complete(AigcProjectLifecycleCommand command) {
         requireLifecycleCommand(command, false);
         var requestHash = lifecycleRequestHash("COMPLETE", command);
         requireEntity(command.projectId(), CrudOperation.UPDATE, AccessMode.DEFAULT);
         var project =
-                repository
-                        .findLockedById(command.projectId())
-                        .orElseThrow(() -> notFound("项目不存在"));
-        entityManager.refresh(project, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+                repository.findLockedById(command.projectId()).orElseThrow(() -> notFound("项目不存在"));
+        entityManager.refresh(project, LockModeType.PESSIMISTIC_WRITE);
         if (AigcProjectLifecycle.COMPLETED.equals(project.getStatus())) {
             requireLifecycleReplay(project, command.idempotencyKey(), requestHash);
             return toApiView(project);
@@ -1270,17 +1255,14 @@ public class AigcProjectService
 
     @Override
     @Transactional
-    @org.springframework.security.access.prepost.PreAuthorize(
-            com.xuejiai.aaf.module.ai.aigc.AigcAuthorities.HAS_PROJECT_LIFECYCLE)
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_LIFECYCLE)
     public AigcProjectView archive(AigcProjectLifecycleCommand command) {
         requireLifecycleCommand(command, true);
         var requestHash = lifecycleRequestHash("ARCHIVE", command);
         requireEntity(command.projectId(), CrudOperation.UPDATE, AccessMode.DEFAULT);
         var project =
-                repository
-                        .findLockedById(command.projectId())
-                        .orElseThrow(() -> notFound("项目不存在"));
-        entityManager.refresh(project, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+                repository.findLockedById(command.projectId()).orElseThrow(() -> notFound("项目不存在"));
+        entityManager.refresh(project, LockModeType.PESSIMISTIC_WRITE);
         if (AigcProjectLifecycle.ARCHIVED.equals(project.getStatus())) {
             requireLifecycleReplay(project, command.idempotencyKey(), requestHash);
             return toApiView(project);
@@ -1463,13 +1445,13 @@ public class AigcProjectService
                         projectId, resourceType, resourceId);
         if (existing.isPresent()) {
             var reference = existing.get();
-            if (!java.util.Objects.equals(reference.getRole(), role)) {
+            if (!Objects.equals(reference.getRole(), role)) {
                 reference.setRole(role);
                 resourceRefRepository.save(reference);
             }
             return;
         }
-        var reference = new com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectResourceRef();
+        var reference = new AigcProjectResourceRef();
         copyScope(project, reference);
         reference.setProjectId(projectId);
         reference.setResourceType(resourceType);
@@ -1493,7 +1475,7 @@ public class AigcProjectService
             Long projectId, Integer expectedVersion, boolean requireVersion) {
         requireEntity(projectId, CrudOperation.UPDATE, AccessMode.DEFAULT);
         var project = repository.findLockedById(projectId).orElseThrow(() -> notFound("项目不存在"));
-        entityManager.refresh(project, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        entityManager.refresh(project, LockModeType.PESSIMISTIC_WRITE);
         if (requireVersion) {
             requireExpectedVersion(project, expectedVersion);
         }
@@ -1607,10 +1589,7 @@ public class AigcProjectService
         var executionBindings =
                 snapshotRepository
                         .findFirstByProjectIdOrderByRevisionNoDesc(project.getId())
-                        .map(
-                                com.xuejiai.aaf.module.ai.aigc.project.domain
-                                                .AigcProjectConfigSnapshot::
-                                        getExecutionBindingVersions)
+                        .map(AigcProjectConfigSnapshot::getExecutionBindingVersions)
                         .orElse(List.of());
         return new AigcProjectView(
                 project.getId(),
@@ -1644,8 +1623,7 @@ public class AigcProjectService
                 object.getObjectType(),
                 object.getTitle(),
                 object.getContractRole(),
-                object.getPayload() == null
-                                || object.getPayload().get("defaultActionKey") == null
+                object.getPayload() == null || object.getPayload().get("defaultActionKey") == null
                         ? null
                         : String.valueOf(object.getPayload().get("defaultActionKey")),
                 object.getParentId(),
@@ -1705,8 +1683,7 @@ public class AigcProjectService
                 object.getPayload());
     }
 
-    private AigcProjectRelationVO toRelationVO(
-            com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectRelation relation) {
+    private AigcProjectRelationVO toRelationVO(AigcProjectRelation relation) {
         return new AigcProjectRelationVO(
                 relation.getId(),
                 relation.getProjectId(),
@@ -1766,7 +1743,7 @@ public class AigcProjectService
                     || !templateKey.equals(String.valueOf(raw.get("templateKey")))) {
                 continue;
             }
-            var result = new java.util.LinkedHashMap<String, Object>();
+            var result = new LinkedHashMap<String, Object>();
             raw.forEach((key, item) -> result.put(String.valueOf(key), item));
             return Map.copyOf(result);
         }
@@ -1786,7 +1763,7 @@ public class AigcProjectService
         if (pattern.contains("%")) {
             try {
                 return pattern.formatted(instanceNo);
-            } catch (java.util.IllegalFormatException error) {
+            } catch (IllegalFormatException error) {
                 throw badRequest("槽位模板 stableKeyPattern 非法");
             }
         }
@@ -1832,20 +1809,20 @@ public class AigcProjectService
     }
 
     private String reservationRequestHash(AigcProjectExecutionReservationCommand command) {
-        var business = new java.util.TreeMap<String, Object>();
+        var business = new TreeMap<String, Object>();
         business.put("projectId", command.projectId());
         business.put("commandObjectId", command.commandObjectId());
         business.put("actionKey", command.actionKey());
         business.put(
                 "requestedProjectObjectIds",
                 command.requestedProjectObjectIds().stream().distinct().sorted().toList());
-        var cas = new java.util.TreeMap<String, Object>();
+        var cas = new TreeMap<String, Object>();
         cas.put("expectedGraphRevision", command.expectedGraphRevision());
         return AigcCanonicalRequest.of("project.reserve-execution", business, cas).sha256();
     }
 
     private String lifecycleRequestHash(String action, AigcProjectLifecycleCommand command) {
-        var business = new java.util.TreeMap<String, Object>();
+        var business = new TreeMap<String, Object>();
         business.put("projectId", command.projectId());
         business.put("reason", command.reason());
         return AigcCanonicalRequest.of(
@@ -1910,7 +1887,7 @@ public class AigcProjectService
         return JsonUtils.parseObject(json, new TypeReference<Map<String, Object>>() {});
     }
 
-    private void copyScope(AigcProject project, com.xuejiai.aaf.common.model.BaseEntity target) {
+    private void copyScope(AigcProject project, BaseEntity target) {
         target.setOrgId(project.getOrgId());
         target.setWorkspaceId(project.getWorkspaceId());
         target.setOwnerId(project.getOwnerId());

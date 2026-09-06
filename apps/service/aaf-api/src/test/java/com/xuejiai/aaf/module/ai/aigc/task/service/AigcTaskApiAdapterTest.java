@@ -52,7 +52,14 @@ class AigcTaskApiAdapterTest extends BaseMockitoUnitTest {
         // 准备参数
         var command =
                 new AigcTaskSubmitCommand(
-                        31L, 21L, 22L, "IMAGE", "model:image", "画一只猫", "{\"width\":1024}", "idem-1");
+                        31L,
+                        21L,
+                        22L,
+                        "IMAGE",
+                        "model:image",
+                        "画一只猫",
+                        "{\"width\":1024}",
+                        "idem-1");
         var evidence = new AigcBoundTaskEvidencePort.BoundEvidence(9L, 8L, 7L, 41L, 42L, 31L);
         var model = model();
         when(boundTaskEvidencePort.requireBound(31L, 21L, 22L)).thenReturn(evidence);

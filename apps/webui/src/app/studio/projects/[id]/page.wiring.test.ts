@@ -24,11 +24,17 @@ const generationDialogSource = readFileSync(
   "utf8"
 )
 const imageControllerSource = readFileSync(
-  new URL("../../../../features/studio/media-generation/hooks/use-image-generation-controller.ts", import.meta.url),
+  new URL(
+    "../../../../features/studio/media-generation/hooks/use-image-generation-controller.ts",
+    import.meta.url
+  ),
   "utf8"
 )
 const videoControllerSource = readFileSync(
-  new URL("../../../../features/studio/media-generation/hooks/use-video-generation-controller.ts", import.meta.url),
+  new URL(
+    "../../../../features/studio/media-generation/hooks/use-video-generation-controller.ts",
+    import.meta.url
+  ),
   "utf8"
 )
 const actionBarSource = readFileSync(

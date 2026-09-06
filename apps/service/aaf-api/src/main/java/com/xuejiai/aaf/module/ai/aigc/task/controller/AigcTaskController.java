@@ -183,11 +183,7 @@ public class AigcTaskController
                     case VOICE -> {
                         var p = dto.params() != null ? dto.params() : Map.of();
                         yield taskService.submitVoiceTask(
-                                userId,
-                                dto.prompt(),
-                                toString(p.get("voice")),
-                                dto.model(),
-                                null);
+                                userId, dto.prompt(), toString(p.get("voice")), dto.model(), null);
                     }
                     case IMAGE_PROCESS -> {
                         var p = dto.params() != null ? dto.params() : Map.of();
@@ -200,8 +196,7 @@ public class AigcTaskController
                         if (method == null || method.isBlank()) {
                             method = "SEGMENT_HD_COMMON_IMAGE";
                         }
-                        yield taskService.submitImageProcessTask(
-                                userId, imageFileId, method, null);
+                        yield taskService.submitImageProcessTask(userId, imageFileId, method, null);
                     }
                 };
         // 技能 systemPrompt 回写（不影响任务提交本身）

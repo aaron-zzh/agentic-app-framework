@@ -2,6 +2,8 @@ package com.xuejiai.aaf.module.ai.aigc.project.api;
 
 import java.util.List;
 
+import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcSlotCountOverride;
+
 public record AigcProjectMaterializeCommand(
         Long workspaceId,
         String name,
@@ -15,7 +17,7 @@ public record AigcProjectMaterializeCommand(
         String productionMode,
         String budgetTier,
         String qualityTier,
-        List<com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcSlotCountOverride> slotOverrides,
+        List<AigcSlotCountOverride> slotOverrides,
         String briefJson,
         AigcProjectCoverMode coverMode,
         Long coverFileId,

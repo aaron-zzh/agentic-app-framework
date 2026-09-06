@@ -32,9 +32,9 @@ function envelope(id: number, projectId: number | null = 7): string {
 
 describe("ProjectActivityProvider wire contract", () => {
   it("cursor key 明确绑定 owner、org 与 workspace", () => {
-    expect(
-      activityCursorKey("42", { kind: "workspace", orgId: "8", workspaceId: "9" })
-    ).toBe("aaf.aigc.activity.cursor.v1:owner-42:org-8:workspace-9")
+    expect(activityCursorKey("42", { kind: "workspace", orgId: "8", workspaceId: "9" })).toBe(
+      "aaf.aigc.activity.cursor.v1:owner-42:org-8:workspace-9"
+    )
     expect(activityCursorKey("42", { kind: "all-organizations" })).toContain(
       "owner-42:org-all:workspace-none"
     )
@@ -50,9 +50,7 @@ describe("ProjectActivityProvider wire contract", () => {
     expect(
       parseActivityEnvelope(envelope(3).replace('"executionRunId":null', '"executionRunId":"3"'))
     ).toBeNull()
-    expect(
-      parseActivityEnvelope(envelope(4).replace('"taskId":null', '"taskId":0'))
-    ).toBeNull()
+    expect(parseActivityEnvelope(envelope(4).replace('"taskId":null', '"taskId":0'))).toBeNull()
   })
 
   it("只建立一个带授权上下文的 fetch SSE 连接，不保留 EventSource 路径", () => {

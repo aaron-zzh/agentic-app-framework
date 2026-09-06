@@ -25,7 +25,6 @@ public interface AigcExecutionSubmissionRepository
     @Query("select submission from AigcExecutionSubmission submission where submission.id = :id")
     Optional<AigcExecutionSubmission> findLockedById(@Param("id") Long id);
 
-
     @Modifying
     @Query(
             """

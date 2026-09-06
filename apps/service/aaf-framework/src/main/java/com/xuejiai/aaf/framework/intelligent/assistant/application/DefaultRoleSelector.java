@@ -109,7 +109,7 @@ public final class DefaultRoleSelector implements RoleSelector {
                 return null;
             }
             return request.definition().roles().stream()
-                    .filter(role -> role.key().equals(roleKey.textValue()))
+                    .filter(role -> role.key().equals(roleKey.asString()))
                     .findFirst()
                     .map(
                             role ->

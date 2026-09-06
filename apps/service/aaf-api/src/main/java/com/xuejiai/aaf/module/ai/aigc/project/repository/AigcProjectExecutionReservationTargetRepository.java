@@ -14,7 +14,6 @@ public interface AigcProjectExecutionReservationTargetRepository
 
     List<AigcProjectExecutionReservationTarget> findByReservationIdOrderByIdAsc(Long reservationId);
 
-
     boolean existsByReservationIdAndProjectObjectId(Long reservationId, Long projectObjectId);
 
     List<AigcProjectExecutionReservationTarget> findByProjectObjectIdInOrderByIdAsc(

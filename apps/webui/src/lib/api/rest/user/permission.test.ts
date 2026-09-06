@@ -6,9 +6,9 @@
 import { describe, expect, it } from "vitest"
 import {
   AIGC_AUTHORITY_CODES,
+  type EntityAccess,
   hasEntityCapability,
-  hasEntityOperation,
-  type EntityAccess
+  hasEntityOperation
 } from "./permission"
 
 const access: EntityAccess = {

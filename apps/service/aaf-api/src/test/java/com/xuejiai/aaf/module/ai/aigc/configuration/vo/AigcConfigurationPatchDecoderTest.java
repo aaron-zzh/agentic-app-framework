@@ -31,8 +31,7 @@ class AigcConfigurationPatchDecoderTest {
 
         // 断言
         assertThat(result.get("steps")).isEqualTo(List.of("draft", "review", "publish"));
-        assertThat(result.get("policy"))
-                .isEqualTo(Map.of("reviewRequired", true, "maxRetry", 2));
+        assertThat(result.get("policy")).isEqualTo(Map.of("reviewRequired", true, "maxRetry", 2));
     }
 
     @Test

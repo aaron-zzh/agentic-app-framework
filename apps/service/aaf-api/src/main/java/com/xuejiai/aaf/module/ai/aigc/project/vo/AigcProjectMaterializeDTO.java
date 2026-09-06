@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.ai.aigc.project.vo;
 
 import java.util.List;
 
+import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcSlotCountOverride;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverMode;
 
 import jakarta.validation.constraints.NotBlank;
@@ -20,7 +21,7 @@ public record AigcProjectMaterializeDTO(
         @NotBlank String productionMode,
         String budgetTier,
         String qualityTier,
-        List<com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcSlotCountOverride> slotOverrides,
+        List<AigcSlotCountOverride> slotOverrides,
         String briefJson,
         @NotNull AigcProjectCoverMode coverMode,
         Long coverFileId,

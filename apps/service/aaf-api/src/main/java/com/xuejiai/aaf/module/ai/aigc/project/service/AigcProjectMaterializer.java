@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.ai.aigc.project.service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -9,17 +10,26 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.aigc.brand.api.AigcBrandApi;
 import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcConfigurationApi;
 import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcConfigurationResolveCommand;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaType;
+import com.xuejiai.aaf.module.ai.aigc.media.api.AigcUploadedMediaCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverMode;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycle;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectMaterializeCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProject;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectChannelRef;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectConfigSnapshot;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectDocumentRef;
+import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectMediaRef;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectObject;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectProfileRef;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectRelation;
@@ -27,6 +37,7 @@ import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectRevision;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectChannelRefRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectConfigSnapshotRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectDocumentRefRepository;
+import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectMediaRefRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectObjectRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectProfileRefRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectRelationRepository;
@@ -53,9 +64,8 @@ public class AigcProjectMaterializer {
     private final AigcProjectRelationRepository relationRepository;
     private final AigcProjectRevisionRepository revisionRepository;
     private final DocumentReferenceApi documentReferenceApi;
-    private final com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi mediaApi;
-    private final com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectMediaRefRepository
-            mediaRefRepository;
+    private final AigcMediaApi mediaApi;
+    private final AigcProjectMediaRefRepository mediaRefRepository;
     private final OperatorContext operatorContext;
 
     @Transactional
@@ -98,8 +108,7 @@ public class AigcProjectMaterializer {
         project.setDomainExtensionVersion(resolved.domainExtensionVersion());
         project.setProductionMode(resolved.productionMode());
         project.setGenerationMode("manual");
-        project.setStatus(
-                com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycle.CREATING);
+        project.setStatus(AigcProjectLifecycle.CREATING);
         project.setBrief(command.briefJson());
         project.setGraphRevision(1);
         project.setPrimaryBrandProfileId(
@@ -107,18 +116,17 @@ public class AigcProjectMaterializer {
         project.setCostUsed(BigDecimal.ZERO);
         project.setLastActiveTime(LocalDateTime.now());
         projectRepository.save(project);
-        if (command.coverMode()
-                == com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverMode.UPLOAD) {
+        if (command.coverMode() == AigcProjectCoverMode.UPLOAD) {
             var cover =
                     mediaApi.createFromUploadedFile(
-                            new com.xuejiai.aaf.module.ai.aigc.media.api.AigcUploadedMediaCommand(
+                            new AigcUploadedMediaCommand(
                                     ownerId,
                                     projectName + "封面",
-                                    com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaType.IMAGE,
+                                    AigcMediaType.IMAGE,
                                     command.coverFileId(),
                                     project.getId()));
             var mediaVersionId = cover.currentVersion().id();
-            var reference = new com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectMediaRef();
+            var reference = new AigcProjectMediaRef();
             copyScope(project, reference);
             reference.setProjectId(project.getId());
             reference.setMediaVersionId(mediaVersionId);
@@ -192,7 +200,9 @@ public class AigcProjectMaterializer {
             object.setSchemaVersion("1.0.0");
             var payload = new LinkedHashMap<>(parseMap(spec.schemaJson()));
             resolved.actions().stream()
-                    .filter(action -> spec.blueprintTemplateKey().equals(action.targetTemplateKey()))
+                    .filter(
+                            action ->
+                                    spec.blueprintTemplateKey().equals(action.targetTemplateKey()))
                     .findFirst()
                     .ifPresent(action -> payload.put("defaultActionKey", action.actionKey()));
             object.setPayload(Map.copyOf(payload));
@@ -212,7 +222,7 @@ public class AigcProjectMaterializer {
             objectRepository.save(object);
         }
 
-        var relationIds = new java.util.ArrayList<Long>();
+        var relationIds = new ArrayList<Long>();
         for (var spec : resolved.relations()) {
             var source = objects.get(spec.sourceKey());
             var target = objects.get(spec.targetKey());
@@ -246,20 +256,17 @@ public class AigcProjectMaterializer {
 
     private String requireProjectName(String name) {
         if (name == null || name.isBlank()) {
-            throw new com.xuejiai.aaf.common.exception.BusinessException(
-                    com.xuejiai.aaf.common.exception.GlobalErrorCode.BAD_REQUEST, "项目名称不能为空");
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "项目名称不能为空");
         }
         if (name.length() > 200) {
-            throw new com.xuejiai.aaf.common.exception.BusinessException(
-                    com.xuejiai.aaf.common.exception.GlobalErrorCode.BAD_REQUEST, "项目名称长度不能超过 200");
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "项目名称长度不能超过 200");
         }
         return name.trim();
     }
 
     private void validateCover(AigcProjectMaterializeCommand command) {
         if (command.coverMode() == null) {
-            throw new com.xuejiai.aaf.common.exception.BusinessException(
-                    com.xuejiai.aaf.common.exception.GlobalErrorCode.BAD_REQUEST, "封面模式不能为空");
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "封面模式不能为空");
         }
         var hasPrompt = command.coverPrompt() != null && !command.coverPrompt().isBlank();
         var hasKey =
@@ -280,17 +287,14 @@ public class AigcProjectMaterializer {
                     throw invalidCover();
                 }
                 if (command.coverIdempotencyKey().length() > 100) {
-                    throw new com.xuejiai.aaf.common.exception.BusinessException(
-                            com.xuejiai.aaf.common.exception.GlobalErrorCode.BAD_REQUEST,
-                            "封面幂等键长度不能超过 100");
+                    throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "封面幂等键长度不能超过 100");
                 }
             }
         }
     }
 
-    private com.xuejiai.aaf.common.exception.BusinessException invalidCover() {
-        return new com.xuejiai.aaf.common.exception.BusinessException(
-                com.xuejiai.aaf.common.exception.GlobalErrorCode.BAD_REQUEST, "封面模式与参数不匹配");
+    private BusinessException invalidCover() {
+        return new BusinessException(GlobalErrorCode.BAD_REQUEST, "封面模式与参数不匹配");
     }
 
     private Map<String, Object> parseMap(String json) {
@@ -300,7 +304,7 @@ public class AigcProjectMaterializer {
         return JsonUtils.parseObject(json, new TypeReference<Map<String, Object>>() {});
     }
 
-    private void copyScope(AigcProject project, com.xuejiai.aaf.common.model.BaseEntity target) {
+    private void copyScope(AigcProject project, BaseEntity target) {
         target.setOrgId(project.getOrgId());
         target.setWorkspaceId(project.getWorkspaceId());
         target.setOwnerId(project.getOwnerId());

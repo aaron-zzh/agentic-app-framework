@@ -10,8 +10,8 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.common.util.JsonUtils;
-import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcRuntimeExecution.Command;
 import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus;
+import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcRuntimeExecution.Command;
 import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcToolExecutionPort;
 import com.xuejiai.aaf.module.ai.aigc.execution.domain.AigcExecutionRun;
 import com.xuejiai.aaf.module.ai.aigc.execution.domain.AigcExecutionTaskRef;

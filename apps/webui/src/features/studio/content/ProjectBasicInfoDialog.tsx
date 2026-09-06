@@ -189,7 +189,9 @@ export function ProjectBasicInfoDialog({
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
           <DialogHeader className="shrink-0 border-b px-5 py-4 pr-12">
             <DialogTitle>项目基础信息</DialogTitle>
-            <DialogDescription>编辑展示信息与项目封面；审核、交付、完成和归档阶段仅支持查看。</DialogDescription>
+            <DialogDescription>
+              编辑展示信息与项目封面；审核、交付、完成和归档阶段仅支持查看。
+            </DialogDescription>
           </DialogHeader>
 
           <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-5">

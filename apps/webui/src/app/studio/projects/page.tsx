@@ -41,7 +41,11 @@ import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
-import { getProjectTypeConfig, isProjectContentWritable, PROJECT_STATUS_CONFIG } from "@/features/studio/content"
+import {
+  getProjectTypeConfig,
+  isProjectContentWritable,
+  PROJECT_STATUS_CONFIG
+} from "@/features/studio/content"
 import type { AigcProject, AigcProjectStatus } from "@/lib/api/rest/ai/aigc"
 import {
   useAigcProjectLifecycle,
@@ -124,32 +128,34 @@ function ProjectCard({ project, canUpdate, onEdit, onArchive }: ProjectCardProps
         </div>
       </Link>
 
-      {canUpdate ? <div className="absolute top-2 right-2 z-10">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            type="button"
-            aria-label={`打开项目「${project.name}」操作菜单`}
-            className="flex size-7 items-center justify-center rounded-full bg-black/45 text-white opacity-100 shadow-sm backdrop-blur-sm transition-opacity hover:bg-black/65 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 data-popup-open:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 [&_svg]:size-4"
-          >
-            <MoreHorizontal />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuGroup>
-              <DropdownMenuItem disabled={!editable} onClick={() => onEdit(project)}>
-                <Pencil />
-                编辑
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                disabled={project.status === "ARCHIVED"}
-                onClick={() => onArchive(project)}
-              >
-                <Archive />
-                {project.status === "COMPLETED" ? "完成后归档" : "放弃并归档"}
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div> : null}
+      {canUpdate ? (
+        <div className="absolute top-2 right-2 z-10">
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              type="button"
+              aria-label={`打开项目「${project.name}」操作菜单`}
+              className="flex size-7 items-center justify-center rounded-full bg-black/45 text-white opacity-100 shadow-sm backdrop-blur-sm transition-opacity hover:bg-black/65 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 data-popup-open:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 [&_svg]:size-4"
+            >
+              <MoreHorizontal />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuGroup>
+                <DropdownMenuItem disabled={!editable} onClick={() => onEdit(project)}>
+                  <Pencil />
+                  编辑
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={project.status === "ARCHIVED"}
+                  onClick={() => onArchive(project)}
+                >
+                  <Archive />
+                  {project.status === "COMPLETED" ? "完成后归档" : "放弃并归档"}
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      ) : null}
     </GlassCard>
   )
 }
@@ -262,7 +268,13 @@ export default function StudioProjectsPage() {
   const pendingProject = projects.find((project) => project.id === pendingAction?.projectId)
 
   function executePendingAction() {
-    if (!canUpdate || !pendingProject || pendingProject.status === "ARCHIVED" || !archiveReason.trim()) return
+    if (
+      !canUpdate ||
+      !pendingProject ||
+      pendingProject.status === "ARCHIVED" ||
+      !archiveReason.trim()
+    )
+      return
     lifecycle.mutate(
       {
         projectId: pendingProject.id,
@@ -277,7 +289,8 @@ export default function StudioProjectsPage() {
           setPendingAction(null)
           setArchiveReason("")
         },
-        onError: (error) => toast.error(`归档失败：${error instanceof Error ? error.message : "未知错误"}`)
+        onError: (error) =>
+          toast.error(`归档失败：${error instanceof Error ? error.message : "未知错误"}`)
       }
     )
   }
@@ -291,13 +304,15 @@ export default function StudioProjectsPage() {
             <FolderKanban className="size-5 text-primary" />
             <h1 className="font-semibold text-xl">我的项目</h1>
           </div>
-          {canCreate ? <GlowButton
-            nativeButton={false}
-            render={<Link href="/studio/projects/new" />}
-            tone="violet"
-          >
-            <Plus /> 新建项目
-          </GlowButton> : null}
+          {canCreate ? (
+            <GlowButton
+              nativeButton={false}
+              render={<Link href="/studio/projects/new" />}
+              tone="violet"
+            >
+              <Plus /> 新建项目
+            </GlowButton>
+          ) : null}
         </header>
 
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -361,16 +376,18 @@ export default function StudioProjectsPage() {
                 <EmptyTitle>没有匹配的项目</EmptyTitle>
                 <EmptyDescription>调整状态或类型筛选，或创建一个新的内容项目。</EmptyDescription>
               </EmptyHeader>
-              {canCreate ? <EmptyContent>
-                <GlowButton
-                  nativeButton={false}
-                  render={<Link href="/studio/projects/new" />}
-                  tone="violet"
-                >
-                  <Plus />
-                  创建项目
-                </GlowButton>
-              </EmptyContent> : null}
+              {canCreate ? (
+                <EmptyContent>
+                  <GlowButton
+                    nativeButton={false}
+                    render={<Link href="/studio/projects/new" />}
+                    tone="violet"
+                  >
+                    <Plus />
+                    创建项目
+                  </GlowButton>
+                </EmptyContent>
+              ) : null}
             </Empty>
           </GlassCard>
         ) : (
@@ -381,10 +398,12 @@ export default function StudioProjectsPage() {
                 project={project}
                 canUpdate={canUpdate}
                 onEdit={(target) => {
-                  if (canUpdate && isProjectContentWritable(target.status)) setEditingProjectId(target.id)
+                  if (canUpdate && isProjectContentWritable(target.status))
+                    setEditingProjectId(target.id)
                 }}
                 onArchive={(target) => {
-                  if (canUpdate && target.status !== "ARCHIVED") setPendingAction({ projectId: target.id })
+                  if (canUpdate && target.status !== "ARCHIVED")
+                    setPendingAction({ projectId: target.id })
                 }}
               />
             ))}
@@ -402,11 +421,42 @@ export default function StudioProjectsPage() {
           />
         ) : null}
 
-        <Dialog open={pendingProject !== undefined && pendingProject.status !== "ARCHIVED" && canUpdate} onOpenChange={(open) => { if (!open) { setPendingAction(null); setArchiveReason("") } }}>
+        <Dialog
+          open={pendingProject !== undefined && pendingProject.status !== "ARCHIVED" && canUpdate}
+          onOpenChange={(open) => {
+            if (!open) {
+              setPendingAction(null)
+              setArchiveReason("")
+            }
+          }}
+        >
           <DialogContent>
-            <DialogHeader><DialogTitle>{pendingProject?.status === "COMPLETED" ? "完成后归档" : "放弃并归档项目"}</DialogTitle><DialogDescription>归档后项目全局只读，但图谱、版本、Run、Review、Work 和 Publication 历史全部保留。</DialogDescription></DialogHeader>
-            <Textarea value={archiveReason} onChange={(event) => setArchiveReason(event.target.value)} placeholder="填写归档或放弃原因（必填）" />
-            <DialogFooter><Button type="button" variant="outline" onClick={() => setPendingAction(null)}>取消</Button><Button type="button" variant="destructive" disabled={!archiveReason.trim() || lifecycle.isPending} onClick={executePendingAction}>确认归档</Button></DialogFooter>
+            <DialogHeader>
+              <DialogTitle>
+                {pendingProject?.status === "COMPLETED" ? "完成后归档" : "放弃并归档项目"}
+              </DialogTitle>
+              <DialogDescription>
+                归档后项目全局只读，但图谱、版本、Run、Review、Work 和 Publication 历史全部保留。
+              </DialogDescription>
+            </DialogHeader>
+            <Textarea
+              value={archiveReason}
+              onChange={(event) => setArchiveReason(event.target.value)}
+              placeholder="填写归档或放弃原因（必填）"
+            />
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setPendingAction(null)}>
+                取消
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={!archiveReason.trim() || lifecycle.isPending}
+                onClick={executePendingAction}
+              >
+                确认归档
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>

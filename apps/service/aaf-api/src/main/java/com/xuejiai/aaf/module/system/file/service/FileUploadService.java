@@ -152,8 +152,7 @@ public class FileUploadService implements FileStoragePort {
     }
 
     @Override
-    public String prepareCurrentOwnerExternalAccessByKey(
-            String key, java.time.Duration expiry) {
+    public String prepareCurrentOwnerExternalAccessByKey(String key, java.time.Duration expiry) {
         return fileRecordService.prepareCurrentOwnerExternalAccessByKey(key, expiry);
     }
 

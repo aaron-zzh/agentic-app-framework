@@ -15,7 +15,6 @@
 import { useMutation } from "@tanstack/react-query"
 import { Coins, Download, ImagePlus, Scissors, Wand2 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { toast } from "sonner"
 import { GlassCard, GlowButton, NeonChip } from "@/components/studio"
 import { Label } from "@/components/ui/label"
 import type { AigcTaskEvent } from "@/lib/api/rest/ai/aigc-task"

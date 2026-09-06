@@ -27,8 +27,8 @@ import { PendingOverlay } from "@/components/animate/PendingOverlay"
 import { Lightbox, useLightbox } from "@/components/lightbox"
 import { GlassCard } from "@/components/studio/GlassCard"
 import { GlowButton } from "@/components/studio/GlowButton"
-import { useSaveMediaAsAsset } from "@/lib/api/rest/media"
 import type { AigcTaskEvent } from "@/lib/api/rest/ai/aigc-task"
+import { useSaveMediaAsAsset } from "@/lib/api/rest/media"
 
 interface GenerationResultCardProps {
   tasks: AigcTaskEvent[]

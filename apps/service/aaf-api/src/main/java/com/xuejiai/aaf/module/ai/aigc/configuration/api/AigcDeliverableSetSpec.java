@@ -17,14 +17,15 @@ public record AigcDeliverableSetSpec(
                 publicationPolicy == null || publicationPolicy.isBlank()
                         ? "OPTIONAL"
                         : publicationPolicy.toUpperCase();
-        if (!java.util.Set.of(
-                        "NONE", "OPTIONAL", "AT_LEAST_ONE_SUCCESS", "ALL_SELECTED_CHANNELS")
+        if (!java.util.Set.of("NONE", "OPTIONAL", "AT_LEAST_ONE_SUCCESS", "ALL_SELECTED_CHANNELS")
                 .contains(publicationPolicy)) {
             throw new IllegalArgumentException("不支持的 publicationPolicy: " + publicationPolicy);
         }
         allowedSlotTemplateKeys =
                 allowedSlotTemplateKeys == null ? List.of() : List.copyOf(allowedSlotTemplateKeys);
         allowedCustomObjectTypes =
-                allowedCustomObjectTypes == null ? List.of() : List.copyOf(allowedCustomObjectTypes);
+                allowedCustomObjectTypes == null
+                        ? List.of()
+                        : List.copyOf(allowedCustomObjectTypes);
     }
 }

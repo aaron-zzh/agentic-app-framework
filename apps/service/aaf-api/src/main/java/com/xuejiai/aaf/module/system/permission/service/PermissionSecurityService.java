@@ -58,12 +58,12 @@ public class PermissionSecurityService implements FunctionPermissionChecker {
             return Set.of();
         }
         if (hasSuperAdmin(roleIds)) {
-            return permissionRepository.findByDeletedFalseOrderByModuleAscResourceAscActionAsc()
+            return permissionRepository
+                    .findByDeletedFalseOrderByModuleAscResourceAscActionAsc()
                     .stream()
                     .filter(permission -> STATUS_ENABLED == permission.getStatus())
                     .map(permission -> permission.getCode())
-                    .collect(
-                            java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+                    .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
         }
         return authorityCodes(userId, roleIds);
     }
@@ -74,8 +74,7 @@ public class PermissionSecurityService implements FunctionPermissionChecker {
             return cachedPermissions.stream()
                     .filter(code -> !"__EMPTY__".equals(code))
                     .sorted()
-                    .collect(
-                            java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+                    .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
         }
         var rolePermissionIds =
                 rolePermissionRepository.findByRoleIdInAndDeletedFalse(roleIds).stream()

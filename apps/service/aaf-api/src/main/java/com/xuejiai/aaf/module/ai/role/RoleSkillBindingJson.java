@@ -33,9 +33,9 @@ final class RoleSkillBindingJson {
                 }
                 result.add(
                         new SkillBinding(
-                                item.get("skillKey").textValue(),
+                                item.get("skillKey").asString(),
                                 SkillActivationMode.valueOf(
-                                        item.get("activationMode").textValue())));
+                                        item.get("activationMode").asString())));
             }
             return SkillBinding.copyOf(result, "ai_role.skill_ids");
         } catch (IllegalStateException exception) {

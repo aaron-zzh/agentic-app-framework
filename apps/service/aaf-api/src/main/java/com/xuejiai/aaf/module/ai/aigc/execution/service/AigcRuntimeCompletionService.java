@@ -94,16 +94,20 @@ public class AigcRuntimeCompletionService {
     private void persistCompletion(AigcActionContext context, Result result, Throwable failure) {
         var project = context.project();
         projectApi.lockForGeneratedResource(project.id(), project.userId());
-        if (com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycle.ARCHIVED.equals(projectApi.requireProject(project.id()).lifecycleStage())) {
+        if (com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycle.ARCHIVED.equals(
+                projectApi.requireProject(project.id()).lifecycleStage())) {
             return;
         }
         var run = runRepository.findLockedById(context.executionRun().getId()).orElse(null);
-        if (run == null || !com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus.RUNNING.equals(run.getStatus())) {
+        if (run == null
+                || !com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus.RUNNING
+                        .equals(run.getStatus())) {
             return;
         }
         if (failure != null) {
             var root = unwrap(failure);
-            run.setStatus(com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus.FAILED);
+            run.setStatus(
+                    com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus.FAILED);
             run.setErrorMessage(root.getMessage() == null ? "runtime 执行失败" : root.getMessage());
             run.setEndTime(LocalDateTime.now());
             run.setVersion(run.getVersion() + 1);

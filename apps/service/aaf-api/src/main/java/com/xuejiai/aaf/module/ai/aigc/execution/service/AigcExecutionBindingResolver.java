@@ -59,5 +59,4 @@ public class AigcExecutionBindingResolver {
     private boolean matches(String expected, String actual) {
         return expected == null || expected.equals(actual);
     }
-
 }

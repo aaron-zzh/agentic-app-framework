@@ -112,8 +112,7 @@ public class AigcTaskExecutor {
                                 task.getParams(), new TypeReference<Map<String, Object>>() {});
         switch (task.getType()) {
             case "IMAGE" ->
-                    submitSyncInternal(
-                            task, task.getId(), task.getPrompt(), task.getModel(), null);
+                    submitSyncInternal(task, task.getId(), task.getPrompt(), task.getModel(), null);
             case "VIDEO" ->
                     submitVideoAsyncInternal(
                             task, task.getId(), task.getPrompt(), task.getModel(), null);

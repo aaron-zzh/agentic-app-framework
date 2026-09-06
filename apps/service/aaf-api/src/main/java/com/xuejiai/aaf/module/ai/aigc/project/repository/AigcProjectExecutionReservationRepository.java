@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.ai.aigc.project.repository;
 
+import java.util.Collection;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -20,10 +21,10 @@ public interface AigcProjectExecutionReservationRepository
     Optional<AigcProjectExecutionReservation> findByProjectIdAndIdempotencyKey(
             Long projectId, String idempotencyKey);
 
-    boolean existsByProjectIdAndStatusIn(Long projectId, java.util.Collection<String> statuses);
-
+    boolean existsByProjectIdAndStatusIn(Long projectId, Collection<String> statuses);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select reservation from AigcProjectExecutionReservation reservation where reservation.id = :id")
+    @Query(
+            "select reservation from AigcProjectExecutionReservation reservation where reservation.id = :id")
     Optional<AigcProjectExecutionReservation> findLockedById(@Param("id") Long id);
 }

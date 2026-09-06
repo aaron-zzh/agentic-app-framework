@@ -128,8 +128,7 @@ export function ChatterToolbar({
     }))
   )
   const currentRole = roleOptions.find(
-    (option) =>
-      option.assistantId === target.assistantId && option.roleKey === target.agentRole
+    (option) => option.assistantId === target.assistantId && option.roleKey === target.agentRole
   )
 
   // 旧页面配置只有 roleKey；仅当 API 中唯一匹配时一次性补齐 assistantId，随后始终原子发送。
@@ -173,11 +172,11 @@ export function ChatterToolbar({
 
       {/* 中：浮窗直接显示角色选择；panel/page 保留 target 切换。 */}
       {isFloating ? (
-        roleSelector ?? (
+        (roleSelector ?? (
           <span className="min-w-0 flex-1 truncate font-medium text-sm">
             {TARGET_LABELS[target.type]}
           </span>
-        )
+        ))
       ) : hideRoleSwitch ? (
         <span className="flex-1" />
       ) : (
@@ -335,9 +334,7 @@ function AssistantRoleSelect({
           </AvatarFallback>
         </Avatar>
         <SelectValue className="min-w-0 truncate">
-          {current
-            ? `${current.assistantName} · ${current.roleName}`
-            : "AI 助理 · 自动角色"}
+          {current ? `${current.assistantName} · ${current.roleName}` : "AI 助理 · 自动角色"}
         </SelectValue>
       </SelectTrigger>
       <SelectContent align="start" className="min-w-56">
@@ -349,9 +346,7 @@ function AssistantRoleSelect({
               return (
                 <SelectItem key={value} value={value}>
                   <Avatar className="size-5">
-                    <AvatarFallback className="text-[9px]">
-                      {role.name.charAt(0)}
-                    </AvatarFallback>
+                    <AvatarFallback className="text-[9px]">{role.name.charAt(0)}</AvatarFallback>
                   </Avatar>
                   <span>{role.name}</span>
                 </SelectItem>

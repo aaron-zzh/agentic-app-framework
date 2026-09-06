@@ -15,7 +15,9 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "aigc_project_execution_reservation")
-@SQLDelete(sql = "UPDATE aigc_project_execution_reservation SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@SQLDelete(
+        sql =
+                "UPDATE aigc_project_execution_reservation SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class AigcProjectExecutionReservation extends BaseEntity {
 
     @Column(name = "execution_submission_id", nullable = false)

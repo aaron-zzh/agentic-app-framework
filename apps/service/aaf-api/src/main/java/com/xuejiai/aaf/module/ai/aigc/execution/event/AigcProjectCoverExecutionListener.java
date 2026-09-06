@@ -25,9 +25,7 @@ public class AigcProjectCoverExecutionListener {
     private final AigcExecutionApi executionApi;
     private final AigcProjectApi projectApi;
 
-    @TransactionalEventListener(
-            phase = TransactionPhase.AFTER_COMMIT,
-            fallbackExecution = true)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onGenerationRequested(AigcProjectCoverGenerationRequestedEvent event) {
         try {
             var run =
@@ -60,9 +58,7 @@ public class AigcProjectCoverExecutionListener {
         }
     }
 
-    @TransactionalEventListener(
-            phase = TransactionPhase.AFTER_COMMIT,
-            fallbackExecution = true)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onSuperseded(AigcProjectCoverSupersededEvent event) {
         executionApi.cancelProjectCoverRuns(event.projectId(), event.reason());
     }

@@ -250,7 +250,13 @@ function resolvedSlotCount(
   const byProduction = template.countByProductionMode?.[productionMode]
   const byBudget = template.countByBudgetTier?.[budgetTier]
   const byQuality = template.countByQualityTier?.[qualityTier]
-  return overrides[template.templateKey] ?? byQuality ?? byBudget ?? byProduction ?? template.defaultCount
+  return (
+    overrides[template.templateKey] ??
+    byQuality ??
+    byBudget ??
+    byProduction ??
+    template.defaultCount
+  )
 }
 
 export interface NewProjectLauncherProps {
@@ -506,7 +512,9 @@ export function NewProjectLauncher({ mode = "compact", className }: NewProjectLa
                 <span className="font-medium text-sm">预算档</span>
                 <ToggleGroup
                   value={[budgetTier]}
-                  onValueChange={(values: string[]) => values.at(-1) && setBudgetTier(values.at(-1) as string)}
+                  onValueChange={(values: string[]) =>
+                    values.at(-1) && setBudgetTier(values.at(-1) as string)
+                  }
                   variant="outline"
                   size="sm"
                 >
@@ -519,7 +527,9 @@ export function NewProjectLauncher({ mode = "compact", className }: NewProjectLa
                 <span className="font-medium text-sm">质量档</span>
                 <ToggleGroup
                   value={[qualityTier]}
-                  onValueChange={(values: string[]) => values.at(-1) && setQualityTier(values.at(-1) as string)}
+                  onValueChange={(values: string[]) =>
+                    values.at(-1) && setQualityTier(values.at(-1) as string)
+                  }
                   variant="outline"
                   size="sm"
                 >
@@ -533,17 +543,27 @@ export function NewProjectLauncher({ mode = "compact", className }: NewProjectLa
             <div className="flex flex-col gap-3">
               <div>
                 <p className="font-medium text-sm">动态交付预览</p>
-                <p className="text-muted-foreground text-xs">服务端将结合渠道硬约束再次解析并固化。</p>
+                <p className="text-muted-foreground text-xs">
+                  服务端将结合渠道硬约束再次解析并固化。
+                </p>
               </div>
               {resolvedSlots.length === 0 ? (
-                <p className="rounded-lg border border-dashed p-3 text-muted-foreground text-sm">该蓝图没有可调整槽位。</p>
+                <p className="rounded-lg border border-dashed p-3 text-muted-foreground text-sm">
+                  该蓝图没有可调整槽位。
+                </p>
               ) : (
                 resolvedSlots.map(({ template, count }) => (
-                  <div key={template.templateKey} className="flex items-center gap-3 rounded-lg border bg-background/60 p-3">
+                  <div
+                    key={template.templateKey}
+                    className="flex items-center gap-3 rounded-lg border bg-background/60 p-3"
+                  >
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm">{template.displayNamePattern || template.templateKey}</p>
+                      <p className="truncate text-sm">
+                        {template.displayNamePattern || template.templateKey}
+                      </p>
                       <p className="text-muted-foreground text-xs">
-                        {template.objectType} · {template.defaultContractRole ?? "REQUIRED"} · {template.minCount}-{template.maxCount}
+                        {template.objectType} · {template.defaultContractRole ?? "REQUIRED"} ·{" "}
+                        {template.minCount}-{template.maxCount}
                       </p>
                     </div>
                     <Input
@@ -566,7 +586,8 @@ export function NewProjectLauncher({ mode = "compact", className }: NewProjectLa
                 ))
               )}
               <p className="text-muted-foreground text-xs">
-                预计物化 {resolvedSlots.reduce((total, item) => total + item.count, 0)} 个项目对象；每个对象拥有独立候选、采用与重试历史。
+                预计物化 {resolvedSlots.reduce((total, item) => total + item.count, 0)}{" "}
+                个项目对象；每个对象拥有独立候选、采用与重试历史。
               </p>
             </div>
           </div>

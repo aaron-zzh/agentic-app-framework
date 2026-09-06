@@ -271,9 +271,9 @@ public final class JpaAssistantDefinitionAdapter implements AssistantDefinitionP
                 }
                 result.add(
                         new SkillBinding(
-                                item.get("skillKey").textValue(),
+                                item.get("skillKey").asString(),
                                 SkillActivationMode.valueOf(
-                                        item.get("activationMode").textValue())));
+                                        item.get("activationMode").asString())));
             }
             return SkillBinding.copyOf(result, fieldName);
         } catch (IllegalStateException exception) {
@@ -300,7 +300,7 @@ public final class JpaAssistantDefinitionAdapter implements AssistantDefinitionP
             }
             var values = new java.util.LinkedHashSet<String>();
             for (var item : root) {
-                if (!item.isString() || !values.add(item.textValue())) {
+                if (!item.isString() || !values.add(item.asString())) {
                     throw new IllegalStateException(fieldName + " 必须是无重复值的 JSON 字符串数组");
                 }
             }

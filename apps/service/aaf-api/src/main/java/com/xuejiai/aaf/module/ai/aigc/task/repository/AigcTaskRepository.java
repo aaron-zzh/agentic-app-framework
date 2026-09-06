@@ -37,7 +37,6 @@ public interface AigcTaskRepository extends CrudEntityRepository<AigcTask> {
     long countByUserIdAndCreateTimeAfter(Long userId, LocalDateTime after);
 
     /** 按状态和任务类型查询 */
-
     @Query(
             """
             select task from AigcTask task
@@ -91,8 +90,7 @@ public interface AigcTaskRepository extends CrudEntityRepository<AigcTask> {
                and task.status in ('PENDING', 'RUNNING')
             """)
     int claimCompletion(
-            @Param("providerTaskId") String providerTaskId,
-            @Param("taskType") String taskType);
+            @Param("providerTaskId") String providerTaskId, @Param("taskType") String taskType);
 
     @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @Query("select task from AigcTask task where task.id = :id")

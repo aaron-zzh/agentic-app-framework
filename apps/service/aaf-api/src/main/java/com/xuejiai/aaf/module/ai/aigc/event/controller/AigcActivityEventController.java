@@ -36,23 +36,19 @@ public class AigcActivityEventController {
                 operatorContext
                         .currentOwnerId()
                         .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                GlobalErrorCode.UNAUTHORIZED, "未登录"));
+                                () -> new BusinessException(GlobalErrorCode.UNAUTHORIZED, "未登录"));
         var scope = authorizedScope(userId, requestedOrgId, requestedWorkspaceId);
         var cursor = Math.max(after == null ? 0L : after, parseCursor(lastEventId));
         return service.subscribe(scope, cursor);
     }
 
-    SubscriptionScope authorizedScope(
-            Long userId, Long requestedOrgId, Long requestedWorkspaceId) {
+    SubscriptionScope authorizedScope(Long userId, Long requestedOrgId, Long requestedWorkspaceId) {
         var authorizedOrgId = OrgContext.getCurrentOrgId();
         var authorizedWorkspaceId = OrgContext.getCurrentWorkspaceId();
         if (requestedOrgId != null && !requestedOrgId.equals(authorizedOrgId)) {
             throw new BusinessException(GlobalErrorCode.FORBIDDEN, "Activity 组织 scope 未经授权");
         }
-        if (requestedWorkspaceId != null
-                && !requestedWorkspaceId.equals(authorizedWorkspaceId)) {
+        if (requestedWorkspaceId != null && !requestedWorkspaceId.equals(authorizedWorkspaceId)) {
             throw new BusinessException(GlobalErrorCode.FORBIDDEN, "Activity 工作区 scope 未经授权");
         }
         if (requestedWorkspaceId != null && authorizedOrgId == null) {

@@ -52,7 +52,9 @@ export function ContentActionBar({ project, focusedObject, canAction }: ContentA
   const [selectedActionKey, setSelectedActionKey] = useState("")
   const [selectedSnippetIds, setSelectedSnippetIds] = useState<number[]>([])
   const [attachmentMediaVersionIds, setAttachmentMediaVersionIds] = useState<number[]>([])
-  const { data: actions = [], isLoading: actionsLoading } = useAigcProjectActions(canAction ? project.id : null)
+  const { data: actions = [], isLoading: actionsLoading } = useAigcProjectActions(
+    canAction ? project.id : null
+  )
   const { data: mediaPage, isLoading: mediaLoading } = useMediaList({
     pageNo: 1,
     pageSize: 20

@@ -65,9 +65,7 @@ export function GlobalChatter({ availableModes = [] }: GlobalChatterProps = {}) 
   const [taskModelSelection, setTaskModelSelection] = useState<TaskModelSelection>(
     DEFAULT_TASK_MODEL_SELECTION
   )
-  const [displayPreferences, setDisplayPreferences] = useState(
-    DEFAULT_CHATTER_DISPLAY_PREFERENCES
-  )
+  const [displayPreferences, setDisplayPreferences] = useState(DEFAULT_CHATTER_DISPLAY_PREFERENCES)
   const taskModelSelectionEnabled =
     config.preset === "ai" && target.type === "ai" && isAuthenticated
 
