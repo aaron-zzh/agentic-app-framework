@@ -46,12 +46,15 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ON CONFLICT DO NOTHING;
 
 INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
-('aigc_project_status', '草稿', 'draft', 1, 'default'),
-('aigc_project_status', '进行中', 'in_progress', 2, 'primary'),
-('aigc_project_status', '审核中', 'reviewing', 3, 'warning'),
-('aigc_project_status', '交付中', 'delivering', 4, 'primary'),
-('aigc_project_status', '已完成', 'completed', 5, 'success'),
-('aigc_project_status', '已归档', 'archived', 6, 'info')
+('aigc_project_status', '配置中', 'CONFIGURING', 1, 'default'),
+('aigc_project_status', '已物化', 'MATERIALIZED', 2, 'info'),
+('aigc_project_status', '创作中', 'CREATING', 3, 'primary'),
+('aigc_project_status', '执行中', 'EXECUTING', 4, 'primary'),
+('aigc_project_status', '采用中', 'ADOPTING', 5, 'warning'),
+('aigc_project_status', '审核中', 'REVIEWING', 6, 'warning'),
+('aigc_project_status', '交付中', 'DELIVERING', 7, 'primary'),
+('aigc_project_status', '已完成', 'COMPLETED', 8, 'success'),
+('aigc_project_status', '已归档', 'ARCHIVED', 9, 'info')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
@@ -128,11 +131,13 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ON CONFLICT DO NOTHING;
 
 INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
-('aigc_execution_status', '待执行', 'pending', 1, 'default'),
-('aigc_execution_status', '执行中', 'running', 2, 'primary'),
-('aigc_execution_status', '已成功', 'succeeded', 3, 'success'),
-('aigc_execution_status', '已失败', 'failed', 4, 'danger'),
-('aigc_execution_status', '已取消', 'canceled', 5, 'info'),
+('aigc_execution_status', '待绑定', 'PENDING_BIND', 1, 'default'),
+('aigc_execution_status', '待执行', 'PENDING', 2, 'default'),
+('aigc_execution_status', '执行中', 'RUNNING', 3, 'primary'),
+('aigc_execution_status', '已成功', 'SUCCEEDED', 4, 'success'),
+('aigc_execution_status', '部分成功', 'PARTIALLY_SUCCEEDED', 5, 'warning'),
+('aigc_execution_status', '已失败', 'FAILED', 6, 'danger'),
+('aigc_execution_status', '已取消', 'CANCELED', 7, 'info'),
 ('aigc_execution_target_type', 'Agent', 'agent', 1, 'primary'),
 ('aigc_execution_target_type', 'Tool', 'tool', 2, 'warning'),
 ('aigc_execution_target_type', 'Workflow', 'workflow', 3, 'info')
@@ -167,18 +172,18 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ('aigc_object_version_status', '已采用', 'adopted', 2, 'success'),
 ('aigc_object_version_status', '已否决', 'rejected', 3, 'danger'),
 ('aigc_object_version_status', '已被取代', 'superseded', 4, 'info'),
-('aigc_work_status', '已收录', 'collected', 1, 'primary'),
-('aigc_work_status', '已发布', 'published', 2, 'success'),
-('aigc_work_status', '已归档', 'archived', 3, 'info'),
+('aigc_work_status', '已收录', 'COLLECTED', 1, 'primary'),
+('aigc_work_status', '已发布', 'PUBLISHED', 2, 'success'),
+('aigc_work_status', '已归档', 'ARCHIVED', 3, 'info'),
 ('aigc_work_visibility', '仅自己', 'PRIVATE', 1, 'default'),
 ('aigc_work_visibility', '工作区', 'WORKSPACE', 2, 'primary'),
 ('aigc_work_visibility', '公开', 'PUBLIC', 3, 'success'),
-('aigc_publication_status', '待发布', 'pending', 1, 'default'),
-('aigc_publication_status', '已排期', 'scheduled', 2, 'info'),
-('aigc_publication_status', '发布中', 'publishing', 3, 'primary'),
-('aigc_publication_status', '已发布', 'published', 4, 'success'),
-('aigc_publication_status', '失败', 'failed', 5, 'danger'),
-('aigc_publication_status', '已取消', 'canceled', 6, 'info'),
+('aigc_publication_status', '待发布', 'PENDING', 1, 'default'),
+('aigc_publication_status', '已排期', 'SCHEDULED', 2, 'info'),
+('aigc_publication_status', '发布中', 'PUBLISHING', 3, 'primary'),
+('aigc_publication_status', '已发布', 'SUCCEEDED', 4, 'success'),
+('aigc_publication_status', '失败', 'FAILED', 5, 'danger'),
+('aigc_publication_status', '已取消', 'CANCELED', 6, 'info'),
 ('aigc_timeline_status', '草稿', 'draft', 1, 'default'),
 ('aigc_timeline_status', '已归档', 'archived', 2, 'info'),
 ('aigc_timeline_track_type', '视频', 'VIDEO', 1, 'primary'),
@@ -195,7 +200,9 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ('aigc_action_key', '生成文章提纲', 'outline.generate', 7, 'info'),
 ('aigc_action_key', '撰写文章草稿', 'article.draft', 8, 'primary'),
 ('aigc_action_key', '改写文章', 'article.rewrite', 9, 'warning'),
-('aigc_action_key', '优化文章 SEO', 'article.seo_optimize', 10, 'success')
+('aigc_action_key', '优化文章 SEO', 'article.seo_optimize', 10, 'success'),
+('aigc_action_key', '生成视频', 'video.generate', 11, 'danger'),
+('aigc_action_key', '生成交付包', 'package.generate', 12, 'primary')
 ON CONFLICT DO NOTHING;
 
 -- ============================================================
@@ -238,65 +245,81 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO aigc_project_blueprint
     (code, name, project_type_code, blueprint_version, production_mode, description, status,
-     action_keys, confirmation_gates, brief_fields)
-VALUES
-('new-product-standard', '新品推广标准蓝图', 'new_product', '1.0.0', 'standard', '新品推广默认内容包骨架', 'published',
- '["brief.refine","concept.generate","copy.generate","image.generate","deliverable.regenerate"]'::jsonb,
- '["concept.adopt","deliverable.batch_generate","project.archive"]'::jsonb,
- '["product","sellingPoints","priceOrPromotion","audience"]'::jsonb),
-('promotion-standard', '活动促销标准蓝图', 'promotion', '1.0.0', 'standard', '活动促销默认内容包骨架', 'published',
- '["brief.refine","concept.generate","copy.generate","image.generate","deliverable.regenerate"]'::jsonb,
- '["concept.adopt","deliverable.batch_generate","project.archive"]'::jsonb,
- '["timeRange","offer","channel","audience"]'::jsonb),
-('brand-visual-standard', '品牌视觉标准蓝图', 'brand_visual', '1.0.0', 'standard', '品牌视觉默认内容包骨架', 'published',
- '["brief.refine","concept.generate","image.generate","image.edit","deliverable.regenerate"]'::jsonb,
- '["concept.adopt","deliverable.batch_generate","project.archive"]'::jsonb,
- '["visualElements","preservedElements","style"]'::jsonb),
-('store-standard', '门店宣传标准蓝图', 'store', '1.0.0', 'standard', '门店宣传默认内容包骨架', 'published',
- '["brief.refine","concept.generate","copy.generate","image.generate","deliverable.regenerate"]'::jsonb,
- '["concept.adopt","deliverable.batch_generate","project.archive"]'::jsonb,
- '["location","services","visitReason","promotion"]'::jsonb),
-('social-standard', '社媒内容标准蓝图', 'social', '1.0.0', 'standard', '社媒内容默认内容包骨架', 'published',
- '["brief.refine","concept.generate","copy.generate","image.generate","deliverable.regenerate"]'::jsonb,
- '["concept.adopt","deliverable.batch_generate","project.archive"]'::jsonb,
- '["topic","audience","callToAction"]'::jsonb),
-('personal-ip-standard', '个人 IP 内容标准蓝图', 'personal_ip', '1.0.0', 'standard', '个人 IP 内容默认内容包骨架', 'published',
- '["brief.refine","concept.generate","copy.generate","image.generate","deliverable.regenerate"]'::jsonb,
- '["concept.adopt","deliverable.batch_generate","project.archive"]'::jsonb,
- '["viewpoint","story","channels"]'::jsonb),
-('ai-blog-standard', 'AI 博客标准蓝图', 'blog_content', '1.0.0', 'standard', '选题、来源、提纲、正文、SEO、封面和分发变体的长内容骨架', 'published',
- '["brief.refine","outline.generate","article.draft","article.rewrite","article.seo_optimize","image.generate"]'::jsonb,
- '["outline.adopt","article.adopt","article.publish","project.archive"]'::jsonb,
- '["topic","audience","keywords","tone","sourceMaterials","channels"]'::jsonb),
-('narrative-series-short-drama', '系列短剧蓝图', 'narrative_series', '1.0.0', 'short_drama', '系列叙事短剧默认骨架', 'published',
- '["brief.refine","concept.generate","copy.generate","image.generate"]'::jsonb,
- '["story.adopt","video.batch_generate","project.archive"]'::jsonb,
- '["story","episodeCount","episodeDuration","style"]'::jsonb)
+     slot_template_spec, relation_spec, action_spec, deliverable_spec, process_policy, brief_fields)
+SELECT seed.code, seed.name, seed.project_type_code, '1.0.0', seed.production_mode,
+       seed.description, 'published',
+       '{"slotTemplates":[
+          {"templateKey":"brief","stableKeyPattern":"brief","objectType":"brief","displayNamePattern":"创作简报","orderNo":10,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED"},
+          {"templateKey":"concept","stableKeyPattern":"concept","objectType":"creative_concept","displayNamePattern":"创意方向","orderNo":20,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED"},
+          {"templateKey":"package","stableKeyPattern":"package","objectType":"deliverable_set","displayNamePattern":"交付内容包","orderNo":30,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED"},
+          {"templateKey":"image","stableKeyPattern":"deliverables.image.%02d","objectType":"image_deliverable","displayNamePattern":"推广图片 %02d","parentTemplateKey":"package","orderNo":40,"defaultCount":3,"minCount":1,"maxCount":12,"userAddable":true,"userRemovable":true,"defaultContractRole":"REQUIRED","countByBudgetTier":{"LOW":1,"MEDIUM":3,"HIGH":6},"countByQualityTier":{"DRAFT":1,"STANDARD":3,"PREMIUM":6}},
+          {"templateKey":"video","stableKeyPattern":"deliverables.video.%02d","objectType":"video_deliverable","displayNamePattern":"推广视频 %02d","parentTemplateKey":"package","orderNo":60,"defaultCount":1,"minCount":0,"maxCount":3,"userAddable":true,"userRemovable":true,"defaultContractRole":"OPTIONAL","activationCondition":{"channelsAny":["douyin","wechat_channels","bilibili"]}},
+          {"templateKey":"copy","stableKeyPattern":"deliverables.copy","objectType":"copy_deliverable","displayNamePattern":"推广文案","parentTemplateKey":"package","orderNo":80,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED"}
+        ]}'::jsonb,
+       '{"relations":[
+          {"sourceTemplateKey":"brief","targetTemplateKey":"concept","type":"derives"},
+          {"sourceTemplateKey":"concept","targetTemplateKey":"package","type":"constrains"},
+          {"sourceTemplateKey":"package","targetTemplateKey":"image","type":"contains"},
+          {"sourceTemplateKey":"package","targetTemplateKey":"video","type":"contains"},
+          {"sourceTemplateKey":"package","targetTemplateKey":"copy","type":"contains"}
+        ]}'::jsonb,
+       '{"actions":[
+          {"actionKey":"brief.refine","targetTemplateKey":"brief"},
+          {"actionKey":"concept.generate","targetTemplateKey":"concept","dependencyTemplateKeys":["brief"]},
+          {"actionKey":"package.generate","targetTemplateKey":"package","dependencyTemplateKeys":["concept"],"confirmationPolicy":"REQUIRED"},
+          {"actionKey":"image.generate","targetTemplateKey":"image","dependencyTemplateKeys":["concept"]},
+          {"actionKey":"video.generate","targetTemplateKey":"video","dependencyTemplateKeys":["concept"]},
+          {"actionKey":"copy.generate","targetTemplateKey":"copy","dependencyTemplateKeys":["brief","concept"]}
+        ]}'::jsonb,
+       '{"sets":[{"setTemplateKey":"package","allowedSlotTemplateKeys":["image","video","copy"],"allowedCustomObjectTypes":["image_deliverable","video_deliverable","copy_deliverable"],"defaultUserAddedContractRole":"OPTIONAL","completionMode":"ALL_REQUIRED","reviewMode":"PROJECT","publicationPolicy":"OPTIONAL"}]}'::jsonb,
+       '{"reviewRequired":true,"publicationPolicy":"OPTIONAL","autoActionKeys":[],"confirmationGateKeys":["concept.adopt","package.generate","project.archive"]}'::jsonb,
+       seed.brief_fields
+FROM (VALUES
+    ('new-product-standard','新品推广标准蓝图','new_product','standard','新品推广默认内容包骨架','["product","sellingPoints","priceOrPromotion","audience"]'::jsonb),
+    ('promotion-standard','活动促销标准蓝图','promotion','standard','活动促销默认内容包骨架','["timeRange","offer","channel","audience"]'::jsonb),
+    ('brand-visual-standard','品牌视觉标准蓝图','brand_visual','standard','品牌视觉默认内容包骨架','["visualElements","preservedElements","style"]'::jsonb),
+    ('store-standard','门店宣传标准蓝图','store','standard','门店宣传默认内容包骨架','["location","services","visitReason","promotion"]'::jsonb),
+    ('social-standard','社媒内容标准蓝图','social','standard','社媒内容默认内容包骨架','["topic","audience","callToAction"]'::jsonb),
+    ('personal-ip-standard','个人 IP 内容标准蓝图','personal_ip','standard','个人 IP 内容默认内容包骨架','["viewpoint","story","channels"]'::jsonb),
+    ('narrative-series-short-drama','系列短剧蓝图','narrative_series','short_drama','系列叙事短剧默认骨架','["story","episodeCount","episodeDuration","style"]'::jsonb)
+) AS seed(code,name,project_type_code,production_mode,description,brief_fields)
 ON CONFLICT DO NOTHING;
 
-UPDATE aigc_project_blueprint
-SET object_spec = '{"objects":[
-      {"key":"brief","type":"brief","title":"创作简报","status":"draft","sortOrder":1},
-      {"key":"topic","type":"topic","title":"文章选题","status":"empty","sortOrder":2},
-      {"key":"sources","type":"source_material_set","title":"来源资料","status":"empty","sortOrder":3},
-      {"key":"outline","type":"article_outline","title":"文章提纲","status":"empty","sortOrder":4},
-      {"key":"article","type":"article_deliverable","title":"博客文章","status":"empty","sortOrder":5},
-      {"key":"seo","type":"seo_metadata","title":"SEO 元数据","status":"empty","parentKey":"article","sortOrder":6},
-      {"key":"cover","type":"image_deliverable","title":"文章封面","status":"empty","parentKey":"article","sortOrder":7},
-      {"key":"variants","type":"distribution_variant","title":"渠道分发变体","status":"empty","parentKey":"article","sortOrder":8},
-      {"key":"review","type":"review","title":"内容审核","status":"empty","sortOrder":9}
-    ]}'::jsonb,
-    relation_spec = '{"relations":[
-      {"sourceKey":"brief","targetKey":"topic","type":"derives"},
-      {"sourceKey":"topic","targetKey":"outline","type":"derives"},
-      {"sourceKey":"sources","targetKey":"article","type":"constrains"},
-      {"sourceKey":"outline","targetKey":"article","type":"derives"},
-      {"sourceKey":"article","targetKey":"seo","type":"contains"},
-      {"sourceKey":"article","targetKey":"cover","type":"contains"},
-      {"sourceKey":"article","targetKey":"variants","type":"contains"},
-      {"sourceKey":"review","targetKey":"article","type":"constrains"}
-    ]}'::jsonb
-WHERE code = 'ai-blog-standard' AND blueprint_version = '1.0.0';
+INSERT INTO aigc_project_blueprint
+    (code, name, project_type_code, blueprint_version, production_mode, description, status,
+     slot_template_spec, relation_spec, action_spec, deliverable_spec, process_policy, brief_fields)
+VALUES
+('ai-blog-standard', 'AI 博客标准蓝图', 'blog_content', '1.0.0', 'standard',
+ '选题、来源、提纲、正文、SEO、封面和分发变体的长内容骨架', 'published',
+ '{"slotTemplates":[
+    {"templateKey":"brief","stableKeyPattern":"brief","objectType":"brief","displayNamePattern":"创作简报","orderNo":10,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED"},
+    {"templateKey":"topic","stableKeyPattern":"topic","objectType":"topic","displayNamePattern":"文章选题","orderNo":20,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED"},
+    {"templateKey":"sources","stableKeyPattern":"sources","objectType":"source_material_set","displayNamePattern":"来源资料","orderNo":30,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED"},
+    {"templateKey":"outline","stableKeyPattern":"outline","objectType":"article_outline","displayNamePattern":"文章提纲","orderNo":40,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED"},
+    {"templateKey":"article","stableKeyPattern":"article","objectType":"article_deliverable","displayNamePattern":"博客文章","orderNo":50,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED"},
+    {"templateKey":"cover","stableKeyPattern":"article.cover","objectType":"image_deliverable","displayNamePattern":"文章封面","parentTemplateKey":"article","orderNo":60,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED"},
+    {"templateKey":"variant","stableKeyPattern":"article.variant.%02d","objectType":"distribution_variant","displayNamePattern":"分发变体 %02d","parentTemplateKey":"article","orderNo":70,"defaultCount":1,"minCount":1,"maxCount":8,"userAddable":true,"userRemovable":true,"defaultContractRole":"OPTIONAL"}
+  ]}'::jsonb,
+ '{"relations":[
+    {"sourceTemplateKey":"brief","targetTemplateKey":"topic","type":"derives"},
+    {"sourceTemplateKey":"topic","targetTemplateKey":"outline","type":"derives"},
+    {"sourceTemplateKey":"sources","targetTemplateKey":"article","type":"constrains"},
+    {"sourceTemplateKey":"outline","targetTemplateKey":"article","type":"derives"},
+    {"sourceTemplateKey":"article","targetTemplateKey":"cover","type":"contains"},
+    {"sourceTemplateKey":"article","targetTemplateKey":"variant","type":"contains"}
+  ]}'::jsonb,
+ '{"actions":[
+    {"actionKey":"brief.refine","targetTemplateKey":"brief"},
+    {"actionKey":"outline.generate","targetTemplateKey":"outline","dependencyTemplateKeys":["topic","sources"]},
+    {"actionKey":"article.draft","targetTemplateKey":"article","dependencyTemplateKeys":["outline","sources"]},
+    {"actionKey":"article.rewrite","targetTemplateKey":"article"},
+    {"actionKey":"article.seo_optimize","targetTemplateKey":"article"},
+    {"actionKey":"image.generate","targetTemplateKey":"cover","dependencyTemplateKeys":["article"]}
+  ]}'::jsonb,
+ '{"sets":[{"setTemplateKey":"article","allowedSlotTemplateKeys":["cover","variant"],"allowedCustomObjectTypes":["image_deliverable","distribution_variant"],"defaultUserAddedContractRole":"OPTIONAL","completionMode":"ALL_REQUIRED","reviewMode":"PROJECT","publicationPolicy":"OPTIONAL"}]}'::jsonb,
+ '{"reviewRequired":true,"publicationPolicy":"OPTIONAL","autoActionKeys":[],"confirmationGateKeys":["outline.adopt","article.adopt","article.publish","project.archive"]}'::jsonb,
+ '["topic","audience","keywords","tone","sourceMaterials","channels"]'::jsonb)
+ON CONFLICT DO NOTHING;
 
 -- ============================================================
 -- 内置渠道规格
@@ -351,7 +374,16 @@ INSERT INTO aigc_execution_binding
      confirmation_required, estimated_credits, status)
 VALUES
 ('image.generate', 'tool', 'aigc.image.generate', '1.0.0', 0, TRUE, 10.00, 'published'),
-('image.edit', 'tool', 'aigc.image.edit', '1.0.0', 0, TRUE, 10.00, 'published')
+('image.edit', 'tool', 'aigc.image.edit', '1.0.0', 0, TRUE, 10.00, 'published'),
+('video.generate', 'tool', 'aigc.video.generate', '1.0.0', 0, TRUE, 30.00, 'published'),
+('package.generate', 'workflow', 'aigc.package.generate', '1.0.0', 0, TRUE, 50.00, 'published'),
+('brief.refine', 'agent', 'aigc.brief.refine', '1.0.0', 0, FALSE, 3.00, 'published'),
+('concept.generate', 'agent', 'aigc.concept.generate', '1.0.0', 0, TRUE, 5.00, 'published'),
+('copy.generate', 'agent', 'aigc.copy.generate', '1.0.0', 0, FALSE, 4.00, 'published'),
+('outline.generate', 'agent', 'aigc.outline.generate', '1.0.0', 0, FALSE, 4.00, 'published'),
+('article.draft', 'agent', 'aigc.article.draft', '1.0.0', 0, TRUE, 8.00, 'published'),
+('article.rewrite', 'agent', 'aigc.article.rewrite', '1.0.0', 0, TRUE, 6.00, 'published'),
+('article.seo_optimize', 'agent', 'aigc.article.seo-optimize', '1.0.0', 0, FALSE, 4.00, 'published')
 ON CONFLICT DO NOTHING;
 
 -- ============================================================
@@ -378,7 +410,11 @@ SELECT blueprint.blueprint_version,
             FROM aigc_execution_binding binding
             WHERE binding.deleted = FALSE
               AND binding.status = 'published'
-              AND blueprint.action_keys ? binding.action_key),
+              AND EXISTS (
+                  SELECT 1
+                  FROM jsonb_array_elements(blueprint.action_spec -> 'actions') action
+                  WHERE action ->> 'actionKey' = binding.action_key
+              )),
            '[]'::jsonb),
        blueprint.production_mode,
        jsonb_build_object(
@@ -387,7 +423,18 @@ SELECT blueprint.blueprint_version,
            'blueprintCode', blueprint.code,
            'domainExtensionCode', NULL::text,
            'channelCodes', project_type.default_channels,
-           'coveredActionKeys', blueprint.action_keys),
+           'coveredActionKeys',
+           COALESCE(
+               (SELECT jsonb_agg(binding.action_key ORDER BY binding.id)
+                FROM aigc_execution_binding binding
+                WHERE binding.deleted = FALSE
+                  AND binding.status = 'published'
+                  AND EXISTS (
+                      SELECT 1
+                      FROM jsonb_array_elements(blueprint.action_spec -> 'actions') action
+                      WHERE action ->> 'actionKey' = binding.action_key
+                  )),
+               '[]'::jsonb)),
        'published'
 FROM aigc_project_type project_type
 JOIN aigc_project_blueprint blueprint
@@ -532,13 +579,17 @@ VALUES
     ('发布项目类型兼容包', 'aigc:project-type-package:publish', 'aigc', 'project-type-package', 'publish', 0),
     ('创建创作项目', 'aigc:project:create', 'aigc', 'project', 'create', 0),
     ('执行创作项目动作', 'aigc:project:action', 'aigc', 'project', 'action', 0),
-    ('采用项目对象版本', 'aigc:project:adopt', 'aigc', 'project', 'adopt', 0),
+    ('采用项目对象版本', 'aigc:object-version:adopt', 'aigc', 'object-version', 'adopt', 0),
+    ('审核项目交付清单', 'aigc:project:review', 'aigc', 'project', 'review', 0),
+    ('推进项目生命周期', 'aigc:project:lifecycle', 'aigc', 'project', 'lifecycle', 0),
     ('执行生成动作', 'aigc:execution-run:execute', 'aigc', 'execution-run', 'execute', 0),
     ('提交生成任务', 'aigc:task:submit', 'aigc', 'task', 'submit', 0),
     ('取消生成任务', 'aigc:task:cancel', 'aigc', 'task', 'cancel', 0),
     ('维护资产集合成员', 'aigc:asset-collection:item', 'aigc', 'asset-collection', 'item', 0),
+    ('收录作品', 'aigc:work:collect', 'aigc', 'work', 'collect', 0),
     ('创建作品', 'aigc:work:create', 'aigc', 'work', 'create', 0),
     ('发布作品', 'aigc:work:publish', 'aigc', 'work', 'publish', 0),
+    ('归档作品', 'aigc:work:archive', 'aigc', 'work', 'archive', 0),
     ('创建时间线', 'aigc:timeline:create', 'aigc', 'timeline', 'create', 0),
     ('更新时间线编排', 'aigc:timeline:update', 'aigc', 'timeline', 'update', 0)
 ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;

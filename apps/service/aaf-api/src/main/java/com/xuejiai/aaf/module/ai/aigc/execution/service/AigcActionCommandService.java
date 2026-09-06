@@ -221,7 +221,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
                                         new BusinessException(
                                                 GlobalErrorCode.NOT_FOUND,
                                                 "执行 submission 不存在"));
-        var existingRoot = runRepository.findByExecutionSubmissionId(submission.getId());
+        var existingRoot = runRepository.findByExecutionSubmissionIdAndParentExecutionRunIdIsNull(submission.getId());
         if (submission.getRootExecutionRunId() == null && existingRoot.isPresent()) {
             submission.setRootExecutionRunId(existingRoot.get().getId());
             submission.setReservationId(existingRoot.get().getExecutionReservationId());
@@ -289,7 +289,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
         submissionRepository.save(submission);
         var run =
                 runRepository
-                        .findByExecutionSubmissionId(submission.getId())
+                        .findByExecutionSubmissionIdAndParentExecutionRunIdIsNull(submission.getId())
                         .orElseGet(
                                 () ->
                                         createRootRun(

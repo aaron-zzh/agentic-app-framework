@@ -1065,6 +1065,19 @@ public class AigcProjectService
             requireObject(project.getId(), command.projectObjectId(), false);
         }
         mediaApi.getByVersionId(command.mediaVersionId(), project.getUserId());
+        var existingReference =
+                mediaRefRepository
+                        .findByProjectIdAndMediaVersionIdAndRole(
+                                project.getId(), command.mediaVersionId(), command.role())
+                        .stream()
+                        .filter(
+                                existing ->
+                                        Objects.equals(
+                                                existing.getObjectId(), command.projectObjectId()))
+                        .findFirst();
+        if (existingReference.isPresent()) {
+            return toApiMediaRefView(existingReference.get());
+        }
         var reference = new AigcProjectMediaRef();
         copyScope(project, reference);
         reference.setProjectId(project.getId());

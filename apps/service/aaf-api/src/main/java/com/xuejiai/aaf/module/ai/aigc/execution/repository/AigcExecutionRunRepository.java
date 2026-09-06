@@ -32,6 +32,9 @@ public interface AigcExecutionRunRepository extends CrudEntityRepository<AigcExe
 
     Optional<AigcExecutionRun> findByExecutionSubmissionId(Long executionSubmissionId);
 
+    Optional<AigcExecutionRun> findByExecutionSubmissionIdAndParentExecutionRunIdIsNull(
+            Long executionSubmissionId);
+
     List<AigcExecutionRun> findByRootExecutionRunIdOrderByIdAsc(Long rootExecutionRunId);
 
     Optional<AigcExecutionRun>
