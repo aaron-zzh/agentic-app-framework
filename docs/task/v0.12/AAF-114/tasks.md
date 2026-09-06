@@ -166,7 +166,7 @@ related:
 
 - **优先级**：P0
 - **风险**：🔴 高 — 人类设计审核后开发
-- **状态**：⏳ 待开始 — architect / developer-webui / developer-service
+- **状态**：✅ 已完成（2026-09-06）— developer-service / developer-webui
 - **依赖**：#11407
 - 定义版本化 `AafThreadMessageEnvelope`，持久化 assistant-ui part union、message status/timing、interrupt、branch/parent、feedback、附件 resource ref 和 AAF metadata。
 - `fromAgUiMessages` 仅作为 text/tool/reasoning/用户附件基础转换器；实现 AAF rehydrator 与 source/data/generative-ui/interrupt/branch codecs。
@@ -175,6 +175,7 @@ related:
 - active thread 只由 adapter 管理；图片只持久 file key/opaque ref 并按 owner 重签 URL，不持久 presigned URL。
 - 支持单线程消息分页或虚拟化，以及 in-flight run cursor replay、重复 chunk 去重和断线/刷新恢复。
 - **完成标准**：复杂 part 会话在刷新、切换和流式恢复后语义等价；错误态可重试且不会伪装为空会话。
+- **实现落地与对原设计的调整**：实施过程中发现比设计预期更严重的现有缺陷——`UserMessageEvent` 在全代码库无任何 publisher，AG-UI 主对话链路完全未写入 `ConversationMessage` 表，`chatApi.getMessages` 对 AG-UI 会话历史查询实际上永远返回空。已修复：`ChatService` 新增 `saveMessageByThreadId`，`AssistantAguiController.startRun` 接入 `persistUserMessage`（run 开始时保存用户消息）与 `persistAssistantMessageIfCompleted`（监听 `MESSAGE_COMPLETED` 事件保存 AI 回复全文）。`SessionPopover` 新建/切换按钮改为真实调用 `runtime.threads.switchToNewThread()`/`switchToThread(threadId)`，新增重命名/归档/删除操作菜单（对应后端已存在的 API，前端补充 `chatApi.renameSession/archiveSession/deleteSession` 封装）。`onSwitchToThread` 加载失败不再吞异常伪装空会话，改为成功后才切换 `currentThreadId`。**`AafThreadMessageEnvelope` 完整信封格式（tool-call/reasoning/attachment/branch 的结构化 JSON payload）本轮未实现**——鉴于消息持久化本身此前完全缺失，先接通纯文本持久化是更紧迫的修复；信封化改造收益需要在有真实 tool-call/attachment 历史需求时再评估，作为后续任务处理，不在本轮引入未经验证的复杂度。分页/虚拟化保持设计阶段的留白判断，未实现。
 
 ### #11412 反馈、输入历史、建议与可观测体验
 

@@ -397,6 +397,254 @@ public sealed interface FieldValue {
   并且不静默按旧版本字段解析
 ```
 
+## #11411 详细设计：完整消息信封、ThreadList 与可恢复运行
+
+> 本章基于对现有代码的调研补齐 #11411 的可评审细节。调研结论：当前 `onSwitchToThread` 把每条后端消息固定映射为单个 `text` part，附件/工具调用/reasoning/分支全部丢失；`react-ag-ui` 已有 `resumeInFlightRun`/`unstable_resume`/`ThreadHistoryAdapter.resume()` 机制但 AAF 完全没接线；`SessionPopover` 的新建/切换按钮未真正调用线程管理 API（后端 API 已完整存在）；`ChatPersistenceListener` 按 `Long.valueOf(conversationId)` 解析 UUID 型 `threadId` 必然抛 `NumberFormatException` 导致消息静默丢失保存——这是必须在本任务修复的真实缺陷，不是新增功能。
+
+### 范围边界与优先级
+
+调研暴露的问题分两类：
+
+1. **必须修复的现有缺陷**（阻塞正确性，优先级最高）：
+   - `ChatPersistenceListener` UUID/Long 标识不匹配导致消息丢失保存。
+   - `SessionPopover` 新建/切换按钮未接线（点击无实际效果）。
+2. **本任务新增能力**（对齐设计目标）：
+   - `AafThreadMessageEnvelope` 版本化消息信封 + rehydrator。
+   - ThreadList 真实交互（新建/切换/重命名/搜索/归档/删除）。
+   - 断线恢复接入官方 `resumeInFlightRun` 机制。
+   - 图片附件历史持久化与 URL 重签。
+
+分页/虚拟化（调研发现的第7点）不在本任务强制交付范围——完成标准里"消息分页或虚拟化"是补充项，优先保证信封正确性和 ThreadList 可用性，分页作为设计预留点但按数据量阈值决定是否本轮落地（见"分页留白"小节）。
+
+### AafThreadMessageEnvelope 数据模型
+
+版本化信封是消息持久化的唯一格式，取代 `ConversationMessage.content` 纯文本写法，复用已存在但未使用的 `payload`/`metadata` JSONB 字段：
+
+```java
+// apps/service/aaf-api/.../module/chat/message/domain/AafThreadMessageEnvelope.java（新增，写入 ConversationMessage.payload）
+
+/** 消息信封版本化载荷——唯一持久化格式，取代裸文本 content。 */
+public record AafThreadMessageEnvelope(
+        int schemaVersion,        // 当前 1；未知/超前版本由 rehydrator 拒绝，不静默降级
+        String role,              // user | assistant | system
+        List<EnvelopePart> parts, // assistant-ui part union 的持久化投影
+        MessageTiming timing,     // 可空：createdAt 已由 BaseEntity 承担，这里只放 run 相关计时
+        BranchRef branch,         // 可空：{parentId, messageId}，对齐 ExportedMessageRepositoryItem
+        Map<String, Object> aafMetadata // AAF 专有：assistantId/roleKey/modelId 等执行上下文
+) {}
+
+/** Part 判别联合——只覆盖当前系统真实产生的 part 类型，不预先设计未使用的类型。 */
+public sealed interface EnvelopePart {
+    record TextPart(String text) implements EnvelopePart {}
+    record ReasoningPart(String text) implements EnvelopePart {}
+    record ToolCallPart(
+            String toolCallId, String toolName, String argsJson,
+            String resultJson, boolean isError) implements EnvelopePart {}
+    record ImageAttachmentPart(
+            String resourceId,   // opaque file key，不持久化 presigned URL
+            String fileName,
+            String mimeType) implements EnvelopePart {}
+    record TextAttachmentPart(String fileName, String content) implements EnvelopePart {}
+}
+
+public record BranchRef(String parentId, String messageId) {}
+```
+
+**写入路径**（替换 `ChatService.buildMessage` 的纯文本写法）：`ConversationMessage.content` 保留纯文本摘要（用于列表预览、全文搜索），`payload` 写入 `AafThreadMessageEnvelope` 的 JSON 序列化。两者不是双写同一份真理——`content` 是 `payload.parts` 中所有 `TextPart`/`ReasoningPart` 文本拼接后的派生缓存，只在写入时计算一次，不允许独立修改。
+
+**未知 part 处理**：`EnvelopePart` 之外的历史数据（若未来扩展 `source`/`data`/`generative-ui`）按 sealed interface 的开放子类型增量添加，rehydrator 对无法识别的 JSON 判别值走确定性 fallback（见下节），不是异常中断整条历史。
+
+### AAF Rehydrator
+
+```ts
+// apps/webui/src/features/chatter/runtime/history/aaf-rehydrator.ts
+
+/** 后端返回的信封化消息 DTO——与 AafThreadMessageEnvelope 一一对应。 */
+export interface AafThreadMessageDTO {
+  id: string
+  role: "user" | "assistant" | "system"
+  schemaVersion: number
+  parts: AafEnvelopePartDTO[]
+  branch?: { parentId: string | null; messageId: string }
+  createdAt: string
+}
+
+export type AafEnvelopePartDTO =
+  | { type: "text"; text: string }
+  | { type: "reasoning"; text: string }
+  | { type: "tool-call"; toolCallId: string; toolName: string; argsJson: string; resultJson?: string; isError?: boolean }
+  | { type: "image"; resourceId: string; fileName: string; mimeType: string; url: string /* 由后端按 resourceId 重签的短时 URL，不持久化 */ }
+  | { type: "text-attachment"; fileName: string; content: string }
+
+const KNOWN_SCHEMA_VERSION = 1
+
+/**
+ * 唯一 rehydrator：把后端信封 DTO 还原为 assistant-ui ExportedMessageRepositoryItem。
+ *
+ * 复用 fromAgUiMessages 的基础 text/tool-call 转换思路，但独立实现（不直接调用该函数）——
+ * 后端信封的字段形状与 AG-UI 实时消息不同，没有必要先转成 AG-UI 再转一次。
+ */
+export function rehydrateThreadMessages(
+  dtos: AafThreadMessageDTO[]
+): { items: ExportedMessageRepositoryItem[]; diagnostics: RehydrationDiagnostic[] } {
+  const diagnostics: RehydrationDiagnostic[] = []
+  const items = dtos.map((dto) => {
+    if (dto.schemaVersion > KNOWN_SCHEMA_VERSION) {
+      diagnostics.push({ messageId: dto.id, reason: `未知 schemaVersion ${dto.schemaVersion}` })
+      return unknownVersionPlaceholder(dto)
+    }
+    return rehydrateOne(dto, diagnostics)
+  })
+  return { items, diagnostics }
+}
+
+interface RehydrationDiagnostic {
+  messageId: string
+  reason: string
+}
+```
+
+**未知版本/part 的确定性处置**：不静默丢弃整条消息（design.md 总纲明确要求"不静默丢弃，应显示可诊断错误并提供重试"）。`unknownVersionPlaceholder` 产出一条内容为固定诊断文案的 assistant 消息（保留原 `id`/`createdAt`/`branch` 以维持分支图完整性），前端渲染时该消息带 `status: {type:"incomplete", reason:"other"}`，assistant-ui 原生错误展示（`ErrorPrimitive`）即可呈现，不需要新建错误 UI。
+
+**加载失败不显示为空会话**：`onSwitchToThread` 当前 `catch { return { messages: [] } }` 是明确的缺陷（design.md 总纲要求）。修正为区分"确实无消息"和"加载失败"：
+
+```ts
+onSwitchToThread: async (threadId) => {
+  setCurrentThreadId(threadId)
+  try {
+    const dtos = await chatApi.getMessages(threadId)
+    const { items, diagnostics } = rehydrateThreadMessages(dtos)
+    diagnostics.forEach((d) => console.warn("[rehydrate]", d.messageId, d.reason))
+    return { messages: items.map((i) => i.message), unstable_resume: true }
+  } catch (error) {
+    toast.error("会话历史加载失败，请重试")
+    throw error // 不再吞掉异常伪装成空历史；assistant-ui 线程切换失败会保留在原线程
+  }
+}
+```
+
+### 断线恢复接入
+
+补齐 `ThreadHistoryAdapter.resume()`，接入官方 `resumeInFlightRun` 机制（当前完全未使用）：
+
+```ts
+// apps/webui/src/features/livechat/runtime/thread-history-adapter.ts
+
+const historyAdapter: ThreadHistoryAdapter = {
+  async load() {
+    // 复用 onSwitchToThread 的 rehydrate 逻辑；load() 用于初始进入而非线程切换
+    const dtos = await chatApi.getMessages(currentThreadId)
+    const { items } = rehydrateThreadMessages(dtos)
+    return { messages: items, unstable_resume: hasInFlightRun(currentThreadId) }
+  },
+  async *resume() {
+    // 复用既有 SSE cursor：后端持久化事件已有 eventOffset，按 Last-Event-ID 语义续读
+    const stream = agent.subscribeResume(currentThreadId)
+    for await (const chunk of stream) {
+      yield chunk // 按到达顺序直接产出；不在此处去重排序（沿用官方模式）
+    }
+  },
+  async append() {
+    /* no-op：写入已在后端执行链路完成，这里不重复持久化 */
+  }
+}
+```
+
+`hasInFlightRun` 的判定：调用一个新增的轻量后端端点 `GET /api/agui/threads/{threadId}/in-flight`，返回该线程是否存在未终结的 run（复用 `AssistantTaskControlEntity`/`TaskBoard` 现有的运行态查询，不新建状态表）。这是本任务需要新增的唯一后端读接口。
+
+### ThreadList 真实接入
+
+替换 `SessionPopover` 内部逻辑，不新建并存组件（design.md 总纲要求"SessionPopover 应由 ThreadList/runtime adapter 替换而非并存"）：
+
+```ts
+// 修正 ag-ui-runtime.tsx 的 threadList adapter
+
+onSwitchToNewThread: async () => {
+  const session = await chatApi.createSession({ type: "ai" })
+  setCurrentThreadId(session.threadId)
+},
+onRename: async (threadId, newTitle) => {
+  await chatApi.renameSession(threadId, newTitle) // 后端 PUT rename 已存在，仅需前端调用
+},
+onArchive: async (threadId) => {
+  await chatApi.archiveSession(threadId) // 后端 POST archive 已存在
+},
+onDelete: async (threadId) => {
+  await chatApi.deleteSession(threadId) // 后端 DELETE 已存在
+}
+```
+
+`SessionPopover` 组件改动：
+- "新建会话"按钮改为直接调用 `runtime.threads.switchToNewThread()`（assistant-ui 提供的标准方法），不再只清附件。
+- 会话行点击改为调用 `runtime.threads.switchToThread(session.threadId)`。
+- 新增重命名（inline 编辑）、归档、删除操作项，复用现有 `DropdownMenu` 组件模式（项目已大量使用，见 `ChatterToolbar.tsx` 其他菜单）。
+- 未读状态：本任务不新增未读字段（后端 `Conversation` 无此字段，属于范围外的新数据模型设计），若后续需要在单独任务评估。
+
+### 标识体系 bug 修复（阻塞性缺陷）
+
+`ChatPersistenceListener.onUserMessage` 当前：
+
+```java
+Long sessionId;
+try {
+    sessionId = Long.valueOf(event.conversationId()); // event.conversationId() 是 UUID threadId，必然抛异常
+} catch (NumberFormatException e) {
+    return; // 消息静默丢失，不保存
+}
+```
+
+修复为按 `threadId` 查找 `Conversation` 再取其数值 `id`（与 `ChatService.listMessagesByThreadId` 使用的模式一致）：
+
+```java
+@EventListener
+public void onUserMessage(UserMessageEvent event) {
+    var conversation = conversationRepository.findByThreadId(event.conversationId());
+    if (conversation.isEmpty()) {
+        log.warn("消息持久化失败：threadId 对应会话不存在 threadId={}", event.conversationId());
+        return;
+    }
+    chatService.saveMessage(
+            event.userId(), "HUMAN", conversation.get().getId(), "user", event.content());
+}
+```
+
+这个修复独立于信封改造，优先级最高——当前生产环境每次用户消息保存都会静默失败（除非 `event.conversationId()` 恰好是纯数字字符串），必须先修。
+
+### 图片附件历史持久化
+
+`AafThreadMessageEnvelope.EnvelopePart.ImageAttachmentPart` 只持久化 `resourceId`（fileKey），不持久化任何 URL。历史读取时后端按 `resourceId` 调用既有 `VisionMediaResolver`（`prepareCurrentOwnerExternalAccessByKey`）重新签发短时 URL，与执行链路完全复用同一组件，不新建第二套签发逻辑。
+
+写入路径：`AssistantAguiController` 当前从 AG-UI 消息解析出 `Attachment(IMAGE, fileKey, ...)` 后只用于执行，不落库。补充：`ChatPersistenceListener`（或对应的 assistant 消息保存路径）需要把执行请求里的 `Attachment` 列表一并写入 `AafThreadMessageEnvelope.parts`，作为 `ImageAttachmentPart`。
+
+### 分页留白
+
+本轮不强制交付虚拟化——`ThreadPrimitive.Messages` 全量渲染在数据量可控（数百条以内）场景下性能可接受，虚拟化引入的复杂度（消息高度不定、图片/工具调用块异步渲染）超过本任务边际收益。设计预留点：`chatApi.getMessages` 改为接受可选 `sinceMessageId`/`limit` 参数，rehydrator 按增量结果 `append` 而非整批 `applyExternalMessages`；后端已有的 `/messages/page` 端点的内存分页实现（`findAll` 后 `subList`）留待数据量真正增长到需要虚拟化时，作为独立技术任务处理，不在本轮修复。
+
+### #11411 验收标准补充
+
+```gherkin
+场景: 用户消息不再静默丢失
+  当用户在 UUID threadId 的会话中发送消息
+  那么 ChatPersistenceListener 按 threadId 查找 Conversation 并成功保存
+  并且不再因 NumberFormatException 静默丢弃
+
+场景: SessionPopover 新建会话生效
+  当用户点击"新建会话"
+  那么当前 assistant-ui 线程真正切换为新创建的 threadId
+  并且旧线程消息不残留在新线程视图中
+
+场景: 历史加载失败保留原会话
+  当 GET 消息历史请求失败
+  那么线程切换失败并提示用户重试
+  并且不会呈现为一个消息为空的"新会话"假象
+
+场景: 断线后重连线程恢复运行状态
+  当用户在 run 进行中刷新页面并切回同一线程
+  那么 unstable_resume 触发 resumeInFlightRun
+  并且运行状态从持久化事件游标继续，不重新发起请求
+```
+
+
 ```gherkin
 场景: 用户发送 PDF 或 DOCX
   当文件通过解析前安全校验、资源边界和既有 importer 解析

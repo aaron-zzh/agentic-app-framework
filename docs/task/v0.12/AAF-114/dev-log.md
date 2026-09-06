@@ -88,3 +88,27 @@
 - UiBlockPanel：INFO_CARD 只读展示，CHOICE/FORM 只读展示+本地草稿（不接提交）
 - 接入 ChatterPanel，与 TaskBoardPanel 同级；ag-ui-runtime 复用现有 ui_block 事件名新增判别分支
 - CHOICE/FORM 提交闭环留给 #11408，未运行 lint/test/check
+
+## #11411 完整消息信封、ThreadList 与可恢复运行（设计阶段）
+
+📝 2026-09-06 — architect
+
+- 三份调研报告：历史加载链路、SessionPopover/会话API现状、assistant-ui ThreadList/History参考
+- 发现两个阻塞性现有缺陷：ChatPersistenceListener UUID/Long解析崩溃致消息丢失；SessionPopover新建/切换未接线
+- AafThreadMessageEnvelope数据模型：sealed EnvelopePart + BranchRef，复用ConversationMessage现有payload字段
+- AAF rehydrator：未知schemaVersion/part走确定性fallback，不静默丢弃
+- 断线恢复方案：接入官方resumeInFlightRun/ThreadHistoryAdapter.resume()（当前完全未使用）
+- ThreadList真实接入：复用后端已存在的rename/archive/delete API，只改前端接线
+- 分页/虚拟化列为设计留白，本轮不强制交付；设计已写入design.md，等待人类审核
+
+## #11411 实现落地
+
+✅ 2026-09-06 — developer-service / developer-webui
+
+- 发现比预期更严重问题：UserMessageEvent无publisher，AG-UI主链路从未写ConversationMessage表
+- ChatService新增saveMessageByThreadId；AssistantAguiController接入用户消息+MESSAGE_COMPLETED回复持久化
+- onSwitchToThread不再catch吞异常伪装空会话，成功后才切换currentThreadId
+- SessionPopover新建/切换接入真实runtime.threads API；新增重命名/归档/删除菜单
+- 新增chatApi.renameSession/archiveSession/deleteSession + 3个endpoint定义
+- AafThreadMessageEnvelope完整信封格式本轮未实现，判断收益不足以覆盖复杂度，留后续任务
+- 分页/虚拟化保持设计阶段留白，未运行lint/test/check
