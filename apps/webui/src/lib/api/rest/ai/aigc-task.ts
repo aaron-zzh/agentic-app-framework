@@ -7,6 +7,39 @@ import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 import { request } from "../entity/crud"
 
+export interface AigcTaskEvent {
+  id: number
+  userId: number
+  type: "IMAGE" | "VIDEO" | "MUSIC" | "MODEL_3D" | "VOICE" | "IMAGE_PROCESS"
+  status:
+    | "PREPARED"
+    | "SUBMITTING"
+    | "NEEDS_RECONCILIATION"
+    | "PENDING"
+    | "RUNNING"
+    | "COMPLETING"
+    | "SUCCESS"
+    | "FAIL"
+  provider: string | null
+  model: string | null
+  prompt: string | null
+  providerTaskId: string | null
+  providerResult: string | null
+  outputMediaId: number | null
+  outputMediaVersionId: number | null
+  outputUrl: string | null
+  assetId: number | null
+  isAsset: boolean
+  errorMsg: string | null
+  params: string | null
+  projectId?: number | null
+  executionRunId?: number | null
+  projectObjectId?: number | null
+  idempotencyKey?: string | null
+  createTime: string
+  updateTime: string
+}
+
 export interface GenerateImageParams {
   prompt: string
   displayPrompt?: string
@@ -24,7 +57,6 @@ export interface GenerateImageParams {
   aspectRatio?: string
   background?: string
   contentModeration?: string
-  projectId?: number | null
   systemPrompt?: string
 }
 
@@ -33,7 +65,6 @@ export type VideoImageMode = "T2V" | "FIRST_FRAME" | "REFERENCE"
 export interface GenerateVideoParams {
   prompt: string
   model?: string
-  projectId?: number | null
   resolution?: string
   duration?: number
   ratio?: string
@@ -49,8 +80,30 @@ export interface GenerateVideoParams {
   systemPrompt?: string
 }
 
+export interface GenerateMusicParams {
+  prompt: string
+  lyrics?: string
+  gender: string
+}
+
+export interface GenerateVoiceParams {
+  prompt: string
+  voiceId: string
+}
+
+export interface GenerateModel3dParams {
+  prompt: string
+  model?: string
+  textureQuality?: string
+}
+
 export const aigcTaskApi = {
-  cancel: (taskId: number): Promise<void> => request(`/aigc/tasks/${taskId}`, { method: "DELETE" }),
+  cancel: (taskId: number, reason?: string): Promise<void> =>
+    request(`/aigc/tasks/${taskId}/_cancel`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+      headers: { "Content-Type": "application/json" }
+    }),
   generateImage: (params: GenerateImageParams): Promise<number> =>
     request("/aigc/tasks/submit", {
       method: "POST",
@@ -59,7 +112,6 @@ export const aigcTaskApi = {
         prompt: params.prompt,
         displayPrompt: params.displayPrompt,
         model: params.model,
-        projectId: params.projectId ?? null,
         systemPrompt: params.systemPrompt ?? null,
         params: {
           width: params.width ?? 1024,
@@ -86,7 +138,6 @@ export const aigcTaskApi = {
         type: "VIDEO",
         prompt: params.prompt,
         model: params.model,
-        projectId: params.projectId ?? null,
         systemPrompt: params.systemPrompt ?? null,
         params: {
           ...(params.resolution ? { resolution: params.resolution } : {}),
@@ -111,10 +162,38 @@ export const aigcTaskApi = {
       }),
       headers: { "Content-Type": "application/json" }
     }),
-  generate3d: (params: { prompt: string; model?: string }): Promise<number> =>
+  generateMusic: (params: GenerateMusicParams): Promise<number> =>
     request("/aigc/tasks/submit", {
       method: "POST",
-      body: JSON.stringify({ type: "MODEL_3D", prompt: params.prompt, model: params.model }),
+      body: JSON.stringify({
+        type: "MUSIC",
+        prompt: params.lyrics || params.prompt,
+        params: { lyrics: params.lyrics || undefined, gender: params.gender }
+      }),
+      headers: { "Content-Type": "application/json" }
+    }),
+  generateVoice: (params: GenerateVoiceParams): Promise<number> =>
+    request("/aigc/tasks/submit", {
+      method: "POST",
+      body: JSON.stringify({
+        type: "VOICE",
+        prompt: params.prompt,
+        params: { voice: params.voiceId }
+      }),
+      headers: { "Content-Type": "application/json" }
+    }),
+  generateModel3d: (params: GenerateModel3dParams): Promise<number> =>
+    request("/aigc/tasks/submit", {
+      method: "POST",
+      body: JSON.stringify({
+        type: "MODEL_3D",
+        prompt: params.prompt,
+        model: params.model,
+        params: {
+          source: "text",
+          ...(params.textureQuality ? { textureQuality: params.textureQuality } : {})
+        }
+      }),
       headers: { "Content-Type": "application/json" }
     })
 }
@@ -146,10 +225,10 @@ export function useGenerateVideo() {
   })
 }
 
-export function useGenerate3d() {
+export function useGenerateModel3d() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: aigcTaskApi.generate3d,
+    mutationFn: aigcTaskApi.generateModel3d,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["aigc.task"] })
   })
 }

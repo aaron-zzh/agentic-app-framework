@@ -28,7 +28,7 @@ import { Lightbox, useLightbox } from "@/components/lightbox"
 import { GlassCard } from "@/components/studio/GlassCard"
 import { GlowButton } from "@/components/studio/GlowButton"
 import { useSaveMediaAsAsset } from "@/lib/api/rest/media"
-import type { AigcTaskEvent } from "@/lib/hooks/use-aigc-task-stream"
+import type { AigcTaskEvent } from "@/lib/api/rest/ai/aigc-task"
 
 interface GenerationResultCardProps {
   tasks: AigcTaskEvent[]
@@ -267,8 +267,12 @@ function ResultPreview({
 }
 
 const STATUS_LABEL: Record<AigcTaskEvent["status"], string> = {
+  PREPARED: "已准备",
+  SUBMITTING: "提交中",
+  NEEDS_RECONCILIATION: "待对账",
   PENDING: "排队中",
   RUNNING: "生成中",
+  COMPLETING: "完成中",
   SUCCESS: "已完成",
   FAIL: "生成失败"
 }

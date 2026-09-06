@@ -36,6 +36,26 @@ export interface AigcProjectType {
   status: AigcConfigStatus
 }
 
+export interface AigcBlueprintSlotTemplate {
+  templateKey: string
+  stableKeyPattern: string
+  objectType: string
+  displayNamePattern?: string
+  description?: string
+  parentTemplateKey?: string
+  orderNo?: number
+  defaultCount: number
+  minCount: number
+  maxCount: number
+  userAddable?: boolean
+  userRemovable?: boolean
+  defaultContractRole?: "REQUIRED" | "OPTIONAL" | "EXCLUDED"
+  adoptionPolicy?: string
+  countByProductionMode?: Record<string, number>
+  countByBudgetTier?: Record<string, number>
+  countByQualityTier?: Record<string, number>
+}
+
 export interface AigcProjectBlueprint {
   id: number
   version: number
@@ -47,11 +67,11 @@ export interface AigcProjectBlueprint {
   description?: string
   coverUrl?: string | null
   status: AigcConfigStatus
-  objectSpec?: Record<string, unknown>
+  slotTemplateSpec?: { slotTemplates?: AigcBlueprintSlotTemplate[] }
   relationSpec?: Record<string, unknown>
+  actionSpec?: Record<string, unknown>
   deliverableSpec?: Record<string, unknown>
-  actionKeys: string[]
-  confirmationGates: string[]
+  processPolicy?: Record<string, unknown>
   briefFields: string[]
 }
 

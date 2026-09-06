@@ -75,6 +75,12 @@ export interface SaveMediaAsAssetParams {
   copyrightInfo?: string
 }
 
+export interface MaterializeUploadedImageInput {
+  fileId: number
+  name?: string
+  originalProjectId: number
+}
+
 function normalizeAsset(asset: AigcAsset): AigcAsset {
   return {
     ...asset,
@@ -92,6 +98,8 @@ export const mediaApi = {
   getById: (id: number): Promise<AigcMedia> => backendApi.get<AigcMedia>(`/aigc/media/${id}`),
   getByVersionId: (mediaVersionId: number): Promise<AigcMedia> =>
     backendApi.get<AigcMedia>(`/aigc/media/versions/${mediaVersionId}`),
+  materializeUploadedImage: (input: MaterializeUploadedImageInput): Promise<AigcMedia> =>
+    backendApi.post<AigcMedia>("/aigc/media/uploaded-images/_materialize", input),
   saveAsAsset: async (id: number, params?: SaveMediaAsAssetParams): Promise<AigcAsset> =>
     normalizeAsset(await backendApi.post<AigcAsset>(`/aigc/media/${id}/asset`, params))
 }
@@ -269,6 +277,16 @@ export function useReplaceAssetTags() {
       )
       queryClient.invalidateQueries({ queryKey: ASSET_FILTER_OPTIONS_QUERY_KEY })
     }
+  })
+}
+
+/** 按媒体版本 ID 并行查询媒体详情。 */
+export function useMediaVersionDetails(mediaVersionIds: number[]) {
+  return useQueries({
+    queries: mediaVersionIds.map((mediaVersionId) => ({
+      queryKey: [...MEDIA_QUERY_KEY, "version", mediaVersionId] as const,
+      queryFn: () => mediaApi.getByVersionId(mediaVersionId)
+    }))
   })
 }
 

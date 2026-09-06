@@ -4,8 +4,10 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { ApiError } from "@/lib/api/errors"
 import type { PageResult } from "../../../types"
 import { backendApi } from "../../backend-client"
+import { invalidateAigcProject } from "./project"
 
 export interface AigcTimelineClip {
   id: number
@@ -59,12 +61,49 @@ export interface AigcTimelineParams {
 
 export interface AigcTimelineCreateInput {
   projectId: number
+  expectedProjectVersion: number
   deliverableObjectId?: number
   title: string
   durationMs?: number
   frameRate?: number
   width?: number
   height?: number
+}
+
+export interface AigcTimelineClipInput {
+  mediaVersionId?: number
+  sourceObjectId?: number
+  sourceObjectVersionId?: number
+  positionMs?: number
+  inMs?: number
+  outMs?: number
+  propertiesJson?: string
+  transitionJson?: string
+  volume?: number
+}
+
+export interface AigcTimelineTrackInput {
+  trackType: string
+  name?: string
+  orderNo: number
+  muted?: boolean
+  locked?: boolean
+  clips: AigcTimelineClipInput[]
+}
+
+export interface AigcTimelineReplaceInput {
+  timelineId: number
+  projectId: number
+  expectedProjectVersion: number
+  expectedVersion: number
+  tracks: AigcTimelineTrackInput[]
+}
+
+export interface AigcTimelineDeleteInput {
+  timelineId: number
+  projectId: number
+  expectedProjectVersion: number
+  expectedVersion: number
 }
 
 export const aigcTimelineApi = {
@@ -81,7 +120,11 @@ export const aigcTimelineApi = {
       deliverableObjectId?: number
       status: string
       version: number
-    }>("/aigc/timelines/_create", data)
+    }>("/aigc/timelines/_create", data),
+  replace: ({ timelineId, ...data }: AigcTimelineReplaceInput) =>
+    backendApi.put<AigcTimelineComposition>(`/aigc/timelines/${timelineId}/composition`, data),
+  delete: ({ timelineId, ...data }: AigcTimelineDeleteInput) =>
+    backendApi.post<void>(`/aigc/timelines/${timelineId}/_delete`, data)
 }
 
 export const aigcTimelineKeys = {
@@ -106,10 +149,43 @@ export function useAigcTimelineComposition(id: number | null) {
   })
 }
 
+export function invalidateAigcTimelineMutation(
+  queryClient: ReturnType<typeof useQueryClient>,
+  projectId: number,
+  error?: unknown
+) {
+  queryClient.invalidateQueries({ queryKey: aigcTimelineKeys.all })
+  if (error === undefined || (error instanceof ApiError && error.code === 409)) {
+    invalidateAigcProject(queryClient, projectId)
+  }
+}
+
 export function useCreateAigcTimeline() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: aigcTimelineApi.create,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: aigcTimelineKeys.all })
+    onSuccess: (_, variables) => invalidateAigcTimelineMutation(queryClient, variables.projectId),
+    onError: (error, variables) =>
+      invalidateAigcTimelineMutation(queryClient, variables.projectId, error)
+  })
+}
+
+export function useReplaceAigcTimeline() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: aigcTimelineApi.replace,
+    onSuccess: (_, variables) => invalidateAigcTimelineMutation(queryClient, variables.projectId),
+    onError: (error, variables) =>
+      invalidateAigcTimelineMutation(queryClient, variables.projectId, error)
+  })
+}
+
+export function useDeleteAigcTimeline() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: aigcTimelineApi.delete,
+    onSuccess: (_, variables) => invalidateAigcTimelineMutation(queryClient, variables.projectId),
+    onError: (error, variables) =>
+      invalidateAigcTimelineMutation(queryClient, variables.projectId, error)
   })
 }
