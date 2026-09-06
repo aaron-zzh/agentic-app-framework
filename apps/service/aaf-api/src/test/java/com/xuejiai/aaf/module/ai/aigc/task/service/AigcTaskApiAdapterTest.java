@@ -117,7 +117,8 @@ class AigcTaskApiAdapterTest extends BaseMockitoUnitTest {
         when(boundTaskEvidencePort.requireBound(31L, 21L, null))
                 .thenReturn(new AigcBoundTaskEvidencePort.BoundEvidence(9L, 8L, 7L, 41L, 42L, 31L));
         when(operatorContext.currentOwnerId()).thenReturn(Optional.of(9L));
-        when(capabilityRouter.resolve(any(CapabilityRoutingContext.class))).thenReturn(model());
+        var model = model();
+        when(capabilityRouter.resolve(any(CapabilityRoutingContext.class))).thenReturn(model);
         when(taskService.estimateCredits(eq(9L), eq("IMAGE"), eq("model:image"), anyMap()))
                 .thenReturn(7L);
         var existing = new AigcTask();

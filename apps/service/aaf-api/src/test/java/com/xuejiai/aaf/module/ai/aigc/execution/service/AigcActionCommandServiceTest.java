@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.ai.aigc.execution.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -77,9 +78,13 @@ class AigcActionCommandServiceTest extends BaseMockitoUnitTest {
                         operatorContext,
                         List.of(executor),
                         eventPublisher);
-        when(operatorContext.currentOwnerId()).thenReturn(Optional.of(7L));
-        when(projectApi.requireProject(1L)).thenReturn(project());
-        when(runRepository.findByProjectIdAndActionKeyAndDeletedFalseOrderByIdDesc(any(), any()))
+        lenient().when(operatorContext.currentOwnerId()).thenReturn(Optional.of(7L));
+        lenient().when(projectApi.requireProject(1L)).thenReturn(project());
+        lenient()
+                .when(
+                        runRepository
+                                .findByProjectIdAndActionKeyAndDeletedFalseOrderByIdDesc(
+                                        any(), any()))
                 .thenReturn(List.of());
     }
 
@@ -303,7 +308,6 @@ class AigcActionCommandServiceTest extends BaseMockitoUnitTest {
         when(submissionService.record(command))
                 .thenReturn(new AigcExecutionSubmissionService.SubmissionReceipt(intent, true));
         when(submissionRepository.findLockedById(80L)).thenReturn(Optional.of(intent));
-        when(runRepository.findByExecutionSubmissionId(80L)).thenReturn(Optional.empty());
         when(submissionRepository.claimPreparing(80L)).thenReturn(0);
 
         // 调用 + 断言
