@@ -10,5 +10,8 @@
 | 2026-09-05 | architect | 两轮独立静态代码审查 | 问题已闭环 |
 | 2026-09-05 | qa | 两轮静态质量审计 | 验证偏离已记录 |
 | 2026-09-05 | tester | 验收测试 | 按用户要求跳过 |
+| 2026-09-06 | developer-service | #11406 EXPLICIT 视觉门禁 + opaque ID 关联 + 前端模型过滤 | 完成 |
+| 2026-09-06 | architect | #11407 调研（AG-UI CUSTOM/Clarification/assistant-ui 参考）+ 设计撰写 | 设计已产出，等待人类审核 |
+| 2026-09-06 | developer-webui | #11407 实现（AafUiBlock/投影适配器/UiBlockPanel），发现三方库限制并调整方案 | 完成 |
 
 > 本轮未运行 lint、测试、typecheck、build 或 check；详见 [review.md](review.md)。

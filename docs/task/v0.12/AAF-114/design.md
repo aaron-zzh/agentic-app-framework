@@ -209,6 +209,194 @@ ThreadList 交付包括真实新建、切换、重命名、搜索、归档/删�
   并且未知组件或非法 props 使用安全 fallback，不执行任意代码或 URL
 ```
 
+
+## #11407 详细设计：消息 Part 投影、UI Block 协议与安全 allowlist
+
+> 本章基于对现有代码的调研补齐 #11407 的可评审细节。调研结论：react-ag-ui 0.0.41 的 `RunAggregator` 对 CUSTOM 事件的处理是 `default` 分支仅 debug 记录，不会自动生成 `DataMessagePart`/`GenerativeUIMessagePart`；AAF 后端 `AgUiProjector` 已把公共事件降级为 `aaf.*` CUSTOM（含 `eventId/sequence/eventOffset?/version`，无 `revision`），内部节点收敛为 4 个 `aaf.node.*` CUSTOM（不含上述字段）；`ClarificationRequest`/`ExecutionInput` 当前 `values` 均为 `Map<String,String>`，无 typed value；assistant-ui 核心已原生提供 `DataMessagePart`/`GenerativeUIMessagePart` 与组件 allowlist 机制，AAF 不需要自建另一套抽象，只需按官方模式接线。
+
+### 设计原则
+
+1. **复用优先**：assistant-ui 已有 `DataMessagePart`（按 `name` 注册 renderer）、`GenerativeUIMessagePart`（按 `component` 查 allowlist）、Tool UI（按 `toolName` 注册，`running|requires-action|complete|incomplete` + `isError`）。AAF 投影适配器的职责是把 CUSTOM 转成这些**已有**类型，不新建平行的 part 类型体系。
+2. **唯一投影点**：新增 `AguiCustomEventProjector`（前端，TS），是 CUSTOM → assistant-ui part 的唯一入口。当前 `ag-ui-runtime.tsx` 里直接 if/else 判断 `event.name` 写 Zustand 的逻辑保留（那是瞬时 UI 状态投影，语义不同），但新增的 durable part 投影不得复制到 Zustand。
+3. **服务端先分类，前端只做确定性转换**：后端已用 registry 把事件分成"一等 AG-UI 事件"和"CUSTOM fallback"；#11407 不改动这条分类规则，只在 CUSTOM payload 里补充协议要求的字段（`schemaVersion`、去重键），并在前端建立按 `name` 精确匹配的转换表。
+
+### 投影适配器接口
+
+```ts
+// apps/webui/src/features/chatter/runtime/ui-block/agui-custom-projector.ts
+
+/** CUSTOM 事件投影结果——精确对应 assistant-ui 原生 part 或本设计定义的 AafUiBlock data part。 */
+export type CustomEventProjection =
+  | { kind: "data"; part: DataMessagePart<AafUiBlock> }
+  | { kind: "generative-ui"; part: GenerativeUIMessagePart }
+  | { kind: "ignore" } // 已知但不进消息历史（如 aaf.node.* 内部诊断事件）
+  | { kind: "unknown"; rawName: string } // 未注册事件名，走可诊断 fallback
+
+export interface AguiCustomEventEnvelope {
+  /** AG-UI CUSTOM 事件名，即投影表的查找键。 */
+  name: string
+  /** 公共 fallback 已带 eventId；内部节点事件当前没有，适配器必须能处理缺失。 */
+  eventId?: string
+  /** 与 eventId 组合去重；历史读取路径下有值，实时流路径可能为 null。 */
+  eventOffset?: number | null
+  /** 本设计新增字段——payload 结构版本，未声明时按 1 处理并记录诊断。 */
+  schemaVersion?: number
+  /** parentMessageId：本次 CUSTOM 归属的 assistant 消息 ID，用于稳定 part 关联。 */
+  parentMessageId: string
+  value: unknown
+}
+
+/** 唯一投影函数：按 name 精确匹配已注册转换器；不匹配即 unknown。 */
+export function projectCustomEvent(
+  envelope: AguiCustomEventEnvelope
+): CustomEventProjection
+```
+
+**去重与顺序**：适配器内部维护 `Set<string>`，键为 `${eventId ?? name}:${eventOffset ?? "live"}`；重复键直接返回 `{kind:"ignore"}`。乱序（`eventOffset` 回退）时不回滚已投影的 part，只记录一次 `console.warn` 诊断，不影响用户可见状态——历史场景下乱序意味着重放边界问题，交由 #11411 的 rehydrator 处理，不在本适配器内做复杂重排。
+
+**payload 大小与非法处置**：单个 CUSTOM `value` 序列化后超过 32KB 时视为协议违规，返回 `unknown` 并记录 `rawName` 与截断后的前 256 字符供诊断，不抛异常中断整个事件流。
+
+### AafUiBlock v1 协议
+
+```ts
+// apps/webui/src/features/chatter/runtime/ui-block/aaf-ui-block.ts
+
+interface InfoItem {
+  label: string
+  value: string
+}
+
+interface ChoiceOption {
+  id: string
+  label: string
+  description?: string
+}
+
+interface FormField {
+  key: string
+  label: string
+  type: "text" | "textarea" | "number" | "select" | "checkbox"
+  required?: boolean
+  options?: ChoiceOption[] // type=select 时必填
+  constraints?: { min?: number; max?: number; maxLength?: number }
+}
+
+export type AafUiBlock =
+  | {
+      version: 1
+      id: string
+      type: "INFO_CARD"
+      title: string
+      description?: string
+      items?: InfoItem[]
+    }
+  | {
+      version: 1
+      id: string
+      type: "CHOICE"
+      clarificationId: string
+      title: string
+      options: ChoiceOption[]
+      multiple?: boolean
+    }
+  | {
+      version: 1
+      id: string
+      type: "FORM"
+      clarificationId: string
+      title: string
+      fields: FormField[]
+    }
+```
+
+**生成路径边界**（与后端一一对应）：
+
+- `INFO_CARD`：唯一生成点是后端 `AafUiBlockConverter`（新增，位于 `aaf-api` 的 `module.ai.agui` 包），只接受服务端预定义的展示型事件（当前范围：executor plan 摘要、任务完成汇总），输出前先经过白名单字段裁剪。后端不得有第二条路径直接把任意事件转成 `INFO_CARD`。
+- `CHOICE`/`FORM`：不是独立生命周期实体，是 `ClarificationRequest`（见下节 typed 扩展）在投影时刻的**只读快照**。`clarificationId` 就是 `ClarificationRequest.requestId`。前端收到后只允许本地保存未提交的表单草稿（Zustand 允许，因为是"未提交表单草稿"，符合协作红线里 Zustand 允许保存的范围）；`resolved/canceled/expired` 状态变化只能来自服务端下一次 CUSTOM 投影或历史重新加载，前端不能自行翻转已提交的卡片状态。
+
+**渲染接线**（复用官方 Data UI 机制，不新建渲染框架）：
+
+```ts
+// 每个 AafUiBlock.type 对应一个通过 useAssistantDataUI 注册的 renderer
+useAssistantDataUI({ name: "aaf.ui_block.info_card", render: InfoCardRenderer })
+useAssistantDataUI({ name: "aaf.ui_block.choice", render: ChoiceCardRenderer })
+useAssistantDataUI({ name: "aaf.ui_block.form", render: FormCardRenderer })
+```
+
+`DataMessagePart.name` 直接编码 block 类型，投影适配器据此产出对应 `name`；`data` 字段就是 `AafUiBlock` 本体。这样完全落在 assistant-ui 已有的"按 name 分发"机制内，不需要自定义消息渲染管线。
+
+### Clarification 契约扩展（服务端）
+
+现状：`ClarificationRequest.values: Map<String,String>`、`Question{field,question,options}` 均为字符串，`ExecutionInput.values`/`DelegatedTaskInputDTO.values` 同为 `Map<String,String>`。#11407 只做**契约设计**，扩展实现在 #11408。设计要点：
+
+```java
+// Question 扩展为携带 typed schema（新字段，向后兼容：省略时按 text 处理）
+public record Question(
+        String field,
+        String question,
+        List<String> options,       // 保留：CHOICE 场景的展示用选项标签
+        FieldType type,             // 新增，默认 TEXT
+        boolean required,           // 新增，默认 true（与当前 requiredFields 语义对齐）
+        boolean multiple,           // 新增，SELECT/CHOICE 是否多选
+        FieldConstraints constraints // 新增，可空
+) {
+    public enum FieldType { TEXT, TEXTAREA, NUMBER, SELECT, CHECKBOX }
+    public record FieldConstraints(Integer min, Integer max, Integer maxLength) {}
+}
+```
+
+`values` 的 typed 化不直接改成 `Map<String, Object>`（会引入反序列化歧义，违反"禁止用 JSON 字符串冒充数组或布尔值"的要求）。改为显式值联合：
+
+```java
+public sealed interface FieldValue {
+    record TextValue(String value) implements FieldValue {}
+    record NumberValue(BigDecimal value) implements FieldValue {}
+    record BooleanValue(boolean value) implements FieldValue {}
+    record MultiSelectValue(List<String> optionIds) implements FieldValue {}
+}
+// ClarificationRequest.values 由 Map<String,String> 改为 Map<String, FieldValue>
+// ExecutionInput.values / DelegatedTaskInputDTO.values 同步扩展为 Map<String, FieldValue>
+```
+
+序列化上 `FieldValue` 用 Jackson 的 `@JsonTypeInfo`（`type` 字段做判别），前端 TS 侧对应生成判别联合类型，不用裸 JSON 字符串编解码数组/布尔值。**版本策略**：`ClarificationRequest`/`ExecutionInput` 新增 `schemaVersion`字段（默认 1）；服务端拒绝 `schemaVersion` 大于自己已知最大版本的提交（明确报错，不静默降级解析）。
+
+`Question.type` 到 `AafUiBlock.FormField.type` 的映射是 1:1（`TEXT→text`、`TEXTAREA→textarea`、`NUMBER→number`、`SELECT→select`、`CHECKBOX→checkbox`），投影时直接透传，不做二次推断。
+
+### 安全 allowlist 边界
+
+沿用 assistant-ui 官方边界模型，不新增 AAF 专属抽象：
+
+1. **Generative UI 组件 allowlist**：仅用于展示型组合（当前不规划使用，`INFO_CARD` 走 Data UI 而非 Generative UI，因为 `INFO_CARD` 字段是固定 schema，不需要树形组件组合的灵活性）。若后续确有需要用 `GenerativeUIMessagePart`，必须复用官方 `GenerativeUILibrary: Record<string, Component>` 模式：组件名不在 registry 中即拒绝渲染（`reportUnknownComponent`），不做动态 `import()`，不接受后端传来的组件实现代码。
+2. **Data UI name allowlist**：`useAssistantDataUI({name, render})` 的 `name` 只允许来自本设计声明的 3 个值（`aaf.ui_block.info_card/choice/form`）；投影适配器产出的 `name` 与此白名单精确匹配，不做前缀匹配或正则匹配，防止后端拼接任意 `name` 绕过白名单意图。
+3. **Props 校验**：投影适配器在把 CUSTOM payload 转成 `AafUiBlock` 时，用 TS 判别联合的 `type` 字段做 runtime 校验（而不是 `as` 强转）；字段缺失或类型不匹配时整体降级为 `{kind:"unknown"}`，不渲染半成品卡片。
+4. **禁止项**（与 assistant-ui 官方安全实践一致）：不接受后端传来的组件树/组件名之外的任意 HTML 片段；`AafUiBlock` 的所有文本字段按纯文本渲染，不使用 `dangerouslySetInnerHTML`；不接受后端指定的可执行 URL（`options`/`items` 中若来源需要包含链接，必须是服务端预先校验过的内部路由或经签名的资源 URL，不接受任意外部 URL 直接渲染为可点击链接）。
+5. **未知类型确定性 fallback**：`{kind:"unknown"}` 在 UI 上渲染为一条不可交互的诊断提示（"暂不支持展示该内容"），并在开发环境 console.warn 完整 payload；生产环境不回显完整 payload 防止信息泄露。
+
+### 与既有机制的边界重申（不新建平行状态）
+
+- TaskBoard/ExecutorPlan：`INFO_CARD` 摘要卡片只读展示，不替代 `TaskBoardPanel`；卡片过期或与实时 TaskBoard 不一致时以 TaskBoard 为准。
+- Clarification 生命周期：只由 `ClarificationRequest` 状态机（`PENDING/RESOLVED/CANCELED/EXPIRED`）和其事件驱动；`CHOICE`/`FORM` UI Block 没有独立生命周期表，重新拉取历史即重新投影当前权威状态。
+- HITL 授权：本设计不涉及 `HumanApproval`/`approvalId`/`resume[]`；`CHOICE`/`FORM` 提交继续走 `delegatedTaskApi.submitInput(taskId, {inputId, kind, values})`，不合并进 AG-UI `resume` 通道。
+
+### #11407 验收标准补充
+
+```gherkin
+场景: 未知 CUSTOM 事件名
+  当后端发出投影表未注册的 CUSTOM 事件名
+  那么前端产出 {kind:"unknown"} 并渲染确定性 fallback 提示
+  并且不抛出未捕获异常中断消息流渲染
+
+场景: 重复 CUSTOM 事件
+  当同一 eventId+eventOffset 的 CUSTOM 事件被重复投递
+  那么第二次投影被适配器去重跳过
+  并且不产生重复的 DataMessagePart
+
+场景: schemaVersion 超前
+  当 ClarificationRequest 携带的 schemaVersion 大于服务端已知最大版本
+  那么服务端在写入前拒绝该请求并返回明确错误
+  并且不静默按旧版本字段解析
+```
+
 ```gherkin
 场景: 用户发送 PDF 或 DOCX
   当文件通过解析前安全校验、资源边界和既有 importer 解析

@@ -99,7 +99,7 @@ related:
 
 - **优先级**：P0
 - **风险**：🟡 中
-- **状态**：⏳ 待开始 — architect / developer-service
+- **状态**：✅ 已完成（2026-09-06）— developer-service
 - **依赖**：#11404
 - 保持 `DataBlock(URLSource)` 路径，不改回兼容 `ImageBlock`。
 - 使用不泄露存储布局的 opaque resource ID，将文件名和 MIME 稳定关联到 AAF 持久层、`AgentMessage`、AgentScope `Msg` 与审计映射。
@@ -111,7 +111,7 @@ related:
 
 - **优先级**：P0
 - **风险**：🔴 高 — 人类设计审核后开发
-- **状态**：⏳ 待开始 — product / architect / developer-service / developer-webui
+- **状态**：✅ 已完成（2026-09-06）— architect / developer-webui
 - **依赖**：#11404
 - 明确 AG-UI CUSTOM transport event 与 assistant-ui message part 是两层对象，建立唯一投影适配器。
 - 规定映射优先级：原生 source/file/image、已知 tool-call、版本化 data、展示型 generative-ui；citations 不自造通用 data 卡片。
@@ -120,6 +120,7 @@ related:
 - 扩展 Clarification 契约设计：字段 type/required/options/multiple/constraints、typed value union 与版本策略，禁止用 JSON 字符串冒充数组或布尔值。
 - 禁止直接传组件代码、任意 HTML、动态 import、后端指定 React 实现或未校验 URL。
 - **完成标准**：协议评审通过；未知类型、重复/乱序事件、越权提交、非法 URL/props 和未知版本均有确定性处置。
+- **实现落地与对原设计的调整**：实现过程中确认 react-ag-ui 0.0.41 的 `RunAggregator` 不支持外部注入 message part 到 `ThreadMessage.content`（第三方库内部限制，见 `run-aggregator.ts` 的 `default` 分支仅 debug 忽略 CUSTOM）。据此把 `AafUiBlock` 投影目标从"assistant-ui DataMessagePart"调整为复用既有 `agent-run-store` Zustand 瞬时展示状态通道（与 `aigcTasks` 同模式），通过独立 `UiBlockPanel` 组件渲染，接入位置与 `TaskBoardPanel` 同级。协议层（类型定义、运行时校验、eventId 去重、32KB 大小限制、未知类型 fallback）按设计原样落地。`CHOICE`/`FORM` 本轮只做只读展示 + 本地未提交草稿，提交闭环留给 #11408。新增文件：`apps/webui/src/features/chatter/runtime/ui-block/{aaf-ui-block.ts,ui-block-projector.ts,UiBlockPanel.tsx}`。
 
 ### #11408 对话内选择、参数表单与 Clarification 闭环
 

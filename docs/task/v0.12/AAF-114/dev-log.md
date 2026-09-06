@@ -56,3 +56,35 @@
 - 修复跨用户文件访问风险
 - LSP 改动文件无诊断
 - 自动化门禁按用户要求跳过
+
+## #11406 AgentScope 多模态契约与视觉模型门禁
+
+✅ 2026-09-06 — developer-service
+
+- EXPLICIT+图片走 CAP_VISION 校验，堵住非视觉模型漏洞
+- DataBlock.id/name 改用 opaque fileKey 与原始文件名，不再用随机 UUID
+- VisionAttachment/AgentMessage.Attachment 新增 fileName 贯通
+- 前端含图片时按 capabilities 过滤模型列表，仅提示不替代服务端拒绝
+- 未运行 lint/test/check，按用户要求跳过自动化门禁
+
+## #11407 消息 Part 投影、UI Block 协议与安全 allowlist（设计阶段）
+
+📝 2026-09-06 — architect
+
+- 三份调研报告：AG-UI CUSTOM 现状、Clarification 契约、assistant-ui 官方参考
+- 投影适配器复用 assistant-ui 原生 DataMessagePart/GenerativeUIMessagePart，不新建平行 part 体系
+- AafUiBlock v1 三类型（INFO_CARD/CHOICE/FORM）已给出 TS 接口
+- Clarification 扩展为 sealed FieldValue 联合类型，禁止字符串冒充数组/布尔值
+- 安全 allowlist 沿用官方 Data UI name 白名单 + Generative UI component allowlist 模式
+- 设计已写入 design.md，🔴高风险任务，等待人类审核后再进入编码
+
+## #11407 实现落地
+
+✅ 2026-09-06 — developer-webui
+
+- 发现 react-ag-ui 0.0.41 RunAggregator 不支持外部注入 message part，调整为 Zustand 展示通道
+- AafUiBlock 类型定义 + parseAafUiBlock 运行时校验（拒绝非法结构/未知版本）
+- UiBlockProjector：eventId 去重 + 32KB payload 大小限制 + 未知类型 fallback
+- UiBlockPanel：INFO_CARD 只读展示，CHOICE/FORM 只读展示+本地草稿（不接提交）
+- 接入 ChatterPanel，与 TaskBoardPanel 同级；ag-ui-runtime 复用现有 ui_block 事件名新增判别分支
+- CHOICE/FORM 提交闭环留给 #11408，未运行 lint/test/check
