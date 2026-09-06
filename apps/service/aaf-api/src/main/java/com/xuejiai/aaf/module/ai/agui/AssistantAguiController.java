@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.ai.agui;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -31,6 +32,8 @@ import com.xuejiai.aaf.module.ai.assistant.service.AssistantExecutionService.Tea
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest;
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.ActionAuthorizationPolicy;
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.ArtifactPersistence;
+import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.Attachment;
+import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.AttachmentType;
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.ClarificationPolicy;
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.ExecutionOptions;
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.Input;
@@ -208,7 +211,7 @@ public class AssistantAguiController {
     }
 
     private ExecutionStream executionStream(RunRequest request) {
-        var input = lastUserMessageText(request.messages());
+        var input = lastUserInput(request.messages());
         var props = request.forwardedProps();
         var plan = mode(props).plan(props, input, validator);
         return assistantExecutions.start(
@@ -249,7 +252,7 @@ public class AssistantAguiController {
         return executionRequest;
     }
 
-    private static AssistantExecutionRequest chatRequest(JsonNode props, String input) {
+    private static AssistantExecutionRequest chatRequest(JsonNode props, UserInput input) {
         var assistantNode = props.get("assistantId");
         var assistant =
                 assistantNode == null || assistantNode.isNull()
@@ -268,7 +271,7 @@ public class AssistantAguiController {
                         ClarificationPolicy.MINIMAL,
                         ActionAuthorizationPolicy.DENY_AUTHORIZED_ACTIONS,
                         ArtifactPersistence.RETURN_ONLY),
-                new Input(input, Map.of(), List.of()),
+                new Input(input.text(), Map.of(), input.attachments()),
                 role,
                 skill,
                 new KnowledgeOptions(KnowledgeMode.DEFAULT, Set.of(), 5, 0.2),
@@ -348,45 +351,62 @@ public class AssistantAguiController {
         }
     }
 
-    private static String lastUserMessageText(List<RunMessage> messages) {
+    private static UserInput lastUserInput(List<RunMessage> messages) {
         for (var index = messages.size() - 1; index >= 0; index--) {
             var message = messages.get(index);
             if (!"user".equalsIgnoreCase(message.role())) {
                 continue;
             }
-            var text = messageText(message.content());
-            if (text.isBlank()) {
-                throw new IllegalArgumentException("最后一条 user 消息没有文本内容");
+            var input = messageInput(message.content());
+            if (input.text().isBlank() && input.attachments().isEmpty()) {
+                throw new IllegalArgumentException("最后一条 user 消息没有文本或图片内容");
             }
-            return text;
+            if (input.text().isBlank()) {
+                return new UserInput("请分析用户提供的图片。", input.attachments());
+            }
+            return input;
         }
         throw new IllegalArgumentException("messages 缺少 user 消息");
     }
 
-    private static String messageText(JsonNode content) {
+    private static UserInput messageInput(JsonNode content) {
         if (content == null || content.isNull()) {
-            return "";
+            return new UserInput("", List.of());
         }
         if (content.isString()) {
-            return content.textValue();
+            return new UserInput(content.textValue(), List.of());
         }
         if (!content.isArray()) {
-            return "";
+            return new UserInput("", List.of());
         }
         var text = new StringBuilder();
+        var attachments = new ArrayList<Attachment>();
         for (var part : content) {
-            var partText = part.get("text");
-            if (!"text".equals(part.path("type").asString())
-                    || partText == null
-                    || !partText.isString()) {
+            var type = part.path("type").asString();
+            if ("text".equals(type)) {
+                var partText = part.get("text");
+                if (partText == null || !partText.isString()) {
+                    continue;
+                }
+                if (!text.isEmpty()) {
+                    text.append('\n');
+                }
+                text.append(partText.textValue());
                 continue;
             }
-            if (!text.isEmpty()) {
-                text.append('\n');
+            if (!"image".equals(type)) {
+                continue;
             }
-            text.append(partText.textValue());
+            var source = requireObject(part.get("source"), "messages[].content[].source");
+            if (!"url".equals(requireText(source, "type", "messages[].content[].source.type"))) {
+                throw new IllegalArgumentException("图片附件仅支持已上传的 URL source");
+            }
+            requireText(source, "value", "messages[].content[].source.value");
+            var metadata = requireObject(part.get("metadata"), "messages[].content[].metadata");
+            var fileKey = requireText(metadata, "filename", "messages[].content[].metadata.filename");
+            attachments.add(new Attachment(AttachmentType.IMAGE, fileKey, null, fileKey));
         }
-        return text.toString();
+        return new UserInput(text.toString(), List.copyOf(attachments));
     }
 
     private static JsonNode requireObject(JsonNode value, String field) {
@@ -433,23 +453,23 @@ public class AssistantAguiController {
         /** 多轮对话：调用方只给 assistantId 与模型选择，其余执行选项取对话默认值。 */
         CHAT {
             @Override
-            RunPlan plan(JsonNode props, String input, Validator validator) {
+            RunPlan plan(JsonNode props, UserInput input, Validator validator) {
                 return new RunPlan(chatRequest(props, input), null);
             }
         },
         /** 单轮任务：调用方给出完整 `forwardedProps.request`，按 VO 契约校验。 */
         EXECUTION {
             @Override
-            RunPlan plan(JsonNode props, String input, Validator validator) {
-                return new RunPlan(executionRequest(props, input, validator), null);
+            RunPlan plan(JsonNode props, UserInput input, Validator validator) {
+                return new RunPlan(executionRequest(props, input.text(), validator), null);
             }
         },
         /** Team 协同：入参同 EXECUTION，额外指定已发布 Team 的冻结版本。 */
         TEAM {
             @Override
-            RunPlan plan(JsonNode props, String input, Validator validator) {
+            RunPlan plan(JsonNode props, UserInput input, Validator validator) {
                 return new RunPlan(
-                        executionRequest(props, input, validator),
+                        executionRequest(props, input.text(), validator),
                         new TeamTarget(
                                 requireText(props, "teamId", "forwardedProps.teamId"),
                                 requirePositiveLong(
@@ -457,8 +477,11 @@ public class AssistantAguiController {
             }
         };
 
-        abstract RunPlan plan(JsonNode props, String input, Validator validator);
+        abstract RunPlan plan(JsonNode props, UserInput input, Validator validator);
     }
+
+    /** 最后一条 user 消息解析结果：正文与已上传图片附件。 */
+    private record UserInput(String text, List<Attachment> attachments) {}
 
     /** 组装结果：统一执行请求 + 可选 Team 目标（非 Team 模式为 null）。 */
     private record RunPlan(AssistantExecutionRequest request, TeamTarget team) {}

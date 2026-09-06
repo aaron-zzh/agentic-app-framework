@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.system.entity.vo;
 
 import java.util.Map;
+import java.util.Set;
 
 import com.xuejiai.aaf.module.system.auth.vo.FieldAccessVO;
 
@@ -16,4 +17,5 @@ public record EntityAccessVO(
         boolean create,
         boolean update,
         boolean delete,
+        Set<String> capabilities,
         Map<String, FieldAccessVO> fieldAccess) {}

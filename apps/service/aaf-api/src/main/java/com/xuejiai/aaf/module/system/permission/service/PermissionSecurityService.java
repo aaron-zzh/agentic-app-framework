@@ -1,6 +1,8 @@
 package com.xuejiai.aaf.module.system.permission.service;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,36 +38,68 @@ public class PermissionSecurityService implements FunctionPermissionChecker {
         if (userId == null || permissionCode == null || permissionCode.isBlank()) {
             return false;
         }
-
-        var userRoles = userRoleRepository.findByUserIdAndDeletedFalse(userId);
-        var roleIds = userRoles.stream().map(UserRole::getRoleId).toList();
+        var roleIds = roleIds(userId);
         if (roleIds.isEmpty()) {
             return false;
         }
         if (hasSuperAdmin(roleIds)) {
             return true;
         }
+        return authorityCodes(userId, roleIds).contains(permissionCode.trim());
+    }
 
+    /** 返回当前主体完整正式权限码，供鉴权与前端 capability 投影共同使用。 */
+    public Set<String> authorityCodes(Long userId) {
+        if (userId == null) {
+            return Set.of();
+        }
+        var roleIds = roleIds(userId);
+        if (roleIds.isEmpty()) {
+            return Set.of();
+        }
+        if (hasSuperAdmin(roleIds)) {
+            return permissionRepository.findByDeletedFalseOrderByModuleAscResourceAscActionAsc()
+                    .stream()
+                    .filter(permission -> STATUS_ENABLED == permission.getStatus())
+                    .map(permission -> permission.getCode())
+                    .collect(
+                            java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        }
+        return authorityCodes(userId, roleIds);
+    }
+
+    private Set<String> authorityCodes(Long userId, List<Long> roleIds) {
         var cachedPermissions = permissionCacheService.getPermissions(userId);
         if (cachedPermissions != null) {
-            return cachedPermissions.contains(permissionCode.trim());
+            return cachedPermissions.stream()
+                    .filter(code -> !"__EMPTY__".equals(code))
+                    .sorted()
+                    .collect(
+                            java.util.stream.Collectors.toCollection(LinkedHashSet::new));
         }
-
         var rolePermissionIds =
                 rolePermissionRepository.findByRoleIdInAndDeletedFalse(roleIds).stream()
                         .map(RolePermission::getPermissionId)
+                        .distinct()
                         .toList();
-        if (rolePermissionIds.isEmpty()) {
-            permissionCacheService.putPermissions(userId, List.of());
-            return false;
-        }
         var permissions =
-                permissionRepository.findByIdInAndDeletedFalse(rolePermissionIds).stream()
-                        .filter(permission -> STATUS_ENABLED == permission.getStatus())
-                        .map(permission -> permission.getCode())
-                        .toList();
+                rolePermissionIds.isEmpty()
+                        ? List.<String>of()
+                        : permissionRepository.findByIdInAndDeletedFalse(rolePermissionIds).stream()
+                                .filter(permission -> STATUS_ENABLED == permission.getStatus())
+                                .map(permission -> permission.getCode())
+                                .distinct()
+                                .sorted()
+                                .toList();
         permissionCacheService.putPermissions(userId, permissions);
-        return permissions.contains(permissionCode.trim());
+        return new LinkedHashSet<>(permissions);
+    }
+
+    private List<Long> roleIds(Long userId) {
+        return userRoleRepository.findByUserIdAndDeletedFalse(userId).stream()
+                .map(UserRole::getRoleId)
+                .distinct()
+                .toList();
     }
 
     @Override

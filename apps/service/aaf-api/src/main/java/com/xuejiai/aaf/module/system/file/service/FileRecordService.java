@@ -1,5 +1,8 @@
 package com.xuejiai.aaf.module.system.file.service;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.FILE_NOT_FOUND;
+
 import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -61,9 +64,14 @@ public class FileRecordService implements FileRecordApi {
 
     /** 校验并返回当前用户拥有的文件记录。 */
     public FileRecord requireOwnedByKey(String key) {
-        return fileRecordRepository
-                .findByKeyAndUploaderId(key, requireCurrentOwnerId())
-                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "文件不存在或无权访问"));
+        var file =
+                fileRecordRepository
+                        .findByKeyAndUploaderId(key, requireCurrentOwnerId())
+                        .orElseThrow(() -> exception(FILE_NOT_FOUND));
+        if (FileStorageStatus.DELETED.name().equals(file.getStorageStatus())) {
+            throw exception(FILE_NOT_FOUND);
+        }
+        return file;
     }
 
     /** 删除当前用户拥有的文件记录。 */
@@ -238,9 +246,13 @@ public class FileRecordService implements FileRecordApi {
     public StoredFile requireCurrentOwner(Long fileId) {
         var file = requireFile(fileId);
         if (!requireCurrentOwnerId().equals(file.getUploaderId())) {
-            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "文件不存在或无权访问");
+            throw exception(FILE_NOT_FOUND);
         }
         return toStoredFile(file);
+    }
+
+    public StoredFile requireCurrentOwnerByKey(String key) {
+        return toStoredFile(requireOwnedByKey(key));
     }
 
     @Override
@@ -253,8 +265,7 @@ public class FileRecordService implements FileRecordApi {
                         fileId -> {
                             var file = requireFile(fileId);
                             if (!requireCurrentOwnerId().equals(file.getUploaderId())) {
-                                throw new BusinessException(
-                                        GlobalErrorCode.NOT_FOUND, "文件不存在或无权访问");
+                                throw exception(FILE_NOT_FOUND);
                             }
                             return storageReferenceService.prepareImageInput(file);
                         })
@@ -274,6 +285,11 @@ public class FileRecordService implements FileRecordApi {
     @Override
     public String prepareExternalAccessByKey(String key, java.time.Duration expiry) {
         return storageReferenceService.prepareExternalAccess(requireFileByKey(key), expiry);
+    }
+
+    public String prepareCurrentOwnerExternalAccessByKey(
+            String key, java.time.Duration expiry) {
+        return storageReferenceService.prepareExternalAccess(requireOwnedByKey(key), expiry);
     }
 
     @Override
@@ -353,10 +369,9 @@ public class FileRecordService implements FileRecordApi {
         var file =
                 fileRecordRepository
                         .findByKey(key)
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "文件不存在"));
+                        .orElseThrow(() -> exception(FILE_NOT_FOUND));
         if (FileStorageStatus.DELETED.name().equals(file.getStorageStatus())) {
-            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "文件已删除");
+            throw exception(FILE_NOT_FOUND);
         }
         return file;
     }
@@ -365,10 +380,9 @@ public class FileRecordService implements FileRecordApi {
         var file =
                 fileRecordRepository
                         .findById(fileId)
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "文件不存在"));
+                        .orElseThrow(() -> exception(FILE_NOT_FOUND));
         if (FileStorageStatus.DELETED.name().equals(file.getStorageStatus())) {
-            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "文件已删除");
+            throw exception(FILE_NOT_FOUND);
         }
         return file;
     }

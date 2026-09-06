@@ -107,6 +107,11 @@ public class FileUploadService implements FileStoragePort {
     }
 
     @Override
+    public StoredFile requireCurrentOwnerByKey(String key) {
+        return fileRecordService.requireCurrentOwnerByKey(key);
+    }
+
+    @Override
     public List<String> resolveImageData(List<Long> fileIds) {
         return fileRecordService.resolveImageData(fileIds);
     }
@@ -144,6 +149,12 @@ public class FileUploadService implements FileStoragePort {
     @Override
     public String prepareExternalAccessByKey(String key, java.time.Duration expiry) {
         return fileRecordService.prepareExternalAccessByKey(key, expiry);
+    }
+
+    @Override
+    public String prepareCurrentOwnerExternalAccessByKey(
+            String key, java.time.Duration expiry) {
+        return fileRecordService.prepareCurrentOwnerExternalAccessByKey(key, expiry);
     }
 
     private UploadTarget currentUploadTarget() {

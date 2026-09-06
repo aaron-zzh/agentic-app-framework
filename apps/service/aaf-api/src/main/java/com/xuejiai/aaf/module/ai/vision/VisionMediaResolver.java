@@ -21,9 +21,9 @@ import lombok.extern.slf4j.Slf4j;
  * <p>职责单一：
  *
  * <ul>
- *   <li>从 {@code sys_file} 读取 fileKey 对应的 mimeType（缺失即拒绝，避免下游 AI 模型下载失败）
- *   <li>通过 {@link FileStoragePort} 按文件绑定配置生成短时访问 URL
- *   <li>按 mimeType 前缀分类为 IMAGE 或 VIDEO
+ *   <li>从 {@code sys_file} 读取当前用户 fileKey 对应的 mimeType（缺失或非图片即拒绝）
+ *   <li>通过 {@link FileStoragePort} 校验当前所有者后按文件绑定配置生成短时访问 URL
+ *   <li>仅转换受支持的 {@code image/*} 文件
  * </ul>
  *
  * <p>本组件不感知具体业务（文案生成、计划助理、聊天等），由各业务在调用 AI 前调用该组件统一转换。
@@ -52,15 +52,20 @@ public class VisionMediaResolver {
 
     private VisionAttachment resolveOne(String fileKey) {
         if (fileKey == null || fileKey.isBlank()) return null;
-        var record = fileStoragePort.getByKey(fileKey);
+        var record = fileStoragePort.requireCurrentOwnerByKey(fileKey);
         var mime = record.mimeType();
         if (mime == null || mime.isBlank()) {
             throw new BusinessException(
                     GlobalErrorCode.BAD_REQUEST, "文件 mimeType 缺失，无法用于视觉理解: " + fileKey);
         }
-        var url = fileStoragePort.prepareExternalAccessByKey(fileKey, DEFAULT_EXPIRY);
-        var type = mime.startsWith("video/") ? AttachmentType.VIDEO : AttachmentType.IMAGE;
-        log.debug("视觉附件解析: fileKey={}, mime={}, type={}", fileKey, mime, type);
-        return new VisionAttachment(fileKey, mime, url, type);
+        if (!mime.startsWith("image/")) {
+            throw new BusinessException(
+                    GlobalErrorCode.BAD_REQUEST, "视觉附件仅支持图片: " + fileKey);
+        }
+        var url =
+                fileStoragePort.prepareCurrentOwnerExternalAccessByKey(
+                        fileKey, DEFAULT_EXPIRY);
+        log.debug("视觉附件解析: fileKey={}, mime={}, type=IMAGE", fileKey, mime);
+        return new VisionAttachment(fileKey, mime, url, AttachmentType.IMAGE);
     }
 }

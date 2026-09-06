@@ -3,6 +3,8 @@ package com.xuejiai.aaf.module.system.auth.controller;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
@@ -14,6 +16,7 @@ import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.module.system.auth.captcha.EsaCaptchaVerifier;
 import com.xuejiai.aaf.module.system.auth.service.AuthService;
 import com.xuejiai.aaf.module.system.auth.vo.*;
+import com.xuejiai.aaf.module.system.permission.service.PermissionSecurityService;
 import com.xuejiai.aaf.module.system.role.repository.RoleRepository;
 import com.xuejiai.aaf.module.system.role.repository.UserRoleRepository;
 import com.xuejiai.aaf.module.system.user.service.UserService;
@@ -38,6 +41,7 @@ public class AuthController {
     private final UserService userService;
     private final UserRoleRepository userRoleRepository;
     private final RoleRepository roleRepository;
+    private final PermissionSecurityService permissionSecurityService;
     private final Environment environment;
     private final EsaCaptchaVerifier esaCaptchaVerifier;
 
@@ -49,18 +53,24 @@ public class AuthController {
             UserService userService,
             UserRoleRepository userRoleRepository,
             RoleRepository roleRepository,
+            PermissionSecurityService permissionSecurityService,
             Environment environment,
             EsaCaptchaVerifier esaCaptchaVerifier) {
         this.authService = authService;
         this.userService = userService;
         this.userRoleRepository = userRoleRepository;
         this.roleRepository = roleRepository;
+        this.permissionSecurityService = permissionSecurityService;
         this.environment = environment;
         this.esaCaptchaVerifier = esaCaptchaVerifier;
     }
 
-    /** 当前用户信息（含角色 code 列表） */
-    public record MeVO(UserVO user, List<String> roles) {}
+    /** 当前用户信息（角色、正式权限码与 capability 投影）。 */
+    public record MeVO(
+            UserVO user,
+            List<String> roles,
+            Set<String> authorityCodes,
+            Map<String, Boolean> capabilities) {}
 
     @Operation(summary = "获取当前登录用户信息")
     @GetMapping("/me")
@@ -78,12 +88,18 @@ public class AuthController {
                         : roleRepository.findAllById(roleIds).stream()
                                 .map(r -> r.getCode())
                                 .toList();
+        var authorityCodes = permissionSecurityService.authorityCodes(userId);
         // 顺带刷新 HttpOnly Cookie，确保切换页面时 SSE 能用 Cookie 认证
         String auth = request.getHeader("Authorization");
         if (auth != null && auth.startsWith("Bearer ")) {
             writeTokenCookie(response, auth.substring(7));
         }
-        return Result.success(new MeVO(userVO, roles));
+        var capabilities =
+                authorityCodes.stream()
+                        .collect(
+                                java.util.stream.Collectors.toUnmodifiableMap(
+                                        code -> code, ignored -> true));
+        return Result.success(new MeVO(userVO, roles, authorityCodes, capabilities));
     }
 
     @Operation(summary = "账号密码登录")

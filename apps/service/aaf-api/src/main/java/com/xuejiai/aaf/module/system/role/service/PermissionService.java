@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.module.system.auth.vo.FieldAccessVO;
 import com.xuejiai.aaf.module.system.entity.vo.EntityAccessVO;
+import com.xuejiai.aaf.module.system.permission.service.PermissionSecurityService;
 import com.xuejiai.aaf.module.system.role.domain.Permission;
 import com.xuejiai.aaf.module.system.role.repository.PermissionRepository;
 
@@ -28,6 +29,7 @@ import tools.jackson.core.type.TypeReference;
 public class PermissionService {
 
     private final PermissionRepository permissionRepository;
+    private final PermissionSecurityService permissionSecurityService;
 
     /** 计算用户对指定实体的权限：查询用户所有角色 → 合并角色下所有权限 → 返回 EntityAccess */
     public EntityAccessVO getEntityAccess(Long userId, String entitySlug) {
@@ -50,7 +52,13 @@ public class PermissionService {
             mergeFieldAccess(mergedFieldAccess, p.getFieldAccess());
         }
 
-        return new EntityAccessVO(read, create, update, delete, mergedFieldAccess);
+        return new EntityAccessVO(
+                read,
+                create,
+                update,
+                delete,
+                permissionSecurityService.authorityCodes(userId),
+                mergedFieldAccess);
     }
 
     private void mergeFieldAccess(Map<String, FieldAccessVO> merged, String fieldAccessJson) {

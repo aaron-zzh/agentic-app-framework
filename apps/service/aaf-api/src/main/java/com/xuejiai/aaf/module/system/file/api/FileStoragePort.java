@@ -27,6 +27,8 @@ public interface FileStoragePort {
 
     StoredFile requireCurrentOwner(Long fileId);
 
+    StoredFile requireCurrentOwnerByKey(String key);
+
     /**
      * 将文件 ID 解析为可直接交给外部 AI/SDK 使用的图像数据串，并校验当前用户所有权。
      *
@@ -49,6 +51,8 @@ public interface FileStoragePort {
     void requestDeleteByKey(String key);
 
     String prepareExternalAccessByKey(String key, Duration expiry);
+
+    String prepareCurrentOwnerExternalAccessByKey(String key, Duration expiry);
 
     void retain(Long fileId, FileReference reference);
 

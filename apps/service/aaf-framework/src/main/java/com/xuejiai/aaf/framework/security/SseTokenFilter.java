@@ -13,10 +13,9 @@ import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 
 /**
- * SSE Token Filter——将 URL query param {@code ?token=xxx} 注入为 Authorization header。
+ * SSE Cookie Filter——原生 EventSource 无法设置 Authorization 时，将 HttpOnly Cookie 注入标准 Bearer header。
  *
- * <p>浏览器原生 {@code EventSource} 不支持自定义 header，通过 query param 传递 JWT 是标准变通方案。 仅在请求头中没有 Authorization
- * 时生效，不覆盖已有认证信息。
+ * <p>fetch 流请求直接使用 Authorization；本过滤器不读取 query JWT，且不覆盖已有认证信息。
  *
  * @author AaronZZH
  */
@@ -28,12 +27,8 @@ public class SseTokenFilter extends OncePerRequestFilter {
             HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
-        // 优先从 query param 读（兼容旧路径），其次从 Cookie 读（推荐，CDN 友好）
-        String token = request.getParameter("token");
-        if (token == null || token.isBlank()) {
-            token = extractFromCookie(request, "aaf-token");
-        }
-
+        // fetch 流请求优先使用标准 Authorization；原生 EventSource 可使用 HttpOnly Cookie。
+        String token = extractFromCookie(request, "aaf-token");
         if (StringUtils.hasText(token)) {
             if (request.getHeader("Authorization") == null) {
                 request = new BearerTokenRequestWrapper(request, token);
