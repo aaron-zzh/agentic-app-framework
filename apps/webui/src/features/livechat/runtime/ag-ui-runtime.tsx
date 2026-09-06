@@ -10,9 +10,13 @@
 
 "use client"
 
-import type { AttachmentAdapter, CompleteAttachment, PendingAttachment } from "@assistant-ui/react"
 import {
   AssistantRuntimeProvider,
+  type AttachmentAdapter,
+  type CompleteAttachment,
+  CompositeAttachmentAdapter,
+  type PendingAttachment,
+  SimpleTextAttachmentAdapter,
   type ThreadMessage,
   Tools,
   useAui,
@@ -35,11 +39,17 @@ interface StoredFile {
   uploaderId: number | null
 }
 
-/** 上传图片到 OSS，以 URL 形式发送给 LLM */
+const MAX_IMAGE_ATTACHMENT_BYTES = 20 * 1024 * 1024
+const MAX_TEXT_ATTACHMENT_BYTES = 1024 * 1024
+
+/** 上传图片到 OSS；URL 作为 AG-UI source，filename 承载服务端文件 key。 */
 class OssImageAttachmentAdapter implements AttachmentAdapter {
-  accept = "image/*"
+  accept = "image/jpeg,image/png,image/webp,image/gif"
 
   async add({ file }: { file: File }): Promise<PendingAttachment> {
+    if (file.size > MAX_IMAGE_ATTACHMENT_BYTES) {
+      throw new Error("图片不能超过 20MB")
+    }
     return {
       id: crypto.randomUUID(),
       type: "image",
@@ -59,18 +69,36 @@ class OssImageAttachmentAdapter implements AttachmentAdapter {
     return {
       ...attachment,
       status: { type: "complete" },
-      content: [{ type: "image", image: vo.url }]
+      content: [
+        {
+          type: "file",
+          data: vo.url,
+          mimeType: vo.mimeType ?? attachment.contentType ?? "application/octet-stream",
+          filename: vo.key
+        }
+      ]
     }
   }
 
   async remove() {}
 }
 
+class LimitedTextAttachmentAdapter extends SimpleTextAttachmentAdapter {
+  override accept =
+    "text/plain,text/html,text/markdown,text/csv,text/xml,text/json,text/css,application/json,.txt,.md,.markdown,.csv,.json,.html,.xml,.css"
+
+  override async add({ file }: { file: File }): Promise<PendingAttachment> {
+    if (file.size > MAX_TEXT_ATTACHMENT_BYTES) {
+      throw new Error("文本附件不能超过 1MB")
+    }
+    return super.add({ file })
+  }
+}
+
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 import { buildApiUrl } from "@/lib/api/config"
 import { chatApi } from "@/lib/api/rest/ai"
-import { useAigcTaskStream } from "@/lib/hooks/use-aigc-task-stream"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { getOrCreateAnonymousId } from "@/lib/utils/anonymous-id"
 import { OmniVoiceAdapter } from "@/lib/voice/omni-voice-adapter"
@@ -96,6 +124,8 @@ interface AgUiChatProviderProps {
   initialThreadId?: string
   /** 新建会话回调（默认调用 chatApi.createSession） */
   onNewThread?: () => Promise<void>
+  /** 是否显示服务端允许公开的 reasoning 内容，默认 true。 */
+  showThinking?: boolean
 }
 
 /**
@@ -108,7 +138,8 @@ export function AgUiChatProvider({
   initialState,
   forwardedProps,
   initialThreadId,
-  onNewThread
+  onNewThread,
+  showThinking = true
 }: AgUiChatProviderProps) {
   // 将 initialState / forwardedProps 序列化为稳定字符串，避免每次渲染对象引用不同导致 agent 重建
   const initialStateKey = JSON.stringify(initialState)
@@ -285,11 +316,21 @@ export function AgUiChatProvider({
     []
   )
 
+  const attachmentAdapter = useMemo(
+    () =>
+      new CompositeAttachmentAdapter([
+        new OssImageAttachmentAdapter(),
+        new LimitedTextAttachmentAdapter()
+      ]),
+    []
+  )
+
   // HttpAgent@0.0.53 缺少 pendingInterrupts，已在上方通过 Object.defineProperty 补全
   const runtime = useAgUiRuntime({
     agent,
     onError,
-    adapters: { threadList, voice: voiceAdapter, attachments: new OssImageAttachmentAdapter() }
+    showThinking,
+    adapters: { threadList, voice: voiceAdapter, attachments: attachmentAdapter }
   })
 
   const aui = useAui({ tools: Tools({ toolkit: aigcToolkit }) })
@@ -306,7 +347,6 @@ export function AgUiChatProvider({
   return (
     <AssistantRuntimeProvider runtime={runtime} aui={aui}>
       <VoiceCleanup />
-      <AigcTaskListener />
       {children}
     </AssistantRuntimeProvider>
   )
@@ -321,39 +361,6 @@ function VoiceCleanup() {
     },
     [disconnect]
   )
-  return null
-}
-
-/**
- * 监听 AIGC 任务 SSE 完成事件，更新 agent-run-store 里的任务卡片状态。
- * 只有 aigcTasks 里存在对应 taskId 时才处理（避免误更新其他页面的卡片）。
- */
-function AigcTaskListener() {
-  const updateAigcTask = useAgentRunStore((s) => s.updateAigcTask)
-  const aigcTasks = useAgentRunStore((s) => s.aigcTasks)
-
-  useAigcTaskStream({
-    enabled: aigcTasks.length > 0,
-    onCompleted: useCallback(
-      (task) => {
-        updateAigcTask(task.id, {
-          status: "SUCCESS",
-          url: task.outputUrl ?? undefined,
-          message: "生成完成"
-        })
-      },
-      [updateAigcTask]
-    ),
-    onFailed: useCallback(
-      (task) => {
-        updateAigcTask(task.id, {
-          status: "FAIL",
-          message: task.errorMsg ?? "生成失败"
-        })
-      },
-      [updateAigcTask]
-    )
-  })
   return null
 }
 

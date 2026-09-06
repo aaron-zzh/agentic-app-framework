@@ -51,9 +51,11 @@ export function buildChatterForwardedProps({
     : undefined
   const assistantId =
     target.assistantId ?? (usesAssistantRuntime ? DEFAULT_CHATTER_ASSISTANT_ID : undefined)
-  // role/skill 是用户在角色/技能选择器里显式选定的值（AAF-107 #10708），各自独立可选；不选时省略
-  // 对应字段，后端走 AUTO Route 由模型语义动态决策，与显式指定共用同一 CHAT 协议入口。
-  const role = usesAssistantRuntime && target.agentRole ? { key: target.agentRole } : undefined
+  // Role 必须与 Assistant ID 原子发送；缺任一项时由后端在目标 Assistant 内走 AUTO Route。
+  const role =
+    usesAssistantRuntime && target.assistantId && target.agentRole
+      ? { key: target.agentRole }
+      : undefined
   const skill = usesAssistantRuntime && target.agentSkill ? { code: target.agentSkill } : undefined
 
   return {

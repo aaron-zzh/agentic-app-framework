@@ -8,8 +8,8 @@
 
 "use client"
 
-import { Plus, Wand2 } from "lucide-react"
-import { useCallback, useRef, useState } from "react"
+import { Wand2 } from "lucide-react"
+import { useCallback, useState } from "react"
 import { ModelParamsPopover } from "@/components/common/ModelParamsPopover"
 import { ModelSelector } from "@/components/common/ModelSelector"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -22,6 +22,7 @@ import {
 } from "@/features/aigc/generation/SnippetPickerDialog"
 import { ImageUploadChip } from "@/features/studio/home/ImageUploadChip"
 import { MediaComposerShell } from "@/features/studio/media-generation/components/MediaComposerShell"
+import { MediaImageSourceMenu } from "@/features/studio/media-generation/components/MediaImageSourceMenu"
 import { useImageGenerationController } from "@/features/studio/media-generation/hooks/use-image-generation-controller"
 import type {
   MediaGenerationComposerProps,
@@ -43,11 +44,10 @@ export function ImageGenerationComposer(props: MediaGenerationComposerProps) {
     [props.onTaskSubmitted]
   )
   const controller = useImageGenerationController({
-    projectId: props.projectId,
+    projectTarget: props.projectTarget,
     initialDraft: props.initialDraft,
     onTaskSubmitted: handleTaskSubmitted
   })
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const [skillPickerOpen, setSkillPickerOpen] = useState(false)
 
   const handlePromptChange = useCallback(
@@ -119,25 +119,15 @@ export function ImageGenerationComposer(props: MediaGenerationComposerProps) {
       }
       tools={
         <>
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
+          <MediaImageSourceMenu
+            label="添加参考图"
+            compact
             disabled={controller.isSubmitting}
-            className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-50"
-            aria-label="添加参考图"
-          >
-            <Plus className="size-4" />
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(event) => {
-              const file = event.target.files?.[0]
+            projectTarget={props.projectTarget}
+            onSelectFiles={([file]) => {
               if (file) void controller.uploadReferenceImage(file)
-              event.target.value = ""
             }}
+            onSelectProject={controller.selectReferenceImage}
           />
 
           <ModelSelector

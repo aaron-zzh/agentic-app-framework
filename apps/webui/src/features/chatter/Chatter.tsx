@@ -35,7 +35,10 @@ import type {
   ChatterLayout as LayoutType,
   TaskModelSelection
 } from "./types"
-import { DEFAULT_TASK_MODEL_SELECTION } from "./types"
+import {
+  DEFAULT_CHATTER_DISPLAY_PREFERENCES,
+  DEFAULT_TASK_MODEL_SELECTION
+} from "./types"
 
 /** 根据 preset 和 props 生成初始 target */
 function presetToTarget(props: ChatterProps): ChatterTarget {
@@ -88,6 +91,9 @@ export function Chatter(props: ChatterProps) {
   const [taskModelSelection, setTaskModelSelection] = useState<TaskModelSelection>(
     DEFAULT_TASK_MODEL_SELECTION
   )
+  const [displayPreferences, setDisplayPreferences] = useState(
+    DEFAULT_CHATTER_DISPLAY_PREFERENCES
+  )
 
   useEffect(() => {
     setMounted(true)
@@ -135,6 +141,7 @@ export function Chatter(props: ChatterProps) {
       persist={persist}
       sessionId={props.sessionId}
       taskModelSelection={taskModelSelectionEnabled ? taskModelSelection : undefined}
+      displayPreferences={displayPreferences}
     >
       <ChatterLayout
         layout={effectiveLayout}
@@ -164,6 +171,8 @@ export function Chatter(props: ChatterProps) {
           taskModelSelection={taskModelSelection}
           onTaskModelSelectionChange={setTaskModelSelection}
           showModelSelector={taskModelSelectionEnabled}
+          displayPreferences={displayPreferences}
+          onDisplayPreferencesChange={setDisplayPreferences}
         />
       </ChatterLayout>
     </ChatterRuntime>

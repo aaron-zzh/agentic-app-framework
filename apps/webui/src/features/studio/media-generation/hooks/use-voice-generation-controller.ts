@@ -11,7 +11,7 @@ import { useCallback, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { VOICES } from "@/features/aigc/voice-options"
 import type { MediaGenerationControllerOptions } from "@/features/studio/media-generation/types"
-import { request } from "@/lib/api/rest/entity"
+import { aigcTaskApi } from "@/lib/api/rest/ai/aigc-task"
 import { useEstimateAigcCredits } from "@/lib/hooks/use-estimate-aigc-credits"
 
 interface VoiceSubmissionInput {
@@ -20,7 +20,6 @@ interface VoiceSubmissionInput {
 }
 
 export function useVoiceGenerationController({
-  projectId = null,
   initialDraft,
   onTaskSubmitted
 }: MediaGenerationControllerOptions = {}) {
@@ -35,15 +34,7 @@ export function useVoiceGenerationController({
   })
   const generateVoice = useMutation({
     mutationFn: ({ prompt: text, voiceId: selectedVoice }: VoiceSubmissionInput) =>
-      request<number>("/aigc/tasks/submit", {
-        method: "POST",
-        body: JSON.stringify({
-          type: "VOICE",
-          prompt: text,
-          projectId,
-          params: { voice: selectedVoice }
-        })
-      })
+      aigcTaskApi.generateVoice({ prompt: text, voiceId: selectedVoice })
   })
 
   const submit = useCallback(async () => {

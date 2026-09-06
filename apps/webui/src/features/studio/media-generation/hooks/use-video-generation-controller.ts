@@ -18,7 +18,12 @@ import type {
   VideoInputMode
 } from "@/features/studio/media-generation/types"
 import { useAiSkills, useGenerateVideo } from "@/lib/api/rest/ai"
-import { type AigcBrandProfileSelection, mergeAigcSystemPrompts } from "@/lib/api/rest/ai/aigc"
+import {
+  type AigcBrandProfileSelection,
+  mergeAigcSystemPrompts,
+  useRunAigcAction
+} from "@/lib/api/rest/ai/aigc"
+import { mediaApi } from "@/lib/api/rest/media"
 import { useEstimateAigcCredits } from "@/lib/hooks/use-estimate-aigc-credits"
 import { useFileUpload } from "@/lib/hooks/use-file-upload"
 import { useGenerationParams } from "@/lib/hooks/use-generation-params"
@@ -37,11 +42,19 @@ function attachmentFromDraft(
   previewSrc: string | undefined,
   name: string
 ): MediaImageAttachment | null {
-  return fileId ? { fileId, url: previewSrc ?? "", previewSrc: previewSrc ?? "", name } : null
+  return fileId
+    ? {
+        fileId,
+        url: previewSrc ?? "",
+        previewSrc: previewSrc ?? "",
+        name,
+        source: "UPLOAD"
+      }
+    : null
 }
 
 export function useVideoGenerationController({
-  projectId = null,
+  projectTarget,
   initialDraft,
   onTaskSubmitted
 }: MediaGenerationControllerOptions = {}) {
@@ -96,6 +109,7 @@ export function useVideoGenerationController({
   } = useModelSelector("VIDEO_GEN", { defaultValue: initialDraft?.model })
   const { params, onChangeParams } = useGenerationParams(currentModel)
   const generateVideo = useGenerateVideo()
+  const runAction = useRunAigcAction()
 
   const brands = useMemo(
     () =>
@@ -191,6 +205,36 @@ export function useVideoGenerationController({
     }
   }, [])
 
+  const resolveUploadedAttachment = useCallback(
+    async (file: File, previewSrc: string): Promise<MediaImageAttachment> => {
+      const result = await upload(file)
+      if (!projectTarget) {
+        return {
+          fileId: result.fileId,
+          url: result.url,
+          previewSrc,
+          name: file.name,
+          source: "UPLOAD"
+        }
+      }
+      const media = await mediaApi.materializeUploadedImage({
+        fileId: result.fileId,
+        name: file.name,
+        originalProjectId: projectTarget.projectId
+      })
+      URL.revokeObjectURL(previewSrc)
+      return {
+        fileId: media.currentVersion.fileId,
+        url: media.currentVersion.url,
+        previewSrc: media.currentVersion.thumbnailUrl ?? media.currentVersion.url,
+        name: media.name,
+        source: "UPLOAD",
+        mediaVersionId: media.currentVersion.id
+      }
+    },
+    [projectTarget, upload]
+  )
+
   const uploadReferenceImages = useCallback(
     async (files: File[]) => {
       const remaining = MAX_REFERENCE_IMAGES - referenceImages.length
@@ -207,11 +251,8 @@ export function useVideoGenerationController({
         const previewSrc = URL.createObjectURL(file)
         setPendingImage({ name: file.name, previewSrc })
         try {
-          const result = await upload(file)
-          setReferenceImages((current) => [
-            ...current,
-            { fileId: result.fileId, url: result.url, previewSrc, name: file.name }
-          ])
+          const attachment = await resolveUploadedAttachment(file, previewSrc)
+          setReferenceImages((current) => [...current, attachment])
         } catch {
           URL.revokeObjectURL(previewSrc)
           toast.error(`参考图「${file.name}」上传失败`)
@@ -220,7 +261,7 @@ export function useVideoGenerationController({
         }
       }
     },
-    [referenceImages.length, upload]
+    [referenceImages.length, resolveUploadedAttachment]
   )
 
   const uploadFirstFrameImage = useCallback(
@@ -229,8 +270,8 @@ export function useVideoGenerationController({
       setPendingImage({ name: file.name, previewSrc })
       setFirstFrameImage(null)
       try {
-        const result = await upload(file)
-        setFirstFrameImage({ fileId: result.fileId, url: result.url, previewSrc, name: file.name })
+        const attachment = await resolveUploadedAttachment(file, previewSrc)
+        setFirstFrameImage(attachment)
       } catch {
         URL.revokeObjectURL(previewSrc)
         toast.error("首帧图上传失败")
@@ -238,7 +279,7 @@ export function useVideoGenerationController({
         setPendingImage(null)
       }
     },
-    [upload]
+    [resolveUploadedAttachment]
   )
 
   const uploadLastFrameImage = useCallback(
@@ -247,8 +288,8 @@ export function useVideoGenerationController({
       setPendingLastFrameImage({ name: file.name, previewSrc })
       setLastFrameImage(null)
       try {
-        const result = await upload(file)
-        setLastFrameImage({ fileId: result.fileId, url: result.url, previewSrc, name: file.name })
+        const attachment = await resolveUploadedAttachment(file, previewSrc)
+        setLastFrameImage(attachment)
       } catch {
         URL.revokeObjectURL(previewSrc)
         toast.error("尾帧图上传失败")
@@ -256,8 +297,35 @@ export function useVideoGenerationController({
         setPendingLastFrameImage(null)
       }
     },
-    [upload]
+    [resolveUploadedAttachment]
   )
+
+  const addProjectReferenceImage = useCallback((attachment: MediaImageAttachment) => {
+    setReferenceImages((current) => {
+      if (
+        attachment.mediaVersionId !== undefined &&
+        current.some((image) => image.mediaVersionId === attachment.mediaVersionId)
+      ) {
+        toast.info("该项目素材已添加")
+        return current
+      }
+      if (current.length >= MAX_REFERENCE_IMAGES) {
+        toast.info(`参考图最多上传 ${MAX_REFERENCE_IMAGES} 张`)
+        return current
+      }
+      return [...current, attachment]
+    })
+  }, [])
+
+  const selectProjectFirstFrameImage = useCallback((attachment: MediaImageAttachment) => {
+    setPendingImage(null)
+    setFirstFrameImage(attachment)
+  }, [])
+
+  const selectProjectLastFrameImage = useCallback((attachment: MediaImageAttachment) => {
+    setPendingLastFrameImage(null)
+    setLastFrameImage(attachment)
+  }, [])
 
   const submit = useCallback(async () => {
     const normalizedPrompt = prompt.trim()
@@ -289,21 +357,69 @@ export function useVideoGenerationController({
             )
           : undefined
 
+    const selectedAttachments =
+      imageMode === "REFERENCE"
+        ? referenceImages
+        : imageMode === "FIRST_LAST_FRAME"
+          ? [firstFrameImage, lastFrameImage].filter(
+              (attachment): attachment is MediaImageAttachment => attachment !== null
+            )
+          : []
+    if (projectTarget && selectedAttachments.some((image) => !image.mediaVersionId)) {
+      toast.error("项目生成仅接受已物化的媒体版本")
+      return
+    }
+
     try {
       const videoConfig = currentModel?.videoConfig
+      const resolution = videoConfig?.resolutions?.length
+        ? (params.resolution ?? videoConfig.resolutions[0])
+        : undefined
+      const ratio = videoConfig?.ratios?.length
+        ? (params.aspectRatio ?? videoConfig.ratios[0])
+        : undefined
+      const duration = Number(params.videoDuration?.replace("s", "")) || undefined
+
+      if (projectTarget) {
+        const run = await runAction.mutateAsync({
+          projectId: projectTarget.projectId,
+          data: {
+            objectId: projectTarget.objectId,
+            actionKey: projectTarget.actionKey,
+            prompt: normalizedPrompt || "参考图生成视频",
+            requestedModelId: resolvedModelId ?? undefined,
+            actionArguments: {
+              resolution,
+              ratio,
+              duration,
+              imageMode: imageMode === "T2V" ? "T2V" : "REFERENCE"
+            },
+            attachmentMediaVersionIds: selectedAttachments.map(
+              (attachment) => attachment.mediaVersionId as number
+            ),
+            confirmed: true,
+            idempotencyKey: crypto.randomUUID()
+          }
+        })
+        toast.success(`项目视频执行已提交（#${run.id}）`)
+        setPrompt("")
+        setReferenceImages([])
+        setFirstFrameImage(null)
+        setLastFrameImage(null)
+        setPendingImage(null)
+        setPendingLastFrameImage(null)
+        onTaskSubmitted?.({ mode: "video", executionRunId: run.id })
+        return
+      }
+
       const taskId = await generateVideo.mutateAsync({
         prompt: normalizedPrompt || "参考图生成视频",
         model: resolvedModelId ?? undefined,
-        projectId,
         imageMode: imageMode === "T2V" ? "T2V" : "REFERENCE",
         referenceImageFileIds,
-        ...(videoConfig?.resolutions?.length
-          ? { resolution: params.resolution ?? videoConfig.resolutions[0] }
-          : {}),
-        ...(videoConfig?.ratios?.length
-          ? { ratio: params.aspectRatio ?? videoConfig.ratios[0] }
-          : {}),
-        duration: Number(params.videoDuration?.replace("s", "")) || undefined,
+        resolution,
+        ratio,
+        duration,
         systemPrompt: mergeAigcSystemPrompts(
           selectedSkill?.currentVersion?.content,
           selectedBrandProfile?.systemPrompt
@@ -317,8 +433,10 @@ export function useVideoGenerationController({
       setPendingImage(null)
       setPendingLastFrameImage(null)
       onTaskSubmitted?.({ mode: "video", taskId })
-    } catch {
-      // API 客户端已统一提示请求错误
+    } catch (error) {
+      if (projectTarget) {
+        toast.error(error instanceof Error ? error.message : "提交失败，请重试")
+      }
     }
   }, [
     currentModel,
@@ -328,10 +446,11 @@ export function useVideoGenerationController({
     lastFrameImage,
     onTaskSubmitted,
     params,
-    projectId,
+    projectTarget,
     prompt,
     referenceImages,
     resolvedModelId,
+    runAction,
     selectedBrandProfile,
     selectedSkill
   ])
@@ -357,6 +476,9 @@ export function useVideoGenerationController({
     uploadReferenceImages,
     uploadFirstFrameImage,
     uploadLastFrameImage,
+    addProjectReferenceImage,
+    selectProjectFirstFrameImage,
+    selectProjectLastFrameImage,
     removeReferenceImage: (index: number) =>
       setReferenceImages((current) => current.filter((_, itemIndex) => itemIndex !== index)),
     removeFirstFrameImage: () => {
@@ -383,7 +505,7 @@ export function useVideoGenerationController({
     creditEstimate,
     setSelectedSkillId,
     submit,
-    isSubmitting: generateVideo.isPending || uploading,
-    canSubmit: !generateVideo.isPending && !uploading && hasRequiredInput
+    isSubmitting: generateVideo.isPending || runAction.isPending || uploading,
+    canSubmit: !generateVideo.isPending && !runAction.isPending && !uploading && hasRequiredInput
   }
 }

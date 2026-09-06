@@ -14,7 +14,11 @@ import { useTaskBoard } from "@/features/chatter/hooks/use-task-board"
 import { TaskBoardPanel } from "@/features/chatter/task/TaskBoardPanel"
 import { ToolConfirmOverlay } from "@/features/chatter/task/ToolConfirmOverlay"
 import { ChatterThread } from "@/features/chatter/thread"
-import type { ChatterDropItem, TaskModelSelection } from "@/features/chatter/types"
+import type {
+  ChatterDisplayPreferences,
+  ChatterDropItem,
+  TaskModelSelection
+} from "@/features/chatter/types"
 
 interface ChatterPanelProps {
   toolbar: ReactNode
@@ -25,6 +29,8 @@ interface ChatterPanelProps {
   onTaskModelSelectionChange: (selection: TaskModelSelection) => void
   /** 是否显示模型选择器（未登录 guest preset 应传 false） */
   showModelSelector?: boolean
+  displayPreferences: ChatterDisplayPreferences
+  onDisplayPreferencesChange: (preferences: ChatterDisplayPreferences) => void
 }
 
 export function ChatterPanel({
@@ -34,7 +40,9 @@ export function ChatterPanel({
   onAttachmentAdd,
   taskModelSelection,
   onTaskModelSelectionChange,
-  showModelSelector
+  showModelSelector,
+  displayPreferences,
+  onDisplayPreferencesChange
 }: ChatterPanelProps) {
   const currentThreadId = useAuiState((state) => state.threads.mainThreadId)
   const conversationId = currentThreadId === "main" ? undefined : currentThreadId
@@ -43,9 +51,11 @@ export function ChatterPanel({
   return (
     <div className="flex h-full flex-col">
       {toolbar}
-      <ChatterThread />
+      <ChatterThread showThinking={displayPreferences.showThinking} />
       <ToolConfirmOverlay tasks={tasks} />
-      <TaskBoardPanel tasks={tasks} progress={progress} isLoading={isLoading} />
+      {displayPreferences.showPlan && (
+        <TaskBoardPanel tasks={tasks} progress={progress} isLoading={isLoading} />
+      )}
       <DroppableComposer onDrop={onAttachmentAdd}>
         <ChatterComposer
           attachments={attachments}
@@ -60,6 +70,8 @@ export function ChatterPanel({
           taskModelSelection={taskModelSelection}
           onTaskModelSelectionChange={onTaskModelSelectionChange}
           showModelSelector={showModelSelector}
+          displayPreferences={displayPreferences}
+          onDisplayPreferencesChange={onDisplayPreferencesChange}
         />
       </DroppableComposer>
     </div>

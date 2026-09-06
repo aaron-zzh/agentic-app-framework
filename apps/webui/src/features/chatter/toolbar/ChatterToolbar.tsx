@@ -34,13 +34,15 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import type { ChatterPreset, ChatterTarget } from "@/features/chatter/types"
-import { chatApi, useAssistants } from "@/lib/api/rest/ai"
+import { type AssistantItem, chatApi, useAssistants } from "@/lib/api/rest/ai"
 import { useChatterStore } from "@/lib/store/chatter-store"
 
 interface ChatterToolbarProps {
@@ -55,10 +57,17 @@ interface ChatterToolbarProps {
   hideRoleSwitch?: boolean
 }
 
-const FALLBACK_ROLES = [
-  { roleKey: "default-generalist", name: "通用助理" },
-  { roleKey: "content-creator-role", name: "内容创作" }
-]
+interface AssistantRoleOption {
+  value: string
+  assistantId: string
+  assistantName: string
+  roleKey: string
+  roleName: string
+}
+
+function roleOptionValue(assistantId: string, roleKey: string): string {
+  return JSON.stringify([assistantId, roleKey])
+}
 
 function getAvailableTargets(preset: ChatterPreset): ChatterTarget["type"][] {
   switch (preset) {
@@ -109,16 +118,50 @@ export function ChatterToolbar({
   const hasVoice = preset === "ai" || preset === "kiro"
 
   const { data: assistants } = useAssistants()
-  const roles = assistants
-    ? assistants.flatMap((a) =>
-        (a.roles ?? []).map((r) => ({
-          roleKey: r.roleKey,
-          name: (a.roles?.length ?? 0) > 1 ? `${a.name} · ${r.name}` : a.name
-        }))
-      )
-    : FALLBACK_ROLES
-  const currentRole =
-    roles.find((r) => r.roleKey === (target.agentRole ?? "default-generalist")) ?? roles[0]
+  const roleOptions: AssistantRoleOption[] = (assistants ?? []).flatMap((assistant) =>
+    (assistant.roles ?? []).map((role) => ({
+      value: roleOptionValue(assistant.assistantId, role.roleKey),
+      assistantId: assistant.assistantId,
+      assistantName: assistant.name,
+      roleKey: role.roleKey,
+      roleName: role.name
+    }))
+  )
+  const currentRole = roleOptions.find(
+    (option) =>
+      option.assistantId === target.assistantId && option.roleKey === target.agentRole
+  )
+
+  // 旧页面配置只有 roleKey；仅当 API 中唯一匹配时一次性补齐 assistantId，随后始终原子发送。
+  useEffect(() => {
+    if (target.type !== "ai" || target.assistantId || !target.agentRole || !assistants) return
+    const matches = roleOptions.filter((option) => option.roleKey === target.agentRole)
+    if (matches.length !== 1) return
+    const [option] = matches
+    onTargetChange({
+      ...target,
+      assistantId: option.assistantId,
+      agentRole: option.roleKey,
+      agentSkill: undefined
+    })
+  }, [assistants, onTargetChange, roleOptions, target])
+
+  const roleSelector = showRoleSelector ? (
+    <AssistantRoleSelect
+      assistants={assistants ?? []}
+      options={roleOptions}
+      current={currentRole}
+      onChange={(option) =>
+        onTargetChange({
+          ...target,
+          type: "ai",
+          assistantId: option.assistantId,
+          agentRole: option.roleKey,
+          agentSkill: undefined
+        })
+      }
+    />
+  ) : null
 
   return (
     <div
@@ -128,11 +171,13 @@ export function ChatterToolbar({
       {/* 左：对话图标，点击展开会话列表 + 新建会话 */}
       <SessionPopover onNewSession={onNewSession} />
 
-      {/* 中：角色名称（dialog）或 target 切换+角色选择（panel/page） */}
+      {/* 中：浮窗直接显示角色选择；panel/page 保留 target 切换。 */}
       {isFloating ? (
-        <span className="flex-1 truncate font-medium text-sm">
-          {currentRole?.name ?? "AI 助理"}
-        </span>
+        roleSelector ?? (
+          <span className="min-w-0 flex-1 truncate font-medium text-sm">
+            {TARGET_LABELS[target.type]}
+          </span>
+        )
       ) : hideRoleSwitch ? (
         <span className="flex-1" />
       ) : (
@@ -148,41 +193,19 @@ export function ChatterToolbar({
             size="sm"
             spacing={0}
           >
-            {targets.map((t) => (
-              <ToggleGroupItem key={t} value={t} aria-label={TARGET_LABELS[t]}>
-                {TARGET_ICONS[t]}
-                <span className="ml-1 text-xs">{TARGET_LABELS[t]}</span>
+            {targets.map((targetType) => (
+              <ToggleGroupItem
+                key={targetType}
+                value={targetType}
+                aria-label={TARGET_LABELS[targetType]}
+              >
+                {TARGET_ICONS[targetType]}
+                <span className="ml-1 text-xs">{TARGET_LABELS[targetType]}</span>
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
 
-          {showRoleSelector && (
-            <Select
-              value={target.agentRole ?? "default-generalist"}
-              onValueChange={(role) => onTargetChange({ ...target, agentRole: role ?? undefined })}
-            >
-              <SelectTrigger className="h-7 w-auto gap-1.5 border-none bg-muted/50 px-2 text-xs">
-                <Avatar className="size-4">
-                  <AvatarFallback className="text-[8px]">
-                    {currentRole?.name?.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
-                <SelectValue>{currentRole?.name}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {roles.map((r, i) => (
-                  <SelectItem key={r.roleKey ?? i} value={r.roleKey}>
-                    <span className="flex items-center gap-2">
-                      <Avatar className="size-5">
-                        <AvatarFallback className="text-[9px]">{r.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <span>{r.name}</span>
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          {roleSelector}
         </>
       )}
 
@@ -279,6 +302,65 @@ export function ChatterToolbar({
           ))}
       </div>
     </div>
+  )
+}
+
+function AssistantRoleSelect({
+  assistants,
+  options,
+  current,
+  onChange
+}: {
+  assistants: AssistantItem[]
+  options: AssistantRoleOption[]
+  current?: AssistantRoleOption
+  onChange: (option: AssistantRoleOption) => void
+}) {
+  return (
+    <Select
+      value={current?.value ?? null}
+      onValueChange={(value) => {
+        const option = options.find((item) => item.value === value)
+        if (option) onChange(option)
+      }}
+    >
+      <SelectTrigger
+        size="sm"
+        aria-label="选择助理角色"
+        className="h-7 min-w-0 flex-1 justify-start gap-1.5 overflow-hidden border-none bg-muted/50 px-2 text-xs"
+      >
+        <Avatar className="size-4 shrink-0">
+          <AvatarFallback className="text-[8px]">
+            {(current?.assistantName ?? "AI").charAt(0)}
+          </AvatarFallback>
+        </Avatar>
+        <SelectValue className="min-w-0 truncate">
+          {current
+            ? `${current.assistantName} · ${current.roleName}`
+            : "AI 助理 · 自动角色"}
+        </SelectValue>
+      </SelectTrigger>
+      <SelectContent align="start" className="min-w-56">
+        {assistants.map((assistant) => (
+          <SelectGroup key={assistant.assistantId}>
+            <SelectLabel>{assistant.name}</SelectLabel>
+            {(assistant.roles ?? []).map((role) => {
+              const value = roleOptionValue(assistant.assistantId, role.roleKey)
+              return (
+                <SelectItem key={value} value={value}>
+                  <Avatar className="size-5">
+                    <AvatarFallback className="text-[9px]">
+                      {role.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span>{role.name}</span>
+                </SelectItem>
+              )
+            })}
+          </SelectGroup>
+        ))}
+      </SelectContent>
+    </Select>
   )
 }
 

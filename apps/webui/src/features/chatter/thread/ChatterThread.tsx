@@ -39,6 +39,8 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   CopyIcon,
+  FileTextIcon,
+  ImageIcon,
   PencilIcon,
   Play,
   RefreshCwIcon,
@@ -222,7 +224,7 @@ function UserEditComposer() {
 }
 
 /** AI 消息气泡 */
-function AssistantMessage() {
+function AssistantMessage({ showThinking }: { showThinking: boolean }) {
   const text = useMessageText()
   const ttsMode = useVoiceConfig((s) => s.ttsMode)
   const ttsVoice = useVoiceConfig((s) => s.ttsVoice)
@@ -254,6 +256,7 @@ function AssistantMessage() {
               case "group-chainOfThought":
                 return <div className="my-1">{children}</div>
               case "group-reasoning": {
+                if (!showThinking) return null
                 const streaming = part.status.type === "running"
                 return <ReasoningBlock streaming={streaming}>{children}</ReasoningBlock>
               }
@@ -269,11 +272,11 @@ function AssistantMessage() {
               case "text":
                 return <MarkdownText />
               case "reasoning":
-                return (
+                return showThinking ? (
                   <span className="whitespace-pre-wrap text-muted-foreground text-xs italic">
                     {part.text}
                   </span>
-                )
+                ) : null
               case "tool-call":
                 return part.toolUI ?? <ToolFallback toolName={part.toolName} status={part.status} />
               case "generative-ui":
@@ -321,6 +324,19 @@ function AssistantMessage() {
 function UserMessage() {
   return (
     <MessagePrimitive.Root className="mb-3 flex flex-col items-end">
+      <div className="mb-1 flex max-w-[85%] flex-wrap justify-end gap-1 empty:hidden">
+        <MessagePrimitive.Attachments>
+          {({ attachment }) => {
+            const AttachmentIcon = attachment.type === "image" ? ImageIcon : FileTextIcon
+            return (
+              <div className="flex max-w-48 items-center gap-1.5 rounded-lg border bg-muted/40 px-2 py-1.5 text-xs">
+                <AttachmentIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                <span className="truncate">{attachment.name}</span>
+              </div>
+            )
+          }}
+        </MessagePrimitive.Attachments>
+      </div>
       {/* 普通展示态 */}
       <AuiIf condition={(s) => !s.composer.isEditing}>
         <div className="group relative max-w-[85%]">
@@ -399,7 +415,7 @@ function WelcomeScreen() {
   )
 }
 
-export function ChatterThread() {
+export function ChatterThread({ showThinking }: { showThinking: boolean }) {
   return (
     <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
       {/* 通话中显示语音控制区——VoiceSection 在 ThreadPrimitive.Root 内读 thread，合法 */}
@@ -410,7 +426,13 @@ export function ChatterThread() {
         </ThreadPrimitive.Empty>
 
         <ThreadPrimitive.Messages>
-          {({ message }) => (message.role === "assistant" ? <AssistantMessage /> : <UserMessage />)}
+          {({ message }) =>
+            message.role === "assistant" ? (
+              <AssistantMessage showThinking={showThinking} />
+            ) : (
+              <UserMessage />
+            )
+          }
         </ThreadPrimitive.Messages>
 
         {/* 滚动到底部按钮 */}

@@ -9,13 +9,30 @@
 
 "use client"
 
-import { AuiIf, ComposerPrimitive, useAui } from "@assistant-ui/react"
-import { ArrowUpIcon, SquareIcon } from "lucide-react"
+import { AuiIf, ComposerPrimitive, useAui, useAuiEvent } from "@assistant-ui/react"
+import {
+  ArrowUpIcon,
+  BrainCircuitIcon,
+  FileTextIcon,
+  ImageIcon,
+  ListTodoIcon,
+  PaperclipIcon,
+  SquareIcon
+} from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
+import { toast } from "sonner"
 import { ModelSelector } from "@/components/common/ModelSelector"
 import { Button } from "@/components/ui/button"
+import { Toggle } from "@/components/ui/toggle"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from "@/components/ui/tooltip"
 import { ContextChip } from "@/features/chatter/dnd/ContextChip"
 import {
+  type ChatterDisplayPreferences,
   type ChatterDropItem,
   DEFAULT_TASK_MODEL_SELECTION,
   type TaskModelSelection
@@ -35,6 +52,8 @@ interface ChatterComposerProps {
   onTaskModelSelectionChange: (selection: TaskModelSelection) => void
   /** 是否显示模型选择器，默认 true；未登录场景应传 false */
   showModelSelector?: boolean
+  displayPreferences: ChatterDisplayPreferences
+  onDisplayPreferencesChange: (preferences: ChatterDisplayPreferences) => void
 }
 
 /** 粘贴文本超过此长度时折叠为 chip */
@@ -47,15 +66,38 @@ export function ChatterComposer({
   onAfterSend,
   taskModelSelection,
   onTaskModelSelectionChange,
-  showModelSelector = true
+  showModelSelector = true,
+  displayPreferences,
+  onDisplayPreferencesChange
 }: ChatterComposerProps) {
   const api = useAui()
+  useAuiEvent("composer.attachmentAddError", ({ reason, message, error }) => {
+    if (error) console.error(error)
+    if (reason === "not-accepted") {
+      toast.error("仅支持图片和文本文件")
+      return
+    }
+    toast.error(message || "附件添加失败")
+  })
   const [waveformCtx, setWaveformCtx] = useState<MediaStream | null>(null)
   const composerBoxRef = useRef<HTMLDivElement>(null)
+  const voiceBaseTextRef = useRef("")
 
   const handleVoiceResult = useCallback(
     (text: string) => {
-      api.composer().setText(text)
+      const base = voiceBaseTextRef.current.trimEnd()
+      const voiceText = text.trim()
+      api.composer().setText(base && voiceText ? `${base}\n${voiceText}` : base || voiceText)
+    },
+    [api]
+  )
+
+  const handleVoiceRecordingChange = useCallback(
+    (stream: MediaStream | null) => {
+      if (stream) {
+        voiceBaseTextRef.current = api.composer().getState().text ?? ""
+      }
+      setWaveformCtx(stream)
     },
     [api]
   )
@@ -77,6 +119,7 @@ export function ChatterComposer({
     const box = composerBoxRef.current
     if (!box || !onPasteText) return
     const handler = (e: ClipboardEvent) => {
+      if ((e.clipboardData?.files.length ?? 0) > 0) return
       const text = e.clipboardData?.getData("text/plain") ?? ""
       if (text.length < PASTE_CHIP_THRESHOLD) return
       const target = e.target as HTMLTextAreaElement | null
@@ -106,33 +149,33 @@ export function ChatterComposer({
   }, [onPasteText])
 
   return (
-    <ComposerPrimitive.Root className="px-3 pb-3">
+    <ComposerPrimitive.AttachmentDropzone className="data-[dragging=true]:rounded-xl data-[dragging=true]:ring-2 data-[dragging=true]:ring-primary/50">
+      <ComposerPrimitive.Root className="px-3 pb-3">
       <div
         ref={composerBoxRef}
         className="rounded-xl border border-border bg-background transition-colors focus-within:border-foreground/60"
       >
-        {/* 附件列表：原生 assistant-ui attachments + 自定义 text chip */}
+        {/* 文件附件由 assistant-ui composer 作为唯一状态源管理。 */}
         <ComposerPrimitive.Attachments>
-          {({ attachment }) => (
-            <div className="relative m-1 inline-flex size-16 shrink-0 overflow-hidden rounded-lg border border-border">
-              {/* biome-ignore lint/performance/noImgElement: 附件预览 */}
-              <img
-                src={
-                  (attachment as { content?: Array<{ type: string; image?: string }> })
-                    ?.content?.[0]?.image ?? undefined
-                }
-                alt={attachment.name}
-                className="size-full object-cover"
-              />
-              <button
-                type="button"
-                onClick={() => api.composer().attachment({ id: attachment.id }).remove()}
-                className="absolute top-0.5 right-0.5 flex size-4 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80"
-              >
-                <span className="text-[10px] leading-none">×</span>
-              </button>
-            </div>
-          )}
+          {({ attachment }) => {
+            const AttachmentIcon = attachment.type === "image" ? ImageIcon : FileTextIcon
+            return (
+              <div className="relative mx-2 mt-2 inline-flex max-w-[calc(100%-1rem)] items-center gap-2 rounded-lg border border-border bg-muted/40 py-1.5 pr-7 pl-2">
+                <AttachmentIcon className="size-4 shrink-0 text-muted-foreground" />
+                <span className="truncate text-xs" title={attachment.name}>
+                  {attachment.name}
+                </span>
+                <button
+                  type="button"
+                  aria-label={`移除附件 ${attachment.name}`}
+                  onClick={() => api.composer().attachment({ id: attachment.id }).remove()}
+                  className="absolute right-1 flex size-5 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <span className="text-sm leading-none">×</span>
+                </button>
+              </div>
+            )
+          }}
         </ComposerPrimitive.Attachments>
         {/* 自定义 text/doc chip */}
         {attachments.length > 0 && (
@@ -156,27 +199,19 @@ export function ChatterComposer({
 
         {/* 底部工具栏 */}
         <div className="relative flex items-center justify-between px-1.5 pb-1.5">
-          {/* 左：附件 + 模型选择 */}
-          <div className="flex items-center gap-1">
-            {/* 文件上传（暂时隐藏，待后端支持附件后开放）
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              className="hidden"
-              onChange={handleFileChange}
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-7 rounded-lg"
-              aria-label="上传附件"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <PlusIcon className="size-4" />
-            </Button>
-            */}
+          {/* 左：附件 + 模型 + 展示偏好 */}
+          <div className="flex min-w-0 items-center gap-0.5">
+            <ComposerPrimitive.AddAttachment asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-7 shrink-0 rounded-lg"
+                aria-label="添加图片或文本附件"
+              >
+                <PaperclipIcon className="size-4" />
+              </Button>
+            </ComposerPrimitive.AddAttachment>
 
             {showModelSelector && (
               <ModelSelectorSlot
@@ -184,6 +219,11 @@ export function ChatterComposer({
                 onTaskModelSelectionChange={onTaskModelSelectionChange}
               />
             )}
+
+            <DisplayPreferenceToggles
+              preferences={displayPreferences}
+              onChange={onDisplayPreferencesChange}
+            />
           </div>
 
           {/* 右：3D波形（语音激活时）+ 麦克风 + 发送/停止 */}
@@ -197,7 +237,7 @@ export function ChatterComposer({
             <WsAsrButton
               onResult={handleVoiceResult}
               onInterim={handleVoiceResult}
-              onRecordingChange={setWaveformCtx}
+              onRecordingChange={handleVoiceRecordingChange}
             />
 
             <AuiIf condition={(s) => !s.thread.isRunning}>
@@ -215,7 +255,58 @@ export function ChatterComposer({
           </div>
         </div>
       </div>
-    </ComposerPrimitive.Root>
+      </ComposerPrimitive.Root>
+    </ComposerPrimitive.AttachmentDropzone>
+  )
+}
+
+function DisplayPreferenceToggles({
+  preferences,
+  onChange
+}: {
+  preferences: ChatterDisplayPreferences
+  onChange: (preferences: ChatterDisplayPreferences) => void
+}) {
+  return (
+    <TooltipProvider>
+      <div className="flex shrink-0 items-center gap-0.5">
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Toggle
+                size="sm"
+                pressed={preferences.showPlan}
+                onPressedChange={(showPlan) => onChange({ ...preferences, showPlan })}
+                aria-label="显示计划和任务进度"
+                className="size-7 min-w-7 gap-0 p-0"
+              />
+            }
+          >
+            <ListTodoIcon className="size-3.5" />
+            <span className="sr-only">计划</span>
+          </TooltipTrigger>
+          <TooltipContent>显示后端生成的计划和任务进度，不改变服务端规划决策。</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Toggle
+                size="sm"
+                pressed={preferences.showThinking}
+                onPressedChange={(showThinking) => onChange({ ...preferences, showThinking })}
+                aria-label="显示可公开的推理摘要"
+                className="size-7 min-w-7 gap-0 p-0"
+              />
+            }
+          >
+            <BrainCircuitIcon className="size-3.5" />
+            <span className="sr-only">思考</span>
+          </TooltipTrigger>
+          <TooltipContent>显示可公开的推理摘要；不会展示模型原始思维链。</TooltipContent>
+        </Tooltip>
+      </div>
+    </TooltipProvider>
   )
 }
 
@@ -243,10 +334,11 @@ function ModelSelectorSlot({
       value={modelId}
       onChange={setModelId}
       placeholder="任务模型"
+      className="h-7 min-w-0 max-w-20 shrink gap-1 rounded-full px-1.5 text-muted-foreground text-xs hover:text-foreground"
       autoOption={{
         selected: taskModelSelection.mode === "AUTO",
         onSelect: () => onTaskModelSelectionChange(DEFAULT_TASK_MODEL_SELECTION),
-        label: "任务模型 · 自动选择"
+        label: "自动"
       }}
     />
   )

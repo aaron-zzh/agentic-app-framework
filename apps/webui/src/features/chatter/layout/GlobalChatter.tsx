@@ -24,6 +24,7 @@ import { ChatterToolbar } from "@/features/chatter/toolbar/ChatterToolbar"
 import {
   type ChatterDropItem,
   type ChatterTarget,
+  DEFAULT_CHATTER_DISPLAY_PREFERENCES,
   DEFAULT_TASK_MODEL_SELECTION,
   type TaskModelSelection
 } from "@/features/chatter/types"
@@ -63,6 +64,9 @@ export function GlobalChatter({ availableModes = [] }: GlobalChatterProps = {}) 
   const [attachments, setAttachments] = useState<ChatterDropItem[]>([])
   const [taskModelSelection, setTaskModelSelection] = useState<TaskModelSelection>(
     DEFAULT_TASK_MODEL_SELECTION
+  )
+  const [displayPreferences, setDisplayPreferences] = useState(
+    DEFAULT_CHATTER_DISPLAY_PREFERENCES
   )
   const taskModelSelectionEnabled =
     config.preset === "ai" && target.type === "ai" && isAuthenticated
@@ -161,7 +165,6 @@ export function GlobalChatter({ availableModes = [] }: GlobalChatterProps = {}) 
         onNewSession={() => setAttachments([])}
         dragProps={dialogDragProps}
         availableModes={availableModes}
-        hideRoleSwitch
       />
     )
 
@@ -174,6 +177,8 @@ export function GlobalChatter({ availableModes = [] }: GlobalChatterProps = {}) 
       taskModelSelection={taskModelSelection}
       onTaskModelSelectionChange={setTaskModelSelection}
       showModelSelector={taskModelSelectionEnabled}
+      displayPreferences={displayPreferences}
+      onDisplayPreferencesChange={setDisplayPreferences}
     />
   )
 
@@ -181,6 +186,7 @@ export function GlobalChatter({ availableModes = [] }: GlobalChatterProps = {}) 
     <ChatterRuntime
       target={target}
       taskModelSelection={taskModelSelectionEnabled ? taskModelSelection : undefined}
+      displayPreferences={displayPreferences}
     >
       {mode === "dialog" && (
         <GlobalChatterDialog

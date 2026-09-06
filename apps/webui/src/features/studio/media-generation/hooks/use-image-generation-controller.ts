@@ -17,14 +17,19 @@ import type {
   PendingMediaImageAttachment
 } from "@/features/studio/media-generation/types"
 import { useAiSkills, useGenerateImage } from "@/lib/api/rest/ai"
-import { type AigcBrandProfileSelection, mergeAigcSystemPrompts } from "@/lib/api/rest/ai/aigc"
+import {
+  type AigcBrandProfileSelection,
+  mergeAigcSystemPrompts,
+  useRunAigcAction
+} from "@/lib/api/rest/ai/aigc"
+import { mediaApi } from "@/lib/api/rest/media"
 import { useEstimateAigcCredits } from "@/lib/hooks/use-estimate-aigc-credits"
 import { useFileUpload } from "@/lib/hooks/use-file-upload"
 import { useGenerationParams } from "@/lib/hooks/use-generation-params"
 import { useModelSelector } from "@/lib/hooks/use-model-selector"
 
 export function useImageGenerationController({
-  projectId = null,
+  projectTarget,
   initialDraft,
   onTaskSubmitted
 }: MediaGenerationControllerOptions = {}) {
@@ -37,7 +42,8 @@ export function useImageGenerationController({
           fileId: initialDraft.referenceImageFileId,
           url: initialDraft.referenceImagePreviewUrl ?? "",
           previewSrc: initialDraft.referenceImagePreviewUrl ?? "",
-          name: "参考图"
+          name: "参考图",
+          source: "UPLOAD"
         }
       : null
   )
@@ -57,6 +63,7 @@ export function useImageGenerationController({
   } = useModelSelector("IMAGE_GEN", { defaultValue: initialDraft?.model ?? "n1n:gpt-image-2" })
   const { params, onChangeParams, resolvedSize } = useGenerationParams(currentModel)
   const generateImage = useGenerateImage()
+  const runAction = useRunAigcAction()
   const estimateParams = useMemo(
     () => ({
       imageCount: params.imageCount ?? 1,
@@ -81,7 +88,30 @@ export function useImageGenerationController({
       setReferenceImage(null)
       try {
         const result = await upload(file)
-        setReferenceImage({ fileId: result.fileId, url: result.url, previewSrc, name: file.name })
+        if (projectTarget) {
+          const media = await mediaApi.materializeUploadedImage({
+            fileId: result.fileId,
+            name: file.name,
+            originalProjectId: projectTarget.projectId
+          })
+          setReferenceImage({
+            fileId: media.currentVersion.fileId,
+            url: media.currentVersion.url,
+            previewSrc: media.currentVersion.thumbnailUrl ?? media.currentVersion.url,
+            name: media.name,
+            source: "UPLOAD",
+            mediaVersionId: media.currentVersion.id
+          })
+          URL.revokeObjectURL(previewSrc)
+        } else {
+          setReferenceImage({
+            fileId: result.fileId,
+            url: result.url,
+            previewSrc,
+            name: file.name,
+            source: "UPLOAD"
+          })
+        }
         setPendingImage(null)
       } catch {
         URL.revokeObjectURL(previewSrc)
@@ -89,8 +119,13 @@ export function useImageGenerationController({
         toast.error("参考图上传失败")
       }
     },
-    [upload]
+    [projectTarget, upload]
   )
+
+  const selectReferenceImage = useCallback((attachment: MediaImageAttachment) => {
+    setPendingImage(null)
+    setReferenceImage(attachment)
+  }, [])
 
   const removeReferenceImage = useCallback(() => {
     setReferenceImage(null)
@@ -107,10 +142,43 @@ export function useImageGenerationController({
     try {
       const { width, height, sizePreset } = resolvedSize
       const imageConfig = currentModel?.imageConfig
+      if (projectTarget) {
+        const run = await runAction.mutateAsync({
+          projectId: projectTarget.projectId,
+          data: {
+            objectId: projectTarget.objectId,
+            actionKey: projectTarget.actionKey,
+            prompt: normalizedPrompt || "参考图生成",
+            requestedModelId: modelId ?? undefined,
+            actionArguments: {
+              width,
+              height,
+              imageCount: params.imageCount,
+              promptExtend: params.promptExtend,
+              quality: params.quality,
+              format: params.format,
+              background: params.background,
+              contentModeration: params.contentModeration,
+              seed: params.seed && params.seed > 0 ? params.seed : undefined
+            },
+            attachmentMediaVersionIds: referenceImage?.mediaVersionId
+              ? [referenceImage.mediaVersionId]
+              : [],
+            confirmed: true,
+            idempotencyKey: crypto.randomUUID()
+          }
+        })
+        toast.success(`项目图像执行已提交（#${run.id}）`)
+        setPrompt("")
+        setReferenceImage(null)
+        setPendingImage(null)
+        onTaskSubmitted?.({ mode: "image", executionRunId: run.id })
+        return
+      }
+
       const taskId = await generateImage.mutateAsync({
         prompt: normalizedPrompt || "参考图生成",
         model: modelId ?? undefined,
-        projectId,
         width,
         height,
         sizePreset,
@@ -133,8 +201,10 @@ export function useImageGenerationController({
       setReferenceImage(null)
       setPendingImage(null)
       onTaskSubmitted?.({ mode: "image", taskId })
-    } catch {
-      // API 客户端已统一提示请求错误
+    } catch (error) {
+      if (projectTarget) {
+        toast.error(error instanceof Error ? error.message : "提交失败，请重试")
+      }
     }
   }, [
     currentModel,
@@ -142,10 +212,11 @@ export function useImageGenerationController({
     modelId,
     onTaskSubmitted,
     params,
-    projectId,
+    projectTarget,
     prompt,
     referenceImage,
     resolvedSize,
+    runAction,
     selectedBrandProfile,
     selectedSkill
   ])
@@ -156,6 +227,7 @@ export function useImageGenerationController({
     referenceImage,
     pendingImage,
     uploadReferenceImage,
+    selectReferenceImage,
     removeReferenceImage,
     uploadProgress: progress,
     modelOptions,
@@ -170,10 +242,12 @@ export function useImageGenerationController({
     creditEstimate,
     setSelectedSkillId,
     submit,
-    isSubmitting: generateImage.isPending || uploading,
+    isSubmitting: generateImage.isPending || runAction.isPending || uploading,
     canSubmit:
       !generateImage.isPending &&
+      !runAction.isPending &&
       !uploading &&
-      (prompt.trim().length > 0 || Boolean(referenceImage?.fileId))
+      (prompt.trim().length > 0 ||
+        Boolean(projectTarget ? referenceImage?.mediaVersionId : referenceImage?.fileId))
   }
 }

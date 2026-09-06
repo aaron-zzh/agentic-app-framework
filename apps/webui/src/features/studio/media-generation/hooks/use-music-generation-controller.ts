@@ -10,7 +10,7 @@ import { useMutation } from "@tanstack/react-query"
 import { useCallback, useMemo, useState } from "react"
 import { toast } from "sonner"
 import type { MediaGenerationControllerOptions } from "@/features/studio/media-generation/types"
-import { request } from "@/lib/api/rest/entity"
+import { aigcTaskApi } from "@/lib/api/rest/ai/aigc-task"
 import { useEstimateAigcCredits } from "@/lib/hooks/use-estimate-aigc-credits"
 
 interface MusicSubmissionInput {
@@ -20,7 +20,6 @@ interface MusicSubmissionInput {
 }
 
 export function useMusicGenerationController({
-  projectId = null,
   initialDraft,
   onTaskSubmitted
 }: MediaGenerationControllerOptions = {}) {
@@ -36,17 +35,10 @@ export function useMusicGenerationController({
   })
   const generateMusic = useMutation({
     mutationFn: (input: MusicSubmissionInput) =>
-      request<number>("/aigc/tasks/submit", {
-        method: "POST",
-        body: JSON.stringify({
-          type: "MUSIC",
-          prompt: input.lyrics || input.prompt,
-          projectId,
-          params: {
-            lyrics: input.lyrics || undefined,
-            gender: input.gender
-          }
-        })
+      aigcTaskApi.generateMusic({
+        prompt: input.prompt,
+        lyrics: input.lyrics || undefined,
+        gender: input.gender
       })
   })
 

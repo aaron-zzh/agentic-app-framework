@@ -10,7 +10,7 @@ import { useMutation } from "@tanstack/react-query"
 import { useCallback, useMemo, useState } from "react"
 import { toast } from "sonner"
 import type { MediaGenerationControllerOptions } from "@/features/studio/media-generation/types"
-import { request } from "@/lib/api/rest/entity"
+import { aigcTaskApi } from "@/lib/api/rest/ai/aigc-task"
 import { useEstimateAigcCredits } from "@/lib/hooks/use-estimate-aigc-credits"
 
 export const TEXTURE_OPTIONS = [
@@ -27,7 +27,6 @@ interface Model3dSubmissionInput {
 }
 
 export function useModel3dGenerationController({
-  projectId = null,
   initialDraft,
   onTaskSubmitted
 }: MediaGenerationControllerOptions = {}) {
@@ -42,14 +41,9 @@ export function useModel3dGenerationController({
   })
   const generateModel3d = useMutation({
     mutationFn: (input: Model3dSubmissionInput) =>
-      request<number>("/aigc/tasks/submit", {
-        method: "POST",
-        body: JSON.stringify({
-          type: "MODEL_3D",
-          prompt: input.prompt,
-          projectId,
-          params: { source: "text", textureQuality: input.textureQuality }
-        })
+      aigcTaskApi.generateModel3d({
+        prompt: input.prompt,
+        textureQuality: input.textureQuality
       })
   })
 

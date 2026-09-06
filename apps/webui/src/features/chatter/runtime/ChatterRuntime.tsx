@@ -11,7 +11,11 @@
 "use client"
 
 import { type ReactNode, useMemo } from "react"
-import type { ChatterTarget, TaskModelSelection } from "@/features/chatter/types"
+import type {
+  ChatterDisplayPreferences,
+  ChatterTarget,
+  TaskModelSelection
+} from "@/features/chatter/types"
 import { LivechatProvider } from "@/features/livechat/LivechatProvider"
 import { AgUiChatProvider } from "@/features/livechat/runtime/ag-ui-runtime"
 import { buildApiUrl } from "@/lib/api/config"
@@ -32,6 +36,7 @@ interface ChatterRuntimeProps {
   persist?: boolean
   sessionId?: string
   taskModelSelection?: TaskModelSelection
+  displayPreferences: ChatterDisplayPreferences
   children: ReactNode
 }
 
@@ -47,6 +52,7 @@ export function ChatterRuntime({
   target,
   sessionId,
   taskModelSelection,
+  displayPreferences,
   children
 }: ChatterRuntimeProps) {
   const currentPageId = useChatterStore((s) => s.currentPageId)
@@ -82,7 +88,12 @@ export function ChatterRuntime({
 
   // AI / Kiro 走统一 AgUiChatProvider
   return (
-    <AgUiChatProvider url={aguiUrl} initialState={initialState} forwardedProps={forwardedProps}>
+    <AgUiChatProvider
+      url={aguiUrl}
+      initialState={initialState}
+      forwardedProps={forwardedProps}
+      showThinking={displayPreferences.showThinking}
+    >
       {children}
     </AgUiChatProvider>
   )

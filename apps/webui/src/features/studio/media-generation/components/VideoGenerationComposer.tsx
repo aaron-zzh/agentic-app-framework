@@ -6,10 +6,18 @@
 
 "use client"
 
-import { ImagePlus, Wand2 } from "lucide-react"
-import { useCallback, useRef, useState } from "react"
+import { Wand2 } from "lucide-react"
+import { useCallback, useState } from "react"
 import { ModelParamsPopover } from "@/components/common/ModelParamsPopover"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
 import { BrandProfilePicker } from "@/features/aigc/generation/BrandProfilePicker"
 import { PromptTemplateDialog } from "@/features/aigc/generation/PromptTemplateDialog"
 import { SkillPickerContent } from "@/features/aigc/generation/SkillPicker"
@@ -19,6 +27,7 @@ import {
 } from "@/features/aigc/generation/SnippetPickerDialog"
 import { ImageUploadChip } from "@/features/studio/home/ImageUploadChip"
 import { MediaComposerShell } from "@/features/studio/media-generation/components/MediaComposerShell"
+import { MediaImageSourceMenu } from "@/features/studio/media-generation/components/MediaImageSourceMenu"
 import { useVideoGenerationController } from "@/features/studio/media-generation/hooks/use-video-generation-controller"
 import type {
   MediaGenerationComposerProps,
@@ -27,51 +36,6 @@ import type {
 } from "@/features/studio/media-generation/types"
 import type { AigcSnippet } from "@/lib/api/rest/ai/aigc"
 import { cn } from "@/lib/utils"
-
-interface VideoImageUploadButtonProps {
-  label: string
-  multiple?: boolean
-  disabled: boolean
-  onSelect: (files: File[]) => void
-}
-
-/** 图标下直接展示上传类型的图片选择入口。 */
-function VideoImageUploadButton({
-  label,
-  multiple = false,
-  disabled,
-  onSelect
-}: VideoImageUploadButtonProps) {
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        disabled={disabled}
-        className="flex size-14 shrink-0 flex-col items-center justify-center gap-1 rounded-md border border-foreground/15 border-dashed bg-foreground/[0.03] text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
-        aria-label={`上传${label}`}
-      >
-        <ImagePlus className="size-4" />
-        <span className="text-[10px]">{label}</span>
-      </button>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        multiple={multiple}
-        className="hidden"
-        disabled={disabled}
-        onChange={(event) => {
-          const files = Array.from(event.target.files ?? [])
-          if (files.length > 0) onSelect(files)
-          event.target.value = ""
-        }}
-      />
-    </>
-  )
-}
 
 function VideoImageAttachment({
   label,
@@ -142,7 +106,7 @@ export function VideoGenerationComposer(props: MediaGenerationComposerProps) {
     [props.onTaskSubmitted]
   )
   const controller = useVideoGenerationController({
-    projectId: props.projectId,
+    projectTarget: props.projectTarget,
     initialDraft: props.initialDraft,
     onTaskSubmitted: handleTaskSubmitted
   })
@@ -228,11 +192,13 @@ export function VideoGenerationComposer(props: MediaGenerationComposerProps) {
               />
             ) : null}
             {referenceCount < controller.maxReferenceImages ? (
-              <VideoImageUploadButton
+              <MediaImageSourceMenu
                 label="参考图"
                 multiple
                 disabled={controller.isSubmitting}
-                onSelect={(files) => void controller.uploadReferenceImages(files)}
+                projectTarget={props.projectTarget}
+                onSelectFiles={(files) => void controller.uploadReferenceImages(files)}
+                onSelectProject={controller.addProjectReferenceImage}
               />
             ) : null}
           </>
@@ -252,12 +218,14 @@ export function VideoGenerationComposer(props: MediaGenerationComposerProps) {
                 progress={controller.uploadProgress}
               />
             ) : (
-              <VideoImageUploadButton
+              <MediaImageSourceMenu
                 label="首帧图"
                 disabled={controller.isSubmitting}
-                onSelect={([file]) => {
+                projectTarget={props.projectTarget}
+                onSelectFiles={([file]) => {
                   if (file) void controller.uploadFirstFrameImage(file)
                 }}
+                onSelectProject={controller.selectProjectFirstFrameImage}
               />
             )}
             {controller.lastFrameImage ? (
@@ -274,12 +242,14 @@ export function VideoGenerationComposer(props: MediaGenerationComposerProps) {
                 progress={controller.uploadProgress}
               />
             ) : (
-              <VideoImageUploadButton
+              <MediaImageSourceMenu
                 label="尾帧图"
                 disabled={controller.isSubmitting}
-                onSelect={([file]) => {
+                projectTarget={props.projectTarget}
+                onSelectFiles={([file]) => {
                   if (file) void controller.uploadLastFrameImage(file)
                 }}
+                onSelectProject={controller.selectProjectLastFrameImage}
               />
             )}
           </>
@@ -287,17 +257,24 @@ export function VideoGenerationComposer(props: MediaGenerationComposerProps) {
       }
       tools={
         <>
-          <select
+          <Select
             value={controller.imageMode}
-            onChange={(event) => controller.setImageMode(event.target.value as VideoInputMode)}
+            onValueChange={(value) => {
+              if (value) controller.setImageMode(value as VideoInputMode)
+            }}
             disabled={controller.isSubmitting}
-            aria-label="视频生成模式"
-            className="h-8 shrink-0 rounded-lg border border-foreground/8 bg-background px-2.5 text-xs disabled:opacity-50"
           >
-            <option value="T2V">文生视频</option>
-            <option value="REFERENCE">图生视频</option>
-            <option value="FIRST_LAST_FRAME">首尾帧</option>
-          </select>
+            <SelectTrigger size="sm" aria-label="视频生成模式">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="T2V">文生视频</SelectItem>
+                <SelectItem value="REFERENCE">图生视频</SelectItem>
+                <SelectItem value="FIRST_LAST_FRAME">首尾帧</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
 
           {controller.brands.map((brand) => (
             <button

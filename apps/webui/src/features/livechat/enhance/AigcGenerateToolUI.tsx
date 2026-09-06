@@ -4,13 +4,14 @@
  * AIGC 生成工具的内联 ToolUI——在对话气泡内渲染生成中占位和完成后的媒体内容
  *
  * 注册三个工具名：generate_image / generate_video / generate_music
- * 工具调用时显示占位骨架，任务完成后通过 useAigcTaskStream 更新为真实媒体
+ * 工具调用时显示占位骨架，任务完成后通过 Task detail 查询更新为真实媒体
  */
 
 import { defineToolkit } from "@assistant-ui/react"
+import { useQuery } from "@tanstack/react-query"
 import { ImageIcon, MusicIcon, VideoIcon } from "lucide-react"
-import { useCallback, useState } from "react"
-import { useAigcTaskStream } from "@/lib/hooks/use-aigc-task-stream"
+import type { AigcTaskEvent } from "@/lib/api/rest/ai/aigc-task"
+import { request } from "@/lib/api/rest/entity"
 
 interface AigcToolResult {
   taskId?: number
@@ -32,30 +33,20 @@ function parseResult(result: unknown): AigcToolResult | null {
   }
 }
 
-/** 单个 AIGC 任务卡片——监听 SSE 更新状态 */
+/** 单个 AIGC 任务卡片——按 Task detail 刷新状态 */
 function AigcTaskCard({ data }: { data: AigcToolResult }) {
-  const [url, setUrl] = useState<string | undefined>()
-  const [status, setStatus] = useState<"PENDING" | "SUCCESS" | "FAIL">(data.status ?? "PENDING")
   const taskId = data.taskId
-
-  useAigcTaskStream({
-    enabled: !!taskId && status === "PENDING",
-    onCompleted: useCallback(
-      (task) => {
-        if (task.id === taskId) {
-          setStatus("SUCCESS")
-          setUrl(task.outputUrl ?? undefined)
-        }
-      },
-      [taskId]
-    ),
-    onFailed: useCallback(
-      (task) => {
-        if (task.id === taskId) setStatus("FAIL")
-      },
-      [taskId]
-    )
+  const { data: task } = useQuery({
+    queryKey: ["aigc.task", "detail", taskId],
+    queryFn: () => request<AigcTaskEvent>(`/aigc/tasks/${taskId}`),
+    enabled: taskId !== undefined,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status
+      return status === "SUCCESS" || status === "FAIL" ? false : 2_000
+    }
   })
+  const status = task?.status ?? data.status ?? "PENDING"
+  const url = task?.outputUrl ?? undefined
 
   const mediaType = data.mediaType ?? "image"
   const prompt = data.prompt ?? ""

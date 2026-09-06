@@ -8,7 +8,7 @@
  */
 
 import type { ReactNode } from "react"
-import type { AigcTaskEvent } from "@/lib/hooks/use-aigc-task-stream"
+import type { AigcTaskEvent } from "@/lib/api/rest/ai/aigc-task"
 
 export const MEDIA_GENERATION_MODES = ["image", "video", "voice", "music", "model-3d"] as const
 
@@ -49,16 +49,27 @@ export interface MediaCreditEstimate {
   isLoading: boolean
 }
 
+export type MediaImageAttachmentSource = "UPLOAD" | "PROJECT"
+
 export interface MediaImageAttachment {
   fileId: number
   url: string
   previewSrc: string
   name: string
+  source: MediaImageAttachmentSource
+  mediaVersionId?: number
+  projectObjectId?: number
 }
 
 export interface PendingMediaImageAttachment {
   previewSrc: string
   name: string
+}
+
+export interface MediaProjectTarget {
+  projectId: number
+  objectId: number
+  actionKey: string
 }
 
 export interface MediaGenerationDraft {
@@ -72,13 +83,12 @@ export interface MediaGenerationDraft {
   videoImageMode?: VideoInputMode
 }
 
-export interface MediaTaskSubmission {
-  mode: MediaGenerationMode
-  taskId: number
-}
+export type MediaTaskSubmission =
+  | { mode: MediaGenerationMode; taskId: number; executionRunId?: never }
+  | { mode: MediaGenerationMode; executionRunId: number; taskId?: never }
 
 export interface MediaGenerationControllerOptions {
-  projectId?: number | null
+  projectTarget?: MediaProjectTarget
   initialDraft?: MediaGenerationDraft
   onTaskSubmitted?: (submission: MediaTaskSubmission) => void
 }
