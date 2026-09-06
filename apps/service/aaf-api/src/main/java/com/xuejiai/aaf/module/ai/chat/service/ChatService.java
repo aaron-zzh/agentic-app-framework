@@ -130,6 +130,31 @@ public class ChatService {
     }
 
     /**
+     * 按 threadId 保存消息（AG-UI 执行链路专用）。
+     *
+     * <p>AG-UI 主对话链路（{@code AssistantAguiController}）运行时无 HTTP SecurityContext，不能走 {@code
+     * saveUserMessage} 的当前用户归属校验；调用方已在 run 入口用 {@link #requireOwnedAiThread} 校验过 threadId
+     * 归属，这里只需按 threadId 解析出内部数值 sessionId 后落库。
+     *
+     * @param threadId AG-UI 线程 ID（对应 {@code Conversation.threadId}）
+     * @param senderId 发送者 ID；AI 消息传 {@code null}，落库为 {@link #NON_HUMAN_SENDER_ID}
+     * @param senderType 发送者类型（HUMAN / AI）
+     * @param role 消息角色（user / assistant）
+     * @param content 消息文本内容
+     */
+    @Transactional
+    public void saveMessageByThreadId(
+            String threadId, Long senderId, String senderType, String role, String content) {
+        var conversation = conversationRepository.findByThreadId(threadId).orElse(null);
+        if (conversation == null) {
+            // 会话已被删除或未找到：不阻断执行流程，仅记录事实，与既有 catch 静默跳过保持一致的降级语义
+            return;
+        }
+        var msg = buildMessage(senderId, senderType, conversation.getId(), role, content);
+        messageRepository.save(msg);
+    }
+
+    /**
      * 分页获取会话消息（按时间倒序）
      *
      * @param sessionId 会话 ID
@@ -282,6 +307,63 @@ public class ChatService {
         conv.setTitle(title);
         conversationRepository.save(conv);
         return toSessionVO(conv);
+    }
+
+    /**
+     * 取消归档会话（恢复为 ACTIVE）。
+     *
+     * <p>与 assistant-ui {@code RemoteThreadListAdapter}/{@code ExternalStoreThreadListAdapter} 契约对齐：
+     * 该契约要求 archive 操作可逆，前端 {@code onUnarchive} 直接对应本方法。
+     *
+     * @param sessionId 会话 ID
+     */
+    @Transactional
+    public void unarchiveSession(Long sessionId) {
+        var conv = requireOwnedConversation(sessionId);
+        conv.setStatus(ConversationStatusEnum.ACTIVE);
+        conversationRepository.save(conv);
+    }
+
+    /**
+     * 按 threadId 重命名会话（assistant-ui ThreadListAdapter 契约专用，remoteId 即 threadId）。
+     *
+     * @param threadId AG-UI 线程 ID
+     * @param title 新标题
+     */
+    @Transactional
+    public void renameSessionByThreadId(String threadId, String title) {
+        renameSession(requireConversationIdByThreadId(threadId), title);
+    }
+
+    /** 按 threadId 归档会话（assistant-ui ThreadListAdapter 契约专用）。 */
+    @Transactional
+    public void archiveSessionByThreadId(String threadId) {
+        archiveSession(requireConversationIdByThreadId(threadId));
+    }
+
+    /** 按 threadId 取消归档会话（assistant-ui ThreadListAdapter 契约专用）。 */
+    @Transactional
+    public void unarchiveSessionByThreadId(String threadId) {
+        unarchiveSession(requireConversationIdByThreadId(threadId));
+    }
+
+    /** 按 threadId 删除会话（assistant-ui ThreadListAdapter 契约专用）。 */
+    @Transactional
+    public void deleteSessionByThreadId(String threadId) {
+        deleteSession(requireConversationIdByThreadId(threadId));
+    }
+
+    /** 按 threadId 解析出内部数值 ID，未找到或不归属当前用户时抛出。 */
+    private Long requireConversationIdByThreadId(String threadId) {
+        var conversation =
+                conversationRepository
+                        .findByThreadId(threadId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                ErrorCodeConstants.CHAT_SESSION_NOT_FOUND));
+        // requireOwnedConversation 在各 byId 方法内部再次校验，这里只需确保 threadId 能定位到会话
+        return conversation.getId();
     }
 
     /**

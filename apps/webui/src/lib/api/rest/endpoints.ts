@@ -37,6 +37,11 @@ export const restEndpoints = {
     chatSessions: "/system/chat/sessions",
     chatConversations: "/chat/conversations",
     chatSessionMessages: (threadId: string) => `/system/chat/sessions/thread/${threadId}/messages`,
+    chatSessionRename: (threadId: string) => `/system/chat/sessions/thread/${threadId}/rename`,
+    chatSessionArchive: (threadId: string) => `/system/chat/sessions/thread/${threadId}/archive`,
+    chatSessionUnarchive: (threadId: string) =>
+      `/system/chat/sessions/thread/${threadId}/unarchive`,
+    chatSessionDelete: (threadId: string) => `/system/chat/sessions/thread/${threadId}`,
     chatMessages: "/system/chat/messages",
     chatSuggestions: (agentId?: string) =>
       `/system/chat/suggestions${agentId ? `?agentId=${agentId}` : ""}`,

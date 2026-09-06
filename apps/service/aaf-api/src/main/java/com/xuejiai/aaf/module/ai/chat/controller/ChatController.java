@@ -123,6 +123,35 @@ public class ChatController {
         return Result.success(chatService.renameSession(sessionId, dto.title()));
     }
 
+    @Operation(summary = "重命名会话（按 threadId，assistant-ui ThreadListAdapter 契约）")
+    @PutMapping("/sessions/thread/{threadId}/rename")
+    public Result<Void> renameSessionByThreadId(
+            @PathVariable String threadId, @RequestBody @Validated ChatSessionRenameDTO dto) {
+        chatService.renameSessionByThreadId(threadId, dto.title());
+        return Result.success();
+    }
+
+    @Operation(summary = "归档会话（按 threadId，assistant-ui ThreadListAdapter 契约）")
+    @PostMapping("/sessions/thread/{threadId}/archive")
+    public Result<Void> archiveSessionByThreadId(@PathVariable String threadId) {
+        chatService.archiveSessionByThreadId(threadId);
+        return Result.success();
+    }
+
+    @Operation(summary = "取消归档会话（按 threadId，assistant-ui ThreadListAdapter 契约）")
+    @PostMapping("/sessions/thread/{threadId}/unarchive")
+    public Result<Void> unarchiveSessionByThreadId(@PathVariable String threadId) {
+        chatService.unarchiveSessionByThreadId(threadId);
+        return Result.success();
+    }
+
+    @Operation(summary = "删除会话（按 threadId，assistant-ui ThreadListAdapter 契约）")
+    @DeleteMapping("/sessions/thread/{threadId}")
+    public Result<Void> deleteSessionByThreadId(@PathVariable String threadId) {
+        chatService.deleteSessionByThreadId(threadId);
+        return Result.success();
+    }
+
     @Operation(summary = "消息反馈（点赞/点踩）")
     @PostMapping("/messages/{messageId}/feedback")
     public Result<Void> messageFeedback(

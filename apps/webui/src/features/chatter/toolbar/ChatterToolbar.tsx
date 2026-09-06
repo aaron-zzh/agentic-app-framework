@@ -13,23 +13,40 @@
 
 "use client"
 
-import { useVoiceControls, useVoiceState } from "@assistant-ui/react"
 import {
+  ThreadListItemPrimitive,
+  ThreadListPrimitive,
+  useAuiState,
+  useThreadListItemRuntime,
+  useVoiceControls,
+  useVoiceState
+} from "@assistant-ui/react"
+import {
+  Archive,
   Bot,
   Maximize2,
   MessageSquareIcon,
+  MoreHorizontal,
   PanelRight,
   PanelRightClose,
   Phone,
   PhoneOff,
   PlusIcon,
   Sparkles,
+  Trash2,
   User,
   X
 } from "lucide-react"
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
+import { type ReactNode, useEffect, useState } from "react"
+import { toast } from "sonner"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   Select,
@@ -42,8 +59,9 @@ import {
 } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import type { ChatterPreset, ChatterTarget } from "@/features/chatter/types"
-import { type AssistantItem, chatApi, useAssistants } from "@/lib/api/rest/ai"
+import { type AssistantItem, useAssistants } from "@/lib/api/rest/ai"
 import { useChatterStore } from "@/lib/store/chatter-store"
+import { cn } from "@/lib/utils"
 
 interface ChatterToolbarProps {
   preset: ChatterPreset
@@ -359,78 +377,108 @@ function AssistantRoleSelect({
   )
 }
 
-/** 对话图标 + 会话列表（模糊搜索 + 滚动加载更多）+ 新建会话 popover */
+/**
+ * 会话列表单项——用 ThreadListItemPrimitive 消费 runtime 状态。
+ *
+ * rename/archive/unarchive/delete 通过 useThreadListItemRuntime() 调用而非官方具名
+ * ThreadListItemPrimitive.Archive/Delete/Unarchive 组件——那些组件渲染为独立 <button>，
+ * 直接嵌入 DropdownMenuItem（base-ui <div> 语义）会产生嵌套交互元素问题；
+ * useThreadListItemRuntime() 是同一套官方运行时能力的公开 hook 形式。
+ */
+function SessionListItem({ onAfterSwitch }: { onAfterSwitch: () => void }) {
+  const itemRuntime = useThreadListItemRuntime()
+  const title = useAuiState((s) => s.threadListItem.title)
+  const status = useAuiState((s) => s.threadListItem.status)
+
+  return (
+    <ThreadListItemPrimitive.Root className="group flex w-full items-center gap-1 rounded-md px-1 hover:bg-muted">
+      <ThreadListItemPrimitive.Trigger
+        className="flex flex-1 items-center gap-2 overflow-hidden px-2 py-2 text-left"
+        onClick={onAfterSwitch}
+      >
+        <MessageSquareIcon className="size-3.5 shrink-0 text-muted-foreground" />
+        <span className="flex-1 truncate text-sm">
+          <ThreadListItemPrimitive.Title fallback="未命名会话" />
+        </span>
+      </ThreadListItemPrimitive.Trigger>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          className="invisible flex size-6 shrink-0 items-center justify-center rounded hover:bg-background group-hover:visible"
+          aria-label="会话操作"
+        >
+          <MoreHorizontal className="size-3.5" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            onClick={async () => {
+              const nextTitle = window.prompt("重命名会话", title ?? "")
+              if (!nextTitle || nextTitle === title) return
+              try {
+                await itemRuntime.rename(nextTitle)
+              } catch {
+                toast.error("重命名失败，请重试")
+              }
+            }}
+          >
+            重命名
+          </DropdownMenuItem>
+          {status === "archived" ? (
+            <DropdownMenuItem
+              onClick={async () => {
+                try {
+                  await itemRuntime.unarchive()
+                } catch {
+                  toast.error("取消归档失败，请重试")
+                }
+              }}
+            >
+              <Archive className="size-3.5" />
+              取消归档
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem
+              onClick={async () => {
+                try {
+                  await itemRuntime.archive()
+                } catch {
+                  toast.error("归档失败，请重试")
+                }
+              }}
+            >
+              <Archive className="size-3.5" />
+              归档
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem
+            variant="destructive"
+            onClick={async () => {
+              if (!window.confirm("确定删除该会话？此操作不可恢复。")) return
+              try {
+                await itemRuntime.delete()
+              } catch {
+                toast.error("删除失败，请重试")
+              }
+            }}
+          >
+            <Trash2 className="size-3.5" />
+            删除
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </ThreadListItemPrimitive.Root>
+  )
+}
+
+/**
+ * 对话图标 + 会话列表 + 新建会话 popover。
+ *
+ * AAF-114 官方模式改造：完全由 ThreadListPrimitive/ThreadListItemPrimitive 消费 runtime
+ * 的 threads/archivedThreads 状态，不再自建 sessions/total/loading 等并行状态——
+ * 列表数据源统一来自 ag-ui-runtime.tsx 的 threadList adapter（TanStack Query 驱动）。
+ */
 function SessionPopover({ onNewSession }: { onNewSession?: () => void }) {
   const [open, setOpen] = useState(false)
-  const [keyword, setKeyword] = useState("")
-  const [sessions, setSessions] = useState<{ id: string; title: string }[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
-  const PAGE_SIZE = 10
-  const pageRef = useRef(1)
-  const listRef = useRef<HTMLDivElement>(null)
-  const loadingRef = useRef(false)
-
-  const load = useCallback(
-    async (reset = false) => {
-      if (loadingRef.current) return
-      const nextPage = reset ? 1 : pageRef.current
-      loadingRef.current = true
-      setLoading(true)
-      try {
-        const res = await chatApi.pageListSessions({
-          page: nextPage,
-          pageSize: PAGE_SIZE,
-          search: keyword || undefined
-        })
-        const list = res.list ?? []
-        const tot = res.total ?? 0
-        setSessions((prev) => (reset ? list : [...prev, ...list]))
-        setTotal(tot)
-        pageRef.current = nextPage + 1
-      } catch {
-        // 静默失败
-      } finally {
-        loadingRef.current = false
-        setLoading(false)
-      }
-    },
-    [keyword]
-  )
-
-  // 打开时初始加载
-  useEffect(() => {
-    if (!open) return
-    pageRef.current = 1
-    setSessions([])
-    load(true)
-  }, [open, load])
-
-  // 搜索防抖
-  useEffect(() => {
-    if (!open) return
-    const timer = setTimeout(() => {
-      pageRef.current = 1
-      setSessions([])
-      load(true)
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [open, load])
-
-  // 滚动到底部加载更多
-  const handleScroll = useCallback(
-    (e: React.UIEvent<HTMLDivElement>) => {
-      const el = e.currentTarget
-      if (
-        el.scrollHeight - el.scrollTop - el.clientHeight < 40 &&
-        (sessions?.length ?? 0) < total &&
-        !loadingRef.current
-      ) {
-        load(false)
-      }
-    },
-    [sessions?.length, total, load]
-  )
+  const [showArchived, setShowArchived] = useState(false)
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -446,55 +494,38 @@ function SessionPopover({ onNewSession }: { onNewSession?: () => void }) {
         className="w-72 p-0"
         style={{ maxHeight: "70vh", display: "flex", flexDirection: "column" }}
       >
-        {/* 新建会话 + 搜索框，合并为一个 header 区域 */}
-        <div className="flex shrink-0 flex-col gap-2 p-3">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full gap-2 rounded-full"
-            onClick={() => {
-              onNewSession?.()
-              setOpen(false)
-            }}
-          >
-            <PlusIcon className="size-3.5" />
-            新建会话
-          </Button>
-          <div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-1.5">
-            <input
-              type="text"
-              placeholder="搜索会话..."
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-            />
+        <ThreadListPrimitive.Root className="flex min-h-0 flex-1 flex-col">
+          {/* 新建会话 + 归档切换，合并为一个 header 区域 */}
+          <div className="flex shrink-0 items-center gap-2 p-3">
+            <ThreadListPrimitive.New
+              className="flex flex-1 items-center justify-center gap-2 rounded-full border px-3 py-1.5 text-sm hover:bg-muted"
+              onClick={() => {
+                setOpen(false)
+                onNewSession?.()
+              }}
+            >
+              <PlusIcon className="size-3.5" />
+              新建会话
+            </ThreadListPrimitive.New>
+            <button
+              type="button"
+              className={cn(
+                "shrink-0 rounded-full border px-2.5 py-1.5 text-xs",
+                showArchived ? "bg-muted" : "hover:bg-muted"
+              )}
+              onClick={() => setShowArchived((v) => !v)}
+            >
+              {showArchived ? "常规" : "归档"}
+            </button>
           </div>
-        </div>
 
-        {/* 会话列表 */}
-        <div ref={listRef} className="flex-1 overflow-y-auto" onScroll={handleScroll}>
-          {sessions.length === 0 && !loading ? (
-            <p className="px-3 py-6 text-center text-muted-foreground text-xs">
-              {keyword ? "没有匹配的会话" : "暂无历史会话"}
-            </p>
-          ) : (
-            sessions.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-muted"
-                onClick={() => setOpen(false)}
-              >
-                <MessageSquareIcon className="size-3.5 shrink-0 text-muted-foreground" />
-                <span className="flex-1 truncate text-sm">{s.title || "未命名会话"}</span>
-              </button>
-            ))
-          )}
-          {loading && <p className="py-2 text-center text-muted-foreground text-xs">加载中...</p>}
-          {!loading && sessions.length > 0 && sessions.length >= total && (
-            <p className="py-2 text-center text-muted-foreground text-xs">已加载全部</p>
-          )}
-        </div>
+          {/* 会话列表 */}
+          <div className="flex-1 overflow-y-auto px-2 pb-2">
+            <ThreadListPrimitive.Items archived={showArchived}>
+              {() => <SessionListItem onAfterSwitch={() => setOpen(false)} />}
+            </ThreadListPrimitive.Items>
+          </div>
+        </ThreadListPrimitive.Root>
       </PopoverContent>
     </Popover>
   )
