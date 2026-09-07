@@ -27,6 +27,7 @@ import {
   ErrorPrimitive,
   groupPartByType,
   MessagePrimitive,
+  type SourceMessagePart,
   ThreadPrimitive,
   useAuiState,
   useMessage,
@@ -41,6 +42,7 @@ import {
   CopyIcon,
   FileTextIcon,
   ImageIcon,
+  LinkIcon,
   PencilIcon,
   Play,
   RefreshCwIcon,
@@ -67,19 +69,69 @@ function useMessageText(): string {
     .join("")
 }
 
-/** 工具调用 Fallback——无自定义 UI 时显示通用卡片 */
-function ToolFallback({ toolName, status }: { toolName: string; status?: { type: string } }) {
+/**
+ * 工具调用通用 Fallback——未注册自定义 UI 时的确定性展示（AAF-114 #11409）。
+ *
+ * 区分 running/error/complete 三态；error 态只展示工具名与固定提示文案，
+ * 不回显 {@code status.error}/{@code result} 等字段，避免向前端泄露内部诊断信息。
+ */
+function ToolFallback({
+  toolName,
+  status,
+  isError
+}: {
+  toolName: string
+  status?: { type: string }
+  isError?: boolean
+}) {
   const isRunning = status?.type === "running"
+  const isFailed = isError === true || status?.type === "incomplete"
   return (
     <div
       className={cn(
-        "my-1.5 flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1.5 text-muted-foreground text-xs",
+        "my-1.5 flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs",
+        isFailed
+          ? "border-destructive/30 bg-destructive/10 text-destructive"
+          : "border-border/60 bg-muted/30 text-muted-foreground",
         isRunning && "animate-pulse"
       )}
     >
       <span className="flex-1 truncate">
-        {isRunning ? `正在执行 ${toolName}...` : `${toolName} 已完成`}
+        {isRunning
+          ? `正在执行 ${toolName}...`
+          : isFailed
+            ? `${toolName} 执行失败`
+            : `${toolName} 已完成`}
       </span>
+    </div>
+  )
+}
+
+/**
+ * 来源导航——渲染 assistant-ui 原生 SourceMessagePart（AAF-114 #11409）。
+ *
+ * 直接消费 assistant-ui 官方 part 字段，不自造通用 data 卡片协议；
+ * document 类型来源不含可跳转 URL，仅展示标题。
+ */
+function SourceLink({ part }: { part: SourceMessagePart }) {
+  const title = part.title ?? (part.sourceType === "url" ? part.url : "参考文档")
+  if (part.sourceType === "url") {
+    return (
+      <a
+        href={part.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="my-1 flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/20 px-2 py-1 text-muted-foreground text-xs hover:bg-muted/40"
+      >
+        <LinkIcon className="size-3 shrink-0" />
+        <span className="truncate">{title}</span>
+      </a>
+    )
+  }
+  return (
+    <div className="my-1 flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/20 px-2 py-1 text-muted-foreground text-xs">
+      <FileTextIcon className="size-3 shrink-0" />
+      <span className="truncate">{title}</span>
     </div>
   )
 }
@@ -278,7 +330,17 @@ function AssistantMessage({ showThinking }: { showThinking: boolean }) {
                   </span>
                 ) : null
               case "tool-call":
-                return part.toolUI ?? <ToolFallback toolName={part.toolName} status={part.status} />
+                return (
+                  part.toolUI ?? (
+                    <ToolFallback
+                      toolName={part.toolName}
+                      status={part.status}
+                      isError={part.isError}
+                    />
+                  )
+                )
+              case "source":
+                return <SourceLink part={part} />
               case "generative-ui":
                 return <MessagePrimitive.GenerativeUI components={{}} />
               default:

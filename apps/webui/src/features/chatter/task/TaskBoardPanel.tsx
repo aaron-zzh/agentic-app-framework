@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import type { TaskBoardProgress } from "@/features/chatter/hooks/use-task-board"
+import { ExecutorPlanSummary } from "@/features/chatter/task/ExecutorPlanSummary"
 import type { DelegatedTaskStatus, DelegatedTaskVO } from "@/lib/api/rest/ai"
 import { cn } from "@/lib/utils"
 
@@ -62,6 +63,7 @@ function TaskItem({ task }: { task: DelegatedTaskVO }) {
         <p className="mt-0.5 text-muted-foreground text-xs">
           {meta.label} · 优先级 {task.priority} · {task.ownerKind}
         </p>
+        <ExecutorPlanSummary taskId={task.taskId} taskStatus={task.status} />
       </div>
       <Badge variant="outline">{meta.label}</Badge>
     </div>

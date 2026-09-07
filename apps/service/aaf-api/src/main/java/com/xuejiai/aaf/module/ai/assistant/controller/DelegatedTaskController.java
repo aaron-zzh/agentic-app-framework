@@ -17,9 +17,11 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.module.ai.assistant.service.DelegatedTaskEventService;
 import com.xuejiai.aaf.module.ai.assistant.service.DelegatedTaskService;
+import com.xuejiai.aaf.module.ai.assistant.service.ExecutorPlanQueryService;
 import com.xuejiai.aaf.module.ai.assistant.vo.DelegatedTaskInputDTO;
 import com.xuejiai.aaf.module.ai.assistant.vo.DelegatedTaskReasonDTO;
 import com.xuejiai.aaf.module.ai.assistant.vo.DelegatedTaskVO;
+import com.xuejiai.aaf.module.ai.assistant.vo.ExecutorPlanSummaryVO;
 import com.xuejiai.aaf.module.ai.event.AafAiTaskSnapshot;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,11 +35,15 @@ import reactor.core.publisher.Mono;
 public class DelegatedTaskController {
     private final DelegatedTaskService tasks;
     private final DelegatedTaskEventService taskEvents;
+    private final ExecutorPlanQueryService executorPlans;
 
     public DelegatedTaskController(
-            DelegatedTaskService tasks, DelegatedTaskEventService taskEvents) {
+            DelegatedTaskService tasks,
+            DelegatedTaskEventService taskEvents,
+            ExecutorPlanQueryService executorPlans) {
         this.tasks = tasks;
         this.taskEvents = taskEvents;
+        this.executorPlans = executorPlans;
     }
 
     @Operation(summary = "查询当前用户的委托任务")
@@ -64,6 +70,12 @@ public class DelegatedTaskController {
     public SseEmitter streamEvents(
             @PathVariable String taskId, @RequestParam(defaultValue = "0") long afterEventOffset) {
         return taskEvents.subscribe(taskId, afterEventOffset);
+    }
+
+    @Operation(summary = "查询委托任务下活跃的执行计划摘要（AAF-114 #11409 任务摘要）")
+    @GetMapping("/{taskId}/executor-plans")
+    public Result<List<ExecutorPlanSummaryVO>> executorPlans(@PathVariable String taskId) {
+        return Result.success(executorPlans.findActivePlans(taskId));
     }
 
     @Operation(summary = "停止委托任务")

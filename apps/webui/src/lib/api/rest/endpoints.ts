@@ -55,6 +55,7 @@ export const restEndpoints = {
     delegatedTaskTakeOver: (taskId: string) => `/ai/tasks/${taskId}/take-over`,
     delegatedTaskHandBack: (taskId: string) => `/ai/tasks/${taskId}/hand-back`,
     delegatedTaskInputs: (taskId: string) => `/ai/tasks/${taskId}/inputs`,
+    delegatedTaskExecutorPlans: (taskId: string) => `/ai/tasks/${taskId}/executor-plans`,
     humanApprovalDecision: (approvalId: string) => `/ai/approvals/${approvalId}/decision`,
     model3d: "/aigc/model3d",
     model3dTextTo3d: "/aigc/model3d/text-to-3d",

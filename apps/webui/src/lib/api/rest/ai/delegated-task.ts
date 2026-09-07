@@ -168,6 +168,34 @@ export interface HumanApprovalVO {
   decidedAt: string | null
 }
 
+/** ExecutorPlan 只读投影摘要（AAF-114 #11409 任务摘要组件）；只携带 canonical planId/revision。 */
+export interface ExecutorPlanStepSummary {
+  stepKey: string
+  ordinal: number
+  title: string
+  status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELLED"
+  failureCode: string | null
+}
+
+export interface ExecutorPlanSummaryVO {
+  planId: string
+  subTaskId: string
+  revision: number
+  status:
+    | "DRAFT"
+    | "PLANNING"
+    | "SUBMITTED"
+    | "REVIEW_REQUIRED"
+    | "APPROVED"
+    | "EXECUTING"
+    | "COMPLETED"
+    | "FAILED"
+    | "CANCELLED"
+    | "REJECTED"
+  goal: string
+  steps: ExecutorPlanStepSummary[]
+}
+
 export const delegatedTaskKeys = {
   all: ["delegated-tasks"] as const,
   list: (conversationId: string) => ["delegated-tasks", "list", conversationId] as const,
@@ -192,7 +220,9 @@ export const delegatedTaskApi = {
   handBack: (taskId: string) =>
     backendApi.post<DelegatedTaskVO>(restEndpoints.ai.delegatedTaskHandBack(taskId)),
   submitInput: (taskId: string, request: DelegatedTaskInputRequest) =>
-    backendApi.post<DelegatedTaskVO>(restEndpoints.ai.delegatedTaskInputs(taskId), request)
+    backendApi.post<DelegatedTaskVO>(restEndpoints.ai.delegatedTaskInputs(taskId), request),
+  listExecutorPlans: (taskId: string) =>
+    backendApi.get<ExecutorPlanSummaryVO[]>(restEndpoints.ai.delegatedTaskExecutorPlans(taskId))
 }
 
 export const humanApprovalApi = {
