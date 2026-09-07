@@ -14,11 +14,19 @@ import org.commonmark.node.Text;
 import org.commonmark.parser.Parser;
 import org.springframework.stereotype.Component;
 
-/** Markdown 文档导入器，基于 commonmark-java */
+import lombok.RequiredArgsConstructor;
+
+/**
+ * Markdown 文档导入器，基于 commonmark-java。
+ *
+ * <p>AAF-114 #11410 加固：解析后总字符数超过 {@link DocumentImportLimits#maxCharacters()} 拒绝返回结果。
+ */
 @Component
+@RequiredArgsConstructor
 public class MarkdownImporter implements DocumentImporter {
 
     private final Parser parser = Parser.builder().build();
+    private final DocumentImportLimits limits;
 
     @Override
     public Set<String> supportedTypes() {
@@ -68,6 +76,9 @@ public class MarkdownImporter implements DocumentImporter {
         }
 
         long totalChars = sections.stream().mapToLong(s -> s.content().length()).sum();
+        if (totalChars > limits.maxCharacters()) {
+            throw new IOException("Markdown 内容总字符数超过安全限制: " + filename);
+        }
         return new ImportResult(sections, title[0], totalChars);
     }
 

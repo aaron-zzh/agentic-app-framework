@@ -10,11 +10,21 @@ import java.util.Set;
 import org.jsoup.Jsoup;
 import org.springframework.stereotype.Component;
 
-/** HTML 文档导入器，基于 Jsoup */
+import lombok.RequiredArgsConstructor;
+
+/**
+ * HTML 文档导入器，基于 Jsoup。
+ *
+ * <p>AAF-114 #11410 加固：解析后总字符数超过 {@link DocumentImportLimits#maxCharacters()} 拒绝返回结果。 Jsoup 默认不解析外部
+ * DTD、不发起网络请求（未调用 {@code Jsoup.connect()}），不额外增加 XXE 防护。
+ */
 @Component
+@RequiredArgsConstructor
 public class HtmlImporter implements DocumentImporter {
 
     private static final Set<String> HEADING_TAGS = Set.of("h1", "h2", "h3", "h4", "h5", "h6");
+
+    private final DocumentImportLimits limits;
 
     @Override
     public Set<String> supportedTypes() {
@@ -61,6 +71,9 @@ public class HtmlImporter implements DocumentImporter {
         var title = (titleEl != null && !titleEl.text().isBlank()) ? titleEl.text() : filename;
 
         long totalChars = sections.stream().mapToLong(s -> s.content().length()).sum();
+        if (totalChars > limits.maxCharacters()) {
+            throw new IOException("HTML 内容总字符数超过安全限制: " + filename);
+        }
         return new ImportResult(sections, title, totalChars);
     }
 }

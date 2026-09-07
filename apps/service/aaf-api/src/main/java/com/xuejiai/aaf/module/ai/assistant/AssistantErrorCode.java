@@ -113,6 +113,19 @@ public interface AssistantErrorCode {
     ErrorCode EXECUTION_SKILL_AMBIGUOUS_ROLE =
             ErrorCode.of(7_003_069, "显式 Skill 同时属于多个非默认 Role，无法唯一确定 Role");
 
+    // 文档附件（AAF-114 #11410）
+    ErrorCode EXECUTION_DOCUMENT_ATTACHMENT_TOO_LARGE = ErrorCode.of(7_003_070, "文档附件超过大小限制");
+    ErrorCode EXECUTION_DOCUMENT_ATTACHMENT_TYPE_MISMATCH =
+            ErrorCode.of(7_003_071, "文档扩展名与实际内容不一致");
+    ErrorCode EXECUTION_DOCUMENT_ATTACHMENT_SCAN_REJECTED = ErrorCode.of(7_003_072, "文档未通过安全扫描");
+    ErrorCode EXECUTION_DOCUMENT_ATTACHMENT_PARSE_FAILED =
+            ErrorCode.of(7_003_073, "文档解析失败，可能已加密、损坏或超过解析限制");
+    ErrorCode EXECUTION_DOCUMENT_ATTACHMENT_COUNT_LIMIT_EXCEEDED =
+            ErrorCode.of(7_003_074, "单次请求文档附件数量超限");
+    ErrorCode EXECUTION_DOCUMENT_ATTACHMENT_TYPE_UNSUPPORTED =
+            ErrorCode.of(7_003_075, "不支持的文档附件类型");
+    ErrorCode EXECUTION_DOCUMENT_ATTACHMENT_NOT_FOUND = ErrorCode.of(7_003_076, 404, "文档附件不存在");
+
     // 审批
     ErrorCode APPROVAL_RECOVERY_REQUIRES_APPROVED = ErrorCode.of(7_003_100, "仅批准决定可恢复执行");
     ErrorCode APPROVAL_NOT_FOUND = ErrorCode.of(7_003_101, 404, "Assistant 审批不存在");

@@ -5,10 +5,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 /** 导入器工厂，按文件扩展名匹配对应的 DocumentImporter */
 @Component
+@EnableConfigurationProperties(DocumentImportLimits.class)
 public class ImporterFactory {
 
     private final Map<String, DocumentImporter> importerMap;

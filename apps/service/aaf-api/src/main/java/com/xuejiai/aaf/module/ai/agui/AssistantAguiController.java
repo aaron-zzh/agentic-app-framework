@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
@@ -17,24 +18,26 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.util.JsonUtils;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.ClarificationRequest;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.HumanApproval;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HitlCoordinatorPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HumanApprovalPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskRecoveryDispatchPort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
-import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.RunId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.module.ai.assistant.AssistantErrorCode;
+import com.xuejiai.aaf.module.ai.assistant.document.DocumentAttachmentGuardService;
+import com.xuejiai.aaf.module.ai.assistant.document.DocumentTokenBudgetSplitter;
 import com.xuejiai.aaf.module.ai.assistant.service.AssistantApprovalEventService;
-import com.xuejiai.aaf.module.ai.assistant.service.ClarificationResumeService;
 import com.xuejiai.aaf.module.ai.assistant.service.AssistantExecutionService;
 import com.xuejiai.aaf.module.ai.assistant.service.AssistantExecutionService.ExecutionStream;
 import com.xuejiai.aaf.module.ai.assistant.service.AssistantExecutionService.TeamTarget;
+import com.xuejiai.aaf.module.ai.assistant.service.ClarificationResumeService;
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest;
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.ActionAuthorizationPolicy;
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.ArtifactPersistence;
@@ -80,6 +83,8 @@ public class AssistantAguiController {
     private final AssistantApprovalEventService approvalEvents;
     private final OperatorContext operatorContext;
     private final ClarificationResumeService clarificationResume;
+    private final DocumentAttachmentGuardService documentAttachmentGuard;
+    private final DocumentTokenBudgetSplitter documentTokenBudgetSplitter;
 
     public AssistantAguiController(
             AssistantExecutionService assistantExecutions,
@@ -91,7 +96,9 @@ public class AssistantAguiController {
             TaskRecoveryDispatchPort recoveries,
             AssistantApprovalEventService approvalEvents,
             OperatorContext operatorContext,
-            ClarificationResumeService clarificationResume) {
+            ClarificationResumeService clarificationResume,
+            DocumentAttachmentGuardService documentAttachmentGuard,
+            DocumentTokenBudgetSplitter documentTokenBudgetSplitter) {
         this.assistantExecutions = assistantExecutions;
         this.chatService = chatService;
         this.agUiProjector = agUiProjector;
@@ -102,6 +109,8 @@ public class AssistantAguiController {
         this.approvalEvents = approvalEvents;
         this.operatorContext = operatorContext;
         this.clarificationResume = clarificationResume;
+        this.documentAttachmentGuard = documentAttachmentGuard;
+        this.documentTokenBudgetSplitter = documentTokenBudgetSplitter;
     }
 
     @PostMapping(
@@ -121,10 +130,15 @@ public class AssistantAguiController {
         var threadId = request.threadId();
         var runId = request.runId();
         persistUserMessage(threadId, request.messages());
+        // AAF-114 #11412：按 blockMessageId（replyId:blockId，与前端 assistant-ui ThreadMessage.id 完全一致）
+        // 累积文本增量，在 MESSAGE_BLOCK_COMPLETED 时机落库，payload 记录该 id 供反馈接口精确关联。
+        // 每个 run 独立一份，随 SSE 订阅生命周期存在，无需考虑跨请求并发。
+        var blockTextBuffers = new ConcurrentHashMap<String, StringBuilder>();
         stream.events()
                 .subscribe(
                         event -> {
-                            persistAssistantMessageIfCompleted(threadId, event);
+                            persistAssistantMessageOnBlockCompleted(
+                                    threadId, event, blockTextBuffers);
                             send(emitter, session.project(event), event.sequence());
                         },
                         failure -> {
@@ -144,14 +158,13 @@ public class AssistantAguiController {
     }
 
     /**
-     * 恢复 execution（AAF-104 #10404，AAF-114 #11408 第二版扩展）：{@code resume} 非空时不新建
-     * execution，按 {@code interruptId} 归属分派到 approval 或 Clarification 处理分支——两者共用同一套
-     * AG-UI interrupt/resume 传输协议，但领域模型（{@code HumanApproval} vs {@code ClarificationRequest}）
-     * 完全独立，不合并成同一状态机。
+     * 恢复 execution（AAF-104 #10404，AAF-114 #11408 第二版扩展）：{@code resume} 非空时不新建 execution，按 {@code
+     * interruptId} 归属分派到 approval 或 Clarification 处理分支——两者共用同一套 AG-UI interrupt/resume
+     * 传输协议，但领域模型（{@code HumanApproval} vs {@code ClarificationRequest}） 完全独立，不合并成同一状态机。
      *
-     * <p>归属判定：先查 {@code approvals.find}；命中则是审批恢复（{@link #resumeApproval}，原有逻辑不变）。
-     * 查不到则视为 Clarification 恢复（{@link #resumeClarification}）——{@code approvalId} 与 {@code
-     * requestId} 分属不同 ID 空间，不会误判。
+     * <p>归属判定：先查 {@code approvals.find}；命中则是审批恢复（{@link #resumeApproval}，原有逻辑不变）。 查不到则视为
+     * Clarification 恢复（{@link #resumeClarification}）——{@code approvalId} 与 {@code requestId} 分属不同
+     * ID 空间，不会误判。
      *
      * <p>仅处理 {@code resume} 的第一条：AAF 当前每次 interrupt 只对应一个 {@code interruptId}，暂无真实的
      * 批量场景（协议允许数组，实现先满足单条，为未来扩展留出空间）。
@@ -231,13 +244,13 @@ public class AssistantAguiController {
     /**
      * Clarification 恢复（AAF-114 #11408 第二版）：{@code interruptId} 即 {@code
      * ClarificationRequest.requestId}。取消（{@code status="cancelled"} 或 {@code approved=false}）
-     * 场景当前无独立取消端口方法，直接闭合本次 run，不驱动状态转换——用户可通过下一轮自然语言输入触发既有
-     * MODIFY/UNRELATED 分类路径。
+     * 场景当前无独立取消端口方法，直接闭合本次 run，不驱动状态转换——用户可通过下一轮自然语言输入触发既有 MODIFY/UNRELATED 分类路径。
      *
      * <p>{@code DelegatedTaskCoordinator#acceptInput} 是 {@code Mono}；成功后才订阅事件续读，避免在写入尚未落地时
      * 提前查询导致漏读第一批事件。
      */
-    private SseEmitter resumeClarification(RunRequest request, ResumeEntry entry, TenantId tenantId) {
+    private SseEmitter resumeClarification(
+            RunRequest request, ResumeEntry entry, TenantId tenantId) {
         var clarification =
                 clarificationResume
                         .findByRequestId(tenantId, entry.interruptId())
@@ -456,24 +469,57 @@ public class AssistantAguiController {
     }
 
     /**
-     * 收到 {@code MESSAGE_COMPLETED} 事件时持久化 AI 回复全文（AAF-114 #11411）。
+     * 累积 {@code MESSAGE_DELTA} 文本，在 {@code MESSAGE_BLOCK_COMPLETED} 时落库（AAF-114 #11412）。
      *
-     * <p>只在整次回复结束时落库一次，不按 {@code MESSAGE_DELTA} 逐块写入；{@code text} 取自内部 payload，
-     * 与 {@link com.xuejiai.aaf.framework.intelligent.shared.event.publication.ExecutionEventPublicMapper}
-     * 脱敏后只暴露 {@code contentLength} 的公共视图是两条独立路径，互不影响。
+     * <p>此前（#11411）在整次回复结束（{@code MESSAGE_COMPLETED}，对应 AgentScope {@code AGENT_RESULT}）时一次性
+     * 持久化，但该事件 payload 的 {@code messageId} 取自 AgentScope {@code Msg.id}（构造时随机 UUID），与前端
+     * assistant-ui {@code ThreadMessage.id}（{@code replyId:blockId}，见 {@code
+     * TextMessageEventConverter}） 是两个独立生成的值，无法用于反馈等需要精确关联前端可见消息的场景。改为在块级持久化：{@code MESSAGE_DELTA}
+     * 时按 {@code replyId:blockId} 累积文本，{@code MESSAGE_BLOCK_COMPLETED} 时落库并把该 id 写入 {@code
+     * ConversationMessage.payload}，与前端 messageId 精确对应。一次回复可能有多个文本块，各自独立持久化一条消息， 与 AG-UI
+     * 协议"一个块即一条独立消息"的语义一致。
      */
-    private void persistAssistantMessageIfCompleted(String threadId, ExecutionEvent event) {
-        if (event.type() != ExecutionEventType.MESSAGE_COMPLETED) {
-            return;
-        }
-        try {
-            var text = event.payload().values().get("text");
-            if (text instanceof String content && !content.isBlank()) {
-                chatService.saveMessageByThreadId(threadId, null, "AI", "assistant", content);
+    private void persistAssistantMessageOnBlockCompleted(
+            String threadId, ExecutionEvent event, Map<String, StringBuilder> blockTextBuffers) {
+        var values = event.payload().values();
+        switch (event.type()) {
+            case MESSAGE_DELTA -> {
+                var blockMessageId = blockMessageId(values);
+                if (blockMessageId == null) return;
+                var delta = values.get("delta");
+                if (delta instanceof String text) {
+                    blockTextBuffers
+                            .computeIfAbsent(blockMessageId, id -> new StringBuilder())
+                            .append(text);
+                }
             }
-        } catch (RuntimeException failure) {
-            log.warn("AI 回复持久化失败 threadId={}: {}", threadId, failure.getMessage());
+            case MESSAGE_BLOCK_COMPLETED -> {
+                var blockMessageId = blockMessageId(values);
+                if (blockMessageId == null) return;
+                var buffer = blockTextBuffers.remove(blockMessageId);
+                if (buffer == null || buffer.isEmpty()) return;
+                try {
+                    chatService.saveMessageByThreadId(
+                            threadId, null, "AI", "assistant", buffer.toString(), blockMessageId);
+                } catch (RuntimeException failure) {
+                    log.warn(
+                            "AI 回复持久化失败 threadId={}, messageId={}: {}",
+                            threadId,
+                            blockMessageId,
+                            failure.getMessage());
+                }
+            }
+            default -> {}
         }
+    }
+
+    /** {@code replyId:blockId} 派生，与 {@code TextMessageEventConverter.blockMessageId} 保持一致的拼接规则。 */
+    private static String blockMessageId(Map<String, Object> values) {
+        if (!(values.get("replyId") instanceof String replyId)
+                || !(values.get("blockId") instanceof String blockId)) {
+            return null;
+        }
+        return replyId + ":" + blockId;
     }
 
     /**
@@ -498,7 +544,7 @@ public class AssistantAguiController {
         }
     }
 
-    private static UserInput lastUserInput(List<RunMessage> messages) {
+    private UserInput lastUserInput(List<RunMessage> messages) {
         for (var index = messages.size() - 1; index >= 0; index--) {
             var message = messages.get(index);
             if (!"user".equalsIgnoreCase(message.role())) {
@@ -516,7 +562,7 @@ public class AssistantAguiController {
         throw new IllegalArgumentException("messages 缺少 user 消息");
     }
 
-    private static UserInput messageInput(JsonNode content) {
+    private UserInput messageInput(JsonNode content) {
         if (content == null || content.isNull()) {
             return new UserInput("", List.of());
         }
@@ -528,6 +574,7 @@ public class AssistantAguiController {
         }
         var text = new StringBuilder();
         var attachments = new ArrayList<Attachment>();
+        var documentCount = 0;
         for (var part : content) {
             var type = part.path("type").asString();
             if ("text".equals(type)) {
@@ -539,6 +586,15 @@ public class AssistantAguiController {
                     text.append('\n');
                 }
                 text.append(partText.asString());
+                continue;
+            }
+            if ("document".equals(type)) {
+                documentCount++;
+                if (documentCount > documentAttachmentGuard.maxCountPerMessage()) {
+                    throw new BusinessException(
+                            AssistantErrorCode.EXECUTION_DOCUMENT_ATTACHMENT_COUNT_LIMIT_EXCEEDED);
+                }
+                attachments.add(documentAttachment(part));
                 continue;
             }
             if (!"image".equals(type)) {
@@ -555,6 +611,31 @@ public class AssistantAguiController {
             attachments.add(new Attachment(AttachmentType.IMAGE, fileKey, null, fileKey));
         }
         return new UserInput(text.toString(), List.copyOf(attachments));
+    }
+
+    /**
+     * 把 AG-UI {@code document} content part 转换为 {@code Attachment(TEXT, ...)}——react-ag-ui 的 {@code
+     * toInputContent} 按 mimeType 把非图片/音频/视频的 {@code file} part 统一分流为 {@code document} 类型（见 {@code
+     * conversions.js#mediaTypeForMime}）。文档在服务端解析完成后统一以既有 TEXT 附件语义进入执行链路， 不新增 {@code
+     * AttachmentType.DOCUMENT} 枚举（AAF-114 #11410 设计边界）。TEXT 附件不允许设置 {@code resourceId}（与 {@code
+     * AssistantExecutionService.parseAttachments} 现有校验一致），provenance 只记入日志， 不进入模型可见文本。
+     */
+    private Attachment documentAttachment(JsonNode part) {
+        var metadata = requireObject(part.get("metadata"), "messages[].content[].metadata");
+        var fileKey = requireText(metadata, "filename", "messages[].content[].metadata.filename");
+        var guarded = documentAttachmentGuard.guardAndParse(fileKey);
+        var split =
+                documentTokenBudgetSplitter.split(
+                        guarded.result(),
+                        guarded.resourceId(),
+                        guarded.contentHash(),
+                        guarded.importerName());
+        if (split.truncated()) {
+            log.warn("文档附件内容超预算已截断: {}", split.provenance().toLogSummary());
+        } else {
+            log.debug("文档附件解析完成: {}", split.provenance().toLogSummary());
+        }
+        return new Attachment(AttachmentType.TEXT, guarded.result().title(), split.content(), null);
     }
 
     private static JsonNode requireObject(JsonNode value, String field) {
