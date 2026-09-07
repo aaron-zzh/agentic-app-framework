@@ -17,7 +17,13 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
 
 interface SchemaFormFieldSpec {
   type?: string
@@ -61,7 +67,7 @@ export function SchemaForm({ schema, onSubmit, submitting }: SchemaFormProps) {
               {field?.enum && field.enum.length > 0 ? (
                 <Select
                   value={values[name] ?? ""}
-                  onValueChange={(next) => setValues((prev) => ({ ...prev, [name]: next }))}
+                  onValueChange={(next) => setValues((prev) => ({ ...prev, [name]: next ?? "" }))}
                 >
                   <SelectTrigger className="h-8 text-sm">
                     <SelectValue placeholder="请选择" />
