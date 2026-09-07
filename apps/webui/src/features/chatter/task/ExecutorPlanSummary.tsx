@@ -11,8 +11,12 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { CheckCircle2, CircleDashed, Loader2, XCircle } from "lucide-react"
-import { delegatedTaskApi, type ExecutorPlanStepSummary, isDelegatedTaskTerminal } from "@/lib/api/rest/ai"
 import type { DelegatedTaskStatus } from "@/lib/api/rest/ai"
+import {
+  delegatedTaskApi,
+  type ExecutorPlanStepSummary,
+  isDelegatedTaskTerminal
+} from "@/lib/api/rest/ai"
 import { cn } from "@/lib/utils"
 
 const STEP_STATUS_ICON: Record<ExecutorPlanStepSummary["status"], typeof CheckCircle2> = {

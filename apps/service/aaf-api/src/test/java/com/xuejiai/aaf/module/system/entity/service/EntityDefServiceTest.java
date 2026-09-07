@@ -141,7 +141,6 @@ class EntityDefServiceTest {
         entityDefService.auditPersistedCodeDefinitions();
     }
 
-
     @Test
     @DisplayName("Given 未声明筛选字段 When 创建代码实体定义 Then 拒绝")
     void should_reject_undeclared_filter_field() {

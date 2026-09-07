@@ -15,8 +15,8 @@
 
 "use client"
 
-import type { AgUiAssistantRuntime, AgUiInterrupt } from "@assistant-ui/react-ag-ui"
 import { useAssistantRuntime, useAuiState } from "@assistant-ui/react"
+import type { AgUiAssistantRuntime, AgUiInterrupt } from "@assistant-ui/react-ag-ui"
 import { useState } from "react"
 import { toast } from "sonner"
 import { type JsonSchemaObject, SchemaForm } from "@/features/chatter/runtime/ui-block/SchemaForm"

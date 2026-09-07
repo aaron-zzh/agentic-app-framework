@@ -35,9 +35,9 @@ import io.agentscope.core.agui.event.AguiEvent;
  * <p><b>{@code CLARIFICATION_REQUESTED} 同样收敛为标准 interrupt</b>（AAF-114 #11408 第二版）： {@code
  * reason="input_required"} 对齐官方标准值语义；{@code responseSchema} 由 {@link
  * ClarificationResponseSchema#fromQuestions} 从 payload 的 {@code questions} 派生。与 {@code
- * AUTHORIZATION_REQUESTED} 共用同一套 interrupt/resume 传输层，但底层领域模型（{@code HumanApproval} vs
- * {@code ClarificationRequest}）保持独立——只在 {@code AssistantAguiController#resumeRun} 按 {@code
- * interruptId} 归属分派。
+ * AUTHORIZATION_REQUESTED} 共用同一套 interrupt/resume 传输层，但底层领域模型（{@code HumanApproval} vs {@code
+ * ClarificationRequest}）保持独立——只在 {@code AssistantAguiController#resumeRun} 按 {@code interruptId}
+ * 归属分派。
  */
 public final class RunLifecycleEventConverter implements AafAguiEventConverter {
 
@@ -102,8 +102,7 @@ public final class RunLifecycleEventConverter implements AafAguiEventConverter {
         var questions = (List<Object>) values.get("questions");
         @SuppressWarnings("unchecked")
         var requiredFields = (List<String>) values.get("requiredFields");
-        var responseSchema =
-                ClarificationResponseSchema.fromQuestions(questions, requiredFields);
+        var responseSchema = ClarificationResponseSchema.fromQuestions(questions, requiredFields);
         return new AguiEvent.Interrupt(
                 requestId,
                 "input_required",

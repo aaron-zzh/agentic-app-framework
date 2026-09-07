@@ -19,9 +19,8 @@ import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Mono;
 
 /**
- * Clarification 恢复应用服务（AAF-114 #11408 第二版）——
- * 供 {@code AssistantAguiController#resumeRun} 按 {@code interruptId} 归属分派调用，
- * 遵循 {@code controller → service → repository} 分层，controller 不直接依赖 {@code
+ * Clarification 恢复应用服务（AAF-114 #11408 第二版）—— 供 {@code AssistantAguiController#resumeRun} 按 {@code
+ * interruptId} 归属分派调用， 遵循 {@code controller → service → repository} 分层，controller 不直接依赖 {@code
  * ClarificationRequestRepository}（架构约束：controller 禁止直接访问 repository）。
  */
 @Service
@@ -41,9 +40,9 @@ public class ClarificationResumeService {
     /**
      * 提交澄清补充参数，驱动 {@code ClarificationRequest} 状态机前进。
      *
-     * <p>{@code payload} 已由前端按 {@code responseSchema} 编码为字符串值的对象；这里只做浅层类型收窄，
-     * 真正的字段校验（是否覆盖 requiredFields、值是否在 enum 内）由 {@code ExecutionInput}/{@code
-     * ClarificationRequest.apply} 既有校验链承担，不在本服务重复实现。
+     * <p>{@code payload} 已由前端按 {@code responseSchema} 编码为字符串值的对象；这里只做浅层类型收窄， 真正的字段校验（是否覆盖
+     * requiredFields、值是否在 enum 内）由 {@code ExecutionInput}/{@code ClarificationRequest.apply}
+     * 既有校验链承担，不在本服务重复实现。
      */
     public Mono<DelegatedTask> submit(
             TenantId tenantId, UserId userId, ClarificationRequest clarification, Object payload) {

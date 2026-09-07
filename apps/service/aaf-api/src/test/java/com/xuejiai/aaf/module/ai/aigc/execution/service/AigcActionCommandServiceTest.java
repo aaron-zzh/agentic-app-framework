@@ -82,9 +82,8 @@ class AigcActionCommandServiceTest extends BaseMockitoUnitTest {
         lenient().when(projectApi.requireProject(1L)).thenReturn(project());
         lenient()
                 .when(
-                        runRepository
-                                .findByProjectIdAndActionKeyAndDeletedFalseOrderByIdDesc(
-                                        any(), any()))
+                        runRepository.findByProjectIdAndActionKeyAndDeletedFalseOrderByIdDesc(
+                                any(), any()))
                 .thenReturn(List.of());
     }
 

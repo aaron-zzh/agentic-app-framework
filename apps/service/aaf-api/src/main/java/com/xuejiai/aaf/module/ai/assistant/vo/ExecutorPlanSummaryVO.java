@@ -5,8 +5,7 @@ import java.util.List;
 /**
  * ExecutorPlan 只读投影摘要（AAF-114 #11409 任务摘要组件）。
  *
- * <p>只携带 canonical {@code planId} 与 {@code revision}，前端据此从权威服务端投影读取实时状态，
- * 不在客户端建立独立的计划生命周期状态。
+ * <p>只携带 canonical {@code planId} 与 {@code revision}，前端据此从权威服务端投影读取实时状态， 不在客户端建立独立的计划生命周期状态。
  */
 public record ExecutorPlanSummaryVO(
         String planId,

@@ -22,8 +22,7 @@ import com.xuejiai.aaf.module.ai.assistant.vo.ExecutorPlanSummaryVO.StepSummary;
 /**
  * ExecutorPlan 只读查询服务（AAF-114 #11409 任务摘要组件）。
  *
- * <p>只暴露只读投影，不提供任何写操作——计划状态转换只能经 {@link ExecutorPlanPort} 走既有 CAS 流程，
- * 本服务不绕过该边界。
+ * <p>只暴露只读投影，不提供任何写操作——计划状态转换只能经 {@link ExecutorPlanPort} 走既有 CAS 流程， 本服务不绕过该边界。
  */
 @Service
 public class ExecutorPlanQueryService {

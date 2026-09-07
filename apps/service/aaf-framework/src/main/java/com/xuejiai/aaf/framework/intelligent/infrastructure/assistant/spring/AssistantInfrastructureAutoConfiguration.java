@@ -24,7 +24,6 @@ import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantApplicationService;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.CompletionValidator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.ContextLoadTool;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.RenderUiBlockTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultCompletionValidator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultEffectiveSkillResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultInputClassifier;
@@ -36,6 +35,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveSkil
 import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveToolResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.ModelSkillSelectionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.PromptAssembler;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.RenderUiBlockTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.ReportExecutorStepTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.RoleSelector;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.SkillSelectionPort;

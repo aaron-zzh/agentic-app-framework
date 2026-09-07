@@ -16,15 +16,14 @@ import reactor.core.publisher.Mono;
 /**
  * 结构化信息卡片内置工具（AAF-114 #11408 第二版收窄）。
  *
- * <p>只保留 {@code INFO_CARD}——纯只读展示，无需人类响应，适合工具 + tool-call 消息 part 模式。原
- * {@code CHOICE}/{@code FORM} 分支已移除：需要人类响应的 Clarification 场景改为复用标准 AG-UI
- * interrupt/resume 协议（{@code RunLifecycleEventConverter} 把 {@code CLARIFICATION_REQUESTED} 投影为
- * {@code reason="input_required"} 的 interrupt，前端用官方 {@code unstable_getPendingInterrupts}/
- * {@code unstable_submitInterruptResponses} 处理），不再依赖本工具承载可提交表单——避免维护两套并行的
- * "需要人类介入"机制。
+ * <p>只保留 {@code INFO_CARD}——纯只读展示，无需人类响应，适合工具 + tool-call 消息 part 模式。原 {@code CHOICE}/{@code FORM}
+ * 分支已移除：需要人类响应的 Clarification 场景改为复用标准 AG-UI interrupt/resume 协议（{@code RunLifecycleEventConverter}
+ * 把 {@code CLARIFICATION_REQUESTED} 投影为 {@code reason="input_required"} 的 interrupt，前端用官方 {@code
+ * unstable_getPendingInterrupts}/ {@code unstable_submitInterruptResponses}
+ * 处理），不再依赖本工具承载可提交表单——避免维护两套并行的 "需要人类介入"机制。
  *
- * <p>模型显式调用本工具声明要展示的信息卡片，工具执行时严格校验结构（不信任模型输出），校验通过后原样返回校验后的
- * JSON。前端复用 assistant-ui 官方 tool-call 消息 part 机制渲染。
+ * <p>模型显式调用本工具声明要展示的信息卡片，工具执行时严格校验结构（不信任模型输出），校验通过后原样返回校验后的 JSON。前端复用 assistant-ui 官方 tool-call 消息
+ * part 机制渲染。
  */
 public final class RenderUiBlockTool implements ContextAwareToolHandler {
 
@@ -37,8 +36,7 @@ public final class RenderUiBlockTool implements ContextAwareToolHandler {
 
     @Override
     public String description() {
-        return "在对话中展示只读信息摘要卡片（标题 + 可选说明 + 可选条目列表）。"
-                + "仅用于纯展示场景；需要用户填写或选择的场景由服务端澄清机制自动处理，不通过本工具。";
+        return "在对话中展示只读信息摘要卡片（标题 + 可选说明 + 可选条目列表）。" + "仅用于纯展示场景；需要用户填写或选择的场景由服务端澄清机制自动处理，不通过本工具。";
     }
 
     /** 纯展示型工具，不产生任何业务副作用。 */
