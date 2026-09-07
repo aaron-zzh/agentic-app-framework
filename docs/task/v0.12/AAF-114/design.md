@@ -658,3 +658,204 @@ public void onUserMessage(UserMessageEvent event) {
   那么 AafThreadMessageEnvelope 经 AAF rehydrator 后语义等价恢复
   并且加载失败不显示为空会话，过期图片 URL 由 file key 重新签发
 ```
+
+## #11408 详细设计：对话内选择、参数表单与 Clarification 闭环
+
+> **本章为第二版设计，替换初版的独立 REST 端点方案**。初版调研（`Map<String,String>` 存储链路判断、`Question` 元数据扩展、`ClarificationQueryPort` 安全修复思路）在核实 AG-UI 官方标准 interrupt/resume 协议后确认方向错误：AAF 已实现标准 AG-UI interrupt 机制（`AUTHORIZATION_REQUESTED` → `reason="tool_call"` interrupt，见 `RunLifecycleEventConverter`），`react-ag-ui`（AAF 实际依赖）原生支持 `AgUiInterrupt{id,reason,message?,toolCallId?,responseSchema?,expiresAt?,metadata?}` 和 `unstable_getPendingInterrupts()`/`unstable_submitInterruptResponses()`；`reason` 官方标准值含 `"input_required"`，`responseSchema` 字段（JSON Schema）正是为 Clarification 场景设计的标准通道。第二版改为复用这套已有协议基础设施，不新建独立 REST 端点，这也更贴合 assistant-ui 的既有用法，且对未来任何"需要人类介入"的场景（不止 Clarification）都通用。
+
+### 设计原则（修正版）
+
+1. **Clarification 复用标准 AG-UI interrupt/resume 协议，不新建传输通道**：`CLARIFICATION_REQUESTED` 投影为 `reason="input_required"` 的 interrupt，`responseSchema` 携带字段描述；提交走标准 `resume[]`，与工具审批（`reason="tool_call"`）走同一个 `/agui/run` 端点、同一套前端 `unstable_getPendingInterrupts`/`unstable_submitInterruptResponses` API，只是 `reason` 和 `responseSchema` 不同。
+2. **底层存储链路不变**：`ClarificationRequest.values`/`ExecutionInput.values` 仍是 `Map<String,String>`（`TaskBoard` 最终把 `clarifiedParameters` 拼接成文本插入 prompt，typed 化对该链路无收益——此判断在第一版已核实，第二版沿用）。typed 信息只在 `responseSchema`（JSON Schema）里表达，供前端渲染表单，提交时前端按 schema 描述做值格式编码后仍写回字符串 `values`。
+3. **`resumeRun` 按 interruptId 归属分派，不合并两个领域模型**：`HumanApproval` 和 `ClarificationRequest` 仍是两个独立的持久化模型和状态机；只是在传输层（interrupt/resume）统一，不在业务层合并——查完 approval 查不到再查 clarification，分派到不同的应用层入口。
+
+### 后端：CLARIFICATION_REQUESTED 投影为标准 interrupt
+
+**`RunLifecycleEventConverter` 扩展**：
+
+```java
+@Override
+public Set<ExecutionEventType> supportedTypes() {
+    return Set.of(
+            ExecutionEventType.EXECUTION_STARTED,
+            ExecutionEventType.EXECUTION_COMPLETED,
+            ExecutionEventType.EXECUTION_FAILED,
+            ExecutionEventType.EXECUTION_CANCELED,
+            ExecutionEventType.COMMAND_REJECTED,
+            ExecutionEventType.RUN_FAILED,
+            ExecutionEventType.AUTHORIZATION_REQUESTED,
+            ExecutionEventType.CLARIFICATION_REQUESTED); // 新增
+}
+
+case CLARIFICATION_REQUESTED -> context.runInterrupted(List.of(clarificationInterrupt(event)));
+
+/**
+ * {@code requestId} 直接作为 {@code interruptId}——与 {@code approvalId} 同一模式。
+ * {@code reason="input_required"} 对齐官方标准值语义。
+ */
+private static AguiEvent.Interrupt clarificationInterrupt(ExecutionEvent event) {
+    var values = event.payload().values();
+    var requestId = (String) values.get("requestId");
+    var responseSchema = buildResponseSchema(values); // 从 questions 快照生成 JSON Schema
+    return new AguiEvent.Interrupt(
+            requestId,
+            "input_required",
+            "需要补充参数",
+            null,   // toolCallId：Clarification 不绑定具体工具调用
+            responseSchema,
+            null,
+            Map.of("taskId", values.get("taskId")));
+}
+```
+
+**`responseSchema` 生成规则**：从 `ClarificationRequest.questions()` 派生标准 JSON Schema，每个 `Question` 映射为一个 property：
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "destination": { "type": "string", "title": "目的地" },
+    "budget": { "type": "number", "title": "预算" }
+  },
+  "required": ["destination", "budget"]
+}
+```
+
+`Question` 本身不需要新增 `type`/`constraints` 字段（第一版设计的元数据扩展作废）——JSON Schema 是通用协议格式，AAF 侧只需要一个"`List<Question> → JSON Schema` 转换函数"，不需要改动 `ClarificationRequest` 领域模型本身。当前 `Question(field, question, options)` 的 `options` 非空时映射为 `"enum"`，否则映射为 `"type":"string"`——首批实现覆盖 text 和 单选枚举两种，与 `ClarificationRequest.values: Map<String,String>` 的现有能力完全对齐，不超前设计模型尚不支持的 number/checkbox/multiple（那些需要先扩展 `Question` 领域模型才有意义，留作后续迭代，不在本任务阻塞）。
+
+**payload 需要携带 `taskId`**：`ExecutionEventPublicMapper`/`safeData` 的 `CLARIFICATION_REQUESTED` 分支当前只暴露 `requestId`/`subTaskId`/字段计数（详见 design.md #11407 章节调研），需要补充 `taskId` 供 interrupt `metadata` 使用（前端据此知道提交时用哪个 `taskId`，虽然本设计走 resume 不直接用 REST，但保留在 metadata 里便于前端展示/诊断）。
+
+### 后端：`resumeRun` 按归属分派
+
+```java
+private SseEmitter resumeRun(RunRequest request) {
+    var entry = request.resume().getFirst();
+    var tenantId = currentTenant();
+    var approval = approvals.find(tenantId, entry.interruptId());
+    if (approval.isPresent()) {
+        return resumeApproval(request, entry, tenantId, approval.get()); // 现有逻辑原样保留
+    }
+    return resumeClarification(request, entry, tenantId);
+}
+
+private SseEmitter resumeClarification(RunRequest request, ResumeEntry entry, TenantId tenantId) {
+    var clarification = clarifications
+            .findByRequestId(tenantId, entry.interruptId())
+            .orElseThrow(() -> new IllegalArgumentException("未知的 interruptId: " + entry.interruptId()));
+    var emitter = new SseEmitter(600_000L);
+    var session = agUiProjector.openSession();
+    if (!entry.approved()) {
+        // "cancelled" resume 状态对应用户取消澄清；ClarificationRequest 无独立取消端口方法，
+        // 复用现有 consumeInputs 消费空 UNRELATED kind 输入或直接调用 board.stopClarification
+        // 的既有取消路径（沿用 InputBuffer 现有分支，不新建取消状态转换）。
+        send(emitter, session.close(request.threadId(), request.runId()), Long.MAX_VALUE);
+        emitter.complete();
+        return emitter;
+    }
+    var input = new ExecutionInput(
+            UUID.randomUUID().toString(),
+            tenantId,
+            currentUserId(),
+            clarification.taskId(),
+            ExecutionInput.Kind.SUPPLEMENT,
+            null,
+            payloadToValues(entry.payload()), // JSON payload → Map<String,String>，按 responseSchema 反向编码
+            Instant.now());
+    coordinator.acceptInput(input)
+            .then(Mono.fromRunnable(() ->
+                    subscribeExecutionEvents(emitter, session, request, clarification.executionId())))
+            .subscribe();
+    return emitter;
+}
+```
+
+**事件续读复用泛化后的轮询服务**：`AssistantApprovalEventService.stream(HumanApproval)` 内部实际只依赖 `approval.invocationContext().executionId()`，与 approval 本身无关（已核实：核心轮询逻辑只是"按 `executionId` 从 `ExecutionEventStorePort` 轮询新事件"）。改造为：
+
+```java
+// 新增通用签名，approval/clarification 共用同一底层轮询实现
+public RecoveryStream streamByExecutionId(TenantId tenantId, ExecutionId executionId) { ... }
+
+// 现有 approval 入口收窄为薄封装，行为不变
+public RecoveryStream stream(HumanApproval approval) {
+    if (approval.status() != HumanApproval.Status.APPROVED || approval.decidedAt() == null) {
+        throw new IllegalArgumentException("仅已批准审批可续读恢复事件");
+    }
+    var context = approval.invocationContext();
+    var targetExecutionId = context.parentExecutionId() == null
+            ? context.executionId() : context.parentExecutionId();
+    return streamByExecutionId(approval.tenantId(), targetExecutionId);
+}
+```
+
+**新增只读查询**：`ClarificationRequestRepository` 补充一个不带悲观锁的 `findByRequestId` 方法（`resumeClarification` 只读查询，不能复用 `findPendingForUpdate` 抢占写锁——这与第一版 `ClarificationQueryPort` 的判断一致，只是查询维度从"按 taskId 查 pending"改为"按 requestId 精确查"）。
+
+### 前端：复用官方 interrupt 处理 API
+
+不再需要 `render_ui_block` 工具的 `CHOICE`/`FORM` 分支——**移除**该分支（`RenderUiBlockTool` 收窄为只保留 `INFO_CARD`，纯展示无需人类响应，适合工具+tool-call 模式；`AafUiBlock.CHOICE`/`FORM` 类型定义、`ChoiceCard`/`FormCard` 组件、`aaf-ui-block.ts` 里对应分支一并移除，避免维护两套并行机制）。
+
+新增 `ClarificationInterruptPanel` 组件，用官方 API 读取待处理 interrupt：
+
+```tsx
+function ClarificationInterruptPanel() {
+  const runtime = useAssistantRuntime() as AgUiAssistantRuntime
+  const pending = runtime.unstable_getPendingInterrupts()
+  const clarificationInterrupts = pending?.interrupts.filter(i => i.reason === "input_required") ?? []
+  if (clarificationInterrupts.length === 0) return null
+
+  async function handleSubmit(interrupt: AgUiInterrupt, values: Record<string, unknown>) {
+    await runtime.unstable_submitInterruptResponses([
+      { interruptId: interrupt.id, status: "resolved", payload: values }
+    ])
+  }
+
+  return clarificationInterrupts.map(interrupt => (
+    <SchemaForm
+      key={interrupt.id}
+      schema={interrupt.responseSchema}
+      onSubmit={(values) => handleSubmit(interrupt, values)}
+    />
+  ))
+}
+```
+
+`SchemaForm` 是一个新增的通用 JSON Schema 驱动表单渲染器（`type:"string"`+`enum` → select；`type:"string"` 无 enum → text input），首批只需覆盖 `responseSchema` 实际产出的两种形态，不预先支持 JSON Schema 全部特性。
+
+**多字段一次性提交**：`ClarificationRequest.requiredFields` 可能有多个字段，全部包含在同一个 `responseSchema.properties` 里，一次 `resolve` 提交所有字段值（`payload: {field1: value1, field2: value2}`）——这与 `submitInterruptResponses` 要求"一次 resume 回填全部 open interrupts"的语义不冲突：**一个 Clarification 请求只产生一个 interrupt**（不是每个字段一个 interrupt），多字段体现在这一个 interrupt 的 `responseSchema.properties` 里，不是 assistant-ui 的 multi-interrupt 场景（那是"同一个 run 有多个独立的审批点"）。
+
+**部分补充场景的处理**：`ClarificationRequest.apply` 支持增量补充（`replace=false`），但 interrupt/resume 模型是"resolve 一次即恢复执行"，不支持"resolve 后 run 继续暂停等下一轮部分补充"。设计取舍：**首批实现要求用户在表单里填满全部 `required` 字段才能提交**（前端 `SchemaForm` 用 JSON Schema 的 `required` 数组做本地校验），不支持协议层面的多轮部分补充；如果提交后校验仍不完整（理论上不应发生，因为前端已校验），后端 `acceptInput` 走既有 `InputBuffer.apply` 逻辑，若 `complete()` 仍为 false，`consumeInputs` 会生成 `CLARIFICATION_UPDATED` 事件而不是 `CLARIFICATION_RESOLVED`——但此时 run 已经 resume 过一次，不会再产生新的 interrupt 等待下一轮（这是一个已知的边界情况，标注为需求收窄：**首批不支持多轮部分补充的 UI 闭环**，用户必须一次性填完）。
+
+### 与既有机制的边界重申（修正版）
+
+- `HumanApproval` 与 `ClarificationRequest` 仍是两个独立领域模型和状态机；只在传输层（AG-UI interrupt/resume）统一入口，`resumeRun` 按 `interruptId` 归属分派到不同应用层服务（`HitlCoordinatorPort` vs `DelegatedTaskCoordinator.acceptInput`）。
+- `ClarificationRequest` 生命周期（`PENDING/RESOLVED/CANCELED/EXPIRED`）继续只能由 `JpaTaskTransitionAdapter` 既有状态机产生；本设计不新建 UI Block 生命周期表，不新建独立 REST 输入端点。
+- `AafUiBlock` 协议收窄为只服务 `INFO_CARD` 场景；需要人类响应的场景统一走 interrupt/resume，不再有"CUSTOM/tool-call 展示 + 独立提交端点"和"interrupt/resume"两套并行机制。
+
+### 刷新/切线程恢复语义（修正版结论不变）
+
+Interrupt 状态目前存储在 assistant-ui 消息的 `metadata.custom`（`AG_UI_METADATA_NAMESPACE`），不是持久化在 AAF 消息历史里——这与 #11411 遗留限制（tool-call result 不持久化）是同一类问题的另一种表现：**刷新页面后，如果 run 当时处于 interrupt 等待态，前端不会重新看到这个 interrupt**（除非后端在下次连接时重新发出 `RUN_FINISHED` + `outcome:interrupt`）。检查 `AssistantAguiController.startRun`/线程切换逻辑是否会在重新进入时重放未决 interrupt——若无，这是需要在 #11411 完整信封落地时一并解决的已知限制，本任务不修复。
+
+### #11408 验收标准（修正版）
+
+```gherkin
+场景: Clarification 投影为标准 interrupt
+  当任务进入 AWAITING_CLARIFICATION 状态
+  那么 AG-UI 事件流产生 reason="input_required" 的 interrupt
+  并且 responseSchema 从 ClarificationRequest.questions() 正确派生
+
+场景: 前端用官方 API 提交澄清
+  当用户在 SchemaForm 中填写全部必填字段并提交
+  那么调用 unstable_submitInterruptResponses 提交标准 resume payload
+  并且后端 resumeRun 正确分派到 Clarification 处理分支（不是 approval 分支）
+
+场景: 提交驱动状态机前进
+  当 resumeClarification 调用 DelegatedTaskCoordinator.acceptInput 成功
+  那么 ClarificationRequest 转为 RESOLVED，board 恢复執行
+  并且事件流通过泛化后的 streamByExecutionId 续读，AG-UI run 正常收敛
+
+场景: 部分补充不支持（已知限制，非缺陷）
+  当用户提交的字段未覆盖全部 requiredFields
+  那么后端不会崩溃，但也不会重新产生等待下一轮的 interrupt
+  并且此限制记录为首批不支持范围，不阻塞本任务完成
+```
+
+

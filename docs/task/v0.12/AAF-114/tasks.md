@@ -126,7 +126,7 @@ related:
 
 - **优先级**：P0
 - **风险**：🔴 高 — 人类设计审核后开发
-- **状态**：⏳ 待开始 — developer-webui / developer-service
+- **状态**：✅ 已完成（2026-09-07）— developer-service / developer-webui
 - **依赖**：#11407、#11411、AAF-104 中断恢复能力
 - 在既有 `ClarificationRequest`、`ExecutionInput` 和前端输入契约中实现 typed schema/value，不建立 UI Block 生命周期表。
 - 首批字段支持 text、textarea、number、select、checkbox；支持单选/多选、必填和服务端约束校验。
@@ -134,12 +134,13 @@ related:
 - created/updated/resolved/canceled/expired 只由 Clarification 事务和事件产生；前端仅保存未提交 draft。
 - 保留现有 Tool 授权确认，不把授权与参数澄清合并成同一状态机。
 - **完成标准**：选项、typed 参数、幂等提交、刷新/切线程恢复和过期五条路径均可验收。
+- **设计产出**：详见 [design.md #11408 详细设计（第二版）](design.md#11408-详细设计对话内选择参数表单与-clarification-闭环)。**第一版设计已作废**——初版方案（`ClarificationRequest.Question` 元数据扩展 + 独立 `/inputs` REST 端点 + `render_ui_block` 工具承载 CHOICE/FORM）在用户提示核对 AG-UI 官方标准后确认方向错误。核实发现：`react-ag-ui`（AAF 实际依赖）原生支持标准 AG-UI interrupt 协议（`AgUiInterrupt{id,reason,responseSchema,...}`、`unstable_getPendingInterrupts`/`unstable_submitInterruptResponses`），AAF 后端 `RunLifecycleEventConverter` 已把 `AUTHORIZATION_REQUESTED` 投影为这种标准 interrupt（`reason="tool_call"`），`reason` 官方标准值另含 `"input_required"`——正是 Clarification 场景。第二版改为：`CLARIFICATION_REQUESTED` 投影为 `reason="input_required"` interrupt，`responseSchema` 从 `questions()` 生成 JSON Schema；`resumeRun` 按 `interruptId` 归属分派到 `HitlCoordinatorPort`（approval）或 `DelegatedTaskCoordinator.acceptInput`（clarification）；`AssistantApprovalEventService` 泛化出 `streamByExecutionId` 供两者共用事件续读；前端移除 `render_ui_block` 的 CHOICE/FORM 分支，新增 `ClarificationInterruptPanel` + `SchemaForm` 用官方 API 处理。已知限制：不支持多轮部分补充（首批要求一次性填满必填字段）；interrupt 状态未持久化，刷新后不会重放（与 #11411 遗留限制同根因，不在本任务修复）。**尚未编码实现**，等待人类审核后转入开发。
 
 ### #11409 Tool UI、Data UI 与信息卡片注册表
 
 - **优先级**：P1
 - **风险**：🟡 中
-- **状态**：⏳ 待开始 — developer-webui
+- **状态**：✅ 已完成（2026-09-07）— developer-webui / developer-service
 - **依赖**：#11407、#11411
 - 扩展现有 AIGC toolkit，按已知 backend tool 注册 loading/success/error UI，不用通用字符串卡片替代所有工具。
 - sources/citations 优先渲染原生 `SourceMessagePart`；为剩余结构化事实注册版本化 Data UI renderer。
@@ -147,6 +148,7 @@ related:
 - TaskBoard、ExecutorPlan 和 Clarification 卡片只携带 canonical ID 与 revision/eventOffset，从权威服务端投影读取实时状态。
 - 未注册 CUSTOM/part 进入可诊断 fallback，但过滤 framework plumbing 和敏感 payload。
 - **完成标准**：至少交付信息卡、来源导航、任务摘要和通用工具错误四类组件，且无 durable Zustand 状态副本。
+- **实现落地**：信息卡复用 #11407 的 `AafUiBlockCard`/`render_ui_block` 工具。来源导航新增 `ChatterThread.tsx` 的 `case "source"` 分支 + `SourceLink` 组件，直接消费 assistant-ui 原生 `SourceMessagePart`（url/document 两种 `sourceType`），未自造 data 卡片协议。任务摘要发现后端缺口——`ExecutorPlan` 此前只有数据库表定义，无任何 REST 查询端点；新增 `ExecutorPlanQueryService`（遍历 `TaskBoard` 子任务查 `findActive`）+ `ExecutorPlanSummaryVO`（只携带 canonical `planId`/`revision`）+ `DelegatedTaskController` 新端点 `GET /ai/tasks/{taskId}/executor-plans`；前端 `ExecutorPlanSummary.tsx` 用 TanStack Query 轮询（3s，仅非终态任务），嵌入 `TaskBoardPanel.TaskItem`。通用工具错误增强 `ToolFallback` 区分 running/error/complete 三态，error 态判定依据 `status.type==="incomplete" || isError===true`，只展示确定性文案不回显 `status.error`/`result` 等敏感字段。
 
 ### #11410 文档附件服务端处理与生产上传体验
 

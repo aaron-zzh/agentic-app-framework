@@ -15,5 +15,8 @@
 | 2026-09-06 | developer-webui | #11407 实现（AafUiBlock/投影适配器/UiBlockPanel），发现三方库限制并调整方案 | 完成 |
 | 2026-09-06 | architect | #11411 调研（历史加载/SessionPopover/ThreadList参考）+ 设计撰写，发现2个阻塞性现有缺陷 | 设计已产出，等待人类审核 |
 | 2026-09-06 | developer-service / developer-webui | #11411 实现，发现更严重问题（AG-UI主链路从未持久化消息）并修复 | 完成 |
+| 2026-09-07 | developer-webui / developer-service | #11409 交付四类组件，发现ExecutorPlan无REST端点缺口并补齐 | 完成 |
+| 2026-09-07 | architect | #11408 重新核实契约现状+设计撰写，发现并设计修复#11407遗留安全缺口 | 设计已产出，等待人类审核 |
+| 2026-09-07 | architect | #11408 设计第二版：用户核对AG-UI官方标准后修正为interrupt/resume协议方向 | 设计已修正并重新产出，等待人类审核 |
 
 > 本轮未运行 lint、测试、typecheck、build 或 check；详见 [review.md](review.md)。

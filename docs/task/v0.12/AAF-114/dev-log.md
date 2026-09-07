@@ -112,3 +112,44 @@
 - 新增chatApi.renameSession/archiveSession/deleteSession + 3个endpoint定义
 - AafThreadMessageEnvelope完整信封格式本轮未实现，判断收益不足以覆盖复杂度，留后续任务
 - 分页/虚拟化保持设计阶段留白，未运行lint/test/check
+
+## #11409 Tool UI、Data UI 与信息卡片注册表
+
+✅ 2026-09-07 — developer-webui / developer-service
+
+- 信息卡复用#11407的AafUiBlockCard/render_ui_block工具
+- 来源导航：ChatterThread新增case"source"+SourceLink，直接消费原生SourceMessagePart
+- 任务摘要：发现ExecutorPlan此前无任何REST查询端点（只有DB表定义）
+- 新增ExecutorPlanQueryService+ExecutorPlanSummaryVO+GET /ai/tasks/{taskId}/executor-plans
+- 前端ExecutorPlanSummary用TanStack Query轮询(3s)，嵌入TaskBoardPanel
+- 通用工具错误：ToolFallback增强区分running/error/complete，不回显敏感payload
+- 未运行lint/test/check
+
+## #11408 对话内选择、参数表单与 Clarification 闭环（设计阶段）
+
+📝 2026-09-07 — architect
+
+- 重新核实ClarificationRequest/ExecutionInput/DelegatedTaskInputDTO均为Map<String,String>
+- 关键判断：TaskBoard最终把clarifiedParameters拼接成文本插入prompt，typed化对该链路无收益
+- 设计决定不改ExecutionInput/TaskBoard/JpaTaskTransitionAdapter类型签名，避免大范围破坏
+- Question新增type/required/options/multiple/constraints元数据，带默认值不破坏现有构造
+- 发现并设计修复#11407遗留安全缺口：RenderUiBlockTool完全信任模型传入的clarificationId/字段结构
+- 设计新增ClarificationQueryPort只读端口，工具改为查真实Clarification并从questions派生字段
+- 前端提交走delegatedTaskApi.submitInput，inputId用UUID对齐既有幂等逻辑
+- 刷新恢复已知限制：tool-call result不持久化(#11411遗留)，不在本任务修复
+- 设计已写入design.md，🔴高风险任务，等待人类审核后再进入编码
+
+## #11408 设计第二版：修正为 AG-UI 标准 interrupt/resume 协议
+
+📝 2026-09-07 — architect
+
+- 用户提示核对AG-UI官方标准后发现第一版方向错误——另建REST端点绕开了已有协议基础设施
+- 核实react-ag-ui已原生支持AgUiInterrupt{responseSchema}和unstable_getPendingInterrupts/submitInterruptResponses
+- 核实AAF后端RunLifecycleEventConverter已把AUTHORIZATION_REQUESTED投影为标准interrupt(reason="tool_call")
+- reason官方标准值另含"input_required"，正是Clarification场景，此前AguiEvent.Interrupt的responseSchema参数一直传null
+- 第二版：CLARIFICATION_REQUESTED投影为reason="input_required" interrupt，responseSchema从questions()生成JSON Schema
+- resumeRun按interruptId归属分派(先查approval查不到查clarification)，分派到不同应用层入口
+- AssistantApprovalEventService泛化出streamByExecutionId，approval/clarification共用同一轮询实现
+- 前端移除render_ui_block的CHOICE/FORM分支，新增ClarificationInterruptPanel+SchemaForm用官方API
+- 已知限制：不支持多轮部分补充；interrupt状态未持久化刷新不重放，与#11411同根因不在本任务修复
+- 第一版方案（Question元数据扩展/独立REST端点/ClarificationQueryPort按taskId查询）已作废
