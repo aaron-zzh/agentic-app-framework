@@ -121,6 +121,15 @@ public final class ExecutionEventPublicMapper {
                 copyText(source, safe, "replyId");
                 safe.put("contentLength", textLength(source.get("text")));
             }
+            case MODEL_CALL_COMPLETED -> {
+                // AAF-114 #11412 诊断入口：modelId 是 AAF 内部稳定模型规格标识（ModelSpec.modelId），不是
+                // 供应商原始模型名或凭据；token/耗时数据同样是安全展示粒度，不透传 provider 原始 usage 结构。
+                copyText(source, safe, "modelId");
+                copyPositiveLong(source, safe, "inputTokens");
+                copyPositiveLong(source, safe, "outputTokens");
+                copyPositiveLong(source, safe, "cachedTokens");
+                copyDouble(source, safe, "durationSeconds");
+            }
             case TOOL_CALL_STARTED, TOOL_CALL_COMPLETED, TOOL_CALL_FAILED -> {
                 copyText(source, safe, "toolCallId");
                 copyText(source, safe, "toolName");
@@ -196,6 +205,14 @@ public final class ExecutionEventPublicMapper {
         var value = source.get(key);
         if (value instanceof Boolean flag) {
             target.put(key, flag);
+        }
+    }
+
+    private static void copyDouble(
+            Map<String, Object> source, Map<String, Object> target, String key) {
+        var value = source.get(key);
+        if (value instanceof Number number && number.doubleValue() >= 0) {
+            target.put(key, number.doubleValue());
         }
     }
 

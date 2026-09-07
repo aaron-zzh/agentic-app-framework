@@ -15,6 +15,7 @@ import {
   type AttachmentAdapter,
   type CompleteAttachment,
   CompositeAttachmentAdapter,
+  type FeedbackAdapter,
   type PendingAttachment,
   SimpleTextAttachmentAdapter,
   type ThreadMessage,
@@ -41,9 +42,10 @@ interface StoredFile {
 
 const MAX_IMAGE_ATTACHMENT_BYTES = 20 * 1024 * 1024
 const MAX_TEXT_ATTACHMENT_BYTES = 1024 * 1024
+const MAX_DOCUMENT_ATTACHMENT_BYTES = 20 * 1024 * 1024
 
 /** 上传图片到 OSS；URL 作为 AG-UI source，filename 承载服务端文件 key。 */
-class OssImageAttachmentAdapter implements AttachmentAdapter {
+export class OssImageAttachmentAdapter implements AttachmentAdapter {
   accept = "image/jpeg,image/png,image/webp,image/gif"
 
   async add({ file }: { file: File }): Promise<PendingAttachment> {
@@ -53,6 +55,53 @@ class OssImageAttachmentAdapter implements AttachmentAdapter {
     return {
       id: crypto.randomUUID(),
       type: "image",
+      name: file.name,
+      contentType: file.type,
+      file,
+      status: { type: "requires-action", reason: "composer-send" }
+    }
+  }
+
+  async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
+    const form = new FormData()
+    form.append("file", attachment.file)
+    const vo = await backendApi.post<StoredFile>("/system/files/upload", form, {
+      headers: { "Content-Type": undefined as unknown as string }
+    })
+    return {
+      ...attachment,
+      status: { type: "complete" },
+      content: [
+        {
+          type: "file",
+          data: vo.url,
+          mimeType: vo.mimeType ?? attachment.contentType ?? "application/octet-stream",
+          filename: vo.key
+        }
+      ]
+    }
+  }
+
+  async remove() {}
+}
+
+/**
+ * 上传文档（PDF/DOCX/Markdown/HTML/TXT）到 OSS；filename 承载服务端文件 key，服务端按 mimeType 分流到
+ * {@code DocumentAttachmentGuardService} 解析（AAF-114 #11410）。react-ag-ui 按 mimeType 把非图片 file
+ * part 映射为 AG-UI {@code document} content part，与 {@link OssImageAttachmentAdapter} 结构一致，仅
+ * accept 与大小限制不同。
+ */
+export class OssDocumentAttachmentAdapter implements AttachmentAdapter {
+  accept =
+    "application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.pdf,.docx,.md,.markdown,.html,.htm,.txt"
+
+  async add({ file }: { file: File }): Promise<PendingAttachment> {
+    if (file.size > MAX_DOCUMENT_ATTACHMENT_BYTES) {
+      throw new Error("文档不能超过 20MB")
+    }
+    return {
+      id: crypto.randomUUID(),
+      type: "document",
       name: file.name,
       contentType: file.type,
       file,
@@ -97,6 +146,7 @@ class LimitedTextAttachmentAdapter extends SimpleTextAttachmentAdapter {
 
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
+import { renderUiBlockToolkit } from "@/features/chatter/runtime/ui-block/render-ui-block-toolkit"
 import { buildApiUrl } from "@/lib/api/config"
 import {
   chatApi,
@@ -112,7 +162,6 @@ import { OmniVoiceAdapter } from "@/lib/voice/omni-voice-adapter"
 import { aigcToolkit } from "../enhance/AigcGenerateToolUI"
 import { useAgentRunStore } from "./agent-run-store"
 import { applyJsonPatch, type JsonPatchOperation } from "./json-patch"
-import { renderUiBlockToolkit } from "@/features/chatter/runtime/ui-block/render-ui-block-toolkit"
 
 const DEFAULT_AGENT_URL = buildApiUrl("/agui/run")
 
@@ -184,11 +233,18 @@ export function AgUiChatProvider({
     )
   })
 
-  // threadId 变化时写入 sessionStorage
+  // threadId 变化时写入 sessionStorage，并同步到 agent-run-store 供子树组件（如反馈 ActionBar）读取
   useEffect(() => {
     if (currentThreadId) {
       sessionStorage.setItem(THREAD_KEY, currentThreadId)
     }
+    useAgentRunStore.getState().setCurrentThreadId(currentThreadId)
+  }, [currentThreadId])
+
+  // feedbackAdapter.submit 是同步回调，用 ref 读取避免闭包捕获过期的 currentThreadId
+  const currentThreadIdRef = useRef(currentThreadId)
+  useEffect(() => {
+    currentThreadIdRef.current = currentThreadId
   }, [currentThreadId])
 
   // 已登录且无 threadId 时，自动创建一个新 session
@@ -208,7 +264,10 @@ export function AgUiChatProvider({
   useEffect(() => {
     const run = useAgentRunStore.getState()
     const sub = agent.subscribe({
-      onRunStartedEvent: () => run.startRun(),
+      onRunStartedEvent: ({ event }) => {
+        run.startRun()
+        run.setRunId(event.runId)
+      },
       onRunFinishedEvent: () => run.finishRun(),
       onRunErrorEvent: ({ event }) => run.errorRun(event.message),
       onToolCallStartEvent: ({ event }) => run.startTool(event.toolCallName),
@@ -255,6 +314,22 @@ export function AgUiChatProvider({
         }
         if (event.name === "suggestions") {
           run.setSuggestions(event.value as { prompt: string; label?: string }[])
+          return
+        }
+        if (event.name === "aaf.model.completed") {
+          // AAF-114 #11412 诊断入口：CUSTOM 载荷固定包一层 AafAiTaskEvent 信封（见后端
+          // PublicEventFallbackConverter.customValue），业务字段在 value.data 里，不在顶层；
+          // modelId 是 AAF 内部稳定模型标识，非供应商原始模型名，已由 ExecutionEventPublicMapper 白名单放行
+          const value = event.value as AafAiTaskEvent | undefined
+          const data = value?.data
+          run.updateDiagnostic({
+            modelId: typeof data?.modelId === "string" ? data.modelId : undefined,
+            inputTokens: typeof data?.inputTokens === "number" ? data.inputTokens : undefined,
+            outputTokens: typeof data?.outputTokens === "number" ? data.outputTokens : undefined,
+            cachedTokens: typeof data?.cachedTokens === "number" ? data.cachedTokens : undefined,
+            durationSeconds:
+              typeof data?.durationSeconds === "number" ? data.durationSeconds : undefined
+          })
           return
         }
         if (event.name === "ui_block") {
@@ -374,8 +449,23 @@ export function AgUiChatProvider({
     () =>
       new CompositeAttachmentAdapter([
         new OssImageAttachmentAdapter(),
+        new OssDocumentAttachmentAdapter(),
         new LimitedTextAttachmentAdapter()
       ]),
+    []
+  )
+
+  const feedbackAdapter = useMemo<FeedbackAdapter>(
+    () => ({
+      submit: ({ message, type }) => {
+        const threadId = currentThreadIdRef.current
+        if (!threadId) return
+        const { modelId, runId } = useAgentRunStore.getState().diagnostic
+        chatApi
+          .submitMessageFeedback(threadId, message.id, { type, model: modelId, runId })
+          .catch(() => toast.error("反馈提交失败，请重试"))
+      }
+    }),
     []
   )
 
@@ -384,7 +474,12 @@ export function AgUiChatProvider({
     agent,
     onError,
     showThinking,
-    adapters: { threadList, voice: voiceAdapter, attachments: attachmentAdapter }
+    adapters: {
+      threadList,
+      voice: voiceAdapter,
+      attachments: attachmentAdapter,
+      feedback: feedbackAdapter
+    }
   })
 
   const aui = useAui({ tools: Tools({ toolkit: { ...aigcToolkit, ...renderUiBlockToolkit } }) })

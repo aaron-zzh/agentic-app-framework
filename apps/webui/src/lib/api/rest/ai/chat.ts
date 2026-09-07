@@ -79,7 +79,19 @@ export const chatApi = {
 
   /** 获取欢迎页建议问题 */
   getSuggestions: (agentId?: string) =>
-    backendApi.get<{ prompt: string; label?: string }[]>(restEndpoints.ai.chatSuggestions(agentId))
+    backendApi.get<{ prompt: string; label?: string }[]>(restEndpoints.ai.chatSuggestions(agentId)),
+
+  /**
+   * 提交消息反馈（点赞/点踩，AAF-114 #11412）。
+   *
+   * aguiMessageId 是前端 assistant-ui ThreadMessage.id（AI 消息为服务端下发的 replyId:blockId），
+   * 不是数据库自增 id；reason 仅用于负反馈时前端补充采集的原因文本。
+   */
+  submitMessageFeedback: (
+    threadId: string,
+    aguiMessageId: string,
+    params: { type: "positive" | "negative"; reason?: string; model?: string; runId?: string }
+  ) => backendApi.post<void>(restEndpoints.ai.chatMessageFeedback(threadId, aguiMessageId), params)
 }
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"

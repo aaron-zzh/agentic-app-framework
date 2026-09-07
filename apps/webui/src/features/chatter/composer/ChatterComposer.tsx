@@ -9,7 +9,14 @@
 
 "use client"
 
-import { AuiIf, ComposerPrimitive, useAui, useAuiEvent, useAuiState } from "@assistant-ui/react"
+import {
+  AuiIf,
+  ComposerPrimitive,
+  unstable_useComposerInputHistory,
+  useAui,
+  useAuiEvent,
+  useAuiState
+} from "@assistant-ui/react"
 import {
   ArrowUpIcon,
   BrainCircuitIcon,
@@ -76,6 +83,11 @@ export function ChatterComposer({
   const [waveformCtx, setWaveformCtx] = useState<MediaStream | null>(null)
   const composerBoxRef = useRef<HTMLDivElement>(null)
   const voiceBaseTextRef = useRef("")
+
+  // AAF-114 #11412：官方实验 API（unstable_，可能无预警变更），封装其边界——只消费返回的 onKeyDown，
+  // 不额外包装逻辑。已内置处理 IME 组合、编辑态 composer、mention/slash popover 与已 preventDefault
+  // 的宿主 handler，仅在空草稿且光标在首/末行时以 ArrowUp/ArrowDown 召回历史发送过的消息。
+  const inputHistory = unstable_useComposerInputHistory()
 
   const handleVoiceResult = useCallback(
     (text: string) => {
@@ -189,6 +201,7 @@ export function ChatterComposer({
             placeholder="输入消息..."
             className="field-sizing-content max-h-36 w-full resize-none bg-transparent px-3 pt-2.5 pb-2 text-sm leading-5 placeholder:text-muted-foreground focus:outline-none"
             rows={1}
+            {...inputHistory}
           />
 
           {/* 底部工具栏 */}

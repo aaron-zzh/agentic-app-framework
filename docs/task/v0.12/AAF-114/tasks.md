@@ -154,8 +154,10 @@ related:
 
 - **优先级**：P1
 - **风险**：🔴 高 — 人类设计审核后开发
-- **状态**：⏳ 待开始 — architect / developer-service / developer-webui
+- **状态**：✅ 已完成（2026-09-07）— developer-service / developer-webui
 - **依赖**：#11406、#11411
+- **设计产出**：详见 [design.md #11410 详细设计](design.md#11410-详细设计文档附件服务端处理与生产上传体验)。核心方案：新增 `DocumentAttachmentGuardService` 作为解析前门禁（owner/状态/扩展名/MIME/魔数/大小/安全扫描），不改动现有 `ImporterFactory`/`DocumentImporter` 接口，只在各 importer 内部加固页数/ZIP 炸弹/超时限制；新增 `FileSecurityScanPort`（`aaf-framework`）+ 首批 `HeuristicFileSecurityScanAdapter` 启发式实现（不接入外部病毒扫描引擎，已知局限已披露）；新增 `DocumentTokenBudgetSplitter` 做 Token 预算裁剪与 provenance 记录；文档解析结果统一以既有 `Attachment(TEXT,...)` 语义进入执行链路，不扩展 `AttachmentType` 枚举。前端复用 `CompositeAttachmentAdapter` 模式新增 `OssDocumentAttachmentAdapter`。
+- **实现落地与对原设计的调整**：实现过程中通过读取 `react-ag-ui` 源码（`conversions.js`）发现设计假设有误——前端 `file` content part 经转换层按 mimeType 分流后，非图片文件在 AG-UI 协议层的 `type` 字段实际是 `"document"`，不是原设计假设的 `"file"`；已同步修正 `AssistantAguiController.messageInput` 的分流判断（`"document".equals(type)`），避免了一个会导致文档附件永远无法被识别的隐藏缺陷。`HeuristicFileSecurityScanAdapter` 的 ZIP 解压比检测原实现依赖 `ZipEntry.getSize()`，经 shell 实测验证该字段在 `ZipInputStream` 顺序读取 DEFLATED 压缩条目（DOCX 默认压缩方式）时恒为 -1，导致检测在真实场景下完全失效；已修正为边解压边用 buffer 累计实际读出字节数、超阈值提前终止，与 POI `ZipSecureFile` 的检测方式一致，并用构造的高压缩比 ZIP 验证新逻辑生效。`WordImporter` 的 ZIP 炸弹防护改为依赖 POI 内置默认阈值（1% = 100:1，与设计默认值一致），不主动调用全局静态 `ZipSecureFile.setMinInflateRatio`，避免虚拟线程并发场景下的状态竞争。已完成后端单测覆盖 guard 校验分支、五个 importer 加固边界、splitter 截断逻辑与安全扫描适配器；按用户指示本轮不编写前端单测、不执行 `pnpm check:affected`（`OssImageAttachmentAdapter`/`OssDocumentAttachmentAdapter` 已加 `export` 关键字以支持后续测试，是唯一保留的前端改动）。
 - 对话附件扩展 PDF、DOCX、Markdown、HTML、TXT；在 importer 前增加受控解析 façade 并复用 `ImporterFactory`，禁止另建解析器。
 - 校验 owner、状态、扩展名/MIME/魔数一致性、大小、加密/损坏状态；通过 `FileSecurityScanPort` 接入经审核的扫描实现，只有 `CLEAN` 文件可进入 importer，`PENDING`、`UNAVAILABLE`、`INFECTED`、`ERROR` 一律隔离或拒绝，禁止绕过。
 - 限制 PDF 页数、DOCX ZIP entry/解压比、总字符、单段长度、超时和内存，禁止 XXE 与外链资源；不安全输入不得 fallback 到纯文本。
@@ -183,20 +185,22 @@ related:
 
 - **优先级**：P2
 - **风险**：🟡 中
-- **状态**：⏳ 待开始 — product / developer-webui / developer-service
+- **状态**：✅ 已完成（2026-09-07）— developer-service / developer-webui
 - **依赖**：#11411
 - 接入 FeedbackAdapter 与正/负反馈 ActionBar，服务端记录 messageId、原因、model/runId 和执行版本。
 - 封装 `unstable_useComposerInputHistory`，支持空输入时上下键召回且不干扰 IME、编辑态和建议弹层。
 - 在现有 suggestion primitive 上增加标题/描述、fill-only/auto-send、对话后续建议和恢复语义，不重复建设建议状态源。
 - 提供受控的 model、latency/timing、token/credit、runId 诊断入口，默认不暴露敏感 provider metadata。
 - **完成标准**：反馈可追溯；输入历史无数据丢失；建议行为明确；诊断元数据符合权限与脱敏要求。
+- **实现落地与对原设计的调整**：调研过程中发现比预期更深的架构问题——AG-UI 前端 `ThreadMessage.id`（`{replyId}:{blockId}`，`TextMessageEventConverter` 派生）与后端此前持久化时机（`MESSAGE_COMPLETED`）payload 中的 `messageId`（AgentScope `Msg.id`，独立随机 UUID）是两个完全不相关的值（已用本地 `agentscope-java` 源码验证 `Msg.id`/`replyId` 各自独立生成，无关联关系），此前 #11411 落地的纯文本持久化没有建立任何跨端消息标识映射。修复：`AssistantAguiController.startRun` 改为按 `MESSAGE_DELTA` 累积文本、在 `MESSAGE_BLOCK_COMPLETED`（携带 `replyId`+`blockId`）时落库，`ChatService.saveMessageByThreadId` 新增 6 参数重载把 `externalMessageId` 写入 `ConversationMessage.payload`（`{"aguiMessageId": "..."}`），`ConversationMessageRepository` 新增 `findByConversationIdAndAguiMessageId`（PostgreSQL JSONB `->>` 查询）建立反查。反馈不新建表，新建 `MessageFeedbackService`（`chat.message.service`）写入既有 `metadata` 列；删除死代码——旧 `ChatController.messageFeedback`（`Long messageId` 路径，前端零调用，与 AG-UI 字符串 ID 体系不兼容）按禁兼容层原则直接移除不保留双路径，新端点 `POST /sessions/thread/{threadId}/messages/{aguiMessageId}/feedback`。诊断入口过程中发现并修复真实缺陷：`ExecutionEventPublicMapper.safeData` 白名单原本缺失 `MODEL_CALL_COMPLETED` 分支，`modelId`/token/耗时数据永远无法透出到公开 CUSTOM 事件；已补齐分支与 `copyDouble` 辅助方法。前端确认 CUSTOM 载荷信封结构（安全字段在 `value.data`，与既有 `aaf.role.resolved` 读取方式一致）后接入 `agent-run-store.diagnostic`，`DiagnosticInfoButton` 只在 `message.isLast` 时展示避免历史消息误显示。建议行为增量（标题/描述/autoSend）与输入历史封装均为薄接线，未发现架构问题。已知限制：#11411 遗留的完整消息信封（tool-call/attachment 结构化 payload）仍未实现；"对话后续建议"的后端动态生成逻辑（调模型/规则引擎）超出本轮范围，只交付前端展示能力。按用户指示本轮不新增数据库迁移、不执行 `pnpm check:affected`、不编写测试。
 
 ### #11413 Interactables、MCP Apps 与页面协同评估
 
 - **优先级**：P2
 - **风险**：🟡 中（仅评估）
-- **状态**：⏳ 待开始 — architect / designer / qa
+- **状态**：✅ 已完成（2026-09-07）— architect
 - **依赖**：#11407、#11411
+- **评估产出**：详见 [design.md #11413 评估](design.md#11413-评估interactables、mcp-apps-与页面协同)。Interactables 关键发现（读 `@assistant-ui/core` 源码确认）：AI 更新通过框架自动生成的 `update_{name}` 前端工具直调 `setDefState`，**完全绕过服务端，无内建 HITL/权限拦截点**；AAF 代码库当前零使用。矩阵结论：仅适用于纯前端 UI 偏好/未提交草稿/无需审批字段，禁用于服务端权威实体（TaskBoard/ExecutorPlan/Clarification）与需审批的敏感操作。MCP Apps（SEP-1865）经调研确认是 2025-11 提出的协议**草案**扩展，与 AAF 已有的标准 MCP 工具调用能力（`McpConnectionService`）是不同能力层；结论为草案阶段+无业务场景驱动，本轮不深入接入细节，暂不实现。低风险试点方案：`features/aigc/copywriting/CopywritingParamsBar.tsx`（Zustand 管理的 3 个纯 UI 参数），范围严格限定不含持久化、不接入 `CopywritingEditor`/`StoryboardPanel`。
 - 评估表单预填、画布、项目面板等页面外组件是否适合 assistant-ui Interactables。
 - Interactable 只保存页面 UI 草稿；服务端实体、TaskBoard、ExecutorPlan 不复制进本地状态。
 - AI 更新必须调用受权工具并经过现有权限/HITL，不允许前端自动生成工具绕开策略。

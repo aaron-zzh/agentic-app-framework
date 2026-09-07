@@ -42,6 +42,8 @@ export const restEndpoints = {
     chatSessionUnarchive: (threadId: string) =>
       `/system/chat/sessions/thread/${threadId}/unarchive`,
     chatSessionDelete: (threadId: string) => `/system/chat/sessions/thread/${threadId}`,
+    chatMessageFeedback: (threadId: string, aguiMessageId: string) =>
+      `/system/chat/sessions/thread/${threadId}/messages/${encodeURIComponent(aguiMessageId)}/feedback`,
     chatMessages: "/system/chat/messages",
     chatSuggestions: (agentId?: string) =>
       `/system/chat/suggestions${agentId ? `?agentId=${agentId}` : ""}`,

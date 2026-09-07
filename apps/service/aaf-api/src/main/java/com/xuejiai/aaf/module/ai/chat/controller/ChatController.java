@@ -28,6 +28,7 @@ import com.xuejiai.aaf.module.ai.chat.vo.ChatSessionVO;
 import com.xuejiai.aaf.module.ai.chat.vo.IntentClassifyDTO;
 import com.xuejiai.aaf.module.ai.chat.vo.IntentResult;
 import com.xuejiai.aaf.module.ai.chat.vo.MessageFeedbackDTO;
+import com.xuejiai.aaf.module.chat.message.service.MessageFeedbackService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -51,6 +52,7 @@ public class ChatController {
     private final IntentService intentService;
     private final OperatorContext operatorContext;
     private final WelcomeSuggestionService welcomeSuggestionService;
+    private final MessageFeedbackService messageFeedbackService;
 
     @Operation(summary = "意图识别")
     @PostMapping("/intent")
@@ -152,11 +154,13 @@ public class ChatController {
         return Result.success();
     }
 
-    @Operation(summary = "消息反馈（点赞/点踩）")
-    @PostMapping("/messages/{messageId}/feedback")
-    public Result<Void> messageFeedback(
-            @PathVariable Long messageId, @RequestBody @Validated MessageFeedbackDTO dto) {
-        chatService.messageFeedback(messageId, dto.type(), dto.comment());
+    @Operation(summary = "消息反馈（点赞/点踩，按 threadId + AG-UI messageId，AAF-114 #11412）")
+    @PostMapping("/sessions/thread/{threadId}/messages/{aguiMessageId}/feedback")
+    public Result<Void> submitMessageFeedback(
+            @PathVariable String threadId,
+            @PathVariable String aguiMessageId,
+            @RequestBody @Validated MessageFeedbackDTO dto) {
+        messageFeedbackService.submit(threadId, aguiMessageId, dto);
         return Result.success();
     }
 

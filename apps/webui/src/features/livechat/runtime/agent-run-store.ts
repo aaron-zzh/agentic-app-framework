@@ -15,10 +15,37 @@ export interface AgentRunEntry {
   timestamp: number
 }
 
-/** 对话建议条目 */
+/**
+ * 单次模型调用的诊断信息（AAF-114 #11412）——只保留可安全展示给用户的字段。
+ *
+ * 数据源为后端 `aaf.model.completed` CUSTOM 事件，`modelId` 是 AAF 内部模型标识（不是供应商原始模型名），
+ * 不携带任何 provider 凭据、原始 API 响应或内部路由细节，默认可直接展示。
+ */
+export interface DiagnosticInfo {
+  runId?: string
+  modelId?: string
+  inputTokens?: number
+  outputTokens?: number
+  cachedTokens?: number
+  durationSeconds?: number
+}
+
+/**
+ * 对话建议条目（AAF-114 #11412 增量：标题/描述/fill-only 自 auto-send/恢复语义）。
+ *
+ * `label` 保留兼容旧用法（无 title 时的展示文案回退）；`title`/`description` 是新增的结构化展示字段。
+ * `autoSend` 缺省为 true（保持既有欢迎页建议全部自动发送的行为不变）；显式传 false 时点击只填入
+ * composer 不自动发送（fill-only），适合需要用户先编辑再发送的建议场景。
+ */
 export interface AgentSuggestion {
   prompt: string
   label?: string
+  /** 建议标题，展示优先级高于 label/prompt */
+  title?: string
+  /** 建议描述，标题下方的补充说明 */
+  description?: string
+  /** 点击后是否自动发送；缺省 true，与现有欢迎页建议行为一致 */
+  autoSend?: boolean
 }
 
 /** AIGC 异步任务卡片（通过 ui_block CustomEvent 写入） */
@@ -63,6 +90,10 @@ interface AgentRunState {
   aigcTasks: AigcTaskCard[]
   subTaskActivities: Record<string, SubTaskActivity>
   selectedRole: SelectedRole | null
+  /** 当前活跃 AG-UI 线程 ID（AAF-114 #11412），供反馈等需要跨组件层级关联当前会话的场景读取 */
+  currentThreadId: string | undefined
+  /** 最近一次模型调用的诊断信息（AAF-114 #11412），run 开始时清空，收到 aaf.model.completed 时更新 */
+  diagnostic: DiagnosticInfo
   startRun: () => void
   finishRun: () => void
   errorRun: (message?: string) => void
@@ -74,6 +105,9 @@ interface AgentRunState {
   updateAigcTask: (taskId: number, patch: Partial<AigcTaskCard>) => void
   upsertSubTaskActivity: (activity: SubTaskActivity) => void
   setSelectedRole: (role: SelectedRole) => void
+  setCurrentThreadId: (threadId: string | undefined) => void
+  setRunId: (runId: string | undefined) => void
+  updateDiagnostic: (patch: Partial<DiagnosticInfo>) => void
 }
 
 const MAX_ENTRIES = 50
@@ -91,6 +125,11 @@ export const useAgentRunStore = create<AgentRunState>((set) => ({
   aigcTasks: [],
   subTaskActivities: {},
   selectedRole: null,
+  currentThreadId: undefined,
+  diagnostic: {},
+  setCurrentThreadId: (threadId) => set({ currentThreadId: threadId }),
+  setRunId: (runId) => set((s) => ({ diagnostic: { ...s.diagnostic, runId } })),
+  updateDiagnostic: (patch) => set((s) => ({ diagnostic: { ...s.diagnostic, ...patch } })),
   startRun: () =>
     set({
       phase: "running",
@@ -98,7 +137,8 @@ export const useAgentRunStore = create<AgentRunState>((set) => ({
       entries: [],
       suggestions: [],
       subTaskActivities: {},
-      selectedRole: null
+      selectedRole: null,
+      diagnostic: {}
     }),
   finishRun: () => set({ phase: "finished", activeTool: null }),
   errorRun: (message) =>

@@ -42,16 +42,22 @@ import {
   CopyIcon,
   FileTextIcon,
   ImageIcon,
+  InfoIcon,
   LinkIcon,
   PencilIcon,
   Play,
   RefreshCwIcon,
+  ThumbsDownIcon,
+  ThumbsUpIcon,
   XIcon
 } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Textarea } from "@/components/ui/textarea"
 import { deriveVoiceOrbState, VoiceControl, VoiceOrb } from "@/components/voice"
-import { useAgentRunStore } from "@/features/livechat/runtime/agent-run-store"
+import { type AgentSuggestion, useAgentRunStore } from "@/features/livechat/runtime/agent-run-store"
 import { SpeechOutput } from "@/features/livechat/voice/SpeechOutput"
 import { chatApi } from "@/lib/api/rest/ai"
 import { useAuthStore } from "@/lib/store/auth-store"
@@ -218,7 +224,124 @@ function BranchPicker() {
   )
 }
 
-/** AI 消息操作栏：复制 + 重新生成 */
+/** 负反馈原因弹出输入框：点击后展示补充原因 Popover，提交后调用反馈接口（AAF-114 #11412） */
+function NegativeFeedbackButton() {
+  const message = useMessage()
+  const currentThreadId = useAgentRunStore((s) => s.currentThreadId)
+  const diagnostic = useAgentRunStore((s) => s.diagnostic)
+  const [open, setOpen] = useState(false)
+  const [reason, setReason] = useState("")
+  const [submitted, setSubmitted] = useState(false)
+
+  const handleSubmit = useCallback(() => {
+    if (!currentThreadId) return
+    chatApi
+      .submitMessageFeedback(currentThreadId, message.id, {
+        type: "negative",
+        reason: reason.trim() || undefined,
+        model: diagnostic.modelId,
+        runId: diagnostic.runId
+      })
+      .then(() => {
+        setSubmitted(true)
+        setOpen(false)
+      })
+      .catch(() => toast.error("反馈提交失败，请重试"))
+  }, [currentThreadId, message.id, reason, diagnostic.modelId, diagnostic.runId])
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+        aria-label="点踩并说明原因"
+      >
+        {submitted ? (
+          <ThumbsDownIcon className="size-3.5 fill-current" />
+        ) : (
+          <ThumbsDownIcon className="size-3.5" />
+        )}
+      </PopoverTrigger>
+      <PopoverContent className="w-64 space-y-2" align="start">
+        <p className="text-muted-foreground text-xs">这个回答有什么问题？（可选）</p>
+        <Textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="告诉我们具体问题，帮助改进"
+          rows={3}
+          className="text-sm"
+        />
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>
+            取消
+          </Button>
+          <Button type="button" size="sm" onClick={handleSubmit}>
+            提交
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+/**
+ * 诊断信息按钮：受控展示 model/token/耗时/runId（AAF-114 #11412）。
+ *
+ * 默认不展开，点击才展示；数据源已在服务端脱敏（ExecutionEventPublicMapper 白名单），不含 provider 凭据、
+ * 原始 API 响应或内部路由细节。diagnostic 是 run 级全局状态（非按消息持久化的历史数据），只在本次 run 产出的
+ * 最后一条消息下展示，避免历史消息误显示成最新一次 run 的数据。
+ */
+function DiagnosticInfoButton() {
+  const diagnostic = useAgentRunStore((s) => s.diagnostic)
+  const isLast = useAuiState((s) => s.message.isLast)
+  if (!isLast || (!diagnostic.modelId && diagnostic.inputTokens === undefined)) return null
+
+  return (
+    <Popover>
+      <PopoverTrigger
+        className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+        aria-label="查看诊断信息"
+      >
+        <InfoIcon className="size-3.5" />
+      </PopoverTrigger>
+      <PopoverContent className="w-56 space-y-1 text-xs" align="start">
+        {diagnostic.modelId && (
+          <div className="flex justify-between gap-2">
+            <span className="text-muted-foreground">模型</span>
+            <span className="truncate font-mono">{diagnostic.modelId}</span>
+          </div>
+        )}
+        {(diagnostic.inputTokens !== undefined || diagnostic.outputTokens !== undefined) && (
+          <div className="flex justify-between gap-2">
+            <span className="text-muted-foreground">Token</span>
+            <span className="font-mono">
+              {diagnostic.inputTokens ?? 0} / {diagnostic.outputTokens ?? 0}
+            </span>
+          </div>
+        )}
+        {diagnostic.cachedTokens !== undefined && diagnostic.cachedTokens > 0 && (
+          <div className="flex justify-between gap-2">
+            <span className="text-muted-foreground">缓存 Token</span>
+            <span className="font-mono">{diagnostic.cachedTokens}</span>
+          </div>
+        )}
+        {diagnostic.durationSeconds !== undefined && (
+          <div className="flex justify-between gap-2">
+            <span className="text-muted-foreground">耗时</span>
+            <span className="font-mono">{diagnostic.durationSeconds.toFixed(2)}s</span>
+          </div>
+        )}
+        {diagnostic.runId && (
+          <div className="flex justify-between gap-2">
+            <span className="text-muted-foreground">Run ID</span>
+            <span className="truncate font-mono">{diagnostic.runId}</span>
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+/** AI 消息操作栏：复制 + 重新生成 + 反馈（AAF-114 #11412） */
 function AssistantActionBar() {
   return (
     <ActionBarPrimitive.Root
@@ -248,6 +371,22 @@ function AssistantActionBar() {
           <RefreshCwIcon className="size-3.5" />
         </button>
       </ActionBarPrimitive.Reload>
+      <ActionBarPrimitive.FeedbackPositive asChild>
+        <button
+          type="button"
+          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+          aria-label="点赞"
+        >
+          <AuiIf condition={(s) => s.message.metadata.submittedFeedback?.type === "positive"}>
+            <ThumbsUpIcon className="size-3.5 fill-current" />
+          </AuiIf>
+          <AuiIf condition={(s) => s.message.metadata.submittedFeedback?.type !== "positive"}>
+            <ThumbsUpIcon className="size-3.5" />
+          </AuiIf>
+        </button>
+      </ActionBarPrimitive.FeedbackPositive>
+      <NegativeFeedbackButton />
+      <DiagnosticInfoButton />
     </ActionBarPrimitive.Root>
   )
 }
@@ -441,9 +580,26 @@ const DEFAULT_SUGGESTIONS = [
   { prompt: "如何使用知识库？" }
 ]
 
+/** 单条建议渲染（AAF-114 #11412）：优先展示 title/description，无则回退 label/prompt；autoSend 缺省 true。 */
+function SuggestionItem({ suggestion }: { suggestion: AgentSuggestion }) {
+  const heading = suggestion.title ?? suggestion.label ?? suggestion.prompt
+  return (
+    <ThreadPrimitive.Suggestion
+      prompt={suggestion.prompt}
+      autoSend={suggestion.autoSend ?? true}
+      className="flex w-fit flex-col gap-0.5 rounded-2xl border px-4 py-2 text-left text-sm hover:bg-muted"
+    >
+      <span className="font-medium">{heading}</span>
+      {suggestion.description && (
+        <span className="text-muted-foreground text-xs">{suggestion.description}</span>
+      )}
+    </ThreadPrimitive.Suggestion>
+  )
+}
+
 /** 欢迎页——对话为空时显示 */
 function WelcomeScreen() {
-  const [suggestions, setSuggestions] = useState(DEFAULT_SUGGESTIONS)
+  const [suggestions, setSuggestions] = useState<AgentSuggestion[]>(DEFAULT_SUGGESTIONS)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const dynamicSuggestions = useAgentRunStore((s) => s.suggestions)
   const displayed = dynamicSuggestions.length > 0 ? dynamicSuggestions : suggestions
@@ -463,16 +619,28 @@ function WelcomeScreen() {
       <p className="text-muted-foreground text-sm">有什么可以帮你？</p>
       <div className="flex flex-col gap-2">
         {displayed.map((s) => (
-          <ThreadPrimitive.Suggestion
-            key={s.prompt}
-            prompt={s.prompt}
-            autoSend
-            className="w-fit cursor-pointer rounded-full border px-4 py-1.5 text-sm hover:bg-muted"
-          >
-            {(s as { prompt: string; label?: string }).label ?? s.prompt}
-          </ThreadPrimitive.Suggestion>
+          <SuggestionItem key={s.prompt} suggestion={s} />
         ))}
       </div>
+    </div>
+  )
+}
+
+/**
+ * 对话后续建议（AAF-114 #11412）：非空对话中展示服务端推送的建议，与欢迎页共用同一 agent-run-store
+ * suggestions 状态源，不建立第二套建议状态。列表本身不因用户点击而清除——服务端下一次推送新建议前，
+ * 已展示的建议持续可点击（恢复语义：用户清空 composer 后仍能看到并重新选择同一批建议）。
+ */
+function FollowUpSuggestions() {
+  const suggestions = useAgentRunStore((s) => s.suggestions)
+  const phase = useAgentRunStore((s) => s.phase)
+  if (suggestions.length === 0 || phase === "running") return null
+
+  return (
+    <div className="flex flex-col gap-2 px-1 py-2">
+      {suggestions.map((s) => (
+        <SuggestionItem key={s.prompt} suggestion={s} />
+      ))}
     </div>
   )
 }
@@ -496,6 +664,9 @@ export function ChatterThread({ showThinking }: { showThinking: boolean }) {
             )
           }
         </ThreadPrimitive.Messages>
+
+        {/* 对话后续建议（AAF-114 #11412）：非空对话场景下展示服务端推送的建议，与欢迎页建议共用同一状态源 */}
+        <FollowUpSuggestions />
 
         {/* 滚动到底部按钮 */}
         <ThreadPrimitive.ViewportFooter className="sticky bottom-0 flex justify-center pb-2">

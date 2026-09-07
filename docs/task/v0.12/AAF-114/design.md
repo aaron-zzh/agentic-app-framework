@@ -652,6 +652,217 @@ public void onUserMessage(UserMessageEvent event) {
   并且超限、加密、损坏或不支持文件得到明确错误，不静默截断或降级解析
 ```
 
+## #11410 详细设计：文档附件服务端处理与生产上传体验
+
+> 本章基于对现有代码的调研补齐 #11410 的可评审细节。调研结论：`ImporterFactory`/`DocumentImporter`（`PdfImporter`/`WordImporter`/`MarkdownImporter`/`HtmlImporter`/`PlainTextImporter`）当前**零安全防护**——无大小/页数/ZIP 炸弹/超时/XXE 限制，`WordImporter`/`PdfImporter` 直接把整个输入流交给 POI/PDFBox 解析；`FileSecurityScanPort` 在代码库中完全不存在，只在设计文档提到；`AssistantExecutionRequest.AttachmentType` 只有 `TEXT`/`IMAGE` 两个枚举值；`FileRecord` 已有 `contentHash`（SHA-256）、`mimeType`、`size`、`storageStatus` 字段，但无魔数校验和扫描状态字段；`UploadPolicy` 已有 MIME/扩展名双重主动内容黑名单机制（可复用同一模式做白名单校验），但无魔数一致性校验。`pom.xml` 已锁定 `pdfbox 3.0.4`、`poi-ooxml`（版本由 BOM 管理）、`commonmark 0.28.0`、`jsoup 1.18.3`，均已在用，不新增文档解析库依赖。
+
+### 设计原则
+
+1. **解析前门禁，不改 importer 内部**：新增 `DocumentAttachmentGuardService`（`aaf-api`，`module.ai.assistant.document` 包）作为唯一入口，在调用 `ImporterFactory.getImporter().importDocument()` 之前完成owner/状态/扩展名/MIME/魔数/大小/加密校验和安全扫描；`ImporterFactory` 与五个 `DocumentImporter` 实现类**不改动接口**，只在各 importer 内部补充解析期资源限制（页数/ZIP 炸弹/XXE/超时），这是对现有实现的加固，不是替换。
+2. **安全扫描是独立端口，允许审核后接入具体实现**：`FileSecurityScanPort` 定义在 `aaf-framework`（与 `FileStoragePort` 同层级），首批只提供一个基于文件大小/魔数/压缩比的启发式默认实现（`HeuristicFileSecurityScanAdapter`），不引入 ClamAV 等外部依赖（避免引入未评估的第三方服务依赖）；预留端口边界使后续接入真实扫描引擎时只需替换适配器，不改调用方。
+3. **不新建平行的文档解析器**：文本内容统一通过既有 `Attachment(TEXT, ...)` 语义进入 `AssistantExecutionService.parseAttachments`，只是 `TEXT` 附件的来源从"客户端直传纯文本"扩展为"服务端解析文档后的清理文本"；不新增 `AttachmentType.DOCUMENT` 走独立链路，而是在 `AssistantAguiController`/前端组合适配器层区分"图片/纯文本/文档"三种输入形态，文档在服务端解析完成后统一以 `TEXT` 附件形式进入执行链路。
+
+### 后端：解析前门禁流程
+
+```text
+上传（复用现有 /system/files/upload，无需新端点）
+  → FileRecord 落库（现状不变，contentHash/mimeType/size 已具备）
+  → 对话执行请求携带 Attachment(DOCUMENT, resourceId=fileKey)
+  → DocumentAttachmentGuardService.guard(fileKey)
+      1. owner 校验：requireCurrentOwnerByKey（复用 FileStoragePort，与 VisionMediaResolver 同模式）
+      2. 状态校验：storageStatus 必须 ACTIVE（非 PENDING_DELETE/DELETED）
+      3. 扩展名/MIME 白名单交叉校验：pdf↔application/pdf、docx↔.../wordprocessingml.document、
+         md/markdown↔text/markdown、html/htm↔text/html、txt↔text/plain
+      4. 魔数校验（新增 DocumentMagicBytes 工具类）：
+         - PDF: 首 5 字节 "%PDF-"
+         - DOCX: 首 4 字节 ZIP local file header "PK\x03\x04"
+         - MD/HTML/TXT：不做魔数校验（纯文本容器，扩展名+MIME+UTF-8 可解码性即视为通过）
+      5. 大小校验：复用 UploadLimits.maxSizeBytes()，文档场景额外加一层更小的上限
+         （新增 DocumentSizeLimits 配置，默认 20MB，小于图片上限，文档解析成本更高）
+      6. 安全扫描：调用 FileSecurityScanPort.scan(fileKey)，只有返回 CLEAN 放行
+  → ImporterFactory.getImporter(filename).importDocument(input, filename)
+      （PdfImporter/WordImporter/... 内部已加固资源限制，见下节）
+  → DocumentContentSanitizer 清理 Unicode/HTML 残留/空白/控制字符
+  → DocumentTokenBudgetSplitter 按预算分块/生成摘要
+  → Attachment(TEXT, name=原始文件名, content=清理后文本)
+  → 进入既有 AssistantExecutionService.parseAttachments TEXT 分支（不改该方法签名）
+```
+
+### FileSecurityScanPort 契约
+
+```java
+// apps/service/aaf-framework/.../engine/knowledge/security/FileSecurityScanPort.java（新增）
+
+/**
+ * 文件安全扫描端口——文档解析前的恶意内容检测边界。
+ *
+ * <p>只有 {@link ScanStatus#CLEAN} 允许进入 {@link com.xuejiai.aaf.framework.engine.knowledge.importer.ImporterFactory}
+ * 解析；{@code PENDING}、{@code UNAVAILABLE}、{@code INFECTED}、{@code ERROR} 一律隔离或拒绝，禁止在扫描不可用时降级放行。
+ */
+public interface FileSecurityScanPort {
+
+    ScanResult scan(byte[] content, String filename, String mimeType);
+
+    enum ScanStatus {
+        CLEAN,
+        INFECTED,
+        PENDING,
+        UNAVAILABLE,
+        ERROR
+    }
+
+    record ScanResult(ScanStatus status, String scannerName, String scannerVersion, String detail) {}
+}
+```
+
+**首批默认实现**（`aaf-api`，`HeuristicFileSecurityScanAdapter implements FileSecurityScanPort`）：不接入外部扫描引擎，只做确定性启发式检测——ZIP 类文件（DOCX）解压比超过 100:1 判定 `INFECTED`（zip bomb 特征）；解析期抛出的 XML 外部实体引用尝试判定 `INFECTED`（复用下节的 XXE 防护，检测到即扫描判负）；其余情况判定 `CLEAN`。**已知局限**：不做特征码病毒扫描，无法检测传统意义的恶意软件负载；这是有意的范围收窄，真实病毒扫描能力（如 ClamAV 集成）留作后续任务，因为引入外部扫描服务是新增运行时依赖，需要单独的部署与运维评估，不适合在本任务隐式引入。此局限必须在完工汇报中向人类明确披露。
+
+### 解析期资源限制（加固现有 importer，不改接口）
+
+| Importer | 新增限制 | 实现方式 |
+|----------|---------|---------|
+| `PdfImporter` | 页数上限（默认 200 页）；总字符上限；单次解析超时（默认 30s） | 解析前 `doc.getNumberOfPages()` 校验；`CompletableFuture.supplyAsync(...).get(timeout)` 包裹解析调用 |
+| `WordImporter` | DOCX ZIP entry 数量上限（默认 1000）；解压比上限（默认 100:1）；总字符上限 | 用 `ZipSecureFile.setMinInflateRatio`（POI 内置 API，专为此设计）在读取前设置阈值，超限 POI 自身抛 `IOException` |
+| `MarkdownImporter`/`HtmlImporter` | 总字符上限；`HtmlImporter` 禁用外链资源解析（Jsoup 默认不发起网络请求，需确认未启用 `Connection` 相关 API） | 读取字节数超限直接拒绝；确认现有实现未调用 `Jsoup.connect()` |
+| `PlainTextImporter` | 总字符上限 | 读取后长度校验 |
+| 所有 importer | XXE 防护 | PDFBox/POI/Jsoup 均不默认解析外部 DTD；`commonmark`（Markdown）纯文本语法无 XML 实体概念，天然不受影响；仍在 `DocumentAttachmentGuardService` 层加一道 XML 特征字符串探测（`<!DOCTYPE`/`<!ENTITY`）作为纵深防御 |
+
+单段长度上限（防止单个 `DocumentSection.content()` 过大挤占 Token 预算）在 `DocumentTokenBudgetSplitter` 阶段统一处理，不在各 importer 内重复实现。
+
+**实施边界说明**：上表限制值（200 页、1000 entry、100:1、30s、20MB）是本设计给出的默认值提案，供人类审核时确认或调整，不是最终不可变的硬编码——落地时会作为 `@ConfigurationProperties` 暴露，允许运维按环境调整。
+
+### Token 预算分块与 provenance
+
+```java
+// apps/service/aaf-api/.../module/ai/assistant/document/DocumentTokenBudgetSplitter.java（新增）
+
+/**
+ * 文档内容 Token 预算裁剪器——把 {@link ImportResult} 的段落列表按预算裁剪为可审计的最终文本。
+ *
+ * <p>裁剪策略：优先保留标题（{@code level > 0}）与前 N 段正文；超预算时后续段落截断并在末尾追加
+ * provenance 说明（不静默丢弃、不生成摘要伪装成完整内容——{@code AAF-114} design.md 总纲明确禁止
+ * "不安全输入不得 fallback 到纯文本"，这里对应的是"截断必须显式声明为截断"）。
+ */
+public record DocumentTokenBudgetSplitter(int maxCharsPerAttachment, int maxCharsPerSection) {
+
+    public SplitResult split(ImportResult result, String resourceId, String contentHash, String importerName) {
+        // 按 maxCharsPerSection 裁剪超长单段，按 maxCharsPerAttachment 裁剪总量
+        // 返回值携带 truncated 标记与 provenance，供 Attachment(TEXT) 的 name/content 组装使用
+        ...
+    }
+
+    public record SplitResult(
+            String content,
+            boolean truncated,
+            Provenance provenance) {}
+
+    /** 输出 provenance——记录 opaque resource ID、content hash、importer 名称/版本与截断状态。 */
+    public record Provenance(
+            String resourceId,
+            String contentHash,
+            String importerName,
+            String importerVersion,
+            boolean truncated,
+            int originalCharacters,
+            int deliveredCharacters) {}
+}
+```
+
+`Provenance` 不直接拼入模型可见文本（避免 provenance 元信息污染上下文语义），而是作为 `TextMaterial` 之外的旁路日志字段记录（复用现有 `AssistantExecutionService` 已有的执行审计日志模式，不新建审计表）。`resourceId` 直接是 `FileRecord.key`（opaque file key，与 `VisionMediaResolver` 一致的做法，不额外发明新 ID 体系）。
+
+**Token 预算默认值**：单文件最大字符数默认 50,000（约合中文 3-4 万 token），单段最大 5,000 字符，与 `KnowledgeOptions` 现有的 RAG 分块思路对齐但独立配置（文档附件是任务级临时材料，不入库，不与知识库分块策略耦合）。
+
+### 前端上传体验
+
+复用 `CompositeAttachmentAdapter` 组合模式，新增 `OssDocumentAttachmentAdapter`（与 `OssImageAttachmentAdapter` 同结构，扩展 `accept` 为 `.pdf,.docx,.md,.markdown,.html,.htm,.txt`）：
+
+```ts
+// apps/webui/src/features/livechat/runtime/ag-ui-runtime.tsx（扩展现有文件，不新建组件）
+
+const MAX_DOCUMENT_ATTACHMENT_BYTES = 20 * 1024 * 1024
+const MAX_DOCUMENT_COUNT_PER_MESSAGE = 5
+
+class OssDocumentAttachmentAdapter implements AttachmentAdapter {
+  accept = ".pdf,.docx,.md,.markdown,.html,.htm,.txt," +
+    "application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+  async add({ file }: { file: File }): Promise<PendingAttachment> {
+    if (file.size > MAX_DOCUMENT_ATTACHMENT_BYTES) {
+      throw new Error("文档不能超过 20MB")
+    }
+    // status: requires-action 复用现有"发送时上传"模式，与 OssImageAttachmentAdapter 一致
+    return { id: crypto.randomUUID(), type: "document", name: file.name, contentType: file.type, file,
+      status: { type: "requires-action", reason: "composer-send" } }
+  }
+
+  async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
+    // 复用同一 /system/files/upload 端点；content part 类型为 file，filename 携带 fileKey，
+    // 与图片路径一致，服务端在 AssistantAguiController 按 mimeType 分流到 DOCUMENT 而非 IMAGE 处理
+    ...
+  }
+
+  async remove() {}
+}
+```
+
+**上传进度/取消**：`AttachmentAdapter.send` 已是 Promise 语义，assistant-ui 原生支持 pending 态展示（现有图片/文本附件已复用该机制）；取消通过 `AbortController` 传入底层 `backendApi.post` 调用（需确认 `backendApi` 是否已支持 signal 参数，若未支持则在本任务补充，是对现有 HTTP 封装的最小扩展，不算 broad refactor）。
+
+**失败重试**：`PendingAttachment.status` 置为 `{type: "requires-action", reason: "composer-send"}` 即可让用户重新触发发送态，复用现有 Composer 的失败态 UI（已存在于 `ChatterComposer.tsx`），不新建重试组件。
+
+**总数量/总大小限制**：`MAX_DOCUMENT_COUNT_PER_MESSAGE`（默认 5）在 `CompositeAttachmentAdapter` 层做前端提示校验；服务端在 `AssistantExecutionService.parseAttachments` 现有循环中补充一次总数校验（复用 `EXECUTION_INPUT_VARIABLE_LIMIT_EXCEEDED` 同类模式新增错误码），双端校验，前端提示不能替代服务端拒绝（与 VISION 模型校验的既有原则一致）。
+
+**已发送附件不可静默删除**：文档一旦随消息发出即进入 `FileRecord`（已通过 `retain`/`FileReference` 机制与业务对象绑定），复用现有文件引用生命周期，不新建文档专属的持久化删除保护——发送后的附件条目在 UI 层禁用删除按钮即可（前端展示层限制，服务端已有的 `release`/`requestDelete` 机制本身要求存在 `FileReference` 才会真正物理删除，双重保障）。
+
+**可访问预览**：文档附件展示为文件名+图标（不做内容预览渲染，PDF/DOCX 预览渲染是独立的复杂功能，超出本任务"上传体验"范围），点击可通过 `getAccessibleUrl`/`prepareCurrentOwnerExternalAccessByKey` 下载原文件查看，复用现有文件访问链路。
+
+### AssistantAguiController 分流扩展
+
+现有 `AssistantAguiController` 从 AG-UI 消息按 `image` content part 解析出 `Attachment(IMAGE, ...)`；本任务新增按 `file` content part 但 `mimeType` 匹配文档类型时解析为待处理的文档附件标识，交给 `DocumentAttachmentGuardService` 处理后转为 `Attachment(TEXT, ...)`——文档解析发生在请求组装阶段（同步，在进入 Agent 执行前完成），不是异步任务，超时限制（每文件 30s）保证整体请求延迟可控。
+
+**错误码扩展**（沿用 `AssistantErrorCode` 现有连续编号风格，新增于文件末尾）：
+
+```java
+ErrorCode EXECUTION_DOCUMENT_ATTACHMENT_TOO_LARGE = ErrorCode.of(7_003_0xx, "文档附件超过大小限制");
+ErrorCode EXECUTION_DOCUMENT_ATTACHMENT_TYPE_MISMATCH = ErrorCode.of(7_003_0xx, "文档扩展名与实际内容不一致");
+ErrorCode EXECUTION_DOCUMENT_ATTACHMENT_SCAN_REJECTED = ErrorCode.of(7_003_0xx, "文档未通过安全扫描");
+ErrorCode EXECUTION_DOCUMENT_ATTACHMENT_PARSE_TIMEOUT = ErrorCode.of(7_003_0xx, "文档解析超时");
+ErrorCode EXECUTION_DOCUMENT_ATTACHMENT_ENCRYPTED_OR_CORRUPTED = ErrorCode.of(7_003_0xx, "文档已加密或已损坏");
+ErrorCode EXECUTION_DOCUMENT_ATTACHMENT_COUNT_LIMIT_EXCEEDED = ErrorCode.of(7_003_0xx, "单次请求文档附件数量超限");
+```
+
+（具体编号在实现阶段按 `AssistantErrorCode` 当前最大值顺延分配，此处用 `0xx` 占位。）
+
+### 与既有机制的边界重申
+
+- 不新建第二套文档解析器：五类格式仍由现有 `PdfImporter`/`WordImporter`/`MarkdownImporter`/`HtmlImporter`/`PlainTextImporter` 解析，本任务只加固其调用前后的安全边界。
+- 不改 `ImporterFactory`/`DocumentImporter` 接口签名：新增的页数/ZIP 炸弹/超时限制是各实现类内部的私有加固，接口契约不变，`ImporterFactory` 无需改动。
+- 不扩展 `AssistantExecutionRequest.AttachmentType`：文档在服务端解析完成后仍以 `TEXT` 类型进入既有附件语义，避免在客户端可见的枚举层面引入"文档"这一容易被误解为可绕过校验的新分支。
+- TaskMaterial 始终不可信：解析产出的 `TextMaterial` 与现状一致地作为不可信任务材料进入上下文，不拼入系统提示（复用现有 `TextMaterial` 语义，不新建信任级别标记）。
+
+### #11410 验收标准补充
+
+```gherkin
+场景: 恶意 DOCX（ZIP 炸弹）被拒绝
+  当上传的 DOCX 解压比超过配置阈值
+  那么 HeuristicFileSecurityScanAdapter 或 WordImporter 的 ZipSecureFile 阈值判定为不安全
+  并且请求返回明确错误，不产生部分解析结果
+
+场景: 扩展名与魔数不一致
+  当文件扩展名为 .pdf 但文件头不是 "%PDF-"
+  那么 DocumentAttachmentGuardService 在调用 ImporterFactory 前拒绝
+  并且返回 EXECUTION_DOCUMENT_ATTACHMENT_TYPE_MISMATCH
+
+场景: 安全扫描不可用时不降级放行
+  当 FileSecurityScanPort.scan 返回 UNAVAILABLE 或 ERROR
+  那么文档被隔离，不进入 ImporterFactory 解析
+  并且返回明确错误提示用户稍后重试
+
+场景: 超预算文档显式截断
+  当解析后总字符数超过 maxCharsPerAttachment
+  那么 DocumentTokenBudgetSplitter 截断内容并标记 truncated=true
+  并且 provenance 记录 originalCharacters 与 deliveredCharacters 供审计
+```
+
 ```gherkin
 场景: 用户切换历史会话
   当历史包含附件、工具、source、data、generative-ui、reasoning、branch 或待处理 interrupt
@@ -859,3 +1070,95 @@ Interrupt 状态目前存储在 assistant-ui 消息的 `metadata.custom`（`AG_U
 ```
 
 
+
+## #11413 评估：Interactables、MCP Apps 与页面协同
+
+> 本章是纯评估任务的产出，不包含代码实现。评估范围：assistant-ui Interactables 是否适合承载 AAF 页面外组件（表单预填、画布、项目面板）；MCP Apps（SEP-1865）是否需要跟进；给出一个低风险试点方案供人类审核。
+
+### Interactables 能力边界（调研结论）
+
+`useAssistantInteractable`/`useInteractableState`（assistant-ui core 0.2.18）的实际机制：
+
+```text
+组件调用 useAssistantInteractable(name, {stateSchema, initialState})
+  → 注册到 Interactables 资源（纯前端 React state，无后端参与）
+  → buildInteractableModelContext 按注册表生成 type:"frontend" 工具 update_{name}
+  → AI 输出 tool-call → execute(partialState) 直接调 setDefState(id, shallowMerge)
+  → 组件通过 useInteractableState(id) 读取最新 state，重渲染
+```
+
+关键边界（均已通过读取 `@assistant-ui/core` 源码确认，非推测）：
+
+1. **AI 更新路径完全绕过服务端**：`execute` 直调本地 `setDefState`，框架未提供任何 HITL/权限拦截钩子；`update_{name}` 工具由框架自动生成并自动执行，业务代码无法在 execute 之前插入审批逻辑（除非放弃使用 Interactables 自动生成的工具，转而手写一个语义等价但受控的 `AssistantTool`）。
+2. **持久化是可选旁路**：`InteractablePersistenceAdapter.save()` 由调用方自定义实现和挂载时机，不挂载则状态只活在组件生命周期内（页面刷新丢失）。
+3. **状态形状由 `stateSchema` 描述**（`StandardSchemaV1` 或 `JSONSchema7`），框架据此生成部分更新 JSON Schema（`toPartialJSONSchema`），允许 AI 只传要改的字段。
+4. **多实例支持**：同名组件多次挂载时工具名带 `id` 后缀（`update_{name}_{id}`），AI 可指定操作哪个实例。
+
+### AAF 现状调研结论
+
+- 代码库中**没有任何地方**使用 `useAssistantInteractable`/`useInteractableState`（`grep` 全库确认，唯一出现处是 `docs/reference/dev/apps/webui/llms-full.txt` 官方文档摘录）。
+- 候选页面外组件调研：
+  - `features/aigc/copywriting/CopywritingParamsBar.tsx`——模型/长度/翻译三个表单参数，状态全部落在 `useAigcStore`（Zustand），纯 UI 偏好，无服务端实体引用。**结构最干净的候选**。
+  - `features/aigc/copywriting/StoryboardPanel.tsx`——画布类结构，但依赖 `useMediaDetails`（服务端媒体数据）和跨组件共享的 `useAigcStore` 片段，若做成 Interactable 会有"复制服务端数据进 Interactable state"的风险，需要额外设计隔离层才能安全使用。
+  - 未发现现有"项目面板"类组件（`aigc/project` 目录当前是数据管理页面，非对话侧边协同面板性质）。
+
+### Interactables 适用/禁用矩阵
+
+| 维度 | 适用 | 禁用/需额外设计 |
+|------|------|-----------------|
+| 状态性质 | 纯前端 UI 偏好、未提交表单草稿、视图配置（排序/筛选/展开态） | 服务端权威实体（TaskBoard、ExecutorPlan、Clarification、任何有独立生命周期状态机的对象）——Interactable state 是本地副本，一旦挂载即可能与服务端产生双真理源 |
+| AI 更新权限 | 组件本身就是"用户可随意改、无需审批"的语义（如参数预设、草稿内容） | 任何原本需要走 HITL/权限确认的字段（涉及费用、发布、删除等敏感操作）——Interactables 自动生成的 `update_*` 工具没有审批钩子，接入前必须先确认该字段本来就不需要审批 |
+| 持久化需求 | 无持久化需求，或可接受"最终一致、debounce 500ms 后台保存"的宽松持久化语义 | 需要强一致持久化保证的场景（`InteractablePersistenceAdapter.save()` 失败只记录 `error` 状态，不重试、不阻塞 UI） |
+| 组件复杂度 | 单一组件、状态形状扁平、字段数量少（JSON Schema 描述简单） | 复杂嵌套状态、多组件协同状态（Interactable 是按实例注册，天然不适合表达组件间关联约束） |
+| 多实例场景 | 同类组件在页面多处出现，需要 AI 分别定位操作（如多个卡片） | 单例全局状态（用现有 Zustand store 已足够，无需引入 Interactables 只为了让 AI 能"看到"状态——AI 已可通过 forwardedProps/系统提示感知页面上下文） |
+
+### MCP Apps（SEP-1865）评估结论（轻量）
+
+调研确认 MCP Apps 是 Model Context Protocol 官方 2025-11 提出的协议**草案扩展**（Specification Enhancement Proposal，非最终标准，非商业产品），核心是 `ui://` URI scheme + 沙箱 iframe + 双向 JSON-RPC 通信，让 MCP 工具可以声明一段可交互 HTML UI 供 host 渲染。
+
+AAF 现状：已有标准 MCP 协议**工具调用**能力（`McpConnectionService`、`McpServer` 注册表，`aaf-framework/engine/tool/mcp`），但这与 MCP Apps 的**交互式 UI 资源扩展**是完全不同的能力层——现有实现只消费 MCP 工具的结构化返回值，不涉及渲染宿主提供的沙箱 HTML。
+
+按草案阶段、AAF 现无业务场景驱动、不确定性高（草案随时可能变更）三点，结论为：
+
+**MCP Apps 现阶段不实现，本轮不深入接入细节评估**。理由：
+1. 规范仍在草案阶段，过早接入有跟随变更返工的成本。
+2. AAF 当前无任何业务场景要求"MCP server 提供交互式 UI"（现有 MCP 工具均是结构化数据返回，走既有 Tool UI/Data UI 渲染路径已满足展示需求）。
+3. 沙箱 iframe + postMessage 通信模型若要接入，需要独立的安全评审（跨域、CSP、消息来源校验），投入产出比在无场景驱动下不成立。
+
+MCP Apps 适用/禁用矩阵（供未来重新评估时参考，本轮不展开）：
+
+| 维度 | 适用 | 禁用 |
+|------|------|------|
+| 规范成熟度 | 正式发布后，且有稳定 SDK 支持 | 草案阶段（当前状态）——不接入 |
+| 业务驱动 | 有明确"第三方 MCP server 需要渲染自定义 UI"的场景 | 当前 AAF 场景（结构化数据展示）已被现有 Tool UI/Data UI 覆盖 |
+| 安全评审 | 已完成沙箱 iframe 通信安全评审 | 未评审——不得接入生产 |
+
+### 低风险试点方案（供人类审核）
+
+**候选组件**：`features/aigc/copywriting/CopywritingParamsBar.tsx`（模型/长度/翻译三个参数）。
+
+**理由**：
+- 状态已在 Zustand（`useAigcStore`）中管理，纯 UI 偏好，无服务端实体引用，符合矩阵"适用"象限的全部条件。
+- 字段少（3 个）、类型简单（enum/nullable enum），JSON Schema 描述成本低。
+- 修改这三个参数不涉及任何需要审批的敏感操作——用户本来就可以随意在 UI 上改，让 AI"帮忙填"和用户自己点选没有权限语义差异。
+- 试点范围小，即使评估后决定不推广，回退成本低（删除一个 `useAssistantInteractable` 调用即可，不影响其他代码）。
+
+**试点范围**（严格限定，不扩大）：
+
+1. 只在 `CopywritingParamsBar` 组件内新增一次 `useAssistantInteractable("copywriting_params", {...})` 调用，`stateSchema` 描述 `length`/`translateTo`/`model` 三个字段。
+2. **不挂载 `InteractablePersistenceAdapter`**——试点阶段不引入持久化，状态生命周期与组件一致，刷新页面即重置为 Zustand 当前值（本身就是现状，不引入新行为）。
+3. Interactable 的 `state` 与 Zustand store 双向同步：`initialState` 读 Zustand 当前值，`useInteractableState` 变化时 `useEffect` 写回 Zustand（Zustand 仍是唯一渡越组件生命周期的真理源，Interactable 只是"AI 可写入口"的薄包装）。
+4. **不涉及**：不接入 `CopywritingEditor`（正文内容，涉及创作产出，AI 直接改写正文属于核心业务操作，需要走现有生成/编辑工具链而非 Interactables 静默改写）；不接入 `StoryboardPanel`（依赖服务端媒体数据，风险矩阵判定为"需额外设计"）。
+5. 验收方式：人工测试"帮我把长度改成长篇并翻译成英文"这类指令，确认 AI 能通过生成的 `update_copywriting_params` 工具正确改写参数，且不影响现有手动点选交互。
+
+**明确的非目标**（避免范围蔓延）：
+- 不在本试点中引入 Interactable 持久化。
+- 不评估 Interactables 与 TaskBoard/ExecutorPlan 等服务端状态的协同（矩阵已判定为禁用象限）。
+- 不在本试点中实现或推广到其他页面外组件。
+
+### #11413 完成标准核对
+
+- ✅ Interactables 适用/禁用矩阵已产出（本章节）。
+- ✅ MCP Apps 适用/禁用矩阵已产出（轻量结论，草案阶段不深入）。
+- ✅ 低风险试点设计已产出（`CopywritingParamsBar`，范围严格限定）。
+- ⏳ 待 architect、designer、qa 和人类安全评审确认；评估任务本身不实现代码，试点落地留待评审通过后作为独立任务处理。

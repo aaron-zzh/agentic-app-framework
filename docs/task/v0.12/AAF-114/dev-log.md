@@ -153,3 +153,90 @@
 - 前端移除render_ui_block的CHOICE/FORM分支，新增ClarificationInterruptPanel+SchemaForm用官方API
 - 已知限制：不支持多轮部分补充；interrupt状态未持久化刷新不重放，与#11411同根因不在本任务修复
 - 第一版方案（Question元数据扩展/独立REST端点/ClarificationQueryPort按taskId查询）已作废
+
+## #11410 文档附件服务端处理与生产上传体验
+
+📐 2026-09-07 — architect
+
+- 调研确认：ImporterFactory/五个DocumentImporter当前零安全防护，FileSecurityScanPort代码库完全不存在
+- 设计方案：新增DocumentAttachmentGuardService做解析前门禁，不改ImporterFactory/DocumentImporter接口
+- FileSecurityScanPort契约（aaf-framework）+ HeuristicFileSecurityScanAdapter默认实现（不接入外部病毒引擎，已知局限披露）
+- 文档解析结果统一以既有Attachment(TEXT,...)语义进入执行链路，不扩展AttachmentType枚举
+- 设计已写入design.md，🔴高风险任务，人类审核通过后转入开发
+
+## #11410 实现落地
+
+✅ 2026-09-07 — developer-service / developer-webui
+
+- 新增FileSecurityScanPort契约 + HeuristicFileSecurityScanAdapter（ZIP解压比+XXE特征启发式检测）
+- 新增DocumentMagicBytes魔数校验（PDF/DOCX二进制头，纯文本UTF-8可解码性）
+- 加固PdfImporter（页数上限+CompletableFuture超时+总字符）、WordImporter（entry数量+总字符）
+- 加固MarkdownImporter/HtmlImporter/PlainTextImporter总字符上限，均通过DocumentImportLimits配置化
+- 新增DocumentAttachmentGuardService唯一门禁入口 + DocumentTokenBudgetSplitter预算裁剪与provenance
+- 关键发现并修正设计缺陷：react-ag-ui按mimeType把file part分流为document类型（非file），已修正controller判断
+- 前端新增OssDocumentAttachmentAdapter接入CompositeAttachmentAdapter，.md/.html文件行为变为走服务端解析
+- 关键修复：HeuristicFileSecurityScanAdapter原依赖ZipEntry.getSize()在DEFLATED流式读取下恒为-1，已修正为边解压边计数
+- 后端单测覆盖guard校验分支/importer加固边界/splitter截断逻辑；按用户指示本轮跳过前端单测与check:affected
+
+
+## #11413 Interactables、MCP Apps 与页面协同评估
+
+✅ 2026-09-07 — architect
+
+- 读@assistant-ui/core源码确认：Interactable的AI更新经框架自动生成update_{name}工具直调setDefState，无内建HITL/权限拦截点
+- AAF代码库当前零使用Interactables（仅llms-full.txt官方文档提及）
+- 矩阵结论：仅适用纯前端UI偏好/未提交草稿，禁用服务端权威实体与需审批操作
+- MCP Apps(SEP-1865)经用户澄清定位：2025-11提出的协议草案扩展，与AAF已有MCP工具调用是不同能力层
+- MCP Apps结论：草案阶段+无业务场景驱动，本轮不深入接入细节，暂不实现
+- 低风险试点方案：CopywritingParamsBar（Zustand管理3个纯UI参数），严格限定不含持久化
+- 纯评估任务，未产出代码；design.md已写入完整矩阵与试点设计，待人类安全评审
+
+
+## #11412 待协调者决策：数据库迁移号段分配
+
+⚠️ 2026-09-07 — developer-service
+
+- #11412 需新增 message_feedback 表（存储 AG-UI 字符串 messageId + 反馈类型 + 原因 + model/runId），需要一个新的迁移文件
+- 按 architecture-constraints.md 硬约束：v1-v99 历史号段已固定不再变动，v100-v199 当前"待分配"，登记只能由协调者操作
+- message_feedback 语义上属于 chat/AI 助理模块增量，非全新业务板块，但 v8（chat_schema）在冻结的历史号段内不可续用
+- 请协调者决策：(a) 登记 v100-v199 给 chat 模块反馈功能使用，或 (b) 指定其他处理方式
+- 本条目待协调者确认后更新，未确认前不创建迁移文件
+
+
+## #11412 范围裁剪：反馈 messageId 关联的架构限制
+
+⚠️ 2026-09-07 — developer-service
+
+- 深入调研发现：AG-UI 协议层前端最终 messageId 是 {replyId}:{blockId}（TextMessageEventConverter.blockMessageId，来自 MESSAGE_STARTED/DELTA/BLOCK_COMPLETED）
+- 但持久化时机 persistAssistantMessageIfCompleted 监听的是 MESSAGE_COMPLETED（对应 AgentScope AGENT_RESULT），其 payload.messageId 是 AgentScope Msg.id，与前端 {replyId}:{blockId} 是两个不同的值，且当前持久化代码根本没有读取这个字段（只取了text）
+- 建立"前端可见 messageId → 数据库消息"的稳定映射需要改造持久化时机（在 MESSAGE_BLOCK_COMPLETED 落库并存入 payload），属于 #11411 遗留的信封化改造范畴，超出 #11412 原定范围
+- 决定：#11412 反馈功能范围裁剪为不依赖新数据库映射——反馈端点直接以 AG-UI 字符串 messageId 为 key 存储（不关联 ConversationMessage.id，不要求消息已持久化成功），本轮反馈记录是独立的、以 messageId 为主键的轻量存储，不建立与 ConversationMessage 的外键关系
+- 已知限制：反馈记录与会话消息历史是两条平行数据，不做 JOIN 查询关联；如需展示"某条历史消息的反馈状态"需要后续在信封化改造后补充关联，本轮不实现
+- 用户已确认现阶段不新增迁移 SQL、不部署，本轮改为纯代码实现 + 内存态验证，数据库表结构变更留待部署前统一处理
+
+
+## #11412 范围说明：对话后续建议后端生成逻辑不在本轮
+
+⚠️ 2026-09-07 — developer-webui
+
+- 设计要求"suggestions 增加对话后续建议"，前端渲染基础设施已完成：FollowUpSuggestions 组件（非空对话中展示，复用 agent-run-store.suggestions 同一状态源，不建新状态）+ AgentSuggestion 类型扩展（title/description/autoSend）
+- 后端侧：现有 aaf.suggestions CUSTOM 事件名已注册但从未被任何业务逻辑发送（悬空能力，非本轮新增缺陷）；若要真正实现"AI 回复后动态生成后续建议"，需要新增推荐逻辑（调模型生成或规则引擎），这是全新业务能力设计，超出#11412"接入现有 primitive 增强交互"的任务范围
+- 决定：本轮只交付前端展示能力（可被未来任何 aaf.suggestions 事件消费），不实现后端生成逻辑；欢迎页初始建议（WelcomeSuggestionService）不受影响，继续正常工作
+
+
+## #11412 反馈、输入历史、建议与可观测体验
+
+✅ 2026-09-07 — developer-service / developer-webui
+
+- 用本地agentscope-java源码验证：AgentScope Msg.id与ReActAgent的replyId各自独立随机UUID，无关联——推翻此前假设的messageId映射关系
+- 修复#11411遗留缺陷：AI消息持久化改为按MESSAGE_BLOCK_COMPLETED（携带replyId:blockId）落库，写入payload.aguiMessageId建立跨端映射
+- ConversationMessageRepository新增findByConversationIdAndAguiMessageId（JSONB->>原生查询）
+- 新建MessageFeedbackService（不新建表，复用metadata列），删除死代码旧ChatController.messageFeedback（Long id体系与AG-UI不兼容）
+- 新端点POST /sessions/thread/{threadId}/messages/{aguiMessageId}/feedback，DTO含type/reason/model/runId
+- 前端接入FeedbackAdapter（positive标准流程）+ NegativeFeedbackButton（Popover收集原因，官方API不支持reason字段）
+- 接入unstable_useComposerInputHistory到ChatterComposer主输入框
+- 建议增量：AgentSuggestion加title/description/autoSend，新增FollowUpSuggestions组件支持对话中建议
+- 诊断入口过程中发现并修复真实缺陷：ExecutionEventPublicMapper.safeData白名单缺失MODEL_CALL_COMPLETED分支，token/耗时数据从未透出
+- agent-run-store新增diagnostic状态，DiagnosticInfoButton只在message.isLast时展示避免历史消息误显示
+- 已知限制：完整消息信封仍未实现；对话后续建议后端生成逻辑超出范围未实现
+- 按用户指示本轮不新增迁移SQL、不执行check:affected、不编写测试
