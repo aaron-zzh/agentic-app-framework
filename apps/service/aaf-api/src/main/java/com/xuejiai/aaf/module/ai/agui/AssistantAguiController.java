@@ -18,16 +18,20 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.xuejiai.aaf.common.util.JsonUtils;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ClarificationRequest;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.HumanApproval;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HitlCoordinatorPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HumanApprovalPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskRecoveryDispatchPort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.RunId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.assistant.service.AssistantApprovalEventService;
+import com.xuejiai.aaf.module.ai.assistant.service.ClarificationResumeService;
 import com.xuejiai.aaf.module.ai.assistant.service.AssistantExecutionService;
 import com.xuejiai.aaf.module.ai.assistant.service.AssistantExecutionService.ExecutionStream;
 import com.xuejiai.aaf.module.ai.assistant.service.AssistantExecutionService.TeamTarget;
@@ -75,6 +79,7 @@ public class AssistantAguiController {
     private final TaskRecoveryDispatchPort recoveries;
     private final AssistantApprovalEventService approvalEvents;
     private final OperatorContext operatorContext;
+    private final ClarificationResumeService clarificationResume;
 
     public AssistantAguiController(
             AssistantExecutionService assistantExecutions,
@@ -85,7 +90,8 @@ public class AssistantAguiController {
             HumanApprovalPort approvals,
             TaskRecoveryDispatchPort recoveries,
             AssistantApprovalEventService approvalEvents,
-            OperatorContext operatorContext) {
+            OperatorContext operatorContext,
+            ClarificationResumeService clarificationResume) {
         this.assistantExecutions = assistantExecutions;
         this.chatService = chatService;
         this.agUiProjector = agUiProjector;
@@ -95,6 +101,7 @@ public class AssistantAguiController {
         this.recoveries = recoveries;
         this.approvalEvents = approvalEvents;
         this.operatorContext = operatorContext;
+        this.clarificationResume = clarificationResume;
     }
 
     @PostMapping(
@@ -137,21 +144,39 @@ public class AssistantAguiController {
     }
 
     /**
-     * 恢复 execution（AAF-104 #10404）：{@code resume} 非空时不新建 execution，逐条按 {@code interruptId} （即
-     * {@code approvalId}）调用 {@link HitlCoordinatorPort#decide} 落定决定。批准时触发 {@link
+     * 恢复 execution（AAF-104 #10404，AAF-114 #11408 第二版扩展）：{@code resume} 非空时不新建
+     * execution，按 {@code interruptId} 归属分派到 approval 或 Clarification 处理分支——两者共用同一套
+     * AG-UI interrupt/resume 传输协议，但领域模型（{@code HumanApproval} vs {@code ClarificationRequest}）
+     * 完全独立，不合并成同一状态机。
+     *
+     * <p>归属判定：先查 {@code approvals.find}；命中则是审批恢复（{@link #resumeApproval}，原有逻辑不变）。
+     * 查不到则视为 Clarification 恢复（{@link #resumeClarification}）——{@code approvalId} 与 {@code
+     * requestId} 分属不同 ID 空间，不会误判。
+     *
+     * <p>仅处理 {@code resume} 的第一条：AAF 当前每次 interrupt 只对应一个 {@code interruptId}，暂无真实的
+     * 批量场景（协议允许数组，实现先满足单条，为未来扩展留出空间）。
+     */
+    private SseEmitter resumeRun(RunRequest request) {
+        var entry = request.resume().getFirst();
+        var tenantId = currentTenant();
+        var approval = approvals.find(tenantId, entry.interruptId());
+        if (approval.isPresent()) {
+            return resumeApproval(request, entry, tenantId);
+        }
+        return resumeClarification(request, entry, tenantId);
+    }
+
+    /**
+     * 审批恢复（AAF-104 #10404，原 {@code resumeRun} 逻辑原样保留）：逐条按 {@code interruptId}（即 {@code
+     * approvalId}）调用 {@link HitlCoordinatorPort#decide} 落定决定。批准时触发 {@link
      * TaskRecoveryDispatchPort#recover} 驱动真正的续接执行（{@code AssistantApplicationService} 的 {@code
      * Operation.RESUME} 分支，沿用原 {@code executionId} 续接 core 对话历史，AAF-110 已实现）， 再用 {@link
      * AssistantApprovalEventService#stream} 续读已持久化事件（不占用执行线程等待恢复）。
      *
      * <p>拒绝决定不驱动恢复：{@link AssistantApprovalEventService#stream} 要求 {@code approval.status() ==
      * APPROVED}，拒绝后任务转为 {@code PAUSED}（非终态，不会产生新的可续读事件）， 因此拒绝分支直接闭合本次 run，不调用 {@code stream}。
-     *
-     * <p>仅处理 {@code resume} 的第一条：AAF 当前每次 {@code AUTHORIZATION_REQUESTED} 只对应一个 {@code
-     * approvalId}，暂无真实的批量场景（协议允许数组，实现先满足单条，为未来扩展留出空间）。
      */
-    private SseEmitter resumeRun(RunRequest request) {
-        var entry = request.resume().getFirst();
-        var tenantId = currentTenant();
+    private SseEmitter resumeApproval(RunRequest request, ResumeEntry entry, TenantId tenantId) {
         hitl.decide(
                 new HitlCoordinatorPort.DecisionCommand(
                         tenantId,
@@ -203,6 +228,78 @@ public class AssistantAguiController {
         return emitter;
     }
 
+    /**
+     * Clarification 恢复（AAF-114 #11408 第二版）：{@code interruptId} 即 {@code
+     * ClarificationRequest.requestId}。取消（{@code status="cancelled"} 或 {@code approved=false}）
+     * 场景当前无独立取消端口方法，直接闭合本次 run，不驱动状态转换——用户可通过下一轮自然语言输入触发既有
+     * MODIFY/UNRELATED 分类路径。
+     *
+     * <p>{@code DelegatedTaskCoordinator#acceptInput} 是 {@code Mono}；成功后才订阅事件续读，避免在写入尚未落地时
+     * 提前查询导致漏读第一批事件。
+     */
+    private SseEmitter resumeClarification(RunRequest request, ResumeEntry entry, TenantId tenantId) {
+        var clarification =
+                clarificationResume
+                        .findByRequestId(tenantId, entry.interruptId())
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "未知的 interruptId: " + entry.interruptId()));
+        var emitter = new SseEmitter(600_000L);
+        var session = agUiProjector.openSession();
+        var threadId = request.threadId();
+        var runId = request.runId();
+        if (!entry.approved()) {
+            send(emitter, session.close(threadId, runId), Long.MAX_VALUE);
+            emitter.complete();
+            return emitter;
+        }
+        var resumedAt = Instant.now();
+        clarificationResume
+                .submit(tenantId, currentUserId(), clarification, entry.payload())
+                .subscribe(
+                        task ->
+                                approvalEvents
+                                        .streamByExecutionId(
+                                                tenantId,
+                                                clarification.taskId(),
+                                                clarification.executionId(),
+                                                new RunId(runId),
+                                                resumedAt)
+                                        .events()
+                                        .subscribe(
+                                                stored ->
+                                                        send(
+                                                                emitter,
+                                                                session.project(stored.event()),
+                                                                stored.eventOffset()),
+                                                failure -> {
+                                                    send(
+                                                            emitter,
+                                                            session.fail(
+                                                                    threadId,
+                                                                    runId,
+                                                                    "ASSISTANT_STREAM_FAILED"),
+                                                            0);
+                                                    emitter.complete();
+                                                },
+                                                () -> {
+                                                    send(
+                                                            emitter,
+                                                            session.close(threadId, runId),
+                                                            Long.MAX_VALUE);
+                                                    emitter.complete();
+                                                }),
+                        failure -> {
+                            send(
+                                    emitter,
+                                    session.fail(threadId, runId, "ASSISTANT_STREAM_FAILED"),
+                                    0);
+                            emitter.complete();
+                        });
+        return emitter;
+    }
+
     private TenantId currentTenant() {
         var orgId = OrgContext.getCurrentOrgId();
         if (orgId == null) {
@@ -216,6 +313,10 @@ public class AssistantAguiController {
                 .currentOwnerId()
                 .map(String::valueOf)
                 .orElseThrow(() -> new AccessDeniedException("请求未认证"));
+    }
+
+    private UserId currentUserId() {
+        return new UserId(currentUser());
     }
 
     private ExecutionStream executionStream(RunRequest request) {

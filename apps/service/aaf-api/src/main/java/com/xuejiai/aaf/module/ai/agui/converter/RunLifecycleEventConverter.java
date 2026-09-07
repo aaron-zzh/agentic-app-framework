@@ -31,6 +31,13 @@ import io.agentscope.core.agui.event.AguiEvent;
  * <p>只有根节点（DIRECT 直答或协调者自身）的授权等待才会走到本 converter——子任务的授权等待由 {@code DelegatedTaskCoordinator}
  * 处理为"该子任务本轮让出并发位、稍后重试"，不终止整个 run，其事件因 {@code nodeIdentity != null} 会先被 {@code
  * InternalNodeEventConverter} 降级为 CUSTOM，不会到达本类——分派顺序本身 保证了这个边界，不需要额外判断排除子任务。
+ *
+ * <p><b>{@code CLARIFICATION_REQUESTED} 同样收敛为标准 interrupt</b>（AAF-114 #11408 第二版）： {@code
+ * reason="input_required"} 对齐官方标准值语义；{@code responseSchema} 由 {@link
+ * ClarificationResponseSchema#fromQuestions} 从 payload 的 {@code questions} 派生。与 {@code
+ * AUTHORIZATION_REQUESTED} 共用同一套 interrupt/resume 传输层，但底层领域模型（{@code HumanApproval} vs
+ * {@code ClarificationRequest}）保持独立——只在 {@code AssistantAguiController#resumeRun} 按 {@code
+ * interruptId} 归属分派。
  */
 public final class RunLifecycleEventConverter implements AafAguiEventConverter {
 
@@ -43,7 +50,8 @@ public final class RunLifecycleEventConverter implements AafAguiEventConverter {
                 ExecutionEventType.EXECUTION_CANCELED,
                 ExecutionEventType.COMMAND_REJECTED,
                 ExecutionEventType.RUN_FAILED,
-                ExecutionEventType.AUTHORIZATION_REQUESTED);
+                ExecutionEventType.AUTHORIZATION_REQUESTED,
+                ExecutionEventType.CLARIFICATION_REQUESTED);
     }
 
     @Override
@@ -54,6 +62,8 @@ public final class RunLifecycleEventConverter implements AafAguiEventConverter {
             case EXECUTION_FAILED, EXECUTION_CANCELED, COMMAND_REJECTED, RUN_FAILED ->
                     context.runError(errorCode(event));
             case AUTHORIZATION_REQUESTED -> context.runInterrupted(List.of(interrupt(event)));
+            case CLARIFICATION_REQUESTED ->
+                    context.runInterrupted(List.of(clarificationInterrupt(event)));
             default ->
                     throw new IllegalStateException(
                             "RunLifecycleEventConverter 收到未声明支持的类型: " + event.type());
@@ -79,6 +89,29 @@ public final class RunLifecycleEventConverter implements AafAguiEventConverter {
                 null,
                 null,
                 Map.of("reversible", reversible));
+    }
+
+    /**
+     * {@code requestId} 直接作为 {@code interruptId}——与 {@code approvalId} 同一模式，一次澄清请求对应一个
+     * interrupt（不是每个字段一个），多字段体现在 {@code responseSchema.properties} 里。
+     */
+    private static AguiEvent.Interrupt clarificationInterrupt(ExecutionEvent event) {
+        var values = event.payload().values();
+        var requestId = (String) values.get("requestId");
+        @SuppressWarnings("unchecked")
+        var questions = (List<Object>) values.get("questions");
+        @SuppressWarnings("unchecked")
+        var requiredFields = (List<String>) values.get("requiredFields");
+        var responseSchema =
+                ClarificationResponseSchema.fromQuestions(questions, requiredFields);
+        return new AguiEvent.Interrupt(
+                requestId,
+                "input_required",
+                "需要补充参数",
+                null,
+                responseSchema,
+                null,
+                Map.of("taskId", event.taskId().value()));
     }
 
     private static String errorCode(ExecutionEvent event) {
