@@ -6,7 +6,14 @@
 import { SectionHaze } from "@/components/studio"
 import { NewProjectLauncher } from "@/features/studio/content"
 
-export default function StudioProjectNewPage() {
+export default async function StudioProjectNewPage({
+  searchParams
+}: {
+  searchParams: Promise<{ blueprintId?: string }>
+}) {
+  const { blueprintId } = await searchParams
+  const preselectedBlueprintId = blueprintId ? Number(blueprintId) : undefined
+
   return (
     <div className="relative h-full overflow-y-auto">
       <SectionHaze variant="violet" />
@@ -14,7 +21,12 @@ export default function StudioProjectNewPage() {
         <header>
           <h1 className="font-semibold text-2xl">创建内容项目</h1>
         </header>
-        <NewProjectLauncher mode="full" />
+        <NewProjectLauncher
+          mode="full"
+          preselectedBlueprintId={
+            Number.isFinite(preselectedBlueprintId) ? preselectedBlueprintId : undefined
+          }
+        />
       </div>
     </div>
   )

@@ -111,7 +111,7 @@ export function DeliveryWorkflowPanel({
     return (
       <Empty className="min-h-44">
         <EmptyHeader>
-          <EmptyTitle>蓝图没有 DeliverableSet</EmptyTitle>
+          <EmptyTitle>项目模板没有 DeliverableSet</EmptyTitle>
           <EmptyDescription>当前项目无法建立交付 Manifest，请检查固化的配置快照。</EmptyDescription>
         </EmptyHeader>
       </Empty>

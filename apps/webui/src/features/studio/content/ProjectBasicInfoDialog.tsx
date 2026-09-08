@@ -201,7 +201,7 @@ export function ProjectBasicInfoDialog({
                 <dd className="font-medium text-sm">{projectTypeLabel}</dd>
               </div>
               <div className="flex flex-col gap-1">
-                <dt className="text-muted-foreground text-xs">蓝图版本</dt>
+                <dt className="text-muted-foreground text-xs">模板版本</dt>
                 <dd className="font-medium text-sm">{project.blueprintVersion ?? "—"}</dd>
               </div>
               <div className="flex flex-col gap-1">

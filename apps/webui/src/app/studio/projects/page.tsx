@@ -60,10 +60,8 @@ import { cn } from "@/lib/utils/index"
 const STATUS_TABS: { value: "all" | AigcProjectStatus; label: string }[] = [
   { value: "all", label: "全部" },
   { value: "CONFIGURING", label: "配置中" },
-  { value: "MATERIALIZED", label: "已物化" },
   { value: "CREATING", label: "创作中" },
   { value: "EXECUTING", label: "生成中" },
-  { value: "ADOPTING", label: "待采用" },
   { value: "REVIEWING", label: "审核中" },
   { value: "DELIVERING", label: "交付中" },
   { value: "COMPLETED", label: "已完成" },
@@ -298,7 +296,7 @@ export default function StudioProjectsPage() {
   return (
     <div className="relative h-full overflow-y-auto">
       <SectionHaze variant="cyan" />
-      <div className="relative mx-auto flex max-w-7xl flex-col gap-6 p-6">
+      <div className="relative flex flex-col gap-6 p-6">
         <header className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <FolderKanban className="size-5 text-primary" />

@@ -33,7 +33,7 @@ function DigitalHumanPlaceholder() {
       <header className="relative flex flex-col gap-2">
         <div className="flex items-center gap-2">
           <p className="font-medium text-primary text-sm">Studio Create</p>
-          <Badge variant="secondary">尚未开放</Badge>
+          <Badge variant="secondary">开发中</Badge>
         </div>
         <h1 className="font-semibold text-2xl">数字人创作</h1>
         <p className="max-w-3xl text-muted-foreground text-sm">

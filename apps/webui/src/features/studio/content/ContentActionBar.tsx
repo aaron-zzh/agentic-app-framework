@@ -78,7 +78,7 @@ export function ContentActionBar({ project, focusedObject, canAction }: ContentA
     availableActions.at(0)
   const unavailableMessage =
     !actionsLoading && actions.length === 0
-      ? "当前项目蓝图未声明可用动作"
+      ? "当前项目模板未声明可用动作"
       : !actionsLoading && availableActions.length === 0
         ? focusedObject
           ? "当前对象没有适用动作"

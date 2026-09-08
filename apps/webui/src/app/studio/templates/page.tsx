@@ -36,7 +36,7 @@ function BlueprintCard({ blueprint }: { blueprint: AigcProjectBlueprint }) {
           </NeonChip>
         </div>
         <p className="line-clamp-2 min-h-10 text-muted-foreground text-xs leading-5">
-          {blueprint.description || "已发布项目蓝图"}
+          {blueprint.description || "已发布项目模板"}
         </p>
         <div className="flex items-center justify-between gap-2">
           <span className="text-muted-foreground text-xs">{blueprint.productionMode}</span>
@@ -61,8 +61,8 @@ export default function StudioTemplatesPage() {
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6 p-6">
       <header>
-        <h1 className="font-semibold text-xl">项目蓝图</h1>
-        <p className="text-muted-foreground text-sm">从已发布蓝图物化唯一 AigcProject。</p>
+        <h1 className="font-semibold text-xl">项目模板</h1>
+        <p className="text-muted-foreground text-sm">从已发布项目模板创建项目。</p>
       </header>
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -75,8 +75,8 @@ export default function StudioTemplatesPage() {
           <Empty className="min-h-72">
             <EmptyHeader>
               <LottieIcon name="cat" width={120} height={120} loop />
-              <EmptyTitle>暂无已发布蓝图</EmptyTitle>
-              <EmptyDescription>项目创建必须绑定已发布 AIGC Project Blueprint。</EmptyDescription>
+              <EmptyTitle>暂无已发布项目模板</EmptyTitle>
+              <EmptyDescription>项目创建必须绑定已发布项目模板。</EmptyDescription>
             </EmptyHeader>
           </Empty>
         </GlassCard>

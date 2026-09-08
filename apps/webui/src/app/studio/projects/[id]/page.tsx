@@ -235,7 +235,7 @@ export default function StudioProjectDetailPage() {
                 }}
               >
                 <Pencil />
-                基础信息
+                修改
               </Button>
             ) : null}
             <ProjectLifecycleActions

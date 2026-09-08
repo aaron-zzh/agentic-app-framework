@@ -172,7 +172,7 @@ export function ProjectStructureView({
                   <CircleDashed />
                 </EmptyMedia>
                 <EmptyTitle>该阶段暂无对象</EmptyTitle>
-                <EmptyDescription>项目蓝图或 Assistant 后续会在这里补充对象。</EmptyDescription>
+                <EmptyDescription>项目模板或 Assistant 后续会在这里补充对象。</EmptyDescription>
               </EmptyHeader>
             </Empty>
           </GlassCard>
