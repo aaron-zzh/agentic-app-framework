@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
 import org.springframework.stereotype.Component;
@@ -33,8 +34,12 @@ public class WordImporter implements DocumentImporter {
     @Override
     public ImportResult importDocument(InputStream input, String filename) throws IOException {
         try (var doc = new XWPFDocument(input)) {
-            if (doc.getPackage().getPackageArchive().getParts().size() > limits.maxZipEntries()) {
-                throw new IOException("DOCX 内部条目数量超过安全限制: " + filename);
+            try {
+                if (doc.getPackage().getParts().size() > limits.maxZipEntries()) {
+                    throw new IOException("DOCX 内部条目数量超过安全限制: " + filename);
+                }
+            } catch (InvalidFormatException failure) {
+                throw new IOException("DOCX 包结构无效: " + filename, failure);
             }
             var sections = new ArrayList<DocumentSection>();
             String title = filename;
