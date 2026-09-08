@@ -53,6 +53,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
                     Map.entry("image.edit", "局部修改图片"),
                     Map.entry("video.generate", "生成视频"),
                     Map.entry("deliverable.regenerate", "重新生成交付物"),
+                    Map.entry("package.generate", "批量生成交付包"),
                     Map.entry("outline.generate", "生成文章提纲"),
                     Map.entry("article.draft", "撰写文章草稿"),
                     Map.entry("article.rewrite", "改写文章"),
@@ -991,7 +992,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
             case "concept.generate" -> List.of("creative_concept");
             case "image.generate", "image.edit" -> List.of("image_deliverable", "shot_keyframe");
             case "video.generate" -> List.of("video_deliverable");
-            case "package.generate" -> List.of("package");
+            case "package.generate" -> List.of("deliverable_set");
             case "outline.generate" -> List.of("article_outline");
             case "article.draft", "article.rewrite", "article.seo_optimize" ->
                     List.of("article_deliverable");

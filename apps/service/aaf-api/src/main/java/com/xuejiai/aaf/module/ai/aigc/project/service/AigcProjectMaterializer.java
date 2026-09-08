@@ -23,6 +23,7 @@ import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaType;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcUploadedMediaCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverMode;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycle;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectMaterializeCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProject;
@@ -34,6 +35,7 @@ import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectObject;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectProfileRef;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectRelation;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectRevision;
+import com.xuejiai.aaf.module.ai.aigc.project.event.AigcProjectCoverGenerationRequestedEvent;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectChannelRefRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectConfigSnapshotRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectDocumentRefRepository;
@@ -67,6 +69,7 @@ public class AigcProjectMaterializer {
     private final AigcMediaApi mediaApi;
     private final AigcProjectMediaRefRepository mediaRefRepository;
     private final OperatorContext operatorContext;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public AigcProject materialize(AigcProjectMaterializeCommand command) {
@@ -252,6 +255,54 @@ public class AigcProjectMaterializer {
         revision.setSummary("项目蓝图物化");
         revisionRepository.save(revision);
         return project;
+    }
+
+    /**
+     * 收尾封面状态并（如需）发起 AI 封面生成事件；独立事务保证 {@code AFTER_COMMIT} 监听器语义正确。
+     *
+     * <p>调用方 {@code AigcProjectService.materialize} 以 {@code Propagation.NOT_SUPPORTED} 运行，
+     * 若在其中直接发布事件将导致事件在无事务上下文下由 {@code fallbackExecution} 立即同步触发，
+     * 破坏"ExecutionRun 落库后才派发"的不变量，因此收尾逻辑必须放在跨 Bean 调用的独立事务内。
+     */
+    @Transactional
+    public AigcProject finalizeCoverStatus(
+            Long projectId, AigcProjectMaterializeCommand command) {
+        var project =
+                projectRepository
+                        .findById(projectId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.NOT_FOUND, "项目不存在"));
+        var coverStatus =
+                project.getCoverMediaVersionId() == null
+                        ? AigcProjectCoverStatus.NONE
+                        : AigcProjectCoverStatus.READY;
+        project.setCoverStatus(coverStatus);
+        projectRepository.save(project);
+        var generateCover = command.coverMode() == AigcProjectCoverMode.AI_GENERATE;
+        if (generateCover) {
+            project.setCoverStatus(AigcProjectCoverStatus.PENDING);
+            projectRepository.save(project);
+            eventPublisher.publishEvent(
+                    new AigcProjectCoverGenerationRequestedEvent(
+                            project.getId(),
+                            coverPrompt(project, command.coverPrompt()),
+                            project.getGraphRevision().longValue(),
+                            command.coverIdempotencyKey()));
+        }
+        return project;
+    }
+
+    private String coverPrompt(AigcProject project, String requestedPrompt) {
+        if (requestedPrompt != null && !requestedPrompt.isBlank()) {
+            return requestedPrompt.trim();
+        }
+        return "%s\n%s\n%s"
+                .formatted(
+                        project.getName(),
+                        project.getBrief() == null ? "" : project.getBrief(),
+                        project.getProjectTypeCode());
     }
 
     private String requireProjectName(String name) {

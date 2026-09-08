@@ -378,26 +378,10 @@ public class AigcProjectService
     }
 
     @Override
-    protected void beforeDelete(AigcProject project) {
-        throw badRequest("AIGC 项目不允许物理删除，请使用归档命令");
-    }
-
-    @Override
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public AigcProjectMaterializeView materialize(AigcProjectMaterializeCommand command) {
         var project = materializer.materialize(command);
-        var coverStatus =
-                project.getCoverMediaVersionId() == null
-                        ? AigcProjectCoverStatus.NONE
-                        : AigcProjectCoverStatus.READY;
-        project.setCoverStatus(coverStatus);
-        repository.save(project);
-        var generateCover = command.coverMode() == AigcProjectCoverMode.AI_GENERATE;
-        if (generateCover) {
-            coverStatus = AigcProjectCoverStatus.PENDING;
-            project.setCoverStatus(coverStatus);
-            repository.save(project);
-        }
+        project = materializer.finalizeCoverStatus(project.getId(), command);
         activityEventService.publish(
                 project.getUserId(),
                 "project.materialized",
@@ -411,17 +395,9 @@ public class AigcProjectService
                 Map.of(
                         "status", project.getStatus().name(),
                         "coverStatus", project.getCoverStatus().name()));
-        if (generateCover) {
-            eventPublisher.publishEvent(
-                    new AigcProjectCoverGenerationRequestedEvent(
-                            project.getId(),
-                            coverPrompt(project, command.coverPrompt()),
-                            project.getGraphRevision().longValue(),
-                            command.coverIdempotencyKey()));
-        }
         var refreshed = repository.findById(project.getId()).orElseThrow();
         return new AigcProjectMaterializeView(
-                toApiView(refreshed), coverStatus, refreshed.getCoverExecutionRunId());
+                toApiView(refreshed), refreshed.getCoverStatus(), refreshed.getCoverExecutionRunId());
     }
 
     @Override
