@@ -83,7 +83,7 @@ public class AigcProjectController
     }
 
     @Operation(summary = "按已发布配置物化项目")
-    @PreAuthorize("hasAuthority('aigc:project:create')")
+    @PreAuthorize("isAuthenticated()")
     @PostMapping("/_materialize")
     public Result<?> materialize(@Valid @RequestBody AigcProjectMaterializeDTO request) {
         return Result.success(

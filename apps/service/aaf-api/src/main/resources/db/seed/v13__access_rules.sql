@@ -147,3 +147,25 @@ VALUES
      '{"field":"orgId","op":"in","value":"$user.orgIds"}',
      'allow')
 ON CONFLICT DO NOTHING;
+
+-- AIGC 项目创建权限与记录规则
+-- 创建/删除/归档只做"是否已登录"的门槛（BaseCrudController 已统一 isAuthenticated）；
+-- 具体能看到/操作哪些记录由下方 L3 记录规则控制：普通用户仅本人项目，管理员全量。
+
+-- 所有人类登录角色均可创建 AIGC 项目，用于前端 EntityAccess.create 展示判断。
+INSERT INTO sys_role_permission (role_id, permission_id)
+SELECT role.id, permission.id
+FROM sys_role role
+JOIN sys_permission_code permission ON permission.code = 'aigc:project:create'
+WHERE role.code IN ('user', 'guest', 'member', 'org_admin', 'admin', 'super_admin')
+ON CONFLICT DO NOTHING;
+
+-- ---------------- L3 项目记录范围 ----------------
+-- 普通登录用户只读/写自己的项目；admin/super_admin 全量可见。
+INSERT INTO sys_data_access_rule (entity_slug, roles, condition, effect)
+VALUES
+    ('project', '["*"]',
+     '{"field":"ownerId","op":"eq","value":"$user.id"}', 'allow'),
+    ('project', '["admin", "super_admin"]',
+     '{"field":"id","op":"gt","value":0}', 'allow')
+ON CONFLICT DO NOTHING;

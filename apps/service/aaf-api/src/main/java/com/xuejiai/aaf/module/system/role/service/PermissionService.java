@@ -31,34 +31,28 @@ public class PermissionService {
     private final PermissionRepository permissionRepository;
     private final PermissionSecurityService permissionSecurityService;
 
-    /** 计算用户对指定实体的权限：查询用户所有角色 → 合并角色下所有权限 → 返回 EntityAccess */
+    /** 计算用户对指定实体的权限：正式权限码决定 CRUD，旧实体权限仅补充字段级配置。 */
     public EntityAccessVO getEntityAccess(Long userId, String entitySlug) {
         var permissions = permissionRepository.findByUserIdAndEntitySlug(userId, entitySlug);
+        var authorityCodes = permissionSecurityService.authorityCodes(userId);
+        var actionPrefix = ":" + entitySlug + ":";
 
-        boolean read = false;
-        boolean create = false;
-        boolean update = false;
-        boolean delete = false;
+        boolean read =
+                authorityCodes.stream().anyMatch(code -> code.endsWith(actionPrefix + "read"));
+        boolean create =
+                authorityCodes.stream().anyMatch(code -> code.endsWith(actionPrefix + "create"));
+        boolean update =
+                authorityCodes.stream().anyMatch(code -> code.endsWith(actionPrefix + "update"));
+        boolean delete =
+                authorityCodes.stream().anyMatch(code -> code.endsWith(actionPrefix + "delete"));
         Map<String, FieldAccessVO> mergedFieldAccess = new HashMap<>();
 
-        for (Permission p : permissions) {
-            switch (p.getAction()) {
-                case "read" -> read = true;
-                case "create" -> create = true;
-                case "update" -> update = true;
-                case "delete" -> delete = true;
-            }
-            // 合并字段级权限（取并集，任一角色授权即有权）
-            mergeFieldAccess(mergedFieldAccess, p.getFieldAccess());
+        for (Permission permission : permissions) {
+            // 字段级配置仍由实体权限表提供，CRUD 统一以正式权限码为准。
+            mergeFieldAccess(mergedFieldAccess, permission.getFieldAccess());
         }
 
-        return new EntityAccessVO(
-                read,
-                create,
-                update,
-                delete,
-                permissionSecurityService.authorityCodes(userId),
-                mergedFieldAccess);
+        return new EntityAccessVO(read, create, update, delete, authorityCodes, mergedFieldAccess);
     }
 
     private void mergeFieldAccess(Map<String, FieldAccessVO> merged, String fieldAccessJson) {
