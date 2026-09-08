@@ -146,7 +146,7 @@ export function ProjectDocumentPanel({
     const title = newDocTitle.trim()
     if (!title) return
     createDocument.mutate(
-      { title, filePath: `docs/project/${project.id}/${Date.now()}.md`, docType: "reference" },
+      { title, docType: "reference" },
       {
         onSuccess: (created) => {
           setCreateOpen(false)
@@ -182,7 +182,10 @@ export function ProjectDocumentPanel({
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent className="w-[min(96vw,1870px)] gap-0 p-0 sm:max-w-[1870px]">
+        <SheetContent
+          side="right"
+          className="w-[80vw] gap-0 p-0 data-[side=right]:w-[80vw] data-[side=right]:sm:max-w-[80vw]"
+        >
           <SheetHeader className="border-b pr-12">
             <SheetTitle className="flex items-center gap-2">
               <BookOpen />
