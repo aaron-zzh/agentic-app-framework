@@ -12,9 +12,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.module.ai.chat.service.ChatService;
+import com.xuejiai.aaf.module.ai.chat.vo.MessageFeedbackDTO;
 import com.xuejiai.aaf.module.chat.conversation.repository.ConversationRepository;
 import com.xuejiai.aaf.module.chat.message.repository.ConversationMessageRepository;
-import com.xuejiai.aaf.module.chat.message.vo.MessageFeedbackDTO;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

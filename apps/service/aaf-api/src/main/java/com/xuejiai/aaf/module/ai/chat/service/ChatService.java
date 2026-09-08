@@ -143,18 +143,6 @@ public class ChatService {
      * @param content 消息文本内容
      */
     @Transactional
-    /**
-     * 按 threadId 保存消息（AG-UI 执行链路专用），不记录外部 messageId。
-     *
-     * <p>用户消息走此重载——用户输入不经过 AgentScope block 流程，没有 {@code replyId:blockId} 语义。
-     *
-     * @param threadId AG-UI 线程 ID（对应 {@code Conversation.threadId}）
-     * @param senderId 发送者 ID；AI 消息传 {@code null}，落库为 {@link #NON_HUMAN_SENDER_ID}
-     * @param senderType 发送者类型（HUMAN / AI）
-     * @param role 消息角色（user / assistant）
-     * @param content 消息文本内容
-     */
-    @Transactional
     public void saveMessageByThreadId(
             String threadId, Long senderId, String senderType, String role, String content) {
         saveMessageByThreadId(threadId, senderId, senderType, role, content, null);
