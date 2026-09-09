@@ -165,8 +165,8 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
             int inputTokens = 0, outputTokens = 0;
             if (responseNode != null && responseNode.has("usage")) {
                 var usage = responseNode.get("usage");
-                inputTokens = usage.path("prompt_tokens").asInt(0);
-                outputTokens = usage.path("completion_tokens").asInt(0);
+                inputTokens = usage.path("input_tokens").asInt(0);
+                outputTokens = usage.path("output_tokens").asInt(0);
             }
             return urls.size() > 1
                     ? ImageResult.ofUrls(urls, request.getModelId(), inputTokens, outputTokens)
@@ -210,7 +210,7 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
                 var sourceImage = ImageInputReader.read(srcUrls.get(i));
                 String ext = sourceImage.extension();
                 String fname = "image_" + i + "." + ext;
-                String fieldName = srcUrls.size() == 1 ? "image" : "image[]";
+                String fieldName = "image[]";
                 var mediaType = MediaType.parseMediaType(sourceImage.mimeType());
                 multipart.part(
                         fieldName,
@@ -268,8 +268,8 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
             int inputTokens = 0, outputTokens = 0;
             if (responseNode != null && responseNode.has("usage")) {
                 var usage = responseNode.get("usage");
-                inputTokens = usage.path("prompt_tokens").asInt(0);
-                outputTokens = usage.path("completion_tokens").asInt(0);
+                inputTokens = usage.path("input_tokens").asInt(0);
+                outputTokens = usage.path("output_tokens").asInt(0);
             }
             return urls.size() > 1
                     ? ImageResult.ofUrls(urls, modelId, inputTokens, outputTokens)
