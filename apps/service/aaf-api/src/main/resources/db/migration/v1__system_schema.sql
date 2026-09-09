@@ -1214,7 +1214,6 @@ CREATE TABLE sys_file_config (
     storage_type VARCHAR(20)  NOT NULL,
     config       TEXT         NOT NULL,
     master       BOOLEAN      NOT NULL DEFAULT FALSE,
-    status       VARCHAR(16)  NOT NULL DEFAULT 'ACTIVE',
     archived_at     TIMESTAMP(6),
     create_by       BIGINT,
     create_by_type  VARCHAR(16),
@@ -1231,10 +1230,8 @@ CREATE TABLE sys_file_config (
 COMMENT ON TABLE sys_file_config IS '文件存储配置';
 COMMENT ON COLUMN sys_file_config.storage_type IS 'LOCAL / S3 / OSS';
 COMMENT ON COLUMN sys_file_config.master IS '是否全局主配置';
-COMMENT ON COLUMN sys_file_config.status IS 'ACTIVE / RETIRED';
 ALTER TABLE sys_file_config
-    ADD CONSTRAINT ck_sys_file_config_type CHECK (storage_type IN ('LOCAL', 'S3', 'OSS')),
-    ADD CONSTRAINT ck_sys_file_config_status CHECK (status IN ('ACTIVE', 'RETIRED'));
+    ADD CONSTRAINT ck_sys_file_config_type CHECK (storage_type IN ('LOCAL', 'S3', 'OSS'));
 CREATE UNIQUE INDEX uk_sys_file_config_single_master
     ON sys_file_config (master) WHERE master = TRUE AND deleted = FALSE;
 

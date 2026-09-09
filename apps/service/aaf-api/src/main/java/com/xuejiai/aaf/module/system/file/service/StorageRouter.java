@@ -19,7 +19,6 @@ import com.xuejiai.aaf.framework.storage.S3StorageSpec;
 import com.xuejiai.aaf.framework.storage.StorageClient;
 import com.xuejiai.aaf.framework.storage.StorageType;
 import com.xuejiai.aaf.module.system.file.domain.FileConfig;
-import com.xuejiai.aaf.module.system.file.enums.FileConfigStatus;
 import com.xuejiai.aaf.module.system.file.repository.FileConfigRepository;
 
 /** 按数据库配置路由对象存储；配置短时缓存、客户端由注册表按版本复用。 */
@@ -77,7 +76,7 @@ public class StorageRouter {
         var config =
                 cacheKey == MASTER_CACHE_KEY
                         ? fileConfigRepository
-                                .findByMasterTrueAndStatus(FileConfigStatus.ACTIVE.name())
+                                .findByMasterTrue()
                                 .orElseThrow(() -> exception(FILE_STORAGE_MASTER_NOT_FOUND))
                         : cacheKey == PUBLIC_ASSET_CACHE_KEY
                                 ? requirePublicAssetConfig()
@@ -89,9 +88,7 @@ public class StorageRouter {
 
     private FileConfig requirePublicAssetConfig() {
         var candidates =
-                fileConfigRepository
-                        .findAllByStatusAndDeletedFalse(FileConfigStatus.ACTIVE.name())
-                        .stream()
+                fileConfigRepository.findAll().stream()
                         .filter(config -> StorageType.OSS.name().equals(config.getStorageType()))
                         .filter(this::isPublicOss)
                         .toList();

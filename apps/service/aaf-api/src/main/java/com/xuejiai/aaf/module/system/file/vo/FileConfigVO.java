@@ -19,6 +19,5 @@ public record FileConfigVO(
         @Schema(description = "凭证引用；本地存储为空") String credentialRef,
         @Schema(description = "凭证引用是否可由当前运行环境解析") boolean credentialConfigured,
         @Schema(description = "是否主配置") Boolean master,
-        @Schema(description = "生命周期：ACTIVE/RETIRED") String status,
         @Schema(description = "创建时间") LocalDateTime createTime,
         @Schema(description = "更新时间") LocalDateTime updateTime) {}

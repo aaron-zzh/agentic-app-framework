@@ -1,6 +1,5 @@
 package com.xuejiai.aaf.module.system.file.repository;
 
-import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.Modifying;
@@ -16,9 +15,7 @@ import com.xuejiai.aaf.module.system.file.domain.FileConfig;
  */
 public interface FileConfigRepository extends CrudEntityRepository<FileConfig> {
 
-    Optional<FileConfig> findByMasterTrueAndStatus(String status);
-
-    List<FileConfig> findAllByStatusAndDeletedFalse(String status);
+    Optional<FileConfig> findByMasterTrue();
 
     @Modifying
     @Query(

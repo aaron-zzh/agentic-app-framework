@@ -29,15 +29,14 @@ VALUES (
         {"type":"text","name":"credentialRef","label":"凭证引用","readOnly":true},
         {"type":"checkbox","name":"credentialConfigured","label":"凭证已配置","readOnly":true},
         {"type":"checkbox","name":"master","label":"主配置","readOnly":true},
-        {"type":"text","name":"status","label":"生命周期","readOnly":true},
         {"type":"date","name":"createTime","label":"创建时间","readOnly":true,"includeTime":true},
         {"type":"date","name":"updateTime","label":"更新时间","readOnly":true,"includeTime":true}
       ],
       "listView": {
-        "columns": ["name","storageType","credentialConfigured","master","status","updateTime"],
+        "columns": ["name","storageType","credentialConfigured","master","updateTime"],
         "defaultSort": "id:desc",
         "searchableFields": ["name"],
-        "filterableFields": ["storageType","master","status"]
+        "filterableFields": ["storageType","master"]
       },
       "actions": [
         {
@@ -46,18 +45,8 @@ VALUES (
           "type": "single",
           "execution": "sync",
           "endpoint": "/api/system/file-configs/actions/set-master",
-          "confirmMessage": "将切换全局上传主存储，是否继续？",
-          "visibleWhen": "$record.master !== true && $record.status === 'ACTIVE'",
-          "position": "rowAction"
-        },
-        {
-          "key": "retire",
-          "label": "退役",
-          "type": "single",
-          "execution": "sync",
-          "endpoint": "/api/system/file-configs/actions/retire",
-          "confirmMessage": "退役后不可再作为新文件上传目标，是否继续？",
-          "visibleWhen": "$record.master !== true && $record.status === 'ACTIVE'",
+          "confirmMessage": "系统将先验证存储读写能力，验证通过后切换全局上传主存储，是否继续？",
+          "visibleWhen": "$record.master !== true",
           "position": "rowAction"
         },
         {

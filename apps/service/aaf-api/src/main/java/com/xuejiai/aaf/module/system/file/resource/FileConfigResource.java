@@ -43,18 +43,14 @@ public final class FileConfigResource {
                                             CrudOperation.DELETE_BATCH),
                             new CrudQueryDefinition<>(
                                     CrudFilterSchema.auto(),
-                                    Set.of("id", "name", "storageType", "master", "status"),
+                                    Set.of("id", "name", "storageType", "master"),
                                     Sort.by("id").descending()),
                             com.xuejiai.aaf.framework.crud.definition.CrudMutationDefinition
                                     .forTypes(TYPES),
                             CrudViewDefinition.forTypes(TYPES),
                             TenantScope.GLOBAL,
                             PersonalScope.none())
-                    .withCustomUpdateCommands(
-                            Map.of(
-                                    "SET_MASTER", Set.of("master"),
-                                    "RETIRE", Set.of("status"),
-                                    "TEST", Set.of("config")));
+                    .withCustomUpdateCommands(Map.of("SET_MASTER", Set.of("master")));
 
     private FileConfigResource() {}
 }

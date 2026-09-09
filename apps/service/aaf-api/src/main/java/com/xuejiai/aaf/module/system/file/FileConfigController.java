@@ -73,13 +73,6 @@ public class FileConfigController
         return Result.success(service.setMaster(command.id()));
     }
 
-    @Operation(summary = "退役文件存储配置")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
-    @PostMapping("/actions/retire")
-    public Result<FileConfigVO> retire(@Valid @RequestBody FileConfigActionDTO command) {
-        return Result.success(service.retire(command.id()));
-    }
-
     @Operation(summary = "验证文件存储配置")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @PostMapping("/actions/validate")

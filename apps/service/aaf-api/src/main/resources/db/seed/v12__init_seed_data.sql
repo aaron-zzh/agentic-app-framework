@@ -54,41 +54,38 @@ $$[{"q":"什么是积分，我如何获得？","a":"积分是 AAF 平台的标�
 ON CONFLICT (config_key) WHERE deleted = FALSE DO NOTHING;
 
 -- 动态存储规格保存在 sys_file_config；真实 AK/SK 仅由 credentialRef 从 YAML/ENV 解析。
--- 云端示例默认退役，填写实际 bucket/domain/roleArn 并确认凭证后可通过管理 API 启用和设为主配置。
-INSERT INTO sys_file_config (name, storage_type, config, master, status)
-SELECT '本地存储', 'LOCAL', '{"basePath":"./aaf-files","domain":"http://localhost:8080"}', TRUE, 'ACTIVE'
+-- 云端 seed 是待填写真实参数的候选配置；设为主配置前会执行上传、回读和删除验证。
+INSERT INTO sys_file_config (name, storage_type, config, master)
+SELECT '本地存储', 'LOCAL', '{"basePath":"./aaf-files","domain":"http://localhost:8080"}', TRUE
 WHERE NOT EXISTS (SELECT 1 FROM sys_file_config WHERE master = TRUE AND deleted = FALSE);
 
-INSERT INTO sys_file_config (name, storage_type, config, master, status)
+INSERT INTO sys_file_config (name, storage_type, config, master)
 SELECT
     'S3 兼容存储（私有示例）',
     'S3',
     '{"endpoint":"https://s3.amazonaws.com","bucketName":"aaf-example-bucket","region":"us-east-1","domain":"","enablePublicAccess":false,"downloadUrlExpirySeconds":3600,"credentialRef":"s3-default"}',
-    FALSE,
-    'RETIRED'
+    FALSE
 WHERE NOT EXISTS (
     SELECT 1 FROM sys_file_config WHERE name = 'S3 兼容存储（私有示例）' AND deleted = FALSE
 );
 
--- PUBLIC_ASSET 路由选择唯一 ACTIVE、enablePublicAccess=true 的 OSS 配置；部署时替换占位值后仅启用一条。
-INSERT INTO sys_file_config (name, storage_type, config, master, status)
+-- 公开 OSS 候选默认关闭公开访问；填写真实 bucket/domain 后再开启，避免占位配置被 PUBLIC_ASSET 路由选中。
+INSERT INTO sys_file_config (name, storage_type, config, master)
 SELECT
     '阿里云 OSS（公开示例）',
     'OSS',
-    '{"endpoint":"oss-cn-hangzhou.aliyuncs.com","bucketName":"aaf-public-example-bucket","roleArn":"","stsEndpoint":"sts.aliyuncs.com","domain":"https://cdn.example.com","enablePublicAccess":true,"downloadUrlExpirySeconds":3600,"durationSeconds":3600,"credentialRef":"oss-default"}',
-    FALSE,
-    'RETIRED'
+    '{"endpoint":"oss-cn-hangzhou.aliyuncs.com","bucketName":"aaf-public-example-bucket","roleArn":"","stsEndpoint":"sts.aliyuncs.com","domain":"https://cdn.example.com","enablePublicAccess":false,"downloadUrlExpirySeconds":3600,"durationSeconds":3600,"credentialRef":"oss-default"}',
+    FALSE
 WHERE NOT EXISTS (
     SELECT 1 FROM sys_file_config WHERE name = '阿里云 OSS（公开示例）' AND deleted = FALSE
 );
 
-INSERT INTO sys_file_config (name, storage_type, config, master, status)
+INSERT INTO sys_file_config (name, storage_type, config, master)
 SELECT
     '阿里云 OSS（私有示例）',
     'OSS',
     '{"endpoint":"oss-cn-hangzhou.aliyuncs.com","bucketName":"aaf-private-example-bucket","roleArn":"","stsEndpoint":"sts.aliyuncs.com","domain":"","enablePublicAccess":false,"downloadUrlExpirySeconds":3600,"durationSeconds":3600,"credentialRef":"oss-default"}',
-    FALSE,
-    'RETIRED'
+    FALSE
 WHERE NOT EXISTS (
     SELECT 1 FROM sys_file_config WHERE name = '阿里云 OSS（私有示例）' AND deleted = FALSE
 );

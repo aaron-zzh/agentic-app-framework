@@ -43,8 +43,4 @@ public class FileConfig extends BaseEntity {
     /** 是否主配置。 */
     @Column(name = "master", nullable = false)
     private Boolean master = false;
-
-    /** 生命周期：ACTIVE / RETIRED。 */
-    @Column(name = "status", nullable = false, length = 16)
-    private String status = "ACTIVE";
 }

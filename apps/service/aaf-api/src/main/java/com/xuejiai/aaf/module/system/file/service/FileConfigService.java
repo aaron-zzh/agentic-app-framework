@@ -1,18 +1,21 @@
 package com.xuejiai.aaf.module.system.file.service;
 
 import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.FILE_CONFIG_NOT_FOUND;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.FILE_STORAGE_CONFIG_INVALID;
-import static com.xuejiai.aaf.module.system.ErrorCodeConstants.FILE_STORAGE_CONFIG_MASTER_RETIRED;
-import static com.xuejiai.aaf.module.system.ErrorCodeConstants.FILE_STORAGE_CONFIG_NOT_ACTIVE;
+import static com.xuejiai.aaf.module.system.ErrorCodeConstants.FILE_STORAGE_CONFIG_MASTER_DELETE_FORBIDDEN;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.FILE_STORAGE_CONFIG_REFERENCED;
 
 import java.net.URI;
 import java.util.Objects;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
@@ -22,7 +25,6 @@ import com.xuejiai.aaf.framework.storage.S3StorageSpec;
 import com.xuejiai.aaf.framework.storage.StorageCredentialProvider;
 import com.xuejiai.aaf.framework.storage.StorageType;
 import com.xuejiai.aaf.module.system.file.domain.FileConfig;
-import com.xuejiai.aaf.module.system.file.enums.FileConfigStatus;
 import com.xuejiai.aaf.module.system.file.repository.FileConfigRepository;
 import com.xuejiai.aaf.module.system.file.repository.FileRecordRepository;
 import com.xuejiai.aaf.module.system.file.vo.FileConfigCreateDTO;
@@ -50,6 +52,7 @@ public class FileConfigService
     private final StorageClientRegistry storageClientRegistry;
     private final StorageRouter storageRouter;
     private final StorageCredentialProvider credentialProvider;
+    private final PlatformTransactionManager transactionManager;
 
     @Override
     protected FileConfigRepository getRepository() {
@@ -69,7 +72,6 @@ public class FileConfigService
                 credentialRef,
                 isCredentialConfigured(storageType, credentialRef),
                 entity.getMaster(),
-                entity.getStatus(),
                 entity.getCreateTime(),
                 entity.getUpdateTime());
     }
@@ -82,7 +84,6 @@ public class FileConfigService
         entity.setName(request.name());
         entity.setStorageType(storageType.name());
         entity.setConfig(request.config());
-        entity.setStatus(FileConfigStatus.ACTIVE.name());
         entity.setMaster(false);
         return entity;
     }
@@ -130,7 +131,7 @@ public class FileConfigService
             throw exception(FILE_STORAGE_CONFIG_REFERENCED);
         }
         if (Boolean.TRUE.equals(entity.getMaster())) {
-            throw exception(FILE_STORAGE_CONFIG_MASTER_RETIRED);
+            throw exception(FILE_STORAGE_CONFIG_MASTER_DELETE_FORBIDDEN);
         }
     }
 
@@ -139,21 +140,25 @@ public class FileConfigService
         invalidateAfterCommit(entity.getId());
     }
 
-    /** 将启用的配置设为全局主配置。 */
-    @Transactional
+    /** 真实验证候选配置后，将其设为全局主配置。 */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public FileConfigVO setMaster(Long id) {
+        var candidate = requireConfig(id);
+        validateStorageConfig(
+                StorageType.valueOf(candidate.getStorageType()), candidate.getConfig());
+        var result =
+                new TransactionTemplate(transactionManager).execute(ignored -> switchMaster(id));
+        return Objects.requireNonNull(result, "切换主文件存储未返回结果");
+    }
+
+    private FileConfigVO switchMaster(Long id) {
         return executeCustomUpdateCommand(
                 id,
                 id,
                 new CustomUpdatePlan<>(
                         "SET_MASTER",
                         java.util.Set.of("master"),
-                        (entity, ignored) -> {
-                            if (FileConfigStatus.parse(entity.getStatus())
-                                    != FileConfigStatus.ACTIVE) {
-                                throw exception(FILE_STORAGE_CONFIG_NOT_ACTIVE);
-                            }
-                        },
+                        (entity, ignored) -> {},
                         (entity, ignored) -> entity.setMaster(true),
                         (entity, ignored) -> null,
                         true,
@@ -164,47 +169,15 @@ public class FileConfigService
                         (entity, ignored, result) -> toVO(entity)));
     }
 
-    /** 将非主配置退役，保留其引用的历史文件读取与清理能力。 */
-    @Transactional
-    public FileConfigVO retire(Long id) {
-        return executeCustomUpdateCommand(
-                id,
-                id,
-                new CustomUpdatePlan<>(
-                        "RETIRE",
-                        java.util.Set.of("status"),
-                        (entity, ignored) -> {
-                            if (Boolean.TRUE.equals(entity.getMaster())) {
-                                throw exception(FILE_STORAGE_CONFIG_MASTER_RETIRED);
-                            }
-                        },
-                        (entity, ignored) -> entity.setStatus(FileConfigStatus.RETIRED.name()),
-                        (entity, ignored) -> null,
-                        true,
-                        (entity, ignored, result) -> invalidateAfterCommit(entity.getId()),
-                        (entity, ignored, result) -> toVO(entity)));
+    /** 通过上传、回读和删除临时对象验证配置真实可用。 */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public void test(Long id) {
+        var config = requireConfig(id);
+        validateStorageConfig(StorageType.valueOf(config.getStorageType()), config.getConfig());
     }
 
-    /** 校验当前配置可被动态客户端工厂和凭证引用解析。 */
-    @Transactional
-    public void test(Long id) {
-        executeCustomUpdateCommand(
-                id,
-                id,
-                new CustomUpdatePlan<>(
-                        "TEST",
-                        java.util.Set.of("config"),
-                        (entity, ignored) -> {},
-                        (entity, ignored) -> {},
-                        (entity, ignored) -> {
-                            validateStorageConfig(
-                                    StorageType.valueOf(entity.getStorageType()),
-                                    entity.getConfig());
-                            return null;
-                        },
-                        false,
-                        (entity, ignored, result) -> {},
-                        (entity, ignored, result) -> null));
+    private FileConfig requireConfig(Long id) {
+        return repository.findById(id).orElseThrow(() -> exception(FILE_CONFIG_NOT_FOUND));
     }
 
     private void requireReferencedLocationUnchanged(
