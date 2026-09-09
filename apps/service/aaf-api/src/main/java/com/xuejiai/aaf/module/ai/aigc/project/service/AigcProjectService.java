@@ -47,7 +47,6 @@ import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionComparisonVie
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionRejectCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionView;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
-import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverMode;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectExecutionReservationBindCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectExecutionReservationCommand;
@@ -397,7 +396,9 @@ public class AigcProjectService
                         "coverStatus", project.getCoverStatus().name()));
         var refreshed = repository.findById(project.getId()).orElseThrow();
         return new AigcProjectMaterializeView(
-                toApiView(refreshed), refreshed.getCoverStatus(), refreshed.getCoverExecutionRunId());
+                toApiView(refreshed),
+                refreshed.getCoverStatus(),
+                refreshed.getCoverExecutionRunId());
     }
 
     @Override

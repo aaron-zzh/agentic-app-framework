@@ -261,19 +261,16 @@ public class AigcProjectMaterializer {
      * 收尾封面状态并（如需）发起 AI 封面生成事件；独立事务保证 {@code AFTER_COMMIT} 监听器语义正确。
      *
      * <p>调用方 {@code AigcProjectService.materialize} 以 {@code Propagation.NOT_SUPPORTED} 运行，
-     * 若在其中直接发布事件将导致事件在无事务上下文下由 {@code fallbackExecution} 立即同步触发，
-     * 破坏"ExecutionRun 落库后才派发"的不变量，因此收尾逻辑必须放在跨 Bean 调用的独立事务内。
+     * 若在其中直接发布事件将导致事件在无事务上下文下由 {@code fallbackExecution} 立即同步触发， 破坏"ExecutionRun
+     * 落库后才派发"的不变量，因此收尾逻辑必须放在跨 Bean 调用的独立事务内。
      */
     @Transactional
-    public AigcProject finalizeCoverStatus(
-            Long projectId, AigcProjectMaterializeCommand command) {
+    public AigcProject finalizeCoverStatus(Long projectId, AigcProjectMaterializeCommand command) {
         var project =
                 projectRepository
                         .findById(projectId)
                         .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                GlobalErrorCode.NOT_FOUND, "项目不存在"));
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "项目不存在"));
         var coverStatus =
                 project.getCoverMediaVersionId() == null
                         ? AigcProjectCoverStatus.NONE

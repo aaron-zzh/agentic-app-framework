@@ -12,12 +12,6 @@ changelog:
   - 2026-09-04 | v2.3.0 定稿 DeliverableSet manifest、父子 ExecutionRun、条件采用与四阶段派生过程
   - 2026-08-05 | v2.2.3 收敛 ExecutionBinding 兼容性端口、AssetTagRef 命令与前端附件真实接线
   - 2026-08-05 | v2.2.2 对齐 Tool 运行端口、执行/完成证据投影、BaseCrud 唯一查询与资产前端入口
-  - 2026-08-05 | v2.2.1 对齐当前项目生命周期：completed 不支持重新打开，archive 可归档任一非归档状态
-  - 2026-08-05 | v2.2.0 补齐 ProjectTypePackage、Asset 分类体系、runtime adapters 与 CompletionEvidence 当前落地状态
-  - 2026-08-04 | v2.1.0 对齐已完成迁移现状，明确八个核心领域子模块、ExecutionBinding 归 execution 及专业能力适配器边界
-  - 2026-08-04 | v2.0.1 明确配置版本承载根、VersionId 字段、依赖箭头、Work/Publication 完成条件与 Asset 子模块边界
-  - 2026-08-04 | v2.0.0 统一 AIGC 八个目标子模块、Aigc* 全链路命名、BaseCrud 边界、唯一项目聚合、接口事件、迁移顺序与质量门
-  - 2026-08-04 | v1.0.0 定义 Content Studio 与 AIGC 一次性整合、目标数据模型及文件生命周期
 scope:
   includes:
     - Content Studio 产品名称与 AIGC 工程领域契约

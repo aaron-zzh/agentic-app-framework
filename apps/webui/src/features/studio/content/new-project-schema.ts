@@ -17,13 +17,13 @@ export const newProjectSchema = z.object({
     .int()
     .positive({ message: "请选择蓝图模板" }),
   brandProfileId: z.number().optional(),
-  productionMode: schemaUtils.requiredText({ error: "请选择生产模式" }),
-  channelCodes: z.array(z.string()).default([]),
-  documentVersionIds: z.array(z.number()).default([]),
+  productionMode: z.enum(["standard", "short_drama", "motion_comic"], {
+    error: "请选择生产模式"
+  }),
+  channelCodes: z.array(z.string()),
+  documentVersionIds: z.array(z.number()),
   coverMode: z.enum(["UPLOAD", "AI_GENERATE"]),
-  coverUpload: z
-    .object({ fileId: z.number(), url: z.string(), name: z.string() })
-    .optional(),
+  coverUpload: z.object({ fileId: z.number(), url: z.string(), name: z.string() }).optional(),
   coverPrompt: z.string().optional(),
   brief: z.string().optional()
 })

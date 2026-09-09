@@ -9,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Bot, Check, ChevronRight, ImageIcon, Plus, Sparkles, Star, Upload, X } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useId, useEffect } from "react"
+import { useEffect, useId } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { GlassCard, GlassCardBody, GlowButton } from "@/components/studio"
 import { Button } from "@/components/ui/button"
@@ -28,6 +28,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
+  type AigcBlueprintSlotTemplate,
   type AigcBrandProfile,
   type AigcChannelCode,
   type AigcProjectBlueprint,
@@ -222,7 +223,9 @@ interface BlueprintActionStep {
 }
 
 /** 从蓝图 actionSpec（后端未强类型的 JSON）中防御性解析生成流程步骤。 */
-function parseBlueprintActions(actionSpec: Record<string, unknown> | undefined): BlueprintActionStep[] {
+function parseBlueprintActions(
+  actionSpec: Record<string, unknown> | undefined
+): BlueprintActionStep[] {
   const actions = actionSpec?.actions
   if (!Array.isArray(actions)) return []
   return actions.flatMap((item) => {
@@ -240,7 +243,9 @@ function parseBlueprintActions(actionSpec: Record<string, unknown> | undefined):
 
 /** 按 parentTemplateKey 构建产物层级并渲染可折叠树形结构。 */
 function SlotProductTree({ templates }: { templates: AigcBlueprintSlotTemplate[] }) {
-  const sorted = [...templates].toSorted((left, right) => (left.orderNo ?? 0) - (right.orderNo ?? 0))
+  const sorted = [...templates].toSorted(
+    (left, right) => (left.orderNo ?? 0) - (right.orderNo ?? 0)
+  )
   const roots = sorted.filter((template) => !template.parentTemplateKey)
   const childrenByParent = new Map<string, AigcBlueprintSlotTemplate[]>()
   for (const template of sorted) {
@@ -252,7 +257,9 @@ function SlotProductTree({ templates }: { templates: AigcBlueprintSlotTemplate[]
 
   function renderNode(template: AigcBlueprintSlotTemplate) {
     const children = childrenByParent.get(template.templateKey) ?? []
-    const config = getObjectTypeConfig(template.objectType as Parameters<typeof getObjectTypeConfig>[0])
+    const config = getObjectTypeConfig(
+      template.objectType as Parameters<typeof getObjectTypeConfig>[0]
+    )
     const Icon = config?.icon ?? ImageIcon
     const isRequired = (template.defaultContractRole ?? "REQUIRED") === "REQUIRED"
 
@@ -264,10 +271,7 @@ function SlotProductTree({ templates }: { templates: AigcBlueprintSlotTemplate[]
             config?.label ||
             template.templateKey}
           {isRequired ? (
-            <Star
-              className="size-3.5 shrink-0 fill-amber-400 text-amber-400"
-              aria-label="必需"
-            />
+            <Star className="size-3.5 shrink-0 fill-amber-400 text-amber-400" aria-label="必需" />
           ) : null}
         </span>
         <span className="ml-auto shrink-0 text-muted-foreground text-xs">
@@ -404,6 +408,7 @@ export function NewProjectLauncher({
   })
   const { control, watch, setValue, handleSubmit, formState } = methods
   const nameEditedRef = { current: false }
+  const nameEdited = nameEditedRef.current
 
   const projectTypeCode = watch("projectTypeCode")
   const blueprintVersionId = watch("blueprintVersionId")
@@ -453,14 +458,27 @@ export function NewProjectLauncher({
       (blueprint) => blueprint.id === preselectedBlueprintId
     )
     if (!target) return
-    const type = allTypes.find((item) => item.code === target.projectTypeCode)
+    let type: AigcProjectType | undefined
+    for (const item of allTypes) {
+      if (item.code === target.projectTypeCode) {
+        type = item
+        break
+      }
+    }
     setValue("projectTypeCode", target.projectTypeCode)
     setValue("blueprintVersionId", target.id)
     setValue("productionMode", target.productionMode)
     setValue("channelCodes", type?.defaultChannels ?? [])
-    if (!nameEditedRef.current) setValue("name", `${target.name} · ${projectDate}`)
-    // biome-ignore lint/correctness/useExhaustiveDependencies: allTypes 随查询刷新引用变化，只需首次匹配到目标蓝图时执行一次
-  }, [preselectedBlueprintId, preselectedBlueprintPage, projectTypeCode, setValue, projectDate])
+    if (!nameEdited) setValue("name", `${target.name} · ${projectDate}`)
+  }, [
+    allTypes,
+    nameEdited,
+    preselectedBlueprintId,
+    preselectedBlueprintPage,
+    projectDate,
+    projectTypeCode,
+    setValue
+  ])
 
   function handleTypeChange(code: AigcProjectTypeCode) {
     const type = allTypes.find((item) => item.code === code)
@@ -637,7 +655,10 @@ export function NewProjectLauncher({
               />
               {coverMode === "AI_GENERATE" ? (
                 <div className="flex flex-1 flex-col gap-1">
-                  <Label htmlFor={coverPromptId} className="font-normal text-muted-foreground text-xs">
+                  <Label
+                    htmlFor={coverPromptId}
+                    className="font-normal text-muted-foreground text-xs"
+                  >
                     封面描述（可选）
                   </Label>
                   <Textarea
@@ -683,9 +704,7 @@ export function NewProjectLauncher({
               <p className="text-muted-foreground text-sm">正在加载项目类型…</p>
             ) : null}
             {formState.errors.projectTypeCode ? (
-              <p className="text-destructive text-xs">
-                {formState.errors.projectTypeCode.message}
-              </p>
+              <p className="text-destructive text-xs">{formState.errors.projectTypeCode.message}</p>
             ) : null}
           </div>
 
@@ -784,7 +803,11 @@ export function NewProjectLauncher({
               size="lg"
               type="submit"
               disabled={
-                !canCreate || !selectedType || !selectedBlueprint || coverUploading || materialize.isPending
+                !canCreate ||
+                !selectedType ||
+                !selectedBlueprint ||
+                coverUploading ||
+                materialize.isPending
               }
             >
               <Sparkles />
