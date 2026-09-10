@@ -98,7 +98,8 @@ public class PayOrderController {
     /**
      * 支付宝页面跳转页（电脑网站支付/手机网站支付）——前端整页跳转到此地址，浏览器自动提交表单跳转到支付宝收银台。
      *
-     * <p>无需鉴权头（浏览器直接整页跳转访问），安全性由订单归属 + 状态校验保证：仅未支付订单可重新生成跳转表单。
+     * <p>仍需登录：浏览器无需手工设置 Authorization Header，会自动携带登录时写入的 {@code aaf-token}
+     * Cookie，由安全过滤器恢复 Bearer 身份；服务层继续校验订单归属、渠道和待支付状态，仅本人未支付订单可重新生成跳转表单。
      */
     @Operation(summary = "支付宝页面跳转页")
     @PreAuthorize("isAuthenticated()")

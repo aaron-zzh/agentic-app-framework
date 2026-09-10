@@ -59,7 +59,7 @@ aaf:
       app-id: ${ALIPAY_APP_ID:9021000165620830}
       private-key: ${ALIPAY_PRIVATE_KEY:}
       alipay-public-key: ${ALIPAY_PUBLIC_KEY:}
-      notify-url: ${ALIPAY_NOTIFY_URL:http://localhost:8080/api/pay/order/notify/alipay}
+      notify-url: ${ALIPAY_NOTIFY_URL:http://localhost:8080/api/pay/orders/notify/alipay}
       return-url: ${ALIPAY_RETURN_URL:http://localhost:3000/pay-result}
   security:
     query-token:

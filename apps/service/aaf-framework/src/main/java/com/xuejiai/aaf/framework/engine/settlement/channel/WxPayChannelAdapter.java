@@ -43,6 +43,7 @@ public class WxPayChannelAdapter implements PayChannelAdapter {
                     "wx_native", TradeTypeEnum.NATIVE);
 
     private final WxPayService wxPayService;
+    private final String notifyUrl;
 
     public WxPayChannelAdapter(WxPayProperties properties) {
         var config = new WxPayConfig();
@@ -53,6 +54,7 @@ public class WxPayChannelAdapter implements PayChannelAdapter {
         config.setPrivateCertPath(properties.getPrivateCertPath());
         this.wxPayService = new WxPayServiceImpl();
         this.wxPayService.setConfig(config);
+        this.notifyUrl = properties.getNotifyUrl();
         log.info("微信支付适配器初始化完成, mchId={}", properties.getMchId());
     }
 
@@ -77,7 +79,7 @@ public class WxPayChannelAdapter implements PayChannelAdapter {
             var wxRequest = new WxPayUnifiedOrderV3Request();
             wxRequest.setOutTradeNo(request.outTradeNo());
             wxRequest.setDescription(request.subject());
-            wxRequest.setNotifyUrl(request.notifyUrl());
+            wxRequest.setNotifyUrl(notifyUrl);
             var amountInfo = new WxPayUnifiedOrderV3Request.Amount();
             amountInfo.setTotal((int) request.amount());
             amountInfo.setCurrency("CNY");
