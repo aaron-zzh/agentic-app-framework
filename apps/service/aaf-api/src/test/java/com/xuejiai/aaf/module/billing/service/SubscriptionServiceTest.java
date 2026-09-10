@@ -244,7 +244,9 @@ class SubscriptionServiceTest extends BaseMockitoUnitTest {
     void paySuccess_marksCompensationWhenGenerationChanged() {
         var current = subscription(501L, proPlan.getId(), proSku.getId());
         lockActive(current);
-        var record = pendingRecord(601L, SubscriptionOperationEnum.UPGRADE, teamPlan, teamSku, 500L, 7483L);
+        var record =
+                pendingRecord(
+                        601L, SubscriptionOperationEnum.UPGRADE, teamPlan, teamSku, 500L, 7483L);
         var bizOrder = bizOrder(701L, 801L);
         when(bizOrderService.findByPayOrderId(801L)).thenReturn(bizOrder);
         when(recordRepository.findByPayOrderId(801L)).thenReturn(Optional.of(record));
@@ -269,7 +271,14 @@ class SubscriptionServiceTest extends BaseMockitoUnitTest {
         lockActive(activePro);
         var originalEndAt = activePro.getEndAt();
         proSku.setPrice(3900L);
-        var record = pendingRecord(602L, SubscriptionOperationEnum.RENEW, proPlan, proSku, activePro.getId(), 2900L);
+        var record =
+                pendingRecord(
+                        602L,
+                        SubscriptionOperationEnum.RENEW,
+                        proPlan,
+                        proSku,
+                        activePro.getId(),
+                        2900L);
         record.setSkuPriceSnapshot(2900L);
         var bizOrder = bizOrder(702L, 802L);
         when(bizOrderService.findByPayOrderId(802L)).thenReturn(bizOrder);
@@ -308,12 +317,7 @@ class SubscriptionServiceTest extends BaseMockitoUnitTest {
     }
 
     private SubscriptionSku sku(
-            Long id,
-            Long planId,
-            String code,
-            String billingCycle,
-            int cycleMonths,
-            long price) {
+            Long id, Long planId, String code, String billingCycle, int cycleMonths, long price) {
         var sku = new SubscriptionSku();
         sku.setId(id);
         sku.setPlanId(planId);

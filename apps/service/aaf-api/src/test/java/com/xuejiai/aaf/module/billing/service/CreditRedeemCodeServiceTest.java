@@ -98,11 +98,7 @@ class CreditRedeemCodeServiceTest extends BaseMockitoUnitTest {
         assertThat(amount).isZero();
         verify(subscriptionService)
                 .activateGrantedSku(
-                        eq(100L),
-                        eq(301L),
-                        eq("REDEEM_CODE"),
-                        eq(901L),
-                        timeCaptor.capture());
+                        eq(100L), eq(301L), eq("REDEEM_CODE"), eq(901L), timeCaptor.capture());
         assertThat(code.getStatus()).isEqualTo("REDEEMED");
         assertThat(code.getRedeemedByUserId()).isEqualTo(100L);
         assertThat(code.getRedeemedAt()).isEqualTo(timeCaptor.getValue());

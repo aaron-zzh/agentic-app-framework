@@ -99,9 +99,7 @@ class AigcTaskApiAdapterTest extends BaseMockitoUnitTest {
             assertThat(intent.getStatus()).isEqualTo("PREPARED");
             assertThat(view.id()).isEqualTo(51L);
             verify(submissionAccessGuard)
-                    .requireAccess(
-                            9L,
-                            com.xuejiai.aaf.common.enums.aigc.AigcTaskTypeEnum.IMAGE);
+                    .requireAccess(9L, com.xuejiai.aaf.common.enums.aigc.AigcTaskTypeEnum.IMAGE);
             verify(taskExecutor, never()).resumeIntent(51L);
 
             TransactionSynchronizationManager.getSynchronizations()

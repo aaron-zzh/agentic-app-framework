@@ -57,8 +57,9 @@ class SubscriptionExpiryReminderSchedulerTest extends BaseMockitoUnitTest {
         plan.setName("专业版");
         lenient().when(planRepository.findById(20L)).thenReturn(Optional.of(plan));
         lenient()
-                .when(subscriptionRepository.findByUserIdAndStatusForUpdate(
-                        100L, SubscriptionStatusEnum.ACTIVE.getCode()))
+                .when(
+                        subscriptionRepository.findByUserIdAndStatusForUpdate(
+                                100L, SubscriptionStatusEnum.ACTIVE.getCode()))
                 .thenReturn(Optional.of(subscription));
         lenient()
                 .when(subscriptionRepository.save(any()))
