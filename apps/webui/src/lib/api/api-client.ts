@@ -106,7 +106,7 @@ export class RestApiClient extends ApiClient {
     const response: AxiosResponse<ApiResult<T>> = await this.instance.request<ApiResult<T>>(config)
     const result = response.data
     if (result.code !== 0) {
-      throw new ApiError(result.code, result.message ?? "未知错误")
+      throw new ApiError(result.code, result.message ?? "未知错误", result.data)
     }
     return result.data
   }
@@ -114,7 +114,11 @@ export class RestApiClient extends ApiClient {
   override normalizeError(error: AxiosError<ApiResult<unknown>>): ApiError {
     const response = error.response
     if (response?.data?.message) {
-      return new ApiError(response.data.code ?? response.status, response.data.message)
+      return new ApiError(
+        response.data.code ?? response.status,
+        response.data.message,
+        response.data.data ?? response.data
+      )
     }
     return super.normalizeError(error)
   }

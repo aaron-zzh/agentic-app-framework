@@ -10,8 +10,13 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { buildApiUrl } from "@/lib/api/config"
 import { backendApi } from "@/lib/api/rest/backend-client"
-import type { PayOrderVO } from "@/lib/api/rest/billing"
-import { invalidateCreditQueries, useSubscribe } from "@/lib/api/rest/billing"
+import type { BillingCycle, PayOrderVO } from "@/lib/api/rest/billing"
+import {
+  billingPlansApi,
+  getPendingSubscriptionPayOrderId,
+  invalidateCreditQueries,
+  useSubscribe
+} from "@/lib/api/rest/billing"
 import { restEndpoints } from "@/lib/api/rest/endpoints"
 import { notify } from "@/lib/notification"
 
@@ -74,16 +79,26 @@ function isWechatBrowser(): boolean {
   return /MicroMessenger/i.test(navigator.userAgent)
 }
 
+function isChannel(value: string): value is Channel {
+  return CHANNELS.some((channel) => channel.value === value)
+}
+
+function isRedirectChannel(value: string): boolean {
+  return value === "alipay_wap" || value === "alipay_pc"
+}
+
 /** 二维码展示 + 轮询支付状态 */
 function QrStep({
   order,
   channel,
   onSuccess,
+  onCompensation,
   onCancel
 }: {
   order: PayOrderVO
   channel: Channel
   onSuccess: () => void
+  onCompensation: () => void
   onCancel: () => void
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -94,7 +109,7 @@ function QrStep({
     }
   }, [order.codeUrl])
 
-  usePayOrderPolling(order.id, onSuccess, onCancel)
+  usePayOrderPolling(order.id, onSuccess, onCompensation, onCancel)
 
   const channelLabel = CHANNELS.find((c) => c.value === channel)?.label ?? channel
 
@@ -125,24 +140,30 @@ function QrStep({
 function WaitingRedirectStep({
   order,
   onSuccess,
+  onCompensation,
   onCancel
 }: {
   order: PayOrderVO
   onSuccess: () => void
+  onCompensation: () => void
   onCancel: () => void
 }) {
-  usePayOrderPolling(order.id, onSuccess, onCancel)
+  usePayOrderPolling(order.id, onSuccess, onCompensation, onCancel)
+  const checkoutUrl = order.codeUrl ? buildApiUrl(order.codeUrl) : null
 
   return (
     <div className="flex flex-col items-center gap-4 py-6">
       <p className="text-center font-medium text-sm">
-        已在新标签页打开支付宝收银台，完成支付后本页面将自动更新
+        支付宝收银台已在新标签页打开；如未打开，可点击下方按钮继续支付
       </p>
       <p className="mt-1 font-bold text-2xl">¥{(order.amount / 100).toFixed(0)}</p>
       <Badge variant="outline" className="mt-2 animate-pulse text-xs">
         等待支付…
       </Badge>
       <p className="text-[11px] text-muted-foreground">订单号：{order.merchantOrderNo}</p>
+      {checkoutUrl && (
+        <Button onClick={() => window.open(checkoutUrl, "_blank")}>打开支付宝收银台</Button>
+      )}
       <Button variant="ghost" size="sm" onClick={onCancel}>
         取消
       </Button>
@@ -150,61 +171,77 @@ function WaitingRedirectStep({
   )
 }
 
-/** 每 2 秒轮询一次支付单状态，成功/关闭时触发对应回调；页面从后台切回前台时立即查一次兜底 */
-function usePayOrderPolling(orderId: number, onSuccess: () => void, onCancel: () => void) {
+/** 每 2 秒轮询收款与订阅履约状态；只有 FULFILLED 才报告订阅成功。 */
+function usePayOrderPolling(
+  orderId: number,
+  onSuccess: () => void,
+  onCompensation: () => void,
+  onCancel: () => void
+) {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
+    const stopPolling = () => clearInterval(pollRef.current ?? undefined)
     const checkOnce = async () => {
       try {
-        const res = await backendApi.get<PayOrderVO>(restEndpoints.pay.order(orderId))
-        if (res.status === 10) {
-          clearInterval(pollRef.current ?? undefined)
-          onSuccess()
-        } else if (res.status === 30) {
-          clearInterval(pollRef.current ?? undefined)
+        const order = await backendApi.get<PayOrderVO>(restEndpoints.pay.order(orderId))
+        if (order.status === 10) {
+          const checkout = await billingPlansApi.getSubscriptionCheckout(orderId)
+          if (checkout.fulfillmentStatus === "FULFILLED") {
+            stopPolling()
+            onSuccess()
+          } else if (checkout.fulfillmentStatus === "COMPENSATION_PENDING") {
+            stopPolling()
+            onCompensation()
+          } else if (checkout.fulfillmentStatus === "CLOSED") {
+            stopPolling()
+            notify.error("会员结账已关闭，请重新发起")
+            onCancel()
+          }
+        } else if (order.status === 30) {
+          stopPolling()
           notify.error("订单已关闭，请重新发起支付")
           onCancel()
         }
       } catch {
-        /* 网络错误静默处理 */
+        /* 网络错误或业务履约仍在处理时继续轮询 */
       }
     }
 
     pollRef.current = setInterval(checkOnce, 2000)
 
-    // 浏览器对后台标签页的定时器限流/暂停会导致轮询失效（尤其手机网站支付新标签页跳转场景），
-    // 页面重新可见时（用户从支付宝页面切回）立即补查一次，不等下一个周期
     const onVisible = () => {
-      if (document.visibilityState === "visible") checkOnce()
+      if (document.visibilityState === "visible") void checkOnce()
     }
     document.addEventListener("visibilitychange", onVisible)
 
     return () => {
-      clearInterval(pollRef.current ?? undefined)
+      stopPolling()
       document.removeEventListener("visibilitychange", onVisible)
     }
-  }, [orderId, onSuccess, onCancel])
+  }, [orderId, onSuccess, onCompensation, onCancel])
 }
 
 export interface SubscriptionPayDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** 待订阅的套餐信息 */
-  planCode: string
+  /** 待购买的订阅 SKU */
+  skuCode: string
   planName: string
   price: number
-  billingCycle: "monthly" | "yearly"
+  billingCycle: BillingCycle
+  action?: "subscribe" | "upgrade" | "renew"
   onSuccess?: () => void
 }
 
 export function SubscriptionPayDialog({
   open,
   onOpenChange,
-  planCode,
+  skuCode,
   planName,
   price,
   billingCycle,
+  action = "subscribe",
   onSuccess
 }: SubscriptionPayDialogProps) {
   const qc = useQueryClient()
@@ -213,6 +250,7 @@ export function SubscriptionPayDialog({
   const [isWechat, setIsWechat] = useState(false)
   const [channel, setChannel] = useState<Channel>(IS_DEV ? "MOCK" : "alipay_pc")
   const [qrOrder, setQrOrder] = useState<PayOrderVO | null>(null)
+  const [isResumingOrder, setIsResumingOrder] = useState(false)
   const [contactOpen, setContactOpen] = useState(false)
 
   // 检测移动端 + 微信内置浏览器：支付宝渠道按设备互斥展示（PC → 电脑网站支付；移动端 → 手机网站支付整页跳转）
@@ -248,42 +286,6 @@ export function SubscriptionPayDialog({
     onOpenChange(v)
   }
 
-  const handlePay = () => {
-    // 联系客服渠道，直接弹窗提示
-    if (channel === "contact_service") {
-      setContactOpen(true)
-      return
-    }
-    subscribe(
-      { planCode, billingCycle, channelCode: channel },
-      {
-        onSuccess: (data) => {
-          if (!data || (data as unknown as number) > 0) {
-            // 免费套餐直接激活 或 MOCK 同步成功（旧接口返回 recordId）
-            notify.success("订阅成功！")
-            onSuccess?.()
-            onOpenChange(false)
-          } else if (data.status === 10) {
-            // 同步成功（PayOrderVO）
-            notify.success("订阅成功！")
-            onSuccess?.()
-            onOpenChange(false)
-          } else if ((channel === "alipay_wap" || channel === "alipay_pc") && data.codeUrl) {
-            // 手机网站支付/电脑网站支付：新标签页打开跳转链接，不替换当前页面，
-            // 当前页面轮询订单状态感知支付完成。codeUrl 为后端相对路径，需拼上后端 origin。
-            window.open(buildApiUrl(data.codeUrl), "_blank")
-            setQrOrder(data)
-          } else if (data.codeUrl) {
-            setQrOrder(data)
-          } else {
-            notify.error("未获取到支付二维码，请检查渠道配置")
-          }
-        },
-        onError: () => notify.error("订阅失败，请重试")
-      }
-    )
-  }
-
   const handleQrSuccess = () => {
     notify.success("支付成功，订阅已激活！")
     invalidateCreditQueries(qc)
@@ -294,19 +296,112 @@ export function SubscriptionPayDialog({
     setQrOrder(null)
   }
 
+  const handleCompensation = () => {
+    notify.error("收款已登记，但订阅未生效，已进入人工处理")
+    onOpenChange(false)
+    setQrOrder(null)
+  }
+
+  const resolveCollectedOrder = async (order: PayOrderVO) => {
+    try {
+      const checkout = await billingPlansApi.getSubscriptionCheckout(order.id)
+      if (checkout.fulfillmentStatus === "FULFILLED") {
+        handleQrSuccess()
+      } else if (checkout.fulfillmentStatus === "COMPENSATION_PENDING") {
+        handleCompensation()
+      } else if (checkout.fulfillmentStatus === "CLOSED") {
+        notify.error("会员结账已关闭，请重新发起")
+        setQrOrder(null)
+      } else {
+        setQrOrder(order)
+      }
+    } catch {
+      setQrOrder(order)
+    }
+  }
+
+  const resumeExistingPayOrder = async (error: unknown) => {
+    const payOrderId = getPendingSubscriptionPayOrderId(error)
+    if (!payOrderId) {
+      notify.error(error instanceof Error ? error.message : "订阅失败，请重试")
+      return
+    }
+
+    setIsResumingOrder(true)
+    try {
+      const order = await billingPlansApi.getPayOrder(payOrderId)
+      if (order.status === 10) {
+        await resolveCollectedOrder(order)
+        return
+      }
+      if (order.status === 30) {
+        notify.error("已有会员支付单已关闭，请重新发起支付")
+        return
+      }
+
+      if (isChannel(order.channelCode)) setChannel(order.channelCode)
+      if (isRedirectChannel(order.channelCode) && order.codeUrl) {
+        window.open(buildApiUrl(order.codeUrl), "_blank")
+      }
+      setQrOrder(order)
+      notify.success("已恢复待支付会员订单")
+    } catch {
+      notify.error("已有待支付会员订单，但暂时无法恢复，请稍后重试")
+    } finally {
+      setIsResumingOrder(false)
+    }
+  }
+
+  const handlePay = () => {
+    // 联系客服渠道，直接弹窗提示
+    if (channel === "contact_service") {
+      setContactOpen(true)
+      return
+    }
+    subscribe(
+      { skuCode, channelCode: channel },
+      {
+        onSuccess: (data) => {
+          if (!data) {
+            notify.success("订阅更新成功！")
+            onSuccess?.()
+            onOpenChange(false)
+          } else if (data.status === 10) {
+            void resolveCollectedOrder(data)
+          } else if (isRedirectChannel(data.channelCode) && data.codeUrl) {
+            // 手机网站支付/电脑网站支付：新标签页打开跳转链接，不替换当前页面，
+            // 当前页面轮询订单状态感知支付完成。codeUrl 为后端相对路径，需拼上后端 origin。
+            window.open(buildApiUrl(data.codeUrl), "_blank")
+            setQrOrder(data)
+          } else if (data.codeUrl) {
+            setQrOrder(data)
+          } else {
+            notify.error("未获取到支付二维码，请检查渠道配置")
+          }
+        },
+        onError: (error) => {
+          void resumeExistingPayOrder(error)
+        }
+      }
+    )
+  }
+
   return (
     <>
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="w-[400px] max-w-none!">
           <DialogHeader>
-            <DialogTitle>订阅 {planName}</DialogTitle>
+            <DialogTitle>
+              {action === "upgrade" ? "升级至" : action === "renew" ? "续费" : "订阅"} {planName}
+            </DialogTitle>
           </DialogHeader>
 
           {qrOrder ? (
-            channel === "alipay_wap" || channel === "alipay_pc" ? (
+            isRedirectChannel(qrOrder.channelCode) ? (
               <WaitingRedirectStep
                 order={qrOrder}
                 onSuccess={handleQrSuccess}
+                onCompensation={handleCompensation}
                 onCancel={() => setQrOrder(null)}
               />
             ) : (
@@ -314,6 +409,7 @@ export function SubscriptionPayDialog({
                 order={qrOrder}
                 channel={channel}
                 onSuccess={handleQrSuccess}
+                onCompensation={handleCompensation}
                 onCancel={() => setQrOrder(null)}
               />
             )
@@ -324,12 +420,16 @@ export function SubscriptionPayDialog({
                 <p className="mt-1 font-bold text-3xl">
                   ¥{(price / 100).toFixed(0)}
                   <span className="ml-1 font-normal text-base text-muted-foreground">
-                    /{billingCycle === "yearly" ? "年" : "月"}
+                    /{billingCycle === "YEAR" ? "年" : billingCycle === "QUARTER" ? "季" : "月"}
                   </span>
                 </p>
+                {action === "upgrade" && (
+                  <p className="mt-2 text-muted-foreground text-xs">
+                    当前展示目标 SKU
+                    标价；创建订单时将按当前订阅未消费价值自动抵扣，实际支付以后端订单金额为准。
+                  </p>
+                )}
               </div>
-
-              {/* 支付方式 */}
               <div>
                 <p className="mb-2 text-muted-foreground text-xs">支付方式</p>
                 <div className="flex gap-2">
@@ -357,8 +457,19 @@ export function SubscriptionPayDialog({
                 </div>
               </div>
 
-              <Button size="lg" className="w-full" disabled={isPending} onClick={handlePay}>
-                {isPending ? "处理中..." : `确认支付 ¥${(price / 100).toFixed(0)}`}
+              <Button
+                size="lg"
+                className="w-full"
+                disabled={isPending || isResumingOrder}
+                onClick={handlePay}
+              >
+                {isResumingOrder
+                  ? "恢复支付单中..."
+                  : isPending
+                    ? "处理中..."
+                    : action === "upgrade"
+                      ? "计算差价并支付"
+                      : `确认支付 ¥${(price / 100).toFixed(0)}`}
               </Button>
             </div>
           )}

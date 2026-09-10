@@ -1,10 +1,10 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useAuthStore } from "@/lib/store/auth-store"
 import { backendApi } from "../backend-client"
+import { invalidateCreditQueries } from "./credits"
 
-/**
- * 订阅套餐 & 积分充值套餐 API 类型
- */
+export type BillingCycle = "MONTH" | "QUARTER" | "YEAR" | "PERPETUAL"
 
-/** 套餐权益项 */
 export interface PlanEntitlementVO {
   code: string
   name: string
@@ -15,80 +15,83 @@ export interface PlanEntitlementVO {
   refillPrice: number
 }
 
-/** 订阅套餐 */
+export interface SubscriptionSkuVO {
+  id: string
+  skuCode: string
+  billingCycle: BillingCycle
+  cycleMonths: number
+  price: number
+  marketPrice: number
+  status: string
+  sort: number
+}
+
 export interface SubscriptionPlanVO {
   id: string
   code: string
   name: string
-  /** 有效天数（0=永久） */
-  durationDays: number
-  /** 月付价格（分） */
-  price: number
-  /** 年付价格（分），后端按 price*12*折扣 计算 */
-  yearlyPrice: number
-  /** 划线价（分） */
-  marketPrice: number
-  /** 每月发放积分数 */
   monthlyCredits: number
-  /** 扩展配置（JSON 字符串） */
   ext: string | null
+  skus: SubscriptionSkuVO[]
   entitlements: PlanEntitlementVO[]
+  status: string
+  sort: number
 }
 
-/** 积分充值套餐 */
 export interface CreditPackageVO {
   id: string
   name: string
-  /** 积分数 */
   credits: number
-  /** 赠送积分 */
   bonusCredits: number
-  /** 售价（分） */
   price: number
-  /** 套餐分组标签（如"会员积分充值"、"专属积分包"） */
   group: string | null
-  /** 是否推荐 */
   recommended: boolean
 }
 
-/** 支付订单（与后端 PayOrderVO 对应） */
 export interface PayOrderVO {
   id: number
   merchantOrderNo: string
   amount: number
-  /** 0=待支付 10=成功 30=已关闭 */
   status: number
   channelCode: string
   codeUrl?: string
-  /** 关联业务订单类型，见 BizOrderType（与后端 BizOrderTypeEnum.code 对应），无关联业务订单时为空 */
   bizOrderType?: BizOrderType
 }
 
-/** 业务订单类型（与后端 BizOrderTypeEnum 对应） */
 export const BIZ_ORDER_TYPE = {
-  /** 直接充值 */
   RECHARGE: "RECHARGE",
-  /** 积分套餐购买 */
   CREDIT_PACKAGE: "CREDIT_PACKAGE",
-  /** 购买 */
   PURCHASE: "PURCHASE",
-  /** 订阅 */
   SUBSCRIPTION: "SUBSCRIPTION"
 } as const
 
 export type BizOrderType = (typeof BIZ_ORDER_TYPE)[keyof typeof BIZ_ORDER_TYPE]
 
-/** 当前订阅信息 */
 export interface SubscriptionVO {
   id: number
   planCode: string | null
   planName: string | null
+  skuCode: string | null
+  billingCycle: BillingCycle | null
+  cycleMonths: number | null
   startAt: string
   endAt: string | null
   status: string
+  cancelledAt: string | null
+  pendingPlanName: string | null
+  pendingSkuCode: string | null
+  pendingBillingCycle: BillingCycle | null
 }
 
-/** 用户权益额度 */
+export interface SubscriptionCheckoutStatusVO {
+  payOrderId: number
+  payStatus: "UNPAID" | "PAID"
+  fulfillmentStatus: "PENDING" | "FULFILLED" | "CLOSED" | "COMPENSATION_PENDING"
+  exceptionCode: string | null
+  compensationResolvedAt: string | null
+  compensationResult: string | null
+}
+
 export interface EntitlementQuotaVO {
   id: number
   code: string | null
@@ -101,41 +104,79 @@ export interface EntitlementQuotaVO {
   nextResetAt: string | null
 }
 
+const SUBSCRIPTION_PENDING_PAYMENT_EXISTS = 9_000_010
+const PENDING_PAYMENT_MESSAGE = "已有待支付会员订单"
+const PAY_ORDER_ID_MESSAGE_PATTERN = /(?:payOrderId|支付单(?:ID|Id|id)?)[=：:]\s*(\d+)/u
+
+interface ApiErrorShape {
+  code: number
+  message: string
+  data?: unknown
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null
+}
+
+function isApiErrorShape(value: unknown): value is ApiErrorShape {
+  return isRecord(value) && typeof value.code === "number" && typeof value.message === "string"
+}
+
+function parsePositiveOrderId(value: unknown): number | null {
+  const candidate = typeof value === "string" && value.trim() ? Number(value) : value
+  return typeof candidate === "number" && Number.isSafeInteger(candidate) && candidate > 0
+    ? candidate
+    : null
+}
+
+/** 从 live checkout 冲突错误中提取既有支付单 ID；优先结构化 data，兼容稳定消息。 */
+export function getPendingSubscriptionPayOrderId(error: unknown): number | null {
+  if (!isApiErrorShape(error)) return null
+  const isPendingPaymentConflict =
+    error.code === SUBSCRIPTION_PENDING_PAYMENT_EXISTS ||
+    (error.code === 409 && error.message.includes(PENDING_PAYMENT_MESSAGE))
+  if (!isPendingPaymentConflict) return null
+
+  const structuredId = isRecord(error.data)
+    ? parsePositiveOrderId(error.data.payOrderId)
+    : parsePositiveOrderId(error.data)
+  if (structuredId) return structuredId
+
+  const messageMatch = error.message.match(PAY_ORDER_ID_MESSAGE_PATTERN)
+  return parsePositiveOrderId(messageMatch?.[1])
+}
+
 export const billingPlansApi = {
-  /** 获取所有启用的订阅套餐（含权益列表） */
   getPlans: () => backendApi.get<SubscriptionPlanVO[]>("/billing/subscription-plans/catalog"),
-
-  /** 获取当前用户的有效订阅，无订阅返回 null */
   getCurrentSubscription: () => backendApi.get<SubscriptionVO | null>("/billing/subscriptions/me"),
-
-  /** 获取积分充值套餐列表 */
   getCreditPackages: () => backendApi.get<CreditPackageVO[]>("/billing/credit-packages"),
-
-  /** 购买订阅套餐，返回支付单（免费套餐直接激活返回 null） */
-  subscribe: (planCode: string, billingCycle: "monthly" | "yearly", channelCode: string) =>
-    backendApi.post<PayOrderVO | null>("/billing/subscriptions/subscribe", {
-      planCode,
-      billingCycle,
-      channelCode
+  getPayOrder: (payOrderId: number) =>
+    backendApi.get<PayOrderVO>(`/pay/orders/${payOrderId}`, { showError: false }),
+  getSubscriptionCheckout: (payOrderId: number) =>
+    backendApi.get<SubscriptionCheckoutStatusVO>(`/billing/subscriptions/checkouts/${payOrderId}`, {
+      showError: false
     }),
-
-  /** 购买积分套餐，返回支付单（含 codeUrl） */
+  subscribe: (skuCode: string, channelCode: string) =>
+    backendApi.post<PayOrderVO | null>(
+      "/billing/subscriptions/subscribe",
+      { skuCode, channelCode },
+      { showError: false }
+    ),
+  cancelSubscription: () => backendApi.post<SubscriptionVO>("/billing/subscriptions/me/cancel", {}),
+  downgrade: (skuCode: string) =>
+    backendApi.post<SubscriptionVO>("/billing/subscriptions/me/downgrade", { skuCode }),
+  cancelPendingDowngrade: () =>
+    backendApi.delete<SubscriptionVO>("/billing/subscriptions/me/pending-downgrade"),
   purchaseCredits: (packageId: string, channelCode?: string) =>
     backendApi.post<PayOrderVO>("/billing/credit-packages/purchase", {
       packageId,
       channelCode: channelCode ?? "MOCK"
     }),
-
-  /** 获取当前用户所有权益额度 */
   getEntitlementQuotas: () => backendApi.get<EntitlementQuotaVO[]>("/billing/entitlement-quotas/me")
 }
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useAuthStore } from "@/lib/store/auth-store"
-import { invalidateCreditQueries } from "./credits"
-
 export function useSubscriptionPlans() {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   return useQuery({
     queryKey: ["billing", "plans"],
     queryFn: billingPlansApi.getPlans,
@@ -145,7 +186,7 @@ export function useSubscriptionPlans() {
 }
 
 export function useCurrentSubscription() {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   return useQuery({
     queryKey: ["billing", "subscription", "current"],
     queryFn: billingPlansApi.getCurrentSubscription,
@@ -155,7 +196,7 @@ export function useCurrentSubscription() {
 }
 
 export function useCreditPackages() {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   return useQuery({
     queryKey: ["billing", "credit-packages"],
     queryFn: billingPlansApi.getCreditPackages,
@@ -164,37 +205,57 @@ export function useCreditPackages() {
   })
 }
 
+function invalidateSubscriptionQueries(queryClient: ReturnType<typeof useQueryClient>) {
+  invalidateCreditQueries(queryClient)
+  queryClient.invalidateQueries({ queryKey: ["billing", "plans"] })
+  queryClient.invalidateQueries({ queryKey: ["billing", "subscription", "current"] })
+  queryClient.invalidateQueries({ queryKey: ["billing", "entitlement", "quotas"] })
+}
+
 export function useSubscribe() {
-  const qc = useQueryClient()
+  const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({
-      planCode,
-      billingCycle,
-      channelCode
-    }: {
-      planCode: string
-      billingCycle: "monthly" | "yearly"
-      channelCode: string
-    }) => billingPlansApi.subscribe(planCode, billingCycle, channelCode),
-    onSuccess: () => {
-      invalidateCreditQueries(qc)
-      qc.invalidateQueries({ queryKey: ["billing", "subscription", "current"] })
-      qc.invalidateQueries({ queryKey: ["billing", "entitlement", "quotas"] })
-    }
+    mutationFn: ({ skuCode, channelCode }: { skuCode: string; channelCode: string }) =>
+      billingPlansApi.subscribe(skuCode, channelCode),
+    onSuccess: () => invalidateSubscriptionQueries(queryClient)
+  })
+}
+
+export function useCancelSubscription() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: billingPlansApi.cancelSubscription,
+    onSuccess: () => invalidateSubscriptionQueries(queryClient)
+  })
+}
+
+export function useDowngradeSubscription() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (skuCode: string) => billingPlansApi.downgrade(skuCode),
+    onSuccess: () => invalidateSubscriptionQueries(queryClient)
+  })
+}
+
+export function useCancelPendingDowngrade() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: billingPlansApi.cancelPendingDowngrade,
+    onSuccess: () => invalidateSubscriptionQueries(queryClient)
   })
 }
 
 export function usePurchaseCredits() {
-  const qc = useQueryClient()
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ packageId, channelCode }: { packageId: string; channelCode?: string }) =>
       billingPlansApi.purchaseCredits(packageId, channelCode),
-    onSuccess: () => invalidateCreditQueries(qc)
+    onSuccess: () => invalidateCreditQueries(queryClient)
   })
 }
 
 export function useEntitlementQuotas() {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
   return useQuery({
     queryKey: ["billing", "entitlement", "quotas"],
     queryFn: billingPlansApi.getEntitlementQuotas,

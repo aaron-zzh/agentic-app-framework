@@ -52,8 +52,15 @@ import {
   useAdminUserList,
   useAdminUserSubscription
 } from "@/lib/api/rest/admin"
-import { useSubscriptionPlans } from "@/lib/api/rest/billing"
+import { type BillingCycle, useSubscriptionPlans } from "@/lib/api/rest/billing"
 import { notify } from "@/lib/notification"
+
+const BILLING_CYCLE_LABEL: Record<BillingCycle, string> = {
+  MONTH: "月付",
+  QUARTER: "季付",
+  YEAR: "年付",
+  PERPETUAL: "永久"
+}
 
 export default function AdminUserPage() {
   const [params, setParams] = useState<UserListParams>({ page: 1, pageSize: 20 })
@@ -78,7 +85,7 @@ export default function AdminUserPage() {
 
   // 会员开通弹窗状态
   const [membershipTarget, setMembershipTarget] = useState<UserVO | null>(null)
-  const [selectedPlanCode, setSelectedPlanCode] = useState("")
+  const [selectedSkuCode, setSelectedSkuCode] = useState("")
   const { data: plans = [], isLoading: plansLoading } = useSubscriptionPlans()
   const { data: currentSubscription, isLoading: subscriptionLoading } = useAdminUserSubscription(
     membershipTarget?.id ?? null
@@ -86,9 +93,18 @@ export default function AdminUserPage() {
   const { mutate: activateSubscription, isPending: activatingSubscription } =
     useAdminActivateSubscription()
   const currentPlan = plans.find((plan) => plan.code === currentSubscription?.planCode)
-  const availablePlans = plans.filter(
-    (plan) => plan.price > 0 && (!currentPlan || plan.price > currentPlan.price)
-  )
+  const availableSkus = plans
+    .filter(
+      (plan) =>
+        plan.status === "ENABLED" &&
+        plan.code !== "FREE" &&
+        (!currentSubscription || (currentPlan !== undefined && plan.sort > currentPlan.sort))
+    )
+    .flatMap((plan) =>
+      plan.skus
+        .filter((sku) => sku.status === "ENABLED" && sku.price > 0)
+        .map((sku) => ({ plan, sku }))
+    )
 
   function updateFilter(key: keyof UserListParams, value: string) {
     setParams((prev) => ({ ...prev, [key]: value || undefined, page: 1 }))
@@ -106,19 +122,19 @@ export default function AdminUserPage() {
   }
 
   function openMembership(user: UserVO) {
-    setSelectedPlanCode("")
+    setSelectedSkuCode("")
     setMembershipTarget(user)
   }
 
   function closeMembership() {
     setMembershipTarget(null)
-    setSelectedPlanCode("")
+    setSelectedSkuCode("")
   }
 
   function handleActivateMembership() {
-    if (!membershipTarget || !selectedPlanCode) return
+    if (!membershipTarget || !selectedSkuCode) return
     activateSubscription(
-      { userId: membershipTarget.id, planCode: selectedPlanCode },
+      { userId: membershipTarget.id, skuCode: selectedSkuCode },
       {
         onSuccess: (subscription) => {
           notify.success(`已为用户开通 ${subscription.planName ?? "会员套餐"}`)
@@ -323,6 +339,9 @@ export default function AdminUserPage() {
               ) : currentSubscription ? (
                 <span>
                   {currentSubscription.planName ?? currentSubscription.planCode}
+                  {currentSubscription.billingCycle
+                    ? ` · ${BILLING_CYCLE_LABEL[currentSubscription.billingCycle]}`
+                    : ""}
                   {currentSubscription.endAt
                     ? `（到期 ${currentSubscription.endAt.replace("T", " ").slice(0, 16)}）`
                     : "（长期有效）"}
@@ -333,32 +352,33 @@ export default function AdminUserPage() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <label htmlFor="membership-plan" className="font-medium text-sm">
-                目标套餐
+              <label htmlFor="membership-sku" className="font-medium text-sm">
+                目标 SKU
               </label>
               <Select
-                value={selectedPlanCode}
-                onValueChange={(value) => setSelectedPlanCode(value ?? "")}
-                disabled={plansLoading || subscriptionLoading || availablePlans.length === 0}
+                value={selectedSkuCode}
+                onValueChange={(value) => setSelectedSkuCode(value ?? "")}
+                disabled={plansLoading || subscriptionLoading || availableSkus.length === 0}
               >
-                <SelectTrigger id="membership-plan" className="w-full">
-                  <SelectValue placeholder={plansLoading ? "加载套餐中..." : "请选择会员套餐"} />
+                <SelectTrigger id="membership-sku" className="w-full">
+                  <SelectValue placeholder={plansLoading ? "加载 SKU 中..." : "请选择会员 SKU"} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    {availablePlans.map((plan) => (
-                      <SelectItem key={plan.code} value={plan.code}>
-                        {plan.name}（¥{(plan.price / 100).toFixed(2)}）
+                    {availableSkus.map(({ plan, sku }) => (
+                      <SelectItem key={sku.skuCode} value={sku.skuCode}>
+                        {plan.name} · {BILLING_CYCLE_LABEL[sku.billingCycle]}（¥
+                        {(sku.price / 100).toFixed(2)}）
                       </SelectItem>
                     ))}
                   </SelectGroup>
                 </SelectContent>
               </Select>
-              {!plansLoading && !subscriptionLoading && availablePlans.length === 0 ? (
-                <p className="text-muted-foreground text-sm">当前没有可升级的更高级套餐</p>
+              {!plansLoading && !subscriptionLoading && availableSkus.length === 0 ? (
+                <p className="text-muted-foreground text-sm">当前没有可开通的更高级会员 SKU</p>
               ) : (
                 <p className="text-muted-foreground text-xs">
-                  仅支持首次开通或升级到价格更高的套餐，不支持同级续期和降级。
+                  套餐等级按 Plan 判断，周期和价格由所选 SKU 决定；不支持同级续期和降级。
                 </p>
               )}
             </div>
@@ -370,7 +390,7 @@ export default function AdminUserPage() {
             </Button>
             <Button
               onClick={handleActivateMembership}
-              disabled={!selectedPlanCode || activatingSubscription}
+              disabled={!selectedSkuCode || activatingSubscription}
             >
               {activatingSubscription ? "开通中..." : currentSubscription ? "确认升级" : "确认开通"}
             </Button>

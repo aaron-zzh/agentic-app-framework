@@ -58,7 +58,7 @@ interface CreditForm {
 }
 
 interface MembershipForm {
-  planId: string
+  skuCode: string
   expiresAt: string
   count: string
   remark: string
@@ -77,7 +77,7 @@ const INIT_CREDIT: CreditForm = {
   count: "1",
   remark: ""
 }
-const INIT_MEMBERSHIP: MembershipForm = { planId: "", expiresAt: "", count: "1", remark: "" }
+const INIT_MEMBERSHIP: MembershipForm = { skuCode: "", expiresAt: "", count: "1", remark: "" }
 
 function triggerDownload(filename: string, blob: Blob) {
   const url = URL.createObjectURL(blob)
@@ -107,6 +107,12 @@ export function RedeemCodeGenerateButton() {
     enabled: open && tab === "membership"
   })
 
+  const membershipSkus = plans.flatMap((plan) =>
+    plan.skus
+      .filter((sku) => sku.billingCycle !== "PERPETUAL")
+      .map((sku) => ({ ...sku, planName: plan.name }))
+  )
+
   function buildDto(): RedeemCodeCreateDTO | null {
     if (tab === "credit") {
       const creditAmount = Number(creditForm.creditAmount)
@@ -122,14 +128,14 @@ export function RedeemCodeGenerateButton() {
         remark: creditForm.remark.trim() || null
       }
     }
-    if (!membershipForm.planId) {
-      notify.error("请选择套餐")
+    if (!membershipForm.skuCode) {
+      notify.error("请选择会员 SKU")
       return null
     }
     return {
       creditAmount: 0,
       type: "MEMBERSHIP",
-      planId: Number(membershipForm.planId),
+      skuCode: membershipForm.skuCode,
       expiresAt: membershipForm.expiresAt ? new Date(membershipForm.expiresAt).toISOString() : null,
       remark: membershipForm.remark.trim() || null
     }
@@ -279,21 +285,31 @@ export function RedeemCodeGenerateButton() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2 space-y-2">
                   <Label>
-                    套餐 <span className="text-destructive">*</span>
+                    会员 SKU <span className="text-destructive">*</span>
                   </Label>
                   <Select
-                    value={membershipForm.planId}
-                    onValueChange={(v) => v && setMembershipForm({ ...membershipForm, planId: v })}
+                    value={membershipForm.skuCode}
+                    onValueChange={(value) =>
+                      value && setMembershipForm({ ...membershipForm, skuCode: value })
+                    }
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="选择套餐">
-                        {plans.find((p) => String(p.id) === membershipForm.planId)?.name}
+                      <SelectValue placeholder="选择会员 SKU">
+                        {
+                          membershipSkus.find((sku) => sku.skuCode === membershipForm.skuCode)
+                            ?.skuCode
+                        }
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {plans.map((p) => (
-                        <SelectItem key={p.id} value={String(p.id)}>
-                          {p.name}
+                      {membershipSkus.map((sku) => (
+                        <SelectItem key={sku.id} value={sku.skuCode}>
+                          {sku.planName} ·{" "}
+                          {sku.billingCycle === "MONTH"
+                            ? "月付"
+                            : sku.billingCycle === "QUARTER"
+                              ? "季付"
+                              : "年付"}
                         </SelectItem>
                       ))}
                     </SelectContent>

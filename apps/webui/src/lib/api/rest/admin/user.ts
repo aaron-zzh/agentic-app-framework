@@ -56,8 +56,8 @@ export const adminUserApi = {
   getSubscription: (userId: number) =>
     backendApi.get<SubscriptionVO | null>(`/billing/subscriptions/admin/users/${userId}`),
 
-  activateSubscription: (userId: number, planCode: string) =>
-    backendApi.post<SubscriptionVO>(`/billing/subscriptions/admin/users/${userId}`, { planCode })
+  activateSubscription: (userId: number, skuCode: string) =>
+    backendApi.post<SubscriptionVO>(`/billing/subscriptions/admin/users/${userId}`, { skuCode })
 }
 
 const KEYS = {
@@ -83,8 +83,8 @@ export function useAdminUserSubscription(userId: number | null) {
 export function useAdminActivateSubscription() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ userId, planCode }: { userId: number; planCode: string }) =>
-      adminUserApi.activateSubscription(userId, planCode),
+    mutationFn: ({ userId, skuCode }: { userId: number; skuCode: string }) =>
+      adminUserApi.activateSubscription(userId, skuCode),
     onSuccess: (_subscription, variables) =>
       queryClient.invalidateQueries({ queryKey: KEYS.subscription(variables.userId) })
   })

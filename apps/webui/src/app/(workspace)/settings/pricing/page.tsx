@@ -17,37 +17,34 @@
 
 "use client"
 
-import Image from "next/image"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { BillingCycleToggle } from "@/features/billing/components/BillingCycleToggle"
 import { PlanCard } from "@/features/billing/components/PlanCard"
 import { PlanCompareTable } from "@/features/billing/components/PlanCompareTable"
 import { PricingFAQ } from "@/features/billing/components/PricingFAQ"
 import { TrustSignals } from "@/features/billing/components/TrustSignals"
+import type { SubscriptionPlanVO, SubscriptionSkuVO } from "@/lib/api/rest/billing"
 import { useCurrentSubscription, useSubscriptionPlans } from "@/lib/api/rest/billing"
-import { useMemberFaq, useWechatQrImage } from "@/lib/api/rest/system"
+import { useMemberFaq } from "@/lib/api/rest/system"
 import { APP, CONTACT } from "@/lib/config"
 
 /** 默认推荐套餐 code，可从 plan.ext.recommended 后续改成数据驱动 */
 const RECOMMENDED_PLAN_CODE = "PRO"
 
 export default function PricingPage() {
-  const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("yearly")
+  const router = useRouter()
+  const [billingCycle, setBillingCycle] = useState<"MONTH" | "QUARTER" | "YEAR">("YEAR")
   const { data: plans, isLoading } = useSubscriptionPlans()
   const { data: currentSub } = useCurrentSubscription()
   const { faq: faqItems } = useMemberFaq()
-  const { data: wechatQrImage } = useWechatQrImage()
-
   const currentPlanCode = currentSub?.status === "ACTIVE" ? (currentSub.planCode ?? "FREE") : "FREE"
+  const currentPlan = plans?.find((plan) => plan.code === currentPlanCode) ?? null
 
-  const [contactOpen, setContactOpen] = useState(false)
-
-  function handleSubscribe(_planCode: string) {
-    setContactOpen(true)
+  function handleSubscribe(_sku: SubscriptionSkuVO, _plan: SubscriptionPlanVO) {
+    router.push("/studio/me/membership")
   }
 
   return (
@@ -56,7 +53,7 @@ export default function PricingPage() {
       <header className="space-y-5 text-center">
         <h1 className="font-bold text-3xl tracking-tight sm:text-4xl">选择适合您的套餐</h1>
         <p className="mx-auto max-w-xl text-base text-muted-foreground">
-          按年订阅享受更多积分优惠，随时升级或降级，灵活满足您的成长需要。
+          月付、季付、年付均为独立明示价格；购买、升级、续费和降级请前往会员中心。
         </p>
         <TrustSignals />
       </header>
@@ -81,53 +78,15 @@ export default function PricingPage() {
               billingCycle={billingCycle}
               isRecommended={plan.code === RECOMMENDED_PLAN_CODE}
               currentPlanCode={currentPlanCode}
+              currentSkuCode={currentSub?.skuCode}
+              currentPlanSort={currentPlan?.sort ?? null}
               onSubscribe={handleSubscribe}
+              onDowngrade={handleSubscribe}
               isPending={false}
             />
           ))}
         </div>
       )}
-
-      {/* 联系客服弹窗 */}
-      <Dialog open={contactOpen} onOpenChange={setContactOpen}>
-        <DialogContent className="w-[360px] max-w-none!">
-          <DialogHeader>
-            <DialogTitle>联系客服开通</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2 text-muted-foreground text-sm">
-            <p>套餐订阅功能正在接入中，请联系客服人工开通。</p>
-            {wechatQrImage && (
-              <div className="flex justify-center">
-                <Image
-                  src={wechatQrImage}
-                  alt="微信客服二维码"
-                  width={160}
-                  height={160}
-                  className="rounded-lg border object-contain"
-                  unoptimized
-                />
-              </div>
-            )}
-            <div className="space-y-2 rounded-xl border bg-muted/30 px-4 py-3">
-              <p>
-                微信：<span className="font-medium text-foreground">{CONTACT.wechatId}</span>
-              </p>
-              <p>
-                邮箱：
-                <Link
-                  href={`mailto:${CONTACT.email}`}
-                  className="font-medium text-primary hover:underline"
-                >
-                  {CONTACT.email}
-                </Link>
-              </p>
-            </div>
-          </div>
-          <Button className="w-full" onClick={() => setContactOpen(false)}>
-            知道了
-          </Button>
-        </DialogContent>
-      </Dialog>
 
       {/* 功能对比表（仅桌面） */}
       {!isLoading && plans && plans.length > 1 && (

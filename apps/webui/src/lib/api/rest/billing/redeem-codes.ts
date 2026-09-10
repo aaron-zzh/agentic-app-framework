@@ -26,8 +26,8 @@ export interface RedeemCodeCreateDTO {
   batchType?: RedeemCodeBatchType
   /** 兑换码类型，默认 CREDIT */
   type?: RedeemCodeType
-  /** 会员套餐 ID（type=MEMBERSHIP 时必填） */
-  planId?: number | null
+  /** 会员 SKU 编码（type=MEMBERSHIP 时必填） */
+  skuCode?: string | null
   /** 过期时间（ISO 字符串，可空表示永不过期） */
   expiresAt?: string | null
   /** 备注 */

@@ -10,11 +10,12 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import type { BillingCycle } from "@/lib/api/rest/billing"
 import { cn } from "@/lib/utils/cn"
 
 export interface BillingCycleToggleProps {
-  value: "monthly" | "yearly"
-  onChange: (value: "monthly" | "yearly") => void
+  value: Exclude<BillingCycle, "PERPETUAL">
+  onChange: (value: Exclude<BillingCycle, "PERPETUAL">) => void
 }
 
 export function BillingCycleToggle({ value, onChange }: BillingCycleToggleProps) {
@@ -25,17 +26,13 @@ export function BillingCycleToggle({ value, onChange }: BillingCycleToggleProps)
         aria-label="订阅周期"
         className="inline-flex items-center rounded-full border bg-muted p-1"
       >
+        <CycleButton checked={value === "MONTH"} onClick={() => onChange("MONTH")} label="月付" />
         <CycleButton
-          checked={value === "monthly"}
-          onClick={() => onChange("monthly")}
-          label="按月订阅"
+          checked={value === "QUARTER"}
+          onClick={() => onChange("QUARTER")}
+          label="季付"
         />
-        <CycleButton
-          checked={value === "yearly"}
-          onClick={() => onChange("yearly")}
-          label="按年订阅"
-          badge="省更多"
-        />
+        <CycleButton checked={value === "YEAR"} onClick={() => onChange("YEAR")} label="年付" />
       </div>
     </div>
   )
