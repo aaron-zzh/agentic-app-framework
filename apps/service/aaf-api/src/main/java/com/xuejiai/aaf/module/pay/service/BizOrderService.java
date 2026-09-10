@@ -81,6 +81,15 @@ public class BizOrderService {
         bizOrderRepository.save(order);
     }
 
+    /** 标记人工补偿待处理；支付事实保留，不等同于履约成功。 */
+    @Transactional
+    public void markCompensationPending(Long bizOrderId) {
+        var order = getOrder(bizOrderId);
+        if (BizOrderStatusEnum.COMPENSATION_PENDING.getCode().equals(order.getStatus())) return;
+        order.setStatus(BizOrderStatusEnum.COMPENSATION_PENDING.getCode());
+        bizOrderRepository.save(order);
+    }
+
     /** 查询单个（含明细） */
     @Transactional(readOnly = true)
     public BizOrderVO getById(Long id) {

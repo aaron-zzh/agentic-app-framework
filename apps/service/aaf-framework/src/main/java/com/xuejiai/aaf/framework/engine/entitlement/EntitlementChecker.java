@@ -20,6 +20,13 @@ public interface EntitlementChecker {
     void check(Long userId, String code, long cost);
 
     /**
+     * 严格检查 BOOLEAN 开关权益。
+     *
+     * <p>权益定义缺失或类型不是 BOOLEAN 属于服务端配置错误，必须拒绝请求；用户未获授权时抛出额度不足异常。
+     */
+    void checkBoolean(Long userId, String code);
+
+    /**
      * 方法成功后真扣减（含 refill 真扣积分）+ 写 ledger。
      *
      * <p>BOOLEAN 类型不扣减，仅 check 阶段校验拥有。

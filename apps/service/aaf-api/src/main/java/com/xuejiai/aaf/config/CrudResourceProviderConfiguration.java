@@ -26,7 +26,10 @@ import com.xuejiai.aaf.module.billing.controller.EntitlementController;
 import com.xuejiai.aaf.module.billing.controller.LevelController;
 import com.xuejiai.aaf.module.billing.controller.SubscriptionController;
 import com.xuejiai.aaf.module.billing.controller.SubscriptionPlanController;
+import com.xuejiai.aaf.module.billing.controller.SubscriptionRecordController;
+import com.xuejiai.aaf.module.billing.controller.SubscriptionSkuController;
 import com.xuejiai.aaf.module.billing.controller.WalletTransactionController;
+import com.xuejiai.aaf.module.billing.service.SubscriptionRecordCrudService;
 import com.xuejiai.aaf.module.brokerage.controller.BrokerageInviteCodeController;
 import com.xuejiai.aaf.module.brokerage.controller.BrokerageLevelBonusController;
 import com.xuejiai.aaf.module.brokerage.controller.BrokerageRecordController;
@@ -286,6 +289,32 @@ public class CrudResourceProviderConfiguration {
                 SubscriptionPlanController.class,
                 "/api/billing/subscription-plans",
                 "billing:subscription-plan");
+    }
+
+    @Bean
+    CrudResourceDefinitionProvider<?> subscriptionSkuResource() {
+        return crud(
+                "billing.subscription-sku",
+                "订阅 SKU",
+                SubscriptionSkuController.class,
+                "/api/billing/subscription-skus",
+                "billing:subscription-sku");
+    }
+
+    @Bean
+    CrudResourceDefinitionProvider<?> subscriptionRecordResource() {
+        var provider =
+                crud(
+                        "billing.subscription-record",
+                        "订阅购买流水",
+                        SubscriptionRecordController.class,
+                        "/api/billing/subscription-records",
+                        "billing:subscription-record");
+        return CrudResourceDefinitions.withCustomUpdateCommands(
+                provider,
+                Map.of(
+                        SubscriptionRecordCrudService.COMMAND_RESOLVE_COMPENSATION,
+                        Set.of("compensationResolvedAt", "compensationResult")));
     }
 
     @Bean

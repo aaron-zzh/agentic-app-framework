@@ -12,6 +12,7 @@ import com.xuejiai.aaf.common.enums.billing.SubscriptionStatusEnum;
 import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
 import com.xuejiai.aaf.module.billing.domain.Subscription;
+import com.xuejiai.aaf.module.billing.repository.MembershipCheckoutGuardRepository;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionPlanRepository;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionRepository;
 import com.xuejiai.aaf.module.system.notify.service.NotificationService;
@@ -19,30 +20,20 @@ import com.xuejiai.aaf.module.system.notify.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * 订阅到期提醒调度器（每日 09:00）。
- *
- * <p>扫描 end_at 在 {@code member.expiry_reminder_days}（默认 7 天）内的 ACTIVE 订阅，发站内通知。
- *
- * <p>幂等：用 {@code last_reminder_at > start_at} 判定本周期已发过，避免重复通知；订阅 start_at 仅在新购/升级时刷新，
- * 因此同一计费周期最多发一次提醒。
- */
+/** 订阅到期提醒调度器（每日 09:00），提醒事实也遵循统一会员锁序。 */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class SubscriptionExpiryReminderScheduler {
 
-    /** 通知类型（与前端文案 / NotificationType 联动）。 */
     private static final String NOTIFICATION_TYPE = "SUBSCRIPTION_EXPIRY_REMINDER";
-
-    /** 默认提醒提前天数（兜底：配置缺失时使用）。 */
     private static final int DEFAULT_REMINDER_DAYS = 7;
-
     private static final DateTimeFormatter DATE_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     private final SubscriptionRepository subscriptionRepository;
     private final SubscriptionPlanRepository planRepository;
+    private final MembershipCheckoutGuardRepository checkoutGuardRepository;
     private final SystemConfigService systemConfigService;
     private final NotificationService notificationService;
 
@@ -50,63 +41,69 @@ public class SubscriptionExpiryReminderScheduler {
     @Scheduled(cron = "0 0 9 * * *")
     @Transactional
     public void sendReminders() {
-        int reminderDays =
+        var reminderDays =
                 systemConfigService.getInteger(
                         SysConfigKeys.Member.EXPIRY_REMINDER_DAYS, DEFAULT_REMINDER_DAYS);
         var now = LocalDateTime.now();
         var threshold = now.plusDays(reminderDays);
-
-        var subs =
+        var candidates =
                 subscriptionRepository.findByStatusAndEndAtIsNotNullAndEndAtLessThanEqual(
                         SubscriptionStatusEnum.ACTIVE.getCode(), threshold);
 
-        int sent = 0;
-        for (var sub : subs) {
+        var sent = 0;
+        for (var candidate : candidates) {
             try {
-                if (sendReminderIfNeeded(sub, now)) {
+                if (sendReminderIfNeeded(candidate, now)) {
                     sent++;
                 }
-            } catch (Exception e) {
+            } catch (Exception exception) {
                 log.warn(
                         "[SubscriptionExpiryReminderScheduler] 发送失败: subId={}, userId={}, err={}",
-                        sub.getId(),
-                        sub.getUserId(),
-                        e.getMessage());
+                        candidate.getId(),
+                        candidate.getUserId(),
+                        exception.getMessage());
             }
         }
         log.info("[SubscriptionExpiryReminderScheduler] 到期提醒发送 {} 条", sent);
     }
 
-    /**
-     * 单个订阅处理，{@code package private} 便于单元测试。
-     *
-     * @return 是否实际发送
-     */
-    boolean sendReminderIfNeeded(Subscription sub, LocalDateTime now) {
-        // 幂等：本周期已发过则跳过
-        if (sub.getLastReminderAt() != null
-                && sub.getStartAt() != null
-                && sub.getLastReminderAt().isAfter(sub.getStartAt())) {
+    /** 单个候选先锁 guard 和当前 ACTIVE，再检查幂等并记录提醒事实。 */
+    boolean sendReminderIfNeeded(Subscription candidate, LocalDateTime now) {
+        checkoutGuardRepository.ensureGuard(candidate.getUserId());
+        checkoutGuardRepository.lockGuard(candidate.getUserId());
+        var subscription =
+                subscriptionRepository
+                        .findByUserIdAndStatusForUpdate(
+                                candidate.getUserId(), SubscriptionStatusEnum.ACTIVE.getCode())
+                        .orElse(null);
+        if (subscription == null || !subscription.getId().equals(candidate.getId())) {
+            return false;
+        }
+        if (subscription.getLastReminderAt() != null
+                && subscription.getStartAt() != null
+                && subscription.getLastReminderAt().isAfter(subscription.getStartAt())) {
             return false;
         }
 
-        var plan = planRepository.findById(sub.getPlanId()).orElse(null);
-        String planName = plan != null ? plan.getName() : "当前订阅";
-        String endDate = sub.getEndAt() != null ? sub.getEndAt().format(DATE_FORMATTER) : "未知";
-        String title = "订阅即将到期";
-        String body = String.format("您的「%s」将于 %s 到期，请及时续订以保留当前权益。", planName, endDate);
+        var plan = planRepository.findById(subscription.getPlanId()).orElse(null);
+        var planName = plan != null ? plan.getName() : "当前订阅";
+        var endDate =
+                subscription.getEndAt() != null
+                        ? subscription.getEndAt().format(DATE_FORMATTER)
+                        : "未知";
+        var title = "订阅即将到期";
+        var body = "您的「%s」将于 %s 到期，请及时续订以保留当前权益。".formatted(planName, endDate);
 
         notificationService.send(
-                sub.getUserId(),
+                subscription.getUserId(),
                 NOTIFICATION_TYPE,
                 title,
                 body,
                 "/settings/subscription",
                 "SUBSCRIPTION",
-                sub.getId());
-
-        sub.setLastReminderAt(now);
-        subscriptionRepository.save(sub);
+                subscription.getId());
+        subscription.setLastReminderAt(now);
+        subscriptionRepository.save(subscription);
         return true;
     }
 }

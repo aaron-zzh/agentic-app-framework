@@ -11,6 +11,7 @@ public class CreditRedeemCodePageParam extends PageParam {
     private String status;
     private String type;
     private String batchType;
-    private Long planId;
+    private Long skuId;
+    private String skuCode;
     private Long redeemedByUserId;
 }

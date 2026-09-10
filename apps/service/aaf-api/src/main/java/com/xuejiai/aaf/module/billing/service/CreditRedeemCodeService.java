@@ -19,9 +19,10 @@ import com.xuejiai.aaf.framework.messaging.MessageChannel;
 import com.xuejiai.aaf.framework.messaging.MessageRequest;
 import com.xuejiai.aaf.framework.messaging.MessageService;
 import com.xuejiai.aaf.module.billing.domain.CreditRedeemCode;
-import com.xuejiai.aaf.module.billing.domain.SubscriptionPlan;
+import com.xuejiai.aaf.module.billing.domain.SubscriptionSku;
 import com.xuejiai.aaf.module.billing.repository.CreditRedeemCodeRepository;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionPlanRepository;
+import com.xuejiai.aaf.module.billing.repository.SubscriptionSkuRepository;
 import com.xuejiai.aaf.module.billing.vo.CreditRedeemCodeCreateDTO;
 import com.xuejiai.aaf.module.billing.vo.CreditRedeemCodePageParam;
 import com.xuejiai.aaf.module.billing.vo.CreditRedeemCodeVO;
@@ -50,7 +51,7 @@ public class CreditRedeemCodeService
                     "creditAmount",
                     "batchType",
                     "type",
-                    "planId",
+                    "skuId",
                     "status",
                     "expiresAt",
                     "redeemedAt",
@@ -58,6 +59,7 @@ public class CreditRedeemCodeService
                     "updateTime");
 
     private final CreditRedeemCodeRepository redeemCodeRepository;
+    private final SubscriptionSkuRepository skuRepository;
     private final SubscriptionPlanRepository planRepository;
     private final UserRelationService userRelationService;
     private final CreditService creditService;
@@ -76,6 +78,20 @@ public class CreditRedeemCodeService
 
     @Override
     protected Specification<CreditRedeemCode> buildSpec(CreditRedeemCodePageParam request) {
+        var requestedSkuId = request.getSkuId();
+        var skuCodeMissing = false;
+        if (requestedSkuId == null
+                && request.getSkuCode() != null
+                && !request.getSkuCode().isBlank()) {
+            requestedSkuId =
+                    skuRepository
+                            .findByCode(request.getSkuCode().trim())
+                            .map(SubscriptionSku::getId)
+                            .orElse(null);
+            skuCodeMissing = requestedSkuId == null;
+        }
+        var effectiveSkuId = requestedSkuId;
+        var missing = skuCodeMissing;
         return (root, query, cb) -> {
             var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
             if (request.getStatus() != null && !request.getStatus().isBlank())
@@ -84,8 +100,9 @@ public class CreditRedeemCodeService
                 predicates.add(cb.equal(root.get("type"), request.getType().trim()));
             if (request.getBatchType() != null && !request.getBatchType().isBlank())
                 predicates.add(cb.equal(root.get("batchType"), request.getBatchType().trim()));
-            if (request.getPlanId() != null)
-                predicates.add(cb.equal(root.get("planId"), request.getPlanId()));
+            if (missing) predicates.add(cb.disjunction());
+            else if (effectiveSkuId != null)
+                predicates.add(cb.equal(root.get("skuId"), effectiveSkuId));
             if (request.getRedeemedByUserId() != null)
                 predicates.add(
                         cb.equal(root.get("redeemedByUserId"), request.getRedeemedByUserId()));
@@ -101,15 +118,27 @@ public class CreditRedeemCodeService
     @Override
     protected List<CreditRedeemCodeVO> toVOList(List<CreditRedeemCode> codes, String fieldSet) {
         if (codes.isEmpty()) return List.of();
-        Map<Long, SubscriptionPlan> plans =
-                planRepository
+        Map<Long, SubscriptionSku> skus =
+                skuRepository
                         .findAllById(
                                 codes.stream()
-                                        .map(CreditRedeemCode::getPlanId)
+                                        .map(CreditRedeemCode::getSkuId)
                                         .filter(java.util.Objects::nonNull)
                                         .collect(Collectors.toSet()))
                         .stream()
-                        .collect(Collectors.toMap(SubscriptionPlan::getId, plan -> plan));
+                        .collect(Collectors.toMap(SubscriptionSku::getId, sku -> sku));
+        Map<Long, com.xuejiai.aaf.module.billing.domain.SubscriptionPlan> plans =
+                planRepository
+                        .findAllById(
+                                skus.values().stream()
+                                        .map(SubscriptionSku::getPlanId)
+                                        .collect(Collectors.toSet()))
+                        .stream()
+                        .collect(
+                                Collectors.toMap(
+                                        com.xuejiai.aaf.module.billing.domain.SubscriptionPlan
+                                                ::getId,
+                                        plan -> plan));
         var redeemedBy =
                 userRelationService.findRefs(
                         codes.stream()
@@ -121,7 +150,14 @@ public class CreditRedeemCodeService
                         code ->
                                 toVO(
                                         code,
-                                        plans.get(code.getPlanId()),
+                                        skus.get(code.getSkuId()),
+                                        code.getSkuId() == null
+                                                ? null
+                                                : plans.get(
+                                                        skus.get(code.getSkuId()) == null
+                                                                ? null
+                                                                : skus.get(code.getSkuId())
+                                                                        .getPlanId()),
                                         redeemedBy.get(code.getRedeemedByUserId())))
                 .toList();
     }
@@ -185,6 +221,22 @@ public class CreditRedeemCodeService
         return results;
     }
 
+    /** 返回会员码导出所需的受校验 SKU 元数据。 */
+    public MembershipSkuInfo membershipSkuInfo(String skuCode) {
+        var sku = requireRedeemableSku(skuCode);
+        var plan =
+                planRepository
+                        .findById(sku.getPlanId())
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                com.xuejiai.aaf.module.billing.ErrorCodeConstants
+                                                        .SUBSCRIPTION_PLAN_NOT_FOUND));
+        return new MembershipSkuInfo(sku.getCode(), plan.getName(), sku.getBillingCycle());
+    }
+
+    public record MembershipSkuInfo(String skuCode, String planName, String billingCycle) {}
+
     /** 用户兑换积分码或会员码。 */
     @Transactional
     @com.xuejiai.aaf.framework.logging.OperationLog(
@@ -204,11 +256,15 @@ public class CreditRedeemCodeService
             code.setStatus("EXPIRED");
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "兑换码已过期");
         }
-        code.setStatus("REDEEMED");
-        code.setRedeemedByUserId(userId);
-        code.setRedeemedAt(LocalDateTime.now());
+        var redeemedAt = LocalDateTime.now();
+        redeemedAt = redeemedAt.withNano((redeemedAt.getNano() / 1_000) * 1_000);
         if ("MEMBERSHIP".equals(code.getType())) {
-            subscriptionService.activateSubscription(userId, code.getPlanId(), null, false);
+            requireRedeemableSku(code.getSkuId());
+            subscriptionService.activateGrantedSku(
+                    userId, code.getSkuId(), "REDEEM_CODE", code.getId(), redeemedAt);
+            code.setStatus("REDEEMED");
+            code.setRedeemedByUserId(userId);
+            code.setRedeemedAt(redeemedAt);
             notifyDingtalk(
                     "会员兑换", "**会员兑换** \n\n> 用户ID：" + userId + "  \n> 兑换码：" + code.getCodePrefix());
             return 0L;
@@ -220,6 +276,9 @@ public class CreditRedeemCodeService
                 "redeem_code",
                 code.getCodePrefix(),
                 null);
+        code.setStatus("REDEEMED");
+        code.setRedeemedByUserId(userId);
+        code.setRedeemedAt(redeemedAt);
         notifyDingtalk(
                 "积分兑换",
                 "**积分兑换** \n\n> 用户ID："
@@ -238,20 +297,83 @@ public class CreditRedeemCodeService
         code.setCreditAmount(dto.creditAmount());
         code.setBatchType(dto.batchType() == null ? "REWARD" : dto.batchType());
         code.setType(dto.type() == null ? "CREDIT" : dto.type());
-        code.setPlanId(dto.planId());
+        if ("MEMBERSHIP".equals(code.getType())) {
+            code.setSkuId(requireRedeemableSku(dto.skuCode()).getId());
+        }
         code.setExpiresAt(dto.expiresAt());
         code.setRemark(dto.remark());
         return code;
     }
 
     private void validateGeneration(CreditRedeemCodeCreateDTO dto) {
-        if ("MEMBERSHIP".equals(dto.type()) && dto.planId() == null) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "会员码必须指定套餐 planId");
+        if ("MEMBERSHIP".equals(dto.type())) {
+            if (dto.skuCode() == null || dto.skuCode().isBlank()) {
+                throw new BusinessException(
+                        com.xuejiai.aaf.module.billing.ErrorCodeConstants
+                                .REDEEM_MEMBERSHIP_SKU_REQUIRED);
+            }
+            requireRedeemableSku(dto.skuCode());
+            if (dto.creditAmount() == null || dto.creditAmount() != 0L) {
+                throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "会员码 creditAmount 必须为 0");
+            }
+            return;
         }
-        if (!"MEMBERSHIP".equals(dto.type())
-                && (dto.creditAmount() == null || dto.creditAmount() < 1)) {
+        if (dto.skuCode() != null && !dto.skuCode().isBlank()) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "积分码不能指定 skuCode");
+        }
+        if (dto.creditAmount() == null || dto.creditAmount() < 1) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "积分码的积分数量需 ≥ 1");
         }
+    }
+
+    private SubscriptionSku requireRedeemableSku(String skuCode) {
+        var sku =
+                skuRepository
+                        .findByCode(skuCode.trim())
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                com.xuejiai.aaf.module.billing.ErrorCodeConstants
+                                                        .SUBSCRIPTION_SKU_NOT_FOUND));
+        return requireRedeemableSku(sku);
+    }
+
+    private SubscriptionSku requireRedeemableSku(Long skuId) {
+        var sku =
+                skuRepository
+                        .findById(skuId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                com.xuejiai.aaf.module.billing.ErrorCodeConstants
+                                                        .SUBSCRIPTION_SKU_NOT_FOUND));
+        return requireRedeemableSku(sku);
+    }
+
+    private SubscriptionSku requireRedeemableSku(SubscriptionSku sku) {
+        if (!"ENABLED".equals(sku.getStatus())) {
+            throw new BusinessException(
+                    com.xuejiai.aaf.module.billing.ErrorCodeConstants.SUBSCRIPTION_SKU_DISABLED);
+        }
+        if (sku.isFree() || sku.getPrice() == null || sku.getPrice() <= 0) {
+            throw new BusinessException(
+                    com.xuejiai.aaf.module.billing.ErrorCodeConstants
+                            .SUBSCRIPTION_INTERNAL_SKU_NOT_PURCHASABLE);
+        }
+        var plan =
+                planRepository
+                        .findById(sku.getPlanId())
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                com.xuejiai.aaf.module.billing.ErrorCodeConstants
+                                                        .SUBSCRIPTION_PLAN_NOT_FOUND));
+        if ("FREE".equals(plan.getCode()) || !"ENABLED".equals(plan.getStatus())) {
+            throw new BusinessException(
+                    com.xuejiai.aaf.module.billing.ErrorCodeConstants
+                            .SUBSCRIPTION_SKU_PLAN_INVALID);
+        }
+        return sku;
     }
 
     private BusinessException writeUnsupported() {
@@ -269,13 +391,19 @@ public class CreditRedeemCodeService
     }
 
     private CreditRedeemCodeVO toVO(
-            CreditRedeemCode code, SubscriptionPlan plan, ResourceRefDTO redeemedBy) {
+            CreditRedeemCode code,
+            SubscriptionSku sku,
+            com.xuejiai.aaf.module.billing.domain.SubscriptionPlan plan,
+            ResourceRefDTO redeemedBy) {
         return new CreditRedeemCodeVO(
                 code.getId(),
                 code.getCodePrefix(),
                 code.getCreditAmount(),
                 code.getBatchType(),
                 code.getType(),
+                sku == null ? null : new ResourceRefDTO(sku.getId(), sku.getCode(), null),
+                sku == null ? null : sku.getCode(),
+                sku == null ? null : sku.getBillingCycle(),
                 plan == null ? null : new ResourceRefDTO(plan.getId(), plan.getName(), null),
                 code.getStatus(),
                 code.getExpiresAt(),

@@ -11,18 +11,14 @@ import com.xuejiai.aaf.common.enums.billing.SubscriptionStatusEnum;
 import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
+import com.xuejiai.aaf.module.billing.repository.MembershipCheckoutGuardRepository;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionPlanRepository;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * 月度积分发放定时任务。
- *
- * <p>每日凌晨 00:05 扫描所有有效订阅，对距上次发放 ≥ 30 天的订阅发放下一批月度积分。 可通过系统配置 {@code member.monthly_grant_enabled}
- * 关闭。
- */
+/** 每日扫描到期的月度积分批次，在统一会员锁序内完成发放和时间戳更新。 */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -30,6 +26,7 @@ public class SubscriptionCreditScheduler {
 
     private final SubscriptionRepository subscriptionRepository;
     private final SubscriptionPlanRepository planRepository;
+    private final MembershipCheckoutGuardRepository checkoutGuardRepository;
     private final CreditService creditService;
     private final SystemConfigService systemConfigService;
 
@@ -44,27 +41,41 @@ public class SubscriptionCreditScheduler {
 
         var now = LocalDateTime.now();
         var threshold = now.minusDays(30);
-
-        var subscriptions =
+        var candidates =
                 subscriptionRepository
                         .findByStatusAndLastCreditIssuedAtBeforeOrLastCreditIssuedAtIsNull(
                                 SubscriptionStatusEnum.ACTIVE.getCode(), threshold);
 
-        int issued = 0;
-        for (var sub : subscriptions) {
-            var plan = planRepository.findById(sub.getPlanId()).orElse(null);
-            if (plan == null || plan.getMonthlyCredits() <= 0) continue;
+        var issued = 0;
+        for (var candidate : candidates) {
+            checkoutGuardRepository.ensureGuard(candidate.getUserId());
+            checkoutGuardRepository.lockGuard(candidate.getUserId());
+            var current =
+                    subscriptionRepository
+                            .findByUserIdAndStatusForUpdate(
+                                    candidate.getUserId(), SubscriptionStatusEnum.ACTIVE.getCode())
+                            .orElse(null);
+            if (current == null
+                    || !current.getId().equals(candidate.getId())
+                    || (current.getLastCreditIssuedAt() != null
+                            && current.getLastCreditIssuedAt().isAfter(threshold))) {
+                continue;
+            }
+
+            var plan = planRepository.findById(current.getPlanId()).orElse(null);
+            if (plan == null || plan.getMonthlyCredits() == null || plan.getMonthlyCredits() <= 0) {
+                continue;
+            }
 
             creditService.earnBatch(
-                    sub.getUserId(),
+                    current.getUserId(),
                     plan.getMonthlyCredits(),
                     "SUBSCRIPTION",
                     "SUBSCRIPTION_MONTHLY",
-                    String.valueOf(sub.getId()),
+                    String.valueOf(current.getId()),
                     now.plusDays(30));
-
-            sub.setLastCreditIssuedAt(now);
-            subscriptionRepository.save(sub);
+            current.setLastCreditIssuedAt(now);
+            subscriptionRepository.save(current);
             issued++;
         }
         log.info("月度积分发放完成，共发放 {} 个订阅", issued);

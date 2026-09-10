@@ -16,6 +16,7 @@ import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.module.billing.domain.EntitlementDef;
 import com.xuejiai.aaf.module.billing.domain.PlanEntitlement;
 import com.xuejiai.aaf.module.billing.domain.SubscriptionPlan;
+import com.xuejiai.aaf.module.billing.domain.SubscriptionSku;
 import com.xuejiai.aaf.module.billing.repository.EntitlementDefRepository;
 import com.xuejiai.aaf.module.billing.repository.PlanEntitlementRepository;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionPlanRepository;
@@ -43,9 +44,6 @@ public class SubscriptionPlanCrudService
                     "id",
                     "code",
                     "name",
-                    "durationDays",
-                    "price",
-                    "marketPrice",
                     "status",
                     "sort",
                     "monthlyCredits",
@@ -53,6 +51,7 @@ public class SubscriptionPlanCrudService
                     "updateTime");
 
     private final SubscriptionPlanRepository planRepository;
+    private final com.xuejiai.aaf.module.billing.repository.SubscriptionSkuRepository skuRepository;
     private final PlanEntitlementRepository planEntitlementRepository;
     private final EntitlementDefRepository entitlementDefRepository;
 
@@ -97,6 +96,9 @@ public class SubscriptionPlanCrudService
     protected List<SubscriptionPlanVO> toVOList(List<SubscriptionPlan> plans, String fieldSet) {
         if (plans.isEmpty()) return List.of();
         var planIds = plans.stream().map(SubscriptionPlan::getId).collect(Collectors.toSet());
+        Map<Long, List<SubscriptionSku>> skusByPlan =
+                skuRepository.findByPlanIdInAndStatusOrderBySortAsc(planIds, "ENABLED").stream()
+                        .collect(Collectors.groupingBy(SubscriptionSku::getPlanId));
         Map<Long, List<PlanEntitlement>> entitlementsByPlan =
                 planEntitlementRepository.findByPlanIdIn(planIds).stream()
                         .collect(Collectors.groupingBy(PlanEntitlement::getPlanId));
@@ -113,6 +115,7 @@ public class SubscriptionPlanCrudService
                         plan ->
                                 toVO(
                                         plan,
+                                        skusByPlan.getOrDefault(plan.getId(), List.of()),
                                         entitlementsByPlan.getOrDefault(plan.getId(), List.of()),
                                         definitions))
                 .toList();
@@ -136,9 +139,6 @@ public class SubscriptionPlanCrudService
     @Override
     protected void updateEntity(SubscriptionPlan plan, SubscriptionPlanUpdateDTO dto) {
         if (StringUtils.hasText(dto.name())) plan.setName(dto.name().trim());
-        if (dto.durationDays() != null) plan.setDurationDays(dto.durationDays());
-        if (dto.price() != null) plan.setPrice(dto.price());
-        if (dto.marketPrice() != null) plan.setMarketPrice(dto.marketPrice());
         if (StringUtils.hasText(dto.status())) plan.setStatus(dto.status().trim());
         if (dto.sort() != null) plan.setSort(dto.sort());
         if (dto.monthlyCredits() != null) plan.setMonthlyCredits(dto.monthlyCredits());
@@ -152,6 +152,7 @@ public class SubscriptionPlanCrudService
 
     private SubscriptionPlanVO toVO(
             SubscriptionPlan plan,
+            List<SubscriptionSku> skus,
             List<PlanEntitlement> entitlements,
             Map<Long, EntitlementDef> definitions) {
         var items =
@@ -169,17 +170,27 @@ public class SubscriptionPlanCrudService
                                             entitlement.getRefillPrice());
                                 })
                         .toList();
-        var yearlyPrice = Math.round(plan.getPrice() * 12 * 0.8);
+        var skuItems =
+                skus.stream()
+                        .map(
+                                sku ->
+                                        new SubscriptionPlanVO.SubscriptionSkuVO(
+                                                sku.getId(),
+                                                sku.getCode(),
+                                                sku.getBillingCycle(),
+                                                sku.getCycleMonths(),
+                                                sku.getPrice(),
+                                                sku.getMarketPrice(),
+                                                sku.getStatus(),
+                                                sku.getSort()))
+                        .toList();
         return new SubscriptionPlanVO(
                 plan.getId(),
                 plan.getCode(),
                 plan.getName(),
-                plan.getDurationDays(),
-                plan.getPrice(),
-                yearlyPrice,
-                plan.getMarketPrice(),
                 plan.getMonthlyCredits(),
                 plan.getExt(),
+                skuItems,
                 items,
                 plan.getStatus(),
                 plan.getSort(),
@@ -189,9 +200,6 @@ public class SubscriptionPlanCrudService
 
     private void applyCreate(SubscriptionPlan plan, SubscriptionPlanCreateDTO dto) {
         plan.setName(dto.name().trim());
-        plan.setDurationDays(dto.durationDays());
-        plan.setPrice(dto.price());
-        plan.setMarketPrice(dto.marketPrice());
         plan.setStatus(StringUtils.hasText(dto.status()) ? dto.status().trim() : "ENABLED");
         plan.setSort(dto.sort() == null ? 100 : dto.sort());
         plan.setMonthlyCredits(dto.monthlyCredits() == null ? 0L : dto.monthlyCredits());

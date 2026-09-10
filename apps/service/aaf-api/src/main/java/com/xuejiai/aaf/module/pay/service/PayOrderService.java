@@ -15,6 +15,7 @@ import com.xuejiai.aaf.framework.engine.settlement.channel.BrokerageBalanceChann
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.brokerage.repository.BrokerageUserRepository;
 import com.xuejiai.aaf.module.pay.ErrorCodeConstants;
+import com.xuejiai.aaf.module.pay.api.PayOrderQueryApi;
 import com.xuejiai.aaf.module.pay.domain.PayOrder;
 import com.xuejiai.aaf.module.pay.repository.PayOrderRepository;
 import com.xuejiai.aaf.module.pay.vo.PayNotifyDTO;
@@ -29,7 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class PayOrderService {
+public class PayOrderService implements PayOrderQueryApi {
 
     private final PayOrderRepository payOrderRepository;
     private final SettlementEngine settlementEngine;
@@ -187,6 +188,22 @@ public class PayOrderService {
             log.info("支付回调处理完成: merchantOrderNo={}", dto.merchantOrderNo());
         }
         return payOrderId;
+    }
+
+    /** 跨模块只读快照，不执行当前用户归属校验。 */
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.Optional<PayOrderSnapshot> findSnapshot(Long payOrderId) {
+        return payOrderRepository
+                .findById(payOrderId)
+                .map(
+                        order ->
+                                new PayOrderSnapshot(
+                                        order.getId(),
+                                        order.getAmount(),
+                                        order.getStatus(),
+                                        order.getExpireTime(),
+                                        order.getSuccessTime()));
     }
 
     /** 判断支付单是否已成功 */

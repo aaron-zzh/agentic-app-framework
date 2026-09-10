@@ -13,6 +13,7 @@ import lombok.Getter;
 public enum BizOrderStatusEnum implements ArrayValuable<String> {
     PENDING("PENDING", "待支付"),
     PAID("PAID", "已支付"),
+    COMPENSATION_PENDING("COMPENSATION_PENDING", "待人工补偿"),
     CANCELLED("CANCELLED", "已取消"),
     REFUNDED("REFUNDED", "已退款");
 

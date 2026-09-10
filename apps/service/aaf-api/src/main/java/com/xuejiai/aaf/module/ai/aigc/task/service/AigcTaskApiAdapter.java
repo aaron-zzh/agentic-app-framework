@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import com.xuejiai.aaf.common.enums.aigc.AigcTaskTypeEnum;
 import com.xuejiai.aaf.common.enums.pay.CreditTransactionCategoryEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
@@ -45,6 +46,7 @@ public class AigcTaskApiAdapter implements AigcTaskApi {
     private final AigcTaskProviderCapabilities providerCapabilities;
     private final CapabilityRouter capabilityRouter;
     private final AiCreditGuard creditGuard;
+    private final AigcSubmissionAccessGuard submissionAccessGuard;
     private final AigcTaskExecutor taskExecutor;
     private final AigcActivityEventService activityEventService;
 
@@ -81,7 +83,9 @@ public class AigcTaskApiAdapter implements AigcTaskApi {
             throw new BusinessException(GlobalErrorCode.NOT_FOUND, "执行 Run 不存在");
         }
 
-        var taskType = command.taskType().toUpperCase();
+        var taskTypeEnum = parseTaskType(command.taskType());
+        submissionAccessGuard.requireAccess(evidence.ownerId(), taskTypeEnum);
+        var taskType = taskTypeEnum.getCode();
         var parameters = new LinkedHashMap<>(parseParameters(command.parametersJson()));
         var routingContext =
                 CapabilityRoutingContext.of(
@@ -166,6 +170,15 @@ public class AigcTaskApiAdapter implements AigcTaskApi {
             afterCommit(() -> taskExecutor.resumeIntent(prepared.task().getId()));
         }
         return toView(prepared.task());
+    }
+
+    private AigcTaskTypeEnum parseTaskType(String taskType) {
+        try {
+            return AigcTaskTypeEnum.fromCode(taskType);
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException(
+                    GlobalErrorCode.BAD_REQUEST, "不支持的 AIGC 子任务类型: " + taskType);
+        }
     }
 
     private Long submitIndependent(AigcTaskSubmitCommand command) {

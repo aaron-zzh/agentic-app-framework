@@ -110,6 +110,7 @@ public class AigcTaskService
     private final AigcTaskExecutor taskExecutor;
     private final AigcTaskClaimService taskClaimService;
     private final AiCreditGuard creditGuard;
+    private final AigcSubmissionAccessGuard submissionAccessGuard;
     private final SystemConfigService systemConfigService;
     private final ConfigCacheManager configCacheManager;
     private final AiServiceRegistry aiServiceRegistry;
@@ -157,6 +158,7 @@ public class AigcTaskService
 
     @Transactional
     public Long submitImageTask(Long userId, ImageTaskRequest req) {
+        submissionAccessGuard.requireAccess(userId, AigcTaskTypeEnum.IMAGE);
         if (req.imageFileIds() != null) {
             req.imageFileIds().forEach(fileService::requireCurrentOwner);
         }
@@ -218,6 +220,7 @@ public class AigcTaskService
 
     @Transactional
     public Long submitVideoTask(Long userId, VideoTaskRequest req) {
+        submissionAccessGuard.requireAccess(userId, AigcTaskTypeEnum.VIDEO);
         if (req.imageFileId() != null) {
             fileService.requireCurrentOwner(req.imageFileId());
         }
@@ -317,6 +320,7 @@ public class AigcTaskService
             String source,
             String textureQuality,
             Long projectId) {
+        submissionAccessGuard.requireAccess(userId, AigcTaskTypeEnum.MODEL_3D);
         // 路由模型
         var ctx = CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_MODEL_3D, model);
         var resolvedModel = capabilityRouter.resolve(ctx);
@@ -376,6 +380,7 @@ public class AigcTaskService
             String lyrics,
             String gender,
             Long projectId) {
+        submissionAccessGuard.requireAccess(userId, AigcTaskTypeEnum.MUSIC);
         var ctx =
                 CapabilityRoutingContext.of(userId, CapabilityRoutingContext.CAP_MUSIC_GEN, model);
         var resolvedModel = capabilityRouter.resolve(ctx);
@@ -423,6 +428,7 @@ public class AigcTaskService
     @Transactional
     public Long submitVoiceTask(
             Long userId, String text, String voice, String model, Long projectId) {
+        submissionAccessGuard.requireAccess(userId, AigcTaskTypeEnum.VOICE);
         if (text == null || text.isBlank()) {
             throw exception(ErrorCodeConstants.AIGC_TASK_VOICE_TEXT_EMPTY);
         }
@@ -494,6 +500,7 @@ public class AigcTaskService
     @Transactional
     public Long submitImageProcessTask(
             Long userId, Long imageFileId, String method, Long projectId) {
+        submissionAccessGuard.requireAccess(userId, AigcTaskTypeEnum.IMAGE_PROCESS);
         if (imageFileId == null) {
             throw exception(ErrorCodeConstants.AIGC_TASK_IMAGE_URL_EMPTY);
         }

@@ -62,26 +62,41 @@ public class CreditRedeemCodeController
             @Valid @RequestBody CreditRedeemCodeCreateDTO dto,
             @RequestParam(defaultValue = "10") int count)
             throws java.io.IOException {
+        var membershipSku =
+                "MEMBERSHIP".equals(dto.type())
+                        ? redeemCodeService.membershipSkuInfo(dto.skuCode())
+                        : null;
         var codes = redeemCodeService.createBatch(dto, count);
         try (var workbook = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
                 var out = new java.io.ByteArrayOutputStream()) {
             var sheet = workbook.createSheet("兑换码");
             var header = sheet.createRow(0);
             header.createCell(0).setCellValue("兑换码");
-            header.createCell(1).setCellValue("积分数量");
-            header.createCell(2).setCellValue("积分类型");
-            header.createCell(3).setCellValue("过期时间");
+            header.createCell(1).setCellValue("兑换类型");
+            header.createCell(2).setCellValue("积分数量");
+            header.createCell(3).setCellValue("积分类型");
+            header.createCell(4).setCellValue("SKU 编码");
+            header.createCell(5).setCellValue("套餐");
+            header.createCell(6).setCellValue("计费周期");
+            header.createCell(7).setCellValue("过期时间");
             for (var index = 0; index < codes.size(); index++) {
                 var row = sheet.createRow(index + 1);
                 row.createCell(0).setCellValue(codes.get(index));
-                row.createCell(1).setCellValue(dto.creditAmount());
-                row.createCell(2)
-                        .setCellValue(dto.batchType() == null ? "REWARD" : dto.batchType());
+                row.createCell(1).setCellValue(dto.type() == null ? "CREDIT" : dto.type());
+                row.createCell(2).setCellValue(dto.creditAmount());
                 row.createCell(3)
+                        .setCellValue(dto.batchType() == null ? "REWARD" : dto.batchType());
+                row.createCell(4)
+                        .setCellValue(membershipSku == null ? "" : membershipSku.skuCode());
+                row.createCell(5)
+                        .setCellValue(membershipSku == null ? "" : membershipSku.planName());
+                row.createCell(6)
+                        .setCellValue(membershipSku == null ? "" : membershipSku.billingCycle());
+                row.createCell(7)
                         .setCellValue(
                                 dto.expiresAt() == null ? "永不过期" : dto.expiresAt().toString());
             }
-            for (var index = 0; index < 4; index++) sheet.autoSizeColumn(index);
+            for (var index = 0; index < 8; index++) sheet.autoSizeColumn(index);
             workbook.write(out);
             return org.springframework.http.ResponseEntity.ok()
                     .header("Content-Disposition", "attachment; filename=\"redeem-codes.xlsx\"")

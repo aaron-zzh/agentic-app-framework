@@ -14,6 +14,7 @@ import com.xuejiai.aaf.framework.crud.ReadonlyCrudService;
 import com.xuejiai.aaf.framework.crud.dto.ResourceRefDTO;
 import com.xuejiai.aaf.module.billing.domain.Subscription;
 import com.xuejiai.aaf.module.billing.domain.SubscriptionPlan;
+import com.xuejiai.aaf.module.billing.domain.SubscriptionSku;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionPlanRepository;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionRepository;
 import com.xuejiai.aaf.module.billing.vo.SubscriptionPageParam;
@@ -42,6 +43,7 @@ public class SubscriptionCrudService
 
     private final SubscriptionRepository subscriptionRepository;
     private final SubscriptionPlanRepository planRepository;
+    private final com.xuejiai.aaf.module.billing.repository.SubscriptionSkuRepository skuRepository;
     private final UserRelationService userRelationService;
 
     @Override
@@ -76,31 +78,37 @@ public class SubscriptionCrudService
                         subscriptions.stream()
                                 .map(Subscription::getUserId)
                                 .collect(Collectors.toSet()));
+        var skuIds =
+                subscriptions.stream()
+                        .flatMap(
+                                subscription ->
+                                        java.util.stream.Stream.of(
+                                                subscription.getSkuId(),
+                                                subscription.getPendingSkuId()))
+                        .filter(java.util.Objects::nonNull)
+                        .collect(Collectors.toSet());
+        Map<Long, SubscriptionSku> skus =
+                skuRepository.findAllById(skuIds).stream()
+                        .collect(Collectors.toMap(SubscriptionSku::getId, sku -> sku));
+        var planIds =
+                subscriptions.stream().map(Subscription::getPlanId).collect(Collectors.toSet());
+        skus.values().stream().map(SubscriptionSku::getPlanId).forEach(planIds::add);
         Map<Long, SubscriptionPlan> plans =
-                planRepository
-                        .findAllById(
-                                subscriptions.stream()
-                                        .map(Subscription::getPlanId)
-                                        .collect(Collectors.toSet()))
-                        .stream()
-                        .collect(Collectors.toMap(SubscriptionPlan::getId, plan -> plan));
-        Map<Long, SubscriptionPlan> pendingPlans =
-                planRepository
-                        .findAllById(
-                                subscriptions.stream()
-                                        .map(Subscription::getPendingPlanId)
-                                        .filter(java.util.Objects::nonNull)
-                                        .collect(Collectors.toSet()))
-                        .stream()
+                planRepository.findAllById(planIds).stream()
                         .collect(Collectors.toMap(SubscriptionPlan::getId, plan -> plan));
         return subscriptions.stream()
                 .map(
-                        subscription ->
-                                toVO(
-                                        subscription,
-                                        users.get(subscription.getUserId()),
-                                        plans.get(subscription.getPlanId()),
-                                        pendingPlans.get(subscription.getPendingPlanId())))
+                        subscription -> {
+                            var sku = skus.get(subscription.getSkuId());
+                            var pendingSku = skus.get(subscription.getPendingSkuId());
+                            return toVO(
+                                    subscription,
+                                    users.get(subscription.getUserId()),
+                                    plans.get(subscription.getPlanId()),
+                                    sku,
+                                    pendingSku == null ? null : plans.get(pendingSku.getPlanId()),
+                                    pendingSku);
+                        })
                 .toList();
     }
 
@@ -120,7 +128,9 @@ public class SubscriptionCrudService
             Subscription subscription,
             ResourceRefDTO user,
             SubscriptionPlan plan,
-            SubscriptionPlan pendingPlan) {
+            SubscriptionSku sku,
+            SubscriptionPlan pendingPlan,
+            SubscriptionSku pendingSku) {
         var planRef = plan == null ? null : new ResourceRefDTO(plan.getId(), plan.getName(), null);
         return new SubscriptionVO(
                 subscription.getId(),
@@ -128,13 +138,16 @@ public class SubscriptionCrudService
                 planRef,
                 plan == null ? null : plan.getCode(),
                 plan == null ? null : plan.getName(),
+                sku == null ? null : sku.getCode(),
+                sku == null ? null : sku.getBillingCycle(),
+                sku == null ? null : sku.getCycleMonths(),
                 subscription.getStartAt(),
                 subscription.getEndAt(),
                 subscription.getStatus(),
-                subscription.getAutoRenew(),
                 subscription.getCancelledAt(),
-                pendingPlan == null ? null : pendingPlan.getCode(),
-                subscription.getPendingYearly(),
+                pendingPlan == null ? null : pendingPlan.getName(),
+                pendingSku == null ? null : pendingSku.getCode(),
+                pendingSku == null ? null : pendingSku.getBillingCycle(),
                 subscription.getLastReminderAt(),
                 subscription.getSourceId(),
                 subscription.getCreateTime());

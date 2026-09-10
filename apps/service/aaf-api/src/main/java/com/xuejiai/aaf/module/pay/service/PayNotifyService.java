@@ -99,10 +99,13 @@ public class PayNotifyService {
         task.setUpdateTime(LocalDateTime.now());
 
         try {
-            // 幂等检查：bizOrder 已 PAID 说明之前已成功处理过
+            // 幂等检查：业务订单已履约或进入人工补偿均为通知终态
             var bizOrder = bizOrderService.findByPayOrderId(task.getPayOrderId());
             if (bizOrder != null
-                    && BizOrderStatusEnum.PAID.getCode().equals(bizOrder.getStatus())) {
+                    && (BizOrderStatusEnum.PAID.getCode().equals(bizOrder.getStatus())
+                            || BizOrderStatusEnum.COMPENSATION_PENDING
+                                    .getCode()
+                                    .equals(bizOrder.getStatus()))) {
                 task.setStatus("SUCCESS");
                 task.setResponse("幂等跳过（已处理）");
                 taskRepository.save(task);

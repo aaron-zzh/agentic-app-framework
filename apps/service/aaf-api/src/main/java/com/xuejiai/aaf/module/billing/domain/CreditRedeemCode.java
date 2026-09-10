@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.crud.reference.CrudReference;
 import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.Column;
@@ -22,6 +23,11 @@ import lombok.Setter;
 @Setter
 @Entity
 @Table(name = "credit_redeem_code")
+@CrudReference(
+        key = "sku",
+        idProperty = "skuId",
+        targetResource = "billing.subscription-sku",
+        viewField = "sku")
 @SQLDelete(
         sql =
                 "UPDATE credit_redeem_code SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
@@ -48,9 +54,9 @@ public class CreditRedeemCode extends BaseEntity {
     @Column(name = "type", nullable = false, length = 20)
     private String type = "CREDIT";
 
-    /** 会员套餐 ID（type=MEMBERSHIP 时必填） */
-    @Column(name = "plan_id")
-    private Long planId;
+    /** 会员 SKU ID（type=MEMBERSHIP 时必填） */
+    @Column(name = "sku_id")
+    private Long skuId;
 
     /** 状态：UNUSED / REDEEMED / EXPIRED */
     @Column(name = "status", nullable = false, length = 20)

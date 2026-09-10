@@ -34,6 +34,10 @@ public class Subscription extends BaseEntity {
     @Column(name = "plan_id", nullable = false)
     private Long planId;
 
+    /** 当前生效 SKU ID */
+    @Column(name = "sku_id", nullable = false)
+    private Long skuId;
+
     /** 生效时间 */
     @Column(name = "start_at", nullable = false)
     private LocalDateTime startAt;
@@ -54,25 +58,13 @@ public class Subscription extends BaseEntity {
     @Column(name = "last_credit_issued_at")
     private LocalDateTime lastCreditIssuedAt;
 
-    /**
-     * 自动续费意图位：FALSE=用户已取消，到期不续费。
-     *
-     * <p>本期不实现渠道代扣，仅做意图记录与未来扩展位（详见 membership-completion.md 自动续费扩展点）。
-     */
-    @Column(name = "auto_renew", nullable = false)
-    private Boolean autoRenew = true;
-
     /** 用户主动取消时间；NULL=未取消。取消后 status 仍 ACTIVE 直到 end_at。 */
     @Column(name = "cancelled_at")
     private LocalDateTime cancelledAt;
 
-    /** 排队待切换的下一套餐 ID（降级用）；end_at 到期时若非空，自动激活该套餐。 */
-    @Column(name = "pending_plan_id")
-    private Long pendingPlanId;
-
-    /** 排队待切换是否年付（与 pendingPlanId 配套）。 */
-    @Column(name = "pending_yearly", nullable = false)
-    private Boolean pendingYearly = false;
+    /** 排队待处理的降级目标 SKU；当前周期结束前不改变当前权益。 */
+    @Column(name = "pending_sku_id")
+    private Long pendingSkuId;
 
     /** 最近一次到期前提醒发送时间，幂等防止重复发送。 */
     @Column(name = "last_reminder_at")

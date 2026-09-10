@@ -1,16 +1,14 @@
 package com.xuejiai.aaf.module.billing.service;
 
 import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
-import static com.xuejiai.aaf.module.billing.ErrorCodeConstants.SUBSCRIPTION_CURRENT_PLAN_NOT_FOUND;
-import static com.xuejiai.aaf.module.billing.ErrorCodeConstants.SUBSCRIPTION_PAID_PLAN_REQUIRED;
-import static com.xuejiai.aaf.module.billing.ErrorCodeConstants.SUBSCRIPTION_PLAN_DISABLED;
-import static com.xuejiai.aaf.module.billing.ErrorCodeConstants.SUBSCRIPTION_PLAN_NOT_FOUND;
-import static com.xuejiai.aaf.module.billing.ErrorCodeConstants.SUBSCRIPTION_SAME_LEVEL_RENEW_UNSUPPORTED;
-import static com.xuejiai.aaf.module.billing.ErrorCodeConstants.SUBSCRIPTION_UPGRADE_ONLY;
+import static com.xuejiai.aaf.module.billing.ErrorCodeConstants.*;
 import static com.xuejiai.aaf.module.system.ErrorCodeConstants.USER_NOT_FOUND;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,336 +18,285 @@ import com.xuejiai.aaf.common.enums.billing.SubscriptionStatusEnum;
 import com.xuejiai.aaf.common.enums.pay.BizOrderTypeEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.credit.CreditService;
+import com.xuejiai.aaf.module.billing.api.MembershipProvisioningApi;
 import com.xuejiai.aaf.module.billing.domain.Subscription;
 import com.xuejiai.aaf.module.billing.domain.SubscriptionPlan;
 import com.xuejiai.aaf.module.billing.domain.SubscriptionRecord;
+import com.xuejiai.aaf.module.billing.domain.SubscriptionSku;
+import com.xuejiai.aaf.module.billing.repository.MembershipCheckoutGuardRepository;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionPlanRepository;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionRecordRepository;
 import com.xuejiai.aaf.module.billing.repository.SubscriptionRepository;
+import com.xuejiai.aaf.module.billing.repository.SubscriptionSkuRepository;
+import com.xuejiai.aaf.module.billing.vo.SubscriptionCheckoutStatusVO;
+import com.xuejiai.aaf.module.pay.api.PayOrderQueryApi;
 import com.xuejiai.aaf.module.pay.handler.PaySuccessHandler;
 import com.xuejiai.aaf.module.pay.service.BizOrderService;
 import com.xuejiai.aaf.module.pay.service.PayOrderService;
 import com.xuejiai.aaf.module.pay.vo.BizOrderCreateDTO;
 import com.xuejiai.aaf.module.pay.vo.PayOrderCreateDTO;
 import com.xuejiai.aaf.module.pay.vo.PayOrderVO;
+import com.xuejiai.aaf.module.system.user.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * 订阅服务（付费线）。
- *
- * <p>购买订阅复用 BizOrderService/PayOrderService 发起支付， 支付成功后创建 subscription + 实例化 entitlement_quota。
- *
- * <p>AAF-099 v0.2.0 补全：
- *
- * <ul>
- *   <li>{@link #cancel(Long)}：取消订阅（仅记 cancelled_at + auto_renew=false，权益保留至 end_at）
- *   <li>{@link #downgrade(Long, String, boolean)}：降级排队（end_at 切换，不付钱）
- *   <li>{@link #cancelPending(Long)}：撤销已申请的降级
- *   <li>{@link #upgrade(Long, String, String, boolean)}：升级订阅（按时间比例补差价 + 三笔积分流水）
- * </ul>
- */
+/** Plan + SKU 订阅服务。所有付费操作只在支付成功回调后生效。 */
 @Slf4j
 @Service("billingSubscriptionService")
 @RequiredArgsConstructor
-public class SubscriptionService implements PaySuccessHandler {
+public class SubscriptionService implements PaySuccessHandler, MembershipProvisioningApi {
 
-    /** 年付折扣（与 SubscriptionController.toVO 一致：月价 * 12 * 0.8）。 */
-    private static final double YEARLY_DISCOUNT = 0.8;
-
-    /** 年付天数。 */
-    private static final int YEARLY_DAYS = 365;
-
-    /** 月度积分批次默认有效期（天）。 */
     private static final int MONTHLY_CREDIT_EXPIRE_DAYS = 30;
+    private static final String PAY_UNPAID = "UNPAID";
+    private static final String PAY_PAID = "PAID";
+    private static final String FULFILLMENT_PENDING = "PENDING";
+    private static final String FULFILLMENT_FULFILLED = "FULFILLED";
+    private static final String FULFILLMENT_CLOSED = "CLOSED";
+    private static final String FULFILLMENT_COMPENSATION_PENDING = "COMPENSATION_PENDING";
+    private static final String VALUE_AVAILABLE = "AVAILABLE";
+    private static final String VALUE_SUPERSEDED = "SUPERSEDED";
+
+    private final SubscriptionRepository subscriptionRepository;
+    private final SubscriptionRecordRepository recordRepository;
+    private final SubscriptionPlanRepository planRepository;
+    private final SubscriptionSkuRepository skuRepository;
+    private final MembershipCheckoutGuardRepository checkoutGuardRepository;
+    private final BizOrderService bizOrderService;
+    private final PayOrderService payOrderService;
+    private final PayOrderQueryApi payOrderQueryApi;
+    private final EntitlementService entitlementService;
+    private final CreditService creditService;
+    private final UserRepository userRepository;
+
+    @org.springframework.context.annotation.Lazy
+    private final com.xuejiai.aaf.module.brokerage.service.BrokerageService brokerageService;
 
     @Override
     public String bizOrderType() {
         return BizOrderTypeEnum.SUBSCRIPTION.getCode();
     }
 
-    private final SubscriptionRepository subscriptionRepository;
-    private final SubscriptionRecordRepository recordRepository;
-    private final SubscriptionPlanRepository planRepository;
-    private final BizOrderService bizOrderService;
-    private final PayOrderService payOrderService;
-    private final EntitlementService entitlementService;
-    private final CreditService creditService;
-
-    @org.springframework.context.annotation.Lazy
-    private final com.xuejiai.aaf.module.brokerage.service.BrokerageService brokerageService;
-
-    private final com.xuejiai.aaf.module.system.user.repository.UserRepository userRepository;
-
-    /** 购买订阅：创建业务订单 + 支付单 */
+    /** 新购、跨 Plan 升级和同 SKU 手动续费的统一入口。 */
     @Transactional
-    public PayOrderVO subscribe(Long userId, String planCode, String channelCode) {
-        return subscribe(userId, planCode, channelCode, false);
-    }
+    public PayOrderVO subscribe(Long userId, String skuCode, String channelCode) {
+        var current = lockMembershipUser(userId, true);
+        rejectLiveCheckout(userId);
 
-    /** 购买订阅：创建业务订单 + 支付单（支持年付） */
-    @Transactional
-    public PayOrderVO subscribe(Long userId, String planCode, String channelCode, boolean yearly) {
-        var plan =
-                planRepository
-                        .findByCode(planCode)
-                        .orElseThrow(() -> exception(SUBSCRIPTION_PLAN_NOT_FOUND, planCode));
-        if (!"ENABLED".equals(plan.getStatus())) {
-            throw exception(SUBSCRIPTION_PLAN_DISABLED);
+        var targetSku = requireSaleableSku(skuCode);
+        var targetPlan = requireEnabledPlan(targetSku.getPlanId());
+        var checkoutAt = microsecondNow();
+        if (current == null || isFree(current)) {
+            return createCheckout(
+                    userId,
+                    targetPlan,
+                    targetSku,
+                    SubscriptionOperationEnum.NEW,
+                    targetSku.getPrice(),
+                    channelCode,
+                    current,
+                    List.of(),
+                    checkoutAt);
         }
 
-        var existing =
-                subscriptionRepository
-                        .findByUserIdAndStatus(userId, SubscriptionStatusEnum.ACTIVE.getCode())
-                        .orElse(null);
-        if (existing != null) {
-            var oldPlan =
-                    planRepository
-                            .findById(existing.getPlanId())
-                            .orElseThrow(() -> exception(SUBSCRIPTION_CURRENT_PLAN_NOT_FOUND));
-            if (plan.getCode().equals(oldPlan.getCode())) {
-                throw exception(SUBSCRIPTION_SAME_LEVEL_RENEW_UNSUPPORTED);
-            }
-            boolean oldYearly = isCurrentSubYearly(existing);
-            if (!isUpgrade(oldPlan, oldYearly, plan, yearly)) {
-                throw exception(SUBSCRIPTION_UPGRADE_ONLY);
-            }
-            return upgrade(userId, planCode, channelCode, yearly);
+        var currentPlan = requirePlan(current.getPlanId());
+        if (current.getSkuId().equals(targetSku.getId())) {
+            return createCheckout(
+                    userId,
+                    targetPlan,
+                    targetSku,
+                    SubscriptionOperationEnum.RENEW,
+                    targetSku.getPrice(),
+                    channelCode,
+                    current,
+                    List.of(),
+                    checkoutAt);
+        }
+        if (currentPlan.getId().equals(targetPlan.getId())) {
+            throw exception(SUBSCRIPTION_SAME_LEVEL_RENEW_UNSUPPORTED);
+        }
+        if (targetPlan.getSort() <= currentPlan.getSort()) {
+            throw exception(SUBSCRIPTION_DOWNGRADE_ENDPOINT_REQUIRED);
         }
 
-        // 无生效订阅时允许首次开通免费套餐，供新用户注册初始化权益
-        if (plan.getPrice() == 0) {
-            activateSubscription(userId, plan.getId(), null, false);
+        var calculatedAt = checkoutAt;
+        var segments = lockAvailableValueSegments(current, calculatedAt);
+        var payable =
+                Math.max(0L, targetSku.getPrice() - remainingPrepaidValue(segments, calculatedAt));
+        if (payable == 0L) {
+            var record =
+                    newRecord(
+                            userId,
+                            targetPlan,
+                            targetSku,
+                            SubscriptionOperationEnum.UPGRADE,
+                            0L,
+                            current,
+                            segments,
+                            calculatedAt);
+            record.setPayStatus(PAY_PAID);
+            record.setPayTime(calculatedAt);
+            recordRepository.save(record);
+            activateUpgrade(userId, targetPlan, targetSku, record, segments, calculatedAt, true);
             return null;
         }
-
-        // 年付价格 = 月付 * 12 * 0.8
-        long actualPrice =
-                yearly ? Math.round(plan.getPrice() * 12 * YEARLY_DISCOUNT) : plan.getPrice();
-        String planLabel = plan.getName() + (yearly ? "（年付）" : "（月付）");
-
-        // 创建业务订单
-        var bizOrder =
-                bizOrderService.create(
-                        userId,
-                        new BizOrderCreateDTO(
-                                BizOrderTypeEnum.SUBSCRIPTION.getCode(),
-                                "订阅 " + planLabel,
-                                actualPrice,
-                                channelCode));
-
-        // 创建支付单
-        var payOrder =
-                payOrderService.create(
-                        new PayOrderCreateDTO(
-                                bizOrder.orderNo(),
-                                "订阅 " + planLabel,
-                                null,
-                                actualPrice,
-                                channelCode,
-                                userId));
-
-        // 关联支付单
-        bizOrderService.bindPayOrder(bizOrder.id(), payOrder.id());
-
-        // 创建订阅流水（待支付）
-        var record = new SubscriptionRecord();
-        record.setUserId(userId);
-        record.setPlanId(plan.getId());
-        record.setOperation(SubscriptionOperationEnum.NEW.getCode());
-        record.setPayOrderId(payOrder.id());
-        record.setPayPrice(actualPrice);
-        record.setPayStatus("UNPAID");
-        record.setYearly(yearly);
-        recordRepository.save(record);
-
-        // MOCK 渠道同步成功时直接激活
-        if (payOrderService.isSuccess(payOrder.id())) {
-            onPaySuccess(payOrder.id());
-        }
-
-        return payOrder;
+        return createCheckout(
+                userId,
+                targetPlan,
+                targetSku,
+                SubscriptionOperationEnum.UPGRADE,
+                payable,
+                channelCode,
+                current,
+                segments,
+                calculatedAt);
     }
 
-    /**
-     * 取消订阅：仅设置 cancelled_at + auto_renew=false。
-     *
-     * <p>当前周期权益保留至 end_at；不退款；不清除 pending_plan_id。订阅 status 仍为 ACTIVE。
-     *
-     * <p>幂等：已 cancelled 时直接返回。
-     */
+    /** 取消只记录意图；当前周期权益保留至到期，不退款。 */
     @Transactional
     public Subscription cancel(Long userId) {
-        var sub =
-                subscriptionRepository
-                        .findByUserIdAndStatus(userId, SubscriptionStatusEnum.ACTIVE.getCode())
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "无生效订阅"));
-        if (sub.getCancelledAt() != null) {
-            return sub;
+        var sub = requireLockedActive(userId);
+        if (sub.getCancelledAt() == null) {
+            sub.setCancelledAt(microsecondNow());
+            subscriptionRepository.save(sub);
         }
-        sub.setCancelledAt(LocalDateTime.now());
-        sub.setAutoRenew(false);
-        log.info("订阅取消: userId={}, subId={}, endAt={}", userId, sub.getId(), sub.getEndAt());
-        return subscriptionRepository.save(sub);
+        return sub;
     }
 
-    /**
-     * 降级排队：在当前周期 end_at 到期时切换到目标套餐。
-     *
-     * <p>降级请求不付钱、不发积分、不动权益。仅记录 pending_plan_id + pending_yearly， 由 SubscriptionExpireScheduler 在
-     * end_at 时激活。
-     *
-     * <p>校验：必须是降级（newPriceUnit &lt; oldPriceUnit）；同档年付→月付也属降级。
-     */
+    /** 降级只保存目标 SKU，不支付、不立即改权益。 */
     @Transactional
-    public Subscription downgrade(Long userId, String newPlanCode, boolean newYearly) {
-        var sub =
-                subscriptionRepository
-                        .findByUserIdAndStatus(userId, SubscriptionStatusEnum.ACTIVE.getCode())
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "无生效订阅"));
-        var newPlan =
-                planRepository
-                        .findByCode(newPlanCode)
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                GlobalErrorCode.NOT_FOUND,
-                                                "套餐不存在: " + newPlanCode));
-        var oldPlan =
-                planRepository
-                        .findById(sub.getPlanId())
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "当前套餐不存在"));
-        boolean oldYearly = isCurrentSubYearly(sub);
-
-        if (!isDowngrade(oldPlan, oldYearly, newPlan, newYearly)) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "请使用升级接口或正常订阅接口");
+    public Subscription downgrade(Long userId, String skuCode) {
+        var sub = requireLockedActive(userId);
+        var currentPlan = requirePlan(sub.getPlanId());
+        var targetSku = requireSaleableSku(skuCode);
+        var targetPlan = requireEnabledPlan(targetSku.getPlanId());
+        if (targetPlan.getId().equals(currentPlan.getId())) {
+            throw exception(SUBSCRIPTION_SAME_LEVEL_RENEW_UNSUPPORTED);
         }
-
-        sub.setPendingPlanId(newPlan.getId());
-        sub.setPendingYearly(newYearly);
-        log.info(
-                "订阅降级排队: userId={}, oldPlanId={}, pendingPlanId={}, pendingYearly={},"
-                        + " effectAt={}",
-                userId,
-                oldPlan.getId(),
-                newPlan.getId(),
-                newYearly,
-                sub.getEndAt());
-        return subscriptionRepository.save(sub);
+        if (targetPlan.getSort() >= currentPlan.getSort()) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "目标套餐不是更低等级");
+        }
+        sub.setPendingSkuId(targetSku.getId());
+        subscriptionRepository.save(sub);
+        return sub;
     }
 
-    /** 撤销降级：清除 pending_plan_id + pending_yearly。 */
     @Transactional
     public Subscription cancelPending(Long userId) {
-        var sub =
-                subscriptionRepository
-                        .findByUserIdAndStatus(userId, SubscriptionStatusEnum.ACTIVE.getCode())
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "无生效订阅"));
-        sub.setPendingPlanId(null);
-        sub.setPendingYearly(false);
-        log.info("订阅降级撤销: userId={}, subId={}", userId, sub.getId());
+        var sub = requireLockedActive(userId);
+        sub.setPendingSkuId(null);
         return subscriptionRepository.save(sub);
     }
 
-    /**
-     * 升级订阅：按时间比例补差价，立即生效，三笔积分流水（EXPIRE/EARN/SPEND）。
-     *
-     * <p>差价公式：{@code payable = max(0, newPrice - oldPrice * remainingDays / totalDays)}。
-     */
+    /** 管理员按明确 SKU 开通；不创建支付订单。 */
     @Transactional
-    public PayOrderVO upgrade(
-            Long userId, String newPlanCode, String channelCode, boolean newYearly) {
-        var oldSub =
-                subscriptionRepository
-                        .findByUserIdAndStatus(userId, SubscriptionStatusEnum.ACTIVE.getCode())
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                GlobalErrorCode.NOT_FOUND,
-                                                "无生效订阅，请使用 subscribe 接口"));
-        var oldPlan =
-                planRepository
-                        .findById(oldSub.getPlanId())
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "当前套餐不存在"));
-        var newPlan =
-                planRepository
-                        .findByCode(newPlanCode)
-                        .orElseThrow(
-                                () ->
-                                        new BusinessException(
-                                                GlobalErrorCode.NOT_FOUND,
-                                                "套餐不存在: " + newPlanCode));
-        boolean oldYearly = isCurrentSubYearly(oldSub);
-
-        if (!isUpgrade(oldPlan, oldYearly, newPlan, newYearly)) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "请使用降级接口或正常订阅接口");
+    public Long activateByAdmin(Long userId, String skuCode) {
+        var current = lockMembershipUser(userId, true);
+        var sku = requireSaleableSku(skuCode);
+        var plan = requireEnabledPlan(sku.getPlanId());
+        if (current != null && !isFree(current)) {
+            var currentPlan = requirePlan(current.getPlanId());
+            if (plan.getId().equals(currentPlan.getId())) {
+                throw exception(SUBSCRIPTION_SAME_LEVEL_RENEW_UNSUPPORTED);
+            }
+            if (plan.getSort() <= currentPlan.getSort()) {
+                throw exception(SUBSCRIPTION_UPGRADE_ONLY);
+            }
+            return activateUpgrade(userId, plan, sku, null, List.of(), microsecondNow(), false);
         }
-
-        long newPriceUnit = computePriceUnit(newPlan, newYearly);
-        long payable =
-                computeUpgradePayable(
-                        oldSub, oldPlan, oldYearly, newPriceUnit, LocalDateTime.now());
-        String planLabel =
-                "由 "
-                        + oldPlan.getName()
-                        + " 升级至 "
-                        + newPlan.getName()
-                        + (newYearly ? "（年付）" : "（月付）");
-
-        var record = new SubscriptionRecord();
-        record.setUserId(userId);
-        record.setPlanId(newPlan.getId());
-        record.setOperation(SubscriptionOperationEnum.UPGRADE.getCode());
-        record.setPayPrice(payable);
-        record.setYearly(newYearly);
-
-        if (payable == 0) {
-            // 无需付款：直接激活（仍写流水用于审计）
-            record.setPayStatus("PAID");
-            record.setPayTime(LocalDateTime.now());
-            recordRepository.save(record);
-            activateUpgrade(userId, newPlan, record.getId(), newYearly);
-            return null;
-        }
-
-        // 创建业务订单 + 支付单
-        var bizOrder =
-                bizOrderService.create(
-                        userId,
-                        new BizOrderCreateDTO(
-                                BizOrderTypeEnum.SUBSCRIPTION.getCode(),
-                                "订阅升级 " + planLabel,
-                                payable,
-                                channelCode));
-        var payOrder =
-                payOrderService.create(
-                        new PayOrderCreateDTO(
-                                bizOrder.orderNo(),
-                                "订阅升级 " + planLabel,
-                                null,
-                                payable,
-                                channelCode,
-                                userId));
-        bizOrderService.bindPayOrder(bizOrder.id(), payOrder.id());
-        record.setPayOrderId(payOrder.id());
-        record.setPayStatus("UNPAID");
-        recordRepository.save(record);
-
-        // MOCK 渠道同步成功时直接激活
-        if (payOrderService.isSuccess(payOrder.id())) {
-            onPaySuccess(payOrder.id());
-        }
-        return payOrder;
+        return activateSubscriptionInternal(userId, plan, sku, null, false, microsecondNow());
     }
 
-    /** 支付成功回调：激活订阅 + 实例化权益额度（按 operation 区分新购/升级） */
+    @Transactional(readOnly = true)
+    public Subscription getActiveSubscription(Long userId) {
+        return activeSubscription(userId);
+    }
+
+    /** 查询当前用户指定会员支付单的履约状态。 */
+    @Transactional(readOnly = true)
+    public SubscriptionCheckoutStatusVO getCheckoutStatus(Long userId, Long payOrderId) {
+        var record =
+                recordRepository
+                        .findByPayOrderId(payOrderId)
+                        .filter(item -> item.getUserId().equals(userId))
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.NOT_FOUND, "会员支付记录不存在"));
+        return new SubscriptionCheckoutStatusVO(
+                record.getPayOrderId(),
+                record.getPayStatus(),
+                record.getFulfillmentStatus(),
+                record.getExceptionCode(),
+                record.getCompensationResolvedAt(),
+                record.getCompensationResult());
+    }
+
+    /** 尚无订阅的用户按需初始化 FREE_DEFAULT，不创建支付订单。 */
+    @Override
+    @Transactional
+    public void ensureFreeSubscription(Long userId) {
+        var current = lockMembershipUser(userId, true);
+        if (current != null) return;
+        var freeSku =
+                skuRepository
+                        .findByCode("FREE_DEFAULT")
+                        .orElseThrow(() -> exception(SUBSCRIPTION_SKU_NOT_FOUND, "FREE_DEFAULT"));
+        var plan = requireEnabledPlan(freeSku.getPlanId());
+        activateSubscriptionInternal(userId, plan, freeSku, null, false, microsecondNow());
+    }
+
+    /** 兑换码或系统赠送按明确 SKU 激活，不创建付费 Record。 */
+    @Transactional
+    public Long activateGrantedSku(
+            Long userId, Long skuId, String sourceType, Long sourceId, LocalDateTime effectiveAt) {
+        lockMembershipUser(userId, true);
+        var sku = requireSaleableSku(skuId);
+        var plan = requireEnabledPlan(sku.getPlanId());
+        return activateSubscriptionInternal(
+                userId, plan, sku, sourceId, false, normalizeMicros(effectiveAt));
+    }
+
+    /** 系统按明确 SKU 激活。 */
+    @Transactional
+    public Long activateSubscription(
+            Long userId, Long skuId, Long sourceId, boolean enableBrokerage) {
+        lockMembershipUser(userId, true);
+        var sku =
+                skuRepository
+                        .findById(skuId)
+                        .orElseThrow(() -> exception(SUBSCRIPTION_SKU_NOT_FOUND, skuId));
+        var plan = requirePlan(sku.getPlanId());
+        return activateSubscriptionInternal(
+                userId, plan, sku, sourceId, enableBrokerage, microsecondNow());
+    }
+
+    private Long activateSubscriptionInternal(
+            Long userId,
+            SubscriptionPlan plan,
+            SubscriptionSku sku,
+            Long sourceId,
+            boolean enableBrokerage,
+            LocalDateTime effectiveAt) {
+        var existing = activeSubscriptionForUpdate(userId);
+        if (existing != null) {
+            existing.setStatus(SubscriptionStatusEnum.CANCELLED.getCode());
+            existing.setCancelledAt(effectiveAt);
+            subscriptionRepository.save(existing);
+            subscriptionRepository.flush();
+        }
+        var subscription = createSubscription(userId, plan, sku, sourceId, effectiveAt);
+        entitlementService.instantiateQuotas(userId, plan.getId());
+        issueInitialCredits(subscription, plan, effectiveAt);
+        if (enableBrokerage && !sku.isFree()) {
+            tryEnableBrokerage(userId, plan, sku, subscription.getId());
+        }
+        return subscription.getId();
+    }
+
+    /** 支付成功后才激活、升级或续期；重复回调不会重复处理。 */
     @Override
     @Transactional
     public void onPaySuccess(Long payOrderId) {
@@ -358,276 +305,588 @@ public class SubscriptionService implements PaySuccessHandler {
                 || !BizOrderTypeEnum.SUBSCRIPTION.getCode().equals(bizOrder.getOrderType())) {
             return;
         }
-        bizOrderService.markPaid(bizOrder.getId());
+        var initial = recordRepository.findByPayOrderId(payOrderId).orElse(null);
+        if (initial == null) return;
 
-        var userId = bizOrder.getUserId();
-        var records = recordRepository.findByPayOrderIdAndPayStatus(payOrderId, "UNPAID");
-        for (var record : records) {
-            record.setPayStatus("PAID");
-            record.setPayTime(LocalDateTime.now());
-            recordRepository.save(record);
-            if (SubscriptionOperationEnum.UPGRADE.getCode().equals(record.getOperation())) {
-                var newPlan =
-                        planRepository
-                                .findById(record.getPlanId())
-                                .orElseThrow(
-                                        () ->
-                                                new BusinessException(
-                                                        GlobalErrorCode.NOT_FOUND, "套餐不存在"));
-                activateUpgrade(
-                        userId, newPlan, record.getId(), Boolean.TRUE.equals(record.getYearly()));
-            } else {
-                activateSubscription(
-                        userId,
-                        record.getPlanId(),
-                        record.getId(),
-                        Boolean.TRUE.equals(record.getYearly()));
-            }
+        var current = lockMembershipUser(initial.getUserId(), true);
+        var record = recordRepository.findByIdForUpdate(initial.getId()).orElse(null);
+        if (record == null
+                || FULFILLMENT_FULFILLED.equals(record.getFulfillmentStatus())
+                || FULFILLMENT_COMPENSATION_PENDING.equals(record.getFulfillmentStatus())) {
+            return;
         }
+        var payOrder = payOrderQueryApi.findSnapshot(payOrderId).orElse(null);
+        if (payOrder == null
+                || !com.xuejiai.aaf.common.enums.pay.PayOrderStatusEnum.SUCCESS
+                        .getCode()
+                        .equals(payOrder.status())) {
+            return;
+        }
+
+        var effectiveAt =
+                normalizeMicros(
+                        payOrder.successTime() == null
+                                ? LocalDateTime.now()
+                                : payOrder.successTime());
+        var plan = requirePlan(record.getPlanId());
+        var sku =
+                skuRepository
+                        .findById(record.getSkuId())
+                        .orElseThrow(
+                                () -> exception(SUBSCRIPTION_SKU_NOT_FOUND, record.getSkuId()));
+        var operation = SubscriptionOperationEnum.valueOf(record.getOperation());
+        if (FULFILLMENT_CLOSED.equals(record.getFulfillmentStatus())) {
+            markCompensation(
+                    record,
+                    bizOrder.getId(),
+                    "CHECKOUT_CLOSED_BUT_PAID",
+                    "已关闭结账收到成功款",
+                    effectiveAt);
+            return;
+        }
+        var currentGenerationId = current == null ? null : current.getId();
+        if (!java.util.Objects.equals(record.getCheckoutGenerationId(), currentGenerationId)) {
+            markCompensation(
+                    record,
+                    bizOrder.getId(),
+                    "OPERATION_STATE_CHANGED",
+                    "支付成功时当前订阅世代已不同于下单世代",
+                    effectiveAt);
+            return;
+        }
+        var segments =
+                operation == SubscriptionOperationEnum.UPGRADE && current != null
+                        ? lockAvailableValueSegments(current, effectiveAt)
+                        : List.<SubscriptionRecord>of();
+        var targetPriceSnapshot = record.getSkuPriceSnapshot();
+        var expectedAmount =
+                operation == SubscriptionOperationEnum.UPGRADE
+                        ? Math.max(
+                                0L,
+                                targetPriceSnapshot - remainingPrepaidValue(segments, effectiveAt))
+                        : targetPriceSnapshot;
+
+        if (!canApply(record, current)) {
+            var duplicateSuccess = isDuplicateSuccess(record, current);
+            markCompensation(
+                    record,
+                    bizOrder.getId(),
+                    duplicateSuccess ? "DUPLICATE_SUCCESS" : "OPERATION_STATE_CHANGED",
+                    duplicateSuccess ? "另一支付单已先完成相同目标履约" : "支付成功时订阅世代或操作状态已变化",
+                    effectiveAt);
+            return;
+        }
+        if (!java.util.Objects.equals(payOrder.amount(), record.getPayPrice())
+                || expectedAmount != record.getPayPrice()) {
+            markCompensation(
+                    record,
+                    bizOrder.getId(),
+                    "AMOUNT_SNAPSHOT_CHANGED",
+                    "回调重算金额与支付订单快照不一致",
+                    effectiveAt);
+            return;
+        }
+
+        record.setPayStatus(PAY_PAID);
+        record.setPayTime(effectiveAt);
+        switch (operation) {
+            case NEW -> activateNew(record, plan, sku, effectiveAt);
+            case UPGRADE ->
+                    activateUpgrade(
+                            record.getUserId(), plan, sku, record, segments, effectiveAt, true);
+            case RENEW -> activateRenew(record, current, sku, effectiveAt);
+        }
+        recordRepository.save(record);
+        bizOrderService.markPaid(bizOrder.getId());
     }
 
-    /** 到期处理：将过期订阅标记为 EXPIRED（保留为兜底；主流程由 SubscriptionExpireScheduler 处理 pending 切换/冻结）。 */
+    /** 到期扫描兜底。 */
     @Transactional
     public int expireSubscriptions() {
-        var now = LocalDateTime.now();
-        var expiredSubscriptions =
+        var candidates =
                 subscriptionRepository.findByStatusAndEndAtBefore(
-                        SubscriptionStatusEnum.ACTIVE.getCode(), now);
-        for (var sub : expiredSubscriptions) {
-            sub.setStatus(SubscriptionStatusEnum.EXPIRED.getCode());
-            subscriptionRepository.save(sub);
-            log.info("订阅过期: userId={}, planId={}", sub.getUserId(), sub.getPlanId());
+                        SubscriptionStatusEnum.ACTIVE.getCode(), microsecondNow());
+        var expired = 0;
+        for (var candidate : candidates) {
+            if (expireAndSwitchToFree(candidate.getUserId(), candidate.getId())) {
+                expired++;
+            }
         }
-        return expiredSubscriptions.size();
+        return expired;
     }
 
-    /** 管理员为指定用户开通或升级会员，不创建支付订单且不触发分销佣金。 */
+    /** 在统一会员锁序内结束指定到期世代，并按 pending FREE 或 FREE_DEFAULT 激活兜底订阅。 */
     @Transactional
-    public Long activateByAdmin(Long userId, String planCode) {
-        userRepository.findById(userId).orElseThrow(() -> exception(USER_NOT_FOUND));
-        var newPlan =
-                planRepository
-                        .findByCode(planCode)
-                        .orElseThrow(() -> exception(SUBSCRIPTION_PLAN_NOT_FOUND, planCode));
-        if (!"ENABLED".equals(newPlan.getStatus()) || newPlan.getPrice() <= 0) {
-            throw exception(SUBSCRIPTION_PAID_PLAN_REQUIRED);
+    public boolean expireAndSwitchToFree(Long userId, Long expectedSubscriptionId) {
+        var effectiveAt = microsecondNow();
+        var current = lockMembershipUser(userId, false);
+        if (current == null
+                || !current.getId().equals(expectedSubscriptionId)
+                || current.getEndAt() == null
+                || current.getEndAt().isAfter(effectiveAt)) {
+            return false;
         }
 
-        var activeSubscription =
-                subscriptionRepository
-                        .findByUserIdAndStatus(userId, SubscriptionStatusEnum.ACTIVE.getCode())
-                        .orElse(null);
-        if (activeSubscription == null) {
-            return activateSubscription(userId, newPlan.getId(), null, false, false);
+        var freeSku =
+                java.util.Optional.ofNullable(current.getPendingSkuId())
+                        .flatMap(skuRepository::findById)
+                        .filter(SubscriptionSku::isFree)
+                        .filter(sku -> "ENABLED".equals(sku.getStatus()))
+                        .orElseGet(
+                                () ->
+                                        skuRepository
+                                                .findByCode("FREE_DEFAULT")
+                                                .filter(sku -> "ENABLED".equals(sku.getStatus()))
+                                                .orElse(null));
+
+        current.setStatus(SubscriptionStatusEnum.EXPIRED.getCode());
+        subscriptionRepository.save(current);
+        subscriptionRepository.flush();
+        if (freeSku == null) {
+            log.warn("FREE_DEFAULT 不存在或未启用，用户到期后暂不激活免费订阅: userId={}", userId);
+            return true;
         }
 
-        var currentPlan =
-                planRepository
-                        .findById(activeSubscription.getPlanId())
-                        .orElseThrow(() -> exception(SUBSCRIPTION_CURRENT_PLAN_NOT_FOUND));
-        if (newPlan.getCode().equals(currentPlan.getCode())) {
-            throw exception(SUBSCRIPTION_SAME_LEVEL_RENEW_UNSUPPORTED);
-        }
-        if (newPlan.getPrice() <= currentPlan.getPrice()) {
-            throw exception(SUBSCRIPTION_UPGRADE_ONLY);
-        }
-        return activateUpgrade(userId, newPlan, null, false, false);
+        var freePlan = requireEnabledPlan(freeSku.getPlanId());
+        activateSubscriptionInternal(userId, freePlan, freeSku, null, false, effectiveAt);
+        return true;
     }
 
-    /** 获取用户当前有效订阅 */
-    @Transactional(readOnly = true)
-    public Subscription getActiveSubscription(Long userId) {
+    private PayOrderVO createCheckout(
+            Long userId,
+            SubscriptionPlan plan,
+            SubscriptionSku sku,
+            SubscriptionOperationEnum operation,
+            long payable,
+            String channelCode,
+            Subscription current,
+            List<SubscriptionRecord> valueSegments,
+            LocalDateTime calculatedAt) {
+        String action =
+                switch (operation) {
+                    case NEW -> "订阅 ";
+                    case UPGRADE -> "订阅升级 ";
+                    case RENEW -> "订阅续费 ";
+                };
+        String label = plan.getName() + "（" + cycleLabel(sku) + "）";
+        var bizOrder =
+                bizOrderService.create(
+                        userId,
+                        new BizOrderCreateDTO(
+                                BizOrderTypeEnum.SUBSCRIPTION.getCode(),
+                                action + label,
+                                payable,
+                                channelCode));
+        var payOrder =
+                payOrderService.create(
+                        new PayOrderCreateDTO(
+                                bizOrder.orderNo(),
+                                action + label,
+                                null,
+                                payable,
+                                channelCode,
+                                userId));
+        bizOrderService.bindPayOrder(bizOrder.id(), payOrder.id());
+        var record =
+                newRecord(
+                        userId,
+                        plan,
+                        sku,
+                        operation,
+                        payable,
+                        current,
+                        valueSegments,
+                        calculatedAt);
+        record.setPayOrderId(payOrder.id());
+        record.setPayStatus(PAY_UNPAID);
+        recordRepository.save(record);
+        if (payOrderQueryApi
+                .findSnapshot(payOrder.id())
+                .filter(
+                        snapshot ->
+                                com.xuejiai.aaf.common.enums.pay.PayOrderStatusEnum.SUCCESS
+                                        .getCode()
+                                        .equals(snapshot.status()))
+                .isPresent()) {
+            onPaySuccess(payOrder.id());
+        }
+        return payOrder;
+    }
+
+    private SubscriptionRecord newRecord(
+            Long userId,
+            SubscriptionPlan plan,
+            SubscriptionSku sku,
+            SubscriptionOperationEnum operation,
+            long payable,
+            Subscription current,
+            List<SubscriptionRecord> valueSegments,
+            LocalDateTime calculatedAt) {
+        var record = new SubscriptionRecord();
+        record.setUserId(userId);
+        record.setPlanId(plan.getId());
+        record.setSkuId(sku.getId());
+        record.setOperation(operation.getCode());
+        record.setPayPrice(payable);
+        record.setSkuPriceSnapshot(sku.getPrice());
+        record.setPayStatus(PAY_UNPAID);
+        record.setFulfillmentStatus(FULFILLMENT_PENDING);
+        record.setCheckoutGenerationId(current == null ? null : current.getId());
+        record.setCheckoutCalculatedAt(calculatedAt);
+        if (operation == SubscriptionOperationEnum.UPGRADE) {
+            record.setCheckoutValueSnapshot(checkoutValueSnapshot(valueSegments, calculatedAt));
+        }
+        return record;
+    }
+
+    private void activateNew(
+            SubscriptionRecord record,
+            SubscriptionPlan plan,
+            SubscriptionSku sku,
+            LocalDateTime effectiveAt) {
+        var id =
+                activateSubscriptionInternal(
+                        record.getUserId(), plan, sku, record.getId(), true, effectiveAt);
+        var subscription = subscriptionRepository.findById(id).orElseThrow();
+        bindServiceSegment(record, subscription, effectiveAt, subscription.getEndAt());
+    }
+
+    private Long activateUpgrade(
+            Long userId,
+            SubscriptionPlan plan,
+            SubscriptionSku sku,
+            SubscriptionRecord record,
+            List<SubscriptionRecord> segments,
+            LocalDateTime effectiveAt,
+            boolean enableBrokerage) {
+        var old = requireActive(userId);
+        if (record != null) {
+            for (var segment : segments) {
+                segment.setValueStatus(VALUE_SUPERSEDED);
+                segment.setSupersededByRecordId(record.getId());
+                segment.setSupersededAt(effectiveAt);
+                recordRepository.save(segment);
+            }
+        }
+        old.setStatus(SubscriptionStatusEnum.CANCELLED.getCode());
+        old.setCancelledAt(effectiveAt);
+        subscriptionRepository.save(old);
+        subscriptionRepository.flush();
+
+        var newSub =
+                createSubscription(
+                        userId, plan, sku, record == null ? null : record.getId(), effectiveAt);
+        if (record != null) {
+            bindServiceSegment(record, newSub, effectiveAt, newSub.getEndAt());
+        }
+        entitlementService.instantiateQuotas(userId, plan.getId());
+        if (plan.getMonthlyCredits() != null && plan.getMonthlyCredits() > 0) {
+            creditService.settleSubscriptionUpgrade(
+                    userId,
+                    plan.getMonthlyCredits(),
+                    newSub.getId(),
+                    effectiveAt.plusDays(MONTHLY_CREDIT_EXPIRE_DAYS));
+            newSub.setLastCreditIssuedAt(effectiveAt);
+            subscriptionRepository.save(newSub);
+        }
+        if (enableBrokerage) {
+            tryEnableBrokerage(userId, plan, sku, newSub.getId());
+        }
+        return newSub.getId();
+    }
+
+    private void activateRenew(
+            SubscriptionRecord record,
+            Subscription current,
+            SubscriptionSku sku,
+            LocalDateTime effectiveAt) {
+        var serviceStart = current.getEndAt();
+        if (serviceStart == null || serviceStart.isBefore(effectiveAt)) {
+            serviceStart = effectiveAt;
+        }
+        var serviceEnd = serviceStart.plusMonths(sku.getCycleMonths());
+        current.setEndAt(serviceEnd);
+        current.setSourceId(record.getId());
+        current.setCancelledAt(null);
+        subscriptionRepository.save(current);
+        bindServiceSegment(record, current, serviceStart, serviceEnd);
+    }
+
+    private Subscription createSubscription(
+            Long userId,
+            SubscriptionPlan plan,
+            SubscriptionSku sku,
+            Long sourceId,
+            LocalDateTime start) {
+        var subscription = new Subscription();
+        subscription.setUserId(userId);
+        subscription.setPlanId(plan.getId());
+        subscription.setSkuId(sku.getId());
+        subscription.setStartAt(start);
+        subscription.setEndAt(sku.isFree() ? null : start.plusMonths(sku.getCycleMonths()));
+        subscription.setStatus(SubscriptionStatusEnum.ACTIVE.getCode());
+        subscription.setSourceId(sourceId);
+        return subscriptionRepository.save(subscription);
+    }
+
+    private void bindServiceSegment(
+            SubscriptionRecord record,
+            Subscription subscription,
+            LocalDateTime start,
+            LocalDateTime end) {
+        record.setServiceGenerationId(subscription.getId());
+        record.setServiceStartAt(normalizeMicros(start));
+        record.setServiceEndAt(normalizeMicros(end));
+        record.setValueStatus(VALUE_AVAILABLE);
+        record.setFulfillmentStatus(FULFILLMENT_FULFILLED);
+        recordRepository.save(record);
+    }
+
+    private List<SubscriptionRecord> lockAvailableValueSegments(
+            Subscription current, LocalDateTime calculatedAt) {
+        return recordRepository.findAvailableValueSegmentsForUpdate(
+                current.getUserId(), current.getId(), calculatedAt);
+    }
+
+    private long remainingPrepaidValue(
+            List<SubscriptionRecord> segments, LocalDateTime calculatedAt) {
+        long total = 0L;
+        for (var segment : segments) {
+            total = Math.addExact(total, remainingSegmentValue(segment, calculatedAt));
+        }
+        return total;
+    }
+
+    private long remainingSegmentValue(SubscriptionRecord segment, LocalDateTime calculatedAt) {
+        if (segment.getServiceStartAt() == null
+                || segment.getServiceEndAt() == null
+                || !segment.getServiceEndAt().isAfter(calculatedAt)) {
+            return 0L;
+        }
+        var overlapStart =
+                segment.getServiceStartAt().isAfter(calculatedAt)
+                        ? segment.getServiceStartAt()
+                        : calculatedAt;
+        long segmentMicros = microsBetween(segment.getServiceStartAt(), segment.getServiceEndAt());
+        long remainMicros = microsBetween(overlapStart, segment.getServiceEndAt());
+        if (segmentMicros <= 0L || remainMicros <= 0L) return 0L;
+        return BigDecimal.valueOf(segment.getSkuPriceSnapshot())
+                .multiply(BigDecimal.valueOf(remainMicros))
+                .divide(BigDecimal.valueOf(segmentMicros), 0, RoundingMode.HALF_UP)
+                .longValueExact();
+    }
+
+    private String checkoutValueSnapshot(
+            List<SubscriptionRecord> segments, LocalDateTime calculatedAt) {
+        var values =
+                segments.stream()
+                        .map(
+                                segment ->
+                                        new CheckoutValueSegment(
+                                                segment.getId(),
+                                                remainingSegmentValue(segment, calculatedAt)))
+                        .toList();
+        var total = values.stream().mapToLong(CheckoutValueSegment::remainingValue).sum();
+        return JsonUtils.toJsonString(new CheckoutValueSnapshot(calculatedAt, total, values));
+    }
+
+    private record CheckoutValueSegment(Long recordId, long remainingValue) {}
+
+    private record CheckoutValueSnapshot(
+            LocalDateTime calculatedAt, long total, List<CheckoutValueSegment> segments) {}
+
+    private long microsBetween(LocalDateTime start, LocalDateTime end) {
+        return Duration.between(normalizeMicros(start), normalizeMicros(end)).toNanos() / 1_000L;
+    }
+
+    private boolean isDuplicateSuccess(SubscriptionRecord record, Subscription current) {
+        return current != null
+                && current.getSourceId() != null
+                && !current.getSourceId().equals(record.getId())
+                && current.getSkuId().equals(record.getSkuId());
+    }
+
+    private boolean canApply(SubscriptionRecord record, Subscription current) {
+        var operation = SubscriptionOperationEnum.valueOf(record.getOperation());
+        if (operation == SubscriptionOperationEnum.NEW) {
+            return current == null || isFree(current);
+        }
+        if (current == null || isFree(current)) {
+            return false;
+        }
+        if (operation == SubscriptionOperationEnum.RENEW) {
+            return current.getSkuId().equals(record.getSkuId());
+        }
+        var currentPlan = requirePlan(current.getPlanId());
+        var targetPlan = requirePlan(record.getPlanId());
+        return targetPlan.getSort() > currentPlan.getSort();
+    }
+
+    private void rejectLiveCheckout(Long userId) {
+        var pending =
+                recordRepository.findLiveByUserIdForUpdate(userId).stream()
+                        .findFirst()
+                        .orElse(null);
+        if (pending == null) return;
+        if (pending.getPayOrderId() != null
+                && payOrderQueryApi.isLive(pending.getPayOrderId(), microsecondNow())) {
+            throw new BusinessException(
+                    SUBSCRIPTION_PENDING_PAYMENT_EXISTS,
+                    "已有待支付会员订单，payOrderId=" + pending.getPayOrderId());
+        }
+        pending.setFulfillmentStatus(FULFILLMENT_CLOSED);
+        recordRepository.save(pending);
+    }
+
+    private SubscriptionSku requireSaleableSku(String code) {
+        return requireSaleableSku(requireEnabledSku(code));
+    }
+
+    private SubscriptionSku requireSaleableSku(Long skuId) {
+        var sku =
+                skuRepository
+                        .findById(skuId)
+                        .orElseThrow(() -> exception(SUBSCRIPTION_SKU_NOT_FOUND, skuId));
+        if (!"ENABLED".equals(sku.getStatus())) {
+            throw exception(SUBSCRIPTION_SKU_DISABLED);
+        }
+        return requireSaleableSku(sku);
+    }
+
+    private SubscriptionSku requireSaleableSku(SubscriptionSku sku) {
+        if (sku.isFree() || sku.getPrice() == null || sku.getPrice() <= 0) {
+            throw exception(SUBSCRIPTION_INTERNAL_SKU_NOT_PURCHASABLE);
+        }
+        return sku;
+    }
+
+    private SubscriptionSku requireEnabledSku(String code) {
+        var sku =
+                skuRepository
+                        .findByCode(code)
+                        .orElseThrow(() -> exception(SUBSCRIPTION_SKU_NOT_FOUND, code));
+        if (!"ENABLED".equals(sku.getStatus())) {
+            throw exception(SUBSCRIPTION_SKU_DISABLED);
+        }
+        return sku;
+    }
+
+    private SubscriptionPlan requireEnabledPlan(Long planId) {
+        var plan = requirePlan(planId);
+        if (!"ENABLED".equals(plan.getStatus())) {
+            throw exception(SUBSCRIPTION_PLAN_DISABLED);
+        }
+        return plan;
+    }
+
+    private SubscriptionPlan requirePlan(Long planId) {
+        return planRepository
+                .findById(planId)
+                .orElseThrow(() -> exception(SUBSCRIPTION_PLAN_NOT_FOUND, planId));
+    }
+
+    private void markCompensation(
+            SubscriptionRecord record,
+            Long bizOrderId,
+            String exceptionCode,
+            String reason,
+            LocalDateTime detectedAt) {
+        record.setPayStatus(PAY_PAID);
+        record.setPayTime(detectedAt);
+        record.setFulfillmentStatus(FULFILLMENT_COMPENSATION_PENDING);
+        record.setValueStatus(null);
+        record.setExceptionCode(exceptionCode);
+        record.setExceptionReason(reason);
+        record.setExceptionDetectedAt(detectedAt);
+        recordRepository.save(record);
+        bizOrderService.markCompensationPending(bizOrderId);
+        log.error(
+                "订阅支付进入人工补偿: userId={}, payOrderId={}, code={}",
+                record.getUserId(),
+                record.getPayOrderId(),
+                exceptionCode);
+    }
+
+    private Subscription requireLockedActive(Long userId) {
+        var subscription = lockMembershipUser(userId, true);
+        if (subscription == null) {
+            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "无生效订阅");
+        }
+        return subscription;
+    }
+
+    private Subscription lockMembershipUser(Long userId, boolean requireUser) {
+        checkoutGuardRepository.ensureGuard(userId);
+        checkoutGuardRepository.lockGuard(userId);
+        if (requireUser && userRepository.findById(userId).isEmpty()) {
+            throw exception(USER_NOT_FOUND);
+        }
+        return activeSubscriptionForUpdate(userId);
+    }
+
+    private Subscription activeSubscriptionForUpdate(Long userId) {
+        return subscriptionRepository
+                .findByUserIdAndStatusForUpdate(userId, SubscriptionStatusEnum.ACTIVE.getCode())
+                .orElse(null);
+    }
+
+    private LocalDateTime microsecondNow() {
+        return normalizeMicros(LocalDateTime.now());
+    }
+
+    private LocalDateTime normalizeMicros(LocalDateTime value) {
+        if (value == null) return null;
+        return value.withNano((value.getNano() / 1_000) * 1_000);
+    }
+
+    private Subscription requireActive(Long userId) {
+        var subscription = activeSubscription(userId);
+        if (subscription == null) {
+            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "无生效订阅");
+        }
+        return subscription;
+    }
+
+    private Subscription activeSubscription(Long userId) {
         return subscriptionRepository
                 .findByUserIdAndStatus(userId, SubscriptionStatusEnum.ACTIVE.getCode())
                 .orElse(null);
     }
 
-    // ===== 公共辅助方法（供 Scheduler 调用） =====
-
-    public Long activateSubscription(Long userId, Long planId, Long sourceId, boolean yearly) {
-        return activateSubscription(userId, planId, sourceId, yearly, true);
-    }
-
-    private Long activateSubscription(
-            Long userId, Long planId, Long sourceId, boolean yearly, boolean enableBrokerage) {
-        var plan =
-                planRepository
-                        .findById(planId)
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "套餐不存在"));
-
-        // 取消旧订阅
-        subscriptionRepository
-                .findByUserIdAndStatus(userId, SubscriptionStatusEnum.ACTIVE.getCode())
-                .ifPresent(
-                        old -> {
-                            old.setStatus(SubscriptionStatusEnum.CANCELLED.getCode());
-                            subscriptionRepository.save(old);
-                        });
-
-        // 年付有效期 365 天，月付按套餐 durationDays
-        int durationDays = yearly ? YEARLY_DAYS : plan.getDurationDays();
-
-        // 创建新订阅
-        var subscription = new Subscription();
-        subscription.setUserId(userId);
-        subscription.setPlanId(planId);
-        subscription.setStartAt(LocalDateTime.now());
-        subscription.setEndAt(durationDays > 0 ? LocalDateTime.now().plusDays(durationDays) : null);
-        subscription.setStatus(SubscriptionStatusEnum.ACTIVE.getCode());
-        subscription.setSourceId(sourceId);
-        subscriptionRepository.save(subscription);
-
-        // 实例化权益额度
-        entitlementService.instantiateQuotas(userId, planId);
-
-        // 发放首月积分（套餐配置了 monthly_credits 时）
-        if (plan.getMonthlyCredits() > 0) {
-            creditService.earnBatch(
-                    userId,
-                    plan.getMonthlyCredits(),
-                    "SUBSCRIPTION",
-                    "SUBSCRIPTION_ACTIVATE",
-                    String.valueOf(subscription.getId()),
-                    LocalDateTime.now().plusDays(MONTHLY_CREDIT_EXPIRE_DAYS));
-            subscription.setLastCreditIssuedAt(LocalDateTime.now());
-            subscriptionRepository.save(subscription);
-        }
-
-        log.info(
-                "订阅激活: userId={}, plan={}, endAt={}",
-                userId,
-                plan.getCode(),
-                subscription.getEndAt());
-
-        // 付费套餐激活后尝试自动开通分销资格（免费套餐 FREE 不触发）
-        if (enableBrokerage && plan.getPrice() > 0) {
-            tryEnableBrokerage(userId, plan, yearly, subscription.getId());
-        }
-
-        return subscription.getId();
-    }
-
-    /** 升级激活：取消旧订阅 + 创建新订阅 + 实例化权益 + 三笔积分流水（不重复发首月积分）。 */
-    public Long activateUpgrade(
-            Long userId, SubscriptionPlan newPlan, Long sourceId, boolean yearly) {
-        return activateUpgrade(userId, newPlan, sourceId, yearly, true);
-    }
-
-    private Long activateUpgrade(
-            Long userId,
-            SubscriptionPlan newPlan,
-            Long sourceId,
-            boolean yearly,
-            boolean enableBrokerage) {
-        var oldSub =
-                subscriptionRepository
-                        .findByUserIdAndStatus(userId, SubscriptionStatusEnum.ACTIVE.getCode())
-                        .orElseThrow(
-                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "无生效订阅"));
-
-        var now = LocalDateTime.now();
-        int durationDays = yearly ? YEARLY_DAYS : newPlan.getDurationDays();
-        var newSub = new Subscription();
-        newSub.setUserId(userId);
-        newSub.setPlanId(newPlan.getId());
-        newSub.setStartAt(now);
-        newSub.setEndAt(durationDays > 0 ? now.plusDays(durationDays) : null);
-        newSub.setStatus(SubscriptionStatusEnum.ACTIVE.getCode());
-        newSub.setSourceId(sourceId);
-        subscriptionRepository.save(newSub);
-
-        // 旧订阅作废（cancelled_at 复用为升级时间标记）
-        oldSub.setStatus(SubscriptionStatusEnum.CANCELLED.getCode());
-        oldSub.setCancelledAt(now);
-        subscriptionRepository.save(oldSub);
-
-        // 实例化新套餐权益（覆盖式重置）
-        entitlementService.instantiateQuotas(userId, newPlan.getId());
-
-        // 三笔积分流水：EXPIRE 旧批次 / EARN 新批次 / SPEND 继承已用
-        if (newPlan.getMonthlyCredits() != null && newPlan.getMonthlyCredits() > 0) {
-            creditService.settleSubscriptionUpgrade(
-                    userId,
-                    newPlan.getMonthlyCredits(),
-                    newSub.getId(),
-                    now.plusDays(MONTHLY_CREDIT_EXPIRE_DAYS));
-            newSub.setLastCreditIssuedAt(now);
-            subscriptionRepository.save(newSub);
-        }
-
-        log.info(
-                "订阅升级激活: userId={}, oldSubId={}, newPlan={}, endAt={}",
-                userId,
-                oldSub.getId(),
-                newPlan.getCode(),
-                newSub.getEndAt());
-
-        // 分销佣金（与 activateSubscription 一致）
-        if (enableBrokerage && newPlan.getPrice() > 0) {
-            tryEnableBrokerage(userId, newPlan, yearly, newSub.getId());
-        }
-        return newSub.getId();
-    }
-
-    // ===== 私有辅助方法 =====
-
-    private boolean isUpgrade(
-            SubscriptionPlan oldPlan,
-            boolean oldYearly,
-            SubscriptionPlan newPlan,
-            boolean newYearly) {
-        return computePriceUnit(newPlan, newYearly) > computePriceUnit(oldPlan, oldYearly);
-    }
-
-    private boolean isDowngrade(
-            SubscriptionPlan oldPlan,
-            boolean oldYearly,
-            SubscriptionPlan newPlan,
-            boolean newYearly) {
-        return computePriceUnit(newPlan, newYearly) < computePriceUnit(oldPlan, oldYearly);
-    }
-
-    /** 套餐实付价（年付应用 0.8 折扣）。 */
-    private long computePriceUnit(SubscriptionPlan plan, boolean yearly) {
-        return yearly ? Math.round(plan.getPrice() * 12 * YEARLY_DISCOUNT) : plan.getPrice();
-    }
-
-    /**
-     * 升级实付差价（按时间比例计算）。
-     *
-     * <p>{@code oldRemainValue = oldPriceUnit * remainingDays / totalDays}；{@code payable = max(0,
-     * newPrice - oldRemainValue)}。
-     */
-    private long computeUpgradePayable(
-            Subscription oldSub,
-            SubscriptionPlan oldPlan,
-            boolean oldYearly,
-            long newPriceUnit,
-            LocalDateTime now) {
-        long oldPriceUnit = computePriceUnit(oldPlan, oldYearly);
-        if (oldSub.getStartAt() == null || oldSub.getEndAt() == null) {
-            // 永久套餐或老数据：不做时间比例，按全价支付
-            return Math.max(0L, newPriceUnit - oldPriceUnit);
-        }
-        long totalDays = ChronoUnit.DAYS.between(oldSub.getStartAt(), oldSub.getEndAt());
-        long remainingDays = Math.max(0L, ChronoUnit.DAYS.between(now, oldSub.getEndAt()));
-        long oldRemainValue =
-                totalDays > 0 ? Math.round((double) oldPriceUnit * remainingDays / totalDays) : 0L;
-        return Math.max(0L, newPriceUnit - oldRemainValue);
-    }
-
-    private boolean isCurrentSubYearly(Subscription sub) {
-        if (sub.getSourceId() == null) return false;
-        return recordRepository
-                .findById(sub.getSourceId())
-                .map(r -> Boolean.TRUE.equals(r.getYearly()))
+    private boolean isFree(Subscription subscription) {
+        return skuRepository
+                .findById(subscription.getSkuId())
+                .map(SubscriptionSku::isFree)
                 .orElse(false);
     }
 
-    /** 付费套餐激活后尝试开通分销 + 计算佣金（与 activateSubscription 复用）。 */
+    private void issueInitialCredits(
+            Subscription subscription, SubscriptionPlan plan, LocalDateTime now) {
+        if (plan.getMonthlyCredits() == null || plan.getMonthlyCredits() <= 0) {
+            return;
+        }
+        creditService.earnBatch(
+                subscription.getUserId(),
+                plan.getMonthlyCredits(),
+                "SUBSCRIPTION",
+                "SUBSCRIPTION_ACTIVATE",
+                String.valueOf(subscription.getId()),
+                now.plusDays(MONTHLY_CREDIT_EXPIRE_DAYS));
+        subscription.setLastCreditIssuedAt(now);
+        subscriptionRepository.save(subscription);
+    }
+
+    private String cycleLabel(SubscriptionSku sku) {
+        return switch (sku.getBillingCycle()) {
+            case "MONTH" -> "月付";
+            case "QUARTER" -> "季付";
+            case "YEAR" -> "年付";
+            default -> "免费";
+        };
+    }
+
     private void tryEnableBrokerage(
-            Long userId, SubscriptionPlan plan, boolean yearly, Long subscriptionId) {
+            Long userId, SubscriptionPlan plan, SubscriptionSku sku, Long subscriptionId) {
         try {
             userRepository
                     .findById(userId)
@@ -636,19 +895,14 @@ public class SubscriptionService implements PaySuccessHandler {
                                 if (user.getContactId() != null) {
                                     brokerageService.tryEnableBrokerage(
                                             user.getContactId(), "PAID");
-                                    long paidAmount =
-                                            yearly
-                                                    ? Math.round(
-                                                            plan.getPrice() * 12 * YEARLY_DISCOUNT)
-                                                    : plan.getPrice();
                                     brokerageService.calculateBrokerage(
                                             user.getContactId(),
                                             "SUBSCRIBE",
-                                            "PLAN",
-                                            String.valueOf(plan.getId()),
+                                            "SKU",
+                                            String.valueOf(sku.getId()),
                                             String.valueOf(subscriptionId),
-                                            "订阅 " + plan.getName(),
-                                            paidAmount);
+                                            "订阅 " + plan.getName() + "（" + cycleLabel(sku) + "）",
+                                            sku.getPrice());
                                 }
                             });
         } catch (Exception e) {

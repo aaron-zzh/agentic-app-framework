@@ -19,6 +19,7 @@ import com.xuejiai.aaf.module.billing.service.SubscriptionService;
 import com.xuejiai.aaf.module.billing.vo.AdminSubscriptionDTO;
 import com.xuejiai.aaf.module.billing.vo.DowngradeDTO;
 import com.xuejiai.aaf.module.billing.vo.SubscribeDTO;
+import com.xuejiai.aaf.module.billing.vo.SubscriptionCheckoutStatusVO;
 import com.xuejiai.aaf.module.billing.vo.SubscriptionPageParam;
 import com.xuejiai.aaf.module.billing.vo.SubscriptionVO;
 import com.xuejiai.aaf.module.pay.vo.PayOrderVO;
@@ -46,13 +47,12 @@ public class SubscriptionController
         return subscriptionCrudService;
     }
 
-    @Operation(summary = "购买或升级订阅")
+    @Operation(summary = "新购、升级或同 SKU 手动续费")
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/subscribe")
     public Result<PayOrderVO> subscribe(@Valid @RequestBody SubscribeDTO dto) {
         return Result.success(
-                subscriptionService.subscribe(
-                        currentUserId(), dto.planCode(), dto.channelCode(), dto.isYearly()));
+                subscriptionService.subscribe(currentUserId(), dto.skuCode(), dto.channelCode()));
     }
 
     @Operation(summary = "查询指定用户当前订阅")
@@ -67,7 +67,7 @@ public class SubscriptionController
     @PostMapping("/admin/users/{userId}")
     public Result<SubscriptionVO> activateByAdmin(
             @PathVariable Long userId, @Valid @RequestBody AdminSubscriptionDTO dto) {
-        subscriptionService.activateByAdmin(userId, dto.planCode());
+        subscriptionService.activateByAdmin(userId, dto.skuCode());
         return Result.success(subscriptionCrudService.getActiveForUser(userId));
     }
 
@@ -76,6 +76,13 @@ public class SubscriptionController
     @GetMapping("/me")
     public Result<SubscriptionVO> me() {
         return Result.success(subscriptionCrudService.getActiveForUser(currentUserId()));
+    }
+
+    @Operation(summary = "查询会员支付单履约状态")
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/checkouts/{payOrderId}")
+    public Result<SubscriptionCheckoutStatusVO> checkoutStatus(@PathVariable Long payOrderId) {
+        return Result.success(subscriptionService.getCheckoutStatus(currentUserId(), payOrderId));
     }
 
     @Operation(summary = "取消当前订阅")
@@ -93,8 +100,7 @@ public class SubscriptionController
     public Result<SubscriptionVO> downgrade(@Valid @RequestBody DowngradeDTO dto) {
         return Result.success(
                 subscriptionCrudService.toManagementVO(
-                        subscriptionService.downgrade(
-                                currentUserId(), dto.planCode(), dto.isYearly())));
+                        subscriptionService.downgrade(currentUserId(), dto.skuCode())));
     }
 
     @Operation(summary = "撤销当前订阅的降级申请")

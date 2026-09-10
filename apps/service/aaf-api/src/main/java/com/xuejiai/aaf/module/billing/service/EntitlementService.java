@@ -65,6 +65,23 @@ public class EntitlementService implements EntitlementChecker {
         }
     }
 
+    /** 严格检查开关型权益，配置缺失或类型错误时 fail closed。 */
+    @Override
+    @Transactional(readOnly = true)
+    public void checkBoolean(Long userId, String code) {
+        var def =
+                defRepository
+                        .findByCode(code)
+                        .orElseThrow(() -> new IllegalStateException("权益定义不存在: " + code));
+        if (!EntitlementTypeEnum.BOOLEAN.getCode().equals(def.getType())) {
+            throw new IllegalStateException("权益定义类型必须为 BOOLEAN: " + code);
+        }
+        var quota = quotaRepository.findByUserIdAndEntId(userId, def.getId()).orElse(null);
+        if (quota == null || quota.getTotal() <= 0) {
+            throw new QuotaExceededException(code, 1, 0);
+        }
+    }
+
     /** 方法成功后真扣减 + 写 ledger。BOOLEAN 类型不扣减。 */
     @Override
     @Transactional
@@ -108,6 +125,21 @@ public class EntitlementService implements EntitlementChecker {
     @Transactional
     public void instantiateQuotas(Long userId, Long planId) {
         var rules = planEntitlementRepository.findByPlanId(planId);
+        var targetEntitlementIds =
+                rules.stream()
+                        .map(com.xuejiai.aaf.module.billing.domain.PlanEntitlement::getEntId)
+                        .collect(java.util.stream.Collectors.toSet());
+        quotaRepository.findByUserId(userId).stream()
+                .filter(quota -> !targetEntitlementIds.contains(quota.getEntId()))
+                .forEach(
+                        quota -> {
+                            quota.setTotal(0L);
+                            quota.setUsed(0L);
+                            quota.setRemain(0L);
+                            quota.setLastResetAt(LocalDateTime.now());
+                            quota.setNextResetAt(null);
+                            quotaRepository.save(quota);
+                        });
         for (var rule : rules) {
             var existing =
                     quotaRepository.findByUserIdAndEntId(userId, rule.getEntId()).orElse(null);

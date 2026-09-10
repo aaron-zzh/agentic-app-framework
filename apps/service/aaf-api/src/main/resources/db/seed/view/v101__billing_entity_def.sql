@@ -100,24 +100,6 @@ VALUES
         },
         {
           "type": "number",
-          "name": "durationDays",
-          "label": "有效天数",
-          "required": true
-        },
-        {
-          "type": "number",
-          "name": "price",
-          "label": "售价（分）",
-          "required": true
-        },
-        {
-          "type": "number",
-          "name": "marketPrice",
-          "label": "市场价（分）",
-          "required": true
-        },
-        {
-          "type": "number",
           "name": "monthlyCredits",
           "label": "每月积分"
         },
@@ -160,9 +142,6 @@ VALUES
         "columns": [
           "code",
           "name",
-          "durationDays",
-          "price",
-          "marketPrice",
           "monthlyCredits",
           "status",
           "sort"
@@ -175,6 +154,87 @@ VALUES
       "mixins": [
         "baseEntity"
       ]
+    }
+    $json$::jsonb, TRUE, TRUE),
+    ('subscription-sku', $json$
+    {
+      "kind": "code",
+      "resource": "billing.subscription-sku",
+      "label": "订阅 SKU",
+      "labelPlural": "订阅 SKU",
+      "icon": "badge-dollar-sign",
+      "group": "billing",
+      "groupLabel": "会员中心",
+      "fields": [
+        {
+          "type": "relationship",
+          "name": "plan",
+          "label": "套餐",
+          "relationTo": "billing.subscription-plan",
+          "writeKey": "planId",
+          "required": true
+        },
+        {
+          "type": "text",
+          "name": "skuCode",
+          "label": "SKU 编码",
+          "required": true
+        },
+        {
+          "type": "select",
+          "name": "billingCycle",
+          "label": "计费周期",
+          "required": true,
+          "options": [
+            {"label": "永久", "value": "PERPETUAL"},
+            {"label": "月付", "value": "MONTH"},
+            {"label": "季付", "value": "QUARTER"},
+            {"label": "年付", "value": "YEAR"}
+          ]
+        },
+        {
+          "type": "number",
+          "name": "cycleMonths",
+          "label": "自然月数",
+          "required": true
+        },
+        {
+          "type": "number",
+          "name": "price",
+          "label": "售价（分）",
+          "required": true
+        },
+        {
+          "type": "number",
+          "name": "marketPrice",
+          "label": "市场价（分）",
+          "required": true
+        },
+        {
+          "type": "select",
+          "name": "status",
+          "label": "状态",
+          "options": [
+            {"label": "启用", "value": "ENABLED", "color": "green"},
+            {"label": "停用", "value": "DISABLED", "color": "gray"}
+          ]
+        },
+        {"type": "number", "name": "sort", "label": "排序"},
+        {"type": "json", "name": "ext", "label": "扩展配置"},
+        {
+          "type": "date",
+          "name": "createTime",
+          "label": "创建时间",
+          "readOnly": true,
+          "includeTime": true
+        }
+      ],
+      "listView": {
+        "columns": ["plan", "skuCode", "billingCycle", "cycleMonths", "price", "marketPrice", "status", "sort"],
+        "defaultSort": "id:desc",
+        "searchableFields": ["skuCode"]
+      },
+      "mixins": ["baseEntity"]
     }
     $json$::jsonb, TRUE, TRUE),
     ('subscription', $json$
@@ -211,6 +271,18 @@ VALUES
           "type": "text",
           "name": "planCode",
           "label": "套餐编码",
+          "readOnly": true
+        },
+        {
+          "type": "text",
+          "name": "skuCode",
+          "label": "SKU 编码",
+          "readOnly": true
+        },
+        {
+          "type": "text",
+          "name": "billingCycle",
+          "label": "订阅周期",
           "readOnly": true
         },
         {
@@ -251,33 +323,112 @@ VALUES
           ]
         },
         {
-          "type": "checkbox",
-          "name": "autoRenew",
-          "label": "自动续费",
-          "readOnly": true
-        },
-        {
           "type": "date",
           "name": "cancelledAt",
           "label": "取消时间",
           "readOnly": true,
           "includeTime": true
+        },
+        {
+          "type": "text",
+          "name": "pendingSkuCode",
+          "label": "待生效 SKU",
+          "readOnly": true
+        },
+        {
+          "type": "text",
+          "name": "pendingBillingCycle",
+          "label": "待生效周期",
+          "readOnly": true
+        },
+        {
+          "type": "text",
+          "name": "pendingPlanName",
+          "label": "待生效套餐",
+          "readOnly": true
         }
       ],
       "listView": {
         "columns": [
           "user",
           "plan",
+          "skuCode",
+          "pendingSkuCode",
           "startAt",
           "endAt",
-          "status",
-          "autoRenew"
+          "status"
         ],
         "defaultSort": "id:desc"
       },
       "mixins": [
         "baseEntity"
       ]
+    }
+    $json$::jsonb, TRUE, TRUE),
+    ('subscription-record', $json$
+    {
+      "kind": "code",
+      "resource": "billing.subscription-record",
+      "label": "订阅购买流水",
+      "labelPlural": "订阅购买流水",
+      "icon": "receipt-text",
+      "group": "billing",
+      "groupLabel": "会员中心",
+      "access": {
+        "read": true,
+        "create": false,
+        "update": false,
+        "delete": false
+      },
+      "fields": [
+        {"type": "relationship", "name": "user", "label": "用户", "relationTo": "system.user", "readOnly": true},
+        {"type": "relationship", "name": "plan", "label": "套餐", "relationTo": "billing.subscription-plan", "readOnly": true},
+        {"type": "relationship", "name": "sku", "label": "SKU", "relationTo": "billing.subscription-sku", "readOnly": true},
+        {"type": "text", "name": "operation", "label": "操作", "readOnly": true},
+        {"type": "number", "name": "payOrderId", "label": "支付单 ID", "readOnly": true},
+        {"type": "number", "name": "skuPriceSnapshot", "label": "SKU 名义价格快照", "readOnly": true},
+        {"type": "number", "name": "payPrice", "label": "实付金额", "readOnly": true},
+        {"type": "text", "name": "payStatus", "label": "支付状态", "readOnly": true},
+        {"type": "date", "name": "payTime", "label": "支付时间", "readOnly": true, "includeTime": true},
+        {"type": "text", "name": "fulfillmentStatus", "label": "履约状态", "readOnly": true},
+        {"type": "number", "name": "checkoutGenerationId", "label": "下单世代", "readOnly": true},
+        {"type": "date", "name": "checkoutCalculatedAt", "label": "下单计算时间", "readOnly": true, "includeTime": true},
+        {"type": "json", "name": "checkoutValueSnapshot", "label": "下单价值快照", "readOnly": true},
+        {"type": "number", "name": "serviceGenerationId", "label": "服务世代", "readOnly": true},
+        {"type": "date", "name": "serviceStartAt", "label": "服务段开始", "readOnly": true, "includeTime": true},
+        {"type": "date", "name": "serviceEndAt", "label": "服务段结束", "readOnly": true, "includeTime": true},
+        {"type": "text", "name": "valueStatus", "label": "价值状态", "readOnly": true},
+        {"type": "number", "name": "supersededByRecordId", "label": "替代流水 ID", "readOnly": true},
+        {"type": "date", "name": "supersededAt", "label": "价值失效时间", "readOnly": true, "includeTime": true},
+        {"type": "text", "name": "exceptionCode", "label": "异常码", "readOnly": true},
+        {"type": "text", "name": "exceptionReason", "label": "异常原因", "readOnly": true},
+        {"type": "date", "name": "exceptionDetectedAt", "label": "异常检测时间", "readOnly": true, "includeTime": true},
+        {"type": "date", "name": "compensationResolvedAt", "label": "人工处理时间", "readOnly": true, "includeTime": true},
+        {"type": "text", "name": "compensationResult", "label": "人工处理结果", "readOnly": true},
+        {"type": "date", "name": "createTime", "label": "创建时间", "readOnly": true, "includeTime": true}
+      ],
+      "actions": [
+        {
+          "key": "resolveCompensation",
+          "label": "记录人工处理结果",
+          "type": "record",
+          "execution": "sync",
+          "endpoint": "/api/billing/subscription-records/{id}/actions/resolve-compensation",
+          "confirmMessage": "仅记录人工处理事实，不会自动退款或履约。是否继续？",
+          "position": "detail"
+        }
+      ],
+      "listView": {
+        "columns": ["user", "plan", "sku", "operation", "payPrice", "payStatus", "fulfillmentStatus", "exceptionCode", "exceptionDetectedAt", "compensationResolvedAt"],
+        "defaultSort": "id:desc",
+        "quickFilters": [
+          {
+            "label": "待人工补偿",
+            "conditions": [{"field": "fulfillmentStatus", "operator": "eq", "values": ["COMPENSATION_PENDING"]}]
+          }
+        ]
+      },
+      "mixins": ["baseEntity"]
     }
     $json$::jsonb, TRUE, TRUE),
     ('entitlement-quota', $json$
@@ -562,8 +713,27 @@ VALUES
         },
         {
           "type": "relationship",
+          "name": "sku",
+          "label": "会员 SKU",
+          "relationTo": "billing.subscription-sku",
+          "readOnly": true
+        },
+        {
+          "type": "text",
+          "name": "skuCode",
+          "label": "SKU 编码",
+          "readOnly": true
+        },
+        {
+          "type": "text",
+          "name": "billingCycle",
+          "label": "计费周期",
+          "readOnly": true
+        },
+        {
+          "type": "relationship",
           "name": "plan",
-          "label": "套餐",
+          "label": "派生套餐",
           "relationTo": "billing.subscription-plan",
           "readOnly": true
         },
@@ -624,6 +794,9 @@ VALUES
           "creditAmount",
           "batchType",
           "type",
+          "sku",
+          "skuCode",
+          "billingCycle",
           "plan",
           "status",
           "expiresAt",

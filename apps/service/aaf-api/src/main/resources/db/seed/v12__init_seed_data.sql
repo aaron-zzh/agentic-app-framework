@@ -40,7 +40,7 @@ INSERT INTO sys_config (category, config_key, value, default_value, value_type, 
 -- 前端 DEFAULT_MEMBER_FAQ 仍保留作为接口不可达时的兜底
 -- 退款联系邮箱在文案中固定写运营邮箱（业务数据，由运营在 admin UI 维护）
 ('member', 'member.faq',
-$$[{"q":"什么是积分，我如何获得？","a":"积分是 AAF 平台的标准计量单位。当你使用 AI 模型对话、图像 / 视频生成、知识库检索、工作流执行等功能时，系统会根据所使用的模型类型、调用次数、Token 消耗、生成时长、分辨率等参数自动扣除相应积分。\n\n你可以通过以下方式获取积分：\n• 订阅获取（Subscription Credits）：订阅会员套餐后，每月可获得固定额度积分，有效期 30 天\n• 充值获取（Top-up Credits）：在「积分详情」页通过订单充值获得，有效期 2 年（自发放之日起计算）\n• 每周积分（Weekly Credits）：每周一 00:01 自动刷新，有效期 7 天\n• 邀请奖励积分（Invite Bonus Credits）：成功邀请用户注册后获取，有效期 30 天\n• 活动奖励积分（Event Bonus Credits）：参与社区计划或运营活动获得，发放数量与有效期以活动规则为准\n\n⚠️ 积分规则、奖励政策及相关活动机制可能根据运营需要进行调整，调整可在提前通知或不提前通知的情况下进行。在法律允许的范围内，AAF 保留相关规则的最终解释权。"},{"q":"积分在使用过程中如何扣除？","a":"积分计费规则：积分的具体消耗以「积分详情」页中的模型与计费规则为准，不同模型、不同分辨率、不同生成时长所消耗的积分不同。\n\n积分扣除顺序：系统将优先扣除更快到期的积分，以最大程度保障你的积分使用权益。\n\n异常退还：若因系统问题导致执行失败，系统将自动退还相应积分，无需手动申请。\n\n⚠️ 免费体验期间将启用防刷与防自动化滥用机制，相关使用规则可能根据平台稳定性与公平性需要进行动态调整。"},{"q":"订阅是如何运作的？","a":"AAF 提供灵活的月度与年度订阅方案，每个方案都包含一定数量的积分，可用于对话、图像生成、视频生成、知识库检索、工作流执行等功能。\n\n当你升级订阅时：\n• 旧套餐仅按已使用积分比例计费\n• 剩余未使用余额将自动抵扣至新套餐\n• 你仅需支付补齐差价\n• 新的订阅周期将从升级当日重新计算"},{"q":"订阅会自动续费吗？","a":"会的。订阅将在每个计费周期结束时自动续费，除非你在续费日前主动取消。"},{"q":"如何修改或取消订阅？","a":"你可以随时进行升级：免费 → 高级 → 专业 → 企业，按月付费 → 按年付费。\n\n取消订阅方式：\n1. 进入「设置 → 价格套餐」\n2. 点击「管理订阅」\n3. 选择「取消订阅」\n\n取消后，你仍可在当前订阅周期内继续使用订阅权益；周期结束后订阅将自动失效，并不再进行自动续费。"},{"q":"我如何申请退款？","a":"如果你在最近一次付款后未有任何积分消耗记录（包括对话、图像 / 视频生成、知识库检索、工作流执行等），可在购买后 7 天内申请全额退款。\n\n若因系统问题导致执行失败，我们将自动进行相应积分退还，无需手动申请。\n\n如需申请退款，请联系 service@xuejiai.com。退款通常会在 5–10 个工作日内退回原支付方式。"}]$$,
+$$[{"q":"什么是积分，我如何获得？","a":"积分是 AAF 平台的标准计量单位。当你使用 AI 模型对话、图像 / 视频生成、知识库检索、工作流执行等功能时，系统会根据所使用的模型类型、调用次数、Token 消耗、生成时长、分辨率等参数自动扣除相应积分。\n\n你可以通过以下方式获取积分：\n• 订阅获取（Subscription Credits）：订阅会员套餐后，每月可获得固定额度积分，有效期 30 天\n• 充值获取（Top-up Credits）：在「积分详情」页通过订单充值获得，有效期 2 年（自发放之日起计算）\n• 每周积分（Weekly Credits）：每周一 00:01 自动刷新，有效期 7 天\n• 邀请奖励积分（Invite Bonus Credits）：成功邀请用户注册后获取，有效期 30 天\n• 活动奖励积分（Event Bonus Credits）：参与社区计划或运营活动获得，发放数量与有效期以活动规则为准\n\n⚠️ 积分规则、奖励政策及相关活动机制可能根据运营需要进行调整，调整可在提前通知或不提前通知的情况下进行。在法律允许的范围内，AAF 保留相关规则的最终解释权。"},{"q":"积分在使用过程中如何扣除？","a":"积分计费规则：积分的具体消耗以「积分详情」页中的模型与计费规则为准，不同模型、不同分辨率、不同生成时长所消耗的积分不同。\n\n积分扣除顺序：系统将优先扣除更快到期的积分，以最大程度保障你的积分使用权益。\n\n异常退还：若因系统问题导致执行失败，系统将自动退还相应积分，无需手动申请。\n\n⚠️ 免费体验期间将启用防刷与防自动化滥用机制，相关使用规则可能根据平台稳定性与公平性需要进行动态调整。"},{"q":"订阅是如何运作的？","a":"AAF 提供月度、季度与年度订阅 SKU，每个套餐档位的不同周期享有相同权益，可用于对话、图像生成、视频生成、知识库检索、工作流执行等功能。\n\n当你升级订阅时：\n• 当前套餐按尚未消费的已付服务时间折算剩余价值\n• 剩余未使用余额将自动抵扣至新套餐\n• 你仅需支付补齐差价\n• 仅主动支付成功后高级套餐才立即生效，支付失败不会改变当前订阅"},{"q":"订阅会自动续费吗？","a":"不会。当前订阅采用用户主动一次性支付，不保存支付方式，也不进行到期自动代扣。你可以在到期前对当前同一 SKU 手动续费；只有支付成功后才会从原到期时间顺延。"},{"q":"如何修改或取消订阅？","a":"你可以随时升级到更高档套餐，支付成功后立即生效；降级只会在当前已付周期结束后处理。同一套餐暂不支持切换周期，只能续费当前 SKU。\n\n取消订阅方式：\n1. 进入「设置 → 价格套餐」\n2. 点击「管理订阅」\n3. 选择「取消订阅」\n\n取消后，你仍可在当前订阅周期内继续使用订阅权益；周期结束后订阅将自动失效，并不再进行自动续费。"},{"q":"我如何申请退款？","a":"如果你在最近一次付款后未有任何积分消耗记录（包括对话、图像 / 视频生成、知识库检索、工作流执行等），可在购买后 7 天内申请全额退款。\n\n若因系统问题导致执行失败，我们将自动进行相应积分退还，无需手动申请。\n\n如需申请退款，请联系 service@xuejiai.com。退款通常会在 5–10 个工作日内退回原支付方式。"}]$$,
  '[]',
  'json', '会员与积分常见问题',
  '订阅与积分定价页 FAQ 列表，JSON 数组格式 [{"q":"...","a":"..."}]', TRUE, TRUE),
@@ -267,6 +267,14 @@ VALUES
     ('订阅套餐更新',       'billing:subscription-plan:update',    'billing',   'subscription-plan', 'update',  0),
     ('订阅套餐删除',       'billing:subscription-plan:delete',    'billing',   'subscription-plan', 'delete',  0),
     ('订阅套餐导出',       'billing:subscription-plan:export',    'billing',   'subscription-plan', 'export',  0),
+    ('订阅 SKU 读取',      'billing:subscription-sku:read',       'billing',   'subscription-sku',  'read',    0),
+    ('订阅 SKU 创建',      'billing:subscription-sku:create',     'billing',   'subscription-sku',  'create',  0),
+    ('订阅 SKU 更新',      'billing:subscription-sku:update',     'billing',   'subscription-sku',  'update',  0),
+    ('订阅 SKU 删除',      'billing:subscription-sku:delete',     'billing',   'subscription-sku',  'delete',  0),
+    ('订阅 SKU 导出',      'billing:subscription-sku:export',     'billing',   'subscription-sku',  'export',  0),
+    ('订阅流水读取',       'billing:subscription-record:read',    'billing',   'subscription-record','read',    0),
+    ('订阅流水补偿记录',   'billing:subscription-record:update',  'billing',   'subscription-record','update',  0),
+    ('订阅流水导出',       'billing:subscription-record:export',  'billing',   'subscription-record','export',  0),
     ('用户订阅读取',       'billing:subscription:read',           'billing',   'subscription',      'read',    0),
     ('用户订阅导出',       'billing:subscription:export',         'billing',   'subscription',      'export',  0),
     ('权益额度读取',       'billing:entitlement-quota:read',      'billing',   'entitlement-quota', 'read',    0),
@@ -547,7 +555,11 @@ VALUES
     ('workflow_count',    '工作流数量上限', 'COUNTABLE', '个', '最多可创建的工作流数量'),
     ('agent_count',       'Agent 数量上限', 'COUNTABLE', '个', '最多可创建的 Agent 数量'),
     ('member_count',      '团队成员数上限', 'COUNTABLE', '人', '团队最多可添加的成员数'),
-    ('max_parallel_task', '最大并行任务数', 'COUNTABLE', '个', '同一时刻最多并行运行的任务数')
+    ('max_parallel_task', '最大并行任务数', 'COUNTABLE', '个', '同一时刻最多并行运行的任务数'),
+    ('aigc_image_access',  '图像生成',       'BOOLEAN',   NULL, '允许使用图像生成能力，实际调用仍按积分结算'),
+    ('aigc_video_access',  '视频生成',       'BOOLEAN',   NULL, '允许使用视频生成能力，实际调用仍按积分结算'),
+    ('aigc_audio_access',  '音频生成',       'BOOLEAN',   NULL, '允许使用音频生成能力，实际调用仍按积分结算'),
+    ('aigc_model3d_access','3D 生成',         'BOOLEAN',   NULL, '允许使用 3D 生成能力，实际调用仍按积分结算')
 ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 
 -- ==================== AI 业务动作目录 ====================
@@ -622,10 +634,10 @@ INSERT INTO ai_tool_catalog (
 ('executeBusinessAction', 'LOCAL', TRUE, 'FUNCTION', 'BUSINESS_ACTION', 'MEDIUM', FALSE, TRUE, 'tool:business-action:execute', NULL, NULL,
  '{"type":"object","required":["requestJson"],"properties":{"requestJson":{"type":"string","description":"JSON 请求，包含 action、entity、params，可选 sessionId/confidence/verifiable"}}}',
  110, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('generateImage', 'LOCAL', TRUE, 'GENERATIVE', 'IMAGE_GENERATION', 'MEDIUM', FALSE, TRUE, 'tool:image-generate:execute', NULL, NULL,
+('generateImage', 'LOCAL', TRUE, 'GENERATIVE', 'IMAGE_GENERATION', 'MEDIUM', FALSE, TRUE, 'tool:image-generate:execute', 'aigc_image_access', NULL,
  '{"type":"object","required":["requestJson"],"properties":{"requestJson":{"type":"string","description":"JSON 参数：prompt 必填，width/height/model 可选"}}}',
  200, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('generateVideo', 'LOCAL', TRUE, 'GENERATIVE', 'VIDEO_GENERATION', 'HIGH', FALSE, TRUE, 'tool:video-generate:execute', NULL, NULL,
+('generateVideo', 'LOCAL', TRUE, 'GENERATIVE', 'VIDEO_GENERATION', 'HIGH', FALSE, TRUE, 'tool:video-generate:execute', 'aigc_video_access', NULL,
  '{"type":"object","required":["requestJson"],"properties":{"requestJson":{"type":"string","description":"JSON 参数：prompt 必填，imageUrl/referenceImageUrls/model/resolution/ratio/duration/seed 可选"}}}',
  210, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('start_workflow', 'LOCAL', TRUE, 'FUNCTION', 'WORKFLOW', 'MEDIUM', FALSE, TRUE, 'tool:workflow:start', NULL, NULL,
@@ -732,15 +744,76 @@ ON CONFLICT (tool_name) WHERE deleted = FALSE DO UPDATE SET
     input_schema = EXCLUDED.input_schema,
     update_time = CURRENT_TIMESTAMP;
 
--- ==================== 订阅套餐 ====================
+-- ==================== 订阅套餐与 SKU ====================
 
-INSERT INTO billing_subscription_plan (code, name, duration_days, price, market_price, monthly_credits, status, sort, ext)
+INSERT INTO billing_subscription_plan (code, name, monthly_credits, status, sort, ext)
 VALUES
-    ('FREE',       '免费',   0,  0,     0,     0,     'ENABLED', 0, '{"tagline":"个人探索，零门槛开始"}'),
-    ('PRO',        '高级',   30, 2900,   3900,   3000,   'ENABLED', 1, '{"tagline":"解锁更多能力，适合个人进阶"}'),
-    ('TEAM',       '专业',   30, 29900,  39900,  33000,  'ENABLED', 2, '{"tagline":"团队协作，共享资源与权限"}'),
-    ('ENTERPRISE', '企业',   30, 300000, 360000, 375000, 'ENABLED', 3, '{"tagline":"大规模部署，专属支持与定制"}')
+    ('FREE',       '免费',   0,      'ENABLED', 0, '{"tagline":"个人探索，零门槛开始"}'),
+    ('PRO',        '高级',   3000,   'ENABLED', 1, '{"tagline":"解锁更多能力，适合个人进阶"}'),
+    ('TEAM',       '专业',   33000,  'ENABLED', 2, '{"tagline":"团队协作，共享资源与权限"}'),
+    ('ENTERPRISE', '企业',   375000, 'ENABLED', 3, '{"tagline":"大规模部署，专属支持与定制"}')
 ON CONFLICT DO NOTHING;
+
+INSERT INTO billing_subscription_plan_sku
+    (plan_id, sku_code, billing_cycle, cycle_months, price, market_price, status, sort)
+SELECT p.id, v.sku_code, v.billing_cycle, v.cycle_months, v.price, v.market_price, 'ENABLED', v.sort
+FROM billing_subscription_plan p
+JOIN (VALUES
+    ('FREE',       'FREE_DEFAULT',  'PERPETUAL', 0,        0::BIGINT,       0::BIGINT, 0),
+    ('PRO',        'PRO_M1',        'MONTH',     1,     2900::BIGINT,    3900::BIGINT, 1),
+    ('PRO',        'PRO_Q1',        'QUARTER',   3,     8200::BIGINT,   11700::BIGINT, 2),
+    ('PRO',        'PRO_Y1',        'YEAR',     12,    27840::BIGINT,   46800::BIGINT, 3),
+    ('TEAM',       'TEAM_M1',       'MONTH',     1,    29900::BIGINT,   39900::BIGINT, 1),
+    ('TEAM',       'TEAM_Q1',       'QUARTER',   3,    85000::BIGINT,  119700::BIGINT, 2),
+    ('TEAM',       'TEAM_Y1',       'YEAR',     12,   287040::BIGINT,  478800::BIGINT, 3),
+    ('ENTERPRISE', 'ENTERPRISE_M1', 'MONTH',     1,   300000::BIGINT,  360000::BIGINT, 1),
+    ('ENTERPRISE', 'ENTERPRISE_Q1', 'QUARTER',   3,   850000::BIGINT, 1080000::BIGINT, 2),
+    ('ENTERPRISE', 'ENTERPRISE_Y1', 'YEAR',     12,  2880000::BIGINT, 4320000::BIGINT, 3)
+) AS v(plan_code, sku_code, billing_cycle, cycle_months, price, market_price, sort)
+    ON p.code = v.plan_code AND p.deleted = FALSE
+ON CONFLICT DO NOTHING;
+
+DO $$
+DECLARE
+    invalid_count INTEGER;
+BEGIN
+    SELECT COUNT(*) INTO invalid_count
+    FROM billing_subscription_plan_sku sku
+    JOIN billing_subscription_plan plan ON plan.id = sku.plan_id
+    WHERE sku.deleted = FALSE
+      AND plan.deleted = FALSE
+      AND (
+          (sku.sku_code = 'FREE_DEFAULT' AND plan.code <> 'FREE')
+          OR (plan.code = 'FREE' AND sku.sku_code <> 'FREE_DEFAULT')
+          OR (
+              sku.sku_code <> 'FREE_DEFAULT'
+              AND (
+                  plan.code = 'FREE'
+                  OR sku.price <= 0
+                  OR sku.market_price < sku.price
+                  OR NOT (
+                      (sku.billing_cycle = 'MONTH' AND sku.cycle_months = 1)
+                      OR (sku.billing_cycle = 'QUARTER' AND sku.cycle_months = 3)
+                      OR (sku.billing_cycle = 'YEAR' AND sku.cycle_months = 12)
+                  )
+              )
+          )
+      );
+    IF invalid_count > 0 THEN
+        RAISE EXCEPTION '订阅 SKU seed 跨表归属或商业形态非法，数量=%', invalid_count;
+    END IF;
+
+    SELECT COUNT(*) INTO invalid_count
+    FROM billing_subscription_plan_sku sku
+    JOIN billing_subscription_plan plan ON plan.id = sku.plan_id
+    WHERE sku.deleted = FALSE
+      AND plan.deleted = FALSE
+      AND sku.sku_code = 'FREE_DEFAULT'
+      AND plan.code = 'FREE';
+    IF invalid_count <> 1 THEN
+        RAISE EXCEPTION 'FREE_DEFAULT 必须恰好一条且归属 FREE，实际数量=%', invalid_count;
+    END IF;
+END $$;
 
 -- ==================== 套餐×权益规则 ====================
 
@@ -806,6 +879,26 @@ CROSS JOIN (VALUES
 ) AS v(code, quota)
 JOIN billing_entitlement_def e ON e.code = v.code AND e.deleted = FALSE
 WHERE p.code = 'ENTERPRISE' AND p.deleted = FALSE
+ON CONFLICT DO NOTHING;
+-- AIGC BOOLEAN 准入矩阵：FREE 图像；PRO 图像/视频/音频；TEAM/ENTERPRISE 全部。
+INSERT INTO billing_plan_entitlement (plan_id, ent_id, quota, reset_cycle, refill_price)
+SELECT p.id, e.id, 1, 'NONE', 0
+FROM billing_subscription_plan p
+JOIN (VALUES
+    ('FREE', 'aigc_image_access'),
+    ('PRO', 'aigc_image_access'),
+    ('PRO', 'aigc_video_access'),
+    ('PRO', 'aigc_audio_access'),
+    ('TEAM', 'aigc_image_access'),
+    ('TEAM', 'aigc_video_access'),
+    ('TEAM', 'aigc_audio_access'),
+    ('TEAM', 'aigc_model3d_access'),
+    ('ENTERPRISE', 'aigc_image_access'),
+    ('ENTERPRISE', 'aigc_video_access'),
+    ('ENTERPRISE', 'aigc_audio_access'),
+    ('ENTERPRISE', 'aigc_model3d_access')
+) AS v(plan_code, entitlement_code) ON p.code = v.plan_code AND p.deleted = FALSE
+JOIN billing_entitlement_def e ON e.code = v.entitlement_code AND e.deleted = FALSE
 ON CONFLICT DO NOTHING;
 
 

@@ -9,6 +9,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.enums.aigc.AigcTaskTypeEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.util.JsonUtils;
@@ -23,6 +24,7 @@ import com.xuejiai.aaf.module.ai.aigc.image.repository.BatchGenerationTaskReposi
 import com.xuejiai.aaf.module.ai.aigc.image.vo.BatchGenerationSubmitDTO;
 import com.xuejiai.aaf.module.ai.aigc.image.vo.BatchGenerationTaskVO;
 import com.xuejiai.aaf.module.ai.aigc.image.vo.BatchTaskStatus;
+import com.xuejiai.aaf.module.ai.aigc.task.service.AigcSubmissionAccessGuard;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +45,7 @@ public class BatchGenerationService {
     private static final int MAX_CONCURRENT = 5;
 
     private final BatchGenerationTaskRepository taskRepository;
+    private final AigcSubmissionAccessGuard submissionAccessGuard;
     private final StringRedisTemplate redisTemplate;
     private final AiServiceRegistry aiServiceRegistry;
     private final CapabilityRouter capabilityRouter;
@@ -62,6 +65,7 @@ public class BatchGenerationService {
                 operatorContext
                         .currentOwnerId()
                         .orElseThrow(() -> new BusinessException(GlobalErrorCode.UNAUTHORIZED));
+        submissionAccessGuard.requireAccess(userId, AigcTaskTypeEnum.IMAGE);
         var task = new BatchGenerationTask();
         task.setUserId(userId);
         task.setStatus(BatchTaskStatus.PENDING);

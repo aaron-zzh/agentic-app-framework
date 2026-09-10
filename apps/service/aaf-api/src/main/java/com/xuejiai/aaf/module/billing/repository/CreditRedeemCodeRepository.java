@@ -16,4 +16,6 @@ public interface CreditRedeemCodeRepository extends CrudEntityRepository<CreditR
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM CreditRedeemCode c WHERE c.codeHash = :codeHash AND c.deleted = false")
     Optional<CreditRedeemCode> findByCodeHashForUpdate(@Param("codeHash") String codeHash);
+
+    boolean existsBySkuId(Long skuId);
 }
