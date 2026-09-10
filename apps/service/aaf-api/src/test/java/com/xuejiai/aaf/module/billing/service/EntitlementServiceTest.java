@@ -84,4 +84,59 @@ class EntitlementServiceTest extends BaseMockitoUnitTest {
         assertThat(quota.getRemain()).isEqualTo(1L);
         verify(quotaRepository, never()).save(any());
     }
+
+    @Test
+    @DisplayName("Given BOOLEAN 权益有正额度 When 严格检查 Then 允许访问")
+    void checkBoolean_allowsGrantedQuota() {
+        var def = new EntitlementDef();
+        def.setId(8L);
+        def.setCode("aigc_image_access");
+        def.setType(EntitlementTypeEnum.BOOLEAN.getCode());
+        var quota = new EntitlementQuota();
+        quota.setTotal(1L);
+        when(defRepository.findByCode("aigc_image_access")).thenReturn(Optional.of(def));
+        when(quotaRepository.findByUserIdAndEntId(100L, 8L)).thenReturn(Optional.of(quota));
+
+        entitlementService.checkBoolean(100L, "aigc_image_access");
+
+        verify(quotaRepository).findByUserIdAndEntId(100L, 8L);
+    }
+
+    @Test
+    @DisplayName("Given BOOLEAN 权益无额度 When 严格检查 Then 拒绝访问")
+    void checkBoolean_rejectsMissingQuota() {
+        var def = new EntitlementDef();
+        def.setId(8L);
+        def.setCode("aigc_image_access");
+        def.setType(EntitlementTypeEnum.BOOLEAN.getCode());
+        when(defRepository.findByCode("aigc_image_access")).thenReturn(Optional.of(def));
+        when(quotaRepository.findByUserIdAndEntId(100L, 8L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> entitlementService.checkBoolean(100L, "aigc_image_access"))
+                .isInstanceOf(QuotaExceededException.class);
+    }
+
+    @Test
+    @DisplayName("Given 权益定义缺失 When 严格检查 Then 配置错误并 fail closed")
+    void checkBoolean_failsClosedWhenDefinitionMissing() {
+        when(defRepository.findByCode("aigc_image_access")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> entitlementService.checkBoolean(100L, "aigc_image_access"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("权益定义不存在");
+
+        verify(quotaRepository, never()).findByUserIdAndEntId(any(), any());
+    }
+
+    @Test
+    @DisplayName("Given AIGC 权益误配为 COUNTABLE When 严格检查 Then 配置错误并 fail closed")
+    void checkBoolean_failsClosedWhenDefinitionIsCountable() {
+        when(defRepository.findByCode("aigc_image_access")).thenReturn(Optional.of(counterDef()));
+
+        assertThatThrownBy(() -> entitlementService.checkBoolean(100L, "aigc_image_access"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("必须为 BOOLEAN");
+
+        verify(quotaRepository, never()).findByUserIdAndEntId(any(), any());
+    }
 }

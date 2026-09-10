@@ -42,6 +42,7 @@ class AigcTaskApiAdapterTest extends BaseMockitoUnitTest {
     @Mock private AigcTaskProviderCapabilities providerCapabilities;
     @Mock private CapabilityRouter capabilityRouter;
     @Mock private AiCreditGuard creditGuard;
+    @Mock private AigcSubmissionAccessGuard submissionAccessGuard;
     @Mock private AigcTaskExecutor taskExecutor;
     @Mock private AigcActivityEventService activityEventService;
     @InjectMocks private AigcTaskApiAdapter adapter;
@@ -97,6 +98,10 @@ class AigcTaskApiAdapterTest extends BaseMockitoUnitTest {
                             "providerReceiptLookup");
             assertThat(intent.getStatus()).isEqualTo("PREPARED");
             assertThat(view.id()).isEqualTo(51L);
+            verify(submissionAccessGuard)
+                    .requireAccess(
+                            9L,
+                            com.xuejiai.aaf.common.enums.aigc.AigcTaskTypeEnum.IMAGE);
             verify(taskExecutor, never()).resumeIntent(51L);
 
             TransactionSynchronizationManager.getSynchronizations()
