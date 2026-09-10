@@ -6,10 +6,10 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.hc.client5.http.config.RequestConfig;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.core5.util.Timeout;
 import org.springframework.ai.image.ImagePrompt;
 import org.springframework.ai.openai.OpenAiImageOptions;
 import org.springframework.core.io.ByteArrayResource;
@@ -56,11 +56,11 @@ public class SpringAiImageGenerationService implements ImageGenerationService {
                                         .setDefaultRequestConfig(
                                                 RequestConfig.custom()
                                                         .setConnectTimeout(
-                                                                CONNECT_TIMEOUT_MS,
-                                                                TimeUnit.MILLISECONDS)
+                                                                Timeout.ofMilliseconds(
+                                                                        CONNECT_TIMEOUT_MS))
                                                         .setResponseTimeout(
-                                                                RESPONSE_TIMEOUT_MS,
-                                                                TimeUnit.MILLISECONDS)
+                                                                Timeout.ofMilliseconds(
+                                                                        RESPONSE_TIMEOUT_MS))
                                                         .build())
                                         .build()))
                 .build();
