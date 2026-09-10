@@ -8,6 +8,7 @@ import org.hibernate.type.SqlTypes;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.framework.crud.reference.CrudReference;
+import com.xuejiai.aaf.framework.crud.reference.ReferenceCapability;
 import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.*;
@@ -27,17 +28,20 @@ import lombok.Setter;
         key = "user",
         idProperty = "userId",
         targetResource = "system.user",
-        viewField = "user")
+        viewField = "user",
+        capabilities = ReferenceCapability.READ)
 @CrudReference(
         key = "plan",
         idProperty = "planId",
         targetResource = "billing.subscription-plan",
-        viewField = "plan")
+        viewField = "plan",
+        capabilities = ReferenceCapability.READ)
 @CrudReference(
         key = "sku",
         idProperty = "skuId",
         targetResource = "billing.subscription-sku",
-        viewField = "sku")
+        viewField = "sku",
+        capabilities = ReferenceCapability.READ)
 @SQLDelete(
         sql =
                 "UPDATE subscription_record SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")

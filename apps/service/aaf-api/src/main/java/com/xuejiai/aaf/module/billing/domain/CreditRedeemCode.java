@@ -6,6 +6,7 @@ import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.framework.crud.reference.CrudReference;
+import com.xuejiai.aaf.framework.crud.reference.ReferenceCapability;
 import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.Column;
@@ -27,7 +28,8 @@ import lombok.Setter;
         key = "sku",
         idProperty = "skuId",
         targetResource = "billing.subscription-sku",
-        viewField = "sku")
+        viewField = "sku",
+        capabilities = ReferenceCapability.READ)
 @SQLDelete(
         sql =
                 "UPDATE credit_redeem_code SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
