@@ -9,7 +9,7 @@ import com.xuejiai.aaf.framework.engine.task.agent.AgentTaskRuntime;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.spring.SpringDelegatedTaskDispatchAdapter.DispatchSignal;
 
-/** 事件即时派发经统一 AgentTaskRuntime 执行；定时恢复保留批量扫描语义。 */
+/** 事件即时派发经虚拟线程交给统一 AgentTaskRuntime 执行；定时恢复保留批量扫描语义。 */
 public final class DelegatedTaskScheduler {
     private final DelegatedTaskCoordinator coordinator;
     private final AgentTaskRuntime agentTaskRuntime;
@@ -29,11 +29,15 @@ public final class DelegatedTaskScheduler {
 
     @EventListener
     public void onDispatch(DispatchSignal signal) {
-        agentTaskRuntime.dispatch(
-                DelegatedTaskAgentTaskAdapter.TASK_TYPE,
-                signal.taskId().value(),
-                signal.tenantId().value(),
-                "EVENT");
+        Thread.ofVirtual()
+                .name("delegated-task-dispatch-" + signal.taskId().value())
+                .start(
+                        () ->
+                                agentTaskRuntime.dispatch(
+                                        DelegatedTaskAgentTaskAdapter.TASK_TYPE,
+                                        signal.taskId().value(),
+                                        signal.tenantId().value(),
+                                        "EVENT"));
     }
 
     @Scheduled(fixedDelayString = "${aaf.assistant.delegated.recovery-delay-ms:30000}")
