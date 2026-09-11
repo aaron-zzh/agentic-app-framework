@@ -2,12 +2,13 @@
 
 所有用户故事的唯一来源。条目由 product agent 细化后登记，协调者维护编号和状态。
 
-编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-114**，新一级用户故事从 AAF-115 开始。添加新条目后必须同步更新此行。
+编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-115**，新一级用户故事从 AAF-116 开始。添加新条目后必须同步更新此行。
 
 ## 当前迭代（v0.13）
 
 - [ ] AAF-112 (创建: 09-05) Content Studio 项目先行完整闭环（项目动态物化与双视图工作台；对象创作、素材版本、可靠执行与候选采用；DeliverableSet manifest、审核退回/stale、Work/Publication、完成归档；完全不依赖 Chatter）任务: docs/task/v0.13/AAF-112/tasks.md
-- [ ] AAF-113 (创建: 09-05) 对话式项目创作（复用现有助理与 `/agui/run`，只读项目上下文→内容创作 Skill→受控项目 Tool→富媒体素材协作；依赖 AAF-112 及项目先行门）任务: docs/task/v0.13/AAF-113/tasks.md
+- [ ] AAF-113 (创建: 09-05) 对话式项目创作（复用现有助理与 `/agui/run`，只读项目上下文→内容创作 Skill→受控项目 Tool→富媒体素材协作；依赖 AAF-112、AAF-115 及项目先行门）任务: docs/task/v0.13/AAF-113/tasks.md
+- [ ] AAF-115 (创建: 09-11) 统一 Task/TaskPlan/Execution 任务模型与 DAG 编排（移除 AssistantTask/DelegatedTask 双真理源；普通 CHAT 只建 Execution；复杂任务使用唯一 Task + 可选 TaskPlan；支持串行、并行、join、fan-out/fan-in、恢复与 fencing）任务: docs/task/v0.13/AAF-115/tasks.md
 
 ## 待排期
 
