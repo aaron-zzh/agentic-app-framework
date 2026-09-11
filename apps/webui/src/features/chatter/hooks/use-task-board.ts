@@ -1,5 +1,5 @@
 /**
- * useTaskBoard——按对话查询并轮询委托任务状态。
+ * useTaskBoard——按对话查询委托任务初始快照，后续由 AG-UI 任务事件驱动缓存刷新。
  * @author AaronZZH & Kiro
  */
 
@@ -43,7 +43,6 @@ export function useTaskBoard(conversationId: string | undefined): UseTaskBoardRe
     queryKey: delegatedTaskKeys.list(conversationId ?? ""),
     queryFn: () => delegatedTaskApi.list(),
     enabled: Boolean(conversationId),
-    refetchInterval: 3000,
     select: (tasks) => tasks.filter((task) => task.conversationId === conversationId)
   })
 

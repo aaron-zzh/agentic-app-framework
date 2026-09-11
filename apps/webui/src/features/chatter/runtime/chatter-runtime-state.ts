@@ -45,6 +45,9 @@ export function buildChatterForwardedProps({
   target,
   taskModelSelection
 }: BuildChatterForwardedPropsOptions): Record<string, unknown> {
+  // guest 仅由 Provider 注入协议所需 mode，不携带登录 AI 路由参数。
+  if (target.type === "guest") return {}
+
   const usesAssistantRuntime = target.type === "ai"
   const effectiveTaskModelSelection = usesAssistantRuntime
     ? (taskModelSelection ?? DEFAULT_TASK_MODEL_SELECTION)
@@ -68,6 +71,9 @@ export function buildChatterForwardedProps({
 
 /** 解析 Chatter 使用的 AG-UI API 路径。 */
 export function resolveChatterAguiPath(target: ChatterTarget): string {
+  if (target.type === "guest") {
+    return "/public/customer-service/run"
+  }
   if (target.type === "kiro") {
     return "/autodev/kiro/run"
   }

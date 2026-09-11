@@ -12,6 +12,7 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum ParticipantTypeEnum implements ArrayValuable<String> {
     HUMAN("HUMAN", "用户"),
+    VISITOR("VISITOR", "匿名访客"),
     ASSISTANT("ASSISTANT", "AI助理"),
     AGENT("AGENT", "智能体"),
     STAFF("STAFF", "人工坐席"),

@@ -28,6 +28,8 @@ interface ChatterPanelProps {
   onAttachmentAdd: (item: ChatterDropItem) => void
   taskModelSelection: TaskModelSelection
   onTaskModelSelectionChange: (selection: TaskModelSelection) => void
+  /** 是否为匿名客服模式。 */
+  guestMode?: boolean
   /** 是否显示模型选择器（未登录 guest preset 应传 false） */
   showModelSelector?: boolean
   displayPreferences: ChatterDisplayPreferences
@@ -41,41 +43,49 @@ export function ChatterPanel({
   onAttachmentAdd,
   taskModelSelection,
   onTaskModelSelectionChange,
+  guestMode = false,
   showModelSelector,
   displayPreferences,
   onDisplayPreferencesChange
 }: ChatterPanelProps) {
   const currentThreadId = useAuiState((state) => state.threads.mainThreadId)
-  const conversationId = currentThreadId === "main" ? undefined : currentThreadId
+  const conversationId = guestMode || currentThreadId === "main" ? undefined : currentThreadId
   const { tasks, progress, isLoading } = useTaskBoard(conversationId)
+
+  const composer = (
+    <ChatterComposer
+      guestMode={guestMode}
+      attachments={attachments}
+      onAttachmentRemove={onAttachmentRemove}
+      onPasteText={guestMode ? undefined : onAttachmentAdd}
+      onAfterSend={() => {
+        // 发送后从后往前移除 text chip，避免 index 偏移
+        for (let i = attachments.length - 1; i >= 0; i--) {
+          if (attachments[i].type === "text") onAttachmentRemove(i)
+        }
+      }}
+      taskModelSelection={taskModelSelection}
+      onTaskModelSelectionChange={onTaskModelSelectionChange}
+      showModelSelector={showModelSelector}
+      displayPreferences={displayPreferences}
+      onDisplayPreferencesChange={onDisplayPreferencesChange}
+    />
+  )
 
   return (
     <div className="flex h-full flex-col">
       {toolbar}
-      <ChatterThread showThinking={displayPreferences.showThinking} />
-      <ClarificationInterruptPanel />
-      <ToolConfirmOverlay tasks={tasks} />
-      {displayPreferences.showPlan && (
+      <ChatterThread guestMode={guestMode} showThinking={displayPreferences.showThinking} />
+      {!guestMode && <ClarificationInterruptPanel />}
+      {!guestMode && <ToolConfirmOverlay tasks={tasks} />}
+      {!guestMode && displayPreferences.showPlan && (
         <TaskBoardPanel tasks={tasks} progress={progress} isLoading={isLoading} />
       )}
-      <DroppableComposer onDrop={onAttachmentAdd}>
-        <ChatterComposer
-          attachments={attachments}
-          onAttachmentRemove={onAttachmentRemove}
-          onPasteText={onAttachmentAdd}
-          onAfterSend={() => {
-            // 发送后从后往前移除 text chip，避免 index 偏移
-            for (let i = attachments.length - 1; i >= 0; i--) {
-              if (attachments[i].type === "text") onAttachmentRemove(i)
-            }
-          }}
-          taskModelSelection={taskModelSelection}
-          onTaskModelSelectionChange={onTaskModelSelectionChange}
-          showModelSelector={showModelSelector}
-          displayPreferences={displayPreferences}
-          onDisplayPreferencesChange={onDisplayPreferencesChange}
-        />
-      </DroppableComposer>
+      {guestMode ? (
+        composer
+      ) : (
+        <DroppableComposer onDrop={onAttachmentAdd}>{composer}</DroppableComposer>
+      )}
     </div>
   )
 }

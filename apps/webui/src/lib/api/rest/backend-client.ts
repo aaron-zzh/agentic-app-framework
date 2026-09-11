@@ -181,6 +181,7 @@ backendClient.interceptors.request.use((config) => {
   // 被上一次选择的组织或全组织上下文污染
   const organizationIndependent =
     config.url?.startsWith("/auth/") ||
+    config.url?.startsWith("/public/customer-service") ||
     config.url === "/legal/consent" ||
     config.url?.startsWith("/legal/consent/")
   if (organizationIndependent) {

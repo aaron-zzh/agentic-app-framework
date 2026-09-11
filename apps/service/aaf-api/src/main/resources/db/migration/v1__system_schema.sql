@@ -1881,7 +1881,7 @@ CREATE TABLE channel_platform (
     type            VARCHAR(32)  NOT NULL,
     name            VARCHAR(100) NOT NULL,
     config          JSONB,
-    status          INT          NOT NULL DEFAULT 0,
+    status          INT          NOT NULL DEFAULT 0 CHECK (status IN (0, 1)),
     version         INT          NOT NULL DEFAULT 0,
     org_id          BIGINT,
     workspace_id    BIGINT,
@@ -1898,19 +1898,21 @@ CREATE TABLE channel_platform (
 );
 
 COMMENT ON TABLE channel_platform IS '渠道平台配置';
-COMMENT ON COLUMN channel_platform.type IS '平台类型：dingtalk/feishu/wecom_kf/wechat_mp/wechat_mini';
+COMMENT ON COLUMN channel_platform.type IS '平台类型：WEB/DINGTALK/FEISHU/WECOM_KF/WECHAT_MP/WECHAT_MINI';
 COMMENT ON COLUMN channel_platform.config IS '平台凭证 JSON（按 type 结构不同）';
 
 CREATE INDEX idx_channel_platform_type ON channel_platform (type) WHERE deleted = FALSE;
+CREATE UNIQUE INDEX uk_channel_platform_active_web ON channel_platform (type)
+    WHERE type = 'WEB' AND status = 0 AND deleted = FALSE;
 
 CREATE TABLE channel_bot_binding (
     id              BIGSERIAL PRIMARY KEY,
-    platform_id       BIGINT       NOT NULL,
-    name              VARCHAR(100) NOT NULL,
-    assistant_id      VARCHAR(128) NOT NULL,
-    route_rule        JSONB,
+    platform_id     BIGINT       NOT NULL REFERENCES channel_platform(id) ON DELETE RESTRICT,
+    name            VARCHAR(100) NOT NULL,
+    assistant_id    VARCHAR(128) NOT NULL CHECK (length(btrim(assistant_id)) BETWEEN 1 AND 128),
+    route_rule      JSONB,
     fallback_reply  VARCHAR(500),
-    status          INT          NOT NULL DEFAULT 0,
+    status          INT          NOT NULL DEFAULT 0 CHECK (status IN (0, 1)),
     version         INT          NOT NULL DEFAULT 0,
     org_id          BIGINT,
     workspace_id    BIGINT,

@@ -21,7 +21,7 @@
 
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { useChatterStore } from "@/lib/store/chatter-store"
 import { ChatterLayout } from "./layout/ChatterLayout"
@@ -37,17 +37,23 @@ import type {
 } from "./types"
 import { DEFAULT_CHATTER_DISPLAY_PREFERENCES, DEFAULT_TASK_MODEL_SELECTION } from "./types"
 
-/** 根据 preset 和 props 生成初始 target */
-function presetToTarget(props: ChatterProps): ChatterTarget {
-  switch (props.preset) {
+/** 根据 preset、props 与认证态生成 target。 */
+function presetToTarget(
+  preset: ChatterProps["preset"],
+  isAuthenticated: boolean,
+  agentRole?: string,
+  agentSkill?: string,
+  targetUserId?: string
+): ChatterTarget {
+  switch (preset) {
     case "kiro":
-      return { type: "kiro", agentRole: props.agentRole }
+      return { type: "kiro", agentRole }
     case "livechat":
-      return { type: "user", userId: props.targetUserId }
+      return { type: "user", userId: targetUserId }
     case "guest":
-      return { type: "ai", agentRole: "system.role.customer-service" }
+      return isAuthenticated ? { type: "ai" } : { type: "guest" }
     default:
-      return { type: "ai", agentRole: props.agentRole, agentSkill: props.agentSkill }
+      return { type: "ai", agentRole, agentSkill }
   }
 }
 
@@ -76,19 +82,30 @@ export function Chatter(props: ChatterProps) {
     onLayoutChange,
     toolbar,
     onDrop,
-    hideToolbar
+    hideToolbar,
+    agentRole,
+    agentSkill,
+    targetUserId
   } = props
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const effectiveLayout = resolveLayout(layout, preset, isAuthenticated)
 
   const [mounted, setMounted] = useState(false)
-  const [target, setTarget] = useState<ChatterTarget>(() => presetToTarget(props))
+  const [target, setTarget] = useState<ChatterTarget>(() =>
+    presetToTarget(preset, isAuthenticated, agentRole, agentSkill, targetUserId)
+  )
   const [isOpen, setIsOpen] = useState(open ?? (effectiveLayout === "dialog" && !isAuthenticated))
   const [attachments, setAttachments] = useState<ChatterDropItem[]>([])
   const [taskModelSelection, setTaskModelSelection] = useState<TaskModelSelection>(
     DEFAULT_TASK_MODEL_SELECTION
   )
   const [displayPreferences, setDisplayPreferences] = useState(DEFAULT_CHATTER_DISPLAY_PREFERENCES)
+
+  // 认证变化必须回到当前 preset 的合法 target；Provider 会按模式 key 重建线程。
+  useEffect(() => {
+    setTarget(presetToTarget(preset, isAuthenticated, agentRole, agentSkill, targetUserId))
+    setAttachments([])
+  }, [isAuthenticated, preset, agentRole, agentSkill, targetUserId])
 
   useEffect(() => {
     setMounted(true)
@@ -112,10 +129,14 @@ export function Chatter(props: ChatterProps) {
   // 消费全局 DnD 落下的附件
   useEffect(() => {
     if (!pendingDropItem) return
+    if (preset === "guest" && !isAuthenticated) {
+      setPendingDropItem(null)
+      return
+    }
     setAttachments((prev) => [...prev, pendingDropItem])
     onDrop?.(pendingDropItem)
     setPendingDropItem(null)
-  }, [pendingDropItem, onDrop, setPendingDropItem])
+  }, [pendingDropItem, preset, isAuthenticated, onDrop, setPendingDropItem])
 
   const handleAttachmentRemove = useCallback((index: number) => {
     setAttachments((prev) => prev.filter((_, i) => i !== index))
@@ -125,14 +146,20 @@ export function Chatter(props: ChatterProps) {
     setAttachments([])
   }, [])
 
+  const runtimeTarget = useMemo(() => {
+    if (preset !== "guest") return target
+    if (!isAuthenticated) return { type: "guest" } satisfies ChatterTarget
+    return target.type === "guest" ? ({ type: "ai" } satisfies ChatterTarget) : target
+  }, [isAuthenticated, preset, target])
+  const taskModelSelectionEnabled =
+    preset === "ai" && runtimeTarget.type === "ai" && isAuthenticated
+
   // 避免 SSR 时 isAuthenticated=false 导致 panel 降级为 dialog 产生闪烁
   if (!mounted && (layout === "panel" || layout === "page")) return null
 
-  const taskModelSelectionEnabled = preset === "ai" && target.type === "ai" && isAuthenticated
-
   return (
     <ChatterRuntime
-      target={target}
+      target={runtimeTarget}
       persist={persist}
       sessionId={props.sessionId}
       taskModelSelection={taskModelSelectionEnabled ? taskModelSelection : undefined}
@@ -165,6 +192,7 @@ export function Chatter(props: ChatterProps) {
           onAttachmentAdd={(item) => setAttachments((prev) => [...prev, item])}
           taskModelSelection={taskModelSelection}
           onTaskModelSelectionChange={setTaskModelSelection}
+          guestMode={runtimeTarget.type === "guest"}
           showModelSelector={taskModelSelectionEnabled}
           displayPreferences={displayPreferences}
           onDisplayPreferencesChange={setDisplayPreferences}

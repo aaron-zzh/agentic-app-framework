@@ -95,19 +95,21 @@ function getAvailableTargets(preset: ChatterPreset): ChatterTarget["type"][] {
       return ["kiro", "ai"]
     case "livechat":
       return ["ai", "kiro", "user"]
-    default:
+    case "guest":
       return []
   }
 }
 
 const TARGET_ICONS: Record<ChatterTarget["type"], ReactNode> = {
   ai: <Sparkles className="size-3.5" />,
+  guest: <MessageSquareIcon className="size-3.5" />,
   kiro: <Bot className="size-3.5" />,
   user: <User className="size-3.5" />
 }
 
 const TARGET_LABELS: Record<ChatterTarget["type"], string> = {
   ai: "AI",
+  guest: "客服",
   kiro: "Kiro",
   user: "用户"
 }

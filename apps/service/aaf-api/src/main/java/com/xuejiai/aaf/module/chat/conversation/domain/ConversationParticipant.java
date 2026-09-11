@@ -21,7 +21,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * 会话参与方：支持 HUMAN/ASSISTANT/AGENT/STAFF/BOT 动态进出。
+ * 会话参与方：支持 HUMAN/VISITOR/ASSISTANT/AGENT/STAFF/BOT 动态进出。
  *
  * @author AaronZZH & Kiro
  */
@@ -38,9 +38,9 @@ public class ConversationParticipant {
     @Column(name = "conversation_id", nullable = false)
     private Long conversationId;
 
-    /** 统一字符串 ID：user_id 转字符串 / assistant_id / agent_id */
-    @Column(name = "participant_id", nullable = false)
-    private Long participantId;
+    /** 统一字符串 ID：用户 ID 转字符串 / 访客 UUID / Assistant 稳定 ID。 */
+    @Column(name = "participant_id", nullable = false, length = 64)
+    private String participantId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "participant_type", nullable = false, length = 16)

@@ -32,7 +32,7 @@ export const DEFAULT_CHATTER_DISPLAY_PREFERENCES: ChatterDisplayPreferences = {
 
 /** 对话目标 */
 export interface ChatterTarget {
-  type: "ai" | "kiro" | "user"
+  type: "ai" | "guest" | "kiro" | "user"
   agentRole?: string
   /** 显式指定 Skill code（AAF-107 #10708），与 agentRole 各自独立可选。 */
   agentSkill?: string

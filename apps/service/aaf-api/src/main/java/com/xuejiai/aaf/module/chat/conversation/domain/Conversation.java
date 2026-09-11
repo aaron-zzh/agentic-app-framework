@@ -43,7 +43,7 @@ public class Conversation extends BaseEntity {
     @Column(name = "status", nullable = false, length = 16)
     private ConversationStatusEnum status = ConversationStatusEnum.ACTIVE;
 
-    @Column(name = "creator_id", nullable = false)
+    @Column(name = "creator_id")
     private Long creatorId;
 
     /** AI 对话快捷字段，指向 ai_assistant.id */

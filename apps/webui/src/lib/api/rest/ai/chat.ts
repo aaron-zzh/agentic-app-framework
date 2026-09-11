@@ -3,6 +3,9 @@
  * @author AaronZZH & Kiro
  */
 
+import { buildApiUrl } from "@/lib/api/config"
+import { ApiError } from "@/lib/api/errors"
+import type { ApiResult } from "@/lib/api/types"
 import { backendApi } from "../backend-client"
 import { restEndpoints } from "../endpoints"
 import { fetchList } from "../entity/crud"
@@ -39,6 +42,50 @@ export interface CreateSessionParams {
 export interface SendMessageParams {
   sessionId: string
   content: string
+}
+
+/** 匿名客服会话；threadId 完全由服务端 cookie 会话决定。 */
+export interface GuestSession {
+  threadId: string
+}
+
+/** 匿名客服公开请求：不经过登录拦截器，只携带 HttpOnly visitor cookie。 */
+async function guestRequest<T>(path: string, init: RequestInit): Promise<T> {
+  const response = await fetch(buildApiUrl(path), {
+    ...init,
+    credentials: "include",
+    headers: { Accept: "application/json", ...init.headers }
+  })
+
+  let result: ApiResult<T>
+  try {
+    result = (await response.json()) as ApiResult<T>
+  } catch {
+    throw new ApiError(response.status || 0, "客服响应格式无效")
+  }
+
+  if (!response.ok) {
+    throw new ApiError(response.status, result.message ?? "客服请求失败", result.data)
+  }
+  if (result.code !== 0) {
+    throw new ApiError(result.code, result.message ?? "客服请求失败", result.data)
+  }
+  return result.data
+}
+
+/** 解析当前匿名客服会话，服务端同时通过 Set-Cookie 维护身份。 */
+export function resolveGuestSession(): Promise<GuestSession> {
+  return guestRequest<GuestSession>(restEndpoints.public.customerServiceSession, {
+    method: "POST"
+  })
+}
+
+/** 读取服务端刚解析出的匿名客服线程消息历史。 */
+export function getGuestMessages(session: GuestSession): Promise<ChatMessageVO[]> {
+  return guestRequest<ChatMessageVO[]>(
+    restEndpoints.public.customerServiceMessages(session.threadId),
+    { method: "GET" }
+  )
 }
 
 export const chatApi = {

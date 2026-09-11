@@ -44,6 +44,8 @@ import { WsAsrButton } from "@/features/livechat/voice/WsAsrButton"
 import { useModelSelector } from "@/lib/hooks/use-model-selector"
 
 interface ChatterComposerProps {
+  /** 匿名客服模式下禁用附件、拖放、粘贴 chip 与语音入口。 */
+  guestMode?: boolean
   attachments: ChatterDropItem[]
   onAttachmentRemove: (index: number) => void
   /** 粘贴长文本时回调，由上层决定是否转为 chip */
@@ -62,6 +64,7 @@ interface ChatterComposerProps {
 const PASTE_CHIP_THRESHOLD = 200
 
 export function ChatterComposer({
+  guestMode = false,
   attachments,
   onAttachmentRemove,
   onPasteText,
@@ -110,7 +113,7 @@ export function ChatterComposer({
 
   // 发送前把 text chip 内容 prepend 到输入框，再调 send
   const handleSend = useCallback(() => {
-    const textChips = attachments.filter((a) => a.type === "text" && a.content)
+    const textChips = guestMode ? [] : attachments.filter((a) => a.type === "text" && a.content)
     if (textChips.length > 0) {
       const current = api.composer().getState().text ?? ""
       const prefix = textChips.map((a) => a.content).join("\n\n")
@@ -118,12 +121,12 @@ export function ChatterComposer({
     }
     api.composer().send()
     onAfterSend?.()
-  }, [api, attachments, onAfterSend])
+  }, [api, attachments, guestMode, onAfterSend])
 
   // 在捕获阶段拦截 paste，优先于 assistant-ui 内部处理
   useEffect(() => {
     const box = composerBoxRef.current
-    if (!box || !onPasteText) return
+    if (guestMode || !box || !onPasteText) return
     const handler = (e: ClipboardEvent) => {
       if ((e.clipboardData?.files.length ?? 0) > 0) return
       const text = e.clipboardData?.getData("text/plain") ?? ""
@@ -152,16 +155,16 @@ export function ChatterComposer({
     }
     box.addEventListener("paste", handler, true) // capture=true
     return () => box.removeEventListener("paste", handler, true)
-  }, [onPasteText])
+  }, [guestMode, onPasteText])
 
-  return (
-    <ComposerPrimitive.AttachmentDropzone className="data-[dragging=true]:rounded-xl data-[dragging=true]:ring-2 data-[dragging=true]:ring-primary/50">
-      <ComposerPrimitive.Root className="px-3 pb-3">
-        <div
-          ref={composerBoxRef}
-          className="rounded-xl border border-border bg-background transition-colors focus-within:border-foreground/60"
-        >
-          {/* 文件附件由 assistant-ui composer 作为唯一状态源管理。 */}
+  const composer = (
+    <ComposerPrimitive.Root className="px-3 pb-3">
+      <div
+        ref={composerBoxRef}
+        className="rounded-xl border border-border bg-background transition-colors focus-within:border-foreground/60"
+      >
+        {/* 文件附件由 assistant-ui composer 作为唯一状态源管理。 */}
+        {!guestMode && (
           <ComposerPrimitive.Attachments>
             {({ attachment }) => {
               const AttachmentIcon = attachment.type === "image" ? ImageIcon : FileTextIcon
@@ -183,31 +186,33 @@ export function ChatterComposer({
               )
             }}
           </ComposerPrimitive.Attachments>
-          {/* 自定义 text/doc chip */}
-          {attachments.length > 0 && (
-            <div className="flex flex-wrap gap-1 px-3 pt-2">
-              {attachments.map((item, i) => (
-                <ContextChip
-                  key={`${item.type}-${item.id ?? i}`}
-                  item={item}
-                  onRemove={() => onAttachmentRemove(i)}
-                />
-              ))}
-            </div>
-          )}
+        )}
+        {/* 自定义 text/doc chip */}
+        {!guestMode && attachments.length > 0 && (
+          <div className="flex flex-wrap gap-1 px-3 pt-2">
+            {attachments.map((item, i) => (
+              <ContextChip
+                key={`${item.type}-${item.id ?? i}`}
+                item={item}
+                onRemove={() => onAttachmentRemove(i)}
+              />
+            ))}
+          </div>
+        )}
 
-          {/* 输入框 */}
-          <ComposerPrimitive.Input
-            placeholder="输入消息..."
-            className="field-sizing-content max-h-36 w-full resize-none bg-transparent px-3 pt-2.5 pb-2 text-sm leading-5 placeholder:text-muted-foreground focus:outline-none"
-            rows={1}
-            {...inputHistory}
-          />
+        {/* 输入框 */}
+        <ComposerPrimitive.Input
+          placeholder="输入消息..."
+          className="field-sizing-content max-h-36 w-full resize-none bg-transparent px-3 pt-2.5 pb-2 text-sm leading-5 placeholder:text-muted-foreground focus:outline-none"
+          rows={1}
+          {...inputHistory}
+        />
 
-          {/* 底部工具栏 */}
-          <div className="relative flex items-center justify-between px-1.5 pb-1.5">
-            {/* 左：附件 + 模型 + 展示偏好 */}
-            <div className="flex min-w-0 items-center gap-0.5">
+        {/* 底部工具栏 */}
+        <div className="relative flex items-center justify-between px-1.5 pb-1.5">
+          {/* 左：附件 + 模型 + 展示偏好 */}
+          <div className="flex min-w-0 items-center gap-0.5">
+            {!guestMode && (
               <ComposerPrimitive.AddAttachment asChild>
                 <Button
                   type="button"
@@ -219,55 +224,61 @@ export function ChatterComposer({
                   <PaperclipIcon className="size-4" />
                 </Button>
               </ComposerPrimitive.AddAttachment>
+            )}
 
-              {showModelSelector && (
-                <ModelSelectorSlot
-                  taskModelSelection={taskModelSelection}
-                  onTaskModelSelectionChange={onTaskModelSelectionChange}
-                />
-              )}
+            {showModelSelector && (
+              <ModelSelectorSlot
+                taskModelSelection={taskModelSelection}
+                onTaskModelSelectionChange={onTaskModelSelectionChange}
+              />
+            )}
 
+            {!guestMode && (
               <DisplayPreferenceToggles
                 preferences={displayPreferences}
                 onChange={onDisplayPreferencesChange}
               />
-            </div>
+            )}
+          </div>
 
-            {/* 右：3D波形（语音激活时）+ 麦克风 + 发送/停止 */}
-            <div className="flex items-center gap-1">
-              {waveformCtx && (
-                <div className="pointer-events-none absolute inset-y-1.5 right-[100px] left-[100px] overflow-hidden rounded-lg">
-                  <VoiceWaveform3D stream={waveformCtx} />
-                </div>
-              )}
+          {/* 右：3D波形（语音激活时）+ 麦克风 + 发送/停止 */}
+          <div className="flex items-center gap-1">
+            {!guestMode && waveformCtx && (
+              <div className="pointer-events-none absolute inset-y-1.5 right-[100px] left-[100px] overflow-hidden rounded-lg">
+                <VoiceWaveform3D stream={waveformCtx} />
+              </div>
+            )}
 
+            {!guestMode && (
               <WsAsrButton
                 onResult={handleVoiceResult}
                 onInterim={handleVoiceResult}
                 onRecordingChange={handleVoiceRecordingChange}
               />
+            )}
 
-              <AuiIf condition={(s) => !s.thread.isRunning}>
-                <Button size="icon" className="size-7 rounded-lg" onClick={handleSend}>
-                  <ArrowUpIcon className="size-4" />
+            <AuiIf condition={(s) => !s.thread.isRunning}>
+              <Button size="icon" className="size-7 rounded-lg" onClick={handleSend}>
+                <ArrowUpIcon className="size-4" />
+              </Button>
+            </AuiIf>
+            <AuiIf condition={(s) => s.thread.isRunning}>
+              <ComposerPrimitive.Cancel asChild>
+                <Button type="button" variant="secondary" size="icon" className="size-7 rounded-lg">
+                  <SquareIcon className="size-3 fill-current" />
                 </Button>
-              </AuiIf>
-              <AuiIf condition={(s) => s.thread.isRunning}>
-                <ComposerPrimitive.Cancel asChild>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="icon"
-                    className="size-7 rounded-lg"
-                  >
-                    <SquareIcon className="size-3 fill-current" />
-                  </Button>
-                </ComposerPrimitive.Cancel>
-              </AuiIf>
-            </div>
+              </ComposerPrimitive.Cancel>
+            </AuiIf>
           </div>
         </div>
-      </ComposerPrimitive.Root>
+      </div>
+    </ComposerPrimitive.Root>
+  )
+
+  if (guestMode) return composer
+  return (
+    <ComposerPrimitive.AttachmentDropzone className="data-[dragging=true]:rounded-xl data-[dragging=true]:ring-2 data-[dragging=true]:ring-primary/50">
+      {composer}
     </ComposerPrimitive.AttachmentDropzone>
   )
 }

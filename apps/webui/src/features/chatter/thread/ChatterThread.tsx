@@ -342,7 +342,7 @@ function DiagnosticInfoButton() {
 }
 
 /** AI 消息操作栏：复制 + 重新生成 + 反馈（AAF-114 #11412） */
-function AssistantActionBar() {
+function AssistantActionBar({ guestMode }: { guestMode: boolean }) {
   return (
     <ActionBarPrimitive.Root
       hideWhenRunning
@@ -371,21 +371,25 @@ function AssistantActionBar() {
           <RefreshCwIcon className="size-3.5" />
         </button>
       </ActionBarPrimitive.Reload>
-      <ActionBarPrimitive.FeedbackPositive asChild>
-        <button
-          type="button"
-          className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-          aria-label="点赞"
-        >
-          <AuiIf condition={(s) => s.message.metadata.submittedFeedback?.type === "positive"}>
-            <ThumbsUpIcon className="size-3.5 fill-current" />
-          </AuiIf>
-          <AuiIf condition={(s) => s.message.metadata.submittedFeedback?.type !== "positive"}>
-            <ThumbsUpIcon className="size-3.5" />
-          </AuiIf>
-        </button>
-      </ActionBarPrimitive.FeedbackPositive>
-      <NegativeFeedbackButton />
+      {!guestMode && (
+        <>
+          <ActionBarPrimitive.FeedbackPositive asChild>
+            <button
+              type="button"
+              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="点赞"
+            >
+              <AuiIf condition={(s) => s.message.metadata.submittedFeedback?.type === "positive"}>
+                <ThumbsUpIcon className="size-3.5 fill-current" />
+              </AuiIf>
+              <AuiIf condition={(s) => s.message.metadata.submittedFeedback?.type !== "positive"}>
+                <ThumbsUpIcon className="size-3.5" />
+              </AuiIf>
+            </button>
+          </ActionBarPrimitive.FeedbackPositive>
+          <NegativeFeedbackButton />
+        </>
+      )}
       <DiagnosticInfoButton />
     </ActionBarPrimitive.Root>
   )
@@ -415,7 +419,13 @@ function UserEditComposer() {
 }
 
 /** AI 消息气泡 */
-function AssistantMessage({ showThinking }: { showThinking: boolean }) {
+function AssistantMessage({
+  guestMode,
+  showThinking
+}: {
+  guestMode: boolean
+  showThinking: boolean
+}) {
   const text = useMessageText()
   const ttsMode = useVoiceConfig((s) => s.ttsMode)
   const ttsVoice = useVoiceConfig((s) => s.ttsVoice)
@@ -496,7 +506,7 @@ function AssistantMessage({ showThinking }: { showThinking: boolean }) {
         </MessagePrimitive.Error>
 
         {/* TTS */}
-        {text && (
+        {!guestMode && text && (
           <div className="mt-1 border-t pt-1">
             {ttsMode === "browser" ? (
               <SpeechOutput text={text} />
@@ -516,7 +526,7 @@ function AssistantMessage({ showThinking }: { showThinking: boolean }) {
       </div>
 
       {/* 操作栏：分支切换 + 复制 + 重新生成 */}
-      <AssistantActionBar />
+      <AssistantActionBar guestMode={guestMode} />
     </MessagePrimitive.Root>
   )
 }
@@ -645,11 +655,17 @@ function FollowUpSuggestions() {
   )
 }
 
-export function ChatterThread({ showThinking }: { showThinking: boolean }) {
+export function ChatterThread({
+  guestMode = false,
+  showThinking
+}: {
+  guestMode?: boolean
+  showThinking: boolean
+}) {
   return (
     <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
       {/* 通话中显示语音控制区——VoiceSection 在 ThreadPrimitive.Root 内读 thread，合法 */}
-      <VoiceSection />
+      {!guestMode && <VoiceSection />}
       <ThreadPrimitive.Viewport className="relative min-h-0 flex-1 overflow-y-auto p-4">
         <ThreadPrimitive.Empty>
           <WelcomeScreen />
@@ -658,7 +674,7 @@ export function ChatterThread({ showThinking }: { showThinking: boolean }) {
         <ThreadPrimitive.Messages>
           {({ message }) =>
             message.role === "assistant" ? (
-              <AssistantMessage showThinking={showThinking} />
+              <AssistantMessage guestMode={guestMode} showThinking={showThinking} />
             ) : (
               <UserMessage />
             )

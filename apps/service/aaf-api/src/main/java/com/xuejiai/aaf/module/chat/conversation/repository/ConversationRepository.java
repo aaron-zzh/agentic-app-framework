@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 
 import com.xuejiai.aaf.common.enums.chat.ConversationStatusEnum;
 import com.xuejiai.aaf.common.enums.chat.ConversationTypeEnum;
+import com.xuejiai.aaf.common.enums.chat.ParticipantTypeEnum;
 import com.xuejiai.aaf.framework.crud.CrudEntityRepository;
 import com.xuejiai.aaf.module.chat.conversation.domain.Conversation;
 
@@ -21,6 +22,47 @@ public interface ConversationRepository extends CrudEntityRepository<Conversatio
     Optional<Conversation> findByThreadId(String threadId);
 
     List<Conversation> findByCreatorIdOrderByUpdateTimeDesc(Long creatorId);
+
+    @Query(
+            """
+            SELECT c FROM Conversation c
+            JOIN ConversationParticipant p ON p.conversationId = c.id
+            WHERE c.threadId = :threadId
+              AND c.orgId = :orgId
+              AND c.type = :type
+              AND c.status IN :statuses
+              AND c.deleted = false
+              AND p.participantId = :participantId
+              AND p.participantType = :participantType
+              AND p.leftAt IS NULL
+            """)
+    List<Conversation> findVisitorThread(
+            String threadId,
+            Long orgId,
+            ConversationTypeEnum type,
+            List<ConversationStatusEnum> statuses,
+            String participantId,
+            ParticipantTypeEnum participantType);
+
+    @Query(
+            """
+            SELECT c FROM Conversation c
+            JOIN ConversationParticipant p ON p.conversationId = c.id
+            WHERE c.orgId = :orgId
+              AND c.type = :type
+              AND c.status IN :statuses
+              AND c.deleted = false
+              AND p.participantId = :participantId
+              AND p.participantType = :participantType
+              AND p.leftAt IS NULL
+            ORDER BY c.updateTime DESC, c.id DESC
+            """)
+    List<Conversation> findVisitorConversations(
+            Long orgId,
+            ConversationTypeEnum type,
+            List<ConversationStatusEnum> statuses,
+            String participantId,
+            ParticipantTypeEnum participantType);
 
     // ========== livechat 场景查询 ==========
 

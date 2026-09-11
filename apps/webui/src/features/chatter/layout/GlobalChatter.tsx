@@ -14,7 +14,7 @@
 "use client"
 
 import { Sparkles, X } from "lucide-react"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { ChatterPanel } from "@/features/chatter/layout/ChatterPanel"
@@ -60,21 +60,40 @@ export function GlobalChatter({ availableModes = [] }: GlobalChatterProps = {}) 
         ? { preset: "ai" as const, open: false, agentRole: undefined }
         : { preset: "guest" as const, open: false, agentRole: "system.role.customer-service" }
 
-  const [target, setTarget] = useState<ChatterTarget>({ type: "ai", agentRole: config.agentRole })
+  const [target, setTarget] = useState<ChatterTarget>(() =>
+    isAuthenticated ? { type: "ai", agentRole: config.agentRole } : { type: "guest" }
+  )
   const [attachments, setAttachments] = useState<ChatterDropItem[]>([])
   const [taskModelSelection, setTaskModelSelection] = useState<TaskModelSelection>(
     DEFAULT_TASK_MODEL_SELECTION
   )
   const [displayPreferences, setDisplayPreferences] = useState(DEFAULT_CHATTER_DISPLAY_PREFERENCES)
+
+  // 认证边界变化时清空本地交互状态，禁止登录态继承 guest target/thread。
+  useEffect(() => {
+    setTarget(isAuthenticated ? { type: "ai", agentRole: config.agentRole } : { type: "guest" })
+    setAttachments([])
+  }, [isAuthenticated, config.agentRole])
+
+  const runtimeTarget = useMemo(() => {
+    if (!isAuthenticated) return { type: "guest" } satisfies ChatterTarget
+    return target.type === "guest"
+      ? ({ type: "ai", agentRole: config.agentRole } satisfies ChatterTarget)
+      : target
+  }, [config.agentRole, isAuthenticated, target])
   const taskModelSelectionEnabled =
-    config.preset === "ai" && target.type === "ai" && isAuthenticated
+    config.preset === "ai" && runtimeTarget.type === "ai" && isAuthenticated
 
   // 消费全局 DnD
   useEffect(() => {
     if (!pendingDropItem) return
+    if (!isAuthenticated) {
+      setPendingDropItem(null)
+      return
+    }
     setAttachments((prev) => [...prev, pendingDropItem])
     setPendingDropItem(null)
-  }, [pendingDropItem, setPendingDropItem])
+  }, [pendingDropItem, isAuthenticated, setPendingDropItem])
 
   const [panelSlot, setPanelSlot] = useState<Element | null>(null)
   const [pageSlot, setPageSlot] = useState<Element | null>(null)
@@ -174,6 +193,7 @@ export function GlobalChatter({ availableModes = [] }: GlobalChatterProps = {}) 
       onAttachmentAdd={(item) => setAttachments((prev) => [...prev, item])}
       taskModelSelection={taskModelSelection}
       onTaskModelSelectionChange={setTaskModelSelection}
+      guestMode={runtimeTarget.type === "guest"}
       showModelSelector={taskModelSelectionEnabled}
       displayPreferences={displayPreferences}
       onDisplayPreferencesChange={setDisplayPreferences}
@@ -182,7 +202,7 @@ export function GlobalChatter({ availableModes = [] }: GlobalChatterProps = {}) 
 
   return (
     <ChatterRuntime
-      target={target}
+      target={runtimeTarget}
       taskModelSelection={taskModelSelectionEnabled ? taskModelSelection : undefined}
       displayPreferences={displayPreferences}
     >

@@ -2120,6 +2120,53 @@ INSERT INTO ai_assistant_role (
     (2, 3, TRUE, 100, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE)
 ON CONFLICT (assistant_id, role_id) DO NOTHING;
 
+-- 匿名 Web 客服固定绑定系统客服 Assistant；组织和 owner 作为执行责任主体。
+INSERT INTO channel_platform (
+    type, name, config, status, org_id, owner_id,
+    create_by, create_time, update_time, deleted, remark
+)
+SELECT
+    'WEB', '系统 Web 客服', '{}'::jsonb, 0, org.id, admin_user.id,
+    admin_user.id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE,
+    '匿名访客 Web 客服入口'
+FROM sys_user admin_user
+JOIN sys_organization org
+    ON org.owner_id = admin_user.id
+    AND org.type = 'personal'
+    AND org.deleted = FALSE
+WHERE admin_user.username = 'admin'
+  AND admin_user.deleted = FALSE
+  AND NOT EXISTS (
+      SELECT 1
+      FROM channel_platform existing
+      WHERE existing.type = 'WEB'
+        AND existing.status = 0
+        AND existing.deleted = FALSE
+  );
+
+INSERT INTO channel_bot_binding (
+    platform_id, name, assistant_id, route_rule, status,
+    org_id, owner_id, create_by, create_time, update_time, deleted, remark
+)
+SELECT
+    platform.id, '系统客服', 'system.assistant.customer-service',
+    '{"channel":"WEB","entry":"PUBLIC_CUSTOMER_SERVICE"}'::jsonb, 0,
+    platform.org_id, platform.owner_id, platform.owner_id,
+    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE,
+    '匿名访客固定客服 Assistant'
+FROM channel_platform platform
+WHERE platform.type = 'WEB'
+  AND platform.status = 0
+  AND platform.deleted = FALSE
+  AND NOT EXISTS (
+      SELECT 1
+      FROM channel_bot_binding existing
+      WHERE existing.platform_id = platform.id
+        AND existing.assistant_id = 'system.assistant.customer-service'
+        AND existing.status = 0
+        AND existing.deleted = FALSE
+  );
+
 -- 显式写入系统 Assistant ID 不会推进 identity sequence，后续用户副本使用生成 ID 前必须同步。
 SELECT setval(
     pg_get_serial_sequence('ai_assistant', 'id'),

@@ -243,8 +243,8 @@ public class AssistantAguiController {
 
     /**
      * Clarification 恢复（AAF-114 #11408 第二版）：{@code interruptId} 即 {@code
-     * ClarificationRequest.requestId}。取消（{@code status="cancelled"} 或 {@code approved=false}）
-     * 场景当前无独立取消端口方法，直接闭合本次 run，不驱动状态转换——用户可通过下一轮自然语言输入触发既有 MODIFY/UNRELATED 分类路径。
+     * ClarificationRequest.requestId}。取消（{@code status="cancelled"}）场景当前无独立取消端口方法，直接闭合本次
+     * run，不驱动状态转换——用户可通过下一轮自然语言输入触发既有 MODIFY/UNRELATED 分类路径。
      *
      * <p>{@code DelegatedTaskCoordinator#acceptInput} 是 {@code Mono}；成功后才订阅事件续读，避免在写入尚未落地时
      * 提前查询导致漏读第一批事件。
@@ -262,7 +262,7 @@ public class AssistantAguiController {
         var session = agUiProjector.openSession();
         var threadId = request.threadId();
         var runId = request.runId();
-        if (!entry.approved()) {
+        if (!entry.resolved()) {
             send(emitter, session.close(threadId, runId), Long.MAX_VALUE);
             emitter.complete();
             return emitter;
@@ -270,44 +270,30 @@ public class AssistantAguiController {
         var resumedAt = Instant.now();
         clarificationResume
                 .submit(tenantId, currentUserId(), clarification, entry.payload())
+                .thenMany(
+                        approvalEvents
+                                .streamByExecutionId(
+                                        tenantId,
+                                        clarification.taskId(),
+                                        clarification.executionId(),
+                                        new RunId(runId),
+                                        resumedAt)
+                                .events())
                 .subscribe(
-                        task ->
-                                approvalEvents
-                                        .streamByExecutionId(
-                                                tenantId,
-                                                clarification.taskId(),
-                                                clarification.executionId(),
-                                                new RunId(runId),
-                                                resumedAt)
-                                        .events()
-                                        .subscribe(
-                                                stored ->
-                                                        send(
-                                                                emitter,
-                                                                session.project(stored.event()),
-                                                                stored.eventOffset()),
-                                                failure -> {
-                                                    send(
-                                                            emitter,
-                                                            session.fail(
-                                                                    threadId,
-                                                                    runId,
-                                                                    "ASSISTANT_STREAM_FAILED"),
-                                                            0);
-                                                    emitter.complete();
-                                                },
-                                                () -> {
-                                                    send(
-                                                            emitter,
-                                                            session.close(threadId, runId),
-                                                            Long.MAX_VALUE);
-                                                    emitter.complete();
-                                                }),
+                        stored ->
+                                send(
+                                        emitter,
+                                        session.project(stored.event()),
+                                        stored.eventOffset()),
                         failure -> {
                             send(
                                     emitter,
                                     session.fail(threadId, runId, "ASSISTANT_STREAM_FAILED"),
                                     0);
+                            emitter.complete();
+                        },
+                        () -> {
+                            send(emitter, session.close(threadId, runId), Long.MAX_VALUE);
                             emitter.complete();
                         });
         return emitter;
@@ -755,9 +741,8 @@ public class AssistantAguiController {
     }
 
     /**
-     * AG-UI 标准 resume 条目：{@code interruptId} 对应 {@code AUTHORIZATION_REQUESTED} 事件 payload 里的
-     * {@code approvalId}；{@code status=resolved} 时 {@code payload.approved} 决定批准/拒绝， {@code
-     * status=cancelled} 等效拒绝。
+     * AG-UI 标准 resume 条目：{@code interruptId} 对应待恢复 interrupt。{@code status} 表示 interrupt
+     * 是否已解决或取消；审批场景另外由 {@code payload.approved} 表示批准或拒绝，澄清场景的 {@code payload} 直接承载补充字段。
      */
     public record ResumeEntry(String interruptId, String status, JsonNode payload) {
         public ResumeEntry {
@@ -768,8 +753,12 @@ public class AssistantAguiController {
             }
         }
 
+        boolean resolved() {
+            return "resolved".equals(status);
+        }
+
         boolean approved() {
-            if ("cancelled".equals(status)) {
+            if (!resolved()) {
                 return false;
             }
             var approvedNode = payload == null ? null : payload.get("approved");

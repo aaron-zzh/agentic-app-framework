@@ -24,6 +24,12 @@ export const crudResources = {
 } as const
 
 export const restEndpoints = {
+  public: {
+    customerServiceSession: "/public/customer-service/session",
+    customerServiceMessages: (threadId: string) =>
+      `/public/customer-service/session/${encodeURIComponent(threadId)}/messages`,
+    customerServiceRun: "/public/customer-service/run"
+  },
   admin: {
     auditLog: "/admin/audit-log",
     dataAccessRules: "/admin/data-access-rules",

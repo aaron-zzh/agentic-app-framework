@@ -6,22 +6,16 @@
  *
  * 按钮仅在 dialog 模式渲染——panel/page 模式由对应布局接管 chatter 渲染区域。
  *
- * 未登录访客的 lead 记录策略：
- * - 进入页面 → 写一条 channel=VISIT（IP/UA/region 由后端推断），24h 内同访客不重复
- * - 点击对话按钮 → 由 FloatingChatterButton 写一条 channel=CHAT，同 tab 不重复
- *
  * @author AaronZZH & Kiro
  */
 
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { FloatingChatterButton } from "@/features/chatter/layout/FloatingChatterButton"
 import { GlobalChatter } from "@/features/chatter/layout/GlobalChatter"
-import { leadApi } from "@/lib/api/rest/lead"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { useChatterStore } from "@/lib/store/chatter-store"
-import { getOrCreateAnonymousId } from "@/lib/utils/anonymous-id"
 
 interface FloatingChatterProps {
   /**
@@ -32,15 +26,22 @@ interface FloatingChatterProps {
   availableModes?: ("panel" | "page")[]
 }
 
-/** VISIT 节流键：localStorage 存上次记录时间戳（同访客 24h 内不重复） */
-const VISIT_THROTTLE_KEY = "aaf-anonymous-visit-at"
-const VISIT_THROTTLE_MS = 24 * 60 * 60 * 1000
-
 export function FloatingChatter({ availableModes }: FloatingChatterProps = {}) {
   const mode = useChatterStore((s) => s.mode)
+  const open = useChatterStore((s) => s.open)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const currentPageId = useChatterStore((s) => s.currentPageId)
   const getConfig = useChatterStore((s) => s.getConfig)
+  const [guestActivated, setGuestActivated] = useState(false)
+
+  // 匿名客服首次打开时才初始化；本页关闭后保持 runtime，避免再次打开重复加载。
+  useEffect(() => {
+    if (isAuthenticated) {
+      setGuestActivated(false)
+    } else if (open) {
+      setGuestActivated(true)
+    }
+  }, [isAuthenticated, open])
 
   // 与 GlobalChatter 内的 config 推导保持一致
   const config =
@@ -50,32 +51,12 @@ export function FloatingChatter({ availableModes }: FloatingChatterProps = {}) {
         ? { preset: "ai" as const, agentRole: undefined }
         : { preset: "guest" as const, agentRole: "system.role.customer-service" }
 
-  // 未登录访客挂载时记录一条 VISIT lead；24h 节流避免每次跳页/刷新刷数据
-  useEffect(() => {
-    if (isAuthenticated) return
-    if (typeof window === "undefined") return
-    const last = Number(window.localStorage.getItem(VISIT_THROTTLE_KEY) ?? 0)
-    if (Date.now() - last < VISIT_THROTTLE_MS) return
-
-    leadApi
-      .create({
-        anonymousId: getOrCreateAnonymousId(),
-        channel: "VISIT"
-      })
-      .then(() => {
-        window.localStorage.setItem(VISIT_THROTTLE_KEY, String(Date.now()))
-      })
-      .catch(() => {
-        // 静默失败：访客记录非关键路径，不阻塞使用
-      })
-  }, [isAuthenticated])
+  const shouldRenderChatter = isAuthenticated || open || guestActivated
 
   return (
     <>
-      {mode === "dialog" && (
-        <FloatingChatterButton preset={config.preset} agentRole={config.agentRole} />
-      )}
-      <GlobalChatter availableModes={availableModes} />
+      {mode === "dialog" && <FloatingChatterButton preset={config.preset} />}
+      {shouldRenderChatter && <GlobalChatter availableModes={availableModes} />}
     </>
   )
 }

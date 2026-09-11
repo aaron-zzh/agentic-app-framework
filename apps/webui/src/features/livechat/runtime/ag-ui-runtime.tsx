@@ -24,6 +24,7 @@ import {
   useVoiceControls
 } from "@assistant-ui/react"
 import { type UseAgUiThreadListAdapter, useAgUiRuntime } from "@assistant-ui/react-ag-ui"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import type { AafAiTaskEvent } from "@/lib/api/rest/ai"
 import { backendApi } from "@/lib/api/rest/backend-client"
 import { ForwardedPropsHttpAgent } from "./forwarded-props-http-agent"
@@ -149,9 +150,14 @@ import { toast } from "sonner"
 import { renderUiBlockToolkit } from "@/features/chatter/runtime/ui-block/render-ui-block-toolkit"
 import { buildApiUrl } from "@/lib/api/config"
 import {
+  type ChatMessageVO,
   chatApi,
+  delegatedTaskKeys,
+  getGuestMessages,
+  resolveGuestSession,
   useArchiveSession,
   useChatSessions,
+  useCreateSession,
   useDeleteSession,
   useRenameSession,
   useUnarchiveSession
@@ -164,9 +170,100 @@ import { useAgentRunStore } from "./agent-run-store"
 import { applyJsonPatch, type JsonPatchOperation } from "./json-patch"
 
 const DEFAULT_AGENT_URL = buildApiUrl("/agui/run")
+const GUEST_SESSION_QUERY_KEY = ["guest-customer-service-session"] as const
+
+/** 判断未知值是否为普通对象。 */
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+/** 匿名客服只发送纯文本消息，剔除附件、工具结果与客户端上下文。 */
+function sanitizeGuestMessages(value: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(value)) throw new Error("匿名客服消息格式无效")
+  return value.map((message) => {
+    if (!isObject(message) || typeof message.role !== "string") {
+      throw new Error("匿名客服消息格式无效")
+    }
+
+    const content = message.content
+    let textContent: string | { type: "text"; text: string }[]
+    if (typeof content === "string") {
+      textContent = content
+    } else if (Array.isArray(content)) {
+      textContent = content.map((part) => {
+        if (!isObject(part) || part.type !== "text" || typeof part.text !== "string") {
+          throw new Error("匿名客服仅支持文本消息")
+        }
+        return { type: "text" as const, text: part.text }
+      })
+    } else {
+      throw new Error("匿名客服仅支持文本消息")
+    }
+
+    return {
+      ...(typeof message.id === "string" ? { id: message.id } : {}),
+      role: message.role,
+      content: textContent
+    }
+  })
+}
+
+/** 匿名 run 仅携带 HttpOnly cookie，并在网络边界移除登录态执行参数。 */
+function fetchGuestRun(
+  requestUrl: RequestInfo | URL,
+  requestInit: RequestInit = {},
+  sessionThreadId: string | undefined
+): Promise<Response> {
+  if (typeof requestInit.body !== "string") {
+    return Promise.reject(new Error("匿名客服请求格式无效"))
+  }
+
+  let source: unknown
+  try {
+    source = JSON.parse(requestInit.body)
+  } catch {
+    return Promise.reject(new Error("匿名客服请求格式无效"))
+  }
+  if (!isObject(source)) {
+    return Promise.reject(new Error("匿名客服请求格式无效"))
+  }
+  if (!sessionThreadId) {
+    return Promise.reject(new Error("匿名客服会话尚未就绪"))
+  }
+
+  const body = {
+    // assistant-ui 可能保留内部默认 threadId；匿名客服只信任 /session 返回的服务端线程。
+    threadId: sessionThreadId,
+    runId: source.runId,
+    forwardedProps: {},
+    messages: sanitizeGuestMessages(source.messages)
+  }
+  return fetch(requestUrl, {
+    ...requestInit,
+    body: JSON.stringify(body),
+    credentials: "include"
+  })
+}
+
+/** 将后端历史消息转换为 assistant-ui 线程消息。 */
+function toThreadMessages(messages: ChatMessageVO[]): ThreadMessage[] {
+  return messages.map((message) => ({
+    id: String(message.id),
+    role: message.role === "user" ? ("user" as const) : ("assistant" as const),
+    content: [{ type: "text" as const, text: message.content }],
+    createdAt: new Date(message.createdAt),
+    ...(message.role !== "user" && {
+      status: { type: "complete" as const, reason: "stop" as const }
+    }),
+    ...(message.role === "user" && { attachments: [] }),
+    metadata: { custom: {} }
+  })) as ThreadMessage[]
+}
 
 interface AgUiChatProviderProps {
   children: ReactNode
+  /** 是否使用匿名客服专用 session、history 与 AG-UI 链路。 */
+  guestMode?: boolean
   /** 自定义端点 URL，默认 /agui/run */
   url?: string
   /**
@@ -177,7 +274,7 @@ interface AgUiChatProviderProps {
   initialState?: Record<string, unknown>
   /** 本次 run 的一次性调用参数（AG-UI `forwardedProps`）：assistantId、taskModelSelection 等。 */
   forwardedProps?: Record<string, unknown>
-  /** 初始线程 ID，传入时自动切换到该线程（用于匿名访客恢复历史） */
+  /** 非 guest 模式的初始线程 ID；guest 始终以服务端 session 为准。 */
   initialThreadId?: string
   /** 新建会话回调（默认调用 chatApi.createSession） */
   onNewThread?: () => Promise<void>
@@ -191,6 +288,7 @@ interface AgUiChatProviderProps {
  */
 export function AgUiChatProvider({
   children,
+  guestMode = false,
   url,
   initialState,
   forwardedProps,
@@ -202,29 +300,45 @@ export function AgUiChatProvider({
   const initialStateKey = JSON.stringify(initialState)
   const forwardedPropsKey = JSON.stringify(forwardedProps)
   const accessToken = useAuthStore((s) => s.accessToken)
+  const queryClient = useQueryClient()
+  const guestThreadIdRef = useRef<string | undefined>(undefined)
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: initialState/forwardedProps 通过序列化 key 跟踪
   const agent = useMemo(() => {
     return new ForwardedPropsHttpAgent(
       {
         url: url ?? DEFAULT_AGENT_URL,
-        initialState: initialState ?? {},
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
+        initialState: guestMode ? {} : (initialState ?? {}),
+        headers: !guestMode && accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        ...(guestMode
+          ? {
+              fetch: (requestUrl: RequestInfo | URL, requestInit?: RequestInit) =>
+                fetchGuestRun(requestUrl, requestInit, guestThreadIdRef.current)
+            }
+          : {})
       },
-      {
-        ...forwardedProps,
-        mode: "CHAT",
-        anonymousId: getOrCreateAnonymousId()
-      }
+      guestMode
+        ? {}
+        : {
+            ...forwardedProps,
+            mode: "CHAT",
+            anonymousId: getOrCreateAnonymousId()
+          }
     )
-  }, [url, initialStateKey, forwardedPropsKey, accessToken])
+  }, [url, initialStateKey, forwardedPropsKey, accessToken, guestMode])
 
-  // 当前 threadId——由后端创建会话时生成，通过此状态传给 threadList 适配器
+  // 当前 threadId——登录模式由会话列表校验，guest 模式仅信任公开 session 接口。
   const THREAD_KEY = "aaf:chatter-thread-id"
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const guestSessionQuery = useQuery({
+    queryKey: GUEST_SESSION_QUERY_KEY,
+    queryFn: resolveGuestSession,
+    enabled: guestMode,
+    refetchOnMount: "always"
+  })
 
   const [currentThreadId, setCurrentThreadId] = useState<string | undefined>(() => {
-    // 优先用外部传入的 initialThreadId，其次从 sessionStorage 恢复
+    if (guestMode) return undefined
     return (
       initialThreadId ??
       (typeof window !== "undefined"
@@ -233,32 +347,46 @@ export function AgUiChatProvider({
     )
   })
 
-  // threadId 变化时写入 sessionStorage，并同步到 agent-run-store 供子树组件（如反馈 ActionBar）读取
+  // guest/auth Provider 由上层 mode key 强制重建，挂载时清空跨 runtime 的瞬时 UI 状态。
   useEffect(() => {
+    useAgentRunStore.setState({
+      phase: "idle",
+      activeTool: null,
+      entries: [],
+      suggestions: [],
+      aigcTasks: [],
+      subTaskActivities: {},
+      selectedRole: null,
+      currentThreadId: undefined,
+      diagnostic: {}
+    })
+  }, [])
+
+  useEffect(() => {
+    const sessionThreadId =
+      guestMode && guestSessionQuery.isFetchedAfterMount
+        ? guestSessionQuery.data?.threadId
+        : undefined
+    guestThreadIdRef.current = sessionThreadId
+  }, [guestMode, guestSessionQuery.data?.threadId, guestSessionQuery.isFetchedAfterMount])
+
+  // guest 不读写登录 sessionStorage，也不把服务端客服线程复制到 Zustand。
+  useEffect(() => {
+    if (guestMode) {
+      useAgentRunStore.getState().setCurrentThreadId(undefined)
+      return
+    }
     if (currentThreadId) {
       sessionStorage.setItem(THREAD_KEY, currentThreadId)
     }
     useAgentRunStore.getState().setCurrentThreadId(currentThreadId)
-  }, [currentThreadId])
+  }, [currentThreadId, guestMode])
 
   // feedbackAdapter.submit 是同步回调，用 ref 读取避免闭包捕获过期的 currentThreadId
   const currentThreadIdRef = useRef(currentThreadId)
   useEffect(() => {
     currentThreadIdRef.current = currentThreadId
   }, [currentThreadId])
-
-  // 已登录且无 threadId 时，自动创建一个新 session
-  // biome-ignore lint/correctness/useExhaustiveDependencies: 仅响应登录态变化，避免 threadId 变化后循环创建
-  useEffect(() => {
-    if (isAuthenticated && !currentThreadId) {
-      chatApi
-        .createSession({ type: "ai" })
-        .then((session) => setCurrentThreadId(session.threadId))
-        .catch(() => {
-          /* 静默失败 */
-        })
-    }
-  }, [isAuthenticated])
 
   // 订阅 AG-UI 事件流，把运行状态/工具调用/AAF 专有 CUSTOM 事件写入运行状态 store
   useEffect(() => {
@@ -298,6 +426,12 @@ export function AgUiChatProvider({
         })
       },
       onCustomEvent: ({ event }) => {
+        if (event.name.startsWith("aaf.task.")) {
+          void queryClient.invalidateQueries({
+            queryKey: [...delegatedTaskKeys.all, "list"]
+          })
+          return
+        }
         if (event.name === "aaf.role.resolved") {
           const value = event.value as AafAiTaskEvent | undefined
           const roleKey = value?.data.roleKey
@@ -356,7 +490,7 @@ export function AgUiChatProvider({
       }
     })
     return () => sub.unsubscribe()
-  }, [agent])
+  }, [agent, queryClient])
 
   const onError = useCallback((error: Error) => {
     toast.error(classifyError(error))
@@ -366,11 +500,52 @@ export function AgUiChatProvider({
   // ExternalStoreThreadListAdapter 契约（threads/archivedThreads + rename/archive/unarchive/delete），
   // 交由 ThreadListPrimitive 消费；列表数据源统一由 TanStack Query 管理（useChatSessions），
   // 不再由 SessionPopover 自行维护并行状态。
-  const { data: chatSessions } = useChatSessions({ enabled: isAuthenticated })
+  const { data: chatSessions, isFetched: chatSessionsFetched } = useChatSessions({
+    enabled: !guestMode && isAuthenticated
+  })
+  const { mutate: createSession, mutateAsync: createSessionAsync } = useCreateSession()
   const renameSessionMutation = useRenameSession()
   const archiveSessionMutation = useArchiveSession()
   const unarchiveSessionMutation = useUnarchiveSession()
   const deleteSessionMutation = useDeleteSession()
+  const autoCreateThreadPendingRef = useRef(false)
+
+  // sessionStorage 只保存候选 threadId；当前用户会话列表是有效性的唯一依据。
+  useEffect(() => {
+    if (guestMode || !isAuthenticated || !chatSessionsFetched) return
+    const currentThreadExists = Boolean(
+      currentThreadId &&
+        chatSessions?.some(
+          (session) => session.threadId === currentThreadId && session.type === "ai"
+        )
+    )
+    if (currentThreadExists) {
+      autoCreateThreadPendingRef.current = false
+      return
+    }
+    if (autoCreateThreadPendingRef.current) return
+
+    autoCreateThreadPendingRef.current = true
+    sessionStorage.removeItem(THREAD_KEY)
+    setCurrentThreadId(undefined)
+    createSession(
+      { type: "ai" },
+      {
+        onSuccess: (session) => setCurrentThreadId(session.threadId),
+        onError: () => {
+          autoCreateThreadPendingRef.current = false
+          toast.error("创建 AI 会话失败，请重试")
+        }
+      }
+    )
+  }, [
+    guestMode,
+    isAuthenticated,
+    chatSessionsFetched,
+    chatSessions,
+    currentThreadId,
+    createSession
+  ])
 
   const regularThreads = useMemo(
     () =>
@@ -387,33 +562,27 @@ export function AgUiChatProvider({
     [chatSessions]
   )
 
-  const threadList: UseAgUiThreadListAdapter = useMemo(
+  const authenticatedThreadList: UseAgUiThreadListAdapter = useMemo(
     () => ({
       threadId: currentThreadId,
       threads: regularThreads,
       archivedThreads,
       onSwitchToNewThread: async () => {
-        const session = await chatApi.createSession({ type: "ai" })
-        setCurrentThreadId(session.threadId)
-        await onNewThread?.()
+        autoCreateThreadPendingRef.current = true
+        try {
+          const session = await createSessionAsync({ type: "ai" })
+          setCurrentThreadId(session.threadId)
+          await onNewThread?.()
+        } catch (error) {
+          autoCreateThreadPendingRef.current = false
+          throw error
+        }
       },
       onSwitchToThread: async (threadId: string) => {
-        // AAF-114 #11411：历史加载失败不伪装成空会话——只有成功后才切换 currentThreadId，
-        // 失败时保留在原线程并把异常原样抛给调用方（SessionPopover 捕获后提示用户重试）。
+        // 历史加载成功后再切换，失败时保留原线程。
         const history = await chatApi.getMessages(threadId)
-        const messages = history.map((msg) => ({
-          id: String(msg.id),
-          role: msg.role === "user" ? ("user" as const) : ("assistant" as const),
-          content: [{ type: "text" as const, text: msg.content }],
-          createdAt: new Date(msg.createdAt),
-          ...(msg.role !== "user" && {
-            status: { type: "complete" as const, reason: "stop" as const }
-          }),
-          ...(msg.role === "user" && { attachments: [] }),
-          metadata: { custom: {} }
-        })) as ThreadMessage[]
         setCurrentThreadId(threadId)
-        return { messages }
+        return { messages: toThreadMessages(history) }
       },
       onRename: async (threadId, newTitle) => {
         await renameSessionMutation.mutateAsync({ threadId, title: newTitle })
@@ -426,10 +595,15 @@ export function AgUiChatProvider({
       },
       onDelete: async (threadId) => {
         await deleteSessionMutation.mutateAsync(threadId)
+        if (threadId === currentThreadId) {
+          sessionStorage.removeItem(THREAD_KEY)
+          setCurrentThreadId(undefined)
+        }
       }
     }),
     [
       onNewThread,
+      createSessionAsync,
       currentThreadId,
       regularThreads,
       archivedThreads,
@@ -439,6 +613,42 @@ export function AgUiChatProvider({
       deleteSessionMutation
     ]
   )
+
+  const guestSession = guestSessionQuery.isFetchedAfterMount ? guestSessionQuery.data : undefined
+  const guestThreadId = guestSession?.threadId
+  const guestThreads = useMemo(
+    () =>
+      guestThreadId ? [{ status: "regular" as const, id: guestThreadId, title: "AI 客服" }] : [],
+    [guestThreadId]
+  )
+  const guestThreadList: UseAgUiThreadListAdapter = useMemo(
+    () => ({
+      threadId: currentThreadId,
+      threads: guestThreads,
+      archivedThreads: [],
+      onSwitchToNewThread: async () => {
+        if (guestThreadId) {
+          setCurrentThreadId(guestThreadId)
+        }
+      },
+      onSwitchToThread: async (threadId: string) => {
+        if (!guestSession || threadId !== guestSession.threadId) {
+          throw new Error("匿名客服会话尚未就绪")
+        }
+        // assistant-ui 要求先更新选中线程，再异步加载该线程历史。
+        setCurrentThreadId(threadId)
+        const history = await getGuestMessages(guestSession)
+        return { messages: toThreadMessages(history) }
+      },
+      onRename: async () => {},
+      onArchive: async () => {},
+      onUnarchive: async () => {},
+      onDelete: async () => {}
+    }),
+    [currentThreadId, guestSession, guestThreadId, guestThreads]
+  )
+
+  const threadList = guestMode ? guestThreadList : authenticatedThreadList
 
   const voiceAdapter = useMemo(
     () => new OmniVoiceAdapter({ getToken: () => useAuthStore.getState().accessToken }),
@@ -469,34 +679,68 @@ export function AgUiChatProvider({
     []
   )
 
-  // HttpAgent@0.0.53 缺少 pendingInterrupts，已在上方通过 Object.defineProperty 补全
+  // guest 仅暴露公开客服 threadList，避免触发要求登录的反馈、语音和上传链路。
+  const adapters = guestMode
+    ? { threadList }
+    : {
+        threadList,
+        voice: voiceAdapter,
+        attachments: attachmentAdapter,
+        feedback: feedbackAdapter
+      }
+
   const runtime = useAgUiRuntime({
     agent,
     onError,
     showThinking,
-    adapters: {
-      threadList,
-      voice: voiceAdapter,
-      attachments: attachmentAdapter,
-      feedback: feedbackAdapter
-    }
+    adapters
   })
 
-  const aui = useAui({ tools: Tools({ toolkit: { ...aigcToolkit, ...renderUiBlockToolkit } }) })
+  const aui = useAui(
+    guestMode ? {} : { tools: Tools({ toolkit: { ...aigcToolkit, ...renderUiBlockToolkit } }) }
+  )
 
-  // 初始线程恢复：currentThreadId 就绪后切换（含从 sessionStorage 恢复 + 新建 session）
+  // 初始线程恢复：guest 等待 session；登录线程先经当前用户会话列表验证所有权。
   const switchedRef = useRef(false)
+  const [initialThreadReady, setInitialThreadReady] = useState(!guestMode)
+  const [initialThreadError, setInitialThreadError] = useState(false)
+  const initialThreadIdToSwitch = guestMode ? guestThreadId : currentThreadId
+  const initialThreadOwned = guestMode
+    ? Boolean(guestSession && guestThreadId === guestSession.threadId)
+    : Boolean(
+        isAuthenticated &&
+          chatSessionsFetched &&
+          currentThreadId &&
+          chatSessions?.some(
+            (session) => session.threadId === currentThreadId && session.type === "ai"
+          )
+      )
   useEffect(() => {
-    if (currentThreadId && !switchedRef.current) {
-      switchedRef.current = true
-      runtime.threads.switchToThread(currentThreadId)
-    }
-  }, [currentThreadId, runtime.threads])
+    if (!initialThreadIdToSwitch || !initialThreadOwned || switchedRef.current) return
+    switchedRef.current = true
+    setInitialThreadError(false)
+    void runtime.threads
+      .switchToThread(initialThreadIdToSwitch)
+      .then(() => setInitialThreadReady(true))
+      .catch((error: unknown) => {
+        switchedRef.current = false
+        setInitialThreadError(true)
+        onError(error instanceof Error ? error : new Error("客服历史加载失败"))
+      })
+  }, [initialThreadIdToSwitch, initialThreadOwned, onError, runtime.threads])
 
   return (
     <AssistantRuntimeProvider runtime={runtime} aui={aui}>
-      <VoiceCleanup />
-      {children}
+      {!guestMode && <VoiceCleanup />}
+      {guestMode && (!guestThreadId || !initialThreadReady) ? (
+        <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
+          {guestSessionQuery.isError || initialThreadError
+            ? "连接客服失败，请稍后重试"
+            : "正在连接客服…"}
+        </div>
+      ) : (
+        children
+      )}
     </AssistantRuntimeProvider>
   )
 }
@@ -516,6 +760,9 @@ function VoiceCleanup() {
 /** 根据错误信息分类，返回用户友好的提示 */
 export function classifyError(error: Error): string {
   const msg = error.message.toLowerCase()
+  if (msg.includes("401") || msg.includes("unauthorized") || msg.includes("未授权")) {
+    return "客服会话已失效，请刷新后重试"
+  }
   if (msg.includes("network") || msg.includes("fetch") || msg.includes("failed to fetch")) {
     return "网络连接异常，请检查网络后重试"
   }

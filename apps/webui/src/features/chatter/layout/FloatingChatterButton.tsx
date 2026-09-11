@@ -15,20 +15,13 @@
 import { useRef } from "react"
 import { LottieIcon } from "@/components/animate/LottieIcon"
 import type { ChatterPreset } from "@/features/chatter/types"
-import { leadApi } from "@/lib/api/rest/lead"
-import { useAuthStore } from "@/lib/store/auth-store"
 import { useChatterStore } from "@/lib/store/chatter-store"
-import { getOrCreateAnonymousId } from "@/lib/utils/anonymous-id"
 
 const BUTTON_SIZE = 140
 const DRAG_THRESHOLD = 5
 
-/** CHAT 节流键：sessionStorage（同 tab 内不重复） */
-const CHAT_RECORDED_KEY = "aaf-anonymous-chat-recorded"
-
 interface FloatingChatterButtonProps {
   preset: ChatterPreset
-  agentRole?: string
 }
 
 export function FloatingChatterButton(props: FloatingChatterButtonProps) {
@@ -86,11 +79,11 @@ export function FloatingChatterButton(props: FloatingChatterButtonProps) {
       draggedRef.current = false
       return
     }
-    // 未登录访客首次点击对话时记一条 CHAT lead（同 tab 不重复，同 24h 不同 tab 不重复）
-    recordAnonymousChatLead(props.agentRole)
     setMode("dialog")
     setOpen(!open)
   }
+
+  const assistantLabel = props.preset === "guest" ? "客服" : "助理"
 
   return (
     <button
@@ -102,7 +95,7 @@ export function FloatingChatterButton(props: FloatingChatterButtonProps) {
       onClick={handleClick}
       style={{ right: buttonPos.right, bottom: buttonPos.bottom }}
       className="fixed z-50 flex size-[140px] cursor-pointer touch-none select-none items-center justify-center text-primary"
-      aria-label={open ? "关闭助理" : "打开助理"}
+      aria-label={open ? `关闭${assistantLabel}` : `打开${assistantLabel}`}
     >
       <span
         data-state={open ? "open" : "closed"}
@@ -128,27 +121,4 @@ export function FloatingChatterButton(props: FloatingChatterButtonProps) {
 
 function clamp(v: number, min: number, max: number) {
   return Math.max(min, Math.min(max, v))
-}
-
-/**
- * 未登录访客首次点击对话按钮时记一条 CHAT lead，同 tab 内不重复。
- * 已登录用户跳过；调用失败静默（非关键路径）。
- */
-function recordAnonymousChatLead(agentRole: string | undefined) {
-  if (typeof window === "undefined") return
-  if (useAuthStore.getState().isAuthenticated) return
-  if (window.sessionStorage.getItem(CHAT_RECORDED_KEY)) return
-
-  leadApi
-    .create({
-      anonymousId: getOrCreateAnonymousId(),
-      channel: "CHAT",
-      agentRole: agentRole ?? "customer-service"
-    })
-    .then(() => {
-      window.sessionStorage.setItem(CHAT_RECORDED_KEY, String(Date.now()))
-    })
-    .catch(() => {
-      // 静默失败
-    })
 }
