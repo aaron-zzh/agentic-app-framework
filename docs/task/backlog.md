@@ -2,7 +2,7 @@
 
 所有用户故事的唯一来源。条目由 product agent 细化后登记，协调者维护编号和状态。
 
-编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-115**，新一级用户故事从 AAF-116 开始。添加新条目后必须同步更新此行。
+编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-116**，新一级用户故事从 AAF-117 开始。添加新条目后必须同步更新此行。
 
 ## 当前迭代（v0.13）
 
@@ -11,6 +11,8 @@
 - [ ] AAF-115 (创建: 09-11) 统一 Task/TaskPlan/Execution 任务模型与 DAG 编排（移除 AssistantTask/DelegatedTask 双真理源；普通 CHAT 只建 Execution；复杂任务使用唯一 Task + 可选 TaskPlan；支持串行、并行、join、fan-out/fan-in、恢复与 fencing）任务: docs/task/v0.13/AAF-115/tasks.md
 
 ## 待排期
+
+- [ ] AAF-116 (创建: 09-11) 对话式受控实体 CRUD 与失败任务资源处置（失败 Task 展示结构化资源链接；用户通过 UI 或 Assistant 查询、更新、归档或删除；复用 CrudResourceDefinition、AI_ACTION、AiBusinessActionTool 与 EntityActionRegistry；写操作受 Task、权限、确认、版本、引用检查、幂等和审计约束；不自动删除，依赖 AAF-115）需求: docs/prd/assistant/conversational-controlled-entity-crud.md
 
 - [ ] AAF-027 (创建: 05-10) LLM 调用录制与回放（测试基础设施：拦截 LLM API 请求录制为 JSON，测试时回放，避免真实调用，保证确定性 + 降低成本）参考：Mastra `_llm-recorder`、WireMock、Spring AI MockChatModel
 - [ ] AAF-035 (创建: 05-14) Nx 工程化持续优化（lefthook 迁移 + enforce-module-boundaries + publint/attw + 共享 tsconfig 包 + Changeset 版本管理）(依赖: AAF-028 packages/ 落地后)
