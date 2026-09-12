@@ -1,6 +1,5 @@
 package com.xuejiai.aaf.framework.intelligent.assistant.port;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,14 +16,4 @@ public interface HumanApprovalPort {
     List<HumanApproval> pending(TenantId tenantId, TaskId taskId);
 
     List<HumanApproval> pending(TenantId tenantId, UserId userId);
-
-    DecisionResult decide(
-            TenantId tenantId,
-            String approvalId,
-            HumanApproval.Status decision,
-            String decidedBy,
-            String reason,
-            Instant at);
-
-    record DecisionResult(HumanApproval approval, boolean changed) {}
 }

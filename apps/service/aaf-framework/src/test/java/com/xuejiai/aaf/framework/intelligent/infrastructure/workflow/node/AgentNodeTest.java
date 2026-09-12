@@ -2,6 +2,7 @@ package com.xuejiai.aaf.framework.intelligent.infrastructure.workflow.node;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -17,7 +18,8 @@ import org.mockito.Mock;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantCommand;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantDefinitionFixtures;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskCommandService;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlan;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
@@ -45,7 +47,7 @@ import reactor.core.publisher.Flux;
  */
 class AgentNodeTest extends BaseMockitoUnitTest {
 
-    @Mock private AssistantCommandPort assistants;
+    @Mock private TaskCommandService assistants;
     @Mock private AssistantDefinitionPort assistantDefinitions;
     @Mock private DelegateExecution execution;
 
@@ -59,7 +61,9 @@ class AgentNodeTest extends BaseMockitoUnitTest {
         when(assistantDefinitions.findDefaultForUser(any(), any()))
                 .thenReturn(Optional.of(AssistantDefinitionFixtures.defaultUser()));
         var captor = ArgumentCaptor.forClass(AssistantCommand.class);
-        when(assistants.execute(captor.capture())).thenReturn(completedEvents("你好呀"));
+        when(assistants.submitAndDispatch(
+                        captor.capture(), any(TaskPlan.class), anyString()))
+                .thenReturn(completedEvents("你好呀"));
 
         node.execute(execution);
 
@@ -80,7 +84,9 @@ class AgentNodeTest extends BaseMockitoUnitTest {
         when(assistantDefinitions.findDefaultForUser(any(), any()))
                 .thenReturn(Optional.of(AssistantDefinitionFixtures.defaultUser()));
         var captor = ArgumentCaptor.forClass(AssistantCommand.class);
-        when(assistants.execute(captor.capture())).thenReturn(completedEvents("摘要内容"));
+        when(assistants.submitAndDispatch(
+                        captor.capture(), any(TaskPlan.class), anyString()))
+                .thenReturn(completedEvents("摘要内容"));
 
         node.execute(execution);
 
@@ -98,7 +104,8 @@ class AgentNodeTest extends BaseMockitoUnitTest {
         stubExecutionVariables("你好", null, null);
         when(assistantDefinitions.findDefaultForUser(any(), any()))
                 .thenReturn(Optional.of(AssistantDefinitionFixtures.defaultUser()));
-        when(assistants.execute(any())).thenReturn(Flux.just(failedEvent()));
+        when(assistants.submitAndDispatch(any(), any(TaskPlan.class), anyString()))
+                .thenReturn(Flux.just(failedEvent()));
 
         node.execute(execution);
 

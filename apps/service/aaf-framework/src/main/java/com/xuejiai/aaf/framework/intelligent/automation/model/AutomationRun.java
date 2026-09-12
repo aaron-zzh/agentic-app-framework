@@ -14,7 +14,7 @@ public record AutomationRun(
         String automationId,
         long definitionVersion,
         String triggerKey,
-        TaskId delegatedTaskId,
+        TaskId taskId,
         AutomationDefinition definitionSnapshot,
         Map<String, Object> parameters,
         Status status,
@@ -26,7 +26,7 @@ public record AutomationRun(
         require(runId, "runId");
         require(automationId, "automationId");
         require(triggerKey, "triggerKey");
-        Objects.requireNonNull(delegatedTaskId, "delegatedTaskId 不能为空");
+        Objects.requireNonNull(taskId, "taskId 不能为空");
         Objects.requireNonNull(definitionSnapshot, "definitionSnapshot 不能为空");
         parameters = Map.copyOf(Objects.requireNonNull(parameters, "parameters 不能为空"));
         Objects.requireNonNull(status, "status 不能为空");

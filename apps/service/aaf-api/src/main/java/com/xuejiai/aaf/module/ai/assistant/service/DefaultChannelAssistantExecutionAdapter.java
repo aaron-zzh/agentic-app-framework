@@ -23,7 +23,6 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.IdempotencyKey;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.RunId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.SessionId;
-import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 import com.xuejiai.aaf.module.ai.assistant.port.ChannelAssistantExecutionPort;
@@ -63,8 +62,8 @@ public class DefaultChannelAssistantExecutionAdapter implements ChannelAssistant
                                 stable("channel-visitor", conversationKey)),
                         new AssistantId(request.assistantId()),
                         new ConversationId(stable("channel-conversation-id", conversationKey)),
-                        new SessionId(stable("channel-session-id", conversationKey)),
-                        new TaskId(stable("channel-task-id", messageKey)),
+                        new SessionId(stable("channel-session-id", messageKey)),
+                        null,
                         new ExecutionId(stable("channel-execution-id", messageKey)),
                         new RunId(stable("channel-run-id", messageKey)),
                         null,

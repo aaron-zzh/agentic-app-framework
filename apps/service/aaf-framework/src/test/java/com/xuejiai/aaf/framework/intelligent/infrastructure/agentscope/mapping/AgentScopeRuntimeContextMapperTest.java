@@ -22,7 +22,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 
-/** RQ-08 / RQ-09：AgentScope 状态槽键必须把 Agent 身份与本次执行纳入隔离维度。 */
+/** AgentScope 状态槽键必须隔离 Agent 身份，并以稳定 stateSlot 标识 attempt。 */
 class AgentScopeRuntimeContextMapperTest {
 
     private final AgentScopeRuntimeContextMapper mapper = new AgentScopeRuntimeContextMapper();
@@ -36,7 +36,7 @@ class AgentScopeRuntimeContextMapperTest {
         var second = mapper.stateUserKey(context, "agent.beta");
 
         assertThat(first).isNotEqualTo(second);
-        assertThat(first).contains("agent=agent.alpha").contains("execution=execution-1");
+        assertThat(first).contains("agent=agent.alpha").contains("stateSlot=execution-1");
     }
 
     @Test

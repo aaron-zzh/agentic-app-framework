@@ -35,18 +35,21 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.ToolParameterPolicyPort;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
 import com.xuejiai.aaf.framework.intelligent.ai.embedding.EmbeddingService;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.PersistentHitlCoordinator;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskCommandService;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskDispatchPort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HitlCoordinatorPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.HitlTransitionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HumanApprovalPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.NotificationPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.PromptEnvelopePort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskBoardPort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskControlPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskDispatchSignalPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskMaterializationPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskPlanPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskQueryPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskRecoveryPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskResumeSignalPort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskTransitionPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskUnitOfWork;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.plan.ExecutorPlanPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.application.DefaultL1ContextCollaborator;
 import com.xuejiai.aaf.framework.intelligent.cognition.application.DefaultMemoryContextCollaborator;
 import com.xuejiai.aaf.framework.intelligent.cognition.application.DefaultMemoryRetrievalPort;
@@ -71,18 +74,25 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.Ag
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentScopeInfrastructureAutoConfiguration;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.lease.RedisConversationLeaseAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.ClarificationRequestRepository;
-import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.DelegatedTaskRepository;
-import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaDelegatedTaskAdapter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaHitlTransitionAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaNotificationOutboxAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaPromptEnvelopeAdapter;
-import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaTaskBoardAdapter;
-import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaTaskTransitionAdapter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaTaskMaterializationAdapter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaTaskPlanAdapter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaTaskQueryAdapter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaTaskUnitOfWorkAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.PromptEnvelopeRepository;
-import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.TaskBoardRepository;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.TaskDependencyRepository;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.TaskDispatchRepository;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.TaskExecutionRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.TaskInputRepository;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.TaskNodeRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.TaskNotificationOutboxRepository;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.TaskPlanRepository;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.TaskRootRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.TaskTransitionOutboxRepository;
-import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.spring.SpringDelegatedTaskDispatchAdapter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.plan.ExecutorPlanRepository;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.spring.SpringTaskDispatchSignalAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.cognition.KnowledgeEmbeddingAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.cognition.RuleBasedMemoryGovernanceAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.cognition.memory.RedisSessionMemoryAdapter;
@@ -132,20 +142,23 @@ public class IntelligentGovernanceAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean(DelegatedTaskPort.class)
-    DelegatedTaskPort delegatedTaskPort(
-            DelegatedTaskRepository repository,
-            TaskBoardRepository taskBoards,
+    @ConditionalOnMissingBean(TaskUnitOfWork.class)
+    TaskUnitOfWork taskUnitOfWork(
+            TaskRootRepository tasks,
+            TaskExecutionRepository executions,
+            TaskDispatchRepository dispatches,
             TaskInputRepository inputs,
             ConversationLeasePort leases) {
-        return new JpaDelegatedTaskAdapter(repository, taskBoards, inputs, leases);
+        return new JpaTaskUnitOfWorkAdapter(tasks, executions, dispatches, inputs, leases);
     }
 
     @Bean
-    @ConditionalOnMissingBean(TaskTransitionPort.class)
-    TaskTransitionPort taskTransitionPort(
-            DelegatedTaskRepository tasks,
-            TaskBoardRepository boards,
+    @ConditionalOnMissingBean(HitlTransitionPort.class)
+    HitlTransitionPort hitlTransitionPort(
+            TaskRootRepository taskRoots,
+            TaskExecutionRepository taskExecutions,
+            TaskDispatchRepository taskDispatches,
+            TaskPlanPort boards,
             HumanApprovalRepository approvals,
             AuthorizationGrantRepository grants,
             ClarificationRequestRepository clarifications,
@@ -155,8 +168,10 @@ public class IntelligentGovernanceAutoConfiguration {
             ApplicationEventPublisher publisher,
             ConversationLeasePort leases,
             MeterRegistry meters) {
-        return new JpaTaskTransitionAdapter(
-                tasks,
+        return new JpaHitlTransitionAdapter(
+                taskRoots,
+                taskExecutions,
+                taskDispatches,
                 boards,
                 approvals,
                 grants,
@@ -170,9 +185,51 @@ public class IntelligentGovernanceAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean(TaskBoardPort.class)
-    TaskBoardPort taskBoardPort(TaskBoardRepository repository, ConversationLeasePort leases) {
-        return new JpaTaskBoardAdapter(repository, leases);
+    @ConditionalOnMissingBean(TaskMaterializationPort.class)
+    TaskMaterializationPort taskMaterializationPort(
+            TaskRootRepository tasks,
+            TaskPlanRepository plans,
+            TaskNodeRepository nodes,
+            TaskDependencyRepository dependencies,
+            TaskExecutionRepository executions,
+            TaskDispatchRepository dispatches,
+            TaskInputRepository inputs,
+            ExecutorPlanRepository executorPlans,
+            SynchronousExecutionEventWriter eventWriter,
+            TaskTransitionOutboxRepository transitionOutbox) {
+        return new JpaTaskMaterializationAdapter(
+                tasks,
+                plans,
+                nodes,
+                dependencies,
+                executions,
+                dispatches,
+                inputs,
+                executorPlans,
+                eventWriter,
+                transitionOutbox);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(TaskPlanPort.class)
+    TaskPlanPort taskPlanPort(
+            TaskRootRepository tasks,
+            TaskPlanRepository plans,
+            TaskNodeRepository nodes,
+            TaskDependencyRepository dependencies,
+            ConversationLeasePort leases) {
+        return new JpaTaskPlanAdapter(tasks, plans, nodes, dependencies, leases);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(TaskQueryPort.class)
+    TaskQueryPort taskQueryPort(
+            TaskRootRepository tasks,
+            TaskExecutionRepository executions,
+            TaskDispatchRepository dispatches,
+            TaskPlanPort plans,
+            ExecutorPlanPort executorPlans) {
+        return new JpaTaskQueryAdapter(tasks, executions, dispatches, plans, executorPlans);
     }
 
     @Bean
@@ -187,7 +244,7 @@ public class IntelligentGovernanceAutoConfiguration {
     InvocationReceiptPort invocationReceiptPort(
             ToolInvocationReceiptRepository repository,
             ConversationLeasePort leases,
-            DelegatedTaskPort delegatedTasks) {
+            TaskUnitOfWork delegatedTasks) {
         return new JpaInvocationReceiptAdapter(repository, leases, delegatedTasks);
     }
 
@@ -197,7 +254,7 @@ public class IntelligentGovernanceAutoConfiguration {
             ExecutionEventRepository repository,
             SynchronousExecutionEventWriter writer,
             ConversationLeasePort leases,
-            DelegatedTaskPort delegatedTasks) {
+            TaskUnitOfWork delegatedTasks) {
         return new JpaExecutionEventStoreAdapter(repository, writer, leases, delegatedTasks);
     }
 
@@ -206,7 +263,7 @@ public class IntelligentGovernanceAutoConfiguration {
     TokenMeteringPort tokenMeteringPort(
             ModelManagementService models,
             AiCreditGuard creditGuard,
-            DelegatedTaskPort delegatedTasks,
+            TaskUnitOfWork delegatedTasks,
             ConversationLeasePort leases) {
         return new JpaTokenMeteringAdapter(models, creditGuard, delegatedTasks, leases);
     }
@@ -237,9 +294,9 @@ public class IntelligentGovernanceAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean(DelegatedTaskDispatchPort.class)
-    DelegatedTaskDispatchPort delegatedTaskDispatchPort(ApplicationEventPublisher publisher) {
-        return new SpringDelegatedTaskDispatchAdapter(publisher);
+    @ConditionalOnMissingBean(TaskDispatchSignalPort.class)
+    TaskDispatchSignalPort taskDispatchSignalPort(ApplicationEventPublisher publisher) {
+        return new SpringTaskDispatchSignalAdapter(publisher);
     }
 
     /**
@@ -356,25 +413,21 @@ public class IntelligentGovernanceAutoConfiguration {
             ToolRegistry registry,
             CredentialVaultPort credentials,
             ConversationLeasePort leases,
-            DelegatedTaskPort delegatedTasks) {
+            TaskUnitOfWork delegatedTasks) {
         return new RegistryConnectorActionAdapter(registry, credentials, leases, delegatedTasks);
     }
 
     @Bean
     @ConditionalOnMissingBean(ScopedFileSystemPort.class)
     ScopedFileSystemPort scopedFileSystemPort(
-            Environment environment,
-            ConversationLeasePort leases,
-            DelegatedTaskPort delegatedTasks) {
+            Environment environment, ConversationLeasePort leases, TaskUnitOfWork delegatedTasks) {
         return new LocalScopedFileSystemAdapter(workspaceRoot(environment), leases, delegatedTasks);
     }
 
     @Bean
     @ConditionalOnMissingBean(SandboxPort.class)
     SandboxPort sandboxPort(
-            Environment environment,
-            ConversationLeasePort leases,
-            DelegatedTaskPort delegatedTasks) {
+            Environment environment, ConversationLeasePort leases, TaskUnitOfWork delegatedTasks) {
         return new GovernedSandboxAdapter(workspaceRoot(environment), leases, delegatedTasks);
     }
 
@@ -383,7 +436,7 @@ public class IntelligentGovernanceAutoConfiguration {
     McpPort mcpPort(
             ConnectorActionPort connectors,
             ConversationLeasePort leases,
-            DelegatedTaskPort delegatedTasks,
+            TaskUnitOfWork delegatedTasks,
             InvocationReceiptPort receipts) {
         return new GovernedMcpAdapter(connectors, leases, delegatedTasks, receipts);
     }
@@ -394,24 +447,11 @@ public class IntelligentGovernanceAutoConfiguration {
             HumanApprovalPort approvals,
             AuthorizationGrantPort grants,
             CredentialVaultPort credentials,
-            TaskControlPort tasks,
-            TaskRecoveryPort recoveries,
-            TaskResumeSignalPort resumeSignals,
-            ExecutionEventStorePort events,
-            TaskTransitionPort transitions,
-            DelegatedTaskDispatchPort delegatedDispatch,
+            HitlTransitionPort transitions,
+            TaskCommandService taskCommands,
             ConversationLeasePort leases) {
         return new PersistentHitlCoordinator(
-                approvals,
-                grants,
-                credentials,
-                tasks,
-                recoveries,
-                resumeSignals,
-                events,
-                transitions,
-                delegatedDispatch,
-                leases);
+                approvals, grants, credentials, transitions, taskCommands, leases);
     }
 
     @Bean
@@ -419,11 +459,11 @@ public class IntelligentGovernanceAutoConfiguration {
     ToolGatewayPort toolGatewayPort(
             AuthorizationGrantPort grants,
             ToolParameterPolicyPort parameterPolicy,
-            TaskTransitionPort transitions,
+            HitlTransitionPort transitions,
             ToolInvocationPort localTools,
             ConnectorActionPort connectors,
             ConversationLeasePort leases,
-            DelegatedTaskPort delegatedTasks,
+            TaskUnitOfWork delegatedTasks,
             InvocationReceiptPort receipts) {
         return new DefaultToolGateway(
                 grants,

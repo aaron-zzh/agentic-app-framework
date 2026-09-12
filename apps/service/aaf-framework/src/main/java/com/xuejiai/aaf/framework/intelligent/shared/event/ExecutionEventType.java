@@ -3,6 +3,7 @@ package com.xuejiai.aaf.framework.intelligent.shared.event;
 /** AAF 执行轨迹中可跨层观察的事实类型。 */
 public enum ExecutionEventType {
     EXECUTION_STARTED,
+    EXECUTION_PROMOTED,
     EXECUTION_COMPLETED,
     EXECUTION_FAILED,
     EXECUTION_CANCELED,

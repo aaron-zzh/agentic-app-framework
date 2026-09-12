@@ -11,7 +11,7 @@ import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard.IdempotentUsageSettlement;
 import com.xuejiai.aaf.framework.intelligent.agent.port.TokenMeteringPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskUnitOfWork;
 import com.xuejiai.aaf.framework.intelligent.core.AiUsage;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelManagementService;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
@@ -22,13 +22,13 @@ public final class JpaTokenMeteringAdapter implements TokenMeteringPort {
 
     private final ModelManagementService models;
     private final AiCreditGuard creditGuard;
-    private final DelegatedTaskPort delegatedTasks;
+    private final TaskUnitOfWork delegatedTasks;
     private final ConversationLeasePort leases;
 
     public JpaTokenMeteringAdapter(
             ModelManagementService models,
             AiCreditGuard creditGuard,
-            DelegatedTaskPort delegatedTasks,
+            TaskUnitOfWork delegatedTasks,
             ConversationLeasePort leases) {
         this.models = Objects.requireNonNull(models, "models 不能为空");
         this.creditGuard = Objects.requireNonNull(creditGuard, "creditGuard 不能为空");
@@ -85,7 +85,9 @@ public final class JpaTokenMeteringAdapter implements TokenMeteringPort {
                         new IdempotentUsageSettlement(
                                 fact.usageId(),
                                 fact.context().tenantId().value(),
-                                fact.context().taskId().value(),
+                                fact.context().taskId() == null
+                                        ? fact.context().executionId().value()
+                                        : fact.context().taskId().value(),
                                 fact.context().executionId().value(),
                                 fact.context().lease() == null
                                         ? 0L

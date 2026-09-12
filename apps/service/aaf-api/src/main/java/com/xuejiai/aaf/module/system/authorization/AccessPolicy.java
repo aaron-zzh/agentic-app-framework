@@ -1,9 +1,8 @@
 package com.xuejiai.aaf.module.system.authorization;
 
-import org.hibernate.annotations.Check;
-
 import com.xuejiai.aaf.common.model.BaseEntity;
 
+import jakarta.persistence.CheckConstraint;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Index;
@@ -25,10 +24,11 @@ import lombok.Setter;
         indexes =
                 @Index(
                         name = "idx_sys_access_policy_runtime",
-                        columnList = "lifecycle,target_resource,target_action,priority"))
-@Check(
-        constraints =
-                "lifecycle in ('DRAFT','SHADOW','ENFORCE','DISABLED') and effect in ('ALLOW','DENY','CHALLENGE')")
+                        columnList = "lifecycle,target_resource,target_action,priority"),
+        check =
+                @CheckConstraint(
+                        constraint =
+                                "lifecycle in ('DRAFT','SHADOW','ENFORCE','DISABLED') and effect in ('ALLOW','DENY','CHALLENGE')"))
 @com.xuejiai.aaf.framework.org.OrgIgnore
 public class AccessPolicy extends BaseEntity {
 

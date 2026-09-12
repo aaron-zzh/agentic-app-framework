@@ -6,11 +6,10 @@ import java.util.List;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.AssistantRuntimeEntity;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
@@ -27,10 +26,7 @@ import lombok.Setter;
             @UniqueConstraint(columnNames = {"plan_id", "step_key"}),
             @UniqueConstraint(columnNames = {"plan_id", "ordinal"})
         })
-public class ExecutorPlanStepEntity {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class ExecutorPlanStepEntity extends AssistantRuntimeEntity {
 
     @Column(name = "plan_id", nullable = false, length = 128)
     private String planId;
@@ -75,6 +71,6 @@ public class ExecutorPlanStepEntity {
     private Instant finishedAt;
 
     @Version
-    @Column(name = "lock_version", nullable = false)
-    private Long lockVersion;
+    @Column(name = "runtime_lock_version", nullable = false)
+    private Long runtimeLockVersion;
 }

@@ -1,11 +1,14 @@
 package com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.execution;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -20,7 +23,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.model.SubagentSpec;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskUnitOfWork;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.ContextBudgetExceededException;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
 import com.xuejiai.aaf.framework.intelligent.core.prompt.InvocationMode;
@@ -35,9 +38,13 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.A
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeMessageMapper;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeRuntimeContextMapper;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.middleware.AgentScopeTokenMeteringObserver;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.state.DispatchGuardedAgentStateStore;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.state.DispatchGuardedAgentStateStore.Registration;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.ToolResultEvidenceStore;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.OwnerType;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventPayload;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ExecutionEventStatus;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
@@ -46,9 +53,10 @@ import io.agentscope.core.ReActAgent;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.event.AgentEvent;
 import io.agentscope.core.event.AgentEventType;
+import io.agentscope.core.event.ToolResultEndEvent;
+import io.agentscope.core.message.ToolResultState;
 import io.agentscope.core.shutdown.GracefulShutdownManager;
 import io.agentscope.core.state.AgentState;
-import io.agentscope.core.state.AgentStateStore;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -68,12 +76,12 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
     private final AgentScopeSpecCompiler compiler;
     private final AgentScopeMessageMapper messageMapper;
     private final AgentScopeRuntimeContextMapper contextMapper;
-    private final AgentStateStore stateStore;
+    private final DispatchGuardedAgentStateStore stateStore;
     private final AgentScopeEventMapper eventMapper;
     private final AgentScopeTokenMeteringObserver meteringObserver;
     private final ExecutionEventStorePort eventStore;
     private final ConversationLeasePort leases;
-    private final DelegatedTaskPort delegatedTasks;
+    private final TaskUnitOfWork delegatedTasks;
     private final ToolResultEvidenceStore evidenceStore;
 
     /**
@@ -110,12 +118,12 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
             AgentScopeSpecCompiler compiler,
             AgentScopeMessageMapper messageMapper,
             AgentScopeRuntimeContextMapper contextMapper,
-            AgentStateStore stateStore,
+            DispatchGuardedAgentStateStore stateStore,
             AgentScopeEventMapper eventMapper,
             AgentScopeTokenMeteringObserver meteringObserver,
             ExecutionEventStorePort eventStore,
             ConversationLeasePort leases,
-            DelegatedTaskPort delegatedTasks,
+            TaskUnitOfWork delegatedTasks,
             ToolResultEvidenceStore evidenceStore,
             Scheduler blockingScheduler) {
         this.definitions = Objects.requireNonNull(definitions, "definitions 不能为空");
@@ -382,7 +390,6 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                     contextMapper.stateUserKey(command.context(), execution.agentIdentifier());
             runtimeContext =
                     contextMapper.toAgentScope(command.context(), execution.agentIdentifier());
-            requireNoHiddenPersistentHistory(command, stateUserKey);
         } catch (RuntimeException failure) {
             release(execution);
             throw failure;
@@ -400,6 +407,14 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                         new DuplicateExecutionSubscriptionException(
                                 "executionId 已存在活跃执行: " + executionId.value()));
             }
+            active.stateRegistration()
+                    .set(
+                            stateStore.register(
+                                    stateUserKey,
+                                    command.context().sessionId().value(),
+                                    command.context()));
+            requireNoHiddenPersistentHistory(command, stateUserKey);
+            active.stateAccessReady().set(true);
             log.debug(
                     "[AgentLoop] 已注册活跃执行并订阅 Harness 事件流：executionId={}，agent={}，临时实例={}",
                     executionId.value(),
@@ -429,32 +444,31 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                     .agent()
                     .streamEvents(messageMapper.toAgentScope(command.messages()), runtimeContext)
                     // 每个源事件：边界事件校验租约与任务 → 记录启动态 → 计量 token。
-                    // 阻塞 I/O 一律切到 blockingScheduler，不占用 AgentScope 事件发射线程（RQ-02）；
-                    // concatMap 保持逐事件串行，fail-closed 语义与原先完全一致
+                    // 已原子提交的 canonical HITL 挂起先读取并核验 exact event，再保存 AgentState；
+                    // 只有这一条事件可绕过已关闭 Dispatch 的 current 校验并直接回送当前 run。
                     .concatMap(
                             event ->
-                                    Mono.fromCallable(
-                                                    () -> {
-                                                        if (GUARDED_EVENT_TYPES.contains(
-                                                                event.getType())) {
-                                                            requireCurrent(command);
-                                                        }
-                                                        onSourceEvent(event, active);
-                                                        meteringObserver.observe(
-                                                                event, execution.model(), command);
-                                                        return event;
-                                                    })
-                                            .subscribeOn(blockingScheduler))
-                    // 收敛为 AAF 事件，无对应语义的源事件被丢弃
+                                    prepareSourceEvent(
+                                            event, active, command, execution, stateUserKey))
+                    // 收敛为 AAF 事件；canonical HITL 挂起直接使用事务已落库事件，不重新生成第二个语义事件
                     .concatMap(
-                            event ->
-                                    Mono.justOrEmpty(
-                                            eventMapper.map(
-                                                    event,
-                                                    command,
-                                                    execution.agentIdentifier(),
-                                                    execution.model(),
-                                                    mappingState)))
+                            receipt -> {
+                                if (receipt.committedEvent() != null) {
+                                    active.alreadyPersistedEventIds()
+                                            .add(receipt.committedEvent().eventId().value());
+                                    return Mono.just(receipt.committedEvent());
+                                }
+                                return Mono.justOrEmpty(
+                                        eventMapper.map(
+                                                receipt.sourceEvent(),
+                                                command,
+                                                execution.agentIdentifier(),
+                                                execution.model(),
+                                                mappingState));
+                            })
+                    .doOnNext(event -> preserveHitlState(event, active, command, stateUserKey))
+                    // canonical waiting event 已完成控制权交接；旧 Dispatch 的尾随 Agent 事件不得继续进入映射/持久化
+                    .takeUntil(HarnessAgentExecutionAdapter::canonicalWait)
                     // 事件静默超时：只约束相邻已映射事件之间的间隔，识别"连接未断但模型卡住"
                     .timeout(policy.idleTimeout())
                     .doOnComplete(mainTerminated::tryEmitEmpty)
@@ -486,11 +500,13 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                                                                     execution.agentIdentifier(),
                                                                     mappingState)
                                                             : pauseWonRace(active)
-                                                                    ? eventMapper.paused(
+                                                                    ? pausedEvent(
                                                                             command,
                                                                             execution
                                                                                     .agentIdentifier(),
-                                                                            mappingState)
+                                                                            mappingState,
+                                                                            active,
+                                                                            stateUserKey)
                                                                     : eventMapper.failure(
                                                                             command,
                                                                             execution
@@ -517,23 +533,284 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                                                                             mappingState))
                                                             : pauseWonRace(active)
                                                                     ? Flux.just(
-                                                                            eventMapper.paused(
+                                                                            pausedEvent(
                                                                                     command,
                                                                                     execution
                                                                                             .agentIdentifier(),
-                                                                                    mappingState))
+                                                                                    mappingState,
+                                                                                    active,
+                                                                                    stateUserKey))
                                                                     : Flux.empty()))
-                    // concatMap 保证串行入库，sequence 由存储层原子分配；写入 SLA 与模型侧时限解耦
+                    // concatMap 保证串行入库，sequence 由存储层原子分配；已由 HITL 事务提交的 exact
+                    // canonical event 只回送当前 Flux，不再次 append
                     .concatMap(
-                            event ->
-                                    eventStore
-                                            .append(event, command.context().lease())
-                                            .timeout(policy.persistTimeout()))
+                            event -> {
+                                if (active.alreadyPersistedEventIds()
+                                        .remove(event.eventId().value())) {
+                                    return Mono.just(event);
+                                }
+                                return eventStore
+                                        .append(event, command.context().lease())
+                                        .timeout(policy.persistTimeout());
+                            })
                     .doFinally(ignored -> release(executionId, active, command, stateUserKey));
         } catch (RuntimeException failure) {
             release(executionId, active, command, stateUserKey);
             throw failure;
         }
+    }
+
+    private Mono<SourceEventReceipt> prepareSourceEvent(
+            AgentEvent event,
+            ActiveExecution active,
+            AgentExecutionCommand command,
+            ResolvedExecution execution,
+            String stateUserKey) {
+        var interrupt = committedInterruptEvidence(event, command);
+        if (interrupt.isPresent()) {
+            var committed = interrupt.orElseThrow();
+            return loadCommittedInterruptEvent(command, committed)
+                    .publishOn(blockingScheduler)
+                    .map(
+                            stored -> {
+                                preserveHitlState(
+                                        committed.waitType(), active, command, stateUserKey);
+                                var consumed =
+                                        evidenceStore
+                                                .take(
+                                                        command.context().executionId(),
+                                                        committed.toolCallId())
+                                                .orElseThrow(
+                                                        () ->
+                                                                new IllegalStateException(
+                                                                        "已确认的 canonical interrupt evidence 在回送前丢失"));
+                                if (!consumed.equals(committed.values())) {
+                                    throw new IllegalStateException(
+                                            "canonical interrupt evidence 在回送期间发生变化");
+                                }
+                                onSourceEvent(event, active);
+                                meteringObserver.observe(event, execution.model(), command);
+                                return new SourceEventReceipt(event, stored);
+                            });
+        }
+        return Mono.fromCallable(
+                        () -> {
+                            if (GUARDED_EVENT_TYPES.contains(event.getType())) {
+                                requireCurrent(command);
+                            }
+                            onSourceEvent(event, active);
+                            meteringObserver.observe(event, execution.model(), command);
+                            return new SourceEventReceipt(event, null);
+                        })
+                .subscribeOn(blockingScheduler);
+    }
+
+    private Optional<CommittedInterruptEvidence> committedInterruptEvidence(
+            AgentEvent event, AgentExecutionCommand command) {
+        if (!(event instanceof ToolResultEndEvent toolResult)
+                || toolResult.getState() == ToolResultState.SUCCESS) {
+            return Optional.empty();
+        }
+        var evidence =
+                evidenceStore
+                        .peek(command.context().executionId(), toolResult.getToolCallId())
+                        .orElseGet(Map::of);
+        var authorizationRequired = Boolean.TRUE.equals(evidence.get("authorizationRequired"));
+        var clarificationRequired = Boolean.TRUE.equals(evidence.get("clarificationRequired"));
+        if (authorizationRequired && clarificationRequired) {
+            throw new IllegalStateException("同一工具结果不能同时请求授权和结构化澄清");
+        }
+        var approvalId = Objects.toString(evidence.get("approvalId"), "");
+        if (authorizationRequired && !approvalId.isBlank()) {
+            return Optional.of(
+                    new CommittedInterruptEvidence(
+                            toolResult.getToolCallId(),
+                            approvalId,
+                            "approval-request-" + approvalId,
+                            "approvalId",
+                            ExecutionEventType.AUTHORIZATION_REQUESTED,
+                            ExecutionEventStatus.AWAITING_AUTHORIZATION,
+                            OwnerType.SYSTEM,
+                            evidence));
+        }
+        var requestId = Objects.toString(evidence.get("requestId"), "");
+        if (clarificationRequired && !requestId.isBlank()) {
+            return Optional.of(
+                    new CommittedInterruptEvidence(
+                            toolResult.getToolCallId(),
+                            requestId,
+                            "clarification-request-" + requestId,
+                            "requestId",
+                            ExecutionEventType.CLARIFICATION_REQUESTED,
+                            ExecutionEventStatus.AWAITING_CLARIFICATION,
+                            OwnerType.ASSISTANT,
+                            evidence));
+        }
+        return Optional.empty();
+    }
+
+    private Mono<ExecutionEvent> loadCommittedInterruptEvent(
+            AgentExecutionCommand command, CommittedInterruptEvidence interrupt) {
+        var context = command.context();
+        return eventStore
+                .readExecution(context.tenantId(), context.executionId(), command.sequenceBase())
+                .filter(event -> interrupt.eventId().equals(event.eventId().value()))
+                .singleOrEmpty()
+                .switchIfEmpty(
+                        Mono.error(
+                                new IllegalStateException(
+                                        "canonical interrupt evidence 缺少已持久化事件: "
+                                                + interrupt.eventId())))
+                .map(
+                        event -> {
+                            requireCommittedInterruptEvent(event, command, interrupt);
+                            return event;
+                        });
+    }
+
+    private static void requireCommittedInterruptEvent(
+            ExecutionEvent event,
+            AgentExecutionCommand command,
+            CommittedInterruptEvidence interrupt) {
+        var context = command.context();
+        if (!event.eventId().value().equals(interrupt.eventId())
+                || !event.tenantId().equals(context.tenantId())
+                || !event.conversationId().equals(context.conversationId())
+                || !event.sessionId().equals(context.sessionId())
+                || !Objects.equals(event.taskId(), context.taskId())
+                || !event.executionId().equals(context.executionId())
+                || !event.runId().equals(context.runId())
+                || !Objects.equals(event.parentExecutionId(), context.parentExecutionId())
+                || event.type() != interrupt.waitType()
+                || event.status() != interrupt.waitStatus()
+                || event.controlMode() != context.controlMode()
+                || event.ownerType() != interrupt.ownerType()
+                || !Objects.equals(event.assistantId(), context.assistantId())
+                || !event.userId().equals(context.userId())
+                || !event.correlationId().equals(context.correlationId())
+                || !Objects.equals(event.causationId(), context.causationId())
+                || !Objects.equals(event.idempotencyKey(), context.idempotencyKey())
+                || !Objects.equals(event.nodeIdentity(), context.nodeIdentity())
+                || !interrupt
+                        .interruptId()
+                        .equals(
+                                Objects.toString(
+                                        event.payload()
+                                                .values()
+                                                .get(interrupt.payloadIdentityKey()),
+                                        ""))) {
+            throw new IllegalStateException("已持久化 canonical interrupt 与当前 tool/execution 身份不一致");
+        }
+    }
+
+    private static boolean canonicalWait(ExecutionEvent event) {
+        return switch (event.type()) {
+            case AUTHORIZATION_REQUESTED ->
+                    event.status() == ExecutionEventStatus.AWAITING_AUTHORIZATION;
+            case CLARIFICATION_REQUESTED ->
+                    event.status() == ExecutionEventStatus.AWAITING_CLARIFICATION;
+            default -> false;
+        };
+    }
+
+    private void preserveHitlState(
+            ExecutionEvent event,
+            ActiveExecution active,
+            AgentExecutionCommand command,
+            String stateUserKey) {
+        if (!canonicalWait(event)) {
+            return;
+        }
+        preserveHitlState(event.type(), active, command, stateUserKey);
+    }
+
+    private void preserveHitlState(
+            ExecutionEventType waitType,
+            ActiveExecution active,
+            AgentExecutionCommand command,
+            String stateUserKey) {
+        if (active.hitlStateReceipt().get() != null) {
+            return;
+        }
+
+        HitlStateReceipt receipt;
+        try {
+            var state = active.runtimeContext().getAgentState();
+            if (state == null) {
+                throw new IllegalStateException("call-scoped AgentState 尚未绑定");
+            }
+            if (!stateUserKey.equals(state.getUserId())) {
+                throw new IllegalStateException("call-scoped AgentState user key 不匹配");
+            }
+            if (!command.context().sessionId().value().equals(state.getSessionId())) {
+                throw new IllegalStateException("call-scoped AgentState session 不匹配");
+            }
+            stateStore.saveSuspended(command.context(), state);
+            receipt = new HitlStateReceipt(true, waitType, "");
+            log.debug(
+                    "[AgentLoop] canonical HITL 状态已持久化：executionId={}，waitType={}",
+                    command.context().executionId().value(),
+                    waitType);
+        } catch (RuntimeException failure) {
+            receipt = new HitlStateReceipt(false, waitType, failure.getClass().getSimpleName());
+            log.warn(
+                    "[AgentLoop] canonical HITL 状态保存失败，后续 same-attempt resume 将 fail-closed：executionId={}，waitType={}，错误类型={}",
+                    command.context().executionId().value(),
+                    waitType,
+                    failure.getClass().getSimpleName());
+        }
+        active.hitlStateReceipt().compareAndSet(null, receipt);
+    }
+
+    private ExecutionEvent pausedEvent(
+            AgentExecutionCommand command,
+            String agentIdentifier,
+            MappingState mappingState,
+            ActiveExecution active,
+            String stateUserKey) {
+        PauseStateReceipt receipt;
+        try {
+            var state = active.runtimeContext().getAgentState();
+            if (state == null) {
+                throw new IllegalStateException("call-scoped AgentState 尚未绑定");
+            }
+            if (!stateUserKey.equals(state.getUserId())) {
+                throw new IllegalStateException("call-scoped AgentState user key 不匹配");
+            }
+            stateStore.save(state.getUserId(), state.getSessionId(), "agent_state", state);
+            receipt =
+                    new PauseStateReceipt(
+                            true,
+                            command.context().executionId().value(),
+                            "agentscope-agent-state-v1",
+                            Instant.now(),
+                            "");
+        } catch (RuntimeException failure) {
+            receipt =
+                    new PauseStateReceipt(
+                            false,
+                            command.context().executionId().value(),
+                            "agentscope-agent-state-v1",
+                            null,
+                            failure.getClass().getSimpleName());
+            log.warn(
+                    "[AgentLoop] 暂停状态保存失败，将由 durable pause 降级 fresh attempt：executionId={}，错误类型={}",
+                    command.context().executionId().value(),
+                    failure.getClass().getSimpleName());
+        }
+        active.pauseReceipt().set(receipt);
+        var values = new java.util.LinkedHashMap<String, Object>();
+        values.put("pauseStateSaved", receipt.saved());
+        values.put("pauseStateSlotId", receipt.stateSlotId());
+        values.put("pauseStateSchema", receipt.stateSchema());
+        values.put(
+                "pauseStateSavedAt", receipt.savedAt() == null ? "" : receipt.savedAt().toString());
+        values.put("pauseStateFailure", receipt.failure());
+        return eventMapper.paused(
+                command,
+                agentIdentifier,
+                mappingState,
+                new ExecutionEventPayload(Map.copyOf(values)));
     }
 
     /**
@@ -577,9 +854,16 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
             throw new ContextBudgetExceededException("无法验证 AgentScope 持久历史，拒绝进入模型", failure);
         }
         if (state.isEmpty()) {
+            if (command.resumeStateRequired()) {
+                throw new ContextBudgetExceededException(
+                        "same-attempt resume 缺少预期 AgentScope 状态，拒绝静默降级 fresh attempt");
+            }
             return;
         }
         var persisted = state.orElseThrow();
+        if (command.resumeStateRequired()) {
+            return;
+        }
         if (!persisted.getContext().isEmpty() || !persisted.getSummary().isBlank()) {
             throw new ContextBudgetExceededException("检测到未纳入冻结画像的 AgentScope 持久历史，拒绝进入模型");
         }
@@ -686,7 +970,11 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
      * 且两者在同一订阅内互斥执行，因此这里的 CAS 预期总是成功；失败只可能是已被其中一方处理过 （不会发生，双重防御）。
      */
     private static boolean cancelWonRace(ActiveExecution active) {
-        return active.terminal().compareAndSet(TerminalState.CANCELLING, TerminalState.TERMINATED);
+        if (active.terminal().compareAndSet(TerminalState.CANCELLING, TerminalState.TERMINATED)) {
+            active.cancelWon().set(true);
+            return true;
+        }
+        return false;
     }
 
     /** 与 {@link #cancelWonRace} 平级：{@code pause(ExecutionId)} 版本的终态仲裁（AAF-110）。 */
@@ -727,15 +1015,13 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
      * <ul>
      *   <li>一次性 Agent 实例 close（缓存实例由 compiler 统一管理）
      *   <li>工具证据残留清零——TOOL_RESULT_END 未到达的暂存项在这里兜底删除（RQ-10）
-     *   <li>本次执行私有的 AgentScope 状态槽删除，避免按 executionId 分槽后 Redis 无界增长（RQ-08/09 的配套清理）
+     *   <li>本 attempt 的 AgentScope 状态槽 stale-safe 删除，避免 Redis 无界增长
      * </ul>
      *
      * <p><b>close 不是空操作</b>：core {@code ReActAgent.close()} 会 {@code unbindStateSaver} 并清空本地 {@code
-     * stateCache}。而 {@code interrupt(ctx)} 是通过 {@code getAgentState(uid, sid).interruptControl()}
-     * 定位在飞调用的，因此"先 close 再 interrupt"会拿到一个新建的 AgentState，中断信号静默丢失。当前 close 只发生在 订阅终止后的 {@code
-     * doFinally}，此时循环已在收尾，故后果有限；该时序缺口登记为 RQ-12，由 #10305 用统一 lifecycle 门控关闭。
+     * stateCache}。而 {@code interrupt(ctx)} 依赖该缓存定位在飞调用，因此 close 仍只允许发生在订阅终止后的 {@code doFinally}。
      *
-     * <p>状态槽清理失败不影响执行结论：槽键含 executionId，残留项不会被其他执行读到。
+     * <p>状态槽清理失败不影响执行结论；清理会重验原 Dispatch 仍为最新代，绝不越过 same-attempt resume 删除新状态。
      */
     private void release(
             ExecutionId executionId,
@@ -750,14 +1036,37 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         if (requestId != null) {
             GracefulShutdownManager.getInstance().unregisterRequest(requestId);
         }
-        if (active.pauseWon().get()) {
-            log.debug(
-                    "[AgentLoop] 暂停触发的终止，跳过状态槎删除：executionId={}，责任主体不变，下次同一 executionId"
-                            + " 重新发起可续接对话历史",
-                    executionId.value());
+        if (!active.stateAccessReady().get()) {
+            closeStateRegistration(active);
             return;
         }
+        var pauseReceipt = active.pauseReceipt().get();
+        if (active.pauseWon().get() && pauseReceipt != null && pauseReceipt.saved()) {
+            log.debug(
+                    "[AgentLoop] 暂停状态已持久化，跳过状态槎删除：executionId={}，责任主体不变，下次同一 executionId"
+                            + " 重新发起可续接对话历史",
+                    executionId.value());
+            closeStateRegistration(active);
+            return;
+        }
+        var hitlReceipt = active.hitlStateReceipt().get();
+        if (!active.cancelWon().get() && hitlReceipt != null && hitlReceipt.saved()) {
+            log.debug(
+                    "[AgentLoop] canonical HITL 状态已持久化，跳过状态槎删除：executionId={}，waitType={}",
+                    executionId.value(),
+                    hitlReceipt.waitType());
+            closeStateRegistration(active);
+            return;
+        }
+        closeStateRegistration(active);
         deleteExecutionState(command, stateUserKey);
+    }
+
+    private static void closeStateRegistration(ActiveExecution active) {
+        var registration = active.stateRegistration().getAndSet(null);
+        if (registration != null) {
+            registration.close();
+        }
     }
 
     /** 状态槽清理走阻塞调度器：doFinally 可能运行在 AgentScope 事件线程上，Redis 删除不能占用它。 */
@@ -765,7 +1074,10 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         blockingScheduler.schedule(
                 () -> {
                     try {
-                        stateStore.delete(stateUserKey, command.context().sessionId().value());
+                        stateStore.deleteStaleSafe(
+                                command.context(),
+                                stateUserKey,
+                                command.context().sessionId().value());
                     } catch (RuntimeException failure) {
                         log.warn(
                                 "[AgentLoop] 执行状态槽清理失败，等待 Redis 侧过期：executionId={}，错误={}",
@@ -827,20 +1139,50 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         TERMINATED
     }
 
+    private record SourceEventReceipt(AgentEvent sourceEvent, ExecutionEvent committedEvent) {}
+
+    private record CommittedInterruptEvidence(
+            String toolCallId,
+            String interruptId,
+            String eventId,
+            String payloadIdentityKey,
+            ExecutionEventType waitType,
+            ExecutionEventStatus waitStatus,
+            OwnerType ownerType,
+            Map<String, Object> values) {}
+
+    private record PauseStateReceipt(
+            boolean saved,
+            String stateSlotId,
+            String stateSchema,
+            Instant savedAt,
+            String failure) {}
+
+    private record HitlStateReceipt(boolean saved, ExecutionEventType waitType, String failure) {}
+
     /** 单次执行的运行态标志位，用于取消、中断与终态事件去重。 */
     private record ActiveExecution(
             ReActAgent agent,
             RuntimeContext runtimeContext,
             boolean ephemeral,
+            AtomicReference<Registration> stateRegistration,
+            AtomicBoolean stateAccessReady,
             AtomicBoolean released,
             AtomicBoolean started,
             AtomicBoolean interruptIssued,
             AtomicReference<TerminalState> terminal,
+            /** cancelWonRace 成功后置位；取消清理优先于任何已保存的 HITL 状态回执。 */
+            AtomicBoolean cancelWon,
             /**
              * {@code pauseWonRace} 成功后置位（AAF-110）——{@code terminal} 最终统一收敛为 {@code TERMINATED}，
              * 无法反推仲裁路径，需要独立标志供 {@code release(...)} 判断是否跳过状态槎删除。
              */
             AtomicBoolean pauseWon,
+            AtomicReference<PauseStateReceipt> pauseReceipt,
+            /** canonical HITL waiting 事件的状态保存结果；只有 saved=true 才允许 release 保留状态槽。 */
+            AtomicReference<HitlStateReceipt> hitlStateReceipt,
+            /** 已由 durable transition 原子持久化、只需回送当前 Flux 的 exact eventId。 */
+            Set<String> alreadyPersistedEventIds,
             /**
              * {@code GracefulShutdownManager.registerRequest(agent)} 返回的请求标识（AAF-110 #11004），
              * 建立时为空，AGENT_START 到达后才能拿到 call-scoped AgentState 并绑定。
@@ -853,11 +1195,17 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                     agent,
                     runtimeContext,
                     ephemeral,
+                    new AtomicReference<>(),
+                    new AtomicBoolean(),
                     new AtomicBoolean(),
                     new AtomicBoolean(),
                     new AtomicBoolean(),
                     new AtomicReference<>(TerminalState.ACTIVE),
                     new AtomicBoolean(),
+                    new AtomicBoolean(),
+                    new AtomicReference<>(),
+                    new AtomicReference<>(),
+                    ConcurrentHashMap.newKeySet(),
                     new AtomicReference<>());
         }
     }

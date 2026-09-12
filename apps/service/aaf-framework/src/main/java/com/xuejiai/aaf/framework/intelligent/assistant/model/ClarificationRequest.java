@@ -14,7 +14,7 @@ public record ClarificationRequest(
         String requestId,
         TaskId taskId,
         ExecutionId executionId,
-        String subTaskId,
+        String nodeId,
         List<String> requiredFields,
         List<Question> questions,
         Instant deadline,
@@ -28,7 +28,7 @@ public record ClarificationRequest(
         requestId = requireText(requestId, "requestId");
         Objects.requireNonNull(taskId, "taskId 不能为空");
         Objects.requireNonNull(executionId, "executionId 不能为空");
-        subTaskId = requireText(subTaskId, "subTaskId");
+        nodeId = requireText(nodeId, "nodeId");
         requiredFields = List.copyOf(Objects.requireNonNull(requiredFields, "requiredFields 不能为空"));
         questions = List.copyOf(Objects.requireNonNull(questions, "questions 不能为空"));
         Objects.requireNonNull(deadline, "deadline 不能为空");
@@ -73,6 +73,17 @@ public record ClarificationRequest(
         if (!requiredFields.containsAll(normalized.keySet())) {
             throw new IllegalArgumentException("补充参数包含未声明字段");
         }
+        var questionsByField =
+                questions.stream()
+                        .collect(
+                                java.util.stream.Collectors.toMap(Question::field, value -> value));
+        normalized.forEach(
+                (field, value) -> {
+                    var options = questionsByField.get(field).options();
+                    if (!options.isEmpty() && !options.contains(value)) {
+                        throw new IllegalArgumentException("补充参数不属于允许选项: " + field);
+                    }
+                });
         var merged = new LinkedHashMap<String, String>();
         if (!replace) {
             merged.putAll(values);
@@ -109,7 +120,7 @@ public record ClarificationRequest(
                 requestId,
                 taskId,
                 executionId,
-                subTaskId,
+                nodeId,
                 requiredFields,
                 questions,
                 deadline,

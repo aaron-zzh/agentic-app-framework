@@ -42,7 +42,7 @@ public final class SynchronousExecutionEventWriter {
         var entity = new ExecutionEventEntity();
         entity.setEventId(event.eventId().value());
         entity.setTenantId(event.tenantId().value());
-        entity.setTaskId(event.taskId().value());
+        entity.setTaskId(event.taskId() == null ? null : event.taskId().value());
         entity.setExecutionId(event.executionId().value());
         entity.setSequence(sequence);
         entity.setFencingToken(fencingToken);

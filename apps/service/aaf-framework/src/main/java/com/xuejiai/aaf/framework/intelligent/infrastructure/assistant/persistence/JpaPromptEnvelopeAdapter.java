@@ -29,7 +29,7 @@ public class JpaPromptEnvelopeAdapter implements PromptEnvelopePort {
         var envelope = draft.withSeq(repository.findMaxSeq(tenantId, executionId) + 1);
         var entity = new PromptEnvelopeEntity();
         entity.setTenantId(tenantId);
-        entity.setTaskId(envelope.taskId().value());
+        entity.setTaskId(envelope.taskId() == null ? null : envelope.taskId().value());
         entity.setExecutionId(executionId);
         entity.setEnvelopeSeq(envelope.envelopeSeq());
         entity.setAttemptNo(envelope.attemptNo());

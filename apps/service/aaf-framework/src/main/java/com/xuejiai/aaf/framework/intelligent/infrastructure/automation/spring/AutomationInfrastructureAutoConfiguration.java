@@ -6,10 +6,10 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.context.annotation.Bean;
 
-import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskCommandService;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionPort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskBoardPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskPlanPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskUnitOfWork;
 import com.xuejiai.aaf.framework.intelligent.automation.application.AutomationApplicationService;
 import com.xuejiai.aaf.framework.intelligent.automation.application.DefinitionLifecycleService;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.spring.AssistantInfrastructureAutoConfiguration;
@@ -30,8 +30,7 @@ public class AutomationInfrastructureAutoConfiguration {
     }
 
     @Bean
-    AutomationDelegatedDispatchAdapter automationDispatchAdapter(
-            DelegatedTaskCoordinator coordinator) {
+    AutomationDelegatedDispatchAdapter automationDispatchAdapter(TaskCommandService coordinator) {
         return new AutomationDelegatedDispatchAdapter(coordinator, Clock.systemUTC());
     }
 
@@ -39,8 +38,8 @@ public class AutomationInfrastructureAutoConfiguration {
     AutomationApplicationService automationApplicationService(
             JpaAutomationStore store,
             AutomationDelegatedDispatchAdapter dispatcher,
-            DelegatedTaskPort delegatedTasks,
-            TaskBoardPort taskBoards) {
+            TaskUnitOfWork delegatedTasks,
+            TaskPlanPort taskBoards) {
         return new AutomationApplicationService(
                 store,
                 store,

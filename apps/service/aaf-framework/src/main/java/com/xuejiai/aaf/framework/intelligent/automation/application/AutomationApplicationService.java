@@ -10,10 +10,10 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
-import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask.Status;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskBoardPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.Task.Status;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlan;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskPlanPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskUnitOfWork;
 import com.xuejiai.aaf.framework.intelligent.automation.model.AutomationDefinition;
 import com.xuejiai.aaf.framework.intelligent.automation.model.AutomationDefinition.FailurePolicy;
 import com.xuejiai.aaf.framework.intelligent.automation.model.AutomationDefinition.NotificationPlan;
@@ -40,8 +40,8 @@ public final class AutomationApplicationService {
     private final PolicyPort policies;
     private final AuditPort audits;
     private final DispatchPort dispatcher;
-    private final DelegatedTaskPort delegatedTasks;
-    private final TaskBoardPort taskBoards;
+    private final TaskUnitOfWork delegatedTasks;
+    private final TaskPlanPort taskBoards;
     private final Clock clock;
 
     public AutomationApplicationService(
@@ -50,8 +50,8 @@ public final class AutomationApplicationService {
             PolicyPort policies,
             AuditPort audits,
             DispatchPort dispatcher,
-            DelegatedTaskPort delegatedTasks,
-            TaskBoardPort taskBoards,
+            TaskUnitOfWork delegatedTasks,
+            TaskPlanPort taskBoards,
             Clock clock) {
         this.definitions = Objects.requireNonNull(definitions);
         this.runs = Objects.requireNonNull(runs);
@@ -78,8 +78,8 @@ public final class AutomationApplicationService {
         var board =
                 taskBoards
                         .find(request.tenantId(), request.sourceTaskId())
-                        .orElseThrow(() -> new IllegalStateException("P4 任务缺少验收完成的 TaskBoard"));
-        if (!board.completed()) throw new IllegalStateException("P4 TaskBoard 尚未完成验收");
+                        .orElseThrow(() -> new IllegalStateException("P4 任务缺少验收完成的 TaskPlan"));
+        if (!board.completed()) throw new IllegalStateException("P4 TaskPlan 尚未完成验收");
         var now = clock.instant();
         var previous = definitions.findLatest(request.tenantId(), request.automationId());
         var version = previous.map(value -> value.version() + 1).orElse(1L);
@@ -165,7 +165,7 @@ public final class AutomationApplicationService {
                 new DryRunResult(
                         passed,
                         passed ? "dry-run 通过" : "必须先通过 impact preview",
-                        definition.template().board().subTasks().size());
+                        definition.template().board().nodes().size());
         definitions.save(definition.assessed(definition.previewPassed(), passed, clock.instant()));
         audit(definition, actorId, "DRY_RUN", Map.of("passed", passed));
         return result;
@@ -340,16 +340,16 @@ public final class AutomationApplicationService {
         return UUID.nameUUIDFromBytes(source.getBytes(StandardCharsets.UTF_8)).toString();
     }
 
-    private static TaskBoard resetBoard(TaskBoard source, TaskId taskId) {
-        var reset = new java.util.LinkedHashMap<String, TaskBoard.SubTask>();
-        source.subTasks()
+    private static TaskPlan resetBoard(TaskPlan source, TaskId taskId) {
+        var reset = new java.util.LinkedHashMap<String, TaskPlan.TaskNode>();
+        source.nodes()
                 .values()
                 .forEach(
                         item ->
                                 reset.put(
-                                        item.subTaskId(),
-                                        TaskBoard.SubTask.pending(
-                                                item.subTaskId(),
+                                        item.nodeId(),
+                                        TaskPlan.TaskNode.pending(
+                                                item.nodeId(),
                                                 item.kind(),
                                                 item.description(),
                                                 item.dependsOn(),
@@ -358,7 +358,7 @@ public final class AutomationApplicationService {
                                                 item.skillKey(),
                                                 item.modelSelection(),
                                                 item.maxAttempts())));
-        return new TaskBoard(taskId, source.goal(), source.maxParallelism(), reset);
+        return new TaskPlan(taskId, source.goal(), source.maxParallelism(), reset);
     }
 
     public record DefineCommand(

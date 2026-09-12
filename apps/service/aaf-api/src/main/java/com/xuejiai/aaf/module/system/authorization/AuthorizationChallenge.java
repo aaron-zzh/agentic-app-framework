@@ -3,8 +3,7 @@ package com.xuejiai.aaf.module.system.authorization;
 import java.time.Instant;
 import java.util.UUID;
 
-import org.hibernate.annotations.Check;
-
+import jakarta.persistence.CheckConstraint;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -22,8 +21,8 @@ import lombok.Setter;
         indexes =
                 @Index(
                         name = "idx_authorization_challenge_subject_status",
-                        columnList = "subject_id,status,expires_at"))
-@Check(constraints = "status in ('PENDING','APPROVED','CONSUMED')")
+                        columnList = "subject_id,status,expires_at"),
+        check = @CheckConstraint(constraint = "status in ('PENDING','APPROVED','CONSUMED')"))
 public class AuthorizationChallenge {
 
     @Id private UUID id;

@@ -7,10 +7,10 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
-import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskCommandService;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ClarificationRequest;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionInput;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.Task;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.ClarificationRequestRepository;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
@@ -28,7 +28,7 @@ import reactor.core.publisher.Mono;
 public class ClarificationResumeService {
 
     private final ClarificationRequestRepository clarifications;
-    private final DelegatedTaskCoordinator delegatedTasks;
+    private final TaskCommandService delegatedTasks;
 
     /** 按 requestId 精确查询，附加租户过滤；不加锁，不驱动任何状态转换。 */
     public Optional<ClarificationRequest> findByRequestId(TenantId tenantId, String requestId) {
@@ -44,7 +44,7 @@ public class ClarificationResumeService {
      * requiredFields、值是否在 enum 内）由 {@code ExecutionInput}/{@code ClarificationRequest.apply}
      * 既有校验链承担，不在本服务重复实现。
      */
-    public Mono<DelegatedTask> submit(
+    public Mono<Task> submit(
             TenantId tenantId, UserId userId, ClarificationRequest clarification, Object payload) {
         var values = toStringValues(payload);
         var input =
@@ -53,6 +53,7 @@ public class ClarificationResumeService {
                         tenantId,
                         userId,
                         clarification.taskId(),
+                        clarification.requestId(),
                         ExecutionInput.Kind.SUPPLEMENT,
                         null,
                         values,

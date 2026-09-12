@@ -7,6 +7,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.ToolCatalogPort.ToolDefi
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolGatewayPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolGatewayPort.ApprovalRequiredException;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolInvocation;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ClarificationRequiredException;
 
 import io.agentscope.core.message.TextBlock;
 import io.agentscope.core.message.ToolResultBlock;
@@ -82,6 +83,22 @@ final class PortBackedAgentTool extends ToolBase {
                                     Map.of("approvalId", failure.approvalId()),
                                     definition.reversible(),
                                     true);
+                            return new ToolSuspendException(failure.getMessage());
+                        })
+                // 结构化澄清已由 canonical transition 提交：记录 requestId 后复用同一 ToolSuspend 交接
+                .onErrorMap(
+                        ClarificationRequiredException.class,
+                        failure -> {
+                            evidenceStore.record(
+                                    context.executionId(),
+                                    toolUse.getId(),
+                                    Map.of(
+                                            "requestId",
+                                            failure.requestId(),
+                                            "clarificationRequired",
+                                            true),
+                                    definition.reversible(),
+                                    false);
                             return new ToolSuspendException(failure.getMessage());
                         });
     }

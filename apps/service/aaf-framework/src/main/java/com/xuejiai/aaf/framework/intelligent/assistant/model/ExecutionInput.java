@@ -12,15 +12,16 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 /**
  * 委托任务的结构化外部输入。
  *
- * <p><b>{@code kind} 是客户端建议值，不直接信任</b>——服务端须经 {@code InputClassifier} 重新判定后才生效 （方案 C，2026-08-30
- * 拍板）。{@code text} 承载原始自然语言输入，MODIFY 场景下作为重新协调规划的目标描述来源； CANCEL 不再作为本入口的合法输出值，取消统一走既有确定性 {@code
- * /stop} 端点。
+ * <p>{@code kind} 由服务端具体 canonical API 决定：结构化澄清入口只产生 {@code SUPPLEMENT}，修改与无关输入由各自显式命令产生； 不通过模型
+ * classifier 猜测或回退。{@code text} 承载原始自然语言输入，MODIFY 场景下作为重新协调规划的目标描述来源； CANCEL
+ * 不再作为本入口的合法输出值，取消统一走既有确定性 {@code /stop} 端点。
  */
 public record ExecutionInput(
         String inputId,
         TenantId tenantId,
         UserId userId,
         TaskId taskId,
+        String requestId,
         Kind kind,
         String text,
         Map<String, String> values,
@@ -34,6 +35,10 @@ public record ExecutionInput(
         Objects.requireNonNull(userId, "userId 不能为空");
         Objects.requireNonNull(taskId, "taskId 不能为空");
         Objects.requireNonNull(kind, "kind 不能为空");
+        requestId = requestId == null || requestId.isBlank() ? null : requestId.trim();
+        if ((kind == Kind.SUPPLEMENT) != (requestId != null)) {
+            throw new IllegalArgumentException("仅 SUPPLEMENT 必须且只能携带 requestId");
+        }
         Objects.requireNonNull(receivedAt, "receivedAt 不能为空");
         var normalized = new LinkedHashMap<String, String>();
         Objects.requireNonNull(values, "values 不能为空")
@@ -63,7 +68,7 @@ public record ExecutionInput(
         }
     }
 
-    /** 客户端可建议的输入分类；不含 {@code CANCEL}——取消统一走确定性 {@code /stop} 端点，不经本入口分类判定。 */
+    /** canonical 输入命令类型；不含 {@code CANCEL}，取消统一走确定性 {@code /stop} 端点。 */
     public enum Kind {
         MODIFY,
         SUPPLEMENT,

@@ -10,7 +10,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.ConnectorActionPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.CredentialVaultPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolInvocationResult;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskUnitOfWork;
 
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -20,13 +20,13 @@ public final class RegistryConnectorActionAdapter implements ConnectorActionPort
     private final ToolRegistry registry;
     private final CredentialVaultPort credentials;
     private final ConversationLeasePort leases;
-    private final DelegatedTaskPort tasks;
+    private final TaskUnitOfWork tasks;
 
     public RegistryConnectorActionAdapter(
             ToolRegistry registry,
             CredentialVaultPort credentials,
             ConversationLeasePort leases,
-            DelegatedTaskPort tasks) {
+            TaskUnitOfWork tasks) {
         this.registry = Objects.requireNonNull(registry, "registry 不能为空");
         this.credentials = Objects.requireNonNull(credentials, "credentials 不能为空");
         this.leases = Objects.requireNonNull(leases, "leases 不能为空");

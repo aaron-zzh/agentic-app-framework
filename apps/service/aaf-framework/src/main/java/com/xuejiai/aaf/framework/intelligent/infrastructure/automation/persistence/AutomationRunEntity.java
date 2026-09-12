@@ -40,8 +40,8 @@ public class AutomationRunEntity {
     @Column(name = "trigger_key", nullable = false, length = 256)
     private String triggerKey;
 
-    @Column(name = "delegated_task_id", nullable = false, length = 128)
-    private String delegatedTaskId;
+    @Column(name = "task_id", nullable = false, length = 128)
+    private String taskId;
 
     @Column(nullable = false, length = 32)
     private String status;

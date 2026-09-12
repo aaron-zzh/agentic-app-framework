@@ -4,10 +4,10 @@ import java.time.Clock;
 import java.util.LinkedHashMap;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantCommand;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskCommandService;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskModelSelection;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlan;
 import com.xuejiai.aaf.framework.intelligent.automation.model.AutomationRun;
 import com.xuejiai.aaf.framework.intelligent.automation.port.AutomationPorts.DispatchPort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
@@ -15,10 +15,10 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.*;
 
 /** 将确定性调度结果交给 P4 委托执行；Assistant 仅执行并解释结果。 */
 public final class AutomationDelegatedDispatchAdapter implements DispatchPort {
-    private final DelegatedTaskCoordinator coordinator;
+    private final TaskCommandService coordinator;
     private final Clock clock;
 
-    public AutomationDelegatedDispatchAdapter(DelegatedTaskCoordinator coordinator, Clock clock) {
+    public AutomationDelegatedDispatchAdapter(TaskCommandService coordinator, Clock clock) {
         this.coordinator = coordinator;
         this.clock = clock;
     }
@@ -41,7 +41,7 @@ public final class AutomationDelegatedDispatchAdapter implements DispatchPort {
                         contract.notificationPolicy(),
                         contract.responsibleOwner(),
                         contract.takeoverPolicy());
-        var taskId = run.delegatedTaskId();
+        var taskId = run.taskId();
         var command =
                 new AssistantCommand(
                         AssistantCommand.Operation.START,
@@ -87,16 +87,16 @@ public final class AutomationDelegatedDispatchAdapter implements DispatchPort {
         return parameters.isEmpty() ? goal : goal + "\n自动化参数: " + parameters;
     }
 
-    private static TaskBoard copyBoard(TaskBoard source, TaskId taskId) {
-        var tasks = new LinkedHashMap<String, TaskBoard.SubTask>();
-        source.subTasks()
+    private static TaskPlan copyBoard(TaskPlan source, TaskId taskId) {
+        var tasks = new LinkedHashMap<String, TaskPlan.TaskNode>();
+        source.nodes()
                 .values()
                 .forEach(
                         item ->
                                 tasks.put(
-                                        item.subTaskId(),
-                                        TaskBoard.SubTask.pending(
-                                                item.subTaskId(),
+                                        item.nodeId(),
+                                        TaskPlan.TaskNode.pending(
+                                                item.nodeId(),
                                                 item.kind(),
                                                 item.description(),
                                                 item.dependsOn(),
@@ -105,7 +105,7 @@ public final class AutomationDelegatedDispatchAdapter implements DispatchPort {
                                                 item.skillKey(),
                                                 item.modelSelection(),
                                                 item.maxAttempts())));
-        return new TaskBoard(taskId, source.goal(), source.maxParallelism(), tasks);
+        return new TaskPlan(taskId, source.goal(), source.maxParallelism(), tasks);
     }
 
     private static String stableId(String value) {

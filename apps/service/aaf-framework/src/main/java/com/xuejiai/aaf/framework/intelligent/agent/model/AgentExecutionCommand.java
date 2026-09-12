@@ -16,7 +16,31 @@ public record AgentExecutionCommand(
         CompiledSystemPrompt compiledSystemPrompt,
         long sequenceBase,
         List<AgentMessage> messages,
-        InvocationContext context) {
+        InvocationContext context,
+        boolean resumeStateRequired) {
+
+    public AgentExecutionCommand(
+            SubagentSpec subagentSpec,
+            Optional<RoleAssignment> roleAssignment,
+            ExecutionMode executionMode,
+            Optional<ModelSpec> executionModel,
+            SkillExecutionProfile skillExecutionProfile,
+            CompiledSystemPrompt compiledSystemPrompt,
+            long sequenceBase,
+            List<AgentMessage> messages,
+            InvocationContext context) {
+        this(
+                subagentSpec,
+                roleAssignment,
+                executionMode,
+                executionModel,
+                skillExecutionProfile,
+                compiledSystemPrompt,
+                sequenceBase,
+                messages,
+                context,
+                false);
+    }
 
     public AgentExecutionCommand {
         Objects.requireNonNull(subagentSpec, "subagentSpec 不能为空");

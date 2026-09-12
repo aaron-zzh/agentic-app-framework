@@ -10,17 +10,16 @@ import java.util.concurrent.TimeUnit;
 
 import com.xuejiai.aaf.framework.intelligent.agent.port.SandboxPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskUnitOfWork;
 
 /** 任务 namespace 内的受控脚本执行；不暴露宿主 workspace 或凭据。 */
 public final class GovernedSandboxAdapter implements SandboxPort {
     private static final long MAX_OUTPUT = 1024 * 1024;
     private final Path root;
     private final ConversationLeasePort leases;
-    private final DelegatedTaskPort tasks;
+    private final TaskUnitOfWork tasks;
 
-    public GovernedSandboxAdapter(
-            Path root, ConversationLeasePort leases, DelegatedTaskPort tasks) {
+    public GovernedSandboxAdapter(Path root, ConversationLeasePort leases, TaskUnitOfWork tasks) {
         this.root = Objects.requireNonNull(root, "root 不能为空").toAbsolutePath().normalize();
         this.leases = Objects.requireNonNull(leases, "leases 不能为空");
         this.tasks = Objects.requireNonNull(tasks, "tasks 不能为空");
@@ -28,7 +27,14 @@ public final class GovernedSandboxAdapter implements SandboxPort {
 
     @Override
     public SandboxResult execute(SandboxRequest request) {
+        if (request.context().taskId() == null) {
+            throw new IllegalStateException("DIRECT execution 不得执行 sandbox，必须先 promotion 为 Task");
+        }
         requireCurrent(request);
+        tasks.recordSideEffectIntent(
+                request.context().tenantId(),
+                request.context().executionId(),
+                java.time.Instant.now());
         rejectCredentials(request.code());
         rejectHostEscape(request);
         var namespace = namespace(request);
@@ -75,10 +81,14 @@ public final class GovernedSandboxAdapter implements SandboxPort {
 
     private Path namespace(SandboxRequest request) {
         var context = request.context();
+        var scope =
+                context.taskId() == null
+                        ? "execution=" + safe(context.executionId().value())
+                        : "task=" + safe(context.taskId().value());
         var namespace =
                 root.resolve("tenant=" + safe(context.tenantId().value()))
                         .resolve("user=" + safe(context.userId().value()))
-                        .resolve("task=" + safe(context.taskId().value()))
+                        .resolve(scope)
                         .normalize();
         if (!namespace.startsWith(root))
             throw new IllegalStateException("sandbox namespace 越过 root");

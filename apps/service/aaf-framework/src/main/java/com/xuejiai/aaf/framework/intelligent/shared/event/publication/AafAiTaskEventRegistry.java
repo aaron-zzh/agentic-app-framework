@@ -12,6 +12,7 @@ public final class AafAiTaskEventRegistry {
         var publicType =
                 switch (type) {
                     case EXECUTION_STARTED -> "aaf.task.started";
+                    case EXECUTION_PROMOTED -> "aaf.task.promoted";
                     case EXECUTION_COMPLETED -> "aaf.task.completed";
                     case EXECUTION_FAILED -> "aaf.task.failed";
                     case EXECUTION_CANCELED -> "aaf.task.canceled";

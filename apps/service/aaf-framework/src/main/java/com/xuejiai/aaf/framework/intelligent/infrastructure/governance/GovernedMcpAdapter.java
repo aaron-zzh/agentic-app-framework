@@ -20,7 +20,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.InvocationReceiptPort.Re
 import com.xuejiai.aaf.framework.intelligent.agent.port.McpPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolInvocationResult;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskUnitOfWork;
 
 import reactor.core.publisher.Mono;
 
@@ -28,13 +28,13 @@ import reactor.core.publisher.Mono;
 public final class GovernedMcpAdapter implements McpPort {
     private final ConnectorActionPort connectors;
     private final ConversationLeasePort leases;
-    private final DelegatedTaskPort tasks;
+    private final TaskUnitOfWork tasks;
     private final InvocationReceiptPort receipts;
 
     public GovernedMcpAdapter(
             ConnectorActionPort connectors,
             ConversationLeasePort leases,
-            DelegatedTaskPort tasks,
+            TaskUnitOfWork tasks,
             InvocationReceiptPort receipts) {
         this.connectors = Objects.requireNonNull(connectors, "connectors 不能为空");
         this.leases = Objects.requireNonNull(leases, "leases 不能为空");
@@ -45,7 +45,12 @@ public final class GovernedMcpAdapter implements McpPort {
     @Override
     public Mono<ToolInvocationResult> invoke(McpInvocation invocation) {
         var context = invocation.context();
+        if (context.taskId() == null) {
+            return Mono.error(
+                    new IllegalStateException("DIRECT execution 不得调用 MCP，必须先 promotion 为 Task"));
+        }
         requireCurrent(context);
+        tasks.recordSideEffectIntent(context.tenantId(), context.executionId(), Instant.now());
         var arguments = new LinkedHashMap<>(invocation.businessArguments());
         arguments.put(
                 "namespace",
@@ -98,7 +103,7 @@ public final class GovernedMcpAdapter implements McpPort {
                 .map(result -> complete(invocation, receiptKey, result))
                 .onErrorResume(
                         failure -> {
-                            if (!(failure instanceof DelegatedTaskPort.BudgetExceededException)) {
+                            if (!(failure instanceof TaskUnitOfWork.BudgetExceededException)) {
                                 receipts.fail(
                                         receiptKey, context, failure.getMessage(), Instant.now());
                             }

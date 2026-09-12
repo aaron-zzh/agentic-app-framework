@@ -32,7 +32,7 @@ public class ExecutionProfileSnapshotEntity {
     @Column(name = "tenant_id", nullable = false, length = 128)
     private String tenantId;
 
-    @Column(name = "task_id", nullable = false, length = 128)
+    @Column(name = "task_id", length = 128)
     private String taskId;
 
     @Column(name = "execution_id", nullable = false, length = 128)

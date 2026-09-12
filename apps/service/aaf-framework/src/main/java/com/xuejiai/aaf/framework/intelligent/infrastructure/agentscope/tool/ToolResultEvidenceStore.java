@@ -48,7 +48,9 @@ public final class ToolResultEvidenceStore {
                     "artifactId",
                     "reversible",
                     "completionEvidence",
-                    "approvalId");
+                    "approvalId",
+                    "requestId",
+                    "clarificationRequired");
 
     private final ConcurrentMap<EvidenceKey, StoredEvidence> evidence = new ConcurrentHashMap<>();
     private final Clock clock;
@@ -96,6 +98,12 @@ public final class ToolResultEvidenceStore {
                 new StoredEvidence(Map.copyOf(safe), now));
         evictExpired(now);
         evictOverflow();
+    }
+
+    /** 查看但不消费证据；仅供事件进入 current/fencing 校验前识别已原子提交的授权挂起。 */
+    public Optional<Map<String, Object>> peek(ExecutionId executionId, String toolCallId) {
+        return Optional.ofNullable(evidence.get(new EvidenceKey(executionId.value(), toolCallId)))
+                .map(StoredEvidence::values);
     }
 
     /** 取走并移除证据；同一 toolCallId 只能消费一次。 */

@@ -30,29 +30,32 @@ import com.xuejiai.aaf.framework.intelligent.agent.model.ToolRef;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.SkillCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantTask;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantTask.OwnerKind;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantTask.RecoveryPoint;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantTask.TaskActor;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantTask.TaskOwner;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantTask.TaskStatus;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionDecision;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.Execution;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionProfileSnapshot;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Role;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillActivationMode;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillBinding;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillDecisionAuditEvent;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillScope;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.Task;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.Task.Actor;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.Task.Owner;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.Task.OwnerKind;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.Task.RecoveryPoint;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.Task.Status;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlan;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.EffectiveContextPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ExecutionProfileSnapshotPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.SkillDecisionAuditPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.SystemSkillBindingPort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskBoardPort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskControlPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskMaterializationPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskPlanPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskRecoveryPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskUnitOfWork;
 import com.xuejiai.aaf.framework.intelligent.cognition.application.MemoryGovernanceService;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.ContextBudgetExceededException;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.ContextRequest;
@@ -68,6 +71,7 @@ import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
 import com.xuejiai.aaf.framework.intelligent.core.skill.SkillDef;
+import com.xuejiai.aaf.framework.intelligent.shared.event.CanonicalExecutionEventId;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ExecutionEventStatus;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.OwnerType;
@@ -75,6 +79,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventPayload;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventReducer;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
+import com.xuejiai.aaf.framework.intelligent.shared.event.NodeIdentity;
 import com.xuejiai.aaf.framework.intelligent.shared.event.TurnEndReason;
 import com.xuejiai.aaf.framework.intelligent.shared.event.TurnOutcomeAggregator;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AgentId;
@@ -82,6 +87,8 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.EventId;
 
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 /** P2 Assistant 唯一应用用例，不感知 Spring、JPA 或 AgentScope。 */
 @Slf4j
@@ -94,8 +101,9 @@ public final class AssistantApplicationService implements AssistantCommandPort {
     private final ExecutionPolicy runtimeExecutionPolicy;
 
     private final AssistantDefinitionPort definitions;
-    private final TaskControlPort tasks;
-    private final TaskBoardPort taskBoards;
+    private final TaskUnitOfWork tasks;
+    private final TaskMaterializationPort materializations;
+    private final TaskPlanPort taskBoards;
     private final RoleSelector roleSelector;
     private final SystemSkillBindingPort systemSkillBindings;
     private final SkillCatalogPort skillCatalog;
@@ -118,8 +126,9 @@ public final class AssistantApplicationService implements AssistantCommandPort {
 
     public AssistantApplicationService(
             AssistantDefinitionPort definitions,
-            TaskControlPort tasks,
-            TaskBoardPort taskBoards,
+            TaskUnitOfWork tasks,
+            TaskMaterializationPort materializations,
+            TaskPlanPort taskBoards,
             RoleSelector roleSelector,
             SystemSkillBindingPort systemSkillBindings,
             SkillCatalogPort skillCatalog,
@@ -149,6 +158,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         contextWindow);
         this.definitions = Objects.requireNonNull(definitions, "definitions 不能为空");
         this.tasks = Objects.requireNonNull(tasks, "tasks 不能为空");
+        this.materializations = Objects.requireNonNull(materializations, "materializations 不能为空");
         this.taskBoards = Objects.requireNonNull(taskBoards, "taskBoards 不能为空");
         this.roleSelector = Objects.requireNonNull(roleSelector, "roleSelector 不能为空");
         this.systemSkillBindings =
@@ -183,6 +193,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
     public Flux<ExecutionEvent> invoke(AssistantInvocation invocation) {
         Objects.requireNonNull(invocation, "invocation 不能为空");
         var command = invocation.command();
+        var direct = command.taskId() == null;
         var startedAtNanos = System.nanoTime();
         log.debug(
                 "[AssistantExecution] stage=invocation_received operation={} executionId={} taskId={} "
@@ -191,7 +202,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         + "invocationPolicy={} attachmentCount={}",
                 command.operation(),
                 command.executionId().value(),
-                command.taskId().value(),
+                taskKey(command),
                 command.assistantId().value(),
                 command.tenantId().value(),
                 command.userId().value(),
@@ -203,26 +214,26 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 command.contextCandidates().size(),
                 invocation.invocationPolicy(),
                 invocation.userAttachments().size());
-        var persistentSubTask =
+        var persistentTaskNode =
                 command.operation() == AssistantCommand.Operation.SUBTASK
                         && command.parentExecutionId() != null
                         && command.executionContract() != null;
-        if (persistentSubTask && command.lease() == null) {
+        if (persistentTaskNode && command.lease() == null) {
             throw new IllegalStateException("持久子执行必须由调度器注入 conversation lease");
         }
-        if (command.operation().executesAgent() && !persistentSubTask) {
+        if (!persistentTaskNode && !direct) {
             recoveries.saveCommand(command);
         }
         var failureSequence = new AtomicLong(command.sequenceBase());
-        var taskRef = new AtomicReference<AssistantTask>();
+        var taskRef = new AtomicReference<Task>();
         var taskProgressed = new AtomicBoolean();
         return Flux.defer(
                         () ->
-                                command.operation() == AssistantCommand.Operation.SUBTASK
-                                        ? executeSubTask(invocation)
-                                        : command.operation().executesAgent()
-                                                ? executeAgent(invocation, taskRef, taskProgressed)
-                                                : controlTask(command))
+                                direct
+                                        ? executeDirect(invocation)
+                                        : command.operation() == AssistantCommand.Operation.SUBTASK
+                                                ? executeNode(invocation)
+                                                : executeAgent(invocation, taskRef, taskProgressed))
                 .doOnNext(event -> failureSequence.accumulateAndGet(event.sequence(), Math::max))
                 .onErrorResume(
                         failure -> {
@@ -230,22 +241,26 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                             log.debug(
                                     "[Assistant协调] 执行失败，已进入失败收口：executionId={}，taskId={}，assistantId={}，任务状态={}，错误类型={}",
                                     command.executionId().value(),
-                                    command.taskId().value(),
+                                    taskKey(command),
                                     command.assistantId().value(),
                                     trackedTask == null ? null : trackedTask.status(),
                                     failure.getClass().getName());
-                            return failTask(
-                                    command,
-                                    taskRef,
-                                    taskProgressed.get(),
-                                    failureSequence.incrementAndGet(),
-                                    failure);
+                            return direct
+                                    ? failDirect(
+                                            command, failureSequence.incrementAndGet(), failure)
+                                    : failTask(
+                                            command,
+                                            taskRef,
+                                            taskProgressed.get(),
+                                            failureSequence.incrementAndGet(),
+                                            failure);
                         })
                 .concatMap(
                         event ->
-                                event.ownerType() == OwnerType.ASSISTANT
-                                        ? eventStore.append(event, command.lease())
-                                        : reactor.core.publisher.Mono.just(event))
+                                event.type() == ExecutionEventType.EXECUTION_PROMOTED
+                                                || event.ownerType() != OwnerType.ASSISTANT
+                                        ? reactor.core.publisher.Mono.just(event)
+                                        : eventStore.append(event, command.lease()))
                 .doOnNext(
                         event -> {
                             if (event.type() != ExecutionEventType.MESSAGE_DELTA) {
@@ -253,7 +268,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                         "[AssistantExecution] stage=event_emitted executionId={} taskId={} "
                                                 + "sequence={} eventType={} status={} ownerType={}",
                                         command.executionId().value(),
-                                        command.taskId().value(),
+                                        taskKey(command),
                                         event.sequence(),
                                         event.type(),
                                         event.status(),
@@ -265,7 +280,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                 log.debug(
                                         "[Assistant协调] 事件流异常关闭：executionId={}，taskId={}，错误类型={}",
                                         command.executionId().value(),
-                                        command.taskId().value(),
+                                        taskKey(command),
                                         failure.getClass().getName()))
                 .doFinally(
                         signalType ->
@@ -273,12 +288,12 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                         "[AssistantExecution] stage=invocation_closed executionId={} taskId={} "
                                                 + "signal={} durationMs={}",
                                         command.executionId().value(),
-                                        command.taskId().value(),
+                                        taskKey(command),
                                         signalType,
                                         elapsedMillis(startedAtNanos)));
     }
 
-    private Flux<ExecutionEvent> executeSubTask(AssistantInvocation invocation) {
+    private Flux<ExecutionEvent> executeNode(AssistantInvocation invocation) {
         var command = invocation.command();
         var definition = requireDefinition(command);
         definition.requireControlMode(command.controlMode());
@@ -290,7 +305,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         log.debug(
                 "[Assistant协调] L1 上下文已冻结：executionId={}，taskId={}，agentKind={}，来源数={}，消息数={}，摘要={}",
                 command.executionId().value(),
-                command.taskId().value(),
+                taskKey(command),
                 command.invocationProfile().agentKind(),
                 context.references().size(),
                 context.messages().size(),
@@ -303,6 +318,305 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         profile.contextCompression()
                                 .orElseThrow(() -> new IllegalStateException("执行画像缺少冻结上下文"))
                                 .finalMessages()));
+    }
+
+    private Flux<ExecutionEvent> executeDirect(AssistantInvocation invocation) {
+        var command = invocation.command();
+        if (command.operation() != AssistantCommand.Operation.START
+                || command.controlMode()
+                        != com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent
+                                .ControlMode.READ_ONLY) {
+            throw new IllegalArgumentException("DIRECT execution 仅允许 READ_ONLY START");
+        }
+        var created =
+                new Execution(
+                        command.tenantId(),
+                        command.userId(),
+                        command.conversationId(),
+                        null,
+                        null,
+                        null,
+                        null,
+                        command.executionId(),
+                        command.sessionId(),
+                        command.runId(),
+                        command.correlationId(),
+                        null,
+                        null,
+                        Execution.Scope.DIRECT,
+                        1,
+                        command.executionId().value(),
+                        Execution.Status.CREATED,
+                        Execution.PromotionState.ELIGIBLE,
+                        0,
+                        assistantOwner(command),
+                        0,
+                        command.requestedAt(),
+                        command.requestedAt());
+        return Mono.fromCallable(
+                        () -> {
+                            tasks.createExecution(created, command);
+                            return tasks.updateExecution(
+                                    command.tenantId(),
+                                    command.executionId(),
+                                    Execution.Status.RUNNING,
+                                    Instant.now());
+                        })
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMapMany(ignored -> executeDirectAgent(invocation));
+    }
+
+    private Flux<ExecutionEvent> executeDirectAgent(AssistantInvocation invocation) {
+        var command = invocation.command();
+        var sequence = new AtomicLong(command.sequenceBase());
+        var emitted = new ArrayList<ExecutionEvent>();
+        emitted.add(
+                event(
+                        command,
+                        sequence.incrementAndGet(),
+                        ExecutionEventType.EXECUTION_STARTED,
+                        ExecutionEventStatus.RUNNING,
+                        null,
+                        new ExecutionEventPayload(Map.of("scope", Execution.Scope.DIRECT.name()))));
+        var definition = requireDefinition(command);
+        definition.requireControlMode(command.controlMode());
+        requirePublished(definition);
+        logDefinitionResolved(command, definition);
+        var profileCandidate = resolveExecutionProfile(invocation, definition);
+        emitted.add(
+                roleResolvedEvent(
+                        command,
+                        sequence.incrementAndGet(),
+                        ExecutionEventStatus.RUNNING,
+                        profileCandidate));
+        var controlledContext = executionContext(command, definition, profileCandidate);
+        var profile =
+                freezeCompressedProfile(invocation, profileCandidate, controlledContext.messages());
+        var agentEvents = new ArrayList<ExecutionEvent>();
+        var executionEvents =
+                agentExecution
+                        .execute(
+                                agentCommand(
+                                        invocation,
+                                        profile,
+                                        sequence.get(),
+                                        profile.contextCompression()
+                                                .orElseThrow(
+                                                        () ->
+                                                                new IllegalStateException(
+                                                                        "执行画像缺少冻结上下文"))
+                                                .finalMessages()))
+                        .doOnNext(
+                                event -> {
+                                    agentEvents.add(event);
+                                    sequence.accumulateAndGet(event.sequence(), Math::max);
+                                });
+        return Flux.concat(
+                Flux.fromIterable(emitted),
+                executionEvents,
+                Flux.defer(() -> finalizeDirect(invocation, definition, agentEvents, sequence)));
+    }
+
+    private Flux<ExecutionEvent> finalizeDirect(
+            AssistantInvocation invocation,
+            AssistantDefinition definition,
+            List<ExecutionEvent> agentEvents,
+            AtomicLong sequence) {
+        var command = invocation.command();
+        return Mono.fromCallable(
+                        () -> {
+                            var current =
+                                    tasks.findExecution(command.tenantId(), command.executionId())
+                                            .orElseThrow(
+                                                    () ->
+                                                            new IllegalStateException(
+                                                                    "DIRECT execution 在完成收口时不存在"));
+                            if (current.status() == Execution.Status.PROMOTED) {
+                                return directTerminalEvent(
+                                        command,
+                                        sequence.incrementAndGet(),
+                                        ExecutionEventType.EXECUTION_PROMOTED,
+                                        Execution.Status.PROMOTED,
+                                        "DIRECT execution 已提升为 canonical Task",
+                                        TurnEndReason.USER_TURN_END,
+                                        "");
+                            }
+                            var canceled =
+                                    agentEvents.stream()
+                                            .anyMatch(
+                                                    event ->
+                                                            event.status()
+                                                                    == ExecutionEventStatus
+                                                                            .CANCELED);
+                            var decision =
+                                    canceled
+                                            ? null
+                                            : completionValidator.validate(
+                                                    new CompletionValidator.ValidationRequest(
+                                                            null,
+                                                            command.completionCriteria(),
+                                                            Optional.empty(),
+                                                            agentEvents));
+                            var completed =
+                                    decision != null
+                                            && decision.outcome()
+                                                    == CompletionDecision.Outcome.COMPLETED;
+                            var status =
+                                    canceled
+                                            ? Execution.Status.CANCELED
+                                            : completed
+                                                    ? Execution.Status.COMPLETED
+                                                    : Execution.Status.FAILED;
+                            tasks.updateExecution(
+                                    command.tenantId(),
+                                    command.executionId(),
+                                    status,
+                                    Instant.now());
+                            var reply = completedReply(agentEvents);
+                            if (completed
+                                    && invocation.memoryMode()
+                                            != AssistantInvocation.MemoryMode.DISABLED) {
+                                appendSessionTurn(command, reply);
+                            }
+                            if (completed
+                                    && longTermMemoryEnabled(invocation, definition)
+                                    && definition
+                                            .memoryStrategy()
+                                            .writeScopes()
+                                            .contains("PERSONAL")) {
+                                memoryGovernance.learn(
+                                        command.memorySubject(),
+                                        command.input(),
+                                        reply,
+                                        Instant.now());
+                            }
+                            var reason =
+                                    canceled
+                                            ? "DIRECT execution 已取消"
+                                            : completed
+                                                    ? decision.reason()
+                                                    : "DIRECT execution 未满足完成条件或触及持久边界";
+                            var endReason =
+                                    canceled
+                                            ? TurnEndReason.CANCELED_BY_USER
+                                            : completed
+                                                    ? TurnEndReason.USER_TURN_END
+                                                    : failureEndReason(agentEvents);
+                            var type =
+                                    canceled
+                                            ? ExecutionEventType.EXECUTION_CANCELED
+                                            : completed
+                                                    ? ExecutionEventType.EXECUTION_COMPLETED
+                                                    : ExecutionEventType.EXECUTION_FAILED;
+                            return directTerminalEvent(
+                                    command,
+                                    sequence.incrementAndGet(),
+                                    type,
+                                    status,
+                                    reason,
+                                    endReason,
+                                    reply);
+                        })
+                .subscribeOn(Schedulers.boundedElastic())
+                .flux();
+    }
+
+    private Flux<ExecutionEvent> failDirect(
+            AssistantCommand command, long sequence, Throwable failure) {
+        return Mono.fromCallable(
+                        () -> {
+                            var current =
+                                    tasks.findExecution(command.tenantId(), command.executionId());
+                            if (current.isPresent()
+                                    && current.orElseThrow().status()
+                                            == Execution.Status.PROMOTED) {
+                                return directTerminalEvent(
+                                        command,
+                                        sequence,
+                                        ExecutionEventType.EXECUTION_PROMOTED,
+                                        Execution.Status.PROMOTED,
+                                        "DIRECT execution 已提升为 canonical Task",
+                                        TurnEndReason.USER_TURN_END,
+                                        "");
+                            }
+                            if (current.isPresent() && !current.orElseThrow().terminal()) {
+                                tasks.updateExecution(
+                                        command.tenantId(),
+                                        command.executionId(),
+                                        Execution.Status.FAILED,
+                                        Instant.now());
+                            }
+                            return directTerminalEvent(
+                                    command,
+                                    sequence,
+                                    current.isEmpty()
+                                            ? ExecutionEventType.COMMAND_REJECTED
+                                            : ExecutionEventType.EXECUTION_FAILED,
+                                    Execution.Status.FAILED,
+                                    "DIRECT execution 执行失败",
+                                    throwableEndReason(failure),
+                                    "");
+                        })
+                .subscribeOn(Schedulers.boundedElastic())
+                .flux();
+    }
+
+    private static ExecutionEvent directTerminalEvent(
+            AssistantCommand command,
+            long sequence,
+            ExecutionEventType type,
+            Execution.Status status,
+            String reason,
+            TurnEndReason endReason,
+            String reply) {
+        var values = new LinkedHashMap<String, Object>();
+        values.put("scope", Execution.Scope.DIRECT.name());
+        values.put("executionStatus", status.name());
+        values.put("reason", reason);
+        values.put("turnEndReason", endReason.name());
+        values.put("resultLength", textLength(reply));
+        if (type == ExecutionEventType.EXECUTION_PROMOTED) {
+            values.put(
+                    "promotedTaskId",
+                    TaskCommandService.promotionTaskId(command.tenantId(), command.executionId())
+                            .value());
+            values.put("taskStatus", Task.Status.READY.name());
+            return new ExecutionEvent(
+                    CanonicalExecutionEventId.of(
+                            command.tenantId(), command.executionId(), "execution-promoted"),
+                    command.tenantId(),
+                    command.conversationId(),
+                    command.sessionId(),
+                    null,
+                    command.executionId(),
+                    command.runId(),
+                    null,
+                    sequence,
+                    type,
+                    ExecutionEventStatus.COMPLETED,
+                    command.controlMode(),
+                    OwnerType.ASSISTANT,
+                    command.assistantId(),
+                    null,
+                    null,
+                    command.correlationId(),
+                    null,
+                    command.idempotencyKey(),
+                    new ExecutionEventPayload(values),
+                    Instant.now(),
+                    null);
+        }
+        return event(
+                command,
+                sequence,
+                type,
+                status == Execution.Status.COMPLETED || status == Execution.Status.PROMOTED
+                        ? ExecutionEventStatus.COMPLETED
+                        : status == Execution.Status.CANCELED
+                                ? ExecutionEventStatus.CANCELED
+                                : ExecutionEventStatus.FAILED,
+                null,
+                new ExecutionEventPayload(values));
     }
 
     private com.xuejiai.aaf.framework.intelligent.cognition.model.ControlledContextSnapshot
@@ -380,7 +694,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
 
     private Flux<ExecutionEvent> executeAgent(
             AssistantInvocation invocation,
-            AtomicReference<AssistantTask> taskRef,
+            AtomicReference<Task> taskRef,
             AtomicBoolean taskProgressed) {
         var command = invocation.command();
         var sequence = new AtomicLong(command.sequenceBase());
@@ -391,14 +705,15 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         : requireTask(command);
         taskRef.set(task);
         if (command.operation() == AssistantCommand.Operation.RESUME) {
-            requireResumable(task);
+            requireResumable(task, command);
         }
 
         var definition = requireDefinition(command);
         definition.requireControlMode(command.controlMode());
         requirePublished(definition);
         logDefinitionResolved(command, definition);
-        if (command.operation() == AssistantCommand.Operation.RESUME) {
+        if (command.operation() == AssistantCommand.Operation.RESUME
+                && command.nodeIdentity() == null) {
             task = prepareTask(command, sequence, emitted, taskRef, taskProgressed);
             taskRef.set(task);
         }
@@ -421,7 +736,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         log.debug(
                 "[Assistant协调] L1 混合上下文已决策：executionId={}，taskId={}，上下文源数={}，L1引用数={}，L1消息数={}，摘要={}",
                 command.executionId().value(),
-                command.taskId().value(),
+                taskKey(command),
                 manifest.sources().size(),
                 controlledContext.references().size(),
                 controlledContext.messages().size(),
@@ -441,7 +756,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         log.debug(
                 "[Assistant协调] 启动 AgentLoop：executionId={}，taskId={}，角色={}，技能={}，执行模式={}，模型={}，有效工具数={}，事件序号基线={}",
                 command.executionId().value(),
-                command.taskId().value(),
+                taskKey(command),
                 profile.roleAssignment().roleKey(),
                 profile.skillExecutionProfile().activatedSkills().stream()
                         .map(skill -> skill.code())
@@ -465,59 +780,6 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 executionEvents,
                 Flux.defer(
                         () -> finalizeTask(invocation, taskRef, profile, agentEvents, sequence)));
-    }
-
-    private Flux<ExecutionEvent> controlTask(AssistantCommand command) {
-        var task = requireTask(command);
-        var sequence = new AtomicLong(command.sequenceBase());
-        if (task.status() == TaskStatus.COMPLETED || task.status() == TaskStatus.CANCELED) {
-            throw new IllegalStateException("终态任务不能执行控制命令: " + task.status());
-        }
-        var next =
-                switch (command.operation()) {
-                    case CANCEL -> TaskStatus.CANCELED;
-                    case PAUSE, TAKE_OVER -> TaskStatus.PAUSED;
-                    case START, RESUME, SUBTASK -> throw new IllegalStateException("非法控制命令");
-                };
-        var owner =
-                command.operation() == AssistantCommand.Operation.TAKE_OVER
-                        ? humanOwner(command)
-                        : task.owner();
-        var reason =
-                switch (command.operation()) {
-                    case CANCEL -> "用户取消任务";
-                    case PAUSE -> "用户暂停任务";
-                    case TAKE_OVER -> "用户接管任务";
-                    case START, RESUME, SUBTASK -> throw new IllegalStateException("非法控制命令");
-                };
-        var recovery =
-                next == TaskStatus.PAUSED ? new RecoveryPoint("user-control", "从用户控制点恢复") : null;
-        var changed =
-                task.transitionTo(
-                        next, reason, humanActor(command), owner, recovery, command.requestedAt());
-        // 责任主体是否变化决定状态槎处置（AAF-110）：PAUSE 同责任主体，走 pause() 保留状态槎供续接；
-        // CANCEL/TAKE_OVER 是真正终态或责任主体变化（owner 切换为 humanOwner），走 cancel() 删除状态槎。
-        var terminate =
-                command.operation() == AssistantCommand.Operation.PAUSE
-                        ? agentExecution.pause(command.executionId())
-                        : agentExecution.cancel(command.executionId());
-        return terminate.flatMapMany(
-                ignored -> {
-                    var saved = tasks.save(command.tenantId(), changed, command.lease());
-                    var type =
-                            next == TaskStatus.CANCELED
-                                    ? ExecutionEventType.EXECUTION_CANCELED
-                                    : ExecutionEventType.EXECUTION_PAUSED;
-                    return Flux.just(
-                            taskEvent(
-                                    command,
-                                    sequence.incrementAndGet(),
-                                    type,
-                                    saved,
-                                    reason,
-                                    null,
-                                    null));
-                });
     }
 
     /**
@@ -574,10 +836,14 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 "[AssistantExecution] stage=assistant_definition_resolved executionId={} taskId={} "
                         + "assistantId={} assistantRevision={} lifecycle={}",
                 command.executionId().value(),
-                command.taskId().value(),
+                taskKey(command),
                 command.assistantId().value(),
                 definition.version().value(),
                 definition.lifecycle());
+    }
+
+    private static String taskKey(AssistantCommand command) {
+        return command.taskId() == null ? null : command.taskId().value();
     }
 
     private static int textLength(String value) {
@@ -588,63 +854,16 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         return (System.nanoTime() - startedAtNanos) / 1_000_000;
     }
 
-    private AssistantTask prepareTask(
+    private Task prepareTask(
             AssistantCommand command,
             AtomicLong sequence,
             List<ExecutionEvent> emitted,
-            AtomicReference<AssistantTask> taskRef,
+            AtomicReference<Task> taskRef,
             AtomicBoolean taskProgressed) {
-        if (command.operation() == AssistantCommand.Operation.START) {
-            var draft =
-                    AssistantTask.draft(
-                            command.taskId(),
-                            command.controlMode(),
-                            assistantOwner(command),
-                            "用户创建任务",
-                            humanActor(command),
-                            command.requestedAt());
-            var created = tasks.create(command.tenantId(), draft, command.lease());
-            log.debug(
-                    "[AssistantExecution] stage=task_created executionId={} taskId={} assistantId={} status={}",
-                    command.executionId().value(),
-                    command.taskId().value(),
-                    command.assistantId().value(),
-                    created.status());
-            taskRef.set(created);
-            taskProgressed.set(true);
-            emitted.add(
-                    taskEvent(
-                            command,
-                            sequence.incrementAndGet(),
-                            ExecutionEventType.EXECUTION_STARTED,
-                            created,
-                            "用户创建任务",
-                            null,
-                            null));
-            var planning =
-                    created.transitionTo(
-                            TaskStatus.PLANNING,
-                            "Assistant 开始规划",
-                            assistantActor(command),
-                            assistantOwner(command),
-                            new RecoveryPoint("planning", "从 Role/Skill 选择前恢复"),
-                            command.requestedAt());
-            tasks.save(command.tenantId(), planning, command.lease());
-            taskRef.set(planning);
-            emitted.add(
-                    taskEvent(
-                            command,
-                            sequence.incrementAndGet(),
-                            ExecutionEventType.TASK_STATUS_CHANGED,
-                            planning,
-                            "Assistant 开始规划",
-                            null,
-                            null));
-            return planning;
-        }
-
         var task = requireTask(command);
-        requireResumable(task);
+        if (command.operation() == AssistantCommand.Operation.RESUME) {
+            requireResumable(task, command);
+        }
         if (task.controlMode() != command.controlMode()) {
             task =
                     task.changeControlMode(
@@ -652,7 +871,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                             "用户显式切换控制模式",
                             humanActor(command),
                             command.requestedAt());
-            tasks.save(command.tenantId(), task, command.lease());
+            task = tasks.saveRoot(task, command.lease());
             emitted.add(
                     taskEvent(
                             command,
@@ -663,59 +882,68 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                             null,
                             null));
         }
-        if (task.status() == TaskStatus.PAUSED || task.status() == TaskStatus.FAILED) {
+        if (task.status() == Status.READY
+                || task.status() == Status.DRAFT
+                || task.status() == Status.PAUSED
+                || task.status() == Status.FAILED) {
             task =
                     task.transitionTo(
-                            TaskStatus.RECOVERING,
-                            "从持久恢复点恢复任务",
-                            assistantActor(command),
-                            assistantOwner(command),
-                            task.recoveryPoint(),
-                            command.requestedAt());
-            tasks.save(command.tenantId(), task, command.lease());
-            emitted.add(
-                    taskEvent(
-                            command,
-                            sequence.incrementAndGet(),
-                            ExecutionEventType.RECOVERY_STARTED,
-                            task,
-                            "从持久恢复点恢复任务",
-                            null,
-                            null));
-        } else if (task.status() == TaskStatus.DRAFT) {
-            task =
-                    task.transitionTo(
-                            TaskStatus.PLANNING,
-                            "恢复草稿并开始规划",
+                            Status.PLANNING,
+                            command.operation() == AssistantCommand.Operation.START
+                                    ? "Task Owner Assistant 开始规划"
+                                    : "从持久恢复点重新规划",
                             assistantActor(command),
                             assistantOwner(command),
                             new RecoveryPoint("planning", "从 Role/Skill 选择前恢复"),
                             command.requestedAt());
-            tasks.save(command.tenantId(), task, command.lease());
+            task = tasks.saveRoot(task, command.lease());
         }
-        if (!task.equals(taskRef.get())) {
-            taskRef.set(task);
-            taskProgressed.set(true);
-        }
+        taskRef.set(task);
+        taskProgressed.set(true);
+        emitted.add(
+                taskEvent(
+                        command,
+                        sequence.incrementAndGet(),
+                        command.operation() == AssistantCommand.Operation.START
+                                ? ExecutionEventType.EXECUTION_STARTED
+                                : ExecutionEventType.RECOVERY_STARTED,
+                        task,
+                        command.operation() == AssistantCommand.Operation.START
+                                ? "canonical Task 已进入规划"
+                                : "从持久恢复点恢复 Task",
+                        null,
+                        null));
         return task;
     }
 
-    private AssistantTask moveToRunning(
+    private Task moveToRunning(
             AssistantCommand command,
-            AssistantTask task,
+            Task task,
             AtomicLong sequence,
             List<ExecutionEvent> emitted,
             ExecutionProfileSnapshot profile,
             EffectiveContextManifest manifest) {
+        if (command.nodeIdentity() != null) {
+            return task;
+        }
+        var agentOwner = new Owner(OwnerKind.AGENT, profile.executionSpec().identifier());
         var running =
-                task.transitionTo(
-                        TaskStatus.RUNNING,
-                        "执行画像已冻结，交给 Agent 执行",
-                        assistantActor(command),
-                        new TaskOwner(OwnerKind.AGENT, profile.executionSpec().identifier()),
-                        new RecoveryPoint("agent-execution", "从 Agent 状态槽位和执行画像恢复"),
-                        command.requestedAt());
-        tasks.save(command.tenantId(), running, command.lease());
+                task.status() == Status.RUNNING
+                        ? task.withRuntime(
+                                Status.RUNNING,
+                                agentOwner,
+                                task.budgetUsage(),
+                                task.checkpoint(),
+                                new RecoveryPoint("agent-execution", "从 Agent 状态槽位和执行画像恢复"),
+                                command.requestedAt())
+                        : task.transitionTo(
+                                Status.RUNNING,
+                                "执行画像已冻结，交给 Agent 执行",
+                                assistantActor(command),
+                                agentOwner,
+                                new RecoveryPoint("agent-execution", "从 Agent 状态槽位和执行画像恢复"),
+                                command.requestedAt());
+        tasks.saveRoot(running, command.lease());
         emitted.add(
                 taskEvent(
                         command,
@@ -730,40 +958,57 @@ public final class AssistantApplicationService implements AssistantCommandPort {
 
     private Flux<ExecutionEvent> finalizeTask(
             AssistantInvocation invocation,
-            AtomicReference<AssistantTask> taskRef,
+            AtomicReference<Task> taskRef,
             ExecutionProfileSnapshot profile,
             List<ExecutionEvent> agentEvents,
             AtomicLong sequence) {
         var command = invocation.command();
         var agentId = new AgentId(profile.executionSpec().identifier());
+        var pausedEvent =
+                agentEvents.stream()
+                        .filter(event -> event.type() == ExecutionEventType.EXECUTION_PAUSED)
+                        .findFirst()
+                        .orElse(null);
+        if (pausedEvent != null) {
+            var latest = tasks.findTask(command.tenantId(), command.taskId()).orElse(taskRef.get());
+            if (latest.status() == Status.PAUSING) {
+                var requestId =
+                        Objects.toString(
+                                latest.checkpoint().annotations().get("pauseRequestId"), "");
+                if (requestId.isBlank()) {
+                    throw new IllegalStateException("PAUSING Task 缺少 pauseRequestId");
+                }
+                var values = pausedEvent.payload().values();
+                var savedAt = Objects.toString(values.get("pauseStateSavedAt"), "");
+                materializations.acknowledgePause(
+                        new TaskMaterializationPort.PauseAckCommand(
+                                command.tenantId(),
+                                command.taskId(),
+                                requestId,
+                                command.executionId(),
+                                Boolean.TRUE.equals(values.get("pauseStateSaved")),
+                                Objects.toString(values.get("pauseStateSlotId"), null),
+                                Objects.toString(values.get("pauseStateSchema"), null),
+                                savedAt.isBlank() ? null : Instant.parse(savedAt),
+                                Objects.toString(values.get("pauseStateFailure"), null),
+                                pausedEvent.createdAt()));
+                return Flux.empty();
+            }
+        }
         var canceled =
                 agentEvents.stream()
                         .anyMatch(event -> event.status() == ExecutionEventStatus.CANCELED);
         if (canceled) {
-            var latest = tasks.find(command.tenantId(), command.taskId()).orElse(taskRef.get());
-            if (latest.status() == TaskStatus.CANCELED || latest.status() == TaskStatus.PAUSED) {
+            var latest = tasks.findTask(command.tenantId(), command.taskId()).orElse(taskRef.get());
+            if (latest.status() == Status.CANCELING
+                    || latest.status() == Status.CANCELED
+                    || latest.status() == Status.PAUSED) {
                 return Flux.empty();
             }
-            var canceledTask =
-                    latest.transitionTo(
-                            TaskStatus.CANCELED,
-                            "Agent 执行已取消",
-                            humanActor(command),
-                            humanOwner(command),
-                            null,
-                            Instant.now());
-            tasks.save(command.tenantId(), canceledTask, command.lease());
-            taskRef.set(canceledTask);
-            return Flux.just(
-                    terminalTaskEvent(
-                            command,
-                            sequence.incrementAndGet(),
-                            ExecutionEventType.EXECUTION_CANCELED,
-                            canceledTask,
-                            "Agent 执行已取消",
-                            agentId,
-                            TurnEndReason.CANCELED_BY_USER,
-                            agentEvents));
+            throw new IllegalStateException("Agent 取消事件缺少 durable CANCELING 请求");
+        }
+        if (command.nodeIdentity() != null) {
+            return finalizeNodeExecution(invocation, taskRef, profile, agentEvents, sequence);
         }
         var decision =
                 completionValidator.validate(
@@ -775,7 +1020,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         log.debug(
                 "[Assistant协调] 完成条件已判定：executionId={}，taskId={}，条件类别={}，要求事件={}，要求证据字段={}，结果={}，Agent事件数={}",
                 command.executionId().value(),
-                command.taskId().value(),
+                taskKey(command),
                 command.completionCriteria().kind(),
                 command.completionCriteria().requiredEventTypes(),
                 command.completionCriteria().requiredPayloadValues().keySet(),
@@ -800,7 +1045,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         transition(
                                 command,
                                 task,
-                                TaskStatus.COMPLETED,
+                                Status.COMPLETED,
                                 decision.reason(),
                                 assistantOwner(command),
                                 null);
@@ -841,7 +1086,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         transition(
                                 command,
                                 task,
-                                TaskStatus.PAUSED,
+                                Status.PAUSED,
                                 decision.reason(),
                                 assistantOwner(command),
                                 decision.recoveryPoint());
@@ -878,8 +1123,8 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                 command,
                                 task,
                                 awaitingAuthorization
-                                        ? TaskStatus.AWAITING_AUTHORIZATION
-                                        : TaskStatus.AWAITING_CLARIFICATION,
+                                        ? Status.AWAITING_AUTHORIZATION
+                                        : Status.AWAITING_CLARIFICATION,
                                 decision.reason(),
                                 humanOwner(command),
                                 decision.recoveryPoint());
@@ -910,7 +1155,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         transition(
                                 command,
                                 task,
-                                TaskStatus.FAILED,
+                                Status.FAILED,
                                 decision.reason(),
                                 assistantOwner(command),
                                 decision.recoveryPoint());
@@ -930,7 +1175,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         transition(
                                 command,
                                 task,
-                                TaskStatus.PAUSED,
+                                Status.PAUSED,
                                 decision.reason(),
                                 humanOwner(command),
                                 decision.recoveryPoint());
@@ -959,9 +1204,156 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         return Flux.fromIterable(events);
     }
 
-    private AssistantTask verifying(
+    private Flux<ExecutionEvent> finalizeNodeExecution(
+            AssistantInvocation invocation,
+            AtomicReference<Task> taskRef,
+            ExecutionProfileSnapshot profile,
+            List<ExecutionEvent> agentEvents,
+            AtomicLong sequence) {
+        var command = invocation.command();
+        var task = taskRef.get();
+        var successfulRun =
+                agentEvents.stream()
+                                .anyMatch(event -> event.type() == ExecutionEventType.RUN_COMPLETED)
+                        && agentEvents.stream()
+                                .noneMatch(
+                                        event ->
+                                                event.status() == ExecutionEventStatus.FAILED
+                                                        || event.status()
+                                                                == ExecutionEventStatus.PAUSED
+                                                        || event.status()
+                                                                == ExecutionEventStatus
+                                                                        .AWAITING_AUTHORIZATION
+                                                        || event.status()
+                                                                == ExecutionEventStatus
+                                                                        .AWAITING_CLARIFICATION);
+        var validationPlan =
+                command.nodeIdentity().kind() == NodeIdentity.NodeKind.AGGREGATOR && successfulRun
+                        ? taskBoards
+                                .find(command.tenantId(), command.taskId())
+                                .map(
+                                        plan ->
+                                                plan.complete(
+                                                        command.nodeIdentity().nodeId(),
+                                                        completedReply(agentEvents)))
+                        : Optional.<TaskPlan>empty();
+        var decision =
+                completionValidator.validate(
+                        new CompletionValidator.ValidationRequest(
+                                task, command.completionCriteria(), validationPlan, agentEvents));
+        var agentId = new AgentId(profile.executionSpec().identifier());
+        var events = new ArrayList<ExecutionEvent>();
+        events.add(
+                taskEvent(
+                        command,
+                        sequence.incrementAndGet(),
+                        ExecutionEventType.VALIDATION_STARTED,
+                        task,
+                        "开始验证 TaskNode 显式业务完成条件",
+                        agentId,
+                        null));
+        switch (decision.outcome()) {
+            case COMPLETED -> {
+                events.add(
+                        taskEvent(
+                                command,
+                                sequence.incrementAndGet(),
+                                ExecutionEventType.VALIDATION_COMPLETED,
+                                task,
+                                decision.reason(),
+                                agentId,
+                                null));
+                events.add(
+                        terminalTaskEvent(
+                                command,
+                                sequence.incrementAndGet(),
+                                ExecutionEventType.EXECUTION_COMPLETED,
+                                task,
+                                decision.reason(),
+                                agentId,
+                                TurnEndReason.BUSINESS_COMPLETED,
+                                agentEvents));
+            }
+            case CONTINUE_REPAIR -> {
+                events.add(
+                        taskEvent(
+                                command,
+                                sequence.incrementAndGet(),
+                                ExecutionEventType.VALIDATION_FAILED,
+                                task,
+                                decision.reason(),
+                                agentId,
+                                null));
+                events.add(
+                        terminalTaskEvent(
+                                command,
+                                sequence.incrementAndGet(),
+                                ExecutionEventType.EXECUTION_FAILED,
+                                task,
+                                decision.reason(),
+                                agentId,
+                                TurnEndReason.REPAIR_SCHEDULED,
+                                agentEvents));
+            }
+            case NEEDS_USER -> {
+                var authorization =
+                        agentEvents.stream()
+                                .anyMatch(
+                                        event ->
+                                                event.status()
+                                                        == ExecutionEventStatus
+                                                                .AWAITING_AUTHORIZATION);
+                events.add(
+                        taskEvent(
+                                command,
+                                sequence.incrementAndGet(),
+                                ExecutionEventType.VALIDATION_FAILED,
+                                task,
+                                decision.reason(),
+                                agentId,
+                                null));
+                events.add(
+                        terminalTaskEvent(
+                                command,
+                                sequence.incrementAndGet(),
+                                ExecutionEventType.EXECUTION_PAUSED,
+                                task,
+                                decision.reason(),
+                                agentId,
+                                authorization
+                                        ? TurnEndReason.AUTHORIZATION_NEEDED
+                                        : TurnEndReason.CLARIFICATION_NEEDED,
+                                agentEvents));
+            }
+            case FAILED ->
+                    events.add(
+                            terminalTaskEvent(
+                                    command,
+                                    sequence.incrementAndGet(),
+                                    ExecutionEventType.EXECUTION_FAILED,
+                                    task,
+                                    decision.reason(),
+                                    agentId,
+                                    failureEndReason(agentEvents),
+                                    agentEvents));
+            case HANDOFF ->
+                    events.add(
+                            terminalTaskEvent(
+                                    command,
+                                    sequence.incrementAndGet(),
+                                    ExecutionEventType.EXECUTION_PAUSED,
+                                    task,
+                                    decision.reason(),
+                                    agentId,
+                                    TurnEndReason.HANDOFF,
+                                    agentEvents));
+        }
+        return Flux.fromIterable(events);
+    }
+
+    private Task verifying(
             AssistantCommand command,
-            AssistantTask task,
+            Task task,
             CompletionDecision decision,
             AtomicLong sequence,
             List<ExecutionEvent> events,
@@ -970,7 +1362,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 transition(
                         command,
                         task,
-                        TaskStatus.VERIFYING,
+                        Status.VERIFYING,
                         "验证 Agent 结果",
                         assistantOwner(command),
                         decision.recoveryPoint());
@@ -986,47 +1378,56 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         return verifying;
     }
 
-    private AssistantTask transition(
+    private Task transition(
             AssistantCommand command,
-            AssistantTask current,
-            TaskStatus next,
+            Task current,
+            Status next,
             String reason,
-            TaskOwner owner,
+            Owner owner,
             RecoveryPoint recoveryPoint) {
         var changed =
                 current.transitionTo(
                         next, reason, assistantActor(command), owner, recoveryPoint, Instant.now());
-        return tasks.save(command.tenantId(), changed, command.lease());
+        return tasks.saveRoot(changed, command.lease());
     }
 
     private Flux<ExecutionEvent> failTask(
             AssistantCommand command,
-            AtomicReference<AssistantTask> taskRef,
+            AtomicReference<Task> taskRef,
             boolean taskProgressed,
             long sequence,
             Throwable failure) {
         var tracked = taskRef.get();
-        if (!command.operation().executesAgent()
-                || !taskProgressed
-                || tracked == null
-                || failure instanceof TaskNotResumableException) {
+        if (!taskProgressed || tracked == null || failure instanceof TaskNotResumableException) {
             return Flux.just(commandRejectedEvent(command, sequence, failure));
         }
-        var current = tasks.find(command.tenantId(), command.taskId()).orElse(tracked);
-        if (current.status() == TaskStatus.COMPLETED || current.status() == TaskStatus.CANCELED) {
+        var current = tasks.findTask(command.tenantId(), command.taskId()).orElse(tracked);
+        if (command.nodeIdentity() != null) {
+            return Flux.just(
+                    terminalTaskEvent(
+                            command,
+                            sequence,
+                            ExecutionEventType.EXECUTION_FAILED,
+                            current,
+                            "TaskNode Role/Skill 选择、策略或执行失败",
+                            null,
+                            throwableEndReason(failure),
+                            List.of()));
+        }
+        if (current.status() == Status.COMPLETED || current.status() == Status.CANCELED) {
             return Flux.just(commandRejectedEvent(command, sequence, failure));
         }
         var failed = current;
-        if (current.status() != TaskStatus.FAILED) {
+        if (current.status() != Status.FAILED) {
             failed =
                     current.transitionTo(
-                            TaskStatus.FAILED,
+                            Status.FAILED,
                             "Assistant Role/Skill 选择、策略或执行失败",
                             assistantActor(command),
                             assistantOwner(command),
                             current.recoveryPoint(),
                             Instant.now());
-            failed = tasks.save(command.tenantId(), failed, command.lease());
+            failed = tasks.saveRoot(failed, command.lease());
         }
         taskRef.set(failed);
         return Flux.just(
@@ -1071,10 +1472,10 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         return ExecutionEventReducer.reduce(events).resultText();
     }
 
-    private static void requireResumable(AssistantTask task) {
-        if (task.status() == TaskStatus.RUNNING
-                || task.status() == TaskStatus.COMPLETED
-                || task.status() == TaskStatus.CANCELED) {
+    private static void requireResumable(Task task, AssistantCommand command) {
+        if ((task.status() == Status.RUNNING && command.lease() == null)
+                || task.status() == Status.COMPLETED
+                || task.status() == Status.CANCELED) {
             throw new TaskNotResumableException("任务当前不能恢复: " + task.status());
         }
     }
@@ -1085,12 +1486,10 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         }
     }
 
-    private AssistantTask requireTask(AssistantCommand command) {
-        return tasks.find(command.tenantId(), command.taskId())
+    private Task requireTask(AssistantCommand command) {
+        return tasks.findTask(command.tenantId(), command.taskId())
                 .orElseThrow(
-                        () ->
-                                new IllegalArgumentException(
-                                        "Assistant 任务不存在: " + command.taskId().value()));
+                        () -> new IllegalArgumentException("Assistant 任务不存在: " + taskKey(command)));
     }
 
     private ExecutionProfileSnapshot resolveExecutionProfile(
@@ -1103,7 +1502,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         var existing = executionProfiles.find(command.tenantId(), command.executionId());
         if (existing.isPresent()) {
             var snapshot = existing.orElseThrow();
-            if (!snapshot.taskId().equals(command.taskId())
+            if (!Objects.equals(snapshot.taskId(), command.taskId())
                     || !snapshot.assistantId().equals(command.assistantId())) {
                 throw new IllegalStateException("ExecutionProfileSnapshot 与恢复命令边界不一致");
             }
@@ -1118,7 +1517,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                     "[AssistantExecution] stage=execution_profile_reused executionId={} taskId={} "
                             + "roleKey={} skillCodes={} modelId={}",
                     command.executionId().value(),
-                    command.taskId().value(),
+                    taskKey(command),
                     snapshot.roleAssignment().roleKey(),
                     snapshot.skillExecutionProfile().activatedSkills().stream()
                             .map(skill -> skill.code())
@@ -1263,7 +1662,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 "[AssistantExecution] stage=role_resolved executionId={} taskId={} roleKey={} "
                         + "selectedBy={} onDemandCandidateCount={} requestedSkill={}",
                 command.executionId().value(),
-                command.taskId().value(),
+                taskKey(command),
                 role.key(),
                 roleSelection.selectedBy(),
                 selectionCandidates.size(),
@@ -1357,12 +1756,15 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                 assistantAllowedToolNames,
                                 agentAllowedTools);
         var resolvedTools = mergeEffectiveTools(roleEffectiveTools, assistantEffectiveTools);
-        var effectiveTools = internalPlanner ? List.<ToolRef>of() : resolvedTools;
+        var effectiveTools =
+                mergeEffectiveTools(
+                        internalPlanner ? List.<ToolRef>of() : resolvedTools,
+                        builtinControlTools(command));
         log.debug(
                 "[AssistantExecution] stage=skill_resolved executionId={} taskId={} selectionMode={} "
                         + "skillCodes={} skillVersions={} selectedBy={} effectiveToolCount={}",
                 command.executionId().value(),
-                command.taskId().value(),
+                taskKey(command),
                 selection.selectionMode(),
                 activatedSkills.stream().map(skill -> skill.code()).toList(),
                 activatedSkills.stream().map(skill -> skill.version().toString()).toList(),
@@ -1371,6 +1773,17 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         var authorizationRules = new LinkedHashMap<String, ToolAuthorizationRule>();
         effectiveTools.forEach(
                 tool -> {
+                    if (builtinControlTool(tool.name())) {
+                        authorizationRules.put(
+                                tool.name(),
+                                new ToolAuthorizationRule(
+                                        true,
+                                        false,
+                                        false,
+                                        ToolAuthorizationContext.MissingGrantBehavior
+                                                .REQUEST_ON_DEMAND));
+                        return;
+                    }
                     definition.toolPolicy().requireAllowed(command.controlMode(), tool.name());
                     var rule = definition.toolPolicy().rules().get(tool.name());
                     var actionPolicy = intent.actionAuthorizationPolicy();
@@ -1407,7 +1820,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 "[AssistantExecution] stage=model_resolved executionId={} taskId={} modelMode={} "
                         + "requestedModelId={} selectedModelId={}",
                 command.executionId().value(),
-                command.taskId().value(),
+                taskKey(command),
                 command.taskModelSelection().mode(),
                 command.taskModelSelection().modelId(),
                 selectedModel.getId());
@@ -1480,7 +1893,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         log.debug(
                 "[Assistant协调] Agent 画像候选已决策：executionId={}，taskId={}，agentKind={}，agentKey={}，模型模式={}，assistantRevision={}，roleKey={}，执行模式={}，技能数={}，有效工具数={}，模型={}",
                 command.executionId().value(),
-                command.taskId().value(),
+                taskKey(command),
                 command.invocationProfile().agentKind(),
                 command.invocationProfile().agentKey(),
                 command.taskModelSelection().mode(),
@@ -1551,6 +1964,15 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             long sequenceBase,
             List<AgentMessage> finalMessages) {
         var command = invocation.command();
+        var stateSlotId =
+                command.taskId() == null
+                        ? command.executionId().value()
+                        : tasks.findExecution(command.tenantId(), command.executionId())
+                                .map(Execution::stateSlotId)
+                                .orElseThrow(
+                                        () ->
+                                                new IllegalStateException(
+                                                        "DELEGATED Agent 调用缺少 canonical Execution"));
         var context =
                 new InvocationContext(
                         command.tenantId(),
@@ -1561,6 +1983,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         command.sessionId(),
                         command.taskId(),
                         command.executionId(),
+                        stateSlotId,
                         command.runId(),
                         command.parentExecutionId(),
                         command.correlationId(),
@@ -1570,7 +1993,12 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         command.executionContract(),
                         command.lease(),
                         new ToolAuthorizationContext(profile.toolAuthorizationRules()),
-                        command.nodeIdentity());
+                        command.nodeIdentity(),
+                        command.dispatchId(),
+                        command.dispatchGeneration(),
+                        command.dispatchFencingToken(),
+                        command.dispatchLeaseOwner(),
+                        command.dispatchLeaseUntil());
         log.debug(
                 "[Assistant协调] Agent 上下文已拼装：executionId={}，promptSha256={}，最终压缩消息数={}，用户附件数={}，草稿策略={}",
                 command.executionId().value(),
@@ -1587,7 +2015,8 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 profile.compiledSystemPrompt(),
                 sequenceBase,
                 finalMessages,
-                context);
+                context,
+                command.resumeStateRequired());
     }
 
     private record ScopedSkillBinding(SkillScope scope, SkillBinding binding) {
@@ -1740,7 +2169,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         command.assistantId().value(),
                         command.conversationId().value(),
                         command.sessionId().value(),
-                        command.taskId().value(),
+                        taskKey(command),
                         command.executionId().value(),
                         command.runId().value(),
                         roleSelection.role().key(),
@@ -1775,7 +2204,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         command.assistantId().value(),
                         command.conversationId().value(),
                         command.sessionId().value(),
-                        command.taskId().value(),
+                        taskKey(command),
                         command.executionId().value(),
                         command.runId().value(),
                         role.key(),
@@ -1820,7 +2249,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                                 command.assistantId().value(),
                                                 command.conversationId().value(),
                                                 command.sessionId().value(),
-                                                command.taskId().value(),
+                                                taskKey(command),
                                                 command.executionId().value(),
                                                 command.runId().value(),
                                                 profile.roleAssignment().roleKey(),
@@ -1850,7 +2279,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         command.assistantId().value(),
                         command.conversationId().value(),
                         command.sessionId().value(),
-                        command.taskId().value(),
+                        taskKey(command),
                         command.executionId().value(),
                         command.runId().value(),
                         profile.roleAssignment().roleKey(),
@@ -1900,6 +2329,48 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                     || rule.reversible();
                         })
                 .collect(Collectors.toUnmodifiableSet());
+    }
+
+    private static List<ToolRef> builtinControlTools(AssistantCommand command) {
+        if (command.taskId() == null
+                && command.invocationProfile().agentKind() == InvocationProfile.AgentKind.PRIMARY) {
+            return List.of(
+                    toolRef(InspectTasksTool.TOOL_NAME),
+                    toolRef(PromoteDirectTaskTool.TOOL_NAME),
+                    toolRef(AmendTaskTool.TOOL_NAME),
+                    toolRef(PauseTaskTool.TOOL_NAME),
+                    toolRef(ResumeTaskTool.TOOL_NAME),
+                    toolRef(TakeOverTaskTool.TOOL_NAME),
+                    toolRef(HandBackTaskTool.TOOL_NAME),
+                    toolRef(CancelTaskTool.TOOL_NAME));
+        }
+        if (command.taskId() != null && command.nodeIdentity() != null) {
+            if (command.invocationProfile().agentKind()
+                    == InvocationProfile.AgentKind.COORDINATOR) {
+                return List.of(
+                        toolRef(SubmitCoordinationPlanTool.TOOL_NAME),
+                        toolRef(RequestClarificationTool.TOOL_NAME));
+            }
+            return List.of(toolRef(RequestClarificationTool.TOOL_NAME));
+        }
+        return List.of();
+    }
+
+    private static boolean builtinControlTool(String toolName) {
+        return InspectTasksTool.TOOL_NAME.equals(toolName)
+                || PromoteDirectTaskTool.TOOL_NAME.equals(toolName)
+                || AmendTaskTool.TOOL_NAME.equals(toolName)
+                || PauseTaskTool.TOOL_NAME.equals(toolName)
+                || ResumeTaskTool.TOOL_NAME.equals(toolName)
+                || TakeOverTaskTool.TOOL_NAME.equals(toolName)
+                || HandBackTaskTool.TOOL_NAME.equals(toolName)
+                || CancelTaskTool.TOOL_NAME.equals(toolName)
+                || SubmitCoordinationPlanTool.TOOL_NAME.equals(toolName)
+                || RequestClarificationTool.TOOL_NAME.equals(toolName);
+    }
+
+    private static ToolRef toolRef(String toolName) {
+        return new ToolRef(toolName, 1, toolName);
     }
 
     private static List<ToolRef> mergeEffectiveTools(
@@ -2025,7 +2496,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             AssistantCommand command,
             long sequence,
             ExecutionEventType type,
-            AssistantTask task,
+            Task task,
             String reason,
             AgentId agentId,
             EffectiveContextManifest manifest) {
@@ -2043,7 +2514,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             AssistantCommand command,
             long sequence,
             ExecutionEventType type,
-            AssistantTask task,
+            Task task,
             String reason,
             AgentId agentId,
             TurnEndReason endReason,
@@ -2060,7 +2531,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
     }
 
     private static LinkedHashMap<String, Object> taskPayloadValues(
-            AssistantTask task, String reason, EffectiveContextManifest manifest) {
+            Task task, String reason, EffectiveContextManifest manifest) {
         var values = new LinkedHashMap<String, Object>();
         values.put("reason", reason);
         values.put("taskStatus", task.status().name());
@@ -2092,9 +2563,14 @@ public final class AssistantApplicationService implements AssistantCommandPort {
 
     /** 本次执行冻结的 Role 事实；同一任务内前后 roleKey 不同即为角色接力，履历由事件流投影得出。 */
     private static ExecutionEvent roleResolvedEvent(
+            AssistantCommand command, long sequence, Task task, ExecutionProfileSnapshot profile) {
+        return roleResolvedEvent(command, sequence, status(task.status()), profile);
+    }
+
+    private static ExecutionEvent roleResolvedEvent(
             AssistantCommand command,
             long sequence,
-            AssistantTask task,
+            ExecutionEventStatus eventStatus,
             ExecutionProfileSnapshot profile) {
         var payload =
                 new ExecutionEventPayload(
@@ -2106,12 +2582,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                 "interactionMode",
                                         profile.executionIntent().interactionMode().name()));
         return event(
-                command,
-                sequence,
-                ExecutionEventType.ROLE_RESOLVED,
-                status(task.status()),
-                null,
-                payload);
+                command, sequence, ExecutionEventType.ROLE_RESOLVED, eventStatus, null, payload);
     }
 
     private static ExecutionEvent commandRejectedEvent(
@@ -2167,35 +2638,35 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 command.nodeIdentity());
     }
 
-    private static ExecutionEventStatus status(TaskStatus status) {
+    private static ExecutionEventStatus status(Status status) {
         return switch (status) {
             case DRAFT -> ExecutionEventStatus.DRAFT;
             case PLANNING -> ExecutionEventStatus.PLANNING;
+            case READY -> ExecutionEventStatus.RECOVERING;
             case AWAITING_AUTHORIZATION -> ExecutionEventStatus.AWAITING_AUTHORIZATION;
             case RUNNING -> ExecutionEventStatus.RUNNING;
             case VERIFYING -> ExecutionEventStatus.VERIFYING;
             case COMPLETED -> ExecutionEventStatus.COMPLETED;
             case AWAITING_CLARIFICATION -> ExecutionEventStatus.AWAITING_CLARIFICATION;
-            case PAUSED -> ExecutionEventStatus.PAUSED;
-            case CANCELED -> ExecutionEventStatus.CANCELED;
+            case PAUSED, PAUSING -> ExecutionEventStatus.PAUSED;
+            case CANCELING, CANCELED -> ExecutionEventStatus.CANCELED;
             case FAILED -> ExecutionEventStatus.FAILED;
-            case RECOVERING -> ExecutionEventStatus.RECOVERING;
         };
     }
 
-    private static TaskOwner assistantOwner(AssistantCommand command) {
-        return new TaskOwner(OwnerKind.ASSISTANT, command.assistantId().value());
+    private static Owner assistantOwner(AssistantCommand command) {
+        return new Owner(OwnerKind.ASSISTANT, command.assistantId().value());
     }
 
-    private static TaskOwner humanOwner(AssistantCommand command) {
-        return new TaskOwner(OwnerKind.HUMAN, command.userId().value());
+    private static Owner humanOwner(AssistantCommand command) {
+        return new Owner(OwnerKind.HUMAN, command.userId().value());
     }
 
-    private static TaskActor assistantActor(AssistantCommand command) {
-        return new TaskActor(OwnerKind.ASSISTANT, command.assistantId().value());
+    private static Actor assistantActor(AssistantCommand command) {
+        return new Actor(OwnerKind.ASSISTANT, command.assistantId().value());
     }
 
-    private static TaskActor humanActor(AssistantCommand command) {
-        return new TaskActor(OwnerKind.HUMAN, command.userId().value());
+    private static Actor humanActor(AssistantCommand command) {
+        return new Actor(OwnerKind.HUMAN, command.userId().value());
     }
 }

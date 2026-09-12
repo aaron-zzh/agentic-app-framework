@@ -246,8 +246,7 @@ public class AssistantAguiController {
      * ClarificationRequest.requestId}。取消（{@code status="cancelled"}）场景当前无独立取消端口方法，直接闭合本次
      * run，不驱动状态转换——用户可通过下一轮自然语言输入触发既有 MODIFY/UNRELATED 分类路径。
      *
-     * <p>{@code DelegatedTaskCoordinator#acceptInput} 是 {@code Mono}；成功后才订阅事件续读，避免在写入尚未落地时
-     * 提前查询导致漏读第一批事件。
+     * <p>{@code TaskCommandService#acceptInput} 是 {@code Mono}；成功后才订阅事件续读，避免在写入尚未落地时 提前查询导致漏读第一批事件。
      */
     private SseEmitter resumeClarification(
             RunRequest request, ResumeEntry entry, TenantId tenantId) {

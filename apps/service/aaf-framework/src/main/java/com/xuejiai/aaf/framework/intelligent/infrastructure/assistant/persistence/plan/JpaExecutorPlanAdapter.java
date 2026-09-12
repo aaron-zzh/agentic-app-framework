@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.plan;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.plan.ExecutorPlan;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.plan.ExecutorPlanStep;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.plan.ExecutorPlanPort;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 
@@ -38,34 +40,26 @@ public class JpaExecutorPlanAdapter implements ExecutorPlanPort {
     @Transactional
     public ExecutorPlan beginPlanning(BeginPlanningCommand command) {
         Objects.requireNonNull(command, "command 不能为空");
-        // revision 由本层按 (tenant, task, board) 现有最大值 +1 分配，调用方不猜测——避免并发建两次
+        // revision 由本层按 (tenant, task, node) 现有最大值 +1 分配，调用方不猜测——避免并发建两次
         // planning 时用同一 revision 号相互覆盖；重复调用仍会在 uk_executor_plan_revision 上失败。
         var nextRevision =
-                plans
-                        .findActiveCandidates(
+                plans.findMaxRevision(
                                 command.tenantId().value(),
-                                command.delegatedTaskId().value(),
-                                command.boardId())
-                        .stream()
-                        .map(ExecutorPlanEntity::getRevision)
-                        .max(Integer::compareTo)
+                                command.taskId().value(),
+                                command.nodeId())
                         .map(current -> current + 1)
                         .orElse(1);
         var planId =
-                "plan-"
-                        + command.delegatedTaskId().value()
-                        + "-"
-                        + command.boardId()
-                        + "-r"
-                        + nextRevision;
+                "plan-" + command.taskId().value() + "-" + command.nodeId() + "-r" + nextRevision;
         if (plans.findByPlanId(planId).isPresent()) {
             throw new IllegalStateException("计划 revision 已存在: " + planId);
         }
         var entity = new ExecutorPlanEntity();
         entity.setPlanId(planId);
         entity.setTenantId(command.tenantId().value());
-        entity.setTaskId(command.delegatedTaskId().value());
-        entity.setBoardId(command.boardId());
+        entity.setTaskId(command.taskId().value());
+        entity.setNodeId(command.nodeId());
+        entity.setExecutionId(command.executionId().value());
         entity.setExecutorAgentId(command.executorAgentId());
         entity.setRevision(nextRevision);
         entity.setStatus(ExecutorPlan.Status.PLANNING.name());
@@ -105,6 +99,7 @@ public class JpaExecutorPlanAdapter implements ExecutorPlanPort {
         entity.setUpdatedAt(command.at());
         for (var draft : command.steps()) {
             var stepEntity = new ExecutorPlanStepEntity();
+            stepEntity.setTenantId(command.tenantId().value());
             stepEntity.setPlanId(command.planId());
             stepEntity.setStepKey(draft.stepKey());
             stepEntity.setOrdinal(draft.ordinal());
@@ -280,16 +275,27 @@ public class JpaExecutorPlanAdapter implements ExecutorPlanPort {
     }
 
     @Override
-    public Optional<ExecutorPlan> findActive(
-            TenantId tenantId, TaskId delegatedTaskId, String boardId) {
+    public Optional<ExecutorPlan> findActive(TenantId tenantId, TaskId taskId, String nodeId) {
         Objects.requireNonNull(tenantId, "tenantId 不能为空");
-        Objects.requireNonNull(delegatedTaskId, "delegatedTaskId 不能为空");
-        Objects.requireNonNull(boardId, "boardId 不能为空");
-        return plans
-                .findActiveCandidates(tenantId.value(), delegatedTaskId.value(), boardId)
-                .stream()
+        Objects.requireNonNull(taskId, "taskId 不能为空");
+        Objects.requireNonNull(nodeId, "nodeId 不能为空");
+        return plans.findActiveCandidates(tenantId.value(), taskId.value(), nodeId).stream()
                 .findFirst()
                 .map(JpaExecutorPlanAdapter::toDomain);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, ExecutorPlan> findLatestByTask(TenantId tenantId, TaskId taskId) {
+        Objects.requireNonNull(tenantId, "tenantId 不能为空");
+        Objects.requireNonNull(taskId, "taskId 不能为空");
+        var latestByNode = new LinkedHashMap<String, ExecutorPlan>();
+        for (var entity :
+                plans.findByTenantIdAndTaskIdOrderByNodeAndRevision(
+                        tenantId.value(), taskId.value())) {
+            latestByNode.putIfAbsent(entity.getNodeId(), toDomain(entity));
+        }
+        return Map.copyOf(latestByNode);
     }
 
     @Override
@@ -310,7 +316,7 @@ public class JpaExecutorPlanAdapter implements ExecutorPlanPort {
         if (!entity.getTenantId().equals(tenantId.value())) {
             throw new IllegalArgumentException("计划不属于当前租户: " + planId);
         }
-        if (!entity.getLockVersion().equals(expectedLockVersion)) {
+        if (!entity.getRuntimeLockVersion().equals(expectedLockVersion)) {
             throw new StaleExecutorPlanException(planId);
         }
         return entity;
@@ -345,7 +351,7 @@ public class JpaExecutorPlanAdapter implements ExecutorPlanPort {
 
     private static void requireStepLockVersion(
             ExecutorPlanStepEntity entity, long expectedLockVersion) {
-        if (!entity.getLockVersion().equals(expectedLockVersion)) {
+        if (!entity.getRuntimeLockVersion().equals(expectedLockVersion)) {
             throw new StaleExecutorPlanException(entity.getPlanId() + "/" + entity.getStepKey());
         }
     }
@@ -384,7 +390,8 @@ public class JpaExecutorPlanAdapter implements ExecutorPlanPort {
                 entity.getPlanId(),
                 new TenantId(entity.getTenantId()),
                 new TaskId(entity.getTaskId()),
-                entity.getBoardId(),
+                entity.getNodeId(),
+                new ExecutionId(entity.getExecutionId()),
                 entity.getExecutorAgentId(),
                 entity.getRevision(),
                 ExecutorPlan.Status.valueOf(entity.getStatus()),
@@ -400,7 +407,7 @@ public class JpaExecutorPlanAdapter implements ExecutorPlanPort {
                 entity.getApprovedAt(),
                 entity.getStartedAt(),
                 entity.getFinishedAt(),
-                entity.getLockVersion());
+                entity.getRuntimeLockVersion());
     }
 
     private static ExecutorPlanStep toDomain(ExecutorPlanStepEntity entity) {
@@ -418,6 +425,6 @@ public class JpaExecutorPlanAdapter implements ExecutorPlanPort {
                 entity.getFailureCode(),
                 entity.getStartedAt(),
                 entity.getFinishedAt(),
-                entity.getLockVersion());
+                entity.getRuntimeLockVersion());
     }
 }

@@ -8,7 +8,7 @@ package com.xuejiai.aaf.framework.intelligent.assistant.port;
 import java.time.Instant;
 import java.util.Objects;
 
-import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskSnapshot;
 
 /**
  * 恢复动作生效前的统一前置校验入口（方案 C，2026-08-29 拍板）。
@@ -23,7 +23,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.DelegatedTask;
 public interface RecoveryPreflight {
 
     /** 对给定任务的当前持久状态做恢复前检查；不产生副作用，不修改任何状态。 */
-    Result check(DelegatedTask task, Instant at);
+    Result check(TaskSnapshot task, Instant at);
 
     /** 校验结果；{@code allowed=false} 时 {@code reason} 必须非空，用于审计与转人工提示。 */
     record Result(boolean allowed, String reason) {

@@ -85,7 +85,7 @@ public final class InternalNodeEventConverter implements AafAguiEventConverter {
         return switch (event.type()) {
             case EXECUTION_STARTED, EXECUTION_COMPLETED, EXECUTION_FAILED, EXECUTION_CANCELED ->
                     context.subTaskActivityChanged(
-                            node.subTaskId(),
+                            node.nodeId(),
                             node.kind().name(),
                             node.roleKey(),
                             event.status().name());
@@ -104,7 +104,7 @@ public final class InternalNodeEventConverter implements AafAguiEventConverter {
         return switch (event.type()) {
             case EXECUTION_STARTED, EXECUTION_COMPLETED, EXECUTION_FAILED, EXECUTION_CANCELED ->
                     context.subTaskStateChanged(
-                            node.subTaskId(),
+                            node.nodeId(),
                             node.kind().name(),
                             node.roleKey(),
                             event.status().name());
@@ -120,7 +120,7 @@ public final class InternalNodeEventConverter implements AafAguiEventConverter {
      * {@code EXECUTION_STARTED} 也绕过降级直达该 converter，会把子任务的开始/结束误当整个 run 的开始/结束。 因此阶段边界作为本 converter
      * 的附加产出，而不是独立抢占类型分派权。
      *
-     * <p><b>不区分 aggregation 阶段（已核实确认）</b>：{@code CoordinationPlan.AggregationContract.Kind
+     * <p><b>不区分 aggregation 阶段（已核实确认）</b>：{@code TaskPlanDraft.AggregationContract.Kind
      * .AGGREGATOR_REDUCE} 下确有专门的 {@code AGGREGATOR} 智能体执行归约，但按 {@code
      * AssistantCommand.nodeIdentityOf} 的交付角色算定，此时 {@code AGGREGATOR} 恰好是唯一交付者 （{@code
      * delivery=true}），走 {@code RunLifecycleEventConverter} 的根节点路径而非本类——客户端视角是 "run

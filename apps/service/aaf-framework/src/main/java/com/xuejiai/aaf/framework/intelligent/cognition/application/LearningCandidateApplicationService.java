@@ -41,7 +41,7 @@ public final class LearningCandidateApplicationService {
     @EventListener
     public void capture(StoredExecutionEvent source) {
         Objects.requireNonNull(source, "source 不能为空");
-        if (!candidateSource(source.event().type())) {
+        if (source.event().taskId() == null || !candidateSource(source.event().type())) {
             return;
         }
         try {

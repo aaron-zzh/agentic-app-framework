@@ -9,11 +9,11 @@ import java.util.Objects;
 
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantTask;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceReference;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceType;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionProfileSnapshot;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.Task;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.EffectiveContextPort;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AssistantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
@@ -38,7 +38,7 @@ public class JpaEffectiveContextAdapter implements EffectiveContextPort {
             TenantId tenantId,
             UserId userId,
             ExecutionProfileSnapshot profile,
-            AssistantTask task,
+            Task task,
             List<SourceReference> candidates,
             Instant at) {
         var role = profile.roleAssignment();

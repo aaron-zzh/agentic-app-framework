@@ -170,7 +170,7 @@ public final class AgentScopeSpecCompiler implements AutoCloseable {
      *
      * <p>三个显式关闭项不是冗余：core 的 {@code dynamicSkillsEnabled} 默认为 {@code true}，不显式关闭会向模型暴露 AAF
      * 未授权的技能加载工具；{@code enableMetaTool} 与 {@code enablePendingToolRecovery} 当前默认关闭，
-     * 显式声明用于锁定意图并让上游改默认值时能被工具面断言发现。不调用 {@code enableTaskList()}——任务清单的 真理源是 AAF TaskBoard，不能出现第二份。
+     * 显式声明用于锁定意图并让上游改默认值时能被工具面断言发现。不调用 {@code enableTaskList()}——任务清单的 真理源是 AAF TaskPlan，不能出现第二份。
      *
      * <p>不重复校验迭代与重试上限：{@link ExecutionPolicy} 的记录不变量已保证 {@code maxIterations >= 1} 与 {@code
      * maxModelRetries >= 0}。这里只补 core {@code build()} 不做的两件事——解析后的模型非空，以及构建后的最终工具面 等于 AAF 白名单。

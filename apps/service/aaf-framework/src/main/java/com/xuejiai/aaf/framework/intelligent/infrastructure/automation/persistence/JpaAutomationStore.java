@@ -259,7 +259,7 @@ public class JpaAutomationStore
                         current.automationId(),
                         current.definitionVersion(),
                         current.triggerKey(),
-                        current.delegatedTaskId(),
+                        current.taskId(),
                         current.definitionSnapshot(),
                         current.parameters(),
                         status,
@@ -279,7 +279,7 @@ public class JpaAutomationStore
         entity.setAutomationId(run.automationId());
         entity.setDefinitionVersion(run.definitionVersion());
         entity.setTriggerKey(run.triggerKey());
-        entity.setDelegatedTaskId(run.delegatedTaskId().value());
+        entity.setTaskId(run.taskId().value());
         entity.setStatus(run.status().name());
         entity.setRun(run);
         entity.setCreatedAt(run.createdAt());

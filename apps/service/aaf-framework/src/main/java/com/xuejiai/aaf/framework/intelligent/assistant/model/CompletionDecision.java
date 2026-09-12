@@ -3,8 +3,7 @@ package com.xuejiai.aaf.framework.intelligent.assistant.model;
 import java.util.Objects;
 
 /** CompletionValidator 的明确业务决策。 */
-public record CompletionDecision(
-        Outcome outcome, String reason, AssistantTask.RecoveryPoint recoveryPoint) {
+public record CompletionDecision(Outcome outcome, String reason, Task.RecoveryPoint recoveryPoint) {
 
     public CompletionDecision {
         Objects.requireNonNull(outcome, "CompletionDecision outcome 不能为空");

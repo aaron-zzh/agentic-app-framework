@@ -34,7 +34,7 @@ import lombok.extern.slf4j.Slf4j;
  * <p>现在状态落 {@code ai_tool_approval}，并提供可用的决定入口（{@code ToolApprovalController}）。 批准后由 {@code
  * ToolApprovalGrantListener} 消费 {@link ApprovalResolvedEvent} 回写会话级工具授权。
  *
- * <p>与任务级 HITL 的边界：任务级审批（有 AssistantTask/InvocationContext，决定后要迁移任务状态并恢复执行） 走 {@code
+ * <p>与任务级 HITL 的边界：任务级审批（有 Task/InvocationContext，决定后要迁移任务状态并恢复执行） 走 {@code
  * PersistentHitlCoordinator} + {@code ai_hitl_approval}；本服务面向 {@code ToolService} REST 调用与 Flowable
  * {@code ToolNode} 这类**没有任务上下文**的工具确认。两者都持久化，职责不重叠。
  */

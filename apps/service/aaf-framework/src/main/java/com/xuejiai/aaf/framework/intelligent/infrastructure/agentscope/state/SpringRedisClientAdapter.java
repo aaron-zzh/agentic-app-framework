@@ -17,8 +17,8 @@ import io.agentscope.extensions.redis.state.RedisClientAdapter;
  *
  * <p><b>已知上游约束（RQ-13 部分不可在本层修复）</b>：{@code RedisAgentStateStore} 是分两步调用 {@code set(key, json)} 然后
  * {@code addToSet(keysKey, key)} 来维护"值 + 注册表"的，两步之间崩溃会留下未登记的孤儿键。 {@link RedisClientAdapter}
- * 接口只暴露单命令原语、没有组合入口，因此本适配器无法把它们合并为一次 Lua/事务提交—— 要修必须改上游或 fork。实际影响有界：AAF 按显式键删除本次执行的状态槽（键含
- * executionId），不依赖注册表扫描做清理， 孤儿键不会被其他执行读到。
+ * 接口只暴露单命令原语、没有组合入口，因此本适配器无法把它们合并为一次 Lua/事务提交—— 要修必须改上游或 fork。实际影响有界：AAF 按显式
+ * stateSlot 键做 stale-safe 清理，不依赖注册表扫描；孤儿注册项不参与状态寻址或 Dispatch authority 判定。
  */
 public final class SpringRedisClientAdapter implements RedisClientAdapter {
 

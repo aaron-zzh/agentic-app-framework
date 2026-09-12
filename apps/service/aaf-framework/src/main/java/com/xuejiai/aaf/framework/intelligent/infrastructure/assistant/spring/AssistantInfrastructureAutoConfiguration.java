@@ -21,27 +21,33 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.SkillCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.SkillReferenceCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.AiAutoConfiguration;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.AmendTaskTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantApplicationService;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.CancelTaskTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.CompletionValidator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.ContextLoadTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultCompletionValidator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultEffectiveSkillResolver;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultInputClassifier;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultRecoveryPreflight;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultRoleSelector;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultSkillSelectionPort;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveSkillResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveToolResolver;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.HandBackTaskTool;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.InspectTasksTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.ModelSkillSelectionPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.PauseTaskTool;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.PromoteDirectTaskTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.PromptAssembler;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.RenderUiBlockTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.ReportExecutorStepTool;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.RequestClarificationTool;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.ResumeTaskTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.RoleSelector;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.SkillSelectionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.SubmitCoordinationPlanTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.SubmitExecutorPlanTool;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.SupportHandoffTool;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.TakeOverTaskTool;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskCommandService;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskIngress;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DecompositionBudget;
 import com.xuejiai.aaf.framework.intelligent.assistant.persona.PersonaRepository;
@@ -49,20 +55,19 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantProvisioningPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskDispatchPort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.EffectiveContextPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ExecutionProfileSnapshotPort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.InputClassifier;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.NotificationPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.HitlTransitionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.RoleDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.SkillDecisionAuditPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.SystemSkillBindingPort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskBoardPort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskControlPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskDispatchSignalPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskMaterializationPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskPlanPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskQueryPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskRecoveryDispatchPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskRecoveryPort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskTransitionPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskUnitOfWork;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.plan.ExecutorPlanPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.role.AiAssistantRoleRepository;
 import com.xuejiai.aaf.framework.intelligent.assistant.role.AiRoleRepository;
@@ -80,7 +85,6 @@ import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptTemplateService;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agent.persistence.JpaSkillCatalogAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentScopeInfrastructureAutoConfiguration;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.AssistantRepository;
-import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.AssistantTaskControlRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.ContextSourcePreferenceRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.EffectiveContextManifestRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.ExecutionProfileSnapshotRepository;
@@ -90,7 +94,6 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistenc
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaExecutionProfileSnapshotAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaRoleDefinitionAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaSystemSkillBindingAdapter;
-import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaTaskControlAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.SystemSkillBindingRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.plan.ExecutorPlanRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.plan.ExecutorPlanStepRepository;
@@ -149,19 +152,6 @@ public class AssistantInfrastructureAutoConfiguration {
         return new DefaultEffectiveSkillResolver(skillCatalog);
     }
 
-    @Bean
-    @ConditionalOnMissingBean(TaskControlPort.class)
-    TaskControlPort assistantTaskControlPort(
-            AssistantTaskControlRepository repository, ConversationLeasePort leases) {
-        return new JpaTaskControlAdapter(repository, leases);
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(SupportHandoffTool.class)
-    SupportHandoffTool supportHandoffTool(TaskControlPort tasks, ExecutionEventStorePort events) {
-        return new SupportHandoffTool(tasks, events);
-    }
-
     /**
      * 计划提交后直接批准，不设独立审批关卡（ADR-006「决策推翻」2026-09-01）——风险控制交给协调者派发子节点时的既有审批点，
      * 与步骤执行阶段具体工具调用前的既有授权链路，不为"提交步骤列表"这个动作重复建设审批机制。
@@ -189,15 +179,15 @@ public class AssistantInfrastructureAutoConfiguration {
 
     /**
      * 协调者 execution 内可用的写工具：提交协调计划，替代手工 JSON 文本解析（迁移自 {@code
-     * DelegatedTaskCoordinator.decodeAndValidatePlan}，业务规则原样保留）。是否规划不再是建板时的静态 判定（AAF-107 选项 B
+     * TaskCommandService.decodeAndValidatePlan}，业务规则原样保留）。是否规划不再是建板时的静态 判定（AAF-107 选项 B
      * 架构改造，2026-09-02，{@code PlanRequirementPolicy} 已随之删除），改为运行时查询是否存在 活跃 {@code
      * ExecutorPlan}，与本工具无关。
      */
     @Bean
-    @ConditionalOnBean(TaskBoardPort.class)
+    @ConditionalOnBean(TaskPlanPort.class)
     @ConditionalOnMissingBean(SubmitCoordinationPlanTool.class)
-    SubmitCoordinationPlanTool submitCoordinationPlanTool(
-            TaskBoardPort boards, DecompositionBudget decompositionBudget) {
+    SubmitCoordinationPlanTool submitTaskPlanDraftTool(
+            TaskPlanPort boards, DecompositionBudget decompositionBudget) {
         return new SubmitCoordinationPlanTool(boards, decompositionBudget);
     }
 
@@ -318,8 +308,9 @@ public class AssistantInfrastructureAutoConfiguration {
     @Bean
     @ConditionalOnBean({
         AssistantDefinitionPort.class,
-        TaskControlPort.class,
-        TaskBoardPort.class,
+        TaskUnitOfWork.class,
+        TaskMaterializationPort.class,
+        TaskPlanPort.class,
         AgentExecutionPort.class,
         EffectiveToolResolver.class,
         PromptAssembler.class,
@@ -342,8 +333,9 @@ public class AssistantInfrastructureAutoConfiguration {
     @ConditionalOnMissingBean(AssistantCommandPort.class)
     AssistantCommandPort assistantCommandPort(
             AssistantDefinitionPort definitions,
-            TaskControlPort tasks,
-            TaskBoardPort taskBoards,
+            TaskUnitOfWork tasks,
+            TaskMaterializationPort materializations,
+            TaskPlanPort taskBoards,
             RoleSelector roleSelector,
             SystemSkillBindingPort systemSkillBindings,
             SkillCatalogPort skillCatalog,
@@ -367,6 +359,7 @@ public class AssistantInfrastructureAutoConfiguration {
         return new AssistantApplicationService(
                 definitions,
                 tasks,
+                materializations,
                 taskBoards,
                 roleSelector,
                 systemSkillBindings,
@@ -398,104 +391,139 @@ public class AssistantInfrastructureAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnBean(PromptInvocationGateway.class)
-    @ConditionalOnMissingBean(InputClassifier.class)
-    InputClassifier inputClassifier(PromptInvocationGateway promptGateway) {
-        return new DefaultInputClassifier(promptGateway);
-    }
-
-    @Bean
-    @ConditionalOnBean({DelegatedTaskPort.class, DelegatedTaskDispatchPort.class})
+    @ConditionalOnBean(TaskUnitOfWork.class)
     @ConditionalOnMissingBean(TaskIngress.class)
-    TaskIngress taskIngress(
-            DelegatedTaskPort tasks,
-            DelegatedTaskDispatchPort dispatchSignals,
-            ObjectProvider<TaskBoardPort> boards,
-            ObjectProvider<InputClassifier> classifier) {
-        return new TaskIngress(
-                tasks, dispatchSignals, boards.getIfAvailable(), classifier.getIfAvailable());
+    TaskIngress taskIngress(TaskUnitOfWork tasks) {
+        return new TaskIngress(tasks);
     }
 
     @Bean
     @ConditionalOnBean({
-        DelegatedTaskPort.class,
-        TaskTransitionPort.class,
+        TaskUnitOfWork.class,
         TaskIngress.class,
-        TaskBoardPort.class,
+        TaskMaterializationPort.class,
+        ExecutionProfileSnapshotPort.class,
+        HitlTransitionPort.class,
         ConversationLeasePort.class,
         AssistantCommandPort.class,
         AgentExecutionPort.class,
-        ExecutionEventStorePort.class,
-        NotificationPort.class,
-        DelegatedTaskDispatchPort.class,
-        AgentTaskRuntime.class
+        TaskDispatchSignalPort.class
     })
     @ConditionalOnMissingBean
-    DelegatedTaskCoordinator delegatedTaskCoordinator(
-            DelegatedTaskPort tasks,
-            TaskTransitionPort transitions,
+    TaskCommandService taskCommandService(
+            TaskUnitOfWork tasks,
             TaskIngress taskIngress,
-            TaskBoardPort boards,
+            TaskMaterializationPort materializations,
+            ExecutionProfileSnapshotPort executionProfiles,
+            HitlTransitionPort transitions,
             ConversationLeasePort leases,
             AssistantCommandPort assistants,
             AgentExecutionPort agentExecutions,
-            ExecutionEventStorePort events,
-            NotificationPort notifications,
-            DelegatedTaskDispatchPort dispatchSignals,
-            AgentTaskRuntime agentTaskRuntime,
-            DecompositionBudget decompositionBudget,
-            ObjectProvider<ExecutorPlanPort> plans,
+            TaskDispatchSignalPort dispatchSignals,
             Environment environment) {
         var leaseTtl =
                 Duration.ofSeconds(
                         environment.getProperty(
                                 "aaf.assistant.delegated.lease-seconds", Long.class, 60L));
-        // plans 直接接入（AAF-107 选项 B 架构改造，2026-09-02）：是否规划不再是需要独立开关的可选能力，
-        // 而是任何节点在自己 execution 内自主决定要不要调用 submit_executor_plan 的默认能力；
-        // ExecutorPlanPort Bean 本身已注册，用 ObjectProvider 兜底允许极简测试固件缺省。
-        return new DelegatedTaskCoordinator(
+        var pauseAckTimeout =
+                Duration.ofSeconds(
+                        environment.getProperty(
+                                "aaf.assistant.pause-ack-timeout-seconds", Long.class, 30L));
+        return new TaskCommandService(
                 tasks,
-                transitions,
                 taskIngress,
-                boards,
+                materializations,
+                executionProfiles,
+                transitions,
                 leases,
                 assistants,
                 agentExecutions,
-                notifications,
                 dispatchSignals,
-                agentTaskRuntime,
-                decompositionBudget,
                 Clock.systemUTC(),
                 leaseTtl,
-                new DefaultRecoveryPreflight(),
-                plans.getIfAvailable(),
-                events);
+                pauseAckTimeout);
     }
 
     @Bean
-    @ConditionalOnBean(DelegatedTaskCoordinator.class)
+    @ConditionalOnBean({TaskQueryPort.class, ExecutorPlanPort.class})
+    @ConditionalOnMissingBean(InspectTasksTool.class)
+    InspectTasksTool inspectTasksTool(TaskQueryPort taskQueries, ExecutorPlanPort executorPlans) {
+        return new InspectTasksTool(taskQueries, executorPlans);
+    }
+
+    @Bean
+    @ConditionalOnBean(TaskCommandService.class)
+    @ConditionalOnMissingBean(PromoteDirectTaskTool.class)
+    PromoteDirectTaskTool promoteDirectTaskTool(TaskCommandService taskCommands) {
+        return new PromoteDirectTaskTool(taskCommands);
+    }
+
+    @Bean
+    @ConditionalOnBean(HitlTransitionPort.class)
+    @ConditionalOnMissingBean(RequestClarificationTool.class)
+    RequestClarificationTool requestClarificationTool(HitlTransitionPort transitions) {
+        return new RequestClarificationTool(transitions, Clock.systemUTC());
+    }
+
+    @Bean
+    @ConditionalOnBean(TaskCommandService.class)
+    @ConditionalOnMissingBean(AmendTaskTool.class)
+    AmendTaskTool amendTaskTool(TaskCommandService taskCommands) {
+        return new AmendTaskTool(taskCommands, Clock.systemUTC());
+    }
+
+    @Bean
+    @ConditionalOnBean(TaskCommandService.class)
+    @ConditionalOnMissingBean(PauseTaskTool.class)
+    PauseTaskTool pauseTaskTool(TaskCommandService taskCommands) {
+        return new PauseTaskTool(taskCommands);
+    }
+
+    @Bean
+    @ConditionalOnBean(TaskCommandService.class)
+    @ConditionalOnMissingBean(ResumeTaskTool.class)
+    ResumeTaskTool resumeTaskTool(TaskCommandService taskCommands) {
+        return new ResumeTaskTool(taskCommands);
+    }
+
+    @Bean
+    @ConditionalOnBean(TaskCommandService.class)
+    @ConditionalOnMissingBean(TakeOverTaskTool.class)
+    TakeOverTaskTool takeOverTaskTool(TaskCommandService taskCommands) {
+        return new TakeOverTaskTool(taskCommands);
+    }
+
+    @Bean
+    @ConditionalOnBean(TaskCommandService.class)
+    @ConditionalOnMissingBean(HandBackTaskTool.class)
+    HandBackTaskTool handBackTaskTool(TaskCommandService taskCommands) {
+        return new HandBackTaskTool(taskCommands);
+    }
+
+    @Bean
+    @ConditionalOnBean(TaskCommandService.class)
+    @ConditionalOnMissingBean(CancelTaskTool.class)
+    CancelTaskTool cancelTaskTool(TaskCommandService taskCommands) {
+        return new CancelTaskTool(taskCommands);
+    }
+
+    @Bean
+    @ConditionalOnBean(TaskCommandService.class)
     @ConditionalOnMissingBean
-    DelegatedTaskScheduler delegatedTaskScheduler(
-            DelegatedTaskCoordinator coordinator,
+    TaskDispatchScheduler taskDispatchScheduler(
+            TaskCommandService coordinator,
             AgentTaskRuntime agentTaskRuntime,
             Environment environment) {
         var defaultWorker =
                 ManagementFactory.getRuntimeMXBean().getName() + "-" + UUID.randomUUID();
         var workerId = environment.getProperty("aaf.assistant.delegated.worker-id", defaultWorker);
-        return new DelegatedTaskScheduler(coordinator, agentTaskRuntime, workerId);
+        return new TaskDispatchScheduler(coordinator, agentTaskRuntime, workerId);
     }
 
     @Bean
-    @ConditionalOnBean({
-        DelegatedTaskCoordinator.class,
-        DelegatedTaskPort.class,
-        AgentTaskRuntime.class
-    })
+    @ConditionalOnBean({TaskCommandService.class, AgentTaskRuntime.class})
     SmartInitializingSingleton delegatedTaskAgentTaskRegistration(
-            DelegatedTaskCoordinator coordinator,
-            DelegatedTaskPort tasks,
-            AgentTaskRuntime agentTaskRuntime) {
-        return () ->
-                agentTaskRuntime.register(new DelegatedTaskAgentTaskAdapter(coordinator, tasks));
+            TaskCommandService coordinator, AgentTaskRuntime agentTaskRuntime) {
+        return () -> agentTaskRuntime.register(new TaskDispatchAgentTaskAdapter(coordinator));
     }
 }

@@ -7,7 +7,7 @@ import org.springframework.context.ApplicationEventPublisherAware;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort.Lease;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskUnitOfWork;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort.StoredExecutionEvent;
@@ -25,14 +25,14 @@ public final class JpaExecutionEventStoreAdapter
     private final ExecutionEventRepository repository;
     private final SynchronousExecutionEventWriter writer;
     private final ConversationLeasePort leases;
-    private final DelegatedTaskPort tasks;
+    private final TaskUnitOfWork tasks;
     private ApplicationEventPublisher applicationEventPublisher;
 
     public JpaExecutionEventStoreAdapter(
             ExecutionEventRepository repository,
             SynchronousExecutionEventWriter writer,
             ConversationLeasePort leases,
-            DelegatedTaskPort tasks) {
+            TaskUnitOfWork tasks) {
         this.repository = Objects.requireNonNull(repository, "repository 不能为空");
         this.writer = Objects.requireNonNull(writer, "writer 不能为空");
         this.leases = Objects.requireNonNull(leases, "leases 不能为空");

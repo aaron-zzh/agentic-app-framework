@@ -14,15 +14,15 @@ import io.agentscope.core.agui.event.AguiEvent;
  * planning / verification 阶段成对投影（AAF-104 #10403）。
  *
  * <p><b>execution / aggregation 阶段不在本类</b>：子任务的开始/完成事实是通用的 {@code EXECUTION_STARTED}/{@code
- * EXECUTION_COMPLETED}（{@code DelegatedTaskCoordinator.executeSubTask} 调 {@code commands.execute}
- * 产生， 带 {@code nodeIdentity}），这批事件在非根节点上会走"内部节点降级 CUSTOM"规则，若本类抢占其类型分派会与 {@code
+ * EXECUTION_COMPLETED}（{@code TaskCommandService.executeNode} 调 {@code commands.execute} 产生， 带
+ * {@code nodeIdentity}），这批事件在非根节点上会走"内部节点降级 CUSTOM"规则，若本类抢占其类型分派会与 {@code
  * RunLifecycleEventConverter} 的 per-run 语义冲突（子任务开始会被误当整个 run 开始）。因此 execution/aggregation 阶段边界改为
  * {@code InternalNodeEventConverter} 在 CUSTOM 投影之外的附加产出，见该类 Javadoc。
  *
  * <p><b>{@code SUBTASK_STARTED}/{@code SUBTASK_COMPLETED}/{@code SUBTASK_FAILED}/{@code
- * SUBTASK_CANCELED} 已删除（AAF-104 核实确认）</b>：这四个类型是 {@code DelegatedTaskCoordinator}
- * 落地前的预留占位，全仓核实从未被任何 生产代码发出——实际实现选择复用更早已存在的 {@code EXECUTION_STARTED}/{@code
- * EXECUTION_COMPLETED}（配合 {@code nodeIdentity} 区分节点），预留值因此变成孤儿枚举，已随本次改动一并清理，不留死代码。
+ * SUBTASK_CANCELED} 已删除（AAF-104 核实确认）</b>：这四个类型是 {@code TaskCommandService} 落地前的预留占位，全仓核实从未被任何
+ * 生产代码发出——实际实现选择复用更早已存在的 {@code EXECUTION_STARTED}/{@code EXECUTION_COMPLETED}（配合 {@code
+ * nodeIdentity} 区分节点），预留值因此变成孤儿枚举，已随本次改动一并清理，不留死代码。
  *
  * <p><b>不受"内部节点降级 CUSTOM"规则约束</b>：{@code EXECUTOR_PLAN_*}/{@code VALIDATION_*} 目前均不携带 {@code
  * nodeIdentity}（{@code VALIDATION_*} 的构造调用点尚未接入 {@code nodeIdentity}，是 #10407

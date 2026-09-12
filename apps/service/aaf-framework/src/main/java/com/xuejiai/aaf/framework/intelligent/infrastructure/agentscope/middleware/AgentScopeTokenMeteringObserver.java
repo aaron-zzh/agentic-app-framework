@@ -6,7 +6,7 @@ import java.util.Objects;
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentExecutionCommand;
 import com.xuejiai.aaf.framework.intelligent.agent.port.TokenMeteringPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.TokenMeteringPort.ModelUsageFact;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskUnitOfWork;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 
@@ -22,10 +22,10 @@ import io.agentscope.core.event.ModelCallEndEvent;
  */
 public final class AgentScopeTokenMeteringObserver {
     private final TokenMeteringPort metering;
-    private final DelegatedTaskPort delegatedTasks;
+    private final TaskUnitOfWork delegatedTasks;
 
     public AgentScopeTokenMeteringObserver(
-            TokenMeteringPort metering, DelegatedTaskPort delegatedTasks) {
+            TokenMeteringPort metering, TaskUnitOfWork delegatedTasks) {
         this.metering = Objects.requireNonNull(metering, "metering 不能为空");
         this.delegatedTasks = Objects.requireNonNull(delegatedTasks, "delegatedTasks 不能为空");
     }

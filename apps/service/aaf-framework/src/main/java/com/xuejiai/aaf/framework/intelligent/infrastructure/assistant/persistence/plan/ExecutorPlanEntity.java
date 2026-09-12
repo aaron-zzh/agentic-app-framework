@@ -7,23 +7,17 @@ import java.util.Map;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.AssistantRuntimeEntity;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * {@code ai_executor_plan} 的 JPA 映射。
- *
- * <p>用显式关系列而非单一 JSONB（对比 {@code TaskBoardEntity.board_payload}），因为计划需要独立的 revision 唯一约束、 审批人留痕列和
- * {@code REVIEW_REQUIRED} 队列索引——这些是 SQL 层不变量，JSONB 表达式索引无法直接承担唯一约束。
- */
+/** {@code ai_executor_plan} 的 JPA 映射。 */
 @Getter
 @Setter
 @Entity
@@ -31,24 +25,23 @@ import lombok.Setter;
         name = "ai_executor_plan",
         uniqueConstraints = {
             @UniqueConstraint(columnNames = {"plan_id"}),
-            @UniqueConstraint(columnNames = {"tenant_id", "task_id", "board_id", "revision"})
+            @UniqueConstraint(columnNames = {"org_id", "plan_id"}),
+            @UniqueConstraint(
+                    columnNames = {"org_id", "task_id", "node_id", "execution_id", "revision"})
         })
-public class ExecutorPlanEntity {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class ExecutorPlanEntity extends AssistantRuntimeEntity {
 
     @Column(name = "plan_id", nullable = false, length = 128)
     private String planId;
 
-    @Column(name = "tenant_id", nullable = false, length = 128)
-    private String tenantId;
-
     @Column(name = "task_id", nullable = false, length = 128)
     private String taskId;
 
-    @Column(name = "board_id", nullable = false, length = 128)
-    private String boardId;
+    @Column(name = "node_id", nullable = false, length = 128)
+    private String nodeId;
+
+    @Column(name = "execution_id", nullable = false, length = 128)
+    private String executionId;
 
     @Column(name = "executor_agent_id", nullable = false, length = 128)
     private String executorAgentId;
@@ -105,6 +98,6 @@ public class ExecutorPlanEntity {
     private Instant updatedAt;
 
     @Version
-    @Column(name = "lock_version", nullable = false)
-    private Long lockVersion;
+    @Column(name = "runtime_lock_version", nullable = false)
+    private Long runtimeLockVersion;
 }

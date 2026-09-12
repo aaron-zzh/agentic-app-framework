@@ -20,9 +20,38 @@ public interface ExecutorPlanRepository extends JpaRepository<ExecutorPlanEntity
     @Query(
             """
             select p from ExecutorPlanEntity p
-            where p.tenantId = :tenantId and p.taskId = :taskId and p.boardId = :boardId
-                and p.status not in ('CANCELLED', 'REJECTED')
+            where p.orgId = :orgId and p.taskId = :taskId and p.nodeId = :nodeId
+                and p.status not in ('COMPLETED', 'FAILED', 'CANCELLED', 'REJECTED')
             order by p.revision desc
             """)
-    List<ExecutorPlanEntity> findActiveCandidates(String tenantId, String taskId, String boardId);
+    List<ExecutorPlanEntity> findActiveCandidatesByOrgId(Long orgId, String taskId, String nodeId);
+
+    @Query(
+            """
+            select p from ExecutorPlanEntity p
+            where p.orgId = :orgId and p.taskId = :taskId
+            order by p.nodeId asc, p.revision desc
+            """)
+    List<ExecutorPlanEntity> findByOrgIdAndTaskIdOrderByNodeAndRevision(Long orgId, String taskId);
+
+    @Query(
+            """
+            select max(p.revision) from ExecutorPlanEntity p
+            where p.orgId = :orgId and p.taskId = :taskId and p.nodeId = :nodeId
+            """)
+    Optional<Integer> findMaxRevisionByOrgId(Long orgId, String taskId, String nodeId);
+
+    default List<ExecutorPlanEntity> findActiveCandidates(
+            String tenantId, String taskId, String nodeId) {
+        return findActiveCandidatesByOrgId(Long.valueOf(tenantId), taskId, nodeId);
+    }
+
+    default List<ExecutorPlanEntity> findByTenantIdAndTaskIdOrderByNodeAndRevision(
+            String tenantId, String taskId) {
+        return findByOrgIdAndTaskIdOrderByNodeAndRevision(Long.valueOf(tenantId), taskId);
+    }
+
+    default Optional<Integer> findMaxRevision(String tenantId, String taskId, String nodeId) {
+        return findMaxRevisionByOrgId(Long.valueOf(tenantId), taskId, nodeId);
+    }
 }

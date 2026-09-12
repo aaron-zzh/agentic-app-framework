@@ -9,22 +9,22 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionInput;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Version;
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
 @Entity
-@Table(name = "ai_task_input_buffer")
-public class TaskInputEntity {
-    @Id
-    @Column(name = "input_id", length = 128)
-    private String inputId;
+@Table(
+        name = "ai_task_input_buffer",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"org_id", "input_id"}))
+public class TaskInputEntity extends AssistantRuntimeEntity {
 
-    @Column(name = "tenant_id", nullable = false, length = 128)
-    private String tenantId;
+    @Column(name = "input_id", nullable = false, length = 128)
+    private String inputId;
 
     @Column(name = "task_id", nullable = false, length = 128)
     private String taskId;
@@ -38,4 +38,8 @@ public class TaskInputEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "input_payload", nullable = false, columnDefinition = "jsonb")
     private ExecutionInput input;
+
+    @Version
+    @Column(name = "runtime_lock_version", nullable = false)
+    private Long runtimeLockVersion;
 }

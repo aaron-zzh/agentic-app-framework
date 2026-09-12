@@ -10,7 +10,7 @@ import java.util.Set;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionCriteria;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceReference;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlan;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.MemorySubject;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AssistantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
@@ -111,7 +111,7 @@ public record AutomationDefinition(
             String goal,
             CompletionCriteria completionCriteria,
             List<SourceReference> contextCandidates,
-            TaskBoard board,
+            TaskPlan board,
             ExecutionContract contract,
             Duration executionWindow) {
         public TaskTemplate {

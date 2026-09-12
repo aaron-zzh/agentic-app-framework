@@ -118,8 +118,8 @@ public final class AafAguiStreamContext {
     /**
      * 子任务状态变化投影为 {@code StateSnapshot}/{@code StateDelta}（AAF-104 #10403）。
      *
-     * <p><b>状态完全从事件流自身重建，不反查 {@code TaskBoardPort}</b>：与 {@code startedMessages}/{@code
-     * startedToolCalls} 同一模式——每个子任务的开始/终态事件自带 {@code nodeIdentity}（{@code subTaskId}/{@code
+     * <p><b>状态完全从事件流自身重建，不反查 {@code TaskPlanPort}</b>：与 {@code startedMessages}/{@code
+     * startedToolCalls} 同一模式——每个子任务的开始/终态事件自带 {@code nodeIdentity}（{@code nodeId}/{@code
      * kind}/{@code roleKey}）与 {@code status}，足够在内存里增量维护一份"目前已知的子任务状态表"，不需要为了拿一份
      * 完整快照就引入领域仓储依赖，保持投影层"纯粹消费事件流"的既有定位。
      *
@@ -128,17 +128,17 @@ public final class AafAguiStreamContext {
      * （无变化时返回空列表，不产生噪声事件）。
      *
      * <p>{@code state} 形状对齐 assistant-ui {@code useAgUiState} 的"任意自定义 JSON 对象"约定，字段只含安全的
-     * 展示级信息（{@code subTaskId}/{@code kind}/{@code roleKey}/{@code status}），不包含目标文本、 {@code
-     * forwardedProps}、凭据或完整 TaskBoard payload。
+     * 展示级信息（{@code nodeId}/{@code kind}/{@code roleKey}/{@code status}），不包含目标文本、 {@code
+     * forwardedProps}、凭据或完整 TaskPlan payload。
      */
     public List<AguiEvent> subTaskStateChanged(
-            String subTaskId, String kind, String roleKey, String status) {
+            String nodeId, String kind, String roleKey, String status) {
         var view = new LinkedHashMap<String, Object>();
-        view.put("subTaskId", subTaskId);
+        view.put("nodeId", nodeId);
         view.put("kind", kind);
         view.put("roleKey", roleKey == null ? "" : roleKey);
         view.put("status", status);
-        subTaskStates.put(subTaskId, view);
+        subTaskStates.put(nodeId, view);
         var snapshot = currentSnapshot();
         if (lastPublishedSnapshot == null) {
             lastPublishedSnapshot = snapshot;
@@ -151,7 +151,7 @@ public final class AafAguiStreamContext {
 
     private Map<String, Object> currentSnapshot() {
         var snapshot = new LinkedHashMap<String, Object>();
-        snapshot.put("subTasks", List.copyOf(subTaskStates.values()));
+        snapshot.put("nodes", List.copyOf(subTaskStates.values()));
         return snapshot;
     }
 
@@ -162,35 +162,35 @@ public final class AafAguiStreamContext {
      * useAgUiState}），Activity 是嵌入对话消息时间线本身的独立卡片（占用与文本消息平级但互不冲突的 {@code messageId}
      * 空间），让用户在聊天记录里直接看到"协调者拆分任务、多个执行者并行工作"这个过程。
      *
-     * <p>{@code messageId} 用 {@code subTaskId} 本身——每个子任务节点对应一条稳定的活动卡片，不随事件重建； {@code activityType}
-     * 固定为 {@code "SUBTASK"}，客户端按此区分 AAF 的子任务卡片与其它来源的 Activity （如官方 A2UI 生成式 UI 用的 {@code
+     * <p>{@code messageId} 用 {@code nodeId} 本身——每个子任务节点对应一条稳定的活动卡片，不随事件重建； {@code activityType} 固定为
+     * {@code "SUBTASK"}，客户端按此区分 AAF 的子任务卡片与其它来源的 Activity （如官方 A2UI 生成式 UI 用的 {@code
      * "a2ui-surface"}）。
      *
      * <p><b>已知前端缺口（记入独立任务，非本次范围）</b>：核实 assistant-ui 官方文档确认 {@code useAgUiRuntime} 目前只原生渲染 {@code
      * activityType="a2ui-surface"}，其它 {@code activityType}（包括本类使用的 {@code "SUBTASK"}）会被静默忽略，不产生任何
      * UI——后端仍按协议标准实现，等前端补充自定义 {@code onActivitySnapshotEvent} 渲染逻辑后即可直接生效，不需要再改后端投影。
      *
-     * <p>首次调用该 {@code subTaskId} 发 {@code ActivitySnapshot}（全量）；此后同一 {@code subTaskId} 用 {@link
+     * <p>首次调用该 {@code nodeId} 发 {@code ActivitySnapshot}（全量）；此后同一 {@code nodeId} 用 {@link
      * AguiStateConverter#createDelta} 对比该子任务上一次已发布的 content 算增量，发 {@code ActivityDelta}（无变化不发）。
      */
     public List<AguiEvent> subTaskActivityChanged(
-            String subTaskId, String kind, String roleKey, String status) {
+            String nodeId, String kind, String roleKey, String status) {
         var content = new LinkedHashMap<String, Object>();
         content.put("kind", kind);
         content.put("roleKey", roleKey == null ? "" : roleKey);
         content.put("status", status);
-        var previous = lastPublishedActivityContent.get(subTaskId);
-        lastPublishedActivityContent.put(subTaskId, content);
+        var previous = lastPublishedActivityContent.get(nodeId);
+        lastPublishedActivityContent.put(nodeId, content);
         if (previous == null) {
             return List.of(
-                    new AguiEvent.ActivitySnapshot(threadId, runId, subTaskId, "SUBTASK", content));
+                    new AguiEvent.ActivitySnapshot(threadId, runId, nodeId, "SUBTASK", content));
         }
         var delta = stateConverter.createDelta(previous, content, threadId, runId);
         if (delta == null) {
             return List.of();
         }
         return List.of(
-                new AguiEvent.ActivityDelta(threadId, runId, subTaskId, "SUBTASK", delta.delta()));
+                new AguiEvent.ActivityDelta(threadId, runId, nodeId, "SUBTASK", delta.delta()));
     }
 
     public List<AguiEvent> runFinishedOnce() {

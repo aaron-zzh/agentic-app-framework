@@ -2,7 +2,10 @@ package com.xuejiai.aaf.framework.intelligent.assistant.model;
 
 /** AAF 受信代码定义的 Harness 调用阶段策略。 */
 public enum InvocationPolicy {
-    PRIMARY("1", "完成当前 Assistant 请求；信息不足时按冻结的澄清策略处理。"),
+    PRIMARY(
+            "1",
+            "完成当前 Assistant 请求；信息不足时优先自然澄清。仅当目标确实需要多步骤、持久恢复或结构化人工交互时，"
+                    + "必须在任何外部副作用前调用 promote_direct_task；普通问答、自然澄清和本回合可完成目标不得提升。"),
     COORDINATOR(
             "2",
             "只使用提供的摘要引用识别不可替代阻塞项并拆分任务；不得调用业务工具、生成最终业务内容、"

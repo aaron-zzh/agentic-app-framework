@@ -8,6 +8,7 @@ import java.util.Optional;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.model.plan.ExecutorPlan;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.plan.ExecutorPlanStep;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 
@@ -53,23 +54,28 @@ public interface ExecutorPlanPort {
     /** PLANNING/SUBMITTED/REVIEW_REQUIRED/APPROVED/EXECUTING → CANCELLED。 */
     ExecutorPlan cancel(TenantId tenantId, String planId, long expectedLockVersion, Instant at);
 
-    /** 查找某委托任务、某板节点当前活跃的计划（最新未取消/未拒绝的 revision）；未标记 {@code requiresPlan} 的节点返回空。 */
-    Optional<ExecutorPlan> findActive(TenantId tenantId, TaskId delegatedTaskId, String boardId);
+    /** 查找某 Task、某 TaskNode 当前活跃的计划（最新非终态 revision）；未要求局部计划的节点返回空。 */
+    Optional<ExecutorPlan> findActive(TenantId tenantId, TaskId taskId, String nodeId);
+
+    /** 按节点返回某 Task 的最新计划 revision，包括已完成或失败的历史终态计划。 */
+    Map<String, ExecutorPlan> findLatestByTask(TenantId tenantId, TaskId taskId);
 
     /** 读取某计划的全部步骤，按 ordinal 排序。 */
     List<ExecutorPlanStep> findSteps(TenantId tenantId, String planId);
 
     record BeginPlanningCommand(
             TenantId tenantId,
-            TaskId delegatedTaskId,
-            String boardId,
+            TaskId taskId,
+            String nodeId,
+            ExecutionId executionId,
             String executorAgentId,
             String goal,
             Map<String, Object> policySnapshot,
             Instant at) {
         public BeginPlanningCommand {
             Objects.requireNonNull(tenantId, "tenantId 不能为空");
-            Objects.requireNonNull(delegatedTaskId, "delegatedTaskId 不能为空");
+            Objects.requireNonNull(taskId, "taskId 不能为空");
+            Objects.requireNonNull(executionId, "executionId 不能为空");
             Objects.requireNonNull(at, "at 不能为空");
         }
     }

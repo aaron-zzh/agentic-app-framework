@@ -28,7 +28,7 @@ import io.agentscope.core.agui.event.AguiEvent;
  * AUTHORIZATION_REQUESTED}/{@code AUTHORIZATION_GRANTED}/{@code AUTHORIZATION_DENIED}），这是每次真实工具
  * 调用都会走的代码路径。
  *
- * <p>只有根节点（DIRECT 直答或协调者自身）的授权等待才会走到本 converter——子任务的授权等待由 {@code DelegatedTaskCoordinator}
+ * <p>只有根节点（DIRECT 直答或协调者自身）的授权等待才会走到本 converter——子任务的授权等待由 {@code TaskCommandService}
  * 处理为"该子任务本轮让出并发位、稍后重试"，不终止整个 run，其事件因 {@code nodeIdentity != null} 会先被 {@code
  * InternalNodeEventConverter} 降级为 CUSTOM，不会到达本类——分派顺序本身 保证了这个边界，不需要额外判断排除子任务。
  *
@@ -45,6 +45,7 @@ public final class RunLifecycleEventConverter implements AafAguiEventConverter {
     public Set<ExecutionEventType> supportedTypes() {
         return Set.of(
                 ExecutionEventType.EXECUTION_STARTED,
+                ExecutionEventType.EXECUTION_PROMOTED,
                 ExecutionEventType.EXECUTION_COMPLETED,
                 ExecutionEventType.EXECUTION_FAILED,
                 ExecutionEventType.EXECUTION_CANCELED,
@@ -58,7 +59,7 @@ public final class RunLifecycleEventConverter implements AafAguiEventConverter {
     public List<AguiEvent> convert(ExecutionEvent event, AafAguiStreamContext context) {
         return switch (event.type()) {
             case EXECUTION_STARTED -> context.runStarted();
-            case EXECUTION_COMPLETED -> context.runFinishedOnce();
+            case EXECUTION_PROMOTED, EXECUTION_COMPLETED -> context.runFinishedOnce();
             case EXECUTION_FAILED, EXECUTION_CANCELED, COMMAND_REJECTED, RUN_FAILED ->
                     context.runError(errorCode(event));
             case AUTHORIZATION_REQUESTED -> context.runInterrupted(List.of(interrupt(event)));
@@ -103,6 +104,9 @@ public final class RunLifecycleEventConverter implements AafAguiEventConverter {
         @SuppressWarnings("unchecked")
         var requiredFields = (List<String>) values.get("requiredFields");
         var responseSchema = ClarificationResponseSchema.fromQuestions(questions, requiredFields);
+        if (event.taskId() == null) {
+            throw new IllegalStateException("结构化澄清事件必须先 promotion 为 Task");
+        }
         return new AguiEvent.Interrupt(
                 requestId,
                 "input_required",

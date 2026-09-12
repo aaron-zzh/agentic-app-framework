@@ -649,9 +649,6 @@ INSERT INTO ai_tool_catalog (
 ('recognizeOcr', 'LOCAL', TRUE, 'FUNCTION', 'OCR', 'LOW', TRUE, FALSE, 'tool:ocr:execute', NULL, NULL,
  '{"type":"object","required":["requestJson"],"properties":{"requestJson":{"type":"string","description":"JSON 参数：imageUrl 必填；task 可选（TEXT_RECOGNITION/KEY_INFORMATION_EXTRACTION/TABLE_PARSING/DOCUMENT_PARSING/FORMULA_RECOGNITION/MULTI_LAN）；prompt 可选"}}}',
  220, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('support.handoff', 'LOCAL', TRUE, 'FUNCTION', 'SUPPORT', 'MEDIUM', FALSE, TRUE, NULL, NULL, NULL,
- '{"type":"object","required":["reason"],"properties":{"reason":{"type":"string","description":"不超过 256 个字符的脱敏人工交接原因；不得包含完整对话、凭证或个人敏感信息"}}}',
- 240, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('context.load', 'LOCAL', TRUE, 'FUNCTION', 'SKILL', 'LOW', TRUE, FALSE, NULL, NULL, NULL,
  '{"type":"object","required":["kind","key"],"properties":{"kind":{"type":"string","enum":["SKILL","SKILL_REFERENCE"],"description":"SKILL 加载技能正文；SKILL_REFERENCE 加载技能挂载的参考文档"},"key":{"type":"string","description":"kind=SKILL 时为技能 code；kind=SKILL_REFERENCE 时为 \"技能code:referenceKey\""}}}',
  250, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
@@ -2044,13 +2041,13 @@ INSERT INTO ai_persona (
     'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
--- 访客客服的稳定 Persona；仅处理产品咨询、知识问答和人工转接。
+-- 访客客服的稳定 Persona；仅处理产品咨询、知识问答和人工支持建议。
 INSERT INTO ai_persona (
     id, name, persona, system_prompt, status, owner_id, create_time, update_time, deleted
 ) VALUES (
     2, 'AAF 客服',
     '专业、耐心、克制，优先解决访客问题并保护访客隐私。',
-    '你是 AAF 客服助理。仅回答已授权的产品与服务知识；信息不足时明确说明并转接人工。不得执行内容创作、脚本、发布、支付、删除或账户管理操作。',
+    '你是 AAF 客服助理。仅回答已授权的产品与服务知识；信息不足时明确说明，并建议用户联系人工支持。不得执行内容创作、脚本、发布、支付、删除或账户管理操作。',
     'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
@@ -2060,8 +2057,8 @@ INSERT INTO ai_role (
     create_time, update_time, deleted
 ) VALUES (
     1, 'system.role.platform-guide', '平台向导',
-    'AAF 平台咨询、只读故障排查和人工转接',
-    '[{"skillKey":"builtin-skill-creation","activationMode":"ON_DEMAND"},{"skillKey":"builtin-tool-generation","activationMode":"ON_DEMAND"}]', '["support.handoff","context.load"]',
+    'AAF 平台咨询和只读故障排查',
+    '[{"skillKey":"builtin-skill-creation","activationMode":"ON_DEMAND"},{"skillKey":"builtin-tool-generation","activationMode":"ON_DEMAND"}]', '["context.load"]',
     'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
@@ -2083,8 +2080,8 @@ INSERT INTO ai_role (
     create_time, update_time, deleted
 ) VALUES (
     3, 'system.role.customer-service', '客服专员',
-    '面向访客的产品咨询、知识问答和人工转接',
-    '[]', '["support.handoff"]',
+    '面向访客的产品咨询和知识问答',
+    '[]', '[]',
     'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 

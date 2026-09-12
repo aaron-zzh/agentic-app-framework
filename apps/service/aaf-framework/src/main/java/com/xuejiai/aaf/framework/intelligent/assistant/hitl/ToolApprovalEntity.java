@@ -15,7 +15,7 @@ import lombok.Setter;
  *
  * <p>替代原 {@code HumanApprovalService} 的内存 Map——内存态在重启/多实例下丢失，且旧链没有任何消费方， 审批建了没人能处理。
  *
- * <p>与任务级 {@code ai_hitl_approval} 分工：本表面向会话/工作流级的工具确认（无 AssistantTask 上下文）， 决定后由 {@code
+ * <p>与任务级 {@code ai_hitl_approval} 分工：本表面向会话/工作流级的工具确认（无 Task 上下文）， 决定后由 {@code
  * ToolApprovalGrantListener} 回写会话级工具授权，不驱动任务状态迁移。
  *
  * <p>不继承 {@code BaseEntity}：审批是追加+一次决定的流水，不需要软删除与组织过滤（作用域由 scopeKey/userId 表达）。

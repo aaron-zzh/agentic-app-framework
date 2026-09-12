@@ -130,6 +130,6 @@ public interface AssistantErrorCode {
     ErrorCode APPROVAL_RECOVERY_REQUIRES_APPROVED = ErrorCode.of(7_003_100, "仅批准决定可恢复执行");
     ErrorCode APPROVAL_NOT_FOUND = ErrorCode.of(7_003_101, 404, "Assistant 审批不存在");
 
-    // 委托任务
-    ErrorCode DELEGATED_TASK_NOT_FOUND = ErrorCode.of(7_003_200, 404, "Assistant 委托任务不存在");
+    // canonical Task
+    ErrorCode TASK_NOT_FOUND = ErrorCode.of(7_003_200, 404, "Assistant Task 不存在");
 }

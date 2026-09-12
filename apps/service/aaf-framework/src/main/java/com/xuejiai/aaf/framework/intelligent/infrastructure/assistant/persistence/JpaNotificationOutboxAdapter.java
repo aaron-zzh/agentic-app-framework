@@ -30,7 +30,7 @@ public final class JpaNotificationOutboxAdapter implements NotificationPort {
     }
 
     private NotificationResult persistAndDispatch(Notification notification) {
-        var existing = repository.findById(notification.notificationId()).orElse(null);
+        var existing = repository.findByNotificationId(notification.notificationId()).orElse(null);
         if (existing != null) {
             return new NotificationResult(
                     notification.notificationId(),

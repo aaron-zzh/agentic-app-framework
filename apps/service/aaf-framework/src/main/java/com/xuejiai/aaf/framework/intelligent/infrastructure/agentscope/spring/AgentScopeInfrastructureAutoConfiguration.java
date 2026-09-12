@@ -20,8 +20,8 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.ToolGatewayPort;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.AiAutoConfiguration;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultEffectiveToolResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveToolResolver;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.PromptEnvelopePort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskUnitOfWork;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptInvocationGateway;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.compiler.AgentScopeSpecCompiler;
@@ -33,12 +33,12 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.middlewar
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.middleware.PromptEnvelopeCaptureMiddleware;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.model.AgentScopeModelResolver;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.model.L0ReActAgentFactory;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.state.DispatchGuardedAgentStateStore;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.state.SpringRedisClientAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.AgentScopeToolkitFactory;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.ToolResultEvidenceStore;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
 
-import io.agentscope.core.state.AgentStateStore;
 import io.agentscope.extensions.redis.state.RedisAgentStateStore;
 import reactor.core.scheduler.Schedulers;
 
@@ -62,15 +62,22 @@ public class AgentScopeInfrastructureAutoConfiguration {
     /** Redis 状态键前缀，避免与其他业务键冲突。 */
     private static final String STATE_KEY_PREFIX = "aaf:agentscope:state:";
 
-    /** Agent 状态统一落 Redis：多副本共享，替代 Harness 默认的本地 JsonFile 存储。 */
-    @Bean(destroyMethod = "close")
-    @ConditionalOnMissingBean(AgentStateStore.class)
+    /** Redis 只承担状态持久化；DELEGATED authority 由外层受控 Store 统一校验。 */
+    @Bean
+    @ConditionalOnMissingBean(RedisAgentStateStore.class)
     @ConditionalOnBean(StringRedisTemplate.class)
-    AgentStateStore agentScopeAgentStateStore(StringRedisTemplate redisTemplate) {
+    RedisAgentStateStore agentScopeRawStateStore(StringRedisTemplate redisTemplate) {
         return RedisAgentStateStore.builder()
                 .clientAdapter(new SpringRedisClientAdapter(redisTemplate))
                 .keyPrefix(STATE_KEY_PREFIX)
                 .build();
+    }
+
+    @Bean(destroyMethod = "close")
+    @ConditionalOnBean(RedisAgentStateStore.class)
+    DispatchGuardedAgentStateStore agentScopeAgentStateStore(
+            RedisAgentStateStore rawStateStore, TaskUnitOfWork tasks) {
+        return new DispatchGuardedAgentStateStore(rawStateStore, tasks);
     }
 
     @Bean
@@ -95,7 +102,7 @@ public class AgentScopeInfrastructureAutoConfiguration {
 
     @Bean
     AgentScopeTokenMeteringObserver tokenMeteringObserver(
-            TokenMeteringPort metering, DelegatedTaskPort delegatedTasks) {
+            TokenMeteringPort metering, TaskUnitOfWork delegatedTasks) {
         return new AgentScopeTokenMeteringObserver(metering, delegatedTasks);
     }
 
@@ -124,7 +131,7 @@ public class AgentScopeInfrastructureAutoConfiguration {
     /** 编译器持有 ReActAgent 缓存，销毁时须 close 释放。 */
     @Bean(destroyMethod = "close")
     AgentScopeSpecCompiler agentScopeSpecCompiler(
-            AgentStateStore stateStore,
+            DispatchGuardedAgentStateStore stateStore,
             AgentScopeToolkitFactory toolkitFactory,
             AgentScopeModelResolver modelResolver,
             PromptEnvelopeCaptureMiddleware envelopeCapture) {
@@ -157,12 +164,12 @@ public class AgentScopeInfrastructureAutoConfiguration {
             AgentScopeSpecCompiler compiler,
             AgentScopeMessageMapper messageMapper,
             AgentScopeRuntimeContextMapper contextMapper,
-            AgentStateStore stateStore,
+            DispatchGuardedAgentStateStore stateStore,
             AgentScopeEventMapper eventMapper,
             AgentScopeTokenMeteringObserver meteringObserver,
             ExecutionEventStorePort eventStore,
             com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort leases,
-            DelegatedTaskPort delegatedTasks,
+            TaskUnitOfWork delegatedTasks,
             ToolResultEvidenceStore evidenceStore) {
         return new HarnessAgentExecutionAdapter(
                 definitions,

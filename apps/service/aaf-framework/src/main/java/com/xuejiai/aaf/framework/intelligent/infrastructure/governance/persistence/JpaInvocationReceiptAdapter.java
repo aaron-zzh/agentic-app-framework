@@ -9,7 +9,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.port.InvocationReceiptPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolInvocationResult;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskUnitOfWork;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -21,12 +21,12 @@ public class JpaInvocationReceiptAdapter implements InvocationReceiptPort {
 
     private final ToolInvocationReceiptRepository repository;
     private final ConversationLeasePort leases;
-    private final DelegatedTaskPort tasks;
+    private final TaskUnitOfWork tasks;
 
     public JpaInvocationReceiptAdapter(
             ToolInvocationReceiptRepository repository,
             ConversationLeasePort leases,
-            DelegatedTaskPort tasks) {
+            TaskUnitOfWork tasks) {
         this.repository = Objects.requireNonNull(repository, "repository 不能为空");
         this.leases = Objects.requireNonNull(leases, "leases 不能为空");
         this.tasks = Objects.requireNonNull(tasks, "tasks 不能为空");

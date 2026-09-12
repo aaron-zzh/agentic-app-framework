@@ -13,11 +13,14 @@ import org.springframework.stereotype.Component;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantCommand;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantInvocation;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.InvocationProfile;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskCommandService;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionCriteria;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract.ResponsibleOwner;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskModelSelection;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlan;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.MemorySubject;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.SubjectKind;
@@ -46,20 +49,32 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Component("agentNode")
-@ConditionalOnBean(AssistantCommandPort.class)
+@ConditionalOnBean(TaskCommandService.class)
 @RequiredArgsConstructor
 public class AgentNode implements JavaDelegate {
 
     private static final Duration EXECUTION_TIMEOUT = Duration.ofMinutes(5);
 
-    private final AssistantCommandPort assistants;
+    private final TaskCommandService tasks;
     private final AssistantDefinitionPort assistantDefinitions;
 
     @Override
     public void execute(DelegateExecution execution) {
         try {
             var command = command(execution);
-            var events = assistants.execute(command).collectList().block(EXECUTION_TIMEOUT);
+            var route = command.invocationProfile().executionIntent().resolvedRoute();
+            var board =
+                    TaskPlan.coordinated(
+                            command.taskId(),
+                            command.input(),
+                            route.roleKey(),
+                            route.skillKey(),
+                            command.executionContract().retryPolicy().maxAttempts());
+            var events =
+                    tasks.submitAndDispatch(
+                                    command, board, "workflow:" + command.executionId().value())
+                            .collectList()
+                            .block(EXECUTION_TIMEOUT);
             if (events == null || events.isEmpty()) {
                 throw new IllegalStateException("Assistant 未返回执行事件");
             }
@@ -95,6 +110,7 @@ public class AgentNode implements JavaDelegate {
         var unique = UUID.randomUUID().toString();
         var processId = execution.getProcessInstanceId();
         var activityId = execution.getCurrentActivityId();
+        var taskId = new TaskId("workflow:" + unique);
         var executionId = new ExecutionId("workflow:" + unique);
         var executionIntent =
                 ExecutionIntent.taskFixed(
@@ -111,6 +127,11 @@ public class AgentNode implements JavaDelegate {
                         AssistantInvocation.MemoryMode.DISABLED,
                         List.of(),
                         executionIntent);
+        var role = definition.requireRole(roleKey);
+        var contract =
+                ExecutionContract.conversationDefault(
+                        definition.candidateToolKeys(role),
+                        new ResponsibleOwner("ASSISTANT", definition.assistantId().value()));
 
         return new AssistantCommand(
                 AssistantCommand.Operation.START,
@@ -119,16 +140,16 @@ public class AgentNode implements JavaDelegate {
                 new MemorySubject(tenantId, SubjectKind.USER, userId),
                 definition.assistantId(),
                 new ConversationId("workflow:" + processId),
-                new SessionId("workflow:" + processId),
-                new TaskId("workflow:" + processId),
+                new SessionId("workflow:" + unique),
+                taskId,
                 executionId,
                 new RunId("workflow:" + unique),
                 null,
                 new CorrelationId("workflow:" + processId),
                 null,
                 new IdempotencyKey("workflow:" + processId + ":" + activityId),
-                ControlMode.COLLABORATIVE,
-                null,
+                ControlMode.DELEGATED,
+                contract,
                 null,
                 0,
                 prompt,

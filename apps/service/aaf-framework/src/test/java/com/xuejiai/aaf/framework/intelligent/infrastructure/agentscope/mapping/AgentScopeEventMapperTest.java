@@ -728,10 +728,14 @@ class AgentScopeEventMapperTest {
     @Test
     @DisplayName("Given pause 胜出（AAF-110） When 构造终态事件 Then 产出 EXECUTION_PAUSED 且状态 PAUSED")
     void should_build_paused_event() {
-        var event = mapper.paused(command(), "agent.mapper-test", new MappingState(0));
+        var receipt =
+                new com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventPayload(
+                        Map.of("pauseStateSaved", true));
+        var event = mapper.paused(command(), "agent.mapper-test", new MappingState(0), receipt);
 
         assertThat(event.type()).isEqualTo(ExecutionEventType.EXECUTION_PAUSED);
         assertThat(event.status()).isEqualTo(ExecutionEventStatus.PAUSED);
+        assertThat(event.payload()).isEqualTo(receipt);
     }
 
     private static ModelSpec model() {

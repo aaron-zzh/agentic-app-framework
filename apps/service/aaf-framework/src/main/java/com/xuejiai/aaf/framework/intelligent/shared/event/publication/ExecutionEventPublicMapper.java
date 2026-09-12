@@ -82,7 +82,7 @@ public final class ExecutionEventPublicMapper {
         var descriptor = AafAiTaskEventRegistry.descriptor(event.type());
         return new AafAiTaskEvent(
                 event.eventId().value(),
-                event.taskId().value(),
+                event.taskId() == null ? null : event.taskId().value(),
                 event.executionId().value(),
                 event.runId().value(),
                 event.sessionId().value(),
@@ -96,7 +96,7 @@ public final class ExecutionEventPublicMapper {
                 new ReferenceSafeData(safeData(event)),
                 event.createdAt(),
                 // 透出节点身份与父执行：AG-UI 据此区分交付类节点与内部节点并合成 source 路径；
-                // 暴露的是 subTaskId / roleKey / skillKey 这类稳定或展示用标签，不含原始 agentId
+                // 暴露的是 nodeId / roleKey / skillKey 这类稳定或展示用标签，不含原始 agentId
                 event.parentExecutionId() == null ? null : event.parentExecutionId().value(),
                 event.nodeIdentity());
     }
@@ -158,7 +158,7 @@ public final class ExecutionEventPublicMapper {
                     CLARIFICATION_CANCELED,
                     CLARIFICATION_EXPIRED -> {
                 copyText(source, safe, "requestId");
-                copyText(source, safe, "subTaskId");
+                copyText(source, safe, "nodeId");
                 copyPositiveLong(source, safe, "completedFieldCount");
                 copyPositiveLong(source, safe, "requiredFieldCount");
             }
@@ -167,6 +167,11 @@ public final class ExecutionEventPublicMapper {
                 copyPositiveLong(source, safe, "iteration");
                 copyText(source, safe, "decision");
                 copyText(source, safe, "stopReason");
+            }
+            case EXECUTION_PROMOTED -> {
+                copyText(source, safe, "promotedTaskId");
+                copyText(source, safe, "taskStatus");
+                copyText(source, safe, "executionStatus");
             }
             case COMMAND_REJECTED -> safe.put("errorCode", "ASSISTANT_COMMAND_REJECTED");
             case RUN_FAILED, EXECUTION_FAILED ->

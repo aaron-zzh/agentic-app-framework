@@ -9,22 +9,22 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.NotificationPort.Not
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Version;
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
 @Entity
-@Table(name = "ai_task_notification_outbox")
-public class TaskNotificationOutboxEntity {
-    @Id
-    @Column(name = "notification_id", length = 128)
-    private String notificationId;
+@Table(
+        name = "ai_task_notification_outbox",
+        uniqueConstraints = @UniqueConstraint(columnNames = {"notification_id"}))
+public class TaskNotificationOutboxEntity extends AssistantRuntimeEntity {
 
-    @Column(name = "tenant_id", nullable = false, length = 128)
-    private String tenantId;
+    @Column(name = "notification_id", nullable = false, length = 128)
+    private String notificationId;
 
     @Column(name = "user_id", nullable = false, length = 128)
     private String userId;
@@ -47,4 +47,8 @@ public class TaskNotificationOutboxEntity {
 
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    @Version
+    @Column(name = "runtime_lock_version", nullable = false)
+    private Long runtimeLockVersion;
 }

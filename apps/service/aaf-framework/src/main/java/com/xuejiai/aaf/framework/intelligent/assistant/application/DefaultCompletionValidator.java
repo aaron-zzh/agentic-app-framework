@@ -2,9 +2,9 @@ package com.xuejiai.aaf.framework.intelligent.assistant.application;
 
 import java.util.Objects;
 
-import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantTask.RecoveryPoint;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionDecision;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionDecision.Outcome;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.Task.RecoveryPoint;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ExecutionEventStatus;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
 
@@ -13,12 +13,12 @@ public final class DefaultCompletionValidator implements CompletionValidator {
 
     @Override
     public CompletionDecision validate(ValidationRequest request) {
-        if (request.taskBoard().isPresent()) {
-            var board = request.taskBoard().orElseThrow();
-            if (board.hasTerminalFailure()) {
+        if (request.taskPlan().isPresent()) {
+            var plan = request.taskPlan().orElseThrow();
+            if (plan.hasTerminalFailure()) {
                 return decision(Outcome.FAILED, "DAG 存在不可重试失败节点", "dag-failure");
             }
-            if (!board.completed()) {
+            if (!plan.completed()) {
                 return decision(Outcome.CONTINUE_REPAIR, "DAG 尚有未完成节点", "dag-ready-claim");
             }
         }

@@ -38,38 +38,29 @@ public final class AgentScopeRuntimeContextMapper {
     }
 
     /**
-     * 返回 AgentStateStore 使用的隔离键：租户 / 用户 / 任务 / Agent 身份 / 本次执行，委托态再叠加租约代际。
+     * 返回 AgentStateStore 使用的稳定隔离键：租户 / 用户 / 任务 / Agent 身份 / 状态槽。
      *
-     * <p>加入 agent 身份与 executionId 是 RQ-08 + RQ-09 的修复：
-     *
-     * <ul>
-     *   <li>RQ-09：同一 (租户, 用户, 任务, 会话) 下换 Agent 身份不再共享 {@code agent_state}，杜绝跨 Agent 历史污染
-     *   <li>RQ-08：状态槽按 executionId 私有化后，两个并发执行不可能读到彼此写入的历史，隐藏历史预检不再有 "都通过空历史校验、第二个却加载到对方历史"的 TOCTOU
-     *       窗口
-     * </ul>
+     * <p>{@code stateSlotId} 表示同一 attempt 的持久状态身份，不能混入 Dispatch generation/fence；后者只在状态存取边界校验当前执行权。
+     * fresh attempt 使用新状态槽，same-attempt resume 则在 Dispatch 换代后继续命中原状态槽。
      */
     public String stateUserKey(InvocationContext context, String agentIdentifier) {
         Objects.requireNonNull(context, "context 不能为空");
         if (agentIdentifier == null || agentIdentifier.isBlank()) {
             throw new IllegalArgumentException("agentIdentifier 不能为空白");
         }
-        var key =
-                "tenant="
-                        + context.tenantId().value()
-                        + "|user="
-                        + context.userId().value()
-                        + "|task="
-                        + context.taskId().value()
-                        + "|agent="
-                        + agentIdentifier
-                        + "|execution="
-                        + context.executionId().value();
-        if (context.controlMode()
-                == com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode
-                        .DELEGATED) {
-            // 委托态叠加 fencing token：租约换代后旧执行读不到新状态，天然防脑裂
-            key += "|fence=" + context.lease().fencingToken();
-        }
-        return key;
+        var executionScope =
+                context.taskId() == null
+                        ? "direct=" + context.executionId().value()
+                        : "task=" + context.taskId().value();
+        return "tenant="
+                + context.tenantId().value()
+                + "|user="
+                + context.userId().value()
+                + '|'
+                + executionScope
+                + "|agent="
+                + agentIdentifier
+                + "|stateSlot="
+                + context.stateSlotId();
     }
 }

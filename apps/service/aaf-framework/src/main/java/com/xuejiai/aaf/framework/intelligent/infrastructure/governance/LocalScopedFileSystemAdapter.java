@@ -9,16 +9,16 @@ import java.util.Objects;
 
 import com.xuejiai.aaf.framework.intelligent.agent.port.ScopedFileSystemPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskUnitOfWork;
 
 /** 本地文件系统生产适配器，所有真实路径严格限定在 tenant/user/task namespace。 */
 public final class LocalScopedFileSystemAdapter implements ScopedFileSystemPort {
     private final Path root;
     private final ConversationLeasePort leases;
-    private final DelegatedTaskPort tasks;
+    private final TaskUnitOfWork tasks;
 
     public LocalScopedFileSystemAdapter(
-            Path root, ConversationLeasePort leases, DelegatedTaskPort tasks) {
+            Path root, ConversationLeasePort leases, TaskUnitOfWork tasks) {
         this.root = Objects.requireNonNull(root, "root 不能为空").toAbsolutePath().normalize();
         this.leases = Objects.requireNonNull(leases, "leases 不能为空");
         this.tasks = Objects.requireNonNull(tasks, "tasks 不能为空");
@@ -36,7 +36,12 @@ public final class LocalScopedFileSystemAdapter implements ScopedFileSystemPort 
 
     @Override
     public void write(ScopedPath path, String content) {
+        if (path.context().taskId() == null) {
+            throw new IllegalStateException("DIRECT execution 不得写文件，必须先 promotion 为 Task");
+        }
         requireCurrent(path);
+        tasks.recordSideEffectIntent(
+                path.context().tenantId(), path.context().executionId(), java.time.Instant.now());
         try {
             var target = resolveWritable(path);
             var temporary =
@@ -92,10 +97,14 @@ public final class LocalScopedFileSystemAdapter implements ScopedFileSystemPort 
 
     private Path ensureNamespace(ScopedPath path) throws IOException {
         var context = path.context();
+        var scope =
+                context.taskId() == null
+                        ? "execution=" + safe(context.executionId().value())
+                        : "task=" + safe(context.taskId().value());
         var namespace =
                 root.resolve("tenant=" + safe(context.tenantId().value()))
                         .resolve("user=" + safe(context.userId().value()))
-                        .resolve("task=" + safe(context.taskId().value()))
+                        .resolve(scope)
                         .normalize();
         if (!namespace.startsWith(root)) {
             throw new IllegalArgumentException("task namespace 越过 root");

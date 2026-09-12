@@ -6,14 +6,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 
 /**
  * EXECUTOR 局部执行计划：某一个已分配 executor 在不扩权、不新增兄弟节点的前提下，按可验证步骤完成自己的子任务。
  *
- * <p>与 {@code CoordinationPlan} 的关系（ADR-006 议题三）：{@code CoordinationPlan} 回答"由哪些 executor
- * 以什么聚合合同完成根目标"，是父计划；本类回答"某一个 executor 具体怎么做"，是局部执行计划。两者不是竞争的 TaskBoard，L3 持有本聚合的持久状态，L2 Agent 只在当前
+ * <p>与 {@code TaskPlanDraft} 的关系（ADR-006 议题三）：{@code TaskPlanDraft} 回答"由哪些 executor
+ * 以什么聚合合同完成根目标"，是父计划；本类回答"某一个 executor 具体怎么做"，是局部执行计划。两者不是竞争的 TaskPlan，L3 持有本聚合的持久状态，L2 Agent 只在当前
  * execution 中读取不可变 {@code revision} 快照并执行。
  *
  * <p><b>不可变 revision（ADR-006 议题一/三推论）</b>：{@code SUBMITTED} 之后正文不可变；需要修订时创建新 revision，不 update
@@ -37,8 +38,9 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 public record ExecutorPlan(
         String planId,
         TenantId tenantId,
-        TaskId delegatedTaskId,
-        String boardId,
+        TaskId taskId,
+        String nodeId,
+        ExecutionId executionId,
         String executorAgentId,
         int revision,
         Status status,
@@ -62,8 +64,9 @@ public record ExecutorPlan(
     public ExecutorPlan {
         planId = requireSafeKey(planId, "planId");
         Objects.requireNonNull(tenantId, "tenantId 不能为空");
-        Objects.requireNonNull(delegatedTaskId, "delegatedTaskId 不能为空");
-        boardId = requireSafeKey(boardId, "boardId");
+        Objects.requireNonNull(taskId, "taskId 不能为空");
+        nodeId = requireSafeKey(nodeId, "nodeId");
+        Objects.requireNonNull(executionId, "executionId 不能为空");
         executorAgentId = requireText(executorAgentId, "executorAgentId");
         if (revision < 1) {
             throw new IllegalArgumentException("revision 必须从 1 开始");

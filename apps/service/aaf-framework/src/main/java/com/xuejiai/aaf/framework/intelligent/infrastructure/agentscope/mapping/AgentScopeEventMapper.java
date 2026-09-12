@@ -224,7 +224,7 @@ public final class AgentScopeEventMapper {
                             (ExternalExecutionResultEvent) source, command, agentIdentifier, state);
 
             // ===== 不应出现：配置漂移告警 =====
-            // AAF 不启用官方 subagent（TaskBoard 是唯一外部编排），出现该事件说明工具面或 builder 配置被改动
+            // AAF 不启用官方 subagent（TaskPlan 是唯一外部编排），出现该事件说明工具面或 builder 配置被改动
             case SUBAGENT_EXPOSED -> {
                 log.warn(
                         "[AgentLoop] 收到官方 subagent 事件，但 AAF 未启用原生子智能体，疑似配置漂移：executionId={}，source={}",
@@ -293,7 +293,10 @@ public final class AgentScopeEventMapper {
      * 驱动的 {@code mapStop} 共享调用路径。
      */
     public ExecutionEvent paused(
-            AgentExecutionCommand command, String agentIdentifier, MappingState state) {
+            AgentExecutionCommand command,
+            String agentIdentifier,
+            MappingState state,
+            ExecutionEventPayload pauseReceipt) {
         state.status(ExecutionEventStatus.PAUSED);
         return syntheticEvent(
                 command,
@@ -301,7 +304,7 @@ public final class AgentScopeEventMapper {
                 state,
                 ExecutionEventType.EXECUTION_PAUSED,
                 ExecutionEventStatus.PAUSED,
-                ExecutionEventPayload.empty());
+                Objects.requireNonNull(pauseReceipt, "pauseReceipt 不能为空"));
     }
 
     /** AGENT_END → RUN_COMPLETED；已进入终态（失败/取消/待授权）时不再覆盖。 */

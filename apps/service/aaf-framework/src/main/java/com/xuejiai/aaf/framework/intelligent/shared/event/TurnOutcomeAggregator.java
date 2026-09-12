@@ -19,7 +19,7 @@ public final class TurnOutcomeAggregator {
         var modelInvocations = 0;
         var toolCalls = 0;
         // 恒为 0：原用于统计的 SUBTASK_CREATED 事件类型已删除（AAF-104 核实确认从未被任何生产代码发出，是
-        // DelegatedTaskCoordinator 落地前预留、后被 EXECUTION_STARTED+nodeIdentity 模式取代的孤儿枚举值）。
+        // TaskCommandService 落地前预留、后被 EXECUTION_STARTED+nodeIdentity 模式取代的孤儿枚举值）。
         // 字段本身保留（不改 TurnOutcome 签名），避免超出本次任务范围的下游改动。
         var subTaskCount = 0;
         long inputTokens = 0;

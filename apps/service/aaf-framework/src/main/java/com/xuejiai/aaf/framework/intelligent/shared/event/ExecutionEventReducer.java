@@ -48,7 +48,7 @@ public final class ExecutionEventReducer {
             }
         }
         return new State(
-                event.taskId().value(),
+                event.taskId() == null ? null : event.taskId().value(),
                 event.executionId().value(),
                 event.runId().value(),
                 event.sessionId().value(),
@@ -62,7 +62,11 @@ public final class ExecutionEventReducer {
 
     private static boolean taskTerminal(ExecutionEventType type) {
         return switch (type) {
-            case EXECUTION_COMPLETED, EXECUTION_FAILED, EXECUTION_CANCELED, COMMAND_REJECTED ->
+            case EXECUTION_PROMOTED,
+                    EXECUTION_COMPLETED,
+                    EXECUTION_FAILED,
+                    EXECUTION_CANCELED,
+                    COMMAND_REJECTED ->
                     true;
             default -> false;
         };

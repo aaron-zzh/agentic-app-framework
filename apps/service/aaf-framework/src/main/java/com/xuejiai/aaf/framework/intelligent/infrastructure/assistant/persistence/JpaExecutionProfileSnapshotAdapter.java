@@ -25,7 +25,7 @@ public class JpaExecutionProfileSnapshotAdapter implements ExecutionProfileSnaps
         Objects.requireNonNull(snapshot, "snapshot 不能为空");
         var entity = new ExecutionProfileSnapshotEntity();
         entity.setTenantId(snapshot.tenantId().value());
-        entity.setTaskId(snapshot.taskId().value());
+        entity.setTaskId(snapshot.taskId() == null ? null : snapshot.taskId().value());
         entity.setExecutionId(snapshot.executionId().value());
         entity.setAssistantId(snapshot.assistantId().value());
         entity.setAssistantRevision(snapshot.assistantRevision());

@@ -887,7 +887,7 @@ CREATE TABLE ai_task_event (
 );
 
 COMMENT ON TABLE ai_task_event IS 'Assistant/Agent 执行轨迹唯一 append-only 事实源，支持 SSE 实时推送';
-COMMENT ON COLUMN ai_task_event.tenant_id IS 'org_id 的字符串投影，非并行的第二套隔离机制；命名说明见 v200 迁移文件头部';
+COMMENT ON COLUMN ai_task_event.tenant_id IS '组织隔离键 org_id 的字符串投影，仅用于稳定事件租户身份；数据归属与复合约束仍以 org_id 为准';
 CREATE INDEX idx_ai_task_event_task      ON ai_task_event(tenant_id, task_id, event_offset);
 CREATE INDEX idx_ai_task_event_execution ON ai_task_event(tenant_id, execution_id, sequence);
 
@@ -1533,7 +1533,7 @@ CREATE INDEX idx_ai_eval_case_result_case    ON ai_eval_case_result(case_id);
 
 -- ai_task_execution 补充当前使用的编排策略
 -- attempt_no 已有，重试时新建一条记录 attempt_no+1，workflow_key 可换
--- ai_task_execution 已废弃（改用 DelegatedTask + TaskBoard 模型），此处不再补充 workflow_key/retry_reason 列。
+-- Assistant execution 由 v16 的 ai_task_execution 承载；此处不复用旧观测表补充 workflow_key/retry_reason 列。
 
 -- ============================================================
 -- 评测扩展：支持同一任务集跨模型 × 跨编排的矩阵对比

@@ -41,7 +41,6 @@ public record PromptEnvelope(
     public PromptEnvelope {
         envelopeId = requireText(envelopeId, "envelopeId");
         Objects.requireNonNull(tenantId, "tenantId 不能为空");
-        Objects.requireNonNull(taskId, "taskId 不能为空");
         Objects.requireNonNull(executionId, "executionId 不能为空");
         if (envelopeSeq < 1) {
             throw new IllegalArgumentException("envelopeSeq 必须从 1 起递增");

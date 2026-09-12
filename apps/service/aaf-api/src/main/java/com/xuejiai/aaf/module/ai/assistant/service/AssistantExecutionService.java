@@ -18,16 +18,19 @@ import com.xuejiai.aaf.framework.intelligent.agent.model.AgentMessage.Attachment
 import com.xuejiai.aaf.framework.intelligent.ai.vision.VisionAttachment;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantCommand;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantInvocation;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.InvocationProfile;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.InvocationProfile.ContextPlan;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskCommandService;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.*;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceReference;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceType;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract.ResponsibleOwner;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent.ArtifactPolicy;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent.OutputKind;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard.AssistantTarget;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlan.AssistantTarget;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.analysis.TaskAnalysis;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.analysis.TaskAnalysisPolicy;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.SystemSkillBindingPort;
 import com.xuejiai.aaf.framework.intelligent.automation.application.DefinitionLifecycleService;
@@ -50,6 +53,7 @@ import com.xuejiai.aaf.module.ai.vision.VisionMediaResolver;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
+import reactor.core.scheduler.Schedulers;
 import tools.jackson.core.StreamReadFeature;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -67,7 +71,8 @@ public class AssistantExecutionService {
     private static final JsonMapper OUTPUT_JSON_MAPPER =
             JsonMapper.builder().enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION).build();
 
-    private final DelegatedTaskCoordinator delegatedTasks;
+    private final TaskCommandService delegatedTasks;
+    private final AssistantCommandPort assistantCommands;
     private final AssistantDefinitionPort assistantDefinitions;
     private final SystemSkillBindingPort systemSkillBindings;
     private final DefinitionLifecycleService definitionLifecycles;
@@ -230,8 +235,10 @@ public class AssistantExecutionService {
             RunIdentity runIdentity,
             ResolvedTeam resolvedTeam,
             String defaultRoleKey) {
+        var analysis = TaskAnalysisPolicy.analyze(spec.executionIntent(), resolvedTeam != null);
+        runIdentity = runIdentity.forAnalysis(analysis);
         var executionKey = runIdentity.executionId().value();
-        var taskKey = runIdentity.taskId().value();
+        var taskKey = runIdentity.taskId() == null ? null : runIdentity.taskId().value();
         validate(spec);
         var startedAtNanos = System.nanoTime();
         log.debug(
@@ -276,20 +283,27 @@ public class AssistantExecutionService {
                         resolvedTeam,
                         contextCandidates,
                         taskMaterials,
-                        userAttachments);
+                        userAttachments,
+                        analysis);
         var events =
                 Flux.defer(
                                 () -> {
-                                    final TaskBoard board;
+                                    if (analysis.route() == TaskAnalysis.Route.DIRECT) {
+                                        return assistantCommands.execute(command);
+                                    }
+                                    final TaskPlan board;
                                     if (resolvedTeam != null) {
                                         board = teamBoard(command, resolvedTeam);
                                     } else {
                                         board = analyzedBoard(spec, command, defaultRoleKey);
                                     }
-                                    return delegatedTasks.submitAndDispatch(
-                                            command,
-                                            board,
-                                            "assistant-execution:" + command.executionId().value());
+                                    return Flux.defer(
+                                                    () -> {
+                                                        delegatedTasks.submitConversation(
+                                                                command, board);
+                                                        return Flux.<ExecutionEvent>empty();
+                                                    })
+                                            .subscribeOn(Schedulers.boundedElastic());
                                 })
                         .doOnSubscribe(
                                 ignored ->
@@ -394,12 +408,13 @@ public class AssistantExecutionService {
             ResolvedTeam resolvedTeam,
             List<SourceReference> contextCandidates,
             List<TaskMaterial> taskMaterials,
-            List<Attachment> userAttachments) {
+            List<Attachment> userAttachments,
+            TaskAnalysis analysis) {
         var now = Instant.now();
         var tenantId = new TenantId(identity.orgId().toString());
         var userId = new UserId(identity.ownerId().toString());
         var delegated =
-                resolvedTeam != null
+                analysis.route() == TaskAnalysis.Route.TEAM
                         || spec.executionIntent().interactionMode()
                                 == ExecutionIntent.InteractionMode.TASK;
         var allowedActions = new LinkedHashSet<String>();
@@ -923,8 +938,8 @@ public class AssistantExecutionService {
         }
     }
 
-    private static TaskBoard teamBoard(AssistantCommand command, ResolvedTeam team) {
-        return TaskBoard.teamCoordinated(
+    private static TaskPlan teamBoard(AssistantCommand command, ResolvedTeam team) {
+        return TaskPlan.teamCoordinated(
                 command.taskId(),
                 command.input(),
                 team.leaderTarget(),
@@ -937,11 +952,11 @@ public class AssistantExecutionService {
      *
      * <p>不再前置调用 {@code TaskComplexityAnalyzer} 判断 single/coordinated（AAF-107 选项 B 架构改造，
      * 2026-09-02）——协调者在自己的 execution 内自主判断"简单/拆步骤/拆多智能体"三档并直接采取行动（见 {@code
-     * DelegatedTaskCoordinator.executeSubTask} 与内置 Skill {@code builtin-task-decomposition}），
+     * TaskCommandService.executeNode} 与内置 Skill {@code builtin-task-decomposition}），
      * "简单"这一档已经被协调者直接回答覆盖，不需要在建板前再额外调一次模型做更粗粒度的相同判断——那是重复劳动， 且判断依据更差（{@code TaskComplexityAnalyzer}
      * 只能看到目标文本本身，协调者的 execution 有完整上下文、 记忆与技能）。始终建 {@code coordinated} 板，协调者节点承担原来"前注意"的职责不变。
      */
-    private TaskBoard analyzedBoard(
+    private TaskPlan analyzedBoard(
             ExecutionSpec spec, AssistantCommand command, String defaultRoleKey) {
         var route = spec.executionIntent().resolvedRoute();
         var maxAttempts = command.executionContract().retryPolicy().maxAttempts();
@@ -949,7 +964,7 @@ public class AssistantExecutionService {
         // FIXED 用已解析路由；AUTO 用默认 Role 且不预置业务技能。
         var coordinatorRoleKey = route != null ? route.roleKey() : defaultRoleKey;
         var coordinatorSkillKey = route != null ? route.skillKey() : null;
-        return TaskBoard.coordinated(
+        return TaskPlan.coordinated(
                 command.taskId(),
                 command.input(),
                 coordinatorRoleKey,
@@ -1311,10 +1326,21 @@ public class AssistantExecutionService {
             return new RunIdentity(
                     threadId,
                     new ConversationId(threadId),
-                    new SessionId(threadId),
-                    new TaskId(runId),
+                    new SessionId(runId),
+                    null,
                     new ExecutionId(runId),
                     new RunId(runId));
+        }
+
+        private RunIdentity forAnalysis(TaskAnalysis analysis) {
+            Objects.requireNonNull(analysis, "analysis 不能为空");
+            return new RunIdentity(
+                    threadId,
+                    conversationId,
+                    sessionId,
+                    analysis.persistent() ? new TaskId(runId.value()) : null,
+                    executionId,
+                    runId);
         }
 
         private static String requireBoundedId(

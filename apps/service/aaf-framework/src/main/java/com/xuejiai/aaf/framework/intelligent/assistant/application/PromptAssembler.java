@@ -177,7 +177,7 @@ public final class PromptAssembler {
     /**
      * 人格与表达风格是否适用于当前调用阶段。
      *
-     * <p>COORDINATOR 必须输出严格 JSON 的 CoordinationPlan，注入人格与表达风格会污染格式，宪章要求「严格结构化输出场景以输出合同为准」。
+     * <p>COORDINATOR 必须输出严格 JSON 的 TaskPlanDraft，注入人格与表达风格会污染格式，宪章要求「严格结构化输出场景以输出合同为准」。
      * 其余阶段的产出会进入用户可见的答复或最终业务内容，人格必须保留。
      */
     private static boolean personaApplies(InvocationPolicy policy) {

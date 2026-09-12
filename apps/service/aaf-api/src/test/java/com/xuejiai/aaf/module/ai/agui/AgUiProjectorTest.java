@@ -222,7 +222,7 @@ class AgUiProjectorTest {
         var finished = session.project(stepEvent(2, ExecutionEventType.EXECUTION_COMPLETED, node));
 
         // 附加产出顺序：State（全局看板）→ Activity（对话时间线卡片）→ Step（阶段通知）→ CUSTOM（兜底），
-        // 首次子任务状态变化各发一次 Snapshot，随后同一 subTaskId 变化各发一次 Delta；四者互不替代
+        // 首次子任务状态变化各发一次 Snapshot，随后同一 nodeId 变化各发一次 Delta；四者互不替代
         assertThat(started.stream().map(AguiEvent::getType))
                 .containsExactly(
                         AguiEventType.STATE_SNAPSHOT,
@@ -230,7 +230,7 @@ class AgUiProjectorTest {
                         AguiEventType.STEP_STARTED,
                         AguiEventType.CUSTOM);
         assertThat(json(started.get(2))).contains("\"stepName\":\"execution\"");
-        assertThat(json(started.getFirst())).contains("\"subTaskId\":\"sub-1\"");
+        assertThat(json(started.getFirst())).contains("\"nodeId\":\"sub-1\"");
         assertThat(json(started.get(1))).contains("\"activityType\":\"SUBTASK\"");
         assertThat(json(started.get(1))).contains("\"messageId\":\"sub-1\"");
         assertThat(finished.stream().map(AguiEvent::getType))

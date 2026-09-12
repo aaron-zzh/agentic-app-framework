@@ -7,7 +7,7 @@ import java.util.concurrent.TimeoutException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort.StaleExecutionException;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskUnitOfWork.StaleExecutionException;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.ContextBudgetExceededException;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeFailureClassifier.ExecutionDeadlineExceededException;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeFailureClassifier.FailureCategory;

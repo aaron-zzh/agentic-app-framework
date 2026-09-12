@@ -39,7 +39,6 @@ public record ContextRequest(
     public ContextRequest {
         Objects.requireNonNull(tenantId, "tenantId 不能为空");
         Objects.requireNonNull(userId, "userId 不能为空");
-        Objects.requireNonNull(taskId, "taskId 不能为空");
         Objects.requireNonNull(executionId, "executionId 不能为空");
         Objects.requireNonNull(assistantId, "assistantId 不能为空");
         Objects.requireNonNull(memorySubject, "memorySubject 不能为空");

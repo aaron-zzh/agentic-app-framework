@@ -100,12 +100,14 @@ public record ExecutionEvent(
         Objects.requireNonNull(tenantId, "tenantId 不能为空");
         Objects.requireNonNull(conversationId, "conversationId 不能为空");
         Objects.requireNonNull(sessionId, "sessionId 不能为空");
-        Objects.requireNonNull(taskId, "taskId 不能为空");
         Objects.requireNonNull(executionId, "executionId 不能为空");
         Objects.requireNonNull(runId, "runId 不能为空");
         Objects.requireNonNull(type, "type 不能为空");
         Objects.requireNonNull(status, "status 不能为空");
         Objects.requireNonNull(controlMode, "controlMode 不能为空");
+        if (taskId == null && (controlMode != ControlMode.READ_ONLY || nodeIdentity != null)) {
+            throw new IllegalArgumentException("无 Task 事件仅允许 READ_ONLY DIRECT");
+        }
         Objects.requireNonNull(ownerType, "ownerType 不能为空");
         Objects.requireNonNull(correlationId, "correlationId 不能为空");
         Objects.requireNonNull(createdAt, "createdAt 不能为空");

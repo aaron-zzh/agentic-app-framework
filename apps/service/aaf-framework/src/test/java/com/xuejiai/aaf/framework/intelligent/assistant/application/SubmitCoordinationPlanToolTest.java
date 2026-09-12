@@ -16,12 +16,12 @@ import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolAuthorizationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolRef;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolInvocation;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.CoordinationPlan;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DecompositionBudget;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskModelSelection;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlan;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlanDraft;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskBoardPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskPlanPort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 import com.xuejiai.aaf.framework.intelligent.shared.event.NodeIdentity;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AssistantId;
@@ -36,12 +36,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 
-/**
- * 协调计划的授权衰减边界（迁移自已删除的 {@code DelegatedTaskCoordinator.decodeAndValidatePlan}，业务规则随 {@link
- * SubmitCoordinationPlanTool} 原样迁移——计划提交方式从"输出严格 JSON 文本 + 手工解析"改为"调用工具"， 见 dev-log 方案变更记录）。
- *
- * <p>规划模型只能在委派方自身已冻结的 Role/Skill 内组合，不得放大到基准之外——即使模型输出了越界值也必须 fail-closed。
- */
+/** 协调计划只能在委派方冻结的 Role/Skill 内组合，不得通过结构化工具调用扩大授权。 */
 class SubmitCoordinationPlanToolTest {
 
     private static final String ROLE = "system.role.content-creator";
@@ -52,7 +47,7 @@ class SubmitCoordinationPlanToolTest {
     @Test
     @DisplayName("Given 计划使用基准内 Role 与 Skill When 提交 Then 通过并冻结执行者")
     void should_accept_plan_within_frozen_baseline() {
-        var tool = tool(board());
+        var tool = tool(taskPlan());
 
         var result = tool.invoke(invocation(ROLE, SKILL)).block();
 
@@ -63,7 +58,7 @@ class SubmitCoordinationPlanToolTest {
     @Test
     @DisplayName("Given 计划越界到基准外 Role When 提交 Then 拒绝提权")
     void should_reject_plan_widening_role_beyond_baseline() {
-        var tool = tool(board());
+        var tool = tool(taskPlan());
 
         assertThatThrownBy(
                         () -> tool.invoke(invocation("system.role.admin-escalated", SKILL)).block())
@@ -74,28 +69,24 @@ class SubmitCoordinationPlanToolTest {
     @Test
     @DisplayName("Given 计划越界到基准外 Skill When 提交 Then 拒绝提权")
     void should_reject_plan_widening_skill_beyond_baseline() {
-        var tool = tool(board());
+        var tool = tool(taskPlan());
 
         assertThatThrownBy(() -> tool.invoke(invocation(ROLE, "unauthorized-skill")).block())
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("不能更改已冻结的 Role 或 Skill");
     }
 
-    private static SubmitCoordinationPlanTool tool(TaskBoard board) {
+    private static SubmitCoordinationPlanTool tool(TaskPlan taskPlan) {
         return new SubmitCoordinationPlanTool(
-                new StubTaskBoardPort(board), DecompositionBudget.defaults());
+                new StubTaskPlanPort(taskPlan), DecompositionBudget.defaults());
     }
 
-    /**
-     * 协调者节点必须处于 {@code RUNNING} 才能提交计划（{@code TaskBoard.applyCoordinationPlan} 前置校验）， 不能用 {@code
-     * TaskBoard.coordinated(...)} 静态工厂——它产出的协调者初始态是 {@code PENDING}（等待调度领取）， 需要手工构造一个已处于 {@code
-     * RUNNING} 的协调者节点，与 {@code DelegatedTaskCoordinatorAggregatorCompletionTest} 已确立的 fixture 模式一致。
-     */
-    private static TaskBoard board() {
+    /** 工具只允许运行中的 coordinator 提交 draft，fixture 直接物化 canonical 节点身份。 */
+    private static TaskPlan taskPlan() {
         var coordinator =
-                new TaskBoard.SubTask(
+                new TaskPlan.TaskNode(
                         "coordinator",
-                        TaskBoard.SubTask.Kind.COORDINATOR,
+                        TaskPlan.TaskNode.Kind.COORDINATOR,
                         "撰写品牌文案",
                         Set.of(),
                         Map.of(),
@@ -103,7 +94,7 @@ class SubmitCoordinationPlanToolTest {
                         SKILL,
                         null,
                         TaskModelSelection.auto(),
-                        TaskBoard.Status.RUNNING,
+                        TaskPlan.Status.RUNNING,
                         true,
                         1,
                         3,
@@ -112,16 +103,16 @@ class SubmitCoordinationPlanToolTest {
                         null,
                         null,
                         Map.of());
-        return new TaskBoard(
+        return new TaskPlan(
                 TASK,
-                new TaskBoard.Goal(
+                new TaskPlan.Goal(
                         "goal",
                         "撰写品牌文案",
                         Set.of("coordinator"),
-                        CoordinationPlan.AggregationContract.passThrough("coordinator"),
+                        TaskPlanDraft.AggregationContract.passThrough("coordinator"),
                         null),
                 1,
-                Map.of(coordinator.subTaskId(), coordinator));
+                Map.of(coordinator.nodeId(), coordinator));
     }
 
     private static ToolInvocation invocation(String roleKey, String skillKey) {
@@ -136,7 +127,7 @@ class SubmitCoordinationPlanToolTest {
                         "executors",
                         List.of(
                                 Map.of(
-                                        "subTaskId", "executor-copy",
+                                        "nodeId", "executor-copy",
                                         "description", "输出 Markdown 文案",
                                         "roleKey", roleKey,
                                         "skillKey", skillKey,
@@ -177,7 +168,7 @@ class SubmitCoordinationPlanToolTest {
                 ControlMode.DELEGATED,
                 com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract
                         .conversationDefault(
-                                java.util.Set.of("respond"),
+                                Set.of("respond"),
                                 new com.xuejiai.aaf.framework.intelligent.assistant.model
                                         .ExecutionContract.ResponsibleOwner("AI", "system")),
                 lease,
@@ -186,55 +177,50 @@ class SubmitCoordinationPlanToolTest {
                         "coordinator", NodeIdentity.NodeKind.COORDINATOR, ROLE, SKILL, false));
     }
 
-    /** 只实现本测试用到的两个方法；其它方法调用即测试设计错误，直接抛异常暴露。 */
-    private static final class StubTaskBoardPort implements TaskBoardPort {
-        private TaskBoard board;
+    /** 只实现本测试实际使用的 find/applyTaskPlanDraft；其余调用均视为测试设计错误。 */
+    private static final class StubTaskPlanPort implements TaskPlanPort {
+        private TaskPlan taskPlan;
 
-        StubTaskBoardPort(TaskBoard board) {
-            this.board = board;
+        StubTaskPlanPort(TaskPlan taskPlan) {
+            this.taskPlan = taskPlan;
         }
 
         @Override
-        public TaskBoard save(TenantId tenantId, TaskBoard board) {
+        public Optional<TaskPlan> find(TenantId tenantId, TaskId taskId) {
+            return Optional.of(taskPlan);
+        }
+
+        @Override
+        public TaskPlan update(
+                TenantId tenantId, TaskPlan plan, ConversationLeasePort.Lease lease) {
             throw new UnsupportedOperationException("未使用");
         }
 
         @Override
-        public Optional<TaskBoard> find(TenantId tenantId, TaskId taskId) {
-            return Optional.of(board);
-        }
-
-        @Override
-        public TaskBoard.ReadyClaim claimReady(
-                TenantId tenantId, TaskId taskId, ConversationLeasePort.Lease lease) {
-            throw new UnsupportedOperationException("未使用");
-        }
-
-        @Override
-        public TaskBoard applyCoordinationPlan(
+        public TaskPlan applyTaskPlanDraft(
                 TenantId tenantId,
                 TaskId taskId,
-                CoordinationPlan plan,
+                TaskPlanDraft draft,
                 ConversationLeasePort.Lease lease) {
-            board = board.applyCoordinationPlan(plan);
-            return board;
+            taskPlan = taskPlan.applyTaskPlanDraft(draft);
+            return taskPlan;
         }
 
         @Override
-        public TaskBoard completeSubTask(
+        public TaskPlan completeNode(
                 TenantId tenantId,
                 TaskId taskId,
-                String subTaskId,
+                String nodeId,
                 String result,
                 ConversationLeasePort.Lease lease) {
             throw new UnsupportedOperationException("未使用");
         }
 
         @Override
-        public TaskBoard failSubTask(
+        public TaskPlan failNode(
                 TenantId tenantId,
                 TaskId taskId,
-                String subTaskId,
+                String nodeId,
                 String failure,
                 boolean transientFailure,
                 ConversationLeasePort.Lease lease) {
@@ -242,17 +228,17 @@ class SubmitCoordinationPlanToolTest {
         }
 
         @Override
-        public TaskBoard interruptSubTask(
+        public TaskPlan interruptNode(
                 TenantId tenantId,
                 TaskId taskId,
-                String subTaskId,
+                String nodeId,
                 boolean retryable,
                 ConversationLeasePort.Lease lease) {
             throw new UnsupportedOperationException("未使用");
         }
 
         @Override
-        public TaskBoard interruptRunning(
+        public TaskPlan interruptRunning(
                 TenantId tenantId,
                 TaskId taskId,
                 boolean retryable,

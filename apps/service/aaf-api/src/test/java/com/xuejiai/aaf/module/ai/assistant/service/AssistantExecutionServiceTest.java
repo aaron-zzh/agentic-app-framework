@@ -13,7 +13,7 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
-import com.xuejiai.aaf.framework.intelligent.assistant.application.DelegatedTaskCoordinator;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskCommandService;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition.Lifecycle;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition.RiskPolicy;
@@ -87,7 +87,10 @@ class AssistantExecutionServiceTest {
                 .thenReturn(Optional.of(definition()));
         var service =
                 new AssistantExecutionService(
-                        mock(DelegatedTaskCoordinator.class),
+                        mock(TaskCommandService.class),
+                        mock(
+                                com.xuejiai.aaf.framework.intelligent.assistant.port
+                                        .AssistantCommandPort.class),
                         assistantDefinitions,
                         mock(
                                 com.xuejiai.aaf.framework.intelligent.assistant.port

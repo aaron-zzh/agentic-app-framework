@@ -34,7 +34,7 @@
  *       <ul>
  *         <li>{@code AgentScopeMessageMapper} — AAF 消息 → AgentScope Msg（入向）
  *         <li>{@code AgentScopeRuntimeContextMapper} — 调用上下文 → per-call RuntimeContext，并生成
- *             租户/用户/任务隔离的状态键（委托态叠加 fencing token）
+ *             租户/用户/任务/Agent/stateSlot 隔离的稳定状态键
  *         <li>{@code AgentScopeEventMapper} — AgentScope 运行事件 → 稳定脱敏的 AAF ExecutionEvent（出向）
  *       </ul>
  *   <li><b>middleware</b>
@@ -54,6 +54,7 @@
  *       </ul>
  *   <li><b>state</b>
  *       <ul>
+ *         <li>{@code DispatchGuardedAgentStateStore} — 以 TaskUnitOfWork 行锁串行化状态访问与 Dispatch 换代
  *         <li>{@code SpringRedisClientAdapter} — 让 RedisAgentStateStore 复用 Spring 管理的 Redis 连接
  *       </ul>
  *   <li><b>spring</b>

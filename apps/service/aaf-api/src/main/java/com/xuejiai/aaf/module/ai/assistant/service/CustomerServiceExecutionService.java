@@ -27,7 +27,6 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.IdempotencyKey;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.RunId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.SessionId;
-import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 import com.xuejiai.aaf.module.channel.service.WebCustomerServiceBindingResolver.Binding;
@@ -97,8 +96,8 @@ public class CustomerServiceExecutionService {
                         new MemorySubject(tenantId, SubjectKind.VISITOR, visitorSubject),
                         assistantId,
                         new ConversationId(threadId),
-                        new SessionId(stable("customer-service-session", conversationKey)),
-                        new TaskId(stable("customer-service-task", runKey)),
+                        new SessionId(stable("customer-service-session", runKey)),
+                        null,
                         new ExecutionId(stable("customer-service-execution-id", runKey)),
                         new RunId(effectiveRunId),
                         null,

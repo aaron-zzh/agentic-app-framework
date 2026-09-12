@@ -39,7 +39,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillActivationMode
 import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillScope;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillSelectionMode;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskUnitOfWork;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
 import com.xuejiai.aaf.framework.intelligent.core.skill.SkillVersionRef;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.compiler.AgentScopeSpecCompiler;
@@ -53,6 +53,8 @@ import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.Control
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.OwnerType;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.state.DispatchGuardedAgentStateStore;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.EventId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.RunId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.SessionId;
@@ -64,7 +66,6 @@ import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.event.AgentStartEvent;
 import io.agentscope.core.event.TextBlockDeltaEvent;
 import io.agentscope.core.state.AgentState;
-import io.agentscope.core.state.AgentStateStore;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
@@ -76,12 +77,12 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
     @Mock private AgentScopeSpecCompiler compiler;
     @Mock private AgentScopeMessageMapper messageMapper;
     @Mock private AgentScopeRuntimeContextMapper contextMapper;
-    @Mock private AgentStateStore stateStore;
+    @Mock private DispatchGuardedAgentStateStore stateStore;
     @Mock private AgentScopeEventMapper eventMapper;
     @Mock private AgentScopeTokenMeteringObserver meteringObserver;
     @Mock private ExecutionEventStorePort eventStore;
     @Mock private ConversationLeasePort leases;
-    @Mock private DelegatedTaskPort delegatedTasks;
+    @Mock private TaskUnitOfWork delegatedTasks;
     @Mock private ToolResultEvidenceStore evidenceStore;
     @Mock private ReActAgent agent;
     @Mock private InvocationContext invocationContext;
@@ -138,6 +139,14 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
         // getAgentId() 返回 null 会在 put(null, ...) 处直接 NPE，中断整条执行链。生产环境 agentId
         // 由 AgentBase 构造时赋值，永不为空，这里只是补齐 mock 契约。
         lenient().when(agent.getAgentId()).thenReturn("agent-test");
+        lenient().when(failureEvent.eventId()).thenReturn(new EventId("failure-event"));
+        lenient().when(canceledEvent.eventId()).thenReturn(new EventId("canceled-event"));
+        lenient().when(runningEvent.eventId()).thenReturn(new EventId("running-event"));
+        lenient().when(runningEvent.type()).thenReturn(ExecutionEventType.RUN_STARTED);
+        lenient()
+                .when(runningEvent.status())
+                .thenReturn(ExecutionEvent.ExecutionEventStatus.RUNNING);
+        lenient().when(settledEvent.eventId()).thenReturn(new EventId("settled-event"));
     }
 
     @Test
@@ -368,9 +377,30 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
                                 .class);
     }
 
-    /** RQ-10 + RQ-08/09：执行终止时必须无条件清理工具证据残留与本次执行私有的状态槽。 */
     @Test
-    @DisplayName("Given 执行以失败终止 When 流关闭 Then 清理工具证据与执行状态槽")
+    @DisplayName("Given same-attempt resume 缺少状态槽 When 执行 Then fail-closed 而不静默 fresh")
+    void should_fail_closed_when_required_resume_state_is_missing() {
+        var policy = ExecutionPolicy.withDefaultTimeouts(3, 1, Duration.ofSeconds(30), 128000);
+        var command = command(policy, true);
+        stubTerminalFailure();
+        stubDynamicAgent(command, Flux.empty());
+
+        var results = adapter.execute(command).collectList().block();
+
+        assertThat(results).containsExactly(failureEvent);
+        var captor = org.mockito.ArgumentCaptor.forClass(Throwable.class);
+        verify(eventMapper).failure(any(), any(), any(), captor.capture());
+        assertThat(captor.getValue())
+                .isInstanceOf(
+                        com.xuejiai.aaf.framework.intelligent.cognition.model
+                                .ContextBudgetExceededException.class)
+                .hasMessageContaining("same-attempt resume");
+        verify(agent, org.mockito.Mockito.never()).streamEvents(anyList(), any());
+    }
+
+    /** 执行终止时清理工具证据，并仅以原 Dispatch authority 清理本 attempt 状态槽。 */
+    @Test
+    @DisplayName("Given 执行以失败终止 When 流关闭 Then stale-safe 清理工具证据与状态槽")
     void should_clear_tool_evidence_and_execution_state_on_termination() {
         var command = command(Duration.ofSeconds(30));
         stubTerminalFailure();
@@ -379,7 +409,8 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
         adapter.execute(command).collectList().block();
 
         verify(evidenceStore).clear(command.context().executionId());
-        verify(stateStore).delete("state-user", "session-test");
+        verify(stateStore)
+                .deleteStaleSafe(command.context(), "state-user", "session-test");
     }
 
     /**
@@ -407,15 +438,21 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
     }
 
     private void stubCanceled() {
-        when(eventMapper.canceled(any(), any(), any())).thenReturn(canceledEvent);
-        when(eventStore.append(eq(canceledEvent), eq(null))).thenReturn(Mono.just(canceledEvent));
+        lenient().when(eventMapper.canceled(any(), any(), any())).thenReturn(canceledEvent);
+        lenient()
+                .when(eventStore.append(eq(canceledEvent), eq(null)))
+                .thenReturn(Mono.just(canceledEvent));
     }
 
     private AgentExecutionCommand command(Duration timeout) {
-        return command(ExecutionPolicy.withDefaultTimeouts(3, 1, timeout, 128000));
+        return command(ExecutionPolicy.withDefaultTimeouts(3, 1, timeout, 128000), false);
     }
 
     private AgentExecutionCommand command(ExecutionPolicy policy) {
+        return command(policy, false);
+    }
+
+    private AgentExecutionCommand command(ExecutionPolicy policy, boolean resumeStateRequired) {
         var dynamic =
                 new SubagentSpec.Dynamic(
                         "agent.dynamic-lifecycle",
@@ -470,7 +507,8 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
                 compiled(dynamic.identifier()),
                 0,
                 List.of(new AgentMessage("message-1", AgentMessage.Role.USER, "执行")),
-                invocationContext);
+                invocationContext,
+                resumeStateRequired);
     }
 
     private static CompiledSystemPrompt compiled(String identity) {
@@ -515,6 +553,6 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
                         command.compiledSystemPrompt(),
                         command.skillExecutionProfile().effectiveTools()))
                 .thenReturn(agent);
-        when(agent.streamEvents(anyList(), eq(runtimeContext))).thenReturn(events);
+        lenient().when(agent.streamEvents(anyList(), eq(runtimeContext))).thenReturn(events);
     }
 }

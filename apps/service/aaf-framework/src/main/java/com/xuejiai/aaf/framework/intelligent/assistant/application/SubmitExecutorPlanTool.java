@@ -34,12 +34,11 @@ import reactor.core.scheduler.Schedulers;
  *
  * <p>只暴露 {@code goal}、{@code risks}、{@code verification}、{@code steps} 四个入参；{@code planId} 与 {@code
  * expectedLockVersion} 由本工具通过 {@code ExecutorPlanPort.findActive} 按 {@code (tenantId, taskId)}
- * 现查现用，不接受模型传入——防止模型跨计划提交或伪造版本号绕过 CAS。查出的活跃计划还必须归属调用者自己的板节点（{@code
- * nodeIdentity.subTaskId()}），杜绝跨节点提交。
+ * 现查现用，不接受模型传入——防止模型跨计划提交或伪造版本号绕过 CAS。查出的活跃计划还必须归属调用者自己的板节点（{@code nodeIdentity.nodeId()}），杜绝跨节点提交。
  *
  * <p><b>不设独立审批关卡（ADR-006「决策推翻」2026-09-01）</b>：对齐官方 {@code permission-system.html}
  * 后确认，权限系统按具体工具调用分级（ALLOW/DENY/ASK），没有"计划本身要不要审"这一层概念。 "提交步骤列表"这个动作不新增执行面、不引入新的 Agent
- * 身份，风险已在两处覆盖：协调者产出 {@code CoordinationPlan} 派生新节点时的既有审批点、步骤执行阶段具体工具调用前的 {@code
+ * 身份，风险已在两处覆盖：协调者产出 {@code TaskPlanDraft} 派生新节点时的既有审批点、步骤执行阶段具体工具调用前的 {@code
  * DefaultToolGateway}/{@code AuthorizationGrant} 授权链路。因此本工具提交后固定转 {@code APPROVED} 再转 {@code
  * EXECUTING}，不判定白名单、不产生 {@code REVIEW_REQUIRED}。
  */
@@ -142,19 +141,20 @@ public final class SubmitExecutorPlanTool implements ContextAwareToolHandler {
         }
         var goal = requireArgument(invocation.arguments(), "goal");
         var active =
-                plans.findActive(context.tenantId(), context.taskId(), nodeIdentity.subTaskId())
+                plans.findActive(context.tenantId(), context.taskId(), nodeIdentity.nodeId())
                         .orElseGet(
                                 () ->
                                         plans.beginPlanning(
                                                 new ExecutorPlanPort.BeginPlanningCommand(
                                                         context.tenantId(),
                                                         context.taskId(),
-                                                        nodeIdentity.subTaskId(),
-                                                        nodeIdentity.subTaskId(),
+                                                        nodeIdentity.nodeId(),
+                                                        context.executionId(),
+                                                        nodeIdentity.nodeId(),
                                                         goal,
                                                         Map.of(),
                                                         clock.instant())));
-        if (!active.boardId().equals(nodeIdentity.subTaskId())) {
+        if (!active.nodeId().equals(nodeIdentity.nodeId())) {
             throw new IllegalStateException("当前活跃计划不属于本节点，禁止跨节点提交");
         }
         var steps = decodeSteps(invocation.arguments());
@@ -169,7 +169,7 @@ public final class SubmitExecutorPlanTool implements ContextAwareToolHandler {
                         verification,
                         steps,
                         "AI",
-                        nodeIdentity.subTaskId(),
+                        nodeIdentity.nodeId(),
                         true,
                         clock.instant());
         var plan = plans.submit(command);

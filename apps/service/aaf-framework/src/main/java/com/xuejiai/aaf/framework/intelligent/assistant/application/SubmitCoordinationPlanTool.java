@@ -11,42 +11,42 @@ import java.util.Set;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ContextAwareToolHandler;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolInvocation;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolInvocationResult;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.CoordinationPlan;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.CoordinationPlan.AggregationContract;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.CoordinationPlan.ExecutorAssignment;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.CoordinationPlan.InputBinding;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.CoordinationPlan.IterationGroup;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DecompositionBudget;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskBoard.SubTask;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskModelSelection;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskBoardPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlan;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlan.TaskNode;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlanDraft;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlanDraft.AggregationContract;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlanDraft.ExecutorAssignment;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlanDraft.InputBinding;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlanDraft.IterationGroup;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskPlanPort;
 
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 /**
  * 协调者 execution 内唯一允许调用的写工具：提交协调计划，替代此前"输出严格 JSON 文本 + {@code
- * DelegatedTaskCoordinator.decodeAndValidatePlan} 手工解析"的模式。
+ * TaskCommandService.decodeAndValidatePlan} 手工解析"的模式。
  *
  * <p>动机：手工解析依赖 {@code streamEvents} 收敛到的最终文本，模型必须自己保证输出是严格单一 JSON 对象；改为工具调用后， 输入结构由工具入参 schema
  * 强制约束（模型侧无法输出非法结构），且工具调用本身产生 {@code TOOL_CALL_START}/{@code TOOL_RESULT_END} 事件，不像"改用结构化输出 {@code
  * call(...)}"那样需要放弃协调者 execution 的完整事件流投影与 Token 计量（核实 core {@code ReActAgent}
  * 源码确认原生结构化输出与合成降级路径均硬编码绑定在 {@code call(...)} 内部私有实现，无法与 {@code streamEvents} 组合）。
  *
- * <p>业务规则从 {@code decodeAndValidatePlan} 原样迁移，通过 {@link TaskBoardPort#find} 反查协调者节点自身持有的 {@code
+ * <p>业务规则从 {@code decodeAndValidatePlan} 原样迁移，通过 {@link TaskPlanPort#find} 反查协调者节点自身持有的 {@code
  * roleKey}/{@code skillKey}/{@code modelSelection} 作为授权衰减与模型策略一致性的比对基准——这些字段已随 {@link
- * TaskBoard.SubTask} 持久化，工具执行时可独立反查，不需要调用方额外传递。
+ * TaskPlan.TaskNode} 持久化，工具执行时可独立反查，不需要调用方额外传递。
  */
 public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler {
 
     public static final String TOOL_NAME = "submit_coordination_plan";
 
-    private final TaskBoardPort boards;
+    private final TaskPlanPort boards;
     private final DecompositionBudget decompositionBudget;
 
     public SubmitCoordinationPlanTool(
-            TaskBoardPort boards, DecompositionBudget decompositionBudget) {
+            TaskPlanPort boards, DecompositionBudget decompositionBudget) {
         this.boards = Objects.requireNonNull(boards, "boards 不能为空");
         this.decompositionBudget =
                 Objects.requireNonNull(decompositionBudget, "decompositionBudget 不能为空");
@@ -93,7 +93,7 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
                                 "type",
                                 "array",
                                 "description",
-                                "执行者列表，每项含 subTaskId/description/roleKey/skillKey/modelMode",
+                                "执行者列表，每项含 nodeId/description/roleKey/skillKey/modelMode",
                                 "items",
                                 Map.of("type", "object")),
                         "iterationGroup",
@@ -117,19 +117,19 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
         var board =
                 boards.find(context.tenantId(), context.taskId())
                         .orElseThrow(() -> new IllegalStateException("当前任务没有可提交协调计划的任务板"));
-        var coordinatorNode = board.subTasks().get(nodeIdentity.subTaskId());
-        if (coordinatorNode == null || coordinatorNode.kind() != SubTask.Kind.COORDINATOR) {
+        var coordinatorNode = board.nodes().get(nodeIdentity.nodeId());
+        if (coordinatorNode == null || coordinatorNode.kind() != TaskNode.Kind.COORDINATOR) {
             throw new IllegalStateException("submit_coordination_plan 只能由 COORDINATOR 节点调用");
         }
 
         var arguments = invocation.arguments();
         var teamTargets =
-                board.subTasks().values().stream()
-                        .filter(subTask -> subTask.kind() == SubTask.Kind.EXECUTOR)
+                board.nodes().values().stream()
+                        .filter(subTask -> subTask.kind() == TaskNode.Kind.EXECUTOR)
                         .filter(subTask -> subTask.assistantTarget() != null)
                         .collect(
                                 java.util.stream.Collectors.toUnmodifiableMap(
-                                        SubTask::subTaskId, SubTask::assistantTarget));
+                                        TaskNode::nodeId, TaskNode::assistantTarget));
         var teamBoard = coordinatorNode.assistantTarget() != null && !teamTargets.isEmpty();
 
         // 授权衰减基准是委派方自身：协调者子任务上已冻结的 Role/Skill。executor 只能等于该基准，不得放大到基准之外。
@@ -151,11 +151,11 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
 
         var assignments = new ArrayList<ExecutorAssignment>();
         for (var node : rawExecutors) {
-            var subTaskId = requireStringField(node, "subTaskId");
+            var nodeId = requireStringField(node, "nodeId");
             var roleKey = requireStringField(node, "roleKey");
             var skillKey = requireStringField(node, "skillKey");
             if (teamBoard) {
-                var target = teamTargets.get(subTaskId);
+                var target = teamTargets.get(nodeId);
                 if (target == null
                         || !target.roleKey().equals(roleKey)
                         || !target.skillKey().equals(skillKey)) {
@@ -173,7 +173,7 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
             }
             assignments.add(
                     new ExecutorAssignment(
-                            subTaskId,
+                            nodeId,
                             requireStringField(node, "description"),
                             dependsOn,
                             decodeInputBindings(node.get("inputBindings")),
@@ -185,8 +185,8 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
 
         var plannedExecutorIds = new LinkedHashSet<String>();
         for (var assignment : assignments) {
-            if (!plannedExecutorIds.add(assignment.subTaskId())) {
-                throw new IllegalArgumentException("协调计划不能重复声明同一 subTaskId");
+            if (!plannedExecutorIds.add(assignment.nodeId())) {
+                throw new IllegalArgumentException("协调计划不能重复声明同一 nodeId");
             }
         }
         if (teamBoard && !plannedExecutorIds.equals(teamTargets.keySet())) {
@@ -207,22 +207,22 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
                 iterationGroup == null ? 1 : iterationGroup.maxIterations());
 
         var cumulativeExecutorIds = new LinkedHashSet<String>();
-        board.subTasks().values().stream()
-                .filter(subTask -> subTask.kind() == SubTask.Kind.EXECUTOR)
-                .map(SubTask::subTaskId)
+        board.nodes().values().stream()
+                .filter(subTask -> subTask.kind() == TaskNode.Kind.EXECUTOR)
+                .map(TaskNode::nodeId)
                 .forEach(cumulativeExecutorIds::add);
         cumulativeExecutorIds.addAll(plannedExecutorIds);
         effectiveBudget.requireCumulativeWithin(cumulativeExecutorIds.size());
 
         var plan =
-                new CoordinationPlan(
+                new TaskPlanDraft(
                         requireStringField(arguments, "goal"),
                         maxParallelism,
                         aggregation,
                         assignments,
                         iterationGroup);
 
-        boards.applyCoordinationPlan(context.tenantId(), context.taskId(), plan, context.lease());
+        boards.applyTaskPlanDraft(context.tenantId(), context.taskId(), plan, context.lease());
 
         var values = new LinkedHashMap<String, Object>();
         values.put("executorCount", assignments.size());
@@ -278,7 +278,7 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
                                     new InputBinding(
                                             requireStringField(
                                                     (Map<String, Object>) bindingMap,
-                                                    "sourceSubTaskId")));
+                                                    "sourceTaskNodeId")));
                         });
         return bindings;
     }
@@ -307,8 +307,8 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
         var map = (Map<String, Object>) rawMap;
         return new IterationGroup(
                 requireStringField(map, "groupId"),
-                decodeStringList(map.get("memberSubTaskIds")),
-                requireStringField(map, "evaluatorSubTaskId"),
+                decodeStringList(map.get("memberTaskNodeIds")),
+                requireStringField(map, "evaluatorTaskNodeId"),
                 optionalPositiveInt(map, "maxIterations", 1));
     }
 

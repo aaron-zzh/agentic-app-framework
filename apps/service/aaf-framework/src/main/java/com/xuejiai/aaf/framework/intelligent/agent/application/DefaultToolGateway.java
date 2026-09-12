@@ -30,11 +30,11 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolInvocation;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolInvocationResult;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolParameterPolicyPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.HitlTransition.AuthorizationRequestTransition;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.HumanApproval;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskTransition.AuthorizationRequestTransition;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.DelegatedTaskPort;
-import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskTransitionPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.HitlTransitionPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskUnitOfWork;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ExecutionEventStatus;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.OwnerType;
@@ -52,21 +52,21 @@ public final class DefaultToolGateway implements ToolGatewayPort {
 
     private final AuthorizationGrantPort grants;
     private final ToolParameterPolicyPort parameterPolicy;
-    private final TaskTransitionPort transitions;
+    private final HitlTransitionPort transitions;
     private final ToolInvocationPort localTools;
     private final ConnectorActionPort connectors;
     private final ConversationLeasePort leases;
-    private final DelegatedTaskPort delegatedTasks;
+    private final TaskUnitOfWork delegatedTasks;
     private final InvocationReceiptPort receipts;
 
     public DefaultToolGateway(
             AuthorizationGrantPort grants,
             ToolParameterPolicyPort parameterPolicy,
-            TaskTransitionPort transitions,
+            HitlTransitionPort transitions,
             ToolInvocationPort localTools,
             ConnectorActionPort connectors,
             ConversationLeasePort leases,
-            DelegatedTaskPort delegatedTasks,
+            TaskUnitOfWork delegatedTasks,
             InvocationReceiptPort receipts) {
         this.grants = Objects.requireNonNull(grants, "grants 不能为空");
         this.parameterPolicy = Objects.requireNonNull(parameterPolicy, "parameterPolicy 不能为空");
@@ -99,9 +99,13 @@ public final class DefaultToolGateway implements ToolGatewayPort {
                         || definition.connectorAction()
                         || rule.authorizationRequired()
                         || definition.requireConfirm();
+        if (context.taskId() == null && grantRequired) {
+            return Mono.error(
+                    new IllegalStateException("DIRECT execution 触及授权或副作用边界，必须先 promotion 为 Task"));
+        }
         log.debug(
                 "[工具网关] 工具调用已通过可见性校验：taskId={}，tool={}，只读={}，可撤销={}，需要授权={}",
-                context.taskId().value(),
+                taskKey(context),
                 definition.ref().name(),
                 definition.readOnly(),
                 definition.reversible(),
@@ -162,7 +166,7 @@ public final class DefaultToolGateway implements ToolGatewayPort {
                                         authorizationRequestEvent(pendingApproval)));
                 log.debug(
                         "[工具网关] 未找到有效授权，已原子提交 HITL 等待状态：taskId={}，tool={}，approvalId={}，可撤销={}",
-                        context.taskId().value(),
+                        taskKey(context),
                         definition.ref().name(),
                         approval.approvalId(),
                         definition.reversible());
@@ -187,6 +191,8 @@ public final class DefaultToolGateway implements ToolGatewayPort {
             return executeAndAccount(definition, invocation, finalGrant, null);
         }
         var actionKey = requireActionKey(invocation);
+        delegatedTasks.recordSideEffectIntent(
+                context.tenantId(), context.executionId(), Instant.now());
         var receiptKey = stableReceiptKey(definition, invocation, actionKey);
         var digest = requestDigest(definition, invocation, resource);
         var claim =
@@ -207,7 +213,7 @@ public final class DefaultToolGateway implements ToolGatewayPort {
         return executeAndAccount(definition, invocation, finalGrant, receiptKey)
                 .onErrorResume(
                         failure -> {
-                            if (!(failure instanceof DelegatedTaskPort.BudgetExceededException)) {
+                            if (!(failure instanceof TaskUnitOfWork.BudgetExceededException)) {
                                 receipts.fail(
                                         receiptKey, context, failure.getMessage(), Instant.now());
                             }
@@ -231,7 +237,7 @@ public final class DefaultToolGateway implements ToolGatewayPort {
         Mono<ToolInvocationResult> execution;
         log.debug(
                 "[工具网关] 授权与参数策略校验通过，开始派发工具：taskId={}，tool={}，连接器={}，写入={}，委托执行={}",
-                context.taskId().value(),
+                taskKey(context),
                 definition.ref().name(),
                 definition.connectorAction(),
                 !definition.readOnly(),
@@ -253,7 +259,7 @@ public final class DefaultToolGateway implements ToolGatewayPort {
                                                     + sha256(
                                                             context.tenantId().value()
                                                                     + '|'
-                                                                    + context.taskId().value()
+                                                                    + taskKey(context)
                                                                     + '|'
                                                                     + definition.ref().toolId()
                                                                     + '|'
@@ -278,6 +284,11 @@ public final class DefaultToolGateway implements ToolGatewayPort {
                 });
     }
 
+    private static String taskKey(
+            com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext context) {
+        return context.taskId() == null ? null : context.taskId().value();
+    }
+
     private void requireCurrent(
             com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext context) {
         if (context.lease() != null) leases.requireCurrent(context.lease());
@@ -300,7 +311,7 @@ public final class DefaultToolGateway implements ToolGatewayPort {
                         "|",
                         context.tenantId().value(),
                         context.userId().value(),
-                        context.taskId().value(),
+                        taskKey(context),
                         definition.ref().toolId(),
                         actionKey);
         return "tool:" + sha256(source);
@@ -311,7 +322,7 @@ public final class DefaultToolGateway implements ToolGatewayPort {
         var request = new TreeMap<String, Object>();
         request.put("tenantId", invocation.context().tenantId().value());
         request.put("userId", invocation.context().userId().value());
-        request.put("taskId", invocation.context().taskId().value());
+        request.put("taskId", taskKey(invocation.context()));
         request.put("toolId", definition.ref().toolId());
         request.put("resource", resource);
         request.put("arguments", canonical(invocation.arguments()));

@@ -48,7 +48,6 @@ public record ExecutionProfileSnapshot(
 
     public ExecutionProfileSnapshot {
         Objects.requireNonNull(tenantId, "tenantId 不能为空");
-        Objects.requireNonNull(taskId, "taskId 不能为空");
         Objects.requireNonNull(executionId, "executionId 不能为空");
         Objects.requireNonNull(assistantId, "assistantId 不能为空");
         if (assistantRevision < 0) {

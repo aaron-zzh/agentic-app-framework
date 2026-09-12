@@ -31,7 +31,6 @@ public record AafAiTaskEvent(
 
     public AafAiTaskEvent {
         eventId = requireText(eventId, "eventId");
-        taskId = requireText(taskId, "taskId");
         executionId = requireText(executionId, "executionId");
         runId = requireText(runId, "runId");
         sessionId = requireText(sessionId, "sessionId");
@@ -110,7 +109,7 @@ public record AafAiTaskEvent(
                         "action",
                         "decision",
                         "requestId",
-                        "subTaskId",
+                        "nodeId",
                         "completedFieldCount",
                         "requiredFieldCount",
                         "groupId",

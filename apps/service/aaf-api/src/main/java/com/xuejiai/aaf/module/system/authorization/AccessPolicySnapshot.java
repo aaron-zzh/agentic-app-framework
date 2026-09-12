@@ -1,10 +1,10 @@
 package com.xuejiai.aaf.module.system.authorization;
 
-import org.hibernate.annotations.Check;
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
 
+import jakarta.persistence.CheckConstraint;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Index;
@@ -28,8 +28,11 @@ import lombok.NoArgsConstructor;
         indexes =
                 @Index(
                         name = "idx_access_policy_snapshot_target",
-                        columnList = "target_resource,target_action,priority"))
-@Check(constraints = "lifecycle in ('SHADOW','ENFORCE') and effect in ('ALLOW','DENY','CHALLENGE')")
+                        columnList = "target_resource,target_action,priority"),
+        check =
+                @CheckConstraint(
+                        constraint =
+                                "lifecycle in ('SHADOW','ENFORCE') and effect in ('ALLOW','DENY','CHALLENGE')"))
 @SQLDelete(
         sql =
                 "UPDATE sys_access_policy_snapshot SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")

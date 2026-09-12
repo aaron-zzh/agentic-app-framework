@@ -9,22 +9,25 @@ import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Version;
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
 @Entity
-@Table(name = "ai_task_transition_outbox")
-public class TaskTransitionOutboxEntity {
-    @Id
-    @Column(name = "outbox_id", length = 128)
-    private String outboxId;
+@Table(
+        name = "ai_task_transition_outbox",
+        uniqueConstraints = {
+            @UniqueConstraint(columnNames = {"outbox_id"}),
+            @UniqueConstraint(columnNames = {"event_id"})
+        })
+public class TaskTransitionOutboxEntity extends AssistantRuntimeEntity {
 
-    @Column(name = "tenant_id", nullable = false, length = 128)
-    private String tenantId;
+    @Column(name = "outbox_id", nullable = false, length = 128)
+    private String outboxId;
 
     @Column(name = "task_id", nullable = false, length = 128)
     private String taskId;
@@ -44,4 +47,8 @@ public class TaskTransitionOutboxEntity {
 
     @Column(name = "published_at")
     private Instant publishedAt;
+
+    @Version
+    @Column(name = "runtime_lock_version", nullable = false)
+    private Long runtimeLockVersion;
 }
