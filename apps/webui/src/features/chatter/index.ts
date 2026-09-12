@@ -7,7 +7,7 @@
  * - composer/  输入区
  * - toolbar/   工具栏
  * - layout/    布局容器（Panel、Dialog、GlobalChatter、FloatingButton）
- * - task/      任务面板（TaskBoard、ToolConfirm、RecoveryNotification）
+ * - task/      canonical Task 投影、structured HITL 与恢复通知
  * - omni/      实时语音面板
  * - dnd/       拖放
  * - hooks/     hooks
@@ -18,7 +18,7 @@
 export { Chatter } from "./Chatter"
 export { ChatterComposer } from "./composer"
 export { ContextChip, DraggableItem, DroppableComposer, useSemanticDraggable } from "./dnd"
-export { useChatterLayoutPreference, useTaskBoard } from "./hooks"
+export { useChatterLayoutPreference, useTaskList } from "./hooks"
 export {
   ChatterLayout as ChatterLayoutContainer,
   ChatterPanel,
@@ -29,20 +29,15 @@ export {
 } from "./layout"
 export { OmniRealtimePanel } from "./omni"
 export { ChatterRuntime } from "./runtime"
-export {
-  RecoveryNotification,
-  TaskBoardPanel,
-  TaskExecutionTimeline,
-  ToolConfirmOverlay
-} from "./task"
+export { RecoveryNotification, TaskPanel, ToolConfirmOverlay } from "./task"
 export { ChatterThread, MarkdownText } from "./thread"
 export { ChatterToolbar } from "./toolbar"
-export type {
-  ChatterDropItem,
-  ChatterLayout,
-  ChatterPreset,
-  ChatterProps,
-  ChatterTarget,
-  TaskModelSelection
+export {
+  type ChatterDropItem,
+  type ChatterLayout,
+  type ChatterPreset,
+  type ChatterProps,
+  type ChatterTarget,
+  DEFAULT_TASK_MODEL_SELECTION,
+  type TaskModelSelection
 } from "./types"
-export { DEFAULT_TASK_MODEL_SELECTION } from "./types"

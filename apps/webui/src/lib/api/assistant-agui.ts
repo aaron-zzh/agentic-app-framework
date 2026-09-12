@@ -16,7 +16,7 @@ import {
   type AafAiTaskEvent,
   type AafAiTaskEventData,
   isAafAiTaskEvent
-} from "@/lib/api/rest/ai/delegated-task"
+} from "@/lib/api/rest/ai/task-event"
 import { chatApi } from "./rest/ai"
 import { backendStreamFetch } from "./streaming-client"
 

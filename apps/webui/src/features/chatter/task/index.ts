@@ -1,4 +1,3 @@
 export { RecoveryNotification } from "./RecoveryNotification"
-export { TaskBoardPanel } from "./TaskBoardPanel"
-export { TaskExecutionTimeline } from "./TaskExecutionTimeline"
+export { TaskPanel } from "./TaskPanel"
 export { ToolConfirmOverlay } from "./ToolConfirmOverlay"

@@ -1,124 +1,79 @@
+/**
+ * ToolConfirmOverlay——通过 AG-UI structured interrupt 处理工具授权。
+ * @author AaronZZH & Kiro
+ */
+
 "use client"
 
-/** ToolConfirmOverlay——基于公开任务事件展示持久化 HITL 确认。 @author AaronZZH & Kiro */
-
-import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query"
-import { CheckIcon, XIcon } from "lucide-react"
+import { useAssistantRuntime, useAuiState } from "@assistant-ui/react"
+import type { AgUiAssistantRuntime, AgUiInterrupt } from "@assistant-ui/react-ag-ui"
 import { useState } from "react"
+import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  type AafAiTaskEvent,
-  type DelegatedTaskVO,
-  delegatedTaskApi,
-  delegatedTaskKeys,
-  type HumanApprovalDecisionRequest,
-  humanApprovalApi
-} from "@/lib/api/rest/ai"
 
-interface PendingApproval {
-  approvalId: string
-  taskId: string
-  action: string
-}
-function text(data: AafAiTaskEvent["data"], key: string): string | null {
-  const value = data[key]
-  return typeof value === "string" && value.length > 0 ? value : null
-}
-function findPendingApproval(events: AafAiTaskEvent[]): PendingApproval | null {
-  const resolved = new Set(
-    events
-      .filter(
-        (event) =>
-          event.type === "aaf.authorization.granted" || event.type === "aaf.authorization.denied"
-      )
-      .map((event) => text(event.data, "approvalId"))
-      .filter((value): value is string => value !== null)
-  )
-  const requests = events
-    .filter(
-      (event) =>
-        event.type === "aaf.authorization.requested" && event.status === "AWAITING_AUTHORIZATION"
-    )
-    .toSorted((left, right) => (right.eventOffset ?? 0) - (left.eventOffset ?? 0))
-  for (const event of requests) {
-    const approvalId = text(event.data, "approvalId")
-    if (approvalId && !resolved.has(approvalId))
-      return {
-        approvalId,
-        taskId: event.taskId,
-        action: text(event.data, "action") ?? text(event.data, "toolName") ?? "受控工具操作"
-      }
-  }
-  return null
-}
 function ToolConfirmPanel({
-  approval,
+  interrupt,
   loading,
   onDecision
 }: {
-  approval: PendingApproval
+  interrupt: AgUiInterrupt
   loading: boolean
-  onDecision: (decision: HumanApprovalDecisionRequest["decision"]) => void
+  onDecision: (approved: boolean) => void
 }) {
   return (
     <div className="mx-3 mb-2 rounded-lg border bg-muted/30 p-3">
-      <p className="mb-2 font-medium text-sm">AI 请求执行受控操作，需要您确认：</p>
-      <div className="mb-3 flex flex-wrap gap-2">
-        <Badge variant="secondary">{approval.action}</Badge>
-      </div>
-      <p className="mb-3 truncate text-muted-foreground text-xs" title={approval.taskId}>
-        任务: {approval.taskId}
+      <p className="mb-2 font-medium text-sm">
+        {interrupt.message ?? "AI 请求执行受控操作，需要您确认："}
       </p>
+      <div className="mb-3 flex flex-wrap gap-2">
+        <Badge variant="secondary">受控工具操作</Badge>
+        {interrupt.toolCallId ? <Badge variant="outline">{interrupt.toolCallId}</Badge> : null}
+      </div>
       <div className="flex gap-2">
-        <Button size="sm" disabled={loading} onClick={() => onDecision("APPROVED")}>
-          <CheckIcon data-icon="inline-start" />
+        <Button size="sm" disabled={loading} onClick={() => onDecision(true)}>
           确认执行
         </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={loading}
-          onClick={() => onDecision("REJECTED")}
-        >
-          <XIcon data-icon="inline-start" />
+        <Button size="sm" variant="outline" disabled={loading} onClick={() => onDecision(false)}>
           拒绝
         </Button>
       </div>
     </div>
   )
 }
-export function ToolConfirmOverlay({ tasks }: { tasks: DelegatedTaskVO[] }) {
-  const queryClient = useQueryClient()
-  const [handledApprovalId, setHandledApprovalId] = useState<string | null>(null)
-  const waitingTasks = tasks.filter((task) => task.status === "AWAITING_AUTHORIZATION")
-  const queries = useQueries({
-    queries: waitingTasks.map((task) => ({
-      queryKey: delegatedTaskKeys.events(task.taskId),
-      queryFn: () => delegatedTaskApi.listEvents(task.taskId),
-      refetchInterval: 3000
-    }))
-  })
-  const pending = findPendingApproval(queries.flatMap((query) => query.data?.events ?? []))
-  const decision = useMutation({
-    mutationFn: (request: {
-      approvalId: string
-      decision: HumanApprovalDecisionRequest["decision"]
-    }) =>
-      humanApprovalApi.decide(request.approvalId, {
-        decision: request.decision,
-        reason: request.decision === "REJECTED" ? "用户拒绝了工具授权" : undefined
-      }),
-    onSuccess: (approval) => {
-      setHandledApprovalId(approval.approvalId)
-      queryClient.invalidateQueries({ queryKey: delegatedTaskKeys.all })
+
+export function ToolConfirmOverlay() {
+  const runtime = useAssistantRuntime() as AgUiAssistantRuntime
+  useAuiState((state) => state.thread.isRunning)
+  const [submittingId, setSubmittingId] = useState<string | null>(null)
+  const interrupts = runtime
+    .unstable_getPendingInterrupts()
+    .filter((interrupt) => interrupt.reason === "tool_call")
+
+  async function handleDecision(interrupt: AgUiInterrupt, approved: boolean) {
+    setSubmittingId(interrupt.id)
+    try {
+      await runtime.unstable_submitInterruptResponses([
+        { interruptId: interrupt.id, status: "resolved", payload: { approved } }
+      ])
+    } catch {
+      toast.error("提交授权决定失败，请重试")
+    } finally {
+      setSubmittingId(null)
     }
-  })
-  return pending && pending.approvalId !== handledApprovalId ? (
-    <ToolConfirmPanel
-      approval={pending}
-      loading={decision.isPending}
-      onDecision={(value) => decision.mutate({ approvalId: pending.approvalId, decision: value })}
-    />
-  ) : null
+  }
+
+  if (interrupts.length === 0) return null
+  return (
+    <>
+      {interrupts.map((interrupt) => (
+        <ToolConfirmPanel
+          key={interrupt.id}
+          interrupt={interrupt}
+          loading={submittingId === interrupt.id}
+          onDecision={(approved) => handleDecision(interrupt, approved)}
+        />
+      ))}
+    </>
+  )
 }

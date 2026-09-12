@@ -1,6 +1,6 @@
 /**
- * ChatterPanel——对话面板（Toolbar + Thread + DelegatedTask + Composer）。
- * assistant-ui threadId 与后端 ConversationId 一致，任务数据按该标识查询。
+ * ChatterPanel——对话面板（Toolbar + Thread + canonical Task + Composer）。
+ * assistant-ui threadId 与后端 ConversationId 一致，TaskDetails 按该标识投影。
  * @author AaronZZH & Kiro
  */
 
@@ -10,9 +10,9 @@ import { useAuiState } from "@assistant-ui/react"
 import type { ReactNode } from "react"
 import { ChatterComposer } from "@/features/chatter/composer"
 import { DroppableComposer } from "@/features/chatter/dnd/DroppableComposer"
-import { useTaskBoard } from "@/features/chatter/hooks/use-task-board"
+import { useTaskList } from "@/features/chatter/hooks/use-task-list"
 import { ClarificationInterruptPanel } from "@/features/chatter/runtime/ui-block/ClarificationInterruptPanel"
-import { TaskBoardPanel } from "@/features/chatter/task/TaskBoardPanel"
+import { TaskPanel } from "@/features/chatter/task/TaskPanel"
 import { ToolConfirmOverlay } from "@/features/chatter/task/ToolConfirmOverlay"
 import { ChatterThread } from "@/features/chatter/thread"
 import type {
@@ -50,7 +50,7 @@ export function ChatterPanel({
 }: ChatterPanelProps) {
   const currentThreadId = useAuiState((state) => state.threads.mainThreadId)
   const conversationId = guestMode || currentThreadId === "main" ? undefined : currentThreadId
-  const { tasks, progress, isLoading } = useTaskBoard(conversationId)
+  const { tasks, progress, isLoading } = useTaskList(conversationId)
 
   const composer = (
     <ChatterComposer
@@ -77,9 +77,9 @@ export function ChatterPanel({
       {toolbar}
       <ChatterThread guestMode={guestMode} showThinking={displayPreferences.showThinking} />
       {!guestMode && <ClarificationInterruptPanel />}
-      {!guestMode && <ToolConfirmOverlay tasks={tasks} />}
+      {!guestMode && <ToolConfirmOverlay />}
       {!guestMode && displayPreferences.showPlan && (
-        <TaskBoardPanel tasks={tasks} progress={progress} isLoading={isLoading} />
+        <TaskPanel tasks={tasks} progress={progress} isLoading={isLoading} />
       )}
       {guestMode ? (
         composer

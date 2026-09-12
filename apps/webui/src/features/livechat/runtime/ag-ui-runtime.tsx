@@ -25,7 +25,6 @@ import {
 } from "@assistant-ui/react"
 import { type UseAgUiThreadListAdapter, useAgUiRuntime } from "@assistant-ui/react-ag-ui"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import type { AafAiTaskEvent } from "@/lib/api/rest/ai"
 import { backendApi } from "@/lib/api/rest/backend-client"
 import { ForwardedPropsHttpAgent } from "./forwarded-props-http-agent"
 
@@ -150,11 +149,12 @@ import { toast } from "sonner"
 import { renderUiBlockToolkit } from "@/features/chatter/runtime/ui-block/render-ui-block-toolkit"
 import { buildApiUrl } from "@/lib/api/config"
 import {
+  type AafAiTaskEvent,
   type ChatMessageVO,
   chatApi,
-  delegatedTaskKeys,
   getGuestMessages,
   resolveGuestSession,
+  taskKeys,
   useArchiveSession,
   useChatSessions,
   useCreateSession,
@@ -396,7 +396,10 @@ export function AgUiChatProvider({
         run.startRun()
         run.setRunId(event.runId)
       },
-      onRunFinishedEvent: () => run.finishRun(),
+      onRunFinishedEvent: () => {
+        run.finishRun()
+        void queryClient.invalidateQueries({ queryKey: taskKeys.all })
+      },
       onRunErrorEvent: ({ event }) => run.errorRun(event.message),
       onToolCallStartEvent: ({ event }) => run.startTool(event.toolCallName),
       onToolCallEndEvent: () => run.endTool(),
@@ -427,9 +430,7 @@ export function AgUiChatProvider({
       },
       onCustomEvent: ({ event }) => {
         if (event.name.startsWith("aaf.task.")) {
-          void queryClient.invalidateQueries({
-            queryKey: [...delegatedTaskKeys.all, "list"]
-          })
+          void queryClient.invalidateQueries({ queryKey: taskKeys.all })
           return
         }
         if (event.name === "aaf.role.resolved") {
