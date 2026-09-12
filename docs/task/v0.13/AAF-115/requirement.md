@@ -3,8 +3,8 @@ level: Practice
 layer: Product
 purpose: AAF-115 统一 Task、TaskPlan 与 Execution 任务模型及 DAG 编排需求规格
 status: draft
-version: 1.1.0
-date: 2026-09-11
+version: 1.3.6
+date: 2026-09-12
 author: AaronZZH & Kiro
 tags:
   - AAF-115
@@ -51,15 +51,17 @@ AAF 已由 `DelegatedTaskCoordinator + TaskBoard` 承担外层子智能体编排
 
 ### 简单对话与复杂任务分流
 
+- 每条普通用户消息都创建新的 Run 和 Execution，独立分析、独立终结；前一轮简单回复、后一轮复杂目标和自然澄清回复互不复用执行现场。
+- 只有显式绑定 canonical interrupt 的审批、结构化澄清或恢复输入才能续接既有 Task；普通对话回复不得按“最近任务”隐式恢复。
 - CHAT 中的问候、简单问答和单轮只读回复只创建 ConversationMessage/Run/Execution，不创建 Task、TaskPlan 或 TaskNode。
-- 明确 TASK、TEAM、后台长任务、有副作用、需要审批/澄清/暂停恢复或多节点编排的请求必须创建 Task。
-- 入口先形成最小 `TaskAnalysis`。确定性简单场景不得额外调用模型；只有开放复杂目标才允许模型参与复杂度和协调模式判断。
-- 复杂度结果只能决定是否提升为 Task 以及 TaskPlan 形态，不能扩大 controlMode、工具、Role、Skill、tenant、owner、预算或授权边界。
+- 明确 TASK、TEAM、后台长任务、持久恢复、外部副作用、审批、结构化澄清或多节点编排是服务端确定性硬门，必须创建 Task；权限、预算、tenant、owner 与工具边界仍由服务端裁决。
+- 其余开放目标由当前 Run 的 Assistant 在自身执行中判断直答、自然澄清或提升为 Task，并在需要时完成分解；该 Assistant 在提升后成为 Task Owner Assistant。不得为复杂度分类或分解再调用独立 classifier LLM。
+- 服务端 `TaskAnalysisPolicy` 只实施确定性硬门、授权交集和结构校验，不替代 Assistant 做语义推理，也不接受客户端用 mode/complexity 绕过安全边界。
 
 ### 自然澄清、结构化澄清与延迟建 Task
 
 - 直接 Execution 允许因缺少信息而进行自然对话式澄清。该轮只输出普通 Assistant 消息后结束，不创建 Task，不发 canonical Task interrupt，也不把本轮伪装成可恢复执行。
-- 用户在下一轮补充信息时创建新的直接 Execution，并由 Conversation 历史提供公开上下文；服务端重新执行 TaskAnalysis，结果仍简单则继续直答，达到复杂任务边界才创建 Task。
+- 用户在下一轮补充信息时创建新的 Run 和直接 Execution，并由 Conversation 历史提供公开上下文；当前 Assistant 重新独立判断，结果仍简单则继续直答，达到复杂任务边界才创建 Task。
 - 仅仅“问过一个问题”不构成 Task 创建理由。信息不足时可以延迟创建 Task，直到目标足以被服务端判定、冻结和授权。
 - 需要精确绑定输入字段、审批、恢复点、长时间等待或节点执行现场的澄清属于结构化/可恢复澄清。系统必须先创建 Task，或先将直接 Execution 幂等提升为 Task，再发出 canonical interrupt。
 - canonical interrupt 必须绑定准确的 taskId、nodeId、executionId、责任主体、冻结画像和 fencing generation；后续输入不得按“最近一个等待中的任务”猜测归属。
@@ -76,7 +78,7 @@ AAF 已由 `DelegatedTaskCoordinator + TaskBoard` 承担外层子智能体编排
 
 - TaskPlan 必须是有向无环图；服务端拒绝环、自依赖、缺失节点、重复节点、非法聚合引用和超预算并行度。
 - 无依赖且 ready 的节点可以并行执行，但同时运行数不得超过 `maxParallelism`。
-- 节点只有在全部前置依赖达到允许的成功终态后才能变为 ready；任一必需依赖失败时，后继节点不得执行，并按失败策略暂停、补偿或失败。
+- 节点只有在全部前置依赖达到允许的成功终态后才能变为 ready；任一必需依赖失败时，后继节点不得执行，并按冻结策略暂停或失败。
 - 串行通过依赖链表达，例如 `A → B → C`。
 - 并行通过多个无互相依赖节点表达，例如 `A || B`。
 - join 通过一个节点依赖多个前置节点表达，例如 `C dependsOn [A, B]`，只有 A、B 均完成后 C 才能执行。
@@ -84,26 +86,50 @@ AAF 已由 `DelegatedTaskCoordinator + TaskBoard` 承担外层子智能体编排
 - 同一节点只能被一个 worker 在一个 fencing generation 下领取；重复派发、恢复和事件重放不得重复产生副作用。
 - 聚合必须使用冻结的 `AggregationContract`，且只能消费计划声明的节点结果；模型不得在运行中静默增加未授权节点或依赖。
 
+### 双层计划与对话式调整
+
+- `TaskPlan` 管理 TaskNode 之间的 DAG、子智能体分工、依赖和聚合；`ExecutorPlan` 只管理某个 TaskNode 的有序执行步骤，两者不得互相替代。
+- PRIMARY Assistant 通过 `inspect_tasks` 读取当前用户的 Task、节点和局部步骤；无法唯一定位目标时必须追问，不按“最近任务”猜测。
+- TaskPanel 采用两级只读展示：任务行用列表图标和数量展开 TaskPlan 节点；存在 ExecutorPlan 的节点可继续展开最新 revision 的步骤标题、状态、结果或失败。投影不得公开内部 instruction、工具权限、policy snapshot、审批身份或 lock version，也不提供直接编辑。
+- 新增、修改或删除子智能体任务、依赖或整体目标时，通过 `amend_task(TASK_PLAN)` 创建新 TaskPlan revision；旧 revision 保留并标记为被替代。
+- 调整指定节点的 ExecutorPlan 步骤时，通过 `amend_task(EXECUTOR_PLAN)` 关闭该节点旧执行权并创建 fresh Execution attempt；旧 ExecutorPlan 保留并取消，新 attempt 通过 `submit_executor_plan` 提交下一 revision，并继续用 `report_executor_step` 上报步骤。
+- 计划切换必须原子关闭被替代 Execution 和 active Dispatch、提升 generation/fencing，并拒绝旧 revision、attempt 或 fence 的迟到结果；不得删除历史计划或用户业务数据。
+- 用户通过 `cancel_task` 停止整个 Task；取消关闭运行控制面，但不创建计划 revision，也不删除历史计划、审计事实或用户业务数据。
+
 ### 状态、恢复与事件
 
-- Task、TaskNode 和 Execution 分别拥有且只拥有本层状态；根 Task 状态由唯一应用服务依据节点和完成合同推进，不由多个 Repository 独立写入。
+- Task、TaskNode 和 Execution 分别拥有且只拥有本层状态；根 Task 状态由唯一应用服务依据节点、Task Owner Assistant 的语义结论和确定性完成门推进，不由多个 Repository 独立写入。
+- Task Owner Assistant 负责最终语义完成判断和结果综合；它可以在同一 Assistant identity/definition/revision/routing boundary 下多次执行，但不得换成隐藏的独立 judge LLM。
+- 服务端 CompletionValidator 只校验 DAG、receipt、证据、版本、generation/fencing、授权和结果合同；它可以拒绝不合法提交并保持 Task 未完成，但不自行进行目标是否完成的语义推理。
+- EVALUATOR 仅可作为冻结计划中显式声明的证据节点，不是默认最终裁判；fan-in 的 AGGREGATOR 默认由 Task Owner Assistant 承担最终综合。
 - Task 暂停、取消、人工接管和恢复必须传播到可运行节点与活跃 Execution，并保留原因、操作者、时间和恢复点。
 - approval、clarification 和 resume 继续使用统一异步事件链；HTTP/SSE 请求线程不得等待长任务完成。
-- Task、TaskPlan revision、TaskNode、Execution 和 Dispatch 的变化通过同一事务/outbox 产生事件；AG-UI、任务页和通知只做安全投影。
-- 前端 TaskBoardPanel 只展示真实 Task；普通聊天 Run 不进入任务列表。TanStack Query 管服务端任务状态，Zustand 只管理瞬时 UI。
+- Task、TaskPlan revision、TaskNode、Execution 和 Dispatch 的变化通过同一事务/outbox 产生 `ExecutionEvent`；AG-UI、任务页和通知只做安全投影。
+- 每个事件必须锚定引起变化的真实 Execution；DIRECT 允许 taskId 为空，Task/Plan/Node 事实通过 taskId 与 nodeIdentity 关联，不为没有执行过程的事实制造占位事件。
+- 同一 Execution 以 sequence 严格排序，跨 Execution 的 Task 事件流以全局 eventOffset 断线续读；Task、Plan、Node、Execution 和 Dispatch 关系表才是权威状态，不要求从事件重建聚合。
+- Task REST 保留 list/get/pause/resume/take-over/hand-back/cancel；list 必须提供 conversationId，并在装配安全投影前按当前 tenant、user 与 conversation 过滤；控制命令完成短事务后返回 `200 + TaskDetails` 当前投影，中间态不代表后台工作已经终结。
+- Task 由对话分析或 promotion 创建，不提供平行 create API；approval、clarification 继续通过现有 AG-UI/HITL，工具层确认继续使用 ToolApproval，不合并为统一 TaskInterrupt REST。
+- 前端 TaskPanel 只展示真实 Task，并直接查询当前 conversation；普通聊天 Run 不进入任务列表。TanStack Query 管服务端任务状态，Zustand 只管理瞬时 UI。当前没有独立任务中心，不要求 status/cursor 查询；出现对应产品入口时再单独设计。
 
 ### TaskNode 与子智能体中断续跑
 
 - TaskNode 身份在 TaskPlan revision 内稳定；可恢复中断是同一节点、同一次 Execution attempt 的分段继续，不等同于失败重试。
-- 当责任主体/owner、授权边界、冻结 ExecutionProfile 与工具面均未变化，且 AgentState/checkpoint 完整、兼容并属于当前 generation 时，approval、structured clarification、PAUSE 和优雅停机恢复必须复用原 executionId/sessionId，延续 AAF-110 的同责任主体语义。
-- 同一 Execution 续接前必须同时校验 taskId、nodeId、executionId、owner、profile revision、lease/fencing 和状态槽身份；任一不匹配均 fail-closed，不得串接其他节点或其他主体的历史。
+- 当责任主体/owner、授权边界、冻结 ExecutionProfile 与工具面均未变化，且 AgentState/checkpoint 完整、兼容并属于同一 stateSlot 时，approval、structured clarification、PAUSE 和优雅停机恢复必须复用原 executionId/sessionId/stateSlotId；恢复创建的新 Dispatch 可以使用更高 generation 和新 fence。
+- 同一 Execution 续接前必须同时校验 taskId、nodeId、executionId、owner、profile revision、状态槽身份和当前 Dispatch id/generation/fence/lease owner；状态 key 只使用稳定 stateSlot 身份，读写执行权独立校验，任一不匹配均 fail-closed。
 - 终态失败、责任主体/owner 或授权画像变化、AgentState/checkpoint 缺失/损坏/不兼容，或恢复策略明确要求 fresh retry 时，只为受影响 TaskNode 创建新的 Execution attempt，并记录 predecessorExecutionId/attempt 谱系；`parentExecutionId` 继续表达任务分解关系，不得被重试关系复用。
-- 新 attempt 不迁移旧 fence 的 AgentState；恢复正确性由 receipt、TaskNode checkpoint 和事件流保证，允许在状态槎不可用时从安全边界重建，但不得重复已确认副作用。
+- 新 attempt 使用新 executionId/sessionId/stateSlotId，不迁移旧 attempt 的 AgentState；恢复正确性由 receipt、TaskNode checkpoint 和事件流保证，允许在状态槽不可用时从安全边界重建，但不得重复已确认副作用。
 - 恢复或重启不得重跑整个 TaskPlan。已完成兄弟节点保持完成，未受影响的活跃节点按各自 generation 处理，只有中断节点继续或创建新 attempt。
 - 中断节点完成后必须重新计算 DAG readiness；join 仍须等待全部必需依赖成功完成，不能因某一节点刚恢复就提前释放。
 - 旧 worker、旧 lease、旧 fencing generation 和被替代 Execution 的迟到事件不得更新节点、释放后继或覆盖聚合结果。
 - AgentState 只承载 Execution 工作态，不是 Task、TaskPlan、TaskNode 状态或恢复正确性的真理源。
-- AAF-115 必须保留 AAF-110 的目标合同，同时关闭现有接线缺口：显式 `PAUSE` 已能保留状态槎，但 structured clarification/approval 的流截断尚未统一进入保留路径，且恢复入口的隐藏持久历史守卫仍会拒绝非空历史。#11506 不得在这两项未解决时声称子智能体可原地续接。
+- AAF-115 保留 AAF-110 的同责任主体恢复合同：structured clarification/approval 与显式 PAUSE 均保存 call-scoped AgentState，`resumeStateRequired` 允许合法非空历史。所有 DELEGATED 状态读写由统一受控 Store 在 Task/Execution/Dispatch 行锁内授权；HITL 最终快照只允许 exact waiting 且尚无新 active Dispatch，旧 worker 的迟到保存或删除必须 fail-closed。
+
+### 失败处置与资源生命周期
+
+- AAF-115 的失败策略仅包含 `FAIL_TASK` 与 `PAUSE_TASK`；失败、取消或中断不会自动反向调用业务 Tool，也不会自动删除或归档业务数据。
+- 已创建的项目、文档、草稿、生成图片和其他用户可见数据继续保留。Task 只报告失败或中断；标准化资源链接、人工处置入口和对话式实体操作由 AAF-116 实现。
+- 仅不可见临时运行资源可由其所有者自动释放：未提交事务回滚，内存缓冲、流订阅、锁和租约通过 finally/TTL 释放，临时分片或 provider 临时作业由创建它们的 Tool/provider 生命周期清理。
+- Harness 不提供通用任务级业务清理器，也不得把删除用户数据伪装成运行时清理。
 
 ## 概念登记表
 
@@ -113,6 +139,8 @@ AAF 已由 `DelegatedTaskCoordinator + TaskBoard` 承担外层子智能体编排
 | 执行计划 | `TaskPlan` | `ai_task_plan` | Task 的可选版本化 DAG 计划 |
 | 计划节点 | `TaskNode` | `ai_task_node` | Coordinator/Executor/Evaluator/Aggregator 节点 |
 | 节点依赖 | `TaskDependency` | `ai_task_dependency` | TaskNode 间有向依赖边 |
+| 局部执行计划 | `ExecutorPlan` | `ai_executor_plan` | 单个 TaskNode 内的版本化有序步骤计划 |
+| 局部计划步骤 | `ExecutorPlanStep` | `ai_executor_plan_step` | 由 `report_executor_step` 推进的步骤状态 |
 | 实际执行 | `Execution` | `ai_task_execution` | 普通 Run 或 TaskNode 的一次执行/重试 |
 | 调度事实 | `TaskDispatch` | `ai_task_dispatch` | worker、租约、fencing 与下次执行时间 |
 
@@ -143,7 +171,7 @@ Scenario: 用户补充信息后重新分析并延迟创建 Task
 Given 上一轮只进行了自然对话澄清且没有 Task
 When 用户在新消息中补充所需信息
 Then 系统创建新的直接 Execution 并使用 Conversation 公开历史
-And 服务端重新执行 TaskAnalysis
+And 当前 Assistant 在新 Execution 中重新独立判断
 And 仅当新分析达到复杂或持久任务边界时创建一个 Task
 And 若请求仍可简单直答则继续不创建 Task
 ```
@@ -162,7 +190,7 @@ And 不持久化隐藏 chain-of-thought
 ```gherkin
 Scenario: 复杂目标提升为唯一 Task
 Given 用户提出需要多步骤、恢复或受控副作用的复杂目标
-When 服务端 TaskAnalysis 判定需要持久任务
+When 当前 Assistant 的语义判断或服务端确定性硬门要求持久任务
 Then 系统只创建一个根 Task
 And Task 持有冻结的目标、控制模式、合同、预算和完成条件
 And 不存在 AssistantTask、DelegatedTask 或同义状态双写
@@ -205,12 +233,12 @@ And 未声明节点、重复结果和迟到旧 generation 事件被拒绝
 
 ```gherkin
 Scenario: 非法 DAG 在执行前失败
-Given TaskPlan 包含环、自依赖、缺失引用或超过硬上限的并行度
-When 服务端校验并尝试冻结计划
-Then 计划被确定性拒绝
-And 不创建可执行 Dispatch
+Given TaskPlanDraft 包含环、自依赖、缺失引用或超过硬上限的并行度
+When 服务端校验候选计划
+Then 候选计划被确定性拒绝
+And 不创建 TaskPlan revision 或可执行 Dispatch
 And 不调用 Agent、模型或业务 Tool
-And Task 保留可审计失败原因
+And 当前调用方收到明确校验错误
 ```
 
 ```gherkin
@@ -218,7 +246,7 @@ Scenario: 节点失败阻止依赖节点误执行
 Given C 依赖 A 与 B 且 B 达到不可重试失败
 When 调度器重新计算 ready 节点
 Then C 不执行
-And Task 按合同进入 FAILED、PAUSED 或补偿路径之一
+And Task 按冻结策略进入 FAILED 或 PAUSED
 And 不伪造聚合成功或根任务完成
 ```
 
@@ -302,6 +330,55 @@ And 不从 Zustand、消息正文或 AgentState 恢复 Task 真理
 And 普通聊天 Execution 不被展示为 Task
 ```
 
+```gherkin
+Scenario: Task Owner Assistant 完成最终语义判定
+Given Task 的必需节点、receipt 和确定性证据已经齐备
+When 系统准备提交根结果
+Then Task Owner Assistant 在冻结的同一身份与版本边界内判断目标是否完成并综合结果
+And CompletionValidator 只验证结构、证据、权限、版本和 fencing
+And 不调用独立 classifier 或 judge LLM
+And 只有校验通过的结果可由服务端以 CAS 写入并完成 Task
+```
+
+```gherkin
+Scenario: Task 失败保留用户可见业务数据
+Given Task 已创建项目、文档、草稿、生成图片或其他用户可见资源
+When Task 失败、取消或因安全原因暂停
+Then 系统不自动删除、归档或反向修改这些业务资源
+And Task 保留失败事实和已有业务 receipt
+And 仅创建方 Tool 或 runtime 释放其拥有的不可见临时资源
+And 用户驱动的资源链接与处置能力留给 AAF-116
+```
+
+```gherkin
+Scenario: 对话调整 TaskPlan 安全切换 revision
+Given 用户在普通对话中明确指定一个运行中的 Task 并调整子智能体分工
+When PRIMARY Assistant 调用 amend_task 且 scope 为 TASK_PLAN
+Then 系统关闭旧 revision 的 Execution 与 active Dispatch
+And 旧 TaskPlan 保留并标记为 SUPERSEDED
+And 新 Coordinator revision 获得唯一当前执行权
+And 旧 revision 或旧 fence 的迟到结果被拒绝
+```
+
+```gherkin
+Scenario: 对话调整指定节点的 ExecutorPlan 步骤
+Given 用户明确指定 Task 与 TaskNode 并调整其内部步骤
+When PRIMARY Assistant 调用 amend_task 且 scope 为 EXECUTOR_PLAN
+Then 系统只关闭目标节点的旧 Execution 与 active ExecutorPlan
+And 为目标节点创建 fresh Execution attempt
+And 新 attempt 可通过 submit_executor_plan 提交下一 ExecutorPlan revision
+And 其他节点、历史计划和用户业务数据不被删除
+```
+
+```gherkin
+Scenario: 对话停止整个 Task
+Given 用户明确指定需要停止的 Task
+When PRIMARY Assistant 调用 cancel_task
+Then Task、非终态节点、Execution 和 active Dispatch 进入取消终态
+And 不创建新的 TaskPlan 或 ExecutorPlan revision
+And 历史计划、审计事实和用户业务数据继续保留
+```
+
 ## 非目标
 
 - 不把每条聊天消息包装成 `TaskPlan.single`。
@@ -310,6 +387,8 @@ And 普通聊天 Execution 不被展示为 Task
 - 不把 TaskPlan、Execution、AgentState、审批流或 AIGC 业务 Task 合并成一张无边界的大表。
 - 不在本故事引入新工作流产品能力；预定义 Workflow 仅作为 TaskPlan 节点可调用的既有执行机制。
 - 不保留 AssistantTask/DelegatedTask 双写、旧 API fallback、影子状态或长期兼容迁移层。
+- 不实现通用业务回滚、失败后自动删除用户数据或跨领域资源清理编排。
+- 不实现项目、文档等业务实体的通用对话式 CRUD、失败任务资源链接和人工归档/删除入口；这些能力属于 AAF-116。Task/TaskPlan/ExecutorPlan 的读取、调整与停止属于本故事。
 
 ## 依赖与顺序
 
@@ -329,3 +408,10 @@ And 普通聊天 Execution 不被展示为 Task
 |------|---------|------|---------|
 | 2026-09-11 | 创建 AAF-115，冻结唯一 Task、可选 TaskPlan、TaskNode DAG、Execution 与 TaskDispatch 概念边界 | 消除每条消息建任务及 AssistantTask/DelegatedTask 双真理源 | 高风险；影响 Assistant、调度、持久化、AG-UI、任务 UI 与恢复链 |
 | 2026-09-11 | 补充自然/结构化澄清、延迟建 Task、promotion 谱系与 TaskNode 续接/重启矩阵 | 保留 AAF-110 同责任主体续接语义，并明确子智能体恢复边界 | 高风险不变；#11506 增加 HITL 状态槎接线与故障恢复门禁 |
+| 2026-09-11 | 将复杂度、分解和最终语义完成责任收归 Task Owner Assistant；失败策略收窄为失败/暂停并保留用户业务数据 | 避免隐藏 classifier/judge 与通用业务清理越界 | AAF-115 仅保留 Harness 基础能力；资源链接与受控 CRUD 拆分至 AAF-116 |
+| 2026-09-11 | 明确 TaskPlan/ExecutorPlan 双层职责及 inspect/amend/cancel 对话控制 | 支持用户安全定位、调整和停止 canonical Task | 计划调整保留历史并关闭旧 execution/dispatch/fence；业务数据不删除 |
+| 2026-09-12 | 非法 TaskPlanDraft 仅作为当前调用失败，不进入 TaskPlan 历史 | 当前不存在持久 DRAFT freeze command；避免重复审计事实 | 删除 freezeAttemptNo、lastFreezeFailures 与 plan.freeze-rejected 要求；合法计划仍原子持久化为 FROZEN revision |
+| 2026-09-12 | 接受 execution-centric ExecutionEvent 为 canonical 事件合同 | 当前产品事件用于进度、审计、通知和断线恢复，不承担聚合重建 | 删除零 Execution 事件、aggregateSequence 和第二套 TaskEventEnvelope 要求；关系表继续承载权威状态 |
+| 2026-09-12 | 保留当前 Task REST 与 AG-UI/HITL 交互合同 | 当前 WebUI 直接关注 Task 状态，尚无第三方命令凭证产品需求 | 删除全部 202 receipt、统一 TaskInterrupt REST 及强制 create/retry/events 要求；不建立平行 API |
+| 2026-09-12 | Task 列表收敛为服务端 conversationId 过滤 | 当前 Chatter 与 inspect_tasks 只消费当前对话，客户端全量拉取会随任务积累放大轮询成本 | list 必填 conversationId 并在装配前过滤；暂无任务中心，不提前实现 status/cursor |
+| 2026-09-12 | TaskPanel 增加 TaskPlan/ExecutorPlan 两级只读步骤列表 | 用户需要看清助理拆分的子任务及节点内部步骤，但直接编辑会混淆 revision/attempt 语义 | 任务行显示外层节点数量；节点展示最新局部步骤；过滤内部指令、工具与策略，调整继续走对话 |

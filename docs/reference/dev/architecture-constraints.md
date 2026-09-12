@@ -3,8 +3,8 @@ level: Practice
 layer: Model
 purpose: 定义 AAF 不可违背的架构约束，作为代码实现和 AI 生成的硬性边界
 status: published
-version: 1.1.0
-date: 2026-07-12
+version: 1.1.1
+date: 2026-09-12
 author: AaronZZH
 scope:
   includes:
@@ -126,7 +126,8 @@ Flyway 通过 `spring.flyway.locations`（`classpath:db/migration,classpath:db/s
 | 号段 | 模块 | 备注 |
 |------|------|------|
 | v1-v99 | （历史遗留，混合） | 不再分配，不追溯整理 |
-| v100-v199 | 待分配 | 首个使用号段的新模块登记于此 |
+| v100-v199 | Entity Engine 资源视图 | 既有 v100-v106 资源定义，后续沿用本号段 |
+| v200-v299 | Intelligent runtime | Assistant、canonical Task 与智能治理迁移 |
 
 **规则**：
 
