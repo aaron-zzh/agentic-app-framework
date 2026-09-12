@@ -58,7 +58,7 @@ public class PromptTranslationService {
                             .apiKey(apiKey)
                             .model(translateModel)
                             .messages(List.of(systemMsg, userMsg))
-                            .maxLength(512)
+                            .maxTokens(512)
                             .build();
 
             var result = new MultiModalConversation().call(param);

@@ -1,9 +1,9 @@
 package com.xuejiai.aaf.framework.bizlog.support;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.annotation.AdviceMode;
 import org.springframework.context.annotation.AdviceModeImportSelector;
 import org.springframework.context.annotation.AutoProxyRegistrar;
-import org.springframework.lang.Nullable;
 
 import com.xuejiai.aaf.framework.bizlog.annotation.EnableLogRecord;
 import com.xuejiai.aaf.framework.bizlog.configuration.LogRecordProxyAutoConfiguration;
@@ -15,8 +15,7 @@ import com.xuejiai.aaf.framework.bizlog.configuration.LogRecordProxyAutoConfigur
 public class LogRecordConfigureSelector extends AdviceModeImportSelector<EnableLogRecord> {
 
     @Override
-    @Nullable
-    public String[] selectImports(AdviceMode adviceMode) {
+    public String @Nullable [] selectImports(AdviceMode adviceMode) {
         return switch (adviceMode) {
             case PROXY ->
                     new String[] {

@@ -35,7 +35,7 @@ public class FlowableConfig {
             config.setAsyncExecutorActivate(true);
             config.setAsyncExecutorCorePoolSize(4);
             config.setAsyncExecutorMaxPoolSize(16);
-            config.setAsyncExecutorMaxAsyncJobsDuePerAcquisition(10);
+            config.getAsyncExecutorConfiguration().setMaxAsyncJobsDuePerAcquisition(10);
 
             // 安全加固：防 XXE
             config.setEnableSafeBpmnXml(true);

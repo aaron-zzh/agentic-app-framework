@@ -63,7 +63,23 @@ public class McpConnectionService {
         if (tools != null) {
             for (var tool : tools) {
                 var params = McpTool.convertMcpSchemaToParameters(tool.inputSchema(), null);
-                var mcpTool = new McpTool(tool.name(), tool.description(), params, client);
+                var outputSchema =
+                        tool.outputSchema() == null
+                                ? null
+                                : new ConcurrentHashMap<String, Object>(tool.outputSchema());
+                var readOnly =
+                        tool.annotations() != null
+                                && Boolean.TRUE.equals(tool.annotations().readOnlyHint());
+                var mcpTool =
+                        new McpTool(
+                                tool.name(),
+                                tool.description() == null ? "" : tool.description(),
+                                params,
+                                outputSchema,
+                                client,
+                                null,
+                                client.getName(),
+                                readOnly);
                 var callback = new McpToolCallback(mcpTool, client);
                 toolRegistry.register(callback, ToolRegistry.SOURCE_MCP);
             }
