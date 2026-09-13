@@ -27,8 +27,7 @@ public final class DispatchGuardedAgentStateStore implements AgentStateStore {
     }
 
     /** 将共享 ReActAgent 的本次调用绑定到不可伪造的 InvocationContext；同一状态槽禁止本机并发占用。 */
-    public Registration register(
-            String stateUserKey, String sessionId, InvocationContext context) {
+    public Registration register(String stateUserKey, String sessionId, InvocationContext context) {
         var key = new SessionKey(stateUserKey, sessionId);
         Objects.requireNonNull(context, "context 不能为空");
         var existing = bindings.putIfAbsent(key, context);
@@ -52,8 +51,7 @@ public final class DispatchGuardedAgentStateStore implements AgentStateStore {
     }
 
     /** 终态异步清理仅在原 Dispatch 仍是最新代时执行，禁止旧 worker 删除恢复后的同一状态槽。 */
-    public void deleteStaleSafe(
-            InvocationContext context, String stateUserKey, String sessionId) {
+    public void deleteStaleSafe(InvocationContext context, String stateUserKey, String sessionId) {
         tasks.accessAgentState(
                 context,
                 AgentStateAccess.STALE_SAFE_CLEANUP,
@@ -75,8 +73,7 @@ public final class DispatchGuardedAgentStateStore implements AgentStateStore {
     }
 
     @Override
-    public void save(
-            String userId, String sessionId, String key, List<? extends State> states) {
+    public void save(String userId, String sessionId, String key, List<? extends State> states) {
         access(
                 userId,
                 sessionId,
@@ -95,8 +92,7 @@ public final class DispatchGuardedAgentStateStore implements AgentStateStore {
     @Override
     public <T extends State> List<T> getList(
             String userId, String sessionId, String key, Class<T> stateType) {
-        return access(
-                userId, sessionId, () -> delegate.getList(userId, sessionId, key, stateType));
+        return access(userId, sessionId, () -> delegate.getList(userId, sessionId, key, stateType));
     }
 
     @Override
@@ -133,14 +129,11 @@ public final class DispatchGuardedAgentStateStore implements AgentStateStore {
                         .filter(entry -> entry.getKey().userId().equals(userId))
                         .toList();
         if (matches.size() != 1) {
-            throw new TaskUnitOfWork.StaleExecutionException(
-                    "AgentState userId 未绑定唯一调用上下文");
+            throw new TaskUnitOfWork.StaleExecutionException("AgentState userId 未绑定唯一调用上下文");
         }
         var binding = matches.getFirst();
         return tasks.accessAgentState(
-                binding.getValue(),
-                AgentStateAccess.ACTIVE,
-                () -> delegate.listSessionIds(userId));
+                binding.getValue(), AgentStateAccess.ACTIVE, () -> delegate.listSessionIds(userId));
     }
 
     @Override
@@ -149,7 +142,8 @@ public final class DispatchGuardedAgentStateStore implements AgentStateStore {
         delegate.close();
     }
 
-    private <T> T access(String userId, String sessionId, java.util.function.Supplier<T> operation) {
+    private <T> T access(
+            String userId, String sessionId, java.util.function.Supplier<T> operation) {
         var context = requireBound(userId, sessionId);
         return tasks.accessAgentState(context, AgentStateAccess.ACTIVE, operation);
     }
@@ -157,17 +151,14 @@ public final class DispatchGuardedAgentStateStore implements AgentStateStore {
     private InvocationContext requireBound(String userId, String sessionId) {
         var context = bindings.get(new SessionKey(userId, sessionId));
         if (context == null) {
-            throw new TaskUnitOfWork.StaleExecutionException(
-                    "AgentState 访问缺少调用级 authority 绑定");
+            throw new TaskUnitOfWork.StaleExecutionException("AgentState 访问缺少调用级 authority 绑定");
         }
         return context;
     }
 
-    private void requireBound(
-            String userId, String sessionId, InvocationContext expectedContext) {
+    private void requireBound(String userId, String sessionId, InvocationContext expectedContext) {
         if (requireBound(userId, sessionId) != expectedContext) {
-            throw new TaskUnitOfWork.StaleExecutionException(
-                    "AgentState 调用上下文已被替换");
+            throw new TaskUnitOfWork.StaleExecutionException("AgentState 调用上下文已被替换");
         }
     }
 

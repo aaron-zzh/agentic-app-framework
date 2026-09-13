@@ -61,8 +61,7 @@ class AgentNodeTest extends BaseMockitoUnitTest {
         when(assistantDefinitions.findDefaultForUser(any(), any()))
                 .thenReturn(Optional.of(AssistantDefinitionFixtures.defaultUser()));
         var captor = ArgumentCaptor.forClass(AssistantCommand.class);
-        when(assistants.submitAndDispatch(
-                        captor.capture(), any(TaskPlan.class), anyString()))
+        when(assistants.submitAndDispatch(captor.capture(), any(TaskPlan.class), anyString()))
                 .thenReturn(completedEvents("你好呀"));
 
         node.execute(execution);
@@ -84,8 +83,7 @@ class AgentNodeTest extends BaseMockitoUnitTest {
         when(assistantDefinitions.findDefaultForUser(any(), any()))
                 .thenReturn(Optional.of(AssistantDefinitionFixtures.defaultUser()));
         var captor = ArgumentCaptor.forClass(AssistantCommand.class);
-        when(assistants.submitAndDispatch(
-                        captor.capture(), any(TaskPlan.class), anyString()))
+        when(assistants.submitAndDispatch(captor.capture(), any(TaskPlan.class), anyString()))
                 .thenReturn(completedEvents("摘要内容"));
 
         node.execute(execution);

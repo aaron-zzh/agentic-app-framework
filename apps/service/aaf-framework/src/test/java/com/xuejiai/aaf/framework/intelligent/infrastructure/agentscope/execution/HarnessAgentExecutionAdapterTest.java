@@ -47,13 +47,13 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.A
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeMessageMapper;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping.AgentScopeRuntimeContextMapper;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.middleware.AgentScopeTokenMeteringObserver;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.state.DispatchGuardedAgentStateStore;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.ToolResultEvidenceStore;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.OwnerType;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
-import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.state.DispatchGuardedAgentStateStore;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.EventId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.RunId;
@@ -409,8 +409,7 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
         adapter.execute(command).collectList().block();
 
         verify(evidenceStore).clear(command.context().executionId());
-        verify(stateStore)
-                .deleteStaleSafe(command.context(), "state-user", "session-test");
+        verify(stateStore).deleteStaleSafe(command.context(), "state-user", "session-test");
     }
 
     /**

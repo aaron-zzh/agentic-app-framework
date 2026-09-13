@@ -258,9 +258,11 @@ public class AssistantInfrastructureAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnBean(SkillReferenceCatalogPort.class)
     @ConditionalOnMissingBean(PromptAssembler.class)
-    PromptAssembler promptAssembler(PromptTemplateService promptTemplates) {
-        return new PromptAssembler(promptTemplates);
+    PromptAssembler promptAssembler(
+            PromptTemplateService promptTemplates, SkillReferenceCatalogPort skillReferences) {
+        return new PromptAssembler(promptTemplates, skillReferences);
     }
 
     @Bean

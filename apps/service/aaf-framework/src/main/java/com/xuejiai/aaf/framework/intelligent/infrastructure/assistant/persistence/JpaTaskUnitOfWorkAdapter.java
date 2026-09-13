@@ -921,7 +921,8 @@ public class JpaTaskUnitOfWorkAdapter implements TaskUnitOfWork {
                         .findForUpdateByTenantIdAndDispatchId(
                                 context.tenantId().value(), context.dispatchId())
                         .orElseThrow(() -> stale("原 Dispatch 不存在"));
-        requireStateAccessIdentity(context, task.getTask(), execution.getExecution(), dispatch.getDispatch());
+        requireStateAccessIdentity(
+                context, task.getTask(), execution.getExecution(), dispatch.getDispatch());
         var taskStatus = task.getTask().status();
         var executionStatus = execution.getExecution().status();
         var waiting =
@@ -950,7 +951,8 @@ public class JpaTaskUnitOfWorkAdapter implements TaskUnitOfWork {
                         .findForUpdateByTenantIdAndDispatchId(
                                 context.tenantId().value(), context.dispatchId())
                         .orElseThrow(() -> stale("原 Dispatch 不存在"));
-        requireStateAccessIdentity(context, task.getTask(), execution.getExecution(), dispatch.getDispatch());
+        requireStateAccessIdentity(
+                context, task.getTask(), execution.getExecution(), dispatch.getDispatch());
         var active =
                 dispatches.findActiveForUpdate(
                         context.tenantId().value(), context.executionId().value());
@@ -991,8 +993,7 @@ public class JpaTaskUnitOfWorkAdapter implements TaskUnitOfWork {
         }
     }
 
-    private static boolean sameDispatchIdentity(
-            InvocationContext context, TaskDispatch dispatch) {
+    private static boolean sameDispatchIdentity(InvocationContext context, TaskDispatch dispatch) {
         return dispatch.executionId().equals(context.executionId())
                 && dispatch.dispatchId().equals(context.dispatchId())
                 && dispatch.generation() == context.dispatchGeneration()

@@ -650,7 +650,7 @@ INSERT INTO ai_tool_catalog (
  '{"type":"object","required":["requestJson"],"properties":{"requestJson":{"type":"string","description":"JSON 参数：imageUrl 必填；task 可选（TEXT_RECOGNITION/KEY_INFORMATION_EXTRACTION/TABLE_PARSING/DOCUMENT_PARSING/FORMULA_RECOGNITION/MULTI_LAN）；prompt 可选"}}}',
  220, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('context.load', 'LOCAL', TRUE, 'FUNCTION', 'SKILL', 'LOW', TRUE, FALSE, NULL, NULL, NULL,
- '{"type":"object","required":["kind","key"],"properties":{"kind":{"type":"string","enum":["SKILL","SKILL_REFERENCE"],"description":"SKILL 加载技能正文；SKILL_REFERENCE 加载技能挂载的参考文档"},"key":{"type":"string","description":"kind=SKILL 时为技能 code；kind=SKILL_REFERENCE 时为 \"技能code:referenceKey\""}}}',
+ '{"type":"object","required":["kind","key"],"properties":{"kind":{"type":"string","enum":["SKILL","SKILL_REFERENCE"],"description":"SKILL 加载技能正文；SKILL_REFERENCE 加载技能挂载的参考文档"},"key":{"type":"string","description":"kind=SKILL 时为技能 code；kind=SKILL_REFERENCE 时原样使用 Manifest 提供的 技能code@skillVersionId:referenceKey"}}}',
  250, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 ON CONFLICT (tool_name) WHERE deleted = FALSE DO UPDATE SET
     source = EXCLUDED.source,
@@ -1277,7 +1277,7 @@ INSERT INTO ai_role (
     2, 'system.role.content-creator', '内容创作者',
     '内容拆解、思路澄清、结构构建、内容裂变和多平台草稿生成',
     '[{"skillKey":"aigc-copywriting","activationMode":"ON_DEMAND"},{"skillKey":"content-schedule","activationMode":"ON_DEMAND"},{"skillKey":"content-judge","activationMode":"ON_DEMAND"},{"skillKey":"content-clarify","activationMode":"ON_DEMAND"},{"skillKey":"content-architect","activationMode":"ON_DEMAND"},{"skillKey":"content-build","activationMode":"ON_DEMAND"},{"skillKey":"voiceover","activationMode":"ON_DEMAND"},{"skillKey":"redbook","activationMode":"ON_DEMAND"},{"skillKey":"product-copy","activationMode":"ON_DEMAND"},{"skillKey":"ip-position","activationMode":"ON_DEMAND"},{"skillKey":"short-script","activationMode":"ON_DEMAND"},{"skillKey":"title-topic","activationMode":"ON_DEMAND"},{"skillKey":"biz-analysis","activationMode":"ON_DEMAND"},{"skillKey":"rich-text-write","activationMode":"ON_DEMAND"}]',
-    '["content.draft.upsert"]',
+    '["content.draft.upsert","context.load"]',
     'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 ) ON CONFLICT (id) DO NOTHING;
 

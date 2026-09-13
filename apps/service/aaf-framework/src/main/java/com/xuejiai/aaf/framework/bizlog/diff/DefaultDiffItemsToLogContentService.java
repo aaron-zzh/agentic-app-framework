@@ -3,11 +3,11 @@ package com.xuejiai.aaf.framework.bizlog.diff;
 import java.lang.reflect.Field;
 import java.util.*;
 
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.beans.factory.SmartInitializingSingleton;
-import org.jspecify.annotations.NonNull;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
 import org.springframework.util.StringUtils;

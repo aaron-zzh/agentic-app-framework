@@ -2,8 +2,11 @@ package com.xuejiai.aaf.framework.intelligent.assistant.application;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
+import com.xuejiai.aaf.framework.intelligent.agent.model.ActivatedSkill;
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentExecutionCommand.RoleAssignment;
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentSpec;
 import com.xuejiai.aaf.framework.intelligent.agent.model.CompiledSystemPrompt;
@@ -12,20 +15,26 @@ import com.xuejiai.aaf.framework.intelligent.agent.model.CompiledSystemPrompt.Pr
 import com.xuejiai.aaf.framework.intelligent.agent.model.CompiledSystemPrompt.PromptSourceKind;
 import com.xuejiai.aaf.framework.intelligent.agent.model.SkillExecutionProfile;
 import com.xuejiai.aaf.framework.intelligent.agent.model.SubagentSpec;
+import com.xuejiai.aaf.framework.intelligent.agent.port.SkillReferenceCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionCriteria;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.InvocationPolicy;
 import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptTemplateService;
+import com.xuejiai.aaf.framework.intelligent.core.skill.SkillReference;
+import com.xuejiai.aaf.framework.intelligent.core.skill.SkillReference.LoadMode;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
 
 /** 选择受信来源并按固定顺序编译 System Prompt；不管理模板版本或持久化。 */
 public final class PromptAssembler {
 
     private final PromptTemplateService promptTemplates;
+    private final SkillReferenceCatalogPort skillReferences;
 
-    public PromptAssembler(PromptTemplateService promptTemplates) {
+    public PromptAssembler(
+            PromptTemplateService promptTemplates, SkillReferenceCatalogPort skillReferences) {
         this.promptTemplates = Objects.requireNonNull(promptTemplates, "promptTemplates 不能为空");
+        this.skillReferences = Objects.requireNonNull(skillReferences, "skillReferences 不能为空");
     }
 
     public CompiledSystemPrompt compileAssistant(AssistantPromptRequest request) {
@@ -144,10 +153,25 @@ public final class PromptAssembler {
         return CompiledSystemPrompt.compile(sources);
     }
 
-    private static void appendSkills(
+    private void appendSkills(
             List<PromptLayerSource> sources, SkillExecutionProfile skillExecutionProfile) {
+        var versionIds =
+                skillExecutionProfile.activatedSkills().stream()
+                        .map(skill -> skill.version().versionId())
+                        .collect(Collectors.toUnmodifiableSet());
+        var referencesByVersion = skillReferences.findByVersionIds(versionIds);
+        var documentIds =
+                referencesByVersion.values().stream()
+                        .flatMap(List::stream)
+                        .map(SkillReference::documentId)
+                        .collect(Collectors.toUnmodifiableSet());
+        var documentContents = skillReferences.readContents(documentIds);
         for (var skill : skillExecutionProfile.activatedSkills()) {
             var version = skill.version();
+            var references =
+                    referencesByVersion.getOrDefault(version.versionId(), List.of()).stream()
+                            .map(reference -> resolveReference(skill, reference, documentContents))
+                            .toList();
             sources.add(
                     source(
                             PromptLayerKind.SKILL,
@@ -170,8 +194,71 @@ public final class PromptAssembler {
                                             skill.code(),
                                             skill.scope(),
                                             skill.activationMode(),
-                                            skill.content())));
+                                            runtimeSkillContent(skill, references))));
         }
+    }
+
+    private static ResolvedReference resolveReference(
+            ActivatedSkill skill, SkillReference reference, Map<Long, String> documentContents) {
+        var loadKey = reference.loadKey(skill.code(), skill.version().versionId());
+        var content = documentContents.get(reference.documentId());
+        if (content == null) {
+            return unavailableReference(reference, loadKey, "文档正文不可用", null);
+        }
+        try {
+            return new ResolvedReference(
+                    reference, loadKey, reference.requireLoadableContent(content), null);
+        } catch (IllegalArgumentException | IllegalStateException failure) {
+            return unavailableReference(reference, loadKey, "文档正文不满足发布约束", failure);
+        }
+    }
+
+    private static ResolvedReference unavailableReference(
+            SkillReference reference, String loadKey, String reason, RuntimeException failure) {
+        if (reference.required()) {
+            throw new IllegalStateException("必需 Skill Reference 不可用: " + loadKey, failure);
+        }
+        return new ResolvedReference(reference, loadKey, null, reason);
+    }
+
+    private static String runtimeSkillContent(
+            ActivatedSkill skill, List<ResolvedReference> references) {
+        if (references.isEmpty()) {
+            return skill.content();
+        }
+        var content = new StringBuilder(skill.content());
+        content.append("\n\n## Skill References\n");
+        content.append(
+                "以下清单由服务端根据冻结 SkillVersion 生成。仅按 loadWhen 加载必要的 ON_DEMAND 文档，并原样使用 loadKey。\n");
+        for (var resolved : references) {
+            var reference = resolved.reference();
+            content.append("\n### ").append(reference.title()).append('\n');
+            content.append("- referenceKey：`").append(reference.referenceKey()).append("`\n");
+            content.append("- loadMode：`").append(reference.loadMode()).append("`\n");
+            content.append("- loadWhen：").append(reference.loadWhen()).append('\n');
+            content.append("- required：").append(reference.required()).append('\n');
+            content.append("- maxTokens：").append(reference.maxTokens()).append('\n');
+            content.append("- available：").append(resolved.available()).append('\n');
+            if (resolved.available() && reference.loadMode() == LoadMode.ON_DEMAND) {
+                content.append("- loadKey：`").append(resolved.loadKey()).append("`\n");
+            }
+            if (!resolved.available()) {
+                content.append("- unavailableReason：")
+                        .append(resolved.unavailableReason())
+                        .append('\n');
+            }
+        }
+        references.stream()
+                .filter(ResolvedReference::available)
+                .filter(reference -> reference.reference().loadMode() == LoadMode.ON_ACTIVATION)
+                .forEach(
+                        reference -> {
+                            content.append("\n## Activated Reference：")
+                                    .append(reference.reference().title())
+                                    .append("\n\n")
+                                    .append(reference.content());
+                        });
+        return content.toString();
     }
 
     /**
@@ -233,9 +320,9 @@ public final class PromptAssembler {
             content.append("产物断言：")
                     .append(
                             completionCriteria.requiredPayloadValues().entrySet().stream()
-                                    .sorted(java.util.Map.Entry.comparingByKey())
+                                    .sorted(Map.Entry.comparingByKey())
                                     .map(entry -> entry.getKey() + "=" + entry.getValue())
-                                    .collect(java.util.stream.Collectors.joining("、")))
+                                    .collect(Collectors.joining("、")))
                     .append('\n');
         }
         content.append("生成内容不等于完成任务；未满足完成标准时必须如实报告未完成。\n");
@@ -260,6 +347,14 @@ public final class PromptAssembler {
             throw new IllegalArgumentException(field + " 不能为空白");
         }
         return value;
+    }
+
+    private record ResolvedReference(
+            SkillReference reference, String loadKey, String content, String unavailableReason) {
+
+        private boolean available() {
+            return content != null;
+        }
     }
 
     public record AssistantPromptRequest(

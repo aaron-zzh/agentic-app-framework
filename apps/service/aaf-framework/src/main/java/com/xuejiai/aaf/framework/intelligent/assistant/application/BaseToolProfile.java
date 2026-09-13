@@ -15,10 +15,15 @@ import java.util.Set;
 public final class BaseToolProfile {
 
     /** 清单版本号，变更时递增，供审计与执行画像回溯。 */
-    public static final int VERSION = 1;
+    public static final int VERSION = 2;
 
     private static final Set<String> TOOL_NAMES =
-            Set.of("listBusinessActions", "list_workflows", "recognizeOcr", "queryWeather");
+            Set.of(
+                    "listBusinessActions",
+                    "list_workflows",
+                    "recognizeOcr",
+                    "queryWeather",
+                    ContextLoadTool.TOOL_NAME);
 
     private BaseToolProfile() {}
 

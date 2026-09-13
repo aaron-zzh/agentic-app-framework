@@ -20,6 +20,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.SkillReferenceCatalogPor
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolInvocation;
 import com.xuejiai.aaf.framework.intelligent.core.skill.SkillDef;
 import com.xuejiai.aaf.framework.intelligent.core.skill.SkillReference;
+import com.xuejiai.aaf.framework.intelligent.core.skill.SkillReference.LoadMode;
 import com.xuejiai.aaf.framework.intelligent.core.skill.SkillVersionRef;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AssistantId;
@@ -83,7 +84,7 @@ class ContextLoadToolTest extends BaseMockitoUnitTest {
 
     @Test
     void loadsSkillReferenceContentByCompositeKey() {
-        when(skills.findByCode("writer")).thenReturn(Optional.of(skillDef("writer")));
+        when(skillReferences.versionBelongsToSkillCode(VERSION_ID, "writer")).thenReturn(true);
         when(skillReferences.findByVersionIdAndKey(VERSION_ID, "style-guide"))
                 .thenReturn(Optional.of(skillReference("style-guide", 10L, 20L)));
         when(skillReferences.readContent(10L, 20L)).thenReturn(Optional.of("参考文档正文"));
@@ -92,14 +93,17 @@ class ContextLoadToolTest extends BaseMockitoUnitTest {
                 tool.invoke(
                                 invocation(
                                         Map.of(
-                                                "kind", "SKILL_REFERENCE",
-                                                "key", "writer:style-guide")))
+                                                "kind",
+                                                "SKILL_REFERENCE",
+                                                "key",
+                                                "writer@100:style-guide")))
                         .block();
 
         assertThat(result).isNotNull();
         assertThat(result.metadata())
                 .containsEntry("kind", "SKILL_REFERENCE")
                 .containsEntry("skillCode", "writer")
+                .containsEntry("skillVersionId", VERSION_ID)
                 .containsEntry("referenceKey", "style-guide")
                 .containsEntry("title", "风格指南");
         assertThat(result.output()).contains("参考文档正文");
@@ -116,7 +120,7 @@ class ContextLoadToolTest extends BaseMockitoUnitTest {
                                                                 "key", "writer-style-guide")))
                                         .block())
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("必须是 \"技能code:referenceKey\" 形式");
+                .hasMessageContaining("必须是 \"技能code@skillVersionId:referenceKey\" 形式");
     }
 
     @Test
@@ -127,10 +131,10 @@ class ContextLoadToolTest extends BaseMockitoUnitTest {
                                                 invocation(
                                                         Map.of(
                                                                 "kind", "SKILL_REFERENCE",
-                                                                "key", ":style-guide")))
+                                                                "key", "@100:style-guide")))
                                         .block())
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("必须是 \"技能code:referenceKey\" 形式");
+                .hasMessageContaining("必须是 \"技能code@skillVersionId:referenceKey\" 形式");
     }
 
     @Test
@@ -141,15 +145,15 @@ class ContextLoadToolTest extends BaseMockitoUnitTest {
                                                 invocation(
                                                         Map.of(
                                                                 "kind", "SKILL_REFERENCE",
-                                                                "key", "writer:")))
+                                                                "key", "writer@100:")))
                                         .block())
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("必须是 \"技能code:referenceKey\" 形式");
+                .hasMessageContaining("必须是 \"技能code@skillVersionId:referenceKey\" 形式");
     }
 
     @Test
-    void rejectsSkillReferenceWhenSkillNotPublished() {
-        when(skills.findByCode("missing")).thenReturn(Optional.empty());
+    void rejectsSkillReferenceWhenVersionDoesNotBelongToSkill() {
+        when(skillReferences.versionBelongsToSkillCode(VERSION_ID, "missing")).thenReturn(false);
 
         assertThatThrownBy(
                         () ->
@@ -157,15 +161,15 @@ class ContextLoadToolTest extends BaseMockitoUnitTest {
                                                 invocation(
                                                         Map.of(
                                                                 "kind", "SKILL_REFERENCE",
-                                                                "key", "missing:style-guide")))
+                                                                "key", "missing@100:style-guide")))
                                         .block())
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("不存在已发布 Skill: missing");
+                .hasMessage("SkillVersion 与 Skill code 不匹配: missing@100:style-guide");
     }
 
     @Test
     void rejectsSkillReferenceWhenNotMountedOnSkillVersion() {
-        when(skills.findByCode("writer")).thenReturn(Optional.of(skillDef("writer")));
+        when(skillReferences.versionBelongsToSkillCode(VERSION_ID, "writer")).thenReturn(true);
         when(skillReferences.findByVersionIdAndKey(VERSION_ID, "unknown-ref"))
                 .thenReturn(Optional.empty());
 
@@ -175,15 +179,15 @@ class ContextLoadToolTest extends BaseMockitoUnitTest {
                                                 invocation(
                                                         Map.of(
                                                                 "kind", "SKILL_REFERENCE",
-                                                                "key", "writer:unknown-ref")))
+                                                                "key", "writer@100:unknown-ref")))
                                         .block())
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Skill 未挂载该参考文档: writer:unknown-ref");
+                .hasMessage("SkillVersion 未挂载该参考文档: writer@100:unknown-ref");
     }
 
     @Test
     void rejectsSkillReferenceWhenContentUnavailable() {
-        when(skills.findByCode("writer")).thenReturn(Optional.of(skillDef("writer")));
+        when(skillReferences.versionBelongsToSkillCode(VERSION_ID, "writer")).thenReturn(true);
         when(skillReferences.findByVersionIdAndKey(VERSION_ID, "style-guide"))
                 .thenReturn(Optional.of(skillReference("style-guide", 10L, 20L)));
         when(skillReferences.readContent(10L, 20L)).thenReturn(Optional.empty());
@@ -194,10 +198,10 @@ class ContextLoadToolTest extends BaseMockitoUnitTest {
                                                 invocation(
                                                         Map.of(
                                                                 "kind", "SKILL_REFERENCE",
-                                                                "key", "writer:style-guide")))
+                                                                "key", "writer@100:style-guide")))
                                         .block())
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("参考文档内容不可用: writer:style-guide");
+                .hasMessage("参考文档内容不可用: writer@100:style-guide");
     }
 
     @Test
@@ -276,7 +280,18 @@ class ContextLoadToolTest extends BaseMockitoUnitTest {
 
     private static SkillReference skillReference(
             String referenceKey, Long documentId, Long documentVersionId) {
-        return new SkillReference(referenceKey, "风格指南", documentId, documentVersionId, false, 2000);
+        return new SkillReference(
+                referenceKey,
+                "风格指南",
+                documentId,
+                documentVersionId,
+                null,
+                LoadMode.ON_DEMAND,
+                "需要风格规范时",
+                false,
+                2000,
+                100,
+                "b8d1768c279b45c77ed38c4bbcb6223325f7eb6c41eb120c13483a5da7a1f1f4");
     }
 
     private static ToolInvocation invocation(Map<String, Object> arguments) {
