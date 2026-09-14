@@ -81,7 +81,7 @@ gains:
 | 控制模式与授权 | 策略命中项、任务 grant、拒绝或降级原因 | ⚠️ 部分实现 · 授权事件已存在（`ExecutionEventType.java:4-69`），策略命中摘要未完整记录 |
 | 规划与委派 | Agent Loop / Workflow、TaskBoard 版本、子任务与预算 | ⚠️ 部分实现 · 有 `SUBTASK_*`（`ExecutionEventType.java:4-69`）；`PLAN_CREATED/REVISED` 未定义 |
 | 工具与产物 | 工具状态、receipt、artifact 状态与版本引用 | ⚠️ 部分实现 · 工具事件已覆盖（`ExecutionEventType.java:4-69`）；`ARTIFACT_*` 四类未定义 |
-| 验证与终态 | 完成证据、验证结果、恢复点、最终责任主体 | ⚠️ 部分实现 · 通用 Agent 链会产生验证事件（`AssistantApplicationService.java:740-785`）；父委派任务可直接提交终态而无验证事实（`DelegatedTaskCoordinator.java:554-613`） |
+| 验证与终态 | 完成证据、验证结果、恢复点、最终责任主体 | ✅ 已实现（2026-09-14 复核纠正） · 通用 Agent 链会产生验证事件（`AssistantApplicationService.java:740-785`）；所有带 `nodeIdentity` 的节点终态提交统一经 `AssistantApplicationService.finalizeNodeExecution`（约 1207 行起）调用验证器，不存在"父委派任务绕过验证"的情况，原引用的 `DelegatedTaskCoordinator.java` 已随 v0.13 AAF-115 删除 |
 | 决策记录 | 类型、选中项、备选项、理由摘要、置信度、策略版本 | 🎯 目标态 · `DECISION_RECORDED` 未定义，当前不得声称已执行 |
 
 ### 产物事件

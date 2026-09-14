@@ -73,7 +73,7 @@ Understand → Resolve Gaps → Plan → Execute → Verify
 
 每个节点必须冻结独立、版本化合同；角色文本、完成条件和迭代预算散落在多个对象中不构成完整合同。
 
-当前代码中不存在 `TaskLoopContract` 类型或同名字符串。其职责分散在：`InvocationPolicy.java:4-36`（身份指令与合同版本）、`ExecutionPolicy.java:12-30`（Harness 迭代、模型重试、超时与上下文窗口）、`ExecutionContract.java:10-161`（动作、停止条件、任务预算与接管）、`CompletionCriteria.java:10-47`（完成证据），以及 `TaskBoard.java:992-997`（外层迭代停止原因）。这些对象各自生效，但尚无统一 key/version、phase、证据和停止语义的节点级合同。
+当前代码中不存在 `TaskLoopContract` 类型或同名字符串。其职责分散在：`InvocationPolicy.java:4-36`（身份指令与合同版本）、`ExecutionPolicy.java:12-30`（Harness 迭代、模型重试、超时与上下文窗口）、`ExecutionContract.java:10-161`（动作、停止条件、任务预算与接管）、`CompletionCriteria.java:10-47`（完成证据），以及 `TaskPlan.java`（外层迭代停止原因，原 `TaskBoard.java:992-997` 已随 v0.13 AAF-115 重构删除，具体行号需重新核实）。这些对象各自生效，但尚无统一 key/version、phase、证据和停止语义的节点级合同。
 
 ### 子智能体规格
 
@@ -191,8 +191,8 @@ L3 / TaskBoard 选择节点身份与目标
 | `ExecutionMode` 仅控制 Dynamic 缓存 / 临时编译策略 | ✅ 已实现 · `AgentExecutionCommand.java:42-45`、`HarnessAgentExecutionAdapter.java:396-414`；持久委托校验另由 `HarnessAgentExecutionAdapter.java:420-430` 的 `controlMode` 控制 |
 | Dynamic 委托态临时实例释放 | ✅ 已实现 · `HarnessAgentExecutionAdapter.java:236-339,455-467` |
 | `inheritParentTools` | ⚠️ 部分实现 · 字段已存在于 `SubagentSpec.java:31-42`，编译器在 `AgentScopeSpecCompiler.java:96-99` 明确拒绝；不得声称支持继承 |
-| `TaskLoopContract` 按身份版本化冻结 | 🎯 目标态 · 当前不存在该类型；职责分散于 `InvocationPolicy.java:4-36`、`ExecutionPolicy.java:12-30`、`ExecutionContract.java:10-161`、`CompletionCriteria.java:10-47` 与 `TaskBoard.java:992-997`，当前不得声称已形成统一合同 |
-| 无新进展即停止 | ⚠️ 部分实现 · `TaskBoard.IterationStopReason.NO_PROGRESS`（`TaskBoard.java:993-999`）+ `IterationState.lastIterationResults/unchangedStreak` 结构化比对（`TaskBoard.java:404-462`）已实现"连续两轮成员结果无变化即停止"；"同一工具+等价参数+Observation 无变化禁止第三次盲重试"（单 SubTask 级重复调用检测）仍不得声称已执行，需要逐次尝试的 observation 历史 |
+| `TaskLoopContract` 按身份版本化冻结 | 🎯 目标态 · 当前不存在该类型；职责分散于 `InvocationPolicy.java:4-36`、`ExecutionPolicy.java:12-30`、`ExecutionContract.java:10-161`、`CompletionCriteria.java:10-47` 与 `TaskPlan.java`（原 `TaskBoard.java:992-997` 已随 v0.13 AAF-115 重构删除），当前不得声称已形成统一合同 |
+| 无新进展即停止 | ✅ 已实现（2026-09-14 复核纠正） · 逻辑已迁移至 `TaskPlan.java`：`IterationStopReason.NO_PROGRESS`（`TaskPlan.java:507-508`）+ `IterationState.lastIterationResults/unchangedStreak` 结构化比对（`TaskPlan.java:499-500,735-756`）已实现"连续两轮成员结果无变化即停止"；原 `TaskBoard.java` 引用已随重构删除。"同一工具+等价参数+Observation 无变化禁止第三次盲重试"（单节点级重复调用检测）仍不得声称已执行，需要逐次尝试的 observation 历史 |
 
 ## 验收基线
 

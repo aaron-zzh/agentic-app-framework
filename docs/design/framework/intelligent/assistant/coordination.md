@@ -2,7 +2,7 @@
 level: Practice
 layer: Model
 purpose: 定义多智能体协调编排——TaskBoard、协调计划、聚合契约与产物创建时序
-status: draft
+status: deprecated
 version: 1.3.1
 date: 2026-08-25
 author: Kiro
@@ -35,6 +35,8 @@ gains:
 ---
 
 # 协调编排
+
+> ⚠️ **本文档整体已过时（2026-09-14 核实）**：v0.13 AAF-115 已将本文档描述的 `TaskBoard`、`SubTask`、`CoordinationPlan`、`DecompositionBudget`、`TaskAnalysis`、`DelegatedTaskCoordinator` 整体收敛为 `TaskPlan`/`TaskNode`/`Task.RootResult`/`Goal.completionEvidence`，不保留第二根任务真理源；`TaskBoard.java`、`DelegatedTaskCoordinator.java`、`TaskAnalysis.java` 已从代码库删除。当前架构现状以 [AAF-115 design.md](../../../../task/v0.13/AAF-115/design.md) 与 [AAF-115 tasks.md](../../../../task/v0.13/AAF-115/tasks.md) 为准；真实完成证据机制见 `TaskPlan.java` 的 `Goal.completionEvidence()` 与 `TaskPlan.completed()`（聚合根自身方法，统一判定全部节点与证据引用节点均 `COMPLETED`，不是外部协调器分别校验 EXECUTOR/AGGREGATOR）。本文档正文保留仅供架构演进历史追溯，不代表当前实现，不得作为开发依据引用；下方“实现态”表格中的具体文件路径与方法名均已失效。
 
 > 协调编排是 L3 的独立机制；`CHAT` 与 `EXECUTION` 均可由 `TaskAnalysis` 判定进入协调形态，`TEAM` 由冻结 Team version 进入协调形态。三者共用 TaskBoard、计划冻结、聚合和产物契约。DAG 不允许真实环，循环只能用有界 `IterationGroup` 表达。
 
@@ -167,12 +169,12 @@ Reservation 只创建任务级产物或不可见 `GENERATING` 草稿；生成期
 
 ### 产物工具 Schema
 
-可信的 `tenantId`、`userId/visitorId`、`workspaceId`、`taskId`、`executionId`、fencing token 和幂等 receipt 来自 ToolGateway 上下文，模型参数不得覆盖。
+可信的 `tenantId`、`userId/visitorId`、`workspaceId`、`taskId`、`executionId`、fencing token 和幂等 receipt 来自 ToolGateway 上下文，模型参数不得覆盖。已有文档续写时，客户端通过 `execution.artifactTarget(documentId, expectedCurrentVersionId)` 声明目标；服务端将其冻结进 `ExecutionIntent.ArtifactPolicy` 和 `InvocationContext`，`content.draft.upsert` 只读取该上下文并执行版本 CAS，不接受模型参数中的同名字段。省略 target 才创建新 Document。
 
 | 工具 | 参数 Schema | 返回 Schema | 实现态 |
 |---|---|---|---|
 | `artifact.reserve` | `kind`、`mediaType`、可选 `title` | `artifactId`、`artifactVersion`、`state=GENERATING`、`summaryHash` | 🎯 目标态 · 当前不得声称已执行 |
-| `content.draft.upsert` | `title` 1..200、`content` 1..1,000,000、可选 `documentType` 1..50（默认 markdown） | `artifactId`、`artifactState=DRAFT`、`published=false`；metadata 含 `artifactType=DOCUMENT`、`reversible=true`、`completionEvidence=DRAFT_COMMITTED` | ✅ 已实现 · `ContentDraftUpsertToolHandler.java:20-120` |
+| `content.draft.upsert` | `title` 1..200、`content` 1..1,000,000、可选 `documentType` 1..50（默认 markdown）；文档目标不属于模型参数 | `artifactId`、`artifactVersionId`、`artifactState=DRAFT`、`published=false`；metadata 含 `artifactType=DOCUMENT`、`reversible=true`、`completionEvidence=DRAFT_COMMITTED` | ✅ 已实现 · `ContentDraftUpsertToolHandler.java:20-130` |
 | `artifact.checkpoint` | `artifactId`、`expectedVersion`、`checkpointNo`、`bufferRef`、`summaryHash` | `artifactId`、新 `artifactVersion`、`state=GENERATING`、`checkpointNo`、`summaryHash` | 🎯 目标态 · 当前不得声称已执行 |
 | `artifact.commit` | `artifactId`、`expectedVersion`、`bufferRef`、`mediaType`、`summaryHash` | `artifactId`、新 `artifactVersion`、`state=DRAFT`、`summaryHash`、`resourceRef` | 🎯 目标态 · 当前不得声称已执行 |
 | `artifact.fail` | `artifactId`、`expectedVersion`、`failureCode`、`reasonSummary`、`retryable` | `artifactId`、新 `artifactVersion`、`state=FAILED`、`failureCode`、`retryable` | 🎯 目标态 · 当前不得声称已执行 |

@@ -223,10 +223,10 @@ public record DecompositionBudget(
 
 | 维度 | 执行点 | 实现态 |
 |---|---|---|
-| `maxChildrenPerPlan` | 单次 `CoordinationPlan` 执行节点数 | ✅ 已实现 · `DecompositionBudget.java:12-63`、`DelegatedTaskCoordinator.java:1019-1036` |
-| `maxParallelAgents` | `TaskBoard.maxParallelism` 的计划上限 | ✅ 已实现 · `DecompositionBudget.java:12-63`、`TaskBoard.java:49-97` |
-| `maxOuterIterations` | `CoordinationPlan.IterationGroup` | ✅ 已实现 · `DecompositionBudget.java:12-63`、`CoordinationPlan.java:183-207` |
-| `maxTotalExecutorRuns` | 跨计划与迭代累计 Executor 运行数 | ✅ 已实现 · `DecompositionBudget.java:55-69`、`DelegatedTaskCoordinator.java:1027-1036` |
+| `maxChildrenPerPlan` | 单次协调计划执行节点数 | ✅ 已实现 · `DecompositionBudget.java:12-63`（仍真实存在）；执行点已随 v0.13 AAF-115 从 `DelegatedTaskCoordinator.java`（已删除）迁移至新编排层 `TaskPlan.java`，具体行号需重新核实 |
+| `maxParallelAgents` | 计划并行度上限（原 `TaskBoard.maxParallelism`，现 `TaskPlan.maxParallelism`） | ✅ 已实现 · `DecompositionBudget.java:12-63`；`TaskBoard.java` 已删除，并行度上限校验见 `TaskPlan.java:53,90` |
+| `maxOuterIterations` | 有界循环组（原 `CoordinationPlan.IterationGroup`，现 `TaskPlanDraft.IterationGroup`/`TaskPlan.IterationState`） | ✅ 已实现 · `DecompositionBudget.java:12-63`；`CoordinationPlan.java` 已删除，见 `TaskPlanDraft.java:183`、`TaskPlan.java:735` |
+| `maxTotalExecutorRuns` | 跨计划与迭代累计 Executor 运行数 | ✅ 已实现 · `DecompositionBudget.java:55-69`；执行点已随重构迁移，原 `DelegatedTaskCoordinator.java:1027-1036` 引用已失效，需重新核实新位置 |
 | `maxDecompositionDepth` | 父子节点深度进入冻结执行合同 | 🎯 目标态，当前不得声称已执行 |
 
 AgentScope core ReAct 迭代与模型重试**不属于** `DecompositionBudget`，由每个 Agent 的 `ExecutionPolicy.maxIterations` 与 `maxModelRetries` 管理，避免两个预算真理源。

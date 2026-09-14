@@ -206,9 +206,9 @@ Assistant 主链不存在同步 REST 正文接口，也不保留旧 Assistant �
 | 三 前注意、理解与路由 | Assistant revision、候选 Role/Skill、`routeConstraint`、模型选择 | `resolvedRoute`、ActivatedSkill、任务策略建议 | ✅ 已实现 · `AssistantExecutionService.java:598-700` |
 | 四 受控检索与最小上下文 | 主体/租户、知识 IDs、`topK`、阈值、MemoryMode、任务材料、预算 | `EffectiveContextManifest`、SourceReference、受控消息/压缩候选 | ⚠️ 部分实现 · 长期记忆与知识已接入；`MemoryRecallPort.java:9-25` 缺本会话短期上下文维度 |
 | 五 执行画像与计划冻结 | 身份、Route、上下文、模型、Skill、工具规则、调用策略 | `ExecutionProfileSnapshot`、TaskBoard 版本 | ⚠️ 部分实现 · 画像持久冻结已实现（`ExecutionProfileSnapshot.java:24-99`）；工具空集语义仍有歧义（`DefaultEffectiveToolResolver.java:27-38,62-66`） |
-| 六 按判定结果调度 | 已发布 Team 冻结定义，否则始终建 `coordinated` 板 | `TaskBoard.coordinated/teamCoordinated`、节点 DAG | ✅ 已实现 · `AssistantExecutionService.analyzedBoard` 始终返回 `coordinated`（`AssistantExecutionService.java:888-896`），协调者在自己的 execution 内自主判断三档并直接调用 `submit_executor_plan`/`submit_coordination_plan` 或直答，见上「任务复杂度判定」。`TaskBoard.single` 工厂方法保留但无真实调用方 |
+| 六 按判定结果调度 | 已发布 Team 冻结定义，否则始终建 `coordinated` 板 | `TaskPlan`（原 `TaskBoard`，v0.13 AAF-115 已重构，`TaskBoard.java` 已删除） | ✅ 已实现 · `AssistantExecutionService.analyzedBoard` 始终返回 `coordinated`（`AssistantExecutionService.java:888-896`），协调者在自己的 execution 内自主判断三档并直接调用 `submit_executor_plan`/`submit_coordination_plan` 或直答，见上「任务复杂度判定」。原 `TaskBoard.single` 工厂方法已随重构删除 |
 | 七 Harness Loop 执行 | 节点 `executionId/sessionId`、冻结画像、局部上下文、授权规则、预算 | 节点结果、工具 Observation、receipt、执行事件 | ✅ 已实现 · `DefaultToolGateway.java:67-171` |
-| 八 聚合、验证与终态 | TaskBoard 节点状态、聚合合同、输出/产物/工具证据 | `CompletionDecision`、父终态、`RecoveryPoint` | ⚠️ 部分实现 · 通用验证器已存在（`DefaultCompletionValidator.java:15-84`），父委派任务仍可绕过验证器（`DelegatedTaskCoordinator.java:554-613`） |
+| 八 聚合、验证与终态 | `TaskPlan`（原 TaskBoard）节点状态、聚合合同、输出/产物/工具证据 | `CompletionDecision`、父终态、`RecoveryPoint` | ✅ 已实现（2026-09-14 复核纠正） · 通用验证器已存在（`DefaultCompletionValidator.java:15-84`）；所有带 `nodeIdentity` 的节点终态统一经 `AssistantApplicationService.finalizeNodeExecution` 调用验证器，不存在"父委派任务绕过验证器"的情况，原引用的 `DelegatedTaskCoordinator.java` 已随 v0.13 AAF-115 删除 |
 | 九 事件投影与学习候选 | 内部 `ExecutionEvent`、持久 `eventOffset`、安全映射规则 | `AafAiTaskEvent`、AG-UI frame、版本化学习候选 | ⚠️ 部分实现 · 安全 mapper 已统一（`ExecutionEventPublicMapper.java:20-163`），产物/计划/决策事件未齐备 |
 
 ### `ExecutionProfileSnapshot` 冻结项
@@ -353,7 +353,7 @@ flowchart TD
 | 失败 | 不可恢复 |
 | 转人工 | 超出自主边界，交人类接管 |
 
-实现态：⚠️ 部分实现 · 终态枚举完整（`CompletionDecision.java:19-25`）；五项门禁中仅覆盖 DAG 状态与通用事件（`DefaultCompletionValidator.java:15-84`）；父委派任务未经验证器即可提交终态（`DelegatedTaskCoordinator.java:554-613`）。
+实现态：✅ 已实现（2026-09-14 复核纠正） · 终态枚举完整（`CompletionDecision.java:19-25`）；五项门禁覆盖 DAG 状态与通用事件（`DefaultCompletionValidator.java:15-84`）；所有带 `nodeIdentity` 的节点（含委派子任务与 Team Worker/Aggregator）终态提交统一经 `AssistantApplicationService.finalizeNodeExecution`（约 1207 行起）无差别调用验证器，不存在"父委派任务未经验证器即可提交终态"的情况；原引用的 `DelegatedTaskCoordinator.java` 已随 v0.13 AAF-115 删除。
 
 ## 实现态
 
@@ -366,10 +366,10 @@ flowchart TD
 | 策略解析优先级由服务端统一解析 | 🎯 目标态 · 当前不得声称已执行；`CHAT` 仍由 `AssistantAguiController.java:138-152` 硬编码 |
 | 唯一正文通道 | ✅ 已实现 · 用户对话正文只经 `AssistantAguiController.java:63-78`；工作流调试通道不承载用户对话正文 |
 | `EXECUTION` 支持通用任务式 | ✅ 已实现 · copywriting 能力族硬限制已移除，任务式接受任意已发布 Skill · `AssistantExecutionService.java:166-170` |
-| 完成门禁五项全覆盖并作用于父任务 | 🎯 目标态 · 当前不得声称已执行 |
-| 编排形态由协调者 execution 内自主判定并驱动调度 | ✅ 已实现 · `AssistantExecutionService.analyzedBoard` 始终建 `coordinated` 板，协调者在自己的一次 execution 内自主判断三档（`DelegatedTaskCoordinator.executeSubTask`）；不再有独立前置 `TaskAnalysis` 模型调用与决策审计事实产出 |
-| `CHAT` 可按判定进入 `coordinated` | ✅ 已实现 · 判定链对三模式统一生效；AUTO 路由以 `defaultRoleKey` 装配协调者（`AssistantExecutionService.analyzedBoard`），`TaskBoard.java:754-757` 只强制协调者 Role、技能可空 |
-| 计划授权衰减：executor 不得放大到委派方之外 | ✅ 已实现 · 衰减基准为协调者自身已冻结 Role/Skill（`DelegatedTaskCoordinator.java:945-976`），越界 fail-closed；边界用例见 `DelegatedTaskCoordinatorAuthorizationTest` |
+| 完成门禁五项全覆盖并作用于父任务 | ✅ 已实现（2026-09-14 复核纠正） · 见上文「六 按判定结果调度」「八 聚合、验证与终态」及完成门禁章节，所有节点终态统一经 `finalizeNodeExecution` 调用验证器 |
+| 编排形态由协调者 execution 内自主判定并驱动调度 | ✅ 已实现 · `AssistantExecutionService.analyzedBoard` 始终建 `coordinated` 板，协调者在自己的一次 execution 内自主判断三档；v0.13 AAF-115 已将编排层收敛为 `TaskPlan`，原 `DelegatedTaskCoordinator.executeSubTask` 引用已随重构删除，需重新核实新方法名；不再有独立前置 `TaskAnalysis` 模型调用与决策审计事实产出（`TaskAnalysis.java` 已删除） |
+| `CHAT` 可按判定进入 `coordinated` | ✅ 已实现 · 判定链对三模式统一生效；AUTO 路由以 `defaultRoleKey` 装配协调者（`AssistantExecutionService.analyzedBoard`）；原 `TaskBoard.java:754-757` 引用已随重构删除，协调者 Role 强制、技能可空的约束需重新核实新位置 |
+| 计划授权衰减：executor 不得放大到委派方之外 | ✅ 已实现 · 衰减基准为协调者自身已冻结 Role/Skill，逻辑现位于 `SubmitCoordinationPlanTool.java:135`（原 `DelegatedTaskCoordinator.java:945-976` 已随 v0.13 AAF-115 删除），越界 fail-closed；原引用测试 `DelegatedTaskCoordinatorAuthorizationTest` 已不存在，需重新核实覆盖该行为的现有测试 |
 
 ## 验收基线
 

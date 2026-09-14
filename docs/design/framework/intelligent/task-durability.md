@@ -52,11 +52,11 @@ gains:
 | 机制 | 契约 | 实现态 |
 |---|---|---|
 | 会话级租约 | 按 conversation 获取租约后才调度，防止同一会话并发执行 | ✅ 已实现 · `RedisConversationLeaseAdapter.java:22-62` |
-| 续租 | 执行期周期续租，过期后才允许新 owner 抢占 | ✅ 已实现 · 适配器支持续租（`RedisConversationLeaseAdapter.java:28-38`），协调器按 TTL/3 周期续租（`DelegatedTaskCoordinator.java:1173-1190`） |
+| 续租 | 执行期周期续租，过期后才允许新 owner 抢占 | ✅ 已实现 · 适配器支持续租（`RedisConversationLeaseAdapter.java:28-38`）；协调器侧续租逻辑原引用 `DelegatedTaskCoordinator.java:1173-1190` 已随 v0.13 AAF-115 重构删除，新位置需重新核实 |
 | 抢占与 fencing | 抢占后旧持有者的状态、事件与 TaskBoard 写入被 token 拒绝 | ✅ 已实现 · `JpaTaskTransitionAdapter.java:1050-1135` |
-| 调度前校验 | 租约不可得时不进入执行 | ✅ 已实现 · `DelegatedTaskCoordinator.java:204-262` |
+| 调度前校验 | 租约不可得时不进入执行 | ⚠️ 引用失效（2026-09-14 复核） · 原 `DelegatedTaskCoordinator.java:204-262` 已随 v0.13 AAF-115 重构删除，新调用点需重新核实 |
 
-> ⚠️ 部分实现 · 租约不可得、任务已等待或暂停时当前可能返回空流（`DelegatedTaskCoordinator.java:204-262`），客户端拿不到持久终态帧；终态投影契约见 [runtime-event.md](runtime-event.md)。
+> ⚠️ 引用失效（2026-09-14 复核）：原 `DelegatedTaskCoordinator.java:204-262` 已随 v0.13 AAF-115 重构删除，"租约不可得、任务已等待或暂停时可能返回空流"这一行为是否仍存在需重新核实新编排层实现；终态投影契约见 [runtime-event.md](runtime-event.md)。
 
 ## 幂等与重试
 
@@ -206,6 +206,8 @@ gains:
 - **AAF-110（执行中断续跑）的任务范围因此明确为**：解决 `HarnessAgentExecutionAdapter.doFinally` 当前无差别删除状态槽的问题——需要区分"责任主体不变的中断"（不删，允许下次同 `executionId` 续接）与"真正终态完成/失败/接管换主体"（删，符合三层恢复粒度表的默认行为）。这不再是"评估要不要引入续接"的开放问题，而是"实现分流逻辑"的确定性任务。
 
 ### 接口设计：`AgentExecutionPort.cancel` 需携带终止原因
+
+> ⚠️ **引用失效，未逐句核实新对应关系（2026-09-14 复核）**：以下分析段落写作时基于的 `DelegatedTaskCoordinator.cancelRunningChildren`/`.stop`/`.takeOver` 已随 v0.13 AAF-115 重构删除（`DelegatedTaskCoordinator.java` 整体不存在）。已确认新编排层为 `TaskPlan`（见 [AAF-115 design.md](../../../task/v0.13/AAF-115/design.md)），但本段涉及的取消/暂停/接管责任主体分类推导链条较长，未逐句核实每个调用点在新架构下的精确对应方法与位置，因此不做逐句替换，仅整体标注失效以避免误导。以下内容保留仅供问题分析思路参考，具体类名、方法名和调用点均不代表当前代码。
 
 > 全仓核实：`cancel(ExecutionId)` 当前只有两处调用方——[`DelegatedTaskCoordinator.cancelRunningChildren`](../../../../apps/service/aaf-framework/src/main/java/com/xuejiai/aaf/framework/intelligent/assistant/application/DelegatedTaskCoordinator.java)（被 `stop`/`takeOver` 共用同一行代码）与 [`AssistantApplicationService`](../../../../apps/service/aaf-framework/src/main/java/com/xuejiai/aaf/framework/intelligent/assistant/application/AssistantApplicationService.java)（被 `CANCEL`/`PAUSE`/`TAKE_OVER` 三种操作共用同一行代码）。签名 `Mono<Boolean> cancel(ExecutionId executionId)` 不带任何区分信息，责任主体是否变化这一事实在到达 `HarnessAgentExecutionAdapter` 前已经坍缩丢失，`doFinally` 无法凭 `executionId` 本身反推该不该删状态槽。
 

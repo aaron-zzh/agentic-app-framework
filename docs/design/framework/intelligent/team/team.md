@@ -206,12 +206,12 @@ MVP 不自动把失败 Worker 路由给其他成员，也不以部分聚合冒�
 | Draft/publish/rollback 的成员发布与能力校验 | ✅ 已实现 · `DefinitionLifecycleService.java:23-170` |
 | 运行只引用已发布 Team version | ✅ 已实现 · `DefinitionLifecycleService.java:52-58`、`AssistantExecutionService.java:806-834` |
 | 请求不能覆盖冻结成员 target | ✅ 已实现 · `AssistantExecutionService.java:95-145` |
-| 计划必须且只能覆盖全部 Worker | ✅ 已实现 · `TaskBoard.java:169-273`、`DelegatedTaskCoordinator.java:949-1018` |
-| Worker 独立 target、执行身份与确定性领取 | ✅ 已实现 · `TaskBoard.java:100-166`、`TaskBoard.java:275-318` |
-| roster 6..8 的 children/parallel 预算上限提升且硬上限为 8 | ✅ 已实现 · `DecompositionBudget.java:12-45`、`DelegatedTaskCoordinator.java:1019-1036` |
-| 冻结后的 `TaskBoard.maxParallelism` 始终覆盖完整 roster | ✅ 已实现 · `TaskBoard.applyCoordinationPlan` 对固定 Team 断言 `plan.maxParallelism == roster`，低于或高于均拒绝（不静默串行化，容量不足由领取时排队解决）；`DelegatedTaskCoordinator.java:1019-1036` 继续校验不超过提升后的形状上限；协调者提示词同步声明该约束（`InvocationPolicy.java:13-16`）；用例见 `CoordinationPlanTest` |
-| 节点级状态、瞬时重试与终止失败隔离 | ⚠️ 部分实现 · `TaskBoard.java:327-329`、`TaskBoard.java:467-473`、`TaskBoard.java:858-868`；节点状态已隔离，但成员预算预留和预算转移审计尚未实现 |
-| Team 父任务统一经 `CompletionValidator` 完成判定 | ⚠️ 部分实现 · Worker 的通用 Agent 链已调用验证器（`AssistantApplicationService.java:740-785`）；父 Team TaskBoard 仍直接提交终态（`DelegatedTaskCoordinator.java:554-613`） |
+| 计划必须且只能覆盖全部 Worker | ✅ 已实现 · v0.13 AAF-115 已将编排层收敛为 `TaskPlan`（原 `TaskBoard.java`/`DelegatedTaskCoordinator.java` 已删除），校验见 `TaskPlan.java:296-310` |
+| Worker 独立 target、执行身份与确定性领取 | ✅ 已实现 · `TaskPlan.java` 的 `TaskNode` 领取与状态迁移逻辑（原 `TaskBoard.java` 对应实现已随重构删除） |
+| roster 6..8 的 children/parallel 预算上限提升且硬上限为 8 | ✅ 已实现 · `DecompositionBudget.java:12-45`（仍真实存在，未随重构删除）；预算执行位置迁移至新编排层，原 `DelegatedTaskCoordinator.java:1019-1036` 引用已失效 |
+| 冻结后的 `TaskBoard.maxParallelism` 始终覆盖完整 roster | ✅ 已实现 · 字段名沿用为 `TaskPlan.maxParallelism`；固定 Team 断言并行度必须等于冻结 roster 数，见 `TaskPlan.java:300-305`（"Team 协调计划并行度必须等于冻结 roster"，容量不足由领取时排队解决，不静默串行化）；协调者提示词同步声明该约束（`InvocationPolicy.java:13-16`） |
+| 节点级状态、瞬时重试与终止失败隔离 | ⚠️ 部分实现 · 节点状态迁移逻辑随重构迁移至 `TaskPlan.java`，原 `TaskBoard.java` 行号引用已失效；节点状态已隔离，但成员预算预留和预算转移审计尚未实现，需重新核实具体行号后再标注 |
+| Team 父任务统一经 `CompletionValidator` 完成判定 | ✅ 已实现（2026-09-14 复核纠正） · 所有带 `nodeIdentity` 的节点（含 Team Worker 与 AGGREGATOR）终态提交统一经 `AssistantApplicationService.finalizeNodeExecution`（约 1207 行起）无差别调用 `completionValidator.validate(...)`，不存在"父 Team 直接提交终态绕过验证器"的情况；此前记录的"父 Team TaskBoard 仍直接提交终态"已随重构不再成立 |
 | `MemberExecutionBudget` 字段级冻结 | 🎯 目标态 · **远期不动，需重新评估**（见成员级预算节的决策依据）；当前只有任务级上限与暂停生效 |
 | 动态成员与 Team 运行链自动仲裁 | 🎯 目标态 · 当前不得声称已执行；现有 `ConflictArbitrator.java:19-86` 是未接入 Team/TaskBoard 的孤立服务，不能据此声称自动仲裁已落地 |
 | Pipeline / Peer 协作形态 | 🎯 目标态 · 当前不得声称已执行 |

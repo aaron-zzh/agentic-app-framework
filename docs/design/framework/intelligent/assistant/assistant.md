@@ -180,7 +180,7 @@ sourceSystemKey  = system.assistant.default-user
 | `AUTO` 候选受限单选 Role 与安全默认 | ✅ 已实现 · `DefaultRoleSelector.java:14-171` |
 | `FIXED` Route 越界拒绝 | ✅ 已实现 · `AssistantExecutionService.java:593-694` |
 | Skill 分层绑定与候选外拒绝 | ✅ 已实现 · `AssistantDefinition.java:67-98`、`DefaultEffectiveSkillResolver.java:11-43` |
-| 澄清请求字段、期限与终止状态机 | ✅ 已实现 · 字段及状态机见 `ClarificationRequest.java:13-160`；任务 deadline 上界见 `DelegatedTaskCoordinator.java:786-804` |
+| 澄清请求字段、期限与终止状态机 | ✅ 已实现 · 字段及状态机见 `ClarificationRequest.java:13-160`；任务 deadline 上界原引用 `DelegatedTaskCoordinator.java:786-804` 已随 v0.13 AAF-115 重构删除，新位置需重新核实 |
 | 三种澄清策略的确定性门控 | 🎯 目标态 · 当前不得声称已执行 |
 | `CHAT` 默认 `INTERACTIVE` | 🎯 目标态 · 当前不得声称已执行；入口仍固定为 `MINIMAL`，见 `AssistantAguiController.java:140-146` |
 | 四类输入的持久缓冲与合并 | ⚠️ 部分实现 · 四种 `kind`、幂等持久化、确定性消费事件及 `CANCEL` 已实现（`ExecutionInput.java:13-58`、`JpaDelegatedTaskAdapter.java:50-82`、`JpaTaskTransitionAdapter.java:215-361`）；`kind` 仍由客户端直接提交（`DelegatedTaskService.java:76-85`），`MODIFY/SUPPLEMENT` 只允许待澄清参数，`UNRELATED` 消费后无后续任务，自然语言输入尚无四分类器 |
