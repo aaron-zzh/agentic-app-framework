@@ -19,6 +19,8 @@ import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.module.ai.aigc.AigcAuthorities;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcDeliverableSetEvaluateCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcDeliverableSetManifestFreezeCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcDocumentCandidateCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcGenerationScope;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionAdoptCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionRejectCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycleCommand;
@@ -26,19 +28,23 @@ import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectMaterializeCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectMediaRefCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectObjectCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectObjectContractCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectObjectMoveCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectObjectRemoveCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcReviewDecisionCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcReviewSubmitCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcTextCandidateCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProject;
 import com.xuejiai.aaf.module.ai.aigc.project.service.AigcProjectService;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcDeliverableSetEvaluateDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcDeliverableSetFreezeDTO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcDocumentCandidateDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcObjectVersionAdoptDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcObjectVersionRejectDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcObjectVersionVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectChannelRefVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectConfigSnapshotVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentRefDTO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentRefUpdateDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentRefVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectGraphVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectLifecycleDTO;
@@ -47,6 +53,7 @@ import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectMediaRefDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectMediaRefVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectObjectCommandDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectObjectContractDTO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectObjectMoveDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectObjectRemoveDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectObjectVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectPageDTO;
@@ -58,6 +65,7 @@ import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectUpdateDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcReviewDecisionDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcReviewSubmitDTO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcTextCandidateDTO;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -92,6 +100,8 @@ public class AigcProjectController
                                 OrgContext.getCurrentWorkspaceId(),
                                 request.name(),
                                 request.description(),
+                                request.sourceType(),
+                                request.sourceRef(),
                                 request.projectTypeCode(),
                                 request.blueprintVersionId(),
                                 request.domainExtensionVersionId(),
@@ -123,6 +133,23 @@ public class AigcProjectController
         return Result.success(service.summary(id));
     }
 
+    @Operation(summary = "获取服务端对象 readiness")
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_READ)
+    @GetMapping("/{id}/readiness")
+    public Result<?> readiness(
+            @PathVariable Long id,
+            @RequestParam(required = false) List<Long> includedOptionalObjectIds) {
+        return Result.success(
+                service.readiness(id, new AigcGenerationScope(includedOptionalObjectIds)));
+    }
+
+    @Operation(summary = "获取项目进度快照")
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_READ)
+    @GetMapping("/{id}/progress")
+    public Result<?> progress(@PathVariable Long id) {
+        return Result.success(service.progress(id));
+    }
+
     @PreAuthorize(AigcAuthorities.HAS_PROJECT_READ)
     @GetMapping("/{id}/objects")
     public Result<List<AigcProjectObjectVO>> objects(@PathVariable Long id) {
@@ -143,9 +170,71 @@ public class AigcProjectController
                                 request.displayName(),
                                 request.contractRole(),
                                 request.orderNo(),
+                                request.semanticRole(),
+                                request.plannedPhase(),
+                                request.outputContract(),
                                 request.schemaVersion(),
                                 request.payloadJson(),
-                                request.expectedProjectVersion())));
+                                request.expectedProjectVersion(),
+                                request.expectedGraphRevision())));
+    }
+
+    @Operation(summary = "移动项目对象")
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_UPDATE)
+    @PostMapping("/{id}/objects/{objectId}/_move")
+    public Result<?> moveObject(
+            @PathVariable Long id,
+            @PathVariable Long objectId,
+            @Valid @RequestBody AigcProjectObjectMoveDTO request) {
+        return Result.success(
+                service.moveObject(
+                        new AigcProjectObjectMoveCommand(
+                                id,
+                                objectId,
+                                request.newParentObjectId(),
+                                request.orderNo(),
+                                request.expectedProjectVersion(),
+                                request.expectedGraphRevision())));
+    }
+
+    @Operation(summary = "将手工纯文本冻结为 DocumentVersion candidate")
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_UPDATE)
+    @PostMapping("/{id}/objects/{objectId}/candidates/text")
+    public Result<?> recordTextCandidate(
+            @PathVariable Long id,
+            @PathVariable Long objectId,
+            @Valid @RequestBody AigcTextCandidateDTO request) {
+        return Result.success(
+                service.recordTextCandidate(
+                        new AigcTextCandidateCommand(
+                                id,
+                                objectId,
+                                request.expectedProjectVersion(),
+                                request.expectedGraphRevision(),
+                                request.content(),
+                                request.summary(),
+                                request.idempotencyKey())));
+    }
+
+    @Operation(summary = "登记手工文档 candidate")
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_UPDATE)
+    @PostMapping("/{id}/objects/{objectId}/candidates/document")
+    public Result<?> recordDocumentCandidate(
+            @PathVariable Long id,
+            @PathVariable Long objectId,
+            @Valid @RequestBody AigcDocumentCandidateDTO request) {
+        return Result.success(
+                service.recordDocumentCandidate(
+                        new AigcDocumentCandidateCommand(
+                                id,
+                                objectId,
+                                request.expectedProjectVersion(),
+                                request.expectedGraphRevision(),
+                                request.title(),
+                                request.content(),
+                                request.format(),
+                                request.summary(),
+                                request.idempotencyKey())));
     }
 
     @PreAuthorize(AigcAuthorities.HAS_PROJECT_UPDATE)
@@ -160,7 +249,8 @@ public class AigcProjectController
                                 id,
                                 objectId,
                                 request.contractRole(),
-                                request.expectedProjectVersion())));
+                                request.expectedProjectVersion(),
+                                request.expectedGraphRevision())));
     }
 
     @PreAuthorize(AigcAuthorities.HAS_PROJECT_UPDATE)
@@ -172,7 +262,11 @@ public class AigcProjectController
         return Result.success(
                 service.removeObject(
                         new AigcProjectObjectRemoveCommand(
-                                id, objectId, request.expectedProjectVersion(), request.reason())));
+                                id,
+                                objectId,
+                                request.expectedProjectVersion(),
+                                request.expectedGraphRevision(),
+                                request.reason())));
     }
 
     @PreAuthorize(AigcAuthorities.HAS_PROJECT_READ)
@@ -324,6 +418,15 @@ public class AigcProjectController
     public Result<AigcProjectDocumentRefVO> attachDocument(
             @PathVariable Long id, @Valid @RequestBody AigcProjectDocumentRefDTO request) {
         return Result.success(service.attachDocument(id, request));
+    }
+
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_UPDATE)
+    @PostMapping("/{id}/document-refs/{refId}/_update-to-current")
+    public Result<AigcProjectDocumentRefVO> updateExternalDocumentReference(
+            @PathVariable Long id,
+            @PathVariable Long refId,
+            @Valid @RequestBody AigcProjectDocumentRefUpdateDTO request) {
+        return Result.success(service.updateExternalDocumentReference(id, refId, request));
     }
 
     @PreAuthorize(AigcAuthorities.HAS_PROJECT_READ)

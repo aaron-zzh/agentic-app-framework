@@ -15,7 +15,9 @@ import java.util.UUID;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.access.PermissionEvaluator;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +43,11 @@ import com.xuejiai.aaf.module.ai.aigc.project.api.AigcCompletionEvaluationView;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcDeliverableSetCompletionView;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcDeliverableSetEvaluateCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcDeliverableSetManifestFreezeCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcDocumentCandidateCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcFrozenInputVersionRef;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcGenerationScope;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectReadiness;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectReadinessState;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionAdoptCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionCandidateCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionComparisonView;
@@ -48,6 +55,7 @@ import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionRejectCommand
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionView;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectDocumentReferenceType;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectExecutionReservationBindCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectExecutionReservationCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectExecutionReservationReleaseCommand;
@@ -61,13 +69,18 @@ import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectMediaRefCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectMediaRefView;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectObjectCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectObjectContractCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectObjectMoveCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectObjectRemoveCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectObjectView;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectProgressEvidencePort;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectProgressSnapshot;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectRelationSemantics;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectRelationView;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectView;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcReviewDecisionCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcReviewSubmitCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcReviewView;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcTextCandidateCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.CompletionEvidencePort;
 import com.xuejiai.aaf.module.ai.aigc.project.api.ExecutionEvidencePort;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcObjectVersion;
@@ -78,7 +91,6 @@ import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectExecutionReserva
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectExecutionReservationTarget;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectMediaRef;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectObject;
-import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectRelation;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectResourceRef;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectRevision;
 import com.xuejiai.aaf.module.ai.aigc.project.event.AigcProjectArchivedEvent;
@@ -103,6 +115,7 @@ import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectChannelRefVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectConfigSnapshotVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectCoverPatchDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentRefDTO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentRefUpdateDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentRefVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectGraphVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectMediaRefVO;
@@ -116,6 +129,7 @@ import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectSummaryVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectUpdateDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectVO;
 import com.xuejiai.aaf.module.document.api.DocumentReferenceApi;
+import com.xuejiai.aaf.module.document.api.DocumentVersionApi;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
@@ -156,9 +170,12 @@ public class AigcProjectService
     private final AigcProjectDeliveryService deliveryService;
     private final CompletionEvidencePort completionEvidencePort;
     private final ExecutionEvidencePort executionEvidencePort;
+    private final AigcProjectProgressEvidencePort progressEvidencePort;
     private final AigcMediaApi mediaApi;
     private final DocumentReferenceApi documentReferenceApi;
+    private final DocumentVersionApi documentVersionApi;
     private final OperatorContext operatorContext;
+    private final PermissionEvaluator permissionEvaluator;
     private final ApplicationEventPublisher eventPublisher;
     private final AigcActivityEventService activityEventService;
 
@@ -477,9 +494,32 @@ public class AigcProjectService
             var project = requireEntity(projectId);
             requireProjectScope(project, ownerId, orgId, workspaceId);
         }
-        return new LinkedHashSet<>(
-                documentRefRepository.findLinkedDocumentIds(
-                        ownerId, orgId, workspaceId, projectId));
+        var documentIds =
+                new LinkedHashSet<>(
+                        documentRefRepository.findLinkedDocumentIds(
+                                AigcProjectDocumentReferenceType.PROJECT_DOCUMENT,
+                                ownerId,
+                                orgId,
+                                workspaceId,
+                                projectId));
+        if (!documentIds.isEmpty()) {
+            documentReferenceApi.requireAccessible(documentIds, ownerId, orgId, workspaceId);
+        }
+        var externalVersionIds =
+                documentRefRepository.findLinkedDocumentVersionIds(
+                        AigcProjectDocumentReferenceType.EXTERNAL_REFERENCE,
+                        ownerId,
+                        orgId,
+                        workspaceId,
+                        projectId);
+        if (!externalVersionIds.isEmpty()) {
+            documentVersionApi
+                    .requireAccessible(externalVersionIds, ownerId, orgId, workspaceId)
+                    .stream()
+                    .map(DocumentVersionApi.DocumentVersionView::documentId)
+                    .forEach(documentIds::add);
+        }
+        return Set.copyOf(documentIds);
     }
 
     @Override
@@ -494,13 +534,50 @@ public class AigcProjectService
         if (ids.isEmpty()) {
             return List.of();
         }
-        return documentRefRepository.findDocumentProjects(ownerId, orgId, workspaceId, ids).stream()
+        var rows = documentRefRepository.findDocumentProjects(ownerId, orgId, workspaceId);
+        if (rows.isEmpty()) {
+            return List.of();
+        }
+        var projectDocumentIds =
+                rows.stream()
+                        .map(AigcProjectDocumentRefRepository.DocumentProjectRow::getDocumentId)
+                        .filter(Objects::nonNull)
+                        .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        if (!projectDocumentIds.isEmpty()) {
+            documentReferenceApi.requireAccessible(projectDocumentIds, ownerId, orgId, workspaceId);
+        }
+        var externalVersionIds =
+                rows.stream()
+                        .map(
+                                AigcProjectDocumentRefRepository.DocumentProjectRow
+                                        ::getDocumentVersionId)
+                        .filter(Objects::nonNull)
+                        .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        Map<Long, DocumentVersionApi.DocumentVersionView> externalVersionsById =
+                externalVersionIds.isEmpty()
+                        ? Map.of()
+                        : documentVersionApi
+                                .requireAccessible(externalVersionIds, ownerId, orgId, workspaceId)
+                                .stream()
+                                .collect(
+                                        java.util.stream.Collectors.toMap(
+                                                DocumentVersionApi.DocumentVersionView::id,
+                                                version -> version));
+        return rows.stream()
                 .map(
-                        row ->
-                                new DocumentProjectReference(
-                                        row.getDocumentId(),
-                                        row.getProjectId(),
-                                        row.getProjectName()))
+                        row -> {
+                            var documentId = row.getDocumentId();
+                            if (documentId == null && row.getDocumentVersionId() != null) {
+                                var version = externalVersionsById.get(row.getDocumentVersionId());
+                                documentId = version == null ? null : version.documentId();
+                            }
+                            if (documentId == null) {
+                                throw badRequest("项目文档引用身份无效");
+                            }
+                            return new DocumentProjectReference(
+                                    documentId, row.getProjectId(), row.getProjectName());
+                        })
+                .filter(reference -> ids.contains(reference.documentId()))
                 .distinct()
                 .toList();
     }
@@ -612,15 +689,16 @@ public class AigcProjectService
                 objectRepository.findByProjectIdOrderBySortOrderAscIdAsc(projectId).stream()
                         .map(this::toApiObjectView)
                         .toList(),
-                relationRepository.findByProjectIdOrderByIdAsc(projectId).stream()
+                graphRelations(projectId).stream()
                         .map(
                                 relation ->
                                         new AigcProjectRelationView(
-                                                relation.getId(),
-                                                relation.getSourceObjectId(),
-                                                relation.getTargetObjectId(),
-                                                relation.getRelationType(),
-                                                JsonUtils.toJsonString(relation.getRelationMeta())))
+                                                relation.id(),
+                                                relation.sourceObjectId(),
+                                                relation.targetObjectId(),
+                                                relation.relationType(),
+                                                relation.layer(),
+                                                JsonUtils.toJsonString(relation.metadata())))
                         .toList(),
                 project.getGraphRevision().longValue());
     }
@@ -633,9 +711,330 @@ public class AigcProjectService
                 objectRepository.findByProjectIdOrderBySortOrderAscIdAsc(projectId).stream()
                         .map(this::toObjectVO)
                         .toList(),
-                relationRepository.findByProjectIdOrderByIdAsc(projectId).stream()
-                        .map(this::toRelationVO)
-                        .toList());
+                graphRelations(projectId).stream().map(this::toRelationVO).toList());
+    }
+
+    @Override
+    public List<AigcObjectReadiness> readiness(Long projectId, AigcGenerationScope scope) {
+        if (scope == null) {
+            throw badRequest("readiness scope 不能为空");
+        }
+        var project = requireEntity(projectId);
+        var objects = objectRepository.findByProjectIdOrderBySortOrderAscIdAsc(projectId);
+        var optionalIds = scope.includedOptionalObjectIds();
+        if (optionalIds.size() != optionalIds.stream().distinct().count()) {
+            throw badRequest("readiness scope 的 OPTIONAL 对象不能重复");
+        }
+        var byId =
+                objects.stream()
+                        .collect(
+                                java.util.stream.Collectors.toMap(
+                                        AigcProjectObject::getId,
+                                        java.util.function.Function.identity()));
+        for (var optionalId : optionalIds) {
+            var optional = byId.get(optionalId);
+            if (optional == null || !"OPTIONAL".equals(optional.getContractRole())) {
+                throw badRequest("readiness scope 只能显式纳入当前项目 OPTIONAL 对象");
+            }
+        }
+        var selectedOptional = Set.copyOf(optionalIds);
+        var snapshot =
+                snapshotRepository
+                        .findById(project.getConfigSnapshotId())
+                        .filter(value -> projectId.equals(value.getProjectId()))
+                        .orElseThrow(() -> notFound("项目配置快照不存在"));
+        var actions = mapList(snapshot.getSnapshot().get("actions"));
+        var dependencies = readinessDependencies(objects, actions);
+        var candidatesByObject =
+                versionRepository.findByProjectIdAndStatus(projectId, "candidate").stream()
+                        .collect(
+                                java.util.stream.Collectors.groupingBy(
+                                        AigcObjectVersion::getObjectId));
+        var activeReservedObjectIds =
+                objects.isEmpty()
+                        ? Set.<Long>of()
+                        : reservationTargetRepository.findActiveReservedObjectIds(
+                                objects.stream().map(AigcProjectObject::getId).toList());
+        return objects.stream()
+                .filter(
+                        object ->
+                                "REQUIRED".equals(object.getContractRole())
+                                        || ("OPTIONAL".equals(object.getContractRole())
+                                                && selectedOptional.contains(object.getId())))
+                .map(
+                        object ->
+                                evaluateReadiness(
+                                        project,
+                                        object,
+                                        dependencies.getOrDefault(object.getId(), List.of()),
+                                        candidatesByObject.getOrDefault(object.getId(), List.of()),
+                                        activeReservedObjectIds.contains(object.getId()),
+                                        actions))
+                .toList();
+    }
+
+    @Override
+    public AigcProjectProgressSnapshot progress(Long projectId) {
+        var project = requireEntity(projectId);
+        var readiness = readiness(projectId, AigcGenerationScope.REQUIRED_ONLY);
+        var readinessById =
+                readiness.stream()
+                        .collect(
+                                java.util.stream.Collectors.toMap(
+                                        AigcObjectReadiness::projectObjectId,
+                                        java.util.function.Function.identity()));
+        var objects = objectRepository.findByProjectIdOrderBySortOrderAscIdAsc(projectId);
+        var versions = versionRepository.findByProjectIdOrderByIdAsc(projectId);
+        var candidateObjectIds =
+                versions.stream()
+                        .filter(version -> "candidate".equals(version.getStatus()))
+                        .map(AigcObjectVersion::getObjectId)
+                        .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        var mediaVersionIdsByObjectVersion =
+                mediaRefRepository.findByProjectIdOrderBySortOrderAscIdAsc(projectId).stream()
+                        .filter(reference -> reference.getObjectVersionId() != null)
+                        .collect(
+                                java.util.stream.Collectors.groupingBy(
+                                        AigcProjectMediaRef::getObjectVersionId,
+                                        LinkedHashMap::new,
+                                        java.util.stream.Collectors.mapping(
+                                                AigcProjectMediaRef::getMediaVersionId,
+                                                java.util.stream.Collectors.toList())));
+        var execution = progressEvidencePort.load(projectId, project.getUserId());
+        var completionEvidence = completionEvidencePort.load(projectId);
+        var completion = deliveryService.completion(projectId);
+        var reviews = deliveryService.reviews(projectId);
+        return new AigcProjectProgressSnapshot(
+                1,
+                Instant.now(),
+                projectId,
+                project.getVersion(),
+                project.getGraphRevision().longValue(),
+                null,
+                objects.stream()
+                        .map(
+                                object ->
+                                        new AigcProjectProgressSnapshot.ObjectProgressRef(
+                                                object.getId(),
+                                                AigcProjectObjectMaturityProjector.project(
+                                                        object,
+                                                        candidateObjectIds.contains(
+                                                                object.getId())),
+                                                object.getContractRole(),
+                                                readinessById.containsKey(object.getId())
+                                                        ? readinessById.get(object.getId()).state()
+                                                        : null))
+                        .toList(),
+                readiness,
+                execution.executions(),
+                versions.stream()
+                        .filter(version -> !"MANIFEST_FREEZE".equals(version.getDecisionMode()))
+                        .map(
+                                version ->
+                                        new AigcProjectProgressSnapshot.CandidateDecisionRef(
+                                                version.getId(),
+                                                version.getObjectId(),
+                                                version.getStatus(),
+                                                version.getExecutionRunId(),
+                                                version.getDocumentVersionId(),
+                                                mediaVersionIdsByObjectVersion.getOrDefault(
+                                                        version.getId(), List.of())))
+                        .toList(),
+                new AigcProjectProgressSnapshot.DeliveryProgress(
+                        completion.satisfied(),
+                        reviews.size(),
+                        reviews.stream()
+                                .filter(review -> "PENDING".equals(review.status()))
+                                .count(),
+                        completionEvidence.activeWorkCount(),
+                        completionEvidence.publicationCount(),
+                        completion.blockers()),
+                execution.credits());
+    }
+
+    private AigcObjectReadiness evaluateReadiness(
+            AigcProject project,
+            AigcProjectObject object,
+            List<AigcProjectObject> dependencies,
+            List<AigcObjectVersion> candidates,
+            boolean activeReservation,
+            List<Map<String, Object>> actions) {
+        var inputVersions =
+                dependencies.stream()
+                        .filter(dependency -> dependency.getAdoptedVersionId() != null)
+                        .map(
+                                dependency ->
+                                        new AigcFrozenInputVersionRef(
+                                                dependency.getId(),
+                                                dependency.getAdoptedVersionId(),
+                                                "ADOPTED"))
+                        .toList();
+        var action = actionFor(object, actions);
+        var allowed = allowedActions(project, object, candidates, action);
+        var hasContentAction = allowed.stream().anyMatch(value -> !value.startsWith("object."));
+        AigcObjectReadinessState state;
+        String reason = null;
+        if ("EXCLUDED".equals(object.getContractRole())) {
+            state = AigcObjectReadinessState.BLOCKED_BY_POLICY;
+            reason = "EXCLUDED 合同对象不进入阶段一产出范围";
+        } else if (activeReservation) {
+            state = AigcObjectReadinessState.ACTIVE_RUN;
+            reason = "对象存在活动 ExecutionRun/reservation";
+        } else if (!candidates.isEmpty()) {
+            state = AigcObjectReadinessState.PENDING_CANDIDATE;
+            reason = "对象存在待决 candidate";
+        } else if (object.getAdoptedVersionId() != null) {
+            state = AigcObjectReadinessState.SATISFIED;
+        } else if (!MUTABLE_STATUSES.contains(project.getStatus())) {
+            state = AigcObjectReadinessState.BLOCKED_BY_POLICY;
+            reason = "当前项目生命周期只读";
+        } else if (!hasContentAction) {
+            state = AigcObjectReadinessState.BLOCKED_BY_POLICY;
+            reason = "outputContract、权限或动作策略没有阶段一可用内容动作";
+        } else if (dependencies.stream().anyMatch(value -> value.getAdoptedVersionId() == null)) {
+            state = AigcObjectReadinessState.BLOCKED_BY_DEPENDENCY;
+            reason = "必需上游对象尚无 adopted 版本";
+        } else if (action != null
+                && allowed.contains(String.valueOf(action.get("actionKey")))
+                && "REQUIRED".equalsIgnoreCase(String.valueOf(action.get("confirmationPolicy")))) {
+            state = AigcObjectReadinessState.AWAITING_CONFIRMATION;
+            reason = "专业媒体动作需要显式确认";
+        } else {
+            state = AigcObjectReadinessState.READY;
+        }
+        return new AigcObjectReadiness(
+                object.getId(),
+                action == null ? null : String.valueOf(action.get("actionKey")),
+                state,
+                dependencies.stream().map(AigcProjectObject::getId).toList(),
+                inputVersions,
+                reason,
+                allowed);
+    }
+
+    private Map<Long, List<AigcProjectObject>> readinessDependencies(
+            List<AigcProjectObject> objects, List<Map<String, Object>> actions) {
+        if (objects.isEmpty()) {
+            return Map.of();
+        }
+        var byId =
+                objects.stream()
+                        .collect(
+                                java.util.stream.Collectors.toMap(
+                                        AigcProjectObject::getId,
+                                        java.util.function.Function.identity()));
+        var byTemplate =
+                objects.stream()
+                        .filter(object -> object.getBlueprintTemplateKey() != null)
+                        .collect(
+                                java.util.stream.Collectors.groupingBy(
+                                        AigcProjectObject::getBlueprintTemplateKey));
+        var result = new LinkedHashMap<Long, LinkedHashSet<AigcProjectObject>>();
+        for (var relation :
+                relationRepository.findByProjectIdOrderByIdAsc(objects.getFirst().getProjectId())) {
+            if (!Set.of("derives", "constrains", "execution_depends")
+                    .contains(relation.getRelationType())) {
+                continue;
+            }
+            var source = byId.get(relation.getSourceObjectId());
+            if (source != null && byId.containsKey(relation.getTargetObjectId())) {
+                result.computeIfAbsent(
+                                relation.getTargetObjectId(), ignored -> new LinkedHashSet<>())
+                        .add(source);
+            }
+        }
+        for (var object : objects) {
+            var action = actionFor(object, actions);
+            if (action == null || !(action.get("dependencyTemplateKeys") instanceof List<?> keys)) {
+                continue;
+            }
+            var target = result.computeIfAbsent(object.getId(), ignored -> new LinkedHashSet<>());
+            keys.stream()
+                    .map(String::valueOf)
+                    .flatMap(key -> byTemplate.getOrDefault(key, List.of()).stream())
+                    .forEach(target::add);
+        }
+        var immutable = new LinkedHashMap<Long, List<AigcProjectObject>>();
+        result.forEach((key, value) -> immutable.put(key, List.copyOf(value)));
+        return Map.copyOf(immutable);
+    }
+
+    private Map<String, Object> actionFor(
+            AigcProjectObject object, List<Map<String, Object>> actions) {
+        return actions.stream()
+                .filter(
+                        action ->
+                                Objects.equals(
+                                        object.getBlueprintTemplateKey(),
+                                        action.get("targetTemplateKey")))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private List<String> allowedActions(
+            AigcProject project,
+            AigcProjectObject object,
+            List<AigcObjectVersion> candidates,
+            Map<String, Object> action) {
+        if (!MUTABLE_STATUSES.contains(project.getStatus())
+                || "review".equals(object.getObjectType())) {
+            return List.of();
+        }
+        var allowed = new LinkedHashSet<String>();
+        var canUpdate = hasPermission(AigcAuthorities.PROJECT_UPDATE);
+        if (canUpdate) {
+            allowed.add("object.contract");
+            allowed.add("object.move");
+            if (object.getBlueprintTemplateKey() == null
+                    || Boolean.TRUE.equals(
+                            requireSlotTemplate(project, object.getBlueprintTemplateKey())
+                                    .get("userRemovable"))) {
+                allowed.add("object.remove");
+            }
+        }
+        if ("EXCLUDED".equals(object.getContractRole())) {
+            return List.copyOf(allowed);
+        }
+        if (canUpdate && "DOCUMENT_VERSION".equals(object.getOutputContract())) {
+            allowed.add("candidate.record.document");
+        } else if (hasPermission(AigcAuthorities.PROJECT_ACTION)
+                && "MEDIA_VERSION".equals(object.getOutputContract())
+                && action != null) {
+            var actionKey = String.valueOf(action.get("actionKey"));
+            if (Set.of("image.generate", "image.edit", "video.generate").contains(actionKey)) {
+                allowed.add(actionKey);
+            }
+        }
+        if (!candidates.isEmpty() && hasPermission(AigcAuthorities.OBJECT_VERSION_ADOPT)) {
+            allowed.add("candidate.adopt");
+            allowed.add("candidate.reject");
+        }
+        return List.copyOf(allowed);
+    }
+
+    private boolean hasPermission(String permission) {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null
+                && authentication.isAuthenticated()
+                && permissionEvaluator.hasPermission(authentication, null, permission);
+    }
+
+    private List<Map<String, Object>> mapList(Object value) {
+        if (!(value instanceof List<?> values)) {
+            return List.of();
+        }
+        return values.stream()
+                .filter(Map.class::isInstance)
+                .map(
+                        item -> {
+                            var copy = new LinkedHashMap<String, Object>();
+                            ((Map<?, ?>) item)
+                                    .forEach(
+                                            (key, mapValue) ->
+                                                    copy.put(String.valueOf(key), mapValue));
+                            return java.util.Collections.unmodifiableMap(copy);
+                        })
+                .toList();
     }
 
     public AigcProjectSummaryVO summary(Long projectId) {
@@ -649,9 +1048,26 @@ public class AigcProjectService
                                                 .findByObjectIdOrderByVersionNoDesc(object.getId())
                                                 .stream())
                         .toList();
+        var candidateObjectIds =
+                versions.stream()
+                        .filter(version -> "candidate".equals(version.getStatus()))
+                        .map(AigcObjectVersion::getObjectId)
+                        .collect(java.util.stream.Collectors.toUnmodifiableSet());
         var executionEvidence = executionEvidencePort.load(projectId);
         var completionEvidence = completionEvidencePort.load(projectId);
         var completionEvaluation = deliveryService.completion(projectId);
+        var readiness = readiness(projectId, AigcGenerationScope.REQUIRED_ONLY);
+        var blockedCount =
+                readiness.stream()
+                        .filter(
+                                value ->
+                                        value.state()
+                                                        == AigcObjectReadinessState
+                                                                .BLOCKED_BY_DEPENDENCY
+                                                || value.state()
+                                                        == AigcObjectReadinessState
+                                                                .BLOCKED_BY_POLICY)
+                        .count();
         return new AigcProjectSummaryVO(
                 projectId,
                 objects.size(),
@@ -659,9 +1075,16 @@ public class AigcProjectService
                         .filter(object -> object.getObjectType().endsWith("_deliverable"))
                         .count(),
                 objects.stream()
-                        .filter(object -> "pending_confirm".equals(object.getStatus()))
+                        .filter(
+                                object ->
+                                        "CANDIDATE_AVAILABLE"
+                                                .equals(
+                                                        AigcProjectObjectMaturityProjector.project(
+                                                                object,
+                                                                candidateObjectIds.contains(
+                                                                        object.getId()))))
                         .count(),
-                objects.stream().filter(object -> "blocked".equals(object.getStatus())).count(),
+                blockedCount,
                 executionEvidence.runningCount(),
                 versions.stream()
                         .filter(version -> "candidate".equals(version.getStatus()))
@@ -679,6 +1102,7 @@ public class AigcProjectService
     public AigcProjectObjectView appendObject(AigcProjectObjectCommand command) {
         var project = requireLockedProject(command.projectId(), command.expectedProjectVersion());
         requireWritable(project);
+        requireGraphRevision(project, command.expectedGraphRevision());
         if (command.objectType() == null || command.objectType().isBlank()) {
             throw badRequest("对象类型不能为空");
         }
@@ -700,6 +1124,8 @@ public class AigcProjectService
                 && !command.objectType().equals(String.valueOf(template.get("objectType")))) {
             throw badRequest("对象类型与槽位模板不匹配");
         }
+        validateObjectParent(
+                project, command.blueprintTemplateKey(), command.objectType(), parentObject);
         if (template != null) {
             if (!(template.get("maxCount") instanceof Number maxCountValue)) {
                 throw badRequest("槽位模板 maxCount 非法");
@@ -770,15 +1196,27 @@ public class AigcProjectService
         object.setBlueprintTemplateKey(command.blueprintTemplateKey());
         object.setInstanceNo(instanceNo);
         object.setContractRole(requireContractRole(command.contractRole()));
+        object.setSemanticRole(
+                template == null
+                        ? requireSemanticValue(command.semanticRole(), "semanticRole")
+                        : String.valueOf(template.get("semanticRole")));
+        object.setPlannedPhase(
+                template == null
+                        ? requirePlannedPhase(command.plannedPhase())
+                        : String.valueOf(template.get("plannedPhase")));
+        object.setOutputContract(
+                template == null
+                        ? requireOutputContract(command.outputContract())
+                        : String.valueOf(template.get("outputContract")));
         object.setObjectType(command.objectType());
         object.setSortOrder(command.orderNo() == null ? 0 : command.orderNo());
         object.setTitle(command.displayName().trim());
-        object.setStatus("draft");
+        object.setStatus("EMPTY");
         object.setSource("user");
         object.setSchemaVersion(command.schemaVersion());
         object.setPayload(parseMap(command.payloadJson()));
         objectRepository.save(object);
-        bumpRevision(project, List.of(object.getId()), List.of(), null, "追加项目对象");
+        bumpStructuralRevision(project, List.of(object.getId()), List.of(), "追加项目对象");
         deliveryService.staleReviews(
                 project.getId(),
                 command.parentObjectId() == null
@@ -790,9 +1228,57 @@ public class AigcProjectService
 
     @Override
     @Transactional
+    public AigcProjectObjectView moveObject(AigcProjectObjectMoveCommand command) {
+        var project = requireLockedProject(command.projectId(), command.expectedProjectVersion());
+        requireWritable(project);
+        requireGraphRevision(project, command.expectedGraphRevision());
+        var object = requireObject(project.getId(), command.objectId(), true);
+        var newParent =
+                command.newParentObjectId() == null
+                        ? null
+                        : requireObject(project.getId(), command.newParentObjectId(), false);
+        if (newParent != null && Objects.equals(newParent.getId(), object.getId())) {
+            throw badRequest("对象不能移动到自身下级");
+        }
+        var cursor = newParent;
+        while (cursor != null) {
+            if (Objects.equals(cursor.getId(), object.getId())) {
+                throw badRequest("对象移动会形成层级环");
+            }
+            cursor =
+                    cursor.getParentId() == null
+                            ? null
+                            : requireObject(project.getId(), cursor.getParentId(), false);
+        }
+        if (moveAffectedObjectIds(project.getId(), object, newParent).stream()
+                .anyMatch(reservationTargetRepository::existsActiveReservationByProjectObjectId)) {
+            throw badRequest("移动对象子树或父级正被执行占用");
+        }
+        validateObjectParent(
+                project, object.getBlueprintTemplateKey(), object.getObjectType(), newParent);
+        var oldParentId = object.getParentId();
+        object.setParentId(newParent == null ? null : newParent.getId());
+        object.setSortOrder(command.orderNo() == null ? object.getSortOrder() : command.orderNo());
+        objectRepository.save(object);
+        var changed = new LinkedHashSet<Long>();
+        changed.add(object.getId());
+        if (oldParentId != null) {
+            changed.add(oldParentId);
+        }
+        if (newParent != null) {
+            changed.add(newParent.getId());
+        }
+        bumpStructuralRevision(project, List.copyOf(changed), List.of(), "移动项目对象");
+        deliveryService.staleReviews(project.getId(), changed, "DeliverableSet 层级已变化");
+        return toApiObjectView(object);
+    }
+
+    @Override
+    @Transactional
     public AigcProjectObjectView updateObjectContract(AigcProjectObjectContractCommand command) {
         var project = requireLockedProject(command.projectId(), command.expectedProjectVersion());
         requireWritable(project);
+        requireGraphRevision(project, command.expectedGraphRevision());
         var object = requireObject(project.getId(), command.objectId(), true);
         var contractRole = requireContractRole(command.contractRole());
         if ("EXCLUDED".equals(contractRole)
@@ -801,11 +1287,14 @@ public class AigcProjectService
             throw badRequest("对象正被执行占用，不能排除");
         }
         object.setContractRole(contractRole);
-        if ("EXCLUDED".equals(contractRole)) {
-            object.setStatus("EXCLUDED");
-        }
+        object.setStatus(
+                AigcProjectObjectMaturityProjector.project(
+                        object,
+                        !versionRepository
+                                .findByObjectIdAndStatus(object.getId(), "candidate")
+                                .isEmpty()));
         objectRepository.save(object);
-        bumpRevision(project, List.of(object.getId()), List.of(), null, "更新对象合同");
+        bumpStructuralRevision(project, List.of(object.getId()), List.of(), "更新对象合同");
         deliveryService.staleReviews(
                 project.getId(),
                 object.getParentId() == null
@@ -820,6 +1309,7 @@ public class AigcProjectService
     public AigcProjectObjectView removeObject(AigcProjectObjectRemoveCommand command) {
         var project = requireLockedProject(command.projectId(), command.expectedProjectVersion());
         requireWritable(project);
+        requireGraphRevision(project, command.expectedGraphRevision());
         var object = requireObject(project.getId(), command.objectId(), true);
         var parentId = object.getParentId();
         if (objectRepository.existsByProjectIdAndParentIdAndDeletedFalse(
@@ -836,16 +1326,20 @@ public class AigcProjectService
                         || reservationTargetRepository.existsByProjectObjectId(object.getId());
         if (hasHistory) {
             object.setContractRole("EXCLUDED");
-            object.setStatus("EXCLUDED");
+            object.setStatus(
+                    AigcProjectObjectMaturityProjector.project(
+                            object,
+                            !versionRepository
+                                    .findByObjectIdAndStatus(object.getId(), "candidate")
+                                    .isEmpty()));
             objectRepository.save(object);
         } else {
             objectRepository.delete(object);
         }
-        bumpRevision(
+        bumpStructuralRevision(
                 project,
                 List.of(object.getId()),
                 List.of(),
-                null,
                 command.reason() == null ? "移除项目对象" : command.reason());
         deliveryService.staleReviews(
                 project.getId(),
@@ -1094,6 +1588,20 @@ public class AigcProjectService
     }
 
     @Override
+    @Transactional
+    public AigcObjectVersionView recordTextCandidate(AigcTextCandidateCommand command) {
+        requireEntity(command.projectId(), CrudOperation.UPDATE, AccessMode.DEFAULT);
+        return deliveryService.recordTextCandidate(command);
+    }
+
+    @Override
+    @Transactional
+    public AigcObjectVersionView recordDocumentCandidate(AigcDocumentCandidateCommand command) {
+        requireEntity(command.projectId(), CrudOperation.UPDATE, AccessMode.DEFAULT);
+        return deliveryService.recordDocumentCandidate(command);
+    }
+
+    @Override
     public AigcObjectVersionView requireObjectVersion(
             Long projectId, Long objectId, Long objectVersionId) {
         requireEntity(projectId);
@@ -1279,7 +1787,10 @@ public class AigcProjectService
                                 new AigcProjectRevisionVO(
                                         revision.getId(),
                                         revision.getProjectId(),
+                                        revision.getConfigSnapshotId(),
                                         revision.getRevisionNo(),
+                                        revision.getProjectVersion(),
+                                        revision.getGraphRevision(),
                                         revision.getChangedObjectIds(),
                                         revision.getChangedRelationIds(),
                                         revision.getActorType(),
@@ -1298,6 +1809,9 @@ public class AigcProjectService
                                 new AigcProjectConfigSnapshotVO(
                                         snapshot.getId(),
                                         snapshot.getRevisionNo(),
+                                        snapshot.getSourceType(),
+                                        snapshot.getSourceRef(),
+                                        snapshot.getSnapshotHash(),
                                         snapshot.getProjectTypeVersion(),
                                         snapshot.getBlueprintVersion(),
                                         snapshot.getDomainExtensionVersion(),
@@ -1339,29 +1853,56 @@ public class AigcProjectService
             Long projectId, AigcProjectDocumentRefDTO request) {
         var project = requireLockedProject(projectId, request.expectedProjectVersion());
         requireWritable(project);
+        requireDocumentReferenceIdentity(request);
         if (request.objectId() != null) {
             requireObject(projectId, request.objectId(), false);
         }
-        documentReferenceApi.requireAccessible(
-                List.of(request.documentVersionId()),
-                project.getOwnerId(),
-                project.getOrgId(),
-                project.getWorkspaceId());
         var role =
                 request.role() == null || request.role().isBlank()
                         ? "project"
                         : request.role().trim();
-        var existing =
-                documentRefRepository.findByProjectIdAndDocumentVersionIdAndRole(
-                        projectId, request.documentVersionId(), role);
+        DocumentVersionApi.DocumentVersionView fixedVersion = null;
+        DocumentVersionApi.DocumentVersionView currentVersion;
+        java.util.Optional<AigcProjectDocumentRef> existing;
+        switch (request.referenceType()) {
+            case PROJECT_DOCUMENT -> {
+                currentVersion =
+                        requireCurrentDocumentVersions(project, List.of(request.documentId()))
+                                .get(request.documentId());
+                existing =
+                        documentRefRepository.findByProjectIdAndReferenceTypeAndDocumentIdAndRole(
+                                projectId, request.referenceType(), request.documentId(), role);
+            }
+            case EXTERNAL_REFERENCE -> {
+                fixedVersion =
+                        documentVersionApi.requireAccessible(
+                                request.documentVersionId(),
+                                project.getOwnerId(),
+                                project.getOrgId(),
+                                project.getWorkspaceId());
+                currentVersion =
+                        requireCurrentDocumentVersions(project, List.of(fixedVersion.documentId()))
+                                .get(fixedVersion.documentId());
+                existing =
+                        documentRefRepository
+                                .findByProjectIdAndReferenceTypeAndDocumentVersionIdAndRole(
+                                        projectId,
+                                        request.referenceType(),
+                                        request.documentVersionId(),
+                                        role);
+            }
+            default -> throw badRequest("不支持的项目文档引用类型");
+        }
         if (existing.isPresent()) {
-            return toDocumentRefVO(existing.get());
+            return toDocumentRefVO(existing.get(), fixedVersion, currentVersion);
         }
 
         var reference = new AigcProjectDocumentRef();
         copyScope(project, reference);
         reference.setProjectId(projectId);
         reference.setObjectId(request.objectId());
+        reference.setReferenceType(request.referenceType());
+        reference.setDocumentId(request.documentId());
         reference.setDocumentVersionId(request.documentVersionId());
         reference.setRole(role);
         reference.setSortOrder(
@@ -1372,7 +1913,50 @@ public class AigcProjectService
                         : request.sortOrder());
         documentRefRepository.save(reference);
         bumpRevision(project, List.of(), List.of(), null, "关联项目文档");
-        return toDocumentRefVO(reference);
+        return toDocumentRefVO(reference, fixedVersion, currentVersion);
+    }
+
+    @Transactional
+    public AigcProjectDocumentRefVO updateExternalDocumentReference(
+            Long projectId, Long refId, AigcProjectDocumentRefUpdateDTO request) {
+        var project = requireLockedProject(projectId, request.expectedProjectVersion());
+        requireWritable(project);
+        var reference =
+                documentRefRepository
+                        .findById(refId)
+                        .filter(candidate -> projectId.equals(candidate.getProjectId()))
+                        .orElseThrow(() -> notFound("项目文档引用不存在"));
+        requireCanonicalDocumentReference(reference);
+        if (reference.getReferenceType() != AigcProjectDocumentReferenceType.EXTERNAL_REFERENCE) {
+            throw badRequest("仅外部文档引用可更新到当前版本");
+        }
+        var fixedVersion =
+                documentVersionApi.requireAccessible(
+                        reference.getDocumentVersionId(),
+                        project.getOwnerId(),
+                        project.getOrgId(),
+                        project.getWorkspaceId());
+        var currentVersion =
+                requireCurrentDocumentVersions(project, List.of(fixedVersion.documentId()))
+                        .get(fixedVersion.documentId());
+        if (fixedVersion.id().equals(currentVersion.id())) {
+            return toDocumentRefVO(reference, fixedVersion, currentVersion);
+        }
+        documentRefRepository
+                .findByProjectIdAndReferenceTypeAndDocumentVersionIdAndRole(
+                        projectId,
+                        AigcProjectDocumentReferenceType.EXTERNAL_REFERENCE,
+                        currentVersion.id(),
+                        reference.getRole())
+                .filter(duplicate -> !duplicate.getId().equals(reference.getId()))
+                .ifPresent(
+                        duplicate -> {
+                            throw badRequest("项目已引用该文档的当前版本");
+                        });
+        reference.setDocumentVersionId(currentVersion.id());
+        documentRefRepository.save(reference);
+        bumpRevision(project, List.of(), List.of(), null, "更新外部文档引用版本");
+        return toDocumentRefVO(reference, currentVersion, currentVersion);
     }
 
     @Transactional
@@ -1389,10 +1973,113 @@ public class AigcProjectService
     }
 
     public List<AigcProjectDocumentRefVO> documentRefs(Long projectId) {
-        requireEntity(projectId);
-        return documentRefRepository.findByProjectIdOrderBySortOrderAscIdAsc(projectId).stream()
-                .map(this::toDocumentRefVO)
+        var project = requireEntity(projectId);
+        var references = documentRefRepository.findByProjectIdOrderBySortOrderAscIdAsc(projectId);
+        if (references.isEmpty()) {
+            return List.of();
+        }
+        references.forEach(this::requireCanonicalDocumentReference);
+        var externalVersionIds =
+                references.stream()
+                        .filter(
+                                reference ->
+                                        reference.getReferenceType()
+                                                == AigcProjectDocumentReferenceType
+                                                        .EXTERNAL_REFERENCE)
+                        .map(AigcProjectDocumentRef::getDocumentVersionId)
+                        .toList();
+        var fixedVersions =
+                documentVersionApi.requireAccessible(
+                        externalVersionIds,
+                        project.getOwnerId(),
+                        project.getOrgId(),
+                        project.getWorkspaceId());
+        var fixedVersionsById =
+                fixedVersions.stream()
+                        .collect(
+                                java.util.stream.Collectors.toMap(
+                                        DocumentVersionApi.DocumentVersionView::id,
+                                        version -> version));
+        var documentIds = new LinkedHashSet<Long>();
+        references.stream()
+                .filter(
+                        reference ->
+                                reference.getReferenceType()
+                                        == AigcProjectDocumentReferenceType.PROJECT_DOCUMENT)
+                .map(AigcProjectDocumentRef::getDocumentId)
+                .forEach(documentIds::add);
+        fixedVersions.stream()
+                .map(DocumentVersionApi.DocumentVersionView::documentId)
+                .forEach(documentIds::add);
+        var currentVersionsByDocumentId = requireCurrentDocumentVersions(project, documentIds);
+        return references.stream()
+                .map(
+                        reference -> {
+                            var fixedVersion =
+                                    reference.getDocumentVersionId() == null
+                                            ? null
+                                            : fixedVersionsById.get(
+                                                    reference.getDocumentVersionId());
+                            var documentId =
+                                    reference.getDocumentId() != null
+                                            ? reference.getDocumentId()
+                                            : fixedVersion.documentId();
+                            return toDocumentRefVO(
+                                    reference,
+                                    fixedVersion,
+                                    currentVersionsByDocumentId.get(documentId));
+                        })
                 .toList();
+    }
+
+    private void requireDocumentReferenceIdentity(AigcProjectDocumentRefDTO request) {
+        if (request.referenceType() == null) {
+            throw badRequest("项目文档引用类型不能为空");
+        }
+        var valid =
+                switch (request.referenceType()) {
+                    case PROJECT_DOCUMENT ->
+                            request.documentId() != null && request.documentVersionId() == null;
+                    case EXTERNAL_REFERENCE ->
+                            request.documentId() == null && request.documentVersionId() != null;
+                };
+        if (!valid) {
+            throw badRequest("项目文档引用类型与身份字段不匹配");
+        }
+    }
+
+    private void requireCanonicalDocumentReference(AigcProjectDocumentRef reference) {
+        if (reference.getReferenceType() == null) {
+            throw badRequest("项目文档引用类型不能为空");
+        }
+        var valid =
+                switch (reference.getReferenceType()) {
+                    case PROJECT_DOCUMENT ->
+                            reference.getDocumentId() != null
+                                    && reference.getDocumentVersionId() == null;
+                    case EXTERNAL_REFERENCE ->
+                            reference.getDocumentId() == null
+                                    && reference.getDocumentVersionId() != null;
+                };
+        if (!valid) {
+            throw badRequest("项目文档引用身份无效");
+        }
+    }
+
+    private Map<Long, DocumentVersionApi.DocumentVersionView> requireCurrentDocumentVersions(
+            AigcProject project, Collection<Long> documentIds) {
+        var ids = new LinkedHashSet<>(documentIds);
+        ids.remove(null);
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        documentReferenceApi.requireAccessible(
+                ids, project.getOwnerId(), project.getOrgId(), project.getWorkspaceId());
+        var currentVersions = documentVersionApi.findCurrent(ids);
+        if (currentVersions.size() != ids.size()) {
+            throw notFound("项目引用的文档当前版本不存在");
+        }
+        return currentVersions;
     }
 
     public List<AigcProjectResourceRefVO> resourceRefs(Long projectId) {
@@ -1478,6 +2165,109 @@ public class AigcProjectService
                 .orElseThrow(() -> notFound("对象版本不存在"));
     }
 
+    private void requireGraphRevision(AigcProject project, Long expectedGraphRevision) {
+        if (expectedGraphRevision == null
+                || !expectedGraphRevision.equals(project.getGraphRevision().longValue())) {
+            throw new BusinessException(409, "项目图谱已被其他操作更新，请刷新后重试");
+        }
+    }
+
+    private String requireSemanticValue(String value, String field) {
+        if (value == null || value.isBlank()) {
+            throw badRequest(field + " 不能为空");
+        }
+        return value.trim().toUpperCase();
+    }
+
+    private String requirePlannedPhase(String value) {
+        var phase = requireSemanticValue(value, "plannedPhase");
+        if (!Set.of("START", "DESIGN", "BUILD", "DELIVER", "RUN").contains(phase)) {
+            throw badRequest("不支持的 plannedPhase: " + value);
+        }
+        return phase;
+    }
+
+    private String requireOutputContract(String value) {
+        var contract = requireSemanticValue(value, "outputContract");
+        if (!Set.of(
+                        "INLINE_OBJECT_VERSION",
+                        "DOCUMENT_VERSION",
+                        "MEDIA_VERSION",
+                        "COMPOSITE_MANIFEST",
+                        "REFERENCE_ONLY")
+                .contains(contract)) {
+            throw badRequest("不支持的 outputContract: " + value);
+        }
+        return contract;
+    }
+
+    private Set<Long> moveAffectedObjectIds(
+            Long projectId, AigcProjectObject object, AigcProjectObject newParent) {
+        var objects = objectRepository.findByProjectIdOrderBySortOrderAscIdAsc(projectId);
+        var subtree = new LinkedHashSet<Long>();
+        subtree.add(object.getId());
+        var expanded = true;
+        while (expanded) {
+            expanded = false;
+            for (var candidate : objects) {
+                if (candidate.getParentId() != null
+                        && subtree.contains(candidate.getParentId())
+                        && subtree.add(candidate.getId())) {
+                    expanded = true;
+                }
+            }
+        }
+        if (object.getParentId() != null) {
+            subtree.add(object.getParentId());
+        }
+        if (newParent != null) {
+            subtree.add(newParent.getId());
+        }
+        return Set.copyOf(subtree);
+    }
+
+    private void validateObjectParent(
+            AigcProject project,
+            String blueprintTemplateKey,
+            String objectType,
+            AigcProjectObject parent) {
+        if (blueprintTemplateKey != null) {
+            var template = requireSlotTemplate(project, blueprintTemplateKey);
+            var expectedParent = template.get("parentTemplateKey");
+            var actualParent = parent == null ? null : parent.getBlueprintTemplateKey();
+            if (!Objects.equals(
+                    expectedParent == null ? null : String.valueOf(expectedParent), actualParent)) {
+                throw badRequest("对象父级与 Blueprint 槽位合同不匹配");
+            }
+            return;
+        }
+        if (parent == null) {
+            throw badRequest("自定义对象必须指定所属 DeliverableSet");
+        }
+        var snapshot =
+                snapshotRepository
+                        .findFirstByProjectIdOrderByRevisionNoDesc(project.getId())
+                        .orElseThrow(() -> badRequest("项目配置快照不存在"));
+        var sets = snapshot.getSnapshot().get("deliverableSets");
+        var allowed =
+                sets instanceof List<?> values
+                        && values.stream()
+                                .filter(Map.class::isInstance)
+                                .map(Map.class::cast)
+                                .filter(
+                                        set ->
+                                                Objects.equals(
+                                                        parent.getBlueprintTemplateKey(),
+                                                        set.get("setTemplateKey")))
+                                .map(set -> set.get("allowedCustomObjectTypes"))
+                                .filter(List.class::isInstance)
+                                .map(List.class::cast)
+                                .anyMatch(types -> types.contains(objectType));
+        if (!allowed) {
+            throw badRequest("对象类型不在父级 DeliverableSet 白名单内");
+        }
+    }
+
     private void requireExpectedVersion(AigcProject project, Integer expectedVersion) {
         if (expectedVersion == null || !expectedVersion.equals(project.getVersion())) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "项目已被其他操作更新，请刷新后重试");
@@ -1522,16 +2312,38 @@ public class AigcProjectService
         }
     }
 
+    private AigcProjectRevision bumpStructuralRevision(
+            AigcProject project,
+            List<Long> changedObjectIds,
+            List<Long> changedRelationIds,
+            String summary) {
+        return bumpRevision(project, changedObjectIds, changedRelationIds, null, summary, true);
+    }
+
     private AigcProjectRevision bumpRevision(
             AigcProject project,
             List<Long> changedObjectIds,
             List<Long> changedRelationIds,
             Long executionRunId,
             String summary) {
+        return bumpRevision(
+                project, changedObjectIds, changedRelationIds, executionRunId, summary, false);
+    }
+
+    private AigcProjectRevision bumpRevision(
+            AigcProject project,
+            List<Long> changedObjectIds,
+            List<Long> changedRelationIds,
+            Long executionRunId,
+            String summary,
+            boolean structuralChange) {
         project.setGraphRevision(project.getGraphRevision() + 1);
         project.setVersion(project.getVersion() + 1);
         project.setLastActiveTime(LocalDateTime.now());
         repository.save(project);
+        if (structuralChange) {
+            persistStructuralSnapshot(project);
+        }
         activityEventService.publish(
                 project.getUserId(),
                 "project.changed",
@@ -1548,7 +2360,10 @@ public class AigcProjectService
                         "summary", summary));
         var revision = new AigcProjectRevision();
         revision.setProjectId(project.getId());
+        revision.setConfigSnapshotId(project.getConfigSnapshotId());
         revision.setRevisionNo(project.getGraphRevision());
+        revision.setProjectVersion(project.getVersion());
+        revision.setGraphRevision(project.getGraphRevision());
         revision.setChangedObjectIds(List.copyOf(changedObjectIds));
         revision.setChangedRelationIds(List.copyOf(changedRelationIds));
         revision.setActorType("HUMAN");
@@ -1556,6 +2371,71 @@ public class AigcProjectService
         revision.setSourceExecutionRunId(executionRunId);
         revision.setSummary(summary);
         return revisionRepository.save(revision);
+    }
+
+    private void persistStructuralSnapshot(AigcProject project) {
+        var previous =
+                snapshotRepository
+                        .findById(project.getConfigSnapshotId())
+                        .orElseThrow(() -> notFound("项目配置快照不存在"));
+        var payload = new LinkedHashMap<String, Object>(previous.getSnapshot());
+        payload.put(
+                "materializedObjects",
+                objectRepository.findByProjectIdOrderBySortOrderAscIdAsc(project.getId()).stream()
+                        .map(this::structuralObjectSnapshot)
+                        .toList());
+        payload.put(
+                "materializedRelations",
+                graphRelations(project.getId()).stream()
+                        .map(this::structuralRelationSnapshot)
+                        .toList());
+        payload.put("graphRevision", project.getGraphRevision());
+
+        var snapshot = new AigcProjectConfigSnapshot();
+        copyScope(project, snapshot);
+        snapshot.setProjectId(project.getId());
+        snapshot.setRevisionNo(project.getGraphRevision());
+        snapshot.setSourceType(previous.getSourceType());
+        snapshot.setSourceRef(previous.getSourceRef());
+        snapshot.setSnapshotHash(AigcCanonicalRequest.canonicalSha256(payload));
+        snapshot.setProjectTypeVersion(previous.getProjectTypeVersion());
+        snapshot.setBlueprintVersion(previous.getBlueprintVersion());
+        snapshot.setDomainExtensionVersion(previous.getDomainExtensionVersion());
+        snapshot.setChannelVersions(previous.getChannelVersions());
+        snapshot.setExecutionBindingVersions(previous.getExecutionBindingVersions());
+        snapshot.setCompatibilityResult(previous.getCompatibilityResult());
+        snapshot.setSnapshot(Map.copyOf(payload));
+        snapshotRepository.saveAndFlush(snapshot);
+        project.setConfigSnapshotId(snapshot.getId());
+        repository.save(project);
+    }
+
+    private Map<String, Object> structuralObjectSnapshot(AigcProjectObject object) {
+        var value = new LinkedHashMap<String, Object>();
+        value.put("id", object.getId());
+        value.put("stableKey", object.getStableKey());
+        value.put("objectType", object.getObjectType());
+        value.put("blueprintTemplateKey", object.getBlueprintTemplateKey());
+        value.put("instanceNo", object.getInstanceNo());
+        value.put("parentId", object.getParentId());
+        value.put("sortOrder", object.getSortOrder());
+        value.put("contractRole", object.getContractRole());
+        value.put("semanticRole", object.getSemanticRole());
+        value.put("plannedPhase", object.getPlannedPhase());
+        value.put("outputContract", object.getOutputContract());
+        value.put("schemaVersion", object.getSchemaVersion());
+        return java.util.Collections.unmodifiableMap(value);
+    }
+
+    private Map<String, Object> structuralRelationSnapshot(AigcProjectRelationVO relation) {
+        var value = new LinkedHashMap<String, Object>();
+        value.put("id", relation.id());
+        value.put("sourceObjectId", relation.sourceObjectId());
+        value.put("targetObjectId", relation.targetObjectId());
+        value.put("relationType", relation.relationType());
+        value.put("layer", relation.layer());
+        value.put("metadata", relation.metadata());
+        return java.util.Collections.unmodifiableMap(value);
     }
 
     private AigcProjectView toApiView(AigcProject project) {
@@ -1576,6 +2456,10 @@ public class AigcProjectService
                 project.getStatus(),
                 project.getVersion(),
                 project.getConfigSnapshotId(),
+                snapshotRepository
+                        .findById(project.getConfigSnapshotId())
+                        .map(AigcProjectConfigSnapshot::getSnapshotHash)
+                        .orElseThrow(() -> notFound("项目配置快照不存在")),
                 project.getProjectTypeCode(),
                 project.getDomainExtensionCode(),
                 project.getProductionMode(),
@@ -1600,6 +2484,9 @@ public class AigcProjectService
                 object.getObjectType(),
                 object.getTitle(),
                 object.getContractRole(),
+                object.getSemanticRole(),
+                object.getPlannedPhase(),
+                object.getOutputContract(),
                 object.getPayload() == null || object.getPayload().get("defaultActionKey") == null
                         ? null
                         : String.valueOf(object.getPayload().get("defaultActionKey")),
@@ -1608,13 +2495,55 @@ public class AigcProjectService
                 object.getAdoptedVersionId());
     }
 
-    private AigcProjectDocumentRefVO toDocumentRefVO(AigcProjectDocumentRef reference) {
+    private AigcProjectDocumentRefVO toDocumentRefVO(
+            AigcProjectDocumentRef reference,
+            DocumentVersionApi.DocumentVersionView fixedVersion,
+            DocumentVersionApi.DocumentVersionView currentVersion) {
+        requireCanonicalDocumentReference(reference);
+        if (currentVersion == null) {
+            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "项目引用的文档当前版本不存在");
+        }
+        DocumentVersionApi.DocumentVersionView effectiveVersion;
+        Long documentId;
+        Long fixedDocumentVersionId;
+        boolean outdated;
+        switch (reference.getReferenceType()) {
+            case PROJECT_DOCUMENT -> {
+                if (!reference.getDocumentId().equals(currentVersion.documentId())) {
+                    throw badRequest("项目文档引用与当前版本身份不匹配");
+                }
+                documentId = reference.getDocumentId();
+                fixedDocumentVersionId = null;
+                effectiveVersion = currentVersion;
+                outdated = false;
+            }
+            case EXTERNAL_REFERENCE -> {
+                if (fixedVersion == null
+                        || !reference.getDocumentVersionId().equals(fixedVersion.id())
+                        || !fixedVersion.documentId().equals(currentVersion.documentId())) {
+                    throw badRequest("外部文档引用版本身份不匹配");
+                }
+                documentId = fixedVersion.documentId();
+                fixedDocumentVersionId = reference.getDocumentVersionId();
+                effectiveVersion = fixedVersion;
+                outdated = !fixedVersion.id().equals(currentVersion.id());
+            }
+            default -> throw badRequest("不支持的项目文档引用类型");
+        }
         return new AigcProjectDocumentRefVO(
                 reference.getId(),
                 reference.getObjectId(),
-                reference.getDocumentVersionId(),
+                reference.getReferenceType(),
+                documentId,
+                fixedDocumentVersionId,
+                effectiveVersion.id(),
+                currentVersion.id(),
+                effectiveVersion.versionNo(),
+                currentVersion.versionNo(),
+                effectiveVersion.title(),
                 reference.getRole(),
-                reference.getSortOrder());
+                reference.getSortOrder(),
+                outdated);
     }
 
     private AigcProjectMediaRefView toApiMediaRefView(AigcProjectMediaRef reference) {
@@ -1647,6 +2576,9 @@ public class AigcProjectService
                 object.getBlueprintTemplateKey(),
                 object.getInstanceNo(),
                 object.getContractRole(),
+                object.getSemanticRole(),
+                object.getPlannedPhase(),
+                object.getOutputContract(),
                 object.getParentId(),
                 object.getSortOrder(),
                 object.getTitle(),
@@ -1660,16 +2592,61 @@ public class AigcProjectService
                 object.getPayload());
     }
 
-    private AigcProjectRelationVO toRelationVO(AigcProjectRelation relation) {
+    private AigcProjectRelationVO toRelationVO(GraphRelation relation) {
         return new AigcProjectRelationVO(
-                relation.getId(),
-                relation.getProjectId(),
-                relation.getRelationType(),
-                relation.getLayer(),
-                relation.getSourceObjectId(),
-                relation.getTargetObjectId(),
-                relation.getRelationMeta());
+                relation.id(),
+                relation.projectId(),
+                relation.relationType(),
+                relation.layer(),
+                relation.sourceObjectId(),
+                relation.targetObjectId(),
+                relation.metadata());
     }
+
+    private List<GraphRelation> graphRelations(Long projectId) {
+        var persisted =
+                relationRepository.findByProjectIdOrderByIdAsc(projectId).stream()
+                        .filter(relation -> !"contains".equals(relation.getRelationType()))
+                        .map(
+                                relation ->
+                                        new GraphRelation(
+                                                relation.getId(),
+                                                projectId,
+                                                relation.getRelationType(),
+                                                AigcProjectRelationSemantics.canonicalLayer(
+                                                        relation.getRelationType()),
+                                                relation.getSourceObjectId(),
+                                                relation.getTargetObjectId(),
+                                                relation.getRelationMeta() == null
+                                                        ? Map.of()
+                                                        : relation.getRelationMeta()))
+                        .toList();
+        var contains =
+                objectRepository.findByProjectIdOrderBySortOrderAscIdAsc(projectId).stream()
+                        .filter(object -> object.getParentId() != null)
+                        .map(
+                                object ->
+                                        new GraphRelation(
+                                                null,
+                                                projectId,
+                                                "contains",
+                                                AigcProjectRelationSemantics.canonicalLayer(
+                                                        "contains"),
+                                                object.getParentId(),
+                                                object.getId(),
+                                                Map.of()))
+                        .toList();
+        return java.util.stream.Stream.concat(persisted.stream(), contains.stream()).toList();
+    }
+
+    private record GraphRelation(
+            Long id,
+            Long projectId,
+            String relationType,
+            String layer,
+            Long sourceObjectId,
+            Long targetObjectId,
+            Map<String, Object> metadata) {}
 
     private AigcObjectVersionVO toVersionVO(AigcObjectVersion version) {
         var mediaIds =

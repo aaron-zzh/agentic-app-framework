@@ -131,6 +131,14 @@ export interface AigcProjectObject {
   blueprintTemplateKey?: string
   instanceNo?: number
   contractRole?: AigcContractRole
+  semanticRole?: string
+  plannedPhase?: string
+  outputContract?:
+    | "INLINE_OBJECT_VERSION"
+    | "DOCUMENT_VERSION"
+    | "MEDIA_VERSION"
+    | "REFERENCE_ONLY"
+    | "COMPOSITE_MANIFEST"
   parentId?: number
   sortOrder: number
   title?: string
@@ -161,10 +169,20 @@ export interface AigcProjectChannelRef {
   overrideConfig?: Record<string, unknown>
 }
 
+export type AigcProjectDocumentReferenceType = "PROJECT_DOCUMENT" | "EXTERNAL_REFERENCE"
+
 export interface AigcProjectDocumentRef {
   id: number
   objectId?: number
-  documentVersionId: number
+  referenceType: AigcProjectDocumentReferenceType
+  documentId: number
+  fixedDocumentVersionId: number | null
+  effectiveDocumentVersionId: number
+  currentDocumentVersionId: number
+  effectiveVersionNo: number
+  currentVersionNo: number
+  outdated: boolean
+  title: string
   role: string
   sortOrder: number
 }
@@ -184,6 +202,30 @@ export interface AigcProjectGraph {
   graphRevision: number
   objects: AigcProjectObject[]
   relations: AigcProjectRelation[]
+}
+
+export type AigcObjectReadinessState =
+  | "SATISFIED"
+  | "READY"
+  | "BLOCKED_BY_DEPENDENCY"
+  | "BLOCKED_BY_POLICY"
+  | "ACTIVE_RUN"
+  | "PENDING_CANDIDATE"
+  | "AWAITING_CONFIRMATION"
+
+export interface AigcObjectReadiness {
+  projectObjectId: number
+  actionKey: string | null
+  state: AigcObjectReadinessState
+  dependencyObjectIds: number[]
+  inputVersions: Array<{
+    objectId: number
+    objectVersionId: number
+    documentVersionId?: number
+    mediaVersionIds: number[]
+  }>
+  blockedReason?: string
+  allowedActions: string[]
 }
 
 export interface AigcProjectSummary {
@@ -218,6 +260,63 @@ export interface AigcObjectVersion {
   createTime: string
 }
 
+export interface AigcProjectProgress {
+  projectionVersion: number
+  updatedAt: string
+  projectId: number
+  projectVersion: number
+  graphRevision: number
+  objects: Array<{
+    objectId: number
+    maturity: AigcObjectStatus
+    contractRole: AigcContractRole
+    readiness: AigcObjectReadinessState
+  }>
+  readiness: AigcObjectReadiness[]
+  executions: Array<{
+    executionRunId: number
+    projectObjectId: number
+    actionKey: string
+    targetType: string
+    status: string
+    tasks: Array<{
+      taskId: number
+      taskType: string
+      status: string
+      mediaVersionId?: number
+      creditTxId?: number
+      failureReason?: string
+    }>
+    estimatedCredits?: number
+    failureReason?: string
+  }>
+  candidates: Array<{
+    candidateVersionId: number
+    objectId: number
+    status: AigcObjectVersionStatus
+    executionRunId?: number
+    documentVersionId?: number
+    mediaVersionIds: number[]
+  }>
+  delivery: {
+    completionSatisfied: boolean
+    reviewCount: number
+    pendingReviewCount: number
+    activeWorkCount: number
+    publicationCount: number
+    blockers: string[]
+  }
+  credits: {
+    estimated: number
+    reserved: number
+    settled: number
+    refunded: number
+    netActual: number
+    unknown?: number
+    unknownTaskIds: number[]
+  }
+}
+
 export interface AigcObjectVersionView {
   id: number
   objectId: number
@@ -230,6 +329,7 @@ export interface AigcObjectVersionComparisonItem {
   objectVersionId: number
   status: AigcObjectVersionStatus
   content: Record<string, unknown>
+  documentId?: number
   documentVersionId?: number
   mediaVersionIds: number[]
   sourceExecutionRunId?: number
@@ -398,12 +498,29 @@ export interface AigcLifecycleInput {
   idempotencyKey: string
 }
 
-export interface AigcProjectDocumentRefInput {
+interface AigcProjectDocumentRefInputBase {
   projectId: number
   objectId?: number
-  documentVersionId: number
   role?: string
   sortOrder?: number
+  expectedProjectVersion: number
+}
+
+export type AigcProjectDocumentRefInput =
+  | (AigcProjectDocumentRefInputBase & {
+      referenceType: "PROJECT_DOCUMENT"
+      documentId: number
+      documentVersionId?: never
+    })
+  | (AigcProjectDocumentRefInputBase & {
+      referenceType: "EXTERNAL_REFERENCE"
+      documentId?: never
+      documentVersionId: number
+    })
+
+export interface AigcProjectDocumentUpdateToCurrentInput {
+  projectId: number
+  refId: number
   expectedProjectVersion: number
 }
 
@@ -411,6 +528,21 @@ export interface AigcProjectDocumentDetachInput {
   projectId: number
   refId: number
   expectedProjectVersion: number
+}
+
+export interface AigcManualCandidateInput {
+  projectId: number
+  objectId: number
+  expectedProjectVersion: number
+  expectedGraphRevision: number
+  content: string
+  summary?: string
+  idempotencyKey: string
+}
+
+export interface AigcDocumentCandidateInput extends AigcManualCandidateInput {
+  title?: string
+  format?: "MARKDOWN" | "HTML" | "PLAIN_TEXT" | "JSON"
 }
 
 export const aigcProjectApi = {
@@ -425,6 +557,11 @@ export const aigcProjectApi = {
     backendApi.put<AigcProject>(`/aigc/projects/${id}`, data),
   graph: (id: number) => backendApi.get<AigcProjectGraph>(`/aigc/projects/${id}/graph`),
   summary: (id: number) => backendApi.get<AigcProjectSummary>(`/aigc/projects/${id}/summary`),
+  readiness: (id: number, includedOptionalObjectIds: number[] = []) =>
+    backendApi.get<AigcObjectReadiness[]>(`/aigc/projects/${id}/readiness`, {
+      params: { includedOptionalObjectIds }
+    }),
+  progress: (id: number) => backendApi.get<AigcProjectProgress>(`/aigc/projects/${id}/progress`),
   channelRefs: (id: number) =>
     backendApi.get<AigcProjectChannelRef[]>(`/aigc/projects/${id}/channel-refs`),
   documentRefs: (id: number) =>
@@ -433,10 +570,31 @@ export const aigcProjectApi = {
     backendApi.get<AigcProjectMediaRef[]>(`/aigc/projects/${id}/media-refs`),
   attachDocument: ({ projectId, ...data }: AigcProjectDocumentRefInput) =>
     backendApi.post<AigcProjectDocumentRef>(`/aigc/projects/${projectId}/document-refs`, data),
+  updateDocumentToCurrent: ({
+    projectId,
+    refId,
+    expectedProjectVersion
+  }: AigcProjectDocumentUpdateToCurrentInput) =>
+    backendApi.post<AigcProjectDocumentRef>(
+      `/aigc/projects/${projectId}/document-refs/${refId}/_update-to-current`,
+      { expectedProjectVersion }
+    ),
   detachDocument: ({ projectId, refId, expectedProjectVersion }: AigcProjectDocumentDetachInput) =>
     backendApi.delete<void>(`/aigc/projects/${projectId}/document-refs/${refId}`, {
       params: { expectedProjectVersion }
     }),
+  recordTextCandidate: ({ projectId, objectId, ...data }: AigcManualCandidateInput) =>
+    backendApi.post<AigcObjectVersionView>(
+      `/aigc/projects/${projectId}/objects/${objectId}/candidates/text`,
+      data,
+      { showError: false }
+    ),
+  recordDocumentCandidate: ({ projectId, objectId, ...data }: AigcDocumentCandidateInput) =>
+    backendApi.post<AigcObjectVersionView>(
+      `/aigc/projects/${projectId}/objects/${objectId}/candidates/document`,
+      data,
+      { showError: false }
+    ),
   versions: (projectId: number, objectId: number) =>
     backendApi.get<AigcObjectVersion[]>(`/aigc/projects/${projectId}/objects/${objectId}/versions`),
   compareVersions: (
@@ -542,6 +700,9 @@ export const aigcProjectKeys = {
   detail: (id: number) => ["aigc.project", "detail", id] as const,
   graph: (id: number) => ["aigc.project", "graph", id] as const,
   summary: (id: number) => ["aigc.project", "summary", id] as const,
+  readiness: (id: number, includedOptionalObjectIds: number[] = []) =>
+    ["aigc.project", "readiness", id, includedOptionalObjectIds] as const,
+  progress: (id: number) => ["aigc.project", "progress", id] as const,
   channelRefs: (id: number) => ["aigc.project", "channel-refs", id] as const,
   documentRefs: (id: number) => ["aigc.project", "document-refs", id] as const,
   mediaRefs: (id: number) => ["aigc.project", "media-refs", id] as const,
@@ -579,6 +740,23 @@ export function useAigcProjectSummary(id: number | null) {
   return useQuery({
     queryKey: aigcProjectKeys.summary(id ?? 0),
     queryFn: () => aigcProjectApi.summary(id as number),
+    enabled: id !== null
+  })
+}
+export function useAigcProjectReadiness(
+  id: number | null,
+  includedOptionalObjectIds: number[] = []
+) {
+  return useQuery({
+    queryKey: aigcProjectKeys.readiness(id ?? 0, includedOptionalObjectIds),
+    queryFn: () => aigcProjectApi.readiness(id as number, includedOptionalObjectIds),
+    enabled: id !== null
+  })
+}
+export function useAigcProjectProgress(id: number | null) {
+  return useQuery({
+    queryKey: aigcProjectKeys.progress(id ?? 0),
+    queryFn: () => aigcProjectApi.progress(id as number),
     enabled: id !== null
   })
 }
@@ -646,6 +824,10 @@ export function invalidateAigcProject(
     queryClient.invalidateQueries({ queryKey: aigcProjectKeys.detail(projectId) }),
     queryClient.invalidateQueries({ queryKey: aigcProjectKeys.graph(projectId) }),
     queryClient.invalidateQueries({ queryKey: aigcProjectKeys.summary(projectId) }),
+    queryClient.invalidateQueries({
+      queryKey: ["aigc.project", "readiness", projectId]
+    }),
+    queryClient.invalidateQueries({ queryKey: aigcProjectKeys.progress(projectId) }),
     queryClient.invalidateQueries({ queryKey: aigcProjectKeys.reviews(projectId) }),
     queryClient.invalidateQueries({ queryKey: aigcProjectKeys.completionEvidence(projectId) }),
     queryClient.invalidateQueries({ queryKey: ["aigc.project", "versions", projectId] }),
@@ -682,6 +864,30 @@ function useVersionMutation<T extends AigcVersionAdoptInput | AigcVersionRejectI
     }
   })
 }
+
+function useCandidateMutation<T extends AigcManualCandidateInput>(
+  mutationFn: (input: T) => Promise<AigcObjectVersionView>
+) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn,
+    onSettled: (_data, _error, input) => {
+      invalidateAigcProject(queryClient, input.projectId)
+      queryClient.invalidateQueries({
+        queryKey: aigcProjectKeys.versions(input.projectId, input.objectId)
+      })
+    }
+  })
+}
+
+export function useRecordAigcTextCandidate() {
+  return useCandidateMutation(aigcProjectApi.recordTextCandidate)
+}
+
+export function useRecordAigcDocumentCandidate() {
+  return useCandidateMutation(aigcProjectApi.recordDocumentCandidate)
+}
+
 export function useAdoptAigcObjectVersion() {
   return useVersionMutation(aigcProjectApi.adoptVersion)
 }
@@ -729,6 +935,17 @@ export function useAttachAigcProjectDocument() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: aigcProjectApi.attachDocument,
+    onSuccess: async (_ref, input) =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: aigcProjectKeys.documentRefs(input.projectId) }),
+        invalidateAigcProject(queryClient, input.projectId)
+      ])
+  })
+}
+export function useUpdateAigcProjectDocumentToCurrent() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: aigcProjectApi.updateDocumentToCurrent,
     onSuccess: async (_ref, input) =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: aigcProjectKeys.documentRefs(input.projectId) }),

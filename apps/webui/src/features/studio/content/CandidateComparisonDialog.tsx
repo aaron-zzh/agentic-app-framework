@@ -14,9 +14,11 @@ import {
   DialogTitle
 } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import { DocumentDiffViewer } from "@/features/document/DocumentDiffViewer"
 import type { AigcObjectVersionComparisonItem } from "@/lib/api/rest/ai/aigc"
 import { useAigcVersionComparison } from "@/lib/api/rest/ai/aigc"
 import { useMediaVersionDetails } from "@/lib/api/rest/media/media-asset"
+import { useDocumentDiff } from "@/lib/api/rest/system/document"
 
 function CandidatePane({ item }: { item: AigcObjectVersionComparisonItem }) {
   const mediaQueries = useMediaVersionDetails(item.mediaVersionIds)
@@ -105,6 +107,17 @@ export function CandidateComparisonDialog({
   onOpenChange
 }: CandidateComparisonDialogProps) {
   const comparison = useAigcVersionComparison(projectId, objectId, leftVersionId, rightVersionId)
+  const leftDocument = comparison.data?.left
+  const rightDocument = comparison.data?.right
+  const documentId =
+    leftDocument?.documentId !== undefined && leftDocument.documentId === rightDocument?.documentId
+      ? leftDocument.documentId
+      : null
+  const documentDiff = useDocumentDiff(
+    documentId,
+    leftDocument?.documentVersionId ?? null,
+    rightDocument?.documentVersionId ?? null
+  )
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto">
@@ -118,9 +131,23 @@ export function CandidateComparisonDialog({
             <Skeleton className="h-96" />
           </div>
         ) : comparison.data ? (
-          <div className="grid gap-4 md:grid-cols-2">
-            <CandidatePane item={comparison.data.left} />
-            <CandidatePane item={comparison.data.right} />
+          <div className="space-y-4">
+            {documentId !== null ? (
+              <section className="space-y-2">
+                <p className="font-medium text-sm">文档逐行差异</p>
+                <DocumentDiffViewer
+                  diff={documentDiff.data}
+                  loading={documentDiff.isLoading}
+                  error={documentDiff.isError}
+                  emptyMessage="正文无差异"
+                  className="max-h-80 min-h-40"
+                />
+              </section>
+            ) : null}
+            <div className="grid gap-4 md:grid-cols-2">
+              <CandidatePane item={comparison.data.left} />
+              <CandidatePane item={comparison.data.right} />
+            </div>
           </div>
         ) : (
           <p className="rounded-xl border border-dashed p-6 text-center text-muted-foreground">

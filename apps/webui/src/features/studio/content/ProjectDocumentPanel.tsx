@@ -5,9 +5,10 @@
 
 "use client"
 
-import { BookOpen, FilePlus2, FileText, Link2, Loader2, Trash2 } from "lucide-react"
+import { BookOpen, FilePlus2, FileText, Link2, Loader2, RefreshCw, Trash2 } from "lucide-react"
 import { useEffect, useId, useMemo, useState } from "react"
 import { toast } from "sonner"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import {
@@ -40,9 +41,10 @@ import type { AigcProject, AigcProjectDocumentRef } from "@/lib/api/rest/ai/aigc
 import {
   useAigcProjectDocumentRefs,
   useAttachAigcProjectDocument,
-  useDetachAigcProjectDocument
+  useDetachAigcProjectDocument,
+  useUpdateAigcProjectDocumentToCurrent
 } from "@/lib/api/rest/ai/aigc"
-import { useCreateDocument, useDocList } from "@/lib/api/rest/system/document"
+import { useCreateDocument, useDocList, useDocument } from "@/lib/api/rest/system/document"
 import { cn } from "@/lib/utils/index"
 import { DocumentEditor } from "./DocumentEditor"
 
@@ -53,64 +55,78 @@ interface ProjectDocumentPanelProps {
   readOnly: boolean
 }
 
-/** 展示并管理当前项目关联的外部文档。 */
+/** 展示并管理项目自有文档与外部固定版本引用。 */
 export function ProjectDocumentPanel({
   open,
   onOpenChange,
   project,
   readOnly
 }: ProjectDocumentPanelProps) {
-  const { data: references = [], isLoading: refsLoading } = useAigcProjectDocumentRefs(project.id)
+  const {
+    data: references = [],
+    isLoading: refsLoading,
+    refetch: refetchReferences
+  } = useAigcProjectDocumentRefs(project.id)
   const { data: documents = [], isLoading: docsLoading } = useDocList()
   const attachDocument = useAttachAigcProjectDocument()
   const detachDocument = useDetachAigcProjectDocument()
+  const updateDocumentToCurrent = useUpdateAigcProjectDocumentToCurrent()
   const createDocument = useCreateDocument()
   const uid = useId()
-  const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null)
+  const [selectedReferenceId, setSelectedReferenceId] = useState<number | null>(null)
   const [documentToAttach, setDocumentToAttach] = useState("")
   const [referenceToDetach, setReferenceToDetach] = useState<AigcProjectDocumentRef | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [newDocTitle, setNewDocTitle] = useState("")
+  const documentToAttachId = Number(documentToAttach)
+  const { data: documentToAttachDetail, isFetching: documentToAttachLoading } = useDocument(
+    Number.isInteger(documentToAttachId) && documentToAttachId > 0 ? documentToAttachId : null
+  )
 
   const referencedIds = useMemo(
-    () => new Set(references.map((reference) => reference.documentVersionId)),
+    () => new Set(references.map((reference) => reference.documentId)),
     [references]
   )
   const availableDocuments = useMemo(
     () => documents.filter((document) => !referencedIds.has(document.id)),
     [documents, referencedIds]
   )
-  const documentsById = useMemo(
-    () => new Map(documents.map((document) => [document.id, document])),
-    [documents]
+  const selectedReference = useMemo(
+    () => references.find((reference) => reference.id === selectedReferenceId) ?? null,
+    [references, selectedReferenceId]
   )
 
   useEffect(() => {
     if (!open) return
     if (
-      selectedDocumentId !== null &&
-      references.some((reference) => reference.documentVersionId === selectedDocumentId)
+      selectedReferenceId !== null &&
+      references.some((reference) => reference.id === selectedReferenceId)
     ) {
       return
     }
-    setSelectedDocumentId(references.at(0)?.documentVersionId ?? null)
-  }, [open, references, selectedDocumentId])
+    setSelectedReferenceId(references.at(0)?.id ?? null)
+  }, [open, references, selectedReferenceId])
 
   function handleAttach() {
     if (readOnly) return
     const documentId = Number(documentToAttach)
     if (!Number.isFinite(documentId) || documentId <= 0) return
+    if (!documentToAttachDetail?.currentVersionId) {
+      toast.error("所选文档尚无可关联版本")
+      return
+    }
     attachDocument.mutate(
       {
         projectId: project.id,
-        documentVersionId: documentId,
+        referenceType: "EXTERNAL_REFERENCE",
+        documentVersionId: documentToAttachDetail.currentVersionId,
         role: "project",
         expectedProjectVersion: project.version
       },
       {
-        onSuccess: () => {
+        onSuccess: (reference) => {
           setDocumentToAttach("")
-          setSelectedDocumentId(documentId)
+          setSelectedReferenceId(reference.id)
           toast.success("文档已关联到项目")
         },
         onError: (error) =>
@@ -121,7 +137,7 @@ export function ProjectDocumentPanel({
 
   function handleDetach() {
     if (readOnly || !referenceToDetach) return
-    const detachedDocumentId = referenceToDetach.documentVersionId
+    const detachedReferenceId = referenceToDetach.id
     detachDocument.mutate(
       {
         projectId: project.id,
@@ -130,12 +146,30 @@ export function ProjectDocumentPanel({
       },
       {
         onSuccess: () => {
-          if (selectedDocumentId === detachedDocumentId) setSelectedDocumentId(null)
+          if (selectedReferenceId === detachedReferenceId) setSelectedReferenceId(null)
           setReferenceToDetach(null)
           toast.success("已解除项目文档关联")
         },
         onError: (error) =>
           toast.error(`解除失败：${error instanceof Error ? error.message : "未知错误"}`)
+      }
+    )
+  }
+
+  function handleUpdateToCurrent(reference: AigcProjectDocumentRef) {
+    if (readOnly || reference.referenceType !== "EXTERNAL_REFERENCE" || !reference.outdated) {
+      return
+    }
+    updateDocumentToCurrent.mutate(
+      {
+        projectId: project.id,
+        refId: reference.id,
+        expectedProjectVersion: project.version
+      },
+      {
+        onSuccess: () => toast.success("外部引用已更新到源文档当前版本"),
+        onError: (error) =>
+          toast.error(`更新失败：${error instanceof Error ? error.message : "未知错误"}`)
       }
     )
   }
@@ -146,26 +180,27 @@ export function ProjectDocumentPanel({
     const title = newDocTitle.trim()
     if (!title) return
     createDocument.mutate(
-      { title, docType: "reference" },
+      { title, docType: "project" },
       {
         onSuccess: (created) => {
           setCreateOpen(false)
           setNewDocTitle("")
           const createdId = created.id
           if (createdId === null) {
-            toast.success("文档创建成功")
+            toast.error("文档已创建，但未返回文档身份")
             return
           }
           attachDocument.mutate(
             {
               projectId: project.id,
-              documentVersionId: createdId,
+              referenceType: "PROJECT_DOCUMENT",
+              documentId: createdId,
               role: "project",
               expectedProjectVersion: project.version
             },
             {
-              onSuccess: () => {
-                setSelectedDocumentId(createdId)
+              onSuccess: (reference) => {
+                setSelectedReferenceId(reference.id)
                 toast.success("文档已创建并关联到项目")
               },
               onError: (error) =>
@@ -220,7 +255,12 @@ export function ProjectDocumentPanel({
                   <Button
                     size="icon"
                     aria-label="关联所选文档"
-                    disabled={!documentToAttach || attachDocument.isPending}
+                    disabled={
+                      !documentToAttach ||
+                      documentToAttachLoading ||
+                      !documentToAttachDetail?.currentVersionId ||
+                      attachDocument.isPending
+                    }
                     onClick={handleAttach}
                   >
                     {attachDocument.isPending ? <Loader2 className="animate-spin" /> : <Link2 />}
@@ -258,8 +298,7 @@ export function ProjectDocumentPanel({
                 ) : (
                   <div className="flex flex-col gap-1">
                     {references.map((reference) => {
-                      const document = documentsById.get(reference.documentVersionId)
-                      const selected = selectedDocumentId === reference.documentVersionId
+                      const selected = selectedReferenceId === reference.id
                       return (
                         <div
                           key={reference.id}
@@ -271,11 +310,34 @@ export function ProjectDocumentPanel({
                           <button
                             type="button"
                             className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-left"
-                            onClick={() => setSelectedDocumentId(reference.documentVersionId)}
+                            onClick={() => setSelectedReferenceId(reference.id)}
                           >
                             <FileText className="shrink-0 text-muted-foreground" />
-                            <span className="truncate text-sm">
-                              {document?.title ?? `文档 #${reference.documentVersionId}`}
+                            <span className="min-w-0 flex-1 truncate text-sm">
+                              {reference.title}
+                            </span>
+                            <span className="flex shrink-0 items-center gap-1">
+                              <Badge
+                                variant={
+                                  reference.referenceType === "PROJECT_DOCUMENT"
+                                    ? "default"
+                                    : "secondary"
+                                }
+                                className="text-[10px]"
+                              >
+                                {reference.referenceType === "PROJECT_DOCUMENT"
+                                  ? "项目文档"
+                                  : "外部引用"}
+                              </Badge>
+                              <span className="text-muted-foreground text-xs">
+                                v{reference.effectiveVersionNo}
+                              </span>
+                              {reference.referenceType === "EXTERNAL_REFERENCE" &&
+                              reference.outdated ? (
+                                <Badge variant="outline" className="text-[10px]">
+                                  有更新
+                                </Badge>
+                              ) : null}
                             </span>
                           </button>
                           {!readOnly ? (
@@ -283,7 +345,7 @@ export function ProjectDocumentPanel({
                               variant="ghost"
                               size="icon-sm"
                               className="mr-1 opacity-0 group-hover:opacity-100"
-                              aria-label={`解除文档「${document?.title ?? reference.documentVersionId}」的关联`}
+                              aria-label={`解除文档「${reference.title}」的关联`}
                               onClick={() => setReferenceToDetach(reference)}
                             >
                               <Trash2 />
@@ -297,14 +359,63 @@ export function ProjectDocumentPanel({
               </div>
             </aside>
 
-            <section className="min-h-0 overflow-hidden">
-              {selectedDocumentId ? (
-                <DocumentEditor
-                  key={selectedDocumentId}
-                  docId={selectedDocumentId}
-                  initialView="preview"
-                  allowEditing
-                />
+            <section className="flex min-h-0 flex-col overflow-hidden">
+              {selectedReference ? (
+                <>
+                  {selectedReference.referenceType === "EXTERNAL_REFERENCE" ? (
+                    <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2 text-sm">
+                      <Badge variant="secondary">外部固定版本</Badge>
+                      <span className="text-muted-foreground">
+                        当前使用 v{selectedReference.effectiveVersionNo}
+                        {selectedReference.outdated
+                          ? `，源文档已更新至 v${selectedReference.currentVersionNo}`
+                          : "，与源文档当前版本一致"}
+                      </span>
+                      {!readOnly && selectedReference.outdated ? (
+                        <Button
+                          className="ml-auto"
+                          variant="outline"
+                          size="sm"
+                          disabled={updateDocumentToCurrent.isPending}
+                          onClick={() => handleUpdateToCurrent(selectedReference)}
+                        >
+                          {updateDocumentToCurrent.isPending ? (
+                            <Loader2 data-icon="inline-start" className="animate-spin" />
+                          ) : (
+                            <RefreshCw data-icon="inline-start" />
+                          )}
+                          更新到当前版本
+                        </Button>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 border-b px-4 py-2 text-sm">
+                      <Badge>项目文档</Badge>
+                      <span className="text-muted-foreground">
+                        自动使用当前版本 v{selectedReference.effectiveVersionNo}
+                      </span>
+                    </div>
+                  )}
+                  <div className="min-h-0 flex-1 overflow-hidden">
+                    <DocumentEditor
+                      key={`${selectedReference.id}:${selectedReference.effectiveDocumentVersionId}`}
+                      docId={selectedReference.documentId}
+                      initialView="preview"
+                      allowEditing={!readOnly}
+                      onSaved={() => void refetchReferences()}
+                      pinnedVersionId={
+                        selectedReference.referenceType === "EXTERNAL_REFERENCE"
+                          ? selectedReference.effectiveDocumentVersionId
+                          : undefined
+                      }
+                      sourceHref={
+                        selectedReference.referenceType === "EXTERNAL_REFERENCE"
+                          ? `/docs/${selectedReference.documentId}/edit`
+                          : undefined
+                      }
+                    />
+                  </div>
+                </>
               ) : (
                 <Empty className="h-full border-0">
                   <EmptyHeader>
@@ -312,7 +423,7 @@ export function ProjectDocumentPanel({
                       <BookOpen />
                     </EmptyMedia>
                     <EmptyTitle>选择项目文档</EmptyTitle>
-                    <EmptyDescription>选择左侧文档后可预览或修改正文。</EmptyDescription>
+                    <EmptyDescription>选择左侧文档后可查看对应的有效版本。</EmptyDescription>
                   </EmptyHeader>
                 </Empty>
               )}

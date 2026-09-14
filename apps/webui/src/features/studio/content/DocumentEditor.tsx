@@ -5,7 +5,8 @@
 
 "use client"
 
-import { Eye, Loader2, Pencil } from "lucide-react"
+import { ExternalLink, Eye, Loader2, Pencil } from "lucide-react"
+import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -17,6 +18,7 @@ import type { RichTextEditorHandle } from "@/features/rich-text-editor"
 import { RichTextEditor } from "@/features/rich-text-editor"
 import {
   useDocument,
+  useDocumentVersion,
   usePublishDocument,
   useUnpublishDocument,
   useUpdateDocument
@@ -33,6 +35,9 @@ interface DocumentEditorProps {
   onCancel?: () => void
   initialView?: "preview" | "edit"
   allowEditing?: boolean
+  onSaved?: () => void
+  pinnedVersionId?: number
+  sourceHref?: string
 }
 
 /** 预览或编辑单篇当前用户文档。 */
@@ -43,15 +48,30 @@ export function DocumentEditor({
   onCreated,
   onCancel,
   initialView = "edit",
-  allowEditing = true
+  allowEditing = true,
+  onSaved,
+  pinnedVersionId,
+  sourceHref
 }: DocumentEditorProps) {
   const isNew = !docId
-  const { data: doc, isLoading } = useDocument(isNew ? null : (docId ?? null))
+  const isPinned = pinnedVersionId !== undefined
+  const { data: doc, isLoading: docLoading } = useDocument(
+    isNew || isPinned ? null : (docId ?? null)
+  )
+  const { data: pinnedVersion, isLoading: pinnedVersionLoading } = useDocumentVersion(
+    isPinned ? (docId ?? null) : null,
+    isPinned ? (pinnedVersionId ?? null) : null
+  )
+  const displayedDocument = isPinned ? pinnedVersion : doc
+  const isLoading = isPinned ? pinnedVersionLoading : docLoading
+  const canEdit = allowEditing && !isPinned
   const { mutate: updateDoc, isPending: saving } = useUpdateDocument()
   const { mutate: publish } = usePublishDocument()
   const { mutate: unpublish } = useUnpublishDocument()
 
-  const [view, setView] = useState<"preview" | "edit">(isNew ? "edit" : initialView)
+  const [view, setView] = useState<"preview" | "edit">(
+    isNew ? "edit" : isPinned ? "preview" : initialView
+  )
   const [mode, setMode] = useState<"wysiwyg" | "markdown">("wysiwyg")
   const [editorKey, setEditorKey] = useState(0)
   const [title, setTitle] = useState("")
@@ -65,12 +85,12 @@ export function DocumentEditor({
   }, [isNew])
 
   useEffect(() => {
-    if (doc) {
-      setTitle(doc.title ?? "")
-      setContent(doc.content ?? "")
+    if (displayedDocument) {
+      setTitle(displayedDocument.title ?? "")
+      setContent(displayedDocument.content ?? "")
       setDirty(false)
     }
-  }, [doc])
+  }, [displayedDocument])
 
   function currentMarkdown() {
     return mode === "wysiwyg" ? (editorRef.current?.getContent("markdown") ?? content) : content
@@ -102,11 +122,18 @@ export function DocumentEditor({
       return
     }
     updateDoc(
-      { id: docId ?? 0, title, content: saveContent },
+      {
+        id: docId ?? 0,
+        title,
+        content: saveContent,
+        expectedCurrentVersionId: doc?.currentVersionId,
+        changeSummary: "在项目文档编辑器中更新正文"
+      },
       {
         onSuccess: () => {
           setContent(saveContent)
           setDirty(false)
+          onSaved?.()
           toast.success("文档已保存")
         },
         onError: (error) =>
@@ -123,25 +150,46 @@ export function DocumentEditor({
     )
   }
 
-  if (!isNew && !doc) {
+  if (!isNew && !displayedDocument) {
     return (
       <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
-        文档不存在或无权访问
+        {isPinned ? "固定版本不存在或无权访问" : "文档不存在或无权访问"}
       </div>
     )
   }
 
-  const isPublished = doc?.publish === "published"
+  const hasPublishedVersion = !isPinned && doc?.publishedVersionId != null
+  const isCurrentVersionPublished =
+    hasPublishedVersion && doc?.publishedVersionId === doc?.currentVersionId
 
   if (view === "preview") {
     return (
       <div className="flex h-full min-h-0 flex-col">
         <div className="flex items-center gap-2 border-b px-4 py-2">
           <h3 className="min-w-0 flex-1 truncate font-medium text-sm">{title}</h3>
-          <Badge variant={isPublished ? "default" : "outline"}>
-            {isPublished ? "已发布" : "草稿"}
-          </Badge>
-          {allowEditing ? (
+          {isPinned ? (
+            <Badge variant="secondary">固定版本 v{pinnedVersion?.versionNo}</Badge>
+          ) : (
+            <Badge variant={isCurrentVersionPublished ? "default" : "outline"}>
+              {isCurrentVersionPublished
+                ? "当前版本已发布"
+                : hasPublishedVersion
+                  ? "当前版本未发布"
+                  : "草稿"}
+            </Badge>
+          )}
+          {isPinned && sourceHref ? (
+            <Button
+              nativeButton={false}
+              variant="outline"
+              size="sm"
+              render={<Link href={sourceHref} target="_blank" rel="noreferrer" />}
+            >
+              <ExternalLink data-icon="inline-start" />
+              打开源文档
+            </Button>
+          ) : null}
+          {canEdit ? (
             <Button variant="outline" size="sm" onClick={() => setView("edit")}>
               <Pencil data-icon="inline-start" />
               编辑
@@ -171,13 +219,20 @@ export function DocumentEditor({
           }}
         />
         {!isNew && doc ? (
-          isPublished ? (
+          isCurrentVersionPublished ? (
             <Button variant="outline" size="sm" onClick={() => unpublish(doc.id)}>
               取消发布
             </Button>
           ) : (
-            <Button variant="outline" size="sm" onClick={() => publish(doc.id)}>
-              发布
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={dirty || !doc.currentVersionId}
+              onClick={() =>
+                publish({ id: doc.id, expectedCurrentVersionId: doc.currentVersionId })
+              }
+            >
+              发布当前版本
             </Button>
           )
         ) : null}
