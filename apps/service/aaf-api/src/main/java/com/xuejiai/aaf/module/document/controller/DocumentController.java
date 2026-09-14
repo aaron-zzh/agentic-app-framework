@@ -60,16 +60,54 @@ public class DocumentController {
         return Result.success(DocumentVO.from(documentService.getById(id)));
     }
 
+    @Operation(summary = "获取文档版本历史")
+    @GetMapping("/{id}/versions")
+    public Result<List<com.xuejiai.aaf.module.document.api.DocumentVersionApi.DocumentVersionView>>
+            versions(@PathVariable Long id) {
+        return Result.success(documentService.versions(id));
+    }
+
+    @Operation(summary = "获取单个不可变文档版本")
+    @GetMapping("/{id}/versions/{versionId}")
+    public Result<com.xuejiai.aaf.module.document.api.DocumentVersionApi.DocumentVersionView>
+            version(@PathVariable Long id, @PathVariable Long versionId) {
+        return Result.success(documentService.version(id, versionId));
+    }
+
+    @Operation(summary = "比较两个文档版本的逐行差异")
+    @GetMapping("/{id}/diff")
+    public Result<com.xuejiai.aaf.module.document.api.DocumentVersionApi.DocumentDiffView> diff(
+            @PathVariable Long id,
+            @RequestParam Long baseVersionId,
+            @RequestParam Long targetVersionId) {
+        return Result.success(documentService.diff(id, baseVersionId, targetVersionId));
+    }
+
+    @Operation(summary = "将历史内容恢复为新的当前版本")
+    @PostMapping("/{id}/versions/_restore")
+    public Result<DocumentVO> restore(
+            @PathVariable Long id, @Valid @RequestBody RestoreDocumentVersionRequest request) {
+        return Result.success(
+                DocumentVO.from(
+                        documentService.restore(
+                                id,
+                                request.sourceVersionId(),
+                                request.expectedCurrentVersionId(),
+                                request.changeSummary())));
+    }
+
     @Operation(summary = "更新文档")
     @PutMapping("/{id}")
     public Result<DocumentVO> update(@PathVariable Long id, @RequestBody DocUpdateDTO dto) {
         return Result.success(DocumentVO.from(documentService.update(id, dto)));
     }
 
-    @Operation(summary = "发布文档")
+    @Operation(summary = "发布调用方确认的当前文档版本")
     @PostMapping("/{id}/publish")
-    public Result<DocumentVO> publish(@PathVariable Long id) {
-        return Result.success(DocumentVO.from(documentService.publish(id)));
+    public Result<DocumentVO> publish(
+            @PathVariable Long id, @Valid @RequestBody DocPublishDTO request) {
+        return Result.success(
+                DocumentVO.from(documentService.publish(id, request.expectedCurrentVersionId())));
     }
 
     @Operation(summary = "取消发布（转为草稿）")
@@ -111,4 +149,11 @@ public class DocumentController {
             throws IOException {
         return Result.success(DocumentVO.from(documentService.importPdf(file)));
     }
+
+    public record RestoreDocumentVersionRequest(
+            @jakarta.validation.constraints.NotNull @jakarta.validation.constraints.Positive
+                    Long sourceVersionId,
+            @jakarta.validation.constraints.NotNull @jakarta.validation.constraints.Positive
+                    Long expectedCurrentVersionId,
+            String changeSummary) {}
 }

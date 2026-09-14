@@ -28,6 +28,11 @@ import com.xuejiai.aaf.module.document.api.DocumentReferenceApi;
 import com.xuejiai.aaf.module.document.api.DocumentSourceApi;
 import com.xuejiai.aaf.module.document.api.DocumentSourceApi.SourceDocument;
 import com.xuejiai.aaf.module.document.api.DocumentSourceApi.SourceDocumentCommand;
+import com.xuejiai.aaf.module.document.api.DocumentVersionApi.AppendDocumentVersionCommand;
+import com.xuejiai.aaf.module.document.api.DocumentVersionApi.CreateDocumentVersionCommand;
+import com.xuejiai.aaf.module.document.api.DocumentVersionApi.DocumentDiffView;
+import com.xuejiai.aaf.module.document.api.DocumentVersionApi.DocumentVersionView;
+import com.xuejiai.aaf.module.document.api.DocumentVersionApi.RestoreDocumentVersionCommand;
 import com.xuejiai.aaf.module.document.domain.DocLink;
 import com.xuejiai.aaf.module.document.domain.Document;
 import com.xuejiai.aaf.module.document.repository.DocLinkRepository;
@@ -43,6 +48,7 @@ public class DocumentService implements DocumentSourceApi, DocumentReferenceApi,
     private final DocumentRepository documentRepository;
     private final DocLinkRepository docLinkRepository;
     private final DocImportService docImportService;
+    private final DocumentVersionService documentVersionService;
     private final OperatorContext operatorContext;
 
     /** 按 owner、组织、工作区与文档隔离的 SSE 订阅者。 */
@@ -53,10 +59,12 @@ public class DocumentService implements DocumentSourceApi, DocumentReferenceApi,
             DocumentRepository documentRepository,
             DocLinkRepository docLinkRepository,
             DocImportService docImportService,
+            DocumentVersionService documentVersionService,
             OperatorContext operatorContext) {
         this.documentRepository = documentRepository;
         this.docLinkRepository = docLinkRepository;
         this.docImportService = docImportService;
+        this.documentVersionService = documentVersionService;
         this.operatorContext = operatorContext;
     }
 
@@ -68,23 +76,53 @@ public class DocumentService implements DocumentSourceApi, DocumentReferenceApi,
         if (command == null || !Objects.equals(command.ownerId(), scope.ownerId())) {
             throw new BusinessException(GlobalErrorCode.FORBIDDEN, "文档建档范围与当前账号不一致");
         }
-        var doc = new Document();
-        doc.setTitle(command.title());
-        doc.setFilePath(command.sourceKey());
-        doc.setDocType(command.documentType());
-        doc.setContent(command.content());
-        doc.setStatus("active");
-        doc.setPublish("draft");
-        doc.setSourceFileId(command.sourceFileId());
-        doc.setOwnerId(scope.ownerId());
-        doc.setOrgId(scope.orgId());
-        doc.setWorkspaceId(scope.workspaceId());
-        var saved = documentRepository.save(doc);
+        if (command.content() == null) {
+            var document = new Document();
+            document.setTitle(command.title());
+            document.setFilePath(command.sourceKey());
+            document.setSourceFileId(command.sourceFileId());
+            document.setDocType(command.documentType());
+            document.setStatus("active");
+            document.setPublish("draft");
+            document.setOwnerId(scope.ownerId());
+            document.setOrgId(scope.orgId());
+            document.setWorkspaceId(scope.workspaceId());
+            documentRepository.saveAndFlush(document);
+            return new SourceDocument(
+                    document.getId(),
+                    null,
+                    null,
+                    document.getSourceFileId(),
+                    document.getFilePath(),
+                    document.getOwnerId());
+        }
+        var version =
+                documentVersionService.create(
+                        new CreateDocumentVersionCommand(
+                                command.title(),
+                                command.content(),
+                                "MARKDOWN",
+                                command.documentType(),
+                                "IMPORT",
+                                command.sourceKey(),
+                                "登记知识来源",
+                                scope.ownerId(),
+                                scope.orgId(),
+                                scope.workspaceId()));
+        var document = documentRepository.findById(version.documentId()).orElseThrow();
+        document.setFilePath(command.sourceKey());
+        document.setSourceFileId(command.sourceFileId());
+        documentRepository.save(document);
         return new SourceDocument(
-                saved.getId(), saved.getSourceFileId(), saved.getFilePath(), saved.getOwnerId());
+                document.getId(),
+                version.id(),
+                version.checksum(),
+                document.getSourceFileId(),
+                document.getFilePath(),
+                document.getOwnerId());
     }
 
-    /** 使用工具网关传入的可信范围保存数据库草稿，不读取请求线程上下文且永不发布。 */
+    /** 使用工具网关传入的可信范围保存数据库草稿；既有目标按 CAS 追加版本且永不发布。 */
     @Override
     @Transactional
     public DraftDocument upsertDraft(DraftUpsertCommand command) {
@@ -98,20 +136,45 @@ public class DocumentService implements DocumentSourceApi, DocumentReferenceApi,
                 || command.content() == null
                 || command.content().isBlank()
                 || command.documentType() == null
-                || command.documentType().isBlank()) {
+                || command.documentType().isBlank()
+                || (command.documentId() == null) != (command.expectedCurrentVersionId() == null)
+                || (command.documentId() != null && command.documentId() <= 0)
+                || (command.expectedCurrentVersionId() != null
+                        && command.expectedCurrentVersionId() <= 0)) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "草稿参数不正确");
         }
-        var document = new Document();
-        document.setTitle(command.title().trim());
-        document.setContent(command.content());
-        document.setDocType(command.documentType().trim());
-        document.setStatus("active");
-        document.setPublish("draft");
-        document.setOwnerId(command.ownerId());
-        document.setOrgId(command.orgId());
-        document.setWorkspaceId(command.workspaceId());
-        var saved = documentRepository.save(document);
-        return new DraftDocument(saved.getId());
+        DocumentVersionView version;
+        if (command.documentId() == null) {
+            version =
+                    documentVersionService.create(
+                            new CreateDocumentVersionCommand(
+                                    command.title().trim(),
+                                    command.content(),
+                                    "MARKDOWN",
+                                    command.documentType().trim(),
+                                    "AIGC",
+                                    "content.draft.upsert",
+                                    "文案智能体生成草稿",
+                                    command.ownerId(),
+                                    command.orgId(),
+                                    command.workspaceId()));
+        } else {
+            version =
+                    documentVersionService.append(
+                            new AppendDocumentVersionCommand(
+                                    command.documentId(),
+                                    command.expectedCurrentVersionId(),
+                                    command.title().trim(),
+                                    command.content(),
+                                    "MARKDOWN",
+                                    "AIGC",
+                                    "content.draft.upsert",
+                                    "文案智能体生成新版本",
+                                    command.ownerId(),
+                                    command.orgId(),
+                                    command.workspaceId()));
+        }
+        return new DraftDocument(version.documentId(), version.id());
     }
 
     /** 统计当前范围内的有效文档数量。 */
@@ -157,7 +220,7 @@ public class DocumentService implements DocumentSourceApi, DocumentReferenceApi,
     /** 获取当前范围内的有效文档详情。 */
     public Document getById(Long id) {
         var ownerId = operatorContext.currentOwnerId().orElse(null);
-        return requireCurrentScopeDocument(id, ownerId);
+        return documentVersionService.hydrateCurrent(requireCurrentScopeDocument(id, ownerId));
     }
 
     /** 校验一组文档在指定 owner、组织与工作区范围内均可见且处于有效状态。 */
@@ -224,6 +287,13 @@ public class DocumentService implements DocumentSourceApi, DocumentReferenceApi,
         if (request.includeIds() != null && request.includeIds().isEmpty()) {
             return new DocumentPage(List.of(), 0L, request.pageNo(), request.pageSize(), false);
         }
+        var keywordDocumentIds =
+                request.keyword() == null || request.keyword().isBlank()
+                        ? null
+                        : documentVersionService.matchingCurrentDocumentIds(request.keyword());
+        if (keywordDocumentIds != null && keywordDocumentIds.isEmpty()) {
+            return new DocumentPage(List.of(), 0L, request.pageNo(), request.pageSize(), false);
+        }
 
         Specification<Document> specification =
                 (root, criteriaQuery, builder) -> {
@@ -243,23 +313,8 @@ public class DocumentService implements DocumentSourceApi, DocumentReferenceApi,
                             builder.equal(root.get("docType"), request.documentType().trim()));
                     predicates.add(builder.equal(root.get("status"), "active"));
                     predicates.add(builder.isFalse(root.get("deleted")));
-                    if (request.keyword() != null && !request.keyword().isBlank()) {
-                        var keyword =
-                                request.keyword()
-                                        .trim()
-                                        .toLowerCase(Locale.ROOT)
-                                        .replace("\\", "\\\\")
-                                        .replace("%", "\\%")
-                                        .replace("_", "\\_");
-                        var pattern = "%" + keyword + "%";
-                        predicates.add(
-                                builder.or(
-                                        builder.like(
-                                                builder.lower(root.get("title")), pattern, '\\'),
-                                        builder.like(
-                                                builder.lower(root.get("content")),
-                                                pattern,
-                                                '\\')));
+                    if (keywordDocumentIds != null) {
+                        predicates.add(root.get("id").in(keywordDocumentIds));
                     }
                     if (request.includeIds() != null) {
                         predicates.add(root.get("id").in(request.includeIds()));
@@ -273,12 +328,18 @@ public class DocumentService implements DocumentSourceApi, DocumentReferenceApi,
         var list =
                 page.getContent().stream()
                         .map(
-                                document ->
-                                        new DocumentItem(
-                                                document.getId(),
-                                                document.getTitle(),
-                                                document.getContent(),
-                                                document.getUpdateTime()))
+                                document -> {
+                                    var current = documentVersionService.current(document);
+                                    document.setCurrentVersionNo(current.getVersionNo());
+                                    document.setContent(current.getContent());
+                                    return new DocumentItem(
+                                            document.getId(),
+                                            current.getId(),
+                                            current.getVersionNo(),
+                                            document.getTitle(),
+                                            current.getContent(),
+                                            document.getUpdateTime());
+                                })
                         .toList();
         return new DocumentPage(
                 list,
@@ -288,40 +349,144 @@ public class DocumentService implements DocumentSourceApi, DocumentReferenceApi,
                 page.hasNext());
     }
 
-    /** 更新文档（标题/内容/类型/发布状态），同步写回本地文件。 */
+    /** 获取文档版本历史。 */
+    @Transactional(readOnly = true)
+    public List<DocumentVersionView> versions(Long documentId) {
+        var document = getById(documentId);
+        return documentVersionService.history(
+                documentId, document.getOwnerId(), document.getOrgId(), document.getWorkspaceId());
+    }
+
+    /** 获取当前范围内属于指定文档的单个不可变版本。 */
+    @Transactional(readOnly = true)
+    public DocumentVersionView version(Long documentId, Long documentVersionId) {
+        var ownerId = operatorContext.currentOwnerId().orElse(null);
+        requireCurrentScopeDocument(documentId, ownerId);
+        return documentVersionService
+                .findExact(documentId, documentVersionId)
+                .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "文档版本不存在"));
+    }
+
+    /** 比较同一文档的任意两个不可变版本。 */
+    @Transactional(readOnly = true)
+    public DocumentDiffView diff(Long documentId, Long baseVersionId, Long targetVersionId) {
+        var document = getById(documentId);
+        return documentVersionService.diff(
+                documentId,
+                baseVersionId,
+                targetVersionId,
+                document.getOwnerId(),
+                document.getOrgId(),
+                document.getWorkspaceId());
+    }
+
+    /** 将历史内容恢复为新的当前版本。 */
+    @Transactional
+    public Document restore(
+            Long documentId,
+            Long sourceVersionId,
+            Long expectedCurrentVersionId,
+            String changeSummary) {
+        var document = getById(documentId);
+        documentVersionService.restore(
+                new RestoreDocumentVersionCommand(
+                        documentId,
+                        sourceVersionId,
+                        expectedCurrentVersionId,
+                        changeSummary,
+                        document.getOwnerId(),
+                        document.getOrgId(),
+                        document.getWorkspaceId()));
+        var restored = getById(documentId);
+        if (restored.getFilePath() != null) {
+            writeToLocalFile(restored.getFilePath(), restored.getContent());
+        }
+        broadcastChange(restored);
+        return restored;
+    }
+
+    /** 更新文档；标题或正文变化时追加不可变版本，同步写回本地文件。 */
     @Transactional
     public Document update(Long id, DocUpdateDTO dto) {
-        Document doc = getById(id);
-        if (dto.title() != null) doc.setTitle(dto.title());
-        if (dto.content() != null) doc.setContent(dto.content());
-        if (dto.docType() != null) doc.setDocType(dto.docType());
-        if (dto.publish() != null) doc.setPublish(dto.publish());
-        documentRepository.save(doc);
+        var currentDocument = getById(id);
+        var changesVersion = dto.title() != null || dto.content() != null;
+        if (changesVersion) {
+            if (dto.expectedCurrentVersionId() == null) {
+                throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "修改标题或正文时必须提供当前版本编号");
+            }
+            documentVersionService.append(
+                    new AppendDocumentVersionCommand(
+                            id,
+                            dto.expectedCurrentVersionId(),
+                            dto.title(),
+                            dto.content() == null ? currentDocument.getContent() : dto.content(),
+                            "MARKDOWN",
+                            "MANUAL",
+                            "document:" + id,
+                            dto.changeSummary(),
+                            currentDocument.getOwnerId(),
+                            currentDocument.getOrgId(),
+                            currentDocument.getWorkspaceId()));
+            currentDocument = getById(id);
+        }
+        if (dto.docType() != null) currentDocument.setDocType(dto.docType());
+        documentRepository.save(currentDocument);
 
-        if (dto.content() != null && doc.getFilePath() != null) {
-            writeToLocalFile(doc.getFilePath(), doc.getContent());
+        if (changesVersion && currentDocument.getFilePath() != null) {
+            writeToLocalFile(currentDocument.getFilePath(), currentDocument.getContent());
         }
 
         docImportService.extractLinks();
-        broadcastChange(doc);
-        return doc;
+        broadcastChange(currentDocument);
+        return currentDocument;
     }
 
-    /** 发布文档。 */
+    /** 发布调用方确认的精确当前文档版本。 */
     @Transactional
-    public Document publish(Long id) {
-        Document doc = getById(id);
-        doc.setPublish("published");
-        documentRepository.save(doc);
-        broadcastChange(doc);
-        return doc;
+    public Document publish(Long id, Long expectedCurrentVersionId) {
+        if (expectedCurrentVersionId == null || expectedCurrentVersionId <= 0) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "发布文档必须提供当前版本编号");
+        }
+        var ownerId = operatorContext.currentOwnerId().orElse(null);
+        var orgId = OrgContext.getCurrentOrgId();
+        if (ownerId == null
+                || orgId == null
+                || OrgContext.isAllOrganizations()
+                || OrgContext.isAllWorkspaces()) {
+            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "文档不存在");
+        }
+        var workspaceId = OrgContext.getCurrentWorkspaceId();
+        var document =
+                documentRepository
+                        .findByIdForUpdate(id)
+                        .orElseThrow(
+                                () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "文档不存在"));
+        var workspaceAccessible =
+                workspaceId == null
+                        ? document.getWorkspaceId() == null
+                        : document.getWorkspaceId() == null
+                                || Objects.equals(document.getWorkspaceId(), workspaceId);
+        if (!"active".equals(document.getStatus())
+                || !Objects.equals(document.getOwnerId(), ownerId)
+                || !Objects.equals(document.getOrgId(), orgId)
+                || !workspaceAccessible) {
+            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "文档不存在");
+        }
+        if (!Objects.equals(document.getCurrentVersionId(), expectedCurrentVersionId)) {
+            throw new BusinessException(409, "文档当前版本已变化，请刷新后重新确认发布");
+        }
+        applyPublishState(document, "published");
+        documentRepository.save(document);
+        var published = documentVersionService.hydrateCurrent(document);
+        broadcastChange(published);
+        return published;
     }
 
-    /** 取消发布（转草稿）。 */
+    /** 取消发布（转草稿并清除发布版本指针）。 */
     @Transactional
     public Document unpublish(Long id) {
         Document doc = getById(id);
-        doc.setPublish("draft");
+        applyPublishState(doc, "draft");
         documentRepository.save(doc);
         broadcastChange(doc);
         return doc;
@@ -337,7 +502,50 @@ public class DocumentService implements DocumentSourceApi, DocumentReferenceApi,
 
     /** 获取所有已发布文档（公开端）。 */
     public List<Document> getPublished() {
-        return documentRepository.findByPublishOrderByUpdateTimeDesc("published");
+        return documentRepository.findByPublishOrderByUpdateTimeDesc("published").stream()
+                .filter(document -> document.getPublishedVersionId() != null)
+                .map(documentVersionService::hydratePublished)
+                .toList();
+    }
+
+    /**
+     * 获取单个已发布文档的精确版本正文（公开端，无需认证）。
+     *
+     * <p>只在 {@code publish=published} 且存在 {@code publishedVersionId} 时返回，未发布或不存在均视为不存在；
+     * title/content/createTime 全部来自 published 精确版本本身，不混用可变根实体的 current 标题或更新时间，
+     * 避免公开正文与未发布草稿的展示内容串糅。{@code docType} 是文档身份分类标签（如 guide/spec）， 语义上不属于正文历史、从未由 DocumentVersion
+     * 承载，因此按设计使用根实体当前值。
+     *
+     * <p>{@code @OrgIgnore}：匿名公开访问没有组织上下文，业务范围已由 published/deleted 过滤限定， 不依赖组织边界，需豁免 {@code
+     * OrgFilterAspect} 的 orgId 缺失 fail-closed 拒绝。
+     */
+    @com.xuejiai.aaf.framework.org.OrgIgnore
+    public com.xuejiai.aaf.module.document.vo.DocumentPublicVO getPublishedById(Long id) {
+        var document =
+                documentRepository
+                        .findById(id)
+                        .filter(candidate -> !Boolean.TRUE.equals(candidate.getDeleted()))
+                        .filter(candidate -> "active".equals(candidate.getStatus()))
+                        .filter(candidate -> "published".equals(candidate.getPublish()))
+                        .filter(candidate -> candidate.getPublishedVersionId() != null)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.NOT_FOUND, "文档不存在或未发布"));
+        var published =
+                documentVersionService
+                        .findExact(document.getId(), document.getPublishedVersionId())
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.NOT_FOUND, "文档不存在或未发布"));
+        return new com.xuejiai.aaf.module.document.vo.DocumentPublicVO(
+                document.getId(),
+                published.id(),
+                published.title(),
+                published.content(),
+                document.getDocType(),
+                published.createdTime());
     }
 
     /** 新建文档：写入本地文件 + 插入数据库 + 提取链接。 */
@@ -352,17 +560,24 @@ public class DocumentService implements DocumentSourceApi, DocumentReferenceApi,
             writeToLocalFile(dto.filePath(), content);
         }
 
-        // 插入数据库
-        var doc = new Document();
-        doc.setTitle(dto.title());
+        var version =
+                documentVersionService.create(
+                        new CreateDocumentVersionCommand(
+                                dto.title(),
+                                content,
+                                "MARKDOWN",
+                                dto.docType() != null ? dto.docType() : "guide",
+                                "MANUAL",
+                                dto.filePath(),
+                                "创建文档",
+                                scope.ownerId(),
+                                scope.orgId(),
+                                scope.workspaceId()));
+        var doc = documentRepository.findById(version.documentId()).orElseThrow();
         doc.setFilePath(dto.filePath());
-        doc.setDocType(dto.docType() != null ? dto.docType() : "guide");
-        doc.setContent(content);
-        doc.setStatus("active");
-        doc.setPublish(dto.publish() != null ? dto.publish() : "draft");
-        doc.setOwnerId(scope.ownerId());
-        doc.setOrgId(scope.orgId());
-        doc.setWorkspaceId(scope.workspaceId());
+        if (dto.publish() != null) {
+            applyPublishState(doc, dto.publish());
+        }
         documentRepository.save(doc);
 
         // 提取链接关系
@@ -375,6 +590,7 @@ public class DocumentService implements DocumentSourceApi, DocumentReferenceApi,
                 doc.getFilePath(),
                 false,
                 doc.getDocType(),
+                doc.getCurrentVersionId(),
                 doc.getPublish(),
                 List.of());
     }
@@ -438,12 +654,14 @@ public class DocumentService implements DocumentSourceApi, DocumentReferenceApi,
                 .fullTextSearch(query, ownerId, orgId, OrgContext.getCurrentWorkspaceId())
                 .stream()
                 .map(
-                        doc ->
-                                new DocSearchResultVO(
-                                        doc.getId(),
-                                        doc.getTitle(),
-                                        doc.getFilePath(),
-                                        extractSnippet(doc.getContent(), query)))
+                        doc -> {
+                            documentVersionService.hydrateCurrent(doc);
+                            return new DocSearchResultVO(
+                                    doc.getId(),
+                                    doc.getTitle(),
+                                    doc.getFilePath(),
+                                    extractSnippet(doc.getContent(), query));
+                        })
                 .collect(Collectors.toList());
     }
 
@@ -583,6 +801,15 @@ public class DocumentService implements DocumentSourceApi, DocumentReferenceApi,
         return document;
     }
 
+    private void applyPublishState(Document document, String publish) {
+        if (!Set.of("draft", "published").contains(publish)) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "文档发布状态不正确");
+        }
+        document.setPublish(publish);
+        document.setPublishedVersionId(
+                "published".equals(publish) ? document.getCurrentVersionId() : null);
+    }
+
     private void validateFilePath(String filePath) {
         if (filePath == null || !filePath.startsWith("docs/")) {
             throw new IllegalArgumentException("filePath 必须以 docs/ 开头");
@@ -675,6 +902,7 @@ public class DocumentService implements DocumentSourceApi, DocumentReferenceApi,
                                                     true,
                                                     null,
                                                     null,
+                                                    null,
                                                     new ArrayList<>());
                                     if (parentRef == null) roots.add(node);
                                     else parentRef.children().add(node);
@@ -691,6 +919,7 @@ public class DocumentService implements DocumentSourceApi, DocumentReferenceApi,
                             path,
                             false,
                             doc.getDocType(),
+                            doc.getCurrentVersionId(),
                             doc.getPublish(),
                             List.of());
             if (parent != null) parent.children().add(leaf);

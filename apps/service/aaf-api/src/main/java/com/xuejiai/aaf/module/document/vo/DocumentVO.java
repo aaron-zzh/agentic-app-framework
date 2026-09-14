@@ -8,6 +8,9 @@ import com.xuejiai.aaf.module.document.domain.Document;
 /** 文档详情响应 VO。 */
 public record DocumentVO(
         Long id,
+        Long currentVersionId,
+        Integer currentVersionNo,
+        Long publishedVersionId,
         String title,
         String filePath,
         String content,
@@ -22,6 +25,9 @@ public record DocumentVO(
     public static DocumentVO from(Document entity) {
         return new DocumentVO(
                 entity.getId(),
+                entity.getCurrentVersionId(),
+                entity.getCurrentVersionNo(),
+                entity.getPublishedVersionId(),
                 entity.getTitle(),
                 entity.getFilePath(),
                 entity.getContent(),

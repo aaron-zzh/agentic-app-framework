@@ -32,7 +32,13 @@ public interface DocumentReferenceApi {
         }
     }
 
-    record DocumentItem(Long documentId, String title, String content, LocalDateTime updateTime) {}
+    record DocumentItem(
+            Long documentId,
+            Long documentVersionId,
+            Integer versionNo,
+            String title,
+            String content,
+            LocalDateTime updateTime) {}
 
     record DocumentPage(
             List<DocumentItem> list, long total, int pageNo, int pageSize, boolean hasMore) {

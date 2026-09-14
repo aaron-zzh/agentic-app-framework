@@ -6,11 +6,14 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.xuejiai.aaf.module.document.domain.Document;
 import com.xuejiai.aaf.module.document.vo.DocListItemVO;
+
+import jakarta.persistence.LockModeType;
 
 public interface DocumentRepository
         extends JpaRepository<Document, Long>, JpaSpecificationExecutor<Document> {
@@ -38,15 +41,22 @@ public interface DocumentRepository
     /** 统计用户文档数量 */
     long countByOwnerIdAndStatus(Long ownerId, String status);
 
-    /** 全文检索（PostgreSQL tsvector） */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select d from Document d where d.id = :id and d.deleted = false")
+    Optional<Document> findByIdForUpdate(@Param("id") Long id);
+
+    /** 全文检索当前版本（PostgreSQL tsvector）。 */
     @Query(
             value =
-                    "SELECT * FROM doc_document WHERE deleted = false AND owner_id = :ownerId "
-                            + "AND org_id = :orgId AND (workspace_id IS NULL OR workspace_id = :workspaceId) "
-                            + "AND status = 'active' "
-                            + "AND to_tsvector('simple', coalesce(title,'') || ' ' || coalesce(content,'')) @@ plainto_tsquery('simple', :q) "
-                            + "ORDER BY ts_rank(to_tsvector('simple', coalesce(title,'') || ' ' || coalesce(content,'')), plainto_tsquery('simple', :q)) DESC "
-                            + "LIMIT 20",
+                    "SELECT d.* FROM doc_document d "
+                            + "JOIN doc_document_version v ON v.id = d.current_version_id AND v.document_id = d.id "
+                            + "WHERE d.deleted = false AND d.owner_id = :ownerId "
+                            + "AND d.org_id = :orgId AND (d.workspace_id IS NULL OR d.workspace_id = :workspaceId) "
+                            + "AND d.status = 'active' "
+                            + "AND to_tsvector('simple', coalesce(d.title,'') || ' ' || coalesce(v.content,'')) "
+                            + "@@ plainto_tsquery('simple', :q) "
+                            + "ORDER BY ts_rank(to_tsvector('simple', coalesce(d.title,'') || ' ' || coalesce(v.content,'')), "
+                            + "plainto_tsquery('simple', :q)) DESC LIMIT 20",
             nativeQuery = true)
     List<Document> fullTextSearch(
             @Param("q") String query,

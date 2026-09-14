@@ -10,13 +10,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.xuejiai.aaf.module.document.api.DocumentVersionApi.CreateDocumentVersionCommand;
 import com.xuejiai.aaf.module.document.domain.Document;
 import com.xuejiai.aaf.module.document.repository.DocumentRepository;
 import com.xuejiai.aaf.module.system.file.api.FileStoragePort;
 
 import lombok.RequiredArgsConstructor;
 
-/** 文档导入服务：从外部源导入文档并提取关联关系。 */
+/** 文档导入服务：从外部源导入文档并固化不可变初始版本。 */
 @Service
 @RequiredArgsConstructor
 public class DocImportService {
@@ -25,25 +26,31 @@ public class DocImportService {
 
     private final FileStoragePort fileUploadService;
     private final DocumentRepository documentRepository;
+    private final DocumentVersionService documentVersionService;
 
-    /** 导入 PDF：上传原始文件 → 提取文本 → 存入 doc_document。 */
+    /** 导入 PDF：上传原始文件 → 提取文本 → 创建文档身份与 IMPORT v1。 */
     @Transactional
     public Document importPdf(MultipartFile file, Long ownerId, Long orgId, Long workspaceId)
             throws IOException {
         var storedFile = fileUploadService.uploadCurrent(file);
         var text = extractText(file);
-
-        var document = new Document();
-        document.setTitle(stripExtension(file.getOriginalFilename()));
-        document.setDocType("pdf_import");
-        document.setContent(text);
-        document.setStatus("active");
-        document.setPublish("draft");
+        var version =
+                documentVersionService.create(
+                        new CreateDocumentVersionCommand(
+                                stripExtension(file.getOriginalFilename()),
+                                text,
+                                "PLAIN_TEXT",
+                                "pdf_import",
+                                "IMPORT",
+                                storedFile.key(),
+                                "导入 PDF",
+                                ownerId,
+                                orgId,
+                                workspaceId));
+        var document = documentRepository.findById(version.documentId()).orElseThrow();
         document.setSourceFileId(storedFile.fileId());
-        document.setOwnerId(ownerId);
-        document.setOrgId(orgId);
-        document.setWorkspaceId(workspaceId);
         documentRepository.save(document);
+        documentVersionService.hydrateCurrent(document);
 
         log.info("PDF 导入完成：file={}, docId={}", file.getOriginalFilename(), document.getId());
         return document;

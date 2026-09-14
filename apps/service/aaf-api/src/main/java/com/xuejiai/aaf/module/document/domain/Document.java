@@ -15,9 +15,9 @@ import lombok.Setter;
 import tools.jackson.core.type.TypeReference;
 
 /**
- * 文档实体。
+ * 文档元数据实体。
  *
- * <p>对应 doc_document 表，支持 Markdown 内容存储和 Front Matter 元数据。
+ * <p>对应 doc_document 表；正文唯一存储于 {@link DocumentVersion}，本实体只持有当前版本和已发布版本指针。
  *
  * @author AaronZZH & Kiro
  */
@@ -37,9 +37,19 @@ public class Document extends BaseEntity {
     @Column(name = "file_path", length = 500)
     private String filePath;
 
-    /** 文档全量 Markdown 内容 */
-    @Column(name = "content", columnDefinition = "TEXT")
-    private String content;
+    /** 当前正文版本；保存和恢复均通过追加新版本推进。 */
+    @Column(name = "current_version_id")
+    private Long currentVersionId;
+
+    /** 当前已发布的精确正文版本。 */
+    @Column(name = "published_version_id")
+    private Long publishedVersionId;
+
+    /** 当前正文版本号的非持久化视图。 */
+    @Transient private Integer currentVersionNo;
+
+    /** 当前正文的非持久化视图，由文档服务从 currentVersionId 对应快照装配。 */
+    @Transient private String content;
 
     /** Front Matter 元数据（JSONB 存储，Java 侧用 String 持久化） */
     @JdbcTypeCode(SqlTypes.JSON)

@@ -6,6 +6,8 @@ public interface DocumentDraftApi {
     DraftDocument upsertDraft(DraftUpsertCommand command);
 
     record DraftUpsertCommand(
+            Long documentId,
+            Long expectedCurrentVersionId,
             String title,
             String content,
             String documentType,
@@ -13,5 +15,5 @@ public interface DocumentDraftApi {
             Long orgId,
             Long workspaceId) {}
 
-    record DraftDocument(Long id) {}
+    record DraftDocument(Long documentId, Long documentVersionId) {}
 }

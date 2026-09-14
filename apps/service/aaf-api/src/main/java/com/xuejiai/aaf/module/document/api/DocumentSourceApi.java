@@ -13,5 +13,11 @@ public interface DocumentSourceApi {
             String content,
             Long ownerId) {}
 
-    record SourceDocument(Long id, Long sourceFileId, String sourceKey, Long ownerId) {}
+    record SourceDocument(
+            Long id,
+            Long documentVersionId,
+            String versionChecksum,
+            Long sourceFileId,
+            String sourceKey,
+            Long ownerId) {}
 }
