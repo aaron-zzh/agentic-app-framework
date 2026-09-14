@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.knowledge.domain;
 
 import java.util.UUID;
 
+import org.hibernate.annotations.Formula;
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
@@ -49,6 +50,11 @@ public class KnowledgeDocument extends BaseEntity {
 
     @Column(name = "active_run_id")
     private UUID activeRunId;
+
+    /** 从 activeRunId 派生的精确来源版本，不单独持久化。 */
+    @Formula(
+            "(select run.source_document_version_id from ai_knowledge_ingest_run run where run.id = active_run_id)")
+    private Long activeSourceDocumentVersionId;
 
     /**
      * 所属知识库 ID

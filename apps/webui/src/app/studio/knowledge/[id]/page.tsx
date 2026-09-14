@@ -43,6 +43,7 @@ import { TypographyH1 } from "@/components/ui/typography"
 import { DocumentUpload } from "@/features/knowledge/components/DocumentUpload"
 import { KnowledgeGraph } from "@/features/knowledge/components/KnowledgeGraph"
 import { KnowledgeSettings } from "@/features/knowledge/components/KnowledgeSettings"
+import { KnowledgeSourceVersionComparison } from "@/features/knowledge/components/KnowledgeSourceVersionComparison"
 import { SearchTestPanel } from "@/features/knowledge/components/SearchTestPanel"
 import {
   useCreateSegment,
@@ -294,8 +295,12 @@ function DocumentRow({ doc, kbId }: { doc: KnowledgeDocument; kbId: string }) {
                     <dd className="break-all">{detail.sourceUri ?? detail.sourceKey ?? "暂无"}</dd>
                   </div>
                   <div>
-                    <dt className="text-muted-foreground">来源文档 ID</dt>
-                    <dd>{detail.sourceDocumentId ?? "暂无"}</dd>
+                    <dt className="text-muted-foreground">来源文档版本</dt>
+                    <dd>
+                      {detail.sourceDocumentId !== null && detail.sourceDocumentVersionId !== null
+                        ? `#${detail.sourceDocumentId} / Version #${detail.sourceDocumentVersionId}`
+                        : "暂无"}
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-muted-foreground">活动运行 ID</dt>
@@ -310,6 +315,13 @@ function DocumentRow({ doc, kbId }: { doc: KnowledgeDocument; kbId: string }) {
                     <dd>{new Date(detail.updateTime).toLocaleString()}</dd>
                   </div>
                 </dl>
+
+                {detail.sourceDocumentId !== null && detail.sourceDocumentVersionId !== null ? (
+                  <KnowledgeSourceVersionComparison
+                    documentId={detail.sourceDocumentId}
+                    sourceVersionId={detail.sourceDocumentVersionId}
+                  />
+                ) : null}
 
                 {detail.errorMessage ? (
                   <p className="rounded-md bg-destructive/10 p-3 text-destructive text-sm">

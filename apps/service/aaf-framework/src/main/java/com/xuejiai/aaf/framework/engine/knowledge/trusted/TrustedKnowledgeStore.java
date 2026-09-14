@@ -42,6 +42,7 @@ public class TrustedKnowledgeStore {
     public RunContext beginRun(
             Long knowledgeBaseId,
             Long documentId,
+            Long sourceDocumentVersionId,
             String contentHash,
             String fingerprint,
             String parserVersion,
@@ -115,7 +116,8 @@ public class TrustedKnowledgeStore {
         jdbcTemplate.update(
                 """
                 INSERT INTO ai_knowledge_ingest_run
-                    (id, knowledge_base_id, document_id, run_no, ingest_fingerprint,
+                    (id, knowledge_base_id, document_id, source_document_version_id,
+                     run_no, ingest_fingerprint,
                      payer_user_id, status, parser_version, chunk_config_digest,
                      extraction_prompt_snapshot, extraction_prompt_digest, extraction_prompt_version,
                      extraction_user_prompt_snapshot, extraction_user_prompt_digest, extraction_user_prompt_version,
@@ -125,11 +127,12 @@ public class TrustedKnowledgeStore {
                      entity_resolution_output_contract_version, entity_resolution_model_id,
                      normalization_version, embedding_model_id,
                      expected_active_run_id, fencing_token)
-                VALUES (?, ?, ?, ?, ?, ?, 'PROCESSING', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'PROCESSING', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 runId,
                 knowledgeBaseId,
                 documentId,
+                sourceDocumentVersionId,
                 runNo,
                 fingerprint,
                 payer,

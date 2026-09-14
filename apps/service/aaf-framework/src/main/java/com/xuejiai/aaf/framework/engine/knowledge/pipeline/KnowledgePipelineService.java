@@ -44,6 +44,7 @@ public class KnowledgePipelineService {
     private final KnowledgeIngestConfigurationService configurationService;
     private final EntityExtractionService extractionService;
     private final KnowledgeDocumentStatusPort documentStatusPort;
+    private final KnowledgeSourceVersionPort sourceVersionPort;
     private final EmbeddingProperties embeddingProperties;
 
     private final ConcurrentHashMap<Long, PipelineProgress> progressMap = new ConcurrentHashMap<>();
@@ -74,6 +75,8 @@ public class KnowledgePipelineService {
                                     .map(section -> section.content())
                                     .toList());
             var contentHash = TrustedKnowledgeStore.sha256(fullText);
+            var sourceVersion =
+                    sourceVersionPort.freeze(documentId, filename, fullText, contentHash);
 
             updateProgress(documentId, PipelineStep.CHUNK, 1, startTime);
             var extension = extension(filename);
@@ -85,6 +88,7 @@ public class KnowledgePipelineService {
                             String.join(
                                     "|",
                                     contentHash,
+                                    sourceVersion.checksum(),
                                     PARSER_VERSION,
                                     chunkDigest,
                                     configuration.extractionPromptPairDigest(),
@@ -99,6 +103,7 @@ public class KnowledgePipelineService {
                     truthStore.beginRun(
                             knowledgeBaseId,
                             documentId,
+                            sourceVersion.documentVersionId(),
                             contentHash,
                             fingerprint,
                             PARSER_VERSION,

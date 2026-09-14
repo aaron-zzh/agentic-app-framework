@@ -563,6 +563,7 @@ public class KnowledgeBaseService
                 entity.getSourceKey(),
                 entity.getSourceUri(),
                 entity.getActiveRunId(),
+                entity.getActiveSourceDocumentVersionId(),
                 entity.getTitle(),
                 entity.getFileType(),
                 entity.getFileSize(),

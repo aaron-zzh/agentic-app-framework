@@ -14,6 +14,7 @@ public record KnowledgeDocumentVO(
         String sourceKey,
         String sourceUri,
         UUID activeRunId,
+        Long sourceDocumentVersionId,
         String title,
         String fileType,
         Long fileSize,
