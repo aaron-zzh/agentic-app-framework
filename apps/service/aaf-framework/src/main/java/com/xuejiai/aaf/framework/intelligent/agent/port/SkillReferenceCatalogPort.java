@@ -15,9 +15,16 @@ public interface SkillReferenceCatalogPort {
 
     boolean versionBelongsToSkillCode(Long skillVersionId, String skillCode);
 
-    /** 批量取文档正文；权限与技能正文同级信任，不对调用者单独校验文档可见性。 */
-    Map<Long, String> readContents(Set<Long> documentIds);
+    /** 批量取冻结文档版本正文；权限与技能正文同级信任，不对调用者单独校验文档可见性。 */
+    Map<DocumentReference, String> readContents(Set<DocumentReference> documentReferences);
 
-    /** 取单份文档正文；权限与技能正文同级信任，不对调用者单独校验文档可见性。 */
+    /** 取单份冻结文档版本正文；权限与技能正文同级信任，不对调用者单独校验文档可见性。 */
     Optional<String> readContent(Long documentId, Long documentVersionId);
+
+    record DocumentReference(Long documentId, Long documentVersionId) {
+        public DocumentReference {
+            java.util.Objects.requireNonNull(documentId, "documentId 不能为空");
+            java.util.Objects.requireNonNull(documentVersionId, "documentVersionId 不能为空");
+        }
+    }
 }

@@ -1,8 +1,8 @@
 /**
- * 服务条款公开页（SSR + ISR）
+ * 服务条款公开页（SSR）
  *
  * 数据：访问 /api/public/legal/terms 取最新已发布的"服务条款"文档。
- * 缓存：ISR revalidate=300（5 分钟），后台发布后最多 5 分钟前端可见。
+ * 不缓存，发布新版本后立即生效。
  * 渲染：复用 <LegalDocLayout> 共享布局（hero + 卡片 + TOC + 进度条）。
  *
  * @author AaronZZH & Kiro
@@ -17,7 +17,7 @@ import { APP } from "@/lib/config"
 async function fetchLegal(): Promise<LegalDocument | null> {
   try {
     const res = await fetch(buildApiUrl("/public/legal/terms"), {
-      next: { revalidate: 300 }
+      cache: "no-store"
     })
     if (!res.ok) return null
     const json = (await res.json()) as { data: LegalDocument }

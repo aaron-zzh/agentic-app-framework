@@ -17,6 +17,7 @@ public record LegalDocumentVO(
         @Schema(description = "文档类型：legal-terms / legal-privacy") String type,
         @Schema(description = "标题") String title,
         @Schema(description = "Markdown 内容") String content,
-        @Schema(description = "版本号（front_matter.version）") String version,
+        @Schema(description = "精确发布版本 ID") Long documentVersionId,
+        @Schema(description = "版本号") String version,
         @Schema(description = "生效日期（front_matter.effectiveDate，ISO-8601）") String effectiveDate,
         @Schema(description = "最后更新时间") LocalDateTime updateTime) {}

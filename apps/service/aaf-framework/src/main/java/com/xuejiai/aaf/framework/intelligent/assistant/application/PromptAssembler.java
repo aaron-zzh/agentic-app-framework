@@ -160,12 +160,16 @@ public final class PromptAssembler {
                         .map(skill -> skill.version().versionId())
                         .collect(Collectors.toUnmodifiableSet());
         var referencesByVersion = skillReferences.findByVersionIds(versionIds);
-        var documentIds =
+        var documentReferences =
                 referencesByVersion.values().stream()
                         .flatMap(List::stream)
-                        .map(SkillReference::documentId)
+                        .map(
+                                reference ->
+                                        new SkillReferenceCatalogPort.DocumentReference(
+                                                reference.documentId(),
+                                                reference.documentVersionId()))
                         .collect(Collectors.toUnmodifiableSet());
-        var documentContents = skillReferences.readContents(documentIds);
+        var documentContents = skillReferences.readContents(documentReferences);
         for (var skill : skillExecutionProfile.activatedSkills()) {
             var version = skill.version();
             var references =
@@ -199,9 +203,14 @@ public final class PromptAssembler {
     }
 
     private static ResolvedReference resolveReference(
-            ActivatedSkill skill, SkillReference reference, Map<Long, String> documentContents) {
+            ActivatedSkill skill,
+            SkillReference reference,
+            Map<SkillReferenceCatalogPort.DocumentReference, String> documentContents) {
         var loadKey = reference.loadKey(skill.code(), skill.version().versionId());
-        var content = documentContents.get(reference.documentId());
+        var content =
+                documentContents.get(
+                        new SkillReferenceCatalogPort.DocumentReference(
+                                reference.documentId(), reference.documentVersionId()));
         if (content == null) {
             return unavailableReference(reference, loadKey, "文档正文不可用", null);
         }

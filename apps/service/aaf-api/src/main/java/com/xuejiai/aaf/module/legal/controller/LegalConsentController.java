@@ -51,7 +51,11 @@ public class LegalConsentController {
             @Valid @RequestBody ConsentSubmitDTO dto, HttpServletRequest request) {
         Long userId = operatorContext.currentOwnerId().orElseThrow();
         legalDocumentService.recordConsent(
-                userId, dto.documentId(), getClientIp(request), getSourceApp(request));
+                userId,
+                dto.documentId(),
+                dto.documentVersionId(),
+                getClientIp(request),
+                getSourceApp(request));
         return Result.success();
     }
 

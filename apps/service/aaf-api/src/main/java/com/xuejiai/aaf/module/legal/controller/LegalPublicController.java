@@ -40,6 +40,15 @@ public class LegalPublicController {
         return Result.success(legalDocumentService.getLatestPublished(resolved));
     }
 
+    @Operation(summary = "获取用户实际待同意的精确发布版本；版本不再是当前发布版本时返回 404")
+    @GetMapping("/{type}/versions/{documentVersionId}")
+    public Result<LegalDocumentVO> getVersion(
+            @PathVariable String type, @PathVariable Long documentVersionId) {
+        LegalDocumentType resolved = resolveType(type);
+        return Result.success(
+                legalDocumentService.getPublishedVersion(resolved, documentVersionId));
+    }
+
     /** 接受 terms / privacy 简称或完整 doc_type 字符串。 */
     private LegalDocumentType resolveType(String type) {
         if (type == null) {

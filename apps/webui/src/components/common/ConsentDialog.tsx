@@ -28,8 +28,8 @@ export interface ConsentDialogProps {
 }
 
 const TYPE_HREF: Record<LegalDocument["type"], string> = {
-  "legal-terms": "/terms",
-  "legal-privacy": "/privacy"
+  "legal-terms": "/terms/versions",
+  "legal-privacy": "/privacy/versions"
 }
 
 export function ConsentDialog({ items, onAllConfirmed, onDecline }: ConsentDialogProps) {
@@ -41,7 +41,7 @@ export function ConsentDialog({ items, onAllConfirmed, onDecline }: ConsentDialo
     setSubmitting(true)
     try {
       for (const doc of items) {
-        await legalApi.submit(doc.id)
+        await legalApi.submit(doc.id, doc.documentVersionId)
       }
       onAllConfirmed()
     } catch (err) {
@@ -84,7 +84,7 @@ export function ConsentDialog({ items, onAllConfirmed, onDecline }: ConsentDialo
             {items.map((doc, i) => (
               <span key={doc.id}>
                 <Link
-                  href={TYPE_HREF[doc.type]}
+                  href={`${TYPE_HREF[doc.type]}/${doc.documentVersionId}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline"

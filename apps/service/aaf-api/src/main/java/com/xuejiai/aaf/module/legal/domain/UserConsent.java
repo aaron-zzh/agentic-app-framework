@@ -39,6 +39,10 @@ public class UserConsent extends BaseEntity {
     @Column(name = "document_id", nullable = false)
     private Long documentId;
 
+    /** 同意时刻锁定的不可变正文版本 ID。 */
+    @Column(name = "document_version_id", nullable = false)
+    private Long documentVersionId;
+
     /** 文档类型：legal-terms / legal-privacy（冗余，便于按类型查询） */
     @Column(name = "document_type", nullable = false, length = 50)
     private String documentType;

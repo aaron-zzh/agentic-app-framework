@@ -15,7 +15,12 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { RichTextEditor } from "@/features/rich-text-editor"
-import { useCreateDocument, useUpdateDocument } from "@/lib/api/rest/system"
+import {
+  useCreateDocument,
+  usePublishDocument,
+  useUnpublishDocument,
+  useUpdateDocument
+} from "@/lib/api/rest/system"
 import { paths } from "@/lib/constants/paths"
 import type { Document } from "@/lib/types/document"
 
@@ -33,6 +38,7 @@ const schema = z.object({
   filePath: z.string().min(1, "请填写文件路径"),
   docType: z.string().min(1, "请选择类型"),
   content: z.string(),
+  changeSummary: z.string().max(500, "修改说明不能超过 500 字").optional(),
   publish: z.enum(["draft", "published"])
 })
 
@@ -47,29 +53,70 @@ export function DocEditForm({ doc }: DocEditFormProps) {
   const router = useRouter()
   const { mutate: create, isPending: creating } = useCreateDocument()
   const { mutate: update, isPending: updating } = useUpdateDocument()
-  const isPending = creating || updating
+  const { mutate: publishDocument, isPending: publishing } = usePublishDocument()
+  const { mutate: unpublishDocument, isPending: unpublishing } = useUnpublishDocument()
+  const isPending = creating || updating || publishing || unpublishing
 
   const methods = useForm<FormValues, unknown, FormValues>({
     resolver: zodResolver(schema),
     defaultValues: doc
       ? {
           title: doc.title,
-          filePath: doc.filePath,
+          filePath: doc.filePath ?? "",
           docType: doc.docType,
           content: doc.content ?? "",
-          publish: (doc.publish as "draft" | "published") ?? "draft"
+          changeSummary: "",
+          publish:
+            doc.publishedVersionId != null && doc.publishedVersionId === doc.currentVersionId
+              ? "published"
+              : "draft"
         }
-      : { title: "", filePath: "", docType: "guide", content: "", publish: "draft" }
+      : {
+          title: "",
+          filePath: "",
+          docType: "guide",
+          content: "",
+          changeSummary: "",
+          publish: "draft"
+        }
   })
 
   function onSubmit(values: FormValues) {
     if (doc) {
       update(
-        { id: doc.id, ...values },
         {
-          onSuccess: () => {
-            toast.success("文档已保存")
-            router.push(paths.docs.root)
+          id: doc.id,
+          title: values.title,
+          content: values.content,
+          expectedCurrentVersionId: doc.currentVersionId,
+          changeSummary: values.changeSummary,
+          docType: values.docType
+        },
+        {
+          onSuccess: (saved) => {
+            const complete = () => {
+              toast.success("文档已保存")
+              router.push(paths.docs.root)
+            }
+            if (!methods.formState.dirtyFields.publish) {
+              complete()
+              return
+            }
+            if (values.publish === "published") {
+              if (!saved.currentVersionId) {
+                toast.error("文档当前版本不存在，请刷新后重试")
+                return
+              }
+              publishDocument(
+                { id: saved.id, expectedCurrentVersionId: saved.currentVersionId },
+                { onSuccess: complete, onError: () => toast.error("发布失败") }
+              )
+              return
+            }
+            unpublishDocument(saved.id, {
+              onSuccess: complete,
+              onError: () => toast.error("取消发布失败")
+            })
           },
           onError: () => toast.error("保存失败")
         }
@@ -94,7 +141,7 @@ export function DocEditForm({ doc }: DocEditFormProps) {
         <h1 className="font-semibold text-xl">{doc ? "编辑文档" : "新建文档"}</h1>
         <div className="flex items-center gap-2">
           <Badge variant={publish === "published" ? "default" : "secondary"}>
-            {publish === "published" ? "已发布" : "草稿"}
+            {publish === "published" ? "将发布当前版本" : "草稿"}
           </Badge>
           <Button type="button" variant="outline" onClick={() => router.back()}>
             取消
@@ -103,10 +150,12 @@ export function DocEditForm({ doc }: DocEditFormProps) {
             type="button"
             variant="outline"
             onClick={() =>
-              methods.setValue("publish", publish === "published" ? "draft" : "published")
+              methods.setValue("publish", publish === "published" ? "draft" : "published", {
+                shouldDirty: true
+              })
             }
           >
-            {publish === "published" ? "转为草稿" : "发布"}
+            {publish === "published" ? "转为草稿" : "发布当前版本"}
           </Button>
           <Button type="submit" disabled={isPending}>
             {isPending ? "保存中..." : "保存"}
@@ -121,6 +170,9 @@ export function DocEditForm({ doc }: DocEditFormProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           <Field.Text name="title" label="标题" placeholder="文档标题" />
+          {doc && (
+            <Field.Text name="changeSummary" label="版本说明" placeholder="简要说明本次修改" />
+          )}
           <div className="grid grid-cols-2 gap-4">
             <Field.Text name="filePath" label="文件路径" placeholder="docs/design/xxx.md" />
             <Field.Select name="docType" label="文档类型" options={DOC_TYPES} />

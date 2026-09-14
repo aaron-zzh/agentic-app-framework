@@ -18,22 +18,21 @@ import com.xuejiai.aaf.framework.engine.skill.SkillReferenceEntity;
 import com.xuejiai.aaf.framework.intelligent.agent.port.SkillReferenceCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.core.skill.SkillReference;
 import com.xuejiai.aaf.framework.intelligent.core.skill.SkillReference.LoadMode;
-import com.xuejiai.aaf.module.document.repository.DocumentRepository;
+import com.xuejiai.aaf.module.document.api.DocumentVersionApi;
 
 import lombok.RequiredArgsConstructor;
 
 /**
  * SkillReferenceCatalogPort 的 JPA 桥接。
  *
- * <p>{@code document_version_id} 当前用于冻结 Reference 合同；{@code doc_document} 尚无正文版本历史，运行时通过 {@code
- * content_hash} 阻止已发布引用静默漂移。
+ * <p>{@code document_version_id} 精确冻结 Reference 正文；读取始终通过文档模块版本 API，不回退到可变当前内容。
  */
 @Component
 @RequiredArgsConstructor
 public class SkillReferenceCatalogPortImpl implements SkillReferenceCatalogPort {
 
     private final SkillReferenceRepository repository;
-    private final DocumentRepository documents;
+    private final DocumentVersionApi documentVersions;
 
     @Override
     public Map<Long, List<SkillReference>> findByVersionIds(Set<Long> skillVersionIds) {
@@ -69,20 +68,43 @@ public class SkillReferenceCatalogPortImpl implements SkillReferenceCatalogPort 
     }
 
     @Override
-    public Map<Long, String> readContents(Set<Long> documentIds) {
-        if (documentIds.isEmpty()) {
+    public Map<DocumentReference, String> readContents(Set<DocumentReference> documentReferences) {
+        if (documentReferences.isEmpty()) {
             return Map.of();
         }
-        return documents.findAllById(documentIds).stream()
-                .filter(document -> document.getContent() != null)
+        var versions =
+                documentVersions.findExact(
+                        documentReferences.stream()
+                                .map(
+                                        reference ->
+                                                new DocumentVersionApi.DocumentVersionIdentity(
+                                                        reference.documentId(),
+                                                        reference.documentVersionId()))
+                                .toList());
+        return documentReferences.stream()
+                .filter(
+                        reference ->
+                                versions.containsKey(
+                                        new DocumentVersionApi.DocumentVersionIdentity(
+                                                reference.documentId(),
+                                                reference.documentVersionId())))
                 .collect(
                         Collectors.toUnmodifiableMap(
-                                document -> document.getId(), document -> document.getContent()));
+                                reference -> reference,
+                                reference ->
+                                        versions.get(
+                                                        new DocumentVersionApi
+                                                                .DocumentVersionIdentity(
+                                                                reference.documentId(),
+                                                                reference.documentVersionId()))
+                                                .content()));
     }
 
     @Override
     public Optional<String> readContent(Long documentId, Long documentVersionId) {
-        return documents.findById(documentId).map(document -> document.getContent());
+        return documentVersions
+                .findExact(documentId, documentVersionId)
+                .map(DocumentVersionApi.DocumentVersionView::content);
     }
 
     private static SkillReference toDomain(SkillReferenceEntity entity) {

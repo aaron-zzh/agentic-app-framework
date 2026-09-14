@@ -75,6 +75,10 @@ export default function DocsPage() {
 
   useDocEvents(selectedId, handleDocUpdate)
 
+  const hasPublishedVersion = doc?.publishedVersionId != null
+  const isCurrentVersionPublished =
+    hasPublishedVersion && doc?.publishedVersionId === doc?.currentVersionId
+
   /** 按 docType 分组，支持 publish tab 筛选 */
   const groupedDocs = useMemo(() => {
     if (!tree) return new Map<string, DocTreeNode[]>()
@@ -112,16 +116,23 @@ export default function DocsPage() {
 
   function handlePublishToggle() {
     if (!selectedId || !doc) return
-    if (doc.publish === "published") {
+    if (isCurrentVersionPublished) {
       unpublish(selectedId, {
         onSuccess: () => toast.success("已转为草稿"),
         onError: () => toast.error("操作失败")
       })
     } else {
-      publish(selectedId, {
-        onSuccess: () => toast.success("已发布"),
-        onError: () => toast.error("操作失败")
-      })
+      if (!doc.currentVersionId) {
+        toast.error("文档当前版本不存在，请刷新后重试")
+        return
+      }
+      publish(
+        { id: selectedId, expectedCurrentVersionId: doc.currentVersionId },
+        {
+          onSuccess: () => toast.success("已发布"),
+          onError: () => toast.error("操作失败")
+        }
+      )
     }
   }
 
@@ -238,10 +249,14 @@ export default function DocsPage() {
                     </h2>
                     {doc && (
                       <Badge
-                        variant={doc.publish === "published" ? "default" : "secondary"}
+                        variant={isCurrentVersionPublished ? "default" : "secondary"}
                         className="shrink-0 text-xs"
                       >
-                        {doc.publish === "published" ? "已发布" : "草稿"}
+                        {isCurrentVersionPublished
+                          ? "当前版本已发布"
+                          : hasPublishedVersion
+                            ? "当前版本未发布"
+                            : "草稿"}
                       </Badge>
                     )}
                   </div>
@@ -254,9 +269,9 @@ export default function DocsPage() {
                           onClick={handlePublishToggle}
                           disabled={publishing || unpublishing}
                         >
-                          {doc.publish === "published" ? "转为草稿" : "发布"}
+                          {isCurrentVersionPublished ? "转为草稿" : "发布当前版本"}
                         </Button>
-                        {doc.publish === "published" && (
+                        {hasPublishedVersion && (
                           <Button
                             size="sm"
                             variant="ghost"

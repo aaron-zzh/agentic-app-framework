@@ -13,6 +13,7 @@ import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.module.document.domain.Document;
 import com.xuejiai.aaf.module.document.repository.DocumentRepository;
+import com.xuejiai.aaf.module.document.service.DocumentVersionService;
 import com.xuejiai.aaf.module.legal.domain.LegalDocumentType;
 import com.xuejiai.aaf.module.legal.domain.UserConsent;
 import com.xuejiai.aaf.module.legal.repository.UserConsentRepository;
@@ -32,17 +33,34 @@ import com.xuejiai.aaf.module.legal.vo.PendingConsentVO;
 public class LegalDocumentService {
 
     private final DocumentRepository documentRepository;
+    private final DocumentVersionService documentVersionService;
     private final UserConsentRepository userConsentRepository;
 
     public LegalDocumentService(
-            DocumentRepository documentRepository, UserConsentRepository userConsentRepository) {
+            DocumentRepository documentRepository,
+            DocumentVersionService documentVersionService,
+            UserConsentRepository userConsentRepository) {
         this.documentRepository = documentRepository;
+        this.documentVersionService = documentVersionService;
         this.userConsentRepository = userConsentRepository;
     }
 
     /** 获取指定类型的最新已发布法律文档，未发布则抛 NOT_FOUND。 */
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    @com.xuejiai.aaf.framework.org.OrgIgnore
     public LegalDocumentVO getLatestPublished(LegalDocumentType type) {
         Document doc = findLatestPublished(type);
+        return toVO(doc, type);
+    }
+
+    /** 获取指定类型精确版本的已发布法律文档；版本必须等于当前 publishedVersionId，否则拒绝（已过期，需刷新重读）。 */
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    @com.xuejiai.aaf.framework.org.OrgIgnore
+    public LegalDocumentVO getPublishedVersion(LegalDocumentType type, Long documentVersionId) {
+        Document doc = findLatestPublished(type);
+        if (!doc.getPublishedVersionId().equals(documentVersionId)) {
+            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "该法律文档版本已不是当前发布版本");
+        }
         return toVO(doc, type);
     }
 
@@ -53,27 +71,36 @@ public class LegalDocumentService {
             Optional<Document> latest = findLatestPublishedOptional(type);
             if (latest.isEmpty()) continue;
             Document doc = latest.get();
-            String latestVersion = resolveVersion(doc);
+            Long latestVersionId = doc.getPublishedVersionId();
             Optional<UserConsent> last =
                     userConsentRepository.findFirstByUserIdAndDocumentTypeOrderByConsentTimeDesc(
                             userId, type.getCode());
-            if (last.isEmpty() || !latestVersion.equals(last.get().getDocumentVersion())) {
+            if (last.isEmpty() || !latestVersionId.equals(last.get().getDocumentVersionId())) {
                 pending.add(toVO(doc, type));
             }
         }
         return new PendingConsentVO(pending.size(), pending);
     }
 
-    /** 记录一次用户同意，写入快照。 */
+    /** 记录一次用户同意，写入快照；要求提交精确版本与当前发布版本一致，拒绝隐式同意未阅读的更新版本。 */
     @Transactional
-    public void recordConsent(Long userId, Long documentId, String clientIp, String sourceApp) {
+    public void recordConsent(
+            Long userId,
+            Long documentId,
+            Long documentVersionId,
+            String clientIp,
+            String sourceApp) {
         Document doc =
                 documentRepository
-                        .findById(documentId)
+                        .findByIdForUpdate(documentId)
+                        .filter(candidate -> !Boolean.TRUE.equals(candidate.getDeleted()))
                         .orElseThrow(
                                 () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "文档不存在"));
-        if (!"published".equals(doc.getPublish())) {
+        if (!"published".equals(doc.getPublish()) || doc.getPublishedVersionId() == null) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "文档未发布，无法记录同意");
+        }
+        if (!doc.getPublishedVersionId().equals(documentVersionId)) {
+            throw new BusinessException(409, "文档已发布新版本，请刷新后重新阅读并同意");
         }
         LegalDocumentType type =
                 LegalDocumentType.fromCode(doc.getDocType())
@@ -84,6 +111,7 @@ public class LegalDocumentService {
         UserConsent consent = new UserConsent();
         consent.setUserId(userId);
         consent.setDocumentId(doc.getId());
+        consent.setDocumentVersionId(doc.getPublishedVersionId());
         consent.setDocumentType(type.getCode());
         consent.setDocumentVersion(resolveVersion(doc));
         consent.setConsentTime(LocalDateTime.now());
@@ -104,28 +132,39 @@ public class LegalDocumentService {
         return documentRepository.findByPublishOrderByUpdateTimeDesc("published").stream()
                 .filter(d -> type.getCode().equals(d.getDocType()))
                 .filter(d -> "active".equals(d.getStatus()))
+                .filter(d -> d.getPublishedVersionId() != null)
                 .findFirst();
     }
 
     private LegalDocumentVO toVO(Document doc, LegalDocumentType type) {
+        var published =
+                documentVersionService
+                        .findExact(doc.getId(), doc.getPublishedVersionId())
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.NOT_FOUND, "法律文档不存在或未发布"));
         Map<String, Object> fm = doc.getFrontMatter();
-        String version = resolveVersion(doc);
+        String version = resolveVersion(published, fm);
         String effectiveDate =
                 fm.get("effectiveDate") != null ? String.valueOf(fm.get("effectiveDate")) : null;
         return new LegalDocumentVO(
                 doc.getId(),
                 type.getCode(),
-                doc.getTitle(),
-                doc.getContent(),
+                published.title(),
+                published.content(),
+                published.id(),
                 version,
                 effectiveDate,
-                doc.getUpdateTime());
+                published.createdTime());
     }
 
-    /** 取版本号：front_matter.version 优先，否则回退到 update_time 字符串保证唯一性。 */
-    private String resolveVersion(Document doc) {
-        Object v = doc.getFrontMatter().get("version");
-        if (v != null && !String.valueOf(v).isBlank()) return String.valueOf(v);
-        return doc.getUpdateTime() != null ? doc.getUpdateTime().toString() : "unknown";
+    /** 法律展示版本优先使用不可变正文版本号，Front Matter 仅作为业务标签。 */
+    private String resolveVersion(
+            com.xuejiai.aaf.module.document.api.DocumentVersionApi.DocumentVersionView published,
+            Map<String, Object> frontMatter) {
+        if (published.versionNo() != null) return "v" + published.versionNo();
+        Object value = frontMatter.get("version");
+        return value == null || String.valueOf(value).isBlank() ? "unknown" : String.valueOf(value);
     }
 }
