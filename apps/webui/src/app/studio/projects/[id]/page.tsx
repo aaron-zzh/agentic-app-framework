@@ -13,15 +13,15 @@ import { useEffect, useMemo, useState } from "react"
 import { GlowButton } from "@/components/studio"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useChatterLayoutPreference } from "@/features/chatter"
 import {
   ContentActionBar,
-  type ContentCanvasMode,
-  ContentCanvasSheet,
   DeliveryWorkflowPanel,
   getObjectStage,
   isProjectContentWritable,
   ObjectDetailPanel,
   PROJECT_GRAPH_STAGES,
+  ProjectAssistantControl,
   ProjectBasicInfoDialog,
   ProjectDocumentPanel,
   type ProjectGraphStage,
@@ -30,18 +30,21 @@ import {
   ProjectObjectGenerationDialog,
   type ProjectObjectStructureAction,
   ProjectObjectStructureDialog,
+  ProjectProgressPanel,
   ProjectStructureView,
   ProjectWorkbenchHeader,
   type ProjectWorkbenchView,
   useProjectGraphViewState
 } from "@/features/studio/content"
+import { GenerationProposalPanel } from "@/features/studio/content/GenerationProposalPanel"
 import {
-  type AigcProjectObject,
   useAigcProject,
   useAigcProjectActions,
+  useAigcProjectConversationContext,
   useAigcProjectDocumentRefs,
   useAigcProjectGraph,
-  useAigcProjectSummary
+  useAigcProjectProgress,
+  useAigcProjectReadiness
 } from "@/lib/api/rest/ai/aigc"
 import {
   AIGC_AUTHORITY_CODES,
@@ -49,11 +52,6 @@ import {
   hasEntityOperation,
   useEntityAccess
 } from "@/lib/api/rest/user/permission"
-
-interface CanvasSession {
-  mode: ContentCanvasMode
-  object: AigcProjectObject
-}
 
 function parseFocus(value: string | null): number | undefined {
   if (!value) return undefined
@@ -72,6 +70,8 @@ export default function StudioProjectDetailPage() {
   const searchParams = useSearchParams()
   const projectId = Number(params.id)
   const validProjectId = Number.isFinite(projectId) && projectId > 0 ? projectId : null
+  const { data: conversationContext } = useAigcProjectConversationContext(validProjectId)
+  useChatterLayoutPreference(conversationContext?.state === "READY" ? "panel" : null)
   const storedView = useProjectGraphViewState(validProjectId ?? 0, (state) => state.view)
   const storedFocus = useProjectGraphViewState(validProjectId ?? 0, (state) => state.focusObjectId)
   const setStoredView = useProjectGraphViewState(validProjectId ?? 0, (state) => state.setView)
@@ -85,7 +85,6 @@ export default function StudioProjectDetailPage() {
   const urlFocus = parseFocus(searchParams.get("focus"))
   const focusObjectId = urlFocus ?? storedFocus ?? undefined
   const requestedStage = searchParams.get("stage")
-  const [canvasSession, setCanvasSession] = useState<CanvasSession | null>(null)
   const [generationObjectId, setGenerationObjectId] = useState<number | null>(null)
   const [structureAction, setStructureAction] = useState<ProjectObjectStructureAction | null>(null)
   const detailPanel = useBoolean(false)
@@ -122,7 +121,15 @@ export default function StudioProjectDetailPage() {
   const { data: actions = [] } = useAigcProjectActions(writableProjectId)
   const { data: documentRefs = [] } = useAigcProjectDocumentRefs(validProjectId)
   const { data: graph, isLoading: graphLoading } = useAigcProjectGraph(validProjectId)
-  const { data: summary } = useAigcProjectSummary(validProjectId)
+  const optionalObjectIds = useMemo(
+    () =>
+      graph?.objects
+        .filter((object) => object.contractRole === "OPTIONAL")
+        .map((object) => object.id) ?? [],
+    [graph]
+  )
+  const { data: readiness = [] } = useAigcProjectReadiness(validProjectId, optionalObjectIds)
+  const { data: progress } = useAigcProjectProgress(validProjectId)
   const readOnly = !canEditProject
   const focusedObject = graph?.objects.find((object) => object.id === focusObjectId)
   const activeStage: ProjectGraphStage = isStage(requestedStage)
@@ -132,16 +139,22 @@ export default function StudioProjectDetailPage() {
       : "planning"
   const generatableObjectIds = useMemo(
     () =>
-      graph?.objects
-        .filter((object) =>
-          actions.some(
-            (action) =>
-              (action.actionKey.startsWith("image.") || action.actionKey.startsWith("video.")) &&
-              action.applicableObjectTypes.includes(object.objectType)
-          )
-        )
-        .map((object) => object.id) ?? [],
-    [actions, graph]
+      canRunAction
+        ? (graph?.objects
+            .filter((object) => {
+              const allowedActions =
+                readiness.find((item) => item.projectObjectId === object.id)?.allowedActions ?? []
+              return actions.some(
+                (action) =>
+                  allowedActions.includes(action.actionKey) &&
+                  (action.actionKey.startsWith("image.") ||
+                    action.actionKey.startsWith("video.")) &&
+                  action.applicableObjectTypes.includes(object.objectType)
+              )
+            })
+            .map((object) => object.id) ?? [])
+        : [],
+    [actions, canRunAction, graph, readiness]
   )
 
   useEffect(() => {
@@ -181,14 +194,6 @@ export default function StudioProjectDetailPage() {
     if (canRunAction) {
       handleFocusObject(id)
       setGenerationObjectId(id)
-    }
-  }
-  function handleOpenCanvas(id: number, mode: ContentCanvasMode) {
-    if (!canEditProject) return
-    const object = graph?.objects.find((item) => item.id === id)
-    if (object) {
-      handleFocusObject(id)
-      setCanvasSession({ mode, object })
     }
   }
   function handleStructureAction(action: ProjectObjectStructureAction) {
@@ -245,6 +250,18 @@ export default function StudioProjectDetailPage() {
             />
           </>
         }
+        assistantControl={
+          <>
+            <ProjectAssistantControl projectId={project.id} canBind={canProjectUpdate} />
+            <GenerationProposalPanel
+              project={project}
+              objects={graph.objects}
+              documentRefs={documentRefs}
+              actions={actions}
+              canMutate={canEditProject}
+            />
+          </>
+        }
         onViewChange={handleViewChange}
         onOpenDocuments={documentPanel.onTrue}
         documentsOpen={documentPanel.value}
@@ -254,6 +271,7 @@ export default function StudioProjectDetailPage() {
         <ContentActionBar
           project={project}
           focusedObject={focusedObject}
+          readiness={readiness.find((item) => item.projectObjectId === focusedObject?.id)}
           canAction={canRunAction}
         />
       ) : null}
@@ -265,18 +283,18 @@ export default function StudioProjectDetailPage() {
               <ProjectGraphView
                 projectId={project.id}
                 graph={graph}
+                readiness={readiness}
                 focusObjectId={focusObjectId}
                 readOnly={readOnly}
                 generatableObjectIds={generatableObjectIds}
                 onFocusObject={handleFocusObject}
                 onOpenDetails={handleOpenDetails}
                 onGenerateObject={handleGenerateObject}
-                onOpenCanvas={(id) => handleOpenCanvas(id, "canvas")}
-                onAnnotateImage={(id) => handleOpenCanvas(id, "annotation")}
               />
             ) : (
               <ProjectStructureView
                 graph={graph}
+                readiness={readiness}
                 activeStage={activeStage}
                 focusObjectId={focusObjectId}
                 readOnly={readOnly}
@@ -287,11 +305,10 @@ export default function StudioProjectDetailPage() {
                 onRemoveObject={(object) => handleStructureAction({ kind: "remove", object })}
                 onOpenDetails={handleOpenDetails}
                 onGenerateObject={handleGenerateObject}
-                onOpenCanvas={(id) => handleOpenCanvas(id, "canvas")}
-                onAnnotateImage={(id) => handleOpenCanvas(id, "annotation")}
               />
             )}
           </div>
+          {progress ? <ProjectProgressPanel progress={progress} /> : null}
           <DeliveryWorkflowPanel
             project={project}
             objects={graph.objects}
@@ -306,11 +323,31 @@ export default function StudioProjectDetailPage() {
 
       <footer className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t bg-background/80 px-4 py-2 text-muted-foreground text-xs sm:px-6">
         <span>图谱 revision {graph.graphRevision}</span>
-        <span>{summary?.objectCount ?? graph.objects.length} 个对象</span>
-        <span>{summary?.pendingConfirmCount ?? 0} 项待确认</span>
-        <span>{summary?.blockedCount ?? 0} 项被阻断</span>
-        <span>{summary?.executionRunningCount ?? 0} 个 Run 执行中</span>
-        <span>费用 {summary?.costUsed ?? project.costUsed}</span>
+        <span>{graph.objects.length} 个对象</span>
+        <span>
+          {progress?.objects.filter((item) => item.maturity === "CANDIDATE_AVAILABLE").length ?? 0}{" "}
+          个候选可用
+        </span>
+        <span>
+          {progress?.readiness.filter(
+            (item) => item.state === "BLOCKED_BY_DEPENDENCY" || item.state === "BLOCKED_BY_POLICY"
+          ).length ?? 0}{" "}
+          项被阻断
+        </span>
+        <span>
+          {progress?.executions.filter((execution) => execution.status === "RUNNING").length ?? 0}{" "}
+          个 Run 执行中
+        </span>
+        <span>
+          {progress?.candidates.filter((candidate) => candidate.status === "candidate").length ?? 0}{" "}
+          个候选待决策
+        </span>
+        <span>实际积分 {progress ? progress.credits.netActual : "加载中"}</span>
+        <span className={progress?.delivery.completionSatisfied ? "text-emerald-600" : undefined}>
+          {progress?.delivery.completionSatisfied
+            ? "交付证据已满足"
+            : `${progress?.delivery.blockers.length ?? 0} 项交付阻断`}
+        </span>
         {readOnly ? (
           <span className="text-amber-500">
             {canProjectUpdate ? `${project.status} · 内容全局只读` : "无项目更新权限"}
@@ -334,6 +371,7 @@ export default function StudioProjectDetailPage() {
         open={detailPanel.value}
         project={project}
         object={focusedObject}
+        progress={progress}
         lifecycleWritable={lifecycleWritable}
         canAction={canAction}
         canAdopt={canAdopt}
@@ -359,15 +397,6 @@ export default function StudioProjectDetailPage() {
         mutable={canEditProject}
         onOpenChange={(open) => {
           if (!open) setStructureAction(null)
-        }}
-      />
-      <ContentCanvasSheet
-        open={canvasSession !== null && canEditProject}
-        mode={canvasSession?.mode ?? "canvas"}
-        projectId={project.id}
-        object={canvasSession?.object ?? null}
-        onOpenChange={(open) => {
-          if (!open) setCanvasSession(null)
         }}
       />
     </div>

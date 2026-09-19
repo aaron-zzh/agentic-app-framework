@@ -274,8 +274,10 @@ interface AgUiChatProviderProps {
   initialState?: Record<string, unknown>
   /** 本次 run 的一次性调用参数（AG-UI `forwardedProps`）：assistantId、taskModelSelection 等。 */
   forwardedProps?: Record<string, unknown>
-  /** 非 guest 模式的初始线程 ID；guest 始终以服务端 session 为准。 */
+  /** 非 guest 模式的初始线程 ID。 */
   initialThreadId?: string
+  /** 服务端受控固定线程；存在时不读取/写入 storage、不列举或创建普通会话。 */
+  fixedThreadId?: string
   /** 新建会话回调（默认调用 chatApi.createSession） */
   onNewThread?: () => Promise<void>
   /** 是否显示服务端允许公开的 reasoning 内容，默认 true。 */
@@ -293,6 +295,7 @@ export function AgUiChatProvider({
   initialState,
   forwardedProps,
   initialThreadId,
+  fixedThreadId,
   onNewThread,
   showThinking = true
 }: AgUiChatProviderProps) {
@@ -339,6 +342,7 @@ export function AgUiChatProvider({
 
   const [currentThreadId, setCurrentThreadId] = useState<string | undefined>(() => {
     if (guestMode) return undefined
+    if (fixedThreadId) return fixedThreadId
     return (
       initialThreadId ??
       (typeof window !== "undefined"
@@ -370,9 +374,9 @@ export function AgUiChatProvider({
     guestThreadIdRef.current = sessionThreadId
   }, [guestMode, guestSessionQuery.data?.threadId, guestSessionQuery.isFetchedAfterMount])
 
-  // guest 不读写登录 sessionStorage，也不把服务端客服线程复制到 Zustand。
+  // guest 与项目受控线程均不读写登录 sessionStorage，也不把服务端线程复制到 Zustand。
   useEffect(() => {
-    if (guestMode) {
+    if (guestMode || fixedThreadId) {
       useAgentRunStore.getState().setCurrentThreadId(undefined)
       return
     }
@@ -380,7 +384,7 @@ export function AgUiChatProvider({
       sessionStorage.setItem(THREAD_KEY, currentThreadId)
     }
     useAgentRunStore.getState().setCurrentThreadId(currentThreadId)
-  }, [currentThreadId, guestMode])
+  }, [currentThreadId, fixedThreadId, guestMode])
 
   // feedbackAdapter.submit 是同步回调，用 ref 读取避免闭包捕获过期的 currentThreadId
   const currentThreadIdRef = useRef(currentThreadId)
@@ -502,7 +506,7 @@ export function AgUiChatProvider({
   // 交由 ThreadListPrimitive 消费；列表数据源统一由 TanStack Query 管理（useChatSessions），
   // 不再由 SessionPopover 自行维护并行状态。
   const { data: chatSessions, isFetched: chatSessionsFetched } = useChatSessions({
-    enabled: !guestMode && isAuthenticated
+    enabled: !guestMode && !fixedThreadId && isAuthenticated
   })
   const { mutate: createSession, mutateAsync: createSessionAsync } = useCreateSession()
   const renameSessionMutation = useRenameSession()
@@ -513,7 +517,7 @@ export function AgUiChatProvider({
 
   // sessionStorage 只保存候选 threadId；当前用户会话列表是有效性的唯一依据。
   useEffect(() => {
-    if (guestMode || !isAuthenticated || !chatSessionsFetched) return
+    if (guestMode || fixedThreadId || !isAuthenticated || !chatSessionsFetched) return
     const currentThreadExists = Boolean(
       currentThreadId &&
         chatSessions?.some(
@@ -541,6 +545,7 @@ export function AgUiChatProvider({
     )
   }, [
     guestMode,
+    fixedThreadId,
     isAuthenticated,
     chatSessionsFetched,
     chatSessions,
@@ -615,6 +620,41 @@ export function AgUiChatProvider({
     ]
   )
 
+  const fixedThreadList: UseAgUiThreadListAdapter = useMemo(
+    () => ({
+      threadId: fixedThreadId,
+      threads: fixedThreadId
+        ? [{ status: "regular" as const, id: fixedThreadId, title: "项目 Assistant" }]
+        : [],
+      archivedThreads: [],
+      onSwitchToNewThread: async () => {
+        if (!fixedThreadId) throw new Error("项目会话尚未就绪")
+        setCurrentThreadId(fixedThreadId)
+      },
+      onSwitchToThread: async (threadId: string) => {
+        if (!fixedThreadId || threadId !== fixedThreadId) {
+          throw new Error("只能打开项目绑定的会话")
+        }
+        const history = await chatApi.getMessages(fixedThreadId)
+        setCurrentThreadId(fixedThreadId)
+        return { messages: toThreadMessages(history) }
+      },
+      onRename: async () => {
+        throw new Error("项目会话不允许重命名")
+      },
+      onArchive: async () => {
+        throw new Error("项目会话不允许归档")
+      },
+      onUnarchive: async () => {
+        throw new Error("项目会话不允许取消归档")
+      },
+      onDelete: async () => {
+        throw new Error("项目会话不允许删除")
+      }
+    }),
+    [fixedThreadId]
+  )
+
   const guestSession = guestSessionQuery.isFetchedAfterMount ? guestSessionQuery.data : undefined
   const guestThreadId = guestSession?.threadId
   const guestThreads = useMemo(
@@ -649,7 +689,11 @@ export function AgUiChatProvider({
     [currentThreadId, guestSession, guestThreadId, guestThreads]
   )
 
-  const threadList = guestMode ? guestThreadList : authenticatedThreadList
+  const threadList = guestMode
+    ? guestThreadList
+    : fixedThreadId
+      ? fixedThreadList
+      : authenticatedThreadList
 
   const voiceAdapter = useMemo(
     () => new OmniVoiceAdapter({ getToken: () => useAuthStore.getState().accessToken }),
@@ -701,21 +745,23 @@ export function AgUiChatProvider({
     guestMode ? {} : { tools: Tools({ toolkit: { ...aigcToolkit, ...renderUiBlockToolkit } }) }
   )
 
-  // 初始线程恢复：guest 等待 session；登录线程先经当前用户会话列表验证所有权。
+  // 初始线程恢复：guest 等待 session；项目模式只接受固定 thread；普通登录线程校验会话列表所有权。
   const switchedRef = useRef(false)
-  const [initialThreadReady, setInitialThreadReady] = useState(!guestMode)
+  const [initialThreadReady, setInitialThreadReady] = useState(!guestMode && !fixedThreadId)
   const [initialThreadError, setInitialThreadError] = useState(false)
-  const initialThreadIdToSwitch = guestMode ? guestThreadId : currentThreadId
+  const initialThreadIdToSwitch = guestMode ? guestThreadId : (fixedThreadId ?? currentThreadId)
   const initialThreadOwned = guestMode
     ? Boolean(guestSession && guestThreadId === guestSession.threadId)
-    : Boolean(
-        isAuthenticated &&
-          chatSessionsFetched &&
-          currentThreadId &&
-          chatSessions?.some(
-            (session) => session.threadId === currentThreadId && session.type === "ai"
-          )
-      )
+    : fixedThreadId
+      ? currentThreadId === fixedThreadId
+      : Boolean(
+          isAuthenticated &&
+            chatSessionsFetched &&
+            currentThreadId &&
+            chatSessions?.some(
+              (session) => session.threadId === currentThreadId && session.type === "ai"
+            )
+        )
   useEffect(() => {
     if (!initialThreadIdToSwitch || !initialThreadOwned || switchedRef.current) return
     switchedRef.current = true
@@ -733,11 +779,15 @@ export function AgUiChatProvider({
   return (
     <AssistantRuntimeProvider runtime={runtime} aui={aui}>
       {!guestMode && <VoiceCleanup />}
-      {guestMode && (!guestThreadId || !initialThreadReady) ? (
+      {(guestMode || fixedThreadId) && (!initialThreadIdToSwitch || !initialThreadReady) ? (
         <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
           {guestSessionQuery.isError || initialThreadError
-            ? "连接客服失败，请稍后重试"
-            : "正在连接客服…"}
+            ? fixedThreadId
+              ? "加载项目会话失败，请稍后重试"
+              : "连接客服失败，请稍后重试"
+            : fixedThreadId
+              ? "正在加载项目会话…"
+              : "正在连接客服…"}
         </div>
       ) : (
         children

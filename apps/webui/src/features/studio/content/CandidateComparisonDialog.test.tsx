@@ -3,9 +3,17 @@
  * @author AaronZZH & Kiro
  */
 
-import { render, screen } from "@testing-library/react"
-import type { ReactNode } from "react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { screen, render as testingRender } from "@testing-library/react"
+import { createElement, type ReactNode } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+
+function render(ui: ReactNode) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } }
+  })
+  return testingRender(createElement(QueryClientProvider, { client: queryClient }, ui))
+}
 
 const { useAigcVersionComparison, useMediaVersionDetails } = vi.hoisted(() => ({
   useAigcVersionComparison: vi.fn(),

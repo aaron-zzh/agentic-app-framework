@@ -13,6 +13,7 @@
 import { type ReactNode, useMemo } from "react"
 import type {
   ChatterDisplayPreferences,
+  ChatterProjectContext,
   ChatterTarget,
   TaskModelSelection
 } from "@/features/chatter/types"
@@ -35,6 +36,7 @@ interface ChatterRuntimeProps {
   target: ChatterTarget
   persist?: boolean
   sessionId?: string
+  projectContext?: ChatterProjectContext
   taskModelSelection?: TaskModelSelection
   displayPreferences: ChatterDisplayPreferences
   children: ReactNode
@@ -51,6 +53,7 @@ interface ChatterRuntimeProps {
 export function ChatterRuntime({
   target,
   sessionId,
+  projectContext,
   taskModelSelection,
   displayPreferences,
   children
@@ -66,8 +69,20 @@ export function ChatterRuntime({
   )
 
   const forwardedProps = useMemo(
-    () => buildChatterForwardedProps({ target, taskModelSelection }),
-    [target, taskModelSelection]
+    () =>
+      projectContext
+        ? buildChatterForwardedProps({
+            scope: "project",
+            projectId: projectContext.projectId,
+            assistantId: projectContext.assistantId,
+            taskModelSelection
+          })
+        : buildChatterForwardedProps({
+            scope: "global",
+            target,
+            taskModelSelection
+          }),
+    [projectContext, target, taskModelSelection]
   )
 
   // user 类型走 IM WebSocket
@@ -90,10 +105,11 @@ export function ChatterRuntime({
   const guestMode = target.type === "guest"
   return (
     <AgUiChatProvider
-      key={guestMode ? "guest" : "authenticated"}
+      key={guestMode ? "guest" : `authenticated:${projectContext?.threadId ?? "global"}`}
       url={aguiUrl}
       initialState={guestMode ? undefined : initialState}
       forwardedProps={guestMode ? undefined : forwardedProps}
+      fixedThreadId={projectContext?.threadId}
       showThinking={guestMode ? false : displayPreferences.showThinking}
       guestMode={guestMode}
     >

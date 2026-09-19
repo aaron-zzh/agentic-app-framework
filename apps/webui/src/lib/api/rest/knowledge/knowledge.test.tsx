@@ -31,6 +31,7 @@ const DOCUMENT: KnowledgeDocument = {
   stableId: "00000000-0000-0000-0000-000000000031",
   knowledgeBaseId: 12,
   sourceDocumentId: 88,
+  sourceDocumentVersionId: 89,
   uploadedBy: 7,
   sourceType: "FILE",
   sourceKey: "architecture.md",

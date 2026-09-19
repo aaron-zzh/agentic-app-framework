@@ -3,6 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
+import { useQuery } from "@tanstack/react-query"
 import { backendApi } from "../backend-client"
 import { restEndpoints } from "../endpoints"
 
@@ -175,4 +176,17 @@ export const taskApi = {
 
 export function isTaskTerminal(status: TaskStatus): boolean {
   return status === "COMPLETED" || status === "CANCELED" || status === "FAILED"
+}
+
+/** 查询 canonical Task 详情；非终态期间轮询服务端权威投影。 */
+export function useTaskDetails(taskId: string | null) {
+  return useQuery({
+    queryKey: taskKeys.detail(taskId ?? ""),
+    queryFn: () => taskApi.get(taskId as string),
+    enabled: taskId !== null,
+    refetchInterval: (query) => {
+      const task = query.state.data
+      return task && !isTaskTerminal(task.status) ? 3000 : false
+    }
+  })
 }

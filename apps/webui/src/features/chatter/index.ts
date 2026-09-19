@@ -36,6 +36,7 @@ export {
   type ChatterDropItem,
   type ChatterLayout,
   type ChatterPreset,
+  type ChatterProjectContext,
   type ChatterProps,
   type ChatterTarget,
   DEFAULT_TASK_MODEL_SELECTION,

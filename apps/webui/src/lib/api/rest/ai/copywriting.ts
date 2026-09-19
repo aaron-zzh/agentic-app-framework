@@ -15,6 +15,8 @@ export interface CopywritingAssetProject {
 
 export interface CopywritingAsset {
   documentId: number
+  documentVersionId: number
+  versionNo: number
   title: string
   summary: string
   updateTime: string

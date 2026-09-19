@@ -10,6 +10,7 @@ import type { StreamingEditorHandle } from "@/features/rich-text-editor"
 import {
   type AssistantAgUiEvent,
   type AssistantAgUiStreamOptions,
+  type AssistantArtifactTarget,
   type AssistantExecutionPhase,
   type AssistantExecutionRequest,
   type AssistantInterrupt,
@@ -63,6 +64,8 @@ interface CopywritingExecutionOptions {
   maxCharLen?: number
   locale?: string | null
   imageResourceIds?: string[]
+  artifactPersistence?: "AUTO_SAVE_DRAFT" | "RETURN_ONLY"
+  artifactTarget?: AssistantArtifactTarget
 }
 
 const ASSISTANT_OUTPUT_LOCALES: readonly AssistantOutputLocale[] = ["EN", "JA", "KO", "FR", "ES"]
@@ -88,7 +91,9 @@ export function copywritingExecutionRequest({
   modelId,
   maxCharLen,
   locale,
-  imageResourceIds = []
+  imageResourceIds = [],
+  artifactPersistence = "AUTO_SAVE_DRAFT",
+  artifactTarget
 }: CopywritingExecutionOptions): AssistantExecutionRequest {
   return {
     execution: {
@@ -96,7 +101,8 @@ export function copywritingExecutionRequest({
       routeConstraint: "FIXED",
       clarificationPolicy: "FAIL_ON_BLOCKER",
       actionAuthorizationPolicy: "REQUEST_ON_DEMAND",
-      artifactPersistence: "AUTO_SAVE_DRAFT"
+      artifactPersistence,
+      ...(artifactTarget === undefined ? {} : { artifactTarget })
     },
     input: {
       text,
@@ -151,21 +157,29 @@ function toolCallFromEvent(event: AssistantAgUiEvent): CopywritingToolCall | nul
   return { id, name, status: event.value.status }
 }
 
-function draftArtifactId(data: AafAiTaskEventData): number | null {
-  const artifactId = data.artifactId
+interface DraftArtifact {
+  documentId: number
+  documentVersionId: number
+}
+
+function draftArtifact(data: AafAiTaskEventData): DraftArtifact | null {
+  const documentId = data.artifactId
+  const documentVersionId = data.artifactVersionId
   return data.artifactState === "DRAFT" &&
-    typeof artifactId === "number" &&
-    Number.isSafeInteger(artifactId) &&
-    artifactId > 0
-    ? artifactId
+    typeof documentId === "number" &&
+    Number.isSafeInteger(documentId) &&
+    documentId > 0 &&
+    typeof documentVersionId === "number" &&
+    Number.isSafeInteger(documentVersionId) &&
+    documentVersionId > 0
+    ? { documentId, documentVersionId }
     : null
 }
 
-export function assistantDraftArtifactId(event: AssistantAgUiEvent): number | null {
-  if (event.type === "TOOL_CALL_RESULT")
-    return draftArtifactId(parseToolResultContent(event.content))
+export function assistantDraftArtifact(event: AssistantAgUiEvent): DraftArtifact | null {
+  if (event.type === "TOOL_CALL_RESULT") return draftArtifact(parseToolResultContent(event.content))
   return event.type === "CUSTOM" && event.value.type === "aaf.tool.completed"
-    ? draftArtifactId(event.value.data)
+    ? draftArtifact(event.value.data)
     : null
 }
 
@@ -272,12 +286,20 @@ export function useCopywriting() {
   const content = useAigcStore((state) => state.copywritingContent)
   const setContent = useAigcStore((state) => state.setCopywritingContent)
   const storedDocumentId = useAigcStore((state) => state.copywritingDocumentId)
+  const storedDocumentVersionId = useAigcStore((state) => state.copywritingDocumentVersionId)
   const generating = useAigcStore((state) => state.copywritingGenerating)
   const type = useAigcStore((state) => state.copywritingType)
   const model = useAigcStore((state) => state.copywritingModel)
   const referenceImages = useAigcStore((state) => state.copywritingReferenceImages)
   const scopeMatches = scopeKey !== null && boundScopeKey === scopeKey
   const documentId = scopeMatches ? storedDocumentId : null
+  const documentVersionId = scopeMatches ? storedDocumentVersionId : null
+
+  function currentArtifactTarget(): AssistantArtifactTarget | undefined {
+    return documentId === null || documentVersionId === null
+      ? undefined
+      : { documentId, expectedCurrentVersionId: documentVersionId }
+  }
 
   const [phase, setPhase] = useState<AssistantExecutionPhase>("idle")
   const [processEntries, setProcessEntries] = useState<CopywritingProcessEntry[]>([])
@@ -313,9 +335,6 @@ export function useCopywriting() {
 
   function beginExecution(summary: string) {
     setPhase("running")
-    if (scopeKey !== null) {
-      useAigcStore.getState().setCopywritingPersistedDocument(scopeKey, null)
-    }
     setPendingApproval(null)
     threadIdRef.current = null
     setToolCalls([])
@@ -351,9 +370,11 @@ export function useCopywriting() {
         return current.map((item, index) => (index === existing ? tool : item))
       })
     }
-    const artifactId = assistantDraftArtifactId(event)
-    if (artifactId !== null && scopeKey !== null) {
-      useAigcStore.getState().setCopywritingPersistedDocument(scopeKey, artifactId)
+    const artifact = assistantDraftArtifact(event)
+    if (artifact !== null && scopeKey !== null) {
+      useAigcStore
+        .getState()
+        .setCopywritingPersistedDocument(scopeKey, artifact.documentId, artifact.documentVersionId)
     }
     if (event.type === "RUN_STARTED") setPhase("running")
     if (event.type === "RUN_FINISHED" && event.interrupts.length === 0) setPhase("success")
@@ -499,7 +520,8 @@ export function useCopywriting() {
               modelId: state.copywritingModel || undefined,
               maxCharLen: maxCharLen(state.copywritingLength),
               locale: state.copywritingTranslateTo,
-              imageResourceIds: state.copywritingReferenceImages.map((image) => image.key)
+              imageResourceIds: state.copywritingReferenceImages.map((image) => image.key),
+              artifactTarget: currentArtifactTarget()
             }),
             streamOptions
           ),
@@ -527,7 +549,8 @@ export function useCopywriting() {
               text: "请改写提供的文案",
               skillCode: state.copywritingType,
               variables: { content: original },
-              modelId: state.copywritingModel || undefined
+              modelId: state.copywritingModel || undefined,
+              artifactTarget: currentArtifactTarget()
             }),
             streamOptions
           ),
@@ -554,7 +577,8 @@ export function useCopywriting() {
               text: "请分析提供的爆款内容结构",
               skillCode: "biz-analysis",
               variables: { content: viralSource },
-              modelId: model || undefined
+              modelId: model || undefined,
+              artifactPersistence: "RETURN_ONLY"
             }),
             streamOptions
           ),
@@ -583,7 +607,8 @@ export function useCopywriting() {
               text: "请根据提供的爆款结构分析创作文案",
               skillCode: "redbook",
               variables: { analysis: viralAnalysis },
-              modelId: state.copywritingModel || undefined
+              modelId: state.copywritingModel || undefined,
+              artifactTarget: currentArtifactTarget()
             }),
             streamOptions
           ),
@@ -595,6 +620,21 @@ export function useCopywriting() {
     } finally {
       useAigcStore.getState().setCopywritingGenerating(false)
     }
+  }
+
+  function handleNewCopywriting() {
+    if (useAigcStore.getState().copywritingGenerating || scopeKey === null) return
+    useAigcStore.getState().setCopywritingPersistedDocument(scopeKey, null, null)
+    setPrompt("")
+    setContent("")
+    setViralSource("")
+    setViralAnalysis("")
+    setViralStep(1)
+    setPendingApproval(null)
+    setPhase("idle")
+    setProcessEntries([])
+    setToolCalls([])
+    threadIdRef.current = null
   }
 
   return {
@@ -627,6 +667,7 @@ export function useCopywriting() {
     handleGenerate,
     handleRewrite,
     handleAnalyze,
-    handleViralGenerate
+    handleViralGenerate,
+    handleNewCopywriting
   }
 }

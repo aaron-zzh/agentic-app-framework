@@ -42,6 +42,7 @@ export interface KnowledgeDocument {
   stableId: string
   knowledgeBaseId: number
   sourceDocumentId: number | null
+  sourceDocumentVersionId: number | null
   uploadedBy: number | null
   sourceType: string
   sourceKey: string | null

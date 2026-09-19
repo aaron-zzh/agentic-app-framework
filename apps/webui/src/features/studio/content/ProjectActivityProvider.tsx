@@ -175,8 +175,12 @@ export function ProjectActivityProvider() {
       }
       const projectId = envelope.projectId
       queryClient.invalidateQueries({ queryKey: aigcProjectKeys.detail(projectId) })
+      queryClient.invalidateQueries({ queryKey: aigcProjectKeys.conversationContext(projectId) })
       queryClient.invalidateQueries({ queryKey: aigcProjectKeys.graph(projectId) })
       queryClient.invalidateQueries({ queryKey: aigcProjectKeys.summary(projectId) })
+      queryClient.invalidateQueries({ queryKey: ["aigc.project", "readiness", projectId] })
+      queryClient.invalidateQueries({ queryKey: aigcProjectKeys.progress(projectId) })
+      queryClient.invalidateQueries({ queryKey: aigcProjectKeys.documentRefs(projectId) })
       queryClient.invalidateQueries({ queryKey: aigcProjectKeys.mediaRefs(projectId) })
       queryClient.invalidateQueries({ queryKey: aigcProjectKeys.reviews(projectId) })
       queryClient.invalidateQueries({ queryKey: aigcProjectKeys.completionEvidence(projectId) })

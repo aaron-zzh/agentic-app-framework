@@ -4,6 +4,7 @@
  */
 
 import { readFileSync } from "node:fs"
+import { pathToFileURL } from "node:url"
 
 import { describe, expect, it, vi } from "vitest"
 import {
@@ -54,7 +55,10 @@ describe("ProjectActivityProvider wire contract", () => {
   })
 
   it("只建立一个带授权上下文的 fetch SSE 连接，不保留 EventSource 路径", () => {
-    const source = readFileSync(new URL("./ProjectActivityProvider.tsx", import.meta.url), "utf8")
+    const moduleUrl = import.meta.url.startsWith("file:")
+      ? import.meta.url
+      : pathToFileURL(import.meta.url).href
+    const source = readFileSync(new URL("./ProjectActivityProvider.tsx", moduleUrl), "utf8")
     expect(source.split("await backendStreamFetch(").length - 1).toBe(1)
     expect(source).toContain('Accept: "text/event-stream"')
     expect(source).not.toContain("new EventSource")

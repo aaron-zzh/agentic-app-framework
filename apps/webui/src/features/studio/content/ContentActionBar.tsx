@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { ApiError } from "@/lib/api/errors"
-import type { AigcProject, AigcProjectObject } from "@/lib/api/rest/ai/aigc"
+import type { AigcObjectReadiness, AigcProject, AigcProjectObject } from "@/lib/api/rest/ai/aigc"
 import { useAigcProjectActions, useAigcSnippets, useRunAigcAction } from "@/lib/api/rest/ai/aigc"
 import { useMediaList } from "@/lib/api/rest/media"
 import { notify } from "@/lib/notification"
@@ -41,10 +41,16 @@ const CONTENT_CONFIRMATION_REQUIRED = 8_000_022
 export interface ContentActionBarProps {
   project: AigcProject
   focusedObject?: AigcProjectObject
+  readiness?: AigcObjectReadiness
   canAction: boolean
 }
 
-export function ContentActionBar({ project, focusedObject, canAction }: ContentActionBarProps) {
+export function ContentActionBar({
+  project,
+  focusedObject,
+  readiness,
+  canAction
+}: ContentActionBarProps) {
   const promptId = useId()
   const context = useBoolean(true)
   const confirmation = useBoolean(false)
@@ -65,25 +71,28 @@ export function ContentActionBar({ project, focusedObject, canAction }: ContentA
   const runAction = useRunAigcAction()
   const snippets = snippetPage?.list ?? []
   const media = mediaPage?.list ?? []
-  const writable = canAction
+  const writable = canAction && focusedObject !== undefined
+  const allowedActionKeys = new Set(readiness?.allowedActions ?? [])
   const availableActions = focusedObject
     ? actions.filter(
         (action) =>
-          action.applicableObjectTypes.length === 0 ||
-          action.applicableObjectTypes.includes(focusedObject.objectType)
+          allowedActionKeys.has(action.actionKey) &&
+          (action.applicableObjectTypes.length === 0 ||
+            action.applicableObjectTypes.includes(focusedObject.objectType))
       )
-    : actions.filter((action) => action.applicableObjectTypes.length === 0)
+    : []
   const selectedAction =
     availableActions.find((action) => action.actionKey === selectedActionKey) ??
     availableActions.at(0)
-  const unavailableMessage =
-    !actionsLoading && actions.length === 0
-      ? "当前项目模板未声明可用动作"
-      : !actionsLoading && availableActions.length === 0
-        ? focusedObject
-          ? "当前对象没有适用动作"
-          : "当前项目没有适用的项目级动作"
-        : null
+  const unavailableMessage = !focusedObject
+    ? "先在结构或图谱中聚焦一个对象"
+    : readiness?.blockedReason
+      ? readiness.blockedReason
+      : !actionsLoading && actions.length === 0
+        ? "当前项目模板未声明可用动作"
+        : !actionsLoading && availableActions.length === 0
+          ? "当前对象没有服务端允许的专业动作"
+          : null
 
   function insertSnippet(id: number, content?: string) {
     if (!content) return
@@ -102,13 +111,13 @@ export function ContentActionBar({ project, focusedObject, canAction }: ContentA
   }
 
   function execute(confirmed = false) {
-    if (!writable || !selectedAction) return
+    if (!writable || !selectedAction || !focusedObject) return
     runAction.mutate(
       {
         projectId: project.id,
         data: {
           actionKey: selectedAction.actionKey,
-          objectId: focusedObject?.id,
+          objectId: focusedObject.id,
           prompt: prompt.trim() || undefined,
           attachmentMediaVersionIds,
           expectedGraphRevision: project.graphRevision,
@@ -151,7 +160,6 @@ export function ContentActionBar({ project, focusedObject, canAction }: ContentA
               </CollapsibleTrigger>
               <CollapsibleContent className="flex flex-wrap gap-2">
                 <NeonChip aria-disabled="true">角色：自动</NeonChip>
-                <NeonChip tone="cyan">领域：{project.domainExtensionCode || "通用"}</NeonChip>
                 <NeonChip aria-disabled="true">技能：自动</NeonChip>
                 <NeonChip aria-disabled="true">模型：自动</NeonChip>
                 <NeonChip tone={project.generationMode === "auto" ? "violet" : "neutral"}>
@@ -176,7 +184,7 @@ export function ContentActionBar({ project, focusedObject, canAction }: ContentA
             className="min-h-20 resize-y border-0 bg-transparent shadow-none focus-visible:ring-0"
             disabled={!writable}
           />
-          {!writable ? (
+          {!canAction ? (
             <p className="text-amber-600 text-sm">
               当前项目已进入 {project.status} 阶段，创作与执行动作只读。
             </p>

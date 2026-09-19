@@ -21,6 +21,7 @@ export interface ProjectWorkbenchHeaderProps {
   project: AigcProject
   view: ProjectWorkbenchView
   lifecycleActions?: ReactNode
+  assistantControl?: ReactNode
   onViewChange: (view: ProjectWorkbenchView) => void
   onOpenDocuments: () => void
   documentsOpen: boolean
@@ -31,6 +32,7 @@ export function ProjectWorkbenchHeader({
   project,
   view,
   lifecycleActions,
+  assistantControl,
   onViewChange,
   onOpenDocuments,
   documentsOpen,
@@ -56,7 +58,8 @@ export function ProjectWorkbenchHeader({
             {project.primaryBrandProfileId
               ? `品牌 #${project.primaryBrandProfileId}`
               : "未绑定品牌"}{" "}
-            · {type.label}
+            · {type.label} · project v{project.version} · graph r{project.graphRevision} · snapshot
+            #{project.configSnapshotId}
           </p>
           <h1 className="truncate font-semibold text-base">{project.name}</h1>
         </div>
@@ -66,6 +69,7 @@ export function ProjectWorkbenchHeader({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        {assistantControl}
         {lifecycleActions}
         <ToggleGroup
           value={[view]}

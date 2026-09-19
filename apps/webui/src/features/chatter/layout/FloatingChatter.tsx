@@ -14,6 +14,7 @@
 import { useEffect, useState } from "react"
 import { FloatingChatterButton } from "@/features/chatter/layout/FloatingChatterButton"
 import { GlobalChatter } from "@/features/chatter/layout/GlobalChatter"
+import type { ChatterProjectContext } from "@/features/chatter/types"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { useChatterStore } from "@/lib/store/chatter-store"
 
@@ -24,9 +25,13 @@ interface FloatingChatterProps {
    * - MarketingLayout 等公开布局不传，默认仅 dialog
    */
   availableModes?: ("panel" | "page")[]
+  projectContext?: ChatterProjectContext
 }
 
-export function FloatingChatter({ availableModes }: FloatingChatterProps = {}) {
+export function FloatingChatter({
+  availableModes,
+  projectContext
+}: FloatingChatterProps = {}) {
   const mode = useChatterStore((s) => s.mode)
   const open = useChatterStore((s) => s.open)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -56,7 +61,9 @@ export function FloatingChatter({ availableModes }: FloatingChatterProps = {}) {
   return (
     <>
       {mode === "dialog" && <FloatingChatterButton preset={config.preset} />}
-      {shouldRenderChatter && <GlobalChatter availableModes={availableModes} />}
+      {shouldRenderChatter && (
+        <GlobalChatter availableModes={availableModes} projectContext={projectContext} />
+      )}
     </>
   )
 }

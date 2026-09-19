@@ -53,7 +53,8 @@ export function CopywritingPanel({ actions }: Props) {
     handleGenerate,
     handleRewrite,
     handleAnalyze,
-    handleViralGenerate
+    handleViralGenerate,
+    handleNewCopywriting
   } = useCopywriting()
 
   const { panelHeight, handleResizeDown, handleResizeMove, handleResizeUp } = usePanelResize()
@@ -119,6 +120,7 @@ export function CopywritingPanel({ actions }: Props) {
               showDocActions={type !== "viral" || viralStep === 3}
               generating={generating}
               documentId={documentId}
+              onNew={handleNewCopywriting}
             />
 
             {pendingApproval ? (

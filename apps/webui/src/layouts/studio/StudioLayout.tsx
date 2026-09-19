@@ -19,7 +19,7 @@ import { SplashScreen } from "@/components/common/SplashScreen"
 import { TopProgressBar } from "@/components/common/TopProgressBar"
 import { Button } from "@/components/ui/button"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
-import { FloatingChatter } from "@/features/chatter/layout/FloatingChatter"
+import { StudioChatterHost } from "@/features/chatter/layout/StudioChatterHost"
 import { EntityMetadataGate } from "@/features/entity-engine/components/EntityMetadataGate"
 import { ProjectActivityProvider } from "@/features/studio/content/ProjectActivityProvider"
 import { SlotDevTrigger, SlotDock } from "@/features/studio/slots"
@@ -477,8 +477,7 @@ export function StudioLayout({ children }: { children: React.ReactNode }) {
         </MotionLazy>
       </div>
 
-      {/* panel/page slot 已在 StudioContent 内提供 */}
-      <FloatingChatter availableModes={["panel", "page"]} />
+      <StudioChatterHost />
       {/* 演示触发器：开发期模拟后端 WS 推送，生产环境移除 */}
       {process.env.NODE_ENV === "development" && <SlotDevTrigger />}
     </>

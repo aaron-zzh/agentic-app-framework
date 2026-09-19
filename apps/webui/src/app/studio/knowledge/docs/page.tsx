@@ -8,7 +8,7 @@
 
 import { useQueryClient } from "@tanstack/react-query"
 import { FileText, Plus, Trash2 } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { SectionHaze } from "@/components/studio"
 import {
@@ -54,6 +54,11 @@ export default function StudioKnowledgeDocsPage() {
   const { data: list, isLoading: treeLoading } = useDocList()
   const { mutate: createDocMutate, isPending: creating } = useCreateDocument()
   const { mutate: deleteDoc } = useDeleteDocument()
+
+  useEffect(() => {
+    const documentId = Number(new URLSearchParams(window.location.search).get("documentId"))
+    if (Number.isInteger(documentId) && documentId > 0) setSelectedId(documentId)
+  }, [])
 
   const createDoc = (
     p: { title: string; content: string },

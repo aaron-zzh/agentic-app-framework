@@ -24,10 +24,18 @@ interface BuildChatterStateOptions {
   pageConfig?: ChatterPageRuntimeConfig
 }
 
-interface BuildChatterForwardedPropsOptions {
-  target: ChatterTarget
-  taskModelSelection?: TaskModelSelection
-}
+type BuildChatterForwardedPropsOptions =
+  | {
+      scope: "global"
+      target: ChatterTarget
+      taskModelSelection?: TaskModelSelection
+    }
+  | {
+      scope: "project"
+      projectId: number
+      assistantId: string
+      taskModelSelection?: TaskModelSelection
+    }
 
 /** 构建 AG-UI `state`：仅页面感知上下文，可被服务端 STATE_SNAPSHOT 回吐。 */
 export function buildChatterState({
@@ -41,10 +49,19 @@ export function buildChatterState({
 }
 
 /** 构建 AG-UI `forwardedProps`：本次 run 的一次性调用参数。 */
-export function buildChatterForwardedProps({
-  target,
-  taskModelSelection
-}: BuildChatterForwardedPropsOptions): Record<string, unknown> {
+export function buildChatterForwardedProps(
+  options: BuildChatterForwardedPropsOptions
+): Record<string, unknown> {
+  if (options.scope === "project") {
+    return {
+      projectId: options.projectId,
+      assistantId: options.assistantId,
+      taskModelSelection: options.taskModelSelection ?? DEFAULT_TASK_MODEL_SELECTION
+    }
+  }
+
+  const { target, taskModelSelection } = options
+
   // guest 仅由 Provider 注入协议所需 mode，不携带登录 AI 路由参数。
   if (target.type === "guest") return {}
 

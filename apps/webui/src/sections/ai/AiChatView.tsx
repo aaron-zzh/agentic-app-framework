@@ -13,11 +13,10 @@
 "use client"
 
 import { MessageSquare, Plus } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { useChatterLayoutPreference } from "@/features/chatter"
-import { useChatterStore } from "@/lib/store/chatter-store"
 import { cn } from "@/lib/utils/cn"
 
 interface Session {
@@ -41,20 +40,8 @@ const MOCK_SESSIONS: Session[] = [
 
 export function AiChatView() {
   const [activeSessionId, setActiveSessionId] = useState<string>(MOCK_SESSIONS[0].id)
-  const setMode = useChatterStore((s) => s.setMode)
-  const setOpen = useChatterStore((s) => s.setOpen)
   // page 模式：WorkspaceLayout 不渲染任何 Chatter UI，此页面完全自管
   useChatterLayoutPreference("page")
-
-  // 进入页面时切换为 page 模式，离开时恢复 dialog
-  useEffect(() => {
-    setMode("page")
-    setOpen(true)
-    return () => {
-      setMode("dialog")
-      setOpen(false)
-    }
-  }, [setMode, setOpen])
 
   return (
     <div className="flex h-full overflow-hidden rounded-lg border bg-background shadow-sm">

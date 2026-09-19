@@ -4,55 +4,36 @@
  */
 
 import { readFileSync } from "node:fs"
+import { pathToFileURL } from "node:url"
 import { describe, expect, it } from "vitest"
 
-const pageSource = readFileSync(new URL("./page.tsx", import.meta.url), "utf8")
-const graphSource = readFileSync(
-  new URL("../../../../features/studio/content/graph/ProjectGraphView.tsx", import.meta.url),
-  "utf8"
+const moduleUrl = import.meta.url.startsWith("file:")
+  ? import.meta.url
+  : pathToFileURL(import.meta.url).href
+
+function readSource(relativePath: string): string {
+  return readFileSync(new URL(relativePath, moduleUrl), "utf8")
+}
+
+const pageSource = readSource("./page.tsx")
+const graphSource = readSource("../../../../features/studio/content/graph/ProjectGraphView.tsx")
+const structureSource = readSource("../../../../features/studio/content/ProjectStructureView.tsx")
+const detailSource = readSource("../../../../features/studio/content/ObjectDetailPanel.tsx")
+const generationDialogSource = readSource(
+  "../../../../features/studio/content/ProjectObjectGenerationDialog.tsx"
 )
-const structureSource = readFileSync(
-  new URL("../../../../features/studio/content/ProjectStructureView.tsx", import.meta.url),
-  "utf8"
+const imageControllerSource = readSource(
+  "../../../../features/studio/media-generation/hooks/use-image-generation-controller.ts"
 )
-const detailSource = readFileSync(
-  new URL("../../../../features/studio/content/ObjectDetailPanel.tsx", import.meta.url),
-  "utf8"
+const videoControllerSource = readSource(
+  "../../../../features/studio/media-generation/hooks/use-video-generation-controller.ts"
 )
-const generationDialogSource = readFileSync(
-  new URL("../../../../features/studio/content/ProjectObjectGenerationDialog.tsx", import.meta.url),
-  "utf8"
+const actionBarSource = readSource("../../../../features/studio/content/ContentActionBar.tsx")
+const lifecycleSource = readSource(
+  "../../../../features/studio/content/ProjectLifecycleActions.tsx"
 )
-const imageControllerSource = readFileSync(
-  new URL(
-    "../../../../features/studio/media-generation/hooks/use-image-generation-controller.ts",
-    import.meta.url
-  ),
-  "utf8"
-)
-const videoControllerSource = readFileSync(
-  new URL(
-    "../../../../features/studio/media-generation/hooks/use-video-generation-controller.ts",
-    import.meta.url
-  ),
-  "utf8"
-)
-const actionBarSource = readFileSync(
-  new URL("../../../../features/studio/content/ContentActionBar.tsx", import.meta.url),
-  "utf8"
-)
-const lifecycleSource = readFileSync(
-  new URL("../../../../features/studio/content/ProjectLifecycleActions.tsx", import.meta.url),
-  "utf8"
-)
-const timelineSource = readFileSync(
-  new URL("../../../../features/studio/content/TimelinePanel.tsx", import.meta.url),
-  "utf8"
-)
-const worksSource = readFileSync(
-  new URL("../../../../features/studio/content/WorksLibrary.tsx", import.meta.url),
-  "utf8"
-)
+const timelineSource = readSource("../../../../features/studio/content/TimelinePanel.tsx")
+const worksSource = readSource("../../../../features/studio/content/WorksLibrary.tsx")
 
 function occurrences(source: string, token: string): number {
   return source.split(token).length - 1
@@ -66,17 +47,18 @@ describe("项目工作台主路径接线", () => {
     expect(structureSource).not.toContain("ProjectObjectGenerationDialog")
   })
 
-  it("创建到生命周期主路径不依赖 Chatter", () => {
+  it("创建到生命周期主路径不自建或回退默认 Assistant 对话", () => {
     expect(pageSource).toContain("ProjectGraphView")
     expect(pageSource).toContain("ProjectObjectGenerationDialog")
     expect(detailSource).toContain("CandidateComparisonDialog")
     expect(pageSource).toContain("DeliveryWorkflowPanel")
     expect(pageSource).toContain("ProjectLifecycleActions")
-    expect(`${pageSource}\n${detailSource}`.toLowerCase()).not.toContain("chatter")
+    expect(`${pageSource}\n${detailSource}`).not.toContain("<Chatter")
+    expect(`${pageSource}\n${detailSource}`).not.toContain("DEFAULT_CHATTER_ASSISTANT_ID")
   })
 
   it("项目生成固定走 Action，控制器中没有独立 Task fallback", () => {
-    expect(generationDialogSource).toContain("项目模式不会提交独立创作任务")
+    expect(generationDialogSource).toContain("专业媒体生成会创建新的 ExecutionRun 和候选版本")
     expect(generationDialogSource).toContain("projectTargets={projectTargets}")
     for (const source of [imageControllerSource, videoControllerSource]) {
       expect(source).toContain("if (projectTarget)")
@@ -114,8 +96,10 @@ describe("项目工作台主路径接线", () => {
     expect(pageSource).toContain("canLifecycleUpdate={canLifecycle}")
     expect(pageSource).toContain("canCollect={canCollect}")
 
-    expect(actionBarSource).toContain("if (!writable || !selectedAction) return")
-    expect(detailSource).toContain("if (!canAdoptVersion")
+    expect(actionBarSource).toContain("if (!writable || !selectedAction || !focusedObject) return")
+    expect(detailSource).toContain(
+      "if (!canAdoptCandidate || !object || adoptId === null || (replacing && !reason.trim())) return"
+    )
     expect(lifecycleSource).toContain("if (!canLifecycleUpdate")
     expect(timelineSource).toContain("if (!createEnabled) return")
     expect(timelineSource).toContain("if (!updateEnabled")

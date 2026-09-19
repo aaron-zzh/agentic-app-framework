@@ -68,12 +68,18 @@ export interface AssistantSkillSelection {
   code: string
 }
 
+export interface AssistantArtifactTarget {
+  documentId: number
+  expectedCurrentVersionId: number
+}
+
 export interface AssistantExecutionOptions {
   interactionMode: "TASK" | "CONVERSATIONAL"
   routeConstraint: "FIXED" | "AUTO"
   clarificationPolicy: "MINIMAL" | "FAIL_ON_BLOCKER" | "INTERACTIVE"
   actionAuthorizationPolicy: AssistantActionAuthorizationPolicy
   artifactPersistence: "AUTO_SAVE_DRAFT" | "RETURN_ONLY"
+  artifactTarget?: AssistantArtifactTarget
 }
 
 export interface AssistantKnowledgeOptions {

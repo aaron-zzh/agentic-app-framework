@@ -73,6 +73,8 @@ interface ChatterToolbarProps {
   availableModes?: ("panel" | "page")[]
   /** 隐藏 AI/Kiro 切换和角色选择器 */
   hideRoleSwitch?: boolean
+  /** 固定会话标题；存在时禁用会话与 target 切换。 */
+  fixedTitle?: string
 }
 
 interface AssistantRoleOption {
@@ -122,10 +124,11 @@ export function ChatterToolbar({
   toolbar,
   dragProps,
   availableModes = ["panel", "page"],
-  hideRoleSwitch = false
+  hideRoleSwitch = false,
+  fixedTitle
 }: ChatterToolbarProps) {
   const targets = getAvailableTargets(preset)
-  const showRoleSelector = target.type === "ai"
+  const showRoleSelector = target.type === "ai" && fixedTitle === undefined
   const layoutOverride = useChatterStore((s) => s.layoutOverride)
   const setLayoutOverride = useChatterStore((s) => s.setLayoutOverride)
   const setOpen = useChatterStore((s) => s.setOpen)
@@ -153,7 +156,15 @@ export function ChatterToolbar({
 
   // 旧页面配置只有 roleKey；仅当 API 中唯一匹配时一次性补齐 assistantId，随后始终原子发送。
   useEffect(() => {
-    if (target.type !== "ai" || target.assistantId || !target.agentRole || !assistants) return
+    if (
+      fixedTitle !== undefined ||
+      target.type !== "ai" ||
+      target.assistantId ||
+      !target.agentRole ||
+      !assistants
+    ) {
+      return
+    }
     const matches = roleOptions.filter((option) => option.roleKey === target.agentRole)
     if (matches.length !== 1) return
     const [option] = matches
@@ -163,7 +174,7 @@ export function ChatterToolbar({
       agentRole: option.roleKey,
       agentSkill: undefined
     })
-  }, [assistants, onTargetChange, roleOptions, target])
+  }, [assistants, fixedTitle, onTargetChange, roleOptions, target])
 
   const roleSelector = showRoleSelector ? (
     <AssistantRoleSelect
@@ -187,44 +198,53 @@ export function ChatterToolbar({
       {...dragProps}
       className={`flex items-center gap-2 border-b px-3 py-2 overflow-hidden${dragProps?.className ? ` ${dragProps.className}` : ""}`}
     >
-      {/* 左：对话图标，点击展开会话列表 + 新建会话 */}
-      <SessionPopover onNewSession={onNewSession} />
-
-      {/* 中：浮窗直接显示角色选择；panel/page 保留 target 切换。 */}
-      {isFloating ? (
-        (roleSelector ?? (
-          <span className="min-w-0 flex-1 truncate font-medium text-sm">
-            {TARGET_LABELS[target.type]}
-          </span>
-        ))
-      ) : hideRoleSwitch ? (
-        <span className="flex-1" />
+      {fixedTitle ? (
+        <>
+          <Sparkles className="size-3.5 shrink-0 text-primary" />
+          <span className="min-w-0 flex-1 truncate font-medium text-sm">{fixedTitle}</span>
+        </>
       ) : (
         <>
-          <ToggleGroup
-            value={[target.type]}
-            onValueChange={(value: string[]) => {
-              const newType = value.find((v) => v !== target.type) ?? target.type
-              if (newType !== target.type) {
-                onTargetChange({ ...target, type: newType as ChatterTarget["type"] })
-              }
-            }}
-            size="sm"
-            spacing={0}
-          >
-            {targets.map((targetType) => (
-              <ToggleGroupItem
-                key={targetType}
-                value={targetType}
-                aria-label={TARGET_LABELS[targetType]}
-              >
-                {TARGET_ICONS[targetType]}
-                <span className="ml-1 text-xs">{TARGET_LABELS[targetType]}</span>
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
+          {/* 左：对话图标，点击展开会话列表 + 新建会话 */}
+          <SessionPopover onNewSession={onNewSession} />
 
-          {roleSelector}
+          {/* 中：浮窗直接显示角色选择；panel/page 保留 target 切换。 */}
+          {isFloating ? (
+            (roleSelector ?? (
+              <span className="min-w-0 flex-1 truncate font-medium text-sm">
+                {TARGET_LABELS[target.type]}
+              </span>
+            ))
+          ) : hideRoleSwitch ? (
+            <span className="flex-1" />
+          ) : (
+            <>
+              <ToggleGroup
+                value={[target.type]}
+                onValueChange={(value: string[]) => {
+                  const newType = value.find((v) => v !== target.type) ?? target.type
+                  if (newType !== target.type) {
+                    onTargetChange({ ...target, type: newType as ChatterTarget["type"] })
+                  }
+                }}
+                size="sm"
+                spacing={0}
+              >
+                {targets.map((targetType) => (
+                  <ToggleGroupItem
+                    key={targetType}
+                    value={targetType}
+                    aria-label={TARGET_LABELS[targetType]}
+                  >
+                    {TARGET_ICONS[targetType]}
+                    <span className="ml-1 text-xs">{TARGET_LABELS[targetType]}</span>
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+
+              {roleSelector}
+            </>
+          )}
         </>
       )}
 

@@ -19,6 +19,7 @@ import {
   ChevronDown,
   ChevronRight,
   Eye,
+  FileText,
   Layers3,
   PanelTopOpen,
   ScanLine,
@@ -30,30 +31,32 @@ import { GlassCard } from "@/components/studio"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import type { AigcProjectGraph, AigcRelationLayer } from "@/lib/api/rest/ai/aigc"
+import type {
+  AigcObjectReadiness,
+  AigcProjectGraph,
+  AigcRelationLayer
+} from "@/lib/api/rest/ai/aigc"
 import { cn } from "@/lib/utils/index"
 import { getObjectTypeConfig } from "../project-type-config"
 import {
   type ContentGraphNodeData,
   OBJECT_STATUS_LABELS,
+  OUTPUT_CONTRACT_LABELS,
+  READINESS_LABELS,
+  RELATION_LAYER_LABELS,
+  SEMANTIC_ROLE_LABELS,
   toGraphProjection
 } from "./graph-projection"
 import { useProjectGraphViewState } from "./view-state-store"
 
-const LAYER_OPTIONS: { value: AigcRelationLayer; label: string }[] = [
-  { value: "domain", label: "领域" },
-  { value: "reference", label: "引用" },
-  { value: "story_order", label: "故事顺序" },
-  { value: "execution", label: "执行依赖" }
-]
+const LAYER_OPTIONS: { value: AigcRelationLayer; label: string }[] = (
+  Object.entries(RELATION_LAYER_LABELS) as [AigcRelationLayer, string][]
+).map(([value, label]) => ({ value, label }))
 
 const STATUS_VARIANT = {
-  empty: "outline",
-  draft: "secondary",
-  pending_confirm: "default",
-  adopted: "secondary",
-  blocked: "destructive",
-  done: "secondary"
+  EMPTY: "outline",
+  CANDIDATE_AVAILABLE: "default",
+  ADOPTED: "secondary"
 } as const
 
 interface GraphNodeActions {
@@ -84,8 +87,10 @@ function ContentDomainNodeComponent({ data, selected }: NodeProps) {
   )
   const isGroup = node.kind === "group"
   const objectId = node.objectId
-  const canOpenCanvas = node.objectType === "canvas_board"
-  const canAnnotate = node.objectType === "image_deliverable" || node.objectType === "shot_keyframe"
+  const canOpenCanvas = node.objectType === "canvas_board" && actions?.onOpenCanvas !== undefined
+  const canAnnotate =
+    (node.objectType === "image_deliverable" || node.objectType === "shot_keyframe") &&
+    actions?.onAnnotateImage !== undefined
   const selectable =
     objectId !== undefined && (!actions?.selectionMode || actions.selectableObjectIds.has(objectId))
 
@@ -139,6 +144,24 @@ function ContentDomainNodeComponent({ data, selected }: NodeProps) {
             {node.summary}
           </p>
         )}
+        {!isGroup && node.zoomTier !== "global" ? (
+          <div className="flex flex-wrap gap-1">
+            {node.semanticRole ? (
+              <Badge variant="outline">{SEMANTIC_ROLE_LABELS[node.semanticRole]}</Badge>
+            ) : null}
+            {node.outputContract ? (
+              <Badge variant="secondary">{OUTPUT_CONTRACT_LABELS[node.outputContract]}</Badge>
+            ) : null}
+            {node.readinessState ? (
+              <Badge variant={node.blockedCount > 0 ? "destructive" : "outline"}>
+                {READINESS_LABELS[node.readinessState]}
+              </Badge>
+            ) : null}
+          </div>
+        ) : null}
+        {node.blockedReason ? (
+          <p className="line-clamp-2 text-destructive text-xs">{node.blockedReason}</p>
+        ) : null}
         {!isGroup && objectId !== undefined && !actions?.selectionMode ? (
           <div className="nodrag flex gap-1">
             <Button
@@ -151,23 +174,25 @@ function ContentDomainNodeComponent({ data, selected }: NodeProps) {
                 actions?.onOpenDetails?.(objectId)
               }}
             >
-              <Eye />
-              详情
+              {node.outputContract === "DOCUMENT_VERSION" ? <FileText /> : <Eye />}
+              {node.outputContract === "DOCUMENT_VERSION" ? "手动创建" : "详情"}
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="xs"
-              className="flex-1"
-              disabled={actions?.readOnly || !actions?.generatableObjectIds.has(objectId)}
-              onClick={(event) => {
-                event.stopPropagation()
-                actions?.onGenerateObject?.(objectId)
-              }}
-            >
-              <Sparkles />
-              生成
-            </Button>
+            {node.outputContract === "MEDIA_VERSION" ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                className="flex-1"
+                disabled={actions?.readOnly || !actions?.generatableObjectIds.has(objectId)}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  actions?.onGenerateObject?.(objectId)
+                }}
+              >
+                <Sparkles />
+                生成
+              </Button>
+            ) : null}
             {canOpenCanvas || canAnnotate ? (
               <Button
                 type="button"
@@ -207,6 +232,7 @@ const NODE_TYPES = { contentDomain: ContentDomainNode }
 export interface ProjectGraphViewProps {
   projectId?: number
   graph: AigcProjectGraph
+  readiness?: AigcObjectReadiness[]
   focusObjectId?: number
   readOnly?: boolean
   selectionMode?: boolean
@@ -229,6 +255,7 @@ function tierForZoom(zoom: number) {
 export function ProjectGraphView({
   projectId: requestedProjectId,
   graph,
+  readiness = [],
   focusObjectId,
   readOnly = false,
   selectionMode = false,
@@ -254,10 +281,11 @@ export function ProjectGraphView({
       toGraphProjection(graph, {
         collapsedGroups: selectionMode ? [] : collapsedGroups,
         activeLayers: selectionMode ? LAYER_OPTIONS.map((option) => option.value) : activeLayers,
+        readiness,
         focusObjectId: selectionMode ? undefined : focusObjectId,
         zoomTier: selectionMode ? "detail" : zoomTier
       }),
-    [graph, collapsedGroups, activeLayers, focusObjectId, selectionMode, zoomTier]
+    [graph, collapsedGroups, activeLayers, readiness, focusObjectId, selectionMode, zoomTier]
   )
   const selectableObjectIdSet = useMemo(() => new Set(selectableObjectIds), [selectableObjectIds])
   const generatableObjectIdSet = useMemo(

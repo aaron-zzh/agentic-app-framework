@@ -75,7 +75,6 @@ export function ProjectBasicInfoDialog({
 }: ProjectBasicInfoDialogProps) {
   const nameId = useId()
   const descriptionId = useId()
-  const briefId = useId()
   const coverFileId = useId()
   const coverPromptId = useId()
   const wasOpen = useRef(false)
@@ -88,7 +87,6 @@ export function ProjectBasicInfoDialog({
   const { data: coverMedia } = useMediaByVersionId(project.coverMediaVersionId)
   const [name, setName] = useState(project.name)
   const [description, setDescription] = useState(project.description ?? "")
-  const [brief, setBrief] = useState(project.brief ?? "")
   const [coverMode, setCoverMode] = useState<CoverEditMode>("KEEP")
   const [coverUpload, setCoverUpload] = useState<ProjectCoverUpload | null>(null)
   const [coverPrompt, setCoverPrompt] = useState("")
@@ -101,7 +99,6 @@ export function ProjectBasicInfoDialog({
     if (open && !wasOpen.current) {
       setName(project.name)
       setDescription(project.description ?? "")
-      setBrief(project.brief ?? "")
       setCoverMode("KEEP")
       setCoverUpload(null)
       setCoverPrompt("")
@@ -109,7 +106,7 @@ export function ProjectBasicInfoDialog({
       setCoverError(null)
     }
     wasOpen.current = open
-  }, [open, project.brief, project.description, project.name])
+  }, [open, project.description, project.name])
 
   function handleCoverModeChange(value: CoverEditMode) {
     if (value === "AI_GENERATE" && coverMode !== "AI_GENERATE") {
@@ -144,13 +141,11 @@ export function ProjectBasicInfoDialog({
     }
 
     const normalizedDescription = description.trim()
-    const normalizedBrief = brief.trim()
     const data: AigcProjectUpdateInput = { expectedVersion: project.version }
     if (trimmedName !== project.name) data.name = trimmedName
     if (normalizedDescription !== (project.description ?? "")) {
       data.description = normalizedDescription || null
     }
-    if (normalizedBrief !== (project.brief ?? "")) data.brief = normalizedBrief || null
 
     if (coverMode === "UPLOAD" && coverUpload) {
       data.cover = { operation: "UPLOAD", fileId: coverUpload.fileId }
@@ -239,19 +234,6 @@ export function ProjectBasicInfoDialog({
                 className="min-h-20 resize-y"
               />
               <p className="text-right text-muted-foreground text-xs">{description.length}/500</p>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label htmlFor={briefId} className="font-medium text-sm">
-                创作简报
-              </label>
-              <Textarea
-                id={briefId}
-                value={brief}
-                disabled={archived}
-                onChange={(event) => setBrief(event.target.value)}
-                className="min-h-28 resize-y"
-              />
             </div>
 
             <div className="flex flex-col gap-3">
@@ -358,7 +340,7 @@ export function ProjectBasicInfoDialog({
                     id={coverPromptId}
                     value={coverPrompt}
                     onChange={(event) => setCoverPrompt(event.target.value)}
-                    placeholder="留空时将根据项目名称、简报和类型生成"
+                    placeholder="留空时将根据项目名称、简介和类型生成"
                     className="min-h-20 resize-y"
                   />
                   <p className="text-muted-foreground text-xs">

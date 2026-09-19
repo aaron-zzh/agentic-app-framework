@@ -34,12 +34,15 @@ import { ApiError } from "@/lib/api/errors"
 import type {
   AigcObjectVersionStatus,
   AigcProject,
-  AigcProjectObject
+  AigcProjectObject,
+  AigcProjectProgress
 } from "@/lib/api/rest/ai/aigc"
 import {
   useAdoptAigcObjectVersion,
   useAigcExecutionRuns,
   useAigcObjectVersions,
+  useAigcProjectReadiness,
+  useRecordAigcDocumentCandidate,
   useRejectAigcObjectVersion
 } from "@/lib/api/rest/ai/aigc"
 import { notify } from "@/lib/notification"
@@ -66,6 +69,7 @@ export interface ObjectDetailPanelProps {
   open: boolean
   project: AigcProject
   object?: AigcProjectObject
+  progress?: AigcProjectProgress
   lifecycleWritable: boolean
   canAction: boolean
   canAdopt: boolean
@@ -80,6 +84,7 @@ export function ObjectDetailPanel({
   open,
   project,
   object,
+  progress,
   lifecycleWritable,
   canAction,
   canAdopt,
@@ -94,9 +99,16 @@ export function ObjectDetailPanel({
   const [adoptId, setAdoptId] = useState<number | null>(null)
   const [rejectId, setRejectId] = useState<number | null>(null)
   const [reason, setReason] = useState("")
+  const [candidateContent, setCandidateContent] = useState("")
+  const [candidateSummary, setCandidateSummary] = useState("")
   const [runPage, setRunPage] = useState(1)
   const objectId = object?.id ?? null
+  const objectCredits = progress?.objects.find((item) => item.objectId === objectId)?.credits
   const versionsQuery = useAigcObjectVersions(object?.projectId ?? null, objectId)
+  const readinessQuery = useAigcProjectReadiness(
+    object?.projectId ?? null,
+    object?.contractRole === "OPTIONAL" && objectId !== null ? [objectId] : []
+  )
   const runsQuery = useAigcExecutionRuns(
     {
       projectId: project.id,
@@ -109,13 +121,29 @@ export function ObjectDetailPanel({
   )
   const adopt = useAdoptAigcObjectVersion()
   const reject = useRejectAigcObjectVersion()
+  const recordDocumentCandidate = useRecordAigcDocumentCandidate()
   const versions = versionsQuery.data ?? []
+  const objectReadiness = readinessQuery.data?.find((item) => item.projectObjectId === objectId)
+  const candidateAction =
+    object?.outputContract === "DOCUMENT_VERSION" ? "candidate.record.document" : null
+  const canRecordCandidate =
+    canAction &&
+    lifecycleWritable &&
+    candidateAction !== null &&
+    objectReadiness?.allowedActions.includes(candidateAction) === true
   const runTrees = runsQuery.data?.list ?? []
   const runTotal = runsQuery.data?.total ?? 0
   const canRunAction = canAction && lifecycleWritable
-  const canAdoptVersion = canAdopt && lifecycleWritable
+  const canAdoptCandidate =
+    canAdopt &&
+    lifecycleWritable &&
+    objectReadiness?.allowedActions.includes("candidate.adopt") === true
+  const canRejectCandidate =
+    canAdopt &&
+    lifecycleWritable &&
+    objectReadiness?.allowedActions.includes("candidate.reject") === true
   const selectedAdopt = versions.find((version) => version.id === adoptId)
-  const replacing = object?.adoptedVersionId !== undefined && object.adoptedVersionId !== adoptId
+  const replacing = object?.adoptedVersionId != null && object.adoptedVersionId !== adoptId
   const timelineAvailable = object?.objectType === "video_deliverable" && canTimelineRead
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: 切换对象时必须重置面板本地状态
@@ -125,6 +153,8 @@ export function ObjectDetailPanel({
     setAdoptId(null)
     setRejectId(null)
     setReason("")
+    setCandidateContent("")
+    setCandidateSummary("")
     setRunPage(1)
   }, [objectId])
 
@@ -137,7 +167,7 @@ export function ObjectDetailPanel({
   }
 
   function submitAdopt() {
-    if (!canAdoptVersion || !object || adoptId === null || (replacing && !reason.trim())) return
+    if (!canAdoptCandidate || !object || adoptId === null || (replacing && !reason.trim())) return
     adopt.mutate(
       {
         projectId: project.id,
@@ -160,8 +190,33 @@ export function ObjectDetailPanel({
     )
   }
 
+  function submitCandidate() {
+    if (!object || !canRecordCandidate || !candidateContent.trim()) return
+    const common = {
+      projectId: project.id,
+      objectId: object.id,
+      expectedProjectVersion: project.version,
+      expectedGraphRevision: project.graphRevision,
+      content: candidateContent,
+      summary: candidateSummary.trim() || undefined,
+      idempotencyKey: crypto.randomUUID()
+    }
+    const options = {
+      onSuccess: () => {
+        setCandidateContent("")
+        setCandidateSummary("")
+        notify.success("已登记不可变候选版本")
+      },
+      onError: conflict
+    }
+    recordDocumentCandidate.mutate(
+      { ...common, title: object.title ?? undefined, format: "MARKDOWN" },
+      options
+    )
+  }
+
   function submitReject() {
-    if (!canAdoptVersion || !object || rejectId === null || !reason.trim()) return
+    if (!canRejectCandidate || !object || rejectId === null || !reason.trim()) return
     reject.mutate(
       {
         projectId: project.id,
@@ -205,7 +260,11 @@ export function ObjectDetailPanel({
         </SheetHeader>
 
         {object ? (
-          <Tabs defaultValue="detail" className="min-h-0 flex-1 px-4 pb-4">
+          <Tabs
+            key={object.id}
+            defaultValue={object.outputContract === "DOCUMENT_VERSION" ? "versions" : "detail"}
+            className="min-h-0 flex-1 px-4 pb-4"
+          >
             <TabsList className="w-full">
               <TabsTrigger value="detail">详情</TabsTrigger>
               <TabsTrigger value="versions">候选与版本</TabsTrigger>
@@ -230,13 +289,23 @@ export function ObjectDetailPanel({
                       : "自定义对象"}
                   </dd>
                   <dt className="text-muted-foreground">合同角色</dt>
-                  <dd>{object.contractRole ?? "-"}</dd>
-                  <dt className="text-muted-foreground">状态</dt>
+                  <dd>{object.contractRole}</dd>
+                  <dt className="text-muted-foreground">语义角色</dt>
+                  <dd>{object.semanticRole}</dd>
+                  <dt className="text-muted-foreground">输出合同</dt>
+                  <dd>{object.outputContract}</dd>
+                  <dt className="text-muted-foreground">成熟度</dt>
                   <dd>{OBJECT_STATUS_LABELS[object.status]}</dd>
                   <dt className="text-muted-foreground">采用版本</dt>
                   <dd>{object.adoptedVersionId ? `#${object.adoptedVersionId}` : "尚未采用"}</dd>
                   <dt className="text-muted-foreground">摘要</dt>
                   <dd>{object.summary || "暂无摘要"}</dd>
+                  <dt className="text-muted-foreground">累计消耗</dt>
+                  <dd>
+                    {objectCredits
+                      ? `${objectCredits.netActual} 积分（已退款 ${objectCredits.refunded}）`
+                      : "暂无实际消耗"}
+                  </dd>
                 </dl>
                 <pre className="mt-4 max-h-80 overflow-auto rounded-xl border bg-muted/40 p-3 text-xs">
                   {JSON.stringify(object.payload ?? {}, null, 2)}
@@ -246,6 +315,57 @@ export function ObjectDetailPanel({
 
             <TabsContent value="versions" className="min-h-0">
               <ScrollArea className="h-full pr-3">
+                {candidateAction ? (
+                  <div className="mb-4 space-y-3 rounded-xl border p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-sm">
+                          {object.outputContract === "DOCUMENT_VERSION"
+                            ? "手动创建文档候选"
+                            : "登记文本候选"}
+                        </p>
+                        <p className="text-muted-foreground text-xs">
+                          {objectReadiness?.blockedReason ||
+                            "保存后形成不可变候选，不会自动移动采用指针。"}
+                        </p>
+                      </div>
+                      <Badge variant={canRecordCandidate ? "outline" : "secondary"}>
+                        {objectReadiness?.state ?? "加载中"}
+                      </Badge>
+                    </div>
+                    <Textarea
+                      value={candidateContent}
+                      onChange={(event) => setCandidateContent(event.target.value)}
+                      placeholder={
+                        object.outputContract === "DOCUMENT_VERSION"
+                          ? "输入 Markdown 文档正文"
+                          : "输入文本正文"
+                      }
+                      className="min-h-40 font-mono text-sm"
+                      disabled={!canRecordCandidate}
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <Textarea
+                        value={candidateSummary}
+                        onChange={(event) => setCandidateSummary(event.target.value)}
+                        placeholder="版本说明（可选）"
+                        className="min-h-9 flex-1 resize-none"
+                        disabled={!canRecordCandidate}
+                      />
+                      <Button
+                        type="button"
+                        disabled={
+                          !canRecordCandidate ||
+                          !candidateContent.trim() ||
+                          recordDocumentCandidate.isPending
+                        }
+                        onClick={submitCandidate}
+                      >
+                        {recordDocumentCandidate.isPending ? "保存中..." : "保存为候选"}
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
                 {versionsQuery.isLoading ? (
                   <div className="flex flex-col gap-2">
                     <Skeleton className="h-24" />
@@ -297,9 +417,9 @@ export function ObjectDetailPanel({
                                 type="button"
                                 variant="outline"
                                 size="xs"
-                                disabled={!canAdoptVersion || reject.isPending}
+                                disabled={!canRejectCandidate || reject.isPending}
                                 onClick={() => {
-                                  if (!canAdoptVersion) return
+                                  if (!canRejectCandidate) return
                                   setReason("")
                                   setRejectId(version.id)
                                 }}
@@ -309,9 +429,9 @@ export function ObjectDetailPanel({
                               <Button
                                 type="button"
                                 size="xs"
-                                disabled={!canAdoptVersion || adopt.isPending}
+                                disabled={!canAdoptCandidate || adopt.isPending}
                                 onClick={() => {
-                                  if (!canAdoptVersion) return
+                                  if (!canAdoptCandidate) return
                                   setReason("")
                                   setAdoptId(version.id)
                                 }}
@@ -414,7 +534,7 @@ export function ObjectDetailPanel({
       ) : null}
 
       <Dialog
-        open={adoptId !== null && canAdoptVersion}
+        open={adoptId !== null && canAdoptCandidate}
         onOpenChange={(next) => {
           if (!next) {
             setAdoptId(null)
@@ -454,7 +574,7 @@ export function ObjectDetailPanel({
       </Dialog>
 
       <Dialog
-        open={rejectId !== null && canAdoptVersion}
+        open={rejectId !== null && canRejectCandidate}
         onOpenChange={(next) => {
           if (!next) {
             setRejectId(null)

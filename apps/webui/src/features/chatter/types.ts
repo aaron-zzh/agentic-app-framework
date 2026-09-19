@@ -64,6 +64,13 @@ export interface ChatterDropItem {
   }
 }
 
+/** 服务端受控项目会话；三个标识必须原子提供，不允许客户端猜测或默认回退。 */
+export interface ChatterProjectContext {
+  projectId: number
+  assistantId: string
+  threadId: string
+}
+
 /** Chatter 组件 Props */
 export interface ChatterProps {
   preset: ChatterPreset
@@ -89,6 +96,8 @@ export interface ChatterProps {
   /** 隐藏顶部工具栏（已有外部导航时使用） */
   hideToolbar?: boolean
   onDrop?: (item: ChatterDropItem) => void
+  /** 项目模式固定服务端 thread 与 Assistant；存在时禁止普通会话切换和默认 Assistant。 */
+  projectContext?: ChatterProjectContext
   sessionId?: string
   onSessionChange?: (sessionId: string) => void
 }

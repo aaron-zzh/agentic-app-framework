@@ -6,13 +6,35 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Bot, Check, ChevronRight, ImageIcon, Plus, Sparkles, Star, Upload, X } from "lucide-react"
+import {
+  Check,
+  ChevronRight,
+  CircleAlert,
+  ImageIcon,
+  LoaderCircle,
+  Plus,
+  Sparkles,
+  Star,
+  Upload,
+  X
+} from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useEffect, useId } from "react"
+import { useEffect, useId, useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { GlassCard, GlassCardBody, GlowButton } from "@/components/studio"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -32,20 +54,84 @@ import {
   type AigcBrandProfile,
   type AigcChannelCode,
   type AigcProjectBlueprint,
+  type AigcProjectCreationProposalRef,
+  type AigcProjectGenerationProposal,
+  type AigcProjectInitializationField,
+  type AigcProjectInitializationFieldKey,
   type AigcProjectType,
   type AigcProjectTypeCode,
   useAigcBrandProfiles,
   useAigcChannelSpecs,
   useAigcProjectBlueprints,
+  useAigcProjectCreationDraftProposals,
   useAigcProjectTypes,
-  useMaterializeAigcProject
+  useApproveAndStartAigcProjectCreationDraftGeneration,
+  useMaterializeAigcProject,
+  useProposeAigcProjectCreationDraftGeneration,
+  useReviseAigcProjectCreationDraftGenerationProposal
 } from "@/lib/api/rest/ai/aigc"
+import { useAssistants } from "@/lib/api/rest/ai/assistant"
+import { useTaskDetails } from "@/lib/api/rest/ai/task"
+import { useDocList, useDocument } from "@/lib/api/rest/system/document"
 import { useEntityAccess } from "@/lib/api/rest/user/permission"
 import { paths } from "@/lib/constants/paths"
 import { useFileUpload } from "@/lib/hooks/use-file-upload"
 import { usePermissionGuard } from "@/lib/hooks/use-permission-guard"
-import { type NewProjectFormValues, newProjectSchema } from "./new-project-schema"
+import {
+  type AigcInitializationFormValue,
+  hasAigcInitializationValue,
+  type NewProjectFormValues,
+  newProjectSchema,
+  parseAigcInitializationResult
+} from "./new-project-schema"
 import { getChannelLabel, getObjectTypeConfig, getProjectTypeConfig } from "./project-type-config"
+
+const CREATION_DRAFT_FIELD_KEYS = new Set<AigcProjectInitializationFieldKey>([
+  "description",
+  "background",
+  "targetAudience",
+  "requirements",
+  "constraints",
+  "keyFacts",
+  "keyMessages",
+  "styleGuidance",
+  "successCriteria",
+  "deliveryRequirements",
+  "locale",
+  "additionalContext"
+])
+
+interface AppliedCreationProposal extends AigcProjectCreationProposalRef {
+  targetKey: AigcProjectInitializationFieldKey
+}
+
+interface ApprovalIntent {
+  operationKey: string
+  idempotencyKey: string
+}
+
+function proposalErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "操作失败，请稍后重试。"
+}
+
+function taskStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    DRAFT: "草稿",
+    PLANNING: "规划中",
+    READY: "待执行",
+    RUNNING: "处理中",
+    VERIFYING: "汇总中",
+    AWAITING_AUTHORIZATION: "等待授权",
+    AWAITING_CLARIFICATION: "等待补充信息",
+    PAUSING: "暂停中",
+    PAUSED: "已暂停",
+    CANCELING: "取消中",
+    COMPLETED: "已完成",
+    CANCELED: "已取消",
+    FAILED: "失败"
+  }
+  return labels[status] ?? status
+}
 
 interface BrandProfileSelectProps {
   profiles: AigcBrandProfile[]
@@ -89,15 +175,9 @@ interface ProjectTypePickerProps {
   types: AigcProjectType[]
   value?: AigcProjectTypeCode
   onChange: (value: AigcProjectTypeCode) => void
-  showAssistantChoice?: boolean
 }
 
-export function ProjectTypePicker({
-  types,
-  value,
-  onChange,
-  showAssistantChoice = true
-}: ProjectTypePickerProps) {
+export function ProjectTypePicker({ types, value, onChange }: ProjectTypePickerProps) {
   return (
     <div className="flex flex-col gap-3">
       <div className="-mx-1 overflow-x-auto px-1 pb-2">
@@ -130,15 +210,6 @@ export function ProjectTypePicker({
           })}
         </ToggleGroup>
       </div>
-      {showAssistantChoice ? (
-        <Link
-          href="/studio/chat"
-          className="flex w-fit items-center gap-2 rounded-lg px-2 py-1 text-muted-foreground text-sm transition-colors hover:bg-muted hover:text-foreground"
-        >
-          <Bot />
-          不确定，让助手帮我选择
-        </Link>
-      ) : null}
     </div>
   )
 }
@@ -357,6 +428,395 @@ function BlueprintActionSteps({
   )
 }
 
+interface CreationDraftSuggestionPanelProps {
+  blueprintVersionId: number
+  fields: AigcProjectInitializationField[]
+  targetKey: AigcProjectInitializationFieldKey
+  onTargetChange: (targetKey: AigcProjectInitializationFieldKey) => void
+  onApply: (
+    targetKey: AigcProjectInitializationFieldKey,
+    value: AigcInitializationFormValue,
+    proposal: AppliedCreationProposal
+  ) => void
+}
+
+function CreationDraftSuggestionPanel({
+  blueprintVersionId,
+  fields,
+  targetKey,
+  onTargetChange,
+  onApply
+}: CreationDraftSuggestionPanelProps) {
+  const [draftId, setDraftId] = useState<string | null>(null)
+  const [activeProposalId, setActiveProposalId] = useState<string | null>(null)
+  const [selectedItemKey, setSelectedItemKey] = useState("")
+  const [instruction, setInstruction] = useState("")
+  const [assistantId, setAssistantId] = useState("")
+  const [approvalIntent, setApprovalIntent] = useState<ApprovalIntent | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const proposalsQuery = useAigcProjectCreationDraftProposals(draftId)
+  const propose = useProposeAigcProjectCreationDraftGeneration()
+  const revise = useReviseAigcProjectCreationDraftGenerationProposal()
+  const approveAndStart = useApproveAndStartAigcProjectCreationDraftGeneration()
+  const assistantsQuery = useAssistants()
+
+  useEffect(() => {
+    setActiveProposalId(null)
+    setSelectedItemKey("")
+    setInstruction("")
+    setApprovalIntent(null)
+    setError(null)
+  }, [targetKey])
+
+  const proposalCandidates = [
+    approveAndStart.data,
+    revise.data,
+    propose.data,
+    ...(proposalsQuery.data ?? [])
+  ].filter((proposal): proposal is AigcProjectGenerationProposal => proposal !== undefined)
+  const activeProposal = proposalCandidates
+    .filter((proposal) => proposal.proposalId === activeProposalId)
+    .toSorted((left, right) => right.proposalVersion - left.proposalVersion)
+    .at(0)
+  const selectedItem =
+    activeProposal?.items.find((item) => item.itemKey === selectedItemKey) ??
+    activeProposal?.items.at(0)
+  const taskQuery = useTaskDetails(activeProposal?.linkedTaskId ?? null)
+  const task = taskQuery.data
+  const targetField = fields.find((field) => field.key === targetKey)
+  const isEditingCurrentProposal =
+    activeProposal?.status === "AWAITING_CONFIRMATION" &&
+    activeProposal.scopeKind === "CREATION_DRAFT" &&
+    activeProposal.draftId === draftId &&
+    activeProposal.blueprintVersionId === blueprintVersionId &&
+    activeProposal.items.length === 1 &&
+    activeProposal.items[0]?.targetKey === targetKey
+  const instructionChanged =
+    isEditingCurrentProposal &&
+    activeProposal.items[0]?.generationInstruction.trim() !== instruction.trim()
+  const proposalPending = propose.isPending || revise.isPending
+
+  function acceptProposal(proposal: AigcProjectGenerationProposal) {
+    if (
+      proposal.scopeKind !== "CREATION_DRAFT" ||
+      proposal.draftId === null ||
+      proposal.blueprintVersionId !== blueprintVersionId ||
+      proposal.items.length !== 1 ||
+      proposal.items[0]?.targetKey !== targetKey
+    ) {
+      setError("服务端返回的 Proposal 与当前 Blueprint 初始化字段不一致，请重新提议。")
+      return
+    }
+    setDraftId(proposal.draftId)
+    setActiveProposalId(proposal.proposalId)
+    setSelectedItemKey(proposal.items[0].itemKey)
+    setApprovalIntent(null)
+    setError(null)
+  }
+
+  function submitProposal() {
+    const generationInstruction = instruction.trim()
+    if (!generationInstruction) {
+      setError("请先填写希望 Assistant 如何生成该字段。")
+      return
+    }
+    const item = {
+      targetType: "INITIALIZATION_FIELD" as const,
+      targetKey,
+      generationInstruction
+    }
+    setError(null)
+    if (isEditingCurrentProposal && activeProposal && draftId) {
+      revise.mutate(
+        {
+          draftId,
+          blueprintVersionId,
+          proposalId: activeProposal.proposalId,
+          proposalVersion: activeProposal.proposalVersion,
+          proposalHash: activeProposal.proposalHash,
+          items: [item]
+        },
+        {
+          onSuccess: acceptProposal,
+          onError: (failure) => setError(proposalErrorMessage(failure))
+        }
+      )
+      return
+    }
+    propose.mutate(
+      {
+        ...(draftId ? { draftId } : {}),
+        blueprintVersionId,
+        items: [item]
+      },
+      {
+        onSuccess: acceptProposal,
+        onError: (failure) => setError(proposalErrorMessage(failure))
+      }
+    )
+  }
+
+  function approveProposal() {
+    if (
+      !activeProposal ||
+      activeProposal.status !== "AWAITING_CONFIRMATION" ||
+      activeProposal.draftId === null ||
+      !selectedItem ||
+      !assistantId ||
+      instructionChanged
+    ) {
+      return
+    }
+    const operationKey = `${activeProposal.proposalId}:${activeProposal.proposalVersion}:${activeProposal.proposalHash}:${selectedItem.itemKey}:${assistantId}`
+    const idempotencyKey =
+      approvalIntent?.operationKey === operationKey
+        ? approvalIntent.idempotencyKey
+        : crypto.randomUUID()
+    if (approvalIntent?.operationKey !== operationKey) {
+      setApprovalIntent({ operationKey, idempotencyKey })
+    }
+    setError(null)
+    approveAndStart.mutate(
+      {
+        draftId: activeProposal.draftId,
+        blueprintVersionId,
+        proposalId: activeProposal.proposalId,
+        proposalVersion: activeProposal.proposalVersion,
+        proposalHash: activeProposal.proposalHash,
+        approvedTargetKeys: [selectedItem.itemKey],
+        approvalIdempotencyKey: idempotencyKey,
+        assistantId
+      },
+      {
+        onSuccess: acceptProposal,
+        onError: (failure) => setError(proposalErrorMessage(failure))
+      }
+    )
+  }
+
+  function applyResult() {
+    if (
+      !activeProposal ||
+      activeProposal.scopeKind !== "CREATION_DRAFT" ||
+      activeProposal.draftId === null ||
+      activeProposal.status !== "APPROVED" ||
+      !selectedItem ||
+      selectedItem.targetType !== "INITIALIZATION_FIELD" ||
+      !CREATION_DRAFT_FIELD_KEYS.has(
+        selectedItem.targetKey as AigcProjectInitializationFieldKey
+      ) ||
+      !fields.some((field) => field.key === selectedItem.targetKey && field.aiAssist === true) ||
+      !targetField ||
+      !task?.rootResult
+    ) {
+      setError("当前结果未满足填入条件，请等待 Task 完成并确认字段范围。")
+      return
+    }
+    try {
+      const resultTargetKey = selectedItem.targetKey as AigcProjectInitializationFieldKey
+      const resultField = fields.find((field) => field.key === resultTargetKey)
+      if (!resultField) throw new Error("当前 Blueprint 未启用该初始化字段。")
+      const value = parseAigcInitializationResult(resultField, task.rootResult.result)
+      onApply(resultTargetKey, value, {
+        targetKey: resultTargetKey,
+        draftId: activeProposal.draftId,
+        proposalId: activeProposal.proposalId,
+        proposalVersion: activeProposal.proposalVersion,
+        proposalHash: activeProposal.proposalHash
+      })
+      setError(null)
+    } catch (failure) {
+      setError(proposalErrorMessage(failure))
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Sparkles /> AI 初始化建议
+        </CardTitle>
+        <CardDescription>
+          先确认生成目标和指令，再启动 canonical Task；结果只在你点击填入后进入创建表单。
+        </CardDescription>
+        {draftId ? <CardAction><Badge variant="outline">{draftId}</Badge></CardAction> : null}
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        {error ? (
+          <Alert variant="destructive" role="alert">
+            <CircleAlert />
+            <AlertTitle>AI 建议操作未完成</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : null}
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="flex flex-col gap-1 font-medium text-sm">
+            <span>初始化字段</span>
+            <Select
+              value={targetKey}
+              onValueChange={(value) => {
+                if (
+                  value &&
+                  CREATION_DRAFT_FIELD_KEYS.has(value as AigcProjectInitializationFieldKey) &&
+                  fields.some((field) => field.key === value && field.aiAssist === true)
+                ) {
+                  onTargetChange(value as AigcProjectInitializationFieldKey)
+                }
+              }}
+              disabled={proposalPending || approveAndStart.isPending}
+            >
+              <SelectTrigger className="w-full" aria-label="AI 建议初始化字段">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {fields.map((field) => (
+                    <SelectItem key={field.key} value={field.key}>{field.label}</SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex flex-col gap-1 font-medium text-sm">
+            <span>执行 Assistant</span>
+            <Select
+              value={assistantId}
+              onValueChange={(value) => setAssistantId(value ?? "")}
+              disabled={
+                assistantsQuery.isLoading ||
+                approveAndStart.isPending ||
+                approvalIntent !== null
+              }
+            >
+              <SelectTrigger className="w-full" aria-label="执行 Assistant">
+                <SelectValue placeholder="选择 Assistant" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {(assistantsQuery.data ?? []).map((assistant) => (
+                    <SelectItem key={assistant.assistantId} value={assistant.assistantId}>
+                      {assistant.name} · {assistant.defaultRoleKey}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            {!assistantsQuery.isLoading && (assistantsQuery.data ?? []).length === 0 ? (
+              <p className="text-destructive text-xs">当前没有可执行的 Assistant，暂不能启动生成。</p>
+            ) : null}
+          </div>
+        </div>
+
+        <label className="flex flex-col gap-1 font-medium text-sm">
+          生成指令
+          <Textarea
+            value={instruction}
+            onChange={(event) => setInstruction(event.target.value)}
+            placeholder={`说明希望如何生成“${targetField?.label ?? targetKey}”`}
+            className="min-h-24 font-normal"
+            disabled={activeProposal?.status === "APPROVED"}
+          />
+        </label>
+
+        {activeProposal ? (
+          <div className="flex flex-col gap-3 rounded-lg border p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={activeProposal.status === "APPROVED" ? "secondary" : "default"}>
+                Proposal v{activeProposal.proposalVersion} · {activeProposal.status}
+              </Badge>
+              <span className="font-mono text-muted-foreground text-xs">
+                {activeProposal.proposalHash.slice(0, 12)}…
+              </span>
+            </div>
+            <div className="flex flex-col gap-1 font-medium text-sm">
+              <span>本次确认的单项目标</span>
+              <Select
+                value={selectedItem?.itemKey ?? ""}
+                onValueChange={(value) => setSelectedItemKey(value ?? "")}
+                disabled={activeProposal.status !== "AWAITING_CONFIRMATION"}
+              >
+                <SelectTrigger className="w-full" aria-label="确认的单项目标">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {activeProposal.items.map((item) => (
+                      <SelectItem key={item.itemKey} value={item.itemKey}>
+                        {item.targetKey} · {item.generationInstruction}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+            {instructionChanged ? (
+              <p className="text-muted-foreground text-sm">生成指令已修改，请先提交修订；旧确认将失效。</p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {activeProposal?.linkedTaskId ? (
+          <Alert role="status" aria-live="polite">
+            <AlertTitle>canonical Task · {activeProposal.linkedTaskId}</AlertTitle>
+            <AlertDescription>
+              {taskQuery.isLoading
+                ? "正在读取 Task 状态…"
+                : task
+                  ? `状态：${taskStatusLabel(task.status)}`
+                  : "Task 状态暂不可用。"}
+            </AlertDescription>
+          </Alert>
+        ) : null}
+
+        {task?.rootResult ? (
+          <Card size="sm">
+            <CardHeader>
+              <CardTitle>Assistant 结果</CardTitle>
+              <CardDescription>请审阅后再填入表单；填入后仍可继续人工修改。</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="whitespace-pre-wrap text-sm">{task.rootResult.result}</p>
+            </CardContent>
+            <CardFooter className="justify-end">
+              <Button type="button" onClick={applyResult}>
+                <Check /> 填入表单并用于创建
+              </Button>
+            </CardFooter>
+          </Card>
+        ) : null}
+      </CardContent>
+      <CardFooter className="justify-end gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={submitProposal}
+          disabled={proposalPending || approveAndStart.isPending || activeProposal?.status === "APPROVED"}
+        >
+          {proposalPending ? <LoaderCircle className="animate-spin" /> : <Sparkles />}
+          {isEditingCurrentProposal ? "提交修订" : "生成建议提议"}
+        </Button>
+        <Button
+          type="button"
+          onClick={approveProposal}
+          disabled={
+            !activeProposal ||
+            activeProposal.status !== "AWAITING_CONFIRMATION" ||
+            !selectedItem ||
+            !assistantId ||
+            instructionChanged ||
+            proposalPending ||
+            approveAndStart.isPending
+          }
+        >
+          {approveAndStart.isPending ? <LoaderCircle className="animate-spin" /> : <Check />}
+          确认并启动
+        </Button>
+      </CardFooter>
+    </Card>
+  )
+}
+
 export interface NewProjectLauncherProps {
   mode?: "compact" | "full"
   className?: string
@@ -373,9 +833,10 @@ export function NewProjectLauncher({
   const { data: projectAccess } = useEntityAccess("project")
   const { canCreate } = usePermissionGuard(projectAccess)
   const nameId = useId()
-  const briefId = useId()
+  const descriptionId = useId()
   const coverFileId = useId()
   const coverPromptId = useId()
+  const briefDocumentSelectId = useId()
   const projectDate = new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit" }).format(
     new Date()
   )
@@ -400,10 +861,21 @@ export function NewProjectLauncher({
       brandProfileId: undefined,
       productionMode: "standard",
       channelCodes: [],
-      documentVersionIds: [],
+      documents: [],
       coverMode: "AI_GENERATE",
       coverPrompt: "",
-      brief: ""
+      description: "",
+      background: "",
+      targetAudience: "",
+      requirements: [],
+      constraints: [],
+      keyFacts: [],
+      keyMessages: [],
+      styleGuidance: "",
+      successCriteria: [],
+      deliveryRequirements: {},
+      locale: "zh-CN",
+      additionalContext: ""
     }
   })
   const { control, watch, setValue, handleSubmit, formState } = methods
@@ -417,6 +889,19 @@ export function NewProjectLauncher({
   const coverMode = watch("coverMode")
   const coverUpload = watch("coverUpload")
   const coverPrompt = watch("coverPrompt")
+  const [briefDocumentId, setBriefDocumentId] = useState("")
+  const [aiSuggestionTargetKey, setAiSuggestionTargetKey] =
+    useState<AigcProjectInitializationFieldKey | null>(null)
+  const [appliedCreationProposal, setAppliedCreationProposal] =
+    useState<AppliedCreationProposal | null>(null)
+  const [creationProposalError, setCreationProposalError] = useState<string | null>(null)
+  const briefDocumentIdNumber = Number(briefDocumentId)
+  const { data: briefDocumentList, isLoading: briefDocumentListLoading } = useDocList()
+  const { data: briefDocumentDetail } = useDocument(
+    Number.isInteger(briefDocumentIdNumber) && briefDocumentIdNumber > 0
+      ? briefDocumentIdNumber
+      : null
+  )
 
   const allTypes = (typePage?.list ?? []).filter((type) => type.status === "published")
   const types = mode === "compact" ? allTypes.filter((type) => type.quickEntry) : allTypes
@@ -437,6 +922,31 @@ export function NewProjectLauncher({
   )
   const selectedBlueprint =
     blueprints.find((blueprint) => blueprint.id === blueprintVersionId) ?? blueprints.at(0)
+  const initializationFields = (selectedBlueprint?.projectInitialization?.fields ?? []).toSorted(
+    (left, right) => (left.orderNo ?? 0) - (right.orderNo ?? 0)
+  )
+  const aiAssistedInitializationFields = initializationFields.filter(
+    (field) => field.aiAssist === true && CREATION_DRAFT_FIELD_KEYS.has(field.key)
+  )
+  const briefDocumentSpec = selectedBlueprint?.projectInitialization?.documents?.find(
+    (document) => document.role === "brief"
+  )
+
+  useEffect(() => {
+    if (!briefDocumentSpec || !briefDocumentDetail?.currentVersionId) {
+      setValue("documents", [])
+      return
+    }
+    setValue("documents", [
+      {
+        fieldKey: briefDocumentSpec.key,
+        ...(briefDocumentSpec.referenceType === "PROJECT_DOCUMENT"
+          ? { documentId: briefDocumentDetail.id }
+          : { documentVersionId: briefDocumentDetail.currentVersionId })
+      }
+    ])
+  }, [briefDocumentDetail, briefDocumentSpec, setValue])
+
   const slotTemplates = selectedBlueprint?.slotTemplateSpec?.slotTemplates ?? []
   const slotLabelByKey = new Map(
     slotTemplates.map((template) => [
@@ -480,6 +990,12 @@ export function NewProjectLauncher({
     setValue
   ])
 
+  useEffect(() => {
+    setAiSuggestionTargetKey(null)
+    setAppliedCreationProposal(null)
+    setCreationProposalError(null)
+  }, [selectedBlueprint?.id])
+
   function handleTypeChange(code: AigcProjectTypeCode) {
     const type = allTypes.find((item) => item.code === code)
     setValue("projectTypeCode", code)
@@ -503,25 +1019,69 @@ export function NewProjectLauncher({
     setValue("coverUpload", { fileId: result.fileId, url: result.url, name: result.name })
   }
 
+  function applyCreationDraftSuggestion(
+    targetKey: AigcProjectInitializationFieldKey,
+    value: AigcInitializationFormValue,
+    proposal: AppliedCreationProposal
+  ) {
+    setValue(targetKey, value, { shouldDirty: true, shouldValidate: true })
+    setAppliedCreationProposal(proposal)
+    setCreationProposalError(null)
+  }
+
   function onSubmit(values: NewProjectFormValues) {
     if (!canCreate || !selectedType || !selectedBlueprint || coverUploading) return
+    if (
+      appliedCreationProposal &&
+      !hasAigcInitializationValue(values[appliedCreationProposal.targetKey])
+    ) {
+      setCreationProposalError(
+        `已确认的初始化字段“${
+          initializationFields.find((field) => field.key === appliedCreationProposal.targetKey)
+            ?.label ?? appliedCreationProposal.targetKey
+        }”当前没有值。请填入或取消本次 AI 建议后再创建。`
+      )
+      return
+    }
+    const approvedCreationProposal = appliedCreationProposal
+      ? {
+          draftId: appliedCreationProposal.draftId,
+          proposalId: appliedCreationProposal.proposalId,
+          proposalVersion: appliedCreationProposal.proposalVersion,
+          proposalHash: appliedCreationProposal.proposalHash
+        }
+      : undefined
+    setCreationProposalError(null)
     const selectedProfile = profiles.find((profile) => profile.id === values.brandProfileId)
     materialize.mutate(
       {
+        sourceType: "CATALOG",
+        sourceRef: `blueprint:${selectedBlueprint.id}@${selectedBlueprint.blueprintVersion}`,
         projectTypeCode: selectedType.code,
         name: values.name.trim(),
+        description: values.description?.trim() || undefined,
+        background: values.background?.trim() || undefined,
+        targetAudience: values.targetAudience?.trim() || undefined,
+        requirements: values.requirements,
+        constraints: values.constraints,
+        keyFacts: values.keyFacts,
+        keyMessages: values.keyMessages,
+        styleGuidance: values.styleGuidance?.trim() || undefined,
+        successCriteria: values.successCriteria,
+        deliveryRequirements: values.deliveryRequirements,
+        locale: values.locale?.trim() || undefined,
+        additionalContext: values.additionalContext?.trim() || undefined,
         blueprintVersionId: selectedBlueprint.id,
-        briefJson: values.brief?.trim() || undefined,
         brandProfileVersionIds: selectedProfile?.currentVersionId
           ? [selectedProfile.currentVersionId]
           : [],
         channelSpecVersionIds: channels
           .filter((channel) => values.channelCodes.includes(channel.code))
           .map((channel) => channel.id),
+        documents: values.documents,
         productionMode: values.productionMode,
-        budgetTier: "MEDIUM",
-        qualityTier: "STANDARD",
         slotOverrides: [],
+        approvedCreationProposal,
         coverMode: values.coverMode,
         ...(values.coverMode === "UPLOAD" && values.coverUpload
           ? { coverFileId: values.coverUpload.fileId }
@@ -698,7 +1258,6 @@ export function NewProjectLauncher({
               types={types}
               value={projectTypeCode || undefined}
               onChange={handleTypeChange}
-              showAssistantChoice={mode === "compact"}
             />
             {typesLoading ? (
               <p className="text-muted-foreground text-sm">正在加载项目类型…</p>
@@ -773,26 +1332,170 @@ export function NewProjectLauncher({
             </div>
           ) : null}
 
-          <div className="flex flex-col gap-2">
-            <label htmlFor={briefId} className="font-medium text-sm">
-              项目简介（可选）
-            </label>
-            <Controller
-              name="brief"
-              control={control}
-              render={({ field }) => (
-                <Textarea
-                  id={briefId}
-                  placeholder={
-                    selectedType ? getProjectTypeConfig(selectedType).placeholder : "先选择项目类型"
-                  }
-                  className="min-h-28 resize-y"
-                  {...field}
-                  value={field.value ?? ""}
+          {initializationFields.map((initializationField) => {
+            const fieldId = `${descriptionId}-${initializationField.key}`
+            return (
+              <div key={initializationField.key} className="flex flex-col gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label htmlFor={fieldId} className="font-medium text-sm">
+                    {initializationField.label}
+                    {initializationField.required ? (
+                      <span className="text-destructive"> *</span>
+                    ) : null}
+                  </label>
+                  {initializationField.aiAssist === true &&
+                  CREATION_DRAFT_FIELD_KEYS.has(initializationField.key) ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setAiSuggestionTargetKey(initializationField.key)}
+                    >
+                      <Sparkles /> AI 建议
+                    </Button>
+                  ) : null}
+                </div>
+                {initializationField.description ? (
+                  <p className="text-muted-foreground text-xs">{initializationField.description}</p>
+                ) : null}
+                <Controller
+                  name={initializationField.key}
+                  control={control}
+                  render={({ field }) => {
+                    const rawValue: unknown = field.value
+                    const displayValue = Array.isArray(rawValue)
+                      ? rawValue.join("\n")
+                      : initializationField.key === "deliveryRequirements"
+                        ? JSON.stringify(rawValue ?? {}, null, 2)
+                        : typeof rawValue === "string"
+                          ? rawValue
+                          : ""
+                    return (
+                      <Textarea
+                        id={fieldId}
+                        required={initializationField.required}
+                        placeholder={
+                          initializationField.key === "description" && selectedType
+                            ? getProjectTypeConfig(selectedType).placeholder
+                            : initializationField.description
+                        }
+                        className="min-h-24 resize-y"
+                        name={field.name}
+                        onBlur={field.onBlur}
+                        ref={field.ref}
+                        value={displayValue}
+                        onChange={(event) => {
+                          const nextValue = event.target.value
+                          if (initializationField.valueType === "STRING_LIST") {
+                            field.onChange(
+                              nextValue
+                                .split("\n")
+                                .map((item) => item.trim())
+                                .filter(Boolean)
+                            )
+                            return
+                          }
+                          if (initializationField.key === "deliveryRequirements") {
+                            try {
+                              const parsed: unknown = JSON.parse(nextValue)
+                              if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                                field.onChange(parsed)
+                              }
+                            } catch {
+                              // JSON 输入未完成时保留上一次合法值
+                            }
+                            return
+                          }
+                          field.onChange(nextValue)
+                        }}
+                      />
+                    )
+                  }}
                 />
-              )}
+              </div>
+            )
+          })}
+
+          {selectedBlueprint &&
+          aiSuggestionTargetKey &&
+          aiAssistedInitializationFields.some(
+            (field) => field.key === aiSuggestionTargetKey
+          ) ? (
+            <CreationDraftSuggestionPanel
+              key={selectedBlueprint.id}
+              blueprintVersionId={selectedBlueprint.id}
+              fields={aiAssistedInitializationFields}
+              targetKey={aiSuggestionTargetKey}
+              onTargetChange={setAiSuggestionTargetKey}
+              onApply={applyCreationDraftSuggestion}
             />
-          </div>
+          ) : null}
+
+          {appliedCreationProposal ? (
+            <Alert>
+              <Check />
+              <AlertTitle>已采用 AI 初始化建议</AlertTitle>
+              <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+                <span>
+                  创建时将提交 Proposal v{appliedCreationProposal.proposalVersion} 的确认凭据；
+                  目标字段必须保持有值。
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setAppliedCreationProposal(null)
+                    setCreationProposalError(null)
+                  }}
+                >
+                  不提交凭据
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
+          {creationProposalError ? (
+            <Alert variant="destructive" role="alert">
+              <CircleAlert />
+              <AlertTitle>暂不能创建项目</AlertTitle>
+              <AlertDescription>{creationProposalError}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          {briefDocumentSpec ? (
+            <div className="flex flex-col gap-2">
+              <label htmlFor={briefDocumentSelectId} className="font-medium text-sm">
+                {briefDocumentSpec.label}
+                {briefDocumentSpec.required ? <span className="text-destructive"> *</span> : null}
+              </label>
+              {briefDocumentSpec.description ? (
+                <p className="text-muted-foreground text-xs">{briefDocumentSpec.description}</p>
+              ) : null}
+              <Select
+                value={briefDocumentId === "" ? "none" : briefDocumentId}
+                onValueChange={(next) => setBriefDocumentId(next && next !== "none" ? next : "")}
+              >
+                <SelectTrigger id={briefDocumentSelectId} className="w-full">
+                  <SelectValue>
+                    {(briefDocumentList ?? []).find(
+                      (document) => String(document.id) === briefDocumentId
+                    )?.title ?? (briefDocumentListLoading ? "正在加载文档…" : "选择文档")}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="none">暂不选择</SelectItem>
+                    {(briefDocumentList ?? []).map((document) => (
+                      <SelectItem key={document.id} value={String(document.id)}>
+                        {document.title}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
 
           {!canCreate ? (
             <p className="text-amber-600 text-sm">当前账号没有创建项目的权限。</p>

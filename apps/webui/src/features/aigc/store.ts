@@ -25,8 +25,10 @@ interface AigcStore {
   copywritingContent: string
   /** 当前持久化身份所属的用户与组织/工作区范围。 */
   copywritingScopeKey: string | null
-  /** 当前执行由 Agent 保存并返回的数据库草稿 ID。 */
+  /** 当前执行由 Agent 保存并返回的数据库文档 ID。 */
   copywritingDocumentId: number | null
+  /** 当前执行由 Agent 保存并返回的不可变文档版本 ID。 */
+  copywritingDocumentVersionId: number | null
   /** 任一文案入口正在生成、改写或等待恢复。 */
   copywritingGenerating: boolean
   /** 文案生成类型：直接传 ai_skill_definition.code（如 voiceover=口播 redbook=小红书），viral=爆款复制固定值 */
@@ -105,7 +107,11 @@ interface AigcStore {
   setCopywritingPrompt: (prompt: string) => void
   setCopywritingContent: (content: string) => void
   bindCopywritingScope: (scopeKey: string | null) => void
-  setCopywritingPersistedDocument: (scopeKey: string, id: number | null) => void
+  setCopywritingPersistedDocument: (
+    scopeKey: string,
+    documentId: number | null,
+    documentVersionId: number | null
+  ) => void
   setCopywritingGenerating: (generating: boolean) => void
   setCopywritingType: (type: string) => void
   setCopywritingTranslateTo: (lang: string | null) => void
@@ -155,6 +161,7 @@ export const useAigcStore = create<AigcStore>((set, _get) => ({
   copywritingContent: "",
   copywritingScopeKey: null,
   copywritingDocumentId: null,
+  copywritingDocumentVersionId: null,
   copywritingGenerating: false,
   copywritingType: "voiceover",
   copywritingTranslateTo: null,
@@ -201,11 +208,20 @@ export const useAigcStore = create<AigcStore>((set, _get) => ({
         ? state
         : {
             copywritingScopeKey,
-            copywritingDocumentId: null
+            copywritingDocumentId: null,
+            copywritingDocumentVersionId: null
           }
     ),
-  setCopywritingPersistedDocument: (scopeKey, copywritingDocumentId) =>
-    set((state) => (state.copywritingScopeKey === scopeKey ? { copywritingDocumentId } : state)),
+  setCopywritingPersistedDocument: (
+    scopeKey,
+    copywritingDocumentId,
+    copywritingDocumentVersionId
+  ) =>
+    set((state) =>
+      state.copywritingScopeKey === scopeKey
+        ? { copywritingDocumentId, copywritingDocumentVersionId }
+        : state
+    ),
   setCopywritingGenerating: (copywritingGenerating) => set({ copywritingGenerating }),
   setCopywritingType: (type) => set({ copywritingType: type }),
   setCopywritingTranslateTo: (lang) => set({ copywritingTranslateTo: lang }),

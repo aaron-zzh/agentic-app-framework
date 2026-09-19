@@ -3,6 +3,8 @@
 import { useParams } from "next/navigation"
 import { PageContainer } from "@/components/common/PageContainer"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { DocumentVersionHistory } from "@/features/document/DocumentVersionHistory"
 import { useDocument } from "@/lib/api/rest/system"
 import { DocEditForm } from "../../DocEditForm"
 
@@ -27,7 +29,24 @@ export default function DocEditPage() {
 
   return (
     <PageContainer disablePadding>
-      <DocEditForm doc={doc} />
+      <Tabs defaultValue="edit" className="flex h-full min-h-0 flex-col">
+        <div className="border-b px-6 pt-3">
+          <TabsList>
+            <TabsTrigger value="edit">编辑</TabsTrigger>
+            <TabsTrigger value="versions">版本历史</TabsTrigger>
+          </TabsList>
+        </div>
+        <TabsContent value="edit" className="min-h-0 flex-1">
+          <DocEditForm doc={doc} />
+        </TabsContent>
+        <TabsContent value="versions" className="min-h-0 flex-1">
+          <DocumentVersionHistory
+            documentId={doc.id}
+            currentVersionId={doc.currentVersionId}
+            publishedVersionId={doc.publishedVersionId}
+          />
+        </TabsContent>
+      </Tabs>
     </PageContainer>
   )
 }

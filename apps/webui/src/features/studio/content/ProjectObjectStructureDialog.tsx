@@ -28,17 +28,18 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import type {
   AigcContractRole,
-  AigcObjectType,
   AigcProject,
-  AigcProjectObject
+  AigcProjectObject,
+  AigcProjectSlotTemplateSpec
 } from "@/lib/api/rest/ai/aigc"
 import {
+  useAigcProjectConfiguration,
   useAppendAigcProjectObject,
   useRemoveAigcProjectObject,
   useUpdateAigcProjectObjectContract
 } from "@/lib/api/rest/ai/aigc"
 import { notify } from "@/lib/notification"
-import { OBJECT_TYPE_CONFIG } from "./project-type-config"
+import { getObjectTypeConfig } from "./project-type-config"
 
 export type ProjectObjectStructureAction =
   | { kind: "append" }
@@ -54,7 +55,6 @@ interface ProjectObjectStructureDialogProps {
 }
 
 const CONTRACT_ROLES: AigcContractRole[] = ["REQUIRED", "OPTIONAL", "EXCLUDED"]
-const OBJECT_TYPES = Object.keys(OBJECT_TYPE_CONFIG) as AigcObjectType[]
 
 export function ProjectObjectStructureDialog({
   action,
@@ -69,10 +69,19 @@ export function ProjectObjectStructureDialog({
   const contractRoleId = useId()
   const reasonId = useId()
   const [displayName, setDisplayName] = useState("")
-  const [objectType, setObjectType] = useState<AigcObjectType>("copy_deliverable")
+  const [templateKey, setTemplateKey] = useState<string | undefined>()
   const [contractRole, setContractRole] = useState<AigcContractRole>("OPTIONAL")
   const [parentObjectId, setParentObjectId] = useState<number | undefined>()
   const [reason, setReason] = useState("")
+  const { data: configuration } = useAigcProjectConfiguration(project.id)
+  const addableTemplates = (configuration?.snapshot.slotTemplates ?? []).filter(
+    (template) => template.userAddable
+  )
+  const selectedTemplate = addableTemplates.find((template) => template.templateKey === templateKey)
+  const requiredParentTemplateKey = selectedTemplate?.parentTemplateKey ?? null
+  const parentCandidates = requiredParentTemplateKey
+    ? objects.filter((object) => object.blueprintTemplateKey === requiredParentTemplateKey)
+    : []
   const appendObject = useAppendAigcProjectObject()
   const updateContract = useUpdateAigcProjectObjectContract()
   const removeObject = useRemoveAigcProjectObject()
@@ -81,7 +90,7 @@ export function ProjectObjectStructureDialog({
   useEffect(() => {
     if (!action) return
     setDisplayName("")
-    setObjectType("copy_deliverable")
+    setTemplateKey(undefined)
     setContractRole(
       action.kind === "contract" ? (action.object.contractRole ?? "OPTIONAL") : "OPTIONAL"
     )
@@ -96,15 +105,19 @@ export function ProjectObjectStructureDialog({
   function submit() {
     if (!mutable || !action) return
     if (action.kind === "append") {
-      if (!displayName.trim()) return
+      if (!displayName.trim() || !selectedTemplate) return
       appendObject.mutate(
         {
           projectId: project.id,
           parentObjectId,
-          objectType,
+          blueprintTemplateKey: selectedTemplate.templateKey,
+          objectType: selectedTemplate.objectType,
           displayName: displayName.trim(),
           contractRole,
-          expectedProjectVersion: project.version
+          semanticRole: selectedTemplate.semanticRole,
+          outputContract: selectedTemplate.outputContract,
+          expectedProjectVersion: project.version,
+          expectedGraphRevision: project.graphRevision
         },
         {
           onSuccess: () => {
@@ -168,7 +181,7 @@ export function ProjectObjectStructureDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
             {action?.kind === "append"
-              ? "追加自定义对象并更新项目图谱 revision。"
+              ? "从当前项目结构的可添加类型中追加对象，并更新项目图谱 revision。"
               : action?.kind === "contract"
                 ? `调整「${action.object.title || action.object.stableKey}」是否参与交付。`
                 : `移除「${action?.object.title || action?.object.stableKey}」；存在子对象或活跃执行时服务端会拒绝。`}
@@ -190,40 +203,55 @@ export function ProjectObjectStructureDialog({
               <div className="flex flex-col gap-2">
                 <Label htmlFor={objectTypeId}>对象类型</Label>
                 <Select
-                  value={objectType}
+                  value={templateKey}
                   onValueChange={(value) => {
-                    if (value) setObjectType(value as AigcObjectType)
+                    if (value) {
+                      setTemplateKey(value)
+                      setParentObjectId(undefined)
+                    }
                   }}
                 >
                   <SelectTrigger id={objectTypeId} className="w-full">
-                    <SelectValue />
+                    <SelectValue placeholder="从当前项目结构选择可添加类型" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      {OBJECT_TYPES.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {OBJECT_TYPE_CONFIG[type].label}
+                      {addableTemplates.map((template: AigcProjectSlotTemplateSpec) => (
+                        <SelectItem key={template.templateKey} value={template.templateKey}>
+                          {getObjectTypeConfig(template.objectType).label}
+                          {template.displayNamePattern ? ` · ${template.displayNamePattern}` : ""}
                         </SelectItem>
                       ))}
                     </SelectGroup>
                   </SelectContent>
                 </Select>
+                {addableTemplates.length === 0 ? (
+                  <p className="text-muted-foreground text-xs">
+                    当前项目结构未开放可添加对象类型。
+                  </p>
+                ) : null}
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor={parentSelectId}>父对象</Label>
                 <Select
-                  value={parentObjectId ? String(parentObjectId) : "none"}
-                  onValueChange={(value) =>
-                    setParentObjectId(value && value !== "none" ? Number(value) : undefined)
-                  }
+                  value={parentObjectId ? String(parentObjectId) : undefined}
+                  disabled={!requiredParentTemplateKey}
+                  onValueChange={(value) => setParentObjectId(value ? Number(value) : undefined)}
                 >
                   <SelectTrigger id={parentSelectId} className="w-full">
-                    <SelectValue />
+                    <SelectValue
+                      placeholder={
+                        !templateKey
+                          ? "先选择对象类型"
+                          : requiredParentTemplateKey
+                            ? "选择父对象"
+                            : "该类型无需父对象"
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      <SelectItem value="none">无父对象</SelectItem>
-                      {objects.map((object) => (
+                      {parentCandidates.map((object) => (
                         <SelectItem key={object.id} value={String(object.id)}>
                           {object.title || object.stableKey}
                         </SelectItem>
@@ -231,6 +259,11 @@ export function ProjectObjectStructureDialog({
                     </SelectGroup>
                   </SelectContent>
                 </Select>
+                {requiredParentTemplateKey && parentCandidates.length === 0 ? (
+                  <p className="text-muted-foreground text-xs">
+                    当前项目缺少匹配的父对象，无法追加。
+                  </p>
+                ) : null}
               </div>
             </div>
           </div>
@@ -283,7 +316,10 @@ export function ProjectObjectStructureDialog({
             disabled={
               !mutable ||
               pending ||
-              (action?.kind === "append" && !displayName.trim()) ||
+              (action?.kind === "append" &&
+                (!displayName.trim() ||
+                  !selectedTemplate ||
+                  (requiredParentTemplateKey !== null && !parentObjectId))) ||
               (action?.kind === "remove" && !reason.trim())
             }
             onClick={submit}

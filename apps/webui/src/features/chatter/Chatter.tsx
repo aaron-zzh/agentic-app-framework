@@ -43,7 +43,8 @@ function presetToTarget(
   isAuthenticated: boolean,
   agentRole?: string,
   agentSkill?: string,
-  targetUserId?: string
+  targetUserId?: string,
+  assistantId?: string
 ): ChatterTarget {
   switch (preset) {
     case "kiro":
@@ -53,7 +54,7 @@ function presetToTarget(
     case "guest":
       return isAuthenticated ? { type: "ai" } : { type: "guest" }
     default:
-      return { type: "ai", agentRole, agentSkill }
+      return { type: "ai", agentRole, agentSkill, assistantId }
   }
 }
 
@@ -85,14 +86,22 @@ export function Chatter(props: ChatterProps) {
     hideToolbar,
     agentRole,
     agentSkill,
-    targetUserId
+    targetUserId,
+    projectContext
   } = props
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const effectiveLayout = resolveLayout(layout, preset, isAuthenticated)
 
   const [mounted, setMounted] = useState(false)
   const [target, setTarget] = useState<ChatterTarget>(() =>
-    presetToTarget(preset, isAuthenticated, agentRole, agentSkill, targetUserId)
+    presetToTarget(
+      preset,
+      isAuthenticated,
+      agentRole,
+      agentSkill,
+      targetUserId,
+      projectContext?.assistantId
+    )
   )
   const [isOpen, setIsOpen] = useState(open ?? (effectiveLayout === "dialog" && !isAuthenticated))
   const [attachments, setAttachments] = useState<ChatterDropItem[]>([])
@@ -103,9 +112,18 @@ export function Chatter(props: ChatterProps) {
 
   // 认证变化必须回到当前 preset 的合法 target；Provider 会按模式 key 重建线程。
   useEffect(() => {
-    setTarget(presetToTarget(preset, isAuthenticated, agentRole, agentSkill, targetUserId))
+    setTarget(
+      presetToTarget(
+        preset,
+        isAuthenticated,
+        agentRole,
+        agentSkill,
+        targetUserId,
+        projectContext?.assistantId
+      )
+    )
     setAttachments([])
-  }, [isAuthenticated, preset, agentRole, agentSkill, targetUserId])
+  }, [isAuthenticated, preset, agentRole, agentSkill, targetUserId, projectContext?.assistantId])
 
   useEffect(() => {
     setMounted(true)
@@ -147,10 +165,13 @@ export function Chatter(props: ChatterProps) {
   }, [])
 
   const runtimeTarget = useMemo(() => {
+    if (projectContext) {
+      return { type: "ai", assistantId: projectContext.assistantId } satisfies ChatterTarget
+    }
     if (preset !== "guest") return target
     if (!isAuthenticated) return { type: "guest" } satisfies ChatterTarget
     return target.type === "guest" ? ({ type: "ai" } satisfies ChatterTarget) : target
-  }, [isAuthenticated, preset, target])
+  }, [isAuthenticated, preset, projectContext, target])
   const taskModelSelectionEnabled =
     preset === "ai" && runtimeTarget.type === "ai" && isAuthenticated
 
@@ -162,6 +183,7 @@ export function Chatter(props: ChatterProps) {
       target={runtimeTarget}
       persist={persist}
       sessionId={props.sessionId}
+      projectContext={projectContext}
       taskModelSelection={taskModelSelectionEnabled ? taskModelSelection : undefined}
       displayPreferences={displayPreferences}
     >

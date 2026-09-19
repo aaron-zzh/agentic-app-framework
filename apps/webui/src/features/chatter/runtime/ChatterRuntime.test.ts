@@ -21,6 +21,7 @@ describe("Chatter 任务模型 forwardedProps", () => {
 
   it("AUTO 应发送固定 Assistant 身份且不伪造 modelId", () => {
     const props = buildChatterForwardedProps({
+      scope: "global",
       target: aiTarget,
       taskModelSelection: DEFAULT_TASK_MODEL_SELECTION
     })
@@ -34,6 +35,7 @@ describe("Chatter 任务模型 forwardedProps", () => {
 
   it("EXPLICIT 应在 taskModelSelection 中发送业务 modelId", () => {
     const props = buildChatterForwardedProps({
+      scope: "global",
       target: aiTarget,
       taskModelSelection: { mode: "EXPLICIT", modelId: "qwen-plus" }
     })
@@ -45,7 +47,10 @@ describe("Chatter 任务模型 forwardedProps", () => {
   })
 
   it("Kiro 场景不应注入 Assistant 调用参数", () => {
-    const props = buildChatterForwardedProps({ target: { type: "kiro" } })
+    const props = buildChatterForwardedProps({
+      scope: "global",
+      target: { type: "kiro" }
+    })
 
     expect(props).not.toHaveProperty("assistantId")
     expect(props).not.toHaveProperty("taskModelSelection")

@@ -23,6 +23,7 @@ import { ChatterRuntime } from "@/features/chatter/runtime/ChatterRuntime"
 import { ChatterToolbar } from "@/features/chatter/toolbar/ChatterToolbar"
 import {
   type ChatterDropItem,
+  type ChatterProjectContext,
   type ChatterTarget,
   DEFAULT_CHATTER_DISPLAY_PREFERENCES,
   DEFAULT_TASK_MODEL_SELECTION,
@@ -38,9 +39,13 @@ interface GlobalChatterProps {
    * - MarketingLayout 等公开布局不传，默认仅 dialog
    */
   availableModes?: ("panel" | "page")[]
+  projectContext?: ChatterProjectContext
 }
 
-export function GlobalChatter({ availableModes = [] }: GlobalChatterProps = {}) {
+export function GlobalChatter({
+  availableModes = [],
+  projectContext
+}: GlobalChatterProps = {}) {
   const open = useChatterStore((s) => s.open)
   const setOpen = useChatterStore((s) => s.setOpen)
   const mode = useChatterStore((s) => s.mode)
@@ -76,13 +81,17 @@ export function GlobalChatter({ availableModes = [] }: GlobalChatterProps = {}) 
   }, [isAuthenticated, config.agentRole])
 
   const runtimeTarget = useMemo(() => {
+    if (projectContext) {
+      return { type: "ai", assistantId: projectContext.assistantId } satisfies ChatterTarget
+    }
     if (!isAuthenticated) return { type: "guest" } satisfies ChatterTarget
     return target.type === "guest"
       ? ({ type: "ai", agentRole: config.agentRole } satisfies ChatterTarget)
       : target
-  }, [config.agentRole, isAuthenticated, target])
+  }, [config.agentRole, isAuthenticated, projectContext, target])
   const taskModelSelectionEnabled =
-    config.preset === "ai" && runtimeTarget.type === "ai" && isAuthenticated
+    projectContext !== undefined ||
+    (config.preset === "ai" && runtimeTarget.type === "ai" && isAuthenticated)
 
   // 消费全局 DnD
   useEffect(() => {
@@ -161,7 +170,7 @@ export function GlobalChatter({ availableModes = [] }: GlobalChatterProps = {}) 
 
   // guest preset（未登录 AI 客服）渲染最简 header：助理名 + 关闭按钮，保留 dialog 拖动
   const toolbar =
-    config.preset === "guest" ? (
+    config.preset === "guest" && !projectContext ? (
       <div
         {...dialogDragProps}
         className={`flex items-center gap-2 overflow-hidden border-b px-3 py-2${
@@ -176,12 +185,13 @@ export function GlobalChatter({ availableModes = [] }: GlobalChatterProps = {}) 
       </div>
     ) : (
       <ChatterToolbar
-        preset={config.preset}
-        target={target}
+        preset={projectContext ? "ai" : config.preset}
+        target={runtimeTarget}
         onTargetChange={setTarget}
-        onNewSession={() => setAttachments([])}
+        onNewSession={projectContext ? undefined : () => setAttachments([])}
         dragProps={dialogDragProps}
         availableModes={availableModes}
+        fixedTitle={projectContext ? "项目 Assistant" : undefined}
       />
     )
 
@@ -203,6 +213,7 @@ export function GlobalChatter({ availableModes = [] }: GlobalChatterProps = {}) 
   return (
     <ChatterRuntime
       target={runtimeTarget}
+      projectContext={projectContext}
       taskModelSelection={taskModelSelectionEnabled ? taskModelSelection : undefined}
       displayPreferences={displayPreferences}
     >

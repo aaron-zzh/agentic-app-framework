@@ -3,7 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
-import { Image, Sparkles } from "lucide-react"
+import { FilePlus2, Image, Sparkles } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -17,12 +17,15 @@ interface CopywritingHeaderProps {
   generating: boolean
   /** Agent 保存并由事件返回的数据库草稿 ID */
   documentId: number | null
+  /** 明确结束当前版本链并创建新文案 */
+  onNew: () => void
 }
 
 export function CopywritingHeader({
   showDocActions,
   generating,
-  documentId
+  documentId,
+  onNew
 }: CopywritingHeaderProps) {
   const type = useAigcStore((s) => s.copywritingType)
   const setType = useAigcStore((s) => s.setCopywritingType)
@@ -50,6 +53,19 @@ export function CopywritingHeader({
       </div>
       {showDocActions && (
         <div className="flex items-center gap-1">
+          {documentId !== null ? (
+            <Button
+              variant="outline"
+              size="xs"
+              className="gap-1"
+              title="结束当前版本链并新建文案"
+              disabled={generating}
+              onClick={onNew}
+            >
+              <FilePlus2 className="size-3" />
+              新建文案
+            </Button>
+          ) : null}
           <Button
             variant="outline"
             size="xs"

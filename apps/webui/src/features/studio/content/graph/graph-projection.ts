@@ -7,11 +7,15 @@
 
 import type { Edge, Node } from "@xyflow/react"
 import type {
+  AigcObjectReadiness,
+  AigcObjectReadinessState,
   AigcObjectStatus,
   AigcObjectType,
+  AigcOutputContract,
   AigcProjectGraph,
   AigcProjectObject,
-  AigcRelationLayer
+  AigcRelationLayer,
+  AigcSemanticRole
 } from "@/lib/api/rest/ai/aigc"
 
 export type ProjectGraphStage =
@@ -62,12 +66,42 @@ export const OBJECT_TYPE_LABELS: Record<AigcObjectType, string> = {
 }
 
 export const OBJECT_STATUS_LABELS: Record<AigcObjectStatus, string> = {
-  empty: "空槽位",
-  draft: "草稿",
-  pending_confirm: "待确认",
-  adopted: "已采用",
-  blocked: "已阻断",
-  done: "已完成"
+  EMPTY: "空槽位",
+  CANDIDATE_AVAILABLE: "候选可用",
+  ADOPTED: "已采用"
+}
+
+export const READINESS_LABELS: Record<AigcObjectReadinessState, string> = {
+  SATISFIED: "已满足",
+  READY: "可执行",
+  BLOCKED_BY_DEPENDENCY: "依赖阻断",
+  BLOCKED_BY_POLICY: "策略阻断",
+  ACTIVE_RUN: "Run 执行中",
+  PENDING_CANDIDATE: "等待候选",
+  AWAITING_CONFIRMATION: "等待决策"
+}
+
+export const SEMANTIC_ROLE_LABELS: Record<AigcSemanticRole, string> = {
+  STRUCTURE: "结构",
+  WORKING_ARTIFACT: "工作产物",
+  DELIVERABLE: "交付物",
+  EVIDENCE: "证据",
+  REFERENCE: "引用"
+}
+
+export const OUTPUT_CONTRACT_LABELS: Record<AigcOutputContract, string> = {
+  INLINE_OBJECT_VERSION: "内联对象版本",
+  DOCUMENT_VERSION: "文档版本",
+  MEDIA_VERSION: "媒体版本",
+  COMPOSITE_MANIFEST: "组合 Manifest",
+  REFERENCE_ONLY: "仅引用"
+}
+
+export const RELATION_LAYER_LABELS: Record<AigcRelationLayer, string> = {
+  domain: "领域",
+  reference: "引用",
+  story_order: "故事顺序",
+  execution: "执行依赖"
 }
 
 const TYPE_STAGE: Record<AigcObjectType, ProjectGraphStage> = {
@@ -115,6 +149,10 @@ export interface ContentGraphNodeData extends Record<string, unknown> {
   status?: AigcObjectStatus
   objectId?: number
   objectType?: AigcObjectType
+  semanticRole?: AigcSemanticRole
+  outputContract?: AigcOutputContract
+  readinessState?: AigcObjectReadinessState
+  blockedReason?: string | null
   objectCount: number
   pendingCount: number
   blockedCount: number
@@ -127,6 +165,7 @@ export type ContentGraphNode = Node<ContentGraphNodeData, "contentDomain">
 export interface GraphProjectionOptions {
   collapsedGroups: ProjectGraphStage[]
   activeLayers: AigcRelationLayer[]
+  readiness: AigcObjectReadiness[]
   focusObjectId?: number
   zoomTier: ProjectGraphZoomTier
 }
@@ -140,14 +179,24 @@ export function getObjectStage(object: AigcProjectObject): ProjectGraphStage {
   return TYPE_STAGE[object.objectType]
 }
 
-function groupSummary(objects: AigcProjectObject[]): string {
-  const pending = objects.filter((object) => object.status === "pending_confirm").length
-  const blocked = objects.filter((object) => object.status === "blocked").length
+function isBlocked(readiness: AigcObjectReadiness | undefined): boolean {
+  return readiness?.state === "BLOCKED_BY_DEPENDENCY" || readiness?.state === "BLOCKED_BY_POLICY"
+}
+
+function groupSummary(
+  objects: AigcProjectObject[],
+  readinessByObjectId: ReadonlyMap<number, AigcObjectReadiness>
+): string {
+  const candidates = objects.filter((object) => object.status === "CANDIDATE_AVAILABLE").length
+  const adopted = objects.filter((object) => object.status === "ADOPTED").length
+  const blocked = objects.filter((object) => isBlocked(readinessByObjectId.get(object.id))).length
   const shots = objects.filter((object) => object.objectType === "shot").length
   const keyframes = objects.filter((object) => object.objectType === "shot_keyframe").length
   const base = shots > 0 ? `${shots} 镜头 · ${keyframes} 关键帧` : `${objects.length} 个对象`
-  const gaps = objects.filter((object) => object.status === "empty").length
-  return `${base} · ${gaps} 个缺口 · ${pending} 项待确认${blocked > 0 ? ` · ${blocked} 项阻断` : ""}`
+  const gaps = objects.filter((object) => object.status === "EMPTY").length
+  return `${base} · ${gaps} 个缺口 · ${candidates} 个候选 · ${adopted} 个已采用${
+    blocked > 0 ? ` · ${blocked} 项阻断` : ""
+  }`
 }
 
 export function toGraphProjection(
@@ -156,6 +205,9 @@ export function toGraphProjection(
 ): GraphProjection {
   const collapsed = new Set(options.collapsedGroups)
   const activeLayers = new Set(options.activeLayers)
+  const readinessByObjectId = new Map(
+    options.readiness.map((item) => [item.projectObjectId, item] as const)
+  )
   const objectsByStage = new Map<ProjectGraphStage, AigcProjectObject[]>()
   const objectStage = new Map<number, ProjectGraphStage>()
 
@@ -172,8 +224,12 @@ export function toGraphProjection(
   const nodes: ContentGraphNode[] = []
   PROJECT_GRAPH_STAGES.forEach((stage, columnIndex) => {
     const stageObjects = objectsByStage.get(stage.key) ?? []
-    const pendingCount = stageObjects.filter((object) => object.status === "pending_confirm").length
-    const blockedCount = stageObjects.filter((object) => object.status === "blocked").length
+    const pendingCount = stageObjects.filter(
+      (object) => object.status === "CANDIDATE_AVAILABLE"
+    ).length
+    const blockedCount = stageObjects.filter((object) =>
+      isBlocked(readinessByObjectId.get(object.id))
+    ).length
     nodes.push({
       id: `group:${stage.key}`,
       type: "contentDomain",
@@ -184,7 +240,7 @@ export function toGraphProjection(
         stage: stage.key,
         title: stage.label,
         description: stage.description,
-        summary: groupSummary(stageObjects),
+        summary: groupSummary(stageObjects, readinessByObjectId),
         objectCount: stageObjects.length,
         pendingCount,
         blockedCount,
@@ -195,10 +251,11 @@ export function toGraphProjection(
 
     if (collapsed.has(stage.key)) return
     stageObjects.forEach((object, rowIndex) => {
+      const objectReadiness = readinessByObjectId.get(object.id)
       nodes.push({
         id: String(object.id),
         type: "contentDomain",
-        position: { x: columnIndex * 300, y: 125 + rowIndex * 125 },
+        position: { x: columnIndex * 300, y: 125 + rowIndex * 145 },
         selected: object.id === options.focusObjectId,
         data: {
           kind: "object",
@@ -209,9 +266,13 @@ export function toGraphProjection(
           status: object.status,
           objectId: object.id,
           objectType: object.objectType,
+          semanticRole: object.semanticRole,
+          outputContract: object.outputContract,
+          readinessState: objectReadiness?.state,
+          blockedReason: objectReadiness?.blockedReason,
           objectCount: 1,
-          pendingCount: object.status === "pending_confirm" ? 1 : 0,
-          blockedCount: object.status === "blocked" ? 1 : 0,
+          pendingCount: object.status === "CANDIDATE_AVAILABLE" ? 1 : 0,
+          blockedCount: isBlocked(objectReadiness) ? 1 : 0,
           collapsed: false,
           zoomTier: options.zoomTier
         }
@@ -240,7 +301,7 @@ export function toGraphProjection(
       id: key,
       source,
       target,
-      label: RELATION_LABELS[relation.relationType],
+      label: `${RELATION_LABELS[relation.relationType]} · ${RELATION_LAYER_LABELS[relation.layer]}`,
       animated: relation.layer === "execution",
       data: { relationType: relation.relationType, layer: relation.layer },
       style: { stroke: "var(--color-muted-foreground)", strokeWidth: 1.5 },

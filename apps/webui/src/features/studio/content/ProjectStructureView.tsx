@@ -28,24 +28,33 @@ import {
   TableRow
 } from "@/components/ui/table"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import type { AigcObjectType, AigcProjectGraph, AigcProjectObject } from "@/lib/api/rest/ai/aigc"
+import type {
+  AigcObjectReadiness,
+  AigcObjectType,
+  AigcProjectGraph,
+  AigcProjectObject
+} from "@/lib/api/rest/ai/aigc"
 import {
   getObjectStage,
   OBJECT_STATUS_LABELS,
   OBJECT_TYPE_LABELS,
+  OUTPUT_CONTRACT_LABELS,
   PROJECT_GRAPH_STAGES,
-  type ProjectGraphStage
+  type ProjectGraphStage,
+  READINESS_LABELS,
+  SEMANTIC_ROLE_LABELS
 } from "./graph/graph-projection"
 import { getObjectTypeConfig } from "./project-type-config"
 
 const OBJECT_STATUS_TONE = {
-  empty: "neutral",
-  draft: "cyan",
-  pending_confirm: "amber",
-  adopted: "violet",
-  blocked: "rose",
-  done: "emerald"
+  EMPTY: "neutral",
+  CANDIDATE_AVAILABLE: "amber",
+  ADOPTED: "emerald"
 } as const
+
+function isBlocked(readiness: AigcObjectReadiness | undefined): boolean {
+  return readiness?.state === "BLOCKED_BY_DEPENDENCY" || readiness?.state === "BLOCKED_BY_POLICY"
+}
 
 function ObjectTypeIcon({ type }: { type: AigcObjectType }) {
   const Icon = getObjectTypeConfig(type).icon
@@ -54,6 +63,7 @@ function ObjectTypeIcon({ type }: { type: AigcObjectType }) {
 
 export interface ProjectStructureViewProps {
   graph: AigcProjectGraph
+  readiness?: AigcObjectReadiness[]
   activeStage: ProjectGraphStage
   focusObjectId?: number
   readOnly?: boolean
@@ -64,12 +74,13 @@ export interface ProjectStructureViewProps {
   onRemoveObject: (object: AigcProjectObject) => void
   onOpenDetails: (id: number) => void
   onGenerateObject: (id: number) => void
-  onOpenCanvas: (id: number) => void
-  onAnnotateImage: (id: number) => void
+  onOpenCanvas?: (id: number) => void
+  onAnnotateImage?: (id: number) => void
 }
 
 export function ProjectStructureView({
   graph,
+  readiness = [],
   activeStage,
   focusObjectId,
   readOnly = false,
@@ -84,6 +95,9 @@ export function ProjectStructureView({
   onAnnotateImage
 }: ProjectStructureViewProps) {
   const generatableObjectIdSet = new Set(generatableObjectIds)
+  const readinessByObjectId = new Map(
+    readiness.map((item) => [item.projectObjectId, item] as const)
+  )
   const stageObjects = graph.objects
     .filter((object) => getObjectStage(object) === activeStage)
     .toSorted((left, right) => left.sortOrder - right.sortOrder || left.id - right.id)
@@ -92,9 +106,13 @@ export function ProjectStructureView({
     const current = groups.get(object.objectType) ?? []
     groups.set(object.objectType, [...current, object])
   }
-  const pendingCount = stageObjects.filter((object) => object.status === "pending_confirm").length
-  const gapCount = stageObjects.filter((object) => object.status === "empty").length
-  const blockedCount = stageObjects.filter((object) => object.status === "blocked").length
+  const pendingCount = stageObjects.filter(
+    (object) => object.status === "CANDIDATE_AVAILABLE"
+  ).length
+  const gapCount = stageObjects.filter((object) => object.status === "EMPTY").length
+  const blockedCount = stageObjects.filter((object) =>
+    isBlocked(readinessByObjectId.get(object.id))
+  ).length
 
   return (
     <div className="grid h-full min-h-[520px] gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
@@ -113,8 +131,10 @@ export function ProjectStructureView({
           >
             {PROJECT_GRAPH_STAGES.map((stage) => {
               const objects = graph.objects.filter((object) => getObjectStage(object) === stage.key)
-              const blocked = objects.some((object) => object.status === "blocked")
-              const pending = objects.some((object) => object.status === "pending_confirm")
+              const blocked = objects.some((object) =>
+                isBlocked(readinessByObjectId.get(object.id))
+              )
+              const pending = objects.some((object) => object.status === "CANDIDATE_AVAILABLE")
               return (
                 <ToggleGroupItem
                   key={stage.key}
@@ -152,7 +172,7 @@ export function ProjectStructureView({
           </div>
           <div className="flex flex-wrap gap-2">
             <NeonChip tone="neutral">{stageObjects.length} 对象</NeonChip>
-            <NeonChip tone="amber">{pendingCount} 待确认</NeonChip>
+            <NeonChip tone="amber">{pendingCount} 候选可用</NeonChip>
             <NeonChip tone="rose">{blockedCount} 阻断</NeonChip>
             <NeonChip tone="cyan">{gapCount} 缺口</NeonChip>
             {!readOnly ? (
@@ -180,7 +200,11 @@ export function ProjectStructureView({
           Array.from(groups.entries()).map(([type, objects]) => (
             <GlassCard
               key={type}
-              glow={objects.some((object) => object.status === "blocked") ? "rose" : "none"}
+              glow={
+                objects.some((object) => isBlocked(readinessByObjectId.get(object.id)))
+                  ? "rose"
+                  : "none"
+              }
             >
               <div className="flex items-center justify-between border-b px-4 py-3">
                 <div>
@@ -197,99 +221,137 @@ export function ProjectStructureView({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>对象</TableHead>
-                    <TableHead>状态</TableHead>
+                    <TableHead>对象 / 冻结语义</TableHead>
+                    <TableHead>成熟度 / Readiness</TableHead>
+                    <TableHead className="hidden lg:table-cell">输出合同</TableHead>
                     <TableHead className="hidden md:table-cell">摘要</TableHead>
                     <TableHead className="w-64 text-right">操作</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {objects.map((object) => (
-                    <TableRow
-                      key={object.id}
-                      data-state={focusObjectId === object.id ? "selected" : undefined}
-                    >
-                      <TableCell>
-                        <p className="font-medium text-sm">
-                          {object.title || OBJECT_TYPE_LABELS[object.objectType]}
-                        </p>
-                        <p className="text-muted-foreground text-xs">#{object.stableKey}</p>
-                      </TableCell>
-                      <TableCell>
-                        <NeonChip tone={OBJECT_STATUS_TONE[object.status]} size="sm">
-                          {OBJECT_STATUS_LABELS[object.status]}
-                        </NeonChip>
-                      </TableCell>
-                      <TableCell className="hidden max-w-sm truncate text-muted-foreground text-sm md:table-cell">
-                        {object.summary || "暂无摘要"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          {!readOnly ? (
-                            <>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => onUpdateContract(object)}
-                              >
+                  {objects.map((object) => {
+                    const objectReadiness = readinessByObjectId.get(object.id)
+                    const allowedActions = new Set(objectReadiness?.allowedActions ?? [])
+                    return (
+                      <TableRow
+                        key={object.id}
+                        data-state={focusObjectId === object.id ? "selected" : undefined}
+                      >
+                        <TableCell>
+                          <p className="font-medium text-sm">
+                            {object.title || OBJECT_TYPE_LABELS[object.objectType]}
+                          </p>
+                          <p className="text-muted-foreground text-xs">#{object.stableKey}</p>
+                          <p className="mt-1 text-muted-foreground text-xs">
+                            {SEMANTIC_ROLE_LABELS[object.semanticRole]}
+                          </p>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col items-start gap-1">
+                            <NeonChip tone={OBJECT_STATUS_TONE[object.status]} size="sm">
+                              {OBJECT_STATUS_LABELS[object.status]}
+                            </NeonChip>
+                            <NeonChip
+                              tone={isBlocked(objectReadiness) ? "rose" : "neutral"}
+                              size="sm"
+                            >
+                              {objectReadiness
+                                ? READINESS_LABELS[objectReadiness.state]
+                                : "Readiness 加载中"}
+                            </NeonChip>
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          <NeonChip tone="neutral" size="sm">
+                            {OUTPUT_CONTRACT_LABELS[object.outputContract]}
+                          </NeonChip>
+                        </TableCell>
+                        <TableCell className="hidden max-w-sm text-muted-foreground text-sm md:table-cell">
+                          <p className="line-clamp-2">
+                            {objectReadiness?.blockedReason || object.summary || "暂无摘要"}
+                          </p>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            {!readOnly ? (
+                              <>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={!allowedActions.has("object.contract")}
+                                  onClick={() => onUpdateContract(object)}
+                                >
+                                  <FilePenLine />
+                                  合同
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={!allowedActions.has("object.remove")}
+                                  onClick={() => onRemoveObject(object)}
+                                >
+                                  <Trash2 />
+                                  移除
+                                </Button>
+                              </>
+                            ) : null}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onOpenDetails(object.id)}
+                            >
+                              {object.outputContract === "DOCUMENT_VERSION" ? (
                                 <FilePenLine />
-                                合同
-                              </Button>
+                              ) : (
+                                <Eye />
+                              )}
+                              {object.outputContract === "DOCUMENT_VERSION" ? "手动创建" : "详情"}
+                            </Button>
+                            {object.outputContract === "MEDIA_VERSION" ? (
                               <Button
                                 type="button"
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => onRemoveObject(object)}
+                                disabled={readOnly || !generatableObjectIdSet.has(object.id)}
+                                onClick={() => onGenerateObject(object.id)}
                               >
-                                <Trash2 />
-                                移除
+                                <Sparkles />
+                                生成
                               </Button>
-                            </>
-                          ) : null}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onOpenDetails(object.id)}
-                          >
-                            <Eye />
-                            详情
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled={readOnly || !generatableObjectIdSet.has(object.id)}
-                            onClick={() => onGenerateObject(object.id)}
-                          >
-                            <Sparkles />
-                            生成
-                          </Button>
-                          {object.objectType === "canvas_board" ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={readOnly}
-                              onClick={() => onOpenCanvas(object.id)}
-                            >
-                              打开画布
-                              <ArrowRight />
-                            </Button>
-                          ) : object.objectType === "image_deliverable" ||
-                            object.objectType === "shot_keyframe" ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={readOnly}
-                              onClick={() => onAnnotateImage(object.id)}
-                            >
-                              标注
-                              <ArrowRight />
-                            </Button>
-                          ) : null}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                            ) : null}
+                            {object.objectType === "canvas_board" && onOpenCanvas ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                disabled={readOnly}
+                                onClick={() => onOpenCanvas(object.id)}
+                              >
+                                打开画布
+                                <ArrowRight />
+                              </Button>
+                            ) : (object.objectType === "image_deliverable" ||
+                                object.objectType === "shot_keyframe") &&
+                              onAnnotateImage ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                disabled={readOnly}
+                                onClick={() => onAnnotateImage(object.id)}
+                              >
+                                标注
+                                <ArrowRight />
+                              </Button>
+                            ) : null}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
                 </TableBody>
               </Table>
             </GlassCard>

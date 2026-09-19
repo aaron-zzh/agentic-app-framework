@@ -4,9 +4,14 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { ApiError } from "../../../errors"
 import type { PageResult } from "../../../types"
 import { backendApi } from "../../backend-client"
-import type { AigcProductionMode, AigcProjectTypeCode } from "./configuration"
+import type {
+  AigcProductionMode,
+  AigcProjectInitializationFieldKey,
+  AigcProjectTypeCode
+} from "./configuration"
 
 export type AigcProjectStatus =
   | "CONFIGURING"
@@ -22,16 +27,22 @@ export type AigcProjectCoverMode = "NONE" | "UPLOAD" | "AI_GENERATE"
 export type AigcProjectCoverStatus = "NONE" | "READY" | "PENDING" | "FAILED"
 export type AigcProjectCoverOperation = "UPLOAD" | "AI_GENERATE" | "REMOVE"
 export type AigcGenerationMode = "manual" | "auto"
-export type AigcObjectStatus =
-  | "empty"
-  | "draft"
-  | "pending_confirm"
-  | "adopted"
-  | "blocked"
-  | "done"
+export type AigcObjectStatus = "EMPTY" | "CANDIDATE_AVAILABLE" | "ADOPTED"
 export type AigcObjectVersionStatus = "candidate" | "adopted" | "rejected" | "superseded"
 export type AigcObjectSource = "blueprint" | "user" | "assistant" | "workflow" | "import"
 export type AigcContractRole = "REQUIRED" | "OPTIONAL" | "EXCLUDED"
+export type AigcSemanticRole =
+  | "STRUCTURE"
+  | "WORKING_ARTIFACT"
+  | "DELIVERABLE"
+  | "EVIDENCE"
+  | "REFERENCE"
+export type AigcOutputContract =
+  | "INLINE_OBJECT_VERSION"
+  | "DOCUMENT_VERSION"
+  | "MEDIA_VERSION"
+  | "COMPOSITE_MANIFEST"
+  | "REFERENCE_ONLY"
 export type AigcRelationLayer = "domain" | "reference" | "story_order" | "execution"
 export type AigcRelationType =
   | "contains"
@@ -71,15 +82,23 @@ export interface AigcProject {
   version: number
   name: string
   description: string | null
+  background: string | null
+  targetAudience: string | null
+  requirements: string[]
+  constraints: string[]
+  keyFacts: string[]
+  keyMessages: string[]
+  styleGuidance: string | null
+  successCriteria: string[]
+  deliveryRequirements: Record<string, unknown>
+  locale: string | null
+  additionalContext: string | null
   projectTypeCode: AigcProjectTypeCode
   blueprintCode: string | null
   blueprintVersion: string | null
-  domainExtensionCode: string | null
-  domainExtensionVersion: string | null
   productionMode: AigcProductionMode
   generationMode: AigcGenerationMode
   status: AigcProjectStatus
-  brief: string | null
   prompt: string | null
   coverMediaVersionId: number | null
   coverStatus: AigcProjectCoverStatus
@@ -95,6 +114,39 @@ export interface AigcProject {
   updateTime: string
 }
 
+export interface AigcProjectConversationContextBase {
+  projectId: number
+  projectVersion: number
+}
+
+export interface AigcProjectConversationReadyContext
+  extends AigcProjectConversationContextBase {
+  state: "READY"
+  assistantRecordId: number
+  assistantId: string
+  conversationRecordId: number
+  threadId: string
+}
+
+export interface AigcProjectConversationBindingRequiredContext
+  extends AigcProjectConversationContextBase {
+  state: "NEEDS_ASSISTANT_BINDING"
+  assistantRecordId: null
+  assistantId: null
+  conversationRecordId: null
+  threadId: null
+}
+
+export type AigcProjectConversationContext =
+  | AigcProjectConversationReadyContext
+  | AigcProjectConversationBindingRequiredContext
+
+export interface AigcProjectConversationBindInput {
+  projectId: number
+  expectedProjectVersion: number
+  assistantId: string
+}
+
 export interface AigcProjectView {
   id: number
   orgId?: number
@@ -104,14 +156,23 @@ export interface AigcProjectView {
   version: number
   configurationSnapshotId: number
   projectTypeCode?: AigcProjectTypeCode
-  domainExtensionCode?: string | null
   productionMode?: AigcProductionMode
   generationMode?: AigcGenerationMode
   channelSpecVersionIds?: number[]
   budgetLimit?: number | null
   costUsed?: number
   description?: string | null
-  brief?: string | null
+  background?: string | null
+  targetAudience?: string | null
+  requirements?: string[]
+  constraints?: string[]
+  keyFacts?: string[]
+  keyMessages?: string[]
+  styleGuidance?: string | null
+  successCriteria?: string[]
+  deliveryRequirements?: Record<string, unknown>
+  locale?: string | null
+  additionalContext?: string | null
   coverMediaVersionId?: number | null
   userId?: number
 }
@@ -128,28 +189,23 @@ export interface AigcProjectObject {
   projectId: number
   objectType: AigcObjectType
   stableKey: string
-  blueprintTemplateKey?: string
-  instanceNo?: number
-  contractRole?: AigcContractRole
-  semanticRole?: string
-  plannedPhase?: string
-  outputContract?:
-    | "INLINE_OBJECT_VERSION"
-    | "DOCUMENT_VERSION"
-    | "MEDIA_VERSION"
-    | "REFERENCE_ONLY"
-    | "COMPOSITE_MANIFEST"
-  parentId?: number
+  blueprintTemplateKey: string | null
+  instanceNo: number
+  contractRole: AigcContractRole
+  semanticRole: AigcSemanticRole
+  outputContract: AigcOutputContract
+  defaultActionKey: string | null
+  parentId: number | null
   sortOrder: number
-  title?: string
+  title: string | null
   status: AigcObjectStatus
   source: AigcObjectSource
-  schemaVersion?: string
-  entityResource?: string
-  entityId?: number
-  adoptedVersionId?: number
-  summary?: string
-  payload?: Record<string, unknown>
+  schemaVersion: string | null
+  entityResource: string | null
+  entityId: number | null
+  adoptedVersionId: number | null
+  summary: string | null
+  payload: Record<string, unknown> | null
 }
 
 export interface AigcProjectRelation {
@@ -170,6 +226,14 @@ export interface AigcProjectChannelRef {
 }
 
 export type AigcProjectDocumentReferenceType = "PROJECT_DOCUMENT" | "EXTERNAL_REFERENCE"
+export type AigcProjectDocumentContextMode = "FULL_TEXT" | "SUMMARY" | "RAG" | "AUTO" | "NONE"
+
+export interface DocumentSemanticTopic {
+  name: string
+  normalizedName: string | null
+  confidence: number | null
+  source: string
+}
 
 export interface AigcProjectDocumentRef {
   id: number
@@ -183,8 +247,20 @@ export interface AigcProjectDocumentRef {
   currentVersionNo: number
   outdated: boolean
   title: string
+  fieldKey: string | null
+  instanceNo: number
+  selectedDocumentVersionId: number | null
+  source: string
+  contextNote: string | null
+  contextMode: AigcProjectDocumentContextMode
   role: string
   sortOrder: number
+  summary: string | null
+  topics: DocumentSemanticTopic[]
+  language: string | null
+  semanticGenerationStatus: "PENDING" | "READY" | "FAILED" | null
+  semanticManualOverride: boolean
+  semanticMetadataVersion: number | null
 }
 
 export interface AigcProjectMediaRef {
@@ -213,18 +289,41 @@ export type AigcObjectReadinessState =
   | "PENDING_CANDIDATE"
   | "AWAITING_CONFIRMATION"
 
+export interface AigcFrozenInputVersionRef {
+  projectObjectId: number
+  objectVersionId: number
+  source: string
+}
+
+export interface AigcProjectSlotTemplateSpec {
+  templateKey: string
+  objectType: AigcObjectType
+  displayNamePattern: string | null
+  parentTemplateKey: string | null
+  userAddable: boolean
+  defaultContractRole: AigcContractRole
+  semanticRole: AigcSemanticRole
+  outputContract: AigcOutputContract
+}
+
+export interface AigcProjectConfigSnapshot {
+  id: number
+  revisionNo: number
+  sourceType: "CATALOG" | "ASSISTANT_GENERATED"
+  sourceRef: string
+  snapshotHash: string
+  snapshot: {
+    slotTemplates: AigcProjectSlotTemplateSpec[]
+  }
+}
+
 export interface AigcObjectReadiness {
   projectObjectId: number
   actionKey: string | null
   state: AigcObjectReadinessState
   dependencyObjectIds: number[]
-  inputVersions: Array<{
-    objectId: number
-    objectVersionId: number
-    documentVersionId?: number
-    mediaVersionIds: number[]
-  }>
-  blockedReason?: string
+  inputVersions: AigcFrozenInputVersionRef[]
+  blockedReason: string | null
   allowedActions: string[]
 }
 
@@ -266,36 +365,48 @@ export interface AigcProjectProgress {
   projectId: number
   projectVersion: number
   graphRevision: number
+  currentTask: null
   objects: Array<{
     objectId: number
     maturity: AigcObjectStatus
     contractRole: AigcContractRole
     readiness: AigcObjectReadinessState
+    credits: {
+      estimated: number
+      reserved: number
+      settled: number
+      refunded: number
+      netActual: number
+      unknown: number | null
+      unknownTaskIds: number[]
+    } | null
   }>
   readiness: AigcObjectReadiness[]
   executions: Array<{
     executionRunId: number
-    projectObjectId: number
+    projectObjectId: number | null
     actionKey: string
     targetType: string
     status: string
     tasks: Array<{
       taskId: number
+      executionRunId: number | null
       taskType: string
       status: string
-      mediaVersionId?: number
-      creditTxId?: number
-      failureReason?: string
+      mediaVersionId: number | null
+      creditTxId: number | null
+      failureReason: string | null
     }>
-    estimatedCredits?: number
-    failureReason?: string
+    estimatedCredits: number
+    reservedCredits: number
+    failureReason: string | null
   }>
   candidates: Array<{
     candidateVersionId: number
     objectId: number
     status: AigcObjectVersionStatus
-    executionRunId?: number
-    documentVersionId?: number
+    executionRunId: number | null
+    documentVersionId: number | null
     mediaVersionIds: number[]
   }>
   delivery: {
@@ -312,7 +423,7 @@ export interface AigcProjectProgress {
     settled: number
     refunded: number
     netActual: number
-    unknown?: number
+    unknown: number | null
     unknownTaskIds: number[]
   }
 }
@@ -396,24 +507,48 @@ export interface AigcSlotCountOverride {
   requestedCount: number
 }
 
+export interface AigcProjectDocumentInput {
+  fieldKey: string
+  documentId?: number
+  documentVersionId?: number
+  contextNote?: string
+}
+
+export interface AigcProjectCreationProposalRef {
+  draftId: string
+  proposalId: string
+  proposalVersion: number
+  proposalHash: string
+}
+
 export interface AigcProjectMaterializeInput {
   name: string
   description?: string
+  background?: string
+  targetAudience?: string
+  requirements?: string[]
+  constraints?: string[]
+  keyFacts?: string[]
+  keyMessages?: string[]
+  styleGuidance?: string
+  successCriteria?: string[]
+  deliveryRequirements?: Record<string, unknown>
+  locale?: string
+  additionalContext?: string
+  sourceType: "CATALOG"
+  sourceRef: string
   projectTypeCode: AigcProjectTypeCode
   blueprintVersionId: number
-  domainExtensionVersionId?: number
   brandProfileVersionIds?: number[]
   channelSpecVersionIds?: number[]
-  documentVersionIds?: number[]
+  documents: AigcProjectDocumentInput[]
   productionMode: AigcProductionMode
-  budgetTier?: string
-  qualityTier?: string
   slotOverrides?: AigcSlotCountOverride[]
-  briefJson?: string
   coverMode: AigcProjectCoverMode
   coverFileId?: number
   coverPrompt?: string
   coverIdempotencyKey?: string
+  approvedCreationProposal?: AigcProjectCreationProposalRef
 }
 
 export interface AigcProjectCoverPatchInput {
@@ -426,7 +561,17 @@ export interface AigcProjectCoverPatchInput {
 export interface AigcProjectUpdateInput {
   name?: string
   description?: string | null
-  brief?: string | null
+  background?: string | null
+  targetAudience?: string | null
+  requirements?: string[]
+  constraints?: string[]
+  keyFacts?: string[]
+  keyMessages?: string[]
+  styleGuidance?: string | null
+  successCriteria?: string[]
+  deliveryRequirements?: Record<string, unknown>
+  locale?: string | null
+  additionalContext?: string | null
   cover?: AigcProjectCoverPatchInput
   expectedVersion: number
 }
@@ -443,7 +588,7 @@ export interface AigcVersionAdoptInput {
   projectId: number
   objectId: number
   versionId: number
-  expectedAdoptedVersionId?: number
+  expectedAdoptedVersionId: number | null
   expectedProjectVersion: number
   confirmedReplacement: boolean
   reason?: string
@@ -501,6 +646,8 @@ export interface AigcLifecycleInput {
 interface AigcProjectDocumentRefInputBase {
   projectId: number
   objectId?: number
+  fieldKey?: string
+  contextNote?: string
   role?: string
   sortOrder?: number
   expectedProjectVersion: number
@@ -530,6 +677,48 @@ export interface AigcProjectDocumentDetachInput {
   expectedProjectVersion: number
 }
 
+export interface AigcProjectDocumentCandidateInput {
+  projectId: number
+  refId: number
+  title?: string
+  content: string
+  format?: "MARKDOWN" | "HTML" | "PLAIN_TEXT" | "JSON"
+  changeSummary?: string
+  expectedDocumentCurrentVersionId: number
+  expectedProjectVersion: number
+  idempotencyKey: string
+}
+
+export interface AigcProjectDocumentDecisionInput {
+  projectId: number
+  refId: number
+  candidateId: number
+  expectedProjectVersion: number
+  expectedSelectedDocumentVersionId: number
+  confirmedReplacement: boolean
+  reason?: string
+  idempotencyKey: string
+}
+
+export interface AigcProjectDocumentDecision {
+  id: number
+  version: number
+  projectDocumentRefId: number
+  documentVersionId: number
+  documentVersionNo: number
+  title: string
+  decision: "PENDING" | "ADOPTED" | "REJECTED"
+  sourceType: "MANUAL" | "AIGC"
+  sourceRef: string | null
+  decisionMode: string | null
+  decisionReason: string | null
+  decidedBy: number | null
+  decidedByType: "HUMAN" | "AI" | null
+  decidedTime: string | null
+  replacedDocumentVersionId: number | null
+  createTime: string
+}
+
 export interface AigcManualCandidateInput {
   projectId: number
   objectId: number
@@ -545,12 +734,163 @@ export interface AigcDocumentCandidateInput extends AigcManualCandidateInput {
   format?: "MARKDOWN" | "HTML" | "PLAIN_TEXT" | "JSON"
 }
 
+export type AigcGenerationProposalTargetType =
+  | "INITIALIZATION_FIELD"
+  | "PROJECT_DOCUMENT"
+  | "PROJECT_OBJECT"
+  | "PROJECT_COVER"
+export type AigcGenerationProposalStatus =
+  | "AWAITING_CONFIRMATION"
+  | "APPROVED"
+  | "SUPERSEDED"
+  | "EXPIRED"
+export type AigcGenerationProposalConfirmationPolicy = "REQUIRED" | "OPTIONAL"
+
+export interface AigcProjectGenerationProposalItemInput {
+  targetType: AigcGenerationProposalTargetType
+  targetKey: string
+  actionKey?: string
+  generationInstruction: string
+  dependencyKeys?: string[]
+  requiredContextKeys?: string[]
+  modelPolicy?: string
+  confirmationPolicy?: AigcGenerationProposalConfirmationPolicy
+}
+
+export interface AigcProjectGenerationProposalCreateInput {
+  projectId: number
+  expectedProjectVersion: number
+  confirmationPolicy?: AigcGenerationProposalConfirmationPolicy
+  expiresAt?: string
+  items: AigcProjectGenerationProposalItemInput[]
+}
+
+export interface AigcProjectGenerationProposalReviseInput
+  extends AigcProjectGenerationProposalCreateInput {
+  proposalId: string
+  proposalVersion: number
+  proposalHash: string
+}
+
+export interface AigcProjectGenerationApproveAndStartInput {
+  projectId: number
+  expectedProjectVersion: number
+  proposalId: string
+  proposalVersion: number
+  proposalHash: string
+  approvedTargetKeys: [string]
+  approvalIdempotencyKey: string
+}
+
+export interface AigcProjectGenerationProposalItem {
+  itemKey: string
+  targetType: AigcGenerationProposalTargetType
+  targetKey: string
+  actionKey: string | null
+  generationInstruction: string
+  instructionHash: string
+  dependencyKeys: string[]
+  requiredContextKeys: string[]
+  modelPolicy: string | null
+  estimatedCredits: number
+  confirmationPolicy: AigcGenerationProposalConfirmationPolicy
+  itemVersion: number
+  itemHash: string
+}
+
+export type AigcGenerationProposalScopeKind = "PROJECT" | "CREATION_DRAFT"
+
+export interface AigcProjectGenerationProposal {
+  scopeKind: AigcGenerationProposalScopeKind
+  projectId: number | null
+  draftId: string | null
+  blueprintVersionId: number | null
+  linkedProjectId: number | null
+  proposalId: string
+  proposalVersion: number
+  proposalHash: string
+  contextHash: string
+  status: AigcGenerationProposalStatus
+  confirmationPolicy: AigcGenerationProposalConfirmationPolicy
+  estimatedCredits: number
+  approvedTargetKeys: string[]
+  linkedTaskId: string | null
+  expiresAt: string | null
+  items: AigcProjectGenerationProposalItem[]
+}
+
+export interface AigcProjectCreationDraftProposalItemInput
+  extends Omit<AigcProjectGenerationProposalItemInput, "targetType" | "targetKey"> {
+  targetType: "INITIALIZATION_FIELD"
+  targetKey: AigcProjectInitializationFieldKey
+}
+
+export interface AigcProjectCreationDraftProposalCreateInput {
+  draftId?: string
+  blueprintVersionId: number
+  confirmationPolicy?: AigcGenerationProposalConfirmationPolicy
+  expiresAt?: string
+  items: AigcProjectCreationDraftProposalItemInput[]
+}
+
+export interface AigcProjectCreationDraftProposalReviseInput
+  extends Omit<AigcProjectCreationDraftProposalCreateInput, "draftId"> {
+  draftId: string
+  proposalId: string
+  proposalVersion: number
+  proposalHash: string
+}
+
+export interface AigcProjectCreationDraftApproveAndStartInput {
+  draftId: string
+  blueprintVersionId: number
+  proposalId: string
+  proposalVersion: number
+  proposalHash: string
+  approvedTargetKeys: [string]
+  approvalIdempotencyKey: string
+  assistantId: string
+}
+
+export const aigcProjectCreationDraftApi = {
+  generationProposals: (draftId: string) =>
+    backendApi.get<AigcProjectGenerationProposal[]>(
+      `/aigc/project-creation-drafts/${draftId}/generation-proposals`
+    ),
+  proposeGeneration: (data: AigcProjectCreationDraftProposalCreateInput) =>
+    backendApi.post<AigcProjectGenerationProposal>(
+      "/aigc/project-creation-drafts/generation-proposals",
+      data,
+      { showError: false }
+    ),
+  reviseGenerationProposal: (data: AigcProjectCreationDraftProposalReviseInput) =>
+    backendApi.post<AigcProjectGenerationProposal>(
+      "/aigc/project-creation-drafts/generation-proposals/_revise",
+      data,
+      { showError: false }
+    ),
+  approveAndStartGeneration: (data: AigcProjectCreationDraftApproveAndStartInput) =>
+    backendApi.post<AigcProjectGenerationProposal>(
+      "/aigc/project-creation-drafts/generation-proposals/_approve-and-start",
+      data,
+      { showError: false }
+    )
+}
+
 export const aigcProjectApi = {
   projects: (params: AigcProjectParams = {}) =>
     backendApi.get<PageResult<AigcProject>>("/aigc/projects", {
       params: { pageNo: 1, pageSize: 50, ...params }
     }),
   project: (id: number) => backendApi.get<AigcProject>(`/aigc/projects/${id}`),
+  conversationContext: (id: number) =>
+    backendApi.get<AigcProjectConversationContext>(`/aigc/projects/${id}/conversation-context`),
+  bindConversation: ({ projectId, ...data }: AigcProjectConversationBindInput) =>
+    backendApi.post<AigcProjectConversationContext>(
+      `/aigc/projects/${projectId}/conversation-context/_bind`,
+      data,
+      { showError: false }
+    ),
   materialize: (data: AigcProjectMaterializeInput) =>
     backendApi.post<AigcProjectMaterializeResult>("/aigc/projects/_materialize", data),
   update: (id: number, data: AigcProjectUpdateInput) =>
@@ -562,6 +902,36 @@ export const aigcProjectApi = {
       params: { includedOptionalObjectIds }
     }),
   progress: (id: number) => backendApi.get<AigcProjectProgress>(`/aigc/projects/${id}/progress`),
+  generationProposals: (id: number) =>
+    backendApi.get<AigcProjectGenerationProposal[]>(
+      `/aigc/projects/${id}/generation-proposals`
+    ),
+  proposeGeneration: ({ projectId, ...data }: AigcProjectGenerationProposalCreateInput) =>
+    backendApi.post<AigcProjectGenerationProposal>(
+      `/aigc/projects/${projectId}/generation-proposals`,
+      data,
+      { showError: false }
+    ),
+  reviseGenerationProposal: ({
+    projectId,
+    ...data
+  }: AigcProjectGenerationProposalReviseInput) =>
+    backendApi.post<AigcProjectGenerationProposal>(
+      `/aigc/projects/${projectId}/generation-proposals/_revise`,
+      data,
+      { showError: false }
+    ),
+  approveAndStartGeneration: ({
+    projectId,
+    ...data
+  }: AigcProjectGenerationApproveAndStartInput) =>
+    backendApi.post<AigcProjectGenerationProposal>(
+      `/aigc/projects/${projectId}/generation-proposals/_approve-and-start`,
+      data,
+      { showError: false }
+    ),
+  configuration: (id: number) =>
+    backendApi.get<AigcProjectConfigSnapshot[]>(`/aigc/projects/${id}/configuration`),
   channelRefs: (id: number) =>
     backendApi.get<AigcProjectChannelRef[]>(`/aigc/projects/${id}/channel-refs`),
   documentRefs: (id: number) =>
@@ -583,6 +953,39 @@ export const aigcProjectApi = {
     backendApi.delete<void>(`/aigc/projects/${projectId}/document-refs/${refId}`, {
       params: { expectedProjectVersion }
     }),
+  projectDocumentCandidates: (projectId: number, refId: number) =>
+    backendApi.get<AigcProjectDocumentDecision[]>(
+      `/aigc/projects/${projectId}/document-refs/${refId}/candidates`
+    ),
+  recordProjectDocumentCandidate: ({
+    projectId,
+    refId,
+    ...data
+  }: AigcProjectDocumentCandidateInput) =>
+    backendApi.post<AigcProjectDocumentDecision>(
+      `/aigc/projects/${projectId}/document-refs/${refId}/candidates`,
+      data
+    ),
+  adoptProjectDocumentCandidate: ({
+    projectId,
+    refId,
+    candidateId,
+    ...data
+  }: AigcProjectDocumentDecisionInput) =>
+    backendApi.post<AigcProjectDocumentDecision>(
+      `/aigc/projects/${projectId}/document-refs/${refId}/candidates/${candidateId}/_adopt`,
+      data
+    ),
+  rejectProjectDocumentCandidate: ({
+    projectId,
+    refId,
+    candidateId,
+    ...data
+  }: AigcProjectDocumentDecisionInput) =>
+    backendApi.post<AigcProjectDocumentDecision>(
+      `/aigc/projects/${projectId}/document-refs/${refId}/candidates/${candidateId}/_reject`,
+      data
+    ),
   recordTextCandidate: ({ projectId, objectId, ...data }: AigcManualCandidateInput) =>
     backendApi.post<AigcObjectVersionView>(
       `/aigc/projects/${projectId}/objects/${objectId}/candidates/text`,
@@ -698,13 +1101,20 @@ export const aigcProjectKeys = {
   all: ["aigc.project"] as const,
   list: (params: AigcProjectParams) => ["aigc.project", "list", params] as const,
   detail: (id: number) => ["aigc.project", "detail", id] as const,
+  conversationContext: (id: number) =>
+    ["aigc.project", "conversation-context", id] as const,
   graph: (id: number) => ["aigc.project", "graph", id] as const,
   summary: (id: number) => ["aigc.project", "summary", id] as const,
   readiness: (id: number, includedOptionalObjectIds: number[] = []) =>
     ["aigc.project", "readiness", id, includedOptionalObjectIds] as const,
   progress: (id: number) => ["aigc.project", "progress", id] as const,
+  generationProposals: (id: number) =>
+    ["aigc.project", "generation-proposals", id] as const,
+  configuration: (id: number) => ["aigc.project", "configuration", id] as const,
   channelRefs: (id: number) => ["aigc.project", "channel-refs", id] as const,
   documentRefs: (id: number) => ["aigc.project", "document-refs", id] as const,
+  documentCandidates: (projectId: number, refId: number) =>
+    ["aigc.project", "document-candidates", projectId, refId] as const,
   mediaRefs: (id: number) => ["aigc.project", "media-refs", id] as const,
   versions: (projectId: number, objectId: number) =>
     ["aigc.project", "versions", projectId, objectId] as const,
@@ -713,6 +1123,12 @@ export const aigcProjectKeys = {
   reviews: (projectId: number) => ["aigc.project", "reviews", projectId] as const,
   completionEvidence: (projectId: number) =>
     ["aigc.project", "completion-evidence", projectId] as const
+}
+
+export const aigcProjectCreationDraftKeys = {
+  all: ["aigc.project-creation-draft"] as const,
+  generationProposals: (draftId: string) =>
+    ["aigc.project-creation-draft", draftId, "generation-proposals"] as const
 }
 
 export function useAigcProjects(params: AigcProjectParams = {}) {
@@ -727,6 +1143,13 @@ export function useAigcProject(id: number | null) {
     queryFn: () => aigcProjectApi.project(id as number),
     enabled: id !== null,
     refetchInterval: (query) => (query.state.data?.coverStatus === "PENDING" ? 3000 : false)
+  })
+}
+export function useAigcProjectConversationContext(id: number | null) {
+  return useQuery({
+    queryKey: aigcProjectKeys.conversationContext(id ?? 0),
+    queryFn: () => aigcProjectApi.conversationContext(id as number),
+    enabled: id !== null
   })
 }
 export function useAigcProjectGraph(id: number | null) {
@@ -760,6 +1183,28 @@ export function useAigcProjectProgress(id: number | null) {
     enabled: id !== null
   })
 }
+export function useAigcProjectGenerationProposals(id: number | null) {
+  return useQuery({
+    queryKey: aigcProjectKeys.generationProposals(id ?? 0),
+    queryFn: () => aigcProjectApi.generationProposals(id as number),
+    enabled: id !== null
+  })
+}
+export function useAigcProjectCreationDraftProposals(draftId: string | null) {
+  return useQuery({
+    queryKey: aigcProjectCreationDraftKeys.generationProposals(draftId ?? ""),
+    queryFn: () => aigcProjectCreationDraftApi.generationProposals(draftId as string),
+    enabled: draftId !== null
+  })
+}
+export function useAigcProjectConfiguration(id: number | null) {
+  return useQuery({
+    queryKey: aigcProjectKeys.configuration(id ?? 0),
+    queryFn: () => aigcProjectApi.configuration(id as number),
+    enabled: id !== null,
+    select: (snapshots) => snapshots.at(0) ?? null
+  })
+}
 export function useAigcProjectChannelRefs(id: number | null) {
   return useQuery({
     queryKey: aigcProjectKeys.channelRefs(id ?? 0),
@@ -772,6 +1217,13 @@ export function useAigcProjectDocumentRefs(id: number | null) {
     queryKey: aigcProjectKeys.documentRefs(id ?? 0),
     queryFn: () => aigcProjectApi.documentRefs(id as number),
     enabled: id !== null
+  })
+}
+export function useAigcProjectDocumentCandidates(projectId: number | null, refId: number | null) {
+  return useQuery({
+    queryKey: aigcProjectKeys.documentCandidates(projectId ?? 0, refId ?? 0),
+    queryFn: () => aigcProjectApi.projectDocumentCandidates(projectId as number, refId as number),
+    enabled: projectId !== null && refId !== null
   })
 }
 export function useAigcProjectMediaRefs(id: number | null) {
@@ -822,6 +1274,7 @@ export function invalidateAigcProject(
 ) {
   return Promise.all([
     queryClient.invalidateQueries({ queryKey: aigcProjectKeys.detail(projectId) }),
+    queryClient.invalidateQueries({ queryKey: aigcProjectKeys.conversationContext(projectId) }),
     queryClient.invalidateQueries({ queryKey: aigcProjectKeys.graph(projectId) }),
     queryClient.invalidateQueries({ queryKey: aigcProjectKeys.summary(projectId) }),
     queryClient.invalidateQueries({
@@ -835,11 +1288,123 @@ export function invalidateAigcProject(
   ])
 }
 
+function refreshAigcProjectCreationDraftProposalState(
+  queryClient: ReturnType<typeof useQueryClient>,
+  proposal: AigcProjectGenerationProposal
+) {
+  if (proposal.scopeKind !== "CREATION_DRAFT" || proposal.draftId === null) {
+    return Promise.resolve()
+  }
+  const queryKey = aigcProjectCreationDraftKeys.generationProposals(proposal.draftId)
+  queryClient.setQueryData<AigcProjectGenerationProposal[]>(queryKey, (current = []) => [
+    proposal,
+    ...current.filter(
+      (item) =>
+        item.proposalId !== proposal.proposalId ||
+        item.proposalVersion !== proposal.proposalVersion
+    )
+  ])
+  return queryClient.invalidateQueries({ queryKey })
+}
+
+export function useProposeAigcProjectCreationDraftGeneration() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: aigcProjectCreationDraftApi.proposeGeneration,
+    onSuccess: (proposal) =>
+      refreshAigcProjectCreationDraftProposalState(queryClient, proposal)
+  })
+}
+
+export function useReviseAigcProjectCreationDraftGenerationProposal() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: aigcProjectCreationDraftApi.reviseGenerationProposal,
+    onSuccess: (proposal) =>
+      refreshAigcProjectCreationDraftProposalState(queryClient, proposal)
+  })
+}
+
+export function useApproveAndStartAigcProjectCreationDraftGeneration() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: aigcProjectCreationDraftApi.approveAndStartGeneration,
+    onSuccess: (proposal) =>
+      refreshAigcProjectCreationDraftProposalState(queryClient, proposal)
+  })
+}
+
+export function useProposeAigcProjectGeneration() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: aigcProjectApi.proposeGeneration,
+    onSuccess: (_proposal, input) =>
+      refreshAigcGenerationProposalState(queryClient, input.projectId),
+    onError: (error, input) => {
+      if (error instanceof ApiError && error.code === 409)
+        void refreshAigcGenerationProposalState(queryClient, input.projectId)
+    }
+  })
+}
+
+export function useReviseAigcProjectGenerationProposal() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: aigcProjectApi.reviseGenerationProposal,
+    onSuccess: (_proposal, input) =>
+      refreshAigcGenerationProposalState(queryClient, input.projectId),
+    onError: (error, input) => {
+      if (error instanceof ApiError && error.code === 409)
+        void refreshAigcGenerationProposalState(queryClient, input.projectId)
+    }
+  })
+}
+
+export function useApproveAndStartAigcProjectGeneration() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: aigcProjectApi.approveAndStartGeneration,
+    onSuccess: (_proposal, input) =>
+      refreshAigcGenerationProposalState(queryClient, input.projectId),
+    onError: (error, input) => {
+      if (error instanceof ApiError && error.code === 409)
+        void refreshAigcGenerationProposalState(queryClient, input.projectId)
+    }
+  })
+}
+
+function refreshAigcGenerationProposalState(
+  queryClient: ReturnType<typeof useQueryClient>,
+  projectId: number
+) {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: aigcProjectKeys.generationProposals(projectId) }),
+    queryClient.invalidateQueries({ queryKey: aigcProjectKeys.detail(projectId) }),
+    queryClient.invalidateQueries({ queryKey: ["aigc.project", "readiness", projectId] }),
+    queryClient.invalidateQueries({ queryKey: aigcProjectKeys.progress(projectId) })
+  ])
+}
+
 export function useMaterializeAigcProject() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: aigcProjectApi.materialize,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: aigcProjectKeys.all })
+  })
+}
+export function useBindAigcProjectConversation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: aigcProjectApi.bindConversation,
+    onSuccess: async (context, input) => {
+      queryClient.setQueryData(aigcProjectKeys.conversationContext(input.projectId), context)
+      return Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: aigcProjectKeys.conversationContext(input.projectId)
+        }),
+        queryClient.invalidateQueries({ queryKey: aigcProjectKeys.detail(input.projectId) })
+      ])
+    }
   })
 }
 export function useUpdateAigcProject() {
@@ -964,6 +1529,48 @@ export function useDetachAigcProjectDocument() {
       ])
   })
 }
+export function useRecordAigcProjectDocumentCandidate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: aigcProjectApi.recordProjectDocumentCandidate,
+    onSuccess: async (_candidate, input) =>
+      Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: aigcProjectKeys.documentCandidates(input.projectId, input.refId)
+        }),
+        queryClient.invalidateQueries({ queryKey: aigcProjectKeys.documentRefs(input.projectId) }),
+        invalidateAigcProject(queryClient, input.projectId)
+      ])
+  })
+}
+export function useAdoptAigcProjectDocumentCandidate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: aigcProjectApi.adoptProjectDocumentCandidate,
+    onSuccess: async (_candidate, input) =>
+      Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: aigcProjectKeys.documentCandidates(input.projectId, input.refId)
+        }),
+        queryClient.invalidateQueries({ queryKey: aigcProjectKeys.documentRefs(input.projectId) }),
+        invalidateAigcProject(queryClient, input.projectId)
+      ])
+  })
+}
+export function useRejectAigcProjectDocumentCandidate() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: aigcProjectApi.rejectProjectDocumentCandidate,
+    onSuccess: async (_candidate, input) =>
+      Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: aigcProjectKeys.documentCandidates(input.projectId, input.refId)
+        }),
+        queryClient.invalidateQueries({ queryKey: aigcProjectKeys.documentRefs(input.projectId) }),
+        invalidateAigcProject(queryClient, input.projectId)
+      ])
+  })
+}
 
 export interface AigcProjectObjectAppendInput {
   projectId: number
@@ -972,10 +1579,13 @@ export interface AigcProjectObjectAppendInput {
   objectType: AigcObjectType
   displayName: string
   contractRole: AigcContractRole
+  semanticRole: AigcSemanticRole
+  outputContract: AigcOutputContract
   orderNo?: number
   schemaVersion?: string
   payloadJson?: string
   expectedProjectVersion: number
+  expectedGraphRevision: number
 }
 
 export interface AigcProjectObjectContractInput {

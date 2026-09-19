@@ -52,8 +52,55 @@ export interface AigcBlueprintSlotTemplate {
   defaultContractRole?: "REQUIRED" | "OPTIONAL" | "EXCLUDED"
   adoptionPolicy?: string
   countByProductionMode?: Record<string, number>
-  countByBudgetTier?: Record<string, number>
-  countByQualityTier?: Record<string, number>
+}
+
+export type AigcProjectInitializationFieldKey =
+  | "description"
+  | "background"
+  | "targetAudience"
+  | "requirements"
+  | "constraints"
+  | "keyFacts"
+  | "keyMessages"
+  | "styleGuidance"
+  | "successCriteria"
+  | "deliveryRequirements"
+  | "locale"
+  | "additionalContext"
+
+export interface AigcProjectInitializationField {
+  key: AigcProjectInitializationFieldKey
+  label: string
+  description?: string
+  valueType?: "TEXT" | "TEXTAREA" | "STRING_LIST" | "JSON" | "SELECT"
+  required?: boolean
+  aiAssist?: boolean
+  affectsStructure?: boolean
+  orderNo?: number
+  validation?: Record<string, unknown>
+}
+
+export interface AigcProjectInitializationDocument {
+  key: string
+  role: string
+  label: string
+  description?: string
+  referenceType?: "PROJECT_DOCUMENT" | "EXTERNAL_REFERENCE"
+  required?: boolean
+  minCount?: number
+  maxCount?: number
+  aiAssist?: boolean
+  contextPolicy?: {
+    mode: "FULL_TEXT" | "SUMMARY" | "RAG" | "AUTO" | "NONE"
+    priority: number
+    maxTokens: number
+  }
+  orderNo?: number
+}
+
+export interface AigcProjectInitialization {
+  fields: AigcProjectInitializationField[]
+  documents: AigcProjectInitializationDocument[]
 }
 
 export interface AigcProjectBlueprint {
@@ -72,28 +119,7 @@ export interface AigcProjectBlueprint {
   actionSpec?: Record<string, unknown>
   deliverableSpec?: Record<string, unknown>
   processPolicy?: Record<string, unknown>
-  briefFields: string[]
-}
-
-export interface AigcDomainExtension {
-  id: number
-  version: number
-  code: string
-  name: string
-  extensionVersion: string
-  industry?: string
-  region?: string
-  language?: string
-  status: AigcConfigStatus
-  profileSchemaExt?: Record<string, unknown>
-  objectDefinitions?: Record<string, unknown>
-  knowledgeRequirements?: Record<string, unknown>
-  ruleSets?: Record<string, unknown>
-  validators: string[]
-  roleRecommendations: string[]
-  actionConstraints?: Record<string, unknown>
-  channelOverrides?: Record<string, unknown>
-  migrationDeclaration?: Record<string, unknown>
+  projectInitialization: AigcProjectInitialization
 }
 
 export interface AigcChannelSpec {
@@ -177,10 +203,6 @@ export const aigcConfigurationApi = {
     backendApi.get<PageResult<AigcChannelSpec>>("/aigc/channel-specs", {
       params: withPage(params)
     }),
-  domainExtensions: (params: AigcStatusPageParams = {}) =>
-    backendApi.get<PageResult<AigcDomainExtension>>("/aigc/domain-extensions", {
-      params: withPage(params)
-    }),
   snippets: (params: AigcSnippetParams = {}) =>
     backendApi.get<PageResult<AigcSnippet>>("/aigc/snippets", {
       params: withPage(params)
@@ -208,8 +230,6 @@ export const aigcConfigurationKeys = {
     ["aigc.configuration", "project-blueprints", params] as const,
   channelSpecs: (params: AigcStatusPageParams) =>
     ["aigc.configuration", "channel-specs", params] as const,
-  domainExtensions: (params: AigcStatusPageParams) =>
-    ["aigc.configuration", "domain-extensions", params] as const,
   snippets: (params: AigcSnippetParams) => ["aigc.configuration", "snippets", params] as const,
   infiniteSnippets: (params: AigcSnippetParams) =>
     ["aigc.configuration", "snippets", "infinite", params] as const,
@@ -235,13 +255,6 @@ export function useAigcChannelSpecs(params: AigcStatusPageParams = {}) {
   return useQuery({
     queryKey: aigcConfigurationKeys.channelSpecs(params),
     queryFn: () => aigcConfigurationApi.channelSpecs(params)
-  })
-}
-
-export function useAigcDomainExtensions(params: AigcStatusPageParams = {}) {
-  return useQuery({
-    queryKey: aigcConfigurationKeys.domainExtensions(params),
-    queryFn: () => aigcConfigurationApi.domainExtensions(params)
   })
 }
 

@@ -46,6 +46,7 @@ describe("useEntityList", () => {
     expect(entityQueryWindowKey(mockEntity as EntityDef, { page: 1 })).toEqual([
       "crud",
       "/api/task",
+      "default",
       "queryWindow",
       { page: 1 }
     ])
