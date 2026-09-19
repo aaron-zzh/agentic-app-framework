@@ -7,7 +7,7 @@
 ## 当前迭代（v0.13）
 
 - [ ] AAF-112 (创建: 09-05) Content Studio 项目先行完整闭环（项目动态物化与双视图工作台；对象创作、素材版本、可靠执行与候选采用；DeliverableSet manifest、审核退回/stale、Work/Publication、完成归档；完全不依赖 Chatter）任务: docs/task/v0.13/AAF-112/tasks.md
-- [ ] AAF-113 (创建: 09-05) 对话式项目创作（复用现有助理与 `/agui/run`，只读项目上下文→内容创作 Skill→受控项目 Tool→富媒体素材协作；依赖 AAF-112、AAF-115 及项目先行门）任务: docs/task/v0.13/AAF-113/tasks.md
+- [ ] AAF-113 (创建: 09-05) 对话式项目创作（复用现有助理与 `/agui/run`，项目上下文→内容创作 Skill→manual/auto 模式→受控项目 Tool→文档/图像/视频结果闭环；不向普通聊天或 AigcActionCommand 增加 mode 参数；依赖 AAF-112 项目先行门与 AAF-115 canonical Task）需求: docs/task/v0.13/AAF-113/requirement.md 任务: docs/task/v0.13/AAF-113/tasks.md
 - [ ] AAF-115 (创建: 09-11) 统一 Task/TaskPlan/Execution 任务模型与 DAG 编排（移除 AssistantTask/DelegatedTask 双真理源；普通 CHAT 只建 Execution；复杂任务使用唯一 Task + 可选 TaskPlan；支持串行、并行、join、fan-out/fan-in、恢复与 fencing）任务: docs/task/v0.13/AAF-115/tasks.md
 
 ## 待排期

@@ -54,7 +54,7 @@ related:
 |---|---|
 | ✅ 核心领域迁移 | `configuration`、`brand`、`project`、`media`、`execution`、`work`、`timeline`、`task` 八个核心领域子模块已落地；`module.content`、`Content*` 平行业务类型与 `/api/content/**` 已完成一次性迁移和删除 |
 | ✅ 执行归属 | `AigcExecutionBinding`、绑定发布/解析、`AigcExecutionRun` 与 Agent/Tool/Workflow 三类执行器统一归 `execution`；`configuration` 不持有执行绑定 |
-| ✅ 配置包 | `AigcProjectTypePackage` 的 Entity、Repository、Service、Controller、Resource 与 Provider 注册已落地；配置包固定 ProjectType、Blueprint、可选 DomainExtension、ChannelSpec、ExecutionBinding 与 productionMode，并在发布和解析时校验兼容性 |
+| ❌ 配置包（已删除） | `AigcProjectTypePackage`、`AigcDomainExtension` 的 Entity、Repository、Service、Controller、Resource 及配套 SQL/权限/EntityDef 已全部删除（`AAF-113` 确认剩余字段可从 `AigcProjectBlueprint`/`AigcProjectType`/`AigcExecutionBinding` 现场推导，无独立信息）；`AigcConfigurationService.resolve()` 改为现场查询已发布 Blueprint、按 `projectType.defaultChannels` 过滤渠道、按 `actionKey` 匹配最高优先级已发布 `AigcExecutionBinding`，不再有独立发布/兼容性校验工作流 |
 | ⚠️ 内容包模板目标态 | 父 DeliverableSet + 可重复槽位模板、按项目设置解析的具体对象、强类型 action/deliverable/process spec、package manifest、父子 ExecutionRun 与 `AUTO_ADOPT_IF_EMPTY` CAS 是 v2.3.1 目标契约；当前弱 `schemaJson`、单层 Run 与手工采用实现尚待一次性替换 |
 | ✅ 资产分类体系 | `AigcAssetCategory`、`AigcAssetTag`、`AigcAssetCollection` 及 CollectionItem 已归 `media` 落地；Category、Tag、Collection 均已具备管理根所需的 Service、Controller、Resource 与 Provider 注册，TagRef/CollectionItem 保持内部关系记录 |
 | ✅ Runtime adapters | `AigcRuntimeExecution` 与 Agent/Workflow 执行端口、取消端口已落地；`FrameworkAigcAgentExecutionAdapter` 已接入 framework `AgentExecutionPort`，`FrameworkAigcRuntimeCancellationAdapter` 已接入 Agent 与 Flowable/BPMN 取消。Workflow 动作经 `AigcWorkflowExecutionPort` 隔离，当前代码中没有独立的 `FrameworkAigcWorkflowExecutionAdapter` |
@@ -141,11 +141,13 @@ work      → configuration / project / media
 
 ## 跨子模块 API
 
-配置类命名采用“版本承载根”模型：`AigcProjectBlueprint`、`AigcProjectTypePackage`、`AigcDomainExtension` 与 `AigcChannelSpec` 归 `configuration`；`AigcExecutionBinding` 归 `execution`。这些记录都携带语义版本和发布状态；产品文档中的 `ProjectBlueprintVersion`、`ProjectTypePackage` 的发布版本、`DomainExtensionVersion`、`ChannelSpecificationVersion`、`ExecutionBindingVersion` 分别映射到对应核心领域根资源的一条已发布记录，不另建平行 `*Version` 表。草稿可通过 BaseCrud 编辑；一经发布即不可原地修改，升级必须创建新记录并使用专用发布命令。所有项目快照与跨模块契约使用 `*VersionId` 字段名，明确固定的是已发布版本。
+配置类命名采用“版本承载根”模型：`AigcProjectBlueprint` 与 `AigcChannelSpec` 归 `configuration`；`AigcExecutionBinding` 归 `execution`。`AigcProjectTypePackage`、`AigcDomainExtension` 已删除（`AAF-113`：剩余字段均可现场推导，见上文迁移状态表），不再存在这两个版本承载根。这些记录都携带语义版本和发布状态；产品文档中的 `ProjectBlueprintVersion`、`ChannelSpecificationVersion`、`ExecutionBindingVersion` 分别映射到对应核心领域根资源的一条已发布记录，不另建平行 `*Version` 表。草稿可通过 BaseCrud 编辑；一经发布即不可原地修改，升级必须创建新记录并使用专用发布命令。所有项目快照与跨模块契约使用 `*VersionId` 字段名，明确固定的是已发布版本。
 
 以下签名是子模块协作契约。REST DTO 可以按展示需要扩展，但不得绕过这些语义直接访问其他子模块 Repository。
 
 ### Configuration API
+
+> **示例已过期（`AAF-113`）**：下方 `domainExtensionVersionId` 字段对应的 `AigcDomainExtension` 已删除，真实 `AigcConfigurationResolveCommand`/`AigcResolvedConfiguration` 不含此字段，且已新增 `projectInitialization`（`AigcProjectInitializationSpec`）等字段。以下代码块仅体现子模块协作的语义边界（谁拥有什么、谁不能反向依赖谁），不是当前真实签名，请以实际源码为准。
 
 ```java
 package com.xuejiai.aaf.module.ai.aigc.configuration.api;
@@ -245,7 +247,7 @@ public record AigcBlueprintProcessPolicy(
         java.util.List<String> confirmationGateKeys) {}
 ```
 
-`AigcExecutionBindingVersionRef` 只携带 `actionKey + executionBindingVersionId`，由 ProjectTypePackage 兼容性解析产生；configuration 不访问 execution Entity。解析器必须按 `defaultCount → productionMode/budgetTier/qualityTier → slotOverrides → DomainExtension/ChannelSpec 硬约束` 的顺序得到数量，拒绝违反 min/max、激活条件或渠道/领域硬约束的覆盖；模板实例 stableKey 必须按 `stableKeyPattern + instanceNo` 确定性生成且在项目内唯一。`productionMode/budgetTier/qualityTier/slotOverrides` 与最终 resolved objects 都进入 `snapshotJson` 和解析幂等摘要。materialize 将这些配置与 binding 引用原样写入 ProjectConfigurationSnapshot，ProjectView 只读暴露固定引用，ExecutionBindingResolver 必须按该版本 ID 解析，禁止改为扫描全局最新 binding。
+`AigcExecutionBindingVersionRef` 只携带 `actionKey + executionBindingVersionId`，由 `AigcConfigurationService.resolve()` 现场按 `actionKey` 查询最高优先级已发布 `AigcExecutionBinding` 产生（`AigcProjectTypePackage` 已删除，不再经过兼容包解析）；configuration 不访问 execution Entity。解析器必须按 `defaultCount → productionMode/budgetTier/qualityTier → slotOverrides → ChannelSpec 硬约束` 的顺序得到数量（`DomainExtension` 已删除，不再有领域扩展这一层硬约束），拒绝违反 min/max、激活条件或渠道硬约束的覆盖；模板实例 stableKey 必须按 `stableKeyPattern + instanceNo` 确定性生成且在项目内唯一。`productionMode/budgetTier/qualityTier/slotOverrides` 与最终 resolved objects 都进入 `snapshotJson` 和解析幂等摘要。materialize 将这些配置与 binding 引用原样写入 ProjectConfigurationSnapshot，ProjectView 只读暴露固定引用，ExecutionBindingResolver 必须按该版本 ID 解析，禁止改为扫描全局最新 binding。
 
 ### Brand API
 
@@ -781,8 +783,8 @@ public record AigcProjectArchivedEvent(
 |---|---|---|---|---|---|
 | Project Type | `AigcProjectType` | `aigc_project_type` | `/api/aigc/project-types` | `AigcProjectType` | 是，完整管理 |
 | Project Blueprint Version | `AigcProjectBlueprint`（版本承载根） | `aigc_project_blueprint` | `/api/aigc/project-blueprints` | `AigcProjectBlueprint` | 是；草稿可管理，发布后不可变 |
-| Project Type Package | `AigcProjectTypePackage` | `aigc_project_type_package` | `/api/aigc/project-type-packages` | `AigcProjectTypePackage` | 是；草稿可管理，发布后不可变 |
-| Domain Extension Version | `AigcDomainExtension`（版本承载根） | `aigc_domain_extension` | `/api/aigc/domain-extensions` | `AigcDomainExtension` | 是；草稿可管理，发布后不可变 |
+| ~~Project Type Package~~ | ~~`AigcProjectTypePackage`~~（已删除，见迁移状态表） | ~~`aigc_project_type_package`~~ | ~~`/api/aigc/project-type-packages`~~ | — | 已删除 |
+| ~~Domain Extension Version~~ | ~~`AigcDomainExtension`~~（已删除，见迁移状态表） | ~~`aigc_domain_extension`~~ | ~~`/api/aigc/domain-extensions`~~ | — | 已删除 |
 | Channel Specification Version | `AigcChannelSpec`（版本承载根） | `aigc_channel_spec` | `/api/aigc/channel-specs` | `AigcChannelSpec` | 是；草稿可管理，发布后不可变 |
 | Execution Binding Version | `AigcExecutionBinding`（版本承载根） | `aigc_execution_binding` | `/api/aigc/execution-bindings` | `AigcExecutionBinding` | 是；草稿可管理，发布后不可变 |
 | Snippet | `AigcSnippet` | `aigc_snippet` | `/api/aigc/snippets` | `AigcSnippet` | 是，完整管理 |
@@ -1100,7 +1102,7 @@ ProjectType + Brief
 
 | 子模块 | 管理根表 | 内部表 |
 |---|---|---|
-| configuration | `aigc_project_type`、`aigc_project_blueprint`、`aigc_project_type_package`、`aigc_domain_extension`、`aigc_channel_spec`、`aigc_snippet` | 配置包成员如需要可用内部关系表 |
+| configuration | `aigc_project_type`、`aigc_project_blueprint`、`aigc_channel_spec`、`aigc_snippet` | 配置包成员如需要可用内部关系表；`aigc_project_type_package`、`aigc_domain_extension` 已删除，见迁移状态表 |
 | brand | `aigc_brand_profile` | `aigc_brand_profile_version`、`aigc_brand_profile_media_ref`、`aigc_brand_profile_document_ref` |
 | project | `aigc_project` | `aigc_project_config_snapshot`、`aigc_project_profile_ref`、`aigc_project_channel_ref`、`aigc_resolved_domain_context`、`aigc_project_object`、`aigc_project_relation`、`aigc_object_version`、`aigc_project_revision`、`aigc_project_document_ref`、`aigc_project_resource_ref`、`aigc_project_media_ref`、`aigc_project_execution_reservation`、`aigc_project_execution_reservation_target` |
 | media | `aigc_media`、`aigc_asset`、`aigc_asset_category`、`aigc_asset_tag`、`aigc_asset_collection` | `aigc_media_version`、`aigc_asset_tag_ref`、`aigc_asset_relation`、`aigc_asset_collection_item` |

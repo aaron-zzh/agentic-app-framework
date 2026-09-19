@@ -3,8 +3,8 @@ level: Practice
 layer: Model
 purpose: 定义有效工具交集、动作放行门禁、人工干预与审查、授权与预算及置信度门控
 status: draft
-version: 1.0.2
-date: 2026-08-25
+version: 1.0.3
+date: 2026-09-13
 author: Kiro
 tags:
   - 工具治理
@@ -49,7 +49,7 @@ gains:
 
 基础工具不是“所有通用工具”。`BaseToolProfile` 必须**版本化**，只包含无副作用且参数受控的能力。网络工具需要域名策略、SSRF 防护、响应大小与超时限制，并把外部内容视为**不可信数据**。
 
-实现态：⚠️ 部分实现 · `BaseToolProfile` 已落地为版本化常量清单（`BaseToolProfile.java`，`VERSION=1`），收录 4 个 `ai_tool_catalog` 中 `risk_level=LOW` 且 `read_only=TRUE` 的工具；网络工具域名策略、SSRF 防护、响应大小与超时限制未落地，当前清单不含网络工具。
+实现态：⚠️ 部分实现 · `BaseToolProfile` 已落地为版本化常量清单（`BaseToolProfile.java`，`VERSION=2`），收录 5 个 `ai_tool_catalog` 中 `risk_level=LOW` 且 `read_only=TRUE` 的工具；其中 `context.load` 是按冻结 SkillVersion 加载已发布 Reference 的内置基础工具，网络工具域名策略、SSRF 防护、响应大小与超时限制未落地，当前清单不含网络工具。
 
 ## 有效工具交集
 
@@ -217,7 +217,7 @@ expiresAt:  任务截止时间
 | ToolGateway 七道门禁 | ⚠️ 部分实现 · 可见性、策略、grant、参数、lease 与写动作 receipt 已接线（`DefaultToolGateway.java:67-171`）；调用预算只在委派分支记账，非委派路径及 Token/时限预算未闭合（`DefaultToolGateway.java:174-229`） |
 | 任务级可撤销窄授权 | ✅ 已实现 · `PersistentHitlCoordinator.java:132-190` |
 | 同步 HITL 全过程控制 | ⚠️ 部分实现 · 授权请求、批准/拒绝与恢复已接线（`PersistentHitlCoordinator.java:72-190`）；通用补参、显式暂停/继续/重试/取消尚未统一闭合 |
-| 工具三态与 `BaseToolProfile` | ⚠️ 部分实现 · `BaseToolProfile` 已落地（`BaseToolProfile.java`，4 个 LOW+read_only 工具：`listBusinessActions`/`list_workflows`/`recognizeOcr`/`queryWeather`），恒定并入候选集但仍受 `RoleCapabilityCeiling`/`AgentDeclaredTools` 交集约束，不绕过 Role 白名单；`toolAccessMode` 简化为布尔开关 `ActivatedSkill.inheritRoleTools()`（不新增枚举类型），`RESTRICT`（false）维持原交集逻辑，`INHERIT`（true）跳过 Skill 必需工具限制直接放行 Role/Assistant 与 Agent 交集，接线见 `DefaultEffectiveToolResolver.java`、`AssistantApplicationService` 的 `roleInheritRoleTools`/`assistantInheritRoleTools`；仍缺失的是网络工具域名/SSRF 策略等参数受控细节，本轮不做 |
+| 工具三态与 `BaseToolProfile` | ⚠️ 部分实现 · `BaseToolProfile` 已落地（`BaseToolProfile.java`，5 个 LOW+read_only 工具：`listBusinessActions`/`list_workflows`/`recognizeOcr`/`queryWeather`/`context.load`），恒定并入候选集但仍受 `RoleCapabilityCeiling`/`AgentDeclaredTools` 交集约束，不绕过 Role 白名单；`toolAccessMode` 简化为布尔开关 `ActivatedSkill.inheritRoleTools()`（不新增枚举类型），`RESTRICT`（false）维持原交集逻辑，`INHERIT`（true）跳过 Skill 必需工具限制直接放行 Role/Assistant 与 Agent 交集，接线见 `DefaultEffectiveToolResolver.java`、`AssistantApplicationService` 的 `roleInheritRoleTools`/`assistantInheritRoleTools`；仍缺失的是网络工具域名/SSRF 策略等参数受控细节，本轮不做 |
 | 八层交集在单一解析器内闭合 | ⚠️ 部分实现 · 三组在解析器内，其余在上层分散预过滤，`DefaultEffectiveToolResolver.java:27-38,62-66` |
 | required / optional 区分 | 🎯 目标态 · 当前不得声称已执行；现有声明统一 fail-closed |
 | 异步人工审查接入统一门禁 | ⚠️ 部分实现 · 独立 `AiOutput` 模块已存在，但未接入智能运行时，`AiOutputService.java:20-78` |

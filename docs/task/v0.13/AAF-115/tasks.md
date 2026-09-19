@@ -176,3 +176,20 @@ related:
 ## 新增任务
 
 > 开发过程中发现需要新增的任务，由协调者评估后按 `#115NN` 追加。
+
+### 发现：`SubmitCoordinationPlanTool.inputSchema()` 未结构化声明 `dependsOn`，DAG 依赖表达机制实际不可达
+
+- **发现时间**：2026-09-15（AAF-113 会话中核查 TaskPlan/ExecutorPlan 机制时发现，非 AAF-113 范围，记录供 AAF-115 评估）
+- **现象**：`SubmitCoordinationPlanTool.java` 的 `inputSchema()`，`executors` 数组的 `items` 只声明 `{"type": "object"}`，未用嵌套 `properties` 列出可用子字段；自然语言 `description` 也只提及 `nodeId/description/roleKey/skillKey/modelMode` 五个字段，未提及 `dependsOn`（也未提及 `inputBindings`、`maxAttempts`）。
+- **实际影响**：`decodeStringSet(node.get("dependsOn"))` 解析逻辑本身完好，服务端 `TaskDagService` 的环检测、串行/并行/join/fan-out-fan-in 机制（`#11505` 已完成）均可正常工作；但 LLM 做函数调用时只依据 Schema 结构和 description 文本判断可用参数，看不到源码。当前 Schema 没有任何结构化或文本信号告知模型 `dependsOn` 可用，模型在实践中几乎不会主动填这个字段，导致每个 executor 默认只 `dependsOn=Set.of("coordinator")`（即全部并行）。已建好的 DAG 依赖表达能力，在当前 Tool 入口处于"有实现、不可达"状态。
+- **建议修复方向**：把 `executors.items` 从 `{"type": "object"}` 改为带完整 `properties` 的结构化定义，显式列出 `nodeId`/`description`/`roleKey`/`skillKey`/`modelMode`/`dependsOn`/`inputBindings`/`maxAttempts`，并在 `dependsOn` 字段的 `description` 中说明其语义（引用同一协调计划内其他 `nodeId` 或 `"coordinator"`，用于表达串行/并行/join）。
+- **范围判断**：属于 `aaf-framework` 模块既有代码的 Schema 完整性问题，不属于 AAF-113 任务范围，本次会话未修改，仅记录。
+
+### 发现：`PromptLayerKind` 缺少动态业务域事实层，`ProjectContextSnapshot` 类信息无系统提示词注入通道
+
+- **发现时间**：2026-09-15（AAF-113 会话中核查 ProjectContextSnapshot 注入机制时发现，非 AAF-113 范围，记录供 AAF-115 评估）
+- **现象**：`CompiledSystemPrompt.PromptLayerKind` 目前只有 `CONSTITUTION/IDENTITY/INVOCATION_POLICY/ROLE/SKILL/PERSONA` 六层，均为随 Assistant 身份/角色/Skill 版本固定或半固定的内容；没有一层承载"当前业务域运行时事实快照"（例如 AAF-113 的 `ProjectContextSnapshot`：projectId、graphRevision、readiness 摘要、待决 candidate 等，本质是每次执行都可能变化的动态事实，但仍应属于系统层，不应塞进用户消息通道）。
+- **已排除的错误方向**：不应把这类动态业务事实拼进用户消息（污染真实用户输入信号、多轮历史重复膨胀）；也不能复用现有 `SKILL` 层或 `appendSkills()`（该扩展点语义严格绑定已激活 SkillVersion 正文，不是通用动态数据注入口）。
+- **已核实的可行性**：`promptAssembler.compileAssistant(...)` 已确认按每个 `Execution`（每条用户消息对应新 Execution）重新调用一次，不是编译一次后跨多轮复用；`CompiledSystemPrompt` 的"不可变"只针对单次编译产物，不妨碍每次执行取最新业务事实重新编译。新增一层在现有架构下可行，不需要破坏"不可变快照"设计。
+- **建议方向**：在 `PromptLayerKind` 新增一个通用层（候选命名：`DOMAIN_CONTEXT`/`RUNTIME_CONTEXT`/`WORKING_CONTEXT`，推荐 `DOMAIN_CONTEXT`，与 `SKILL` 层形成"领域方法 vs 领域当前事实"的概念对仗），在 `PromptAssembler` 新增类似 `appendSkills()` 的扩展点，由业务域自行提供当前事实快照（AAF-113 场景下即调用已实现但尚未接线的 `ContentStudioProjectContextProvider.load()`）。命名与扩展点设计需保持业务域无关，供其他业务域（非 AIGC 项目场景）复用。
+- **范围判断**：`PromptLayerKind`/`PromptAssembler`/`CompiledSystemPrompt` 均属于 `aaf-framework` 模块既有代码，新增层级属于框架级能力扩展，不属于 AAF-113 任务范围，本次会话未修改，仅记录。AAF-113 侧的消费方（`ContentStudioProjectContextProvider`）已实现但无调用方，待该层落地后才能真正接线。

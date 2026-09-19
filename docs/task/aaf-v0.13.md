@@ -1,11 +1,10 @@
 ---
----
 level: Practice
 layer: Product
 purpose: 跟踪 AAF v0.13 的 AIGC 项目重构、统一任务运行时与对话式协作业务范围
 status: active
 version: "v0.13"
-date: 2026-09-04
+date: 2026-09-12
 author: AaronZZH & Kiro
 scope:
   includes:
@@ -21,7 +20,7 @@ gains:
 >
 > **周期**：2026-09-07 ~ 2026-10-02（4 周）
 >
-> **状态**：已激活；AAF-112 代码实现完成并等待人工编译、测试与验收；AAF-115 进入高风险设计审核；AAF-113 继续受“项目先行 + 统一任务模型”阶段门约束。
+> **状态**：已激活；AAF-112 代码实现完成并等待人工编译、测试与验收；AAF-115 canonical Task/TaskPlan/Execution 生产实现已完成，动态质量门仍待授权；AAF-113 已进入需求与设计细化，写 Tool 编码继续受项目先行门约束。
 
 ## 方案边界
 
@@ -38,21 +37,21 @@ gains:
   → 对象创作与素材版本闭环
     → 审核交付与项目验收
       → 现有助理的只读项目对话
-        → 受控项目写工具
-          → 富媒体与素材协作验收
+        → 生成模式与受控项目写工具
+          → 文档、图像、视频协作验收
 ```
 
-项目阶段全部验收通过前，不启动对话写工具开发；只读项目对话通过权限和隔离验收前，不开放任何项目写 Tool。
+项目阶段全部验收通过前，不启动对话写工具开发；只读项目对话通过权限和隔离验收前，不开放任何项目写 Tool。AAF-113 的需求、设计和接口合同可以先行冻结。
 
 ## 用户故事与执行顺序
 
 | 用户故事 | 状态 | 范围 | 任务 |
 |----------|------|------|------|
-| AAF-112 Content Studio 项目先行完整闭环 | 进行中 | 项目动态物化与工作台、对象创作与素材版本、可靠执行与候选采用、manifest 审核、Work/Publication、完成归档 | [tasks.md](v0.13/AAF-112/tasks.md) |
-| AAF-115 统一任务模型与 DAG 编排 | 待设计审核 | 唯一 Task、可选 TaskPlan、TaskNode/Dependency DAG、Execution；普通 CHAT 不建任务；串行、并行、join、fan-out/fan-in 与恢复 fencing | [tasks.md](v0.13/AAF-115/tasks.md) |
-| AAF-113 对话式项目创作 | 待开始 | 现有助理只读项目上下文、内容创作 Skill、受控项目 Tool 与富媒体协作 | [tasks.md](v0.13/AAF-113/tasks.md) |
+| AAF-112 Content Studio 项目先行完整闭环 | 实现完成，待人工门禁 | 项目动态物化与工作台、对象创作与素材版本、可靠执行与候选采用、manifest 审核、Work/Publication、完成归档 | [tasks.md](v0.13/AAF-112/tasks.md) |
+| AAF-115 统一任务模型与 DAG 编排 | 生产实现完成，待动态门禁 | 唯一 Task、可选 TaskPlan、TaskNode/Dependency DAG、Execution；普通 CHAT 不建任务；串行、并行、join、fan-out/fan-in 与恢复 fencing | [tasks.md](v0.13/AAF-115/tasks.md) |
+| AAF-113 对话式项目创作 | 需求与设计中 | 现有助理项目上下文、内容创作 Skill、manual/auto 模式、受控项目 Tool 与文档/图像/视频协作 | [requirement.md](v0.13/AAF-113/requirement.md) |
 
-AAF-115 可与 AAF-112 并行设计，但属于高风险架构重构，技术设计和人类审核通过前不得编码。AAF-113 不阻塞 AAF-112，且必须等待项目工作台、对象创作、审核交付三个 UI 阶段门及 AAF-115 核心模型迁移全部通过后再启动。
+AAF-115 已提供 AAF-113 所需的 canonical Task 与对话控制基础。AAF-113 当前先冻结需求、设计和任务；实际写 Tool 编码仍须等待 AAF-112 项目先行三个 UI 阶段门及人工质量门通过，且只读项目隔离先于任何写能力开放。
 
 ## 实时事件与双通道边界
 

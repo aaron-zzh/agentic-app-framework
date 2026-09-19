@@ -75,6 +75,9 @@ CREATE TABLE ai_prompt_envelope (
 
 正文按 `prompt.md:141` 要求只进访问受控存储；本表存 hash 与引用，受限正文快照的落地位置沿用该文档定义，不在本任务扩展。
 
+> **不变量变更（2026-09-18，人类决策，由 AAF-113 #11328 落地）**：完整 Prompt 正文已落地到新表 `ai_prompt_envelope_body`（`PromptEnvelopeBody` 类型，与信封同事务写入、`(tenant_id, execution_id, envelope_seq)` 一一对应，读取必须显式调用 `PromptEnvelopePort.findBody`，信封的重试检测与恢复路径不加载正文）。本表本身仍只存 hash 与长度投影，该部分不变。
+> 但"正文只进访问受控存储"这一条已被明确放弃：当前正文**不加密、不做访问审计、不到期删除**，属明文长期留存，仅供调试与质量分析。落库前按信封摘要逐条校验正文一致性（条数、顺序、角色、`sha256(text)`），防止正文与 manifest 漂移。若后续要恢复加密/保留期治理，在 `PromptEnvelopeBody` 与该表上扩展，禁止新建第二份正文副本。
+
 ## 接口定义
 
 ```java

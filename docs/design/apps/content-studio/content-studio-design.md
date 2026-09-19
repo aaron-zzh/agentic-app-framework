@@ -395,6 +395,8 @@ Workspace
 
 ## 行业扩展机制
 
+> **状态说明（`AAF-113`）**：本节描述的 `AigcDomainExtension`（`DomainExtensionVersion`）与 `AigcProjectTypePackage` 均已从代码中删除——深入核查确认两者剩余字段均可从 `AigcProjectBlueprint`/`AigcProjectType`/`AigcExecutionBinding` 现场推导或不存在独立信息，保留会造成过度设计。`AigcConfigurationService.resolve()` 已改为现场查询：按已发布 Blueprint 校验类型与生产模式一致性、按 `projectType.defaultChannels` 过滤渠道、按 `actionKey` 匹配最高优先级已发布 `ExecutionBinding`。行业规则的软约束需求改为通过知识库/文档承载（见 `docs/task/v0.13/AAF-113/blueprint-materialization-analysis.md`），不再有独立的行业扩展 Entity、管理后台或发布工作流。本节以下内容保留仅供追溯历史设计意图，不代表当前实现，如需恢复类似能力应重新设计而非原样恢复。
+
 行业扩展的目标是在不分叉 Project、ProjectGraph、Assistant、任务、资产、版本和工作台的前提下，增加一个行业所需的术语、字段、事实来源、规则、校验器和执行策略。行业不是新的产品孤岛，也不默认产生新的项目类型。
 
 ### 扩展分层与边界
@@ -407,7 +409,7 @@ Workspace
 | `ProjectBlueprintVersion` | 定义该业务目标的基础对象、关系、交付物、动作和确认点 | 项目骨架发生版本化变化时 | 行业规则全集、Skill 或 Workflow 实现 |
 | `ExecutionBinding` | 由 `execution` 核心领域拥有，将 Blueprint 的 `actionKey` 映射到 Agent、Tool 或 Workflow 目标 | 行业需要不同执行能力或策略时 | Skill、项目领域状态和用户内容 |
 | 渠道规格 | 约束尺寸、时长、文案结构、必要声明和导出格式 | 新增发布渠道或格式时 | 新项目类型、行业事实 |
-| `ProjectTypePackage` | 发布时固定可兼容的类型、蓝图、领域扩展、渠道规格、生产模式，以及由 `execution` 提供的执行绑定版本组合 | 需要安装、灰度或回滚一组配置时 | 新的领域真理源 |
+| ~~`ProjectTypePackage`~~ | ~~发布时固定可兼容的类型、蓝图、领域扩展、渠道规格、生产模式，以及由 `execution` 提供的执行绑定版本组合~~ | — | 已删除（`AAF-113`：剩余字段均可从 `AigcProjectBlueprint`/`AigcProjectType`/`AigcExecutionBinding` 现场推导，无独立信息；`resolve()` 改为现场查询，不再有独立发布/兼容性校验工作流） |
 
 `DomainExtensionVersion` 是行业定义来源，`ResolvedDomainContext` 是其在具体项目中的解析结果。Project 记录采用的行业扩展版本；已有项目不会因行业包升级被静默修改。
 
@@ -456,7 +458,7 @@ DomainExtensionVersion
 → 建立 DomainExtensionVersion 草稿
 → 配置字段、知识要求、规则、校验器和动作约束
 → 用样例与红线集验证
-→ 发布并加入兼容的 ProjectTypePackage
+→ 发布（`ProjectTypePackage` 已删除，发布状态由 `AigcDomainExtension` 自身的 `status=published` 承担）
 → 项目创建时解析并固定版本
 → 运行监控与问题回流
 → 发布新版本、差异预览和受控迁移
