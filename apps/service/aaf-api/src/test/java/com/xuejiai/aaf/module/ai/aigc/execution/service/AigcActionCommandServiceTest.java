@@ -33,6 +33,8 @@ import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionRunRepos
 import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionSubmissionRepository;
 import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionTaskRefRepository;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectReadiness;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectReadinessState;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectExecutionReservationReleaseCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectExecutionReservationView;
@@ -81,6 +83,18 @@ class AigcActionCommandServiceTest extends BaseMockitoUnitTest {
         lenient().when(operatorContext.currentOwnerId()).thenReturn(Optional.of(7L));
         lenient().when(projectApi.requireProject(1L)).thenReturn(project());
         lenient()
+                .when(projectApi.readiness(any(), any()))
+                .thenReturn(
+                        List.of(
+                                new AigcObjectReadiness(
+                                        12L,
+                                        "video.generate",
+                                        AigcObjectReadinessState.READY,
+                                        List.of(),
+                                        List.of(),
+                                        null,
+                                        List.of("video.generate"))));
+        lenient()
                 .when(
                         runRepository.findByProjectIdAndActionKeyAndDeletedFalseOrderByIdDesc(
                                 any(), any()))
@@ -101,9 +115,11 @@ class AigcActionCommandServiceTest extends BaseMockitoUnitTest {
                         "image_deliverable",
                         "图片",
                         "REQUIRED",
+                        "PRIMARY_MEDIA",
+                        "MEDIA_VERSION",
                         "image.generate",
                         null,
-                        "draft",
+                        "EMPTY",
                         null);
         when(projectApi.getGraph(1L))
                 .thenReturn(new AigcProjectGraphView(project(), List.of(object), List.of(), 1L));
@@ -117,6 +133,7 @@ class AigcActionCommandServiceTest extends BaseMockitoUnitTest {
                         Map.of(),
                         List.of(),
                         List.of(11L),
+                        1,
                         1L,
                         true,
                         "idem-video");
@@ -149,9 +166,11 @@ class AigcActionCommandServiceTest extends BaseMockitoUnitTest {
                         "video_deliverable",
                         "视频",
                         "REQUIRED",
+                        "PRIMARY_MEDIA",
+                        "MEDIA_VERSION",
                         "video.generate",
                         null,
-                        "draft",
+                        "EMPTY",
                         null);
         var binding = new AigcExecutionBinding();
         binding.setId(91L);
@@ -165,6 +184,8 @@ class AigcActionCommandServiceTest extends BaseMockitoUnitTest {
                 .thenReturn(new AigcExecutionSubmissionService.SubmissionReceipt(intent, true));
         when(submissionRepository.findLockedById(80L)).thenReturn(Optional.of(intent));
         when(submissionRepository.claimPreparing(80L)).thenReturn(1);
+        when(runRepository.findByExecutionSubmissionIdAndParentExecutionRunIdIsNull(80L))
+                .thenReturn(Optional.empty());
         when(projectApi.getGraph(1L))
                 .thenReturn(new AigcProjectGraphView(project(), List.of(object), List.of(), 1L));
         when(bindingResolver.resolve(project(), "video.generate")).thenReturn(binding);
@@ -184,6 +205,8 @@ class AigcActionCommandServiceTest extends BaseMockitoUnitTest {
                         });
         when(runRepository.findLockedById(51L))
                 .thenAnswer(invocation -> Optional.of(savedRun.get()));
+        when(taskRefRepository.findByExecutionRunIdAndDeletedFalseOrderBySortOrderAsc(51L))
+                .thenReturn(List.of());
 
         // 调用
         service.retry(50L, "idem-retry");
@@ -294,12 +317,13 @@ class AigcActionCommandServiceTest extends BaseMockitoUnitTest {
                 new AigcActionCommand(
                         1L,
                         null,
-                        "brief.refine",
-                        "完善简报",
+                        "video.generate",
+                        "生成视频",
                         null,
                         Map.of(),
                         List.of(),
                         List.of(),
+                        1,
                         1L,
                         true,
                         "idem-fence");
@@ -307,6 +331,8 @@ class AigcActionCommandServiceTest extends BaseMockitoUnitTest {
         when(submissionService.record(command))
                 .thenReturn(new AigcExecutionSubmissionService.SubmissionReceipt(intent, true));
         when(submissionRepository.findLockedById(80L)).thenReturn(Optional.of(intent));
+        when(runRepository.findByExecutionSubmissionIdAndParentExecutionRunIdIsNull(80L))
+                .thenReturn(Optional.empty());
         when(submissionRepository.claimPreparing(80L)).thenReturn(0);
 
         // 调用 + 断言
@@ -354,6 +380,8 @@ class AigcActionCommandServiceTest extends BaseMockitoUnitTest {
         run.setAttachmentRefs(List.of(301L, 302L));
         run.setEffectiveInput(
                 Map.of(
+                        "projectVersion",
+                        1,
                         "requestedModelId",
                         "video-model-v3",
                         "actionArguments",
@@ -374,9 +402,9 @@ class AigcActionCommandServiceTest extends BaseMockitoUnitTest {
                 "视频项目",
                 AigcProjectLifecycle.CREATING,
                 1,
-                null,
+                91L,
+                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
                 "social",
-                null,
                 "standard",
                 "manual",
                 List.of(),
@@ -384,7 +412,17 @@ class AigcActionCommandServiceTest extends BaseMockitoUnitTest {
                 null,
                 BigDecimal.ZERO,
                 null,
-                "项目简报",
+                null,
+                null,
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                null,
+                List.of(),
+                Map.of(),
+                null,
+                null,
                 null,
                 7L);
     }

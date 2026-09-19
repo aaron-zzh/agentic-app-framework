@@ -64,7 +64,8 @@ class ExecutionIntentTest {
                                         "text/markdown",
                                         ExecutionIntent.PersistenceMode.RETURN_ONLY,
                                         "content.draft.upsert",
-                                        ExecutionIntent.PublishPolicy.NEVER_BY_DEFAULT))
+                                        ExecutionIntent.PublishPolicy.NEVER_BY_DEFAULT,
+                                        null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("RETURN_ONLY");
     }

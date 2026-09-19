@@ -1,0 +1,233 @@
+package com.xuejiai.aaf.module.ai.aigc.project.service;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.springframework.stereotype.Component;
+
+import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.common.util.JsonUtils;
+import com.xuejiai.aaf.module.ai.aigc.AigcCanonicalRequest;
+import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcResolvedObjectSpec;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcBlueprintSourceType;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectBlueprintSnapshotPayload;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectRelationSemantics;
+
+import tools.jackson.core.type.TypeReference;
+
+/**
+ * CATALOG BlueprintSnapshot 共享校验与 canonical 哈希计算。
+ *
+ * <p>纯函数校验，不做任何持久化；供 {@link ProjectBlueprintSnapshotService} 和后续 ASSISTANT_GENERATED 来源（#11321）
+ * 复用同一份校验规则，避免两条来源各自实现一套语义合同。
+ */
+@Component
+public class BlueprintSnapshotValidator {
+
+    /** 校验 CATALOG BlueprintSnapshot 载荷的结构完整性与语义合法性。 */
+    public void validate(AigcProjectBlueprintSnapshotPayload snapshot) {
+        if (snapshot.sourceType() != AigcBlueprintSourceType.CATALOG) {
+            throw new BusinessException(
+                    GlobalErrorCode.BAD_REQUEST, "阶段一只支持 CATALOG BlueprintSnapshot");
+        }
+        if (snapshot.snapshotVersion() != 2) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "BlueprintSnapshot 版本必须为 2");
+        }
+        if (snapshot.processPolicy() == null) {
+            throw new BusinessException(
+                    GlobalErrorCode.BAD_REQUEST, "BlueprintSnapshot processPolicy 不能为空");
+        }
+        if (snapshot.sourceRef() == null || snapshot.sourceRef().isBlank()) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "CATALOG sourceRef 不能为空");
+        }
+        var projectSpecification = snapshot.projectSpecification();
+        if (projectSpecification.projectTypeCode() == null
+                || projectSpecification.projectTypeCode().isBlank()
+                || projectSpecification.projectTypeVersion() == null
+                || projectSpecification.projectTypeVersion().isBlank()
+                || projectSpecification.productionMode() == null
+                || projectSpecification.productionMode().isBlank()
+                || snapshot.objectSpecs().isEmpty()) {
+            throw new BusinessException(
+                    GlobalErrorCode.BAD_REQUEST, "BlueprintSnapshot 缺少项目规格或对象规格");
+        }
+        var objectsByKey = new LinkedHashMap<String, AigcResolvedObjectSpec>();
+        for (var object : snapshot.objectSpecs()) {
+            if (object == null) {
+                throw new BusinessException(
+                        GlobalErrorCode.BAD_REQUEST, "BlueprintSnapshot objectSpec 不能为空");
+            }
+            if (object.stableKey() == null
+                    || object.stableKey().isBlank()
+                    || objectsByKey.putIfAbsent(object.stableKey(), object) != null) {
+                throw new BusinessException(
+                        GlobalErrorCode.BAD_REQUEST, "BlueprintSnapshot object localKey 为空或重复");
+            }
+            requireSnapshotSemantic(object);
+        }
+        validateParentGraph(objectsByKey);
+        var contracts = new LinkedHashMap<String, String>();
+        for (var contract : snapshot.outputContracts()) {
+            if (contract == null
+                    || contract.outputContract() == null
+                    || contract.outputContract().isBlank()) {
+                throw new BusinessException(
+                        GlobalErrorCode.BAD_REQUEST, "BlueprintSnapshot outputContract 不能为空");
+            }
+            if (contract.localKey() == null
+                    || contracts.putIfAbsent(contract.localKey(), contract.outputContract())
+                            != null) {
+                throw new BusinessException(
+                        GlobalErrorCode.BAD_REQUEST,
+                        "BlueprintSnapshot outputContract localKey 重复");
+            }
+        }
+        if (contracts.size() != objectsByKey.size()
+                || objectsByKey.values().stream()
+                        .anyMatch(
+                                object ->
+                                        !object.outputContract()
+                                                .equals(contracts.get(object.stableKey())))) {
+            throw new BusinessException(
+                    GlobalErrorCode.BAD_REQUEST,
+                    "BlueprintSnapshot outputContracts 与 objectSpecs 不一致");
+        }
+        var relationKeys = new LinkedHashSet<List<String>>();
+        var acyclicTargets = new LinkedHashMap<String, List<String>>();
+        for (var relation : snapshot.relationSpecs()) {
+            if (relation == null
+                    || relation.relationType() == null
+                    || relation.relationType().isBlank()) {
+                throw new BusinessException(
+                        GlobalErrorCode.BAD_REQUEST, "BlueprintSnapshot relationType 不能为空");
+            }
+            if ("contains".equals(relation.relationType())) {
+                throw new BusinessException(
+                        GlobalErrorCode.BAD_REQUEST, "contains 必须由 parentId 派生，不能持久化");
+            }
+            var source = objectsByKey.get(relation.sourceKey());
+            var target = objectsByKey.get(relation.targetKey());
+            if (source == null || target == null || source.stableKey().equals(target.stableKey())) {
+                throw new BusinessException(
+                        GlobalErrorCode.BAD_REQUEST, "BlueprintSnapshot 关系端点不存在或指向自身");
+            }
+            var relationKey =
+                    List.of(relation.sourceKey(), relation.targetKey(), relation.relationType());
+            if (!relationKeys.add(relationKey)) {
+                throw new BusinessException(
+                        GlobalErrorCode.BAD_REQUEST, "BlueprintSnapshot 存在重复关系");
+            }
+            final AigcProjectRelationSemantics.Definition semantics;
+            try {
+                semantics = AigcProjectRelationSemantics.require(relation.relationType());
+            } catch (IllegalArgumentException error) {
+                throw new BusinessException(GlobalErrorCode.BAD_REQUEST, error.getMessage());
+            }
+            if (!semantics.configurationAllowed()
+                    || !semantics.canonicalLayer().equals(relation.canonicalLayer())
+                    || !semantics.direction().equals(relation.direction())
+                    || semantics.acyclic() != relation.acyclic()
+                    || semantics.affectsReadiness() != relation.affectsReadiness()
+                    || !semantics.allowedSourceSemanticRoles().contains(source.semanticRole())
+                    || !semantics.allowedTargetSemanticRoles().contains(target.semanticRole())) {
+                throw new BusinessException(
+                        GlobalErrorCode.BAD_REQUEST,
+                        "BlueprintSnapshot relationType 规范语义不一致: " + relation.relationType());
+            }
+            if (semantics.acyclic()) {
+                acyclicTargets
+                        .computeIfAbsent(relation.sourceKey(), ignored -> new ArrayList<>())
+                        .add(relation.targetKey());
+            }
+        }
+        validateAcyclicRelations(objectsByKey.keySet(), acyclicTargets);
+    }
+
+    /** 计算 BlueprintSnapshot 的 canonical SHA-256 摘要，供 insert-only 校验和重放比对使用。 */
+    public String canonicalHash(AigcProjectBlueprintSnapshotPayload snapshot) {
+        var canonicalMap = parseMap(JsonUtils.toJsonString(snapshot));
+        return AigcCanonicalRequest.canonicalSha256(canonicalMap);
+    }
+
+    private void requireSnapshotSemantic(AigcResolvedObjectSpec object) {
+        if (!Set.of("STRUCTURE", "WORKING_ARTIFACT", "DELIVERABLE", "EVIDENCE", "REFERENCE")
+                .contains(object.semanticRole())) {
+            throw new BusinessException(
+                    GlobalErrorCode.BAD_REQUEST, "BlueprintSnapshot semanticRole 非法");
+        }
+        if (!Set.of(
+                        "INLINE_OBJECT_VERSION",
+                        "DOCUMENT_VERSION",
+                        "MEDIA_VERSION",
+                        "COMPOSITE_MANIFEST",
+                        "REFERENCE_ONLY")
+                .contains(object.outputContract())) {
+            throw new BusinessException(
+                    GlobalErrorCode.BAD_REQUEST, "BlueprintSnapshot outputContract 非法");
+        }
+    }
+
+    private void validateParentGraph(Map<String, AigcResolvedObjectSpec> objectsByKey) {
+        for (var object : objectsByKey.values()) {
+            var visited = new LinkedHashSet<String>();
+            var current = object;
+            while (current.parentKey() != null) {
+                if (!visited.add(current.stableKey())) {
+                    throw new BusinessException(
+                            GlobalErrorCode.BAD_REQUEST, "BlueprintSnapshot 对象父级存在环");
+                }
+                current = objectsByKey.get(current.parentKey());
+                if (current == null) {
+                    throw new BusinessException(
+                            GlobalErrorCode.BAD_REQUEST, "BlueprintSnapshot 对象父级不存在");
+                }
+            }
+        }
+    }
+
+    private void validateAcyclicRelations(
+            Set<String> objectKeys, Map<String, List<String>> targetsBySource) {
+        var visited = new LinkedHashSet<String>();
+        var visiting = new LinkedHashSet<String>();
+        for (var objectKey : objectKeys) {
+            if (relationCycle(objectKey, targetsBySource, visited, visiting)) {
+                throw new BusinessException(
+                        GlobalErrorCode.BAD_REQUEST, "BlueprintSnapshot 规范关系存在有向环");
+            }
+        }
+    }
+
+    private boolean relationCycle(
+            String objectKey,
+            Map<String, List<String>> targetsBySource,
+            Set<String> visited,
+            Set<String> visiting) {
+        if (visiting.contains(objectKey)) {
+            return true;
+        }
+        if (visited.contains(objectKey)) {
+            return false;
+        }
+        visiting.add(objectKey);
+        for (var target : targetsBySource.getOrDefault(objectKey, List.of())) {
+            if (relationCycle(target, targetsBySource, visited, visiting)) {
+                return true;
+            }
+        }
+        visiting.remove(objectKey);
+        visited.add(objectKey);
+        return false;
+    }
+
+    private Map<String, Object> parseMap(String json) {
+        if (json == null || json.isBlank()) {
+            return Map.of();
+        }
+        return JsonUtils.parseObject(json, new TypeReference<Map<String, Object>>() {});
+    }
+}

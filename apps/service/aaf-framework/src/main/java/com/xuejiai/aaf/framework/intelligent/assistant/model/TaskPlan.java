@@ -199,6 +199,44 @@ public record TaskPlan(
                 Map.of(coordinator.nodeId(), coordinator));
     }
 
+    /**
+     * 受控程序化生成任务：与 {@link #coordinated} 同一固定 Route 形状，额外把已确认的目标指令与 Proposal 项引用 冻结到协调者节点，由 {@link
+     * #resolveInput} 作为独立输入注入，{@code description} 仍只承担任务摘要。
+     */
+    public static TaskPlan generationCoordinated(
+            TaskId taskId,
+            String description,
+            String generationInstruction,
+            String proposalItemRef,
+            String roleKey,
+            String skillKey,
+            int maxAttempts) {
+        var coordinator =
+                TaskNode.pendingForGeneration(
+                        "coordinator",
+                        Kind.COORDINATOR,
+                        description,
+                        generationInstruction,
+                        proposalItemRef,
+                        Set.of(),
+                        Map.of(),
+                        roleKey,
+                        skillKey,
+                        null,
+                        TaskModelSelection.auto(),
+                        maxAttempts);
+        return new TaskPlan(
+                taskId,
+                new Goal(
+                        "goal",
+                        description,
+                        Set.of("coordinator"),
+                        TaskPlanDraft.AggregationContract.passThrough("coordinator"),
+                        null),
+                1,
+                Map.of(coordinator.nodeId(), coordinator));
+    }
+
     /** Leader 协调的静态 Team；计划只能分配到已冻结 Worker key。 */
     public static TaskPlan teamCoordinated(
             TaskId taskId,
@@ -408,6 +446,9 @@ public record TaskPlan(
     public String resolveInput(TaskNode subTask) {
         Objects.requireNonNull(subTask, "subTask 不能为空");
         var resolved = new StringBuilder(subTask.description());
+        if (subTask.generationInstruction() != null) {
+            resolved.append("\n\n已冻结生成目标指令：").append(subTask.generationInstruction());
+        }
         if (!subTask.inputBindings().isEmpty()) {
             resolved.append("\n\n已冻结输入绑定：");
             subTask.inputBindings().entrySet().stream()
@@ -799,6 +840,9 @@ public record TaskPlan(
             String nodeId,
             Kind kind,
             String description,
+            String generationInstruction,
+            String proposalItemRef,
+            String instructionHash,
             Set<String> dependsOn,
             Map<String, TaskPlanDraft.InputBinding> inputBindings,
             String roleKey,
@@ -855,6 +899,63 @@ public record TaskPlan(
             if ((status == Status.RETRYABLE || status == Status.FAILED) && failure == null) {
                 throw new IllegalArgumentException("失败子任务必须携带失败原因");
             }
+            if (generationInstruction == null) {
+                if (proposalItemRef != null || instructionHash != null) {
+                    throw new IllegalArgumentException("未声明目标指令时不得携带 Proposal 项引用或指令摘要");
+                }
+            } else {
+                generationInstruction = generationInstruction.trim();
+                if (generationInstruction.isEmpty()
+                        || proposalItemRef == null
+                        || proposalItemRef.isBlank()) {
+                    throw new IllegalArgumentException("目标指令及其 Proposal 项引用不能为空白");
+                }
+                proposalItemRef = proposalItemRef.trim();
+                instructionHash = instructionHash(generationInstruction);
+            }
+        }
+
+        public TaskNode(
+                String nodeId,
+                Kind kind,
+                String description,
+                Set<String> dependsOn,
+                Map<String, TaskPlanDraft.InputBinding> inputBindings,
+                String roleKey,
+                String skillKey,
+                AssistantTarget assistantTarget,
+                TaskModelSelection modelSelection,
+                Status status,
+                boolean retryable,
+                int attempts,
+                int maxAttempts,
+                ExecutionId executionId,
+                SessionId sessionId,
+                String result,
+                String failure,
+                Map<String, String> clarifiedParameters) {
+            this(
+                    nodeId,
+                    kind,
+                    description,
+                    null,
+                    null,
+                    null,
+                    dependsOn,
+                    inputBindings,
+                    roleKey,
+                    skillKey,
+                    assistantTarget,
+                    modelSelection,
+                    status,
+                    retryable,
+                    attempts,
+                    maxAttempts,
+                    executionId,
+                    sessionId,
+                    result,
+                    failure,
+                    clarifiedParameters);
         }
 
         public static TaskNode pending(
@@ -900,6 +1001,43 @@ public record TaskPlan(
                     nodeId,
                     kind,
                     description,
+                    dependsOn,
+                    inputBindings,
+                    roleKey,
+                    skillKey,
+                    assistantTarget,
+                    modelSelection,
+                    Status.PENDING,
+                    true,
+                    0,
+                    maxAttempts,
+                    null,
+                    null,
+                    null,
+                    null,
+                    Map.of());
+        }
+
+        public static TaskNode pendingForGeneration(
+                String nodeId,
+                Kind kind,
+                String description,
+                String generationInstruction,
+                String proposalItemRef,
+                Set<String> dependsOn,
+                Map<String, TaskPlanDraft.InputBinding> inputBindings,
+                String roleKey,
+                String skillKey,
+                AssistantTarget assistantTarget,
+                TaskModelSelection modelSelection,
+                int maxAttempts) {
+            return new TaskNode(
+                    nodeId,
+                    kind,
+                    description,
+                    generationInstruction,
+                    proposalItemRef,
+                    null,
                     dependsOn,
                     inputBindings,
                     roleKey,
@@ -1024,6 +1162,9 @@ public record TaskPlan(
                     nodeId,
                     kind,
                     description,
+                    generationInstruction,
+                    proposalItemRef,
+                    instructionHash,
                     dependsOn,
                     inputBindings,
                     roleKey,
@@ -1039,6 +1180,17 @@ public record TaskPlan(
                     nextResult,
                     nextFailure,
                     nextParameters);
+        }
+
+        private static String instructionHash(String instruction) {
+            try {
+                return java.util.HexFormat.of()
+                        .formatHex(
+                                java.security.MessageDigest.getInstance("SHA-256")
+                                        .digest(instruction.getBytes(StandardCharsets.UTF_8)));
+            } catch (java.security.NoSuchAlgorithmException failure) {
+                throw new IllegalStateException("运行环境不支持 SHA-256", failure);
+            }
         }
 
         private static boolean blank(String value) {
@@ -1068,6 +1220,7 @@ public record TaskPlan(
         RUNNING,
         AWAITING_AUTHORIZATION,
         AWAITING_CLARIFICATION,
+        AWAITING_EXTERNAL,
         PAUSED,
         VERIFYING,
         COMPLETED,

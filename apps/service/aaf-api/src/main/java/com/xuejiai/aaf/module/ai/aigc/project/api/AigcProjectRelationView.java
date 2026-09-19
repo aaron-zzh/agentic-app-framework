@@ -5,4 +5,9 @@ public record AigcProjectRelationView(
         Long sourceObjectId,
         Long targetObjectId,
         String relationType,
-        String metadataJson) {}
+        String layer,
+        String metadataJson,
+        String sourceSemanticRole,
+        String targetSemanticRole,
+        String sourceOutputContract,
+        String targetOutputContract) {}

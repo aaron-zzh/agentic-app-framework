@@ -28,8 +28,13 @@ public record AigcCanonicalRequest(
     }
 
     public String sha256() {
+        return canonicalSha256(this);
+    }
+
+    public static String canonicalSha256(Object value) {
         try {
-            var bytes = JsonUtils.toJsonString(this).getBytes(StandardCharsets.UTF_8);
+            var canonical = canonicalValue(value);
+            var bytes = JsonUtils.toJsonString(canonical).getBytes(StandardCharsets.UTF_8);
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
         } catch (NoSuchAlgorithmException error) {
             throw new IllegalStateException("JDK 不支持 SHA-256", error);

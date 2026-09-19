@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.ai.aigc.project.vo;
 
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectDocumentContextMode;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectDocumentReferenceType;
 
 import jakarta.validation.constraints.NotNull;
@@ -13,6 +14,9 @@ public record AigcProjectDocumentRefDTO(
         @NotNull AigcProjectDocumentReferenceType referenceType,
         @Positive Long documentId,
         @Positive Long documentVersionId,
+        @Size(max = 64) String fieldKey,
+        @Size(max = 500) String contextNote,
+        AigcProjectDocumentContextMode contextMode,
         @Size(max = 32) String role,
         @PositiveOrZero Integer sortOrder,
         @NotNull @PositiveOrZero Integer expectedProjectVersion) {}

@@ -10,6 +10,10 @@ public record AigcResolvedObjectSpec(
         String parentKey,
         Integer orderNo,
         String contractRole,
+        String semanticRole,
+        String outputContract,
         String adoptionPolicy,
+        String defaultActionKey,
         String userInstructionJson,
-        String schemaJson) {}
+        String initialPayloadJson,
+        String payloadSchemaJson) {}

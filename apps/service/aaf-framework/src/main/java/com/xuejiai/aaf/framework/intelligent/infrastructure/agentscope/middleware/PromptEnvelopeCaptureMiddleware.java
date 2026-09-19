@@ -13,6 +13,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.PromptEnvelopePort;
 import com.xuejiai.aaf.framework.intelligent.core.prompt.InvocationMode;
 import com.xuejiai.aaf.framework.intelligent.core.prompt.InvocationPurpose;
 import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptEnvelope;
+import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptEnvelopeBody;
 
 import io.agentscope.core.agent.Agent;
 import io.agentscope.core.agent.RuntimeContext;
@@ -33,8 +34,9 @@ import reactor.core.scheduler.Schedulers;
  * <p>{@code onModelCall} 是 AgentScope 提供的 raw model call 切点，也是 AAF 在循环外部唯一能拿到**真实**请求内容 （messages /
  * tools / options / model）的位置。旁观 {@code MODEL_CALL_START} 事件只能记录"AAF 授予的边界"， 不等于实际发出的请求，因此不作为冻结点。
  *
- * <p>披露约束：只落 hash、角色与长度，不落消息正文与工具 Schema 正文；凭据类选项（apiKey / baseUrl / endpointPath /
- * additionalHeaders）一律不参与哈希，避免把密钥间接写入审计数据。
+ * <p>披露约束：信封只落 hash、角色与长度；完整消息正文与工具 Schema 正文写入独立的 {@link PromptEnvelopeBody} 存储（AAF-113 #11328
+ * 人类决策：不加密、不做访问审计、不到期删除）。凭据类选项（apiKey / baseUrl / endpointPath / additionalHeaders）
+ * 一律不参与哈希也不落正文，避免把密钥写入审计数据。
  *
  * <p>重试识别：与该执行最新一份信封的 {@code promptSha256} 相同即视为传输层重试，推进 {@code attemptNo} 并标记 {@code
  * RETRY}；内容变化则是循环的下一轮，{@code attemptNo} 归 1。
@@ -71,12 +73,15 @@ public final class PromptEnvelopeCaptureMiddleware implements MiddlewareBase {
         var tools = toolSnapshots(input.tools());
         var modelId = modelId(input);
         var optionsSha256 = PromptEnvelope.sha256(canonicalOptions(input.options()));
+        var systemPromptSha256 = PromptEnvelope.systemPromptSha256(messages);
+        var messagesSha256 = PromptEnvelope.messagesSha256(messages);
         var promptSha256 = PromptEnvelope.canonicalSha256(modelId, optionsSha256, messages, tools);
         var latest = envelopes.findLatest(context.tenantId(), context.executionId()).orElse(null);
         var retry = latest != null && latest.promptSha256().equals(promptSha256);
+        var envelopeId = UUID.randomUUID().toString();
         var draft =
                 new PromptEnvelope.Draft(
-                        UUID.randomUUID().toString(),
+                        envelopeId,
                         context.tenantId(),
                         context.taskId(),
                         context.executionId(),
@@ -88,9 +93,17 @@ public final class PromptEnvelopeCaptureMiddleware implements MiddlewareBase {
                         optionsSha256,
                         messages,
                         tools,
+                        systemPromptSha256,
+                        messagesSha256,
                         promptSha256,
                         clock.instant());
-        var frozen = envelopes.append(draft);
+        var frozen =
+                envelopes.append(
+                        draft,
+                        new PromptEnvelopeBody(
+                                envelopeId,
+                                messageBodies(input.messages()),
+                                toolBodies(input.tools())));
         log.debug(
                 "[PromptEnvelope] 已冻结物理调用信封：executionId={}，seq={}，attempt={}，trigger={}，model={}，消息数={}，工具数={}，promptSha256={}",
                 frozen.executionId().value(),
@@ -146,6 +159,45 @@ public final class PromptEnvelopeCaptureMiddleware implements MiddlewareBase {
                             PromptEnvelope.sha256(canonical)));
         }
         return snapshots;
+    }
+
+    /** 完整消息正文；与 {@link #messageSnapshots} 同源同序，摘要一致性由存储层校验。 */
+    private static List<PromptEnvelopeBody.MessageBody> messageBodies(List<Msg> messages) {
+        var bodies = new ArrayList<PromptEnvelopeBody.MessageBody>();
+        if (messages == null) {
+            return bodies;
+        }
+        for (var index = 0; index < messages.size(); index++) {
+            var message = messages.get(index);
+            bodies.add(
+                    new PromptEnvelopeBody.MessageBody(
+                            index,
+                            message.getRole() == null ? "UNKNOWN" : message.getRole().name(),
+                            message.getTextContent() == null ? "" : message.getTextContent()));
+        }
+        return bodies;
+    }
+
+    /** 完整工具 Schema 正文；凭据类信息不在此列，与哈希投影同序。 */
+    private static List<PromptEnvelopeBody.ToolSchemaBody> toolBodies(List<ToolSchema> tools) {
+        var bodies = new ArrayList<PromptEnvelopeBody.ToolSchemaBody>();
+        if (tools == null) {
+            return bodies;
+        }
+        for (var tool : tools) {
+            bodies.add(
+                    new PromptEnvelopeBody.ToolSchemaBody(
+                            tool.getName() == null ? "unnamed" : tool.getName(),
+                            tool.getDescription(),
+                            tool.getParameters() == null
+                                    ? null
+                                    : String.valueOf(tool.getParameters()),
+                            tool.getOutputSchema() == null
+                                    ? null
+                                    : String.valueOf(tool.getOutputSchema()),
+                            tool.getStrict()));
+        }
+        return bodies;
     }
 
     private static String modelId(ModelCallInput input) {

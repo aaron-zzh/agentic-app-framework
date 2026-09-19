@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -34,6 +35,7 @@ import com.xuejiai.aaf.module.ai.aigc.project.api.AigcDeliverableSetCompletionVi
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcDeliverableSetEvaluateCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcDeliverableSetManifestFreezeCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcDeliverableSlotEvidence;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcDocumentCandidateCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionAdoptCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionCandidateCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionComparisonView;
@@ -43,6 +45,7 @@ import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycle;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcReviewDecisionCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcReviewSubmitCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcReviewView;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcTextCandidateCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.CompletionEvidencePort;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcObjectVersion;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProject;
@@ -60,6 +63,7 @@ import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectMediaRefRepo
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectObjectRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectRevisionRepository;
+import com.xuejiai.aaf.module.document.api.DocumentVersionApi;
 
 import lombok.RequiredArgsConstructor;
 import tools.jackson.core.type.TypeReference;
@@ -76,6 +80,11 @@ public class AigcProjectDeliveryService {
                     AigcProjectLifecycle.ADOPTING);
     private static final Set<String> ACTIVE_REVIEW_STATUSES = Set.of("PENDING", "APPROVED");
 
+    // plannedPhase 已确认为无实际业务消费的纯装饰性字段（详见 design.md），业务语义上已移除；
+    // 数据库列 aigc_project_object.planned_phase 仍为 NOT NULL（v7__aigc_schema.sql 已发布迁移，
+    // 本轮授权不允许新增迁移删除该列），写入固定占位值以满足既有约束，不再对外暴露或校验。
+    private static final String LEGACY_PLANNED_PHASE_PLACEHOLDER = "DELIVER";
+
     private final AigcProjectRepository projectRepository;
     private final AigcProjectObjectRepository objectRepository;
     private final AigcObjectVersionRepository versionRepository;
@@ -85,6 +94,7 @@ public class AigcProjectDeliveryService {
     private final AigcProjectExecutionReservationRepository reservationRepository;
     private final AigcProjectExecutionReservationTargetRepository reservationTargetRepository;
     private final AigcMediaApi mediaApi;
+    private final DocumentVersionApi documentVersionApi;
     private final CompletionEvidencePort completionEvidencePort;
     private final OperatorContext operatorContext;
     private final ApplicationEventPublisher eventPublisher;
@@ -119,29 +129,56 @@ public class AigcProjectDeliveryService {
                         reservation.getId(), object.getId())) {
             throw badRequest("候选版本执行证据与目标项目对象不一致");
         }
+        Long documentVersionId = command.documentVersionId();
+        Map<String, Object> candidateContent = content;
+        if ("DOCUMENT_VERSION".equals(object.getOutputContract())) {
+            DocumentVersionApi.DocumentVersionView documentVersion;
+            if (documentVersionId == null) {
+                documentVersion =
+                        persistDocumentVersion(
+                                project,
+                                object,
+                                object.getTitle(),
+                                requiredTextValue(content, "text", "执行候选缺少文本正文"),
+                                "MARKDOWN",
+                                "aigc-execution-run:" + command.executionRunId(),
+                                "执行生成候选");
+                documentVersionId = documentVersion.id();
+            } else {
+                documentVersion =
+                        documentVersionApi.requireAccessible(
+                                documentVersionId,
+                                project.getUserId(),
+                                project.getOrgId(),
+                                project.getWorkspaceId());
+                requireObjectDocumentIdentity(project, object, documentVersion);
+            }
+            candidateContent = documentEvidence(documentVersion, content.get("actionKey"));
+        }
+        var validatedContent =
+                validateCandidateEvidence(
+                        project,
+                        object,
+                        candidateContent,
+                        documentVersionId,
+                        command.mediaVersionIds());
         var version = new AigcObjectVersion();
         copyScope(project, version);
         version.setProjectId(project.getId());
         version.setObjectId(object.getId());
         version.setVersionNo(nextVersionNo(object.getId()));
         version.setStatus("candidate");
-        version.setContentPayload(content);
-        version.setDocumentVersionId(command.documentVersionId());
+        version.setContentPayload(validatedContent);
+        version.setDocumentVersionId(documentVersionId);
         version.setExecutionRunId(command.executionRunId());
         version.setRequestHash(requestHash);
         version.setSummary("执行候选");
         versionRepository.saveAndFlush(version);
         attachCandidateMedia(project, object, version, command.mediaVersionIds());
-        object.setStatus("pending_confirm");
+        object.setStatus(AigcProjectObjectMaturityProjector.project(object, true));
         objectRepository.save(object);
-        var autoAdopt = isAutoAdoptIfEmpty(project, object) && object.getAdoptedVersionId() == null;
-        if (!autoAdopt) {
-            project.setStatus(AigcProjectLifecycle.ADOPTING);
-        }
+        project.setStatus(AigcProjectLifecycle.ADOPTING);
         bumpRevision(project, List.of(object.getId()), command.executionRunId(), "追加对象候选版本");
-        if (autoAdopt) {
-            adoptInternal(project, object, version, null, "AUTO_ADOPT_IF_EMPTY", "自动采用首个候选版本");
-        }
         publishDeliveryActivity(
                 project,
                 "candidate.registered",
@@ -149,6 +186,136 @@ public class AigcProjectDeliveryService {
                 version.getId(),
                 null,
                 Map.of("objectId", object.getId(), "status", version.getStatus()));
+        return toVersionView(version);
+    }
+
+    @Transactional
+    public AigcObjectVersionView recordTextCandidate(AigcTextCandidateCommand command) {
+        requireText(command.content(), "文本正文不能为空");
+        var content = new LinkedHashMap<String, Object>();
+        content.put("kind", "DOCUMENT");
+        content.put("content", command.content());
+        content.put("format", "PLAIN_TEXT");
+        return recordManualCandidate(
+                command.projectId(),
+                command.objectId(),
+                command.expectedProjectVersion(),
+                command.expectedGraphRevision(),
+                command.idempotencyKey(),
+                command.summary(),
+                "DOCUMENT_VERSION",
+                content);
+    }
+
+    @Transactional
+    public AigcObjectVersionView recordDocumentCandidate(AigcDocumentCandidateCommand command) {
+        requireText(command.content(), "文档正文不能为空");
+        var content = new LinkedHashMap<String, Object>();
+        content.put("kind", "DOCUMENT");
+        if (command.title() != null && !command.title().isBlank()) {
+            content.put("title", command.title().trim());
+        }
+        content.put("content", command.content());
+        content.put(
+                "format",
+                command.format() == null || command.format().isBlank()
+                        ? "MARKDOWN"
+                        : command.format().trim().toUpperCase());
+        return recordManualCandidate(
+                command.projectId(),
+                command.objectId(),
+                command.expectedProjectVersion(),
+                command.expectedGraphRevision(),
+                command.idempotencyKey(),
+                command.summary(),
+                "DOCUMENT_VERSION",
+                content);
+    }
+
+    private AigcObjectVersionView recordManualCandidate(
+            Long projectId,
+            Long objectId,
+            Integer expectedProjectVersion,
+            Long expectedGraphRevision,
+            String idempotencyKey,
+            String summary,
+            String requiredOutputContract,
+            Map<String, Object> content) {
+        requireText(idempotencyKey, "candidate 幂等键不能为空");
+        var project = requireLockedProject(projectId);
+        var object = requireObject(projectId, objectId, true);
+        var business = new LinkedHashMap<String, Object>();
+        business.put("projectId", projectId);
+        business.put("objectId", objectId);
+        business.put("outputContract", requiredOutputContract);
+        business.put("content", content);
+        var cas = new LinkedHashMap<String, Object>();
+        cas.put("expectedProjectVersion", expectedProjectVersion);
+        cas.put("expectedGraphRevision", expectedGraphRevision);
+        var requestHash =
+                AigcCanonicalRequest.of("project.manual-candidate", business, cas).sha256();
+        var replay = versionRepository.findByObjectIdAndIdempotencyKey(objectId, idempotencyKey);
+        if (replay.isPresent()) {
+            if (!Objects.equals(replay.get().getRequestHash(), requestHash)) {
+                throw conflict("同一 candidate 幂等键对应不同正文");
+            }
+            return toVersionView(replay.get());
+        }
+        requireExpectedVersion(project, expectedProjectVersion);
+        if (expectedGraphRevision == null
+                || !expectedGraphRevision.equals(project.getGraphRevision().longValue())) {
+            throw conflict("项目图谱修订已变化，请刷新后重试");
+        }
+        requireContentWritable(project);
+        if ("EXCLUDED".equals(object.getContractRole())) {
+            throw badRequest("EXCLUDED 对象不能登记 candidate");
+        }
+        if (!requiredOutputContract.equals(object.getOutputContract())) {
+            throw badRequest("对象 outputContract 不接受该 candidate 类型");
+        }
+        Long documentVersionId = null;
+        Map<String, Object> candidateContent = content;
+        if ("DOCUMENT_VERSION".equals(requiredOutputContract)) {
+            var documentVersion =
+                    persistDocumentVersion(
+                            project,
+                            object,
+                            optionalText(content.get("title"), object.getTitle()),
+                            requiredTextValue(content, "content", "文档正文不能为空"),
+                            requiredTextValue(content, "format", "文档格式不能为空"),
+                            "aigc-project:" + project.getId() + ":object:" + object.getId(),
+                            summary == null || summary.isBlank() ? "项目文档候选" : summary.trim());
+            documentVersionId = documentVersion.id();
+            candidateContent = documentEvidence(documentVersion, null);
+        }
+        candidateContent =
+                validateCandidateEvidence(
+                        project, object, candidateContent, documentVersionId, List.of());
+        var version = new AigcObjectVersion();
+        copyScope(project, version);
+        version.setProjectId(projectId);
+        version.setObjectId(objectId);
+        version.setVersionNo(nextVersionNo(objectId));
+        version.setStatus("candidate");
+        version.setContentPayload(candidateContent);
+        version.setDocumentVersionId(documentVersionId);
+        version.setSummary(summary == null || summary.isBlank() ? "手工正文候选" : summary.trim());
+        version.setIdempotencyKey(idempotencyKey.trim());
+        version.setRequestHash(requestHash);
+        version.setDecisionMode("MANUAL_CANDIDATE");
+        versionRepository.saveAndFlush(version);
+        object.setStatus(AigcProjectObjectMaturityProjector.project(object, true));
+        objectRepository.save(object);
+        project.setStatus(AigcProjectLifecycle.ADOPTING);
+        bumpRevision(project, List.of(objectId), null, "登记手工对象候选版本");
+        staleReviews(projectId, List.of(objectId), "交付对象形成新候选版本");
+        publishDeliveryActivity(
+                project,
+                "candidate.registered",
+                null,
+                version.getId(),
+                null,
+                Map.of("objectId", objectId, "source", "MANUAL"));
         return toVersionView(version);
     }
 
@@ -235,6 +402,13 @@ public class AigcProjectDeliveryService {
         version.setDecidedTime(LocalDateTime.now());
         version.setDecidedBy(operatorContext.currentOperatorId().orElse(null));
         versionRepository.save(version);
+        object.setStatus(
+                AigcProjectObjectMaturityProjector.project(
+                        object,
+                        !versionRepository
+                                .findByObjectIdAndStatus(object.getId(), "candidate")
+                                .isEmpty()));
+        objectRepository.save(object);
         bumpRevision(project, List.of(object.getId()), version.getExecutionRunId(), "否决对象版本");
         staleReviews(project.getId(), List.of(object.getId()), "交付对象版本被否决");
         publishDeliveryActivity(
@@ -321,7 +495,7 @@ public class AigcProjectDeliveryService {
         versionRepository.saveAndFlush(manifest);
         supersedeCurrent(setObject, manifest);
         setObject.setAdoptedVersionId(manifest.getId());
-        setObject.setStatus("manifest_frozen");
+        setObject.setStatus("ADOPTED");
         objectRepository.save(setObject);
         bumpRevision(project, List.of(setObject.getId()), null, "冻结 DeliverableSet manifest");
         staleReviews(
@@ -370,12 +544,17 @@ public class AigcProjectDeliveryService {
         review.setInstanceNo(
                 objectRepository.findHistoricalMaxCustomInstanceNo(project.getId(), "review") + 1);
         review.setContractRole("EXCLUDED");
+        review.setSemanticRole("EVIDENCE");
+        review.setPlannedPhase(LEGACY_PLANNED_PHASE_PLACEHOLDER);
+        review.setOutputContract("INLINE_OBJECT_VERSION");
         review.setParentId(setObject.getId());
         review.setTitle("Review for manifest " + manifest.getId());
-        review.setStatus("PENDING");
+        review.setStatus("EMPTY");
         review.setSource("user");
-        review.setPayload(
-                reviewPayload(manifest, setObject, command.idempotencyKey(), requestHash));
+        var reviewPayload =
+                reviewPayload(manifest, setObject, command.idempotencyKey(), requestHash);
+        reviewPayload.put("reviewStatus", "PENDING");
+        review.setPayload(reviewPayload);
         objectRepository.saveAndFlush(review);
         project.setStatus(AigcProjectLifecycle.REVIEWING);
         touchProject(project);
@@ -385,7 +564,7 @@ public class AigcProjectDeliveryService {
                 null,
                 command.manifestObjectVersionId(),
                 review.getId(),
-                Map.of("status", review.getStatus()));
+                Map.of("status", payloadString(review, "reviewStatus")));
         return toReviewView(review);
     }
 
@@ -421,7 +600,9 @@ public class AigcProjectDeliveryService {
                 objectRepository
                         .findByProjectIdAndObjectTypeOrderByIdAsc(projectId, "review")
                         .stream()
-                        .filter(candidate -> "APPROVED".equals(candidate.getStatus()))
+                        .filter(
+                                candidate ->
+                                        "APPROVED".equals(payloadString(candidate, "reviewStatus")))
                         .filter(
                                 candidate ->
                                         Objects.equals(
@@ -453,7 +634,7 @@ public class AigcProjectDeliveryService {
                         .findById(project.getConfigSnapshotId())
                         .filter(value -> projectId.equals(value.getProjectId()))
                         .orElseThrow(() -> notFound("项目配置快照不存在"));
-        var policy = publicationPolicy(snapshot.getSnapshot());
+        var policy = snapshot.getSnapshot().processPolicy().publicationPolicy();
         var evidence = completionEvidencePort.load(projectId);
         var requiredChannels =
                 snapshot.getChannelVersions() == null
@@ -504,8 +685,14 @@ public class AigcProjectDeliveryService {
         var changed = Set.copyOf(changedObjectIds);
         var project = requireProject(projectId);
         var reviews =
-                objectRepository.findByProjectIdAndObjectTypeAndStatusInOrderByIdAsc(
-                        projectId, "review", ACTIVE_REVIEW_STATUSES);
+                objectRepository
+                        .findByProjectIdAndObjectTypeOrderByIdAsc(projectId, "review")
+                        .stream()
+                        .filter(
+                                review ->
+                                        ACTIVE_REVIEW_STATUSES.contains(
+                                                payloadString(review, "reviewStatus")))
+                        .toList();
         for (var review : reviews) {
             var included = payloadLongList(review, "includedObjectIds");
             if (changed.stream().noneMatch(included::contains)
@@ -513,10 +700,10 @@ public class AigcProjectDeliveryService {
                 continue;
             }
             var payload = mutablePayload(review);
+            payload.put("reviewStatus", "STALE");
             payload.put("staleReason", reason);
             payload.put("staleAt", LocalDateTime.now().toString());
             review.setPayload(payload);
-            review.setStatus("STALE");
             review.setVersion(review.getVersion() + 1);
             objectRepository.save(review);
             publishDeliveryActivity(
@@ -537,7 +724,8 @@ public class AigcProjectDeliveryService {
         if (!"review".equals(review.getObjectType())) {
             throw badRequest("目标对象不是 Review");
         }
-        if (Objects.equals(review.getStatus(), decision)) {
+        var reviewStatus = payloadString(review, "reviewStatus");
+        if (Objects.equals(reviewStatus, decision)) {
             requirePayloadEquals(
                     review, "decisionIdempotencyKey", command.idempotencyKey(), "审核决策幂等键冲突");
             requirePayloadEquals(review, "decisionRequestHash", requestHash, "审核决策摘要与原请求不一致");
@@ -547,7 +735,7 @@ public class AigcProjectDeliveryService {
         if (!AigcProjectLifecycle.REVIEWING.equals(project.getStatus())) {
             throw badRequest("项目不在 REVIEWING 阶段");
         }
-        if (!"PENDING".equals(review.getStatus())) {
+        if (!"PENDING".equals(reviewStatus)) {
             throw conflict("Review 已被处理或已 stale");
         }
         if (!Objects.equals(review.getVersion(), command.expectedReviewVersion())) {
@@ -564,13 +752,13 @@ public class AigcProjectDeliveryService {
         requireManifestCurrentEvidence(project, setObject, manifest);
         var payload = mutablePayload(review);
         payload.put("decision", decision);
+        payload.put("reviewStatus", decision);
         payload.put("decisionIdempotencyKey", command.idempotencyKey());
         payload.put("decisionRequestHash", requestHash);
         payload.put("comment", command.comment());
         payload.put("decidedAt", LocalDateTime.now().toString());
         review.setPayload(payload);
         review.setSummary(command.comment());
-        review.setStatus(decision);
         review.setVersion(review.getVersion() + 1);
         objectRepository.save(review);
         project.setStatus(
@@ -627,13 +815,56 @@ public class AigcProjectDeliveryService {
                                                                 child.getId())))
                         .sorted(Comparator.comparing(AigcProjectObject::getId))
                         .toList();
+        var adoptedVersions =
+                versionRepository
+                        .findAllById(
+                                included.stream()
+                                        .map(AigcProjectObject::getAdoptedVersionId)
+                                        .filter(Objects::nonNull)
+                                        .toList())
+                        .stream()
+                        .collect(Collectors.toMap(AigcObjectVersion::getId, Function.identity()));
+        var mediaVersionIdsByObjectVersion =
+                mediaRefRepository.findByProjectIdOrderBySortOrderAscIdAsc(project.getId()).stream()
+                        .filter(reference -> reference.getObjectVersionId() != null)
+                        .collect(
+                                Collectors.groupingBy(
+                                        AigcProjectMediaRef::getObjectVersionId,
+                                        LinkedHashMap::new,
+                                        Collectors.mapping(
+                                                AigcProjectMediaRef::getMediaVersionId,
+                                                Collectors.collectingAndThen(
+                                                        Collectors.toList(),
+                                                        values ->
+                                                                values.stream()
+                                                                        .sorted()
+                                                                        .toList()))));
         var activeReservations =
                 activeReservations(included.stream().map(AigcProjectObject::getId).toList());
         var slots = new ArrayList<AigcDeliverableSlotEvidence>();
         var blockers = new ArrayList<String>();
         for (var child : included) {
             var adoptedId = child.getAdoptedVersionId();
-            var validationStatus = validationStatus(child, adoptedId);
+            var adoptedVersion = adoptedId == null ? null : adoptedVersions.get(adoptedId);
+            if (adoptedId != null
+                    && (adoptedVersion == null
+                            || !project.getId().equals(adoptedVersion.getProjectId())
+                            || !child.getId().equals(adoptedVersion.getObjectId()))) {
+                throw notFound("manifest 对象版本不存在");
+            }
+            var mediaVersionIds =
+                    adoptedId == null
+                            ? List.<Long>of()
+                            : mediaVersionIdsByObjectVersion.getOrDefault(adoptedId, List.of());
+            if (adoptedVersion != null) {
+                validateCandidateEvidence(
+                        project,
+                        child,
+                        adoptedVersion.getContentPayload(),
+                        adoptedVersion.getDocumentVersionId(),
+                        mediaVersionIds);
+            }
+            var validationStatus = validationStatus(adoptedVersion);
             var reservation = activeReservations.get(child.getId());
             if (adoptedId == null) {
                 blockers.add("%s 尚无已采用版本".formatted(child.getStableKey()));
@@ -652,12 +883,14 @@ public class AigcProjectDeliveryService {
                             child.getId(),
                             child.getContractRole(),
                             adoptedId,
+                            adoptedVersion == null ? null : adoptedVersion.getDocumentVersionId(),
+                            mediaVersionIds,
                             validationStatus,
                             reservation == null ? null : reservation.getId(),
                             reservation == null ? null : reservation.getRootExecutionRunId()));
         }
         var includedIds = included.stream().map(AigcProjectObject::getId).toList();
-        var evidenceHash = evidenceHash(graphRevision, slots);
+        var evidenceHash = evidenceHash(project, graphRevision, slots);
         return new AigcDeliverableSetCompletionView(
                 setObjectId,
                 graphRevision,
@@ -699,11 +932,10 @@ public class AigcProjectDeliveryService {
         return result;
     }
 
-    private String validationStatus(AigcProjectObject object, Long adoptedId) {
-        if (adoptedId == null) {
+    private String validationStatus(AigcObjectVersion version) {
+        if (version == null) {
             return "MISSING";
         }
-        var version = requireVersion(object.getProjectId(), object.getId(), adoptedId);
         if (!Set.of("adopted", "superseded").contains(version.getStatus())) {
             return "INVALID_VERSION_STATE";
         }
@@ -737,7 +969,7 @@ public class AigcProjectDeliveryService {
         desired.setAdoptedBy(operatorContext.currentOwnerId().orElse(null));
         versionRepository.save(desired);
         object.setAdoptedVersionId(desired.getId());
-        object.setStatus("adopted");
+        object.setStatus("ADOPTED");
         objectRepository.save(object);
         for (var reference :
                 mediaRefRepository.findByProjectIdOrderBySortOrderAscIdAsc(project.getId())) {
@@ -815,25 +1047,6 @@ public class AigcProjectDeliveryService {
         }
     }
 
-    private boolean isAutoAdoptIfEmpty(AigcProject project, AigcProjectObject object) {
-        var snapshot =
-                snapshotRepository
-                        .findById(project.getConfigSnapshotId())
-                        .filter(value -> project.getId().equals(value.getProjectId()))
-                        .orElseThrow(() -> notFound("项目配置快照不存在"));
-        var resolved = snapshot.getSnapshot().get("resolvedObjects");
-        if (!(resolved instanceof List<?> objects)) {
-            return false;
-        }
-        for (var candidate : objects) {
-            if (candidate instanceof Map<?, ?> value
-                    && object.getStableKey().equals(String.valueOf(value.get("stableKey")))) {
-                return "AUTO_ADOPT_IF_EMPTY".equals(String.valueOf(value.get("adoptionPolicy")));
-            }
-        }
-        return false;
-    }
-
     private Map<String, Object> manifestPayload(
             AigcProject project, AigcDeliverableSetCompletionView evidence) {
         var payload = new LinkedHashMap<String, Object>();
@@ -853,6 +1066,8 @@ public class AigcProjectDeliveryService {
         payload.put("objectId", slot.objectId());
         payload.put("contractRole", slot.contractRole());
         payload.put("adoptedObjectVersionId", slot.adoptedObjectVersionId());
+        payload.put("documentVersionId", slot.documentVersionId());
+        payload.put("mediaVersionIds", slot.mediaVersionIds());
         payload.put("validationStatus", slot.validationStatus());
         return payload;
     }
@@ -874,29 +1089,16 @@ public class AigcProjectDeliveryService {
         return payload;
     }
 
-    private String evidenceHash(long graphRevision, List<AigcDeliverableSlotEvidence> slots) {
+    private String evidenceHash(
+            AigcProject project, long graphRevision, List<AigcDeliverableSlotEvidence> slots) {
         var root = new TreeMap<String, Object>();
+        root.put("configurationSnapshotId", project.getConfigSnapshotId());
+        root.put("graphRevision", graphRevision);
         root.put(
-                "slots",
-                slots.stream()
-                        .map(
-                                slot -> {
-                                    var value = new TreeMap<String, Object>();
-                                    value.put("stableKey", slot.stableKey());
-                                    value.put("objectId", slot.objectId());
-                                    value.put("contractRole", slot.contractRole());
-                                    value.put(
-                                            "adoptedObjectVersionId",
-                                            slot.adoptedObjectVersionId());
-                                    value.put("validationStatus", slot.validationStatus());
-                                    value.put(
-                                            "activeExecutionReservationId",
-                                            slot.activeExecutionReservationId());
-                                    value.put("activeExecutionRunId", slot.activeExecutionRunId());
-                                    return value;
-                                })
-                        .toList());
-        return hash(root);
+                "includedObjectIds",
+                slots.stream().map(AigcDeliverableSlotEvidence::objectId).toList());
+        root.put("slots", slots.stream().map(this::slotPayload).toList());
+        return AigcCanonicalRequest.canonicalSha256(root);
     }
 
     private String adoptRequestHash(AigcObjectVersionAdoptCommand command) {
@@ -976,7 +1178,10 @@ public class AigcProjectDeliveryService {
         touchProject(project);
         var revision = new AigcProjectRevision();
         revision.setProjectId(project.getId());
+        revision.setConfigSnapshotId(project.getConfigSnapshotId());
         revision.setRevisionNo(project.getGraphRevision());
+        revision.setProjectVersion(project.getVersion());
+        revision.setGraphRevision(project.getGraphRevision());
         revision.setChangedObjectIds(List.copyOf(changedObjectIds));
         revision.setChangedRelationIds(List.of());
         revision.setActorType(operatorContext.currentOperatorType().name());
@@ -1012,8 +1217,9 @@ public class AigcProjectDeliveryService {
     private AigcProjectObject requireDeliverableSet(
             Long projectId, Long setObjectId, boolean locked) {
         var object = requireObject(projectId, setObjectId, locked);
-        if ("deliverable_set".equals(object.getObjectType())) {
-            return object;
+        if (!"deliverable_set".equals(object.getObjectType())
+                || !"COMPOSITE_MANIFEST".equals(object.getOutputContract())) {
+            throw badRequest("目标对象不是 COMPOSITE_MANIFEST DeliverableSet");
         }
         var project = requireProject(projectId);
         var snapshot =
@@ -1021,17 +1227,16 @@ public class AigcProjectDeliveryService {
                         .findById(project.getConfigSnapshotId())
                         .filter(value -> projectId.equals(value.getProjectId()))
                         .orElseThrow(() -> notFound("项目配置快照不存在"));
-        var configured = snapshot.getSnapshot().get("deliverableSets");
-        if (configured instanceof List<?> sets) {
-            for (var candidate : sets) {
-                if (candidate instanceof Map<?, ?> value) {
-                    var templateKey = String.valueOf(value.get("setTemplateKey"));
-                    if (templateKey.equals(object.getBlueprintTemplateKey())
-                            || templateKey.equals(object.getStableKey())) {
-                        return object;
-                    }
-                }
-            }
+        var configured =
+                snapshot.getSnapshot().deliverableSets().stream()
+                        .anyMatch(
+                                set ->
+                                        set.setTemplateKey()
+                                                        .equals(object.getBlueprintTemplateKey())
+                                                || set.setTemplateKey()
+                                                        .equals(object.getStableKey()));
+        if (configured) {
+            return object;
         }
         throw badRequest("目标对象不是 DeliverableSet");
     }
@@ -1114,12 +1319,214 @@ public class AigcProjectDeliveryService {
         return result == null ? Map.of() : result;
     }
 
-    private String publicationPolicy(Map<String, Object> snapshot) {
-        var process = snapshot.get("processPolicy");
-        if (process instanceof Map<?, ?> value && value.get("publicationPolicy") != null) {
-            return String.valueOf(value.get("publicationPolicy")).toUpperCase();
+    private DocumentVersionApi.DocumentVersionView persistDocumentVersion(
+            AigcProject project,
+            AigcProjectObject object,
+            String title,
+            String content,
+            String format,
+            String sourceRef,
+            String changeSummary) {
+        var previousDocumentVersion = latestObjectDocumentVersion(project, object);
+        if (previousDocumentVersion == null) {
+            return documentVersionApi.create(
+                    new DocumentVersionApi.CreateDocumentVersionCommand(
+                            title,
+                            content,
+                            format,
+                            object.getObjectType(),
+                            "AIGC",
+                            sourceRef,
+                            changeSummary,
+                            project.getUserId(),
+                            project.getOrgId(),
+                            project.getWorkspaceId()));
         }
-        throw badRequest("项目配置快照缺少 publicationPolicy");
+        var currentVersion =
+                documentVersionApi
+                        .findCurrent(List.of(previousDocumentVersion.documentId()))
+                        .get(previousDocumentVersion.documentId());
+        if (currentVersion == null) {
+            throw conflict("项目文档当前版本不存在，请刷新后重试");
+        }
+        return documentVersionApi.append(
+                new DocumentVersionApi.AppendDocumentVersionCommand(
+                        previousDocumentVersion.documentId(),
+                        currentVersion.id(),
+                        title,
+                        content,
+                        format,
+                        "AIGC",
+                        sourceRef,
+                        changeSummary,
+                        project.getUserId(),
+                        project.getOrgId(),
+                        project.getWorkspaceId()));
+    }
+
+    private DocumentVersionApi.DocumentVersionView latestObjectDocumentVersion(
+            AigcProject project, AigcProjectObject object) {
+        return versionRepository.findByObjectIdOrderByVersionNoDesc(object.getId()).stream()
+                .map(AigcObjectVersion::getDocumentVersionId)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .map(
+                        versionId ->
+                                documentVersionApi.requireAccessible(
+                                        versionId,
+                                        project.getUserId(),
+                                        project.getOrgId(),
+                                        project.getWorkspaceId()))
+                .orElse(null);
+    }
+
+    private void requireObjectDocumentIdentity(
+            AigcProject project,
+            AigcProjectObject object,
+            DocumentVersionApi.DocumentVersionView candidate) {
+        var previous = latestObjectDocumentVersion(project, object);
+        if (previous != null && !Objects.equals(previous.documentId(), candidate.documentId())) {
+            throw badRequest("同一项目对象的文本 candidate 必须属于同一 Document");
+        }
+    }
+
+    private Map<String, Object> documentEvidence(
+            DocumentVersionApi.DocumentVersionView documentVersion, Object actionKey) {
+        var metadata = new LinkedHashMap<String, Object>();
+        metadata.put("kind", "DOCUMENT_VERSION");
+        metadata.put("documentId", documentVersion.documentId());
+        metadata.put("versionNo", documentVersion.versionNo());
+        metadata.put("format", documentVersion.format());
+        metadata.put("checksum", documentVersion.checksum());
+        if (actionKey != null && !String.valueOf(actionKey).isBlank()) {
+            metadata.put("actionKey", String.valueOf(actionKey));
+        }
+        return Map.copyOf(metadata);
+    }
+
+    private Map<String, Object> validateCandidateEvidence(
+            AigcProject project,
+            AigcProjectObject object,
+            Map<String, Object> content,
+            Long documentVersionId,
+            List<Long> mediaVersionIds) {
+        var evidence = content == null ? Map.<String, Object>of() : content;
+        var mediaIds = mediaVersionIds == null ? List.<Long>of() : List.copyOf(mediaVersionIds);
+        return switch (object.getOutputContract()) {
+            case "INLINE_OBJECT_VERSION" -> {
+                requireNoExternalEvidence(documentVersionId, mediaIds, "内联结构化候选不能引用文档或媒体版本");
+                if (!"STRUCTURED_DATA".equals(evidence.get("kind"))
+                        || !(evidence.get("data") instanceof Map<?, ?>)) {
+                    throw badRequest("INLINE_OBJECT_VERSION 只能包含 STRUCTURED_DATA JSON");
+                }
+                if (!Set.of("kind", "data", "actionKey").containsAll(evidence.keySet())) {
+                    throw badRequest("INLINE_OBJECT_VERSION 包含未授权的顶层字段");
+                }
+                var normalized = new LinkedHashMap<String, Object>();
+                normalized.put("kind", "STRUCTURED_DATA");
+                normalized.put("data", evidence.get("data"));
+                var actionKey = optionalText(evidence.get("actionKey"), null);
+                if (actionKey != null) {
+                    normalized.put("actionKey", actionKey);
+                }
+                yield Map.copyOf(normalized);
+            }
+            case "DOCUMENT_VERSION" -> {
+                if (documentVersionId == null || !mediaIds.isEmpty()) {
+                    throw badRequest("DOCUMENT_VERSION 必须且只能引用一个文档版本");
+                }
+                if (!"DOCUMENT_VERSION".equals(evidence.get("kind"))) {
+                    throw badRequest("DOCUMENT_VERSION 缺少类型化文档证据");
+                }
+                var documentVersion =
+                        documentVersionApi.requireAccessible(
+                                documentVersionId,
+                                project.getUserId(),
+                                project.getOrgId(),
+                                project.getWorkspaceId());
+                if (!sameEvidenceValue(evidence.get("documentId"), documentVersion.documentId())
+                        || !sameEvidenceValue(
+                                evidence.get("versionNo"), documentVersion.versionNo())
+                        || !Objects.equals(evidence.get("format"), documentVersion.format())
+                        || !Objects.equals(evidence.get("checksum"), documentVersion.checksum())) {
+                    throw badRequest("DOCUMENT_VERSION 证据与冻结文档版本不一致");
+                }
+                yield documentEvidence(documentVersion, evidence.get("actionKey"));
+            }
+            case "MEDIA_VERSION" -> {
+                if (documentVersionId != null
+                        || mediaIds.isEmpty()
+                        || mediaIds.stream().anyMatch(Objects::isNull)
+                        || new LinkedHashSet<>(mediaIds).size() != mediaIds.size()) {
+                    throw badRequest("MEDIA_VERSION 必须引用非空、无重复的媒体版本");
+                }
+                if (!"MEDIA_VERSION".equals(evidence.get("kind"))) {
+                    throw badRequest("MEDIA_VERSION 缺少类型化媒体证据");
+                }
+                for (var mediaVersionId : mediaIds) {
+                    mediaApi.getByVersionId(mediaVersionId, project.getUserId());
+                }
+                var normalized = new LinkedHashMap<String, Object>();
+                normalized.put("kind", "MEDIA_VERSION");
+                normalized.put("mediaVersionIds", List.copyOf(mediaIds));
+                yield Map.copyOf(normalized);
+            }
+            case "REFERENCE_ONLY" -> {
+                requireNoExternalEvidence(
+                        documentVersionId, mediaIds, "REFERENCE_ONLY 不能引用文档或媒体版本");
+                if (!"REFERENCE_ONLY".equals(evidence.get("kind"))
+                        || !validReferenceEvidence(evidence.get("references"))) {
+                    throw badRequest("REFERENCE_ONLY 必须包含类型、ID 和版本完整的引用证据");
+                }
+                yield Map.copyOf(evidence);
+            }
+            case "COMPOSITE_MANIFEST" ->
+                    throw badRequest("COMPOSITE_MANIFEST 只能通过 DeliverableSet freeze 创建");
+            default -> throw badRequest("不支持的 outputContract: " + object.getOutputContract());
+        };
+    }
+
+    private void requireNoExternalEvidence(
+            Long documentVersionId, List<Long> mediaVersionIds, String message) {
+        if (documentVersionId != null || !mediaVersionIds.isEmpty()) {
+            throw badRequest(message);
+        }
+    }
+
+    private boolean validReferenceEvidence(Object value) {
+        if (!(value instanceof List<?> references) || references.isEmpty()) {
+            return false;
+        }
+        for (var candidate : references) {
+            if (!(candidate instanceof Map<?, ?> reference)
+                    || optionalText(reference.get("resourceType"), null) == null
+                    || optionalText(reference.get("resourceId"), null) == null
+                    || optionalText(reference.get("resourceVersion"), null) == null) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean sameEvidenceValue(Object evidenceValue, Object versionValue) {
+        return evidenceValue != null
+                && versionValue != null
+                && String.valueOf(evidenceValue).equals(String.valueOf(versionValue));
+    }
+
+    private String requiredTextValue(Map<String, Object> content, String key, String message) {
+        var value = optionalText(content.get(key), null);
+        if (value == null) {
+            throw badRequest(message);
+        }
+        return value;
+    }
+
+    private String optionalText(Object value, String fallback) {
+        if (value == null || String.valueOf(value).isBlank()) {
+            return fallback;
+        }
+        return String.valueOf(value).trim();
     }
 
     private AigcReviewView toReviewView(AigcProjectObject review) {
@@ -1130,7 +1537,7 @@ public class AigcProjectDeliveryService {
                 payloadLong(review, "subjectObjectId"),
                 payloadLong(review, "subjectObjectVersionId"),
                 payloadString(review, "evidenceHash"),
-                review.getStatus(),
+                payloadString(review, "reviewStatus"),
                 payloadString(review, "comment"),
                 payloadString(review, "staleReason"),
                 parseTime(payloadString(review, "submittedAt")),
@@ -1167,10 +1574,21 @@ public class AigcProjectDeliveryService {
                         .map(AigcProjectMediaRef::getMediaVersionId)
                         .toList();
         Long creditCost = null;
+        Long documentId =
+                version.getDocumentVersionId() == null
+                        ? null
+                        : documentVersionApi
+                                .requireAccessible(
+                                        version.getDocumentVersionId(),
+                                        version.getOwnerId(),
+                                        version.getOrgId(),
+                                        version.getWorkspaceId())
+                                .documentId();
         return new AigcObjectVersionComparisonView.AigcObjectVersionComparisonItem(
                 version.getId(),
                 version.getStatus(),
                 version.getContentPayload(),
+                documentId,
                 version.getDocumentVersionId(),
                 mediaIds,
                 version.getExecutionRunId(),

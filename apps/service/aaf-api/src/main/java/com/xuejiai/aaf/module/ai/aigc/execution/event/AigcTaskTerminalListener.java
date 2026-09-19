@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ArtifactCompletionContract.CompletionSignal;
 import com.xuejiai.aaf.module.ai.aigc.execution.domain.AigcExecutionRun;
 import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionRunRepository;
 import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionTaskRefRepository;
@@ -114,6 +115,7 @@ public class AigcTaskTerminalListener {
             run.setVersion(run.getVersion() + 1);
             runRepository.save(run);
             terminalService.onRunTerminal(run);
+            eventPublisher.publishEvent(new CompletionSignal(run.getId()));
             return;
         }
         projectApi.markCoverExecutionTerminal(
@@ -137,5 +139,6 @@ public class AigcTaskTerminalListener {
         run.setVersion(run.getVersion() + 1);
         runRepository.save(run);
         terminalService.onRunTerminal(run);
+        eventPublisher.publishEvent(new CompletionSignal(run.getId()));
     }
 }

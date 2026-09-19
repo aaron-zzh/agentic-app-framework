@@ -6,11 +6,8 @@ import java.util.List;
 public record AigcConfigurationResolveCommand(
         String projectTypeCode,
         Long blueprintVersionId,
-        Long domainExtensionVersionId,
         List<Long> channelSpecVersionIds,
         String productionMode,
-        String budgetTier,
-        String qualityTier,
         List<AigcSlotCountOverride> slotOverrides) {
 
     public AigcConfigurationResolveCommand {

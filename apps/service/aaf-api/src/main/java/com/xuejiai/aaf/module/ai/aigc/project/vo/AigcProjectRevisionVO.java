@@ -6,7 +6,10 @@ import java.util.List;
 public record AigcProjectRevisionVO(
         Long id,
         Long projectId,
+        Long configSnapshotId,
         Integer revisionNo,
+        Integer projectVersion,
+        Integer graphRevision,
         List<Long> changedObjectIds,
         List<Long> changedRelationIds,
         String actorType,

@@ -40,6 +40,7 @@ import com.xuejiai.aaf.module.ai.aigc.brand.vo.AigcBrandProfileVersionCreateDTO;
 import com.xuejiai.aaf.module.ai.aigc.brand.vo.AigcBrandProfileVersionPublishDTO;
 import com.xuejiai.aaf.module.ai.aigc.brand.vo.AigcBrandProfileVersionVO;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
+import com.xuejiai.aaf.module.document.api.DocumentVersionApi;
 
 import lombok.RequiredArgsConstructor;
 
@@ -63,6 +64,7 @@ public class AigcBrandProfileService
     private final AigcBrandProfileMediaRefRepository mediaRefRepository;
     private final AigcBrandProfileDocumentRefRepository documentRefRepository;
     private final AigcMediaApi mediaApi;
+    private final DocumentVersionApi documentVersionApi;
     private final OperatorContext operatorContext;
 
     @Override
@@ -235,6 +237,13 @@ public class AigcBrandProfileService
         version.setRules(command.rules());
         version.setStatus(AigcBrandProfileVersionStatus.DRAFT.code());
         copyScope(profile, version);
+        if (command.documentVersionIds() != null && !command.documentVersionIds().isEmpty()) {
+            documentVersionApi.requireAccessible(
+                    command.documentVersionIds(),
+                    profile.getOwnerId(),
+                    profile.getOrgId(),
+                    profile.getWorkspaceId());
+        }
         var saved = versionRepository.saveAndFlush(version);
         saveMediaRefs(saved.getId(), command.mediaVersionIds());
         saveDocumentRefs(saved.getId(), command.documentVersionIds());

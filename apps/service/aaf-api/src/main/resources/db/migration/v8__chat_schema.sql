@@ -16,6 +16,8 @@ CREATE TABLE conversation (
     creator_id          BIGINT,
     -- AI 对话快捷字段（type=AI 时填充，避免每次 JOIN participant）
     assistant_id        BIGINT       REFERENCES ai_assistant(id),
+    -- USER=通用会话；PROJECT_SERVER=项目服务管理的固定身份会话
+    management_mode     VARCHAR(32)  NOT NULL DEFAULT 'USER',
     thread_id           VARCHAR(64),
     model_id            VARCHAR(100),
     total_tokens        BIGINT       DEFAULT 0,
@@ -60,6 +62,12 @@ CREATE INDEX idx_conversation_creator ON conversation(creator_id) WHERE deleted 
 CREATE INDEX idx_conversation_type_status ON conversation(type, status) WHERE deleted = FALSE;
 CREATE INDEX idx_conversation_assistant ON conversation(assistant_id) WHERE deleted = FALSE AND assistant_id IS NOT NULL;
 CREATE UNIQUE INDEX idx_conversation_thread ON conversation(thread_id) WHERE deleted = FALSE AND thread_id IS NOT NULL;
+
+ALTER TABLE aigc_project
+    ADD COLUMN conversation_id BIGINT REFERENCES conversation(id) ON DELETE RESTRICT;
+CREATE UNIQUE INDEX uk_aigc_project_conversation_active
+    ON aigc_project (conversation_id)
+    WHERE conversation_id IS NOT NULL AND deleted = FALSE;
 
 -- ============================================================
 -- 参与方表

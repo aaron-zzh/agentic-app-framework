@@ -9,4 +9,8 @@ public record AigcProjectRelationVO(
         String layer,
         Long sourceObjectId,
         Long targetObjectId,
-        Map<String, Object> relationMeta) {}
+        Map<String, Object> relationMeta,
+        String sourceSemanticRole,
+        String targetSemanticRole,
+        String sourceOutputContract,
+        String targetOutputContract) {}

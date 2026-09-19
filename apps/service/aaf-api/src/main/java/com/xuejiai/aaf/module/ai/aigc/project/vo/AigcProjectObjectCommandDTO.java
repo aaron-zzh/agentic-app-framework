@@ -11,6 +11,9 @@ public record AigcProjectObjectCommandDTO(
         @NotBlank String displayName,
         @NotBlank String contractRole,
         Integer orderNo,
+        String semanticRole,
+        String outputContract,
         String schemaVersion,
         String payloadJson,
-        @NotNull @PositiveOrZero Integer expectedProjectVersion) {}
+        @NotNull @PositiveOrZero Integer expectedProjectVersion,
+        @NotNull @PositiveOrZero Long expectedGraphRevision) {}

@@ -9,6 +9,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.xuejiai.aaf.common.model.Result;
+import com.xuejiai.aaf.module.document.api.DocumentVersionSemanticMetadataApi.SemanticMetadataView;
 import com.xuejiai.aaf.module.document.service.DocumentService;
 import com.xuejiai.aaf.module.document.vo.*;
 
@@ -72,6 +73,22 @@ public class DocumentController {
     public Result<com.xuejiai.aaf.module.document.api.DocumentVersionApi.DocumentVersionView>
             version(@PathVariable Long id, @PathVariable Long versionId) {
         return Result.success(documentService.version(id, versionId));
+    }
+
+    @Operation(summary = "获取文档版本语义元数据")
+    @GetMapping("/{id}/versions/{versionId}/semantic-metadata")
+    public Result<SemanticMetadataView> semanticMetadata(
+            @PathVariable Long id, @PathVariable Long versionId) {
+        return Result.success(documentService.semanticMetadata(id, versionId));
+    }
+
+    @Operation(summary = "人工覆盖文档版本语义元数据")
+    @PatchMapping("/{id}/versions/{versionId}/semantic-metadata")
+    public Result<SemanticMetadataView> updateSemanticMetadata(
+            @PathVariable Long id,
+            @PathVariable Long versionId,
+            @Valid @RequestBody DocumentVersionSemanticMetadataUpdateDTO request) {
+        return Result.success(documentService.updateSemanticMetadata(id, versionId, request));
     }
 
     @Operation(summary = "比较两个文档版本的逐行差异")

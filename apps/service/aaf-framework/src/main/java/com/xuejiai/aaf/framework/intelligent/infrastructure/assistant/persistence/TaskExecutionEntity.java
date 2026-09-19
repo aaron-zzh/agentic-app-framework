@@ -6,6 +6,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantCommand;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ArtifactCompletionContract.InvocationReceipt;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Execution;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Task;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ConversationId;
@@ -110,6 +111,10 @@ public class TaskExecutionEntity extends AssistantRuntimeEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "command_payload", columnDefinition = "jsonb")
     private AssistantCommand command;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "artifact_completion_receipt", columnDefinition = "jsonb")
+    private InvocationReceipt artifactCompletionReceipt;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;

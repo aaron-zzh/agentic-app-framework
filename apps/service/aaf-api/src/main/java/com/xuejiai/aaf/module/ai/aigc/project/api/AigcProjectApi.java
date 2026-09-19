@@ -10,6 +10,8 @@ public interface AigcProjectApi {
 
     AigcProjectView requireProject(Long projectId);
 
+    AigcProjectConversationContext conversationContext(Long projectId);
+
     AigcProjectView lockForCreativeMutation(Long projectId, Long userId);
 
     AigcProjectView lockForCreativeMutation(
@@ -46,6 +48,16 @@ public interface AigcProjectApi {
     AigcProjectGraphView getGraph(Long projectId);
 
     AigcProjectObjectView appendObject(AigcProjectObjectCommand command);
+
+    AigcProjectObjectView moveObject(AigcProjectObjectMoveCommand command);
+
+    List<AigcObjectReadiness> readiness(Long projectId, AigcGenerationScope scope);
+
+    AigcProjectProgressSnapshot progress(Long projectId);
+
+    AigcObjectVersionView recordTextCandidate(AigcTextCandidateCommand command);
+
+    AigcObjectVersionView recordDocumentCandidate(AigcDocumentCandidateCommand command);
 
     AigcProjectExecutionReservationView reserveExecution(
             AigcProjectExecutionReservationCommand command);

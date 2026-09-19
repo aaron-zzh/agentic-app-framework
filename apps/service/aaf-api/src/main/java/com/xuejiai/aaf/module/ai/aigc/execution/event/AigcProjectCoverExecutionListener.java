@@ -28,6 +28,7 @@ public class AigcProjectCoverExecutionListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onGenerationRequested(AigcProjectCoverGenerationRequestedEvent event) {
         try {
+            var project = projectApi.requireProject(event.projectId());
             var run =
                     executionApi.submitDeferred(
                             new AigcActionCommand(
@@ -39,6 +40,7 @@ public class AigcProjectCoverExecutionListener {
                                     Map.of(),
                                     List.of(),
                                     List.of(),
+                                    project.version(),
                                     event.expectedGraphRevision(),
                                     true,
                                     event.idempotencyKey()));

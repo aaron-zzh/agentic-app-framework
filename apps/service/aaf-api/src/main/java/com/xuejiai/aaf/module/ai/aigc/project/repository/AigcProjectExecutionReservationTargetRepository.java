@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.ai.aigc.project.repository;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -28,4 +29,10 @@ public interface AigcProjectExecutionReservationTargetRepository
                     "select exists(select 1 from aigc_project_execution_reservation_target target join aigc_project_execution_reservation reservation on reservation.id = target.reservation_id where target.project_object_id = :objectId and reservation.deleted = false and reservation.status in ('PREPARED', 'BOUND'))",
             nativeQuery = true)
     boolean existsActiveReservationByProjectObjectId(@Param("objectId") Long objectId);
+
+    @Query(
+            value =
+                    "select distinct target.project_object_id from aigc_project_execution_reservation_target target join aigc_project_execution_reservation reservation on reservation.id = target.reservation_id where target.project_object_id in (:objectIds) and reservation.deleted = false and reservation.status in ('PREPARED', 'BOUND')",
+            nativeQuery = true)
+    Set<Long> findActiveReservedObjectIds(@Param("objectIds") Collection<Long> objectIds);
 }

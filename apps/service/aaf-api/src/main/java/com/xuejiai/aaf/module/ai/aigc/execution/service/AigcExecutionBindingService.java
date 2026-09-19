@@ -43,7 +43,6 @@ public class AigcExecutionBindingService
                 binding.getVersion(),
                 binding.getActionKey(),
                 binding.getProjectTypeCode(),
-                binding.getDomainExtensionCode(),
                 binding.getProductionMode(),
                 binding.getChannelCode(),
                 binding.getTargetType(),
@@ -62,7 +61,6 @@ public class AigcExecutionBindingService
                 binding,
                 request.actionKey(),
                 request.projectTypeCode(),
-                request.domainExtensionCode(),
                 request.productionMode(),
                 request.channelCode(),
                 request.targetType(),
@@ -90,9 +88,6 @@ public class AigcExecutionBindingService
                 request.projectTypeCode() == null
                         ? binding.getProjectTypeCode()
                         : request.projectTypeCode(),
-                request.domainExtensionCode() == null
-                        ? binding.getDomainExtensionCode()
-                        : request.domainExtensionCode(),
                 request.productionMode() == null
                         ? binding.getProductionMode()
                         : request.productionMode(),
@@ -151,7 +146,6 @@ public class AigcExecutionBindingService
             AigcExecutionBinding binding,
             String actionKey,
             String projectTypeCode,
-            String domainExtensionCode,
             String productionMode,
             String channelCode,
             String targetType,
@@ -163,7 +157,6 @@ public class AigcExecutionBindingService
             String status) {
         binding.setActionKey(actionKey);
         binding.setProjectTypeCode(projectTypeCode);
-        binding.setDomainExtensionCode(domainExtensionCode);
         binding.setProductionMode(productionMode);
         binding.setChannelCode(channelCode);
         binding.setTargetType(targetType);

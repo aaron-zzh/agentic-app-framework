@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.Objects;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort.Lease;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 import com.xuejiai.aaf.framework.intelligent.shared.event.NodeIdentity;
@@ -19,11 +20,12 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 
-/** 每次 Agent 调用显式携带的身份、状态槽位、dispatch fence 与轨迹上下文。 */
+/** 每次 Agent 调用显式携带的身份、状态槽位、可选项目范围、dispatch fence 与轨迹上下文。 */
 public record InvocationContext(
         TenantId tenantId,
         UserId userId,
         Long workspaceId,
+        Long projectId,
         AssistantId assistantId,
         ConversationId conversationId,
         SessionId sessionId,
@@ -44,7 +46,8 @@ public record InvocationContext(
         long dispatchGeneration,
         long dispatchFencingToken,
         String dispatchLeaseOwner,
-        Instant dispatchLeaseUntil) {
+        Instant dispatchLeaseUntil,
+        ExecutionIntent.ArtifactTarget artifactTarget) {
 
     public InvocationContext(
             TenantId tenantId,
@@ -69,6 +72,7 @@ public record InvocationContext(
                 tenantId,
                 userId,
                 workspaceId,
+                null,
                 assistantId,
                 conversationId,
                 sessionId,
@@ -89,6 +93,97 @@ public record InvocationContext(
                 0,
                 0,
                 null,
+                null,
+                null);
+    }
+
+    public InvocationContext(
+            TenantId tenantId,
+            UserId userId,
+            Long workspaceId,
+            Long projectId,
+            AssistantId assistantId,
+            ConversationId conversationId,
+            SessionId sessionId,
+            TaskId taskId,
+            ExecutionId executionId,
+            RunId runId,
+            ExecutionId parentExecutionId,
+            CorrelationId correlationId,
+            CausationId causationId,
+            IdempotencyKey idempotencyKey,
+            ControlMode controlMode,
+            ExecutionContract executionContract,
+            Lease lease,
+            ToolAuthorizationContext toolAuthorization,
+            NodeIdentity nodeIdentity) {
+        this(
+                tenantId,
+                userId,
+                workspaceId,
+                projectId,
+                assistantId,
+                conversationId,
+                sessionId,
+                taskId,
+                executionId,
+                executionId.value(),
+                runId,
+                parentExecutionId,
+                correlationId,
+                causationId,
+                idempotencyKey,
+                controlMode,
+                executionContract,
+                lease,
+                toolAuthorization,
+                nodeIdentity,
+                null,
+                0,
+                0,
+                null,
+                null,
+                null);
+    }
+
+    public InvocationContext(
+            TenantId tenantId,
+            UserId userId,
+            Long workspaceId,
+            Long projectId,
+            AssistantId assistantId,
+            ConversationId conversationId,
+            SessionId sessionId,
+            TaskId taskId,
+            ExecutionId executionId,
+            RunId runId,
+            ExecutionId parentExecutionId,
+            CorrelationId correlationId,
+            CausationId causationId,
+            IdempotencyKey idempotencyKey,
+            ControlMode controlMode,
+            ExecutionContract executionContract,
+            Lease lease,
+            ToolAuthorizationContext toolAuthorization) {
+        this(
+                tenantId,
+                userId,
+                workspaceId,
+                projectId,
+                assistantId,
+                conversationId,
+                sessionId,
+                taskId,
+                executionId,
+                runId,
+                parentExecutionId,
+                correlationId,
+                causationId,
+                idempotencyKey,
+                controlMode,
+                executionContract,
+                lease,
+                toolAuthorization,
                 null);
     }
 
@@ -134,6 +229,9 @@ public record InvocationContext(
     public InvocationContext {
         Objects.requireNonNull(tenantId, "tenantId 不能为空");
         Objects.requireNonNull(userId, "userId 不能为空");
+        if (projectId != null && projectId < 1) {
+            throw new IllegalArgumentException("projectId 必须为正数");
+        }
         Objects.requireNonNull(conversationId, "conversationId 不能为空");
         Objects.requireNonNull(sessionId, "sessionId 不能为空");
         Objects.requireNonNull(executionId, "executionId 不能为空");

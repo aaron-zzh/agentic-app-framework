@@ -33,6 +33,7 @@ import com.xuejiai.aaf.module.document.api.DocumentVersionApi.CreateDocumentVers
 import com.xuejiai.aaf.module.document.api.DocumentVersionApi.DocumentDiffView;
 import com.xuejiai.aaf.module.document.api.DocumentVersionApi.DocumentVersionView;
 import com.xuejiai.aaf.module.document.api.DocumentVersionApi.RestoreDocumentVersionCommand;
+import com.xuejiai.aaf.module.document.api.DocumentVersionSemanticMetadataApi.SemanticMetadataView;
 import com.xuejiai.aaf.module.document.domain.DocLink;
 import com.xuejiai.aaf.module.document.domain.Document;
 import com.xuejiai.aaf.module.document.repository.DocLinkRepository;
@@ -49,6 +50,7 @@ public class DocumentService implements DocumentSourceApi, DocumentReferenceApi,
     private final DocLinkRepository docLinkRepository;
     private final DocImportService docImportService;
     private final DocumentVersionService documentVersionService;
+    private final DocumentVersionSemanticMetadataService semanticMetadataService;
     private final OperatorContext operatorContext;
 
     /** 按 owner、组织、工作区与文档隔离的 SSE 订阅者。 */
@@ -60,11 +62,13 @@ public class DocumentService implements DocumentSourceApi, DocumentReferenceApi,
             DocLinkRepository docLinkRepository,
             DocImportService docImportService,
             DocumentVersionService documentVersionService,
+            DocumentVersionSemanticMetadataService semanticMetadataService,
             OperatorContext operatorContext) {
         this.documentRepository = documentRepository;
         this.docLinkRepository = docLinkRepository;
         this.docImportService = docImportService;
         this.documentVersionService = documentVersionService;
+        this.semanticMetadataService = semanticMetadataService;
         this.operatorContext = operatorContext;
     }
 
@@ -365,6 +369,31 @@ public class DocumentService implements DocumentSourceApi, DocumentReferenceApi,
         return documentVersionService
                 .findExact(documentId, documentVersionId)
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "文档版本不存在"));
+    }
+
+    /** 获取精确正文版本的语义元数据。 */
+    @Transactional(readOnly = true)
+    public SemanticMetadataView semanticMetadata(Long documentId, Long documentVersionId) {
+        version(documentId, documentVersionId);
+        return semanticMetadataService
+                .find(documentVersionId)
+                .orElseThrow(
+                        () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "文档版本语义元数据不存在"));
+    }
+
+    /** 人工覆盖精确正文版本的语义元数据，不修改正文版本。 */
+    @Transactional
+    public SemanticMetadataView updateSemanticMetadata(
+            Long documentId,
+            Long documentVersionId,
+            DocumentVersionSemanticMetadataUpdateDTO request) {
+        version(documentId, documentVersionId);
+        return semanticMetadataService.updateManual(
+                documentVersionId,
+                request.expectedMetadataVersion(),
+                request.summary(),
+                request.topics(),
+                request.language());
     }
 
     /** 比较同一文档的任意两个不可变版本。 */

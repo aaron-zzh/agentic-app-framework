@@ -9,6 +9,7 @@ import org.hibernate.type.SqlTypes;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcExecutionBindingVersionRef;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectBlueprintSnapshotPayload;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -32,14 +33,20 @@ public class AigcProjectConfigSnapshot extends BaseEntity {
     @Column(name = "revision_no", nullable = false)
     private Integer revisionNo;
 
+    @Column(name = "source_type", nullable = false, length = 32)
+    private String sourceType;
+
+    @Column(name = "source_ref", nullable = false, length = 200)
+    private String sourceRef;
+
+    @Column(name = "snapshot_hash", nullable = false, length = 64)
+    private String snapshotHash;
+
     @Column(name = "project_type_version", length = 32)
     private String projectTypeVersion;
 
     @Column(name = "blueprint_version", length = 32)
     private String blueprintVersion;
-
-    @Column(name = "domain_extension_version", length = 32)
-    private String domainExtensionVersion;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "channel_versions", columnDefinition = "jsonb")
@@ -55,5 +62,5 @@ public class AigcProjectConfigSnapshot extends BaseEntity {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false, columnDefinition = "jsonb")
-    private Map<String, Object> snapshot;
+    private AigcProjectBlueprintSnapshotPayload snapshot;
 }

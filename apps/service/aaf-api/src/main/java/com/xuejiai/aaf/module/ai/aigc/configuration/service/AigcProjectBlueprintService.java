@@ -37,6 +37,7 @@ public class AigcProjectBlueprintService
                 AigcProjectBlueprintPageDTO> {
 
     private final AigcProjectBlueprintRepository repository;
+    private final AigcCatalogBlueprintCompiler compiler;
 
     @Override
     protected AigcProjectBlueprintRepository getRepository() {
@@ -61,7 +62,7 @@ public class AigcProjectBlueprintService
                 entity.getActionSpec(),
                 entity.getDeliverableSpec(),
                 entity.getProcessPolicy(),
-                entity.getBriefFields());
+                entity.getProjectInitialization());
     }
 
     @Override
@@ -105,7 +106,8 @@ public class AigcProjectBlueprintService
         AigcConfigurationPatchSupport.nullable(
                 request.deliverableSpec(), entity::setDeliverableSpec);
         AigcConfigurationPatchSupport.nullable(request.processPolicy(), entity::setProcessPolicy);
-        AigcConfigurationPatchSupport.nullable(request.briefFields(), entity::setBriefFields);
+        AigcConfigurationPatchSupport.nullable(
+                request.projectInitialization(), entity::setProjectInitialization);
     }
 
     @Transactional
@@ -120,6 +122,7 @@ public class AigcProjectBlueprintService
                             requireDraftForPublish(entity.getStatus());
                             AigcConfigurationPatchSupport.requireVersion(
                                     entity.getVersion(), request.expectedVersion());
+                            compiler.validateForPublish(compiler.compile(entity));
                         },
                         (entity, request) -> entity.setStatus(AigcConfigStatus.PUBLISHED.getCode()),
                         (entity, request) -> null,

@@ -1,11 +1,13 @@
 package com.xuejiai.aaf.framework.engine.credit;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.xuejiai.aaf.framework.crud.CrudEntityRepository;
 
@@ -29,6 +31,15 @@ public interface CreditTransactionRepository extends CrudEntityRepository<Credit
     @Query(
             "SELECT COUNT(t) > 0 FROM CreditTransaction t WHERE t.type = com.xuejiai.aaf.framework.engine.credit.CreditTransactionType.EARN AND t.source = :refundSource AND t.bizId = :originalTxIdStr AND t.deleted = false")
     boolean existsRefundForOriginalTx(String refundSource, String originalTxIdStr);
+
+    List<CreditTransaction> findByAccountIdAndIdInAndDeletedFalse(
+            Long accountId, Collection<Long> ids);
+
+    @Query(
+            "SELECT t FROM CreditTransaction t WHERE t.accountId = :accountId AND t.type = com.xuejiai.aaf.framework.engine.credit.CreditTransactionType.EARN AND t.source = 'REFUND_AIGC_FAIL' AND t.bizId IN :originalTxIds AND t.deleted = false")
+    List<CreditTransaction> findRefundsForOriginalTxIds(
+            @Param("accountId") Long accountId,
+            @Param("originalTxIds") Collection<String> originalTxIds);
 
     /** M3：判断一次性入账幂等键是否已存在（与数据库部分唯一索引配套，先查后插给出友好跳过）。 */
     @Query(

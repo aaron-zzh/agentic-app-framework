@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,22 +17,26 @@ import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
-import com.xuejiai.aaf.module.ai.aigc.AigcCanonicalRequest;
 import com.xuejiai.aaf.module.ai.aigc.brand.api.AigcBrandApi;
 import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcConfigurationApi;
 import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcConfigurationResolveCommand;
+import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcProjectInitializationSpec;
+import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcResolvedConfiguration;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaType;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcUploadedMediaCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcBlueprintSourceType;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectBlueprintSnapshotPayload;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverMode;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectDocumentContextMode;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectDocumentInput;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectDocumentReferenceType;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycle;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectMaterializeCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectSpecification;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProject;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectChannelRef;
-import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectConfigSnapshot;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectDocumentRef;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectMediaRef;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectObject;
@@ -40,7 +45,6 @@ import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectRelation;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectRevision;
 import com.xuejiai.aaf.module.ai.aigc.project.event.AigcProjectCoverGenerationRequestedEvent;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectChannelRefRepository;
-import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectConfigSnapshotRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectDocumentRefRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectMediaRefRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectObjectRepository;
@@ -58,10 +62,15 @@ import tools.jackson.core.type.TypeReference;
 @RequiredArgsConstructor
 public class AigcProjectMaterializer {
 
+    // plannedPhase 已确认为无实际业务消费的纯装饰性字段（详见 design.md），业务语义上已移除；
+    // 数据库列 aigc_project_object.planned_phase 仍为 NOT NULL（v7__aigc_schema.sql 已发布迁移，
+    // 本轮授权不允许新增迁移删除该列），写入固定占位值以满足既有约束，不再对外暴露或校验。
+    private static final String LEGACY_PLANNED_PHASE_PLACEHOLDER = "BUILD";
+
     private final AigcConfigurationApi configurationApi;
     private final AigcBrandApi brandApi;
     private final AigcProjectRepository projectRepository;
-    private final AigcProjectConfigSnapshotRepository snapshotRepository;
+    private final ProjectBlueprintSnapshotService snapshotService;
     private final AigcProjectProfileRefRepository profileRefRepository;
     private final AigcProjectChannelRefRepository channelRefRepository;
     private final AigcProjectDocumentRefRepository documentRefRepository;
@@ -71,14 +80,14 @@ public class AigcProjectMaterializer {
     private final DocumentVersionApi documentVersionApi;
     private final AigcMediaApi mediaApi;
     private final AigcProjectMediaRefRepository mediaRefRepository;
+    private final AigcProjectGenerationProposalService generationProposals;
     private final OperatorContext operatorContext;
-    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public AigcProject materialize(AigcProjectMaterializeCommand command) {
         var projectName = requireProjectName(command.name());
-        if (command.sourceType()
-                != com.xuejiai.aaf.module.ai.aigc.project.api.AigcBlueprintSourceType.CATALOG) {
+        if (command.sourceType() != AigcBlueprintSourceType.CATALOG) {
             throw new BusinessException(
                     GlobalErrorCode.BAD_REQUEST, "阶段一只支持 CATALOG BlueprintSnapshot");
         }
@@ -91,12 +100,11 @@ public class AigcProjectMaterializer {
                         new AigcConfigurationResolveCommand(
                                 command.projectTypeCode(),
                                 command.blueprintVersionId(),
-                                command.domainExtensionVersionId(),
                                 command.channelSpecVersionIds(),
                                 command.productionMode(),
-                                command.budgetTier(),
-                                command.qualityTier(),
                                 command.slotOverrides()));
+        validateProjectInitialization(command, resolved.projectInitialization());
+        validateProjectDocuments(command, resolved.projectInitialization());
         var sourceRef =
                 "blueprint:%d@%s"
                         .formatted(resolved.blueprintVersionId(), resolved.blueprintVersion());
@@ -110,8 +118,6 @@ public class AigcProjectMaterializer {
                 command.workspaceId() == null
                         ? OrgContext.getCurrentWorkspaceId()
                         : command.workspaceId();
-        documentVersionApi.requireAccessible(
-                command.documentVersionIds(), ownerId, orgId, workspaceId);
         var profiles = brandApi.requireVersions(command.brandProfileVersionIds(), workspaceId);
 
         var project = new AigcProject();
@@ -121,15 +127,23 @@ public class AigcProjectMaterializer {
         project.setUserId(ownerId);
         project.setName(projectName);
         project.setDescription(command.description());
+        project.setBackground(command.background());
+        project.setTargetAudience(command.targetAudience());
+        project.setRequirements(command.requirements());
+        project.setConstraints(command.constraints());
+        project.setKeyFacts(command.keyFacts());
+        project.setKeyMessages(command.keyMessages());
+        project.setStyleGuidance(command.styleGuidance());
+        project.setSuccessCriteria(command.successCriteria());
+        project.setDeliveryRequirements(command.deliveryRequirements());
+        project.setLocale(command.locale());
+        project.setAdditionalContext(command.additionalContext());
         project.setProjectTypeCode(command.projectTypeCode());
         project.setBlueprintCode(resolved.blueprintCode());
         project.setBlueprintVersion(resolved.blueprintVersion());
-        project.setDomainExtensionCode(resolved.domainExtensionCode());
-        project.setDomainExtensionVersion(resolved.domainExtensionVersion());
         project.setProductionMode(resolved.productionMode());
         project.setGenerationMode("manual");
         project.setStatus(AigcProjectLifecycle.CREATING);
-        project.setBrief(command.briefJson());
         project.setGraphRevision(1);
         project.setPrimaryBrandProfileId(
                 profiles.isEmpty() ? null : profiles.getFirst().profileId());
@@ -158,26 +172,9 @@ public class AigcProjectMaterializer {
         }
 
         var snapshotPayload = blueprintSnapshot(command, resolved, sourceRef);
-        var snapshotMap = parseMap(JsonUtils.toJsonString(snapshotPayload));
-        var snapshot = new AigcProjectConfigSnapshot();
-        copyScope(project, snapshot);
-        snapshot.setProjectId(project.getId());
-        snapshot.setRevisionNo(1);
-        snapshot.setSourceType(command.sourceType().name());
-        snapshot.setSourceRef(sourceRef);
-        snapshot.setSnapshotHash(AigcCanonicalRequest.canonicalSha256(snapshotMap));
-        snapshot.setProjectTypeVersion(resolved.projectTypeVersion());
-        snapshot.setBlueprintVersion(resolved.blueprintVersion());
-        snapshot.setDomainExtensionVersion(resolved.domainExtensionVersion());
-        snapshot.setChannelVersions(resolved.channelSpecVersionIds());
-        snapshot.setExecutionBindingVersions(resolved.executionBindings());
-        snapshot.setCompatibilityResult(
-                Map.of(
-                        "compatible", true,
-                        "packageVersionId", resolved.packageVersionId(),
-                        "packageVersion", resolved.packageVersion()));
-        snapshot.setSnapshot(snapshotMap);
-        snapshotRepository.save(snapshot);
+        var snapshot =
+                snapshotService.createInitialSnapshot(
+                        project, snapshotPayload, sourceRef, resolved);
         project.setConfigSnapshotId(snapshot.getId());
         projectRepository.save(project);
 
@@ -198,16 +195,7 @@ public class AigcProjectMaterializer {
             reference.setPrimaryChannel(index == 0);
             channelRefRepository.save(reference);
         }
-        for (var index = 0; index < command.documentVersionIds().size(); index++) {
-            var reference = new AigcProjectDocumentRef();
-            copyScope(project, reference);
-            reference.setProjectId(project.getId());
-            reference.setReferenceType(AigcProjectDocumentReferenceType.EXTERNAL_REFERENCE);
-            reference.setDocumentVersionId(command.documentVersionIds().get(index));
-            reference.setRole("project");
-            reference.setSortOrder(index);
-            documentRefRepository.save(reference);
-        }
+        materializeDocuments(project, command, resolved.projectInitialization());
 
         var objects = new LinkedHashMap<String, AigcProjectObject>();
         for (var spec : resolved.resolvedObjects()) {
@@ -219,22 +207,16 @@ public class AigcProjectMaterializer {
             object.setInstanceNo(spec.instanceNo());
             object.setContractRole(spec.contractRole());
             object.setSemanticRole(spec.semanticRole());
-            object.setPlannedPhase(spec.plannedPhase());
+            object.setPlannedPhase(LEGACY_PLANNED_PHASE_PLACEHOLDER);
             object.setOutputContract(spec.outputContract());
+            object.setDefaultActionKey(spec.defaultActionKey());
             object.setObjectType(spec.objectType());
             object.setSortOrder(spec.orderNo() == null ? 0 : spec.orderNo());
             object.setTitle(spec.displayName());
             object.setStatus("EMPTY");
             object.setSource("blueprint");
             object.setSchemaVersion("1.0.0");
-            var payload = new LinkedHashMap<>(parseMap(spec.schemaJson()));
-            resolved.actions().stream()
-                    .filter(
-                            action ->
-                                    spec.blueprintTemplateKey().equals(action.targetTemplateKey()))
-                    .findFirst()
-                    .ifPresent(action -> payload.put("defaultActionKey", action.actionKey()));
-            object.setPayload(Map.copyOf(payload));
+            object.setPayload(Map.copyOf(parseMap(spec.initialPayloadJson())));
             objectRepository.save(object);
             objects.put(spec.stableKey(), object);
         }
@@ -283,7 +265,33 @@ public class AigcProjectMaterializer {
         revision.setActorId(ownerId);
         revision.setSummary("项目蓝图物化");
         revisionRepository.save(revision);
+        linkCreationProposal(command, project.getId());
         return project;
+    }
+
+    /**
+     * 物化前草稿 Proposal 的确认凭据校验与回填。
+     *
+     * <p>在同一物化事务内执行：Proposal 必须 APPROVED、作用域为 CREATION_DRAFT、Blueprint 版本与本次一致、归属当前用户，
+     * 且已确认的初始化字段在本次提交中带值；随后回填 linkedProjectId 供追溯。未携带凭据表示本次创建没有使用 AI 辅助初始化。
+     */
+    private void linkCreationProposal(AigcProjectMaterializeCommand command, Long projectId) {
+        var reference = command.approvedCreationProposal();
+        if (reference == null) {
+            return;
+        }
+        var providedFieldKeys =
+                AigcProjectInitializationSpec.supportedFieldKeys().stream()
+                        .filter(key -> hasInitializationValue(initializationValue(command, key)))
+                        .collect(java.util.stream.Collectors.toSet());
+        generationProposals.markMaterialized(
+                reference.draftId(),
+                reference.proposalId(),
+                reference.proposalVersion(),
+                reference.proposalHash(),
+                command.blueprintVersionId(),
+                projectId,
+                providedFieldKeys);
     }
 
     /**
@@ -327,7 +335,7 @@ public class AigcProjectMaterializer {
         return "%s\n%s\n%s"
                 .formatted(
                         project.getName(),
-                        project.getBrief() == null ? "" : project.getBrief(),
+                        project.getDescription() == null ? "" : project.getDescription(),
                         project.getProjectTypeCode());
     }
 
@@ -339,6 +347,156 @@ public class AigcProjectMaterializer {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "项目名称长度不能超过 200");
         }
         return name.trim();
+    }
+
+    private void validateProjectInitialization(
+            AigcProjectMaterializeCommand command, AigcProjectInitializationSpec initialization) {
+        var configured =
+                initialization.fields().stream()
+                        .collect(
+                                java.util.stream.Collectors.toMap(
+                                        AigcProjectInitializationSpec.FieldSpec::key,
+                                        java.util.function.Function.identity()));
+        for (var field : initialization.fields()) {
+            if (field.required()
+                    && !hasInitializationValue(initializationValue(command, field.key()))) {
+                throw new BusinessException(
+                        GlobalErrorCode.BAD_REQUEST, "项目初始化字段不能为空: " + field.label());
+            }
+        }
+        for (var key : AigcProjectInitializationSpec.supportedFieldKeys()) {
+            if (!configured.containsKey(key)
+                    && hasInitializationValue(initializationValue(command, key))) {
+                throw new BusinessException(
+                        GlobalErrorCode.BAD_REQUEST, "Blueprint 未启用项目初始化字段: " + key);
+            }
+        }
+    }
+
+    private void validateProjectDocuments(
+            AigcProjectMaterializeCommand command, AigcProjectInitializationSpec initialization) {
+        var specifications =
+                initialization.documents().stream()
+                        .collect(
+                                java.util.stream.Collectors.toMap(
+                                        AigcProjectInitializationSpec.DocumentSpec::key,
+                                        java.util.function.Function.identity()));
+        var inputsByKey =
+                command.documents().stream()
+                        .collect(
+                                java.util.stream.Collectors.groupingBy(
+                                        AigcProjectDocumentInput::fieldKey));
+        for (var input : command.documents()) {
+            if (input == null
+                    || input.fieldKey() == null
+                    || input.fieldKey().isBlank()
+                    || !specifications.containsKey(input.fieldKey())) {
+                throw new BusinessException(
+                        GlobalErrorCode.BAD_REQUEST, "项目文档 fieldKey 未被 Blueprint 声明");
+            }
+        }
+        for (var specification : initialization.documents()) {
+            var inputs = inputsByKey.getOrDefault(specification.key(), List.of());
+            if (inputs.size() < specification.minCount()
+                    || inputs.size() > specification.maxCount()) {
+                throw new BusinessException(
+                        GlobalErrorCode.BAD_REQUEST,
+                        "项目文档数量不符合 Blueprint 约束: " + specification.label());
+            }
+            for (var input : inputs) {
+                var projectDocument = "PROJECT_DOCUMENT".equals(specification.referenceType());
+                if ((projectDocument && input.documentId() == null)
+                        || (!projectDocument
+                                && (input.documentVersionId() == null
+                                        || input.documentId() != null))
+                        || (projectDocument && input.documentVersionId() != null)) {
+                    throw new BusinessException(
+                            GlobalErrorCode.BAD_REQUEST, "项目文档引用类型与输入不匹配: " + specification.key());
+                }
+            }
+        }
+    }
+
+    private void materializeDocuments(
+            AigcProject project,
+            AigcProjectMaterializeCommand command,
+            AigcProjectInitializationSpec initialization) {
+        var specifications =
+                initialization.documents().stream()
+                        .collect(
+                                java.util.stream.Collectors.toMap(
+                                        AigcProjectInitializationSpec.DocumentSpec::key,
+                                        java.util.function.Function.identity()));
+        var instanceByKey = new LinkedHashMap<String, Integer>();
+        for (var input : command.documents()) {
+            var specification = specifications.get(input.fieldKey());
+            final DocumentVersionApi.DocumentVersionView selectedVersion;
+            if ("PROJECT_DOCUMENT".equals(specification.referenceType())) {
+                selectedVersion =
+                        documentVersionApi
+                                .findCurrent(List.of(input.documentId()))
+                                .get(input.documentId());
+                if (selectedVersion == null) {
+                    throw new BusinessException(GlobalErrorCode.NOT_FOUND, "项目文档当前版本不存在");
+                }
+                documentVersionApi.requireAccessible(
+                        selectedVersion.id(),
+                        project.getOwnerId(),
+                        project.getOrgId(),
+                        project.getWorkspaceId());
+            } else {
+                selectedVersion =
+                        documentVersionApi.requireAccessible(
+                                input.documentVersionId(),
+                                project.getOwnerId(),
+                                project.getOrgId(),
+                                project.getWorkspaceId());
+            }
+            var reference = new AigcProjectDocumentRef();
+            copyScope(project, reference);
+            reference.setProjectId(project.getId());
+            reference.setReferenceType(
+                    AigcProjectDocumentReferenceType.valueOf(specification.referenceType()));
+            reference.setDocumentId(selectedVersion.documentId());
+            reference.setSelectedDocumentVersionId(selectedVersion.id());
+            reference.setFieldKey(specification.key());
+            reference.setInstanceNo(instanceByKey.merge(specification.key(), 1, Integer::sum) - 1);
+            reference.setSource("blueprint");
+            reference.setContextNote(input.contextNote());
+            reference.setContextMode(
+                    AigcProjectDocumentContextMode.valueOf(specification.contextPolicy().mode()));
+            reference.setRole(specification.role());
+            reference.setSortOrder(specification.orderNo() + reference.getInstanceNo());
+            documentRefRepository.save(reference);
+        }
+    }
+
+    private Object initializationValue(AigcProjectMaterializeCommand command, String key) {
+        return switch (key) {
+            case "description" -> command.description();
+            case "background" -> command.background();
+            case "targetAudience" -> command.targetAudience();
+            case "requirements" -> command.requirements();
+            case "constraints" -> command.constraints();
+            case "keyFacts" -> command.keyFacts();
+            case "keyMessages" -> command.keyMessages();
+            case "styleGuidance" -> command.styleGuidance();
+            case "successCriteria" -> command.successCriteria();
+            case "deliveryRequirements" -> command.deliveryRequirements();
+            case "locale" -> command.locale();
+            case "additionalContext" -> command.additionalContext();
+            default -> null;
+        };
+    }
+
+    private boolean hasInitializationValue(Object value) {
+        return switch (value) {
+            case null -> false;
+            case String text -> !text.isBlank();
+            case java.util.Collection<?> collection -> !collection.isEmpty();
+            case Map<?, ?> map -> !map.isEmpty();
+            default -> true;
+        };
     }
 
     private void validateCover(AigcProjectMaterializeCommand command) {
@@ -376,24 +534,33 @@ public class AigcProjectMaterializer {
 
     private AigcProjectBlueprintSnapshotPayload blueprintSnapshot(
             AigcProjectMaterializeCommand command,
-            com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcResolvedConfiguration resolved,
+            AigcResolvedConfiguration resolved,
             String sourceRef) {
-        var raw = parseMap(resolved.snapshotJson());
-        var specification = new LinkedHashMap<String, Object>();
-        specification.put("package", raw.get("package"));
-        specification.put("projectType", raw.get("projectType"));
-        specification.put("blueprint", raw.get("blueprint"));
-        specification.put("domainExtension", raw.get("domainExtension"));
-        specification.put("channels", raw.get("channels"));
-        specification.put("executionBindings", resolved.executionBindings());
-        specification.put("productionMode", resolved.productionMode());
-        specification.put("budgetTier", command.budgetTier());
-        specification.put("qualityTier", command.qualityTier());
-        specification.put("slotOverrides", command.slotOverrides());
+        var specification =
+                new AigcProjectSpecification(
+                        command.projectTypeCode(),
+                        resolved.projectTypeVersion(),
+                        resolved.productionMode(),
+                        resolved.channelSpecVersionIds(),
+                        resolved.executionBindings(),
+                        command.description(),
+                        command.background(),
+                        command.targetAudience(),
+                        command.requirements(),
+                        command.constraints(),
+                        command.keyFacts(),
+                        command.keyMessages(),
+                        command.styleGuidance(),
+                        command.successCriteria(),
+                        command.deliveryRequirements(),
+                        command.locale(),
+                        command.additionalContext(),
+                        command.slotOverrides());
         return new AigcProjectBlueprintSnapshotPayload(
                 command.sourceType(),
                 sourceRef,
                 specification,
+                resolved.projectInitialization(),
                 resolved.slotTemplates(),
                 resolved.resolvedObjects(),
                 resolved.relations(),

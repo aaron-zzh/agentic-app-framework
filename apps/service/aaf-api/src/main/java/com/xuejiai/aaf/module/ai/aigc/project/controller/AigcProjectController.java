@@ -20,9 +20,15 @@ import com.xuejiai.aaf.module.ai.aigc.AigcAuthorities;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcDeliverableSetEvaluateCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcDeliverableSetManifestFreezeCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcDocumentCandidateCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcGenerationProposalScope;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcGenerationScope;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionAdoptCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionRejectCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectConversationBindCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectDocumentInput;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectGenerationProposalDraft;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectGenerationProposalRevisionCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectGenerationStartCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycleCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectMaterializeCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectMediaRefCommand;
@@ -34,6 +40,8 @@ import com.xuejiai.aaf.module.ai.aigc.project.api.AigcReviewDecisionCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcReviewSubmitCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcTextCandidateCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProject;
+import com.xuejiai.aaf.module.ai.aigc.project.service.AigcProjectGenerationMaterializationService;
+import com.xuejiai.aaf.module.ai.aigc.project.service.AigcProjectGenerationProposalService;
 import com.xuejiai.aaf.module.ai.aigc.project.service.AigcProjectService;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcDeliverableSetEvaluateDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcDeliverableSetFreezeDTO;
@@ -43,9 +51,15 @@ import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcObjectVersionRejectDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcObjectVersionVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectChannelRefVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectConfigSnapshotVO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentCandidateDTO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentDecisionDTO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentDecisionVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentRefDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentRefUpdateDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentRefVO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectGenerationProposalDTO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectGenerationProposalItemDTO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectGenerationProposalReviseDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectGraphVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectLifecycleDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectMaterializeDTO;
@@ -70,6 +84,8 @@ import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcTextCandidateDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 
@@ -83,7 +99,12 @@ public class AigcProjectController
         extends BaseCrudController<
                 AigcProject, AigcProjectVO, Void, AigcProjectUpdateDTO, AigcProjectPageDTO> {
 
+    /** 表单路径提议来源固定为用户，客户端不得声明 Assistant 来源。 */
+    private static final String USER_PROPOSAL_SOURCE_TYPE = "USER";
+
     private final AigcProjectService service;
+    private final AigcProjectGenerationProposalService proposals;
+    private final AigcProjectGenerationMaterializationService generations;
 
     @Override
     protected AigcProjectService getService() {
@@ -100,23 +121,129 @@ public class AigcProjectController
                                 OrgContext.getCurrentWorkspaceId(),
                                 request.name(),
                                 request.description(),
+                                request.background(),
+                                request.targetAudience(),
+                                request.requirements(),
+                                request.constraints(),
+                                request.keyFacts(),
+                                request.keyMessages(),
+                                request.styleGuidance(),
+                                request.successCriteria(),
+                                request.deliveryRequirements(),
+                                request.locale(),
+                                request.additionalContext(),
                                 request.sourceType(),
                                 request.sourceRef(),
                                 request.projectTypeCode(),
                                 request.blueprintVersionId(),
-                                request.domainExtensionVersionId(),
                                 request.brandProfileVersionIds(),
                                 request.channelSpecVersionIds(),
-                                request.documentVersionIds(),
+                                request.documents().stream()
+                                        .map(
+                                                document ->
+                                                        new AigcProjectDocumentInput(
+                                                                document.fieldKey(),
+                                                                document.documentId(),
+                                                                document.documentVersionId(),
+                                                                document.contextNote()))
+                                        .toList(),
                                 request.productionMode(),
-                                request.budgetTier(),
-                                request.qualityTier(),
                                 request.slotOverrides(),
-                                request.briefJson(),
                                 request.coverMode(),
                                 request.coverFileId(),
                                 request.coverPrompt(),
-                                request.coverIdempotencyKey())));
+                                request.coverIdempotencyKey(),
+                                request.approvedCreationProposal() == null
+                                        ? null
+                                        : new AigcProjectMaterializeCommand.CreationProposalRef(
+                                                request.approvedCreationProposal().draftId(),
+                                                request.approvedCreationProposal().proposalId(),
+                                                request.approvedCreationProposal()
+                                                        .proposalVersion(),
+                                                request.approvedCreationProposal()
+                                                        .proposalHash()))));
+    }
+
+    @Operation(summary = "解析项目受控 Assistant 会话")
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_READ)
+    @GetMapping("/{id}/conversation-context")
+    public Result<?> conversationContext(@PathVariable Long id) {
+        return Result.success(service.conversationContext(id));
+    }
+
+    @Operation(summary = "绑定项目 Assistant 并创建受控会话")
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_UPDATE)
+    @PostMapping("/{id}/conversation-context/_bind")
+    public Result<?> bindConversation(
+            @PathVariable Long id, @Valid @RequestBody ProjectConversationBindDTO request) {
+        return Result.success(
+                service.bindConversation(
+                        new AigcProjectConversationBindCommand(
+                                id, request.expectedProjectVersion(), request.assistantId())));
+    }
+
+    @Operation(summary = "查询项目生成 Proposal 列表")
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_READ)
+    @GetMapping("/{id}/generation-proposals")
+    public Result<?> generationProposals(@PathVariable Long id) {
+        return Result.success(proposals.list(id));
+    }
+
+    @Operation(summary = "创建待确认生成 Proposal")
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_UPDATE)
+    @PostMapping("/{id}/generation-proposals")
+    public Result<?> proposeGeneration(
+            @PathVariable Long id, @Valid @RequestBody AigcProjectGenerationProposalDTO request) {
+        return Result.success(
+                proposals.propose(
+                        new AigcProjectGenerationProposalDraft(
+                                AigcGenerationProposalScope.project(id),
+                                request.expectedProjectVersion(),
+                                USER_PROPOSAL_SOURCE_TYPE,
+                                null,
+                                request.confirmationPolicy(),
+                                null,
+                                request.expiresAt(),
+                                proposalItems(request.items()))));
+    }
+
+    @Operation(summary = "修订生成 Proposal 并产生新版本")
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_UPDATE)
+    @PostMapping("/{id}/generation-proposals/_revise")
+    public Result<?> reviseGeneration(
+            @PathVariable Long id,
+            @Valid @RequestBody AigcProjectGenerationProposalReviseDTO request) {
+        return Result.success(
+                proposals.revise(
+                        new AigcProjectGenerationProposalRevisionCommand(
+                                AigcGenerationProposalScope.project(id),
+                                request.proposalId(),
+                                request.proposalVersion(),
+                                request.proposalHash(),
+                                request.expectedProjectVersion(),
+                                null,
+                                request.confirmationPolicy(),
+                                null,
+                                request.expiresAt(),
+                                proposalItems(request.items()))));
+    }
+
+    @Operation(summary = "确认生成 Proposal 并启动唯一 canonical Task")
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_UPDATE)
+    @PostMapping("/{id}/generation-proposals/_approve-and-start")
+    public Result<?> approveAndStartGeneration(
+            @PathVariable Long id, @Valid @RequestBody ProjectGenerationStartDTO request) {
+        return Result.success(
+                generations.approveAndStart(
+                        new AigcProjectGenerationStartCommand(
+                                AigcGenerationProposalScope.project(id),
+                                request.expectedProjectVersion(),
+                                request.proposalId(),
+                                request.proposalVersion(),
+                                request.proposalHash(),
+                                request.approvedTargetKeys(),
+                                request.approvalIdempotencyKey(),
+                                null)));
     }
 
     @Operation(summary = "获取项目图谱")
@@ -171,7 +298,6 @@ public class AigcProjectController
                                 request.contractRole(),
                                 request.orderNo(),
                                 request.semanticRole(),
-                                request.plannedPhase(),
                                 request.outputContract(),
                                 request.schemaVersion(),
                                 request.payloadJson(),
@@ -429,6 +555,48 @@ public class AigcProjectController
         return Result.success(service.updateExternalDocumentReference(id, refId, request));
     }
 
+    @Operation(summary = "登记项目自产文档 candidate")
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_UPDATE)
+    @PostMapping("/{id}/document-refs/{refId}/candidates")
+    public Result<AigcProjectDocumentDecisionVO> recordProjectDocumentCandidate(
+            @PathVariable Long id,
+            @PathVariable Long refId,
+            @Valid @RequestBody AigcProjectDocumentCandidateDTO request) {
+        return Result.success(service.recordProjectDocumentCandidate(id, refId, request));
+    }
+
+    @Operation(summary = "获取项目文档 candidate 与决策审计")
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_READ)
+    @GetMapping("/{id}/document-refs/{refId}/candidates")
+    public Result<List<AigcProjectDocumentDecisionVO>> projectDocumentCandidates(
+            @PathVariable Long id, @PathVariable Long refId) {
+        return Result.success(service.projectDocumentCandidates(id, refId));
+    }
+
+    @Operation(summary = "采用项目文档 candidate")
+    @PreAuthorize(AigcAuthorities.HAS_OBJECT_VERSION_ADOPT)
+    @PostMapping("/{id}/document-refs/{refId}/candidates/{candidateId}/_adopt")
+    public Result<AigcProjectDocumentDecisionVO> adoptProjectDocumentCandidate(
+            @PathVariable Long id,
+            @PathVariable Long refId,
+            @PathVariable Long candidateId,
+            @Valid @RequestBody AigcProjectDocumentDecisionDTO request) {
+        return Result.success(
+                service.adoptProjectDocumentCandidate(id, refId, candidateId, request));
+    }
+
+    @Operation(summary = "否决项目文档 candidate")
+    @PreAuthorize(AigcAuthorities.HAS_OBJECT_VERSION_ADOPT)
+    @PostMapping("/{id}/document-refs/{refId}/candidates/{candidateId}/_reject")
+    public Result<AigcProjectDocumentDecisionVO> rejectProjectDocumentCandidate(
+            @PathVariable Long id,
+            @PathVariable Long refId,
+            @PathVariable Long candidateId,
+            @Valid @RequestBody AigcProjectDocumentDecisionDTO request) {
+        return Result.success(
+                service.rejectProjectDocumentCandidate(id, refId, candidateId, request));
+    }
+
     @PreAuthorize(AigcAuthorities.HAS_PROJECT_READ)
     @GetMapping("/{id}/document-refs")
     public Result<List<AigcProjectDocumentRefVO>> documentRefs(@PathVariable Long id) {
@@ -541,4 +709,34 @@ public class AigcProjectController
                 request.comment(),
                 request.idempotencyKey());
     }
+
+    /** 目标项映射：只搬运业务字段，成本与全部 hash 仍由服务端解析和冻结。 */
+    private static List<AigcProjectGenerationProposalDraft.Item> proposalItems(
+            List<AigcProjectGenerationProposalItemDTO> items) {
+        return items.stream()
+                .map(
+                        item ->
+                                new AigcProjectGenerationProposalDraft.Item(
+                                        item.targetType(),
+                                        item.targetKey(),
+                                        item.actionKey(),
+                                        item.generationInstruction(),
+                                        item.dependencyKeys(),
+                                        item.requiredContextKeys(),
+                                        item.modelPolicy(),
+                                        null,
+                                        item.confirmationPolicy()))
+                .toList();
+    }
+
+    public record ProjectConversationBindDTO(Integer expectedProjectVersion, String assistantId) {}
+
+    /** 单一原子生成启动请求；taskId 由服务端确定性派生，客户端不提交 Task 身份。 */
+    public record ProjectGenerationStartDTO(
+            @NotNull Integer expectedProjectVersion,
+            @NotBlank String proposalId,
+            @NotNull Integer proposalVersion,
+            @NotBlank String proposalHash,
+            @NotEmpty List<@NotBlank String> approvedTargetKeys,
+            @NotBlank String approvalIdempotencyKey) {}
 }

@@ -54,7 +54,7 @@ class JpaTaskMaterializationAdapterCancellationTest {
         var plans = mock(TaskPlanRepository.class);
         var nodes = mock(TaskNodeRepository.class);
         var dependencies = mock(TaskDependencyRepository.class);
-        var executions = mock(TaskExecutionRepository.class);
+        var executions = mock(AssistantTaskExecutionRepository.class);
         var dispatches = mock(TaskDispatchRepository.class);
         var inputs = mock(TaskInputRepository.class);
         var executorPlans = mock(ExecutorPlanRepository.class);

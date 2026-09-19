@@ -10,7 +10,10 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ArtifactCompletionContract.ArtifactCompletionEvaluator;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ArtifactCompletionContract.InvocationReceipt;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionInput;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Task;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Task.Owner;
@@ -54,6 +57,7 @@ public final class TaskCommandService {
     private final AssistantCommandPort assistants;
     private final AgentExecutionPort agentExecutions;
     private final TaskDispatchSignalPort dispatchSignals;
+    private final ArtifactCompletionEvaluator artifactCompletionEvaluator;
     private final Clock clock;
     private final Duration dispatchLeaseTtl;
     private final Duration pauseAckTimeout;
@@ -68,6 +72,7 @@ public final class TaskCommandService {
             AssistantCommandPort assistants,
             AgentExecutionPort agentExecutions,
             TaskDispatchSignalPort dispatchSignals,
+            ArtifactCompletionEvaluator artifactCompletionEvaluator,
             Clock clock,
             Duration dispatchLeaseTtl,
             Duration pauseAckTimeout) {
@@ -82,6 +87,9 @@ public final class TaskCommandService {
         this.assistants = Objects.requireNonNull(assistants, "assistants 不能为空");
         this.agentExecutions = Objects.requireNonNull(agentExecutions, "agentExecutions 不能为空");
         this.dispatchSignals = Objects.requireNonNull(dispatchSignals, "dispatchSignals 不能为空");
+        this.artifactCompletionEvaluator =
+                Objects.requireNonNull(
+                        artifactCompletionEvaluator, "artifactCompletionEvaluator 不能为空");
         this.clock = Objects.requireNonNull(clock, "clock 不能为空");
         this.dispatchLeaseTtl = Objects.requireNonNull(dispatchLeaseTtl, "dispatchLeaseTtl 不能为空");
         this.pauseAckTimeout = Objects.requireNonNull(pauseAckTimeout, "pauseAckTimeout 不能为空");
@@ -362,6 +370,40 @@ public final class TaskCommandService {
         return dispatches;
     }
 
+    /** 专业 Tool 在 durable accepted 后调用；普通文本 Tool 不进入此合同。 */
+    public Task awaitExternal(InvocationReceipt receipt, InvocationContext context) {
+        var result =
+                materializations.awaitExternal(
+                        TaskMaterializationPort.AwaitExternalCommand.from(
+                                receipt, context, clock.instant()));
+        return result.task();
+    }
+
+    /** AIGC AFTER_COMMIT 信号入口；信号仅缩小扫描范围，完成结论始终重新查询权威状态。 */
+    public int recoverExternal(Long executionRunId) {
+        Objects.requireNonNull(executionRunId, "executionRunId 不能为空");
+        return recoverExternal(materializations.findAwaitingExternalByRunId(executionRunId));
+    }
+
+    /** TaskDispatchScheduler.recover() 的补偿入口。 */
+    public int recoverExternal(int limit) {
+        return recoverExternal(materializations.findAwaitingExternal(limit));
+    }
+
+    private int recoverExternal(List<TaskMaterializationPort.AwaitingExternal> awaiting) {
+        var recovered = 0;
+        for (var candidate : awaiting) {
+            var receipt = candidate.receipt();
+            var evaluation = artifactCompletionEvaluator.evaluate(receipt);
+            var result = materializations.recoverExternal(receipt, evaluation, clock.instant());
+            result.releasedDispatches().forEach(this::signal);
+            if (result.transitioned()) {
+                recovered++;
+            }
+        }
+        return recovered;
+    }
+
     public Task resolveControllableTask(
             TenantId tenantId,
             UserId userId,
@@ -492,7 +534,7 @@ public final class TaskCommandService {
 
     public int recoverAndDispatch(String workerId, int limit) {
         var at = clock.instant();
-        var finalized = 0;
+        var finalized = recoverExternal(limit);
         for (var candidate : materializations.findCanceling(limit)) {
             if (materializations.finalizeCancellation(
                     candidate.tenantId(), candidate.taskId(), at)) {

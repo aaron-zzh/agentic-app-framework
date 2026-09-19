@@ -29,8 +29,17 @@ public class AigcProjectRevision {
     @Column(name = "project_id", nullable = false)
     private Long projectId;
 
+    @Column(name = "config_snapshot_id", nullable = false)
+    private Long configSnapshotId;
+
     @Column(name = "revision_no", nullable = false)
     private Integer revisionNo;
+
+    @Column(name = "project_version", nullable = false)
+    private Integer projectVersion;
+
+    @Column(name = "graph_revision", nullable = false)
+    private Integer graphRevision;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "changed_object_ids", nullable = false, columnDefinition = "jsonb")

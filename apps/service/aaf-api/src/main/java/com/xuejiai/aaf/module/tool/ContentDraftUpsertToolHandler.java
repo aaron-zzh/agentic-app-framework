@@ -50,29 +50,48 @@ public final class ContentDraftUpsertToolHandler implements ContextAwareToolHand
         var orgId = positiveLong(context.tenantId().value(), "可信 orgId");
         var arguments = invocation.arguments();
         rejectTrustedScopeArguments(arguments);
+        var artifactTarget = context.artifactTarget();
+        Long documentId =
+                artifactTarget == null
+                        ? null
+                        : positiveLong(artifactTarget.artifactId(), "可信 documentId");
+        Long expectedCurrentVersionId =
+                artifactTarget == null
+                        ? null
+                        : positiveLong(
+                                artifactTarget.artifactVersionId(), "可信 expectedCurrentVersionId");
         var saved =
                 documents.upsertDraft(
                         new DraftUpsertCommand(
+                                documentId,
+                                expectedCurrentVersionId,
                                 text(arguments, "title", 200),
                                 text(arguments, "content", 1_000_000),
                                 optionalText(arguments, "documentType", 50, "markdown"),
                                 ownerId,
                                 orgId,
                                 context.workspaceId()));
-        if (saved == null || saved.id() == null || saved.id() <= 0) {
-            throw new IllegalStateException("草稿保存未返回有效 artifactId");
+        if (saved == null
+                || saved.documentId() == null
+                || saved.documentId() <= 0
+                || saved.documentVersionId() == null
+                || saved.documentVersionId() <= 0) {
+            throw new IllegalStateException("草稿保存未返回有效文档版本证据");
         }
         var metadata = new LinkedHashMap<String, Object>();
         metadata.put("artifactState", "DRAFT");
         metadata.put("artifactType", "DOCUMENT");
-        metadata.put("artifactId", saved.id());
+        metadata.put("artifactId", saved.documentId());
+        metadata.put("artifactVersionId", saved.documentVersionId());
         metadata.put("reversible", true);
         metadata.put("completionEvidence", "DRAFT_COMMITTED");
         var output =
                 JsonUtils.toJsonString(
                         Map.of(
                                 "artifactId",
-                                saved.id(),
+                                saved.documentId(),
+                                "artifactVersionId",
+                                saved.documentVersionId(),
                                 "artifactState",
                                 "DRAFT",
                                 "published",
@@ -81,7 +100,14 @@ public final class ContentDraftUpsertToolHandler implements ContextAwareToolHand
     }
 
     private static void rejectTrustedScopeArguments(Map<String, Object> arguments) {
-        for (var field : java.util.List.of("ownerId", "orgId", "workspaceId", "publish")) {
+        for (var field :
+                java.util.List.of(
+                        "ownerId",
+                        "orgId",
+                        "workspaceId",
+                        "documentId",
+                        "expectedCurrentVersionId",
+                        "publish")) {
             if (arguments.containsKey(field)) {
                 throw new IllegalArgumentException(TOOL_NAME + " 不接受受信范围或发布参数: " + field);
             }

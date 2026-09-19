@@ -29,6 +29,7 @@ import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionSubmissi
 import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionTaskRefRepository;
 import com.xuejiai.aaf.module.ai.aigc.execution.vo.AigcActionOptionVO;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcGenerationScope;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectExecutionReservationBindCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectExecutionReservationCommand;
@@ -44,6 +45,11 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AigcActionCommandService implements AigcExecutionApi {
 
+    private static final List<String> PHASE_ONE_ACTIONS =
+            List.of("image.generate", "image.edit", "video.generate", "project.cover.generate");
+    private static final java.util.Set<String> PROFESSIONAL_TARGETS =
+            java.util.Set.of("aigc.image.generate", "aigc.image.edit", "aigc.video.generate");
+
     private static final Map<String, String> ACTION_LABELS =
             Map.ofEntries(
                     Map.entry("brief.refine", "完善简报"),
@@ -52,6 +58,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
                     Map.entry("image.generate", "生成图片"),
                     Map.entry("image.edit", "局部修改图片"),
                     Map.entry("video.generate", "生成视频"),
+                    Map.entry("project.cover.generate", "生成项目封面"),
                     Map.entry("deliverable.regenerate", "重新生成交付物"),
                     Map.entry("package.generate", "批量生成交付包"),
                     Map.entry("outline.generate", "生成文章提纲"),
@@ -78,7 +85,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
             com.xuejiai.aaf.module.ai.aigc.AigcAuthorities.HAS_PROJECT_READ)
     public List<AigcActionOptionVO> listActions(Long projectId) {
         var project = requireWritableProject(projectId, null);
-        return ACTION_LABELS.keySet().stream()
+        return PHASE_ONE_ACTIONS.stream()
                 .map(actionKey -> toOption(project, actionKey))
                 .flatMap(Optional::stream)
                 .toList();
@@ -209,6 +216,18 @@ public class AigcActionCommandService implements AigcExecutionApi {
     }
 
     private AigcExecutionRunView prepareSubmission(AigcActionCommand command) {
+        if (!PHASE_ONE_ACTIONS.contains(command.actionKey())) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "阶段一只允许确定性专业媒体动作");
+        }
+        if (command.prompt() == null || command.prompt().isBlank()) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "专业媒体 prompt 不能为空");
+        }
+        if (command.expectedProjectVersion() == null) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "专业媒体 projectVersion 不能为空");
+        }
+        if (command.expectedGraphRevision() == null) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "专业媒体 graphRevision 不能为空");
+        }
         var receipt = submissionService.record(command);
         var project = requireWritableProject(command.projectId(), command.actionKey());
         var submission =
@@ -246,6 +265,9 @@ public class AigcActionCommandService implements AigcExecutionApi {
             }
             return toApiView(runRepository.findById(existing.getId()).orElse(existing));
         }
+        if (!command.expectedProjectVersion().equals(project.version())) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "项目版本已变化");
+        }
         if ("INTENT_RECORDED".equals(submission.getStatus())) {
             if (submissionRepository.claimPreparing(submission.getId()) != 1) {
                 throw new BusinessException(409, "动作 submission 已被其他 owner 认领");
@@ -262,7 +284,12 @@ public class AigcActionCommandService implements AigcExecutionApi {
             supersedeCoverRuns(command.projectId(), "已提交新的封面生成请求");
         }
         var object = resolveObject(project, command);
+        requireActionReady(project, object, command);
         var binding = bindingResolver.resolve(project, command.actionKey());
+        if (!"tool".equalsIgnoreCase(binding.getTargetType())
+                || !PROFESSIONAL_TARGETS.contains(binding.getTargetRef())) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "专业媒体动作未绑定允许的 Tool target");
+        }
         validateBudget(project, binding);
         if (Boolean.TRUE.equals(binding.getConfirmationRequired()) && !command.confirmed()) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "动作需要确认后执行");
@@ -461,6 +488,12 @@ public class AigcActionCommandService implements AigcExecutionApi {
     @Override
     @Transactional
     public AigcExecutionRunView submitChild(AigcChildActionCommand command) {
+        if (!PHASE_ONE_ACTIONS.contains(command.actionKey())) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "阶段一子 Run 只允许专业媒体动作");
+        }
+        if (command.prompt() == null || command.prompt().isBlank()) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "专业媒体 prompt 不能为空");
+        }
         var parentSnapshot = requireAccessibleRun(command.parentExecutionRunId());
         if (!Objects.equals(parentSnapshot.getProjectId(), command.projectId())
                 || !Objects.equals(
@@ -527,6 +560,11 @@ public class AigcActionCommandService implements AigcExecutionApi {
                         .orElseThrow(
                                 () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "项目对象不存在"));
         var binding = bindingResolver.resolve(project, command.actionKey());
+        if (!"tool".equalsIgnoreCase(binding.getTargetType())
+                || !PROFESSIONAL_TARGETS.contains(binding.getTargetRef())) {
+            throw new BusinessException(
+                    GlobalErrorCode.BAD_REQUEST, "专业媒体子 Run 未绑定允许的 Tool target");
+        }
         var childCommand =
                 new AigcActionCommand(
                         command.projectId(),
@@ -537,6 +575,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
                         Map.of(),
                         command.attachmentMediaVersionIds(),
                         List.of(command.projectObjectId()),
+                        project.version(),
                         root.getTargetGraphRevision(),
                         true,
                         command.idempotencyKey());
@@ -672,6 +711,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
                         objectMap(previous.getEffectiveInput(), "actionArguments"),
                         previous.getAttachmentRefs(),
                         previous.getFrozenProjectObjectIds(),
+                        projectApi.requireProject(previous.getProjectId()).version(),
                         previous.getTargetGraphRevision(),
                         true,
                         idempotencyKey);
@@ -812,6 +852,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
                         objectMap(retry.getEffectiveInput(), "actionArguments"),
                         retry.getAttachmentRefs(),
                         List.of(retry.getObjectId()),
+                        integer(retry.getEffectiveInput(), "projectVersion"),
                         retry.getTargetGraphRevision(),
                         true,
                         "%s:%d".formatted(idempotencyKey, previous.getId()));
@@ -895,6 +936,48 @@ public class AigcActionCommandService implements AigcExecutionApi {
                 .orElseThrow(() -> new BusinessException(GlobalErrorCode.NOT_FOUND, "未找到动作目标对象"));
     }
 
+    private void requireActionReady(
+            AigcProjectView project, AigcProjectObjectView object, AigcActionCommand command) {
+        if (object == null) {
+            return;
+        }
+        var readiness =
+                projectApi.readiness(project.id(), generationScope(object)).stream()
+                        .filter(value -> object.id().equals(value.projectObjectId()))
+                        .findFirst()
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.BAD_REQUEST,
+                                                "目标对象不在当前 readiness scope"));
+        if (!readiness.allowedActions().contains(command.actionKey())) {
+            throw new BusinessException(
+                    GlobalErrorCode.BAD_REQUEST, "目标对象不允许动作: " + command.actionKey());
+        }
+        switch (readiness.state()) {
+            case READY, SATISFIED -> {
+                return;
+            }
+            case AWAITING_CONFIRMATION -> {
+                if (command.confirmed()) {
+                    return;
+                }
+                throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "专业媒体动作需要显式确认");
+            }
+            default ->
+                    throw new BusinessException(
+                            GlobalErrorCode.BAD_REQUEST,
+                            readiness.blockedReason() == null
+                                    ? "目标对象当前不可执行专业媒体动作"
+                                    : readiness.blockedReason());
+        }
+    }
+
+    private AigcGenerationScope generationScope(AigcProjectObjectView object) {
+        return new AigcGenerationScope(
+                "OPTIONAL".equals(object.contractRole()) ? List.of(object.id()) : List.of());
+    }
+
     private AigcExecutionRun createRootRun(
             AigcProjectView project,
             AigcProjectObjectView object,
@@ -939,6 +1022,29 @@ public class AigcActionCommandService implements AigcExecutionApi {
             AigcProjectView project, AigcProjectObjectView object, AigcActionCommand command) {
         var input = new LinkedHashMap<String, Object>();
         input.put("actionKey", command.actionKey());
+        input.put("projectVersion", project.version());
+        input.put("configurationSnapshotId", project.configurationSnapshotId());
+        input.put("snapshotHash", project.configurationSnapshotHash());
+        input.put("graphRevision", command.expectedGraphRevision());
+        input.put("confirmed", command.confirmed());
+        input.put(
+                "inputVersionIds",
+                object == null
+                        ? List.of()
+                        : projectApi.readiness(project.id(), generationScope(object)).stream()
+                                .filter(
+                                        readiness ->
+                                                object.id().equals(readiness.projectObjectId()))
+                                .findFirst()
+                                .map(
+                                        readiness ->
+                                                readiness.inputVersions().stream()
+                                                        .map(
+                                                                inputVersion ->
+                                                                        inputVersion
+                                                                                .objectVersionId())
+                                                        .toList())
+                                .orElse(List.of()));
         if (object != null) {
             input.put("objectId", object.id());
         }
@@ -975,6 +1081,8 @@ public class AigcActionCommandService implements AigcExecutionApi {
     private Optional<AigcActionOptionVO> toOption(AigcProjectView project, String actionKey) {
         return bindingResolver
                 .resolveOptional(project, actionKey)
+                .filter(binding -> "tool".equalsIgnoreCase(binding.getTargetType()))
+                .filter(binding -> PROFESSIONAL_TARGETS.contains(binding.getTargetRef()))
                 .map(
                         binding ->
                                 new AigcActionOptionVO(
@@ -990,8 +1098,10 @@ public class AigcActionCommandService implements AigcExecutionApi {
         return switch (actionKey) {
             case "brief.refine" -> List.of("brief");
             case "concept.generate" -> List.of("creative_concept");
-            case "image.generate", "image.edit" -> List.of("image_deliverable", "shot_keyframe");
+            case "image.generate", "image.edit", "image.highlight_generate" ->
+                    List.of("image_deliverable", "shot_keyframe");
             case "video.generate" -> List.of("video_deliverable");
+            case "project.cover.generate" -> List.of();
             case "package.generate" -> List.of("deliverable_set");
             case "outline.generate" -> List.of("article_outline");
             case "article.draft", "article.rewrite", "article.seo_optimize" ->
@@ -1115,6 +1225,11 @@ public class AigcActionCommandService implements AigcExecutionApi {
             return null;
         }
         return String.valueOf(value);
+    }
+
+    private Integer integer(Map<String, Object> payload, String field) {
+        var value = value(payload, field);
+        return value instanceof Number number ? number.intValue() : null;
     }
 
     private Map<String, Object> objectMap(Map<String, Object> payload, String field) {

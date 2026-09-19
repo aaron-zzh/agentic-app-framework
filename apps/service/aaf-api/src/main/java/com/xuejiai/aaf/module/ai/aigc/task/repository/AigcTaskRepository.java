@@ -73,7 +73,7 @@ public interface AigcTaskRepository extends CrudEntityRepository<AigcTask> {
 
     List<AigcTask> findByStatusAndType(String status, String type);
 
-    List<AigcTask> findByProjectIdOrderByIdAsc(Long projectId);
+    List<AigcTask> findByProjectIdAndUserIdOrderByIdAsc(Long projectId, Long userId);
 
     Optional<AigcTask> findByExecutionRunIdAndIdempotencyKey(
             Long executionRunId, String idempotencyKey);

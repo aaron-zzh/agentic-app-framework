@@ -8,6 +8,9 @@ public record AigcProjectObjectCommand(
         String displayName,
         String contractRole,
         Integer orderNo,
+        String semanticRole,
+        String outputContract,
         String schemaVersion,
         String payloadJson,
-        Integer expectedProjectVersion) {}
+        Integer expectedProjectVersion,
+        Long expectedGraphRevision) {}

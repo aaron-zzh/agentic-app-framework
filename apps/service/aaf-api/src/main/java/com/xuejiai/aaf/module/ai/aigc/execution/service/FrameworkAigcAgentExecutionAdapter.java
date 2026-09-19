@@ -78,6 +78,7 @@ public class FrameworkAigcAgentExecutionAdapter implements AigcAgentExecutionPor
                         new TenantId(command.orgId().toString()),
                         new UserId(command.userId().toString()),
                         command.workspaceId(),
+                        command.projectId(),
                         null,
                         new ConversationId("aigc-project:" + command.projectId()),
                         new SessionId(identity),

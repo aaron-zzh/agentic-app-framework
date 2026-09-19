@@ -8,7 +8,6 @@ import jakarta.validation.constraints.PositiveOrZero;
 public record AigcExecutionBindingUpdateDTO(
         String actionKey,
         String projectTypeCode,
-        String domainExtensionCode,
         String productionMode,
         String channelCode,
         String targetType,

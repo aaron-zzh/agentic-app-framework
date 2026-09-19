@@ -8,6 +8,7 @@ import java.util.UUID;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 
 /** 通用 Assistant 无会话执行请求。 */
 public record AssistantExecutionRequest(
@@ -27,7 +28,12 @@ public record AssistantExecutionRequest(
             @NotNull RouteConstraint routeConstraint,
             @NotNull ClarificationPolicy clarificationPolicy,
             @NotNull ActionAuthorizationPolicy actionAuthorizationPolicy,
-            @NotNull ArtifactPersistence artifactPersistence) {}
+            @NotNull ArtifactPersistence artifactPersistence,
+            @Valid ArtifactTarget artifactTarget) {}
+
+    /** 自动保存草稿时可选的既有文档 CAS 目标；省略表示明确创建新文档。 */
+    public record ArtifactTarget(
+            @NotNull @Positive Long documentId, @NotNull @Positive Long expectedCurrentVersionId) {}
 
     /** 固定 Route 的 Role 选择；仅作为待校验输入。 */
     public record RoleSelection(String key) {}

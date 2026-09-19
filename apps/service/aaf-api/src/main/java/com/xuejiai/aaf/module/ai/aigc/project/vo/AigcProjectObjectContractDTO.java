@@ -5,4 +5,6 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 
 public record AigcProjectObjectContractDTO(
-        @NotBlank String contractRole, @NotNull @PositiveOrZero Integer expectedProjectVersion) {}
+        @NotBlank String contractRole,
+        @NotNull @PositiveOrZero Integer expectedProjectVersion,
+        @NotNull @PositiveOrZero Long expectedGraphRevision) {}

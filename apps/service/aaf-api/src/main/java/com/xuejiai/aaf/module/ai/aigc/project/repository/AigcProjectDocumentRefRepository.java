@@ -22,11 +22,12 @@ public interface AigcProjectDocumentRefRepository
             Long documentId,
             String role);
 
-    Optional<AigcProjectDocumentRef> findByProjectIdAndReferenceTypeAndDocumentVersionIdAndRole(
-            Long projectId,
-            AigcProjectDocumentReferenceType referenceType,
-            Long documentVersionId,
-            String role);
+    Optional<AigcProjectDocumentRef>
+            findByProjectIdAndReferenceTypeAndSelectedDocumentVersionIdAndRole(
+                    Long projectId,
+                    AigcProjectDocumentReferenceType referenceType,
+                    Long selectedDocumentVersionId,
+                    String role);
 
     @Query(
             """
@@ -58,7 +59,7 @@ public interface AigcProjectDocumentRefRepository
 
     @Query(
             """
-            select distinct reference.documentVersionId
+            select distinct reference.selectedDocumentVersionId
             from AigcProjectDocumentRef reference, AigcProject project
             where project.id = reference.projectId
               and reference.referenceType = :referenceType
@@ -87,7 +88,7 @@ public interface AigcProjectDocumentRefRepository
     @Query(
             """
             select reference.documentId as documentId,
-                   reference.documentVersionId as documentVersionId,
+                   reference.selectedDocumentVersionId as documentVersionId,
                    project.id as projectId,
                    project.name as projectName
             from AigcProjectDocumentRef reference, AigcProject project

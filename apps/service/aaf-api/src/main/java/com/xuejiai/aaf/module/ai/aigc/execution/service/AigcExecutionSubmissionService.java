@@ -64,6 +64,10 @@ public class AigcExecutionSubmissionService {
                                         "selectedProjectObjectIds",
                                                 requestPayload.get("selectedProjectObjectIds")),
                                 Map.of(
+                                        "expectedProjectVersion",
+                                        command.expectedProjectVersion() == null
+                                                ? -1
+                                                : command.expectedProjectVersion(),
                                         "expectedGraphRevision",
                                         command.expectedGraphRevision() == null
                                                 ? -1L
@@ -243,6 +247,7 @@ public class AigcExecutionSubmissionService {
                 objectMap(payload.get("actionArguments")),
                 longList(payload.get("attachmentMediaVersionIds")),
                 longList(payload.get("selectedProjectObjectIds")),
+                integerValue(payload.get("expectedProjectVersion")),
                 longValue(payload.get("expectedGraphRevision")),
                 Boolean.TRUE.equals(payload.get("confirmed")),
                 submission.getIdempotencyKey());
@@ -263,9 +268,14 @@ public class AigcExecutionSubmissionService {
         result.put(
                 "selectedProjectObjectIds",
                 command.selectedProjectObjectIds().stream().distinct().sorted().toList());
+        result.put("expectedProjectVersion", command.expectedProjectVersion());
         result.put("expectedGraphRevision", command.expectedGraphRevision());
         result.put("confirmed", command.confirmed());
         return java.util.Collections.unmodifiableMap(result);
+    }
+
+    private Integer integerValue(Object value) {
+        return value instanceof Number number ? number.intValue() : null;
     }
 
     private Long longValue(Object value) {

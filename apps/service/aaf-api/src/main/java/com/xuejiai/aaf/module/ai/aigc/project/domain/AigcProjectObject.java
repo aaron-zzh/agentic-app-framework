@@ -42,6 +42,18 @@ public class AigcProjectObject extends BaseEntity {
     @Column(name = "contract_role", nullable = false, length = 32)
     private String contractRole = "OPTIONAL";
 
+    @Column(name = "semantic_role", nullable = false, length = 32)
+    private String semanticRole;
+
+    @Column(name = "planned_phase", nullable = false, length = 32)
+    private String plannedPhase;
+
+    @Column(name = "output_contract", nullable = false, length = 32)
+    private String outputContract;
+
+    @Column(name = "default_action_key", length = 64)
+    private String defaultActionKey;
+
     @Column(name = "parent_id")
     private Long parentId;
 
@@ -52,7 +64,7 @@ public class AigcProjectObject extends BaseEntity {
     private String title;
 
     @Column(nullable = false, length = 32)
-    private String status = "empty";
+    private String status = "EMPTY";
 
     @Column(nullable = false, length = 32)
     private String source = "user";

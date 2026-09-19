@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 public record AigcActionCommandDTO(
         Long objectId,
@@ -15,7 +16,8 @@ public record AigcActionCommandDTO(
         Map<String, Object> actionArguments,
         List<Long> attachmentMediaVersionIds,
         List<Long> selectedProjectObjectIds,
-        Long expectedGraphRevision,
+        @NotNull Integer expectedProjectVersion,
+        @NotNull Long expectedGraphRevision,
         Boolean confirmed,
         @NotBlank String idempotencyKey) {
 

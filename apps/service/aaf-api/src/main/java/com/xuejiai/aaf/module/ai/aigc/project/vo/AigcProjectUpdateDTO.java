@@ -1,11 +1,15 @@
 package com.xuejiai.aaf.module.ai.aigc.project.vo;
 
+import java.util.List;
+import java.util.Map;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.crud.definition.Patch;
+import com.xuejiai.aaf.module.ai.aigc.configuration.vo.AigcConfigurationPatchDecoder;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -15,14 +19,34 @@ import tools.jackson.databind.JsonNode;
 public record AigcProjectUpdateDTO(
         Patch<String> name,
         Patch<String> description,
-        Patch<String> brief,
+        Patch<String> background,
+        Patch<String> targetAudience,
+        Patch<List<String>> requirements,
+        Patch<List<String>> constraints,
+        Patch<List<String>> keyFacts,
+        Patch<List<String>> keyMessages,
+        Patch<String> styleGuidance,
+        Patch<List<String>> successCriteria,
+        Patch<Map<String, Object>> deliveryRequirements,
+        Patch<String> locale,
+        Patch<String> additionalContext,
         Patch<AigcProjectCoverPatchDTO> cover,
         @NotNull @PositiveOrZero Integer expectedVersion) {
 
     public AigcProjectUpdateDTO {
         name = normalize(name);
         description = normalize(description);
-        brief = normalize(brief);
+        background = normalize(background);
+        targetAudience = normalize(targetAudience);
+        requirements = normalize(requirements);
+        constraints = normalize(constraints);
+        keyFacts = normalize(keyFacts);
+        keyMessages = normalize(keyMessages);
+        styleGuidance = normalize(styleGuidance);
+        successCriteria = normalize(successCriteria);
+        deliveryRequirements = normalize(deliveryRequirements);
+        locale = normalize(locale);
+        additionalContext = normalize(additionalContext);
         cover = normalize(cover);
     }
 
@@ -30,13 +54,33 @@ public record AigcProjectUpdateDTO(
     public static AigcProjectUpdateDTO fromJson(
             @JsonProperty("name") JsonNode name,
             @JsonProperty("description") JsonNode description,
-            @JsonProperty("brief") JsonNode brief,
+            @JsonProperty("background") JsonNode background,
+            @JsonProperty("targetAudience") JsonNode targetAudience,
+            @JsonProperty("requirements") JsonNode requirements,
+            @JsonProperty("constraints") JsonNode constraints,
+            @JsonProperty("keyFacts") JsonNode keyFacts,
+            @JsonProperty("keyMessages") JsonNode keyMessages,
+            @JsonProperty("styleGuidance") JsonNode styleGuidance,
+            @JsonProperty("successCriteria") JsonNode successCriteria,
+            @JsonProperty("deliveryRequirements") JsonNode deliveryRequirements,
+            @JsonProperty("locale") JsonNode locale,
+            @JsonProperty("additionalContext") JsonNode additionalContext,
             @JsonProperty("cover") JsonNode cover,
             @JsonProperty("expectedVersion") Integer expectedVersion) {
         return new AigcProjectUpdateDTO(
                 Patch.parse(name, AigcProjectUpdateDTO::decodeName),
                 Patch.parse(description, node -> decodeString(node, "项目描述")),
-                Patch.parse(brief, node -> decodeString(node, "项目简报")),
+                Patch.parse(background, node -> decodeString(node, "项目背景")),
+                Patch.parse(targetAudience, node -> decodeString(node, "目标受众")),
+                Patch.parse(requirements, AigcConfigurationPatchDecoder::stringList),
+                Patch.parse(constraints, AigcConfigurationPatchDecoder::stringList),
+                Patch.parse(keyFacts, AigcConfigurationPatchDecoder::stringList),
+                Patch.parse(keyMessages, AigcConfigurationPatchDecoder::stringList),
+                Patch.parse(styleGuidance, node -> decodeString(node, "风格要求")),
+                Patch.parse(successCriteria, AigcConfigurationPatchDecoder::stringList),
+                Patch.parse(deliveryRequirements, AigcConfigurationPatchDecoder::objectMap),
+                Patch.parse(locale, node -> decodeString(node, "语言地区")),
+                Patch.parse(additionalContext, node -> decodeString(node, "补充上下文")),
                 Patch.parse(cover, AigcProjectUpdateDTO::decodeCover),
                 expectedVersion);
     }

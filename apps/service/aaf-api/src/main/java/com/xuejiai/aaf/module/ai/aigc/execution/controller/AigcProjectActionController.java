@@ -50,6 +50,7 @@ public class AigcProjectActionController {
                                 request.actionArguments(),
                                 request.attachmentMediaVersionIds(),
                                 request.selectedProjectObjectIds(),
+                                request.expectedProjectVersion(),
                                 request.expectedGraphRevision(),
                                 Boolean.TRUE.equals(request.confirmed()),
                                 request.idempotencyKey())));

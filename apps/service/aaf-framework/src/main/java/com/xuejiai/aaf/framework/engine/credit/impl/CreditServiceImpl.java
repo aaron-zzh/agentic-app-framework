@@ -2,6 +2,7 @@ package com.xuejiai.aaf.framework.engine.credit.impl;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -15,6 +16,7 @@ import com.xuejiai.aaf.framework.engine.credit.CreditService;
 import com.xuejiai.aaf.framework.engine.credit.CreditTransaction;
 import com.xuejiai.aaf.framework.engine.credit.CreditTransactionRepository;
 import com.xuejiai.aaf.framework.engine.credit.CreditTransactionType;
+import com.xuejiai.aaf.framework.engine.credit.CreditTransactionView;
 import com.xuejiai.aaf.framework.engine.credit.UpgradeSettlement;
 
 import lombok.RequiredArgsConstructor;
@@ -428,6 +430,55 @@ public class CreditServiceImpl implements CreditService {
             return org.springframework.data.domain.Page.empty(pageable);
         }
         return transactionRepository.findByAccountId(account.getId(), pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CreditTransactionView> findTransactions(
+            Long userId, Collection<Long> transactionIds) {
+        if (transactionIds == null || transactionIds.isEmpty()) {
+            return List.of();
+        }
+        var account = accountRepository.findByUserId(userId).orElse(null);
+        if (account == null) {
+            return List.of();
+        }
+        return transactionRepository
+                .findByAccountIdAndIdInAndDeletedFalse(account.getId(), transactionIds)
+                .stream()
+                .map(this::toTransactionView)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CreditTransactionView> findRefunds(
+            Long userId, Collection<Long> originalTransactionIds) {
+        if (originalTransactionIds == null || originalTransactionIds.isEmpty()) {
+            return List.of();
+        }
+        var account = accountRepository.findByUserId(userId).orElse(null);
+        if (account == null) {
+            return List.of();
+        }
+        return transactionRepository
+                .findRefundsForOriginalTxIds(
+                        account.getId(),
+                        originalTransactionIds.stream().map(String::valueOf).toList())
+                .stream()
+                .map(this::toTransactionView)
+                .toList();
+    }
+
+    private CreditTransactionView toTransactionView(CreditTransaction transaction) {
+        return new CreditTransactionView(
+                transaction.getId(),
+                transaction.getType().name(),
+                transaction.getAmount(),
+                transaction.getSource(),
+                transaction.getBizType(),
+                transaction.getBizId(),
+                transaction.getBatchType());
     }
 
     @Override

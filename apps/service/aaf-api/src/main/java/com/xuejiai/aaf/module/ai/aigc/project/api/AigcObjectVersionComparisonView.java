@@ -13,6 +13,7 @@ public record AigcObjectVersionComparisonView(
             Long objectVersionId,
             String status,
             Map<String, Object> content,
+            Long documentId,
             Long documentVersionId,
             List<Long> mediaVersionIds,
             Long sourceExecutionRunId,

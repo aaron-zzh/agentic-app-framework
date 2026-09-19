@@ -3,12 +3,14 @@ package com.xuejiai.aaf.module.ai.aigc.execution.event;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ArtifactCompletionContract.CompletionSignal;
 import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionRunRepository;
 import com.xuejiai.aaf.module.ai.aigc.execution.service.AigcExecutionTerminalService;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
@@ -24,6 +26,7 @@ public class AigcProjectCandidateRegisteredListener {
     private final AigcExecutionRunRepository runRepository;
     private final AigcProjectApi projectApi;
     private final AigcExecutionTerminalService terminalService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
@@ -57,5 +60,6 @@ public class AigcProjectCandidateRegisteredListener {
         run.setVersion(run.getVersion() + 1);
         runRepository.save(run);
         terminalService.onRunTerminal(run);
+        eventPublisher.publishEvent(new CompletionSignal(run.getId()));
     }
 }

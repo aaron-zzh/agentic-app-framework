@@ -15,6 +15,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantCommand;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ArtifactCompletionContract.Evaluation;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ArtifactCompletionContract.InvocationReceipt;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Execution;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionInput;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionResumePolicy;
@@ -42,7 +44,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 
 /** PostgreSQL canonical node materialization 与 dispatch fencing 实现。 */
-public final class JpaTaskMaterializationAdapter implements TaskMaterializationPort {
+public class JpaTaskMaterializationAdapter implements TaskMaterializationPort {
     private static final String PAUSE_REQUEST_ID = "pauseRequestId";
     private static final String PAUSE_TARGETS = "pauseTargets";
     private static final String PAUSE_ACKS = "pauseAcks";
@@ -60,7 +62,7 @@ public final class JpaTaskMaterializationAdapter implements TaskMaterializationP
     private final TaskPlanRepository plans;
     private final TaskNodeRepository nodes;
     private final TaskDependencyRepository dependencies;
-    private final TaskExecutionRepository executions;
+    private final AssistantTaskExecutionRepository executions;
     private final TaskDispatchRepository dispatches;
     private final TaskInputRepository inputs;
     private final ExecutorPlanRepository executorPlans;
@@ -72,7 +74,7 @@ public final class JpaTaskMaterializationAdapter implements TaskMaterializationP
             TaskPlanRepository plans,
             TaskNodeRepository nodes,
             TaskDependencyRepository dependencies,
-            TaskExecutionRepository executions,
+            AssistantTaskExecutionRepository executions,
             TaskDispatchRepository dispatches,
             TaskInputRepository inputs,
             ExecutorPlanRepository executorPlans,
@@ -2371,6 +2373,254 @@ public final class JpaTaskMaterializationAdapter implements TaskMaterializationP
                         predecessors(command.tenantId(), executionEntity.getExecution())),
                 released,
                 null);
+    }
+
+    @Override
+    @Transactional
+    public AwaitExternalResult awaitExternal(AwaitExternalCommand command) {
+        Objects.requireNonNull(command, "command 不能为空");
+        var receipt = command.receipt();
+        var taskEntity =
+                tasks.findForUpdate(receipt.tenantId().value(), receipt.taskId().value())
+                        .orElseThrow(() -> stale("Task 不存在"));
+        var task = taskEntity.getTask();
+        if (!Objects.equals(task.currentPlanId(), receipt.planId())
+                || !Objects.equals(task.currentPlanRevision(), receipt.planRevision())
+                || task.status() != Task.Status.RUNNING
+                || task.rootResult() != null) {
+            throw stale("Task current plan/status changed");
+        }
+        var planEntity =
+                plans.findCurrentForUpdate(
+                                receipt.tenantId().value(),
+                                receipt.taskId().value(),
+                                receipt.planId(),
+                                receipt.planRevision())
+                        .orElseThrow(() -> stale("current plan 不存在"));
+        if (!TaskPlan.PlanStatus.FROZEN.name().equals(planEntity.getStatus())) {
+            throw stale("current plan is not frozen");
+        }
+        var executionEntity =
+                executions
+                        .findForUpdate(receipt.tenantId().value(), receipt.executionId().value())
+                        .orElseThrow(() -> stale("Execution 不存在"));
+        var execution = executionEntity.getExecution();
+        if (execution.scope() != Execution.Scope.TASK_NODE
+                || !receipt.taskId().equals(execution.taskId())
+                || !receipt.planId().equals(execution.planId())
+                || !Objects.equals(receipt.planRevision(), execution.planRevision())) {
+            throw stale("receipt 与 TASK_NODE Execution identity 不一致");
+        }
+        var nodeEntity =
+                nodes.findNodeForUpdate(
+                                receipt.tenantId().value(),
+                                receipt.taskId().value(),
+                                receipt.planId(),
+                                receipt.planRevision(),
+                                execution.nodeId())
+                        .orElseThrow(() -> stale("TaskNode 不存在"));
+        var frozen = executionEntity.getArtifactCompletionReceipt();
+        if (execution.status() == Execution.Status.AWAITING_EXTERNAL
+                && TaskPlan.Status.AWAITING_EXTERNAL.name().equals(nodeEntity.getStatus())
+                && Objects.equals(frozen, receipt)
+                && Objects.equals(nodeEntity.getCurrentExecutionId(), receipt.executionId().value())
+                && Objects.equals(nodeEntity.getCurrentAttempt(), execution.attemptNo())) {
+            return new AwaitExternalResult(task, false);
+        }
+        var dispatchEntity =
+                dispatches
+                        .findActiveForUpdate(
+                                receipt.tenantId().value(), receipt.executionId().value())
+                        .orElseThrow(() -> stale("active dispatch missing"));
+        var dispatch = dispatchEntity.getDispatch();
+        if (frozen != null
+                || execution.status() != Execution.Status.RUNNING
+                || !TaskPlan.Status.RUNNING.name().equals(nodeEntity.getStatus())
+                || !Objects.equals(
+                        nodeEntity.getCurrentExecutionId(), receipt.executionId().value())
+                || !Objects.equals(nodeEntity.getCurrentAttempt(), execution.attemptNo())
+                || receipt.dispatchFencingToken() != dispatch.fencingToken()
+                || !dispatch.accepts(
+                        command.dispatchId(),
+                        command.dispatchGeneration(),
+                        receipt.dispatchFencingToken(),
+                        command.dispatchLeaseOwner(),
+                        command.at())) {
+            throw stale("stale execution/attempt/dispatch generation/fence");
+        }
+        executionEntity.setArtifactCompletionReceipt(receipt);
+        executionEntity.setExecution(
+                execution.withStatus(Execution.Status.AWAITING_EXTERNAL, command.at()));
+        nodeEntity.setStatus(TaskPlan.Status.AWAITING_EXTERNAL.name());
+        dispatchEntity.setDispatch(
+                terminalDispatch(
+                        dispatch,
+                        TaskDispatch.Status.DONE,
+                        "awaiting external artifact",
+                        command.at()));
+        executions.save(executionEntity);
+        nodes.save(nodeEntity);
+        dispatches.saveAndFlush(dispatchEntity);
+        return new AwaitExternalResult(task, true);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AwaitingExternal> findAwaitingExternal(int limit) {
+        if (limit < 1 || limit > 100) {
+            throw new IllegalArgumentException("limit 必须在 1..100");
+        }
+        return executions
+                .findByStatusOrderByUpdatedAtAscIdAsc(
+                        Execution.Status.AWAITING_EXTERNAL.name(), PageRequest.of(0, limit))
+                .stream()
+                .map(TaskExecutionEntity::getArtifactCompletionReceipt)
+                .filter(Objects::nonNull)
+                .map(AwaitingExternal::new)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AwaitingExternal> findAwaitingExternalByRunId(Long executionRunId) {
+        Objects.requireNonNull(executionRunId, "executionRunId 不能为空");
+        return executions.findAwaitingExternalByRunId(executionRunId).stream()
+                .map(TaskExecutionEntity::getArtifactCompletionReceipt)
+                .filter(Objects::nonNull)
+                .map(AwaitingExternal::new)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public ExternalRecoveryResult recoverExternal(
+            InvocationReceipt receipt, Evaluation evaluation, Instant at) {
+        Objects.requireNonNull(receipt, "receipt 不能为空");
+        Objects.requireNonNull(evaluation, "evaluation 不能为空");
+        Objects.requireNonNull(at, "at 不能为空");
+        var taskEntity =
+                tasks.findForUpdate(receipt.tenantId().value(), receipt.taskId().value())
+                        .orElse(null);
+        if (taskEntity == null) {
+            return new ExternalRecoveryResult(false, List.of());
+        }
+        var task = taskEntity.getTask();
+        if (!Objects.equals(task.currentPlanId(), receipt.planId())
+                || !Objects.equals(task.currentPlanRevision(), receipt.planRevision())
+                || task.status() != Task.Status.RUNNING
+                || task.rootResult() != null) {
+            return new ExternalRecoveryResult(false, List.of());
+        }
+        var planEntity =
+                plans.findCurrentForUpdate(
+                                receipt.tenantId().value(),
+                                receipt.taskId().value(),
+                                receipt.planId(),
+                                receipt.planRevision())
+                        .orElse(null);
+        var executionEntity =
+                executions
+                        .findForUpdate(receipt.tenantId().value(), receipt.executionId().value())
+                        .orElse(null);
+        if (planEntity == null
+                || executionEntity == null
+                || !TaskPlan.PlanStatus.FROZEN.name().equals(planEntity.getStatus())
+                || !Objects.equals(executionEntity.getArtifactCompletionReceipt(), receipt)) {
+            return new ExternalRecoveryResult(false, List.of());
+        }
+        var execution = executionEntity.getExecution();
+        var nodeEntity =
+                nodes.findNodeForUpdate(
+                                receipt.tenantId().value(),
+                                receipt.taskId().value(),
+                                receipt.planId(),
+                                receipt.planRevision(),
+                                execution.nodeId())
+                        .orElse(null);
+        if (nodeEntity == null
+                || execution.status() != Execution.Status.AWAITING_EXTERNAL
+                || !TaskPlan.Status.AWAITING_EXTERNAL.name().equals(nodeEntity.getStatus())
+                || !Objects.equals(
+                        nodeEntity.getCurrentExecutionId(), receipt.executionId().value())
+                || !Objects.equals(nodeEntity.getCurrentAttempt(), execution.attemptNo())
+                || dispatches
+                        .findActiveForUpdate(
+                                receipt.tenantId().value(), receipt.executionId().value())
+                        .isPresent()) {
+            return new ExternalRecoveryResult(false, List.of());
+        }
+        if (!evaluation.completed() && !evaluation.terminalFailure()) {
+            executionEntity.setExecution(
+                    execution.withStatus(Execution.Status.AWAITING_EXTERNAL, at));
+            executions.saveAndFlush(executionEntity);
+            return new ExternalRecoveryResult(false, List.of());
+        }
+        if (evaluation.terminalFailure()) {
+            var failure = externalFailure(evaluation);
+            nodeEntity.setStatus(TaskPlan.Status.FAILED.name());
+            nodeEntity.setFailure(failure);
+            executionEntity.setExecution(execution.withStatus(Execution.Status.FAILED, at));
+            var nextTaskStatus =
+                    TaskPlan.FailurePolicy.FAIL_TASK.name().equals(planEntity.getFailurePolicy())
+                            ? Task.Status.FAILED
+                            : Task.Status.PAUSED;
+            taskEntity.setTask(
+                    task.withRuntime(
+                            nextTaskStatus,
+                            task.owner(),
+                            task.budgetUsage(),
+                            task.checkpoint().withAnnotation("externalArtifactFailure", failure),
+                            task.recoveryPoint(),
+                            at));
+            nodes.save(nodeEntity);
+            executions.save(executionEntity);
+            tasks.saveAndFlush(taskEntity);
+            return new ExternalRecoveryResult(true, List.of());
+        }
+        var previous =
+                dispatches
+                        .findFirstByTenantIdAndExecutionIdOrderByIdDesc(
+                                receipt.tenantId().value(), receipt.executionId().value())
+                        .orElseThrow(() -> stale("AWAITING_EXTERNAL Execution 缺少历史 Dispatch"))
+                        .getDispatch();
+        executionEntity.setExecution(execution.withStatus(Execution.Status.DISPATCHED, at));
+        executionEntity.setCommand(
+                executionEntity.getCommand().withoutDispatch(null, at).asResume(at));
+        nodeEntity.setStatus(TaskPlan.Status.READY.name());
+        var dispatch =
+                new TaskDispatch(
+                        "dispatch:" + UUID.randomUUID(),
+                        receipt.tenantId(),
+                        receipt.executionId(),
+                        TaskDispatch.Status.PENDING,
+                        at,
+                        null,
+                        null,
+                        previous.generation() + 1,
+                        dispatches.nextFence(),
+                        0,
+                        null,
+                        0,
+                        at,
+                        at);
+        var dispatchEntity = new TaskDispatchEntity();
+        dispatchEntity.setDispatch(dispatch);
+        executions.save(executionEntity);
+        nodes.save(nodeEntity);
+        dispatches.saveAndFlush(dispatchEntity);
+        return new ExternalRecoveryResult(
+                true,
+                List.of(
+                        new MaterializedDispatch(
+                                receipt.tenantId(), receipt.taskId(), dispatch.dispatchId())));
+    }
+
+    private static String externalFailure(Evaluation evaluation) {
+        var detail =
+                evaluation.blockers().isEmpty()
+                        ? "external artifact failed"
+                        : String.join("; ", evaluation.blockers());
+        return detail.length() <= 1000 ? detail : detail.substring(0, 1000);
     }
 
     @Override

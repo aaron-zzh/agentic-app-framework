@@ -1978,6 +1978,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         command.tenantId(),
                         command.userId(),
                         profile.executionIntent().workspaceId(),
+                        null,
                         command.assistantId(),
                         command.conversationId(),
                         command.sessionId(),
@@ -1998,7 +1999,8 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         command.dispatchGeneration(),
                         command.dispatchFencingToken(),
                         command.dispatchLeaseOwner(),
-                        command.dispatchLeaseUntil());
+                        command.dispatchLeaseUntil(),
+                        profile.executionIntent().artifactPolicy().target());
         log.debug(
                 "[Assistant协调] Agent 上下文已拼装：executionId={}，promptSha256={}，最终压缩消息数={}，用户附件数={}，草稿策略={}",
                 command.executionId().value(),

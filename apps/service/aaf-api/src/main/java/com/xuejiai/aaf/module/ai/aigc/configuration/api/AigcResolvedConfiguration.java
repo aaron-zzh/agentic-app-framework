@@ -4,30 +4,26 @@ import java.util.List;
 
 /** 已解析且可固化为项目快照的配置。 */
 public record AigcResolvedConfiguration(
-        Long packageVersionId,
-        String packageVersion,
-        Long projectTypeId,
         String projectTypeVersion,
         Long blueprintVersionId,
         String blueprintCode,
         String blueprintVersion,
-        Long domainExtensionVersionId,
-        String domainExtensionCode,
-        String domainExtensionVersion,
         List<Long> channelSpecVersionIds,
         List<AigcExecutionBindingVersionRef> executionBindings,
         String productionMode,
-        String budgetTier,
-        String qualityTier,
+        AigcProjectInitializationSpec projectInitialization,
         List<AigcBlueprintSlotTemplateSpec> slotTemplates,
         List<AigcResolvedObjectSpec> resolvedObjects,
         List<AigcBlueprintRelationSpec> relations,
         List<AigcBlueprintActionSpec> actions,
         List<AigcDeliverableSetSpec> deliverableSets,
-        AigcBlueprintProcessPolicy processPolicy,
-        String snapshotJson) {
+        AigcBlueprintProcessPolicy processPolicy) {
 
     public AigcResolvedConfiguration {
+        projectInitialization =
+                projectInitialization == null
+                        ? AigcProjectInitializationSpec.empty()
+                        : projectInitialization;
         channelSpecVersionIds = List.copyOf(channelSpecVersionIds);
         executionBindings = List.copyOf(executionBindings);
         slotTemplates = List.copyOf(slotTemplates);

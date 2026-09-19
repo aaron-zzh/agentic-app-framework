@@ -108,12 +108,19 @@ public class LegalDocumentService {
                                 () ->
                                         new BusinessException(
                                                 GlobalErrorCode.BAD_REQUEST, "非法律文档，不支持同意"));
+        var publishedVersion =
+                documentVersionService
+                        .findExact(doc.getId(), doc.getPublishedVersionId())
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.NOT_FOUND, "法律文档发布版本不存在"));
         UserConsent consent = new UserConsent();
         consent.setUserId(userId);
         consent.setDocumentId(doc.getId());
         consent.setDocumentVersionId(doc.getPublishedVersionId());
         consent.setDocumentType(type.getCode());
-        consent.setDocumentVersion(resolveVersion(doc));
+        consent.setDocumentVersion(resolveVersion(publishedVersion, doc.getFrontMatter()));
         consent.setConsentTime(LocalDateTime.now());
         consent.setConsentIp(clientIp);
         consent.setSourceApp(sourceApp);

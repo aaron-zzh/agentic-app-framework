@@ -12,6 +12,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import com.xuejiai.aaf.common.util.JsonUtils;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ArtifactCompletionContract.CompletionSignal;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionCandidateCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.event.AigcExecutionCandidateProducedEvent;
 import com.xuejiai.aaf.module.ai.aigc.project.event.AigcProjectCandidateRegisteredEvent;
@@ -56,7 +57,11 @@ public class AigcExecutionCandidateProducedListener {
                                     event.executionReservationId(),
                                     event.rootExecutionRunId(),
                                     JsonUtils.toJsonString(
-                                            Map.of("mediaVersionIds", event.mediaVersionIds())),
+                                            Map.of(
+                                                    "kind",
+                                                    "MEDIA_VERSION",
+                                                    "mediaVersionIds",
+                                                    event.mediaVersionIds())),
                                     null,
                                     event.mediaVersionIds()));
             versionIds.add(version.id());
@@ -68,5 +73,6 @@ public class AigcExecutionCandidateProducedListener {
                         event.projectId(),
                         versionIds,
                         Instant.now()));
+        eventPublisher.publishEvent(new CompletionSignal(event.executionRunId()));
     }
 }

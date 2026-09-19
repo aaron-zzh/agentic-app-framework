@@ -710,7 +710,7 @@ INSERT INTO ai_tool_catalog (
     FALSE, TRUE, TRUE, TRUE,
     NULL, NULL, NULL,
     '{"type":"object","required":["title","content"],"additionalProperties":false,"properties":{"title":{"type":"string","minLength":1,"maxLength":200},"content":{"type":"string","minLength":1,"maxLength":1000000,"description":"规范 Markdown 正文"},"documentType":{"type":"string","maxLength":50,"default":"markdown"}}}',
-    '{"type":"object","required":["artifactId","artifactState","published"],"properties":{"artifactId":{"type":"integer"},"artifactState":{"const":"DRAFT"},"published":{"const":false}}}',
+    '{"type":"object","required":["artifactId","artifactVersionId","artifactState","published"],"properties":{"artifactId":{"type":"integer"},"artifactVersionId":{"type":"integer"},"artifactState":{"const":"DRAFT"},"published":{"const":false}}}',
     235, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 )
 ON CONFLICT (tool_name) WHERE deleted = FALSE DO UPDATE SET
@@ -1070,6 +1070,10 @@ WITH seeded_skill (code, name, summary, content) AS (
 # AI 生视频
 
 根据用户目标组织主体动作、场景环境、风格和镜头语言；复杂视频应拆分为可审查镜头。$skill$),
+        ($skill$system.skill.content-project-collaboration$skill$, $skill$项目内容协作$skill$, $skill$USE WHEN 当前 Assistant 已由系统绑定到 AIGC 项目，且用户需要检查项目语义、对象状态或下一步可执行动作。$skill$, $skill$
+# 项目内容协作
+
+先调用 `inspect_project_semantics` 读取当前已绑定项目的权威语义、对象 readiness 和允许动作。需要保存 Assistant 已生成文本或文档时，调用 `record_project_text_candidate` 或 `record_project_document_candidate`；二者只形成 candidate，不得自动采用。不得在 Tool 参数中传 projectId、workspaceId、binding、relation layer 或其他项目范围；项目身份只能来自 InvocationContext。未知、废弃或版本不一致语义必须停止并说明原因。$skill$),
         ($skill$builtin-javascript-compute$skill$, $skill$受控 JavaScript 计算$skill$, $skill$USE WHEN 用户要求基于明确输入完成复杂数值计算、统计汇总、结构化数据转换、排序去重或可验证算法处理，并需要实际运行得到确定结果；不用于系统命令、文件或网络访问，也不用于仅讲解代码。$skill$, $skill$
 # 受控 JavaScript 计算
 
@@ -1124,6 +1128,11 @@ WITH seeded_skill (code, name, summary, content) AS (
 子任务，说明目标、并行度、聚合方式与每个执行者的角色。提交后协调者本轮工作结束，不需要再产出最终答案——
 派生的执行者会各自独立完成分配到的子任务。
 
+除并行度上限外，还需判断执行者之间是否存在真实的先后关系：某个执行者的工作是否必须等待另一个执行者的产出
+作为输入才能开始。只在这种真实产出-输入依赖存在时才声明该先后关系；彼此不需要对方产出即可开始的执行者应
+视为独立，不得声明依赖。不要凭任务描述的表面顺序、内容类型或常见习惯（例如"文本通常先于配图"）臆断依赖，
+真实依赖必须来自本次协调实际掌握的输入产出关系。
+
 ## 判断依据
 
 不要仅凭任务描述长短判断复杂度，只看语义上是否真的存在多个独立步骤或需要不同角色分工。用户明确要求"直接
@@ -1139,7 +1148,7 @@ WITH seeded_skill (code, name, summary, content) AS (
     -- 那条链路（DefaultRoleSelector/SkillSelectionPort 等）按 code 精确查找，不经过 visibility 过滤。
     -- 本 CTE 块同时包含 aigc-image-gen/aigc-copywriting/aigc-video-gen 三个业务类技能，保持 PUBLIC。
     SELECT code, name, summary, 'zh-CN',
-           CASE WHEN code LIKE 'builtin-%' THEN 'INTERNAL' ELSE 'PUBLIC' END,
+           CASE WHEN code LIKE 'builtin-%' OR code LIKE 'system.skill.%' THEN 'INTERNAL' ELSE 'PUBLIC' END,
            TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
     FROM seeded_skill
     RETURNING id, code
@@ -1198,6 +1207,73 @@ SELECT skill.current_version_id,
        100
 FROM ai_skill_definition skill
 WHERE skill.code = 'builtin-javascript-compute'
+  AND skill.current_version_id IS NOT NULL
+  AND skill.built_in = TRUE
+  AND skill.deleted = FALSE
+ON CONFLICT (skill_version_id, tool_id, tool_version) DO UPDATE SET
+    tool_name = EXCLUDED.tool_name,
+    required = EXCLUDED.required,
+    usage_purpose = EXCLUDED.usage_purpose,
+    sort_order = EXCLUDED.sort_order;
+
+-- 项目协作 Skill 只允许读取 InvocationContext 已绑定项目的权威语义。
+INSERT INTO ai_skill_tool_requirement (
+    skill_version_id, tool_id, tool_version, tool_name,
+    required, usage_purpose, sort_order
+)
+SELECT skill.current_version_id,
+       'inspect_project_semantics',
+       1,
+       'inspect_project_semantics',
+       TRUE,
+       '读取当前 InvocationContext 已绑定项目的语义、readiness 与允许动作，不接受模型指定项目范围',
+       100
+FROM ai_skill_definition skill
+WHERE skill.code = 'system.skill.content-project-collaboration'
+  AND skill.current_version_id IS NOT NULL
+  AND skill.built_in = TRUE
+  AND skill.deleted = FALSE
+ON CONFLICT (skill_version_id, tool_id, tool_version) DO UPDATE SET
+    tool_name = EXCLUDED.tool_name,
+    required = EXCLUDED.required,
+    usage_purpose = EXCLUDED.usage_purpose,
+    sort_order = EXCLUDED.sort_order;
+
+INSERT INTO ai_skill_tool_requirement (
+    skill_version_id, tool_id, tool_version, tool_name,
+    required, usage_purpose, sort_order
+)
+SELECT skill.current_version_id,
+       'record_project_text_candidate',
+       1,
+       'record_project_text_candidate',
+       TRUE,
+       '将模型正文登记为当前 InvocationContext 已绑定项目对象的不可变文本 candidate，不自动采用',
+       110
+FROM ai_skill_definition skill
+WHERE skill.code = 'system.skill.content-project-collaboration'
+  AND skill.current_version_id IS NOT NULL
+  AND skill.built_in = TRUE
+  AND skill.deleted = FALSE
+ON CONFLICT (skill_version_id, tool_id, tool_version) DO UPDATE SET
+    tool_name = EXCLUDED.tool_name,
+    required = EXCLUDED.required,
+    usage_purpose = EXCLUDED.usage_purpose,
+    sort_order = EXCLUDED.sort_order;
+
+INSERT INTO ai_skill_tool_requirement (
+    skill_version_id, tool_id, tool_version, tool_name,
+    required, usage_purpose, sort_order
+)
+SELECT skill.current_version_id,
+       'record_project_document_candidate',
+       1,
+       'record_project_document_candidate',
+       TRUE,
+       '将模型文档正文登记为当前 InvocationContext 已绑定项目对象的不可变文档 candidate，不自动采用',
+       120
+FROM ai_skill_definition skill
+WHERE skill.code = 'system.skill.content-project-collaboration'
   AND skill.current_version_id IS NOT NULL
   AND skill.built_in = TRUE
   AND skill.deleted = FALSE
@@ -1276,10 +1352,13 @@ INSERT INTO ai_role (
 ) VALUES (
     2, 'system.role.content-creator', '内容创作者',
     '内容拆解、思路澄清、结构构建、内容裂变和多平台草稿生成',
-    '[{"skillKey":"aigc-copywriting","activationMode":"ON_DEMAND"},{"skillKey":"content-schedule","activationMode":"ON_DEMAND"},{"skillKey":"content-judge","activationMode":"ON_DEMAND"},{"skillKey":"content-clarify","activationMode":"ON_DEMAND"},{"skillKey":"content-architect","activationMode":"ON_DEMAND"},{"skillKey":"content-build","activationMode":"ON_DEMAND"},{"skillKey":"voiceover","activationMode":"ON_DEMAND"},{"skillKey":"redbook","activationMode":"ON_DEMAND"},{"skillKey":"product-copy","activationMode":"ON_DEMAND"},{"skillKey":"ip-position","activationMode":"ON_DEMAND"},{"skillKey":"short-script","activationMode":"ON_DEMAND"},{"skillKey":"title-topic","activationMode":"ON_DEMAND"},{"skillKey":"biz-analysis","activationMode":"ON_DEMAND"},{"skillKey":"rich-text-write","activationMode":"ON_DEMAND"}]',
-    '["content.draft.upsert","context.load"]',
+    '[{"skillKey":"aigc-copywriting","activationMode":"ON_DEMAND"},{"skillKey":"content-schedule","activationMode":"ON_DEMAND"},{"skillKey":"content-judge","activationMode":"ON_DEMAND"},{"skillKey":"content-clarify","activationMode":"ON_DEMAND"},{"skillKey":"content-architect","activationMode":"ON_DEMAND"},{"skillKey":"content-build","activationMode":"ON_DEMAND"},{"skillKey":"voiceover","activationMode":"ON_DEMAND"},{"skillKey":"redbook","activationMode":"ON_DEMAND"},{"skillKey":"product-copy","activationMode":"ON_DEMAND"},{"skillKey":"ip-position","activationMode":"ON_DEMAND"},{"skillKey":"short-script","activationMode":"ON_DEMAND"},{"skillKey":"title-topic","activationMode":"ON_DEMAND"},{"skillKey":"biz-analysis","activationMode":"ON_DEMAND"},{"skillKey":"rich-text-write","activationMode":"ON_DEMAND"},{"skillKey":"system.skill.content-project-collaboration","activationMode":"ON_DEMAND"}]',
+    '["content.draft.upsert","context.load","inspect_project_semantics","record_project_text_candidate","record_project_document_candidate"]',
     'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-) ON CONFLICT (id) DO NOTHING;
+) ON CONFLICT (id) DO UPDATE SET
+    skill_ids = EXCLUDED.skill_ids,
+    tool_whitelist = EXCLUDED.tool_whitelist,
+    update_time = EXCLUDED.update_time;
 
 -- ============================================================
 -- 开发者商业化套餐 Seed
@@ -1715,31 +1794,73 @@ UPDATE brokerage_rule
 -- 合并自 v3__doc_schema.sql + v16__update_privacy_policy.sql
 -- ============================================================
 
-INSERT INTO doc_document (
-    title, file_path, content, doc_type, front_matter, status, publish, update_time
-) VALUES (
+WITH seed(title, content, doc_type, front_matter) AS (
+    VALUES (
     '用户服务协议',
-    NULL,
     E'# 用户服务协议\n\n更新时间：2026年06月21日\n生效时间：2026年06月21日\n\n欢迎您使用 AAF 产品及服务！请您务必审慎阅读并充分理解本协议全部条款。您通过注册、登录、使用等行为，视为您已阅读、理解并同意本协议。\n\n## 定义\n\n- **AAF 服务**：以 AAF 平台为载体，依托大语言模型等，向用户提供的 AI 原生多智能体应用开发能力，包括智能体协作、工作流编排、知识库管理等。\n- **用户**：以注册、登录等方式使用 AAF 服务的自然人或组织。\n- **输入**：用户在使用本服务时提交的文本、图像、文件等内容。\n- **输出**：本服务响应用户输入而生成的内容。\n\n## 账号注册与管理\n\n- 您应通过邮箱或手机号完成账号注册并登录。账号所有权归我们所有，您仅获得使用权。\n- 您应妥善保管账号信息，对账号下全部行为承担责任。如发现账号被盗用，请立即通知我们。\n- 账号注册信息不得包含违法或不良内容，不得冒用他人名义注册。\n- 长期未登录的账号，我们有权予以回收。\n\n## 服务说明与局限性\n\nAAF 提供的 AI 生成内容具有不可预测性，输出内容可能存在不准确或不恰当之处，不代表我们的观点。请您对重要信息进行甄别核实，不得在无相应资质的前提下将输出内容用于专业领域（如法律、医疗）决策。\n\n## 用户行为规范\n\n您不得利用本服务：\n- 从事违反法律法规或侵犯他人合法权益的行为；\n- 对本服务进行反向工程、破解或未授权的数据抓取；\n- 传播恶意程序、病毒或干扰服务正常运行；\n- 使用本服务及其输出内容训练与本服务存在竞争的模型或产品。\n\n您应确保输入内容拥有合法授权，不侵犯任何第三方权益。\n\n## 知识产权\n\n本平台的程序、商标、文档等知识产权归我们所有。您的输入内容知识产权归您或原始权利人所有；在您与我们之间，输出内容的权益归属于您。您授权我们在提供和改进服务的必要范围内使用相关内容。\n\n## 服务变更与终止\n\n我们保留变更、暂停或终止部分或全部服务的权利，重大变更将提前通知。您可随时注销账号终止本协议。\n\n## 免责声明\n\n对于不可抗力、第三方原因或您违规操作导致的损失，我们不承担责任。在适用法律允许的最大范围内，我们对间接损失不承担赔偿责任。\n\n## 协议变更\n\n我们可能根据法律法规变化或业务需要修改本协议，变更后将通知您。如您不同意变更，请停止使用本服务；继续使用视为同意变更后的协议。\n\n## 争议解决\n\n本协议适用中华人民共和国法律。争议双方应协商解决；协商不成的，提交我司所在地有管辖权的法院诉讼解决。\n\n## 联系我们\n\n如对本协议有任何疑问，请通过站内反馈或客服渠道联系我们。\n',
     'legal-terms',
-    '{"version":"1.0.0","effectiveDate":"2026-06-21"}'::jsonb,
-    'active',
-    'published',
-    CURRENT_TIMESTAMP
-);
+    '{"version":"1.0.0","effectiveDate":"2026-06-21"}'::jsonb
+)), inserted_document AS (
+    INSERT INTO doc_document (
+        title, file_path, doc_type, front_matter, status, publish, update_time
+    )
+    SELECT title, NULL, doc_type, front_matter, 'active', 'published', CURRENT_TIMESTAMP
+    FROM seed
+    RETURNING id
+), inserted_version AS (
+    INSERT INTO doc_document_version (
+        document_id, version_no, title, content, format, checksum,
+        source_type, source_ref, change_summary
+    )
+    SELECT inserted_document.id, 1, seed.title, seed.content, 'MARKDOWN',
+           encode(digest(
+               convert_to(seed.title, 'UTF8') || decode('00', 'hex') ||
+               convert_to('MARKDOWN', 'UTF8') || decode('00', 'hex') ||
+               convert_to(seed.content, 'UTF8'),
+               'sha256'), 'hex'),
+           'IMPORT', 'seed:v12:legal-terms', '初始法律发布版本'
+    FROM seed CROSS JOIN inserted_document
+    RETURNING id, document_id
+)
+UPDATE doc_document document
+SET current_version_id = inserted_version.id,
+    published_version_id = inserted_version.id
+FROM inserted_version
+WHERE document.id = inserted_version.document_id;
 
-INSERT INTO doc_document (
-    title, file_path, content, doc_type, front_matter, status, publish, update_time
-) VALUES (
+WITH seed(title, content, doc_type, front_matter) AS (
+    VALUES (
     'AAF 隐私政策',
-    NULL,
     E'# AAF 隐私政策\n\n**更新日期：2026 年 6 月 21 日**\n**生效日期：2026 年 6 月 21 日**\n\n欢迎使用 AAF！我们深知个人信息对您的重要性，将严格遵守法律法规，采取必要的安全措施保护您的个人信息。\n\n请在正式使用 AAF 前仔细阅读本政策，特别是**加粗**标注的重要条款。如您不同意本政策任何内容，请停止使用本服务。\n\n本政策将帮助您了解以下内容：\n\n- [适用范围](#适用范围)\n- [我们如何收集和使用您的个人信息](#我们如何收集和使用您的个人信息)\n- [我们如何使用 Cookie 和同类技术](#我们如何使用-cookie-和同类技术)\n- [我们如何共享、转让、公开披露您的个人信息](#我们如何共享转让公开披露您的个人信息)\n- [您如何管理您的个人信息](#您如何管理您的个人信息)\n- [我们如何保护和存储您的个人信息](#我们如何保护和存储您的个人信息)\n- [未成年人保护](#未成年人保护)\n- [本政策的更新](#本政策的更新)\n- [如何联系我们](#如何联系我们)\n\n---\n\n## 适用范围\n\n本政策适用于 AAF 通过网站、API、客户端及其他形态向您提供的各项产品与服务。第三方 SDK 或独立运营的第三方服务，应适用其自身的隐私政策。\n\n---\n\n## 我们如何收集和使用您的个人信息\n\n我们通过以下方式获取您的信息：**您主动提供**（如注册时填写的手机号）；**自动收集**（如您使用服务时产生的日志数据）。\n\n### 账号注册与登录\n\n- 您需提供**手机号码**并通过验证码完成注册及登录，手机号也用于接收服务通知（如功能更新、安全提醒）。\n- 您可使用第三方平台账号（如 GitHub、微信）登录；我们将在取得您授权的前提下，从第三方获取用户名、头像及匿名标识。\n- 注册完成后，您可在"账号设置"中设置昵称、头像，进行个性化配置。\n\n### AI 对话与工作流\n\n- AAF 的核心功能依赖您输入的内容，包括**文本、图片、文件、语音**等。我们将上述信息加密上传至服务端，经大语言模型处理后向您返回结果，并为您保存对话记录和工作流执行历史。\n- 在对输入内容**去标识化处理且确保无法重新识别特定个人**的前提下，我们可能随机抽取少部分数据用于产品分析、模型评测和功能优化，以提升响应质量。如您不希望数据用于模型优化，请按本政策最后一节联系我们。\n\n### 知识库与文档\n\n- 您可向知识库导入文档、网页链接或手动创作笔记，上述内容将存储在云端服务器，用于 AI 检索与问答。\n- **未经您单独授权同意，我们不会将知识库内容用于算法分析或模型训练。**\n\n### 智能体（Agent）创建与发布\n\n- 您创建智能体时需提供头像、名称、简介、角色设定及训练文件。发布前您可自定义访问权限（公开 / 链接可见 / 仅自己）。\n- 请勿上传包含他人个人信息的内容，除非已取得充分授权。\n\n### 安全保障\n\n- 为保障服务安全稳定，我们及合作的第三方 SDK 会收集**日志数据**（IP 地址、访问时间、操作记录）、**设备信息**（型号、操作系统、设备标识符）、**网络环境信息**（运营商、网络类型），用于风险识别、异常检测和安全审计。\n\n### 客服支持\n\n- 您联系我们寻求帮助时，我们可能需要您提供必要信息以核验身份，并保留沟通记录用于问题跟踪与后续改进。\n\n### 产品体验改进\n\n- 我们会不时开展用户调研，您可选择参与或拒绝。\n- 您的评价与反馈（如点赞、点踩）在去标识化处理后用于改善服务质量。\n\n### 无需授权同意的情形\n\n依据适用法律，以下情形我们收集和使用您的个人信息无需征得您的同意：\n\n1. 涉及国家安全与公共利益；\n2. 履行法定职责或响应政府部门指示；\n3. 与您签订和履行合同所必需；\n4. 紧急情况下保护人身安全或财产安全；\n5. 在合理范围内处理您已公开的个人信息；\n6. 法律法规规定的其他情形。\n\n---\n\n## 我们如何使用 Cookie 和同类技术\n\n- 为确保服务正常运转，我们可能向您的设备发送 Cookie 或匿名标识符，用于**账号安全验证、异常排查**和**省去重复填写**操作。\n- 我们承诺不将 Cookie 用于本政策所述目的之外的任何其他用途。\n- 您可在浏览器设置中管理或清除 Cookie；清除后部分功能可能受到影响，需重新登录。\n\n---\n\n## 我们如何共享、转让、公开披露您的个人信息\n\n我们严格遵守**合法正当、最小必要、用户知情、安全保障**的原则处理数据共享。\n\n### 委托处理\n\n我们可能委托关联公司或技术服务商代表我们处理您的个人信息（如云存储、安全服务），仅在必要范围内共享，并通过合同要求其不得超范围使用。\n\n### 第三方共享\n\n原则上，我们不向第三方共享您的信息，但以下情形除外：\n\n- **您明确同意**；\n- **法律法规要求**或政府机关依法提出请求；\n- **履行合同**所必需（如与支付服务商完成交易）。\n\n### 转让\n\n若发生合并、收购或破产清算，我们将要求新持有方继续受本政策约束；如无承接方，将依法删除数据。\n\n### 公开披露\n\n仅在取得您充分同意，或为保护用户及公众安全、依法披露时，才公开您的相关信息。\n\n---\n\n## 您如何管理您的个人信息\n\n### 查阅与更正\n\n- 您可在"账号设置"页查看和修改头像、昵称、绑定信息。\n- 您可在对话列表、工作流历史等页面查看相应记录。\n\n### 复制\n\n- 您可自行导出对话记录、工作流执行历史及创作内容。\n\n### 删除\n\n- 您可在账号设置内删除对话记录、创作内容及其他个人信息。\n- 若我们处理您个人信息的行为违反法律法规或未经您同意，您可通过本政策"联系我们"章节要求删除。\n- 删除后，因安全技术限制，备份系统中的信息可能不能立即清除，我们将限制其进一步处理直至可安全删除。\n\n### 撤回授权\n\n- 您可随时在"账号设置 - 权限管理"中关闭相应权限；撤回不影响此前已处理的信息。\n- 如不希望数据用于模型优化，可通过本政策"联系我们"章节提出撤回请求。\n\n### 注销账号\n\n- 您可在"账号设置 - 注销账号"提交注销申请。注销后，我们将停止提供服务并依法删除或匿名化处理您的个人信息。\n\n### 响应时限与例外\n\n我们将在收到请求后 **15 个工作日内**回复。以下情形我们可能无法响应：涉及国家安全、刑事侦查、法定义务履行、商业秘密保护，或请求本身存在恶意。\n\n---\n\n## 我们如何保护和存储您的个人信息\n\n- 我们采用**加密传输（TLS）、访问控制、安全审计**等技术措施保护您的信息。\n- 我们仅在实现处理目的所必需的期限内保留您的信息，超期后将删除或匿名化处理。\n- 您的信息**存储在中华人民共和国境内**，不会跨境传输；如确需传输，将依法获得您的同意。\n- 如发生信息安全事件，我们将依法及时通知您，并向监管部门报告处置情况。\n- 如服务停止运营，我们将及时通知用户，并对持有的个人信息删除或匿名化处理。\n\n---\n\n## 未成年人保护\n\n- AAF 主要面向成年人提供服务。**未满 18 周岁**的用户，请在父母或监护人同意下使用。**未满 14 周岁**的儿童，须由监护人协助完成注册并陪同使用。\n- 如您是监护人，发现我们未经授权收集了儿童个人信息，请立即通过"联系我们"章节联系我们，我们将及时核查并处理。\n\n---\n\n## 本政策的更新\n\n我们可能因功能变化或法规要求更新本政策，更新时将通过**站内通知或弹窗**提示您。重大变更将单独通知并征得您的同意。如您不同意更新内容，请停止使用本服务。\n\n---\n\n## 如何联系我们\n\n如对本政策有任何疑问、意见或投诉，请通过以下方式联系我们：\n\n- **站内反馈**：页面右下角"帮助与反馈"入口\n- **客服中心**：个人中心 → 设置 → 客服中心\n- **隐私负责人邮箱**：privacy@example.com（请注明"AAF 隐私政策"及具体情况）\n\n我们将在收到联系后 **15 个工作日内**回复。如对我们的处理结果不满意，您可向有管辖权的法院提起诉讼。\n\n---\n\n## 附录：相关定义\n\n| 术语 | 说明 |\n|------|------|\n| **个人信息** | 与已识别或可识别的自然人有关的各种信息，不包括匿名化处理后的信息 |\n| **敏感个人信息** | 一旦泄露易导致人格尊严受损或人身财产安全受害的信息，包括生物识别、医疗健康、金融账户、精准位置等 |\n| **去标识化** | 经处理后，在不借助额外信息的情况下无法识别特定自然人的过程 |\n| **匿名化** | 经处理后无法识别特定自然人且不能复原的过程 |\n| **Cookie** | 网站向您设备发送的小型标识文件，用于保持会话状态、安全验证等 |\n',
     'legal-privacy',
-    '{"version":"1.0.0","effectiveDate":"2026-06-21"}'::jsonb,
-    'active',
-    'published',
-    CURRENT_TIMESTAMP
-);
+    '{"version":"1.0.0","effectiveDate":"2026-06-21"}'::jsonb
+)), inserted_document AS (
+    INSERT INTO doc_document (
+        title, file_path, doc_type, front_matter, status, publish, update_time
+    )
+    SELECT title, NULL, doc_type, front_matter, 'active', 'published', CURRENT_TIMESTAMP
+    FROM seed
+    RETURNING id
+), inserted_version AS (
+    INSERT INTO doc_document_version (
+        document_id, version_no, title, content, format, checksum,
+        source_type, source_ref, change_summary
+    )
+    SELECT inserted_document.id, 1, seed.title, seed.content, 'MARKDOWN',
+           encode(digest(
+               convert_to(seed.title, 'UTF8') || decode('00', 'hex') ||
+               convert_to('MARKDOWN', 'UTF8') || decode('00', 'hex') ||
+               convert_to(seed.content, 'UTF8'),
+               'sha256'), 'hex'),
+           'IMPORT', 'seed:v12:legal-privacy', '初始法律发布版本'
+    FROM seed CROSS JOIN inserted_document
+    RETURNING id, document_id
+)
+UPDATE doc_document document
+SET current_version_id = inserted_version.id,
+    published_version_id = inserted_version.id
+FROM inserted_version
+WHERE document.id = inserted_version.document_id;
 
 
 -- ==================== 角色菜单绑定（必须在 sys_menu 数据插入之后执行） ====================

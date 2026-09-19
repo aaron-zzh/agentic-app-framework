@@ -43,6 +43,9 @@ public class ChatService {
      */
     public static final String NON_HUMAN_SENDER_ID = "0";
 
+    /** 与 {@code ProjectConversationService.MANAGEMENT_MODE} 一致的受控会话标识。 */
+    private static final String PROJECT_SERVER_MANAGEMENT_MODE = "PROJECT_SERVER";
+
     private final ConversationRepository conversationRepository;
     private final ConversationMessageRepository messageRepository;
     private final RelationPermissionWriter relationPermissionWriter;
@@ -221,7 +224,7 @@ public class ChatService {
     @Transactional
     public void archiveSession(Long sessionId) {
         // M18：归档属于会话管理操作，须校验归属
-        var conv = requireOwnedConversation(sessionId);
+        var conv = requireUserManagedConversation(sessionId);
         conv.setStatus(ConversationStatusEnum.ARCHIVED);
         conversationRepository.save(conv);
     }
@@ -324,7 +327,7 @@ public class ChatService {
     @Transactional
     public void deleteSession(Long sessionId) {
         // M18：删除他人会话是最高危的 IDOR 面，须校验归属
-        requireOwnedConversation(sessionId);
+        requireUserManagedConversation(sessionId);
         conversationRepository.deleteById(sessionId);
     }
 
@@ -338,7 +341,7 @@ public class ChatService {
     @Transactional
     public ChatSessionVO renameSession(Long sessionId, String title) {
         // M18：重命名属于会话管理操作，须校验归属
-        var conv = requireOwnedConversation(sessionId);
+        var conv = requireUserManagedConversation(sessionId);
         conv.setTitle(title);
         conversationRepository.save(conv);
         return toSessionVO(conv);
@@ -354,7 +357,7 @@ public class ChatService {
      */
     @Transactional
     public void unarchiveSession(Long sessionId) {
-        var conv = requireOwnedConversation(sessionId);
+        var conv = requireUserManagedConversation(sessionId);
         conv.setStatus(ConversationStatusEnum.ACTIVE);
         conversationRepository.save(conv);
     }
@@ -440,6 +443,15 @@ public class ChatService {
                                         new BusinessException(
                                                 ErrorCodeConstants.CHAT_SESSION_NOT_FOUND));
         if (!java.util.Objects.equals(conv.getCreatorId(), currentUserId)) {
+            throw new BusinessException(ErrorCodeConstants.CHAT_SESSION_NOT_FOUND);
+        }
+        return conv;
+    }
+
+    /** 项目受控会话的标题、状态与身份只能由项目服务管理，通用会话管理入口一律拒绝。 */
+    private Conversation requireUserManagedConversation(Long sessionId) {
+        var conv = requireOwnedConversation(sessionId);
+        if (PROJECT_SERVER_MANAGEMENT_MODE.equals(conv.getManagementMode())) {
             throw new BusinessException(ErrorCodeConstants.CHAT_SESSION_NOT_FOUND);
         }
         return conv;

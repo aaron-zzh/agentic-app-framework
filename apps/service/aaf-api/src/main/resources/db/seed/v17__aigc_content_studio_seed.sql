@@ -9,7 +9,6 @@
 
 INSERT INTO sys_dict_type (name, type, status, remark) VALUES
 ('AIGC 项目状态', 'aigc_project_status', 0, '项目生命周期状态'),
-('AIGC 项目类型', 'aigc_project_type', 0, '项目业务目标类型'),
 ('AIGC 生产模式', 'aigc_production_mode', 0, '标准、短剧或漫剧生产模式'),
 ('AIGC 生成模式', 'aigc_generation_mode', 0, '手动或自动生成模式'),
 ('AIGC 对象类型', 'aigc_object_type', 0, '项目图谱对象类型'),
@@ -58,17 +57,6 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ON CONFLICT DO NOTHING;
 
 INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
-('aigc_project_type', '新品推广', 'new_product', 1, 'primary'),
-('aigc_project_type', '活动促销', 'promotion', 2, 'danger'),
-('aigc_project_type', '品牌视觉', 'brand_visual', 3, 'warning'),
-('aigc_project_type', '门店宣传', 'store', 4, 'success'),
-('aigc_project_type', '社媒内容', 'social', 5, 'info'),
-('aigc_project_type', '个人 IP 内容', 'personal_ip', 6, 'primary'),
-('aigc_project_type', 'AI 博客', 'blog_content', 7, 'info'),
-('aigc_project_type', '系列叙事内容', 'narrative_series', 8, 'default')
-ON CONFLICT DO NOTHING;
-
-INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ('aigc_production_mode', '标准', 'standard', 1, 'primary'),
 ('aigc_production_mode', '短剧', 'short_drama', 2, 'warning'),
 ('aigc_production_mode', '漫剧', 'motion_comic', 3, 'info'),
@@ -102,12 +90,9 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ON CONFLICT DO NOTHING;
 
 INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
-('aigc_object_status', '空槽位', 'empty', 1, 'default'),
-('aigc_object_status', '草稿', 'draft', 2, 'info'),
-('aigc_object_status', '待确认', 'pending_confirm', 3, 'warning'),
-('aigc_object_status', '已采用', 'adopted', 4, 'primary'),
-('aigc_object_status', '已阻断', 'blocked', 5, 'danger'),
-('aigc_object_status', '已完成', 'done', 6, 'success'),
+('aigc_object_status', '空槽位', 'EMPTY', 1, 'default'),
+('aigc_object_status', '存在候选', 'CANDIDATE_AVAILABLE', 2, 'warning'),
+('aigc_object_status', '已采用', 'ADOPTED', 3, 'success'),
 ('aigc_object_source', '蓝图', 'blueprint', 1, 'primary'),
 ('aigc_object_source', '用户', 'user', 2, 'success'),
 ('aigc_object_source', '助手', 'assistant', 3, 'info'),
@@ -195,14 +180,15 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ('aigc_action_key', '生成创意方向', 'concept.generate', 2, 'primary'),
 ('aigc_action_key', '生成文案', 'copy.generate', 3, 'info'),
 ('aigc_action_key', '生成图片', 'image.generate', 4, 'warning'),
-('aigc_action_key', '局部修改图片', 'image.edit', 5, 'warning'),
-('aigc_action_key', '重新生成交付物', 'deliverable.regenerate', 6, 'primary'),
-('aigc_action_key', '生成文章提纲', 'outline.generate', 7, 'info'),
-('aigc_action_key', '撰写文章草稿', 'article.draft', 8, 'primary'),
-('aigc_action_key', '改写文章', 'article.rewrite', 9, 'warning'),
-('aigc_action_key', '优化文章 SEO', 'article.seo_optimize', 10, 'success'),
-('aigc_action_key', '生成视频', 'video.generate', 11, 'danger'),
-('aigc_action_key', '生成交付包', 'package.generate', 12, 'primary')
+('aigc_action_key', '生成合成海报图', 'image.highlight_generate', 5, 'warning'),
+('aigc_action_key', '局部修改图片', 'image.edit', 6, 'warning'),
+('aigc_action_key', '重新生成交付物', 'deliverable.regenerate', 7, 'primary'),
+('aigc_action_key', '生成文章提纲', 'outline.generate', 8, 'info'),
+('aigc_action_key', '撰写文章草稿', 'article.draft', 9, 'primary'),
+('aigc_action_key', '改写文章', 'article.rewrite', 10, 'warning'),
+('aigc_action_key', '优化文章 SEO', 'article.seo_optimize', 11, 'success'),
+('aigc_action_key', '生成视频', 'video.generate', 12, 'danger'),
+('aigc_action_key', '生成交付包', 'package.generate', 13, 'primary')
 ON CONFLICT DO NOTHING;
 
 -- ============================================================
@@ -245,35 +231,48 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO aigc_project_blueprint
     (code, name, project_type_code, blueprint_version, production_mode, description, status,
-     slot_template_spec, relation_spec, action_spec, deliverable_spec, process_policy, brief_fields)
+     slot_template_spec, relation_spec, action_spec, deliverable_spec, process_policy, project_initialization)
 SELECT seed.code, seed.name, seed.project_type_code, '1.0.0', seed.production_mode,
        seed.description, 'published',
        '{"slotTemplates":[
-          {"templateKey":"brief","stableKeyPattern":"brief","objectType":"brief","displayNamePattern":"创作简报","orderNo":10,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED"},
-          {"templateKey":"concept","stableKeyPattern":"concept","objectType":"creative_concept","displayNamePattern":"创意方向","orderNo":20,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED"},
-          {"templateKey":"package","stableKeyPattern":"package","objectType":"deliverable_set","displayNamePattern":"交付内容包","orderNo":30,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED"},
-          {"templateKey":"image","stableKeyPattern":"deliverables.image.%02d","objectType":"image_deliverable","displayNamePattern":"推广图片 %02d","parentTemplateKey":"package","orderNo":40,"defaultCount":3,"minCount":1,"maxCount":12,"userAddable":true,"userRemovable":true,"defaultContractRole":"REQUIRED","countByBudgetTier":{"LOW":1,"MEDIUM":3,"HIGH":6},"countByQualityTier":{"DRAFT":1,"STANDARD":3,"PREMIUM":6}},
-          {"templateKey":"video","stableKeyPattern":"deliverables.video.%02d","objectType":"video_deliverable","displayNamePattern":"推广视频 %02d","parentTemplateKey":"package","orderNo":60,"defaultCount":1,"minCount":0,"maxCount":3,"userAddable":true,"userRemovable":true,"defaultContractRole":"OPTIONAL","activationCondition":{"channelsAny":["douyin","wechat_channels","bilibili"]}},
-          {"templateKey":"copy","stableKeyPattern":"deliverables.copy","objectType":"copy_deliverable","displayNamePattern":"推广文案","parentTemplateKey":"package","orderNo":80,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED"}
+          {"templateKey":"concept","stableKeyPattern":"concept","objectType":"creative_concept","displayNamePattern":"创意方向","orderNo":20,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED","semanticRole":"WORKING_ARTIFACT","outputContract":"DOCUMENT_VERSION"},
+          {"templateKey":"package","stableKeyPattern":"package","objectType":"deliverable_set","displayNamePattern":"交付内容包","orderNo":30,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED","semanticRole":"DELIVERABLE","outputContract":"COMPOSITE_MANIFEST"},
+          {"templateKey":"image","stableKeyPattern":"deliverables.image.%02d","objectType":"image_deliverable","displayNamePattern":"推广图片 %02d","parentTemplateKey":"package","orderNo":40,"defaultCount":4,"minCount":1,"maxCount":12,"userAddable":true,"userRemovable":true,"defaultContractRole":"REQUIRED","semanticRole":"DELIVERABLE","outputContract":"MEDIA_VERSION"},
+          {"templateKey":"imageHighlight","stableKeyPattern":"deliverables.image.highlight","objectType":"image_deliverable","displayNamePattern":"合成海报图","description":"以推广图片全部实例为参考素材合成的汇总海报，依赖推广图片先完成","parentTemplateKey":"package","orderNo":50,"defaultCount":1,"minCount":0,"maxCount":1,"defaultContractRole":"OPTIONAL","semanticRole":"DELIVERABLE","outputContract":"MEDIA_VERSION","initialPayload":{"layout":"grid","referenceRole":"source"}},
+          {"templateKey":"video","stableKeyPattern":"deliverables.video.%02d","objectType":"video_deliverable","displayNamePattern":"推广视频 %02d","parentTemplateKey":"package","orderNo":60,"defaultCount":1,"minCount":0,"maxCount":3,"userAddable":true,"userRemovable":true,"defaultContractRole":"OPTIONAL","semanticRole":"DELIVERABLE","outputContract":"MEDIA_VERSION","activationCondition":{"channelsAny":["douyin","wechat_channels","bilibili"]}},
+          {"templateKey":"copy","stableKeyPattern":"deliverables.copy","objectType":"copy_deliverable","displayNamePattern":"推广文案","parentTemplateKey":"package","orderNo":80,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED","semanticRole":"DELIVERABLE","outputContract":"DOCUMENT_VERSION"}
         ]}'::jsonb,
        '{"relations":[
-          {"sourceTemplateKey":"brief","targetTemplateKey":"concept","type":"derives"},
           {"sourceTemplateKey":"concept","targetTemplateKey":"package","type":"constrains"},
-          {"sourceTemplateKey":"package","targetTemplateKey":"image","type":"contains"},
-          {"sourceTemplateKey":"package","targetTemplateKey":"video","type":"contains"},
-          {"sourceTemplateKey":"package","targetTemplateKey":"copy","type":"contains"}
+          {"sourceTemplateKey":"image","targetTemplateKey":"imageHighlight","type":"derives"}
         ]}'::jsonb,
        '{"actions":[
-          {"actionKey":"brief.refine","targetTemplateKey":"brief"},
-          {"actionKey":"concept.generate","targetTemplateKey":"concept","dependencyTemplateKeys":["brief"]},
-          {"actionKey":"package.generate","targetTemplateKey":"package","dependencyTemplateKeys":["concept"],"confirmationPolicy":"REQUIRED"},
-          {"actionKey":"image.generate","targetTemplateKey":"image","dependencyTemplateKeys":["concept"]},
-          {"actionKey":"video.generate","targetTemplateKey":"video","dependencyTemplateKeys":["concept"]},
-          {"actionKey":"copy.generate","targetTemplateKey":"copy","dependencyTemplateKeys":["brief","concept"]}
+          {"actionKey":"concept.generate","targetTemplateKey":"concept","isDefault":true},
+          {"actionKey":"package.generate","targetTemplateKey":"package","dependencyTemplateKeys":["concept"],"confirmationPolicy":"REQUIRED","isDefault":true},
+          {"actionKey":"image.generate","targetTemplateKey":"image","dependencyTemplateKeys":["concept"],"isDefault":true},
+          {"actionKey":"image.highlight_generate","targetTemplateKey":"imageHighlight","dependencyTemplateKeys":["concept","image"],"isDefault":true},
+          {"actionKey":"video.generate","targetTemplateKey":"video","dependencyTemplateKeys":["concept"],"isDefault":true},
+          {"actionKey":"copy.generate","targetTemplateKey":"copy","dependencyTemplateKeys":["concept"],"isDefault":true}
         ]}'::jsonb,
-       '{"sets":[{"setTemplateKey":"package","allowedSlotTemplateKeys":["image","video","copy"],"allowedCustomObjectTypes":["image_deliverable","video_deliverable","copy_deliverable"],"defaultUserAddedContractRole":"OPTIONAL","completionMode":"ALL_REQUIRED","reviewMode":"PROJECT","publicationPolicy":"OPTIONAL"}]}'::jsonb,
+       '{"sets":[{"setTemplateKey":"package","allowedSlotTemplateKeys":["image","imageHighlight","video","copy"],"allowedCustomObjectTypes":["image_deliverable","video_deliverable","copy_deliverable"],"defaultUserAddedContractRole":"OPTIONAL","completionMode":"ALL_REQUIRED","reviewMode":"PROJECT","publicationPolicy":"OPTIONAL"}]}'::jsonb,
        '{"reviewRequired":true,"publicationPolicy":"OPTIONAL","autoActionKeys":[],"confirmationGateKeys":["concept.adopt","package.generate","project.archive"]}'::jsonb,
-       seed.brief_fields
+       '{"fields":[
+          {"key":"description","label":"项目简介","description":"项目目标与简要说明","valueType":"TEXTAREA","required":true,"aiAssist":true,"orderNo":10},
+          {"key":"background","label":"项目背景","valueType":"TEXTAREA","aiAssist":true,"orderNo":20},
+          {"key":"targetAudience","label":"目标受众","valueType":"TEXTAREA","aiAssist":true,"orderNo":30},
+          {"key":"requirements","label":"项目要求","valueType":"STRING_LIST","aiAssist":true,"affectsStructure":true,"orderNo":40},
+          {"key":"constraints","label":"限制条件","valueType":"STRING_LIST","aiAssist":true,"orderNo":50},
+          {"key":"keyFacts","label":"关键事实","valueType":"STRING_LIST","aiAssist":true,"orderNo":60},
+          {"key":"keyMessages","label":"关键信息","valueType":"STRING_LIST","aiAssist":true,"orderNo":70},
+          {"key":"styleGuidance","label":"风格要求","valueType":"TEXTAREA","aiAssist":true,"orderNo":80},
+          {"key":"successCriteria","label":"成功标准","valueType":"STRING_LIST","aiAssist":true,"orderNo":90},
+          {"key":"deliveryRequirements","label":"交付要求","valueType":"JSON","aiAssist":true,"affectsStructure":true,"orderNo":100},
+          {"key":"locale","label":"语言地区","valueType":"TEXT","orderNo":110},
+          {"key":"additionalContext","label":"补充上下文","valueType":"TEXTAREA","aiAssist":true,"orderNo":120}
+        ],"documents":[
+          {"key":"brief","role":"brief","label":"项目简报","referenceType":"PROJECT_DOCUMENT","aiAssist":true,"minCount":0,"maxCount":1,"orderNo":10},
+          {"key":"references","role":"reference","label":"参考资料","referenceType":"EXTERNAL_REFERENCE","minCount":0,"maxCount":20,"orderNo":20}
+        ]}'::jsonb
 FROM (VALUES
     ('new-product-standard','新品推广标准蓝图','new_product','standard','新品推广默认内容包骨架','["product","sellingPoints","priceOrPromotion","audience"]'::jsonb),
     ('promotion-standard','活动促销标准蓝图','promotion','standard','活动促销默认内容包骨架','["timeRange","offer","channel","audience"]'::jsonb),
@@ -282,43 +281,55 @@ FROM (VALUES
     ('social-standard','社媒内容标准蓝图','social','standard','社媒内容默认内容包骨架','["topic","audience","callToAction"]'::jsonb),
     ('personal-ip-standard','个人 IP 内容标准蓝图','personal_ip','standard','个人 IP 内容默认内容包骨架','["viewpoint","story","channels"]'::jsonb),
     ('narrative-series-short-drama','系列短剧蓝图','narrative_series','short_drama','系列叙事短剧默认骨架','["story","episodeCount","episodeDuration","style"]'::jsonb)
-) AS seed(code,name,project_type_code,production_mode,description,brief_fields)
+) AS seed(code,name,project_type_code,production_mode,description,project_initialization)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO aigc_project_blueprint
     (code, name, project_type_code, blueprint_version, production_mode, description, status,
-     slot_template_spec, relation_spec, action_spec, deliverable_spec, process_policy, brief_fields)
+     slot_template_spec, relation_spec, action_spec, deliverable_spec, process_policy, project_initialization)
 VALUES
 ('ai-blog-standard', 'AI 博客标准蓝图', 'blog_content', '1.0.0', 'standard',
  '选题、来源、提纲、正文、SEO、封面和分发变体的长内容骨架', 'published',
  '{"slotTemplates":[
-    {"templateKey":"brief","stableKeyPattern":"brief","objectType":"brief","displayNamePattern":"创作简报","orderNo":10,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED"},
-    {"templateKey":"topic","stableKeyPattern":"topic","objectType":"topic","displayNamePattern":"文章选题","orderNo":20,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED"},
-    {"templateKey":"sources","stableKeyPattern":"sources","objectType":"source_material_set","displayNamePattern":"来源资料","orderNo":30,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED"},
-    {"templateKey":"outline","stableKeyPattern":"outline","objectType":"article_outline","displayNamePattern":"文章提纲","orderNo":40,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED"},
-    {"templateKey":"article","stableKeyPattern":"article","objectType":"article_deliverable","displayNamePattern":"博客文章","orderNo":50,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED"},
-    {"templateKey":"cover","stableKeyPattern":"article.cover","objectType":"image_deliverable","displayNamePattern":"文章封面","parentTemplateKey":"article","orderNo":60,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED"},
-    {"templateKey":"variant","stableKeyPattern":"article.variant.%02d","objectType":"distribution_variant","displayNamePattern":"分发变体 %02d","parentTemplateKey":"article","orderNo":70,"defaultCount":1,"minCount":1,"maxCount":8,"userAddable":true,"userRemovable":true,"defaultContractRole":"OPTIONAL"}
+    {"templateKey":"topic","stableKeyPattern":"topic","objectType":"topic","displayNamePattern":"文章选题","orderNo":20,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED","semanticRole":"WORKING_ARTIFACT","outputContract":"DOCUMENT_VERSION"},
+    {"templateKey":"sources","stableKeyPattern":"sources","objectType":"source_material_set","displayNamePattern":"来源资料","orderNo":30,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED","semanticRole":"REFERENCE","outputContract":"DOCUMENT_VERSION"},
+    {"templateKey":"outline","stableKeyPattern":"outline","objectType":"article_outline","displayNamePattern":"文章提纲","orderNo":40,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED","semanticRole":"WORKING_ARTIFACT","outputContract":"DOCUMENT_VERSION"},
+    {"templateKey":"manifest","stableKeyPattern":"deliverable.manifest","objectType":"deliverable_set","displayNamePattern":"博客交付清单","orderNo":45,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED","semanticRole":"DELIVERABLE","outputContract":"COMPOSITE_MANIFEST"},
+    {"templateKey":"article","stableKeyPattern":"article","objectType":"article_deliverable","displayNamePattern":"博客文章","parentTemplateKey":"manifest","orderNo":50,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED","semanticRole":"DELIVERABLE","outputContract":"DOCUMENT_VERSION"},
+    {"templateKey":"cover","stableKeyPattern":"article.cover","objectType":"image_deliverable","displayNamePattern":"文章封面","parentTemplateKey":"manifest","orderNo":60,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED","semanticRole":"DELIVERABLE","outputContract":"MEDIA_VERSION"},
+    {"templateKey":"variant","stableKeyPattern":"article.variant.%02d","objectType":"distribution_variant","displayNamePattern":"分发变体 %02d","parentTemplateKey":"manifest","orderNo":70,"defaultCount":1,"minCount":1,"maxCount":8,"userAddable":true,"userRemovable":true,"defaultContractRole":"OPTIONAL","semanticRole":"DELIVERABLE","outputContract":"DOCUMENT_VERSION"}
   ]}'::jsonb,
  '{"relations":[
-    {"sourceTemplateKey":"brief","targetTemplateKey":"topic","type":"derives"},
     {"sourceTemplateKey":"topic","targetTemplateKey":"outline","type":"derives"},
     {"sourceTemplateKey":"sources","targetTemplateKey":"article","type":"constrains"},
-    {"sourceTemplateKey":"outline","targetTemplateKey":"article","type":"derives"},
-    {"sourceTemplateKey":"article","targetTemplateKey":"cover","type":"contains"},
-    {"sourceTemplateKey":"article","targetTemplateKey":"variant","type":"contains"}
+    {"sourceTemplateKey":"outline","targetTemplateKey":"article","type":"derives"}
   ]}'::jsonb,
  '{"actions":[
-    {"actionKey":"brief.refine","targetTemplateKey":"brief"},
-    {"actionKey":"outline.generate","targetTemplateKey":"outline","dependencyTemplateKeys":["topic","sources"]},
-    {"actionKey":"article.draft","targetTemplateKey":"article","dependencyTemplateKeys":["outline","sources"]},
+    {"actionKey":"outline.generate","targetTemplateKey":"outline","dependencyTemplateKeys":["topic","sources"],"isDefault":true},
+    {"actionKey":"article.draft","targetTemplateKey":"article","dependencyTemplateKeys":["outline","sources"],"isDefault":true},
     {"actionKey":"article.rewrite","targetTemplateKey":"article"},
     {"actionKey":"article.seo_optimize","targetTemplateKey":"article"},
-    {"actionKey":"image.generate","targetTemplateKey":"cover","dependencyTemplateKeys":["article"]}
+    {"actionKey":"image.generate","targetTemplateKey":"cover","dependencyTemplateKeys":["article"],"isDefault":true}
   ]}'::jsonb,
- '{"sets":[{"setTemplateKey":"article","allowedSlotTemplateKeys":["cover","variant"],"allowedCustomObjectTypes":["image_deliverable","distribution_variant"],"defaultUserAddedContractRole":"OPTIONAL","completionMode":"ALL_REQUIRED","reviewMode":"PROJECT","publicationPolicy":"OPTIONAL"}]}'::jsonb,
+ '{"sets":[{"setTemplateKey":"manifest","allowedSlotTemplateKeys":["article","cover","variant"],"allowedCustomObjectTypes":["article_deliverable","image_deliverable","distribution_variant"],"defaultUserAddedContractRole":"OPTIONAL","completionMode":"ALL_REQUIRED","reviewMode":"PROJECT","publicationPolicy":"OPTIONAL"}]}'::jsonb,
  '{"reviewRequired":true,"publicationPolicy":"OPTIONAL","autoActionKeys":[],"confirmationGateKeys":["outline.adopt","article.adopt","article.publish","project.archive"]}'::jsonb,
- '["topic","audience","keywords","tone","sourceMaterials","channels"]'::jsonb)
+ '{"fields":[
+    {"key":"description","label":"项目简介","description":"文章目标与简要说明","valueType":"TEXTAREA","required":true,"aiAssist":true,"orderNo":10},
+    {"key":"background","label":"创作背景","valueType":"TEXTAREA","aiAssist":true,"orderNo":20},
+    {"key":"targetAudience","label":"目标读者","valueType":"TEXTAREA","aiAssist":true,"orderNo":30},
+    {"key":"requirements","label":"文章要求","valueType":"STRING_LIST","aiAssist":true,"affectsStructure":true,"orderNo":40},
+    {"key":"constraints","label":"限制条件","valueType":"STRING_LIST","aiAssist":true,"orderNo":50},
+    {"key":"keyFacts","label":"关键事实","valueType":"STRING_LIST","aiAssist":true,"orderNo":60},
+    {"key":"keyMessages","label":"核心观点","valueType":"STRING_LIST","aiAssist":true,"orderNo":70},
+    {"key":"styleGuidance","label":"文风要求","valueType":"TEXTAREA","aiAssist":true,"orderNo":80},
+    {"key":"successCriteria","label":"成功标准","valueType":"STRING_LIST","aiAssist":true,"orderNo":90},
+    {"key":"deliveryRequirements","label":"交付要求","valueType":"JSON","aiAssist":true,"affectsStructure":true,"orderNo":100},
+    {"key":"locale","label":"语言地区","valueType":"TEXT","orderNo":110},
+    {"key":"additionalContext","label":"补充上下文","valueType":"TEXTAREA","aiAssist":true,"orderNo":120}
+  ],"documents":[
+    {"key":"brief","role":"brief","label":"项目简报","referenceType":"PROJECT_DOCUMENT","aiAssist":true,"minCount":0,"maxCount":1,"orderNo":10},
+    {"key":"references","role":"source","label":"来源资料","referenceType":"EXTERNAL_REFERENCE","minCount":0,"maxCount":20,"orderNo":20}
+  ]}'::jsonb)
 ON CONFLICT DO NOTHING;
 
 -- ============================================================
@@ -346,26 +357,6 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 -- ============================================================
--- 房地产领域扩展
--- ============================================================
-
-INSERT INTO aigc_domain_extension
-    (code, name, extension_version, industry, region, language, status,
-     profile_schema_ext, object_definitions, knowledge_requirements, rule_sets,
-     validators, role_recommendations, action_constraints, channel_overrides)
-VALUES
-('real-estate-cn', '中国房地产内容扩展', '1.0.0', 'real_estate', 'CN', 'zh-CN', 'published',
- '{"fields":["developer","propertyName","salesOffice"]}'::jsonb,
- '{"objects":["property_subject","claim_evidence"]}'::jsonb,
- '{"required":["license","priceSheet","promotionTerms"]}'::jsonb,
- '{"hard":["claimsRequireEvidence","plannedFacilitiesMustBeMarked","expiredOffersForbidden"]}'::jsonb,
- '["property.fact.validate","claim.validate"]'::jsonb,
- '["real_estate_planner","compliance_reviewer"]'::jsonb,
- '{"confirm":["license","price","promotion","planningStatus"]}'::jsonb,
- '{}'::jsonb)
-ON CONFLICT DO NOTHING;
-
--- ============================================================
 -- 内置执行绑定
 -- ============================================================
 
@@ -374,6 +365,7 @@ INSERT INTO aigc_execution_binding
      confirmation_required, estimated_credits, status)
 VALUES
 ('image.generate', 'tool', 'aigc.image.generate', '1.0.0', 0, TRUE, 10.00, 'published'),
+('image.highlight_generate', 'tool', 'aigc.image.generate', '1.0.0', 0, TRUE, 10.00, 'published'),
 ('image.edit', 'tool', 'aigc.image.edit', '1.0.0', 0, TRUE, 10.00, 'published'),
 ('video.generate', 'tool', 'aigc.video.generate', '1.0.0', 0, TRUE, 30.00, 'published'),
 ('package.generate', 'workflow', 'aigc.package.generate', '1.0.0', 0, TRUE, 50.00, 'published'),
@@ -387,65 +379,6 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 -- ============================================================
--- 内置项目类型兼容包
--- ============================================================
-
-INSERT INTO aigc_project_type_package
-    (package_version, project_type_id, blueprint_id, domain_extension_id,
-     channel_spec_ids, execution_binding_ids, production_mode,
-     compatibility_result, status)
-SELECT blueprint.blueprint_version,
-       project_type.id,
-       blueprint.id,
-       NULL,
-       COALESCE(
-           (SELECT jsonb_agg(channel_spec.id ORDER BY channel_spec.id)
-            FROM aigc_channel_spec channel_spec
-            WHERE channel_spec.deleted = FALSE
-              AND channel_spec.status = 'published'
-              AND project_type.default_channels ? channel_spec.code),
-           '[]'::jsonb),
-       COALESCE(
-           (SELECT jsonb_agg(binding.id ORDER BY binding.id)
-            FROM aigc_execution_binding binding
-            WHERE binding.deleted = FALSE
-              AND binding.status = 'published'
-              AND EXISTS (
-                  SELECT 1
-                  FROM jsonb_array_elements(blueprint.action_spec -> 'actions') action
-                  WHERE action ->> 'actionKey' = binding.action_key
-              )),
-           '[]'::jsonb),
-       blueprint.production_mode,
-       jsonb_build_object(
-           'compatible', TRUE,
-           'projectTypeCode', project_type.code,
-           'blueprintCode', blueprint.code,
-           'domainExtensionCode', NULL::text,
-           'channelCodes', project_type.default_channels,
-           'coveredActionKeys',
-           COALESCE(
-               (SELECT jsonb_agg(binding.action_key ORDER BY binding.id)
-                FROM aigc_execution_binding binding
-                WHERE binding.deleted = FALSE
-                  AND binding.status = 'published'
-                  AND EXISTS (
-                      SELECT 1
-                      FROM jsonb_array_elements(blueprint.action_spec -> 'actions') action
-                      WHERE action ->> 'actionKey' = binding.action_key
-                  )),
-               '[]'::jsonb)),
-       'published'
-FROM aigc_project_type project_type
-JOIN aigc_project_blueprint blueprint
-  ON blueprint.project_type_code = project_type.code
- AND blueprint.production_mode = project_type.default_production_mode
- AND blueprint.status = 'published'
- AND blueprint.deleted = FALSE
-WHERE project_type.status = 'published'
-  AND project_type.deleted = FALSE
-ON CONFLICT (project_type_id, package_version) WHERE deleted = FALSE DO NOTHING;
-
 -- ============================================================
 -- AIGC 资源权限
 -- CRUD 权限与 Resource capability 对齐；业务命令单独声明。
@@ -507,21 +440,11 @@ VALUES
     ('项目类型更新', 'aigc:project-type:update', 'aigc', 'project-type', 'update', 0),
     ('项目类型删除', 'aigc:project-type:delete', 'aigc', 'project-type', 'delete', 0),
     ('项目类型导出', 'aigc:project-type:export', 'aigc', 'project-type', 'export', 0),
-    ('项目类型兼容包读取', 'aigc:project-type-package:read', 'aigc', 'project-type-package', 'read', 0),
-    ('项目类型兼容包创建', 'aigc:project-type-package:create', 'aigc', 'project-type-package', 'create', 0),
-    ('项目类型兼容包更新', 'aigc:project-type-package:update', 'aigc', 'project-type-package', 'update', 0),
-    ('项目类型兼容包删除', 'aigc:project-type-package:delete', 'aigc', 'project-type-package', 'delete', 0),
-    ('项目类型兼容包导出', 'aigc:project-type-package:export', 'aigc', 'project-type-package', 'export', 0),
     ('项目蓝图读取', 'aigc:blueprint:read', 'aigc', 'blueprint', 'read', 0),
     ('项目蓝图创建', 'aigc:blueprint:create', 'aigc', 'blueprint', 'create', 0),
     ('项目蓝图更新', 'aigc:blueprint:update', 'aigc', 'blueprint', 'update', 0),
     ('项目蓝图删除', 'aigc:blueprint:delete', 'aigc', 'blueprint', 'delete', 0),
     ('项目蓝图导出', 'aigc:blueprint:export', 'aigc', 'blueprint', 'export', 0),
-    ('领域扩展读取', 'aigc:domain-extension:read', 'aigc', 'domain-extension', 'read', 0),
-    ('领域扩展创建', 'aigc:domain-extension:create', 'aigc', 'domain-extension', 'create', 0),
-    ('领域扩展更新', 'aigc:domain-extension:update', 'aigc', 'domain-extension', 'update', 0),
-    ('领域扩展删除', 'aigc:domain-extension:delete', 'aigc', 'domain-extension', 'delete', 0),
-    ('领域扩展导出', 'aigc:domain-extension:export', 'aigc', 'domain-extension', 'export', 0),
     ('渠道规格读取', 'aigc:channel-spec:read', 'aigc', 'channel-spec', 'read', 0),
     ('渠道规格创建', 'aigc:channel-spec:create', 'aigc', 'channel-spec', 'create', 0),
     ('渠道规格更新', 'aigc:channel-spec:update', 'aigc', 'channel-spec', 'update', 0),
@@ -576,7 +499,6 @@ ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 
 INSERT INTO sys_permission_code (name, code, module, resource, action, status)
 VALUES
-    ('发布项目类型兼容包', 'aigc:project-type-package:publish', 'aigc', 'project-type-package', 'publish', 0),
     ('创建创作项目', 'aigc:project:create', 'aigc', 'project', 'create', 0),
     ('执行创作项目动作', 'aigc:project:action', 'aigc', 'project', 'action', 0),
     ('采用项目对象版本', 'aigc:object-version:adopt', 'aigc', 'object-version', 'adopt', 0),
@@ -604,9 +526,7 @@ WHERE role.code IN ('admin', 'super_admin')
        AND NOT (
            permission.resource IN (
                'project-type',
-               'project-type-package',
                'blueprint',
-               'domain-extension',
                'channel-spec',
                'execution-binding'
            )

@@ -73,6 +73,7 @@ import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptInvocationGateway
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentRuntimePortAutoConfiguration;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.spring.AgentScopeInfrastructureAutoConfiguration;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.lease.RedisConversationLeaseAdapter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.AssistantTaskExecutionRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.ClarificationRequestRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaHitlTransitionAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaNotificationOutboxAdapter;
@@ -81,10 +82,10 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistenc
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaTaskPlanAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaTaskQueryAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaTaskUnitOfWorkAdapter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.PromptEnvelopeBodyRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.PromptEnvelopeRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.TaskDependencyRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.TaskDispatchRepository;
-import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.TaskExecutionRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.TaskInputRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.TaskNodeRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.TaskNotificationOutboxRepository;
@@ -145,7 +146,7 @@ public class IntelligentGovernanceAutoConfiguration {
     @ConditionalOnMissingBean(TaskUnitOfWork.class)
     TaskUnitOfWork taskUnitOfWork(
             TaskRootRepository tasks,
-            TaskExecutionRepository executions,
+            AssistantTaskExecutionRepository executions,
             TaskDispatchRepository dispatches,
             TaskInputRepository inputs,
             ConversationLeasePort leases) {
@@ -156,7 +157,7 @@ public class IntelligentGovernanceAutoConfiguration {
     @ConditionalOnMissingBean(HitlTransitionPort.class)
     HitlTransitionPort hitlTransitionPort(
             TaskRootRepository taskRoots,
-            TaskExecutionRepository taskExecutions,
+            AssistantTaskExecutionRepository taskExecutions,
             TaskDispatchRepository taskDispatches,
             TaskPlanPort boards,
             HumanApprovalRepository approvals,
@@ -191,7 +192,7 @@ public class IntelligentGovernanceAutoConfiguration {
             TaskPlanRepository plans,
             TaskNodeRepository nodes,
             TaskDependencyRepository dependencies,
-            TaskExecutionRepository executions,
+            AssistantTaskExecutionRepository executions,
             TaskDispatchRepository dispatches,
             TaskInputRepository inputs,
             ExecutorPlanRepository executorPlans,
@@ -225,7 +226,7 @@ public class IntelligentGovernanceAutoConfiguration {
     @ConditionalOnMissingBean(TaskQueryPort.class)
     TaskQueryPort taskQueryPort(
             TaskRootRepository tasks,
-            TaskExecutionRepository executions,
+            AssistantTaskExecutionRepository executions,
             TaskDispatchRepository dispatches,
             TaskPlanPort plans,
             ExecutorPlanPort executorPlans) {
@@ -307,8 +308,9 @@ public class IntelligentGovernanceAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean(PromptEnvelopePort.class)
-    PromptEnvelopePort promptEnvelopePort(PromptEnvelopeRepository repository) {
-        return new JpaPromptEnvelopeAdapter(repository);
+    PromptEnvelopePort promptEnvelopePort(
+            PromptEnvelopeRepository repository, PromptEnvelopeBodyRepository bodyRepository) {
+        return new JpaPromptEnvelopeAdapter(repository, bodyRepository);
     }
 
     @Bean

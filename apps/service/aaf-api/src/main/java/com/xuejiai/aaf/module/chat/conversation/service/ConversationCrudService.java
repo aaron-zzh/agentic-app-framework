@@ -5,6 +5,8 @@ import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.module.chat.conversation.domain.Conversation;
@@ -47,6 +49,9 @@ public class ConversationCrudService
                     "createTime",
                     "updateTime");
 
+    /** 通用 CRUD 只能创建与修改 USER 会话；PROJECT_SERVER 由项目服务独占管理。 */
+    private static final String USER_MANAGEMENT_MODE = "USER";
+
     private final ConversationRepository conversationRepository;
 
     @Override
@@ -78,11 +83,15 @@ public class ConversationCrudService
         entity.setModelId(dto.modelId());
         entity.setKnowledgeBaseId(dto.knowledgeBaseId());
         entity.setChannelExtension(dto.channelExtension());
+        entity.setManagementMode(USER_MANAGEMENT_MODE);
         return entity;
     }
 
     @Override
     protected void updateEntity(Conversation entity, ConversationUpdateDTO dto) {
+        if (!USER_MANAGEMENT_MODE.equals(entity.getManagementMode())) {
+            throw new BusinessException(GlobalErrorCode.FORBIDDEN, "受控项目会话只能由项目服务管理");
+        }
         if (dto.title() != null) entity.setTitle(dto.title());
         if (dto.status() != null) entity.setStatus(dto.status());
     }

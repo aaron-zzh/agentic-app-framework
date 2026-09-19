@@ -63,7 +63,7 @@ public class AigcToolActionExecutor implements AigcActionExecutor {
                 project.userId(),
                 context.binding().getTargetRef(),
                 run.getActionKey(),
-                prompt == null || prompt.isBlank() ? project.brief() : prompt,
+                prompt == null || prompt.isBlank() ? project.description() : prompt,
                 context.command().idempotencyKey(),
                 run.getEffectiveInput());
     }

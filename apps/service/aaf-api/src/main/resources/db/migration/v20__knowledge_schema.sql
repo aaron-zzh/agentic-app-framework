@@ -96,6 +96,7 @@ CREATE TABLE ai_knowledge_ingest_run (
     id                        UUID PRIMARY KEY,
     knowledge_base_id         BIGINT NOT NULL REFERENCES ai_knowledge_base(id),
     document_id               BIGINT NOT NULL,
+    source_document_version_id BIGINT NOT NULL REFERENCES doc_document_version(id) ON DELETE RESTRICT,
     run_no                    BIGINT NOT NULL,
     ingest_fingerprint        VARCHAR(64) NOT NULL,
     payer_user_id             BIGINT NOT NULL,
@@ -145,6 +146,8 @@ CREATE UNIQUE INDEX uk_ai_knowledge_ingest_fingerprint_v20
     WHERE status <> 'SUPERSEDED';
 CREATE UNIQUE INDEX uk_ai_knowledge_ingest_published_v20
     ON ai_knowledge_ingest_run (document_id) WHERE status = 'PUBLISHED';
+CREATE INDEX idx_ai_knowledge_ingest_source_version_v20
+    ON ai_knowledge_ingest_run (source_document_version_id);
 
 -- document.active_run_id 与 PUBLISHED run 的循环一致性由后文延迟约束触发器保证，
 -- 避免建表后的补充约束语句。

@@ -34,9 +34,6 @@ public class AigcExecutionBinding extends BaseEntity {
     @Column(name = "project_type_code", length = 64)
     private String projectTypeCode;
 
-    @Column(name = "domain_extension_code", length = 64)
-    private String domainExtensionCode;
-
     @Column(name = "production_mode", length = 32)
     private String productionMode;
 

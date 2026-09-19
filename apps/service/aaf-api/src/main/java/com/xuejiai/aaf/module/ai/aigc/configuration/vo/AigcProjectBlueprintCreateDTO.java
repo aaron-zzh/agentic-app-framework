@@ -1,10 +1,10 @@
 package com.xuejiai.aaf.module.ai.aigc.configuration.vo;
 
-import java.util.List;
 import java.util.Map;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -26,4 +26,4 @@ public record AigcProjectBlueprintCreateDTO(
         Map<String, Object> actionSpec,
         Map<String, Object> deliverableSpec,
         Map<String, Object> processPolicy,
-        List<String> briefFields) {}
+        @NotNull Map<String, Object> projectInitialization) {}

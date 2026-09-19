@@ -125,6 +125,15 @@ public interface AssistantErrorCode {
     ErrorCode EXECUTION_DOCUMENT_ATTACHMENT_TYPE_UNSUPPORTED =
             ErrorCode.of(7_003_075, "不支持的文档附件类型");
     ErrorCode EXECUTION_DOCUMENT_ATTACHMENT_NOT_FOUND = ErrorCode.of(7_003_076, 404, "文档附件不存在");
+    ErrorCode EXECUTION_ARTIFACT_TARGET_REQUIRES_AUTO_SAVE =
+            ErrorCode.of(7_003_077, "artifactTarget 仅可用于 AUTO_SAVE_DRAFT");
+
+    // 受控程序化 canonical Task 入口（AAF-113 #11328）
+    ErrorCode PROGRAMMATIC_TASK_ROUTE_NOT_PERSISTENT =
+            ErrorCode.of(7_003_078, "受控程序化入口只能创建持久 canonical Task");
+    ErrorCode PROGRAMMATIC_TASK_FACT_LIMIT_EXCEEDED = ErrorCode.of(7_003_079, "程序化目标的结构化事实数量超限");
+    ErrorCode PROGRAMMATIC_TASK_IDEMPOTENCY_KEY_TOO_LONG =
+            ErrorCode.of(7_003_080, "程序化目标幂等键长度不能超过 256");
 
     // 审批
     ErrorCode APPROVAL_RECOVERY_REQUIRES_APPROVED = ErrorCode.of(7_003_100, "仅批准决定可恢复执行");

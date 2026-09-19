@@ -200,6 +200,7 @@ public record Execution(
         RUNNING,
         AWAITING_AUTHORIZATION,
         AWAITING_CLARIFICATION,
+        AWAITING_EXTERNAL,
         PAUSED,
         COMPLETED,
         FAILED,

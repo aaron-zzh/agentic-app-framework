@@ -13,6 +13,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +22,7 @@ import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.module.document.api.DocumentVersionApi;
 import com.xuejiai.aaf.module.document.domain.Document;
 import com.xuejiai.aaf.module.document.domain.DocumentVersion;
+import com.xuejiai.aaf.module.document.event.DocumentVersionCreatedEvent;
 import com.xuejiai.aaf.module.document.repository.DocumentRepository;
 import com.xuejiai.aaf.module.document.repository.DocumentVersionRepository;
 
@@ -37,6 +39,7 @@ public class DocumentVersionService implements DocumentVersionApi {
 
     private final DocumentRepository documentRepository;
     private final DocumentVersionRepository versionRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional
@@ -72,6 +75,13 @@ public class DocumentVersionService implements DocumentVersionApi {
         document.setCurrentVersionId(version.getId());
         document.setContent(content);
         documentRepository.saveAndFlush(document);
+        eventPublisher.publishEvent(
+                new DocumentVersionCreatedEvent(
+                        version.getId(),
+                        version.getOwnerId(),
+                        version.getOrgId(),
+                        version.getWorkspaceId(),
+                        version.getSourceType()));
         return toView(version);
     }
 
@@ -127,6 +137,13 @@ public class DocumentVersionService implements DocumentVersionApi {
         document.setCurrentVersionId(version.getId());
         document.setContent(content);
         documentRepository.saveAndFlush(document);
+        eventPublisher.publishEvent(
+                new DocumentVersionCreatedEvent(
+                        version.getId(),
+                        version.getOwnerId(),
+                        version.getOrgId(),
+                        version.getWorkspaceId(),
+                        version.getSourceType()));
         return toView(version);
     }
 

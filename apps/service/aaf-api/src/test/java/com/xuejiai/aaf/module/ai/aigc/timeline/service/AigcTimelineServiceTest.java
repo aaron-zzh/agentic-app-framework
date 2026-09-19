@@ -5,6 +5,7 @@ import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
@@ -62,8 +63,8 @@ class AigcTimelineServiceTest extends BaseMockitoUnitTest {
                 AigcProjectLifecycle.CREATING,
                 5,
                 null,
+                "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
                 "social",
-                null,
                 "standard",
                 "manual",
                 List.of(),
@@ -71,7 +72,17 @@ class AigcTimelineServiceTest extends BaseMockitoUnitTest {
                 null,
                 BigDecimal.ZERO,
                 null,
-                "项目简报",
+                null,
+                null,
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                null,
+                List.of(),
+                Map.of(),
+                null,
+                null,
                 null,
                 7L);
     }

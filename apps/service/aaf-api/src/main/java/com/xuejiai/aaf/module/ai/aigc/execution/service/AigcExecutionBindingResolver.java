@@ -51,7 +51,6 @@ public class AigcExecutionBindingResolver {
 
     private boolean matches(AigcExecutionBinding binding, AigcProjectView project) {
         return matches(binding.getProjectTypeCode(), project.projectTypeCode())
-                && matches(binding.getDomainExtensionCode(), project.domainExtensionCode())
                 && matches(binding.getProductionMode(), project.productionMode())
                 && binding.getChannelCode() == null;
     }

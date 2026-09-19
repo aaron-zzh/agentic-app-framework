@@ -95,6 +95,9 @@ class AssistantExecutionServiceTest {
                         mock(
                                 com.xuejiai.aaf.framework.intelligent.assistant.port
                                         .SystemSkillBindingPort.class),
+                        mock(
+                                com.xuejiai.aaf.framework.intelligent.assistant.port.TaskQueryPort
+                                        .class),
                         mock(DefinitionLifecycleService.class),
                         operatorContext,
                         mock(VisionMediaResolver.class));
@@ -336,7 +339,8 @@ class AssistantExecutionServiceTest {
                         routeConstraint,
                         ClarificationPolicy.FAIL_ON_BLOCKER,
                         ActionAuthorizationPolicy.REQUEST_ON_DEMAND,
-                        persistence),
+                        persistence,
+                        null),
                 new Input("测试", Map.of(), List.of()),
                 interactionMode == AssistantExecutionRequest.InteractionMode.TASK
                         ? new RoleSelection("system.role.content-creator")
@@ -362,7 +366,8 @@ class AssistantExecutionServiceTest {
                         routeConstraint,
                         ClarificationPolicy.MINIMAL,
                         ActionAuthorizationPolicy.DENY_AUTHORIZED_ACTIONS,
-                        ArtifactPersistence.RETURN_ONLY),
+                        ArtifactPersistence.RETURN_ONLY,
+                        null),
                 new Input("测试", Map.of(), List.of()),
                 roleKey == null ? null : new RoleSelection(roleKey),
                 skillKey == null ? null : new SkillSelection(skillKey),

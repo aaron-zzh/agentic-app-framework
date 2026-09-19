@@ -30,6 +30,8 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectConversationContext;
 import com.xuejiai.aaf.module.ai.assistant.AssistantErrorCode;
 import com.xuejiai.aaf.module.ai.assistant.document.DocumentAttachmentGuardService;
 import com.xuejiai.aaf.module.ai.assistant.document.DocumentTokenBudgetSplitter;
@@ -74,6 +76,7 @@ public class AssistantAguiController {
     private static final AguiEventEncoder ENCODER = new AguiEventEncoder();
 
     private final AssistantExecutionService assistantExecutions;
+    private final AigcProjectApi projects;
     private final ChatService chatService;
     private final AgUiProjector agUiProjector;
     private final Validator validator;
@@ -88,6 +91,7 @@ public class AssistantAguiController {
 
     public AssistantAguiController(
             AssistantExecutionService assistantExecutions,
+            AigcProjectApi projects,
             ChatService chatService,
             AgUiProjector agUiProjector,
             Validator validator,
@@ -100,6 +104,7 @@ public class AssistantAguiController {
             DocumentAttachmentGuardService documentAttachmentGuard,
             DocumentTokenBudgetSplitter documentTokenBudgetSplitter) {
         this.assistantExecutions = assistantExecutions;
+        this.projects = projects;
         this.chatService = chatService;
         this.agUiProjector = agUiProjector;
         this.validator = validator;
@@ -321,8 +326,35 @@ public class AssistantAguiController {
         var input = lastUserInput(request.messages());
         var props = request.forwardedProps();
         var plan = mode(props).plan(props, input, validator);
+        requireProjectBinding(props, request.threadId(), plan.request());
         return assistantExecutions.start(
                 plan.request(), plan.team(), request.threadId(), request.runId());
+    }
+
+    private void requireProjectBinding(
+            JsonNode props, String threadId, AssistantExecutionRequest request) {
+        var projectId = optionalProjectId(props);
+        if (projectId == null) {
+            return;
+        }
+        var context = projects.conversationContext(projectId);
+        if (context.state() != AigcProjectConversationContext.State.READY
+                || !threadId.equals(context.threadId())
+                || request.assistant() == null
+                || !context.assistantId().equals(request.assistant().id())) {
+            throw new IllegalArgumentException("项目会话、Assistant 与当前执行请求不一致");
+        }
+    }
+
+    private static Long optionalProjectId(JsonNode props) {
+        var value = props.get("projectId");
+        if (value == null || value.isNull()) {
+            return null;
+        }
+        if (!value.isIntegralNumber() || value.longValue() < 1) {
+            throw new IllegalArgumentException("forwardedProps.projectId 必须为正整数");
+        }
+        return value.longValue();
     }
 
     /** 运行模式来自 {@code forwardedProps.mode}——它是本次 run 的调用参数，不是线程共享状态。 */
@@ -377,7 +409,8 @@ public class AssistantAguiController {
                                 : RouteConstraint.FIXED,
                         ClarificationPolicy.MINIMAL,
                         ActionAuthorizationPolicy.DENY_AUTHORIZED_ACTIONS,
-                        ArtifactPersistence.RETURN_ONLY),
+                        ArtifactPersistence.RETURN_ONLY,
+                        null),
                 new Input(input.text(), Map.of(), input.attachments()),
                 role,
                 skill,

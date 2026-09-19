@@ -79,6 +79,7 @@ public class AigcProjectBlueprint extends BaseEntity {
     private Map<String, Object> processPolicy;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "brief_fields", columnDefinition = "jsonb")
-    private List<String> briefFields = List.of();
+    @Column(name = "project_initialization", nullable = false, columnDefinition = "jsonb")
+    private Map<String, Object> projectInitialization =
+            Map.of("fields", List.of(), "documents", List.of());
 }

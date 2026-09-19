@@ -171,7 +171,8 @@ public record ExecutionIntent(
             String canonicalMediaType,
             PersistenceMode persistenceMode,
             String saveTool,
-            PublishPolicy publishPolicy) {
+            PublishPolicy publishPolicy,
+            ArtifactTarget target) {
         public ArtifactPolicy {
             Objects.requireNonNull(outputKind, "outputKind 不能为空");
             canonicalMediaType = requireText(canonicalMediaType, "canonicalMediaType");
@@ -184,16 +185,30 @@ public record ExecutionIntent(
             if (persistenceMode == PersistenceMode.RETURN_ONLY && saveTool != null) {
                 throw new IllegalArgumentException("RETURN_ONLY 不允许指定 saveTool");
             }
+            if (target != null
+                    && (persistenceMode != PersistenceMode.AUTO_SAVE_DRAFT
+                            || outputKind != OutputKind.DOCUMENT)) {
+                throw new IllegalArgumentException("artifact target 仅适用于自动保存文档草稿");
+            }
         }
 
         public static ArtifactPolicy autoSaveDraft(
                 OutputKind outputKind, String canonicalMediaType, String saveTool) {
+            return autoSaveDraft(outputKind, canonicalMediaType, saveTool, null);
+        }
+
+        public static ArtifactPolicy autoSaveDraft(
+                OutputKind outputKind,
+                String canonicalMediaType,
+                String saveTool,
+                ArtifactTarget target) {
             return new ArtifactPolicy(
                     outputKind,
                     canonicalMediaType,
                     PersistenceMode.AUTO_SAVE_DRAFT,
                     saveTool,
-                    PublishPolicy.NEVER_BY_DEFAULT);
+                    PublishPolicy.NEVER_BY_DEFAULT,
+                    target);
         }
 
         public static ArtifactPolicy returnOnly(OutputKind outputKind, String canonicalMediaType) {
@@ -202,7 +217,16 @@ public record ExecutionIntent(
                     canonicalMediaType,
                     PersistenceMode.RETURN_ONLY,
                     null,
-                    PublishPolicy.NEVER_BY_DEFAULT);
+                    PublishPolicy.NEVER_BY_DEFAULT,
+                    null);
+        }
+    }
+
+    /** 客户端声明并经服务端冻结的既有产物目标；具体权限与版本 CAS 仍由保存端校验。 */
+    public record ArtifactTarget(String artifactId, String artifactVersionId) {
+        public ArtifactTarget {
+            artifactId = requireText(artifactId, "artifactId");
+            artifactVersionId = requireText(artifactVersionId, "artifactVersionId");
         }
     }
 

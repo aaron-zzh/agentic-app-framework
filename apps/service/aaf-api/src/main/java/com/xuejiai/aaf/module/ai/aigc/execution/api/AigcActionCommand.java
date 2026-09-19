@@ -15,6 +15,7 @@ public record AigcActionCommand(
         Map<String, Object> actionArguments,
         List<Long> attachmentMediaVersionIds,
         List<Long> selectedProjectObjectIds,
+        Integer expectedProjectVersion,
         Long expectedGraphRevision,
         boolean confirmed,
         String idempotencyKey) {

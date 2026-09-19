@@ -34,6 +34,7 @@ class TrustedKnowledgeStoreRunTest {
                 store.beginRun(
                         1L,
                         2L,
+                        3L,
                         "content-hash",
                         "fingerprint",
                         "parser",
@@ -123,6 +124,7 @@ class TrustedKnowledgeStoreRunTest {
                         .beginRun(
                                 1L,
                                 2L,
+                                3L,
                                 "content-hash",
                                 "fingerprint",
                                 "parser",

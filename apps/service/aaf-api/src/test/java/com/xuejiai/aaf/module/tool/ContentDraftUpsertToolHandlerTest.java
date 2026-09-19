@@ -46,7 +46,7 @@ class ContentDraftUpsertToolHandlerTest extends BaseMockitoUnitTest {
     @Test
     void savesDatabaseDraftWithTrustedInvocationScopeAndCompletionEvidence() {
         when(documents.upsertDraft(org.mockito.ArgumentMatchers.any()))
-                .thenReturn(new DraftDocument(91L));
+                .thenReturn(new DraftDocument(91L, 92L));
 
         var result =
                 handler.invoke(
@@ -70,6 +70,7 @@ class ContentDraftUpsertToolHandlerTest extends BaseMockitoUnitTest {
                 .containsEntry("artifactState", "DRAFT")
                 .containsEntry("artifactType", "DOCUMENT")
                 .containsEntry("artifactId", 91L)
+                .containsEntry("artifactVersionId", 92L)
                 .containsEntry("reversible", true)
                 .containsEntry("completionEvidence", "DRAFT_COMMITTED");
         assertThat(result.output()).contains("\"published\":false");

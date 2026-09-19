@@ -7,11 +7,15 @@ public record AigcBlueprintActionSpec(
         String actionKey,
         String targetTemplateKey,
         List<String> dependencyTemplateKeys,
+        List<String> requiredContextKeys,
         String confirmationPolicy,
+        boolean isDefault,
         String inputPresetJson) {
 
     public AigcBlueprintActionSpec {
         dependencyTemplateKeys =
                 dependencyTemplateKeys == null ? List.of() : List.copyOf(dependencyTemplateKeys);
+        requiredContextKeys =
+                requiredContextKeys == null ? List.of() : List.copyOf(requiredContextKeys);
     }
 }

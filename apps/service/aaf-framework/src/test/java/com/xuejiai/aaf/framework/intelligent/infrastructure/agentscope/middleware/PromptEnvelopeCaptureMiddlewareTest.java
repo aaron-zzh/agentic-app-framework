@@ -67,7 +67,7 @@ class PromptEnvelopeCaptureMiddlewareTest extends BaseMockitoUnitTest {
         // 准备参数
         var middleware = middleware();
         when(envelopes.findLatest(TENANT_ID, EXECUTION_ID)).thenReturn(Optional.empty());
-        when(envelopes.append(any())).thenAnswer(answerWithSeq(1));
+        when(envelopes.append(any(), any())).thenAnswer(answerWithSeq(1));
 
         // 调用
         var events =
@@ -93,7 +93,7 @@ class PromptEnvelopeCaptureMiddlewareTest extends BaseMockitoUnitTest {
     void should_mark_retry_when_request_content_repeats() {
         // 准备参数
         var middleware = middleware();
-        when(envelopes.append(any())).thenAnswer(answerWithSeq(1));
+        when(envelopes.append(any(), any())).thenAnswer(answerWithSeq(1));
         when(envelopes.findLatest(TENANT_ID, EXECUTION_ID)).thenReturn(Optional.empty());
         middleware
                 .onModelCall(null, runtimeContext(), input(), ignored -> Flux.empty())
@@ -133,7 +133,7 @@ class PromptEnvelopeCaptureMiddlewareTest extends BaseMockitoUnitTest {
                                         .collectList()
                                         .block())
                 .isInstanceOf(IllegalStateException.class);
-        verify(envelopes, never()).append(any());
+        verify(envelopes, never()).append(any(), any());
     }
 
     private PromptEnvelopeCaptureMiddleware middleware() {
@@ -147,7 +147,7 @@ class PromptEnvelopeCaptureMiddlewareTest extends BaseMockitoUnitTest {
 
     private PromptEnvelope.Draft capturedDraft() {
         var captor = ArgumentCaptor.forClass(PromptEnvelope.Draft.class);
-        verify(envelopes, atLeastOnce()).append(captor.capture());
+        verify(envelopes, atLeastOnce()).append(captor.capture(), any());
         return captor.getValue();
     }
 

@@ -18,6 +18,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ArtifactCompletionContract.ArtifactCompletionEvaluator;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionInput;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Task;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
@@ -181,6 +182,8 @@ class TaskCommandServiceAmendmentTest {
                                         new TaskIngress.Acceptance(
                                                 invocation.getArgument(0), true)));
         when(tasks.findTask(TENANT, TASK_ID)).thenReturn(Optional.of(task));
+        when(materializations.findAwaitingExternal(org.mockito.ArgumentMatchers.anyInt()))
+                .thenReturn(List.of());
         when(materializations.startTaskReplan(
                         org.mockito.ArgumentMatchers.any(),
                         org.mockito.ArgumentMatchers.any(),
@@ -209,6 +212,7 @@ class TaskCommandServiceAmendmentTest {
                         mock(AssistantCommandPort.class),
                         agentExecutions,
                         mock(TaskDispatchSignalPort.class),
+                        mock(ArtifactCompletionEvaluator.class),
                         Clock.fixed(NOW, ZoneOffset.UTC),
                         Duration.ofMinutes(1),
                         Duration.ofSeconds(30));

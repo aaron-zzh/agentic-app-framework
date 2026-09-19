@@ -2,8 +2,12 @@ package com.xuejiai.aaf.module.ai.aigc.project.domain;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
+import org.hibernate.type.SqlTypes;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus;
@@ -33,6 +37,45 @@ public class AigcProject extends BaseEntity {
     @Column(length = 500)
     private String description;
 
+    @Column(columnDefinition = "TEXT")
+    private String background;
+
+    @Column(name = "target_audience", columnDefinition = "TEXT")
+    private String targetAudience;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(nullable = false, columnDefinition = "jsonb")
+    private List<String> requirements = List.of();
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(nullable = false, columnDefinition = "jsonb")
+    private List<String> constraints = List.of();
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "key_facts", nullable = false, columnDefinition = "jsonb")
+    private List<String> keyFacts = List.of();
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "key_messages", nullable = false, columnDefinition = "jsonb")
+    private List<String> keyMessages = List.of();
+
+    @Column(name = "style_guidance", columnDefinition = "TEXT")
+    private String styleGuidance;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "success_criteria", nullable = false, columnDefinition = "jsonb")
+    private List<String> successCriteria = List.of();
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "delivery_requirements", nullable = false, columnDefinition = "jsonb")
+    private Map<String, Object> deliveryRequirements = Map.of();
+
+    @Column(length = 32)
+    private String locale;
+
+    @Column(name = "additional_context", columnDefinition = "TEXT")
+    private String additionalContext;
+
     @Column(name = "project_type_code", nullable = false, length = 64)
     private String projectTypeCode;
 
@@ -42,24 +85,16 @@ public class AigcProject extends BaseEntity {
     @Column(name = "blueprint_version", length = 32)
     private String blueprintVersion;
 
-    @Column(name = "domain_extension_code", length = 64)
-    private String domainExtensionCode;
-
-    @Column(name = "domain_extension_version", length = 32)
-    private String domainExtensionVersion;
-
     @Column(name = "production_mode", nullable = false, length = 32)
     private String productionMode;
 
+    // 控制在用户已经确定目标范围后，系统是否可以在依赖逐步满足时，自主创建后续生成任务并连续推进。
     @Column(name = "generation_mode", nullable = false, length = 32)
     private String generationMode = "manual";
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     private AigcProjectLifecycle status = AigcProjectLifecycle.CONFIGURING;
-
-    @Column(columnDefinition = "TEXT")
-    private String brief;
 
     @Column(columnDefinition = "TEXT")
     private String prompt;
@@ -85,6 +120,9 @@ public class AigcProject extends BaseEntity {
 
     @Column(name = "assistant_id")
     private Long assistantId;
+
+    @Column(name = "conversation_id")
+    private Long conversationId;
 
     @Column(name = "budget_limit", precision = 12, scale = 2)
     private BigDecimal budgetLimit;

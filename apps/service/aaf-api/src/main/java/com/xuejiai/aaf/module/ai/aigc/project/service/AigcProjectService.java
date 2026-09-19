@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.enums.OperatorType;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.BaseEntity;
@@ -30,10 +31,18 @@ import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.crud.definition.CrudOperation;
 import com.xuejiai.aaf.framework.crud.enforcement.AccessMode;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantIdentityPort;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AssistantId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.aigc.AigcAuthorities;
 import com.xuejiai.aaf.module.ai.aigc.AigcCanonicalRequest;
+import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcBlueprintActionSpec;
+import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcBlueprintRelationSpec;
+import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcBlueprintSlotTemplateSpec;
+import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcResolvedObjectSpec;
 import com.xuejiai.aaf.module.ai.aigc.event.service.AigcActivityEventService;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaType;
@@ -54,7 +63,10 @@ import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionComparisonVie
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionRejectCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionView;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectConversationBindCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectConversationContext;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectDocumentContextMode;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectDocumentReferenceType;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectExecutionReservationBindCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectExecutionReservationCommand;
@@ -86,6 +98,7 @@ import com.xuejiai.aaf.module.ai.aigc.project.api.ExecutionEvidencePort;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcObjectVersion;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProject;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectConfigSnapshot;
+import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectDocumentDecision;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectDocumentRef;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectExecutionReservation;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectExecutionReservationTarget;
@@ -99,6 +112,7 @@ import com.xuejiai.aaf.module.ai.aigc.project.event.AigcProjectCoverSupersededEv
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcObjectVersionRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectChannelRefRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectConfigSnapshotRepository;
+import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectDocumentDecisionRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectDocumentRefRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectExecutionReservationRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectExecutionReservationTargetRepository;
@@ -114,6 +128,9 @@ import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcObjectVersionVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectChannelRefVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectConfigSnapshotVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectCoverPatchDTO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentCandidateDTO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentDecisionDTO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentDecisionVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentRefDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentRefUpdateDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentRefVO;
@@ -128,8 +145,10 @@ import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectRevisionVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectSummaryVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectUpdateDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectVO;
+import com.xuejiai.aaf.module.chat.conversation.api.ProjectConversationPort;
 import com.xuejiai.aaf.module.document.api.DocumentReferenceApi;
 import com.xuejiai.aaf.module.document.api.DocumentVersionApi;
+import com.xuejiai.aaf.module.document.api.DocumentVersionSemanticMetadataApi;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
@@ -151,6 +170,11 @@ public class AigcProjectService
                     AigcProjectLifecycle.EXECUTING,
                     AigcProjectLifecycle.ADOPTING);
 
+    // plannedPhase 已确认为无实际业务消费的纯装饰性字段（详见 design.md），业务语义上已移除；
+    // 数据库列 aigc_project_object.planned_phase 仍为 NOT NULL（v7__aigc_schema.sql 已发布迁移，
+    // 本轮授权不允许新增迁移删除该列），写入固定占位值以满足既有约束，不再对外暴露或校验。
+    private static final String LEGACY_PLANNED_PHASE_PLACEHOLDER = "BUILD";
+
     private final AigcProjectRepository repository;
     private final EntityManager entityManager;
     private final AigcProjectObjectRepository objectRepository;
@@ -164,6 +188,7 @@ public class AigcProjectService
     private final AigcProjectProfileRefRepository profileRefRepository;
     private final AigcProjectChannelRefRepository channelRefRepository;
     private final AigcProjectDocumentRefRepository documentRefRepository;
+    private final AigcProjectDocumentDecisionRepository documentDecisionRepository;
     private final AigcProjectResourceRefRepository resourceRefRepository;
     private final AigcProjectMediaRefRepository mediaRefRepository;
     private final AigcProjectMaterializer materializer;
@@ -174,6 +199,9 @@ public class AigcProjectService
     private final AigcMediaApi mediaApi;
     private final DocumentReferenceApi documentReferenceApi;
     private final DocumentVersionApi documentVersionApi;
+    private final DocumentVersionSemanticMetadataApi semanticMetadataApi;
+    private final AssistantIdentityPort assistantIdentities;
+    private final ProjectConversationPort projectConversations;
     private final OperatorContext operatorContext;
     private final PermissionEvaluator permissionEvaluator;
     private final ApplicationEventPublisher eventPublisher;
@@ -192,15 +220,23 @@ public class AigcProjectService
                 project.getVersion(),
                 project.getName(),
                 project.getDescription(),
+                project.getBackground(),
+                project.getTargetAudience(),
+                project.getRequirements(),
+                project.getConstraints(),
+                project.getKeyFacts(),
+                project.getKeyMessages(),
+                project.getStyleGuidance(),
+                project.getSuccessCriteria(),
+                project.getDeliveryRequirements(),
+                project.getLocale(),
+                project.getAdditionalContext(),
                 project.getProjectTypeCode(),
                 project.getBlueprintCode(),
                 project.getBlueprintVersion(),
-                project.getDomainExtensionCode(),
-                project.getDomainExtensionVersion(),
                 project.getProductionMode(),
                 project.getGenerationMode(),
                 project.getStatus(),
-                project.getBrief(),
                 project.getPrompt(),
                 project.getCoverMediaVersionId(),
                 coverState.status(),
@@ -245,8 +281,60 @@ public class AigcProjectService
             }
             project.setDescription(description);
         }
-        if (!request.brief().isAbsent()) {
-            project.setBrief(request.brief().valueOrNull());
+        if (!request.background().isAbsent()) {
+            project.setBackground(request.background().valueOrNull());
+        }
+        if (!request.targetAudience().isAbsent()) {
+            project.setTargetAudience(request.targetAudience().valueOrNull());
+        }
+        if (!request.requirements().isAbsent()) {
+            project.setRequirements(
+                    request.requirements().valueOrNull() == null
+                            ? List.of()
+                            : List.copyOf(request.requirements().valueOrNull()));
+        }
+        if (!request.constraints().isAbsent()) {
+            project.setConstraints(
+                    request.constraints().valueOrNull() == null
+                            ? List.of()
+                            : List.copyOf(request.constraints().valueOrNull()));
+        }
+        if (!request.keyFacts().isAbsent()) {
+            project.setKeyFacts(
+                    request.keyFacts().valueOrNull() == null
+                            ? List.of()
+                            : List.copyOf(request.keyFacts().valueOrNull()));
+        }
+        if (!request.keyMessages().isAbsent()) {
+            project.setKeyMessages(
+                    request.keyMessages().valueOrNull() == null
+                            ? List.of()
+                            : List.copyOf(request.keyMessages().valueOrNull()));
+        }
+        if (!request.styleGuidance().isAbsent()) {
+            project.setStyleGuidance(request.styleGuidance().valueOrNull());
+        }
+        if (!request.successCriteria().isAbsent()) {
+            project.setSuccessCriteria(
+                    request.successCriteria().valueOrNull() == null
+                            ? List.of()
+                            : List.copyOf(request.successCriteria().valueOrNull()));
+        }
+        if (!request.deliveryRequirements().isAbsent()) {
+            project.setDeliveryRequirements(
+                    request.deliveryRequirements().valueOrNull() == null
+                            ? Map.of()
+                            : Map.copyOf(request.deliveryRequirements().valueOrNull()));
+        }
+        if (!request.locale().isAbsent()) {
+            var locale = request.locale().valueOrNull();
+            if (locale != null && locale.length() > 32) {
+                throw badRequest("语言地区长度不能超过 32");
+            }
+            project.setLocale(locale);
+        }
+        if (!request.additionalContext().isAbsent()) {
+            project.setAdditionalContext(request.additionalContext().valueOrNull());
         }
         if (!request.cover().isAbsent()) {
             if (request.cover().isNullValue()) {
@@ -261,7 +349,17 @@ public class AigcProjectService
     private boolean isEmptyPatch(AigcProjectUpdateDTO request) {
         return request.name().isAbsent()
                 && request.description().isAbsent()
-                && request.brief().isAbsent()
+                && request.background().isAbsent()
+                && request.targetAudience().isAbsent()
+                && request.requirements().isAbsent()
+                && request.constraints().isAbsent()
+                && request.keyFacts().isAbsent()
+                && request.keyMessages().isAbsent()
+                && request.styleGuidance().isAbsent()
+                && request.successCriteria().isAbsent()
+                && request.deliveryRequirements().isAbsent()
+                && request.locale().isAbsent()
+                && request.additionalContext().isAbsent()
                 && request.cover().isAbsent();
     }
 
@@ -380,7 +478,7 @@ public class AigcProjectService
         return "%s\n%s\n%s"
                 .formatted(
                         project.getName(),
-                        project.getBrief() == null ? "" : project.getBrief(),
+                        project.getDescription() == null ? "" : project.getDescription(),
                         project.getProjectTypeCode());
     }
 
@@ -421,6 +519,114 @@ public class AigcProjectService
     @Override
     public AigcProjectView requireProject(Long projectId) {
         return toApiView(requireEntity(projectId));
+    }
+
+    @Override
+    public AigcProjectConversationContext conversationContext(Long projectId) {
+        var project = requireEntity(projectId);
+        var userId = requireCurrentProjectOwner(project);
+        return conversationContext(project, userId);
+    }
+
+    @Transactional
+    public AigcProjectConversationContext bindConversation(
+            AigcProjectConversationBindCommand command) {
+        Objects.requireNonNull(command, "command 不能为空");
+        var project =
+                requireLockedProject(command.projectId(), command.expectedProjectVersion(), true);
+        var userId = requireCurrentProjectOwner(project);
+        var tenantId = projectTenant(project);
+        if (project.getConversationId() != null || project.getAssistantId() != null) {
+            var current = conversationContext(project, userId);
+            if (current.state() != AigcProjectConversationContext.State.READY
+                    || !command.assistantId().equals(current.assistantId())) {
+                throw new BusinessException(409, "项目已绑定其他 Assistant 或会话身份不一致");
+            }
+            return current;
+        }
+        var assistant =
+                assistantIdentities
+                        .resolveExecutable(tenantId, userId, new AssistantId(command.assistantId()))
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.FORBIDDEN,
+                                                "Assistant 不存在或当前用户不可执行"));
+        var conversation =
+                projectConversations.create(
+                        new ProjectConversationPort.CreateCommand(
+                                project.getId(),
+                                project.getUserId(),
+                                project.getOrgId(),
+                                project.getWorkspaceId(),
+                                assistant.assistantRecordId(),
+                                projectConversationTitle(project)));
+        project.setAssistantId(assistant.assistantRecordId());
+        project.setConversationId(conversation.conversationRecordId());
+        project.setVersion(project.getVersion() + 1);
+        repository.saveAndFlush(project);
+        return new AigcProjectConversationContext(
+                project.getId(),
+                project.getVersion(),
+                AigcProjectConversationContext.State.READY,
+                assistant.assistantRecordId(),
+                assistant.assistantId().value(),
+                conversation.conversationRecordId(),
+                conversation.threadId());
+    }
+
+    private AigcProjectConversationContext conversationContext(AigcProject project, UserId userId) {
+        if (project.getConversationId() == null && project.getAssistantId() == null) {
+            return AigcProjectConversationContext.bindingRequired(
+                    project.getId(), project.getVersion());
+        }
+        if (project.getConversationId() == null || project.getAssistantId() == null) {
+            throw new BusinessException(409, "项目 Assistant 与会话绑定不完整");
+        }
+        var assistant =
+                assistantIdentities
+                        .resolveExecutable(projectTenant(project), userId, project.getAssistantId())
+                        .orElseThrow(() -> new BusinessException(409, "项目绑定的 Assistant 已不可执行"));
+        var conversation =
+                projectConversations
+                        .find(project.getConversationId())
+                        .orElseThrow(() -> new BusinessException(409, "项目绑定会话不存在或不可管理"));
+        if (!Objects.equals(conversation.ownerId(), project.getUserId())
+                || !Objects.equals(conversation.orgId(), project.getOrgId())
+                || !Objects.equals(conversation.workspaceId(), project.getWorkspaceId())
+                || !Objects.equals(conversation.assistantRecordId(), assistant.assistantRecordId())
+                || conversation.threadId() == null
+                || conversation.threadId().isBlank()) {
+            throw new BusinessException(409, "项目绑定会话身份或范围不一致");
+        }
+        return new AigcProjectConversationContext(
+                project.getId(),
+                project.getVersion(),
+                AigcProjectConversationContext.State.READY,
+                assistant.assistantRecordId(),
+                assistant.assistantId().value(),
+                conversation.conversationRecordId(),
+                conversation.threadId());
+    }
+
+    private UserId requireCurrentProjectOwner(AigcProject project) {
+        var ownerId = operatorContext.currentOwnerId().orElseThrow();
+        if (!Objects.equals(project.getUserId(), ownerId)) {
+            throw notFound("项目不存在");
+        }
+        return new UserId(String.valueOf(ownerId));
+    }
+
+    private TenantId projectTenant(AigcProject project) {
+        if (project.getOrgId() == null) {
+            throw new BusinessException(409, "项目缺少组织范围");
+        }
+        return new TenantId(String.valueOf(project.getOrgId()));
+    }
+
+    private String projectConversationTitle(AigcProject project) {
+        var title = "项目协作：" + project.getName();
+        return title.length() <= 200 ? title : title.substring(0, 200);
     }
 
     @Override
@@ -684,34 +890,53 @@ public class AigcProjectService
     @Override
     public AigcProjectGraphView getGraph(Long projectId) {
         var project = requireEntity(projectId);
+        var objects = objectRepository.findByProjectIdOrderBySortOrderAscIdAsc(projectId);
+        var objectsById =
+                objects.stream()
+                        .collect(
+                                java.util.stream.Collectors.toMap(
+                                        AigcProjectObject::getId,
+                                        java.util.function.Function.identity()));
         return new AigcProjectGraphView(
                 toApiView(project),
-                objectRepository.findByProjectIdOrderBySortOrderAscIdAsc(projectId).stream()
-                        .map(this::toApiObjectView)
-                        .toList(),
+                objects.stream().map(this::toApiObjectView).toList(),
                 graphRelations(projectId).stream()
                         .map(
-                                relation ->
-                                        new AigcProjectRelationView(
-                                                relation.id(),
-                                                relation.sourceObjectId(),
-                                                relation.targetObjectId(),
-                                                relation.relationType(),
-                                                relation.layer(),
-                                                JsonUtils.toJsonString(relation.metadata())))
+                                relation -> {
+                                    var source = objectsById.get(relation.sourceObjectId());
+                                    var target = objectsById.get(relation.targetObjectId());
+                                    return new AigcProjectRelationView(
+                                            relation.id(),
+                                            relation.sourceObjectId(),
+                                            relation.targetObjectId(),
+                                            relation.relationType(),
+                                            relation.layer(),
+                                            JsonUtils.toJsonString(relation.metadata()),
+                                            source == null ? null : source.getSemanticRole(),
+                                            target == null ? null : target.getSemanticRole(),
+                                            source == null ? null : source.getOutputContract(),
+                                            target == null ? null : target.getOutputContract());
+                                })
                         .toList(),
                 project.getGraphRevision().longValue());
     }
 
     public AigcProjectGraphVO graph(Long projectId) {
         var project = requireEntity(projectId);
+        var objects = objectRepository.findByProjectIdOrderBySortOrderAscIdAsc(projectId);
+        var objectsById =
+                objects.stream()
+                        .collect(
+                                java.util.stream.Collectors.toMap(
+                                        AigcProjectObject::getId,
+                                        java.util.function.Function.identity()));
         return new AigcProjectGraphVO(
                 toVO(project),
                 project.getGraphRevision(),
-                objectRepository.findByProjectIdOrderBySortOrderAscIdAsc(projectId).stream()
-                        .map(this::toObjectVO)
-                        .toList(),
-                graphRelations(projectId).stream().map(this::toRelationVO).toList());
+                objects.stream().map(this::toObjectVO).toList(),
+                graphRelations(projectId).stream()
+                        .map(relation -> toRelationVO(relation, objectsById))
+                        .toList());
     }
 
     @Override
@@ -743,7 +968,26 @@ public class AigcProjectService
                         .findById(project.getConfigSnapshotId())
                         .filter(value -> projectId.equals(value.getProjectId()))
                         .orElseThrow(() -> notFound("项目配置快照不存在"));
-        var actions = mapList(snapshot.getSnapshot().get("actions"));
+        var actions = snapshot.getSnapshot().actions();
+        var availableContextKeys =
+                documentRefRepository.findByProjectIdOrderBySortOrderAscIdAsc(projectId).stream()
+                        .filter(
+                                reference ->
+                                        reference.getFieldKey() != null
+                                                && !reference.getFieldKey().isBlank())
+                        .filter(
+                                reference ->
+                                        reference.getContextMode()
+                                                != AigcProjectDocumentContextMode.NONE)
+                        .filter(
+                                reference ->
+                                        reference.getReferenceType()
+                                                        == AigcProjectDocumentReferenceType
+                                                                .PROJECT_DOCUMENT
+                                                ? reference.getSelectedDocumentVersionId() != null
+                                                : reference.getSelectedDocumentVersionId() != null)
+                        .map(AigcProjectDocumentRef::getFieldKey)
+                        .collect(java.util.stream.Collectors.toUnmodifiableSet());
         var dependencies = readinessDependencies(objects, actions);
         var candidatesByObject =
                 versionRepository.findByProjectIdAndStatus(projectId, "candidate").stream()
@@ -767,9 +1011,10 @@ public class AigcProjectService
                                         project,
                                         object,
                                         dependencies.getOrDefault(object.getId(), List.of()),
-                                        candidatesByObject.getOrDefault(object.getId(), List.of()),
+                                        candidatesByObject,
                                         activeReservedObjectIds.contains(object.getId()),
-                                        actions))
+                                        actions,
+                                        availableContextKeys))
                 .toList();
     }
 
@@ -823,7 +1068,8 @@ public class AigcProjectService
                                                 object.getContractRole(),
                                                 readinessById.containsKey(object.getId())
                                                         ? readinessById.get(object.getId()).state()
-                                                        : null))
+                                                        : null,
+                                                execution.creditsByObject().get(object.getId())))
                         .toList(),
                 readiness,
                 execution.executions(),
@@ -856,21 +1102,36 @@ public class AigcProjectService
             AigcProject project,
             AigcProjectObject object,
             List<AigcProjectObject> dependencies,
-            List<AigcObjectVersion> candidates,
+            Map<Long, List<AigcObjectVersion>> candidatesByObject,
             boolean activeReservation,
-            List<Map<String, Object>> actions) {
-        var inputVersions =
-                dependencies.stream()
-                        .filter(dependency -> dependency.getAdoptedVersionId() != null)
-                        .map(
-                                dependency ->
-                                        new AigcFrozenInputVersionRef(
-                                                dependency.getId(),
-                                                dependency.getAdoptedVersionId(),
-                                                "ADOPTED"))
-                        .toList();
+            List<AigcBlueprintActionSpec> actions,
+            Set<String> availableContextKeys) {
+        var targetCandidates = candidatesByObject.getOrDefault(object.getId(), List.of());
+        var inputVersions = new java.util.ArrayList<AigcFrozenInputVersionRef>();
+        String dependencyBlocker = null;
+        for (var dependency : dependencies) {
+            if (dependency.getAdoptedVersionId() != null) {
+                inputVersions.add(
+                        new AigcFrozenInputVersionRef(
+                                dependency.getId(), dependency.getAdoptedVersionId(), "ADOPTED"));
+                continue;
+            }
+            // 阶段一没有 canonical TaskPlan 授权范围；"同一已授权 TaskPlan 唯一 candidate
+            // 可作为中间输入"的例外只在阶段二 TaskPlan 落地后生效，此前必须先 adopted 才能
+            // 作为下游输入，避免用户未决策的 candidate 被静默冻结进专业执行。
+            var candidates = candidatesByObject.getOrDefault(dependency.getId(), List.of());
+            dependencyBlocker =
+                    candidates.isEmpty() ? "必需上游对象尚无 adopted 版本" : "必需上游对象存在待决 candidate，必须先完成采用";
+            break;
+        }
         var action = actionFor(object, actions);
-        var allowed = allowedActions(project, object, candidates, action);
+        var missingContextKeys =
+                action == null
+                        ? List.<String>of()
+                        : action.requiredContextKeys().stream()
+                                .filter(key -> !availableContextKeys.contains(key))
+                                .toList();
+        var allowed = allowedActions(project, object, targetCandidates, action);
         var hasContentAction = allowed.stream().anyMatch(value -> !value.startsWith("object."));
         AigcObjectReadinessState state;
         String reason = null;
@@ -880,7 +1141,7 @@ public class AigcProjectService
         } else if (activeReservation) {
             state = AigcObjectReadinessState.ACTIVE_RUN;
             reason = "对象存在活动 ExecutionRun/reservation";
-        } else if (!candidates.isEmpty()) {
+        } else if (!targetCandidates.isEmpty()) {
             state = AigcObjectReadinessState.PENDING_CANDIDATE;
             reason = "对象存在待决 candidate";
         } else if (object.getAdoptedVersionId() != null) {
@@ -891,12 +1152,15 @@ public class AigcProjectService
         } else if (!hasContentAction) {
             state = AigcObjectReadinessState.BLOCKED_BY_POLICY;
             reason = "outputContract、权限或动作策略没有阶段一可用内容动作";
-        } else if (dependencies.stream().anyMatch(value -> value.getAdoptedVersionId() == null)) {
+        } else if (!missingContextKeys.isEmpty()) {
+            state = AigcObjectReadinessState.BLOCKED_BY_CONTEXT;
+            reason = "缺少必需项目上下文: " + String.join(", ", missingContextKeys);
+        } else if (dependencyBlocker != null) {
             state = AigcObjectReadinessState.BLOCKED_BY_DEPENDENCY;
-            reason = "必需上游对象尚无 adopted 版本";
+            reason = dependencyBlocker;
         } else if (action != null
-                && allowed.contains(String.valueOf(action.get("actionKey")))
-                && "REQUIRED".equalsIgnoreCase(String.valueOf(action.get("confirmationPolicy")))) {
+                && allowed.contains(action.actionKey())
+                && "REQUIRED".equalsIgnoreCase(action.confirmationPolicy())) {
             state = AigcObjectReadinessState.AWAITING_CONFIRMATION;
             reason = "专业媒体动作需要显式确认";
         } else {
@@ -904,7 +1168,7 @@ public class AigcProjectService
         }
         return new AigcObjectReadiness(
                 object.getId(),
-                action == null ? null : String.valueOf(action.get("actionKey")),
+                action == null ? null : action.actionKey(),
                 state,
                 dependencies.stream().map(AigcProjectObject::getId).toList(),
                 inputVersions,
@@ -913,7 +1177,7 @@ public class AigcProjectService
     }
 
     private Map<Long, List<AigcProjectObject>> readinessDependencies(
-            List<AigcProjectObject> objects, List<Map<String, Object>> actions) {
+            List<AigcProjectObject> objects, List<AigcBlueprintActionSpec> actions) {
         if (objects.isEmpty()) {
             return Map.of();
         }
@@ -932,8 +1196,13 @@ public class AigcProjectService
         var result = new LinkedHashMap<Long, LinkedHashSet<AigcProjectObject>>();
         for (var relation :
                 relationRepository.findByProjectIdOrderByIdAsc(objects.getFirst().getProjectId())) {
-            if (!Set.of("derives", "constrains", "execution_depends")
-                    .contains(relation.getRelationType())) {
+            final AigcProjectRelationSemantics.Definition semantics;
+            try {
+                semantics = AigcProjectRelationSemantics.require(relation.getRelationType());
+            } catch (IllegalArgumentException error) {
+                throw badRequest(error.getMessage());
+            }
+            if (!semantics.affectsReadiness()) {
                 continue;
             }
             var source = byId.get(relation.getSourceObjectId());
@@ -945,12 +1214,11 @@ public class AigcProjectService
         }
         for (var object : objects) {
             var action = actionFor(object, actions);
-            if (action == null || !(action.get("dependencyTemplateKeys") instanceof List<?> keys)) {
+            if (action == null) {
                 continue;
             }
             var target = result.computeIfAbsent(object.getId(), ignored -> new LinkedHashSet<>());
-            keys.stream()
-                    .map(String::valueOf)
+            action.dependencyTemplateKeys().stream()
                     .flatMap(key -> byTemplate.getOrDefault(key, List.of()).stream())
                     .forEach(target::add);
         }
@@ -959,14 +1227,14 @@ public class AigcProjectService
         return Map.copyOf(immutable);
     }
 
-    private Map<String, Object> actionFor(
-            AigcProjectObject object, List<Map<String, Object>> actions) {
+    private AigcBlueprintActionSpec actionFor(
+            AigcProjectObject object, List<AigcBlueprintActionSpec> actions) {
         return actions.stream()
                 .filter(
                         action ->
                                 Objects.equals(
                                         object.getBlueprintTemplateKey(),
-                                        action.get("targetTemplateKey")))
+                                        action.targetTemplateKey()))
                 .findFirst()
                 .orElse(null);
     }
@@ -975,7 +1243,7 @@ public class AigcProjectService
             AigcProject project,
             AigcProjectObject object,
             List<AigcObjectVersion> candidates,
-            Map<String, Object> action) {
+            AigcBlueprintActionSpec action) {
         if (!MUTABLE_STATUSES.contains(project.getStatus())
                 || "review".equals(object.getObjectType())) {
             return List.of();
@@ -986,9 +1254,8 @@ public class AigcProjectService
             allowed.add("object.contract");
             allowed.add("object.move");
             if (object.getBlueprintTemplateKey() == null
-                    || Boolean.TRUE.equals(
-                            requireSlotTemplate(project, object.getBlueprintTemplateKey())
-                                    .get("userRemovable"))) {
+                    || requireSlotTemplate(project, object.getBlueprintTemplateKey())
+                            .userRemovable()) {
                 allowed.add("object.remove");
             }
         }
@@ -999,11 +1266,10 @@ public class AigcProjectService
             allowed.add("candidate.record.document");
         } else if (hasPermission(AigcAuthorities.PROJECT_ACTION)
                 && "MEDIA_VERSION".equals(object.getOutputContract())
-                && action != null) {
-            var actionKey = String.valueOf(action.get("actionKey"));
-            if (Set.of("image.generate", "image.edit", "video.generate").contains(actionKey)) {
-                allowed.add(actionKey);
-            }
+                && action != null
+                && Set.of("image.generate", "image.edit", "video.generate")
+                        .contains(action.actionKey())) {
+            allowed.add(action.actionKey());
         }
         if (!candidates.isEmpty() && hasPermission(AigcAuthorities.OBJECT_VERSION_ADOPT)) {
             allowed.add("candidate.adopt");
@@ -1017,24 +1283,6 @@ public class AigcProjectService
         return authentication != null
                 && authentication.isAuthenticated()
                 && permissionEvaluator.hasPermission(authentication, null, permission);
-    }
-
-    private List<Map<String, Object>> mapList(Object value) {
-        if (!(value instanceof List<?> values)) {
-            return List.of();
-        }
-        return values.stream()
-                .filter(Map.class::isInstance)
-                .map(
-                        item -> {
-                            var copy = new LinkedHashMap<String, Object>();
-                            ((Map<?, ?>) item)
-                                    .forEach(
-                                            (key, mapValue) ->
-                                                    copy.put(String.valueOf(key), mapValue));
-                            return java.util.Collections.unmodifiableMap(copy);
-                        })
-                .toList();
     }
 
     public AigcProjectSummaryVO summary(Long projectId) {
@@ -1117,17 +1365,16 @@ public class AigcProjectService
                 command.blueprintTemplateKey() == null
                         ? null
                         : requireSlotTemplate(project, command.blueprintTemplateKey());
-        if (template != null && !Boolean.TRUE.equals(template.get("userAddable"))) {
+        if (template != null && !template.userAddable()) {
             throw badRequest("该槽位模板不允许用户追加实例");
         }
-        if (template != null
-                && !command.objectType().equals(String.valueOf(template.get("objectType")))) {
+        if (template != null && !command.objectType().equals(template.objectType())) {
             throw badRequest("对象类型与槽位模板不匹配");
         }
         validateObjectParent(
                 project, command.blueprintTemplateKey(), command.objectType(), parentObject);
         if (template != null) {
-            if (!(template.get("maxCount") instanceof Number maxCountValue)) {
+            if (template.maxCount() == null) {
                 throw badRequest("槽位模板 maxCount 非法");
             }
             var currentCount =
@@ -1139,7 +1386,7 @@ public class AigcProjectService
                                             command.blueprintTemplateKey()
                                                     .equals(object.getBlueprintTemplateKey()))
                             .count();
-            if (currentCount >= maxCountValue.intValue()) {
+            if (currentCount >= template.maxCount()) {
                 throw badRequest("模板实例数已达上限");
             }
         } else {
@@ -1150,22 +1397,14 @@ public class AigcProjectService
                     snapshotRepository
                             .findFirstByProjectIdOrderByRevisionNoDesc(project.getId())
                             .orElseThrow(() -> badRequest("对象类型不在交付包允许的自定义对象白名单内"));
-            var deliverableSets = snapshot.getSnapshot().get("deliverableSets");
-            if (!(deliverableSets instanceof List<?> sets)) {
-                throw badRequest("对象类型不在交付包允许的自定义对象白名单内");
-            }
             var setTemplateKey = parentObject.getBlueprintTemplateKey();
             var allowedCustomObjectTypes =
-                    sets.stream()
-                            .filter(Map.class::isInstance)
-                            .map(Map.class::cast)
-                            .filter(
-                                    set ->
-                                            Objects.equals(
-                                                    setTemplateKey, set.get("setTemplateKey")))
-                            .map(set -> set.get("allowedCustomObjectTypes"))
-                            .filter(List.class::isInstance)
-                            .map(List.class::cast)
+                    snapshot.getSnapshot().deliverableSets().stream()
+                            .filter(set -> Objects.equals(setTemplateKey, set.setTemplateKey()))
+                            .map(
+                                    com.xuejiai.aaf.module.ai.aigc.configuration.api
+                                                    .AigcDeliverableSetSpec
+                                            ::allowedCustomObjectTypes)
                             .findFirst()
                             .orElseThrow(() -> badRequest("对象类型不在交付包允许的自定义对象白名单内"));
             if (!allowedCustomObjectTypes.contains(command.objectType())) {
@@ -1183,8 +1422,7 @@ public class AigcProjectService
         var stableKey =
                 template == null
                         ? "custom.%s.%02d".formatted(command.objectType(), instanceNo)
-                        : formatStableKey(
-                                String.valueOf(template.get("stableKeyPattern")), instanceNo);
+                        : formatStableKey(template.stableKeyPattern(), instanceNo);
         if (objectRepository.findByProjectIdAndStableKey(project.getId(), stableKey).isPresent()) {
             throw badRequest("项目对象 stableKey 已存在");
         }
@@ -1198,16 +1436,13 @@ public class AigcProjectService
         object.setContractRole(requireContractRole(command.contractRole()));
         object.setSemanticRole(
                 template == null
-                        ? requireSemanticValue(command.semanticRole(), "semanticRole")
-                        : String.valueOf(template.get("semanticRole")));
-        object.setPlannedPhase(
-                template == null
-                        ? requirePlannedPhase(command.plannedPhase())
-                        : String.valueOf(template.get("plannedPhase")));
+                        ? requireSemanticRole(command.semanticRole())
+                        : template.semanticRole());
+        object.setPlannedPhase(LEGACY_PLANNED_PHASE_PLACEHOLDER);
         object.setOutputContract(
                 template == null
                         ? requireOutputContract(command.outputContract())
-                        : String.valueOf(template.get("outputContract")));
+                        : template.outputContract());
         object.setObjectType(command.objectType());
         object.setSortOrder(command.orderNo() == null ? 0 : command.orderNo());
         object.setTitle(command.displayName().trim());
@@ -1572,6 +1807,16 @@ public class AigcProjectService
                         .findById(projectMediaRefId)
                         .filter(candidate -> projectId.equals(candidate.getProjectId()))
                         .orElseThrow(() -> notFound("项目媒体引用不存在"));
+        if (reference.getObjectId() != null && reference.getObjectVersionId() != null) {
+            var object =
+                    objectRepository
+                            .findById(reference.getObjectId())
+                            .filter(candidate -> projectId.equals(candidate.getProjectId()));
+            if (object.isPresent()
+                    && reference.getObjectVersionId().equals(object.get().getAdoptedVersionId())) {
+                throw badRequest("已采用版本的制品引用不能原地解除，请先切换采用版本");
+            }
+        }
         mediaRefRepository.delete(reference);
         bumpRevision(project, List.of(), List.of(), null, "解除项目媒体引用");
         if (reference.getObjectId() != null) {
@@ -1814,7 +2059,6 @@ public class AigcProjectService
                                         snapshot.getSnapshotHash(),
                                         snapshot.getProjectTypeVersion(),
                                         snapshot.getBlueprintVersion(),
-                                        snapshot.getDomainExtensionVersion(),
                                         snapshot.getChannelVersions(),
                                         snapshot.getExecutionBindingVersions(),
                                         snapshot.getCompatibilityResult(),
@@ -1885,7 +2129,7 @@ public class AigcProjectService
                                 .get(fixedVersion.documentId());
                 existing =
                         documentRefRepository
-                                .findByProjectIdAndReferenceTypeAndDocumentVersionIdAndRole(
+                                .findByProjectIdAndReferenceTypeAndSelectedDocumentVersionIdAndRole(
                                         projectId,
                                         request.referenceType(),
                                         request.documentVersionId(),
@@ -1902,8 +2146,23 @@ public class AigcProjectService
         reference.setProjectId(projectId);
         reference.setObjectId(request.objectId());
         reference.setReferenceType(request.referenceType());
-        reference.setDocumentId(request.documentId());
-        reference.setDocumentVersionId(request.documentVersionId());
+        reference.setDocumentId(
+                request.referenceType() == AigcProjectDocumentReferenceType.EXTERNAL_REFERENCE
+                        ? fixedVersion.documentId()
+                        : request.documentId());
+        reference.setSelectedDocumentVersionId(
+                request.referenceType() == AigcProjectDocumentReferenceType.EXTERNAL_REFERENCE
+                        ? fixedVersion.id()
+                        : currentVersion.id());
+        reference.setFieldKey(request.fieldKey());
+        reference.setContextNote(request.contextNote());
+        reference.setContextMode(
+                request.contextMode() == null
+                        ? AigcProjectDocumentContextMode.AUTO
+                        : request.contextMode());
+        if (request.referenceType() == AigcProjectDocumentReferenceType.PROJECT_DOCUMENT) {
+            reference.setSelectedDocumentVersionId(currentVersion.id());
+        }
         reference.setRole(role);
         reference.setSortOrder(
                 request.sortOrder() == null
@@ -1932,7 +2191,7 @@ public class AigcProjectService
         }
         var fixedVersion =
                 documentVersionApi.requireAccessible(
-                        reference.getDocumentVersionId(),
+                        reference.getSelectedDocumentVersionId(),
                         project.getOwnerId(),
                         project.getOrgId(),
                         project.getWorkspaceId());
@@ -1943,7 +2202,7 @@ public class AigcProjectService
             return toDocumentRefVO(reference, fixedVersion, currentVersion);
         }
         documentRefRepository
-                .findByProjectIdAndReferenceTypeAndDocumentVersionIdAndRole(
+                .findByProjectIdAndReferenceTypeAndSelectedDocumentVersionIdAndRole(
                         projectId,
                         AigcProjectDocumentReferenceType.EXTERNAL_REFERENCE,
                         currentVersion.id(),
@@ -1953,10 +2212,177 @@ public class AigcProjectService
                         duplicate -> {
                             throw badRequest("项目已引用该文档的当前版本");
                         });
-        reference.setDocumentVersionId(currentVersion.id());
+        reference.setSelectedDocumentVersionId(currentVersion.id());
         documentRefRepository.save(reference);
         bumpRevision(project, List.of(), List.of(), null, "更新外部文档引用版本");
         return toDocumentRefVO(reference, currentVersion, currentVersion);
+    }
+
+    @Transactional
+    public AigcProjectDocumentDecisionVO recordProjectDocumentCandidate(
+            Long projectId, Long refId, AigcProjectDocumentCandidateDTO request) {
+        var idempotencyKey = requireCommandText(request.idempotencyKey(), "candidate 幂等键不能为空");
+        var requestHash = projectDocumentCandidateRequestHash(projectId, refId, request);
+        var project = requireLockedProject(projectId, null, false);
+        var reference = requireProjectDocumentReference(projectId, refId);
+        var replay =
+                documentDecisionRepository.findByProjectDocumentRefIdAndCandidateIdempotencyKey(
+                        refId, idempotencyKey);
+        if (replay.isPresent()) {
+            if (!Objects.equals(replay.get().getCandidateRequestHash(), requestHash)) {
+                throw new BusinessException(409, "同一项目文档 candidate 幂等键对应不同正文");
+            }
+            return toProjectDocumentDecisionVO(project, replay.get());
+        }
+        requireExpectedVersion(project, request.expectedProjectVersion());
+        requireWritable(project);
+        var currentVersion =
+                requireCurrentDocumentVersions(project, List.of(reference.getDocumentId()))
+                        .get(reference.getDocumentId());
+        if (!Objects.equals(currentVersion.id(), request.expectedDocumentCurrentVersionId())) {
+            throw new BusinessException(409, "文档当前版本已变化，请刷新后重试");
+        }
+        var sourceType =
+                operatorContext.currentOperatorType() == OperatorType.AI ? "AIGC" : "MANUAL";
+        var sourceRef = "aigc-project:%d:document-ref:%d".formatted(projectId, refId);
+        var candidateVersion =
+                documentVersionApi.append(
+                        new DocumentVersionApi.AppendDocumentVersionCommand(
+                                reference.getDocumentId(),
+                                request.expectedDocumentCurrentVersionId(),
+                                request.title(),
+                                request.content(),
+                                request.format(),
+                                sourceType,
+                                sourceRef,
+                                request.changeSummary(),
+                                project.getOwnerId(),
+                                project.getOrgId(),
+                                project.getWorkspaceId()));
+        if (Objects.equals(candidateVersion.id(), reference.getSelectedDocumentVersionId())) {
+            throw badRequest("项目文档 candidate 必须形成新的正文版本");
+        }
+        documentDecisionRepository
+                .findByProjectDocumentRefIdAndDocumentVersionId(refId, candidateVersion.id())
+                .ifPresent(
+                        existing -> {
+                            throw new BusinessException(409, "该文档版本已登记为项目 candidate");
+                        });
+        var decision = new AigcProjectDocumentDecision();
+        copyScope(project, decision);
+        decision.setProjectId(projectId);
+        decision.setProjectDocumentRefId(refId);
+        decision.setDocumentVersionId(candidateVersion.id());
+        decision.setSourceType(sourceType);
+        decision.setSourceRef(sourceRef);
+        decision.setCandidateIdempotencyKey(idempotencyKey);
+        decision.setCandidateRequestHash(requestHash);
+        documentDecisionRepository.save(decision);
+        project.setStatus(AigcProjectLifecycle.ADOPTING);
+        bumpRevision(project, List.of(), List.of(), null, "登记项目文档 candidate");
+        return toProjectDocumentDecisionVO(project, decision, candidateVersion);
+    }
+
+    public List<AigcProjectDocumentDecisionVO> projectDocumentCandidates(
+            Long projectId, Long refId) {
+        var project = requireEntity(projectId);
+        requireProjectDocumentReference(projectId, refId);
+        return documentDecisionRepository.findByProjectDocumentRefIdOrderByIdDesc(refId).stream()
+                .map(decision -> toProjectDocumentDecisionVO(project, decision))
+                .toList();
+    }
+
+    @Transactional
+    public AigcProjectDocumentDecisionVO adoptProjectDocumentCandidate(
+            Long projectId, Long refId, Long decisionId, AigcProjectDocumentDecisionDTO request) {
+        var idempotencyKey = requireCommandText(request.idempotencyKey(), "采用幂等键不能为空");
+        var requestHash =
+                projectDocumentDecisionRequestHash(
+                        "project.document-candidate.adopt", projectId, refId, decisionId, request);
+        var project = requireLockedProject(projectId, null, false);
+        var reference = requireProjectDocumentReference(projectId, refId);
+        var decision = requireProjectDocumentDecision(refId, decisionId);
+        requireDecisionIdempotency(refId, decision, idempotencyKey);
+        if ("ADOPTED".equals(decision.getDecision())) {
+            requireProjectDocumentDecisionReplay(decision, idempotencyKey, requestHash);
+            return toProjectDocumentDecisionVO(project, decision);
+        }
+        requireExpectedVersion(project, request.expectedProjectVersion());
+        requireWritable(project);
+        if (!Objects.equals(
+                reference.getSelectedDocumentVersionId(),
+                request.expectedSelectedDocumentVersionId())) {
+            throw new BusinessException(409, "项目文档选定版本已变化，请刷新后重试");
+        }
+        if (!"PENDING".equals(decision.getDecision())) {
+            throw badRequest("只有待决项目文档 candidate 可以采用");
+        }
+        var candidateVersion =
+                documentVersionApi.requireAccessible(
+                        decision.getDocumentVersionId(),
+                        project.getOwnerId(),
+                        project.getOrgId(),
+                        project.getWorkspaceId());
+        if (!Objects.equals(candidateVersion.documentId(), reference.getDocumentId())) {
+            throw badRequest("项目文档 candidate 与引用的文档身份不一致");
+        }
+        if (!request.confirmedReplacement()) {
+            throw badRequest("替换项目文档选定版本必须显式确认");
+        }
+        var reason = requireCommandText(request.reason(), "替换项目文档选定版本必须填写原因");
+        var replacedVersionId = reference.getSelectedDocumentVersionId();
+        reference.setSelectedDocumentVersionId(candidateVersion.id());
+        documentRefRepository.save(reference);
+        resolveProjectDocumentDecision(
+                decision,
+                "ADOPTED",
+                projectDocumentDecisionMode(),
+                reason,
+                replacedVersionId,
+                idempotencyKey,
+                requestHash);
+        documentDecisionRepository.save(decision);
+        bumpRevision(project, List.of(), List.of(), null, "采用项目文档 candidate");
+        return toProjectDocumentDecisionVO(project, decision, candidateVersion);
+    }
+
+    @Transactional
+    public AigcProjectDocumentDecisionVO rejectProjectDocumentCandidate(
+            Long projectId, Long refId, Long decisionId, AigcProjectDocumentDecisionDTO request) {
+        var idempotencyKey = requireCommandText(request.idempotencyKey(), "否决幂等键不能为空");
+        var reason = requireCommandText(request.reason(), "否决原因不能为空");
+        var requestHash =
+                projectDocumentDecisionRequestHash(
+                        "project.document-candidate.reject", projectId, refId, decisionId, request);
+        var project = requireLockedProject(projectId, null, false);
+        var reference = requireProjectDocumentReference(projectId, refId);
+        var decision = requireProjectDocumentDecision(refId, decisionId);
+        requireDecisionIdempotency(refId, decision, idempotencyKey);
+        if ("REJECTED".equals(decision.getDecision())) {
+            requireProjectDocumentDecisionReplay(decision, idempotencyKey, requestHash);
+            return toProjectDocumentDecisionVO(project, decision);
+        }
+        requireExpectedVersion(project, request.expectedProjectVersion());
+        requireWritable(project);
+        if (!Objects.equals(
+                reference.getSelectedDocumentVersionId(),
+                request.expectedSelectedDocumentVersionId())) {
+            throw new BusinessException(409, "项目文档选定版本已变化，请刷新后重试");
+        }
+        if (!"PENDING".equals(decision.getDecision())) {
+            throw badRequest("只有待决项目文档 candidate 可以否决");
+        }
+        resolveProjectDocumentDecision(
+                decision,
+                "REJECTED",
+                projectDocumentDecisionMode(),
+                reason,
+                null,
+                idempotencyKey,
+                requestHash);
+        documentDecisionRepository.save(decision);
+        bumpRevision(project, List.of(), List.of(), null, "否决项目文档 candidate");
+        return toProjectDocumentDecisionVO(project, decision);
     }
 
     @Transactional
@@ -1986,7 +2412,7 @@ public class AigcProjectService
                                         reference.getReferenceType()
                                                 == AigcProjectDocumentReferenceType
                                                         .EXTERNAL_REFERENCE)
-                        .map(AigcProjectDocumentRef::getDocumentVersionId)
+                        .map(AigcProjectDocumentRef::getSelectedDocumentVersionId)
                         .toList();
         var fixedVersions =
                 documentVersionApi.requireAccessible(
@@ -2016,20 +2442,157 @@ public class AigcProjectService
                 .map(
                         reference -> {
                             var fixedVersion =
-                                    reference.getDocumentVersionId() == null
-                                            ? null
-                                            : fixedVersionsById.get(
-                                                    reference.getDocumentVersionId());
-                            var documentId =
-                                    reference.getDocumentId() != null
-                                            ? reference.getDocumentId()
-                                            : fixedVersion.documentId();
+                                    fixedVersionsById.get(reference.getSelectedDocumentVersionId());
+                            var documentId = reference.getDocumentId();
                             return toDocumentRefVO(
                                     reference,
                                     fixedVersion,
                                     currentVersionsByDocumentId.get(documentId));
                         })
                 .toList();
+    }
+
+    private AigcProjectDocumentRef requireProjectDocumentReference(Long projectId, Long refId) {
+        var reference =
+                documentRefRepository
+                        .findById(refId)
+                        .filter(candidate -> projectId.equals(candidate.getProjectId()))
+                        .orElseThrow(() -> notFound("项目文档引用不存在"));
+        requireCanonicalDocumentReference(reference);
+        if (reference.getReferenceType() != AigcProjectDocumentReferenceType.PROJECT_DOCUMENT) {
+            throw badRequest("只有项目自产文档可以登记 candidate");
+        }
+        return reference;
+    }
+
+    private AigcProjectDocumentDecision requireProjectDocumentDecision(
+            Long refId, Long decisionId) {
+        return documentDecisionRepository
+                .findById(decisionId)
+                .filter(decision -> refId.equals(decision.getProjectDocumentRefId()))
+                .orElseThrow(() -> notFound("项目文档 candidate 不存在"));
+    }
+
+    private void requireDecisionIdempotency(
+            Long refId, AigcProjectDocumentDecision decision, String idempotencyKey) {
+        documentDecisionRepository
+                .findByProjectDocumentRefIdAndDecisionIdempotencyKey(refId, idempotencyKey)
+                .filter(existing -> !existing.getId().equals(decision.getId()))
+                .ifPresent(
+                        existing -> {
+                            throw new BusinessException(409, "项目文档决策幂等键已被使用");
+                        });
+    }
+
+    private void requireProjectDocumentDecisionReplay(
+            AigcProjectDocumentDecision decision, String idempotencyKey, String requestHash) {
+        if (!Objects.equals(decision.getDecisionIdempotencyKey(), idempotencyKey)
+                || !Objects.equals(decision.getDecisionRequestHash(), requestHash)) {
+            throw new BusinessException(409, "项目文档决策重放与原请求不一致");
+        }
+    }
+
+    private void resolveProjectDocumentDecision(
+            AigcProjectDocumentDecision decision,
+            String result,
+            String mode,
+            String reason,
+            Long replacedDocumentVersionId,
+            String idempotencyKey,
+            String requestHash) {
+        decision.setDecision(result);
+        decision.setDecisionMode(mode);
+        decision.setDecisionReason(reason);
+        decision.setReplacedDocumentVersionId(replacedDocumentVersionId);
+        decision.setDecisionIdempotencyKey(idempotencyKey);
+        decision.setDecisionRequestHash(requestHash);
+        decision.setDecidedBy(operatorContext.currentOperatorId().orElse(null));
+        decision.setDecidedByType(operatorContext.currentOperatorType().name());
+        decision.setDecidedTime(LocalDateTime.now());
+        decision.setVersion(decision.getVersion() == null ? 1 : decision.getVersion() + 1);
+    }
+
+    private String projectDocumentCandidateRequestHash(
+            Long projectId, Long refId, AigcProjectDocumentCandidateDTO request) {
+        var business = new LinkedHashMap<String, Object>();
+        business.put("projectId", projectId);
+        business.put("projectDocumentRefId", refId);
+        business.put("title", request.title());
+        business.put("content", request.content());
+        business.put("format", request.format());
+        business.put("changeSummary", request.changeSummary());
+        var cas = new LinkedHashMap<String, Object>();
+        cas.put("expectedDocumentCurrentVersionId", request.expectedDocumentCurrentVersionId());
+        cas.put("expectedProjectVersion", request.expectedProjectVersion());
+        return AigcCanonicalRequest.of("project.document-candidate.record", business, cas).sha256();
+    }
+
+    private String projectDocumentDecisionRequestHash(
+            String operation,
+            Long projectId,
+            Long refId,
+            Long decisionId,
+            AigcProjectDocumentDecisionDTO request) {
+        var business = new LinkedHashMap<String, Object>();
+        business.put("projectId", projectId);
+        business.put("projectDocumentRefId", refId);
+        business.put("decisionId", decisionId);
+        business.put("confirmedReplacement", request.confirmedReplacement());
+        business.put("reason", request.reason());
+        var cas = new LinkedHashMap<String, Object>();
+        cas.put("expectedProjectVersion", request.expectedProjectVersion());
+        cas.put("expectedSelectedDocumentVersionId", request.expectedSelectedDocumentVersionId());
+        return AigcCanonicalRequest.of(operation, business, cas).sha256();
+    }
+
+    private AigcProjectDocumentDecisionVO toProjectDocumentDecisionVO(
+            AigcProject project, AigcProjectDocumentDecision decision) {
+        var documentVersion =
+                documentVersionApi.requireAccessible(
+                        decision.getDocumentVersionId(),
+                        project.getOwnerId(),
+                        project.getOrgId(),
+                        project.getWorkspaceId());
+        return toProjectDocumentDecisionVO(project, decision, documentVersion);
+    }
+
+    private AigcProjectDocumentDecisionVO toProjectDocumentDecisionVO(
+            AigcProject project,
+            AigcProjectDocumentDecision decision,
+            DocumentVersionApi.DocumentVersionView documentVersion) {
+        if (!Objects.equals(decision.getProjectId(), project.getId())) {
+            throw badRequest("项目文档 candidate 与项目身份不一致");
+        }
+        return new AigcProjectDocumentDecisionVO(
+                decision.getId(),
+                decision.getVersion(),
+                decision.getProjectDocumentRefId(),
+                decision.getDocumentVersionId(),
+                documentVersion.versionNo(),
+                documentVersion.title(),
+                decision.getDecision(),
+                decision.getSourceType(),
+                decision.getSourceRef(),
+                decision.getDecisionMode(),
+                decision.getDecisionReason(),
+                decision.getDecidedBy(),
+                decision.getDecidedByType(),
+                decision.getDecidedTime(),
+                decision.getReplacedDocumentVersionId(),
+                decision.getCreateTime());
+    }
+
+    private String projectDocumentDecisionMode() {
+        return operatorContext.currentOperatorType() == OperatorType.AI
+                ? "AI_AUTHORIZED"
+                : "MANUAL";
+    }
+
+    private String requireCommandText(String value, String message) {
+        if (value == null || value.isBlank()) {
+            throw badRequest(message);
+        }
+        return value.trim();
     }
 
     private void requireDocumentReferenceIdentity(AigcProjectDocumentRefDTO request) {
@@ -2056,10 +2619,10 @@ public class AigcProjectService
                 switch (reference.getReferenceType()) {
                     case PROJECT_DOCUMENT ->
                             reference.getDocumentId() != null
-                                    && reference.getDocumentVersionId() == null;
+                                    && reference.getSelectedDocumentVersionId() != null;
                     case EXTERNAL_REFERENCE ->
-                            reference.getDocumentId() == null
-                                    && reference.getDocumentVersionId() != null;
+                            reference.getDocumentId() != null
+                                    && reference.getSelectedDocumentVersionId() != null;
                 };
         if (!valid) {
             throw badRequest("项目文档引用身份无效");
@@ -2179,12 +2742,13 @@ public class AigcProjectService
         return value.trim().toUpperCase();
     }
 
-    private String requirePlannedPhase(String value) {
-        var phase = requireSemanticValue(value, "plannedPhase");
-        if (!Set.of("START", "DESIGN", "BUILD", "DELIVER", "RUN").contains(phase)) {
-            throw badRequest("不支持的 plannedPhase: " + value);
+    private String requireSemanticRole(String value) {
+        var role = requireSemanticValue(value, "semanticRole");
+        if (!Set.of("STRUCTURE", "WORKING_ARTIFACT", "DELIVERABLE", "EVIDENCE", "REFERENCE")
+                .contains(role)) {
+            throw badRequest("不支持的 semanticRole: " + value);
         }
-        return phase;
+        return role;
     }
 
     private String requireOutputContract(String value) {
@@ -2233,10 +2797,8 @@ public class AigcProjectService
             AigcProjectObject parent) {
         if (blueprintTemplateKey != null) {
             var template = requireSlotTemplate(project, blueprintTemplateKey);
-            var expectedParent = template.get("parentTemplateKey");
             var actualParent = parent == null ? null : parent.getBlueprintTemplateKey();
-            if (!Objects.equals(
-                    expectedParent == null ? null : String.valueOf(expectedParent), actualParent)) {
+            if (!Objects.equals(template.parentTemplateKey(), actualParent)) {
                 throw badRequest("对象父级与 Blueprint 槽位合同不匹配");
             }
             return;
@@ -2248,21 +2810,14 @@ public class AigcProjectService
                 snapshotRepository
                         .findFirstByProjectIdOrderByRevisionNoDesc(project.getId())
                         .orElseThrow(() -> badRequest("项目配置快照不存在"));
-        var sets = snapshot.getSnapshot().get("deliverableSets");
         var allowed =
-                sets instanceof List<?> values
-                        && values.stream()
-                                .filter(Map.class::isInstance)
-                                .map(Map.class::cast)
-                                .filter(
-                                        set ->
-                                                Objects.equals(
-                                                        parent.getBlueprintTemplateKey(),
-                                                        set.get("setTemplateKey")))
-                                .map(set -> set.get("allowedCustomObjectTypes"))
-                                .filter(List.class::isInstance)
-                                .map(List.class::cast)
-                                .anyMatch(types -> types.contains(objectType));
+                snapshot.getSnapshot().deliverableSets().stream()
+                        .filter(
+                                set ->
+                                        Objects.equals(
+                                                parent.getBlueprintTemplateKey(),
+                                                set.setTemplateKey()))
+                        .anyMatch(set -> set.allowedCustomObjectTypes().contains(objectType));
         if (!allowed) {
             throw badRequest("对象类型不在父级 DeliverableSet 白名单内");
         }
@@ -2378,18 +2933,76 @@ public class AigcProjectService
                 snapshotRepository
                         .findById(project.getConfigSnapshotId())
                         .orElseThrow(() -> notFound("项目配置快照不存在"));
-        var payload = new LinkedHashMap<String, Object>(previous.getSnapshot());
-        payload.put(
-                "materializedObjects",
-                objectRepository.findByProjectIdOrderBySortOrderAscIdAsc(project.getId()).stream()
-                        .map(this::structuralObjectSnapshot)
-                        .toList());
-        payload.put(
-                "materializedRelations",
-                graphRelations(project.getId()).stream()
-                        .map(this::structuralRelationSnapshot)
-                        .toList());
-        payload.put("graphRevision", project.getGraphRevision());
+        var objects = objectRepository.findByProjectIdOrderBySortOrderAscIdAsc(project.getId());
+        var objectsById =
+                objects.stream()
+                        .collect(
+                                java.util.stream.Collectors.toMap(
+                                        AigcProjectObject::getId,
+                                        java.util.function.Function.identity()));
+        var previousByStableKey =
+                previous.getSnapshot().objectSpecs().stream()
+                        .collect(
+                                java.util.stream.Collectors.toMap(
+                                        AigcResolvedObjectSpec::stableKey,
+                                        java.util.function.Function.identity()));
+        var objectSpecs =
+                objects.stream()
+                        .map(
+                                object -> {
+                                    var previousSpec =
+                                            previousByStableKey.get(object.getStableKey());
+                                    return new AigcResolvedObjectSpec(
+                                            object.getStableKey(),
+                                            object.getBlueprintTemplateKey(),
+                                            object.getInstanceNo(),
+                                            object.getObjectType(),
+                                            object.getTitle(),
+                                            object.getParentId() == null
+                                                    ? null
+                                                    : objectsById
+                                                            .get(object.getParentId())
+                                                            .getStableKey(),
+                                            object.getSortOrder(),
+                                            object.getContractRole(),
+                                            object.getSemanticRole(),
+                                            object.getOutputContract(),
+                                            previousSpec == null
+                                                    ? "SINGLE_ADOPTED"
+                                                    : previousSpec.adoptionPolicy(),
+                                            previousSpec == null
+                                                    ? object.getDefaultActionKey()
+                                                    : previousSpec.defaultActionKey(),
+                                            previousSpec == null
+                                                    ? null
+                                                    : previousSpec.userInstructionJson(),
+                                            previousSpec == null
+                                                    ? JsonUtils.toJsonString(object.getPayload())
+                                                    : previousSpec.initialPayloadJson(),
+                                            previousSpec == null
+                                                    ? null
+                                                    : previousSpec.payloadSchemaJson());
+                                })
+                        .toList();
+        var relationSpecs =
+                relationRepository.findByProjectIdOrderByIdAsc(project.getId()).stream()
+                        .filter(relation -> !"contains".equals(relation.getRelationType()))
+                        .map(
+                                relation ->
+                                        new AigcBlueprintRelationSpec(
+                                                objectsById
+                                                        .get(relation.getSourceObjectId())
+                                                        .getStableKey(),
+                                                objectsById
+                                                        .get(relation.getTargetObjectId())
+                                                        .getStableKey(),
+                                                relation.getRelationType(),
+                                                JsonUtils.toJsonString(
+                                                        relation.getRelationMeta() == null
+                                                                ? Map.of()
+                                                                : relation.getRelationMeta())))
+                        .toList();
+        var payload = previous.getSnapshot().withGraph(objectSpecs, relationSpecs);
 
         var snapshot = new AigcProjectConfigSnapshot();
         copyScope(project, snapshot);
@@ -2397,45 +3010,17 @@ public class AigcProjectService
         snapshot.setRevisionNo(project.getGraphRevision());
         snapshot.setSourceType(previous.getSourceType());
         snapshot.setSourceRef(previous.getSourceRef());
-        snapshot.setSnapshotHash(AigcCanonicalRequest.canonicalSha256(payload));
+        snapshot.setSnapshotHash(
+                AigcCanonicalRequest.canonicalSha256(parseMap(JsonUtils.toJsonString(payload))));
         snapshot.setProjectTypeVersion(previous.getProjectTypeVersion());
         snapshot.setBlueprintVersion(previous.getBlueprintVersion());
-        snapshot.setDomainExtensionVersion(previous.getDomainExtensionVersion());
         snapshot.setChannelVersions(previous.getChannelVersions());
         snapshot.setExecutionBindingVersions(previous.getExecutionBindingVersions());
         snapshot.setCompatibilityResult(previous.getCompatibilityResult());
-        snapshot.setSnapshot(Map.copyOf(payload));
+        snapshot.setSnapshot(payload);
         snapshotRepository.saveAndFlush(snapshot);
         project.setConfigSnapshotId(snapshot.getId());
         repository.save(project);
-    }
-
-    private Map<String, Object> structuralObjectSnapshot(AigcProjectObject object) {
-        var value = new LinkedHashMap<String, Object>();
-        value.put("id", object.getId());
-        value.put("stableKey", object.getStableKey());
-        value.put("objectType", object.getObjectType());
-        value.put("blueprintTemplateKey", object.getBlueprintTemplateKey());
-        value.put("instanceNo", object.getInstanceNo());
-        value.put("parentId", object.getParentId());
-        value.put("sortOrder", object.getSortOrder());
-        value.put("contractRole", object.getContractRole());
-        value.put("semanticRole", object.getSemanticRole());
-        value.put("plannedPhase", object.getPlannedPhase());
-        value.put("outputContract", object.getOutputContract());
-        value.put("schemaVersion", object.getSchemaVersion());
-        return java.util.Collections.unmodifiableMap(value);
-    }
-
-    private Map<String, Object> structuralRelationSnapshot(AigcProjectRelationVO relation) {
-        var value = new LinkedHashMap<String, Object>();
-        value.put("id", relation.id());
-        value.put("sourceObjectId", relation.sourceObjectId());
-        value.put("targetObjectId", relation.targetObjectId());
-        value.put("relationType", relation.relationType());
-        value.put("layer", relation.layer());
-        value.put("metadata", relation.metadata());
-        return java.util.Collections.unmodifiableMap(value);
     }
 
     private AigcProjectView toApiView(AigcProject project) {
@@ -2461,7 +3046,6 @@ public class AigcProjectService
                         .map(AigcProjectConfigSnapshot::getSnapshotHash)
                         .orElseThrow(() -> notFound("项目配置快照不存在")),
                 project.getProjectTypeCode(),
-                project.getDomainExtensionCode(),
                 project.getProductionMode(),
                 project.getGenerationMode(),
                 channelIds,
@@ -2469,7 +3053,17 @@ public class AigcProjectService
                 project.getBudgetLimit(),
                 project.getCostUsed(),
                 project.getDescription(),
-                project.getBrief(),
+                project.getBackground(),
+                project.getTargetAudience(),
+                project.getRequirements(),
+                project.getConstraints(),
+                project.getKeyFacts(),
+                project.getKeyMessages(),
+                project.getStyleGuidance(),
+                project.getSuccessCriteria(),
+                project.getDeliveryRequirements(),
+                project.getLocale(),
+                project.getAdditionalContext(),
                 project.getCoverMediaVersionId(),
                 project.getUserId());
     }
@@ -2485,11 +3079,8 @@ public class AigcProjectService
                 object.getTitle(),
                 object.getContractRole(),
                 object.getSemanticRole(),
-                object.getPlannedPhase(),
                 object.getOutputContract(),
-                object.getPayload() == null || object.getPayload().get("defaultActionKey") == null
-                        ? null
-                        : String.valueOf(object.getPayload().get("defaultActionKey")),
+                object.getDefaultActionKey(),
                 object.getParentId(),
                 object.getStatus(),
                 object.getAdoptedVersionId());
@@ -2514,22 +3105,35 @@ public class AigcProjectService
                 }
                 documentId = reference.getDocumentId();
                 fixedDocumentVersionId = null;
-                effectiveVersion = currentVersion;
-                outdated = false;
+                if (reference.getSelectedDocumentVersionId() == null) {
+                    throw badRequest("项目文档引用缺少选定版本");
+                }
+                effectiveVersion =
+                        documentVersionApi
+                                .findExact(
+                                        reference.getDocumentId(),
+                                        reference.getSelectedDocumentVersionId())
+                                .orElseThrow(
+                                        () ->
+                                                new BusinessException(
+                                                        GlobalErrorCode.NOT_FOUND, "项目文档选定版本不存在"));
+                outdated = !effectiveVersion.id().equals(currentVersion.id());
             }
             case EXTERNAL_REFERENCE -> {
                 if (fixedVersion == null
-                        || !reference.getDocumentVersionId().equals(fixedVersion.id())
+                        || !reference.getSelectedDocumentVersionId().equals(fixedVersion.id())
+                        || !reference.getDocumentId().equals(fixedVersion.documentId())
                         || !fixedVersion.documentId().equals(currentVersion.documentId())) {
                     throw badRequest("外部文档引用版本身份不匹配");
                 }
-                documentId = fixedVersion.documentId();
-                fixedDocumentVersionId = reference.getDocumentVersionId();
+                documentId = reference.getDocumentId();
+                fixedDocumentVersionId = reference.getSelectedDocumentVersionId();
                 effectiveVersion = fixedVersion;
                 outdated = !fixedVersion.id().equals(currentVersion.id());
             }
             default -> throw badRequest("不支持的项目文档引用类型");
         }
+        var semanticMetadata = semanticMetadataApi.find(effectiveVersion.id()).orElse(null);
         return new AigcProjectDocumentRefVO(
                 reference.getId(),
                 reference.getObjectId(),
@@ -2541,9 +3145,21 @@ public class AigcProjectService
                 effectiveVersion.versionNo(),
                 currentVersion.versionNo(),
                 effectiveVersion.title(),
+                reference.getFieldKey(),
+                reference.getInstanceNo(),
+                reference.getSelectedDocumentVersionId(),
+                reference.getSource(),
+                reference.getContextNote(),
+                reference.getContextMode(),
                 reference.getRole(),
                 reference.getSortOrder(),
-                outdated);
+                outdated,
+                semanticMetadata == null ? null : semanticMetadata.summary(),
+                semanticMetadata == null ? List.of() : semanticMetadata.topics(),
+                semanticMetadata == null ? null : semanticMetadata.language(),
+                semanticMetadata == null ? null : semanticMetadata.generationStatus(),
+                semanticMetadata != null && semanticMetadata.manualOverride(),
+                semanticMetadata == null ? null : semanticMetadata.metadataVersion());
     }
 
     private AigcProjectMediaRefView toApiMediaRefView(AigcProjectMediaRef reference) {
@@ -2577,8 +3193,8 @@ public class AigcProjectService
                 object.getInstanceNo(),
                 object.getContractRole(),
                 object.getSemanticRole(),
-                object.getPlannedPhase(),
                 object.getOutputContract(),
+                object.getDefaultActionKey(),
                 object.getParentId(),
                 object.getSortOrder(),
                 object.getTitle(),
@@ -2592,7 +3208,10 @@ public class AigcProjectService
                 object.getPayload());
     }
 
-    private AigcProjectRelationVO toRelationVO(GraphRelation relation) {
+    private AigcProjectRelationVO toRelationVO(
+            GraphRelation relation, Map<Long, AigcProjectObject> objectsById) {
+        var source = objectsById.get(relation.sourceObjectId());
+        var target = objectsById.get(relation.targetObjectId());
         return new AigcProjectRelationVO(
                 relation.id(),
                 relation.projectId(),
@@ -2600,7 +3219,11 @@ public class AigcProjectService
                 relation.layer(),
                 relation.sourceObjectId(),
                 relation.targetObjectId(),
-                relation.metadata());
+                relation.metadata(),
+                source == null ? null : source.getSemanticRole(),
+                target == null ? null : target.getSemanticRole(),
+                source == null ? null : source.getOutputContract(),
+                target == null ? null : target.getOutputContract());
     }
 
     private List<GraphRelation> graphRelations(Long projectId) {
@@ -2683,25 +3306,16 @@ public class AigcProjectService
                 reference.getAdoptionStatus());
     }
 
-    private Map<String, Object> requireSlotTemplate(AigcProject project, String templateKey) {
+    private AigcBlueprintSlotTemplateSpec requireSlotTemplate(
+            AigcProject project, String templateKey) {
         var snapshot =
                 snapshotRepository
                         .findFirstByProjectIdOrderByRevisionNoDesc(project.getId())
                         .orElseThrow(() -> notFound("项目配置快照不存在"));
-        var value = snapshot.getSnapshot().get("slotTemplates");
-        if (!(value instanceof List<?> templates)) {
-            throw badRequest("项目配置快照缺少槽位模板");
-        }
-        for (var candidate : templates) {
-            if (!(candidate instanceof Map<?, ?> raw)
-                    || !templateKey.equals(String.valueOf(raw.get("templateKey")))) {
-                continue;
-            }
-            var result = new LinkedHashMap<String, Object>();
-            raw.forEach((key, item) -> result.put(String.valueOf(key), item));
-            return Map.copyOf(result);
-        }
-        throw badRequest("项目配置中不存在槽位模板: " + templateKey);
+        return snapshot.getSnapshot().slotTemplates().stream()
+                .filter(template -> templateKey.equals(template.templateKey()))
+                .findFirst()
+                .orElseThrow(() -> badRequest("项目配置中不存在槽位模板: " + templateKey));
     }
 
     private String formatStableKey(String pattern, int instanceNo) {

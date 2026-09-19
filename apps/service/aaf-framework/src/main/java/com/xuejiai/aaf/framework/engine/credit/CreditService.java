@@ -1,6 +1,8 @@
 package com.xuejiai.aaf.framework.engine.credit;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
 
 /**
  * 积分服务——管理用户积分余额、赚取、消费、冻结。
@@ -94,6 +96,12 @@ public interface CreditService {
     /** 分页查询流水 */
     org.springframework.data.domain.Page<CreditTransaction> getTransactions(
             Long userId, org.springframework.data.domain.Pageable pageable);
+
+    /** 按用户与流水 ID 读取最小审计事实。 */
+    List<CreditTransactionView> findTransactions(Long userId, Collection<Long> transactionIds);
+
+    /** 按用户与原扣款流水读取退款事实。 */
+    List<CreditTransactionView> findRefunds(Long userId, Collection<Long> originalTransactionIds);
 
     /** 按 batch_type 汇总积分余额（供 Header 用户弹窗展示）。 返回各分组的剩余积分，只包含 remain > 0 的批次。 */
     java.util.Map<String, Long> getGroupedBalance(Long userId);

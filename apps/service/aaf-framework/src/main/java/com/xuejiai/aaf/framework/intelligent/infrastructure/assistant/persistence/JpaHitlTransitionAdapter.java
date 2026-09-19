@@ -48,7 +48,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 /** PostgreSQL HITL governance facts、canonical Task/Execution/Plan 与 outbox 的原子提交适配器。 */
 public class JpaHitlTransitionAdapter implements HitlTransitionPort {
     private final TaskRootRepository taskRoots;
-    private final TaskExecutionRepository taskExecutions;
+    private final AssistantTaskExecutionRepository taskExecutions;
     private final TaskDispatchRepository taskDispatches;
     private final TaskPlanPort boards;
     private final HumanApprovalRepository approvals;
@@ -63,7 +63,7 @@ public class JpaHitlTransitionAdapter implements HitlTransitionPort {
 
     public JpaHitlTransitionAdapter(
             TaskRootRepository taskRoots,
-            TaskExecutionRepository taskExecutions,
+            AssistantTaskExecutionRepository taskExecutions,
             TaskDispatchRepository taskDispatches,
             TaskPlanPort boards,
             HumanApprovalRepository approvals,

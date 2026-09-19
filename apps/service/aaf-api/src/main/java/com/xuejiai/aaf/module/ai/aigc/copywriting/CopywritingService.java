@@ -117,6 +117,8 @@ public class CopywritingService {
                                 document ->
                                         new Asset(
                                                 document.documentId(),
+                                                document.documentVersionId(),
+                                                document.versionNo(),
                                                 document.title(),
                                                 summarize(document.content()),
                                                 document.updateTime(),

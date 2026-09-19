@@ -52,29 +52,6 @@ VALUES
       "mixins": ["baseEntity"]
     }
     $json$::jsonb, TRUE, TRUE),
-    ('project-type-package', $json$
-    {
-      "kind": "code", "resource": "aigc.project-type-package",
-      "label": "项目类型兼容包", "labelPlural": "项目类型兼容包", "icon": "package-check",
-      "group": "aigc", "groupLabel": "AI 创作配置",
-      "access": {"read": true, "create": true, "update": true, "delete": true},
-      "fields": [
-        {"type":"number","name":"id","label":"ID","readOnly":true},
-        {"type":"number","name":"version","label":"版本号","readOnly":true},
-        {"type":"text","name":"packageVersion","label":"包版本","required":true},
-        {"type":"number","name":"projectTypeId","label":"项目类型 ID","required":true},
-        {"type":"number","name":"blueprintId","label":"蓝图 ID","required":true},
-        {"type":"number","name":"domainExtensionId","label":"领域扩展 ID"},
-        {"type":"json","name":"channelSpecIds","label":"渠道规格 ID"},
-        {"type":"json","name":"executionBindingIds","label":"执行绑定 ID"},
-        {"type":"text","name":"productionMode","label":"生产模式","required":true},
-        {"type":"json","name":"compatibilityResult","label":"兼容性结果","readOnly":true},
-        {"type":"text","name":"status","label":"状态","readOnly":true}
-      ],
-      "listView": {"columns":["packageVersion","projectTypeId","blueprintId","productionMode","status"],"defaultSort":"id:desc"},
-      "mixins": ["baseEntity"]
-    }
-    $json$::jsonb, TRUE, TRUE),
     ('blueprint', $json$
     {
       "kind": "code", "resource": "aigc.blueprint",
@@ -97,39 +74,9 @@ VALUES
         {"type":"json","name":"actionSpec","label":"动作规格"},
         {"type":"json","name":"deliverableSpec","label":"交付物规格"},
         {"type":"json","name":"processPolicy","label":"流程策略"},
-        {"type":"json","name":"briefFields","label":"简报字段"}
+        {"type":"json","name":"projectInitialization","label":"项目初始化配置"}
       ],
       "listView": {"columns":["code","name","projectTypeCode","blueprintVersion","productionMode","status"],"defaultSort":"id:desc"},
-      "mixins": ["baseEntity"]
-    }
-    $json$::jsonb, TRUE, TRUE),
-    ('domain-extension', $json$
-    {
-      "kind": "code", "resource": "aigc.domain-extension",
-      "label": "领域扩展", "labelPlural": "领域扩展", "icon": "blocks",
-      "group": "aigc", "groupLabel": "AI 创作配置",
-      "access": {"read": true, "create": true, "update": true, "delete": true},
-      "fields": [
-        {"type":"number","name":"id","label":"ID","readOnly":true},
-        {"type":"number","name":"version","label":"版本号","readOnly":true},
-        {"type":"text","name":"code","label":"编码","required":true},
-        {"type":"text","name":"name","label":"名称","required":true},
-        {"type":"text","name":"extensionVersion","label":"扩展版本","required":true},
-        {"type":"text","name":"industry","label":"行业"},
-        {"type":"text","name":"region","label":"地区"},
-        {"type":"text","name":"language","label":"语言"},
-        {"type":"text","name":"status","label":"状态","readOnly":true},
-        {"type":"json","name":"profileSchemaExt","label":"资料 Schema 扩展"},
-        {"type":"json","name":"objectDefinitions","label":"对象定义"},
-        {"type":"json","name":"knowledgeRequirements","label":"知识要求"},
-        {"type":"json","name":"ruleSets","label":"规则集"},
-        {"type":"json","name":"validators","label":"校验器"},
-        {"type":"json","name":"roleRecommendations","label":"角色推荐"},
-        {"type":"json","name":"actionConstraints","label":"动作约束"},
-        {"type":"json","name":"channelOverrides","label":"渠道覆盖"},
-        {"type":"json","name":"migrationDeclaration","label":"迁移声明"}
-      ],
-      "listView": {"columns":["code","name","extensionVersion","industry","region","language","status"],"defaultSort":"id:desc"},
       "mixins": ["baseEntity"]
     }
     $json$::jsonb, TRUE, TRUE),
@@ -170,15 +117,23 @@ VALUES
         {"type":"number","name":"version","label":"版本号","readOnly":true},
         {"type":"text","name":"name","label":"名称"},
         {"type":"text","name":"description","label":"描述"},
+        {"type":"text","name":"background","label":"项目背景"},
+        {"type":"text","name":"targetAudience","label":"目标受众"},
+        {"type":"json","name":"requirements","label":"项目要求"},
+        {"type":"json","name":"constraints","label":"限制条件"},
+        {"type":"json","name":"keyFacts","label":"关键事实"},
+        {"type":"json","name":"keyMessages","label":"关键信息"},
+        {"type":"text","name":"styleGuidance","label":"风格要求"},
+        {"type":"json","name":"successCriteria","label":"成功标准"},
+        {"type":"json","name":"deliveryRequirements","label":"交付要求"},
+        {"type":"text","name":"locale","label":"语言地区"},
+        {"type":"text","name":"additionalContext","label":"补充上下文"},
         {"type":"text","name":"projectTypeCode","label":"项目类型"},
         {"type":"text","name":"blueprintCode","label":"蓝图编码","readOnly":true},
         {"type":"text","name":"blueprintVersion","label":"蓝图版本","readOnly":true},
-        {"type":"text","name":"domainExtensionCode","label":"领域扩展编码","readOnly":true},
-        {"type":"text","name":"domainExtensionVersion","label":"领域扩展版本","readOnly":true},
         {"type":"text","name":"productionMode","label":"生产模式"},
         {"type":"text","name":"generationMode","label":"生成模式"},
         {"type":"text","name":"status","label":"状态"},
-        {"type":"text","name":"brief","label":"简报"},
         {"type":"text","name":"prompt","label":"提示词"},
         {"type":"number","name":"coverMediaVersionId","label":"封面媒体版本 ID"},
         {"type":"number","name":"configSnapshotId","label":"配置快照 ID","readOnly":true},
@@ -237,7 +192,6 @@ VALUES
         {"type":"number","name":"version","label":"版本号","readOnly":true},
         {"type":"text","name":"actionKey","label":"动作键","required":true},
         {"type":"text","name":"projectTypeCode","label":"项目类型编码"},
-        {"type":"text","name":"domainExtensionCode","label":"领域扩展编码"},
         {"type":"text","name":"productionMode","label":"生产模式"},
         {"type":"text","name":"channelCode","label":"渠道编码"},
         {"type":"text","name":"targetType","label":"目标类型","required":true},

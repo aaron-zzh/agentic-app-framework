@@ -9,7 +9,9 @@ public record AigcProjectObjectView(
         String objectType,
         String displayName,
         String contractRole,
+        String semanticRole,
+        String outputContract,
         String defaultActionKey,
         Long parentObjectId,
-        String status,
+        String maturity,
         Long adoptedVersionId) {}

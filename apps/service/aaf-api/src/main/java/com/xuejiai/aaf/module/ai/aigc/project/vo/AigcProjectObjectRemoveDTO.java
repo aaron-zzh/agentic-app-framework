@@ -4,4 +4,6 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 
 public record AigcProjectObjectRemoveDTO(
-        @NotNull @PositiveOrZero Integer expectedProjectVersion, String reason) {}
+        @NotNull @PositiveOrZero Integer expectedProjectVersion,
+        @NotNull @PositiveOrZero Long expectedGraphRevision,
+        String reason) {}

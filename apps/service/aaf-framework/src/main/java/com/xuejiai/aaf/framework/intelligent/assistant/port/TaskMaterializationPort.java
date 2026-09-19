@@ -5,7 +5,10 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
+import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantCommand;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ArtifactCompletionContract.Evaluation;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ArtifactCompletionContract.InvocationReceipt;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Execution;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Task;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskDispatch;
@@ -103,11 +106,82 @@ public interface TaskMaterializationPort {
 
     CommitResult commit(NodeResultCommand command);
 
+    /** 专业 Tool durable accepted 后冻结 receipt，并原子关闭当前 Dispatch 执行权。 */
+    AwaitExternalResult awaitExternal(AwaitExternalCommand command);
+
+    /** 有界扫描全部 AWAITING_EXTERNAL Execution；AIGC 信号与 scheduler 共用。 */
+    List<AwaitingExternal> findAwaitingExternal(int limit);
+
+    /** 按权威 AIGC Run ID 定向查询等待合同。 */
+    List<AwaitingExternal> findAwaitingExternalByRunId(Long executionRunId);
+
+    /** 根据权威 evaluator 结论幂等恢复；成功时为同一 Execution 创建 fresh Dispatch。 */
+    ExternalRecoveryResult recoverExternal(
+            InvocationReceipt receipt, Evaluation evaluation, Instant at);
+
     int recoverExpired(Instant at);
 
     List<MaterializedDispatch> findDue(Instant at, int limit);
 
     record MaterializedDispatch(TenantId tenantId, TaskId taskId, String dispatchId) {}
+
+    record AwaitExternalCommand(
+            InvocationReceipt receipt,
+            String dispatchId,
+            long dispatchGeneration,
+            String dispatchLeaseOwner,
+            Instant at) {
+        public AwaitExternalCommand {
+            java.util.Objects.requireNonNull(receipt, "receipt 不能为空");
+            if (dispatchId == null || dispatchId.isBlank() || dispatchGeneration < 1) {
+                throw new IllegalArgumentException("dispatch identity 不完整");
+            }
+            if (dispatchLeaseOwner == null || dispatchLeaseOwner.isBlank()) {
+                throw new IllegalArgumentException("dispatchLeaseOwner 不能为空白");
+            }
+            java.util.Objects.requireNonNull(at, "at 不能为空");
+        }
+
+        public static AwaitExternalCommand from(
+                InvocationReceipt receipt, InvocationContext context, Instant at) {
+            java.util.Objects.requireNonNull(context, "context 不能为空");
+            if (!receipt.tenantId().equals(context.tenantId())
+                    || !receipt.taskId().equals(context.taskId())
+                    || !receipt.executionId().equals(context.executionId())
+                    || !java.util.Objects.equals(receipt.projectId(), context.projectId())
+                    || receipt.dispatchFencingToken() != context.dispatchFencingToken()) {
+                throw new IllegalArgumentException("receipt 与 InvocationContext identity 不一致");
+            }
+            return new AwaitExternalCommand(
+                    receipt,
+                    context.dispatchId(),
+                    context.dispatchGeneration(),
+                    context.dispatchLeaseOwner(),
+                    at);
+        }
+    }
+
+    record AwaitExternalResult(Task task, boolean created) {
+        public AwaitExternalResult {
+            java.util.Objects.requireNonNull(task, "task 不能为空");
+        }
+    }
+
+    record AwaitingExternal(InvocationReceipt receipt) {
+        public AwaitingExternal {
+            java.util.Objects.requireNonNull(receipt, "receipt 不能为空");
+        }
+    }
+
+    record ExternalRecoveryResult(
+            boolean transitioned, List<MaterializedDispatch> releasedDispatches) {
+        public ExternalRecoveryResult {
+            releasedDispatches =
+                    List.copyOf(
+                            java.util.Objects.requireNonNull(
+                                    releasedDispatches, "releasedDispatches 不能为空"));
+        }
+    }
 
     record ResumeResult(
             Task task, List<MaterializedDispatch> nodeDispatches, boolean rootDispatchPending) {

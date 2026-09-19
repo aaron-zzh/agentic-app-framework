@@ -13,13 +13,13 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 
 /**
- * 一次物理模型请求的信封。
+ * 一次物理模型请求的不可变 PromptManifest。
  *
- * <p>对应 provider 适配之后、请求实际发送之前的那一刻：此时最终模型、生成参数、消息顺序与工具 Schema 均已确定。信封 append-only， 一次发送一份，重试推进
- * {@code attemptNo} 而非复用；不回写 {@code ExecutionProfileSnapshot}——后者是执行不变量，只能被引用。
+ * <p>对应 provider 适配之后、请求实际发送之前的那一刻：最终模型、生成参数、消息顺序与工具 Schema 均已确定。信封 append-only， 一次发送一份，重试推进 {@code
+ * attemptNo} 而非复用；不回写 {@code ExecutionProfileSnapshot}——后者是执行不变量，只能被引用。
  *
- * <p>按 {@code core/prompt.md} 的披露约束，本记录只保存 hash、长度与引用，不持有消息正文与工具 Schema 正文；完整正文进访问受控的 Prompt
- * 快照存储，不在本类型内。
+ * <p>按披露约束，本记录只保存 hash、长度与引用，不持有消息正文与工具 Schema 正文；完整正文由 {@link PromptEnvelopeBody}
+ * 在独立存储中与本信封同事务写入（当前不加密、不做访问审计、不到期删除，见 AAF-113 #11328 决策），信封的重试检测与恢复路径不加载正文。
  */
 public record PromptEnvelope(
         String envelopeId,
@@ -35,6 +35,8 @@ public record PromptEnvelope(
         String generateOptionsSha256,
         List<MessageSnapshot> messages,
         List<ToolSchemaSnapshot> tools,
+        String systemPromptSha256,
+        String messagesSha256,
         String promptSha256,
         Instant createdAt) {
 
@@ -52,21 +54,25 @@ public record PromptEnvelope(
         Objects.requireNonNull(mode, "mode 不能为空");
         Objects.requireNonNull(purpose, "purpose 不能为空");
         modelId = requireText(modelId, "modelId");
-        generateOptionsSha256 = requireText(generateOptionsSha256, "generateOptionsSha256");
+        generateOptionsSha256 = requireSha256(generateOptionsSha256, "generateOptionsSha256");
         messages = List.copyOf(Objects.requireNonNull(messages, "messages 不能为空"));
         if (messages.isEmpty()) {
             throw new IllegalArgumentException("messages 不能为空列表");
         }
         tools = List.copyOf(Objects.requireNonNull(tools, "tools 不能为空"));
-        promptSha256 = requireText(promptSha256, "promptSha256");
+        systemPromptSha256 = requireSha256(systemPromptSha256, "systemPromptSha256");
+        messagesSha256 = requireSha256(messagesSha256, "messagesSha256");
+        promptSha256 = requireSha256(promptSha256, "promptSha256");
+        if (!systemPromptSha256(messages).equals(systemPromptSha256)
+                || !messagesSha256(messages).equals(messagesSha256)
+                || !canonicalSha256(modelId, generateOptionsSha256, messages, tools)
+                        .equals(promptSha256)) {
+            throw new IllegalArgumentException("PromptManifest 摘要与物理调用投影不一致");
+        }
         Objects.requireNonNull(createdAt, "createdAt 不能为空");
     }
 
-    /**
-     * 尚未分配 {@code envelopeSeq} 的信封草稿。
-     *
-     * <p>序号必须由存储层在同一事务内按 execution 分配，调用方不得自行编号——否则并发下会产生空洞或冲突。
-     */
+    /** 尚未分配 {@code envelopeSeq} 的信封草稿。 */
     public record Draft(
             String envelopeId,
             TenantId tenantId,
@@ -80,6 +86,8 @@ public record PromptEnvelope(
             String generateOptionsSha256,
             List<MessageSnapshot> messages,
             List<ToolSchemaSnapshot> tools,
+            String systemPromptSha256,
+            String messagesSha256,
             String promptSha256,
             Instant createdAt) {
 
@@ -98,6 +106,8 @@ public record PromptEnvelope(
                     generateOptionsSha256,
                     messages,
                     tools,
+                    systemPromptSha256,
+                    messagesSha256,
                     promptSha256,
                     createdAt);
         }
@@ -127,7 +137,7 @@ public record PromptEnvelope(
             if (characters < 0) {
                 throw new IllegalArgumentException("消息长度不能为负");
             }
-            contentSha256 = requireText(contentSha256, "contentSha256");
+            contentSha256 = requireSha256(contentSha256, "contentSha256");
         }
     }
 
@@ -135,7 +145,7 @@ public record PromptEnvelope(
     public record ToolSchemaSnapshot(String name, String schemaSha256) {
         public ToolSchemaSnapshot {
             name = requireText(name, "name");
-            schemaSha256 = requireText(schemaSha256, "schemaSha256");
+            schemaSha256 = requireSha256(schemaSha256, "schemaSha256");
         }
     }
 
@@ -157,6 +167,42 @@ public record PromptEnvelope(
         for (var tool : tools) {
             append(canonical, "tool", tool.name() + ":" + tool.schemaSha256());
         }
+        return sha256(canonical.toString());
+    }
+
+    /** 物理请求中全部消息的顺序敏感摘要。 */
+    public static String messagesSha256(List<MessageSnapshot> messages) {
+        var canonical = new StringBuilder();
+        for (var message : messages) {
+            append(
+                    canonical,
+                    "msg",
+                    message.index()
+                            + ":"
+                            + message.role()
+                            + ":"
+                            + message.characters()
+                            + ":"
+                            + message.contentSha256());
+        }
+        return sha256(canonical.toString());
+    }
+
+    /** 物理请求 System 消息投影的顺序敏感摘要。 */
+    public static String systemPromptSha256(List<MessageSnapshot> messages) {
+        var canonical = new StringBuilder();
+        messages.stream()
+                .filter(message -> "SYSTEM".equals(message.role()))
+                .forEach(
+                        message ->
+                                append(
+                                        canonical,
+                                        "system",
+                                        message.index()
+                                                + ":"
+                                                + message.characters()
+                                                + ":"
+                                                + message.contentSha256()));
         return sha256(canonical.toString());
     }
 
@@ -189,5 +235,13 @@ public record PromptEnvelope(
             throw new IllegalArgumentException(field + " 不能为空白");
         }
         return value.trim();
+    }
+
+    private static String requireSha256(String value, String field) {
+        value = requireText(value, field);
+        if (!value.matches("[0-9a-f]{64}")) {
+            throw new IllegalArgumentException(field + " 必须是 SHA-256 摘要");
+        }
+        return value;
     }
 }

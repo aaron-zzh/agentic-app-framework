@@ -13,6 +13,8 @@ public record CopywritingAssetPageVO(
 
     public record Asset(
             Long documentId,
+            Long documentVersionId,
+            Integer versionNo,
             String title,
             String summary,
             LocalDateTime updateTime,

@@ -137,6 +137,7 @@ public final class ExecutionEventPublicMapper {
                 copyText(source, safe, "artifactState");
                 copyText(source, safe, "artifactType");
                 copyPositiveLong(source, safe, "artifactId");
+                copyPositiveLong(source, safe, "artifactVersionId");
                 copyBoolean(source, safe, "reversible");
             }
             case AUTHORIZATION_REQUESTED,

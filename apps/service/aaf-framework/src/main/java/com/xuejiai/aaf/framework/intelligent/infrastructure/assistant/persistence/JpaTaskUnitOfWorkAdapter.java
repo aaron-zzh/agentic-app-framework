@@ -36,14 +36,14 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 /** canonical Task/Execution/TaskDispatch 唯一写适配器。 */
 public class JpaTaskUnitOfWorkAdapter implements TaskUnitOfWork {
     private final TaskRootRepository tasks;
-    private final TaskExecutionRepository executions;
+    private final AssistantTaskExecutionRepository executions;
     private final TaskDispatchRepository dispatches;
     private final TaskInputRepository inputs;
     private final ConversationLeasePort leases;
 
     public JpaTaskUnitOfWorkAdapter(
             TaskRootRepository tasks,
-            TaskExecutionRepository executions,
+            AssistantTaskExecutionRepository executions,
             TaskDispatchRepository dispatches,
             TaskInputRepository inputs,
             ConversationLeasePort leases) {

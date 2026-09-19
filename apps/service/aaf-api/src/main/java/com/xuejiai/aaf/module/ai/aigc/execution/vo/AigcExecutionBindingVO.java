@@ -7,7 +7,6 @@ public record AigcExecutionBindingVO(
         Integer version,
         String actionKey,
         String projectTypeCode,
-        String domainExtensionCode,
         String productionMode,
         String channelCode,
         String targetType,

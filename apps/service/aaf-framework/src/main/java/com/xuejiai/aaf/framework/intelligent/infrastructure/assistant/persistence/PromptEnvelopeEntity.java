@@ -48,6 +48,12 @@ public class PromptEnvelopeEntity {
     @Column(name = "prompt_sha256", nullable = false, length = 64)
     private String promptSha256;
 
+    @Column(name = "system_prompt_sha256", nullable = false, length = 64)
+    private String systemPromptSha256;
+
+    @Column(name = "messages_sha256", nullable = false, length = 64)
+    private String messagesSha256;
+
     @Column(name = "trigger_kind", nullable = false, length = 32)
     private String triggerKind;
 

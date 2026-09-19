@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.ai.aigc.project.domain;
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectDocumentContextMode;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectDocumentReferenceType;
 
 import jakarta.persistence.Column;
@@ -36,8 +37,24 @@ public class AigcProjectDocumentRef extends BaseEntity {
     @Column(name = "document_id")
     private Long documentId;
 
-    @Column(name = "document_version_id")
-    private Long documentVersionId;
+    @Column(name = "field_key", length = 64)
+    private String fieldKey;
+
+    @Column(name = "instance_no", nullable = false)
+    private Integer instanceNo = 0;
+
+    @Column(name = "selected_document_version_id")
+    private Long selectedDocumentVersionId;
+
+    @Column(nullable = false, length = 32)
+    private String source = "user";
+
+    @Column(name = "context_note", length = 500)
+    private String contextNote;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "context_mode", nullable = false, length = 16)
+    private AigcProjectDocumentContextMode contextMode = AigcProjectDocumentContextMode.AUTO;
 
     @Column(nullable = false, length = 32)
     private String role;

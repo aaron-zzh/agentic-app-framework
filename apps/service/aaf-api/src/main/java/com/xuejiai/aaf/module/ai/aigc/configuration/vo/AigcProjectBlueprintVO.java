@@ -1,6 +1,5 @@
 package com.xuejiai.aaf.module.ai.aigc.configuration.vo;
 
-import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -26,4 +25,4 @@ public record AigcProjectBlueprintVO(
         Map<String, Object> actionSpec,
         Map<String, Object> deliverableSpec,
         Map<String, Object> processPolicy,
-        List<String> briefFields) {}
+        Map<String, Object> projectInitialization) {}

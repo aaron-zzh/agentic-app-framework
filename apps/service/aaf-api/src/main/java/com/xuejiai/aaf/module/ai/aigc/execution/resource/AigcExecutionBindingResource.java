@@ -44,7 +44,6 @@ public final class AigcExecutionBindingResource {
                             Set.of(
                                     "actionKey",
                                     "projectTypeCode",
-                                    "domainExtensionCode",
                                     "productionMode",
                                     "channelCode",
                                     "targetType",

@@ -27,16 +27,16 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 
 /** 从 canonical facts 装配安全 API 投影；租约、fence、合同、checkpoint 与内部版本不出持久化边界。 */
-public final class JpaTaskQueryAdapter implements TaskQueryPort {
+public class JpaTaskQueryAdapter implements TaskQueryPort {
     private final TaskRootRepository tasks;
-    private final TaskExecutionRepository executions;
+    private final AssistantTaskExecutionRepository executions;
     private final TaskDispatchRepository dispatches;
     private final TaskPlanPort plans;
     private final ExecutorPlanPort executorPlans;
 
     public JpaTaskQueryAdapter(
             TaskRootRepository tasks,
-            TaskExecutionRepository executions,
+            AssistantTaskExecutionRepository executions,
             TaskDispatchRepository dispatches,
             TaskPlanPort plans,
             ExecutorPlanPort executorPlans) {

@@ -49,10 +49,12 @@ import com.xuejiai.aaf.framework.intelligent.assistant.application.SubmitExecuto
 import com.xuejiai.aaf.framework.intelligent.assistant.application.TakeOverTaskTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskCommandService;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskIngress;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ArtifactCompletionContract.ArtifactCompletionEvaluator;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DecompositionBudget;
 import com.xuejiai.aaf.framework.intelligent.assistant.persona.PersonaRepository;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantIdentityPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantProvisioningPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.EffectiveContextPort;
@@ -89,6 +91,7 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistenc
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.EffectiveContextManifestRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.ExecutionProfileSnapshotRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaAssistantDefinitionAdapter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaAssistantIdentityAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaAssistantProvisioningAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaEffectiveContextAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.JpaExecutionProfileSnapshotAdapter;
@@ -115,6 +118,12 @@ public class AssistantInfrastructureAutoConfiguration {
             AiRoleRepository roles,
             AiModelRepository models) {
         return new JpaAssistantDefinitionAdapter(assistants, personas, bindings, roles, models);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(AssistantIdentityPort.class)
+    AssistantIdentityPort assistantIdentityPort(AssistantRepository assistants) {
+        return new JpaAssistantIdentityAdapter(assistants);
     }
 
     @Bean
@@ -409,7 +418,8 @@ public class AssistantInfrastructureAutoConfiguration {
         ConversationLeasePort.class,
         AssistantCommandPort.class,
         AgentExecutionPort.class,
-        TaskDispatchSignalPort.class
+        TaskDispatchSignalPort.class,
+        ArtifactCompletionEvaluator.class
     })
     @ConditionalOnMissingBean
     TaskCommandService taskCommandService(
@@ -422,6 +432,7 @@ public class AssistantInfrastructureAutoConfiguration {
             AssistantCommandPort assistants,
             AgentExecutionPort agentExecutions,
             TaskDispatchSignalPort dispatchSignals,
+            ArtifactCompletionEvaluator artifactCompletionEvaluator,
             Environment environment) {
         var leaseTtl =
                 Duration.ofSeconds(
@@ -441,6 +452,7 @@ public class AssistantInfrastructureAutoConfiguration {
                 assistants,
                 agentExecutions,
                 dispatchSignals,
+                artifactCompletionEvaluator,
                 Clock.systemUTC(),
                 leaseTtl,
                 pauseAckTimeout);

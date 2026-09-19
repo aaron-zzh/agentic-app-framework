@@ -50,6 +50,10 @@ public class Conversation extends BaseEntity {
     @Column(name = "assistant_id")
     private Long assistantId;
 
+    /** USER 表示普通会话；PROJECT_SERVER 表示仅项目服务可绑定其身份。 */
+    @Column(name = "management_mode", nullable = false, length = 32)
+    private String managementMode = "USER";
+
     /** AG-UI threadId */
     @Column(name = "thread_id", length = 64)
     private String threadId;

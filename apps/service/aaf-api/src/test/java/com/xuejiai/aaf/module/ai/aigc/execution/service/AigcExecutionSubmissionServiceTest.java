@@ -110,6 +110,7 @@ class AigcExecutionSubmissionServiceTest extends BaseMockitoUnitTest {
                         Map.of("z", 1, "a", 2),
                         List.of(9L, 3L, 7L),
                         List.of(8L, 4L),
+                        1,
                         10L,
                         true,
                         "idem-1");

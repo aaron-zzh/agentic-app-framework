@@ -16,11 +16,17 @@ import org.springframework.context.ApplicationEventPublisher;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcBlueprintProcessPolicy;
+import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcDeliverableSetSpec;
+import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcProjectInitializationSpec;
 import com.xuejiai.aaf.module.ai.aigc.event.service.AigcActivityEventService;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcBlueprintSourceType;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcDeliverableSetManifestFreezeCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionAdoptCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectBlueprintSnapshotPayload;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycle;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectSpecification;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcReviewDecisionCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.CompletionEvidencePort;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcObjectVersion;
@@ -68,7 +74,11 @@ class AigcProjectDeliveryServiceTest extends BaseMockitoUnitTest {
         review.setObjectType("review");
         review.setStatus("PENDING");
         review.setVersion(2);
-        review.setPayload(Map.of("subjectObjectId", 3L, "subjectObjectVersionId", 99L));
+        review.setPayload(
+                Map.of(
+                        "subjectObjectId", 3L,
+                        "subjectObjectVersionId", 99L,
+                        "reviewStatus", "PENDING"));
         when(projectRepository.findLockedById(1L)).thenReturn(Optional.of(project));
         when(objectRepository.findLockedById(2L)).thenReturn(Optional.of(review));
         var command = new AigcReviewDecisionCommand(1L, 2L, 100L, 4, 2, "通过", "decision-1");
@@ -89,8 +99,7 @@ class AigcProjectDeliveryServiceTest extends BaseMockitoUnitTest {
         var snapshot = new AigcProjectConfigSnapshot();
         snapshot.setProjectId(1L);
         snapshot.setChannelVersions(List.of(101L, 102L));
-        snapshot.setSnapshot(
-                Map.of("processPolicy", Map.of("publicationPolicy", "ALL_SELECTED_CHANNELS")));
+        snapshot.setSnapshot(snapshot(List.of()));
         when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
         when(snapshotRepository.findById(5L)).thenReturn(Optional.of(snapshot));
         when(completionEvidencePort.load(1L))
@@ -136,9 +145,27 @@ class AigcProjectDeliveryServiceTest extends BaseMockitoUnitTest {
     void should_reject_manifest_freeze_when_graph_revision_is_stale() {
         // 准备参数
         var project = project(4, 5L, AigcProjectLifecycle.CREATING);
+        project.setConfigSnapshotId(5L);
         var setObject = object(3L, "deliverable_set");
+        setObject.setOutputContract("COMPOSITE_MANIFEST");
+        setObject.setStableKey("deliverable-set");
+        var snapshot = new AigcProjectConfigSnapshot();
+        snapshot.setProjectId(1L);
+        snapshot.setSnapshot(
+                snapshot(
+                        List.of(
+                                new AigcDeliverableSetSpec(
+                                        "deliverable-set",
+                                        List.of(),
+                                        List.of(),
+                                        "OPTIONAL",
+                                        "ALL_REQUIRED",
+                                        "MANUAL",
+                                        "OPTIONAL"))));
         when(projectRepository.findLockedById(1L)).thenReturn(Optional.of(project));
+        when(projectRepository.findById(1L)).thenReturn(Optional.of(project));
         when(objectRepository.findLockedById(3L)).thenReturn(Optional.of(setObject));
+        when(snapshotRepository.findById(5L)).thenReturn(Optional.of(snapshot));
         when(versionRepository.findByObjectIdAndIdempotencyKey(3L, "freeze-1"))
                 .thenReturn(Optional.empty());
         var command =
@@ -168,6 +195,42 @@ class AigcProjectDeliveryServiceTest extends BaseMockitoUnitTest {
         assertThatThrownBy(() -> service.approveReview(command))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining("已被处理或已 stale");
+    }
+
+    private AigcProjectBlueprintSnapshotPayload snapshot(
+            List<AigcDeliverableSetSpec> deliverableSets) {
+        return new AigcProjectBlueprintSnapshotPayload(
+                AigcBlueprintSourceType.CATALOG,
+                "blueprint:1@1.0.0",
+                new AigcProjectSpecification(
+                        "content",
+                        "1.0.0",
+                        "standard",
+                        List.of(101L, 102L),
+                        List.of(),
+                        null,
+                        null,
+                        null,
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of(),
+                        null,
+                        List.of(),
+                        Map.of(),
+                        null,
+                        null,
+                        List.of()),
+                AigcProjectInitializationSpec.empty(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                deliverableSets,
+                new AigcBlueprintProcessPolicy(
+                        false, "ALL_SELECTED_CHANNELS", List.of(), List.of()),
+                2);
     }
 
     private AigcProject project(int version, Long graphRevision, AigcProjectLifecycle lifecycle) {

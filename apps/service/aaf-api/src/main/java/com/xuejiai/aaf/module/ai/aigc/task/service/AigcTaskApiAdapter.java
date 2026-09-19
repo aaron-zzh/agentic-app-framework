@@ -23,6 +23,7 @@ import com.xuejiai.aaf.module.ai.aigc.AigcCanonicalRequest;
 import com.xuejiai.aaf.module.ai.aigc.event.service.AigcActivityEventService;
 import com.xuejiai.aaf.module.ai.aigc.task.api.AigcBoundTaskEvidencePort;
 import com.xuejiai.aaf.module.ai.aigc.task.api.AigcTaskApi;
+import com.xuejiai.aaf.module.ai.aigc.task.api.AigcTaskProgressView;
 import com.xuejiai.aaf.module.ai.aigc.task.api.AigcTaskSubmitCommand;
 import com.xuejiai.aaf.module.ai.aigc.task.api.AigcTaskView;
 import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
@@ -383,5 +384,25 @@ public class AigcTaskApiAdapter implements AigcTaskApi {
 
     private Boolean bool(Object value) {
         return value instanceof Boolean booleanValue ? booleanValue : null;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AigcTaskProgressView> findProjectProgress(Long projectId, Long userId) {
+        if (operatorContext.currentOwnerId().filter(userId::equals).isEmpty()) {
+            throw new BusinessException(GlobalErrorCode.NOT_FOUND, "AIGC 项目任务不存在");
+        }
+        return taskRepository.findByProjectIdAndUserIdOrderByIdAsc(projectId, userId).stream()
+                .map(
+                        task ->
+                                new AigcTaskProgressView(
+                                        task.getId(),
+                                        task.getExecutionRunId(),
+                                        task.getType(),
+                                        task.getStatus(),
+                                        task.getOutputMediaVersionId(),
+                                        task.getCreditTxId(),
+                                        task.getErrorMsg()))
+                .toList();
     }
 }

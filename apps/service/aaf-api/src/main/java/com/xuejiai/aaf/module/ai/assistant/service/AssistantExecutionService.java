@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.ai.assistant.service;
 import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
 import static com.xuejiai.aaf.module.ai.assistant.AssistantErrorCode.*;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -26,6 +27,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextMan
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceType;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract.ResponsibleOwner;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent.ArtifactPolicy;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent.ArtifactTarget;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent.OutputKind;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlan.AssistantTarget;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.analysis.TaskAnalysis;
@@ -33,6 +35,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.analysis.TaskAnalys
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.SystemSkillBindingPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskQueryPort;
 import com.xuejiai.aaf.framework.intelligent.automation.application.DefinitionLifecycleService;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.ContextRequest.KnowledgeQuery;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.ContextRequest.TaskMaterial;
@@ -46,6 +49,7 @@ import com.xuejiai.aaf.framework.intelligent.team.model.TeamDefinition;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationSubject;
+import com.xuejiai.aaf.module.ai.assistant.port.ProgrammaticAssistantTaskPort;
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest;
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantSummaryVO;
 import com.xuejiai.aaf.module.ai.vision.VisionMediaResolver;
@@ -61,12 +65,16 @@ import tools.jackson.databind.json.JsonMapper;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class AssistantExecutionService {
+public class AssistantExecutionService implements ProgrammaticAssistantTaskPort {
 
     private static final int MAX_TOP_K = 20;
     private static final int MAX_KNOWLEDGE_BASES = 20;
     private static final int MATERIAL_BUDGET = 8_000;
     private static final int MAX_OUTPUT_CHAR_LEN = 32_000;
+    private static final int PROGRAMMATIC_TOP_K = 5;
+    private static final double PROGRAMMATIC_SIMILARITY_THRESHOLD = 0.5;
+    private static final int PROGRAMMATIC_MAX_FACTS = 20;
+    private static final int PROGRAMMATIC_MAX_IDEMPOTENCY_KEY_LENGTH = 256;
     private static final String CONTENT_DRAFT_UPSERT_TOOL = "content.draft.upsert";
     private static final JsonMapper OUTPUT_JSON_MAPPER =
             JsonMapper.builder().enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION).build();
@@ -75,9 +83,153 @@ public class AssistantExecutionService {
     private final AssistantCommandPort assistantCommands;
     private final AssistantDefinitionPort assistantDefinitions;
     private final SystemSkillBindingPort systemSkillBindings;
+    private final TaskQueryPort taskQueries;
     private final DefinitionLifecycleService definitionLifecycles;
     private final OperatorContext operatorContext;
     private final VisionMediaResolver visionMediaResolver;
+
+    /**
+     * 受控程序化 canonical Task 入口（AAF-113 #11328）。
+     *
+     * <p>与流式执行入口共用同一 Assistant 可执行性校验、{@link ExecutionIntent} 解析、{@link ExecutionContract}/{@link
+     * CompletionCriteria}/{@link InvocationProfile} 装配与唯一 {@code assembleCommand} 路径；只把"由服务端程序触发、
+     * 固定 thread、确定性身份"这一差异收敛在本方法内。canonical Task 身份由幂等键确定性派生，重放返回同一 Task。
+     */
+    @Override
+    public Receipt submitTask(Request request) {
+        Objects.requireNonNull(request, "request 不能为空");
+        if (request.idempotencyKey().length() > PROGRAMMATIC_MAX_IDEMPOTENCY_KEY_LENGTH) {
+            throw exception(PROGRAMMATIC_TASK_IDEMPOTENCY_KEY_TOO_LONG);
+        }
+        var objective = request.objective();
+        if (objective.facts().size() > PROGRAMMATIC_MAX_FACTS) {
+            throw exception(PROGRAMMATIC_TASK_FACT_LIMIT_EXCEEDED);
+        }
+        var identity = identity();
+        var definition =
+                resolveAssistant(
+                        new AssistantExecutionRequest.AssistantTarget(request.assistantId()),
+                        identity);
+        var executionIntent =
+                executionIntent(
+                        programmaticExecutionRequest(request),
+                        definition,
+                        systemOnDemandSkillKeys(),
+                        identity.workspaceId());
+        var analysis = TaskAnalysisPolicy.analyze(executionIntent, false);
+        if (!analysis.persistent()) {
+            throw exception(PROGRAMMATIC_TASK_ROUTE_NOT_PERSISTENT);
+        }
+        var runIdentity =
+                RunIdentity.create(request.threadId(), programmaticRunId(identity, request))
+                        .forAnalysis(analysis);
+        var tenantId = new TenantId(identity.orgId().toString());
+        var userId = new UserId(identity.ownerId().toString());
+        var replay = taskQueries.find(tenantId, userId, runIdentity.taskId());
+        if (replay.isPresent()) {
+            var existing = replay.orElseThrow();
+            return new Receipt(existing.taskId(), request.threadId(), existing.status(), false);
+        }
+        var route = executionIntent.resolvedRoute();
+        var spec =
+                new ExecutionSpec(
+                        definition.assistantId().value(),
+                        objective.summary(),
+                        route.skillKey(),
+                        Set.of(),
+                        PROGRAMMATIC_TOP_K,
+                        PROGRAMMATIC_SIMILARITY_THRESHOLD,
+                        TaskModelSelection.auto(),
+                        AssistantInvocation.MemoryMode.DEFAULT,
+                        List.of(),
+                        List.of(),
+                        programmaticContexts(objective.facts()),
+                        executionIntent);
+        var command = assembleCommand(spec, identity, null, runIdentity, null, analysis);
+        var maxAttempts = command.executionContract().retryPolicy().maxAttempts();
+        var plan =
+                objective.generationInstruction() == null
+                        ? TaskPlan.coordinated(
+                                command.taskId(),
+                                command.input(),
+                                route.roleKey(),
+                                route.skillKey(),
+                                maxAttempts)
+                        : TaskPlan.generationCoordinated(
+                                command.taskId(),
+                                command.input(),
+                                objective.generationInstruction(),
+                                objective.instructionRef(),
+                                route.roleKey(),
+                                route.skillKey(),
+                                maxAttempts);
+        var task = delegatedTasks.submit(command, plan);
+        log.debug(
+                "[AssistantExecution] stage=programmatic_task_created taskId={} threadId={} assistantId={} hasInstruction={}",
+                task.taskId().value(),
+                request.threadId(),
+                definition.assistantId().value(),
+                objective.generationInstruction() != null);
+        return new Receipt(task.taskId().value(), request.threadId(), task.status().name(), true);
+    }
+
+    /** 程序化入口的固定执行偏好：持久 TASK、FIXED Route、只返回产物，不接受调用方覆盖。 */
+    private static AssistantExecutionRequest programmaticExecutionRequest(Request request) {
+        var objective = request.objective();
+        return new AssistantExecutionRequest(
+                new AssistantExecutionRequest.AssistantTarget(request.assistantId()),
+                new AssistantExecutionRequest.ExecutionOptions(
+                        AssistantExecutionRequest.InteractionMode.TASK,
+                        AssistantExecutionRequest.RouteConstraint.FIXED,
+                        AssistantExecutionRequest.ClarificationPolicy.FAIL_ON_BLOCKER,
+                        AssistantExecutionRequest.ActionAuthorizationPolicy.PREAUTHORIZED_ONLY,
+                        AssistantExecutionRequest.ArtifactPersistence.RETURN_ONLY,
+                        null),
+                new AssistantExecutionRequest.Input(objective.summary(), Map.of(), List.of()),
+                new AssistantExecutionRequest.RoleSelection(objective.roleKey()),
+                new AssistantExecutionRequest.SkillSelection(objective.skillKey()),
+                new AssistantExecutionRequest.KnowledgeOptions(
+                        AssistantExecutionRequest.KnowledgeMode.DEFAULT,
+                        Set.of(),
+                        PROGRAMMATIC_TOP_K,
+                        PROGRAMMATIC_SIMILARITY_THRESHOLD),
+                new AssistantExecutionRequest.ModelSelection(
+                        AssistantExecutionRequest.ModelMode.AUTO, null),
+                new AssistantExecutionRequest.MemoryOptions(
+                        AssistantExecutionRequest.MemoryMode.DEFAULT),
+                new AssistantExecutionRequest.OutputOptions(null, null, null));
+    }
+
+    /** 结构化事实作为不可信任务材料进入上下文；MEMORY/KNOWLEDGE 仍只能由执行期 L1 授权检索。 */
+    private static List<ControlledContext> programmaticContexts(List<Fact> facts) {
+        return facts.stream()
+                .map(
+                        fact ->
+                                new ControlledContext(
+                                        SourceType.TASK_MATERIAL,
+                                        fact.key(),
+                                        fact.version(),
+                                        "SYSTEM",
+                                        "服务端冻结的程序化任务事实",
+                                        fact.summary(),
+                                        false,
+                                        fact.text()))
+                .toList();
+    }
+
+    /** canonical Task 身份只由 tenant、owner、固定 thread 与调用方幂等键决定，重放必然命中同一 Task。 */
+    private static String programmaticRunId(Identity identity, Request request) {
+        var canonical =
+                "programmatic-task|"
+                        + identity.orgId()
+                        + '|'
+                        + identity.ownerId()
+                        + '|'
+                        + request.threadId()
+                        + '|'
+                        + request.idempotencyKey();
+        return UUID.nameUUIDFromBytes(canonical.getBytes(StandardCharsets.UTF_8)).toString();
+    }
 
     /**
      * 唯一无会话执行入口。
@@ -239,52 +391,10 @@ public class AssistantExecutionService {
         runIdentity = runIdentity.forAnalysis(analysis);
         var executionKey = runIdentity.executionId().value();
         var taskKey = runIdentity.taskId() == null ? null : runIdentity.taskId().value();
-        validate(spec);
         var startedAtNanos = System.nanoTime();
-        log.debug(
-                "[AssistantExecution] stage=execution_prepared executionId={} taskId={} assistantId={} "
-                        + "requestedSkill={} modelMode={} modelId={} memoryMode={} inputLength={} "
-                        + "knowledgeBaseCount={} materialCount={} imageCount={} controlledContextCount={}",
-                executionKey,
-                taskKey,
-                spec.assistantId(),
-                spec.requestedSkillKey(),
-                spec.modelSelection().mode(),
-                spec.modelSelection().modelId(),
-                spec.memoryMode(),
-                textLength(spec.input()),
-                spec.knowledgeBaseIds().size(),
-                spec.materials().size(),
-                spec.imageFileKeys().size(),
-                spec.controlledContexts().size());
-        var contextCandidates = new ArrayList<SourceReference>();
-        var taskMaterials = new ArrayList<TaskMaterial>();
-        appendArtifactPolicy(spec.executionIntent(), contextCandidates);
-        appendOutputContract(outputContract, executionKey, contextCandidates, taskMaterials);
-        appendControlledContexts(
-                spec.controlledContexts(), executionKey, contextCandidates, taskMaterials);
-        appendMaterials(spec.materials(), executionKey, contextCandidates, taskMaterials);
-        appendKnowledgeCandidates(spec.knowledgeBaseIds(), contextCandidates);
-        var userAttachments = resolveImageAttachments(spec.imageFileKeys(), contextCandidates);
-        log.debug(
-                "[AssistantExecution] stage=context_planned executionId={} taskId={} "
-                        + "taskMaterialCount={} userAttachmentCount={} contextSourceCount={}",
-                executionKey,
-                taskKey,
-                taskMaterials.size(),
-                userAttachments.size(),
-                contextCandidates.size());
-
         var command =
-                command(
-                        spec,
-                        identity,
-                        runIdentity,
-                        resolvedTeam,
-                        contextCandidates,
-                        taskMaterials,
-                        userAttachments,
-                        analysis);
+                assembleCommand(
+                        spec, identity, outputContract, runIdentity, resolvedTeam, analysis);
         var events =
                 Flux.defer(
                                 () -> {
@@ -399,6 +509,63 @@ public class AssistantExecutionService {
 
     private static IllegalStateException outputContractViolation() {
         return new IllegalStateException("Assistant 输出不符合请求契约");
+    }
+
+    /**
+     * 唯一 AssistantCommand 装配路径：流式执行入口与受控程序化 Task 入口共用同一校验、上下文候选与 InvocationProfile 组装， 不存在第二条装配链。
+     */
+    private AssistantCommand assembleCommand(
+            ExecutionSpec spec,
+            Identity identity,
+            EffectiveOutputContract outputContract,
+            RunIdentity runIdentity,
+            ResolvedTeam resolvedTeam,
+            TaskAnalysis analysis) {
+        validate(spec);
+        var executionKey = runIdentity.executionId().value();
+        var taskKey = runIdentity.taskId() == null ? null : runIdentity.taskId().value();
+        log.debug(
+                "[AssistantExecution] stage=execution_prepared executionId={} taskId={} assistantId={} "
+                        + "requestedSkill={} modelMode={} modelId={} memoryMode={} inputLength={} "
+                        + "knowledgeBaseCount={} materialCount={} imageCount={} controlledContextCount={}",
+                executionKey,
+                taskKey,
+                spec.assistantId(),
+                spec.requestedSkillKey(),
+                spec.modelSelection().mode(),
+                spec.modelSelection().modelId(),
+                spec.memoryMode(),
+                textLength(spec.input()),
+                spec.knowledgeBaseIds().size(),
+                spec.materials().size(),
+                spec.imageFileKeys().size(),
+                spec.controlledContexts().size());
+        var contextCandidates = new ArrayList<SourceReference>();
+        var taskMaterials = new ArrayList<TaskMaterial>();
+        appendArtifactPolicy(spec.executionIntent(), contextCandidates);
+        appendOutputContract(outputContract, executionKey, contextCandidates, taskMaterials);
+        appendControlledContexts(
+                spec.controlledContexts(), executionKey, contextCandidates, taskMaterials);
+        appendMaterials(spec.materials(), executionKey, contextCandidates, taskMaterials);
+        appendKnowledgeCandidates(spec.knowledgeBaseIds(), contextCandidates);
+        var userAttachments = resolveImageAttachments(spec.imageFileKeys(), contextCandidates);
+        log.debug(
+                "[AssistantExecution] stage=context_planned executionId={} taskId={} "
+                        + "taskMaterialCount={} userAttachmentCount={} contextSourceCount={}",
+                executionKey,
+                taskKey,
+                taskMaterials.size(),
+                userAttachments.size(),
+                contextCandidates.size());
+        return command(
+                spec,
+                identity,
+                runIdentity,
+                resolvedTeam,
+                contextCandidates,
+                taskMaterials,
+                userAttachments,
+                analysis);
     }
 
     private AssistantCommand command(
@@ -643,6 +810,17 @@ public class AssistantExecutionService {
         var actionAuthorizationMode =
                 ExecutionIntent.ActionAuthorizationPolicy.Mode.valueOf(
                         options.actionAuthorizationPolicy().name());
+        if (options.artifactTarget() != null
+                && options.artifactPersistence()
+                        != AssistantExecutionRequest.ArtifactPersistence.AUTO_SAVE_DRAFT) {
+            throw exception(EXECUTION_ARTIFACT_TARGET_REQUIRES_AUTO_SAVE);
+        }
+        var artifactTarget =
+                options.artifactTarget() == null
+                        ? null
+                        : new ArtifactTarget(
+                                options.artifactTarget().documentId().toString(),
+                                options.artifactTarget().expectedCurrentVersionId().toString());
         if (interactionMode == ExecutionIntent.InteractionMode.CONVERSATIONAL) {
             if (options.artifactPersistence()
                     != AssistantExecutionRequest.ArtifactPersistence.RETURN_ONLY) {
@@ -720,7 +898,10 @@ public class AssistantExecutionService {
                                 == AssistantExecutionRequest.ArtifactPersistence.RETURN_ONLY
                         ? ArtifactPolicy.returnOnly(OutputKind.DOCUMENT, "text/markdown")
                         : ArtifactPolicy.autoSaveDraft(
-                                OutputKind.DOCUMENT, "text/markdown", CONTENT_DRAFT_UPSERT_TOOL);
+                                OutputKind.DOCUMENT,
+                                "text/markdown",
+                                CONTENT_DRAFT_UPSERT_TOOL,
+                                artifactTarget);
         return new ExecutionIntent(
                 interactionMode,
                 routeConstraint,

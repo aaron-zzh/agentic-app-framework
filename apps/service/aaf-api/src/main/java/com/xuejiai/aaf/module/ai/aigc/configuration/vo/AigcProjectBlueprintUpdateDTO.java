@@ -1,6 +1,5 @@
 package com.xuejiai.aaf.module.ai.aigc.configuration.vo;
 
-import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -32,7 +31,7 @@ public record AigcProjectBlueprintUpdateDTO(
         Patch<Map<String, Object>> actionSpec,
         Patch<Map<String, Object>> deliverableSpec,
         Patch<Map<String, Object>> processPolicy,
-        Patch<List<String>> briefFields,
+        Patch<Map<String, Object>> projectInitialization,
         @NotNull @PositiveOrZero Integer expectedVersion) {
 
     public AigcProjectBlueprintUpdateDTO {
@@ -48,7 +47,7 @@ public record AigcProjectBlueprintUpdateDTO(
         actionSpec = normalize(actionSpec);
         deliverableSpec = normalize(deliverableSpec);
         processPolicy = normalize(processPolicy);
-        briefFields = normalize(briefFields);
+        projectInitialization = normalize(projectInitialization);
     }
 
     @JsonCreator
@@ -65,7 +64,7 @@ public record AigcProjectBlueprintUpdateDTO(
             @JsonProperty("actionSpec") JsonNode actionSpec,
             @JsonProperty("deliverableSpec") JsonNode deliverableSpec,
             @JsonProperty("processPolicy") JsonNode processPolicy,
-            @JsonProperty("briefFields") JsonNode briefFields,
+            @JsonProperty("projectInitialization") JsonNode projectInitialization,
             @JsonProperty("expectedVersion") Integer expectedVersion) {
         return new AigcProjectBlueprintUpdateDTO(
                 Patch.parse(code, AigcConfigurationPatchDecoder::text),
@@ -80,7 +79,7 @@ public record AigcProjectBlueprintUpdateDTO(
                 Patch.parse(actionSpec, AigcConfigurationPatchDecoder::objectMap),
                 Patch.parse(deliverableSpec, AigcConfigurationPatchDecoder::objectMap),
                 Patch.parse(processPolicy, AigcConfigurationPatchDecoder::objectMap),
-                Patch.parse(briefFields, AigcConfigurationPatchDecoder::stringList),
+                Patch.parse(projectInitialization, AigcConfigurationPatchDecoder::objectMap),
                 expectedVersion);
     }
 
