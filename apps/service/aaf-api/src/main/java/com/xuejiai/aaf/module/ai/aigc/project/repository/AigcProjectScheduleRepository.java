@@ -57,7 +57,8 @@ public interface AigcProjectScheduleRepository extends JpaRepository<AigcProject
             ORDER BY s.executeAt ASC
             LIMIT :limit
             """)
-    List<AigcProjectSchedule> claimDueSchedules(@Param("now") Instant now, @Param("limit") int limit);
+    List<AigcProjectSchedule> claimDueSchedules(
+            @Param("now") Instant now, @Param("limit") int limit);
 
     /**
      * 查询项目当前是否有活跃的 canonical Task。

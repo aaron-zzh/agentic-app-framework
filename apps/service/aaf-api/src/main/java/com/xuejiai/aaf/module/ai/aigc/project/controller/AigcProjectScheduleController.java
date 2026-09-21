@@ -66,7 +66,8 @@ public class AigcProjectScheduleController {
 
     @DeleteMapping("/{scheduleId}")
     @Operation(summary = "取消定时任务")
-    public Result<Void> cancelSchedule(@PathVariable Long projectId, @PathVariable Long scheduleId) {
+    public Result<Void> cancelSchedule(
+            @PathVariable Long projectId, @PathVariable Long scheduleId) {
         scheduleService.cancelSchedule(scheduleId);
         return Result.success();
     }
@@ -80,7 +81,8 @@ public class AigcProjectScheduleController {
 
     @PutMapping("/{scheduleId}/resume")
     @Operation(summary = "恢复定时任务")
-    public Result<Void> resumeSchedule(@PathVariable Long projectId, @PathVariable Long scheduleId) {
+    public Result<Void> resumeSchedule(
+            @PathVariable Long projectId, @PathVariable Long scheduleId) {
         scheduleService.resumeSchedule(scheduleId);
         return Result.success();
     }

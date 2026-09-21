@@ -9,12 +9,10 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.framework.intelligent.assistant.model.Task;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycle;
-import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProject;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectSchedule;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectSchedule.ProjectScopeSnapshot;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectRepository;
@@ -32,6 +30,7 @@ import lombok.extern.slf4j.Slf4j;
  * <p>负责定时任务的创建、取消、暂停/恢复和触发逻辑。
  *
  * <h3>触发校验</h3>
+ *
  * <ul>
  *   <li>项目 lifecycle 必须为 ACTIVE
  *   <li>Assistant 可执行性（定义存在、已发布、权限）
@@ -41,6 +40,7 @@ import lombok.extern.slf4j.Slf4j;
  * </ul>
  *
  * <h3>幂等性</h3>
+ *
  * <p>使用 {@code claimFence} 防止分布式重复触发；使用 {@code idempotencyKey} 确保 Task 创建幂等。
  *
  * @author Kiro
@@ -126,7 +126,10 @@ public class AigcProjectScheduleService {
                         .orElseThrow(() -> new IllegalArgumentException("定时任务不存在"));
 
         if (schedule.isTerminal()) {
-            log.warn("[ProjectSchedule] 定时任务已终态 scheduleId={}, status={}", scheduleId, schedule.getStatus());
+            log.warn(
+                    "[ProjectSchedule] 定时任务已终态 scheduleId={}, status={}",
+                    scheduleId,
+                    schedule.getStatus());
             return;
         }
 
@@ -217,7 +220,10 @@ public class AigcProjectScheduleService {
     }
 
     private void triggerOne(AigcProjectSchedule schedule) {
-        log.info("[ProjectSchedule] 触发定时任务 scheduleId={}, projectId={}", schedule.getId(), schedule.getProjectId());
+        log.info(
+                "[ProjectSchedule] 触发定时任务 scheduleId={}, projectId={}",
+                schedule.getId(),
+                schedule.getProjectId());
 
         // 1. 设置认领围栏
         var fence = UUID.randomUUID().toString();
@@ -227,8 +233,7 @@ public class AigcProjectScheduleService {
 
         // 2. 重新校验项目状态
         var project =
-                projects
-                        .findByIdAndDeletedFalse(schedule.getProjectId())
+                projects.findByIdAndDeletedFalse(schedule.getProjectId())
                         .orElseThrow(() -> new IllegalStateException("项目不存在"));
 
         if (project.getStatus() != AigcProjectLifecycle.ACTIVE) {

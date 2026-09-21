@@ -326,16 +326,25 @@ public class AssistantAguiController {
         var input = lastUserInput(request.messages());
         var props = request.forwardedProps();
         var plan = mode(props).plan(props, input, validator);
-        requireProjectBinding(props, request.threadId(), plan.request());
+        var verifiedProjectId = requireProjectBinding(props, request.threadId(), plan.request());
         return assistantExecutions.start(
-                plan.request(), plan.team(), request.threadId(), request.runId());
+                plan.request(),
+                plan.team(),
+                request.threadId(),
+                request.runId(),
+                verifiedProjectId);
     }
 
-    private void requireProjectBinding(
+    /**
+     * 校验客户端声明的项目范围是否与服务端项目会话绑定完全一致，返回可冻结进执行画像的已校验 projectId。
+     *
+     * <p>未声明项目时返回 {@code null}；声明但绑定未就绪、thread 或 Assistant 不一致时直接拒绝，绝不按客户端声明放行。
+     */
+    private Long requireProjectBinding(
             JsonNode props, String threadId, AssistantExecutionRequest request) {
         var projectId = optionalProjectId(props);
         if (projectId == null) {
-            return;
+            return null;
         }
         var context = projects.conversationContext(projectId);
         if (context.state() != AigcProjectConversationContext.State.READY
@@ -344,6 +353,7 @@ public class AssistantAguiController {
                 || !context.assistantId().equals(request.assistant().id())) {
             throw new IllegalArgumentException("项目会话、Assistant 与当前执行请求不一致");
         }
+        return projectId;
     }
 
     private static Long optionalProjectId(JsonNode props) {

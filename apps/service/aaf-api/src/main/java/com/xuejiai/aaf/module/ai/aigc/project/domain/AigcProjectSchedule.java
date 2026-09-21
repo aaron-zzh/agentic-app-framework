@@ -24,6 +24,7 @@ import lombok.Setter;
  * <p>一次性项目 AI 定时任务，支持指定时间点触发 Assistant Task。
  *
  * <h3>状态流转</h3>
+ *
  * <pre>
  * PENDING → DISPATCHING → TRIGGERED（成功）
  *                       ↘ FAILED（失败）
@@ -34,6 +35,7 @@ import lombok.Setter;
  * </pre>
  *
  * <h3>分布式调度</h3>
+ *
  * <p>由统一 scheduler 扫描 due 记录，使用 {@code FOR UPDATE SKIP LOCKED} + claim fence 原子认领。
  *
  * @author Kiro
@@ -129,9 +131,7 @@ public class AigcProjectSchedule extends BaseEntity {
 
     /** 是否为终态 */
     public boolean isTerminal() {
-        return status == Status.TRIGGERED
-                || status == Status.CANCELLED
-                || status == Status.FAILED;
+        return status == Status.TRIGGERED || status == Status.CANCELLED || status == Status.FAILED;
     }
 
     /** 获取解析后的时区 */
