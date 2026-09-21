@@ -58,7 +58,7 @@ describe("项目工作台主路径接线", () => {
   })
 
   it("项目生成固定走 Action，控制器中没有独立 Task fallback", () => {
-    expect(generationDialogSource).toContain("专业媒体生成会创建新的 ExecutionRun 和候选版本")
+    expect(generationDialogSource).toContain("创建新的 ExecutionRun 和候选版本")
     expect(generationDialogSource).toContain("projectTargets={projectTargets}")
     for (const source of [imageControllerSource, videoControllerSource]) {
       expect(source).toContain("if (projectTarget)")

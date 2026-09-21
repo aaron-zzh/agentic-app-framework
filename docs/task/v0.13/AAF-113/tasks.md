@@ -319,7 +319,7 @@ UI 设计：[ui-design.md](ui-design.md)
 
 ### Assistant 接入与阶段三门禁
 
-- [ ] **#11321 实现 ASSISTANT_GENERATED BlueprintSnapshot Proposal 与统一物化** — developer-service、developer-webui
+- ⏳ **#11321 实现 ASSISTANT_GENERATED BlueprintSnapshot Proposal 与统一物化** — developer-service、developer-webui
   - 新增版本化 `AssistantBlueprintProposal`，保存 rawProposal、normalizedSnapshot、validationResult、proposalVersion/hash、来源 Task/Execution、确认/授权回执和过期状态。
   - Assistant 通过类型化 Tool 只提交逻辑 ProjectSpecification/projectInitialization/objectSpecs/relationSpecs/actions；数据库 ID、关系语义、执行绑定版本和 hash 由系统计算。
   - 复用 #11302 的 Validator、Normalizer、Freezer、AigcProjectConfigSnapshot 和 Materializer，并使用 #11325 的类型化语义合同；不建立 MANUAL/EMPTY 来源或第二快照表。
@@ -331,7 +331,7 @@ UI 设计：[ui-design.md](ui-design.md)
   - **依赖**：#11304、#11305、#11313、#11328。
   - **覆盖**：AC-02、UI-AC-01。
 
-- [ ] **#11322 接入结构化 Assistant Task、专业 Tool 与协作 UI** — developer-service、developer-webui
+- ⏳ **#11322 接入结构化 Assistant Task、专业 Tool 与协作 UI** — developer-service、developer-webui
   - 实现 generationMode、结构化 Assistant Task API、文本/文档 candidate Tool、媒体 Tool 适配、AWAITING_EXTERNAL 和恢复。
   - 将对话单点修改、ContentActionBar 项目级批量生成和 Assistant 状态接入 canonical Task；current Task 未终结时禁止竞争 Task。
   - Assistant 只调用阶段一类型化服务，不修改 ProjectGraph、Run、candidate、积分或 delivery 真理源。
@@ -340,6 +340,38 @@ UI 设计：[ui-design.md](ui-design.md)
   - **从 #11328 移交**：Proposal 目标成本的服务端权威口径（取执行绑定 `estimatedCredits`），替换当前恒为 0 的占位聚合。
   - **依赖**：#11307、#11308、#11309、#11311、#11321、#11327、#11328。
   - **覆盖**：AC-02、AC-06 至 AC-10、AC-12、UI-AC-01 至 UI-AC-04、UI-AC-10 至 UI-AC-12。
+
+- ⏳ **#11330 按订阅并发窗口持久等待并自动续跑专业 AIGC 任务** — developer-service
+  - 以用户订阅权益 `max_parallel_task` 作为专业 AIGC 任务并发窗口，不复用 `LicenseAwareConfig.maxConcurrentAgents`，不把并发槽按累计权益消费。
+  - 一次 1..N 目标批准仍只创建一个 canonical Task；已批准目标集合与 root Run 证据共同表达待提交范围，不新建第二队列表、镜像 Task 或兼容路径。
+  - 权威准入必须覆盖手动与 Assistant 两类专业任务并跨实例原子串行；幂等重放优先于占槽判定，同一用户实际提交或运行中的专业任务不得超过订阅上限。
+  - 手动与 auto 均先持久化为 `PREPARED` 排队任务且不占槽；窗口满额不失败，任一占槽任务终态后释放槽位并自动派发同一用户最早的 `PREPARED` 任务。
+  - 自动续跑每轮重新读取 Proposal 批准范围、Run、readiness、权限、积分和项目版本；页面关闭、服务重启或重复事件不得重复提交。
+  - 只治理专业 `AigcTask`/供应商执行，不把 Assistant LLM 调用、Proposal 或草稿域字段补全计入同一窗口。
+  - **依赖**：#11308、#11309、#11322。
+  - **覆盖**：批量 auto 的资源治理补充，不扩展现有产品 AC 编号。
+
+- ✅ **#11331 治理程序触发 canonical Task 的用户级并发** — developer-service
+  - **已完成源码范围（静态核验）**：
+    - [x] 框架侧 `TaskQueryPort.countActiveBySource(TenantId, UserId, Task.Source)` 已实现（line 73）。
+    - [x] `TaskRootRepository.countActiveBySource()` 已实现（lines 67-74），使用 `Task.Status.terminal()` 判定终态。
+    - [x] `JpaTaskQueryAdapter.countActiveBySource()` 已实现（lines 72-81），框架不依赖业务模块。
+    - [x] `ProgrammaticAssistantTaskPort` 已定义并由 `AssistantExecutionService` 实现。
+    - [x] API 侧准入控制已完成（AssistantExecutionService:157-205）：幂等重放优先判定 → 并发窗口准入（读订阅上限 + 框架计数）→ 窗口已满拒绝（PROGRAMMATIC_TASK_CONCURRENT_LIMIT_EXCEEDED）。
+    - [x] 错误码 `PROGRAMMATIC_TASK_CONCURRENT_LIMIT_EXCEEDED` (7_003_081) 已定义。
+    - [x] `AssistantExecutionService.submitTask()` 已实现完整并发准入逻辑（lines 187-205）：
+      - 幂等重放优先判定：先查询 `taskQueries.find()` 命中既有 Task 时直接返回，不受窗口影响。
+      - 读取订阅上限 `parallelTaskQuota.parallelTaskLimit()`，调用 `taskQueries.countActiveBySource(source=AUTOMATION)` 计数。
+      - 窗口已满时抛出 `PROGRAMMATIC_TASK_CONCURRENT_LIMIT_EXCEEDED` 拒绝并返回明确原因，不持久化 Task、不排队。
+  - **剩余范围**：无（核心并发治理已完整实现）。
+  - 只治理 `ProgrammaticAssistantTaskPort` 这一个程序触发入口（项目生成 + Blueprint 规划）；交互式对话任务不受限、不排队，避免把"点了没反应"引入实时对话。
+  - 计数口径为该用户未终结且 `source=AUTOMATION` 的 canonical Task；终态判定继续唯一取自 `Task.Status.terminal()`，不另建状态集合。
+  - 上限复用订阅权益 `max_parallel_task`，与 #11330 的媒体任务窗口是同尺寸的两个独立窗口，不共用计数、不新增权益码与 seed。
+  - 窗口已满时在创建 canonical Task 前拒绝并返回明确原因，**不建第二条 canonical Task 持久队列**：canonical Task 没有"已受理未派发"的排队态，为此造一个等于新增第二套队列与状态机；真正昂贵的供应商执行已由 #11330 排队，单个 orchestration 可持有大量排队媒体任务，因此 orchestration 并发天然很低。
+  - 幂等重放优先于上限判定：命中既有 Task 的重放必须原样返回，不受窗口影响。
+  - 框架侧只新增按归属与来源的只读计数能力（`TaskQueryPort` + 任务根仓储），订阅上限仍由 `aaf-api` 侧读取后传入，框架不依赖业务模块。
+  - **依赖**：#11322、#11330。
+  - **覆盖**：程序触发编排的资源治理补充，不扩展现有产品 AC 编号。
 
 - [ ] **#11323 执行 Assistant 接入门禁** — developer-service、developer-webui
   - 验证 CATALOG AI 辅助、无目录 Blueprint、单点对话、批量生成、manual/auto、外部等待和恢复均复用同一 Proposal、Prompt、Validator、Materializer 和项目事实。
