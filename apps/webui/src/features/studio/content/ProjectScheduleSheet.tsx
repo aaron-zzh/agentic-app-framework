@@ -7,6 +7,7 @@
 
 import { CalendarClock, ExternalLink, Pause, Play, Plus, Trash2 } from "lucide-react"
 import { useState } from "react"
+import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -27,7 +28,6 @@ import {
   SheetTitle
 } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
-import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
 interface ProjectSchedule {
