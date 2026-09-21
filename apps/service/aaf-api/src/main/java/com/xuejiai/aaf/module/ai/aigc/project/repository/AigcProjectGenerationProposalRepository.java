@@ -35,6 +35,10 @@ public interface AigcProjectGenerationProposalRepository
     Optional<AigcProjectGenerationProposal> findByDraftIdAndApprovalIdempotencyKey(
             String draftId, String approvalIdempotencyKey);
 
+    Optional<AigcProjectGenerationProposal> findByLinkedTaskId(String linkedTaskId);
+
+    List<AigcProjectGenerationProposal> findByProjectIdAndLinkedTaskIdIsNotNull(Long projectId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query(
             """

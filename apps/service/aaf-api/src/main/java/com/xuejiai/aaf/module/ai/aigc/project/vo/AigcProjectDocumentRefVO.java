@@ -31,7 +31,13 @@ public record AigcProjectDocumentRefVO(
         String language,
         String semanticGenerationStatus,
         boolean semanticManualOverride,
-        Integer semanticMetadataVersion) {
+        Integer semanticMetadataVersion,
+        /**
+         * 该文档最近一次 AI 生成执行的状态（{@code AigcExecutionRunStatus} 名称），从未生成过时为 {@code null}。
+         *
+         * <p>来源是执行侧按 itemKey 反查的最新 root Run，与触发方式无关；任务终结后仍保留，供文档列表就地显示生成中或生成失败。
+         */
+        String generationStatus) {
     public AigcProjectDocumentRefVO {
         topics = topics == null ? List.of() : List.copyOf(topics);
     }

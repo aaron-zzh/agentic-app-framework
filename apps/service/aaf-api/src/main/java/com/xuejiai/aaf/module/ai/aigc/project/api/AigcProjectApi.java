@@ -113,5 +113,8 @@ public interface AigcProjectApi {
 
     AigcProjectView archive(AigcProjectLifecycleCommand command);
 
+    /** 切换项目协作模式；只影响尚未提交的新动作，不修改活跃 Task 与已提交 Run。 */
+    AigcProjectView switchGenerationMode(AigcProjectGenerationModeCommand command);
+
     record DocumentProjectReference(Long documentId, Long projectId, String projectName) {}
 }

@@ -23,8 +23,11 @@ import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.aigc.AigcCanonicalRequest;
+import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcExecutionBindingVersionRef;
 import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcProjectInitializationSpec;
+import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionBindingRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcApprovedGenerationTarget;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcGenerationProposalBridgeApi;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcGenerationProposalScope;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcGenerationProposalTargetType;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectGenerationProposalApprovalCommand;
@@ -52,7 +55,7 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class AigcProjectGenerationProposalService {
+public class AigcProjectGenerationProposalService implements AigcGenerationProposalBridgeApi {
 
     private static final String AWAITING_CONFIRMATION = "AWAITING_CONFIRMATION";
     private static final String APPROVED = "APPROVED";
@@ -62,6 +65,7 @@ public class AigcProjectGenerationProposalService {
     private final AigcProjectConfigSnapshotRepository snapshotRepository;
     private final AigcProjectGenerationProposalRepository proposalRepository;
     private final AigcProjectGenerationProposalItemRepository itemRepository;
+    private final AigcExecutionBindingRepository bindings;
     private final OperatorContext operatorContext;
 
     /** 生成一个待确认 Proposal；不触发模型调用、Task、Run 或 candidate 写入。 */
@@ -290,6 +294,56 @@ public class AigcProjectGenerationProposalService {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "Proposal 未确认或 hash 已失效");
         }
         return toView(proposal);
+    }
+
+    /**
+     * 按 canonical Task 反查该 Task 内的某个已确认目标。
+     *
+     * <p>Task 身份与受信 projectId 都来自服务端执行画像；itemKey 只用于在已批准集合内选择推进顺序，成员校验与 hash、上下文、 批准范围检查全部复用 {@link
+     * #resolveApprovedTarget} 同一条链，不放宽任何一项。
+     */
+    @Override
+    public AigcApprovedGenerationTarget resolveApprovedTargetByLinkedTask(
+            String linkedTaskId, Long trustedProjectId, String itemKey) {
+        var taskId = requireText(linkedTaskId, "linkedTaskId 不能为空");
+        var resolvedItemKey = requireText(itemKey, "itemKey 不能为空");
+        if (trustedProjectId == null || trustedProjectId < 1) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "受信 projectId 不能为空");
+        }
+        var proposal =
+                proposalRepository
+                        .findByLinkedTaskId(taskId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.NOT_FOUND,
+                                                "当前 Task 未关联已确认生成 Proposal"));
+        if (!Objects.equals(proposal.getProjectId(), trustedProjectId)) {
+            throw new BusinessException(GlobalErrorCode.FORBIDDEN, "Task 关联 Proposal 与受信项目不一致");
+        }
+        return resolveApprovedTarget(
+                AigcGenerationProposalScope.project(trustedProjectId),
+                proposal.getProposalId(),
+                proposal.getProposalVersion(),
+                proposal.getProposalHash(),
+                resolvedItemKey);
+    }
+
+    @Override
+    public List<LinkedTask> linkedTasks(Long projectId, String excludedProposalId) {
+        if (projectId == null || projectId < 1) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "projectId 不能为空");
+        }
+        return proposalRepository.findByProjectIdAndLinkedTaskIdIsNotNull(projectId).stream()
+                .filter(proposal -> !Objects.equals(proposal.getProposalId(), excludedProposalId))
+                .map(
+                        proposal ->
+                                new LinkedTask(
+                                        proposal.getProposalId(),
+                                        proposal.getProposalVersion(),
+                                        proposal.getLinkedTaskId(),
+                                        proposal.getApprovedTargetKeys()))
+                .toList();
     }
 
     /** 解析已确认的单项目标并重新校验当前上下文；返回值只供服务端 Task/执行桥接冻结，禁止直接作为客户端输入。 */
@@ -575,19 +629,20 @@ public class AigcProjectGenerationProposalService {
                 throw new BusinessException(
                         GlobalErrorCode.BAD_REQUEST, "Proposal 目标重复或键过长: " + itemKey);
             }
+            if (item.estimatedCredits() != null) {
+                throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "生成成本由服务端执行绑定决定，不接受外部声明");
+            }
+            var normalizedActionKey = trimToNull(item.actionKey());
             normalized.add(
                     new AigcProjectGenerationProposalDraft.Item(
                             item.targetType(),
                             targetKey,
-                            trimToNull(item.actionKey()),
+                            normalizedActionKey,
                             instruction,
                             normalizedKeys(item.dependencyKeys(), "dependencyKeys"),
                             normalizedKeys(item.requiredContextKeys(), "requiredContextKeys"),
                             trimToNull(item.modelPolicy()),
-                            item.estimatedCredits() == null
-                                    ? null
-                                    : requireNonNegative(
-                                            item.estimatedCredits(), "item estimatedCredits"),
+                            resolveActionCredits(scope, normalizedActionKey),
                             item.confirmationPolicy() == null
                                     ? defaultConfirmationPolicy
                                     : defaultConfirmationPolicy(item.confirmationPolicy())));
@@ -799,7 +854,7 @@ public class AigcProjectGenerationProposalService {
     private BigDecimal effectiveEstimatedCredits(
             BigDecimal requested, List<AigcProjectGenerationProposalDraft.Item> items) {
         if (requested != null) {
-            return requireNonNegative(requested, "estimatedCredits");
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "生成成本由服务端执行绑定决定，不接受外部声明");
         }
         return items.stream()
                 .map(AigcProjectGenerationProposalDraft.Item::estimatedCredits)
@@ -807,11 +862,47 @@ public class AigcProjectGenerationProposalService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private BigDecimal requireNonNegative(BigDecimal value, String field) {
-        if (value.signum() < 0) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, field + " 不能为负数");
+    /**
+     * 单项目标的服务端权威预估成本。
+     *
+     * <p>口径固定为项目配置快照冻结的执行绑定版本上的 {@code estimatedCredits}，与动作真实提交时 {@code
+     * AigcExecutionRun.costCredits} 取同一来源。无 actionKey、物化前草稿域或该动作没有绑定时返回 {@code null}——不编造数字。
+     */
+    private BigDecimal resolveActionCredits(ResolvedScope scope, String actionKey) {
+        if (actionKey == null || scope.project() == null) {
+            return null;
         }
-        return value;
+        var bindingActionKey =
+                "project.cover.generate".equals(actionKey) ? "image.generate" : actionKey;
+        var snapshot =
+                snapshotRepository
+                        .findById(scope.project().getConfigSnapshotId())
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.NOT_FOUND, "项目配置快照不存在"));
+        var bindingVersionId =
+                snapshot.getSnapshot().projectSpecification().executionBindings().stream()
+                        .filter(reference -> bindingActionKey.equals(reference.actionKey()))
+                        .map(AigcExecutionBindingVersionRef::executionBindingVersionId)
+                        .findFirst()
+                        .orElse(null);
+        if (bindingVersionId == null) {
+            return null;
+        }
+        var binding =
+                bindings.findById(bindingVersionId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.BAD_REQUEST,
+                                                "项目固定的动作执行绑定不存在: " + bindingActionKey));
+        if (!"published".equals(binding.getStatus())
+                || !bindingActionKey.equals(binding.getActionKey())) {
+            throw new BusinessException(
+                    GlobalErrorCode.BAD_REQUEST, "项目固定的动作执行绑定无效: " + bindingActionKey);
+        }
+        return binding.getEstimatedCredits();
     }
 
     private LocalDateTime requireFutureOrNull(LocalDateTime expiresAt) {

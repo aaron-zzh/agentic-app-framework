@@ -26,6 +26,7 @@ import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionAdoptCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectVersionRejectCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectConversationBindCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectDocumentInput;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectGenerationModeCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectGenerationProposalDraft;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectGenerationProposalRevisionCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectGenerationStartCommand;
@@ -57,6 +58,7 @@ import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentDecisionVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentRefDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentRefUpdateDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectDocumentRefVO;
+import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectGenerationModeDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectGenerationProposalDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectGenerationProposalItemDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectGenerationProposalReviseDTO;
@@ -111,34 +113,34 @@ public class AigcProjectController
         return service;
     }
 
-    @Operation(summary = "按已发布配置物化项目")
-    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "按已确认来源物化项目")
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_CREATE)
     @PostMapping("/_materialize")
     public Result<?> materialize(@Valid @RequestBody AigcProjectMaterializeDTO request) {
-        return Result.success(
-                service.materialize(
-                        new AigcProjectMaterializeCommand(
+        AigcProjectMaterializeCommand command =
+                switch (request.sourceType()) {
+                    case CATALOG -> {
+                        var catalog = request.catalog();
+                        yield new AigcProjectMaterializeCommand.Catalog(
                                 OrgContext.getCurrentWorkspaceId(),
-                                request.name(),
-                                request.description(),
-                                request.background(),
-                                request.targetAudience(),
-                                request.requirements(),
-                                request.constraints(),
-                                request.keyFacts(),
-                                request.keyMessages(),
-                                request.styleGuidance(),
-                                request.successCriteria(),
-                                request.deliveryRequirements(),
-                                request.locale(),
-                                request.additionalContext(),
-                                request.sourceType(),
-                                request.sourceRef(),
-                                request.projectTypeCode(),
-                                request.blueprintVersionId(),
-                                request.brandProfileVersionIds(),
-                                request.channelSpecVersionIds(),
-                                request.documents().stream()
+                                catalog.name(),
+                                catalog.description(),
+                                catalog.background(),
+                                catalog.targetAudience(),
+                                catalog.requirements(),
+                                catalog.constraints(),
+                                catalog.keyFacts(),
+                                catalog.keyMessages(),
+                                catalog.styleGuidance(),
+                                catalog.successCriteria(),
+                                catalog.deliveryRequirements(),
+                                catalog.locale(),
+                                catalog.additionalContext(),
+                                catalog.projectTypeCode(),
+                                catalog.blueprintVersionId(),
+                                catalog.brandProfileVersionIds(),
+                                catalog.channelSpecVersionIds(),
+                                catalog.documents().stream()
                                         .map(
                                                 document ->
                                                         new AigcProjectDocumentInput(
@@ -147,21 +149,30 @@ public class AigcProjectController
                                                                 document.documentVersionId(),
                                                                 document.contextNote()))
                                         .toList(),
-                                request.productionMode(),
-                                request.slotOverrides(),
-                                request.coverMode(),
-                                request.coverFileId(),
-                                request.coverPrompt(),
-                                request.coverIdempotencyKey(),
-                                request.approvedCreationProposal() == null
+                                catalog.productionMode(),
+                                catalog.slotOverrides(),
+                                catalog.coverMode(),
+                                catalog.coverFileId(),
+                                catalog.coverPrompt(),
+                                catalog.coverIdempotencyKey(),
+                                catalog.approvedCreationProposal() == null
                                         ? null
                                         : new AigcProjectMaterializeCommand.CreationProposalRef(
-                                                request.approvedCreationProposal().draftId(),
-                                                request.approvedCreationProposal().proposalId(),
-                                                request.approvedCreationProposal()
+                                                catalog.approvedCreationProposal().draftId(),
+                                                catalog.approvedCreationProposal().proposalId(),
+                                                catalog.approvedCreationProposal()
                                                         .proposalVersion(),
-                                                request.approvedCreationProposal()
-                                                        .proposalHash()))));
+                                                catalog.approvedCreationProposal().proposalHash()));
+                    }
+                    case ASSISTANT_GENERATED -> {
+                        var proposal = request.assistantProposal();
+                        yield new AigcProjectMaterializeCommand.AssistantProposal(
+                                proposal.proposalId(),
+                                proposal.proposalVersion(),
+                                proposal.proposalHash());
+                    }
+                };
+        return Result.success(service.materialize(command));
     }
 
     @Operation(summary = "解析项目受控 Assistant 会话")
@@ -696,6 +707,20 @@ public class AigcProjectController
                                 request.expectedProjectVersion(),
                                 request.idempotencyKey(),
                                 request.reason())));
+    }
+
+    @Operation(summary = "切换项目协作模式（manual/auto）")
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_UPDATE)
+    @PostMapping("/{id}/generation-mode")
+    public Result<?> switchGenerationMode(
+            @PathVariable Long id, @Valid @RequestBody AigcProjectGenerationModeDTO request) {
+        return Result.success(
+                service.switchGenerationMode(
+                        new AigcProjectGenerationModeCommand(
+                                id,
+                                request.mode(),
+                                request.expectedProjectVersion(),
+                                request.idempotencyKey())));
     }
 
     private AigcReviewDecisionCommand reviewCommand(

@@ -1,12 +1,20 @@
 package com.xuejiai.aaf.module.ai.aigc.project.service;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.framework.intelligent.agent.model.AuthorizationGrant;
+import com.xuejiai.aaf.framework.intelligent.agent.port.AuthorizationGrantPort;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
+import com.xuejiai.aaf.module.ai.aigc.AigcCanonicalRequest;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcApprovedGenerationTarget;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcGenerationProposalScope;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
@@ -30,23 +38,35 @@ import com.xuejiai.aaf.module.ai.assistant.port.ProgrammaticAssistantTaskPort;
 @Service
 public class AigcProjectGenerationMaterializationService {
 
-    /** 项目受控生成固定路由：内容创作者 Role + 项目内容协作 Skill，由 seed 发布并由 Assistant 侧重新校验。 */
+    /** 项目受控生成固定路由：内容创作者 Role + 内容项目协作 Skill，由 seed 发布并由 Assistant 侧重新校验。 */
     static final String PROJECT_COLLABORATION_ROLE_KEY = "system.role.content-creator";
 
     static final String PROJECT_COLLABORATION_SKILL_KEY =
             "system.skill.content-project-collaboration";
 
+    /** 与 {@code SubmitApprovedGenerationActionToolHandler.TOOL_NAME} 保持一致的受控桥接动作。 */
+    private static final String APPROVED_GENERATION_ACTION_TOOL =
+            "aigc.project.generation.action.submit";
+
+    private static final String TASK_SCOPE = "TASK";
+
+    private static final Duration GRANT_TTL = Duration.ofHours(24);
+
     private final AigcProjectApi projects;
     private final AigcProjectGenerationProposalService proposals;
     private final ProgrammaticAssistantTaskPort assistantTasks;
+    private final AuthorizationGrantPort authorizationGrants;
 
     public AigcProjectGenerationMaterializationService(
             AigcProjectApi projects,
             AigcProjectGenerationProposalService proposals,
-            ProgrammaticAssistantTaskPort assistantTasks) {
+            ProgrammaticAssistantTaskPort assistantTasks,
+            AuthorizationGrantPort authorizationGrants) {
         this.projects = Objects.requireNonNull(projects, "projects 不能为空");
         this.proposals = Objects.requireNonNull(proposals, "proposals 不能为空");
         this.assistantTasks = Objects.requireNonNull(assistantTasks, "assistantTasks 不能为空");
+        this.authorizationGrants =
+                Objects.requireNonNull(authorizationGrants, "authorizationGrants 不能为空");
     }
 
     /** 确认并启动单项已确认生成目标；三步顺序固定，任一步失败都不留下已关联但不存在的 Task。 */
@@ -54,6 +74,9 @@ public class AigcProjectGenerationMaterializationService {
             AigcProjectGenerationStartCommand command) {
         Objects.requireNonNull(command, "command 不能为空");
         var scope = command.scope();
+        if (!scope.creationDraft()) {
+            requireNoCompetingTask(scope.projectId(), command.proposalId());
+        }
         var approved =
                 proposals.approve(
                         new AigcProjectGenerationProposalApprovalCommand(
@@ -64,32 +87,117 @@ public class AigcProjectGenerationMaterializationService {
                                 command.expectedProjectVersion(),
                                 command.approvedTargetKeys(),
                                 command.approvalIdempotencyKey()));
-        if (approved.approvedTargetKeys().size() != 1) {
-            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "受控生成入口一次只接受单项已确认目标");
+        if (approved.approvedTargetKeys().isEmpty()) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "受控生成入口至少需要一项已确认目标");
         }
-        var target =
-                proposals.resolveApprovedTarget(
-                        scope,
-                        approved.proposalId(),
-                        approved.proposalVersion(),
-                        approved.proposalHash(),
-                        approved.approvedTargetKeys().getFirst());
+        var targets =
+                approved.approvedTargetKeys().stream()
+                        .map(
+                                itemKey ->
+                                        proposals.resolveApprovedTarget(
+                                                scope,
+                                                approved.proposalId(),
+                                                approved.proposalVersion(),
+                                                approved.proposalHash(),
+                                                itemKey))
+                        .toList();
         var assistantThread = assistantThread(scope, command.assistantId());
         var receipt =
                 assistantTasks.submitTask(
                         new ProgrammaticAssistantTaskPort.Request(
                                 assistantThread.assistantId(),
                                 assistantThread.threadId(),
-                                taskIdempotencyKey(target),
-                                objective(target)));
-        return proposals.linkTask(
-                new AigcProjectGenerationProposalTaskLinkCommand(
-                        scope,
-                        approved.proposalId(),
-                        approved.proposalVersion(),
-                        approved.proposalHash(),
-                        command.expectedProjectVersion(),
-                        receipt.taskId()));
+                                taskIdempotencyKey(targets.getFirst()),
+                                ProgrammaticAssistantTaskPort.Purpose.PROJECT_GENERATION,
+                                scope.projectId(),
+                                objective(targets)));
+        var linked =
+                proposals.linkTask(
+                        new AigcProjectGenerationProposalTaskLinkCommand(
+                                scope,
+                                approved.proposalId(),
+                                approved.proposalVersion(),
+                                approved.proposalHash(),
+                                command.expectedProjectVersion(),
+                                receipt.taskId()));
+        if (!scope.creationDraft()) {
+            authorizeGenerationActionTool(scope.projectId(), receipt.taskId(), targets.getFirst());
+        }
+        return linked;
+    }
+
+    /**
+     * 为受控生成 Task 授予唯一的桥接 Tool 动作授权。
+     *
+     * <p>{@code PREAUTHORIZED_ONLY} 要求真实 grant：严格绑定 tenant、canonical Task、动作与资源，范围固定为 {@code TASK}，
+     * 到期时间跟随已确认目标所在项目的生成窗口。授权只覆盖"提交已确认目标"这一个动作，不放宽任何项目写权限。
+     */
+    private void authorizeGenerationActionTool(
+            Long projectId, String taskId, AigcApprovedGenerationTarget target) {
+        var project = projects.requireProject(projectId);
+        var tenantId = new TenantId(project.orgId().toString());
+        var canonicalTaskId = new TaskId(taskId);
+        var action = APPROVED_GENERATION_ACTION_TOOL;
+        var grantedAt = Instant.now();
+        authorizationGrants.grant(
+                new AuthorizationGrant(
+                        grantId(tenantId, canonicalTaskId, action, target),
+                        tenantId,
+                        canonicalTaskId,
+                        action,
+                        action,
+                        TASK_SCOPE,
+                        grantedAt.plus(GRANT_TTL),
+                        Map.of(),
+                        false,
+                        null,
+                        project.userId().toString(),
+                        grantedAt,
+                        null));
+    }
+
+    private static String grantId(
+            TenantId tenantId, TaskId taskId, String action, AigcApprovedGenerationTarget target) {
+        return AigcCanonicalRequest.canonicalSha256(
+                Map.of(
+                        "tenantId",
+                        tenantId.value(),
+                        "taskId",
+                        taskId.value(),
+                        "action",
+                        action,
+                        "proposalId",
+                        target.proposalId(),
+                        "proposalVersion",
+                        target.proposalVersion()));
+    }
+
+    /**
+     * 同项目单 canonical Task 互斥。
+     *
+     * <p>活跃性以 canonical Task 为唯一真理源：只要该项目还有其他 Proposal 关联着未终结 Task，就拒绝启动第二个竞争 Task；同一 proposalId
+     * 的幂等重放不受影响（{@code submitTask} 会收敛到同一 Task）。本方法不缓存也不推导任务状态。
+     */
+    private void requireNoCompetingTask(Long projectId, String proposalId) {
+        var competing =
+                proposals.linkedTasks(projectId, proposalId).stream()
+                        .filter(
+                                linked ->
+                                        assistantTasks
+                                                .findTask(linked.taskId())
+                                                .filter(task -> !task.terminal())
+                                                .isPresent())
+                        .findFirst()
+                        .orElse(null);
+        if (competing != null) {
+            throw new BusinessException(
+                    409,
+                    "项目已有未完成的生成任务（proposal=%s@%d，task=%s），请先完成或取消后再启动新任务"
+                            .formatted(
+                                    competing.proposalId(),
+                                    competing.proposalVersion(),
+                                    competing.taskId()));
+        }
     }
 
     /**
@@ -138,30 +246,35 @@ public class AigcProjectGenerationMaterializationService {
                 + target.proposalHash();
     }
 
+    /**
+     * 多目标 objective。
+     *
+     * <p>1..N 个已确认目标走同一形状：objective 本身不携带单条 {@code generationInstruction}（否则 1 与 N 会形成两套语义），
+     * 每个目标的指令与冻结哈希都作为独立只读事实进入上下文，由 Assistant 在已授权范围内按自己的计划逐个推进。
+     */
     private static ProgrammaticAssistantTaskPort.Objective objective(
-            AigcApprovedGenerationTarget target) {
+            List<AigcApprovedGenerationTarget> targets) {
+        var first = targets.getFirst();
         var summary =
-                target.scopeKind() == AigcGenerationProposalScope.Kind.CREATION_DRAFT
-                        ? "为创建草稿 %s 生成初始化字段 %s 的建议内容。"
-                                .formatted(target.draftId(), target.targetKey())
-                        : "完成项目 %d 已确认生成目标 %s（%s/%s）。"
+                first.scopeKind() == AigcGenerationProposalScope.Kind.CREATION_DRAFT
+                        ? "为创建草稿 %s 生成 %d 项已确认初始化字段的建议内容。"
+                                .formatted(first.draftId(), targets.size())
+                        : "完成项目 %d 已确认的 %d 项生成目标：%s。"
                                 .formatted(
-                                        target.projectId(),
-                                        target.itemKey(),
-                                        target.targetType().name(),
-                                        target.targetKey());
+                                        first.projectId(),
+                                        targets.size(),
+                                        targets.stream()
+                                                .map(AigcApprovedGenerationTarget::itemKey)
+                                                .toList());
         return new ProgrammaticAssistantTaskPort.Objective(
                 summary,
-                target.generationInstruction(),
-                proposalItemRef(target),
+                null,
+                null,
                 PROJECT_COLLABORATION_ROLE_KEY,
                 PROJECT_COLLABORATION_SKILL_KEY,
-                List.of(targetFact(target)));
-    }
-
-    private static String proposalItemRef(AigcApprovedGenerationTarget target) {
-        return "proposal:%s:%d:%s"
-                .formatted(target.proposalId(), target.proposalVersion(), target.itemKey());
+                targets.stream()
+                        .map(AigcProjectGenerationMaterializationService::targetFact)
+                        .toList());
     }
 
     /** 服务端已冻结的目标事实；作为不可信只读材料进入上下文，不授予权限也不替代运行期 readiness 校验。 */
@@ -195,6 +308,8 @@ public class AigcProjectGenerationMaterializationService {
                         .append(target.targetKey())
                         .append("\nactionKey=")
                         .append(target.actionKey())
+                        .append("\ngenerationInstruction=")
+                        .append(target.generationInstruction())
                         .append("\ninstructionHash=")
                         .append(target.instructionHash())
                         .append("\ndependencyKeys=")
@@ -213,7 +328,7 @@ public class AigcProjectGenerationMaterializationService {
                         .append(target.itemHash())
                         .toString();
         return new ProgrammaticAssistantTaskPort.Fact(
-                "aigc.project.generation.target",
+                "aigc.project.generation.target:" + target.itemKey(),
                 String.valueOf(target.proposalVersion()),
                 "已确认生成目标的冻结范围与哈希",
                 text);

@@ -54,6 +54,8 @@ import com.xuejiai.aaf.module.ai.aigc.project.api.AigcDeliverableSetEvaluateComm
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcDeliverableSetManifestFreezeCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcDocumentCandidateCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcFrozenInputVersionRef;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcGenerationProposalBridgeApi;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcGenerationProposalTargetType;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcGenerationScope;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectReadiness;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcObjectReadinessState;
@@ -72,6 +74,7 @@ import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectExecutionReservatio
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectExecutionReservationCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectExecutionReservationReleaseCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectExecutionReservationView;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectGenerationModeCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectGraphView;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycle;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycleCommand;
@@ -145,6 +148,7 @@ import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectRevisionVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectSummaryVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectUpdateDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectVO;
+import com.xuejiai.aaf.module.ai.assistant.port.ProgrammaticAssistantTaskPort;
 import com.xuejiai.aaf.module.chat.conversation.api.ProjectConversationPort;
 import com.xuejiai.aaf.module.document.api.DocumentReferenceApi;
 import com.xuejiai.aaf.module.document.api.DocumentVersionApi;
@@ -175,6 +179,9 @@ public class AigcProjectService
     // 本轮授权不允许新增迁移删除该列），写入固定占位值以满足既有约束，不再对外暴露或校验。
     private static final String LEGACY_PLANNED_PHASE_PLACEHOLDER = "BUILD";
 
+    /** 协作模式唯一取值集合；{@code AigcProject.generationMode} 是该模式的唯一真理源。 */
+    private static final Set<String> GENERATION_MODES = Set.of("manual", "auto");
+
     private final AigcProjectRepository repository;
     private final EntityManager entityManager;
     private final AigcProjectObjectRepository objectRepository;
@@ -184,6 +191,8 @@ public class AigcProjectService
     private final AigcObjectVersionRepository versionRepository;
     private final AigcProjectRevisionRepository revisionRepository;
     private final AigcProjectConfigSnapshotRepository snapshotRepository;
+    private final AigcGenerationProposalBridgeApi generationProposals;
+    private final ProgrammaticAssistantTaskPort assistantTasks;
     private final AigcResolvedDomainContextRepository resolvedDomainContextRepository;
     private final AigcProjectProfileRefRepository profileRefRepository;
     private final AigcProjectChannelRefRepository channelRefRepository;
@@ -1055,7 +1064,7 @@ public class AigcProjectService
                 projectId,
                 project.getVersion(),
                 project.getGraphRevision().longValue(),
-                null,
+                currentTask(projectId),
                 objects.stream()
                         .map(
                                 object ->
@@ -1095,7 +1104,24 @@ public class AigcProjectService
                         completionEvidence.activeWorkCount(),
                         completionEvidence.publicationCount(),
                         completion.blockers()),
-                execution.credits());
+                execution.credits(),
+                initializationFieldGenerationStatus(projectId));
+    }
+
+    /**
+     * 项目初始化字段最近一次生成执行的状态，键去掉目标类型前缀只留字段键。
+     *
+     * <p>itemKey 形如 {@code INITIALIZATION_FIELD:background}，前缀由 Proposal 目标身份确定性派生。
+     */
+    private Map<String, String> initializationFieldGenerationStatus(Long projectId) {
+        var prefix = AigcGenerationProposalTargetType.INITIALIZATION_FIELD.name() + ":";
+        var statuses = new java.util.LinkedHashMap<String, String>();
+        for (var entry : generationStatusByItemKey(projectId).entrySet()) {
+            if (entry.getKey().startsWith(prefix)) {
+                statuses.put(entry.getKey().substring(prefix.length()), entry.getValue());
+            }
+        }
+        return statuses;
     }
 
     private AigcObjectReadiness evaluateReadiness(
@@ -1250,13 +1276,26 @@ public class AigcProjectService
         }
         var allowed = new LinkedHashSet<String>();
         var canUpdate = hasPermission(AigcAuthorities.PROJECT_UPDATE);
+        var blueprintTemplateKey = object.getBlueprintTemplateKey();
+        List<AigcBlueprintSlotTemplateSpec> slotTemplates =
+                canUpdate && blueprintTemplateKey != null ? findSlotTemplates(project) : List.of();
         if (canUpdate) {
             allowed.add("object.contract");
             allowed.add("object.move");
-            if (object.getBlueprintTemplateKey() == null
-                    || requireSlotTemplate(project, object.getBlueprintTemplateKey())
-                            .userRemovable()) {
+            if (blueprintTemplateKey == null
+                    || slotTemplates.stream()
+                            .filter(template -> blueprintTemplateKey.equals(template.templateKey()))
+                            .anyMatch(AigcBlueprintSlotTemplateSpec::userRemovable)) {
                 allowed.add("object.remove");
+            }
+            if (!"EXCLUDED".equals(object.getContractRole())
+                    && slotTemplates.stream()
+                            .filter(AigcBlueprintSlotTemplateSpec::userAddable)
+                            .anyMatch(
+                                    template ->
+                                            blueprintTemplateKey.equals(
+                                                    template.parentTemplateKey()))) {
+                allowed.add("object.append.child");
             }
         }
         if ("EXCLUDED".equals(object.getContractRole())) {
@@ -2010,6 +2049,70 @@ public class AigcProjectService
         return toApiView(project);
     }
 
+    /**
+     * 切换项目协作模式。
+     *
+     * <p>{@code generationMode} 是协作模式唯一真理源，只允许 {@code manual | auto}。本方法只改项目字段并推进 projectVersion：
+     * 已提交 Run 继续按其创建时冻结的模式完成，活跃 canonical Task 不被隐式暂停或取消（只能由显式 Task 控制操作处理）。auto 也不放宽
+     * 权限、预算、内容安全、强制确认、采用、审核、发布、完成与归档门——那些门都在各自的写入链上重新校验。
+     */
+    @Override
+    @Transactional
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_UPDATE)
+    public AigcProjectView switchGenerationMode(AigcProjectGenerationModeCommand command) {
+        if (command == null
+                || command.projectId() == null
+                || command.expectedProjectVersion() == null
+                || command.idempotencyKey() == null
+                || command.idempotencyKey().isBlank()) {
+            throw badRequest("模式切换命令缺少 projectId、expectedProjectVersion 或 idempotencyKey");
+        }
+        var mode = command.mode() == null ? null : command.mode().trim().toLowerCase();
+        if (!GENERATION_MODES.contains(mode)) {
+            throw badRequest("generationMode 只允许 manual 或 auto");
+        }
+        requireEntity(command.projectId(), CrudOperation.UPDATE, AccessMode.DEFAULT);
+        var project =
+                repository.findLockedById(command.projectId()).orElseThrow(() -> notFound("项目不存在"));
+        entityManager.refresh(project, LockModeType.PESSIMISTIC_WRITE);
+        requireWritable(project);
+        if (mode.equals(project.getGenerationMode())) {
+            requireExpectedVersion(project, command.expectedProjectVersion());
+            return toApiView(project);
+        }
+        requireExpectedVersion(project, command.expectedProjectVersion());
+        project.setGenerationMode(mode);
+        project.setVersion(project.getVersion() + 1);
+        project.setLastActiveTime(LocalDateTime.now());
+        repository.save(project);
+        return toApiView(project);
+    }
+
+    /**
+     * 项目当前未终结的 canonical Task。
+     *
+     * <p>关联关系来自项目生成 Proposal 的 {@code linkedTaskId}，活跃状态只由 canonical Task 判定；同项目单任务互斥由
+     * approve-and-start 保证，此处若仍出现多个未终结 Task，取第一个展示而不做隐式取消。无未终结 Task 时返回 {@code null}，其余进度区段不受影响。
+     */
+    private AigcProjectProgressSnapshot.CurrentTaskRef currentTask(Long projectId) {
+        for (var linked : generationProposals.linkedTasks(projectId, null)) {
+            var task = assistantTasks.findTask(linked.taskId()).orElse(null);
+            if (task == null || task.terminal()) {
+                continue;
+            }
+            return new AigcProjectProgressSnapshot.CurrentTaskRef(
+                    task.taskId(),
+                    task.status(),
+                    linked.proposalId(),
+                    linked.proposalVersion(),
+                    linked.itemKeys(),
+                    progressEvidencePort.approvedTargetRuns(
+                            projectId, linked.proposalId(), linked.proposalVersion()),
+                    task.decisionBlockers());
+        }
+        return null;
+    }
+
     public List<AigcProjectObjectVO> objects(Long projectId) {
         requireEntity(projectId);
         return objectRepository.findByProjectIdOrderBySortOrderAscIdAsc(projectId).stream()
@@ -2138,7 +2241,11 @@ public class AigcProjectService
             default -> throw badRequest("不支持的项目文档引用类型");
         }
         if (existing.isPresent()) {
-            return toDocumentRefVO(existing.get(), fixedVersion, currentVersion);
+            return toDocumentRefVO(
+                    existing.get(),
+                    fixedVersion,
+                    currentVersion,
+                    generationStatusByItemKey(projectId));
         }
 
         var reference = new AigcProjectDocumentRef();
@@ -2172,7 +2279,8 @@ public class AigcProjectService
                         : request.sortOrder());
         documentRefRepository.save(reference);
         bumpRevision(project, List.of(), List.of(), null, "关联项目文档");
-        return toDocumentRefVO(reference, fixedVersion, currentVersion);
+        return toDocumentRefVO(
+                reference, fixedVersion, currentVersion, generationStatusByItemKey(projectId));
     }
 
     @Transactional
@@ -2199,7 +2307,8 @@ public class AigcProjectService
                 requireCurrentDocumentVersions(project, List.of(fixedVersion.documentId()))
                         .get(fixedVersion.documentId());
         if (fixedVersion.id().equals(currentVersion.id())) {
-            return toDocumentRefVO(reference, fixedVersion, currentVersion);
+            return toDocumentRefVO(
+                    reference, fixedVersion, currentVersion, generationStatusByItemKey(projectId));
         }
         documentRefRepository
                 .findByProjectIdAndReferenceTypeAndSelectedDocumentVersionIdAndRole(
@@ -2215,7 +2324,8 @@ public class AigcProjectService
         reference.setSelectedDocumentVersionId(currentVersion.id());
         documentRefRepository.save(reference);
         bumpRevision(project, List.of(), List.of(), null, "更新外部文档引用版本");
-        return toDocumentRefVO(reference, currentVersion, currentVersion);
+        return toDocumentRefVO(
+                reference, currentVersion, currentVersion, generationStatusByItemKey(projectId));
     }
 
     @Transactional
@@ -2438,6 +2548,7 @@ public class AigcProjectService
                 .map(DocumentVersionApi.DocumentVersionView::documentId)
                 .forEach(documentIds::add);
         var currentVersionsByDocumentId = requireCurrentDocumentVersions(project, documentIds);
+        var generationStatusByItemKey = generationStatusByItemKey(projectId);
         return references.stream()
                 .map(
                         reference -> {
@@ -2447,7 +2558,8 @@ public class AigcProjectService
                             return toDocumentRefVO(
                                     reference,
                                     fixedVersion,
-                                    currentVersionsByDocumentId.get(documentId));
+                                    currentVersionsByDocumentId.get(documentId),
+                                    generationStatusByItemKey);
                         })
                 .toList();
     }
@@ -3089,7 +3201,8 @@ public class AigcProjectService
     private AigcProjectDocumentRefVO toDocumentRefVO(
             AigcProjectDocumentRef reference,
             DocumentVersionApi.DocumentVersionView fixedVersion,
-            DocumentVersionApi.DocumentVersionView currentVersion) {
+            DocumentVersionApi.DocumentVersionView currentVersion,
+            Map<String, String> generationStatusByItemKey) {
         requireCanonicalDocumentReference(reference);
         if (currentVersion == null) {
             throw new BusinessException(GlobalErrorCode.NOT_FOUND, "项目引用的文档当前版本不存在");
@@ -3159,7 +3272,34 @@ public class AigcProjectService
                 semanticMetadata == null ? null : semanticMetadata.language(),
                 semanticMetadata == null ? null : semanticMetadata.generationStatus(),
                 semanticMetadata != null && semanticMetadata.manualOverride(),
-                semanticMetadata == null ? null : semanticMetadata.metadataVersion());
+                semanticMetadata == null ? null : semanticMetadata.metadataVersion(),
+                documentGenerationStatus(reference, generationStatusByItemKey));
+    }
+
+    /**
+     * 取该文档引用最近一次 AI 生成执行的状态。
+     *
+     * <p>itemKey 由 Proposal 目标身份确定性派生（{@code PROJECT_DOCUMENT:fieldKey}），未声明 fieldKey 的引用不参与生成，
+     * 因此没有状态。
+     */
+    private String documentGenerationStatus(
+            AigcProjectDocumentRef reference, Map<String, String> generationStatusByItemKey) {
+        var fieldKey = reference.getFieldKey();
+        if (fieldKey == null || fieldKey.isBlank() || generationStatusByItemKey.isEmpty()) {
+            return null;
+        }
+        return generationStatusByItemKey.get(
+                AigcGenerationProposalTargetType.PROJECT_DOCUMENT.name() + ":" + fieldKey);
+    }
+
+    /** 项目内每个生成目标最新一次 root Run 的状态；键是 Proposal 目标 itemKey。 */
+    private Map<String, String> generationStatusByItemKey(Long projectId) {
+        return progressEvidencePort.latestTargetRuns(projectId).stream()
+                .collect(
+                        java.util.stream.Collectors.toMap(
+                                AigcProjectProgressEvidencePort.ApprovedTargetRunRef::itemKey,
+                                AigcProjectProgressEvidencePort.ApprovedTargetRunRef::status,
+                                (first, second) -> first));
     }
 
     private AigcProjectMediaRefView toApiMediaRefView(AigcProjectMediaRef reference) {
@@ -3304,6 +3444,13 @@ public class AigcProjectService
                 reference.getRole(),
                 reference.getSortOrder(),
                 reference.getAdoptionStatus());
+    }
+
+    private List<AigcBlueprintSlotTemplateSpec> findSlotTemplates(AigcProject project) {
+        return snapshotRepository
+                .findFirstByProjectIdOrderByRevisionNoDesc(project.getId())
+                .map(snapshot -> snapshot.getSnapshot().slotTemplates())
+                .orElse(List.of());
     }
 
     private AigcBlueprintSlotTemplateSpec requireSlotTemplate(

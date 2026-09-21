@@ -11,13 +11,20 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fasterxml.jackson.annotation.JsonAnySetter;
+
 import com.xuejiai.aaf.common.model.Result;
+import com.xuejiai.aaf.module.ai.aigc.AigcAuthorities;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcGenerationProposalScope;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectGenerationProposalDraft;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectGenerationProposalRevisionCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectGenerationStartCommand;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AssistantBlueprintCreationContext;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AssistantBlueprintProposalCommands;
 import com.xuejiai.aaf.module.ai.aigc.project.service.AigcProjectGenerationMaterializationService;
 import com.xuejiai.aaf.module.ai.aigc.project.service.AigcProjectGenerationProposalService;
+import com.xuejiai.aaf.module.ai.aigc.project.service.AssistantBlueprintPlanningService;
+import com.xuejiai.aaf.module.ai.aigc.project.service.AssistantBlueprintProposalService;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectGenerationProposalItemDTO;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,6 +34,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -46,6 +54,8 @@ public class AigcProjectCreationDraftController {
 
     private final AigcProjectGenerationProposalService proposals;
     private final AigcProjectGenerationMaterializationService generations;
+    private final AssistantBlueprintPlanningService blueprintPlanning;
+    private final AssistantBlueprintProposalService blueprintProposals;
 
     @Operation(summary = "查询创建草稿下的生成 Proposal 列表")
     @GetMapping("/{draftId}/generation-proposals")
@@ -106,6 +116,65 @@ public class AigcProjectCreationDraftController {
                                 request.assistantId())));
     }
 
+    @Operation(summary = "启动 Assistant Blueprint 规划并预绑定 canonical Task")
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_CREATE)
+    @PostMapping("/blueprint-proposals/_start")
+    public Result<?> startBlueprintProposal(@Valid @RequestBody BlueprintProposalStartDTO request) {
+        return Result.success(
+                blueprintPlanning.start(
+                        new AssistantBlueprintProposalCommands.Start(
+                                request.assistantId(),
+                                request.instruction(),
+                                request.creationContext())));
+    }
+
+    @Operation(summary = "查询当前工作区的 Assistant Blueprint Proposal")
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_CREATE)
+    @GetMapping("/blueprint-proposals")
+    public Result<?> listBlueprintProposals() {
+        return Result.success(blueprintProposals.listCurrent());
+    }
+
+    @Operation(summary = "修订 Assistant Blueprint Proposal 并启动新规划版本")
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_CREATE)
+    @PostMapping("/blueprint-proposals/_revise")
+    public Result<?> reviseBlueprintProposal(
+            @Valid @RequestBody BlueprintProposalReviseDTO request) {
+        return Result.success(
+                blueprintPlanning.revise(
+                        new AssistantBlueprintProposalCommands.Revise(
+                                request.proposalId(),
+                                request.proposalVersion(),
+                                request.proposalHash(),
+                                request.instruction())));
+    }
+
+    @Operation(summary = "确认 Assistant Blueprint Proposal")
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_CREATE)
+    @PostMapping("/blueprint-proposals/_confirm")
+    public Result<?> confirmBlueprintProposal(
+            @Valid @RequestBody BlueprintProposalConfirmDTO request) {
+        return Result.success(
+                blueprintProposals.confirm(
+                        new AssistantBlueprintProposalCommands.Confirm(
+                                request.proposalId(),
+                                request.proposalVersion(),
+                                request.proposalHash())));
+    }
+
+    @Operation(summary = "取消 Assistant Blueprint Proposal 及其规划 Task")
+    @PreAuthorize(AigcAuthorities.HAS_PROJECT_CREATE)
+    @PostMapping("/blueprint-proposals/_cancel")
+    public Result<?> cancelBlueprintProposal(
+            @Valid @RequestBody BlueprintProposalCancelDTO request) {
+        return Result.success(
+                blueprintPlanning.cancel(
+                        new AssistantBlueprintProposalCommands.Cancel(
+                                request.proposalId(),
+                                request.proposalVersion(),
+                                request.proposalHash())));
+    }
+
     private static List<AigcProjectGenerationProposalDraft.Item> proposalItems(
             List<AigcProjectGenerationProposalItemDTO> items) {
         return items.stream()
@@ -122,6 +191,55 @@ public class AigcProjectCreationDraftController {
                                         null,
                                         item.confirmationPolicy()))
                 .toList();
+    }
+
+    public record BlueprintProposalStartDTO(
+            @NotBlank @Size(max = 128) String assistantId,
+            @NotBlank @Size(max = 4000) String instruction,
+            @NotNull @Valid AssistantBlueprintCreationContext creationContext) {
+
+        @JsonAnySetter
+        public void rejectUnknownField(String field, Object ignored) {
+            throw new IllegalArgumentException("Blueprint Proposal start 不接受字段: " + field);
+        }
+    }
+
+    public record BlueprintProposalReviseDTO(
+            @NotBlank String proposalId,
+            @NotNull @Positive Integer proposalVersion,
+            @NotBlank String proposalHash,
+            @NotBlank @Size(max = 4000) String instruction) {
+
+        @JsonAnySetter
+        public void rejectUnknownField(String field, Object ignored) {
+            throw new IllegalArgumentException("Blueprint Proposal revise 不接受字段: " + field);
+        }
+    }
+
+    /** 确认请求只允许 proposalId/version/hash，不接受 Snapshot、sourceRef 或绑定身份。 */
+    public record BlueprintProposalConfirmDTO(
+            @NotBlank String proposalId,
+            @NotNull @Positive Integer proposalVersion,
+            @NotBlank String proposalHash) {
+
+        @JsonAnySetter
+        public void rejectUnknownField(String field, Object ignored) {
+            throw new IllegalArgumentException(
+                    "Blueprint Proposal 确认只接受 proposalId/version/hash，不接受: " + field);
+        }
+    }
+
+    /** 取消请求只接受精确 Proposal 身份；PLANNING 尚未签发 hash 时允许 proposalHash 为 null。 */
+    public record BlueprintProposalCancelDTO(
+            @NotBlank String proposalId,
+            @NotNull @Positive Integer proposalVersion,
+            String proposalHash) {
+
+        @JsonAnySetter
+        public void rejectUnknownField(String field, Object ignored) {
+            throw new IllegalArgumentException(
+                    "Blueprint Proposal 取消只接受 proposalId/version/hash，不接受: " + field);
+        }
     }
 
     /** 首次提议省略 draftId，由服务端签发；后续提议复用同一 draftId 归集。 */
