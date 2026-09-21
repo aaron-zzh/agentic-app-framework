@@ -42,10 +42,7 @@ interface GlobalChatterProps {
   projectContext?: ChatterProjectContext
 }
 
-export function GlobalChatter({
-  availableModes = [],
-  projectContext
-}: GlobalChatterProps = {}) {
+export function GlobalChatter({ availableModes = [], projectContext }: GlobalChatterProps = {}) {
   const open = useChatterStore((s) => s.open)
   const setOpen = useChatterStore((s) => s.setOpen)
   const mode = useChatterStore((s) => s.mode)

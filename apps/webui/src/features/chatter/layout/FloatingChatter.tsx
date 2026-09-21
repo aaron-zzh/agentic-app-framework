@@ -28,10 +28,7 @@ interface FloatingChatterProps {
   projectContext?: ChatterProjectContext
 }
 
-export function FloatingChatter({
-  availableModes,
-  projectContext
-}: FloatingChatterProps = {}) {
+export function FloatingChatter({ availableModes, projectContext }: FloatingChatterProps = {}) {
   const mode = useChatterStore((s) => s.mode)
   const open = useChatterStore((s) => s.open)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)

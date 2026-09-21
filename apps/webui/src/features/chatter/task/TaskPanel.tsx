@@ -202,6 +202,11 @@ function TaskItem({ task }: { task: TaskDetails }) {
               {task.ownerKind} · {task.controlMode} · 优先级 {task.priority}
             </p>
           </div>
+          {task.decisionBlockers.length > 0 ? (
+            <Badge variant="outline" className="border-amber-500/40 text-amber-600">
+              待决策 {task.decisionBlockers.length}
+            </Badge>
+          ) : null}
           <Badge variant="outline">{STATUS_LABEL[task.status]}</Badge>
           <CollapsibleTrigger
             className="flex items-center gap-1 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -223,6 +228,26 @@ function TaskItem({ task }: { task: TaskDetails }) {
           <p className="text-muted-foreground text-xs">
             来源 {task.source} · 创建于 {new Date(task.createdAt).toLocaleString()}
           </p>
+          {task.decisionBlockers.length > 0 ? (
+            <section
+              className="rounded-md border border-amber-500/40 p-2"
+              aria-label="待人工决策的阻断原因"
+            >
+              <p className="font-medium text-amber-600 text-xs">
+                等待人工决策 · {task.decisionBlockers.length} 项阻断
+              </p>
+              <ul className="mt-1 flex flex-col gap-0.5">
+                {task.decisionBlockers.map((blocker) => (
+                  <li key={blocker} className="text-muted-foreground text-xs">
+                    {blocker}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-1 text-muted-foreground text-xs">
+                处理阻断（采用候选或重试失败项）后服务端会重新求值并自动恢复，无需手工推进。
+              </p>
+            </section>
+          ) : null}
           {task.plan ? (
             <section className="flex flex-col gap-1.5" aria-label="任务计划">
               <div className="flex flex-wrap gap-1.5 text-xs">
