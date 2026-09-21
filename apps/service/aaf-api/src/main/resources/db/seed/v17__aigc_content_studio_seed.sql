@@ -86,7 +86,8 @@ INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
 ('aigc_object_type', '来源资料集', 'source_material_set', 19, 'default'),
 ('aigc_object_type', '文章提纲', 'article_outline', 20, 'info'),
 ('aigc_object_type', 'SEO 元数据', 'seo_metadata', 21, 'warning'),
-('aigc_object_type', '分发变体', 'distribution_variant', 22, 'success')
+('aigc_object_type', '分发变体', 'distribution_variant', 22, 'success'),
+('aigc_object_type', '音频交付物', 'audio_deliverable', 23, 'danger')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO sys_dict_data (dict_type, label, value, sort, color_type) VALUES
@@ -240,6 +241,7 @@ SELECT seed.code, seed.name, seed.project_type_code, '1.0.0', seed.production_mo
           {"templateKey":"image","stableKeyPattern":"deliverables.image.%02d","objectType":"image_deliverable","displayNamePattern":"推广图片 %02d","parentTemplateKey":"package","orderNo":40,"defaultCount":4,"minCount":1,"maxCount":12,"userAddable":true,"userRemovable":true,"defaultContractRole":"REQUIRED","semanticRole":"DELIVERABLE","outputContract":"MEDIA_VERSION"},
           {"templateKey":"imageHighlight","stableKeyPattern":"deliverables.image.highlight","objectType":"image_deliverable","displayNamePattern":"合成海报图","description":"以推广图片全部实例为参考素材合成的汇总海报，依赖推广图片先完成","parentTemplateKey":"package","orderNo":50,"defaultCount":1,"minCount":0,"maxCount":1,"defaultContractRole":"OPTIONAL","semanticRole":"DELIVERABLE","outputContract":"MEDIA_VERSION","initialPayload":{"layout":"grid","referenceRole":"source"}},
           {"templateKey":"video","stableKeyPattern":"deliverables.video.%02d","objectType":"video_deliverable","displayNamePattern":"推广视频 %02d","parentTemplateKey":"package","orderNo":60,"defaultCount":1,"minCount":0,"maxCount":3,"userAddable":true,"userRemovable":true,"defaultContractRole":"OPTIONAL","semanticRole":"DELIVERABLE","outputContract":"MEDIA_VERSION","activationCondition":{"channelsAny":["douyin","wechat_channels","bilibili"]}},
+          {"templateKey":"voiceover","stableKeyPattern":"deliverables.audio.voiceover","objectType":"audio_deliverable","displayNamePattern":"配音音频","description":"按推广文案生成的配音音频，依赖文案先完成","parentTemplateKey":"package","orderNo":70,"defaultCount":0,"minCount":0,"maxCount":2,"userAddable":true,"userRemovable":true,"defaultContractRole":"OPTIONAL","semanticRole":"DELIVERABLE","outputContract":"MEDIA_VERSION"},
           {"templateKey":"copy","stableKeyPattern":"deliverables.copy","objectType":"copy_deliverable","displayNamePattern":"推广文案","parentTemplateKey":"package","orderNo":80,"defaultCount":1,"minCount":1,"maxCount":1,"defaultContractRole":"REQUIRED","semanticRole":"DELIVERABLE","outputContract":"DOCUMENT_VERSION"}
         ]}'::jsonb,
        '{"relations":[
@@ -252,9 +254,10 @@ SELECT seed.code, seed.name, seed.project_type_code, '1.0.0', seed.production_mo
           {"actionKey":"image.generate","targetTemplateKey":"image","dependencyTemplateKeys":["concept"],"isDefault":true},
           {"actionKey":"image.highlight_generate","targetTemplateKey":"imageHighlight","dependencyTemplateKeys":["concept","image"],"isDefault":true},
           {"actionKey":"video.generate","targetTemplateKey":"video","dependencyTemplateKeys":["concept"],"isDefault":true},
+          {"actionKey":"audio.generate","targetTemplateKey":"voiceover","dependencyTemplateKeys":["copy"],"isDefault":true},
           {"actionKey":"copy.generate","targetTemplateKey":"copy","dependencyTemplateKeys":["concept"],"isDefault":true}
         ]}'::jsonb,
-       '{"sets":[{"setTemplateKey":"package","allowedSlotTemplateKeys":["image","imageHighlight","video","copy"],"allowedCustomObjectTypes":["image_deliverable","video_deliverable","copy_deliverable"],"defaultUserAddedContractRole":"OPTIONAL","completionMode":"ALL_REQUIRED","reviewMode":"PROJECT","publicationPolicy":"OPTIONAL"}]}'::jsonb,
+       '{"sets":[{"setTemplateKey":"package","allowedSlotTemplateKeys":["image","imageHighlight","video","voiceover","copy"],"allowedCustomObjectTypes":["image_deliverable","video_deliverable","audio_deliverable","copy_deliverable"],"defaultUserAddedContractRole":"OPTIONAL","completionMode":"ALL_REQUIRED","reviewMode":"PROJECT","publicationPolicy":"OPTIONAL"}]}'::jsonb,
        '{"reviewRequired":true,"publicationPolicy":"OPTIONAL","autoActionKeys":[],"confirmationGateKeys":["concept.adopt","package.generate","project.archive"]}'::jsonb,
        '{"fields":[
           {"key":"description","label":"项目简介","description":"项目目标与简要说明","valueType":"TEXTAREA","required":true,"aiAssist":true,"orderNo":10},
@@ -368,6 +371,7 @@ VALUES
 ('image.highlight_generate', 'tool', 'aigc.image.generate', '1.0.0', 0, TRUE, 10.00, 'published'),
 ('image.edit', 'tool', 'aigc.image.edit', '1.0.0', 0, TRUE, 10.00, 'published'),
 ('video.generate', 'tool', 'aigc.video.generate', '1.0.0', 0, TRUE, 30.00, 'published'),
+('audio.generate', 'tool', 'aigc.audio.generate', '1.0.0', 0, TRUE, 8.00, 'published'),
 ('package.generate', 'workflow', 'aigc.package.generate', '1.0.0', 0, TRUE, 50.00, 'published'),
 ('brief.refine', 'agent', 'aigc.brief.refine', '1.0.0', 0, FALSE, 3.00, 'published'),
 ('concept.generate', 'agent', 'aigc.concept.generate', '1.0.0', 0, TRUE, 5.00, 'published'),

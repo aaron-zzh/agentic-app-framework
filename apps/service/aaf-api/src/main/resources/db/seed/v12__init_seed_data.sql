@@ -731,6 +731,60 @@ ON CONFLICT (tool_name) WHERE deleted = FALSE DO UPDATE SET
     sort_order = EXCLUDED.sort_order,
     update_time = CURRENT_TIMESTAMP;
 
+-- 已确认生成目标 → 确定性动作桥接 Tool：不接受任何模型参数，目标由 taskId 绑定的 Proposal 解析。
+INSERT INTO ai_tool_catalog (
+    tool_name, source, enabled, tool_type, category, risk_level,
+    read_only, reversible, idempotency_required, require_confirm,
+    permission_code, entitlement_code, cost_expression,
+    input_schema, output_schema, sort_order, create_time, update_time
+) VALUES (
+    'aigc.project.generation.action.submit', 'LOCAL', TRUE, 'FUNCTION', 'AIGC_PROJECT', 'HIGH',
+    FALSE, FALSE, TRUE, FALSE,
+    'aigc:project:action', NULL, NULL,
+    '{"type":"object","additionalProperties":false,"required":["itemKey"],"properties":{"itemKey":{"type":"string","minLength":1,"maxLength":128}}}',
+    '{"type":"object","required":["executionRunId","status","actionKey","itemKey"],"properties":{"executionRunId":{"type":"integer"},"status":{"type":"string"},"actionKey":{"type":"string"},"itemKey":{"type":"string"}}}',
+    241, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+)
+ON CONFLICT (tool_name) WHERE deleted = FALSE DO UPDATE SET
+    enabled = EXCLUDED.enabled,
+    risk_level = EXCLUDED.risk_level,
+    read_only = EXCLUDED.read_only,
+    reversible = EXCLUDED.reversible,
+    idempotency_required = EXCLUDED.idempotency_required,
+    require_confirm = EXCLUDED.require_confirm,
+    permission_code = EXCLUDED.permission_code,
+    input_schema = EXCLUDED.input_schema,
+    output_schema = EXCLUDED.output_schema,
+    sort_order = EXCLUDED.sort_order,
+    update_time = CURRENT_TIMESTAMP;
+
+-- Assistant Blueprint 规划 Tool：只提交逻辑结构，受信范围与所有版本由服务端根据 taskId 解析。
+INSERT INTO ai_tool_catalog (
+    tool_name, source, enabled, tool_type, category, risk_level,
+    read_only, reversible, idempotency_required, require_confirm,
+    permission_code, entitlement_code, cost_expression,
+    input_schema, output_schema, sort_order, create_time, update_time
+) VALUES (
+    'aigc.blueprint.proposal.submit', 'LOCAL', TRUE, 'FUNCTION', 'AIGC_BLUEPRINT', 'MEDIUM',
+    FALSE, TRUE, TRUE, FALSE,
+    'aigc:project:create', NULL, NULL,
+    '{"type":"object","additionalProperties":false,"required":["projectSpecification","projectInitialization","objectSpecs","relationSpecs","actions","deliverableSets","processPolicy"],"properties":{"projectSpecification":{"type":"object","additionalProperties":false,"required":["projectTypeCode","productionMode","channelCodes"],"properties":{"projectTypeCode":{"type":"string"},"productionMode":{"type":"string"},"channelCodes":{"type":"array","items":{"type":"string"}},"description":{"type":"string"},"background":{"type":"string"},"targetAudience":{"type":"string"},"requirements":{"type":"array","items":{"type":"string"}},"constraints":{"type":"array","items":{"type":"string"}},"keyFacts":{"type":"array","items":{"type":"string"}},"keyMessages":{"type":"array","items":{"type":"string"}},"styleGuidance":{"type":"string"},"successCriteria":{"type":"array","items":{"type":"string"}},"deliveryRequirements":{"type":"object"},"locale":{"type":"string"},"additionalContext":{"type":"string"}}},"projectInitialization":{"type":"object"},"objectSpecs":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["stableKey","objectType","displayName","contractRole","semanticRole","outputContract","adoptionPolicy"],"properties":{"stableKey":{"type":"string"},"objectType":{"type":"string"},"displayName":{"type":"string"},"parentKey":{"type":"string"},"orderNo":{"type":"integer"},"contractRole":{"type":"string"},"semanticRole":{"type":"string"},"outputContract":{"type":"string"},"adoptionPolicy":{"type":"string"},"defaultActionKey":{"type":"string"},"userInstructionJson":{"type":"string"},"initialPayloadJson":{"type":"string"},"payloadSchemaJson":{"type":"string"}}}},"relationSpecs":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["sourceKey","targetKey","relationType"],"properties":{"sourceKey":{"type":"string"},"targetKey":{"type":"string"},"relationType":{"type":"string"},"metadataJson":{"type":"string"}}}},"actions":{"type":"array","items":{"type":"object"}},"deliverableSets":{"type":"array","items":{"type":"object"}},"processPolicy":{"type":"object"}}}',
+    '{"type":"object","required":["proposalId","proposalVersion","proposalHash","status","estimatedCredits"],"properties":{"proposalId":{"type":"string"},"proposalVersion":{"type":"integer"},"proposalHash":{"type":"string"},"status":{"const":"AWAITING_CONFIRMATION"},"estimatedCredits":{"type":"number"}}}',
+    240, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+)
+ON CONFLICT (tool_name) WHERE deleted = FALSE DO UPDATE SET
+    enabled = EXCLUDED.enabled,
+    risk_level = EXCLUDED.risk_level,
+    read_only = EXCLUDED.read_only,
+    reversible = EXCLUDED.reversible,
+    idempotency_required = EXCLUDED.idempotency_required,
+    require_confirm = EXCLUDED.require_confirm,
+    permission_code = EXCLUDED.permission_code,
+    input_schema = EXCLUDED.input_schema,
+    output_schema = EXCLUDED.output_schema,
+    sort_order = EXCLUDED.sort_order,
+    update_time = CURRENT_TIMESTAMP;
+
 -- 天气查询工具
 INSERT INTO ai_tool_catalog (tool_name, source, enabled, tool_type, category, risk_level, read_only, require_confirm, permission_code, entitlement_code, cost_expression, input_schema, sort_order, create_time, update_time)
 VALUES ('queryWeather', 'LOCAL', TRUE, 'HTTP', 'WEATHER', 'LOW', TRUE, FALSE, 'tool:weather:query', NULL, NULL,
@@ -1070,10 +1124,65 @@ WITH seeded_skill (code, name, summary, content) AS (
 # AI 生视频
 
 根据用户目标组织主体动作、场景环境、风格和镜头语言；复杂视频应拆分为可审查镜头。$skill$),
-        ($skill$system.skill.content-project-collaboration$skill$, $skill$项目内容协作$skill$, $skill$USE WHEN 当前 Assistant 已由系统绑定到 AIGC 项目，且用户需要检查项目语义、对象状态或下一步可执行动作。$skill$, $skill$
-# 项目内容协作
+        ($skill$system.skill.content-project-collaboration$skill$, $skill$内容项目协作$skill$, $skill$USE WHEN 用户在 Content Studio 项目上下文中规划项目结构、生成或修改内容、比较候选、切换 manual/auto，或要求批量、自动、继续生成。可从目录 Blueprint 或项目需求生成 BlueprintSnapshot；仅在服务端已绑定有效 projectId 时激活。$skill$, $skill$
+# 内容项目协作
 
-先调用 `inspect_project_semantics` 读取当前已绑定项目的权威语义、对象 readiness 和允许动作。需要保存 Assistant 已生成文本或文档时，调用 `record_project_text_candidate` 或 `record_project_document_candidate`；二者只形成 candidate，不得自动采用。不得在 Tool 参数中传 projectId、workspaceId、binding、relation layer 或其他项目范围；项目身份只能来自 InvocationContext。未知、废弃或版本不一致语义必须停止并说明原因。$skill$),
+## 作用域
+
+项目域（上下文已绑定 projectId）：先调用 `inspect_project_semantics` 读取当前项目的权威语义、对象 readiness、允许动作和 generationMode。需要保存已生成文本或文档时，调用 `record_project_text_candidate` 或 `record_project_document_candidate`；二者只形成 candidate，不得自动采用。
+
+物化前的创建草稿域（还没有 projectId）：不调用任何项目 Tool，按已确认目标的指令直接产出字段内容作为最终答复。
+
+两域共同边界：不得在 Tool 参数中传 projectId、workspaceId、binding、relation layer 或其他项目范围；项目身份只能来自 InvocationContext。未知、废弃或版本不一致语义必须停止并说明原因。
+
+## 推进已确认的生成目标
+
+服务端创建的生成任务会在目标中列出本次已确认的 itemKey 集合，每个目标的指令与冻结哈希都作为独立只读事实提供。
+
+项目域推进只能通过 `aigc.project.generation.action.submit`，参数只有 itemKey；动作、项目版本与图谱 revision 全部由服务端解析并冻结。
+
+- itemKey 必须逐字取自本次已确认集合，不得新增、改写、合并或猜测目标
+- 只决定推进顺序，不声明依赖或 readiness；真实先后关系以 readiness 为准，BLOCKED_BY_DEPENDENCY 的目标先推进其上游
+- manual：提交一个目标后停下，汇报状态与下一步，等用户确认再推进下一个
+- auto：在已确认集合内连续推进 readiness 为 READY 的目标，直到集合全部提交或出现停止条件；不扩大范围，不绕过确认、采用、审核和发布门
+
+出现以下任一情况立即停止推进并说明原因，不重试、不改用其他路径：
+
+- 目标 readiness 不是 READY，或该目标存在待决策候选
+- 权限、余额、项目版本或图谱 revision 冲突
+- 用户目标或已确认范围发生变化
+- 服务端要求人工确认
+- 同一目标连续失败
+
+Tool 受理只表示动作已提交，不代表内容已产出。目标进入等待外部结果后结束本轮，不轮询、不重复提交同一目标；结果到达后的恢复由服务端完成。
+
+## 创建草稿域的答复格式
+
+草稿域的最终答复会被原样解析并填入创建表单，因此只能输出一个 JSON 对象，不写开场白、说明、标题或代码块围栏：
+
+- 键只能是本次已确认的初始化字段键，不得新增或改名
+- 列表类字段（内容要求、约束条件、关键事实、核心信息、成功标准）给字符串数组，每个元素是一条，不带编号或项目符号
+- 交付要求给 JSON 对象
+- 其余字段给字符串
+- 只写得出部分字段时，只给出这些键；写不出的键直接省略，不要给空字符串或空数组
+
+示例形状：`{"background": "……", "requirements": ["……", "……"]}`
+
+无法在上述约束内产出内容时，说明原因，不要用解释性文字冒充字段值。$skill$),
+        ($skill$system.skill.assistant-blueprint-planning$skill$, $skill$Assistant 项目蓝图规划$skill$, $skill$USE WHEN 服务端以 BLUEPRINT_PLANNING purpose 创建受控 canonical Task，要求为尚未物化的项目生成逻辑 Blueprint Proposal。$skill$, $skill$
+# Assistant 项目蓝图规划
+
+根据服务端提供的项目名称和用户目标，生成一份可确定性校验的逻辑项目蓝图，并调用 `aigc.blueprint.proposal.submit` 提交。
+
+## 提交边界
+
+- 必须且只能提交 projectSpecification、projectInitialization、objectSpecs、relationSpecs、actions、deliverableSets、processPolicy
+- projectSpecification 使用 projectTypeCode、productionMode 和 channelCodes，不得提交数据库 ID 或发布版本
+- relationSpecs 只声明 sourceKey、targetKey、relationType 和可选 metadataJson，不得提交 canonical layer/direction
+- 不得提交 planningId、proposalId/hash、sourceRef、owner/org/workspace、权限或绑定版本
+- 所有对象使用提案内稳定逻辑 key；不得创建或猜测数据库 ID
+- Tool 成功只表示待确认 Proposal 已保存，不代表项目已创建
+$skill$),
         ($skill$builtin-javascript-compute$skill$, $skill$受控 JavaScript 计算$skill$, $skill$USE WHEN 用户要求基于明确输入完成复杂数值计算、统计汇总、结构化数据转换、排序去重或可验证算法处理，并需要实际运行得到确定结果；不用于系统命令、文件或网络访问，也不用于仅讲解代码。$skill$, $skill$
 # 受控 JavaScript 计算
 
@@ -1283,6 +1392,51 @@ ON CONFLICT (skill_version_id, tool_id, tool_version) DO UPDATE SET
     usage_purpose = EXCLUDED.usage_purpose,
     sort_order = EXCLUDED.sort_order;
 
+INSERT INTO ai_skill_tool_requirement (
+    skill_version_id, tool_id, tool_version, tool_name,
+    required, usage_purpose, sort_order
+)
+SELECT skill.current_version_id,
+       'aigc.project.generation.action.submit',
+       1,
+       'aigc.project.generation.action.submit',
+       TRUE,
+       '提交当前 taskId 已确认的单项生成目标为确定性动作；目标、项目版本与图谱 revision 全部由服务端解析并冻结',
+       130
+FROM ai_skill_definition skill
+WHERE skill.code = 'system.skill.content-project-collaboration'
+  AND skill.current_version_id IS NOT NULL
+  AND skill.built_in = TRUE
+  AND skill.deleted = FALSE
+ON CONFLICT (skill_version_id, tool_id, tool_version) DO UPDATE SET
+    tool_name = EXCLUDED.tool_name,
+    required = EXCLUDED.required,
+    usage_purpose = EXCLUDED.usage_purpose,
+    sort_order = EXCLUDED.sort_order;
+
+-- Assistant Blueprint Planning Skill 只允许提交当前 taskId 已绑定的逻辑提案。
+INSERT INTO ai_skill_tool_requirement (
+    skill_version_id, tool_id, tool_version, tool_name,
+    required, usage_purpose, sort_order
+)
+SELECT skill.current_version_id,
+       'aigc.blueprint.proposal.submit',
+       1,
+       'aigc.blueprint.proposal.submit',
+       TRUE,
+       '提交逻辑 ProjectSpecification、项目初始化、对象、关系、动作、交付集和流程策略；受信范围与版本均由服务端补齐',
+       100
+FROM ai_skill_definition skill
+WHERE skill.code = 'system.skill.assistant-blueprint-planning'
+  AND skill.current_version_id IS NOT NULL
+  AND skill.built_in = TRUE
+  AND skill.deleted = FALSE
+ON CONFLICT (skill_version_id, tool_id, tool_version) DO UPDATE SET
+    tool_name = EXCLUDED.tool_name,
+    required = EXCLUDED.required,
+    usage_purpose = EXCLUDED.usage_purpose,
+    sort_order = EXCLUDED.sort_order;
+
 -- SYSTEM Scope 默认 Skill 绑定；自我认知不得声明工具 requirement。
 INSERT INTO ai_system_skill_binding (
     skill_id, activation_mode, enabled, sort_order, create_time, update_time, deleted
@@ -1352,8 +1506,8 @@ INSERT INTO ai_role (
 ) VALUES (
     2, 'system.role.content-creator', '内容创作者',
     '内容拆解、思路澄清、结构构建、内容裂变和多平台草稿生成',
-    '[{"skillKey":"aigc-copywriting","activationMode":"ON_DEMAND"},{"skillKey":"content-schedule","activationMode":"ON_DEMAND"},{"skillKey":"content-judge","activationMode":"ON_DEMAND"},{"skillKey":"content-clarify","activationMode":"ON_DEMAND"},{"skillKey":"content-architect","activationMode":"ON_DEMAND"},{"skillKey":"content-build","activationMode":"ON_DEMAND"},{"skillKey":"voiceover","activationMode":"ON_DEMAND"},{"skillKey":"redbook","activationMode":"ON_DEMAND"},{"skillKey":"product-copy","activationMode":"ON_DEMAND"},{"skillKey":"ip-position","activationMode":"ON_DEMAND"},{"skillKey":"short-script","activationMode":"ON_DEMAND"},{"skillKey":"title-topic","activationMode":"ON_DEMAND"},{"skillKey":"biz-analysis","activationMode":"ON_DEMAND"},{"skillKey":"rich-text-write","activationMode":"ON_DEMAND"},{"skillKey":"system.skill.content-project-collaboration","activationMode":"ON_DEMAND"}]',
-    '["content.draft.upsert","context.load","inspect_project_semantics","record_project_text_candidate","record_project_document_candidate"]',
+    '[{"skillKey":"aigc-copywriting","activationMode":"ON_DEMAND"},{"skillKey":"content-schedule","activationMode":"ON_DEMAND"},{"skillKey":"content-judge","activationMode":"ON_DEMAND"},{"skillKey":"content-clarify","activationMode":"ON_DEMAND"},{"skillKey":"content-architect","activationMode":"ON_DEMAND"},{"skillKey":"content-build","activationMode":"ON_DEMAND"},{"skillKey":"voiceover","activationMode":"ON_DEMAND"},{"skillKey":"redbook","activationMode":"ON_DEMAND"},{"skillKey":"product-copy","activationMode":"ON_DEMAND"},{"skillKey":"ip-position","activationMode":"ON_DEMAND"},{"skillKey":"short-script","activationMode":"ON_DEMAND"},{"skillKey":"title-topic","activationMode":"ON_DEMAND"},{"skillKey":"biz-analysis","activationMode":"ON_DEMAND"},{"skillKey":"rich-text-write","activationMode":"ON_DEMAND"},{"skillKey":"system.skill.content-project-collaboration","activationMode":"ON_DEMAND"},{"skillKey":"system.skill.assistant-blueprint-planning","activationMode":"ON_DEMAND"}]',
+    '["content.draft.upsert","context.load","inspect_project_semantics","record_project_text_candidate","record_project_document_candidate","aigc.blueprint.proposal.submit","aigc.project.generation.action.submit"]',
     'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 ) ON CONFLICT (id) DO UPDATE SET
     skill_ids = EXCLUDED.skill_ids,
