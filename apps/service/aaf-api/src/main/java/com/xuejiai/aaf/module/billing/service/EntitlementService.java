@@ -11,6 +11,7 @@ import com.xuejiai.aaf.common.enums.billing.EntitlementTypeEnum;
 import com.xuejiai.aaf.common.enums.billing.SubscriptionStatusEnum;
 import com.xuejiai.aaf.common.exception.QuotaExceededException;
 import com.xuejiai.aaf.framework.engine.entitlement.EntitlementChecker;
+import com.xuejiai.aaf.module.billing.api.ParallelTaskQuotaApi;
 import com.xuejiai.aaf.module.billing.domain.EntitlementLedger;
 import com.xuejiai.aaf.module.billing.domain.EntitlementQuota;
 import com.xuejiai.aaf.module.billing.repository.*;
@@ -28,13 +29,34 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class EntitlementService implements EntitlementChecker {
+public class EntitlementService implements EntitlementChecker, ParallelTaskQuotaApi {
+
+    /** 并行任务数权益编码，与 seed 中 {@code billing_entitlement_def.code} 一致。 */
+    private static final String MAX_PARALLEL_TASK_CODE = "max_parallel_task";
 
     private final EntitlementDefRepository defRepository;
     private final EntitlementQuotaRepository quotaRepository;
     private final EntitlementLedgerRepository ledgerRepository;
     private final PlanEntitlementRepository planEntitlementRepository;
     private final SubscriptionRepository subscriptionRepository;
+
+    /** 并发窗口只读口径：取当前周期 {@code total}，不读 {@code remain}、不扣减、不写 ledger。 */
+    @Override
+    @Transactional(readOnly = true)
+    public long parallelTaskLimit(Long userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException("userId 不能为空");
+        }
+        var quota =
+                quotaRepository.findByUserIdAndEntCode(userId, MAX_PARALLEL_TASK_CODE).orElse(null);
+        if (quota == null || quota.getTotal() == null) {
+            return 1L;
+        }
+        if (quota.getTotal() == -1L) {
+            return -1L;
+        }
+        return quota.getTotal() > 0 ? quota.getTotal() : 1L;
+    }
 
     /** 执行前检查额度是否足够。 */
     @Override
