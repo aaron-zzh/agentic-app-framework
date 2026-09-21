@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.common.constant.SysConfigKeys;
 import com.xuejiai.aaf.common.enums.aigc.AigcTaskStatusEnum;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.cache.ConfigCacheManager;
@@ -42,6 +43,7 @@ import com.xuejiai.aaf.framework.org.OrgIgnore;
 import com.xuejiai.aaf.framework.security.PermissionExecutionContextHolder;
 import com.xuejiai.aaf.framework.security.PermissionExecutionService;
 import com.xuejiai.aaf.framework.security.license.License;
+import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
 import com.xuejiai.aaf.module.ai.aigc.event.service.AigcActivityEventService;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcGeneratedMediaCommand;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
@@ -81,6 +83,7 @@ public class AigcTaskExecutor {
     private final ConfigCacheManager configCacheManager;
     private final Model3dGenerationService model3dGenerationService;
     private final PermissionExecutionService permissionExecutionService;
+    private final SystemConfigService systemConfigService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Autowired(required = false)
@@ -92,6 +95,15 @@ public class AigcTaskExecutor {
     private static final String EVENT_COMPLETED = "task.completed";
     private static final String EVENT_FAILED = "task.failed";
 
+    /**
+     * 排队任务的唯一执行入口：手动与 Assistant 提交的专业任务都经此启动。
+     *
+     * <p>是否放行由 {@link AigcTaskClaimService#claimIntent} 在其原子准入事务内按订阅并发窗口判定——未取得认领即保持排队，
+     * 本方法直接返回且不接触供应商，因此重复派发与恢复扫描都不会重复提交。
+     *
+     * <p>{@code @OrgIgnore}：认领前尚不知道 task 的 orgId（先有鸡蛋问题），需豁免这段空窗期的 fail-closed 拒绝；认领后 {@link
+     * #runInOwnerContext} 会恢复真实归属者与组织上下文。
+     */
     @OrgIgnore
     @Async
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -112,12 +124,22 @@ public class AigcTaskExecutor {
                                 task.getParams(), new TypeReference<Map<String, Object>>() {});
         switch (task.getType()) {
             case "IMAGE" ->
-                    submitSyncInternal(task, task.getId(), task.getPrompt(), task.getModel(), null);
+                    submitSyncInternal(
+                            task,
+                            task.getId(),
+                            task.getPrompt(),
+                            task.getModel(),
+                            mockValue(task, "image"));
             case "VIDEO" ->
                     submitVideoAsyncInternal(
-                            task, task.getId(), task.getPrompt(), task.getModel(), null);
+                            task,
+                            task.getId(),
+                            task.getPrompt(),
+                            task.getModel(),
+                            mockValue(task, "video"));
             case "MODEL_3D" ->
-                    submitModel3dSyncInternal(task, task.getId(), task.getPrompt(), null);
+                    submitModel3dSyncInternal(
+                            task, task.getId(), task.getPrompt(), mockValue(task, "model3d"));
             case "MUSIC" ->
                     submitMusicSyncInternal(
                             task,
@@ -125,23 +147,54 @@ public class AigcTaskExecutor {
                             task.getPrompt(),
                             String.valueOf(parameters.getOrDefault("lyrics", "")),
                             String.valueOf(parameters.getOrDefault("gender", "female")),
-                            null);
+                            mockValue(task, "audio"));
             case "VOICE" ->
                     submitVoiceSyncInternal(
                             task,
                             task.getId(),
                             task.getPrompt(),
-                            String.valueOf(parameters.getOrDefault("voice", "")),
-                            null);
+                            trimToNull(parameters.get("voice")),
+                            mockValue(task, "audio"));
             case "IMAGE_PROCESS" ->
                     submitImageProcessSyncInternal(
                             task,
                             task.getId(),
                             toParamLong(parameters.get("imageFileId")),
                             String.valueOf(parameters.get("method")),
-                            null);
+                            mockValue(task, "image"));
             default -> throw new IllegalStateException("不支持的 durable Task 类型: " + task.getType());
         }
+    }
+
+    /**
+     * 解析 Mock 固定结果。
+     *
+     * <p>Mock 只服务于独立任务的本地联调；项目执行链需要真实 Run 与资源事实，因此绑定 executionRun 的任务一律返回 {@code null} 走真实调用。
+     */
+    private String mockValue(AigcTask task, String typeKey) {
+        if (task.getExecutionRunId() != null
+                || !systemConfigService.getBoolean(SysConfigKeys.Aigc.MOCK_ENABLED, false)) {
+            return null;
+        }
+        var json = systemConfigService.getString(SysConfigKeys.Aigc.MOCK_DATA);
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        try {
+            var values = JsonUtils.parseObject(json, new TypeReference<Map<String, String>>() {});
+            return trimToNull(values.get(typeKey));
+        } catch (Exception failure) {
+            log.warn("[AigcTaskExecutor] 解析 aigc.mock_data 失败: {}", failure.getMessage());
+            return null;
+        }
+    }
+
+    private static String trimToNull(Object value) {
+        if (value == null) {
+            return null;
+        }
+        var text = String.valueOf(value).trim();
+        return text.isEmpty() ? null : text;
     }
 
     /**
@@ -175,28 +228,11 @@ public class AigcTaskExecutor {
     }
 
     /**
-     * 同步模型路径（所有图像生成模型统一入口）。
+     * 图像生成执行体。
      *
-     * <p>从 {@code task.params} 读取 width/height/negativePrompt/seed/promptExtend/imageCount， 构建完整
-     * {@link ImageRequest} 后调用对应服务。 REQUIRES_NEW 表示：不管外部是否有事务，都新建一个独立事务。
-     * 外部事务挂起，这个方法在自己的事务里执行，完成后提交/回滚，再恢复外部事务。
-     *
-     * <p>{@code @OrgIgnore}：方法入口通过 {@link AigcTaskClaimService} 按 ID 认领任务时尚未知道 task 的 orgId
-     * （先有鸡蛋问题，同 {@code OrgFilter} 处理 {@code X-Org-Id} 自校验查询的场景），需豁免这段空窗期的 fail-closed 拒绝；认领 task 后
-     * {@link #runInOwnerContext} 会恢复真实 orgId，使后续查询/持久化按真实组织语义执行。
+     * <p>从 {@code task.params} 读取 width/height/negativePrompt/seed/promptExtend/imageCount，构建完整
+     * {@link ImageRequest} 后调用对应服务；权限与组织上下文由 {@link #resumeIntent} 统一恢复。
      */
-    @OrgIgnore
-    @Async
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void submitSync(Long taskId, String prompt, String modelId, String mockUrl) {
-        var task = taskClaimService.claimPending(taskId).orElse(null);
-        if (task == null) return;
-        runInOwnerContext(
-                task,
-                "aigc-image-gen",
-                () -> submitSyncInternal(task, taskId, prompt, modelId, mockUrl));
-    }
-
     private void submitSyncInternal(
             AigcTask task, Long taskId, String prompt, String modelId, String mockUrl) {
         try {
@@ -456,24 +492,7 @@ public class AigcTaskExecutor {
         return "jpg".equals(extension) ? "image/jpeg" : "image/" + extension;
     }
 
-    /**
-     * 音乐生成异步执行（同步 API，阻塞直到结果返回）。
-     *
-     * <p>{@code @OrgIgnore} 用途见 {@link #submitSync}。
-     */
-    @OrgIgnore
-    @Async
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void submitMusicSync(
-            Long taskId, String prompt, String lyrics, String gender, String mockUrl) {
-        var task = taskRepo.findById(taskId).orElse(null);
-        if (task == null) return;
-        runInOwnerContext(
-                task,
-                "aigc-music-gen",
-                () -> submitMusicSyncInternal(task, taskId, prompt, lyrics, gender, mockUrl));
-    }
-
+    /** 音乐生成执行体（供应商同步 API，阻塞直到结果返回）。 */
     private void submitMusicSyncInternal(
             AigcTask task,
             Long taskId,
@@ -554,23 +573,7 @@ public class AigcTaskExecutor {
         eventPublisher.publishEvent(AigcTaskTerminalEvent.from(task));
     }
 
-    /**
-     * 配音生成异步执行（TTS 非流式，阻塞合成完整音频后上传存储）。
-     *
-     * <p>{@code @OrgIgnore} 用途见 {@link #submitSync}。
-     */
-    @OrgIgnore
-    @Async
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void submitVoiceSync(Long taskId, String text, String voice, String mockUrl) {
-        var task = taskRepo.findById(taskId).orElse(null);
-        if (task == null) return;
-        runInOwnerContext(
-                task,
-                "aigc-voice-gen",
-                () -> submitVoiceSyncInternal(task, taskId, text, voice, mockUrl));
-    }
-
+    /** 配音生成执行体（TTS 非流式，阻塞合成完整音频后上传存储）。 */
     private void submitVoiceSyncInternal(
             AigcTask task, Long taskId, String text, String voice, String mockUrl) {
         try {
@@ -658,19 +661,7 @@ public class AigcTaskExecutor {
         eventPublisher.publishEvent(AigcTaskTerminalEvent.from(task));
     }
 
-    /** 3D 模型生成异步执行（提交到第三方后立即返回，由 {@code Model3dTaskSyncJob} 轮询结果）。 */
-    @OrgIgnore
-    @Async
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void submitModel3dSync(Long taskId, String prompt, String mockUrl) {
-        var task = taskRepo.findById(taskId).orElse(null);
-        if (task == null) return;
-        runInOwnerContext(
-                task,
-                "aigc-model3d-gen",
-                () -> submitModel3dSyncInternal(task, taskId, prompt, mockUrl));
-    }
-
+    /** 3D 模型生成执行体（提交到第三方后立即返回，由 {@code Model3dTaskSyncJob} 轮询结果）。 */
     private void submitModel3dSyncInternal(
             AigcTask task, Long taskId, String prompt, String mockUrl) {
         try {
@@ -754,19 +745,7 @@ public class AigcTaskExecutor {
         }
     }
 
-    /** 视频生成异步执行（提交到第三方后立即返回，由 {@code VideoTaskSyncJob} 轮询结果）。 */
-    @OrgIgnore
-    @Async
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void submitVideoAsync(Long taskId, String prompt, String modelId, String mockUrl) {
-        var task = taskRepo.findById(taskId).orElse(null);
-        if (task == null) return;
-        runInOwnerContext(
-                task,
-                "aigc-video-gen",
-                () -> submitVideoAsyncInternal(task, taskId, prompt, modelId, mockUrl));
-    }
-
+    /** 视频生成执行体（提交到第三方后立即返回，由 {@code VideoTaskSyncJob} 轮询结果）。 */
     private void submitVideoAsyncInternal(
             AigcTask task, Long taskId, String prompt, String modelId, String mockUrl) {
         try {
@@ -961,28 +940,14 @@ public class AigcTaskExecutor {
     }
 
     /**
-     * 图像处理任务异步执行（SEGMENT_HD_BODY 等同步 SDK 调用，完成后直接存 OSS）。
+     * 图像处理执行体（SEGMENT_HD_BODY 等同步 SDK 调用，完成后直接存 OSS）。
      *
-     * <p>{@code @OrgIgnore} 用途见 {@link #submitSync}。
-     *
+     * @param task 已认领的任务
      * @param taskId 内部任务 ID
      * @param imageFileId 待处理图像的文件 ID
      * @param method 处理方式，如 SEGMENT_HD_BODY
      * @param mockUrl Mock 模式固定返回 URL，null 表示真实调用
      */
-    @OrgIgnore
-    @Async
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void submitImageProcessSync(
-            Long taskId, Long imageFileId, String method, String mockUrl) {
-        var task = taskRepo.findById(taskId).orElse(null);
-        if (task == null) return;
-        runInOwnerContext(
-                task,
-                "aigc-image-process",
-                () -> submitImageProcessSyncInternal(task, taskId, imageFileId, method, mockUrl));
-    }
-
     private void submitImageProcessSyncInternal(
             AigcTask task, Long taskId, Long imageFileId, String method, String mockUrl) {
         try {

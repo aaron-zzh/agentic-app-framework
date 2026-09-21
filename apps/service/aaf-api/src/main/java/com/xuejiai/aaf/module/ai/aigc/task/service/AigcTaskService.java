@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -19,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import com.xuejiai.aaf.common.constant.SysConfigKeys;
 import com.xuejiai.aaf.common.enums.aigc.AigcTaskStatusEnum;
 import com.xuejiai.aaf.common.enums.aigc.AigcTaskTypeEnum;
 import com.xuejiai.aaf.common.enums.pay.CreditTransactionCategoryEnum;
@@ -39,7 +39,6 @@ import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 import com.xuejiai.aaf.framework.intelligent.core.registry.AiServiceRegistry;
-import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
 import com.xuejiai.aaf.module.ai.aigc.ErrorCodeConstants;
 import com.xuejiai.aaf.module.ai.aigc.event.service.AigcActivityEventService;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcGeneratedMediaCommand;
@@ -111,7 +110,6 @@ public class AigcTaskService
     private final AigcTaskClaimService taskClaimService;
     private final AiCreditGuard creditGuard;
     private final AigcSubmissionAccessGuard submissionAccessGuard;
-    private final SystemConfigService systemConfigService;
     private final ConfigCacheManager configCacheManager;
     private final AiServiceRegistry aiServiceRegistry;
     private final Model3dGenerationService model3dGenerationService;
@@ -201,16 +199,7 @@ public class AigcTaskService
         retainImageTaskInputs(task.getId(), req.imageFileIds());
         eventService.publish(userId, EVENT_CREATED, toVO(task));
 
-        final Long taskId = task.getId();
-        final String prompt = req.prompt();
-        final String mockUrl = isMockEnabled() ? getMockValue("image") : null;
-        TransactionSynchronizationManager.registerSynchronization(
-                new TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
-                        taskExecutor.submitSync(taskId, prompt, resolvedModel, mockUrl);
-                    }
-                });
+        enqueueAfterCommit(task.getId());
         log.debug(
                 "[submitImageTask] 总耗时: {}ms, taskId={}",
                 System.currentTimeMillis() - t0,
@@ -269,16 +258,7 @@ public class AigcTaskService
         retainVideoTaskInputs(task.getId(), req);
         eventService.publish(userId, EVENT_CREATED, toVO(task));
 
-        final Long taskId = task.getId();
-        final String mockUrl = isMockEnabled() ? getMockValue("video") : null;
-        TransactionSynchronizationManager.registerSynchronization(
-                new TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
-                        taskExecutor.submitVideoAsync(
-                                taskId, req.prompt(), resolvedModelId, mockUrl);
-                    }
-                });
+        enqueueAfterCommit(task.getId());
         log.info("[submitVideoTask] 视频生成任务已创建: taskId={}, model={}", task.getId(), resolvedModelId);
         return task.getId();
     }
@@ -350,15 +330,7 @@ public class AigcTaskService
         taskRepo.save(task);
         eventService.publish(userId, EVENT_CREATED, toVO(task));
 
-        final Long taskId = task.getId();
-        final String mockUrl3d = isMockEnabled() ? getMockValue("model3d") : null;
-        TransactionSynchronizationManager.registerSynchronization(
-                new TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
-                        taskExecutor.submitModel3dSync(taskId, prompt, mockUrl3d);
-                    }
-                });
+        enqueueAfterCommit(task.getId());
         return task.getId();
     }
 
@@ -398,20 +370,16 @@ public class AigcTaskService
                         resolvedModel.getModelId(),
                         null,
                         projectId);
+        var musicParams = new LinkedHashMap<String, Object>();
+        if (lyrics != null && !lyrics.isBlank()) {
+            musicParams.put("lyrics", lyrics);
+        }
+        musicParams.put("gender", gender != null && !gender.isBlank() ? gender : "female");
+        task.setParams(JsonUtils.toJsonString(musicParams));
         taskRepo.save(task);
         eventService.publish(userId, EVENT_CREATED, toVO(task));
 
-        final Long taskId = task.getId();
-        final String resolvedGender = gender != null ? gender : "female";
-        final String mockUrlMusic = isMockEnabled() ? getMockValue("audio") : null;
-        TransactionSynchronizationManager.registerSynchronization(
-                new TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
-                        taskExecutor.submitMusicSync(
-                                taskId, prompt, lyrics, resolvedGender, mockUrlMusic);
-                    }
-                });
+        enqueueAfterCommit(task.getId());
         return task.getId();
     }
 
@@ -464,15 +432,7 @@ public class AigcTaskService
         taskRepo.save(task);
         eventService.publish(userId, EVENT_CREATED, toVO(task));
 
-        final Long taskId = task.getId();
-        final String mockUrlVoice = isMockEnabled() ? getMockValue("audio") : null;
-        TransactionSynchronizationManager.registerSynchronization(
-                new TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
-                        taskExecutor.submitVoiceSync(taskId, text, voice, mockUrlVoice);
-                    }
-                });
+        enqueueAfterCommit(task.getId());
         log.info(
                 "[submitVoiceTask] 配音生成任务已创建: taskId={}, model={}, voice={}",
                 task.getId(),
@@ -543,15 +503,7 @@ public class AigcTaskService
         taskRepo.save(task);
         eventService.publish(userId, EVENT_CREATED, toVO(task));
 
-        final Long taskId = task.getId();
-        final String mockUrl = isMockEnabled() ? getMockValue("image") : null;
-        TransactionSynchronizationManager.registerSynchronization(
-                new TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
-                        taskExecutor.submitImageProcessSync(taskId, imageFileId, method, mockUrl);
-                    }
-                });
+        enqueueAfterCommit(task.getId());
         log.info("[submitImageProcessTask] 图像处理任务已创建: taskId={}, method={}", task.getId(), method);
         return task.getId();
     }
@@ -1016,6 +968,22 @@ public class AigcTaskService
         return IMAGE_PROCESS_COMMON_PRICE_YUAN;
     }
 
+    /**
+     * 提交事务提交后尝试启动排队任务。
+     *
+     * <p>手动提交与项目执行链共用同一条 {@code PREPARED → 认领 → 执行} 路径：并发窗口未满即立刻开跑，已满则保持排队，
+     * 由槽位释放后的派发或恢复扫描继续推进，调用方不需要也不应该自己判断窗口。
+     */
+    private void enqueueAfterCommit(Long taskId) {
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        taskExecutor.resumeIntent(taskId);
+                    }
+                });
+    }
+
     private AigcTask buildTask(
             Long userId,
             String type,
@@ -1027,7 +995,8 @@ public class AigcTaskService
         task.setUserId(userId);
         task.setOwnerId(userId);
         task.setType(type);
-        task.setStatus(AigcTaskStatusEnum.PENDING.getCode());
+        // 统一先入队：PREPARED 表示已受理但未提交供应商，不占用订阅并发槽位
+        task.setStatus(AigcTaskStatusEnum.PREPARED.getCode());
         task.setPrompt(prompt);
         task.setModel(model);
         task.setModelName(modelName);
@@ -1142,36 +1111,5 @@ public class AigcTaskService
             case "VOICE" -> "audio/mpeg";
             default -> "image/png";
         };
-    }
-
-    // ========== Mock 辅助方法 ==========
-
-    /** 判断 AIGC Mock 开关是否开启。 */
-    private boolean isMockEnabled() {
-        return systemConfigService.getBoolean(SysConfigKeys.Aigc.MOCK_ENABLED, false);
-    }
-
-    /**
-     * 读取指定类型的 mock 固定返回值。
-     *
-     * <p>从 {@code aigc.mock_data} JSON 中按 {@code typeKey} 取值，JSON 示例：
-     *
-     * <pre>
-     * {@code {"image":"https://...","video":"https://...","text":"固定文字","audio":"https://..."}}
-     * </pre>
-     *
-     * @param typeKey image / video / text / audio
-     * @return 固定返回值，配置缺失时返回空字符串
-     */
-    private String getMockValue(String typeKey) {
-        var json = systemConfigService.getString(SysConfigKeys.Aigc.MOCK_DATA);
-        if (json == null || json.isBlank()) return "";
-        try {
-            var map = JsonUtils.parseObject(json, new TypeReference<Map<String, String>>() {});
-            return map.getOrDefault(typeKey, "");
-        } catch (Exception e) {
-            log.warn("[getMockValue] 解析 aigc.mock_data 失败: {}", e.getMessage());
-            return "";
-        }
     }
 }

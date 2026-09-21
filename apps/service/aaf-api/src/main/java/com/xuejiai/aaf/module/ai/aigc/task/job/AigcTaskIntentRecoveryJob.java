@@ -23,6 +23,12 @@ public class AigcTaskIntentRecoveryJob {
     private final AigcTaskExecutor executor;
     private final AigcTaskSubmittingRecoveryService submittingRecoveryService;
 
+    /**
+     * 恢复未取得提交结果的 durable Task intent。
+     *
+     * <p>{@code PREPARED} 现在同时是并发窗口的排队状态，因此本扫描既补跑中断任务，也是"槽位释放事件丢失"时的兜底推进；
+     * 真实放行仍由认领事务按订阅并发窗口判定，重复扫描不会超发。
+     */
     @OrgIgnore
     @Scheduled(fixedDelayString = "${aaf.aigc.task-intent-recovery-delay-ms:30000}")
     public void recover() {
@@ -30,8 +36,8 @@ public class AigcTaskIntentRecoveryJob {
                 .findRecoverableIntents()
                 .forEach(
                         task -> {
-                            log.info(
-                                    "[AigcTaskIntentRecoveryJob] 恢复 PREPARED Task intent: taskId={}",
+                            log.debug(
+                                    "[AigcTaskIntentRecoveryJob] 尝试启动排队中的 Task intent: taskId={}",
                                     task.getId());
                             executor.resumeIntent(task.getId());
                         });

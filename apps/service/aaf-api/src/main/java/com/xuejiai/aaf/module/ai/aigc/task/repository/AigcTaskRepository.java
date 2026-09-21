@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.ai.aigc.task.repository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -95,6 +96,38 @@ public interface AigcTaskRepository extends CrudEntityRepository<AigcTask> {
     @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     @Query("select task from AigcTask task where task.id = :id")
     Optional<AigcTask> findLockedById(@Param("id") Long id);
+
+    /**
+     * 以事务级 advisory lock 串行化同一用户的并发窗口准入。
+     *
+     * <p>并发窗口是"同时最多几个"的瞬时上限，判定必须是"数占槽任务 + 认领"的原子序列，否则多实例会同时读到同一个空位并各自放行。 使用 try
+     * 版本而非阻塞版本：抢不到锁说明该用户已有另一次准入正在进行，本次直接放弃，队列由那次准入或恢复扫描继续推进，不占用线程等待。
+     */
+    @Query(
+            value =
+                    """
+                    SELECT pg_try_advisory_xact_lock(
+                        hashtextextended('aigc-task-admission:' || cast(:userId as text), 0))
+                    """,
+            nativeQuery = true)
+    boolean tryLockUserAdmission(@Param("userId") Long userId);
+
+    /** 统计用户当前占用并发槽位的任务数；状态集合由 {@code AigcTaskStatusEnum} 唯一定义。 */
+    long countByUserIdAndStatusInAndDeletedFalse(Long userId, Collection<String> statuses);
+
+    /** 取用户最早的排队任务；排队顺序按持久化顺序（id 升序），不按优先级重排。 */
+    Optional<AigcTask> findFirstByUserIdAndStatusAndDeletedFalseOrderByIdAsc(
+            Long userId, String status);
+
+    /** 只读取排队中任务的归属用户，供准入判定使用；非 PREPARED 时返回空。 */
+    @Query(
+            """
+            select task.userId from AigcTask task
+            where task.id = :taskId
+              and task.status = 'PREPARED'
+              and task.deleted = false
+            """)
+    Optional<Long> findQueuedIntentUserId(@Param("taskId") Long taskId);
 
     @Modifying
     @Query(

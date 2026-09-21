@@ -9,6 +9,7 @@ import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
 public record AigcTaskTerminalEvent(
         UUID eventId,
         Long taskId,
+        Long userId,
         Long executionRunId,
         String status,
         Long outputMediaVersionId,
@@ -19,6 +20,7 @@ public record AigcTaskTerminalEvent(
         return new AigcTaskTerminalEvent(
                 UUID.randomUUID(),
                 task.getId(),
+                task.getUserId(),
                 task.getExecutionRunId(),
                 task.getStatus(),
                 task.getOutputMediaVersionId(),

@@ -49,6 +49,7 @@ public class AigcTaskApiAdapter implements AigcTaskApi {
     private final AiCreditGuard creditGuard;
     private final AigcSubmissionAccessGuard submissionAccessGuard;
     private final AigcTaskExecutor taskExecutor;
+    private final AigcTaskQueueDispatcher queueDispatcher;
     private final AigcActivityEventService activityEventService;
 
     @Override
@@ -312,6 +313,9 @@ public class AigcTaskApiAdapter implements AigcTaskApi {
         task.setErrorMsg(reason == null ? "执行已取消" : reason);
         task.setVersion(task.getVersion() + 1);
         taskRepository.saveAndFlush(task);
+        // 取消同样释放并发槽位，立即推进该用户队列，不必等恢复扫描
+        var ownerId = task.getUserId();
+        afterCommit(() -> queueDispatcher.dispatchNext(ownerId));
         return toView(task);
     }
 
