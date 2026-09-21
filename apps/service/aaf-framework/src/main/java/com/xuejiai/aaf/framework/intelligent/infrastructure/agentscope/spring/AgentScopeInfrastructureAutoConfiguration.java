@@ -20,6 +20,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.ToolGatewayPort;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.AiAutoConfiguration;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultEffectiveToolResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveToolResolver;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.ToolVisibilityFilter;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.PromptEnvelopePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskUnitOfWork;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
@@ -38,6 +39,7 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.state.Spr
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.AgentScopeToolkitFactory;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.tool.ToolResultEvidenceStore;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
+import com.xuejiai.aaf.framework.security.authorization.FunctionPermissionChecker;
 
 import io.agentscope.extensions.redis.state.RedisAgentStateStore;
 import reactor.core.scheduler.Schedulers;
@@ -120,6 +122,16 @@ public class AgentScopeInfrastructureAutoConfiguration {
     @ConditionalOnMissingBean(EffectiveToolResolver.class)
     EffectiveToolResolver effectiveToolResolver() {
         return new DefaultEffectiveToolResolver();
+    }
+
+    /** 工具可见性的用户权限维度；只收窄模型可见集合，不改调用期授权行为。 */
+    @Bean
+    @ConditionalOnMissingBean(ToolVisibilityFilter.class)
+    ToolVisibilityFilter toolVisibilityFilter(
+            ToolCatalogPort toolCatalog,
+            FunctionPermissionChecker permissions,
+            ObjectProvider<ContextAwareToolHandler> builtinHandlers) {
+        return new ToolVisibilityFilter(toolCatalog, permissions, builtinHandlers);
     }
 
     /** 每次物理模型调用在 provider 发送前冻结一份 PromptEnvelope。 */

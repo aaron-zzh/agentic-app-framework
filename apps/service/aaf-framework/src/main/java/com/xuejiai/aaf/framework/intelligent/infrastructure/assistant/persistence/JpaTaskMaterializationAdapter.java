@@ -2492,6 +2492,23 @@ public class JpaTaskMaterializationAdapter implements TaskMaterializationPort {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<AwaitingExternal> findAwaitingExternalByTask(TenantId tenantId, TaskId taskId) {
+        Objects.requireNonNull(tenantId, "tenantId 不能为空");
+        Objects.requireNonNull(taskId, "taskId 不能为空");
+        return executions
+                .findByOrgIdAndTaskIdAndStatusOrderByIdAsc(
+                        Long.valueOf(tenantId.value()),
+                        taskId.value(),
+                        Execution.Status.AWAITING_EXTERNAL.name())
+                .stream()
+                .map(TaskExecutionEntity::getArtifactCompletionReceipt)
+                .filter(Objects::nonNull)
+                .map(AwaitingExternal::new)
+                .toList();
+    }
+
+    @Override
     @Transactional
     public ExternalRecoveryResult recoverExternal(
             InvocationReceipt receipt, Evaluation evaluation, Instant at) {

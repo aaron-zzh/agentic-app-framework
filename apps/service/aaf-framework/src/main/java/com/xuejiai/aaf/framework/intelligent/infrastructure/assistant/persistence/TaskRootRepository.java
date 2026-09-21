@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -54,6 +55,23 @@ public interface TaskRootRepository extends JpaRepository<TaskRootEntity, Long> 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select t from TaskRootEntity t where t.orgId = :orgId and t.taskId = :taskId")
     Optional<TaskRootEntity> findForUpdateByOrgId(Long orgId, String taskId);
+
+    @Query(
+            """
+            select count(t) from TaskRootEntity t
+            where t.orgId = :orgId
+              and t.userId = :userId
+              and t.source = :source
+              and t.status not in :terminalStatuses
+            """)
+    long countActiveByOrgIdAndUserIdAndSource(
+            Long orgId, String userId, String source, Collection<String> terminalStatuses);
+
+    default long countActiveBySource(
+            String tenantId, String userId, String source, Collection<String> terminalStatuses) {
+        return countActiveByOrgIdAndUserIdAndSource(
+                Long.valueOf(tenantId), userId, source, terminalStatuses);
+    }
 
     default Optional<TaskRootEntity> findForUpdate(String tenantId, String taskId) {
         return findForUpdateByOrgId(Long.valueOf(tenantId), taskId);

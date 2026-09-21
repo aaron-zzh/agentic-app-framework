@@ -27,6 +27,9 @@ public interface AssistantTaskExecutionRepository extends JpaRepository<TaskExec
             nativeQuery = true)
     List<TaskExecutionEntity> findAwaitingExternalByRunId(Long executionRunId);
 
+    List<TaskExecutionEntity> findByOrgIdAndTaskIdAndStatusOrderByIdAsc(
+            Long orgId, String taskId, String status);
+
     Optional<TaskExecutionEntity> findByOrgIdAndExecutionId(Long orgId, String executionId);
 
     Optional<TaskExecutionEntity> findFirstByOrgIdAndTaskIdAndNodeIdOrderByAttemptNoDesc(

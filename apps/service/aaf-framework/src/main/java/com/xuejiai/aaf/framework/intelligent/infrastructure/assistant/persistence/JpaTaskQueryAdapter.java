@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence;
 
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -7,6 +8,7 @@ import java.util.Optional;
 
 import org.springframework.transaction.annotation.Transactional;
 
+import com.xuejiai.aaf.framework.intelligent.assistant.model.Task;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskDetails;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskDetails.DispatchDetails;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskDetails.ExecutionDetails;
@@ -66,6 +68,18 @@ public class JpaTaskQueryAdapter implements TaskQueryPort {
                 .toList();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public long countActiveBySource(TenantId tenantId, UserId userId, Task.Source source) {
+        var terminalStatuses =
+                Arrays.stream(Task.Status.values())
+                        .filter(Task.Status::terminal)
+                        .map(Enum::name)
+                        .toList();
+        return tasks.countActiveBySource(
+                tenantId.value(), userId.value(), source.name(), terminalStatuses);
+    }
+
     private TaskDetails details(TenantId tenantId, TaskRootEntity entity) {
         var task = entity.getTask();
         var plan = plans.find(tenantId, task.taskId()).orElse(null);
@@ -118,7 +132,8 @@ public class JpaTaskQueryAdapter implements TaskQueryPort {
                                 task.rootResult().committedAt()),
                 attempts,
                 task.createdAt(),
-                task.updatedAt());
+                task.updatedAt(),
+                List.of());
     }
 
     private PlanDetails planDetails(TenantId tenantId, TaskPlan plan) {
