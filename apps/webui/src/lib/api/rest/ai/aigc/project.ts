@@ -7,11 +7,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { ApiError } from "../../../errors"
 import type { PageResult } from "../../../types"
 import { backendApi } from "../../backend-client"
+import { taskKeys } from "../task"
 import type {
   AigcProductionMode,
   AigcProjectInitializationFieldKey,
   AigcProjectTypeCode
 } from "./configuration"
+import type { AigcExecutionStatus } from "./execution"
 
 export type AigcProjectStatus =
   | "CONFIGURING"
@@ -70,6 +72,7 @@ export type AigcObjectType =
   | "scene"
   | "shot"
   | "shot_keyframe"
+  | "audio_deliverable"
   | "character"
   | "prop"
   | "review"
@@ -119,8 +122,7 @@ export interface AigcProjectConversationContextBase {
   projectVersion: number
 }
 
-export interface AigcProjectConversationReadyContext
-  extends AigcProjectConversationContextBase {
+export interface AigcProjectConversationReadyContext extends AigcProjectConversationContextBase {
   state: "READY"
   assistantRecordId: number
   assistantId: string
@@ -261,6 +263,12 @@ export interface AigcProjectDocumentRef {
   semanticGenerationStatus: "PENDING" | "READY" | "FAILED" | null
   semanticManualOverride: boolean
   semanticMetadataVersion: number | null
+  /**
+   * 该文档最近一次 AI 生成执行的状态（AigcExecutionRunStatus 名称），从未生成过时为 null。
+   *
+   * 与触发方式无关，任务终结后仍保留；前端只做文案映射，不自行拼装。
+   */
+  generationStatus: string | null
 }
 
 export interface AigcProjectMediaRef {
@@ -359,13 +367,36 @@ export interface AigcObjectVersion {
   createTime: string
 }
 
+/** 项目当前未终结的 canonical Task 投影；状态真理源是 Task 本身，前端不本地推导。 */
+export interface AigcProjectCurrentTask {
+  taskId: string
+  status: string
+  proposalId: string
+  proposalVersion: number
+  itemKeys: string[]
+  /** 已开始的目标及其当前 root Run 状态；未开始的目标不出现在此列表。 */
+  targetRuns: Array<{
+    itemKey: string
+    executionRunId: number
+    status: AigcExecutionStatus
+  }>
+  /** 等待外部结果且需人工决策时的阻断原因；为空表示无需人工介入。 */
+  decisionBlockers: string[]
+}
+
 export interface AigcProjectProgress {
   projectionVersion: number
   updatedAt: string
   projectId: number
   projectVersion: number
   graphRevision: number
-  currentTask: null
+  currentTask: AigcProjectCurrentTask | null
+  /**
+   * 项目初始化字段最近一次生成执行的状态，键是字段键（如 `background`）。
+   *
+   * 不限定当前任务，任务终结后仍保留；对象状态看 readiness，文档状态看文档引用投影，不在此重复。
+   */
+  initializationFieldGenerationStatus: Record<string, string>
   objects: Array<{
     objectId: number
     maturity: AigcObjectStatus
@@ -507,12 +538,19 @@ export interface AigcSlotCountOverride {
   requestedCount: number
 }
 
-export interface AigcProjectDocumentInput {
-  fieldKey: string
-  documentId?: number
-  documentVersionId?: number
-  contextNote?: string
-}
+export type AigcProjectDocumentInput =
+  | {
+      fieldKey: string
+      documentId: number
+      documentVersionId?: null
+      contextNote?: string | null
+    }
+  | {
+      fieldKey: string
+      documentId?: null
+      documentVersionId: number
+      contextNote?: string | null
+    }
 
 export interface AigcProjectCreationProposalRef {
   draftId: string
@@ -521,7 +559,303 @@ export interface AigcProjectCreationProposalRef {
   proposalHash: string
 }
 
-export interface AigcProjectMaterializeInput {
+export interface AssistantBlueprintProjectSpecification {
+  projectTypeCode: AigcProjectTypeCode
+  productionMode: AigcProductionMode
+  channelCodes: string[]
+  description: string | null
+  background: string | null
+  targetAudience: string | null
+  requirements: string[]
+  constraints: string[]
+  keyFacts: string[]
+  keyMessages: string[]
+  styleGuidance: string | null
+  successCriteria: string[]
+  deliveryRequirements: Record<string, unknown>
+  locale: string | null
+  additionalContext: string | null
+}
+
+export type AssistantBlueprintCreationDocument =
+  | {
+      fieldKey: string
+      documentId: number
+      documentVersionId?: null
+      contextNote: string | null
+    }
+  | {
+      fieldKey: string
+      documentId?: null
+      documentVersionId: number
+      contextNote: string | null
+    }
+
+export interface AssistantBlueprintCreationContext {
+  name: string
+  projectSpecification: AssistantBlueprintProjectSpecification
+  brandProfileVersionIds: number[]
+  documents: AssistantBlueprintCreationDocument[]
+  coverMode: AigcProjectCoverMode
+  coverFileId: number | null
+  coverPrompt: string | null
+  coverIdempotencyKey: string | null
+}
+
+export interface AssistantBlueprintSnapshotExecutionBinding {
+  actionKey: string
+  executionBindingVersionId: number
+}
+
+export interface AssistantBlueprintSnapshotProjectSpecification {
+  projectTypeCode: AigcProjectTypeCode
+  projectTypeVersion: string
+  productionMode: AigcProductionMode
+  channelSpecVersionIds: number[]
+  executionBindings: AssistantBlueprintSnapshotExecutionBinding[]
+  description: string | null
+  background: string | null
+  targetAudience: string | null
+  requirements: string[]
+  constraints: string[]
+  keyFacts: string[]
+  keyMessages: string[]
+  styleGuidance: string | null
+  successCriteria: string[]
+  deliveryRequirements: Record<string, unknown>
+  locale: string | null
+  additionalContext: string | null
+  slotOverrides: AigcSlotCountOverride[]
+}
+
+export interface AssistantBlueprintSnapshotInitializationField {
+  key: AigcProjectInitializationFieldKey
+  label: string
+  description: string | null
+  valueType: "TEXT" | "TEXTAREA" | "STRING_LIST" | "JSON" | "SELECT"
+  required: boolean
+  aiAssist: boolean
+  affectsStructure: boolean
+  orderNo: number
+  validation: Record<string, unknown>
+}
+
+export interface AssistantBlueprintSnapshotDocumentContextPolicy {
+  mode: AigcProjectDocumentContextMode
+  priority: number
+  maxTokens: number
+}
+
+export interface AssistantBlueprintSnapshotInitializationDocument {
+  key: string
+  role: string
+  label: string
+  description: string | null
+  referenceType: AigcProjectDocumentReferenceType
+  required: boolean
+  minCount: number
+  maxCount: number
+  aiAssist: boolean
+  contextPolicy: AssistantBlueprintSnapshotDocumentContextPolicy
+  orderNo: number
+}
+
+export interface AssistantBlueprintSnapshotInitialization {
+  fields: AssistantBlueprintSnapshotInitializationField[]
+  documents: AssistantBlueprintSnapshotInitializationDocument[]
+}
+
+export interface AssistantBlueprintSnapshotActivationCondition {
+  productionModes: AigcProductionMode[]
+  channelsAny: string[]
+}
+
+export interface AssistantBlueprintSnapshotSlotTemplate {
+  templateKey: string
+  stableKeyPattern: string
+  objectType: string
+  displayNamePattern: string | null
+  description: string | null
+  parentTemplateKey: string | null
+  orderNo: number
+  defaultCount: number
+  minCount: number
+  maxCount: number
+  userAddable: boolean
+  userRemovable: boolean
+  defaultContractRole: AigcContractRole
+  semanticRole: AigcSemanticRole
+  outputContract: AigcOutputContract
+  adoptionPolicy: string
+  countByProductionMode: Record<string, number>
+  activationCondition: AssistantBlueprintSnapshotActivationCondition
+  userInstructionJson: string | null
+  initialPayloadJson: string | null
+  payloadSchemaJson: string | null
+}
+
+export interface AssistantBlueprintSnapshotObject {
+  stableKey: string
+  blueprintTemplateKey: string
+  instanceNo: number
+  objectType: string
+  displayName: string
+  parentKey: string | null
+  orderNo: number
+  contractRole: AigcContractRole
+  semanticRole: AigcSemanticRole
+  outputContract: AigcOutputContract
+  adoptionPolicy: string
+  defaultActionKey: string | null
+  userInstructionJson: string | null
+  initialPayloadJson: string | null
+  payloadSchemaJson: string | null
+}
+
+export interface AssistantBlueprintSnapshotRelation {
+  sourceKey: string
+  targetKey: string
+  relationType: string
+  metadataJson: string | null
+  canonicalLayer: AigcRelationLayer
+  direction: string
+  allowedSourceSemanticRoles: AigcSemanticRole[]
+  allowedTargetSemanticRoles: AigcSemanticRole[]
+  acyclic: boolean
+  affectsReadiness: boolean
+}
+
+export interface AssistantBlueprintSnapshotOutputContract {
+  localKey: string
+  outputContract: AigcOutputContract
+}
+
+export interface AssistantBlueprintSnapshotAction {
+  actionKey: string
+  targetTemplateKey: string
+  dependencyTemplateKeys: string[]
+  requiredContextKeys: string[]
+  confirmationPolicy: "REQUIRED" | "OPTIONAL"
+  isDefault: boolean
+  inputPresetJson: string | null
+}
+
+export interface AssistantBlueprintSnapshotDeliverableSet {
+  setTemplateKey: string
+  allowedSlotTemplateKeys: string[]
+  allowedCustomObjectTypes: string[]
+  defaultUserAddedContractRole: AigcContractRole
+  completionMode: string
+  reviewMode: string
+  publicationPolicy: AigcPublicationPolicy
+}
+
+export interface AssistantBlueprintSnapshotProcessPolicy {
+  reviewRequired: boolean
+  publicationPolicy: AigcPublicationPolicy
+  autoActionKeys: string[]
+  confirmationGateKeys: string[]
+}
+
+export interface AssistantBlueprintNormalizedSnapshot {
+  sourceType: "ASSISTANT_GENERATED"
+  sourceRef: string
+  projectSpecification: AssistantBlueprintSnapshotProjectSpecification
+  projectInitialization: AssistantBlueprintSnapshotInitialization
+  slotTemplates: AssistantBlueprintSnapshotSlotTemplate[]
+  objectSpecs: AssistantBlueprintSnapshotObject[]
+  relationSpecs: AssistantBlueprintSnapshotRelation[]
+  outputContracts: AssistantBlueprintSnapshotOutputContract[]
+  actions: AssistantBlueprintSnapshotAction[]
+  deliverableSets: AssistantBlueprintSnapshotDeliverableSet[]
+  processPolicy: AssistantBlueprintSnapshotProcessPolicy
+  snapshotVersion: 2
+}
+
+export type AssistantBlueprintProposalStatus =
+  | "PLANNING"
+  | "AWAITING_CONFIRMATION"
+  | "CONFIRMED"
+  | "EXPIRED"
+  | "SUPERSEDED"
+  | "MATERIALIZED"
+  | "CANCELED"
+  | "FAILED"
+
+export interface AssistantBlueprintProposalView {
+  planningId: string
+  proposalId: string
+  proposalVersion: number
+  proposalHash: string | null
+  projectName: string
+  creationContext: AssistantBlueprintCreationContext
+  status: AssistantBlueprintProposalStatus
+  normalizedSnapshot: AssistantBlueprintNormalizedSnapshot | null
+  validationResult: Record<string, unknown>
+  sourceTaskId: string
+  sourceExecutionId: string | null
+  estimatedCredits: number | null
+  expiresAt: string
+  confirmedTime: string | null
+  linkedProjectId: number | null
+}
+
+export interface AssistantBlueprintProposalStartInput {
+  assistantId: string
+  instruction: string
+  creationContext: AssistantBlueprintCreationContext
+}
+
+export interface AssistantBlueprintProposalReviseInput {
+  proposalId: string
+  proposalVersion: number
+  proposalHash: string
+  instruction: string
+}
+
+export interface AssistantBlueprintProposalConfirmInput {
+  proposalId: string
+  proposalVersion: number
+  proposalHash: string
+}
+
+export interface AssistantBlueprintProposalCancelInput {
+  proposalId: string
+  proposalVersion: number
+  proposalHash: string | null
+}
+
+function stableAssistantBlueprintContextValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.filter((item) => item !== undefined).map(stableAssistantBlueprintContextValue)
+  }
+  if (value === null || typeof value !== "object") return value
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter((entry) => entry[1] !== undefined)
+      .toSorted(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => [key, stableAssistantBlueprintContextValue(item)])
+  )
+}
+
+/** 为 Assistant Blueprint 创建上下文生成稳定、可比较的纯字符串指纹。 */
+export function assistantBlueprintCreationContextFingerprint(
+  context: AssistantBlueprintCreationContext
+): string {
+  return JSON.stringify(
+    stableAssistantBlueprintContextValue({
+      ...context,
+      documents: context.documents.map((document) => ({
+        fieldKey: document.fieldKey,
+        documentId: document.documentId ?? null,
+        documentVersionId: document.documentVersionId ?? null,
+        contextNote: document.contextNote ?? null
+      }))
+    })
+  )
+}
+
+export interface AigcProjectCatalogMaterializeInput {
   name: string
   description?: string
   background?: string
@@ -535,8 +869,6 @@ export interface AigcProjectMaterializeInput {
   deliveryRequirements?: Record<string, unknown>
   locale?: string
   additionalContext?: string
-  sourceType: "CATALOG"
-  sourceRef: string
   projectTypeCode: AigcProjectTypeCode
   blueprintVersionId: number
   brandProfileVersionIds?: number[]
@@ -550,6 +882,22 @@ export interface AigcProjectMaterializeInput {
   coverIdempotencyKey?: string
   approvedCreationProposal?: AigcProjectCreationProposalRef
 }
+
+export type AigcProjectMaterializeInput =
+  | {
+      sourceType: "CATALOG"
+      catalog: AigcProjectCatalogMaterializeInput
+      assistantProposal?: never
+    }
+  | {
+      sourceType: "ASSISTANT_GENERATED"
+      catalog?: never
+      assistantProposal: {
+        proposalId: string
+        proposalVersion: number
+        proposalHash: string
+      }
+    }
 
 export interface AigcProjectCoverPatchInput {
   operation: AigcProjectCoverOperation
@@ -640,6 +988,14 @@ export interface AigcLifecycleInput {
   action: "complete" | "archive"
   expectedProjectVersion: number
   reason: string
+  idempotencyKey: string
+}
+
+/** 协作模式切换输入；只影响尚未提交的新动作，不修改活跃 Task 与已提交 Run。 */
+export interface AigcProjectGenerationModeInput {
+  projectId: number
+  mode: AigcGenerationMode
+  expectedProjectVersion: number
   idempotencyKey: string
 }
 
@@ -778,7 +1134,8 @@ export interface AigcProjectGenerationApproveAndStartInput {
   proposalId: string
   proposalVersion: number
   proposalHash: string
-  approvedTargetKeys: [string]
+  /** 本次在同一 canonical Task 内推进的已批准目标，至少一项；服务端会再次校验批准范围。 */
+  approvedTargetKeys: string[]
   approvalIdempotencyKey: string
 }
 
@@ -847,7 +1204,8 @@ export interface AigcProjectCreationDraftApproveAndStartInput {
   proposalId: string
   proposalVersion: number
   proposalHash: string
-  approvedTargetKeys: [string]
+  /** 本次确认并启动的目标 itemKey；服务端要求至少一项，可一次批准多个初始化字段。 */
+  approvedTargetKeys: string[]
   approvalIdempotencyKey: string
   assistantId: string
 }
@@ -872,6 +1230,35 @@ export const aigcProjectCreationDraftApi = {
   approveAndStartGeneration: (data: AigcProjectCreationDraftApproveAndStartInput) =>
     backendApi.post<AigcProjectGenerationProposal>(
       "/aigc/project-creation-drafts/generation-proposals/_approve-and-start",
+      data,
+      { showError: false }
+    ),
+  blueprintProposals: () =>
+    backendApi.get<AssistantBlueprintProposalView[]>(
+      "/aigc/project-creation-drafts/blueprint-proposals",
+      { showError: false }
+    ),
+  startBlueprintProposal: (data: AssistantBlueprintProposalStartInput) =>
+    backendApi.post<AssistantBlueprintProposalView>(
+      "/aigc/project-creation-drafts/blueprint-proposals/_start",
+      data,
+      { showError: false }
+    ),
+  reviseBlueprintProposal: (data: AssistantBlueprintProposalReviseInput) =>
+    backendApi.post<AssistantBlueprintProposalView>(
+      "/aigc/project-creation-drafts/blueprint-proposals/_revise",
+      data,
+      { showError: false }
+    ),
+  confirmBlueprintProposal: (data: AssistantBlueprintProposalConfirmInput) =>
+    backendApi.post<AssistantBlueprintProposalView>(
+      "/aigc/project-creation-drafts/blueprint-proposals/_confirm",
+      data,
+      { showError: false }
+    ),
+  cancelBlueprintProposal: (data: AssistantBlueprintProposalCancelInput) =>
+    backendApi.post<AssistantBlueprintProposalView>(
+      "/aigc/project-creation-drafts/blueprint-proposals/_cancel",
       data,
       { showError: false }
     )
@@ -903,28 +1290,20 @@ export const aigcProjectApi = {
     }),
   progress: (id: number) => backendApi.get<AigcProjectProgress>(`/aigc/projects/${id}/progress`),
   generationProposals: (id: number) =>
-    backendApi.get<AigcProjectGenerationProposal[]>(
-      `/aigc/projects/${id}/generation-proposals`
-    ),
+    backendApi.get<AigcProjectGenerationProposal[]>(`/aigc/projects/${id}/generation-proposals`),
   proposeGeneration: ({ projectId, ...data }: AigcProjectGenerationProposalCreateInput) =>
     backendApi.post<AigcProjectGenerationProposal>(
       `/aigc/projects/${projectId}/generation-proposals`,
       data,
       { showError: false }
     ),
-  reviseGenerationProposal: ({
-    projectId,
-    ...data
-  }: AigcProjectGenerationProposalReviseInput) =>
+  reviseGenerationProposal: ({ projectId, ...data }: AigcProjectGenerationProposalReviseInput) =>
     backendApi.post<AigcProjectGenerationProposal>(
       `/aigc/projects/${projectId}/generation-proposals/_revise`,
       data,
       { showError: false }
     ),
-  approveAndStartGeneration: ({
-    projectId,
-    ...data
-  }: AigcProjectGenerationApproveAndStartInput) =>
+  approveAndStartGeneration: ({ projectId, ...data }: AigcProjectGenerationApproveAndStartInput) =>
     backendApi.post<AigcProjectGenerationProposal>(
       `/aigc/projects/${projectId}/generation-proposals/_approve-and-start`,
       data,
@@ -1094,6 +1473,10 @@ export const aigcProjectApi = {
       expectedProjectVersion: input.expectedProjectVersion,
       idempotencyKey: input.idempotencyKey,
       reason: input.reason
+    }),
+  switchGenerationMode: ({ projectId, ...data }: AigcProjectGenerationModeInput) =>
+    backendApi.post<AigcProjectView>(`/aigc/projects/${projectId}/generation-mode`, data, {
+      showError: false
     })
 }
 
@@ -1101,15 +1484,13 @@ export const aigcProjectKeys = {
   all: ["aigc.project"] as const,
   list: (params: AigcProjectParams) => ["aigc.project", "list", params] as const,
   detail: (id: number) => ["aigc.project", "detail", id] as const,
-  conversationContext: (id: number) =>
-    ["aigc.project", "conversation-context", id] as const,
+  conversationContext: (id: number) => ["aigc.project", "conversation-context", id] as const,
   graph: (id: number) => ["aigc.project", "graph", id] as const,
   summary: (id: number) => ["aigc.project", "summary", id] as const,
   readiness: (id: number, includedOptionalObjectIds: number[] = []) =>
     ["aigc.project", "readiness", id, includedOptionalObjectIds] as const,
   progress: (id: number) => ["aigc.project", "progress", id] as const,
-  generationProposals: (id: number) =>
-    ["aigc.project", "generation-proposals", id] as const,
+  generationProposals: (id: number) => ["aigc.project", "generation-proposals", id] as const,
   configuration: (id: number) => ["aigc.project", "configuration", id] as const,
   channelRefs: (id: number) => ["aigc.project", "channel-refs", id] as const,
   documentRefs: (id: number) => ["aigc.project", "document-refs", id] as const,
@@ -1128,7 +1509,8 @@ export const aigcProjectKeys = {
 export const aigcProjectCreationDraftKeys = {
   all: ["aigc.project-creation-draft"] as const,
   generationProposals: (draftId: string) =>
-    ["aigc.project-creation-draft", draftId, "generation-proposals"] as const
+    ["aigc.project-creation-draft", draftId, "generation-proposals"] as const,
+  blueprintProposals: ["aigc.project-creation-draft", "blueprint-proposals"] as const
 }
 
 export function useAigcProjects(params: AigcProjectParams = {}) {
@@ -1195,6 +1577,17 @@ export function useAigcProjectCreationDraftProposals(draftId: string | null) {
     queryKey: aigcProjectCreationDraftKeys.generationProposals(draftId ?? ""),
     queryFn: () => aigcProjectCreationDraftApi.generationProposals(draftId as string),
     enabled: draftId !== null
+  })
+}
+
+/** 查询当前 owner/workspace 的全部 Assistant Blueprint Proposal 版本。 */
+export function useAssistantBlueprintProposals(enabled = true) {
+  return useQuery({
+    queryKey: aigcProjectCreationDraftKeys.blueprintProposals,
+    queryFn: aigcProjectCreationDraftApi.blueprintProposals,
+    enabled,
+    refetchInterval: (query) =>
+      query.state.data?.some((proposal) => proposal.status === "PLANNING") ? 3000 : false
   })
 }
 export function useAigcProjectConfiguration(id: number | null) {
@@ -1300,8 +1693,7 @@ function refreshAigcProjectCreationDraftProposalState(
     proposal,
     ...current.filter(
       (item) =>
-        item.proposalId !== proposal.proposalId ||
-        item.proposalVersion !== proposal.proposalVersion
+        item.proposalId !== proposal.proposalId || item.proposalVersion !== proposal.proposalVersion
     )
   ])
   return queryClient.invalidateQueries({ queryKey })
@@ -1311,8 +1703,7 @@ export function useProposeAigcProjectCreationDraftGeneration() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: aigcProjectCreationDraftApi.proposeGeneration,
-    onSuccess: (proposal) =>
-      refreshAigcProjectCreationDraftProposalState(queryClient, proposal)
+    onSuccess: (proposal) => refreshAigcProjectCreationDraftProposalState(queryClient, proposal)
   })
 }
 
@@ -1320,8 +1711,7 @@ export function useReviseAigcProjectCreationDraftGenerationProposal() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: aigcProjectCreationDraftApi.reviseGenerationProposal,
-    onSuccess: (proposal) =>
-      refreshAigcProjectCreationDraftProposalState(queryClient, proposal)
+    onSuccess: (proposal) => refreshAigcProjectCreationDraftProposalState(queryClient, proposal)
   })
 }
 
@@ -1329,8 +1719,74 @@ export function useApproveAndStartAigcProjectCreationDraftGeneration() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: aigcProjectCreationDraftApi.approveAndStartGeneration,
+    onSuccess: (proposal) => refreshAigcProjectCreationDraftProposalState(queryClient, proposal)
+  })
+}
+
+function refreshAssistantBlueprintProposalState(
+  queryClient: ReturnType<typeof useQueryClient>,
+  proposal: AssistantBlueprintProposalView
+) {
+  const queryKey = aigcProjectCreationDraftKeys.blueprintProposals
+  queryClient.setQueryData<AssistantBlueprintProposalView[]>(queryKey, (current = []) => [
+    proposal,
+    ...current.filter(
+      (item) =>
+        item.proposalId !== proposal.proposalId || item.proposalVersion !== proposal.proposalVersion
+    )
+  ])
+  return queryClient.invalidateQueries({ queryKey })
+}
+
+export function useStartAssistantBlueprintProposal() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: aigcProjectCreationDraftApi.startBlueprintProposal,
+    onSuccess: (proposal) => refreshAssistantBlueprintProposalState(queryClient, proposal),
+    onError: () =>
+      queryClient.invalidateQueries({
+        queryKey: aigcProjectCreationDraftKeys.blueprintProposals
+      })
+  })
+}
+
+export function useReviseAssistantBlueprintProposal() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: aigcProjectCreationDraftApi.reviseBlueprintProposal,
+    onSuccess: (proposal) => refreshAssistantBlueprintProposalState(queryClient, proposal),
+    onError: () =>
+      queryClient.invalidateQueries({
+        queryKey: aigcProjectCreationDraftKeys.blueprintProposals
+      })
+  })
+}
+
+export function useConfirmAssistantBlueprintProposal() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: aigcProjectCreationDraftApi.confirmBlueprintProposal,
+    onSuccess: (proposal) => refreshAssistantBlueprintProposalState(queryClient, proposal),
+    onError: () =>
+      queryClient.invalidateQueries({
+        queryKey: aigcProjectCreationDraftKeys.blueprintProposals
+      })
+  })
+}
+
+export function useCancelAssistantBlueprintProposal() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: aigcProjectCreationDraftApi.cancelBlueprintProposal,
     onSuccess: (proposal) =>
-      refreshAigcProjectCreationDraftProposalState(queryClient, proposal)
+      Promise.all([
+        refreshAssistantBlueprintProposalState(queryClient, proposal),
+        queryClient.invalidateQueries({ queryKey: taskKeys.detail(proposal.sourceTaskId) })
+      ]),
+    onError: () =>
+      queryClient.invalidateQueries({
+        queryKey: aigcProjectCreationDraftKeys.blueprintProposals
+      })
   })
 }
 
@@ -1496,6 +1952,13 @@ export function useAigcProjectLifecycle() {
     onSuccess: (_project, input) => invalidateAigcProject(queryClient, input.projectId)
   })
 }
+export function useSwitchAigcProjectGenerationMode() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: aigcProjectApi.switchGenerationMode,
+    onSuccess: (_project, input) => invalidateAigcProject(queryClient, input.projectId)
+  })
+}
 export function useAttachAigcProjectDocument() {
   const queryClient = useQueryClient()
   return useMutation({
@@ -1593,12 +2056,14 @@ export interface AigcProjectObjectContractInput {
   objectId: number
   contractRole: AigcContractRole
   expectedProjectVersion: number
+  expectedGraphRevision: number
 }
 
 export interface AigcProjectObjectRemoveInput {
   projectId: number
   objectId: number
   expectedProjectVersion: number
+  expectedGraphRevision: number
   reason?: string
 }
 

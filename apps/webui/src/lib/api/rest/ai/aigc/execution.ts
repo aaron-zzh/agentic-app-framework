@@ -36,7 +36,8 @@ export interface AigcActionCommand {
   actionArguments?: Record<string, unknown>
   attachmentMediaVersionIds?: number[]
   selectedProjectObjectIds?: number[]
-  expectedGraphRevision?: number
+  expectedProjectVersion: number
+  expectedGraphRevision: number
   confirmed?: boolean
   idempotencyKey: string
 }

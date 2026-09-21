@@ -149,6 +149,8 @@ export interface TaskDetails {
   executions: TaskExecutionDetails[]
   createdAt: string
   updatedAt: string
+  /** 等待外部结果且需人工决策时的阻断原因；为空表示无需人工介入。终态任务恒为空。 */
+  decisionBlockers: string[]
 }
 
 export const taskKeys = {
