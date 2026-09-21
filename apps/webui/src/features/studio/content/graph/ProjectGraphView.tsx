@@ -18,18 +18,30 @@ import {
 import {
   ChevronDown,
   ChevronRight,
+  Ellipsis,
   Eye,
+  FilePenLine,
   FileText,
   Layers3,
   PanelTopOpen,
+  Plus,
   ScanLine,
-  Sparkles
+  Sparkles,
+  Trash2
 } from "lucide-react"
-import { createContext, memo, useContext, useMemo } from "react"
+import { createContext, memo, useContext, useId, useMemo } from "react"
 import "@xyflow/react/dist/style.css"
 import { GlassCard } from "@/components/studio"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import type {
   AigcObjectReadiness,
@@ -42,6 +54,8 @@ import {
   type ContentGraphNodeData,
   OBJECT_STATUS_LABELS,
   OUTPUT_CONTRACT_LABELS,
+  objectMediaActionPresentation,
+  objectStructureActionState,
   READINESS_LABELS,
   RELATION_LAYER_LABELS,
   SEMANTIC_ROLE_LABELS,
@@ -65,10 +79,14 @@ interface GraphNodeActions {
   selectionMode: boolean
   selectableObjectIds: ReadonlySet<number>
   generatableObjectIds: ReadonlySet<number>
+  readinessByObjectId: ReadonlyMap<number, AigcObjectReadiness>
   onOpenDetails?: (id: number) => void
   onOpenCanvas?: (id: number) => void
   onAnnotateImage?: (id: number) => void
   onGenerateObject?: (id: number) => void
+  onUpdateContract?: (id: number) => void
+  onRemoveObject?: (id: number) => void
+  onAppendChildObject?: (id: number) => void
 }
 
 const GraphNodeActionsContext = createContext<GraphNodeActions | null>(null)
@@ -81,6 +99,7 @@ function ObjectTypeIcon({ type }: { type: NonNullable<ContentGraphNodeData["obje
 function ContentDomainNodeComponent({ data, selected }: NodeProps) {
   const node = data as ContentGraphNodeData
   const actions = useContext(GraphNodeActionsContext)
+  const reasonIdPrefix = useId()
   const toggleCollapsedGroup = useProjectGraphViewState(
     actions?.projectId ?? 0,
     (state) => state.toggleCollapsedGroup
@@ -93,6 +112,49 @@ function ContentDomainNodeComponent({ data, selected }: NodeProps) {
     actions?.onAnnotateImage !== undefined
   const selectable =
     objectId !== undefined && (!actions?.selectionMode || actions.selectableObjectIds.has(objectId))
+  const readiness = objectId === undefined ? undefined : actions?.readinessByObjectId.get(objectId)
+  const readOnly = actions?.readOnly ?? true
+  const mediaAction =
+    node.outputContract === "MEDIA_VERSION" && objectId !== undefined
+      ? objectMediaActionPresentation({
+          readiness,
+          generatable: actions?.generatableObjectIds.has(objectId) ?? false,
+          readOnly
+        })
+      : null
+  const contractState = objectStructureActionState({
+    readiness,
+    actionKey: "object.contract",
+    readOnly
+  })
+  const removeState = objectStructureActionState({
+    readiness,
+    actionKey: "object.remove",
+    readOnly
+  })
+  const appendChildState = objectStructureActionState({
+    readiness,
+    actionKey: "object.append.child",
+    readOnly
+  })
+  const structureActionsVisible =
+    !readOnly &&
+    (actions?.onUpdateContract !== undefined ||
+      actions?.onRemoveObject !== undefined ||
+      actions?.onAppendChildObject !== undefined)
+  const mediaReasonId = `${reasonIdPrefix}-media`
+  const actionReasons = [
+    mediaAction?.reason ? { id: mediaReasonId, text: `生成：${mediaAction.reason}` } : null,
+    structureActionsVisible && contractState.reason
+      ? { id: `${reasonIdPrefix}-contract`, text: `合同：${contractState.reason}` }
+      : null,
+    structureActionsVisible && removeState.reason
+      ? { id: `${reasonIdPrefix}-remove`, text: `移除：${removeState.reason}` }
+      : null,
+    structureActionsVisible && appendChildState.reason
+      ? { id: `${reasonIdPrefix}-append-child`, text: `添加下级：${appendChildState.reason}` }
+      : null
+  ].filter((reason): reason is { id: string; text: string } => reason !== null)
 
   return (
     <GlassCard
@@ -163,52 +225,106 @@ function ContentDomainNodeComponent({ data, selected }: NodeProps) {
           <p className="line-clamp-2 text-destructive text-xs">{node.blockedReason}</p>
         ) : null}
         {!isGroup && objectId !== undefined && !actions?.selectionMode ? (
-          <div className="nodrag flex gap-1">
-            <Button
-              type="button"
-              variant="outline"
-              size="xs"
-              className="flex-1"
-              onClick={(event) => {
-                event.stopPropagation()
-                actions?.onOpenDetails?.(objectId)
-              }}
-            >
-              {node.outputContract === "DOCUMENT_VERSION" ? <FileText /> : <Eye />}
-              {node.outputContract === "DOCUMENT_VERSION" ? "手动创建" : "详情"}
-            </Button>
-            {node.outputContract === "MEDIA_VERSION" ? (
+          <div className="nodrag flex flex-col gap-1">
+            <div className="flex gap-1">
               <Button
                 type="button"
                 variant="outline"
                 size="xs"
                 className="flex-1"
-                disabled={actions?.readOnly || !actions?.generatableObjectIds.has(objectId)}
                 onClick={(event) => {
                   event.stopPropagation()
-                  actions?.onGenerateObject?.(objectId)
+                  actions?.onOpenDetails?.(objectId)
                 }}
               >
-                <Sparkles />
-                生成
+                {node.outputContract === "DOCUMENT_VERSION" ? <FileText /> : <Eye />}
+                {node.outputContract === "DOCUMENT_VERSION" ? "手动创建" : "详情"}
               </Button>
-            ) : null}
-            {canOpenCanvas || canAnnotate ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="xs"
-                className="flex-1"
-                disabled={actions?.readOnly}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  if (canOpenCanvas) actions?.onOpenCanvas?.(objectId)
-                  else actions?.onAnnotateImage?.(objectId)
-                }}
-              >
-                {canOpenCanvas ? <PanelTopOpen /> : <ScanLine />}
-                {canOpenCanvas ? "画布" : "标注"}
-              </Button>
+              {mediaAction ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  className="flex-1"
+                  disabled={mediaAction.disabled}
+                  aria-describedby={mediaAction.reason ? mediaReasonId : undefined}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    if (mediaAction.intent === "candidate") actions?.onOpenDetails?.(objectId)
+                    else actions?.onGenerateObject?.(objectId)
+                  }}
+                >
+                  <Sparkles />
+                  {mediaAction.label}
+                </Button>
+              ) : null}
+              {canOpenCanvas || canAnnotate ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="xs"
+                  className="flex-1"
+                  disabled={actions?.readOnly}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    if (canOpenCanvas) actions?.onOpenCanvas?.(objectId)
+                    else actions?.onAnnotateImage?.(objectId)
+                  }}
+                >
+                  {canOpenCanvas ? <PanelTopOpen /> : <ScanLine />}
+                  {canOpenCanvas ? "画布" : "标注"}
+                </Button>
+              ) : null}
+              {structureActionsVisible ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    className={cn(buttonVariants({ variant: "outline", size: "icon-xs" }))}
+                    aria-label={`${node.title} 结构操作`}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <Ellipsis />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-56">
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel>结构操作</DropdownMenuLabel>
+                      <DropdownMenuItem
+                        disabled={contractState.disabled}
+                        onClick={() => actions?.onUpdateContract?.(objectId)}
+                      >
+                        <FilePenLine />
+                        合同
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={removeState.disabled}
+                        onClick={() => actions?.onRemoveObject?.(objectId)}
+                      >
+                        <Trash2 />
+                        移除
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={appendChildState.disabled}
+                        onClick={() => actions?.onAppendChildObject?.(objectId)}
+                      >
+                        <Plus />
+                        添加下级
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : null}
+            </div>
+            {actionReasons.length > 0 ? (
+              <div className="flex flex-col gap-0.5">
+                {actionReasons.map((reason) => (
+                  <p
+                    key={reason.id}
+                    id={reason.id}
+                    className="text-[11px] text-muted-foreground leading-snug"
+                  >
+                    {reason.text}
+                  </p>
+                ))}
+              </div>
             ) : null}
           </div>
         ) : null}
@@ -244,6 +360,9 @@ export interface ProjectGraphViewProps {
   onOpenCanvas?: (id: number) => void
   onAnnotateImage?: (id: number) => void
   onGenerateObject?: (id: number) => void
+  onUpdateContract?: (id: number) => void
+  onRemoveObject?: (id: number) => void
+  onAppendChildObject?: (id: number) => void
 }
 
 function tierForZoom(zoom: number) {
@@ -266,7 +385,10 @@ export function ProjectGraphView({
   onOpenDetails,
   onOpenCanvas,
   onAnnotateImage,
-  onGenerateObject
+  onGenerateObject,
+  onUpdateContract,
+  onRemoveObject,
+  onAppendChildObject
 }: ProjectGraphViewProps) {
   const projectId = requestedProjectId ?? graph.project.id
   const viewport = useProjectGraphViewState(projectId, (state) => state.viewport)
@@ -292,6 +414,10 @@ export function ProjectGraphView({
     () => new Set(generatableObjectIds),
     [generatableObjectIds]
   )
+  const readinessByObjectId = useMemo(
+    () => new Map(readiness.map((item) => [item.projectObjectId, item] as const)),
+    [readiness]
+  )
   const nodeActions = useMemo(
     () => ({
       projectId,
@@ -299,10 +425,14 @@ export function ProjectGraphView({
       selectionMode,
       selectableObjectIds: selectableObjectIdSet,
       generatableObjectIds: generatableObjectIdSet,
+      readinessByObjectId,
       onOpenDetails,
       onOpenCanvas,
       onAnnotateImage,
-      onGenerateObject
+      onGenerateObject,
+      onUpdateContract,
+      onRemoveObject,
+      onAppendChildObject
     }),
     [
       projectId,
@@ -310,10 +440,14 @@ export function ProjectGraphView({
       selectionMode,
       selectableObjectIdSet,
       generatableObjectIdSet,
+      readinessByObjectId,
       onOpenDetails,
       onOpenCanvas,
       onAnnotateImage,
-      onGenerateObject
+      onGenerateObject,
+      onUpdateContract,
+      onRemoveObject,
+      onAppendChildObject
     ]
   )
 

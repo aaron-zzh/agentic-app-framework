@@ -5,7 +5,14 @@
 
 "use client"
 
-import { ArrowLeft, BookOpen, GitBranch, LayoutList } from "lucide-react"
+import {
+  ArrowLeft,
+  BookOpen,
+  CalendarClock,
+  ClipboardList,
+  GitBranch,
+  LayoutList
+} from "lucide-react"
 import Link from "next/link"
 import type { ReactNode } from "react"
 import { NeonChip } from "@/components/studio"
@@ -23,9 +30,13 @@ export interface ProjectWorkbenchHeaderProps {
   lifecycleActions?: ReactNode
   assistantControl?: ReactNode
   onViewChange: (view: ProjectWorkbenchView) => void
+  onOpenBrief: () => void
+  briefOpen: boolean
   onOpenDocuments: () => void
   documentsOpen: boolean
   documentCount: number
+  onOpenSchedule?: () => void
+  scheduleOpen?: boolean
 }
 
 export function ProjectWorkbenchHeader({
@@ -34,9 +45,13 @@ export function ProjectWorkbenchHeader({
   lifecycleActions,
   assistantControl,
   onViewChange,
+  onOpenBrief,
+  briefOpen,
   onOpenDocuments,
   documentsOpen,
-  documentCount
+  documentCount,
+  onOpenSchedule,
+  scheduleOpen
 }: ProjectWorkbenchHeaderProps) {
   const type = getProjectTypeConfig({ code: project.projectTypeCode, name: "" })
   const status = PROJECT_STATUS_CONFIG[project.status]
@@ -93,6 +108,16 @@ export function ProjectWorkbenchHeader({
         <Button
           variant="outline"
           size="sm"
+          aria-label="打开项目简报"
+          className={cn(briefOpen && "border-primary/40 bg-primary/10 text-primary")}
+          onClick={onOpenBrief}
+        >
+          <ClipboardList />
+          简报
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
           aria-label="打开项目文档"
           className={cn(documentsOpen && "border-primary/40 bg-primary/10 text-primary")}
           onClick={onOpenDocuments}
@@ -100,6 +125,18 @@ export function ProjectWorkbenchHeader({
           <BookOpen />
           文档{documentCount > 0 ? ` (${documentCount})` : ""}
         </Button>
+        {onOpenSchedule && (
+          <Button
+            variant="outline"
+            size="sm"
+            aria-label="打开定时任务"
+            className={cn(scheduleOpen && "border-primary/40 bg-primary/10 text-primary")}
+            onClick={onOpenSchedule}
+          >
+            <CalendarClock />
+            定时任务
+          </Button>
+        )}
       </div>
     </header>
   )

@@ -4,6 +4,7 @@
  */
 
 import {
+  AudioLines,
   BadgePercent,
   BookOpenText,
   Box,
@@ -115,6 +116,7 @@ export const OBJECT_TYPE_CONFIG: Record<AigcObjectType, { label: string; icon: L
   scene: { label: "场次", icon: LayoutTemplate },
   shot: { label: "镜头", icon: Clapperboard },
   shot_keyframe: { label: "镜头关键帧", icon: FileImage },
+  audio_deliverable: { label: "音频交付物", icon: AudioLines },
   character: { label: "角色", icon: UserRound },
   prop: { label: "道具", icon: Box },
   review: { label: "审核", icon: FileSearch },

@@ -57,6 +57,7 @@ export const OBJECT_TYPE_LABELS: Record<AigcObjectType, string> = {
   scene: "场次",
   shot: "镜头",
   shot_keyframe: "镜头关键帧",
+  audio_deliverable: "音频交付物",
   character: "角色",
   prop: "道具",
   review: "审核",
@@ -79,6 +80,98 @@ export const READINESS_LABELS: Record<AigcObjectReadinessState, string> = {
   ACTIVE_RUN: "Run 执行中",
   PENDING_CANDIDATE: "等待候选",
   AWAITING_CONFIRMATION: "等待决策"
+}
+
+/** 对象媒体动作的确定性呈现语义，结构视图与图谱视图共用。 */
+export interface ObjectMediaActionPresentation {
+  /** 按钮文案。 */
+  label: string
+  /** 点击后应进入的确定性入口。 */
+  intent: "generate" | "candidate"
+  disabled: boolean
+  /** 禁用或状态原因，必须对用户可见。 */
+  reason?: string
+}
+
+function mediaNoun(allowedActions: readonly string[]): string {
+  if (allowedActions.includes("video.generate")) return "视频"
+  if (allowedActions.some((action) => action.startsWith("audio."))) return "配音"
+  if (allowedActions.some((action) => action.startsWith("image."))) return "图像"
+  return "内容"
+}
+
+/**
+ * 按服务端 readiness 与允许动作投影媒体按钮语义。
+ *
+ * 不做本地放行：服务端未允许即禁用，并给出可见原因。
+ */
+export function objectMediaActionPresentation(input: {
+  readiness: AigcObjectReadiness | undefined
+  generatable: boolean
+  readOnly: boolean
+}): ObjectMediaActionPresentation {
+  const { readiness, generatable, readOnly } = input
+  const noun = mediaNoun(readiness?.allowedActions ?? [])
+  if (readiness === undefined) {
+    return { label: `生成${noun}`, intent: "generate", disabled: true, reason: "Readiness 加载中" }
+  }
+  if (readiness.state === "ACTIVE_RUN") {
+    return {
+      label: "生成中",
+      intent: "generate",
+      disabled: true,
+      reason: readiness.blockedReason || "对象存在活动 ExecutionRun"
+    }
+  }
+  if (readiness.state === "PENDING_CANDIDATE" || readiness.state === "AWAITING_CONFIRMATION") {
+    return {
+      label: "查看候选",
+      intent: "candidate",
+      disabled: false,
+      reason: readiness.blockedReason || READINESS_LABELS[readiness.state]
+    }
+  }
+  if (readiness.state === "BLOCKED_BY_DEPENDENCY" || readiness.state === "BLOCKED_BY_POLICY") {
+    return {
+      label: `生成${noun}`,
+      intent: "generate",
+      disabled: true,
+      reason: readiness.blockedReason || READINESS_LABELS[readiness.state]
+    }
+  }
+  const label = readiness.state === "SATISFIED" ? "重新生成" : `生成${noun}`
+  if (readOnly) {
+    return { label, intent: "generate", disabled: true, reason: "当前项目内容只读" }
+  }
+  if (!generatable) {
+    return {
+      label,
+      intent: "generate",
+      disabled: true,
+      reason: readiness.blockedReason || "服务端未允许该对象的媒体动作"
+    }
+  }
+  return { label, intent: "generate", disabled: false }
+}
+
+/** 结构写动作的确定性禁用语义，结构视图与图谱视图共用。 */
+export function objectStructureActionState(input: {
+  readiness: AigcObjectReadiness | undefined
+  actionKey: "object.contract" | "object.remove" | "object.append.child"
+  readOnly: boolean
+}): { disabled: boolean; reason?: string } {
+  const { readiness, actionKey, readOnly } = input
+  if (readOnly) return { disabled: true, reason: "当前项目内容只读" }
+  if (readiness === undefined) return { disabled: true, reason: "Readiness 加载中" }
+  if (readiness.allowedActions.includes(actionKey)) return { disabled: false }
+  return {
+    disabled: true,
+    reason:
+      readiness.blockedReason ||
+      (actionKey === "object.append.child"
+        ? "当前项目结构未开放该对象的下级类型"
+        : "服务端未允许该结构动作")
+  }
 }
 
 export const SEMANTIC_ROLE_LABELS: Record<AigcSemanticRole, string> = {
@@ -123,6 +216,7 @@ const TYPE_STAGE: Record<AigcObjectType, ProjectGraphStage> = {
   scene: "material",
   shot: "material",
   shot_keyframe: "material",
+  audio_deliverable: "material",
   character: "material",
   prop: "material",
   canvas_board: "material",

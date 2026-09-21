@@ -16,6 +16,7 @@ import {
   Sparkles,
   Trash2
 } from "lucide-react"
+import { useId } from "react"
 import { GlassCard, GlassCardBody, NeonChip } from "@/components/studio"
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
@@ -39,6 +40,8 @@ import {
   OBJECT_STATUS_LABELS,
   OBJECT_TYPE_LABELS,
   OUTPUT_CONTRACT_LABELS,
+  objectMediaActionPresentation,
+  objectStructureActionState,
   PROJECT_GRAPH_STAGES,
   type ProjectGraphStage,
   READINESS_LABELS,
@@ -70,6 +73,7 @@ export interface ProjectStructureViewProps {
   generatableObjectIds?: number[]
   onStageChange: (stage: ProjectGraphStage) => void
   onAppendObject: () => void
+  onAppendChildObject: (parent: AigcProjectObject) => void
   onUpdateContract: (object: AigcProjectObject) => void
   onRemoveObject: (object: AigcProjectObject) => void
   onOpenDetails: (id: number) => void
@@ -87,6 +91,7 @@ export function ProjectStructureView({
   generatableObjectIds = [],
   onStageChange,
   onAppendObject,
+  onAppendChildObject,
   onUpdateContract,
   onRemoveObject,
   onOpenDetails,
@@ -94,6 +99,7 @@ export function ProjectStructureView({
   onOpenCanvas,
   onAnnotateImage
 }: ProjectStructureViewProps) {
+  const reasonIdPrefix = useId()
   const generatableObjectIdSet = new Set(generatableObjectIds)
   const readinessByObjectId = new Map(
     readiness.map((item) => [item.projectObjectId, item] as const)
@@ -178,7 +184,7 @@ export function ProjectStructureView({
             {!readOnly ? (
               <Button type="button" size="sm" onClick={onAppendObject}>
                 <Plus />
-                追加对象
+                添加内容
               </Button>
             ) : null}
           </div>
@@ -231,7 +237,42 @@ export function ProjectStructureView({
                 <TableBody>
                   {objects.map((object) => {
                     const objectReadiness = readinessByObjectId.get(object.id)
-                    const allowedActions = new Set(objectReadiness?.allowedActions ?? [])
+                    const contractState = objectStructureActionState({
+                      readiness: objectReadiness,
+                      actionKey: "object.contract",
+                      readOnly
+                    })
+                    const removeState = objectStructureActionState({
+                      readiness: objectReadiness,
+                      actionKey: "object.remove",
+                      readOnly
+                    })
+                    const appendChildState = objectStructureActionState({
+                      readiness: objectReadiness,
+                      actionKey: "object.append.child",
+                      readOnly
+                    })
+                    const mediaAction =
+                      object.outputContract === "MEDIA_VERSION"
+                        ? objectMediaActionPresentation({
+                            readiness: objectReadiness,
+                            generatable: generatableObjectIdSet.has(object.id),
+                            readOnly
+                          })
+                        : null
+                    const reasonIds = new Map<string, string>()
+                    const reasonIdFor = (text: string | undefined): string | undefined => {
+                      if (!text) return undefined
+                      const existing = reasonIds.get(text)
+                      if (existing !== undefined) return existing
+                      const id = `${reasonIdPrefix}-${object.id}-${reasonIds.size}`
+                      reasonIds.set(text, id)
+                      return id
+                    }
+                    const contractReasonId = reasonIdFor(contractState.reason)
+                    const removeReasonId = reasonIdFor(removeState.reason)
+                    const appendChildReasonId = reasonIdFor(appendChildState.reason)
+                    const mediaReasonId = reasonIdFor(mediaAction?.reason)
                     return (
                       <TableRow
                         key={object.id}
@@ -272,80 +313,109 @@ export function ProjectStructureView({
                           </p>
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            {!readOnly ? (
-                              <>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  disabled={!allowedActions.has("object.contract")}
-                                  onClick={() => onUpdateContract(object)}
-                                >
+                          <div className="flex flex-col items-end gap-1">
+                            <div className="flex flex-wrap justify-end gap-1">
+                              {!readOnly ? (
+                                <>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    disabled={contractState.disabled}
+                                    aria-describedby={contractReasonId}
+                                    onClick={() => onUpdateContract(object)}
+                                  >
+                                    <FilePenLine />
+                                    合同
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    disabled={removeState.disabled}
+                                    aria-describedby={removeReasonId}
+                                    onClick={() => onRemoveObject(object)}
+                                  >
+                                    <Trash2 />
+                                    移除
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    disabled={appendChildState.disabled}
+                                    aria-describedby={appendChildReasonId}
+                                    onClick={() => onAppendChildObject(object)}
+                                  >
+                                    <Plus />
+                                    添加下级
+                                  </Button>
+                                </>
+                              ) : null}
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onOpenDetails(object.id)}
+                              >
+                                {object.outputContract === "DOCUMENT_VERSION" ? (
                                   <FilePenLine />
-                                  合同
-                                </Button>
+                                ) : (
+                                  <Eye />
+                                )}
+                                {object.outputContract === "DOCUMENT_VERSION" ? "手动创建" : "详情"}
+                              </Button>
+                              {mediaAction ? (
                                 <Button
                                   type="button"
                                   variant="ghost"
                                   size="sm"
-                                  disabled={!allowedActions.has("object.remove")}
-                                  onClick={() => onRemoveObject(object)}
+                                  disabled={mediaAction.disabled}
+                                  aria-describedby={mediaReasonId}
+                                  onClick={() =>
+                                    mediaAction.intent === "candidate"
+                                      ? onOpenDetails(object.id)
+                                      : onGenerateObject(object.id)
+                                  }
                                 >
-                                  <Trash2 />
-                                  移除
+                                  <Sparkles />
+                                  {mediaAction.label}
                                 </Button>
-                              </>
-                            ) : null}
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onOpenDetails(object.id)}
-                            >
-                              {object.outputContract === "DOCUMENT_VERSION" ? (
-                                <FilePenLine />
-                              ) : (
-                                <Eye />
-                              )}
-                              {object.outputContract === "DOCUMENT_VERSION" ? "手动创建" : "详情"}
-                            </Button>
-                            {object.outputContract === "MEDIA_VERSION" ? (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                disabled={readOnly || !generatableObjectIdSet.has(object.id)}
-                                onClick={() => onGenerateObject(object.id)}
-                              >
-                                <Sparkles />
-                                生成
-                              </Button>
-                            ) : null}
-                            {object.objectType === "canvas_board" && onOpenCanvas ? (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                disabled={readOnly}
-                                onClick={() => onOpenCanvas(object.id)}
-                              >
-                                打开画布
-                                <ArrowRight />
-                              </Button>
-                            ) : (object.objectType === "image_deliverable" ||
-                                object.objectType === "shot_keyframe") &&
-                              onAnnotateImage ? (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                disabled={readOnly}
-                                onClick={() => onAnnotateImage(object.id)}
-                              >
-                                标注
-                                <ArrowRight />
-                              </Button>
+                              ) : null}
+                              {object.objectType === "canvas_board" && onOpenCanvas ? (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={readOnly}
+                                  onClick={() => onOpenCanvas(object.id)}
+                                >
+                                  打开画布
+                                  <ArrowRight />
+                                </Button>
+                              ) : (object.objectType === "image_deliverable" ||
+                                  object.objectType === "shot_keyframe") &&
+                                onAnnotateImage ? (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={readOnly}
+                                  onClick={() => onAnnotateImage(object.id)}
+                                >
+                                  标注
+                                  <ArrowRight />
+                                </Button>
+                              ) : null}
+                            </div>
+                            {reasonIds.size > 0 ? (
+                              <div className="flex flex-col items-end gap-0.5">
+                                {Array.from(reasonIds.entries()).map(([text, id]) => (
+                                  <p key={id} id={id} className="text-muted-foreground text-xs">
+                                    {text}
+                                  </p>
+                                ))}
+                              </div>
                             ) : null}
                           </div>
                         </TableCell>
