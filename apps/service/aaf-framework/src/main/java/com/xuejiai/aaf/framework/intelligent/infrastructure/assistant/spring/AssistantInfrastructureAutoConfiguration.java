@@ -49,6 +49,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.application.SubmitExecuto
 import com.xuejiai.aaf.framework.intelligent.assistant.application.TakeOverTaskTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskCommandService;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskIngress;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.ToolVisibilityFilter;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ArtifactCompletionContract.ArtifactCompletionEvaluator;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DecompositionBudget;
 import com.xuejiai.aaf.framework.intelligent.assistant.persona.PersonaRepository;
@@ -353,6 +354,7 @@ public class AssistantInfrastructureAutoConfiguration {
             EffectiveSkillResolver effectiveSkillResolver,
             SkillSelectionPort skillSelection,
             EffectiveToolResolver effectiveToolResolver,
+            ToolVisibilityFilter toolVisibility,
             ObjectProvider<SkillDecisionAuditPort> skillDecisionAudits,
             PromptAssembler promptAssembler,
             ExecutionProfileSnapshotPort executionProfiles,
@@ -378,6 +380,7 @@ public class AssistantInfrastructureAutoConfiguration {
                 effectiveSkillResolver,
                 skillSelection,
                 effectiveToolResolver,
+                toolVisibility,
                 skillDecisionAudits.getIfAvailable(SkillDecisionAuditPort::noop),
                 promptAssembler,
                 executionProfiles,

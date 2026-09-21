@@ -120,6 +120,7 @@ public class AgentNode implements JavaDelegate {
                         ExecutionIntent.ArtifactPolicy.returnOnly(
                                 ExecutionIntent.OutputKind.MESSAGE, "text/markdown"),
                         ExecutionIntent.ActionAuthorizationPolicy.requestOnDemand(),
+                        null,
                         null);
         var invocationProfile =
                 InvocationProfile.primary(

@@ -78,7 +78,7 @@ public final class AutomationDelegatedDispatchAdapter implements DispatchPort {
                                         .AssistantInvocation.MemoryMode.DEFAULT,
                                 java.util.List.of(),
                                 com.xuejiai.aaf.framework.intelligent.assistant.model
-                                        .ExecutionIntent.conversationalAuto(null)),
+                                        .ExecutionIntent.conversationalAuto(null, null)),
                         now);
         coordinator.submit(command, copyBoard(template.board(), taskId));
     }

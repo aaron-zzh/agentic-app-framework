@@ -24,7 +24,8 @@ class ExecutionIntentTest {
                         3,
                         policy,
                         ActionAuthorizationPolicy.requestOnDemand("content.draft.upsert"),
-                        12L);
+                        12L,
+                        null);
 
         assertThat(intent.autoSaveDraft()).isTrue();
         assertThat(intent.resolvedRoute().roleKey()).isEqualTo("system.role.content-creator");
@@ -44,6 +45,7 @@ class ExecutionIntentTest {
                                         ArtifactPolicy.returnOnly(
                                                 OutputKind.DOCUMENT, "text/markdown"),
                                         ActionAuthorizationPolicy.requestOnDemand(),
+                                        null,
                                         null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("TASK");

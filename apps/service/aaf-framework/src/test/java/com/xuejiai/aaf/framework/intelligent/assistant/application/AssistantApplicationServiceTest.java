@@ -119,7 +119,7 @@ class AssistantApplicationServiceTest {
                         AssistantInvocation.MemoryMode.DEFAULT,
                         List.of(),
                         com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent
-                                .conversationalAuto(null)),
+                                .conversationalAuto(null, null)),
                 Instant.parse("2026-08-01T12:00:00Z"));
     }
 }
