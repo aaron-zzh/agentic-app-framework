@@ -41,14 +41,20 @@ public class TaskController {
     @Operation(summary = "查询当前用户在指定对话中的 Task 列表")
     @GetMapping
     public Result<List<TaskDetails>> list(@RequestParam("conversationId") String conversationId) {
-        return Result.success(tasks.list(tenantId(), userId(), new ConversationId(conversationId)));
+        var tenantId = tenantId();
+        return Result.success(
+                tasks.list(tenantId, userId(), new ConversationId(conversationId)).stream()
+                        .map(details -> withDecisionBlockers(tenantId, details))
+                        .toList());
     }
 
     @Operation(summary = "查询 Task 及 current plan、attempt 与 dispatch")
     @GetMapping("/{taskId}")
     public Result<TaskDetails> get(@PathVariable String taskId) {
+        var tenantId = tenantId();
         return Result.success(
-                tasks.find(tenantId(), userId(), new TaskId(taskId))
+                tasks.find(tenantId, userId(), new TaskId(taskId))
+                        .map(details -> withDecisionBlockers(tenantId, details))
                         .orElseThrow(() -> new IllegalArgumentException("Task 不存在")));
     }
 
@@ -62,6 +68,7 @@ public class TaskController {
         commands.pause(tenantId, userId, canonicalTaskId, request.reason());
         return Result.success(
                 tasks.find(tenantId, userId, canonicalTaskId)
+                        .map(details -> withDecisionBlockers(tenantId, details))
                         .orElseThrow(() -> new IllegalStateException("暂停后的 Task 不存在")));
     }
 
@@ -74,6 +81,7 @@ public class TaskController {
         commands.resume(tenantId, userId, canonicalTaskId);
         return Result.success(
                 tasks.find(tenantId, userId, canonicalTaskId)
+                        .map(details -> withDecisionBlockers(tenantId, details))
                         .orElseThrow(() -> new IllegalStateException("恢复后的 Task 不存在")));
     }
 
@@ -87,6 +95,7 @@ public class TaskController {
         commands.takeOver(tenantId, userId, canonicalTaskId, request.reason());
         return Result.success(
                 tasks.find(tenantId, userId, canonicalTaskId)
+                        .map(details -> withDecisionBlockers(tenantId, details))
                         .orElseThrow(() -> new IllegalStateException("接管后的 Task 不存在")));
     }
 
@@ -99,6 +108,7 @@ public class TaskController {
         commands.handBack(tenantId, userId, canonicalTaskId);
         return Result.success(
                 tasks.find(tenantId, userId, canonicalTaskId)
+                        .map(details -> withDecisionBlockers(tenantId, details))
                         .orElseThrow(() -> new IllegalStateException("交回后的 Task 不存在")));
     }
 
@@ -112,7 +122,21 @@ public class TaskController {
         commands.cancel(tenantId, userId, canonicalTaskId, request.reason());
         return Result.success(
                 tasks.find(tenantId, userId, canonicalTaskId)
+                        .map(details -> withDecisionBlockers(tenantId, details))
                         .orElseThrow(() -> new IllegalStateException("取消后的 Task 不存在")));
+    }
+
+    /**
+     * 补上待人工决策阻断原因。
+     *
+     * <p>阻断原因需要用权威 evaluator 对等待外部结果的执行重新求值，属应用层职责，查询适配器不计算；终态 Task 不可能在 等待外部结果，直接返回空，避免无意义的求值查询。
+     */
+    private TaskDetails withDecisionBlockers(TenantId tenantId, TaskDetails details) {
+        if (details.terminal()) {
+            return details;
+        }
+        return details.withDecisionBlockers(
+                commands.externalDecisionBlockers(tenantId, new TaskId(details.taskId())));
     }
 
     private static TenantId tenantId() {

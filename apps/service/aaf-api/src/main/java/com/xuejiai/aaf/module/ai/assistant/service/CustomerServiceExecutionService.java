@@ -82,7 +82,7 @@ public class CustomerServiceExecutionService {
                                 null,
                                 AssistantInvocation.MemoryMode.DEFAULT,
                                 List.of(),
-                                ExecutionIntent.conversationalAuto(null))
+                                ExecutionIntent.conversationalAuto(null, null))
                         .forAssistantTarget(
                                 definition.version().value(),
                                 role.key(),

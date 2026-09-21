@@ -85,7 +85,7 @@ public class DefaultChannelAssistantExecutionAdapter implements ChannelAssistant
                                         .AssistantInvocation.MemoryMode.DEFAULT,
                                 List.of(),
                                 com.xuejiai.aaf.framework.intelligent.assistant.model
-                                        .ExecutionIntent.conversationalAuto(null)),
+                                        .ExecutionIntent.conversationalAuto(null, null)),
                         request.receivedAt());
 
         var events = assistants.execute(command).collectList().block(EXECUTION_TIMEOUT);

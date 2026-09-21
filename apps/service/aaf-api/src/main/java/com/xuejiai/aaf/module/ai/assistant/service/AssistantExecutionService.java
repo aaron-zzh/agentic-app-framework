@@ -76,6 +76,9 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
     private static final int PROGRAMMATIC_MAX_FACTS = 20;
     private static final int PROGRAMMATIC_MAX_IDEMPOTENCY_KEY_LENGTH = 256;
     private static final String CONTENT_DRAFT_UPSERT_TOOL = "content.draft.upsert";
+    private static final String BLUEPRINT_PROPOSAL_SUBMIT_TOOL = "aigc.blueprint.proposal.submit";
+    private static final String APPROVED_GENERATION_ACTION_TOOL =
+            "aigc.project.generation.action.submit";
     private static final JsonMapper OUTPUT_JSON_MAPPER =
             JsonMapper.builder().enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION).build();
 
@@ -87,6 +90,61 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
     private final DefinitionLifecycleService definitionLifecycles;
     private final OperatorContext operatorContext;
     private final VisionMediaResolver visionMediaResolver;
+    private final com.xuejiai.aaf.module.billing.api.ParallelTaskQuotaApi parallelTaskQuota;
+
+    /** 只计算确定性 canonical Task 身份，供业务先持久化受控作用域。 */
+    @Override
+    public ProgrammaticAssistantTaskPort.TaskIdentity identifyTask(Request request) {
+        Objects.requireNonNull(request, "request 不能为空");
+        if (request.idempotencyKey().length() > PROGRAMMATIC_MAX_IDEMPOTENCY_KEY_LENGTH) {
+            throw exception(PROGRAMMATIC_TASK_IDEMPOTENCY_KEY_TOO_LONG);
+        }
+        return new ProgrammaticAssistantTaskPort.TaskIdentity(
+                programmaticRunId(identity(), request));
+    }
+
+    @Override
+    public java.util.Optional<ProgrammaticAssistantTaskPort.TaskSnapshot> findTask(String taskId) {
+        if (taskId == null || taskId.isBlank()) {
+            return java.util.Optional.empty();
+        }
+        var identity = identity();
+        var tenantId = new TenantId(identity.orgId().toString());
+        var canonicalTaskId = new TaskId(taskId.trim());
+        return taskQueries
+                .find(tenantId, new UserId(identity.ownerId().toString()), canonicalTaskId)
+                .map(
+                        task -> {
+                            var terminal = task.terminal();
+                            return new ProgrammaticAssistantTaskPort.TaskSnapshot(
+                                    canonicalTaskId.value(),
+                                    task.status(),
+                                    terminal,
+                                    terminal
+                                            ? java.util.List.of()
+                                            : delegatedTasks.externalDecisionBlockers(
+                                                    tenantId, canonicalTaskId));
+                        });
+    }
+
+    @Override
+    public void cancelTask(String taskId, String reason) {
+        if (taskId == null || taskId.isBlank()) {
+            throw new IllegalArgumentException("taskId 不能为空白");
+        }
+        if (reason == null || reason.isBlank()) {
+            throw new IllegalArgumentException("取消理由不能为空白");
+        }
+        var identity = identity();
+        var tenantId = new TenantId(identity.orgId().toString());
+        var userId = new UserId(identity.ownerId().toString());
+        var canonicalTaskId = new TaskId(taskId.trim());
+        var existing = findTask(taskId).orElse(null);
+        if (existing == null || existing.terminal()) {
+            return;
+        }
+        delegatedTasks.cancel(tenantId, userId, canonicalTaskId, reason.trim());
+    }
 
     /**
      * 受控程序化 canonical Task 入口（AAF-113 #11328）。
@@ -115,7 +173,8 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                         programmaticExecutionRequest(request),
                         definition,
                         systemOnDemandSkillKeys(),
-                        identity.workspaceId());
+                        identity.workspaceId(),
+                        request.projectId());
         var analysis = TaskAnalysisPolicy.analyze(executionIntent, false);
         if (!analysis.persistent()) {
             throw exception(PROGRAMMATIC_TASK_ROUTE_NOT_PERSISTENT);
@@ -129,6 +188,20 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
         if (replay.isPresent()) {
             var existing = replay.orElseThrow();
             return new Receipt(existing.taskId(), request.threadId(), existing.status(), false);
+        }
+        var userIdLong = identity.ownerId();
+        var limit = parallelTaskQuota.parallelTaskLimit(userIdLong);
+        if (limit != -1L) {
+            var activeCount =
+                    taskQueries.countActiveBySource(tenantId, userId, Task.Source.AUTOMATION);
+            if (activeCount >= limit) {
+                log.debug(
+                        "[AssistantExecution] stage=programmatic_task_rejected reason=concurrent_limit userId={} active={} limit={}",
+                        userIdLong,
+                        activeCount,
+                        limit);
+                throw exception(PROGRAMMATIC_TASK_CONCURRENT_LIMIT_EXCEEDED);
+            }
         }
         var route = executionIntent.resolvedRoute();
         var spec =
@@ -144,6 +217,7 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                         List.of(),
                         List.of(),
                         programmaticContexts(objective.facts()),
+                        trustedAllowedActions(request.purpose()),
                         executionIntent);
         var command = assembleCommand(spec, identity, null, runIdentity, null, analysis);
         var maxAttempts = command.executionContract().retryPolicy().maxAttempts();
@@ -173,17 +247,30 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
         return new Receipt(task.taskId().value(), request.threadId(), task.status().name(), true);
     }
 
-    /** 程序化入口的固定执行偏好：持久 TASK、FIXED Route、只返回产物，不接受调用方覆盖。 */
+    /** 程序化入口按受信 purpose 固定执行偏好，不接受调用方覆盖。 */
     private static AssistantExecutionRequest programmaticExecutionRequest(Request request) {
         var objective = request.objective();
+        var policy =
+                switch (request.purpose()) {
+                    case PROJECT_GENERATION ->
+                            new ProgrammaticPolicy(
+                                    AssistantExecutionRequest.ActionAuthorizationPolicy
+                                            .PREAUTHORIZED_ONLY,
+                                    AssistantExecutionRequest.ArtifactPersistence.RETURN_ONLY);
+                    case BLUEPRINT_PLANNING ->
+                            new ProgrammaticPolicy(
+                                    AssistantExecutionRequest.ActionAuthorizationPolicy
+                                            .PREAUTHORIZED_ONLY,
+                                    AssistantExecutionRequest.ArtifactPersistence.RETURN_ONLY);
+                };
         return new AssistantExecutionRequest(
                 new AssistantExecutionRequest.AssistantTarget(request.assistantId()),
                 new AssistantExecutionRequest.ExecutionOptions(
                         AssistantExecutionRequest.InteractionMode.TASK,
                         AssistantExecutionRequest.RouteConstraint.FIXED,
                         AssistantExecutionRequest.ClarificationPolicy.FAIL_ON_BLOCKER,
-                        AssistantExecutionRequest.ActionAuthorizationPolicy.PREAUTHORIZED_ONLY,
-                        AssistantExecutionRequest.ArtifactPersistence.RETURN_ONLY,
+                        policy.authorizationPolicy(),
+                        policy.artifactPersistence(),
                         null),
                 new AssistantExecutionRequest.Input(objective.summary(), Map.of(), List.of()),
                 new AssistantExecutionRequest.RoleSelection(objective.roleKey()),
@@ -198,6 +285,18 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                 new AssistantExecutionRequest.MemoryOptions(
                         AssistantExecutionRequest.MemoryMode.DEFAULT),
                 new AssistantExecutionRequest.OutputOptions(null, null, null));
+    }
+
+    private record ProgrammaticPolicy(
+            AssistantExecutionRequest.ActionAuthorizationPolicy authorizationPolicy,
+            AssistantExecutionRequest.ArtifactPersistence artifactPersistence) {}
+
+    private static Set<String> trustedAllowedActions(
+            ProgrammaticAssistantTaskPort.Purpose purpose) {
+        return switch (purpose) {
+            case PROJECT_GENERATION -> Set.of(APPROVED_GENERATION_ACTION_TOOL);
+            case BLUEPRINT_PLANNING -> Set.of(BLUEPRINT_PROPOSAL_SUBMIT_TOOL);
+        };
     }
 
     /** 结构化事实作为不可信任务材料进入上下文；MEMORY/KNOWLEDGE 仍只能由执行期 L1 授权检索。 */
@@ -236,10 +335,18 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
      *
      * <p>{@code team} 为 {@code null} 表示非 Team 运行（CHAT / EXECUTION）；非 null 表示按已发布 Team version
      * 的冻结成员目标执行。三种运行模式共用这一条执行链，差异只在请求组装与是否携带 Team 目标，不存在第二个启动入口。
+     *
+     * <p>{@code verifiedProjectId} 必须由调用方按服务端项目会话绑定校验后传入（见 {@code
+     * AssistantAguiController.requireProjectBinding}）；未绑定项目时传 {@code null}。本方法不接受模型或客户端未经校验的 项目
+     * scope。
      */
     public ExecutionStream start(
-            AssistantExecutionRequest request, TeamTarget team, String threadId, String runId) {
-        return start(request, RunIdentity.create(threadId, runId), team);
+            AssistantExecutionRequest request,
+            TeamTarget team,
+            String threadId,
+            String runId,
+            Long verifiedProjectId) {
+        return start(request, RunIdentity.create(threadId, runId), team, verifiedProjectId);
     }
 
     /** 当前用户可用 Assistant 摘要（AAF-107 #10708），供前端角色/技能选择器展示真实可选项。 */
@@ -265,7 +372,10 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
     }
 
     private ExecutionStream start(
-            AssistantExecutionRequest request, RunIdentity runIdentity, TeamTarget teamTarget) {
+            AssistantExecutionRequest request,
+            RunIdentity runIdentity,
+            TeamTarget teamTarget,
+            Long verifiedProjectId) {
         Objects.requireNonNull(runIdentity, "runIdentity 不能为空");
         var knowledge = request.knowledge();
         if (knowledge.mode() == AssistantExecutionRequest.KnowledgeMode.EXPLICIT
@@ -323,7 +433,11 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
         var outputContract = mergeOutputContract(request.output());
         var executionIntent =
                 executionIntent(
-                        request, definition, systemOnDemandSkillKeys(), identity.workspaceId());
+                        request,
+                        definition,
+                        systemOnDemandSkillKeys(),
+                        identity.workspaceId(),
+                        verifiedProjectId);
         log.debug(
                 "[文案执行] 固定路由已校验：interactionMode={}，routeConstraint={}，role={}，skill={}，产物策略={}，草稿工具={}",
                 executionIntent.interactionMode(),
@@ -357,6 +471,7 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                         parsedInput.textMaterials(),
                         parsedInput.imageFileKeys(),
                         List.of(),
+                        Set.of(),
                         executionIntent);
         log.debug(
                 "[AssistantExecution] stage=spec_built assistantId={} requestedSkill={} modelMode={} "
@@ -587,6 +702,7 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
         var allowedActions = new LinkedHashSet<String>();
         allowedActions.add("knowledge.search");
         allowedActions.add("content.generate");
+        allowedActions.addAll(spec.trustedAllowedActions());
         if (spec.executionIntent().autoSaveDraft()) {
             allowedActions.add(CONTENT_DRAFT_UPSERT_TOOL);
         }
@@ -798,7 +914,8 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
             AssistantExecutionRequest request,
             AssistantDefinition definition,
             Set<String> systemOnDemandSkillKeys,
-            Long trustedWorkspaceId) {
+            Long trustedWorkspaceId,
+            Long trustedProjectId) {
         Objects.requireNonNull(systemOnDemandSkillKeys, "systemOnDemandSkillKeys 不能为空");
         var options = request.execution();
         var interactionMode =
@@ -840,7 +957,8 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                         ArtifactPolicy.returnOnly(OutputKind.MESSAGE, "text/markdown"),
                         new ExecutionIntent.ActionAuthorizationPolicy(
                                 actionAuthorizationMode, Set.of()),
-                        trustedWorkspaceId);
+                        trustedWorkspaceId,
+                        trustedProjectId);
             }
             if (routeConstraint != ExecutionIntent.RouteConstraint.FIXED) {
                 throw exception(EXECUTION_CONVERSATIONAL_FIXED_ROUTE_REQUIRED);
@@ -873,7 +991,8 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                     ArtifactPolicy.returnOnly(OutputKind.MESSAGE, "text/markdown"),
                     new ExecutionIntent.ActionAuthorizationPolicy(
                             actionAuthorizationMode, Set.of()),
-                    trustedWorkspaceId);
+                    trustedWorkspaceId,
+                    trustedProjectId);
         }
         if (routeConstraint != ExecutionIntent.RouteConstraint.FIXED) {
             throw exception(EXECUTION_TASK_FIXED_ROUTE_REQUIRED);
@@ -914,7 +1033,8 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                                         == ExecutionIntent.PersistenceMode.AUTO_SAVE_DRAFT
                                 ? Set.of(CONTENT_DRAFT_UPSERT_TOOL)
                                 : Set.of()),
-                trustedWorkspaceId);
+                trustedWorkspaceId,
+                trustedProjectId);
     }
 
     private static void appendOutputContract(
@@ -1412,6 +1532,7 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
             List<TextMaterial> materials,
             List<String> imageFileKeys,
             List<ControlledContext> controlledContexts,
+            Set<String> trustedAllowedActions,
             ExecutionIntent executionIntent) {
 
         public ExecutionSpec {
@@ -1420,6 +1541,8 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
             imageFileKeys = normalizeImageFileKeys(imageFileKeys);
             controlledContexts =
                     controlledContexts == null ? List.of() : List.copyOf(controlledContexts);
+            trustedAllowedActions =
+                    trustedAllowedActions == null ? Set.of() : Set.copyOf(trustedAllowedActions);
             if (executionIntent == null) {
                 throw exception(EXECUTION_INTENT_REQUIRED);
             }

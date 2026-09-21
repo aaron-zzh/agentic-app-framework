@@ -134,6 +134,8 @@ public interface AssistantErrorCode {
     ErrorCode PROGRAMMATIC_TASK_FACT_LIMIT_EXCEEDED = ErrorCode.of(7_003_079, "程序化目标的结构化事实数量超限");
     ErrorCode PROGRAMMATIC_TASK_IDEMPOTENCY_KEY_TOO_LONG =
             ErrorCode.of(7_003_080, "程序化目标幂等键长度不能超过 256");
+    ErrorCode PROGRAMMATIC_TASK_CONCURRENT_LIMIT_EXCEEDED =
+            ErrorCode.of(7_003_081, "程序触发的 canonical Task 数量已达订阅上限");
 
     // 审批
     ErrorCode APPROVAL_RECOVERY_REQUIRES_APPROVED = ErrorCode.of(7_003_100, "仅批准决定可恢复执行");
