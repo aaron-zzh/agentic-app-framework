@@ -6,12 +6,13 @@
 "use client"
 
 import { useBoolean } from "@aaf/hooks"
-import { FolderKanban, Pencil } from "lucide-react"
+import { ChevronDown, ChevronUp, FolderKanban, Pencil } from "lucide-react"
 import Link from "next/link"
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useMemo, useState } from "react"
 import { GlowButton } from "@/components/studio"
 import { Button } from "@/components/ui/button"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useChatterLayoutPreference } from "@/features/chatter"
 import {
@@ -23,6 +24,7 @@ import {
   PROJECT_GRAPH_STAGES,
   ProjectAssistantControl,
   ProjectBasicInfoDialog,
+  ProjectBriefPanel,
   ProjectDocumentPanel,
   type ProjectGraphStage,
   ProjectGraphView,
@@ -31,6 +33,7 @@ import {
   type ProjectObjectStructureAction,
   ProjectObjectStructureDialog,
   ProjectProgressPanel,
+  ProjectScheduleSheet,
   ProjectStructureView,
   ProjectWorkbenchHeader,
   type ProjectWorkbenchView,
@@ -90,6 +93,10 @@ export default function StudioProjectDetailPage() {
   const detailPanel = useBoolean(false)
   const documentPanel = useBoolean(false)
   const basicInfoDialog = useBoolean(false)
+  const proposalSheet = useBoolean(false)
+  const briefPanel = useBoolean(false)
+  const evidencePanel = useBoolean(false)
+  const scheduleSheet = useBoolean(false)
   const { data: projectAccess } = useEntityAccess("project")
   const { data: workAccess } = useEntityAccess("work")
   const { data: timelineAccess } = useEntityAccess("timeline")
@@ -117,6 +124,16 @@ export default function StudioProjectDetailPage() {
   const lifecycleWritable = project !== undefined && isProjectContentWritable(project.status)
   const canEditProject = canProjectUpdate && lifecycleWritable
   const canRunAction = canAction && lifecycleWritable
+  const contentActionDisabledReason = !canAction
+    ? "无项目动作权限"
+    : !lifecycleWritable
+      ? `${project?.status ?? "当前"} 生命周期阶段只读`
+      : undefined
+  const proposalDisabledReason = !canProjectUpdate
+    ? "无项目更新权限"
+    : !lifecycleWritable
+      ? `${project?.status ?? "当前"} 生命周期阶段只读`
+      : undefined
   const writableProjectId = canRunAction ? validProjectId : null
   const { data: actions = [] } = useAigcProjectActions(writableProjectId)
   const { data: documentRefs = [] } = useAigcProjectDocumentRefs(validProjectId)
@@ -148,7 +165,8 @@ export default function StudioProjectDetailPage() {
                 (action) =>
                   allowedActions.includes(action.actionKey) &&
                   (action.actionKey.startsWith("image.") ||
-                    action.actionKey.startsWith("video.")) &&
+                    action.actionKey.startsWith("video.") ||
+                    action.actionKey.startsWith("audio.")) &&
                   action.applicableObjectTypes.includes(object.objectType)
               )
             })
@@ -198,6 +216,16 @@ export default function StudioProjectDetailPage() {
   }
   function handleStructureAction(action: ProjectObjectStructureAction) {
     if (canEditProject) setStructureAction(action)
+  }
+  function handleStructureActionByObjectId(
+    kind: "contract" | "remove" | "append-child",
+    id: number
+  ) {
+    const object = graph?.objects.find((item) => item.id === id)
+    if (!object) return
+    handleStructureAction(
+      kind === "append-child" ? { kind: "append", parent: object } : { kind, object }
+    )
   }
 
   if (projectLoading || graphLoading)
@@ -251,30 +279,28 @@ export default function StudioProjectDetailPage() {
           </>
         }
         assistantControl={
-          <>
-            <ProjectAssistantControl projectId={project.id} canBind={canProjectUpdate} />
-            <GenerationProposalPanel
-              project={project}
-              objects={graph.objects}
-              documentRefs={documentRefs}
-              actions={actions}
-              canMutate={canEditProject}
-            />
-          </>
+          <ProjectAssistantControl projectId={project.id} canBind={canProjectUpdate} />
         }
         onViewChange={handleViewChange}
+        onOpenBrief={briefPanel.onTrue}
+        briefOpen={briefPanel.value}
         onOpenDocuments={documentPanel.onTrue}
         documentsOpen={documentPanel.value}
         documentCount={documentRefs.length}
+        onOpenSchedule={scheduleSheet.onTrue}
+        scheduleOpen={scheduleSheet.value}
       />
-      {canAction ? (
-        <ContentActionBar
-          project={project}
-          focusedObject={focusedObject}
-          readiness={readiness.find((item) => item.projectObjectId === focusedObject?.id)}
-          canAction={canRunAction}
-        />
-      ) : null}
+      <ContentActionBar
+        project={project}
+        focusedObject={focusedObject}
+        readiness={readiness.find((item) => item.projectObjectId === focusedObject?.id)}
+        canAction={canRunAction}
+        disabledReason={contentActionDisabledReason}
+        progress={progress}
+        canPropose={canEditProject}
+        proposalDisabledReason={proposalDisabledReason}
+        onOpenProposals={proposalSheet.onTrue}
+      />
 
       <main className="min-h-0 flex-1 overflow-auto p-4 sm:p-6">
         <div className="flex min-h-full flex-col gap-5">
@@ -290,6 +316,9 @@ export default function StudioProjectDetailPage() {
                 onFocusObject={handleFocusObject}
                 onOpenDetails={handleOpenDetails}
                 onGenerateObject={handleGenerateObject}
+                onUpdateContract={(id) => handleStructureActionByObjectId("contract", id)}
+                onRemoveObject={(id) => handleStructureActionByObjectId("remove", id)}
+                onAppendChildObject={(id) => handleStructureActionByObjectId("append-child", id)}
               />
             ) : (
               <ProjectStructureView
@@ -301,6 +330,9 @@ export default function StudioProjectDetailPage() {
                 generatableObjectIds={generatableObjectIds}
                 onStageChange={(stage) => updateUrl({ stage })}
                 onAppendObject={() => handleStructureAction({ kind: "append" })}
+                onAppendChildObject={(object) =>
+                  handleStructureAction({ kind: "append", parent: object })
+                }
                 onUpdateContract={(object) => handleStructureAction({ kind: "contract", object })}
                 onRemoveObject={(object) => handleStructureAction({ kind: "remove", object })}
                 onOpenDetails={handleOpenDetails}
@@ -308,7 +340,20 @@ export default function StudioProjectDetailPage() {
               />
             )}
           </div>
-          {progress ? <ProjectProgressPanel progress={progress} /> : null}
+          {progress ? (
+            <Collapsible open={evidencePanel.value} onOpenChange={evidencePanel.setValue}>
+              <CollapsibleTrigger
+                render={<Button type="button" variant="ghost" size="sm" />}
+                aria-label={evidencePanel.value ? "收起进度明细" : "展开进度明细"}
+              >
+                {evidencePanel.value ? <ChevronUp /> : <ChevronDown />}
+                进度明细（排障用，日常进度看对象状态与 Assistant 对话）
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-3">
+                <ProjectProgressPanel progress={progress} />
+              </CollapsibleContent>
+            </Collapsible>
+          ) : null}
           <DeliveryWorkflowPanel
             project={project}
             objects={graph.objects}
@@ -361,11 +406,28 @@ export default function StudioProjectDetailPage() {
         readOnly={!canEditProject}
         onOpenChange={basicInfoDialog.setValue}
       />
+      <ProjectBriefPanel
+        open={briefPanel.value}
+        onOpenChange={briefPanel.setValue}
+        project={project}
+        readOnly={!canEditProject}
+        progress={progress}
+      />
       <ProjectDocumentPanel
         open={documentPanel.value}
         onOpenChange={documentPanel.setValue}
         project={project}
         readOnly={!canEditProject}
+      />
+      <GenerationProposalPanel
+        open={proposalSheet.value}
+        onOpenChange={proposalSheet.setValue}
+        project={project}
+        objects={graph.objects}
+        documentRefs={documentRefs}
+        actions={actions}
+        canMutate={canEditProject}
+        currentTask={progress?.currentTask ?? null}
       />
       <ObjectDetailPanel
         open={detailPanel.value}
@@ -398,6 +460,13 @@ export default function StudioProjectDetailPage() {
         onOpenChange={(open) => {
           if (!open) setStructureAction(null)
         }}
+      />
+      <ProjectScheduleSheet
+        projectId={project.id}
+        conversationId={conversationContext?.state === "READY" ? conversationContext.threadId : ""}
+        assistantId={conversationContext?.state === "READY" ? conversationContext.assistantId : ""}
+        open={scheduleSheet.value}
+        onOpenChange={scheduleSheet.setValue}
       />
     </div>
   )

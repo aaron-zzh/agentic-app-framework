@@ -2575,4 +2575,30 @@ COMMENT ON COLUMN sys_dashboard_preset.refresh_interval IS '刷新间隔（秒�
 COMMENT ON COLUMN sys_dashboard_preset.widgets         IS 'Widget 布局配置（JSON 数组）';
 COMMENT ON COLUMN sys_dashboard_preset.sort_order      IS '展示排序，数字越小越靠前';
 
+-- ============================================================
+-- AAF-113 #11319: 项目定时任务扫描器注册
+-- ============================================================
+
+-- 注册项目定时任务扫描器到 sys_scheduled_task
+-- 每分钟扫描一次到期的项目定时任务并触发
+INSERT INTO sys_scheduled_task (
+    name,
+    type,
+    cron,
+    action_type,
+    action_config,
+    status,
+    misfire_policy,
+    description
+) VALUES (
+    'project_assistant_schedule_scan',
+    'system',
+    '0 * * * * ?',  -- 每分钟执行一次
+    'PROJECT_SCHEDULE_SCAN',
+    '{"batchSize": 50}',
+    'active',
+    'IGNORE',
+    'AIGC 项目 AI 定时任务扫描器'
+) ON CONFLICT (name) DO NOTHING;
+
 CREATE UNIQUE INDEX uk_dashboard_preset_key ON sys_dashboard_preset (preset_key) WHERE deleted = FALSE;
