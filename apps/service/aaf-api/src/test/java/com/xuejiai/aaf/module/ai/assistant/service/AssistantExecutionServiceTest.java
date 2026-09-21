@@ -66,7 +66,8 @@ class AssistantExecutionServiceTest {
                                 "voiceover"),
                         definition(),
                         Set.of(),
-                        13L);
+                        13L,
+                        null);
 
         assertThat(intent.interactionMode()).isEqualTo(InteractionMode.TASK);
         assertThat(intent.routeConstraint()).isEqualTo(RouteConstraint.FIXED);
@@ -100,7 +101,8 @@ class AssistantExecutionServiceTest {
                                         .class),
                         mock(DefinitionLifecycleService.class),
                         operatorContext,
-                        mock(VisionMediaResolver.class));
+                        mock(VisionMediaResolver.class),
+                        mock(com.xuejiai.aaf.module.billing.api.ParallelTaskQuotaApi.class));
         OrgContext.setCurrentOrgId(11L);
         OrgContext.setCurrentWorkspaceId(13L);
         try {
@@ -114,7 +116,8 @@ class AssistantExecutionServiceTest {
                                     "voiceover"),
                             null,
                             "thread-test",
-                            "run-test");
+                            "run-test",
+                            null);
             assertThat(stream).isNotNull();
         } finally {
             OrgContext.clear();
@@ -132,6 +135,7 @@ class AssistantExecutionServiceTest {
                                 "redbook"),
                         definition(),
                         Set.of(),
+                        null,
                         null);
 
         assertThat(intent.artifactPolicy().persistenceMode())
@@ -150,7 +154,8 @@ class AssistantExecutionServiceTest {
                                 null),
                         definition(),
                         Set.of(),
-                        8L);
+                        8L,
+                        null);
 
         assertThat(intent.interactionMode()).isEqualTo(InteractionMode.CONVERSATIONAL);
         assertThat(intent.routeConstraint()).isEqualTo(RouteConstraint.AUTO);
@@ -169,7 +174,8 @@ class AssistantExecutionServiceTest {
                                                 "not-in-content-role"),
                                         definition(),
                                         Set.of(),
-                                        8L))
+                                        8L,
+                                        null))
                 .hasMessageContaining("ON_DEMAND");
     }
 
@@ -180,7 +186,8 @@ class AssistantExecutionServiceTest {
                         conversationalRequest("system.role.content-creator", null),
                         definition(),
                         Set.of(),
-                        8L);
+                        8L,
+                        null);
 
         assertThat(intent.routeConstraint()).isEqualTo(RouteConstraint.FIXED);
         assertThat(intent.resolvedRoute().roleKey()).isEqualTo("system.role.content-creator");
@@ -191,7 +198,7 @@ class AssistantExecutionServiceTest {
     void conversationalFixedSkillOnlyResolvesUniqueRole() {
         var intent =
                 AssistantExecutionService.executionIntent(
-                        conversationalRequest(null, "voiceover"), definition(), Set.of(), 8L);
+                        conversationalRequest(null, "voiceover"), definition(), Set.of(), 8L, null);
 
         assertThat(intent.routeConstraint()).isEqualTo(RouteConstraint.FIXED);
         assertThat(intent.resolvedRoute().roleKey()).isEqualTo("system.role.content-creator");
@@ -205,7 +212,8 @@ class AssistantExecutionServiceTest {
                         conversationalRequest("system.role.content-creator", "redbook"),
                         definition(),
                         Set.of(),
-                        8L);
+                        8L,
+                        null);
 
         assertThat(intent.routeConstraint()).isEqualTo(RouteConstraint.FIXED);
         assertThat(intent.resolvedRoute().roleKey()).isEqualTo("system.role.content-creator");
@@ -266,7 +274,8 @@ class AssistantExecutionServiceTest {
                                         conversationalRequest(null, "shared-skill"),
                                         ambiguousDefinition,
                                         Set.of(),
-                                        8L))
+                                        8L,
+                                        null))
                 .hasMessageContaining("无法唯一确定 Role");
     }
 

@@ -44,6 +44,7 @@ class AigcTaskApiAdapterTest extends BaseMockitoUnitTest {
     @Mock private AiCreditGuard creditGuard;
     @Mock private AigcSubmissionAccessGuard submissionAccessGuard;
     @Mock private AigcTaskExecutor taskExecutor;
+    @Mock private AigcTaskQueueDispatcher queueDispatcher;
     @Mock private AigcActivityEventService activityEventService;
     @InjectMocks private AigcTaskApiAdapter adapter;
 

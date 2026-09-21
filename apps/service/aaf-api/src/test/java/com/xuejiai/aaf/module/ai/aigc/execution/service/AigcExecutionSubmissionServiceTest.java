@@ -113,7 +113,8 @@ class AigcExecutionSubmissionServiceTest extends BaseMockitoUnitTest {
                         1,
                         10L,
                         true,
-                        "idem-1");
+                        "idem-1",
+                        null);
 
         // 调用
         var normalized = service.normalize(command);

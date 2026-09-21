@@ -136,7 +136,8 @@ class AigcActionCommandServiceTest extends BaseMockitoUnitTest {
                         1,
                         1L,
                         true,
-                        "idem-video");
+                        "idem-video",
+                        null);
 
         var intent = submission(80L);
         when(submissionService.record(command))
@@ -326,7 +327,8 @@ class AigcActionCommandServiceTest extends BaseMockitoUnitTest {
                         1,
                         1L,
                         true,
-                        "idem-fence");
+                        "idem-fence",
+                        null);
         var intent = submission(80L);
         when(submissionService.record(command))
                 .thenReturn(new AigcExecutionSubmissionService.SubmissionReceipt(intent, true));

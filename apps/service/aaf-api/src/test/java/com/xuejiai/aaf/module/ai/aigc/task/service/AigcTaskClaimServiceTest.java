@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.ai.aigc.task.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -15,11 +16,13 @@ import org.mockito.Mock;
 
 import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
 import com.xuejiai.aaf.module.ai.aigc.task.repository.AigcTaskRepository;
+import com.xuejiai.aaf.module.billing.api.ParallelTaskQuotaApi;
 import com.xuejiai.aaf.test.BaseMockitoUnitTest;
 
 class AigcTaskClaimServiceTest extends BaseMockitoUnitTest {
 
     @Mock private AigcTaskRepository repository;
+    @Mock private ParallelTaskQuotaApi parallelTaskQuota;
     @InjectMocks private AigcTaskClaimService service;
 
     @Test
@@ -30,6 +33,10 @@ class AigcTaskClaimServiceTest extends BaseMockitoUnitTest {
         task.setId(11L);
         task.setStatus("SUBMITTING");
         task.setSubmitOwner("owner-a");
+        when(repository.findQueuedIntentUserId(11L)).thenReturn(Optional.of(7L));
+        when(repository.tryLockUserAdmission(7L)).thenReturn(true);
+        when(parallelTaskQuota.parallelTaskLimit(7L)).thenReturn(2L);
+        when(repository.countByUserIdAndStatusInAndDeletedFalse(eq(7L), any())).thenReturn(0L);
         when(repository.claimIntent(any(), any(), any())).thenReturn(1);
         when(repository.findById(11L)).thenReturn(Optional.of(task));
 
@@ -44,6 +51,10 @@ class AigcTaskClaimServiceTest extends BaseMockitoUnitTest {
     @DisplayName("Given intent 已被其他 owner 认领 When CAS 失败 Then 不读取并不提交 provider")
     void should_not_read_intent_when_cas_owner_loses() {
         // mock 方法
+        when(repository.findQueuedIntentUserId(11L)).thenReturn(Optional.of(7L));
+        when(repository.tryLockUserAdmission(7L)).thenReturn(true);
+        when(parallelTaskQuota.parallelTaskLimit(7L)).thenReturn(2L);
+        when(repository.countByUserIdAndStatusInAndDeletedFalse(eq(7L), any())).thenReturn(0L);
         when(repository.claimIntent(any(), any(), any())).thenReturn(0);
 
         // 调用 + 断言

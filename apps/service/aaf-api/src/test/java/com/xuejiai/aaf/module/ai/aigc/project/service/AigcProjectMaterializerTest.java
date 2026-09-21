@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.ai.aigc.project.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
@@ -14,7 +15,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 
+import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.framework.security.authorization.FunctionPermissionChecker;
 import com.xuejiai.aaf.module.ai.aigc.brand.api.AigcBrandApi;
 import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcBlueprintProcessPolicy;
 import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcConfigurationApi;
@@ -22,7 +25,6 @@ import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcProjectInitializatio
 import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcResolvedConfiguration;
 import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcResolvedObjectSpec;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
-import com.xuejiai.aaf.module.ai.aigc.project.api.AigcBlueprintSourceType;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverMode;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectMaterializeCommand;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProject;
@@ -55,6 +57,7 @@ class AigcProjectMaterializerTest extends BaseMockitoUnitTest {
     @Mock private AigcMediaApi mediaApi;
     @Mock private AigcProjectMediaRefRepository mediaRefRepository;
     @Mock private OperatorContext operatorContext;
+    @Mock private FunctionPermissionChecker permissionChecker;
     @InjectMocks private AigcProjectMaterializer materializer;
 
     @Test
@@ -97,7 +100,10 @@ class AigcProjectMaterializerTest extends BaseMockitoUnitTest {
                         List.of(),
                         processPolicy);
         when(configurationApi.resolve(any())).thenReturn(resolved);
+        OrgContext.setCurrentOrgId(8L);
+        OrgContext.setCurrentWorkspaceId(9L);
         when(operatorContext.currentOwnerId()).thenReturn(Optional.of(7L));
+        when(permissionChecker.hasPermission(7L, "aigc:project:create")).thenReturn(true);
         when(brandApi.requireVersions(any(), any())).thenReturn(List.of());
         when(projectRepository.save(any(AigcProject.class)))
                 .thenAnswer(
@@ -107,7 +113,7 @@ class AigcProjectMaterializerTest extends BaseMockitoUnitTest {
                             return project;
                         });
         when(snapshotService.createInitialSnapshot(
-                        any(AigcProject.class), any(), any(), any(AigcResolvedConfiguration.class)))
+                        any(AigcProject.class), any(), any(), any(), anyMap()))
                 .thenAnswer(
                         invocation -> {
                             var snapshot = new AigcProjectConfigSnapshot();
@@ -122,7 +128,7 @@ class AigcProjectMaterializerTest extends BaseMockitoUnitTest {
                             return object;
                         });
         var command =
-                new AigcProjectMaterializeCommand(
+                new AigcProjectMaterializeCommand.Catalog(
                         9L,
                         "系列项目",
                         null,
@@ -137,8 +143,6 @@ class AigcProjectMaterializerTest extends BaseMockitoUnitTest {
                         Map.of(),
                         null,
                         null,
-                        AigcBlueprintSourceType.CATALOG,
-                        "blueprint:3@1.0.0",
                         "narrative_series",
                         3L,
                         null,
