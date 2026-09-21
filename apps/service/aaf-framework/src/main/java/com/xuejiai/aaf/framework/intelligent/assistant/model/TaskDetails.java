@@ -19,7 +19,13 @@ public record TaskDetails(
         RootResultDetails rootResult,
         List<ExecutionDetails> executions,
         Instant createdAt,
-        Instant updatedAt) {
+        Instant updatedAt,
+        /**
+         * 该 Task 仍在等待外部结果、且按权威 evaluator 判定需要人工决策时的阻断原因；为空表示无需人工介入。
+         *
+         * <p>查询适配器不计算它（那是应用层职责），由应用层在返回客户端前用 {@link #withDecisionBlockers} 填充。
+         */
+        List<String> decisionBlockers) {
 
     public TaskDetails {
         taskId = requireText(taskId, "taskId");
@@ -35,6 +41,32 @@ public record TaskDetails(
         executions = List.copyOf(Objects.requireNonNull(executions, "executions 不能为空"));
         Objects.requireNonNull(createdAt, "createdAt 不能为空");
         Objects.requireNonNull(updatedAt, "updatedAt 不能为空");
+        decisionBlockers = decisionBlockers == null ? List.of() : List.copyOf(decisionBlockers);
+    }
+
+    /** 是否终态；判定复用 {@link Task.Status#terminal()}，投影层不另建一套。 */
+    public boolean terminal() {
+        return Task.Status.valueOf(status).terminal();
+    }
+
+    /** 补上待人工决策阻断原因后的副本；其余投影内容不变。 */
+    public TaskDetails withDecisionBlockers(List<String> blockers) {
+        return new TaskDetails(
+                taskId,
+                conversationId,
+                originExecutionId,
+                source,
+                priority,
+                status,
+                controlMode,
+                ownerKind,
+                goal,
+                plan,
+                rootResult,
+                executions,
+                createdAt,
+                updatedAt,
+                blockers);
     }
 
     public record RootResultDetails(

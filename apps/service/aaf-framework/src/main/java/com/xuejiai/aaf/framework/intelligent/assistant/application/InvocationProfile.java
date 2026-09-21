@@ -145,7 +145,8 @@ public record InvocationProfile(
                         new ExecutionIntent.ResolvedRoute(roleKey, skillKey, assistantRevision),
                         executionIntent.artifactPolicy(),
                         executionIntent.actionAuthorizationPolicy(),
-                        executionIntent.workspaceId());
+                        executionIntent.workspaceId(),
+                        executionIntent.trustedProjectId());
         return new InvocationProfile(
                 skillKey,
                 memoryMode,

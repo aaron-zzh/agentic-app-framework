@@ -115,6 +115,9 @@ public interface TaskMaterializationPort {
     /** 按权威 AIGC Run ID 定向查询等待合同。 */
     List<AwaitingExternal> findAwaitingExternalByRunId(Long executionRunId);
 
+    /** 按 canonical Task 定向查询等待合同；只读，用于向用户展示当前待人工决策的阻断原因。 */
+    List<AwaitingExternal> findAwaitingExternalByTask(TenantId tenantId, TaskId taskId);
+
     /** 根据权威 evaluator 结论幂等恢复；成功时为同一 Execution 创建 fresh Dispatch。 */
     ExternalRecoveryResult recoverExternal(
             InvocationReceipt receipt, Evaluation evaluation, Instant at);

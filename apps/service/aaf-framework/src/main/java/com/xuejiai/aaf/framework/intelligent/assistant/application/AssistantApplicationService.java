@@ -123,6 +123,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
     private final ExecutionEventStorePort eventStore;
     private final TaskRecoveryPort recoveries;
     private final ObjectProvider<SessionMemoryPort> sessionMemories;
+    private final ToolVisibilityFilter toolVisibility;
 
     public AssistantApplicationService(
             AssistantDefinitionPort definitions,
@@ -135,6 +136,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             EffectiveSkillResolver effectiveSkillResolver,
             SkillSelectionPort skillSelection,
             EffectiveToolResolver effectiveToolResolver,
+            ToolVisibilityFilter toolVisibility,
             SkillDecisionAuditPort skillDecisionAudits,
             PromptAssembler promptAssembler,
             ExecutionProfileSnapshotPort executionProfiles,
@@ -150,6 +152,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             ObjectProvider<SessionMemoryPort> sessionMemories,
             int contextWindow) {
         this.sessionMemories = Objects.requireNonNull(sessionMemories, "sessionMemories 不能为空");
+        this.toolVisibility = Objects.requireNonNull(toolVisibility, "toolVisibility 不能为空");
         this.runtimeExecutionPolicy =
                 ExecutionPolicy.withDefaultTimeouts(
                         RUNTIME_MAX_ITERATIONS,
@@ -1756,9 +1759,11 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                 assistantAllowedToolNames,
                                 agentAllowedTools);
         var resolvedTools = mergeEffectiveTools(roleEffectiveTools, assistantEffectiveTools);
+        // 最后一维交集：目录声明的 permissionCode 与执行用户实际持有的功能权限；只收窄可见性，不改调用期授权。
+        var permittedTools = toolVisibility.visible(resolvedTools, command.userId().value());
         var effectiveTools =
                 mergeEffectiveTools(
-                        internalPlanner ? List.<ToolRef>of() : resolvedTools,
+                        internalPlanner ? List.<ToolRef>of() : permittedTools,
                         builtinControlTools(command));
         log.debug(
                 "[AssistantExecution] stage=skill_resolved executionId={} taskId={} selectionMode={} "
@@ -1978,7 +1983,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         command.tenantId(),
                         command.userId(),
                         profile.executionIntent().workspaceId(),
-                        null,
+                        profile.executionIntent().trustedProjectId(),
                         command.assistantId(),
                         command.conversationId(),
                         command.sessionId(),

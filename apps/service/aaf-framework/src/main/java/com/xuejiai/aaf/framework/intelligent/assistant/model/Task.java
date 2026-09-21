@@ -101,7 +101,7 @@ public record Task(
     }
 
     public boolean terminal() {
-        return status == Status.COMPLETED || status == Status.CANCELED || status == Status.FAILED;
+        return status.terminal();
     }
 
     public Task transitionTo(
@@ -507,6 +507,11 @@ public record Task(
         CANCELING,
         COMPLETED,
         CANCELED,
-        FAILED
+        FAILED;
+
+        /** 终态判定的唯一定义；聚合根与只读投影都复用它，不各自列举。 */
+        public boolean terminal() {
+            return this == COMPLETED || this == CANCELED || this == FAILED;
+        }
     }
 }

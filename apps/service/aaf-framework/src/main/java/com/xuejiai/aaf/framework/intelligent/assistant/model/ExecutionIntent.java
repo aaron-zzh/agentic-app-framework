@@ -11,7 +11,8 @@ public record ExecutionIntent(
         ResolvedRoute resolvedRoute,
         ArtifactPolicy artifactPolicy,
         ActionAuthorizationPolicy actionAuthorizationPolicy,
-        Long workspaceId) {
+        Long workspaceId,
+        Long trustedProjectId) {
 
     public ExecutionIntent {
         Objects.requireNonNull(interactionMode, "interactionMode 不能为空");
@@ -19,6 +20,9 @@ public record ExecutionIntent(
         Objects.requireNonNull(clarificationPolicy, "clarificationPolicy 不能为空");
         Objects.requireNonNull(artifactPolicy, "artifactPolicy 不能为空");
         Objects.requireNonNull(actionAuthorizationPolicy, "actionAuthorizationPolicy 不能为空");
+        if (trustedProjectId != null && trustedProjectId < 1) {
+            throw new IllegalArgumentException("trustedProjectId 必须为正数");
+        }
         if (interactionMode == InteractionMode.TASK && routeConstraint != RouteConstraint.FIXED) {
             throw new IllegalArgumentException("TASK 执行必须使用 FIXED Route");
         }
@@ -38,7 +42,7 @@ public record ExecutionIntent(
         }
     }
 
-    public static ExecutionIntent conversationalAuto(Long workspaceId) {
+    public static ExecutionIntent conversationalAuto(Long workspaceId, Long trustedProjectId) {
         return new ExecutionIntent(
                 InteractionMode.CONVERSATIONAL,
                 RouteConstraint.AUTO,
@@ -46,7 +50,8 @@ public record ExecutionIntent(
                 null,
                 ArtifactPolicy.returnOnly(OutputKind.MESSAGE, "text/markdown"),
                 ActionAuthorizationPolicy.requestOnDemand(),
-                workspaceId);
+                workspaceId,
+                trustedProjectId);
     }
 
     public static ExecutionIntent taskFixed(
@@ -55,7 +60,8 @@ public record ExecutionIntent(
             long assistantRevision,
             ArtifactPolicy artifactPolicy,
             ActionAuthorizationPolicy actionAuthorizationPolicy,
-            Long workspaceId) {
+            Long workspaceId,
+            Long trustedProjectId) {
         return new ExecutionIntent(
                 InteractionMode.TASK,
                 RouteConstraint.FIXED,
@@ -63,7 +69,8 @@ public record ExecutionIntent(
                 new ResolvedRoute(roleKey, skillKey, assistantRevision),
                 artifactPolicy,
                 actionAuthorizationPolicy,
-                workspaceId);
+                workspaceId,
+                trustedProjectId);
     }
 
     public boolean autoSaveDraft() {

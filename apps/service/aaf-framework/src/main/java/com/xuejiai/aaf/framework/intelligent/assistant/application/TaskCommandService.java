@@ -404,6 +404,23 @@ public final class TaskCommandService {
         return recovered;
     }
 
+    /**
+     * 当前待人工决策的阻断原因。
+     *
+     * <p>只读：对该 Task 仍处于 {@code AWAITING_EXTERNAL} 的 Execution 用权威 evaluator 重新求值，返回"既未满足也未失败" （即
+     * {@code PAUSE_FOR_DECISION} 停在人工决策）的阻断原因。不改变任何状态，也不触发恢复。
+     */
+    public List<String> externalDecisionBlockers(TenantId tenantId, TaskId taskId) {
+        Objects.requireNonNull(tenantId, "tenantId 不能为空");
+        Objects.requireNonNull(taskId, "taskId 不能为空");
+        return materializations.findAwaitingExternalByTask(tenantId, taskId).stream()
+                .map(candidate -> artifactCompletionEvaluator.evaluate(candidate.receipt()))
+                .filter(evaluation -> !evaluation.completed() && !evaluation.terminalFailure())
+                .flatMap(evaluation -> evaluation.blockers().stream())
+                .distinct()
+                .toList();
+    }
+
     public Task resolveControllableTask(
             TenantId tenantId,
             UserId userId,
