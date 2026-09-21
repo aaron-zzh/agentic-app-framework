@@ -8,10 +8,13 @@
 "use client"
 
 import { useQueryClient } from "@tanstack/react-query"
-import { useEffect } from "react"
+import { WifiOff } from "lucide-react"
+import { useEffect, useState } from "react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { aigcExecutionKeys } from "@/lib/api/rest/ai/aigc/execution"
 import { aigcProjectKeys } from "@/lib/api/rest/ai/aigc/project"
 import { aigcWorkKeys } from "@/lib/api/rest/ai/aigc/work"
+import { taskKeys } from "@/lib/api/rest/ai/task"
 import { MEDIA_QUERY_KEY } from "@/lib/api/rest/media/media-asset"
 import { backendStreamFetch } from "@/lib/api/streaming-client"
 import { useAuthStore } from "@/lib/store/auth-store"
@@ -20,6 +23,8 @@ import { type ScopeSelection, scopeHeaders, useOrgStore } from "@/lib/store/org-
 const CURSOR_KEY_PREFIX = "aaf.aigc.activity.cursor.v1"
 const RECONNECT_DELAY_MS = 1_000
 export const MAX_SEEN_ACTIVITY_EVENTS = 512
+
+type ActivityConnectionState = "connected" | "disconnected" | "reconnecting"
 
 export interface AigcActivityEnvelope {
   id: number
@@ -95,6 +100,11 @@ export function acceptActivityEnvelope(
   const eventId = BigInt(envelope.id)
   if (seenEventIds.has(eventId)) return null
   seenEventIds.add(eventId)
+  while (seenEventIds.size > MAX_SEEN_ACTIVITY_EVENTS) {
+    const oldestEventId = seenEventIds.values().next().value
+    if (oldestEventId === undefined) break
+    seenEventIds.delete(oldestEventId)
+  }
   return { envelope, cursor: eventId > currentCursor ? eventId : currentCursor }
 }
 
@@ -150,6 +160,7 @@ export function ProjectActivityProvider() {
   const queryClient = useQueryClient()
   const ownerId = useAuthStore((state) => state.user?.id ?? null)
   const scope = useOrgStore((state) => state.currentScope)
+  const [connectionState, setConnectionState] = useState<ActivityConnectionState>("connected")
 
   useEffect(() => {
     if (ownerId === null) return
@@ -169,6 +180,7 @@ export function ProjectActivityProvider() {
       queryClient.invalidateQueries({ queryKey: aigcExecutionKeys.all })
       queryClient.invalidateQueries({ queryKey: aigcWorkKeys.all })
       queryClient.invalidateQueries({ queryKey: MEDIA_QUERY_KEY })
+      queryClient.invalidateQueries({ queryKey: taskKeys.all })
       if (envelope.projectId === null) {
         queryClient.invalidateQueries({ queryKey: aigcProjectKeys.all })
         return
@@ -180,6 +192,10 @@ export function ProjectActivityProvider() {
       queryClient.invalidateQueries({ queryKey: aigcProjectKeys.summary(projectId) })
       queryClient.invalidateQueries({ queryKey: ["aigc.project", "readiness", projectId] })
       queryClient.invalidateQueries({ queryKey: aigcProjectKeys.progress(projectId) })
+      queryClient.invalidateQueries({ queryKey: aigcProjectKeys.generationProposals(projectId) })
+      queryClient.invalidateQueries({
+        queryKey: ["aigc.project", "document-candidates", projectId]
+      })
       queryClient.invalidateQueries({ queryKey: aigcProjectKeys.documentRefs(projectId) })
       queryClient.invalidateQueries({ queryKey: aigcProjectKeys.mediaRefs(projectId) })
       queryClient.invalidateQueries({ queryKey: aigcProjectKeys.reviews(projectId) })
@@ -194,11 +210,18 @@ export function ProjectActivityProvider() {
             `/aigc/events/stream?after=${encodeURIComponent(currentCursor.toString())}`,
             { headers: { Accept: "text/event-stream" }, signal: controller.signal }
           )
+          if (!response.ok) throw new Error(`Activity SSE 请求失败（${response.status}）`)
+          if (!response.body) throw new Error("Activity SSE 响应缺少流")
+          setConnectionState("connected")
           await readActivityEventStream(response, invalidate)
+          if (!controller.signal.aborted) setConnectionState("disconnected")
         } catch (error) {
           if (controller.signal.aborted) return
           if (error instanceof DOMException && error.name === "AbortError") return
+          setConnectionState("disconnected")
         }
+        if (controller.signal.aborted) return
+        setConnectionState("reconnecting")
         await waitForReconnect(controller.signal)
       }
     }
@@ -207,5 +230,16 @@ export function ProjectActivityProvider() {
     return () => controller.abort()
   }, [ownerId, queryClient, scope])
 
-  return null
+  if (connectionState === "connected") return null
+
+  return (
+    <Alert
+      role="status"
+      aria-live="polite"
+      className="fixed right-4 bottom-4 z-40 w-auto max-w-sm bg-background/95 shadow-lg"
+    >
+      <WifiOff />
+      <AlertDescription>连接中断，服务端任务继续运行，正在重连…</AlertDescription>
+    </Alert>
+  )
 }

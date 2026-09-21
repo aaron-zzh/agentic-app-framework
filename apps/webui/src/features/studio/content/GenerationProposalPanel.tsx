@@ -5,7 +5,6 @@
 
 "use client"
 
-import { useBoolean } from "@aaf/hooks"
 import {
   CircleAlert,
   FileText,
@@ -30,13 +29,8 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card"
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle
-} from "@/components/ui/empty"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -51,8 +45,7 @@ import {
   SheetContent,
   SheetDescription,
   SheetHeader,
-  SheetTitle,
-  SheetTrigger
+  SheetTitle
 } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
 import { ApiError } from "@/lib/api/errors"
@@ -62,6 +55,7 @@ import type {
   AigcGenerationProposalStatus,
   AigcGenerationProposalTargetType,
   AigcProject,
+  AigcProjectCurrentTask,
   AigcProjectDocumentRef,
   AigcProjectGenerationProposal,
   AigcProjectGenerationProposalItemInput,
@@ -74,6 +68,8 @@ import {
   useReviseAigcProjectGenerationProposal
 } from "@/lib/api/rest/ai/aigc"
 import { notify } from "@/lib/notification"
+import { useChatterStore } from "@/lib/store/chatter-store"
+import { PROJECT_INITIALIZATION_FIELD_OPTIONS } from "./project-initialization-fields"
 
 const NO_ACTION = "__no_action__"
 
@@ -83,20 +79,6 @@ const TARGET_TYPES: Array<{ value: AigcGenerationProposalTargetType; label: stri
   { value: "INITIALIZATION_FIELD", label: "项目初始化字段" },
   { value: "PROJECT_COVER", label: "项目封面" }
 ]
-
-const INITIALIZATION_FIELDS = [
-  ["background", "背景信息"],
-  ["targetAudience", "目标受众"],
-  ["requirements", "内容要求"],
-  ["constraints", "约束条件"],
-  ["keyFacts", "关键事实"],
-  ["keyMessages", "核心信息"],
-  ["styleGuidance", "风格指导"],
-  ["successCriteria", "成功标准"],
-  ["deliveryRequirements", "交付要求"],
-  ["locale", "语言区域"],
-  ["additionalContext", "补充上下文"]
-] as const
 
 interface ProposalDraftItem extends AigcProjectGenerationProposalItemInput {
   clientKey: string
@@ -125,6 +107,11 @@ export interface GenerationProposalPanelProps {
   documentRefs: AigcProjectDocumentRef[]
   actions: AigcActionOption[]
   canMutate: boolean
+  /** 项目当前未终结的 canonical Task；非空时禁止启动第二个竞争任务。 */
+  currentTask?: AigcProjectCurrentTask | null
+  /** 受控开关：唯一入口是 ContentActionBar 的批量生成与查看提议。 */
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
 function emptyDraftItem(clientKey: string): ProposalDraftItem {
@@ -193,7 +180,7 @@ function targetOptions(
     return [...unique.values()]
   }
   if (targetType === "INITIALIZATION_FIELD") {
-    return INITIALIZATION_FIELDS.map(([value, label]) => ({ value, label }))
+    return PROJECT_INITIALIZATION_FIELD_OPTIONS
   }
   return [{ value: "cover", label: "项目封面" }]
 }
@@ -257,10 +244,19 @@ export function GenerationProposalPanel({
   objects,
   documentRefs,
   actions,
-  canMutate
+  canMutate,
+  currentTask,
+  open,
+  onOpenChange
 }: GenerationProposalPanelProps) {
-  const sheet = useBoolean(false)
   const expiresAtId = useId()
+  const startBlockedId = useId()
+  const approvalTargetId = useId()
+  const setChatterOpen = useChatterStore((state) => state.setOpen)
+  const startBlockedReason =
+    currentTask == null
+      ? undefined
+      : `项目已有未完成任务（${currentTask.taskId} · ${currentTask.status}），完成或取消后才能启动新的生成任务`
   const nextDraftId = useRef(1)
   const [editor, setEditor] = useState<ProposalEditorState | null>(() =>
     canMutate ? createEditor() : null
@@ -268,10 +264,10 @@ export function GenerationProposalPanel({
   const [formError, setFormError] = useState<string | null>(null)
   const [selectedApproval, setSelectedApproval] = useState<{
     proposalRef: string
-    itemKey: string
+    itemKeys: string[]
   } | null>(null)
   const [approvalIntent, setApprovalIntent] = useState<ApprovalIntent | null>(null)
-  const proposalsQuery = useAigcProjectGenerationProposals(sheet.value ? project.id : null)
+  const proposalsQuery = useAigcProjectGenerationProposals(open ? project.id : null)
   const propose = useProposeAigcProjectGeneration()
   const revise = useReviseAigcProjectGenerationProposal()
   const approveAndStart = useApproveAndStartAigcProjectGeneration()
@@ -377,17 +373,33 @@ export function GenerationProposalPanel({
     propose.mutate(common, callbacks)
   }
 
+  /** 勾选本次要在同一 canonical Task 内推进的已批准目标；范围最终由服务端 approve 再次校验。 */
+  function toggleApprovalTarget(reference: string, itemKey: string, checked: boolean) {
+    setSelectedApproval((current) => {
+      const itemKeys = current?.proposalRef === reference ? current.itemKeys : []
+      const next = checked
+        ? itemKeys.includes(itemKey)
+          ? itemKeys
+          : [...itemKeys, itemKey]
+        : itemKeys.filter((key) => key !== itemKey)
+      return next.length === 0 ? null : { proposalRef: reference, itemKeys: next }
+    })
+    setApprovalIntent(null)
+  }
+
   function startApproval(proposal: AigcProjectGenerationProposal) {
     const reference = proposalRef(proposal)
     if (
       !canMutate ||
+      startBlockedReason !== undefined ||
       proposal.status !== "AWAITING_CONFIRMATION" ||
       selectedApproval?.proposalRef !== reference ||
+      selectedApproval.itemKeys.length === 0 ||
       approveAndStart.isPending
     ) {
       return
     }
-    const operationKey = `${reference}:${proposal.proposalHash}:${selectedApproval.itemKey}`
+    const operationKey = `${reference}:${proposal.proposalHash}:${selectedApproval.itemKeys.join(",")}`
     const idempotencyKey =
       approvalIntent?.operationKey === operationKey
         ? approvalIntent.idempotencyKey
@@ -403,14 +415,16 @@ export function GenerationProposalPanel({
         proposalId: proposal.proposalId,
         proposalVersion: proposal.proposalVersion,
         proposalHash: proposal.proposalHash,
-        approvedTargetKeys: [selectedApproval.itemKey],
+        approvedTargetKeys: selectedApproval.itemKeys,
         approvalIdempotencyKey: idempotencyKey
       },
       {
         onSuccess: (approved) => {
           setApprovalIntent(null)
           setSelectedApproval(null)
-          notify.success("已确认并启动 canonical Task", {
+          onOpenChange(false)
+          setChatterOpen(true)
+          notify.success("已交给 Assistant，可在任务面板查看进度", {
             description: approved.linkedTaskId ?? "Task 关联状态将从服务端刷新"
           })
         },
@@ -420,14 +434,7 @@ export function GenerationProposalPanel({
   }
 
   return (
-    <Sheet open={sheet.value} onOpenChange={sheet.setValue}>
-      <SheetTrigger
-        render={<Button type="button" variant="outline" size="sm" />}
-        aria-label="打开 AI 生成提议"
-      >
-        <Sparkles />
-        AI 生成提议
-      </SheetTrigger>
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-2xl">
         <SheetHeader className="border-b">
           <SheetTitle>AI 生成提议</SheetTitle>
@@ -476,7 +483,9 @@ export function GenerationProposalPanel({
           {editor ? (
             <Card>
               <CardHeader>
-                <CardTitle>{editor.source ? `修订 v${editor.source.proposalVersion}` : "新建生成提议"}</CardTitle>
+                <CardTitle>
+                  {editor.source ? `修订 v${editor.source.proposalVersion}` : "新建生成提议"}
+                </CardTitle>
                 <CardDescription>
                   修订会产生新版本，并使旧版本的 hash 与已有确认失效。
                 </CardDescription>
@@ -561,7 +570,10 @@ export function GenerationProposalPanel({
                                   }
                                 }}
                               >
-                                <SelectTrigger className="w-full" aria-label={`目标 ${index + 1} 类型`}>
+                                <SelectTrigger
+                                  className="w-full"
+                                  aria-label={`目标 ${index + 1} 类型`}
+                                >
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -626,7 +638,9 @@ export function GenerationProposalPanel({
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectGroup>
-                                    <SelectItem value={NO_ACTION}>不指定，由 Assistant 决定</SelectItem>
+                                    <SelectItem value={NO_ACTION}>
+                                      不指定，由 Assistant 决定
+                                    </SelectItem>
                                     {itemActions.map((action) => (
                                       <SelectItem key={action.actionKey} value={action.actionKey}>
                                         {action.label}
@@ -690,7 +704,9 @@ export function GenerationProposalPanel({
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="font-medium">提议版本</h2>
-              <p className="text-muted-foreground text-sm">服务端返回当前项目的全部 Proposal 版本。</p>
+              <p className="text-muted-foreground text-sm">
+                服务端返回当前项目的全部 Proposal 版本。
+              </p>
             </div>
             <Badge variant="outline">{proposals.length}</Badge>
           </div>
@@ -701,11 +717,15 @@ export function GenerationProposalPanel({
           </p>
 
           {proposalsQuery.isLoading ? (
-            <p role="status" className="text-muted-foreground text-sm">正在加载生成提议…</p>
+            <p role="status" className="text-muted-foreground text-sm">
+              正在加载生成提议…
+            </p>
           ) : proposals.length === 0 ? (
             <Empty>
               <EmptyHeader>
-                <EmptyMedia variant="icon"><FileText /></EmptyMedia>
+                <EmptyMedia variant="icon">
+                  <FileText />
+                </EmptyMedia>
                 <EmptyTitle>暂无生成提议</EmptyTitle>
                 <EmptyDescription>创建提议后，可在这里审查、修订并单项确认启动。</EmptyDescription>
               </EmptyHeader>
@@ -714,8 +734,8 @@ export function GenerationProposalPanel({
             proposals.map((proposal) => {
               const reference = proposalRef(proposal)
               const reason = terminalReason(proposal.status)
-              const selectedItemKey =
-                selectedApproval?.proposalRef === reference ? selectedApproval.itemKey : ""
+              const selectedItemKeys =
+                selectedApproval?.proposalRef === reference ? selectedApproval.itemKeys : []
               return (
                 <Card key={reference}>
                   <CardHeader>
@@ -758,9 +778,12 @@ export function GenerationProposalPanel({
                           </CardAction>
                         </CardHeader>
                         <CardContent className="flex flex-col gap-2">
-                          <p className="whitespace-pre-wrap text-sm">{item.generationInstruction}</p>
+                          <p className="whitespace-pre-wrap text-sm">
+                            {item.generationInstruction}
+                          </p>
                           <p className="font-mono text-muted-foreground text-xs">
-                            instruction {item.instructionHash.slice(0, 12)}… · item v{item.itemVersion}
+                            instruction {item.instructionHash.slice(0, 12)}… · item v
+                            {item.itemVersion}
                           </p>
                           {item.dependencyKeys.length > 0 ? (
                             <p className="text-muted-foreground text-xs">
@@ -777,31 +800,32 @@ export function GenerationProposalPanel({
                     ))}
 
                     {proposal.status === "AWAITING_CONFIRMATION" ? (
-                      <div className="flex flex-col gap-1 font-medium text-sm">
-                        <span>本次确认并启动的单项目标</span>
-                        <Select
-                          value={selectedItemKey}
-                          onValueChange={(value) =>
-                            setSelectedApproval(
-                              value ? { proposalRef: reference, itemKey: value } : null
-                            )
-                          }
-                          disabled={!canMutate}
-                        >
-                          <SelectTrigger className="w-full" aria-label="本次确认并启动的单项目标">
-                            <SelectValue placeholder="选择一项" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectGroup>
-                              {proposal.items.map((item) => (
-                                <SelectItem key={item.itemKey} value={item.itemKey}>
-                                  {item.targetKey} · {item.generationInstruction.slice(0, 36)}
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      <fieldset className="flex flex-col gap-2">
+                        <legend className="font-medium text-sm">本次确认并启动的目标</legend>
+                        <p className="text-muted-foreground text-xs">
+                          勾选的目标在同一个 canonical Task 内由服务端逐个提交动作；Assistant
+                          只决定推进顺序，不能超出这里的批准范围。
+                        </p>
+                        {proposal.items.map((item) => (
+                          <label
+                            key={item.itemKey}
+                            className="flex items-start gap-2 text-sm"
+                            htmlFor={`${approvalTargetId}-${reference}-${item.itemKey}`}
+                          >
+                            <Checkbox
+                              id={`${approvalTargetId}-${reference}-${item.itemKey}`}
+                              checked={selectedItemKeys.includes(item.itemKey)}
+                              disabled={!canMutate}
+                              onCheckedChange={(checked) =>
+                                toggleApprovalTarget(reference, item.itemKey, checked === true)
+                              }
+                            />
+                            <span>
+                              {item.targetKey} · {item.generationInstruction.slice(0, 48)}
+                            </span>
+                          </label>
+                        ))}
+                      </fieldset>
                     ) : null}
                   </CardContent>
                   {proposal.status === "AWAITING_CONFIRMATION" ? (
@@ -818,23 +842,32 @@ export function GenerationProposalPanel({
                         <Pencil />
                         修订
                       </Button>
-                      <Button
-                        type="button"
-                        onClick={() => startApproval(proposal)}
-                        disabled={
-                          !canMutate ||
-                          !selectedItemKey ||
-                          editorPending ||
-                          approveAndStart.isPending
-                        }
-                      >
-                        {approveAndStart.isPending ? (
-                          <LoaderCircle className="animate-spin" />
-                        ) : (
-                          <Sparkles />
-                        )}
-                        确认并启动
-                      </Button>
+                      <div className="flex flex-col items-end gap-1">
+                        <Button
+                          type="button"
+                          onClick={() => startApproval(proposal)}
+                          aria-describedby={startBlockedReason ? startBlockedId : undefined}
+                          disabled={
+                            !canMutate ||
+                            !selectedItemKeys.length ||
+                            editorPending ||
+                            approveAndStart.isPending ||
+                            startBlockedReason !== undefined
+                          }
+                        >
+                          {approveAndStart.isPending ? (
+                            <LoaderCircle className="animate-spin" />
+                          ) : (
+                            <Sparkles />
+                          )}
+                          确认并启动
+                        </Button>
+                        {startBlockedReason ? (
+                          <p id={startBlockedId} className="max-w-72 text-muted-foreground text-xs">
+                            {startBlockedReason}
+                          </p>
+                        ) : null}
+                      </div>
                     </CardFooter>
                   ) : null}
                 </Card>

@@ -40,10 +40,7 @@ export interface ProjectAssistantControlProps {
   canBind: boolean
 }
 
-export function ProjectAssistantControl({
-  projectId,
-  canBind
-}: ProjectAssistantControlProps) {
+export function ProjectAssistantControl({ projectId, canBind }: ProjectAssistantControlProps) {
   const bindingDialog = useBoolean(false)
   const [selectedAssistantId, setSelectedAssistantId] = useState("")
   const open = useChatterStore((state) => state.open)
@@ -73,12 +70,7 @@ export function ProjectAssistantControl({
 
   if (contextQuery.isError || !context) {
     return (
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={() => void contextQuery.refetch()}
-      >
+      <Button type="button" variant="outline" size="sm" onClick={() => void contextQuery.refetch()}>
         <MessageSquare />
         重试 Assistant
       </Button>
@@ -150,8 +142,9 @@ export function ProjectAssistantControl({
             >
               <SelectTrigger aria-label="选择项目 Assistant" className="w-full">
                 <SelectValue>
-                  {assistantsQuery.data?.find((assistant) => assistant.assistantId === selectedAssistantId)
-                    ?.name ?? "请选择 Assistant"}
+                  {assistantsQuery.data?.find(
+                    (assistant) => assistant.assistantId === selectedAssistantId
+                  )?.name ?? "请选择 Assistant"}
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>

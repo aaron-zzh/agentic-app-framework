@@ -42,7 +42,7 @@ import { notify } from "@/lib/notification"
 import { getObjectTypeConfig } from "./project-type-config"
 
 export type ProjectObjectStructureAction =
-  | { kind: "append" }
+  | { kind: "append"; parent?: AigcProjectObject }
   | { kind: "contract"; object: AigcProjectObject }
   | { kind: "remove"; object: AigcProjectObject }
 
@@ -74,14 +74,19 @@ export function ProjectObjectStructureDialog({
   const [parentObjectId, setParentObjectId] = useState<number | undefined>()
   const [reason, setReason] = useState("")
   const { data: configuration } = useAigcProjectConfiguration(project.id)
+  const appendParent = action?.kind === "append" ? action.parent : undefined
   const addableTemplates = (configuration?.snapshot.slotTemplates ?? []).filter(
-    (template) => template.userAddable
+    (template) =>
+      template.userAddable &&
+      (!appendParent || template.parentTemplateKey === appendParent.blueprintTemplateKey)
   )
   const selectedTemplate = addableTemplates.find((template) => template.templateKey === templateKey)
   const requiredParentTemplateKey = selectedTemplate?.parentTemplateKey ?? null
-  const parentCandidates = requiredParentTemplateKey
-    ? objects.filter((object) => object.blueprintTemplateKey === requiredParentTemplateKey)
-    : []
+  const parentCandidates = appendParent
+    ? [appendParent]
+    : requiredParentTemplateKey
+      ? objects.filter((object) => object.blueprintTemplateKey === requiredParentTemplateKey)
+      : []
   const appendObject = useAppendAigcProjectObject()
   const updateContract = useUpdateAigcProjectObjectContract()
   const removeObject = useRemoveAigcProjectObject()
@@ -94,7 +99,7 @@ export function ProjectObjectStructureDialog({
     setContractRole(
       action.kind === "contract" ? (action.object.contractRole ?? "OPTIONAL") : "OPTIONAL"
     )
-    setParentObjectId(undefined)
+    setParentObjectId(action.kind === "append" ? action.parent?.id : undefined)
     setReason("")
   }, [action])
 
@@ -134,7 +139,8 @@ export function ProjectObjectStructureDialog({
           projectId: project.id,
           objectId: action.object.id,
           contractRole,
-          expectedProjectVersion: project.version
+          expectedProjectVersion: project.version,
+          expectedGraphRevision: project.graphRevision
         },
         {
           onSuccess: () => {
@@ -151,6 +157,7 @@ export function ProjectObjectStructureDialog({
         projectId: project.id,
         objectId: action.object.id,
         expectedProjectVersion: project.version,
+        expectedGraphRevision: project.graphRevision,
         reason: reason.trim()
       },
       {
@@ -164,7 +171,9 @@ export function ProjectObjectStructureDialog({
 
   const title =
     action?.kind === "append"
-      ? "追加项目对象"
+      ? action.parent
+        ? "添加下级"
+        : "添加内容"
       : action?.kind === "contract"
         ? "更新合同角色"
         : "移除项目对象"
@@ -181,7 +190,9 @@ export function ProjectObjectStructureDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
             {action?.kind === "append"
-              ? "从当前项目结构的可添加类型中追加对象，并更新项目图谱 revision。"
+              ? action.parent
+                ? `在「${action.parent.title || action.parent.stableKey}」下添加匹配的下级内容，父对象已锁定。`
+                : "从当前项目结构的可添加类型中添加内容，并更新项目图谱 revision。"
               : action?.kind === "contract"
                 ? `调整「${action.object.title || action.object.stableKey}」是否参与交付。`
                 : `移除「${action?.object.title || action?.object.stableKey}」；存在子对象或活跃执行时服务端会拒绝。`}
@@ -207,7 +218,7 @@ export function ProjectObjectStructureDialog({
                   onValueChange={(value) => {
                     if (value) {
                       setTemplateKey(value)
-                      setParentObjectId(undefined)
+                      setParentObjectId(appendParent?.id)
                     }
                   }}
                 >
@@ -235,14 +246,16 @@ export function ProjectObjectStructureDialog({
                 <Label htmlFor={parentSelectId}>父对象</Label>
                 <Select
                   value={parentObjectId ? String(parentObjectId) : undefined}
-                  disabled={!requiredParentTemplateKey}
+                  disabled={Boolean(appendParent) || !requiredParentTemplateKey}
                   onValueChange={(value) => setParentObjectId(value ? Number(value) : undefined)}
                 >
                   <SelectTrigger id={parentSelectId} className="w-full">
                     <SelectValue
                       placeholder={
                         !templateKey
-                          ? "先选择对象类型"
+                          ? appendParent
+                            ? appendParent.title || appendParent.stableKey
+                            : "先选择对象类型"
                           : requiredParentTemplateKey
                             ? "选择父对象"
                             : "该类型无需父对象"
@@ -259,9 +272,14 @@ export function ProjectObjectStructureDialog({
                     </SelectGroup>
                   </SelectContent>
                 </Select>
-                {requiredParentTemplateKey && parentCandidates.length === 0 ? (
+                {appendParent ? (
                   <p className="text-muted-foreground text-xs">
-                    当前项目缺少匹配的父对象，无法追加。
+                    父对象已锁定为「{appendParent.title || appendParent.stableKey}
+                    」，仅显示匹配的下级类型。
+                  </p>
+                ) : requiredParentTemplateKey && parentCandidates.length === 0 ? (
+                  <p className="text-muted-foreground text-xs">
+                    当前项目缺少匹配的父对象，无法添加。
                   </p>
                 ) : null}
               </div>

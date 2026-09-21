@@ -35,16 +35,26 @@ interface ProjectObjectGenerationDialogProps {
   onSubmitted?: (executionRunId: number) => void
 }
 
-function modeForAction(actionKey: string): Extract<MediaGenerationMode, "image" | "video"> | null {
+function modeForAction(
+  actionKey: string
+): Extract<MediaGenerationMode, "image" | "video" | "voice"> | null {
   if (actionKey.startsWith("image.")) return "image"
   if (actionKey.startsWith("video.")) return "video"
+  if (actionKey.startsWith("audio.")) return "voice"
   return null
 }
+
+/** 每种媒体模式在项目域的首选动作 key；voice 模式对应服务端 audio.generate。 */
+const PREFERRED_ACTION_KEY_BY_MODE = {
+  image: "image.generate",
+  video: "video.generate",
+  voice: "audio.generate"
+} as const
 
 /** 将服务端允许的媒体动作收敛为当前对象的显式项目目标。 */
 export function buildProjectMediaTargets(
   actions: AigcActionOption[],
-  projectId: number,
+  project: AigcProject,
   object: AigcProjectObject
 ): Partial<Record<MediaGenerationMode, MediaProjectTarget>> {
   const targets: Partial<Record<MediaGenerationMode, MediaProjectTarget>> = {}
@@ -52,10 +62,16 @@ export function buildProjectMediaTargets(
     const mode = modeForAction(action.actionKey)
     if (!mode || !action.applicableObjectTypes.includes(object.objectType)) continue
     const existing = targets[mode]
-    const preferredActionKey = `${mode}.generate`
+    const preferredActionKey = PREFERRED_ACTION_KEY_BY_MODE[mode]
     if (existing?.actionKey === preferredActionKey) continue
     if (existing && action.actionKey !== preferredActionKey) continue
-    targets[mode] = { projectId, objectId: object.id, actionKey: action.actionKey }
+    targets[mode] = {
+      projectId: project.id,
+      projectVersion: project.version,
+      graphRevision: project.graphRevision,
+      objectId: object.id,
+      actionKey: action.actionKey
+    }
   }
   return targets
 }
@@ -86,25 +102,38 @@ export function ProjectObjectGenerationDialog({
       object
         ? buildProjectMediaTargets(
             actions.filter((action) => allowedActionKeys.has(action.actionKey)),
-            project.id,
+            project,
             object
           )
         : {},
-    [actions, allowedActionKeys, object, project.id]
+    [actions, allowedActionKeys, object, project]
   )
-  const initialMode = projectTargets.image ? "image" : "video"
-  const hasMediaMode = projectTargets.image !== undefined || projectTargets.video !== undefined
+  const initialMode = projectTargets.image
+    ? "image"
+    : projectTargets.video
+      ? "video"
+      : projectTargets.voice
+        ? "voice"
+        : "image"
+  const hasMediaMode =
+    projectTargets.image !== undefined ||
+    projectTargets.video !== undefined ||
+    projectTargets.voice !== undefined
   const loading = readinessLoading || actionsLoading
+  const regenerating = object?.adoptedVersionId !== null && object?.adoptedVersionId !== undefined
 
   return (
     <Dialog open={open && mutable && object !== undefined} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            生成{object?.title || (object ? OBJECT_TYPE_LABELS[object.objectType] : "项目对象")}
+            {regenerating ? "重新生成" : "生成"}
+            {object?.title || (object ? OBJECT_TYPE_LABELS[object.objectType] : "项目对象")}
           </DialogTitle>
           <DialogDescription>
-            专业媒体生成会创建新的 ExecutionRun 和候选版本，不会自动替换采用版本。
+            {regenerating
+              ? `基于已采用版本 #${object?.adoptedVersionId} 重新生成；新候选不会覆盖当前采用版本。`
+              : "首次生成会创建新的 ExecutionRun 和候选版本，需在对象详情中确认采用。"}
           </DialogDescription>
         </DialogHeader>
         {loading ? (

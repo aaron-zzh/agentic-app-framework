@@ -47,6 +47,7 @@ import {
 import { useCreateDocument, useDocList, useDocument } from "@/lib/api/rest/system/document"
 import { cn } from "@/lib/utils/index"
 import { DocumentEditor } from "./DocumentEditor"
+import { presentGenerationStatus } from "./target-generation-status"
 
 interface ProjectDocumentPanelProps {
   open: boolean
@@ -299,6 +300,7 @@ export function ProjectDocumentPanel({
                   <div className="flex flex-col gap-1">
                     {references.map((reference) => {
                       const selected = selectedReferenceId === reference.id
+                      const generation = presentGenerationStatus(reference.generationStatus)
                       return (
                         <div
                           key={reference.id}
@@ -336,6 +338,14 @@ export function ProjectDocumentPanel({
                               reference.outdated ? (
                                 <Badge variant="outline" className="text-[10px]">
                                   有更新
+                                </Badge>
+                              ) : null}
+                              {generation ? (
+                                <Badge
+                                  variant={generation.failed ? "destructive" : "outline"}
+                                  className="text-[10px]"
+                                >
+                                  {generation.label}
                                 </Badge>
                               ) : null}
                             </span>

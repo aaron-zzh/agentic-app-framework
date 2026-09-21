@@ -5,8 +5,8 @@
 
 "use client"
 
-import { GitCompareArrows } from "lucide-react"
-import { useEffect, useState } from "react"
+import { GitCompareArrows, MessagesSquare } from "lucide-react"
+import { useEffect, useId, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -41,11 +41,13 @@ import {
   useAdoptAigcObjectVersion,
   useAigcExecutionRuns,
   useAigcObjectVersions,
+  useAigcProjectConversationContext,
   useAigcProjectReadiness,
   useRecordAigcDocumentCandidate,
   useRejectAigcObjectVersion
 } from "@/lib/api/rest/ai/aigc"
 import { notify } from "@/lib/notification"
+import { useChatterStore } from "@/lib/store/chatter-store"
 import { CandidateComparisonDialog } from "./CandidateComparisonDialog"
 import { ExecutionRunTree } from "./ExecutionRunTree"
 import { OBJECT_STATUS_LABELS, OBJECT_TYPE_LABELS } from "./graph/graph-projection"
@@ -122,6 +124,37 @@ export function ObjectDetailPanel({
   const adopt = useAdoptAigcObjectVersion()
   const reject = useRejectAigcObjectVersion()
   const recordDocumentCandidate = useRecordAigcDocumentCandidate()
+  const conversationHintId = useId()
+  const conversationContextQuery = useAigcProjectConversationContext(project.id)
+  const setPendingDropItem = useChatterStore((state) => state.setPendingDropItem)
+  const setChatterOpen = useChatterStore((state) => state.setOpen)
+  const conversationDisabledReason = !lifecycleWritable
+    ? `${project.status} 阶段内容只读，不能在对话中修改`
+    : conversationContextQuery.data?.state !== "READY"
+      ? "项目受控对话尚未就绪，请先在项目头部绑定 Assistant"
+      : undefined
+
+  /**
+   * 把对象作为语义上下文送入受控项目对话。
+   *
+   * <p>不在此处创建 Task 或修改任何项目数据：副作用由服务端在 Assistant 触及写入边界时提升为 canonical Task，
+   * 结果仍走 candidate 链。
+   */
+  function requestConversationalEdit(target: AigcProjectObject) {
+    if (conversationDisabledReason !== undefined) return
+    setPendingDropItem({
+      type: "record",
+      id: target.id,
+      title: target.title || OBJECT_TYPE_LABELS[target.objectType],
+      summary: `项目 #${project.id} · ${OBJECT_TYPE_LABELS[target.objectType]} · #${target.stableKey}`,
+      semantics: {
+        componentName: "AigcProjectObject",
+        entity: "aigc_project_object",
+        selectedIds: [String(target.id)]
+      }
+    })
+    setChatterOpen(true)
+  }
   const versions = versionsQuery.data ?? []
   const objectReadiness = readinessQuery.data?.find((item) => item.projectObjectId === objectId)
   const candidateAction =
@@ -257,6 +290,25 @@ export function ObjectDetailPanel({
               ? `${OBJECT_TYPE_LABELS[object.objectType]} · #${object.stableKey}${lifecycleWritable ? "" : ` · ${project.status} 阶段只读`}`
               : "查看项目对象"}
           </SheetDescription>
+          {object ? (
+            <div className="flex flex-col items-start gap-1 px-4">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={conversationDisabledReason !== undefined}
+                aria-describedby={conversationDisabledReason ? conversationHintId : undefined}
+                onClick={() => requestConversationalEdit(object)}
+              >
+                <MessagesSquare />
+                在对话中修改
+              </Button>
+              <p id={conversationHintId} className="text-muted-foreground text-xs">
+                {conversationDisabledReason ??
+                  "把该对象作为上下文送入项目对话；Assistant 产生副作用前会进入 canonical Task，结果仍形成候选而不自动替换采用版本。"}
+              </p>
+            </div>
+          ) : null}
         </SheetHeader>
 
         {object ? (

@@ -50,11 +50,62 @@ export function ProjectProgressPanel({ progress }: { progress: AigcProjectProgre
           {progress.currentTask === null ? (
             <Empty className="min-h-28 py-4">
               <EmptyHeader>
-                <EmptyTitle>阶段一没有 Assistant Task</EmptyTitle>
+                <EmptyTitle>当前没有未终结 Assistant Task</EmptyTitle>
                 <EmptyDescription>项目不会伪造 Task，也不会自动推进项目状态。</EmptyDescription>
               </EmptyHeader>
             </Empty>
-          ) : null}
+          ) : (
+            <div className="mt-3 rounded-lg border p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-medium text-sm">Task {progress.currentTask.taskId}</p>
+                <Badge variant="outline">{progress.currentTask.status}</Badge>
+              </div>
+              <p className="mt-1 text-muted-foreground text-xs">
+                来源 Proposal {progress.currentTask.proposalId}@
+                {progress.currentTask.proposalVersion}
+                {progress.currentTask.itemKeys.length > 0
+                  ? ` · 已批准 ${progress.currentTask.itemKeys.length} 项目标`
+                  : ""}
+              </p>
+              {progress.currentTask.itemKeys.length > 0 ? (
+                <ul className="mt-2 flex flex-col gap-1">
+                  {progress.currentTask.itemKeys.map((itemKey) => {
+                    const run = progress.currentTask?.targetRuns.find(
+                      (item) => item.itemKey === itemKey
+                    )
+                    return (
+                      <li key={itemKey} className="flex items-center justify-between gap-2 text-xs">
+                        <span className="truncate">{itemKey}</span>
+                        <Badge variant={run ? "outline" : "secondary"}>
+                          {run ? `Run #${run.executionRunId} · ${run.status}` : "未开始"}
+                        </Badge>
+                      </li>
+                    )
+                  })}
+                </ul>
+              ) : null}
+              <p className="mt-1 text-muted-foreground text-xs">
+                该任务未终结前不能启动第二个生成任务；暂停、修订、恢复或取消都需显式 Task 控制操作。
+              </p>
+              {progress.currentTask.decisionBlockers.length > 0 ? (
+                <div className="mt-2 rounded-lg border border-amber-500/40 p-2">
+                  <p className="font-medium text-amber-600 text-xs">
+                    等待人工决策（{progress.currentTask.decisionBlockers.length} 项阻断）
+                  </p>
+                  <ul className="mt-1 flex flex-col gap-0.5">
+                    {progress.currentTask.decisionBlockers.map((blocker) => (
+                      <li key={blocker} className="text-muted-foreground text-xs">
+                        {blocker}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-1 text-muted-foreground text-xs">
+                    解决阻断（采用候选或重试失败 Run）后服务端会重新求值并自动恢复，无需手工推进。
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          )}
         </section>
 
         <section className="rounded-xl border p-3">
