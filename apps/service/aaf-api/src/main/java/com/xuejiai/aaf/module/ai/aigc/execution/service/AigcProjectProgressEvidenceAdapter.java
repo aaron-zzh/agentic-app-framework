@@ -30,6 +30,37 @@ public class AigcProjectProgressEvidenceAdapter implements AigcProjectProgressEv
     private final CreditService creditService;
 
     @Override
+    public List<ApprovedTargetRunRef> approvedTargetRuns(
+            Long projectId, String proposalId, Integer proposalVersion) {
+        if (projectId == null || proposalId == null || proposalVersion == null) {
+            return List.of();
+        }
+        return runRepository
+                .findApprovedTargetRuns(projectId, proposalId, String.valueOf(proposalVersion))
+                .stream()
+                .filter(row -> row.getItemKey() != null)
+                .map(
+                        row ->
+                                new ApprovedTargetRunRef(
+                                        row.getItemKey(), row.getExecutionRunId(), row.getStatus()))
+                .toList();
+    }
+
+    @Override
+    public List<ApprovedTargetRunRef> latestTargetRuns(Long projectId) {
+        if (projectId == null) {
+            return List.of();
+        }
+        return runRepository.findLatestTargetRuns(projectId).stream()
+                .filter(row -> row.getItemKey() != null)
+                .map(
+                        row ->
+                                new ApprovedTargetRunRef(
+                                        row.getItemKey(), row.getExecutionRunId(), row.getStatus()))
+                .toList();
+    }
+
+    @Override
     public Evidence load(Long projectId, Long userId) {
         var runs = runRepository.findByProjectIdOrderByIdAsc(projectId);
         var tasks = taskApi.findProjectProgress(projectId, userId);

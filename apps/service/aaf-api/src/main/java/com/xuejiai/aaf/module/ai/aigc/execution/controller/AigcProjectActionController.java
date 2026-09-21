@@ -53,6 +53,7 @@ public class AigcProjectActionController {
                                 request.expectedProjectVersion(),
                                 request.expectedGraphRevision(),
                                 Boolean.TRUE.equals(request.confirmed()),
-                                request.idempotencyKey())));
+                                request.idempotencyKey(),
+                                null)));
     }
 }

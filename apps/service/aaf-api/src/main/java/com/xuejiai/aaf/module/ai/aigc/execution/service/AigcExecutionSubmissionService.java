@@ -22,6 +22,7 @@ import com.xuejiai.aaf.module.ai.aigc.AigcCanonicalRequest;
 import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcActionCommand;
 import com.xuejiai.aaf.module.ai.aigc.execution.domain.AigcExecutionSubmission;
 import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionSubmissionRepository;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcApprovedGenerationTarget;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
 
 import lombok.RequiredArgsConstructor;
@@ -250,7 +251,11 @@ public class AigcExecutionSubmissionService {
                 integerValue(payload.get("expectedProjectVersion")),
                 longValue(payload.get("expectedGraphRevision")),
                 Boolean.TRUE.equals(payload.get("confirmed")),
-                submission.getIdempotencyKey());
+                submission.getIdempotencyKey(),
+                payload.get("approvedGenerationTarget") == null
+                        ? null
+                        : AigcApprovedGenerationTarget.fromEvidence(
+                                objectMap(payload.get("approvedGenerationTarget"))));
     }
 
     Map<String, Object> normalize(AigcActionCommand command) {
@@ -271,6 +276,9 @@ public class AigcExecutionSubmissionService {
         result.put("expectedProjectVersion", command.expectedProjectVersion());
         result.put("expectedGraphRevision", command.expectedGraphRevision());
         result.put("confirmed", command.confirmed());
+        if (command.approvedTarget() != null) {
+            result.put("approvedGenerationTarget", command.approvedTarget().toEvidence());
+        }
         return java.util.Collections.unmodifiableMap(result);
     }
 

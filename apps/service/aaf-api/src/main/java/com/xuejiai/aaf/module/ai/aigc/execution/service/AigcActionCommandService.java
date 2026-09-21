@@ -29,6 +29,7 @@ import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionSubmissi
 import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionTaskRefRepository;
 import com.xuejiai.aaf.module.ai.aigc.execution.vo.AigcActionOptionVO;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcApprovedGenerationTarget;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcGenerationScope;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectExecutionReservationBindCommand;
@@ -46,9 +47,18 @@ import lombok.RequiredArgsConstructor;
 public class AigcActionCommandService implements AigcExecutionApi {
 
     private static final List<String> PHASE_ONE_ACTIONS =
-            List.of("image.generate", "image.edit", "video.generate", "project.cover.generate");
+            List.of(
+                    "image.generate",
+                    "image.edit",
+                    "video.generate",
+                    "audio.generate",
+                    "project.cover.generate");
     private static final java.util.Set<String> PROFESSIONAL_TARGETS =
-            java.util.Set.of("aigc.image.generate", "aigc.image.edit", "aigc.video.generate");
+            java.util.Set.of(
+                    "aigc.image.generate",
+                    "aigc.image.edit",
+                    "aigc.video.generate",
+                    "aigc.audio.generate");
 
     private static final Map<String, String> ACTION_LABELS =
             Map.ofEntries(
@@ -58,6 +68,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
                     Map.entry("image.generate", "生成图片"),
                     Map.entry("image.edit", "局部修改图片"),
                     Map.entry("video.generate", "生成视频"),
+                    Map.entry("audio.generate", "生成配音"),
                     Map.entry("project.cover.generate", "生成项目封面"),
                     Map.entry("deliverable.regenerate", "重新生成交付物"),
                     Map.entry("package.generate", "批量生成交付包"),
@@ -578,7 +589,8 @@ public class AigcActionCommandService implements AigcExecutionApi {
                         project.version(),
                         root.getTargetGraphRevision(),
                         true,
-                        command.idempotencyKey());
+                        command.idempotencyKey(),
+                        null);
         var run = new AigcExecutionRun();
         run.setOrgId(root.getOrgId());
         run.setWorkspaceId(root.getWorkspaceId());
@@ -602,10 +614,27 @@ public class AigcActionCommandService implements AigcExecutionApi {
         run.setPromptText(command.prompt());
         run.setAttachmentRefs(command.attachmentMediaVersionIds());
         run.setCostCredits(binding.getEstimatedCredits());
-        run.setEffectiveInput(effectiveInput(project, object, childCommand));
+        run.setEffectiveInput(
+                copyApprovedGenerationTarget(root, effectiveInput(project, object, childCommand)));
+        run.setContextSnapshot(root.getContextSnapshot());
         runRepository.saveAndFlush(run);
         publishDispatch(run, childCommand);
         return toApiView(run);
+    }
+
+    /** child/retry Run 不重新解析已确认目标，只从 root 原样复制冻结证据。 */
+    private Map<String, Object> copyApprovedGenerationTarget(
+            AigcExecutionRun root, Map<String, Object> effectiveInput) {
+        var frozen =
+                root.getEffectiveInput() == null
+                        ? null
+                        : root.getEffectiveInput().get("approvedGenerationTarget");
+        if (frozen == null) {
+            return effectiveInput;
+        }
+        var copied = new LinkedHashMap<>(effectiveInput);
+        copied.put("approvedGenerationTarget", frozen);
+        return Map.copyOf(copied);
     }
 
     @Override
@@ -714,7 +743,8 @@ public class AigcActionCommandService implements AigcExecutionApi {
                         projectApi.requireProject(previous.getProjectId()).version(),
                         previous.getTargetGraphRevision(),
                         true,
-                        idempotencyKey);
+                        idempotencyKey,
+                        approvedTargetOf(previous));
         var retryRoot =
                 previous.getRetryOfExecutionRunId() == null
                         ? previous.getId()
@@ -855,8 +885,26 @@ public class AigcActionCommandService implements AigcExecutionApi {
                         integer(retry.getEffectiveInput(), "projectVersion"),
                         retry.getTargetGraphRevision(),
                         true,
-                        "%s:%d".formatted(idempotencyKey, previous.getId()));
+                        "%s:%d".formatted(idempotencyKey, previous.getId()),
+                        approvedTargetOf(retry));
         publishDispatch(retry, command);
+    }
+
+    /** 从 Run 已冻结的证据恢复已确认目标；无证据表示该 Run 不来自 Proposal 桥接。 */
+    private AigcApprovedGenerationTarget approvedTargetOf(AigcExecutionRun run) {
+        var frozen =
+                run.getEffectiveInput() == null
+                        ? null
+                        : run.getEffectiveInput().get("approvedGenerationTarget");
+        if (frozen == null) {
+            return null;
+        }
+        if (!(frozen instanceof Map<?, ?> evidence)) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "已冻结的生成目标证据结构非法");
+        }
+        var normalized = new LinkedHashMap<String, Object>();
+        evidence.forEach((key, value) -> normalized.put(String.valueOf(key), value));
+        return AigcApprovedGenerationTarget.fromEvidence(normalized);
     }
 
     @Override
@@ -909,10 +957,27 @@ public class AigcActionCommandService implements AigcExecutionApi {
 
     private AigcProjectObjectView resolveObject(
             AigcProjectView project, AigcActionCommand command) {
-        if ("project.cover.generate".equals(command.actionKey())) {
-            return null;
-        }
         var objects = projectApi.getGraph(project.id()).objects();
+        if ("project.cover.generate".equals(command.actionKey())) {
+            if (command.projectObjectId() == null) {
+                throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "项目封面动作必须显式指定成本归属对象");
+            }
+            var object =
+                    objects.stream()
+                            .filter(candidate -> command.projectObjectId().equals(candidate.id()))
+                            .findFirst()
+                            .orElseThrow(
+                                    () ->
+                                            new BusinessException(
+                                                    GlobalErrorCode.NOT_FOUND, "封面成本归属对象不存在"));
+            if (!Objects.equals(project.id(), object.projectId())) {
+                throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "封面成本归属对象不属于当前项目");
+            }
+            if ("EXCLUDED".equals(object.contractRole())) {
+                throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "封面成本归属对象不可为 EXCLUDED");
+            }
+            return object;
+        }
         var applicableTypes = applicableObjectTypes(command.actionKey());
         if (command.projectObjectId() != null) {
             var object =
@@ -938,7 +1003,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
 
     private void requireActionReady(
             AigcProjectView project, AigcProjectObjectView object, AigcActionCommand command) {
-        if (object == null) {
+        if (object == null || "project.cover.generate".equals(command.actionKey())) {
             return;
         }
         var readiness =
@@ -1013,6 +1078,9 @@ public class AigcActionCommandService implements AigcExecutionApi {
         run.setCostCredits(binding.getEstimatedCredits());
         run.setRetryCount(0);
         run.setEffectiveInput(effectiveInput(project, object, command));
+        if (command.approvedTarget() != null) {
+            run.setContextSnapshot(command.approvedTarget().toEvidence());
+        }
         runRepository.save(run);
         run.setRootExecutionRunId(run.getId());
         return runRepository.save(run);
@@ -1029,7 +1097,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
         input.put("confirmed", command.confirmed());
         input.put(
                 "inputVersionIds",
-                object == null
+                object == null || "project.cover.generate".equals(command.actionKey())
                         ? List.of()
                         : projectApi.readiness(project.id(), generationScope(object)).stream()
                                 .filter(
@@ -1065,6 +1133,9 @@ public class AigcActionCommandService implements AigcExecutionApi {
             input.put("expectedGraphRevision", command.expectedGraphRevision());
         }
         input.put("idempotencyKey", command.idempotencyKey());
+        if (command.approvedTarget() != null) {
+            input.put("approvedGenerationTarget", command.approvedTarget().toEvidence());
+        }
         return Map.copyOf(input);
     }
 
@@ -1101,6 +1172,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
             case "image.generate", "image.edit", "image.highlight_generate" ->
                     List.of("image_deliverable", "shot_keyframe");
             case "video.generate" -> List.of("video_deliverable");
+            case "audio.generate" -> List.of("audio_deliverable");
             case "project.cover.generate" -> List.of();
             case "package.generate" -> List.of("deliverable_set");
             case "outline.generate" -> List.of("article_outline");

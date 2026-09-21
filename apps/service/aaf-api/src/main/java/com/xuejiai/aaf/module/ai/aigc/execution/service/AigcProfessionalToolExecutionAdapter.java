@@ -26,6 +26,7 @@ public class AigcProfessionalToolExecutionAdapter implements AigcToolExecutionPo
     private static final String IMAGE_GENERATE = "aigc.image.generate";
     private static final String IMAGE_EDIT = "aigc.image.edit";
     private static final String VIDEO_GENERATE = "aigc.video.generate";
+    private static final String AUDIO_GENERATE = "aigc.audio.generate";
     private static final Set<String> IMAGE_ARGUMENT_KEYS =
             Set.of(
                     "width",
@@ -51,6 +52,9 @@ public class AigcProfessionalToolExecutionAdapter implements AigcToolExecutionPo
                     "promptExtend",
                     "generateAudio");
 
+    /** 音频（TTS 配音）只接受服务端已支持的发音人参数；正文来自冻结 prompt。 */
+    private static final Set<String> AUDIO_ARGUMENT_KEYS = Set.of("voice");
+
     private final AigcTaskApi taskApi;
     private final AigcMediaApi mediaApi;
 
@@ -60,6 +64,8 @@ public class AigcProfessionalToolExecutionAdapter implements AigcToolExecutionPo
             case IMAGE_GENERATE -> executeImage(command, false);
             case IMAGE_EDIT -> executeImage(command, true);
             case VIDEO_GENERATE -> executeVideo(command);
+            case AUDIO_GENERATE ->
+                    submit(command, "VOICE", allowedArguments(command, AUDIO_ARGUMENT_KEYS));
             default ->
                     throw new BusinessException(
                             GlobalErrorCode.BAD_REQUEST, "不支持的 Tool 动作目标: " + command.targetRef());

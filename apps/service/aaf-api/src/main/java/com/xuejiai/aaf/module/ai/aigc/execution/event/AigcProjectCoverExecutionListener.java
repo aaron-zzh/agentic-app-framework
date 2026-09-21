@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.ai.aigc.execution.event;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -7,11 +8,14 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcActionCommand;
 import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionApi;
 import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectCoverStatus;
+import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectObjectView;
 import com.xuejiai.aaf.module.ai.aigc.project.event.AigcProjectCoverGenerationRequestedEvent;
 import com.xuejiai.aaf.module.ai.aigc.project.event.AigcProjectCoverSupersededEvent;
 
@@ -29,11 +33,12 @@ public class AigcProjectCoverExecutionListener {
     public void onGenerationRequested(AigcProjectCoverGenerationRequestedEvent event) {
         try {
             var project = projectApi.requireProject(event.projectId());
+            var costObject = resolveCoverCostObject(event.projectId());
             var run =
                     executionApi.submitDeferred(
                             new AigcActionCommand(
                                     event.projectId(),
-                                    null,
+                                    costObject.id(),
                                     "project.cover.generate",
                                     event.prompt(),
                                     null,
@@ -43,7 +48,8 @@ public class AigcProjectCoverExecutionListener {
                                     project.version(),
                                     event.expectedGraphRevision(),
                                     true,
-                                    event.idempotencyKey()));
+                                    event.idempotencyKey(),
+                                    null));
             if (run.status().isActive()) {
                 projectApi.markCoverExecutionStarted(event.projectId(), run.id());
             } else {
@@ -58,6 +64,37 @@ public class AigcProjectCoverExecutionListener {
             projectApi.markCoverGenerationFailed(event.projectId());
             throw error;
         }
+    }
+
+    private AigcProjectObjectView resolveCoverCostObject(Long projectId) {
+        return projectApi.getGraph(projectId).objects().stream()
+                .filter(object -> !"EXCLUDED".equals(object.contractRole()))
+                .sorted(
+                        Comparator.comparingInt(this::coverCostPriority)
+                                .thenComparing(
+                                        AigcProjectObjectView::stableKey,
+                                        Comparator.nullsLast(Comparator.naturalOrder()))
+                                .thenComparing(
+                                        AigcProjectObjectView::id,
+                                        Comparator.nullsLast(Comparator.naturalOrder())))
+                .findFirst()
+                .orElseThrow(
+                        () ->
+                                new BusinessException(
+                                        GlobalErrorCode.BAD_REQUEST, "项目不存在可归属封面生成成本的对象"));
+    }
+
+    private int coverCostPriority(AigcProjectObjectView object) {
+        if ("COMPOSITE_MANIFEST".equals(object.outputContract())) {
+            return 0;
+        }
+        if ("DELIVERABLE".equals(object.semanticRole())) {
+            return 1;
+        }
+        if ("REQUIRED".equals(object.contractRole())) {
+            return 2;
+        }
+        return 3;
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
