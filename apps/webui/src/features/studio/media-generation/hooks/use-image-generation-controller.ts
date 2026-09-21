@@ -164,6 +164,8 @@ export function useImageGenerationController({
             attachmentMediaVersionIds: referenceImage?.mediaVersionId
               ? [referenceImage.mediaVersionId]
               : [],
+            expectedProjectVersion: projectTarget.projectVersion,
+            expectedGraphRevision: projectTarget.graphRevision,
             confirmed: true,
             idempotencyKey: crypto.randomUUID()
           }

@@ -397,6 +397,8 @@ export function useVideoGenerationController({
             attachmentMediaVersionIds: selectedAttachments.map(
               (attachment) => attachment.mediaVersionId as number
             ),
+            expectedProjectVersion: projectTarget.projectVersion,
+            expectedGraphRevision: projectTarget.graphRevision,
             confirmed: true,
             idempotencyKey: crypto.randomUUID()
           }

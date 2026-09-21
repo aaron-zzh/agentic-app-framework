@@ -8,9 +8,12 @@ import { buildProjectMediaTargets } from "@/features/studio/content/ProjectObjec
 import { filterEligibleProjectMediaRefs } from "@/features/studio/media-generation/components/ProjectReferenceImagePicker"
 import type {
   AigcActionOption,
+  AigcProject,
   AigcProjectMediaRef,
   AigcProjectObject
 } from "@/lib/api/rest/ai/aigc"
+
+const project = { id: 7, version: 3, graphRevision: 5 } as AigcProject
 
 const imageObject: AigcProjectObject = {
   id: 12,
@@ -43,12 +46,18 @@ describe("buildProjectMediaTargets", () => {
         action("image.generate", ["image_deliverable"]),
         action("video.generate", ["video_deliverable"])
       ],
-      7,
+      project,
       imageObject
     )
 
     expect(targets).toEqual({
-      image: { projectId: 7, objectId: 12, actionKey: "image.generate" }
+      image: {
+        projectId: 7,
+        projectVersion: 3,
+        graphRevision: 5,
+        objectId: 12,
+        actionKey: "image.generate"
+      }
     })
   })
 })

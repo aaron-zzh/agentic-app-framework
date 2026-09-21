@@ -68,6 +68,8 @@ export interface PendingMediaImageAttachment {
 
 export interface MediaProjectTarget {
   projectId: number
+  projectVersion: number
+  graphRevision: number
   objectId: number
   actionKey: string
 }
