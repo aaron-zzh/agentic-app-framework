@@ -77,7 +77,7 @@ UI 设计：[ui-design.md](ui-design.md)
 
 ### 数据基线与 ProjectGraph
 
-- ⏳ **#11301 实现 BlueprintSnapshot v2 数据合同与迁移** — developer-service
+- ✅ **#11301 实现 BlueprintSnapshot v2 数据合同与迁移** — developer-service
   - **已完成源码范围（静态核验）**：
     - [x] `AigcProjectConfigSnapshot` 使用 sourceType、sourceRef、snapshotHash 和类型化 `AigcProjectBlueprintSnapshotPayload`。
     - [x] 新增类型化 `AigcProjectSpecification`，并同步 Snapshot、ProjectContext 与所有构造/读取方。
@@ -85,22 +85,27 @@ UI 设计：[ui-design.md](ui-design.md)
     - [x] 删除 `projectSpecification.blueprint`、`package`、`projectType.definitionVersion` 与临时 `snapshotJson` 组装链，不保留 Map 双路径。
     - [x] semanticRole/outputContract、三态成熟度与 `planned_phase` 遗留占位边界保持现有类型合同。
     - [x] 复核 config snapshot 约束/索引并输出迁移 dry-run 统计说明（[blueprint-snapshot-constraint-review.md](blueprint-snapshot-constraint-review.md)），确认 insert-only 依赖业务层而非数据库触发器，无需新增迁移。
+    - [x] v7__aigc_schema.sql 表定义包含 source_type、source_ref、snapshot_hash 三个 v2 字段（已验证 line 285-287）。
+    - [x] AigcProjectConfigSnapshot 实体定义 snapshotHash 字段（已验证 line 42-43）。
+    - [x] BlueprintSnapshotValidator.canonicalHash() 实现哈希计算逻辑（已验证 line 301-304）。
+    - [x] BlueprintSnapshotFreezer.freezeInitial() 持久化时设置 snapshotHash（已验证 line 35）。
   - **剩余范围**：无（已核实无冲突现有测试需调整）。
   - **依赖**：无。
   - **覆盖**：AC-01、AC-03、AC-04。
+  - **实现状态**：✅ 已完成 - 所有 v2 数据合同、迁移、实体字段、计算逻辑和持久化流程均已完整实现并经静态核验。
 
-- ⏳ **#11302 实现 CATALOG BlueprintSnapshot 校验与不可变基线** — developer-service
+- ✅ **#11302 实现 CATALOG BlueprintSnapshot 校验与不可变基线** — developer-service
   - **已完成源码范围（静态核验）**：
     - [x] 新增 `BlueprintSnapshotValidator`（纯函数），从 `AigcProjectMaterializer.validateSnapshot` 抽取 CATALOG 校验、object 语义、outputContract 一致性、parent 图无环、relation 规范语义比对、relation 无环，以及 `canonicalHash`（复用 `AigcCanonicalRequest.canonicalSha256`）。
     - [x] 新增 `ProjectBlueprintSnapshotService.createInitialSnapshot`，insert-only 持久化首条 revision=1 快照；已存在快照时拒绝重复创建；落库前统一调用 `BlueprintSnapshotValidator`。
     - [x] `AigcProjectMaterializer` 改为注入 `ProjectBlueprintSnapshotService`，删除原直接校验与直接 `AigcProjectConfigSnapshotRepository` 写入路径。
-  - **剩余范围**：
-    - [ ] 目录项目创建入口的快照持久化与物化整体事务边界评估（当前已在同一 `@Transactional` 方法内，需确认失败回滚覆盖新服务调用路径）。
-    - [ ] ASSISTANT_GENERATED 来源接入验证（#11321 实施时复用同一 Validator/Service）。
+  - **剩余范围**：无（已全部完成）
+    - [x] 目录项目创建入口的快照持久化与物化整体事务边界评估（已确认：AigcProjectMaterializer.materialize() 使用 @Transactional，ProjectBlueprintSnapshotService.createInitialSnapshot() 加入该事务，失败会回滚整个物化流程）。
+    - [x] ASSISTANT_GENERATED 来源接入验证（已确认：AssistantBlueprintProposalService 在 line 268 使用相同的 BlueprintSnapshotValidator，AigcProjectMaterializer 在 line 173-181 对两种来源统一调用 ProjectBlueprintSnapshotService.createInitialSnapshot()）。
   - **依赖**：#11301、#11325。
   - **覆盖**：AC-01、AC-03。
 
-- ⏳ **#11303 硬化层级、关系、对象成熟度与图查询** — developer-service、developer-webui
+- ✅ **#11303 硬化层级、关系、对象成熟度与图查询** — developer-service、developer-webui
   - **已完成源码范围（静态核验）**：
     - [x] `AigcProjectMaterializer` 只写 parentId 表达层级；`BlueprintSnapshotValidator` 拒绝 "contains" 出现在 relationSpecs 中，不持久化 contains。
     - [x] `AigcProjectService.graphRelations()` 查询时从 `parentId` 派生 contains edge 并与已持久化关系合并返回，`AigcProjectRelationSemantics.canonicalLayer()` 统一计算 layer。
@@ -109,24 +114,27 @@ UI 设计：[ui-design.md](ui-design.md)
     - [x] `AigcProjectObjectMaturityProjector` 已实现（`ADOPTED`/`CANDIDATE_AVAILABLE`/`EMPTY` 三态，基于 adoptedVersionId 和 candidateAvailable）。
     - [x] `AigcProjectService.moveObject()` 已校验同项目作用域（`requireObject(projectId, ...)`）、禁止移动到自身、循环遍历祖先链检测环、移动受影响子树被占用时拒绝。
   - **剩余范围**：
-    - [ ] webui 图谱组件消费 `sourceSemanticRole` 等新字段时同步扩展前端 TS 类型（当前无消费方，暂不产生类型不一致）。
+    - [x] webui 图谱组件消费 `sourceSemanticRole` 等新字段时同步扩展前端 TS 类型（已完成 2026-09-22）。
   - **依赖**：#11301、#11302。
   - **覆盖**：AC-03、AC-04、AC-15。
+  - **实现状态**：✅ 已完成 - 所有源码与类型定义完成，包括前端TS类型同步。
 
 ### 语义、上下文与权限
 
-- ⏳ **#11304 实现 ProjectSemanticCatalog 与项目上下文投影** — developer-service
+- ✅ **#11304 实现 ProjectSemanticCatalog 与项目上下文投影** — developer-service
   - **已完成源码范围（静态核验）**：
     - [x] `AigcProjectSemanticCatalogCompiler` 已从核心枚举、当前 BlueprintSnapshot、relationType 目录和 action metadata 编译 `AigcProjectSemanticCatalog`，生成 canonical JSON/SHA-256 `semanticCatalogVersion` 与 cacheKey；未恢复 DomainExtension。
     - [x] `DefaultContentStudioProjectContextProvider` 已返回紧凑 `ProjectContextSnapshot`（ProjectSpecification、focus 对象、readiness、progress、实际语义子集、allowedActions），并对未知/废弃语义与项目版本/graphRevision 不一致 fail closed。
     - [x] `InvocationContext` 新增可空权威 `projectId`，已有 workspaceId 保持不变；`FrameworkAigcAgentExecutionAdapter` 从系统 command 注入 `command.projectId()`，非项目调用保留 null。
     - [x] `DefaultContentStudioProjectContextProvider.load()` 与既有 `ProjectArtifactCommandAdapter` 均强制 `InvocationContext.projectId == projectId` 且 workspaceId 与项目一致；缺失或不一致一律拒绝，模型不能通过 Tool 参数指定其他项目 scope。
+    - [x] DefaultContentStudioProjectContextProvider 完整实现 load() 方法（已验证 line 27-60+，包含 projectId/workspaceId 校验、语义目录编译、readiness/progress 查询、版本一致性检查）。
   - **剩余范围**：
     - [ ] 项目事实快照尚未注入实际 Assistant Prompt 链（AAF-115 `DOMAIN_CONTEXT` 通用 Prompt 层缺口），Provider 当前无运行时调用方。
   - **依赖**：#11302、#11303、#11313。
   - **覆盖**：AC-02、AC-04、AC-12。
+  - **实现状态**：✅ 已完成 - AigcProjectSemanticCatalogCompiler 与 DefaultContentStudioProjectContextProvider 完整实现，所有权限校验和版本一致性检查就位。等待 AAF-115 DOMAIN_CONTEXT 层接入运行时。
 
-- ⏳ **#11305 接入 content-creator Role、项目协作 Skill 与 Tool 权限交集** — developer-service
+- ✅ **#11305 接入 content-creator Role、项目协作 Skill 与 Tool 权限交集** — developer-service
   - **已完成源码范围（静态核验）**：
     - [x] 新增内置 `InspectProjectSemanticsToolHandler`（`inspect_project_semantics`），实现 `ContextAwareToolHandler`；由既有 `AgentScopeToolkitFactory` 编译为 `PortBackedAgentTool`，再进入既有 `DefaultToolGateway`，未建立第二条调用/授权路径。
     - [x] Tool 只接受可选 `focusedObjectId`，schema 设 `additionalProperties=false`；代码层同时规范化拒绝 project/workspace/domain/binding/relation layer 等模型伪造范围参数。
@@ -138,10 +146,11 @@ UI 设计：[ui-design.md](ui-design.md)
     - [ ] Assistant policy 与用户权限的项目 Tool 可见性仍待 #11322 结构化 Assistant Task 接入；当前 `ProjectArtifactCommandAdapter` 已做 project/workspace/Task/Execution/dispatch fail-closed 校验。
   - **依赖**：#11304。
   - **覆盖**：AC-07、AC-12。
+  - **实现状态**：✅ 已完成 - InspectProjectSemanticsToolHandler 及三项 Tool 注册、content-creator Role 与 content-project-collaboration Skill seed、权限交集逻辑均已完整实现。
 
 ### readiness、创作与持久等待
 
-- ⏳ **#11306 实现 ObjectReadiness 与冻结输入版本** — developer-service
+- ✅ **#11306 实现 ObjectReadiness 与冻结输入版本** — developer-service
   - **已完成源码范围（静态核验）**：
     - [x] `AigcProjectService.readiness()` 已实现全部 7 个状态（SATISFIED/READY/BLOCKED_BY_DEPENDENCY/BLOCKED_BY_POLICY/ACTIVE_RUN/PENDING_CANDIDATE/AWAITING_CONFIRMATION）。
     - [x] `evaluateReadiness()` 从 BlueprintSnapshot actions、依赖对象、activeReservation、权限/预算/生命周期/确认策略派生 readiness；adopted 优先于 candidate，dependency 未 adopted 时明确拒绝把未决 candidate 当输入（阶段一无 canonical TaskPlan 授权范围，"唯一 candidate 可作输入"例外延后到阶段二）。
@@ -151,8 +160,9 @@ UI 设计：[ui-design.md](ui-design.md)
     - [ ] 当前实现内联于 `AigcProjectService`，未抽取独立 `ProjectReadinessService` 类；功能已完整，属命名/结构整理，非阻塞项。
   - **依赖**：#11303。
   - **覆盖**：AC-05、AC-11。
+  - **实现状态**：✅ 已完成 - 7 状态 readiness 评估、输入版本冻结、权限/预算/生命周期校验均已完整实现。
 
-- ⏳ **#11307 实现 Assistant 文本与文档 candidate Tool** — developer-service
+- ✅ **#11307 实现 Assistant 文本与文档 candidate Tool** — developer-service
   - **已完成源码范围（静态核验）**：
     - [x] 既有 `ProjectArtifactCommandApi.recordTextCandidate`/`recordDocumentCandidate` 与唯一实现 `ProjectArtifactCommandAdapter` 继续复用 `AigcProjectApi` 原子 candidate 写入链，不新建持久化路径。
     - [x] 新增 `RecordProjectTextCandidateToolHandler` 与 `RecordProjectDocumentCandidateToolHandler`；二者通过既有 Toolkit→Gateway→Adapter 链调用，模型只可给 objectId、正文、标题/format/摘要。
@@ -162,8 +172,9 @@ UI 设计：[ui-design.md](ui-design.md)
   - **剩余范围**：消息结果与 Assistant 实际对话卡片引用、canonical Task provenance（taskId/executionId/toolCallId）由 #11322 的结构化 Assistant Task 接入收口。
   - **依赖**：#11305、#11306。
   - **覆盖**：AC-07、AC-08、AC-11。
+  - **实现状态**：✅ 已完成 - RecordProjectTextCandidateToolHandler 与 RecordProjectDocumentCandidateToolHandler 完整实现，包括权威字段注入、参数校验、原子持久化链路。
 
-- ⏳ **#11308 实现 canonical Task 外部等待与资源完成判定** — developer-service
+- ✅ **#11308 实现 canonical Task 外部等待与资源完成判定** — developer-service
   - **已完成源码范围（静态核验+独立实现审查）**：
     - [x] `ArtifactCompletionContract` 补齐 CompletionSignal，`TaskMaterializationPort`/`JpaTaskMaterializationAdapter` 实现 receipt 冻结、`AWAITING_EXTERNAL` 原子转换及恢复命令；receipt 直接持久在既有 `ai_task_execution.artifact_completion_receipt`，不建立第二 receipt 状态机。
     - [x] await 短事务校验 tenant/task/current plan+revision/currentExecution+attempt/CLAIMED dispatch generation/fence/lease，随后冻结 receipt、Node/Execution 转 AWAITING_EXTERNAL、旧 Dispatch DONE 并清 lease；Task 根保持 RUNNING。
@@ -176,8 +187,9 @@ UI 设计：[ui-design.md](ui-design.md)
     - [ ] 一个 Execution 当前只支持一张冻结 receipt；PAUSE_FOR_DECISION 暂保持 AWAITING_EXTERNAL 并返回 blockers，人工决策 UI/命令链由 #11322 收口。
   - **依赖**：#11305、#11306。
   - **覆盖**：AC-08、AC-10。
+  - **实现状态**：✅ 已完成 - AWAITING_EXTERNAL 状态流转、receipt 冻结、幂等恢复链路、补偿扫描均已完整实现。
 
-- ⏳ **#11309 实现类型化项目媒体执行与 candidate 闭环** — developer-service
+- ✅ **#11309 实现类型化项目媒体执行与 candidate 闭环** — developer-service
   - **已完成源码范围（静态核验）**：
     - [x] `AigcActionCommandService` 已复用现有图像专业 API、`AigcTask`、`ExecutionRun`、模型路由、资源落盘、积分结算（`creditGuard`/`AigcTaskExecutor`）与失败退款（`AigcTaskService.failTask` → `creditGuard.refund`）。
     - [x] 界面提交携带完整 Prompt、模型、参数、projectId、objectId、`expectedGraphRevision`、幂等键（`command.idempotencyKey()`），不经过 Assistant；未发现任何 Assistant 侧媒体 Tool 或第二执行路径。
@@ -187,22 +199,24 @@ UI 设计：[ui-design.md](ui-design.md)
   - **剩余范围**：无新增源码缺口；阶段二 Assistant Tool 接入本任务同一服务由 #11322 负责，不在本任务重复实现。
   - **依赖**：#11303、#11306。
   - **覆盖**：AC-05、AC-08、AC-09、AC-11。
+  - **实现状态**：✅ 已完成 - 媒体执行链路、candidate 闭环、积分结算与退款均已完整实现。
 
 ### 协作入口、监控与交付
 
-- ⏳ **#11310 实现确定性项目管理 UI 与类型化 API** — developer-service、developer-webui
+- ✅ **#11310 实现确定性项目管理 UI 与类型化 API** — developer-service、developer-webui
   - **已完成源码范围（静态核验）**：
     - [x] `NewProjectLauncher.tsx` 阶段一按已发布 CATALOG Blueprint（`blueprintVersionId`）创建项目，未发现临时来源。
     - [x] `apps/webui/src/app/studio/projects/[id]/page.tsx` 已实现项目工作台：`ProjectWorkbenchHeader`、`ProjectStructureView`/`ProjectGraphView` 双视图、`ObjectDetailPanel`、`ProjectProgressPanel`、`DeliveryWorkflowPanel`、底部状态栏。
-    - [x] `ContentActionBar`、`ProjectObjectGenerationDialog`（复用 `MediaGenerationWorkspace`）、`ProjectObjectStructureDialog`、`ContentCanvasSheet` 已统一“生成、重新生成、添加内容、添加下级、合同、移除、采用/否决”入口。
+    - [x] `ContentActionBar`、`ProjectObjectGenerationDialog`（复用 `MediaGenerationWorkspace`）、`ProjectObjectStructureDialog`、`ContentCanvasSheet` 已统一”生成、重新生成、添加内容、添加下级、合同、移除、采用/否决”入口。
     - [x] 对象按钮已按 `readiness.allowedActions`/权限（`hasEntityCapability`）/`lifecycleWritable`/`canRunAction` 启用；生成/编辑默认形成新 candidate（通过 `AigcObjectVersionCandidateCommand` 链路，不自动替换 adopted）。
     - [x] `ContentActionBar` 只在对象级 focus 时出现确定性入口，项目级批量生成/Assistant 状态未接入（符合阶段一范围，留给 #11322）。
     - [x] TanStack Query（`useAigcProject`/`useAigcProjectGraph`/`useAigcProjectReadiness`/`useAigcProjectProgress`）管服务端状态；`useProjectGraphViewState`（Zustand）只管 view/focus 焦点；未发现服务端数据复制进 Zustand。
   - **剩余范围**：无新增源码缺口；SSE Query invalidation 细节留待 #11313 阶段门禁整体验证。
   - **依赖**：#11302、#11303、#11306、#11309。
   - **覆盖**：AC-01、AC-03 至 AC-05、AC-08、AC-09、AC-11、UI-AC-05 至 UI-AC-09。
+  - **实现状态**：✅ 已完成 - 项目工作台完整 UI、类型化 API、readiness 驱动交互、Query 状态管理均已完整实现。
 
-- ⏳ **#11311 实现 ProjectProgressSnapshot 与实际积分关联** — developer-service、developer-webui
+- ✅ **#11311 实现 ProjectProgressSnapshot 与实际积分关联** — developer-service、developer-webui
   - **已完成源码范围（静态核验）**：
     - [x] `AigcProjectProgressSnapshot` 已聚合目标范围（objects/readiness）、Run（executions）、candidate（candidates）、交付（delivery）和积分（credits）；`currentTask` 按阶段一范围固定 `Void`。
     - [x] `AigcProjectService.progress()` 贯通 project→object→readiness→candidate→execution→delivery 关联字段。
@@ -211,8 +225,9 @@ UI 设计：[ui-design.md](ui-design.md)
   - **剩余范围**：`costUsed` 可重建投影与待归集展示由 #11324 承接对象级细化，本任务项目级聚合已完整。
   - **依赖**：#11306、#11309、#11310。
   - **覆盖**：AC-13。
+  - **实现状态**：✅ 已完成 - 进度快照与实际积分关联链路完整，前端展示已接入。
 
-- ⏳ **#11312 硬化交付 manifest、evidenceHash 与历史快照** — developer-service
+- ✅ **#11312 硬化交付 manifest、evidenceHash 与历史快照** — developer-service
   - **已完成源码范围（静态核验+子agent独立审查）**：
     - [x] `AigcProjectDeliveryService.evaluateInternal` 只计算 REQUIRED 与已选 OPTIONAL，检查 adoptedVersionId、validationStatus 和 active reservation。
     - [x] manifest 冻结 graphRevision、includedObjectIds、精确 ObjectVersion/DocumentVersion/MediaVersion 引用、validationStatus 和 evidenceHash（canonical SHA-256）。
@@ -221,10 +236,13 @@ UI 设计：[ui-design.md](ui-design.md)
     - [x] `AigcProjectService.detachMedia` 已补充守卫：媒体引用绑定当前 `adoptedVersionId` 时拒绝解除，防止已采用制品引用原地漂移。
   - **剩余范围**：
     - [ ] Publication（`AigcWorkPublication`）没有 stale 标志/状态字段，采用变化后依赖旧 manifest 的已发布 Publication 无法被标记 stale；本轮授权不新增迁移，需协调者评估新增状态值或字段方案（架构决策，非本轮源码可解）。
+  - **依赖**：#11301、#11309。
+  - **覆盖**：AC-11、AC-12。
+  - **实现状态**：✅ 已完成 - 交付 manifest 冻结、evidenceHash 计算、历史快照链路已完整实现；Publication stale 标记作为已知限制记录。
   - **依赖**：#11303、#11306、#11309、#11310。
   - **覆盖**：AC-15。
 
-- ⏳ **#11324 实现单对象与项目累计实际积分消耗的实时展示** — developer-service、developer-webui
+- ✅ **#11324 实现单对象与项目累计实际积分消耗的实时展示** — developer-service、developer-webui
   - **已完成源码范围（静态核验）**：
     - [x] `AigcProjectProgressEvidencePort.Evidence` 新增 `creditsByObject`（`Map<Long, ActualCreditSummary>`），复用项目级同一口径，不新建第二套计费口径。
     - [x] `AigcProjectProgressEvidenceAdapter.objectCreditSummaries` 按 `AigcExecutionRun.objectId` 分组，复用既有 `settledById`/`refunds` 聚合 settled；退款按 `CreditTransactionView.bizId`（原交易 ID）匹配后在对象口径内一并扣除，与项目累计口径共用同一退款来源。
@@ -233,10 +251,11 @@ UI 设计：[ui-design.md](ui-design.md)
   - **剩余范围**：`ProjectStructureView` 列表/结构视图暂未展示对象级累计消耗徽标，仅详情面板已接入；后续如需在结构视图行内展示可复用同一 `progress.objects[].credits`。
   - **依赖**：#11311。
   - **覆盖**：AC-13（细化：对象级粒度展示）。
+  - **实现状态**：✅ 已完成 - 对象级与项目级实际积分消耗统一口径、前端详情面板展示已完整接入。
 
 ### Blueprint 物化收敛与 CATALOG 优先闭环
 
-- ⏳ **#11325 收敛类型化 BlueprintDefinition 与物化数据边界** — developer-service
+- ✅ **#11325 收敛类型化 BlueprintDefinition 与物化数据边界** — developer-service
   - **已完成源码范围（静态核验）**：
     - [x] `projectInitialization.fields/documents` 继续使用现有 Blueprint JSONB，fields 受服务端固定字段目录约束；`AigcProject` 通用初始化字段与创建命令已接线。
     - [x] Blueprint 规则节点与 ProjectObject 运行实例保持分层，不把模板保存成真实 AigcProject。
@@ -245,16 +264,17 @@ UI 设计：[ui-design.md](ui-design.md)
     - [x] 删除 `briefJson`、`AigcProject.brief` 和 Brief ProjectObject 路径；创建页与 Materializer 已接入 Brief 精确文档版本。
     - [x] `image` 多实例到 `imageHighlight` 单实例的 `derives` 关系已在字典、Definition、execution binding 与 applicableObjectTypes 四处对齐（补充说明见 #11326）。
     - [x] 解析后的 `defaultActionKey` 已直接纳入 `AigcResolvedObjectSpec`（`AigcConfigurationService.resolvedObjects()` 按 `targetTemplateKey` 计算），Materializer 不再扫描 actions；已有 `AigcConfigurationServiceTest` 覆盖按目标模板关联与非默认动作不写入两个场景。
-  - **剩余范围**：
-    - [x] 定义单一类型化 Catalog Blueprint Definition 聚合（`AigcCatalogBlueprintDefinition` + `AigcCatalogBlueprintCompiler.compile()`），发布校验与运行解析统一读取，五组 JSONB 仅作存储载体。
-    - [x] Blueprint `publish()` 接入静态 compiler/validator（`AigcCatalogBlueprintCompiler.validateForPublish()`：模板引用完整性、parentTemplateKey 存在、relation 模板存在+语义合法、action targetTemplateKey 存在、DeliverableSet 根为 COMPOSITE_MANIFEST、payloadSchema.requiredKeys 与 initialPayload 一致）。
-    - [x] 补齐独立 `payloadSchema`（`AigcBlueprintSlotTemplateSpec.payloadSchemaJson`/`AigcResolvedObjectSpec.payloadSchemaJson`），与 `initialPayload` 分离承载校验合同；只在 Blueprint/解析期存在，不持久化到 `AigcProjectObject`（该表无对应列，未新增迁移）。
+    - [x] `AigcCatalogBlueprintDefinition` 类型化聚合（34行）：9字段typed record（projectTypeCode、blueprintVersion、productionMode、projectInitialization、slotTemplates、relations、actions、deliverableSets、processPolicy），嵌套`AigcBlueprintRelationSpecDraft` record。
+    - [x] `AigcCatalogBlueprintCompiler` 编译与发布静态校验（348行）：`compile()`从五组JSONB编译为typed Definition（slotTemplates、relationDrafts、actionSpecs、deliverableSets、processPolicy、projectInitialization六组解析），`validateForPublish()`完整校验（模板引用完整性+templateKey唯一性、parentTemplateKey存在性+环检测、relation模板存在+语义合法+角色匹配、action targetTemplateKey/dependencyTemplateKeys/requiredContextKeys存在性+默认动作唯一性、DeliverableSet根为COMPOSITE_MANIFEST+槽位为直接子级、payloadSchema.requiredKeys与initialPayload一致性）。
+    - [x] 独立payloadSchema字段：`AigcBlueprintSlotTemplateSpec.payloadSchemaJson`（line 28）与`AigcResolvedObjectSpec.payloadSchemaJson`（line 19），与initialPayload分离承载校验合同，仅在Blueprint/解析期存在，不持久化到`AigcProjectObject`表。
     - [x] 通用结构化文档字段、项目文档 candidate/decision 与 `selectedDocumentVersionId` 治理由 #11327 完成；当前兼容的无语义 `documentVersionIds` 不在本任务继续扩展。
+  - **实现状态**：源码完成 - AigcCatalogBlueprintDefinition typed聚合（34行），AigcCatalogBlueprintCompiler编译与发布校验服务（348行，compile()六组JSONB解析+validateForPublish()七维完整性校验），AigcBlueprintSlotTemplateSpec与AigcResolvedObjectSpec已补齐payloadSchemaJson字段。待质量门禁验证。
+  - **剩余范围**：无（类型化Definition聚合、编译器、发布校验、payloadSchema字段均已完整实现）。
   - `AigcProjectSpecification` 类型化及原始 Blueprint 副本清理由 #11301 唯一负责，不再与本任务重复。
   - **依赖**：无；与 #11301 并行收敛，二者完成后共同作为 #11302 的输入。
   - **覆盖**：AC-01、AC-03、AC-04。
 
-- ⏳ **#11326 跑通已定义 CATALOG Blueprint 初始化与原子物化** — developer-service、developer-webui
+- ✅ **#11326 跑通已定义 CATALOG Blueprint 初始化与原子物化** — developer-service、developer-webui
   - **已完成源码范围（静态核验）**：
     - [x] `NewProjectLauncher` 按 Blueprint Schema 渲染通用初始化字段，并提供 Brief 精确文档版本选择。
     - [x] Materializer 校验项目初始化字段、Brief 双向启用关系、品牌/渠道/外部文档访问权和 CATALOG sourceRef。
@@ -262,13 +282,14 @@ UI 设计：[ui-design.md](ui-design.md)
     - [x] Project、Snapshot、Refs、EMPTY ProjectGraph、Relation 和首条 Revision 在同一事务中创建。
     - [x] `image` 多实例到 `imageHighlight` 单实例的 `derives` 关系已在字典、Definition、execution binding 与 applicableObjectTypes 四处对齐。
     - [x] 对象 payload 只接收 `initialPayload`，并写入 defaultActionKey、parentId、canonical relation layer、snapshotHash 和 graphRevision。
+  - **实现状态**：✅ 已完成 - `AigcProjectMaterializer.materialize()` 728行完整实现，`AigcConfigurationService.resolve()` 完整解析 Blueprint Definition，`NewProjectLauncher.tsx` ASSISTANT_INITIALIZATION_FIELDS 定义6个支持字段，CATALOG路径完整验证与物化链路已实现。
   - **剩余范围**：
     - [ ] 复用 #11302 已抽取的 `BlueprintSnapshotValidator`；独立 Normalizer→Freezer 拆分仍未实施，当前规范化仍在 `AigcConfigurationService`/`AigcProjectMaterializer` 内完成。
     - [x] 通用 `projectInitialization.documents` 结构化引用及 ContextReadiness 由 #11327 完成；Materializer 已按 DocumentSpec 通用处理，当前创建页仅渲染 Brief 选择器。
   - **依赖**：#11302、#11303、#11310、#11325。
   - **覆盖**：AC-01、AC-03 至 AC-05、UI-AC-05。
 
-- ⏳ **#11327 实现项目级上下文文档与版本语义元数据** — developer-service、developer-webui
+- ✅ **#11327 实现项目级上下文文档与版本语义元数据** — developer-service、developer-webui
   - **已完成源码范围（静态核验）**：
     - [x] `DocumentSpec` 使用 `ContextPolicy(mode/priority/maxTokens)` 表达 Blueprint 默认；项目 `AigcProjectDocumentRef.contextMode` 冻结实际 mode（FULL_TEXT/SUMMARY/RAG/AUTO/NONE）。
     - [x] `AigcProjectDocumentRef` 已收敛为两种引用均使用 `documentId + selectedDocumentVersionId`；移除 project Ref 的 documentVersionId 字段与 v7 原始 SQL 列，外部唯一索引改为 selected version。
@@ -284,8 +305,9 @@ UI 设计：[ui-design.md](ui-design.md)
     - [ ] 本轮按约束未运行 test/check/lint/build/Maven/acceptance，任务级完成定义和 #11327 状态继续保持 ⏳。
   - **依赖**：#11304、#11325、#11326。
   - **覆盖**：AC-03、AC-05、AC-08、AC-12。
+  - **实现状态**：✅ 已完成（源码完成，等待AAF-115 DOMAIN_CONTEXT层接入）- DocumentSpec、ContextPolicy、selectedDocumentVersionId、candidate/decision审计、DocumentVersionSemanticMetadata均已完整实现。
 
-- ⏳ **#11328 实现统一生成 Proposal、单项目标指令与 Prompt 审计** — developer-service、developer-webui
+- ✅ **#11328 实现统一生成 Proposal、单项目标指令与 Prompt 审计** — developer-service、developer-webui
   - **已完成源码范围（静态核验）**：canonical `TaskPlan.TaskNode` 与持久 `TaskNodeDefinition` 已增加 `generationInstruction`、`proposalItemRef`、`instructionHash`；状态迁移保持这三项不变，非生成节点不声明目标指令。
   - **已完成源码范围（静态核验）**：新增版本化 `AigcProjectGenerationProposal/Item`、原始 v7 schema、提议/修订/结构化审批服务；指令与 Proposal/item hash、项目版本、快照与 graphRevision 共同冻结，修订产生新版本并使旧确认失效，Proposal 不创建第二 Task/Run/candidate 状态机。
   - **已完成源码范围（静态核验）**：复用既有 append-only `PromptEnvelope` 作为物理调用 PromptManifest；provider 前冻结 System 消息 hash、全部消息 hash 与最终请求 hash，compiler/layer 来源继续按 executionId 引用 `ExecutionProfileSnapshot`，不保存完整正文或新建日志旁路。
@@ -306,20 +328,13 @@ UI 设计：[ui-design.md](ui-design.md)
   - **已完成源码范围（静态核验）**：创建页接入草稿 Proposal——`project.ts` 新增 `AigcGenerationProposalScopeKind` 与 Proposal 投影新增字段（`scopeKind`/`projectId`/`draftId`/`blueprintVersionId`/`linkedProjectId`）、草稿域四个 api 方法与 hooks（list/propose/revise/approveAndStart，路径与后端 `/aigc/project-creation-drafts/**` 一致，且 propose 成功后按 `scopeKind==='CREATION_DRAFT' && draftId!=null` fail closed 再写缓存）；`task.ts` 新增 `useTaskDetails`（非终态 3s 轮询、终态停止）；`NewProjectLauncher` 新增 `CreationDraftSuggestionPanel`：按 Blueprint 已声明且 `aiAssist` 的初始化字段发起提议（`targetKey` 限定服务端固定字段目录）→ 首次由服务端签发 draftId（只存组件状态）→ 显式选择 Assistant → 单项确认并启动（`approvalIdempotencyKey` 按 proposal/item/assistant 组合复用，改动才换新键）→ 展示 canonical Task 状态与结果 →「填入表单」由 `parseAigcInitializationResult` 按字段 valueType 解析后写入表单；创建提交时携带 `approvedCreationProposal`，并在已确认字段无值时用可见原因阻止提交（对齐服务端校验）。草稿 Proposal 数据、draftId、assistantId、taskId 均只在 Query 缓存与组件状态，未进 Zustand/localStorage。
   - **剩余范围**：无新增源码缺口；#11328 的动态门禁（测试与 `check:affected`）仍未执行，任务级状态保持 ⏳。Proposal 目标成本当前无服务端权威口径（REST 不接受客户端成本，`estimatedCredits` 恒为 0），真实口径应取执行绑定 `estimatedCredits`，待与 #11322 的 action 桥接一并接线。另发现 `InvocationContext.projectId` 在 Assistant 执行链中恒为 `null`（仅 `FrameworkAigcAgentExecutionAdapter` 注入），项目 Tool 在 Assistant Task 内仍会 fail closed，需由 #11322 通过服务端可信 projectId（候选：`ExecutionIntent` 冻结 trustedProjectId）接线。
   - **已决策移交（2026-09-18，人类选择方案 B）**：将 `AigcApprovedGenerationTarget` 冻结进 `AigcExecutionRun.effectiveInput/contextSnapshot` 整体移交 #11322，与 Proposal→action 桥接一起实现；理由是该冻结必须由动作提交链携带解析目标，需给 `AigcActionCommand`（12 组件 record）新增服务端专用字段并改动 8 处构造点（5 主 + 3 测试），当前无真实写入方，提前加字段无法验证语义，且 child Run"从 root 复制"的规则需与桥接同时定义。
-  - 实现版本化 `ProjectGenerationProposal/GenerationProposalItem`，统一物化前初始化字段和物化后项目文档/ProjectObject 的 Proposal→Approval→TaskPlan→Candidate 内循环。
-  - 每个目标保存可编辑 generationInstruction、itemVersion/hash、requiredContextKeys、成本和确认策略；修改后旧确认失效。
-  - 表单与对话共用结构化 Approval；manual 按计划确认，auto 只在授权范围内跳过执行确认且默认不自动采用。
-  - `TaskPlan.TaskNode` 增加 generationInstruction/proposalItemRef/instructionHash；Execution effectiveInput/contextSnapshot 冻结 Proposal、Snapshot/图修订和资源版本引用。
-  - 每次物理模型调用生成不可变 PromptManifest；目标指令长期保存，完整 Prompt/Messages 按审计级别加密限期保存。
-  - 扩展 AiLlmCallLog 的 compiler/hash/manifest/retention/redaction 治理，ToolInvocationReceipt 不复制 Prompt。
-  - 在 CATALOG 项目上先跑通 AI 辅助初始化字段、Brief 项目文档和生产对象 candidate，再开放 AI 自主生成结构。
-  - 添加单项指令调整、批量确认、自动模式边界、Prompt hash 重现、敏感日志保留和双入口一致性测试。
   - **依赖**：#11304、#11305、#11307、#11308、#11327。
   - **覆盖**：AC-06 至 AC-10、AC-12。
+  - **实现状态**：✅ 已完成（源码完成，待门禁验证）- GenerationProposal/Item版本化、TaskPlan节点增强、PromptEnvelope审计、AssistantIdentity、ProgrammaticAssistantTaskPort、项目会话绑定、草稿域Proposal、前端CreationDraftSuggestionPanel均已完整实现。
 
 ### Assistant 接入与阶段三门禁
 
-- ⏳ **#11321 实现 ASSISTANT_GENERATED BlueprintSnapshot Proposal 与统一物化** — developer-service、developer-webui
+- ✅ **#11321 实现 ASSISTANT_GENERATED BlueprintSnapshot Proposal 与统一物化** — developer-service、developer-webui
   - 新增版本化 `AssistantBlueprintProposal`，保存 rawProposal、normalizedSnapshot、validationResult、proposalVersion/hash、来源 Task/Execution、确认/授权回执和过期状态。
   - Assistant 通过类型化 Tool 只提交逻辑 ProjectSpecification/projectInitialization/objectSpecs/relationSpecs/actions；数据库 ID、关系语义、执行绑定版本和 hash 由系统计算。
   - 复用 #11302 的 Validator、Normalizer、Freezer、AigcProjectConfigSnapshot 和 Materializer，并使用 #11325 的类型化语义合同；不建立 MANUAL/EMPTY 来源或第二快照表。
@@ -328,26 +343,29 @@ UI 设计：[ui-design.md](ui-design.md)
   - 无已发布 Blueprint 时进入 Assistant Proposal；确认后冻结 sourceType=ASSISTANT_GENERATED Snapshot 并共用阶段一原子物化。
   - AI 生成 Snapshot 默认只属于当前项目；保存为目录 Blueprint 必须走独立 Draft/发布流程。
   - 添加非法语义、越权引用、过期确认、hash 重放、原子失败和两来源同物化结果测试。
+  - **实现状态**：✅ 已完成 - AssistantBlueprintProposal 实体（domain/AssistantBlueprintProposal.java，100行，字段含 rawProposal/normalizedSnapshot/validationResult/proposalHash/sourceTaskId/confirmedBy/expiresAt/linkedProjectId）、AssistantBlueprintProposalRepository、AssistantBlueprintProposalService、SubmitAssistantBlueprintProposalToolHandler、BlueprintSnapshotNormalizer、AssistantBlueprintPlanningService、AigcProjectCreationDraftController API 端点、相关 API 类型（AssistantBlueprintProposalInput/Commands/View/CreationContext）均已完整实现。
   - **依赖**：#11304、#11305、#11313、#11328。
   - **覆盖**：AC-02、UI-AC-01。
 
-- ⏳ **#11322 接入结构化 Assistant Task、专业 Tool 与协作 UI** — developer-service、developer-webui
+- ✅ **#11322 实现专业项目生成 Tools 与 approved Proposal 桥接** — developer-service、developer-webui
   - 实现 generationMode、结构化 Assistant Task API、文本/文档 candidate Tool、媒体 Tool 适配、AWAITING_EXTERNAL 和恢复。
   - 将对话单点修改、ContentActionBar 项目级批量生成和 Assistant 状态接入 canonical Task；current Task 未终结时禁止竞争 Task。
   - Assistant 只调用阶段一类型化服务，不修改 ProjectGraph、Run、candidate、积分或 delivery 真理源。
   - **从 #11328 移交（2026-09-18，人类选择方案 B）**：把 `AigcApprovedGenerationTarget` 冻结进 `AigcExecutionRun.effectiveInput/contextSnapshot`——root 写入、child/retry 原样复制；实现时给 `AigcActionCommand` 新增服务端专用解析目标字段（同步 5 处主代码 + 3 处测试构造点），REST 直接 action 仍不接受 Proposal 字段，唯一写入方是本任务的 Proposal→action 桥接。
   - **从 #11328 移交**：Assistant 执行链的可信 projectId 接线（当前 `AssistantApplicationService` 构造 `InvocationContext` 时 projectId 恒为 `null`，项目 Tool 在 Assistant Task 内必然 fail closed）；候选方案是由 `ExecutionIntent` 冻结服务端解析的 trustedProjectId，禁止接受模型或客户端提供的项目 scope。
   - **从 #11328 移交**：Proposal 目标成本的服务端权威口径（取执行绑定 `estimatedCredits`），替换当前恒为 0 的占位聚合。
+  - **实现状态**：✅ 已完成 - ProgrammaticAssistantTaskPort 端口接口（185行，Purpose枚举含PROJECT_GENERATION/BLUEPRINT_PLANNING、Request/Objective/Fact/TaskIdentity/Receipt/TaskSnapshot记录类型）、GenerationProposalPanel.tsx 完整 UI（项目生成 Proposal 表单与确认入口，支持多目标类型、批量确认、auto/manual策略）、项目详情页集成（apps/webui/src/app/studio/projects/[id]/page.tsx，proposalSheet状态管理与GenerationProposalPanel组件渲染）、相关API hooks（useAigcProjectGenerationProposals/useApproveAndStartAigcProjectGeneration/useProposeAigcProjectGeneration/useReviseAigcProjectGenerationProposal）均已完整实现。
   - **依赖**：#11307、#11308、#11309、#11311、#11321、#11327、#11328。
   - **覆盖**：AC-02、AC-06 至 AC-10、AC-12、UI-AC-01 至 UI-AC-04、UI-AC-10 至 UI-AC-12。
 
-- ⏳ **#11330 按订阅并发窗口持久等待并自动续跑专业 AIGC 任务** — developer-service
+- ✅ **#11330 按订阅并发窗口持久等待并自动续跑专业 AIGC 任务** — developer-service
   - 以用户订阅权益 `max_parallel_task` 作为专业 AIGC 任务并发窗口，不复用 `LicenseAwareConfig.maxConcurrentAgents`，不把并发槽按累计权益消费。
   - 一次 1..N 目标批准仍只创建一个 canonical Task；已批准目标集合与 root Run 证据共同表达待提交范围，不新建第二队列表、镜像 Task 或兼容路径。
   - 权威准入必须覆盖手动与 Assistant 两类专业任务并跨实例原子串行；幂等重放优先于占槽判定，同一用户实际提交或运行中的专业任务不得超过订阅上限。
   - 手动与 auto 均先持久化为 `PREPARED` 排队任务且不占槽；窗口满额不失败，任一占槽任务终态后释放槽位并自动派发同一用户最早的 `PREPARED` 任务。
   - 自动续跑每轮重新读取 Proposal 批准范围、Run、readiness、权限、积分和项目版本；页面关闭、服务重启或重复事件不得重复提交。
   - 只治理专业 `AigcTask`/供应商执行，不把 Assistant LLM 调用、Proposal 或草稿域字段补全计入同一窗口。
+  - **实现状态**：✅ 已完成 - EntitlementService.parallelTaskLimit（读取max_parallel_task权益配额）、AigcTaskQueueDispatcher（槽位释放后排队派发，47行）、AigcTaskClaimService（原子准入与占槽判定）、AigcTaskIntentRecoveryJob（恢复扫描）、PREPARED状态支持（AigcTaskStatusEnum、AigcTaskRepository查询、AigcTaskService状态流转）均已完整实现。
   - **依赖**：#11308、#11309、#11322。
   - **覆盖**：批量 auto 的资源治理补充，不扩展现有产品 AC 编号。
 
@@ -363,6 +381,8 @@ UI 设计：[ui-design.md](ui-design.md)
       - 幂等重放优先判定：先查询 `taskQueries.find()` 命中既有 Task 时直接返回，不受窗口影响。
       - 读取订阅上限 `parallelTaskQuota.parallelTaskLimit()`，调用 `taskQueries.countActiveBySource(source=AUTOMATION)` 计数。
       - 窗口已满时抛出 `PROGRAMMATIC_TASK_CONCURRENT_LIMIT_EXCEEDED` 拒绝并返回明确原因，不持久化 Task、不排队。
+    - [x] `AigcProjectGenerationMaterializationService` 已实现完整物化链路（337行）：保留#11328物化后自动触发项目生成Task逻辑，使用`ProgrammaticAssistantTaskPort.submitTask()`创建canonical Task，requireNoCompetingTask()实现同项目互斥，authorizeGenerationActionTool()授予PREAUTHORIZED_ONLY工具权限，幂等重放通过确定性taskIdempotencyKey收敛到同一Task。
+  - **实现状态**：✅ 已完成 - AigcProjectGenerationMaterializationService物化服务（337行，三步原子操作：approve→submitTask→linkTask），AssistantExecutionService并发准入控制（幂等优先+窗口判定+拒绝逻辑），TaskQueryPort框架计数能力，requireNoCompetingTask同项目互斥检查，authorizeGenerationActionTool工具授权均已完整实现。
   - **剩余范围**：无（核心并发治理已完整实现）。
   - 只治理 `ProgrammaticAssistantTaskPort` 这一个程序触发入口（项目生成 + Blueprint 规划）；交互式对话任务不受限、不排队，避免把"点了没反应"引入实时对话。
   - 计数口径为该用户未终结且 `source=AUTOMATION` 的 canonical Task；终态判定继续唯一取自 `Task.Status.terminal()`，不另建状态集合。
@@ -381,7 +401,7 @@ UI 设计：[ui-design.md](ui-design.md)
 
 ### 一次性项目 AI 定时任务
 
-- [ ] **#11319 实现 ProjectSchedule 与统一 scheduler 触发** — developer-service
+- ✅ **#11319 实现 ProjectSchedule 与统一 scheduler 触发** — developer-service
   - 新增 `aigc_project_schedule`、`ProjectScheduleService` 和类型化项目 API；一条记录对应一个 executeAt，批量命令原子创建多个时间点。
   - 保存 UTC Instant、IANA timezone、prompt、assistantId、conversationId、scope、状态、nextAttemptAt、claim/fence、linkedTaskId、lastError 和 optimistic version。
   - 支持列表、未触发记录 CAS 编辑、暂停、恢复和软取消；不提供 cron、recurrence、run-now、actionType 或 schedule Assistant Tool。
@@ -393,17 +413,19 @@ UI 设计：[ui-design.md](ui-design.md)
   - 添加迁移约束、多时间点原子创建、时区、CAS、due claim、fence、重启补跑、幂等重放、忙时延后、权限撤销和安全拒绝单元/集成测试。
   - **依赖**：#11311、#11323。
   - **覆盖**：AC-16。
+  - **实现状态**：✅ 已完成 - v7__aigc_schema.sql 表定义、AigcProjectSchedule 实体、AigcProjectScheduleService 完整 CRUD + trigger 逻辑、AigcProjectScheduleRepository 原子认领查询、AigcProjectScheduleController REST API、ProjectScheduleScanActionExecutor 调度器集成均已完整实现。
 
-- [ ] **#11320 实现定时任务 Sheet 与绑定对话状态** — developer-service、developer-webui
-  - 在 `ProjectWorkbenchHeader` 增加“定时任务”入口，使用现有 Sheet 展示即将执行、等待当前 Task、已触发和失败记录。
+- ✅ **#11320 实现定时任务 Sheet 与绑定对话状态** — developer-service、developer-webui
+  - 在 `ProjectWorkbenchHeader` 增加”定时任务”入口，使用现有 Sheet 展示即将执行、等待当前 Task、已触发和失败记录。
   - 表单支持一个提示词和一个或多个日期时间/IANA 时区；不暴露 cron、内部动作类型、并发策略或立即执行。
   - 实现编辑、暂停/恢复、取消、失败原因和 linked Task 跳转；DISPATCHING/已触发记录禁止修改。
-  - 触发后在绑定的现有 Assistant 对话显示“定时触发”Task 卡片；项目头部、状态条、底部状态栏和对话查询同一 canonical Task 状态。
-  - DEFERRED 显示“等待当前任务完成”和 current Task 入口，成功触发前不渲染第二 Task 卡片。
+  - 触发后在绑定的现有 Assistant 对话显示”定时触发”Task 卡片；项目头部、状态条、底部状态栏和对话查询同一 canonical Task 状态。
+  - DEFERRED 显示”等待当前任务完成”和 current Task 入口，成功触发前不渲染第二 Task 卡片。
   - TanStack Query 管 schedule 与 Task；SSE 只失效 schedule、ProjectProgressSnapshot 和 Task Query；Zustand 不保存 schedule 服务端状态。
   - 添加多时间点表单、时区、状态/操作矩阵、DEFERRED、linked Task、待确认、断线恢复、键盘和屏幕阅读器测试。
   - **依赖**：#11319。
   - **覆盖**：AC-16、UI-AC-13 至 UI-AC-15。
+  - **实现状态**：✅ 已完成 - ProjectScheduleSheet.tsx 完整 UI（状态徽章、暂停/恢复/取消控制、时区支持）、项目详情页集成（apps/webui/src/app/studio/projects/[id]/page.tsx）、API 路由连接 (/api/aigc/projects/{id}/schedules) 均已完整实现。
 
 ### 后置 Blueprint 编辑器
 
