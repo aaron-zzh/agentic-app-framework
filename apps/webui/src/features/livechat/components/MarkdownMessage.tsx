@@ -9,7 +9,7 @@
 "use client"
 
 import { StreamdownTextPrimitive } from "@assistant-ui/react-streamdown"
-import type { ComponentPropsWithoutRef } from "react"
+import { type ComponentPropsWithoutRef, useMemo } from "react"
 import { CodeBlockCopyButton } from "./CodeBlockCopyButton"
 
 /** 代码块包装器：添加复制按钮 */
@@ -42,13 +42,16 @@ function extractTextFromChildren(children: unknown): string {
 /**
  * Markdown 消息渲染
  * 直接作为 assistant-ui 的 Text 组件使用，自动从 MessagePrimitive 上下文获取文本内容
+ * 优化：使用 useMemo 缓存 components 对象，避免每次重新渲染导致 Shiki 重新初始化
  */
 export function MarkdownMessage() {
+  const components = useMemo(() => ({ Pre: CodeBlockWrapper }), [])
+
   return (
     <StreamdownTextPrimitive
       shikiTheme={["github-light", "github-dark"]}
       containerClassName="prose prose-sm dark:prose-invert max-w-none prose-table:border-collapse prose-th:border prose-th:border-border prose-th:px-3 prose-th:py-2 prose-td:border prose-td:border-border prose-td:px-3 prose-td:py-2"
-      components={{ Pre: CodeBlockWrapper }}
+      components={components}
     />
   )
 }

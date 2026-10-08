@@ -57,10 +57,16 @@ export function LivechatProvider({ config, children }: LivechatProviderProps) {
   // 加载历史消息
   const { data: history } = useChatMessages(sessionId)
   const historyLoaded = useRef(false)
+  const messageIdsRef = useRef(new Set<string>())
 
   useEffect(() => {
     if (history && !historyLoaded.current) {
-      setMessages(history.map(toThreadMessage))
+      const mapped = history.map(toThreadMessage)
+      setMessages(mapped)
+      // 初始化 ID 缓存
+      mapped.forEach((msg) => {
+        messageIdsRef.current.add(msg.id)
+      })
       historyLoaded.current = true
     }
   }, [history])
@@ -92,8 +98,9 @@ export function LivechatProvider({ config, children }: LivechatProviderProps) {
           createdAt: new Date().toISOString()
         }
         setMessages((prev) => {
-          // 去重：避免历史加载和 WS 推送重复
-          if (prev.some((m) => m.id === msg.id)) return prev
+          // 去重优化：O(1) Set 查找替代 O(n) 数组遍历
+          if (messageIdsRef.current.has(msg.id)) return prev
+          messageIdsRef.current.add(msg.id)
           return [...prev, toThreadMessage(msg)]
         })
         setIsRunning(false)

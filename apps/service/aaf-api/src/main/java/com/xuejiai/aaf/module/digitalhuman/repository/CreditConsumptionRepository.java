@@ -8,5 +8,4 @@ import com.xuejiai.aaf.module.digitalhuman.domain.CreditConsumption;
  *
  * @author AaronZZH & Kiro
  */
-public interface CreditConsumptionRepository extends CrudEntityRepository<CreditConsumption> {
-}
+public interface CreditConsumptionRepository extends CrudEntityRepository<CreditConsumption> {}

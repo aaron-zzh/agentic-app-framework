@@ -1,7 +1,7 @@
 "use client"
 
-import { useRef, useState, useEffect } from "react"
 import { Download, Pause, Play, Volume2, VolumeX } from "lucide-react"
+import { useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
@@ -36,18 +36,20 @@ export function VideoPlayer({ url, title, duration, onDownload }: VideoPlayerPro
     }
   }
 
-  const handleSeek = (value: number[]) => {
-    if (videoRef.current) {
-      videoRef.current.currentTime = value[0]
-      setCurrentTime(value[0])
+  const handleSeek = (value: number | readonly number[]) => {
+    const next = Array.isArray(value) ? value[0] : value
+    if (videoRef.current && next !== undefined) {
+      videoRef.current.currentTime = next
+      setCurrentTime(next)
     }
   }
 
-  const handleVolumeChange = (value: number[]) => {
-    if (videoRef.current) {
-      videoRef.current.volume = value[0]
-      setVolume(value[0])
-      setMuted(value[0] === 0)
+  const handleVolumeChange = (value: number | readonly number[]) => {
+    const next = Array.isArray(value) ? value[0] : value
+    if (videoRef.current && next !== undefined) {
+      videoRef.current.volume = next
+      setVolume(next)
+      setMuted(next === 0)
     }
   }
 
@@ -88,7 +90,9 @@ export function VideoPlayer({ url, title, duration, onDownload }: VideoPlayerPro
             onTimeUpdate={handleTimeUpdate}
             onEnded={() => setPlaying(false)}
             onClick={togglePlay}
-          />
+          >
+            <track kind="captions" srcLang="zh-CN" label="中文字幕" />
+          </video>
         </div>
 
         <div className="space-y-2 p-4">

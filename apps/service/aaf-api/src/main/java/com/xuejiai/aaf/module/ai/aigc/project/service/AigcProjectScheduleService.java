@@ -12,7 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
-import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycle;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectSchedule;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectSchedule.ProjectScopeSnapshot;
 import com.xuejiai.aaf.module.ai.aigc.project.repository.AigcProjectRepository;
@@ -32,7 +31,7 @@ import lombok.extern.slf4j.Slf4j;
  * <h3>触发校验</h3>
  *
  * <ul>
- *   <li>项目 lifecycle 必须为 ACTIVE
+ *   <li>项目 lifecycle 必须允许创作变更（{@code AigcProjectLifecycle#allowsCreativeMutation()}）
  *   <li>Assistant 可执行性（定义存在、已发布、权限）
  *   <li>预算充足
  *   <li>安全策略允许
@@ -82,8 +81,8 @@ public class AigcProjectScheduleService {
                 projects.findByIdAndDeletedFalse(command.projectId())
                         .orElseThrow(() -> new IllegalArgumentException("项目不存在"));
 
-        if (project.getStatus() != AigcProjectLifecycle.ACTIVE) {
-            throw new IllegalStateException("只能为 ACTIVE 项目创建定时任务");
+        if (!project.getStatus().allowsCreativeMutation()) {
+            throw new IllegalStateException("只能为可生成内容状态（CREATING/EXECUTING/ADOPTING）的项目创建定时任务");
         }
 
         var schedule = new AigcProjectSchedule();
@@ -236,8 +235,8 @@ public class AigcProjectScheduleService {
                 projects.findByIdAndDeletedFalse(schedule.getProjectId())
                         .orElseThrow(() -> new IllegalStateException("项目不存在"));
 
-        if (project.getStatus() != AigcProjectLifecycle.ACTIVE) {
-            throw new IllegalStateException("项目不处于 ACTIVE 状态");
+        if (!project.getStatus().allowsCreativeMutation()) {
+            throw new IllegalStateException("项目当前状态不允许生成内容");
         }
 
         // 3. 检查同项目是否有未终结 Task

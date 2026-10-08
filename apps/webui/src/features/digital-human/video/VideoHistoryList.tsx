@@ -1,18 +1,14 @@
 "use client"
 
-import { useState } from "react"
-import { Play, Download, Calendar, Clock } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog"
-import { VideoPlayer } from "./VideoPlayer"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
+import { Calendar, Clock, Play } from "lucide-react"
+import Image from "next/image"
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { VideoPlayer } from "./VideoPlayer"
 
 interface Video {
   id: string
@@ -65,10 +61,12 @@ export function VideoHistoryList({ videos, loading }: VideoHistoryListProps) {
           <Card key={video.id} className="group overflow-hidden transition-shadow hover:shadow-lg">
             <div className="relative aspect-video bg-black">
               {video.thumbnailUrl ? (
-                <img
+                <Image
                   src={video.thumbnailUrl}
                   alt={video.title}
-                  className="size-full object-cover"
+                  fill
+                  sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                  className="object-cover"
                 />
               ) : (
                 <div className="flex size-full items-center justify-center bg-muted">
@@ -76,11 +74,7 @@ export function VideoHistoryList({ videos, loading }: VideoHistoryListProps) {
                 </div>
               )}
               <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
-                <Button
-                  size="lg"
-                  onClick={() => setSelectedVideo(video)}
-                  className="gap-2"
-                >
+                <Button size="lg" onClick={() => setSelectedVideo(video)} className="gap-2">
                   <Play className="size-5" />
                   播放
                 </Button>

@@ -69,7 +69,10 @@ export function AssistantLinkDialog({
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>选择助理</Label>
-            <Select value={selectedAssistantId} onValueChange={setSelectedAssistantId}>
+            <Select
+              value={selectedAssistantId}
+              onValueChange={(v) => setSelectedAssistantId(v ?? "")}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="请选择助理" />
               </SelectTrigger>
@@ -99,10 +102,7 @@ export function AssistantLinkDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             取消
           </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!selectedAssistantId || linkMutation.isPending}
-          >
+          <Button onClick={handleSubmit} disabled={!selectedAssistantId || linkMutation.isPending}>
             {linkMutation.isPending ? "关联中..." : "确认关联"}
           </Button>
         </DialogFooter>

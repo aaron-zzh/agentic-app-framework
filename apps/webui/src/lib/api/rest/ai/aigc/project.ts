@@ -218,6 +218,10 @@ export interface AigcProjectRelation {
   sourceObjectId: number
   targetObjectId: number
   relationMeta?: Record<string, unknown>
+  sourceSemanticRole?: AigcSemanticRole
+  targetSemanticRole?: AigcSemanticRole
+  sourceOutputContract?: AigcOutputContract
+  targetOutputContract?: AigcOutputContract
 }
 
 export interface AigcProjectChannelRef {

@@ -1,6 +1,14 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { apiClient } from "@/lib/api-client"
-import type { PaginatedResponse } from "@/types/api"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { backendApi } from "./backend-client"
+
+/** 视频历史分页响应（视频历史接口仍返回 Spring Data Page 结构） */
+export interface DigitalHumanVideoPage {
+  content: DigitalHumanVideo[]
+  totalElements: number
+  totalPages: number
+  size: number
+  number: number
+}
 
 export interface DigitalHumanVideo {
   id: string
@@ -37,24 +45,18 @@ const KEYS = {
 }
 
 const digitalHumanVideoApi = {
-  list: async (digitalHumanId: string, params: VideoListParams = {}) => {
-    const response = await apiClient.get<PaginatedResponse<DigitalHumanVideo>>(
-      `/api/digital-humans/${digitalHumanId}/videos`,
-      { params }
-    )
-    return response.data
-  },
+  list: (digitalHumanId: string, params: VideoListParams = {}) =>
+    backendApi.get<DigitalHumanVideoPage>(`/api/digital-humans/${digitalHumanId}/videos`, {
+      params
+    }),
 
-  getById: async (digitalHumanId: string, videoId: string) => {
-    const response = await apiClient.get<DigitalHumanVideo>(
-      `/api/digital-humans/${digitalHumanId}/videos/${videoId}`
-    )
-    return response.data
-  },
+  getById: (digitalHumanId: string, videoId: string) =>
+    backendApi.get<DigitalHumanVideo>(`/api/digital-humans/${digitalHumanId}/videos/${videoId}`),
 
-  delete: async (digitalHumanId: string, videoId: string) => {
-    await apiClient.delete(`/api/digital-humans/${digitalHumanId}/videos/${videoId}`)
-  }
+  delete: (digitalHumanId: string, videoId: string) =>
+    backendApi.delete<void>(`/api/digital-humans/${digitalHumanId}/videos/${videoId}`, {
+      showSuccess: "删除成功"
+    })
 }
 
 // React Query hooks

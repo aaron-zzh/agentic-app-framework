@@ -5,8 +5,8 @@
 
 "use client"
 
-import { useState } from "react"
 import { Play } from "lucide-react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -55,7 +55,8 @@ export function VoiceChangeDialog({
     onOpenChange(false)
   }
 
-  const playSample = (url: string) => {
+  const playSample = (url: string | undefined) => {
+    if (!url) return
     const audio = new Audio(url)
     audio.play()
   }
@@ -74,30 +75,34 @@ export function VoiceChangeDialog({
             <Label>选择音色</Label>
             <div className="mt-2 grid grid-cols-2 gap-3">
               {voices?.map((voice: PresetVoice) => (
-                <button
+                <div
                   key={voice.id}
-                  onClick={() => setSelectedVoiceId(voice.id)}
                   className={`flex items-center gap-3 rounded-lg border p-3 transition-colors ${
-                    selectedVoiceId === voice.id
-                      ? "border-primary bg-primary/5"
-                      : "hover:bg-muted"
+                    selectedVoiceId === voice.id ? "border-primary bg-primary/5" : "hover:bg-muted"
                   }`}
                 >
-                  <div className="flex-1 text-left">
-                    <div className="font-medium">{voice.name}</div>
-                    <div className="text-muted-foreground text-xs">{voice.description}</div>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedVoiceId(voice.id)}
+                    className="flex flex-1 text-left"
+                  >
+                    <span>
+                      <span className="block font-medium">{voice.name}</span>
+                      <span className="block text-muted-foreground text-xs">
+                        {voice.description}
+                      </span>
+                    </span>
+                  </button>
                   <Button
+                    type="button"
                     size="icon"
                     variant="ghost"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      playSample(voice.sampleAudioUrl)
-                    }}
+                    disabled={!voice.sampleAudioUrl}
+                    onClick={() => playSample(voice.sampleAudioUrl)}
                   >
                     <Play className="size-4" />
                   </Button>
-                </button>
+                </div>
               ))}
             </div>
           </div>
@@ -110,7 +115,7 @@ export function VoiceChangeDialog({
             </div>
             <Slider
               value={[speechRate]}
-              onValueChange={([v]) => setSpeechRate(v)}
+              onValueChange={(v) => setSpeechRate(Array.isArray(v) ? (v[0] ?? speechRate) : v)}
               min={-500}
               max={500}
               step={50}
@@ -125,7 +130,7 @@ export function VoiceChangeDialog({
             </div>
             <Slider
               value={[pitchRate]}
-              onValueChange={([v]) => setPitchRate(v)}
+              onValueChange={(v) => setPitchRate(Array.isArray(v) ? (v[0] ?? pitchRate) : v)}
               min={-500}
               max={500}
               step={50}
@@ -140,7 +145,7 @@ export function VoiceChangeDialog({
             </div>
             <Slider
               value={[volume]}
-              onValueChange={([v]) => setVolume(v)}
+              onValueChange={(v) => setVolume(Array.isArray(v) ? (v[0] ?? volume) : v)}
               min={0}
               max={100}
               step={5}

@@ -1,13 +1,13 @@
 package com.xuejiai.aaf.module.digitalhuman.domain;
 
-import java.time.LocalDateTime;
+import java.util.List;
 
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.Type;
+import org.hibernate.type.SqlTypes;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
 
-import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -16,65 +16,58 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * 积分消耗记录实体
+ * 数字人积分消耗记录实体
+ *
+ * <p>记录形象生成、视频生成等操作的积分消耗明细，用于统计分析和成本核算。消费用户为 {@link BaseEntity#getOwnerId()}。
  *
  * @author AaronZZH & Kiro
  */
 @Getter
 @Setter
 @Entity
-@Table(name = "credit_consumption")
-@SQLDelete(sql = "UPDATE credit_consumption SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
+@Table(name = "digital_human_credit_consumption")
+@SQLDelete(
+        sql =
+                "UPDATE digital_human_credit_consumption SET deleted = true, delete_time = CURRENT_TIMESTAMP WHERE id = ?")
 public class CreditConsumption extends BaseEntity {
 
-    /** 用户 ID */
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
-
-    /** 组织 ID */
-    @Column(name = "org_id")
-    private Long orgId;
-
-    /** 工作空间 ID */
-    @Column(name = "workspace_id")
-    private Long workspaceId;
-
-    /** 数字人 ID */
-    @Column(name = "digital_human_id", nullable = false)
+    /** 关联的数字人 ID */
+    @Column(name = "digital_human_id")
     private Long digitalHumanId;
 
-    /** 操作类型 */
-    @Column(name = "operation_type", nullable = false, length = 50)
-    private String operationType;
+    /** 关联的项目 ID */
+    @Column(name = "project_id", nullable = false)
+    private Long projectId;
 
-    /** 消耗积分数 */
-    @Column(name = "credits", nullable = false)
-    private Integer credits;
+    /** 操作类型：avatar_generation / simple_video / complex_video */
+    @Column(name = "operation", nullable = false, length = 64)
+    private String operation;
 
-    /** 费用明细 */
-    @Type(JsonType.class)
+    /** 消耗的积分数 */
+    @Column(name = "credits_consumed", nullable = false)
+    private Integer creditsConsumed;
+
+    /** 成本明细 */
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "breakdown", columnDefinition = "jsonb")
     private CostBreakdown breakdown;
 
-    /** 操作时间 */
-    @Column(name = "operation_time", nullable = false)
-    private LocalDateTime operationTime;
-
-    /**
-     * 费用明细
-     */
+    /** 成本明细 */
     @Data
     public static class CostBreakdown {
-        /** 基础费用 */
-        private Integer baseCost;
+        /** API 提供商 */
+        private String apiProvider;
 
-        /** 时长费用 */
-        private Integer durationCost;
+        /** API 实际费用 */
+        private Double apiCost;
 
-        /** 附加费用 */
-        private Integer additionalCost;
+        /** 视频时长（秒） */
+        private Integer duration;
 
-        /** 费用说明 */
-        private String description;
+        /** 场景数量 */
+        private Integer sceneCount;
+
+        /** 包含的元素 */
+        private List<String> elements;
     }
 }

@@ -24,6 +24,11 @@ public interface ErrorCodeConstants {
     ErrorCode DIGITAL_HUMAN_STATUS_INVALID = ErrorCode.of(8_000_004, "数字人状态不正确");
     ErrorCode DIGITAL_HUMAN_ARCHIVED_CANNOT_GENERATE = ErrorCode.of(8_000_005, "已归档的数字人无法生成视频");
     ErrorCode DIGITAL_HUMAN_VERSION_CONFLICT = ErrorCode.of(8_000_006, 409, "数字人信息已更新，请刷新后重试");
+    ErrorCode DIGITAL_HUMAN_ID_REQUIRED = ErrorCode.of(8_000_007, "请选择数字人");
+    ErrorCode DIGITAL_HUMAN_ACCESS_DENIED = ErrorCode.of(8_000_008, 403, "无权访问此数字人");
+    ErrorCode DIGITAL_HUMAN_EDIT_FORBIDDEN = ErrorCode.of(8_000_009, 403, "仅创建者可编辑数字人");
+    ErrorCode DIGITAL_HUMAN_FIELD_NOT_NULLABLE = ErrorCode.of(8_000_010, "{0} 不能为 null");
+    ErrorCode DIGITAL_HUMAN_FIELD_COMMAND_ONLY = ErrorCode.of(8_000_011, "{0} 只能通过专用命令修改");
 
     // ========== PRESET_VOICE 子模块 8_001_000 ==========
     ErrorCode PRESET_VOICE_NOT_FOUND = ErrorCode.of(8_001_000, 404, "音色不存在");
@@ -41,6 +46,10 @@ public interface ErrorCodeConstants {
     ErrorCode VIDEO_GENERATION_FAILED = ErrorCode.of(8_002_006, "视频生成失败: {0}");
     ErrorCode VIDEO_PROVIDER_INVALID = ErrorCode.of(8_002_007, "不支持的视频提供商: {0}");
     ErrorCode VIDEO_DELETE_FORBIDDEN = ErrorCode.of(8_002_008, "无权删除该视频");
+    ErrorCode VIDEO_ASPECT_RATIO_INVALID = ErrorCode.of(8_002_009, "不支持的画面比例: {0}");
+    ErrorCode VIDEO_SCENE_DURATION_INVALID = ErrorCode.of(8_002_010, "场景 {0} 的时长必须在 1 ~ {1} 秒之间");
+    ErrorCode VIDEO_SCENE_TOO_MANY = ErrorCode.of(8_002_011, "场景数量不能超过 {0} 个");
+    ErrorCode VIDEO_TOTAL_DURATION_EXCEEDED = ErrorCode.of(8_002_012, "视频总时长不能超过 {0} 秒");
 
     // ========== CREDIT 子模块 8_003_000 ==========
     ErrorCode CREDIT_INSUFFICIENT = ErrorCode.of(8_003_000, "积分不足，需要 {0} 积分，当前仅有 {1} 积分");

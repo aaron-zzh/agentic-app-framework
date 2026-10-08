@@ -2589,8 +2589,9 @@ INSERT INTO sys_scheduled_task (
     action_config,
     status,
     misfire_policy,
-    description
-) VALUES (
+    remark
+)
+SELECT
     'project_assistant_schedule_scan',
     'system',
     '0 * * * * ?',  -- 每分钟执行一次
@@ -2599,6 +2600,9 @@ INSERT INTO sys_scheduled_task (
     'active',
     'IGNORE',
     'AIGC 项目 AI 定时任务扫描器'
-) ON CONFLICT (name) DO NOTHING;
+WHERE NOT EXISTS (
+    SELECT 1 FROM sys_scheduled_task
+    WHERE name = 'project_assistant_schedule_scan' AND deleted = FALSE
+);
 
 CREATE UNIQUE INDEX uk_dashboard_preset_key ON sys_dashboard_preset (preset_key) WHERE deleted = FALSE;

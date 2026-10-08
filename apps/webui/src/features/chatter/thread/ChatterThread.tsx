@@ -31,6 +31,7 @@ import {
   ThreadPrimitive,
   useAuiState,
   useMessage,
+  useThread,
   useVoiceState
 } from "@assistant-ui/react"
 import {
@@ -63,6 +64,7 @@ import { chatApi } from "@/lib/api/rest/ai"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { serverTtsStream, useVoiceConfig } from "@/lib/store/voice-config"
 import { cn } from "@/lib/utils/cn"
+import { formatMessageTime } from "@/lib/utils/format-time"
 import { MarkdownText } from "./MarkdownText"
 
 /** AI 消息内容提取（用于 TTS） */
@@ -427,6 +429,7 @@ function AssistantMessage({
   showThinking: boolean
 }) {
   const text = useMessageText()
+  const message = useMessage()
   const ttsMode = useVoiceConfig((s) => s.ttsMode)
   const ttsVoice = useVoiceConfig((s) => s.ttsVoice)
 
@@ -526,13 +529,26 @@ function AssistantMessage({
       </div>
 
       {/* 操作栏：分支切换 + 复制 + 重新生成 */}
-      <AssistantActionBar guestMode={guestMode} />
+      <div className="flex items-center gap-2">
+        {message.createdAt && (
+          <time
+            className="text-muted-foreground text-xs"
+            dateTime={message.createdAt.toISOString()}
+            title={message.createdAt.toLocaleString("zh-CN")}
+          >
+            {formatMessageTime(message.createdAt.toISOString())}
+          </time>
+        )}
+        <AssistantActionBar guestMode={guestMode} />
+      </div>
     </MessagePrimitive.Root>
   )
 }
 
 /** 用户消息气泡（支持编辑） */
 function UserMessage() {
+  const message = useMessage()
+
   return (
     <MessagePrimitive.Root className="mb-3 flex flex-col items-end">
       <div className="mb-1 flex max-w-[85%] flex-wrap justify-end gap-1 empty:hidden">
@@ -568,9 +584,18 @@ function UserMessage() {
             </ActionBarPrimitive.Edit>
           </ActionBarPrimitive.Root>
         </div>
-        {/* 用户消息分支切换 */}
-        <div className="mt-0.5 px-1">
+        {/* 用户消息分支切换与时间戳 */}
+        <div className="mt-0.5 flex items-center gap-2 px-1">
           <BranchPicker />
+          {message.createdAt && (
+            <time
+              className="text-muted-foreground text-xs"
+              dateTime={message.createdAt.toISOString()}
+              title={message.createdAt.toLocaleString("zh-CN")}
+            >
+              {formatMessageTime(message.createdAt.toISOString())}
+            </time>
+          )}
         </div>
       </AuiIf>
 
@@ -662,6 +687,8 @@ export function ChatterThread({
   guestMode?: boolean
   showThinking: boolean
 }) {
+  const isLoading = useThread((s) => s.isRunning)
+
   return (
     <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
       {/* 通话中显示语音控制区——VoiceSection 在 ThreadPrimitive.Root 内读 thread，合法 */}
@@ -680,6 +707,22 @@ export function ChatterThread({
             )
           }
         </ThreadPrimitive.Messages>
+
+        {/* 加载状态指示器 */}
+        {isLoading && (
+          <div className="mb-3 flex items-start">
+            <div className="max-w-[85%] rounded-lg bg-muted px-3 py-2">
+              <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                <div className="flex gap-1">
+                  <div className="size-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.3s]" />
+                  <div className="size-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.15s]" />
+                  <div className="size-1.5 animate-bounce rounded-full bg-current" />
+                </div>
+                <span>正在思考...</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 对话后续建议（AAF-114 #11412）：非空对话场景下展示服务端推送的建议，与欢迎页建议共用同一状态源 */}
         <FollowUpSuggestions />

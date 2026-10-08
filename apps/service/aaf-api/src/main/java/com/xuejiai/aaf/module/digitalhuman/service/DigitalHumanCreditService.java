@@ -10,8 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 数字人积分计算服务
  *
- * <p>根据Blueprint定义的公式计算视频生成消耗的积分，
- * 并集成现有的CreditService进行实际扣减。
+ * <p>根据Blueprint定义的公式计算视频生成消耗的积分， 并集成现有的CreditService进行实际扣减。
  *
  * @author Kiro
  */
@@ -26,6 +25,7 @@ public class DigitalHumanCreditService {
      * 计算简单视频生成的积分消耗
      *
      * <p>公式（来自Blueprint）:
+     *
      * <pre>
      * baseCost = 50
      * durationCost = duration * 2
@@ -40,8 +40,12 @@ public class DigitalHumanCreditService {
         int durationCost = duration * 2;
         int totalCost = baseCost + durationCost;
 
-        log.debug("Simple video cost: duration={}s, base={}, duration_cost={}, total={}",
-                  duration, baseCost, durationCost, totalCost);
+        log.debug(
+                "Simple video cost: duration={}s, base={}, duration_cost={}, total={}",
+                duration,
+                baseCost,
+                durationCost,
+                totalCost);
 
         return totalCost;
     }
@@ -50,6 +54,7 @@ public class DigitalHumanCreditService {
      * 计算复杂视频生成的积分消耗
      *
      * <p>公式（来自Blueprint）:
+     *
      * <pre>
      * baseCost = 100
      * durationCost = duration * 3
@@ -67,8 +72,14 @@ public class DigitalHumanCreditService {
         int sceneCost = sceneCount * 10;
         int totalCost = baseCost + durationCost + sceneCost;
 
-        log.debug("Complex video cost: duration={}s, scenes={}, base={}, duration_cost={}, scene_cost={}, total={}",
-                  duration, sceneCount, baseCost, durationCost, sceneCost, totalCost);
+        log.debug(
+                "Complex video cost: duration={}s, scenes={}, base={}, duration_cost={}, scene_cost={}, total={}",
+                duration,
+                sceneCount,
+                baseCost,
+                durationCost,
+                sceneCost,
+                totalCost);
 
         return totalCost;
     }
@@ -96,8 +107,7 @@ public class DigitalHumanCreditService {
     /**
      * 估算场景数量
      *
-     * <p>当场景数量未提供时，根据时长估算。
-     * 假设每个场景平均10秒。
+     * <p>当场景数量未提供时，根据时长估算。 假设每个场景平均10秒。
      *
      * @param duration 视频时长（秒）
      * @return 估算的场景数量
@@ -160,23 +170,28 @@ public class DigitalHumanCreditService {
      * @param bizType 业务类型（如"DIGITAL_HUMAN"）
      * @return 交易ID
      */
-    public Long deductCredits(Long userId, int credits, String source, String category,
-                              String bizId, String bizType) {
+    public Long deductCredits(
+            Long userId,
+            int credits,
+            String source,
+            String category,
+            String bizId,
+            String bizType) {
         // 使用CreditService.spend扣除积分
         // overdraftLimit=0 表示不允许透支
-        Long txId = creditService.spend(
-            userId,
-            credits,
-            source,
-            category,
-            bizId,
-            0L, // 不允许透支
-            null, // remark
-            bizType
-        );
+        Long txId =
+                creditService.spend(
+                        userId, credits, source, category, bizId, 0L, // 不允许透支
+                        null, // remark
+                        bizType);
 
-        log.info("Credits deducted: userId={}, credits={}, source={}, bizId={}, txId={}",
-                 userId, credits, source, bizId, txId);
+        log.info(
+                "Credits deducted: userId={}, credits={}, source={}, bizId={}, txId={}",
+                userId,
+                credits,
+                source,
+                bizId,
+                txId);
 
         return txId;
     }
@@ -194,8 +209,11 @@ public class DigitalHumanCreditService {
         Long refundTxId = creditService.refund(creditTxId, reason);
 
         if (refundTxId != null) {
-            log.info("Credits refunded: originalTxId={}, reason={}, refundTxId={}",
-                     creditTxId, reason, refundTxId);
+            log.info(
+                    "Credits refunded: originalTxId={}, reason={}, refundTxId={}",
+                    creditTxId,
+                    reason,
+                    refundTxId);
         } else {
             log.warn("Credits refund failed: originalTxId={}, reason={}", creditTxId, reason);
         }

@@ -27,6 +27,8 @@ public class AigcProfessionalToolExecutionAdapter implements AigcToolExecutionPo
     private static final String IMAGE_EDIT = "aigc.image.edit";
     private static final String VIDEO_GENERATE = "aigc.video.generate";
     private static final String AUDIO_GENERATE = "aigc.audio.generate";
+    private static final Set<String> SUPPORTED_TARGETS =
+            Set.of(IMAGE_GENERATE, IMAGE_EDIT, VIDEO_GENERATE, AUDIO_GENERATE);
     private static final Set<String> IMAGE_ARGUMENT_KEYS =
             Set.of(
                     "width",
@@ -57,6 +59,11 @@ public class AigcProfessionalToolExecutionAdapter implements AigcToolExecutionPo
 
     private final AigcTaskApi taskApi;
     private final AigcMediaApi mediaApi;
+
+    @Override
+    public boolean supports(String targetRef) {
+        return SUPPORTED_TARGETS.contains(targetRef);
+    }
 
     @Override
     public ToolResult execute(Command command) {

@@ -22,6 +22,7 @@ import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus;
 import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunTreeView;
 import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunView;
 import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcRuntimeCancellationPort;
+import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcToolExecutionPort;
 import com.xuejiai.aaf.module.ai.aigc.execution.domain.AigcExecutionBinding;
 import com.xuejiai.aaf.module.ai.aigc.execution.domain.AigcExecutionRun;
 import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionRunRepository;
@@ -53,12 +54,6 @@ public class AigcActionCommandService implements AigcExecutionApi {
                     "video.generate",
                     "audio.generate",
                     "project.cover.generate");
-    private static final java.util.Set<String> PROFESSIONAL_TARGETS =
-            java.util.Set.of(
-                    "aigc.image.generate",
-                    "aigc.image.edit",
-                    "aigc.video.generate",
-                    "aigc.audio.generate");
 
     private static final Map<String, String> ACTION_LABELS =
             Map.ofEntries(
@@ -90,6 +85,12 @@ public class AigcActionCommandService implements AigcExecutionApi {
     private final OperatorContext operatorContext;
     private final List<AigcActionExecutor> executors;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
+    private final List<AigcToolExecutionPort> toolExecutionPorts;
+
+    /** 绑定的 Tool 目标必须有端口声明支持，避免提交后才发现无人执行。 */
+    private boolean supportsToolTarget(String targetRef) {
+        return toolExecutionPorts.stream().anyMatch(port -> port.supports(targetRef));
+    }
 
     @Transactional(readOnly = true)
     @org.springframework.security.access.prepost.PreAuthorize(
@@ -298,7 +299,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
         requireActionReady(project, object, command);
         var binding = bindingResolver.resolve(project, command.actionKey());
         if (!"tool".equalsIgnoreCase(binding.getTargetType())
-                || !PROFESSIONAL_TARGETS.contains(binding.getTargetRef())) {
+                || !supportsToolTarget(binding.getTargetRef())) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "专业媒体动作未绑定允许的 Tool target");
         }
         validateBudget(project, binding);
@@ -572,7 +573,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
                                 () -> new BusinessException(GlobalErrorCode.NOT_FOUND, "项目对象不存在"));
         var binding = bindingResolver.resolve(project, command.actionKey());
         if (!"tool".equalsIgnoreCase(binding.getTargetType())
-                || !PROFESSIONAL_TARGETS.contains(binding.getTargetRef())) {
+                || !supportsToolTarget(binding.getTargetRef())) {
             throw new BusinessException(
                     GlobalErrorCode.BAD_REQUEST, "专业媒体子 Run 未绑定允许的 Tool target");
         }
@@ -1153,7 +1154,7 @@ public class AigcActionCommandService implements AigcExecutionApi {
         return bindingResolver
                 .resolveOptional(project, actionKey)
                 .filter(binding -> "tool".equalsIgnoreCase(binding.getTargetType()))
-                .filter(binding -> PROFESSIONAL_TARGETS.contains(binding.getTargetRef()))
+                .filter(binding -> supportsToolTarget(binding.getTargetRef()))
                 .map(
                         binding ->
                                 new AigcActionOptionVO(

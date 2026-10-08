@@ -1,7 +1,5 @@
 package com.xuejiai.aaf.module.digitalhuman.controller;
 
-import java.util.List;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -21,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * 数字人视频管理
+ *
  * @author Kiro
  */
 @FeatureRequired(LicenseFeature.Codes.AIGC)
@@ -36,27 +35,23 @@ public class DigitalHumanVideoController {
     @GetMapping
     public Result<Page<DigitalHumanVideoVO>> listVideos(
             @PathVariable Long digitalHumanId,
-            @Parameter(description = "项目名称（模糊查询）") @RequestParam(required = false) String projectName,
-            @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
-    ) {
+            @Parameter(description = "项目名称（模糊查询）") @RequestParam(required = false)
+                    String projectName,
+            @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC)
+                    Pageable pageable) {
         return Result.success(videoService.listVideos(digitalHumanId, projectName, pageable));
     }
 
     @Operation(summary = "获取视频详情")
     @GetMapping("/{videoId}")
     public Result<DigitalHumanVideoVO> getVideo(
-            @PathVariable Long digitalHumanId,
-            @PathVariable Long videoId
-    ) {
+            @PathVariable Long digitalHumanId, @PathVariable Long videoId) {
         return Result.success(videoService.getVideo(digitalHumanId, videoId));
     }
 
     @Operation(summary = "删除视频记录", description = "仅删除关联记录，不删除实际视频文件")
     @DeleteMapping("/{videoId}")
-    public Result<Void> deleteVideo(
-            @PathVariable Long digitalHumanId,
-            @PathVariable Long videoId
-    ) {
+    public Result<Void> deleteVideo(@PathVariable Long digitalHumanId, @PathVariable Long videoId) {
         videoService.deleteVideo(digitalHumanId, videoId);
         return Result.success();
     }

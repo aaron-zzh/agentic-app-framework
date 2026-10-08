@@ -1,27 +1,43 @@
 package com.xuejiai.aaf.module.digitalhuman.execution;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+import static com.xuejiai.aaf.module.digitalhuman.ErrorCodeConstants.*;
+
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
-import com.xuejiai.aaf.common.exception.GlobalErrorCode;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcRuntimeExecution.Command;
 import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcToolExecutionPort;
+import com.xuejiai.aaf.module.digitalhuman.domain.DigitalHuman;
+import com.xuejiai.aaf.module.digitalhuman.repository.DigitalHumanRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * 数字人视频生成执行器适配器
+ * 数字人视频生成执行器。
  *
- * <p>根据视频时长自动路由到不同的生成服务：
+ * <p>绑定到 {@code video.generate} 动作（项目类型 {@code digital_human_video}），由 AIGC Tool 执行器按 {@link
+ * #TARGET_REF} 路由到这里。入参来自动作的 {@code actionArguments}：
+ *
  * <ul>
- * <li>≤15秒：使用阿里云数字人视频生成API（单场景）</li>
- * <li>>15秒：使用Hyperframes多场景视频合成API</li>
+ *   <li>{@code digitalHumanId}：数字人 ID，形象与音色由本执行器按 ID 读取，不信任调用方传入的地址
+ *   <li>{@code scenes}：脚本产出的场景列表，每项含 {@code content}、{@code duration}，可带 {@code title}、{@code
+ *       order}、{@code sceneDescription}；场景已由脚本阶段分好段，本执行器不再拆分
+ *   <li>{@code aspectRatio}：画面比例，缺省 16:9
  * </ul>
+ *
+ * <p>路由规则（唯一一处）：单场景且不超过 {@value #ALIYUN_MAX_DURATION} 秒直接调阿里云出片；其余情况每个场景用阿里云出一段，再交给 Hyperframes 合成。
+ *
+ * <p>阿里云与 Hyperframes 的实际调用尚未接入，仍返回占位地址。
  *
  * @author Kiro
  */
@@ -30,194 +46,196 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class DigitalHumanVideoGenerationAdapter implements AigcToolExecutionPort {
 
-    private static final int ALIYUN_MAX_DURATION = 15;
+    /** 与 {@code aigc_execution_binding.target_ref} 一致。 */
+    public static final String TARGET_REF = "digital_human_video_generation";
+
+    /** 阿里云单段视频的最长时长（秒）。 */
+    static final int ALIYUN_MAX_DURATION = 15;
+
+    private static final int MAX_SCENES = 50;
+    private static final int MAX_TOTAL_DURATION = 600;
+    private static final String DEFAULT_ASPECT_RATIO = "16:9";
+    private static final Set<String> ASPECT_RATIOS = Set.of("16:9", "9:16", "1:1");
+
+    private static final String PROVIDER_ALIYUN = "aliyun";
+    private static final String PROVIDER_HYPERFRAMES = "hyperframes";
+
+    private final DigitalHumanRepository digitalHumanRepository;
+
+    @Override
+    public boolean supports(String targetRef) {
+        return TARGET_REF.equals(targetRef);
+    }
 
     @Override
     public ToolResult execute(Command command) {
+        var arguments = actionArguments(command);
+        var digitalHuman =
+                requireUsableDigitalHuman(command, longValue(arguments.get("digitalHumanId")));
+        var aspectRatio = aspectRatio(arguments.get("aspectRatio"));
+        var scenes = parseScenes(arguments.get("scenes"));
+        var totalDuration = scenes.stream().mapToInt(Scene::duration).sum();
+        if (totalDuration > MAX_TOTAL_DURATION) {
+            throw exception(VIDEO_TOTAL_DURATION_EXCEEDED, MAX_TOTAL_DURATION);
+        }
+
+        String videoUrl;
+        String provider;
         try {
-            // 解析输入参数
-            Long digitalHumanId = getLong(command.input(), "digitalHumanId");
-            String avatarImageUrl = getString(command.input(), "avatarImageUrl");
-            String scriptContent = getString(command.input(), "scriptContent");
-            Integer duration = getInteger(command.input(), "duration");
-            String aspectRatio = getString(command.input(), "aspectRatio", "16:9");
-            Map<String, Object> voiceConfig = getMap(command.input(), "voiceConfig");
-
-            // 验证必填参数
-            if (digitalHumanId == null) {
-                throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "digitalHumanId is required");
-            }
-            if (avatarImageUrl == null || avatarImageUrl.isBlank()) {
-                throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "avatarImageUrl is required");
-            }
-            if (scriptContent == null || scriptContent.isBlank()) {
-                throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "scriptContent is required");
-            }
-            if (duration == null || duration <= 0) {
-                throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "duration must be positive");
-            }
-
-            // 根据时长选择生成方式
-            String videoUrl;
-            String provider;
-
-            if (duration <= ALIYUN_MAX_DURATION) {
-                log.info("使用阿里云简单视频生成，时长: {}秒", duration);
-                videoUrl = generateAliyunVideo(avatarImageUrl, scriptContent, duration, aspectRatio, voiceConfig);
-                provider = "aliyun";
+            if (scenes.size() == 1 && totalDuration <= ALIYUN_MAX_DURATION) {
+                log.info("数字人视频走阿里云单段，数字人: {}，时长: {}秒", digitalHuman.getId(), totalDuration);
+                videoUrl = generateAliyunClip(digitalHuman, scenes.getFirst(), aspectRatio);
+                provider = PROVIDER_ALIYUN;
             } else {
-                log.info("使用Hyperframes多场景合成，时长: {}秒", duration);
-                // 将长脚本拆分为多个场景
-                List<Map<String, Object>> scenes = splitScriptIntoScenes(scriptContent, duration);
-                videoUrl = generateHyperframesVideo(avatarImageUrl, scenes, aspectRatio, voiceConfig);
-                provider = "hyperframes";
+                log.info(
+                        "数字人视频走多场景合成，数字人: {}，场景数: {}，时长: {}秒",
+                        digitalHuman.getId(),
+                        scenes.size(),
+                        totalDuration);
+                var clipUrls = new ArrayList<String>(scenes.size());
+                for (var scene : scenes) {
+                    clipUrls.add(generateAliyunClip(digitalHuman, scene, aspectRatio));
+                }
+                videoUrl = composeWithHyperframes(scenes, clipUrls, aspectRatio);
+                provider = PROVIDER_HYPERFRAMES;
             }
-
-            // 构建返回结果
-            Map<String, Object> output = new LinkedHashMap<>();
-            output.put("videoUrl", videoUrl);
-            output.put("duration", duration);
-            output.put("provider", provider);
-            output.put("aspectRatio", aspectRatio);
-
-            return new ToolResult(toJson(output), List.of());
-
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            log.error("数字人视频生成失败", e);
-            throw new BusinessException(GlobalErrorCode.INTERNAL_ERROR, "视频生成失败: " + e.getMessage());
+            log.error("数字人视频生成失败，数字人: {}", digitalHuman.getId(), e);
+            throw exception(VIDEO_GENERATION_FAILED, e.getMessage());
         }
+
+        var output = new LinkedHashMap<String, Object>();
+        output.put("videoUrl", videoUrl);
+        output.put("duration", totalDuration);
+        output.put("provider", provider);
+        output.put("aspectRatio", aspectRatio);
+        output.put("sceneCount", scenes.size());
+        return new ToolResult(JsonUtils.toJsonString(output), List.of());
     }
 
-    /**
-     * 调用阿里云数字人视频生成API（单场景，≤15秒）
-     */
-    private String generateAliyunVideo(
-            String avatarImageUrl,
-            String scriptContent,
-            int duration,
-            String aspectRatio,
-            Map<String, Object> voiceConfig) {
-
-        // TODO: 实际API调用逻辑
-        // 1. 准备请求参数
-        // 2. 调用阿里云数字人视频生成API
-        // 3. 轮询任务状态直到完成
-        // 4. 返回视频URL
-
-        log.info("调用阿里云视频生成API - avatarUrl: {}, duration: {}s", avatarImageUrl, duration);
-
-        // 临时返回mock URL
+    /** 调用阿里云数字人视频生成 API，为单个场景出片（场景时长不超过 15 秒）。 */
+    private String generateAliyunClip(DigitalHuman digitalHuman, Scene scene, String aspectRatio) {
+        // TODO: 接入阿里云：提交任务、轮询状态、取回视频地址；形象取 digitalHuman.getAvatarImageUrl()，
+        // 音色取 digitalHuman.getVoiceConfig()，台词取 scene.content()
+        log.info(
+                "调用阿里云视频生成（占位）- 数字人: {}, 场景: {}, 时长: {}s, 比例: {}",
+                digitalHuman.getId(),
+                scene.order(),
+                scene.duration(),
+                aspectRatio);
         return "https://example.aliyun.com/videos/mock-" + System.currentTimeMillis() + ".mp4";
     }
 
-    /**
-     * 调用Hyperframes多场景视频合成API（>15秒）
-     */
-    private String generateHyperframesVideo(
-            String avatarImageUrl,
-            List<Map<String, Object>> scenes,
-            String aspectRatio,
-            Map<String, Object> voiceConfig) {
-
-        // TODO: 实际API调用逻辑
-        // 1. 为每个场景生成视频片段
-        // 2. 调用Hyperframes合成API
-        // 3. 等待合成完成
-        // 4. 返回最终视频URL
-
-        log.info("调用Hyperframes合成API - avatarUrl: {}, sceneCount: {}", avatarImageUrl, scenes.size());
-
-        // 临时返回mock URL
+    /** 调用 Hyperframes 把各场景片段按顺序合成为完整视频。 */
+    private String composeWithHyperframes(
+            List<Scene> scenes, List<String> clipUrls, String aspectRatio) {
+        // TODO: 接入 Hyperframes：按 scenes 顺序提交 clipUrls，等待合成完成并取回视频地址
+        log.info("调用 Hyperframes 合成（占位）- 片段数: {}, 比例: {}", clipUrls.size(), aspectRatio);
         return "https://example.hyperframes.ai/videos/mock-" + System.currentTimeMillis() + ".mp4";
     }
 
     /**
-     * 将长脚本智能拆分为多个场景
+     * 读取并校验数字人。
      *
-     * <p>拆分策略：
-     * <ul>
-     * <li>按句号、问号、感叹号等标点符号拆分</li>
-     * <li>每个场景不超过15秒</li>
-     * <li>尽量保持语义完整</li>
-     * </ul>
+     * <p>执行器可能运行在没有登录态的调度线程上，因此用 Command 携带的组织与工作空间显式校验，而不依赖线程上下文：组织必须一致，数字人属于某个工作空间时必须与 当前工作空间一致。
      */
-    private List<Map<String, Object>> splitScriptIntoScenes(String scriptContent, int totalDuration) {
-        // TODO: 实现智能拆分逻辑
-        // 1. 按标点符号拆分句子
-        // 2. 估算每句话的时长（按字符数 / 语速）
-        // 3. 组合成多个≤15秒的场景
-        // 4. 分配每个场景的具体时长
-
-        // 简单实现：按15秒均分
-        List<Map<String, Object>> scenes = new java.util.ArrayList<>();
-        int sceneCount = (totalDuration + ALIYUN_MAX_DURATION - 1) / ALIYUN_MAX_DURATION;
-        int avgDuration = totalDuration / sceneCount;
-
-        String[] sentences = scriptContent.split("[。！？]");
-        int sentencesPerScene = Math.max(1, sentences.length / sceneCount);
-
-        for (int i = 0; i < sceneCount; i++) {
-            int startIdx = i * sentencesPerScene;
-            int endIdx = Math.min(startIdx + sentencesPerScene, sentences.length);
-
-            String sceneContent = String.join("。",
-                java.util.Arrays.copyOfRange(sentences, startIdx, endIdx));
-
-            Map<String, Object> scene = new LinkedHashMap<>();
-            scene.put("order", i + 1);
-            scene.put("title", "场景 " + (i + 1));
-            scene.put("content", sceneContent);
-            scene.put("duration", i == sceneCount - 1 ? totalDuration - avgDuration * i : avgDuration);
-
-            scenes.add(scene);
+    private DigitalHuman requireUsableDigitalHuman(Command command, Long digitalHumanId) {
+        if (digitalHumanId == null) {
+            throw exception(DIGITAL_HUMAN_ID_REQUIRED);
         }
-
-        log.info("脚本拆分完成，共{}个场景", scenes.size());
-        return scenes;
-    }
-
-    // 辅助方法
-
-    private String getString(Map<String, Object> map, String key) {
-        return getString(map, key, null);
-    }
-
-    private String getString(Map<String, Object> map, String key, String defaultValue) {
-        Object value = map.get(key);
-        return value == null ? defaultValue : String.valueOf(value);
-    }
-
-    private Long getLong(Map<String, Object> map, String key) {
-        Object value = map.get(key);
-        if (value == null) return null;
-        if (value instanceof Number) return ((Number) value).longValue();
-        return Long.parseLong(String.valueOf(value));
-    }
-
-    private Integer getInteger(Map<String, Object> map, String key) {
-        Object value = map.get(key);
-        if (value == null) return null;
-        if (value instanceof Number) return ((Number) value).intValue();
-        return Integer.parseInt(String.valueOf(value));
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> getMap(Map<String, Object> map, String key) {
-        Object value = map.get(key);
-        if (value instanceof Map) {
-            return (Map<String, Object>) value;
+        var digitalHuman =
+                digitalHumanRepository
+                        .findById(digitalHumanId)
+                        .orElseThrow(() -> exception(DIGITAL_HUMAN_NOT_FOUND));
+        var sameOrg = Objects.equals(digitalHuman.getOrgId(), command.orgId());
+        var workspaceVisible =
+                digitalHuman.getWorkspaceId() == null
+                        || Objects.equals(digitalHuman.getWorkspaceId(), command.workspaceId());
+        if (!sameOrg || !workspaceVisible) {
+            throw exception(DIGITAL_HUMAN_ACCESS_DENIED);
         }
-        return new LinkedHashMap<>();
+        if (!"active".equals(digitalHuman.getStatus())) {
+            throw exception(DIGITAL_HUMAN_ARCHIVED_CANNOT_GENERATE);
+        }
+        var avatarImageUrl = digitalHuman.getAvatarImageUrl();
+        if (avatarImageUrl == null || avatarImageUrl.isBlank()) {
+            throw exception(DIGITAL_HUMAN_AVATAR_REQUIRED);
+        }
+        return digitalHuman;
     }
 
-    private String toJson(Map<String, Object> map) {
-        try {
-            return com.xuejiai.aaf.common.util.JsonUtils.toJsonString(map);
-        } catch (Exception e) {
-            log.error("JSON序列化失败", e);
-            return "{}";
+    private List<Scene> parseScenes(Object value) {
+        if (!(value instanceof List<?> items) || items.isEmpty()) {
+            throw exception(VIDEO_SCENE_EMPTY);
         }
+        if (items.size() > MAX_SCENES) {
+            throw exception(VIDEO_SCENE_TOO_MANY, MAX_SCENES);
+        }
+        var scenes = new ArrayList<Scene>(items.size());
+        for (var index = 0; index < items.size(); index++) {
+            var order = index + 1;
+            if (!(items.get(index) instanceof Map<?, ?> item)) {
+                throw exception(VIDEO_SCENE_CONTENT_REQUIRED, order);
+            }
+            var content = text(item.get("content"));
+            if (content == null || content.isBlank()) {
+                throw exception(VIDEO_SCENE_CONTENT_REQUIRED, order);
+            }
+            var duration = intValue(item.get("duration"));
+            if (duration == null || duration < 1 || duration > ALIYUN_MAX_DURATION) {
+                throw exception(VIDEO_SCENE_DURATION_INVALID, order, ALIYUN_MAX_DURATION);
+            }
+            scenes.add(
+                    new Scene(
+                            order,
+                            text(item.get("title")),
+                            content,
+                            duration,
+                            text(item.get("sceneDescription"))));
+        }
+        return List.copyOf(scenes);
     }
+
+    private String aspectRatio(Object value) {
+        var ratio = value == null ? DEFAULT_ASPECT_RATIO : String.valueOf(value);
+        if (!ASPECT_RATIOS.contains(ratio)) {
+            throw exception(VIDEO_ASPECT_RATIO_INVALID, ratio);
+        }
+        return ratio;
+    }
+
+    private Map<?, ?> actionArguments(Command command) {
+        return command.input().get("actionArguments") instanceof Map<?, ?> arguments
+                ? arguments
+                : Map.of();
+    }
+
+    private static Long longValue(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            try {
+                return Long.parseLong(text.trim());
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private static Integer intValue(Object value) {
+        var parsed = longValue(value);
+        return parsed == null || parsed > Integer.MAX_VALUE ? null : parsed.intValue();
+    }
+
+    private static String text(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    /** 脚本阶段产出的一个场景；{@code order} 为场景在列表中的 1 起始序号。 */
+    private record Scene(
+            int order, String title, String content, int duration, String sceneDescription) {}
 }

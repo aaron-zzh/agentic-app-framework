@@ -1,9 +1,5 @@
 package com.xuejiai.aaf.module.digitalhuman.repository;
 
-import java.util.List;
-
-import org.springframework.data.domain.Sort;
-
 import com.xuejiai.aaf.framework.crud.CrudEntityRepository;
 import com.xuejiai.aaf.module.digitalhuman.domain.DigitalHuman;
 
@@ -12,5 +8,4 @@ import com.xuejiai.aaf.module.digitalhuman.domain.DigitalHuman;
  *
  * @author AaronZZH & Kiro
  */
-public interface DigitalHumanRepository extends CrudEntityRepository<DigitalHuman> {
-}
+public interface DigitalHumanRepository extends CrudEntityRepository<DigitalHuman> {}

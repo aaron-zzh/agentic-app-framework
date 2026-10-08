@@ -1,29 +1,28 @@
 "use client"
 
-import { useState } from "react"
-import { GripVertical, Plus, Trash, Play } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import {
-  DndContext,
   closestCenter,
+  DndContext,
+  type DragEndEvent,
   KeyboardSensor,
   PointerSensor,
   useSensor,
-  useSensors,
-  type DragEndEvent
+  useSensors
 } from "@dnd-kit/core"
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  useSortable
+  useSortable,
+  verticalListSortingStrategy
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
+import { GripVertical, Play, Plus, Trash } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 
 export interface Scene {
   id: string
@@ -148,6 +147,7 @@ function SortableSceneCard({
       <CardHeader className="flex flex-row items-center space-y-0 pb-3">
         <div className="flex flex-1 items-center gap-3">
           <button
+            type="button"
             className="cursor-grab touch-none text-muted-foreground hover:text-foreground"
             {...attributes}
             {...listeners}
@@ -196,7 +196,7 @@ function SortableSceneCard({
               id={`duration-${scene.id}`}
               type="number"
               value={scene.duration}
-              onChange={(e) => onUpdate({ duration: parseInt(e.target.value) || 0 })}
+              onChange={(e) => onUpdate({ duration: parseInt(e.target.value, 10) || 0 })}
               disabled={disabled}
               min={1}
               max={15}

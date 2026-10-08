@@ -13,6 +13,8 @@ import jakarta.persistence.LockModeType;
 
 public interface AigcProjectRepository extends CrudEntityRepository<AigcProject> {
 
+    Optional<AigcProject> findByIdAndDeletedFalse(Long id);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select project from AigcProject project where project.id = :id")
     Optional<AigcProject> findLockedById(@Param("id") Long id);

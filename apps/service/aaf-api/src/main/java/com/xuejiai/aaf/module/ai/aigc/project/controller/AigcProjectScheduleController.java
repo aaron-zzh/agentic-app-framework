@@ -1,6 +1,8 @@
 package com.xuejiai.aaf.module.ai.aigc.project.controller;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -12,7 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.xuejiai.aaf.common.result.Result;
+import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectSchedule;
@@ -97,7 +99,12 @@ public class AigcProjectScheduleController {
                 schedule.getLinkedTaskId(),
                 schedule.getLastError(),
                 schedule.getFailCount(),
-                schedule.getCreatedAt());
+                toInstant(schedule.getCreateTime()));
+    }
+
+    /** 审计字段 createTime 为系统时区的 LocalDateTime，转为 UTC Instant 输出 */
+    private static Instant toInstant(LocalDateTime time) {
+        return time == null ? null : time.atZone(ZoneId.systemDefault()).toInstant();
     }
 
     /** 创建定时任务请求 */

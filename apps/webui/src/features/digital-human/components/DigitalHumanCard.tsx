@@ -6,8 +6,9 @@
 "use client"
 
 import { Edit, Eye, MoreVertical, Trash } from "lucide-react"
+import Image from "next/image"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import {
   DropdownMenu,
@@ -15,13 +16,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
-import type { DigitalHuman } from "../types"
+import type { DigitalHuman, DigitalHumanId } from "../types"
 
 interface DigitalHumanCardProps {
   digitalHuman: DigitalHuman
-  onView: (id: string) => void
-  onEdit?: (id: string) => void
-  onDelete?: (id: string) => void
+  onView: (id: DigitalHumanId) => void
+  onEdit?: (id: DigitalHumanId) => void
+  onDelete?: (id: DigitalHumanId) => void
 }
 
 export function DigitalHumanCard({
@@ -30,26 +31,29 @@ export function DigitalHumanCard({
   onEdit,
   onDelete
 }: DigitalHumanCardProps) {
-  const canEdit = digitalHuman.permissions?.canEdit
-  const isOrgShared = !digitalHuman.permissions?.canEdit && digitalHuman.organizationId
+  const canEdit = digitalHuman.ownedByCurrentUser
+  const isOrgShared = !digitalHuman.ownedByCurrentUser
+  const tags = digitalHuman.tags ?? []
+  const gender = digitalHuman.appearance?.gender
 
   return (
     <Card className="group overflow-hidden shadow-sm transition-shadow hover:shadow-lg">
       {/* 头像 */}
       <div className="relative aspect-square overflow-hidden bg-muted">
-        <img
+        <Image
           src={digitalHuman.avatarImageUrl}
           alt={digitalHuman.name}
-          loading="lazy"
-          className="size-full object-cover transition-transform group-hover:scale-105"
+          fill
+          sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+          className="object-cover transition-transform group-hover:scale-105"
         />
         {isOrgShared && (
-          <Badge className="absolute right-2 top-2" variant="secondary">
+          <Badge className="absolute top-2 right-2" variant="secondary">
             组织共享
           </Badge>
         )}
         {digitalHuman.status === "archived" && (
-          <Badge className="absolute left-2 top-2" variant="outline">
+          <Badge className="absolute top-2 left-2" variant="outline">
             已归档
           </Badge>
         )}
@@ -59,20 +63,21 @@ export function DigitalHumanCard({
       <div className="p-4">
         <h3 className="mb-1 truncate font-semibold">{digitalHuman.name}</h3>
         <p className="mb-2 text-muted-foreground text-sm">
-          {digitalHuman.voiceConfig.voiceName} · {digitalHuman.appearance.gender === "female" ? "女声" : digitalHuman.appearance.gender === "male" ? "男声" : "中性"}
+          {digitalHuman.voiceConfig.voiceName} ·{" "}
+          {gender === "female" ? "女声" : gender === "male" ? "男声" : "中性"}
         </p>
 
         {/* 标签 */}
-        {digitalHuman.tags.length > 0 && (
+        {tags.length > 0 && (
           <div className="mb-3 flex flex-wrap gap-1">
-            {digitalHuman.tags.slice(0, 3).map((tag) => (
+            {tags.slice(0, 3).map((tag) => (
               <Badge key={tag} variant="outline" className="text-xs">
                 {tag}
               </Badge>
             ))}
-            {digitalHuman.tags.length > 3 && (
+            {tags.length > 3 && (
               <Badge variant="outline" className="text-xs">
-                +{digitalHuman.tags.length - 3}
+                +{tags.length - 3}
               </Badge>
             )}
           </div>
@@ -80,7 +85,7 @@ export function DigitalHumanCard({
 
         {/* 统计 */}
         <div className="mb-3 space-y-1 text-muted-foreground text-xs">
-          <div>使用 {digitalHuman.stats.videoCount} 次</div>
+          <div>使用 {digitalHuman.videoCount} 次</div>
           {digitalHuman.assistantId && <div>已关联助理</div>}
         </div>
 
@@ -93,10 +98,11 @@ export function DigitalHumanCard({
 
           {canEdit && (
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="sm" variant="ghost">
-                  <MoreVertical className="size-3.5" />
-                </Button>
+              <DropdownMenuTrigger
+                className={buttonVariants({ size: "sm", variant: "ghost" })}
+                aria-label="更多操作"
+              >
+                <MoreVertical className="size-3.5" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => onEdit?.(digitalHuman.id)}>

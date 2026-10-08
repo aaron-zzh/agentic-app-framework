@@ -25,6 +25,7 @@ import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcActionCommand;
 import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcChildActionCommand;
 import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus;
 import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcRuntimeCancellationPort;
+import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcToolExecutionPort;
 import com.xuejiai.aaf.module.ai.aigc.execution.domain.AigcExecutionBinding;
 import com.xuejiai.aaf.module.ai.aigc.execution.domain.AigcExecutionRun;
 import com.xuejiai.aaf.module.ai.aigc.execution.domain.AigcExecutionSubmission;
@@ -59,6 +60,7 @@ class AigcActionCommandServiceTest extends BaseMockitoUnitTest {
     @Mock private AigcRuntimeCancellationPort runtimeCancellationPort;
     @Mock private OperatorContext operatorContext;
     @Mock private AigcActionExecutor executor;
+    @Mock private AigcToolExecutionPort toolPort;
     @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     private AigcActionCommandService service;
@@ -79,7 +81,9 @@ class AigcActionCommandServiceTest extends BaseMockitoUnitTest {
                         runtimeCancellationPort,
                         operatorContext,
                         List.of(executor),
-                        eventPublisher);
+                        eventPublisher,
+                        List.of(toolPort));
+        lenient().when(toolPort.supports(any())).thenReturn(true);
         lenient().when(operatorContext.currentOwnerId()).thenReturn(Optional.of(7L));
         lenient().when(projectApi.requireProject(1L)).thenReturn(project());
         lenient()

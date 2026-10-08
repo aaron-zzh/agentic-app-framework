@@ -9,6 +9,7 @@ import lombok.Data;
 
 /**
  * 数字人视频VO
+ *
  * @author Kiro
  */
 @Data

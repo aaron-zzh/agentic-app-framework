@@ -1,7 +1,9 @@
 "use client"
 
-import { useState } from "react"
 import { Video } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -12,7 +14,6 @@ import {
   DialogTitle,
   DialogTrigger
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
   Select,
@@ -22,14 +23,13 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { SceneEditor, type Scene } from "@/features/digital-human/video"
-import { useRouter } from "next/navigation"
-import { toast } from "sonner"
+import { type Scene, SceneEditor } from "@/features/digital-human/video"
 
 interface VideoGenerationDialogProps {
   digitalHumanId: string
   digitalHumanName: string
-  trigger?: React.ReactNode
+  /** 触发按钮元素，通过 render prop 渲染为 Dialog 触发器 */
+  trigger?: React.ReactElement
 }
 
 export function VideoGenerationDialog({
@@ -97,8 +97,7 @@ export function VideoGenerationDialog({
 
       // 跳转到项目详情页
       router.push(`/aigc/projects/${project.data.id}`)
-    } catch (error) {
-      console.error("创建视频生成任务失败:", error)
+    } catch {
       toast.error("创建视频生成任务失败")
     } finally {
       setLoading(false)
@@ -157,8 +156,7 @@ export function VideoGenerationDialog({
 
       // 跳转到项目详情页
       router.push(`/aigc/projects/${project.data.id}`)
-    } catch (error) {
-      console.error("创建视频生成任务失败:", error)
+    } catch {
       toast.error("创建视频生成任务失败")
     } finally {
       setLoading(false)
@@ -167,14 +165,16 @@ export function VideoGenerationDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button>
-            <Video className="mr-2 size-4" />
-            生成视频
-          </Button>
-        )}
-      </DialogTrigger>
+      <DialogTrigger
+        render={
+          trigger ?? (
+            <Button>
+              <Video className="mr-2 size-4" />
+              生成视频
+            </Button>
+          )
+        }
+      />
       <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>生成数字人视频</DialogTitle>
@@ -205,7 +205,7 @@ export function VideoGenerationDialog({
 
             <div>
               <Label htmlFor="ratio">视频比例</Label>
-              <Select value={aspectRatio} onValueChange={setAspectRatio}>
+              <Select value={aspectRatio} onValueChange={(v) => setAspectRatio(v ?? "16:9")}>
                 <SelectTrigger id="ratio" className="mt-1.5">
                   <SelectValue />
                 </SelectTrigger>
@@ -222,7 +222,7 @@ export function VideoGenerationDialog({
           <TabsContent value="advanced" className="space-y-4">
             <div>
               <Label htmlFor="ratio-advanced">视频比例</Label>
-              <Select value={aspectRatio} onValueChange={setAspectRatio}>
+              <Select value={aspectRatio} onValueChange={(v) => setAspectRatio(v ?? "16:9")}>
                 <SelectTrigger id="ratio-advanced" className="mt-1.5">
                   <SelectValue />
                 </SelectTrigger>

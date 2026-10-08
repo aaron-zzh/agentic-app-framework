@@ -3,124 +3,59 @@ package com.xuejiai.aaf.module.digitalhuman.vo;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.Data;
 
-@Data
-@Schema(description = "数字人视图对象")
-public class DigitalHumanVO {
+/** 数字人响应。 */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@Schema(description = "数字人")
+public record DigitalHumanVO(
+        @Schema(description = "数字人 ID") Long id,
+        @Schema(description = "版本号，更新时作为 expectedVersion 回传") Integer version,
+        @Schema(description = "名称") String name,
+        @Schema(description = "描述") String description,
+        @Schema(description = "头像图片 URL") String avatarImageUrl,
+        @Schema(description = "标签") List<String> tags,
+        @Schema(description = "形象信息") DigitalHumanAppearance appearance,
+        @Schema(description = "音色配置") DigitalHumanVoiceConfig voiceConfig,
+        @Schema(description = "模型配置") DigitalHumanModelConfig modelConfig,
+        @Schema(description = "关联的助理 ID") Long assistantId,
+        @Schema(description = "是否同步助理模型配置") Boolean syncModelConfig,
+        @Schema(description = "生成视频数量") Integer videoCount,
+        @Schema(description = "累计视频时长（秒）") Integer totalDuration,
+        @Schema(description = "累计消耗积分") Integer creditsConsumed,
+        @Schema(description = "最后使用时间") LocalDateTime lastUsedAt,
+        @Schema(description = "状态：active / archived") String status,
+        @Schema(description = "生成来源") String generationSource,
+        @Schema(description = "关联的 AIGC 项目 ID") Long aigcProjectId,
+        @Schema(description = "创建时间") LocalDateTime createTime,
+        @Schema(description = "更新时间") LocalDateTime updateTime,
+        @Schema(description = "当前用户是否为创建者；仅创建者可修改、删除或执行命令") Boolean ownedByCurrentUser) {
 
-    @Schema(description = "数字人 ID")
-    private Long id;
-
-    @Schema(description = "名称")
-    private String name;
-
-    @Schema(description = "描述")
-    private String description;
-
-    @Schema(description = "头像图片 URL")
-    private String avatarImageUrl;
-
-    @Schema(description = "标签")
-    private List<String> tags;
-
-    @Schema(description = "形象信息")
-    private AppearanceConfig appearance;
-
-    @Schema(description = "音色配置")
-    private VoiceConfig voiceConfig;
-
-    @Schema(description = "模型配置")
-    private ModelConfig modelConfig;
-
-    @Schema(description = "关联的助理 ID")
-    private Long assistantId;
-
-    @Schema(description = "是否同步助理模型配置")
-    private Boolean syncModelConfig;
-
-    @Schema(description = "生成视频数量")
-    private Integer videoCount;
-
-    @Schema(description = "累计视频时长（秒）")
-    private Integer totalDuration;
-
-    @Schema(description = "累计消耗积分")
-    private Integer creditsConsumed;
-
-    @Schema(description = "最后使用时间")
-    private LocalDateTime lastUsedAt;
-
-    @Schema(description = "状态")
-    private String status;
-
-    @Schema(description = "生成来源")
-    private String generationSource;
-
-    @Schema(description = "关联的 AIGC 项目 ID")
-    private Long aigcProjectId;
-
-    @Schema(description = "创建时间")
-    private LocalDateTime createTime;
-
-    @Schema(description = "更新时间")
-    private LocalDateTime updateTime;
-
-    @Data
-    @Schema(description = "形象配置")
-    public static class AppearanceConfig {
-        @Schema(description = "年龄")
-        private Integer age;
-
-        @Schema(description = "性别")
-        private String gender;
-
-        @Schema(description = "风格")
-        private String style;
-
-        @Schema(description = "提示词")
-        private String prompt;
-    }
-
-    @Data
-    @Schema(description = "音色配置")
-    public static class VoiceConfig {
-        @Schema(description = "提供商")
-        private String provider;
-
-        @Schema(description = "预设音色 ID")
-        private Long presetVoiceId;
-
-        @Schema(description = "音色名称")
-        private String voiceName;
-
-        @Schema(description = "语速（-500 ~ 500）")
-        private Integer speechRate;
-
-        @Schema(description = "音调（-500 ~ 500）")
-        private Integer pitchRate;
-
-        @Schema(description = "音量（0 ~ 100）")
-        private Integer volume;
-    }
-
-    @Data
-    @Schema(description = "模型配置")
-    public static class ModelConfig {
-        @Schema(description = "提供商")
-        private String provider;
-
-        @Schema(description = "模型名称")
-        private String model;
-
-        @Schema(description = "温度")
-        private Double temperature;
-
-        @Schema(description = "最大 Token 数")
-        private Integer maxTokens;
-
-        @Schema(description = "系统提示词")
-        private String systemPrompt;
+    /** 返回带有创建者标记的副本。 */
+    public DigitalHumanVO withOwnedByCurrentUser(boolean owned) {
+        return new DigitalHumanVO(
+                id,
+                version,
+                name,
+                description,
+                avatarImageUrl,
+                tags,
+                appearance,
+                voiceConfig,
+                modelConfig,
+                assistantId,
+                syncModelConfig,
+                videoCount,
+                totalDuration,
+                creditsConsumed,
+                lastUsedAt,
+                status,
+                generationSource,
+                aigcProjectId,
+                createTime,
+                updateTime,
+                owned);
     }
 }

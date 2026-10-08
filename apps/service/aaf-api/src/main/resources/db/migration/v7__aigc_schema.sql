@@ -2028,12 +2028,16 @@ CREATE TABLE aigc_project_schedule (
     -- 乐观锁
     version INT NOT NULL DEFAULT 0,
 
-    -- 审计
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- 审计（与 BaseEntity 一致）
+    create_by BIGINT,
+    create_by_type VARCHAR(16),
+    create_time TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_by BIGINT,
+    update_by_type VARCHAR(16),
+    update_time TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    delete_time TIMESTAMP(6),
     deleted BOOLEAN NOT NULL DEFAULT FALSE,
-    delete_time TIMESTAMPTZ,
-
+    remark VARCHAR(255),
     CONSTRAINT fk_project FOREIGN KEY (project_id) REFERENCES aigc_project(id) ON DELETE CASCADE
 );
 

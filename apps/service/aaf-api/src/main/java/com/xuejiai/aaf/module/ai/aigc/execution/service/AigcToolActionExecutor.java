@@ -27,7 +27,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AigcToolActionExecutor implements AigcActionExecutor {
 
-    private final AigcToolExecutionPort executionPort;
+    private final List<AigcToolExecutionPort> executionPorts;
     private final AigcExecutionRunRepository runRepository;
     private final AigcExecutionTaskRefRepository taskRefRepository;
     private final ApplicationEventPublisher eventPublisher;
@@ -40,7 +40,8 @@ public class AigcToolActionExecutor implements AigcActionExecutor {
     @Override
     public void execute(AigcActionContext context) {
         var run = markRunning(context.executionRun());
-        var result = executionPort.execute(toCommand(context));
+        var command = toCommand(context);
+        var result = requirePort(command.targetRef()).execute(command);
         if (result.asynchronous()) {
             persistTaskReferences(run, result.taskIds());
             run.setOutputPayload(Map.of("taskIds", result.taskIds()));
@@ -48,6 +49,14 @@ public class AigcToolActionExecutor implements AigcActionExecutor {
             return;
         }
         persistCandidate(run, result.output());
+    }
+
+    /** 按绑定的 targetRef 选择唯一负责的 Tool 端口。 */
+    private AigcToolExecutionPort requirePort(String targetRef) {
+        return executionPorts.stream()
+                .filter(port -> port.supports(targetRef))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("没有可执行该 Tool 目标的端口: " + targetRef));
     }
 
     private Command toCommand(AigcActionContext context) {

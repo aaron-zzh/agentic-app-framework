@@ -6,12 +6,14 @@
 "use client"
 
 import { Archive, ArchiveRestore, Link, Pencil, Trash, Video } from "lucide-react"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { VideoGenerationDialog, VideoHistoryList } from "@/features/digital-human/video"
 import {
   useArchiveDigitalHuman,
   useDeleteDigitalHuman,
@@ -20,7 +22,6 @@ import {
   useUnlinkAssistant
 } from "@/lib/api/rest/digital-human"
 import { useDigitalHumanVideos } from "@/lib/api/rest/digital-human-video"
-import { VideoGenerationDialog, VideoHistoryList } from "@/features/digital-human/video"
 
 interface DigitalHumanDetailProps {
   id: string
@@ -51,8 +52,10 @@ export default function DigitalHumanDetail({ id }: DigitalHumanDetailProps) {
     )
   }
 
-  const canEdit = digitalHuman.permissions?.canEdit
+  const canEdit = digitalHuman.ownedByCurrentUser
   const isArchived = digitalHuman.status === "archived"
+  const tags = digitalHuman.tags ?? []
+  const appearance = digitalHuman.appearance
 
   const handleDelete = async () => {
     if (!confirm("确认删除此数字人？删除后无法恢复。")) return
@@ -79,9 +82,11 @@ export default function DigitalHumanDetail({ id }: DigitalHumanDetailProps) {
       {/* 标题栏 */}
       <div className="mb-6 flex items-start justify-between">
         <div className="flex items-start gap-4">
-          <img
+          <Image
             src={digitalHuman.avatarImageUrl}
             alt={digitalHuman.name}
+            width={96}
+            height={96}
             className="size-24 rounded-lg border object-cover"
           />
           <div>
@@ -92,9 +97,9 @@ export default function DigitalHumanDetail({ id }: DigitalHumanDetailProps) {
             {digitalHuman.description && (
               <p className="mb-2 text-muted-foreground">{digitalHuman.description}</p>
             )}
-            {digitalHuman.tags.length > 0 && (
+            {tags.length > 0 && (
               <div className="flex flex-wrap gap-1">
-                {digitalHuman.tags.map((tag) => (
+                {tags.map((tag) => (
                   <Badge key={tag} variant="secondary">
                     {tag}
                   </Badge>
@@ -159,7 +164,9 @@ export default function DigitalHumanDetail({ id }: DigitalHumanDetailProps) {
                       <Button variant="outline" onClick={handleUnlink}>
                         取消关联
                       </Button>
-                      <Button onClick={() => router.push(`/assistants/${digitalHuman.assistantId}`)}>
+                      <Button
+                        onClick={() => router.push(`/assistants/${digitalHuman.assistantId}`)}
+                      >
                         查看助理
                       </Button>
                     </div>
@@ -169,7 +176,10 @@ export default function DigitalHumanDetail({ id }: DigitalHumanDetailProps) {
                 <div className="py-4 text-center">
                   <p className="mb-4 text-muted-foreground text-sm">暂未关联助理</p>
                   {canEdit && (
-                    <Button variant="outline" onClick={() => router.push(`/digital-humans/${id}/link-assistant`)}>
+                    <Button
+                      variant="outline"
+                      onClick={() => router.push(`/digital-humans/${id}/link-assistant`)}
+                    >
                       <Link className="mr-2 size-4" />
                       关联助理
                     </Button>
@@ -211,15 +221,17 @@ export default function DigitalHumanDetail({ id }: DigitalHumanDetailProps) {
         {/* 视频历史 */}
         <TabsContent value="videos">
           <VideoHistoryList
-            videos={videosData?.content.map(v => ({
-              id: v.id,
-              title: v.title,
-              url: v.videoUrl,
-              thumbnailUrl: v.thumbnailUrl,
-              duration: v.duration,
-              createdAt: v.createdAt,
-              projectId: v.projectId
-            })) || []}
+            videos={
+              videosData?.content.map((v) => ({
+                id: v.id,
+                title: v.title,
+                url: v.videoUrl,
+                thumbnailUrl: v.thumbnailUrl,
+                duration: v.duration,
+                createdAt: v.createdAt,
+                projectId: v.projectId
+              })) || []
+            }
             loading={videosLoading}
           />
         </TabsContent>
@@ -261,35 +273,44 @@ export default function DigitalHumanDetail({ id }: DigitalHumanDetailProps) {
               <CardTitle>外观配置</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <div className="mb-1 font-medium text-sm">性别</div>
-                <div>
-                  {digitalHuman.appearance.gender === "female" ? "女性" : digitalHuman.appearance.gender === "male" ? "男性" : "中性"}
-                </div>
-              </div>
-              <Separator />
-              {digitalHuman.appearance.age && (
+              {appearance ? (
                 <>
                   <div>
-                    <div className="mb-1 font-medium text-sm">年龄</div>
-                    <div>{digitalHuman.appearance.age}</div>
+                    <div className="mb-1 font-medium text-sm">性别</div>
+                    <div>
+                      {appearance.gender === "female"
+                        ? "女性"
+                        : appearance.gender === "male"
+                          ? "男性"
+                          : "中性"}
+                    </div>
                   </div>
                   <Separator />
+                  {appearance.age && (
+                    <>
+                      <div>
+                        <div className="mb-1 font-medium text-sm">年龄</div>
+                        <div>{appearance.age}</div>
+                      </div>
+                      <Separator />
+                    </>
+                  )}
+                  <div>
+                    <div className="mb-1 font-medium text-sm">风格</div>
+                    <div>{appearance.style}</div>
+                  </div>
+                  <Separator />
+                  <div>
+                    <div className="mb-1 font-medium text-sm">生成提示词</div>
+                    <div className="text-muted-foreground text-sm">{appearance.prompt}</div>
+                  </div>
                 </>
+              ) : (
+                <p className="text-muted-foreground text-sm">暂无外观配置</p>
               )}
-              <div>
-                <div className="mb-1 font-medium text-sm">风格</div>
-                <div>{digitalHuman.appearance.style}</div>
-              </div>
-              <Separator />
-              <div>
-                <div className="mb-1 font-medium text-sm">生成提示词</div>
-                <div className="text-muted-foreground text-sm">{digitalHuman.appearance.prompt}</div>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
-
         {/* 使用统计 */}
         <TabsContent value="usage">
           <Card>
@@ -300,24 +321,24 @@ export default function DigitalHumanDetail({ id }: DigitalHumanDetailProps) {
               <div className="grid grid-cols-3 gap-4">
                 <div className="rounded-lg border p-4">
                   <div className="mb-1 text-muted-foreground text-sm">视频数量</div>
-                  <div className="font-semibold text-2xl">{digitalHuman.stats.videoCount}</div>
+                  <div className="font-semibold text-2xl">{digitalHuman.videoCount}</div>
                 </div>
                 <div className="rounded-lg border p-4">
                   <div className="mb-1 text-muted-foreground text-sm">总时长（秒）</div>
-                  <div className="font-semibold text-2xl">{digitalHuman.stats.totalDuration}</div>
+                  <div className="font-semibold text-2xl">{digitalHuman.totalDuration}</div>
                 </div>
                 <div className="rounded-lg border p-4">
                   <div className="mb-1 text-muted-foreground text-sm">消耗积分</div>
-                  <div className="font-semibold text-2xl">{digitalHuman.stats.creditsConsumed}</div>
+                  <div className="font-semibold text-2xl">{digitalHuman.creditsConsumed}</div>
                 </div>
               </div>
-              {digitalHuman.stats.lastUsedAt && (
+              {digitalHuman.lastUsedAt && (
                 <>
                   <Separator />
                   <div>
                     <div className="mb-1 font-medium text-sm">最后使用时间</div>
                     <div className="text-muted-foreground text-sm">
-                      {new Date(digitalHuman.stats.lastUsedAt).toLocaleString("zh-CN")}
+                      {new Date(digitalHuman.lastUsedAt).toLocaleString("zh-CN")}
                     </div>
                   </div>
                 </>
