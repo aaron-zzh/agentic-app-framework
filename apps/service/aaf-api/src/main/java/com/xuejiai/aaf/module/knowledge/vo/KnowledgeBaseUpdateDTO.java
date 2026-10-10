@@ -15,7 +15,6 @@ public record KnowledgeBaseUpdateDTO(
                 @Pattern(regexp = "PRIVATE|ORG|SYSTEM_PUBLIC")
                 String visibility,
         @Schema(description = "授权范围编码") @Size(max = 128) String scopeCode,
-        @Schema(description = "向量模型名称") @Size(max = 100) String embeddingModel,
         @Schema(description = "分块策略") @Pattern(regexp = "fixed|recursive|semantic")
                 String chunkStrategy,
         @Schema(description = "分块大小") @Min(1) @Max(100_000) Integer chunkSize,

@@ -11,7 +11,7 @@ import { defineToolkit } from "@assistant-ui/react"
 import { useQuery } from "@tanstack/react-query"
 import { ImageIcon, MusicIcon, VideoIcon } from "lucide-react"
 import type { AigcTaskEvent } from "@/lib/api/rest/ai/aigc-task"
-import { request } from "@/lib/api/rest/entity"
+import { request } from "@/lib/api/rest/crud"
 
 interface AigcToolResult {
   taskId?: number

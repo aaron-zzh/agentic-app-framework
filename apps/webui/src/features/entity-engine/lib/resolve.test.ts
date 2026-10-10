@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { resolveExtends, resolveMixins } from "../lib"
+import { resolveExtends, resolveMixins } from "@/lib/modules/entity-resolve"
 import type { EntityDef, FieldDef } from "../types"
 
 /** 从 fields 中提取所有字段名 */

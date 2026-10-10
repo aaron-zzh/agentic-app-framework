@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest"
 
 import type { EntityResourceDescriptor } from "@/lib/api/rest/entity"
+import { entityRegistry } from "@/lib/modules/entity-registry"
 import type { EntityDef } from "../types"
-import { entityRegistry } from "./registry"
 
 const testEntities: EntityDef[] = [
   {
@@ -79,12 +79,6 @@ describe("entityRegistry", () => {
   it("getAll 返回所有实体", () => {
     const all = entityRegistry.getAll()
     expect(all).toHaveLength(2)
-  })
-
-  it("getByGroup 按 group 分组", () => {
-    const groups = entityRegistry.getByGroup()
-    expect(groups.content).toHaveLength(1)
-    expect(groups.project).toHaveLength(1)
   })
 
   it("应解析 descriptor-only 关联资源，但不将其视为已加载实体", () => {

@@ -228,6 +228,7 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                                 command.input(),
                                 route.roleKey(),
                                 route.skillKey(),
+                                spec.modelSelection(),
                                 maxAttempts)
                         : TaskPlan.generationCoordinated(
                                 command.taskId(),
@@ -1270,6 +1271,7 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                 command.input(),
                 coordinatorRoleKey,
                 coordinatorSkillKey,
+                spec.modelSelection(),
                 maxAttempts);
     }
 

@@ -390,7 +390,7 @@ function ScheduleList({ entityType, entityId }: Props) {
               "mt-0.5 size-4 shrink-0 rounded-full border-2",
               s.done ? "border-primary bg-primary" : "border-muted-foreground hover:border-primary"
             )}
-            onClick={() => !s.done && complete(s.id)}
+            onClick={() => !s.done && complete({ id: s.id, version: s.version })}
             aria-label={s.done ? "已完成" : "标记完成"}
           />
           <div className="min-w-0 flex-1">

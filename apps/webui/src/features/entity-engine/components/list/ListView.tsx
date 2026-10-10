@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { toast } from "sonner"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
-import { fromEntityDef, useCrudDelete } from "@/lib/api/rest/crud"
+import { useCrudDelete } from "@/lib/api/rest/crud"
 import { paths } from "@/lib/constants/paths"
 import { useColumnPreferences } from "@/lib/hooks/use-column-preferences"
 import { useUIStore } from "@/lib/store/ui-store"
@@ -212,7 +212,7 @@ function RowActions({
   const router = useRouter()
   const recordPanelId = useUIStore((s) => s.recordPanelId)
   const closeRecordPanel = useUIStore((s) => s.closeRecordPanel)
-  const { mutate: remove, isPending: isDeleting } = useCrudDelete(fromEntityDef(entity))
+  const { mutate: remove, isPending: isDeleting } = useCrudDelete(entity)
   const id = row.id ? String(row.id) : ""
   const title = String(row.name ?? row.title ?? id)
 

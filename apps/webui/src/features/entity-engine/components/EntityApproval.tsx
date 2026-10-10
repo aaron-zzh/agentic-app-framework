@@ -17,6 +17,7 @@ import { ApprovalPanel } from "@/features/flow-editor/components/approval-panel"
 import { ExecutionPanel } from "@/features/flow-editor/components/execution-panel"
 import type { ExecutionState } from "@/features/flow-editor/types"
 import { buildApiUrl } from "@/lib/api/config"
+import { useAuthStore } from "@/lib/store/auth-store"
 import type { EntityWorkflowConfig } from "@/lib/types/entity/entity"
 
 /** 流程状态信息 */
@@ -31,7 +32,6 @@ interface WorkflowStatus {
 interface EntityApprovalProps {
   config: EntityWorkflowConfig
   entityId: string
-  currentUserId: string
 }
 
 /** 查询实体关联的流程实例状态 */
@@ -49,19 +49,19 @@ function useEntityWorkflowStatus(entityType: string, entityId: string) {
 }
 
 /** 实体审批集成组件 */
-export function EntityApproval({ config, entityId, currentUserId }: EntityApprovalProps) {
+export function EntityApproval({ config, entityId }: EntityApprovalProps) {
+  // 审批人按登录用户 ID 匹配；未登录时一律视为非审批人
+  const currentUserId = useAuthStore((state) => state.user?.id)
   const { data: workflowStatus, isLoading } = useEntityWorkflowStatus(config.entityType, entityId)
   const [flowChartOpen, setFlowChartOpen] = useState(false)
 
   if (isLoading) return null
   if (!workflowStatus || workflowStatus.status === "none") {
-    return (
-      <StartApprovalButton config={config} entityId={entityId} _currentUserId={currentUserId} />
-    )
+    return <StartApprovalButton config={config} entityId={entityId} />
   }
 
   const { processInstanceId, status, currentTaskId, currentAssignee } = workflowStatus
-  const isAssignee = currentAssignee === currentUserId
+  const isAssignee = currentUserId !== undefined && currentAssignee === currentUserId
   const isRunning = status === "running"
 
   /** 状态 Badge */
@@ -140,12 +140,10 @@ export function EntityApproval({ config, entityId, currentUserId }: EntityApprov
 /** 发起审批按钮（无关联流程时展示） */
 function StartApprovalButton({
   config,
-  entityId,
-  _currentUserId
+  entityId
 }: {
   config: EntityWorkflowConfig
   entityId: string
-  _currentUserId: string
 }) {
   const [loading, setLoading] = useState(false)
 

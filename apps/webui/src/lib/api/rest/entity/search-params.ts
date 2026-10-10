@@ -17,7 +17,7 @@ import {
 } from "nuqs/server"
 
 /** 支持的视图类型 */
-const viewTypes = ["list", "kanban", "form", "graph", "chart", "calendar"] as const
+const viewTypes = ["list", "kanban", "form", "calendar"] as const
 
 /** URL 参数解析器定义 */
 export const searchParamsParsers = {

@@ -55,7 +55,7 @@ public class JpaLearningCandidateAdapter implements LearningCandidatePort {
         entity.setCandidate(candidate);
         entity.setCreatedAt(candidate.createdAt());
         entity.setUpdatedAt(candidate.updatedAt());
-        entity.setVersion(0L);
+        // version 留空由 Hibernate 在 persist 时初始化；预设非空值会让 Spring Data 判定为已存在而走 merge。
         repository.saveAndFlush(entity);
         log.info(
                 "[LearningCandidate] action=created candidateId={} taskId={} sourceEventId={} status={}",

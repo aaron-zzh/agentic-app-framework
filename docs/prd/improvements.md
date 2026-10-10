@@ -22,6 +22,7 @@ AI 智能体和人类用户协作中发现的改进点，协调者定期审阅�
 
 ## 已采纳
 
+- 2026-10-10 | **管理后台页面统一由 `sys_entity_def` 驱动**：规范见 [页面结构规范 #管理后台页面](../reference/dev/apps/webui/page-structure-standard.md#管理后台页面)。存量手写管理页待迁移：`admin/knowledge/[id]` 已迁为 knowledge-base EntityDef 的记录级自定义视图 `knowledge-ops`（见 `v108__knowledge_entity_def.sql`）；`admin/knowledge` 列表页仍为手写，待迁到通用列表；`admin/` 下其余页面（audit-log、automations、brokerage、credits-analytics、data-access、demo、entities、menus、operation-log、pages、scheduled-tasks、system-config、users）尚未逐个核查是否已走 EntityDef | 已采纳（存量部分迁移）
 - 2026-05-05 | **缺失关键流程**：hotfix / 技术债 / 依赖升级 / 回滚 / 超时无规范。遇到首次真实案例时各建 20-30 行规范，不预先写 | 已采纳
 - 2026-05-06 | **前端状态管理规范细化（4 个子规则）**：补充已登记条目：① **Zustand 选择器必须返回稳定引用**——`s => ({ a: s.a, b: s.b })` 或 `s => s.items.map(...)` 会触发无限重渲，用分开选 primitive 或 shallow 比较；② **Query 缓存键必须带 workspace/租户 id**（如 `['issues', wsId]`），让切换空间自动换数据无需手动 invalidate；③ **Mutations 默认 optimistic**：本地先改 → 发请求 → 失败回滚 → settle 后 invalidate；④ **Persist 硬规则**：用户偏好/草稿/tab 布局可持久化，模态框/临时选择/服务端数据绝不持久化。参考 multica CLAUDE.md `State Management` 节 | 已采纳
 - 2026-05-05 | **Vitest + Playwright + @nx/vite 技术选型**：不引入 Jest/@nx/jest。 | 已采纳

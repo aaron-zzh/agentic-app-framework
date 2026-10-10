@@ -22,7 +22,7 @@
 
 import type { ComponentType } from "react"
 
-import type { CellProps, FieldProps } from "../types"
+import type { CellProps, CustomViewProps, FieldProps } from "../types"
 
 // biome-ignore lint/suspicious/noExplicitAny: 注册表需要接受任意泛型的组件
 type AnyFieldComponent = ComponentType<FieldProps<any>>
@@ -37,6 +37,9 @@ const cellComponents = new Map<string, AnyCellComponent>()
 
 /** 视图类型组件映射：view type → React 组件 */
 const viewComponents = new Map<string, ComponentType>()
+
+/** 声明式自定义视图组件映射：EntityDef.customViews[].component → React 组件 */
+const customViewComponents = new Map<string, ComponentType<CustomViewProps>>()
 
 /** 批量操作注册表 */
 export interface BatchActionDef {
@@ -65,6 +68,11 @@ export function registerViewType(type: string, component: ComponentType): void {
   viewComponents.set(type, component)
 }
 
+/** 注册声明式自定义视图组件；name 对应 EntityDef.customViews[].component */
+export function registerCustomView(name: string, component: ComponentType<CustomViewProps>): void {
+  customViewComponents.set(name, component)
+}
+
 /** 注册批量操作 */
 export function registerBatchAction(action: BatchActionDef): void {
   batchActions.set(action.key, action)
@@ -85,6 +93,11 @@ export function getViewComponent(type: string): ComponentType | undefined {
   return viewComponents.get(type)
 }
 
+/** 获取声明式自定义视图组件 */
+export function getCustomViewComponent(name: string): ComponentType<CustomViewProps> | undefined {
+  return customViewComponents.get(name)
+}
+
 /** 获取批量操作（按实体过滤） */
 export function getBatchActions(entitySlug?: string): BatchActionDef[] {
   return Array.from(batchActions.values()).filter(
@@ -97,5 +110,6 @@ export function clearComponentRegistry(): void {
   fieldComponents.clear()
   cellComponents.clear()
   viewComponents.clear()
+  customViewComponents.clear()
   batchActions.clear()
 }

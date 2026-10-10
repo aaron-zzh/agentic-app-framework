@@ -21,19 +21,15 @@ vi.mock("@/lib/api/rest/entity", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api/rest/entity")>()
   return {
     ...actual,
-    useEntityList: () => ({
-      data: [],
-      isLoading: false,
-      pagination: { page: 1, pageSize: 20, total: 0 }
-    }),
     useEntityDetail: () => ({ data: null, isLoading: false }),
     useEntitySearchParams: () => [{ page: 1, pageSize: 20 }, vi.fn()]
   }
 })
 
-import { entityQueryWindowKey, type PageResult } from "@/lib/api/rest/entity"
+import type { PageResult } from "@/lib/api/rest/crud"
+import { entityQueryWindowKey } from "@/lib/api/rest/entity"
 import type { EntityDef, FormViewOverrideProps } from "@/lib/types/entity"
-import { RecordWindowNavigationControls, ViewEngine, withExpectedVersion } from "./ViewEngine"
+import { RecordWindowNavigationControls, ViewEngine } from "./ViewEngine"
 
 const mockEntity: Partial<EntityDef> = {
   slug: "test",
@@ -201,17 +197,5 @@ describe("ViewEngine", () => {
     )
 
     expect(screen.getByText("1:window-1:true")).toBeInTheDocument()
-  })
-
-  it("详情版本应覆盖表单提交中的 expectedVersion", () => {
-    expect(withExpectedVersion({ version: 7 }, { name: "新名称", expectedVersion: 1 })).toEqual({
-      name: "新名称",
-      expectedVersion: 7
-    })
-  })
-
-  it("详情版本非法时应拒绝构造更新载荷", () => {
-    expect(withExpectedVersion({ version: "7" }, { name: "新名称" })).toBeUndefined()
-    expect(withExpectedVersion({ version: -1 }, { name: "新名称" })).toBeUndefined()
   })
 })

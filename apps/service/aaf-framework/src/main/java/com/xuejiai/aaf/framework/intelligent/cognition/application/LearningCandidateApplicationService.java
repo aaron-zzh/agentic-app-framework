@@ -48,11 +48,12 @@ public final class LearningCandidateApplicationService {
             record(source, List.of());
         } catch (RuntimeException failure) {
             log.warn(
-                    "[LearningCandidate] action=capture_failed taskId={} sourceEventId={} eventType={} failureType={}",
+                    "[LearningCandidate] action=capture_failed taskId={} sourceEventId={} eventType={} failureType={} failureMessage={}",
                     source.event().taskId().value(),
                     source.event().eventId().value(),
                     source.event().type(),
-                    failure.getClass().getName());
+                    failure.getClass().getName(),
+                    failure.getMessage());
         }
     }
 

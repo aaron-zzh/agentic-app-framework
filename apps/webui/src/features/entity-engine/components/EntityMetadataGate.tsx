@@ -4,9 +4,9 @@ import type { ReactNode } from "react"
 import { useCallback, useEffect, useState } from "react"
 import { SplashScreen } from "@/components/common/SplashScreen"
 import { Button } from "@/components/ui/button"
-import { entityRegistry } from "@/features/entity-engine/lib/registry"
 import { parseEntityDefBootstrap } from "@/features/entity-engine/lib/server-entity-def"
 import { useEntityBootstrap } from "@/lib/api/rest/entity"
+import { entityRegistry } from "@/lib/modules/entity-registry"
 
 interface EntityMetadataGateProps {
   children: ReactNode
@@ -29,7 +29,15 @@ export function EntityMetadataGate({ children, enabled = true }: EntityMetadataG
       return
     }
 
-    entityRegistry.replaceAll(definitions, resources)
+    try {
+      entityRegistry.replaceAll(definitions, resources)
+    } catch (error) {
+      setMetadataReady(false)
+      setMetadataError(
+        `实体元数据不可用：${error instanceof Error ? error.message : String(error)}`
+      )
+      return
+    }
     setMetadataError(null)
     setMetadataReady(true)
   }, [bootstrap])

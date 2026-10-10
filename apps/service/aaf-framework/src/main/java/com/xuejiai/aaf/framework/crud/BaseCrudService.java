@@ -7,7 +7,20 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.ZoneOffset;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Collection;
+import java.util.HexFormat;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.BeanWrapperImpl;
@@ -27,15 +40,34 @@ import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.common.model.PageParam;
 import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.common.util.JsonUtils;
-import com.xuejiai.aaf.framework.crud.definition.*;
-import com.xuejiai.aaf.framework.crud.dto.*;
-import com.xuejiai.aaf.framework.crud.enforcement.*;
+import com.xuejiai.aaf.framework.crud.definition.CrudAction;
+import com.xuejiai.aaf.framework.crud.definition.CrudOperation;
+import com.xuejiai.aaf.framework.crud.definition.CrudResourceDefinition;
+import com.xuejiai.aaf.framework.crud.definition.FieldCapability;
+import com.xuejiai.aaf.framework.crud.definition.Patch;
+import com.xuejiai.aaf.framework.crud.dto.CrudGroupRequestDTO;
+import com.xuejiai.aaf.framework.crud.dto.CrudGroupResultDTO;
+import com.xuejiai.aaf.framework.crud.dto.CrudImportRequestDTO;
+import com.xuejiai.aaf.framework.crud.dto.CrudImportResultDTO;
+import com.xuejiai.aaf.framework.crud.dto.CrudMetaDTO;
+import com.xuejiai.aaf.framework.crud.dto.CrudValidationResultDTO;
+import com.xuejiai.aaf.framework.crud.dto.ResourceRefDTO;
+import com.xuejiai.aaf.framework.crud.enforcement.AccessMode;
+import com.xuejiai.aaf.framework.crud.enforcement.CompiledFieldPolicy;
+import com.xuejiai.aaf.framework.crud.enforcement.CrudEnforcementDecision;
+import com.xuejiai.aaf.framework.crud.enforcement.CrudEnforcementService;
+import com.xuejiai.aaf.framework.crud.enforcement.QueryTokenService;
+import com.xuejiai.aaf.framework.crud.enforcement.ReferenceEnforcementService;
 import com.xuejiai.aaf.framework.crud.export.DictFormat;
 import com.xuejiai.aaf.framework.crud.export.DictLabelResolver;
 import com.xuejiai.aaf.framework.crud.filter.CrudFilter;
 import com.xuejiai.aaf.framework.crud.filter.CrudFilterSchema;
 import com.xuejiai.aaf.framework.crud.filter.FilterEvaluationContext;
-import com.xuejiai.aaf.framework.crud.relation.*;
+import com.xuejiai.aaf.framework.crud.reference.ReferenceCapability;
+import com.xuejiai.aaf.framework.crud.reference.ResourceReference;
+import com.xuejiai.aaf.framework.crud.relation.GenericRelationHandler;
+import com.xuejiai.aaf.framework.crud.relation.GenericRelationLoader;
+import com.xuejiai.aaf.framework.crud.relation.RelationDefinition;
 import com.xuejiai.aaf.framework.crud.resource.CrudResourceCatalogEntry;
 import com.xuejiai.aaf.framework.crud.resource.CrudResourceRegistry;
 import com.xuejiai.aaf.framework.crud.view.CrudViewData;
@@ -68,11 +100,11 @@ import jakarta.persistence.metamodel.Attribute;
  *   <li>{@link #updateEntity(BaseEntity, Object)}：把更新请求中的业务字段应用到已有实体。
  * </ul>
  *
- * <p><b>业务可按需覆写：</b>{@link #extractOwnerId(BaseEntity)}、{@link #buildSpec(PageParam)}、 {@link
- * #toVO(BaseEntity, String)}、{@link #toVOList(List, String)}、{@link #buildOptionSpec(String)}、
- * {@link #optionSearchFields()}、{@link #optionDisplayFields()}、{@link #displayName(BaseEntity)}、
- * {@link #entitlementCode()}、{@link #importRows(Object)}、{@link #group(CrudGroupRequestDTO)}、
- * {@link #archive(List)} 和 {@link #restore(List)}。这些扩展点用于补充领域规则或展示方式，不能代替安全校验。
+ * <p><b>业务可按需覆写：</b>{@link #buildSpec(PageParam)}、 {@link #toVO(BaseEntity, String)}、{@link
+ * #toVOList(List, String)}、{@link #buildOptionSpec(String)}、 {@link #optionSearchFields()}、{@link
+ * #displayName(BaseEntity)}、 {@link #entitlementCode()}、{@link #importRows(Object)}、{@link
+ * #group(CrudGroupRequestDTO)}、 {@link #archive(List)} 和 {@link
+ * #restore(List)}。这些扩展点用于补充领域规则或展示方式，不能代替安全校验。
  *
  * <p><b>不要覆写或绕过：</b>统一 enforcement、租户赋值与校验、字段读写权限、QueryToken、关系同步、
  * 输出视图计划和最终字段裁剪。业务需要特殊入口时，应使用本类提供的带 {@link AccessMode} 的 {@code final} 方法， 让特殊场景仍然进入统一安全管线。
@@ -116,6 +148,9 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     private EntitlementChecker entitlementChecker;
 
     @PersistenceContext private EntityManager entityManager;
+
+    /** 首次请求时解析并缓存的资源目录条目；目录在启动期一次性发布，此后不可变。 */
+    private volatile CrudResourceCatalogEntry resourceEntry;
 
     /**
      * 返回当前资源的数据访问入口。
@@ -177,13 +212,17 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
      *
      * <p>这是框架内部步骤。它保证后续操作使用正确的资源定义、字段策略和输出视图计划；业务子类不需要调用或覆写。
      */
-    @SuppressWarnings("unchecked")
     private CrudResourceCatalogEntry resourceEntry() {
-        var types = GenericTypeResolver.resolveTypeArguments(getClass(), BaseCrudService.class);
-        if (types == null || types.length == 0) {
-            throw new IllegalStateException("无法解析 CRUD Service 实体类型: " + getClass().getName());
+        var entry = resourceEntry;
+        if (entry == null) {
+            var types = GenericTypeResolver.resolveTypeArguments(getClass(), BaseCrudService.class);
+            if (types == null || types.length == 0) {
+                throw new IllegalStateException("无法解析 CRUD Service 实体类型: " + getClass().getName());
+            }
+            entry = crudResourceRegistry.requireByEntityType(types[0]);
+            resourceEntry = entry;
         }
-        return crudResourceRegistry.requireByEntityType(types[0]);
+        return entry;
     }
 
     /**
@@ -216,16 +255,6 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
             CrudOperation operation, AccessMode accessMode) {
         return crudEnforcementService.enforceObjectPreflight(
                 resourceEntry(), operation, accessMode);
-    }
-
-    /**
-     * 返回实体所有者的用户 ID，供业务额外执行“仅本人可操作”规则。
-     *
-     * <p><b>可按需覆写。</b>默认返回 {@code null}，表示本资源不额外要求所有者匹配。只有实体确实有明确所有者字段，
-     * 且业务入口需要所有者语义时才覆写；通用数据权限仍由统一安全管线负责。
-     */
-    protected Long extractOwnerId(E entity) {
-        return null;
     }
 
     /**
@@ -313,11 +342,6 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         return (root, query, cb) -> null;
     }
 
-    /** 按访问模式构建业务筛选；默认复用普通筛选，治理资源可显式放宽领域种类。 */
-    protected Specification<E> buildSpec(P pageDTO, AccessMode accessMode) {
-        return buildSpec(pageDTO);
-    }
-
     /**
      * 构建普通列表的关键词搜索条件。
      *
@@ -350,7 +374,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
                 decision.scopeSpecification(),
                 buildFilterSpec(filters, filterContext),
                 buildSearchSpec(pageDTO.getSearch()),
-                buildSpec(pageDTO, decision.accessMode()));
+                buildSpec(pageDTO));
     }
 
     /** 返回资源定义声明的默认排序；业务子类不应再通过覆写静态 Hook 改变它 */
@@ -392,14 +416,11 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         var pageable = buildPageable(request, decision);
         Page<E> page =
                 getRepository().findAll(buildEffectiveSpec(request, List.of(), decision), pageable);
-        return new PageResult<>(
+        return PageResult.of(
                 toViews(page.getContent(), "list", decision),
                 page.getTotalElements(),
                 request.getPageNo(),
                 request.getPageSize(),
-                List.of(),
-                null,
-                null,
                 page.hasNext());
     }
 
@@ -471,9 +492,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         }
         var decision = enforceObject(CrudOperation.GET, AccessMode.DEFAULT);
         var entity =
-                getRepository()
-                        .findOne(Specification.allOf(idSpec(id), decision.scopeSpecification()))
-                        .orElse(null);
+                getRepository().findOne(scopedById(id, decision.scopeSpecification())).orElse(null);
         return entity != null
                 && crudEnforcementService.allowsCurrentTarget(
                         resourceEntry(), decision, entity, authorizationSnapshot(entity), null);
@@ -491,9 +510,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         }
         var decision = enforce(CrudOperation.REFERENCE);
         decision.fieldPolicy().require("id", FieldCapability.REFERENCE);
-        return getRepository()
-                .findOne(Specification.allOf(idSpec(id), decision.scopeSpecification()))
-                .isPresent();
+        return getRepository().findOne(scopedById(id, decision.scopeSpecification())).isPresent();
     }
 
     public Set<Long> readableReferenceIds(Collection<Long> ids) {
@@ -501,11 +518,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
             return Set.of();
         }
         var decision = enforce(CrudOperation.GET);
-        return getRepository()
-                .findAll(
-                        Specification.allOf(
-                                idInSpec(ids.stream().toList()), decision.scopeSpecification()))
-                .stream()
+        return getRepository().findAll(scopedByIds(ids, decision.scopeSpecification())).stream()
                 .map(BaseEntity::getId)
                 .collect(Collectors.toUnmodifiableSet());
     }
@@ -516,11 +529,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         }
         var decision = enforce(CrudOperation.REFERENCE);
         decision.fieldPolicy().require("id", FieldCapability.REFERENCE);
-        return getRepository()
-                .findAll(
-                        Specification.allOf(
-                                idInSpec(ids.stream().toList()), decision.scopeSpecification()))
-                .stream()
+        return getRepository().findAll(scopedByIds(ids, decision.scopeSpecification())).stream()
                 .map(BaseEntity::getId)
                 .collect(Collectors.toUnmodifiableSet());
     }
@@ -533,9 +542,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         var resource = resourceDefinition().key().value();
         var refs = new LinkedHashMap<Long, ResourceRefDTO>();
         getRepository()
-                .findAll(
-                        Specification.allOf(
-                                idInSpec(ids.stream().toList()), decision.scopeSpecification()))
+                .findAll(scopedByIds(ids, decision.scopeSpecification()))
                 .forEach(
                         entity ->
                                 refs.put(
@@ -589,9 +596,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         var normalizedFieldSet = normalizeFieldSet(fieldSet == null ? "detail" : fieldSet);
         var entitiesById = new LinkedHashMap<Long, E>();
         getRepository()
-                .findAll(
-                        Specification.allOf(
-                                idInSpec(ids.stream().toList()), decision.scopeSpecification()))
+                .findAll(scopedByIds(ids, decision.scopeSpecification()))
                 .forEach(entity -> entitiesById.put(entity.getId(), entity));
         var orderedEntities = ids.stream().map(entitiesById::get).filter(Objects::nonNull).toList();
         return toViews(orderedEntities, normalizedFieldSet, decision);
@@ -601,8 +606,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
      * 返回可作为关联对象的轻量选择器选项。
      *
      * <p>用于下拉框、关联字段和弹窗选择器。框架会限制结果数量并应用数据范围；业务子类可覆写 {@link #buildOptionSpec(String)}、{@link
-     * #optionSearchFields()}、{@link #optionDisplayFields()} 或 {@link #displayName(BaseEntity)}
-     * 调整搜索与展示，但不能绕过引用权限。
+     * #optionSearchFields()} 或 {@link #displayName(BaseEntity)} 调整搜索与展示，但不能绕过引用权限。
      */
     public List<ResourceRefDTO> options(String keyword, Integer limit) {
         var decision = enforce(CrudOperation.OPTIONS);
@@ -664,6 +668,11 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
      */
     public PageResult<V> exportData(P request) {
         var decision = enforce(CrudOperation.EXPORT);
+        return queryExportWindow(request, decision);
+    }
+
+    /** 以 export 字段集读取过滤后的完整窗口；调用前必须已完成 EXPORT 授权 */
+    private PageResult<V> queryExportWindow(P request, CrudEnforcementDecision<E> decision) {
         request.setPageNo(1);
         request.setPageSize(PageParam.PAGE_SIZE_NONE);
         return queryWindow(request, "export", List.of(), decision);
@@ -681,9 +690,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         if (fields != null) {
             decision.fieldPolicy().requireAll(fields, FieldCapability.EXPORT);
         }
-        request.setPageNo(1);
-        request.setPageSize(PageParam.PAGE_SIZE_NONE);
-        var page = queryWindow(request, "export", List.of(), decision);
+        var page = queryExportWindow(request, decision);
         var rows = page.list();
         if (rows.isEmpty()) {
             return new ExportSheet(fields == null ? List.of() : fields, List.of());
@@ -835,10 +842,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     private V persistCreatedEntity(
             E entity, C request, String payloadDigest, CrudEnforcementDecision<E> decision) {
         checkEntitlement(1);
-        applyTenant(entity, decision);
-        if (entity.getOwnerId() == null) {
-            entity.setOwnerId(decision.subjectId());
-        }
+        applyCreateDefaults(entity, decision);
         crudEnforcementService.requireCreatedTarget(
                 resourceEntry(), decision, entity, authorizationSnapshot(entity), payloadDigest);
         validateEntityReferences(entity, request, true);
@@ -864,16 +868,11 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         }
         requests.forEach(request -> requireWritableFields(request, decision.fieldPolicy()));
         var payloadDigests = requests.stream().map(this::payloadDigest).toList();
+        checkEntitlement(requests.size());
         var entities =
                 requests.stream()
                         .map(this::toEntity)
-                        .peek(entity -> applyTenant(entity, decision))
-                        .peek(
-                                entity -> {
-                                    if (entity.getOwnerId() == null) {
-                                        entity.setOwnerId(decision.subjectId());
-                                    }
-                                })
+                        .peek(entity -> applyCreateDefaults(entity, decision))
                         .toList();
         var createdSnapshots = entities.stream().map(this::authorizationSnapshot).toList();
         for (var index = 0; index < entities.size(); index++) {
@@ -885,7 +884,9 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         getRepository().saveAll(entities);
         for (var index = 0; index < entities.size(); index++) {
             synchronizeRelationPatches(entities.get(index), requests.get(index), decision);
+            afterCreate(entities.get(index), requests.get(index));
         }
+        consumeEntitlement(entities.size());
         return toViews(entities, "detail", decision);
     }
 
@@ -911,8 +912,8 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     protected record CustomUpdatePlan<T extends BaseEntity, C, A, R>(
             String commandType,
             Set<String> modifiedFields,
-            java.util.function.BiConsumer<T, C> currentValidator,
-            java.util.function.BiConsumer<T, C> proposalMutation,
+            BiConsumer<T, C> currentValidator,
+            BiConsumer<T, C> proposalMutation,
             AuthorizedUpdateAction<T, C, A> authorizedAction,
             boolean saveEntity,
             AfterUpdateAction<T, C, A> afterSaveAction,
@@ -950,15 +951,13 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
      * <p>解析器仅可返回主实体 ID，不得修改数据；它在 UPDATE preflight 后执行，随后主实体仍按同一 L3 决策加载。
      */
     protected final <C0, A, R> R executeCustomUpdateCommand(
-            java.util.function.Supplier<Long> objectIdResolver,
-            C0 command,
-            CustomUpdatePlan<E, C0, A, R> plan) {
+            Supplier<Long> objectIdResolver, C0 command, CustomUpdatePlan<E, C0, A, R> plan) {
         return executeCustomUpdateCommand(objectIdResolver, command, plan, AccessMode.DEFAULT);
     }
 
     /** 以明确访问模式执行具名自定义 UPDATE，特殊入口仍保留字段、L3 与对象 L4 校验。 */
     protected final <C0, A, R> R executeCustomUpdateCommand(
-            java.util.function.Supplier<Long> objectIdResolver,
+            Supplier<Long> objectIdResolver,
             C0 command,
             CustomUpdatePlan<E, C0, A, R> plan,
             AccessMode accessMode) {
@@ -1139,17 +1138,10 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         consumeEntitlement(-entities.size());
     }
 
-    /** 从实体的 {@link Table} 注解解析物理表名，供批量软删除使用；解析失败时返回 null 由调用方拒绝执行 */
-    @SuppressWarnings("unchecked")
+    /** 从实体的 {@link Table} 注解解析物理表名，供批量软删除使用；未标注时返回 null 由调用方拒绝执行 */
     private String resolveTableName() {
-        try {
-            var type = (java.lang.reflect.ParameterizedType) getClass().getGenericSuperclass();
-            var entityClass = (Class<E>) type.getActualTypeArguments()[0];
-            var table = entityClass.getAnnotation(Table.class);
-            return table != null ? table.name() : null;
-        } catch (Exception e) {
-            return null;
-        }
+        var table = resourceEntry().entityType().getAnnotation(Table.class);
+        return table != null ? table.name() : null;
     }
 
     /**
@@ -1222,16 +1214,6 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         return entities.stream().map(entity -> toVO(entity, fieldSet)).toList();
     }
 
-    /** 按访问模式转换单条视图。默认复用普通视图；仅明确支持治理模式的业务资源可覆写。 */
-    protected V toVO(E entity, String fieldSet, AccessMode accessMode) {
-        return toVO(entity, fieldSet);
-    }
-
-    /** 按访问模式批量转换视图，供特殊入口在同一资源定义内选择受控字段形状。 */
-    protected List<V> toVOList(List<E> entities, String fieldSet, AccessMode accessMode) {
-        return entities.stream().map(entity -> toVO(entity, fieldSet, accessMode)).toList();
-    }
-
     /**
      * 构建选择器关键词的业务搜索条件。
      *
@@ -1278,19 +1260,10 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         return List.of("name", "title", "displayName", "username", "code");
     }
 
-    /**
-     * 返回选择器优先显示的字段顺序。
-     *
-     * <p><b>可按需覆写。</b>默认与 {@link #optionSearchFields()} 相同。希望按名称展示、但按编码和名称共同搜索时， 可只覆写本方法以分离展示与搜索规则。
-     */
-    protected List<String> optionDisplayFields() {
-        return optionSearchFields();
-    }
-
-    /** 按展示字段顺序提取选择器文案；没有可用值时回退到 {@link #displayName(BaseEntity)} */
+    /** 按选择器搜索字段顺序提取选项文案；没有可用值时回退到 {@link #displayName(BaseEntity)} */
     private String optionDisplayName(E entity) {
         var bean = new BeanWrapperImpl(entity);
-        for (var property : optionDisplayFields()) {
+        for (var property : optionSearchFields()) {
             if (!bean.isReadableProperty(property)) {
                 continue;
             }
@@ -1383,14 +1356,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         Objects.requireNonNull(request, "request");
         var jsonValue = JsonUtils.parseObject(JsonUtils.toJsonString(request), Object.class);
         var stableJson = JsonUtils.toJsonString(stableJsonValue(jsonValue));
-        try {
-            var digest =
-                    MessageDigest.getInstance("SHA-256")
-                            .digest(stableJson.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(digest);
-        } catch (NoSuchAlgorithmException cause) {
-            throw new IllegalStateException("SHA-256 不可用", cause);
-        }
+        return HexFormat.of().formatHex(sha256(stableJson));
     }
 
     private Object stableJsonValue(Object value) {
@@ -1414,16 +1380,15 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         query.put("pageSize", request.getPageSize());
         query.put("sort", request.getSort());
         query.put("filters", filters);
-        return sha256(JsonUtils.toJsonString(query));
+        var digest = sha256(JsonUtils.toJsonString(query));
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
     }
 
-    /** 使用 SHA-256 计算稳定摘要；仅供 QueryToken 上下文绑定使用 */
-    private String sha256(String source) {
+    /** 计算 UTF-8 文本的 SHA-256 原始摘要；PDP 载荷摘要用十六进制，QueryToken 用 Base64URL，仅编码不同 */
+    private static byte[] sha256(String source) {
         try {
-            var digest =
-                    MessageDigest.getInstance("SHA-256")
-                            .digest(source.getBytes(StandardCharsets.UTF_8));
-            return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+            return MessageDigest.getInstance("SHA-256")
+                    .digest(source.getBytes(StandardCharsets.UTF_8));
         } catch (NoSuchAlgorithmException cause) {
             throw new IllegalStateException("SHA-256 不可用", cause);
         }
@@ -1482,23 +1447,9 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         return toView(requireCurrentEntity(id, decision), normalizeFieldSet(fieldSet), decision);
     }
 
-    /**
-     * 以明确操作和访问模式加载业务维护所需的实体集合。
-     *
-     * <p>适合批量状态迁移、清理或关系维护等后续事务操作。返回实体未转换为输出视图， 仅应在当前方法或事务内使用；<b>必须显式传入 {@link AccessMode}</b>。
-     */
-    protected final List<E> requireEntitiesWithAccess(
-            Specification<E> businessSpec, CrudOperation operation, AccessMode accessMode) {
-        var decision = enforce(operation, accessMode);
-        return getRepository()
-                .findAll(Specification.allOf(decision.scopeSpecification(), businessSpec));
-    }
-
     /** 根据完整 L3 决策加载实体；关系读取只负责安全加载，L2 与对象 L4 在加载后合并为一次 target PDP。 */
     private LoadedEntity<E> loadEntity(Long id, CrudEnforcementDecision<E> decision) {
-        var scopedEntity =
-                getRepository()
-                        .findOne(Specification.allOf(idSpec(id), decision.scopeSpecification()));
+        var scopedEntity = getRepository().findOne(scopedById(id, decision.scopeSpecification()));
         if (scopedEntity.isPresent()) {
             return new LoadedEntity<>(scopedEntity.get(), null);
         }
@@ -1513,9 +1464,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         }
         var entity =
                 getRepository()
-                        .findOne(
-                                Specification.allOf(
-                                        idSpec(id), decision.tenantScopeSpecification()))
+                        .findOne(scopedById(id, decision.tenantScopeSpecification()))
                         .orElseThrow(
                                 () ->
                                         exception(
@@ -1529,7 +1478,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         var entity = loadEntity(id, decision).entity();
         entityManager.refresh(entity, LockModeType.PESSIMISTIC_WRITE);
         return getRepository()
-                .findOne(Specification.allOf(idSpec(id), decision.scopeSpecification()))
+                .findOne(scopedById(id, decision.scopeSpecification()))
                 .orElseThrow(
                         () -> exception(GlobalErrorCode.CRUD_RESOURCE_NOT_FOUND, entityName()));
     }
@@ -1558,8 +1507,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
             }
             entityManager.refresh(entity, LockModeType.PESSIMISTIC_WRITE);
         }
-        var locked =
-                getRepository().findAll(Specification.allOf(idInSpec(expectedIds), effectiveScope));
+        var locked = getRepository().findAll(scopedByIds(expectedIds, effectiveScope));
         if (locked.size() != expectedIds.size()
                 || !locked.stream()
                         .map(BaseEntity::getId)
@@ -1596,12 +1544,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         if (ids == null || ids.isEmpty()) {
             return List.of();
         }
-        var entities =
-                getRepository()
-                        .findAll(
-                                Specification.allOf(
-                                        idInSpec(ids.stream().toList()),
-                                        decision.scopeSpecification()));
+        var entities = getRepository().findAll(scopedByIds(ids, decision.scopeSpecification()));
         if (entities.size() != ids.stream().distinct().count()) {
             throw exception(GlobalErrorCode.CRUD_RESOURCE_NOT_FOUND, entityName());
         }
@@ -1614,13 +1557,13 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     }
 
     /**
-     * 校验实体所有者是否为当前主体。
+     * 校验实体所有者（{@link BaseEntity#getOwnerId()}）是否为当前主体。
      *
-     * <p>仅在业务子类覆写 {@link #extractOwnerId(BaseEntity)} 后生效，适用于“仅创建者可编辑”等额外规则。
-     * 它是数据范围校验之外的补充，不应替代统一安全管线。
+     * <p>适用于“读取开放、仅创建者可编辑/删除”这类只约束写入的规则；{@code ownerId} 为空时不校验。
+     * 它是数据范围校验之外的补充，不应替代统一安全管线。要同时限制读取，应在资源定义中声明 {@code PersonalScope}。
      */
     protected void enforceOwnership(E entity) {
-        var ownerId = extractOwnerId(entity);
+        var ownerId = entity.getOwnerId();
         if (ownerId == null) {
             return;
         }
@@ -1633,14 +1576,17 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         }
     }
 
-    /** 构建单个 ID 的查询条件，仅供框架在已校验安全范围内组合使用 */
-    private Specification<E> idSpec(Long id) {
-        return (root, query, cb) -> cb.equal(root.get("id"), id);
+    /** 构建单个 ID 的查询条件并强制叠加数据范围；ID 条件不单独暴露，避免绕过授权范围 */
+    private Specification<E> scopedById(Long id, Specification<E> scope) {
+        Specification<E> byId = (root, query, cb) -> cb.equal(root.get("id"), id);
+        return Specification.allOf(byId, scope);
     }
 
-    /** 构建多个 ID 的查询条件，仅供框架在已校验安全范围内组合使用 */
-    private Specification<E> idInSpec(List<Long> ids) {
-        return (root, query, cb) -> root.get("id").in(ids);
+    /** 构建多个 ID 的查询条件并强制叠加数据范围；ID 条件不单独暴露，避免绕过授权范围 */
+    private Specification<E> scopedByIds(Collection<Long> ids, Specification<E> scope) {
+        var idList = ids.stream().toList();
+        Specification<E> byIds = (root, query, cb) -> root.get("id").in(idList);
+        return Specification.allOf(byIds, scope);
     }
 
     /**
@@ -1672,6 +1618,14 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
                 entity.setOrgId(decision.orgId());
                 entity.setWorkspaceId(decision.workspaceId());
             }
+        }
+    }
+
+    /** 创建前写入服务端决定的租户归属，并在未指定时把当前主体设为所有者；单条与批量创建共用 */
+    private void applyCreateDefaults(E entity, CrudEnforcementDecision<E> decision) {
+        applyTenant(entity, decision);
+        if (entity.getOwnerId() == null) {
+            entity.setOwnerId(decision.subjectId());
         }
     }
 
@@ -1734,8 +1688,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         var entityBean = new BeanWrapperImpl(entity);
         var inputBean = new BeanWrapperImpl(input);
         for (var reference : resourceDefinition().references()) {
-            if (!reference.supports(
-                            com.xuejiai.aaf.framework.crud.reference.ReferenceCapability.REFERENCE)
+            if (!reference.supports(ReferenceCapability.REFERENCE)
                     || !shouldValidateReference(reference.inputField(), inputBean, create)) {
                 continue;
             }
@@ -1753,9 +1706,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
                     || targetResource.isBlank()) {
                 throw exception(GlobalErrorCode.BAD_REQUEST);
             }
-            var target =
-                    new com.xuejiai.aaf.framework.crud.reference.ResourceReference(
-                            targetResource, targetId);
+            var target = new ResourceReference(targetResource, targetId);
             if (!referenceEnforcementService.canReference(
                     resourceDefinition().key(), entity.getId(), reference.key(), target)) {
                 throw exception(GlobalErrorCode.CRUD_RESOURCE_NOT_FOUND, "引用记录");
@@ -1866,7 +1817,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
                         .get(fieldSet)
                         .restrictTo(decision.fieldPolicy().fields(FieldCapability.READ));
         if (!plan.usesViewMapper()) {
-            return toVOList(entities, fieldSet, decision.accessMode()).stream()
+            return toVOList(entities, fieldSet).stream()
                     .map(view -> applyReadFieldPolicy(view, decision.fieldPolicy()))
                     .toList();
         }

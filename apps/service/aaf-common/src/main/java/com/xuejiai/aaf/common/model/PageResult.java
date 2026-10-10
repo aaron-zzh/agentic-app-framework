@@ -37,4 +37,10 @@ public record PageResult<T>(
     public static <T> PageResult<T> empty() {
         return new PageResult<>(List.of(), 0);
     }
+
+    /** 基础分页结果：不含查询窗口的 ids、queryToken 与字段集。 */
+    public static <T> PageResult<T> of(
+            List<T> list, long total, Integer pageNo, Integer pageSize, boolean hasMore) {
+        return new PageResult<>(list, total, pageNo, pageSize, List.of(), null, null, hasMore);
+    }
 }

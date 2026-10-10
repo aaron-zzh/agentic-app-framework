@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useEntityDelete, useEntityMutation } from "@/lib/api/rest/entity"
+import { useCrudCreate, useCrudDelete, useCrudUpdate } from "@/lib/api/rest/crud"
 
 import type { EntityDef } from "../../types"
 
@@ -43,8 +43,10 @@ export function EventDialog({
   const isEdit = !!record
   const recordId = record ? String(record.id) : undefined
 
-  const mutation = useEntityMutation(entity, recordId)
-  const deleteMutation = useEntityDelete(entity)
+  const createMutation = useCrudCreate(entity)
+  const updateMutation = useCrudUpdate(entity)
+  const deleteMutation = useCrudDelete(entity)
+  const saving = createMutation.isPending || updateMutation.isPending
 
   const handleSubmit = useCallback(
     (e: React.FormEvent<HTMLFormElement>) => {
@@ -64,18 +66,24 @@ export function EventDialog({
         if (rrule) data[config.rruleField] = rrule
       }
 
-      mutation.mutate(data, {
-        onSuccess: () => onOpenChange(false)
-      })
+      const callbacks = { onSuccess: () => onOpenChange(false) }
+      if (recordId) {
+        updateMutation.mutate({ id: recordId, data }, callbacks)
+      } else {
+        createMutation.mutate(data, callbacks)
+      }
     },
-    [config, mutation, onOpenChange]
+    [config, recordId, createMutation, updateMutation, onOpenChange]
   )
 
   const handleDelete = useCallback(() => {
     if (!recordId) return
-    deleteMutation.mutate([recordId], {
-      onSuccess: () => onOpenChange(false)
-    })
+    deleteMutation.mutate(
+      { id: recordId },
+      {
+        onSuccess: () => onOpenChange(false)
+      }
+    )
   }, [recordId, deleteMutation, onOpenChange])
 
   if (!config) return null
@@ -151,7 +159,7 @@ export function EventDialog({
                 删除
               </Button>
             )}
-            <Button type="submit" disabled={mutation.isPending}>
+            <Button type="submit" disabled={saving}>
               {isEdit ? "保存" : "创建"}
             </Button>
           </DialogFooter>

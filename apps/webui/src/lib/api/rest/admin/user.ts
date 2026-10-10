@@ -7,7 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { buildApiUrl } from "../../config"
 import { backendApi } from "../backend-client"
 import type { SubscriptionVO } from "../billing/plans"
-import { buildQuery, type ListParams, type PageResult } from "../entity/crud"
+import { buildQuery, type ListParams, type PageResult } from "../crud"
 
 export interface UserVO {
   id: number

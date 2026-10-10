@@ -16,7 +16,7 @@ import type {
   SearchResponse
 } from "@/lib/types/knowledge"
 import { backendApi } from "../backend-client"
-import { buildQuery, type ListParams, type PageResult } from "../entity/crud"
+import { buildQuery, type ListParams, type PageResult } from "../crud"
 
 const API_PATH = "/knowledge-bases"
 type KnowledgeResourceId = string | number

@@ -173,9 +173,14 @@ public record TaskPlan(
                 Map.of(root.nodeId(), root, finalizer.nodeId(), finalizer));
     }
 
-    /** 固定 Route 任务：先且仅先运行无业务工具的协调者。 */
+    /** 固定 Route 任务：先且仅先运行无业务工具的协调者；协调者冻结用户请求的模型策略，后续执行者继承。 */
     public static TaskPlan coordinated(
-            TaskId taskId, String description, String roleKey, String skillKey, int maxAttempts) {
+            TaskId taskId,
+            String description,
+            String roleKey,
+            String skillKey,
+            TaskModelSelection modelSelection,
+            int maxAttempts) {
         var coordinator =
                 TaskNode.pending(
                         "coordinator",
@@ -185,7 +190,7 @@ public record TaskPlan(
                         Map.of(),
                         roleKey,
                         skillKey,
-                        TaskModelSelection.auto(),
+                        modelSelection,
                         maxAttempts);
         return new TaskPlan(
                 taskId,

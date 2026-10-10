@@ -1,5 +1,5 @@
 /**
- * 任务进度面板——挂载时加载最近 5 条任务并周期刷新
+ * 任务进度面板——展示最近 5 条任务，由 Activity SSE 触发刷新
  * @author AaronZZH & Kiro
  */
 
@@ -7,37 +7,12 @@
 
 import { CheckCircle2, Loader2, Trash2, XCircle } from "lucide-react"
 import Link from "next/link"
-import { useEffect, useState } from "react"
-import { type AigcTaskEvent, useCancelAigcTask } from "@/lib/api/rest/ai"
-import { request } from "@/lib/api/rest/crud/client"
-import type { PageResult } from "@/lib/api/types"
+import { useCancelAigcTask, useRecentAigcTasks } from "@/lib/api/rest/ai"
 
 export function RecentTasksPanel() {
-  const [tasks, setTasks] = useState<AigcTaskEvent[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data, isLoading: loading } = useRecentAigcTasks(5)
+  const tasks = data?.list ?? []
   const deleteTask = useCancelAigcTask()
-
-  useEffect(() => {
-    let active = true
-    const loadTasks = async () => {
-      try {
-        const result = await request<PageResult<AigcTaskEvent>>(
-          "/aigc/tasks?pageNo=1&pageSize=5&sort=id:desc"
-        )
-        if (active) setTasks(result.list ?? [])
-      } catch {
-        // 下一轮刷新重试
-      } finally {
-        if (active) setLoading(false)
-      }
-    }
-    loadTasks()
-    const timer = window.setInterval(loadTasks, 3_000)
-    return () => {
-      active = false
-      window.clearInterval(timer)
-    }
-  }, [])
 
   if (loading) {
     return (
@@ -96,11 +71,7 @@ export function RecentTasksPanel() {
             )}
             <button
               type="button"
-              onClick={() =>
-                deleteTask.mutate(t.id, {
-                  onSuccess: () => setTasks((prev) => prev.filter((x) => x.id !== t.id))
-                })
-              }
+              onClick={() => deleteTask.mutate(t.id)}
               disabled={deleteTask.isPending}
               className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-rose-400 group-hover:opacity-100"
               aria-label="删除任务"

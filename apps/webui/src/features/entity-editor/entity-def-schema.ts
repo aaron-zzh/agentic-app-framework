@@ -27,6 +27,11 @@ export const entityDefJsonSchema = {
       description: "实体操作定义",
       items: { $ref: "#/definitions/EntityAction" }
     },
+    customViews: {
+      type: "array",
+      description: "声明式自定义视图（组件由前端注册表按名称解析）",
+      items: { $ref: "#/definitions/CustomView" }
+    },
     mixins: { type: "array", items: { type: "string" }, description: "Mixin 名称列表" },
     extends: { type: "string", description: "继承的父实体 slug" },
     fields: {
@@ -40,6 +45,20 @@ export const entityDefJsonSchema = {
     pivotView: { $ref: "#/definitions/PivotViewConfig" }
   },
   definitions: {
+    CustomView: {
+      type: "object",
+      required: ["key", "label", "component", "scope"],
+      properties: {
+        key: {
+          type: "string",
+          description: "URL view 参数值；不得使用 list/form/kanban/pivot/calendar/canvas"
+        },
+        label: { type: "string", description: "切换按钮文案" },
+        icon: { type: "string", description: "图标名称（lucide）" },
+        component: { type: "string", description: "前端 registerCustomView 注册的组件名" },
+        scope: { type: "string", enum: ["list", "record"], description: "列表页或记录详情页" }
+      }
+    },
     FieldDef: {
       type: "object",
       required: ["name", "type"],

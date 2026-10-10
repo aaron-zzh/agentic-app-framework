@@ -4,13 +4,18 @@ import java.util.UUID;
 
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeSearchContracts.SourceFilters;
 
-/** 已授权单库向量检索请求。 */
+/**
+ * 已授权单库向量检索请求。
+ *
+ * @param userId 查询向量化的计费与路由主体（M53：embedding 成本由触发用户承担）；缺失时检索会被拒绝
+ */
 public record SearchRequest(
         String query,
         int topK,
         double similarityThreshold,
         UUID knowledgeBaseId,
-        SourceFilters sourceFilters) {
+        SourceFilters sourceFilters,
+        Long userId) {
     public SearchRequest {
         if (query == null || query.isBlank()) {
             throw new IllegalArgumentException("query 不能为空");

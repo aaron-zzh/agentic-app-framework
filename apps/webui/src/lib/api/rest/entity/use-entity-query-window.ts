@@ -8,11 +8,10 @@
  */
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
-import { _mockEntityData } from "@/lib/_mock/entities"
-import { type CrudMeta, crudKey, fromEntityDef, useCrudMeta } from "@/lib/api/rest/crud"
+import { type CrudMeta, crudKey, useCrudMeta } from "@/lib/api/rest/crud"
 import { scopeHeaders, useOrgStore } from "@/lib/store/org-store"
 import type { EntityDef } from "@/lib/types/entity"
-import { fetchQueryWindow, type ListParams, type PageResult } from "./crud"
+import { fetchQueryWindow, type ListParams, type PageResult } from "../crud"
 
 export interface UseEntityQueryWindowResult {
   data: Record<string, unknown>[]
@@ -26,7 +25,7 @@ export interface UseEntityQueryWindowResult {
 }
 
 export function entityQueryWindowPrefix(entity: EntityDef) {
-  return [...crudKey(fromEntityDef(entity)), "queryWindow"] as const
+  return [...crudKey(entity), "queryWindow"] as const
 }
 
 export function entityQueryWindowKey(entity: EntityDef, params: unknown = {}) {
@@ -40,8 +39,7 @@ export function useEntityQueryWindow(
   const { page = 1, pageSize = 20, sort, search, ...filters } = params
   const scope = useOrgStore((state) => state.currentScope)
   const { orgId, workspaceId } = scopeHeaders(scope)
-  const resource = fromEntityDef(entity)
-  const { data: crudMeta } = useCrudMeta<CrudMeta>(resource)
+  const { data: crudMeta } = useCrudMeta<CrudMeta>(entity)
   const queryParams = {
     workspaceId,
     orgId: orgId ?? undefined,
@@ -55,31 +53,15 @@ export function useEntityQueryWindow(
 
   const { data, isLoading, isFetching, error } = useQuery<PageResult<Record<string, unknown>>>({
     queryKey: entityQueryWindowKey(entity, queryParams),
-    queryFn: async () => {
-      if (process.env.NODE_ENV === "development") {
-        const mock = _mockEntityData[entity.slug]
-        if (mock) {
-          return {
-            list: mock,
-            total: mock.length,
-            pageNo: page,
-            pageSize,
-            ids: mock.map((item) => Number(item.id)).filter((id) => !Number.isNaN(id)),
-            queryToken: `mock:${entity.slug}:${page}:${pageSize}`,
-            fieldSet: "list",
-            hasMore: false
-          }
-        }
-      }
-      return fetchQueryWindow(resource, {
+    queryFn: () =>
+      fetchQueryWindow(entity, {
         pageNo: page,
         pageSize,
         sort,
         search,
         fieldSet: "list",
         ...filters
-      })
-    },
+      }),
     placeholderData: keepPreviousData
   })
 

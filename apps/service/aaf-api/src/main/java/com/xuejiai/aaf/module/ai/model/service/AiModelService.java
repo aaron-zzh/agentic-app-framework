@@ -191,7 +191,7 @@ public class AiModelService {
      * </ul>
      */
     public List<PublicModelPricingVO> listPublicPricing() {
-        int markup = configService.getInteger(SysConfigKeys.Ai.TOKEN_MARKUP_RATE, 5);
+        int markup = configService.getInteger(SysConfigKeys.Ai.TOKEN_MARKUP_RATE, 2);
         return repository.findByEnabledTrueOrderBySortOrder().stream()
                 .map(m -> toPricingVO(m, markup))
                 .toList();

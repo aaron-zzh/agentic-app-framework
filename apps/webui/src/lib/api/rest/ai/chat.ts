@@ -7,8 +7,8 @@ import { buildApiUrl } from "@/lib/api/config"
 import { ApiError } from "@/lib/api/errors"
 import type { ApiResult } from "@/lib/api/types"
 import { backendApi } from "../backend-client"
+import { fetchList } from "../crud"
 import { restEndpoints } from "../endpoints"
-import { fetchList } from "../entity/crud"
 
 /** 聊天会话 */
 export interface ChatSession {

@@ -378,11 +378,6 @@ public class SkillService
     }
 
     @Override
-    protected Long extractOwnerId(SkillDefinition entity) {
-        return entity.getOwnerId();
-    }
-
-    @Override
     protected void beforeUpdate(SkillDefinition entity, SkillUpdateDTO request) {
         enforceUserOwned(entity);
         validateUpdate(entity, request);

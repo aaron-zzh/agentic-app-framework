@@ -37,7 +37,7 @@ gains:
 
 为已由 Java、Flyway 和类型化 REST API 承载的业务实体声明 `CrudResourceDefinition`，接入标准 CRUD、安全执行、输出视图、引用/关系和 EntityDef。
 
-Todo 是关系读取参考：资源键 `system.todo`，标准路径 `/api/todos`，实现位于 `apps/service/aaf-api/src/main/java/com/xuejiai/aaf/module/system/task/`。
+Todo 是关系读取参考：资源键 `system.todo`，标准路径 `/api/todos`，实现位于 `apps/service/aaf-api/src/main/java/com/xuejiai/aaf/module/todo/`。
 
 ## 前置条件
 

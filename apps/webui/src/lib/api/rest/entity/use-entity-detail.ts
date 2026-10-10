@@ -4,10 +4,9 @@
  */
 
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { _mockEntityData } from "@/lib/_mock/entities"
-import { crudDetailKey, fromEntityDef } from "@/lib/api/rest/crud"
+import { crudDetailKey } from "@/lib/api/rest/crud"
 import type { EntityDef } from "@/lib/types/entity"
-import { fetchRecord, type PageResult } from "./crud"
+import { fetchRecord, type PageResult } from "../crud"
 import { entityQueryWindowPrefix } from "./use-entity-query-window"
 
 interface UseEntityDetailOptions {
@@ -21,25 +20,17 @@ export function useEntityDetail(
   options: UseEntityDetailOptions = {}
 ) {
   const queryClient = useQueryClient()
-  const resource = fromEntityDef(entity)
   const initialData =
     options.initialData ?? findListInitialData(queryClient, entity, id, options.queryToken)
 
   return useQuery<Record<string, unknown> | null>({
-    queryKey: crudDetailKey(resource, id, {
+    queryKey: crudDetailKey(entity, id, {
       queryToken: options.queryToken,
       fieldSet: "detail"
     }),
     queryFn: async () => {
       if (!id) return null
-      // mock 仅在开发环境且后端未就绪时使用
-      if (process.env.NODE_ENV === "development") {
-        const mock = _mockEntityData[entity.slug]
-        if (mock) {
-          return mock.find((r) => r.id === id) ?? null
-        }
-      }
-      return fetchRecord(resource, id, {
+      return fetchRecord(entity, id, {
         queryToken: options.queryToken,
         fieldSet: "detail"
       })

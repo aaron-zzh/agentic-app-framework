@@ -69,6 +69,7 @@ public class AgentNode implements JavaDelegate {
                             command.input(),
                             route.roleKey(),
                             route.skillKey(),
+                            command.taskModelSelection(),
                             command.executionContract().retryPolicy().maxAttempts());
             var events =
                     tasks.submitAndDispatch(

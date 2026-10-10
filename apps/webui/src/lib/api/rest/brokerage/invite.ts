@@ -8,7 +8,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { useAuthStore } from "@/lib/store/auth-store"
-import { type PageResult, request } from "../entity/crud"
+import { type PageResult, request } from "../crud"
 
 /** 我的邀请码 + 链接基础信息 */
 export interface BrokerageInviteCodeMeVO {

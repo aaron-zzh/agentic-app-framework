@@ -42,10 +42,10 @@ import com.xuejiai.aaf.module.system.role.domain.UserRole;
 import com.xuejiai.aaf.module.system.role.repository.RolePermissionRepository;
 import com.xuejiai.aaf.module.system.role.repository.RoleRepository;
 import com.xuejiai.aaf.module.system.role.repository.UserRoleRepository;
-import com.xuejiai.aaf.module.system.todo.domain.Todo;
-import com.xuejiai.aaf.module.system.todo.repository.TodoRepository;
 import com.xuejiai.aaf.module.system.user.domain.User;
 import com.xuejiai.aaf.module.system.user.repository.UserRepository;
+import com.xuejiai.aaf.module.todo.domain.Todo;
+import com.xuejiai.aaf.module.todo.repository.TodoRepository;
 
 /**
  * Todo 模块四层权限集成测试。

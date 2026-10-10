@@ -11,7 +11,7 @@ import type {
   KnowledgeDocument
 } from "@/lib/types/knowledge"
 import { backendApi } from "../backend-client"
-import { buildQuery, type ListParams, type PageResult } from "../entity/crud"
+import { buildQuery, type ListParams, type PageResult } from "../crud"
 
 const MAINTENANCE_PATH = "/knowledge-bases/maintenance"
 const KNOWLEDGE_PATH = "/knowledge-bases"
@@ -84,7 +84,13 @@ export const adminKnowledgeApi = {
       `${KNOWLEDGE_PATH}/${id}/graph-projection/rebuild`,
       undefined,
       { headers: { "Idempotency-Key": requestKey } }
-    )
+    ),
+
+  vectorProjection: (id: number) =>
+    backendApi.get<GraphProjectionStatus>(`${KNOWLEDGE_PATH}/${id}/vector-projection/status`),
+
+  rebuildVectorProjection: (id: number) =>
+    backendApi.post<GraphProjectionStatus>(`${KNOWLEDGE_PATH}/${id}/vector-projection/rebuild`)
 }
 
 const adminKnowledgeKeys = {
@@ -93,7 +99,8 @@ const adminKnowledgeKeys = {
   detail: (id: number) => ["admin", "knowledge", id] as const,
   stats: (id: number) => ["admin", "knowledge", id, "stats"] as const,
   documents: (id: number) => ["admin", "knowledge", id, "documents"] as const,
-  projection: (id: number) => ["admin", "knowledge", id, "projection"] as const
+  projection: (id: number) => ["admin", "knowledge", id, "projection"] as const,
+  vectorProjection: (id: number) => ["admin", "knowledge", id, "vector-projection"] as const
 }
 
 /** 查询组织范围内的知识库运维列表。 */
@@ -163,6 +170,30 @@ export function useAdminRebuildKnowledgeProjection(id: number) {
     mutationFn: (requestKey: string) => adminKnowledgeApi.rebuildProjection(id, requestKey),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: adminKnowledgeKeys.projection(id) })
+    }
+  })
+}
+
+/** 查询 PgVector 向量投影 checkpoint。 */
+export function useAdminKnowledgeVectorProjection(id: number) {
+  return useQuery({
+    queryKey: adminKnowledgeKeys.vectorProjection(id),
+    queryFn: () => adminKnowledgeApi.vectorProjection(id),
+    enabled: Number.isFinite(id),
+    retry: false
+  })
+}
+
+/** 同步重建向量投影（按当前全局向量模型重新生成并计费），完成后刷新 checkpoint 与统计。 */
+export function useAdminRebuildKnowledgeVectorProjection(id: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => adminKnowledgeApi.rebuildVectorProjection(id),
+    onSettled: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: adminKnowledgeKeys.vectorProjection(id) }),
+        queryClient.invalidateQueries({ queryKey: adminKnowledgeKeys.stats(id) })
+      ])
     }
   })
 }

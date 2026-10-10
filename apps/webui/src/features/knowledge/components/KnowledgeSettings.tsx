@@ -1,5 +1,5 @@
 /**
- * 知识库设置——分块策略、Embedding 模型配置
+ * 知识库设置——分块策略配置，展示创建时记录的 Embedding 模型（只读）
  * @author AaronZZH & Kiro
  */
 
@@ -26,13 +26,6 @@ const CHUNK_STRATEGIES = [
   { value: "semantic", label: "语义边界" }
 ] as const
 
-const EMBEDDING_MODELS = [
-  { value: "text-embedding-3-small", label: "text-embedding-3-small" },
-  { value: "text-embedding-3-large", label: "text-embedding-3-large" },
-  { value: "bge-large-zh", label: "BGE Large (中文)" },
-  { value: "m3e-base", label: "M3E Base" }
-] as const
-
 interface KnowledgeSettingsProps {
   knowledgeBase: KnowledgeBase
 }
@@ -41,14 +34,13 @@ export function KnowledgeSettings({ knowledgeBase }: KnowledgeSettingsProps) {
   const [strategy, setStrategy] = useState(knowledgeBase.chunkStrategy)
   const [chunkSize, setChunkSize] = useState(knowledgeBase.chunkSize)
   const [chunkOverlap, setChunkOverlap] = useState(knowledgeBase.chunkOverlap)
-  const [model, setModel] = useState(knowledgeBase.embeddingModel ?? "")
 
   const { mutate: update, isPending } = useUpdateKnowledgeBase()
 
   function handleSave() {
     update({
       id: knowledgeBase.id,
-      data: { chunkStrategy: strategy, chunkSize, chunkOverlap, embeddingModel: model }
+      data: { chunkStrategy: strategy, chunkSize, chunkOverlap }
     })
   }
 
@@ -104,21 +96,10 @@ export function KnowledgeSettings({ knowledgeBase }: KnowledgeSettingsProps) {
           </div>
         </div>
 
-        {/* Embedding 模型 */}
+        {/* Embedding 模型：全局唯一，创建时记录，只读 */}
         <div className="space-y-1">
-          <Label>Embedding 模型</Label>
-          <Select value={model} onValueChange={(v) => setModel(v ?? "")}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {EMBEDDING_MODELS.map((m) => (
-                <SelectItem key={m.value} value={m.value}>
-                  {m.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Label>Embedding 模型（创建时记录，只读）</Label>
+          <Input value={knowledgeBase.embeddingModel ?? "-"} readOnly disabled />
         </div>
 
         <Button onClick={handleSave} disabled={isPending}>

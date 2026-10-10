@@ -4,7 +4,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query"
-import { request } from "../entity/crud"
+import { request } from "../crud"
 
 /** 趋势数据点 */
 export interface TrendPoint {

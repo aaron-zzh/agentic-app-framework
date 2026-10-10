@@ -86,7 +86,6 @@ export interface CreateKnowledgeBaseInput {
   description?: string
   visibility?: KnowledgeBaseVisibility
   scopeCode?: string
-  embeddingModel?: string
   chunkStrategy?: "fixed" | "recursive" | "semantic"
   chunkSize?: number
   chunkOverlap?: number

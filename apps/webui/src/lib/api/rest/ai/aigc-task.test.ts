@@ -6,7 +6,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const { request } = vi.hoisted(() => ({ request: vi.fn() }))
-vi.mock("../entity/crud", () => ({ request }))
+vi.mock("../crud", () => ({ request }))
 
 import { aigcTaskApi } from "./aigc-task"
 

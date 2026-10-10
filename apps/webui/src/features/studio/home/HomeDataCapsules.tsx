@@ -18,7 +18,7 @@ import {
 import Link from "next/link"
 import { DataCapsule } from "@/components/studio"
 import { useAigcProjects, useAigcWorks } from "@/lib/api/rest/ai/aigc"
-import { type PageResult, request } from "@/lib/api/rest/entity"
+import { type PageResult, request } from "@/lib/api/rest/crud"
 import { useMediaList } from "@/lib/api/rest/media"
 
 interface TaskCountRecord {

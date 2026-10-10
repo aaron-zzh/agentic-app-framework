@@ -3,7 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
-import { request } from "@/lib/api/rest/entity/crud"
+import { request } from "@/lib/api/rest/crud"
 
 export interface DictDataVO {
   id: number

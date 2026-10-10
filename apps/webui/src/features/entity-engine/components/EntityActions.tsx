@@ -25,8 +25,7 @@ import { buildFieldContext, evaluateCondition } from "@/features/entity-engine/l
 import type { EntityAction, EntityDef } from "@/features/entity-engine/types"
 import { buildApiUrl, buildSseUrl } from "@/lib/api/config"
 import { backendApi } from "@/lib/api/rest/backend-client"
-import { crudKey, crudRequestConfig, fromEntityDef } from "@/lib/api/rest/crud"
-import { ApiError } from "@/lib/api/rest/entity"
+import { ApiError, crudKey, crudRequestConfig } from "@/lib/api/rest/crud"
 import { type AsyncTaskStatus, AsyncTaskStatusIndicator } from "./AsyncTaskStatusIndicator"
 
 const ASYNC_TASK_EVENT_NAME = "async-task.status"
@@ -197,12 +196,11 @@ export function EntityActions({ entity, position, record, selectedIds }: EntityA
           body.ids = selectedIds
         }
 
-        const resource = fromEntityDef(entity)
         const result = await backendApi.post<ActionSubmitResult>(
           buildApiUrl(action.endpoint),
           body,
           {
-            ...crudRequestConfig(resource),
+            ...crudRequestConfig(entity),
             signal: controller.signal,
             showError: false
           }
@@ -225,7 +223,7 @@ export function EntityActions({ entity, position, record, selectedIds }: EntityA
           toast.success(`${action.label}任务已提交`)
 
           const task = await subscription.completion
-          await queryClient.invalidateQueries({ queryKey: crudKey(fromEntityDef(entity)) })
+          await queryClient.invalidateQueries({ queryKey: crudKey(entity) })
 
           const deletedCount = readDeletedCount(task.result)
           toast.success(
@@ -234,7 +232,7 @@ export function EntityActions({ entity, position, record, selectedIds }: EntityA
               : `${action.label}已完成，已删除 ${deletedCount} 条记录`
           )
         } else {
-          await queryClient.invalidateQueries({ queryKey: crudKey(fromEntityDef(entity)) })
+          await queryClient.invalidateQueries({ queryKey: crudKey(entity) })
           toast.success(`${action.label}成功`)
         }
       } catch (error) {

@@ -129,6 +129,28 @@ public final class OrgContext {
         }
     }
 
+    /**
+     * 当前线程尚无组织上下文时，临时绑定服务端可信的 orgId/workspaceId 执行，结束后还原。
+     *
+     * <p>用于后台线程（虚拟线程、调度线程）：这类线程没有 HTTP 请求，{@code OrgFilter} 不会写入上下文。 已有单组织或全组织上下文（如 HTTP
+     * 请求线程）时保持不变，避免覆盖调用方已校验的范围；orgId 为空时同样不绑定。
+     */
+    public static <T> T runIfAbsent(
+            Long orgId, Long workspaceId, java.util.function.Supplier<T> supplier) {
+        if (orgId == null || getCurrentOrgId() != null || isAllOrganizations()) {
+            return supplier.get();
+        }
+        var previousWorkspaceId = getCurrentWorkspaceId();
+        try {
+            setCurrentOrgId(orgId);
+            setCurrentWorkspaceId(workspaceId);
+            return supplier.get();
+        } finally {
+            CURRENT_ORG_ID.remove();
+            setCurrentWorkspaceId(previousWorkspaceId);
+        }
+    }
+
     public static void clear() {
         CURRENT_ORG_ID.remove();
         CURRENT_WORKSPACE_ID.remove();

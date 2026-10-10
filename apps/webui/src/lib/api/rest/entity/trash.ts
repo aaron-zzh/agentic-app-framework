@@ -6,7 +6,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { notify } from "@/lib/notification"
 import { backendApi } from "../backend-client"
-import type { PageResult } from "./crud"
+import type { PageResult } from "../crud"
 
 /** 回收站记录 */
 export interface TrashItemVO {

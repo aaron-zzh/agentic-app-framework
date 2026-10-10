@@ -4,7 +4,7 @@
  */
 
 import { backendApi } from "../backend-client"
-import type { PageResult } from "../entity/crud"
+import type { PageResult } from "../crud"
 
 /** 积分余额 */
 export interface CreditBalanceVO {

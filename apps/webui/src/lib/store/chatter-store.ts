@@ -12,7 +12,7 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import type { ChatterDropItem, ChatterLayout, ChatterPreset } from "@/features/chatter/types"
-import { request } from "@/lib/api/rest/entity"
+import { request } from "@/lib/api/rest/crud"
 
 export interface ChatterPageConfig {
   preset: ChatterPreset

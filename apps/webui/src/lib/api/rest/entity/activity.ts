@@ -27,6 +27,8 @@ export interface ActivityItem {
 /** 与后端 TodoVO 对齐 */
 export interface ScheduledActivity {
   id: string
+  /** 乐观锁版本号，更新状态时作为 expectedVersion 回传 */
+  version: number
   assigneeId: number
   assigneeName?: string
   title: string
@@ -72,11 +74,12 @@ export const activityApi = {
     dueDate?: string
   }) =>
     backendApi
-      .post<Omit<ScheduledActivity, "done">>("/api/todos", data)
+      .post<Omit<ScheduledActivity, "done">>("/todos", data)
       .then((s) => ({ ...s, done: s.status === "done" })),
 
-  /** 完成待办（更新状态为 done） */
-  completeSchedule: (id: string) => backendApi.put<void>(`/todos/${id}/status`, { status: "done" })
+  /** 完成待办（更新状态为 done）；后端要求携带当前版本号做乐观锁校验 */
+  completeSchedule: (id: string, expectedVersion: number) =>
+    backendApi.put<void>(`/todos/${id}/status`, { status: "done", expectedVersion })
 }
 
 const activityKey = (entityType: string, entityId: string) => [entityType, entityId, "activities"]
@@ -135,7 +138,8 @@ export function useCreateSchedule(entityType: string, entityId: string) {
 export function useCompleteSchedule(entityType: string, entityId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => activityApi.completeSchedule(id),
+    mutationFn: ({ id, version }: { id: string; version: number }) =>
+      activityApi.completeSchedule(id, version),
     onSuccess: () => qc.invalidateQueries({ queryKey: scheduleKey(entityType, entityId) })
   })
 }

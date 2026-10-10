@@ -20,7 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { FormView } from "@/features/entity-engine/components/form/FormView"
 import { useResolvedEntity } from "@/features/entity-engine/hooks/use-resolved-entity"
 import type { EntityDef } from "@/features/entity-engine/types"
-import { fromEntityDef, useCrudCreate } from "@/lib/api/rest/crud"
+import { useCrudCreate } from "@/lib/api/rest/crud"
 import { paths } from "@/lib/constants/paths"
 import { selectScopeReadOnly, useOrgStore } from "@/lib/store/org-store"
 
@@ -33,8 +33,7 @@ export function EntityCreateView({ entity, presentation = "page" }: Props) {
   const scopeReadOnly = useOrgStore(selectScopeReadOnly)
   const router = useRouter()
   const resolvedEntity = useResolvedEntity(entity)
-  const resource = fromEntityDef(entity)
-  const { mutate: create, isPending } = useCrudCreate(resource)
+  const { mutate: create, isPending } = useCrudCreate(entity)
   const isDialog = presentation === "dialog"
 
   const handleOpenChange = useCallback(

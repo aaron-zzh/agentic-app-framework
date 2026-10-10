@@ -29,7 +29,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { useCancelAigcTask } from "@/lib/api/rest/ai"
 import type { AigcTaskEvent } from "@/lib/api/rest/ai/aigc-task"
-import { type PageResult, request } from "@/lib/api/rest/entity"
+import { type PageResult, request } from "@/lib/api/rest/crud"
 
 // ─── 类型 ───────────────────────────────────────────────────────────────────
 

@@ -21,7 +21,7 @@ import { useCallback, useId, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { useEntityDelete, useEntityMutation } from "@/lib/api/rest/entity"
+import { useCrudDelete, useCrudUpdate } from "@/lib/api/rest/crud"
 
 import type { EntityDef, FieldDef } from "../../types"
 import { CompareFieldRow, type CompareStatus } from "./CompareFieldRow"
@@ -84,8 +84,8 @@ export function CompareView({ entity, leftRecord, rightRecord, onClose }: Compar
   const [mergeDialogOpen, setMergeDialogOpen] = useState(false)
   const [selections, setSelections] = useState<MergeSelection>({})
 
-  const updateMutation = useEntityMutation(entity, leftRecord.id as string)
-  const deleteMutation = useEntityDelete(entity)
+  const updateMutation = useCrudUpdate(entity)
+  const deleteMutation = useCrudDelete(entity)
 
   const dataFields = useMemo(() => getDataFields(entity.fields), [entity.fields])
 
@@ -133,9 +133,9 @@ export function CompareView({ entity, leftRecord, rightRecord, onClose }: Compar
       mergedData[name] = side === "left" ? leftRecord[name] : rightRecord[name]
     }
     // 更新左侧记录
-    await updateMutation.mutateAsync(mergedData)
+    await updateMutation.mutateAsync({ id: leftRecord.id as string, data: mergedData })
     // 软删除右侧记录
-    await deleteMutation.mutateAsync([rightRecord.id as string])
+    await deleteMutation.mutateAsync({ id: rightRecord.id as string })
     setMergeDialogOpen(false)
     setMerging(false)
     onClose?.()

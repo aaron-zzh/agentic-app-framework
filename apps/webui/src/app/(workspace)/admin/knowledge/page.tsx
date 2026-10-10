@@ -35,6 +35,7 @@ import {
   type KnowledgeMaintenanceListParams,
   useAdminKnowledgeList
 } from "@/lib/api/rest/admin"
+import { paths } from "@/lib/constants/paths"
 import type { KnowledgeBaseVisibility } from "@/lib/types/knowledge"
 
 const VISIBILITY_LABEL: Record<KnowledgeBaseVisibility, string> = {
@@ -226,7 +227,11 @@ function KnowledgeMaintenanceRow({ knowledgeBase }: { knowledgeBase: KnowledgeBa
           nativeButton={false}
           variant="outline"
           size="sm"
-          render={<Link href={`/admin/knowledge/${knowledgeBase.id}`} />}
+          render={
+            <Link
+              href={`${paths.workspace.record("knowledge-base", String(knowledgeBase.id))}?view=ops`}
+            />
+          }
         >
           <ExternalLink data-icon="inline-start" />
           运维详情

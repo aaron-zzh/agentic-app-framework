@@ -1,5 +1,6 @@
 /**
  * 实体注册表：原子保存 bootstrap 已验证的 EntityDef 与受信任资源描述。
+ * EntityDef 在 replaceAll 时一次性解析 mixins + extends，解析失败直接抛出。
  *
  * @example
  * entityRegistry.replaceAll(definitions, resources)
@@ -15,31 +16,18 @@ import { builtinMixins, type MixinDef } from "./entity-mixins"
 import { resolveExtends, resolveMixins } from "./entity-resolve"
 
 class EntityRegistry {
-  private raw = new Map<string, EntityDef>()
-  private resolved = new Map<string, EntityDef>()
+  private definitions = new Map<string, EntityDef>()
   private resources = new Map<string, EntityResourceDescriptor>()
   private customMixins: Record<string, MixinDef> = {}
 
-  /** 注册实体（原始配置，未解析 mixin/extends）。 */
-  register(def: EntityDef): void {
-    this.raw.set(def.slug, def)
-    this.resolved.delete(def.slug)
-  }
-
-  /** 批量注册实体。 */
-  registerAll(defs: EntityDef[]): void {
-    for (const def of defs) {
-      this.register(def)
-    }
+  /** 注册自定义 Mixin；需在 replaceAll 之前注册，才会参与实体解析。 */
+  registerMixin(mixin: MixinDef): void {
+    this.customMixins[mixin.name] = mixin
   }
 
   /** 原子替换工作区 bootstrap 的 EntityDef 与受信任资源描述，避免消费者观察到部分状态。 */
   replaceAll(defs: EntityDef[], resources: EntityResourceDescriptor[]): void {
-    const nextRaw = new Map<string, EntityDef>()
     const nextResources = new Map<string, EntityResourceDescriptor>()
-    for (const def of defs) {
-      nextRaw.set(def.slug, def)
-    }
     for (const resource of resources) {
       if (nextResources.has(resource.resource)) {
         throw new Error(`重复的受信任资源：${resource.resource}`)
@@ -47,8 +35,20 @@ class EntityRegistry {
       nextResources.set(resource.resource, resource)
     }
 
-    this.raw = nextRaw
-    this.resolved = new Map<string, EntityDef>()
+    const allMixins = { ...builtinMixins, ...this.customMixins }
+    const rawBySlug = new Map(defs.map((def) => [def.slug, def]))
+    const nextDefinitions = new Map<string, EntityDef>()
+    for (const def of defs) {
+      nextDefinitions.set(
+        def.slug,
+        resolveExtends(resolveMixins(def, allMixins), (parentSlug) => {
+          const parent = rawBySlug.get(parentSlug)
+          return parent && resolveMixins(parent, allMixins)
+        })
+      )
+    }
+
+    this.definitions = nextDefinitions
     this.resources = nextResources
   }
 
@@ -68,63 +68,23 @@ class EntityRegistry {
 
   /** 按稳定资源标识解析已加载 EntityDef；descriptor-only 资源返回 undefined。 */
   getByResource(resource: string): EntityDef | undefined {
-    for (const definition of this.getAll()) {
-      if (definition.resource === resource) return definition
-    }
-    return undefined
+    return this.getAll().find((definition) => definition.resource === resource)
   }
 
-  /** 注册自定义 Mixin。 */
-  registerMixin(mixin: MixinDef): void {
-    this.customMixins[mixin.name] = mixin
-  }
-
-  /** 获取解析后的实体定义（自动解析 mixins + extends）。 */
+  /** 按 slug 获取已解析的实体定义。 */
   get(slug: string): EntityDef | undefined {
-    if (this.resolved.has(slug)) return this.resolved.get(slug)
-
-    const raw = this.raw.get(slug)
-    if (!raw) return undefined
-
-    const allMixins = { ...builtinMixins, ...this.customMixins }
-    let def = resolveMixins(raw, allMixins)
-    def = resolveExtends(def, (parentSlug) => {
-      const parentRaw = this.raw.get(parentSlug)
-      if (!parentRaw) return undefined
-      return resolveMixins(parentRaw, allMixins)
-    })
-
-    this.resolved.set(slug, def)
-    return def
+    return this.definitions.get(slug)
   }
 
   /** 获取所有已解析的实体。 */
   getAll(): EntityDef[] {
-    for (const slug of this.raw.keys()) {
-      try {
-        this.get(slug)
-      } catch (_e) {}
-    }
-    return Array.from(this.resolved.values())
-  }
-
-  /** 按 group 分组获取实体。 */
-  getByGroup(): Record<string, EntityDef[]> {
-    const all = this.getAll()
-    const groups: Record<string, EntityDef[]> = {}
-    for (const def of all) {
-      const group = def.group ?? "other"
-      if (!groups[group]) groups[group] = []
-      groups[group].push(def)
-    }
-    return groups
+    return Array.from(this.definitions.values())
   }
 
   /** 清空注册表与自定义 Mixin（测试用）。 */
   clear(): void {
-    this.raw.clear()
-    this.resolved.clear()
-    this.resources.clear()
+    this.definitions = new Map()
+    this.resources = new Map()
     this.customMixins = {}
   }
 }

@@ -29,7 +29,8 @@ public class SimilaritySearchService {
         }
         var filterExpression = buildFilterExpression(request);
         var documents =
-                knowledgeVectorService.search(request.query(), request.topK(), filterExpression);
+                knowledgeVectorService.search(
+                        request.query(), request.topK(), filterExpression, request.userId());
 
         var converted =
                 documents.stream()

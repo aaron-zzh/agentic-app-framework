@@ -143,6 +143,7 @@ public final class TaskCommandService {
                         sourceCommand.input(),
                         profile.roleAssignment().roleKey(),
                         null,
+                        sourceCommand.taskModelSelection(),
                         maxAttempts);
         var owner = new Owner(OwnerKind.ASSISTANT, sourceCommand.assistantId().value());
         var task =

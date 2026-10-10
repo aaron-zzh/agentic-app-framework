@@ -27,8 +27,9 @@ import {
   SearchBar,
   ViewSettingsSheet
 } from "@/features/entity-engine/components/list"
+import { getCustomViews } from "@/features/entity-engine/lib/custom-views"
 import type { DataFieldDef, EntityDef } from "@/features/entity-engine/types"
-import { type CrudMeta, crudKey, fromEntityDef, useCrudMeta } from "@/lib/api/rest/crud"
+import { type CrudMeta, crudKey, useCrudMeta } from "@/lib/api/rest/crud"
 import { useFilterParams } from "@/lib/api/rest/entity"
 import { cn } from "@/lib/utils/cn"
 
@@ -69,14 +70,13 @@ export function Toolbar({
   const searchParams = useSearchParams()
   const currentView = searchParams.get("view") ?? "list"
   const [filters, setFilters] = useFilterParams()
-  const resource = fromEntityDef(entity)
-  const { data: crudMeta } = useCrudMeta<CrudMeta>(resource, {
+  const { data: crudMeta } = useCrudMeta<CrudMeta>(entity, {
     enabled: currentView === "list"
   })
   const tabs = useTabs("")
   const isHydrated = useHydrated()
   const queryClient = useQueryClient()
-  const entityFetching = useIsFetching({ queryKey: crudKey(resource) })
+  const entityFetching = useIsFetching({ queryKey: crudKey(entity) })
 
   // hydration 前不读取客户端 Query 缓存状态，避免 Base UI Trigger 的 disabled 属性不一致。
   const isRefreshing = isHydrated && entityFetching > 0
@@ -88,14 +88,14 @@ export function Toolbar({
 
     try {
       await queryClient.invalidateQueries(
-        { queryKey: crudKey(resource), refetchType: "active" },
+        { queryKey: crudKey(entity), refetchType: "active" },
         { throwOnError: true }
       )
       toast.success("已刷新，当前已是最新数据")
     } catch {
       toast.error("刷新失败，请稍后重试")
     }
-  }, [isRefreshDisabled, queryClient, resource])
+  }, [isRefreshDisabled, queryClient, entity])
 
   const filterCapabilities = crudMeta?.filterFields
   const filterableFields = new Set(filterCapabilities?.map((capability) => capability.field) ?? [])
@@ -126,11 +126,17 @@ export function Toolbar({
     }
   }
 
-  // 动态视图列表（透视视图按需显示）
+  // 动态视图列表（透视视图按需显示；声明式自定义视图追加在末尾，内置 key 不可占用）
+  const customListViews = getCustomViews(entity, "list").map((view) => ({
+    key: view.key,
+    label: view.label,
+    icon: view.label
+  }))
   const availableViews = [
     { key: "list", label: "列表", icon: "☰" },
     { key: "kanban", label: "看板", icon: "▦" },
-    ...(entity.pivotView?.enabled ? [{ key: "pivot", label: "透视", icon: "⊞" }] : [])
+    ...(entity.pivotView?.enabled ? [{ key: "pivot", label: "透视", icon: "⊞" }] : []),
+    ...customListViews
   ]
 
   // Tab 切换时添加/替换对应字段筛选

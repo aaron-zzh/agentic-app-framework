@@ -6,7 +6,7 @@
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { AigcAsset, AigcAssetTag, AigcMedia, AigcMediaType } from "@/features/aigc/types"
 import { backendApi } from "../backend-client"
-import { buildQuery, type ListParams, type PageResult } from "../entity/crud"
+import { buildQuery, type ListParams, type PageResult } from "../crud"
 
 export interface MediaListParams extends ListParams {
   mediaType?: AigcMediaType

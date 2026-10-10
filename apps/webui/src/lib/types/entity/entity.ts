@@ -85,6 +85,9 @@ export interface EntityDef {
     kanbanView?: ComponentType
   }
 
+  /** 声明式自定义视图：组件由前端注册表按名称解析，可在 sys_entity_def 中持久化 */
+  customViews?: CustomViewDef[]
+
   /** Mixin 名称列表 */
   mixins?: string[]
   /** 继承的父实体 slug */
@@ -109,6 +112,32 @@ export interface FormViewOverrideProps {
   saving: boolean
   readOnly?: boolean
   onSubmit?: (values: Record<string, unknown>) => void
+}
+
+/**
+ * 声明式自定义视图：用于有特定界面的实体（运维看板、图谱等）。
+ *
+ * `component` 是前端注册表里的组件名（`registerCustomView`），不是路径或脚本；
+ * 未注册的名称在运行期显示错误占位，不会加载任意模块。
+ */
+export interface CustomViewDef {
+  /** URL `view` 参数值；不得与内置视图 key（list/form/kanban/pivot/calendar/canvas）冲突 */
+  key: string
+  /** 切换按钮文案 */
+  label: string
+  /** 切换按钮图标（lucide 图标名），缺省只显示文案 */
+  icon?: string
+  /** 注册表组件名 */
+  component: string
+  /** list：列表页视图切换；record：记录详情页视图切换 */
+  scope: "list" | "record"
+}
+
+/** 自定义视图组件的框架上下文。 */
+export interface CustomViewProps {
+  entity: EntityDef
+  /** scope=record 时为当前记录 ID */
+  recordId?: string
 }
 
 /** 实体动作（Server Action 触发） */

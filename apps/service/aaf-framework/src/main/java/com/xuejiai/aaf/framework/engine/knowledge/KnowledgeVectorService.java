@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.knowledge.embedding.EmbeddingProperties;
 import com.xuejiai.aaf.framework.engine.knowledge.embedding.EmbeddingService;
+import com.xuejiai.aaf.framework.engine.knowledge.embedding.RoutedQueryEmbeddingModel;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeSearchContracts.SourceFilters;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeUsagePort.BillingContext;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore;
@@ -108,17 +109,26 @@ public class KnowledgeVectorService {
         log.info("写入 {} 条知识向量，runId={}", chunks.size(), run.runId());
     }
 
+    /**
+     * 向量检索。查询向量先经 {@link EmbeddingService}（六层模型决策链 + 计费）生成，再交给 PgVectorStore 做相似度计算，
+     * 保证与入库向量处于同一向量空间。
+     */
     public List<org.springframework.ai.document.Document> search(
-            String query, int topK, String filterExpression) {
+            String query, int topK, String filterExpression, Long userId) {
         if (filterExpression == null || filterExpression.isBlank()) {
             throw new IllegalArgumentException("向量检索必须提供授权知识库过滤表达式");
         }
-        return vectorStore.similaritySearch(
-                SearchRequest.builder()
-                        .query(query)
-                        .topK(topK)
-                        .filterExpression(filterExpression)
-                        .build());
+        Objects.requireNonNull(userId, "M53：检索查询向量化需要归属用户，userId 不能为空");
+        var queryVector = embeddingService.embed(query, userId);
+        return RoutedQueryEmbeddingModel.withQueryVector(
+                queryVector,
+                () ->
+                        vectorStore.similaritySearch(
+                                SearchRequest.builder()
+                                        .query(query)
+                                        .topK(topK)
+                                        .filterExpression(filterExpression)
+                                        .build()));
     }
 
     /** 按知识库一致水位重建，并在最终锁定水位后验证两侧 chunk UUID 集合全等。 */

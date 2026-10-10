@@ -226,7 +226,7 @@ VALUES (
     1, '00000000-0000-0000-0000-000000000301', 'SYSTEM_PUBLIC',
     'system:aaf-platform-guide', 'AAF 平台向导知识库',
     '产品咨询、常见问题和功能说明，供默认用户助理的平台向导 Role 使用',
-    'text-embedding-v3', 'RECURSIVE', 512, 64, 0, FALSE,
+    NULL, 'RECURSIVE', 512, 64, 0, FALSE,
     1, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE)
 ON CONFLICT (id) DO NOTHING;
 

@@ -420,11 +420,6 @@ public class PromptTemplateAssetService
     }
 
     @Override
-    protected Long extractOwnerId(PromptTemplate entity) {
-        return entity.getOwnerId();
-    }
-
-    @Override
     protected void beforeUpdate(PromptTemplate entity, PromptTemplateUpdateDTO request) {
         enforceUserOwned(entity);
     }

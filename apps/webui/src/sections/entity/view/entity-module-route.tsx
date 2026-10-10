@@ -1,6 +1,8 @@
 "use client"
 
-import { entityRegistry } from "@/features/entity-engine/lib/registry"
+// 声明式自定义视图的组件注册（副作用引入）；新增自定义视图时在此追加
+import "@/features/knowledge/register-custom-views"
+import { entityRegistry } from "@/lib/modules/entity-registry"
 import { EntityCreateView } from "./entity-create-view"
 import { EntityListView } from "./entity-list-view"
 import { EntityRecordView } from "./entity-record-view"

@@ -48,7 +48,7 @@ public class KnowledgeBase extends BaseEntity {
     @Column(name = "description", length = 1000)
     private String description;
 
-    /** 向量模型名称 */
+    /** 创建时记录所用的全局向量模型 modelId，只读；向量模型全局唯一，不随知识库切换。 */
     @Column(name = "embedding_model", length = 100)
     private String embeddingModel;
 

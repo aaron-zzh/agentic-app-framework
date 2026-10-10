@@ -131,7 +131,8 @@ public class HybridSearchService {
                                 limit,
                                 query.vectorThreshold(),
                                 base.knowledgeBaseId(),
-                                sourceFilters);
+                                sourceFilters,
+                                query.subject().subjectId());
                 similaritySearchService.search(request).stream()
                         .map(
                                 result ->

@@ -41,7 +41,6 @@ vi.mock("@/lib/hooks/use-column-preferences", () => ({
   })
 }))
 vi.mock("@/lib/api/rest/crud", () => ({
-  fromEntityDef: vi.fn((entity: { apiPath: string }) => ({ apiPath: entity.apiPath })),
   useCrudDelete: () => ({ mutate: vi.fn(), isPending: false })
 }))
 

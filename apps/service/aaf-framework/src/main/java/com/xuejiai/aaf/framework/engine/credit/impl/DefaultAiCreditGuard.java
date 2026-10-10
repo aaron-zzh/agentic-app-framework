@@ -54,7 +54,7 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
 
     @Override
     public int getMarkupRate() {
-        return configService.getInteger(SysConfigKeys.Ai.TOKEN_MARKUP_RATE, 5);
+        return configService.getInteger(SysConfigKeys.Ai.TOKEN_MARKUP_RATE, 2);
     }
 
     @Override

@@ -156,6 +156,25 @@ public class KnowledgeBaseController
         return Result.success(knowledgeBaseService.rebuildGraphProjection(id, requestKey));
     }
 
+    @Operation(summary = "查询知识库向量投影状态")
+    @PreAuthorize("hasAnyRole('ORG_ADMIN', 'ADMIN', 'SUPER_ADMIN')")
+    @GetMapping("/{id}/vector-projection/status")
+    public Result<GraphProjectionStatusVO> vectorProjectionStatus(@PathVariable Long id) {
+        return Result.success(knowledgeBaseService.getVectorProjectionStatus(id));
+    }
+
+    @Operation(summary = "重建知识库向量投影（同步，按当前全局向量模型重新生成向量并计费）")
+    @OperationLog(
+            module = "知识库",
+            type = OperationType.OTHER,
+            description = "重建知识库向量投影",
+            bizNo = "#{p0}")
+    @PreAuthorize("hasAnyRole('ORG_ADMIN', 'ADMIN', 'SUPER_ADMIN')")
+    @PostMapping("/{id}/vector-projection/rebuild")
+    public Result<GraphProjectionStatusVO> rebuildVectorProjection(@PathVariable Long id) {
+        return Result.success(knowledgeBaseService.rebuildVectorProjection(id));
+    }
+
     @Operation(summary = "知识库文档列表")
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/{id}/documents")

@@ -5,6 +5,8 @@
 
 export type { EntityAccess, FieldAccess } from "./access"
 export type {
+  CustomViewDef,
+  CustomViewProps,
   EntityAction,
   EntityDef,
   EntityDefConfig,

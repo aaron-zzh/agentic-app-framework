@@ -386,11 +386,13 @@ public class AigcTaskExecutor {
                                 ? result.urls().get(0)
                                 : null);
         if (firstUrl != null) {
-            String ext = guessImageExt(firstUrl);
+            boolean inlineBase64 =
+                    firstUrl.startsWith("data:")
+                            || (!firstUrl.startsWith("http") && firstUrl.length() > 200);
+            String ext = inlineBase64 ? inlineImageExt(firstUrl) : guessImageExt(firstUrl);
             String path =
                     "aigc/%s/%s.%s".formatted(task.getType().toLowerCase(), UUID.randomUUID(), ext);
-            if (firstUrl.startsWith("data:")
-                    || (!firstUrl.startsWith("http") && firstUrl.length() > 200)) {
+            if (inlineBase64) {
                 return fileService.uploadFromBase64(firstUrl, path, task.getUserId());
             }
             return fileService.uploadFromUrl(
@@ -398,7 +400,11 @@ public class AigcTaskExecutor {
         }
         if (result.b64Json() != null) {
             String path =
-                    "aigc/%s/%s.png".formatted(task.getType().toLowerCase(), UUID.randomUUID());
+                    "aigc/%s/%s.%s"
+                            .formatted(
+                                    task.getType().toLowerCase(),
+                                    UUID.randomUUID(),
+                                    inlineImageExt(result.b64Json()));
             return fileService.uploadFromBase64(result.b64Json(), path, task.getUserId());
         }
         throw new IllegalStateException(
@@ -910,6 +916,30 @@ public class AigcTaskExecutor {
         } catch (Exception ignore) {
             return new ImageRequest(prompt, modelId);
         }
+    }
+
+    /** 内联 base64（含 data URL）按解码后的文件头推断扩展名，识别不了再按 data URL 声明推断。 */
+    private String inlineImageExt(String value) {
+        String data = value;
+        if (value.startsWith("data:")) {
+            int comma = value.indexOf(',');
+            if (comma > 0) data = value.substring(comma + 1);
+        }
+        if (data.length() >= 24) {
+            try {
+                // 24 个 base64 字符解码为 18 字节，足够判断常见图片头
+                byte[] head = java.util.Base64.getDecoder().decode(data.substring(0, 24));
+                if ((head[0] & 0xff) == 0x89 && head[1] == 0x50 && head[2] == 0x4e) return "png";
+                if ((head[0] & 0xff) == 0xff && (head[1] & 0xff) == 0xd8) return "jpg";
+                if (head[0] == 'G' && head[1] == 'I' && head[2] == 'F') return "gif";
+                if (head[0] == 'R' && head[1] == 'I' && head[8] == 'W' && head[9] == 'E') {
+                    return "webp";
+                }
+            } catch (IllegalArgumentException ignored) {
+                // 非法 base64 交由上传环节报错
+            }
+        }
+        return guessImageExt(value);
     }
 
     /** 从 URL 或 data URL 中推断图片扩展名，取不到则返回 {@code png}。 */

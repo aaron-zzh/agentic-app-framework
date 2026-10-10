@@ -77,7 +77,16 @@ public final class DefaultUnifiedRetrievalPort implements UnifiedRetrievalPort {
 
         float[] queryEmbedding = null;
         if (wantMemory && !request.query().isBlank()) {
-            queryEmbedding = embeddingService.embed(request.query(), request.userId());
+            try {
+                queryEmbedding = embeddingService.embed(request.query(), request.userId());
+            } catch (RuntimeException exception) {
+                // 查询向量化属于记忆通道；与通道内检索失败一致，降级为跳过记忆通道，不阻断本轮执行。
+                log.warn("[混合检索] 查询向量化失败，本轮跳过记忆通道：{}", exception.getMessage());
+                wantMemory = false;
+                if (!wantKnowledge) {
+                    return UnifiedRetrievalResult.empty();
+                }
+            }
         }
         final float[] resolvedEmbedding = queryEmbedding;
 

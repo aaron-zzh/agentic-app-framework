@@ -109,11 +109,6 @@ public class CommentService
                         cb.equal(root.get("entityId"), request.getEntityId()));
     }
 
-    @Override
-    protected Long extractOwnerId(Comment comment) {
-        return comment.getOwnerId();
-    }
-
     /** 按父资源分页查询评论。 */
     public PageResult<CommentVO> pageByEntity(
             String entityType, Long entityId, CommentPageDTO request) {

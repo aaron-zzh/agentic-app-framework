@@ -181,6 +181,7 @@ export function ProjectActivityProvider() {
       queryClient.invalidateQueries({ queryKey: aigcWorkKeys.all })
       queryClient.invalidateQueries({ queryKey: MEDIA_QUERY_KEY })
       queryClient.invalidateQueries({ queryKey: taskKeys.all })
+      queryClient.invalidateQueries({ queryKey: ["aigc.task"] })
       if (envelope.projectId === null) {
         queryClient.invalidateQueries({ queryKey: aigcProjectKeys.all })
         return

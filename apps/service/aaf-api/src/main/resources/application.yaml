@@ -60,6 +60,13 @@ spring:
       mail.smtp.timeout: 10000
       mail.smtp.writetimeout: 10000
   ai:
+    # Spring AI 自动装配的 ChatModel / EmbeddingModel 读取此处配置，不走 CapabilityRouter 六层决策。
+    # 业务侧 LLM 与 Embedding 的模型选择以 aaf.ai.* + DB(ai_model / ai_model_preference) 为准：
+    #   - Embedding（入库、记忆、知识库检索查询向量）全局固定一个模型 aaf.knowledge.embedding.model（默认 qwen:text-embedding-v4），
+    #     经 EmbeddingService → CapabilityRouter(显式指定层) → DynamicEmbeddingModelFactory；不支持按用户/知识库切换。
+    #     PgVectorStore 注入的是 @Primary 的 RoutedQueryEmbeddingModel，
+    #     只回放 EmbeddingService 预先算好的查询向量，不会使用下面 openai 配置对应的 EmbeddingModel。
+    #   - 下面的 openai.api-key/base-url 因此只影响 Spring AI 自动装配的 ChatModel。
     openai:
       api-key: ${OPENAI_API_KEY:sk-placeholder}
       base-url: ${OPENAI_BASE_URL:https://api.deepseek.com}

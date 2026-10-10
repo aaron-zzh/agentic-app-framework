@@ -36,9 +36,8 @@ import {
   TASK_TYPE_BY_MODE
 } from "@/features/studio/media-generation/types"
 import { useSlotStore } from "@/features/studio/slots/store"
-import type { AigcTaskEvent } from "@/lib/api/rest/ai/aigc-task"
-import { request } from "@/lib/api/rest/entity"
-import type { PageResult } from "@/lib/api/types"
+import { type AigcTaskEvent, useRecentAigcTasks } from "@/lib/api/rest/ai/aigc-task"
+import { request } from "@/lib/api/rest/crud"
 
 interface Feature {
   key: MediaGenerationMode
@@ -108,13 +107,25 @@ export function MediaGenerationWorkspace({
   const [workspaceDraft, setWorkspaceDraft] = useState<WorkspaceDraft | null>(() =>
     initialDraft ? { mode: resolvedInitialMode, value: initialDraft } : null
   )
-  const [tasksByType, setTasksByType] = useState<Record<MediaTaskType, AigcTaskEvent[]>>({
-    IMAGE: [],
-    VIDEO: [],
-    VOICE: [],
-    MUSIC: [],
-    MODEL_3D: []
-  })
+  const { data: recentTasks } = useRecentAigcTasks(
+    25,
+    shouldLoadIndependentMediaTasks(projectTargets)
+  )
+  const tasksByType = useMemo(() => {
+    const next: Record<MediaTaskType, AigcTaskEvent[]> = {
+      IMAGE: [],
+      VIDEO: [],
+      VOICE: [],
+      MUSIC: [],
+      MODEL_3D: []
+    }
+    for (const task of recentTasks?.list ?? []) {
+      if (isMediaTaskType(task.type) && next[task.type].length < 5) {
+        next[task.type].push(task)
+      }
+    }
+    return next
+  }, [recentTasks])
   const [regeneratingTaskId, setRegeneratingTaskId] = useState<number | null>(null)
 
   const router = useRouter()
@@ -125,40 +136,6 @@ export function MediaGenerationWorkspace({
     setActiveMode(resolvedInitialMode)
     setWorkspaceDraft(initialDraft ? { mode: resolvedInitialMode, value: initialDraft } : null)
   }, [initialDraft, resolvedInitialMode])
-
-  useEffect(() => {
-    if (!shouldLoadIndependentMediaTasks(projectTargets)) return
-    let active = true
-    const loadTasks = async () => {
-      try {
-        const page = await request<PageResult<AigcTaskEvent>>(
-          "/aigc/tasks?pageNo=1&pageSize=25&sort=id:desc"
-        )
-        if (!active) return
-        const next: Record<MediaTaskType, AigcTaskEvent[]> = {
-          IMAGE: [],
-          VIDEO: [],
-          VOICE: [],
-          MUSIC: [],
-          MODEL_3D: []
-        }
-        for (const task of page.list) {
-          if (isMediaTaskType(task.type) && next[task.type].length < 5) {
-            next[task.type].push(task)
-          }
-        }
-        setTasksByType(next)
-      } catch {
-        // 下一轮刷新会重试
-      }
-    }
-    loadTasks()
-    const timer = window.setInterval(loadTasks, 3_000)
-    return () => {
-      active = false
-      window.clearInterval(timer)
-    }
-  }, [projectTargets])
 
   const handleModeChange = useCallback(
     (mode: MediaGenerationMode) => {

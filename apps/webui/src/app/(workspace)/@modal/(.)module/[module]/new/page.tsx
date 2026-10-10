@@ -1,7 +1,7 @@
 "use client"
 
 import { use } from "react"
-import { entityRegistry } from "@/features/entity-engine/lib/registry"
+import { entityRegistry } from "@/lib/modules/entity-registry"
 import { EntityCreateView } from "@/sections/entity/view/entity-create-view"
 
 interface PageProps {

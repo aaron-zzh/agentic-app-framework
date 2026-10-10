@@ -25,6 +25,8 @@ import com.xuejiai.aaf.common.model.PageResult;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.crud.definition.CrudOperation;
 import com.xuejiai.aaf.framework.crud.enforcement.AccessMode;
+import com.xuejiai.aaf.framework.engine.knowledge.KnowledgeVectorService;
+import com.xuejiai.aaf.framework.engine.knowledge.embedding.EmbeddingProperties;
 import com.xuejiai.aaf.framework.engine.knowledge.graph.GraphService;
 import com.xuejiai.aaf.framework.engine.knowledge.pipeline.KnowledgePipelineService;
 import com.xuejiai.aaf.framework.engine.knowledge.rag.HybridSearchService;
@@ -92,9 +94,11 @@ public class KnowledgeBaseService
     private final KnowledgeGraphProjectionService graphProjectionService;
     private final TrustedKnowledgeStore truthStore;
     private final KnowledgePipelineService pipelineService;
+    private final KnowledgeVectorService knowledgeVectorService;
     private final KnowledgeDocumentCleanupQueueService cleanupQueueService;
     private final EntityManager entityManager;
     private final OperatorContext operatorContext;
+    private final EmbeddingProperties embeddingProperties;
 
     @Override
     protected KnowledgeBaseRepository getRepository() {
@@ -127,7 +131,8 @@ public class KnowledgeBaseService
         entity.setDescription(request.description());
         entity.setVisibility(Objects.requireNonNullElse(request.visibility(), "PRIVATE"));
         entity.setScopeCode(request.scopeCode());
-        entity.setEmbeddingModel(request.embeddingModel());
+        // 创建时记录当时使用的全局向量模型 modelId，只读；向量模型全局唯一，不支持按库指定或后续修改。
+        entity.setEmbeddingModel(embeddingProperties.model());
         entity.setChunkStrategy(Objects.requireNonNullElse(request.chunkStrategy(), "recursive"));
         entity.setChunkSize(Objects.requireNonNullElse(request.chunkSize(), 512));
         entity.setChunkOverlap(Objects.requireNonNullElse(request.chunkOverlap(), 64));
@@ -148,9 +153,6 @@ public class KnowledgeBaseService
         }
         if (request.scopeCode() != null) {
             entity.setScopeCode(request.scopeCode());
-        }
-        if (request.embeddingModel() != null) {
-            entity.setEmbeddingModel(request.embeddingModel());
         }
         if (request.chunkStrategy() != null) {
             entity.setChunkStrategy(request.chunkStrategy());
@@ -359,14 +361,31 @@ public class KnowledgeBaseService
         return graphProjectionStatus(knowledgeBase);
     }
 
+    public GraphProjectionStatusVO getVectorProjectionStatus(Long id) {
+        var knowledgeBase = requireEntity(id, CrudOperation.GET, AccessMode.ADMIN_MAINTENANCE);
+        return projectionStatus(knowledgeBase, "PGVECTOR");
+    }
+
+    /** 同步重建向量投影：按当前全局向量模型为活动 chunk 重新生成向量，费用记到入库批次的付费用户。 */
+    public GraphProjectionStatusVO rebuildVectorProjection(Long id) {
+        var knowledgeBase = requireEntity(id, CrudOperation.UPDATE, AccessMode.ADMIN_MAINTENANCE);
+        knowledgeVectorService.rebuild(knowledgeBase.getStableId());
+        return projectionStatus(knowledgeBase, "PGVECTOR");
+    }
+
     private GraphProjectionStatusVO graphProjectionStatus(KnowledgeBase knowledgeBase) {
+        return projectionStatus(knowledgeBase, "NEO4J");
+    }
+
+    private GraphProjectionStatusVO projectionStatus(
+            KnowledgeBase knowledgeBase, String projectionKind) {
         var status =
                 truthStore
-                        .graphProjectionStatus(knowledgeBase.getStableId())
+                        .projectionStatus(knowledgeBase.getStableId(), projectionKind)
                         .orElseThrow(() -> exception(GlobalErrorCode.NOT_FOUND));
         return new GraphProjectionStatusVO(
                 status.knowledgeBaseId(),
-                "NEO4J",
+                projectionKind,
                 status.baseWatermark(),
                 status.desiredWatermark(),
                 status.appliedWatermark(),

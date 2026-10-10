@@ -134,11 +134,6 @@ public class AigcWorkService
     }
 
     @Override
-    protected Long extractOwnerId(AigcWork work) {
-        return work.getUserId();
-    }
-
-    @Override
     protected Specification<AigcWork> buildSpec(AigcWorkPageDTO request) {
         return (root, query, cb) -> {
             var predicates = new ArrayList<Predicate>();

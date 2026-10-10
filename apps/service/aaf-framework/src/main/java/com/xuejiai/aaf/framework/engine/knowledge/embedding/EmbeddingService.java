@@ -19,8 +19,11 @@ import com.xuejiai.aaf.common.enums.pay.CreditTransactionCategoryEnum;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeUsagePort;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeUsagePort.BillingContext;
+import com.xuejiai.aaf.framework.intelligent.ai.embedding.DynamicEmbeddingModelFactory;
 import com.xuejiai.aaf.framework.intelligent.core.AiUsage;
-import com.xuejiai.aaf.framework.intelligent.core.model.ModelManagementService;
+import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -39,30 +42,31 @@ import lombok.extern.slf4j.Slf4j;
 @EnableConfigurationProperties(EmbeddingProperties.class)
 public class EmbeddingService {
 
-    private final EmbeddingModel embeddingModel;
+    private final CapabilityRouter capabilityRouter;
+    private final DynamicEmbeddingModelFactory embeddingModels;
     private final EmbeddingProperties properties;
     private final AiCreditGuard creditGuard;
     private final KnowledgeUsagePort knowledgeUsagePort;
-    private final ModelManagementService modelManagementService;
     private final ConcurrentHashMap<String, float[]> cache = new ConcurrentHashMap<>();
 
     public EmbeddingService(
-            EmbeddingModel embeddingModel,
+            CapabilityRouter capabilityRouter,
+            DynamicEmbeddingModelFactory embeddingModels,
             EmbeddingProperties properties,
             AiCreditGuard creditGuard,
-            KnowledgeUsagePort knowledgeUsagePort,
-            ModelManagementService modelManagementService) {
-        this.embeddingModel = embeddingModel;
+            KnowledgeUsagePort knowledgeUsagePort) {
+        this.capabilityRouter = capabilityRouter;
+        this.embeddingModels = embeddingModels;
         this.properties = properties;
         this.creditGuard = creditGuard;
         this.knowledgeUsagePort = knowledgeUsagePort;
-        this.modelManagementService = modelManagementService;
     }
 
     /** 单条文本生成 embedding，成本记账到 userId。 */
     public float[] embed(String text, Long userId) {
         Objects.requireNonNull(userId, "M53：embedding 成本需要归属用户，userId 不能为空");
-        var key = sha256(text);
+        var model = resolveModel(userId);
+        var key = cacheKey(model, text);
         var cached = cache.get(key);
         if (cached != null) {
             return cached;
@@ -71,7 +75,7 @@ public class EmbeddingService {
                 userId,
                 CreditTransactionCategoryEnum.EMBEDDING.getCode(),
                 AiCreditGuard.INESTIMABLE_COST);
-        var result = embedWithRetry(text);
+        var result = embedWithRetry(embeddingModelOf(model), text);
         cache.putIfAbsent(key, result);
         creditGuard.settleFixed(
                 userId,
@@ -93,8 +97,29 @@ public class EmbeddingService {
         return results;
     }
 
+    /**
+     * 全局固定一个向量模型（{@code aaf.knowledge.embedding.model}），不支持按用户或知识库切换。
+     *
+     * <p>仍经 {@link CapabilityRouter} 的「显式指定」层解析，复用其启用状态与 EMBEDDING 能力校验；不走用户偏好/系统默认层，
+     * 避免不同用户落到不同向量空间导致入库与检索对不上。
+     */
+    private AiModel resolveModel(Long userId) {
+        return capabilityRouter.resolve(
+                CapabilityRoutingContext.of(
+                        userId, CapabilityRoutingContext.CAP_EMBEDDING, properties.model()));
+    }
+
+    private EmbeddingModel embeddingModelOf(AiModel model) {
+        return embeddingModels.get(model, properties.dimensions());
+    }
+
+    /** 缓存键带模型标识：不同模型的向量空间不可混用。 */
+    private String cacheKey(AiModel model, String text) {
+        return model.getModelId() + "|" + sha256(text);
+    }
+
     /** 带重试的 embedding 调用 */
-    private float[] embedWithRetry(String text) {
+    private float[] embedWithRetry(EmbeddingModel embeddingModel, String text) {
         for (int attempt = 1; attempt <= properties.maxRetries(); attempt++) {
             try {
                 return embeddingModel.embed(text);
@@ -133,10 +158,11 @@ public class EmbeddingService {
         if (texts.isEmpty()) {
             return List.of();
         }
-        var model = modelManagementService.getModel(properties.model());
+        var model = resolveModel(billing.payerUserId());
+        var embeddingModel = embeddingModelOf(model);
         var inputDigest =
                 sha256(
-                        properties.model()
+                        model.getModelId()
                                 + "|"
                                 + String.join("|", texts.stream().map(this::sha256).toList()));
         var stored =
@@ -150,7 +176,7 @@ public class EmbeddingService {
                     stored.get().providerResult(),
                     model,
                     provider);
-            cacheSettled(texts, provider.vectors());
+            cacheSettled(model, texts, provider.vectors());
             return List.copyOf(provider.vectors());
         }
 
@@ -171,14 +197,14 @@ public class EmbeddingService {
                     com.xuejiai.aaf.common.util.JsonUtils.parseObject(
                             reserved.providerResult(), EmbeddingProviderResult.class);
             settleKnowledgeEmbedding(reserved, reserved.providerResult(), model, provider);
-            cacheSettled(texts, provider.vectors());
+            cacheSettled(model, texts, provider.vectors());
             return List.copyOf(provider.vectors());
         }
         if (!knowledgeUsagePort.start(reserved)) {
             throw new IllegalStateException("知识入库 embedding 单元并发占用失败");
         }
         try {
-            var vectors = texts.stream().map(this::embedWithRetry).toList();
+            var vectors = texts.stream().map(text -> embedWithRetry(embeddingModel, text)).toList();
             var inputTokens =
                     texts.stream().mapToLong(text -> Math.max(1, text.length() / 4)).sum();
             var provider = new EmbeddingProviderResult(vectors, inputTokens, vectors.size());
@@ -186,7 +212,7 @@ public class EmbeddingService {
             knowledgeUsagePort.persistProviderResult(
                     reserved, providerJson, reserved.providerRequestId());
             settleKnowledgeEmbedding(reserved, providerJson, model, provider);
-            cacheSettled(texts, vectors);
+            cacheSettled(model, texts, vectors);
             return List.copyOf(vectors);
         } catch (RuntimeException failure) {
             knowledgeUsagePort.markUnknown(reserved, failure.getMessage());
@@ -240,9 +266,9 @@ public class EmbeddingService {
                         reservation.occurredAt()));
     }
 
-    private void cacheSettled(List<String> texts, List<float[]> vectors) {
+    private void cacheSettled(AiModel model, List<String> texts, List<float[]> vectors) {
         for (var index = 0; index < texts.size(); index++) {
-            cache.putIfAbsent(sha256(texts.get(index)), vectors.get(index));
+            cache.putIfAbsent(cacheKey(model, texts.get(index)), vectors.get(index));
         }
     }
 

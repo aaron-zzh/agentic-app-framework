@@ -1276,6 +1276,15 @@ public class TrustedKnowledgeStore {
     }
 
     public Optional<GraphProjectionStatus> graphProjectionStatus(UUID knowledgeBaseId) {
+        return projectionStatus(knowledgeBaseId, "NEO4J");
+    }
+
+    /** 按投影类型（仅 NEO4J / PGVECTOR）读取知识库投影 checkpoint 状态。 */
+    public Optional<GraphProjectionStatus> projectionStatus(
+            UUID knowledgeBaseId, String projectionKind) {
+        if (!"NEO4J".equals(projectionKind) && !"PGVECTOR".equals(projectionKind)) {
+            throw new IllegalArgumentException("不支持的投影类型: " + projectionKind);
+        }
         return jdbcTemplate
                 .query(
                         """
@@ -1288,9 +1297,10 @@ public class TrustedKnowledgeStore {
                         FROM ai_knowledge_base base
                         LEFT JOIN ai_knowledge_projection_checkpoint checkpoint
                           ON checkpoint.knowledge_base_id = base.id
-                         AND checkpoint.projection_kind = 'NEO4J'
+                         AND checkpoint.projection_kind = '%s'
                         WHERE base.stable_id = ? AND base.deleted = false
-                        """,
+                        """
+                                .formatted(projectionKind),
                         (rs, rowNum) -> {
                             var baseWatermark = rs.getLong(2);
                             var desiredWatermark = rs.getLong(3);

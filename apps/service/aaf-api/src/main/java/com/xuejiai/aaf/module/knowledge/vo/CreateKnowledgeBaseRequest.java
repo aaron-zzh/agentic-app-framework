@@ -22,8 +22,6 @@ public record CreateKnowledgeBaseRequest(
                 @Pattern(regexp = "PRIVATE|ORG|SYSTEM_PUBLIC")
                 String visibility,
         @Schema(description = "授权范围编码", example = "product") @Size(max = 128) String scopeCode,
-        @Schema(description = "向量模型名称", example = "text-embedding-v3") @Size(max = 100)
-                String embeddingModel,
         @Schema(description = "分块策略", example = "recursive")
                 @Pattern(regexp = "fixed|recursive|semantic")
                 String chunkStrategy,

@@ -141,6 +141,7 @@ product(Epic→Story 拆分 + Spec 细化)
 - **代码注释语言**：Java / TS 代码内注释保持一致（建议中文，与 `docs/` 真理源一致），禁中英混用
 - **文档禁编号**：编写技术文档时章节标题不加数字编号（如"一、""1."），用 Markdown 标题层级表达结构。已有编号的历史文档不主动修改，新建和重写时遵守
 - **TypeScript 严格模式**：类型必须显式，禁 `any` / 禁 `@ts-ignore`（特殊情况加注释解释）
+- **管理后台统一 EntityDef**：`(workspace)/admin/**` 的列表、表单与运维动作由 `sys_entity_def` 声明，动作写入 `actions`；新增或大改的管理页禁止手写页面和单动作专用按钮；特定界面用 EntityDef `customViews` 挂在实体下。细则与例外见 [页面结构规范](docs/reference/dev/apps/webui/page-structure-standard.md#管理后台页面)
 - **前端服务端状态边界**：TanStack Query 管服务端缓存；Zustand 仅管客户端 UI；禁止把服务端数据复制到 Zustand
 - **测试放置**：共享逻辑 → `packages/*.test.ts`；平台接线 → `apps/*.test.tsx`；测试需 mock `next/*` 来测共享组件即 blocker（位置错误）
 - **编码任务开始前必须加载对应 agent 上下文**：前端任务开始前加载 `.kiro/agents/developer-webui.json` 中 `resources` 列出的所有文档；后端任务开始前加载 `.kiro/agents/developer-service.json` 中 `resources` 列出的所有文档；前后端同时涉及时两者都加载。不得凭记忆跳过加载直接编码

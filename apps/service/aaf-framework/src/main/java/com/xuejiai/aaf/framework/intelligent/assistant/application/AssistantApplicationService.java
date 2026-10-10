@@ -84,6 +84,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.event.TurnEndReason;
 import com.xuejiai.aaf.framework.intelligent.shared.event.TurnOutcomeAggregator;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AgentId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.EventId;
+import com.xuejiai.aaf.framework.org.OrgContext;
 
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
@@ -230,24 +231,36 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         var failureSequence = new AtomicLong(command.sequenceBase());
         var taskRef = new AtomicReference<Task>();
         var taskProgressed = new AtomicBoolean();
+        // 派发线程没有 HTTP 请求上下文：用命令中的可信 tenantId（orgId）与冻结在执行意图里的
+        // workspaceId 恢复组织上下文，覆盖同步准备阶段（定义/Skill/审计等按组织过滤的 Repository）。
         return Flux.defer(
                         () ->
-                                direct
-                                        ? executeDirect(invocation)
-                                        : command.operation() == AssistantCommand.Operation.SUBTASK
-                                                ? executeNode(invocation)
-                                                : executeAgent(invocation, taskRef, taskProgressed))
+                                OrgContext.runIfAbsent(
+                                        orgIdOf(command),
+                                        invocation.executionIntent().workspaceId(),
+                                        () ->
+                                                direct
+                                                        ? executeDirect(invocation)
+                                                        : command.operation()
+                                                                        == AssistantCommand
+                                                                                .Operation.SUBTASK
+                                                                ? executeNode(invocation)
+                                                                : executeAgent(
+                                                                        invocation,
+                                                                        taskRef,
+                                                                        taskProgressed)))
                 .doOnNext(event -> failureSequence.accumulateAndGet(event.sequence(), Math::max))
                 .onErrorResume(
                         failure -> {
                             var trackedTask = taskRef.get();
                             log.debug(
-                                    "[Assistant协调] 执行失败，已进入失败收口：executionId={}，taskId={}，assistantId={}，任务状态={}，错误类型={}",
+                                    "[Assistant协调] 执行失败，已进入失败收口：executionId={}，taskId={}，assistantId={}，任务状态={}，错误类型={}，错误信息={}",
                                     command.executionId().value(),
                                     taskKey(command),
                                     command.assistantId().value(),
                                     trackedTask == null ? null : trackedTask.status(),
-                                    failure.getClass().getName());
+                                    failure.getClass().getName(),
+                                    failure.getMessage());
                             return direct
                                     ? failDirect(
                                             command, failureSequence.incrementAndGet(), failure)
@@ -843,6 +856,15 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 command.assistantId().value(),
                 definition.version().value(),
                 definition.lifecycle());
+    }
+
+    /** tenantId 即 orgId 的字符串投影；非数字（如测试占位）时不绑定组织上下文。 */
+    private static Long orgIdOf(AssistantCommand command) {
+        try {
+            return Long.valueOf(command.tenantId().value());
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     private static String taskKey(AssistantCommand command) {

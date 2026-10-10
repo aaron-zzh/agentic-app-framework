@@ -4,22 +4,13 @@ export {
   clearComponentRegistry,
   getBatchActions,
   getCellComponent,
+  getCustomViewComponent,
   getFieldComponent,
   getViewComponent,
   registerBatchAction,
   registerCellType,
+  registerCustomView,
   registerFieldType,
   registerViewType
 } from "./component-registry"
-export type { MixinDef } from "./mixins"
-export {
-  AuditMixin,
-  BaseEntityMixin,
-  builtinMixins,
-  OrgMixin,
-  RemarkMixin,
-  SoftDeleteMixin,
-  TimestampMixin
-} from "./mixins"
-export { entityRegistry } from "./registry"
-export { resolveExtends, resolveMixins } from "./resolve"
+export { BUILTIN_VIEW_KEYS, getCustomViews } from "./custom-views"

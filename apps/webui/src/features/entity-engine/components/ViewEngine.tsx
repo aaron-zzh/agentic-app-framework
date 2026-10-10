@@ -19,13 +19,11 @@ import { useRouter } from "next/navigation"
 import type { ComponentType } from "react"
 import { toast } from "sonner"
 import { ViewErrorBoundary } from "@/components/common/ViewErrorBoundary"
-import { fromEntityDef, useCrudUpdate } from "@/lib/api/rest/crud"
+import { type PageResult, useCrudUpdate } from "@/lib/api/rest/crud"
 import {
   encodeFilterParams,
   entityQueryWindowPrefix,
-  type PageResult,
   useEntityDetail,
-  useEntityList,
   useEntityQueryWindow,
   useEntitySearchParams,
   useFilterParams
@@ -33,9 +31,11 @@ import {
 import { paths } from "@/lib/constants/paths"
 import { cn } from "@/lib/utils/cn"
 import { useResolvedEntity } from "../hooks/use-resolved-entity"
-import { getViewComponent } from "../lib/component-registry"
+import { getCustomViewComponent, getViewComponent } from "../lib/component-registry"
+import { BUILTIN_VIEW_KEYS } from "../lib/custom-views"
+import { withExpectedVersion } from "../lib/expected-version"
 import { parseSortParam, resolveSortingUpdater, serializeSorting } from "../lib/sort-params"
-import type { EntityDef, FormViewOverrideProps } from "../types"
+import type { CustomViewDef, EntityDef, FormViewOverrideProps } from "../types"
 import { CalendarView } from "./calendar"
 import { CanvasView } from "./canvas"
 import { EntityApproval } from "./EntityApproval"
@@ -46,15 +46,7 @@ import { ListView } from "./list"
 import { PivotView } from "./pivot"
 
 /** 支持的视图类型 */
-export type ViewType =
-  | "list"
-  | "form"
-  | "kanban"
-  | "pivot"
-  | "graph"
-  | "chart"
-  | "calendar"
-  | "canvas"
+export type ViewType = "list" | "form" | "kanban" | "pivot" | "calendar" | "canvas"
 
 interface ViewEngineProps {
   entity: EntityDef
@@ -127,6 +119,14 @@ function ViewEngineInner({
   if (view === "kanban" && entity.overrides?.kanbanView) {
     const Override = entity.overrides.kanbanView
     return <Override />
+  }
+
+  // 声明式自定义视图：按 EntityDef.customViews 解析注册表组件；内置视图 key 不可被覆盖
+  const customView = entity.customViews?.find(
+    (candidate) => candidate.key === view && !BUILTIN_VIEW_KEYS.has(candidate.key)
+  )
+  if (customView) {
+    return <CustomViewHost entity={resolvedEntity} customView={customView} recordId={recordId} />
   }
 
   // 从组件注册表获取视图组件
@@ -225,16 +225,6 @@ function ConnectedListView({
   )
 }
 
-export function withExpectedVersion(
-  detail: Record<string, unknown> | null | undefined,
-  values: Record<string, unknown>
-): Record<string, unknown> | undefined {
-  if (!detail || !("version" in detail)) return values
-  const version = detail.version
-  if (typeof version !== "number" || !Number.isInteger(version) || version < 0) return undefined
-  return { ...values, expectedVersion: version }
-}
-
 /** 表单视图——连接数据层（仅编辑模式；新建走独立路由 EntityCreateView） */
 function ConnectedFormView({
   entity,
@@ -256,8 +246,7 @@ function ConnectedFormView({
   showRecordWindowPager: boolean
 }) {
   const { data, isLoading } = useEntityDetail(entity, recordId, { queryToken })
-  const resource = fromEntityDef(entity)
-  const { mutate: update, isPending: updating } = useCrudUpdate(resource)
+  const { mutate: update, isPending: updating } = useCrudUpdate(entity)
 
   // EntityDef 显式声明只读时禁用提交；实际更新权限仍由后端 CRUD 授权最终校验。
   const isReadOnly = readOnly || entity.access?.update === false
@@ -315,7 +304,7 @@ function ConnectedFormView({
       )}
       {detail}
       {!isReadOnly && !Override && entity.workflow && recordId && (
-        <EntityApproval config={entity.workflow} entityId={recordId} currentUserId="current-user" />
+        <EntityApproval config={entity.workflow} entityId={recordId} />
       )}
     </div>
   )
@@ -466,8 +455,30 @@ function recordHref(entitySlug: string, id: string, queryToken?: string) {
 
 /** 日历视图——连接数据层 */
 function ConnectedCalendarView({ entity }: { entity: EntityDef }) {
-  const { data, isLoading } = useEntityList(entity, {})
+  // 与列表前端分页一致：pageSize=-1 取过滤后的完整窗口
+  const { data, isLoading } = useEntityQueryWindow(entity, { page: 1, pageSize: -1 })
   return <CalendarView entity={entity} data={data} loading={isLoading} />
+}
+
+/** 声明式自定义视图宿主：解析注册表组件，未注册时给出明确错误占位 */
+function CustomViewHost({
+  entity,
+  customView,
+  recordId
+}: {
+  entity: EntityDef
+  customView: CustomViewDef
+  recordId?: string
+}) {
+  const Component = getCustomViewComponent(customView.component)
+  if (!Component) {
+    return (
+      <div className="p-8 text-center text-destructive text-sm">
+        自定义视图组件未注册：{customView.component}
+      </div>
+    )
+  }
+  return <Component entity={entity} recordId={recordId} />
 }
 
 /** 视图占位组件（后续被 ListView/KanbanView/FormView 替换） */

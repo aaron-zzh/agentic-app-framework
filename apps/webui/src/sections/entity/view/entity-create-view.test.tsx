@@ -68,7 +68,6 @@ vi.mock("@/features/entity-engine/hooks/use-resolved-entity", () => ({
 }))
 
 vi.mock("@/lib/api/rest/crud", () => ({
-  fromEntityDef: vi.fn(),
   useCrudCreate: () => ({ isPending: false, mutate: mockMutate })
 }))
 

@@ -4,7 +4,7 @@
  */
 
 import { backendApi } from "../backend-client"
-import type { PageResult } from "../entity/crud"
+import type { PageResult } from "../crud"
 
 /** 审批人策略 */
 export type AssigneeStrategy =

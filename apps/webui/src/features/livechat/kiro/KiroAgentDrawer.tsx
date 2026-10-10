@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
-import { request } from "@/lib/api/rest/entity"
+import { request } from "@/lib/api/rest/crud"
 import { ChatLayout } from "../ChatLayout"
 import { KiroAgentProvider } from "./KiroAgentProvider"
 

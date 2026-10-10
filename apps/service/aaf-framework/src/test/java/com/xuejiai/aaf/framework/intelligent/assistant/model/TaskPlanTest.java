@@ -30,6 +30,7 @@ class TaskPlanTest {
                                 "撰写品牌文案",
                                 "system.role.content-creator",
                                 "ip-position",
+                                TaskModelSelection.auto(),
                                 3));
         var draft =
                 new TaskPlanDraft(

@@ -5,7 +5,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { backendApi } from "../backend-client"
-import { buildQuery, type ListParams, type PageResult } from "../entity/crud"
+import { buildQuery, type ListParams, type PageResult } from "../crud"
 
 /** 字段变更记录 */
 export interface FieldChange {

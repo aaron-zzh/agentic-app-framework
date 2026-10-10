@@ -22,8 +22,9 @@ import org.springframework.ai.embedding.EmbeddingModel;
 
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeUsagePort;
+import com.xuejiai.aaf.framework.intelligent.ai.embedding.DynamicEmbeddingModelFactory;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
-import com.xuejiai.aaf.framework.intelligent.core.model.ModelManagementService;
+import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 
 @ExtendWith(MockitoExtension.class)
 class EmbeddingKnowledgeReservationTest {
@@ -31,7 +32,8 @@ class EmbeddingKnowledgeReservationTest {
     @Mock private EmbeddingModel embeddingModel;
     @Mock private AiCreditGuard creditGuard;
     @Mock private KnowledgeUsagePort usagePort;
-    @Mock private ModelManagementService modelManagementService;
+    @Mock private CapabilityRouter capabilityRouter;
+    @Mock private DynamicEmbeddingModelFactory embeddingModels;
     @Mock private AiModel model;
 
     @Test
@@ -40,10 +42,10 @@ class EmbeddingKnowledgeReservationTest {
         var properties = new EmbeddingProperties("embedding-model", 3, 100, 1, 1);
         var service =
                 new EmbeddingService(
-                        embeddingModel, properties, creditGuard, usagePort, modelManagementService);
+                        capabilityRouter, embeddingModels, properties, creditGuard, usagePort);
         var billing = new KnowledgeUsagePort.BillingContext("tenant", UUID.randomUUID(), 10L);
         var text = "knowledge";
-        var digest = sha256(properties.model() + "|" + sha256(text));
+        var digest = sha256("embedding-model" + "|" + sha256(text));
         var invocationId =
                 KnowledgeUsagePort.invocationId(billing.runId(), "embedding", "chunks", digest);
         var reservation =
@@ -60,7 +62,9 @@ class EmbeddingKnowledgeReservationTest {
                         KnowledgeUsagePort.ReservationState.RESERVED,
                         null,
                         invocationId);
-        when(modelManagementService.getModel("embedding-model")).thenReturn(model);
+        when(capabilityRouter.resolve(any())).thenReturn(model);
+        when(model.getModelId()).thenReturn("embedding-model");
+        when(embeddingModels.get(model, 3)).thenReturn(embeddingModel);
         when(model.getInputPricePerK()).thenReturn(BigDecimal.ONE);
         when(usagePort.findProviderResult(billing, "embedding", "chunks", digest))
                 .thenReturn(Optional.empty());

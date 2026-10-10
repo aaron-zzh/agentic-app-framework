@@ -56,10 +56,10 @@ import com.xuejiai.aaf.module.system.task.AsyncTaskResource;
 import com.xuejiai.aaf.module.system.task.TaskExecutionResource;
 import com.xuejiai.aaf.module.system.task.controller.AsyncTaskEntityController;
 import com.xuejiai.aaf.module.system.task.controller.TaskExecutionEntityController;
-import com.xuejiai.aaf.module.system.todo.TodoResource;
-import com.xuejiai.aaf.module.system.todo.controller.TodoController;
 import com.xuejiai.aaf.module.system.user.controller.UserController;
 import com.xuejiai.aaf.module.system.user.favorite.controller.UserFavoriteController;
+import com.xuejiai.aaf.module.todo.TodoResource;
+import com.xuejiai.aaf.module.todo.controller.TodoController;
 
 /**
  * 当前全部代码 CRUD 端点的显式 Catalog Provider。

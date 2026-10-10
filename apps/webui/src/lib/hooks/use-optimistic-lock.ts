@@ -1,7 +1,7 @@
 /**
  * useOptimisticLock——乐观锁冲突检测与处理 hook
  *
- * 包装 useEntityMutation，检测 409 状态码，触发冲突对话框。
+ * 包装 CRUD 更新（updateRecord），检测 409 状态码，触发冲突对话框。
  *
  * @example
  * ```tsx
@@ -19,8 +19,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useCallback, useState } from "react"
-import { crudKey, fromEntityDef } from "@/lib/api/rest/crud"
-import { ApiError, fetchRecord, updateRecord } from "@/lib/api/rest/entity"
+import { ApiError, crudKey, fetchRecord, updateRecord } from "@/lib/api/rest/crud"
 import type { EntityDef } from "@/lib/types/entity"
 
 interface ConflictState {
@@ -40,7 +39,6 @@ export function useOptimisticLock(
   options?: UseOptimisticLockOptions
 ) {
   const queryClient = useQueryClient()
-  const resource = fromEntityDef(entity)
   const [conflict, setConflict] = useState<ConflictState>({
     open: false,
     myData: null,
@@ -48,15 +46,15 @@ export function useOptimisticLock(
   })
 
   const mutation = useMutation({
-    mutationFn: (data: Record<string, unknown>) => updateRecord(resource, id, data),
+    mutationFn: (data: Record<string, unknown>) => updateRecord(entity, id, data),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: crudKey(resource) })
+      void queryClient.invalidateQueries({ queryKey: crudKey(entity) })
       options?.onSuccess?.()
     },
     onError: async (error: Error, variables: Record<string, unknown>) => {
       if (error instanceof ApiError && error.code === 409) {
         // 获取服务端最新数据
-        const serverData = await fetchRecord(resource, id)
+        const serverData = await fetchRecord(entity, id)
         setConflict({ open: true, myData: variables, serverData })
       }
     }
@@ -72,9 +70,9 @@ export function useOptimisticLock(
 
   /** 刷新：放弃本地修改，使用服务端数据 */
   const handleRefresh = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: crudKey(resource) })
+    void queryClient.invalidateQueries({ queryKey: crudKey(entity) })
     setConflict({ open: false, myData: null, serverData: null })
-  }, [queryClient, resource])
+  }, [queryClient, entity])
 
   /** 取消：关闭对话框，保持当前状态 */
   const handleCancel = useCallback(() => {

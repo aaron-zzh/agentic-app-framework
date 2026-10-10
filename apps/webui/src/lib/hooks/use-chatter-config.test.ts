@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { useChatterStore } from "@/lib/store/chatter-store"
 
 // mock request 防止 syncToRemote 发出真实 XHR
-vi.mock("@/lib/api/rest/entity/crud", () => ({
+vi.mock("@/lib/api/rest/crud", () => ({
   request: vi.fn().mockResolvedValue(null)
 }))
 

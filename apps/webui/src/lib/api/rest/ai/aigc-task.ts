@@ -3,9 +3,10 @@
  * @author AaronZZH & Kiro
  */
 
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
-import { request } from "../entity/crud"
+import type { PageResult } from "@/lib/api/types"
+import { request } from "../crud"
 
 export interface AigcTaskEvent {
   id: number
@@ -196,6 +197,18 @@ export const aigcTaskApi = {
       }),
       headers: { "Content-Type": "application/json" }
     })
+}
+
+/**
+ * 最近 AIGC 任务列表。由 Activity SSE 失效 `["aigc.task"]` 驱动刷新，不做轮询。
+ */
+export function useRecentAigcTasks(pageSize: number, enabled = true) {
+  return useQuery({
+    queryKey: ["aigc.task", "recent", pageSize] as const,
+    queryFn: () =>
+      request<PageResult<AigcTaskEvent>>(`/aigc/tasks?pageNo=1&pageSize=${pageSize}&sort=id:desc`),
+    enabled
+  })
 }
 
 export function useCancelAigcTask() {

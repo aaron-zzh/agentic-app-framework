@@ -1,7 +1,9 @@
 package com.xuejiai.aaf.module.ai.aigc.event.service;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
@@ -153,11 +155,18 @@ public class AigcActivityEventService {
                                         scope.ownerId(), scope.orgId(), scope.workspaceId());
                         liveSubscribers.forEach(
                                 subscriber -> {
-                                    subscriber.catchUp(upperBound);
-                                    if (liveSubscribers.contains(subscriber)) {
-                                        subscriber.comment("heartbeat");
+                                    try {
+                                        subscriber.catchUp(upperBound);
+                                        if (liveSubscribers.contains(subscriber)) {
+                                            subscriber.comment("heartbeat");
+                                        }
+                                    } catch (RuntimeException error) {
+                                        subscriber.fail(error);
                                     }
                                 });
+                    } catch (RuntimeException error) {
+                        // 单个 scope 异常（如 DB 查询失败）不得中断其他 scope 的 heartbeat
+                        log.error("Activity heartbeat 处理 scope 失败: scope={}", scope, error);
                     } finally {
                         scopeLock.unlock();
                     }
@@ -177,7 +186,14 @@ public class AigcActivityEventService {
             var upperBound =
                     repository.replayUpperBound(
                             scope.ownerId(), scope.orgId(), scope.workspaceId());
-            liveSubscribers.forEach(subscriber -> subscriber.catchUp(upperBound));
+            liveSubscribers.forEach(
+                    subscriber -> {
+                        try {
+                            subscriber.catchUp(upperBound);
+                        } catch (RuntimeException error) {
+                            subscriber.fail(error);
+                        }
+                    });
         } finally {
             scopeLock.unlock();
         }
@@ -187,21 +203,32 @@ public class AigcActivityEventService {
         repository.lockScope(event.getOwnerId(), event.getOrgId(), event.getWorkspaceId());
     }
 
+    /** 发送单条事件。事件本身无法构造 envelope 时记录 error 并跳过，调用方照常推进游标。 */
     private void send(SseEmitter emitter, AigcActivityEvent event) throws IOException {
-        var envelope =
-                new AigcActivityEnvelope(
-                        event.getId(),
-                        event.getEventType(),
-                        event.getProjectId(),
-                        event.getExecutionRunId(),
-                        event.getTaskId(),
-                        event.getMediaVersionId(),
-                        event.getObjectVersionId(),
-                        event.getReviewId(),
-                        event.getWorkId(),
-                        event.getPublicationId(),
-                        event.getConversationId(),
-                        event.getPayload());
+        AigcActivityEnvelope envelope;
+        try {
+            envelope =
+                    new AigcActivityEnvelope(
+                            event.getId(),
+                            event.getEventType(),
+                            event.getProjectId(),
+                            event.getExecutionRunId(),
+                            event.getTaskId(),
+                            event.getMediaVersionId(),
+                            event.getObjectVersionId(),
+                            event.getReviewId(),
+                            event.getWorkId(),
+                            event.getPublicationId(),
+                            event.getConversationId(),
+                            event.getPayload());
+        } catch (RuntimeException error) {
+            log.error(
+                    "Activity 事件构造 envelope 失败，已跳过: eventId={}, type={}",
+                    event.getId(),
+                    event.getEventType(),
+                    error);
+            return;
+        }
         emitter.send(
                 SseEmitter.event()
                         .id(String.valueOf(event.getId()))
@@ -209,16 +236,43 @@ public class AigcActivityEventService {
                         .data(envelope));
     }
 
+    /** 事件 payload 仅作变化通知；任务类数据只保留状态摘要，详情由前端按 taskId 查询。 */
     private Map<String, Object> payload(Object data) {
         if (data == null) {
             return Map.of();
         }
+        if (data instanceof AigcTaskVO task) {
+            return summary("type", task.type(), "status", task.status());
+        }
+        if (data instanceof AigcTaskView task) {
+            return summary(
+                    "type",
+                    task.taskType(),
+                    "status",
+                    task.status(),
+                    "failureCode",
+                    task.failureCode());
+        }
         var json = JsonUtils.toJsonString(data);
         try {
-            return JsonUtils.parseObject(json, new TypeReference<Map<String, Object>>() {});
+            var parsed = JsonUtils.parseObject(json, new TypeReference<Map<String, Object>>() {});
+            var result = new LinkedHashMap<String, Object>(parsed);
+            result.values().removeIf(Objects::isNull);
+            return result;
         } catch (RuntimeException error) {
             return Map.of("data", String.valueOf(data));
         }
+    }
+
+    /** 按键值对构造摘要 payload，忽略 null 值。 */
+    private static Map<String, Object> summary(Object... keyValues) {
+        var result = new LinkedHashMap<String, Object>();
+        for (int i = 0; i < keyValues.length; i += 2) {
+            if (keyValues[i + 1] != null) {
+                result.put((String) keyValues[i], keyValues[i + 1]);
+            }
+        }
+        return result;
     }
 
     private void afterCommit(Runnable action) {
@@ -301,6 +355,17 @@ public class AigcActivityEventService {
                 emitter.completeWithError(error);
             } finally {
                 sendLock.unlock();
+            }
+        }
+
+        /** 订阅者出现非 IO 异常时断开，由前端按游标重连，避免拖垮同一轮其他订阅者。 */
+        private void fail(RuntimeException error) {
+            log.error("Activity 订阅者处理失败，已断开: scope={}", scope, error);
+            remove(this);
+            try {
+                emitter.completeWithError(error);
+            } catch (RuntimeException ignored) {
+                // emitter 已结束，无需处理
             }
         }
 
