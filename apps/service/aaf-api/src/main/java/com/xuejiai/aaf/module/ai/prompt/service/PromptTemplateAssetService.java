@@ -803,6 +803,12 @@ public class PromptTemplateAssetService
                 : toVO(template);
     }
 
+    @Override
+    protected List<PromptTemplateVO> toVOList(
+            List<PromptTemplate> templates, String fieldSet, AccessMode accessMode) {
+        return templates.stream().map(template -> toVO(template, fieldSet, accessMode)).toList();
+    }
+
     private PromptTemplateVO toGovernanceVO(PromptTemplate template) {
         var current = requireCurrentVersion(template);
         var draft =

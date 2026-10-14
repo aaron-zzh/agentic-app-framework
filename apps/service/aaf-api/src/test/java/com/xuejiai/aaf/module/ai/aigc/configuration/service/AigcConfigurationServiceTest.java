@@ -19,8 +19,7 @@ import com.xuejiai.aaf.module.ai.aigc.configuration.enums.AigcConfigStatus;
 import com.xuejiai.aaf.module.ai.aigc.configuration.repository.AigcChannelSpecRepository;
 import com.xuejiai.aaf.module.ai.aigc.configuration.repository.AigcProjectBlueprintRepository;
 import com.xuejiai.aaf.module.ai.aigc.configuration.repository.AigcProjectTypeRepository;
-import com.xuejiai.aaf.module.ai.aigc.execution.domain.AigcExecutionBinding;
-import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionBindingRepository;
+import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionBindingApi;
 import com.xuejiai.aaf.test.BaseMockitoUnitTest;
 
 class AigcConfigurationServiceTest extends BaseMockitoUnitTest {
@@ -28,7 +27,7 @@ class AigcConfigurationServiceTest extends BaseMockitoUnitTest {
     @Mock private AigcProjectTypeRepository projectTypeRepository;
     @Mock private AigcProjectBlueprintRepository blueprintRepository;
     @Mock private AigcChannelSpecRepository channelSpecRepository;
-    @Mock private AigcExecutionBindingRepository executionBindingRepository;
+    @Mock private AigcExecutionBindingApi executionBindingApi;
     @Mock private AigcCatalogBlueprintCompiler blueprintCompiler;
     @InjectMocks private AigcConfigurationService service;
 
@@ -101,16 +100,10 @@ class AigcConfigurationServiceTest extends BaseMockitoUnitTest {
                 .thenReturn(Optional.of(projectType));
         when(blueprintRepository.findByIdAndStatusAndDeletedFalse(2L, "published"))
                 .thenReturn(Optional.of(blueprint));
-        var shotBinding = new AigcExecutionBinding();
-        shotBinding.setId(10L);
-        var copyBinding = new AigcExecutionBinding();
-        copyBinding.setId(11L);
-        when(executionBindingRepository.findByActionKeyAndStatusOrderByPriorityDesc(
-                        "shot.generate", "published"))
-                .thenReturn(List.of(shotBinding));
-        when(executionBindingRepository.findByActionKeyAndStatusOrderByPriorityDesc(
-                        "copy.rewrite", "published"))
-                .thenReturn(List.of(copyBinding));
+        when(executionBindingApi.findPublishedBindingVersionId("shot.generate"))
+                .thenReturn(Optional.of(10L));
+        when(executionBindingApi.findPublishedBindingVersionId("copy.rewrite"))
+                .thenReturn(Optional.of(11L));
         var command = new AigcConfigurationResolveCommand("content", 2L, List.of(), null, null);
 
         // 调用

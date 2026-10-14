@@ -492,7 +492,6 @@ CREATE TABLE aigc_project_object (
     instance_no INTEGER NOT NULL,
     contract_role VARCHAR(32) NOT NULL,
     semantic_role VARCHAR(32) NOT NULL,
-    planned_phase VARCHAR(32) NOT NULL,
     output_contract VARCHAR(32) NOT NULL,
     default_action_key VARCHAR(64),
     parent_id BIGINT REFERENCES aigc_project_object(id) ON DELETE RESTRICT,
@@ -522,8 +521,6 @@ CREATE TABLE aigc_project_object (
         CHECK (contract_role IN ('REQUIRED', 'OPTIONAL', 'EXCLUDED')),
     CONSTRAINT ck_aigc_project_object_semantic_role
         CHECK (semantic_role IN ('STRUCTURE', 'WORKING_ARTIFACT', 'DELIVERABLE', 'EVIDENCE', 'REFERENCE')),
-    CONSTRAINT ck_aigc_project_object_planned_phase
-        CHECK (planned_phase IN ('START', 'DESIGN', 'BUILD', 'DELIVER', 'RUN')),
     CONSTRAINT ck_aigc_project_object_output_contract
         CHECK (output_contract IN ('INLINE_OBJECT_VERSION', 'DOCUMENT_VERSION', 'MEDIA_VERSION', 'COMPOSITE_MANIFEST', 'REFERENCE_ONLY'))
 );

@@ -7,6 +7,7 @@
 
 "use client"
 
+import { useBoolean } from "@aaf/hooks"
 import {
   BarChart3,
   Briefcase,
@@ -45,7 +46,13 @@ import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import { CopywritingReferenceImages } from "@/features/aigc/copywriting/CopywritingReferenceImages"
-import { COPYWRITING_ROLE_KEY, useCopywriting } from "@/features/aigc/copywriting/use-copywriting"
+import {
+  APPROVAL_FEEDBACK_MAX_CHARS,
+  COPYWRITING_ROLE_KEY,
+  type CopywritingNodeOutput,
+  clampApprovalFeedback,
+  useCopywriting
+} from "@/features/aigc/copywriting/use-copywriting"
 import { useAigcStore } from "@/features/aigc/store"
 import { StreamingEditor } from "@/features/rich-text-editor"
 import type { AssistantExecutionPhase } from "@/lib/api/assistant-agui"
@@ -251,6 +258,57 @@ function ExecutionPhaseBadge({ phase }: { phase: AssistantExecutionPhase }) {
   return <Badge variant={variant}>{label}</Badge>
 }
 
+const NODE_KIND_LABELS: Record<CopywritingNodeOutput["nodeKind"], string> = {
+  COORDINATOR: "协调者",
+  EXECUTOR: "执行者",
+  EVALUATOR: "评估者",
+  AGGREGATOR: "聚合者"
+}
+
+function NodeProcessOutput({ output }: { output: CopywritingNodeOutput }) {
+  const open = useBoolean(false)
+  const label = output.roleKey || output.nodeId
+  return (
+    <Collapsible open={open.value} onOpenChange={open.setValue}>
+      <div className="rounded-md border">
+        <CollapsibleTrigger
+          render={
+            <button type="button" className="flex w-full items-center gap-3 px-3 py-2 text-left" />
+          }
+        >
+          <ChevronDown
+            aria-hidden="true"
+            className={cn("size-4 shrink-0 transition-transform", open.value && "rotate-180")}
+          />
+          <span className="min-w-0 flex-1 truncate text-sm" title={label}>
+            {NODE_KIND_LABELS[output.nodeKind]} · {label}
+          </span>
+          <Badge variant="secondary">{output.status}</Badge>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <ScrollArea className="h-40 border-t">
+            <div className="whitespace-pre-wrap p-3 text-muted-foreground text-sm leading-6">
+              {output.text || "该节点暂未产生文本输出"}
+            </div>
+          </ScrollArea>
+          {output.artifacts.length > 0 ? (
+            <div className="flex flex-wrap gap-2 border-t p-3">
+              {output.artifacts.map((artifact) => (
+                <Badge
+                  key={`${artifact.documentId}-${artifact.documentVersionId}`}
+                  variant="outline"
+                >
+                  草稿 #{artifact.documentId}
+                </Badge>
+              ))}
+            </div>
+          ) : null}
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  )
+}
+
 function CopywritingWorkspace({
   skillName,
   instancePrompt
@@ -267,9 +325,12 @@ function CopywritingWorkspace({
     documentId,
     phase,
     pendingApproval,
+    approvalFeedback,
+    setApprovalFeedback,
     approvalLoading,
     handleApprovalDecision,
     processEntries,
+    nodeOutputs,
     contextSources,
     toolCalls,
     selectedSkillKey,
@@ -345,13 +406,31 @@ function CopywritingWorkspace({
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
               <p className="text-muted-foreground text-sm">
-                Assistant 已安全暂停。批准后将从持久恢复点继续执行，不会提升其他工具权限。
+                批准或拒绝后都将从持久恢复点继续当前节点；拒绝反馈会作为该工具调用的错误结果交给智能体调整。
               </p>
               <div className="flex flex-wrap gap-2">
                 <Badge variant="secondary">工具：{pendingApproval.toolCallId}</Badge>
                 <Badge variant="outline">
                   {pendingApproval.reversible ? "操作可撤销" : "操作不可自动撤销"}
                 </Badge>
+              </div>
+              <div className="flex flex-col gap-2">
+                <label htmlFor="copywriting-approval-feedback" className="font-medium text-sm">
+                  拒绝反馈（可选）
+                </label>
+                <Textarea
+                  id="copywriting-approval-feedback"
+                  value={approvalFeedback}
+                  onChange={(event) =>
+                    setApprovalFeedback(clampApprovalFeedback(event.target.value))
+                  }
+                  disabled={approvalLoading}
+                  placeholder="例如：不要修改现有草稿，请改为仅返回文案"
+                  className="min-h-20 resize-y"
+                />
+                <p className="text-right text-muted-foreground text-xs">
+                  {Array.from(approvalFeedback).length}/{APPROVAL_FEEDBACK_MAX_CHARS}
+                </p>
               </div>
               <div className="flex gap-2">
                 <Button
@@ -373,7 +452,7 @@ function CopywritingWorkspace({
                   onClick={() => void handleApprovalDecision("REJECTED")}
                 >
                   <X data-icon="inline-start" />
-                  拒绝
+                  拒绝并继续
                 </Button>
               </div>
             </CardContent>
@@ -418,6 +497,22 @@ function CopywritingWorkspace({
                   <Badge variant="outline">材料：{selectedMaterials.length}</Badge>
                   <Badge variant="outline">上下文：{contextSources.length}</Badge>
                 </div>
+
+                {nodeOutputs.length > 0 ? (
+                  <section
+                    className="flex flex-col gap-2"
+                    aria-labelledby="copy-node-outputs-title"
+                  >
+                    <h3 id="copy-node-outputs-title" className="font-medium text-sm">
+                      节点输出
+                    </h3>
+                    <div className="flex flex-col gap-2">
+                      {nodeOutputs.map((output) => (
+                        <NodeProcessOutput key={output.nodeId} output={output} />
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
 
                 <ScrollArea className="h-52 rounded-md border">
                   {processEntries.length === 0 ? (

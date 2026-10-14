@@ -63,7 +63,10 @@ public class AigcExecutionSubmissionService {
                                         "attachmentMediaVersionIds",
                                                 command.attachmentMediaVersionIds(),
                                         "selectedProjectObjectIds",
-                                                requestPayload.get("selectedProjectObjectIds")),
+                                                requestPayload.get("selectedProjectObjectIds"),
+                                        "approvedGenerationTarget",
+                                                requestPayload.getOrDefault(
+                                                        "approvedGenerationTarget", Map.of())),
                                 Map.of(
                                         "expectedProjectVersion",
                                         command.expectedProjectVersion() == null

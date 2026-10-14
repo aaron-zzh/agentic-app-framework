@@ -343,6 +343,16 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
     }
 
     /**
+     * 按访问模式追加当前资源特有的查询条件。
+     *
+     * <p><b>可按需覆写。</b>默认忽略访问模式并委托给 {@link #buildSpec(PageParam)}；资源在管理员维护等视图下需要放宽或调整业务条件时覆写。
+     * 同样只能追加业务条件，不能移除租户、记录范围等框架安全条件。
+     */
+    protected Specification<E> buildSpec(P pageDTO, AccessMode accessMode) {
+        return buildSpec(pageDTO);
+    }
+
+    /**
      * 构建普通列表的关键词搜索条件。
      *
      * <p><b>可按需覆写。</b>默认复用选择器的规范字段搜索；资源需要全文索引、拼音或组合名称搜索时可追加领域条件。
@@ -374,7 +384,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
                 decision.scopeSpecification(),
                 buildFilterSpec(filters, filterContext),
                 buildSearchSpec(pageDTO.getSearch()),
-                buildSpec(pageDTO));
+                buildSpec(pageDTO, decision.accessMode()));
     }
 
     /** 返回资源定义声明的默认排序；业务子类不应再通过覆写静态 Hook 改变它 */
@@ -1214,6 +1224,20 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
         return entities.stream().map(entity -> toVO(entity, fieldSet)).toList();
     }
 
+    /** 按访问模式转换单条视图。默认复用普通视图；仅明确支持治理模式的业务资源可覆写。 */
+    protected V toVO(E entity, String fieldSet, AccessMode accessMode) {
+        return toVO(entity, fieldSet);
+    }
+
+    /**
+     * 按访问模式批量转换视图，供特殊入口在同一资源定义内选择受控字段形状。
+     *
+     * <p>默认委托给 {@link #toVOList(List, String)}，保证已覆写批量转换的资源不受访问模式影响；需要治理视图的资源同时覆写本方法。
+     */
+    protected List<V> toVOList(List<E> entities, String fieldSet, AccessMode accessMode) {
+        return toVOList(entities, fieldSet);
+    }
+
     /**
      * 构建选择器关键词的业务搜索条件。
      *
@@ -1817,7 +1841,7 @@ public abstract class BaseCrudService<E extends BaseEntity, V, C, U, P extends P
                         .get(fieldSet)
                         .restrictTo(decision.fieldPolicy().fields(FieldCapability.READ));
         if (!plan.usesViewMapper()) {
-            return toVOList(entities, fieldSet).stream()
+            return toVOList(entities, fieldSet, decision.accessMode()).stream()
                     .map(view -> applyReadFieldPolicy(view, decision.fieldPolicy()))
                     .toList();
         }

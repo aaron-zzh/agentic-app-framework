@@ -44,7 +44,7 @@ author: AaronZZH & Kiro
 - 本地上传先物化为 MediaVersion；项目素材只引用对象当前采用版本关联的 MediaVersion；预览 URL、Asset ID 和 fileId 均不能冒充 MediaVersion 业务身份。
 - 参考素材保留来源、顺序和数量限制，相同 MediaVersion 不重复加入。
 - 候选必须可视比较；首次采用和替换采用是显式领域命令。替换已有采用版必须携带预期采用指针、确认标记和原因，并以 CAS 拒绝并发覆盖。
-- `AUTO_ADOPT_IF_EMPTY` 仅能从不可变项目快照读取，并只在采用指针仍为空时独立、可审计地执行。
+- 候选采用只由用户明确选择；不提供自动采用，已有采用版替换须明确确认。
 
 ### 审核与交付
 
@@ -67,7 +67,7 @@ author: AaronZZH & Kiro
 
 ```gherkin
 Scenario: 项目创建后形成可恢复的动态工作台
-Given 用户选择已发布项目类型、蓝图、渠道、预算质量档和槽位数量
+Given 用户选择已发布项目类型、蓝图和渠道；槽位数量覆盖由后端命令层支持（创建表单暂未暴露，见 AAF-113 design 已知未启用能力）
 When 用户创建项目
 Then 系统按设计顺序解析并固化配置快照
 And 物化具有稳定实例身份与合同角色的 ProjectGraph

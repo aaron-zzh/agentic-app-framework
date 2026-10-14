@@ -902,7 +902,7 @@ Agent token metering 与媒体 CreditTransaction 都必须携带可用关联。`
 
 - `aigc_project_config_snapshot` 增加 source_type、source_ref、snapshot_hash，并回填现有目录来源；
 - snapshot JSONB 迁移为类型化 v2 payload，保留精确版本引用；
-- `aigc_project_object` 增加 semantic_role、output_contract，并按已发布 Blueprint/objectType 目录回填（原设计含 `planned_phase` 列，该字段已确认为无实际业务消费的纯装饰性字段并从代码移除，`aigc_project_object.planned_phase` 数据库列因已发布迁移不可回退，暂保留列定义但业务代码写入固定占位值，详见"阶段流程与字段来源详解"）；
+- `aigc_project_object` 增加 semantic_role、output_contract，并按已发布 Blueprint/objectType 目录回填（原设计含 `planned_phase` 列，该字段已确认为无实际业务消费的纯装饰性字段并从代码移除，`aigc_project_object.planned_phase` 数据库列已于 2026-10-14 随 AAF-112 审查整改（B-06）从 v7 SQL 删除，不再有占位写入，详见"阶段流程与字段来源详解"）；
 - status 回填为 EMPTY/CANDIDATE_AVAILABLE/ADOPTED，并收紧 CHECK；
 - 清理持久 contains relation，改由 parentId 派生；
 - relation layer 按 relationType 目录重算并收紧约束；

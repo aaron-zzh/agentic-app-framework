@@ -45,9 +45,6 @@ public class AigcProjectObject extends BaseEntity {
     @Column(name = "semantic_role", nullable = false, length = 32)
     private String semanticRole;
 
-    @Column(name = "planned_phase", nullable = false, length = 32)
-    private String plannedPhase;
-
     @Column(name = "output_contract", nullable = false, length = 32)
     private String outputContract;
 

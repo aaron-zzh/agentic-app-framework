@@ -31,7 +31,7 @@ import com.xuejiai.aaf.module.ai.aigc.configuration.domain.AigcProjectType;
 import com.xuejiai.aaf.module.ai.aigc.configuration.repository.AigcChannelSpecRepository;
 import com.xuejiai.aaf.module.ai.aigc.configuration.repository.AigcProjectBlueprintRepository;
 import com.xuejiai.aaf.module.ai.aigc.configuration.repository.AigcProjectTypeRepository;
-import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionBindingRepository;
+import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionBindingApi;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectRelationSemantics;
 
 import lombok.RequiredArgsConstructor;
@@ -47,7 +47,7 @@ public class AigcConfigurationService implements AigcConfigurationApi {
     private final AigcProjectTypeRepository projectTypeRepository;
     private final AigcProjectBlueprintRepository blueprintRepository;
     private final AigcChannelSpecRepository channelSpecRepository;
-    private final AigcExecutionBindingRepository executionBindingRepository;
+    private final AigcExecutionBindingApi executionBindingApi;
     private final AigcCatalogBlueprintCompiler blueprintCompiler;
 
     @Override
@@ -394,18 +394,15 @@ public class AigcConfigurationService implements AigcConfigurationApi {
             List<AigcBlueprintActionSpec> actions) {
         var result = new ArrayList<AigcExecutionBindingVersionRef>();
         for (var action : actions) {
-            var binding =
-                    executionBindingRepository
-                            .findByActionKeyAndStatusOrderByPriorityDesc(
-                                    action.actionKey(), PUBLISHED)
-                            .stream()
-                            .findFirst()
+            var bindingVersionId =
+                    executionBindingApi
+                            .findPublishedBindingVersionId(action.actionKey())
                             .orElseThrow(
                                     () ->
                                             exception(
                                                     CONFIGURATION_INCOMPATIBLE,
                                                     "动作缺少已发布执行绑定: " + action.actionKey()));
-            result.add(new AigcExecutionBindingVersionRef(action.actionKey(), binding.getId()));
+            result.add(new AigcExecutionBindingVersionRef(action.actionKey(), bindingVersionId));
         }
         return List.copyOf(result);
     }

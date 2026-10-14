@@ -24,7 +24,7 @@ public class AigcProjectArchivedListener {
     private final AigcExecutionApi executionApi;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onArchived(AigcProjectArchivedEvent event) {
         runRepository
                 .findByProjectIdAndStatusIn(

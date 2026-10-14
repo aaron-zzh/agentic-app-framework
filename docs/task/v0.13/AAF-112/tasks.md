@@ -27,7 +27,7 @@ author: AaronZZH & Kiro
 ## 配置与项目合同
 
 - [x] **#11207** 一次性收敛动态槽位与配置契约 — developer-service
-  - 配置解析增加 budgetTier、qualityTier、slotOverrides、SlotTemplate、ActionSpec、DeliverableSetSpec 与 ProcessPolicy。
+  - 配置解析增加 slotOverrides、SlotTemplate、ActionSpec、DeliverableSetSpec 与 ProcessPolicy（`budgetTier/qualityTier` 已由 AAF-113 于 2026-09-16 整体删除）。
   - 按设计顺序解析数量和硬约束，固化输入、解析结果与幂等摘要；不保留弱 schema 双路径。
   - ProjectObject 一次性切换为 stableKey、blueprintTemplateKey、instanceNo、contractRole 最终命名与唯一约束。
 
@@ -58,7 +58,7 @@ author: AaronZZH & Kiro
 - [x] **#11212** 实现候选可视比较、采用 CAS 与条件首次采用 — developer-service / developer-webui
   - 支持文本、结构、图片与视频 candidate-vs-candidate / candidate-vs-adopted 比较。
   - adopt 携带 expectedAdoptedVersionId、confirmedReplacement 和非空替换原因；reject 记录原因。
-  - candidate、采用、替换分别形成修订与审计事件；按快照实现 AUTO_ADOPT_IF_EMPTY CAS。
+  - candidate、采用、替换分别形成修订与审计事件；不提供自动采用，采用只由用户明确选择（`AUTO_ADOPT_IF_EMPTY` 已于 2026-10-14 从规格移除）。
   - 并发冲突刷新权威状态，失败/重试/事件重放不得移动采用指针。
 
 ## 内容包、审核与交付
@@ -96,7 +96,8 @@ author: AaronZZH & Kiro
   - 覆盖动态解析、并发幂等、崩溃窗口、reservation fencing、Task 去重、事件重放、采用 CAS、manifest hash、审核 stale、发布策略和权限隔离。
   - 覆盖双视图同弹窗、无 Task fallback、断线恢复、候选比较及完整无 Chatter UI 路径。
 
-- [ ] **#11205** 手工执行编译、开发测试、迁移验证与 `pnpm check:affected` — human
+- [x] **#11205** 手工执行编译、开发测试、迁移验证与 `pnpm check:affected` — human
+  - 2026-10-14 人工确认 service / webui 测试与 `pnpm check:affected` 全绿。全量测试中 `BaseCrudServiceObjectAuthorizationTest` 3 个用例因测试 mock 缺 `entityType()` 桩失败（生产侧 `da309cb0` 新增 `resolveTableName()` 后测试未同步），已补桩修复。
 - [ ] **#11206** 手工完成架构审查、验收测试、过程审计与质量门 — human
 
 ## 依赖

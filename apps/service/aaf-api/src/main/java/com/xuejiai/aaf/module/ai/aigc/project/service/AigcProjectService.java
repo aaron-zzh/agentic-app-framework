@@ -174,11 +174,6 @@ public class AigcProjectService
                     AigcProjectLifecycle.EXECUTING,
                     AigcProjectLifecycle.ADOPTING);
 
-    // plannedPhase 已确认为无实际业务消费的纯装饰性字段（详见 design.md），业务语义上已移除；
-    // 数据库列 aigc_project_object.planned_phase 仍为 NOT NULL（v7__aigc_schema.sql 已发布迁移，
-    // 本轮授权不允许新增迁移删除该列），写入固定占位值以满足既有约束，不再对外暴露或校验。
-    private static final String LEGACY_PLANNED_PHASE_PLACEHOLDER = "BUILD";
-
     /** 协作模式唯一取值集合；{@code AigcProject.generationMode} 是该模式的唯一真理源。 */
     private static final Set<String> GENERATION_MODES = Set.of("manual", "auto");
 
@@ -1477,7 +1472,6 @@ public class AigcProjectService
                 template == null
                         ? requireSemanticRole(command.semanticRole())
                         : template.semanticRole());
-        object.setPlannedPhase(LEGACY_PLANNED_PHASE_PLACEHOLDER);
         object.setOutputContract(
                 template == null
                         ? requireOutputContract(command.outputContract())
@@ -1706,22 +1700,14 @@ public class AigcProjectService
                         reservation.getRootExecutionRunId(), command.rootExecutionRunId())) {
             return toReservationView(reservation);
         }
-        if ("RELEASED".equals(reservation.getStatus())
-                && "ROOT_TERMINAL".equals(reservation.getReleaseReason())
-                && Objects.equals(
-                        reservation.getRootExecutionRunId(), command.rootExecutionRunId())) {
-            reservation.setStatus("BOUND");
-            reservation.setReleaseReason(null);
-            reservationRepository.save(reservation);
-        } else {
-            if (!"PREPARED".equals(reservation.getStatus())
-                    || reservation.getRootExecutionRunId() != null) {
-                throw badRequest("执行 reservation 不能绑定");
-            }
-            reservation.setRootExecutionRunId(command.rootExecutionRunId());
-            reservation.setStatus("BOUND");
-            reservationRepository.save(reservation);
+        if (!"PREPARED".equals(reservation.getStatus())
+                || reservation.getRootExecutionRunId() != null) {
+            // 只有 PREPARED 且尚未绑定 root 的 reservation 可 CAS 为 BOUND；已释放的终态事实不可复活
+            throw badRequest("执行 reservation 不能绑定");
         }
+        reservation.setRootExecutionRunId(command.rootExecutionRunId());
+        reservation.setStatus("BOUND");
+        reservationRepository.save(reservation);
         if (!AigcProjectLifecycle.EXECUTING.equals(project.getStatus())) {
             if (!MUTABLE_STATUSES.contains(project.getStatus())) {
                 throw badRequest("当前项目阶段不能绑定执行");

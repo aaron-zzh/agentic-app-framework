@@ -76,6 +76,7 @@ class BaseCrudServiceObjectAuthorizationTest extends BaseMockitoUnitTest {
                 .when(registry.requireByEntityType(TestEntity.class))
                 .thenReturn(entry);
         org.mockito.Mockito.lenient().doReturn(definition).when(entry).definition();
+        org.mockito.Mockito.lenient().doReturn(TestEntity.class).when(entry).entityType();
         org.mockito.Mockito.lenient()
                 .when(entry.viewPlans())
                 .thenReturn(

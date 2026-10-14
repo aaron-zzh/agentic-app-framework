@@ -14,8 +14,10 @@ import {
   type AssistantExecutionPhase,
   type AssistantExecutionRequest,
   type AssistantInterrupt,
+  type AssistantNodeKind,
   type AssistantOutputLocale,
   executeAssistantAgUi,
+  isAssistantNodeEvent,
   parseToolResultContent,
   resumeAssistantAgUi
 } from "@/lib/api/assistant-agui"
@@ -38,6 +40,16 @@ export interface CopywritingToolCall {
   id: string
   name: string
   status: string
+}
+
+export interface CopywritingNodeOutput {
+  nodeId: string
+  nodeKind: AssistantNodeKind
+  roleKey: string
+  status: string
+  text: string
+  /** 该节点保存的草稿产物；最终交付物仍以交付节点正文为准。 */
+  artifacts: DraftArtifact[]
 }
 
 export interface CopywritingContextSource {
@@ -84,6 +96,17 @@ function assistantOutputLocale(
 
 export const COPYWRITING_ROLE_KEY = "system.role.content-creator"
 
+/** 拒绝授权反馈的上限，按 Unicode 字符（code point）计，与后端 {@code AssistantAguiController} 口径一致。 */
+export const APPROVAL_FEEDBACK_MAX_CHARS = 1000
+
+/** 按 code point 截断反馈，避免 UTF-16 计数让含增补平面字符（如 emoji）的输入被提前截断。 */
+export function clampApprovalFeedback(value: string): string {
+  const chars = Array.from(value)
+  return chars.length <= APPROVAL_FEEDBACK_MAX_CHARS
+    ? value
+    : chars.slice(0, APPROVAL_FEEDBACK_MAX_CHARS).join("")
+}
+
 export function copywritingExecutionRequest({
   text,
   skillCode,
@@ -102,6 +125,7 @@ export function copywritingExecutionRequest({
       clarificationPolicy: "FAIL_ON_BLOCKER",
       actionAuthorizationPolicy: "REQUEST_ON_DEMAND",
       artifactPersistence,
+      decomposition: "NONE",
       ...(artifactTarget === undefined ? {} : { artifactTarget })
     },
     input: {
@@ -157,7 +181,7 @@ function toolCallFromEvent(event: AssistantAgUiEvent): CopywritingToolCall | nul
   return { id, name, status: event.value.status }
 }
 
-interface DraftArtifact {
+export interface DraftArtifact {
   documentId: number
   documentVersionId: number
 }
@@ -177,6 +201,10 @@ function draftArtifact(data: AafAiTaskEventData): DraftArtifact | null {
 }
 
 export function assistantDraftArtifact(event: AssistantAgUiEvent): DraftArtifact | null {
+  // 内部节点（如执行者）保存的草稿经 aaf.node.tool 事件到达，数据已脱敏，字段与 aaf.tool.completed 一致
+  if (isAssistantNodeEvent(event)) {
+    return event.type === "aaf.tool.completed" ? draftArtifact(event.data) : null
+  }
   if (event.type === "TOOL_CALL_RESULT") return draftArtifact(parseToolResultContent(event.content))
   return event.type === "CUSTOM" && event.value.type === "aaf.tool.completed"
     ? draftArtifact(event.value.data)
@@ -227,6 +255,12 @@ function safeEventSummary(event: AssistantAgUiEvent): {
   kind: CopywritingProcessKind
   summary: string
 } {
+  if (isAssistantNodeEvent(event)) {
+    return {
+      kind: "message",
+      summary: `节点 ${event.nodeId}（${event.nodeKind}）正在执行`
+    }
+  }
   if (event.type === "RUN_STARTED") return { kind: "phase", summary: "执行已开始" }
   if (event.type === "RUN_FINISHED") {
     return event.interrupts.length > 0
@@ -254,6 +288,7 @@ function safeEventSummary(event: AssistantAgUiEvent): {
 }
 
 function eventStatus(event: AssistantAgUiEvent): string {
+  if (isAssistantNodeEvent(event)) return event.status
   if (event.type === "CUSTOM") return event.value.status
   if (event.type === "RUN_STARTED") return "RUNNING"
   if (event.type === "RUN_FINISHED")
@@ -303,8 +338,10 @@ export function useCopywriting() {
 
   const [phase, setPhase] = useState<AssistantExecutionPhase>("idle")
   const [processEntries, setProcessEntries] = useState<CopywritingProcessEntry[]>([])
+  const [nodeOutputs, setNodeOutputs] = useState<CopywritingNodeOutput[]>([])
   const [toolCalls, setToolCalls] = useState<CopywritingToolCall[]>([])
   const [pendingApproval, setPendingApproval] = useState<AssistantInterrupt | null>(null)
+  const [approvalFeedback, setApprovalFeedback] = useState("")
   const [approvalLoading, setApprovalLoading] = useState(false)
   const threadIdRef = useRef<string | null>(null)
   const streamingEditorRef = useRef<StreamingEditorHandle>(null)
@@ -324,8 +361,7 @@ export function useCopywriting() {
     setProcessEntries((current) => {
       if (
         entry.kind === "message" &&
-        entry.summary === "正在接收安全输出" &&
-        current.some((item) => item.summary === entry.summary)
+        current.some((item) => item.kind === "message" && item.summary === entry.summary)
       ) {
         return current
       }
@@ -336,8 +372,10 @@ export function useCopywriting() {
   function beginExecution(summary: string) {
     setPhase("running")
     setPendingApproval(null)
+    setApprovalFeedback("")
     threadIdRef.current = null
     setToolCalls([])
+    setNodeOutputs([])
     setProcessEntries([
       {
         id: `local-${Date.now()}`,
@@ -351,10 +389,49 @@ export function useCopywriting() {
   }
 
   function recordEvent(event: AssistantAgUiEvent) {
+    if (isAssistantNodeEvent(event)) {
+      // 节点状态只跟随生命周期事件；工具、消息事件的 status 不代表节点本身
+      const lifecycle = event.name === "aaf.node.lifecycle"
+      const nodeArtifact = assistantDraftArtifact(event)
+      setNodeOutputs((current) => {
+        const existing = current.findIndex((item) => item.nodeId === event.nodeId)
+        const delta = event.delta ?? ""
+        const artifacts = nodeArtifact === null ? [] : [nodeArtifact]
+        if (existing === -1) {
+          return [
+            ...current,
+            {
+              nodeId: event.nodeId,
+              nodeKind: event.nodeKind,
+              roleKey: event.roleKey,
+              status: lifecycle ? event.status : "RUNNING",
+              text: delta,
+              artifacts
+            }
+          ]
+        }
+        return current.map((item, index) =>
+          index === existing
+            ? {
+                ...item,
+                status: lifecycle ? event.status : item.status,
+                text: item.text + delta,
+                artifacts: [...item.artifacts, ...artifacts]
+              }
+            : item
+        )
+      })
+    }
+
     const display = safeEventSummary(event)
+    const nodeEvent = isAssistantNodeEvent(event) ? event : null
     const publicEvent = event.type === "CUSTOM" ? event.value : null
     appendProcessEntry({
-      id: publicEvent?.eventId ?? `${event.runId}-${event.type}-${Date.now()}`,
+      id:
+        publicEvent?.eventId ??
+        (nodeEvent === null
+          ? `${event.runId}-${event.type}-${Date.now()}`
+          : `node-${event.runId}-${nodeEvent.nodeId}`),
       sequence: publicEvent?.sequence ?? null,
       kind: display.kind,
       status: eventStatus(event),
@@ -371,7 +448,8 @@ export function useCopywriting() {
       })
     }
     const artifact = assistantDraftArtifact(event)
-    if (artifact !== null && scopeKey !== null) {
+    // 内部节点的草稿只记在节点上，不覆盖页面当前文档
+    if (artifact !== null && scopeKey !== null && nodeEvent === null) {
       useAigcStore
         .getState()
         .setCopywritingPersistedDocument(scopeKey, artifact.documentId, artifact.documentVersionId)
@@ -398,7 +476,7 @@ export function useCopywriting() {
         sequence: null,
         kind: "phase",
         status: "RECOVERING",
-        summary: "授权已确认，正在恢复执行",
+        summary: "授权决定已提交，正在恢复执行",
         createdAt: new Date().toISOString()
       })
     } else {
@@ -419,7 +497,27 @@ export function useCopywriting() {
       },
       onDone: (event) => {
         if (event.interrupts.length > 0) {
-          setPendingApproval(event.interrupts[0])
+          // 只有 tool_call 是受控工具授权；input_required 等澄清类 interrupt 本页没有对应表单，
+          // 不能按授权展示（批准 / 拒绝的载荷与澄清恢复协议不匹配）
+          const authorization = event.interrupts.find((item) => item.reason === "tool_call")
+          if (authorization === undefined) {
+            const message = "任务需要补充信息，当前页面暂不支持，请补充主题等输入后重试"
+            success(fallbackContent)
+            editor?.reset()
+            setPhase("error")
+            appendProcessEntry({
+              id: `interrupt-unsupported-${Date.now()}`,
+              sequence: null,
+              kind: "phase",
+              status: "ERROR",
+              summary: message,
+              createdAt: new Date().toISOString()
+            })
+            toast.error(message)
+            return
+          }
+          setPendingApproval(authorization)
+          setApprovalFeedback("")
           setPhase("awaiting_authorization")
           success(fallbackContent)
           editor?.reset()
@@ -453,49 +551,48 @@ export function useCopywriting() {
     const threadId = threadIdRef.current
     if (approval === null || threadId === null || approvalLoading) return
 
+    const approved = decision === "APPROVED"
+    const feedback = approved ? undefined : approvalFeedback.trim() || undefined
     setApprovalLoading(true)
+    setPendingApproval(null)
+    setApprovalFeedback("")
+    if (!approved) {
+      appendProcessEntry({
+        id: `approval-rejected-${Date.now()}`,
+        sequence: null,
+        kind: "safety",
+        status: "REJECTED",
+        summary: "已拒绝受控工具操作，反馈将交给当前节点继续调整",
+        createdAt: new Date().toISOString()
+      })
+    }
+    useAigcStore.getState().setCopywritingGenerating(true)
     try {
-      if (decision === "REJECTED") {
-        setPendingApproval(null)
-        setPhase("paused")
-        appendProcessEntry({
-          id: `approval-rejected-${Date.now()}`,
-          sequence: null,
-          kind: "safety",
-          status: "REJECTED",
-          summary: "已拒绝受控工具操作，执行保持暂停",
-          createdAt: new Date().toISOString()
-        })
-        await resumeAssistantAgUi(
-          { threadId, approvalId: approval.id, approved: false },
-          { onError: (error) => toast.error(error.message) }
-        )
-        toast.info("已拒绝工具授权")
-        return
-      }
-
-      setPendingApproval(null)
-      useAigcStore.getState().setCopywritingGenerating(true)
-      try {
-        await runStructuredStream({
-          start: (streamOptions) =>
-            resumeAssistantAgUi(
-              { threadId, approvalId: approval.id, approved: true },
-              streamOptions
-            ),
-          editor: streamingEditorRef.current,
-          fallbackContent: content,
-          success: setContent,
-          errorMessage: "授权后恢复执行失败",
-          continuation: true
-        })
-      } finally {
-        useAigcStore.getState().setCopywritingGenerating(false)
-      }
+      await runStructuredStream({
+        start: (streamOptions) =>
+          resumeAssistantAgUi(
+            {
+              threadId,
+              approvalId: approval.id,
+              approved,
+              ...(feedback === undefined ? {} : { feedback })
+            },
+            streamOptions
+          ),
+        editor: streamingEditorRef.current,
+        fallbackContent: content,
+        success: setContent,
+        errorMessage: approved ? "授权后恢复执行失败" : "拒绝授权后恢复执行失败",
+        continuation: true
+      })
+      if (!approved) toast.info("已拒绝工具授权，节点将继续调整")
     } catch (error) {
+      setPendingApproval(approval)
+      setApprovalFeedback(feedback ?? "")
       setPhase("awaiting_authorization")
       toast.error(error instanceof Error ? error.message : "处理工具授权失败")
     } finally {
+      useAigcStore.getState().setCopywritingGenerating(false)
       setApprovalLoading(false)
     }
   }
@@ -631,8 +728,10 @@ export function useCopywriting() {
     setViralAnalysis("")
     setViralStep(1)
     setPendingApproval(null)
+    setApprovalFeedback("")
     setPhase("idle")
     setProcessEntries([])
+    setNodeOutputs([])
     setToolCalls([])
     threadIdRef.current = null
   }
@@ -646,9 +745,12 @@ export function useCopywriting() {
     documentId,
     phase,
     pendingApproval,
+    approvalFeedback,
+    setApprovalFeedback,
     approvalLoading,
     handleApprovalDecision,
     processEntries,
+    nodeOutputs,
     contextSources: EMPTY_CONTEXT_SOURCES,
     toolCalls,
     selectedSkillKey: type,

@@ -55,7 +55,7 @@ related:
 | ✅ 核心领域迁移 | `configuration`、`brand`、`project`、`media`、`execution`、`work`、`timeline`、`task` 八个核心领域子模块已落地；`module.content`、`Content*` 平行业务类型与 `/api/content/**` 已完成一次性迁移和删除 |
 | ✅ 执行归属 | `AigcExecutionBinding`、绑定发布/解析、`AigcExecutionRun` 与 Agent/Tool/Workflow 三类执行器统一归 `execution`；`configuration` 不持有执行绑定 |
 | ❌ 配置包（已删除） | `AigcProjectTypePackage`、`AigcDomainExtension` 的 Entity、Repository、Service、Controller、Resource 及配套 SQL/权限/EntityDef 已全部删除（`AAF-113` 确认剩余字段可从 `AigcProjectBlueprint`/`AigcProjectType`/`AigcExecutionBinding` 现场推导，无独立信息）；`AigcConfigurationService.resolve()` 改为现场查询已发布 Blueprint、按 `projectType.defaultChannels` 过滤渠道、按 `actionKey` 匹配最高优先级已发布 `AigcExecutionBinding`，不再有独立发布/兼容性校验工作流 |
-| ⚠️ 内容包模板目标态 | 父 DeliverableSet + 可重复槽位模板、按项目设置解析的具体对象、强类型 action/deliverable/process spec、package manifest、父子 ExecutionRun 与 `AUTO_ADOPT_IF_EMPTY` CAS 是 v2.3.1 目标契约；当前弱 `schemaJson`、单层 Run 与手工采用实现尚待一次性替换 |
+| ⚠️ 内容包模板目标态 | 父 DeliverableSet + 可重复槽位模板、按项目设置解析的具体对象、强类型 action/deliverable/process spec、package manifest、父子 ExecutionRun 是 v2.3.1 目标契约；当前弱 `schemaJson`、单层 Run 与手工采用实现尚待一次性替换 |
 | ✅ 资产分类体系 | `AigcAssetCategory`、`AigcAssetTag`、`AigcAssetCollection` 及 CollectionItem 已归 `media` 落地；Category、Tag、Collection 均已具备管理根所需的 Service、Controller、Resource 与 Provider 注册，TagRef/CollectionItem 保持内部关系记录 |
 | ✅ Runtime adapters | `AigcRuntimeExecution` 与 Agent/Workflow 执行端口、取消端口已落地；`FrameworkAigcAgentExecutionAdapter` 已接入 framework `AgentExecutionPort`，`FrameworkAigcRuntimeCancellationAdapter` 已接入 Agent 与 Flowable/BPMN 取消。Workflow 动作经 `AigcWorkflowExecutionPort` 隔离，当前代码中没有独立的 `FrameworkAigcWorkflowExecutionAdapter` |
 | ⚠️ 完成证据策略化 | `CompletionEvidencePort` 与 Work/Publication 计数已落地；当前实现仍按“至少一个未归档 Work，已有 Publication 全部成功，零 Publication 可完成”判断。v2.3 目标改为读取项目配置快照中的 `NONE/OPTIONAL/AT_LEAST_ONE_SUCCESS/ALL_SELECTED_CHANNELS`，尚待实现 |
@@ -480,7 +480,7 @@ public record AigcProjectRelationView(
 
 reservation 绑定与释放使用 submissionId 作为 fencing token：只有 `PREPARED + same submission + rootExecutionRunId IS NULL` 可以 CAS 为 `BOUND + rootExecutionRunId`；同一 root 重放幂等，其他 root 一律冲突。`releaseReason` 固定为 `PRE_BIND_CANCEL | ROOT_TERMINAL`：前者只允许同一 submission 以 `PREPARED + root_execution_run_id IS NULL` CAS 到 RELEASED；后者只允许 `BOUND + same submission + same root` CAS 到 RELEASED。任一成功 release 的同参数重放返回既有 RELEASED 结果，不重复写 revision；状态、submission、root 或 reason 不匹配均冲突。禁止按墙钟超时盲目释放。PREPARED/BOUND 始终阻止目标对象物理删除，并在目标与当前 REQUIRED 或待纳入 manifest 对象相交时阻断完成校验；RELEASED 记录继续证明历史 Run 引用，但不阻断完成。project 不反向调用 execution，也不把 reservation 状态冒充 Run 状态；reservation 的 PREPARED/BOUND/RELEASED 变化不推进 graphRevision。所有单对象和包级执行都先 reserve，因而“没有 reservation 历史”可作为允许物理删除的必要条件。
 
-`AigcProjectMaterializeCommand.slotOverrides` 直接复用 `configuration.api.AigcSlotCountOverride`，project 不再定义同名 DTO；budgetTier、qualityTier 与 overrides 必须原样传给 resolve，并将解析结果而非客户端原值物化。materialize 直接持久化 `AigcResolvedObjectSpec.instanceNo`。`appendObject` 不接受客户端 stableKey/instanceNo：若 `blueprintTemplateKey` 匹配允许模板，project 在模板计数和硬约束内分配下一个永不复用的 instanceNo，再按模板生成 stableKey；若 objectType 位于 `allowedCustomObjectTypes`，则保存 `blueprintTemplateKey=null`、`instanceNo=null` 并生成不可变项目内唯一 stableKey。除 `(project_id, stable_key)` 唯一外，非空模板实例还要求 `(project_id, blueprint_template_key, instance_no)` 唯一。
+`AigcProjectMaterializeCommand.slotOverrides` 直接复用 `configuration.api.AigcSlotCountOverride`，project 不再定义同名 DTO；budgetTier、qualityTier 与 overrides 必须原样传给 resolve，并将解析结果而非客户端原值物化。materialize 直接持久化 `AigcResolvedObjectSpec.instanceNo`。`appendObject` 不接受客户端 stableKey/instanceNo：若 `blueprintTemplateKey` 匹配允许模板，project 在模板计数和硬约束内分配下一个永不复用的 instanceNo，再按模板生成 stableKey；若 objectType 位于 `allowedCustomObjectTypes`，则保存 `blueprintTemplateKey=null`，`instanceNo` 取该 objectType 的自定义序号（永不复用，仅用于生成不可变项目内唯一 stableKey `custom.<objectType>.<NN>`，不表示模板实例）。除 `(project_id, stable_key)` 唯一外，非空模板实例还要求 `(project_id, blueprint_template_key, instance_no)` 唯一。
 
 `evaluateDeliverableSet` 的 `includedOptionalObjectIds` 是本次 manifest 选择，不写入 ProjectObject 或前端第二状态。服务端把当前父包下全部 REQUIRED 与显式选择的 OPTIONAL 合并为 `includedProjectObjectIds`，拒绝非直接子对象、重复 ID、EXCLUDED、无采用版或跨项目对象；未选择的 OPTIONAL 不进入证据且不阻断。`evidenceHash` 必须覆盖 graphRevision、规范化后的 included IDs、各对象 contractRole/adoptedObjectVersionId、校验结果与活动 reservation 证据。
 
@@ -935,7 +935,7 @@ AigcProject（唯一项目聚合根）
 聚合不变量：
 
 - `AigcProjectObject.projectId`、关系两端对象、对象版本必须属于同一 Project。
-- 一个 ProjectObject 同时最多一个 `adoptedVersionId`；候选总是先登记，只有配置快照固定为 `AUTO_ADOPT_IF_EMPTY` 且采用指针仍为空时，project 才能以 CAS 执行独立、可审计的首次采用；已有采用版不得自动替换。
+- 一个 ProjectObject 同时最多一个 `adoptedVersionId`；候选总是先登记，采用只由用户明确选择；不提供自动采用，已有采用版替换必须明确确认。
 - DeliverableSet 是聚合内父 ProjectObject，不是新聚合根；父子归属以 `parentObjectId` 为唯一事实，ProjectRelation 不重复保存同义 `contains` 关系。
 - ProjectGraph 是 Object + Relation + Revision 的门面，不建立 `AigcProjectGraphNode` 表。
 - Storyboard、Brief、CreativeConcept、Deliverable、Episode、Scene、Shot、ShotKeyframe、Review 和 `blog_content` 都是 `objectType`，不建立平行状态主表。
@@ -962,7 +962,7 @@ Resolved project objects（示例）
 └─ deliverables.copy.01
 ```
 
-materialize 必须为每个具体实例持久化 `stableKey + blueprintTemplateKey + instanceNo + contractRole`；模板解析实例的 stableKey 按模板确定性生成，同一项目满足 `(project_id, stable_key)` 唯一，非空模板实例还满足 `(project_id, blueprint_template_key, instance_no)` 唯一。instanceNo 一经分配永不复用，不能从 stableKey 字符串反推。固定对象身份仍以具体 ProjectObject 表达，不能在一个对象上用 `count` 替代多个版本、执行、采用和审核身份。
+materialize 必须为每个具体实例持久化 `stableKey + blueprintTemplateKey + instanceNo + contractRole`；模板解析实例的 stableKey 按模板确定性生成，同一项目满足 `(project_id, stable_key)` 唯一，非空模板实例还满足 `(project_id, blueprint_template_key, instance_no)` 唯一。instanceNo 一经分配永不复用，不能从 stableKey 字符串反推。自定义对象（`blueprintTemplateKey` 为空）的 instanceNo 是按 objectType 的自定义序号，仅用于生成稳定键，不参与模板唯一约束。固定对象身份仍以具体 ProjectObject 表达，不能在一个对象上用 `count` 替代多个版本、执行、采用和审核身份。
 
 ProjectGraph 是创建后合同范围的唯一真理源。`contractRole` 固定枚举为 `REQUIRED | OPTIONAL | EXCLUDED`：Completion Validator 要求当前父包下所有 REQUIRED 对象都有 adopted ObjectVersion；OPTIONAL 不阻断完成，但有采用版时可纳入 manifest；EXCLUDED 不参与完成和新 manifest。用户新增对象默认使用 DeliverableSetSpec 的 `defaultUserAddedContractRole`，通常为 OPTIONAL；用户可以在蓝图 min/max 与领域/渠道硬约束内调整数量和合同角色。
 
@@ -993,7 +993,7 @@ ExecutionSubmission：durable / idempotent
 采用规则固定为：
 
 - candidate 登记与采用是两个领域事实；即使在同一事务完成，也分别产生修订和事件。
-- `AUTO_ADOPT_IF_EMPTY` 由 project 从不可变配置快照读取，不接受客户端临时传入；只执行 `adopted_version_id IS NULL` 的 compare-and-set。
+- 不提供自动采用：候选登记后，只有用户明确的采用命令（携带 `expectedAdoptedVersionId`）可以移动采用指针。
 - 自动采用 CAS 失败时保留 candidate，不得转为覆盖重试。
 - 已有采用版的替换命令必须携带 `expectedAdoptedVersionId`、`confirmedReplacement=true` 和非空 reason；预期不一致返回冲突。
 - 执行失败、取消、重试、迟到事件和事件重放均不能移动已有采用指针。
@@ -1051,7 +1051,7 @@ stateDiagram-v2
 | `MATERIALIZED` | 唯一 `AigcProject`、配置快照、初始 Object/Relation、revision 1 | 聚合不变量校验通过，工作台可读取图谱 |
 | `CREATING` | 用户/Assistant 编辑图谱并选择稳定 `actionKey` | 权限、预算、规则、确认门通过 |
 | `EXECUTING` | 每个动作有 `AigcExecutionRun`；媒体动作可有零到多个 `AigcTask` | Run 终态明确，输出来源可追溯 |
-| `ADOPTING` | 候选 `AigcObjectVersion` 或 `AigcMediaVersion` 可比较；空槽位条件采用失败的候选也保留于此 | 用户选择、确认替换，或 project 按 `AUTO_ADOPT_IF_EMPTY` 完成独立 CAS 采用并提交 ProjectRevision |
+| `ADOPTING` | 候选 `AigcObjectVersion` 或 `AigcMediaVersion` 可比较 | 用户选择或确认替换并提交 ProjectRevision |
 | `REVIEWING` | DeliverableSet manifest、品牌/领域/渠道质检与 Review 对象 | 当前 manifest 无阻断项，人工/规则审核通过 |
 | `DELIVERING` | 审核通过的 manifest 已收录为 `AigcWork`，可创建零到多个 Publication | 满足项目固定的 `NONE/OPTIONAL/AT_LEAST_ONE_SUCCESS/ALL_SELECTED_CHANNELS` 发布策略 |
 | `COMPLETED` | 至少一个 Work、交付契约与发布策略满足、无运行中阻断任务 | 当前只允许归档；未提供重新打开命令 |

@@ -67,11 +67,6 @@ import tools.jackson.core.type.TypeReference;
 @RequiredArgsConstructor
 public class AigcProjectMaterializer {
 
-    // plannedPhase 已确认为无实际业务消费的纯装饰性字段（详见 design.md），业务语义上已移除；
-    // 数据库列 aigc_project_object.planned_phase 仍为 NOT NULL（v7__aigc_schema.sql 已发布迁移，
-    // 本轮授权不允许新增迁移删除该列），写入固定占位值以满足既有约束，不再对外暴露或校验。
-    private static final String LEGACY_PLANNED_PHASE_PLACEHOLDER = "BUILD";
-
     private final AigcConfigurationApi configurationApi;
     private final AigcBrandApi brandApi;
     private final AigcProjectRepository projectRepository;
@@ -209,7 +204,6 @@ public class AigcProjectMaterializer {
             object.setInstanceNo(spec.instanceNo());
             object.setContractRole(spec.contractRole());
             object.setSemanticRole(spec.semanticRole());
-            object.setPlannedPhase(LEGACY_PLANNED_PHASE_PLACEHOLDER);
             object.setOutputContract(spec.outputContract());
             object.setDefaultActionKey(spec.defaultActionKey());
             object.setObjectType(spec.objectType());

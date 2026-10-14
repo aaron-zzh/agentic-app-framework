@@ -50,6 +50,8 @@ UI 设计：[ui-design.md](ui-design.md)
 
 ## 状态核查与执行顺序
 
+> 2026-10-14 更新：下文"截至 2026-09-17"的统计已过期，任务级状态以"技术任务"各条的标记为准（当前 ✅ 23 项、⏳ 1 项［#11313］、其余 `[ ]`）。AAF-112 #11205 已于 2026-10-14 人工确认全绿；#11206 与 AAF-115 #11509 仍未通过。
+
 截至 2026-09-17，共 29 个技术任务：#11301、#11302、#11303、#11304、#11305、#11306、#11307、#11308、#11309、#11310、#11311、#11312、#11324、#11325、#11326、#11327 标记为 `⏳`（对应源码范围已静态核验，剩余合同或动态门禁未完成），其余 13 项保持 `[ ]`。本文件允许在任务内部用 `[x]/[ ]` 标记已完成与剩余子范围；只有满足“每个开发任务的完成定义”后，任务级状态才能改为 `✅`。
 
 **CATALOG 核心现状**：阶段一 11 项任务（#11301/#11302/#11303/#11306/#11309/#11310/#11311/#11312/#11324/#11325/#11326）核心源码经审查确认均已落地，其中 #11306（ObjectReadiness 全部 7 态与冻结输入）、#11309（类型化媒体执行与 candidate 闭环）、#11310（确定性项目管理 UI）、#11311（ProjectProgressSnapshot 项目级积分聚合）本轮审查确认为既有实现完整满足规格，不存在源码缺口。#11312/#11324 经子 agent 独立审查发现真实缺口并已修复：`detachMedia` 补充 adopted 版本媒体引用漂移守卫；`AigcProjectProgressEvidencePort`/`AigcProjectProgressSnapshot` 新增对象级 `creditsByObject` 聚合，前端 `ObjectDetailPanel` 已接入展示。仍存在明确缺口：①#11312 的 Publication stale 标记因 `AigcWorkPublication` 无对应状态字段且本轮不新增迁移，需协调者评估架构方案；②#11301/#11302/#11303/#11325/#11326 的独立 Normalizer/Freezer 拆分、通用结构化文档引用（依赖 #11327）、目录创建入口事务边界评估、ASSISTANT_GENERATED 接入验证（依赖 #11321）未完成。因此本节所列 11 项均不能标记为 `✅`，#11313 继续承接共享验证范围。
@@ -440,6 +442,20 @@ UI 设计：[ui-design.md](ui-design.md)
   - **依赖**：#11323、#11325、#11326。
   - **覆盖**：后置管理能力，不扩展当前 AC-01 至 AC-16 门禁。
 
+### 实时事件补充
+
+- [ ] **#11332 补齐 Activity 事件发布点** — developer-service
+  - 盘点发现 AAF-113 设计依赖 Activity 做失效通知，但 `module/ai` 下没有对应发布点（见 [AAF-119 design.md](../AAF-119/design.md#事件清单与后续补充)）。
+  - 新增 `aigc.project.schedule.changed`（ProjectSchedule 创建、编辑、暂停、恢复、取消、触发、延后、失败）。
+  - 新增 `aigc.proposal.changed`（AssistantBlueprintProposal、ProjectGenerationProposal 创建、确认、失效、过期）。
+  - canonical Task 状态变化（等待外部、待确认、暂停、终态）对 AIGC 项目页的失效通知：事件名与 taskId 类型对照 AAF-115 定型，不引入新轮询。
+  - 补全关联：`conversationId` 进 `refs`；`assistantRunId`、`toolCallId` 等字符串进 `payload`。
+  - 事件类型直接使用 `aigc.` 前缀，关联用语义字段名；通过现有 `AigcActivityEventService` 发布，AAF-119 落地后改为 `AigcEventPublisher`，调用点不变。
+  - 事件只做失效通知，不推进 Task，不携带积分数值，payload 只放状态摘要。
+  - **依赖**：#11319、#11327、#11328。
+  - **排期**：不阻塞 AAF-119，也不阻塞 #11313；建议在 #11323 门禁前完成，schedule Sheet 与对话中的 Task 卡片依赖这些通知。
+  - **覆盖**：AC-16、UI-AC-10、UI-AC-13 至 UI-AC-15 的断线与刷新体验。
+
 ### 切换与质量门禁
 
 - ⏳ **#11313 执行阶段一项目管理闭环门禁** — developer-service、developer-webui
@@ -448,6 +464,7 @@ UI 设计：[ui-design.md](ui-design.md)
   - 确认 `ProjectProgressSnapshot.currentTask=null` 时其他区段仍完整，刷新/断线后从服务端恢复权威状态。
   - 完成阶段一对应 AC/UI-AC 的 developer 测试，并运行 service/webui test、lint、typecheck、build、SQL 静态检查和 `pnpm check:affected`。
   - 未通过时不得启动 #11304 及后续 Assistant 接入。
+  - **验证证据（2026-10-14，人工确认）**：service / webui 测试与 `pnpm check:affected` 全绿（lint、typecheck、build 随 `check:affected` 一并通过）。仍待完成：CATALOG 创建到交付的端到端独立验证、`currentTask=null` 与刷新/断线恢复的验证、阶段一 AC/UI-AC 的 developer 测试对照；这些完成前本任务保持 `⏳`。
   - **依赖**：#11301、#11302、#11303、#11306、#11309、#11310、#11311、#11312、#11324、#11325、#11326。
   - **覆盖**：AC-01、AC-03 至 AC-05、AC-08、AC-09、AC-11、AC-13、AC-15。
 

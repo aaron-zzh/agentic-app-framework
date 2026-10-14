@@ -17,7 +17,7 @@ public class AigcExecutionRunDispatchListener {
 
     private final AigcActionCommandService commandService;
 
-    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onRequested(AigcExecutionRunDispatchRequestedEvent event) {
         try {
             commandService.dispatchDeferred(event.runId(), event.command());
