@@ -10,7 +10,7 @@ import lombok.Getter;
  *
  * <pre>
  * InternalMessage.builder().userId(userId).type("task").title("完成").body("详情").build()
- * InternalMessage.builder().userId(userId).type("progress").title("50%").strategy(SSE_ONLY).build()
+ * InternalMessage.builder().userId(userId).type("batch").title("汇总").strategy(PERSIST_ONLY).build()
  * </pre>
  *
  * @author Kiro
@@ -23,13 +23,12 @@ public class InternalMessage {
     public enum PushStrategy {
         PERSIST_ONLY, // 只存库
         WS_ONLY, // 存库 + WS
-        SSE_ONLY, // 不存库 + SSE
-        ALL // 存库 + WS + SSE（默认）
+        ALL // 存库 + WS（默认）
     }
 
     private final Long userId;
 
-    /** 消息类型（approval/mention/task/system/progress/batch 等） */
+    /** 消息类型（approval/mention/task/system/batch 等） */
     @Builder.Default private final String type = "system";
 
     private final String title;
