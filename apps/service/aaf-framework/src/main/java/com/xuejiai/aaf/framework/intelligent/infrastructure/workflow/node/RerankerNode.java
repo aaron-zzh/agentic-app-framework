@@ -33,8 +33,14 @@ public class RerankerNode implements JavaDelegate {
                         ? ((Number) execution.getVariable("topK")).intValue()
                         : 3;
 
+        var userIdValue = execution.getVariable("_aafUserId");
+        if (userIdValue == null) {
+            throw new IllegalStateException("重排序节点缺少流程变量 _aafUserId，无法归属成本");
+        }
+        var userId = Long.valueOf(String.valueOf(userIdValue));
+
         var documents = Arrays.asList(documentsText.split("\n\n"));
-        var reranked = rerankService.rerank(query, documents, topK);
+        var reranked = rerankService.rerank(userId, query, documents, topK);
 
         var output = reranked.stream().map(r -> r.text()).collect(Collectors.joining("\n\n"));
 

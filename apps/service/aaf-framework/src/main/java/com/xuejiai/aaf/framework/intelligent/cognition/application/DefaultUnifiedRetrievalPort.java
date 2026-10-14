@@ -121,7 +121,7 @@ public final class DefaultUnifiedRetrievalPort implements UnifiedRetrievalPort {
         }
 
         var fused = fuse(memoryResult, knowledgeHits, request.maxItems());
-        var reranked = rerank(request.query(), fused, request.maxItems());
+        var reranked = rerank(request.query(), fused, request.maxItems(), request.userId());
         return new UnifiedRetrievalResult(reranked, knowledgeHits);
     }
 
@@ -253,12 +253,13 @@ public final class DefaultUnifiedRetrievalPort implements UnifiedRetrievalPort {
     }
 
     /** 融合后重排：候选数达门控下限才调用专用模型，否则维持融合序；作用于最终跨源候选。 */
-    private List<FusedCandidate> rerank(String query, List<FusedCandidate> fused, int topK) {
+    private List<FusedCandidate> rerank(
+            String query, List<FusedCandidate> fused, int topK, Long userId) {
         if (query.isBlank() || fused.size() <= 1) {
             return fused;
         }
         var contents = fused.stream().map(FusedCandidate::content).toList();
-        var orderedIndexes = reranker.rerankContents(query, contents, topK);
+        var orderedIndexes = reranker.rerankContents(query, contents, topK, userId);
         var result = new ArrayList<FusedCandidate>(orderedIndexes.size());
         for (var index : orderedIndexes) {
             result.add(fused.get(index));

@@ -124,7 +124,7 @@ public class AgentNode implements JavaDelegate {
                         null,
                         null);
         var invocationProfile =
-                InvocationProfile.primary(
+                InvocationProfile.coordinator(
                         skillKey,
                         AssistantInvocation.MemoryMode.DISABLED,
                         List.of(),

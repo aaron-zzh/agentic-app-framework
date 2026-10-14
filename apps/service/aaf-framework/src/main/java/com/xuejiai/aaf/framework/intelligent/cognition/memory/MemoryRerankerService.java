@@ -26,12 +26,12 @@ import lombok.extern.slf4j.Slf4j;
  *
  * <ul>
  *   <li>{@link Mode#LIGHTWEIGHT}（默认）：纯计算（向量召回序 + 词法重叠 + 价值权重），用于对话热路径，零延迟零成本。
- *   <li>{@link Mode#RERANK_MODEL}：委托专用重排模型（{@link RerankService}，如 qwen3-rerank 的 cross-encoder
- *       rerank API）， 仅用于高价值/非延迟敏感场景（显式 /recall、批处理）。即便选模型也先经廉价门控，模型不可用或失败时自动降级回轻量。
+ *   <li>{@link Mode#RERANK_MODEL}：委托专用重排模型（{@link RerankService}，如 qwen3.7-text-rerank 的
+ *       cross-encoder rerank API）， 仅用于高价值/非延迟敏感场景（显式 /recall、批处理）。即便选模型也先经廉价门控，模型不可用或失败时自动降级回轻量。
  * </ul>
  *
  * <p>判断原则：路径决定"能不能用重排模型"（调用方声明），门控决定"这次值不值得用"。重排是独立能力， 走专用 {@link RerankService}（对齐
- * CAP_RERANK=qwen3-rerank），而非为 chat 设计的能力路由链。
+ * CAP_RERANK=qwen3.7-text-rerank），而非为 chat 设计的能力路由链。
  */
 @Slf4j
 @Service
@@ -63,18 +63,20 @@ public class MemoryRerankerService {
      * 按模式重排。
      *
      * @param mode LIGHTWEIGHT（纯计算）/ RERANK_MODEL（专用重排模型，带门控 + 降级）
+     * @param userId 承担重排模型成本的用户；为空则不调用付费模型，降级轻量
      */
-    public List<MemoryAtom> rerank(String query, List<MemoryAtom> candidates, int topK, Mode mode) {
+    public List<MemoryAtom> rerank(
+            String query, List<MemoryAtom> candidates, int topK, Mode mode, Long userId) {
         if (candidates == null || candidates.size() <= 1) return candidates;
 
-        if (mode == Mode.RERANK_MODEL && candidates.size() >= MIN_FOR_MODEL) {
+        if (mode == Mode.RERANK_MODEL && userId != null && candidates.size() >= MIN_FOR_MODEL) {
             var svc = rerankServiceProvider.getIfAvailable();
             if (svc != null) {
                 var pool =
                         candidates.size() > MAX_FOR_MODEL
                                 ? lightweight(query, candidates, MAX_FOR_MODEL)
                                 : candidates;
-                var ranked = modelRerank(svc, query, pool, topK);
+                var ranked = modelRerank(svc, userId, query, pool, topK);
                 if (ranked != null) return ranked; // 失败/不可用则降级轻量
             }
         }
@@ -84,11 +86,11 @@ public class MemoryRerankerService {
     // ===== 专用重排模型（按需） =====
 
     private List<MemoryAtom> modelRerank(
-            RerankService svc, String query, List<MemoryAtom> candidates, int topK) {
+            RerankService svc, Long userId, String query, List<MemoryAtom> candidates, int topK) {
         try {
             var docs = candidates.stream().map(MemoryAtom::getContent).toList();
             // RankedDocument.index 指回 candidates，按相关性降序
-            return svc.rerank(query, docs, topK).stream()
+            return svc.rerank(userId, query, docs, topK).stream()
                     .map(RerankService.RankedDocument::index)
                     .filter(i -> i >= 0 && i < candidates.size())
                     .map(candidates::get)
@@ -146,13 +148,15 @@ public class MemoryRerankerService {
      * @param query 查询文本
      * @param contents 融合后的候选内容，按融合序排列
      * @param topK 返回前 K 个下标
+     * @param userId 承担重排模型成本的用户；为空则不调用付费模型，维持融合序
      * @return 按相关性降序排列的原始下标；候选数不足或未启用模型时返回原融合序下标
      */
-    public List<Integer> rerankContents(String query, List<String> contents, int topK) {
+    public List<Integer> rerankContents(
+            String query, List<String> contents, int topK, Long userId) {
         if (contents == null || contents.size() <= 1) {
             return identityIndexes(contents);
         }
-        if (contents.size() < MIN_FOR_MODEL) {
+        if (userId == null || contents.size() < MIN_FOR_MODEL) {
             return identityIndexes(contents);
         }
         var svc = rerankServiceProvider.getIfAvailable();
@@ -160,7 +164,7 @@ public class MemoryRerankerService {
             return identityIndexes(contents);
         }
         try {
-            return svc.rerank(query, contents, topK).stream()
+            return svc.rerank(userId, query, contents, topK).stream()
                     .map(RerankService.RankedDocument::index)
                     .filter(i -> i >= 0 && i < contents.size())
                     .toList();

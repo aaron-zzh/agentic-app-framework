@@ -71,7 +71,7 @@ class KnowledgeVectorServiceTest {
                 mock(VectorStore.class),
                 jdbcTemplate,
                 mock(EmbeddingService.class),
-                new EmbeddingProperties("model", 1536, 100, 1, 1),
+                new EmbeddingProperties("model", 1536, 100, 1),
                 truthStore);
     }
 

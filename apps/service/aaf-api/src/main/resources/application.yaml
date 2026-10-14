@@ -62,7 +62,7 @@ spring:
   ai:
     # Spring AI 自动装配的 ChatModel / EmbeddingModel 读取此处配置，不走 CapabilityRouter 六层决策。
     # 业务侧 LLM 与 Embedding 的模型选择以 aaf.ai.* + DB(ai_model / ai_model_preference) 为准：
-    #   - Embedding（入库、记忆、知识库检索查询向量）全局固定一个模型 aaf.knowledge.embedding.model（默认 qwen:text-embedding-v4），
+    #   - Embedding（入库、记忆、知识库检索查询向量）全局固定一个模型 aaf.knowledge.embedding.model（默认 qwen:qwen3.7-text-embedding），
     #     经 EmbeddingService → CapabilityRouter(显式指定层) → DynamicEmbeddingModelFactory；不支持按用户/知识库切换。
     #     PgVectorStore 注入的是 @Primary 的 RoutedQueryEmbeddingModel，
     #     只回放 EmbeddingService 预先算好的查询向量，不会使用下面 openai 配置对应的 EmbeddingModel。
@@ -155,8 +155,8 @@ aaf:
       SPEECH_TTS: qwen:cosyvoice-v3-flash
       MUSIC_GEN: qwen:fun-music-v1
       OMNI_REALTIME: qwen:qwen3-omni-flash-realtime
-      RERANK: qwen:qwen3-rerank
-      EMBEDDING: qwen:text-embedding-v4
+      RERANK: qwen:qwen3.7-text-rerank
+      EMBEDDING: qwen:qwen3.7-text-embedding
     prompts:
       chat: 你是一个有帮助的 AI 助手，请用中文回答用户的问题。
   messaging:

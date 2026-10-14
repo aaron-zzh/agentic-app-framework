@@ -62,10 +62,12 @@ public class AiAutoConfiguration {
                                 Map.entry(
                                         CapabilityRoutingContext.CAP_OMNI_REALTIME,
                                         "qwen:qwen3-omni-flash-realtime"),
-                                Map.entry(CapabilityRoutingContext.CAP_RERANK, "qwen:qwen3-rerank"),
+                                Map.entry(
+                                        CapabilityRoutingContext.CAP_RERANK,
+                                        "qwen:qwen3.7-text-rerank"),
                                 Map.entry(
                                         CapabilityRoutingContext.CAP_EMBEDDING,
-                                        "qwen:text-embedding-v4"),
+                                        "qwen:qwen3.7-text-embedding"),
                                 Map.entry(CapabilityRoutingContext.CAP_OCR, "qwen:qwen3.5-ocr")));
         // yaml 配置覆盖内置默认值
         if (properties.getDefaultModels() != null) {

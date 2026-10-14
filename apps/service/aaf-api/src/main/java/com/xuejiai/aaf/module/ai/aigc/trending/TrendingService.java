@@ -20,7 +20,7 @@ import tools.jackson.core.type.TypeReference;
 /**
  * 热点搜索服务——通过 DashScope enable_search 实时抓取热榜并格式化为结构化列表。
  *
- * <p>固定模型：qwen:qwen3.7-plus，enable_search=true 通过 extraBody 透传。 复用 ResilientChatService 保证积分预检与扣减。
+ * <p>固定模型：qwen:qwen3.8-flash，enable_search=true 通过 extraBody 透传。 复用 ResilientChatService 保证积分预检与扣减。
  */
 @Slf4j
 @Service
@@ -28,7 +28,7 @@ import tools.jackson.core.type.TypeReference;
 public class TrendingService {
 
     /** 固定模型 ID（对应 ai_model 表 model_id 字段）。 */
-    private static final String MODEL_ID = "qwen:qwen3.7-plus";
+    private static final String MODEL_ID = "qwen:qwen3.8-flash";
 
     private static String buildSysPrompt() {
         String today = java.time.LocalDate.now().toString(); // e.g. 2026-06-24

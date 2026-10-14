@@ -19,14 +19,14 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Prompt 翻译服务——将中文提示词翻译为英文，用于提升 Gemini 等对中文不友好的模型的生成质量。
  *
- * <p>使用百炼 MultiModalConversation SDK 同步调用（qwen3.7-plus）， 无中文时直接返回原文，API Key 未配置时降级返回原文。
+ * <p>使用百炼 MultiModalConversation SDK 同步调用（qwen3.8-flash）， 无中文时直接返回原文，API Key 未配置时降级返回原文。
  */
 @Slf4j
 @Service
 public class PromptTranslationService {
 
     /** 翻译模型，可通过 aaf.ai.translate-model 覆盖 */
-    @Value("${aaf.ai.translate-model:qwen3.7-plus}")
+    @Value("${aaf.ai.translate-model:qwen3.8-flash}")
     private String translateModel;
 
     @Value("${spring.ai.dashscope.api-key:}")

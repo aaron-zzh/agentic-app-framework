@@ -40,7 +40,7 @@ public class AiProperties {
      *       VIDEO_GEN: happyhorse-1.0-i2v
      *       SPEECH_ASR: fun-asr-realtime
      *       SPEECH_TTS: cosyvoice-v3-flash
-     *       RERANK: qwen3-rerank
+     *       RERANK: qwen3.7-text-rerank
      *       EMBEDDING: text-embedding-v3
      * </pre>
      */
@@ -57,6 +57,13 @@ public class AiProperties {
 
     /** 短期会话上下文分层增量压缩配置 */
     private SessionSummaryConfig sessionSummary = new SessionSummaryConfig();
+
+    /**
+     * 协调者写给聚合者的聚合要求（{@code delegate_agents} 的 {@code aggregationContract.requirements}）默认字符上限； 请求参数
+     * {@code aggregationRequirementsMaxChars} 可覆盖，硬顶 32000 字符。区别于 {@code
+     * output.maxCharLen}（最终输出篇幅提示）。
+     */
+    private Integer aggregationRequirementsMaxChars = 8000;
 
     /** 单个模型配置 */
     @Getter

@@ -53,7 +53,7 @@ class IncrementalEntityResolverTest {
                         chatClientFactory,
                         meter,
                         embeddingService,
-                        new EmbeddingProperties("embed-model", 1536, 100, 3, 1));
+                        new EmbeddingProperties("embed-model", 1536, 100, 3));
         var runId = UUID.randomUUID();
         run =
                 new RunContext(

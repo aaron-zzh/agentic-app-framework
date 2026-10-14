@@ -12,6 +12,9 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.ai.embedding.EmbeddingOptions;
+import org.springframework.ai.embedding.EmbeddingRequest;
+import org.springframework.ai.embedding.EmbeddingResponse;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
 
@@ -30,9 +33,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Embedding 生成服务，支持批量生成、缓存、重试。
  *
- * <p>M53：embedding 成本由触发用户承担（产品决策，2026-08-01）。门控与结算走 {@link AiCreditGuard}，按次固定计费（{@link
- * EmbeddingProperties#creditCostPerCall()}），不按 token 精算——embedding 单价远低于对话类调用，按次计费足以覆盖成本且避免为此单独接入
- * token 计量。
+ * <p>M53：embedding 成本由触发用户承担（产品决策，2026-08-01）。门控与结算走 {@link AiCreditGuard}，按模型 {@code
+ * input_price_per_k} 与 provider 返回的 usage.prompt_tokens 按量计费；响应缺少用量即失败。
  *
  * <p>调用方（记忆抽取/去重/检索、知识库导入适配器等）必须传入承担成本的 {@code userId}；系统内部批量任务（如离线重建索引）若无自然归属用户，
  * 由调用方自行决定记账到系统账户或拒绝匿名调用，本服务不做静默兜底。
@@ -76,15 +78,22 @@ public class EmbeddingService {
                 CreditTransactionCategoryEnum.EMBEDDING.getCode(),
                 AiCreditGuard.INESTIMABLE_COST);
         var result = embedWithRetry(embeddingModelOf(model), text);
-        cache.putIfAbsent(key, result);
-        creditGuard.settleFixed(
+        cache.putIfAbsent(key, result.vector());
+        log.info(
+                "[Embedding] 向量化完成: userId={}, modelId={}, inputTokens={}",
                 userId,
-                properties.creditCostPerCall(),
-                CreditTransactionCategoryEnum.EMBEDDING.getCode());
-        return result;
+                model.getModelId(),
+                result.inputTokens());
+        creditGuard.settleByUsage(
+                userId,
+                model,
+                new EmbeddingUsage(result.inputTokens(), 1),
+                CapabilityRoutingContext.CAP_EMBEDDING,
+                "Embedding 向量化");
+        return result.vector();
     }
 
-    /** 批量生成 embedding，按 batchSize 分批调用，成本记账到 userId（按实际生成次数计费，缓存命中不重复计费）。 */
+    /** 批量生成 embedding，按 batchSize 分批调用，成本记账到 userId（按模型价格按量计费，缓存命中不重复计费）。 */
     public List<float[]> embedBatch(List<String> texts, int batchSize, Long userId) {
         Objects.requireNonNull(userId, "M53：embedding 成本需要归属用户，userId 不能为空");
         var results = new ArrayList<float[]>(texts.size());
@@ -118,11 +127,18 @@ public class EmbeddingService {
         return model.getModelId() + "|" + sha256(text);
     }
 
+    /** 单条文本向量化；返回向量与 provider 实际返回的输入 Token 数（用量缺失即失败，避免静默漏账）。 */
+    private EmbeddedText embedWithRetry(EmbeddingModel embeddingModel, String text) {
+        var response = callWithRetry(embeddingModel, text);
+        return new EmbeddedText(response.getResult().getOutput(), providerInputTokens(response));
+    }
+
     /** 带重试的 embedding 调用 */
-    private float[] embedWithRetry(EmbeddingModel embeddingModel, String text) {
+    private EmbeddingResponse callWithRetry(EmbeddingModel embeddingModel, String text) {
         for (int attempt = 1; attempt <= properties.maxRetries(); attempt++) {
             try {
-                return embeddingModel.embed(text);
+                return embeddingModel.call(
+                        new EmbeddingRequest(List.of(text), EmbeddingOptions.builder().build()));
             } catch (Exception e) {
                 log.warn("Embedding 生成失败，第 {} 次重试，原因：{}", attempt, e.getMessage());
                 if (attempt == properties.maxRetries()) {
@@ -138,6 +154,16 @@ public class EmbeddingService {
             }
         }
         throw new IllegalStateException("不可达");
+    }
+
+    /** provider 实际返回的输入 Token 数；缺失或为 0 视为 provider 未上报，无法计费。 */
+    private long providerInputTokens(EmbeddingResponse response) {
+        var usage = response.getMetadata() == null ? null : response.getMetadata().getUsage();
+        var tokens = usage == null ? null : usage.getPromptTokens();
+        if (tokens == null || tokens <= 0) {
+            throw new IllegalStateException("Embedding 响应缺少 usage.prompt_tokens，无法按量计费");
+        }
+        return tokens;
     }
 
     private String sha256(String text) {
@@ -204,9 +230,17 @@ public class EmbeddingService {
             throw new IllegalStateException("知识入库 embedding 单元并发占用失败");
         }
         try {
-            var vectors = texts.stream().map(text -> embedWithRetry(embeddingModel, text)).toList();
-            var inputTokens =
-                    texts.stream().mapToLong(text -> Math.max(1, text.length() / 4)).sum();
+            var embedded =
+                    texts.stream().map(text -> embedWithRetry(embeddingModel, text)).toList();
+            var vectors = embedded.stream().map(EmbeddedText::vector).toList();
+            var inputTokens = embedded.stream().mapToLong(EmbeddedText::inputTokens).sum();
+            log.info(
+                    "[Embedding] 知识入库向量化完成: payerUserId={}, modelId={}, unitKey={}, count={}, inputTokens={}",
+                    billing.payerUserId(),
+                    model.getModelId(),
+                    unitKey,
+                    vectors.size(),
+                    inputTokens);
             var provider = new EmbeddingProviderResult(vectors, inputTokens, vectors.size());
             var providerJson = com.xuejiai.aaf.common.util.JsonUtils.toJsonString(provider);
             knowledgeUsagePort.persistProviderResult(
@@ -271,6 +305,8 @@ public class EmbeddingService {
             cache.putIfAbsent(cacheKey(model, texts.get(index)), vectors.get(index));
         }
     }
+
+    private record EmbeddedText(float[] vector, long inputTokens) {}
 
     private record EmbeddingProviderResult(List<float[]> vectors, long inputTokens, int count) {
         private EmbeddingProviderResult {

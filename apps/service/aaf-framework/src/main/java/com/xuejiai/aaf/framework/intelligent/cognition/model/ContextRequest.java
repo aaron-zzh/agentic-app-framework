@@ -57,12 +57,11 @@ public record ContextRequest(
         knowledgeQuery = Objects.requireNonNull(knowledgeQuery, "knowledgeQuery 不能为空");
         sessionId = sessionId == null || sessionId.isBlank() ? null : sessionId.trim();
         Objects.requireNonNull(requestedAt, "requestedAt 不能为空");
-        if ((purpose == AgentPurpose.COORDINATION || purpose == AgentPurpose.AGGREGATION)
-                && disclosure != Disclosure.SUMMARY_ONLY) {
-            throw new IllegalArgumentException("协调与聚合只能请求摘要上下文");
+        if (purpose == AgentPurpose.AGGREGATION && disclosure != Disclosure.SUMMARY_ONLY) {
+            throw new IllegalArgumentException("聚合只能请求摘要上下文");
         }
-        // 协调与聚合只消费冻结目标与结果，不得回看用户会话历史
-        if (purpose == AgentPurpose.COORDINATION || purpose == AgentPurpose.AGGREGATION) {
+        // 聚合只消费冻结目标与结果，不得回看用户会话历史
+        if (purpose == AgentPurpose.AGGREGATION) {
             sessionId = null;
         }
         validateScopes(scopes, taskMaterials, knowledgeQuery);
@@ -117,7 +116,6 @@ public record ContextRequest(
     }
 
     public enum AgentPurpose {
-        COORDINATION,
         EXECUTION,
         AGGREGATION
     }
