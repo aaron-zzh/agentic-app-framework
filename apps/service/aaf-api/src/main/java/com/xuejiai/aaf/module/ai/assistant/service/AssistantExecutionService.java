@@ -4,6 +4,7 @@ import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
 import static com.xuejiai.aaf.module.ai.assistant.AssistantErrorCode.*;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -21,6 +22,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantComm
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantInvocation;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.InvocationProfile;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.InvocationProfile.ContextPlan;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.RunDeliveryTracker;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskCommandService;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.*;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceReference;
@@ -44,6 +46,7 @@ import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.Subjec
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionLiveEventPort;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.*;
 import com.xuejiai.aaf.framework.intelligent.team.model.TeamDefinition;
 import com.xuejiai.aaf.framework.org.OrgContext;
@@ -68,6 +71,7 @@ import tools.jackson.databind.json.JsonMapper;
 public class AssistantExecutionService implements ProgrammaticAssistantTaskPort {
 
     private static final int MAX_TOP_K = 20;
+    private static final Duration TASK_EVENT_STREAM_TIMEOUT = Duration.ofMinutes(10);
     private static final int MAX_KNOWLEDGE_BASES = 20;
     private static final int MATERIAL_BUDGET = 8_000;
     private static final int MAX_OUTPUT_CHAR_LEN = 32_000;
@@ -91,6 +95,7 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
     private final OperatorContext operatorContext;
     private final VisionMediaResolver visionMediaResolver;
     private final com.xuejiai.aaf.module.billing.api.ParallelTaskQuotaApi parallelTaskQuota;
+    private final ExecutionLiveEventPort liveEvents;
 
     /** 只计算确定性 canonical Task 身份，供业务先持久化受控作用域。 */
     @Override
@@ -272,6 +277,8 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                         AssistantExecutionRequest.ClarificationPolicy.FAIL_ON_BLOCKER,
                         policy.authorizationPolicy(),
                         policy.artifactPersistence(),
+                        null,
+                        null,
                         null),
                 new AssistantExecutionRequest.Input(objective.summary(), Map.of(), List.of()),
                 new AssistantExecutionRequest.RoleSelection(objective.roleKey()),
@@ -525,9 +532,25 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                                     }
                                     return Flux.defer(
                                                     () -> {
-                                                        delegatedTasks.submitConversation(
-                                                                command, board);
-                                                        return Flux.<ExecutionEvent>empty();
+                                                        // Task 由独立 worker
+                                                        // 执行：必须先登记实时订阅再提交，才不会漏掉最早的事件
+                                                        var live =
+                                                                liveEvents.open(
+                                                                        command.tenantId(),
+                                                                        command.taskId());
+                                                        try {
+                                                            delegatedTasks.submitConversation(
+                                                                    command, board);
+                                                        } catch (RuntimeException failure) {
+                                                            // 只释放自己登记的订阅：complete 会结束该 task 的全部订阅，
+                                                            // runId 碰撞时会误伤他人的流
+                                                            live.subscribe().dispose();
+                                                            throw failure;
+                                                        }
+                                                        return live.takeUntil(
+                                                                        new RunDeliveryTracker()
+                                                                                ::endsStream)
+                                                                .timeout(TASK_EVENT_STREAM_TIMEOUT);
                                                     })
                                             .subscribeOn(Schedulers.boundedElastic());
                                 })
@@ -745,7 +768,7 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                         : CompletionCriteria.responseDelivered(),
                 contextCandidates,
                 spec.modelSelection(),
-                InvocationProfile.primary(
+                InvocationProfile.coordinator(
                         spec.requestedSkillKey(),
                         spec.memoryMode(),
                         userAttachments,
@@ -928,6 +951,8 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
         var actionAuthorizationMode =
                 ExecutionIntent.ActionAuthorizationPolicy.Mode.valueOf(
                         options.actionAuthorizationPolicy().name());
+        var decomposition =
+                ExecutionIntent.DecompositionStrategy.valueOf(options.decomposition().name());
         if (options.artifactTarget() != null
                 && options.artifactPersistence()
                         != AssistantExecutionRequest.ArtifactPersistence.AUTO_SAVE_DRAFT) {
@@ -959,7 +984,9 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                         new ExecutionIntent.ActionAuthorizationPolicy(
                                 actionAuthorizationMode, Set.of()),
                         trustedWorkspaceId,
-                        trustedProjectId);
+                        trustedProjectId,
+                        decomposition,
+                        options.aggregationRequirementsMaxChars());
             }
             if (routeConstraint != ExecutionIntent.RouteConstraint.FIXED) {
                 throw exception(EXECUTION_CONVERSATIONAL_FIXED_ROUTE_REQUIRED);
@@ -993,7 +1020,9 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                     new ExecutionIntent.ActionAuthorizationPolicy(
                             actionAuthorizationMode, Set.of()),
                     trustedWorkspaceId,
-                    trustedProjectId);
+                    trustedProjectId,
+                    decomposition,
+                    options.aggregationRequirementsMaxChars());
         }
         if (routeConstraint != ExecutionIntent.RouteConstraint.FIXED) {
             throw exception(EXECUTION_TASK_FIXED_ROUTE_REQUIRED);
@@ -1035,7 +1064,9 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                                 ? Set.of(CONTENT_DRAFT_UPSERT_TOOL)
                                 : Set.of()),
                 trustedWorkspaceId,
-                trustedProjectId);
+                trustedProjectId,
+                decomposition,
+                options.aggregationRequirementsMaxChars());
     }
 
     private static void appendOutputContract(
@@ -1254,7 +1285,7 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
      *
      * <p>不再前置调用 {@code TaskComplexityAnalyzer} 判断 single/coordinated（AAF-107 选项 B 架构改造，
      * 2026-09-02）——协调者在自己的 execution 内自主判断"简单/拆步骤/拆多智能体"三档并直接采取行动（见 {@code
-     * TaskCommandService.executeNode} 与内置 Skill {@code builtin-task-decomposition}），
+     * TaskCommandService.executeNode} 与内置 Skill {@code builtin-task-triage}），
      * "简单"这一档已经被协调者直接回答覆盖，不需要在建板前再额外调一次模型做更粗粒度的相同判断——那是重复劳动， 且判断依据更差（{@code TaskComplexityAnalyzer}
      * 只能看到目标文本本身，协调者的 execution 有完整上下文、 记忆与技能）。始终建 {@code coordinated} 板，协调者节点承担原来"前注意"的职责不变。
      */

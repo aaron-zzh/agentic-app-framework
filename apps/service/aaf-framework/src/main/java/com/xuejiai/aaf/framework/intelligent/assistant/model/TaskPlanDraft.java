@@ -138,7 +138,12 @@ public record TaskPlanDraft(
         }
     }
 
-    public record AggregationContract(Kind kind, List<String> executorOrder, String separator) {
+    public record AggregationContract(
+            Kind kind, List<String> executorOrder, String separator, String requirements) {
+
+        /** 聚合要求的硬顶：请求参数与系统配置都不得超过，防止客户端绕过保护。 */
+        public static final int REQUIREMENTS_HARD_MAX_CHARS = 32_000;
+
         public AggregationContract {
             Objects.requireNonNull(kind, "aggregation kind 不能为空");
             executorOrder =
@@ -151,15 +156,20 @@ public record TaskPlanDraft(
             if (separator.length() > 32) {
                 throw new IllegalArgumentException("聚合分隔符长度不能超过 32");
             }
+            requirements = requirements == null ? "" : requirements.strip();
+            if (requirements.length() > REQUIREMENTS_HARD_MAX_CHARS) {
+                throw new IllegalArgumentException(
+                        "聚合要求长度不能超过硬顶 " + REQUIREMENTS_HARD_MAX_CHARS + " 字符");
+            }
         }
 
         public static AggregationContract passThrough(String executorId) {
-            return new AggregationContract(Kind.PASS_THROUGH, List.of(executorId), "");
+            return new AggregationContract(Kind.PASS_THROUGH, List.of(executorId), "", "");
         }
 
         public static AggregationContract orderedConcat(
                 List<String> executorOrder, String separator) {
-            return new AggregationContract(Kind.ORDERED_CONCAT, executorOrder, separator);
+            return new AggregationContract(Kind.ORDERED_CONCAT, executorOrder, separator, "");
         }
 
         void validate(Set<String> executorIds) {
@@ -169,6 +179,9 @@ public record TaskPlanDraft(
             }
             if (kind == Kind.PASS_THROUGH && executorOrder.size() != 1) {
                 throw new IllegalArgumentException("PASS_THROUGH 聚合只允许一个执行者");
+            }
+            if (kind == Kind.AGGREGATOR_REDUCE && requirements.isBlank()) {
+                throw new IllegalArgumentException("AGGREGATOR_REDUCE 聚合必须提供聚合要求 requirements");
             }
         }
 

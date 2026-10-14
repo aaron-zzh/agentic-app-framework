@@ -39,8 +39,13 @@ public final class TextMessageEventConverter implements AafAguiEventConverter {
     public List<AguiEvent> convert(ExecutionEvent event, AafAguiStreamContext context) {
         return switch (event.type()) {
             case MESSAGE_STARTED -> context.messageStart(blockMessageId(event));
-            case MESSAGE_DELTA ->
-                    context.messageContent(blockMessageId(event), requiredDelta(event));
+            case MESSAGE_DELTA -> {
+                var delta = requiredDelta(event);
+                // AG-UI 协议要求 delta 非空；部分模型服务商会下发空内容片段，直接丢弃，避免前端校验失败中断整个流
+                yield delta.isEmpty()
+                        ? List.of()
+                        : context.messageContent(blockMessageId(event), delta);
+            }
             case MESSAGE_BLOCK_COMPLETED -> context.messageEnd(blockMessageId(event));
             // 整次回复结束（AGENT_RESULT）不对应具体 blockId，块级 END 已由 MESSAGE_BLOCK_COMPLETED 负责；
             // 未闭合的边界情况交给流尾 close() 兜底，此处不重复发送。

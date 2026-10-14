@@ -14,7 +14,7 @@ import reactor.core.scheduler.Schedulers;
 /** 当前 Assistant 将尚无副作用的 DIRECT execution 提升为 canonical Task 的唯一模型入口。 */
 public final class PromoteDirectTaskTool implements ContextAwareToolHandler {
 
-    public static final String TOOL_NAME = "promote_direct_task";
+    public static final String TOOL_NAME = "promote_to_task";
 
     private final TaskCommandService tasks;
 
@@ -62,7 +62,7 @@ public final class PromoteDirectTaskTool implements ContextAwareToolHandler {
     private ToolInvocationResult promote(ToolInvocation invocation) {
         var context = invocation.context();
         if (context.taskId() != null || context.nodeIdentity() != null) {
-            throw new IllegalStateException("promote_direct_task 仅允许 DIRECT execution 调用");
+            throw new IllegalStateException("promote_to_task 仅允许 DIRECT execution 调用");
         }
         var reason = invocation.arguments().get("reason");
         if (!(reason instanceof String text) || text.isBlank()) {

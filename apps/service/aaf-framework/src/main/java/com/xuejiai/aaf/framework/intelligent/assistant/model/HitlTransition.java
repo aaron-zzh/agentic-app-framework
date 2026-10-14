@@ -103,8 +103,7 @@ public final class HitlTransition {
                     approved
                             ? ExecutionEventType.AUTHORIZATION_GRANTED
                             : ExecutionEventType.AUTHORIZATION_DENIED;
-            var expectedStatus =
-                    approved ? ExecutionEventStatus.RECOVERING : ExecutionEventStatus.PAUSED;
+            var expectedStatus = ExecutionEventStatus.RECOVERING;
             if (!event.tenantId().equals(context.tenantId())
                     || !event.userId().equals(context.userId())
                     || !event.conversationId().equals(context.conversationId())

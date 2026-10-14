@@ -12,7 +12,9 @@ public record ExecutionIntent(
         ArtifactPolicy artifactPolicy,
         ActionAuthorizationPolicy actionAuthorizationPolicy,
         Long workspaceId,
-        Long trustedProjectId) {
+        Long trustedProjectId,
+        DecompositionStrategy decomposition,
+        Integer aggregationRequirementsMaxChars) {
 
     public ExecutionIntent {
         Objects.requireNonNull(interactionMode, "interactionMode 不能为空");
@@ -20,6 +22,14 @@ public record ExecutionIntent(
         Objects.requireNonNull(clarificationPolicy, "clarificationPolicy 不能为空");
         Objects.requireNonNull(artifactPolicy, "artifactPolicy 不能为空");
         Objects.requireNonNull(actionAuthorizationPolicy, "actionAuthorizationPolicy 不能为空");
+        decomposition = decomposition == null ? DecompositionStrategy.AUTO : decomposition;
+        if (aggregationRequirementsMaxChars != null && aggregationRequirementsMaxChars < 1) {
+            throw new IllegalArgumentException("aggregationRequirementsMaxChars 必须为正数");
+        }
+        if (decomposition != DecompositionStrategy.AUTO
+                && interactionMode != InteractionMode.TASK) {
+            throw new IllegalArgumentException("分解策略 NONE / REQUIRED 仅适用于 TASK 执行");
+        }
         if (trustedProjectId != null && trustedProjectId < 1) {
             throw new IllegalArgumentException("trustedProjectId 必须为正数");
         }
@@ -51,7 +61,9 @@ public record ExecutionIntent(
                 ArtifactPolicy.returnOnly(OutputKind.MESSAGE, "text/markdown"),
                 ActionAuthorizationPolicy.requestOnDemand(),
                 workspaceId,
-                trustedProjectId);
+                trustedProjectId,
+                DecompositionStrategy.AUTO,
+                null);
     }
 
     public static ExecutionIntent taskFixed(
@@ -70,11 +82,28 @@ public record ExecutionIntent(
                 artifactPolicy,
                 actionAuthorizationPolicy,
                 workspaceId,
-                trustedProjectId);
+                trustedProjectId,
+                DecompositionStrategy.AUTO,
+                null);
     }
 
     public boolean autoSaveDraft() {
         return artifactPolicy.persistenceMode() == PersistenceMode.AUTO_SAVE_DRAFT;
+    }
+
+    /**
+     * 分解策略（ADR-008）：只由调用方通过请求参数指定，随根命令冻结；通过协调者的工具可见性强制，不依赖提示词。
+     *
+     * <ul>
+     *   <li>{@code AUTO}：协调者自行判断（缺省）
+     *   <li>{@code NONE}：协调者不得委派子智能体，强制单段
+     *   <li>{@code REQUIRED}：协调者必须委派
+     * </ul>
+     */
+    public enum DecompositionStrategy {
+        AUTO,
+        NONE,
+        REQUIRED
     }
 
     public enum InteractionMode {

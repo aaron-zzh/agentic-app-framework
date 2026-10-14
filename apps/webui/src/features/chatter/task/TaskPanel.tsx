@@ -5,7 +5,7 @@
 
 "use client"
 
-import { useBoolean } from "@aaf/hooks"
+import { useBoolean, useTabs } from "@aaf/hooks"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import {
   Ban,
@@ -13,12 +13,15 @@ import {
   CircleCheckBig,
   CircleDashed,
   CircleX,
+  GitBranch,
+  LayoutList,
   ListChecks,
   ListTree,
   LoaderCircle,
   PauseCircle,
   ShieldAlert
 } from "lucide-react"
+import { useState } from "react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -27,7 +30,9 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import type { TaskListProgress } from "@/features/chatter/hooks/use-task-list"
+import { TaskPlanGraph } from "@/features/chatter/task/TaskPlanGraph"
 import {
   isTaskTerminal,
   type TaskDetails,
@@ -163,6 +168,10 @@ function TaskItem({ task }: { task: TaskDetails }) {
   const details = useBoolean(false)
   const confirm = useBoolean(false)
   const pauseConfirm = useBoolean(false)
+  // 计划默认以文字列表展示，切换到“依赖图”后点击节点查看详情
+  const planView = useTabs("text")
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
+  const selectedNode = task.plan?.nodes.find((node) => node.nodeId === selectedNodeId) ?? null
   const queryClient = useQueryClient()
   const pause = useMutation({
     mutationFn: () => taskApi.pause(task.taskId, "用户在任务面板暂停任务"),
@@ -250,19 +259,55 @@ function TaskItem({ task }: { task: TaskDetails }) {
           ) : null}
           {task.plan ? (
             <section className="flex flex-col gap-1.5" aria-label="任务计划">
-              <div className="flex flex-wrap gap-1.5 text-xs">
+              <div className="flex flex-wrap items-center gap-1.5 text-xs">
                 <Badge variant="secondary">Plan r{task.plan.revision}</Badge>
                 <Badge variant="outline">{task.plan.status}</Badge>
-                <span className="text-muted-foreground">
+                <span className="min-w-0 flex-1 text-muted-foreground">
                   并行度 {task.plan.maxParallelism} · {task.plan.failurePolicy} ·{" "}
                   {task.plan.aggregationKind}
                 </span>
+                <ToggleGroup
+                  value={[planView.value]}
+                  onValueChange={(values: string[]) => {
+                    const next = values.at(-1)
+                    if (next === "text" || next === "graph") planView.setValue(next)
+                  }}
+                  variant="outline"
+                  size="sm"
+                  spacing={0}
+                >
+                  <ToggleGroupItem value="text" aria-label="文字视图">
+                    <LayoutList />
+                    文字
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="graph" aria-label="依赖图视图">
+                    <GitBranch />
+                    依赖图
+                  </ToggleGroupItem>
+                </ToggleGroup>
               </div>
-              <ul className="flex flex-col gap-1.5">
-                {task.plan.nodes.map((node) => (
-                  <NodeRow key={node.nodeId} node={node} />
-                ))}
-              </ul>
+              {planView.value === "graph" ? (
+                <>
+                  <TaskPlanGraph
+                    nodes={task.plan.nodes}
+                    selectedId={selectedNodeId}
+                    onSelect={setSelectedNodeId}
+                  />
+                  {selectedNode ? (
+                    <ul className="flex flex-col gap-1.5">
+                      <NodeRow node={selectedNode} />
+                    </ul>
+                  ) : (
+                    <p className="text-muted-foreground text-xs">点击节点查看详情</p>
+                  )}
+                </>
+              ) : (
+                <ul className="flex flex-col gap-1.5">
+                  {task.plan.nodes.map((node) => (
+                    <NodeRow key={node.nodeId} node={node} />
+                  ))}
+                </ul>
+              )}
             </section>
           ) : null}
           {task.executions.length > 0 ? (

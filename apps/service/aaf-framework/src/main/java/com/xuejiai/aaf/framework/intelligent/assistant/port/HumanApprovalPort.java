@@ -15,5 +15,7 @@ public interface HumanApprovalPort {
 
     List<HumanApproval> pending(TenantId tenantId, TaskId taskId);
 
+    List<HumanApproval> rejected(TenantId tenantId, TaskId taskId);
+
     List<HumanApproval> pending(TenantId tenantId, UserId userId);
 }

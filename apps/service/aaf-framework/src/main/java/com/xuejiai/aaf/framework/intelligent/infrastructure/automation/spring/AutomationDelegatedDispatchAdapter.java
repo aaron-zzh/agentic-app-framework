@@ -72,7 +72,7 @@ public final class AutomationDelegatedDispatchAdapter implements DispatchPort {
                         template.contextCandidates(),
                         TaskModelSelection.auto(),
                         com.xuejiai.aaf.framework.intelligent.assistant.application
-                                .InvocationProfile.primary(
+                                .InvocationProfile.coordinator(
                                 null,
                                 com.xuejiai.aaf.framework.intelligent.assistant.application
                                         .AssistantInvocation.MemoryMode.DEFAULT,

@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.xuejiai.aaf.framework.intelligent.agent.model.AuthorizationGrant;
+import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AuthorizationGrantPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ConnectorActionPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ConnectorActionPort.ConnectorAction;
@@ -34,6 +35,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.HitlTransition.Auth
 import com.xuejiai.aaf.framework.intelligent.assistant.model.HumanApproval;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HitlTransitionPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.HumanApprovalPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskUnitOfWork;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ExecutionEventStatus;
@@ -51,6 +53,7 @@ public final class DefaultToolGateway implements ToolGatewayPort {
     private static final String TASK_SCOPE = "TASK";
 
     private final AuthorizationGrantPort grants;
+    private final HumanApprovalPort approvals;
     private final ToolParameterPolicyPort parameterPolicy;
     private final HitlTransitionPort transitions;
     private final ToolInvocationPort localTools;
@@ -61,6 +64,7 @@ public final class DefaultToolGateway implements ToolGatewayPort {
 
     public DefaultToolGateway(
             AuthorizationGrantPort grants,
+            HumanApprovalPort approvals,
             ToolParameterPolicyPort parameterPolicy,
             HitlTransitionPort transitions,
             ToolInvocationPort localTools,
@@ -69,6 +73,7 @@ public final class DefaultToolGateway implements ToolGatewayPort {
             TaskUnitOfWork delegatedTasks,
             InvocationReceiptPort receipts) {
         this.grants = Objects.requireNonNull(grants, "grants 不能为空");
+        this.approvals = Objects.requireNonNull(approvals, "approvals 不能为空");
         this.parameterPolicy = Objects.requireNonNull(parameterPolicy, "parameterPolicy 不能为空");
         this.transitions = Objects.requireNonNull(transitions, "transitions 不能为空");
         this.localTools = Objects.requireNonNull(localTools, "localTools 不能为空");
@@ -101,7 +106,8 @@ public final class DefaultToolGateway implements ToolGatewayPort {
                         || definition.requireConfirm();
         if (context.taskId() == null && grantRequired) {
             return Mono.error(
-                    new IllegalStateException("DIRECT execution 触及授权或副作用边界，必须先 promotion 为 Task"));
+                    new IllegalStateException(
+                            "DIRECT execution 触及授权或副作用边界，请先调用 promote_to_task 升级为 Task 后再执行该工具"));
         }
         log.debug(
                 "[工具网关] 工具调用已通过可见性校验：taskId={}，tool={}，只读={}，可撤销={}，需要授权={}",
@@ -129,6 +135,12 @@ public final class DefaultToolGateway implements ToolGatewayPort {
                                     definition.reversible(),
                                     Instant.now())
                             .orElse(null);
+            if (grant == null) {
+                var rejection = priorRejection(definition, context, resource);
+                if (rejection != null) {
+                    return Mono.error(rejection);
+                }
+            }
             if (grant == null
                     && rule.missingGrantBehavior()
                             == com.xuejiai.aaf.framework.intelligent.agent.model
@@ -352,6 +364,44 @@ public final class DefaultToolGateway implements ToolGatewayPort {
         } catch (NoSuchAlgorithmException failure) {
             throw new IllegalStateException("运行环境缺少 SHA-256", failure);
         }
+    }
+
+    private RuntimeException priorRejection(
+            ToolDefinition definition, InvocationContext context, String resource) {
+        var action = definition.ref().name();
+        var nodeRejections =
+                approvals.rejected(context.tenantId(), context.taskId()).stream()
+                        .filter(approval -> approval.action().equals(action))
+                        .filter(approval -> sameNode(approval.invocationContext(), context))
+                        .toList();
+        if (nodeRejections.size() >= 2) {
+            return new IllegalStateException(
+                    "同一节点对操作 %s 已累计被用户拒绝 %d 次，停止重复申请".formatted(action, nodeRejections.size()));
+        }
+        var recent =
+                nodeRejections.stream()
+                        .filter(approval -> approval.resource().equals(resource))
+                        .filter(
+                                approval ->
+                                        approval.invocationContext()
+                                                .executionId()
+                                                .equals(context.executionId()))
+                        .filter(approval -> approval.decidedAt() != null)
+                        .max((left, right) -> left.decidedAt().compareTo(right.decidedAt()))
+                        .orElse(null);
+        if (recent == null) {
+            return null;
+        }
+        var feedback = recent.decisionReason();
+        var displayedFeedback = feedback == null || feedback.isBlank() ? "无" : feedback;
+        return new AuthorizationDeniedException("用户拒绝该操作，反馈：" + displayedFeedback);
+    }
+
+    private static boolean sameNode(InvocationContext left, InvocationContext right) {
+        if (left.nodeIdentity() != null && right.nodeIdentity() != null) {
+            return left.nodeIdentity().nodeId().equals(right.nodeIdentity().nodeId());
+        }
+        return left.executionId().equals(right.executionId());
     }
 
     private static ExecutionEvent authorizationRequestEvent(HumanApproval approval) {

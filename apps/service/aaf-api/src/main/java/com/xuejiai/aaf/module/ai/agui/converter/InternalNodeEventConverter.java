@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.ai.agui.converter;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -55,14 +56,16 @@ public final class InternalNodeEventConverter implements AafAguiEventConverter {
     public List<AguiEvent> convert(ExecutionEvent event, AafAguiStreamContext context) {
         var node = event.nodeIdentity();
         var publicEvent = publicMapper.map(event);
+        var data = new LinkedHashMap<String, Object>(publicEvent.data().values());
+        appendLiveDelta(event, data);
         var value =
                 Map.<String, Object>of(
-                        "source", node.sourcePath(),
+                        "source", node.internalSourcePath(),
                         "nodeKind", node.kind().name(),
                         "roleKey", node.roleKey() == null ? "" : node.roleKey(),
                         "type", publicEvent.type(),
                         "status", publicEvent.status(),
-                        "data", publicEvent.data().values());
+                        "data", data);
         var custom =
                 new AguiEvent.Custom(
                         context.threadId(), context.runId(), name(event.type()), value);
@@ -136,6 +139,19 @@ public final class InternalNodeEventConverter implements AafAguiEventConverter {
                     context.stepFinished(STEP_EXECUTION);
             default -> List.of();
         };
+    }
+
+    /**
+     * 内部节点的文本增量只走实时通道：公共事件把 delta 脱敏成长度，这里为 {@code aaf.message.progress} 补回文本，供前端
+     * 按节点展示过程输出。增量不落库（#11701），实时通道只发给触发该任务的所有者的 SSE 连接，不进入任何持久公共事件。
+     */
+    private static void appendLiveDelta(ExecutionEvent event, Map<String, Object> data) {
+        if (event.type() != ExecutionEventType.MESSAGE_DELTA) {
+            return;
+        }
+        if (event.payload().values().get("delta") instanceof String delta && !delta.isEmpty()) {
+            data.put("delta", delta);
+        }
     }
 
     /** 按事件族分名，便于客户端按需订阅；细分类型仍在 payload 的 type 字段里。 */

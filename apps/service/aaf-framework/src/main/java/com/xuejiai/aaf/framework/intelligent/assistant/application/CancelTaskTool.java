@@ -11,7 +11,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolI
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
-/** PRIMARY Assistant 按用户明确指令停止指定 canonical Task。 */
+/** 轻量态协调者按用户明确指令停止指定 canonical Task。 */
 public final class CancelTaskTool implements ContextAwareToolHandler {
 
     public static final String TOOL_NAME = "cancel_task";
@@ -65,7 +65,7 @@ public final class CancelTaskTool implements ContextAwareToolHandler {
     private ToolInvocationResult cancel(ToolInvocation invocation) {
         var context = invocation.context();
         if (context.taskId() != null) {
-            throw new IllegalStateException("cancel_task 只能由新的 PRIMARY 对话 Execution 调用");
+            throw new IllegalStateException("cancel_task 只能由新的轻量态协调者对话 Execution 调用");
         }
         var reason = optionalText(invocation.arguments().get("reason"));
         if (reason == null) {

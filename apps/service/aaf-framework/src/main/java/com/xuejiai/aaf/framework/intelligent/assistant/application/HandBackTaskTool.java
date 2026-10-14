@@ -11,7 +11,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolI
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
-/** PRIMARY Assistant 按用户明确指令把 canonical Task 交回合同 Owner Assistant。 */
+/** 轻量态协调者按用户明确指令把 canonical Task 交回合同 Owner Assistant。 */
 public final class HandBackTaskTool implements ContextAwareToolHandler {
 
     public static final String TOOL_NAME = "hand_back_task";
@@ -64,7 +64,7 @@ public final class HandBackTaskTool implements ContextAwareToolHandler {
     private ToolInvocationResult handBack(ToolInvocation invocation) {
         var context = invocation.context();
         if (context.taskId() != null) {
-            throw new IllegalStateException("hand_back_task 只能由新的 PRIMARY 对话 Execution 调用");
+            throw new IllegalStateException("hand_back_task 只能由新的轻量态协调者对话 Execution 调用");
         }
         var task =
                 tasks.resolveControllableTask(

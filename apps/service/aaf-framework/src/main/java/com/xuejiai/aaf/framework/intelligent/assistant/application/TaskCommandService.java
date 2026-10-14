@@ -15,6 +15,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ArtifactCompletionContract.ArtifactCompletionEvaluator;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ArtifactCompletionContract.InvocationReceipt;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionInput;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Task;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Task.Owner;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Task.OwnerKind;
@@ -33,6 +34,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskMaterializationP
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskUnitOfWork;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
+import com.xuejiai.aaf.framework.intelligent.shared.event.NodeIdentity;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ConversationId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
@@ -130,19 +132,21 @@ public final class TaskCommandService {
         if (!profile.assistantId().equals(sourceCommand.assistantId())
                 || profile.invocationPolicy()
                         != com.xuejiai.aaf.framework.intelligent.assistant.model.InvocationPolicy
-                                .PRIMARY) {
+                                .COORDINATOR) {
             throw new IllegalStateException("promotion 必须保持 origin Task Owner Assistant 身份");
         }
         var at = clock.instant();
         var taskId = promotionTaskId(tenantId, originExecutionId);
         var promotedCommand = sourceCommand.promoteToTask(taskId, at);
         var maxAttempts = promotedCommand.executionContract().retryPolicy().maxAttempts();
+        // 升级后协调者节点继承轻量态已固定的 Skill；AUTO 路由没有固定 Skill，保持为空
+        var originRoute = profile.executionIntent().resolvedRoute();
         var plan =
                 TaskPlan.coordinated(
                         taskId,
                         sourceCommand.input(),
                         profile.roleAssignment().roleKey(),
-                        null,
+                        originRoute == null ? null : originRoute.skillKey(),
                         sourceCommand.taskModelSelection(),
                         maxAttempts);
         var owner = new Owner(OwnerKind.ASSISTANT, sourceCommand.assistantId().value());
@@ -577,6 +581,13 @@ public final class TaskCommandService {
         var result = new AtomicReference<>("");
         var failure = new AtomicReference<String>();
         var completed = new AtomicBoolean();
+        var delegated = new AtomicBoolean();
+        // 强制委派（REQUIRED）的协调者必须成功提交 delegate_agents，否则按节点失败收口并走既有重试
+        var delegationRequired =
+                command.nodeIdentity() != null
+                        && command.nodeIdentity().kind() == NodeIdentity.NodeKind.COORDINATOR
+                        && command.invocationProfile().executionIntent().decomposition()
+                                == ExecutionIntent.DecompositionStrategy.REQUIRED;
         return assistants
                 .execute(command)
                 .doOnNext(
@@ -586,6 +597,11 @@ public final class TaskCommandService {
                                 if (text != null) {
                                     result.set(text.toString());
                                 }
+                            }
+                            if (event.type() == ExecutionEventType.TOOL_CALL_COMPLETED
+                                    && SubmitCoordinationPlanTool.TOOL_NAME.equals(
+                                            event.payload().values().get("toolName"))) {
+                                delegated.set(true);
                             }
                             if (event.type() == ExecutionEventType.EXECUTION_COMPLETED) {
                                 completed.set(true);
@@ -607,6 +623,12 @@ public final class TaskCommandService {
                         Flux.defer(
                                 () -> {
                                     var terminalFailure = failure.get();
+                                    if (terminalFailure == null
+                                            && delegationRequired
+                                            && !delegated.get()) {
+                                        terminalFailure =
+                                                "分解策略为 REQUIRED，协调者必须调用 delegate_agents 委派，本次未委派";
+                                    }
                                     if (!completed.get() && terminalFailure == null) {
                                         terminalFailure =
                                                 "TaskNode execution did not reach terminal state";

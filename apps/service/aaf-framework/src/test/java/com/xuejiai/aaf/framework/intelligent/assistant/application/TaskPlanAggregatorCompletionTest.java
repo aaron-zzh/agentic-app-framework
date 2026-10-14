@@ -118,7 +118,8 @@ class TaskPlanAggregatorCompletionTest {
                                 new TaskPlanDraft.AggregationContract(
                                         TaskPlanDraft.AggregationContract.Kind.AGGREGATOR_REDUCE,
                                         List.of("executor-copy"),
-                                        ""),
+                                        "",
+                                        "按品牌调性综合各执行者结果"),
                                 null),
                         1,
                         Map.of(

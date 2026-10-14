@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort.StoredExecutionEvent;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
 import com.xuejiai.aaf.framework.intelligent.shared.event.publication.AafAiTaskEvent.Delivery;
 import com.xuejiai.aaf.framework.intelligent.shared.event.publication.AafAiTaskEvent.ReferenceSafeData;
 
@@ -152,6 +153,9 @@ public final class ExecutionEventPublicMapper {
                 copyText(source, safe, "action");
                 copyText(source, safe, "decision");
                 copyBoolean(source, safe, "reversible");
+                if (event.type() == ExecutionEventType.AUTHORIZATION_DENIED) {
+                    copyUserFeedback(source, safe);
+                }
             }
             case CLARIFICATION_REQUESTED,
                     CLARIFICATION_UPDATED,
@@ -196,6 +200,20 @@ public final class ExecutionEventPublicMapper {
         if (value instanceof String text && !text.isBlank() && !text.contains("\n")) {
             target.put(key, text.length() <= 256 ? text : text.substring(0, 256));
         }
+    }
+
+    private static void copyUserFeedback(Map<String, Object> source, Map<String, Object> target) {
+        var value = source.get("feedback");
+        if (!(value instanceof String text) || text.isBlank()) {
+            return;
+        }
+        var normalized = text.trim();
+        var codePointCount = normalized.codePointCount(0, normalized.length());
+        target.put(
+                "feedback",
+                codePointCount <= 1000
+                        ? normalized
+                        : normalized.substring(0, normalized.offsetByCodePoints(0, 1000)));
     }
 
     private static void copyPositiveLong(

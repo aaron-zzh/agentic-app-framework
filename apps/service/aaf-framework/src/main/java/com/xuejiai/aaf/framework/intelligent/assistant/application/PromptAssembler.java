@@ -82,30 +82,28 @@ public final class PromptAssembler {
                         Long.toString(assistant.version().value()),
                         roleContent(request.roleAssignment())));
         appendSkills(sources, request.skillExecutionProfile());
-        if (personaApplies(request.invocationPolicy())) {
-            sources.add(
-                    source(
-                            PromptLayerKind.PERSONA,
-                            PromptSourceKind.ASSISTANT_PERSONA,
-                            persona.personaKey(),
-                            Integer.toString(persona.personaRevision()),
-                            """
-                            ## Assistant Persona
-                            personaKey：%s
-                            名称：%s
-                            定位：%s
-                            人格：%s
-                            表达风格：%s
-                            基础约束：%s
-                            """
-                                    .formatted(
-                                            persona.personaKey(),
-                                            persona.name(),
-                                            persona.description(),
-                                            persona.personality(),
-                                            persona.speakingStyle(),
-                                            persona.instructions())));
-        }
+        sources.add(
+                source(
+                        PromptLayerKind.PERSONA,
+                        PromptSourceKind.ASSISTANT_PERSONA,
+                        persona.personaKey(),
+                        Integer.toString(persona.personaRevision()),
+                        """
+                        ## Assistant Persona
+                        personaKey：%s
+                        名称：%s
+                        定位：%s
+                        人格：%s
+                        表达风格：%s
+                        基础约束：%s
+                        """
+                                .formatted(
+                                        persona.personaKey(),
+                                        persona.name(),
+                                        persona.description(),
+                                        persona.personality(),
+                                        persona.speakingStyle(),
+                                        persona.instructions())));
         return CompiledSystemPrompt.compile(sources);
     }
 
@@ -270,16 +268,6 @@ public final class PromptAssembler {
         return content.toString();
     }
 
-    /**
-     * 人格与表达风格是否适用于当前调用阶段。
-     *
-     * <p>COORDINATOR 必须输出严格 JSON 的 TaskPlanDraft，注入人格与表达风格会污染格式，宪章要求「严格结构化输出场景以输出合同为准」。
-     * 其余阶段的产出会进入用户可见的答复或最终业务内容，人格必须保留。
-     */
-    private static boolean personaApplies(InvocationPolicy policy) {
-        return policy != InvocationPolicy.COORDINATOR;
-    }
-
     private static PromptLayerSource invocationSource(
             InvocationPolicy policy,
             ExecutionIntent executionIntent,
@@ -296,6 +284,17 @@ public final class PromptAssembler {
             content.append("规范媒体类型：").append(artifact.canonicalMediaType()).append('\n');
             content.append("持久化模式：").append(artifact.persistenceMode()).append('\n');
             content.append("发布策略：").append(artifact.publishPolicy()).append('\n');
+            if (policy == InvocationPolicy.COORDINATOR) {
+                // 分解策略只改变协调者的工具面；非 AUTO 时明示，避免与上方"简单任务直接回复"的通用规则冲突
+                switch (executionIntent.decomposition()) {
+                    case NONE -> content.append("分解策略：NONE。本次不得委派子智能体，直接在本次回复中完成并交付。\n");
+                    case REQUIRED ->
+                            content.append(
+                                    "分解策略：REQUIRED。本次必须调用 delegate_agents 委派子智能体，不得直接回答，"
+                                            + "本次回复不要输出面向用户的正文；该策略覆盖上方关于简单任务直接回复的规则。\n");
+                    case AUTO -> {}
+                }
+            }
         }
         appendCompletionContract(content, completionCriteria);
         content.append("本层只定义行为和输出契约；工具授权、人工批准、预算与持久化许可由 Prompt 外部确定性机制裁决。\n");

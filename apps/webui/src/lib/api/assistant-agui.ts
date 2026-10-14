@@ -1,8 +1,8 @@
 /**
  * Assistant AG-UI 正文流客户端。
  *
- * 正文仅消费 TEXT_MESSAGE_CONTENT.delta；任务状态、授权和安全引用仅消费
- * CUSTOM 中的 AafAiTaskEvent，绝不读取内部 ExecutionEvent payload。
+ * 正文仅消费 TEXT_MESSAGE_CONTENT.delta；任务状态、授权和安全引用消费
+ * CUSTOM 中的 AafAiTaskEvent，节点过程输出消费 aaf.node.*，绝不读取内部 ExecutionEvent payload。
  *
  * @example
  * await executeAssistantAgUi(request, {
@@ -73,12 +73,16 @@ export interface AssistantArtifactTarget {
   expectedCurrentVersionId: number
 }
 
+export type AssistantDecompositionStrategy = "AUTO" | "NONE" | "REQUIRED"
+
 export interface AssistantExecutionOptions {
   interactionMode: "TASK" | "CONVERSATIONAL"
   routeConstraint: "FIXED" | "AUTO"
   clarificationPolicy: "MINIMAL" | "FAIL_ON_BLOCKER" | "INTERACTIVE"
   actionAuthorizationPolicy: AssistantActionAuthorizationPolicy
   artifactPersistence: "AUTO_SAVE_DRAFT" | "RETURN_ONLY"
+  decomposition?: AssistantDecompositionStrategy
+  aggregationRequirementsMaxChars?: number
   artifactTarget?: AssistantArtifactTarget
 }
 
@@ -182,6 +186,32 @@ export interface AssistantCustomEvent extends RunEvent {
   value: AafAiTaskEvent
 }
 
+export type AssistantNodeKind = "COORDINATOR" | "EXECUTOR" | "EVALUATOR" | "AGGREGATOR"
+
+export interface AssistantNodeEvent extends RunEvent {
+  type: AafAiTaskEvent["type"]
+  name: `aaf.node.${string}`
+  nodeId: string
+  nodeKind: AssistantNodeKind
+  roleKey: string
+  status: string
+  /** 公共事件已脱敏的标量数据（如工具完成事件携带的产物引用）。 */
+  data: AafAiTaskEventData
+  delta?: string
+}
+
+export type AssistantIgnoredEventType =
+  | "STEP_STARTED"
+  | "STEP_FINISHED"
+  | "STATE_SNAPSHOT"
+  | "STATE_DELTA"
+  | "ACTIVITY_SNAPSHOT"
+  | "ACTIVITY_DELTA"
+
+export interface AssistantIgnoredEvent extends RunEvent {
+  type: AssistantIgnoredEventType
+}
+
 export type AssistantAgUiEvent =
   | AssistantRunStartedEvent
   | AssistantRunFinishedEvent
@@ -192,6 +222,26 @@ export type AssistantAgUiEvent =
   | AssistantToolCallStartEvent
   | AssistantToolCallResultEvent
   | AssistantCustomEvent
+  | AssistantNodeEvent
+  | AssistantIgnoredEvent
+
+export function isAssistantNodeEvent(event: AssistantAgUiEvent): event is AssistantNodeEvent {
+  return "nodeId" in event
+}
+
+function isAssistantIgnoredEvent(event: AssistantAgUiEvent): event is AssistantIgnoredEvent {
+  switch (event.type) {
+    case "STEP_STARTED":
+    case "STEP_FINISHED":
+    case "STATE_SNAPSHOT":
+    case "STATE_DELTA":
+    case "ACTIVITY_SNAPSHOT":
+    case "ACTIVITY_DELTA":
+      return true
+    default:
+      return false
+  }
+}
 
 export interface AssistantAgUiStreamOptions {
   onEvent?: (event: AssistantAgUiEvent) => void
@@ -248,7 +298,7 @@ interface AssistantResumeAgUiRunRequest {
   resume: {
     interruptId: string
     status: "resolved" | "cancelled"
-    payload: { approved: boolean }
+    payload: { approved: boolean; feedback?: string }
   }[]
 }
 
@@ -304,6 +354,57 @@ function parseInterrupts(value: Record<string, unknown>): AssistantInterrupt[] {
   }))
 }
 
+function requiredNodeKind(value: Record<string, unknown>): AssistantNodeKind {
+  const nodeKind = requiredText(value, "nodeKind")
+  if (
+    nodeKind !== "COORDINATOR" &&
+    nodeKind !== "EXECUTOR" &&
+    nodeKind !== "EVALUATOR" &&
+    nodeKind !== "AGGREGATOR"
+  ) {
+    throw new Error("AG-UI 节点事件包含无效 nodeKind")
+  }
+  return nodeKind
+}
+
+function parseAssistantNodeEvent(
+  runId: string,
+  name: `aaf.node.${string}`,
+  payload: unknown
+): AssistantNodeEvent {
+  if (!isRecord(payload)) throw new Error("AG-UI 节点事件 value 必须是对象")
+  const source = requiredText(payload, "source")
+  const sourcePrefix = "coordinator/"
+  if (!source.startsWith(sourcePrefix) || source.length === sourcePrefix.length) {
+    throw new Error("AG-UI 节点事件缺少有效 source")
+  }
+  const eventType = requiredText(payload, "type")
+  if (!eventType.startsWith("aaf.")) throw new Error("AG-UI 节点事件包含无效 type")
+  if (!isRecord(payload.data)) throw new Error("AG-UI 节点事件包含无效 data")
+
+  // 仅 aaf.message.progress 携带文本增量；started / completed 等事件没有 delta
+  const delta = eventType === "aaf.message.progress" ? payload.data.delta : undefined
+  // 后端对无 Role 的节点以空串填充 roleKey，因此这里不能按必填文本校验
+  const roleKey = typeof payload.roleKey === "string" ? payload.roleKey : ""
+  const data: AafAiTaskEventData = {}
+  for (const [key, item] of Object.entries(payload.data)) {
+    if (typeof item === "string" || typeof item === "number" || typeof item === "boolean") {
+      data[key] = item
+    }
+  }
+  return {
+    type: eventType as AafAiTaskEvent["type"],
+    runId,
+    name,
+    nodeId: source.slice(sourcePrefix.length),
+    nodeKind: requiredNodeKind(payload),
+    roleKey,
+    status: requiredText(payload, "status"),
+    data,
+    ...(typeof delta === "string" && delta.length > 0 ? { delta } : {})
+  }
+}
+
 /** 校验并解析单条 Assistant AG-UI 事件。 */
 export function parseAssistantAgUiEvent(data: string): AssistantAgUiEvent {
   let value: unknown
@@ -350,11 +451,21 @@ export function parseAssistantAgUiEvent(data: string): AssistantAgUiEvent {
       }
     case "CUSTOM": {
       const name = requiredText(value, "name")
+      if (name.startsWith("aaf.node.")) {
+        return parseAssistantNodeEvent(runId, name as `aaf.node.${string}`, value.value)
+      }
       if (!isAafAiTaskEvent(value.value) || value.value.type !== name) {
         throw new Error("AG-UI CUSTOM 缺少匹配的 AafAiTaskEvent")
       }
       return { type, runId, name: value.value.type, value: value.value }
     }
+    case "STEP_STARTED":
+    case "STEP_FINISHED":
+    case "STATE_SNAPSHOT":
+    case "STATE_DELTA":
+    case "ACTIVITY_SNAPSHOT":
+    case "ACTIVITY_DELTA":
+      return { type, runId }
     default:
       throw new Error(`不支持的 Assistant AG-UI 事件: ${type}`)
   }
@@ -378,6 +489,8 @@ async function dispatchEventData(
     options.onError?.(error instanceof Error ? error : new Error(String(error)))
     return "stop"
   }
+
+  if (isAssistantIgnoredEvent(event)) return "continue"
 
   options.onEvent?.(event)
   if (event.type === "TEXT_MESSAGE_CONTENT") options.onChunk?.(event.delta, event)
@@ -553,7 +666,7 @@ export async function executeAssistantAgUi(
  * 服务端按 {@code interruptId}（即 {@code approvalId}）落定决定后续接原 execution。
  */
 export function resumeAssistantAgUi(
-  params: { threadId: string; approvalId: string; approved: boolean },
+  params: { threadId: string; approvalId: string; approved: boolean; feedback?: string },
   options: AssistantAgUiStreamOptions
 ): Promise<void> {
   const envelope: AssistantResumeAgUiRunRequest = {
@@ -566,7 +679,10 @@ export function resumeAssistantAgUi(
       {
         interruptId: params.approvalId,
         status: "resolved",
-        payload: { approved: params.approved }
+        payload: {
+          approved: params.approved,
+          ...(params.feedback === undefined ? {} : { feedback: params.feedback })
+        }
       }
     ]
   }

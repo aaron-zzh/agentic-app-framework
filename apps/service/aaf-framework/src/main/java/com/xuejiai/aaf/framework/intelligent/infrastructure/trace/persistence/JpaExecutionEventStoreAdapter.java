@@ -11,6 +11,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskUnitOfWork;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort.StoredExecutionEvent;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
@@ -48,6 +49,10 @@ public final class JpaExecutionEventStoreAdapter
     @Override
     public Mono<ExecutionEvent> append(ExecutionEvent event, Lease lease) {
         requireLease(event, lease);
+        if (event.type() == ExecutionEventType.MESSAGE_DELTA) {
+            // 文本增量是瞬态展示数据：完整文本由 MESSAGE_COMPLETED 携带，增量不落库，只经实时端口转发
+            return Mono.just(event);
+        }
         return Mono.fromCallable(() -> appendBlocking(event, lease))
                 .subscribeOn(Schedulers.boundedElastic());
     }

@@ -46,6 +46,8 @@ class ExecutionIntentTest {
                                                 OutputKind.DOCUMENT, "text/markdown"),
                                         ActionAuthorizationPolicy.requestOnDemand(),
                                         null,
+                                        null,
+                                        null,
                                         null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("TASK");

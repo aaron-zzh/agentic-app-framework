@@ -2904,13 +2904,7 @@ public class JpaTaskMaterializationAdapter implements TaskMaterializationPort {
                             previous.getExecution().withStatus(Execution.Status.SUPERSEDED, at));
                     executions.save(previous);
                 }
-                childCommand =
-                        commandSource.forNode(
-                                materializedNode,
-                                input,
-                                null,
-                                at,
-                                plan.goal().aggregationContract().kind());
+                childCommand = commandSource.forNode(materializedNode, input, null, at, plan);
                 execution =
                         new Execution(
                                 tenantId,

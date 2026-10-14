@@ -44,7 +44,7 @@ import reactor.core.scheduler.Schedulers;
  */
 public final class SubmitExecutorPlanTool implements ContextAwareToolHandler {
 
-    public static final String TOOL_NAME = "submit_executor_plan";
+    public static final String TOOL_NAME = "plan_steps";
 
     private final ExecutorPlanPort plans;
     private final ExecutionEventStorePort events;
@@ -137,7 +137,7 @@ public final class SubmitExecutorPlanTool implements ContextAwareToolHandler {
         var context = invocation.context();
         var nodeIdentity = context.nodeIdentity();
         if (nodeIdentity == null) {
-            throw new IllegalStateException("submit_executor_plan 只能在编排板上的节点内调用");
+            throw new IllegalStateException("plan_steps 只能在编排板上的节点内调用");
         }
         var goal = requireArgument(invocation.arguments(), "goal");
         var active =
@@ -219,7 +219,7 @@ public final class SubmitExecutorPlanTool implements ContextAwareToolHandler {
     private static List<StepDraft> decodeSteps(Map<String, Object> arguments) {
         var raw = arguments.get("steps");
         if (!(raw instanceof List<?> rawSteps) || rawSteps.isEmpty()) {
-            throw new IllegalArgumentException("submit_executor_plan 的 steps 不能为空");
+            throw new IllegalArgumentException("plan_steps 的 steps 不能为空");
         }
         var drafts = new ArrayList<StepDraft>();
         var ordinal = 1;
@@ -252,7 +252,7 @@ public final class SubmitExecutorPlanTool implements ContextAwareToolHandler {
     private static String requireArgument(Map<String, Object> arguments, String field) {
         var value = arguments.get(field);
         if (!(value instanceof String text) || text.isBlank()) {
-            throw new IllegalArgumentException("submit_executor_plan 缺少必填字段: " + field);
+            throw new IllegalArgumentException("plan_steps 缺少必填字段: " + field);
         }
         return text;
     }

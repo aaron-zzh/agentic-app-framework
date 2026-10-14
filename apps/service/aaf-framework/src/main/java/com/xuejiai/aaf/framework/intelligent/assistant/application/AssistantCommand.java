@@ -4,13 +4,15 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionCriteria;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskModelSelection;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlan;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlan.TaskNode;
-import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlanDraft;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort.Lease;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.MemorySubject;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.SubjectKind;
@@ -478,18 +480,18 @@ public record AssistantCommand(
                 at);
     }
 
+    /**
+     * 派生任务节点命令。{@code plan} 是节点被物化时的计划快照，用于判定协调者是否同时是交付节点（{@link #nodeIdentityOf(TaskNode,
+     * TaskPlan)}）。
+     */
     public AssistantCommand forNode(
-            TaskNode subTask,
-            String resolvedInput,
-            Lease nextLease,
-            Instant at,
-            TaskPlanDraft.AggregationContract.Kind aggregationKind) {
-        return forNode(subTask, resolvedInput, nextLease, at, aggregationKind, controlMode);
+            TaskNode subTask, String resolvedInput, Lease nextLease, Instant at, TaskPlan plan) {
+        return forNode(subTask, resolvedInput, nextLease, at, plan, controlMode);
     }
 
     /**
-     * 与 {@link #forNode(TaskNode, String, Lease, Instant, TaskPlanDraft.AggregationContract.Kind)}
-     * 相同，但允许为本次子执行显式覆盖 {@code controlMode}（ADR-006）。
+     * 与 {@link #forNode(TaskNode, String, Lease, Instant, TaskPlan)} 相同，但允许为本次子执行显式覆盖 {@code
+     * controlMode}（ADR-006）。
      *
      * <p>用于 EXECUTOR 的 planning execution：它必须跑在 {@code READ_ONLY} 以复用 AAF 已有的工具可见性门控（{@code
      * DefaultToolGateway} 对非只读工具的强制拒绝），而任务整体的 {@code controlMode} 可能是 {@code COLLABORATIVE}/{@code
@@ -500,9 +502,10 @@ public record AssistantCommand(
             String resolvedInput,
             Lease nextLease,
             Instant at,
-            TaskPlanDraft.AggregationContract.Kind aggregationKind,
+            TaskPlan plan,
             ControlMode controlModeOverride) {
         Objects.requireNonNull(subTask, "subTask 不能为空");
+        Objects.requireNonNull(plan, "plan 不能为空");
         Objects.requireNonNull(controlModeOverride, "controlModeOverride 不能为空");
         if (resolvedInput == null || resolvedInput.isBlank()) {
             throw new IllegalArgumentException("resolvedInput 不能为空白");
@@ -568,7 +571,7 @@ public record AssistantCommand(
                 subTask.modelSelection(),
                 childProfile,
                 at,
-                nodeIdentityOf(subTask));
+                nodeIdentityOf(subTask, plan, invocationProfile.executionIntent().decomposition()));
     }
 
     private AssistantCommand copy(
@@ -625,7 +628,8 @@ public record AssistantCommand(
      * 不反向依赖 编排层——映射责任归产生该身份的一方。{@code nodeId} 在动态分解模式下由协调者命名，`NodeIdentity` 的构造器会 校验它是安全键（不含斜杠等会破坏
      * AG-UI source 路径的字符）。
      */
-    private static NodeIdentity nodeIdentityOf(TaskNode subTask) {
+    private static NodeIdentity nodeIdentityOf(
+            TaskNode subTask, TaskPlan plan, ExecutionIntent.DecompositionStrategy decomposition) {
         var kind =
                 switch (subTask.kind()) {
                     case COORDINATOR -> NodeIdentity.NodeKind.COORDINATOR;
@@ -633,8 +637,16 @@ public record AssistantCommand(
                     case EVALUATOR -> NodeIdentity.NodeKind.EVALUATOR;
                     case AGGREGATOR -> NodeIdentity.NodeKind.AGGREGATOR;
                 };
-        // 正式执行计划统一由 AGGREGATOR finalizer 交付；coordinator-only planning run 始终是内部执行。
-        var delivery = kind == NodeIdentity.NodeKind.AGGREGATOR;
+        // 聚合者始终是正式计划的交付者；协调者仅在计划里没有聚合者、且自己就是唯一完成证据时交付
+        // （协调者直答的“仅协调者”形态，ADR-008）。强制委派（REQUIRED）时协调者必然移交，从启动起就是内部节点，
+        // 其文本只走过程事件。AUTO 下协调者随后提交委派计划时，交付权移交由 AG-UI 投影按事件流收口。
+        var delivery =
+                kind == NodeIdentity.NodeKind.AGGREGATOR
+                        || (kind == NodeIdentity.NodeKind.COORDINATOR
+                                && decomposition != ExecutionIntent.DecompositionStrategy.REQUIRED
+                                && plan.goal()
+                                        .completionEvidence()
+                                        .equals(Set.of(subTask.nodeId())));
         return new NodeIdentity(
                 subTask.nodeId(), kind, subTask.roleKey(), subTask.skillKey(), delivery);
     }

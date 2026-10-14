@@ -114,7 +114,7 @@ class AssistantApplicationServiceTest {
                 CompletionCriteria.responseDelivered(),
                 List.of(),
                 TaskModelSelection.auto(),
-                InvocationProfile.primary(
+                InvocationProfile.coordinator(
                         null,
                         AssistantInvocation.MemoryMode.DEFAULT,
                         List.of(),

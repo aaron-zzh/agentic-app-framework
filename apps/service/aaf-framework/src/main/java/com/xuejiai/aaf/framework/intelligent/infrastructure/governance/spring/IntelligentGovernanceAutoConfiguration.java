@@ -460,6 +460,7 @@ public class IntelligentGovernanceAutoConfiguration {
     @ConditionalOnMissingBean(ToolGatewayPort.class)
     ToolGatewayPort toolGatewayPort(
             AuthorizationGrantPort grants,
+            HumanApprovalPort approvals,
             ToolParameterPolicyPort parameterPolicy,
             HitlTransitionPort transitions,
             ToolInvocationPort localTools,
@@ -469,6 +470,7 @@ public class IntelligentGovernanceAutoConfiguration {
             InvocationReceiptPort receipts) {
         return new DefaultToolGateway(
                 grants,
+                approvals,
                 parameterPolicy,
                 transitions,
                 localTools,

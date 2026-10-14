@@ -102,7 +102,10 @@ class AssistantExecutionServiceTest {
                         mock(DefinitionLifecycleService.class),
                         operatorContext,
                         mock(VisionMediaResolver.class),
-                        mock(com.xuejiai.aaf.module.billing.api.ParallelTaskQuotaApi.class));
+                        mock(com.xuejiai.aaf.module.billing.api.ParallelTaskQuotaApi.class),
+                        mock(
+                                com.xuejiai.aaf.framework.intelligent.shared.event
+                                        .ExecutionLiveEventPort.class));
         OrgContext.setCurrentOrgId(11L);
         OrgContext.setCurrentWorkspaceId(13L);
         try {
@@ -349,6 +352,8 @@ class AssistantExecutionServiceTest {
                         ClarificationPolicy.FAIL_ON_BLOCKER,
                         ActionAuthorizationPolicy.REQUEST_ON_DEMAND,
                         persistence,
+                        null,
+                        null,
                         null),
                 new Input("测试", Map.of(), List.of()),
                 interactionMode == AssistantExecutionRequest.InteractionMode.TASK
@@ -376,6 +381,8 @@ class AssistantExecutionServiceTest {
                         ClarificationPolicy.MINIMAL,
                         ActionAuthorizationPolicy.DENY_AUTHORIZED_ACTIONS,
                         ArtifactPersistence.RETURN_ONLY,
+                        null,
+                        null,
                         null),
                 new Input("测试", Map.of(), List.of()),
                 roleKey == null ? null : new RoleSelection(roleKey),

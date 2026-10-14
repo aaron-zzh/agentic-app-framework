@@ -1,15 +1,12 @@
 package com.xuejiai.aaf.module.ai.assistant.service;
 
 import java.time.Duration;
-import java.time.Instant;
-import java.util.concurrent.atomic.AtomicLong;
 
 import org.springframework.stereotype.Service;
 
-import com.xuejiai.aaf.framework.intelligent.assistant.model.HumanApproval;
-import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
-import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort.StoredExecutionEvent;
-import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.RunDeliveryTracker;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionLiveEventPort;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.RunId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
@@ -18,78 +15,35 @@ import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Flux;
 
 /**
- * 按恢复点续读持久化 Assistant 事件，不占用执行线程等待恢复。
+ * 为恢复后的任务打开实时事件订阅，不占用执行线程等待恢复。
  *
- * <p>底层轮询实现只依赖 {@code tenantId}/{@code taskId}/{@code executionId}/恢复时刻，与具体是 {@code HumanApproval}
- * 还是 {@code ClarificationRequest} 恢复无关（AAF-114 #11408 第二版，已核实）； {@link #streamByExecutionId}
- * 是通用入口，{@link #stream(HumanApproval)} 收窄为薄封装保持既有行为不变。
+ * <p>订阅只依赖 {@code tenantId}/{@code taskId}，与具体是 {@code HumanApproval} 还是 {@code
+ * ClarificationRequest} 恢复无关 （AAF-114 #11408 第二版）。
+ *
+ * <p>恢复流跟随<b>整个任务</b>而不是作出决定的那个执行：决定后当前节点和下游节点继续运行，直到交付节点完成、任一节点失败/取消/暂停， 或再次进入等待授权 / 澄清（此时流以新的
+ * interrupt 结束，由用户逐个处理）。
+ *
+ * <p><b>必须先 open、后触发恢复</b>：实时订阅只能看到登记之后发布的事件，触发恢复后再 open 会漏掉最早的增量。
  */
 @Service
 @RequiredArgsConstructor
 public class AssistantApprovalEventService {
 
-    private static final Duration POLL_INTERVAL = Duration.ofMillis(250);
     private static final Duration STREAM_TIMEOUT = Duration.ofMinutes(5);
 
-    private final ExecutionEventStorePort events;
+    private final ExecutionLiveEventPort liveEvents;
 
-    public RecoveryStream stream(HumanApproval approval) {
-        if (approval.status() != HumanApproval.Status.APPROVED || approval.decidedAt() == null) {
-            throw new IllegalArgumentException("仅已批准审批可续读恢复事件");
-        }
-        var context = approval.invocationContext();
-        var targetExecutionId =
-                context.parentExecutionId() == null
-                        ? context.executionId()
-                        : context.parentExecutionId();
-        return streamByExecutionId(
-                context.tenantId(),
-                context.taskId(),
-                targetExecutionId,
-                context.runId(),
-                approval.decidedAt());
-    }
-
-    /**
-     * 通用恢复点续读：按 {@code taskId} 轮询持久化事件，过滤出 {@code resumedAt} 之后、属于 {@code targetExecutionId}
-     * 的事件，直到遇到终态事件或超时。
-     *
-     * @param resumedAt 恢复动作发生的时刻（approval 的 {@code decidedAt}，或 clarification 提交的 {@code
-     *     ExecutionInput.receivedAt}）；只返回该时刻之后产生的事件，避免把恢复前的旧事件重放一次。
-     */
-    public RecoveryStream streamByExecutionId(
-            TenantId tenantId,
-            TaskId taskId,
-            ExecutionId targetExecutionId,
-            RunId runId,
-            Instant resumedAt) {
-        var cursor = new AtomicLong();
+    /** 恢复点订阅：登记 {@code taskId} 的实时订阅，转发整个任务的事件，直到任务流收口或空闲超时。 审批与澄清恢复共用，调用方须在触发恢复之前调用。 */
+    public RecoveryStream open(TenantId tenantId, TaskId taskId, RunId runId) {
         var source =
-                Flux.interval(Duration.ZERO, POLL_INTERVAL)
-                        .concatMap(
-                                ignored ->
-                                        events.readTask(tenantId, taskId, cursor.get())
-                                                .doOnNext(
-                                                        stored ->
-                                                                cursor.accumulateAndGet(
-                                                                        stored.eventOffset(),
-                                                                        Math::max))
-                                                .filter(
-                                                        stored ->
-                                                                !stored.event()
-                                                                        .createdAt()
-                                                                        .isBefore(resumedAt))
-                                                .filter(
-                                                        stored ->
-                                                                stored.event()
-                                                                        .executionId()
-                                                                        .equals(targetExecutionId)))
-                        .takeUntil(stored -> stored.event().isTerminal())
+                liveEvents
+                        .open(tenantId, taskId)
+                        .takeUntil(new RunDeliveryTracker()::endsStream)
                         .timeout(STREAM_TIMEOUT);
         return new RecoveryStream(runId.value(), source);
     }
 
-    public record RecoveryStream(String runId, Flux<StoredExecutionEvent> events) {
+    public record RecoveryStream(String runId, Flux<ExecutionEvent> events) {
         public RecoveryStream {
             if (runId == null || runId.isBlank()) {
                 throw new IllegalArgumentException("runId 不能为空白");

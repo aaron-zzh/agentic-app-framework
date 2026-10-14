@@ -1,7 +1,7 @@
 package com.xuejiai.aaf.framework.intelligent.assistant.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 
 import java.time.Instant;
 import java.util.List;
@@ -16,11 +16,14 @@ import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolAuthorizationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolRef;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolInvocation;
+import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DecompositionBudget;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskModelSelection;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlan;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlanDraft;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.ExecutionProfileSnapshotPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskPlanPort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 import com.xuejiai.aaf.framework.intelligent.shared.event.NodeIdentity;
@@ -36,7 +39,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 
-/** 协调计划只能在委派方冻结的 Role/Skill 内组合，不得通过结构化工具调用扩大授权。 */
+/** 协调计划在委派方冻结的 Role/Skill 内可直接通过；其它 Role/Skill 的候选目录与授权校验见 requireDelegable。 */
 class SubmitCoordinationPlanToolTest {
 
     private static final String ROLE = "system.role.content-creator";
@@ -55,30 +58,13 @@ class SubmitCoordinationPlanToolTest {
         assertThat(result.metadata().get("executorCount")).isEqualTo(1);
     }
 
-    @Test
-    @DisplayName("Given 计划越界到基准外 Role When 提交 Then 拒绝提权")
-    void should_reject_plan_widening_role_beyond_baseline() {
-        var tool = tool(taskPlan());
-
-        assertThatThrownBy(
-                        () -> tool.invoke(invocation("system.role.admin-escalated", SKILL)).block())
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("不能更改已冻结的 Role 或 Skill");
-    }
-
-    @Test
-    @DisplayName("Given 计划越界到基准外 Skill When 提交 Then 拒绝提权")
-    void should_reject_plan_widening_skill_beyond_baseline() {
-        var tool = tool(taskPlan());
-
-        assertThatThrownBy(() -> tool.invoke(invocation(ROLE, "unauthorized-skill")).block())
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("不能更改已冻结的 Role 或 Skill");
-    }
-
     private static SubmitCoordinationPlanTool tool(TaskPlan taskPlan) {
         return new SubmitCoordinationPlanTool(
-                new StubTaskPlanPort(taskPlan), DecompositionBudget.defaults());
+                new StubTaskPlanPort(taskPlan),
+                DecompositionBudget.defaults(),
+                mock(ExecutionProfileSnapshotPort.class),
+                new AiProperties(),
+                mock(AssistantDefinitionPort.class));
     }
 
     /** 工具只允许运行中的 coordinator 提交 draft，fixture 直接物化 canonical 节点身份。 */
@@ -174,7 +160,7 @@ class SubmitCoordinationPlanToolTest {
                 lease,
                 new ToolAuthorizationContext(Map.of()),
                 new NodeIdentity(
-                        "coordinator", NodeIdentity.NodeKind.COORDINATOR, ROLE, SKILL, false));
+                        "coordinator", NodeIdentity.NodeKind.COORDINATOR, ROLE, SKILL, true));
     }
 
     /** 只实现本测试实际使用的 find/applyTaskPlanDraft；其余调用均视为测试设计错误。 */

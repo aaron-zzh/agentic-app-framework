@@ -15,7 +15,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
-/** PRIMARY Assistant 查询当前用户 Task、TaskNode 与 ExecutorPlan 步骤的安全投影。 */
+/** 轻量态协调者查询当前用户 Task、TaskNode 与 ExecutorPlan 步骤的安全投影。 */
 public final class InspectTasksTool implements ContextAwareToolHandler {
 
     public static final String TOOL_NAME = "inspect_tasks";
@@ -65,7 +65,7 @@ public final class InspectTasksTool implements ContextAwareToolHandler {
     private ToolInvocationResult inspect(ToolInvocation invocation) {
         var context = invocation.context();
         if (context.taskId() != null) {
-            throw new IllegalStateException("inspect_tasks 只供 PRIMARY 对话 Execution 使用");
+            throw new IllegalStateException("inspect_tasks 只供轻量态协调者对话 Execution 使用");
         }
         var requestedTaskId = optionalText(invocation.arguments().get("taskId"));
         var requestedNodeId = optionalText(invocation.arguments().get("nodeId"));

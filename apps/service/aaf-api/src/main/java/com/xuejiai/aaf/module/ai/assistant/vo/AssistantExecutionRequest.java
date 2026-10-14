@@ -22,14 +22,26 @@ public record AssistantExecutionRequest(
         @NotNull @Valid MemoryOptions memory,
         @NotNull @Valid OutputOptions output) {
 
-    /** 客户端执行偏好；固定 Route 的 Role/Skill 可由客户端声明，服务端必须校验 Assistant 归属。 */
+    /**
+     * 客户端执行偏好；固定 Route 的 Role/Skill 可由客户端声明，服务端必须校验 Assistant 归属。
+     *
+     * <p>{@code decomposition} 可选，缺省为 {@code AUTO}：由调用方决定是否允许协调者拆分任务，不由技能或角色声明（ADR-008）。 {@code
+     * aggregationRequirementsMaxChars} 可选，调整协调者写给聚合者的聚合要求字符上限；不传取系统默认，硬顶 32000。
+     */
     public record ExecutionOptions(
             @NotNull InteractionMode interactionMode,
             @NotNull RouteConstraint routeConstraint,
             @NotNull ClarificationPolicy clarificationPolicy,
             @NotNull ActionAuthorizationPolicy actionAuthorizationPolicy,
             @NotNull ArtifactPersistence artifactPersistence,
-            @Valid ArtifactTarget artifactTarget) {}
+            @Valid ArtifactTarget artifactTarget,
+            DecompositionStrategy decomposition,
+            @Positive Integer aggregationRequirementsMaxChars) {
+
+        public ExecutionOptions {
+            decomposition = decomposition == null ? DecompositionStrategy.AUTO : decomposition;
+        }
+    }
 
     /** 自动保存草稿时可选的既有文档 CAS 目标；省略表示明确创建新文档。 */
     public record ArtifactTarget(
@@ -95,6 +107,12 @@ public record AssistantExecutionRequest(
     public enum ArtifactPersistence {
         AUTO_SAVE_DRAFT,
         RETURN_ONLY
+    }
+
+    public enum DecompositionStrategy {
+        AUTO,
+        NONE,
+        REQUIRED
     }
 
     public enum KnowledgeMode {

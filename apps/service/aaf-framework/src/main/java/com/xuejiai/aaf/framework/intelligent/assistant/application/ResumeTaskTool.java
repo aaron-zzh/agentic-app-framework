@@ -11,7 +11,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolI
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
-/** PRIMARY Assistant 按用户明确指令恢复指定 canonical Task。 */
+/** 轻量态协调者按用户明确指令恢复指定 canonical Task。 */
 public final class ResumeTaskTool implements ContextAwareToolHandler {
 
     public static final String TOOL_NAME = "resume_task";
@@ -61,7 +61,7 @@ public final class ResumeTaskTool implements ContextAwareToolHandler {
     private ToolInvocationResult resume(ToolInvocation invocation) {
         var context = invocation.context();
         if (context.taskId() != null) {
-            throw new IllegalStateException("resume_task 只能由新的 PRIMARY 对话 Execution 调用");
+            throw new IllegalStateException("resume_task 只能由新的轻量态协调者对话 Execution 调用");
         }
         var task =
                 tasks.resolveControllableTask(

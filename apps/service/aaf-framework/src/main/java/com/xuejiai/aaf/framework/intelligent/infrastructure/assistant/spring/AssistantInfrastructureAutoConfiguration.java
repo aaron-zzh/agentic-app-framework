@@ -103,7 +103,9 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistenc
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.plan.ExecutorPlanStepRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence.plan.JpaExecutorPlanAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.governance.ApprovalRecoveryDispatcher;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.trace.live.InMemoryExecutionLiveEvents;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionLiveEventPort;
 
 /** Assistant 应用层装配；AgentScope 只通过稳定执行端口进入。 */
 @AutoConfiguration
@@ -163,6 +165,18 @@ public class AssistantInfrastructureAutoConfiguration {
     }
 
     /**
+     * 必须定义在 {@code submitExecutorPlanTool} / {@code reportExecutorStepTool} 之前：这两个工具用
+     * {@code @ConditionalOnBean(ExecutorPlanPort.class)}，同一配置类内按方法声明顺序求值，定义在后会让条件恒为 false，
+     * 工具未注册，模型可见的 {@code plan_steps} 在目录里找不到。
+     */
+    @Bean
+    @ConditionalOnMissingBean(ExecutorPlanPort.class)
+    ExecutorPlanPort executorPlanPort(
+            ExecutorPlanRepository plans, ExecutorPlanStepRepository steps) {
+        return new JpaExecutorPlanAdapter(plans, steps);
+    }
+
+    /**
      * 计划提交后直接批准，不设独立审批关卡（ADR-006「决策推翻」2026-09-01）——风险控制交给协调者派发子节点时的既有审批点，
      * 与步骤执行阶段具体工具调用前的既有授权链路，不为"提交步骤列表"这个动作重复建设审批机制。
      */
@@ -175,7 +189,7 @@ public class AssistantInfrastructureAutoConfiguration {
     }
 
     /**
-     * 单次 execution 内唯一允许模型上报步骤边界的工具（AAF-107 #10705）：{@code report_executor_step} 让模型在单次 execution
+     * 单次 execution 内唯一允许模型上报步骤边界的工具（AAF-107 #10705）：{@code report_step} 让模型在单次 execution
      * 内自由推进已提交计划的全部步骤，{@code ExecutorPlanStep.Status} 要有真实数据必须由模型自己 显式上报——与 {@code
      * submitExecutorPlanTool} 同为"模型主动上报"模式，注册条件也保持一致。
      */
@@ -197,8 +211,13 @@ public class AssistantInfrastructureAutoConfiguration {
     @ConditionalOnBean(TaskPlanPort.class)
     @ConditionalOnMissingBean(SubmitCoordinationPlanTool.class)
     SubmitCoordinationPlanTool submitTaskPlanDraftTool(
-            TaskPlanPort boards, DecompositionBudget decompositionBudget) {
-        return new SubmitCoordinationPlanTool(boards, decompositionBudget);
+            TaskPlanPort boards,
+            DecompositionBudget decompositionBudget,
+            ExecutionProfileSnapshotPort executionProfiles,
+            AiProperties aiProperties,
+            AssistantDefinitionPort assistantDefinitions) {
+        return new SubmitCoordinationPlanTool(
+                boards, decompositionBudget, executionProfiles, aiProperties, assistantDefinitions);
     }
 
     @Bean
@@ -239,13 +258,6 @@ public class AssistantInfrastructureAutoConfiguration {
     ExecutionProfileSnapshotPort executionProfileSnapshotPort(
             ExecutionProfileSnapshotRepository repository) {
         return new JpaExecutionProfileSnapshotAdapter(repository);
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(ExecutorPlanPort.class)
-    ExecutorPlanPort executorPlanPort(
-            ExecutorPlanRepository plans, ExecutorPlanStepRepository steps) {
-        return new JpaExecutorPlanAdapter(plans, steps);
     }
 
     @Bean
@@ -366,6 +378,7 @@ public class AssistantInfrastructureAutoConfiguration {
             CapabilityRouter models,
             CompletionValidator completionValidator,
             ExecutionEventStorePort eventStore,
+            ExecutionLiveEventPort liveEvents,
             TaskRecoveryPort recoveries,
             ObjectProvider<SessionMemoryPort> sessionMemories,
             AiProperties aiProperties) {
@@ -392,9 +405,16 @@ public class AssistantInfrastructureAutoConfiguration {
                 models,
                 completionValidator,
                 eventStore,
+                liveEvents,
                 recoveries,
                 sessionMemories,
                 aiProperties.getContext().getDefaultContextWindow());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(ExecutionLiveEventPort.class)
+    ExecutionLiveEventPort executionLiveEventPort() {
+        return new InMemoryExecutionLiveEvents();
     }
 
     @Bean

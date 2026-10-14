@@ -377,35 +377,19 @@ public class JpaHitlTransitionAdapter implements HitlTransitionPort {
         }
 
         var decidedAt = Objects.requireNonNull(requested.decidedAt(), "授权决定缺少 decidedAt");
+        taskEntity.setTask(
+                task.withRuntime(
+                        Status.READY,
+                        task.owner(),
+                        task.budgetUsage(),
+                        task.checkpoint(),
+                        task.recoveryPoint(),
+                        decidedAt));
+        executionEntity.setExecution(execution.withStatus(Execution.Status.DISPATCHED, decidedAt));
+        currentPlan =
+                currentPlan.resumeAfterAuthorization(context.executionId(), context.sessionId());
         if (requested.status() == HumanApproval.Status.APPROVED) {
-            var grant = Objects.requireNonNull(transition.grant(), "批准决定缺少授权事实");
-            taskEntity.setTask(
-                    task.withRuntime(
-                            Status.READY,
-                            task.owner(),
-                            task.budgetUsage(),
-                            task.checkpoint(),
-                            task.recoveryPoint(),
-                            decidedAt));
-            executionEntity.setExecution(
-                    execution.withStatus(Execution.Status.DISPATCHED, decidedAt));
-            currentPlan =
-                    currentPlan.resumeAfterAuthorization(
-                            context.executionId(), context.sessionId());
-            persistGrant(grant);
-        } else {
-            taskEntity.setTask(
-                    task.withRuntime(
-                            Status.PAUSED,
-                            task.owner(),
-                            task.budgetUsage(),
-                            task.checkpoint()
-                                    .withAnnotation(
-                                            "authorizationRejected", requested.approvalId()),
-                            task.recoveryPoint(),
-                            decidedAt));
-            executionEntity.setExecution(execution.withStatus(Execution.Status.PAUSED, decidedAt));
-            currentPlan = currentPlan.interruptRunning(false);
+            persistGrant(Objects.requireNonNull(transition.grant(), "批准决定缺少授权事实"));
         }
         apply(approvalEntity, requested);
         taskRoots.save(taskEntity);

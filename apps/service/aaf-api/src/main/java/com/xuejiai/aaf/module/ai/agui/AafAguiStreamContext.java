@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import com.xuejiai.aaf.framework.intelligent.assistant.application.RunDeliveryTracker;
+
 import io.agentscope.core.agui.converter.AguiStateConverter;
 import io.agentscope.core.agui.event.AguiEvent;
 
@@ -37,6 +39,8 @@ public final class AafAguiStreamContext {
     private final AguiStateConverter stateConverter = new AguiStateConverter();
     private Map<String, Object> lastPublishedSnapshot;
     private boolean runFinished;
+    private boolean runStarted;
+    private final RunDeliveryTracker delivery = new RunDeliveryTracker();
 
     public AafAguiStreamContext(String threadId, String runId) {
         this.threadId = Objects.requireNonNull(threadId, "threadId 不能为空");
@@ -102,8 +106,21 @@ public final class AafAguiStreamContext {
         return List.copyOf(events);
     }
 
+    /** run 开始只发一次：协调者既可能是交付者也可能委派后把交付权交给聚合者，两者的开始事件都会到达这里， 客户端只应看到一个 RUN_STARTED。 */
     public List<AguiEvent> runStarted() {
+        if (runStarted) {
+            return List.of();
+        }
+        runStarted = true;
         return List.of(new AguiEvent.RunStarted(threadId, runId));
+    }
+
+    /**
+     * 协调者提交委派计划后不再是交付者，其文本与终态事件降级为内部节点事件，交付权由聚合者接替， run 不得在协调者收口时结束；该状态由事件流推导，见 {@link
+     * RunDeliveryTracker}。
+     */
+    public RunDeliveryTracker delivery() {
+        return delivery;
     }
 
     /** 阶段边界不做去重：同一 stepName 在同一 run 内可能因并行子任务多次开始/结束，忠实转发每一次。 */

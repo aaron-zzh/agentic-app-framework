@@ -185,53 +185,50 @@ public class AssistantAguiController {
     }
 
     /**
-     * 审批恢复（AAF-104 #10404，原 {@code resumeRun} 逻辑原样保留）：逐条按 {@code interruptId}（即 {@code
-     * approvalId}）调用 {@link HitlCoordinatorPort#decide} 落定决定。批准时触发 {@link
-     * TaskRecoveryDispatchPort#recover} 驱动真正的续接执行（{@code AssistantApplicationService} 的 {@code
-     * Operation.RESUME} 分支，沿用原 {@code executionId} 续接 core 对话历史，AAF-110 已实现）， 再用 {@link
-     * AssistantApprovalEventService#stream} 续读已持久化事件（不占用执行线程等待恢复）。
-     *
-     * <p>拒绝决定不驱动恢复：{@link AssistantApprovalEventService#stream} 要求 {@code approval.status() ==
-     * APPROVED}，拒绝后任务转为 {@code PAUSED}（非终态，不会产生新的可续读事件）， 因此拒绝分支直接闭合本次 run，不调用 {@code stream}。
+     * 审批恢复（AAF-104 #10404）：逐条按 {@code interruptId}（即 {@code approvalId}）落定决定。
+     * 批准与拒绝都先打开整个任务的实时订阅，再通过 {@link TaskRecoveryDispatchPort#recover} 恢复发起审批的节点；
+     * 拒绝会在该节点内作为工具错误反馈给模型，不暂停整个任务。
      */
     private SseEmitter resumeApproval(RunRequest request, ResumeEntry entry, TenantId tenantId) {
-        hitl.decide(
-                new HitlCoordinatorPort.DecisionCommand(
-                        tenantId,
-                        entry.interruptId(),
-                        entry.approved()
-                                ? HumanApproval.Status.APPROVED
-                                : HumanApproval.Status.REJECTED,
-                        currentUser(),
-                        entry.status(),
-                        Instant.now()));
-        var approval =
+        var pending =
                 approvals
                         .find(tenantId, entry.interruptId())
                         .orElseThrow(
                                 () ->
                                         new IllegalArgumentException(
                                                 "未知的 interruptId: " + entry.interruptId()));
+        // 先登记实时订阅再落定决定：decide 内部会物化并通知调度，晚于它 open 会漏掉恢复后最早产出的文本增量。
+        // 恢复流只依赖审批绑定的 task 与 run，决定前后不变，因此不需要等决定落库。
+        // 订阅前先校验审批属于当前用户，避免他人借审批 ID 提前订阅任务事件
+        var context = pending.invocationContext();
+        if (!context.userId().value().equals(currentUser())) {
+            throw new AccessDeniedException("只能由审批关联的认证用户作出决定");
+        }
+        var recovery = approvalEvents.open(context.tenantId(), context.taskId(), context.runId());
+        try {
+            hitl.decide(
+                    new HitlCoordinatorPort.DecisionCommand(
+                            tenantId,
+                            entry.interruptId(),
+                            entry.approved()
+                                    ? HumanApproval.Status.APPROVED
+                                    : HumanApproval.Status.REJECTED,
+                            currentUser(),
+                            entry.approved() ? null : entry.feedback(),
+                            Instant.now()));
+        } catch (RuntimeException failure) {
+            // 决定未落定时释放已登记的订阅，避免等到孤儿回收
+            recovery.events().subscribe().dispose();
+            throw failure;
+        }
         var emitter = new SseEmitter(600_000L);
         var session = agUiProjector.openSession();
         var threadId = request.threadId();
         var runId = request.runId();
-        if (approval.status() != HumanApproval.Status.APPROVED) {
-            // 拒绝决定已落定，任务转为 PAUSED（非终态事件），不驱动恢复执行，无新事件可续读——
-            // 直接闭合本次 run，AUTHORIZATION_DENIED 会在下次用户交互产生的事件流中自然呈现。
-            send(emitter, session.close(threadId, runId), Long.MAX_VALUE);
-            emitter.complete();
-            return emitter;
-        }
         recoveries.recover(tenantId, entry.interruptId());
-        approvalEvents.stream(approval)
-                .events()
+        recovery.events()
                 .subscribe(
-                        stored ->
-                                send(
-                                        emitter,
-                                        session.project(stored.event()),
-                                        stored.eventOffset()),
+                        event -> send(emitter, session.project(event), event.sequence()),
                         failure -> {
                             send(
                                     emitter,
@@ -271,24 +268,15 @@ public class AssistantAguiController {
             emitter.complete();
             return emitter;
         }
-        var resumedAt = Instant.now();
+        // 先登记实时订阅再提交补充输入，否则会漏掉恢复后最早产出的文本增量
+        var recovery = approvalEvents.open(tenantId, clarification.taskId(), new RunId(runId));
         clarificationResume
                 .submit(tenantId, currentUserId(), clarification, entry.payload())
-                .thenMany(
-                        approvalEvents
-                                .streamByExecutionId(
-                                        tenantId,
-                                        clarification.taskId(),
-                                        clarification.executionId(),
-                                        new RunId(runId),
-                                        resumedAt)
-                                .events())
+                // 归属校验在 submit 内完成：失败时订阅从未被消费，需主动释放，避免等到孤儿回收
+                .doOnError(ignored -> recovery.events().subscribe().dispose())
+                .thenMany(recovery.events())
                 .subscribe(
-                        stored ->
-                                send(
-                                        emitter,
-                                        session.project(stored.event()),
-                                        stored.eventOffset()),
+                        event -> send(emitter, session.project(event), event.sequence()),
                         failure -> {
                             send(
                                     emitter,
@@ -420,6 +408,8 @@ public class AssistantAguiController {
                         ClarificationPolicy.MINIMAL,
                         ActionAuthorizationPolicy.DENY_AUTHORIZED_ACTIONS,
                         ArtifactPersistence.RETURN_ONLY,
+                        null,
+                        null,
                         null),
                 new Input(input.text(), Map.of(), input.attachments()),
                 role,
@@ -784,7 +774,8 @@ public class AssistantAguiController {
 
     /**
      * AG-UI 标准 resume 条目：{@code interruptId} 对应待恢复 interrupt。{@code status} 表示 interrupt
-     * 是否已解决或取消；审批场景另外由 {@code payload.approved} 表示批准或拒绝，澄清场景的 {@code payload} 直接承载补充字段。
+     * 是否已解决或取消；审批场景由 {@code payload.approved} 表示批准或拒绝，拒绝时可带 {@code payload.feedback}； 澄清场景的 {@code
+     * payload} 直接承载补充字段。
      */
     public record ResumeEntry(String interruptId, String status, JsonNode payload) {
         public ResumeEntry {
@@ -805,6 +796,24 @@ public class AssistantAguiController {
             }
             var approvedNode = payload == null ? null : payload.get("approved");
             return approvedNode != null && approvedNode.isBoolean() && approvedNode.asBoolean();
+        }
+
+        String feedback() {
+            var feedbackNode = payload == null ? null : payload.get("feedback");
+            if (feedbackNode == null || feedbackNode.isNull()) {
+                return null;
+            }
+            if (!feedbackNode.isString()) {
+                throw new IllegalArgumentException("resume[].payload.feedback 必须是字符串");
+            }
+            var feedback = feedbackNode.asString().trim();
+            if (feedback.isEmpty()) {
+                return null;
+            }
+            if (feedback.codePointCount(0, feedback.length()) > 1000) {
+                throw new IllegalArgumentException("resume[].payload.feedback 不能超过 1000 个字符");
+            }
+            return feedback;
         }
     }
 

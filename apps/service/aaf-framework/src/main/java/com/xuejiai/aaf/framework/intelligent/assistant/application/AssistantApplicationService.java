@@ -33,6 +33,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionDecision;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Execution;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionProfileSnapshot;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Role;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillActivationMode;
@@ -79,6 +80,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventPayload;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventReducer;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionLiveEventPort;
 import com.xuejiai.aaf.framework.intelligent.shared.event.NodeIdentity;
 import com.xuejiai.aaf.framework.intelligent.shared.event.TurnEndReason;
 import com.xuejiai.aaf.framework.intelligent.shared.event.TurnOutcomeAggregator;
@@ -122,6 +124,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
     private final CapabilityRouter models;
     private final CompletionValidator completionValidator;
     private final ExecutionEventStorePort eventStore;
+    private final ExecutionLiveEventPort liveEvents;
     private final TaskRecoveryPort recoveries;
     private final ObjectProvider<SessionMemoryPort> sessionMemories;
     private final ToolVisibilityFilter toolVisibility;
@@ -149,6 +152,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             CapabilityRouter models,
             CompletionValidator completionValidator,
             ExecutionEventStorePort eventStore,
+            ExecutionLiveEventPort liveEvents,
             TaskRecoveryPort recoveries,
             ObjectProvider<SessionMemoryPort> sessionMemories,
             int contextWindow) {
@@ -190,6 +194,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         this.completionValidator =
                 Objects.requireNonNull(completionValidator, "completionValidator 不能为空");
         this.eventStore = Objects.requireNonNull(eventStore, "eventStore 不能为空");
+        this.liveEvents = Objects.requireNonNull(liveEvents, "liveEvents 不能为空");
         this.recoveries = Objects.requireNonNull(recoveries, "recoveries 不能为空");
     }
 
@@ -277,6 +282,8 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                                 || event.ownerType() != OwnerType.ASSISTANT
                                         ? reactor.core.publisher.Mono.just(event)
                                         : eventStore.append(event, command.lease()))
+                // 瞬态增量与已落库事件统一实时发布；入口订阅方据此转发，不再依赖轮询事件表
+                .doOnNext(liveEvents::publish)
                 .doOnNext(
                         event -> {
                             if (event.type() != ExecutionEventType.MESSAGE_DELTA) {
@@ -300,6 +307,8 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                         failure.getClass().getName()))
                 .doFinally(
                         signalType ->
+                                // 实时订阅的收口由入口按交付节点与等待点判定（RunDeliveryTracker），
+                                // 单个节点执行结束不再结束整个任务的实时流
                                 log.debug(
                                         "[AssistantExecution] stage=invocation_closed executionId={} taskId={} "
                                                 + "signal={} durationMs={}",
@@ -641,13 +650,17 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                     AssistantDefinition definition,
                     ExecutionProfileSnapshot profile) {
         var agentKind = command.invocationProfile().agentKind();
-        var coordinator = agentKind == InvocationProfile.AgentKind.COORDINATOR;
         var aggregator = agentKind == InvocationProfile.AgentKind.AGGREGATOR;
-        var summaryOnly = coordinator || aggregator;
+        // 任务态内的协调者与聚合者沿用 Assistant 级长期记忆策略；轻量态协调者只遵从本次请求的记忆模式
+        var taskDelegate =
+                command.taskId() != null
+                        && (aggregator || agentKind == InvocationProfile.AgentKind.COORDINATOR);
+        // 只有聚合者仍是摘要披露；协调者与执行者可读取内容（ADR-008）
+        var summaryOnly = aggregator;
         var scopes = EnumSet.noneOf(ContextScope.class);
         var memoryEnabled =
                 profile.longTermMemoryEnabled()
-                        || (summaryOnly
+                        || (taskDelegate
                                 && definition.memoryStrategy().longTermEnabled()
                                 && command.memorySubject().kind() == SubjectKind.USER);
         if (memoryEnabled) {
@@ -664,10 +677,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             return com.xuejiai.aaf.framework.intelligent.cognition.model.ControlledContextSnapshot
                     .empty(command.requestedAt());
         }
-        var purpose =
-                coordinator
-                        ? AgentPurpose.COORDINATION
-                        : aggregator ? AgentPurpose.AGGREGATION : AgentPurpose.EXECUTION;
+        var purpose = aggregator ? AgentPurpose.AGGREGATION : AgentPurpose.EXECUTION;
         var disclosure = summaryOnly ? Disclosure.SUMMARY_ONLY : Disclosure.CONTENT_ALLOWED;
         var maxItems = profile.contextDisclosurePolicy().maxSources();
         return cognitionContexts.resolve(
@@ -1553,19 +1563,28 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         }
 
         var intent = invocation.executionIntent();
-        var route = intent.resolvedRoute();
+        var route = effectiveRoute(command, intent, definition);
         if (route != null && route.assistantRevision() != definition.version().value()) {
             throw new IllegalStateException("FIXED Route 的 Assistant revision 已失效");
         }
+        // 内置任务类技能按智能体类型与容器状态过滤，与控制工具可见性保持一致（BuiltinSkillScope）
         var systemBindings =
-                SkillBinding.copyOf(systemSkillBindings.findEnabled(), "systemSkillBindings");
+                BuiltinSkillScope.filter(
+                        SkillBinding.copyOf(
+                                systemSkillBindings.findEnabled(), "systemSkillBindings"),
+                        command.invocationProfile().agentKind(),
+                        command.taskId() != null,
+                        intent.decomposition());
         var systemOnDemandSkillKeys =
                 SkillBinding.skillKeys(systemBindings, SkillActivationMode.ON_DEMAND);
         final RoleSelector.RoleSelection roleSelection;
-        if (intent.routeConstraint()
-                == com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent
-                        .RouteConstraint.FIXED) {
-            if (!Objects.equals(invocation.requestedSkillKey(), route.skillKey())) {
+        if (route != null) {
+            // 节点的 Role/Skill 已在计划阶段校验，请求 Skill 只约束根命令
+            if (command.nodeIdentity() == null
+                    && intent.routeConstraint()
+                            == com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent
+                                    .RouteConstraint.FIXED
+                    && !Objects.equals(invocation.requestedSkillKey(), route.skillKey())) {
                 throw new IllegalArgumentException("请求 Skill 与 FIXED Route 不一致");
             }
             var fixedRole =
@@ -1743,11 +1762,9 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         var roleAllowedToolNames = allowedToolNames(role.toolKeys(), command, definition, "Role");
         var assistantAllowedToolNames =
                 allowedToolNames(definition.assistantToolKeys(), command, definition, "Assistant");
-        var coordinator =
-                command.invocationProfile().agentKind() == InvocationProfile.AgentKind.COORDINATOR;
+        // 聚合者是唯一无业务工具的智能体；协调者与执行者同样持有 Role/Skill 解析出的业务工具（ADR-008）
         var aggregator =
                 command.invocationProfile().agentKind() == InvocationProfile.AgentKind.AGGREGATOR;
-        var internalPlanner = coordinator || aggregator;
         var declaredSkillRequirements =
                 java.util.stream.Stream.concat(
                                 roleSkillRequirements.stream(), assistantSkillRequirements.stream())
@@ -1756,11 +1773,14 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 java.util.stream.Stream.concat(
                                 roleAllowedToolNames.stream(), assistantAllowedToolNames.stream())
                         .collect(Collectors.toUnmodifiableSet());
-        if (intent.autoSaveDraft() && !internalPlanner) {
-            var saveTool = intent.artifactPolicy().saveTool();
-            if (!declaredSkillRequirements.contains(saveTool)
-                    || !allowedToolNames.contains(saveTool)) {
-                throw new IllegalStateException("产物保存工具不在 Skill 固定执行画像内: " + saveTool);
+        // 保存意图由交付角色确定性推导：轻量态直答、计划唯一完成证据所在的协调者、聚合者是交付节点，
+        // 只有它们要求并持有产物保存工具；执行者等中间节点既不要求也不可见，避免产出零散草稿（ADR-008）
+        var deliverer = command.nodeIdentity() == null || command.nodeIdentity().userFacing();
+        var saveToolName = intent.autoSaveDraft() ? intent.artifactPolicy().saveTool() : null;
+        if (saveToolName != null && deliverer) {
+            if (!declaredSkillRequirements.contains(saveToolName)
+                    || !allowedToolNames.contains(saveToolName)) {
+                throw new IllegalStateException("产物保存工具不在 Skill 固定执行画像内: " + saveToolName);
             }
         }
         var agentAllowedTools = toolRefs(allowedToolNames);
@@ -1783,10 +1803,32 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         var resolvedTools = mergeEffectiveTools(roleEffectiveTools, assistantEffectiveTools);
         // 最后一维交集：目录声明的 permissionCode 与执行用户实际持有的功能权限；只收窄可见性，不改调用期授权。
         var permittedTools = toolVisibility.visible(resolvedTools, command.userId().value());
-        var effectiveTools =
-                mergeEffectiveTools(
-                        internalPlanner ? List.<ToolRef>of() : permittedTools,
-                        builtinControlTools(command));
+        // 委派强制（REQUIRED）时协调者只做规划，业务工具一并不可见；否则协调者可绕过委派自己完成
+        var delegationRequired =
+                command.taskId() != null
+                        && command.invocationProfile().agentKind()
+                                == InvocationProfile.AgentKind.COORDINATOR
+                        && intent.decomposition() == ExecutionIntent.DecompositionStrategy.REQUIRED;
+        final List<ToolRef> businessTools;
+        if (delegationRequired) {
+            businessTools = List.of();
+        } else if (aggregator) {
+            // 聚合者无业务工具，唯一例外是产物保存工具：最终聚合结果由它保存，仍走 ToolGateway 授权
+            businessTools =
+                    saveToolName == null
+                            ? List.of()
+                            : permittedTools.stream()
+                                    .filter(tool -> tool.name().equals(saveToolName))
+                                    .toList();
+        } else if (saveToolName != null && !deliverer) {
+            businessTools =
+                    permittedTools.stream()
+                            .filter(tool -> !tool.name().equals(saveToolName))
+                            .toList();
+        } else {
+            businessTools = permittedTools;
+        }
+        var effectiveTools = mergeEffectiveTools(businessTools, builtinControlTools(command));
         log.debug(
                 "[AssistantExecution] stage=skill_resolved executionId={} taskId={} selectionMode={} "
                         + "skillCodes={} skillVersions={} selectedBy={} effectiveToolCount={}",
@@ -1865,10 +1907,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         var executionSpec =
                 runtimeExecutionSpec(command, definition, role, effectiveTools, modelRequirement);
         var executionMode =
-                internalPlanner
-                                || command.invocationProfile().agentKind()
-                                        == InvocationProfile.AgentKind.EXECUTOR
-                                || !role.key().equals(definition.defaultRoleKey())
+                command.taskId() != null || !role.key().equals(definition.defaultRoleKey())
                         ? AgentExecutionCommand.ExecutionMode.DELEGATE
                         : AgentExecutionCommand.ExecutionMode.DIRECT;
         var compiledSystemPrompt =
@@ -1893,16 +1932,13 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         switch (command.invocationProfile().agentKind()) {
                             case COORDINATOR ->
                                     com.xuejiai.aaf.framework.intelligent.assistant.model
-                                            .ContextDisclosurePolicy.coordinatorSummary();
+                                            .ContextDisclosurePolicy.coordinator();
                             case AGGREGATOR ->
                                     com.xuejiai.aaf.framework.intelligent.assistant.model
                                             .ContextDisclosurePolicy.aggregatorSummary();
                             case EXECUTOR ->
                                     com.xuejiai.aaf.framework.intelligent.assistant.model
                                             .ContextDisclosurePolicy.executorMinimal();
-                            case PRIMARY ->
-                                    com.xuejiai.aaf.framework.intelligent.assistant.model
-                                            .ContextDisclosurePolicy.primaryMinimal();
                         },
                         executionSpec,
                         roleAssignment,
@@ -2327,6 +2363,20 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         profile.frozenAt()));
     }
 
+    /**
+     * 解析本次执行实际生效的路由。任务态节点（有 Task 与节点身份）一律使用建板时冻结在节点上的 Role 与 Skill： 协调者委派的执行者可以使用不同于根路由的
+     * Role/Skill（经计划校验），且任务态不再做 L0 选择（ADR-008）。 非节点执行使用意图里已冻结的路由；轻量态 AUTO 返回 {@code null} 走选择器。
+     */
+    private static ExecutionIntent.ResolvedRoute effectiveRoute(
+            AssistantCommand command, ExecutionIntent intent, AssistantDefinition definition) {
+        var node = command.nodeIdentity();
+        if (command.taskId() != null && node != null && node.roleKey() != null) {
+            return new ExecutionIntent.ResolvedRoute(
+                    node.roleKey(), node.skillKey(), definition.version().value());
+        }
+        return intent.resolvedRoute();
+    }
+
     private static Set<String> allowedToolNames(
             Set<String> configuredToolNames,
             AssistantCommand command,
@@ -2360,29 +2410,55 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 .collect(Collectors.toUnmodifiableSet());
     }
 
+    /**
+     * 内置控制工具按智能体类型与容器状态限定（ADR-008）：轻量态协调者管理任务并可升级；任务态协调者可委派、拆步骤或澄清；
+     * 执行者可拆步骤或澄清；聚合者只能澄清。分解策略通过协调者的工具可见性强制：{@code NONE} 不暴露 {@code delegate_agents}， {@code
+     * REQUIRED} 只保留 {@code delegate_agents} 与 {@code request_clarification}。
+     */
     private static List<ToolRef> builtinControlTools(AssistantCommand command) {
-        if (command.taskId() == null
-                && command.invocationProfile().agentKind() == InvocationProfile.AgentKind.PRIMARY) {
-            return List.of(
-                    toolRef(InspectTasksTool.TOOL_NAME),
-                    toolRef(PromoteDirectTaskTool.TOOL_NAME),
-                    toolRef(AmendTaskTool.TOOL_NAME),
-                    toolRef(PauseTaskTool.TOOL_NAME),
-                    toolRef(ResumeTaskTool.TOOL_NAME),
-                    toolRef(TakeOverTaskTool.TOOL_NAME),
-                    toolRef(HandBackTaskTool.TOOL_NAME),
-                    toolRef(CancelTaskTool.TOOL_NAME));
+        var agentKind = command.invocationProfile().agentKind();
+        if (command.taskId() == null) {
+            return agentKind == InvocationProfile.AgentKind.COORDINATOR
+                    ? List.of(
+                            toolRef(InspectTasksTool.TOOL_NAME),
+                            toolRef(PromoteDirectTaskTool.TOOL_NAME),
+                            toolRef(AmendTaskTool.TOOL_NAME),
+                            toolRef(PauseTaskTool.TOOL_NAME),
+                            toolRef(ResumeTaskTool.TOOL_NAME),
+                            toolRef(TakeOverTaskTool.TOOL_NAME),
+                            toolRef(HandBackTaskTool.TOOL_NAME),
+                            toolRef(CancelTaskTool.TOOL_NAME))
+                    : List.of();
         }
-        if (command.taskId() != null && command.nodeIdentity() != null) {
-            if (command.invocationProfile().agentKind()
-                    == InvocationProfile.AgentKind.COORDINATOR) {
-                return List.of(
-                        toolRef(SubmitCoordinationPlanTool.TOOL_NAME),
-                        toolRef(RequestClarificationTool.TOOL_NAME));
-            }
-            return List.of(toolRef(RequestClarificationTool.TOOL_NAME));
+        if (command.nodeIdentity() == null) {
+            return List.of();
         }
-        return List.of();
+        return switch (agentKind) {
+            case COORDINATOR ->
+                    switch (command.invocationProfile().executionIntent().decomposition()) {
+                        case AUTO ->
+                                List.of(
+                                        toolRef(SubmitCoordinationPlanTool.TOOL_NAME),
+                                        toolRef(SubmitExecutorPlanTool.TOOL_NAME),
+                                        toolRef(ReportExecutorStepTool.TOOL_NAME),
+                                        toolRef(RequestClarificationTool.TOOL_NAME));
+                        case NONE ->
+                                List.of(
+                                        toolRef(SubmitExecutorPlanTool.TOOL_NAME),
+                                        toolRef(ReportExecutorStepTool.TOOL_NAME),
+                                        toolRef(RequestClarificationTool.TOOL_NAME));
+                        case REQUIRED ->
+                                List.of(
+                                        toolRef(SubmitCoordinationPlanTool.TOOL_NAME),
+                                        toolRef(RequestClarificationTool.TOOL_NAME));
+                    };
+            case EXECUTOR ->
+                    List.of(
+                            toolRef(SubmitExecutorPlanTool.TOOL_NAME),
+                            toolRef(ReportExecutorStepTool.TOOL_NAME),
+                            toolRef(RequestClarificationTool.TOOL_NAME));
+            case AGGREGATOR -> List.of(toolRef(RequestClarificationTool.TOOL_NAME));
+        };
     }
 
     private static boolean builtinControlTool(String toolName) {
@@ -2395,6 +2471,8 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 || HandBackTaskTool.TOOL_NAME.equals(toolName)
                 || CancelTaskTool.TOOL_NAME.equals(toolName)
                 || SubmitCoordinationPlanTool.TOOL_NAME.equals(toolName)
+                || SubmitExecutorPlanTool.TOOL_NAME.equals(toolName)
+                || ReportExecutorStepTool.TOOL_NAME.equals(toolName)
                 || RequestClarificationTool.TOOL_NAME.equals(toolName);
     }
 

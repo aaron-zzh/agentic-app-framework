@@ -8,10 +8,14 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ContextAwareToolHandler;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolInvocation;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolInvocationResult;
+import com.xuejiai.aaf.framework.intelligent.ai.chat.AiProperties;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.DecompositionBudget;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.Role;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskModelSelection;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlan;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlan.TaskNode;
@@ -20,8 +24,11 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlanDraft.Aggre
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlanDraft.ExecutorAssignment;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlanDraft.InputBinding;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlanDraft.IterationGroup;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.ExecutionProfileSnapshotPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskPlanPort;
 
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
@@ -38,18 +45,29 @@ import reactor.core.scheduler.Schedulers;
  * roleKey}/{@code skillKey}/{@code modelSelection} 作为授权衰减与模型策略一致性的比对基准——这些字段已随 {@link
  * TaskPlan.TaskNode} 持久化，工具执行时可独立反查，不需要调用方额外传递。
  */
+@Slf4j
 public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler {
 
-    public static final String TOOL_NAME = "submit_coordination_plan";
+    public static final String TOOL_NAME = "delegate_agents";
 
     private final TaskPlanPort boards;
     private final DecompositionBudget decompositionBudget;
+    private final ExecutionProfileSnapshotPort profiles;
+    private final AiProperties aiProperties;
+    private final AssistantDefinitionPort definitions;
 
     public SubmitCoordinationPlanTool(
-            TaskPlanPort boards, DecompositionBudget decompositionBudget) {
+            TaskPlanPort boards,
+            DecompositionBudget decompositionBudget,
+            ExecutionProfileSnapshotPort profiles,
+            AiProperties aiProperties,
+            AssistantDefinitionPort definitions) {
         this.boards = Objects.requireNonNull(boards, "boards 不能为空");
         this.decompositionBudget =
                 Objects.requireNonNull(decompositionBudget, "decompositionBudget 不能为空");
+        this.profiles = Objects.requireNonNull(profiles, "profiles 不能为空");
+        this.aiProperties = Objects.requireNonNull(aiProperties, "aiProperties 不能为空");
+        this.definitions = Objects.requireNonNull(definitions, "definitions 不能为空");
     }
 
     @Override
@@ -87,17 +105,138 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
                                 "type",
                                 "object",
                                 "description",
-                                "聚合方式：kind（PASS_THROUGH/ORDERED_CONCAT 等）与相关配置"),
+                                "聚合方式。AGGREGATOR_REDUCE 下 requirements 必填，默认上限 8000 字符，超限会被拒绝并返回实际上限",
+                                "properties",
+                                Map.of(
+                                        "kind",
+                                        Map.of(
+                                                "type",
+                                                "string",
+                                                "enum",
+                                                List.of(
+                                                        "PASS_THROUGH",
+                                                        "ORDERED_CONCAT",
+                                                        "AGGREGATOR_REDUCE"),
+                                                "description",
+                                                "聚合方式"),
+                                        "executorOrder",
+                                        Map.of(
+                                                "type",
+                                                "array",
+                                                "items",
+                                                Map.of("type", "string"),
+                                                "description",
+                                                "参与聚合的执行者 nodeId，必须且只能覆盖全部结果执行者"),
+                                        "separator",
+                                        Map.of(
+                                                "type",
+                                                "string",
+                                                "description",
+                                                "ORDERED_CONCAT 的拼接分隔符，最长 32 字符"),
+                                        "requirements",
+                                        Map.of(
+                                                "type",
+                                                "string",
+                                                "description",
+                                                "写给聚合者的聚合要求，应包含：用户真正要什么、各执行者结果如何综合、"
+                                                        + "输出风格与格式篇幅约束、需要核对的事项；不要代写结果")),
+                                "required",
+                                List.of("kind", "executorOrder")),
                         "executors",
                         Map.of(
                                 "type",
                                 "array",
                                 "description",
-                                "执行者列表，每项含 nodeId/description/roleKey/skillKey/modelMode",
+                                "执行者列表。roleKey/skillKey 可选，省略即与协调者相同；指定其它值必须属于 Assistant "
+                                        + "已发布的候选目录且不扩大授权，越权会被拒绝并返回候选目录",
                                 "items",
-                                Map.of("type", "object")),
+                                Map.of(
+                                        "type",
+                                        "object",
+                                        "properties",
+                                        Map.of(
+                                                "nodeId",
+                                                Map.of(
+                                                        "type",
+                                                        "string",
+                                                        "description",
+                                                        "执行者节点标识，计划内唯一"),
+                                                "description",
+                                                Map.of(
+                                                        "type",
+                                                        "string",
+                                                        "description",
+                                                        "该执行者的子任务描述"),
+                                                "modelMode",
+                                                Map.of(
+                                                        "type",
+                                                        "string",
+                                                        "enum",
+                                                        List.of("AUTO", "EXPLICIT"),
+                                                        "description",
+                                                        "必须与用户冻结的模型策略一致"),
+                                                "roleKey",
+                                                Map.of(
+                                                        "type",
+                                                        "string",
+                                                        "description",
+                                                        "可选，默认继承协调者"),
+                                                "skillKey",
+                                                Map.of(
+                                                        "type",
+                                                        "string",
+                                                        "description",
+                                                        "可选，默认继承协调者"),
+                                                "dependsOn",
+                                                Map.of(
+                                                        "type",
+                                                        "array",
+                                                        "items",
+                                                        Map.of("type", "string"),
+                                                        "description",
+                                                        "依赖的前序节点 nodeId；缺省依赖协调者"),
+                                                "inputBindings",
+                                                Map.of(
+                                                        "type",
+                                                        "object",
+                                                        "description",
+                                                        "输入名到前序结果的绑定，值为 {sourceTaskNodeId}，只能引用已声明依赖",
+                                                        "additionalProperties",
+                                                        Map.of(
+                                                                "type",
+                                                                "object",
+                                                                "properties",
+                                                                Map.of(
+                                                                        "sourceTaskNodeId",
+                                                                        Map.of("type", "string")),
+                                                                "required",
+                                                                List.of("sourceTaskNodeId"))),
+                                                "maxAttempts",
+                                                Map.of(
+                                                        "type",
+                                                        "integer",
+                                                        "description",
+                                                        "最大尝试次数，1..3，缺省 3")),
+                                        "required",
+                                        List.of("nodeId", "description", "modelMode"))),
                         "iterationGroup",
-                        Map.of("type", "object", "description", "可选迭代组配置")),
+                        Map.of(
+                                "type",
+                                "object",
+                                "description",
+                                "可选迭代组配置",
+                                "properties",
+                                Map.of(
+                                        "groupId",
+                                        Map.of("type", "string"),
+                                        "memberTaskNodeIds",
+                                        Map.of("type", "array", "items", Map.of("type", "string")),
+                                        "evaluatorTaskNodeId",
+                                        Map.of("type", "string"),
+                                        "maxIterations",
+                                        Map.of("type", "integer", "description", "1..5，缺省 1")),
+                                "required",
+                                List.of("groupId", "memberTaskNodeIds", "evaluatorTaskNodeId"))),
                 "required",
                 List.of("goal", "aggregationContract", "executors"));
     }
@@ -112,14 +251,14 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
         var context = invocation.context();
         var nodeIdentity = context.nodeIdentity();
         if (nodeIdentity == null) {
-            throw new IllegalStateException("submit_coordination_plan 只能在编排板上的 COORDINATOR 节点内调用");
+            throw new IllegalStateException("delegate_agents 只能在编排板上的 COORDINATOR 节点内调用");
         }
         var board =
                 boards.find(context.tenantId(), context.taskId())
                         .orElseThrow(() -> new IllegalStateException("当前任务没有可提交协调计划的任务板"));
         var coordinatorNode = board.nodes().get(nodeIdentity.nodeId());
         if (coordinatorNode == null || coordinatorNode.kind() != TaskNode.Kind.COORDINATOR) {
-            throw new IllegalStateException("submit_coordination_plan 只能由 COORDINATOR 节点调用");
+            throw new IllegalStateException("delegate_agents 只能由 COORDINATOR 节点调用");
         }
 
         var arguments = invocation.arguments();
@@ -132,7 +271,8 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
                                         TaskNode::nodeId, TaskNode::assistantTarget));
         var teamBoard = coordinatorNode.assistantTarget() != null && !teamTargets.isEmpty();
 
-        // 授权衰减基准是委派方自身：协调者子任务上已冻结的 Role/Skill。executor 只能等于该基准，不得放大到基准之外。
+        // 授权衰减基准是委派方自身：协调者子任务上已冻结的 Role/Skill。executor 默认等于该基准；指定其它 Role/Skill
+        // 时由 requireDelegable 校验候选目录与"不扩大授权"，不得放大到基准之外。
         final String baselineRoleKey;
         final String baselineSkillKey;
         if (teamBoard) {
@@ -152,18 +292,22 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
         var assignments = new ArrayList<ExecutorAssignment>();
         for (var node : rawExecutors) {
             var nodeId = requireStringField(node, "nodeId");
-            var roleKey = requireStringField(node, "roleKey");
-            var skillKey = requireStringField(node, "skillKey");
+            final String roleKey;
+            final String skillKey;
             if (teamBoard) {
+                roleKey = requireStringField(node, "roleKey");
+                skillKey = requireStringField(node, "skillKey");
                 var target = teamTargets.get(nodeId);
                 if (target == null
                         || !target.roleKey().equals(roleKey)
                         || !target.skillKey().equals(skillKey)) {
                     throw new IllegalArgumentException("Team 协调计划不能改变或跳过冻结 Worker");
                 }
-            } else if (!baselineRoleKey.equals(roleKey)
-                    || !Objects.equals(baselineSkillKey, skillKey)) {
-                throw new IllegalArgumentException("协调者不能更改已冻结的 Role 或 Skill");
+            } else {
+                // 省略 roleKey / skillKey 表示与协调者相同；指定其它值必须属于候选目录且不扩大授权
+                roleKey = optionalText(node, "roleKey", baselineRoleKey);
+                skillKey = optionalText(node, "skillKey", baselineSkillKey);
+                requireDelegable(context, baselineRoleKey, baselineSkillKey, roleKey, skillKey);
             }
             var modelMode = requireStringField(node, "modelMode");
             var modelSelection = resolveModelSelection(coordinatorNode.modelSelection(), modelMode);
@@ -194,6 +338,7 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
         }
 
         var aggregation = decodeAggregationContract(arguments.get("aggregationContract"));
+        requireAggregationRequirements(aggregation, requirementsLimit(context));
         var iterationGroup = decodeIterationGroup(arguments.get("iterationGroup"));
         var maxParallelism = optionalPositiveInt(arguments, "maxParallelism", 1);
 
@@ -228,6 +373,76 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
         values.put("executorCount", assignments.size());
         values.put("maxParallelism", maxParallelism);
         return new ToolInvocationResult("协调计划已提交并生效，执行者子任务已冻结。", values);
+    }
+
+    private static String optionalText(Map<String, Object> map, String field, String fallback) {
+        var value = map.get(field);
+        if (value == null) {
+            return requireField(fallback, field + " 缺省时协调者节点没有可继承的值");
+        }
+        return requireString(value, field);
+    }
+
+    /**
+     * 执行者 Role/Skill 的委派校验：与协调者相同直接通过；不同则必须属于 Assistant 已发布的候选目录（该 Role 的 ON_DEMAND 技能），且不扩大授权——执行者
+     * Role 的候选工具集必须是协调者 Role 候选工具集的子集。技能的有效工具再与所属 Role 的工具 白名单求交集，因此 Role
+     * 工具集不扩大即保证技能不会带入基准之外的工具。无法读取 Assistant 定义时视为无法确认候选目录，拒绝。
+     */
+    private void requireDelegable(
+            InvocationContext context,
+            String baselineRoleKey,
+            String baselineSkillKey,
+            String roleKey,
+            String skillKey) {
+        if (baselineRoleKey.equals(roleKey) && Objects.equals(baselineSkillKey, skillKey)) {
+            return;
+        }
+        var definition =
+                definitions
+                        .findById(context.tenantId(), context.assistantId())
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "协调者不能更改已冻结的 Role 或 Skill：无法读取 Assistant 定义以确认候选目录"));
+        final Role baseline;
+        final Role role;
+        try {
+            baseline = definition.requireRole(baselineRoleKey);
+            role = definition.requireRole(roleKey);
+        } catch (IllegalArgumentException failure) {
+            throw new IllegalArgumentException(
+                    "协调者不能更改已冻结的 Role 或 Skill：Role 不在候选目录，候选：" + catalog(definition), failure);
+        }
+        if (skillKey == null || !definition.candidateOnDemandSkillKeys(role).contains(skillKey)) {
+            throw new IllegalArgumentException(
+                    "协调者不能更改已冻结的 Role 或 Skill：Skill 不在 Role "
+                            + roleKey
+                            + " 的候选目录，候选："
+                            + catalog(definition));
+        }
+        if (!definition
+                .candidateToolKeys(baseline)
+                .containsAll(definition.candidateToolKeys(role))) {
+            throw new IllegalArgumentException(
+                    "执行者 Role "
+                            + roleKey
+                            + " 的工具集超出协调者 Role "
+                            + baselineRoleKey
+                            + "，不允许扩大授权，候选："
+                            + catalog(definition));
+        }
+    }
+
+    /** 候选目录摘要：每个 Role 及其可委派的 ON_DEMAND 技能，写进校验错误供协调者重试。 */
+    private static String catalog(AssistantDefinition definition) {
+        return definition.roles().stream()
+                .map(
+                        role ->
+                                role.key()
+                                        + definition.candidateOnDemandSkillKeys(role).stream()
+                                                .sorted()
+                                                .toList())
+                .collect(java.util.stream.Collectors.joining("；"));
     }
 
     private static TaskModelSelection resolveModelSelection(
@@ -292,8 +507,56 @@ public final class SubmitCoordinationPlanTool implements ContextAwareToolHandler
         var kind = AggregationContract.Kind.valueOf(requireStringField(map, "kind"));
         var executorOrder = decodeStringList(map.get("executorOrder"));
         var separator = map.get("separator");
+        var requirements = map.get("requirements");
+        if (requirements != null && !(requirements instanceof String)) {
+            throw new IllegalArgumentException("aggregationContract.requirements 必须是字符串");
+        }
         return new AggregationContract(
-                kind, executorOrder, separator == null ? "" : separator.toString());
+                kind,
+                executorOrder,
+                separator == null ? "" : separator.toString(),
+                (String) requirements);
+    }
+
+    /** 聚合要求的生效上限：请求参数 &gt; 系统默认（{@code AiProperties}），都不得超过硬顶。请求值超过硬顶按硬顶处理并记日志， 防止客户端绕过保护。 */
+    private int requirementsLimit(InvocationContext context) {
+        var requested =
+                profiles.find(context.tenantId(), context.executionId())
+                        .map(profile -> profile.executionIntent().aggregationRequirementsMaxChars())
+                        .orElse(null);
+        var configured =
+                requested != null ? requested : aiProperties.getAggregationRequirementsMaxChars();
+        if (configured > AggregationContract.REQUIREMENTS_HARD_MAX_CHARS) {
+            log.warn(
+                    "[Assistant协调] 聚合要求上限 {} 超过硬顶，已按 {} 处理：executionId={}",
+                    configured,
+                    AggregationContract.REQUIREMENTS_HARD_MAX_CHARS,
+                    context.executionId().value());
+            return AggregationContract.REQUIREMENTS_HARD_MAX_CHARS;
+        }
+        return configured;
+    }
+
+    /**
+     * AGGREGATOR_REDUCE 下聚合要求必填，所有聚合方式都不得超过上限。校验失败抛出带明确原因的错误，ReAct 循环收到后让协调者补充重试； JSON Schema 无法表达按
+     * kind 条件必填，因此由代码而不是 {@code required} 数组校验。
+     */
+    private static void requireAggregationRequirements(AggregationContract aggregation, int limit) {
+        var requirements = aggregation.requirements();
+        if (aggregation.kind() == AggregationContract.Kind.AGGREGATOR_REDUCE
+                && requirements.isBlank()) {
+            throw new IllegalArgumentException(
+                    "AGGREGATOR_REDUCE 必须提供 aggregationContract.requirements：写明用户真正要什么、"
+                            + "各执行者结果如何综合、输出风格与格式篇幅约束、需要核对的事项");
+        }
+        if (requirements.length() > limit) {
+            throw new IllegalArgumentException(
+                    "aggregationContract.requirements 超过上限 "
+                            + limit
+                            + " 字符（当前 "
+                            + requirements.length()
+                            + "），请精简为对聚合者的指令，不要代写结果");
+        }
     }
 
     private static IterationGroup decodeIterationGroup(Object value) {

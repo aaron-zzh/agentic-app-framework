@@ -40,7 +40,7 @@ public record NodeIdentity(
      * 是面向用户的最终回复，内部类节点的输出是中间产物。
      */
     public enum NodeKind {
-        /** 协调者：前注意、拆解、产计划，恒为内部节点。 */
+        /** 协调者：前注意、直答、拆步骤或委派；计划里没有聚合者时即是交付者，委派后交付权移交聚合者。 */
         COORDINATOR,
         /** 执行者：处理分配的子任务，恒为内部节点。 */
         EXECUTOR,
@@ -66,8 +66,8 @@ public record NodeIdentity(
      * 是否面向用户的应答者：只有它的事件走标准 AG-UI 文本事件，内部节点一律降级 CUSTOM。
      *
      * <p>{@code delivery} 仍作为事件身份的一部分持久化，使 AG-UI 投影无需反查 TaskPlan。正式计划由 {@code
-     * AssistantCommand.nodeIdentityOf} 一次算定：AGGREGATOR 交付，COORDINATOR / EXECUTOR / EVALUATOR
-     * 均为内部节点。
+     * AssistantCommand.nodeIdentityOf} 一次算定节点启动时刻的交付者：AGGREGATOR 交付；COORDINATOR 在计划里没有聚合者时交付
+     * （直答形态），EXECUTOR / EVALUATOR 均为内部节点。协调者随后提交委派计划时，AG-UI 投影按事件流把交付权移交聚合者。
      */
     public boolean userFacing() {
         return delivery;
@@ -80,7 +80,16 @@ public record NodeIdentity(
      * 编排，core 给出的 source 恒为 null，因此这里自行合成同形状路径。应答者返回 {@code null} 表示"父"。
      */
     public String sourcePath() {
-        return userFacing() ? null : "coordinator/" + nodeId;
+        return userFacing() ? null : internalSourcePath();
+    }
+
+    /**
+     * 作为内部节点投影时的 source 路径，不看交付标志。
+     *
+     * <p>协调者启动时是交付者，委派成功后按事件流降级为内部节点，此时 {@link #sourcePath()} 仍为 {@code null}，投影层需要用本方法取路径。
+     */
+    public String internalSourcePath() {
+        return "coordinator/" + nodeId;
     }
 
     private static String blankToNull(String value) {

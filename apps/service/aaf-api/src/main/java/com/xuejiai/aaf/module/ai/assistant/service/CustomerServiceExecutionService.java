@@ -78,7 +78,7 @@ public class CustomerServiceExecutionService {
         var conversationKey =
                 stable("customer-service-conversation", tenantId.value(), visitorSubject, threadId);
         var invocationProfile =
-                InvocationProfile.primary(
+                InvocationProfile.coordinator(
                                 null,
                                 AssistantInvocation.MemoryMode.DEFAULT,
                                 List.of(),

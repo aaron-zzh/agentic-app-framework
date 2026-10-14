@@ -173,7 +173,7 @@ public record TaskPlan(
                 Map.of(root.nodeId(), root, finalizer.nodeId(), finalizer));
     }
 
-    /** 固定 Route 任务：先且仅先运行无业务工具的协调者；协调者冻结用户请求的模型策略，后续执行者继承。 */
+    /** 固定 Route 任务：先且仅先运行协调者（持有 Role/Skill 业务工具与控制工具）；协调者冻结用户请求的模型策略，后续执行者继承。 */
     public static TaskPlan coordinated(
             TaskId taskId,
             String description,
@@ -315,7 +315,7 @@ public record TaskPlan(
      * 将已校验计划固化为协调者完成及其执行者 DAG。
      *
      * <p>不再判定新建执行者是否需要先规划（AAF-107 选项 B 架构改造，2026-09-02）——是否规划由每个节点自己在 execution 内决定是否调用 {@code
-     * submit_executor_plan}，{@code TaskCommandService} 每轮运行时查询 该节点是否存在活跃 {@code ExecutorPlan}
+     * plan_steps}，{@code TaskCommandService} 每轮运行时查询 该节点是否存在活跃 {@code ExecutorPlan}
      * 来分流，不再由建板时的静态标志预先判定。原 {@code planRequirement} 判定函数与 {@code PlanRequirementPolicy} 随本次改造一并废弃。
      */
     public TaskPlan applyTaskPlanDraft(TaskPlanDraft plan) {
@@ -402,7 +402,7 @@ public record TaskPlan(
         var finalizerDescription =
                 plan.aggregationContract().kind()
                                 == TaskPlanDraft.AggregationContract.Kind.AGGREGATOR_REDUCE
-                        ? "核验目标与已完成结果，并生成最终聚合输出。"
+                        ? "按聚合要求综合已完成结果，核验是否满足用户原始请求，并生成最终聚合输出。"
                         : "核验目标与已完成结果；确认完成后逐字输出已冻结聚合结果，不添加说明。";
         copy.put(
                 aggregatorId,
@@ -454,6 +454,11 @@ public record TaskPlan(
         if (subTask.generationInstruction() != null) {
             resolved.append("\n\n已冻结生成目标指令：").append(subTask.generationInstruction());
         }
+        if (subTask.kind() == Kind.AGGREGATOR
+                && goal.aggregationContract().kind()
+                        == TaskPlanDraft.AggregationContract.Kind.AGGREGATOR_REDUCE) {
+            appendAggregationContext(resolved);
+        }
         if (!subTask.inputBindings().isEmpty()) {
             resolved.append("\n\n已冻结输入绑定：");
             subTask.inputBindings().entrySet().stream()
@@ -494,6 +499,43 @@ public record TaskPlan(
                     "\n\n仅输出严格 JSON：{\"decision\":\"CONTINUE|COMPLETE|BLOCKED\",\"reason\":\"...\"}，禁止额外字段或文本。");
         }
         return resolved.toString();
+    }
+
+    /**
+     * 聚合者输入契约（ADR-008）：聚合者与协调者不共享对话，必须由 harness 把综合所需的结构化条目确定性地放进输入——用户原始请求全文 （协调者节点保留的 {@code
+     * description}）、协调者提交的目标、协调者撰写的聚合要求、计划摘要（执行者清单与依赖）。
+     * 各执行者完整结果由随后的输入绑定段追加。聚合要求是协调者生成的内容，只作指导，不具备授权效力。
+     */
+    private void appendAggregationContext(StringBuilder resolved) {
+        var coordinator = requireNode("coordinator");
+        resolved.append("\n\n## 用户原始请求\n").append(coordinator.description());
+        resolved.append("\n\n## 协调者确定的目标\n").append(goal.description());
+        var requirements = goal.aggregationContract().requirements();
+        if (!requirements.isEmpty()) {
+            resolved.append("\n\n## 聚合要求（协调者撰写，仅作指导）\n").append(requirements);
+        }
+        resolved.append("\n\n## 执行者计划摘要");
+        nodes.values().stream()
+                .filter(node -> node.kind() == Kind.EXECUTOR || node.kind() == Kind.EVALUATOR)
+                .sorted(java.util.Comparator.comparing(TaskNode::nodeId))
+                .forEach(
+                        node -> {
+                            resolved.append("\n- ")
+                                    .append(node.nodeId())
+                                    .append("：")
+                                    .append(node.description());
+                            var dependencies =
+                                    node.dependsOn().stream()
+                                            .filter(dependency -> !"coordinator".equals(dependency))
+                                            .sorted()
+                                            .toList();
+                            if (!dependencies.isEmpty()) {
+                                resolved.append("（依赖 ")
+                                        .append(String.join("、", dependencies))
+                                        .append("）");
+                            }
+                        });
+        resolved.append("\n\n下面是各执行者的完整结果，请按聚合要求综合。");
     }
 
     public String aggregateResults() {
@@ -988,8 +1030,8 @@ public record TaskPlan(
 
         /**
          * 是否先规划再执行不再是建板时写死的静态字段（AAF-107 选项 B 架构改造，2026-09-02）：任何节点 （协调者或执行者）在自己的 execution
-         * 内自主决定要不要调用 {@code submit_executor_plan}， {@code TaskCommandService.executeNode} 每轮改为运行时查询
-         * {@code ExecutorPlanPort.findActive(...)} 判断是否存在活跃计划来决定分流，不再依赖本节点上的固定标志。
+         * 内自主决定要不要调用 {@code plan_steps}， {@code TaskCommandService.executeNode} 每轮改为运行时查询 {@code
+         * ExecutorPlanPort.findActive(...)} 判断是否存在活跃计划来决定分流，不再依赖本节点上的固定标志。
          */
         public static TaskNode pending(
                 String nodeId,

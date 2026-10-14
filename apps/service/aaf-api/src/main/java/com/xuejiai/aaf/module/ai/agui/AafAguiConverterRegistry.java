@@ -64,9 +64,21 @@ public final class AafAguiConverterRegistry {
             return byTypeConverter.convert(event, context);
         }
         var node = event.nodeIdentity();
-        if (node != null && !node.userFacing()) {
+        context.delivery().observe(event);
+        // 任一节点进入等待授权 / 澄清，整个任务都在等人：投影成标准 interrupt 暂停整个流，而不是降级为内部 CUSTOM
+        var humanWait = byType.get(event.type());
+        if (node != null && humanWait != null && isHumanWait(event.type())) {
+            return humanWait.convert(event, context);
+        }
+        // 协调者提交委派计划后不再是交付者，交付权移交给聚合者（ADR-008）
+        if (node != null && !context.delivery().delivers(node)) {
             return internalNode.convert(event, context);
         }
         return byType.getOrDefault(event.type(), fallback).convert(event, context);
+    }
+
+    private static boolean isHumanWait(ExecutionEventType type) {
+        return type == ExecutionEventType.AUTHORIZATION_REQUESTED
+                || type == ExecutionEventType.CLARIFICATION_REQUESTED;
     }
 }

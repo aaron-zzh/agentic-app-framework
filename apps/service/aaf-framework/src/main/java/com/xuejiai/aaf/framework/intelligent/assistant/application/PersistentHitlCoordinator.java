@@ -91,13 +91,11 @@ public final class PersistentHitlCoordinator implements HitlCoordinatorPort {
         } finally {
             leases.release(lease);
         }
-        if (stored.status() == HumanApproval.Status.APPROVED) {
-            taskCommands.resumeReadyNodes(
-                    context.tenantId(),
-                    context.taskId(),
-                    context.executionId(),
-                    Objects.requireNonNull(stored.decidedAt(), "批准决定缺少 decidedAt"));
-        }
+        taskCommands.resumeReadyNodes(
+                context.tenantId(),
+                context.taskId(),
+                context.executionId(),
+                Objects.requireNonNull(stored.decidedAt(), "授权决定缺少 decidedAt"));
         log.debug(
                 "[HITL] 委托审批 transition 已提交：taskId={}，executionId={}，approvalId={}，结果={}",
                 context.taskId().value(),
@@ -189,6 +187,11 @@ public final class PersistentHitlCoordinator implements HitlCoordinatorPort {
         values.put("action", approval.action());
         values.put("resource", approval.resource());
         values.put("decision", approval.status().name());
+        if (approval.status() == HumanApproval.Status.REJECTED
+                && approval.decisionReason() != null
+                && !approval.decisionReason().isBlank()) {
+            values.put("feedback", approval.decisionReason());
+        }
         var type =
                 approval.status() == HumanApproval.Status.APPROVED
                         ? ExecutionEventType.AUTHORIZATION_GRANTED
@@ -204,9 +207,7 @@ public final class PersistentHitlCoordinator implements HitlCoordinatorPort {
                 context.parentExecutionId(),
                 1,
                 type,
-                approval.status() == HumanApproval.Status.APPROVED
-                        ? ExecutionEventStatus.RECOVERING
-                        : ExecutionEventStatus.PAUSED,
+                ExecutionEventStatus.RECOVERING,
                 context.controlMode(),
                 OwnerType.HUMAN,
                 context.assistantId(),

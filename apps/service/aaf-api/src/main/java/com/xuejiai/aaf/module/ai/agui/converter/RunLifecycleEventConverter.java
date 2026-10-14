@@ -28,9 +28,8 @@ import io.agentscope.core.agui.event.AguiEvent;
  * AUTHORIZATION_REQUESTED}/{@code AUTHORIZATION_GRANTED}/{@code AUTHORIZATION_DENIED}），这是每次真实工具
  * 调用都会走的代码路径。
  *
- * <p>只有根节点（DIRECT 直答或协调者自身）的授权等待才会走到本 converter——子任务的授权等待由 {@code TaskCommandService}
- * 处理为"该子任务本轮让出并发位、稍后重试"，不终止整个 run，其事件因 {@code nodeIdentity != null} 会先被 {@code
- * InternalNodeEventConverter} 降级为 CUSTOM，不会到达本类——分派顺序本身 保证了这个边界，不需要额外判断排除子任务。
+ * <p>AAF-117 起任一节点（含执行者、聚合者）的授权 / 澄清等待都由 {@code AafAguiConverterRegistry} 优先分派到本 converter，投影为标准
+ * interrupt 并结束本次实时流；整个任务都在等人，不再把子节点的等待降级为内部 CUSTOM。
  *
  * <p><b>{@code CLARIFICATION_REQUESTED} 同样收敛为标准 interrupt</b>（AAF-114 #11408 第二版）： {@code
  * reason="input_required"} 对齐官方标准值语义；{@code responseSchema} 由 {@link

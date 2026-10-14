@@ -261,10 +261,10 @@ class AgUiProjectorTest {
     }
 
     @Test
-    @DisplayName("根节点（交付者）EXECUTION_STARTED/COMPLETED 走 run 生命周期，不产生 Step 事件")
+    @DisplayName("根事件（nodeIdentity 为空，按交付者处理）EXECUTION_STARTED 走 run 生命周期，不产生 Step 事件")
     void should_not_emit_step_for_delivery_node_execution_events() {
         var session = projector.openSession();
-        // AGGREGATOR_REDUCE 契约下 AGGREGATOR 是唯一交付者：delivery=true 时按根节点路径处理，
+        // 无 nodeIdentity 的根事件（DIRECT 直答、任务级事件）按交付者路径处理：
         // 走 RunLifecycleEventConverter 的 run 生命周期语义（RUN_STARTED/RUN_FINISHED），不产生 Step 事件。
         var events = session.project(event(1, ExecutionEventType.EXECUTION_STARTED, Map.of()));
 

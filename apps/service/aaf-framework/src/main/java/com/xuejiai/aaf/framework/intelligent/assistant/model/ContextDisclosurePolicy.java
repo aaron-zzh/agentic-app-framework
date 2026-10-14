@@ -26,17 +26,20 @@ public record ContextDisclosurePolicy(
         }
     }
 
-    public static ContextDisclosurePolicy coordinatorSummary() {
-        return summary(Audience.COORDINATOR);
+    /**
+     * 协调者披露策略：与执行者同级，允许内容级披露。
+     *
+     * <p>协调者要自己直答或按步骤执行，必须能读取完整内容；放宽的代价是协调者直接暴露在原始内容与附件的提示注入面前， 由工具走 ToolGateway 授权、计划校验不扩大
+     * Role/Skill、执行者数量与并行度预算、CompletionValidator 判定完成兜底（ADR-008）。
+     */
+    public static ContextDisclosurePolicy coordinator() {
+        return new ContextDisclosurePolicy(
+                Audience.COORDINATOR, DetailLevel.MINIMAL, EnumSet.allOf(SourceType.class), 16);
     }
 
     public static ContextDisclosurePolicy aggregatorSummary() {
-        return summary(Audience.AGGREGATOR);
-    }
-
-    private static ContextDisclosurePolicy summary(Audience audience) {
         return new ContextDisclosurePolicy(
-                audience, DetailLevel.SUMMARY_ONLY, EnumSet.allOf(SourceType.class), 8);
+                Audience.AGGREGATOR, DetailLevel.SUMMARY_ONLY, EnumSet.allOf(SourceType.class), 8);
     }
 
     public static ContextDisclosurePolicy executorMinimal() {
@@ -44,13 +47,7 @@ public record ContextDisclosurePolicy(
                 Audience.EXECUTOR, DetailLevel.MINIMAL, EnumSet.allOf(SourceType.class), 16);
     }
 
-    public static ContextDisclosurePolicy primaryMinimal() {
-        return new ContextDisclosurePolicy(
-                Audience.PRIMARY, DetailLevel.MINIMAL, EnumSet.allOf(SourceType.class), 16);
-    }
-
     public enum Audience {
-        PRIMARY,
         COORDINATOR,
         AGGREGATOR,
         EXECUTOR

@@ -15,6 +15,7 @@ gains:
   - 添加新决策时有可对齐的 MADR 格式模板
   - 硬约束规则回链到决策起因（multica P1.5 规则溯源）
 changelog:
+  - 2026-10-11 登记 ADR-008
   - 2026-05-05 初始化 ADR 目录 + ADR-001/002/003（迁移自 AAF-023 dev-log）
 ---
 
@@ -47,6 +48,7 @@ changelog:
 | [ADR-005](ADR-005-agentscope-boundary-and-orchestration.md) | AgentScope 复用边界与双层编排模型定案 | proposed | 智能层 Agent/Assistant 运行时、AG-UI 协议、TaskBoard 编排、AgentScopeSpecCompiler |
 | [ADR-006](ADR-006-executor-plan-mode.md) | EXECUTOR 先规划再执行（AAF 版 Plan Mode） | accepted | DelegatedTaskCoordinator EXECUTOR 分支、v16 新增两表、PersistentHitlCoordinator 审批复用 |
 | [ADR-007](ADR-007-l0-model-invoker-unification.md) | L0 非自主模型调用单栈化（复用零工具 ReActAgent） | proposed | PromptInvocationGateway 签名、5 个 L0 直调用点迁移、LlmClient/SpringAiLlmClient 删除、AAF-105 |
+| [ADR-008](ADR-008-task-execution-shape-and-streaming.md) | Task 执行形态、产物保存边界与全环节流式可视化 | proposed | 协调者直答与交付节点、分解策略、产物保存、ExecutionLiveEventPort、SSE 结束条件、AAF-107 / AAF-115 |
 
 ## 与其他文档的关系
 

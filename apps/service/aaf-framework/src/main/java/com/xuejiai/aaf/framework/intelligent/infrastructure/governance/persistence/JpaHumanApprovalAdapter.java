@@ -40,6 +40,17 @@ public class JpaHumanApprovalAdapter implements HumanApprovalPort {
 
     @Override
     @Transactional(readOnly = true)
+    public List<HumanApproval> rejected(TenantId tenantId, TaskId taskId) {
+        return repository
+                .findByTenantIdAndTaskIdAndStatus(
+                        tenantId.value(), taskId.value(), HumanApproval.Status.REJECTED.name())
+                .stream()
+                .map(HumanApprovalEntity::getApproval)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<HumanApproval> pending(TenantId tenantId, UserId userId) {
         return repository
                 .findByTenantIdAndStatus(tenantId.value(), HumanApproval.Status.PENDING.name())

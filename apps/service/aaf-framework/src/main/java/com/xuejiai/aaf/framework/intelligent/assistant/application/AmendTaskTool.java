@@ -12,7 +12,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionInput;
 
 import reactor.core.publisher.Mono;
 
-/** PRIMARY Assistant 将明确的用户调整请求提交到 canonical Task 控制面。 */
+/** 轻量态协调者将明确的用户调整请求提交到 canonical Task 控制面。 */
 public final class AmendTaskTool implements ContextAwareToolHandler {
 
     public static final String TOOL_NAME = "amend_task";
@@ -106,7 +106,7 @@ public final class AmendTaskTool implements ContextAwareToolHandler {
     private Request request(ToolInvocation invocation) {
         var context = invocation.context();
         if (context.taskId() != null) {
-            throw new IllegalStateException("amend_task 只能由新的 PRIMARY 对话 Execution 调用");
+            throw new IllegalStateException("amend_task 只能由新的轻量态协调者对话 Execution 调用");
         }
         var scope = requireText(invocation.arguments(), "scope");
         if (!scope.equals("TASK_PLAN") && !scope.equals("EXECUTOR_PLAN")) {

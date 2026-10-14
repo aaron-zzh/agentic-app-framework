@@ -35,7 +35,6 @@ public record InvocationProfile(
         Objects.requireNonNull(agentKind, "agentKind 不能为空");
         var expectedPolicy =
                 switch (agentKind) {
-                    case PRIMARY -> InvocationPolicy.PRIMARY;
                     case COORDINATOR -> InvocationPolicy.COORDINATOR;
                     case EXECUTOR -> InvocationPolicy.EXECUTOR;
                     case AGGREGATOR -> InvocationPolicy.AGGREGATOR;
@@ -57,12 +56,13 @@ public record InvocationProfile(
         }
     }
 
-    public static InvocationProfile primary(
+    /** 协调者的轻量态入口（无 Task）：对话、渠道与工作流节点的直答执行；需要持久化时由协调者提升为任务态。 */
+    public static InvocationProfile coordinator(
             String requestedSkillKey,
             AssistantInvocation.MemoryMode memoryMode,
             List<AgentMessage.Attachment> userAttachments,
             ExecutionIntent executionIntent) {
-        return primary(
+        return coordinator(
                 requestedSkillKey,
                 memoryMode,
                 userAttachments,
@@ -70,7 +70,7 @@ public record InvocationProfile(
                 ContextPlan.empty());
     }
 
-    public static InvocationProfile primary(
+    public static InvocationProfile coordinator(
             String requestedSkillKey,
             AssistantInvocation.MemoryMode memoryMode,
             List<AgentMessage.Attachment> userAttachments,
@@ -79,12 +79,12 @@ public record InvocationProfile(
         return new InvocationProfile(
                 requestedSkillKey,
                 memoryMode,
-                InvocationPolicy.PRIMARY,
+                InvocationPolicy.COORDINATOR,
                 userAttachments,
                 executionIntent,
                 contextPlan,
-                AgentKind.PRIMARY,
-                "primary",
+                AgentKind.COORDINATOR,
+                "coordinator",
                 null,
                 false,
                 Set.of());
@@ -146,7 +146,9 @@ public record InvocationProfile(
                         executionIntent.artifactPolicy(),
                         executionIntent.actionAuthorizationPolicy(),
                         executionIntent.workspaceId(),
-                        executionIntent.trustedProjectId());
+                        executionIntent.trustedProjectId(),
+                        executionIntent.decomposition(),
+                        executionIntent.aggregationRequirementsMaxChars());
         return new InvocationProfile(
                 skillKey,
                 memoryMode,
@@ -174,7 +176,6 @@ public record InvocationProfile(
     }
 
     public enum AgentKind {
-        PRIMARY,
         COORDINATOR,
         EXECUTOR,
         AGGREGATOR
