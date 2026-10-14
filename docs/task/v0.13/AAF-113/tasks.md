@@ -444,18 +444,23 @@ UI 设计：[ui-design.md](ui-design.md)
 
 ### 实时事件补充
 
-- [ ] **#11332 补齐 Activity 事件发布点** — developer-service
+- [x] **#11332 补齐 Activity 事件发布点** — developer-service（源码完成，未编译、未运行测试）
   - 盘点发现 AAF-113 设计依赖 Activity 做失效通知，但 `module/ai` 下没有对应发布点（见 [AAF-119 design.md](../AAF-119/design.md#事件清单与后续补充)）。
-  - 新增 `aigc.project.schedule.changed`（ProjectSchedule 创建、编辑、暂停、恢复、取消、触发、延后、失败）。
-  - 新增 `aigc.proposal.changed`（AssistantBlueprintProposal、ProjectGenerationProposal 创建、确认、失效、过期）。
-  - canonical Task 状态变化（等待外部、待确认、暂停、终态）对 AIGC 项目页的失效通知：事件名与 taskId 类型对照 AAF-115 定型，不引入新轮询。
-  - 补全关联：`conversationId` 进 `refs`；`assistantRunId`、`toolCallId` 等字符串进 `payload`。
-  - 事件类型直接使用 `aigc.` 前缀，关联用语义字段名；通过现有 `AigcActivityEventService` 发布，AAF-119 落地后改为 `AigcEventPublisher`，调用点不变。
-  - 事件只做失效通知，不推进 Task，不携带积分数值，payload 只放状态摘要。
+  - [x] `aigc.project.schedule.changed`：`AigcProjectScheduleService` 的创建、取消、暂停、恢复、触发、延后、失败；`refs` 为 projectId、scheduleId，`payload` 为 action、status。服务当前没有编辑方法，编辑事件待编辑能力落地时补。
+  - [x] `aigc.proposal.changed`：`AigcProjectGenerationProposalService`（创建、修订、批准、关联 Task、物化，`kind=GENERATION`）与 `AssistantBlueprintProposalService`（创建、取消、修订、就绪、确认、物化、失败、过期，`kind=ASSISTANT_BLUEPRINT`）；`refs` 仅在已知时带 projectId，`proposalId`（字符串）、`proposalVersion`、`action`、`status` 放 `payload`。
+  - 事件类型直接使用 `aigc.` 前缀；通过 `AigcEventPublisher` 发布（AAF-119 已由原 `AigcActivityEventService` 替换）。事件只做失效通知，不推进 Task，不携带积分数值，payload 只放状态摘要。
+  - **已知缺口**：生成 Proposal 的 approve 过期分支会抛异常并回滚，因此不发布过期事件；`conversationId` 进 `refs` 需要各发布点上下文里有该值，现有 proposal 实体没有 conversationId，schedule 的 conversationId 为字符串，均不满足 `refs` 的正整数约束，未补。
+  - canonical Task 状态变化的失效通知已拆出并完成，见下方 #11333。
   - **依赖**：#11319、#11327、#11328。
   - **排期**：不阻塞 AAF-119，也不阻塞 #11313；建议在 #11323 门禁前完成，schedule Sheet 与对话中的 Task 卡片依赖这些通知。
   - **覆盖**：AC-16、UI-AC-10、UI-AC-13 至 UI-AC-15 的断线与刷新体验。
 
+- [x] **#11333 canonical Task 状态变化推送到全局事件通道** — developer-service / developer-webui（源码完成，未编译、未运行测试）
+  - 事件 `task.status.changed` 属智能层 Task 域，不加 `aigc.` 前缀；`SynchronousExecutionEventWriter` 新落库一条执行事件时回调 `TaskStatusEventPublisher`，与事件同事务发布全局事件，覆盖终态、暂停/恢复、待授权/澄清/外部输入、控制权转移与 `TASK_STATUS_CHANGED`。
+  - Task、Execution、Conversation 的 ID 是字符串，不满足 `refs` 正整数约束，全部放 `payload`（`taskId`、`executionId`、`conversationId`、`eventType`、`status`）；接收用户取事件的 `userId`，缺失或非数字时跳过。
+  - 前端 `useTaskList` 订阅 `task.` 前缀，按 `payload.conversationId` 匹配当前对话，失效 Task 列表与详情查询；轮询保留为连接中断时的兜底，间隔由 1 秒、3 秒放宽为 3 秒、10 秒。
+  - 不改 AAF-115 的 Task 状态机与 outbox；节点启动事件（`EXECUTION_STARTED`）与进度类事件不推送。
+  - **已知取舍**：事件落库使用 owner 级 advisory lock，若 Task 事务过长会与同一用户的其他事件发布串行；事件序列化失败或发布异常只记 warn，不影响 Task 事实写入。
 ### 切换与质量门禁
 
 - ⏳ **#11313 执行阶段一项目管理闭环门禁** — developer-service、developer-webui

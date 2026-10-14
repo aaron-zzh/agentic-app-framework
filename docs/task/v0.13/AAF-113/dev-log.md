@@ -159,3 +159,22 @@ author: AaronZZH & Kiro
 - 运行期只消费类型化 Definition，关系元数据不复制模板规则
 - TaskNode/Proposal/PromptEnvelope 冻结指令、范围、hash 与服务端目标
 - 未新增测试，未运行任何动态验证；#11313 保持 ⏳
+
+## #11332 schedule 与 Proposal 事件发布点
+
+✅ 2026-10-14 — developer-service（源码完成，未编译、未运行测试、未新增 SQL）
+
+- `AigcEventPublisher` 新增 `publish(userId, type, refs, payload)` 重载，供自定义关联键使用
+- `aigc.project.schedule.changed`：`AigcProjectScheduleService` 覆盖创建、取消、暂停、恢复、触发、延后、失败；refs 为 projectId、scheduleId；触发与失败发生在调度线程，无组织上下文，事件为用户级
+- `aigc.proposal.changed`：生成 Proposal 与 Assistant Blueprint Proposal 两个服务共用事件类型，用 payload 的 `kind` 区分；字符串 proposalId 放 payload，refs 仅在已知时带 projectId
+- 生成 Proposal approve 的过期分支抛异常回滚，不发布过期事件；schedule 暂无编辑方法，编辑事件待能力落地后补
+- canonical Task 状态事件拆为 #11333，不加 `aigc.` 前缀（见下一节）
+
+## #11333 canonical Task 状态事件
+
+✅ 2026-10-14 — developer-service + developer-webui（源码完成，未编译、未运行测试、未新增 SQL）
+
+- 后端：`TaskStatusEventPublisher` 经 `SynchronousExecutionEventWriter` 的单一落库点接入，AAF-115 的各 Task 状态写入路径无需逐个改；`SynchronousExecutionEventWriter` 构造器新增该依赖，自动配置同步接线
+- 事件 `task.status.changed`：ID 类字段全放 payload（字符串），接收用户取事件 `userId`
+- 前端：`useTaskList` 订阅 `task.` 前缀并按 conversationId 失效；轮询放宽为 3 秒与 10 秒兜底
+- 风险：改动位于 AAF-115 的事件落库热点（框架层），所有执行事件落库都会经过过滤判断，且命中状态类事件时多一次 `sys_event` 写入，建议动态验证时观察落库耗时
