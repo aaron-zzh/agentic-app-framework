@@ -25,7 +25,7 @@ import com.xuejiai.aaf.framework.crud.enforcement.AccessMode;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.aigc.AigcCanonicalRequest;
 import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcChannelSpecApi;
-import com.xuejiai.aaf.module.ai.aigc.event.service.AigcActivityEventService;
+import com.xuejiai.aaf.module.ai.aigc.event.service.AigcEventPublisher;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectLifecycle;
 import com.xuejiai.aaf.module.ai.aigc.work.api.AigcPublicationCancelCommand;
@@ -72,7 +72,7 @@ public class AigcWorkService
     private final AigcChannelSpecApi channelSpecApi;
     private final OperatorContext operatorContext;
     private final ApplicationEventPublisher eventPublisher;
-    private final AigcActivityEventService activityEventService;
+    private final AigcEventPublisher activityEventService;
 
     @Override
     protected AigcWorkRepository getRepository() {

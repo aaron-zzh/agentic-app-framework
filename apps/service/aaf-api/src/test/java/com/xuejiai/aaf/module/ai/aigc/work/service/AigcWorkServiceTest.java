@@ -14,7 +14,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcChannelSpecApi;
-import com.xuejiai.aaf.module.ai.aigc.event.service.AigcActivityEventService;
+import com.xuejiai.aaf.module.ai.aigc.event.service.AigcEventPublisher;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
 import com.xuejiai.aaf.module.ai.aigc.work.domain.AigcWorkPublication;
 import com.xuejiai.aaf.module.ai.aigc.work.repository.AigcWorkPublicationRepository;
@@ -29,7 +29,7 @@ class AigcWorkServiceTest extends BaseMockitoUnitTest {
     @Mock private AigcChannelSpecApi channelSpecApi;
     @Mock private OperatorContext operatorContext;
     @Mock private ApplicationEventPublisher eventPublisher;
-    @Mock private AigcActivityEventService activityEventService;
+    @Mock private AigcEventPublisher activityEventService;
     @InjectMocks private AigcWorkService service;
 
     @Test

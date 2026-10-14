@@ -20,7 +20,7 @@ import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.aigc.AigcCanonicalRequest;
-import com.xuejiai.aaf.module.ai.aigc.event.service.AigcActivityEventService;
+import com.xuejiai.aaf.module.ai.aigc.event.service.AigcEventPublisher;
 import com.xuejiai.aaf.module.ai.aigc.task.api.AigcBoundTaskEvidencePort;
 import com.xuejiai.aaf.module.ai.aigc.task.api.AigcTaskApi;
 import com.xuejiai.aaf.module.ai.aigc.task.api.AigcTaskProgressView;
@@ -50,7 +50,7 @@ public class AigcTaskApiAdapter implements AigcTaskApi {
     private final AigcSubmissionAccessGuard submissionAccessGuard;
     private final AigcTaskExecutor taskExecutor;
     private final AigcTaskQueueDispatcher queueDispatcher;
-    private final AigcActivityEventService activityEventService;
+    private final AigcEventPublisher activityEventService;
 
     @Override
     @Transactional

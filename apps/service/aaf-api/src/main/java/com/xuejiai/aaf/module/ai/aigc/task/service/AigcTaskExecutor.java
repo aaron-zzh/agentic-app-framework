@@ -44,7 +44,7 @@ import com.xuejiai.aaf.framework.security.PermissionExecutionContextHolder;
 import com.xuejiai.aaf.framework.security.PermissionExecutionService;
 import com.xuejiai.aaf.framework.security.license.License;
 import com.xuejiai.aaf.framework.system.config.service.SystemConfigService;
-import com.xuejiai.aaf.module.ai.aigc.event.service.AigcActivityEventService;
+import com.xuejiai.aaf.module.ai.aigc.event.service.AigcEventPublisher;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcGeneratedMediaCommand;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaType;
@@ -74,7 +74,7 @@ public class AigcTaskExecutor {
 
     private final AigcTaskRepository taskRepo;
     private final AigcTaskClaimService taskClaimService;
-    private final AigcActivityEventService eventService;
+    private final AigcEventPublisher eventService;
     private final AigcTaskMapper taskMapper;
     private final FileStoragePort fileService;
     private final AigcMediaApi mediaApi;

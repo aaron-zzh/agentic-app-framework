@@ -27,7 +27,7 @@ import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.aigc.AigcCanonicalRequest;
-import com.xuejiai.aaf.module.ai.aigc.event.service.AigcActivityEventService;
+import com.xuejiai.aaf.module.ai.aigc.event.service.AigcEventPublisher;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcApprovedManifestView;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcCompletionEvaluationView;
@@ -93,7 +93,7 @@ public class AigcProjectDeliveryService {
     private final CompletionEvidencePort completionEvidencePort;
     private final OperatorContext operatorContext;
     private final ApplicationEventPublisher eventPublisher;
-    private final AigcActivityEventService activityEventService;
+    private final AigcEventPublisher activityEventService;
 
     @Transactional
     public AigcObjectVersionView appendCandidate(AigcObjectVersionCandidateCommand command) {

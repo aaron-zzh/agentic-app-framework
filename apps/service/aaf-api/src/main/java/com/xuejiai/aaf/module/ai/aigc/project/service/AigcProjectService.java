@@ -43,7 +43,7 @@ import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcBlueprintActionSpec;
 import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcBlueprintRelationSpec;
 import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcBlueprintSlotTemplateSpec;
 import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcResolvedObjectSpec;
-import com.xuejiai.aaf.module.ai.aigc.event.service.AigcActivityEventService;
+import com.xuejiai.aaf.module.ai.aigc.event.service.AigcEventPublisher;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaType;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcUploadedMediaCommand;
@@ -209,7 +209,7 @@ public class AigcProjectService
     private final OperatorContext operatorContext;
     private final PermissionEvaluator permissionEvaluator;
     private final ApplicationEventPublisher eventPublisher;
-    private final AigcActivityEventService activityEventService;
+    private final AigcEventPublisher activityEventService;
 
     @Override
     protected AigcProjectRepository getRepository() {

@@ -19,7 +19,7 @@ import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcBlueprintProcessPolicy;
 import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcDeliverableSetSpec;
 import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcProjectInitializationSpec;
-import com.xuejiai.aaf.module.ai.aigc.event.service.AigcActivityEventService;
+import com.xuejiai.aaf.module.ai.aigc.event.service.AigcEventPublisher;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcBlueprintSourceType;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcDeliverableSetManifestFreezeCommand;
@@ -57,7 +57,7 @@ class AigcProjectDeliveryServiceTest extends BaseMockitoUnitTest {
     @Mock private CompletionEvidencePort completionEvidencePort;
     @Mock private OperatorContext operatorContext;
     @Mock private ApplicationEventPublisher eventPublisher;
-    @Mock private AigcActivityEventService activityEventService;
+    @Mock private AigcEventPublisher activityEventService;
     @InjectMocks private AigcProjectDeliveryService service;
 
     @Test

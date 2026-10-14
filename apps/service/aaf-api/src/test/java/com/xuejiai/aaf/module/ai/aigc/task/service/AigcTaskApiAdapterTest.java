@@ -25,7 +25,7 @@ import com.xuejiai.aaf.framework.intelligent.core.model.AiModelProviderType;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
-import com.xuejiai.aaf.module.ai.aigc.event.service.AigcActivityEventService;
+import com.xuejiai.aaf.module.ai.aigc.event.service.AigcEventPublisher;
 import com.xuejiai.aaf.module.ai.aigc.task.api.AigcBoundTaskEvidencePort;
 import com.xuejiai.aaf.module.ai.aigc.task.api.AigcTaskSubmitCommand;
 import com.xuejiai.aaf.module.ai.aigc.task.domain.AigcTask;
@@ -45,7 +45,7 @@ class AigcTaskApiAdapterTest extends BaseMockitoUnitTest {
     @Mock private AigcSubmissionAccessGuard submissionAccessGuard;
     @Mock private AigcTaskExecutor taskExecutor;
     @Mock private AigcTaskQueueDispatcher queueDispatcher;
-    @Mock private AigcActivityEventService activityEventService;
+    @Mock private AigcEventPublisher activityEventService;
     @InjectMocks private AigcTaskApiAdapter adapter;
 
     @Test

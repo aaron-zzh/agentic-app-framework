@@ -40,7 +40,7 @@ import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRouter;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
 import com.xuejiai.aaf.framework.intelligent.core.registry.AiServiceRegistry;
 import com.xuejiai.aaf.module.ai.aigc.ErrorCodeConstants;
-import com.xuejiai.aaf.module.ai.aigc.event.service.AigcActivityEventService;
+import com.xuejiai.aaf.module.ai.aigc.event.service.AigcEventPublisher;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcGeneratedMediaCommand;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaApi;
 import com.xuejiai.aaf.module.ai.aigc.media.api.AigcMediaType;
@@ -101,7 +101,7 @@ public class AigcTaskService
     private static final String EVENT_FAILED = "task.failed";
 
     private final AigcTaskRepository taskRepo;
-    private final AigcActivityEventService eventService;
+    private final AigcEventPublisher eventService;
     private final AigcTaskMapper taskMapper;
     private final FileStoragePort fileService;
     private final AigcMediaApi mediaApi;

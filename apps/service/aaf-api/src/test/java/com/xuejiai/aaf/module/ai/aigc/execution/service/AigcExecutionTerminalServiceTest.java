@@ -14,7 +14,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 
-import com.xuejiai.aaf.module.ai.aigc.event.service.AigcActivityEventService;
+import com.xuejiai.aaf.module.ai.aigc.event.service.AigcEventPublisher;
 import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus;
 import com.xuejiai.aaf.module.ai.aigc.execution.domain.AigcExecutionRun;
 import com.xuejiai.aaf.module.ai.aigc.execution.domain.AigcExecutionSubmission;
@@ -29,7 +29,7 @@ class AigcExecutionTerminalServiceTest extends BaseMockitoUnitTest {
     @Mock private AigcExecutionRunRepository runRepository;
     @Mock private AigcExecutionSubmissionRepository submissionRepository;
     @Mock private AigcProjectApi projectApi;
-    @Mock private AigcActivityEventService activityEventService;
+    @Mock private AigcEventPublisher activityEventService;
 
     private AigcExecutionTerminalService service;
 

@@ -6,7 +6,7 @@ import java.util.Objects;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.xuejiai.aaf.module.ai.aigc.event.service.AigcActivityEventService;
+import com.xuejiai.aaf.module.ai.aigc.event.service.AigcEventPublisher;
 import com.xuejiai.aaf.module.ai.aigc.execution.api.AigcExecutionRunStatus;
 import com.xuejiai.aaf.module.ai.aigc.execution.domain.AigcExecutionRun;
 import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionRunRepository;
@@ -24,7 +24,7 @@ public class AigcExecutionTerminalService {
     private final AigcExecutionRunRepository runRepository;
     private final AigcExecutionSubmissionRepository submissionRepository;
     private final AigcProjectApi projectApi;
-    private final AigcActivityEventService activityEventService;
+    private final AigcEventPublisher activityEventService;
 
     @Transactional
     public void onRunTerminal(AigcExecutionRun terminalRun) {
