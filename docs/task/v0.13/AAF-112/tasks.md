@@ -1,4 +1,4 @@
-﻿---
+---
 level: Practice
 layer: Model
 purpose: AAF-112 Content Studio 项目先行完整闭环技术任务与依赖
@@ -49,7 +49,7 @@ author: AaronZZH & Kiro
   - Task 幂等键落库并贯穿供应商调用，禁止重复任务、候选和扣费。
 
 - [x] **#11211** 将 Task SSE 一次性演进为持久 Activity SSE — developer-service / developer-webui
-  - 直接替换为 `/api/aigc/events/stream`，持久化事件游标并支持断线重放/补查，不保留旧端点 fallback。
+  - 直接替换为持久事件游标 SSE（端点已由 AAF-119 泛化为 `/api/events/stream`），支持断线重放/补查，不保留旧端点 fallback。
   - 事件携带 project、execution、task、media 及可空 conversation 关联。
   - 前端单例连接按项目失效 graph、summary、versions、runs、media refs、Work/Publication 与费用查询。
 

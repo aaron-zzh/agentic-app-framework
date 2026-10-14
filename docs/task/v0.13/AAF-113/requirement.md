@@ -113,7 +113,7 @@ AAF-112 已提供 AIGC Project、ProjectGraph、ObjectVersion、DocumentVersion�
 - 单对象消耗以该对象关联的 `ExecutionRun`/`AigcTask` 结算流水（`CreditTransaction.type=SPEND` 且已扣除对应退款）聚合得出，不使用预计或预留金额冒充实际消费；
 - 项目累计消耗是项目内全部对象单项实际消耗之和，与既有 `ActualCreditSummary`（`estimated`/`reserved`/`settled`/`refunded`）的 `settled - refunded` 净额一致，不新增第二套计算口径；
 - 任务失败自动退款（`AigcTaskService.failTask` 已有的 `creditGuard.refund` 机制）后，两个数字必须体现退款结果，不得停留在扣费时的旧值；
-- 刷新依赖既有 AIGC Activity SSE（`GET /api/aigc/events/stream`）的"变化通知即失效重查"机制，不新增第二条推送通道，不在 SSE payload 中直接携带积分数值；
+- 刷新依赖全局事件 SSE（`GET /api/events/stream`，AIGC 事件类型前缀 `aigc.`）的"变化通知即失效重查"机制，不新增第二条推送通道，不在 SSE payload 中直接携带积分数值；
 - 不修改或依赖 `AigcProject.costUsed` 字段（该字段当前无写入，属已知技术债，不作为本需求的数据来源）。
 
 ### 定时提交项目提示词

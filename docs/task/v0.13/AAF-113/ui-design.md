@@ -498,7 +498,7 @@ Assistant 活跃不等于全页面只读：
 | `ProjectObjectStructureDialog` | 支持添加内容/添加下级，选项来自服务端 allowedActions |
 | `ContentCanvasSheet` | 保存重新编辑结果为新 candidate |
 | `ObjectDetailPanel` | 展示 readiness、语义字段、候选操作和“重新生成/重新编辑”入口 |
-| `ProjectActivityProvider` | SSE 只失效服务端 Query，不推进 Task |
+| `AigcEventConsumer` | 全局事件 SSE 只失效服务端 Query，不推进 Task |
 | 项目底部状态栏 | 改读 ProjectProgressSnapshot 和实际积分摘要 |
 
 ## UI 状态数据合同

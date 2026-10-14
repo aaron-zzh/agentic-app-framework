@@ -3,8 +3,8 @@ level: Practice
 layer: Product
 purpose: 前端实时数据方案（四场景统一策略）
 status: draft
-version: 2.0.0
-date: 2026-05-11
+version: 2.1.0
+date: 2026-10-14
 author: AaronZZH
 ---
 
@@ -12,10 +12,12 @@ author: AaronZZH
 
 ## 一、结论
 
+AAF 的实时通道收敛为三类：WebSocket（通知、IM/客服、语音/Omni、画布、在线状态）、一条全局事件 SSE、AG-UI Run SSE。边界与取舍见 [ADR-009](../../../adr/ADR-009-realtime-channel-convergence.md)。
+
 | 场景 | 方案 | 传输协议 |
 |------|------|---------|
 | AI 对话（流式） | assistant-ui + AG-UI runtime | SSE（AG-UI 协议） |
-| 数据列表实时刷新 | TanStack Query + SSE invalidation | SSE |
+| 数据列表实时刷新 | TanStack Query + 全局事件 SSE invalidation | SSE（`/api/events/stream`） |
 | 客服/IM 聊天 | assistant-ui + ExternalStoreRuntime | WebSocket |
 | 文档协同编辑 | Yjs + WebSocket provider | WebSocket |
 
@@ -40,44 +42,32 @@ assistant-ui 通过 `@assistant-ui/react-ag-ui` runtime 处理：
 </AssistantRuntimeProvider>
 ```
 
-### 2.2 数据列表实时刷新（SSE → Query Invalidation）
+### 2.2 数据列表实时刷新（全局事件 SSE → Query Invalidation）
 
-传统数据页面（文档列表、知识库、工作流列表等）通过 TanStack Query 管理，后端变更时 SSE 推送事件触发 invalidation：
+传统数据页面与 AIGC 页面通过 TanStack Query 管理，后端变更时经全局事件通道（`GET /api/events/stream`）推送变化通知，前端据此触发 invalidation。全应用只维护一条连接，事件落库并支持游标补发，细则见 [AAF-119 设计](../../../../task/v0.13/AAF-119/design.md) 与 [ADR-009](../../../adr/ADR-009-realtime-channel-convergence.md)。
 
-```typescript
-// lib/hooks/use-live-invalidation.ts
-'use client';
-
-import { useEffect } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-
-export function useLiveInvalidation(url: string, enabled = true) {
-  const queryClient = useQueryClient();
-
-  useEffect(() => {
-    if (!enabled) return;
-    const source = new EventSource(url);
-    source.onmessage = (e) => {
-      const { resource } = JSON.parse(e.data);
-      queryClient.invalidateQueries({ queryKey: [resource] });
-    };
-    return () => source.close();
-  }, [url, enabled, queryClient]);
-}
-```
-
-根布局挂一次即可：
-
-```tsx
-// app/(workspace)/layout.tsx
-useLiveInvalidation('/api/events/live');
-```
-
-后端事件格式：
+事件信封：
 
 ```json
-{ "resource": "documents", "type": "updated", "ids": ["doc-123"] }
+{ "id": 12, "type": "aigc.task.completed", "refs": { "projectId": 1001, "taskId": 3001 }, "payload": { "status": "SUCCESS" } }
 ```
+
+前端结构：
+
+```text
+lib/realtime/event-stream-provider.tsx   根 layout 挂一次，fetch SSE 单例，游标存 localStorage
+lib/realtime/event-registry.ts           subscribe(typePrefix, handler) / waitForEvent(predicate, signal)
+lib/realtime/use-event-subscription.ts   组件内按类型前缀订阅
+```
+
+消费者按事件类型前缀订阅并失效查询，事件载荷不写入 Zustand：
+
+```tsx
+// features/studio/content/AigcEventConsumer.tsx
+useEventSubscription("aigc.", (event) => invalidateAigcQueries(queryClient, event))
+```
+
+提交异步操作的页面（如 `EntityActions`）用 `waitForEvent` 等待 `async-task.status` 终态，不再为每次操作新建 `EventSource`。
 
 ### 2.3 客服/IM 聊天
 

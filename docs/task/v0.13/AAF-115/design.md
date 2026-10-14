@@ -90,7 +90,7 @@ planned Task 只有在 RootResult 与 finalizer 节点同事务提交后才能�
 
 该异步合同只适用于 `Source.CONVERSATION` 的用户对话入口。Flowable `AgentNode` 是有界同步工作流节点，仍可显式等待 `submitAndDispatch` 的节点结果；自动化入口只提交 durable Task，由既有 scheduler 消费。这是调用方完成语义差异，不是兼容层或同一入口 dual-write。
 
-客户端在每次 AG-UI `RUN_FINISHED` 后刷新 Task 查询，并在存在非终态 Task 时短轮询，因此初次接受和后台状态变化不依赖已经闭合的 SSE。当前 Task 最终结果以 canonical TaskDetails/节点结果为权威投影；把后台终态结果自动追加成新的聊天消息需要独立的持久消息投递合同，不在本次解耦中伪造 ExecutionEvent 或保持旧 run 长连接。
+客户端在每次 AG-UI `RUN_FINISHED` 后刷新 Task 查询；后台状态变化由全局事件 `task.status.changed` 即时失效查询（AAF-113 #11333），并保留非终态 Task 的兜底轮询，因此初次接受和后台状态变化不依赖已经闭合的 AG-UI SSE。当前 Task 最终结果以 canonical TaskDetails/节点结果为权威投影；把后台终态结果自动追加成新的聊天消息需要独立的持久消息投递合同，不在本次解耦中伪造 ExecutionEvent 或保持旧 run 长连接。
 
 PRIMARY direct conversation 内置六个 Task 控制工具：
 
@@ -147,7 +147,7 @@ fresh attempt 使用新 executionId、sessionId 和 stateSlotId，并通过 pred
 
 `TaskQueryPort` 返回 `TaskDetails` 安全投影，包括 Task、RootResult 摘要、current TaskPlan/Nodes、Execution、最新 Dispatch，以及每个当前节点的最新 ExecutorPlan revision 与安全步骤。RootResult 只公开 result、planRevision、sourceNodeId、committedAt；ExecutorPlan 只公开 revision、status、goal 和步骤 ordinal/title/status/result/failure；不暴露 tenant/user、合同、checkpoint、lease、generation、fence、instruction、工具权限、policy snapshot、审批身份或内部 version。`inspect_tasks` 继续支持 PRIMARY Assistant 按 nodeId 读取局部计划并进行对话式解释或调整定位。
 
-当前 REST 提供按 conversationId 查询当前用户 Task 列表、详情、pause、resume 和 cancel；`TaskQueryPort` 在装配计划与执行详情前按 tenant、user、conversation 过滤，WebUI 的 TanStack Query 缓存键也按 conversationId 隔离，`inspect_tasks` 复用同一查询边界。每次 AG-UI run 结束都会刷新 Task 查询；`PAUSING/CANCELING` 以 1 秒轮询，其余非终态以 3 秒轮询，终态停止轮询，因此后台 Task 的接受、运行和控制收敛均不依赖原 SSE；DIRECT Execution 不进入 Task API。当前产品没有独立任务中心，status/cursor 留待对应产品入口出现后单独设计。
+当前 REST 提供按 conversationId 查询当前用户 Task 列表、详情、pause、resume 和 cancel；`TaskQueryPort` 在装配计划与执行详情前按 tenant、user、conversation 过滤，WebUI 的 TanStack Query 缓存键也按 conversationId 隔离，`inspect_tasks` 复用同一查询边界。每次 AG-UI run 结束都会刷新 Task 查询；`PAUSING/CANCELING` 以 3 秒兜底轮询，其余非终态以 10 秒兜底轮询（状态变化由 `task.status.changed` 事件即时失效），终态停止轮询，因此后台 Task 的接受、运行和控制收敛均不依赖原 SSE；DIRECT Execution 不进入 Task API。当前产品没有独立任务中心，status/cursor 留待对应产品入口出现后单独设计。
 
 ## 持久化
 

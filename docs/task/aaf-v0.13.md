@@ -60,9 +60,9 @@ v0.13 采用“一个业务执行链、两条交互事件流”，不允许项�
 | 事件流 | 职责 | 生命周期 |
 |--------|------|----------|
 | AG-UI Run SSE | 对话文本增量、Tool Call、审批中断与恢复、后台任务受理结果 | 单次 Assistant Run |
-| 用户级 AIGC Activity SSE | 生成任务创建、进度、完成、失败、媒体入库及项目状态变化 | 用户或工作区级全局长连接 |
+| 全局事件 SSE（`GET /api/events/stream`） | 生成任务创建、进度、完成、失败、媒体入库及项目状态变化（`aigc.*`），以及异步任务状态（`async-task.*`） | 登录后全应用一条长连接 |
 
-全局活动流目标端点为 `/api/aigc/events/stream`，它不是项目专属 SSE。前端应用只维护一条共享连接，项目界面按 `projectId` 消费事件，对话框按 `conversationId` 消费事件；项目内对话生成的事件同时携带两个标识，从而同步刷新消息和项目视图。普通对话生成允许 `projectId=null`，但必须携带 `conversationId`；项目界面直接生成允许 `conversationId=null`。
+全局事件通道端点为 `/api/events/stream`（AAF-119 由 `/api/aigc/events/stream` 泛化而来），它不是项目专属 SSE。事件信封为 `{ id, type, refs, payload }`，类型按 `{域}.{资源}.{动作}` 命名，AIGC 事件加 `aigc.` 前缀；关联键放 `refs`。前端应用只维护一条共享连接，按类型前缀分发给各模块消费者：项目界面按 `refs.projectId` 消费事件，对话框按 `refs.conversationId` 消费事件；项目内对话生成的事件同时携带两个标识，从而同步刷新消息和项目视图。普通对话生成允许缺省 `projectId`，但必须携带 `conversationId`；项目界面直接生成允许缺省 `conversationId`。
 
 ```json
 {
@@ -79,9 +79,9 @@ v0.13 采用“一个业务执行链、两条交互事件流”，不允许项�
 }
 ```
 
-Assistant 发起长时间生成时，AG-UI 只返回“任务已受理”及 `executionRunId/taskId`，不得为了等待图片或视频完成而保持 Run。生成终态只产生一次内部领域事件，由 Activity SSE 投影给所有界面；若 AG-UI Run 仍在线，可额外投影 `CUSTOM` 事件改善即时体验，但不得将其作为唯一完成通知，也不得由生成服务手工向两个通道重复发送业务副作用。
+Assistant 发起长时间生成时，AG-UI 只返回“任务已受理”及 `executionRunId/taskId`，不得为了等待图片或视频完成而保持 Run。生成终态只产生一次内部领域事件，由全局事件 SSE 投影给所有界面；若 AG-UI Run 仍在线，可额外投影 `CUSTOM` 事件改善即时体验，但不得将其作为唯一完成通知，也不得由生成服务手工向两个通道重复发送业务副作用。
 
-当前 `/api/aigc/tasks/stream` 及 `useAigcTaskStream` 直接演进为上述全局活动流，补齐 `conversationId`、`assistantRunId`、`toolCallId`、`executionRunId` 等稳定关联，不保留并行兼容端点。SSE 只承担变化通知，消息中的媒体引用、ProjectGraph、ExecutionRun、MediaVersion 和项目引用仍以数据库为唯一真理源；前端收到事件或重连后必须重新查询权威状态，并通过事件游标或补查避免断线丢失。
+原 `/api/aigc/tasks/stream` 及 `useAigcTaskStream` 已演进为上述全局事件通道，稳定关联中的 `conversationId`、`executionRunId` 等整数 ID 放 `refs`，`assistantRunId`、`toolCallId` 等字符串关联放 `payload`，不保留并行兼容端点。SSE 只承担变化通知，消息中的媒体引用、ProjectGraph、ExecutionRun、MediaVersion 和项目引用仍以数据库为唯一真理源；前端收到事件或重连后必须重新查询权威状态，并通过事件游标或补查避免断线丢失。
 
 **业务验收结果**：项目界面、普通对话和项目内对话发起的同一类生成均走同一执行链；项目内对话生成完成后消息与项目素材同步更新，普通对话生成无需项目也能更新正确会话；关闭 AG-UI、切换页面或断线重连不影响后台生成与结果恢复。
 

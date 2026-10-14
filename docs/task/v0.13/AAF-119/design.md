@@ -48,7 +48,7 @@ WebSocket   通知 · IM/客服 · 语音/Omni · 画布 · 在线状态        
 AG-UI SSE   POST /api/agui/run       单次 Run                   （不变）
 ```
 
-业务模块统一调用 `UserEventPublisher` 发事件；前端只维护一条全局连接，按事件类型前缀分发给各模块的消费者。
+业务模块统一调用 `SysEventPublisher` 发事件；前端只维护一条全局连接，按事件类型前缀分发给各模块的消费者。
 
 ## 与既有 messaging 基础设施的关系
 
@@ -74,7 +74,7 @@ AG-UI SSE   POST /api/agui/run       单次 Run                   （不变）
 
 | 事项 | 决定 | 理由 |
 |------|------|------|
-| `UserEventPublisher` 位置 | `framework.messaging.event`，与 `MessageService` 同在 `messaging` 包下 | 同属"推送给用户"的基础设施，同模块、同层，依赖方向不变 |
+| `SysEventPublisher` 位置 | `framework.messaging.event`，与 `MessageService` 同在 `messaging` 包下 | 同属"推送给用户"的基础设施，同模块、同层，依赖方向不变 |
 | 是否并入 `MessageService` | 不并入，不新增 `MessageChannel` | `MessageService` 面向触达类消息（模板、日志、渠道厂商）；全局事件是变化信号，需要游标补发，量大且不展示给用户 |
 | 是否并入 `InternalMessageSender` | 不并入 | `InternalMessage` 是写 `Notification` 表的站内信，有标题、正文与已读状态，语义不同 |
 | 复用 WebSocket 部分 | 不复用 | `WebSocketSessionManager` 是 WebSocket 专用；通知继续走原有 `InternalMessageSender` 加 `WebSocketMessageSender` |
@@ -84,7 +84,7 @@ AG-UI SSE   POST /api/agui/run       单次 Run                   （不变）
 
 - 连接对象携带 `ownerId` 与订阅范围（组织、工作区），支持带 `id` 的事件发送，每条连接一把发送锁（`SseEmitter` 不允许并发写）。
 - 心跳统一在这里：保留 15 秒周期，改为 SSE 注释帧，不再用命名事件，避免客户端误当成业务事件。
-- 暴露"按用户取连接、按范围过滤"的能力，`UserEventStreamService` 在其上做重放、`catchUp` 与广播；落库、游标、重放仍在 `UserEventStreamService`，传输层不依赖数据库。
+- 暴露"按用户取连接、按范围过滤"的能力，`SysEventStreamService` 在其上做重放、`catchUp` 与广播；落库、游标、重放仍在 `SysEventStreamService`，传输层不依赖数据库。
 - 现有三个调用方（`AsyncTaskController`、`AsyncQueueTaskService`、`InternalMessageSenderImpl`）都在本故事内迁出，改造不留旧签名。
 
 ## 通用事件模型
@@ -107,7 +107,7 @@ AG-UI SSE   POST /api/agui/run       单次 Run                   （不变）
 
 ### 存储
 
-表 `sys_user_event`，定义在 `v1__system_schema.sql`，删除 `v7__aigc_schema.sql` 中的 `aigc_activity_event`：
+表 `sys_event`，定义在 `v1__system_schema.sql`（`sys_user_event` 已被用户行为埋点占用，二者无关，不复用），删除 `v7__aigc_schema.sql` 中的 `aigc_activity_event`：
 
 | 列 | 说明 |
 |----|------|
@@ -173,34 +173,34 @@ AG-UI SSE   POST /api/agui/run       单次 Run                   （不变）
 | canonical Task 状态变化（事件名待定） | 后台 Task 进入等待外部、待确认、暂停、终态 | AAF-113 UI 约定失效 Task 查询；AAF-115 当前靠 1 秒、3 秒短轮询 |
 | 关联补全 | `conversationId` 进 `refs`；`assistantRunId`、`toolCallId` 进 `payload` | 现有信封有 `conversationId` 字段但没有任何发布方填值 |
 
-canonical Task 的 id 类型与事件名，在 #11332 对照 AAF-115 定型；AAF-119 的设计不依赖它。
+canonical Task 状态变化已由 AAF-113 [#11333](../AAF-113/tasks.md) 实现为 `task.status.changed`（不加 `aigc.` 前缀，ID 放 `payload`）；AAF-119 的设计不依赖它。
 
 ## 后端结构
 
 | 层 | 位置 | 内容 |
 |----|------|------|
-| 通用核心 | `aaf-framework`，包 `com.xuejiai.aaf.framework.messaging.event`，与 `MessageService` 所在的 `messaging` 包同级的子包 | `UserEvent`（实体）、`UserEventRepository`、`UserEventPublisher`、`UserEventStreamService`（落库、按游标重放、补发）、`EventEnvelope`、`SubscriptionScope`；SSE 连接管理与心跳复用 `messaging.sse.SseSessionManager`，见"与既有 messaging 基础设施的关系" |
+| 通用核心 | `aaf-framework`，包 `com.xuejiai.aaf.framework.messaging.event`，与 `MessageService` 所在的 `messaging` 包同级的子包 | `SysEvent`（实体）、`SysEventRepository`、`SysEventPublisher`、`SysEventStreamService`（落库、按游标重放、补发）、`EventEnvelope`、`SubscriptionScope`；SSE 连接管理与心跳复用 `messaging.sse.SseSessionManager`，见"与既有 messaging 基础设施的关系" |
 | 端点 | `aaf-api`，`module.system.event.controller` | `EventStreamController`：`GET /api/events/stream`，`@PreAuthorize("isAuthenticated()")`，沿用 `after` 参数、`Last-Event-ID` 头、`orgId / workspaceId` 范围授权 |
-| AIGC 适配 | `module.ai.aigc.event` | `AigcEventPublisher`：把 `AigcTaskVO`、`AigcTaskView` 等转为 `refs / payload`，类型加 `aigc.` 前缀，再调用 `UserEventPublisher`；框架层不依赖任何 AIGC 类型 |
+| AIGC 适配 | `module.ai.aigc.event` | `AigcEventPublisher`：把 `AigcTaskVO`、`AigcTaskView` 等转为 `refs / payload`，类型加 `aigc.` 前缀，再调用 `SysEventPublisher`；框架层不依赖任何 AIGC 类型 |
 
 发布入口：
 
 ```java
-public interface UserEventPublisher {
+public interface SysEventPublisher {
     /** 使用调用线程的 OrgContext 作为范围；无上下文时为用户级事件。 */
-    UserEvent publish(Long ownerId, String type, Map<String, Long> refs, Map<String, Object> payload);
+    SysEvent publish(Long ownerId, String type, Map<String, Long> refs, Map<String, Object> payload);
 }
 ```
 
 - `publish` 在当前事务内落库，`afterCommit` 后广播；无事务时自己开事务。
 - 现有 `AigcActivityEventService.publish` 的两个重载及其按 VO 类型取字段的逻辑，迁入 `AigcEventPublisher`。
-- 删除：`AigcActivityEventController`、`AigcActivityEventService`、`AigcActivityEventRepository`、`AigcActivityEvent`、`AigcActivityEnvelope`、`SubscriptionScope`（原包）。已有的 `AigcActivityEventServiceTest` 改为针对 `UserEventStreamService` 的测试，范围匹配与补发用例保留。
+- 删除：`AigcActivityEventController`、`AigcActivityEventService`、`AigcActivityEventRepository`、`AigcActivityEvent`、`AigcActivityEnvelope`、`SubscriptionScope`（原包）。已有的 `AigcActivityEventServiceTest` 改为针对 `SysEventStreamService` 的测试，范围匹配与补发用例保留。
 
 ## 通道迁移
 
 ### 异步任务
 
-- `AsyncQueueTaskService` 去掉 `publishStatusAfterCommit` 的 `TransactionSynchronization` 包装，直接在状态变更所在事务内调用 `UserEventPublisher.publish(ownerId, "async-task.status", refs, payload)`；事件与任务状态同事务提交，比先提交再推送更不容易丢。
+- `AsyncQueueTaskService` 去掉 `publishStatusAfterCommit` 的 `TransactionSynchronization` 包装，直接在状态变更所在事务内调用 `SysEventPublisher.publish(ownerId, "async-task.status", refs, payload)`；事件与任务状态同事务提交，比先提交再推送更不容易丢。
 - `refs` 不放字符串 taskId，`payload` 保留 `taskId / taskType / status / lastError` 等现有字段。
 - 删除 `AsyncTaskController` 与 `/api/async-tasks/events`；`SseSessionManager` 保留并改造为全局事件通道的传输层，不再有直接 `push` 的业务调用方。
 
@@ -258,8 +258,8 @@ public interface UserEventPublisher {
 
 1. "用户级事件 = `org_id` 与 `workspace_id` 都为空"的语义是否接受。
 2. `refs` 采用 JSONB 而不是保留 AIGC 关联列是否接受。
-3. 端点名 `/api/events/stream`、表名 `sys_user_event`、前端目录 `lib/realtime/` 是否接受。
+3. 端点名 `/api/events/stream`、表名 `sys_event`（原 `sys_user_event` 与行为埋点表冲突，已于 2026-10-14 改名）、前端目录 `lib/realtime/` 是否接受。
 4. 全局连接中断提示在 workspace 页面是否显示，以及是否延迟显示。
 5. 导出进度核实结果：确认无使用点后直接删除，还是需要补齐导出到异步任务的链路。
 6. 是否同意新增 ADR。
-7. `UserEventPublisher` 放在 `messaging.event`、复用并改造 `SseSessionManager` 作为 SSE 传输层，且不并入 `MessageService` 与 `InternalMessageSender`，是否接受。
+7. `SysEventPublisher` 放在 `messaging.event`、复用并改造 `SseSessionManager` 作为 SSE 传输层，且不并入 `MessageService` 与 `InternalMessageSender`，是否接受。
