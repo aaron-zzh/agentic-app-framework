@@ -1,6 +1,8 @@
 package com.xuejiai.aaf.framework.task;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -9,10 +11,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import com.xuejiai.aaf.framework.messaging.sse.SseSessionManager;
+import com.xuejiai.aaf.framework.messaging.event.SysEventPublisher;
 import com.xuejiai.aaf.framework.task.queue.AsyncTaskMessage;
 import com.xuejiai.aaf.framework.task.queue.TaskQueue;
 
@@ -29,7 +29,7 @@ public class AsyncQueueTaskService {
 
     private final AsyncTaskRepository repository;
     private final TaskQueue taskQueue;
-    private final SseSessionManager sseSessionManager;
+    private final SysEventPublisher eventPublisher;
 
     /** 创建 PENDING 主记录；Redis 投递统一由 {@link AsyncTaskDispatcher} 执行。 */
     @Transactional
@@ -56,7 +56,7 @@ public class AsyncQueueTaskService {
         task.setUpdateTime(now);
         task.setVersion(0);
         repository.save(task);
-        publishStatusAfterCommit(task);
+        publishStatus(task);
         return toRef(task);
     }
 
@@ -71,7 +71,7 @@ public class AsyncQueueTaskService {
         taskQueue.enqueue(toMessage(task));
         task.setStatus(AsyncTaskStatus.QUEUED);
         touch(task);
-        publishStatusAfterCommit(task);
+        publishStatus(task);
         return true;
     }
 
@@ -118,7 +118,7 @@ public class AsyncQueueTaskService {
         task.setStartedAt(null);
         task.setCompletedAt(null);
         touch(task);
-        publishStatusAfterCommit(task);
+        publishStatus(task);
         return true;
     }
 
@@ -136,7 +136,7 @@ public class AsyncQueueTaskService {
                                 task.setStartedAt(LocalDateTime.now());
                             }
                             touch(task);
-                            publishStatusAfterCommit(task);
+                            publishStatus(task);
                         });
     }
 
@@ -152,7 +152,7 @@ public class AsyncQueueTaskService {
                             task.setLastError(null);
                             task.setCompletedAt(LocalDateTime.now());
                             touch(task);
-                            publishStatusAfterCommit(task);
+                            publishStatus(task);
                         });
     }
 
@@ -167,7 +167,7 @@ public class AsyncQueueTaskService {
                             stored.setAttemptCount(task.attempt());
                             stored.setLastError(task.lastError());
                             touch(stored);
-                            publishStatusAfterCommit(stored);
+                            publishStatus(stored);
                         });
     }
 
@@ -183,7 +183,7 @@ public class AsyncQueueTaskService {
                             stored.setLastError(task.lastError());
                             stored.setCompletedAt(LocalDateTime.now());
                             touch(stored);
-                            publishStatusAfterCommit(stored);
+                            publishStatus(stored);
                         });
     }
 
@@ -213,47 +213,22 @@ public class AsyncQueueTaskService {
         task.setVersion(task.getVersion() + 1);
     }
 
-    private void publishStatusAfterCommit(AsyncTask task) {
-        var event = AsyncTaskStatusEvent.from(task);
-        var callback =
-                (Runnable) () -> sseSessionManager.push(event.ownerId(), STATUS_EVENT, event);
-        if (TransactionSynchronizationManager.isActualTransactionActive()
-                && TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(
-                    new TransactionSynchronization() {
-                        @Override
-                        public void afterCommit() {
-                            callback.run();
-                        }
-                    });
+    /** 状态变更与事件同事务落库，提交后才会广播，回滚不产生事件。 */
+    private void publishStatus(AsyncTask task) {
+        if (task.getOwnerId() == null) {
             return;
         }
-        callback.run();
+        var payload = new LinkedHashMap<String, Object>();
+        payload.put("taskId", task.getTaskId());
+        payload.put("taskType", task.getTaskType());
+        payload.put("status", task.getStatus().name());
+        payload.put("attemptCount", task.getAttemptCount());
+        payload.put("maxRetries", task.getMaxRetries());
+        payload.put("result", task.getResult());
+        payload.put("lastError", task.getLastError());
+        payload.put("updateTime", String.valueOf(task.getUpdateTime()));
+        eventPublisher.publish(task.getOwnerId(), STATUS_EVENT, Map.of(), payload);
     }
 
     public record AsyncTaskRef(String taskId, String taskType, AsyncTaskStatus status) {}
-
-    public record AsyncTaskStatusEvent(
-            String taskId,
-            String taskType,
-            AsyncTaskStatus status,
-            Long ownerId,
-            int attemptCount,
-            int maxRetries,
-            String result,
-            String lastError,
-            LocalDateTime updateTime) {
-        private static AsyncTaskStatusEvent from(AsyncTask task) {
-            return new AsyncTaskStatusEvent(
-                    task.getTaskId(),
-                    task.getTaskType(),
-                    task.getStatus(),
-                    task.getOwnerId(),
-                    task.getAttemptCount(),
-                    task.getMaxRetries(),
-                    task.getResult(),
-                    task.getLastError(),
-                    task.getUpdateTime());
-        }
-    }
 }
