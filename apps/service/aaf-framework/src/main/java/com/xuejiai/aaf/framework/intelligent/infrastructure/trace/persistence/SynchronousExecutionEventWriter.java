@@ -7,12 +7,15 @@ import org.springframework.dao.DataIntegrityViolationException;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort.StoredExecutionEvent;
 
-/** 执行事件同步落库器；不发布 Spring 事件，由调用方选择直接发布或写入 outbox。 */
+/** 执行事件同步落库器；不发布 Spring 事件，由调用方选择直接发布或写入 outbox。新落库的事件会回调 Task 状态事件投影。 */
 public final class SynchronousExecutionEventWriter {
     private final ExecutionEventRepository repository;
+    private final TaskStatusEventPublisher taskStatusEvents;
 
-    public SynchronousExecutionEventWriter(ExecutionEventRepository repository) {
+    public SynchronousExecutionEventWriter(
+            ExecutionEventRepository repository, TaskStatusEventPublisher taskStatusEvents) {
         this.repository = Objects.requireNonNull(repository, "repository 不能为空");
+        this.taskStatusEvents = Objects.requireNonNull(taskStatusEvents, "taskStatusEvents 不能为空");
     }
 
     public StoredExecutionEvent requireStored(ExecutionEvent requested) {
@@ -50,7 +53,6 @@ public final class SynchronousExecutionEventWriter {
         entity.setEvent(event);
         try {
             repository.saveAndFlush(entity);
-            return new WriteResult(stored(event), true);
         } catch (DataIntegrityViolationException conflict) {
             var concurrent =
                     repository
@@ -59,6 +61,8 @@ public final class SynchronousExecutionEventWriter {
                             .orElseThrow(() -> conflict);
             return new WriteResult(stored(requireSameEvent(concurrent, requested)), false);
         }
+        taskStatusEvents.onEventCreated(event);
+        return new WriteResult(stored(event), true);
     }
 
     private StoredExecutionEvent stored(ExecutionEvent event) {

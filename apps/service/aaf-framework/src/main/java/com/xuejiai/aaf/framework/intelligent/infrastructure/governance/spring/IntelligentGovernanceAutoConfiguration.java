@@ -119,7 +119,9 @@ import com.xuejiai.aaf.framework.intelligent.infrastructure.metering.persistence
 import com.xuejiai.aaf.framework.intelligent.infrastructure.trace.persistence.ExecutionEventRepository;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.trace.persistence.JpaExecutionEventStoreAdapter;
 import com.xuejiai.aaf.framework.intelligent.infrastructure.trace.persistence.SynchronousExecutionEventWriter;
+import com.xuejiai.aaf.framework.intelligent.infrastructure.trace.persistence.TaskStatusEventPublisher;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventStorePort;
+import com.xuejiai.aaf.framework.messaging.event.SysEventPublisher;
 
 import io.micrometer.core.instrument.MeterRegistry;
 
@@ -136,10 +138,16 @@ public class IntelligentGovernanceAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnMissingBean(TaskStatusEventPublisher.class)
+    TaskStatusEventPublisher taskStatusEventPublisher(SysEventPublisher eventPublisher) {
+        return new TaskStatusEventPublisher(eventPublisher);
+    }
+
+    @Bean
     @ConditionalOnMissingBean(SynchronousExecutionEventWriter.class)
     SynchronousExecutionEventWriter synchronousExecutionEventWriter(
-            ExecutionEventRepository repository) {
-        return new SynchronousExecutionEventWriter(repository);
+            ExecutionEventRepository repository, TaskStatusEventPublisher taskStatusEvents) {
+        return new SynchronousExecutionEventWriter(repository, taskStatusEvents);
     }
 
     @Bean
