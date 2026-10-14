@@ -240,6 +240,12 @@ aaf:
     caiyun:
       app-key: ${CAIYUN_APP_KEY:}
       app-secret: ${CAIYUN_APP_SECRET:}
+  tool:
+    # 联网搜索（阿里云 IQS）：api-key 为空时工具仍注册，调用返回“未配置”
+    web-search:
+      api-key: ${IQS_API_KEY:}
+      base-url: ${IQS_BASE_URL:https://cloud-iqs.aliyuncs.com}
+      engine-type: ${IQS_ENGINE_TYPE:CNLiteBasic}
 
 management:
   info:

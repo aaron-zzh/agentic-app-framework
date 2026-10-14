@@ -795,6 +795,44 @@ ON CONFLICT (tool_name) WHERE deleted = FALSE DO UPDATE SET
     input_schema = EXCLUDED.input_schema,
     update_time = CURRENT_TIMESTAMP;
 
+-- 联网搜索与医疗类工具（阿里云 IQS，共用 IQS_API_KEY；未配置 Key 时工具不注册，目录登记不影响运行）。
+-- 权限码沿用天气工具做法：未登记进 sys_permission_code 的码不构成授权契约，不收窄可见性。
+INSERT INTO ai_tool_catalog (
+    tool_name, source, enabled, tool_type, category, risk_level,
+    read_only, reversible, idempotency_required, require_confirm,
+    permission_code, entitlement_code, cost_expression,
+    input_schema, sort_order, create_time, update_time
+) VALUES
+('webSearch', 'LOCAL', TRUE, 'HTTP', 'WEB_SEARCH', 'LOW',
+ TRUE, FALSE, FALSE, FALSE,
+ 'tool:web-search:query', NULL, NULL,
+ '{"type":"object","required":["query"],"properties":{"query":{"type":"string","description":"搜索关键词，不得包含个人隐私信息"},"count":{"type":"integer","description":"返回条数，1-10，默认 5"}}}',
+ 231, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('queryMedicalKnowledge', 'LOCAL', TRUE, 'HTTP', 'MEDICAL', 'LOW',
+ TRUE, FALSE, FALSE, FALSE,
+ 'tool:medical-know:query', NULL, NULL,
+ '{"type":"object","required":["query"],"properties":{"query":{"type":"string","description":"医疗实体名称，如药品名、病症名、食品名，不得包含个人隐私信息"},"type":{"type":"string","enum":["medicine","finding","food"],"description":"实体类型：medicine 药品、finding 病症、food 食品；不确定可不传"}}}',
+ 232, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('queryMedicalAnswer', 'LOCAL', TRUE, 'HTTP', 'MEDICAL', 'MEDIUM',
+ TRUE, FALSE, FALSE, FALSE,
+ 'tool:medical-answer:query', NULL, NULL,
+ '{"type":"object","required":["query"],"properties":{"query":{"type":"string","description":"通用的健康问题，不得包含个人隐私信息，建议 30 字以内"}}}',
+ 233, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+ON CONFLICT (tool_name) WHERE deleted = FALSE DO UPDATE SET
+    source = EXCLUDED.source,
+    enabled = EXCLUDED.enabled,
+    tool_type = EXCLUDED.tool_type,
+    category = EXCLUDED.category,
+    risk_level = EXCLUDED.risk_level,
+    read_only = EXCLUDED.read_only,
+    reversible = EXCLUDED.reversible,
+    idempotency_required = EXCLUDED.idempotency_required,
+    require_confirm = EXCLUDED.require_confirm,
+    permission_code = EXCLUDED.permission_code,
+    input_schema = EXCLUDED.input_schema,
+    sort_order = EXCLUDED.sort_order,
+    update_time = CURRENT_TIMESTAMP;
+
 -- ==================== 订阅套餐与 SKU ====================
 
 INSERT INTO billing_subscription_plan (code, name, monthly_credits, status, sort, ext)
@@ -1594,6 +1632,107 @@ VALUES
 ('qwen:fun-music-v1',              '文生音乐 v1',          'qwen', 'DASHSCOPE',    'fun-music-v1',                   'https://dashscope.aliyuncs.com', 'MUSIC_GEN',  null, 330, true,  null,  null, 0.002, 2, null),
 -- 全模态实时
 ('qwen:qwen3-omni-flash-realtime', 'Qwen3 Omni Flash',    'qwen', 'DASHSCOPE',    'qwen-omni-flash-realtime',       'https://dashscope.aliyuncs.com', 'OMNI_REALTIME', null, 340, true, null, null, null, 0, null),
+-- ============================================================
+-- 银龄健康顾问 Role（养老场景：药品/病症知识核对与健康科普问答）
+-- 医疗类工具只授予本 Role；联网搜索、天气为基础工具（BaseToolProfile），列入授权池仅作为 Role 能力上限。
+-- ============================================================
+
+INSERT INTO ai_skill_definition (
+    code, name, summary, locale, visibility, built_in, create_time, update_time
+) VALUES (
+    'system.skill.elder-care-health', '银龄健康顾问',
+    '面向老年人及家属的健康知识参考：药品与病症属性核对、口语化健康科普问答，附依据来源，不做诊断',
+    'zh-CN', 'INTERNAL', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+) ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
+
+INSERT INTO ai_skill_version (
+    skill_id, version, status, content, tool_access_mode, change_summary, content_hash, create_time
+)
+SELECT skill.id, 1, 'APPROVED', seeded.content, 'RESTRICT', '内置初始版本',
+       encode(digest(seeded.content, 'sha256'), 'hex'), CURRENT_TIMESTAMP
+FROM ai_skill_definition skill
+CROSS JOIN (
+    SELECT $skill$你是面向老年人及其家属的健康知识顾问。目标是用通俗、耐心、简洁的语言提供**健康知识参考**，帮助用户看懂药品说明、了解常见病症和日常保健。
+
+## 工具选择
+- 查询某个药品、病症或食品的具体属性（成分、剂型、适应症、药理作用、热量等）：使用 queryMedicalKnowledge，query 只传实体名称，如“阿莫西林胶囊”“高血压”；能确定类别时传 type（medicine 药品 / finding 病症 / food 食品）。
+- 回答口语化的健康问题（如“坐车恶心的原因是什么”“无糖可乐对身体好吗”）：使用 queryMedicalAnswer。
+- 需要最新政策、养老机构、资讯等非医学内容：使用 webSearch。
+- 出行、晨练、保暖等需要天气信息：使用 queryWeather。
+- 两个医疗工具结果为空时，不要编造内容；说明未查到，并建议咨询医生或药师。
+
+## 安全底线
+1. 只提供健康知识参考，**不做诊断，不开处方，不给出具体用药剂量**，不建议自行加减药或停药。
+2. 回答中必须说明“以上内容仅供健康知识参考，不构成诊疗建议，不能替代医生面诊和处方”。
+3. 出现胸痛、呼吸困难、意识不清、突然说话不清或肢体无力、大出血、持续高热、跌倒后无法起身等紧急情况，不要先检索，立即提醒用户拨打 120 或尽快就医。
+4. 涉及多种药物同服、过敏史、孕产、肝肾功能异常、慢性病用药调整时，提醒用户咨询医生或药师。
+5. 引用工具返回的内容时附上来源标题或链接，不要把没有来源的内容说成权威结论。
+
+## 隐私保护
+- 调用任何工具前，把问题改写成**通用关键词**：不要把用户的姓名、手机号、身份证号、住址、具体病史、用药清单等写进工具参数。
+- 需要结合用户自身情况时，先在回答中请用户向医生核实，而不是把个人信息发给检索工具。
+
+## 表达方式
+- 用短句和分点，少用专业术语；必要时解释术语。
+- 先给结论，再给原因和注意事项，最后给“什么时候应该去医院”。$skill$::text AS content
+) seeded
+WHERE skill.code = 'system.skill.elder-care-health'
+  AND skill.deleted = FALSE
+ON CONFLICT (skill_id, version) DO NOTHING;
+
+UPDATE ai_skill_definition skill
+SET current_version_id = (
+        SELECT version.id
+        FROM ai_skill_version version
+        WHERE version.skill_id = skill.id
+          AND version.status = 'APPROVED'
+        ORDER BY version.version DESC
+        LIMIT 1
+    ),
+    update_time = CURRENT_TIMESTAMP
+WHERE skill.code = 'system.skill.elder-care-health'
+  AND skill.deleted = FALSE
+  AND skill.current_version_id IS NULL;
+
+-- 医疗类工具作为本 Skill 的必需工具；Skill 工具要求在 Role 与 Agent 声明交集内才可见。
+INSERT INTO ai_skill_tool_requirement (
+    skill_version_id, tool_id, tool_version, tool_name,
+    required, usage_purpose, sort_order
+)
+SELECT skill.current_version_id, tool.tool_name, 1, tool.tool_name,
+       TRUE, tool.usage_purpose, tool.sort_order
+FROM ai_skill_definition skill
+CROSS JOIN (VALUES
+    ('queryMedicalKnowledge', '查询药品、病症、食品的权威结构化属性（阿里云 IQS 健康图谱），仅作健康知识参考', 100),
+    ('queryMedicalAnswer', '回答口语化健康知识问题并给出依据来源（阿里云 IQS 医疗问答），仅作健康知识参考', 110)
+) AS tool(tool_name, usage_purpose, sort_order)
+WHERE skill.code = 'system.skill.elder-care-health'
+  AND skill.current_version_id IS NOT NULL
+  AND skill.built_in = TRUE
+  AND skill.deleted = FALSE
+ON CONFLICT (skill_version_id, tool_id, tool_version) DO UPDATE SET
+    tool_name = EXCLUDED.tool_name,
+    required = EXCLUDED.required,
+    usage_purpose = EXCLUDED.usage_purpose,
+    sort_order = EXCLUDED.sort_order;
+
+INSERT INTO ai_role (
+    id, code, name, description, skill_ids, tool_whitelist, status,
+    create_time, update_time
+) VALUES (
+    5, 'system.role.elder-care-advisor', '银龄健康顾问',
+    '面向老年人及家属的健康知识参考：药品与病症知识核对、口语化健康科普问答，附依据来源；不做诊断、不开处方',
+    '[{"skillKey":"system.skill.elder-care-health","activationMode":"ALWAYS"}]',
+    '["queryMedicalKnowledge","queryMedicalAnswer","webSearch","queryWeather","context.load"]',
+    'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+) ON CONFLICT (id) DO UPDATE SET
+    code = EXCLUDED.code,
+    name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    skill_ids = EXCLUDED.skill_ids,
+    tool_whitelist = EXCLUDED.tool_whitelist,
+    update_time = EXCLUDED.update_time;
+
 ('qwen:qwen3.5-omni-plus-realtime','Qwen3.5 Omni Plus',   'qwen', 'DASHSCOPE',    'qwen3.5-omni-plus-realtime',     'https://dashscope.aliyuncs.com', 'OMNI_REALTIME', null, 343, true, null, null, null, 0, null),
 -- OCR
 ('qwen:qwen3.5-ocr',               'Qwen3.5 OCR',         'qwen', 'DASHSCOPE',    'qwen3.5-ocr',                    'https://dashscope.aliyuncs.com',                    'OCR', null, 370, true, 0.0005, 0.002, null, 0, null),
@@ -2367,7 +2506,7 @@ INSERT INTO ai_assistant (
     status, owner_id, create_time, update_time, deleted
 ) VALUES (
     1, 6, 'system.assistant.default-user', 0, NULL, FALSE, 1, 1,
-    'HYBRID', '[{"skillKey":"builtin-user-understanding","activationMode":"ALWAYS"},{"skillKey":"builtin-javascript-compute","activationMode":"ON_DEMAND"}]', '["script.execute.javascript","context.load"]',
+    'HYBRID', '[{"skillKey":"builtin-user-understanding","activationMode":"ALWAYS"},{"skillKey":"builtin-javascript-compute","activationMode":"ON_DEMAND"}]', '["script.execute.javascript","context.load","queryWeather","webSearch"]',
     'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
@@ -2477,6 +2616,7 @@ WHERE template.code = 'system.assistant.default-user'
       FROM ai_assistant copy
       WHERE copy.user_id = admin_user.id
         AND copy.is_default = TRUE
+    (1, 5, FALSE, 70, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
         AND copy.deleted = FALSE
   );
 
