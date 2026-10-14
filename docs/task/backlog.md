@@ -2,18 +2,22 @@
 
 所有用户故事的唯一来源。条目由 product agent 细化后登记，协调者维护编号和状态。
 
-编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-116**，新一级用户故事从 AAF-117 开始。添加新条目后必须同步更新此行。
+编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-119**，新一级用户故事从 AAF-120 开始。添加新条目后必须同步更新此行。
 
 ## 当前迭代（v0.13）
 
 - [ ] AAF-112 (创建: 09-05) Content Studio 项目先行完整闭环（项目动态物化与双视图工作台；对象创作、素材版本、可靠执行与候选采用；DeliverableSet manifest、审核退回/stale、Work/Publication、完成归档；完全不依赖 Chatter）任务: docs/task/v0.13/AAF-112/tasks.md
 - [ ] AAF-113 (创建: 09-05) 对话式项目创作（复用现有助理与 `/agui/run`，项目上下文→内容创作 Skill→manual/auto 模式→受控项目 Tool→文档/图像/视频结果闭环；不向普通聊天或 AigcActionCommand 增加 mode 参数；依赖 AAF-112 项目先行门与 AAF-115 canonical Task）需求: docs/task/v0.13/AAF-113/requirement.md 任务: docs/task/v0.13/AAF-113/tasks.md
 - [ ] AAF-115 (创建: 09-11) 统一 Task/TaskPlan/Execution 任务模型与 DAG 编排（移除 AssistantTask/DelegatedTask 双真理源；普通 CHAT 只建 Execution；复杂任务使用唯一 Task + 可选 TaskPlan；支持串行、并行、join、fan-out/fan-in、恢复与 fencing）任务: docs/task/v0.13/AAF-115/tasks.md
+- [ ] AAF-117 (创建: 10-12) 任务式调用执行形态与全环节流式可视化（TASK 路径 delta 不落库并实时转发；DIRECT/TASK 统一为协调者的轻量态与任务态；协调者直答与交付、分解策略 AUTO/NONE/REQUIRED；内置技能与控制工具重命名；聚合要求与聚合者输入契约；harness 驱动的产物保存；各节点输出按节点折叠展示；依赖 AAF-115）设计: docs/design/adr/ADR-008-task-execution-shape-and-streaming.md 任务: docs/task/v0.13/AAF-117/tasks.md
 
 ## 待排期
 
 - [ ] AAF-116 (创建: 09-11) 对话式受控实体 CRUD 与失败任务资源处置（失败 Task 展示结构化资源链接；用户通过 UI 或 Assistant 查询、更新、归档或删除；复用 CrudResourceDefinition、AI_ACTION、AiBusinessActionTool 与 EntityActionRegistry；写操作受 Task、权限、确认、版本、引用检查、幂等和审计约束；不自动删除，依赖 AAF-115）需求: docs/prd/assistant/conversational-controlled-entity-crud.md
 
+- [ ] AAF-118 (创建: 10-14) Role 可见性与归属模型（`ai_role` 增加 SYSTEM/PUBLIC/PRIVATE 可见性；助理创建时复制模板初始角色，之后用户从角色库自行绑定内置、公开和自己的私有角色，受绑定上限与默认角色保护约束；用户可创建私有角色；保存、绑定与运行时校验技能与工具引用，公开或内置角色不得引用私有技能，私有角色不得持有高风险工具；系统受管助理如客服不开放用户绑定；失效的非默认绑定在加载时跳过；技能可见性变更做反向引用保护）需求: docs/task/v0.13/AAF-118/requirement.md 设计: docs/task/v0.13/AAF-118/design.md 任务: docs/task/v0.13/AAF-118/tasks.md
+
+- [ ] AAF-119 (创建: 10-14) 实时通道收敛与全局事件通道（保留 WebSocket［通知、IM、语音、画布］、一条全局 SSE、AG-UI Run SSE 三类通道；全局 SSE 由 `/api/aigc/events/stream` 泛化为中性命名 `/api/events/stream`，通用事件表与统一发布入口，AIGC 事件加 `aigc.` 前缀；异步任务事件并入并删除 `/api/async-tasks/events`，`SseSessionManager` 改造为全局 SSE 的传输层；通知移除 SSE 传输分支；前端单例连接按事件类型前缀分发，挂到 workspace 与 Studio 布局；清理无后端端点的导出进度 Hook 与重复通知 Hook；设计已确认，不以 AAF-112 #11206、AAF-113 为前提）需求: docs/task/v0.13/AAF-119/requirement.md 设计: docs/task/v0.13/AAF-119/design.md 任务: docs/task/v0.13/AAF-119/tasks.md
 - [ ] AAF-027 (创建: 05-10) LLM 调用录制与回放（测试基础设施：拦截 LLM API 请求录制为 JSON，测试时回放，避免真实调用，保证确定性 + 降低成本）参考：Mastra `_llm-recorder`、WireMock、Spring AI MockChatModel
 - [ ] AAF-035 (创建: 05-14) Nx 工程化持续优化（lefthook 迁移 + enforce-module-boundaries + publint/attw + 共享 tsconfig 包 + Changeset 版本管理）(依赖: AAF-028 packages/ 落地后)
 - [ ] AAF-109 (创建: 09-01) 工具权限运行时安全加固（对齐官方 AgentScope Permission System 后发现的缺口：① Built-in Checks——工具按真实调用参数做动态安全检查，不可被 mode/rules 覆盖，如检测目标是否为生产资源；② 危险资源硬编码黑名单——`.env`/`.ssh`/`.git` 等命中即强制人工确认，连最宽松授权模式都不能绕过。AAF 当前只按工具名静态属性 `readOnly`/`reversible` 判定，全靠人工配置 `ai_tool_catalog`/`ToolPolicy`，无运行时兜底。技术方案见 AAF-107 dev-log 2026-09-01 对比分析）
