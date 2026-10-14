@@ -1,7 +1,6 @@
 export { ColumnConfigPanel } from "./ColumnConfigPanel"
 export { DataTable } from "./DataTable"
 export { DataTablePagination } from "./DataTablePagination"
-export { ExportButton } from "./ExportButton"
 export { FilterBar } from "./FilterBar"
 export type { FilterCondition } from "./FilterBuilder"
 export { FilterBuilder } from "./FilterBuilder"

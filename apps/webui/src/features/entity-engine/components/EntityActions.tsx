@@ -23,13 +23,14 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { buildFieldContext, evaluateCondition } from "@/features/entity-engine/lib/field-context"
 import type { EntityAction, EntityDef } from "@/features/entity-engine/types"
-import { buildApiUrl, buildSseUrl } from "@/lib/api/config"
+import { buildApiUrl } from "@/lib/api/config"
 import { backendApi } from "@/lib/api/rest/backend-client"
 import { ApiError, crudKey, crudRequestConfig } from "@/lib/api/rest/crud"
+import { subscribe, waitForEvent } from "@/lib/realtime/event-registry"
+import type { RealtimeEvent } from "@/lib/realtime/event-stream"
 import { type AsyncTaskStatus, AsyncTaskStatusIndicator } from "./AsyncTaskStatusIndicator"
 
-const ASYNC_TASK_EVENT_NAME = "async-task.status"
-const ASYNC_TASK_EVENTS_URL = buildSseUrl("/async-tasks/events")
+const ASYNC_TASK_EVENT_TYPE = "async-task.status"
 
 interface ActionSubmitResult {
   taskId?: string
@@ -63,22 +64,17 @@ function isAsyncTaskStatus(value: unknown): value is AsyncTaskStatus {
   )
 }
 
-function parseAsyncTaskResult(data: string): AsyncTaskResult | null {
-  try {
-    const value = JSON.parse(data) as unknown
-    if (typeof value !== "object" || value === null) return null
+function toAsyncTaskResult(event: RealtimeEvent): AsyncTaskResult | null {
+  if (event.type !== ASYNC_TASK_EVENT_TYPE) return null
 
-    const task = value as Record<string, unknown>
-    if (typeof task.taskId !== "string" || !isAsyncTaskStatus(task.status)) return null
+  const task = event.payload
+  if (typeof task.taskId !== "string" || !isAsyncTaskStatus(task.status)) return null
 
-    return {
-      taskId: task.taskId,
-      status: task.status,
-      result: typeof task.result === "string" ? task.result : undefined,
-      lastError: typeof task.lastError === "string" ? task.lastError : undefined
-    }
-  } catch {
-    return null
+  return {
+    taskId: task.taskId,
+    status: task.status,
+    result: typeof task.result === "string" ? task.result : undefined,
+    lastError: typeof task.lastError === "string" ? task.lastError : undefined
   }
 }
 
@@ -98,54 +94,29 @@ function readDeletedCount(result?: string): number | undefined {
   }
 }
 
-function subscribeToAsyncTask(
+/** 通过全局事件通道跟踪异步任务：中间状态回调展示进度，终态时成功返回、失败抛错。 */
+async function trackAsyncTask(
   taskId: string,
   signal: AbortSignal,
   onStatus: (task: AsyncTaskResult) => void
-): { source: EventSource; completion: Promise<AsyncTaskResult> } {
-  const source = new EventSource(ASYNC_TASK_EVENTS_URL, { withCredentials: true })
-  const completion = new Promise<AsyncTaskResult>((resolve, reject) => {
-    let settled = false
-
-    const cleanup = () => {
-      source.removeEventListener(ASYNC_TASK_EVENT_NAME, handleStatus)
-      source.removeEventListener("error", handleError)
-      signal.removeEventListener("abort", handleAbort)
-      source.close()
-    }
-    const settle = (callback: () => void) => {
-      if (settled) return
-      settled = true
-      cleanup()
-      callback()
-    }
-    const handleStatus: EventListener = (event) => {
-      if (!(event instanceof MessageEvent)) return
-
-      const task = parseAsyncTaskResult(String(event.data))
-      if (!task || task.taskId !== taskId) return
-
-      onStatus(task)
-      if (task.status === "SUCCEEDED") {
-        settle(() => resolve(task))
-      } else if (task.status === "FAILED") {
-        settle(() => reject(new ApiError(0, task.lastError ?? "异步任务执行失败")))
-      }
-    }
-    const handleError = () => {
-      settle(() => reject(new ApiError(0, "异步任务状态连接失败")))
-    }
-    const handleAbort = () => {
-      settle(() => reject(new DOMException("操作已取消", "AbortError")))
-    }
-
-    source.addEventListener(ASYNC_TASK_EVENT_NAME, handleStatus)
-    source.addEventListener("error", handleError)
-    signal.addEventListener("abort", handleAbort, { once: true })
-    if (signal.aborted) handleAbort()
+): Promise<AsyncTaskResult> {
+  const unsubscribe = subscribe(ASYNC_TASK_EVENT_TYPE, (event) => {
+    const task = toAsyncTaskResult(event)
+    if (task?.taskId === taskId) onStatus(task)
   })
 
-  return { source, completion }
+  try {
+    const event = await waitForEvent((candidate) => {
+      const task = toAsyncTaskResult(candidate)
+      return task?.taskId === taskId && (task.status === "SUCCEEDED" || task.status === "FAILED")
+    }, signal)
+    const task = toAsyncTaskResult(event)
+    if (task === null) throw new ApiError(0, "异步任务状态事件无效")
+    if (task.status === "FAILED") throw new ApiError(0, task.lastError ?? "异步任务执行失败")
+    return task
+  } finally {
+    unsubscribe()
+  }
 }
 
 function isAbortError(error: unknown): boolean {
@@ -156,7 +127,6 @@ function isAbortError(error: unknown): boolean {
 export function EntityActions({ entity, position, record, selectedIds }: EntityActionsProps) {
   const queryClient = useQueryClient()
   const abortControllerRef = useRef<AbortController | null>(null)
-  const eventSourceRef = useRef<EventSource | null>(null)
   const [runningActionKey, setRunningActionKey] = useState<string>()
   const [pendingAction, setPendingAction] = useState<EntityAction>()
   const [trackedTask, setTrackedTask] = useState<AsyncTaskResult & { label: string }>()
@@ -171,8 +141,6 @@ export function EntityActions({ entity, position, record, selectedIds }: EntityA
   useEffect(
     () => () => {
       const controller = abortControllerRef.current
-      eventSourceRef.current?.close()
-      eventSourceRef.current = null
       abortControllerRef.current = null
       controller?.abort()
     },
@@ -182,8 +150,6 @@ export function EntityActions({ entity, position, record, selectedIds }: EntityA
   const executeAction = useCallback(
     async (action: EntityAction) => {
       const controller = new AbortController()
-      eventSourceRef.current?.close()
-      eventSourceRef.current = null
       abortControllerRef.current?.abort()
       abortControllerRef.current = controller
       setRunningActionKey(action.key)
@@ -216,13 +182,11 @@ export function EntityActions({ entity, position, record, selectedIds }: EntityA
             status: result.status ?? "PENDING",
             label: action.label
           })
-          const subscription = subscribeToAsyncTask(result.taskId, controller.signal, (task) => {
-            setTrackedTask({ ...task, label: action.label })
-          })
-          eventSourceRef.current = subscription.source
           toast.success(`${action.label}任务已提交`)
 
-          const task = await subscription.completion
+          const task = await trackAsyncTask(result.taskId, controller.signal, (status) => {
+            setTrackedTask({ ...status, label: action.label })
+          })
           await queryClient.invalidateQueries({ queryKey: crudKey(entity) })
 
           const deletedCount = readDeletedCount(task.result)
@@ -241,8 +205,6 @@ export function EntityActions({ entity, position, record, selectedIds }: EntityA
         }
       } finally {
         if (abortControllerRef.current === controller) {
-          eventSourceRef.current?.close()
-          eventSourceRef.current = null
           abortControllerRef.current = null
           setRunningActionKey(undefined)
         }
