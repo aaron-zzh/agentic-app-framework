@@ -66,6 +66,7 @@ export interface AiModelVO {
   contextWindow: number | null
   inputPricePerK: number | null
   outputPricePerK: number | null
+  cacheRatio: number | null
   modelPrice: number | null
   quotaType: 0 | 1
   enabled: boolean

@@ -58,6 +58,7 @@ interface ModelCard {
   /** 后端原始 inputPricePerK / outputPricePerK（元/千 token），用于编辑表单回填 */
   rawInputPricePerK?: number
   rawOutputPricePerK?: number
+  rawCacheRatio?: number
   /** 计费类型：0=按量 1=按次 2=按秒 3=按单元 */
   quotaType: number
   /** 价格展示单位（如 "M tokens" / "万字符" / "分钟" / "次"），byVariant=true 时不展示具体单价 */
@@ -77,6 +78,7 @@ interface BackendAiModel {
   modelName: string
   inputPricePerK?: number | null
   outputPricePerK?: number | null
+  cacheRatio?: number | null
   modelPrice?: number | null
   quotaType?: number | null
   capabilities?: string | null
@@ -232,6 +234,7 @@ function adaptBackendModel(model: BackendAiModel): ModelCard {
     rawModelPrice: model.modelPrice != null ? Number(model.modelPrice) : undefined,
     rawInputPricePerK: model.inputPricePerK != null ? Number(model.inputPricePerK) : undefined,
     rawOutputPricePerK: model.outputPricePerK != null ? Number(model.outputPricePerK) : undefined,
+    rawCacheRatio: model.cacheRatio != null ? Number(model.cacheRatio) : undefined,
     quotaType: model.quotaType ?? 0,
     priceUnit: pricing.unit,
     byVariant: pricing.byVariant,
@@ -684,6 +687,7 @@ interface EditModelForm {
   quotaType: string
   inputPricePerK: string
   outputPricePerK: string
+  cacheRatio: string
   modelPrice: string
   enabled: boolean
   remark: string
@@ -713,6 +717,7 @@ function EditModelDialog({
     quotaType: String(model.quotaType ?? 0),
     inputPricePerK: model.rawInputPricePerK != null ? String(model.rawInputPricePerK) : "",
     outputPricePerK: model.rawOutputPricePerK != null ? String(model.rawOutputPricePerK) : "",
+    cacheRatio: model.rawCacheRatio != null ? String(model.rawCacheRatio) : "",
     modelPrice: model.rawModelPrice != null ? String(model.rawModelPrice) : "",
     enabled: model.enabled,
     remark: ""
@@ -731,6 +736,7 @@ function EditModelDialog({
           quotaType: qt,
           inputPricePerK: qt === 0 && form.inputPricePerK ? Number(form.inputPricePerK) : null,
           outputPricePerK: qt === 0 && form.outputPricePerK ? Number(form.outputPricePerK) : null,
+          cacheRatio: qt === 0 && form.cacheRatio ? Number(form.cacheRatio) : null,
           modelPrice: qt !== 0 && form.modelPrice ? Number(form.modelPrice) : null,
           enabled: form.enabled,
           remark: form.remark || null
@@ -831,6 +837,16 @@ function EditModelDialog({
                   value={form.outputPricePerK}
                   onChange={(e) => set("outputPricePerK", e.target.value)}
                   placeholder="0.000"
+                />
+              </div>
+              <div className="col-span-2 grid gap-1.5">
+                <Label htmlFor="em-cacheRatio">缓存命中倍率（相对输入价格）</Label>
+                <Input
+                  id="em-cacheRatio"
+                  type="number"
+                  value={form.cacheRatio}
+                  onChange={(e) => set("cacheRatio", e.target.value)}
+                  placeholder="如 0.05；留空按 1 计"
                 />
               </div>
             </div>

@@ -76,6 +76,7 @@ public class AiModelService {
         model.setContextWindow(dto.contextWindow());
         model.setInputPricePerK(dto.inputPricePerK());
         model.setOutputPricePerK(dto.outputPricePerK());
+        model.setCacheRatio(dto.cacheRatio());
         model.setFallbackModelId(dto.fallbackModelId());
         model.setSortOrder(dto.sortOrder() != null ? dto.sortOrder() : 100);
         model.setRemark(dto.remark());
@@ -101,6 +102,7 @@ public class AiModelService {
         if (dto.contextWindow() != null) model.setContextWindow(dto.contextWindow());
         if (dto.inputPricePerK() != null) model.setInputPricePerK(dto.inputPricePerK());
         if (dto.outputPricePerK() != null) model.setOutputPricePerK(dto.outputPricePerK());
+        if (dto.cacheRatio() != null) model.setCacheRatio(dto.cacheRatio());
         if (dto.modelPrice() != null) model.setModelPrice(dto.modelPrice());
         if (dto.quotaType() != null) model.setQuotaType(dto.quotaType());
         if (dto.enabled() != null) model.setEnabled(dto.enabled());
@@ -354,6 +356,7 @@ public class AiModelService {
                 m.getContextWindow(),
                 m.getInputPricePerK(),
                 m.getOutputPricePerK(),
+                m.getCacheRatio(),
                 m.getModelPrice(),
                 m.getQuotaType(),
                 m.getEnabled(),

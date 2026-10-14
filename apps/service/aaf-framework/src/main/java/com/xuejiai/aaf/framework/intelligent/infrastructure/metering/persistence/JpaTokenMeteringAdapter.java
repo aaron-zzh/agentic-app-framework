@@ -54,12 +54,11 @@ public final class JpaTokenMeteringAdapter implements TokenMeteringPort {
         var outputPrice =
                 Objects.requireNonNull(
                         model.getOutputPricePerK(), "模型缺少 output_price_per_k: " + databaseModelId);
+        // 未配置缓存倍率视为缓存 Token 与普通输入同价（倍率 1），不因缺配置中断已完成的执行
         var cacheRatio =
                 fact.cachedTokens() == 0
                         ? BigDecimal.ZERO
-                        : Objects.requireNonNull(
-                                model.getCacheRatio(),
-                                "模型存在缓存用量但缺少 cache_ratio: " + databaseModelId);
+                        : Objects.requireNonNullElse(model.getCacheRatio(), BigDecimal.ONE);
         var cost = tokenCost(fact, inputPrice, outputPrice, cacheRatio);
         if (fact.context().controlMode() == ControlMode.DELEGATED) {
             delegatedTasks.recordModelUsage(

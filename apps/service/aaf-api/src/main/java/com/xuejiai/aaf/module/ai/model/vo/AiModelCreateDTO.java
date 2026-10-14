@@ -49,6 +49,8 @@ public record AiModelCreateDTO(
         @Schema(description = "上下文窗口", example = "128000") Integer contextWindow,
         @Schema(description = "输入价格（每千 Token）", example = "0.005") BigDecimal inputPricePerK,
         @Schema(description = "输出价格（每千 Token）", example = "0.015") BigDecimal outputPricePerK,
+        @Schema(description = "缓存命中 Token 倍率（相对输入价格，如 0.05；空表示按 1 计）", example = "0.05")
+                BigDecimal cacheRatio,
         @Schema(description = "降级模型标识") String fallbackModelId,
         @Schema(description = "排序", example = "100") Integer sortOrder,
         @Schema(description = "备注") String remark) {}
