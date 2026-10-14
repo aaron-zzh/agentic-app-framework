@@ -131,9 +131,9 @@ public class AssistantAguiController {
     private SseEmitter startRun(RunRequest request) {
         var stream = executionStream(request);
         var emitter = new SseEmitter(600_000L);
-        var session = agUiProjector.openSession();
         var threadId = request.threadId();
         var runId = request.runId();
+        var session = agUiProjector.openSession(threadId, runId);
         persistUserMessage(threadId, request.messages());
         // AAF-114 #11412：按 blockMessageId（replyId:blockId，与前端 assistant-ui ThreadMessage.id 完全一致）
         // 累积文本增量，在 MESSAGE_BLOCK_COMPLETED 时机落库，payload 记录该 id 供反馈接口精确关联。

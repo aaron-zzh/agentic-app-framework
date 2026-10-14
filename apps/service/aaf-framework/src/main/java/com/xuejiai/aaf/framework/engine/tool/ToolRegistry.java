@@ -4,6 +4,9 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.ai.tool.ToolCallback;
+import org.springframework.ai.tool.ToolCallbackProvider;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -29,7 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class ToolRegistry implements FunctionDefinition.ToolProvider {
+public class ToolRegistry implements FunctionDefinition.ToolProvider, SmartInitializingSingleton {
 
     private final RoleStore roleStore;
 
@@ -38,6 +41,14 @@ public class ToolRegistry implements FunctionDefinition.ToolProvider {
 
     /** 工具定义（元数据） */
     private final Map<String, ToolMeta> metas = new ConcurrentHashMap<>();
+
+    /** ToolCallbackProvider 的延迟句柄；仅持有 ObjectProvider，不触发 Provider Bean 创建。 */
+    private ObjectProvider<ToolCallbackProvider> providers;
+
+    @Autowired
+    public void setToolCallbackProviders(ObjectProvider<ToolCallbackProvider> providers) {
+        this.providers = providers;
+    }
 
     /** 工具元数据（含来源、类型、风险等级） */
     public record ToolMeta(
@@ -70,6 +81,38 @@ public class ToolRegistry implements FunctionDefinition.ToolProvider {
     public void setToolCallbacks(List<ToolCallback> toolCallbacks) {
         if (toolCallbacks != null) {
             toolCallbacks.forEach(cb -> register(cb, SOURCE_LOCAL));
+        }
+    }
+
+    /**
+     * 收集 {@link ToolCallbackProvider} Bean（{@code @Tool} 注解方法经 MethodToolCallbackProvider 包装）。
+     *
+     * <p>这些 Provider 由依赖 ToolRegistry 的 Configuration 创建（需要在其中补充元数据），在 setter 注入阶段解析会形成循环依赖，
+     * 因此延迟到所有单例就绪后再注册 callback；元数据保留 Configuration 已登记的版本，不被默认值覆盖。
+     */
+    @Override
+    public void afterSingletonsInstantiated() {
+        if (providers == null) {
+            return;
+        }
+        providers.orderedStream().forEach(this::registerProviderCallbacks);
+    }
+
+    private void registerProviderCallbacks(ToolCallbackProvider provider) {
+        for (var callback : provider.getToolCallbacks()) {
+            var definition = callback.getToolDefinition();
+            callbacks.put(definition.name(), callback);
+            metas.putIfAbsent(
+                    definition.name(),
+                    new ToolMeta(
+                            definition.name(),
+                            definition.description(),
+                            SOURCE_LOCAL,
+                            ToolType.FUNCTION,
+                            ToolRiskLevel.NONE,
+                            false,
+                            null));
+            log.info("注册工具: {} [{}]", definition.name(), SOURCE_LOCAL);
         }
     }
 

@@ -110,7 +110,7 @@ public class PublicCustomerServiceController {
                 executions.start(
                         binding, visitorSubject, request.threadId(), request.runId(), input);
         var emitter = new SseEmitter(600_000L);
-        var session = projector.openSession();
+        var session = projector.openSession(request.threadId(), stream.runId());
         var buffers = new ConcurrentHashMap<String, StringBuilder>();
         stream.events()
                 .subscribe(

@@ -47,22 +47,42 @@ public final class AgUiProjector {
 
     /** 开启一次 run 的投影会话；配对跟踪与兜底闭合依赖 per-run 状态，禁止跨 run 复用。 */
     public Session openSession() {
-        return new Session(registry);
+        return new Session(registry, null, null);
+    }
+
+    /**
+     * 开启绑定到调用方 run 的投影会话。
+     *
+     * <p>委派任务的子节点事件携带各自派生的 runId（见 {@code AssistantCommand.forNode}），与调用方请求的 runId 不同；
+     * 绑定后所有事件统一投影到调用方的 thread/run，避免子节点事件（例如协调者节点在首个事件即失败）先于根事件到达时， 把子节点 runId 当成本次 run 而与流尾 {@link
+     * Session#close} 的标识冲突。
+     */
+    public Session openSession(String threadId, String runId) {
+        return new Session(
+                registry,
+                Objects.requireNonNull(threadId, "threadId 不能为空"),
+                Objects.requireNonNull(runId, "runId 不能为空"));
     }
 
     /** 单次 run 的投影入口。非线程安全，只应被单个事件流串行消费。 */
     public static final class Session {
 
         private final AafAguiConverterRegistry registry;
+        private final String boundThreadId;
+        private final String boundRunId;
         private AafAguiStreamContext context;
 
-        private Session(AafAguiConverterRegistry registry) {
+        private Session(AafAguiConverterRegistry registry, String threadId, String runId) {
             this.registry = registry;
+            this.boundThreadId = threadId;
+            this.boundRunId = runId;
         }
 
         /** 投影单个执行事件；无对应 AG-UI 语义的事件由兜底 converter 降级为 aaf.* CUSTOM。 */
         public List<AguiEvent> project(ExecutionEvent event) {
-            return registry.convert(event, context(threadId(event), event.runId().value()));
+            var threadId = boundThreadId != null ? boundThreadId : threadId(event);
+            var runId = boundRunId != null ? boundRunId : event.runId().value();
+            return registry.convert(event, context(threadId, runId));
         }
 
         /** 流结束时兜底：补齐未闭合的 message 与 tool call，并确保 run 已终结。 */
