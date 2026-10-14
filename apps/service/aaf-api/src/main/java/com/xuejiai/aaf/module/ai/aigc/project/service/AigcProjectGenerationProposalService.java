@@ -10,6 +10,7 @@ import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -25,6 +26,7 @@ import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.aigc.AigcCanonicalRequest;
 import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcExecutionBindingVersionRef;
 import com.xuejiai.aaf.module.ai.aigc.configuration.api.AigcProjectInitializationSpec;
+import com.xuejiai.aaf.module.ai.aigc.event.service.AigcEventPublisher;
 import com.xuejiai.aaf.module.ai.aigc.execution.repository.AigcExecutionBindingRepository;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcApprovedGenerationTarget;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcGenerationProposalBridgeApi;
@@ -67,6 +69,7 @@ public class AigcProjectGenerationProposalService implements AigcGenerationPropo
     private final AigcProjectGenerationProposalItemRepository itemRepository;
     private final AigcExecutionBindingRepository bindings;
     private final OperatorContext operatorContext;
+    private final AigcEventPublisher eventPublisher;
 
     /** 生成一个待确认 Proposal；不触发模型调用、Task、Run 或 candidate 写入。 */
     @Transactional
@@ -120,6 +123,7 @@ public class AigcProjectGenerationProposalService implements AigcGenerationPropo
                                                         proposalVersion,
                                                         item))
                                 .toList());
+        publishChanged(proposal, "CREATED");
         return toView(proposal, savedItems.stream().map(this::toViewItem).toList());
     }
 
@@ -194,6 +198,7 @@ public class AigcProjectGenerationProposalService implements AigcGenerationPropo
                                                         next.getProposalVersion(),
                                                         item))
                                 .toList());
+        publishChanged(next, "REVISED");
         return toView(next, savedItems.stream().map(this::toViewItem).toList());
     }
 
@@ -257,6 +262,7 @@ public class AigcProjectGenerationProposalService implements AigcGenerationPropo
         proposal.setApprovedByType(operatorContext.currentOperatorType().name());
         proposal.setApprovedTime(LocalDateTime.now());
         proposalRepository.save(proposal);
+        publishChanged(proposal, "APPROVED");
         return toView(proposal, items.stream().map(this::toViewItem).toList());
     }
 
@@ -434,6 +440,7 @@ public class AigcProjectGenerationProposalService implements AigcGenerationPropo
         if (proposal.getLinkedTaskId() == null) {
             proposal.setLinkedTaskId(linkedTaskId);
             proposalRepository.save(proposal);
+            publishChanged(proposal, "TASK_LINKED");
         }
         return toView(proposal);
     }
@@ -495,6 +502,35 @@ public class AigcProjectGenerationProposalService implements AigcGenerationPropo
         }
         proposal.setLinkedProjectId(projectId);
         proposalRepository.save(proposal);
+        publishChanged(proposal, "MATERIALIZED");
+    }
+
+    /** 发布 Proposal 变化通知：只带 projectId（创建草稿阶段为空）与状态摘要，前端据此失效 Proposal 查询。 */
+    private void publishChanged(AigcProjectGenerationProposal proposal, String action) {
+        if (proposal.getOwnerId() == null) {
+            return;
+        }
+        var refs = new LinkedHashMap<String, Long>();
+        refs.put(
+                "projectId",
+                proposal.getProjectId() != null
+                        ? proposal.getProjectId()
+                        : proposal.getLinkedProjectId());
+        eventPublisher.publish(
+                proposal.getOwnerId(),
+                "proposal.changed",
+                refs,
+                Map.of(
+                        "kind",
+                        "GENERATION",
+                        "action",
+                        action,
+                        "status",
+                        proposal.getStatus(),
+                        "proposalId",
+                        proposal.getProposalId(),
+                        "proposalVersion",
+                        proposal.getProposalVersion()));
     }
 
     /** 直接读同聚合实体：Proposal 与项目同属 AIGC 项目聚合，避免反向依赖 {@code AigcProjectApi} 形成 Bean 环。 */

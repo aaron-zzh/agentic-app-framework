@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.ai.aigc.project.service;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -11,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.module.ai.aigc.event.service.AigcEventPublisher;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcProjectApi;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectSchedule;
 import com.xuejiai.aaf.module.ai.aigc.project.domain.AigcProjectSchedule.ProjectScopeSnapshot;
@@ -53,18 +55,21 @@ public class AigcProjectScheduleService {
     private final ProgrammaticAssistantTaskPort programmaticTask;
     private final AigcProjectApi projectApi;
     private final OperatorContext operatorContext;
+    private final AigcEventPublisher eventPublisher;
 
     public AigcProjectScheduleService(
             AigcProjectScheduleRepository schedules,
             AigcProjectRepository projects,
             ProgrammaticAssistantTaskPort programmaticTask,
             AigcProjectApi projectApi,
-            OperatorContext operatorContext) {
+            OperatorContext operatorContext,
+            AigcEventPublisher eventPublisher) {
         this.schedules = Objects.requireNonNull(schedules, "schedules");
         this.projects = Objects.requireNonNull(projects, "projects");
         this.programmaticTask = Objects.requireNonNull(programmaticTask, "programmaticTask");
         this.projectApi = Objects.requireNonNull(projectApi, "projectApi");
         this.operatorContext = Objects.requireNonNull(operatorContext, "operatorContext");
+        this.eventPublisher = Objects.requireNonNull(eventPublisher, "eventPublisher");
     }
 
     /**
@@ -104,6 +109,7 @@ public class AigcProjectScheduleService {
         schedule.setStatus(AigcProjectSchedule.Status.PENDING);
 
         var saved = schedules.save(schedule);
+        publishChanged(saved, "CREATED");
         log.info(
                 "[ProjectSchedule] 创建定时任务 scheduleId={}, projectId={}, executeAt={}",
                 saved.getId(),
@@ -134,6 +140,7 @@ public class AigcProjectScheduleService {
 
         schedule.setStatus(AigcProjectSchedule.Status.CANCELLED);
         schedules.save(schedule);
+        publishChanged(schedule, "CANCELLED");
         log.info("[ProjectSchedule] 取消定时任务 scheduleId={}", scheduleId);
     }
 
@@ -156,6 +163,7 @@ public class AigcProjectScheduleService {
 
         schedule.setNextAttemptAt(null);
         schedules.save(schedule);
+        publishChanged(schedule, "PAUSED");
         log.info("[ProjectSchedule] 暂停定时任务 scheduleId={}", scheduleId);
     }
 
@@ -178,6 +186,7 @@ public class AigcProjectScheduleService {
 
         schedule.setNextAttemptAt(Instant.now());
         schedules.save(schedule);
+        publishChanged(schedule, "RESUMED");
         log.info("[ProjectSchedule] 恢复定时任务 scheduleId={}", scheduleId);
     }
 
@@ -249,6 +258,7 @@ public class AigcProjectScheduleService {
             schedule.setStatus(AigcProjectSchedule.Status.DEFERRED);
             schedule.setNextAttemptAt(Instant.now().plusSeconds(300)); // 5 分钟后重试
             schedules.save(schedule);
+            publishChanged(schedule, "DEFERRED");
             return;
         }
 
@@ -287,6 +297,8 @@ public class AigcProjectScheduleService {
         } finally {
             OrgContext.clear();
         }
+        // 触发线程没有组织上下文，事件为用户级，投递给所有连接
+        publishChanged(schedule, "TRIGGERED");
     }
 
     private void handleTriggerFailure(AigcProjectSchedule schedule, Exception error) {
@@ -303,6 +315,19 @@ public class AigcProjectScheduleService {
         }
 
         schedules.save(schedule);
+        publishChanged(schedule, schedule.getStatus().name());
+    }
+
+    /** 发布 schedule 变化通知：只带 projectId / scheduleId 与状态摘要，前端据此失效 schedule、Task 与进度查询。 */
+    private void publishChanged(AigcProjectSchedule schedule, String action) {
+        if (schedule.getOwnerId() == null) {
+            return;
+        }
+        eventPublisher.publish(
+                schedule.getOwnerId(),
+                "project.schedule.changed",
+                Map.of("projectId", schedule.getProjectId(), "scheduleId", schedule.getId()),
+                Map.of("action", action, "status", String.valueOf(schedule.getStatus())));
     }
 
     /** 创建定时任务命令 */

@@ -24,6 +24,7 @@ import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.security.authorization.FunctionPermissionChecker;
 import com.xuejiai.aaf.module.ai.aigc.AigcAuthorities;
 import com.xuejiai.aaf.module.ai.aigc.AigcCanonicalRequest;
+import com.xuejiai.aaf.module.ai.aigc.event.service.AigcEventPublisher;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AssistantBlueprintCreationContext;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AssistantBlueprintProposalCommands;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AssistantBlueprintProposalInput;
@@ -49,6 +50,7 @@ public class AssistantBlueprintProposalService {
     private final FunctionPermissionChecker permissions;
     private final AiCreditGuard creditGuard;
     private final AuthorizationGrantPort authorizationGrants;
+    private final AigcEventPublisher eventPublisher;
 
     public AssistantBlueprintProposalService(
             AssistantBlueprintProposalRepository repository,
@@ -58,7 +60,8 @@ public class AssistantBlueprintProposalService {
             OperatorContext operatorContext,
             FunctionPermissionChecker permissions,
             AiCreditGuard creditGuard,
-            AuthorizationGrantPort authorizationGrants) {
+            AuthorizationGrantPort authorizationGrants,
+            AigcEventPublisher eventPublisher) {
         this.repository = Objects.requireNonNull(repository, "repository 不能为空");
         this.projects = Objects.requireNonNull(projects, "projects 不能为空");
         this.normalizer = Objects.requireNonNull(normalizer, "normalizer 不能为空");
@@ -68,6 +71,7 @@ public class AssistantBlueprintProposalService {
         this.creditGuard = Objects.requireNonNull(creditGuard, "creditGuard 不能为空");
         this.authorizationGrants =
                 Objects.requireNonNull(authorizationGrants, "authorizationGrants 不能为空");
+        this.eventPublisher = Objects.requireNonNull(eventPublisher, "eventPublisher 不能为空");
     }
 
     public AssistantBlueprintCreationContext freezeCreationContext(
@@ -102,7 +106,9 @@ public class AssistantBlueprintProposalService {
         proposal.setValidatorVersion(VALIDATOR_VERSION);
         proposal.setValidationResult(Map.of("valid", false, "state", "PLANNING"));
         proposal.setExpiresAt(LocalDateTime.now().plusHours(EXPIRY_HOURS));
-        return toView(repository.save(proposal));
+        var saved = repository.save(proposal);
+        publishChanged(saved, "CREATED");
+        return toView(saved);
     }
 
     @Transactional(noRollbackFor = ExpiredProposalException.class)
@@ -169,6 +175,7 @@ public class AssistantBlueprintProposalService {
 
         proposal.setStatus("CANCELED");
         var canceled = repository.save(proposal);
+        publishChanged(canceled, "CANCELED");
         var action = SubmitAssistantBlueprintProposalToolHandler.TOOL_NAME;
         var tenantId = new TenantId(proposal.getOrgId().toString());
         var canonicalTaskId = new TaskId(proposal.getSourceTaskId());
@@ -220,7 +227,9 @@ public class AssistantBlueprintProposalService {
         next.setValidatorVersion(VALIDATOR_VERSION);
         next.setValidationResult(Map.of("valid", false, "state", "PLANNING"));
         next.setExpiresAt(LocalDateTime.now().plusHours(EXPIRY_HOURS));
-        return toView(repository.save(next));
+        var savedNext = repository.save(next);
+        publishChanged(savedNext, "REVISED");
+        return toView(savedNext);
     }
 
     @Transactional(noRollbackFor = ExpiredProposalException.class)
@@ -293,7 +302,9 @@ public class AssistantBlueprintProposalService {
                         "semanticCatalogVersion",
                         semanticCatalogVersion));
         proposal.setStatus(Status.AWAITING_CONFIRMATION.name());
-        return toView(repository.save(proposal));
+        var ready = repository.save(proposal);
+        publishChanged(ready, "READY");
+        return toView(ready);
     }
 
     @Transactional(noRollbackFor = ExpiredProposalException.class)
@@ -317,7 +328,9 @@ public class AssistantBlueprintProposalService {
         proposal.setConfirmedByType("HUMAN");
         proposal.setConfirmedTime(LocalDateTime.now());
         proposal.setConfirmationReceiptHash(confirmationReceiptHash(proposal, identity.ownerId()));
-        return toView(repository.save(proposal));
+        var confirmed = repository.save(proposal);
+        publishChanged(confirmed, "CONFIRMED");
+        return toView(confirmed);
     }
 
     @Transactional
@@ -410,6 +423,7 @@ public class AssistantBlueprintProposalService {
         proposal.setLinkedProjectId(projectId);
         proposal.setStatus(Status.MATERIALIZED.name());
         repository.save(proposal);
+        publishChanged(proposal, "MATERIALIZED");
     }
 
     @Transactional
@@ -425,8 +439,33 @@ public class AssistantBlueprintProposalService {
                                                 "valid", false, "state", "FAILED", "reason",
                                                 reason));
                                 repository.save(proposal);
+                                publishChanged(proposal, "FAILED");
                             }
                         });
+    }
+
+    /** 发布 Proposal 变化通知：projectId 仅在已物化后存在，字符串类 proposalId 放 payload，前端据此失效 Proposal 查询。 */
+    private void publishChanged(AssistantBlueprintProposal proposal, String action) {
+        if (proposal.getOwnerId() == null) {
+            return;
+        }
+        var refs = new LinkedHashMap<String, Long>();
+        refs.put("projectId", proposal.getLinkedProjectId());
+        eventPublisher.publish(
+                proposal.getOwnerId(),
+                "proposal.changed",
+                refs,
+                Map.of(
+                        "kind",
+                        "ASSISTANT_BLUEPRINT",
+                        "action",
+                        action,
+                        "status",
+                        proposal.getStatus(),
+                        "proposalId",
+                        proposal.getProposalId(),
+                        "proposalVersion",
+                        proposal.getProposalVersion()));
     }
 
     private String confirmationReceiptHash(AssistantBlueprintProposal proposal, Long confirmedBy) {
@@ -519,6 +558,7 @@ public class AssistantBlueprintProposalService {
         if (proposal.getExpiresAt().isBefore(LocalDateTime.now())
                 && SetLike.EXPIRABLE.contains(proposal.getStatus())) {
             proposal.setStatus(Status.EXPIRED.name());
+            publishChanged(proposal, "EXPIRED");
         }
     }
 
