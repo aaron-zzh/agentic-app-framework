@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { StudioChatterHost } from "@/features/chatter/layout/StudioChatterHost"
 import { EntityMetadataGate } from "@/features/entity-engine/components/EntityMetadataGate"
-import { ProjectActivityProvider } from "@/features/studio/content/ProjectActivityProvider"
+import { AigcEventConsumer } from "@/features/studio/content/AigcEventConsumer"
 import { SlotDevTrigger, SlotDock } from "@/features/studio/slots"
 import { setBackendScope } from "@/lib/api/rest/backend-client"
 import { organizationApi } from "@/lib/api/rest/user"
@@ -462,7 +462,7 @@ export function StudioLayout({ children }: { children: React.ReactNode }) {
     )
   ) : (
     <>
-      <ProjectActivityProvider />
+      <AigcEventConsumer />
       <StudioRouteSync />
 
       {/* ⌘K 全局命令面板（M9） */}

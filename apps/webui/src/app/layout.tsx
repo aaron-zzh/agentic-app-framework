@@ -8,6 +8,7 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { AuthProvider } from "@/lib/auth/AuthProvider"
 import { APP } from "@/lib/config"
 import { geistMono, geistSans, notoSansSC } from "@/lib/fonts"
+import { EventStreamProvider } from "@/lib/realtime/event-stream-provider"
 import { QueryProvider } from "@/providers/QueryProvider"
 import { ServiceWorkerRegister } from "@/providers/ServiceWorkerRegister"
 import { ThemeProvider } from "@/providers/ThemeProvider"
@@ -108,7 +109,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <QueryProvider>
               <TooltipProvider>
                 <AuthProvider>
-                  <NuqsAdapter>{children}</NuqsAdapter>
+                  <EventStreamProvider>
+                    <NuqsAdapter>{children}</NuqsAdapter>
+                  </EventStreamProvider>
                 </AuthProvider>
                 <ToastProvider />
                 {/* 进入站点即捕获 ?refCode= 写入 sessionStorage，供注册流程读取 */}
