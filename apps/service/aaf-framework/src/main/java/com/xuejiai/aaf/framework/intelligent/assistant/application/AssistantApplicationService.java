@@ -49,6 +49,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.Task.Status;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskPlan;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantCommandPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.DomainContextPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.EffectiveContextPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ExecutionProfileSnapshotPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.SkillDecisionAuditPort;
@@ -1920,7 +1921,12 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                 invocation.invocationPolicy(),
                                 intent,
                                 command.completionCriteria(),
-                                command.executionId()));
+                                command.executionId(),
+                                new DomainContextPort.Scope(
+                                        command.tenantId(),
+                                        command.userId(),
+                                        intent.workspaceId(),
+                                        intent.trustedProjectId())));
         var snapshot =
                 new ExecutionProfileSnapshot(
                         command.tenantId(),

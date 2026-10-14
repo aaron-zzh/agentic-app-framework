@@ -58,6 +58,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionP
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantIdentityPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantProvisioningPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ConversationLeasePort;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.DomainContextPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.EffectiveContextPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.ExecutionProfileSnapshotPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.HitlTransitionPort;
@@ -283,8 +284,11 @@ public class AssistantInfrastructureAutoConfiguration {
     @ConditionalOnBean(SkillReferenceCatalogPort.class)
     @ConditionalOnMissingBean(PromptAssembler.class)
     PromptAssembler promptAssembler(
-            PromptTemplateService promptTemplates, SkillReferenceCatalogPort skillReferences) {
-        return new PromptAssembler(promptTemplates, skillReferences);
+            PromptTemplateService promptTemplates,
+            SkillReferenceCatalogPort skillReferences,
+            ObjectProvider<DomainContextPort> domainContexts) {
+        return new PromptAssembler(
+                promptTemplates, skillReferences, domainContexts.orderedStream().toList());
     }
 
     @Bean

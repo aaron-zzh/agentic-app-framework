@@ -159,7 +159,8 @@ public record CompiledSystemPrompt(
             case INVOCATION_POLICY -> 2;
             case ROLE -> 3;
             case SKILL -> 4;
-            case PERSONA -> 5;
+            case DOMAIN_CONTEXT -> 5;
+            case PERSONA -> 6;
         };
     }
 
@@ -271,8 +272,8 @@ public record CompiledSystemPrompt(
     /**
      * System Prompt 的层类型，声明顺序即优先级顺序。
      *
-     * <p>排序原则是「不可协商程度」降序：跨身份治理 → 冻结身份与身份职责合同 → 交付与完成契约 → Role 边界 → 领域方法 → 表达风格。冲突时靠前者胜出，
-     * 因此表达风格必须排在最后——它只能改变怎么说，不能改变做什么。
+     * <p>排序原则是「不可协商程度」降序：跨身份治理 → 冻结身份与身份职责合同 → 交付与完成契约 → Role 边界 → 领域方法 → 领域当前事实 → 表达风格。冲突时靠前者胜出，
+     * 因此表达风格必须排在最后——它只能改变怎么说，不能改变做什么；领域当前事实只提供背景，不得改变方法与契约，故排在领域方法之后。
      */
     public enum PromptLayerKind {
         CONSTITUTION,
@@ -280,6 +281,7 @@ public record CompiledSystemPrompt(
         INVOCATION_POLICY,
         ROLE,
         SKILL,
+        DOMAIN_CONTEXT,
         PERSONA
     }
 
@@ -289,6 +291,7 @@ public record CompiledSystemPrompt(
         ASSISTANT_PERSONA,
         ASSISTANT_ROLE,
         SKILL_VERSION,
+        DOMAIN_SNAPSHOT,
         AAF_POLICY
     }
 }

@@ -24,19 +24,12 @@ public class DefaultContentStudioProjectContextProvider
 
     @Override
     @Transactional(readOnly = true)
-    public ProjectContextSnapshot load(
-            Long projectId,
-            Long focusedObjectId,
-            com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext invocationContext) {
+    public ProjectContextSnapshot load(ProjectScope scope, Long focusedObjectId) {
+        var projectId = scope.projectId();
         var graph = projectApi.getGraph(projectId);
         var project = graph.project();
-        if (invocationContext.projectId() == null
-                || !projectId.equals(invocationContext.projectId())) {
-            throw new IllegalArgumentException("InvocationContext projectId 与项目不一致");
-        }
-        if (invocationContext.workspaceId() == null
-                || !invocationContext.workspaceId().equals(project.workspaceId())) {
-            throw new IllegalArgumentException("InvocationContext workspace 与项目不一致");
+        if (!scope.workspaceId().equals(project.workspaceId())) {
+            throw new IllegalArgumentException("受信 workspace 与项目不一致");
         }
         var snapshot = semanticCatalogCompiler.compile(projectId);
         if (!project.version().equals(snapshot.projectVersion())

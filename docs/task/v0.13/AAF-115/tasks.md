@@ -100,7 +100,7 @@ related:
 - **优先级**：P0
 - **风险**：🔴 高
 - **依赖**：#11504、#11505
-- **状态**：✅ 生产实现完成（2026-09-12；双层计划、安全重规划、Owner Aggregator 最终语义完成、durable CANCELING、TASK_NODE/TASK_ROOT durable PAUSING、canonical durable take-over/forced-fresh hand-back、canonical HITL AgentState 保留及 exactly-once 事件交接、same-attempt 稳定 stateSlot 与独立 Dispatch authority 均已完成；动态验证归 #11509）
+- **状态**：✅ 生产实现完成（2026-09-12；双层计划、安全重规划、Owner Aggregator 最终语义完成、durable CANCELING、TASK_NODE/TASK_ROOT durable PAUSING、canonical durable take-over/forced-fresh hand-back、canonical HITL AgentState 保留及 exactly-once 事件交接、same-attempt 稳定 stateSlot 与独立 Dispatch authority 均已完成；动态验证改为人工测试）
 - 保留 `ExecutorPlan/ExecutorPlanStep` 及 `submit_executor_plan/report_executor_step`；TaskPlan 管理节点 DAG，ExecutorPlan 管理单节点有序步骤。
 - PRIMARY Assistant 通过 `inspect_tasks` 读取任务与步骤，通过 `amend_task` 调整 TaskPlan 或指定节点步骤，通过 `cancel_task` 停止整个 Task；目标不唯一时必须追问。
 - TaskPlan 调整创建新 revision 并关闭旧 revision 执行权；ExecutorPlan 调整取消旧局部计划并创建目标节点 fresh attempt；旧计划、审计事实与用户业务数据均保留。
@@ -132,32 +132,29 @@ related:
 - **优先级**：P0
 - **风险**：🔴 高
 - **依赖**：#11503～#11507
-- **状态**：✅ 生产实现完成（2026-09-12；旧双模型静态审查、死控制分支删除与不安全人工交接下线完成，动态门禁归 #11509）
+- **状态**：✅ 生产实现完成（2026-09-12；旧双模型静态审查、死控制分支删除与不安全人工交接下线完成，动态验证改为人工测试）
 - 全仓生产代码与 Flyway 未发现 `AssistantTask`、`DelegatedTask`、旧 TaskBoard 类型、适配器、旧表、旧索引、旧事件或兼容 DTO。
 - 删除无生产构造方的 `AssistantCommand.PAUSE/CANCEL` 与 `controlTask(...)`；pause/cancel 只保留 `TaskCommandService → TaskMaterializationPort` durable 路径。
 - 删除绕过 stable-pause、Dispatch 失权和 fencing 的 `SupportHandoffTool`；fresh seed 直接不注册或授权 `support.handoff`，并已承载最终 catalog、Role、Assistant 与 Persona 状态。因尚未部署，不保留额外前向清理 migration。
 - 复核 canonical 六表的 tenant/org 隔离、复合外键、状态、current plan/root、RootResult、active Dispatch 与乐观锁约束，当前已覆盖关键正确性风险；Flyway migration 与 JPA Entity 是物理 schema 唯一真理，不按旧目标 DDL增加平行字段或约束。附加查询索引仅在运行指标证明存在扫描或延迟问题时另行迁移。
 - 确认 TaskPlan 失败策略只保留 `FAIL_TASK/PAUSE_TASK`，不存在通用反向业务执行器或 Task 失败自动删除用户业务数据的路径；临时资源仍由创建方 Tool/runtime 生命周期负责。
-- 按当前授权完成 diagnostics、定向搜索和 `git diff --check`；未执行 format、lint、build、typecheck 或测试，统一动态验证由 #11509 承接。
-- **完成标准**：生产实现无遗留双模型或重复控制路径；破坏性清理与迁移事实已同步，动态质量门集中在 #11509。
+- 按当前授权完成 diagnostics、定向搜索和 `git diff --check`；未执行 format、lint、build、typecheck 或测试，动态验证改为人工测试。
+- **完成标准**：生产实现无遗留双模型或重复控制路径；破坏性清理与迁移事实已同步，动态验证改为人工测试。
 
-### #11509 DAG、澄清恢复验收与故障注入质量门
+### #11510 System Prompt 增加业务域当前事实层 DOMAIN_CONTEXT
 
-- **优先级**：P0
-- **风险**：🔴 高
+- **优先级**：P1
+- **风险**：🟡 中（扩展 `PromptLayerKind` 与 `PromptAssembler`，不改既有层语义）
 - **依赖**：#11508
-- **状态**：🟡 已调整本轮受新合同影响的既有测试（2026-09-12；未新增测试文件或场景，动态 check/acceptance 待授权）
-- 仅盘点并调整已存在且与 canonical 合同冲突的测试，不新增测试文件或测试场景。
-- 对 Gherkin AC 建立“已有测试证据/未覆盖”映射，区分自然澄清、新消息重新分析、structured clarification/promotion 和 TaskNode resume/fresh attempt；没有现有覆盖的项目如实标记未验证。
-- 注入中断子节点、worker 崩溃、lease 过期、旧 generation 迟到、重复事件、并发 resume/cancel/promotion 和数据库重试。
-- 分别注入 owner/授权画像变化、AgentState 缺失、损坏、不兼容和合法可恢复状态，验证只在符合矩阵时复用 executionId，否则只为受影响 TaskNode 或当前 TASK_ROOT 创建新 attempt；TASK_ROOT 还须断言 current-root CAS、predecessor 同 task/scope、新 session/state slot、旧 generation 迟到拒绝与根完成恰好一次。
-- 在并行 DAG 中中断单个分支，验证已完成兄弟节点不重放、未受影响节点不被整板重启、已确认副作用不重复；恢复节点完成后 join 仅在全部依赖完成时释放一次。
-- 验证旧 worker/旧 Execution/旧 fencing generation 的迟到事件不能更新节点、释放后继或覆盖聚合结果。
-- 验证连续普通消息各自创建独立 Run/Execution，只有显式 canonical interrupt 输入恢复既有 Task；同一 Task Owner Assistant 完成复杂度、分解和最终语义判断，不出现独立 classifier/judge。
-- 注入 Task 失败与暂停，断言项目、文档、草稿、生成图片等用户可见数据保留；仅 Tool/runtime 自有的不可见临时资源按 finally/TTL 生命周期释放。
-- 验证普通对话延迟与数据库写放大下降，复杂任务吞吐受 maxParallelism 约束且 join 不早启。
-- 完成 architect review、tester acceptance、qa 审计和人类验收。
-- **完成标准**：现有测试与 canonical 合同无冲突，已有覆盖证据通过；未有现成测试的续接/重启矩阵和 Gherkin AC 明确标记未验证，不为补齐矩阵新增测试。后续质量门仍要求 blocker=0、major≤2，并在获得授权后执行约定的 check/acceptance。
+- **状态**：✅ 生产实现完成（2026-10-14；静态核对，未编译、未运行，动态验证改为人工测试）
+- 来源：本文件「新增任务」中“`PromptLayerKind` 缺少动态业务域事实层”；AAF-113 `requirement.md` 要求“每次项目 Assistant 执行自动装配紧凑 ProjectContextSnapshot”。
+- `PromptLayerKind` 新增 `DOMAIN_CONTEXT`，排在 `SKILL` 之后、`PERSONA` 之前；`PromptSourceKind` 新增 `DOMAIN_SNAPSHOT`；`COMPILER_VERSION` 不升级（只新增可选层，已冻结的旧 Prompt 仍可校验，不做兼容分支）。
+- 新增业务域无关端口 `DomainContextPort`（`Scope` 为服务端冻结的 tenant、user、workspace、project），`PromptAssembler.compileAssistant` 在技能之后逐个调用，业务域不适用时返回空、不产生层；仅 `compileAssistant` 使用，`compileAgent` 不加。
+- `AssistantPromptRequest` 增加 `domainScope`，由 `AssistantApplicationService` 用冻结的 `ExecutionIntent.workspaceId/trustedProjectId` 构造；快照随 `ExecutionProfileSnapshot` 冻结，审批、澄清恢复复用同一份，不重新编译。
+- AAF-113 侧新增 `ContentStudioDomainContext` 实现端口：注入版本与生命周期、对象就绪、进度、允许动作；用户填写的 `ProjectSpecification` 自由文本单独成段并标注不可信、逐项限长压成单行并替换 Prompt 封装保留语法；总长上限 8000 字符。完整图谱、版本正文、候选、素材仍由 `inspect_project_semantics` 按需读取。
+- `ContentStudioProjectContextProvider.load` 签名改为 `load(ProjectScope, focusedObjectId)`，`ProjectScope(projectId, workspaceId)` 取代 `InvocationContext`（原实现只用了这两个字段），同步更新 `DefaultContentStudioProjectContextProvider` 与 `InspectProjectSemanticsToolHandler`。
+- 取舍：快照装配失败（项目与 workspace 不一致、语义目录版本不一致）时执行失败（fail-closed），与“必需 Skill Reference 不可用”一致。
+- **完成标准**：绑定项目的 Assistant 执行，系统提示词含 `DOMAIN_CONTEXT` 层且位于 `SKILL` 与 `PERSONA` 之间；未绑定项目的执行不产生该层；提示词中不出现未标注的用户自由文本。
 
 ## 评审状态
 
@@ -179,6 +176,7 @@ related:
 
 ### 发现：`SubmitCoordinationPlanTool.inputSchema()` 未结构化声明 `dependsOn`，DAG 依赖表达机制实际不可达
 
+- **状态**：✅ 已解决（2026-10-14，静态核对）— `executors.items` 已改为带完整 `properties` 的结构化定义，显式声明 `nodeId/description/modelMode/roleKey/skillKey/dependsOn/inputBindings/maxAttempts` 并标注 `required`；未运行验证，随人工测试确认。
 - **发现时间**：2026-09-15（AAF-113 会话中核查 TaskPlan/ExecutorPlan 机制时发现，非 AAF-113 范围，记录供 AAF-115 评估）
 - **现象**：`SubmitCoordinationPlanTool.java` 的 `inputSchema()`，`executors` 数组的 `items` 只声明 `{"type": "object"}`，未用嵌套 `properties` 列出可用子字段；自然语言 `description` 也只提及 `nodeId/description/roleKey/skillKey/modelMode` 五个字段，未提及 `dependsOn`（也未提及 `inputBindings`、`maxAttempts`）。
 - **实际影响**：`decodeStringSet(node.get("dependsOn"))` 解析逻辑本身完好，服务端 `TaskDagService` 的环检测、串行/并行/join/fan-out-fan-in 机制（`#11505` 已完成）均可正常工作；但 LLM 做函数调用时只依据 Schema 结构和 description 文本判断可用参数，看不到源码。当前 Schema 没有任何结构化或文本信号告知模型 `dependsOn` 可用，模型在实践中几乎不会主动填这个字段，导致每个 executor 默认只 `dependsOn=Set.of("coordinator")`（即全部并行）。已建好的 DAG 依赖表达能力，在当前 Tool 入口处于"有实现、不可达"状态。
@@ -186,6 +184,8 @@ related:
 - **范围判断**：属于 `aaf-framework` 模块既有代码的 Schema 完整性问题，不属于 AAF-113 任务范围，本次会话未修改，仅记录。
 
 ### 发现：`PromptLayerKind` 缺少动态业务域事实层，`ProjectContextSnapshot` 类信息无系统提示词注入通道
+
+- **状态**：✅ 已解决（2026-10-14）— 登记并实现为 [#11510](#11510-system-prompt-增加业务域当前事实层-domain_context)；`inspect_project_semantics` 工具后来已成为 `ContentStudioProjectContextProvider` 的调用方，下文「现象」中“无调用方”的描述已过期。
 
 - **发现时间**：2026-09-15（AAF-113 会话中核查 ProjectContextSnapshot 注入机制时发现，非 AAF-113 范围，记录供 AAF-115 评估）
 - **现象**：`CompiledSystemPrompt.PromptLayerKind` 目前只有 `CONSTITUTION/IDENTITY/INVOCATION_POLICY/ROLE/SKILL/PERSONA` 六层，均为随 Assistant 身份/角色/Skill 版本固定或半固定的内容；没有一层承载"当前业务域运行时事实快照"（例如 AAF-113 的 `ProjectContextSnapshot`：projectId、graphRevision、readiness 摘要、待决 candidate 等，本质是每次执行都可能变化的动态事实，但仍应属于系统层，不应塞进用户消息通道）。

@@ -78,11 +78,16 @@ public final class InspectProjectSemanticsToolHandler implements ContextAwareToo
             throw new IllegalArgumentException(
                     "inspect_project_semantics 需要 InvocationContext 绑定 projectId");
         }
+        var workspaceId = context.workspaceId();
+        if (workspaceId == null) {
+            throw new IllegalArgumentException(
+                    "inspect_project_semantics 需要 InvocationContext 绑定 workspaceId");
+        }
         var snapshot =
                 projectContextProvider.load(
-                        projectId,
-                        optionalPositiveLong(invocation.arguments(), "focusedObjectId"),
-                        context);
+                        new ContentStudioProjectContextProvider.ProjectScope(
+                                projectId, workspaceId),
+                        optionalPositiveLong(invocation.arguments(), "focusedObjectId"));
         var result = new LinkedHashMap<String, Object>();
         result.put("projectId", snapshot.projectId());
         result.put("projectVersion", snapshot.projectVersion());

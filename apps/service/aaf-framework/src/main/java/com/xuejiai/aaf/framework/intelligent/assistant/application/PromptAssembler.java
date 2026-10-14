@@ -20,6 +20,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionCriteria;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.InvocationPolicy;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.DomainContextPort;
 import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptTemplateService;
 import com.xuejiai.aaf.framework.intelligent.core.skill.SkillReference;
 import com.xuejiai.aaf.framework.intelligent.core.skill.SkillReference.LoadMode;
@@ -30,11 +31,16 @@ public final class PromptAssembler {
 
     private final PromptTemplateService promptTemplates;
     private final SkillReferenceCatalogPort skillReferences;
+    private final List<DomainContextPort> domainContexts;
 
     public PromptAssembler(
-            PromptTemplateService promptTemplates, SkillReferenceCatalogPort skillReferences) {
+            PromptTemplateService promptTemplates,
+            SkillReferenceCatalogPort skillReferences,
+            List<DomainContextPort> domainContexts) {
         this.promptTemplates = Objects.requireNonNull(promptTemplates, "promptTemplates 不能为空");
         this.skillReferences = Objects.requireNonNull(skillReferences, "skillReferences 不能为空");
+        this.domainContexts =
+                List.copyOf(Objects.requireNonNull(domainContexts, "domainContexts 不能为空"));
     }
 
     public CompiledSystemPrompt compileAssistant(AssistantPromptRequest request) {
@@ -82,6 +88,7 @@ public final class PromptAssembler {
                         Long.toString(assistant.version().value()),
                         roleContent(request.roleAssignment())));
         appendSkills(sources, request.skillExecutionProfile());
+        appendDomainContexts(sources, request.domainScope());
         sources.add(
                 source(
                         PromptLayerKind.PERSONA,
@@ -149,6 +156,23 @@ public final class PromptAssembler {
         sources.add(invocationSource(invocationPolicy, null, null));
         appendSkills(sources, skillExecutionProfile);
         return CompiledSystemPrompt.compile(sources);
+    }
+
+    /** 业务域当前事实层位于 Skill 之后、Persona 之前；每个业务域至多一层，不适用的业务域不产生层。 */
+    private void appendDomainContexts(
+            List<PromptLayerSource> sources, DomainContextPort.Scope domainScope) {
+        for (var port : domainContexts) {
+            port.load(domainScope)
+                    .ifPresent(
+                            context ->
+                                    sources.add(
+                                            source(
+                                                    PromptLayerKind.DOMAIN_CONTEXT,
+                                                    PromptSourceKind.DOMAIN_SNAPSHOT,
+                                                    context.sourceKey(),
+                                                    context.sourceVersion(),
+                                                    context.content())));
+        }
     }
 
     private void appendSkills(
@@ -373,7 +397,8 @@ public final class PromptAssembler {
             InvocationPolicy invocationPolicy,
             ExecutionIntent executionIntent,
             CompletionCriteria completionCriteria,
-            ExecutionId executionId) {
+            ExecutionId executionId,
+            DomainContextPort.Scope domainScope) {
 
         public AssistantPromptRequest {
             Objects.requireNonNull(assistant, "assistant 不能为空");
@@ -384,6 +409,7 @@ public final class PromptAssembler {
             Objects.requireNonNull(executionIntent, "executionIntent 不能为空");
             Objects.requireNonNull(completionCriteria, "completionCriteria 不能为空");
             Objects.requireNonNull(executionId, "executionId 不能为空");
+            Objects.requireNonNull(domainScope, "domainScope 不能为空");
         }
     }
 }
