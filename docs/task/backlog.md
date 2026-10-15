@@ -15,7 +15,7 @@
 
 - [ ] AAF-116 (创建: 09-11) 对话式受控实体 CRUD 与失败任务资源处置（失败 Task 展示结构化资源链接；用户通过 UI 或 Assistant 查询、更新、归档或删除；复用 CrudResourceDefinition、AI_ACTION、AiBusinessActionTool 与 EntityActionRegistry；写操作受 Task、权限、确认、版本、引用检查、幂等和审计约束；不自动删除，依赖 AAF-115）需求: docs/prd/assistant/conversational-controlled-entity-crud.md
 
-- [ ] AAF-118 (创建: 10-14) Role 可见性与归属模型（`ai_role` 增加 SYSTEM/PUBLIC/PRIVATE 可见性；助理创建时复制模板初始角色，之后用户从角色库自行绑定内置、公开和自己的私有角色，受绑定上限与默认角色保护约束；用户可创建私有角色；保存、绑定与运行时校验技能与工具引用，公开或内置角色不得引用私有技能，私有角色不得持有高风险工具；系统受管助理如客服不开放用户绑定；失效的非默认绑定在加载时跳过；技能可见性变更做反向引用保护）需求: docs/task/v0.13/AAF-118/requirement.md 设计: docs/task/v0.13/AAF-118/design.md 任务: docs/task/v0.13/AAF-118/tasks.md
+- [ ] AAF-118 (创建: 10-14) Role 可见性与归属模型（`ai_role` 增加 SYSTEM/PUBLIC/PRIVATE 可见性；助理创建时复制模板初始角色，之后用户从角色库自行绑定内置、公开和自己的私有角色，受绑定上限与默认角色保护约束；用户可创建私有角色；保存、绑定与运行时校验技能与工具引用，公开或内置角色不得引用私有技能，私有角色引用的工具只校验已登记启用、不限风险等级；系统受管助理如客服不开放用户绑定；失效的非默认绑定在加载时跳过；技能可见性变更做反向引用保护）需求: docs/task/v0.13/AAF-118/requirement.md 设计: docs/task/v0.13/AAF-118/design.md 任务: docs/task/v0.13/AAF-118/tasks.md
 
 - [ ] AAF-119 (创建: 10-14) 实时通道收敛与全局事件通道（保留 WebSocket［通知、IM、语音、画布］、一条全局 SSE、AG-UI Run SSE 三类通道；全局 SSE 由 `/api/aigc/events/stream` 泛化为中性命名 `/api/events/stream`，通用事件表与统一发布入口，AIGC 事件加 `aigc.` 前缀；异步任务事件并入并删除 `/api/async-tasks/events`，`SseSessionManager` 改造为全局 SSE 的传输层；通知移除 SSE 传输分支；前端单例连接按事件类型前缀分发，挂到 workspace 与 Studio 布局；清理无后端端点的导出进度 Hook 与重复通知 Hook；设计已确认，不以 AAF-112 #11206、AAF-113 为前提）需求: docs/task/v0.13/AAF-119/requirement.md 设计: docs/task/v0.13/AAF-119/design.md 任务: docs/task/v0.13/AAF-119/tasks.md
 - [ ] AAF-027 (创建: 05-10) LLM 调用录制与回放（测试基础设施：拦截 LLM API 请求录制为 JSON，测试时回放，避免真实调用，保证确定性 + 降低成本）参考：Mastra `_llm-recorder`、WireMock、Spring AI MockChatModel

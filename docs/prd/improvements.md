@@ -183,3 +183,83 @@ CI workflow 中注释掉 `Build uniapp (mp-weixin)` 步骤，H5 构建正常。
 3. 在 vite 配置中针对 mp-weixin 平台 externalize 不兼容 API
 
 **优先级**：P2，不阻塞当前迭代
+
+
+---
+
+## 智能层设计文档与 AAF-115 / AAF-117 代码的协调者形态不一致
+
+**发现时间**：2026-10-12，AAF-117 实现过程中核对
+
+**现状**：以下设计文档仍描述 AAF-107 / AAF-115 之前的形态，与 ADR-008 及当前代码不一致，需由协调者同步修改（`docs/design` 与 `docs/reference` 开发者不直接改）：
+
+- `docs/design/framework/intelligent/runtime.md`、`coordination.md`：仍写"协调者简单直答、`TaskBoard.single` 已删除、协调者恒为内部节点"；代码现状为协调者在计划没有聚合者时是交付节点，委派成功后交付权移交聚合者
+- 同上两份文档与 `docs/task/v0.12/**`、`docs/design/adr/ADR-006-executor-plan-mode.md`、`docs/design/audit/2026-09-01-harness-landing-plan.md`、`docs/task/v0.13/AAF-115/design.md` 引用的旧工具名 `submit_executor_plan` / `report_executor_step` / `submit_coordination_plan` / `promote_direct_task`，已分别改为 `plan_steps` / `report_step` / `delegate_agents` / `promote_to_task`
+- 上述文档与 `AGENTS.md` 引用的 `PRIMARY` 角色、`builtin-task-decomposition` 技能：代码中 `PRIMARY` 已并入 `COORDINATOR`（轻量态以 `taskId == null` 区分），技能已拆为 `builtin-task-triage`、`builtin-step-planning`、`builtin-agent-delegation`
+- `InvocationPolicy.COORDINATOR` 合同版本升为 3；`ContextDisclosurePolicy` 的协调者由 `SUMMARY_ONLY` 放宽为内容级披露，聚合者仍为摘要；`AgentPurpose.COORDINATION` 已删除
+
+**待人工决策（AAF-117 未实施）**：
+
+- #11717（已按"放宽"指示实施，规则见 tasks.md）：待复核"不扩大授权"取 Role 的 `candidateToolKeys` 子集是否满足安全要求
+- #11712 轻量态自动升级：网关在创建审批前就拒绝，已让拒绝错误指明 `promote_to_task`，由模型同循环升级；harness 自动触发未做
+- #11720 harness 驱动的产物保存：已决策维持现状（模型经 Skill 声明的保存工具保存）
+- 多节点任务中执行者保存的草稿产物：前端已按节点记录脱敏 artifacts（`assistantDraftArtifact`），不覆盖页面当前文档（2026-10-12 静态核对确认，原"识别不到"已过时）
+
+**影响范围**：`docs/design/framework/intelligent/*`、ADR-008 状态（验证通过后改 accepted）、`AGENTS.md` 核心概念表
+**优先级**：P1，随 AAF-117 验收一并处理 | 待评估
+
+---
+
+## AAF-117 静态核对发现的缺陷与遗留限制
+
+**发现时间**：2026-10-12，AAF-117 静态核对（只读，未编译、未运行测试）
+
+**缺陷处理状态（2026-10-12 按推荐调整，均未运行验证，由人工跑 `pnpm check:affected`）**：
+
+- 🟡 安全（已由调用方归属校验覆盖，端口层隔离不做，待协调者确认）：`InMemoryExecutionLiveEvents` 按 `tenantId|taskId` 分区且端口不校验所有者，TASK 的 `taskId` 取自客户端 `runId`。静态核对三个 `open` 调用点，事件转发给客户端之前均已完成归属校验：(1) 入口：`TaskCommandService.create` 对已存在 Task 抛 `Task 已存在`，提交成功即调用者为创建者，失败则立即释放订阅，他人 `runId` 碰撞时订阅内容不会外发；(2) 审批恢复：订阅前校验审批的 `userId` 等于当前用户；(3) 澄清恢复：`ClarificationResumeService.submit` → `JpaHitlTransitionAdapter` 校验 Task 归属，订阅只在 submit 成功后（`thenMany`）才被消费，失败时现已主动释放。端口层按 `userId` 过滤不可行（`ExecutionEvent.userId` 对非 HUMAN 责任主体可为空），也不做 `open` 绑定所有权，避免改端口签名；端口 Javadoc 已写明"归属由调用方保证"。残留风险：未来新增 `open` 调用方若遗漏归属校验即越权，评审时需核对
+- ✅ 已修 `InMemoryExecutionLiveEvents.open`：孤儿计时器改为订阅建立（`doOnSubscribe`）时取消
+- ✅ 已修 `AssistantAguiController.resumeApproval`：先校验审批归属并 `open`，再 `decide`，决定失败时释放订阅；删去 `AssistantApprovalEventService.open(HumanApproval)` 重载
+- ✅ 已修 `BuiltinSkillScope.filter` 增加分解策略入参：`NONE` 不激活 delegation，`REQUIRED` 不激活 step-planning（仅协调者）
+- ✅ 已修 `PromptAssembler.invocationSource`：协调者在 `NONE` / `REQUIRED` 下明示分解策略并覆盖直答规则；三档规则在指令里的简述按 ADR 的入参清单要求保留，不再单列
+- ✅ 已修 `SubmitCoordinationPlanTool.inputSchema` 声明嵌套 property；工具集越权错误附候选目录；`AggregationContract.validate` 强制 `AGGREGATOR_REDUCE` 的 `requirements` 非空
+- ✅ 已修 `use-copywriting.ts` `onDone`：仅 `tool_call` 按授权展示，其余 interrupt 提示"需要补充信息"并进入错误态（文案页为 `FAIL_ON_BLOCKER`，正常不会出现；澄清表单恢复未实现）
+- ✅ 已修 `copy/page.tsx` 拒绝反馈：按 code point 截断与计数（`clampApprovalFeedback`）
+- ✅ 测试：`SubmitCoordinationPlanToolTest` fixture 的协调者节点身份改为 `delivery=true`（计划无聚合者时的规范身份）；`AgUiProjectorTest.should_not_emit_step_for_delivery_node_execution_events` 的名称与注释改为准确描述根事件；未发现需要删除的错误测试。缺少覆盖的新行为（可选继承与候选目录、工具集越权、`requirements`、`BuiltinSkillScope`、任一节点 interrupt 投影）按"不新增非必要测试"未补
+
+**已知待决 / 限制（已确认记录在 tasks.md 与 dev-log）**：
+
+- 协调者在 AUTO 下委派前输出的文本已作为正文发出，靠技能与指令约束；**前端兜底尚未实现**（本次已补记到 tasks.md #11707）
+- `REQUIRED` 仅靠工具可见性与未委派按节点失败收口
+- 任务面板（轮询）无实时输出，实时输出详情只在文案页节点面板
+- 执行者 Role/Skill 暂不由协调者指定，默认继承；可选指定入口保留
+- 任务级 `DRAFT_COMMITTED` 证据只在 DIRECT 收口校验，节点收口处未校验
+- 多节点任务单执行者加 `PASS_THROUGH` 时聚合者是否仍执行一次模型调用（ADR-008 待核实项）本次未核实
+
+**后续需要人工**：
+
+- 跑 `pnpm check:affected`（含 Spotless fix），并重建已有库（v12 种子已改）
+- 协调者修改 `runtime.md`、`coordination.md`，复核后将 ADR-008 改 `accepted` 并更新索引；`AGENTS.md` 核心概念表如涉及 `PRIMARY` 一并检查
+- 本次直接修正了过期代码注释（`RunLifecycleEventConverter`、`TaskPlan.coordinated`），缺陷修复范围见上方状态表；实时端口已删除无调用方的 `complete`（接口变更，仅 `AssistantExecutionService` 调用过）
+- Biome 的 import 排序可能需要 `--fix`（`copy/page.tsx` 新增了两个具名导入）
+
+**优先级**：缺陷项 P1，随 AAF-117 验收一并处理；安全项建议在启用多用户同租户前处理 | 待评估
+
+
+---
+
+## AAF-118 角色权限：权限码未注册不构成授权，私有角色可引用高风险工具
+
+**发现时间**：2026-10-14，AAF-118 实现过程中
+
+**现状**：
+
+- 工具的权限码门控只对已在 `sys_permission_code` 注册的权限码生效（`ToolVisibilityFilter` 与 `RoleReferenceValidator` 同口径）。工具声明了未注册的权限码时，权限码不构成授权，角色保存和工具可见性都会放行。
+- 私有角色可以引用目录中已启用的任意风险等级工具（已确认不限，如 `script.execute.javascript`）。调用期的权限码、确认要求（`require_confirm`）和 `ToolPolicy` 门控不变。
+
+**后续方向（待评估）**：
+
+1. 先补全工具权限码的注册与角色分配，再由数据驱动收窄：未注册的权限码在保存时拒绝，而不是放行
+2. 监测私有角色对 `HIGH / CRITICAL` 工具的引用与调用量；出现滥用迹象时，按风险等级收紧私有角色可引用的工具
+3. 管理端已可把违规的私有角色下架（`status=disabled`），作为滥用时的处置手段
+
+**优先级**：P2，不阻塞当前迭代
