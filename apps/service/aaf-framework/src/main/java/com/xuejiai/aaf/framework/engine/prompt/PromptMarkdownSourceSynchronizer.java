@@ -14,7 +14,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class PromptMarkdownSourceSynchronizer implements ApplicationRunner {
 
-    private static final String SOURCE_PATTERN = "classpath*:aaf/prompt-sources/*.md";
+    private static final String SOURCE_PATTERN = "classpath*:aaf/prompts/*.md";
 
     private final PromptMarkdownSourceParser parser;
     private final PromptTemplateRepository templateRepository;
