@@ -16,6 +16,7 @@ import com.xuejiai.aaf.framework.engine.skill.SkillDefinition;
 import com.xuejiai.aaf.framework.engine.skill.SkillModelRequirement;
 import com.xuejiai.aaf.framework.engine.skill.SkillToolRequirement;
 import com.xuejiai.aaf.framework.engine.skill.SkillVersion;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.test.BaseMockitoUnitTest;
 
 class SkillStoreImplTest extends BaseMockitoUnitTest {
@@ -24,6 +25,7 @@ class SkillStoreImplTest extends BaseMockitoUnitTest {
     @Mock private SkillVersionRepository versionRepository;
     @Mock private SkillToolRequirementRepository toolRequirementRepository;
     @Mock private SkillModelRequirementRepository modelRequirementRepository;
+    @Mock private OperatorContext operatorContext;
     @InjectMocks private SkillStoreImpl skillStore;
 
     @Test
