@@ -8,6 +8,7 @@
 
 import {
   Bell,
+  Bot,
   Building2,
   CreditCard,
   Gift,
@@ -54,6 +55,7 @@ const NAV_GROUPS: {
     label: "管理",
     items: [
       { label: "API 密钥", href: "/settings/api-keys", icon: Key },
+      { label: "助理角色", href: "/settings/assistant-roles", icon: Bot },
       { label: "组织管理", href: "/settings/organization", icon: Building2 },
       { label: "授权委托", href: "/settings/delegation", icon: Globe }
     ]
