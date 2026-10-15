@@ -2,6 +2,8 @@ package com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persisten
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -14,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.role.AiRoleRepository;
+import com.xuejiai.aaf.framework.intelligent.assistant.role.RoleVisibilityLevel;
 import com.xuejiai.aaf.test.BaseMockitoUnitTest;
 
 class JpaRoleDefinitionAdapterTest extends BaseMockitoUnitTest {
@@ -35,7 +38,8 @@ class JpaRoleDefinitionAdapterTest extends BaseMockitoUnitTest {
         entity.setSkillIds(
                 "[{\"skillKey\":\"knowledge-search\",\"activationMode\":\"ALWAYS\"},{\"skillKey\":\"faq-answer\",\"activationMode\":\"ON_DEMAND\"}]");
         entity.setToolWhitelist("[\"search_kb\",\"switch_kb\"]");
-        when(repository.findByCode("system.role.customer-service")).thenReturn(Optional.of(entity));
+        when(repository.findByCodeAndVisibilityIn(eq("system.role.customer-service"), any()))
+                .thenReturn(Optional.of(entity));
 
         // 调用
         var result = adapter.findByCode("system.role.customer-service");
@@ -49,14 +53,18 @@ class JpaRoleDefinitionAdapterTest extends BaseMockitoUnitTest {
         assertThat(result.orElseThrow().skillKeys())
                 .isEqualTo(Set.of("knowledge-search", "faq-answer"));
         assertThat(result.orElseThrow().toolKeys()).isEqualTo(Set.of("search_kb", "switch_kb"));
-        verify(repository).findByCode("system.role.customer-service");
+        verify(repository)
+                .findByCodeAndVisibilityIn(
+                        "system.role.customer-service",
+                        Set.of(RoleVisibilityLevel.SYSTEM, RoleVisibilityLevel.PUBLIC));
     }
 
     @Test
     @DisplayName("Given 角色业务码不存在 When 查询角色 Then 返回空结果")
     void should_return_empty_when_code_not_exists() {
         // mock 方法
-        when(repository.findByCode("system.role.missing")).thenReturn(Optional.empty());
+        when(repository.findByCodeAndVisibilityIn(eq("system.role.missing"), any()))
+                .thenReturn(Optional.empty());
 
         // 调用 + 断言
         assertThat(adapter.findByCode("system.role.missing")).isEmpty();
@@ -68,7 +76,8 @@ class JpaRoleDefinitionAdapterTest extends BaseMockitoUnitTest {
         // 准备参数
         var entity = role("system.role.invalid");
         entity.setSkillIds("[\"knowledge-search\"]");
-        when(repository.findByCode("system.role.invalid")).thenReturn(Optional.of(entity));
+        when(repository.findByCodeAndVisibilityIn(eq("system.role.invalid"), any()))
+                .thenReturn(Optional.of(entity));
 
         // 调用 + 断言
         assertThatThrownBy(() -> adapter.findByCode("system.role.invalid"))
@@ -82,7 +91,8 @@ class JpaRoleDefinitionAdapterTest extends BaseMockitoUnitTest {
         // 准备参数
         var entity = role("system.role.invalid");
         entity.setToolWhitelist("[invalid]");
-        when(repository.findByCode("system.role.invalid")).thenReturn(Optional.of(entity));
+        when(repository.findByCodeAndVisibilityIn(eq("system.role.invalid"), any()))
+                .thenReturn(Optional.of(entity));
 
         // 调用 + 断言
         assertThatThrownBy(() -> adapter.findByCode("system.role.invalid"))
@@ -96,7 +106,8 @@ class JpaRoleDefinitionAdapterTest extends BaseMockitoUnitTest {
         // 准备参数
         var entity = role("system.role.invalid");
         entity.setDescription(" ");
-        when(repository.findByCode("system.role.invalid")).thenReturn(Optional.of(entity));
+        when(repository.findByCodeAndVisibilityIn(eq("system.role.invalid"), any()))
+                .thenReturn(Optional.of(entity));
 
         // 调用 + 断言
         assertThatThrownBy(() -> adapter.findByCode("system.role.invalid"))

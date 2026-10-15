@@ -6,6 +6,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.PageResult;
+import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.crud.definition.CrudOperation;
 import com.xuejiai.aaf.framework.crud.enforcement.AccessMode;
@@ -28,6 +30,8 @@ import com.xuejiai.aaf.framework.engine.skill.SkillToolRequirement;
 import com.xuejiai.aaf.framework.engine.skill.SkillVersion;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.role.AiRoleRepository;
+import com.xuejiai.aaf.framework.intelligent.assistant.role.Role;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 import com.xuejiai.aaf.framework.org.OrgContext;
@@ -101,6 +105,7 @@ public class SkillService
     private final SkillModelRequirementRepository modelRequirementRepository;
     private final OperatorContext operatorContext;
     private final AssistantDefinitionPort assistantDefinitions;
+    private final AiRoleRepository roleRepository;
 
     @Override
     protected SkillDefinitionRepository getRepository() {
@@ -386,6 +391,54 @@ public class SkillService
     @Override
     protected void beforeDelete(SkillDefinition entity) {
         enforceUserOwned(entity);
+        requireNoRoleReference(entity, "删除", false);
+    }
+
+    /** 从全员可见收窄为私有或工作区可见。 */
+    private static boolean narrowsSharedVisibility(String current, String target) {
+        var shared = "PUBLIC".equals(current) || "INTERNAL".equals(current);
+        return shared && !"PUBLIC".equals(target) && !"INTERNAL".equals(target);
+    }
+
+    /**
+     * 技能被角色引用时拒绝变更，要求先解除关联，不做级联清理。
+     *
+     * @param breakingOnly true 时只拦截会使引用方违规的引用：被 SYSTEM / PUBLIC 角色或他人私有角色引用；仅被技能所有者自己的私有角色引用时放行
+     */
+    private void requireNoRoleReference(
+            SkillDefinition skill, String action, boolean breakingOnly) {
+        var skillRef = JsonUtils.toJsonString(List.of(Map.of("skillKey", skill.getCode())));
+        var blocking =
+                roleRepository.findReferencingSkill(skillRef).stream()
+                        .filter(role -> !breakingOnly || breaksReference(skill, role))
+                        .toList();
+        if (blocking.isEmpty()) {
+            return;
+        }
+        // 他人的私有角色只返回数量，不泄露身份和内容
+        var disclosed =
+                blocking.stream()
+                        .filter(
+                                role ->
+                                        role.getVisibility().shared()
+                                                || Objects.equals(
+                                                        role.getOwnerId(), skill.getOwnerId()))
+                        .map(role -> "%s（%s）".formatted(role.getName(), role.getCode()))
+                        .toList();
+        var hidden = blocking.size() - disclosed.size();
+        var message = new StringBuilder("Skill 已被角色引用，需先解除关联后再" + action);
+        if (!disclosed.isEmpty()) {
+            message.append("；引用的角色：").append(String.join("、", disclosed));
+        }
+        if (hidden > 0) {
+            message.append("；另有 ").append(hidden).append(" 个其他用户的私有角色引用");
+        }
+        throw new BusinessException(409, message.toString());
+    }
+
+    private static boolean breaksReference(SkillDefinition skill, Role role) {
+        return role.getVisibility().shared()
+                || !Objects.equals(role.getOwnerId(), skill.getOwnerId());
     }
 
     public PageResult<SkillVO> pageMine(SkillPageDTO query) {
@@ -786,6 +839,13 @@ public class SkillService
     private void validateUpdate(SkillDefinition entity, SkillUpdateDTO request) {
         if (request.visibility() != null) {
             requireVisibility(request.visibility());
+            if (narrowsSharedVisibility(entity.getVisibility(), request.visibility())) {
+                requireNoRoleReference(entity, "收窄可见性", true);
+            }
+        }
+        if (request.code() != null && !request.code().equals(entity.getCode())) {
+            // code 即角色引用的 skillKey，改名等同于让所有引用失效
+            requireNoRoleReference(entity, "修改 code", false);
         }
         if (request.status() != null) {
             requireVersionStatus(request.status());

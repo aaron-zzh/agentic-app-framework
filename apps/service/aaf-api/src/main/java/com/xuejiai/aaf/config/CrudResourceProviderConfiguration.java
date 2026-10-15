@@ -189,8 +189,13 @@ public class CrudResourceProviderConfiguration {
 
     @Bean
     CrudResourceDefinitionProvider<?> aiRoleResource() {
-        return crud(
-                "ai.ai-role", "AI Role", AiRoleController.class, "/api/ai/roles", "system:role");
+        return CrudResourceDefinitions.crud(
+                "ai.ai-role",
+                "AI Role",
+                AiRoleController.class,
+                "/api/ai/roles",
+                "system:role",
+                TenantScope.GLOBAL);
     }
 
     @Bean

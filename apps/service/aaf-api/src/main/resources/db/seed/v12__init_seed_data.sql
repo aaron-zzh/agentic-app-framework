@@ -21,6 +21,7 @@ INSERT INTO sys_config (category, config_key, value, default_value, value_type, 
 ('ai',       'ai.credit_overdraft_limit',    '0',           '0',           'integer', '积分透支上限',             'token计费场景允许欠费的积分数，0=不允许透支',          TRUE,  TRUE),
 ('ai',       'ai.free_assistant_credit_cap', '100',         '100',         'integer', '免费助理虚拟用户预算上限', '免费助理入口绑定的系统虚拟用户每月积分预算上限',       TRUE,  TRUE),
 ('ai',       'ai.token_markup_rate',         '2',           '2',           'integer', 'Token计费加价倍数',       '相对供应商成本的加价倍数，默认5倍（1元成本→500积分）', TRUE, TRUE),
+('ai',       'ai.assistant_max_roles',       '10',          '10',          'integer', '助理角色绑定上限',         '单个助理可绑定的角色总数上限，同时限制模型路由的候选规模', TRUE,  TRUE),
 ('brand',    'brand.company_name',           'XX智能',    'XX智能',    'string',  '公司名称',            '显示在邮件、页面标题等位置',           TRUE,  TRUE),
 ('brand',    'brand.logo_url',               NULL,          NULL,          'string',  'Logo URL',            '系统 Logo 图片地址',                   TRUE,  TRUE),
 ('contact',  'contact.wechat_qr_image',      NULL,          NULL,          'string',  '微信客服二维码',       '微信客服二维码图片 URL，公开接口可读取', TRUE,  TRUE),
@@ -994,537 +995,12 @@ ON CONFLICT DO NOTHING;
 -- ==================== 内容创作助理 ====================
 
 -- ============================================================
--- 内容创作助理：内置技能 + Agent + Role 种子数据
+-- 内容创作助理：Agent + Role 种子数据
 -- ============================================================
 
--- 内置技能：稳定根对象 + 已批准不可变执行版本
+-- 内置技能（含工具要求与系统默认绑定）由 aaf/skills/*.md 在启动时加载（SkillMarkdownSourceSynchronizer，仅技能表为空时）；
+-- 本文件其它 digest() 调用依赖 pgcrypto。
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
-WITH seeded_skill (code, name, summary, content) AS (
-    VALUES
-        ('content-judge', '爆款结构拆解器', '分析爆款内容结构，判断是否值得复用。输入任意内容，输出核心观点、目标读者、展开路径、注意力钩子、情绪曲线、论证方式和可复用表达结构。', $skill$
-# 爆款结构拆解器 (Content-Judge)
-
-## 目标
-不是学写作，而是学「判断什么值得写」。
-
-## 规则
-- 不改写、不润色原内容
-- 不主观夸赞
-- 信息不足请标注「未知」
-- 判断基于结构与传播机制，而非个人喜好
-
-## 输出格式（严格按以下结构）
-
-1）核心观点（一句话）
-2）目标读者与使用场景
-3）内容展开路径（编号列表）
-4）注意力钩子（类型 + 原句）
-5）情绪变化曲线（开头 / 中段 / 结尾）
-6）论证方式（如：故事 / 对比 / 权威 / 反直觉）
-7）可复用表达结构（3-5 个模板）
-8）复用判断（是否值得复用 + 原因）$skill$),
-        ('content-clarify', '写作前元思考澄清器', '解决「我知道要写什么，但就是写不出来」。在写作前强制澄清 6 个关键决策变量。', $skill$
-# 写作前元思考澄清器 (Content-Clarify)
-
-## 目标
-在写作前强制澄清关键决策变量。
-
-## 引导用户回答以下 6 个问题
-
-1. 目标读者是谁？（具体画像，不是"所有人"）
-2. 发布平台是什么？（决定格式和语气）
-3. 读者此刻的真实痛点或欲望是什么？
-4. 这次内容的核心判断或结论是什么？（一句话）
-5. 内容将基于哪些经验/案例/证据？
-6. 整体表达风格偏向哪一种？（教学/故事/对话/清单/反直觉）
-
-## 规则
-- 逐个引导，不要一次性抛出所有问题
-- 用户回答模糊时追问细化
-- 6 个问题回答完毕后，输出一份「写作决策摘要」$skill$),
-        ('content-architect', '母内容结构构建器', '将已验证观点升级为可长期复用的核心内容结构。生成完整结构蓝图，包括钩子方案、正文结构、CTA 和裂变方向。', $skill$
-# 母内容结构构建器 (Content-Architect)
-
-## 目标
-将已验证观点升级为「可长期复用的核心内容」。
-
-## 输出格式
-
-1）一句话承诺（读完能获得什么）
-2）开头钩子方案（3 个备选）
-3）正文结构
-   - 段落标题
-   - 段落目的
-   - 核心要点
-4）CTA 设计（软 CTA + 硬 CTA 各一）
-5）后续可裂变方向（5 个）
-
-## 规则
-- 基于用户提供的核心观点和素材
-- 结构必须可直接用于写作
-- 每个段落有明确目的，不允许「凑字数」段落$skill$),
-        ('content-build', '内容裂变与复利引擎', '将一份母内容最大化利用，一次思考多次分发。生成短内容、强钩子、多平台版本、视频脚本和 CTA。', $skill$
-# 内容裂变与复利引擎 (Content-Build)
-
-## 目标
-保持观点一致，生成多样表达，一次思考多平台使用。
-
-## 规则
-- 不新增核心观点，只拆观点
-- 每条内容只表达一个点
-- 表达方式必须不同
-
-## 输出格式
-
-1）短内容 × 10（100-200 字，适合社交媒体）
-2）强钩子 × 5（一句话，吸引点击）
-3）平台适配版本 × 3
-   - 公众号版（长图文，800-1500 字）
-   - 小红书版（图文笔记，300-500 字 + 配图建议）
-   - 抖音/视频号版（口播脚本，含前 3 秒钩子）
-4）CTA 备选 × 5$skill$),
-        ('content-schedule', '内容创作调度器', '协调调度内容创作全流程。按「拆解→澄清→构建→裂变」顺序引导用户，判断当前阶段并调用对应技能。', $skill$
-# 内容创作调度器 (Content-Schedule)
-
-## 目标
-按照「拆解→想清楚→写一次→用到极致」的顺序调度创作流程。
-
-## 阶段判断标准
-
-**阶段 1 - 拆解**：用户提到分析爆款、学习结构 → 调用 content-judge
-**阶段 2 - 澄清**：用户不知道写什么、逻辑混乱 → 调用 content-clarify
-**阶段 3 - 构建**：用户有验证过的观点、要写正文 → 调用 content-architect
-**阶段 4 - 裂变**：用户已完成内容、要多平台分发 → 调用 content-build
-
-## 规则
-- 首次交互时评估用户处于哪个阶段
-- 如果用户直接说「帮我写一篇 XXX」，从阶段 2（澄清）开始
-- 如果用户提供了爆款内容要分析，从阶段 1 开始
-- 每个阶段完成后，主动引导进入下一阶段
-- 全程可调用文档工具保存中间产出$skill$)
-), inserted_versions AS (
-    INSERT INTO ai_skill_definition (
-        code, name, summary, locale, visibility, built_in, create_time, update_time
-    )
-    SELECT code, name, summary, 'zh-CN', 'PUBLIC', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-    FROM seeded_skill
-    RETURNING id, code
-), created_versions AS (
-    INSERT INTO ai_skill_version (
-        skill_id, version, status, content, tool_access_mode, change_summary, content_hash, create_time
-    )
-    SELECT definition.id, 1, 'APPROVED', seeded.content, 'RESTRICT', '内置初始版本',
-           encode(digest(seeded.content, 'sha256'), 'hex'), CURRENT_TIMESTAMP
-    FROM inserted_versions definition
-    JOIN seeded_skill seeded ON seeded.code = definition.code
-    RETURNING id, skill_id
-)
-UPDATE ai_skill_definition definition
-SET current_version_id = version.id, update_time = CURRENT_TIMESTAMP
-FROM created_versions version
-WHERE definition.id = version.skill_id;
--- ============================================================
--- AAF 框架内建 Skill（稳定根对象 + 已批准不可变执行版本）
--- 唯一真理源：SQL Seed；运行时仅按 code 读取 current APPROVED version。
--- ============================================================
-WITH seeded_skill (code, name, summary, content) AS (
-    VALUES
-        ($skill$builtin-self-awareness$skill$, $skill$自我认知$skill$, $skill$USE WHEN 用户询问助理的身份、能力或受限边界。$skill$, $skill$
-# 自我认知
-
-介绍当前助理的人格、已授权能力与边界。只陈述当前执行画像中确实可用的能力；未知或未授权能力必须明确说明不能使用。$skill$),
-        ($skill$builtin-user-understanding$skill$, $skill$理解用户$skill$, $skill$USE WHEN 用户希望助理了解其背景、偏好或沟通方式。$skill$, $skill$
-# 理解用户
-
-主动澄清用户职业背景、目标、偏好和沟通方式。仅在当前主体授权范围内记录可用于后续服务的最小必要信息。$skill$),
-        ($skill$builtin-self-learning$skill$, $skill$自学习$skill$, $skill$USE WHEN 用户反馈结果错误，或请求改进执行方式。$skill$, $skill$
-# 自学习
-
-分析当前任务结果和可见审计证据，说明改进建议。不得直接修改已发布 Skill 正文；任何内容调整必须创建新版本并进入审核。$skill$),
-        ($skill$builtin-skill-creation$skill$, $skill$创建技能$skill$, $skill$USE WHEN 用户希望创建、审查或发布新的 AAF Skill。$skill$, $skill$
-# 创建技能
-
-收集名称、USE WHEN 摘要、Markdown 正文、输入输出约束、工具要求与引用边界。创建草稿版本，禁止绕过审核直接改变已发布版本。$skill$),
-        ($skill$builtin-tool-generation$skill$, $skill$生成工具$skill$, $skill$USE WHEN 用户需要定义新的受控工具能力。$skill$, $skill$
-# 生成工具
-
-生成工具设计草案并说明权限和风险。工具注册与 Skill 激活是独立治理流程，禁止将新工具自动授权给当前执行。$skill$),
-        ($skill$aigc-image-gen$skill$, $skill$AI 生图$skill$, $skill$USE WHEN 用户需要优化图像生成提示词或规划图像创作。$skill$, $skill$
-# AI 生图
-
-根据用户目标优化图像生成提示词，建议构图、光线、色调和风格。只使用当前执行画像显式授权的图像生成工具。$skill$),
-        ($skill$aigc-copywriting$skill$, $skill$AI 文案$skill$, $skill$USE WHEN 用户需要创作广告、口播、小红书或产品文案。$skill$, $skill$
-# AI 文案
-
-根据目标读者、平台和产品事实生成可审查文案。不得编造事实、自动发布或代表用户作出对外承诺。$skill$),
-        ($skill$aigc-video-gen$skill$, $skill$AI 生视频$skill$, $skill$USE WHEN 用户需要优化视频生成提示词或拆分镜头方案。$skill$, $skill$
-# AI 生视频
-
-根据用户目标组织主体动作、场景环境、风格和镜头语言；复杂视频应拆分为可审查镜头。$skill$),
-        ($skill$system.skill.content-project-collaboration$skill$, $skill$内容项目协作$skill$, $skill$USE WHEN 用户在 Content Studio 项目上下文中规划项目结构、生成或修改内容、比较候选、切换 manual/auto，或要求批量、自动、继续生成。可从目录 Blueprint 或项目需求生成 BlueprintSnapshot；仅在服务端已绑定有效 projectId 时激活。$skill$, $skill$
-# 内容项目协作
-
-## 作用域
-
-项目域（上下文已绑定 projectId）：先调用 `inspect_project_semantics` 读取当前项目的权威语义、对象 readiness、允许动作和 generationMode。需要保存已生成文本或文档时，调用 `record_project_text_candidate` 或 `record_project_document_candidate`；二者只形成 candidate，不得自动采用。
-
-物化前的创建草稿域（还没有 projectId）：不调用任何项目 Tool，按已确认目标的指令直接产出字段内容作为最终答复。
-
-两域共同边界：不得在 Tool 参数中传 projectId、workspaceId、binding、relation layer 或其他项目范围；项目身份只能来自 InvocationContext。未知、废弃或版本不一致语义必须停止并说明原因。
-
-## 推进已确认的生成目标
-
-服务端创建的生成任务会在目标中列出本次已确认的 itemKey 集合，每个目标的指令与冻结哈希都作为独立只读事实提供。
-
-项目域推进只能通过 `aigc.project.generation.action.submit`，参数只有 itemKey；动作、项目版本与图谱 revision 全部由服务端解析并冻结。
-
-- itemKey 必须逐字取自本次已确认集合，不得新增、改写、合并或猜测目标
-- 只决定推进顺序，不声明依赖或 readiness；真实先后关系以 readiness 为准，BLOCKED_BY_DEPENDENCY 的目标先推进其上游
-- manual：提交一个目标后停下，汇报状态与下一步，等用户确认再推进下一个
-- auto：在已确认集合内连续推进 readiness 为 READY 的目标，直到集合全部提交或出现停止条件；不扩大范围，不绕过确认、采用、审核和发布门
-
-出现以下任一情况立即停止推进并说明原因，不重试、不改用其他路径：
-
-- 目标 readiness 不是 READY，或该目标存在待决策候选
-- 权限、余额、项目版本或图谱 revision 冲突
-- 用户目标或已确认范围发生变化
-- 服务端要求人工确认
-- 同一目标连续失败
-
-Tool 受理只表示动作已提交，不代表内容已产出。目标进入等待外部结果后结束本轮，不轮询、不重复提交同一目标；结果到达后的恢复由服务端完成。
-
-## 创建草稿域的答复格式
-
-草稿域的最终答复会被原样解析并填入创建表单，因此只能输出一个 JSON 对象，不写开场白、说明、标题或代码块围栏：
-
-- 键只能是本次已确认的初始化字段键，不得新增或改名
-- 列表类字段（内容要求、约束条件、关键事实、核心信息、成功标准）给字符串数组，每个元素是一条，不带编号或项目符号
-- 交付要求给 JSON 对象
-- 其余字段给字符串
-- 只写得出部分字段时，只给出这些键；写不出的键直接省略，不要给空字符串或空数组
-
-示例形状：`{"background": "……", "requirements": ["……", "……"]}`
-
-无法在上述约束内产出内容时，说明原因，不要用解释性文字冒充字段值。$skill$),
-        ($skill$system.skill.assistant-blueprint-planning$skill$, $skill$Assistant 项目蓝图规划$skill$, $skill$USE WHEN 服务端以 BLUEPRINT_PLANNING purpose 创建受控 canonical Task，要求为尚未物化的项目生成逻辑 Blueprint Proposal。$skill$, $skill$
-# Assistant 项目蓝图规划
-
-根据服务端提供的项目名称和用户目标，生成一份可确定性校验的逻辑项目蓝图，并调用 `aigc.blueprint.proposal.submit` 提交。
-
-## 提交边界
-
-- 必须且只能提交 projectSpecification、projectInitialization、objectSpecs、relationSpecs、actions、deliverableSets、processPolicy
-- projectSpecification 使用 projectTypeCode、productionMode 和 channelCodes，不得提交数据库 ID 或发布版本
-- relationSpecs 只声明 sourceKey、targetKey、relationType 和可选 metadataJson，不得提交 canonical layer/direction
-- 不得提交 planningId、proposalId/hash、sourceRef、owner/org/workspace、权限或绑定版本
-- 所有对象使用提案内稳定逻辑 key；不得创建或猜测数据库 ID
-- Tool 成功只表示待确认 Proposal 已保存，不代表项目已创建
-$skill$),
-        ($skill$builtin-javascript-compute$skill$, $skill$受控 JavaScript 计算$skill$, $skill$USE WHEN 用户要求基于明确输入完成复杂数值计算、统计汇总、结构化数据转换、排序去重或可验证算法处理，并需要实际运行得到确定结果；不用于系统命令、文件或网络访问，也不用于仅讲解代码。$skill$, $skill$
-# 受控 JavaScript 计算
-
-将用户提供的数据转换成最小纯 JavaScript 脚本，通过当前执行画像授权的受治理工具实际执行，并根据真实执行结果答复。
-
-## 适用范围
-
-- 复杂数值计算、统计汇总、单位换算或批量公式计算
-- JSON 对象或数组的映射、筛选、排序、分组、聚合与去重
-- 需要程序化复核的确定性算法和数据处理
-
-## 执行规则
-
-- 输入数据、计算规则或期望输出不明确时，先向用户澄清，不得猜测
-- 只把任务所需的最小数据放入 `arguments`，脚本仅通过 `args` 读取参数
-- 使用最小、确定性的标准 JavaScript，将最终结果赋给 `__result`
-- 对象或数组结果必须先通过 `JSON.stringify` 序列化
-- 必须以工具的真实返回值为准，不得用推测结果冒充执行结果
-- 若脚本语法或运行失败，可依据 `stderr` 修正并重试一次；仍失败则如实说明
-- 默认返回结果及必要的计算说明；用户要求时再附上生成的脚本
-
-## 安全边界
-
-- 只能调用 `script.execute.javascript`，不得改用 Shell、Python、Node.js 或其他执行路径
-- 不得尝试访问宿主对象、文件、网络、环境变量、线程、进程或原生代码
-- 不得在脚本中使用 `eval`、`Function` 构造器、WebAssembly 或动态加载代码
-- 不得把凭证、密钥、令牌或非必要个人敏感信息放入脚本或参数
-- 工具不可见、未授权或用户拒绝确认时必须停止，不得绕过 AAF 治理$skill$),
-        ($skill$builtin-agent-execution$skill$, $skill$受控 Agent 执行$skill$, $skill$USE WHEN AAF 工作流或 AIGC 在 Assistant SkillSelection 外直接执行已发布 Agent。$skill$, $skill$
-# 受控 Agent 执行
-
-根据当前用户请求和 Agent 的已发布定义完成任务。只能使用 AAF 最终执行画像显式授权的工具；不得加载、选择或修改其他 Skill。$skill$),
-        ($skill$builtin-task-decomposition$skill$, $skill$任务复杂度判断与拆分$skill$, $skill$USE WHEN 协调者或执行者需要判断本轮任务该直接完成、拆成步骤还是拆给多个执行者。$skill$, $skill$
-# 任务复杂度判断与拆分
-
-按任务复杂度自主判断三档处理方式，三者只能选一种，不要同时拆步骤又派生执行者：
-
-## 简单任务
-
-任务是单一、连贯的工作，不需要拆分。直接给出最终答案，不调用任何计划或协调工具。
-
-## 需要按步骤推进（不需要多个执行者）
-
-调用 `submit_executor_plan` 提交有序步骤列表（目标、风险自评、验证方式、每一步的标题与说明）。提交后就地进入
-执行，不需要等待额外确认。开始执行某个步骤前调用 `report_executor_step` 上报 `STARTED`，完成后上报
-`COMPLETED`，遇到无法完成的失败上报 `FAILED`；必须按步骤声明的顺序与依赖关系逐条上报，不要跳过或提前上报
-未满足依赖的步骤。提交计划后应在同一次回复内继续完成全部步骤，不要中途转而派生执行者。
-
-## 需要多个执行者协作
-
-仅协调者可用。任务涉及不同领域分工、可并行拆解为独立子任务时，调用 `submit_coordination_plan` 派生执行者
-子任务，说明目标、并行度、聚合方式与每个执行者的角色。提交后协调者本轮工作结束，不需要再产出最终答案——
-派生的执行者会各自独立完成分配到的子任务。
-
-除并行度上限外，还需判断执行者之间是否存在真实的先后关系：某个执行者的工作是否必须等待另一个执行者的产出
-作为输入才能开始。只在这种真实产出-输入依赖存在时才声明该先后关系；彼此不需要对方产出即可开始的执行者应
-视为独立，不得声明依赖。不要凭任务描述的表面顺序、内容类型或常见习惯（例如"文本通常先于配图"）臆断依赖，
-真实依赖必须来自本次协调实际掌握的输入产出关系。
-
-## 判断依据
-
-不要仅凭任务描述长短判断复杂度，只看语义上是否真的存在多个独立步骤或需要不同角色分工。用户明确要求"直接
-回答""不要拆解"时优先遵从用户意图。$skill$)
-), inserted_definitions AS (
-    INSERT INTO ai_skill_definition (
-        code, name, summary, locale, visibility, built_in, create_time, update_time
-    )
-    -- builtin-* 是模型内部语义指导（自我认知/自学习/理解用户/任务复杂度判断等元认知能力，通过 USE WHEN
-    -- 触发），不是用户主动选用的功能模板，visibility=INTERNAL 使其不出现在 /system/skills/public、
-    -- /visible 等用户可见目录（SkillService.publicDirectorySpec/visibleDirectorySpec 只认
-    -- PUBLIC/WORKSPACE），但不影响 Role/Assistant/ai_system_skill_binding 的绑定与运行时执行——
-    -- 那条链路（DefaultRoleSelector/SkillSelectionPort 等）按 code 精确查找，不经过 visibility 过滤。
-    -- 本 CTE 块同时包含 aigc-image-gen/aigc-copywriting/aigc-video-gen 三个业务类技能，保持 PUBLIC。
-    SELECT code, name, summary, 'zh-CN',
-           CASE WHEN code LIKE 'builtin-%' OR code LIKE 'system.skill.%' THEN 'INTERNAL' ELSE 'PUBLIC' END,
-           TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-    FROM seeded_skill
-    RETURNING id, code
-), created_versions AS (
-    INSERT INTO ai_skill_version (
-        skill_id, version, status, content, tool_access_mode, change_summary, content_hash, create_time
-    )
-    -- builtin-task-decomposition 用 INHERIT（AAF-107 选项 B 架构改造，2026-09-02）：任务复杂度判断是
-    -- 系统级默认能力，不应要求每个 Role 显式在 tool_whitelist 里配置协调/计划工具——INHERIT 只允许已审核
-    -- 系统 Skill 声明（本表 built_in 恒为 TRUE），跳过 skillRequiredToolNames 限制直接放行 Role 与 Agent
-    -- 声明工具的交集，不产生新的信任边界（DefaultEffectiveToolResolver.java:36-44）。
-    SELECT definition.id, 1, 'APPROVED', seeded.content,
-           CASE WHEN seeded.code = 'builtin-task-decomposition' THEN 'INHERIT' ELSE 'RESTRICT' END,
-           '内置初始版本', encode(digest(seeded.content, 'sha256'), 'hex'), CURRENT_TIMESTAMP
-    FROM inserted_definitions definition
-    JOIN seeded_skill seeded ON seeded.code = definition.code
-    RETURNING id, skill_id
-)
-UPDATE ai_skill_definition definition
-SET current_version_id = version.id, update_time = CURRENT_TIMESTAMP
-FROM created_versions version
-WHERE definition.id = version.skill_id;
-
--- PostgreSQL 不会在同一数据修改 CTE 中再次更新刚插入的根对象；独立语句回填初始发布指针。
-UPDATE ai_skill_definition definition
-SET current_version_id = (
-        SELECT version.id
-        FROM ai_skill_version version
-        WHERE version.skill_id = definition.id
-          AND version.status = 'APPROVED'
-        ORDER BY version.version DESC
-        LIMIT 1
-    ),
-    update_time = CURRENT_TIMESTAMP
-WHERE definition.built_in = TRUE
-  AND definition.deleted = FALSE
-  AND definition.current_version_id IS NULL
-  AND EXISTS (
-        SELECT 1
-        FROM ai_skill_version version
-        WHERE version.skill_id = definition.id
-          AND version.status = 'APPROVED'
-    );
-
--- 受控 JavaScript 计算 Skill 只允许使用受治理脚本工具。
-INSERT INTO ai_skill_tool_requirement (
-    skill_version_id, tool_id, tool_version, tool_name,
-    required, usage_purpose, sort_order
-)
-SELECT skill.current_version_id,
-       'script.execute.javascript',
-       1,
-       'script.execute.javascript',
-       TRUE,
-       '将明确输入转换为最小纯 JavaScript 脚本并在 GraalVM 受限运行时执行，以真实结果完成确定性计算或数据处理',
-       100
-FROM ai_skill_definition skill
-WHERE skill.code = 'builtin-javascript-compute'
-  AND skill.current_version_id IS NOT NULL
-  AND skill.built_in = TRUE
-  AND skill.deleted = FALSE
-ON CONFLICT (skill_version_id, tool_id, tool_version) DO UPDATE SET
-    tool_name = EXCLUDED.tool_name,
-    required = EXCLUDED.required,
-    usage_purpose = EXCLUDED.usage_purpose,
-    sort_order = EXCLUDED.sort_order;
-
--- 项目协作 Skill 只允许读取 InvocationContext 已绑定项目的权威语义。
-INSERT INTO ai_skill_tool_requirement (
-    skill_version_id, tool_id, tool_version, tool_name,
-    required, usage_purpose, sort_order
-)
-SELECT skill.current_version_id,
-       'inspect_project_semantics',
-       1,
-       'inspect_project_semantics',
-       TRUE,
-       '读取当前 InvocationContext 已绑定项目的语义、readiness 与允许动作，不接受模型指定项目范围',
-       100
-FROM ai_skill_definition skill
-WHERE skill.code = 'system.skill.content-project-collaboration'
-  AND skill.current_version_id IS NOT NULL
-  AND skill.built_in = TRUE
-  AND skill.deleted = FALSE
-ON CONFLICT (skill_version_id, tool_id, tool_version) DO UPDATE SET
-    tool_name = EXCLUDED.tool_name,
-    required = EXCLUDED.required,
-    usage_purpose = EXCLUDED.usage_purpose,
-    sort_order = EXCLUDED.sort_order;
-
-INSERT INTO ai_skill_tool_requirement (
-    skill_version_id, tool_id, tool_version, tool_name,
-    required, usage_purpose, sort_order
-)
-SELECT skill.current_version_id,
-       'record_project_text_candidate',
-       1,
-       'record_project_text_candidate',
-       TRUE,
-       '将模型正文登记为当前 InvocationContext 已绑定项目对象的不可变文本 candidate，不自动采用',
-       110
-FROM ai_skill_definition skill
-WHERE skill.code = 'system.skill.content-project-collaboration'
-  AND skill.current_version_id IS NOT NULL
-  AND skill.built_in = TRUE
-  AND skill.deleted = FALSE
-ON CONFLICT (skill_version_id, tool_id, tool_version) DO UPDATE SET
-    tool_name = EXCLUDED.tool_name,
-    required = EXCLUDED.required,
-    usage_purpose = EXCLUDED.usage_purpose,
-    sort_order = EXCLUDED.sort_order;
-
-INSERT INTO ai_skill_tool_requirement (
-    skill_version_id, tool_id, tool_version, tool_name,
-    required, usage_purpose, sort_order
-)
-SELECT skill.current_version_id,
-       'record_project_document_candidate',
-       1,
-       'record_project_document_candidate',
-       TRUE,
-       '将模型文档正文登记为当前 InvocationContext 已绑定项目对象的不可变文档 candidate，不自动采用',
-       120
-FROM ai_skill_definition skill
-WHERE skill.code = 'system.skill.content-project-collaboration'
-  AND skill.current_version_id IS NOT NULL
-  AND skill.built_in = TRUE
-  AND skill.deleted = FALSE
-ON CONFLICT (skill_version_id, tool_id, tool_version) DO UPDATE SET
-    tool_name = EXCLUDED.tool_name,
-    required = EXCLUDED.required,
-    usage_purpose = EXCLUDED.usage_purpose,
-    sort_order = EXCLUDED.sort_order;
-
-INSERT INTO ai_skill_tool_requirement (
-    skill_version_id, tool_id, tool_version, tool_name,
-    required, usage_purpose, sort_order
-)
-SELECT skill.current_version_id,
-       'aigc.project.generation.action.submit',
-       1,
-       'aigc.project.generation.action.submit',
-       TRUE,
-       '提交当前 taskId 已确认的单项生成目标为确定性动作；目标、项目版本与图谱 revision 全部由服务端解析并冻结',
-       130
-FROM ai_skill_definition skill
-WHERE skill.code = 'system.skill.content-project-collaboration'
-  AND skill.current_version_id IS NOT NULL
-  AND skill.built_in = TRUE
-  AND skill.deleted = FALSE
-ON CONFLICT (skill_version_id, tool_id, tool_version) DO UPDATE SET
-    tool_name = EXCLUDED.tool_name,
-    required = EXCLUDED.required,
-    usage_purpose = EXCLUDED.usage_purpose,
-    sort_order = EXCLUDED.sort_order;
-
--- Assistant Blueprint Planning Skill 只允许提交当前 taskId 已绑定的逻辑提案。
-INSERT INTO ai_skill_tool_requirement (
-    skill_version_id, tool_id, tool_version, tool_name,
-    required, usage_purpose, sort_order
-)
-SELECT skill.current_version_id,
-       'aigc.blueprint.proposal.submit',
-       1,
-       'aigc.blueprint.proposal.submit',
-       TRUE,
-       '提交逻辑 ProjectSpecification、项目初始化、对象、关系、动作、交付集和流程策略；受信范围与版本均由服务端补齐',
-       100
-FROM ai_skill_definition skill
-WHERE skill.code = 'system.skill.assistant-blueprint-planning'
-  AND skill.current_version_id IS NOT NULL
-  AND skill.built_in = TRUE
-  AND skill.deleted = FALSE
-ON CONFLICT (skill_version_id, tool_id, tool_version) DO UPDATE SET
-    tool_name = EXCLUDED.tool_name,
-    required = EXCLUDED.required,
-    usage_purpose = EXCLUDED.usage_purpose,
-    sort_order = EXCLUDED.sort_order;
-
--- SYSTEM Scope 默认 Skill 绑定；自我认知不得声明工具 requirement。
-INSERT INTO ai_system_skill_binding (
-    skill_id, activation_mode, enabled, sort_order, create_time, update_time, deleted
-)
-SELECT skill.id, 'ALWAYS', TRUE, 100, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
-FROM ai_skill_definition skill
-WHERE skill.code = 'builtin-self-awareness'
-  AND skill.current_version_id IS NOT NULL
-  AND skill.deleted = FALSE
-ON CONFLICT (skill_id) DO UPDATE SET
-    activation_mode = EXCLUDED.activation_mode,
-    enabled = EXCLUDED.enabled,
-    sort_order = EXCLUDED.sort_order,
-    update_time = CURRENT_TIMESTAMP,
-    deleted = FALSE;
-
--- 自学习全局生效（原绑定在 platform-guide Role，2026-09-03 迁移）：与 builtin-self-awareness 同类，
--- 是任何对话场景都可能触发的元认知能力（用户反馈结果错误时），不应局限于某个具体 Role 才能使用。
-INSERT INTO ai_system_skill_binding (
-    skill_id, activation_mode, enabled, sort_order, create_time, update_time, deleted
-)
-SELECT skill.id, 'ALWAYS', TRUE, 105, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
-FROM ai_skill_definition skill
-WHERE skill.code = 'builtin-self-learning'
-  AND skill.current_version_id IS NOT NULL
-  AND skill.deleted = FALSE
-ON CONFLICT (skill_id) DO UPDATE SET
-    activation_mode = EXCLUDED.activation_mode,
-    enabled = EXCLUDED.enabled,
-    sort_order = EXCLUDED.sort_order,
-    update_time = CURRENT_TIMESTAMP,
-    deleted = FALSE;
-
--- 任务复杂度判断全局生效（AAF-107 选项 B 架构改造，2026-09-02）：不限定到某个 Role，
--- 任何走 SkillSelection 的 Assistant/Role 都能看到判断指导，不声明工具 requirement
--- （Skill 正文只是文字指导，工具白名单仍由各 Role/Assistant 的 tool_whitelist 独立控制）。
-INSERT INTO ai_system_skill_binding (
-    skill_id, activation_mode, enabled, sort_order, create_time, update_time, deleted
-)
-SELECT skill.id, 'ALWAYS', TRUE, 110, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
-FROM ai_skill_definition skill
-WHERE skill.code = 'builtin-task-decomposition'
-  AND skill.current_version_id IS NOT NULL
-  AND skill.deleted = FALSE
-ON CONFLICT (skill_id) DO UPDATE SET
-    activation_mode = EXCLUDED.activation_mode,
-    enabled = EXCLUDED.enabled,
-    sort_order = EXCLUDED.sort_order,
-    update_time = CURRENT_TIMESTAMP,
-    deleted = FALSE;
 
 -- ============================================================
 -- 内置 Skill 分类
@@ -1539,17 +1015,41 @@ ON CONFLICT (code) DO NOTHING;
 -- ============================================================
 
 INSERT INTO ai_role (
-    id, code, name, description, skill_ids, tool_whitelist, status,
+    id, code, name, description, skill_ids, tool_whitelist, status, visibility,
     create_time, update_time
 ) VALUES (
     2, 'system.role.content-creator', '内容创作者',
     '内容拆解、思路澄清、结构构建、内容裂变和多平台草稿生成',
     '[{"skillKey":"aigc-copywriting","activationMode":"ON_DEMAND"},{"skillKey":"content-schedule","activationMode":"ON_DEMAND"},{"skillKey":"content-judge","activationMode":"ON_DEMAND"},{"skillKey":"content-clarify","activationMode":"ON_DEMAND"},{"skillKey":"content-architect","activationMode":"ON_DEMAND"},{"skillKey":"content-build","activationMode":"ON_DEMAND"},{"skillKey":"voiceover","activationMode":"ON_DEMAND"},{"skillKey":"redbook","activationMode":"ON_DEMAND"},{"skillKey":"product-copy","activationMode":"ON_DEMAND"},{"skillKey":"ip-position","activationMode":"ON_DEMAND"},{"skillKey":"short-script","activationMode":"ON_DEMAND"},{"skillKey":"title-topic","activationMode":"ON_DEMAND"},{"skillKey":"biz-analysis","activationMode":"ON_DEMAND"},{"skillKey":"rich-text-write","activationMode":"ON_DEMAND"},{"skillKey":"system.skill.content-project-collaboration","activationMode":"ON_DEMAND"},{"skillKey":"system.skill.assistant-blueprint-planning","activationMode":"ON_DEMAND"}]',
     '["content.draft.upsert","context.load","inspect_project_semantics","record_project_text_candidate","record_project_document_candidate","aigc.blueprint.proposal.submit","aigc.project.generation.action.submit"]',
-    'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+    'active', 'SYSTEM', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 ) ON CONFLICT (id) DO UPDATE SET
     skill_ids = EXCLUDED.skill_ids,
     tool_whitelist = EXCLUDED.tool_whitelist,
+    visibility = EXCLUDED.visibility,
+    update_time = EXCLUDED.update_time;
+
+-- ============================================================
+-- 银龄健康顾问 Role（养老场景：药品/病症知识核对与健康科普问答）
+-- 医疗类工具只授予本 Role；联网搜索、天气为基础工具（BaseToolProfile），列入授权池仅作为 Role 能力上限。
+-- ============================================================
+
+INSERT INTO ai_role (
+    id, code, name, description, skill_ids, tool_whitelist, status, visibility,
+    create_time, update_time
+) VALUES (
+    5, 'system.role.elder-care-advisor', '银龄健康顾问',
+    '面向老年人及家属的健康知识参考：药品与病症知识核对、口语化健康科普问答，附依据来源；不做诊断、不开处方',
+    '[{"skillKey":"system.skill.elder-care-health","activationMode":"ALWAYS"}]',
+    '["queryMedicalKnowledge","queryMedicalAnswer","webSearch","queryWeather","context.load"]',
+    'active', 'SYSTEM', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+) ON CONFLICT (id) DO UPDATE SET
+    code = EXCLUDED.code,
+    name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    skill_ids = EXCLUDED.skill_ids,
+    tool_whitelist = EXCLUDED.tool_whitelist,
+    visibility = EXCLUDED.visibility,
     update_time = EXCLUDED.update_time;
 
 -- ============================================================
@@ -1593,159 +1093,67 @@ ON CONFLICT (provider_code) WHERE deleted = FALSE DO NOTHING;
 -- ============================================================
 INSERT INTO ai_model (model_id, display_name, provider, provider_type, model_name, base_url,
                       capabilities, context_window, sort_order, enabled,
-                      input_price_per_k, output_price_per_k, model_price, quota_type, image_config)
+                      input_price_per_k, output_price_per_k, model_price, quota_type, image_config, cache_ratio)
 VALUES
 -- 语言模型（输入 0.036元/K，输出 0.108元/K）
+-- claude-opus-5-5：按第三方最高分组价（输入 $7.059/M、输出 $35.294/M、缓存命中 $0.3529/M），汇率按 1 USD = 7.2 CNY 换算为元/千 Token
+-- claude-sonnet-5-5：同上口径（输入 $1.176/M、输出 $5.882/M、缓存命中 $0.0588/M）
+-- claude-opus-4-8：同上口径（输入 $8.824/M、输出 $44.118/M、缓存命中 $0.8824/M）
+-- gpt-5.6-sol：按分组倍率 1 计（模型倍率 2.5、补全倍率 6、缓存倍率 0.1 → 输入 $5/M、输出 $30/M），汇率同上
+-- gpt-6-luna：按分组倍率 1 计（模型倍率 0.05、补全倍率 5、缓存倍率 0.1 → 输入 $0.1/M、输出 $0.5/M），汇率同上
+-- deepseek-v4.1-flash：按分组倍率 1 计（模型倍率 0.15、补全倍率 4、缓存倍率 0.02 → 输入 $0.3/M、输出 $1.2/M），汇率同上
+-- deepseek-v4-pro：分组倍率 1（模型倍率 0.66、补全倍率 3、缓存命中 $0.044/M → 输入 $1.32/M、输出 $3.96/M，缓存倍率 0.044/1.32≈0.033333），汇率同上
+-- qwen3.8-max：百炼人民币直价（输入 12 元/M、输出 36 元/M、隐式缓存命中 1.5 元/M → 倍率 0.125；显式缓存命中 1 元/M、创建 15 元/M 暂不计）
+-- qwen3.8-flash：百炼人民币直价（输入 0.8 元/M、输出 2.7 元/M、隐式缓存命中 0.1 元/M → 倍率 0.125；显式缓存创建 1.25 元/M 暂不计）
 -- ('n1n:text-embedding-3',  'text-embedding-3',   'n1n',     'OPENAI_COMPAT', 'text-embedding-3-small',     'https://llm-api.net/v1',                        'EMBEDDING',   8191,    1,  true,  0.036, 0.108, null, 0, null),
-('n1n:claude-sonnet-4-6', 'Claude Sonnet 4.6',  'n1n',     'OPENAI_COMPAT', 'claude-sonnet-4-6',          'https://llm-api.net/v1',                        'CHAT,VISION',   8191,  2,  true,  0.015, 0.05, null, 0, null),
-('n1n:claude-opus-4-8',   'Claude Ops 4.8',     'n1n',     'OPENAI_COMPAT', 'claude-opus-4-8',            'https://llm-api.net/v1',                        'CHAT,VISION',   8191,  3,  true,  0.015, 0.05, null, 0, null),
--- ('meituan:LongCat-2.0-Preview', 'LongCat',    'meituan',   'OPENAI_COMPAT', 'LongCat-2.0-Preview',        'https://api.longcat.chat/openai/v1',            'CHAT,VISION', 128000,  5,  true,  0.036, 0.108, null, 0, null),
-('n1n:gpt-5.4',           'GPT-4o',             'n1n',     'OPENAI_COMPAT', 'gpt-5.4',                    'https://llm-api.net/v1',                        'CHAT,VISION', 128000, 10,  true,  0.015, 0.04, null, 0, null),
-('n1n:gpt-5.4-mini',      'GPT-4o Mini',        'n1n',     'OPENAI_COMPAT', 'gpt-5.4-mini',               'https://llm-api.net/v1',                        'CHAT,VISION', 128000, 11,  true,  0.015, 0.04, null, 0, null),
--- ('deepseek:chat',         'DeepSeek Chat',       'deepseek','OPENAI_COMPAT', 'deepseek-chat',              'https://api.deepseek.com/v1',                   'CHAT',        64000,  20,  true,  0.036, 0.108, null, 0, null),
--- ('deepseek:reasoner',     'DeepSeek R1',         'deepseek','OPENAI_COMPAT', 'deepseek-reasoner',          'https://api.deepseek.com/v1',                   'CHAT',        64000,  21,  true,  0.036, 0.108, null, 0, null),
-('qwen:qwen3.7-max',      'Qwen Max',            'qwen',    'OPENAI_COMPAT', 'qwen3.7-max',                'https://dashscope.aliyuncs.com/compatible-mode/v1', 'CHAT,VISION',    32000,  30,  true,  0.012, 0.036, null, 0, null),
-('qwen:qwen3.7-plus',     'Qwen Plus',           'qwen',    'OPENAI_COMPAT', 'qwen3.7-plus',               'https://dashscope.aliyuncs.com/compatible-mode/v1', 'CHAT,VISION',  1000000, 31,  true,  0.002, 0.008, null, 0, null),
--- ('qwen:qwen3.6-flash',    'Qwen Flash',          'qwen',    'OPENAI_COMPAT', 'qwen3.6-flash',              'https://dashscope.aliyuncs.com/compatible-mode/v1', 'CHAT,VISION',  1000000, 32,  true,  0.036, 0.108, null, 0, null),
-('qwen:text-embedding-v4','Qwen Embedding',       'qwen',    'OPENAI_COMPAT', 'text-embedding-v4',          'https://dashscope.aliyuncs.com/compatible-mode/v1', 'EMBEDDING', 192, 33,  true,  0.0005, 0, null, 0, null),
+('n1n:claude-opus-5-5',   'Claude Opus 5.5',    'n1n',     'OPENAI_COMPAT', 'claude-opus-5-5',            'https://llm-api.net/v1',                        'CHAT,VISION',    128000,  2,  true,  0.050825, 0.254117, null, 0, null, 0.05),
+('n1n:claude-sonnet-5-5', 'Claude Sonnet 5.5',  'n1n',     'OPENAI_COMPAT', 'claude-sonnet-5-5',          'https://llm-api.net/v1',                        'CHAT,VISION',    128000,  2,  true,  0.008467, 0.04235, null, 0, null, 0.05),
+('n1n:claude-opus-4-8',   'Claude Ops 4.8',     'n1n',     'OPENAI_COMPAT', 'claude-opus-4-8',            'https://llm-api.net/v1',                        'CHAT,VISION',    128000,  3,  true,  0.063533, 0.31765, null, 0, null, 0.1),
+-- ('meituan:LongCat-2.0-Preview', 'LongCat',    'meituan',   'OPENAI_COMPAT', 'LongCat-2.0-Preview',       'https://api.longcat.chat/openai/v1',            'CHAT,VISION', 128000,  5,  true,  0.036, 0.108, null, 0, null),
+('n1n:gpt-5.6-sol',         'GPT 5.6 Sol',       'n1n',     'OPENAI_COMPAT', 'gpt-5.6-sol',                 'https://llm-api.net/v1',                        'CHAT,VISION', 128000, 10,  true,  0.036, 0.216, null, 0, null, 0.1),
+('n1n:gpt-6-luna',          'GPT 6 Luna',        'n1n',     'OPENAI_COMPAT', 'gpt-6-luna',                  'https://llm-api.net/v1',                        'CHAT,VISION', 128000, 11,  true,  0.00072, 0.0036, null, 0, null, 0.1),
+('n1n:deepseek-v4.1-flash', 'DeepSeek Flash',     'n1n',    'OPENAI_COMPAT', 'deepseek-v4.1-flash',          'https://llm-api.net/v1',                   'CHAT',        128000,  20,  true,  0.00216, 0.00864, null, 0, null, 0.02),
+('n1n:deepseek-v4-pro',     'DeepSeek Pro',       'n1n',    'OPENAI_COMPAT', 'deepseek-v4-pro',              'https://llm-api.net/v1',                   'CHAT',        128000,  21,  true,  0.009504, 0.028512, null, 0, null, 0.033333),
+('qwen:qwen3.8-max',      'Qwen Max',             'qwen',    'OPENAI_COMPAT', 'qwen3.8-max',                 'https://dashscope.aliyuncs.com/compatible-mode/v1', 'CHAT,VISION',    128000,  30,  true,  0.012, 0.036, null, 0, null, 0.125),
+('qwen:qwen3.8-flash',     'Qwen Flash',          'qwen',    'OPENAI_COMPAT', 'qwen3.8-flash',                'https://dashscope.aliyuncs.com/compatible-mode/v1', 'CHAT,VISION',  128000, 31,  true,  0.0008, 0.0027, null, 0, null, 0.125),
+('qwen:qwen3.7-text-embedding','Qwen3.7 Embedding', 'qwen',    'OPENAI_COMPAT', 'qwen3.7-text-embedding',     'https://ws-7y060jd154q0f8be.cn-beijing.maas.aliyuncs.com/compatible-mode/v1', 'EMBEDDING', 128000, 33,  true,  0.0005, 0, null, 0, null, null),
 -- 图像生成（按次计费，quota_type=1；OpenAI Compat 按 token 计费，quota_type=0）
-('qwen:wan2.7-image',              '万相 Wan2.7',        'qwen', 'DASHSCOPE',    'wan2.7-image',                   'https://dashscope.aliyuncs.com', 'IMAGE_GEN',  800, 210, true,  null,  null,  0.2, 1, '{"mode":"fixed","sizes":[],"generate":{"maxImages":4,"sizePresets":["1K","2K"],"seed":true},"edit":{"maxInputImages":9,"maxImages":4,"sizePresets":["1K","2K"],"seed":true}}'),
-('qwen:qwen-image-2.0',            '千问图像 2.0',        'qwen', 'DASHSCOPE',    'qwen-image-2.0',                 'https://dashscope.aliyuncs.com', 'IMAGE_GEN',  800, 211, true,  null,  null,  0.2, 1, '{"mode":"fixed","sizes":[[2688,1536],[2368,1728],[2048,2048],[1728,2368],[1536,2688]],"generate":{"maxImages":6,"seed":true,"promptExtend":true,"negativePrompt":true},"edit":{"maxInputImages":3,"maxImages":6,"seed":true,"promptExtend":true,"negativePrompt":true}}'),
-('n1n:gpt-image-2',                'GPT Image 2',         'n1n',  'OPENAI_COMPAT','gpt-image-2',                    'https://llm-api.net/v1',         'IMAGE_GEN', 3000, 212, true,  0.018, 0.108, null, 0, '{"mode":"fixed","sizes":["auto",[1024,1024],[1536,1024],[1024,1536],[2048,2048],[2048,1152],[3840,2160],[2160,3840]],"generate":{"maxImages":10,"quality":["auto","low","medium","high"],"format":["png","jpeg","webp"]},"edit":{"maxInputImages":16,"maxImages":10,"quality":["auto","low","medium","high"],"format":["png","jpeg","webp"]}}'),
-('n1n:gemini-3.1-flash-image-preview','Gemini 3.1 Flash', 'n1n',  'OPENAI_COMPAT','gemini-3.1-flash-image-preview', 'https://llm-api.net/v1',         'CHAT,IMAGE_GEN', 3000, 220, true, null, null, 1.0, 1, '{"mode":"ratio","sizes":{"1:1":[],"1:4":[],"1:8":[],"2:3":[],"3:2":[],"3:4":[],"4:1":[],"4:3":[],"4:5":[],"5:4":[],"8:1":[],"9:16":[],"16:9":[],"21:9":[]},"generate":{"maxImages":1,"sizePresets":["512","1K","2K","4K"]},"edit":{"maxInputImages":14,"maxImages":1,"sizePresets":["512","1K","2K","4K"]}}'),
-('n1n:gemini-3-pro-image-preview',    'Gemini 3 Pro',     'n1n',  'OPENAI_COMPAT','gemini-3-pro-image-preview',     'https://llm-api.net/v1',         'CHAT,IMAGE_GEN', 3000, 221, true, null, null, 1.0, 1, '{"mode":"ratio","sizes":{"1:1":[],"2:3":[],"3:2":[],"3:4":[],"4:3":[],"4:5":[],"5:4":[],"9:16":[],"16:9":[],"21:9":[]},"generate":{"maxImages":1,"sizePresets":["1K","2K","4K"]},"edit":{"maxInputImages":14,"maxImages":1,"sizePresets":["1K","2K","4K"]}}'),
+('qwen:wan2.7-image',              '万相 Wan2.7',        'qwen', 'DASHSCOPE',    'wan2.7-image',                   'https://dashscope.aliyuncs.com', 'IMAGE_GEN',  800, 210, true,  null,  null,  0.2, 1, '{"mode":"fixed","sizes":[],"generate":{"maxImages":4,"sizePresets":["1K","2K"],"seed":true},"edit":{"maxInputImages":9,"maxImages":4,"sizePresets":["1K","2K"],"seed":true}}', null),
+('qwen:qwen-image-2.0',            '千问图像 2.0',        'qwen', 'DASHSCOPE',    'qwen-image-2.0',                 'https://dashscope.aliyuncs.com', 'IMAGE_GEN',  800, 211, true,  null,  null,  0.2, 1, '{"mode":"fixed","sizes":[[2688,1536],[2368,1728],[2048,2048],[1728,2368],[1536,2688]],"generate":{"maxImages":6,"seed":true,"promptExtend":true,"negativePrompt":true},"edit":{"maxInputImages":3,"maxImages":6,"seed":true,"promptExtend":true,"negativePrompt":true}}', null),
+('n1n:gpt-image-2',                'GPT Image 2',         'n1n',  'OPENAI_COMPAT','gpt-image-2',                    'https://llm-api.net/v1',         'IMAGE_GEN', 3000, 212, true,  0.018, 0.108, null, 0, '{"mode":"fixed","sizes":["auto",[1024,1024],[1536,1024],[1024,1536],[2048,2048],[2048,1152],[3840,2160],[2160,3840]],"generate":{"maxImages":10,"quality":["auto","low","medium","high"],"format":["png","jpeg","webp"]},"edit":{"maxInputImages":16,"maxImages":10,"quality":["auto","low","medium","high"],"format":["png","jpeg","webp"]}}', null),
+('n1n:gemini-3.1-flash-image-preview','Gemini 3.1 Flash', 'n1n',  'OPENAI_COMPAT','gemini-3.1-flash-image-preview', 'https://llm-api.net/v1',         'CHAT,IMAGE_GEN', 3000, 220, true, null, null, 1.0, 1, '{"mode":"ratio","sizes":{"1:1":[],"1:4":[],"1:8":[],"2:3":[],"3:2":[],"3:4":[],"4:1":[],"4:3":[],"4:5":[],"5:4":[],"8:1":[],"9:16":[],"16:9":[],"21:9":[]},"generate":{"maxImages":1,"sizePresets":["512","1K","2K","4K"]},"edit":{"maxInputImages":14,"maxImages":1,"sizePresets":["512","1K","2K","4K"]}}', null),
+('n1n:gemini-3-pro-image-preview',    'Gemini 3 Pro',     'n1n',  'OPENAI_COMPAT','gemini-3-pro-image-preview',     'https://llm-api.net/v1',         'CHAT,IMAGE_GEN', 3000, 221, true, null, null, 1.0, 1, '{"mode":"ratio","sizes":{"1:1":[],"2:3":[],"3:2":[],"3:4":[],"4:3":[],"4:5":[],"5:4":[],"9:16":[],"16:9":[],"21:9":[]},"generate":{"maxImages":1,"sizePresets":["1K","2K","4K"]},"edit":{"maxInputImages":14,"maxImages":1,"sizePresets":["1K","2K","4K"]}}', null),
 -- ('n1n:doubao-seedream-5-0-260128',    '豆包 Seedream 5.0','n1n',  'OPENAI_COMPAT','doubao-seedream-5-0-260128',     'https://llm-api.net/v1',         'IMAGE_GEN',  800, 230, true,  null,  null,  1.0, 1, '{"mode":"fixed","sizes":[[1024,1024],[1536,1024],[1024,1536],[2048,2048],[2048,1152],[1152,2048]],"generate":{"maxImages":4,"format":["jpeg","png"]}}'),
 -- 视频生成
-('qwen:happyhorse-1.1-i2v',        'HappyHorse I2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.1-i2v',             'https://ws-7y060jd154q0f8be.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 350, true,  null,  null, null, 3, null),
-('qwen:happyhorse-1.1-t2v',        'HappyHorse T2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.1-t2v',             'https://ws-7y060jd154q0f8be.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 351, true,  null,  null, null, 3, null),
-('qwen:happyhorse-1.1-r2v',        'HappyHorse R2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.1-r2v',             'https://ws-7y060jd154q0f8be.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 352, true,  null,  null, null, 3, null),
-('qwen:happyhorse-1.0-video-edit', 'HappyHorse 视频编辑', 'qwen', 'DASHSCOPE',    'happyhorse-1.0-video-edit',      'https://ws-7y060jd154q0f8be.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 353, true,  null,  null, null, 3, null),
+('qwen:happyhorse-1.1-i2v',        'HappyHorse I2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.1-i2v',             'https://ws-7y060jd154q0f8be.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 350, true,  null,  null, null, 3, null, null),
+('qwen:happyhorse-1.1-t2v',        'HappyHorse T2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.1-t2v',             'https://ws-7y060jd154q0f8be.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 351, true,  null,  null, null, 3, null, null),
+('qwen:happyhorse-1.1-r2v',        'HappyHorse R2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.1-r2v',             'https://ws-7y060jd154q0f8be.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 352, true,  null,  null, null, 3, null, null),
+('qwen:happyhorse-1.0-video-edit', 'HappyHorse 视频编辑', 'qwen', 'DASHSCOPE',    'happyhorse-1.0-video-edit',      'https://ws-7y060jd154q0f8be.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 353, true,  null,  null, null, 3, null, null),
 -- ('volcengine:doubao-seedance-2-0-260128','Doubao Seedance 2.0','volcengine','VOLCENGINE','doubao-seedance-2-0-260128','https://ark.cn-beijing.volces.com/api/v3','VIDEO_GEN', null, 354, true, null, null, null, 0, null),
 -- 重排序
-('qwen:qwen3-rerank',              'GTE Rerank v2',       'qwen', 'DASHSCOPE',    'qwen3-rerank',                   'https://dashscope.aliyuncs.com', 'RERANK',     null, 360, true,  null,  null, null, 0, null),
+('qwen:qwen3.7-text-rerank',      'Qwen3.7 Rerank',      'qwen', 'DASHSCOPE',    'qwen3.7-text-rerank',            'https://ws-7y060jd154q0f8be.cn-beijing.maas.aliyuncs.com', 'RERANK',     32000, 360, true,  0.0005,  0, null, 0, null, null),
 -- 语音识别（ASR）
-('qwen:fun-asr-realtime',          '通义 ASR Flash',      'qwen', 'DASHSCOPE',    'fun-asr-realtime',               'https://dashscope.aliyuncs.com', 'SPEECH_ASR', null, 310, true,  null,  null, 0.00033, 2, null),
+('qwen:fun-asr-realtime',          '通义 ASR Flash',      'qwen', 'DASHSCOPE',    'fun-asr-realtime',               'https://dashscope.aliyuncs.com', 'SPEECH_ASR', null, 310, true,  null,  null, 0.00033, 2, null, null),
 -- 语音合成（TTS）
-('qwen:cosyvoice-v3-flash',        'CosyVoice 3 Flash',   'qwen', 'DASHSCOPE',    'cosyvoice-v3-flash',             'https://dashscope.aliyuncs.com', 'SPEECH_TTS', null, 320, true,  0.1,   null, null, 0, null),
-('qwen:cosyvoice-v3-plus',         'CosyVoice 3 Plus',    'qwen', 'DASHSCOPE',    'cosyvoice-v3-plus',              'https://dashscope.aliyuncs.com', 'SPEECH_TTS', null, 321, true,  0.2,   null, null, 0, null),
+('qwen:cosyvoice-v3-flash',        'CosyVoice 3 Flash',   'qwen', 'DASHSCOPE',    'cosyvoice-v3-flash',             'https://dashscope.aliyuncs.com', 'SPEECH_TTS', null, 320, true,  0.1,   null, null, 0, null, null),
+('qwen:cosyvoice-v3-plus',         'CosyVoice 3 Plus',    'qwen', 'DASHSCOPE',    'cosyvoice-v3-plus',              'https://dashscope.aliyuncs.com', 'SPEECH_TTS', null, 321, true,  0.2,   null, null, 0, null, null),
 -- 音乐生成
-('qwen:fun-music-v1',              '文生音乐 v1',          'qwen', 'DASHSCOPE',    'fun-music-v1',                   'https://dashscope.aliyuncs.com', 'MUSIC_GEN',  null, 330, true,  null,  null, 0.002, 2, null),
+('qwen:fun-music-v1',              '文生音乐 v1',          'qwen', 'DASHSCOPE',    'fun-music-v1',                   'https://dashscope.aliyuncs.com', 'MUSIC_GEN',  null, 330, true,  null,  null, 0.002, 2, null, null),
 -- 全模态实时
-('qwen:qwen3-omni-flash-realtime', 'Qwen3 Omni Flash',    'qwen', 'DASHSCOPE',    'qwen-omni-flash-realtime',       'https://dashscope.aliyuncs.com', 'OMNI_REALTIME', null, 340, true, null, null, null, 0, null),
--- ============================================================
--- 银龄健康顾问 Role（养老场景：药品/病症知识核对与健康科普问答）
--- 医疗类工具只授予本 Role；联网搜索、天气为基础工具（BaseToolProfile），列入授权池仅作为 Role 能力上限。
--- ============================================================
-
-INSERT INTO ai_skill_definition (
-    code, name, summary, locale, visibility, built_in, create_time, update_time
-) VALUES (
-    'system.skill.elder-care-health', '银龄健康顾问',
-    '面向老年人及家属的健康知识参考：药品与病症属性核对、口语化健康科普问答，附依据来源，不做诊断',
-    'zh-CN', 'INTERNAL', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-) ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
-
-INSERT INTO ai_skill_version (
-    skill_id, version, status, content, tool_access_mode, change_summary, content_hash, create_time
-)
-SELECT skill.id, 1, 'APPROVED', seeded.content, 'RESTRICT', '内置初始版本',
-       encode(digest(seeded.content, 'sha256'), 'hex'), CURRENT_TIMESTAMP
-FROM ai_skill_definition skill
-CROSS JOIN (
-    SELECT $skill$你是面向老年人及其家属的健康知识顾问。目标是用通俗、耐心、简洁的语言提供**健康知识参考**，帮助用户看懂药品说明、了解常见病症和日常保健。
-
-## 工具选择
-- 查询某个药品、病症或食品的具体属性（成分、剂型、适应症、药理作用、热量等）：使用 queryMedicalKnowledge，query 只传实体名称，如“阿莫西林胶囊”“高血压”；能确定类别时传 type（medicine 药品 / finding 病症 / food 食品）。
-- 回答口语化的健康问题（如“坐车恶心的原因是什么”“无糖可乐对身体好吗”）：使用 queryMedicalAnswer。
-- 需要最新政策、养老机构、资讯等非医学内容：使用 webSearch。
-- 出行、晨练、保暖等需要天气信息：使用 queryWeather。
-- 两个医疗工具结果为空时，不要编造内容；说明未查到，并建议咨询医生或药师。
-
-## 安全底线
-1. 只提供健康知识参考，**不做诊断，不开处方，不给出具体用药剂量**，不建议自行加减药或停药。
-2. 回答中必须说明“以上内容仅供健康知识参考，不构成诊疗建议，不能替代医生面诊和处方”。
-3. 出现胸痛、呼吸困难、意识不清、突然说话不清或肢体无力、大出血、持续高热、跌倒后无法起身等紧急情况，不要先检索，立即提醒用户拨打 120 或尽快就医。
-4. 涉及多种药物同服、过敏史、孕产、肝肾功能异常、慢性病用药调整时，提醒用户咨询医生或药师。
-5. 引用工具返回的内容时附上来源标题或链接，不要把没有来源的内容说成权威结论。
-
-## 隐私保护
-- 调用任何工具前，把问题改写成**通用关键词**：不要把用户的姓名、手机号、身份证号、住址、具体病史、用药清单等写进工具参数。
-- 需要结合用户自身情况时，先在回答中请用户向医生核实，而不是把个人信息发给检索工具。
-
-## 表达方式
-- 用短句和分点，少用专业术语；必要时解释术语。
-- 先给结论，再给原因和注意事项，最后给“什么时候应该去医院”。$skill$::text AS content
-) seeded
-WHERE skill.code = 'system.skill.elder-care-health'
-  AND skill.deleted = FALSE
-ON CONFLICT (skill_id, version) DO NOTHING;
-
-UPDATE ai_skill_definition skill
-SET current_version_id = (
-        SELECT version.id
-        FROM ai_skill_version version
-        WHERE version.skill_id = skill.id
-          AND version.status = 'APPROVED'
-        ORDER BY version.version DESC
-        LIMIT 1
-    ),
-    update_time = CURRENT_TIMESTAMP
-WHERE skill.code = 'system.skill.elder-care-health'
-  AND skill.deleted = FALSE
-  AND skill.current_version_id IS NULL;
-
--- 医疗类工具作为本 Skill 的必需工具；Skill 工具要求在 Role 与 Agent 声明交集内才可见。
-INSERT INTO ai_skill_tool_requirement (
-    skill_version_id, tool_id, tool_version, tool_name,
-    required, usage_purpose, sort_order
-)
-SELECT skill.current_version_id, tool.tool_name, 1, tool.tool_name,
-       TRUE, tool.usage_purpose, tool.sort_order
-FROM ai_skill_definition skill
-CROSS JOIN (VALUES
-    ('queryMedicalKnowledge', '查询药品、病症、食品的权威结构化属性（阿里云 IQS 健康图谱），仅作健康知识参考', 100),
-    ('queryMedicalAnswer', '回答口语化健康知识问题并给出依据来源（阿里云 IQS 医疗问答），仅作健康知识参考', 110)
-) AS tool(tool_name, usage_purpose, sort_order)
-WHERE skill.code = 'system.skill.elder-care-health'
-  AND skill.current_version_id IS NOT NULL
-  AND skill.built_in = TRUE
-  AND skill.deleted = FALSE
-ON CONFLICT (skill_version_id, tool_id, tool_version) DO UPDATE SET
-    tool_name = EXCLUDED.tool_name,
-    required = EXCLUDED.required,
-    usage_purpose = EXCLUDED.usage_purpose,
-    sort_order = EXCLUDED.sort_order;
-
-INSERT INTO ai_role (
-    id, code, name, description, skill_ids, tool_whitelist, status,
-    create_time, update_time
-) VALUES (
-    5, 'system.role.elder-care-advisor', '银龄健康顾问',
-    '面向老年人及家属的健康知识参考：药品与病症知识核对、口语化健康科普问答，附依据来源；不做诊断、不开处方',
-    '[{"skillKey":"system.skill.elder-care-health","activationMode":"ALWAYS"}]',
-    '["queryMedicalKnowledge","queryMedicalAnswer","webSearch","queryWeather","context.load"]',
-    'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-) ON CONFLICT (id) DO UPDATE SET
-    code = EXCLUDED.code,
-    name = EXCLUDED.name,
-    description = EXCLUDED.description,
-    skill_ids = EXCLUDED.skill_ids,
-    tool_whitelist = EXCLUDED.tool_whitelist,
-    update_time = EXCLUDED.update_time;
-
-('qwen:qwen3.5-omni-plus-realtime','Qwen3.5 Omni Plus',   'qwen', 'DASHSCOPE',    'qwen3.5-omni-plus-realtime',     'https://dashscope.aliyuncs.com', 'OMNI_REALTIME', null, 343, true, null, null, null, 0, null),
+('qwen:qwen3-omni-flash-realtime', 'Qwen3 Omni Flash',    'qwen', 'DASHSCOPE',    'qwen-omni-flash-realtime',       'https://dashscope.aliyuncs.com', 'OMNI_REALTIME', null, 340, true, null, null, null, 0, null, null),
+('qwen:qwen3.5-omni-plus-realtime','Qwen3.5 Omni Plus',   'qwen', 'DASHSCOPE',    'qwen3.5-omni-plus-realtime',     'https://dashscope.aliyuncs.com', 'OMNI_REALTIME', null, 343, true, null, null, null, 0, null, null),
 -- OCR
-('qwen:qwen3.5-ocr',               'Qwen3.5 OCR',         'qwen', 'DASHSCOPE',    'qwen3.5-ocr',                    'https://dashscope.aliyuncs.com',                    'OCR', null, 370, true, 0.0005, 0.002, null, 0, null),
+('qwen:qwen3.5-ocr',               'Qwen3.5 OCR',         'qwen', 'DASHSCOPE',    'qwen3.5-ocr',                    'https://dashscope.aliyuncs.com',                    'OCR', null, 370, true, 0.0005, 0.002, null, 0, null, null),
 -- 3D 生成（按次计费，价格由 params_config.pricing 矩阵决定，model_price 为兜底）
 -- ('meshy:meshy-4',                  'Meshy 4',             'meshy', 'MESHY',        'meshy-4',                        'https://api.meshy.ai',           'MODEL_3D', null, 410, true,  null, null, 2.1, 1, null),
-('tripo:tripo3d-v2',               'Tripo 3D v2',         'tripo', 'DASHSCOPE',    'tripo3d-v2',                     'https://dashscope.aliyuncs.com', 'MODEL_3D', null, 411, true,  null, null, 2.1, 1, null)
+('tripo:tripo3d-v2',               'Tripo 3D v2',         'tripo', 'DASHSCOPE',    'tripo3d-v2',                     'https://dashscope.aliyuncs.com', 'MODEL_3D', null, 411, true,  null, null, 2.1, 1, null, null)
 ON CONFLICT (model_id) DO NOTHING;
 
 -- 系统默认模型偏好
 INSERT INTO ai_model_preference (scope, scope_id, capability, model_ids)
 VALUES
-    ('SYSTEM', NULL, 'CHAT',       '["n1n:claude-sonnet-4-6"]'),
-    ('SYSTEM', NULL, 'EMBEDDING',  '["openai:text-embedding-3"]'),
+    ('SYSTEM', NULL, 'CHAT',       '["n1n:claude-sonnet-5-5"]'),
+    ('SYSTEM', NULL, 'EMBEDDING',  '["qwen:qwen3.7-text-embedding"]'),
     ('SYSTEM', NULL, 'IMAGE_GEN',  '["n1n:gpt-image-2"]'),
     ('SYSTEM', NULL, 'OCR',        '["qwen:qwen3.5-ocr"]'),
     ('SYSTEM', NULL, 'MUSIC_GEN',  '["qwen:fun-music-v1"]'),
@@ -2230,139 +1638,7 @@ VALUES
      'LEGENDARY', 'VIP', 15)
 ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 
--- ==================== 文案智能体技能（8 个：COPYWRITING/STRATEGY） ====================
-WITH seeded_skill (code, name, summary, content) AS (
-    VALUES
-        ($skill$voiceover$skill$, $skill$口播文案$skill$, $skill$短视频/直播口播稿，带节奏 + 钩子 + 转化$skill$, $skill$你是一位专业短视频口播文案师，擅长为各类品牌和内容创作者打磨口播稿件。你熟悉各平台受众心理（抖音/视频号/快手），能精准把握节奏感和情绪张力。创作时，前 3 秒必须抓住注意力（用痛点、反常识或强悬念），中段清晰传递核心价值，结尾给出明确的行动指令。语言口语化、有画面感，适合真人配音朗读。每次输出请标注字数和预计朗读时长。输出格式：使用标准 Markdown 格式，用 `##` 分段标题、`-` 列表组织结构。$skill$),
-        ($skill$redbook$skill$, $skill$小红书爆款$skill$, $skill$标题 + 正文 + 标签，符合平台算法偏好$skill$, $skill$你是小红书资深内容运营，深度理解平台算法和用户心理。你擅长创作高互动率的种草笔记：标题必须包含情绪词 + 关键词 + emoji，控制在 18 字以内；正文采用分段式结构，前 2 句抓住眼球，中段干货扎实，结尾引导互动（提问/抽奖/求关注）；标签 5-8 个，混合大词和长尾词。避免过度营销感，用真实体验感打动读者。输出格式：使用标准 Markdown 组织标题、正文和标签，确保可直接保存为文档草稿。$skill$),
-        ($skill$product-copy$skill$, $skill$产品文案$skill$, $skill$卖点提炼 / 详情页 / 落地页 / 转化文案$skill$, $skill$你是电商和品牌产品文案专家，精通消费者心理和转化逻辑。你能快速提炼产品核心卖点（功能价值 + 情感价值），根据使用场景（详情页主图文案/落地页标题/朋友圈推广语）调整表达策略。创作原则：用场景代替功能描述，用数字增强可信度，用对比突出优势，用稀缺感促进决策。输出时请注明文案适用位置和建议配图方向。$skill$),
-        ($skill$ip-position$skill$, $skill$IP 定位$skill$, $skill$个人品牌定位、人设打磨、内容策略$skill$, $skill$你是个人 IP 操盘手和品牌策略顾问，服务过各垂类 KOL 和创业者。你擅长帮人找到独特定位，避免同质化竞争。咨询时你会先了解用户背景（职业/优势/目标受众/变现路径），再输出：差异化人设标签（3-5 个）、内容护城河（专业壁垒）、平台矩阵策略（主攻+辅助）、6 个月里程碑规划。输出要具体可执行，不空谈方法论。$skill$),
-        ($skill$short-script$skill$, $skill$短视频脚本$skill$, $skill$分镜 / 台词 / 节奏，按平台时长适配$skill$, $skill$你是短视频编剧和导演助手，擅长各类竖屏短视频剧本创作（15s/30s/60s/3min）。你了解剪辑节奏和视觉表达逻辑，输出的脚本包含：场景描述（景别/动作/表情）、台词/旁白、音乐氛围建议、字幕文字。擅长情感共鸣类、知识干货类、产品种草类等多种风格。请用分镜表格格式输出，让执行团队一目了然。$skill$),
-        ($skill$title-topic$skill$, $skill$标题选题$skill$, $skill$标题打磨 + 选题推荐，热点借势$skill$, $skill$你是内容运营和标题优化专家，深谙各平台传播规律。你能将平淡的选题变成高点击标题，常用策略包括：数字量化（"3 个方法"）、制造好奇（"你不知道的..."）、强化利益（"省了 5000 元"）、引发共鸣（"打工人必看"）。同时你会结合当下热点给出借势选题建议，帮助内容获得更大自然流量。每次输出 5 个候选标题，并标注适用平台。$skill$),
-        ($skill$biz-analysis$skill$, $skill$商业分析$skill$, $skill$市场洞察 / 竞品对标 / SWOT 分析$skill$, $skill$你是资深商业分析师和战略顾问，有丰富的行业研究和竞争分析经验。你能快速梳理市场格局，识别机会与风险。分析框架包括：市场规模与增速（TAM/SAM/SOM）、用户画像与需求洞察、竞品对标分析（功能/定价/渠道/口碑）、SWOT 矩阵、建议切入策略。输出结构清晰，结论简明，数据来源透明，适合用于决策汇报和商业计划书。$skill$),
-        ($skill$rich-text-write$skill$, $skill$文档 AI 写作$skill$, $skill$富文本编辑器内联生成，通用写作助手$skill$, $skill$你是专业的写作助手，服务于富文本文档编辑场景。根据用户输入的写作指令生成内容，直接输出正文，不要加任何前缀说明或额外解释。若用户提供了参考文本（选中内容），请在语义和风格上与其保持连贯衔接。使用标准 Markdown 格式（`##` 标题、`-` 列表、`**粗体**` 等）组织结构，确保生成内容可直接插入文档使用。$skill$)
-), inserted_definitions AS (
-    INSERT INTO ai_skill_definition (
-        code, name, summary, locale, visibility, built_in, create_time, update_time
-    )
-    SELECT code, name, summary, 'zh-CN', 'PUBLIC', TRUE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-    FROM seeded_skill
-    RETURNING id, code
-)
-INSERT INTO ai_skill_version (
-    skill_id, version, status, content, tool_access_mode, change_summary, content_hash, create_time
-)
-SELECT definition.id, 1, 'APPROVED', seeded.content, 'RESTRICT', '内置初始版本',
-       encode(digest(seeded.content, 'sha256'), 'hex'), CURRENT_TIMESTAMP
-FROM inserted_definitions definition
-JOIN seeded_skill seeded ON seeded.code = definition.code;
-
--- PostgreSQL 不会在同一数据修改 CTE 中再次更新刚插入的根对象；独立语句回填初始发布指针。
-UPDATE ai_skill_definition definition
-SET current_version_id = (
-        SELECT version.id
-        FROM ai_skill_version version
-        WHERE version.skill_id = definition.id
-          AND version.status = 'APPROVED'
-        ORDER BY version.version DESC
-        LIMIT 1
-    ),
-    update_time = CURRENT_TIMESTAMP
-WHERE definition.code IN (
-        'voiceover',
-        'redbook',
-        'product-copy',
-        'ip-position',
-        'short-script',
-        'title-topic',
-        'biz-analysis',
-        'rich-text-write'
-    )
-  AND definition.built_in = TRUE
-  AND definition.deleted = FALSE
-  AND definition.current_version_id IS NULL;
-
-UPDATE ai_skill_definition
-SET instance_prompt = CASE code
-        WHEN 'voiceover' THEN '为一款...写一段 30 秒短视频口播稿，突出...'
-        WHEN 'redbook' THEN '围绕...写一篇小红书种草笔记，目标读者是...'
-        WHEN 'product-copy' THEN '为...提炼核心卖点，并生成详情页首屏文案'
-        WHEN 'ip-position' THEN '我的背景是...，希望面向...建立个人 IP，请帮我做定位'
-        WHEN 'short-script' THEN '为...策划一支 60 秒短视频脚本，风格是...'
-        WHEN 'title-topic' THEN '围绕...生成 5 个适合...平台的标题与选题'
-        WHEN 'biz-analysis' THEN '分析...市场的机会、竞品与切入策略'
-        WHEN 'rich-text-write' THEN '将以下要点整理成结构清晰的文章：...'
-    END,
-    update_time = CURRENT_TIMESTAMP
-WHERE code IN (
-        'voiceover',
-        'redbook',
-        'product-copy',
-        'ip-position',
-        'short-script',
-        'title-topic',
-        'biz-analysis',
-        'rich-text-write'
-    )
-  AND built_in = TRUE
-  AND deleted = FALSE
-  AND instance_prompt IS NULL;
-
-WITH copywriting_skill (code) AS (
-    VALUES
-        ('voiceover'),
-        ('redbook'),
-        ('product-copy'),
-        ('ip-position'),
-        ('short-script'),
-        ('title-topic'),
-        ('biz-analysis'),
-        ('rich-text-write')
-)
-INSERT INTO ai_skill_category_relation (skill_id, category_id)
-SELECT skill.id, category.id
-FROM copywriting_skill expected
-JOIN ai_skill_definition skill ON skill.code = expected.code AND skill.deleted = FALSE
-JOIN ai_skill_category category ON category.code = 'copywriting'
-ON CONFLICT DO NOTHING;
-
 -- ============================================================
--- 文案 Skill 的当前不可变版本均要求通过受控工具保存规范 Markdown 草稿。
-INSERT INTO ai_skill_tool_requirement (
-    skill_version_id, tool_id, tool_version, tool_name,
-    required, usage_purpose, sort_order
-)
-SELECT skill.current_version_id,
-       'content.draft.upsert',
-       1,
-       'content.draft.upsert',
-       TRUE,
-       '将规范 Markdown 产物保存为可撤销数据库草稿，显式 RETURN_ONLY 时由执行画像移除',
-       100
-FROM ai_skill_definition skill
-WHERE skill.code IN (
-        'aigc-copywriting',
-        'content-schedule',
-        'content-judge',
-        'content-clarify',
-        'content-architect',
-        'content-build',
-        'voiceover',
-        'redbook',
-        'product-copy',
-        'ip-position',
-        'short-script',
-        'title-topic',
-        'biz-analysis',
-        'rich-text-write'
-    )
-  AND skill.current_version_id IS NOT NULL
-  AND skill.deleted = FALSE
-ON CONFLICT (skill_version_id, tool_id, tool_version) DO UPDATE SET
-    tool_name = EXCLUDED.tool_name,
-    required = EXCLUDED.required,
-    usage_purpose = EXCLUDED.usage_purpose,
-    sort_order = EXCLUDED.sort_order;
 -- v0.2.1 P1：用户工作流模板（5 流水线 seed）
 -- ============================================================
 INSERT INTO user_workflow_template (code, name, description, cover_media_version_id, category, template_config, is_official, sort_order)
@@ -2467,36 +1743,36 @@ INSERT INTO ai_persona (
 
 -- 用户默认模板的 Role。内容创作者 Role（ID 2）由既有 seed 定义。
 INSERT INTO ai_role (
-    id, code, name, description, skill_ids, tool_whitelist, status, owner_id,
+    id, code, name, description, skill_ids, tool_whitelist, status, visibility, owner_id,
     create_time, update_time, deleted
 ) VALUES (
     1, 'system.role.platform-guide', '平台向导',
     'AAF 平台咨询和只读故障排查',
     '[{"skillKey":"builtin-skill-creation","activationMode":"ON_DEMAND"},{"skillKey":"builtin-tool-generation","activationMode":"ON_DEMAND"}]', '["context.load"]',
-    'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
+    'active', 'SYSTEM', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
 -- 默认用户模板的中立通用 Role：不限定具体领域职能，作为兜底入口按用户意图动态路由到其他 Role/Skill；
 -- "平台向导"改为普通非默认 Role，避免默认 Role 的命名限定了其"应覆盖任意任务"的定位。
 INSERT INTO ai_role (
-    id, code, name, description, skill_ids, tool_whitelist, status, owner_id,
+    id, code, name, description, skill_ids, tool_whitelist, status, visibility, owner_id,
     create_time, update_time, deleted
 ) VALUES (
     4, 'system.role.generalist', '通用助理',
     '不限定具体领域，按用户意图动态路由到其他角色或技能；无匹配意图时提供通用协助',
     '[]', '["context.load"]',
-    'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
+    'active', 'SYSTEM', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
 -- 访客客服的最小权限 Role：不挂载内容生成、脚本或有副作用工具。
 INSERT INTO ai_role (
-    id, code, name, description, skill_ids, tool_whitelist, status, owner_id,
+    id, code, name, description, skill_ids, tool_whitelist, status, visibility, owner_id,
     create_time, update_time, deleted
 ) VALUES (
     3, 'system.role.customer-service', '客服专员',
     '面向访客的产品咨询和知识问答',
     '[]', '[]',
-    'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
+    'active', 'SYSTEM', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
 -- 系统用户模板只用于复制，登录用户不得直接作为默认 Assistant 执行。
@@ -2527,6 +1803,7 @@ INSERT INTO ai_assistant_role (
 ) VALUES
     (1, 1, FALSE, 90, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
     (1, 2, FALSE, 80, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
+    (1, 5, FALSE, 70, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
     (1, 4, TRUE, 100, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
     (2, 3, TRUE, 100, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE)
 ON CONFLICT (assistant_id, role_id) DO NOTHING;
@@ -2616,7 +1893,6 @@ WHERE template.code = 'system.assistant.default-user'
       FROM ai_assistant copy
       WHERE copy.user_id = admin_user.id
         AND copy.is_default = TRUE
-    (1, 5, FALSE, 70, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE),
         AND copy.deleted = FALSE
   );
 

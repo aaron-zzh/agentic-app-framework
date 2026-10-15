@@ -1,10 +1,12 @@
 package com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persistence;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
@@ -31,7 +33,10 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AssistantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 
+import lombok.extern.slf4j.Slf4j;
+
 /** 从 ai_assistant 当前行及 ai_assistant_role M2M 装配 Assistant 运行时定义。 */
+@Slf4j
 public final class JpaAssistantDefinitionAdapter implements AssistantDefinitionPort {
 
     private static final String ACTIVE = "active";
@@ -109,15 +114,39 @@ public final class JpaAssistantDefinitionAdapter implements AssistantDefinitionP
             throw new IllegalStateException(
                     "Assistant 必须且只能有一个 ai_assistant_role.is_default: " + assistant.getCode());
         }
-        var roleDefinitions = roleBindings.stream().map(this::role).toList();
-        var defaultRoleId = defaultBindings.getFirst().getRoleId();
-        var defaultRoleKey =
-                roleBindings.stream()
-                        .filter(binding -> binding.getRoleId().equals(defaultRoleId))
-                        .findFirst()
-                        .map(this::role)
-                        .map(Role::key)
-                        .orElseThrow();
+        var defaultBinding = defaultBindings.getFirst();
+        var visibleRoles =
+                roles
+                        .findVisibleByIds(
+                                roleBindings.stream().map(AiAssistantRole::getRoleId).toList(),
+                                assistant.getUserId())
+                        .stream()
+                        .collect(Collectors.toMap(entity -> entity.getId(), entity -> entity));
+        var roleDefinitions = new ArrayList<Role>();
+        String defaultRoleKey = null;
+        for (var binding : roleBindings) {
+            var entity = visibleRoles.get(binding.getRoleId());
+            var unusable = unusableReason(entity);
+            if (unusable != null) {
+                if (binding == defaultBinding) {
+                    // 默认角色失效明确失败，不静默换角色
+                    throw new IllegalStateException(
+                            "Assistant 默认角色不可用（%s），请切换默认角色: %s"
+                                    .formatted(unusable, assistant.getCode()));
+                }
+                log.warn(
+                        "跳过失效的 Assistant 角色绑定: assistant={}, roleId={}, 原因={}",
+                        assistant.getCode(),
+                        binding.getRoleId(),
+                        unusable);
+                continue;
+            }
+            var role = toRole(entity);
+            roleDefinitions.add(role);
+            if (binding == defaultBinding) {
+                defaultRoleKey = role.key();
+            }
+        }
         var ownership = ownership(assistant);
         var assistantSkillBindings =
                 parseRequiredBindings(assistant.getSkillIds(), "ai_assistant.skill_ids");
@@ -162,16 +191,19 @@ public final class JpaAssistantDefinitionAdapter implements AssistantDefinitionP
                 : TemplateOwnership.USER_COPY;
     }
 
-    private Role role(AiAssistantRole binding) {
-        var entity =
-                roles.findById(binding.getRoleId())
-                        .orElseThrow(
-                                () ->
-                                        new IllegalStateException(
-                                                "Assistant Role 不存在: " + binding.getRoleId()));
-        if (!ACTIVE.equals(entity.getStatus())) {
-            throw new IllegalStateException("Assistant Role 不可执行: " + entity.getCode());
+    /** 角色不可用于执行的原因；可用时返回 null。 */
+    private static String unusableReason(
+            com.xuejiai.aaf.framework.intelligent.assistant.role.Role entity) {
+        if (entity == null) {
+            return "角色不存在或对所有者不可见";
         }
+        if (!ACTIVE.equals(entity.getStatus())) {
+            return "角色已下架";
+        }
+        return null;
+    }
+
+    private Role toRole(com.xuejiai.aaf.framework.intelligent.assistant.role.Role entity) {
         return new Role(
                 entity.getCode(),
                 entity.getName(),

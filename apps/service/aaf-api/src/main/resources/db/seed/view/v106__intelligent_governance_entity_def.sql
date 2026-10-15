@@ -162,6 +162,64 @@ VALUES
       ],
       "mixins": ["baseEntity"]
     }
+    $json$::jsonb, TRUE, TRUE),
+    ('ai-role', $json$
+    {
+      "kind": "code",
+      "resource": "ai.ai-role",
+      "label": "角色治理",
+      "labelPlural": "角色治理",
+      "icon": "users-round",
+      "group": "intelligent-governance",
+      "groupLabel": "智能治理",
+      "description": "管理内置与公开角色；私有角色只读，可下架，可发布为公开角色",
+      "access": {"read": true, "create": true, "update": true, "delete": true},
+      "fields": [
+        {"type":"number","name":"id","label":"ID","readOnly":true},
+        {"type":"text","name":"code","label":"稳定代码","required":true,
+          "readOnlyWhen":"$record.id"},
+        {"type":"text","name":"name","label":"名称","required":true},
+        {"type":"textarea","name":"description","label":"描述","rows":3},
+        {"type":"select","name":"visibility","label":"可见性","required":true,
+          "options":[
+            {"label":"内置","value":"SYSTEM"},
+            {"label":"公开","value":"PUBLIC"},
+            {"label":"私有","value":"PRIVATE"}
+          ],
+          "readOnlyWhen":"$record.id"},
+        {"type":"select","name":"status","label":"状态",
+          "options":[
+            {"label":"可用","value":"active"},
+            {"label":"已下架","value":"disabled"}
+          ]},
+        {"type":"json","name":"skillBindings","label":"技能绑定",
+          "readOnlyWhen":"$record.visibility === 'PRIVATE'"},
+        {"type":"textarea","name":"toolWhitelist","label":"工具授权池（JSON 数组）","rows":4,
+          "readOnlyWhen":"$record.visibility === 'PRIVATE'"},
+        {"type":"number","name":"ownerId","label":"私有角色所有者","readOnly":true},
+        {"type":"date","name":"updateTime","label":"更新时间","readOnly":true,"includeTime":true}
+      ],
+      "listView": {
+        "columns": ["code","name","visibility","status","ownerId","updateTime"],
+        "defaultSort": "id:desc",
+        "searchableFields": ["code","name"],
+        "filterableFields": ["visibility","status"],
+        "serverPagination": true
+      },
+      "actions": [
+        {
+          "key": "publish",
+          "label": "发布为公开角色",
+          "type": "single",
+          "execution": "sync",
+          "endpoint": "/api/ai/roles/actions/publish",
+          "confirmMessage": "将复制为新的公开角色，所有用户可在角色库绑定。引用了私有技能或已下架的角色无法发布。是否继续？",
+          "visibleWhen": "$record.visibility === 'PRIVATE'",
+          "position": "rowAction"
+        }
+      ],
+      "mixins": ["baseEntity"]
+    }
     $json$::jsonb, TRUE, TRUE)
 ON CONFLICT (slug) WHERE deleted = FALSE DO UPDATE
 SET config = EXCLUDED.config,

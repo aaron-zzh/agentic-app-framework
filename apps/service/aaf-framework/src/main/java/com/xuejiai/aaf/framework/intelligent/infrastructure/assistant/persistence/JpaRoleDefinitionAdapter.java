@@ -11,6 +11,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillActivationMode
 import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillBinding;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.RoleDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.role.AiRoleRepository;
+import com.xuejiai.aaf.framework.intelligent.assistant.role.RoleVisibilityLevel;
 
 /** 将 ai_role 持久化模型映射为只读领域角色。 */
 public final class JpaRoleDefinitionAdapter implements RoleDefinitionPort {
@@ -27,7 +28,11 @@ public final class JpaRoleDefinitionAdapter implements RoleDefinitionPort {
         if (roleCode.isBlank()) {
             throw new IllegalArgumentException("roleCode 不能为空白");
         }
-        return repository.findByCode(roleCode).map(this::toDomain);
+        // 只按 code 读取 SYSTEM / PUBLIC 角色，私有角色不经 code 在这条路径读取
+        return repository
+                .findByCodeAndVisibilityIn(
+                        roleCode, Set.of(RoleVisibilityLevel.SYSTEM, RoleVisibilityLevel.PUBLIC))
+                .map(this::toDomain);
     }
 
     private Role toDomain(com.xuejiai.aaf.framework.intelligent.assistant.role.Role entity) {

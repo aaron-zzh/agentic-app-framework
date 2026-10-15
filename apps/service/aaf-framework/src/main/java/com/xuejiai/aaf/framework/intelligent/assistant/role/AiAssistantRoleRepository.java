@@ -6,6 +6,7 @@
 package com.xuejiai.aaf.framework.intelligent.assistant.role;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -21,6 +22,9 @@ public interface AiAssistantRoleRepository
 
     /** 查询某角色被哪些助理挂载。 */
     List<AiAssistantRole> findByRoleId(Long roleId);
+
+    /** 查询助理与角色之间的关联。 */
+    Optional<AiAssistantRole> findByAssistantIdAndRoleId(Long assistantId, Long roleId);
 
     /** 删除助理的全部角色关联（替换式更新时使用）。 */
     void deleteByAssistantId(Long assistantId);

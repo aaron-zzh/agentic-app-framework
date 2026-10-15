@@ -63,6 +63,8 @@ public final class SysConfigKeys {
                 "ai.free_assistant_credit_cap"; // 免费助理虚拟用户预算上限（积分）
         public static final String TOKEN_MARKUP_RATE =
                 "ai.token_markup_rate"; // Token 计费加价倍数（相对供应商成本，默认2倍）
+        public static final String ASSISTANT_MAX_ROLES =
+                "ai.assistant_max_roles"; // 单个助理可绑定的角色总数上限（默认 10）
     }
 
     /** 品牌配置 */

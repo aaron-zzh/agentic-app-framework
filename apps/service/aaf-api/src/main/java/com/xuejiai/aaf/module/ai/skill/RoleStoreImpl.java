@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.ai.skill;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.stereotype.Component;
 
@@ -11,7 +12,9 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillBinding;
 import com.xuejiai.aaf.framework.intelligent.assistant.role.AiAssistantRole;
 import com.xuejiai.aaf.framework.intelligent.assistant.role.AiAssistantRoleRepository;
 import com.xuejiai.aaf.framework.intelligent.assistant.role.AiRoleRepository;
+import com.xuejiai.aaf.framework.intelligent.assistant.role.Role;
 import com.xuejiai.aaf.framework.intelligent.assistant.role.RoleStore;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 
 import lombok.RequiredArgsConstructor;
 
@@ -21,11 +24,11 @@ public class RoleStoreImpl implements RoleStore {
 
     private final AiRoleRepository roleRepository;
     private final AiAssistantRoleRepository assistantRoleRepository;
+    private final OperatorContext operatorContext;
 
     @Override
     public List<String> getSkillCodes(Long roleId) {
-        return roleRepository
-                .findById(roleId)
+        return findVisible(roleId)
                 .map(role -> parseBindings(role.getSkillIds(), "ai_role.skill_ids"))
                 .orElse(List.of())
                 .stream()
@@ -35,8 +38,7 @@ public class RoleStoreImpl implements RoleStore {
 
     @Override
     public List<String> getToolWhitelist(Long roleId) {
-        return roleRepository
-                .findById(roleId)
+        return findVisible(roleId)
                 .map(role -> parseStringArray(role.getToolWhitelist(), "ai_role.tool_whitelist"))
                 .orElse(List.of());
     }
@@ -49,6 +51,15 @@ public class RoleStoreImpl implements RoleStore {
                 .stream()
                 .map(AiAssistantRole::getRoleId)
                 .toList();
+    }
+
+    private Optional<Role> findVisible(Long roleId) {
+        if (roleId == null) {
+            return Optional.empty();
+        }
+        // 无当前用户上下文时 userId 为空，只能读到 SYSTEM / PUBLIC 角色，私有角色按不存在处理
+        return roleRepository.findVisibleById(
+                roleId, operatorContext.currentOwnerId().orElse(null));
     }
 
     private static List<SkillBinding> parseBindings(String json, String fieldName) {
