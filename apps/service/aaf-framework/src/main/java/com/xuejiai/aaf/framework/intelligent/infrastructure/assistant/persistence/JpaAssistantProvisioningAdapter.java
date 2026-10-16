@@ -3,6 +3,7 @@ package com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persisten
 import static com.xuejiai.aaf.framework.intelligent.assistant.SystemAssistantTemplateIds.DEFAULT_USER;
 
 import java.util.Objects;
+import java.util.function.Supplier;
 
 import org.springframework.transaction.annotation.Transactional;
 
@@ -56,6 +57,7 @@ public class JpaAssistantProvisioningAdapter implements AssistantProvisioningPor
         copy.setMemoryStrategy(template.getMemoryStrategy());
         copy.setSkillIds(template.getSkillIds());
         copy.setToolWhitelist(template.getToolWhitelist());
+        copy.setKnowledgeBaseId(template.getKnowledgeBaseId());
         copy.setStatus(ACTIVE);
         var saved = assistants.save(copy);
         var templateBindings = bindings.findByAssistantIdOrderBySortOrderAsc(template.getId());
@@ -67,6 +69,25 @@ public class JpaAssistantProvisioningAdapter implements AssistantProvisioningPor
                         .map(binding -> copyBinding(binding, saved.getId(), numericUserId))
                         .toList();
         bindings.saveAll(copiedBindings);
+    }
+
+    @Override
+    @Transactional
+    public void ensureDefaultKnowledgeBase(UserId userId, Supplier<Long> knowledgeBaseFactory) {
+        Objects.requireNonNull(knowledgeBaseFactory, "knowledgeBaseFactory 不能为空");
+        var numericUserId = requireNumericUserId(userId);
+        var assistant =
+                assistants
+                        .findFirstByUserIdAndIsDefaultTrueAndStatusOrderByIdAsc(
+                                numericUserId, ACTIVE)
+                        .orElseThrow(() -> new IllegalStateException("用户默认 Assistant 不存在"));
+        var bound = assistant.getKnowledgeBaseId();
+        if (bound != null && assistants.findActiveKnowledgeBaseStableId(bound).isPresent()) {
+            return;
+        }
+        var created = Objects.requireNonNull(knowledgeBaseFactory.get(), "默认知识库 id 不能为空");
+        assistant.setKnowledgeBaseId(created);
+        assistants.save(assistant);
     }
 
     private static AiAssistantRole copyBinding(

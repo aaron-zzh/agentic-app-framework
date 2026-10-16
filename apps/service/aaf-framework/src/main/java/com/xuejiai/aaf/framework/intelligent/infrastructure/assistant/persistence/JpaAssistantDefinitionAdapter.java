@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import com.xuejiai.aaf.common.util.JsonUtils;
@@ -179,7 +180,19 @@ public final class JpaAssistantDefinitionAdapter implements AssistantDefinitionP
                 toolPolicy(roleDefinitions, assistantToolKeys),
                 Set.of(ControlMode.READ_ONLY, ControlMode.COLLABORATIVE, ControlMode.DELEGATED),
                 RiskPolicy.CONFIRM_WRITES,
-                ACTIVE.equals(assistant.getStatus()) ? Lifecycle.PUBLISHED : Lifecycle.DISABLED);
+                ACTIVE.equals(assistant.getStatus()) ? Lifecycle.PUBLISHED : Lifecycle.DISABLED,
+                knowledgeBaseIds(assistant));
+    }
+
+    /** 绑定的知识库已删除或停用时静默忽略，不阻断助理执行。 */
+    private Set<UUID> knowledgeBaseIds(AssistantEntity assistant) {
+        if (assistant.getKnowledgeBaseId() == null) {
+            return Set.of();
+        }
+        return assistants
+                .findActiveKnowledgeBaseStableId(assistant.getKnowledgeBaseId())
+                .map(Set::of)
+                .orElse(Set.of());
     }
 
     private static TemplateOwnership ownership(AssistantEntity assistant) {
@@ -210,7 +223,21 @@ public final class JpaAssistantDefinitionAdapter implements AssistantDefinitionP
                 List.of(text(entity.getDescription(), entity.getName())),
                 List.of(),
                 parseBindings(entity.getSkillIds(), "ai_role.skill_ids"),
-                parseKeys(entity.getToolWhitelist(), "toolWhitelist"));
+                parseKeys(entity.getToolWhitelist(), "toolWhitelist"),
+                parseKnowledgeBaseIds(entity.getKnowledgeBaseIds(), "ai_role.knowledge_base_ids"));
+    }
+
+    /** 解析 JSON UUID 字符串数组；格式非法明确失败，不静默忽略。 */
+    static Set<UUID> parseKnowledgeBaseIds(String json, String fieldName) {
+        var values = new java.util.LinkedHashSet<UUID>();
+        for (var value : parseKeys(json, fieldName)) {
+            try {
+                values.add(UUID.fromString(value));
+            } catch (IllegalArgumentException failure) {
+                throw new IllegalStateException(fieldName + " 必须是 UUID 字符串数组", failure);
+            }
+        }
+        return java.util.Collections.unmodifiableSet(values);
     }
 
     private static ToolPolicy toolPolicy(List<Role> roles, Set<String> assistantToolKeys) {

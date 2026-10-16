@@ -89,6 +89,15 @@ public class OrganizationService {
                 .toList();
     }
 
+    /** 查询用户的个人组织 id；不存在时返回空。登录和注册流程没有请求组织上下文，因此忽略组织过滤。 */
+    public java.util.Optional<Long> findPersonalOrgId(Long userId) {
+        return OrgContext.runIgnoring(
+                () ->
+                        orgRepository
+                                .findByOwnerIdAndTypeAndDeletedFalse(userId, "personal")
+                                .map(Organization::getId));
+    }
+
     /** 获取当前用户的个人默认组织与默认工作区。 */
     public DefaultOrgContextVO getDefaultContext(Long userId) {
         var org =

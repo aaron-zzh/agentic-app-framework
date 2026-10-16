@@ -36,7 +36,8 @@ public final class AssistantDefinitionFixtures {
                         List.of("产品咨询", "人工转接"),
                         List.of("修改用户数据"),
                         List.of(binding("builtin-self-learning", SkillActivationMode.ON_DEMAND)),
-                        Set.of("support.handoff"));
+                        Set.of("support.handoff"),
+                        Set.of());
         var contentCreator =
                 new Role(
                         CONTENT_CREATOR_ROLE_KEY,
@@ -44,7 +45,8 @@ public final class AssistantDefinitionFixtures {
                         List.of("生成草稿"),
                         List.of("自动发布"),
                         List.of(binding("aigc-copywriting", SkillActivationMode.ON_DEMAND)),
-                        Set.of("content.draft.upsert"));
+                        Set.of("content.draft.upsert"),
+                        Set.of());
         return new AssistantDefinition(
                 new AssistantId("test.assistant.default-user"),
                 null,
@@ -81,7 +83,8 @@ public final class AssistantDefinitionFixtures {
                                         true))),
                 Set.of(ControlMode.READ_ONLY, ControlMode.COLLABORATIVE, ControlMode.DELEGATED),
                 RiskPolicy.CONFIRM_WRITES,
-                Lifecycle.PUBLISHED);
+                Lifecycle.PUBLISHED,
+                Set.of());
     }
 
     private static SkillBinding binding(String key, SkillActivationMode activationMode) {

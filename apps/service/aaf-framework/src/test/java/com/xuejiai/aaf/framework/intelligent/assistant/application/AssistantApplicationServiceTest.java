@@ -79,7 +79,8 @@ class AssistantApplicationServiceTest {
                 template.toolPolicy(),
                 template.supportedControlModes(),
                 template.defaultRiskPolicy(),
-                template.lifecycle());
+                template.lifecycle(),
+                template.knowledgeBaseIds());
     }
 
     private static MemorySubject userSubject(String userId) {

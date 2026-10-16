@@ -42,7 +42,9 @@ public final class JpaRoleDefinitionAdapter implements RoleDefinitionPort {
                 responsibilities(entity.getDescription(), entity.getCode()),
                 List.of(),
                 parseBindings(entity.getSkillIds(), "ai_role.skill_ids"),
-                parseKeys(entity.getToolWhitelist(), "toolWhitelist"));
+                parseKeys(entity.getToolWhitelist(), "toolWhitelist"),
+                JpaAssistantDefinitionAdapter.parseKnowledgeBaseIds(
+                        entity.getKnowledgeBaseIds(), "ai_role.knowledge_base_ids"));
     }
 
     private List<SkillBinding> parseBindings(String json, String fieldName) {

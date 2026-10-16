@@ -1743,12 +1743,13 @@ INSERT INTO ai_persona (
 
 -- 用户默认模板的 Role。内容创作者 Role（ID 2）由既有 seed 定义。
 INSERT INTO ai_role (
-    id, code, name, description, skill_ids, tool_whitelist, status, visibility, owner_id,
+    id, code, name, description, skill_ids, tool_whitelist, knowledge_base_ids, status, visibility, owner_id,
     create_time, update_time, deleted
 ) VALUES (
     1, 'system.role.platform-guide', '平台向导',
     'AAF 平台咨询和只读故障排查',
     '[{"skillKey":"builtin-skill-creation","activationMode":"ON_DEMAND"},{"skillKey":"builtin-tool-generation","activationMode":"ON_DEMAND"}]', '["context.load"]',
+    '["00000000-0000-0000-0000-000000000301"]',
     'active', 'SYSTEM', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
@@ -1764,14 +1765,15 @@ INSERT INTO ai_role (
     'active', 'SYSTEM', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
--- 访客客服的最小权限 Role：不挂载内容生成、脚本或有副作用工具。
+-- 访客客服的最小权限 Role：不挂载内容生成、脚本或有副作用工具；绑定平台向导知识库用于产品咨询。
 INSERT INTO ai_role (
-    id, code, name, description, skill_ids, tool_whitelist, status, visibility, owner_id,
+    id, code, name, description, skill_ids, tool_whitelist, knowledge_base_ids, status, visibility, owner_id,
     create_time, update_time, deleted
 ) VALUES (
     3, 'system.role.customer-service', '客服专员',
     '面向访客的产品咨询和知识问答',
     '[]', '[]',
+    '["00000000-0000-0000-0000-000000000301"]',
     'active', 'SYSTEM', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
@@ -1781,7 +1783,7 @@ INSERT INTO ai_assistant (
     memory_strategy, skill_ids, tool_whitelist,
     status, owner_id, create_time, update_time, deleted
 ) VALUES (
-    1, 6, 'system.assistant.default-user', 0, NULL, FALSE, 1, 1,
+    1, 6, 'system.assistant.default-user', 0, NULL, FALSE, 1, NULL,
     'HYBRID', '[{"skillKey":"builtin-user-understanding","activationMode":"ALWAYS"},{"skillKey":"builtin-javascript-compute","activationMode":"ON_DEMAND"}]', '["script.execute.javascript","context.load","queryWeather","webSearch"]',
     'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
@@ -1792,7 +1794,7 @@ INSERT INTO ai_assistant (
     memory_strategy, skill_ids, tool_whitelist,
     status, owner_id, create_time, update_time, deleted
 ) VALUES (
-    2, 1, 'system.assistant.customer-service', 0, NULL, FALSE, 2, 1,
+    2, 1, 'system.assistant.customer-service', 0, NULL, FALSE, 2, NULL,
     'HYBRID', '[{"skillKey":"builtin-user-understanding","activationMode":"ALWAYS"}]', '[]',
     'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;

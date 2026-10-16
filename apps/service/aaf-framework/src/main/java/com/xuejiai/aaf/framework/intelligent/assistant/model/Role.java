@@ -3,17 +3,20 @@ package com.xuejiai.aaf.framework.intelligent.assistant.model;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 
-/** Assistant 可复用的角色定义，描述职责、技能和工具边界。 */
+/** Assistant 可复用的角色定义，描述职责、技能、工具边界和绑定的知识库。 */
 public record Role(
         String key,
         String name,
         List<String> responsibilities,
         List<String> nonResponsibilities,
         List<SkillBinding> skillBindings,
-        Set<String> toolKeys) {
+        Set<String> toolKeys,
+        Set<UUID> knowledgeBaseIds) {
 
     public Role {
+        knowledgeBaseIds = knowledgeBaseIds == null ? Set.of() : Set.copyOf(knowledgeBaseIds);
         key = requireText(key, "Role key");
         name = requireText(name, "Role name");
         responsibilities = copyTexts(responsibilities, "responsibilities");

@@ -42,6 +42,10 @@ public class AssistantEntity extends BaseEntity {
     @Column(name = "tool_whitelist", nullable = false, columnDefinition = "TEXT")
     private String toolWhitelist;
 
+    /** 助理绑定的默认知识库（ai_knowledge_base.id）；回答时自动参与检索，可为空。 */
+    @Column(name = "knowledge_base_id")
+    private Long knowledgeBaseId;
+
     @Column(nullable = false, length = 16)
     private String status;
 }

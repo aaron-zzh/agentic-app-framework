@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.ai.role;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillBinding;
 import com.xuejiai.aaf.framework.intelligent.assistant.role.Role;
@@ -18,6 +19,7 @@ public record RoleVO(
         @Schema(description = "描述") String description,
         @Schema(description = "Skill 绑定对象数组") List<SkillBinding> skillBindings,
         @Schema(description = "工具授权池（JSON）") String toolWhitelist,
+        @Schema(description = "绑定的知识库 stable_id") List<UUID> knowledgeBaseIds,
         @Schema(description = "状态：active / disabled") String status,
         @Schema(description = "可见性：SYSTEM / PUBLIC / PRIVATE") RoleVisibilityLevel visibility,
         @Schema(description = "私有角色的所有者用户 ID；SYSTEM / PUBLIC 为空") Long ownerId,
@@ -37,6 +39,7 @@ public record RoleVO(
                 role.getDescription(),
                 RoleSkillBindingJson.read(role.getSkillIds()),
                 role.getToolWhitelist(),
+                RoleKnowledgeBaseJson.read(role.getKnowledgeBaseIds()),
                 role.getStatus(),
                 role.getVisibility(),
                 role.getVisibility() == RoleVisibilityLevel.PRIVATE ? role.getOwnerId() : null,

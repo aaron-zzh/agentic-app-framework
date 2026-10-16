@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -65,6 +66,7 @@ import com.xuejiai.aaf.framework.intelligent.cognition.model.ContextRequest.Agen
 import com.xuejiai.aaf.framework.intelligent.cognition.model.ContextRequest.ContextBudget;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.ContextRequest.ContextScope;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.ContextRequest.Disclosure;
+import com.xuejiai.aaf.framework.intelligent.cognition.model.ContextRequest.KnowledgeQuery;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.SubjectKind;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.ContextCompressionPort;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.L1ContextPort;
@@ -88,6 +90,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.event.TurnOutcomeAggregator;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AgentId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.EventId;
 import com.xuejiai.aaf.framework.org.OrgContext;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationSubject;
 
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
@@ -100,6 +103,9 @@ public final class AssistantApplicationService implements AssistantCommandPort {
 
     private static final int RUNTIME_MAX_ITERATIONS = 10;
     private static final int RUNTIME_MAX_MODEL_RETRIES = 2;
+    private static final int DEFAULT_KNOWLEDGE_TOP_K = 5;
+    /** 未显式指定知识库时，助理默认库与角色库合并后的检索数量上限。 */
+    private static final int MAX_DEFAULT_KNOWLEDGE_BASES = 3;
     private static final Duration RUNTIME_TIMEOUT = Duration.ofSeconds(120);
 
     private final ExecutionPolicy runtimeExecutionPolicy;
@@ -668,7 +674,9 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             scopes.add(ContextScope.MEMORY);
         }
         var contextPlan = command.invocationProfile().contextPlan();
-        if (contextPlan.knowledgeQuery().enabled()) {
+        var knowledgeQuery =
+                effectiveKnowledgeQuery(command, definition, profile.roleAssignment().roleKey());
+        if (knowledgeQuery.enabled()) {
             scopes.add(ContextScope.KNOWLEDGE);
         }
         if (!contextPlan.taskMaterials().isEmpty()) {
@@ -696,9 +704,54 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         disclosure,
                         command.contextCandidates(),
                         contextPlan.taskMaterials(),
-                        contextPlan.knowledgeQuery(),
+                        knowledgeQuery,
                         command.conversationId().value(),
                         command.requestedAt()));
+    }
+
+    /**
+     * 有效知识查询：请求显式指定知识库时只检索指定库；请求关闭知识库时不检索；否则取 助理默认库 ∪ 当前角色绑定库（助理库优先，总数受上限约束）。
+     * 请求未带授权主体时，以命令的租户和用户作为授权主体。
+     */
+    static KnowledgeQuery effectiveKnowledgeQuery(
+            AssistantCommand command, AssistantDefinition definition, String roleKey) {
+        var plan = command.invocationProfile().contextPlan();
+        var requested = plan.knowledgeQuery();
+        if (plan.knowledgeDisabled()) {
+            return KnowledgeQuery.none();
+        }
+        if (requested.enabled()) {
+            return requested;
+        }
+        var knowledgeBaseIds = new LinkedHashSet<UUID>(definition.knowledgeBaseIds());
+        definition.roles().stream()
+                .filter(role -> role.key().equals(roleKey))
+                .findFirst()
+                .ifPresent(role -> knowledgeBaseIds.addAll(role.knowledgeBaseIds()));
+        if (knowledgeBaseIds.isEmpty()) {
+            return requested;
+        }
+        var subject = commandSubject(command);
+        if (subject == null) {
+            return requested;
+        }
+        return new KnowledgeQuery(
+                subject,
+                knowledgeBaseIds.stream()
+                        .limit(MAX_DEFAULT_KNOWLEDGE_BASES)
+                        .collect(Collectors.toCollection(LinkedHashSet::new)),
+                DEFAULT_KNOWLEDGE_TOP_K,
+                0.0);
+    }
+
+    private static AuthorizationSubject commandSubject(AssistantCommand command) {
+        try {
+            var tenantId = Long.parseLong(command.tenantId().value());
+            var userId = Long.parseLong(command.userId().value());
+            return new AuthorizationSubject(userId, userId, tenantId, null);
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     /** 写入本轮短期会话上下文；失败只记录，不影响已完成的执行。 */

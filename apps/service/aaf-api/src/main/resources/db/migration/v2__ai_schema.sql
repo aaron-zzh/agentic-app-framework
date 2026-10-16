@@ -423,6 +423,7 @@ CREATE TABLE ai_role (
     description    VARCHAR(512),
     skill_ids      JSONB,
     tool_whitelist TEXT,
+    knowledge_base_ids JSONB,
     status         VARCHAR(16)  NOT NULL DEFAULT 'active',
     visibility     VARCHAR(16)  NOT NULL,
     owner_id       BIGINT,
@@ -450,6 +451,7 @@ COMMENT ON TABLE  ai_role                IS 'Role（能力配置）：定义可�
 COMMENT ON COLUMN ai_role.code           IS '角色稳定业务码；系统内置角色使用 system.role.*，公开角色使用 public.role.*，私有角色由服务端生成 user.role.{ownerId}.*，所有 Role 必须提供';
 COMMENT ON COLUMN ai_role.skill_ids      IS '严格 SkillBinding 对象 JSON 数组：[{"skillKey":"x","activationMode":"ON_DEMAND"}]；activationMode 仅允许 ALWAYS 或 ON_DEMAND，拒绝字符串数组；JSONB + GIN 索引用于技能反向引用查询';
 COMMENT ON COLUMN ai_role.tool_whitelist IS '工具授权池（JSON 数组）：角色级工具上限，运行时与 Agent 级 allowed_tools 取交集后收窄';
+COMMENT ON COLUMN ai_role.knowledge_base_ids IS '角色绑定的知识库 stable_id（JSON 字符串数组，UUID，最多 2 个）；请求未显式指定知识库时，与助理默认知识库合并（总数不超过 3）后参与检索，NULL 或空数组表示不绑定';
 COMMENT ON COLUMN ai_role.visibility     IS '可见性：SYSTEM 平台内置 / PUBLIC 管理员发布 / PRIVATE 用户私有；WORKSPACE、ORG 仅预留，服务端保存时拒绝';
 COMMENT ON COLUMN ai_role.owner_id       IS 'PRIVATE 角色的所有者用户 ID；SYSTEM / PUBLIC 为空。所有角色 org_id、workspace_id 恒为 NULL';
 

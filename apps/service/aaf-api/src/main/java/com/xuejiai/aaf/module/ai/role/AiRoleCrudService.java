@@ -62,6 +62,7 @@ public class AiRoleCrudService
         entity.setDescription(dto.description());
         entity.setSkillIds(RoleSkillBindingJson.write(dto.skillBindings()));
         entity.setToolWhitelist(dto.toolWhitelist());
+        entity.setKnowledgeBaseIds(RoleKnowledgeBaseJson.write(dto.knowledgeBaseIds()));
         entity.setVisibility(level);
         entity.setStatus(statusOrActive(dto.status()));
         return entity;
@@ -87,6 +88,7 @@ public class AiRoleCrudService
         entity.setDescription(dto.description());
         entity.setSkillIds(RoleSkillBindingJson.write(dto.skillBindings()));
         entity.setToolWhitelist(dto.toolWhitelist());
+        entity.setKnowledgeBaseIds(RoleKnowledgeBaseJson.write(dto.knowledgeBaseIds()));
         entity.setStatus(statusOrActive(dto.status()));
     }
 
@@ -138,6 +140,7 @@ public class AiRoleCrudService
         copy.setDescription(source.getDescription());
         copy.setSkillIds(source.getSkillIds());
         copy.setToolWhitelist(source.getToolWhitelist());
+        copy.setKnowledgeBaseIds(source.getKnowledgeBaseIds());
         copy.setVisibility(RoleVisibilityLevel.PUBLIC);
         copy.setStatus(Role.STATUS_ACTIVE);
         return RoleVO.from(roleRepository.save(copy));
@@ -170,6 +173,9 @@ public class AiRoleCrudService
                         && entity.getName().equals(dto.name())
                         && Objects.equals(entity.getDescription(), dto.description())
                         && Objects.equals(entity.getToolWhitelist(), dto.toolWhitelist())
+                        && RoleKnowledgeBaseJson.read(entity.getKnowledgeBaseIds())
+                                .equals(RoleKnowledgeBaseJson.read(
+                                        RoleKnowledgeBaseJson.write(dto.knowledgeBaseIds())))
                         && RoleSkillBindingJson.read(entity.getSkillIds())
                                 .equals(dto.skillBindings())
                         && dto.visibility() == RoleVisibilityLevel.PRIVATE;

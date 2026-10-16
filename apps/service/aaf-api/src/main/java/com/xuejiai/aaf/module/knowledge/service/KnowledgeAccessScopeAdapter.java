@@ -42,6 +42,11 @@ public class KnowledgeAccessScopeAdapter implements KnowledgeAccessScopePort {
                         WHERE deleted = false AND status = 0
                           AND ((? AND visibility = 'SYSTEM_PUBLIC')
                                OR stable_id = ANY(CAST(? AS uuid[])))
+                          AND EXISTS (
+                              SELECT 1 FROM ai_knowledge_document d
+                              WHERE d.knowledge_base_id = ai_knowledge_base.id
+                                AND d.deleted = false
+                                AND d.status = 2)
                         ORDER BY stable_id
                         """,
                         (rs, rowNum) ->

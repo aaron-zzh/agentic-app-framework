@@ -87,6 +87,7 @@ public class AuthService {
     private final PhoneRegisterRateLimiter phoneRegisterRateLimiter;
     private final com.xuejiai.aaf.module.system.org.service.OrganizationService organizationService;
     private final AssistantProvisioningPort assistantProvisioningPort;
+    private final com.xuejiai.aaf.module.knowledge.api.PersonalKnowledgeApi personalKnowledgeApi;
 
     @Value("${aaf.app.company-name:学记智能}")
     private String companyName;
@@ -851,7 +852,13 @@ public class AuthService {
     }
 
     private void provisionDefaultAssistant(User user) {
-        assistantProvisioningPort.provisionDefaultForUser(new UserId(user.getId().toString()));
+        var userId = new UserId(user.getId().toString());
+        assistantProvisioningPort.provisionDefaultForUser(userId);
+        // 默认助理绑定个人空知识库；幂等，已绑定且可用时不会重复创建
+        var personalOrgId = organizationService.findPersonalOrgId(user.getId()).orElse(null);
+        assistantProvisioningPort.ensureDefaultKnowledgeBase(
+                userId,
+                () -> personalKnowledgeApi.createDefaultKnowledgeBase(user.getId(), personalOrgId));
     }
 
     private void grantRegistrationCredits(Long userId) {

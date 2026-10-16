@@ -52,6 +52,11 @@ public class Role extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String toolWhitelist;
 
+    /** 绑定的知识库 stable_id（JSON 字符串数组）；请求未显式指定知识库时参与检索。 */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "knowledge_base_ids", columnDefinition = "jsonb")
+    private String knowledgeBaseIds;
+
     /** 状态：active / disabled（下架）。 */
     @Column(nullable = false, length = 16)
     private String status = STATUS_ACTIVE;

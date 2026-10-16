@@ -232,6 +232,7 @@ class AssistantExecutionServiceTest {
                         List.of("生成草稿"),
                         List.of("自动发布"),
                         List.of(binding("shared-skill", SkillActivationMode.ON_DEMAND)),
+                        Set.of(),
                         Set.of());
         var contentCreatorThree =
                 new Role(
@@ -240,6 +241,7 @@ class AssistantExecutionServiceTest {
                         List.of("生成草稿"),
                         List.of("自动发布"),
                         List.of(binding("shared-skill", SkillActivationMode.ON_DEMAND)),
+                        Set.of(),
                         Set.of());
         var platformGuide =
                 new Role(
@@ -248,6 +250,7 @@ class AssistantExecutionServiceTest {
                         List.of("产品咨询"),
                         List.of("修改用户数据"),
                         List.of(),
+                        Set.of(),
                         Set.of());
         var ambiguousDefinition =
                 new AssistantDefinition(
@@ -269,7 +272,8 @@ class AssistantExecutionServiceTest {
                         new ToolPolicy(Map.of()),
                         Set.of(ControlMode.READ_ONLY),
                         RiskPolicy.CONFIRM_WRITES,
-                        Lifecycle.PUBLISHED);
+                        Lifecycle.PUBLISHED,
+                        Set.of());
 
         assertThatThrownBy(
                         () ->
@@ -290,7 +294,8 @@ class AssistantExecutionServiceTest {
                         List.of("产品咨询"),
                         List.of("修改用户数据"),
                         List.of(binding("builtin-self-learning", SkillActivationMode.ON_DEMAND)),
-                        Set.of("support.handoff"));
+                        Set.of("support.handoff"),
+                        Set.of());
         var contentCreator =
                 new Role(
                         "system.role.content-creator",
@@ -301,7 +306,8 @@ class AssistantExecutionServiceTest {
                                 binding("aigc-copywriting", SkillActivationMode.ON_DEMAND),
                                 binding("voiceover", SkillActivationMode.ON_DEMAND),
                                 binding("redbook", SkillActivationMode.ON_DEMAND)),
-                        Set.of("content.draft.upsert"));
+                        Set.of("content.draft.upsert"),
+                        Set.of());
         return new AssistantDefinition(
                 new AssistantId("test.assistant.execution"),
                 null,
@@ -332,7 +338,8 @@ class AssistantExecutionServiceTest {
                                         true))),
                 Set.of(ControlMode.READ_ONLY, ControlMode.COLLABORATIVE, ControlMode.DELEGATED),
                 RiskPolicy.CONFIRM_WRITES,
-                Lifecycle.PUBLISHED);
+                Lifecycle.PUBLISHED,
+                Set.of());
     }
 
     private static SkillBinding binding(String key, SkillActivationMode activationMode) {

@@ -5,6 +5,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AssistantId;
@@ -27,9 +28,11 @@ public record AssistantDefinition(
         ToolPolicy toolPolicy,
         Set<ControlMode> supportedControlModes,
         RiskPolicy defaultRiskPolicy,
-        Lifecycle lifecycle) {
+        Lifecycle lifecycle,
+        Set<UUID> knowledgeBaseIds) {
 
     public AssistantDefinition {
+        knowledgeBaseIds = knowledgeBaseIds == null ? Set.of() : Set.copyOf(knowledgeBaseIds);
         Objects.requireNonNull(assistantId, "assistantId 不能为空");
         Objects.requireNonNull(ownership, "ownership 不能为空");
         Objects.requireNonNull(version, "version 不能为空");

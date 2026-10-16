@@ -163,15 +163,25 @@ public record InvocationProfile(
                 toolAllowlist);
     }
 
-    public record ContextPlan(List<TaskMaterial> taskMaterials, KnowledgeQuery knowledgeQuery) {
+    /**
+     * 上下文计划。{@code knowledgeQuery} 非空表示请求显式指定了知识库，此时只检索指定库； {@code knowledgeDisabled}
+     * 表示本次请求关闭知识库，助理与角色绑定的库也不参与。
+     */
+    public record ContextPlan(
+            List<TaskMaterial> taskMaterials,
+            KnowledgeQuery knowledgeQuery,
+            boolean knowledgeDisabled) {
         public ContextPlan {
             taskMaterials =
                     List.copyOf(Objects.requireNonNull(taskMaterials, "taskMaterials 不能为空"));
             Objects.requireNonNull(knowledgeQuery, "knowledgeQuery 不能为空");
+            if (knowledgeDisabled && knowledgeQuery.enabled()) {
+                throw new IllegalArgumentException("关闭知识库时不能同时显式指定知识库");
+            }
         }
 
         public static ContextPlan empty() {
-            return new ContextPlan(List.of(), KnowledgeQuery.none());
+            return new ContextPlan(List.of(), KnowledgeQuery.none(), false);
         }
     }
 

@@ -167,6 +167,22 @@ public class KnowledgeBaseService
     }
 
     @Override
+    protected void beforeDelete(KnowledgeBase entity) {
+        // 被助理绑定为默认知识库的库不可删除，否则助理会失去默认知识库；用户可以清空其中的文档
+        var bound =
+                (Number)
+                        entityManager
+                                .createNativeQuery(
+                                        "SELECT COUNT(*) FROM ai_assistant WHERE knowledge_base_id = :id AND deleted = false")
+                                .setParameter("id", entity.getId())
+                                .getSingleResult();
+        if (bound.longValue() > 0) {
+            throw new BusinessException(
+                    GlobalErrorCode.BAD_REQUEST, "该知识库是助理的默认知识库，不能删除，可以清空其中的文档");
+        }
+    }
+
+    @Override
     protected String entitlementCode() {
         return "kb_count";
     }

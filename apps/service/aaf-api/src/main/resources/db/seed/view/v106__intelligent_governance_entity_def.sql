@@ -196,6 +196,8 @@ VALUES
           "readOnlyWhen":"$record.visibility === 'PRIVATE'"},
         {"type":"textarea","name":"toolWhitelist","label":"工具授权池（JSON 数组）","rows":4,
           "readOnlyWhen":"$record.visibility === 'PRIVATE'"},
+        {"type":"json","name":"knowledgeBaseIds","label":"关联知识库（stable_id 数组，最多 2 个）",
+          "readOnlyWhen":"$record.visibility === 'PRIVATE'"},
         {"type":"number","name":"ownerId","label":"私有角色所有者","readOnly":true},
         {"type":"date","name":"updateTime","label":"更新时间","readOnly":true,"includeTime":true}
       ],

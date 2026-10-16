@@ -223,7 +223,8 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                         List.of(),
                         programmaticContexts(objective.facts()),
                         trustedAllowedActions(request.purpose()),
-                        executionIntent);
+                        executionIntent,
+                        false);
         var command = assembleCommand(spec, identity, null, runIdentity, null, analysis);
         var maxAttempts = command.executionContract().retryPolicy().maxAttempts();
         var plan =
@@ -480,7 +481,8 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                         parsedInput.imageFileKeys(),
                         List.of(),
                         Set.of(),
-                        executionIntent);
+                        executionIntent,
+                        knowledge.mode() == AssistantExecutionRequest.KnowledgeMode.DISABLED);
         log.debug(
                 "[AssistantExecution] stage=spec_built assistantId={} requestedSkill={} modelMode={} "
                         + "modelId={} memoryMode={} materialCount={} imageCount={} outputFormat={}",
@@ -773,7 +775,10 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                         spec.memoryMode(),
                         userAttachments,
                         spec.executionIntent(),
-                        new ContextPlan(taskMaterials, knowledgeQuery(spec, identity))),
+                        new ContextPlan(
+                                taskMaterials,
+                                knowledgeQuery(spec, identity),
+                                spec.knowledgeDisabled())),
                 now);
     }
 
@@ -1566,7 +1571,8 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
             List<String> imageFileKeys,
             List<ControlledContext> controlledContexts,
             Set<String> trustedAllowedActions,
-            ExecutionIntent executionIntent) {
+            ExecutionIntent executionIntent,
+            boolean knowledgeDisabled) {
 
         public ExecutionSpec {
             knowledgeBaseIds = knowledgeBaseIds == null ? Set.of() : Set.copyOf(knowledgeBaseIds);
