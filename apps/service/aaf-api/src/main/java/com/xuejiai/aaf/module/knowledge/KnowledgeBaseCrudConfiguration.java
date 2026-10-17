@@ -8,6 +8,7 @@ import com.xuejiai.aaf.framework.crud.definition.TenantScope;
 import com.xuejiai.aaf.framework.crud.resource.CrudResourceDefinitionProvider;
 import com.xuejiai.aaf.framework.crud.resource.CrudResourceDefinitions;
 import com.xuejiai.aaf.module.knowledge.controller.KnowledgeBaseController;
+import com.xuejiai.aaf.module.knowledge.controller.KnowledgeDocumentReferenceController;
 
 /** 知识库 CRUD 资源注册。 */
 @Configuration(proxyBeanMethods = false)
@@ -23,5 +24,11 @@ public class KnowledgeBaseCrudConfiguration {
                 "system:knowledge-base",
                 TenantScope.ORG_SHARED_WORKSPACE_OPTIONAL,
                 PersonalScope.byProperty("ownerId"));
+    }
+
+    @Bean
+    CrudResourceDefinitionProvider<?> knowledgeDocumentResource() {
+        return CrudResourceDefinitions.bindCrud(
+                KnowledgeDocumentResource.DEFINITION, KnowledgeDocumentReferenceController.class);
     }
 }
