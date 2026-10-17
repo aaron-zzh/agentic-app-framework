@@ -68,7 +68,8 @@ final class PooledTtsTask implements TtsTask {
 
     @Override
     public void cancel() {
-        if (cancelled) {
+        // 已归还或作废的连接可能已被其他任务借走，此时取消不能再触达该连接
+        if (cancelled || released.get()) {
             return;
         }
         cancelled = true;
@@ -80,7 +81,7 @@ final class PooledTtsTask implements TtsTask {
     }
 
     private void sendCancel() {
-        if (!cancelRequested.compareAndSet(false, true)) {
+        if (released.get() || !cancelRequested.compareAndSet(false, true)) {
             return;
         }
         try {

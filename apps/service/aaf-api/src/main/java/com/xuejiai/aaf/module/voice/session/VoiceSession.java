@@ -499,6 +499,11 @@ public final class VoiceSession {
         }
         if (turn.resumeAfterFinish) {
             turn.resumeAfterFinish = false;
+            // 上一个任务收尾后仍未定稿的文本先并入，避免被新任务的首个 partial 覆盖
+            if (!turn.partial.isBlank()) {
+                turn.sentences.add(turn.partial);
+            }
+            turn.partial = "";
             reopenAsr(turn);
             return;
         }
