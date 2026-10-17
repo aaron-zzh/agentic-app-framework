@@ -43,6 +43,8 @@ AI 智能体和人类用户协作中发现的改进点，协调者定期审阅�
 - 2026-05-06 | **视觉审计原子提交规范（gstack `/design-review` 借鉴）**：前端样式修复每个 finding 一个 commit，格式 `style(design): FINDING-NNN`，可 bisect 回退。gstack 80 项视觉审计后逐项修复，CSS-only 变更免风险预算，JSX 变更计入风险。AAF 提交规范有 `style` type 但无"一修一提交"约束。建议：① 在 `commit-standard.md` 补充"视觉/样式修复场景"——每个独立 finding 一个 commit，scope 为组件名或页面名；② designer agent 或 tester agent 做视觉审计时遵循此规范；③ 纯 CSS/Tailwind 变更标记为低风险可批量提交，涉及组件结构变更需逐个提交。v0.2 webui 有实际页面后生效 | 待评估
 - 2026-05-06 | **Polymorphic Actor 落地路径**：① 新建 `docs/design/framework/actor.md` 定义 Actor 抽象、类型枚举、操作接口、审计协议；② 更新 `requirement-standard.md` 强制"谁做了什么"字段用 Actor；③ 更新 ~~`permission-system.md`~~→`access-control.md` 把"Agent 作为权限主体"从 Principal 层上升为 Actor 层；④ `packages/types/actor.ts` + `com.xuejiai.aaf.common.actor.Actor` 作为首个共享类型（同时验证 P2.3）；⑤ ArchUnit/ESLint 约束 `createdBy`/`assignee`/`owner` 必须为 Actor 类型 | "已实施（设计+规范层面），代码层面待首个业务实体开发时落地
 
+- 2026-10-15 | **迁移号段规则只在"所有环境可清库重建"时成立**：`architecture-constraints.md` 的"数据库迁移版本号规划"为每个模块登记百位号段，号段内新增文件取下一个编号。Flyway 默认 `outOfOrder=false`（`application.yaml` 未设置），一旦某个环境已执行过更高版本（如 v400），再新增 v305 会被校验判为"已解析但未应用"而启动失败。目前不出问题，是因为项目未发布、按既有约定（`v7__aigc_schema.sql` 头部"所有环境必须清空后按 Flyway 顺序重建"、dev 的 `aaf.flyway.clean-on-start`）每次清库重建，生产也还没有数据。首次生产部署前需要协调者定演进策略：① 开启 `spring.flyway.out-of-order=true`，保留号段，模块之间保持迁移互不依赖；② 新迁移改用单调递增的时间戳版本号，号段规则作废；③ 种子数据改用幂等的可重复迁移 `R__`（现有种子已写成 `ON CONFLICT`），只有表结构变更保留版本号文件。同时需修订该文档里"单号段预期覆盖单个模块全生命周期"的假设。出处：AAF-120 | 已决定：生产也保持顺序执行，不开启乱序；已部署环境之后的变更必须取比已部署最大版本更大的编号，号段内编号此后不再保证连续，该文档的号段假设需由协调者据此修订
+
 ## 五层智能架构代码-文档一致性审计（2026-08-26）
 
 来源：`docs/design/framework/intelligent/` 全量文档与 `apps/service/` 代码的双向核实（虚标降级 + 过度保守升级）。缺口本身已记录在各文档的「实现态」表，本节只保留**优先级排序**与**是否需人类确认设计变更**。

@@ -2,7 +2,7 @@
 
 所有用户故事的唯一来源。条目由 product agent 细化后登记，协调者维护编号和状态。
 
-编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-119**，新一级用户故事从 AAF-120 开始。添加新条目后必须同步更新此行。
+编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-121**，新一级用户故事从 AAF-122 开始。添加新条目后必须同步更新此行。
 
 ## 当前迭代（v0.13）
 
@@ -18,6 +18,8 @@
 - [ ] AAF-118 (创建: 10-14) Role 可见性与归属模型（`ai_role` 增加 SYSTEM/PUBLIC/PRIVATE 可见性；助理创建时复制模板初始角色，之后用户从角色库自行绑定内置、公开和自己的私有角色，受绑定上限与默认角色保护约束；用户可创建私有角色；保存、绑定与运行时校验技能与工具引用，公开或内置角色不得引用私有技能，私有角色引用的工具只校验已登记启用、不限风险等级；系统受管助理如客服不开放用户绑定；失效的非默认绑定在加载时跳过；技能可见性变更做反向引用保护）需求: docs/task/v0.13/AAF-118/requirement.md 设计: docs/task/v0.13/AAF-118/design.md 任务: docs/task/v0.13/AAF-118/tasks.md
 
 - [ ] AAF-119 (创建: 10-14) 实时通道收敛与全局事件通道（保留 WebSocket［通知、IM、语音、画布］、一条全局 SSE、AG-UI Run SSE 三类通道；全局 SSE 由 `/api/aigc/events/stream` 泛化为中性命名 `/api/events/stream`，通用事件表与统一发布入口，AIGC 事件加 `aigc.` 前缀；异步任务事件并入并删除 `/api/async-tasks/events`，`SseSessionManager` 改造为全局 SSE 的传输层；通知移除 SSE 传输分支；前端单例连接按事件类型前缀分发，挂到 workspace 与 Studio 布局；清理无后端端点的导出进度 Hook 与重复通知 Hook；设计已确认，不以 AAF-112 #11206、AAF-113 为前提）需求: docs/task/v0.13/AAF-119/requirement.md 设计: docs/task/v0.13/AAF-119/design.md 任务: docs/task/v0.13/AAF-119/tasks.md
+- [ ] AAF-120 (创建: 10-15) 养老业务模块 elder（居家与社区养老服务平台，按 todo 模块规范分七个业务子域加横切智能层：长者中心 profile［主数据、联系人与监护授权、健康档案、体征、能力评估］、服务资源 provider［服务商、护理员、资质、排班、评分］、服务商城 mall［目录、套餐、订单、权益］、服务执行 workorder［派单、上门、工单闭环、评价］、安全守护 guard［呼叫、设备、预警与响应升级］、结算中心 settle［费用、补贴、分账、对账，复用 pay 与结算引擎渠道］、监管运营 ops［质控、投诉、报表、大屏］；agent 智能层只通过各域 api 提供工具、技能、角色与知识库种子；建议分三期：一期［居家养老，机器人为主要终端］七个核心场景——基础信息 profile、预警 guard［跌倒、一键求助、长时间无活动、设备离线，站内信+服务号通知，短信预留开关默认关闭］、用药提醒［含对话创建］、陪伴聊天［机器人对接 AAF 助理，设备语音网关提供识别/对话/合成］、服务预约 mall［精简，运营线下安排］、康复指导 rehab［关联知识文档，查看+问答］、相册管理 album［机器人照片上传，家属管理］+agent 最小集，共 13 个实体，不做支付，内部按 M0 通信 PoC、M1 预警/用药/设备配对与 MQTT 通道、M2 相册/预约、M3 助理语音/康复四个里程碑交付；二期 provider、workorder、settle、更多视觉预警、短信启用；三期 ops、入户识别；设备通信按既有 ModBot 通信设计实现 MQTT 子集（租约字段对非物理能力暂不实现），设备屏幕配对码绑定，计费主体为设备所有者；前端一期只做运营管理端（EntityDef 驱动），家属端后置；broker 定为 EMQX 单节点与 Java 服务同机独立容器运行（一台测试设备，不压测），阿里云云消息队列 MQTT 版（按预留量收费）与物联网平台（已停止新购）不采用；运营 7x24 值班用一个默认统一服务账号；预警同时通知运营值班（站内信加钉钉群，复用现有发送器）和联系人站内信，不做逐级升级；复用现有 AsyncQueueTaskService，不新建 Redis 消息队列；设计已于 10-15 通过人类审核，可按任务开工，🔴 高风险，设计变更需重新审核）需求: docs/task/v0.13/AAF-120/requirement.md 设计: docs/task/v0.13/AAF-120/design.md 任务: docs/task/v0.13/AAF-120/tasks.md
+- [ ] AAF-121 (创建: 10-16) 微信登录与扫码绑定设备（开放平台扫码登录补 unionid 并打通多入口账号；服务号扫码关注登录［带参临时二维码、subscribe/SCAN/unsubscribe 事件、微信内二次确认防扫码钓鱼、关注状态记录］；微信内 H5 服务号网页授权登录；服务号 AccessToken 改 Redis；家属微信扫设备屏幕二维码自助绑定设备［二维码改 HTTPS 链接且只带配对码、落地页、专用绑定接口、管理设备授权范围、所有者默认当前用户］；先行安全修复［设备二维码带 `deviceCode`，已于 10-16 去掉，只含配对码］；非目标：粉丝管理、小程序承接、预警模板消息内容；前置：已认证服务号、网页授权域名与备案、服务号与网站应用绑定同一开放平台账号；依赖 AAF-120）需求: docs/task/v0.13/AAF-121/requirement.md
 - [ ] AAF-027 (创建: 05-10) LLM 调用录制与回放（测试基础设施：拦截 LLM API 请求录制为 JSON，测试时回放，避免真实调用，保证确定性 + 降低成本）参考：Mastra `_llm-recorder`、WireMock、Spring AI MockChatModel
 - [ ] AAF-035 (创建: 05-14) Nx 工程化持续优化（lefthook 迁移 + enforce-module-boundaries + publint/attw + 共享 tsconfig 包 + Changeset 版本管理）(依赖: AAF-028 packages/ 落地后)
 - [ ] AAF-109 (创建: 09-01) 工具权限运行时安全加固（对齐官方 AgentScope Permission System 后发现的缺口：① Built-in Checks——工具按真实调用参数做动态安全检查，不可被 mode/rules 覆盖，如检测目标是否为生产资源；② 危险资源硬编码黑名单——`.env`/`.ssh`/`.git` 等命中即强制人工确认，连最宽松授权模式都不能绕过。AAF 当前只按工具名静态属性 `readOnly`/`reversible` 判定，全靠人工配置 `ai_tool_catalog`/`ToolPolicy`，无运行时兜底。技术方案见 AAF-107 dev-log 2026-09-01 对比分析）
