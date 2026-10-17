@@ -4,6 +4,10 @@ import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.intelligent.ai.speech.AsrResult;
 import com.xuejiai.aaf.framework.intelligent.ai.speech.SpeechService;
 import com.xuejiai.aaf.framework.intelligent.ai.speech.SynthesisResult;
+import com.xuejiai.aaf.framework.intelligent.ai.speech.realtime.AsrListener;
+import com.xuejiai.aaf.framework.intelligent.ai.speech.realtime.AsrTask;
+import com.xuejiai.aaf.framework.intelligent.ai.speech.realtime.TtsListener;
+import com.xuejiai.aaf.framework.intelligent.ai.speech.realtime.TtsTask;
 import com.xuejiai.aaf.framework.intelligent.core.decorator.AbstractAiServiceDecorator;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 import com.xuejiai.aaf.framework.security.OperatorContext;
@@ -40,6 +44,16 @@ public class SpeechServiceDecorator extends AbstractAiServiceDecorator<SpeechSer
     @Override
     public Flux<AsrResult> transcribeStream(Flux<byte[]> audioStream, String language) {
         return delegate.transcribeStream(audioStream, language);
+    }
+
+    @Override
+    public AsrTask openAsrTask(String language, AsrListener listener) {
+        return delegate.openAsrTask(language, listener);
+    }
+
+    @Override
+    public TtsTask startTtsTask(String text, String voice, TtsListener listener) {
+        return delegate.startTtsTask(text, voice, listener);
     }
 
     @Override

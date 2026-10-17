@@ -83,15 +83,22 @@ public class DeviceVoiceGatewayService {
                 principal, CapabilityRoutingContext.CAP_SPEECH_ASR, AiCreditGuard.INESTIMABLE_COST);
     }
 
-    public Flux<AsrResult> transcribe(
-            DevicePrincipal principal, Flux<byte[]> audio, String language) {
-        scenarioAccess.requireEnabled(principal.scenarioKey());
-        return Flux.defer(
+    /** 按实际合成并交付的文本结算语音合成（语音会话按话轮结算，不在每句结算）。 */
+    public void settleSpokenText(DevicePrincipal principal, String spokenText) {
+        if (spokenText == null || spokenText.isBlank()) {
+            return;
+        }
+        var model = configCacheManager.getAiModelByModelId(TTS_MODEL_ID);
+        var cost = speechService.estimateCost(model, spokenText, creditGuard.getMarkupRate());
+        ownerExecutionService.runAsOwner(
+                principal,
+                "voice-tts-settlement",
                 () ->
-                        ownerExecutionService.runAsOwner(
-                                principal,
-                                "voice-asr",
-                                () -> speechService.transcribeStream(audio, language)));
+                        creditGuard.settleFixedReturningTxId(
+                                principal.ownerUserId(),
+                                cost,
+                                CapabilityRoutingContext.CAP_SPEECH_TTS,
+                                "设备语音合成"));
     }
 
     public void settleAsr(DevicePrincipal principal, int durationMs) {

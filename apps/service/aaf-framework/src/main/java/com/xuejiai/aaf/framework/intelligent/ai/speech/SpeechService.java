@@ -1,6 +1,10 @@
 package com.xuejiai.aaf.framework.intelligent.ai.speech;
 
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
+import com.xuejiai.aaf.framework.intelligent.ai.speech.realtime.AsrListener;
+import com.xuejiai.aaf.framework.intelligent.ai.speech.realtime.AsrTask;
+import com.xuejiai.aaf.framework.intelligent.ai.speech.realtime.TtsListener;
+import com.xuejiai.aaf.framework.intelligent.ai.speech.realtime.TtsTask;
 import com.xuejiai.aaf.framework.intelligent.core.AiCapability;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 import com.xuejiai.aaf.framework.intelligent.core.model.CapabilityRoutingContext;
@@ -47,6 +51,31 @@ public interface SpeechService extends AiCapability {
         return Flux.error(
                 new UnsupportedOperationException("该实现不支持流式 ASR，请使用 transcribe() 或换用支持流式的实现"));
     }
+
+    /**
+     * 实时 ASR 任务：借出池化连接并开始一个识别任务（PCM16 16kHz 单声道输入）。
+     *
+     * <p>与 {@link #transcribeStream} 的区别：任务由调用方按话轮显式开始/结束，连接在任务间复用，适合常驻会话。
+     *
+     * @throws com.xuejiai.aaf.framework.intelligent.ai.speech.realtime.SpeechPoolExhaustedException
+     *     对象池在借出超时内没有空闲对象
+     */
+    default AsrTask openAsrTask(String language, AsrListener listener) {
+        throw new UnsupportedOperationException("该实现不支持实时 ASR 任务");
+    }
+
+    /**
+     * 实时 TTS 任务：借出池化连接合成一段文本，输出 PCM16 {@value #REALTIME_TTS_SAMPLE_RATE}Hz 单声道。
+     *
+     * @throws com.xuejiai.aaf.framework.intelligent.ai.speech.realtime.SpeechPoolExhaustedException
+     *     对象池在借出超时内没有空闲对象
+     */
+    default TtsTask startTtsTask(String text, String voice, TtsListener listener) {
+        throw new UnsupportedOperationException("该实现不支持实时 TTS 任务");
+    }
+
+    /** 实时 TTS 输出采样率（Hz）。 */
+    int REALTIME_TTS_SAMPLE_RATE = 16_000;
 
     /** TTS 非流式：返回合成结果（含音频字节和计费用量） */
     SynthesisResult synthesize(AiModel model, String text, String voice);

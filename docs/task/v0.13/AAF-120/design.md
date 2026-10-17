@@ -600,7 +600,7 @@ Broker 与客户端库：
 |---|---|---|
 | 下行 | `GET /api/device/brief` | 机器人简报：称呼、偏好、禁忌、今日提醒；不含证件号、详细病史 |
 | 上行 | `POST /api/device/photos` | 照片上传（multipart），见"相册管理" |
-| 上行 | `WS /api/device/voice/asr` | 流式语音识别，见"语音与助理接入" |
+| 双向 | `WS /api/device/voice/session?proto=3` | 实时语音会话（ASR → 助理 → TTS 同一条连接），协议见 modbot 仓库 `docs/aaf-device-integration.md`；取代原 `WS /api/device/voice/asr` |
 | 下行 | `POST /api/device/voice/tts` | 语音合成，返回流式音频 |
 | 双向 | `POST /api/device/chat` | 与助理对话，流式返回文字 |
 

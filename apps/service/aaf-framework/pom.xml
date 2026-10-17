@@ -182,6 +182,11 @@
 			<groupId>com.alibaba</groupId>
 			<artifactId>dashscope-sdk-java</artifactId>
 		</dependency>
+		<!-- 实时语音上游对象池（版本由 spring-boot-dependencies 管理） -->
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-pool2</artifactId>
+		</dependency>
 		<!-- 响应式：agentscope-core 的 Mono/Flux 流 -->
 		<dependency>
 			<groupId>io.projectreactor</groupId>

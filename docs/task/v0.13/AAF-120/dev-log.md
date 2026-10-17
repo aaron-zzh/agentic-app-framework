@@ -244,3 +244,16 @@
 > **未改动（历史记录，保留当时口径）**：AAF-107 tasks、AAF-117 dev-log/tasks、`v0.12/manual-test-guide.md`、`bak/` 设计稿中的旧取值。
 > **未改动（模型可见提示词）**：`PromptAssembler` 中面向模型的"分解策略：NONE/REQUIRED"文案保持不变，避免无谓升级提示词合同版本。
 > **未改动（有意保留）**：`TaskAnalysisPolicy` 中"产物策略非 RETURN_ONLY 即走 TASK"分支经请求入口不可达，但其他入口（工作流节点、测试）可能构造，未逐一核对前不删除。
+
+
+## 实时语音会话（协议 v3）与上游对象池
+
+✅ 2026-10-17 — AI/developer-service
+
+- 新增 `WS /api/device/voice/session`，替换并删除 v2 `/api/device/voice/asr`（`DeviceAsrWebSocketHandler`）；网页 `/ws/asr` 未改动
+- `module.voice` 为设备/网页共用会话核心（协议、话轮状态机、推测与续说、句子流水线 TTS、按话轮结算）；设备经 `DeviceVoiceClient` 复用 `DeviceVoiceGatewayService`
+- `aaf-framework` 新增 ASR/TTS 对象池（commons-pool2）：`SpeechService.openAsrTask/startTtsTask`，池大小/借出超时见 `aaf.speech.pool`；启动时校验 asr+tts ≤ `DASHSCOPE_CONNECTION_POOL_SIZE`
+- 单测：池与任务生命周期 14 个、会话 28 个、切句 6 个、配置绑定 4 个；`mvnw test` 全量通过，未联调真实 DashScope 与设备
+
+> **未实现**：网页端 `/ws/voice/session`（需用户身份下的大脑适配）；`DashScopeSpeechService` 的 `synthesize*` 与 `transcribe(bytes)` 仍每次新建连接（AIGC/REST 回退在用）；网页 `/ws/asr` 用的 `transcribeStream` 已改走 ASR 对象池，对外只推定稿句子与用量帧，行为不变（需网页联调确认）；前端读音调用的 `/voice/tts/stream` 后端无对应接口（原有问题，未处理）；`cancel` 的助手历史截断（`AssistantExecutionService` 无对应接口，设备端仅记录）。
+> **未核实**：Java SDK 的 `streamingCancel` 在 `call(text)` 模式下是否触发 task-finished（超时 2 秒会作废连接，不影响正确性只影响复用）；空闲 60 秒断连由 `idleEvictSeconds=50` 规避，未验证 SDK 是否自行重连。

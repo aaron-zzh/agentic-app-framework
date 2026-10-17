@@ -2,20 +2,31 @@ package com.xuejiai.aaf.framework.intelligent.ai.speech;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.nio.ByteBuffer;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import com.alibaba.dashscope.audio.asr.recognition.Recognition;
 import com.alibaba.dashscope.audio.asr.recognition.RecognitionParam;
+import com.alibaba.dashscope.audio.ttsv2.SpeechSynthesisAudioFormat;
 import com.alibaba.dashscope.audio.ttsv2.SpeechSynthesisParam;
 import com.alibaba.dashscope.audio.ttsv2.SpeechSynthesizer;
 
+import com.xuejiai.aaf.framework.intelligent.ai.speech.realtime.AsrListener;
+import com.xuejiai.aaf.framework.intelligent.ai.speech.realtime.AsrTask;
+import com.xuejiai.aaf.framework.intelligent.ai.speech.realtime.DashScopeAsrClient;
+import com.xuejiai.aaf.framework.intelligent.ai.speech.realtime.DashScopeTtsClient;
+import com.xuejiai.aaf.framework.intelligent.ai.speech.realtime.RealtimeSpeechGateway;
+import com.xuejiai.aaf.framework.intelligent.ai.speech.realtime.SpeechPoolProperties;
+import com.xuejiai.aaf.framework.intelligent.ai.speech.realtime.TtsListener;
+import com.xuejiai.aaf.framework.intelligent.ai.speech.realtime.TtsTask;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
 
+import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
@@ -49,6 +60,7 @@ import reactor.core.publisher.FluxSink;
 @Slf4j
 @Service
 @ConditionalOnProperty(name = "spring.ai.dashscope.api-key", matchIfMissing = false)
+@EnableConfigurationProperties(SpeechPoolProperties.class)
 public class DashScopeSpeechService implements SpeechService {
 
     private static final String DEFAULT_ASR_MODEL = "fun-asr-realtime";
@@ -59,14 +71,42 @@ public class DashScopeSpeechService implements SpeechService {
 
     private final String apiKey;
 
+    /** 实时会话用的上游对象池（ASR/TTS 连接按任务复用）。 */
+    private final RealtimeSpeechGateway realtime;
+
     @Value("${aaf.speech.tts.voice:" + DEFAULT_VOICE + "}")
     private String defaultVoice;
 
     @Value("${aaf.speech.asr.model:" + DEFAULT_ASR_MODEL + "}")
     private String asrModel;
 
-    public DashScopeSpeechService(@Value("${spring.ai.dashscope.api-key:}") String apiKey) {
+    public DashScopeSpeechService(
+            @Value("${spring.ai.dashscope.api-key:}") String apiKey,
+            SpeechPoolProperties poolProperties) {
         this.apiKey = apiKey;
+        poolProperties.validate(SpeechPoolProperties.connectionPoolSizeFromEnv());
+        this.realtime =
+                new RealtimeSpeechGateway(
+                        poolProperties,
+                        () -> new DashScopeAsrClient(language -> buildAsrParam(language, "pcm")),
+                        () -> new DashScopeTtsClient(this::buildPcmTtsParam));
+    }
+
+    @PreDestroy
+    void shutdownRealtimePools() {
+        realtime.close();
+    }
+
+    // ========== 实时会话（对象池） ==========
+
+    @Override
+    public AsrTask openAsrTask(String language, AsrListener listener) {
+        return realtime.openAsr(language, listener);
+    }
+
+    @Override
+    public TtsTask startTtsTask(String text, String voice, TtsListener listener) {
+        return realtime.startTts(cleanText(text), voice, listener);
     }
 
     // ========== ASR ==========
@@ -95,88 +135,77 @@ public class DashScopeSpeechService implements SpeechService {
     }
 
     /**
-     * ASR 流式：音频字节流 → 实时识别帧流。
+     * ASR 流式：音频字节流 → 实时识别帧流，识别连接取自对象池，任务结束后归还复用。
      *
-     * <p>计费策略：fun-asr-realtime 不下发 isCompleteResult 帧，usage 随 sentenceEnd 帧累计上报（duration
-     * 为会话开始至当前帧的累计秒数，非增量）。本方法的推送策略：
+     * <p>对外行为与改造前一致：只推送定稿句子（{@link AsrResult#ofText}）和计费用量帧（{@link AsrResult#ofUsage}，毫秒）。
      *
      * <ul>
-     *   <li>sentenceEnd 帧若携带 usage，**立即**推一帧 {@link AsrResult#ofUsage(int)} 给上层，使 handler 侧可以在
-     *       WebSocket 关闭前就拿到最新真实 duration，避免"流结束才推 usage"导致的关闭竞态
-     *   <li>流正常完成或异常退出时再补推一次最大累计值，覆盖极少数 usage 不在 sentenceEnd 上的情况
+     *   <li>sentenceEnd 之前到达的 usage 随句子立即外推，使 handler 在 WebSocket 关闭前就拿到最新真实 duration
+     *   <li>音频流结束后发 finish-task 等 task-finished，再补推一次最终累计值后 complete
      * </ul>
      *
-     * <p>由于上层 handler 对 usage 帧采用"取 max + 关闭时一次结算"模式，多次推送 usage 帧不会造成重复扣费。
+     * <p>上层 handler 对 usage 帧采用"取 max + 关闭时一次结算"，多次推送不会重复扣费。DashScope 的 duration 单位是秒，这里乘 1000 转毫秒。
      *
-     * <p>SDK 单位说明：{@link
-     * com.alibaba.dashscope.audio.asr.recognition.RecognitionUsage#getDuration()} 返回的是秒（已和
-     * fun-asr-realtime 实测对齐），而 {@link AsrResult#ofUsage(int)} 入参约定为毫秒，故此处推送时统一乘以 1000 做转换。
+     * @throws com.xuejiai.aaf.framework.intelligent.ai.speech.realtime.SpeechPoolExhaustedException
+     *     对象池耗尽时经 Flux 的 error 信号抛出
      */
     @Override
     public Flux<AsrResult> transcribeStream(Flux<byte[]> audioStream, String language) {
         return Flux.create(
                 sink -> {
-                    Recognition recognizer = new Recognition();
-                    // DashScope 在多帧上累计上报 duration（秒），取最大值即总用量
-                    int[] maxDurationSecs = {0};
-                    try {
-                        var param = buildAsrParam(language, "pcm");
-                        io.reactivex.Flowable<ByteBuffer> audioFlowable =
-                                io.reactivex.Flowable.create(
-                                        (io.reactivex.FlowableEmitter<ByteBuffer> emitter) ->
-                                                audioStream.subscribe(
-                                                        chunk ->
-                                                                emitter.onNext(
-                                                                        ByteBuffer.wrap(chunk)),
-                                                        emitter::onError,
-                                                        emitter::onComplete),
-                                        io.reactivex.BackpressureStrategy.BUFFER);
+                    var latestSecs = new AtomicInteger();
+                    var task =
+                            openAsrTask(
+                                    language,
+                                    new AsrListener() {
+                                        @Override
+                                        public void onPartial(String text) {
+                                            // 对外只推定稿句子，与改造前一致
+                                        }
 
-                        recognizer
-                                .streamCall(param, audioFlowable)
-                                .blockingForEach(
-                                        result -> {
-                                            var usage = result.getUsage();
-                                            if (log.isDebugEnabled()) {
-                                                log.debug(
-                                                        "ASR 帧: complete={}, sentenceEnd={},"
-                                                                + " hasUsage={}, durationSecs={}",
-                                                        result.isCompleteResult(),
-                                                        result.isSentenceEnd(),
-                                                        usage != null,
-                                                        usage != null ? usage.getDuration() : null);
+                                        @Override
+                                        public void onSentenceEnd(String text) {
+                                            if (text != null && !text.isBlank()) {
+                                                sink.next(AsrResult.ofText(text));
                                             }
-                                            // 任意帧上的 usage 都做累计，避免依赖 isCompleteResult
-                                            if (usage != null && usage.getDuration() != null) {
-                                                int v = usage.getDuration();
-                                                if (v > maxDurationSecs[0]) maxDurationSecs[0] = v;
-                                            }
-                                            if (result.isSentenceEnd()) {
-                                                String text = result.getSentence().getText();
-                                                if (text != null && !text.isBlank()) {
-                                                    sink.next(AsrResult.ofText(text));
-                                                }
-                                                // sentenceEnd 帧若携带 usage 立即外推，让 handler
-                                                // 在关闭前拿到真实累计 duration，规避兜底竞态
-                                                if (usage != null && usage.getDuration() != null) {
-                                                    sink.next(
-                                                            AsrResult.ofUsage(
-                                                                    usage.getDuration() * 1000));
-                                                }
-                                            }
-                                        });
-                    } catch (Exception e) {
-                        log.error("ASR 流式识别失败", e);
-                        // 异常路径同样推送已累计的用量，由上游决定是否结算
-                        emitUsageIfAny(sink, maxDurationSecs[0]);
-                        sink.error(e);
-                        recognizer.getDuplexApi().close(1000, "done");
-                        return;
-                    }
-                    // 正常完成：补推一次累计用量（兜底极少数 usage 不在 sentenceEnd 帧的情况）后 complete
-                    emitUsageIfAny(sink, maxDurationSecs[0]);
-                    sink.complete();
-                    recognizer.getDuplexApi().close(1000, "done");
+                                            emitUsageIfAny(sink, latestSecs.get());
+                                        }
+
+                                        @Override
+                                        public void onUsage(int durationSecs) {
+                                            latestSecs.accumulateAndGet(durationSecs, Math::max);
+                                        }
+
+                                        @Override
+                                        public void onError(Throwable error) {
+                                            log.error("ASR 流式识别失败", error);
+                                            emitUsageIfAny(sink, latestSecs.get());
+                                            sink.error(error);
+                                        }
+                                    });
+                    var subscription =
+                            audioStream.subscribe(
+                                    task::sendAudio,
+                                    error -> {
+                                        Thread.startVirtualThread(task::abort);
+                                        sink.error(error);
+                                    },
+                                    () ->
+                                            Thread.startVirtualThread(
+                                                    () -> {
+                                                        var seconds = task.finish();
+                                                        emitUsageIfAny(
+                                                                sink,
+                                                                Math.max(
+                                                                        seconds, latestSecs.get()));
+                                                        sink.complete();
+                                                    }));
+                    // 下游取消或终止时：停止读音频，并放弃仍在进行的任务（已结束则为空操作）
+                    sink.onDispose(
+                            () -> {
+                                subscription.dispose();
+                                Thread.startVirtualThread(task::abort);
+                            });
                 },
                 FluxSink.OverflowStrategy.BUFFER);
     }
@@ -306,6 +335,17 @@ public class DashScopeSpeechService implements SpeechService {
         String v = StringUtils.hasText(voice) ? voice : defaultVoice;
         String m = StringUtils.hasText(modelName) ? modelName : DEFAULT_TTS_MODEL;
         return SpeechSynthesisParam.builder().apiKey(apiKey).model(m).voice(v).build();
+    }
+
+    /** 实时会话用的合成参数：固定输出 PCM16 16kHz 单声道，设备不再解码 MP3。 */
+    private SpeechSynthesisParam buildPcmTtsParam(String voice) {
+        String v = StringUtils.hasText(voice) ? voice : defaultVoice;
+        return SpeechSynthesisParam.builder()
+                .apiKey(apiKey)
+                .model(DEFAULT_TTS_MODEL)
+                .voice(v)
+                .format(SpeechSynthesisAudioFormat.PCM_16000HZ_MONO_16BIT)
+                .build();
     }
 
     /** 清理 TTS 输入文本：去除不可打印控制字符、合并多余空白，保留换行作为句间停顿 */

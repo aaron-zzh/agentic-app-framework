@@ -5,21 +5,21 @@ import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 
-import com.xuejiai.aaf.module.device.controller.DeviceAsrWebSocketHandler;
+import com.xuejiai.aaf.module.device.controller.DeviceVoiceSessionHandler;
 
-/** 注册设备凭据专用的语音识别 WebSocket。 */
+/** 注册设备凭据专用的语音会话 WebSocket（协议 v3）。 */
 @Configuration
 @EnableWebSocket
 public class DeviceVoiceWebSocketConfig implements WebSocketConfigurer {
 
-    private final DeviceAsrWebSocketHandler asrHandler;
+    private final DeviceVoiceSessionHandler sessionHandler;
 
-    public DeviceVoiceWebSocketConfig(DeviceAsrWebSocketHandler asrHandler) {
-        this.asrHandler = asrHandler;
+    public DeviceVoiceWebSocketConfig(DeviceVoiceSessionHandler sessionHandler) {
+        this.sessionHandler = sessionHandler;
     }
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(asrHandler, "/api/device/voice/asr").setAllowedOrigins("*");
+        registry.addHandler(sessionHandler, "/api/device/voice/session").setAllowedOrigins("*");
     }
 }
