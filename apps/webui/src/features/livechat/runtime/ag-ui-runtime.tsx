@@ -446,7 +446,8 @@ export function AgUiChatProvider({
             run.setSelectedRole({
               roleKey,
               roleName,
-              routeConstraint: typeof routeConstraint === "string" ? routeConstraint : "AUTO"
+              routeConstraint:
+                typeof routeConstraint === "string" ? routeConstraint : "ROUTE_AUTO"
             })
           }
           return

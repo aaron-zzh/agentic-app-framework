@@ -14,7 +14,7 @@ changelog:
 
 ## Context and Problem Statement
 
-文案生成页（`/studio/create/copy`）以 `interactionMode=TASK`、`routeConstraint=FIXED`、`AUTO_SAVE_DRAFT` 调用 `POST /api/agui/run`，前端没有收到流式正文。排查发现三类互相关联的问题：
+文案生成页（`/studio/create/copy`）以 `interactionMode=TASK`、固定 Role/Skill 路由（`ROUTE_FIXED`，现由请求是否声明 role/skill 推导，不再是请求字段）、`AUTO_SAVE_DRAFT` 调用 `POST /api/agui/run`，前端没有收到流式正文。排查发现三类互相关联的问题：
 
 - **传输断裂**：AAF-115 把 TASK 路径改为"提交 Task 后由独立 worker 执行"，入口 `AssistantExecutionService` 提交后返回空 `Flux`，SSE 随即闭合，worker 产出的增量没有送到连接上。
 - **协调者契约矛盾**：`InvocationPolicy.COORDINATOR` 要求协调者只做规划、必须调用 `submit_coordination_plan`、不得生成最终业务内容；内置技能 `builtin-task-decomposition` 与 AAF-107 的文档却允许协调者"简单任务直接给出最终答案"。同时 `AssistantCommand.nodeIdentityOf` 把协调者恒定为内部节点（`delivery=false`），其文本在 AG-UI 投影中降级为只含 `contentLength` 的 `CUSTOM` 事件。实际运行中协调者按技能直答，正文既不被交付，也没有保存草稿。
@@ -71,7 +71,7 @@ changelog:
 - 协调者的有效工具 = Role/Skill 解析出的工具（经 `ToolGateway` 授权与审批）+ 控制工具 `submit_coordination_plan`、`submit_executor_plan`、`report_executor_step`、`request_clarification`。这四个控制工具加入 `builtinControlTools` 与 `builtinControlTool`，免于 ToolPolicy 逐项登记
 - 执行者同样补充 `submit_executor_plan`、`report_executor_step`，保证"节点内拆步骤"在任意节点可用
 - 聚合者**不放开**，保持无业务工具，只读取冻结的聚合输入
-- 分解策略为 `NONE` 时从协调者控制工具中移除 `submit_coordination_plan`；`REQUIRED` 时只保留 `submit_coordination_plan` 与 `request_clarification`
+- 分解策略为 `DECOMPOSE_NONE` 时从协调者控制工具中移除 `submit_coordination_plan`；`DECOMPOSE_REQUIRED` 时只保留 `submit_coordination_plan` 与 `request_clarification`
 - 协调者要自己直答或按步骤执行，必须能读取完整内容，因此协调者的上下文披露从 `SUMMARY_ONLY` 放宽为允许内容。放宽的代价是协调者直接暴露在原始内容与附件的提示注入面前，这个风险由既有 harness 约束兜底：工具走 `ToolGateway` 授权、计划校验保证执行者 Role/Skill 不超出冻结基准、执行者数量与并行度受预算限制、完成由 `CompletionValidator` 判定。该取舍需要人工审核确认
 
 ### AUTO 路由的选择
@@ -81,7 +81,7 @@ changelog:
 - 决策：TASK 路径取消 L0 选择，协调者自己决定
   - 协调者自身循环使用 ALWAYS 技能与 Role 基线，不预选业务技能
   - 需要业务技能时，协调者在 `submit_coordination_plan` 里为每个执行者指定 Role 与 Skill，候选目录由 harness 提供（Assistant 已发布且 Role 允许的技能摘要），harness 校验成员资格与授权衰减。现有"执行者必须等于协调者冻结基准"的校验放宽为"必须属于候选目录且不扩大授权"
-  - 简单任务需要某个业务技能时，由协调者提交单执行者计划承接，多出的开销由分解策略 `NONE` 与 FIXED 路由规避（固定技能的请求不经过选择）
+  - 简单任务需要某个业务技能时，由协调者提交单执行者计划承接，多出的开销由分解策略 `DECOMPOSE_NONE` 与 `ROUTE_FIXED` 路由规避（固定技能的请求不经过选择）
 - DIRECT 路径本期保留 L0 选择，待轻量态协调者具备同等能力后再统一
 - FIXED 路由不受影响，仍由请求直接指定
 

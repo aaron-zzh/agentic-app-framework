@@ -73,12 +73,17 @@ export interface AssistantArtifactTarget {
   expectedCurrentVersionId: number
 }
 
-export type AssistantDecompositionStrategy = "AUTO" | "NONE" | "REQUIRED"
+/** 仅适用于 TASK 执行；对话下传非缺省值会被后端拒绝。缺省为 DECOMPOSE_AUTO。 */
+export type AssistantDecompositionStrategy =
+  | "DECOMPOSE_AUTO"
+  | "DECOMPOSE_NONE"
+  | "DECOMPOSE_REQUIRED"
 
+/** 路由方式（固定/自动）不再由请求声明，后端按是否指定 role/skill 推导。 */
 export interface AssistantExecutionOptions {
   interactionMode: "TASK" | "CONVERSATIONAL"
-  routeConstraint: "FIXED" | "AUTO"
   clarificationPolicy: "MINIMAL" | "FAIL_ON_BLOCKER" | "INTERACTIVE"
+  /** 仅对服务端列出的动作（TASK 自动保存草稿的保存工具）生效，对话下不产生效果。 */
   actionAuthorizationPolicy: AssistantActionAuthorizationPolicy
   artifactPersistence: "AUTO_SAVE_DRAFT" | "RETURN_ONLY"
   decomposition?: AssistantDecompositionStrategy

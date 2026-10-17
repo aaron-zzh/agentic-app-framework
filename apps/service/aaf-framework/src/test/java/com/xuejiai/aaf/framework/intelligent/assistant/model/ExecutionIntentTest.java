@@ -39,7 +39,7 @@ class ExecutionIntentTest {
                         () ->
                                 new ExecutionIntent(
                                         ExecutionIntent.InteractionMode.TASK,
-                                        ExecutionIntent.RouteConstraint.AUTO,
+                                        ExecutionIntent.RouteConstraint.ROUTE_AUTO,
                                         ExecutionIntent.ClarificationPolicy.FAIL_ON_BLOCKER,
                                         null,
                                         ArtifactPolicy.returnOnly(

@@ -74,11 +74,13 @@ export interface SubTaskActivity {
 /**
  * 本次执行冻结的角色（AG-UI CUSTOM `aaf.role.resolved`，AAF-107 #10709）。
  * 由后端 AssistantApplicationService 每次执行无条件投影，走 PublicEventFallbackConverter 兜底 CUSTOM，
- * 不区分是用户显式指定还是模型（DefaultRoleSelector.selectByModel）动态选择——routeConstraint 可用于区分。
+ * 不区分是用户显式指定还是模型（DefaultRoleSelector.selectByModel）动态选择——routeConstraint 可用于区分
+ * （ROUTE_FIXED 为用户/调用方指定，ROUTE_AUTO 为动态选择）。
  */
 export interface SelectedRole {
   roleKey: string
   roleName: string
+  /** ROUTE_FIXED | ROUTE_AUTO，事件载荷原值 */
   routeConstraint: string
 }
 

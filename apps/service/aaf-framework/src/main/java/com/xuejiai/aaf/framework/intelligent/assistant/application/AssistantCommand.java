@@ -638,12 +638,13 @@ public record AssistantCommand(
                     case AGGREGATOR -> NodeIdentity.NodeKind.AGGREGATOR;
                 };
         // 聚合者始终是正式计划的交付者；协调者仅在计划里没有聚合者、且自己就是唯一完成证据时交付
-        // （协调者直答的“仅协调者”形态，ADR-008）。强制委派（REQUIRED）时协调者必然移交，从启动起就是内部节点，
-        // 其文本只走过程事件。AUTO 下协调者随后提交委派计划时，交付权移交由 AG-UI 投影按事件流收口。
+        // （协调者直答的“仅协调者”形态，ADR-008）。强制委派（DECOMPOSE_REQUIRED）时协调者必然移交，从启动起就是内部节点，
+        // 其文本只走过程事件。DECOMPOSE_AUTO 下协调者随后提交委派计划时，交付权移交由 AG-UI 投影按事件流收口。
         var delivery =
                 kind == NodeIdentity.NodeKind.AGGREGATOR
                         || (kind == NodeIdentity.NodeKind.COORDINATOR
-                                && decomposition != ExecutionIntent.DecompositionStrategy.REQUIRED
+                                && decomposition
+                                        != ExecutionIntent.DecompositionStrategy.DECOMPOSE_REQUIRED
                                 && plan.goal()
                                         .completionEvidence()
                                         .equals(Set.of(subTask.nodeId())));

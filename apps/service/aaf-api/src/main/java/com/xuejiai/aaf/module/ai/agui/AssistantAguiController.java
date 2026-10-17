@@ -56,7 +56,6 @@ import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.MemoryOp
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.ModelMode;
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.ModelSelection;
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.OutputOptions;
-import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest.RouteConstraint;
 import com.xuejiai.aaf.module.ai.chat.service.ChatService;
 
 import io.agentscope.core.agui.encoder.AguiEventEncoder;
@@ -402,9 +401,6 @@ public class AssistantAguiController {
                 assistant,
                 new ExecutionOptions(
                         InteractionMode.CONVERSATIONAL,
-                        role == null && skill == null
-                                ? RouteConstraint.AUTO
-                                : RouteConstraint.FIXED,
                         ClarificationPolicy.MINIMAL,
                         ActionAuthorizationPolicy.DENY_AUTHORIZED_ACTIONS,
                         ArtifactPersistence.RETURN_ONLY,

@@ -140,7 +140,7 @@ public record InvocationProfile(
         var fixedIntent =
                 new ExecutionIntent(
                         executionIntent.interactionMode(),
-                        ExecutionIntent.RouteConstraint.FIXED,
+                        ExecutionIntent.RouteConstraint.ROUTE_FIXED,
                         executionIntent.clarificationPolicy(),
                         new ExecutionIntent.ResolvedRoute(roleKey, skillKey, assistantRevision),
                         executionIntent.artifactPolicy(),

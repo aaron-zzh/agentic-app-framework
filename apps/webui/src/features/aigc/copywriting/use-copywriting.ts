@@ -121,11 +121,10 @@ export function copywritingExecutionRequest({
   return {
     execution: {
       interactionMode: "TASK",
-      routeConstraint: "FIXED",
       clarificationPolicy: "FAIL_ON_BLOCKER",
       actionAuthorizationPolicy: "REQUEST_ON_DEMAND",
       artifactPersistence,
-      decomposition: "NONE",
+      decomposition: "DECOMPOSE_NONE",
       ...(artifactTarget === undefined ? {} : { artifactTarget })
     },
     input: {

@@ -22,24 +22,26 @@ public record ExecutionIntent(
         Objects.requireNonNull(clarificationPolicy, "clarificationPolicy 不能为空");
         Objects.requireNonNull(artifactPolicy, "artifactPolicy 不能为空");
         Objects.requireNonNull(actionAuthorizationPolicy, "actionAuthorizationPolicy 不能为空");
-        decomposition = decomposition == null ? DecompositionStrategy.AUTO : decomposition;
+        decomposition = decomposition == null ? DecompositionStrategy.DECOMPOSE_AUTO : decomposition;
         if (aggregationRequirementsMaxChars != null && aggregationRequirementsMaxChars < 1) {
             throw new IllegalArgumentException("aggregationRequirementsMaxChars 必须为正数");
         }
-        if (decomposition != DecompositionStrategy.AUTO
+        if (decomposition != DecompositionStrategy.DECOMPOSE_AUTO
                 && interactionMode != InteractionMode.TASK) {
-            throw new IllegalArgumentException("分解策略 NONE / REQUIRED 仅适用于 TASK 执行");
+            throw new IllegalArgumentException(
+                    "分解策略 DECOMPOSE_NONE / DECOMPOSE_REQUIRED 仅适用于 TASK 执行");
         }
         if (trustedProjectId != null && trustedProjectId < 1) {
             throw new IllegalArgumentException("trustedProjectId 必须为正数");
         }
-        if (interactionMode == InteractionMode.TASK && routeConstraint != RouteConstraint.FIXED) {
-            throw new IllegalArgumentException("TASK 执行必须使用 FIXED Route");
+        if (interactionMode == InteractionMode.TASK
+                && routeConstraint != RouteConstraint.ROUTE_FIXED) {
+            throw new IllegalArgumentException("TASK 执行必须使用 ROUTE_FIXED Route");
         }
-        if (routeConstraint == RouteConstraint.FIXED) {
-            Objects.requireNonNull(resolvedRoute, "FIXED Route 必须包含已解析路由");
+        if (routeConstraint == RouteConstraint.ROUTE_FIXED) {
+            Objects.requireNonNull(resolvedRoute, "ROUTE_FIXED Route 必须包含已解析路由");
         } else if (resolvedRoute != null) {
-            throw new IllegalArgumentException("AUTO Route 不允许预置已解析路由");
+            throw new IllegalArgumentException("ROUTE_AUTO Route 不允许预置已解析路由");
         }
         if (artifactPolicy.persistenceMode() == PersistenceMode.AUTO_SAVE_DRAFT
                 && actionAuthorizationPolicy.behavior(artifactPolicy.saveTool())
@@ -55,14 +57,14 @@ public record ExecutionIntent(
     public static ExecutionIntent conversationalAuto(Long workspaceId, Long trustedProjectId) {
         return new ExecutionIntent(
                 InteractionMode.CONVERSATIONAL,
-                RouteConstraint.AUTO,
+                RouteConstraint.ROUTE_AUTO,
                 ClarificationPolicy.INTERACTIVE,
                 null,
                 ArtifactPolicy.returnOnly(OutputKind.MESSAGE, "text/markdown"),
                 ActionAuthorizationPolicy.requestOnDemand(),
                 workspaceId,
                 trustedProjectId,
-                DecompositionStrategy.AUTO,
+                DecompositionStrategy.DECOMPOSE_AUTO,
                 null);
     }
 
@@ -76,14 +78,14 @@ public record ExecutionIntent(
             Long trustedProjectId) {
         return new ExecutionIntent(
                 InteractionMode.TASK,
-                RouteConstraint.FIXED,
+                RouteConstraint.ROUTE_FIXED,
                 ClarificationPolicy.FAIL_ON_BLOCKER,
                 new ResolvedRoute(roleKey, skillKey, assistantRevision),
                 artifactPolicy,
                 actionAuthorizationPolicy,
                 workspaceId,
                 trustedProjectId,
-                DecompositionStrategy.AUTO,
+                DecompositionStrategy.DECOMPOSE_AUTO,
                 null);
     }
 
@@ -94,16 +96,18 @@ public record ExecutionIntent(
     /**
      * 分解策略（ADR-008）：只由调用方通过请求参数指定，随根命令冻结；通过协调者的工具可见性强制，不依赖提示词。
      *
+     * <p>仅适用于 TASK 执行：对话（轻量态）没有可委派的协调者工具，构造时拒绝非 {@code DECOMPOSE_AUTO}。
+     *
      * <ul>
-     *   <li>{@code AUTO}：协调者自行判断（缺省）
-     *   <li>{@code NONE}：协调者不得委派子智能体，强制单段
-     *   <li>{@code REQUIRED}：协调者必须委派
+     *   <li>{@code DECOMPOSE_AUTO}：协调者自行判断（缺省）
+     *   <li>{@code DECOMPOSE_NONE}：协调者不得委派子智能体，强制单段
+     *   <li>{@code DECOMPOSE_REQUIRED}：协调者必须委派
      * </ul>
      */
     public enum DecompositionStrategy {
-        AUTO,
-        NONE,
-        REQUIRED
+        DECOMPOSE_AUTO,
+        DECOMPOSE_NONE,
+        DECOMPOSE_REQUIRED
     }
 
     public enum InteractionMode {
@@ -111,9 +115,17 @@ public record ExecutionIntent(
         CONVERSATIONAL
     }
 
+    /**
+     * 本次执行的角色/技能路由方式；不是请求字段，由服务端按请求是否声明 Role/Skill 推导。
+     *
+     * <ul>
+     *   <li>{@code ROUTE_FIXED}：Role 和/或 Skill 已固定并解析为 {@link ResolvedRoute}；TASK 恒为此值
+     *   <li>{@code ROUTE_AUTO}：未固定，由选择器动态决定；仅对话可用
+     * </ul>
+     */
     public enum RouteConstraint {
-        FIXED,
-        AUTO
+        ROUTE_FIXED,
+        ROUTE_AUTO
     }
 
     public enum ClarificationPolicy {
@@ -151,7 +163,13 @@ public record ExecutionIntent(
         }
     }
 
-    /** 本次执行对声明动作的缺失授权处理策略；与澄清策略完全独立。 */
+    /**
+     * 本次执行对声明动作的缺失授权处理策略；与澄清策略完全独立。
+     *
+     * <p>{@code mode} 只对 {@code actions} 中列出的动作生效，未列出的动作一律按 {@code DEFAULT}（即按需请求授权）处理。
+     * 对话执行不声明任何动作（{@code actions} 为空），因此 {@code mode} 在对话下不产生任何效果；
+     * TASK 执行只在自动保存草稿时列出保存工具，程序化入口列出受信动作。
+     */
     public record ActionAuthorizationPolicy(Mode mode, Set<String> actions) {
         public ActionAuthorizationPolicy {
             Objects.requireNonNull(mode, "mode 不能为空");

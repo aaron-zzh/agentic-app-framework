@@ -274,7 +274,6 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                 new AssistantExecutionRequest.AssistantTarget(request.assistantId()),
                 new AssistantExecutionRequest.ExecutionOptions(
                         AssistantExecutionRequest.InteractionMode.TASK,
-                        AssistantExecutionRequest.RouteConstraint.FIXED,
                         AssistantExecutionRequest.ClarificationPolicy.FAIL_ON_BLOCKER,
                         policy.authorizationPolicy(),
                         policy.artifactPersistence(),
@@ -423,8 +422,6 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
         if (resolvedTeam != null
                 && (request.execution().interactionMode()
                                 != AssistantExecutionRequest.InteractionMode.CONVERSATIONAL
-                        || request.execution().routeConstraint()
-                                != AssistantExecutionRequest.RouteConstraint.AUTO
                         || request.execution().artifactPersistence()
                                 != AssistantExecutionRequest.ArtifactPersistence.RETURN_ONLY)) {
             throw exception(EXECUTION_TEAM_OPTIONS_UNSUPPORTED);
@@ -949,8 +946,6 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
         var options = request.execution();
         var interactionMode =
                 ExecutionIntent.InteractionMode.valueOf(options.interactionMode().name());
-        var routeConstraint =
-                ExecutionIntent.RouteConstraint.valueOf(options.routeConstraint().name());
         var clarificationPolicy =
                 ExecutionIntent.ClarificationPolicy.valueOf(options.clarificationPolicy().name());
         var actionAuthorizationMode =
@@ -977,12 +972,9 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
             var roleKey = request.role() == null ? null : normalize(request.role().key());
             var skillKey = request.skill() == null ? null : normalize(request.skill().code());
             if (roleKey == null && skillKey == null) {
-                if (routeConstraint != ExecutionIntent.RouteConstraint.AUTO) {
-                    throw exception(EXECUTION_CONVERSATIONAL_AUTO_ROUTE_REQUIRED);
-                }
                 return new ExecutionIntent(
                         interactionMode,
-                        routeConstraint,
+                        ExecutionIntent.RouteConstraint.ROUTE_AUTO,
                         clarificationPolicy,
                         null,
                         ArtifactPolicy.returnOnly(OutputKind.MESSAGE, "text/markdown"),
@@ -992,9 +984,6 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                         trustedProjectId,
                         decomposition,
                         options.aggregationRequirementsMaxChars());
-            }
-            if (routeConstraint != ExecutionIntent.RouteConstraint.FIXED) {
-                throw exception(EXECUTION_CONVERSATIONAL_FIXED_ROUTE_REQUIRED);
             }
             // role/skill 各自独立锁定（AAF-107 #10708）：只锁角色时技能仍开放选择（route.skillKey()==null，
             // 消费方 AssistantApplicationService 据此保持技能候选集不收窄）；只锁技能时按技能唯一定位角色
@@ -1006,6 +995,7 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                     role = definition.requireRole(roleKey);
                 } catch (IllegalArgumentException exception) {
                     throw exception(EXECUTION_ROUTE_ROLE_NOT_FOUND);
+            // 路由方式由是否声明 Role/Skill 推导：都未声明为 ROUTE_AUTO，否则为 ROUTE_FIXED
                 }
                 if (skillKey != null
                         && !candidateOnDemandSkillKeys(definition, role, systemOnDemandSkillKeys)
@@ -1017,7 +1007,7 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
             }
             return new ExecutionIntent(
                     interactionMode,
-                    routeConstraint,
+                    ExecutionIntent.RouteConstraint.ROUTE_FIXED,
                     clarificationPolicy,
                     new ExecutionIntent.ResolvedRoute(
                             role.key(), skillKey, definition.version().value()),
@@ -1029,9 +1019,7 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                     decomposition,
                     options.aggregationRequirementsMaxChars());
         }
-        if (routeConstraint != ExecutionIntent.RouteConstraint.FIXED) {
-            throw exception(EXECUTION_TASK_FIXED_ROUTE_REQUIRED);
-        }
+        // TASK 恒为 ROUTE_FIXED，必须同时声明 Role 与 Skill
         var roleKey = request.role() == null ? null : normalize(request.role().key());
         var skillKey = request.skill() == null ? null : normalize(request.skill().code());
         if (roleKey == null || skillKey == null) {
@@ -1058,7 +1046,7 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                                 artifactTarget);
         return new ExecutionIntent(
                 interactionMode,
-                routeConstraint,
+                ExecutionIntent.RouteConstraint.ROUTE_FIXED,
                 clarificationPolicy,
                 new ExecutionIntent.ResolvedRoute(roleKey, skillKey, definition.version().value()),
                 artifactPolicy,

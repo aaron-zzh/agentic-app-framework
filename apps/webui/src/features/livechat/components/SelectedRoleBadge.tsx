@@ -13,7 +13,7 @@ export function SelectedRoleBadge() {
 
   if (!selectedRole) return null
 
-  const source = selectedRole.routeConstraint === "FIXED" ? "已指定" : "AI 自动选择"
+  const source = selectedRole.routeConstraint === "ROUTE_FIXED" ? "已指定" : "AI 自动选择"
 
   return (
     <div className="flex items-center gap-1.5 border-b px-3 py-1.5 text-muted-foreground text-xs">

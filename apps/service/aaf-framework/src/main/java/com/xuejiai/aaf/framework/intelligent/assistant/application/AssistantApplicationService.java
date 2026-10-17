@@ -104,8 +104,10 @@ public final class AssistantApplicationService implements AssistantCommandPort {
     private static final int RUNTIME_MAX_ITERATIONS = 10;
     private static final int RUNTIME_MAX_MODEL_RETRIES = 2;
     private static final int DEFAULT_KNOWLEDGE_TOP_K = 5;
+
     /** 未显式指定知识库时，助理默认库与角色库合并后的检索数量上限。 */
     private static final int MAX_DEFAULT_KNOWLEDGE_BASES = 3;
+
     private static final Duration RUNTIME_TIMEOUT = Duration.ofSeconds(120);
 
     private final ExecutionPolicy runtimeExecutionPolicy;
@@ -1637,7 +1639,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             if (command.nodeIdentity() == null
                     && intent.routeConstraint()
                             == com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent
-                                    .RouteConstraint.FIXED
+                                    .RouteConstraint.ROUTE_FIXED
                     && !Objects.equals(invocation.requestedSkillKey(), route.skillKey())) {
                 throw new IllegalArgumentException("请求 Skill 与 FIXED Route 不一致");
             }
@@ -1862,7 +1864,8 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 command.taskId() != null
                         && command.invocationProfile().agentKind()
                                 == InvocationProfile.AgentKind.COORDINATOR
-                        && intent.decomposition() == ExecutionIntent.DecompositionStrategy.REQUIRED;
+                        && intent.decomposition()
+                                == ExecutionIntent.DecompositionStrategy.DECOMPOSE_REQUIRED;
         final List<ToolRef> businessTools;
         if (delegationRequired) {
             businessTools = List.of();
@@ -2471,8 +2474,8 @@ public final class AssistantApplicationService implements AssistantCommandPort {
 
     /**
      * 内置控制工具按智能体类型与容器状态限定（ADR-008）：轻量态协调者管理任务并可升级；任务态协调者可委派、拆步骤或澄清；
-     * 执行者可拆步骤或澄清；聚合者只能澄清。分解策略通过协调者的工具可见性强制：{@code NONE} 不暴露 {@code delegate_agents}， {@code
-     * REQUIRED} 只保留 {@code delegate_agents} 与 {@code request_clarification}。
+     * 执行者可拆步骤或澄清；聚合者只能澄清。分解策略通过协调者的工具可见性强制：{@code DECOMPOSE_NONE} 不暴露 {@code delegate_agents}，
+     * {@code DECOMPOSE_REQUIRED} 只保留 {@code delegate_agents} 与 {@code request_clarification}。
      */
     private static List<ToolRef> builtinControlTools(AssistantCommand command) {
         var agentKind = command.invocationProfile().agentKind();
@@ -2495,18 +2498,18 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         return switch (agentKind) {
             case COORDINATOR ->
                     switch (command.invocationProfile().executionIntent().decomposition()) {
-                        case AUTO ->
+                        case DECOMPOSE_AUTO ->
                                 List.of(
                                         toolRef(SubmitCoordinationPlanTool.TOOL_NAME),
                                         toolRef(SubmitExecutorPlanTool.TOOL_NAME),
                                         toolRef(ReportExecutorStepTool.TOOL_NAME),
                                         toolRef(RequestClarificationTool.TOOL_NAME));
-                        case NONE ->
+                        case DECOMPOSE_NONE ->
                                 List.of(
                                         toolRef(SubmitExecutorPlanTool.TOOL_NAME),
                                         toolRef(ReportExecutorStepTool.TOOL_NAME),
                                         toolRef(RequestClarificationTool.TOOL_NAME));
-                        case REQUIRED ->
+                        case DECOMPOSE_REQUIRED ->
                                 List.of(
                                         toolRef(SubmitCoordinationPlanTool.TOOL_NAME),
                                         toolRef(RequestClarificationTool.TOOL_NAME));

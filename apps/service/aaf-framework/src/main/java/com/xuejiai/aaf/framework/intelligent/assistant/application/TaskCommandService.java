@@ -582,12 +582,12 @@ public final class TaskCommandService {
         var failure = new AtomicReference<String>();
         var completed = new AtomicBoolean();
         var delegated = new AtomicBoolean();
-        // 强制委派（REQUIRED）的协调者必须成功提交 delegate_agents，否则按节点失败收口并走既有重试
+        // 强制委派（DECOMPOSE_REQUIRED）的协调者必须成功提交 delegate_agents，否则按节点失败收口并走既有重试
         var delegationRequired =
                 command.nodeIdentity() != null
                         && command.nodeIdentity().kind() == NodeIdentity.NodeKind.COORDINATOR
                         && command.invocationProfile().executionIntent().decomposition()
-                                == ExecutionIntent.DecompositionStrategy.REQUIRED;
+                                == ExecutionIntent.DecompositionStrategy.DECOMPOSE_REQUIRED;
         return assistants
                 .execute(command)
                 .doOnNext(

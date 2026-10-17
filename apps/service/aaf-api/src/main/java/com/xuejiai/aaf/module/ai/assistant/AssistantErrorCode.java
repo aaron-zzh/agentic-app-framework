@@ -13,26 +13,20 @@ public interface AssistantErrorCode {
     ErrorCode EXECUTION_TEAM_OVERRIDE_FORBIDDEN =
             ErrorCode.of(7_003_002, "TEAM 模式不允许覆盖 Assistant、Role 或 Skill");
     ErrorCode EXECUTION_TEAM_OPTIONS_UNSUPPORTED =
-            ErrorCode.of(7_003_003, "TEAM 模式仅支持 CONVERSATIONAL、AUTO 和 RETURN_ONLY");
+            ErrorCode.of(7_003_003, "TEAM 模式仅支持 CONVERSATIONAL 和 RETURN_ONLY");
     ErrorCode EXECUTION_TASK_JSON_OUTPUT_UNSUPPORTED =
-            ErrorCode.of(7_003_004, "文案 TASK/FIXED 的规范输出必须是 text/markdown");
+            ErrorCode.of(7_003_004, "文案 TASK 的规范输出必须是 text/markdown");
     ErrorCode EXECUTION_TEAM_ID_REQUIRED = ErrorCode.of(7_003_005, "teamId 不能为空");
     ErrorCode EXECUTION_INPUT_TEXT_REQUIRED = ErrorCode.of(7_003_006, "input.text 不能为空");
     ErrorCode EXECUTION_IMAGE_RESOLUTION_INCOMPLETE = ErrorCode.of(7_003_007, "图片材料解析结果不完整");
     ErrorCode EXECUTION_IMAGE_TYPE_INVALID = ErrorCode.of(7_003_008, "IMAGE 材料必须引用图片文件");
     ErrorCode EXECUTION_CONVERSATIONAL_RETURN_ONLY_REQUIRED =
             ErrorCode.of(7_003_009, "CONVERSATIONAL 执行仅支持 RETURN_ONLY");
-    ErrorCode EXECUTION_CONVERSATIONAL_AUTO_ROUTE_REQUIRED =
-            ErrorCode.of(7_003_010, "未指定 Role 和 Skill 的 CONVERSATIONAL 执行必须使用 AUTO Route");
-    ErrorCode EXECUTION_CONVERSATIONAL_FIXED_ROUTE_REQUIRED =
-            ErrorCode.of(7_003_012, "显式 Role 和 Skill 的 CONVERSATIONAL 执行必须使用 FIXED Route");
     ErrorCode EXECUTION_ROUTE_ROLE_NOT_FOUND = ErrorCode.of(7_003_013, "请求 Role 不属于当前 Assistant");
     ErrorCode EXECUTION_ROUTE_SKILL_NOT_AVAILABLE =
-            ErrorCode.of(7_003_014, "FIXED Route 只能引用当前 Scope 的 ON_DEMAND Skill");
-    ErrorCode EXECUTION_TASK_FIXED_ROUTE_REQUIRED =
-            ErrorCode.of(7_003_015, "TASK 执行必须使用 FIXED Route");
+            ErrorCode.of(7_003_014, "ROUTE_FIXED 只能引用当前 Scope 的 ON_DEMAND Skill");
     ErrorCode EXECUTION_TASK_ROUTE_INCOMPLETE =
-            ErrorCode.of(7_003_016, "TASK/FIXED 必须指定 Role 和 Skill");
+            ErrorCode.of(7_003_016, "TASK 必须指定 Role 和 Skill");
     ErrorCode EXECUTION_CONTROLLED_CONTEXT_SOURCE_FORBIDDEN =
             ErrorCode.of(7_003_017, "MEMORY 和 KNOWLEDGE 上下文必须由执行期 L1 授权检索");
     ErrorCode EXECUTION_DEFAULT_ASSISTANT_NOT_FOUND =

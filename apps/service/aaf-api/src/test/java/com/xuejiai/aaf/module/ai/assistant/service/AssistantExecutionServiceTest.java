@@ -61,7 +61,6 @@ class AssistantExecutionServiceTest {
                 AssistantExecutionService.executionIntent(
                         request(
                                 AssistantExecutionRequest.InteractionMode.TASK,
-                                AssistantExecutionRequest.RouteConstraint.FIXED,
                                 ArtifactPersistence.AUTO_SAVE_DRAFT,
                                 "voiceover"),
                         definition(),
@@ -70,7 +69,7 @@ class AssistantExecutionServiceTest {
                         null);
 
         assertThat(intent.interactionMode()).isEqualTo(InteractionMode.TASK);
-        assertThat(intent.routeConstraint()).isEqualTo(RouteConstraint.FIXED);
+        assertThat(intent.routeConstraint()).isEqualTo(RouteConstraint.ROUTE_FIXED);
         assertThat(intent.resolvedRoute().roleKey()).isEqualTo("system.role.content-creator");
         assertThat(intent.resolvedRoute().skillKey()).isEqualTo("voiceover");
         assertThat(intent.artifactPolicy().canonicalMediaType()).isEqualTo("text/markdown");
@@ -114,7 +113,6 @@ class AssistantExecutionServiceTest {
                     service.start(
                             request(
                                     AssistantExecutionRequest.InteractionMode.TASK,
-                                    AssistantExecutionRequest.RouteConstraint.FIXED,
                                     ArtifactPersistence.AUTO_SAVE_DRAFT,
                                     "voiceover"),
                             null,
@@ -133,7 +131,6 @@ class AssistantExecutionServiceTest {
                 AssistantExecutionService.executionIntent(
                         request(
                                 AssistantExecutionRequest.InteractionMode.TASK,
-                                AssistantExecutionRequest.RouteConstraint.FIXED,
                                 ArtifactPersistence.RETURN_ONLY,
                                 "redbook"),
                         definition(),
@@ -152,7 +149,6 @@ class AssistantExecutionServiceTest {
                 AssistantExecutionService.executionIntent(
                         request(
                                 AssistantExecutionRequest.InteractionMode.CONVERSATIONAL,
-                                AssistantExecutionRequest.RouteConstraint.AUTO,
                                 ArtifactPersistence.RETURN_ONLY,
                                 null),
                         definition(),
@@ -161,7 +157,7 @@ class AssistantExecutionServiceTest {
                         null);
 
         assertThat(intent.interactionMode()).isEqualTo(InteractionMode.CONVERSATIONAL);
-        assertThat(intent.routeConstraint()).isEqualTo(RouteConstraint.AUTO);
+        assertThat(intent.routeConstraint()).isEqualTo(RouteConstraint.ROUTE_AUTO);
         assertThat(intent.resolvedRoute()).isNull();
     }
 
@@ -172,7 +168,6 @@ class AssistantExecutionServiceTest {
                                 AssistantExecutionService.executionIntent(
                                         request(
                                                 AssistantExecutionRequest.InteractionMode.TASK,
-                                                AssistantExecutionRequest.RouteConstraint.FIXED,
                                                 ArtifactPersistence.AUTO_SAVE_DRAFT,
                                                 "not-in-content-role"),
                                         definition(),
@@ -192,7 +187,7 @@ class AssistantExecutionServiceTest {
                         8L,
                         null);
 
-        assertThat(intent.routeConstraint()).isEqualTo(RouteConstraint.FIXED);
+        assertThat(intent.routeConstraint()).isEqualTo(RouteConstraint.ROUTE_FIXED);
         assertThat(intent.resolvedRoute().roleKey()).isEqualTo("system.role.content-creator");
         assertThat(intent.resolvedRoute().skillKey()).isNull();
     }
@@ -203,7 +198,7 @@ class AssistantExecutionServiceTest {
                 AssistantExecutionService.executionIntent(
                         conversationalRequest(null, "voiceover"), definition(), Set.of(), 8L, null);
 
-        assertThat(intent.routeConstraint()).isEqualTo(RouteConstraint.FIXED);
+        assertThat(intent.routeConstraint()).isEqualTo(RouteConstraint.ROUTE_FIXED);
         assertThat(intent.resolvedRoute().roleKey()).isEqualTo("system.role.content-creator");
         assertThat(intent.resolvedRoute().skillKey()).isEqualTo("voiceover");
     }
@@ -218,7 +213,7 @@ class AssistantExecutionServiceTest {
                         8L,
                         null);
 
-        assertThat(intent.routeConstraint()).isEqualTo(RouteConstraint.FIXED);
+        assertThat(intent.routeConstraint()).isEqualTo(RouteConstraint.ROUTE_FIXED);
         assertThat(intent.resolvedRoute().roleKey()).isEqualTo("system.role.content-creator");
         assertThat(intent.resolvedRoute().skillKey()).isEqualTo("redbook");
     }
@@ -348,14 +343,12 @@ class AssistantExecutionServiceTest {
 
     private static AssistantExecutionRequest request(
             AssistantExecutionRequest.InteractionMode interactionMode,
-            AssistantExecutionRequest.RouteConstraint routeConstraint,
             ArtifactPersistence persistence,
             String skill) {
         return new AssistantExecutionRequest(
                 null,
                 new ExecutionOptions(
                         interactionMode,
-                        routeConstraint,
                         ClarificationPolicy.FAIL_ON_BLOCKER,
                         ActionAuthorizationPolicy.REQUEST_ON_DEMAND,
                         persistence,
@@ -376,15 +369,10 @@ class AssistantExecutionServiceTest {
     /** CONVERSATIONAL 场景下 role/skill 各自独立可选的请求构造（AAF-107 #10708）。 */
     private static AssistantExecutionRequest conversationalRequest(
             String roleKey, String skillKey) {
-        var routeConstraint =
-                roleKey == null && skillKey == null
-                        ? AssistantExecutionRequest.RouteConstraint.AUTO
-                        : AssistantExecutionRequest.RouteConstraint.FIXED;
         return new AssistantExecutionRequest(
                 null,
                 new ExecutionOptions(
                         AssistantExecutionRequest.InteractionMode.CONVERSATIONAL,
-                        routeConstraint,
                         ClarificationPolicy.MINIMAL,
                         ActionAuthorizationPolicy.DENY_AUTHORIZED_ACTIONS,
                         ArtifactPersistence.RETURN_ONLY,

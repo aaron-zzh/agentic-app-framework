@@ -111,10 +111,10 @@ Assistant 主链不存在同步 REST 正文接口，也不保留旧 Assistant �
 |---|---|---|
 | `assistant` | `id` | 可选；省略时解析默认 Assistant；TEAM 必须省略 |
 | `execution` | `interactionMode` | 必填：`TASK` / `CONVERSATIONAL` |
-|  | `routeConstraint` | 必填：`FIXED` / `AUTO` |
 |  | `clarificationPolicy` | 必填：`MINIMAL` / `FAIL_ON_BLOCKER` / `INTERACTIVE` |
-|  | `actionAuthorizationPolicy` | 必填：`REQUEST_ON_DEMAND` / `PREAUTHORIZED_ONLY` / `DENY_AUTHORIZED_ACTIONS` |
-|  | `artifactPersistence` | 必填：`AUTO_SAVE_DRAFT` / `RETURN_ONLY` |
+|  | `actionAuthorizationPolicy` | 必填：`REQUEST_ON_DEMAND` / `PREAUTHORIZED_ONLY` / `DENY_AUTHORIZED_ACTIONS`；只对服务端列出的动作（TASK 自动保存草稿的保存工具）生效，对话下不产生效果 |
+|  | `artifactPersistence` | 必填：`AUTO_SAVE_DRAFT` / `RETURN_ONLY`；`CONVERSATIONAL` 仅支持 `RETURN_ONLY` |
+|  | `decomposition` | 可选，缺省 `DECOMPOSE_AUTO`：`DECOMPOSE_AUTO` / `DECOMPOSE_NONE` / `DECOMPOSE_REQUIRED`；仅适用于 `TASK`，对话下传非缺省值被拒绝 |
 | `input` | `text` | 必填非空，且等于外壳最后一条 user 正文 |
 |  | `variables` | 必填对象，≤100 项，键非空且整体可 JSON 序列化；作为不可信任务数据 |
 |  | `attachments` | 必填数组；元素不可为 null |
@@ -122,7 +122,7 @@ Assistant 主链不存在同步 REST 正文接口，也不保留旧 Assistant �
 |  | `name` | 可选显示名 |
 |  | `content` | `TEXT` 必填非空，`IMAGE` 禁止 |
 |  | `resourceId` | `IMAGE` 必填非空，`TEXT` 禁止 |
-| `role` | `key` | 可选待校验 Role；`TASK/FIXED` 必须与 Skill 同时提供；TEAM 必须省略 |
+| `role` | `key` | 可选待校验 Role；`TASK` 必须与 Skill 同时提供；TEAM 必须省略。是否固定路由由 `role` / `skill` 是否提供推导（见下方 `routeConstraint`），请求不再单独声明 |
 | `skill` | `code` | 可选待校验 Skill；只可收窄到当前 Scope 的可用 `ON_DEMAND` Skill；TEAM 必须省略 |
 | `knowledge` | `mode` | 必填：`DEFAULT` / `EXPLICIT` / `DISABLED` |
 |  | `knowledgeBaseIds` | 必填集合，≤20；`EXPLICIT` 时非空，其余模式必须为空；元素不可为 null |
@@ -133,7 +133,7 @@ Assistant 主链不存在同步 REST 正文接口，也不保留旧 Assistant �
 | `memory` | `mode` | 必填：`DEFAULT` / `DISABLED` |
 | `output` | `maxCharLen` | 可选，1..32000；仅为篇幅提示 |
 |  | `locale` | 可选：`EN` / `JA` / `KO` / `FR` / `ES` |
-|  | `format` | 可选；当前仅接受 `JSON`，且 `TASK/FIXED copywriting` 禁止 JSON、规范正文固定 `text/markdown` |
+|  | `format` | 可选；当前仅接受 `JSON`，且 `TASK copywriting` 禁止 JSON、规范正文固定 `text/markdown` |
 
 字段结构实现态：✅ 已实现 · `AssistantExecutionRequest.java:13-114`。组合与范围校验实现态：✅ 已实现 · `AssistantExecutionService.java:95-206,598-700,958-1065`。
 
@@ -157,11 +157,12 @@ Assistant 主链不存在同步 REST 正文接口，也不保留旧 Assistant �
 | 字段 | 取值 | 作用 |
 |---|---|---|
 | `interactionMode` | `CONVERSATIONAL` / `TASK` | 用户如何参与和查看过程 |
-| `routeConstraint` | `AUTO` / `FIXED` | 是否固定 Role 与 Skill |
-| `resolvedRoute` | `roleKey` + `skillKey` + `assistantRevision` | FIXED 时的已解析路由 |
+| `routeConstraint` | `ROUTE_AUTO` / `ROUTE_FIXED` | 是否固定 Role 与 Skill；不是请求字段，由服务端按请求是否声明 Role/Skill 推导：对话未声明为 `ROUTE_AUTO`，声明任一为 `ROUTE_FIXED`；`TASK` 恒为 `ROUTE_FIXED` |
+| `resolvedRoute` | `roleKey` + `skillKey` + `assistantRevision` | `ROUTE_FIXED` 时的已解析路由 |
 | `clarificationPolicy` | `INTERACTIVE` / `MINIMAL` / `FAIL_ON_BLOCKER` | 信息不足时提问、取默认值还是失败 |
 | `artifactPolicy` | `outputKind` + `canonicalMediaType` + `persistenceMode` + `saveTool` + `publishPolicy` | 产物形态与持久化策略 |
-| `actionAuthorizationPolicy` | `REQUEST_ON_DEMAND` / `PREAUTHORIZED_ONLY` / `DENY_AUTHORIZED_ACTIONS` + 动作集合 | 缺少动作授权时的行为 |
+| `actionAuthorizationPolicy` | `REQUEST_ON_DEMAND` / `PREAUTHORIZED_ONLY` / `DENY_AUTHORIZED_ACTIONS` + 动作集合 | 缺少动作授权时的行为；只对动作集合内的动作生效，对话不声明动作，因此模式在对话下无效果 |
+| `decomposition` | `DECOMPOSE_AUTO` / `DECOMPOSE_NONE` / `DECOMPOSE_REQUIRED` | 任务态协调者能否委派子智能体；仅 `TASK` 可用非缺省值 |
 | `workspaceId` | 可信工作区标识 | 资源归属 |
 
 实现态：✅ 已实现 · `ExecutionIntent.java:7-40`。
@@ -173,7 +174,8 @@ Assistant 主链不存在同步 REST 正文接口，也不保留旧 Assistant �
 
 ### 构造不变量
 
-- `TASK` 必须使用 `FIXED` Route；`AUTO` 不允许预置已解析路由
+- `TASK` 必须使用 `ROUTE_FIXED` Route；`ROUTE_AUTO` 不允许预置已解析路由
+- `DECOMPOSE_NONE` / `DECOMPOSE_REQUIRED` 仅适用于 `TASK`；对话（轻量态）没有可委派的协调者工具，构造时拒绝非 `DECOMPOSE_AUTO`
 - `AUTO_SAVE_DRAFT` 必须指定 `saveTool`，且该动作不得为 `DENY`，必须声明动作授权
 - `RETURN_ONLY` 不允许指定 `saveTool`
 - `CONVERSATIONAL` 当前强制 `RETURN_ONLY`
@@ -248,7 +250,7 @@ Assistant 主链不存在同步 REST 正文接口，也不保留旧 Assistant �
 | 落点 | `CHAT` | `EXECUTION` | `TEAM` |
 |---|---|---|---|
 | 交互焦点 | 对话流；每轮都可改变或追加目标 | 具名任务对象；提交目标后以观察与按需干预为主 | 具名任务对象 + 成员进度视图 |
-| 路由 | 默认 `AUTO` 动态单选 Role，可随新消息重新路由 | `FIXED`，非法组合直接拒绝 | 使用已发布 Team version 的冻结成员目标；请求不得覆盖成员 Route |
+| 路由 | 默认 `ROUTE_AUTO` 动态单选 Role，可随新消息重新路由 | `ROUTE_FIXED`，非法组合直接拒绝 | 使用已发布 Team version 的冻结成员目标；请求不得覆盖成员 Route |
 | 澄清 | 可自然追问，后续轮次继续理解 | 仅关键输入、凭证或不可替代授权缺失时阻塞；其余取安全默认值并记录假设 | Leader/Worker 各自按冻结合同阻塞；不得借澄清改变 roster |
 | 复杂度判断 | 新目标时判定；追加输入按执行期干预分类处理，不无条件重判 | 任务开始时判定并冻结初始策略，调整需可审计 | 不判定，roster 已冻结 |
 | 调度 | 协调者 execution 内自主判断，始终 `coordinated` 板 | 协调者 execution 内自主判断，始终 `coordinated` 板 | 固定 `teamCoordinated` |
@@ -296,8 +298,8 @@ flowchart TD
     READY -->|充分| ROUTE
 
     ROUTE{Role 与 Skill 路由}
-    ROUTE -->|对话式默认| AUTO["AUTO 动态单选 Role"]:::chat --> SKILL
-    ROUTE -->|任务式常用| FIXED["FIXED 校验指定 Role 与 Skill"]:::task --> SKILL
+    ROUTE -->|对话式默认| AUTO["ROUTE_AUTO 动态单选 Role"]:::chat --> SKILL
+    ROUTE -->|任务式常用| FIXED["ROUTE_FIXED 校验指定 Role 与 Skill"]:::task --> SKILL
     SKILL["分层激活 Skill：ALWAYS 自动，AI 从 ON_DEMAND 选 0..N"]:::common
     SKILL --> CTX["四 受控检索与最小上下文"]:::common
     CTX --> FREEZE["五 执行画像与计划冻结"]:::common

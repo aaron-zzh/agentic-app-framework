@@ -55,7 +55,6 @@ export function AIWritePlugin() {
         {
           execution: {
             interactionMode: "TASK",
-            routeConstraint: "FIXED",
             clarificationPolicy: "FAIL_ON_BLOCKER",
             actionAuthorizationPolicy: "DENY_AUTHORIZED_ACTIONS",
             artifactPersistence: "RETURN_ONLY"
