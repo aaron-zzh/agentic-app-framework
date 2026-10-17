@@ -128,6 +128,8 @@ Flyway 通过 `spring.flyway.locations`（`classpath:db/migration,classpath:db/s
 | v1-v99 | （历史遗留，混合） | 不再分配，不追溯整理 |
 | v100-v199 | Entity Engine 资源视图 | 既有 v100-v106 资源定义，后续沿用本号段 |
 | v200-v299 | Intelligent runtime | Assistant、canonical Task 与智能治理迁移 |
+| v300-v399 | 通用设备层（device） | AAF-120；先于场景包执行；schema 放 `db/migration/`、seed 放 `db/seed/`；EntityDef 种子用 v100-v199 号段（`view/v110__device_entity_def.sql`） |
+| v400-v499 | 养老业务模块（elder） | AAF-120；device 的首个场景包；EntityDef 种子用 v100-v199 号段（`view/v109__elder_entity_def.sql`） |
 
 **规则**：
 

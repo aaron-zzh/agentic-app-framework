@@ -287,7 +287,7 @@ v0.1.0 采用单启动模块 + 分包隔离，后续按需拆分为独立 Maven 
 | 第三方集成 | 企业微信/钉钉/飞书统一接入层（消息推送/组织架构同步/审批流转） |
 | 短信服务 | 统一 `SmsSender` 接口，多厂商实现（阿里云/腾讯云/Twilio），配置切换 |
 | 支付对接 | 统一 `PaymentService` 接口，微信支付/支付宝配置切换渠道 |
-| IoT 设备接入 | 阿里云 IoT Platform + Spring Integration MQTT 消费封装 |
+| IoT 设备接入 | 自管 EMQX 单节点（BSL 许可，外部依赖，不随 AAF 打包）+ HiveMQ MQTT Client（版本见 aaf-dependencies）；阿里云物联网平台已停止新购，不再采用 |
 
 ### 6.8 AI 原生能力
 

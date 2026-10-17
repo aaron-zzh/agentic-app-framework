@@ -47,6 +47,7 @@
 		<oshi.version>7.1.0</oshi.version>
 		<ip2region.version>3.3.7</ip2region.version>
 		<tinypinyin.version>2.0.3.RELEASE</tinypinyin.version>
+		<hivemq-mqtt-client.version>1.4.1</hivemq-mqtt-client.version>
 		<!-- 文档解析 -->
 		<pdfbox.version>3.0.4</pdfbox.version>
 		<poi.version>5.4.1</poi.version>
@@ -455,6 +456,11 @@
 				<groupId>org.lionsoul</groupId>
 				<artifactId>ip2region</artifactId>
 				<version>${ip2region.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.hivemq</groupId>
+				<artifactId>hivemq-mqtt-client</artifactId>
+				<version>${hivemq-mqtt-client.version}</version>
 			</dependency>
 
 			<!-- ==================== 钉钉 Stream SDK ==================== -->

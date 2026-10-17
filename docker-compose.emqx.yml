@@ -1,0 +1,37 @@
+# AAF EMQX - 单节点开发环境
+# 使用方式：
+#   1. 准备仅供开发使用的 TLS 文件：${EMQX_CERT_DIR}/ca.pem、cert.pem、key.pem
+#   2. 设置 EMQX_CERT_DIR 与高强度随机 EMQX_SHARED_SECRET（不要写入仓库）
+#   3. docker compose -f docker-compose.emqx.yml up -d
+#
+# 设备端推荐：Keep Alive = 60 秒；使用稳定 clientId；MQTT 3.1.1 Clean Session = false；
+# MQTT 5 Clean Start = false、Session Expiry Interval = 86400 秒（24 小时）。
+
+services:
+  emqx:
+    image: ${EMQX_IMAGE:-emqx/emqx:5.10.5}
+    container_name: aaf-emqx-dev
+    environment:
+      # emqx.conf 从此容器环境变量读取共享密钥，并作为 X-Emqx-Secret 回调头发送。
+      AAF_EMQX_SHARED_SECRET: ${EMQX_SHARED_SECRET:?必须设置 EMQX_SHARED_SECRET}
+    extra_hosts:
+      # Linux Docker 也可通过此名称访问宿主机上运行的 AAF 服务。
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${EMQX_TLS_PORT:-8883}:8883"
+    volumes:
+      - ./scripts/deploy/emqx/emqx.conf:/opt/emqx/etc/emqx.conf:ro
+      # 目录内必须有 ca.pem、cert.pem、key.pem；证书与私钥不得提交到仓库。
+      - ${EMQX_CERT_DIR:?必须设置 EMQX_CERT_DIR}:/opt/emqx/etc/certs/aaf:ro
+      - emqx_dev_data:/opt/emqx/data
+      - emqx_dev_log:/opt/emqx/log
+    healthcheck:
+      test: ["CMD", "/opt/emqx/bin/emqx", "ctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+volumes:
+  emqx_dev_data:
+  emqx_dev_log:

@@ -32,6 +32,12 @@
 			<artifactId>caffeine</artifactId>
 		</dependency>
 
+		<!-- MQTT 设备通道 -->
+		<dependency>
+			<groupId>com.hivemq</groupId>
+			<artifactId>hivemq-mqtt-client</artifactId>
+		</dependency>
+
 		<!-- WebSocket -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

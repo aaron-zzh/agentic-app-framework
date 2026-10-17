@@ -89,6 +89,28 @@ server:
 aaf:
   demo:
     enabled: ${AAF_DEMO_ENABLED:false}  # 演示模式：开启后注册 /api/system/demo/load 和 /clean 接口
+  device:
+    mqtt:
+      enabled: ${AAF_DEVICE_MQTT_ENABLED:false}
+      host: ${AAF_DEVICE_MQTT_HOST:localhost}
+      port: ${AAF_DEVICE_MQTT_PORT:8883}
+      client-id: ${AAF_DEVICE_MQTT_CLIENT_ID:aaf-device-service}
+      username: ${AAF_DEVICE_MQTT_USERNAME:aaf-device-service}
+      password: ${AAF_DEVICE_MQTT_PASSWORD:}
+      tenant-key: ${AAF_DEVICE_MQTT_TENANT_KEY:default}
+      keep-alive-seconds: 60
+      session-expiry-seconds: 86400
+      ack-timeout-seconds: 30
+      max-payload-bytes: 65536
+      emqx:
+        shared-secret: ${EMQX_SHARED_SECRET:}
+        api-base-url: ${EMQX_API_BASE_URL:http://localhost:18083}
+        api-username: ${EMQX_API_USERNAME:}
+        api-password: ${EMQX_API_PASSWORD:}
+      signing:
+        key-id: ${AAF_DEVICE_MQTT_SIGNING_KEY_ID:aaf-device-command}
+        private-key: ${AAF_DEVICE_MQTT_SIGNING_PRIVATE_KEY:}
+        public-key: ${AAF_DEVICE_MQTT_SIGNING_PUBLIC_KEY:}
   app:
     company-name: ${AAF_COMPANY_NAME:学记智能}
     frontend-url: ${AAF_WEB_ORIGIN:http://localhost:3000}
