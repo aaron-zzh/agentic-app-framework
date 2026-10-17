@@ -174,4 +174,48 @@ public final class DictType {
                 "credit_rule_status"; // 积分规则状态，见 CreditRuleStatusEnum
         public static final String PRODUCT_TYPE = "product_type"; // 订单明细产品类型，见 ProductTypeEnum
     }
+
+    /** 设备模块 */
+    public static final class Device {
+
+        private Device() {}
+
+        public static final String SCENARIO = "device_scenario";
+        public static final String DEVICE_TYPE = "device_type";
+        public static final String DEVICE_ZONE = "device_zone";
+        public static final String DEVICE_STATUS = "device_status";
+        public static final String DEVICE_ONLINE_STATUS = "device_online_status";
+        public static final String DEVICE_CAMERA_STATUS = "device_camera_status";
+        public static final String DEVICE_MESSAGE_DIRECTION = "device_message_direction";
+        public static final String DEVICE_MESSAGE_STATUS = "device_message_status";
+    }
+
+    /** 养老业务模块 */
+    public static final class Elder {
+
+        private Elder() {}
+
+        public static final String ELDER_STATUS = "elder_status";
+        public static final String LIVING_ARRANGEMENT = "elder_living_arrangement";
+        public static final String CONTACT_RELATIONSHIP = "elder_contact_relationship";
+        public static final String AUTHORIZATION_SCOPE = "elder_authorization_scope";
+        public static final String HEALTH_ITEM_TYPE = "elder_health_item_type";
+        public static final String MEDICATION_PLAN_STATUS = "elder_medication_plan_status";
+        public static final String MEDICATION_PLAN_SOURCE = "elder_medication_plan_source";
+        public static final String MEDICATION_RECORD_RESULT = "elder_medication_record_result";
+        public static final String MEDICATION_RECORD_SOURCE = "elder_medication_record_source";
+        public static final String ALERT_TYPE = "elder_alert_type";
+        public static final String ALERT_LEVEL = "elder_alert_level";
+        public static final String ALERT_STATUS = "elder_alert_status";
+        public static final String ALERT_HANDLING_TYPE = "elder_alert_handling_type";
+        public static final String ALERT_HANDLING_CHANNEL = "elder_alert_handling_channel";
+        public static final String ALERT_HANDLING_STATUS = "elder_alert_handling_status";
+        public static final String ALERT_RECIPIENT_TYPE = "elder_alert_recipient_type";
+        public static final String PHOTO_SOURCE = "elder_photo_source";
+        public static final String SERVICE_CATEGORY = "elder_service_category";
+        public static final String SERVICE_ITEM_STATUS = "elder_service_item_status";
+        public static final String SERVICE_ORDER_STATUS = "elder_service_order_status";
+        public static final String REHAB_GUIDE_CATEGORY = "elder_rehab_guide_category";
+        public static final String REHAB_GUIDE_STATUS = "elder_rehab_guide_status";
+    }
 }
