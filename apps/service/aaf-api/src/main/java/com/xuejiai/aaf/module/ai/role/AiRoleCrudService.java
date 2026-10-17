@@ -174,8 +174,10 @@ public class AiRoleCrudService
                         && Objects.equals(entity.getDescription(), dto.description())
                         && Objects.equals(entity.getToolWhitelist(), dto.toolWhitelist())
                         && RoleKnowledgeBaseJson.read(entity.getKnowledgeBaseIds())
-                                .equals(RoleKnowledgeBaseJson.read(
-                                        RoleKnowledgeBaseJson.write(dto.knowledgeBaseIds())))
+                                .equals(
+                                        RoleKnowledgeBaseJson.read(
+                                                RoleKnowledgeBaseJson.write(
+                                                        dto.knowledgeBaseIds())))
                         && RoleSkillBindingJson.read(entity.getSkillIds())
                                 .equals(dto.skillBindings())
                         && dto.visibility() == RoleVisibilityLevel.PRIVATE;

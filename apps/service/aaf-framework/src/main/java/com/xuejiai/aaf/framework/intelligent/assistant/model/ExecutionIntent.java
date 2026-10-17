@@ -22,7 +22,8 @@ public record ExecutionIntent(
         Objects.requireNonNull(clarificationPolicy, "clarificationPolicy 不能为空");
         Objects.requireNonNull(artifactPolicy, "artifactPolicy 不能为空");
         Objects.requireNonNull(actionAuthorizationPolicy, "actionAuthorizationPolicy 不能为空");
-        decomposition = decomposition == null ? DecompositionStrategy.DECOMPOSE_AUTO : decomposition;
+        decomposition =
+                decomposition == null ? DecompositionStrategy.DECOMPOSE_AUTO : decomposition;
         if (aggregationRequirementsMaxChars != null && aggregationRequirementsMaxChars < 1) {
             throw new IllegalArgumentException("aggregationRequirementsMaxChars 必须为正数");
         }
@@ -167,8 +168,8 @@ public record ExecutionIntent(
      * 本次执行对声明动作的缺失授权处理策略；与澄清策略完全独立。
      *
      * <p>{@code mode} 只对 {@code actions} 中列出的动作生效，未列出的动作一律按 {@code DEFAULT}（即按需请求授权）处理。
-     * 对话执行不声明任何动作（{@code actions} 为空），因此 {@code mode} 在对话下不产生任何效果；
-     * TASK 执行只在自动保存草稿时列出保存工具，程序化入口列出受信动作。
+     * 对话执行不声明任何动作（{@code actions} 为空），因此 {@code mode} 在对话下不产生任何效果； TASK
+     * 执行只在自动保存草稿时列出保存工具，程序化入口列出受信动作。
      */
     public record ActionAuthorizationPolicy(Mode mode, Set<String> actions) {
         public ActionAuthorizationPolicy {

@@ -311,8 +311,7 @@ public final class PromptAssembler {
             if (policy == InvocationPolicy.COORDINATOR) {
                 // 分解策略只改变协调者的工具面；非 DECOMPOSE_AUTO 时明示，避免与上方"简单任务直接回复"的通用规则冲突
                 switch (executionIntent.decomposition()) {
-                    case DECOMPOSE_NONE ->
-                            content.append("分解策略：NONE。本次不得委派子智能体，直接在本次回复中完成并交付。\n");
+                    case DECOMPOSE_NONE -> content.append("分解策略：NONE。本次不得委派子智能体，直接在本次回复中完成并交付。\n");
                     case DECOMPOSE_REQUIRED ->
                             content.append(
                                     "分解策略：REQUIRED。本次必须调用 delegate_agents 委派子智能体，不得直接回答，"

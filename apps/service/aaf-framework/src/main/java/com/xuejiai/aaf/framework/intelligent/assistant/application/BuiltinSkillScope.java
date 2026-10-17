@@ -57,7 +57,8 @@ final class BuiltinSkillScope {
             case STEP_PLANNING ->
                     taskState
                             && ((agentKind == AgentKind.COORDINATOR
-                                            && decomposition != DecompositionStrategy.DECOMPOSE_REQUIRED)
+                                            && decomposition
+                                                    != DecompositionStrategy.DECOMPOSE_REQUIRED)
                                     || agentKind == AgentKind.EXECUTOR);
             case AGENT_DELEGATION ->
                     taskState

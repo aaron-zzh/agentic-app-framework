@@ -25,8 +25,7 @@ public interface AssistantErrorCode {
     ErrorCode EXECUTION_ROUTE_ROLE_NOT_FOUND = ErrorCode.of(7_003_013, "请求 Role 不属于当前 Assistant");
     ErrorCode EXECUTION_ROUTE_SKILL_NOT_AVAILABLE =
             ErrorCode.of(7_003_014, "ROUTE_FIXED 只能引用当前 Scope 的 ON_DEMAND Skill");
-    ErrorCode EXECUTION_TASK_ROUTE_INCOMPLETE =
-            ErrorCode.of(7_003_016, "TASK 必须指定 Role 和 Skill");
+    ErrorCode EXECUTION_TASK_ROUTE_INCOMPLETE = ErrorCode.of(7_003_016, "TASK 必须指定 Role 和 Skill");
     ErrorCode EXECUTION_CONTROLLED_CONTEXT_SOURCE_FORBIDDEN =
             ErrorCode.of(7_003_017, "MEMORY 和 KNOWLEDGE 上下文必须由执行期 L1 授权检索");
     ErrorCode EXECUTION_DEFAULT_ASSISTANT_NOT_FOUND =

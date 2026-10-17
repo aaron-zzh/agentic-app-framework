@@ -23,8 +23,7 @@ public record AssistantExecutionRequest(
         @NotNull @Valid OutputOptions output) {
 
     /**
-     * 客户端执行偏好；Role/Skill 是否固定由 {@code role}、{@code skill} 是否声明推导，不再单独声明路由方式，
-     * 服务端必须校验 Assistant 归属。
+     * 客户端执行偏好；Role/Skill 是否固定由 {@code role}、{@code skill} 是否声明推导，不再单独声明路由方式， 服务端必须校验 Assistant 归属。
      *
      * <p>{@code decomposition} 可选，缺省为 {@code DECOMPOSE_AUTO}：由调用方决定是否允许协调者拆分任务，不由技能或角色声明（ADR-008）。
      * 仅适用于 TASK 执行，对话下传非缺省值会被拒绝。 {@code aggregationRequirementsMaxChars}

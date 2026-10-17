@@ -26,8 +26,7 @@ public record RoleCreateDTO(
         @Schema(description = "Skill 绑定对象数组", requiredMode = Schema.RequiredMode.REQUIRED) @NotNull
                 List<SkillBinding> skillBindings,
         @Schema(description = "工具授权池（JSON 数组）") String toolWhitelist,
-        @Schema(description = "绑定的知识库 stable_id，最多 2 个；请求未显式指定知识库时参与检索")
-                @Size(max = 2)
+        @Schema(description = "绑定的知识库 stable_id，最多 2 个；请求未显式指定知识库时参与检索") @Size(max = 2)
                 List<UUID> knowledgeBaseIds,
         @Schema(
                         description = "可见性：SYSTEM / PUBLIC，创建后不可修改",
