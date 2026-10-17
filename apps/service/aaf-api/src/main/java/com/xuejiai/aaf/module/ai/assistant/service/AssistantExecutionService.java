@@ -223,6 +223,7 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                         List.of(),
                         programmaticContexts(objective.facts()),
                         trustedAllowedActions(request.purpose()),
+                        Set.of(),
                         executionIntent,
                         false);
         var command = assembleCommand(spec, identity, null, runIdentity, null, analysis);
@@ -354,7 +355,13 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
             String threadId,
             String runId,
             Long verifiedProjectId) {
-        return start(request, RunIdentity.create(threadId, runId), team, verifiedProjectId);
+        return start(request, RunIdentity.create(threadId, runId), team, verifiedProjectId, false);
+    }
+
+    /** 服务端受信调用按显式 Role 的工具集合严格收窄；不改变 HTTP AG-UI 入口语义。 */
+    public ExecutionStream startRoleRestricted(
+            AssistantExecutionRequest request, String threadId, String runId) {
+        return start(request, RunIdentity.create(threadId, runId), null, null, true);
     }
 
     /** 当前用户可用 Assistant 摘要（AAF-107 #10708），供前端角色/技能选择器展示真实可选项。 */
@@ -383,7 +390,8 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
             AssistantExecutionRequest request,
             RunIdentity runIdentity,
             TeamTarget teamTarget,
-            Long verifiedProjectId) {
+            Long verifiedProjectId,
+            boolean restrictToResolvedRoleTools) {
         Objects.requireNonNull(runIdentity, "runIdentity 不能为空");
         var knowledge = request.knowledge();
         if (knowledge.mode() == AssistantExecutionRequest.KnowledgeMode.EXPLICIT
@@ -464,6 +472,16 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                 && "JSON".equals(outputContract.format())) {
             throw exception(EXECUTION_TASK_JSON_OUTPUT_UNSUPPORTED);
         }
+        var roleToolScope =
+                restrictToResolvedRoleTools
+                        ? definition
+                                .requireRole(
+                                        Objects.requireNonNull(
+                                                        executionIntent.resolvedRoute(),
+                                                        "角色工具严格范围要求显式固定 Role")
+                                                .roleKey())
+                                .toolKeys()
+                        : Set.<String>of();
         var spec =
                 new ExecutionSpec(
                         definition.assistantId().value(),
@@ -478,6 +496,7 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                         parsedInput.imageFileKeys(),
                         List.of(),
                         Set.of(),
+                        roleToolScope,
                         executionIntent,
                         knowledge.mode() == AssistantExecutionRequest.KnowledgeMode.DISABLED);
         log.debug(
@@ -738,6 +757,25 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                 ExecutionContract.conversationDefault(
                         Set.copyOf(allowedActions),
                         new ResponsibleOwner("ASSISTANT", spec.assistantId()));
+        var invocationProfile =
+                InvocationProfile.coordinator(
+                        spec.requestedSkillKey(),
+                        spec.memoryMode(),
+                        userAttachments,
+                        spec.executionIntent(),
+                        new ContextPlan(
+                                taskMaterials,
+                                knowledgeQuery(spec, identity),
+                                spec.knowledgeDisabled()));
+        if (!spec.trustedAllowedToolKeys().isEmpty()) {
+            var route = Objects.requireNonNull(spec.executionIntent().resolvedRoute());
+            invocationProfile =
+                    invocationProfile.forAssistantTarget(
+                            route.assistantRevision(),
+                            route.roleKey(),
+                            route.skillKey(),
+                            spec.trustedAllowedToolKeys());
+        }
         return new AssistantCommand(
                 AssistantCommand.Operation.START,
                 tenantId,
@@ -767,15 +805,7 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                         : CompletionCriteria.responseDelivered(),
                 contextCandidates,
                 spec.modelSelection(),
-                InvocationProfile.coordinator(
-                        spec.requestedSkillKey(),
-                        spec.memoryMode(),
-                        userAttachments,
-                        spec.executionIntent(),
-                        new ContextPlan(
-                                taskMaterials,
-                                knowledgeQuery(spec, identity),
-                                spec.knowledgeDisabled())),
+                invocationProfile,
                 now);
     }
 
@@ -971,6 +1001,7 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
             }
             var roleKey = request.role() == null ? null : normalize(request.role().key());
             var skillKey = request.skill() == null ? null : normalize(request.skill().code());
+            // 路由方式由是否声明 Role/Skill 推导：都未声明为 ROUTE_AUTO，否则为 ROUTE_FIXED
             if (roleKey == null && skillKey == null) {
                 return new ExecutionIntent(
                         interactionMode,
@@ -995,7 +1026,6 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                     role = definition.requireRole(roleKey);
                 } catch (IllegalArgumentException exception) {
                     throw exception(EXECUTION_ROUTE_ROLE_NOT_FOUND);
-            // 路由方式由是否声明 Role/Skill 推导：都未声明为 ROUTE_AUTO，否则为 ROUTE_FIXED
                 }
                 if (skillKey != null
                         && !candidateOnDemandSkillKeys(definition, role, systemOnDemandSkillKeys)
@@ -1559,6 +1589,7 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
             List<String> imageFileKeys,
             List<ControlledContext> controlledContexts,
             Set<String> trustedAllowedActions,
+            Set<String> trustedAllowedToolKeys,
             ExecutionIntent executionIntent,
             boolean knowledgeDisabled) {
 
@@ -1570,6 +1601,8 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                     controlledContexts == null ? List.of() : List.copyOf(controlledContexts);
             trustedAllowedActions =
                     trustedAllowedActions == null ? Set.of() : Set.copyOf(trustedAllowedActions);
+            trustedAllowedToolKeys =
+                    trustedAllowedToolKeys == null ? Set.of() : Set.copyOf(trustedAllowedToolKeys);
             if (executionIntent == null) {
                 throw exception(EXECUTION_INTENT_REQUIRED);
             }
