@@ -862,13 +862,27 @@ CREATE TABLE sys_task_inbox (
     task_id         VARCHAR(255) PRIMARY KEY,
     task_type       VARCHAR(100) NOT NULL,
     payload_digest  CHAR(64)     NOT NULL,
-    completed_at    TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    status          VARCHAR(16)  NOT NULL DEFAULT 'PENDING',
+    lease_token     UUID,
+    lease_until     TIMESTAMP WITH TIME ZONE,
+    completed_at    TIMESTAMP(6),
+    CONSTRAINT ck_sys_task_inbox_status
+        CHECK (status IN ('PENDING', 'PROCESSING', 'COMPLETED')),
+    CONSTRAINT ck_sys_task_inbox_lease
+        CHECK (
+            (status = 'PROCESSING' AND lease_token IS NOT NULL AND lease_until IS NOT NULL)
+            OR (status IN ('PENDING', 'COMPLETED') AND lease_token IS NULL AND lease_until IS NULL)
+        )
 );
 
-COMMENT ON TABLE sys_task_inbox IS '队列任务事务性收件箱，与 handler 关系库副作用原子提交以阻止崩溃重投';
+COMMENT ON TABLE sys_task_inbox IS '队列任务持久 inbox：短事务 claim/complete/release，handler 在事务外执行';
 COMMENT ON COLUMN sys_task_inbox.task_id IS '跨重试保持稳定的队列任务 ID';
 COMMENT ON COLUMN sys_task_inbox.payload_digest IS 'SHA-256 载荷摘要，同一任务 ID 的载荷变化将 fail-closed';
+COMMENT ON COLUMN sys_task_inbox.status IS 'PENDING/PROCESSING/COMPLETED';
+COMMENT ON COLUMN sys_task_inbox.lease_token IS 'PROCESSING 租约持有标识';
+COMMENT ON COLUMN sys_task_inbox.lease_until IS 'PROCESSING 租约到期时间';
 CREATE INDEX idx_task_inbox_completed_at ON sys_task_inbox(completed_at);
+CREATE INDEX idx_task_inbox_processing_lease ON sys_task_inbox(lease_until) WHERE status = 'PROCESSING';
 
 -- ==================== 排除日历 ====================
 CREATE TABLE sys_holiday_calendar
@@ -2626,7 +2640,7 @@ INSERT INTO sys_scheduled_task (
 )
 SELECT
     'project_assistant_schedule_scan',
-    'system',
+    'project_schedule_scan',
     '0 * * * * ?',  -- 每分钟执行一次
     'PROJECT_SCHEDULE_SCAN',
     '{"batchSize": 50}',

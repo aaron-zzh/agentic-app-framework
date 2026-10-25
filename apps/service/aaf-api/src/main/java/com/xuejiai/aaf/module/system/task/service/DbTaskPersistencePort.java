@@ -49,7 +49,8 @@ public class DbTaskPersistencePort implements TaskPersistencePort {
                     "credit_expire", "creditExpireScheduler",
                     "pay_order_expire", "payOrderExpireTask",
                     "pay_order_sync", "payOrderSyncTask",
-                    "memory_maintenance", "memoryMaintenanceTask");
+                    "memory_maintenance", "memoryMaintenanceTask",
+                    "project_schedule_scan", "projectScheduleScanActionExecutor");
 
     /** 连续失败自动暂停阈值 */
     private static final int MAX_FAIL_COUNT = 3;

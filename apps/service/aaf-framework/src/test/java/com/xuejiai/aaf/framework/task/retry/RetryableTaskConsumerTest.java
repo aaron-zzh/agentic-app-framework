@@ -128,6 +128,28 @@ class RetryableTaskConsumerTest extends BaseMockitoUnitTest {
         verify(taskQueue, never()).enqueueWithDelay(any(), any());
     }
 
+    @Test
+    @DisplayName("Given 不可重试任务失败 When 消费 Then 首次直接写入死信")
+    void should_dead_letter_immediately_when_failure_is_not_retryable() {
+        // 准备参数
+        var task = task(0, 3);
+        when(taskRuntime.submit(eq(task.type()), eq(task.payload()), any(ExecutionMeta.class)))
+                .thenThrow(
+                        new com.xuejiai.aaf.framework.engine.meta.runtime.NonRetryableTaskException(
+                                "事实输出契约不匹配"));
+        var taskCaptor = ArgumentCaptor.forClass(AsyncTaskMessage.class);
+
+        // 调用
+        var outcome = consumer.executeWithRetry(task);
+
+        // 断言
+        assertThat(outcome).isEqualTo(RetryableTaskConsumer.ProcessingOutcome.DEAD_LETTERED);
+        verify(taskQueue).sendToDeadLetter(taskCaptor.capture());
+        assertThat(taskCaptor.getValue().attempt()).isZero();
+        assertThat(taskCaptor.getValue().lastError()).isEqualTo("事实输出契约不匹配");
+        verify(taskQueue, never()).enqueueWithDelay(any(), any());
+    }
+
     private AsyncTaskMessage task(int attempt, int maxRetries) {
         return new AsyncTaskMessage(
                 "task-1",

@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.SmartLifecycle;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.connection.stream.Consumer;
 import org.springframework.data.redis.connection.stream.MapRecord;
@@ -30,7 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class AgentTaskConsumer {
+public class AgentTaskConsumer implements SmartLifecycle {
 
     private static final String GROUP = "aaf-agent-task-consumers";
     private static final List<String> STREAMS =
@@ -42,12 +43,18 @@ public class AgentTaskConsumer {
 
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final String consumerPrefix = "agent-task-consumer-" + UUID.randomUUID();
-    private ExecutorService executor;
+    private volatile ExecutorService executor;
 
+    @Override
     @EventListener(ApplicationReadyEvent.class)
     public void start() {
+        if (!running.compareAndSet(false, true)) {
+            return;
+        }
         ensureGroups();
-        running.set(true);
+        if (!running.get()) {
+            return;
+        }
         var threads = taskProperties.getQueue().getConsumerThreads();
         var threadSequence = new AtomicInteger();
         executor =
@@ -59,22 +66,50 @@ public class AgentTaskConsumer {
                                                 "agent-task-consumer-"
                                                         + threadSequence.incrementAndGet())
                                         .unstarted(runnable));
-        for (int index = 0; index < threads; index++) {
+        for (int index = 0; index < threads && running.get(); index++) {
             var consumerIndex = index;
             executor.submit(() -> pollLoop(consumerIndex));
         }
         log.info("智能体任务消费者启动，线程数: {}", threads);
     }
 
+    @Override
+    public boolean isAutoStartup() {
+        return false;
+    }
+
+    @Override
+    public boolean isRunning() {
+        return running.get();
+    }
+
+    @Override
+    public int getPhase() {
+        return Integer.MAX_VALUE;
+    }
+
+    @Override
+    public void stop(Runnable callback) {
+        try {
+            stop();
+        } finally {
+            callback.run();
+        }
+    }
+
     @PreDestroy
+    @Override
     public void stop() {
-        running.set(false);
-        if (executor == null) {
+        if (!running.getAndSet(false)) {
             return;
         }
-        executor.shutdownNow();
+        var currentExecutor = executor;
+        if (currentExecutor == null) {
+            return;
+        }
+        currentExecutor.shutdownNow();
         try {
-            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+            if (!currentExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
                 log.warn("智能体任务消费者未能在 5s 内正常退出");
             }
         } catch (InterruptedException e) {
@@ -87,9 +122,12 @@ public class AgentTaskConsumer {
         var timeout = taskProperties.getQueue().getPollTimeout();
         var consecutiveErrors = new AtomicInteger();
         var consumerName = consumerPrefix + "-" + consumerIndex;
-        while (running.get()) {
+        while (running.get() && !Thread.currentThread().isInterrupted()) {
             try {
                 for (var stream : STREAMS) {
+                    if (!running.get()) {
+                        break;
+                    }
                     var messages =
                             redisTemplate
                                     .opsForStream()
@@ -99,31 +137,43 @@ public class AgentTaskConsumer {
                                             StreamOffset.create(stream, ReadOffset.lastConsumed()));
                     if (messages != null) {
                         for (var message : messages) {
+                            if (!running.get()) {
+                                break;
+                            }
                             processMessage(stream, message);
                         }
                     }
                 }
                 consecutiveErrors.set(0);
             } catch (org.springframework.dao.QueryTimeoutException e) {
-                log.debug("智能体任务 Stream 阻塞读超时，继续轮询");
+                if (running.get()) {
+                    log.debug("智能体任务 Stream 阻塞读超时，继续轮询");
+                }
             } catch (org.springframework.data.redis.RedisConnectionFailureException e) {
+                if (!running.get()) {
+                    break;
+                }
                 var errors = consecutiveErrors.incrementAndGet();
                 var backoffMs = Math.min(1000L * errors, 30_000L);
                 log.warn(
                         "智能体任务 Redis 连接异常（第 {} 次），{}ms 后重试: {}", errors, backoffMs, e.getMessage());
                 sleep(backoffMs);
             } catch (Exception e) {
-                if (running.get()) {
-                    var errors = consecutiveErrors.incrementAndGet();
-                    var backoffMs = Math.min(500L * errors, 10_000L);
-                    log.error("智能体任务消费循环异常（第 {} 次），{}ms 后重试", errors, backoffMs, e);
-                    sleep(backoffMs);
+                if (!running.get()) {
+                    break;
                 }
+                var errors = consecutiveErrors.incrementAndGet();
+                var backoffMs = Math.min(500L * errors, 10_000L);
+                log.error("智能体任务消费循环异常（第 {} 次），{}ms 后重试", errors, backoffMs, e);
+                sleep(backoffMs);
             }
         }
     }
 
     private void processMessage(String stream, MapRecord<String, Object, Object> record) {
+        if (!running.get()) {
+            return;
+        }
         var fields = new HashMap<String, String>();
         record.getValue()
                 .forEach((key, value) -> fields.put(String.valueOf(key), String.valueOf(value)));
@@ -133,7 +183,9 @@ public class AgentTaskConsumer {
                 requireField(fields, "taskId"),
                 requireField(fields, "tenantId"),
                 requireField(fields, "triggerType"));
-        redisTemplate.opsForStream().acknowledge(stream, GROUP, record.getId());
+        if (running.get()) {
+            redisTemplate.opsForStream().acknowledge(stream, GROUP, record.getId());
+        }
     }
 
     private String requireField(HashMap<String, String> fields, String name) {
@@ -146,6 +198,9 @@ public class AgentTaskConsumer {
 
     private void ensureGroups() {
         for (var stream : STREAMS) {
+            if (!running.get()) {
+                return;
+            }
             try {
                 redisTemplate.opsForStream().createGroup(stream, GROUP);
             } catch (Exception ignored) {

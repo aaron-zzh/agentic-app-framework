@@ -107,7 +107,7 @@ public class TaskRuntime {
             recordResult(monitorId, result);
             notifyIfNeeded(ctx, result);
             return result;
-        } catch (TaskExecutionInProgressException e) {
+        } catch (TaskExecutionInProgressException | NonRetryableTaskException e) {
             taskMonitor.recordFailure(monitorId, e.getMessage());
             throw e;
         } catch (TimeoutException e) {

@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.SmartLifecycle;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.connection.stream.Consumer;
 import org.springframework.data.redis.connection.stream.MapRecord;
@@ -39,7 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class TaskConsumer {
+public class TaskConsumer implements SmartLifecycle {
 
     private static final String GROUP = "aaf-consumers";
     private static final String STREAM_HIGH = "task_queue:high";
@@ -56,16 +57,22 @@ public class TaskConsumer {
     private final AtomicLong lastReclaimAt = new AtomicLong(0);
     private final ConcurrentMap<String, String> reclaimCursors = new ConcurrentHashMap<>();
     private final String consumerPrefix = "task-consumer-" + UUID.randomUUID();
-    private ExecutorService executor;
+    private volatile ExecutorService executor;
 
+    @Override
     @EventListener(ApplicationReadyEvent.class)
     public void start() {
         if (!taskProperties.getQueue().isEnabled()) {
             log.info("通用任务消费者已禁用");
             return;
         }
+        if (!running.compareAndSet(false, true)) {
+            return;
+        }
         tryEnsureGroups();
-        running.set(true);
+        if (!running.get()) {
+            return;
+        }
         var threads = taskProperties.getQueue().getConsumerThreads();
         var threadSequence = new AtomicInteger();
         executor =
@@ -75,22 +82,50 @@ public class TaskConsumer {
                                 Thread.ofVirtual()
                                         .name("task-consumer-" + threadSequence.incrementAndGet())
                                         .unstarted(runnable));
-        for (int index = 0; index < threads; index++) {
+        for (int index = 0; index < threads && running.get(); index++) {
             var consumerIndex = index;
             executor.submit(() -> pollLoop(consumerIndex));
         }
         log.info("任务消费者启动，线程数: {}", threads);
     }
 
+    @Override
+    public boolean isAutoStartup() {
+        return false;
+    }
+
+    @Override
+    public boolean isRunning() {
+        return running.get();
+    }
+
+    @Override
+    public int getPhase() {
+        return Integer.MAX_VALUE;
+    }
+
+    @Override
+    public void stop(Runnable callback) {
+        try {
+            stop();
+        } finally {
+            callback.run();
+        }
+    }
+
     @PreDestroy
+    @Override
     public void stop() {
-        running.set(false);
-        if (executor == null) {
+        if (!running.getAndSet(false)) {
             return;
         }
-        executor.shutdownNow();
+        var currentExecutor = executor;
+        if (currentExecutor == null) {
+            return;
+        }
+        currentExecutor.shutdownNow();
         try {
-            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+            if (!currentExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
                 log.warn("任务消费者未能在 5s 内正常退出");
             }
         } catch (InterruptedException e) {
@@ -101,34 +136,49 @@ public class TaskConsumer {
     private void pollLoop(int consumerIndex) {
         var consumerName = consumerPrefix + "-" + consumerIndex;
         var consecutiveErrors = new AtomicInteger();
-        while (running.get()) {
+        while (running.get() && !Thread.currentThread().isInterrupted()) {
             try {
                 recoverPendingIfDue(consumerName);
+                if (!running.get()) {
+                    break;
+                }
                 if (!readAvailable(consumerName)) {
                     readBlocking(consumerName);
                 }
                 consecutiveErrors.set(0);
             } catch (org.springframework.dao.QueryTimeoutException e) {
-                log.debug("Stream 阻塞读超时（无消息），继续轮询");
+                if (running.get()) {
+                    log.debug("Stream 阻塞读超时（无消息），继续轮询");
+                }
             } catch (org.springframework.data.redis.RedisConnectionFailureException e) {
+                if (!running.get()) {
+                    break;
+                }
                 var errors = consecutiveErrors.incrementAndGet();
                 var backoffMs = Math.min(1000L * errors, 30_000L);
                 log.warn("Redis 连接异常（第 {} 次），{}ms 后重试: {}", errors, backoffMs, e.getMessage());
                 sleep(backoffMs);
             } catch (RuntimeException e) {
-                if (running.get()) {
-                    tryEnsureGroups();
-                    var errors = consecutiveErrors.incrementAndGet();
-                    var backoffMs = Math.min(500L * errors, 10_000L);
-                    log.error("消费循环异常（第 {} 次），{}ms 后重试", errors, backoffMs, e);
-                    sleep(backoffMs);
+                if (!running.get()) {
+                    break;
                 }
+                tryEnsureGroups();
+                if (!running.get()) {
+                    break;
+                }
+                var errors = consecutiveErrors.incrementAndGet();
+                var backoffMs = Math.min(500L * errors, 10_000L);
+                log.error("消费循环异常（第 {} 次），{}ms 后重试", errors, backoffMs, e);
+                sleep(backoffMs);
             }
         }
     }
 
     private boolean readAvailable(String consumerName) {
         for (var stream : STREAMS) {
+            if (!running.get()) {
+                return false;
+            }
             var messages =
                     redisTemplate
                             .opsForStream()
@@ -145,6 +195,9 @@ public class TaskConsumer {
     }
 
     private void readBlocking(String consumerName) {
+        if (!running.get()) {
+            return;
+        }
         var messages =
                 redisTemplate
                         .opsForStream()
@@ -160,6 +213,9 @@ public class TaskConsumer {
             return;
         }
         for (var message : messages) {
+            if (!running.get()) {
+                return;
+            }
             processMessage(String.valueOf(message.getStream()), message);
         }
     }
@@ -172,7 +228,13 @@ public class TaskConsumer {
             return;
         }
         for (var stream : STREAMS) {
+            if (!running.get()) {
+                return;
+            }
             for (var message : autoClaim(stream, consumerName)) {
+                if (!running.get()) {
+                    return;
+                }
                 processMessage(stream, message);
             }
         }
@@ -180,6 +242,9 @@ public class TaskConsumer {
 
     @SuppressWarnings("unchecked")
     private List<MapRecord<String, Object, Object>> autoClaim(String stream, String consumerName) {
+        if (!running.get()) {
+            return List.of();
+        }
         var streamKey = stream.getBytes(StandardCharsets.UTF_8);
         var group = GROUP.getBytes(StandardCharsets.UTF_8);
         var consumer = consumerName.getBytes(StandardCharsets.UTF_8);
@@ -229,6 +294,9 @@ public class TaskConsumer {
     }
 
     private void processMessage(String stream, MapRecord<String, Object, Object> record) {
+        if (!running.get()) {
+            return;
+        }
         var fields = new HashMap<String, String>();
         record.getValue()
                 .forEach((key, value) -> fields.put(String.valueOf(key), String.valueOf(value)));
@@ -236,6 +304,9 @@ public class TaskConsumer {
         try {
             task = RedisStreamTaskQueue.fromMap(fields);
         } catch (RuntimeException e) {
+            if (!running.get()) {
+                return;
+            }
             taskQueue.sendMalformedToDeadLetter(fields, e);
             acknowledge(stream, record);
             return;
@@ -244,18 +315,32 @@ public class TaskConsumer {
         // M49：handler 的关系库副作用与 sys_task_inbox 在同一事务提交；Redis completed/processing
         // 仅作为快速去重缓存与并发租约。外部系统副作用仍由 handler 使用稳定 task.id() 保证幂等。
         retryableTaskConsumer.executeWithRetry(task);
-        acknowledge(stream, record);
+        if (running.get()) {
+            acknowledge(stream, record);
+        }
     }
 
     private void acknowledge(String stream, MapRecord<String, Object, Object> record) {
-        redisTemplate.opsForStream().acknowledge(stream, GROUP, record.getId());
+        if (running.get()) {
+            redisTemplate.opsForStream().acknowledge(stream, GROUP, record.getId());
+        }
     }
 
     private void tryEnsureGroups() {
+        if (!running.get()) {
+            return;
+        }
         try {
-            STREAMS.forEach(stream -> taskQueue.ensureGroup(stream, GROUP));
+            for (var stream : STREAMS) {
+                if (!running.get()) {
+                    return;
+                }
+                taskQueue.ensureGroup(stream, GROUP);
+            }
         } catch (RuntimeException e) {
-            log.warn("任务消费组初始化失败，将在消费循环重试: {}", e.getMessage());
+            if (running.get()) {
+                log.warn("任务消费组初始化失败，将在消费循环重试: {}", e.getMessage());
+            }
         }
     }
 

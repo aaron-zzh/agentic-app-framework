@@ -18,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class ProjectScheduleScanActionExecutor implements ScheduledActionExecutor {
+public class ProjectScheduleScanActionExecutor implements ScheduledActionExecutor, Runnable {
 
     private final AigcProjectScheduleService scheduleService;
 
@@ -28,13 +28,19 @@ public class ProjectScheduleScanActionExecutor implements ScheduledActionExecuto
     }
 
     @Override
-    public void execute(ScheduledTask task) {
-        log.debug("[ProjectScheduleScan] 开始扫描到期的项目定时任务");
+    public void run() {
+        scan();
+    }
 
+    @Override
+    public void execute(ScheduledTask task) {
+        scan();
+    }
+
+    private void scan() {
         try {
             // 每次扫描最多处理 50 个到期任务
             scheduleService.scanAndTrigger(50);
-            log.debug("[ProjectScheduleScan] 扫描完成");
         } catch (Exception e) {
             log.error("[ProjectScheduleScan] 扫描失败", e);
             throw e;

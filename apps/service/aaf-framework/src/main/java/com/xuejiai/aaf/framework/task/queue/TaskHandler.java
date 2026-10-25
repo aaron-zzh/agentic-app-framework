@@ -3,7 +3,7 @@ package com.xuejiai.aaf.framework.task.queue;
 /**
  * 队列任务处理器扩展点。
  *
- * <p>关系库副作用、结果摘要与框架事务性 inbox 原子提交；外部系统副作用无法参与本地事务，处理器必须使用稳定任务 ID 作为供应商幂等键。
+ * <p>inbox 仅持久化 claim、完成和释放状态；handler 在事务外运行。处理器的关系库副作用需自行保持幂等，外部系统调用必须使用稳定任务 ID 或持久检查点避免重试重复执行。
  */
 public interface TaskHandler {
 

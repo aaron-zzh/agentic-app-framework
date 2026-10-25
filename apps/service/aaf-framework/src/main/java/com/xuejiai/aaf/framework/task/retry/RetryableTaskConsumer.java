@@ -21,17 +21,15 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 执行队列任务，并在失败时可靠调度重试或写入死信。
  *
- * <p>M49 消费保证（**至少一次投递 + 事务性幂等消费**）：
+ * <p>M49 消费保证（**至少一次投递 + 持久 inbox 租约消费**）：
  *
  * <ul>
- *   <li>{@code sys_task_inbox} 由 {@link com.xuejiai.aaf.framework.task.queue.TaskInboxExecutor} 与
- *       handler 的关系库副作用在同一事务提交
+ *   <li>{@code sys_task_inbox} 持久化 PENDING/PROCESSING/COMPLETED 与租约，防止并发重复处理
  *   <li>{@code task_queue:completed:<id>} 是快速去重缓存，重投时可直接判 DUPLICATE
  *   <li>{@code task_queue:processing:<id>} 租约防止两个消费者同时处理同一任务
  * </ul>
  *
- * <p>handler 成功提交后即使进程在写 Redis completed 标记或 ACK 前崩溃，重投也会由永久 inbox 主键拦截； completed
- * 缓存过期不再导致重复执行。外部系统副作用无法参与本地数据库事务，相关 handler 仍必须把稳定 {@code task.id()} 作为供应商幂等键。
+ * <p>handler 在 inbox 事务外执行；崩溃或下游失败后可由租约重领。外部系统副作用仍须使用稳定 {@code task.id()} 或独立持久检查点保证幂等。
  */
 @Slf4j
 @Component
@@ -109,6 +107,12 @@ public class RetryableTaskConsumer {
             taskQueue.enqueueWithDelay(retryTask, delay);
             log.warn("任务 {} 第 {} 次执行失败，{}ms 后重试", task.id(), retryNumber, delay.toMillis());
             return ProcessingOutcome.RETRY_SCHEDULED;
+        } catch (com.xuejiai.aaf.framework.engine.meta.runtime.NonRetryableTaskException failure) {
+            var failedTask = task.withLastError(failure.getMessage());
+            taskQueue.sendToDeadLetter(failedTask);
+            asyncTaskService.markFailed(failedTask);
+            log.error("任务 {} 不可重试，已转入死信", task.id());
+            return ProcessingOutcome.DEAD_LETTERED;
         } finally {
             redisTemplate.execute(RELEASE_LEASE_SCRIPT, List.of(processingKey), leaseToken);
         }
