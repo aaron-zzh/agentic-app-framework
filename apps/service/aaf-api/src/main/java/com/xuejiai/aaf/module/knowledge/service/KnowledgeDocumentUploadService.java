@@ -85,6 +85,59 @@ public class KnowledgeDocumentUploadService {
         return List.copyOf(documents);
     }
 
+    /** 导入应用内置资源，沿用普通上传的文件存储、来源建档与异步处理链路。 */
+    @Transactional
+    public KnowledgeDocument uploadResource(
+            KnowledgeBase knowledgeBase,
+            byte[] content,
+            String filename,
+            String contentType,
+            String sourceKey) {
+        if (content == null || content.length == 0 || filename == null || filename.isBlank()) {
+            throw exception(GlobalErrorCode.BAD_REQUEST);
+        }
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            throw new IllegalStateException("知识库资源导入必须在事务中执行");
+        }
+
+        var uploadedKeys = new ArrayList<String>();
+        var documents = new ArrayList<KnowledgeDocument>();
+        registerTransactionCallbacks(uploadedKeys, documents);
+
+        var sourceFile =
+                fileUploadService.uploadFromBytes(
+                        content, filename, contentType, knowledgeBase.getOwnerId());
+        uploadedKeys.add(sourceFile.key());
+        var sourceDocument =
+                documentSourceApi.register(
+                        new SourceDocumentCommand(
+                                sourceFile.fileId(),
+                                filename,
+                                "knowledge_source",
+                                sourceKey,
+                                null,
+                                knowledgeBase.getOwnerId()));
+        var document = new KnowledgeDocument();
+        document.setKnowledgeBaseId(knowledgeBase.getId());
+        document.setSourceDocumentId(sourceDocument.id());
+        document.setUploadedBy(knowledgeBase.getOwnerId());
+        document.setSourceType("SYSTEM");
+        document.setSourceKey(sourceKey);
+        document.setSourceUri(sourceFile.url());
+        document.setTitle(filename);
+        document.setFilePath(sourceFile.key());
+        document.setFileType(extractFileType(filename));
+        document.setFileSize(sourceFile.size());
+        document.setStatus(DocumentStatusEnum.PENDING.getCode());
+        document.setChunkCount(0);
+        document.setOrgId(knowledgeBase.getOrgId());
+        document.setWorkspaceId(knowledgeBase.getWorkspaceId());
+        document.setOwnerId(knowledgeBase.getOwnerId());
+        var saved = documentRepository.save(document);
+        documents.add(saved);
+        return saved;
+    }
+
     private void registerTransactionCallbacks(
             List<String> uploadedKeys, List<KnowledgeDocument> documents) {
         TransactionSynchronizationManager.registerSynchronization(

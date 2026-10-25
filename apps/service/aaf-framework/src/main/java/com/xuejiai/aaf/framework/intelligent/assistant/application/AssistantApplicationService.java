@@ -33,6 +33,8 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.SkillCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.CompletionDecision;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceReference;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.EffectiveContextManifest.SourceType;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Execution;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionProfileSnapshot;
@@ -679,6 +681,10 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         var contextPlan = command.invocationProfile().contextPlan();
         var knowledgeQuery =
                 effectiveKnowledgeQuery(command, definition, profile.roleAssignment().roleKey());
+        var contextCandidates = new ArrayList<>(command.contextCandidates());
+        if (!contextPlan.knowledgeQuery().enabled()) {
+            appendDefaultKnowledgeCandidates(knowledgeQuery, contextCandidates);
+        }
         if (knowledgeQuery.enabled()) {
             scopes.add(ContextScope.KNOWLEDGE);
         }
@@ -705,11 +711,38 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         scopes,
                         new ContextBudget(maxItems, summaryOnly ? 1_024 : 8_192),
                         disclosure,
-                        command.contextCandidates(),
+                        contextCandidates,
                         contextPlan.taskMaterials(),
                         knowledgeQuery,
                         command.conversationId().value(),
                         command.requestedAt()));
+    }
+
+    private static void appendDefaultKnowledgeCandidates(
+            KnowledgeQuery knowledgeQuery, List<SourceReference> contextCandidates) {
+        if (!knowledgeQuery.enabled()) {
+            return;
+        }
+        var sourceKeys =
+                contextCandidates.stream()
+                        .filter(reference -> reference.type() == SourceType.KNOWLEDGE)
+                        .map(SourceReference::sourceKey)
+                        .collect(Collectors.toCollection(LinkedHashSet::new));
+        knowledgeQuery.knowledgeBaseIds().stream()
+                .sorted()
+                .map(UUID::toString)
+                .filter(sourceKeys::add)
+                .forEach(
+                        knowledgeBaseId ->
+                                contextCandidates.add(
+                                        new SourceReference(
+                                                SourceType.KNOWLEDGE,
+                                                knowledgeBaseId,
+                                                "1",
+                                                "ASSISTANT_DEFAULT",
+                                                "助理或角色绑定的默认知识库候选",
+                                                "等待 L1 授权混合检索",
+                                                false)));
     }
 
     /**
