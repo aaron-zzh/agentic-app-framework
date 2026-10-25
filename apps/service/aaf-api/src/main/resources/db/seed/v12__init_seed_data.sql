@@ -1116,7 +1116,7 @@ VALUES
 ('n1n:deepseek-v4-pro',     'DeepSeek Pro',       'n1n',    'OPENAI_COMPAT', 'deepseek-v4-pro',              'https://llm-api.net/v1',                   'CHAT',        128000,  21,  true,  0.009504, 0.028512, null, 0, null, 0.033333),
 ('qwen:qwen3.8-max',      'Qwen Max',             'qwen',    'OPENAI_COMPAT', 'qwen3.8-max',                 'https://dashscope.aliyuncs.com/compatible-mode/v1', 'CHAT,VISION',    128000,  30,  true,  0.012, 0.036, null, 0, null, 0.125),
 ('qwen:qwen3.8-flash',     'Qwen Flash',          'qwen',    'OPENAI_COMPAT', 'qwen3.8-flash',                'https://dashscope.aliyuncs.com/compatible-mode/v1', 'CHAT,VISION',  128000, 31,  true,  0.0008, 0.0027, null, 0, null, 0.125),
-('qwen:qwen3.7-text-embedding','Qwen3.7 Embedding', 'qwen',    'OPENAI_COMPAT', 'qwen3.7-text-embedding',     'https://ws-7y060jd154q0f8be.cn-beijing.maas.aliyuncs.com/compatible-mode/v1', 'EMBEDDING', 128000, 33,  true,  0.0005, 0, null, 0, null, null),
+('qwen:qwen3.7-text-embedding','Qwen3.7 Embedding', 'qwen',    'OPENAI_COMPAT', 'qwen3.7-text-embedding',     'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com/compatible-mode/v1', 'EMBEDDING', 128000, 33,  true,  0.0005, 0, null, 0, null, null),
 -- 图像生成（按次计费，quota_type=1；OpenAI Compat 按 token 计费，quota_type=0）
 ('qwen:wan2.7-image',              '万相 Wan2.7',        'qwen', 'DASHSCOPE',    'wan2.7-image',                   'https://dashscope.aliyuncs.com', 'IMAGE_GEN',  800, 210, true,  null,  null,  0.2, 1, '{"mode":"fixed","sizes":[],"generate":{"maxImages":4,"sizePresets":["1K","2K"],"seed":true},"edit":{"maxInputImages":9,"maxImages":4,"sizePresets":["1K","2K"],"seed":true}}', null),
 ('qwen:qwen-image-2.0',            '千问图像 2.0',        'qwen', 'DASHSCOPE',    'qwen-image-2.0',                 'https://dashscope.aliyuncs.com', 'IMAGE_GEN',  800, 211, true,  null,  null,  0.2, 1, '{"mode":"fixed","sizes":[[2688,1536],[2368,1728],[2048,2048],[1728,2368],[1536,2688]],"generate":{"maxImages":6,"seed":true,"promptExtend":true,"negativePrompt":true},"edit":{"maxInputImages":3,"maxImages":6,"seed":true,"promptExtend":true,"negativePrompt":true}}', null),
@@ -1125,13 +1125,13 @@ VALUES
 ('n1n:gemini-3-pro-image-preview',    'Gemini 3 Pro',     'n1n',  'OPENAI_COMPAT','gemini-3-pro-image-preview',     'https://llm-api.net/v1',         'CHAT,IMAGE_GEN', 3000, 221, true, null, null, 1.0, 1, '{"mode":"ratio","sizes":{"1:1":[],"2:3":[],"3:2":[],"3:4":[],"4:3":[],"4:5":[],"5:4":[],"9:16":[],"16:9":[],"21:9":[]},"generate":{"maxImages":1,"sizePresets":["1K","2K","4K"]},"edit":{"maxInputImages":14,"maxImages":1,"sizePresets":["1K","2K","4K"]}}', null),
 -- ('n1n:doubao-seedream-5-0-260128',    '豆包 Seedream 5.0','n1n',  'OPENAI_COMPAT','doubao-seedream-5-0-260128',     'https://llm-api.net/v1',         'IMAGE_GEN',  800, 230, true,  null,  null,  1.0, 1, '{"mode":"fixed","sizes":[[1024,1024],[1536,1024],[1024,1536],[2048,2048],[2048,1152],[1152,2048]],"generate":{"maxImages":4,"format":["jpeg","png"]}}'),
 -- 视频生成
-('qwen:happyhorse-1.1-i2v',        'HappyHorse I2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.1-i2v',             'https://ws-7y060jd154q0f8be.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 350, true,  null,  null, null, 3, null, null),
-('qwen:happyhorse-1.1-t2v',        'HappyHorse T2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.1-t2v',             'https://ws-7y060jd154q0f8be.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 351, true,  null,  null, null, 3, null, null),
-('qwen:happyhorse-1.1-r2v',        'HappyHorse R2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.1-r2v',             'https://ws-7y060jd154q0f8be.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 352, true,  null,  null, null, 3, null, null),
-('qwen:happyhorse-1.0-video-edit', 'HappyHorse 视频编辑', 'qwen', 'DASHSCOPE',    'happyhorse-1.0-video-edit',      'https://ws-7y060jd154q0f8be.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 353, true,  null,  null, null, 3, null, null),
+('qwen:happyhorse-1.1-i2v',        'HappyHorse I2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.1-i2v',             'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 350, true,  null,  null, null, 3, null, null),
+('qwen:happyhorse-1.1-t2v',        'HappyHorse T2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.1-t2v',             'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 351, true,  null,  null, null, 3, null, null),
+('qwen:happyhorse-1.1-r2v',        'HappyHorse R2V',      'qwen', 'DASHSCOPE',    'happyhorse-1.1-r2v',             'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 352, true,  null,  null, null, 3, null, null),
+('qwen:happyhorse-1.0-video-edit', 'HappyHorse 视频编辑', 'qwen', 'DASHSCOPE',    'happyhorse-1.0-video-edit',      'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com', 'VIDEO_GEN',  null, 353, true,  null,  null, null, 3, null, null),
 -- ('volcengine:doubao-seedance-2-0-260128','Doubao Seedance 2.0','volcengine','VOLCENGINE','doubao-seedance-2-0-260128','https://ark.cn-beijing.volces.com/api/v3','VIDEO_GEN', null, 354, true, null, null, null, 0, null),
 -- 重排序
-('qwen:qwen3.7-text-rerank',      'Qwen3.7 Rerank',      'qwen', 'DASHSCOPE',    'qwen3.7-text-rerank',            'https://ws-7y060jd154q0f8be.cn-beijing.maas.aliyuncs.com', 'RERANK',     32000, 360, true,  0.0005,  0, null, 0, null, null),
+('qwen:qwen3.7-text-rerank',      'Qwen3.7 Rerank',      'qwen', 'DASHSCOPE',    'qwen3.7-text-rerank',            'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com', 'RERANK',     32000, 360, true,  0.0005,  0, null, 0, null, null),
 -- 语音识别（ASR）
 ('qwen:fun-asr-realtime',          '通义 ASR Flash',      'qwen', 'DASHSCOPE',    'fun-asr-realtime',               'https://dashscope.aliyuncs.com', 'SPEECH_ASR', null, 310, true,  null,  null, 0.00033, 2, null, null),
 -- 语音合成（TTS）
@@ -1776,6 +1776,13 @@ INSERT INTO ai_role (
     '["00000000-0000-0000-0000-000000000301"]',
     'active', 'SYSTEM', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
+
+-- 显式写入系统 Role ID 不会推进 identity sequence，后续 seed 使用生成 ID 前必须同步。
+SELECT setval(
+    pg_get_serial_sequence('ai_role', 'id'),
+    COALESCE((SELECT MAX(id) FROM ai_role), 1),
+    TRUE
+);
 
 -- 系统用户模板只用于复制，登录用户不得直接作为默认 Assistant 执行。
 INSERT INTO ai_assistant (
