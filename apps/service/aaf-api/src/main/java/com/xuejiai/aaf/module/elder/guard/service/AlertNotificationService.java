@@ -214,7 +214,7 @@ public class AlertNotificationService implements TaskHandler {
                             .type("elder-alert")
                             .title(subject)
                             .body(content)
-                            .relatedUrl("/module/elder-alert")
+                            .relatedUrl("/module/alert")
                             .entityType("elder.guard.alert")
                             .entityId(alert.getId())
                             .build());

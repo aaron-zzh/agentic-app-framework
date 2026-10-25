@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.system.entity.service;
 
 import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -114,9 +115,14 @@ public class EntityDefService {
     }
 
     private void validatePersistedCodeDefinition(EntityDef entity) {
-        var config = JsonUtils.readTree(entity.getConfig());
-        if ("code".equals(config.path("kind").asString())) {
-            validateConfig(entity.getSlug(), config);
+        try {
+            var config = JsonUtils.readTree(entity.getConfig());
+            if ("code".equals(config.path("kind").asString())) {
+                validateConfig(entity.getSlug(), config);
+            }
+        } catch (RuntimeException failure) {
+            throw new IllegalStateException(
+                    "持久化 EntityDef 校验失败: slug=%s".formatted(entity.getSlug()), failure);
         }
     }
 
@@ -142,9 +148,12 @@ public class EntityDefService {
             throw exception(ErrorCodeConstants.ENTITY_DEF_CONFIG_INVALID);
         }
         validateRelationshipResources(config.path("fields"));
-        var allowedFields =
-                Set.copyOf(requireCatalogResource(descriptor.resource()).snapshot().fields());
-        validateFieldReferences(config, allowedFields);
+        var resource = requireCatalogResource(descriptor.resource());
+        var displayFields = Set.copyOf(resource.snapshot().fields());
+        var formFields = new HashSet<>(displayFields);
+        formFields.addAll(resource.definition().mutation().createFields());
+        formFields.addAll(resource.definition().mutation().updateFields());
+        validateFieldReferences(config, displayFields, formFields);
     }
 
     private void validateRelationshipResources(JsonNode fields) {
@@ -162,14 +171,15 @@ public class EntityDefService {
         }
     }
 
-    private void validateFieldReferences(JsonNode config, Set<String> allowedFields) {
-        validateFormFields(config.path("fields"), allowedFields);
+    private void validateFieldReferences(
+            JsonNode config, Set<String> displayFields, Set<String> formFields) {
+        validateFormFields(config.path("fields"), formFields);
 
         var listView = config.path("listView");
-        validateStringArray(listView.path("columns"), allowedFields);
-        validateStringArray(listView.path("searchableFields"), allowedFields);
-        validateStringArray(listView.path("filterableFields"), allowedFields);
-        validateStringArray(listView.path("filterFields"), allowedFields);
+        validateStringArray(listView.path("columns"), displayFields);
+        validateStringArray(listView.path("searchableFields"), displayFields);
+        validateStringArray(listView.path("filterableFields"), displayFields);
+        validateStringArray(listView.path("filterFields"), displayFields);
         var quickFilters = listView.path("quickFilters");
         if (!quickFilters.isMissingNode() && !quickFilters.isArray()) {
             throw exception(ErrorCodeConstants.ENTITY_DEF_CONFIG_INVALID);
@@ -180,10 +190,10 @@ public class EntityDefService {
                 throw exception(ErrorCodeConstants.ENTITY_DEF_CONFIG_INVALID);
             }
             for (var condition : conditions) {
-                validateFieldName(condition.path("field"), allowedFields);
+                validateFieldName(condition.path("field"), displayFields);
             }
         }
-        validateFieldName(listView.path("tabs").path("field"), allowedFields);
+        validateFieldName(listView.path("tabs").path("field"), displayFields);
     }
 
     private void validateFormFields(JsonNode fields, Set<String> allowedFields) {

@@ -274,7 +274,7 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO sys_data_access_rule (entity_slug, roles, condition, effect)
 VALUES
-    ('rehab-guide', '["elder_operator","org_admin","admin"]',
+    ('guide', '["elder_operator","org_admin","admin"]',
      '{"field":"orgId","op":"in","value":"$user.orgIds"}', 'allow')
 ON CONFLICT DO NOTHING;
 
@@ -288,7 +288,7 @@ INSERT INTO sys_menu
     (parent_id, title, path, icon, sort_order, menu_type, visible, permission_code)
 SELECT elder_group.id,
        '康复指导',
-       '/module/rehab-guide',
+       '/module/guide',
        'accessibility',
        8,
        'MENU',
@@ -298,14 +298,14 @@ FROM elder_group
 WHERE NOT EXISTS (
     SELECT 1
     FROM sys_menu menu
-    WHERE menu.path = '/module/rehab-guide' AND menu.deleted = FALSE
+    WHERE menu.path = '/module/guide' AND menu.deleted = FALSE
 );
 
 INSERT INTO sys_role_menu (role_id, menu_id)
 SELECT role.id, menu.id
 FROM sys_role role
 JOIN sys_menu menu
-    ON menu.path = '/module/rehab-guide'
+    ON menu.path = '/module/guide'
        OR (menu.parent_id IS NULL AND menu.title = '养老')
 WHERE role.code IN ('elder_operator', 'org_admin', 'admin', 'super_admin')
   AND menu.deleted = FALSE
@@ -352,13 +352,13 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO sys_data_access_rule (entity_slug, roles, condition, effect)
 VALUES
-    ('elder-alert', '["elder_operator","org_admin","admin"]',
+    ('alert', '["elder_operator","org_admin","admin"]',
      '{"field":"orgId","op":"in","value":"$user.orgIds"}', 'allow'),
-    ('elder-alert-handling', '["elder_operator","org_admin","admin"]',
+    ('alert-handling', '["elder_operator","org_admin","admin"]',
      '{"field":"orgId","op":"in","value":"$user.orgIds"}', 'allow'),
-    ('elder-alert', '["elder_duty"]',
+    ('alert', '["elder_duty"]',
      '{"field":"id","op":"gt","value":0}', 'allow'),
-    ('elder-alert-handling', '["elder_duty"]',
+    ('alert-handling', '["elder_duty"]',
      '{"field":"id","op":"gt","value":0}', 'allow')
 ON CONFLICT DO NOTHING;
 
@@ -371,7 +371,7 @@ INSERT INTO sys_menu
     (parent_id, title, path, icon, sort_order, menu_type, visible, permission_code)
 SELECT elder_group.id,
        '预警管理',
-       '/module/elder-alert',
+       '/module/alert',
        'triangle-alert',
        6,
        'MENU',
@@ -381,14 +381,14 @@ FROM elder_group
 WHERE NOT EXISTS (
     SELECT 1
     FROM sys_menu menu
-    WHERE menu.path = '/module/elder-alert' AND menu.deleted = FALSE
+    WHERE menu.path = '/module/alert' AND menu.deleted = FALSE
 );
 
 INSERT INTO sys_role_menu (role_id, menu_id)
 SELECT role.id, menu.id
 FROM sys_role role
 JOIN sys_menu menu
-    ON menu.path = '/module/elder-alert'
+    ON menu.path = '/module/alert'
        OR (menu.parent_id IS NULL AND menu.title = '养老')
 WHERE role.code IN ('elder_duty', 'elder_operator', 'org_admin', 'admin', 'super_admin')
   AND menu.deleted = FALSE
@@ -437,7 +437,7 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO sys_data_access_rule (entity_slug, roles, condition, effect)
 VALUES
-    ('elder-photo', '["elder_operator","org_admin","admin"]',
+    ('photo', '["elder_operator","org_admin","admin"]',
      '{"field":"orgId","op":"in","value":"$user.orgIds"}', 'allow')
 ON CONFLICT DO NOTHING;
 
@@ -451,7 +451,7 @@ INSERT INTO sys_menu
     (parent_id, title, path, icon, sort_order, menu_type, visible, permission_code)
 SELECT elder_group.id,
        '相册',
-       '/module/elder-photo',
+       '/module/photo',
        'images',
        10,
        'MENU',
@@ -461,14 +461,14 @@ FROM elder_group
 WHERE NOT EXISTS (
     SELECT 1
     FROM sys_menu menu
-    WHERE menu.path = '/module/elder-photo' AND menu.deleted = FALSE
+    WHERE menu.path = '/module/photo' AND menu.deleted = FALSE
 );
 
 INSERT INTO sys_role_menu (role_id, menu_id)
 SELECT role.id, menu.id
 FROM sys_role role
 JOIN sys_menu menu
-    ON menu.path = '/module/elder-photo'
+    ON menu.path = '/module/photo'
        OR (menu.parent_id IS NULL AND menu.title = '养老')
 WHERE role.code IN ('elder_operator', 'org_admin', 'admin', 'super_admin')
   AND menu.deleted = FALSE
@@ -513,9 +513,9 @@ VALUES
      '{"field":"orgId","op":"in","value":"$user.orgIds"}', 'allow'),
     ('device', '["elder_duty","elder_operator"]',
      '{"field":"orgId","op":"in","value":"$user.orgIds"}', 'allow'),
-    ('elder-photo', '["elder_duty"]',
+    ('photo', '["elder_duty"]',
      '{"field":"orgId","op":"in","value":"$user.orgIds"}', 'allow'),
-    ('rehab-guide', '["elder_duty"]',
+    ('guide', '["elder_duty"]',
      '{"field":"orgId","op":"in","value":"$user.orgIds"}', 'allow')
 ON CONFLICT DO NOTHING;
 
@@ -528,7 +528,7 @@ INSERT INTO sys_menu
     (parent_id, title, path, icon, sort_order, menu_type, visible, permission_code)
 SELECT elder_group.id,
        '预警处理记录',
-       '/module/elder-alert-handling',
+       '/module/alert-handling',
        'list-checks',
        11,
        'MENU',
@@ -538,7 +538,7 @@ FROM elder_group
 WHERE NOT EXISTS (
     SELECT 1
     FROM sys_menu menu
-    WHERE menu.path = '/module/elder-alert-handling' AND menu.deleted = FALSE
+    WHERE menu.path = '/module/alert-handling' AND menu.deleted = FALSE
 );
 
 INSERT INTO sys_role_menu (role_id, menu_id)
@@ -552,10 +552,10 @@ JOIN sys_menu menu
         '/module/health-item',
         '/module/medication-plan',
         '/module/medication-record',
-        '/module/elder-alert',
-        '/module/elder-alert-handling',
-        '/module/elder-photo',
-        '/module/rehab-guide'
+        '/module/alert',
+        '/module/alert-handling',
+        '/module/photo',
+        '/module/guide'
     )
     OR (menu.parent_id IS NULL AND menu.title IN ('养老', '设备管理'))
 WHERE role.code IN ('elder_operator', 'elder_duty', 'admin', 'super_admin')

@@ -6,6 +6,7 @@ import com.xuejiai.aaf.common.enums.elder.MedicationRecordResultEnum;
 import com.xuejiai.aaf.common.enums.elder.MedicationRecordSourceEnum;
 import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.framework.crud.reference.CrudReference;
+import com.xuejiai.aaf.framework.crud.reference.ReferenceCapability;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -20,8 +21,8 @@ import lombok.Setter;
 @Table(name = "elder_medication_record")
 public class MedicationRecord extends BaseEntity {
 
-    /** 长者 ID。 */
-    @CrudReference(targetResource = "elder.profile.elder")
+    /** 长者 ID。由用药计划服务端派生，仅作为只读视图引用。 */
+    @CrudReference(targetResource = "elder.profile.elder", capabilities = ReferenceCapability.READ)
     @Column(name = "elder_id", nullable = false)
     private Long elderId;
 

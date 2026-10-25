@@ -12,6 +12,7 @@ import com.xuejiai.aaf.common.enums.elder.AlertStatusEnum;
 import com.xuejiai.aaf.common.enums.elder.AlertTypeEnum;
 import com.xuejiai.aaf.common.model.BaseEntity;
 import com.xuejiai.aaf.framework.crud.reference.CrudReference;
+import com.xuejiai.aaf.framework.crud.reference.ReferenceCapability;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -81,12 +82,13 @@ public class AlertEvent extends BaseEntity {
     @Column(name = "next_action_at")
     private LocalDateTime nextActionAt;
 
-    /** 认领运营用户 ID。 */
+    /** 认领运营用户 ID。由 claim 动作服务端填充，管理端不手填，因此仅作为只读视图引用。 */
     @CrudReference(
             key = "claimedByUser",
             idProperty = "claimedBy",
             targetResource = "system.user",
-            viewField = "claimedByUser")
+            viewField = "claimedByUser",
+            capabilities = ReferenceCapability.READ)
     @Column(name = "claimed_by")
     private Long claimedBy;
 

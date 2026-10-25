@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -20,6 +21,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.util.JsonUtils;
+import com.xuejiai.aaf.framework.crud.definition.CrudMutationDefinition;
+import com.xuejiai.aaf.framework.crud.definition.CrudResourceDefinition;
 import com.xuejiai.aaf.framework.crud.definition.CrudResourceDescriptor;
 import com.xuejiai.aaf.framework.crud.definition.CrudResourceExposure;
 import com.xuejiai.aaf.framework.crud.definition.ResourceKey;
@@ -176,6 +179,9 @@ class EntityDefServiceTest {
             List<String> fields,
             boolean referenceable) {
         var entry = mock(CrudResourceCatalogEntry.class);
+        CrudResourceDefinition<?> definition = mock(CrudResourceDefinition.class);
+        when(definition.mutation())
+                .thenReturn(new CrudMutationDefinition(Set.of(), Set.of(), Map.of()));
         var snapshot =
                 new CrudResourceSnapshot(
                         ResourceKey.of(resource),
@@ -191,6 +197,7 @@ class EntityDefServiceTest {
                         referenceable,
                         "test-fingerprint",
                         Instant.EPOCH);
+        when(entry.definition()).thenReturn(definition);
         when(entry.snapshot()).thenReturn(snapshot);
         return entry;
     }

@@ -275,7 +275,7 @@ SET config = EXCLUDED.config,
 
 INSERT INTO sys_entity_def (slug, config, builtin, enabled)
 VALUES (
-    'rehab-guide',
+    'guide',
     $json$
     {
       "kind": "code",
@@ -347,7 +347,7 @@ SET config = EXCLUDED.config,
 -- ==================== 预警事件 ====================
 INSERT INTO sys_entity_def (slug, config, builtin, enabled)
 VALUES (
-    'elder-alert',
+    'alert',
     $json$
     {
       "kind": "code",
@@ -424,7 +424,7 @@ SET config = EXCLUDED.config,
 -- ==================== 预警处理记录（管理端只读） ====================
 INSERT INTO sys_entity_def (slug, config, builtin, enabled)
 VALUES (
-    'elder-alert-handling',
+    'alert-handling',
     $json$
     {
       "kind": "code",
@@ -514,7 +514,7 @@ SET config = EXCLUDED.config,
 
 INSERT INTO sys_entity_def (slug, config, builtin, enabled)
 VALUES (
-    'elder-photo',
+    'photo',
     $json$
     {
       "kind": "code",
