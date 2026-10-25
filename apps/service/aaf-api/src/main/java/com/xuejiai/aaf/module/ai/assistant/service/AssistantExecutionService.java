@@ -54,6 +54,7 @@ import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationSubject;
 import com.xuejiai.aaf.module.ai.assistant.port.ProgrammaticAssistantTaskPort;
+import com.xuejiai.aaf.module.ai.assistant.port.ProgrammaticAssistantTaskQueryPort;
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantExecutionRequest;
 import com.xuejiai.aaf.module.ai.assistant.vo.AssistantSummaryVO;
 import com.xuejiai.aaf.module.ai.vision.VisionMediaResolver;
@@ -92,6 +93,7 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
     private final AssistantDefinitionPort assistantDefinitions;
     private final SystemSkillBindingPort systemSkillBindings;
     private final TaskQueryPort taskQueries;
+    private final ProgrammaticAssistantTaskQueryPort programmaticTaskQueries;
     private final DefinitionLifecycleService definitionLifecycles;
     private final OperatorContext operatorContext;
     private final VisionMediaResolver visionMediaResolver;
@@ -111,26 +113,7 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
 
     @Override
     public java.util.Optional<ProgrammaticAssistantTaskPort.TaskSnapshot> findTask(String taskId) {
-        if (taskId == null || taskId.isBlank()) {
-            return java.util.Optional.empty();
-        }
-        var identity = identity();
-        var tenantId = new TenantId(identity.orgId().toString());
-        var canonicalTaskId = new TaskId(taskId.trim());
-        return taskQueries
-                .find(tenantId, new UserId(identity.ownerId().toString()), canonicalTaskId)
-                .map(
-                        task -> {
-                            var terminal = task.terminal();
-                            return new ProgrammaticAssistantTaskPort.TaskSnapshot(
-                                    canonicalTaskId.value(),
-                                    task.status(),
-                                    terminal,
-                                    terminal
-                                            ? java.util.List.of()
-                                            : delegatedTasks.externalDecisionBlockers(
-                                                    tenantId, canonicalTaskId));
-                        });
+        return programmaticTaskQueries.findTask(taskId);
     }
 
     @Override

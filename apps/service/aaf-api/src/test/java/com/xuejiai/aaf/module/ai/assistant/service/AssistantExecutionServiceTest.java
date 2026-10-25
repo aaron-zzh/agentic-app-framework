@@ -98,6 +98,9 @@ class AssistantExecutionServiceTest {
                         mock(
                                 com.xuejiai.aaf.framework.intelligent.assistant.port.TaskQueryPort
                                         .class),
+                        mock(
+                                com.xuejiai.aaf.module.ai.assistant.port
+                                        .ProgrammaticAssistantTaskQueryPort.class),
                         mock(DefinitionLifecycleService.class),
                         operatorContext,
                         mock(VisionMediaResolver.class),

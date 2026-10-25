@@ -148,7 +148,7 @@ import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectRevisionVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectSummaryVO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectUpdateDTO;
 import com.xuejiai.aaf.module.ai.aigc.project.vo.AigcProjectVO;
-import com.xuejiai.aaf.module.ai.assistant.port.ProgrammaticAssistantTaskPort;
+import com.xuejiai.aaf.module.ai.assistant.port.ProgrammaticAssistantTaskQueryPort;
 import com.xuejiai.aaf.module.chat.conversation.api.ProjectConversationPort;
 import com.xuejiai.aaf.module.document.api.DocumentReferenceApi;
 import com.xuejiai.aaf.module.document.api.DocumentVersionApi;
@@ -187,7 +187,7 @@ public class AigcProjectService
     private final AigcProjectRevisionRepository revisionRepository;
     private final AigcProjectConfigSnapshotRepository snapshotRepository;
     private final AigcGenerationProposalBridgeApi generationProposals;
-    private final ProgrammaticAssistantTaskPort assistantTasks;
+    private final ProgrammaticAssistantTaskQueryPort taskQueries;
     private final AigcResolvedDomainContextRepository resolvedDomainContextRepository;
     private final AigcProjectProfileRefRepository profileRefRepository;
     private final AigcProjectChannelRefRepository channelRefRepository;
@@ -2082,7 +2082,7 @@ public class AigcProjectService
      */
     private AigcProjectProgressSnapshot.CurrentTaskRef currentTask(Long projectId) {
         for (var linked : generationProposals.linkedTasks(projectId, null)) {
-            var task = assistantTasks.findTask(linked.taskId()).orElse(null);
+            var task = taskQueries.findTask(linked.taskId()).orElse(null);
             if (task == null || task.terminal()) {
                 continue;
             }
