@@ -6,7 +6,7 @@ import java.time.Instant;
 import java.util.Objects;
 import java.util.Set;
 
-/** 用户授予 Assistant 的有界委托合同。 */
+/** 用户授予 Assistant 的有界执行契约。 */
 public record ExecutionContract(
         BudgetLimit budget,
         Instant deadline,
@@ -32,10 +32,10 @@ public record ExecutionContract(
             throw new IllegalArgumentException("最大模型和工具调用次数必须大于 0");
         }
         if (allowedActions.isEmpty() || allowedActions.stream().anyMatch(String::isBlank)) {
-            throw new IllegalArgumentException("委托合同必须声明至少一个允许动作");
+            throw new IllegalArgumentException("执行契约必须声明至少一个允许动作");
         }
         if (stopConditions.isEmpty()) {
-            throw new IllegalArgumentException("委托合同必须声明停止条件");
+            throw new IllegalArgumentException("执行契约必须声明停止条件");
         }
         var mandatoryStops =
                 Set.of(
@@ -49,7 +49,7 @@ public record ExecutionContract(
         if (!stopConditions.containsAll(mandatoryStops)) {
             var effectiveStopConditions = stopConditions;
             throw new IllegalArgumentException(
-                    "委托合同缺少强制停止条件: "
+                    "执行契约缺少强制停止条件: "
                             + mandatoryStops.stream()
                                     .filter(value -> !effectiveStopConditions.contains(value))
                                     .toList());
@@ -89,13 +89,13 @@ public record ExecutionContract(
     public void requireUsableAt(Instant at) {
         Objects.requireNonNull(at, "检查时间不能为空");
         if (!deadline.isAfter(at)) {
-            throw new IllegalStateException("委托合同已到 deadline");
+            throw new IllegalStateException("执行契约已到 deadline");
         }
     }
 
     public void requireAction(String action) {
         if (action == null || action.isBlank() || !allowedActions.contains(action)) {
-            throw new IllegalStateException("委托合同未允许动作: " + action);
+            throw new IllegalStateException("执行契约未允许动作: " + action);
         }
     }
 
@@ -122,7 +122,7 @@ public record ExecutionContract(
         public NotificationPolicy {
             triggers = Set.copyOf(Objects.requireNonNull(triggers, "通知触发器不能为空"));
             if (triggers.isEmpty()) {
-                throw new IllegalArgumentException("委托合同必须声明通知策略");
+                throw new IllegalArgumentException("执行契约必须声明通知策略");
             }
             if (budgetWarningRatio <= 0 || budgetWarningRatio >= 1) {
                 throw new IllegalArgumentException("预算临界通知比例必须在 0 和 1 之间");

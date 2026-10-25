@@ -31,7 +31,7 @@ public final class DefaultRecoveryPreflight implements RecoveryPreflight {
             return Result.deny("任务处于人工接管中，不可自动恢复调度");
         }
         if (!task.contract().deadline().isAfter(at)) {
-            return Result.deny("任务已超出委托合同 deadline，不可恢复调度");
+            return Result.deny("任务已超出执行契约 deadline，不可恢复调度");
         }
         var budget = task.contract().budget();
         var usage = task.budgetUsage();

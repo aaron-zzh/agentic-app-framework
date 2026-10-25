@@ -2,6 +2,7 @@ package com.xuejiai.aaf.framework.intelligent.infrastructure.workflow.node;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Component;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantCommand;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantInvocation;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.BuiltinControlToolProfile;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.InvocationProfile;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskCommandService;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
@@ -130,9 +132,12 @@ public class AgentNode implements JavaDelegate {
                         List.of(),
                         executionIntent);
         var role = definition.requireRole(roleKey);
+        var allowedActions = new LinkedHashSet<>(definition.candidateToolKeys(role));
+        allowedActions.addAll(
+                BuiltinControlToolProfile.contractActions(executionIntent.decomposition()));
         var contract =
                 ExecutionContract.conversationDefault(
-                        definition.candidateToolKeys(role),
+                        allowedActions,
                         new ResponsibleOwner("ASSISTANT", definition.assistantId().value()));
 
         return new AssistantCommand(
