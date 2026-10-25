@@ -14,7 +14,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.DisplayName;
@@ -29,12 +28,6 @@ import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore.
 import com.xuejiai.aaf.framework.intelligent.ai.chat.DynamicChatClientFactory;
 
 class EntityExtractionServiceTest {
-
-    private static final String VALID_LITERAL =
-            """
-            {"subject":"水温","subjectType":"METRIC","subjectDesc":"","predicate":"等于","object":"20°C","objectKind":"LITERAL","objectType":"","objectDesc":"","evidenceQuote":"水温等于20°C","startOffset":0,"endOffset":8,"confidence":0.9}
-            """
-                    .strip();
 
     private final EntityExtractionService service =
             new EntityExtractionService(
@@ -66,7 +59,7 @@ class EntityExtractionServiceTest {
     @Test
     @DisplayName("Given 抽取结果客体为字面量 When 持久化事实 Then 只解析主体并写 LITERAL 事实")
     void should_persist_literal_without_resolving_object_entity() {
-        var fixture = fixture("[" + VALID_LITERAL + "]");
+        var fixture = fixture(List.of(literal()));
         var subjectId = UUID.randomUUID();
         when(fixture.resolver().resolve(any(), any())).thenReturn(subjectId);
 
@@ -90,40 +83,46 @@ class EntityExtractionServiceTest {
     }
 
     @Test
-    @DisplayName("Given 响应包含未知字段 When 解析 Then 整个抽取单元失败")
-    void should_reject_unknown_field() {
-        var response = "[" + VALID_LITERAL.replace("}", ",\"extra\":true}") + "]";
-
-        assertInvalidResponse(response, "未知=[extra]");
-    }
-
-    @Test
-    @DisplayName("Given 响应缺少必填字段 When 解析 Then 整个抽取单元失败")
-    void should_reject_missing_field() {
-        var response = "[" + VALID_LITERAL.replace(",\"confidence\":0.9", "") + "]";
-
-        assertInvalidResponse(response, "缺失=[confidence]");
-    }
-
-    @Test
-    @DisplayName("Given 响应字段类型错误 When 解析 Then 整个抽取单元失败")
-    void should_reject_wrong_field_type() {
-        var response =
-                "[" + VALID_LITERAL.replace("\"startOffset\":0", "\"startOffset\":\"0\"") + "]";
-
-        assertInvalidResponse(response, "startOffset 必须是 32 位整数");
-    }
-
-    @Test
-    @DisplayName("Given objectKind 或实体类型不受支持 When 解析 Then 整个抽取单元失败")
+    @DisplayName("Given objectKind 不受支持或 ENTITY 类型为空 When 校验 Then 整个抽取单元失败")
     void should_reject_invalid_object_kind_and_entity_type() {
-        assertInvalidResponse(
-                "[" + VALID_LITERAL.replace("\"LITERAL\"", "\"OTHER\"") + "]", "objectKind");
-        var invalidEntityType =
-                VALID_LITERAL
-                        .replace("\"LITERAL\"", "\"ENTITY\"")
-                        .replace("\"objectType\":\"\"", "\"objectType\":\"UNKNOWN\"");
-        assertInvalidResponse("[" + invalidEntityType + "]", "objectType");
+        assertInvalidTriples(
+                List.of(
+                        new ExtractedTriple(
+                                "水温",
+                                ExtractedEntityType.METRIC,
+                                "",
+                                "等于",
+                                "20°C",
+                                "OTHER",
+                                "",
+                                "",
+                                "水温等于20°C",
+                                0,
+                                8,
+                                0.9,
+                                null,
+                                null,
+                                Map.of())),
+                "objectKind");
+        assertInvalidTriples(
+                List.of(
+                        new ExtractedTriple(
+                                "PostgreSQL",
+                                ExtractedEntityType.SYSTEM,
+                                "",
+                                "IS_TRUTH_SOURCE",
+                                "Knowledge",
+                                "ENTITY",
+                                " ",
+                                "",
+                                "PostgreSQL",
+                                0,
+                                10,
+                                0.9,
+                                null,
+                                null,
+                                Map.of())),
+                "objectType");
     }
 
     @Test
@@ -136,54 +135,121 @@ class EntityExtractionServiceTest {
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("置信度");
         }
-        assertInvalidResponse(
-                "[" + VALID_LITERAL.replace("\"confidence\":0.9", "\"confidence\":1.1") + "]",
+        assertInvalidTriples(
+                List.of(
+                        new ExtractedTriple(
+                                "水温",
+                                ExtractedEntityType.METRIC,
+                                "",
+                                "等于",
+                                "20°C",
+                                "LITERAL",
+                                "",
+                                "",
+                                "水温等于20°C",
+                                0,
+                                8,
+                                1.1,
+                                null,
+                                null,
+                                Map.of())),
                 "置信度");
     }
 
     @Test
-    @DisplayName("Given validAt 不早于 invalidAt When 解析 Then 整个抽取单元失败")
+    @DisplayName("Given validAt 不早于 invalidAt When 校验 Then 整个抽取单元失败")
     void should_reject_reversed_valid_interval() {
-        var temporal =
-                VALID_LITERAL.replace(
-                        "\"confidence\":0.9",
-                        "\"confidence\":0.9,\"validAt\":\"2026-02-01T00:00:00Z\","
-                                + "\"invalidAt\":\"2026-01-01T00:00:00Z\"");
-
-        assertInvalidResponse("[" + temporal + "]", "validAt 必须早于 invalidAt");
+        assertInvalidTriples(
+                List.of(
+                        new ExtractedTriple(
+                                "水温",
+                                ExtractedEntityType.METRIC,
+                                "",
+                                "等于",
+                                "20°C",
+                                "LITERAL",
+                                "",
+                                "",
+                                "水温等于20°C",
+                                0,
+                                8,
+                                0.9,
+                                Instant.parse("2026-02-01T00:00:00Z"),
+                                Instant.parse("2026-01-01T00:00:00Z"),
+                                Map.of())),
+                "validAt 必须早于 invalidAt");
     }
 
     @Test
-    @DisplayName("Given attributes 含嵌套对象 When 解析 Then 全量校验失败且不持久化")
+    @DisplayName("Given attributes 含嵌套对象 When 校验 Then 全量校验失败且不持久化")
     void should_reject_nested_attribute_object() {
-        var attributed =
-                VALID_LITERAL.replace(
-                        "\"confidence\":0.9",
-                        "\"confidence\":0.9,\"attributes\":{\"region\":{\"name\":\"华东\"}}");
-
-        assertInvalidResponse("[" + attributed + "]", "不支持嵌套对象");
+        assertInvalidTriples(
+                List.of(
+                        new ExtractedTriple(
+                                "水温",
+                                ExtractedEntityType.METRIC,
+                                "",
+                                "等于",
+                                "20°C",
+                                "LITERAL",
+                                "",
+                                "",
+                                "水温等于20°C",
+                                0,
+                                8,
+                                0.9,
+                                null,
+                                null,
+                                Map.of("region", Map.of("name", "华东")))),
+                "不支持嵌套对象");
     }
 
     @Test
-    @DisplayName("Given attributes 伪装 validAt When 解析 Then 拒绝保留系统字段")
+    @DisplayName("Given attributes 伪装 validAt When 校验 Then 拒绝保留系统字段")
     void should_reject_reserved_temporal_attribute_key() {
-        var attributed =
-                VALID_LITERAL.replace(
-                        "\"confidence\":0.9",
-                        "\"confidence\":0.9,\"attributes\":{\"validAt\":\"2026-01-01\"}");
-
-        assertInvalidResponse("[" + attributed + "]", "包含保留键: validAt");
+        assertInvalidTriples(
+                List.of(
+                        new ExtractedTriple(
+                                "水温",
+                                ExtractedEntityType.METRIC,
+                                "",
+                                "等于",
+                                "20°C",
+                                "LITERAL",
+                                "",
+                                "",
+                                "水温等于20°C",
+                                0,
+                                8,
+                                0.9,
+                                null,
+                                null,
+                                Map.of("validAt", "2026-01-01"))),
+                "包含保留键: validAt");
     }
 
     @Test
     @DisplayName("Given 合法可选时态和标量属性 When 持久化 Then 原样写入事实断言")
     void should_persist_optional_temporal_assertion() {
-        var response =
-                VALID_LITERAL.replace(
-                        "\"confidence\":0.9",
-                        "\"confidence\":0.9,\"validAt\":\"2026-01-01T00:00:00Z\","
-                                + "\"invalidAt\":null,\"attributes\":{\"region\":\"华东\"}");
-        var fixture = fixture("[" + response + "]");
+        var fixture =
+                fixture(
+                        List.of(
+                                new ExtractedTriple(
+                                        "水温",
+                                        ExtractedEntityType.METRIC,
+                                        "",
+                                        "等于",
+                                        "20°C",
+                                        "LITERAL",
+                                        "",
+                                        "",
+                                        "水温等于20°C",
+                                        0,
+                                        8,
+                                        0.9,
+                                        Instant.parse("2026-01-01T00:00:00Z"),
+                                        null,
+                                        Map.of("region", "华东"))));
         var subjectId = UUID.randomUUID();
         when(fixture.resolver().resolve(any(), any())).thenReturn(subjectId);
 
@@ -208,21 +274,37 @@ class EntityExtractionServiceTest {
     }
 
     @Test
-    @DisplayName("Given 单块响应超过事实数量上限 When 解析 Then 在任何持久化前失败")
+    @DisplayName("Given 单块响应超过事实数量上限 When 校验 Then 在任何持久化前失败")
     void should_reject_more_than_maximum_facts() {
-        var response =
+        var triples =
                 IntStream.rangeClosed(0, EntityExtractionPrompt.MAX_FACTS_PER_CHUNK)
-                        .mapToObj(ignored -> VALID_LITERAL)
-                        .collect(Collectors.joining(",", "[", "]"));
+                        .mapToObj(ignored -> literal())
+                        .toList();
 
-        assertInvalidResponse(response, "最多抽取");
+        assertInvalidTriples(triples, "最多抽取");
     }
 
     @Test
-    @DisplayName("Given 数组后一项无效 When 解析 Then 前一项也不得持久化")
+    @DisplayName("Given 结构化结果后一项无效 When 校验 Then 前一项也不得持久化")
     void should_validate_all_items_before_any_persistence() {
-        var invalid = VALID_LITERAL.replace("\"endOffset\":8", "\"endOffset\":7");
-        var fixture = fixture("[" + VALID_LITERAL + "," + invalid + "]");
+        var invalid =
+                new ExtractedTriple(
+                        "水温",
+                        ExtractedEntityType.METRIC,
+                        "",
+                        "等于",
+                        "20°C",
+                        "LITERAL",
+                        "",
+                        "",
+                        "水温约等于20°C",
+                        0,
+                        9,
+                        0.9,
+                        null,
+                        null,
+                        Map.of());
+        var fixture = fixture(List.of(literal(), invalid));
 
         assertThatThrownBy(fixture::extract)
                 .isInstanceOf(IllegalArgumentException.class)
@@ -230,14 +312,8 @@ class EntityExtractionServiceTest {
         verifyNoInteractions(fixture.resolver(), fixture.store());
     }
 
-    @Test
-    @DisplayName("Given Markdown 围栏包裹 JSON When 解析 Then 不做修复并直接失败")
-    void should_not_strip_markdown_fences() {
-        assertInvalidResponse("```json\n[" + VALID_LITERAL + "]\n```", "有效 JSON");
-    }
-
-    private void assertInvalidResponse(String response, String message) {
-        var fixture = fixture(response);
+    private void assertInvalidTriples(List<ExtractedTriple> triples, String message) {
+        var fixture = fixture(triples);
 
         assertThatThrownBy(fixture::extract)
                 .isInstanceOfAny(IllegalArgumentException.class, IllegalStateException.class)
@@ -245,7 +321,7 @@ class EntityExtractionServiceTest {
         verifyNoInteractions(fixture.resolver(), fixture.store());
     }
 
-    private Fixture fixture(String response) {
+    private Fixture fixture(List<ExtractedTriple> triples) {
         var meter = mock(KnowledgeAiMeter.class);
         var resolver = mock(IncrementalEntityResolver.class);
         var store = mock(TrustedKnowledgeStore.class);
@@ -280,9 +356,29 @@ class EntityExtractionServiceTest {
                         EntityResolutionPrompt.OUTPUT_CONTRACT_VERSION,
                         "resolution-model");
         var chunkId = UUID.randomUUID();
-        when(meter.invokeText(any(), anyString(), anyString(), anyString(), anyString(), any()))
-                .thenReturn(response);
-        return new Fixture(localService, meter, resolver, store, run, chunkId);
+        when(meter.invokeEntityExtraction(
+                        any(), anyString(), anyString(), anyString(), anyString(), any()))
+                .thenReturn(triples);
+        return new Fixture(localService, resolver, store, run, chunkId);
+    }
+
+    private ExtractedTriple literal() {
+        return new ExtractedTriple(
+                "水温",
+                ExtractedEntityType.METRIC,
+                "",
+                "等于",
+                "20°C",
+                "LITERAL",
+                "",
+                "",
+                "水温等于20°C",
+                0,
+                8,
+                0.9,
+                null,
+                null,
+                Map.of());
     }
 
     private ExtractedTriple triple(String evidence, int start, int end) {
@@ -292,7 +388,7 @@ class EntityExtractionServiceTest {
     private ExtractedTriple triple(String evidence, int start, int end, double confidence) {
         return new ExtractedTriple(
                 "PostgreSQL",
-                "SYSTEM",
+                ExtractedEntityType.SYSTEM,
                 "",
                 "IS_TRUTH_SOURCE",
                 "Knowledge",
@@ -310,7 +406,6 @@ class EntityExtractionServiceTest {
 
     private record Fixture(
             EntityExtractionService service,
-            KnowledgeAiMeter meter,
             IncrementalEntityResolver resolver,
             TrustedKnowledgeStore store,
             RunContext run,

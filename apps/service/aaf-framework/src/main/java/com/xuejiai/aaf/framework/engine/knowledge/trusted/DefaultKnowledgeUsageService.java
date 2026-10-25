@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.framework.engine.knowledge.trusted;
 
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -8,6 +9,8 @@ import java.util.UUID;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 
@@ -52,9 +55,9 @@ public class DefaultKnowledgeUsageService implements KnowledgeUsagePort {
                         inputDigest,
                         invocationId,
                         usageKey,
-                        occurredAt,
+                        Timestamp.from(occurredAt),
                         ownerToken,
-                        leaseUntil);
+                        Timestamp.from(leaseUntil));
         if (inserted == 1) {
             return new InvocationReservation(
                     billing,
@@ -87,7 +90,7 @@ public class DefaultKnowledgeUsageService implements KnowledgeUsagePort {
                                   AND lease_until < CURRENT_TIMESTAMP
                                 """,
                                 ownerToken,
-                                leaseUntil,
+                                Timestamp.from(leaseUntil),
                                 billing.runId(),
                                 stage,
                                 unitKey,
@@ -150,7 +153,8 @@ public class DefaultKnowledgeUsageService implements KnowledgeUsagePort {
                           AND reservation_token = ?
                         """,
                         reservation.invocationId(),
-                        Instant.now().plus(RESERVATION_LEASE_MINUTES, ChronoUnit.MINUTES),
+                        Timestamp.from(
+                                Instant.now().plus(RESERVATION_LEASE_MINUTES, ChronoUnit.MINUTES)),
                         reservation.billing().runId(),
                         reservation.stage(),
                         reservation.unitKey(),
@@ -160,6 +164,7 @@ public class DefaultKnowledgeUsageService implements KnowledgeUsagePort {
     }
 
     @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void persistProviderResult(
             InvocationReservation reservation, String providerResult, String providerRequestId) {
         var updated =

@@ -8,7 +8,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 /** LLM 从单个焦点块抽取的事实候选，证据只能引用焦点块。 */
 public record ExtractedTriple(
         String subject,
-        @JsonProperty("subjectType") String subjectType,
+        @JsonProperty("subjectType") ExtractedEntityType subjectType,
         @JsonProperty("subjectDesc") String subjectDescription,
         String predicate,
         String object,
@@ -24,6 +24,9 @@ public record ExtractedTriple(
         Map<String, Object> attributes) {
 
     public ExtractedTriple {
+        objectKind =
+                objectKind == null ? null : objectKind.trim().toUpperCase(java.util.Locale.ROOT);
+        objectType = EntityExtractionPrompt.normalizeEntityType(objectType);
         attributes = attributes == null ? Map.of() : Map.copyOf(attributes);
     }
 }

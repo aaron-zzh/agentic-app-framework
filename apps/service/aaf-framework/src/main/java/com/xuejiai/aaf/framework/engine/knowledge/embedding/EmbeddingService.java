@@ -184,6 +184,20 @@ public class EmbeddingService {
         if (texts.isEmpty()) {
             return List.of();
         }
+        for (var index = 0; index < texts.size(); index++) {
+            var text = Objects.requireNonNull(texts.get(index), "知识入库文本不能为空");
+            var preview =
+                    text.substring(0, Math.min(text.length(), 80))
+                            .replace('\r', ' ')
+                            .replace('\n', ' ');
+            log.info(
+                    "[Embedding] 知识入库文本: unitKey={}, index={}/{}, length={}, preview={}",
+                    unitKey,
+                    index + 1,
+                    texts.size(),
+                    text.length(),
+                    preview);
+        }
         var model = resolveModel(billing.payerUserId());
         var embeddingModel = embeddingModelOf(model);
         var inputDigest =

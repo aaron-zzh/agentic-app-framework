@@ -34,6 +34,7 @@ logging:
     org.hibernate.orm.jdbc.bind: WARN
     com.xuejiai.aaf.module.ai: DEBUG
     com.xuejiai.aaf.framework.intelligent.assistant: DEBUG
+    com.xuejiai.aaf.framework.engine.knowledge: DEBUG
     com.xuejiai.aaf.module.system: DEBUG
     com.xuejiai.aaf.module.channel: DEBUG
     org.springframework.web.context.request.async: WARN

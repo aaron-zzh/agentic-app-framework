@@ -219,11 +219,19 @@ class IncrementalEntityResolverTest {
     }
 
     @Test
-    @DisplayName("Given Markdown 围栏包裹消歧 JSON When 解析 Then 不做修复并直接失败")
-    void should_not_strip_markdown_fences() {
-        stubAmbiguous("```json\n{\"action\":\"CREATE\",\"entityId\":null}\n```");
+    @DisplayName("Given Markdown 围栏包裹消歧 JSON When 解析 Then 解包并执行决策")
+    void should_strip_markdown_fences() {
+        stubAmbiguous(
+                """
+                ```json
+                {"action":"CREATE","entityId":null}
+                ```
+                """);
+        var createdId = UUID.randomUUID();
+        when(store.createOrAliasEntity(10L, run.runId(), "AAF", "CONCEPT", null, "aaf", false))
+                .thenReturn(createdId);
 
-        assertInvalidDecision("有效 JSON");
+        assertThat(resolver.resolve(run, mention())).isEqualTo(createdId);
     }
 
     private CandidateIds stubAmbiguous(String response) {

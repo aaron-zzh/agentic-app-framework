@@ -1,11 +1,13 @@
 package com.xuejiai.aaf.framework.engine.knowledge.trusted;
 
+import java.time.Duration;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 import org.neo4j.driver.Driver;
+import org.neo4j.driver.exceptions.ServiceUnavailableException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -22,20 +24,83 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class KnowledgeGraphProjectionService {
 
+    private static final Duration CONNECTIVITY_RETRY_DELAY = Duration.ofMinutes(1);
+
     private final Driver driver;
     private final TrustedKnowledgeStore store;
 
+    private volatile boolean neo4jAvailable;
+    private volatile long nextConnectivityProbeNanos;
+    private volatile boolean unavailableWarningLogged;
+
     @Scheduled(fixedDelayString = "${aaf.knowledge.graph.outbox-delay-ms:5000}")
     public void projectPending() {
+        if (!isNeo4jAvailable()) {
+            return;
+        }
         for (var event : store.claimOutbox(100)) {
+            if (!neo4jAvailable) {
+                store.failOutbox(event, "Neo4j 不可用");
+                continue;
+            }
             try {
                 project(event);
                 store.completeOutbox(event);
             } catch (RuntimeException failure) {
                 store.failOutbox(event, failure.getMessage());
-                log.warn("知识图投影失败，eventId={}", event.eventId(), failure);
+                if (causedByServiceUnavailable(failure)) {
+                    pauseProjection(failure);
+                } else {
+                    log.warn("知识图投影失败，eventId={}", event.eventId(), failure);
+                }
             }
         }
+    }
+
+    private boolean isNeo4jAvailable() {
+        if (neo4jAvailable) {
+            return true;
+        }
+        var now = System.nanoTime();
+        if (now - nextConnectivityProbeNanos < 0) {
+            return false;
+        }
+        try {
+            driver.verifyConnectivity();
+            neo4jAvailable = true;
+            nextConnectivityProbeNanos = 0;
+            if (unavailableWarningLogged) {
+                log.info("Neo4j 连接已恢复，继续知识图投影");
+                unavailableWarningLogged = false;
+            }
+            return true;
+        } catch (RuntimeException failure) {
+            pauseProjection(failure);
+            return false;
+        }
+    }
+
+    private void pauseProjection(RuntimeException failure) {
+        neo4jAvailable = false;
+        nextConnectivityProbeNanos = System.nanoTime() + CONNECTIVITY_RETRY_DELAY.toNanos();
+        if (!unavailableWarningLogged) {
+            log.warn(
+                    "Neo4j 不可用，知识图投影已暂停，将在 {} 秒后重新探测：{}",
+                    CONNECTIVITY_RETRY_DELAY.toSeconds(),
+                    failure.getMessage());
+            unavailableWarningLogged = true;
+        }
+    }
+
+    private boolean causedByServiceUnavailable(Throwable failure) {
+        var current = failure;
+        while (current != null) {
+            if (current instanceof ServiceUnavailableException) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     /** 直接命中事实优先；有剩余额度时扩展其端点的相邻事实，形成最多二跳的证据候选。 */

@@ -1,14 +1,12 @@
 package com.xuejiai.aaf.framework.engine.knowledge.graph;
 
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.common.util.JsonUtils;
@@ -19,13 +17,14 @@ import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeAiMeter;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore.FactAssertion;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore.RunContext;
+import com.xuejiai.aaf.framework.engine.meta.runtime.NonRetryableTaskException;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.DynamicChatClientFactory;
 
 import lombok.RequiredArgsConstructor;
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.JsonNode;
+import lombok.extern.slf4j.Slf4j;
 
 /** 从焦点块抽取可验证事实并写入 PostgreSQL 真理表。 */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class EntityExtractionService {
@@ -47,14 +46,18 @@ public class EntityExtractionService {
                         .replace("{focus}", context.focusContent())
                         .replace("{next}", join(context.nextChunks()));
         var unitKey = "chunk:" + context.focusChunkId();
+        var extractionSystemPrompt =
+                run.extractionSystemPrompt() + "\n\n" + EntityExtractionPrompt.OUTPUT_INSTRUCTIONS;
         var meteredInput =
                 run.extractionPromptDigest()
                         + "|"
                         + run.extractionOutputContractVersion()
                         + "|"
+                        + EntityExtractionPrompt.OUTPUT_INSTRUCTIONS
+                        + "|"
                         + prompt;
-        var content =
-                meter.invokeText(
+        var extractedTriples =
+                meter.invokeEntityExtraction(
                         run.billing(),
                         "knowledge-extraction",
                         unitKey,
@@ -64,248 +67,196 @@ public class EntityExtractionService {
                                 chatClientFactory
                                         .get(run.extractionModelId())
                                         .prompt()
-                                        .system(run.extractionSystemPrompt())
+                                        .system(extractionSystemPrompt)
                                         .user(prompt)
                                         .call()
-                                        .chatResponse());
-        var triples = parseAndValidate(content, context.focusContent());
+                                        .responseEntity(
+                                                new ParameterizedTypeReference<
+                                                        List<ExtractedTriple>>() {}));
+        if (log.isDebugEnabled()) {
+            log.debug(
+                    "[KnowledgeExtraction] 结构化返回: runId={}, chunkId={}, count={}, result={}",
+                    run.runId(),
+                    context.focusChunkId(),
+                    extractedTriples == null ? null : extractedTriples.size(),
+                    JsonUtils.toJsonString(extractedTriples));
+        }
+        var triples = validateAndPrepare(run, context, extractedTriples);
+
         var persisted = 0;
         for (var triple : triples) {
             executionGuard.run();
-            var assertion =
-                    new FactAssertion(triple.validAt(), triple.invalidAt(), triple.attributes());
-            var subject =
-                    entityResolver.resolve(
-                            run,
-                            new EntityMention(
-                                    triple.subject(),
-                                    triple.subjectType(),
-                                    triple.subjectDescription()));
-            if ("LITERAL".equals(triple.objectKind())) {
-                store.persistLiteralFact(
-                        run,
-                        subject,
-                        triple.predicate(),
-                        triple.object(),
-                        triple.confidence(),
-                        context.focusChunkId(),
-                        triple.evidenceQuote(),
-                        triple.startOffset(),
-                        triple.endOffset(),
-                        context.contextChunkIds(),
-                        assertion);
-            } else {
-                var object =
+            try {
+                var assertion =
+                        new FactAssertion(
+                                triple.validAt(), triple.invalidAt(), triple.attributes());
+                var subject =
                         entityResolver.resolve(
                                 run,
                                 new EntityMention(
-                                        triple.object(),
-                                        triple.objectType(),
-                                        triple.objectDescription()));
-                store.persistFact(
-                        run,
-                        subject,
-                        triple.predicate(),
-                        object,
-                        triple.confidence(),
+                                        triple.subject(),
+                                        triple.subjectType().name(),
+                                        triple.subjectDescription()));
+                if ("LITERAL".equals(triple.objectKind())) {
+                    store.persistLiteralFact(
+                            run,
+                            subject,
+                            triple.predicate(),
+                            triple.object(),
+                            triple.confidence(),
+                            context.focusChunkId(),
+                            triple.evidenceQuote(),
+                            triple.startOffset(),
+                            triple.endOffset(),
+                            context.contextChunkIds(),
+                            assertion);
+                } else {
+                    var object =
+                            entityResolver.resolve(
+                                    run,
+                                    new EntityMention(
+                                            triple.object(),
+                                            triple.objectType(),
+                                            triple.objectDescription()));
+                    store.persistFact(
+                            run,
+                            subject,
+                            triple.predicate(),
+                            object,
+                            triple.confidence(),
+                            context.focusChunkId(),
+                            triple.evidenceQuote(),
+                            triple.startOffset(),
+                            triple.endOffset(),
+                            context.contextChunkIds(),
+                            assertion);
+                }
+                persisted++;
+            } catch (IncrementalEntityResolver.InvalidEntityResolutionException failure) {
+                log.warn(
+                        "[KnowledgeExtraction] 丢弃实体消歧异常事实: runId={}, chunkId={}, subject={}, predicate={}, object={}, reason={}",
+                        run.runId(),
                         context.focusChunkId(),
-                        triple.evidenceQuote(),
-                        triple.startOffset(),
-                        triple.endOffset(),
-                        context.contextChunkIds(),
-                        assertion);
+                        triple.subject(),
+                        triple.predicate(),
+                        triple.object(),
+                        failure.getMessage());
             }
-            persisted++;
         }
         return persisted;
     }
 
-    private List<ExtractedTriple> parseAndValidate(String content, String focus) {
-        if (content == null || content.isBlank()) {
-            throw new IllegalStateException("事实抽取结果为空");
+    private List<ExtractedTriple> validateAndPrepare(
+            RunContext run, FocusContext context, List<ExtractedTriple> triples) {
+        if (triples == null) {
+            throw new NonRetryableTaskException("事实抽取结构化结果为空");
         }
-        if (content.length() > EntityExtractionPrompt.MAX_RESPONSE_LENGTH) {
-            throw new IllegalStateException("事实抽取结果超过最大长度");
+        var focus = context.focusContent();
+        if (focus == null) {
+            throw new NonRetryableTaskException("事实抽取焦点块为空");
         }
-        final JsonNode root;
-        try {
-            root = JsonUtils.readTree(content);
-        } catch (Exception failure) {
-            throw new IllegalStateException("事实抽取结果不是有效 JSON", failure);
-        }
-        if (root == null || !root.isArray()) {
-            throw new IllegalArgumentException("事实抽取结果顶层必须是 JSON 数组");
-        }
-        if (root.size() > EntityExtractionPrompt.MAX_FACTS_PER_CHUNK) {
-            throw new IllegalArgumentException(
+        if (triples.size() > EntityExtractionPrompt.MAX_FACTS_PER_CHUNK) {
+            throw new NonRetryableTaskException(
                     "单个焦点块最多抽取 " + EntityExtractionPrompt.MAX_FACTS_PER_CHUNK + " 条事实");
         }
-
-        var triples = new ArrayList<ExtractedTriple>(root.size());
-        var index = 0;
-        for (var item : root) {
-            requireExactFields(item, index);
-            var triple =
-                    new ExtractedTriple(
-                            requiredString(item, "subject", index),
-                            requiredString(item, "subjectType", index),
-                            requiredString(item, "subjectDesc", index),
-                            requiredString(item, "predicate", index),
-                            requiredString(item, "object", index),
-                            requiredString(item, "objectKind", index),
-                            requiredString(item, "objectType", index),
-                            requiredString(item, "objectDesc", index),
-                            requiredString(item, "evidenceQuote", index),
-                            requiredInteger(item, "startOffset", index),
-                            requiredInteger(item, "endOffset", index),
-                            requiredNumber(item, "confidence", index),
-                            optionalInstant(item, "validAt", index),
-                            optionalInstant(item, "invalidAt", index),
-                            optionalAttributes(item, index));
-            validateContract(triple, index);
-            validateFocusEvidence(focus, triple);
-            triples.add(triple);
-            index++;
+        var prepared = new ArrayList<ExtractedTriple>(triples.size());
+        for (var index = 0; index < triples.size(); index++) {
+            try {
+                var corrected = correctEvidenceOffsets(focus, triples.get(index));
+                validateContract(corrected, index);
+                validateFocusEvidence(focus, corrected);
+                prepared.add(corrected);
+            } catch (NonRetryableTaskException failure) {
+                log.warn(
+                        "[KnowledgeExtraction] 丢弃无效事实: runId={}, chunkId={}, index={}, reason={}",
+                        run.runId(),
+                        context.focusChunkId(),
+                        index,
+                        failure.getMessage());
+            }
         }
-        return List.copyOf(triples);
+        return List.copyOf(prepared);
     }
 
-    private void requireExactFields(JsonNode item, int index) {
-        if (item == null || !item.isObject()) {
-            throw invalidItem(index, "必须是 JSON 对象");
-        }
-        var actualFields = new LinkedHashSet<String>();
-        item.properties().forEach(property -> actualFields.add(property.getKey()));
-        var missing = new LinkedHashSet<>(EntityExtractionPrompt.REQUIRED_FIELDS);
-        missing.removeAll(actualFields);
-        var supported = new LinkedHashSet<>(EntityExtractionPrompt.REQUIRED_FIELDS);
-        supported.addAll(EntityExtractionPrompt.OPTIONAL_FIELDS);
-        var unknown = new LinkedHashSet<>(actualFields);
-        unknown.removeAll(supported);
-        if (!missing.isEmpty() || !unknown.isEmpty()) {
-            throw invalidItem(index, "字段集合不匹配，缺失=" + missing + "，未知=" + unknown);
-        }
-    }
-
-    private String requiredString(JsonNode item, String field, int index) {
-        var value = item.get(field);
-        if (value == null || !value.isString()) {
-            throw invalidItem(index, field + " 必须是字符串");
-        }
-        return value.asString();
-    }
-
-    private int requiredInteger(JsonNode item, String field, int index) {
-        var value = item.get(field);
-        if (value == null || !value.isIntegralNumber() || !value.canConvertToInt()) {
-            throw invalidItem(index, field + " 必须是 32 位整数");
-        }
-        return value.asInt();
-    }
-
-    private double requiredNumber(JsonNode item, String field, int index) {
-        var value = item.get(field);
-        if (value == null || !value.isNumber()) {
-            throw invalidItem(index, field + " 必须是数值");
-        }
-        return value.asDouble();
-    }
-
-    private Instant optionalInstant(JsonNode item, String field, int index) {
-        var value = item.get(field);
-        if (value == null || value.isNull()) {
+    private ExtractedTriple correctEvidenceOffsets(String focus, ExtractedTriple triple) {
+        if (triple == null) {
             return null;
         }
-        if (!value.isString()) {
-            throw invalidItem(index, field + " 必须是 ISO-8601 时间字符串或 null");
+        var quote = triple.evidenceQuote();
+        if (quote == null || quote.isEmpty()) {
+            return triple;
         }
-        try {
-            return Instant.parse(value.asString());
-        } catch (DateTimeParseException failure) {
-            throw invalidItem(index, field + " 必须是 ISO-8601 时间字符串");
+        var start = triple.startOffset();
+        var end = triple.endOffset();
+        if (start != null
+                && end != null
+                && start >= 0
+                && end > start
+                && end <= focus.length()
+                && focus.substring(start, end).equals(quote)) {
+            return triple;
         }
-    }
-
-    private Map<String, Object> optionalAttributes(JsonNode item, int index) {
-        var value = item.get("attributes");
-        if (value == null || value.isNull()) {
-            return Map.of();
+        var correctedStart = focus.indexOf(quote);
+        if (correctedStart < 0) {
+            return triple;
         }
-        if (!value.isObject()) {
-            throw invalidItem(index, "attributes 必须是 JSON 对象或 null");
-        }
-        if (value.size() > EntityExtractionPrompt.MAX_ATTRIBUTE_COUNT) {
-            throw invalidItem(index, "attributes 键数量超过上限");
-        }
-        if (value.toString().getBytes(StandardCharsets.UTF_8).length
-                > EntityExtractionPrompt.MAX_ATTRIBUTES_LENGTH) {
-            throw invalidItem(index, "attributes 超过最大长度");
-        }
-        value.properties()
-                .forEach(
-                        property -> {
-                            var key = property.getKey();
-                            if (!key.matches("[A-Za-z][A-Za-z0-9_.-]{0,63}")) {
-                                throw invalidItem(index, "attributes 包含非法键: " + key);
-                            }
-                            if (EntityExtractionPrompt.RESERVED_ATTRIBUTE_KEYS.contains(key)) {
-                                throw invalidItem(index, "attributes 包含保留键: " + key);
-                            }
-                            validateAttributeValue(property.getValue(), index, key);
-                        });
-        return Map.copyOf(
-                JsonUtils.convertValue(value, new TypeReference<Map<String, Object>>() {}));
-    }
-
-    private void validateAttributeValue(JsonNode value, int index, String key) {
-        if (value == null || value.isNull()) {
-            throw invalidItem(index, "attributes 值不能为 null: " + key);
-        }
-        if (value.isString() || value.isBoolean() || value.isNumber()) {
-            if (value.isNumber() && !Double.isFinite(value.asDouble())) {
-                throw invalidItem(index, "attributes 数值必须有限: " + key);
-            }
-            return;
-        }
-        if (value.isArray()) {
-            for (var item : value) {
-                if (item != null
-                        && !item.isNull()
-                        && (item.isString()
-                                || item.isBoolean()
-                                || (item.isNumber() && Double.isFinite(item.asDouble())))) {
-                    continue;
-                }
-                throw invalidItem(index, "attributes 数组只能包含非空标量: " + key);
-            }
-            return;
-        }
-        throw invalidItem(index, "attributes 不支持嵌套对象或数组: " + key);
+        return new ExtractedTriple(
+                triple.subject(),
+                triple.subjectType(),
+                triple.subjectDescription(),
+                triple.predicate(),
+                triple.object(),
+                triple.objectKind(),
+                triple.objectType(),
+                triple.objectDescription(),
+                quote,
+                correctedStart,
+                correctedStart + quote.length(),
+                triple.confidence(),
+                triple.validAt(),
+                triple.invalidAt(),
+                triple.attributes());
     }
 
     private void validateContract(ExtractedTriple triple, int index) {
-        validateLength(triple.subject(), "subject", EntityExtractionPrompt.MAX_NAME_LENGTH, index);
-        validateLength(
+        if (triple == null) {
+            throw invalidItem(index, "不能为空");
+        }
+        validateString(triple.subject(), "subject", EntityExtractionPrompt.MAX_NAME_LENGTH, index);
+        if (triple.subjectType() == null) {
+            throw invalidItem(index, "subjectType 必须是受控枚举值");
+        }
+        validateString(
                 triple.subjectDescription(),
                 "subjectDescription",
                 EntityExtractionPrompt.MAX_DESCRIPTION_LENGTH,
                 index);
-        validateLength(
+        validateString(
                 triple.predicate(), "predicate", EntityExtractionPrompt.MAX_NAME_LENGTH, index);
-        validateLength(triple.object(), "object", EntityExtractionPrompt.MAX_NAME_LENGTH, index);
-        validateLength(
+        validateString(triple.object(), "object", EntityExtractionPrompt.MAX_NAME_LENGTH, index);
+        validateString(
+                triple.objectKind(), "objectKind", EntityExtractionPrompt.MAX_NAME_LENGTH, index);
+        validateString(
+                triple.objectType(), "objectType", EntityExtractionPrompt.MAX_NAME_LENGTH, index);
+        validateString(
                 triple.objectDescription(),
                 "objectDescription",
                 EntityExtractionPrompt.MAX_DESCRIPTION_LENGTH,
                 index);
-        validateLength(
+        validateString(
                 triple.evidenceQuote(),
                 "evidenceQuote",
                 EntityExtractionPrompt.MAX_EVIDENCE_LENGTH,
                 index);
 
-        if (!EntityExtractionPrompt.ENTITY_TYPES.contains(triple.subjectType())) {
-            throw invalidItem(index, "subjectType 不在受控枚举中");
+        if (triple.startOffset() == null) {
+            throw invalidItem(index, "startOffset 必须是 32 位整数");
+        }
+        if (triple.endOffset() == null) {
+            throw invalidItem(index, "endOffset 必须是 32 位整数");
+        }
+        if (triple.confidence() == null || !Double.isFinite(triple.confidence())) {
+            throw invalidItem(index, "confidence 必须是有限数");
         }
         if (!"ENTITY".equals(triple.objectKind()) && !"LITERAL".equals(triple.objectKind())) {
             throw invalidItem(index, "objectKind 仅支持 ENTITY 或 LITERAL");
@@ -322,43 +273,98 @@ public class EntityExtractionService {
                 && !triple.validAt().isBefore(triple.invalidAt())) {
             throw invalidItem(index, "validAt 必须早于 invalidAt");
         }
+        validateAttributes(triple.attributes(), index);
     }
 
-    private void validateLength(String value, String field, int maxLength, int index) {
+    private void validateString(String value, String field, int maxLength, int index) {
+        if (value == null) {
+            throw invalidItem(index, field + " 必须是字符串");
+        }
         if (value.length() > maxLength) {
             throw invalidItem(index, field + " 超过最大长度 " + maxLength);
         }
     }
 
+    private void validateAttributes(Map<String, Object> attributes, int index) {
+        if (attributes == null) {
+            throw invalidItem(index, "attributes 必须是 JSON 对象或 null");
+        }
+        if (attributes.size() > EntityExtractionPrompt.MAX_ATTRIBUTE_COUNT) {
+            throw invalidItem(index, "attributes 键数量超过上限");
+        }
+        if (JsonUtils.toJsonString(attributes).getBytes(StandardCharsets.UTF_8).length
+                > EntityExtractionPrompt.MAX_ATTRIBUTES_LENGTH) {
+            throw invalidItem(index, "attributes 超过最大长度");
+        }
+        attributes.forEach(
+                (key, value) -> {
+                    if (key == null || !key.matches("[A-Za-z][A-Za-z0-9_.-]{0,63}")) {
+                        throw invalidItem(index, "attributes 包含非法键: " + key);
+                    }
+                    if (EntityExtractionPrompt.RESERVED_ATTRIBUTE_KEYS.contains(key)) {
+                        throw invalidItem(index, "attributes 包含保留键: " + key);
+                    }
+                    validateAttributeValue(value, index, key);
+                });
+    }
+
+    private void validateAttributeValue(Object value, int index, String key) {
+        if (value == null) {
+            throw invalidItem(index, "attributes 值不能为 null: " + key);
+        }
+        if (value instanceof String || value instanceof Boolean) {
+            return;
+        }
+        if (value instanceof Number number) {
+            if (!Double.isFinite(number.doubleValue())) {
+                throw invalidItem(index, "attributes 数值必须有限: " + key);
+            }
+            return;
+        }
+        if (value instanceof List<?> values) {
+            for (var item : values) {
+                if (item instanceof String || item instanceof Boolean) {
+                    continue;
+                }
+                if (item instanceof Number number && Double.isFinite(number.doubleValue())) {
+                    continue;
+                }
+                throw invalidItem(index, "attributes 数组只能包含非空标量: " + key);
+            }
+            return;
+        }
+        throw invalidItem(index, "attributes 不支持嵌套对象或数组: " + key);
+    }
+
     private IllegalArgumentException invalidItem(int index, String message) {
-        return new IllegalArgumentException("事实抽取结果第 " + index + " 项无效: " + message);
+        return new NonRetryableTaskException("事实抽取结果第 " + index + " 项无效: " + message);
     }
 
     void validateFocusEvidence(String focus, ExtractedTriple triple) {
         if (triple.evidenceQuote() == null || triple.evidenceQuote().isEmpty()) {
-            throw new IllegalArgumentException("事实缺少焦点证据");
+            throw new NonRetryableTaskException("事实缺少焦点证据");
         }
         if (triple.startOffset() == null
                 || triple.endOffset() == null
                 || triple.startOffset() < 0
                 || triple.endOffset() <= triple.startOffset()
                 || triple.endOffset() > focus.length()) {
-            throw new IllegalArgumentException("事实证据字符区间越界");
+            throw new NonRetryableTaskException("事实证据字符区间越界");
         }
         var actual = focus.substring(triple.startOffset(), triple.endOffset());
         if (!actual.equals(triple.evidenceQuote())) {
-            throw new IllegalArgumentException("事实证据必须逐字来自焦点块");
+            throw new NonRetryableTaskException("事实证据必须逐字来自焦点块");
         }
         if (TrustedKnowledgeStore.normalize(triple.subject()).isBlank()
                 || TrustedKnowledgeStore.normalize(triple.predicate()).isBlank()
                 || TrustedKnowledgeStore.normalize(triple.object()).isBlank()) {
-            throw new IllegalArgumentException("事实规范化后不能为空");
+            throw new NonRetryableTaskException("事实规范化后不能为空");
         }
         if (triple.confidence() == null
                 || !Double.isFinite(triple.confidence())
                 || triple.confidence() < 0
                 || triple.confidence() > 1) {
-            throw new IllegalArgumentException("事实置信度必须是 0 到 1 之间的有限数");
+            throw new NonRetryableTaskException("事实置信度必须是 0 到 1 之间的有限数");
         }
     }
 

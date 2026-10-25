@@ -1,6 +1,5 @@
 package com.xuejiai.aaf.framework.engine.knowledge.trusted;
 
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -13,12 +12,14 @@ import com.xuejiai.aaf.framework.engine.knowledge.embedding.EmbeddingService;
 import com.xuejiai.aaf.framework.engine.knowledge.graph.EntityResolutionPrompt;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore.EntityCandidate;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore.RunContext;
+import com.xuejiai.aaf.framework.engine.meta.runtime.NonRetryableTaskException;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.DynamicChatClientFactory;
 
 import lombok.RequiredArgsConstructor;
-import tools.jackson.databind.JsonNode;
+import lombok.extern.slf4j.Slf4j;
 
 /** 当前代际新增实体提及的有限候选消歧器。 */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class IncrementalEntityResolver {
@@ -80,28 +81,49 @@ public class IncrementalEntityResolver {
         }
         var payload = JsonUtils.toJsonString(Map.of("mention", mention, "candidates", candidates));
         var prompt = run.entityResolutionUserPrompt().replace("{payload}", payload);
+        var resolutionSystemPrompt =
+                run.entityResolutionSystemPrompt()
+                        + "\n\n"
+                        + EntityResolutionPrompt.OUTPUT_INSTRUCTIONS;
         var meteredInput =
                 run.entityResolutionPromptDigest()
                         + "|"
                         + run.entityResolutionOutputContractVersion()
                         + "|"
+                        + EntityResolutionPrompt.STRUCTURED_OUTPUT_FORMAT_VERSION
+                        + "|"
+                        + EntityResolutionPrompt.OUTPUT_INSTRUCTIONS
+                        + "|"
                         + prompt;
-        var decisionText =
-                meter.invokeText(
+        var decisionOutput =
+                meter.invokeEntityResolution(
                         run.billing(),
                         "knowledge-resolution",
-                        "mention:" + normalizedAlias,
+                        "mention:"
+                                + normalizedAlias
+                                + ":"
+                                + EntityResolutionPrompt.STRUCTURED_OUTPUT_FORMAT_VERSION,
                         run.entityResolutionModelId(),
                         meteredInput,
+                        EntityResolutionPrompt.MAX_RESPONSE_LENGTH,
                         () ->
                                 chatClientFactory
                                         .get(run.entityResolutionModelId())
                                         .prompt()
-                                        .system(run.entityResolutionSystemPrompt())
+                                        .system(resolutionSystemPrompt)
                                         .user(prompt)
                                         .call()
-                                        .chatResponse());
-        var decision = parseDecision(decisionText, candidates);
+                                        .responseEntity(
+                                                KnowledgeAiMeter.EntityResolutionDecision.class));
+        if (log.isDebugEnabled()) {
+            log.debug(
+                    "[KnowledgeResolution] 结构化返回: runId={}, mention={}, candidates={}, decision={}",
+                    run.runId(),
+                    JsonUtils.toJsonString(mention),
+                    JsonUtils.toJsonString(candidates),
+                    JsonUtils.toJsonString(decisionOutput));
+        }
+        var decision = validateDecision(decisionOutput, candidates);
         return switch (decision.action()) {
             case "LINK" -> link(run, normalizedAlias, decision.entityId());
             case "CREATE" -> create(run, mention, normalizedAlias, false, mentionEmbedding);
@@ -110,61 +132,36 @@ public class IncrementalEntityResolver {
         };
     }
 
-    private ResolutionDecision parseDecision(String content, List<EntityCandidate> candidates) {
-        if (content == null || content.isBlank()) {
-            throw new IllegalStateException("实体消歧结果为空");
+    private ValidatedResolutionDecision validateDecision(
+            KnowledgeAiMeter.EntityResolutionDecision decision, List<EntityCandidate> candidates) {
+        if (decision == null) {
+            throw new InvalidEntityResolutionException("实体消歧结构化结果为空");
         }
-        if (content.length() > EntityResolutionPrompt.MAX_RESPONSE_LENGTH) {
-            throw new IllegalStateException("实体消歧结果超过最大长度");
+        var action = decision.action();
+        if (action == null || !EntityResolutionPrompt.ACTIONS.contains(action)) {
+            throw new InvalidEntityResolutionException("实体消歧 action 不受支持: " + action);
         }
-        final JsonNode root;
-        try {
-            root = JsonUtils.readTree(content);
-        } catch (Exception failure) {
-            throw new IllegalStateException("实体消歧结果不是有效 JSON", failure);
-        }
-        if (root == null || !root.isObject()) {
-            throw new IllegalArgumentException("实体消歧结果顶层必须是 JSON 对象");
-        }
-        var fields = new LinkedHashSet<String>();
-        root.properties().forEach(property -> fields.add(property.getKey()));
-        if (!fields.equals(EntityResolutionPrompt.REQUIRED_FIELDS)) {
-            var missing = new LinkedHashSet<>(EntityResolutionPrompt.REQUIRED_FIELDS);
-            missing.removeAll(fields);
-            var unknown = new LinkedHashSet<>(fields);
-            unknown.removeAll(EntityResolutionPrompt.REQUIRED_FIELDS);
-            throw new IllegalArgumentException("实体消歧结果字段集合不匹配，缺失=" + missing + "，未知=" + unknown);
-        }
-        var actionNode = root.get("action");
-        if (actionNode == null || !actionNode.isString()) {
-            throw new IllegalArgumentException("实体消歧 action 必须是字符串");
-        }
-        var action = actionNode.asString();
-        if (!EntityResolutionPrompt.ACTIONS.contains(action)) {
-            throw new IllegalArgumentException("实体消歧 action 不受支持: " + action);
-        }
-        var entityIdNode = root.get("entityId");
         if ("LINK".equals(action)) {
-            if (entityIdNode == null || !entityIdNode.isString()) {
-                throw new IllegalArgumentException("LINK 的 entityId 必须是候选 UUID 字符串");
+            if (decision.entityId() == null || decision.entityId().isBlank()) {
+                throw new InvalidEntityResolutionException("LINK 的 entityId 必须是候选 UUID 字符串");
             }
-            var entityId = parseUuid(entityIdNode.asString());
+            var entityId = parseUuid(decision.entityId());
             if (candidates.stream().noneMatch(candidate -> candidate.id().equals(entityId))) {
-                throw new IllegalArgumentException("LINK 的 entityId 不在当前候选集合中");
+                throw new InvalidEntityResolutionException("LINK 的 entityId 不在当前候选集合中");
             }
-            return new ResolutionDecision(action, entityId);
+            return new ValidatedResolutionDecision(action, entityId);
         }
-        if (entityIdNode == null || !entityIdNode.isNull()) {
-            throw new IllegalArgumentException(action + " 的 entityId 必须是 null");
+        if (decision.entityId() != null) {
+            throw new InvalidEntityResolutionException(action + " 的 entityId 必须是 null");
         }
-        return new ResolutionDecision(action, null);
+        return new ValidatedResolutionDecision(action, null);
     }
 
     private UUID parseUuid(String value) {
         try {
             return UUID.fromString(value);
         } catch (IllegalArgumentException failure) {
-            throw new IllegalArgumentException("LINK 的 entityId 不是有效 UUID", failure);
+            throw new InvalidEntityResolutionException("LINK 的 entityId 不是有效 UUID", failure);
         }
     }
 
@@ -218,5 +215,16 @@ public class IncrementalEntityResolver {
 
     public record EntityMention(String name, String type, String description) {}
 
-    private record ResolutionDecision(String action, UUID entityId) {}
+    public static final class InvalidEntityResolutionException extends NonRetryableTaskException {
+
+        public InvalidEntityResolutionException(String message) {
+            super(message);
+        }
+
+        public InvalidEntityResolutionException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+
+    private record ValidatedResolutionDecision(String action, UUID entityId) {}
 }

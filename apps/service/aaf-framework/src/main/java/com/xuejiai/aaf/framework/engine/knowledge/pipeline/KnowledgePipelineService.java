@@ -13,7 +13,9 @@ import com.xuejiai.aaf.framework.engine.knowledge.KnowledgeVectorService;
 import com.xuejiai.aaf.framework.engine.knowledge.chunker.AutoChunkStrategySelector;
 import com.xuejiai.aaf.framework.engine.knowledge.chunker.ChunkerFactory;
 import com.xuejiai.aaf.framework.engine.knowledge.embedding.EmbeddingProperties;
+import com.xuejiai.aaf.framework.engine.knowledge.graph.EntityExtractionPrompt;
 import com.xuejiai.aaf.framework.engine.knowledge.graph.EntityExtractionService;
+import com.xuejiai.aaf.framework.engine.knowledge.graph.EntityResolutionPrompt;
 import com.xuejiai.aaf.framework.engine.knowledge.importer.ImporterFactory;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.FocusExtractionContextAssembler;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeIngestConfigurationService;
@@ -93,9 +95,14 @@ public class KnowledgePipelineService {
                                     chunkDigest,
                                     configuration.extractionPromptPairDigest(),
                                     configuration.extractionOutputContractVersion(),
+                                    TrustedKnowledgeStore.sha256(
+                                            EntityExtractionPrompt.OUTPUT_INSTRUCTIONS),
                                     configuration.extractionModelId(),
                                     configuration.entityResolutionPromptPairDigest(),
                                     configuration.entityResolutionOutputContractVersion(),
+                                    EntityResolutionPrompt.STRUCTURED_OUTPUT_FORMAT_VERSION,
+                                    TrustedKnowledgeStore.sha256(
+                                            EntityResolutionPrompt.OUTPUT_INSTRUCTIONS),
                                     configuration.entityResolutionModelId(),
                                     NORMALIZATION_VERSION,
                                     embeddingProperties.model()));
@@ -181,6 +188,12 @@ public class KnowledgePipelineService {
                     documentId,
                     run == null ? null : run.runId(),
                     failure);
+            if (failure
+                    instanceof
+                    com.xuejiai.aaf.framework.engine.meta.runtime.NonRetryableTaskException
+                            nonRetryable) {
+                throw nonRetryable;
+            }
             return new PipelineResult(
                     false,
                     documentId,
