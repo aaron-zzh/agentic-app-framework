@@ -167,7 +167,7 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
 
         var claimed =
                 usageRecordRepository.claim(
-                        settlement.usageKey(),
+                        usageRecordKey(settlement.usageKey()),
                         digest,
                         settlement.tenantId(),
                         settlement.taskId(),
@@ -193,12 +193,13 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
                         creditCost,
                         CreditTransactionSourceEnum.AI_CONSUME.getCode(),
                         CreditTransactionCategoryEnum.fromCapability(settlement.capability()),
-                        settlement.usageKey(),
+                        sha256(settlement.usageKey()),
                         overdraft,
                         settlement.remark(),
                         com.xuejiai.aaf.common.enums.pay.CreditBizTypeEnum.AI_USAGE.getCode());
         if (creditTxId == null
-                || usageRecordRepository.completeSettlement(settlement.usageKey(), creditTxId)
+                || usageRecordRepository.completeSettlement(
+                                usageRecordKey(settlement.usageKey()), creditTxId)
                         != 1) {
             throw new IllegalStateException("AI 幂等结算未能关联真实积分流水: " + settlement.usageKey());
         }
@@ -209,7 +210,7 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
             IdempotentUsageSettlement settlement, String digest) {
         var existing =
                 usageRecordRepository
-                        .findByUsageKey(settlement.usageKey())
+                        .findByUsageKey(usageRecordKey(settlement.usageKey()))
                         .orElseThrow(
                                 () ->
                                         new IllegalStateException(
@@ -229,6 +230,10 @@ public class DefaultAiCreditGuard implements AiCreditGuard {
         }
         return new IdempotentSettlementResult(
                 settlement.usageKey(), existing.getCreditTxId(), false);
+    }
+
+    private String usageRecordKey(String usageKey) {
+        return usageKey.length() <= 128 ? usageKey : sha256(usageKey);
     }
 
     private String settlementDigest(
