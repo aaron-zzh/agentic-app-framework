@@ -133,7 +133,7 @@ public class AssistantAguiController {
         var threadId = request.threadId();
         var runId = request.runId();
         var session = agUiProjector.openSession(threadId, runId);
-        persistUserMessage(threadId, request.messages());
+        persistUserMessage(threadId, runId, request.messages());
         // AAF-114 #11412：按 blockMessageId（replyId:blockId，与前端 assistant-ui ThreadMessage.id 完全一致）
         // 累积文本增量，在 MESSAGE_BLOCK_COMPLETED 时机落库，payload 记录该 id 供反馈接口精确关联。
         // 每个 run 独立一份，随 SSE 订阅生命周期存在，无需考虑跨请求并发。
@@ -142,7 +142,7 @@ public class AssistantAguiController {
                 .subscribe(
                         event -> {
                             persistAssistantMessageOnBlockCompleted(
-                                    threadId, event, blockTextBuffers);
+                                    threadId, runId, event, blockTextBuffers);
                             send(emitter, session.project(event), event.sequence());
                         },
                         failure -> {
@@ -471,11 +471,12 @@ public class AssistantAguiController {
      * <p>只在 {@code startRun}（新建 execution）调用；{@code resumeRun} 是审批恢复续跑，不是新用户输入，不重复持久化。
      * 失败仅记录警告，不阻断执行——历史持久化是执行链路的旁路能力，不应影响核心对话可用性。
      */
-    private void persistUserMessage(String threadId, List<RunMessage> messages) {
+    private void persistUserMessage(String threadId, String runId, List<RunMessage> messages) {
         try {
             var input = lastUserInput(messages);
             if (!input.text().isBlank()) {
-                chatService.saveMessageByThreadId(threadId, null, "HUMAN", "user", input.text());
+                chatService.saveMessageByThreadId(
+                        threadId, null, "HUMAN", "user", input.text(), null, runId);
             }
         } catch (RuntimeException failure) {
             log.warn("用户消息持久化失败 threadId={}: {}", threadId, failure.getMessage());
@@ -494,7 +495,10 @@ public class AssistantAguiController {
      * 协议"一个块即一条独立消息"的语义一致。
      */
     private void persistAssistantMessageOnBlockCompleted(
-            String threadId, ExecutionEvent event, Map<String, StringBuilder> blockTextBuffers) {
+            String threadId,
+            String rootRunId,
+            ExecutionEvent event,
+            Map<String, StringBuilder> blockTextBuffers) {
         var values = event.payload().values();
         switch (event.type()) {
             case MESSAGE_DELTA -> {
@@ -514,7 +518,13 @@ public class AssistantAguiController {
                 if (buffer == null || buffer.isEmpty()) return;
                 try {
                     chatService.saveMessageByThreadId(
-                            threadId, null, "AI", "assistant", buffer.toString(), blockMessageId);
+                            threadId,
+                            null,
+                            "AI",
+                            "assistant",
+                            buffer.toString(),
+                            blockMessageId,
+                            rootRunId);
                 } catch (RuntimeException failure) {
                     log.warn(
                             "AI 回复持久化失败 threadId={}, messageId={}: {}",

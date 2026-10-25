@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.ai.chat.service;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
@@ -12,10 +13,13 @@ import com.xuejiai.aaf.common.enums.chat.ConversationTypeEnum;
 import com.xuejiai.aaf.common.enums.chat.MessageSenderTypeEnum;
 import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.util.JsonUtils;
+import com.xuejiai.aaf.framework.engine.credit.AiUsageRecordRepository;
+import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.authorization.RelationPermissionWriter;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatMessageVO;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatSessionCreateDTO;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatSessionVO;
+import com.xuejiai.aaf.module.ai.chat.vo.ConversationCreditSummaryVO;
 import com.xuejiai.aaf.module.chat.conversation.domain.Conversation;
 import com.xuejiai.aaf.module.chat.conversation.repository.ConversationRepository;
 import com.xuejiai.aaf.module.chat.message.domain.ConversationMessage;
@@ -50,6 +54,7 @@ public class ChatService {
     private final ConversationMessageRepository messageRepository;
     private final RelationPermissionWriter relationPermissionWriter;
     private final com.xuejiai.aaf.framework.security.OperatorContext operatorContext;
+    private final AiUsageRecordRepository usageRecords;
 
     /**
      * 创建会话
@@ -109,6 +114,63 @@ public class ChatService {
     }
 
     /**
+     * 汇总当前轮次与对话累计的真实 AI 结算积分。
+     *
+     * <p>持久 Task 下的协调者、步骤与子智能体共享 canonical taskId，因此自然合并为同一轮；当前 runId 额外加入查询，覆盖未提升为 Task
+     * 的直接对话。只统计已关联真实积分流水的 ai_usage_record，前端不得按 Token 估算。
+     */
+    @Transactional(readOnly = true)
+    public ConversationCreditSummaryVO creditSummary(String threadId, String runId) {
+        requireOwnedAiThread(threadId);
+        if (runId == null || runId.isBlank()) {
+            throw new IllegalArgumentException("runId 不能为空白");
+        }
+        var orgId = OrgContext.getCurrentOrgId();
+        var ownerId = operatorContext.currentOwnerId().orElseThrow();
+        if (orgId == null) {
+            throw new IllegalStateException("对话积分汇总缺少组织上下文");
+        }
+        var conversation = conversationRepository.findByThreadId(threadId).orElseThrow();
+        var taskIds = new LinkedHashSet<String>();
+        messageRepository.findByConversationIdOrderByCreateTimeAsc(conversation.getId()).stream()
+                .map(ChatService::messageRunId)
+                .filter(java.util.Objects::nonNull)
+                .forEach(taskIds::add);
+        var currentRunId = runId.trim();
+        taskIds.add(currentRunId);
+        var records =
+                usageRecords.findByTenantIdAndUserIdAndTaskIdInAndCreditTxIdIsNotNull(
+                        orgId.toString(), ownerId, taskIds);
+        var turnCredits =
+                records.stream()
+                        .filter(record -> currentRunId.equals(record.getTaskId()))
+                        .mapToLong(record -> creditAmount(record.getCreditAmount()))
+                        .sum();
+        var conversationCredits =
+                records.stream().mapToLong(record -> creditAmount(record.getCreditAmount())).sum();
+        return new ConversationCreditSummaryVO(turnCredits, conversationCredits);
+    }
+
+    private static String messageRunId(ConversationMessage message) {
+        var payload = message.getPayload();
+        if (payload == null || payload.isBlank()) {
+            return null;
+        }
+        try {
+            var value = JsonUtils.readTree(payload).get("runId");
+            return value != null && value.isString() && !value.asString().isBlank()
+                    ? value.asString()
+                    : null;
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private static long creditAmount(Long value) {
+        return value == null ? 0L : value;
+    }
+
+    /**
      * 校验当前用户拥有可作为 AG-UI 运行边界的 AI 会话 thread。
      *
      * <p>AG-UI 运行的 conversationId/sessionId 固定等于 threadId；因此必须在创建持久任务和 lease 前 拒绝其他用户的
@@ -148,20 +210,19 @@ public class ChatService {
     @Transactional
     public void saveMessageByThreadId(
             String threadId, Long senderId, String senderType, String role, String content) {
-        saveMessageByThreadId(threadId, senderId, senderType, role, content, null);
+        saveMessageByThreadId(threadId, senderId, senderType, role, content, null, null);
     }
 
     /**
-     * 按 threadId 保存消息并记录外部（AG-UI）messageId（AAF-114 #11412）。
+     * 按 threadId 保存消息并记录外部（AG-UI）messageId 与根 runId（AAF-114 #11412）。
      *
      * <p>AG-UI 主对话链路（{@code AssistantAguiController}）运行时无 HTTP SecurityContext，不能走 {@code
      * saveUserMessage} 的当前用户归属校验；调用方已在 run 入口用 {@link #requireOwnedAiThread} 校验过 threadId 归属，这里只需按
      * threadId 解析出内部数值 sessionId 后落库。
      *
-     * <p>{@code externalMessageId} 写入 {@code ConversationMessage.payload}（{@code {"aguiMessageId":
-     * "..."}}），是前端 assistant-ui {@code ThreadMessage.id}（AI 消息为 {@code
-     * replyId:blockId}）与数据库消息之间唯一的关联键，反馈等需要精确定位消息的功能据此关联，不依赖 {@code
-     * ConversationMessage.id}（前端不可见的数据库自增主键）。
+     * <p>{@code externalMessageId} 与 {@code runId} 写入 {@code
+     * ConversationMessage.payload}，分别关联前端可见消息和 {@code ai_usage_record.task_id}。持久 Task 的所有子智能体共享根
+     * taskId（等于调用方 runId），因此一次查询即可得到整轮实际积分。
      *
      * @param threadId AG-UI 线程 ID（对应 {@code Conversation.threadId}）
      * @param senderId 发送者 ID；AI 消息传 {@code null}，落库为 {@link #NON_HUMAN_SENDER_ID}
@@ -169,6 +230,7 @@ public class ChatService {
      * @param role 消息角色（user / assistant）
      * @param content 消息文本内容
      * @param externalMessageId 前端可见的 AG-UI messageId，可为空
+     * @param runId 本轮 AG-UI 根 runId，可为空
      */
     @Transactional
     public void saveMessageByThreadId(
@@ -177,16 +239,23 @@ public class ChatService {
             String senderType,
             String role,
             String content,
-            String externalMessageId) {
+            String externalMessageId,
+            String runId) {
         var conversation = conversationRepository.findByThreadId(threadId).orElse(null);
         if (conversation == null) {
             // 会话已被删除或未找到：不阻断执行流程，仅记录事实，与既有 catch 静默跳过保持一致的降级语义
             return;
         }
         var msg = buildMessage(senderId, senderType, conversation.getId(), role, content);
-        if (externalMessageId != null && !externalMessageId.isBlank()) {
+        if ((externalMessageId != null && !externalMessageId.isBlank())
+                || (runId != null && !runId.isBlank())) {
             var payload = JsonUtils.createObjectNode();
-            payload.put("aguiMessageId", externalMessageId);
+            if (externalMessageId != null && !externalMessageId.isBlank()) {
+                payload.put("aguiMessageId", externalMessageId);
+            }
+            if (runId != null && !runId.isBlank()) {
+                payload.put("runId", runId);
+            }
             msg.setPayload(payload.toString());
         }
         messageRepository.save(msg);

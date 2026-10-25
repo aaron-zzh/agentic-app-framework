@@ -60,7 +60,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { deriveVoiceOrbState, VoiceControl, VoiceOrb } from "@/components/voice"
 import { type AgentSuggestion, useAgentRunStore } from "@/features/livechat/runtime/agent-run-store"
 import { SpeechOutput } from "@/features/livechat/voice/SpeechOutput"
-import { chatApi } from "@/lib/api/rest/ai"
+import { chatApi, useConversationCreditSummary } from "@/lib/api/rest/ai"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { serverTtsStream, useVoiceConfig } from "@/lib/store/voice-config"
 import { cn } from "@/lib/utils/cn"
@@ -688,6 +688,13 @@ export function ChatterThread({
   showThinking: boolean
 }) {
   const isLoading = useThread((s) => s.isRunning)
+  const currentThreadId = useAgentRunStore((state) => state.currentThreadId)
+  const currentRunId = useAgentRunStore((state) => state.diagnostic.runId)
+  const { data: creditSummary } = useConversationCreditSummary(
+    currentThreadId,
+    currentRunId,
+    !guestMode && !isLoading
+  )
 
   return (
     <ThreadPrimitive.Root className="flex min-h-0 flex-1 flex-col">
@@ -721,6 +728,14 @@ export function ChatterThread({
                 <span>正在思考...</span>
               </div>
             </div>
+          </div>
+        )}
+
+        {!guestMode && creditSummary && (
+          <div className="mb-3 flex justify-center gap-2 text-muted-foreground text-xs">
+            <span>本轮消耗 {creditSummary.turnCredits.toLocaleString()} 积分</span>
+            <span aria-hidden="true">·</span>
+            <span>当前对话累计 {creditSummary.conversationCredits.toLocaleString()} 积分</span>
           </div>
         )}
 

@@ -33,6 +33,11 @@ export interface ChatMessageVO {
   createdAt: string
 }
 
+export interface ConversationCreditSummary {
+  turnCredits: number
+  conversationCredits: number
+}
+
 export interface CreateSessionParams {
   title?: string
   type: ChatSession["type"]
@@ -104,6 +109,10 @@ export const chatApi = {
   getMessages: (threadId: string) =>
     backendApi.get<ChatMessageVO[]>(restEndpoints.ai.chatSessionMessages(threadId)),
 
+  /** 获取当前轮次与会话累计的真实结算积分。 */
+  getCreditSummary: (threadId: string, runId: string) =>
+    backendApi.get<ConversationCreditSummary>(restEndpoints.ai.chatSessionCredits(threadId, runId)),
+
   /** 重命名会话（参数为 threadId，assistant-ui ThreadListAdapter 契约） */
   renameSession: (threadId: string, title: string) =>
     backendApi.put<void>(restEndpoints.ai.chatSessionRename(threadId), { title }),
@@ -146,7 +155,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 const KEYS = {
   all: ["chat"] as const,
   sessions: ["chat", "sessions"] as const,
-  messages: (sessionId: string) => ["chat", "messages", sessionId] as const
+  messages: (sessionId: string) => ["chat", "messages", sessionId] as const,
+  credits: (threadId: string, runId: string) => ["chat", "credits", threadId, runId] as const
 }
 
 /** 会话列表 */
@@ -164,6 +174,23 @@ export function useChatMessages(sessionId: string | undefined) {
     queryKey: KEYS.messages(sessionId ?? ""),
     queryFn: () => chatApi.getMessages(sessionId as NonNullable<typeof sessionId>),
     enabled: !!sessionId
+  })
+}
+
+/** 当前轮次与对话累计的真实结算积分。 */
+export function useConversationCreditSummary(
+  threadId: string | undefined,
+  runId: string | undefined,
+  enabled = true
+) {
+  return useQuery({
+    queryKey: KEYS.credits(threadId ?? "", runId ?? ""),
+    queryFn: () =>
+      chatApi.getCreditSummary(
+        threadId as NonNullable<typeof threadId>,
+        runId as NonNullable<typeof runId>
+      ),
+    enabled: enabled && !!threadId && !!runId
   })
 }
 

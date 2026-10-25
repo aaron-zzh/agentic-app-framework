@@ -25,6 +25,7 @@ import com.xuejiai.aaf.module.ai.chat.vo.ChatMessageVO;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatSessionCreateDTO;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatSessionRenameDTO;
 import com.xuejiai.aaf.module.ai.chat.vo.ChatSessionVO;
+import com.xuejiai.aaf.module.ai.chat.vo.ConversationCreditSummaryVO;
 import com.xuejiai.aaf.module.ai.chat.vo.IntentClassifyDTO;
 import com.xuejiai.aaf.module.ai.chat.vo.IntentResult;
 import com.xuejiai.aaf.module.ai.chat.vo.MessageFeedbackDTO;
@@ -84,6 +85,13 @@ public class ChatController {
     @GetMapping("/sessions/thread/{threadId}/messages")
     public Result<List<ChatMessageVO>> listMessagesByThreadId(@PathVariable String threadId) {
         return Result.success(chatService.listMessagesByThreadId(threadId));
+    }
+
+    @Operation(summary = "获取当前轮次与对话累计的实际积分消耗")
+    @GetMapping("/sessions/thread/{threadId}/credits")
+    public Result<ConversationCreditSummaryVO> getCreditSummary(
+            @PathVariable String threadId, @RequestParam String runId) {
+        return Result.success(chatService.creditSummary(threadId, runId));
     }
 
     @Operation(summary = "分页获取会话消息")

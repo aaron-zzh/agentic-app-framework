@@ -2,6 +2,8 @@ package com.xuejiai.aaf.framework.engine.credit;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,6 +14,9 @@ import org.springframework.data.jpa.repository.Query;
 public interface AiUsageRecordRepository extends JpaRepository<AiUsageRecord, Long> {
 
     Optional<AiUsageRecord> findByUsageKey(String usageKey);
+
+    List<AiUsageRecord> findByTenantIdAndUserIdAndTaskIdInAndCreditTxIdIsNotNull(
+            String tenantId, Long userId, Collection<String> taskIds);
 
     @Modifying
     @Query(
