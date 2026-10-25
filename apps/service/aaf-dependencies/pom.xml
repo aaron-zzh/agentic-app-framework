@@ -53,7 +53,7 @@
 		<poi.version>5.4.1</poi.version>
 		<jsoup.version>1.18.3</jsoup.version>
 		<!-- AgentScope（2.0+ 执行内核用 agentscope-core，见 ADR-005 议题三） -->
-		<agentscope.version>2.0.2</agentscope.version>
+		<agentscope.version>2.0.4</agentscope.version>
 		<!-- A2A -->
 		<spring-ai-a2a.version>0.2.0</spring-ai-a2a.version>
 		<a2a-java-sdk.version>0.3.3.Final</a2a-java-sdk.version>

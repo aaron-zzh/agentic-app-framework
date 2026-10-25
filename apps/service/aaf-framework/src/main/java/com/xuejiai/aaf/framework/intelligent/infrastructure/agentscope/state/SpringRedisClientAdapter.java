@@ -7,18 +7,16 @@ import java.util.Set;
 
 import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 
 import io.agentscope.extensions.redis.state.RedisClientAdapter;
 
 /**
  * 复用 Spring 管理连接的 AgentScope Redis 客户端适配器。
  *
- * <p>供 RedisAgentStateStore 使用，避免另起一套 Jedis/Lettuce 连接池。 所有读操作把 Spring 的 null 返回归一化为空集合。
- *
- * <p><b>已知上游约束（RQ-13 部分不可在本层修复）</b>：{@code RedisAgentStateStore} 是分两步调用 {@code set(key, json)} 然后
- * {@code addToSet(keysKey, key)} 来维护"值 + 注册表"的，两步之间崩溃会留下未登记的孤儿键。 {@link RedisClientAdapter}
- * 接口只暴露单命令原语、没有组合入口，因此本适配器无法把它们合并为一次 Lua/事务提交—— 要修必须改上游或 fork。实际影响有界：AAF 按显式 stateSlot 键做
- * stale-safe 清理，不依赖注册表扫描；孤儿注册项不参与状态寻址或 Dispatch authority 判定。
+ * <p>AgentScope 2.0.4 通过 {@link RedisClientAdapter#evalScript(String, List, List)}
+ * 将状态值、版本号和会话键注册表在同一 Lua 脚本中原子更新；本适配器直接委托 Spring Data Redis 执行该脚本，避免另起 Jedis/Lettuce 连接池。所有读操作把
+ * Spring 的 null 返回归一化为空集合。
  */
 public final class SpringRedisClientAdapter implements RedisClientAdapter {
 
@@ -101,6 +99,16 @@ public final class SpringRedisClientAdapter implements RedisClientAdapter {
             cursor.forEachRemaining(keys::add);
         }
         return keys;
+    }
+
+    @Override
+    public long evalScript(String script, List<String> keys, List<String> args) {
+        var redisScript = new DefaultRedisScript<>(script, Long.class);
+        var result = redisTemplate.execute(redisScript, keys, args.toArray());
+        if (result == null) {
+            throw new IllegalStateException("Unexpected Lua script result: null");
+        }
+        return result;
     }
 
     @Override

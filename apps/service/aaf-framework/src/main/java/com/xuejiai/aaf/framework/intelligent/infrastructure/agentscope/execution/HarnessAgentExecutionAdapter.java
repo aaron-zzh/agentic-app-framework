@@ -55,7 +55,6 @@ import io.agentscope.core.event.AgentEvent;
 import io.agentscope.core.event.AgentEventType;
 import io.agentscope.core.event.ToolResultEndEvent;
 import io.agentscope.core.message.ToolResultState;
-import io.agentscope.core.shutdown.GracefulShutdownManager;
 import io.agentscope.core.state.AgentState;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
@@ -420,22 +419,6 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                     executionId.value(),
                     execution.agentIdentifier(),
                     execution.ephemeral());
-
-            // 接入 core 优雅停机生命周期（AAF-110 #11004）：JVM 优雅停机时状态由 core 原生标记
-            // shutdownInterrupted 并持久化，而不是被本适配器的 doFinally 无差别删除。绑定幂等
-            // （GracefulShutdownManager 内部按 agentId 覆盖式写入），缓存实例跨多次执行复用时重复
-            // 绑定同一 saver 无副作用。
-            GracefulShutdownManager.getInstance()
-                    .bindStateSaver(
-                            execution.agent(),
-                            state ->
-                                    stateStore.save(
-                                            state.getUserId(),
-                                            state.getSessionId(),
-                                            "agent_state",
-                                            state));
-            active.shutdownRequestId()
-                    .set(GracefulShutdownManager.getInstance().registerRequest(execution.agent()));
 
             var policy = execution.executionPolicy();
             // 总时限的完成信号：主流终止时置空，避免"等待一个永不完成的计时器"把正常完成拖到时限到点
@@ -936,22 +919,13 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         delegatedTasks.requireAgentExecution(context);
     }
 
-    /**
-     * AGENT_START 之后 Agent 才可被中断，因此在此补发早于启动到达的取消请求；同时把 call-scoped {@code AgentState}（框架在 call
-     * 入口才注入到 {@code RuntimeContext}，建立 {@code active} 时读不到）绑定进 {@code
-     * GracefulShutdownManager}（AAF-110 #11004），使优雅停机时精确定位到本次调用的 session。
-     */
+    /** AGENT_START 之后 Agent 才可被中断，因此在此补发早于启动到达的取消请求。 */
     private void onSourceEvent(AgentEvent event, ActiveExecution active) {
         if (event.getType() != AgentEventType.AGENT_START) {
             return;
         }
         active.started().set(true);
         interruptIfCancelledAndStarted(active);
-        var requestId = active.shutdownRequestId().get();
-        var state = active.runtimeContext().getAgentState();
-        if (requestId != null && state != null) {
-            GracefulShutdownManager.getInstance().bindRequestState(requestId, state);
-        }
     }
 
     private void interruptIfCancelledAndStarted(ActiveExecution active) {
@@ -1030,12 +1004,6 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
             String stateUserKey) {
         release(executionId, active);
         evidenceStore.clear(executionId);
-        // 无论后续是否跳过状态槎删除，都要释放 GracefulShutdownManager 的追踪，避免 activeRequestsById 无界增长
-        // （AAF-110 #11004）。
-        var requestId = active.shutdownRequestId().get();
-        if (requestId != null) {
-            GracefulShutdownManager.getInstance().unregisterRequest(requestId);
-        }
         if (!active.stateAccessReady().get()) {
             closeStateRegistration(active);
             return;
@@ -1182,12 +1150,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
             /** canonical HITL waiting 事件的状态保存结果；只有 saved=true 才允许 release 保留状态槽。 */
             AtomicReference<HitlStateReceipt> hitlStateReceipt,
             /** 已由 durable transition 原子持久化、只需回送当前 Flux 的 exact eventId。 */
-            Set<String> alreadyPersistedEventIds,
-            /**
-             * {@code GracefulShutdownManager.registerRequest(agent)} 返回的请求标识（AAF-110 #11004），
-             * 建立时为空，AGENT_START 到达后才能拿到 call-scoped AgentState 并绑定。
-             */
-            AtomicReference<String> shutdownRequestId) {
+            Set<String> alreadyPersistedEventIds) {
 
         private ActiveExecution(
                 ReActAgent agent, RuntimeContext runtimeContext, boolean ephemeral) {
@@ -1205,8 +1168,7 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
                     new AtomicBoolean(),
                     new AtomicReference<>(),
                     new AtomicReference<>(),
-                    ConcurrentHashMap.newKeySet(),
-                    new AtomicReference<>());
+                    ConcurrentHashMap.newKeySet());
         }
     }
 }
