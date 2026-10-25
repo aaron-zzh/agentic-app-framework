@@ -27,12 +27,23 @@ export function CopywritingParamsBar() {
   )
   const { options, modelId, setModelId } = useModelSelector("CHAT", {
     value: model,
-    onChange: (id) => setModel(id)
+    onChange: (id) => setModel(id),
+    autoSelect: false
   })
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <ModelSelector variant="select" options={options} value={modelId} onChange={setModelId} />
+      <ModelSelector
+        variant="select"
+        options={options}
+        value={modelId}
+        onChange={setModelId}
+        autoOption={{
+          selected: model === "",
+          onSelect: () => setModel(""),
+          label: "自动选择"
+        }}
+      />
 
       <Select value={length} onValueChange={(v) => setLength(v as "short" | "medium" | "long")}>
         <SelectTrigger className="h-8 w-[110px] text-xs">

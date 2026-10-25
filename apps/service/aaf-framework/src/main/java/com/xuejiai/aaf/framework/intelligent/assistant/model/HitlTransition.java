@@ -20,9 +20,12 @@ public final class HitlTransition {
             var context = approval.invocationContext();
             if (approval.status() != HumanApproval.Status.PENDING
                     || !persistentControlMode(context.controlMode())
+                    || context.taskId() == null
+                    || context.nodeIdentity() == null
+                    || context.dispatchId() == null
                     || context.executionContract() == null
-                    || context.parentExecutionId() == null) {
-                throw new IllegalArgumentException("授权请求必须是携带父 execution 与合同的持久 PENDING 审批");
+                    || context.lease() == null) {
+                throw new IllegalArgumentException("授权请求必须绑定持久 TaskNode 和执行契约");
             }
             if (!event.tenantId().equals(context.tenantId())
                     || !event.userId().equals(context.userId())

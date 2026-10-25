@@ -5,13 +5,16 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.xuejiai.aaf.framework.intelligent.agent.model.AuthorizationGrant;
 import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
+import com.xuejiai.aaf.framework.intelligent.agent.port.AuthorizationGrantPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ArtifactCompletionContract.ArtifactCompletionEvaluator;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ArtifactCompletionContract.InvocationReceipt;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionInput;
@@ -50,9 +53,14 @@ import reactor.core.publisher.Mono;
 public final class TaskCommandService {
     public static final String TASK_NODE_DISPATCH_TYPE = "task-node-dispatch";
 
+    private static final String CONTENT_DRAFT_UPSERT_ACTION = "content.draft.upsert";
+    private static final String TASK_SCOPE = "TASK";
+    private static final Duration AUTO_SAVE_DRAFT_GRANT_TTL = Duration.ofMinutes(15);
+
     private final TaskUnitOfWork tasks;
     private final TaskIngress taskIngress;
     private final TaskMaterializationPort materializations;
+    private final AuthorizationGrantPort authorizationGrants;
     private final ExecutionProfileSnapshotPort executionProfiles;
     private final HitlTransitionPort transitions;
     private final ConversationLeasePort conversationLeases;
@@ -68,6 +76,7 @@ public final class TaskCommandService {
             TaskUnitOfWork tasks,
             TaskIngress taskIngress,
             TaskMaterializationPort materializations,
+            AuthorizationGrantPort authorizationGrants,
             ExecutionProfileSnapshotPort executionProfiles,
             HitlTransitionPort transitions,
             ConversationLeasePort conversationLeases,
@@ -81,6 +90,8 @@ public final class TaskCommandService {
         this.tasks = Objects.requireNonNull(tasks, "tasks 不能为空");
         this.taskIngress = Objects.requireNonNull(taskIngress, "taskIngress 不能为空");
         this.materializations = Objects.requireNonNull(materializations, "materializations 不能为空");
+        this.authorizationGrants =
+                Objects.requireNonNull(authorizationGrants, "authorizationGrants 不能为空");
         this.executionProfiles =
                 Objects.requireNonNull(executionProfiles, "executionProfiles 不能为空");
         this.transitions = Objects.requireNonNull(transitions, "transitions 不能为空");
@@ -699,10 +710,60 @@ public final class TaskCommandService {
                         null,
                         at,
                         at);
+        var initialGrants = initialAuthorizationGrants(task, plan, command, at);
         var dispatches = materializations.createPlannedTask(task, plan, command, at);
+        initialGrants.forEach(authorizationGrants::grant);
         dispatches.forEach(this::signal);
         return new CreatedTask(
                 tasks.findTask(command.tenantId(), command.taskId()).orElseThrow(), dispatches);
+    }
+
+    private static List<AuthorizationGrant> initialAuthorizationGrants(
+            Task task, TaskPlan plan, AssistantCommand command, Instant at) {
+        var intent = command.invocationProfile().executionIntent();
+        var artifact = intent.artifactPolicy();
+        var singleCoordinator =
+                plan.nodes().size() == 1
+                        && plan.nodes().values().stream()
+                                .allMatch(
+                                        node -> node.kind() == TaskPlan.TaskNode.Kind.COORDINATOR);
+        if (task.source() != Source.CONVERSATION
+                || intent.interactionMode() != ExecutionIntent.InteractionMode.TASK
+                || intent.decomposition() != ExecutionIntent.DecompositionStrategy.DECOMPOSE_NONE
+                || artifact.persistenceMode() != ExecutionIntent.PersistenceMode.AUTO_SAVE_DRAFT
+                || !CONTENT_DRAFT_UPSERT_ACTION.equals(artifact.saveTool())
+                || !singleCoordinator) {
+            return List.of();
+        }
+        var contract = task.contract();
+        var expiresAt = at.plus(AUTO_SAVE_DRAFT_GRANT_TTL);
+        if (expiresAt.isAfter(contract.deadline())) {
+            expiresAt = contract.deadline();
+        }
+        var grantIdentity =
+                String.join(
+                        "|",
+                        task.tenantId().value(),
+                        task.taskId().value(),
+                        CONTENT_DRAFT_UPSERT_ACTION);
+        var grantId =
+                "initial-task-grant-"
+                        + UUID.nameUUIDFromBytes(grantIdentity.getBytes(StandardCharsets.UTF_8));
+        return List.of(
+                new AuthorizationGrant(
+                        grantId,
+                        task.tenantId(),
+                        task.taskId(),
+                        CONTENT_DRAFT_UPSERT_ACTION,
+                        CONTENT_DRAFT_UPSERT_ACTION,
+                        TASK_SCOPE,
+                        expiresAt,
+                        Map.of(),
+                        true,
+                        null,
+                        task.userId().value(),
+                        at,
+                        null));
     }
 
     private void signal(MaterializedDispatch dispatch) {

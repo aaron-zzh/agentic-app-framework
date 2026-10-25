@@ -20,6 +20,7 @@ import com.xuejiai.aaf.framework.intelligent.agent.model.AgentMessage.Attachment
 import com.xuejiai.aaf.framework.intelligent.ai.vision.VisionAttachment;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantCommand;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.AssistantInvocation;
+import com.xuejiai.aaf.framework.intelligent.assistant.application.BuiltinControlToolProfile;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.InvocationProfile;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.InvocationProfile.ContextPlan;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.RunDeliveryTracker;
@@ -222,7 +223,7 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                         List.of(),
                         List.of(),
                         programmaticContexts(objective.facts()),
-                        trustedAllowedActions(request.purpose()),
+                        contractActions(definition, trustedAllowedActions(request.purpose())),
                         Set.of(),
                         executionIntent,
                         false);
@@ -306,6 +307,15 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
             case PROJECT_GENERATION -> Set.of(APPROVED_GENERATION_ACTION_TOOL);
             case BLUEPRINT_PLANNING -> Set.of(BLUEPRINT_PROPOSAL_SUBMIT_TOOL);
         };
+    }
+
+    private static Set<String> contractActions(
+            AssistantDefinition definition, Set<String> additionalActions) {
+        Objects.requireNonNull(definition, "definition 不能为空");
+        Objects.requireNonNull(additionalActions, "additionalActions 不能为空");
+        var actions = new LinkedHashSet<String>(definition.toolPolicy().rules().keySet());
+        actions.addAll(additionalActions);
+        return Set.copyOf(actions);
     }
 
     /** 结构化事实作为不可信任务材料进入上下文；MEMORY/KNOWLEDGE 仍只能由执行期 L1 授权检索。 */
@@ -495,7 +505,7 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                         parsedInput.textMaterials(),
                         parsedInput.imageFileKeys(),
                         List.of(),
-                        Set.of(),
+                        contractActions(definition, Set.of()),
                         roleToolScope,
                         executionIntent,
                         knowledge.mode() == AssistantExecutionRequest.KnowledgeMode.DISABLED);
@@ -581,7 +591,9 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                                                 spec.assistantId()))
                         .doOnNext(
                                 event -> {
-                                    if (event.type() != ExecutionEventType.MESSAGE_DELTA) {
+                                    if (event.type() != ExecutionEventType.MESSAGE_DELTA
+                                            && event.type()
+                                                    != ExecutionEventType.TOOL_CALL_ARGS_DELTA) {
                                         log.debug(
                                                 "[AssistantExecution] stage=event_received executionId={} taskId={} "
                                                         + "sequence={} eventType={} status={}",
@@ -745,6 +757,8 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
         allowedActions.add("knowledge.search");
         allowedActions.add("content.generate");
         allowedActions.addAll(spec.trustedAllowedActions());
+        allowedActions.addAll(
+                BuiltinControlToolProfile.contractActions(spec.executionIntent().decomposition()));
         if (spec.executionIntent().autoSaveDraft()) {
             allowedActions.add(CONTENT_DRAFT_UPSERT_TOOL);
         }

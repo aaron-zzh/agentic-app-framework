@@ -197,11 +197,22 @@ function SkillParamsBar() {
   )
   const { options, modelId, setModelId } = useModelSelector("CHAT", {
     value: model,
-    onChange: (id) => setModel(id)
+    onChange: (id) => setModel(id),
+    autoSelect: false
   })
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <ModelSelector variant="select" options={options} value={modelId} onChange={setModelId} />
+      <ModelSelector
+        variant="select"
+        options={options}
+        value={modelId}
+        onChange={setModelId}
+        autoOption={{
+          selected: model === "",
+          onSelect: () => setModel(""),
+          label: "自动选择"
+        }}
+      />
       <Select
         value={length}
         onValueChange={(value) => setLength(value as "short" | "medium" | "long")}

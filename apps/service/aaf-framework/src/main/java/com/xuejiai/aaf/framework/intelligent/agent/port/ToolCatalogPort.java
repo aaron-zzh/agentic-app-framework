@@ -35,8 +35,8 @@ public interface ToolCatalogPort {
             if (connector && !readOnly && !idempotencyRequired) {
                 throw new IllegalArgumentException("Connector 写动作必须声明服务端幂等键");
             }
-            if (idempotencyRequired && (!connector || readOnly)) {
-                throw new IllegalArgumentException("幂等声明仅适用于 Connector 写动作");
+            if (idempotencyRequired && readOnly) {
+                throw new IllegalArgumentException("只读工具不能声明幂等保障");
             }
         }
 

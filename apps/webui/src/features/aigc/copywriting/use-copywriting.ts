@@ -95,6 +95,49 @@ function assistantOutputLocale(
 }
 
 export const COPYWRITING_ROLE_KEY = "system.role.content-creator"
+const CONTENT_DRAFT_UPSERT_TOOL = "content.draft.upsert"
+const HIDDEN_COPYWRITING_PROCESS_EVENT_TYPES = new Set<AafAiTaskEvent["type"]>([
+  "aaf.model.started",
+  "aaf.model.completed",
+  "aaf.tool.args_progress",
+  "aaf.tool.args_completed",
+  "aaf.tool.result_started",
+  "aaf.tool.result_progress"
+])
+
+/** 协议级参数、结果增量与正常模型生命周期不进入用户可见进度列表。 */
+function shouldRecordCopywritingProcessEvent(event: AssistantAgUiEvent): boolean {
+  return (
+    event.type !== "CUSTOM" || !HIDDEN_COPYWRITING_PROCESS_EVENT_TYPES.has(event.value.type)
+  )
+}
+
+export interface CopywritingStreamContent {
+  text: string
+  draftSaveStarted: boolean
+}
+
+/** 仅归并草稿保存前的可见正文；保存阶段及其后续确认消息不得污染编辑器内容。 */
+export function reduceCopywritingStreamContent(
+  current: CopywritingStreamContent,
+  event: AssistantAgUiEvent
+): CopywritingStreamContent {
+  if (event.type === "TOOL_CALL_START" && event.toolCallName === CONTENT_DRAFT_UPSERT_TOOL) {
+    return { ...current, draftSaveStarted: true }
+  }
+  if (event.type === "TEXT_MESSAGE_CONTENT" && !current.draftSaveStarted) {
+    return { ...current, text: current.text + event.delta }
+  }
+  return current
+}
+
+/** 流未产生新正文时保留已有内容，供授权恢复和保存失败场景使用。 */
+export function resolveCopywritingStreamContent(
+  current: CopywritingStreamContent,
+  fallbackContent: string
+): string {
+  return current.text || fallbackContent
+}
 
 /** 拒绝授权反馈的上限，按 Unicode 字符（code point）计，与后端 {@code AssistantAguiController} 口径一致。 */
 export const APPROVAL_FEEDBACK_MAX_CHARS = 1000
@@ -343,6 +386,7 @@ export function useCopywriting() {
   const [approvalFeedback, setApprovalFeedback] = useState("")
   const [approvalLoading, setApprovalLoading] = useState(false)
   const threadIdRef = useRef<string | null>(null)
+  const draftSaveStartedRef = useRef(false)
   const streamingEditorRef = useRef<StreamingEditorHandle>(null)
 
   const [viralStep, setViralStep] = useState<1 | 2 | 3>(1)
@@ -373,6 +417,7 @@ export function useCopywriting() {
     setPendingApproval(null)
     setApprovalFeedback("")
     threadIdRef.current = null
+    draftSaveStartedRef.current = false
     setToolCalls([])
     setNodeOutputs([])
     setProcessEntries([
@@ -422,21 +467,23 @@ export function useCopywriting() {
       })
     }
 
-    const display = safeEventSummary(event)
     const nodeEvent = isAssistantNodeEvent(event) ? event : null
     const publicEvent = event.type === "CUSTOM" ? event.value : null
-    appendProcessEntry({
-      id:
-        publicEvent?.eventId ??
-        (nodeEvent === null
-          ? `${event.runId}-${event.type}-${Date.now()}`
-          : `node-${event.runId}-${nodeEvent.nodeId}`),
-      sequence: publicEvent?.sequence ?? null,
-      kind: display.kind,
-      status: eventStatus(event),
-      summary: display.summary,
-      createdAt: publicEvent?.createdAt ?? new Date().toISOString()
-    })
+    if (shouldRecordCopywritingProcessEvent(event)) {
+      const display = safeEventSummary(event)
+      appendProcessEntry({
+        id:
+          publicEvent?.eventId ??
+          (nodeEvent === null
+            ? `${event.runId}-${event.type}-${Date.now()}`
+            : `node-${event.runId}-${nodeEvent.nodeId}`),
+        sequence: publicEvent?.sequence ?? null,
+        kind: display.kind,
+        status: eventStatus(event),
+        summary: display.summary,
+        createdAt: publicEvent?.createdAt ?? new Date().toISOString()
+      })
+    }
 
     const tool = toolCallFromEvent(event)
     if (tool !== null) {
@@ -482,27 +529,35 @@ export function useCopywriting() {
       beginExecution("正在准备安全执行上下文")
     }
     editor?.start()
-    let accumulated = ""
+    let streamContent: CopywritingStreamContent = {
+      text: "",
+      draftSaveStarted: draftSaveStartedRef.current
+    }
 
     await start({
-      onEvent: recordEvent,
-      onChunk: (chunk) => {
-        accumulated += chunk
-        success(accumulated)
-        editor?.push(chunk)
+      onEvent: (event) => {
+        const previous = streamContent
+        streamContent = reduceCopywritingStreamContent(streamContent, event)
+        draftSaveStartedRef.current = streamContent.draftSaveStarted
+        recordEvent(event)
+        if (event.type === "TEXT_MESSAGE_CONTENT" && streamContent.text !== previous.text) {
+          success(streamContent.text)
+          editor?.push(event.delta)
+        }
       },
       onSessionReady: (session) => {
         threadIdRef.current = session.threadId
       },
       onDone: (event) => {
+        const finalContent = resolveCopywritingStreamContent(streamContent, fallbackContent)
         if (event.interrupts.length > 0) {
           // 只有 tool_call 是受控工具授权；input_required 等澄清类 interrupt 本页没有对应表单，
           // 不能按授权展示（批准 / 拒绝的载荷与澄清恢复协议不匹配）
           const authorization = event.interrupts.find((item) => item.reason === "tool_call")
           if (authorization === undefined) {
             const message = "任务需要补充信息，当前页面暂不支持，请补充主题等输入后重试"
-            success(fallbackContent)
-            editor?.reset()
+            success(finalContent)
+            editor?.done(finalContent)
             setPhase("error")
             appendProcessEntry({
               id: `interrupt-unsupported-${Date.now()}`,
@@ -518,19 +573,19 @@ export function useCopywriting() {
           setPendingApproval(authorization)
           setApprovalFeedback("")
           setPhase("awaiting_authorization")
-          success(fallbackContent)
-          editor?.reset()
+          success(finalContent)
+          editor?.done(finalContent)
           return
         }
         setPendingApproval(null)
-        const finalContent = accumulated || fallbackContent
         success(finalContent)
         editor?.done(finalContent)
         setPhase("success")
       },
       onError: (error) => {
-        success(fallbackContent)
-        editor?.reset()
+        const finalContent = resolveCopywritingStreamContent(streamContent, fallbackContent)
+        success(finalContent)
+        editor?.done(finalContent)
         setPhase("error")
         appendProcessEntry({
           id: `error-${Date.now()}`,
@@ -733,6 +788,7 @@ export function useCopywriting() {
     setNodeOutputs([])
     setToolCalls([])
     threadIdRef.current = null
+    draftSaveStartedRef.current = false
   }
 
   return {

@@ -18,6 +18,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
+import com.xuejiai.aaf.framework.intelligent.agent.port.AuthorizationGrantPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ArtifactCompletionContract.ArtifactCompletionEvaluator;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionInput;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.Task;
@@ -206,6 +207,7 @@ class TaskCommandServiceAmendmentTest {
                         tasks,
                         ingress,
                         materializations,
+                        mock(AuthorizationGrantPort.class),
                         mock(ExecutionProfileSnapshotPort.class),
                         mock(HitlTransitionPort.class),
                         mock(ConversationLeasePort.class),

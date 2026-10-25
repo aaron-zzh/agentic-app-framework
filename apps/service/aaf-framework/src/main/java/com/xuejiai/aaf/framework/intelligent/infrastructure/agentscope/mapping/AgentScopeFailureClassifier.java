@@ -28,7 +28,9 @@ public final class AgentScopeFailureClassifier {
         AUTHORIZATION_REQUIRED(false),
         /** 输入或规格非法：修正入参前重试无意义。 */
         INVALID_REQUEST(false),
-        /** 基础设施故障（数据库 / Redis / 网络 / 模型服务）：瞬时性居多，可重试。 */
+        /** 模型供应商临时不可用（5xx）：当前请求可在稍后重试。 */
+        MODEL_SERVICE_UNAVAILABLE(true),
+        /** 基础设施故障（数据库 / Redis / 网络）：瞬时性居多，可重试。 */
         INFRASTRUCTURE(true),
         /** 无法归类：保守判定为不可自动重试，必须人工介入定位。 */
         UNKNOWN(false);
@@ -57,6 +59,8 @@ public final class AgentScopeFailureClassifier {
             case ContextBudgetExceededException ignored -> FailureCategory.BUDGET_EXCEEDED;
             case BudgetExceededException ignored -> FailureCategory.BUDGET_EXCEEDED;
             case ApprovalRequiredException ignored -> FailureCategory.AUTHORIZATION_REQUIRED;
+            case io.agentscope.extensions.model.openai.exception.InternalServerException ignored ->
+                    FailureCategory.MODEL_SERVICE_UNAVAILABLE;
             case IllegalArgumentException ignored -> FailureCategory.INVALID_REQUEST;
             default -> classifyByCause(failure);
         };

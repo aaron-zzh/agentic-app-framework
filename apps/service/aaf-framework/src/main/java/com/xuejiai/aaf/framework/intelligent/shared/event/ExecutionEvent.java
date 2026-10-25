@@ -119,11 +119,13 @@ public record ExecutionEvent(
     }
 
     /** 是否为没有直接原因事件的根事件。 */
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public boolean isRootEvent() {
         return causationId == null;
     }
 
     /** 当前事件是否记录了 execution 的终态。 */
+    @com.fasterxml.jackson.annotation.JsonIgnore
     public boolean isTerminal() {
         return status.isTerminal();
     }

@@ -245,8 +245,12 @@ public final class AafAguiStreamContext {
             return List.of();
         }
         runFinished = true;
+        var message =
+                "MODEL_SERVICE_TEMPORARILY_UNAVAILABLE".equals(code)
+                        ? "模型服务暂时不可用，请稍后重试"
+                        : "Assistant 运行未完成";
         return List.of(
-                new AguiEvent.RunError(threadId, runId, "Assistant 运行未完成", code),
+                new AguiEvent.RunError(threadId, runId, message, code),
                 new AguiEvent.RunFinished(threadId, runId));
     }
 

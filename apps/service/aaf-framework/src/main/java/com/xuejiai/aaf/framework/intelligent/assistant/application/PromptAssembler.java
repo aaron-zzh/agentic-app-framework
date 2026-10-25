@@ -79,7 +79,8 @@ public final class PromptAssembler {
                 invocationSource(
                         request.invocationPolicy(),
                         request.executionIntent(),
-                        request.completionCriteria()));
+                        request.completionCriteria(),
+                        request.skillExecutionProfile()));
         sources.add(
                 source(
                         PromptLayerKind.ROLE,
@@ -153,7 +154,7 @@ public final class PromptAssembler {
                         spec.agentId().value(),
                         Long.toString(spec.version()),
                         spec.systemPrompt()));
-        sources.add(invocationSource(invocationPolicy, null, null));
+        sources.add(invocationSource(invocationPolicy, null, null, skillExecutionProfile));
         appendSkills(sources, skillExecutionProfile);
         return CompiledSystemPrompt.compile(sources);
     }
@@ -292,10 +293,11 @@ public final class PromptAssembler {
         return content.toString();
     }
 
-    private static PromptLayerSource invocationSource(
+    static PromptLayerSource invocationSource(
             InvocationPolicy policy,
             ExecutionIntent executionIntent,
-            CompletionCriteria completionCriteria) {
+            CompletionCriteria completionCriteria,
+            SkillExecutionProfile skillExecutionProfile) {
         var content = new StringBuilder();
         content.append("## 受信调用策略\n");
         content.append("阶段：").append(policy).append('\n');
@@ -308,6 +310,7 @@ public final class PromptAssembler {
             content.append("规范媒体类型：").append(artifact.canonicalMediaType()).append('\n');
             content.append("持久化模式：").append(artifact.persistenceMode()).append('\n');
             content.append("发布策略：").append(artifact.publishPolicy()).append('\n');
+            appendContentFirstArtifactContract(content, artifact, skillExecutionProfile);
             if (policy == InvocationPolicy.COORDINATOR) {
                 // 分解策略只改变协调者的工具面；非 DECOMPOSE_AUTO 时明示，避免与上方"简单任务直接回复"的通用规则冲突
                 switch (executionIntent.decomposition()) {
@@ -328,6 +331,23 @@ public final class PromptAssembler {
                 "invocation:" + policy.name().toLowerCase(java.util.Locale.ROOT),
                 policy.contractVersion(),
                 content.toString());
+    }
+
+    private static void appendContentFirstArtifactContract(
+            StringBuilder content,
+            ExecutionIntent.ArtifactPolicy artifact,
+            SkillExecutionProfile skillExecutionProfile) {
+        var saveTool = artifact.saveTool();
+        if (saveTool == null
+                || skillExecutionProfile.effectiveTools().stream()
+                        .noneMatch(tool -> tool.name().equals(saveTool))) {
+            return;
+        }
+        content.append("产物时序（强制）：先通过普通 assistant 文本消息完整输出最终正文，使正文实时流式展示；")
+                .append("正文文本块结束后，再调用 `")
+                .append(saveTool)
+                .append("` 保存草稿。工具参数 content 必须逐字复制刚输出的完整正文，不得重新生成、删改或只传摘要；")
+                .append("不得用执行说明、计划或保存确认替代正文。保存工具返回后不要再次输出正文或确认文字。\n");
     }
 
     /**

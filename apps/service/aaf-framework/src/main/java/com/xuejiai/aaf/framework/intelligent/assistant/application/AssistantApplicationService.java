@@ -108,7 +108,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
     /** 未显式指定知识库时，助理默认库与角色库合并后的检索数量上限。 */
     private static final int MAX_DEFAULT_KNOWLEDGE_BASES = 3;
 
-    private static final Duration RUNTIME_TIMEOUT = Duration.ofSeconds(120);
+    private static final Duration RUNTIME_TIMEOUT = Duration.ofMinutes(5);
 
     private final ExecutionPolicy runtimeExecutionPolicy;
 
@@ -234,10 +234,10 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 invocation.userAttachments().size());
         var persistentTaskNode =
                 command.operation() == AssistantCommand.Operation.SUBTASK
-                        && command.parentExecutionId() != null
+                        && command.nodeIdentity() != null
                         && command.executionContract() != null;
         if (persistentTaskNode && command.lease() == null) {
-            throw new IllegalStateException("持久子执行必须由调度器注入 conversation lease");
+            throw new IllegalStateException("持久任务节点必须由调度器注入 conversation lease");
         }
         if (!persistentTaskNode && !direct) {
             recoveries.saveCommand(command);
@@ -295,7 +295,8 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 .doOnNext(liveEvents::publish)
                 .doOnNext(
                         event -> {
-                            if (event.type() != ExecutionEventType.MESSAGE_DELTA) {
+                            if (event.type() != ExecutionEventType.MESSAGE_DELTA
+                                    && event.type() != ExecutionEventType.TOOL_CALL_ARGS_DELTA) {
                                 log.debug(
                                         "[AssistantExecution] stage=event_emitted executionId={} taskId={} "
                                                 + "sequence={} eventType={} status={} ownerType={}",
@@ -1885,7 +1886,8 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         } else {
             businessTools = permittedTools;
         }
-        var effectiveTools = mergeEffectiveTools(businessTools, builtinControlTools(command));
+        var effectiveTools =
+                mergeEffectiveTools(businessTools, BuiltinControlToolProfile.resolve(command));
         log.debug(
                 "[AssistantExecution] stage=skill_resolved executionId={} taskId={} selectionMode={} "
                         + "skillCodes={} skillVersions={} selectedBy={} effectiveToolCount={}",
@@ -1899,7 +1901,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         var authorizationRules = new LinkedHashMap<String, ToolAuthorizationRule>();
         effectiveTools.forEach(
                 tool -> {
-                    if (builtinControlTool(tool.name())) {
+                    if (BuiltinControlToolProfile.contains(tool.name())) {
                         authorizationRules.put(
                                 tool.name(),
                                 new ToolAuthorizationRule(
@@ -2470,76 +2472,6 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                     || rule.reversible();
                         })
                 .collect(Collectors.toUnmodifiableSet());
-    }
-
-    /**
-     * 内置控制工具按智能体类型与容器状态限定（ADR-008）：轻量态协调者管理任务并可升级；任务态协调者可委派、拆步骤或澄清；
-     * 执行者可拆步骤或澄清；聚合者只能澄清。分解策略通过协调者的工具可见性强制：{@code DECOMPOSE_NONE} 不暴露 {@code delegate_agents}，
-     * {@code DECOMPOSE_REQUIRED} 只保留 {@code delegate_agents} 与 {@code request_clarification}。
-     */
-    private static List<ToolRef> builtinControlTools(AssistantCommand command) {
-        var agentKind = command.invocationProfile().agentKind();
-        if (command.taskId() == null) {
-            return agentKind == InvocationProfile.AgentKind.COORDINATOR
-                    ? List.of(
-                            toolRef(InspectTasksTool.TOOL_NAME),
-                            toolRef(PromoteDirectTaskTool.TOOL_NAME),
-                            toolRef(AmendTaskTool.TOOL_NAME),
-                            toolRef(PauseTaskTool.TOOL_NAME),
-                            toolRef(ResumeTaskTool.TOOL_NAME),
-                            toolRef(TakeOverTaskTool.TOOL_NAME),
-                            toolRef(HandBackTaskTool.TOOL_NAME),
-                            toolRef(CancelTaskTool.TOOL_NAME))
-                    : List.of();
-        }
-        if (command.nodeIdentity() == null) {
-            return List.of();
-        }
-        return switch (agentKind) {
-            case COORDINATOR ->
-                    switch (command.invocationProfile().executionIntent().decomposition()) {
-                        case DECOMPOSE_AUTO ->
-                                List.of(
-                                        toolRef(SubmitCoordinationPlanTool.TOOL_NAME),
-                                        toolRef(SubmitExecutorPlanTool.TOOL_NAME),
-                                        toolRef(ReportExecutorStepTool.TOOL_NAME),
-                                        toolRef(RequestClarificationTool.TOOL_NAME));
-                        case DECOMPOSE_NONE ->
-                                List.of(
-                                        toolRef(SubmitExecutorPlanTool.TOOL_NAME),
-                                        toolRef(ReportExecutorStepTool.TOOL_NAME),
-                                        toolRef(RequestClarificationTool.TOOL_NAME));
-                        case DECOMPOSE_REQUIRED ->
-                                List.of(
-                                        toolRef(SubmitCoordinationPlanTool.TOOL_NAME),
-                                        toolRef(RequestClarificationTool.TOOL_NAME));
-                    };
-            case EXECUTOR ->
-                    List.of(
-                            toolRef(SubmitExecutorPlanTool.TOOL_NAME),
-                            toolRef(ReportExecutorStepTool.TOOL_NAME),
-                            toolRef(RequestClarificationTool.TOOL_NAME));
-            case AGGREGATOR -> List.of(toolRef(RequestClarificationTool.TOOL_NAME));
-        };
-    }
-
-    private static boolean builtinControlTool(String toolName) {
-        return InspectTasksTool.TOOL_NAME.equals(toolName)
-                || PromoteDirectTaskTool.TOOL_NAME.equals(toolName)
-                || AmendTaskTool.TOOL_NAME.equals(toolName)
-                || PauseTaskTool.TOOL_NAME.equals(toolName)
-                || ResumeTaskTool.TOOL_NAME.equals(toolName)
-                || TakeOverTaskTool.TOOL_NAME.equals(toolName)
-                || HandBackTaskTool.TOOL_NAME.equals(toolName)
-                || CancelTaskTool.TOOL_NAME.equals(toolName)
-                || SubmitCoordinationPlanTool.TOOL_NAME.equals(toolName)
-                || SubmitExecutorPlanTool.TOOL_NAME.equals(toolName)
-                || ReportExecutorStepTool.TOOL_NAME.equals(toolName)
-                || RequestClarificationTool.TOOL_NAME.equals(toolName);
-    }
-
-    private static ToolRef toolRef(String toolName) {
-        return new ToolRef(toolName, 1, toolName);
     }
 
     private static List<ToolRef> mergeEffectiveTools(

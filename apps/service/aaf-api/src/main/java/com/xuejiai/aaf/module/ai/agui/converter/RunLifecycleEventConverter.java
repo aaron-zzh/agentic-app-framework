@@ -120,7 +120,11 @@ public final class RunLifecycleEventConverter implements AafAguiEventConverter {
         return switch (event.type()) {
             case EXECUTION_CANCELED -> "RUN_CANCELED";
             case COMMAND_REJECTED -> "ASSISTANT_COMMAND_REJECTED";
-            case RUN_FAILED -> "AGENT_RUN_FAILED";
+            case RUN_FAILED ->
+                    "MODEL_SERVICE_UNAVAILABLE"
+                                    .equals(event.payload().values().get("failureCategory"))
+                            ? "MODEL_SERVICE_TEMPORARILY_UNAVAILABLE"
+                            : "AGENT_RUN_FAILED";
             default -> "ASSISTANT_EXECUTION_FAILED";
         };
     }

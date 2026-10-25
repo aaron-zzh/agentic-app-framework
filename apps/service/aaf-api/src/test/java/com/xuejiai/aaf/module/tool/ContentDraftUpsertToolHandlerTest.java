@@ -1,13 +1,16 @@
 package com.xuejiai.aaf.module.tool;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
@@ -41,6 +44,41 @@ class ContentDraftUpsertToolHandlerTest extends BaseMockitoUnitTest {
     @BeforeEach
     void setUp() {
         handler = new ContentDraftUpsertToolHandler(documents);
+    }
+
+    @Test
+    @DisplayName("Given 草稿工具进入代码自声明路径 When 构造授权画像 Then 元数据与可撤销写策略一致")
+    void should_declare_reversible_write_authorization_profile() {
+        // 准备参数
+        var authorization =
+                new ToolAuthorizationContext(
+                        Map.of(
+                                ContentDraftUpsertToolHandler.TOOL_NAME,
+                                new ToolAuthorizationContext.ToolAuthorizationRule(
+                                        false,
+                                        true,
+                                        true,
+                                        ToolAuthorizationContext.MissingGrantBehavior
+                                                .REQUEST_ON_DEMAND)));
+
+        // 调用 + 断言
+        assertThat(handler.readOnly()).isFalse();
+        assertThat(handler.reversible()).isTrue();
+        assertThat(handler.requireConfirm()).isTrue();
+        assertThat(handler.inputSchema())
+                .containsEntry("type", "object")
+                .containsEntry("additionalProperties", false);
+        assertThat(handler.inputSchema().get("required")).isEqualTo(List.of("title", "content"));
+        assertThat((Map<?, ?>) handler.inputSchema().get("properties"))
+                .containsKeys("title", "content", "documentType");
+        assertThatCode(
+                        () ->
+                                authorization.requireVisible(
+                                        ControlMode.DELEGATED,
+                                        ContentDraftUpsertToolHandler.TOOL_NAME,
+                                        handler.readOnly(),
+                                        handler.reversible()))
+                .doesNotThrowAnyException();
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.tool;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -36,6 +37,43 @@ public final class ContentDraftUpsertToolHandler implements ContextAwareToolHand
     @Override
     public String description() {
         return "将 Markdown 内容保存为当前用户、组织和工作区内的数据库草稿；不会发布。";
+    }
+
+    @Override
+    public boolean reversible() {
+        return true;
+    }
+
+    @Override
+    public boolean requireConfirm() {
+        return true;
+    }
+
+    @Override
+    public Map<String, Object> inputSchema() {
+        return Map.of(
+                "type",
+                "object",
+                "required",
+                List.of("title", "content"),
+                "additionalProperties",
+                false,
+                "properties",
+                Map.of(
+                        "title",
+                        Map.of("type", "string", "minLength", 1, "maxLength", 200),
+                        "content",
+                        Map.of(
+                                "type",
+                                "string",
+                                "minLength",
+                                1,
+                                "maxLength",
+                                1_000_000,
+                                "description",
+                                "规范 Markdown 正文"),
+                        "documentType",
+                        Map.of("type", "string", "maxLength", 50, "default", "markdown")));
     }
 
     @Override

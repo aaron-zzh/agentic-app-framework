@@ -206,6 +206,8 @@ export interface AssistantNodeEvent extends RunEvent {
 }
 
 export type AssistantIgnoredEventType =
+  | "TOOL_CALL_ARGS"
+  | "TOOL_CALL_END"
   | "STEP_STARTED"
   | "STEP_FINISHED"
   | "STATE_SNAPSHOT"
@@ -236,6 +238,8 @@ export function isAssistantNodeEvent(event: AssistantAgUiEvent): event is Assist
 
 function isAssistantIgnoredEvent(event: AssistantAgUiEvent): event is AssistantIgnoredEvent {
   switch (event.type) {
+    case "TOOL_CALL_ARGS":
+    case "TOOL_CALL_END":
     case "STEP_STARTED":
     case "STEP_FINISHED":
     case "STATE_SNAPSHOT":
@@ -464,6 +468,8 @@ export function parseAssistantAgUiEvent(data: string): AssistantAgUiEvent {
       }
       return { type, runId, name: value.value.type, value: value.value }
     }
+    case "TOOL_CALL_ARGS":
+    case "TOOL_CALL_END":
     case "STEP_STARTED":
     case "STEP_FINISHED":
     case "STATE_SNAPSHOT":

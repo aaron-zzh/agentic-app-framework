@@ -85,9 +85,12 @@ public record AafAiTaskEvent(
         PROJECTION_ONLY
     }
 
-    /** 仅允许稳定引用、状态码、计数和布尔值，不允许正文或任意嵌套对象。 */
+    /** 仅允许映射器显式声明的安全引用、展示文本、状态码、计数和布尔值，不允许正文或嵌套对象。 */
     public record ReferenceSafeData(Map<String, Object> values) {
         private static final int MAX_TEXT_LENGTH = 256;
+        private static final int MAX_FEEDBACK_CODE_POINTS = 1000;
+        private static final Set<String> DISPLAY_TEXT_KEYS = Set.of("roleName");
+        private static final Set<String> USER_TEXT_KEYS = Set.of("feedback");
         private static final Set<String> ALLOWED_KEYS =
                 Set.of(
                         "summaryCode",
@@ -98,16 +101,23 @@ public record AafAiTaskEvent(
                         "messageId",
                         "replyId",
                         "contentLength",
+                        "modelId",
+                        "inputTokens",
+                        "outputTokens",
+                        "cachedTokens",
+                        "durationSeconds",
                         "toolCallId",
                         "toolName",
                         "resultState",
                         "artifactState",
                         "artifactType",
                         "artifactId",
+                        "artifactVersionId",
                         "reversible",
                         "approvalId",
                         "action",
                         "decision",
+                        "feedback",
                         "requestId",
                         "nodeId",
                         "completedFieldCount",
@@ -115,6 +125,12 @@ public record AafAiTaskEvent(
                         "groupId",
                         "iteration",
                         "stopReason",
+                        "promotedTaskId",
+                        "executionStatus",
+                        "roleKey",
+                        "roleName",
+                        "routeConstraint",
+                        "interactionMode",
                         "errorCode");
 
         public ReferenceSafeData {
@@ -142,6 +158,19 @@ public record AafAiTaskEvent(
 
         private static Object validateValue(String key, Object value) {
             if (value instanceof String text) {
+                if (USER_TEXT_KEYS.contains(key)) {
+                    var codePointCount = text.codePointCount(0, text.length());
+                    if (text.isBlank() || codePointCount > MAX_FEEDBACK_CODE_POINTS) {
+                        throw new IllegalArgumentException("公共事件 data 用户文本不安全: " + key);
+                    }
+                    return text;
+                }
+                if (DISPLAY_TEXT_KEYS.contains(key)) {
+                    if (text.isBlank() || text.length() > MAX_TEXT_LENGTH || text.contains("\n")) {
+                        throw new IllegalArgumentException("公共事件 data 展示文本不安全: " + key);
+                    }
+                    return text;
+                }
                 if (text.length() > MAX_TEXT_LENGTH
                         || !text.matches("[A-Za-z0-9][A-Za-z0-9:._/-]{0,255}")) {
                     throw new IllegalArgumentException("公共事件 data 文本不是安全引用: " + key);
@@ -153,6 +182,12 @@ public record AafAiTaskEvent(
                     || value instanceof Short
                     || value instanceof Integer
                     || value instanceof Long) {
+                return value;
+            }
+            if (value instanceof Float number && Float.isFinite(number)) {
+                return value;
+            }
+            if (value instanceof Double number && Double.isFinite(number)) {
                 return value;
             }
             throw new IllegalArgumentException("公共事件 data 仅允许安全标量: " + key);

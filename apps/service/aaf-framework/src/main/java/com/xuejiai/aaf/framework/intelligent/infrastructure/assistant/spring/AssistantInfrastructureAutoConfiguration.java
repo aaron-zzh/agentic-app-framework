@@ -17,6 +17,7 @@ import org.springframework.core.env.Environment;
 import com.xuejiai.aaf.framework.engine.skill.SkillStore;
 import com.xuejiai.aaf.framework.engine.task.agent.AgentTaskRuntime;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AgentExecutionPort;
+import com.xuejiai.aaf.framework.intelligent.agent.port.AuthorizationGrantPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.SkillCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.SkillReferenceCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.ai.chat.AiAutoConfiguration;
@@ -440,6 +441,7 @@ public class AssistantInfrastructureAutoConfiguration {
         TaskUnitOfWork.class,
         TaskIngress.class,
         TaskMaterializationPort.class,
+        AuthorizationGrantPort.class,
         ExecutionProfileSnapshotPort.class,
         HitlTransitionPort.class,
         ConversationLeasePort.class,
@@ -453,6 +455,7 @@ public class AssistantInfrastructureAutoConfiguration {
             TaskUnitOfWork tasks,
             TaskIngress taskIngress,
             TaskMaterializationPort materializations,
+            AuthorizationGrantPort authorizationGrants,
             ExecutionProfileSnapshotPort executionProfiles,
             HitlTransitionPort transitions,
             ConversationLeasePort leases,
@@ -464,7 +467,7 @@ public class AssistantInfrastructureAutoConfiguration {
         var leaseTtl =
                 Duration.ofSeconds(
                         environment.getProperty(
-                                "aaf.assistant.delegated.lease-seconds", Long.class, 60L));
+                                "aaf.assistant.delegated.lease-seconds", Long.class, 300L));
         var pauseAckTimeout =
                 Duration.ofSeconds(
                         environment.getProperty(
@@ -473,6 +476,7 @@ public class AssistantInfrastructureAutoConfiguration {
                 tasks,
                 taskIngress,
                 materializations,
+                authorizationGrants,
                 executionProfiles,
                 transitions,
                 leases,

@@ -63,7 +63,7 @@ public final class PersistentHitlCoordinator implements HitlCoordinatorPort {
                                         new IllegalArgumentException(
                                                 "审批不存在: " + command.approvalId()));
         requireDecisionOwner(pending, command.decidedBy());
-        if (!isDelegated(pending.invocationContext())) {
+        if (!isPersistentTaskNode(pending.invocationContext())) {
             throw new IllegalStateException("审批未绑定 canonical TaskNode execution");
         }
         return decideDelegated(pending, command);
@@ -221,9 +221,12 @@ public final class PersistentHitlCoordinator implements HitlCoordinatorPort {
                 context.nodeIdentity());
     }
 
-    private static boolean isDelegated(
+    private static boolean isPersistentTaskNode(
             com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext context) {
-        return context.parentExecutionId() != null && context.executionContract() != null;
+        return context.taskId() != null
+                && context.nodeIdentity() != null
+                && context.dispatchId() != null
+                && context.executionContract() != null;
     }
 
     private static void requireDecisionOwner(HumanApproval approval, String decidedBy) {
