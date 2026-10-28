@@ -294,6 +294,34 @@ public final class HarnessAgentExecutionAdapter implements AgentExecutionPort {
         command.skillExecutionProfile().effectiveTools().stream()
                 .map(tool -> "%s@%d:%s".formatted(tool.toolId(), tool.version(), tool.name()))
                 .forEach(contents.get(PromptInputKind.TOOL_REFERENCE)::add);
+        if (log.isDebugEnabled()) {
+            var messages =
+                    command.messages().stream()
+                            .map(
+                                    message ->
+                                            "[%s][%s]\n%s"
+                                                    .formatted(
+                                                            message.role(),
+                                                            message.messageId(),
+                                                            message.text()))
+                            .toList();
+            var tools =
+                    command.skillExecutionProfile().effectiveTools().stream()
+                            .map(tool -> "%s@%d".formatted(tool.name(), tool.version()))
+                            .toList();
+            log.debug(
+                    "[Prompt输入] executionId={} taskId={} agent={} model={}\n"
+                            + "--- SYSTEM PROMPT ---\n{}\n"
+                            + "--- MESSAGES ---\n{}\n"
+                            + "--- EFFECTIVE TOOLS ---\n{}",
+                    command.context().executionId().value(),
+                    command.context().taskId() == null ? null : command.context().taskId().value(),
+                    execution.agentIdentifier(),
+                    execution.model().modelId(),
+                    command.compiledSystemPrompt().content(),
+                    messages.isEmpty() ? "(none)" : String.join("\n\n", messages),
+                    tools);
+        }
         var attachmentCount =
                 command.messages().stream().mapToInt(message -> message.attachments().size()).sum();
         var lengths = PromptLengthSummary.measure(contents, attachmentCount);

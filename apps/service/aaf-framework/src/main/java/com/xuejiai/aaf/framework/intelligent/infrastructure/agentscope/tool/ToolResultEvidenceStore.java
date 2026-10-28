@@ -46,6 +46,7 @@ public final class ToolResultEvidenceStore {
                     "artifactState",
                     "artifactType",
                     "artifactId",
+                    "artifactVersionId",
                     "reversible",
                     "completionEvidence",
                     "approvalId",

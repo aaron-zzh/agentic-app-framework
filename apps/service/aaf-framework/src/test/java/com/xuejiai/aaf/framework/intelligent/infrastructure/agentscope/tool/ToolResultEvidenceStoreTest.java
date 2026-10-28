@@ -77,6 +77,21 @@ class ToolResultEvidenceStoreTest {
         assertThat(store.take(FIRST, "call-1")).isEmpty();
     }
 
+    @Test
+    @DisplayName("Given 草稿保存版本证据 When 暂存并消费 Then 保留 artifactVersionId")
+    void should_preserve_draft_artifact_version_id() {
+        var store = new ToolResultEvidenceStore();
+        store.record(
+                FIRST, "call-1", Map.of("artifactId", 91L, "artifactVersionId", 92L), true, false);
+
+        assertThat(store.take(FIRST, "call-1"))
+                .hasValueSatisfying(
+                        values ->
+                                assertThat(values)
+                                        .containsEntry("artifactId", 91L)
+                                        .containsEntry("artifactVersionId", 92L));
+    }
+
     /** 可推进的测试时钟：TTL 行为必须由确定时间驱动，不用 sleep。 */
     private static final class MutableClock extends Clock {
         private Instant now;

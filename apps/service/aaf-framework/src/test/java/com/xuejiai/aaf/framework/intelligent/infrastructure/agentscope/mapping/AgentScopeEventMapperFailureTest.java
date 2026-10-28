@@ -125,6 +125,7 @@ class AgentScopeEventMapperFailureTest {
                                         "验证失败契约",
                                         SkillScope.SYSTEM,
                                         SkillActivationMode.ON_DEMAND,
+                                        new SkillVersionRef(1L, 1L, 1),
                                         List.of(),
                                         Set.of(),
                                         Set.of())));

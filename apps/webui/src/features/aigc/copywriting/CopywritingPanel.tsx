@@ -37,6 +37,9 @@ export function CopywritingPanel({ actions }: Props) {
     setContent,
     generating,
     documentId,
+    needsManualSave,
+    manualSavePending,
+    handleManualSave,
     pendingApproval,
     approvalLoading,
     handleApprovalDecision,
@@ -120,6 +123,9 @@ export function CopywritingPanel({ actions }: Props) {
               showDocActions={type !== "viral" || viralStep === 3}
               generating={generating}
               documentId={documentId}
+              needsManualSave={needsManualSave}
+              manualSavePending={manualSavePending}
+              onManualSave={handleManualSave}
               onNew={handleNewCopywriting}
             />
 

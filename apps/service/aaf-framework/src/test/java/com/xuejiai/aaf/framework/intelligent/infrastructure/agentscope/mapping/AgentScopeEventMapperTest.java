@@ -333,6 +333,7 @@ class AgentScopeEventMapperTest {
         assertThat(event.orElseThrow().type()).isEqualTo(ExecutionEventType.TOOL_CALL_ARGS_DELTA);
         assertThat(event.orElseThrow().payload().values())
                 .containsEntry("deltaLength", 9)
+                .containsOnlyKeys("replyId", "toolCallId", "toolName", "deltaLength")
                 .doesNotContainValue("{\"q\":\"x\"}");
     }
 
@@ -714,6 +715,126 @@ class AgentScopeEventMapperTest {
         assertThat(event).isEmpty();
     }
 
+    @Test
+    @DisplayName("Given content 草稿参数跨 chunk 到达 When 映射 Then 逐段公开已解码正文并在结束时标记完成")
+    void should_preview_content_draft_incrementally_across_chunks_and_complete() {
+        var state = new MappingState(0);
+
+        var first =
+                mapper.map(
+                                new ToolCallDeltaEvent(
+                                        "reply-1",
+                                        "call-1",
+                                        "content.draft.upsert",
+                                        "{\"content\":\"第一"),
+                                command(),
+                                "agent.mapper-test",
+                                model(),
+                                state)
+                        .orElseThrow();
+        var second =
+                mapper.map(
+                                new ToolCallDeltaEvent(
+                                        "reply-1", "call-1", "content.draft.upsert", "段\"}"),
+                                command(),
+                                "agent.mapper-test",
+                                model(),
+                                state)
+                        .orElseThrow();
+        var completed =
+                mapper.map(
+                                new ToolCallEndEvent("reply-1", "call-1", "content.draft.upsert"),
+                                command(),
+                                "agent.mapper-test",
+                                model(),
+                                state)
+                        .orElseThrow();
+
+        assertThat(first.payload().values())
+                .containsEntry("previewKind", "CONTENT_DRAFT")
+                .containsEntry("contentDelta", "第一");
+        assertThat(second.payload().values()).containsEntry("contentDelta", "段");
+        assertThat(completed.type()).isEqualTo(ExecutionEventType.TOOL_CALL_ARGS_COMPLETED);
+        assertThat(completed.payload().values())
+                .containsEntry("previewKind", "CONTENT_DRAFT")
+                .containsEntry("contentPreviewCompleted", true);
+    }
+
+    @Test
+    @DisplayName("Given content 草稿含跨 chunk 转义换行和引号 When 映射 Then 公开已解码字符")
+    void should_decode_escaped_newline_and_quote_in_content_draft_preview() {
+        var state = new MappingState(0);
+
+        var first =
+                mapper.map(
+                                new ToolCallDeltaEvent(
+                                        "reply-1",
+                                        "call-1",
+                                        "content.draft.upsert",
+                                        "{\"content\":\"首行\\"),
+                                command(),
+                                "agent.mapper-test",
+                                model(),
+                                state)
+                        .orElseThrow();
+        var second =
+                mapper.map(
+                                new ToolCallDeltaEvent(
+                                        "reply-1", "call-1", "content.draft.upsert", "n\\\"次行\"}"),
+                                command(),
+                                "agent.mapper-test",
+                                model(),
+                                state)
+                        .orElseThrow();
+
+        assertThat(first.payload().values()).containsEntry("contentDelta", "首行");
+        assertThat(second.payload().values()).containsEntry("contentDelta", "\n\"次行");
+    }
+
+    @Test
+    @DisplayName("Given 畸形 content 草稿 JSON When 映射 Then 不产出预览且后续工具映射继续")
+    void should_not_preview_malformed_content_draft_json_and_continue_mapping() {
+        var state = new MappingState(0);
+
+        var malformed =
+                mapper.map(
+                                new ToolCallDeltaEvent(
+                                        "reply-1",
+                                        "call-1",
+                                        "content.draft.upsert",
+                                        "{\"content\":42}"),
+                                command(),
+                                "agent.mapper-test",
+                                model(),
+                                state)
+                        .orElseThrow();
+        var ordinary =
+                mapper.map(
+                                new ToolCallDeltaEvent(
+                                        "reply-1", "call-2", "search", "{\"query\":\"x\"}"),
+                                command(),
+                                "agent.mapper-test",
+                                model(),
+                                state)
+                        .orElseThrow();
+        var completed =
+                mapper.map(
+                                new ToolCallEndEvent("reply-1", "call-2", "search"),
+                                command(),
+                                "agent.mapper-test",
+                                model(),
+                                state)
+                        .orElseThrow();
+
+        assertThat(malformed.payload().values())
+                .containsEntry("deltaLength", 14)
+                .doesNotContainKeys("contentDelta", "previewKind");
+        assertThat(ordinary.payload().values())
+                .containsEntry("deltaLength", 13)
+                .doesNotContainKeys("contentDelta", "previewKind");
+        assertThat(completed.type()).isEqualTo(ExecutionEventType.TOOL_CALL_ARGS_COMPLETED);
+    }
+
     // ===== 合成事件：canceled / paused =====
 
     @Test
@@ -779,6 +900,7 @@ class AgentScopeEventMapperTest {
                                         "验证事件映射契约",
                                         SkillScope.SYSTEM,
                                         SkillActivationMode.ON_DEMAND,
+                                        new SkillVersionRef(1L, 1L, 1),
                                         List.of(),
                                         Set.of(),
                                         Set.of())));

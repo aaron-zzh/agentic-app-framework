@@ -21,7 +21,9 @@ import {
   Mic,
   Pencil,
   RefreshCw,
+  Radio,
   ShieldCheck,
+  Sparkles,
   Target,
   Video,
   Wand2,
@@ -50,6 +52,7 @@ import {
   APPROVAL_FEEDBACK_MAX_CHARS,
   COPYWRITING_ROLE_KEY,
   type CopywritingNodeOutput,
+  type CopywritingProcessEntry,
   clampApprovalFeedback,
   useCopywriting
 } from "@/features/aigc/copywriting/use-copywriting"
@@ -269,6 +272,45 @@ function ExecutionPhaseBadge({ phase }: { phase: AssistantExecutionPhase }) {
   return <Badge variant={variant}>{label}</Badge>
 }
 
+function ProcessEntryIcon({
+  entry,
+  active
+}: {
+  entry: CopywritingProcessEntry
+  active: boolean
+}) {
+  const status = entry.status.toUpperCase()
+  if (status === "FAILED" || status === "ERROR" || status === "REJECTED") {
+    return <X aria-hidden="true" className="size-4 shrink-0 text-destructive" />
+  }
+  if (status === "COMPLETED" || status === "SUCCESS") {
+    return <Check aria-hidden="true" className="size-4 shrink-0 text-primary" />
+  }
+  if (
+    status === "RUNNING" ||
+    status === "STREAMING" ||
+    status === "VERIFYING" ||
+    status === "RECOVERING"
+  ) {
+    if (!active) {
+      return <Check aria-hidden="true" className="size-4 shrink-0 text-primary" />
+    }
+    return <Loader2 aria-hidden="true" className="size-4 shrink-0 animate-spin" />
+  }
+  if (status === "STARTED") {
+    const Icon = entry.kind === "message" ? Radio : Sparkles
+    return <Icon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+  }
+  const Icon = {
+    context: Database,
+    message: FileText,
+    phase: FileText,
+    safety: ShieldCheck,
+    tool: Wrench
+  }[entry.kind]
+  return <Icon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+}
+
 const NODE_KIND_LABELS: Record<CopywritingNodeOutput["nodeKind"], string> = {
   COORDINATOR: "协调者",
   EXECUTOR: "执行者",
@@ -334,6 +376,9 @@ function CopywritingWorkspace({
     setContent,
     generating,
     documentId,
+    needsManualSave,
+    manualSavePending,
+    handleManualSave,
     phase,
     pendingApproval,
     approvalFeedback,
@@ -529,13 +574,20 @@ function CopywritingWorkspace({
                   {processEntries.length === 0 ? (
                     <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-muted-foreground">
                       <ShieldCheck />
-                      <p className="text-sm">提交生成后，这里会显示可审计的安全执行阶段。</p>
+                      <p className="text-sm">提交生成后，这里会显示执行阶段。</p>
                     </div>
                   ) : (
                     <ol className="flex flex-col gap-3 p-4">
-                      {processEntries.map((entry) => (
-                        <li key={entry.id} className="flex items-start gap-3 text-sm">
-                          <Badge variant="secondary">{entry.status}</Badge>
+                      {processEntries.map((entry, index) => (
+                        <li
+                          key={entry.id}
+                          className="flex items-center gap-3 text-sm"
+                          title={entry.status}
+                        >
+                          <ProcessEntryIcon
+                            entry={entry}
+                            active={index === processEntries.length - 1}
+                          />
                           <span className="min-w-0 flex-1 leading-6">{entry.summary}</span>
                         </li>
                       ))}
@@ -613,7 +665,27 @@ function CopywritingWorkspace({
               <RefreshCw data-icon="inline-start" />
               改写
             </Button>
-            {documentId !== null ? <Badge variant="outline">数据库草稿 #{documentId}</Badge> : null}
+            {needsManualSave && content.trim().length > 0 ? (
+              <Button
+                variant="outline"
+                size="xs"
+                disabled={generating || manualSavePending}
+                onClick={handleManualSave}
+              >
+                {manualSavePending ? (
+                  <Loader2 data-icon="inline-start" className="animate-spin" />
+                ) : (
+                  <Database data-icon="inline-start" />
+                )}
+                {manualSavePending ? "保存中..." : "保存草稿"}
+              </Button>
+            ) : null}
+            {documentId !== null ? (
+              <Badge variant="outline">
+                数据库草稿 #{documentId}
+                {needsManualSave ? " · 有未保存更改" : ""}
+              </Badge>
+            ) : null}
           </CardAction>
         </CardHeader>
         <CardContent className="flex min-h-0 flex-1 flex-col">
@@ -622,7 +694,7 @@ function CopywritingWorkspace({
               ref={streamingEditorRef}
               value={content}
               onChange={setContent}
-              placeholder="生成结果会显示在这里。生成时的版本由 Assistant 保存为草稿；后续手动编辑仅保留在当前页面。"
+              placeholder="生成结果会显示在这里。Assistant 会尝试自动保存；未保存或手动编辑后可点击“保存草稿”。"
               preset="minimal"
               className="relative h-full min-h-80 xl:min-h-0"
             />

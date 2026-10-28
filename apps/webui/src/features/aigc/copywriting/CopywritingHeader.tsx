@@ -3,7 +3,7 @@
  * @author AaronZZH & Kiro
  */
 
-import { FilePlus2, Image, Sparkles } from "lucide-react"
+import { FilePlus2, Image, Loader2, Save, Sparkles } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -17,6 +17,12 @@ interface CopywritingHeaderProps {
   generating: boolean
   /** Agent 保存并由事件返回的数据库草稿 ID */
   documentId: number | null
+  /** 当前正文尚未形成对应数据库版本 */
+  needsManualSave: boolean
+  /** 手动保存正在提交 */
+  manualSavePending: boolean
+  /** 手动保存当前正文 */
+  onManualSave: () => void
   /** 明确结束当前版本链并创建新文案 */
   onNew: () => void
 }
@@ -25,6 +31,9 @@ export function CopywritingHeader({
   showDocActions,
   generating,
   documentId,
+  needsManualSave,
+  manualSavePending,
+  onManualSave,
   onNew
 }: CopywritingHeaderProps) {
   const type = useAigcStore((s) => s.copywritingType)
@@ -53,6 +62,22 @@ export function CopywritingHeader({
       </div>
       {showDocActions && (
         <div className="flex items-center gap-1">
+          {needsManualSave && content.trim().length > 0 ? (
+            <Button
+              variant="outline"
+              size="xs"
+              title="将当前文案保存为数据库草稿"
+              disabled={generating || manualSavePending}
+              onClick={onManualSave}
+            >
+              {manualSavePending ? (
+                <Loader2 data-icon="inline-start" className="animate-spin" />
+              ) : (
+                <Save data-icon="inline-start" />
+              )}
+              {manualSavePending ? "保存中..." : "保存草稿"}
+            </Button>
+          ) : null}
           {documentId !== null ? (
             <Button
               variant="outline"
@@ -81,7 +106,12 @@ export function CopywritingHeader({
             <Image className="size-3" />
             生成图像
           </Button>
-          {documentId !== null ? <Badge variant="outline">数据库草稿 #{documentId}</Badge> : null}
+          {documentId !== null ? (
+            <Badge variant="outline">
+              数据库草稿 #{documentId}
+              {needsManualSave ? " · 有未保存更改" : ""}
+            </Badge>
+          ) : null}
         </div>
       )}
     </div>

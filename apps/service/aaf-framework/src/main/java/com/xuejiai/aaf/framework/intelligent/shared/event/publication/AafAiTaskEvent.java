@@ -91,6 +91,7 @@ public record AafAiTaskEvent(
         private static final int MAX_FEEDBACK_CODE_POINTS = 1000;
         private static final Set<String> DISPLAY_TEXT_KEYS = Set.of("roleName");
         private static final Set<String> USER_TEXT_KEYS = Set.of("feedback");
+        private static final Set<String> LIVE_PREVIEW_TEXT_KEYS = Set.of("contentDelta");
         private static final Set<String> ALLOWED_KEYS =
                 Set.of(
                         "summaryCode",
@@ -101,6 +102,9 @@ public record AafAiTaskEvent(
                         "messageId",
                         "replyId",
                         "contentLength",
+                        "previewKind",
+                        "contentDelta",
+                        "contentPreviewCompleted",
                         "modelId",
                         "inputTokens",
                         "outputTokens",
@@ -169,6 +173,9 @@ public record AafAiTaskEvent(
                     if (text.isBlank() || text.length() > MAX_TEXT_LENGTH || text.contains("\n")) {
                         throw new IllegalArgumentException("公共事件 data 展示文本不安全: " + key);
                     }
+                    return text;
+                }
+                if (LIVE_PREVIEW_TEXT_KEYS.contains(key)) {
                     return text;
                 }
                 if (text.length() > MAX_TEXT_LENGTH

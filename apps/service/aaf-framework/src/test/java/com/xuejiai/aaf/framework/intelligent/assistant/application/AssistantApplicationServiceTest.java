@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,10 +16,16 @@ import com.xuejiai.aaf.framework.intelligent.assistant.model.MemoryStrategy;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskModelSelection;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.MemorySubject;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.SubjectKind;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ControlMode;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.ExecutionEventStatus;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent.OwnerType;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventPayload;
+import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.AssistantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ConversationId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.CorrelationId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.EventId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.IdempotencyKey;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.RunId;
@@ -56,6 +63,62 @@ class AssistantApplicationServiceTest {
 
         assertThat(AssistantApplicationService.longTermMemoryEnabled(command, definition))
                 .isFalse();
+    }
+
+    @Test
+    @DisplayName("Given content 草稿预览参数事件 When 判定入库 Then 绕过事件存储而普通参数事件仍入库")
+    void should_bypass_event_store_for_live_only_content_draft_preview() {
+        var previewDelta =
+                event(
+                        ExecutionEventType.TOOL_CALL_ARGS_DELTA,
+                        Map.of(
+                                "replyId", "reply-1",
+                                "toolCallId", "call-1",
+                                "toolName", "content.draft.upsert",
+                                "previewKind", "CONTENT_DRAFT",
+                                "contentDelta", "正文"));
+        var previewCompleted =
+                event(
+                        ExecutionEventType.TOOL_CALL_ARGS_COMPLETED,
+                        Map.of(
+                                "replyId", "reply-1",
+                                "toolCallId", "call-1",
+                                "toolName", "content.draft.upsert",
+                                "previewKind", "CONTENT_DRAFT",
+                                "contentPreviewCompleted", true));
+        var ordinaryArguments =
+                event(
+                        ExecutionEventType.TOOL_CALL_ARGS_DELTA,
+                        Map.of("toolCallId", "call-2", "toolName", "search", "deltaLength", 1));
+
+        assertThat(AssistantApplicationService.shouldPersistEvent(previewDelta)).isFalse();
+        assertThat(AssistantApplicationService.shouldPersistEvent(previewCompleted)).isFalse();
+        assertThat(AssistantApplicationService.shouldPersistEvent(ordinaryArguments)).isTrue();
+    }
+
+    private static ExecutionEvent event(ExecutionEventType type, Map<String, Object> payload) {
+        return new ExecutionEvent(
+                new EventId("event-1"),
+                new TenantId("tenant-1"),
+                new ConversationId("conversation-1"),
+                new SessionId("session-1"),
+                new TaskId("task-1"),
+                new ExecutionId("execution-1"),
+                new RunId("run-1"),
+                null,
+                1,
+                type,
+                ExecutionEventStatus.RUNNING,
+                ControlMode.COLLABORATIVE,
+                OwnerType.ASSISTANT,
+                new AssistantId("assistant-1"),
+                null,
+                null,
+                new CorrelationId("correlation-1"),
+                null,
+                null,
+                new ExecutionEventPayload(payload),
+                Instant.parse("2026-09-20T00:00:00Z"));
     }
 
     private static AssistantDefinition definitionWithLongTermMemory(boolean longTermEnabled) {

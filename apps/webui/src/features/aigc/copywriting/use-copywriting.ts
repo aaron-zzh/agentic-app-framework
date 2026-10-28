@@ -1,9 +1,10 @@
 /**
  * 文案 Assistant 执行逻辑：生成、改写、爆款复制及受控草稿授权/恢复。
- * 草稿由 Agent Loop 通过 ToolGateway 保存，前端仅消费产物引用。
+ * 草稿由 Agent Loop 尝试保存；未返回产物时允许用户通过现有文档 API 手动保存。
  * @author AaronZZH & Kiro
  */
 
+import { useBoolean } from "@aaf/hooks"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import type { StreamingEditorHandle } from "@/features/rich-text-editor"
@@ -22,6 +23,7 @@ import {
   resumeAssistantAgUi
 } from "@/lib/api/assistant-agui"
 import type { AafAiTaskEvent, AafAiTaskEventData } from "@/lib/api/rest/ai"
+import { useCreateDocument, useUpdateDocument } from "@/lib/api/rest/system/document"
 import { type ScopeSelection, useOrgStore } from "@/lib/store/org-store"
 import { useAigcStore } from "../store"
 
@@ -95,7 +97,6 @@ function assistantOutputLocale(
 }
 
 export const COPYWRITING_ROLE_KEY = "system.role.content-creator"
-const CONTENT_DRAFT_UPSERT_TOOL = "content.draft.upsert"
 const HIDDEN_COPYWRITING_PROCESS_EVENT_TYPES = new Set<AafAiTaskEvent["type"]>([
   "aaf.model.started",
   "aaf.model.completed",
@@ -114,19 +115,21 @@ function shouldRecordCopywritingProcessEvent(event: AssistantAgUiEvent): boolean
 
 export interface CopywritingStreamContent {
   text: string
-  draftSaveStarted: boolean
+  messageId: string | null
 }
 
-/** 仅归并草稿保存前的可见正文；保存阶段及其后续确认消息不得污染编辑器内容。 */
+/** 按消息边界保留最新一条完整正文，兼容工具调用前后由 ReAct 自主交付文本。 */
 export function reduceCopywritingStreamContent(
   current: CopywritingStreamContent,
   event: AssistantAgUiEvent
 ): CopywritingStreamContent {
-  if (event.type === "TOOL_CALL_START" && event.toolCallName === CONTENT_DRAFT_UPSERT_TOOL) {
-    return { ...current, draftSaveStarted: true }
+  if (event.type === "TEXT_MESSAGE_START") {
+    return event.messageId === current.messageId ? current : { text: "", messageId: event.messageId }
   }
-  if (event.type === "TEXT_MESSAGE_CONTENT" && !current.draftSaveStarted) {
-    return { ...current, text: current.text + event.delta }
+  if (event.type === "TEXT_MESSAGE_CONTENT") {
+    return event.messageId === current.messageId
+      ? { ...current, text: current.text + event.delta }
+      : { text: event.delta, messageId: event.messageId }
   }
   return current
 }
@@ -196,6 +199,14 @@ function maxCharLen(length: "short" | "medium" | "long"): number {
   return { short: 200, medium: 500, long: 3000 }[length]
 }
 
+function copywritingDraftTitle(content: string, prompt: string): string {
+  const contentLine = content.split(/\r?\n/u).find((line) => line.trim().length > 0)
+  const promptLine = prompt.split(/\r?\n/u).find((line) => line.trim().length > 0)
+  const source = contentLine ?? promptLine ?? "AI 文案"
+  const normalized = source.replace(/^#{1,6}\s*/u, "").replaceAll("**", "").trim()
+  return Array.from(normalized || "AI 文案").slice(0, 200).join("")
+}
+
 function dataText(data: AafAiTaskEventData, ...keys: string[]): string | null {
   for (const key of keys) {
     const value = data[key]
@@ -204,23 +215,113 @@ function dataText(data: AafAiTaskEventData, ...keys: string[]): string | null {
   return null
 }
 
+function copywritingToolLabel(toolName: string): string {
+  return toolName === "content.draft.upsert" ? "保存草稿" : toolName
+}
+
+function copywritingToolStatus(toolName: string, status: string): string {
+  const normalized = status.toUpperCase()
+  if (toolName === "content.draft.upsert") {
+    return {
+      RUNNING: "保存中",
+      SUCCESS: "已保存",
+      COMPLETED: "已保存",
+      FAILED: "保存失败",
+      ERROR: "保存失败",
+      REJECTED: "保存已拒绝",
+      AWAITING_AUTHORIZATION: "等待授权"
+    }[normalized] ?? status
+  }
+  return {
+    RUNNING: "执行中",
+    SUCCESS: "执行成功",
+    COMPLETED: "已完成",
+    FAILED: "执行失败",
+    ERROR: "执行失败",
+    REJECTED: "已拒绝",
+    AWAITING_AUTHORIZATION: "等待授权"
+  }[normalized] ?? status
+}
+
+function copywritingToolSummary(toolName: string, status: string): string {
+  return `${copywritingToolLabel(toolName)}：${copywritingToolStatus(toolName, status)}`
+}
+
+export type CopywritingDraftPreviewEvent =
+  | { kind: "progress"; toolCallId: string; contentDelta: string }
+  | { kind: "completed"; toolCallId: string }
+
+/** 仅接受 content.draft.upsert 的脱敏草稿预览参数事件。 */
+export function copywritingDraftPreviewEvent(
+  event: AssistantAgUiEvent
+): CopywritingDraftPreviewEvent | null {
+  if (event.type !== "CUSTOM") return null
+
+  const { data, type } = event.value
+  const toolCallId = dataText(data, "toolCallId")
+  if (
+    toolCallId === null ||
+    data.toolName !== "content.draft.upsert" ||
+    data.previewKind !== "CONTENT_DRAFT"
+  ) {
+    return null
+  }
+  if (type === "aaf.tool.args_progress" && typeof data.contentDelta === "string") {
+    return { kind: "progress", toolCallId, contentDelta: data.contentDelta }
+  }
+  if (type === "aaf.tool.args_completed" && data.contentPreviewCompleted === true) {
+    return { kind: "completed", toolCallId }
+  }
+  return null
+}
+
+/** 返回最近接收的非空草稿预览，供授权恢复流继续展示。 */
+export function latestCopywritingDraftPreviewContent(
+  draftContentByToolCall: ReadonlyMap<string, string>
+): string | null {
+  let latestPreview: string | null = null
+  for (const content of draftContentByToolCall.values()) {
+    if (content.trim().length > 0) latestPreview = content
+  }
+  return latestPreview
+}
+
+/** 草稿参数预览优先于模型普通正文，避免恢复流覆盖已展示预览。 */
+export function resolveCopywritingDisplayContent(
+  draftPreviewContent: string | null,
+  streamContent: CopywritingStreamContent,
+  fallbackContent: string
+): string {
+  return draftPreviewContent ?? resolveCopywritingStreamContent(streamContent, fallbackContent)
+}
+
 function toolCallFromEvent(event: AssistantAgUiEvent): CopywritingToolCall | null {
   if (event.type === "TOOL_CALL_START") {
-    return { id: event.toolCallId, name: event.toolCallName, status: "RUNNING" }
+    return {
+      id: event.toolCallId,
+      name: copywritingToolLabel(event.toolCallName),
+      status: copywritingToolStatus(event.toolCallName, "RUNNING")
+    }
   }
   if (event.type === "TOOL_CALL_RESULT") {
     const result = parseToolResultContent(event.content)
+    const toolName = dataText(result, "toolName") ?? "受控工具"
+    const status = dataText(result, "resultState") ?? "COMPLETED"
     return {
       id: event.toolCallId,
-      name: dataText(result, "toolName") ?? "受控工具",
-      status: dataText(result, "resultState") ?? "COMPLETED"
+      name: copywritingToolLabel(toolName),
+      status: copywritingToolStatus(toolName, status)
     }
   }
   if (event.type !== "CUSTOM" || !event.value.type.startsWith("aaf.tool.")) return null
   const { data } = event.value
-  const name = dataText(data, "toolName") ?? "受控工具"
-  const id = dataText(data, "toolCallId") ?? name
-  return { id, name, status: event.value.status }
+  const toolName = dataText(data, "toolName") ?? "受控工具"
+  const id = dataText(data, "toolCallId") ?? toolName
+  return {
+    id,
+    name: copywritingToolLabel(toolName),
+    status: copywritingToolStatus(toolName, event.value.status)
+  }
 }
 
 export interface DraftArtifact {
@@ -258,13 +359,17 @@ function aafEventSummary(event: AafAiTaskEvent): {
   summary: string
 } {
   if (event.type === "aaf.task.started") return { kind: "phase", summary: "执行已开始" }
-  if (event.type === "aaf.task.completed") return { kind: "phase", summary: "执行已安全完成" }
+  if (event.type === "aaf.task.completed") return { kind: "phase", summary: "执行已完成" }
   if (event.type === "aaf.task.failed") return { kind: "phase", summary: "执行失败" }
-  if (event.type === "aaf.task.paused") return { kind: "phase", summary: "执行已持久化暂停" }
+  if (event.type === "aaf.task.paused") return { kind: "phase", summary: "执行已暂停" }
   if (event.type === "aaf.task.canceled") return { kind: "phase", summary: "执行已取消" }
+  if (event.type === "aaf.run.started") return { kind: "phase", summary: "开始生成内容" }
+  if (event.type === "aaf.run.completed") {
+    return { kind: "phase", summary: "内容生成完成，正在确认结果" }
+  }
   if (event.type === "aaf.authorization.requested") {
     const tool = dataText(event.data, "toolName") ?? "受控工具"
-    return { kind: "safety", summary: `${tool} 等待用户授权` }
+    return { kind: "safety", summary: `${copywritingToolLabel(tool)} 等待用户授权` }
   }
   if (event.type === "aaf.authorization.granted") {
     return { kind: "safety", summary: "工具授权已批准，正在恢复执行" }
@@ -274,23 +379,23 @@ function aafEventSummary(event: AafAiTaskEvent): {
   }
   if (event.type === "aaf.task.rejected") return { kind: "phase", summary: "命令已被拒绝" }
   if (event.type === "aaf.message.progress") {
-    return { kind: "message", summary: "正在接收安全输出" }
+    return { kind: "message", summary: "正在接收输出" }
   }
   if (event.type === "aaf.message.completed") {
-    return { kind: "message", summary: "安全输出已完成" }
+    return { kind: "message", summary: "输出已完成" }
   }
   if (event.type === "aaf.task.status_changed") {
     const task = dataText(event.data, "stage", "phase", "summaryCode") ?? "执行任务"
-    return { kind: "safety", summary: `${task}：${event.status}` }
+    return { kind: "phase", summary: `${task}：${event.status}` }
   }
   if (event.type.startsWith("aaf.tool.")) {
     const tool = dataText(event.data, "toolName") ?? "受控工具"
-    return { kind: "tool", summary: `${tool}：${event.status}` }
+    return { kind: "tool", summary: copywritingToolSummary(tool, event.status) }
   }
   if (event.type === "aaf.recovery.started") {
     return { kind: "phase", summary: "授权已确认，正在恢复执行" }
   }
-  return { kind: "safety", summary: `安全阶段：${event.type}` }
+  return { kind: "phase", summary: event.type }
 }
 
 function safeEventSummary(event: AssistantAgUiEvent): {
@@ -307,35 +412,47 @@ function safeEventSummary(event: AssistantAgUiEvent): {
   if (event.type === "RUN_FINISHED") {
     return event.interrupts.length > 0
       ? { kind: "safety", summary: "等待用户授权" }
-      : { kind: "phase", summary: "执行已安全完成" }
+      : { kind: "phase", summary: "执行已完成" }
   }
   if (event.type === "RUN_ERROR") return { kind: "phase", summary: "执行失败" }
+  if (event.type === "TEXT_MESSAGE_START") {
+    return { kind: "message", summary: "开始接收输出" }
+  }
   if (event.type === "TEXT_MESSAGE_CONTENT") {
-    return { kind: "message", summary: "正在接收安全输出" }
+    return { kind: "message", summary: "正在接收输出" }
   }
   if (event.type === "TEXT_MESSAGE_END") {
-    return { kind: "message", summary: "安全输出已完成" }
+    return { kind: "message", summary: "输出已完成" }
   }
   if (event.type === "TOOL_CALL_START") {
-    return { kind: "tool", summary: `${event.toolCallName}：RUNNING` }
+    return { kind: "tool", summary: copywritingToolSummary(event.toolCallName, "RUNNING") }
   }
   if (event.type === "TOOL_CALL_RESULT") {
     const result = parseToolResultContent(event.content)
     const tool = dataText(result, "toolName") ?? "受控工具"
     const status = dataText(result, "resultState") ?? "COMPLETED"
-    return { kind: "tool", summary: `${tool}：${status}` }
+    return { kind: "tool", summary: copywritingToolSummary(tool, status) }
   }
   if (event.type === "CUSTOM") return aafEventSummary(event.value)
-  return { kind: "message", summary: "正在准备安全输出" }
+  return { kind: "message", summary: "正在准备输出" }
 }
 
 function eventStatus(event: AssistantAgUiEvent): string {
   if (isAssistantNodeEvent(event)) return event.status
-  if (event.type === "CUSTOM") return event.value.status
-  if (event.type === "RUN_STARTED") return "RUNNING"
+  if (event.type === "CUSTOM") {
+    if (event.value.type === "aaf.run.started") return "STARTED"
+    if (event.value.type === "aaf.message.progress") return "STREAMING"
+    if (event.value.type === "aaf.message.completed") return "COMPLETED"
+    if (event.value.type === "aaf.run.completed") return "VERIFYING"
+    return event.value.status
+  }
+  if (event.type === "RUN_STARTED") return "STARTED"
   if (event.type === "RUN_FINISHED")
     return event.interrupts.length > 0 ? "AWAITING_AUTHORIZATION" : "COMPLETED"
   if (event.type === "RUN_ERROR") return "FAILED"
+  if (event.type === "TEXT_MESSAGE_START") return "STARTED"
+  if (event.type === "TEXT_MESSAGE_CONTENT") return "STREAMING"
+  if (event.type === "TEXT_MESSAGE_END") return "COMPLETED"
   if (event.type === "TOOL_CALL_START") return "RUNNING"
   if (event.type === "TOOL_CALL_RESULT") {
     return dataText(parseToolResultContent(event.content), "resultState") ?? "COMPLETED"
@@ -361,7 +478,7 @@ export function useCopywriting() {
   const prompt = useAigcStore((state) => state.copywritingPrompt)
   const setPrompt = useAigcStore((state) => state.setCopywritingPrompt)
   const content = useAigcStore((state) => state.copywritingContent)
-  const setContent = useAigcStore((state) => state.setCopywritingContent)
+  const setStoredContent = useAigcStore((state) => state.setCopywritingContent)
   const storedDocumentId = useAigcStore((state) => state.copywritingDocumentId)
   const storedDocumentVersionId = useAigcStore((state) => state.copywritingDocumentVersionId)
   const generating = useAigcStore((state) => state.copywritingGenerating)
@@ -385,8 +502,13 @@ export function useCopywriting() {
   const [pendingApproval, setPendingApproval] = useState<AssistantInterrupt | null>(null)
   const [approvalFeedback, setApprovalFeedback] = useState("")
   const [approvalLoading, setApprovalLoading] = useState(false)
+  const createDocument = useCreateDocument()
+  const updateDocument = useUpdateDocument()
+  const manualSaveNeeded = useBoolean(false)
+  const manualSavePending = createDocument.isPending || updateDocument.isPending
   const threadIdRef = useRef<string | null>(null)
-  const draftSaveStartedRef = useRef(false)
+  const currentRunArtifactRef = useRef<DraftArtifact | null>(null)
+  const draftContentByToolCallRef = useRef<Map<string, string>>(new Map())
   const streamingEditorRef = useRef<StreamingEditorHandle>(null)
 
   const [viralStep, setViralStep] = useState<1 | 2 | 3>(1)
@@ -417,7 +539,9 @@ export function useCopywriting() {
     setPendingApproval(null)
     setApprovalFeedback("")
     threadIdRef.current = null
-    draftSaveStartedRef.current = false
+    currentRunArtifactRef.current = null
+    draftContentByToolCallRef.current.clear()
+    manualSaveNeeded.onFalse()
     setToolCalls([])
     setNodeOutputs([])
     setProcessEntries([
@@ -496,9 +620,11 @@ export function useCopywriting() {
     const artifact = assistantDraftArtifact(event)
     // 内部节点的草稿只记在节点上，不覆盖页面当前文档
     if (artifact !== null && scopeKey !== null && nodeEvent === null) {
+      currentRunArtifactRef.current = artifact
       useAigcStore
         .getState()
         .setCopywritingPersistedDocument(scopeKey, artifact.documentId, artifact.documentVersionId)
+      manualSaveNeeded.onFalse()
     }
     if (event.type === "RUN_STARTED") setPhase("running")
     if (event.type === "RUN_FINISHED" && event.interrupts.length === 0) setPhase("success")
@@ -526,21 +652,59 @@ export function useCopywriting() {
         createdAt: new Date().toISOString()
       })
     } else {
-      beginExecution("正在准备安全执行上下文")
+      beginExecution("正在准备执行上下文")
     }
     editor?.start()
-    let streamContent: CopywritingStreamContent = {
-      text: "",
-      draftSaveStarted: draftSaveStartedRef.current
-    }
+    let streamContent: CopywritingStreamContent = { text: "", messageId: null }
+    let draftPreviewContent = latestCopywritingDraftPreviewContent(
+      draftContentByToolCallRef.current
+    )
 
     await start({
       onEvent: (event) => {
+        const draftPreview = copywritingDraftPreviewEvent(event)
+        const startsNewMessage =
+          draftPreviewContent === null &&
+          (event.type === "TEXT_MESSAGE_START" || event.type === "TEXT_MESSAGE_CONTENT") &&
+          event.messageId !== streamContent.messageId
+        if (startsNewMessage) editor?.start()
         const previous = streamContent
         streamContent = reduceCopywritingStreamContent(streamContent, event)
-        draftSaveStartedRef.current = streamContent.draftSaveStarted
         recordEvent(event)
-        if (event.type === "TEXT_MESSAGE_CONTENT" && streamContent.text !== previous.text) {
+
+        if (draftPreview !== null) {
+          const previousPreview = draftContentByToolCallRef.current.get(draftPreview.toolCallId)
+          if (draftPreview.kind === "completed" && previousPreview === undefined) return
+
+          const nextPreview =
+            draftPreview.kind === "progress"
+              ? (previousPreview ?? "") + draftPreview.contentDelta
+              : (previousPreview ?? "")
+          if (draftPreview.kind === "progress") {
+            draftContentByToolCallRef.current.set(draftPreview.toolCallId, nextPreview)
+          }
+
+          const startsDraftPreview = draftPreviewContent === null
+          draftPreviewContent = nextPreview
+          if (startsDraftPreview) editor?.start()
+          success(nextPreview)
+
+          if (draftPreview.kind === "progress") {
+            editor?.push(startsDraftPreview ? nextPreview : draftPreview.contentDelta)
+          } else {
+            editor?.done(nextPreview)
+            if (currentRunArtifactRef.current === null) {
+              manualSaveNeeded.setValue(nextPreview.trim().length > 0)
+            }
+          }
+          return
+        }
+
+        if (
+          draftPreviewContent === null &&
+          event.type === "TEXT_MESSAGE_CONTENT" &&
+          streamContent.text !== previous.text
+        ) {
           success(streamContent.text)
           editor?.push(event.delta)
         }
@@ -549,8 +713,15 @@ export function useCopywriting() {
         threadIdRef.current = session.threadId
       },
       onDone: (event) => {
-        const finalContent = resolveCopywritingStreamContent(streamContent, fallbackContent)
+        const finalContent = resolveCopywritingDisplayContent(
+          draftPreviewContent,
+          streamContent,
+          fallbackContent
+        )
         if (event.interrupts.length > 0) {
+          if (currentRunArtifactRef.current === null) {
+            manualSaveNeeded.setValue(finalContent.trim().length > 0)
+          }
           // 只有 tool_call 是受控工具授权；input_required 等澄清类 interrupt 本页没有对应表单，
           // 不能按授权展示（批准 / 拒绝的载荷与澄清恢复协议不匹配）
           const authorization = event.interrupts.find((item) => item.reason === "tool_call")
@@ -580,12 +751,22 @@ export function useCopywriting() {
         setPendingApproval(null)
         success(finalContent)
         editor?.done(finalContent)
+        if (currentRunArtifactRef.current === null) {
+          manualSaveNeeded.setValue(finalContent.trim().length > 0)
+        }
         setPhase("success")
       },
       onError: (error) => {
-        const finalContent = resolveCopywritingStreamContent(streamContent, fallbackContent)
+        const finalContent = resolveCopywritingDisplayContent(
+          draftPreviewContent,
+          streamContent,
+          fallbackContent
+        )
         success(finalContent)
         editor?.done(finalContent)
+        if (currentRunArtifactRef.current === null) {
+          manualSaveNeeded.setValue(finalContent.trim().length > 0)
+        }
         setPhase("error")
         appendProcessEntry({
           id: `error-${Date.now()}`,
@@ -635,7 +816,7 @@ export function useCopywriting() {
           ),
         editor: streamingEditorRef.current,
         fallbackContent: content,
-        success: setContent,
+        success: setStoredContent,
         errorMessage: approved ? "授权后恢复执行失败" : "拒绝授权后恢复执行失败",
         continuation: true
       })
@@ -648,6 +829,58 @@ export function useCopywriting() {
     } finally {
       useAigcStore.getState().setCopywritingGenerating(false)
       setApprovalLoading(false)
+    }
+  }
+
+  function handleContentChange(nextContent: string) {
+    setStoredContent(nextContent)
+    manualSaveNeeded.setValue(nextContent.trim().length > 0)
+  }
+
+  async function handleManualSave() {
+    if (generating || manualSavePending || scopeKey === null) return
+    const state = useAigcStore.getState()
+    const draftContent = state.copywritingContent
+    if (!draftContent.trim()) {
+      toast.warning("暂无可保存的文案")
+      return
+    }
+
+    try {
+      const title = copywritingDraftTitle(draftContent, state.copywritingPrompt)
+      let saved: DraftArtifact
+      if (documentId !== null && documentVersionId !== null) {
+        const updated = await updateDocument.mutateAsync({
+          id: documentId,
+          title,
+          content: draftContent,
+          expectedCurrentVersionId: documentVersionId,
+          changeSummary: "手动保存生成文案"
+        })
+        saved = { documentId: updated.id, documentVersionId: updated.currentVersionId }
+      } else {
+        const created = await createDocument.mutateAsync({
+          title,
+          content: draftContent,
+          docType: "copywriting",
+          publish: "draft"
+        })
+        if (created.id === null || created.currentVersionId === null) {
+          throw new Error("保存草稿未返回有效文档版本")
+        }
+        saved = { documentId: created.id, documentVersionId: created.currentVersionId }
+      }
+      currentRunArtifactRef.current = saved
+      state.setCopywritingPersistedDocument(
+        scopeKey,
+        saved.documentId,
+        saved.documentVersionId
+      )
+      manualSaveNeeded.onFalse()
+      toast.success("草稿已保存")
+    } catch (error) {
+      manualSaveNeeded.onTrue()
+      toast.error(error instanceof Error ? error.message : "保存草稿失败")
     }
   }
 
@@ -678,7 +911,7 @@ export function useCopywriting() {
           ),
         editor: streamingEditorRef.current,
         fallbackContent: previousContent,
-        success: setContent,
+        success: setStoredContent,
         errorMessage: "生成失败"
       })
     } finally {
@@ -707,7 +940,7 @@ export function useCopywriting() {
           ),
         editor: streamingEditorRef.current,
         fallbackContent: original,
-        success: setContent,
+        success: setStoredContent,
         errorMessage: "改写失败"
       })
     } finally {
@@ -765,7 +998,7 @@ export function useCopywriting() {
           ),
         editor: resultEditorRef.current,
         fallbackContent: previousContent,
-        success: setContent,
+        success: setStoredContent,
         errorMessage: "生成失败"
       })
     } finally {
@@ -777,7 +1010,7 @@ export function useCopywriting() {
     if (useAigcStore.getState().copywritingGenerating || scopeKey === null) return
     useAigcStore.getState().setCopywritingPersistedDocument(scopeKey, null, null)
     setPrompt("")
-    setContent("")
+    setStoredContent("")
     setViralSource("")
     setViralAnalysis("")
     setViralStep(1)
@@ -788,16 +1021,21 @@ export function useCopywriting() {
     setNodeOutputs([])
     setToolCalls([])
     threadIdRef.current = null
-    draftSaveStartedRef.current = false
+    currentRunArtifactRef.current = null
+    draftContentByToolCallRef.current.clear()
+    manualSaveNeeded.onFalse()
   }
 
   return {
     prompt,
     setPrompt,
     content,
-    setContent,
+    setContent: handleContentChange,
     generating,
     documentId,
+    needsManualSave: manualSaveNeeded.value,
+    manualSavePending,
+    handleManualSave,
     phase,
     pendingApproval,
     approvalFeedback,

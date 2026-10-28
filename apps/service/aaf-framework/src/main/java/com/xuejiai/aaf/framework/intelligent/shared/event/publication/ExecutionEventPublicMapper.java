@@ -13,7 +13,12 @@ import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
 import com.xuejiai.aaf.framework.intelligent.shared.event.publication.AafAiTaskEvent.Delivery;
 import com.xuejiai.aaf.framework.intelligent.shared.event.publication.AafAiTaskEvent.ReferenceSafeData;
 
-/** 执行事实的唯一公共脱敏映射器；绝不透传内部 payload。 */
+/**
+ * 执行事实的唯一公共脱敏映射器；绝不透传内部 payload。
+ *
+ * <p>{@code content.draft.upsert} 的 {@code contentDelta} 仅在精确白名单工具、预览类型和参数事件匹配时公开；该字段是 live-only
+ * 的已解码正文预览，非原始工具参数。
+ */
 @Component
 public final class ExecutionEventPublicMapper {
 
@@ -141,6 +146,8 @@ public final class ExecutionEventPublicMapper {
                 copyPositiveLong(source, safe, "artifactVersionId");
                 copyBoolean(source, safe, "reversible");
             }
+            case TOOL_CALL_ARGS_DELTA, TOOL_CALL_ARGS_COMPLETED ->
+                    copyContentDraftPreview(event.type(), source, safe);
             case AUTHORIZATION_REQUESTED,
                     AUTHORIZATION_GRANTED,
                     AUTHORIZATION_DENIED,
@@ -192,6 +199,37 @@ public final class ExecutionEventPublicMapper {
             }
         }
         return safe;
+    }
+
+    private static void copyContentDraftPreview(
+            ExecutionEventType eventType, Map<String, Object> source, Map<String, Object> target) {
+        if (!"content.draft.upsert".equals(source.get("toolName"))
+                || !"CONTENT_DRAFT".equals(source.get("previewKind"))) {
+            return;
+        }
+        var previewValue =
+                switch (eventType) {
+                    case TOOL_CALL_ARGS_DELTA ->
+                            source.get("contentDelta") instanceof String contentDelta
+                                    ? contentDelta
+                                    : null;
+                    case TOOL_CALL_ARGS_COMPLETED ->
+                            Boolean.TRUE.equals(source.get("contentPreviewCompleted"))
+                                    ? Boolean.TRUE
+                                    : null;
+                    default -> null;
+                };
+        if (previewValue == null) {
+            return;
+        }
+        copyText(source, target, "toolCallId");
+        copyText(source, target, "toolName");
+        target.put("previewKind", "CONTENT_DRAFT");
+        if (previewValue instanceof String contentDelta) {
+            target.put("contentDelta", contentDelta);
+        } else {
+            target.put("contentPreviewCompleted", true);
+        }
     }
 
     private static void copyText(

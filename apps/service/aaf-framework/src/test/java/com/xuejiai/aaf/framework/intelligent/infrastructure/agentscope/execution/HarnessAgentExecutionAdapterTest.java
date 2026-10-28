@@ -471,6 +471,7 @@ class HarnessAgentExecutionAdapterTest extends BaseMockitoUnitTest {
                                         "验证临时生命周期",
                                         SkillScope.SYSTEM,
                                         SkillActivationMode.ON_DEMAND,
+                                        skillVersion,
                                         List.of(),
                                         Set.of(),
                                         Set.of())));

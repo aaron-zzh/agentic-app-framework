@@ -3051,11 +3051,14 @@ public class JpaTaskMaterializationAdapter implements TaskMaterializationPort {
         if (!TaskPlan.PlanStatus.FROZEN.name().equals(plan.getStatus())) {
             return "current plan is not frozen";
         }
-        if (value(task.getRuntimeLockVersion()) != command.expectedTaskVersion()
-                || value(plan.getRuntimeLockVersion()) != command.expectedPlanVersion()
-                || value(node.getRuntimeLockVersion()) != command.expectedNodeVersion()
-                || value(execution.getRuntimeLockVersion()) != command.expectedExecutionVersion()) {
-            return "aggregate version changed";
+        // Task 预算与 Execution 副作用轨迹会在同一有效 dispatch 内持续更新并递增版本，
+        // 不能拿 claim 时版本拒绝最终提交；陈旧 worker 由当前 plan/node、execution 状态与 dispatch fence 阻断。
+        if (value(plan.getRuntimeLockVersion()) != command.expectedPlanVersion()
+                || value(node.getRuntimeLockVersion()) != command.expectedNodeVersion()) {
+            return "plan/node version changed";
+        }
+        if (execution.getExecution().status() != Execution.Status.RUNNING) {
+            return "execution status changed";
         }
         if (dispatch == null) {
             return "active dispatch missing";

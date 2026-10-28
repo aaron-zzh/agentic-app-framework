@@ -14,11 +14,13 @@ import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolI
 import com.xuejiai.aaf.module.document.api.DocumentDraftApi;
 import com.xuejiai.aaf.module.document.api.DocumentDraftApi.DraftUpsertCommand;
 
+import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 /** 将 Assistant 规范 Markdown 产物保存为数据库草稿；永不发布。 */
 @Component
+@Slf4j
 public final class ContentDraftUpsertToolHandler implements ContextAwareToolHandler {
 
     public static final String TOOL_NAME = "content.draft.upsert";
@@ -73,13 +75,53 @@ public final class ContentDraftUpsertToolHandler implements ContextAwareToolHand
                                 "description",
                                 "规范 Markdown 正文"),
                         "documentType",
-                        Map.of("type", "string", "maxLength", 50, "default", "markdown")));
+                        Map.of("type", "string", "maxLength", 50, "default", "copywriting")));
     }
 
     @Override
     public Mono<ToolInvocationResult> invoke(ToolInvocation invocation) {
         Objects.requireNonNull(invocation, "invocation 不能为空");
-        return Mono.fromCallable(() -> save(invocation)).subscribeOn(Schedulers.boundedElastic());
+        var context = invocation.context();
+        var target = context.artifactTarget();
+        var taskId = context.taskId() == null ? null : context.taskId().value();
+        var targetDocumentId = target == null ? null : target.artifactId();
+        var targetDocumentVersionId = target == null ? null : target.artifactVersionId();
+        return Mono.fromCallable(() -> save(invocation))
+                .subscribeOn(Schedulers.boundedElastic())
+                .doOnSubscribe(
+                        ignored ->
+                                log.info(
+                                        "[ContentDraft] stage=draft_save_started executionId={} taskId={} "
+                                                + "toolCallId={} documentId={} documentVersionId={}",
+                                        context.executionId().value(),
+                                        taskId,
+                                        invocation.toolCallId(),
+                                        targetDocumentId,
+                                        targetDocumentVersionId))
+                .doOnSuccess(
+                        result ->
+                                log.info(
+                                        "[ContentDraft] stage=draft_save_succeeded executionId={} taskId={} "
+                                                + "toolCallId={} documentId={} documentVersionId={}",
+                                        context.executionId().value(),
+                                        taskId,
+                                        invocation.toolCallId(),
+                                        result.metadata().get("artifactId"),
+                                        result.metadata().get("artifactVersionId")))
+                .doOnError(
+                        failure ->
+                                log.warn(
+                                        "[ContentDraft] stage=draft_save_failed executionId={} taskId={} "
+                                                + "toolCallId={} documentId={} documentVersionId={} "
+                                                + "errorType={} errorMessage={}",
+                                        context.executionId().value(),
+                                        taskId,
+                                        invocation.toolCallId(),
+                                        targetDocumentId,
+                                        targetDocumentVersionId,
+                                        failure.getClass().getSimpleName(),
+                                        failure.getMessage(),
+                                        failure));
     }
 
     private ToolInvocationResult save(ToolInvocation invocation) {
@@ -105,7 +147,7 @@ public final class ContentDraftUpsertToolHandler implements ContextAwareToolHand
                                 expectedCurrentVersionId,
                                 text(arguments, "title", 200),
                                 text(arguments, "content", 1_000_000),
-                                optionalText(arguments, "documentType", 50, "markdown"),
+                                optionalText(arguments, "documentType", 50, "copywriting"),
                                 ownerId,
                                 orgId,
                                 context.workspaceId()));

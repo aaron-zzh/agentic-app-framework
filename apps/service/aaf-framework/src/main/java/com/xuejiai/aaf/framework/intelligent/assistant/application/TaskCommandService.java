@@ -593,6 +593,9 @@ public final class TaskCommandService {
         var failure = new AtomicReference<String>();
         var completed = new AtomicBoolean();
         var delegated = new AtomicBoolean();
+        var draftToolCallId = new AtomicReference<String>();
+        var documentId = new AtomicReference<String>();
+        var documentVersionId = new AtomicReference<String>();
         // 强制委派（DECOMPOSE_REQUIRED）的协调者必须成功提交 delegate_agents，否则按节点失败收口并走既有重试
         var delegationRequired =
                 command.nodeIdentity() != null
@@ -614,12 +617,30 @@ public final class TaskCommandService {
                                             event.payload().values().get("toolName"))) {
                                 delegated.set(true);
                             }
+                            if (event.type() == ExecutionEventType.TOOL_CALL_COMPLETED
+                                    && CONTENT_DRAFT_UPSERT_ACTION.equals(
+                                            event.payload().values().get("toolName"))) {
+                                draftToolCallId.set(
+                                        Objects.toString(
+                                                event.payload().values().get("toolCallId"), null));
+                                documentId.set(
+                                        Objects.toString(
+                                                event.payload().values().get("artifactId"), null));
+                                documentVersionId.set(
+                                        Objects.toString(
+                                                event.payload().values().get("artifactVersionId"),
+                                                null));
+                            }
                             if (event.type() == ExecutionEventType.EXECUTION_COMPLETED) {
                                 completed.set(true);
                             }
                             if (event.type() == ExecutionEventType.EXECUTION_FAILED
                                     || event.type() == ExecutionEventType.COMMAND_REJECTED) {
-                                failure.compareAndSet(null, "TaskNode execution failed");
+                                failure.compareAndSet(
+                                        null,
+                                        Objects.toString(
+                                                event.payload().values().get("reason"),
+                                                "TaskNode execution failed"));
                             }
                         })
                 .onErrorResume(
@@ -665,6 +686,21 @@ public final class TaskCommandService {
                                                             result.get(),
                                                             terminalFailure,
                                                             clock.instant()));
+                                    log.info(
+                                            "[TaskMaterialization] stage=task_node_commit executionId={} "
+                                                    + "taskId={} nodeId={} accepted={} failure={} "
+                                                    + "rejectionReason={} releasedDispatchCount={} "
+                                                    + "toolCallId={} documentId={} documentVersionId={}",
+                                            command.executionId().value(),
+                                            command.taskId().value(),
+                                            claimed.node().nodeId(),
+                                            commit.accepted(),
+                                            terminalFailure,
+                                            commit.rejectionReason(),
+                                            commit.releasedDispatches().size(),
+                                            draftToolCallId.get(),
+                                            documentId.get(),
+                                            documentVersionId.get());
                                     commit.releasedDispatches().forEach(this::signal);
                                     return Flux.empty();
                                 }));
@@ -749,7 +785,7 @@ public final class TaskCommandService {
         var grantId =
                 "initial-task-grant-"
                         + UUID.nameUUIDFromBytes(grantIdentity.getBytes(StandardCharsets.UTF_8));
-        return List.of(
+        var grant =
                 new AuthorizationGrant(
                         grantId,
                         task.tenantId(),
@@ -763,7 +799,16 @@ public final class TaskCommandService {
                         null,
                         task.userId().value(),
                         at,
-                        null));
+                        null);
+        log.info(
+                "[AssistantExecution] stage=auto_save_grant_created executionId={} taskId={} "
+                        + "grantId={} action={} expiresAt={}",
+                command.executionId().value(),
+                task.taskId().value(),
+                grantId,
+                CONTENT_DRAFT_UPSERT_ACTION,
+                expiresAt);
+        return List.of(grant);
     }
 
     private void signal(MaterializedDispatch dispatch) {

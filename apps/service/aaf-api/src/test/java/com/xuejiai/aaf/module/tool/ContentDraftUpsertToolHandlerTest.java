@@ -91,8 +91,7 @@ class ContentDraftUpsertToolHandlerTest extends BaseMockitoUnitTest {
                                 invocation(
                                         Map.of(
                                                 "title", "测试文案",
-                                                "content", "# Markdown",
-                                                "documentType", "copywriting")))
+                                                "content", "# Markdown")))
                         .block();
 
         var command = ArgumentCaptor.forClass(DraftUpsertCommand.class);
@@ -101,8 +100,9 @@ class ContentDraftUpsertToolHandlerTest extends BaseMockitoUnitTest {
                 .extracting(
                         DraftUpsertCommand::ownerId,
                         DraftUpsertCommand::orgId,
-                        DraftUpsertCommand::workspaceId)
-                .containsExactly(7L, 9L, 11L);
+                        DraftUpsertCommand::workspaceId,
+                        DraftUpsertCommand::documentType)
+                .containsExactly(7L, 9L, 11L, "copywriting");
         assertThat(result).isNotNull();
         assertThat(result.metadata())
                 .containsEntry("artifactState", "DRAFT")

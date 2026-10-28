@@ -797,9 +797,7 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                 null,
                 0,
                 spec.input(),
-                spec.executionIntent().autoSaveDraft()
-                        ? CompletionCriteria.reversibleDraftCreated()
-                        : CompletionCriteria.responseDelivered(),
+                CompletionCriteria.responseDelivered(),
                 contextCandidates,
                 spec.modelSelection(),
                 invocationProfile,

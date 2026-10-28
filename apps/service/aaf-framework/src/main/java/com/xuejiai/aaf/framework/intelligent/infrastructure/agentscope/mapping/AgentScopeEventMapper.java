@@ -1,13 +1,17 @@
 package com.xuejiai.aaf.framework.intelligent.infrastructure.agentscope.mapping;
 
 import java.time.Instant;
+import java.util.ArrayDeque;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 import com.xuejiai.aaf.framework.intelligent.agent.model.AgentExecutionCommand;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelSpec;
@@ -50,11 +54,15 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 将 AgentScope 运行事件收敛为稳定、脱敏的 AAF 事件。
  *
- * <p>AgentScope 侧有 20+ 类型化事件，AAF 只保留对外契约需要的子集；思考链、工具入参、 原始错误信息不出边界。工具业务证据从 {@link
- * ToolResultEvidenceStore} 取回后按白名单合并。
+ * <p>AgentScope 侧有 20+ 类型化事件，AAF 只保留对外契约需要的子集；思考链、工具入参、 原始错误信息不出边界。{@code content.draft.upsert} 的
+ * {@code contentDelta} 是仅实时传递的白名单正文预览，已从 JSON 参数解码，不是原始工具参数。工具业务证据从 {@link ToolResultEvidenceStore}
+ * 取回后按白名单合并。
  */
 @Slf4j
 public final class AgentScopeEventMapper {
+
+    private static final String CONTENT_DRAFT_UPSERT_TOOL = "content.draft.upsert";
+    private static final String CONTENT_DRAFT_PREVIEW_KIND = "CONTENT_DRAFT";
 
     private final ToolResultEvidenceStore evidenceStore;
 
@@ -465,10 +473,9 @@ public final class AgentScopeEventMapper {
     }
 
     /**
-     * 工具调用入参流式增量：只落长度不落原始 JSON 片段。
+     * 工具调用入参流式增量：默认只落长度；content.draft.upsert 仅提取顶层 content 字符串的已解码预览。
      *
-     * <p>入参可能携带模型从上下文摘取的业务敏感字段值，与 {@link #mapToolStart} 排除入参出边界的理由相同；按 schema 脱敏后再逐片透出留给 AAF-104
-     * #10403 的 AG-UI 投影层决定，本层只保证身份与长度可追踪。
+     * <p>解析器从不保留完整工具入参，且只为精确白名单工具建立状态。其它工具不读取、不缓存其原始参数。
      */
     private Optional<ExecutionEvent> mapToolCallDelta(
             ToolCallDeltaEvent source,
@@ -476,6 +483,38 @@ public final class AgentScopeEventMapper {
             String agentIdentifier,
             MappingState state) {
         var delta = source.getDelta();
+        var contentDelta =
+                CONTENT_DRAFT_UPSERT_TOOL.equals(source.getToolCallName())
+                        ? state.acceptContentDraftDelta(source.getToolCallId(), delta)
+                        : Optional.<String>empty();
+        var payload =
+                contentDelta
+                        .<ExecutionEventPayload>map(
+                                decoded ->
+                                        payload(
+                                                "replyId",
+                                                source.getReplyId(),
+                                                "toolCallId",
+                                                source.getToolCallId(),
+                                                "toolName",
+                                                source.getToolCallName(),
+                                                "previewKind",
+                                                CONTENT_DRAFT_PREVIEW_KIND,
+                                                "contentDelta",
+                                                decoded))
+                        .orElseGet(
+                                () ->
+                                        payload(
+                                                "replyId",
+                                                source.getReplyId(),
+                                                "toolCallId",
+                                                source.getToolCallId(),
+                                                "toolName",
+                                                source.getToolCallName(),
+                                                "deltaLength",
+                                                delta == null
+                                                        ? 0
+                                                        : delta.codePointCount(0, delta.length())));
         return event(
                 source,
                 command,
@@ -483,23 +522,38 @@ public final class AgentScopeEventMapper {
                 state,
                 ExecutionEventType.TOOL_CALL_ARGS_DELTA,
                 state.status(),
-                payload(
-                        "replyId",
-                        source.getReplyId(),
-                        "toolCallId",
-                        source.getToolCallId(),
-                        "toolName",
-                        source.getToolCallName(),
-                        "deltaLength",
-                        delta == null ? 0 : delta.codePointCount(0, delta.length())));
+                payload);
     }
 
-    /** 工具调用入参流结束：区别于 {@code TOOL_CALL_COMPLETED}（工具执行结果成功），本事件只表示入参已拼齐。 */
+    /** 工具调用入参流结束：仅完整、有效的 content 草稿预览附带完成标记。 */
     private Optional<ExecutionEvent> mapToolCallEnd(
             ToolCallEndEvent source,
             AgentExecutionCommand command,
             String agentIdentifier,
             MappingState state) {
+        var previewCompleted =
+                CONTENT_DRAFT_UPSERT_TOOL.equals(source.getToolCallName())
+                        && state.finishContentDraftPreview(source.getToolCallId());
+        var payload =
+                previewCompleted
+                        ? payload(
+                                "replyId",
+                                source.getReplyId(),
+                                "toolCallId",
+                                source.getToolCallId(),
+                                "toolName",
+                                source.getToolCallName(),
+                                "previewKind",
+                                CONTENT_DRAFT_PREVIEW_KIND,
+                                "contentPreviewCompleted",
+                                true)
+                        : payload(
+                                "replyId",
+                                source.getReplyId(),
+                                "toolCallId",
+                                source.getToolCallId(),
+                                "toolName",
+                                source.getToolCallName());
         return event(
                 source,
                 command,
@@ -507,13 +561,7 @@ public final class AgentScopeEventMapper {
                 state,
                 ExecutionEventType.TOOL_CALL_ARGS_COMPLETED,
                 state.status(),
-                payload(
-                        "replyId",
-                        source.getReplyId(),
-                        "toolCallId",
-                        source.getToolCallId(),
-                        "toolName",
-                        source.getToolCallName()));
+                payload);
     }
 
     /** 工具开始执行：入参已确定、结果尚未返回的中间态，供前端展示"执行中"。 */
@@ -819,17 +867,351 @@ public final class AgentScopeEventMapper {
         return UUID.randomUUID().toString().replace("-", "");
     }
 
-    /** 单个运行流内的序列和生命周期快照。逐事件推进状态机，供后续事件复用当前状态。 */
+    /**
+     * 仅为 content.draft.upsert 提取顶层 content 字符串的流式 JSON 解析器。
+     *
+     * <p>不累积完整 JSON 或其它字段值；输入、解码内容均限制为一百万字符。解析失败只关闭预览，不干预 AgentScope 后续按完整 ToolCallParam.input
+     * 执行的权威工具调用。
+     */
+    private static final class ContentDraftPreviewParser {
+        private static final int MAX_CHARACTERS = 1_000_000;
+
+        private State state = State.ROOT_START;
+        private final StringBuilder key = new StringBuilder();
+        private final JsonStringDecoder stringDecoder = new JsonStringDecoder();
+        private final ArrayDeque<Character> compositeClosures = new ArrayDeque<>();
+        private String currentKey;
+        private int inputCharacters;
+        private int contentCharacters;
+        private boolean contentSeen;
+        private boolean contentComplete;
+        private boolean failed;
+        private StringBuilder currentPreview;
+
+        Optional<String> accept(String chunk) {
+            if (failed || chunk == null || chunk.isEmpty()) {
+                return Optional.empty();
+            }
+            if ((long) inputCharacters + chunk.length() > MAX_CHARACTERS) {
+                fail();
+                return Optional.empty();
+            }
+            inputCharacters += chunk.length();
+            currentPreview = new StringBuilder();
+            for (var index = 0; index < chunk.length() && !failed; index++) {
+                consume(chunk.charAt(index));
+            }
+            if (failed) {
+                currentPreview = null;
+                return Optional.empty();
+            }
+            var preview = currentPreview.toString();
+            currentPreview = null;
+            return preview.isEmpty() ? Optional.empty() : Optional.of(preview);
+        }
+
+        boolean finish() {
+            if (failed || state != State.COMPLETED || !contentComplete) {
+                fail();
+                return false;
+            }
+            return true;
+        }
+
+        private void consume(char character) {
+            switch (state) {
+                case ROOT_START -> {
+                    if (Character.isWhitespace(character)) {
+                        return;
+                    }
+                    if (character == '{') {
+                        state = State.TOP_KEY_OR_END;
+                    } else {
+                        fail();
+                    }
+                }
+                case TOP_KEY_OR_END -> {
+                    if (Character.isWhitespace(character)) {
+                        return;
+                    }
+                    if (character == '}') {
+                        state = State.COMPLETED;
+                    } else if (character == '"') {
+                        key.setLength(0);
+                        stringDecoder.reset();
+                        state = State.TOP_KEY;
+                    } else {
+                        fail();
+                    }
+                }
+                case TOP_KEY -> consumeKeyCharacter(character);
+                case TOP_AFTER_KEY -> {
+                    if (Character.isWhitespace(character)) {
+                        return;
+                    }
+                    if (character == ':') {
+                        state = State.TOP_EXPECT_VALUE;
+                    } else {
+                        fail();
+                    }
+                }
+                case TOP_EXPECT_VALUE -> startValue(character);
+                case CONTENT_STRING -> consumeContentCharacter(character);
+                case SKIP_STRING -> consumeSkippedStringCharacter(character);
+                case SKIP_COMPOSITE -> consumeCompositeCharacter(character);
+                case SKIP_SCALAR -> {
+                    if (character == ',') {
+                        state = State.TOP_KEY_OR_END;
+                    } else if (character == '}') {
+                        state = State.COMPLETED;
+                    }
+                }
+                case AFTER_VALUE -> {
+                    if (Character.isWhitespace(character)) {
+                        return;
+                    }
+                    if (character == ',') {
+                        state = State.TOP_KEY_OR_END;
+                    } else if (character == '}') {
+                        state = State.COMPLETED;
+                    } else {
+                        fail();
+                    }
+                }
+                case COMPLETED -> {
+                    if (!Character.isWhitespace(character)) {
+                        fail();
+                    }
+                }
+                case FAILED -> {
+                    // 已关闭预览，不再解析后续工具参数。
+                }
+            }
+        }
+
+        private void consumeKeyCharacter(char character) {
+            if (character == '"' && stringDecoder.canClose()) {
+                stringDecoder.finish(key::append);
+                currentKey = key.toString();
+                state = State.TOP_AFTER_KEY;
+            } else if (!stringDecoder.accept(character, key::append)) {
+                fail();
+            }
+        }
+
+        private void startValue(char character) {
+            if (Character.isWhitespace(character)) {
+                return;
+            }
+            if ("content".equals(currentKey)) {
+                if (contentSeen || character != '"') {
+                    fail();
+                    return;
+                }
+                contentSeen = true;
+                stringDecoder.reset();
+                state = State.CONTENT_STRING;
+                return;
+            }
+            if (character == '"') {
+                stringDecoder.reset();
+                state = State.SKIP_STRING;
+            } else if (character == '{' || character == '[') {
+                compositeClosures.push(character == '{' ? '}' : ']');
+                state = State.SKIP_COMPOSITE;
+            } else {
+                state = State.SKIP_SCALAR;
+            }
+        }
+
+        private void consumeContentCharacter(char character) {
+            if (character == '"' && stringDecoder.canClose()) {
+                stringDecoder.finish(this::appendContent);
+                if (!failed) {
+                    contentComplete = true;
+                    state = State.AFTER_VALUE;
+                }
+            } else if (!stringDecoder.accept(character, this::appendContent)) {
+                fail();
+            }
+        }
+
+        private void consumeSkippedStringCharacter(char character) {
+            if (character == '"' && stringDecoder.canClose()) {
+                stringDecoder.finish(ignored -> {});
+                state = State.AFTER_VALUE;
+            } else if (!stringDecoder.accept(character, ignored -> {})) {
+                fail();
+            }
+        }
+
+        private void consumeCompositeCharacter(char character) {
+            if (stringDecoder.isActive()) {
+                if (character == '"' && stringDecoder.canClose()) {
+                    stringDecoder.finish(ignored -> {});
+                    stringDecoder.reset();
+                } else if (!stringDecoder.accept(character, ignored -> {})) {
+                    fail();
+                }
+                return;
+            }
+            if (character == '"') {
+                stringDecoder.reset();
+                stringDecoder.activate();
+            } else if (character == '{' || character == '[') {
+                compositeClosures.push(character == '{' ? '}' : ']');
+            } else if (character == '}' || character == ']') {
+                if (compositeClosures.isEmpty() || compositeClosures.pop() != character) {
+                    fail();
+                } else if (compositeClosures.isEmpty()) {
+                    state = State.AFTER_VALUE;
+                }
+            }
+        }
+
+        private void appendContent(String decoded) {
+            if (failed) {
+                return;
+            }
+            var decodedCharacters = decoded.codePointCount(0, decoded.length());
+            if ((long) contentCharacters + decodedCharacters > MAX_CHARACTERS) {
+                fail();
+                return;
+            }
+            contentCharacters += decodedCharacters;
+            currentPreview.append(decoded);
+        }
+
+        private void fail() {
+            failed = true;
+            state = State.FAILED;
+            currentKey = null;
+            key.setLength(0);
+            compositeClosures.clear();
+            currentPreview = null;
+        }
+
+        private enum State {
+            ROOT_START,
+            TOP_KEY_OR_END,
+            TOP_KEY,
+            TOP_AFTER_KEY,
+            TOP_EXPECT_VALUE,
+            CONTENT_STRING,
+            SKIP_STRING,
+            SKIP_COMPOSITE,
+            SKIP_SCALAR,
+            AFTER_VALUE,
+            COMPLETED,
+            FAILED
+        }
+    }
+
+    /** 跨 chunk 保持 JSON string 转义状态；仅将已解码字符交给调用方。 */
+    private static final class JsonStringDecoder {
+        private boolean escaping;
+        private int unicodeDigits;
+        private int unicodeValue;
+        private boolean active;
+
+        void reset() {
+            escaping = false;
+            unicodeDigits = 0;
+            unicodeValue = 0;
+            active = false;
+        }
+
+        void activate() {
+            active = true;
+        }
+
+        boolean isActive() {
+            return active;
+        }
+
+        boolean canClose() {
+            return !escaping && unicodeDigits == 0;
+        }
+
+        boolean accept(char character, Consumer<String> output) {
+            if (unicodeDigits > 0) {
+                var digit = Character.digit(character, 16);
+                if (digit < 0) {
+                    return false;
+                }
+                unicodeValue = (unicodeValue << 4) | digit;
+                unicodeDigits--;
+                if (unicodeDigits == 0) {
+                    output.accept(String.valueOf((char) unicodeValue));
+                    unicodeValue = 0;
+                }
+                return true;
+            }
+            if (escaping) {
+                escaping = false;
+                switch (character) {
+                    case '"' -> output.accept("\"");
+                    case '\\' -> output.accept("\\");
+                    case '/' -> output.accept("/");
+                    case 'b' -> output.accept("\b");
+                    case 'f' -> output.accept("\f");
+                    case 'n' -> output.accept("\n");
+                    case 'r' -> output.accept("\r");
+                    case 't' -> output.accept("\t");
+                    case 'u' -> unicodeDigits = 4;
+                    default -> {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            if (character == '\\') {
+                escaping = true;
+                return true;
+            }
+            if (character < 0x20) {
+                return false;
+            }
+            output.accept(String.valueOf(character));
+            return true;
+        }
+
+        void finish(Consumer<String> output) {
+            if (!canClose()) {
+                throw new IllegalStateException("JSON 字符串转义未完成");
+            }
+        }
+    }
+
+    /** 单个运行流内的序列、生命周期快照和 content 草稿的瞬态解析状态。 */
     public static final class MappingState {
         private final AtomicLong sequence;
         private final AtomicReference<ExecutionEventStatus> status =
                 new AtomicReference<>(ExecutionEventStatus.RUNNING);
+        private final Map<String, ContentDraftPreviewParser> contentDraftPreviews = new HashMap<>();
 
         public MappingState(long sequenceBase) {
             if (sequenceBase < 0) {
                 throw new IllegalArgumentException("sequenceBase 不能小于 0");
             }
             this.sequence = new AtomicLong(sequenceBase);
+        }
+
+        Optional<String> acceptContentDraftDelta(String toolCallId, String delta) {
+            if (toolCallId == null || toolCallId.isBlank()) {
+                return Optional.empty();
+            }
+            return contentDraftPreviews
+                    .computeIfAbsent(toolCallId, ignored -> new ContentDraftPreviewParser())
+                    .accept(delta);
+        }
+
+        boolean finishContentDraftPreview(String toolCallId) {
+            if (toolCallId == null || toolCallId.isBlank()) {
+                return false;
+            }
+            var preview = contentDraftPreviews.remove(toolCallId);
+            return preview != null && preview.finish();
         }
 
         /** 仅满足入库前事件契约；持久 sequence 由 ExecutionEventStorePort 数据库原子重分配。 */

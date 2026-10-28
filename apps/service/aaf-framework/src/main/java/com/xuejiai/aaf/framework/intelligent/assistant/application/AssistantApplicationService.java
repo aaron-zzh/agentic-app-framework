@@ -122,7 +122,6 @@ public final class AssistantApplicationService implements AssistantCommandPort {
     private final SystemSkillBindingPort systemSkillBindings;
     private final SkillCatalogPort skillCatalog;
     private final EffectiveSkillResolver effectiveSkillResolver;
-    private final SkillSelectionPort skillSelection;
     private final EffectiveToolResolver effectiveToolResolver;
     private final SkillDecisionAuditPort skillDecisionAudits;
     private final PromptAssembler promptAssembler;
@@ -149,7 +148,6 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             SystemSkillBindingPort systemSkillBindings,
             SkillCatalogPort skillCatalog,
             EffectiveSkillResolver effectiveSkillResolver,
-            SkillSelectionPort skillSelection,
             EffectiveToolResolver effectiveToolResolver,
             ToolVisibilityFilter toolVisibility,
             SkillDecisionAuditPort skillDecisionAudits,
@@ -185,7 +183,6 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         this.skillCatalog = Objects.requireNonNull(skillCatalog, "skillCatalog 不能为空");
         this.effectiveSkillResolver =
                 Objects.requireNonNull(effectiveSkillResolver, "effectiveSkillResolver 不能为空");
-        this.skillSelection = Objects.requireNonNull(skillSelection, "skillSelection 不能为空");
         this.effectiveToolResolver =
                 Objects.requireNonNull(effectiveToolResolver, "effectiveToolResolver 不能为空");
         this.skillDecisionAudits =
@@ -289,10 +286,9 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         })
                 .concatMap(
                         event ->
-                                event.type() == ExecutionEventType.EXECUTION_PROMOTED
-                                                || event.ownerType() != OwnerType.ASSISTANT
-                                        ? reactor.core.publisher.Mono.just(event)
-                                        : eventStore.append(event, command.lease()))
+                                shouldPersistEvent(event)
+                                        ? eventStore.append(event, command.lease())
+                                        : reactor.core.publisher.Mono.just(event))
                 // 瞬态增量与已落库事件统一实时发布；入口订阅方据此转发，不再依赖轮询事件表
                 .doOnNext(liveEvents::publish)
                 .doOnNext(
@@ -330,8 +326,52 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                         elapsedMillis(startedAtNanos)));
     }
 
+    static boolean shouldPersistEvent(ExecutionEvent event) {
+        return event.type() != ExecutionEventType.EXECUTION_PROMOTED
+                && event.ownerType() == OwnerType.ASSISTANT
+                && !isLiveOnlyContentDraftPreview(event);
+    }
+
+    private static boolean isLiveOnlyContentDraftPreview(ExecutionEvent event) {
+        var values = event.payload().values();
+        if (!"content.draft.upsert".equals(values.get("toolName"))
+                || !"CONTENT_DRAFT".equals(values.get("previewKind"))) {
+            return false;
+        }
+        return switch (event.type()) {
+            case TOOL_CALL_ARGS_DELTA ->
+                    isOnlyPreviewPayload(
+                                    values,
+                                    Set.of(
+                                            "replyId",
+                                            "toolCallId",
+                                            "toolName",
+                                            "previewKind",
+                                            "contentDelta"))
+                            && values.get("contentDelta") instanceof String;
+            case TOOL_CALL_ARGS_COMPLETED ->
+                    isOnlyPreviewPayload(
+                                    values,
+                                    Set.of(
+                                            "replyId",
+                                            "toolCallId",
+                                            "toolName",
+                                            "previewKind",
+                                            "contentPreviewCompleted"))
+                            && Boolean.TRUE.equals(values.get("contentPreviewCompleted"));
+            default -> false;
+        };
+    }
+
+    private static boolean isOnlyPreviewPayload(
+            Map<String, Object> values, Set<String> allowedKeys) {
+        return !values.isEmpty() && allowedKeys.containsAll(values.keySet());
+    }
+
     private Flux<ExecutionEvent> executeNode(AssistantInvocation invocation) {
         var command = invocation.command();
+        var sequence = new AtomicLong(command.sequenceBase());
+        var taskRef = new AtomicReference<>(requireTask(command));
         var definition = requireDefinition(command);
         definition.requireControlMode(command.controlMode());
         requirePublished(definition);
@@ -347,14 +387,31 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 context.references().size(),
                 context.messages().size(),
                 context.digest());
-        return agentExecution.execute(
-                agentCommand(
-                        invocation,
-                        profile,
-                        command.sequenceBase(),
-                        profile.contextCompression()
-                                .orElseThrow(() -> new IllegalStateException("执行画像缺少冻结上下文"))
-                                .finalMessages()));
+        var agentEvents = new ArrayList<ExecutionEvent>();
+        var executionEvents =
+                agentExecution
+                        .execute(
+                                agentCommand(
+                                        invocation,
+                                        profile,
+                                        sequence.get(),
+                                        profile.contextCompression()
+                                                .orElseThrow(
+                                                        () ->
+                                                                new IllegalStateException(
+                                                                        "执行画像缺少冻结上下文"))
+                                                .finalMessages()))
+                        .doOnNext(
+                                event -> {
+                                    agentEvents.add(event);
+                                    sequence.accumulateAndGet(event.sequence(), Math::max);
+                                });
+        return Flux.concat(
+                executionEvents,
+                Flux.defer(
+                        () ->
+                                finalizeNodeExecution(
+                                        invocation, taskRef, profile, agentEvents, sequence)));
     }
 
     private Flux<ExecutionEvent> executeDirect(AssistantInvocation invocation) {
@@ -1366,6 +1423,33 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 completionValidator.validate(
                         new CompletionValidator.ValidationRequest(
                                 task, command.completionCriteria(), validationPlan, agentEvents));
+        var draftEvidence =
+                agentEvents.stream()
+                        .filter(event -> event.type() == ExecutionEventType.TOOL_CALL_COMPLETED)
+                        .filter(
+                                event ->
+                                        "DRAFT"
+                                                .equals(
+                                                        event.payload()
+                                                                .values()
+                                                                .get("artifactState")))
+                        .findFirst()
+                        .orElse(null);
+        log.info(
+                "[AssistantExecution] stage=task_node_validation executionId={} taskId={} nodeId={} "
+                        + "outcome={} reason={} agentEventCount={} toolCallId={} documentId={} "
+                        + "documentVersionId={}",
+                command.executionId().value(),
+                taskKey(command),
+                command.nodeIdentity().nodeId(),
+                decision.outcome(),
+                decision.reason(),
+                agentEvents.size(),
+                draftEvidence == null ? null : draftEvidence.payload().values().get("toolCallId"),
+                draftEvidence == null ? null : draftEvidence.payload().values().get("artifactId"),
+                draftEvidence == null
+                        ? null
+                        : draftEvidence.payload().values().get("artifactVersionId"));
         var agentId = new AgentId(profile.executionSpec().identifier());
         var events = new ArrayList<ExecutionEvent>();
         events.add(
@@ -1714,19 +1798,23 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                         binding.binding().activationMode()
                                                 == SkillActivationMode.ON_DEMAND)
                         .toList();
-        var selectionBindings = onDemandBindings;
-        // route.skillKey()==null 表示只锁角色、技能仍开放（AAF-107 #10708）：候选集合保持角色下全部
-        // ON_DEMAND Skill，不做精确匹配收窄；只有技能也被锁定时才要求候选集合精确命中该技能。
-        if (route != null && route.skillKey() != null) {
-            selectionBindings =
-                    onDemandBindings.stream()
-                            .filter(
-                                    binding ->
-                                            binding.binding().skillKey().equals(route.skillKey()))
-                            .toList();
-            if (selectionBindings.size() != 1) {
-                throw new IllegalStateException("FIXED Route 必须精确引用当前 Scope 的 ON_DEMAND Skill");
-            }
+        var selectedOnDemandSkillKey =
+                route != null && route.skillKey() != null
+                        ? route.skillKey()
+                        : invocation.requestedSkillKey();
+        var selectionBindings =
+                selectedOnDemandSkillKey == null
+                        ? onDemandBindings
+                        : onDemandBindings.stream()
+                                .filter(
+                                        binding ->
+                                                binding.binding()
+                                                        .skillKey()
+                                                        .equals(selectedOnDemandSkillKey))
+                                .toList();
+        if (selectedOnDemandSkillKey != null && selectionBindings.size() != 1) {
+            throw new IllegalArgumentException(
+                    "请求 Skill 不在当前执行 Scope 候选范围: " + selectedOnDemandSkillKey);
         }
         // 选择阶段只暴露摘要；正文仅在最终激活集合确定后加载，后续由模型上下文预算统一治理。
         var selectionCandidates =
@@ -1748,30 +1836,27 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 command,
                 role,
                 selection,
-                "SKILL_SELECTION_REQUESTED",
+                "SKILL_SCOPE_FROZEN",
                 null,
-                roleSelection.selectedBy(),
-                "选择阶段仅使用 SYSTEM、ASSISTANT 与所选 ROLE 的 ON_DEMAND 摘要");
-        var decision =
-                route != null
-                        ? new SkillSelectionPort.SkillSelectionDecision(
-                                route.skillKey() == null ? List.of() : List.of(route.skillKey()),
-                                "SERVER_FIXED_ROUTE",
-                                route.skillKey() == null
-                                        ? "服务端已解析 Role 且未选定 ON_DEMAND Skill"
-                                        : "使用服务端固定 ON_DEMAND Skill")
-                        : selectionCandidates.isEmpty()
-                                ? new SkillSelectionPort.SkillSelectionDecision(
-                                        List.of(),
-                                        "NO_ON_DEMAND_CANDIDATE",
-                                        "无 ON_DEMAND 候选，不调用选择模型")
-                                : skillSelection.select(
-                                        new SkillSelectionPort.SelectionRequest(
-                                                selection,
-                                                command.input(),
-                                                invocation.requestedSkillKey(),
-                                                command.userId()));
-        var selectedOnDemandKeys = selectedSkillKeys(selection, decision);
+                "AAF_POLICY",
+                "仅冻结当前 Scope 的 ON_DEMAND Skill 摘要，正文按显式请求或 context.load 加载");
+        var selectedOnDemandKeys =
+                selectExplicitSkillKeys(
+                        selection,
+                        route == null ? null : route.skillKey(),
+                        invocation.requestedSkillKey());
+        var selectedBy =
+                invocation.requestedSkillKey() != null
+                        ? "USER_REQUEST"
+                        : route != null && route.skillKey() != null
+                                ? "SERVER_FIXED_ROUTE"
+                                : "CONTEXT_LOAD";
+        var selectionReason =
+                invocation.requestedSkillKey() != null
+                        ? "用户显式指定 Skill，直接加载冻结版本正文"
+                        : route != null && route.skillKey() != null
+                                ? "使用服务端固定 ON_DEMAND Skill"
+                                : "未显式指定 Skill，由协调者通过 context.load 按需加载";
         var finalBindings =
                 scopedBindings.stream()
                         .filter(
@@ -1781,24 +1866,33 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                                 || selectedOnDemandKeys.contains(
                                                         binding.binding().skillKey()))
                         .toList();
-        var authorizedSkillKeys =
-                scopedBindings.stream()
-                        .map(binding -> binding.binding().skillKey())
-                        .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
-        var requestedSkillKeys =
+        var alwaysCandidates =
                 finalBindings.stream()
-                        .map(binding -> binding.binding().skillKey())
-                        .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
-        var resolvedSkills =
-                effectiveSkillResolver.resolve(authorizedSkillKeys, requestedSkillKeys);
+                        .filter(
+                                binding ->
+                                        binding.binding().activationMode()
+                                                == SkillActivationMode.ALWAYS)
+                        .map(this::authorizedSkillSummary)
+                        .toList();
+        var selectedOnDemandCandidates =
+                selectionCandidates.stream()
+                        .filter(candidate -> selectedOnDemandKeys.contains(candidate.code()))
+                        .toList();
+        var activatedCandidates =
+                new ArrayList<
+                        com.xuejiai.aaf.framework.intelligent.agent.model.AuthorizedSkillSummary>();
+        activatedCandidates.addAll(alwaysCandidates);
+        activatedCandidates.addAll(selectedOnDemandCandidates);
+        var resolvedSkills = effectiveSkillResolver.resolve(activatedCandidates);
         var activatedSkills = activateSkills(finalBindings, resolvedSkills);
+        verifyActivatedSkillVersions(activatedCandidates, activatedSkills);
         log.debug(
                 "[AssistantExecution] stage=role_resolved executionId={} taskId={} roleKey={} "
                         + "selectedBy={} onDemandCandidateCount={} requestedSkill={}",
                 command.executionId().value(),
                 taskKey(command),
                 role.key(),
-                roleSelection.selectedBy(),
+                selectedBy,
                 selectionCandidates.size(),
                 invocation.requestedSkillKey());
         activatedSkills.forEach(
@@ -1813,10 +1907,10 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                 skill.code(),
                                 skill.activationMode() == SkillActivationMode.ALWAYS
                                         ? "AAF_BINDING"
-                                        : decision.selectedBy(),
+                                        : selectedBy,
                                 skill.activationMode() == SkillActivationMode.ALWAYS
                                         ? "绑定声明 ALWAYS，自动激活但仍执行工具授权"
-                                        : decision.reason()));
+                                        : selectionReason));
         var activatedSystemSkills =
                 activatedSkills.stream()
                         .filter(skill -> skill.scope() == SkillScope.SYSTEM)
@@ -1921,16 +2015,23 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         }
         var effectiveTools =
                 mergeEffectiveTools(businessTools, BuiltinControlToolProfile.resolve(command));
-        log.debug(
+        log.info(
                 "[AssistantExecution] stage=skill_resolved executionId={} taskId={} selectionMode={} "
-                        + "skillCodes={} skillVersions={} selectedBy={} effectiveToolCount={}",
+                        + "skillCodes={} skillVersions={} selectedBy={} effectiveToolCount={} "
+                        + "effectiveToolNames={} saveTool={} saveToolVisible={} deliveryNode={}",
                 command.executionId().value(),
                 taskKey(command),
                 selection.selectionMode(),
                 activatedSkills.stream().map(skill -> skill.code()).toList(),
                 activatedSkills.stream().map(skill -> skill.version().toString()).toList(),
-                decision.selectedBy(),
-                effectiveTools.size());
+                selectedBy,
+                effectiveTools.size(),
+                effectiveTools.stream().map(ToolRef::name).sorted().toList(),
+                saveToolName,
+                saveToolName != null
+                        && effectiveTools.stream()
+                                .anyMatch(tool -> tool.name().equals(saveToolName)),
+                deliverer);
         var authorizationRules = new LinkedHashMap<String, ToolAuthorizationRule>();
         effectiveTools.forEach(
                 tool -> {
@@ -2017,7 +2118,8 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                         command.tenantId(),
                                         command.userId(),
                                         intent.workspaceId(),
-                                        intent.trustedProjectId())));
+                                        intent.trustedProjectId()),
+                                invocation.requestedSkillKey()));
         var snapshot =
                 new ExecutionProfileSnapshot(
                         command.tenantId(),
@@ -2160,7 +2262,8 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                         command.dispatchFencingToken(),
                         command.dispatchLeaseOwner(),
                         command.dispatchLeaseUntil(),
-                        profile.executionIntent().artifactPolicy().target());
+                        profile.executionIntent().artifactPolicy().target(),
+                        Optional.of(profile.skillExecutionProfile()));
         log.debug(
                 "[Assistant协调] Agent 上下文已拼装：executionId={}，promptSha256={}，最终压缩消息数={}，用户附件数={}，草稿策略={}",
                 command.executionId().value(),
@@ -2234,34 +2337,57 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 summary.summary(),
                 scopedBinding.scope(),
                 scopedBinding.binding().activationMode(),
+                summary.version(),
                 List.of(),
                 summary.requiredModelCapabilities(),
                 summary.requiredToolNames());
     }
 
-    private static Set<String> selectedSkillKeys(
+    private static Set<String> selectExplicitSkillKeys(
             com.xuejiai.aaf.framework.intelligent.agent.model.SkillSelectionManifest selection,
-            SkillSelectionPort.SkillSelectionDecision decision) {
-        var selected = new java.util.LinkedHashSet<String>();
-        for (var code : decision.selectedSkillKeys()) {
-            if (code == null || code.isBlank() || !selected.add(code)) {
-                throw new IllegalArgumentException("Skill 选择结果包含空值或重复值");
-            }
+            String fixedSkillKey,
+            String requestedSkillKey) {
+        var selectedKey = requestedSkillKey == null ? fixedSkillKey : requestedSkillKey;
+        if (selectedKey == null) {
+            return Set.of();
         }
-        var candidates =
+        var candidate =
                 selection.candidates().stream()
-                        .map(candidate -> candidate.code())
-                        .collect(Collectors.toUnmodifiableSet());
-        if (!candidates.containsAll(selected) || selected.size() > selection.maxActivatedSkills()) {
-            throw new IllegalArgumentException("Skill 选择结果超出 ON_DEMAND 候选范围");
+                        .filter(summary -> summary.code().equals(selectedKey))
+                        .findFirst()
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "请求 Skill 不在当前执行 Scope 候选范围: " + selectedKey));
+        if (fixedSkillKey != null && !fixedSkillKey.equals(candidate.code())) {
+            throw new IllegalArgumentException("请求 Skill 与 FIXED Route 不一致");
         }
-        if (selection.selectionMode()
-                        == com.xuejiai.aaf.framework.intelligent.assistant.model.SkillSelectionMode
-                                .FIXED
-                && (selected.size() != 1 || !selected.contains(selection.defaultSkillKey()))) {
-            throw new IllegalArgumentException("FIXED 必须精确选择目标 ON_DEMAND Skill");
-        }
-        return java.util.Collections.unmodifiableSet(selected);
+        return Set.of(candidate.code());
+    }
+
+    private static void verifyActivatedSkillVersions(
+            List<com.xuejiai.aaf.framework.intelligent.agent.model.AuthorizedSkillSummary>
+                    candidates,
+            List<com.xuejiai.aaf.framework.intelligent.agent.model.ActivatedSkill>
+                    activatedSkills) {
+        var versionsByCode =
+                candidates.stream()
+                        .collect(
+                                Collectors.toMap(
+                                        candidate -> candidate.code(),
+                                        candidate -> candidate.version(),
+                                        (left, right) -> {
+                                            throw new IllegalStateException("Skill 候选摘要包含重复 code");
+                                        }));
+        activatedSkills.stream()
+                .forEach(
+                        skill -> {
+                            var expected = versionsByCode.get(skill.code());
+                            if (expected == null || !expected.equals(skill.version())) {
+                                throw new IllegalStateException(
+                                        "SkillVersion 在执行画像冻结前发生漂移: " + skill.code());
+                            }
+                        });
     }
 
     private static List<com.xuejiai.aaf.framework.intelligent.agent.model.ActivatedSkill>
@@ -2391,7 +2517,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
     private void auditExecutionProfile(
             AssistantCommand command, ExecutionProfileSnapshot profile, String selectedBy) {
         var candidateCodes =
-                profile.skillExecutionProfile().selection().candidates().stream()
+                profile.skillExecutionProfile().onDemandCandidates().stream()
                         .map(candidate -> candidate.code())
                         .sorted()
                         .toList();
