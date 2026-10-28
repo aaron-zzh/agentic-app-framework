@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import com.xuejiai.aaf.framework.intelligent.core.skill.SkillVersionRef;
+
 /** Skill 目录读取契约；仅暴露当前已发布的不可变执行版本。 */
 public interface SkillStore {
 
@@ -18,6 +20,9 @@ public interface SkillStore {
 
     /** 按根对象 ID 查询当前已发布版本。 */
     Optional<SkillRecord> findBySkillId(Long skillId);
+
+    /** 按冻结的不可变版本引用查询已批准版本。 */
+    Optional<SkillRecord> findByVersion(SkillVersionRef version);
 
     /** 查询可执行的系统内置 Skill。 */
     List<SkillRecord> findBuiltIn();

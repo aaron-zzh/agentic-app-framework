@@ -6,6 +6,7 @@ import java.util.Set;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillActivationMode;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillScope;
+import com.xuejiai.aaf.framework.intelligent.core.skill.SkillVersionRef;
 
 /** 选择阶段唯一可见的 Skill 元数据，禁止包含正文或业务工具句柄。 */
 public record AuthorizedSkillSummary(
@@ -14,6 +15,7 @@ public record AuthorizedSkillSummary(
         String summary,
         SkillScope scope,
         SkillActivationMode activationMode,
+        SkillVersionRef version,
         List<String> categories,
         Set<String> modelCapabilities,
         Set<String> toolPurposeTags) {
@@ -24,6 +26,7 @@ public record AuthorizedSkillSummary(
         summary = requireText(summary, "summary");
         Objects.requireNonNull(scope, "scope 不能为空");
         Objects.requireNonNull(activationMode, "activationMode 不能为空");
+        Objects.requireNonNull(version, "version 不能为空");
         categories = List.copyOf(Objects.requireNonNull(categories, "categories 不能为空"));
         modelCapabilities =
                 Set.copyOf(Objects.requireNonNull(modelCapabilities, "modelCapabilities 不能为空"));

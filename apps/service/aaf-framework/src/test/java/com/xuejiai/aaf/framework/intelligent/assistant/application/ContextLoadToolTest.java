@@ -2,8 +2,10 @@ package com.xuejiai.aaf.framework.intelligent.assistant.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -12,12 +14,18 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 
+import com.xuejiai.aaf.framework.intelligent.agent.model.AuthorizedSkillSummary;
 import com.xuejiai.aaf.framework.intelligent.agent.model.InvocationContext;
+import com.xuejiai.aaf.framework.intelligent.agent.model.SkillExecutionProfile;
+import com.xuejiai.aaf.framework.intelligent.agent.model.SkillSelectionManifest;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolAuthorizationContext;
 import com.xuejiai.aaf.framework.intelligent.agent.model.ToolRef;
 import com.xuejiai.aaf.framework.intelligent.agent.port.SkillCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.SkillReferenceCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ToolInvocationPort.ToolInvocation;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillActivationMode;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillScope;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillSelectionMode;
 import com.xuejiai.aaf.framework.intelligent.core.skill.SkillDef;
 import com.xuejiai.aaf.framework.intelligent.core.skill.SkillReference;
 import com.xuejiai.aaf.framework.intelligent.core.skill.SkillReference.LoadMode;
@@ -59,7 +67,8 @@ class ContextLoadToolTest extends BaseMockitoUnitTest {
 
     @Test
     void loadsSkillContentByCode() {
-        when(skills.findByCode("writer")).thenReturn(Optional.of(skillDef("writer")));
+        var version = new SkillVersionRef(SKILL_ID, VERSION_ID, 1);
+        when(skills.findByVersion(version)).thenReturn(Optional.of(skillDef("writer")));
 
         var result = tool.invoke(invocation(Map.of("kind", "SKILL", "key", "writer"))).block();
 
@@ -68,11 +77,13 @@ class ContextLoadToolTest extends BaseMockitoUnitTest {
                 .containsEntry("kind", "SKILL")
                 .containsEntry("code", "writer");
         assertThat(result.output()).contains("writer 技能正文");
+        verify(skills).findByVersion(version);
     }
 
     @Test
     void rejectsSkillLoadWhenSkillNotPublished() {
-        when(skills.findByCode("missing")).thenReturn(Optional.empty());
+        when(skills.findByVersion(new SkillVersionRef(SKILL_ID, VERSION_ID, 1)))
+                .thenReturn(Optional.empty());
 
         assertThatThrownBy(
                         () ->
@@ -301,11 +312,13 @@ class ContextLoadToolTest extends BaseMockitoUnitTest {
                         new TenantId("9"),
                         new UserId("7"),
                         11L,
+                        null,
                         new AssistantId("assistant-1"),
                         new ConversationId(identity),
                         new SessionId(identity),
                         new TaskId(identity),
                         new ExecutionId(identity),
+                        identity,
                         new RunId(identity),
                         null,
                         new CorrelationId(identity),
@@ -314,11 +327,55 @@ class ContextLoadToolTest extends BaseMockitoUnitTest {
                         ControlMode.COLLABORATIVE,
                         null,
                         null,
-                        new ToolAuthorizationContext(Map.of()));
+                        new ToolAuthorizationContext(Map.of()),
+                        null,
+                        null,
+                        0,
+                        0,
+                        null,
+                        null,
+                        null,
+                        Optional.of(skillExecutionProfile(arguments)));
         return new ToolInvocation(
                 "call-1",
                 new ToolRef(ContextLoadTool.TOOL_NAME, 1L, ContextLoadTool.TOOL_NAME),
                 arguments,
                 context);
+    }
+
+    private static SkillExecutionProfile skillExecutionProfile(Map<String, Object> arguments) {
+        var code = authorizedSkillCode(arguments);
+        var summary =
+                new AuthorizedSkillSummary(
+                        code,
+                        code + " 技能",
+                        code + " 技能摘要",
+                        SkillScope.ASSISTANT,
+                        SkillActivationMode.ON_DEMAND,
+                        new SkillVersionRef(SKILL_ID, VERSION_ID, 1),
+                        List.of(),
+                        Set.of(),
+                        Set.of());
+        return new SkillExecutionProfile(
+                new SkillSelectionManifest(
+                        "writer", null, SkillSelectionMode.SELECT_AND_AUGMENT, 1, List.of(summary)),
+                List.of(),
+                List.of(new ToolRef(ContextLoadTool.TOOL_NAME, 1L, ContextLoadTool.TOOL_NAME)));
+    }
+
+    private static String authorizedSkillCode(Map<String, Object> arguments) {
+        var kind = arguments.get("kind");
+        var key = arguments.get("key");
+        if ("SKILL_REFERENCE".equals(kind) && key != null) {
+            var compositeKey = key.toString();
+            var versionSeparator = compositeKey.indexOf('@');
+            if (versionSeparator > 0) {
+                return compositeKey.substring(0, versionSeparator);
+            }
+        }
+        if ("SKILL".equals(kind) && key != null && !key.toString().isBlank()) {
+            return key.toString().trim();
+        }
+        return "writer";
     }
 }

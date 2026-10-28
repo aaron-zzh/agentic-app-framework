@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import com.xuejiai.aaf.common.util.JsonUtils;
+import com.xuejiai.aaf.framework.intelligent.agent.model.SkillExecutionProfile;
 import com.xuejiai.aaf.framework.intelligent.agent.port.ContextAwareToolHandler;
 import com.xuejiai.aaf.framework.intelligent.agent.port.SkillCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.agent.port.SkillReferenceCatalogPort;
@@ -22,8 +23,8 @@ import reactor.core.scheduler.Schedulers;
  * <p>不中断 ReAct 循环——直接把加载到的内容作为工具结果返回，模型在同一轮继续推理。这是有意选择的实现方式：技能正文与
  * 参考文档是知识性文本，不是有副作用的业务动作，不需要挂起等待外部介入。下一次物理调用的 {@code PromptEnvelope} 会自然记录到消息集合的增长，不需要单独的画像升级续跑机制。
  *
- * <p>权限边界：{@code SKILL} 允许加载任意已发布 Skill；{@code SKILL_REFERENCE} 使用服务端 Manifest 提供的版本化 loadKey，读取已发布
- * SkillVersion 挂载的执行资产。真正的能力边界在工具授权层，不对参考文档重复执行用户文档可见性校验。
+ * <p>权限边界：{@code SKILL} 只能加载本次执行画像中的 ON_DEMAND 候选摘要，并校验冻结的 SkillVersion；{@code SKILL_REFERENCE}
+ * 使用服务端 Manifest 提供的版本化 loadKey，且同样校验本次执行授权的 SkillVersion。真正的能力边界在工具授权层，不对参考文档重复执行用户文档可见性校验。
  *
  * <p>{@code KNOWLEDGE_BINDING} 尚未实现，依赖 L1 读管道三通道接入后单独排期（见 {@code ai_skill_knowledge_binding}）；
  * 枚举先行预留，命中即报错而非静默忽略。
@@ -86,31 +87,54 @@ public final class ContextLoadTool implements ContextAwareToolHandler {
     @Override
     public Mono<ToolInvocationResult> invoke(ToolInvocation invocation) {
         Objects.requireNonNull(invocation, "invocation 不能为空");
-        return Mono.fromCallable(() -> load(invocation.arguments()))
-                .subscribeOn(Schedulers.boundedElastic());
+        return Mono.fromCallable(() -> load(invocation)).subscribeOn(Schedulers.boundedElastic());
     }
 
-    private ToolInvocationResult load(Map<String, Object> arguments) {
-        var kind = requireKind(arguments);
+    private ToolInvocationResult load(ToolInvocation invocation) {
+        var kind = requireKind(invocation.arguments());
         return switch (kind) {
-            case SKILL -> loadSkill(requireKey(arguments));
-            case SKILL_REFERENCE -> loadSkillReference(requireKey(arguments));
+            case SKILL -> loadSkill(requireKey(invocation.arguments()), invocation);
+            case SKILL_REFERENCE ->
+                    loadSkillReference(requireKey(invocation.arguments()), invocation);
             case KNOWLEDGE_BINDING ->
                     throw new IllegalArgumentException(
                             "context.load 尚不支持 KNOWLEDGE_BINDING：依赖 L1 读管道三通道接入，见改进意见记录");
         };
     }
 
-    private ToolInvocationResult loadSkill(String skillCode) {
+    private ToolInvocationResult loadSkill(String skillCode, ToolInvocation invocation) {
+        var profile = requireExecutionProfile(invocation);
+        var candidate =
+                profile.onDemandCandidates().stream()
+                        .filter(summary -> summary.code().equals(skillCode))
+                        .findFirst()
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "Skill 不在本次执行 Scope 候选摘要中: " + skillCode));
         var skill =
-                skills.findByCode(skillCode)
+                skills.findByVersion(candidate.version())
+                        .filter(
+                                resolved ->
+                                        resolved.code().equals(candidate.code())
+                                                && resolved.version().equals(candidate.version()))
                         .orElseThrow(
                                 () -> new IllegalArgumentException("不存在已发布 Skill: " + skillCode));
-        return result(skill.content(), Map.of("kind", "SKILL", "code", skill.code()));
+        return result(
+                skill.content(),
+                Map.of(
+                        "kind", "SKILL",
+                        "code", skill.code(),
+                        "skillVersionId", skill.version().versionId(),
+                        "version", skill.version().version()));
     }
 
-    private ToolInvocationResult loadSkillReference(String key) {
+    private ToolInvocationResult loadSkillReference(String key, ToolInvocation invocation) {
         var loadKey = ReferenceLoadKey.parse(key);
+        var profile = requireExecutionProfile(invocation);
+        if (!isAuthorizedVersion(profile, loadKey.skillCode(), loadKey.skillVersionId())) {
+            throw new IllegalArgumentException("SkillVersion 不在本次执行 Scope 授权内: " + key);
+        }
         if (!skillReferences.versionBelongsToSkillCode(
                 loadKey.skillVersionId(), loadKey.skillCode())) {
             throw new IllegalArgumentException("SkillVersion 与 Skill code 不匹配: " + key);
@@ -145,6 +169,32 @@ public final class ContextLoadTool implements ContextAwareToolHandler {
                         key,
                         "title",
                         reference.title()));
+    }
+
+    private static SkillExecutionProfile requireExecutionProfile(ToolInvocation invocation) {
+        return invocation
+                .context()
+                .skillExecutionProfile()
+                .orElseThrow(
+                        () -> new IllegalArgumentException("context.load 缺少当前执行 Skill 画像，拒绝加载"));
+    }
+
+    private static boolean isAuthorizedVersion(
+            SkillExecutionProfile profile, String skillCode, Long skillVersionId) {
+        return profile.onDemandCandidates().stream()
+                        .anyMatch(
+                                summary ->
+                                        summary.code().equals(skillCode)
+                                                && summary.version()
+                                                        .versionId()
+                                                        .equals(skillVersionId))
+                || profile.activatedSkills().stream()
+                        .anyMatch(
+                                skill ->
+                                        skill.code().equals(skillCode)
+                                                && skill.version()
+                                                        .versionId()
+                                                        .equals(skillVersionId));
     }
 
     private static ToolInvocationResult result(String content, Map<String, Object> metadata) {

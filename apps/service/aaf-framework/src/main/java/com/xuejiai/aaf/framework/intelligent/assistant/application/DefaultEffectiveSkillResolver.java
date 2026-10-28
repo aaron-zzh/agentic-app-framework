@@ -1,9 +1,10 @@
 package com.xuejiai.aaf.framework.intelligent.assistant.application;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
+import com.xuejiai.aaf.framework.intelligent.agent.model.AuthorizedSkillSummary;
 import com.xuejiai.aaf.framework.intelligent.agent.port.SkillCatalogPort;
 import com.xuejiai.aaf.framework.intelligent.core.skill.SkillDef;
 
@@ -17,27 +18,29 @@ public final class DefaultEffectiveSkillResolver implements EffectiveSkillResolv
     }
 
     @Override
-    public List<SkillDef> resolve(Set<String> authorizedSkillKeys, Set<String> requestedSkillKeys) {
-        var authorized =
-                Set.copyOf(Objects.requireNonNull(authorizedSkillKeys, "authorizedSkillKeys 不能为空"));
-        var requested =
-                Set.copyOf(Objects.requireNonNull(requestedSkillKeys, "requestedSkillKeys 不能为空"));
-        if (!authorized.containsAll(requested)) {
-            throw new IllegalArgumentException("Skill 不属于 Assistant 当前候选范围");
-        }
-        if (requested.isEmpty()) {
-            return List.of();
-        }
-        return requested.stream()
-                .sorted()
+    public List<SkillDef> resolve(List<AuthorizedSkillSummary> selectedCandidates) {
+        var candidates =
+                List.copyOf(Objects.requireNonNull(selectedCandidates, "selectedCandidates 不能为空"));
+        return candidates.stream()
+                .sorted(Comparator.comparing(AuthorizedSkillSummary::code))
                 .map(
-                        skillKey ->
+                        candidate ->
                                 skillCatalog
-                                        .findByCode(skillKey)
+                                        .findByVersion(candidate.version())
+                                        .filter(
+                                                skill ->
+                                                        skill.code().equals(candidate.code())
+                                                                && skill.version()
+                                                                        .equals(
+                                                                                candidate
+                                                                                        .version()))
                                         .orElseThrow(
                                                 () ->
                                                         new IllegalArgumentException(
-                                                                "不存在 APPROVED Skill: " + skillKey)))
+                                                                "不存在 APPROVED SkillVersion: "
+                                                                        + candidate.code()
+                                                                        + "@"
+                                                                        + candidate.version())))
                 .toList();
     }
 }

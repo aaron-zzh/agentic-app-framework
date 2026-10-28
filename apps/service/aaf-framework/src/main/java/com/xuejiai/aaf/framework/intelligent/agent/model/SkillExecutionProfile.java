@@ -15,4 +15,9 @@ public record SkillExecutionProfile(
                 List.copyOf(Objects.requireNonNull(activatedSkills, "activatedSkills 不能为空"));
         effectiveTools = List.copyOf(Objects.requireNonNull(effectiveTools, "effectiveTools 不能为空"));
     }
+
+    /** 当前执行 Scope 冻结的 ON_DEMAND 候选摘要，不包含技能正文。 */
+    public List<AuthorizedSkillSummary> onDemandCandidates() {
+        return selection.candidates();
+    }
 }

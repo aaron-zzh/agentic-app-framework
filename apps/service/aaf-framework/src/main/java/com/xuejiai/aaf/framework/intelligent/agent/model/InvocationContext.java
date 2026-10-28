@@ -2,6 +2,7 @@ package com.xuejiai.aaf.framework.intelligent.agent.model;
 
 import java.time.Instant;
 import java.util.Objects;
+import java.util.Optional;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent;
@@ -47,7 +48,8 @@ public record InvocationContext(
         long dispatchFencingToken,
         String dispatchLeaseOwner,
         Instant dispatchLeaseUntil,
-        ExecutionIntent.ArtifactTarget artifactTarget) {
+        ExecutionIntent.ArtifactTarget artifactTarget,
+        Optional<SkillExecutionProfile> skillExecutionProfile) {
 
     public InvocationContext(
             TenantId tenantId,
@@ -94,7 +96,8 @@ public record InvocationContext(
                 0,
                 null,
                 null,
-                null);
+                null,
+                Optional.empty());
     }
 
     public InvocationContext(
@@ -143,7 +146,8 @@ public record InvocationContext(
                 0,
                 null,
                 null,
-                null);
+                null,
+                Optional.empty());
     }
 
     public InvocationContext(
@@ -242,6 +246,7 @@ public record InvocationContext(
         Objects.requireNonNull(correlationId, "correlationId 不能为空");
         Objects.requireNonNull(controlMode, "controlMode 不能为空");
         Objects.requireNonNull(toolAuthorization, "toolAuthorization 不能为空");
+        Objects.requireNonNull(skillExecutionProfile, "skillExecutionProfile Optional 不能为空");
         if (taskId == null
                 && (controlMode != ControlMode.READ_ONLY
                         || lease != null

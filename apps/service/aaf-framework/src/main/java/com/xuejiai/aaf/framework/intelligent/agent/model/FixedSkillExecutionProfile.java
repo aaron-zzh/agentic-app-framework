@@ -25,6 +25,7 @@ public final class FixedSkillExecutionProfile {
                         skill.summary(),
                         SkillScope.SYSTEM,
                         SkillActivationMode.ON_DEMAND,
+                        skill.version(),
                         List.of(),
                         skill.requiredModelCapabilities(),
                         skill.requiredToolNames());

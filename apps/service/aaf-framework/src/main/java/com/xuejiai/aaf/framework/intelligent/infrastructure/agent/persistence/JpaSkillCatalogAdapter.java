@@ -34,6 +34,13 @@ public final class JpaSkillCatalogAdapter implements SkillCatalogPort {
     }
 
     @Override
+    public Optional<SkillDef> findByVersion(SkillVersionRef version) {
+        return skillStore
+                .findByVersion(Objects.requireNonNull(version, "version 不能为空"))
+                .map(this::toDomain);
+    }
+
+    @Override
     public List<SkillDef> findBuiltIn() {
         return skillStore.findBuiltIn().stream().map(this::toDomain).toList();
     }

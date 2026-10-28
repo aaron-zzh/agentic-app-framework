@@ -30,12 +30,10 @@ import com.xuejiai.aaf.framework.intelligent.assistant.application.ContextLoadTo
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultCompletionValidator;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultEffectiveSkillResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultRoleSelector;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.DefaultSkillSelectionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveSkillResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.EffectiveToolResolver;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.HandBackTaskTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.InspectTasksTool;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.ModelSkillSelectionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.PauseTaskTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.PromoteDirectTaskTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.PromptAssembler;
@@ -44,7 +42,6 @@ import com.xuejiai.aaf.framework.intelligent.assistant.application.ReportExecuto
 import com.xuejiai.aaf.framework.intelligent.assistant.application.RequestClarificationTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.ResumeTaskTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.RoleSelector;
-import com.xuejiai.aaf.framework.intelligent.assistant.application.SkillSelectionPort;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.SubmitCoordinationPlanTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.SubmitExecutorPlanTool;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.TakeOverTaskTool;
@@ -263,19 +260,6 @@ public class AssistantInfrastructureAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnBean(PromptInvocationGateway.class)
-    @ConditionalOnMissingBean(SkillSelectionPort.class)
-    SkillSelectionPort modelSkillSelectionPort(PromptInvocationGateway promptGateway) {
-        return new ModelSkillSelectionPort(promptGateway);
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(SkillSelectionPort.class)
-    SkillSelectionPort defaultSkillSelectionPort() {
-        return new DefaultSkillSelectionPort();
-    }
-
-    @Bean
     @ConditionalOnMissingBean(DecompositionBudget.class)
     DecompositionBudget decompositionBudget() {
         return DecompositionBudget.defaults();
@@ -344,7 +328,6 @@ public class AssistantInfrastructureAutoConfiguration {
         EffectiveToolResolver.class,
         PromptAssembler.class,
         RoleSelector.class,
-        SkillSelectionPort.class,
         ExecutionProfileSnapshotPort.class,
         EffectiveSkillResolver.class,
         SystemSkillBindingPort.class,
@@ -369,7 +352,6 @@ public class AssistantInfrastructureAutoConfiguration {
             SystemSkillBindingPort systemSkillBindings,
             SkillCatalogPort skillCatalog,
             EffectiveSkillResolver effectiveSkillResolver,
-            SkillSelectionPort skillSelection,
             EffectiveToolResolver effectiveToolResolver,
             ToolVisibilityFilter toolVisibility,
             ObjectProvider<SkillDecisionAuditPort> skillDecisionAudits,
@@ -396,7 +378,6 @@ public class AssistantInfrastructureAutoConfiguration {
                 systemSkillBindings,
                 skillCatalog,
                 effectiveSkillResolver,
-                skillSelection,
                 effectiveToolResolver,
                 toolVisibility,
                 skillDecisionAudits.getIfAvailable(SkillDecisionAuditPort::noop),

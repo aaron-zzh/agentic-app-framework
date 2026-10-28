@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.ai.skill;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -18,6 +19,7 @@ import com.xuejiai.aaf.framework.engine.skill.SkillStore;
 import com.xuejiai.aaf.framework.engine.skill.SkillStore.SkillSummaryRecord;
 import com.xuejiai.aaf.framework.engine.skill.SkillToolRequirement;
 import com.xuejiai.aaf.framework.engine.skill.SkillVersion;
+import com.xuejiai.aaf.framework.intelligent.core.skill.SkillVersionRef;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 
 import lombok.RequiredArgsConstructor;
@@ -117,6 +119,26 @@ public class SkillStoreImpl implements SkillStore {
     }
 
     @Override
+    public Optional<SkillRecord> findByVersion(SkillVersionRef versionRef) {
+        Objects.requireNonNull(versionRef, "versionRef 不能为空");
+        return repository
+                .findById(versionRef.skillId())
+                .filter(this::visibleToCurrentUser)
+                .flatMap(
+                        definition ->
+                                versionRepository
+                                        .findByIdAndSkillIdAndStatus(
+                                                versionRef.versionId(),
+                                                versionRef.skillId(),
+                                                APPROVED)
+                                        .filter(
+                                                version ->
+                                                        version.getVersion()
+                                                                == versionRef.version())
+                                        .flatMap(version -> toRecord(definition, version)));
+    }
+
+    @Override
     public List<SkillRecord> findBuiltIn() {
         return repository.findByBuiltInTrue().stream()
                 .map(this::toRecord)
@@ -131,36 +153,30 @@ public class SkillStoreImpl implements SkillStore {
         return versionRepository
                 .findByIdAndStatus(definition.getCurrentVersionId(), APPROVED)
                 .filter(version -> version.getSkillId().equals(definition.getId()))
-                .map(
-                        version ->
-                                new SkillRecord(
-                                        definition.getId(),
-                                        definition.getCode(),
-                                        definition.getName(),
-                                        definition.getSummary(),
-                                        version.getId(),
-                                        version.getVersion(),
-                                        version.getContent(),
-                                        toolRequirementRepository
-                                                .findBySkillVersionId(version.getId())
-                                                .stream()
-                                                .map(SkillToolRequirement::getToolName)
-                                                .collect(
-                                                        java.util.stream.Collectors
-                                                                .toUnmodifiableSet()),
-                                        modelRequirementRepository
-                                                .findBySkillVersionId(version.getId())
-                                                .stream()
-                                                .filter(
-                                                        requirement ->
-                                                                Boolean.TRUE.equals(
-                                                                        requirement.getRequired()))
-                                                .map(SkillModelRequirement::getCapability)
-                                                .collect(
-                                                        java.util.stream.Collectors
-                                                                .toUnmodifiableSet()),
-                                        Boolean.TRUE.equals(definition.getBuiltIn()),
-                                        "INHERIT".equals(version.getToolAccessMode())));
+                .flatMap(version -> toRecord(definition, version));
+    }
+
+    private Optional<SkillRecord> toRecord(SkillDefinition definition, SkillVersion version) {
+        return Optional.of(
+                new SkillRecord(
+                        definition.getId(),
+                        definition.getCode(),
+                        definition.getName(),
+                        definition.getSummary(),
+                        version.getId(),
+                        version.getVersion(),
+                        version.getContent(),
+                        toolRequirementRepository.findBySkillVersionId(version.getId()).stream()
+                                .map(SkillToolRequirement::getToolName)
+                                .collect(java.util.stream.Collectors.toUnmodifiableSet()),
+                        modelRequirementRepository.findBySkillVersionId(version.getId()).stream()
+                                .filter(
+                                        requirement ->
+                                                Boolean.TRUE.equals(requirement.getRequired()))
+                                .map(SkillModelRequirement::getCapability)
+                                .collect(java.util.stream.Collectors.toUnmodifiableSet()),
+                        Boolean.TRUE.equals(definition.getBuiltIn()),
+                        "INHERIT".equals(version.getToolAccessMode())));
     }
 }
 

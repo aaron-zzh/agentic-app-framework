@@ -1,12 +1,12 @@
 package com.xuejiai.aaf.framework.intelligent.assistant.application;
 
 import java.util.List;
-import java.util.Set;
 
+import com.xuejiai.aaf.framework.intelligent.agent.model.AuthorizedSkillSummary;
 import com.xuejiai.aaf.framework.intelligent.core.skill.SkillDef;
 
-/** 按 Assistant 已授权的 Role Skill 与 Assistant Skill 候选并集读取已发布执行定义。 */
+/** 按 Assistant 已冻结候选版本读取不可变 Skill 执行定义。 */
 public interface EffectiveSkillResolver {
 
-    List<SkillDef> resolve(Set<String> authorizedSkillKeys, Set<String> requestedSkillKeys);
+    List<SkillDef> resolve(List<AuthorizedSkillSummary> selectedCandidates);
 }

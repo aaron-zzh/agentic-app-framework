@@ -19,7 +19,8 @@ public final class BuiltinControlToolProfile {
                     toolRef(ResumeTaskTool.TOOL_NAME),
                     toolRef(TakeOverTaskTool.TOOL_NAME),
                     toolRef(HandBackTaskTool.TOOL_NAME),
-                    toolRef(CancelTaskTool.TOOL_NAME));
+                    toolRef(CancelTaskTool.TOOL_NAME),
+                    toolRef(ContextLoadTool.TOOL_NAME));
 
     private static final List<ToolRef> TASK_EXECUTION_TOOLS =
             List.of(
@@ -27,17 +28,26 @@ public final class BuiltinControlToolProfile {
                     toolRef(ReportExecutorStepTool.TOOL_NAME),
                     toolRef(RequestClarificationTool.TOOL_NAME));
 
+    private static final List<ToolRef> TASK_COORDINATOR_EXECUTION_TOOLS =
+            List.of(
+                    toolRef(SubmitExecutorPlanTool.TOOL_NAME),
+                    toolRef(ReportExecutorStepTool.TOOL_NAME),
+                    toolRef(RequestClarificationTool.TOOL_NAME),
+                    toolRef(ContextLoadTool.TOOL_NAME));
+
     private static final List<ToolRef> TASK_DELEGATION_TOOLS =
             List.of(
                     toolRef(SubmitCoordinationPlanTool.TOOL_NAME),
-                    toolRef(RequestClarificationTool.TOOL_NAME));
+                    toolRef(RequestClarificationTool.TOOL_NAME),
+                    toolRef(ContextLoadTool.TOOL_NAME));
 
     private static final List<ToolRef> TASK_AUTO_TOOLS =
             List.of(
                     toolRef(SubmitCoordinationPlanTool.TOOL_NAME),
                     toolRef(SubmitExecutorPlanTool.TOOL_NAME),
                     toolRef(ReportExecutorStepTool.TOOL_NAME),
-                    toolRef(RequestClarificationTool.TOOL_NAME));
+                    toolRef(RequestClarificationTool.TOOL_NAME),
+                    toolRef(ContextLoadTool.TOOL_NAME));
 
     private static final Set<String> ALL_TOOL_NAMES =
             Stream.concat(DIRECT_COORDINATOR_TOOLS.stream(), TASK_AUTO_TOOLS.stream())
@@ -61,7 +71,7 @@ public final class BuiltinControlToolProfile {
             case COORDINATOR ->
                     switch (command.invocationProfile().executionIntent().decomposition()) {
                         case DECOMPOSE_AUTO -> TASK_AUTO_TOOLS;
-                        case DECOMPOSE_NONE -> TASK_EXECUTION_TOOLS;
+                        case DECOMPOSE_NONE -> TASK_COORDINATOR_EXECUTION_TOOLS;
                         case DECOMPOSE_REQUIRED -> TASK_DELEGATION_TOOLS;
                     };
             case EXECUTOR -> TASK_EXECUTION_TOOLS;
@@ -73,7 +83,7 @@ public final class BuiltinControlToolProfile {
     public static Set<String> contractActions(DecompositionStrategy decomposition) {
         var tools =
                 decomposition == DecompositionStrategy.DECOMPOSE_NONE
-                        ? TASK_EXECUTION_TOOLS
+                        ? TASK_COORDINATOR_EXECUTION_TOOLS
                         : TASK_AUTO_TOOLS;
         return tools.stream()
                 .map(ToolRef::name)

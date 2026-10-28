@@ -49,7 +49,7 @@ gains:
 
 基础工具不是“所有通用工具”。`BaseToolProfile` 必须**版本化**，只包含无副作用且参数受控的能力。网络工具需要域名策略、SSRF 防护、响应大小与超时限制，并把外部内容视为**不可信数据**。
 
-实现态：⚠️ 部分实现 · `BaseToolProfile` 已落地为版本化常量清单（`BaseToolProfile.java`，`VERSION=3`），收录 6 个 `ai_tool_catalog` 中 `risk_level=LOW` 且 `read_only=TRUE` 的工具；其中 `context.load` 是按冻结 SkillVersion 加载已发布 Reference 的内置基础工具，`webSearch` 是阿里云 IQS 联网搜索（V3 新增，查询词发往第三方，工具内仅拦截手机号与身份证号，调用暂未接入积分计量）；网络工具域名策略、SSRF 防护与响应大小限制未落地。
+实现态：⚠️ 部分实现 · `BaseToolProfile` 已落地为版本化常量清单（`BaseToolProfile.java`，`VERSION=4`），收录 5 个 `ai_tool_catalog` 中 `risk_level=LOW` 且 `read_only=TRUE` 的通用工具；`context.load` 不再属于基础工具，只在协调者执行时作为内置工具按冻结 SkillVersion 加载当前 Scope 的 Skill 正文或 Reference。`webSearch` 是阿里云 IQS 联网搜索（V3 新增，查询词发往第三方，工具内仅拦截手机号与身份证号，调用暂未接入积分计量）；网络工具域名策略、SSRF 防护与响应大小限制未落地。
 
 ## 有效工具交集
 
