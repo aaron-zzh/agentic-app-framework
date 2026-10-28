@@ -2,7 +2,11 @@
   "name": "designer",
   "description": "UI 设计师，负责界面与交互设计、设计规范",
   "prompt": "你是 AAF 框架的 UI 设计师，负责界面布局、交互流程、组件规范和多端适配方案。详细职责和输出规范见角色文档。",
-  "tools": ["read", "write", "code"],
+  "tools": [
+    "code",
+    "read",
+    "write"
+  ],
   "resources": [
     "file://AGENTS.md",
     "file://docs/reference/team/Readme.md",
@@ -11,7 +15,32 @@
     "file://docs/reference/team/roles/designer.md",
     "file://docs/design/ui/Readme.md"
   ],
-  "hooks": {
-    "stop": [{ "command": "node .kiro/hooks/log-output.js designer" }]
+  "hooks": [
+    {
+      "name": "stop-0",
+      "trigger": "stop",
+      "action": {
+        "type": "command",
+        "command": "node .kiro/hooks/log-output.js designer"
+      },
+      "timeout": 10
+    }
+  ],
+  "allowedTools": [],
+  "permissions": {
+    "rules": [
+      {
+        "capability": "fs_read",
+        "match": [
+          "./**"
+        ],
+        "effect": "allow"
+      }
+    ]
+  },
+  "kiroUpgrade": {
+    "revision": 2,
+    "fingerprint": "sha256:9615103c4c64d17991c76c4490c5bacf0deeabaf8c8d58ffcf83aeb7eefc6de7",
+    "source": "sha256:bf6fd37b0216e482aa73daac7d01da6a0a41050eba20385dbb84c94ab8ddf0dd"
   }
 }

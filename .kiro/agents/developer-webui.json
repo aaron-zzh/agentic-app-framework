@@ -2,7 +2,13 @@
   "name": "developer-webui",
   "description": "前端 Web 开发工程师，负责 Next.js/React/TypeScript 前端应用",
   "prompt": "你是 AAF 框架的前端 Web 开发工程师，负责 apps/webui/ 下的 Next.js 前端应用开发。详细职责和输出规范见角色文档。",
-  "tools": ["read", "write", "shell", "code", "knowledge"],
+  "tools": [
+    "code",
+    "knowledge",
+    "read",
+    "shell",
+    "write"
+  ],
   "resources": [
     "file://AGENTS.md",
     "file://docs/reference/team/Readme.md",
@@ -27,7 +33,32 @@
   "knowledgeBase": [
     "docs/design/apps/webui"
   ],
-  "hooks": {
-    "stop": [{ "command": "node .kiro/hooks/log-output.js developer-webui" }]
+  "hooks": [
+    {
+      "name": "stop-0",
+      "trigger": "stop",
+      "action": {
+        "type": "command",
+        "command": "node .kiro/hooks/log-output.js developer-webui"
+      },
+      "timeout": 10
+    }
+  ],
+  "allowedTools": [],
+  "permissions": {
+    "rules": [
+      {
+        "capability": "fs_read",
+        "match": [
+          "./**"
+        ],
+        "effect": "allow"
+      }
+    ]
+  },
+  "kiroUpgrade": {
+    "revision": 2,
+    "fingerprint": "sha256:1ce7e287559b3de5cdb476ccd0da4fd9c484ce475c390bcf9433d9928805f900",
+    "source": "sha256:d50d5f86d14520fe4a8d3c17890a06a53162970942cc87247d345e9a74184178"
   }
 }

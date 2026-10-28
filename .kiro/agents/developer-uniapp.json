@@ -2,7 +2,13 @@
   "name": "developer-uniapp",
   "description": "跨端移动开发工程师，负责 UniApp/Vue 跨端移动应用",
   "prompt": "你是 AAF 框架的跨端移动开发工程师，负责 apps/uniapp/ 下的 UniApp 应用开发。详细职责和输出规范见角色文档。",
-  "tools": ["read", "write", "shell", "code", "knowledge"],
+  "tools": [
+    "code",
+    "knowledge",
+    "read",
+    "shell",
+    "write"
+  ],
   "resources": [
     "file://AGENTS.md",
     "file://docs/reference/team/Readme.md",
@@ -28,7 +34,32 @@
   "knowledgeBase": [
     "apps/uniapp/src"
   ],
-  "hooks": {
-    "stop": [{ "command": "node .kiro/hooks/log-output.js developer-uniapp" }]
+  "hooks": [
+    {
+      "name": "stop-0",
+      "trigger": "stop",
+      "action": {
+        "type": "command",
+        "command": "node .kiro/hooks/log-output.js developer-uniapp"
+      },
+      "timeout": 10
+    }
+  ],
+  "allowedTools": [],
+  "permissions": {
+    "rules": [
+      {
+        "capability": "fs_read",
+        "match": [
+          "./**"
+        ],
+        "effect": "allow"
+      }
+    ]
+  },
+  "kiroUpgrade": {
+    "revision": 2,
+    "fingerprint": "sha256:0e3b51ae2a877afd76445a9fc42939d18e6f291dc32a8c9ed70615500f8f81a3",
+    "source": "sha256:0c0350af5d45e2ddca35f068b19c9cdcd6b9aee4d933d5339d97987bd3cdf1c8"
   }
 }

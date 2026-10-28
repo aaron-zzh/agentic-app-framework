@@ -2,7 +2,13 @@
   "name": "developer-service",
   "description": "后端开发工程师，负责 Java/Spring Boot/Spring AI 后端全栈",
   "prompt": "你是 AAF 框架的后端开发工程师，负责 apps/service/ 下的 Java 后端开发。详细职责和输出规范见角色文档。",
-  "tools": ["read", "write", "shell", "code", "knowledge"],
+  "tools": [
+    "code",
+    "knowledge",
+    "read",
+    "shell",
+    "write"
+  ],
   "resources": [
     "file://AGENTS.md",
     "file://docs/reference/team/Readme.md",
@@ -26,7 +32,32 @@
   "knowledgeBase": [
     "docs/design/service"
   ],
-  "hooks": {
-    "stop": [{ "command": "node .kiro/hooks/log-output.js developer-service" }]
+  "hooks": [
+    {
+      "name": "stop-0",
+      "trigger": "stop",
+      "action": {
+        "type": "command",
+        "command": "node .kiro/hooks/log-output.js developer-service"
+      },
+      "timeout": 10
+    }
+  ],
+  "allowedTools": [],
+  "permissions": {
+    "rules": [
+      {
+        "capability": "fs_read",
+        "match": [
+          "./**"
+        ],
+        "effect": "allow"
+      }
+    ]
+  },
+  "kiroUpgrade": {
+    "revision": 2,
+    "fingerprint": "sha256:28c6f013f8d6467014a708de1abe2985e6ab3e826ee1f752255eed313e956ec9",
+    "source": "sha256:9dd05eca68001729fac7bc9c8abdfcc4f14f6c5961c2dd876297115deb11c118"
   }
 }

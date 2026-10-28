@@ -2,7 +2,12 @@
   "name": "qa",
   "description": "质量工程师，负责过程审计、规范合规检查、度量分析、质量门控",
   "prompt": "你是 AAF 框架的质量工程师，独立于执行和管理，负责过程审计和质量门控。详细职责和输出规范见角色文档。",
-  "tools": ["read", "write", "code", "knowledge"],
+  "tools": [
+    "code",
+    "knowledge",
+    "read",
+    "write"
+  ],
   "resources": [
     "file://AGENTS.md",
     "file://docs/reference/team/Readme.md",
@@ -14,7 +19,32 @@
     "file://docs/task/_template/review.md"
   ],
   "knowledgeBase": [],
-  "hooks": {
-    "stop": [{ "command": "node .kiro/hooks/log-output.js qa" }]
+  "hooks": [
+    {
+      "name": "stop-0",
+      "trigger": "stop",
+      "action": {
+        "type": "command",
+        "command": "node .kiro/hooks/log-output.js qa"
+      },
+      "timeout": 10
+    }
+  ],
+  "allowedTools": [],
+  "permissions": {
+    "rules": [
+      {
+        "capability": "fs_read",
+        "match": [
+          "./**"
+        ],
+        "effect": "allow"
+      }
+    ]
+  },
+  "kiroUpgrade": {
+    "revision": 2,
+    "fingerprint": "sha256:94341ceeab6c8edf2aabc90c8ce405d9708d75939cd4c8f85aa9e06e44b42985",
+    "source": "sha256:a6f7d67f8cc4f9a8c34f544dde9aa0845270fa46bb6c5974483eb67882f5fa43"
   }
 }

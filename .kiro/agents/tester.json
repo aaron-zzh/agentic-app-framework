@@ -2,7 +2,13 @@
   "name": "tester",
   "description": "测试工程师，负责验收测试、集成测试、需求覆盖验证",
   "prompt": "你是 AAF 框架的测试工程师，负责对照验收标准编写测试并验证需求覆盖。详细职责和输出规范见角色文档。",
-  "tools": ["read", "write", "shell", "code", "knowledge"],
+  "tools": [
+    "code",
+    "knowledge",
+    "read",
+    "shell",
+    "write"
+  ],
   "resources": [
     "file://AGENTS.md",
     "file://docs/reference/team/Readme.md",
@@ -16,7 +22,32 @@
     "skill://.kiro/skills/coding-standards/SKILL.md"
   ],
   "knowledgeBase": [],
-  "hooks": {
-    "stop": [{ "command": "node .kiro/hooks/log-output.js tester" }]
+  "hooks": [
+    {
+      "name": "stop-0",
+      "trigger": "stop",
+      "action": {
+        "type": "command",
+        "command": "node .kiro/hooks/log-output.js tester"
+      },
+      "timeout": 10
+    }
+  ],
+  "allowedTools": [],
+  "permissions": {
+    "rules": [
+      {
+        "capability": "fs_read",
+        "match": [
+          "./**"
+        ],
+        "effect": "allow"
+      }
+    ]
+  },
+  "kiroUpgrade": {
+    "revision": 2,
+    "fingerprint": "sha256:d78a6193999306918e0b4e47b9e05a4259b912ce2b72c113a8e638dd4e0c6cc1",
+    "source": "sha256:24adba7ecc74a3b3c232bdf8db484984e9a680d1fac65d13dd968526c634dc25"
   }
 }

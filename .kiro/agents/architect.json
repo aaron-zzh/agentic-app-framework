@@ -2,7 +2,12 @@
   "name": "architect",
   "description": "架构师，负责技术设计、接口定义、代码审查",
   "prompt": "你是 AAF 框架的架构师，负责技术设计、接口定义和代码审查。详细职责和输出规范见角色文档。",
-  "tools": ["read", "write", "code", "knowledge"],
+  "tools": [
+    "code",
+    "knowledge",
+    "read",
+    "write"
+  ],
   "resources": [
     "file://AGENTS.md",
     "file://docs/reference/team/Readme.md",
@@ -21,7 +26,32 @@
   "knowledgeBase": [
     "docs/design/framework"
   ],
-  "hooks": {
-    "stop": [{ "command": "node .kiro/hooks/log-output.js architect" }]
+  "hooks": [
+    {
+      "name": "stop-0",
+      "trigger": "stop",
+      "action": {
+        "type": "command",
+        "command": "node .kiro/hooks/log-output.js architect"
+      },
+      "timeout": 10
+    }
+  ],
+  "allowedTools": [],
+  "permissions": {
+    "rules": [
+      {
+        "capability": "fs_read",
+        "match": [
+          "./**"
+        ],
+        "effect": "allow"
+      }
+    ]
+  },
+  "kiroUpgrade": {
+    "revision": 2,
+    "fingerprint": "sha256:e4116c36170b5c3708dd20e2f2f8d11a87b3f6d19266644bb6f60b5406a1ef3c",
+    "source": "sha256:48bb22d1c2c67f85133c952ec7c3043cf76f788158e0a8e372db85b815f22a23"
   }
 }
