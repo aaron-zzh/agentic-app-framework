@@ -20,6 +20,7 @@ import {
   Box,
   CheckSquare,
   ChevronDown,
+  ChevronRight,
   ClipboardList,
   Clock,
   Cpu,
@@ -211,12 +212,13 @@ export function AppSidebar() {
         {isLoading && !navConfig ? (
           <NavSkeleton collapsed={!sidebarOpen} />
         ) : (
-          (navConfig ?? buildNavConfig()).map((group) => (
+          (navConfig ?? buildNavConfig()).map((group, index) => (
             <NavGroupSection
               key={group.subheader}
               group={group}
               pathname={pathname}
               collapsed={!sidebarOpen}
+              defaultOpen={index === 0}
             />
           ))
         )}
@@ -274,13 +276,15 @@ function NavSkeleton({ collapsed }: { collapsed: boolean }) {
 function NavGroupSection({
   group,
   pathname,
-  collapsed
+  collapsed,
+  defaultOpen
 }: {
   group: NavGroup
   pathname: string
   collapsed: boolean
+  defaultOpen: boolean
 }) {
-  const { value: open, onToggle: toggleOpen } = useBoolean(true)
+  const { value: open, onToggle: toggleOpen } = useBoolean(defaultOpen)
 
   return (
     <div className="mb-3">
@@ -288,9 +292,22 @@ function NavGroupSection({
       {collapsed ? (
         <div className="mx-2 my-2 border-t" />
       ) : (
-        <button type="button" onClick={toggleOpen} className="flex w-full items-center px-2 py-1">
-          <span className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+        <button
+          type="button"
+          onClick={toggleOpen}
+          className="flex w-full items-center gap-2 px-2 py-1"
+          aria-expanded={open}
+        >
+          <span className="flex-1 text-left font-medium text-muted-foreground text-xs uppercase tracking-wide">
             {group.subheader}
+          </span>
+          <span
+            className={cn(
+              "shrink-0 text-muted-foreground transition-transform",
+              open && "rotate-90"
+            )}
+          >
+            <ChevronRight className="size-3.5" />
           </span>
         </button>
       )}
@@ -331,12 +348,14 @@ function NavItemContent({
         </span>
       )}
       {!collapsed && item.children && item.children.length > 0 && (
-        <ChevronDown
+        <span
           className={cn(
-            "size-3.5 text-muted-foreground transition-transform",
-            childOpen && "rotate-180"
+            "shrink-0 text-muted-foreground transition-transform",
+            childOpen && "rotate-90"
           )}
-        />
+        >
+          <ChevronRight className="size-3.5" />
+        </span>
       )}
     </>
   )
@@ -377,6 +396,7 @@ function NavItemRow({
           type="button"
           onClick={() => toggleChild()}
           title={collapsed ? item.title : undefined}
+          aria-expanded={childOpen}
           className={itemClass}
           style={itemStyle}
         >
