@@ -2,6 +2,7 @@ package com.xuejiai.aaf.framework.intelligent.ai.omni;
 
 import java.util.Arrays;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -27,7 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 @ConditionalOnProperty(name = "spring.ai.dashscope.api-key", matchIfMissing = false)
 public class DashScopeOmniRealtimeService implements OmniRealtimeService {
 
-    private static final String DEFAULT_MODEL = "qwen3-omni-flash-realtime";
+    private static final String DEFAULT_MODEL = "qwen3.5-omni-plus-realtime";
 
     private final String apiKey;
 
@@ -40,6 +41,7 @@ public class DashScopeOmniRealtimeService implements OmniRealtimeService {
         var model = config.model() != null ? config.model() : DEFAULT_MODEL;
 
         var param = OmniRealtimeParam.builder().model(model).apikey(apiKey).build();
+        var closed = new AtomicBoolean();
 
         var callback =
                 new OmniRealtimeCallback() {
@@ -58,6 +60,7 @@ public class DashScopeOmniRealtimeService implements OmniRealtimeService {
 
                     @Override
                     public void onClose(int code, String reason) {
+                        closed.set(true);
                         log.debug("[OmniRealtime] 连接关闭: code={}, reason={}", code, reason);
                         eventCallback.accept(
                                 new OmniEvent("closed", reason, null, Map.of("code", code)));
@@ -105,7 +108,7 @@ public class DashScopeOmniRealtimeService implements OmniRealtimeService {
         conversation.updateSession(configBuilder.build());
 
         log.info("[OmniRealtime] 会话已创建: model={}", model);
-        return new DashScopeOmniSession(conversation);
+        return new DashScopeOmniSession(conversation, closed);
     }
 
     private OmniEvent parseEvent(JsonObject message) {
@@ -155,44 +158,69 @@ public class DashScopeOmniRealtimeService implements OmniRealtimeService {
     private static class DashScopeOmniSession implements OmniSession {
 
         private final OmniRealtimeConversation conversation;
+        private final AtomicBoolean closed;
 
-        DashScopeOmniSession(OmniRealtimeConversation conversation) {
+        DashScopeOmniSession(OmniRealtimeConversation conversation, AtomicBoolean closed) {
             this.conversation = conversation;
+            this.closed = closed;
         }
 
         @Override
         public void sendAudio(String audioBase64) {
-            conversation.appendAudio(audioBase64);
+            runWhenOpen(() -> conversation.appendAudio(audioBase64));
         }
 
         @Override
         public void sendVideo(String imageBase64) {
-            conversation.appendVideo(imageBase64);
+            runWhenOpen(() -> conversation.appendVideo(imageBase64));
         }
 
         @Override
         public void commit() {
-            conversation.commit();
+            runWhenOpen(conversation::commit);
         }
 
         @Override
         public void createResponse() {
-            conversation.createResponse(null, null);
+            runWhenOpen(() -> conversation.createResponse(null, null));
         }
 
         @Override
         public void cancelResponse() {
-            conversation.cancelResponse();
+            runWhenOpen(conversation::cancelResponse);
         }
 
         @Override
         public void close() {
-            conversation.close();
+            if (closed.compareAndSet(false, true)) {
+                conversation.close();
+            }
         }
 
         @Override
         public String getSessionId() {
             return conversation.getSessionId();
+        }
+
+        private void runWhenOpen(Runnable action) {
+            if (closed.get()) return;
+            try {
+                action.run();
+            } catch (RuntimeException exception) {
+                if (isConversationClosed(exception)) {
+                    closed.set(true);
+                }
+                throw exception;
+            }
+        }
+
+        private static boolean isConversationClosed(RuntimeException exception) {
+            for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
+                if ("conversation is already closed!".equals(cause.getMessage())) {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }

@@ -56,20 +56,40 @@ export class OmniVoiceAdapter implements RealtimeVoiceAdapter {
       let audioCtx: AudioContext | null = null
       let processor: ScriptProcessorNode | null = null
       let stream: MediaStream | null = null
+      let stopped = false
+      let cleanedUp = false
+      let ended = false
+
+      const end = (reason: "error" | "finished", error?: Error) => {
+        if (ended || helpers.isDisposed()) return
+        ended = true
+        if (reason === "error") {
+          helpers.end("error", error ?? new Error("语音会话异常结束"))
+          return
+        }
+        helpers.end("finished")
+      }
 
       ws.onopen = async () => {
+        if (stopped || ws.readyState !== WebSocket.OPEN) return
         helpers.setStatus({ type: "running" })
         helpers.emitMode("listening")
 
         try {
-          stream = await navigator.mediaDevices.getUserMedia({
+          const captureStream = await navigator.mediaDevices.getUserMedia({
             audio: { sampleRate: 16000, channelCount: 1 }
           })
+          if (stopped || helpers.isDisposed() || ws.readyState !== WebSocket.OPEN) {
+            for (const track of captureStream.getTracks()) track.stop()
+            return
+          }
+
+          stream = captureStream
           audioCtx = new AudioContext({ sampleRate: 16000 })
           const src = audioCtx.createMediaStreamSource(stream)
           processor = audioCtx.createScriptProcessor(4096, 1, 1)
           processor.onaudioprocess = (e: AudioProcessingEvent) => {
-            if (helpers.isDisposed() || ws.readyState !== WebSocket.OPEN) return
+            if (stopped || helpers.isDisposed() || ws.readyState !== WebSocket.OPEN) return
             const pcm16 = float32ToPcm16(e.inputBuffer.getChannelData(0))
 
             // 实时音量上报（低频段均值）
@@ -84,8 +104,10 @@ export class OmniVoiceAdapter implements RealtimeVoiceAdapter {
           }
           src.connect(processor)
           processor.connect(audioCtx.destination)
-        } catch (err) {
-          helpers.end("error", err instanceof Error ? err : new Error(String(err)))
+        } catch (error) {
+          cleanup()
+          end("error", error instanceof Error ? error : new Error(String(error)))
+          ws.close()
         }
       }
 
@@ -116,17 +138,31 @@ export class OmniVoiceAdapter implements RealtimeVoiceAdapter {
             helpers.emitMode("listening")
             break
           case "error":
-            helpers.end("error", new Error(msg.text ?? "未知错误"))
+            cleanup()
+            end("error", new Error(msg.text ?? "未知错误"))
+            ws.close()
+            break
+          case "closed":
+            cleanup()
+            end("finished")
+            ws.close()
             break
         }
       }
 
       ws.onclose = () => {
-        if (!helpers.isDisposed()) helpers.end("finished")
+        cleanup()
+        end("finished")
       }
-      ws.onerror = () => ws.close()
+      ws.onerror = () => {
+        cleanup()
+        ws.close()
+      }
 
       const cleanup = () => {
+        if (cleanedUp) return
+        cleanedUp = true
+        stopped = true
         processor?.disconnect()
         processor = null
         audioCtx?.close()
@@ -134,7 +170,7 @@ export class OmniVoiceAdapter implements RealtimeVoiceAdapter {
         playbackCtx?.close()
         playbackCtx = null
         if (stream) {
-          for (const t of stream.getTracks()) t.stop()
+          for (const track of stream.getTracks()) track.stop()
           stream = null
         }
       }

@@ -16,7 +16,7 @@ public interface OmniRealtimeService {
 
     /** 会话配置。 */
     record SessionConfig(
-            /** 模型名称，如 qwen3-omni-flash-realtime */
+            /** 模型名称，如 qwen3.5-omni-plus-realtime */
             String model,
             /** 音色 */
             String voice,

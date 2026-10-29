@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.ai.aigc.omni.ws;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.ObjectProvider;
@@ -57,6 +58,7 @@ public class OmniRealtimeWebSocketHandler extends TextWebSocketHandler {
     private final ObjectProvider<OmniRealtimeService> omniRealtimeServiceProvider;
 
     private final Map<String, OmniSession> sessionMap = new ConcurrentHashMap<>();
+    private final Set<String> closedSessionIds = ConcurrentHashMap.newKeySet();
 
     @Override
     public void afterConnectionEstablished(WebSocketSession wsSession) {
@@ -80,8 +82,16 @@ public class OmniRealtimeWebSocketHandler extends TextWebSocketHandler {
                     omniRealtimeService.createSession(
                             config,
                             event -> {
+                                if ("closed".equals(event.type())) {
+                                    terminateSession(wsSession, "语音实时会话已结束，请重新连接");
+                                    return;
+                                }
                                 sendEvent(wsSession, event);
                             });
+            if (closedSessionIds.contains(wsSession.getId()) || !wsSession.isOpen()) {
+                omniSession.close();
+                return;
+            }
             sessionMap.put(wsSession.getId(), omniSession);
             log.info(
                     "Omni Realtime 连接建立: wsSessionId={}, omniSessionId={}",
@@ -96,7 +106,10 @@ public class OmniRealtimeWebSocketHandler extends TextWebSocketHandler {
 
     @Override
     protected void handleTextMessage(WebSocketSession wsSession, TextMessage message) {
-        var omniSession = sessionMap.get(wsSession.getId());
+        var sessionId = wsSession.getId();
+        if (closedSessionIds.contains(sessionId)) return;
+
+        var omniSession = sessionMap.get(sessionId);
         if (omniSession == null) return;
 
         try {
@@ -112,17 +125,51 @@ public class OmniRealtimeWebSocketHandler extends TextWebSocketHandler {
                 default -> log.warn("未知消息类型: {}", type);
             }
         } catch (Exception e) {
-            log.error("处理 Omni 消息失败: sessionId={}", wsSession.getId(), e);
+            if (isConversationClosed(e)) {
+                terminateSession(wsSession, "语音实时会话已结束，请重新连接");
+                return;
+            }
+            log.error("处理 Omni 消息失败: sessionId={}", sessionId, e);
         }
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession wsSession, CloseStatus status) {
+        closedSessionIds.remove(wsSession.getId());
         var omniSession = sessionMap.remove(wsSession.getId());
         if (omniSession != null) {
             omniSession.close();
         }
         log.info("Omni Realtime 连接关闭: sessionId={}, status={}", wsSession.getId(), status);
+    }
+
+    private void terminateSession(WebSocketSession wsSession, String message) {
+        var sessionId = wsSession.getId();
+        if (!wsSession.isOpen()) {
+            closeSession(sessionId);
+            return;
+        }
+        if (!closedSessionIds.add(sessionId)) return;
+
+        sendEvent(wsSession, new OmniRealtimeService.OmniEvent("closed", message, null, null));
+        closeSession(sessionId);
+        closeQuietly(wsSession);
+    }
+
+    private void closeSession(String sessionId) {
+        var omniSession = sessionMap.remove(sessionId);
+        if (omniSession != null) {
+            omniSession.close();
+        }
+    }
+
+    private boolean isConversationClosed(Exception exception) {
+        for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
+            if ("conversation is already closed!".equals(cause.getMessage())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void sendEvent(WebSocketSession wsSession, OmniRealtimeService.OmniEvent event) {
