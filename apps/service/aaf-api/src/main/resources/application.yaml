@@ -176,7 +176,7 @@ aaf:
       SPEECH_ASR: qwen:fun-asr-realtime
       SPEECH_TTS: qwen:cosyvoice-v3-flash
       MUSIC_GEN: qwen:fun-music-v1
-      OMNI_REALTIME: qwen:qwen3-omni-flash-realtime
+      OMNI_REALTIME: qwen:qwen3.5-omni-plus-realtime
       RERANK: qwen:qwen3.7-text-rerank
       EMBEDDING: qwen:qwen3.7-text-embedding
     prompts:

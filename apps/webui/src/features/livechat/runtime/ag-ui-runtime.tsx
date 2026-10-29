@@ -25,7 +25,7 @@ import {
 } from "@assistant-ui/react"
 import { type UseAgUiThreadListAdapter, useAgUiRuntime } from "@assistant-ui/react-ag-ui"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { backendApi } from "@/lib/api/rest/backend-client"
+import { backendApi, getBackendRequestContextHeaders } from "@/lib/api/rest/backend-client"
 import { ForwardedPropsHttpAgent } from "./forwarded-props-http-agent"
 
 /** 文件上传返回结构（StoredFile）。 */
@@ -177,6 +177,58 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
+const CHAT_SESSION_NOT_FOUND_CODE = 1003000
+
+/** 判断响应是否表示本地缓存的聊天会话已失效。 */
+async function isChatSessionNotFound(response: Response): Promise<boolean> {
+  if (response.ok) return false
+
+  try {
+    const payload: unknown = await response.clone().json()
+    return isObject(payload) && payload.code === CHAT_SESSION_NOT_FOUND_CODE
+  } catch {
+    return false
+  }
+}
+
+/** 用新建的服务端线程重放同一条 AG-UI 请求。 */
+function replaceRunThreadId(requestInit: RequestInit, threadId: string): RequestInit | undefined {
+  if (typeof requestInit.body !== "string") return undefined
+
+  try {
+    const payload: unknown = JSON.parse(requestInit.body)
+    if (!isObject(payload)) return undefined
+    return { ...requestInit, body: JSON.stringify({ ...payload, threadId }) }
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * 认证聊天请求仅在服务端确认旧会话不存在时，创建会话并重试原消息一次。
+ *
+ * 首次请求未通过服务端线程校验，因而不会持久化用户消息；重试复用原 runId、消息和调用参数不会重复执行。
+ */
+async function fetchAuthenticatedRun(
+  requestUrl: RequestInfo | URL,
+  requestInit: RequestInit = {},
+  recoverThread: () => Promise<string>
+): Promise<Response> {
+  const headers = new Headers(getBackendRequestContextHeaders())
+  new Headers(requestInit.headers).forEach((value, name) => headers.set(name, value))
+  headers.set("Accept", "text/event-stream, application/json")
+  const initialRequest = { ...requestInit, headers }
+  const response = await fetch(requestUrl, initialRequest)
+  if (!(await isChatSessionNotFound(response))) return response
+
+  if (!replaceRunThreadId(initialRequest, "")) return response
+
+  const threadId = await recoverThread()
+  const retryRequest = replaceRunThreadId(initialRequest, threadId)
+  if (!retryRequest) throw new Error("AI 会话重试请求格式无效")
+  return fetch(requestUrl, retryRequest)
+}
+
 /** 匿名客服只发送纯文本消息，剔除附件、工具结果与客户端上下文。 */
 function sanitizeGuestMessages(value: unknown): Record<string, unknown>[] {
   if (!Array.isArray(value)) throw new Error("匿名客服消息格式无效")
@@ -305,6 +357,9 @@ export function AgUiChatProvider({
   const accessToken = useAuthStore((s) => s.accessToken)
   const queryClient = useQueryClient()
   const guestThreadIdRef = useRef<string | undefined>(undefined)
+  const sessionRecoveryRef = useRef<() => Promise<string>>(() =>
+    Promise.reject(new Error("AI 会话恢复尚未就绪"))
+  )
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: initialState/forwardedProps 通过序列化 key 跟踪
   const agent = useMemo(() => {
@@ -318,7 +373,16 @@ export function AgUiChatProvider({
               fetch: (requestUrl: RequestInfo | URL, requestInit?: RequestInit) =>
                 fetchGuestRun(requestUrl, requestInit, guestThreadIdRef.current)
             }
-          : {})
+          : !fixedThreadId
+            ? {
+                fetch: (requestUrl: RequestInfo | URL, requestInit?: RequestInit) =>
+                  fetchAuthenticatedRun(
+                    requestUrl,
+                    requestInit,
+                    () => sessionRecoveryRef.current()
+                  )
+              }
+            : {})
       },
       guestMode
         ? {}
@@ -328,7 +392,7 @@ export function AgUiChatProvider({
             anonymousId: getOrCreateAnonymousId()
           }
     )
-  }, [url, initialStateKey, forwardedPropsKey, accessToken, guestMode])
+  }, [url, initialStateKey, forwardedPropsKey, accessToken, guestMode, fixedThreadId])
 
   // 当前 threadId——登录模式由会话列表校验，guest 模式仅信任公开 session 接口。
   const THREAD_KEY = "aaf:chatter-thread-id"
@@ -514,6 +578,24 @@ export function AgUiChatProvider({
   const unarchiveSessionMutation = useUnarchiveSession()
   const deleteSessionMutation = useDeleteSession()
   const autoCreateThreadPendingRef = useRef(false)
+
+  // 收到会话不存在时由请求边界调用：清理候选 ID、创建服务端会话，并让同一消息仅重试一次。
+  useEffect(() => {
+    sessionRecoveryRef.current = async () => {
+      autoCreateThreadPendingRef.current = true
+      sessionStorage.removeItem(THREAD_KEY)
+      setCurrentThreadId(undefined)
+      try {
+        const session = await createSessionAsync({ type: "ai" })
+        sessionStorage.setItem(THREAD_KEY, session.threadId)
+        setCurrentThreadId(session.threadId)
+        return session.threadId
+      } catch (error) {
+        autoCreateThreadPendingRef.current = false
+        throw error
+      }
+    }
+  }, [createSessionAsync])
 
   // sessionStorage 只保存候选 threadId；当前用户会话列表是有效性的唯一依据。
   useEffect(() => {

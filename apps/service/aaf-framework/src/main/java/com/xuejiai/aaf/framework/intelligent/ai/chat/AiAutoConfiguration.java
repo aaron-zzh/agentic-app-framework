@@ -61,7 +61,7 @@ public class AiAutoConfiguration {
                                         CapabilityRoutingContext.CAP_MODEL_3D, "tripo:tripo3d-v2"),
                                 Map.entry(
                                         CapabilityRoutingContext.CAP_OMNI_REALTIME,
-                                        "qwen:qwen3-omni-flash-realtime"),
+                                        "qwen:qwen3.5-omni-plus-realtime"),
                                 Map.entry(
                                         CapabilityRoutingContext.CAP_RERANK,
                                         "qwen:qwen3.7-text-rerank"),

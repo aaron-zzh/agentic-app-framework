@@ -12,8 +12,6 @@ import {
   type TaskModelSelection
 } from "@/features/chatter/types"
 
-export const DEFAULT_CHATTER_ASSISTANT_ID = "system.assistant.default-user"
-
 interface ChatterPageRuntimeConfig {
   preset?: string
   agentRole?: string
@@ -69,8 +67,7 @@ export function buildChatterForwardedProps(
   const effectiveTaskModelSelection = usesAssistantRuntime
     ? (taskModelSelection ?? DEFAULT_TASK_MODEL_SELECTION)
     : undefined
-  const assistantId =
-    target.assistantId ?? (usesAssistantRuntime ? DEFAULT_CHATTER_ASSISTANT_ID : undefined)
+  const assistantId = target.assistantId
   // Role 必须与 Assistant ID 原子发送；缺任一项时由后端在目标 Assistant 内走 AUTO Route。
   const role =
     usesAssistantRuntime && target.assistantId && target.agentRole
