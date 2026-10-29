@@ -314,11 +314,11 @@ export default function StudioProjectsPage() {
         </header>
 
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex min-w-0 flex-wrap gap-2 lg:flex-1">
+          <div className="flex min-w-0 flex-nowrap gap-2 overflow-x-auto pb-1 lg:w-1/2 lg:flex-none">
             <Link
               href={buildFilterHref(status)}
               className={cn(
-                "rounded-full border px-3 py-1 text-xs transition-colors",
+                "shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs transition-colors",
                 type
                   ? "text-muted-foreground hover:text-foreground"
                   : "border-primary/40 bg-primary/10 text-primary"
@@ -331,7 +331,7 @@ export default function StudioProjectsPage() {
                 key={projectType.code}
                 href={buildFilterHref(status, projectType.code)}
                 className={cn(
-                  "rounded-full border px-3 py-1 text-xs transition-colors",
+                  "shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs transition-colors",
                   type === projectType.code
                     ? "border-primary/40 bg-primary/10 text-primary"
                     : "text-muted-foreground hover:text-foreground"
