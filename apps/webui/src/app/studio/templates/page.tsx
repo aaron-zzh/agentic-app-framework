@@ -42,7 +42,7 @@ function BlueprintCard({ blueprint }: { blueprint: AigcProjectBlueprint }) {
           <span className="text-muted-foreground text-xs">{blueprint.productionMode}</span>
           <GlowButton
             nativeButton={false}
-            render={<Link href="/studio/projects/new" />}
+            render={<Link href={`/studio/projects/new?blueprintId=${blueprint.id}`} />}
             tone="primary"
             size="sm"
           >

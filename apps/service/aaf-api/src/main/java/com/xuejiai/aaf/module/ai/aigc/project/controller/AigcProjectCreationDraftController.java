@@ -112,8 +112,7 @@ public class AigcProjectCreationDraftController {
                                 request.proposalVersion(),
                                 request.proposalHash(),
                                 request.approvedTargetKeys(),
-                                request.approvalIdempotencyKey(),
-                                request.assistantId())));
+                                request.approvalIdempotencyKey())));
     }
 
     @Operation(summary = "启动 Assistant Blueprint 规划并预绑定 canonical Task")
@@ -260,7 +259,7 @@ public class AigcProjectCreationDraftController {
             LocalDateTime expiresAt,
             @NotEmpty List<@NotNull @Valid AigcProjectGenerationProposalItemDTO> items) {}
 
-    /** 草稿域没有项目受控会话，因此必须显式指定 canonical Assistant code。 */
+    /** 草稿确认请求只提交目标凭据；执行身份由服务端解析当前用户的默认助理。 */
     public record CreationDraftStartDTO(
             @NotBlank String draftId,
             @NotNull @Positive Long blueprintVersionId,
@@ -268,6 +267,5 @@ public class AigcProjectCreationDraftController {
             @NotNull Integer proposalVersion,
             @NotBlank String proposalHash,
             @NotEmpty List<@NotBlank String> approvedTargetKeys,
-            @NotBlank String approvalIdempotencyKey,
-            @NotBlank String assistantId) {}
+            @NotBlank String approvalIdempotencyKey) {}
 }

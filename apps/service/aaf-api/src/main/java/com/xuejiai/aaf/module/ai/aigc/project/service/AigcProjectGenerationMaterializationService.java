@@ -12,8 +12,13 @@ import com.xuejiai.aaf.common.exception.BusinessException;
 import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.framework.intelligent.agent.model.AuthorizationGrant;
 import com.xuejiai.aaf.framework.intelligent.agent.port.AuthorizationGrantPort;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.AssistantDefinition;
+import com.xuejiai.aaf.framework.intelligent.assistant.port.AssistantDefinitionPort;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
+import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
+import com.xuejiai.aaf.framework.org.OrgContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.ai.aigc.AigcCanonicalRequest;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcApprovedGenerationTarget;
 import com.xuejiai.aaf.module.ai.aigc.project.api.AigcGenerationProposalScope;
@@ -56,17 +61,24 @@ public class AigcProjectGenerationMaterializationService {
     private final AigcProjectGenerationProposalService proposals;
     private final ProgrammaticAssistantTaskPort assistantTasks;
     private final AuthorizationGrantPort authorizationGrants;
+    private final AssistantDefinitionPort assistantDefinitions;
+    private final OperatorContext operatorContext;
 
     public AigcProjectGenerationMaterializationService(
             AigcProjectApi projects,
             AigcProjectGenerationProposalService proposals,
             ProgrammaticAssistantTaskPort assistantTasks,
-            AuthorizationGrantPort authorizationGrants) {
+            AuthorizationGrantPort authorizationGrants,
+            AssistantDefinitionPort assistantDefinitions,
+            OperatorContext operatorContext) {
         this.projects = Objects.requireNonNull(projects, "projects 不能为空");
         this.proposals = Objects.requireNonNull(proposals, "proposals 不能为空");
         this.assistantTasks = Objects.requireNonNull(assistantTasks, "assistantTasks 不能为空");
         this.authorizationGrants =
                 Objects.requireNonNull(authorizationGrants, "authorizationGrants 不能为空");
+        this.assistantDefinitions =
+                Objects.requireNonNull(assistantDefinitions, "assistantDefinitions 不能为空");
+        this.operatorContext = Objects.requireNonNull(operatorContext, "operatorContext 不能为空");
     }
 
     /** 确认并启动单项已确认生成目标；三步顺序固定，任一步失败都不留下已关联但不存在的 Task。 */
@@ -101,7 +113,7 @@ public class AigcProjectGenerationMaterializationService {
                                                 approved.proposalHash(),
                                                 itemKey))
                         .toList();
-        var assistantThread = assistantThread(scope, command.assistantId());
+        var assistantThread = assistantThread(scope);
         var receipt =
                 assistantTasks.submitTask(
                         new ProgrammaticAssistantTaskPort.Request(
@@ -203,23 +215,31 @@ public class AigcProjectGenerationMaterializationService {
     /**
      * 解析任务运行身份。
      *
-     * <p>项目域必须使用服务端受控项目会话（{@code READY}），客户端不得指定 Assistant；草稿域尚无项目会话，因此要求显式选择 Assistant 并固定在 {@code
-     * draft:{draftId}} 这条草稿 thread 上运行——该 thread 物化后不迁移为项目会话，避免形成项目身份的第二来源。
+     * <p>项目域使用服务端受控项目会话；草稿域尚无项目会话，因此使用当前组织与用户的默认助理，并固定在 {@code draft:{draftId}} 这条草稿 thread 上运行。该
+     * thread 物化后不迁移为项目会话，避免形成项目身份的第二来源。
      */
-    private AssistantThread assistantThread(AigcGenerationProposalScope scope, String assistantId) {
+    private AssistantThread assistantThread(AigcGenerationProposalScope scope) {
         if (scope.creationDraft()) {
-            var explicitAssistantId = assistantId == null ? null : assistantId.trim();
-            if (explicitAssistantId == null || explicitAssistantId.isEmpty()) {
-                throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "物化前生成必须显式指定 Assistant");
-            }
             if (scope.draftId() == null) {
                 throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "草稿域必须携带 draftId");
             }
-            return new AssistantThread(explicitAssistantId, scope.draftId());
-        }
-        if (assistantId != null && !assistantId.isBlank()) {
-            throw new BusinessException(
-                    GlobalErrorCode.BAD_REQUEST, "项目域使用服务端受控会话，不接受客户端指定 Assistant");
+            var orgId = OrgContext.getCurrentOrgId();
+            var ownerId = operatorContext.currentOwnerId().orElse(null);
+            if (orgId == null || ownerId == null) {
+                throw new BusinessException(GlobalErrorCode.UNAUTHORIZED, "请求缺少组织或用户上下文");
+            }
+            var definition =
+                    assistantDefinitions
+                            .findDefaultForUser(
+                                    new TenantId(orgId.toString()), new UserId(ownerId.toString()))
+                            .orElseThrow(
+                                    () ->
+                                            new BusinessException(
+                                                    GlobalErrorCode.NOT_FOUND, "当前用户没有可用的默认助理"));
+            if (definition.lifecycle() != AssistantDefinition.Lifecycle.PUBLISHED) {
+                throw new BusinessException(409, "当前用户的默认助理不可执行");
+            }
+            return new AssistantThread(definition.assistantId().value(), scope.draftId());
         }
         var conversation = projects.conversationContext(scope.projectId());
         if (conversation.state() != AigcProjectConversationContext.State.READY) {

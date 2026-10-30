@@ -3,7 +3,8 @@
  * @author AaronZZH & Kiro
  */
 
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useEventSubscription } from "@/lib/realtime/use-event-subscription"
 import { backendApi } from "../backend-client"
 import { restEndpoints } from "../endpoints"
 
@@ -180,15 +181,35 @@ export function isTaskTerminal(status: TaskStatus): boolean {
   return status === "COMPLETED" || status === "CANCELED" || status === "FAILED"
 }
 
-/** 查询 canonical Task 详情；非终态期间轮询服务端权威投影。 */
+const TASK_STATUS_EVENT_TYPE = "task.status.changed"
+const TRANSITIONING_POLL_MS = 3_000
+const ACTIVE_POLL_MS = 10_000
+
+/** 查询 canonical Task 详情；状态事件即时失效查询，低频轮询仅作断线兜底。 */
 export function useTaskDetails(taskId: string | null) {
+  const queryClient = useQueryClient()
+
+  useEventSubscription(TASK_STATUS_EVENT_TYPE, (event) => {
+    if (
+      taskId === null ||
+      event.type !== TASK_STATUS_EVENT_TYPE ||
+      event.payload.taskId !== taskId
+    ) {
+      return
+    }
+    void queryClient.invalidateQueries({ queryKey: taskKeys.detail(taskId), exact: true })
+  })
+
   return useQuery({
     queryKey: taskKeys.detail(taskId ?? ""),
     queryFn: () => taskApi.get(taskId as string),
     enabled: taskId !== null,
     refetchInterval: (query) => {
       const task = query.state.data
-      return task && !isTaskTerminal(task.status) ? 3000 : false
+      if (!task || isTaskTerminal(task.status) || task.status === "PAUSED") return false
+      return task.status === "PAUSING" || task.status === "CANCELING"
+        ? TRANSITIONING_POLL_MS
+        : ACTIVE_POLL_MS
     }
   })
 }

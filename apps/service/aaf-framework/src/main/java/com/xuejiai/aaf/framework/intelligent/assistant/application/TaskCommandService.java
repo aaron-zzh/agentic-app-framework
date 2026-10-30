@@ -38,6 +38,7 @@ import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskUnitOfWork;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEvent;
 import com.xuejiai.aaf.framework.intelligent.shared.event.ExecutionEventType;
 import com.xuejiai.aaf.framework.intelligent.shared.event.NodeIdentity;
+import com.xuejiai.aaf.framework.intelligent.shared.event.TurnEndReason;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ConversationId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ExecutionId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
@@ -591,6 +592,7 @@ public final class TaskCommandService {
     private Flux<ExecutionEvent> executeClaimed(ClaimedNode claimed, AssistantCommand command) {
         var result = new AtomicReference<>("");
         var failure = new AtomicReference<String>();
+        var retryableFailure = new AtomicBoolean();
         var completed = new AtomicBoolean();
         var delegated = new AtomicBoolean();
         var draftToolCallId = new AtomicReference<String>();
@@ -631,6 +633,14 @@ public final class TaskCommandService {
                                                 event.payload().values().get("artifactVersionId"),
                                                 null));
                             }
+                            var values = event.payload().values();
+                            if (Boolean.TRUE.equals(values.get("retryable"))
+                                    || (event.type() == ExecutionEventType.EXECUTION_FAILED
+                                            && TurnEndReason.REPAIR_SCHEDULED
+                                                    .name()
+                                                    .equals(values.get("turnEndReason")))) {
+                                retryableFailure.set(true);
+                            }
                             if (event.type() == ExecutionEventType.EXECUTION_COMPLETED) {
                                 completed.set(true);
                             }
@@ -639,8 +649,7 @@ public final class TaskCommandService {
                                 failure.compareAndSet(
                                         null,
                                         Objects.toString(
-                                                event.payload().values().get("reason"),
-                                                "TaskNode execution failed"));
+                                                values.get("reason"), "TaskNode execution failed"));
                             }
                         })
                 .onErrorResume(
@@ -660,10 +669,12 @@ public final class TaskCommandService {
                                             && !delegated.get()) {
                                         terminalFailure =
                                                 "分解策略为 REQUIRED，协调者必须调用 delegate_agents 委派，本次未委派";
+                                        retryableFailure.set(true);
                                     }
                                     if (!completed.get() && terminalFailure == null) {
                                         terminalFailure =
                                                 "TaskNode execution did not reach terminal state";
+                                        retryableFailure.set(true);
                                     }
                                     var commit =
                                             materializations.commit(
@@ -685,6 +696,7 @@ public final class TaskCommandService {
                                                             claimed.executionVersion(),
                                                             result.get(),
                                                             terminalFailure,
+                                                            retryableFailure.get(),
                                                             clock.instant()));
                                     log.info(
                                             "[TaskMaterialization] stage=task_node_commit executionId={} "

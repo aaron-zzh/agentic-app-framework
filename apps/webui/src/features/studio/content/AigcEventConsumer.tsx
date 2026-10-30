@@ -9,6 +9,7 @@
 
 import { type QueryClient, useQueryClient } from "@tanstack/react-query"
 import { aigcExecutionKeys } from "@/lib/api/rest/ai/aigc/execution"
+import { aigcStudioHomeKeys } from "@/lib/api/rest/ai/aigc/home"
 import { aigcProjectKeys } from "@/lib/api/rest/ai/aigc/project"
 import { aigcWorkKeys } from "@/lib/api/rest/ai/aigc/work"
 import { taskKeys } from "@/lib/api/rest/ai/task"
@@ -20,6 +21,7 @@ const AIGC_EVENT_PREFIX = "aigc."
 
 /** 按事件 refs 失效 AIGC 相关查询；无 projectId 时失效全部项目查询。 */
 export function invalidateAigcQueries(queryClient: QueryClient, event: RealtimeEvent): void {
+  queryClient.invalidateQueries({ queryKey: aigcStudioHomeKeys.all })
   queryClient.invalidateQueries({ queryKey: aigcExecutionKeys.all })
   queryClient.invalidateQueries({ queryKey: aigcWorkKeys.all })
   queryClient.invalidateQueries({ queryKey: MEDIA_QUERY_KEY })

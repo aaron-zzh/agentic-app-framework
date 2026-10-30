@@ -8,8 +8,7 @@ import java.util.List;
  * <p>客户端只提交作用域、Proposal 身份、版本、hash 与确认范围；taskId 由服务端按作用域身份 + `proposalId + proposalVersion +
  * proposalHash` 确定性派生，重放返回同一 Task。禁止拆成 approve / create / link 三次客户端调用。
  *
- * <p>{@code assistantId} 仅在 {@code CREATION_DRAFT} 作用域必填（此时还没有项目受控会话，需显式选择 Assistant）；
- * 项目作用域一律使用服务端受控项目会话，提交该字段即拒绝。
+ * <p>项目作用域使用服务端受控项目会话；创建草稿作用域使用当前用户的默认助理。客户端不能指定执行身份。
  */
 public record AigcProjectGenerationStartCommand(
         AigcGenerationProposalScope scope,
@@ -18,8 +17,7 @@ public record AigcProjectGenerationStartCommand(
         Integer proposalVersion,
         String proposalHash,
         List<String> approvedTargetKeys,
-        String approvalIdempotencyKey,
-        String assistantId) {
+        String approvalIdempotencyKey) {
 
     public AigcProjectGenerationStartCommand {
         approvedTargetKeys =

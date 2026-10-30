@@ -2247,8 +2247,18 @@ public class JpaTaskMaterializationAdapter implements TaskMaterializationPort {
         }
         var dispatch = dispatchEntity.getDispatch();
         var failed = command.failure() != null && !command.failure().isBlank();
+        var failedNode =
+                failed
+                        ? assemblePlan(command.tenantId(), planEntity)
+                                .fail(
+                                        command.nodeId(),
+                                        command.failure(),
+                                        command.retryableFailure())
+                                .nodes()
+                                .get(command.nodeId())
+                        : null;
         nodeEntity.setStatus(
-                failed ? TaskPlan.Status.FAILED.name() : TaskPlan.Status.COMPLETED.name());
+                failed ? failedNode.status().name() : TaskPlan.Status.COMPLETED.name());
         nodeEntity.setResult(failed ? null : Objects.requireNonNullElse(command.result(), ""));
         nodeEntity.setFailure(failed ? command.failure() : null);
         executionEntity.setExecution(
@@ -2277,6 +2287,10 @@ public class JpaTaskMaterializationAdapter implements TaskMaterializationPort {
         executions.save(executionEntity);
         dispatches.saveAndFlush(dispatchEntity);
         var updatedPlan = assemblePlan(command.tenantId(), planEntity);
+        var retryScheduled =
+                failed
+                        && updatedPlan.nodes().get(command.nodeId()).status()
+                                == TaskPlan.Status.RETRYABLE;
         var currentTask = taskEntity.getTask();
         var finalizer = nodeEntity.getDefinition().kind() == TaskPlan.TaskNode.Kind.AGGREGATOR;
         final Task updatedTask;
@@ -2322,31 +2336,40 @@ public class JpaTaskMaterializationAdapter implements TaskMaterializationPort {
                                                                             .AGGREGATOR);
             planCompletedWithoutFinalizer = !failed && updatedPlan.completed();
             var nextTaskStatus =
-                    failed
-                            ? (updatedPlan.failurePolicy() == TaskPlan.FailurePolicy.FAIL_TASK
-                                    ? Task.Status.FAILED
-                                    : Task.Status.PAUSED)
-                            : (planCompletedWithoutFinalizer
-                                    ? Task.Status.PAUSED
-                                    : (finalizerReady
-                                            ? Task.Status.VERIFYING
-                                            : Task.Status.RUNNING));
+                    retryScheduled
+                            ? Task.Status.RUNNING
+                            : failed
+                                    ? (updatedPlan.failurePolicy()
+                                                    == TaskPlan.FailurePolicy.FAIL_TASK
+                                            ? Task.Status.FAILED
+                                            : Task.Status.PAUSED)
+                                    : (planCompletedWithoutFinalizer
+                                            ? Task.Status.PAUSED
+                                            : (finalizerReady
+                                                    ? Task.Status.VERIFYING
+                                                    : Task.Status.RUNNING));
             var checkpoint =
-                    failed
+                    retryScheduled
                             ? currentTask
                                     .checkpoint()
                                     .withAnnotation(
-                                            "nodeFailure",
-                                            command.nodeId() + ":" + command.failure())
-                            : (planCompletedWithoutFinalizer
+                                            "nodeRetry",
+                                            command.nodeId() + ":attempt-" + command.attemptNo())
+                            : failed
                                     ? currentTask
                                             .checkpoint()
                                             .withAnnotation(
-                                                    "finalizerMissing",
-                                                    updatedPlan.planId()
-                                                            + ":"
-                                                            + updatedPlan.revision())
-                                    : currentTask.checkpoint());
+                                                    "nodeFailure",
+                                                    command.nodeId() + ":" + command.failure())
+                                    : (planCompletedWithoutFinalizer
+                                            ? currentTask
+                                                    .checkpoint()
+                                                    .withAnnotation(
+                                                            "finalizerMissing",
+                                                            updatedPlan.planId()
+                                                                    + ":"
+                                                                    + updatedPlan.revision())
+                                            : currentTask.checkpoint());
             updatedTask =
                     currentTask.withRuntime(
                             nextTaskStatus,
@@ -2359,7 +2382,9 @@ public class JpaTaskMaterializationAdapter implements TaskMaterializationPort {
         taskEntity.setTask(updatedTask);
         tasks.saveAndFlush(taskEntity);
         var released =
-                failed || planCompletedWithoutFinalizer || updatedTask.terminal()
+                (failed && !retryScheduled)
+                                || planCompletedWithoutFinalizer
+                                || updatedTask.terminal()
                         ? List.<MaterializedDispatch>of()
                         : materializeLocked(
                                 command.tenantId(),

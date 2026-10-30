@@ -253,8 +253,7 @@ public class AigcProjectController
                                 request.proposalVersion(),
                                 request.proposalHash(),
                                 request.approvedTargetKeys(),
-                                request.approvalIdempotencyKey(),
-                                null)));
+                                request.approvalIdempotencyKey())));
     }
 
     @Operation(summary = "获取项目图谱")

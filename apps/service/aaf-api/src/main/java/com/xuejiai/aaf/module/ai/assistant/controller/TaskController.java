@@ -1,5 +1,8 @@
 package com.xuejiai.aaf.module.ai.assistant.controller;
 
+import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
+import static com.xuejiai.aaf.module.ai.assistant.AssistantErrorCode.PROGRAMMATIC_TASK_CONCURRENT_LIMIT_EXCEEDED;
+
 import java.util.List;
 
 import org.springframework.security.access.AccessDeniedException;
@@ -14,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.intelligent.assistant.application.TaskCommandService;
+import com.xuejiai.aaf.framework.intelligent.assistant.model.Task;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.TaskDetails;
 import com.xuejiai.aaf.framework.intelligent.assistant.port.TaskQueryPort;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.ConversationId;
@@ -22,6 +26,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
+import com.xuejiai.aaf.module.billing.api.ParallelTaskQuotaApi;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -37,6 +42,7 @@ public class TaskController {
     private final TaskQueryPort tasks;
     private final TaskCommandService commands;
     private final OperatorContext operatorContext;
+    private final ParallelTaskQuotaApi parallelTaskQuota;
 
     @Operation(summary = "查询当前用户在指定对话中的 Task 列表")
     @GetMapping
@@ -78,6 +84,7 @@ public class TaskController {
         var tenantId = tenantId();
         var userId = userId();
         var canonicalTaskId = new TaskId(taskId);
+        requireAutomationConcurrencySlot(tenantId, userId, canonicalTaskId);
         commands.resume(tenantId, userId, canonicalTaskId);
         return Result.success(
                 tasks.find(tenantId, userId, canonicalTaskId)
@@ -105,6 +112,7 @@ public class TaskController {
         var tenantId = tenantId();
         var userId = userId();
         var canonicalTaskId = new TaskId(taskId);
+        requireAutomationConcurrencySlot(tenantId, userId, canonicalTaskId);
         commands.handBack(tenantId, userId, canonicalTaskId);
         return Result.success(
                 tasks.find(tenantId, userId, canonicalTaskId)
@@ -124,6 +132,25 @@ public class TaskController {
                 tasks.find(tenantId, userId, canonicalTaskId)
                         .map(details -> withDecisionBlockers(tenantId, details))
                         .orElseThrow(() -> new IllegalStateException("取消后的 Task 不存在")));
+    }
+
+    /** PAUSED 自动化任务已释放名额，恢复执行前必须按当前订阅重新准入。 */
+    private void requireAutomationConcurrencySlot(TenantId tenantId, UserId userId, TaskId taskId) {
+        var task = tasks.find(tenantId, userId, taskId).orElse(null);
+        if (task == null
+                || !Task.Source.AUTOMATION.name().equals(task.source())
+                || !Task.Status.PAUSED.name().equals(task.status())) {
+            return;
+        }
+        var ownerId =
+                operatorContext
+                        .currentOwnerId()
+                        .orElseThrow(() -> new AccessDeniedException("请求未认证"));
+        var limit = parallelTaskQuota.parallelTaskLimit(ownerId);
+        if (limit != -1L
+                && tasks.countActiveBySource(tenantId, userId, Task.Source.AUTOMATION) >= limit) {
+            throw exception(PROGRAMMATIC_TASK_CONCURRENT_LIMIT_EXCEEDED);
+        }
     }
 
     /**

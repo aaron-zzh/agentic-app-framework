@@ -291,6 +291,7 @@ public interface TaskMaterializationPort {
             long expectedExecutionVersion,
             String result,
             String failure,
+            boolean retryableFailure,
             Instant at) {}
 
     record CommitResult(

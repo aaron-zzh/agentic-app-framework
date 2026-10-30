@@ -178,3 +178,23 @@ author: AaronZZH & Kiro
 - 事件 `task.status.changed`：ID 类字段全放 payload（字符串），接收用户取事件 `userId`
 - 前端：`useTaskList` 订阅 `task.` 前缀并按 conversationId 失效；轮询放宽为 3 秒与 10 秒兜底
 - 风险：改动位于 AAF-115 的事件落库热点（框架层），所有执行事件落库都会经过过滤判断，且命中状态类事件时多一次 `sys_event` 写入，建议动态验证时观察落库耗时
+
+## #11328 创建项目 AI 补全单次确认
+
+✅ 2026-10-29 — developer-service + developer-webui
+
+- 补全界面隐藏 Proposal 内部步骤
+- 一次确认自动创建或修订并启动
+- 服务端解析用户默认助理
+- 固定内容创作者与项目协作技能
+- 按要求未新增或执行测试
+
+## #11328 创建页文档入口纠正
+
+✅ 2026-10-29 — developer-webui
+
+- 项目简报移出创建选择
+- 仅展示可选外部参考资料
+- 固定提交参考资料精确版本
+- Assistant 路径使用 references 键
+- 按要求未执行自动验证

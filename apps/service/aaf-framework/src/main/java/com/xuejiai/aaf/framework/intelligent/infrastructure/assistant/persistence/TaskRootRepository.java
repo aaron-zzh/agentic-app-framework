@@ -62,15 +62,15 @@ public interface TaskRootRepository extends JpaRepository<TaskRootEntity, Long> 
             where t.orgId = :orgId
               and t.userId = :userId
               and t.source = :source
-              and t.status not in :terminalStatuses
+              and t.status not in :releasedStatuses
             """)
     long countActiveByOrgIdAndUserIdAndSource(
-            Long orgId, String userId, String source, Collection<String> terminalStatuses);
+            Long orgId, String userId, String source, Collection<String> releasedStatuses);
 
     default long countActiveBySource(
-            String tenantId, String userId, String source, Collection<String> terminalStatuses) {
+            String tenantId, String userId, String source, Collection<String> releasedStatuses) {
         return countActiveByOrgIdAndUserIdAndSource(
-                Long.valueOf(tenantId), userId, source, terminalStatuses);
+                Long.valueOf(tenantId), userId, source, releasedStatuses);
     }
 
     default Optional<TaskRootEntity> findForUpdate(String tenantId, String taskId) {

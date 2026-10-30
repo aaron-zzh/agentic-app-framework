@@ -28,13 +28,13 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle
 } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -74,7 +74,6 @@ import {
   useProposeAigcProjectCreationDraftGeneration,
   useReviseAigcProjectCreationDraftGenerationProposal
 } from "@/lib/api/rest/ai/aigc"
-import { useAssistants } from "@/lib/api/rest/ai/assistant"
 import { useTaskDetails } from "@/lib/api/rest/ai/task"
 import { useDocList, useDocument } from "@/lib/api/rest/system/document"
 import { useEntityAccess } from "@/lib/api/rest/user/permission"
@@ -90,6 +89,12 @@ import {
   parseAigcInitializationResults
 } from "./new-project-schema"
 import { getChannelLabel, getObjectTypeConfig, getProjectTypeConfig } from "./project-type-config"
+
+const PRODUCTION_MODE_LABELS: Record<NewProjectFormValues["productionMode"], string> = {
+  standard: "标准制作",
+  short_drama: "短剧",
+  motion_comic: "动态漫"
+}
 
 const CREATION_DRAFT_FIELD_KEYS = new Set<AigcProjectInitializationFieldKey>([
   "description",
@@ -274,19 +279,31 @@ interface ChannelPickerProps {
 
 export function ChannelPicker({ channels, value, onChange }: ChannelPickerProps) {
   return (
-    <ToggleGroup
-      value={value}
-      onValueChange={onChange}
-      variant="outline"
-      size="sm"
-      className="flex w-full flex-wrap justify-start"
-    >
-      {channels.map((channel) => (
-        <ToggleGroupItem key={channel} value={channel} aria-label={getChannelLabel(channel)}>
-          {getChannelLabel(channel)}
-        </ToggleGroupItem>
-      ))}
-    </ToggleGroup>
+    <div className="flex flex-wrap gap-3">
+      {channels.map((channel) => {
+        const checked = value.includes(channel)
+        return (
+          <Label
+            key={channel}
+            className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm"
+          >
+            <Checkbox
+              checked={checked}
+              onCheckedChange={(nextChecked) =>
+                onChange(
+                  nextChecked === true
+                    ? checked
+                      ? value
+                      : [...value, channel]
+                    : value.filter((item) => item !== channel)
+                )
+              }
+            />
+            {getChannelLabel(channel)}
+          </Label>
+        )
+      })}
+    </div>
   )
 }
 
@@ -485,8 +502,10 @@ interface CreationDraftSuggestionPanelProps {
   fields: AigcProjectInitializationField[]
   /** 本批要生成的初始化字段；由调用方按单字段按钮或"补全空白字段"入口决定。 */
   targetKeys: AigcProjectInitializationFieldKey[]
+  /** 根据当前项目上下文生成的可编辑默认指令。 */
+  defaultInstruction: string
   onApply: (values: AigcInitializationResultEntry[], proposal: AppliedCreationProposal) => void
-  /** 退出本批 AI 建议；不影响已启动的 canonical Task。 */
+  /** 退出本批 AI 补全；不影响已经启动的生成任务。 */
   onCancel: () => void
 }
 
@@ -494,28 +513,27 @@ function CreationDraftSuggestionPanel({
   blueprintVersionId,
   fields,
   targetKeys,
+  defaultInstruction,
   onApply,
   onCancel
 }: CreationDraftSuggestionPanelProps) {
   const instructionId = useId()
   const [draftId, setDraftId] = useState<string | null>(null)
   const [activeProposalId, setActiveProposalId] = useState<string | null>(null)
-  const [instruction, setInstruction] = useState("")
-  const [assistantId, setAssistantId] = useState("")
+  const [instruction, setInstruction] = useState(defaultInstruction)
   const [approvalIntent, setApprovalIntent] = useState<ApprovalIntent | null>(null)
   const [error, setError] = useState<string | null>(null)
   const proposalsQuery = useAigcProjectCreationDraftProposals(draftId)
   const propose = useProposeAigcProjectCreationDraftGeneration()
   const revise = useReviseAigcProjectCreationDraftGenerationProposal()
   const approveAndStart = useApproveAndStartAigcProjectCreationDraftGeneration()
-  const assistantsQuery = useAssistants()
 
   const targetKeySignature = [...targetKeys].sort().join(",")
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: 本批字段集合变化即重置草稿状态，未提交的指令不跨批次保留
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 本批字段集合变化即按当前上下文重置草稿状态，用户编辑的指令不随表单值变化被覆盖
   useEffect(() => {
     setActiveProposalId(null)
-    setInstruction("")
+    setInstruction(defaultInstruction)
     setApprovalIntent(null)
     setError(null)
   }, [targetKeySignature])
@@ -548,31 +566,80 @@ function CreationDraftSuggestionPanel({
   const instructionChanged =
     isEditingCurrentProposal &&
     activeProposal.items.some((item) => item.generationInstruction.trim() !== instruction.trim())
-  const proposalPending = propose.isPending || revise.isPending
+  const generationPending = propose.isPending || revise.isPending || approveAndStart.isPending
 
-  function acceptProposal(proposal: AigcProjectGenerationProposal) {
+  function acceptProposal(proposal: AigcProjectGenerationProposal): boolean {
     if (
       proposal.scopeKind !== "CREATION_DRAFT" ||
       proposal.draftId === null ||
       proposal.blueprintVersionId !== blueprintVersionId ||
       !matchesTargetKeys(proposal)
     ) {
-      setError("服务端返回的 Proposal 与当前 Blueprint 初始化字段不一致，请重新提议。")
-      return
+      setError("服务端返回内容与本次补全设置不一致，请重新生成。")
+      return false
     }
     setDraftId(proposal.draftId)
     setActiveProposalId(proposal.proposalId)
-    setApprovalIntent(null)
     setError(null)
+    return true
   }
 
-  function submitProposal() {
-    const generationInstruction = instruction.trim()
-    if (!generationInstruction) {
-      setError("请先填写希望 Assistant 如何生成这些字段。")
+  function approveProposal(proposal: AigcProjectGenerationProposal) {
+    if (
+      proposal.status !== "AWAITING_CONFIRMATION" ||
+      proposal.draftId === null ||
+      proposal.items.length === 0 ||
+      !matchesTargetKeys(proposal)
+    ) {
+      setError("本次补全设置已失效，请重新生成。")
       return
     }
-    // 一批字段共用同一条指令：字段之间需要互相呼应，分别下指令等于回到多次独立请求。
+    const approvedItemKeys = proposal.items.map((item) => item.itemKey)
+    const operationKey = `${proposal.proposalId}:${proposal.proposalVersion}:${proposal.proposalHash}:${approvedItemKeys.join(",")}`
+    const idempotencyKey =
+      approvalIntent?.operationKey === operationKey
+        ? approvalIntent.idempotencyKey
+        : crypto.randomUUID()
+    if (approvalIntent?.operationKey !== operationKey) {
+      setApprovalIntent({ operationKey, idempotencyKey })
+    }
+    setError(null)
+    approveAndStart.mutate(
+      {
+        draftId: proposal.draftId,
+        blueprintVersionId,
+        proposalId: proposal.proposalId,
+        proposalVersion: proposal.proposalVersion,
+        proposalHash: proposal.proposalHash,
+        approvedTargetKeys: approvedItemKeys,
+        approvalIdempotencyKey: idempotencyKey
+      },
+      {
+        onSuccess: (approvedProposal) => {
+          acceptProposal(approvedProposal)
+        },
+        onError: (failure) => setError(proposalErrorMessage(failure))
+      }
+    )
+  }
+
+  function confirmGeneration() {
+    const generationInstruction = instruction.trim()
+    if (!generationInstruction) {
+      setError("请先填写生成要求。")
+      return
+    }
+    if (
+      isEditingCurrentProposal &&
+      activeProposal &&
+      !instructionChanged &&
+      acceptProposal(activeProposal)
+    ) {
+      approveProposal(activeProposal)
+      return
+    }
+
+    // 一批字段共用同一条要求，确保字段之间互相呼应。
     const items = targetKeys.map((key) => ({
       targetType: "INITIALIZATION_FIELD" as const,
       targetKey: key,
@@ -590,7 +657,9 @@ function CreationDraftSuggestionPanel({
           items
         },
         {
-          onSuccess: acceptProposal,
+          onSuccess: (revisedProposal) => {
+            if (acceptProposal(revisedProposal)) approveProposal(revisedProposal)
+          },
           onError: (failure) => setError(proposalErrorMessage(failure))
         }
       )
@@ -603,46 +672,9 @@ function CreationDraftSuggestionPanel({
         items
       },
       {
-        onSuccess: acceptProposal,
-        onError: (failure) => setError(proposalErrorMessage(failure))
-      }
-    )
-  }
-
-  function approveProposal() {
-    if (
-      !activeProposal ||
-      activeProposal.status !== "AWAITING_CONFIRMATION" ||
-      activeProposal.draftId === null ||
-      activeProposal.items.length === 0 ||
-      !assistantId ||
-      instructionChanged
-    ) {
-      return
-    }
-    const approvedItemKeys = activeProposal.items.map((item) => item.itemKey)
-    const operationKey = `${activeProposal.proposalId}:${activeProposal.proposalVersion}:${activeProposal.proposalHash}:${approvedItemKeys.join(",")}:${assistantId}`
-    const idempotencyKey =
-      approvalIntent?.operationKey === operationKey
-        ? approvalIntent.idempotencyKey
-        : crypto.randomUUID()
-    if (approvalIntent?.operationKey !== operationKey) {
-      setApprovalIntent({ operationKey, idempotencyKey })
-    }
-    setError(null)
-    approveAndStart.mutate(
-      {
-        draftId: activeProposal.draftId,
-        blueprintVersionId,
-        proposalId: activeProposal.proposalId,
-        proposalVersion: activeProposal.proposalVersion,
-        proposalHash: activeProposal.proposalHash,
-        approvedTargetKeys: approvedItemKeys,
-        approvalIdempotencyKey: idempotencyKey,
-        assistantId
-      },
-      {
-        onSuccess: acceptProposal,
+        onSuccess: (createdProposal) => {
+          if (acceptProposal(createdProposal)) approveProposal(createdProposal)
+        },
         onError: (failure) => setError(proposalErrorMessage(failure))
       }
     )
@@ -656,7 +688,7 @@ function CreationDraftSuggestionPanel({
       activeProposal.status !== "APPROVED" ||
       !task?.rootResult
     ) {
-      setError("当前结果未满足填入条件，请等待 Task 完成并确认字段范围。")
+      setError("生成结果尚未完成，请稍后再填入表单。")
       return
     }
     // 只接受本次已确认、且当前 Blueprint 真实启用 AI 辅助的初始化字段；其余键一律忽略。
@@ -672,7 +704,7 @@ function CreationDraftSuggestionPanel({
       )
       .filter((field): field is AigcProjectInitializationField => field !== undefined)
     if (confirmedFields.length === 0) {
-      setError("本次确认的字段在当前 Blueprint 中未启用 AI 辅助，无法填入。")
+      setError("本次确认的字段未启用 AI 辅助，无法填入。")
       return
     }
     try {
@@ -699,77 +731,43 @@ function CreationDraftSuggestionPanel({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Sparkles /> AI 初始化建议
+          <Sparkles /> AI 补全设置
         </CardTitle>
-        <CardDescription>
-          先确认生成目标和指令，再启动 canonical Task；结果只在你点击填入后进入创建表单。
-        </CardDescription>
-        <CardAction className="flex items-center gap-2">
-          {draftId ? <Badge variant="outline">{draftId}</Badge> : null}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={proposalPending || approveAndStart.isPending}
-            onClick={onCancel}
-          >
-            取消
-          </Button>
-        </CardAction>
+        <CardDescription>确认后将按当前要求生成内容，完成后可审阅并填入表单。</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {error ? (
           <Alert variant="destructive" role="alert">
             <CircleAlert />
-            <AlertTitle>AI 建议操作未完成</AlertTitle>
+            <AlertTitle>AI 补全未完成</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         ) : null}
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="flex flex-col gap-1 font-medium text-sm">
-            <span>本批初始化字段（{targetFields.length}）</span>
-            <div className="flex flex-wrap gap-1">
+        <dl className="grid gap-3 rounded-lg border bg-muted/20 p-4 text-sm">
+          <div className="flex flex-wrap gap-2">
+            <dt className="font-medium">本次补全：</dt>
+            <dd className="flex flex-wrap gap-1">
               {targetFields.map((field) => (
                 <Badge key={field.key} variant="outline">
                   {field.label}
                 </Badge>
               ))}
-            </div>
+            </dd>
           </div>
-          <div className="flex flex-col gap-1 font-medium text-sm">
-            <span>执行 Assistant</span>
-            <Select
-              value={assistantId}
-              onValueChange={(value) => setAssistantId(value ?? "")}
-              disabled={
-                assistantsQuery.isLoading || approveAndStart.isPending || approvalIntent !== null
-              }
-            >
-              <SelectTrigger className="w-full" aria-label="执行 Assistant">
-                <SelectValue placeholder="选择 Assistant" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {(assistantsQuery.data ?? []).map((assistant) => (
-                    <SelectItem key={assistant.assistantId} value={assistant.assistantId}>
-                      {assistant.name} · {assistant.defaultRoleKey}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            {!assistantsQuery.isLoading && (assistantsQuery.data ?? []).length === 0 ? (
-              <p className="text-destructive text-xs">
-                当前没有可执行的 Assistant，暂不能启动生成。
-              </p>
-            ) : null}
+          <div className="flex flex-wrap gap-2">
+            <dt className="font-medium">执行方式：</dt>
+            <dd className="text-muted-foreground">我的默认助理 · 内容创作者</dd>
           </div>
-        </div>
+          <div className="flex flex-wrap gap-2">
+            <dt className="font-medium">费用：</dt>
+            <dd className="text-muted-foreground">按实际执行结算</dd>
+          </div>
+        </dl>
 
         <div className="flex flex-col gap-1">
           <Label htmlFor={instructionId} className="font-medium text-sm">
-            生成指令
+            生成要求
           </Label>
           <Textarea
             id={instructionId}
@@ -778,50 +776,22 @@ function CreationDraftSuggestionPanel({
             placeholder={
               targetFields.length === 1
                 ? `说明希望如何生成“${targetFields[0]?.label}”`
-                : `说明希望如何生成这 ${targetFields.length} 个字段，它们会一起生成并保持呼应`
+                : `说明希望如何生成这 ${targetFields.length} 项内容，它们会一起生成并保持呼应`
             }
             className="min-h-24 font-normal"
             disabled={activeProposal?.status === "APPROVED"}
           />
         </div>
 
-        {activeProposal ? (
-          <div className="flex flex-col gap-3 rounded-lg border p-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={activeProposal.status === "APPROVED" ? "secondary" : "default"}>
-                Proposal v{activeProposal.proposalVersion} · {activeProposal.status}
-              </Badge>
-              <span className="font-mono text-muted-foreground text-xs">
-                {activeProposal.proposalHash.slice(0, 12)}…
-              </span>
-            </div>
-            <div className="flex flex-col gap-1 font-medium text-sm">
-              <span>本次确认并启动的目标（{activeProposal.items.length}）</span>
-              <ul className="flex flex-col gap-1 font-normal">
-                {activeProposal.items.map((item) => (
-                  <li key={item.itemKey} className="text-muted-foreground text-xs">
-                    {fields.find((field) => field.key === item.targetKey)?.label ?? item.targetKey}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            {instructionChanged ? (
-              <p className="text-muted-foreground text-sm">
-                生成指令已修改，请先提交修订；旧确认将失效。
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-
         {activeProposal?.linkedTaskId ? (
           <Alert role="status" aria-live="polite">
-            <AlertTitle>canonical Task · {activeProposal.linkedTaskId}</AlertTitle>
+            <AlertTitle>生成状态</AlertTitle>
             <AlertDescription>
               {taskQuery.isLoading
-                ? "正在读取 Task 状态…"
+                ? "正在读取生成状态…"
                 : task
-                  ? `状态：${taskStatusLabel(task.status)}`
-                  : "Task 状态暂不可用。"}
+                  ? taskStatusLabel(task.status)
+                  : "生成状态暂不可用。"}
             </AlertDescription>
           </Alert>
         ) : null}
@@ -829,7 +799,7 @@ function CreationDraftSuggestionPanel({
         {task?.rootResult ? (
           <Card size="sm">
             <CardHeader>
-              <CardTitle>Assistant 结果</CardTitle>
+              <CardTitle>生成结果</CardTitle>
               <CardDescription>请审阅后再填入表单；填入后仍可继续人工修改。</CardDescription>
             </CardHeader>
             <CardContent>
@@ -844,32 +814,22 @@ function CreationDraftSuggestionPanel({
         ) : null}
       </CardContent>
       <CardFooter className="justify-end gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={submitProposal}
-          disabled={
-            proposalPending || approveAndStart.isPending || activeProposal?.status === "APPROVED"
-          }
-        >
-          {proposalPending ? <LoaderCircle className="animate-spin" /> : <Sparkles />}
-          {isEditingCurrentProposal ? "提交修订" : "生成建议提议"}
+        <Button type="button" variant="outline" disabled={generationPending} onClick={onCancel}>
+          取消
         </Button>
         <Button
           type="button"
-          onClick={approveProposal}
+          onClick={confirmGeneration}
           disabled={
-            !activeProposal ||
-            activeProposal.status !== "AWAITING_CONFIRMATION" ||
-            activeProposal.items.length === 0 ||
-            !assistantId ||
-            instructionChanged ||
-            proposalPending ||
-            approveAndStart.isPending
+            generationPending || !instruction.trim() || activeProposal?.status === "APPROVED"
           }
         >
-          {approveAndStart.isPending ? <LoaderCircle className="animate-spin" /> : <Check />}
-          确认并启动
+          {generationPending ? <LoaderCircle className="animate-spin" /> : <Sparkles />}
+          {generationPending
+            ? "正在生成…"
+            : activeProposal?.status === "APPROVED"
+              ? "已确认生成"
+              : "确认生成"}
         </Button>
       </CardFooter>
     </Card>
@@ -895,7 +855,7 @@ export function NewProjectLauncher({
   const descriptionId = useId()
   const coverFileId = useId()
   const coverPromptId = useId()
-  const briefDocumentSelectId = useId()
+  const referenceDocumentSelectId = useId()
   const projectDate = new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit" }).format(
     new Date()
   )
@@ -954,7 +914,7 @@ export function NewProjectLauncher({
   const coverMode = formValues.coverMode
   const coverUpload = formValues.coverUpload
   const coverPrompt = formValues.coverPrompt
-  const [briefDocumentId, setBriefDocumentId] = useState("")
+  const [referenceDocumentId, setReferenceDocumentId] = useState("")
   const [aiSuggestionTargetKeys, setAiSuggestionTargetKeys] = useState<
     AigcProjectInitializationFieldKey[]
   >([])
@@ -977,11 +937,11 @@ export function NewProjectLauncher({
     setSelectedAssistantProposal(proposal)
     setCreationProposalError(null)
   }, [])
-  const briefDocumentIdNumber = Number(briefDocumentId)
-  const { data: briefDocumentList, isLoading: briefDocumentListLoading } = useDocList()
-  const { data: briefDocumentDetail, isFetching: briefDocumentVersionLoading } = useDocument(
-    Number.isInteger(briefDocumentIdNumber) && briefDocumentIdNumber > 0
-      ? briefDocumentIdNumber
+  const referenceDocumentIdNumber = Number(referenceDocumentId)
+  const { data: referenceDocumentList, isLoading: referenceDocumentListLoading } = useDocList()
+  const { data: referenceDocumentDetail, isFetching: referenceDocumentVersionLoading } = useDocument(
+    Number.isInteger(referenceDocumentIdNumber) && referenceDocumentIdNumber > 0
+      ? referenceDocumentIdNumber
       : null
   )
 
@@ -1004,6 +964,10 @@ export function NewProjectLauncher({
   )
   const selectedBlueprint =
     blueprints.find((blueprint) => blueprint.id === blueprintVersionId) ?? blueprints.at(0)
+  const hasPreselectedBlueprint =
+    preselectedBlueprintId !== undefined &&
+    Number.isFinite(preselectedBlueprintId) &&
+    preselectedBlueprintId > 0
   const initializationFields = (selectedBlueprint?.projectInitialization?.fields ?? []).toSorted(
     (left, right) => (left.orderNo ?? 0) - (right.orderNo ?? 0)
   )
@@ -1018,37 +982,50 @@ export function NewProjectLauncher({
     structureSource === "ASSISTANT_GENERATED"
       ? ASSISTANT_INITIALIZATION_FIELDS
       : initializationFields
-  const briefDocumentSpec = selectedBlueprint?.projectInitialization?.documents?.find(
-    (document) => document.role === "brief"
+  const descriptionInitializationField = displayedInitializationFields.find(
+    (field) => field.key === "description"
+  )
+  const advancedInitializationFields = displayedInitializationFields.filter(
+    (field) => field.key !== "description"
+  )
+  const emptyAdvancedAiAssistedFieldKeys = emptyAiAssistedFieldKeys.filter(
+    (key) => key !== "description"
+  )
+  const completedAdvancedFieldCount = advancedInitializationFields.filter((field) =>
+    hasAigcInitializationValue(formValues[field.key])
+  ).length
+  const missingRequiredAdvancedFieldCount = advancedInitializationFields.filter(
+    (field) => field.required && !hasAigcInitializationValue(formValues[field.key])
+  ).length
+  const referenceDocumentSpec = selectedBlueprint?.projectInitialization?.documents?.find(
+    (document) => document.referenceType === "EXTERNAL_REFERENCE"
   )
 
   useEffect(() => {
-    if (!briefDocumentDetail?.currentVersionId) {
+    if (!referenceDocumentDetail?.currentVersionId) {
       setValue("documents", [])
       return
     }
     if (structureSource === "ASSISTANT_GENERATED") {
       setValue("documents", [
         {
-          fieldKey: "brief",
-          documentVersionId: briefDocumentDetail.currentVersionId
+          fieldKey: "references",
+          documentVersionId: referenceDocumentDetail.currentVersionId
         }
       ])
       return
     }
-    if (!briefDocumentSpec) {
+    if (!referenceDocumentSpec) {
       setValue("documents", [])
       return
     }
     setValue("documents", [
       {
-        fieldKey: briefDocumentSpec.key,
-        ...(briefDocumentSpec.referenceType === "PROJECT_DOCUMENT"
-          ? { documentId: briefDocumentDetail.id }
-          : { documentVersionId: briefDocumentDetail.currentVersionId })
+        fieldKey: referenceDocumentSpec.key,
+        documentVersionId: referenceDocumentDetail.currentVersionId
       }
     ])
-  }, [briefDocumentDetail, briefDocumentSpec, setValue, structureSource])
+  }, [referenceDocumentDetail, referenceDocumentSpec, setValue, structureSource])
 
   const slotTemplates = selectedBlueprint?.slotTemplateSpec?.slotTemplates ?? []
   const slotLabelByKey = new Map(
@@ -1105,7 +1082,9 @@ export function NewProjectLauncher({
     }
     setValue("structureSource", "CATALOG")
     if (!blueprints.some((blueprint) => blueprint.id === blueprintVersionId)) {
-      setValue("blueprintVersionId", blueprints[0]?.id ?? 0)
+      const defaultBlueprint = blueprints[0]
+      setValue("blueprintVersionId", defaultBlueprint?.id ?? 0)
+      if (defaultBlueprint) setValue("productionMode", defaultBlueprint.productionMode)
     }
   }, [blueprintVersionId, blueprints, blueprintsLoading, selectedType, setValue])
 
@@ -1153,6 +1132,27 @@ export function NewProjectLauncher({
   }
 
   const selectedProfile = profiles.find((profile) => profile.id === brandProfileId)
+
+  function buildCreationDraftInstruction(targetKeys: AigcProjectInitializationFieldKey[]): string {
+    const targetLabels = targetKeys.map(
+      (key) => aiAssistedInitializationFields.find((field) => field.key === key)?.label ?? key
+    )
+    const currentDescription = formValues.description?.trim()
+    if (targetKeys.length === 1 && targetKeys[0] === "description" && currentDescription) {
+      return `请优化以下项目简介，保留原有事实与核心意图，使表达更清晰、具体且便于后续内容生产。不要添加未经提供的事实。\n\n原文：${currentDescription}`
+    }
+
+    const contextLines = [
+      selectedType ? `项目类型：${getProjectTypeConfig(selectedType).label}` : null,
+      selectedBlueprint ? `项目模板：${selectedBlueprint.name}` : null,
+      selectedProfile ? `品牌 / IP：${selectedProfile.name}` : null,
+      channelCodes.length > 0 ? `投放渠道：${channelCodes.map(getChannelLabel).join("、")}` : null,
+      currentDescription ? `项目简介：${currentDescription}` : null
+    ].filter((line): line is string => line !== null)
+
+    return `请基于以下项目上下文生成“${targetLabels.join("、")}”。字段之间保持一致，内容具体可执行，不要虚构未提供的品牌事实；无法确定的信息请保守表达。\n\n${contextLines.join("\n")}`
+  }
+
   const assistantDocuments = currentDocuments.flatMap<AssistantBlueprintCreationDocument>(
     (document) => {
       const contextNote = document.contextNote?.trim() || null
@@ -1221,9 +1221,9 @@ export function NewProjectLauncher({
         ? "请先填写项目目标。"
         : formValues.requirements.length === 0
           ? "请至少填写一项内容要求。"
-          : briefDocumentId !== "" &&
-              (briefDocumentVersionLoading || !briefDocumentDetail?.currentVersionId)
-            ? "正在读取 Brief 当前精确版本，请稍候。"
+          : referenceDocumentId !== "" &&
+              (referenceDocumentVersionLoading || !referenceDocumentDetail?.currentVersionId)
+            ? "正在读取参考资料当前精确版本，请稍候。"
             : coverMode === "UPLOAD" && !coverUpload
               ? "请先上传项目封面。"
               : null
@@ -1345,6 +1345,83 @@ export function NewProjectLauncher({
         onSuccess: (result) => router.push(paths.studio.project(result.project.id)),
         onError: (failure) => setCreationProposalError(proposalErrorMessage(failure))
       }
+    )
+  }
+
+  function renderInitializationField(initializationField: AigcProjectInitializationField) {
+    const fieldId = `${descriptionId}-${initializationField.key}`
+    const hasValue = hasAigcInitializationValue(formValues[initializationField.key])
+    return (
+      <div key={initializationField.key} className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <label htmlFor={fieldId} className="font-medium text-sm">
+            {initializationField.label}
+            {initializationField.required ? <span className="text-destructive"> *</span> : null}
+          </label>
+          {initializationField.aiAssist === true &&
+          CREATION_DRAFT_FIELD_KEYS.has(initializationField.key) ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setAiSuggestionTargetKeys([initializationField.key])}
+            >
+              <Sparkles />
+              {initializationField.key === "description" && hasValue ? "AI 优化" : "AI 建议"}
+            </Button>
+          ) : null}
+        </div>
+        <Controller
+          name={initializationField.key}
+          control={control}
+          render={({ field }) => {
+            const rawValue: unknown = field.value
+            const displayValue = Array.isArray(rawValue)
+              ? rawValue.join("\n")
+              : initializationField.key === "deliveryRequirements"
+                ? JSON.stringify(rawValue ?? {}, null, 2)
+                : typeof rawValue === "string"
+                  ? rawValue
+                  : ""
+            return (
+              <Textarea
+                id={fieldId}
+                required={initializationField.required}
+                placeholder={initializationField.description}
+                className="min-h-24 resize-y"
+                name={field.name}
+                onBlur={field.onBlur}
+                ref={field.ref}
+                value={displayValue}
+                onChange={(event) => {
+                  const nextValue = event.target.value
+                  if (initializationField.valueType === "STRING_LIST") {
+                    field.onChange(
+                      nextValue
+                        .split("\n")
+                        .map((item) => item.trim())
+                        .filter(Boolean)
+                    )
+                    return
+                  }
+                  if (initializationField.key === "deliveryRequirements") {
+                    try {
+                      const parsed: unknown = JSON.parse(nextValue)
+                      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                        field.onChange(parsed)
+                      }
+                    } catch {
+                      // JSON 输入未完成时保留上一次合法值
+                    }
+                    return
+                  }
+                  field.onChange(nextValue)
+                }}
+              />
+            )
+          }}
+        />
+      </div>
     )
   }
 
@@ -1501,24 +1578,62 @@ export function NewProjectLauncher({
             </div>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <span className="font-medium text-sm">
-              项目类型 <span className="text-destructive">*</span>
-            </span>
-            <ProjectTypePicker
-              types={types}
-              value={projectTypeCode || undefined}
-              onChange={handleTypeChange}
-            />
-            {typesLoading ? (
-              <p className="text-muted-foreground text-sm">正在加载项目类型…</p>
-            ) : null}
-            {formState.errors.projectTypeCode ? (
-              <p className="text-destructive text-xs">{formState.errors.projectTypeCode.message}</p>
-            ) : null}
-          </div>
+          {hasPreselectedBlueprint ? (
+            <div className="flex flex-col gap-3 rounded-xl border bg-muted/20 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-medium text-sm">已选项目方案</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.replace("/studio/projects/new")}
+                >
+                  更换模板
+                </Button>
+              </div>
+              <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                <div>
+                  <dt className="text-muted-foreground text-xs">项目类型</dt>
+                  <dd className="mt-1 font-medium">
+                    {selectedType ? getProjectTypeConfig(selectedType).label : "正在加载…"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground text-xs">项目结构来源</dt>
+                  <dd className="mt-1 font-medium">使用项目模板</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground text-xs">项目模板</dt>
+                  <dd className="mt-1 font-medium">{selectedBlueprint?.name ?? "正在加载…"}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground text-xs">生产模式</dt>
+                  <dd className="mt-1 font-medium">{PRODUCTION_MODE_LABELS[productionMode]}</dd>
+                </div>
+              </dl>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <span className="font-medium text-sm">
+                项目类型 <span className="text-destructive">*</span>
+              </span>
+              <ProjectTypePicker
+                types={types}
+                value={projectTypeCode || undefined}
+                onChange={handleTypeChange}
+              />
+              {typesLoading ? (
+                <p className="text-muted-foreground text-sm">正在加载项目类型…</p>
+              ) : null}
+              {formState.errors.projectTypeCode ? (
+                <p className="text-destructive text-xs">
+                  {formState.errors.projectTypeCode.message}
+                </p>
+              ) : null}
+            </div>
+          )}
 
-          {selectedType ? (
+          {selectedType && !hasPreselectedBlueprint ? (
             <div className="flex flex-col gap-3">
               <span className="font-medium text-sm">
                 项目结构来源 <span className="text-destructive">*</span>
@@ -1532,6 +1647,7 @@ export function NewProjectLauncher({
                   setCreationProposalError(null)
                   if (next === "CATALOG" && selectedBlueprint) {
                     setValue("blueprintVersionId", selectedBlueprint.id, { shouldValidate: true })
+                    setValue("productionMode", selectedBlueprint.productionMode)
                   }
                 }}
                 variant="outline"
@@ -1563,7 +1679,11 @@ export function NewProjectLauncher({
                     <ProjectBlueprintPicker
                       blueprints={blueprints}
                       value={selectedBlueprint?.id}
-                      onChange={(value) => setValue("blueprintVersionId", value)}
+                      onChange={(value) => {
+                        const blueprint = blueprints.find((item) => item.id === value)
+                        setValue("blueprintVersionId", value)
+                        if (blueprint) setValue("productionMode", blueprint.productionMode)
+                      }}
                     />
                   ) : (
                     <p className="text-muted-foreground text-sm">
@@ -1592,30 +1712,42 @@ export function NewProjectLauncher({
 
           {selectedType ? (
             <div className="flex flex-col gap-5">
-              <div className="flex flex-col gap-2">
-                <span className="font-medium text-sm">生产模式</span>
-                <ToggleGroup
-                  value={[productionMode]}
-                  onValueChange={(values: string[]) => {
-                    const next = values.at(-1)
-                    if (next === "standard" || next === "short_drama" || next === "motion_comic") {
-                      setValue("productionMode", next)
-                    }
-                  }}
-                  variant="outline"
-                  className="flex w-full flex-wrap justify-start"
-                >
-                  <ToggleGroupItem value="standard" aria-label="标准制作">
-                    标准制作
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="short_drama" aria-label="短剧">
-                    短剧
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="motion_comic" aria-label="动态漫">
-                    动态漫
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              </div>
+              {!hasPreselectedBlueprint ? (
+                <div className="flex flex-col gap-2">
+                  <span className="font-medium text-sm">生产模式</span>
+                  {structureSource === "CATALOG" ? (
+                    <div className="w-fit rounded-md border bg-muted/20 px-3 py-2 text-sm">
+                      {PRODUCTION_MODE_LABELS[productionMode]}
+                    </div>
+                  ) : (
+                    <ToggleGroup
+                      value={[productionMode]}
+                      onValueChange={(values: string[]) => {
+                        const next = values.at(-1)
+                        if (
+                          next === "standard" ||
+                          next === "short_drama" ||
+                          next === "motion_comic"
+                        ) {
+                          setValue("productionMode", next)
+                        }
+                      }}
+                      variant="outline"
+                      className="flex w-full flex-wrap justify-start"
+                    >
+                      <ToggleGroupItem value="standard" aria-label="标准制作">
+                        标准制作
+                      </ToggleGroupItem>
+                      <ToggleGroupItem value="short_drama" aria-label="短剧">
+                        短剧
+                      </ToggleGroupItem>
+                      <ToggleGroupItem value="motion_comic" aria-label="动态漫">
+                        动态漫
+                      </ToggleGroupItem>
+                    </ToggleGroup>
+                  )}
+                </div>
+              ) : null}
 
               <div className="flex flex-col gap-2">
                 <span className="font-medium text-sm">投放渠道</span>
@@ -1628,6 +1760,9 @@ export function NewProjectLauncher({
                     onChange={(value) => setValue("channelCodes", value)}
                   />
                 )}
+                <p className="text-muted-foreground text-xs">
+                  可多选；未选择时使用项目类型的默认渠道。
+                </p>
               </div>
 
               {structureSource === "CATALOG" && selectedBlueprint ? (
@@ -1659,106 +1794,44 @@ export function NewProjectLauncher({
             </div>
           ) : null}
 
-          {structureSource === "CATALOG" && emptyAiAssistedFieldKeys.length > 1 ? (
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3">
-              <p className="min-w-0 flex-1 text-muted-foreground text-xs">
-                还有 {emptyAiAssistedFieldKeys.length} 个支持 AI 辅助的字段没填，可以一次生成，
-                字段之间会互相呼应。
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setAiSuggestionTargetKeys(emptyAiAssistedFieldKeys)}
-              >
-                <Sparkles />让 AI 补全这 {emptyAiAssistedFieldKeys.length} 项
-              </Button>
-            </div>
-          ) : null}
+          {descriptionInitializationField
+            ? renderInitializationField(descriptionInitializationField)
+            : null}
 
-          {displayedInitializationFields.map((initializationField) => {
-            const fieldId = `${descriptionId}-${initializationField.key}`
-            return (
-              <div key={initializationField.key} className="flex flex-col gap-2">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <label htmlFor={fieldId} className="font-medium text-sm">
-                    {initializationField.label}
-                    {initializationField.required ? (
-                      <span className="text-destructive"> *</span>
-                    ) : null}
-                  </label>
-                  {initializationField.aiAssist === true &&
-                  CREATION_DRAFT_FIELD_KEYS.has(initializationField.key) ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setAiSuggestionTargetKeys([initializationField.key])}
-                    >
-                      <Sparkles /> AI 建议
-                    </Button>
+          {advancedInitializationFields.length > 0 ? (
+            <Collapsible defaultOpen={false} className="rounded-xl border bg-muted/10 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <CollapsibleTrigger className="flex min-w-0 items-center gap-2 text-left [&[data-panel-open]_svg[data-brief-caret]]:rotate-90">
+                  <ChevronRight
+                    data-brief-caret
+                    className="size-4 shrink-0 text-muted-foreground transition-transform"
+                  />
+                  <span className="font-medium text-sm">项目简报</span>
+                  <span className="text-muted-foreground text-xs">
+                    已完成 {completedAdvancedFieldCount}/{advancedInitializationFields.length}
+                  </span>
+                  {missingRequiredAdvancedFieldCount > 0 ? (
+                    <Badge variant="destructive">
+                      必填未完成 {missingRequiredAdvancedFieldCount} 项
+                    </Badge>
                   ) : null}
-                </div>
-                {initializationField.description ? (
-                  <p className="text-muted-foreground text-xs">{initializationField.description}</p>
+                </CollapsibleTrigger>
+                {structureSource === "CATALOG" && emptyAdvancedAiAssistedFieldKeys.length > 0 ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAiSuggestionTargetKeys(emptyAdvancedAiAssistedFieldKeys)}
+                  >
+                    <Sparkles /> AI 补全空白设置
+                  </Button>
                 ) : null}
-                <Controller
-                  name={initializationField.key}
-                  control={control}
-                  render={({ field }) => {
-                    const rawValue: unknown = field.value
-                    const displayValue = Array.isArray(rawValue)
-                      ? rawValue.join("\n")
-                      : initializationField.key === "deliveryRequirements"
-                        ? JSON.stringify(rawValue ?? {}, null, 2)
-                        : typeof rawValue === "string"
-                          ? rawValue
-                          : ""
-                    return (
-                      <Textarea
-                        id={fieldId}
-                        required={initializationField.required}
-                        placeholder={
-                          initializationField.key === "description" && selectedType
-                            ? getProjectTypeConfig(selectedType).placeholder
-                            : initializationField.description
-                        }
-                        className="min-h-24 resize-y"
-                        name={field.name}
-                        onBlur={field.onBlur}
-                        ref={field.ref}
-                        value={displayValue}
-                        onChange={(event) => {
-                          const nextValue = event.target.value
-                          if (initializationField.valueType === "STRING_LIST") {
-                            field.onChange(
-                              nextValue
-                                .split("\n")
-                                .map((item) => item.trim())
-                                .filter(Boolean)
-                            )
-                            return
-                          }
-                          if (initializationField.key === "deliveryRequirements") {
-                            try {
-                              const parsed: unknown = JSON.parse(nextValue)
-                              if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-                                field.onChange(parsed)
-                              }
-                            } catch {
-                              // JSON 输入未完成时保留上一次合法值
-                            }
-                            return
-                          }
-                          field.onChange(nextValue)
-                        }}
-                      />
-                    )
-                  }}
-                />
               </div>
-            )
-          })}
+              <CollapsibleContent className="flex flex-col gap-4 pt-4">
+                {advancedInitializationFields.map(renderInitializationField)}
+              </CollapsibleContent>
+            </Collapsible>
+          ) : null}
 
           {structureSource === "CATALOG" &&
           selectedBlueprint &&
@@ -1771,6 +1844,7 @@ export function NewProjectLauncher({
               blueprintVersionId={selectedBlueprint.id}
               fields={aiAssistedInitializationFields}
               targetKeys={aiSuggestionTargetKeys}
+              defaultInstruction={buildCreationDraftInstruction(aiSuggestionTargetKeys)}
               onApply={applyCreationDraftSuggestion}
               onCancel={() => setAiSuggestionTargetKeys([])}
             />
@@ -1781,10 +1855,7 @@ export function NewProjectLauncher({
               <Check />
               <AlertTitle>已采用 AI 初始化建议</AlertTitle>
               <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
-                <span>
-                  创建时将提交 Proposal v{appliedCreationProposal.proposalVersion} 的确认凭据；
-                  目标字段必须保持有值。
-                </span>
+                <span>已补全内容会用于创建项目；对应字段需保持有值。</span>
                 <Button
                   type="button"
                   variant="ghost"
@@ -1794,7 +1865,7 @@ export function NewProjectLauncher({
                     setCreationProposalError(null)
                   }}
                 >
-                  不提交凭据
+                  不使用本次补全
                 </Button>
               </AlertDescription>
             </Alert>
@@ -1808,34 +1879,31 @@ export function NewProjectLauncher({
             </Alert>
           ) : null}
 
-          {briefDocumentSpec || structureSource === "ASSISTANT_GENERATED" ? (
+          {referenceDocumentSpec || structureSource === "ASSISTANT_GENERATED" ? (
             <div className="flex flex-col gap-2">
-              <label htmlFor={briefDocumentSelectId} className="font-medium text-sm">
-                {briefDocumentSpec?.label ?? "Brief 参考文档"}
-                {structureSource === "CATALOG" && briefDocumentSpec?.required ? (
-                  <span className="text-destructive"> *</span>
-                ) : null}
+              <label htmlFor={referenceDocumentSelectId} className="font-medium text-sm">
+                {referenceDocumentSpec?.label ?? "参考资料"}
+                <span className="font-normal text-muted-foreground">（可选）</span>
               </label>
               <p className="text-muted-foreground text-xs">
-                {structureSource === "ASSISTANT_GENERATED"
-                  ? "可选。将冻结当前文档版本，并以 fieldKey: brief 提交；Proposal 必须保留该文档键。"
-                  : briefDocumentSpec?.description}
+                {referenceDocumentSpec?.description ??
+                  "选择已有文档作为生成参考；系统会固定使用当前版本，不会将其作为项目简报。"}
               </p>
               <Select
-                value={briefDocumentId === "" ? "none" : briefDocumentId}
-                onValueChange={(next) => setBriefDocumentId(next && next !== "none" ? next : "")}
+                value={referenceDocumentId === "" ? "none" : referenceDocumentId}
+                onValueChange={(next) => setReferenceDocumentId(next && next !== "none" ? next : "")}
               >
-                <SelectTrigger id={briefDocumentSelectId} className="w-full">
+                <SelectTrigger id={referenceDocumentSelectId} className="w-full">
                   <SelectValue>
-                    {(briefDocumentList ?? []).find(
-                      (document) => String(document.id) === briefDocumentId
-                    )?.title ?? (briefDocumentListLoading ? "正在加载文档…" : "选择文档")}
+                    {(referenceDocumentList ?? []).find(
+                      (document) => String(document.id) === referenceDocumentId
+                    )?.title ?? (referenceDocumentListLoading ? "正在加载文档…" : "选择文档")}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
                     <SelectItem value="none">暂不选择</SelectItem>
-                    {(briefDocumentList ?? []).map((document) => (
+                    {(referenceDocumentList ?? []).map((document) => (
                       <SelectItem key={document.id} value={String(document.id)}>
                         {document.title}
                       </SelectItem>
@@ -1862,7 +1930,7 @@ export function NewProjectLauncher({
               <CircleAlert />
               <AlertTitle>创建上下文与 Proposal 冻结事实不一致</AlertTitle>
               <AlertDescription>
-                项目名称、目标、品牌版本、渠道、生产模式、Brief 或封面设置与当前 Proposal
+                项目名称、目标、品牌版本、渠道、生产模式、参考资料或封面设置与当前 Proposal
                 冻结事实不一致。请重新规划，或在 Proposal 面板中明确采用该服务端冻结上下文。
               </AlertDescription>
             </Alert>

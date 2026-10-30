@@ -71,13 +71,13 @@ public class JpaTaskQueryAdapter implements TaskQueryPort {
     @Override
     @Transactional(readOnly = true)
     public long countActiveBySource(TenantId tenantId, UserId userId, Task.Source source) {
-        var terminalStatuses =
+        var releasedStatuses =
                 Arrays.stream(Task.Status.values())
-                        .filter(Task.Status::terminal)
+                        .filter(status -> status.terminal() || status == Task.Status.PAUSED)
                         .map(Enum::name)
                         .toList();
         return tasks.countActiveBySource(
-                tenantId.value(), userId.value(), source.name(), terminalStatuses);
+                tenantId.value(), userId.value(), source.name(), releasedStatuses);
     }
 
     private TaskDetails details(TenantId tenantId, TaskRootEntity entity) {

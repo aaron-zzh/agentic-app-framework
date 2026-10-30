@@ -1211,7 +1211,6 @@ export interface AigcProjectCreationDraftApproveAndStartInput {
   /** 本次确认并启动的目标 itemKey；服务端要求至少一项，可一次批准多个初始化字段。 */
   approvedTargetKeys: string[]
   approvalIdempotencyKey: string
-  assistantId: string
 }
 
 export const aigcProjectCreationDraftApi = {
