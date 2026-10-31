@@ -8,7 +8,6 @@ import { type ChatterTarget, DEFAULT_TASK_MODEL_SELECTION } from "@/features/cha
 import {
   buildChatterForwardedProps,
   buildChatterState,
-  DEFAULT_CHATTER_ASSISTANT_ID,
   resolveChatterAguiPath
 } from "./chatter-runtime-state"
 
@@ -19,7 +18,7 @@ describe("Chatter 任务模型 forwardedProps", () => {
     expect(DEFAULT_TASK_MODEL_SELECTION).toEqual({ mode: "AUTO" })
   })
 
-  it("AUTO 应发送固定 Assistant 身份且不伪造 modelId", () => {
+  it("普通 AI AUTO 应由后端解析默认 Assistant 且不伪造 modelId", () => {
     const props = buildChatterForwardedProps({
       scope: "global",
       target: aiTarget,
@@ -27,9 +26,9 @@ describe("Chatter 任务模型 forwardedProps", () => {
     })
 
     expect(props).toMatchObject({
-      assistantId: DEFAULT_CHATTER_ASSISTANT_ID,
       taskModelSelection: { mode: "AUTO" }
     })
+    expect(props).not.toHaveProperty("assistantId")
     expect(props).not.toHaveProperty("modelId")
   })
 
@@ -41,9 +40,9 @@ describe("Chatter 任务模型 forwardedProps", () => {
     })
 
     expect(props).toMatchObject({
-      assistantId: DEFAULT_CHATTER_ASSISTANT_ID,
       taskModelSelection: { mode: "EXPLICIT", modelId: "qwen-plus" }
     })
+    expect(props).not.toHaveProperty("assistantId")
   })
 
   it("Kiro 场景不应注入 Assistant 调用参数", () => {
