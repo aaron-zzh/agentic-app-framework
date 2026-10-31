@@ -36,6 +36,8 @@ final class DefaultRealtimeConversationSession implements RealtimeConversationSe
     private final ResolvedRealtimeContext context;
     private final long contextResolveMs;
     private final boolean knowledgeEnabled;
+    private final String voice;
+    private final Double temperature;
     private final RealtimeSessionTransport transport;
     private final RealtimeConversationEngine engine;
     private final RealtimeKnowledgeSearchService knowledgeSearchService;
@@ -64,6 +66,8 @@ final class DefaultRealtimeConversationSession implements RealtimeConversationSe
             ResolvedRealtimeContext context,
             long contextResolveMs,
             boolean knowledgeEnabled,
+            String voice,
+            Double temperature,
             RealtimeSessionTransport transport,
             RealtimeConversationEngine engine,
             RealtimeKnowledgeSearchService knowledgeSearchService,
@@ -71,6 +75,8 @@ final class DefaultRealtimeConversationSession implements RealtimeConversationSe
         this.context = Objects.requireNonNull(context, "context 不能为空");
         this.contextResolveMs = contextResolveMs;
         this.knowledgeEnabled = knowledgeEnabled;
+        this.voice = voice;
+        this.temperature = temperature;
         this.transport = Objects.requireNonNull(transport, "transport 不能为空");
         this.engine = Objects.requireNonNull(engine, "engine 不能为空");
         this.knowledgeSearchService =
@@ -87,12 +93,13 @@ final class DefaultRealtimeConversationSession implements RealtimeConversationSe
             }
             var config =
                     RealtimeConversationConfig.audio(
-                            null,
+                            voice,
                             context.assistantContext().instructions(),
                             "server".equals(context.endpointing())
                                     ? TurnDetection.serverVad()
                                     : null,
-                            RealtimeConversationConfig.Generation.defaults(),
+                            new RealtimeConversationConfig.Generation(
+                                    temperature, null, null, null, null, null, null),
                             knowledgeEnabled
                                     ? List.of(knowledgeSearchService.toolDefinition())
                                     : List.of());

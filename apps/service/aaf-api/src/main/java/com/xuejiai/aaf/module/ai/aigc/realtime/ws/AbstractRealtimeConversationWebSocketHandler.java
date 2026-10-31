@@ -131,7 +131,14 @@ public abstract class AbstractRealtimeConversationWebSocketHandler extends TextW
         requireExactFields(
                 node,
                 endpoint == Endpoint.WEB
-                        ? Set.of("type", "protocol", "endpointing", "roleKey", "knowledge")
+                        ? Set.of(
+                                "type",
+                                "protocol",
+                                "endpointing",
+                                "roleKey",
+                                "knowledge",
+                                "voice",
+                                "temperature")
                         : Set.of("type", "protocol", "endpointing"));
         if (!"hello".equals(requiredString(node, "type"))
                 || !"omni-realtime.v1".equals(requiredString(node, "protocol"))) {
@@ -140,14 +147,21 @@ public abstract class AbstractRealtimeConversationWebSocketHandler extends TextW
         var endpointing = requiredString(node, "endpointing");
         var roleKey = optionalString(node, "roleKey");
         var knowledge = optionalBoolean(node, "knowledge");
+        var voice = optionalString(node, "voice");
+        var temperature = optionalDouble(node, "temperature");
         if (endpoint == Endpoint.WEB && !"server".equals(endpointing)) {
             throw new IllegalArgumentException("浏览器 endpointing 必须为 server");
         }
         if (endpoint == Endpoint.DEVICE
-                && (!"client".equals(endpointing) || roleKey != null || knowledge != null)) {
+                && (!"client".equals(endpointing)
+                        || roleKey != null
+                        || knowledge != null
+                        || voice != null
+                        || temperature != null)) {
             throw new IllegalArgumentException("设备 hello 无效");
         }
-        return new RealtimeHello("omni-realtime.v1", endpointing, roleKey, knowledge);
+        return new RealtimeHello(
+                "omni-realtime.v1", endpointing, roleKey, knowledge, voice, temperature);
     }
 
     private RealtimeClientControl parseControl(JsonNode node) {
@@ -218,6 +232,17 @@ public abstract class AbstractRealtimeConversationWebSocketHandler extends TextW
             throw new IllegalArgumentException(field + " 必须为布尔值");
         }
         return value.asBoolean();
+    }
+
+    private static Double optionalDouble(JsonNode node, String field) {
+        var value = node.get(field);
+        if (value == null) {
+            return null;
+        }
+        if (!value.isNumber() || !Double.isFinite(value.asDouble())) {
+            throw new IllegalArgumentException(field + " 必须为有限数字");
+        }
+        return value.asDouble();
     }
 
     private static void requireExactFields(JsonNode node, Set<String> allowed) {

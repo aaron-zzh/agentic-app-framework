@@ -55,6 +55,8 @@ public class DefaultRealtimeConversationSessionFactory
                         context,
                         contextResolveMs,
                         knowledgeEnabled,
+                        hello.voice(),
+                        hello.temperature(),
                         transport,
                         engine,
                         knowledgeSearchService,
@@ -67,7 +69,10 @@ public class DefaultRealtimeConversationSessionFactory
         if (hello == null
                 || !"omni-realtime.v1".equals(hello.protocol())
                 || (!"server".equals(hello.endpointing()) && !"client".equals(hello.endpointing()))
-                || (caller instanceof RealtimeCaller.Device && hello.knowledge() != null)) {
+                || (caller instanceof RealtimeCaller.Device
+                        && (hello.knowledge() != null
+                                || hello.voice() != null
+                                || hello.temperature() != null))) {
             throw new IllegalArgumentException("hello 协议或 endpointing 无效");
         }
     }

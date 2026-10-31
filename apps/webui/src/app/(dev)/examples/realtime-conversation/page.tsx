@@ -12,6 +12,7 @@ import { PageContainer } from "@/components/common/PageContainer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
@@ -23,7 +24,7 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { TypographyH1, TypographyMuted } from "@/components/ui/typography"
+import { TypographyH1 } from "@/components/ui/typography"
 import { buildWsUrl } from "@/lib/api/config"
 import { useAiRoleLibrary } from "@/lib/api/rest/ai/role"
 import { useAuthStore } from "@/lib/store/auth-store"
@@ -60,6 +61,20 @@ interface KnowledgeSearchState {
 }
 
 const DEFAULT_ROLE_KEY = "__default__"
+const DEFAULT_VOICE = "Tina"
+const REALTIME_VOICES = [
+  { value: "Tina", label: "女声 · Tina" },
+  { value: "Serena", label: "女声 · Serena" },
+  { value: "Ethan", label: "男声 · Ethan" },
+  { value: "Harvey", label: "男声 · Harvey" },
+  { value: "Momo", label: "活泼 · Momo" }
+] as const
+const WS_STATUS_LABELS: Record<WsStatus, string> = {
+  connecting: "连接中",
+  ready: "已连接",
+  closing: "正在断开",
+  disconnected: "未连接"
+}
 const INITIAL_KNOWLEDGE_SEARCH_STATE: KnowledgeSearchState = {
   phase: "idle",
   status: null,
@@ -110,6 +125,8 @@ export default function RealtimeConversation() {
   const [messages, setMessages] = useState<RealtimeConversationMessage[]>([])
   const [responding, setResponding] = useState(false)
   const [selectedRoleKey, setSelectedRoleKey] = useState(DEFAULT_ROLE_KEY)
+  const [selectedVoice, setSelectedVoice] = useState(DEFAULT_VOICE)
+  const [temperatureInput, setTemperatureInput] = useState("1.0")
   const [currentInputTranscript, setCurrentInputTranscript] = useState("")
   const [currentResponseText, setCurrentResponseText] = useState("")
   const [contextResolveMs, setContextResolveMs] = useState<number | null>(null)
@@ -127,7 +144,10 @@ export default function RealtimeConversation() {
   const selectedRoleLabel =
     selectedRoleKey === DEFAULT_ROLE_KEY
       ? `默认角色${defaultRoleName ? `（${defaultRoleName}）` : ""}`
-      : roleLibrary?.items.find((item) => item.role.code === selectedRoleKey)?.role.name ?? "选择角色"
+      : (roleLibrary?.items.find((item) => item.role.code === selectedRoleKey)?.role.name ??
+        "选择角色")
+  const selectedVoiceLabel =
+    REALTIME_VOICES.find((voice) => voice.value === selectedVoice)?.label ?? "选择音色"
 
   const wsRef = useRef<WebSocket | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -285,6 +305,14 @@ export default function RealtimeConversation() {
       appendMessage("system", "请先登录后使用实时语音")
       return
     }
+    const temperature = temperatureInput.trim() === "" ? undefined : Number(temperatureInput)
+    if (
+      temperature !== undefined &&
+      (!Number.isFinite(temperature) || temperature < 0 || temperature >= 2)
+    ) {
+      appendMessage("system", "temperature 必须大于等于 0 且小于 2")
+      return
+    }
     setMessages([])
     messageIdRef.current = 0
     setCurrentInputTranscript("")
@@ -309,6 +337,8 @@ export default function RealtimeConversation() {
         endpointing: "server"
         knowledge: boolean
         roleKey?: string
+        voice?: string
+        temperature?: number
       } = {
         type: "hello",
         protocol: "omni-realtime.v1",
@@ -316,6 +346,8 @@ export default function RealtimeConversation() {
         knowledge: knowledge.value
       }
       if (selectedRoleKey !== DEFAULT_ROLE_KEY) hello.roleKey = selectedRoleKey
+      if (selectedVoice !== DEFAULT_VOICE) hello.voice = selectedVoice
+      if (temperature !== undefined) hello.temperature = temperature
       ws.send(JSON.stringify(hello))
     }
 
@@ -434,8 +466,10 @@ export default function RealtimeConversation() {
     knowledge.value,
     playAudioChunk,
     selectedRoleKey,
+    selectedVoice,
     startCapture,
     stopCapture,
+    temperatureInput,
     video.value
   ])
 
@@ -492,7 +526,7 @@ export default function RealtimeConversation() {
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>实时对话</span>
-            <Badge variant={statusVariant}>{status}</Badge>
+            <Badge variant={statusVariant}>{WS_STATUS_LABELS[status]}</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
@@ -520,6 +554,44 @@ export default function RealtimeConversation() {
                   </SelectGroup>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Label htmlFor="realtime-voice">音色</Label>
+              <Select
+                value={selectedVoice}
+                onValueChange={(value) => setSelectedVoice(value ?? DEFAULT_VOICE)}
+                disabled={status !== "disconnected"}
+              >
+                <SelectTrigger id="realtime-voice" className="w-40">
+                  <SelectValue>{selectedVoiceLabel}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {REALTIME_VOICES.map((voice) => (
+                      <SelectItem key={voice.value} value={voice.value}>
+                        {voice.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Label htmlFor="realtime-temperature">Temperature</Label>
+              <Input
+                id="realtime-temperature"
+                type="number"
+                min="0"
+                max="1.9"
+                step="0.1"
+                placeholder="供应商默认"
+                value={temperatureInput}
+                onChange={(event) => setTemperatureInput(event.target.value)}
+                disabled={status !== "disconnected"}
+                className="w-32"
+              />
             </div>
 
             <div className="flex items-center gap-2">
