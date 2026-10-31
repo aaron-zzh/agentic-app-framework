@@ -91,7 +91,7 @@ aaf:
     enabled: ${AAF_DEMO_ENABLED:false}  # 演示模式：开启后注册 /api/system/demo/load 和 /clean 接口
   device:
     mqtt:
-      enabled: ${AAF_DEVICE_MQTT_ENABLED:false}
+      enabled: ${AAF_DEVICE_MQTT_ENABLED:true}
       host: ${AAF_DEVICE_MQTT_HOST:localhost}
       port: ${AAF_DEVICE_MQTT_PORT:8883}
       client-id: ${AAF_DEVICE_MQTT_CLIENT_ID:aaf-device-service}

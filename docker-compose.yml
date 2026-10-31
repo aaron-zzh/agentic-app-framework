@@ -117,6 +117,26 @@ services:
       - aaf-webui
     restart: unless-stopped
 
+  # EMQX MQTT Broker。与基础服务一起启动，常规 AAF 发布不重启该容器。
+  emqx:
+    image: ${EMQX_IMAGE:-emqx/emqx:5.10.5}
+    container_name: aaf-emqx
+    environment:
+      AAF_EMQX_SHARED_SECRET: ${EMQX_SHARED_SECRET:-}
+    ports:
+      - "${EMQX_TLS_PORT:-8883}:8883"
+    volumes:
+      - ./scripts/deploy/emqx/emqx.conf:/opt/emqx/etc/emqx.conf:ro
+      - ${EMQX_CERT_DIR:-/root/aaf/emqx-certs}:/opt/emqx/etc/certs/aaf:ro
+      - emqx_data:/opt/emqx/data
+      - emqx_log:/opt/emqx/log
+    healthcheck:
+      test: ["CMD", "/opt/emqx/bin/emqx", "ctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
   # Flyway repair 工具——手动改动已应用的迁移脚本后，用于同步 flyway_schema_history 的 checksum
   # 覆盖范围需与 application.yaml 的 flyway.locations 保持一致（db/migration + db/seed）
   # 使用前先把改动的脚本复制到服务器固定路径：
@@ -147,4 +167,6 @@ volumes:
   redis_data:
   neo4j_data:
   service_heap:
+  emqx_data:
+  emqx_log:
 

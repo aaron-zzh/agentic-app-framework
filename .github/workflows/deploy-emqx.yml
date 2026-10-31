@@ -1,0 +1,99 @@
+name: Deploy EMQX
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: EMQX 操作
+        required: true
+        default: deploy
+        type: choice
+        options:
+          - deploy
+          - restart
+          - status
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: EMQX ${{ inputs.action }}
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 上传 EMQX 编排配置到 ECS
+        if: inputs.action != 'status'
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.ECS_HOST }}
+          username: ${{ secrets.ECS_USER }}
+          key: ${{ secrets.ECS_SSH_KEY }}
+          source: docker-compose.yml
+          target: /root/aaf
+
+      - name: 上传 EMQX 服务配置到 ECS
+        if: inputs.action != 'status'
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.ECS_HOST }}
+          username: ${{ secrets.ECS_USER }}
+          key: ${{ secrets.ECS_SSH_KEY }}
+          source: scripts/deploy/emqx/
+          target: /root/aaf/scripts/deploy/emqx
+          strip_components: 3
+
+      - name: 执行 EMQX 操作
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.ECS_HOST }}
+          username: ${{ secrets.ECS_USER }}
+          key: ${{ secrets.ECS_SSH_KEY }}
+          script: |
+            set -eu
+            cd /root/aaf
+
+            if [ ! -f .env ]; then
+              echo "/root/aaf/.env 不存在，请先在 ECS 配置 MQTT 环境变量。" >&2
+              exit 1
+            fi
+
+            if ! grep -Eq '^EMQX_SHARED_SECRET=.+$' .env; then
+              echo "请在 /root/aaf/.env 设置非空的 EMQX_SHARED_SECRET。" >&2
+              exit 1
+            fi
+            EMQX_CERT_DIR="$(grep -m 1 '^EMQX_CERT_DIR=' .env | cut -d '=' -f 2- || true)"
+            EMQX_CERT_DIR="${EMQX_CERT_DIR:-/root/aaf/emqx-certs}"
+
+            case "${{ inputs.action }}" in
+              deploy|restart)
+                for certificate in ca.pem cert.pem key.pem; do
+                  if [ ! -r "$EMQX_CERT_DIR/$certificate" ]; then
+                    echo "缺少或无法读取证书文件：$EMQX_CERT_DIR/$certificate" >&2
+                    exit 1
+                  fi
+                done
+                ;;
+            esac
+
+            case "${{ inputs.action }}" in
+              deploy)
+                docker compose pull emqx
+                docker compose up -d emqx
+                docker compose ps emqx
+                ;;
+              restart)
+                docker compose restart emqx
+                docker compose ps emqx
+                ;;
+              status)
+                docker compose ps emqx
+                ;;
+              *)
+                echo "未知 EMQX 操作。" >&2
+                exit 1
+                ;;
+            esac
