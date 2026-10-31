@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.ai.aigc.voice.domain;
 import org.hibernate.annotations.SQLDelete;
 
 import com.xuejiai.aaf.common.model.BaseEntity;
+import com.xuejiai.aaf.framework.intelligent.ai.realtime.RealtimeConversationConfig;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -13,8 +14,8 @@ import lombok.Setter;
 /**
  * 声音复刻记录实体。
  *
- * <p>存储用户通过 qwen-voice-enrollment 创建的克隆音色元数据。 voice 字段由百炼平台生成并返回，可直接用于 OmniRealtimeService 的 voice
- * 参数。
+ * <p>存储用户通过 qwen-voice-enrollment 创建的克隆音色元数据。 voice 字段由百炼平台生成并返回，可直接用于 {@link
+ * RealtimeConversationConfig#voice()}。
  *
  * @author AaronZZH
  */

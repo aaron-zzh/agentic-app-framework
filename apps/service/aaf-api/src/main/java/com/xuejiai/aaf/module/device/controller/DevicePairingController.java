@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.device.controller;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,9 +23,13 @@ import jakarta.validation.Valid;
 public class DevicePairingController {
 
     private final DevicePairingService pairingService;
+    private final String frontendUrl;
 
-    public DevicePairingController(DevicePairingService pairingService) {
+    public DevicePairingController(
+            DevicePairingService pairingService,
+            @Value("${aaf.app.frontend-url:http://localhost:3000}") String frontendUrl) {
         this.pairingService = pairingService;
+        this.frontendUrl = frontendUrl;
     }
 
     @Operation(summary = "开始设备配对")
@@ -38,7 +43,10 @@ public class DevicePairingController {
             @Valid @RequestBody DevicePairingVO.StartRequest request) {
         return Result.success(
                 pairingService.start(
-                        request.serialNumber(), request.model(), request.firmwareVersion()));
+                        request.serialNumber(),
+                        request.model(),
+                        request.firmwareVersion(),
+                        frontendUrl));
     }
 
     @Operation(summary = "轮询设备配对结果")

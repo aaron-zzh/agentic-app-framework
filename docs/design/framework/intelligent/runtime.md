@@ -269,7 +269,7 @@ Team version、roster 与成员冻结的领域合同见 [team/team.md](team/team
 - 建板阶段始终建 `coordinated` 板（`AssistantExecutionService.analyzedBoard`），协调者节点承担原来"前注意"确定的 Role/Skill 装配，不再区分 `single`/`coordinated` 两条建板路径
 - 协调者在自己的一次 execution 内，结合完整上下文、记忆与技能自主判断三档并直接采取行动：
   - **简单直答**：判断无需拆解，直接产出最终回复，不调用任何提交工具
-  - **拆步骤**：判断需要按顺序推进但不需要拆给其它执行者，调用 `submit_executor_plan` 提交步骤列表（`ExecutorPlan`/`ExecutorPlanStep`，见 [ADR-006](../adr/ADR-006-executor-plan-mode.md) 补充决策一）
+  - **拆步骤**：判断需要按顺序推进但不需要拆给其它执行者，调用 `submit_executor_plan` 提交步骤列表（`ExecutorPlan`/`ExecutorPlanStep`，见 [ADR-006](../../adr/ADR-006-executor-plan-mode.md) 补充决策一）
   - **拆多智能体**：判断存在可并行拆解的独立子任务，调用 `submit_coordination_plan` 派生执行者子任务（`CoordinationPlan`）
 - 三档判断依据由内置系统级 Skill `builtin-task-decomposition`（`ai_system_skill_binding` ALWAYS 绑定，`tool_access_mode=INHERIT`）承载指导文案，不硬编码在协调逻辑代码里；`INHERIT` 模式使该 Skill 声明的工具需求不受 Role 白名单为空的限制，不需要逐个 Role 显式配置即可默认可用（详见 [skill-tool-resolution.md](skill/skill-tool-resolution.md#有效工具交集)）
 - 不存在独立的只读规划阶段——单次 execution 内，模型调用 `submit_coordination_plan`/`submit_executor_plan` 的时机本身表达阶段切换，不需要先做一次只读 planning execution 再切一次执行 execution（借鉴官方 Harness Plan Mode 单次调用内工具序列表达阶段切换的设计思路，但计划持久化与状态机不复用其 workspace 实现，理由见 ADR-006）

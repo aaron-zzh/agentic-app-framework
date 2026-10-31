@@ -263,5 +263,5 @@ DurableTaskExecutor (aaf-api，入口 + 事件日志 + DB 持久化)
 ## 相关文档
 
 - [五层智能架构](architecture.md)
-- [Assistant 技术方案](bak/assistant/assistant-tech.md)
-- [Agent 技术方案](bak/agent/agent-tech.md)
+- [Assistant 技术方案](assistant/assistant-tech.md)
+- [Agent 技术方案](agent/agent-tech.md)

@@ -215,7 +215,9 @@ async function fetchAuthenticatedRun(
   recoverThread: () => Promise<string>
 ): Promise<Response> {
   const headers = new Headers(getBackendRequestContextHeaders())
-  new Headers(requestInit.headers).forEach((value, name) => headers.set(name, value))
+  new Headers(requestInit.headers).forEach((value, name) => {
+    headers.set(name, value)
+  })
   headers.set("Accept", "text/event-stream, application/json")
   const initialRequest = { ...requestInit, headers }
   const response = await fetch(requestUrl, initialRequest)
@@ -376,11 +378,7 @@ export function AgUiChatProvider({
           : !fixedThreadId
             ? {
                 fetch: (requestUrl: RequestInfo | URL, requestInit?: RequestInit) =>
-                  fetchAuthenticatedRun(
-                    requestUrl,
-                    requestInit,
-                    () => sessionRecoveryRef.current()
-                  )
+                  fetchAuthenticatedRun(requestUrl, requestInit, () => sessionRecoveryRef.current())
               }
             : {})
       },

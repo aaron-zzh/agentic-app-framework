@@ -24,7 +24,7 @@ import com.xuejiai.aaf.module.device.domain.Device;
 public final class DeviceResource {
 
     public static final ResourceKey KEY = ResourceKey.of("device.device");
-    public static final String BASE_PATH = "/api/device/devices";
+    public static final String BASE_PATH = "/api/admin/devices";
     public static final String COMMAND_UNBIND = "DEVICE_UNBIND";
 
     private static final CrudResourceTypeContract<Device> TYPES =

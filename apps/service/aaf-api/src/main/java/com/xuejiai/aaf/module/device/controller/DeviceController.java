@@ -24,7 +24,7 @@ import jakarta.validation.Valid;
 /** 设备管理接口。管理路径与设备凭据路径隔离。 */
 @Tag(name = "设备管理")
 @RestController
-@RequestMapping("/api/device/devices")
+@RequestMapping("/api/admin/devices")
 public class DeviceController
         extends BaseCrudController<
                 Device, DeviceVO, DeviceCreateDTO, DeviceUpdateDTO, DevicePageDTO> {

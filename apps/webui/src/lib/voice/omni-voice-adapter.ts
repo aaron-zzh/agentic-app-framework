@@ -1,5 +1,5 @@
 /**
- * OmniVoiceAdapter——基于后端 /ws/omni-realtime 的实时语音适配器
+ * OmniVoiceAdapter——基于后端 /ws/realtime-conversation 的实时语音适配器
  * 实现 assistant-ui RealtimeVoiceAdapter 接口，接入 useVoiceState/useVoiceControls
  *
  * @author AaronZZH & Kiro
@@ -8,57 +8,103 @@
 import { createVoiceSession, type RealtimeVoiceAdapter } from "@assistant-ui/react"
 import { buildWsUrl } from "@/lib/api/config"
 import { float32ToPcm16 } from "@/lib/utils/audio"
+import { parseOmniRealtimeReadyEvent } from "@/lib/voice/omni-realtime-protocol"
 
+interface RealtimeEvent {
+  type: string
+  text?: string
+  message?: string
+  fatal?: boolean
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+}
+
+function parseRealtimeEvent(data: unknown): RealtimeEvent | null {
+  if (typeof data !== "string") return null
+
+  try {
+    const parsed: unknown = JSON.parse(data)
+    if (!isRecord(parsed) || typeof parsed.type !== "string") return null
+
+    const { type, text, message, fatal } = parsed
+    if (typeof type !== "string") return null
+
+    return {
+      type,
+      ...(typeof text === "string" ? { text } : {}),
+      ...(typeof message === "string" ? { message } : {}),
+      ...(typeof fatal === "boolean" ? { fatal } : {})
+    }
+  } catch {
+    return null
+  }
+}
+
+/** Omni Realtime v1 的 assistant-ui 实时语音适配器。 */
 export class OmniVoiceAdapter implements RealtimeVoiceAdapter {
-  private _getToken: () => string | null | undefined
+  private readonly getToken: () => string | null | undefined
 
   constructor(options: { getToken: () => string | null | undefined }) {
-    this._getToken = options.getToken
+    this.getToken = options.getToken
   }
 
   connect(options: { abortSignal?: AbortSignal }): RealtimeVoiceAdapter.Session {
-    const getToken = this._getToken
+    const getToken = this.getToken
 
     return createVoiceSession(options, async (helpers) => {
-      const params = new URLSearchParams({ vad: "true", token: getToken() ?? "" })
-      const ws = new WebSocket(buildWsUrl(`/ws/omni-realtime?${params.toString()}`))
+      const token = getToken()
+      if (!token) throw new Error("请先登录后使用实时语音")
+      const params = new URLSearchParams({ token })
+      const ws = new WebSocket(buildWsUrl(`/ws/realtime-conversation?${params.toString()}`))
+      ws.binaryType = "arraybuffer"
 
-      // 播放侧：24kHz AudioContext，无缝排队播放
       let playbackCtx: AudioContext | null = null
       let playhead = 0
-
-      const playChunk = (base64Data: string) => {
-        try {
-          if (!playbackCtx || playbackCtx.state === "closed") {
-            playbackCtx = new AudioContext({ sampleRate: 24000 })
-            playhead = playbackCtx.currentTime
-          }
-          const binary = atob(base64Data)
-          const bytes = new Uint8Array(binary.length)
-          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-          const int16 = new Int16Array(bytes.buffer)
-          const float32 = new Float32Array(int16.length)
-          for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 0x8000
-          const buf = playbackCtx.createBuffer(1, float32.length, 24000)
-          buf.getChannelData(0).set(float32)
-          const src = playbackCtx.createBufferSource()
-          src.buffer = buf
-          src.connect(playbackCtx.destination)
-          const startAt = Math.max(playbackCtx.currentTime, playhead)
-          src.start(startAt)
-          playhead = startAt + buf.duration
-        } catch {
-          // 静默忽略
-        }
-      }
-
-      // 采集侧
+      let audioOutputActive = false
       let audioCtx: AudioContext | null = null
       let processor: ScriptProcessorNode | null = null
       let stream: MediaStream | null = null
       let stopped = false
       let cleanedUp = false
       let ended = false
+      let responding = false
+      let responseText = ""
+      let sessionClosing = false
+
+      const closePlayback = () => {
+        audioOutputActive = false
+        void playbackCtx?.close()
+        playbackCtx = null
+        playhead = 0
+      }
+
+      const playChunk = (pcm: ArrayBuffer) => {
+        if (!audioOutputActive || pcm.byteLength === 0 || pcm.byteLength % 2 !== 0) return
+
+        try {
+          if (!playbackCtx || playbackCtx.state === "closed") {
+            playbackCtx = new AudioContext({ sampleRate: 24000 })
+            playhead = playbackCtx.currentTime
+          }
+
+          const int16 = new Int16Array(pcm)
+          const float32 = new Float32Array(int16.length)
+          for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 0x8000
+
+          const buffer = playbackCtx.createBuffer(1, float32.length, 24000)
+          buffer.getChannelData(0).set(float32)
+          const source = playbackCtx.createBufferSource()
+          source.buffer = buffer
+          source.connect(playbackCtx.destination)
+          const startAt = Math.max(playbackCtx.currentTime, playhead)
+          source.start(startAt)
+          playhead = startAt + buffer.duration
+        } catch {
+          closePlayback()
+        }
+      }
 
       const end = (reason: "error" | "finished", error?: Error) => {
         if (ended || helpers.isDisposed()) return
@@ -70,11 +116,39 @@ export class OmniVoiceAdapter implements RealtimeVoiceAdapter {
         helpers.end("finished")
       }
 
-      ws.onopen = async () => {
-        if (stopped || ws.readyState !== WebSocket.OPEN) return
-        helpers.setStatus({ type: "running" })
-        helpers.emitMode("listening")
+      const cleanup = () => {
+        if (cleanedUp) return
+        cleanedUp = true
+        stopped = true
+        processor?.disconnect()
+        processor = null
+        void audioCtx?.close()
+        audioCtx = null
+        closePlayback()
+        if (stream) {
+          for (const track of stream.getTracks()) track.stop()
+          stream = null
+        }
+      }
 
+      const closeSession = () => {
+        cleanup()
+        if (sessionClosing || ws.readyState !== WebSocket.OPEN) {
+          ws.close()
+          return
+        }
+
+        sessionClosing = true
+        ws.send(JSON.stringify({ type: "session.close" }))
+      }
+
+      const cancelResponse = () => {
+        if (!responding || ws.readyState !== WebSocket.OPEN) return
+        closePlayback()
+        ws.send(JSON.stringify({ type: "response.cancel" }))
+      }
+
+      const startCapture = async () => {
         try {
           const captureStream = await navigator.mediaDevices.getUserMedia({
             audio: { sampleRate: 16000, channelCount: 1 }
@@ -86,24 +160,22 @@ export class OmniVoiceAdapter implements RealtimeVoiceAdapter {
 
           stream = captureStream
           audioCtx = new AudioContext({ sampleRate: 16000 })
-          const src = audioCtx.createMediaStreamSource(stream)
+          const source = audioCtx.createMediaStreamSource(stream)
           processor = audioCtx.createScriptProcessor(4096, 1, 1)
-          processor.onaudioprocess = (e: AudioProcessingEvent) => {
+          processor.onaudioprocess = (event: AudioProcessingEvent) => {
             if (stopped || helpers.isDisposed() || ws.readyState !== WebSocket.OPEN) return
-            const pcm16 = float32ToPcm16(e.inputBuffer.getChannelData(0))
-
-            // 实时音量上报（低频段均值）
-            const data = e.inputBuffer.getChannelData(0)
-            const rms = Math.sqrt(data.reduce((s, v) => s + v * v, 0) / data.length)
+            const samples = event.inputBuffer.getChannelData(0)
+            const pcm16 = float32ToPcm16(samples)
+            const rms = Math.sqrt(
+              samples.reduce((sum, sample) => sum + sample * sample, 0) / samples.length
+            )
             helpers.emitVolume(Math.min(1, rms * 4))
-
-            const bytes = new Uint8Array(pcm16.buffer as ArrayBuffer)
-            let str = ""
-            for (let i = 0; i < bytes.byteLength; i++) str += String.fromCharCode(bytes[i])
-            ws.send(JSON.stringify({ type: "audio", data: btoa(str) }))
+            ws.send(pcm16.buffer)
           }
-          src.connect(processor)
+          source.connect(processor)
           processor.connect(audioCtx.destination)
+          helpers.setStatus({ type: "running" })
+          helpers.emitMode("listening")
         } catch (error) {
           cleanup()
           end("error", error instanceof Error ? error : new Error(String(error)))
@@ -111,40 +183,88 @@ export class OmniVoiceAdapter implements RealtimeVoiceAdapter {
         }
       }
 
-      ws.onmessage = (event: MessageEvent) => {
+      ws.onopen = () => {
+        if (stopped || ws.readyState !== WebSocket.OPEN) return
+        ws.send(
+          JSON.stringify({
+            type: "hello",
+            protocol: "omni-realtime.v1",
+            endpointing: "server"
+          })
+        )
+      }
+
+      ws.onmessage = (event: MessageEvent<unknown>) => {
         if (helpers.isDisposed()) return
-        const msg = JSON.parse(event.data as string) as {
-          type: string
-          text?: string
-          audioData?: string
+        if (event.data instanceof ArrayBuffer) {
+          playChunk(event.data)
+          return
         }
-        switch (msg.type) {
-          case "audio_transcript_delta":
-            // 流式 assistant 转录（isFinal=false）
-            helpers.emitTranscript({ role: "assistant", text: msg.text ?? "", isFinal: false })
+
+        const message = parseRealtimeEvent(event.data)
+        if (!message) return
+
+        switch (message.type) {
+          case "ready":
+            if (parseOmniRealtimeReadyEvent(event.data) === null) {
+              cleanup()
+              end("error", new Error("Omni Realtime ready 合同无效"))
+              ws.close()
+              break
+            }
+            void startCapture()
             break
-          case "transcript_done":
-            helpers.emitTranscript({ role: "assistant", text: msg.text ?? "", isFinal: true })
+          case "input_audio.speech_started":
+            cancelResponse()
             helpers.emitMode("listening")
             break
-          case "audio_delta":
+          case "input_audio.transcript.delta":
+            helpers.emitTranscript({ role: "user", text: message.text ?? "", isFinal: false })
+            break
+          case "input_audio.transcript.completed":
+            helpers.emitTranscript({ role: "user", text: message.text ?? "", isFinal: true })
+            break
+          case "response.created":
+            responseText = ""
+            responding = true
+            break
+          case "response.text.delta": {
+            const text = message.text ?? ""
+            responseText += text
+            responding = true
+            helpers.emitTranscript({ role: "assistant", text, isFinal: false })
+            break
+          }
+          case "response.audio.started":
+            responding = true
+            audioOutputActive = true
             helpers.emitMode("speaking")
-            if (msg.audioData) playChunk(msg.audioData)
             break
-          case "input_transcript":
-            helpers.emitTranscript({ role: "user", text: msg.text ?? "", isFinal: true })
+          case "response.audio.done":
+            audioOutputActive = false
             break
-          case "speech_started":
+          case "response.completed":
+            responding = false
+            if (responseText) {
+              helpers.emitTranscript({ role: "assistant", text: responseText, isFinal: true })
+            }
+            responseText = ""
+            helpers.emitMode("listening")
+            break
+          case "response.cancelled":
+            responding = false
+            responseText = ""
+            closePlayback()
             helpers.emitMode("listening")
             break
           case "error":
-            cleanup()
-            end("error", new Error(msg.text ?? "未知错误"))
-            ws.close()
+            if (message.fatal) {
+              cleanup()
+              end("error", new Error(message.message ?? "未知错误"))
+              ws.close()
+            }
             break
           case "closed":
-            cleanup()
-            end("finished")
             ws.close()
             break
         }
@@ -154,37 +274,20 @@ export class OmniVoiceAdapter implements RealtimeVoiceAdapter {
         cleanup()
         end("finished")
       }
-      ws.onerror = () => {
-        cleanup()
-        ws.close()
-      }
-
-      const cleanup = () => {
-        if (cleanedUp) return
-        cleanedUp = true
-        stopped = true
-        processor?.disconnect()
-        processor = null
-        audioCtx?.close()
-        audioCtx = null
-        playbackCtx?.close()
-        playbackCtx = null
-        if (stream) {
-          for (const track of stream.getTracks()) track.stop()
-          stream = null
-        }
+      ws.onerror = () => ws.close()
+      if (options.abortSignal?.aborted) {
+        closeSession()
+      } else {
+        options.abortSignal?.addEventListener("abort", closeSession, { once: true })
       }
 
       return {
-        disconnect: () => {
-          cleanup()
-          ws.close()
-        },
+        disconnect: closeSession,
         mute: () => {
-          if (stream) for (const t of stream.getAudioTracks()) t.enabled = false
+          if (stream) for (const track of stream.getAudioTracks()) track.enabled = false
         },
         unmute: () => {
-          if (stream) for (const t of stream.getAudioTracks()) t.enabled = true
+          if (stream) for (const track of stream.getAudioTracks()) track.enabled = true
         }
       }
     })

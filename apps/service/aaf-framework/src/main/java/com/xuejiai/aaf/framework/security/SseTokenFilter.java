@@ -15,12 +15,18 @@ import jakarta.servlet.http.HttpServletResponse;
 /**
  * SSE Cookie Filter——原生 EventSource 无法设置 Authorization 时，将 HttpOnly Cookie 注入标准 Bearer header。
  *
- * <p>fetch 流请求直接使用 Authorization；本过滤器不读取 query JWT，且不覆盖已有认证信息。
+ * <p>fetch 流请求直接使用 Authorization；本过滤器不读取 query JWT、不覆盖已有认证信息，并跳过 WebSocket Upgrade，
+ * 避免把路由 Cookie 注入严格的 WebSocket 握手协议。
  *
  * @author AaronZZH
  */
 @Component
 public class SseTokenFilter extends OncePerRequestFilter {
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return "websocket".equalsIgnoreCase(request.getHeader("Upgrade"));
+    }
 
     @Override
     protected void doFilterInternal(

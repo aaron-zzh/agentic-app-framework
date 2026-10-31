@@ -257,3 +257,105 @@
 
 > **未实现**：网页端 `/ws/voice/session`（需用户身份下的大脑适配）；`DashScopeSpeechService` 的 `synthesize*` 与 `transcribe(bytes)` 仍每次新建连接（AIGC/REST 回退在用）；网页 `/ws/asr` 用的 `transcribeStream` 已改走 ASR 对象池，对外只推定稿句子与用量帧，行为不变（需网页联调确认）；前端读音调用的 `/voice/tts/stream` 后端无对应接口（原有问题，未处理）；`cancel` 的助手历史截断（`AssistantExecutionService` 无对应接口，设备端仅记录）。
 > **未核实**：Java SDK 的 `streamingCancel` 在 `call(text)` 模式下是否触发 task-finished（超时 2 秒会作废连接，不影响正确性只影响复用）；空闲 60 秒断连由 `idleEvictSeconds=50` 规避，未验证 SDK 是否自行重连。
+
+## #12028 Omni Realtime v1 协议与共享会话核心
+
+✅ 2026-10-17 — developer-service
+
+- 建共享会话、严格 hello/ready
+- 旧端点直换 v1，无兼容分支
+- 移除 Base64 PCM、视频和客户端工具
+
+## #12029 受控浏览器上下文与服务端检索
+
+✅ 2026-10-17 — developer-service
+
+- JWT 解析默认 Assistant 与绑定角色
+- 知识范围冻结，检索仅服务端执行
+- 不向客户端泄露知识来源与提示词
+
+## #12030 设备实时上下文客户端与角色解析
+
+✅ 2026-10-17 — developer-service
+
+- 新增 device 公开实时上下文 API
+- 重核绑定、场景、主体及角色优先级
+- subjectId 仅作为场景变量
+
+## #12031 v1 transport、PCM、事件与生命周期
+
+✅ 2026-10-17 — developer-service
+
+- raw PCM 二进制上下行与标准事件
+- commit/create、cancel、close 串行幂等
+- 结构化耗时日志不含敏感载荷
+
+## #12032 浏览器 JWT handler（后端部分）
+
+✅ 2026-10-17 — developer-service
+
+- JWT handler 只接受 token query
+- 拒绝设备头与其他 query 配置
+- Web UI 按本次范围未改动
+
+## #12033 设备 credential handler 与独立入口
+
+✅ 2026-10-17 — developer-service
+
+- 注册设备凭据专用实时端点
+- 握手只复制已认证设备主体
+- 保持 cascade v3 路由与代码不变
+
+> **注意事项**：按本次明确要求，未运行编译、测试、lint、check 或部署；LSP 环境缺少 jdtls，需在具备 Java 工具链的环境验证。
+## #12028–#12033 Omni Realtime 评审修复
+
+✅ 2026-10-17 — developer-service
+
+- 修正 SDK 与并发编译缺陷
+- 设备角色按三级严格解析
+- 浏览器仅认 token query JWT
+- 响应与检索增加身份栅栏
+- 按要求未运行测试与检查
+
+## #12028–#12033 response.created 取消竞态修复
+
+✅ 2026-10-17 — developer-service
+
+- create 与 VAD 均登记待确认 generation
+- 取消保留未绑定 generation 栅栏
+- 迟到 response.created 标记取消并隔离输出
+- 未关联事件保守等待，不启动新轮
+- 按要求未运行测试与检查
+
+## #12028–#12033 Omni Realtime v1 知识、图片与观测增量
+
+✅ 2026-10-17 — developer-service
+
+- 浏览器 hello 增严格 knowledge 开关
+- 冻结范围为空不注册检索工具
+- 保留 JSON 图片与服务端检索事件
+- ready 增解析耗时和启用状态
+- 首个有效输出仅发一次延迟事件
+
+> **注意事项**：按本次明确要求，未运行 build、test、lint、check、format 或部署。
+
+## Omni Realtime v1 设备知识检索范围修正
+
+✅ 2026-10-17 — developer-service
+
+- 冻结知识范围为空时关闭检索
+- 浏览器遵循 hello 开关，设备默认启用
+- 按要求未运行构建、测试与检查
+
+## #12034 HTTPS 用户自助绑定
+
+✅ 2026-10-31 — AI/developer-service + AI/developer-webui
+
+- `qrContent` 改为配置化前端 HTTPS 配对地址
+- 新增 JWT 自助绑定接口，所有者固定为当前用户
+- 自助设备固定 `general / ROBOT / OTHER`
+- 新增 `/device/pair` 页面并保留登录回跳参数
+- 管理 API 与设备安全链分离；Nginx 补设备 Omni Upgrade
+
+> **所有权规则**：已绑定设备不能直接转移；管理员解绑后，下一位完成配对的登录用户成为新所有者。
+> **验证缺口**：服务端/WebUI 全量检查仍被同工作区既有 Omni 编译与测试错误阻断；ModBot 需在 RK3588S 实机验证。

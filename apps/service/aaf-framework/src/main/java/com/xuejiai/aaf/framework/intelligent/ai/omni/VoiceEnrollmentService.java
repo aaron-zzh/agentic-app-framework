@@ -2,13 +2,15 @@ package com.xuejiai.aaf.framework.intelligent.ai.omni;
 
 import java.util.List;
 
+import com.xuejiai.aaf.framework.intelligent.ai.realtime.RealtimeConversationConfig;
+
 /**
  * 声音复刻服务接口。
  *
  * <p>基于 qwen-voice-enrollment 模型，无需训练即可从短音频克隆音色。 创建的 voice 可直接传入 {@link
- * OmniRealtimeService.SessionConfig#voice()} 使用。
+ * RealtimeConversationConfig#voice()} 使用。
  *
- * <p>工作流：先调用 {@link #createVoice} 获取 voice 名称，再传入 Omni 对话接口。 两步必须使用相同的 {@code targetModel}。
+ * <p>工作流：先调用 {@link #createVoice} 获取 voice 名称，再传入实时对话接口。 两步必须使用相同的 {@code targetModel}。
  */
 public interface VoiceEnrollmentService {
 
@@ -16,7 +18,7 @@ public interface VoiceEnrollmentService {
      * 创建音色。
      *
      * @param request 创建请求，包含音频数据和目标模型
-     * @return 音色名称，可直接用于 OmniRealtimeService 的 voice 参数
+     * @return 音色名称，可直接用于实时对话配置的 voice 参数
      */
     String createVoice(CreateVoiceRequest request);
 
@@ -39,7 +41,7 @@ public interface VoiceEnrollmentService {
     /** 创建音色请求。 */
     record CreateVoiceRequest(
             /**
-             * 驱动音色的全模态模型，必须与后续调用 Omni 接口时的模型一致。 可选值：qwen3.5-omni-plus-realtime /
+             * 驱动音色的全模态模型，必须与后续实时对话使用的模型一致。 可选值：qwen3.5-omni-plus-realtime /
              * qwen3.5-omni-flash-realtime / qwen3.5-omni-plus / qwen3.5-omni-flash
              */
             String targetModel,

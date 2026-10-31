@@ -33,6 +33,8 @@ export interface AiRoleVO {
   name: string
   description: string | null
   skillBindings: AiRoleSkillBinding[]
+  /** 绑定的知识库 stable_id */
+  knowledgeBaseIds: string[]
   /** 工具授权池，JSON 字符串数组 */
   toolWhitelist: string | null
   status: AiRoleStatus

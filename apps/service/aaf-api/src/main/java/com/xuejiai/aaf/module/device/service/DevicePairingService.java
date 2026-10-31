@@ -54,7 +54,7 @@ public class DevicePairingService {
     }
 
     public DevicePairingVO.StartResponse start(
-            String serialNumber, String model, String firmwareVersion) {
+            String serialNumber, String model, String firmwareVersion, String frontendUrl) {
         var normalizedSerial = requireText(serialNumber, DEVICE_PAIRING_REQUEST_INVALID);
         enforceSerialStartRate(normalizedSerial);
         if (deviceRepository.existsBySerialNumberAndStatus(
@@ -78,7 +78,7 @@ public class DevicePairingService {
         redisTemplate
                 .opsForValue()
                 .set(sessionKey(deviceCode), JsonUtils.toJsonString(session), SESSION_TTL);
-        var qrContent = "aaf://device/pair?pairCode=%s".formatted(pairCode);
+        var qrContent = pairingUrl(frontendUrl, pairCode);
         return new DevicePairingVO.StartResponse(pairCode, deviceCode, expiresAt, qrContent);
     }
 
@@ -275,6 +275,17 @@ public class DevicePairingService {
 
     private static String codeKey(String pairCode) {
         return CODE_PREFIX + sha256Hex(pairCode);
+    }
+
+    private static String pairingUrl(String frontendUrl, String pairCode) {
+        var baseUrl = frontendUrl == null ? "" : frontendUrl.trim();
+        while (baseUrl.endsWith("/")) {
+            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+        }
+        if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
+            throw new IllegalStateException("AAF 前端地址必须使用 http 或 https");
+        }
+        return "%s/device/pair?pairCode=%s".formatted(baseUrl, pairCode);
     }
 
     private static String randomPairCode() {

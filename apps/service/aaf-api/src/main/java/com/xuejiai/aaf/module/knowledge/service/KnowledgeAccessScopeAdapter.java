@@ -17,6 +17,7 @@ import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeSearchContrac
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationPlan;
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationRequest;
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationService;
+import com.xuejiai.aaf.framework.security.authorization.AuthorizationSubject;
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationTarget;
 
 import lombok.RequiredArgsConstructor;
@@ -62,6 +63,9 @@ public class KnowledgeAccessScopeAdapter implements KnowledgeAccessScopePort {
         var allowed = new LinkedHashMap<UUID, AuthorizedKnowledgeBase>();
         var snapshot = new StringBuilder();
         for (var candidate : candidates) {
+            if (!visibleTo(query.subject(), candidate)) {
+                continue;
+            }
             var decision = authorizationService.authorize(request(query, candidate));
             snapshot.append(candidate.id())
                     .append(':')
@@ -74,6 +78,22 @@ public class KnowledgeAccessScopeAdapter implements KnowledgeAccessScopePort {
             }
         }
         return new AuthorizedScope(Map.copyOf(allowed), snapshot.toString());
+    }
+
+    /** 基础所有权与租户边界先行收窄，策略授权只能在此基础上进一步收窄。 */
+    private boolean visibleTo(AuthorizationSubject subject, Candidate candidate) {
+        return switch (candidate.visibility()) {
+            case SYSTEM_PUBLIC -> true;
+            case PRIVATE ->
+                    subject.subjectId() != null
+                            && Objects.equals(candidate.ownerId(), subject.subjectId());
+            case ORG ->
+                    subject.tenantId() != null
+                            && Objects.equals(candidate.orgId(), subject.tenantId())
+                            && (candidate.workspaceId() == null
+                                    || Objects.equals(
+                                            candidate.workspaceId(), subject.workspaceId()));
+        };
     }
 
     private AuthorizationRequest request(AuthorizedQuery query, Candidate candidate) {

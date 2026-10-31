@@ -38,12 +38,12 @@ author: AaronZZH
 
 | 目录 | 内容 |
 |---|---|
-| [Assistant](bak/assistant/) | 助理领域与技术设计 |
-| [Team](bak/team/) | 群体协作领域与技术设计 |
-| [Agent](bak/agent/) | Agent、运行事件与执行轨迹设计 |
-| [Cognition](bak/cognition/) | 记忆、学习、检索和个性化设计 |
-| [Core](bak/core/) | 模型、推理、置信度与核心能力设计 |
-| [AI（历史专题）](bak/ai/) | 早期 AI Service 设计；后续责任应收敛到五层或基础设施 |
+| [Assistant](assistant/) | 助理领域与技术设计 |
+| [Team](team/) | 群体协作领域与技术设计 |
+| [Agent](agent/) | Agent、运行事件与执行轨迹设计 |
+| [Cognition](cognition/) | 记忆、学习、检索和个性化设计 |
+| [Core](core/) | 模型、推理、置信度与核心能力设计 |
+| [AI（历史专题）](ai/) | 早期 AI Service 设计；后续责任应收敛到五层或基础设施 |
 
 ## 资源文件
 

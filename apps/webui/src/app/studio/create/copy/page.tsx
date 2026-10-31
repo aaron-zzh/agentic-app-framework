@@ -20,8 +20,8 @@ import {
   Loader2,
   Mic,
   Pencil,
-  RefreshCw,
   Radio,
+  RefreshCw,
   ShieldCheck,
   Sparkles,
   Target,
@@ -272,13 +272,7 @@ function ExecutionPhaseBadge({ phase }: { phase: AssistantExecutionPhase }) {
   return <Badge variant={variant}>{label}</Badge>
 }
 
-function ProcessEntryIcon({
-  entry,
-  active
-}: {
-  entry: CopywritingProcessEntry
-  active: boolean
-}) {
+function ProcessEntryIcon({ entry, active }: { entry: CopywritingProcessEntry; active: boolean }) {
   const status = entry.status.toUpperCase()
   if (status === "FAILED" || status === "ERROR" || status === "REJECTED") {
     return <X aria-hidden="true" className="size-4 shrink-0 text-destructive" />

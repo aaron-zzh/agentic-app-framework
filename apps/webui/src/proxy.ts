@@ -21,8 +21,10 @@ const PROTECTED_PATHS = [
   "/notifications",
   "/trash",
   "/admin",
+  "/device",
   "/examples/ocr",
-  "/examples/image"
+  "/examples/image",
+  "/examples/realtime-conversation"
 ]
 
 /**
@@ -56,7 +58,7 @@ export function proxy(request: NextRequest) {
   // 未登录访问受保护路由 → 跳转登录
   if (isProtected && !token) {
     const loginUrl = new URL("/login", request.url)
-    loginUrl.searchParams.set("redirect", pathname)
+    loginUrl.searchParams.set("redirect", pathname + request.nextUrl.search)
     return NextResponse.redirect(loginUrl)
   }
 

@@ -403,7 +403,7 @@ And 对查看、导出、规则变更和模型发布形成不可抵赖审计记�
 
 ## 18. 相关设计
 
-- 共用技术方案：[政府AI产品平台技术说明](../../design/apps/government-ai-governance/technical-solution.md)
+- 共用技术方案：[政府AI产品平台技术说明](technical-solution.md)
 - 后续应补充：总体技术设计、边缘节点设计、数据分类分级清单、模型卡、接口字段规范和试点评测方案。
 
 ## 19. 变更记录

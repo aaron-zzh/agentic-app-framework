@@ -72,7 +72,7 @@ INSERT INTO ai_role
 VALUES
     (
         'system.role.elder-companion',
-        '长者陈伴',
+        '长者陪伴',
         '家庭陪伴机器人使用的长者陪伴角色，只能查询或经两步确认创建用药计划和预约',
         '[{"skillKey":"system.skill.elder-companion","activationMode":"ALWAYS"},{"skillKey":"system.skill.elder-care-health","activationMode":"ON_DEMAND"}]'::jsonb,
         '["listMedicationPlans","draftMedicationPlan","confirmMedicationPlan","listAvailableServices","draftServiceOrder","confirmServiceOrder","queryServiceOrderStatus","listRecentPhotos","searchRehabGuide","queryMedicalKnowledge","queryMedicalAnswer"]',
@@ -105,7 +105,7 @@ SET name = EXCLUDED.name,
 
 
 
--- ==================== #12016 长者陈伴角色挂载 ====================
+-- ==================== #12016 长者陪伴角色挂载 ====================
 
 -- 挂到系统默认模板供后续用户复制，同时补齐迁移时已经存在的默认用户副本。
 INSERT INTO ai_assistant_role

@@ -209,7 +209,7 @@ gains:
 
 > ⚠️ **引用失效，未逐句核实新对应关系（2026-09-14 复核）**：以下分析段落写作时基于的 `DelegatedTaskCoordinator.cancelRunningChildren`/`.stop`/`.takeOver` 已随 v0.13 AAF-115 重构删除（`DelegatedTaskCoordinator.java` 整体不存在）。已确认新编排层为 `TaskPlan`（见 [AAF-115 design.md](../../../task/v0.13/AAF-115/design.md)），但本段涉及的取消/暂停/接管责任主体分类推导链条较长，未逐句核实每个调用点在新架构下的精确对应方法与位置，因此不做逐句替换，仅整体标注失效以避免误导。以下内容保留仅供问题分析思路参考，具体类名、方法名和调用点均不代表当前代码。
 
-> 全仓核实：`cancel(ExecutionId)` 当前只有两处调用方——[`DelegatedTaskCoordinator.cancelRunningChildren`](../../../../apps/service/aaf-framework/src/main/java/com/xuejiai/aaf/framework/intelligent/assistant/application/DelegatedTaskCoordinator.java)（被 `stop`/`takeOver` 共用同一行代码）与 [`AssistantApplicationService`](../../../../apps/service/aaf-framework/src/main/java/com/xuejiai/aaf/framework/intelligent/assistant/application/AssistantApplicationService.java)（被 `CANCEL`/`PAUSE`/`TAKE_OVER` 三种操作共用同一行代码）。签名 `Mono<Boolean> cancel(ExecutionId executionId)` 不带任何区分信息，责任主体是否变化这一事实在到达 `HarnessAgentExecutionAdapter` 前已经坍缩丢失，`doFinally` 无法凭 `executionId` 本身反推该不该删状态槽。
+> 全仓核实：`cancel(ExecutionId)` 当前只有两处调用方——`DelegatedTaskCoordinator.cancelRunningChildren`（被 `stop`/`takeOver` 共用同一行代码）与 [`AssistantApplicationService`](../../../../apps/service/aaf-framework/src/main/java/com/xuejiai/aaf/framework/intelligent/assistant/application/AssistantApplicationService.java)（被 `CANCEL`/`PAUSE`/`TAKE_OVER` 三种操作共用同一行代码）。签名 `Mono<Boolean> cancel(ExecutionId executionId)` 不带任何区分信息，责任主体是否变化这一事实在到达 `HarnessAgentExecutionAdapter` 前已经坍缩丢失，`doFinally` 无法凭 `executionId` 本身反推该不该删状态槽。
 
 **触发路径分类**（按对状态槽的正确处置分组，这是 `HarnessAgentExecutionAdapter.doFinally` 分流判断的依据）：
 

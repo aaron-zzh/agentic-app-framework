@@ -6,31 +6,67 @@
 
 "use client"
 
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { buildWsUrl } from "@/lib/api/config"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { float32ToPcm16 } from "@/lib/utils/audio"
+import { parseOmniRealtimeReadyEvent } from "@/lib/voice/omni-realtime-protocol"
 
-type WsStatus = "connecting" | "connected" | "disconnected"
+type WsStatus = "connecting" | "ready" | "closing" | "disconnected"
 
 interface OmniMessage {
   role: "user" | "assistant" | "system"
   text: string
 }
 
+interface RealtimeEvent {
+  type: string
+  text?: string
+  code?: string
+  message?: string
+  fatal?: boolean
+}
+
 interface OmniRealtimePanelProps {
   onClose: () => void
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+}
+
+function parseRealtimeEvent(data: unknown): RealtimeEvent | null {
+  if (typeof data !== "string") return null
+
+  try {
+    const parsed: unknown = JSON.parse(data)
+    if (!isRecord(parsed) || typeof parsed.type !== "string") return null
+
+    const { type, text, code, message, fatal } = parsed
+    if (typeof type !== "string") return null
+
+    return {
+      type,
+      ...(typeof text === "string" ? { text } : {}),
+      ...(typeof code === "string" ? { code } : {}),
+      ...(typeof message === "string" ? { message } : {}),
+      ...(typeof fatal === "boolean" ? { fatal } : {})
+    }
+  } catch {
+    return null
+  }
 }
 
 export function OmniRealtimePanel({ onClose }: OmniRealtimePanelProps) {
   const accessToken = useAuthStore((s) => s.accessToken)
   const [status, setStatus] = useState<WsStatus>("disconnected")
   const [messages, setMessages] = useState<OmniMessage[]>([])
-  const [recording, setRecording] = useState(false)
-  const [currentTranscript, setCurrentTranscript] = useState("")
+  const [responding, setResponding] = useState(false)
+  const [currentInputTranscript, setCurrentInputTranscript] = useState("")
+  const [currentResponseText, setCurrentResponseText] = useState("")
 
   const wsRef = useRef<WebSocket | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -38,124 +74,243 @@ export function OmniRealtimePanel({ onClose }: OmniRealtimePanelProps) {
   const processorRef = useRef<ScriptProcessorNode | null>(null)
   const playbackCtxRef = useRef<AudioContext | null>(null)
   const playheadRef = useRef(0)
+  const audioOutputActiveRef = useRef(false)
+  const responseTextRef = useRef("")
+  const sessionClosingRef = useRef(false)
 
-  const playAudioChunk = useCallback((base64Data: string | undefined) => {
-    if (!base64Data) return
-    try {
-      let ctx = playbackCtxRef.current
-      if (!ctx || ctx.state === "closed") {
-        ctx = new AudioContext({ sampleRate: 24000 })
-        playbackCtxRef.current = ctx
-        playheadRef.current = ctx.currentTime
-      }
-      const binary = atob(base64Data)
-      const bytes = new Uint8Array(binary.length)
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-      const int16 = new Int16Array(bytes.buffer)
-      const float32 = new Float32Array(int16.length)
-      for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 0x8000
-      const audioBuffer = ctx.createBuffer(1, float32.length, 24000)
-      audioBuffer.getChannelData(0).set(float32)
-      const source = ctx.createBufferSource()
-      source.buffer = audioBuffer
-      source.connect(ctx.destination)
-      const startAt = Math.max(ctx.currentTime, playheadRef.current)
-      source.start(startAt)
-      playheadRef.current = startAt + audioBuffer.duration
-    } catch {
-      // 静默忽略
+  const closePlayback = useCallback(() => {
+    audioOutputActiveRef.current = false
+    void playbackCtxRef.current?.close()
+    playbackCtxRef.current = null
+    playheadRef.current = 0
+  }, [])
+
+  const stopCapture = useCallback(() => {
+    processorRef.current?.disconnect()
+    processorRef.current = null
+    void audioContextRef.current?.close()
+    audioContextRef.current = null
+    if (streamRef.current) {
+      for (const track of streamRef.current.getTracks()) track.stop()
+      streamRef.current = null
     }
   }, [])
 
-  const handleStart = useCallback(async () => {
-    setMessages([])
-    setCurrentTranscript("")
-    const params = new URLSearchParams({ vad: "true", token: accessToken ?? "" })
-    const ws = new WebSocket(buildWsUrl(`/ws/omni-realtime?${params.toString()}`))
-    wsRef.current = ws
-    setStatus("connecting")
+  const playAudioChunk = useCallback(
+    (pcm: ArrayBuffer) => {
+      if (!audioOutputActiveRef.current || pcm.byteLength === 0 || pcm.byteLength % 2 !== 0) return
 
-    ws.onopen = async () => {
-      setStatus("connected")
+      try {
+        let ctx = playbackCtxRef.current
+        if (!ctx || ctx.state === "closed") {
+          ctx = new AudioContext({ sampleRate: 24000 })
+          playbackCtxRef.current = ctx
+          playheadRef.current = ctx.currentTime
+        }
+
+        const int16 = new Int16Array(pcm)
+        const float32 = new Float32Array(int16.length)
+        for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 0x8000
+
+        const audioBuffer = ctx.createBuffer(1, float32.length, 24000)
+        audioBuffer.getChannelData(0).set(float32)
+        const source = ctx.createBufferSource()
+        source.buffer = audioBuffer
+        source.connect(ctx.destination)
+        const startAt = Math.max(ctx.currentTime, playheadRef.current)
+        source.start(startAt)
+        playheadRef.current = startAt + audioBuffer.duration
+      } catch {
+        closePlayback()
+      }
+    },
+    [closePlayback]
+  )
+
+  const startCapture = useCallback(
+    async (ws: WebSocket) => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: { sampleRate: 16000, channelCount: 1 }
         })
+        if (wsRef.current !== ws || ws.readyState !== WebSocket.OPEN || sessionClosingRef.current) {
+          for (const track of stream.getTracks()) track.stop()
+          return
+        }
+
         streamRef.current = stream
         const audioCtx = new AudioContext({ sampleRate: 16000 })
         audioContextRef.current = audioCtx
         const source = audioCtx.createMediaStreamSource(stream)
         const processor = audioCtx.createScriptProcessor(4096, 1, 1)
         processorRef.current = processor
-        processor.onaudioprocess = (e: AudioProcessingEvent) => {
-          if (ws.readyState !== WebSocket.OPEN) return
-          const pcm16 = float32ToPcm16(e.inputBuffer.getChannelData(0))
-          const binary = new Uint8Array(pcm16.buffer as ArrayBuffer)
-          let str = ""
-          for (let i = 0; i < binary.byteLength; i++) str += String.fromCharCode(binary[i])
-          ws.send(JSON.stringify({ type: "audio", data: btoa(str) }))
+        processor.onaudioprocess = (event: AudioProcessingEvent) => {
+          if (ws.readyState !== WebSocket.OPEN || sessionClosingRef.current) return
+          const pcm16 = float32ToPcm16(event.inputBuffer.getChannelData(0))
+          ws.send(pcm16.buffer)
         }
         source.connect(processor)
         processor.connect(audioCtx.destination)
-        setRecording(true)
       } catch {
+        stopCapture()
         ws.close()
-        setStatus("disconnected")
       }
+    },
+    [stopCapture]
+  )
+
+  const handleStart = useCallback(() => {
+    if (!accessToken) {
+      setMessages([{ role: "system", text: "请先登录后使用实时语音" }])
+      return
+    }
+    setMessages([])
+    setCurrentInputTranscript("")
+    setCurrentResponseText("")
+    responseTextRef.current = ""
+    sessionClosingRef.current = false
+    const params = new URLSearchParams({ token: accessToken })
+    const ws = new WebSocket(buildWsUrl(`/ws/realtime-conversation?${params.toString()}`))
+    ws.binaryType = "arraybuffer"
+    wsRef.current = ws
+    setStatus("connecting")
+
+    ws.onopen = () => {
+      ws.send(
+        JSON.stringify({
+          type: "hello",
+          protocol: "omni-realtime.v1",
+          endpointing: "server"
+        })
+      )
     }
 
-    ws.onmessage = (event: MessageEvent) => {
-      const msg = JSON.parse(event.data as string) as {
-        type: string
-        text?: string
-        audioData?: string
+    ws.onmessage = (event: MessageEvent<unknown>) => {
+      if (event.data instanceof ArrayBuffer) {
+        playAudioChunk(event.data)
+        return
       }
-      switch (msg.type) {
-        case "audio_transcript_delta":
-          setCurrentTranscript((prev) => prev + (msg.text ?? ""))
+
+      const message = parseRealtimeEvent(event.data)
+      if (!message) return
+
+      switch (message.type) {
+        case "ready":
+          if (parseOmniRealtimeReadyEvent(event.data) === null) {
+            stopCapture()
+            closePlayback()
+            ws.close()
+            break
+          }
+          setStatus("ready")
+          void startCapture(ws)
           break
-        case "transcript_done":
-          setMessages((prev) => [...prev, { role: "assistant", text: msg.text ?? "" }])
-          setCurrentTranscript("")
+        case "input_audio.speech_started":
+          setCurrentInputTranscript("")
           break
-        case "audio_delta":
-          playAudioChunk(msg.audioData)
+        case "input_audio.transcript.delta":
+          setCurrentInputTranscript((previous) => previous + (message.text ?? ""))
           break
-        case "input_transcript":
-          setMessages((prev) => [...prev, { role: "user", text: msg.text ?? "" }])
+        case "input_audio.transcript.completed":
+          if (message.text) {
+            setMessages((previous) => [...previous, { role: "user", text: message.text ?? "" }])
+          }
+          setCurrentInputTranscript("")
           break
-        case "speech_started":
-          setCurrentTranscript("")
+        case "response.created":
+          responseTextRef.current = ""
+          setCurrentResponseText("")
+          setResponding(true)
+          break
+        case "response.text.delta":
+          responseTextRef.current += message.text ?? ""
+          setCurrentResponseText(responseTextRef.current)
+          setResponding(true)
+          break
+        case "response.audio.started":
+          audioOutputActiveRef.current = true
+          setResponding(true)
+          break
+        case "response.audio.done":
+          audioOutputActiveRef.current = false
+          break
+        case "response.completed":
+          if (responseTextRef.current) {
+            setMessages((previous) => [
+              ...previous,
+              { role: "assistant", text: responseTextRef.current }
+            ])
+          }
+          responseTextRef.current = ""
+          setCurrentResponseText("")
+          setResponding(false)
+          break
+        case "response.cancelled":
+          responseTextRef.current = ""
+          setCurrentResponseText("")
+          setResponding(false)
+          closePlayback()
           break
         case "error":
-          setMessages((prev) => [...prev, { role: "system", text: `错误: ${msg.text}` }])
+          setMessages((previous) => [
+            ...previous,
+            {
+              role: "system",
+              text: `错误${message.code ? ` (${message.code})` : ""}: ${message.message ?? "未知错误"}`
+            }
+          ])
+          if (message.fatal) ws.close()
+          break
+        case "closed":
+          ws.close()
           break
       }
     }
 
     ws.onclose = () => {
+      stopCapture()
+      closePlayback()
+      wsRef.current = null
+      sessionClosingRef.current = false
+      setResponding(false)
       setStatus("disconnected")
-      setRecording(false)
     }
     ws.onerror = () => ws.close()
-  }, [accessToken, playAudioChunk])
+  }, [accessToken, closePlayback, playAudioChunk, startCapture, stopCapture])
+
+  const handleCancelResponse = useCallback(() => {
+    const ws = wsRef.current
+    if (!ws || ws.readyState !== WebSocket.OPEN || !responding) return
+
+    closePlayback()
+    ws.send(JSON.stringify({ type: "response.cancel" }))
+  }, [closePlayback, responding])
 
   const handleStop = useCallback(() => {
-    processorRef.current?.disconnect()
-    processorRef.current = null
-    audioContextRef.current?.close()
-    audioContextRef.current = null
-    playbackCtxRef.current?.close()
-    playbackCtxRef.current = null
-    playheadRef.current = 0
-    if (streamRef.current) {
-      for (const t of streamRef.current.getTracks()) t.stop()
-      streamRef.current = null
+    stopCapture()
+    closePlayback()
+    const ws = wsRef.current
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      setStatus("disconnected")
+      return
     }
-    wsRef.current?.close()
-    wsRef.current = null
-    setRecording(false)
-  }, [])
+
+    sessionClosingRef.current = true
+    setStatus("closing")
+    ws.send(JSON.stringify({ type: "session.close" }))
+  }, [closePlayback, stopCapture])
+
+  useEffect(() => {
+    return () => {
+      stopCapture()
+      closePlayback()
+      const ws = wsRef.current
+      if (ws?.readyState === WebSocket.OPEN && !sessionClosingRef.current) {
+        ws.send(JSON.stringify({ type: "session.close" }))
+      }
+      ws?.close()
+    }
+  }, [closePlayback, stopCapture])
 
   const handleClose = useCallback(() => {
     handleStop()
@@ -163,7 +318,11 @@ export function OmniRealtimePanel({ onClose }: OmniRealtimePanelProps) {
   }, [handleStop, onClose])
 
   const statusVariant =
-    status === "connected" ? "default" : status === "connecting" ? "secondary" : "outline"
+    status === "ready"
+      ? "default"
+      : status === "connecting" || status === "closing"
+        ? "secondary"
+        : "outline"
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -176,12 +335,22 @@ export function OmniRealtimePanel({ onClose }: OmniRealtimePanelProps) {
           </Badge>
         </div>
         <div className="flex items-center gap-2">
-          {!recording ? (
-            <Button size="sm" onClick={handleStart}>
+          {responding ? (
+            <Button size="sm" variant="outline" onClick={handleCancelResponse}>
+              取消回复
+            </Button>
+          ) : null}
+          {status === "disconnected" ? (
+            <Button size="sm" onClick={handleStart} disabled={!accessToken}>
               开始
             </Button>
           ) : (
-            <Button size="sm" variant="destructive" onClick={handleStop}>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={handleStop}
+              disabled={status === "closing"}
+            >
               结束
             </Button>
           )}
@@ -193,37 +362,44 @@ export function OmniRealtimePanel({ onClose }: OmniRealtimePanelProps) {
 
       {/* 对话内容 */}
       <ScrollArea className="flex-1 p-4">
-        {messages.length === 0 && !currentTranscript ? (
+        {messages.length === 0 && !currentInputTranscript && !currentResponseText ? (
           <p className="pt-8 text-center text-muted-foreground text-sm">
             点击「开始」进入实时对话...
           </p>
         ) : (
-          <div className="space-y-3">
-            {messages.map((msg, i) => (
+          <div className="flex flex-col gap-3">
+            {messages.map((message) => (
               <div
-                key={`${i}-${msg.text.slice(0, 8)}`}
-                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                key={`${message.role}-${message.text}`}
+                className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 <div
                   className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
-                    msg.role === "user"
+                    message.role === "user"
                       ? "bg-primary text-primary-foreground"
-                      : msg.role === "system"
+                      : message.role === "system"
                         ? "bg-destructive/10 text-destructive"
                         : "bg-muted"
                   }`}
                 >
-                  {msg.text}
+                  {message.text}
                 </div>
               </div>
             ))}
-            {currentTranscript && (
-              <div className="flex justify-start">
-                <div className="max-w-[80%] rounded-lg bg-muted px-3 py-2 text-sm italic opacity-70">
-                  {currentTranscript}
+            {currentInputTranscript ? (
+              <div className="flex justify-end">
+                <div className="max-w-[80%] rounded-lg bg-primary/70 px-3 py-2 text-primary-foreground text-sm italic">
+                  {currentInputTranscript}
                 </div>
               </div>
-            )}
+            ) : null}
+            {currentResponseText ? (
+              <div className="flex justify-start">
+                <div className="max-w-[80%] rounded-lg bg-muted px-3 py-2 text-sm italic opacity-70">
+                  {currentResponseText}
+                </div>
+              </div>
+            ) : null}
           </div>
         )}
       </ScrollArea>

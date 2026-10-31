@@ -3,8 +3,8 @@ level: Practice
 layer: Model
 purpose: AAF-120 养老业务模块（elder）的初步方案设计：分层与依赖规则、子域划分、概念登记表、域间交互、智能层、数据安全与错误码
 status: active
-version: 1.0.0
-date: 2026-10-15
+version: 1.1.0
+date: 2026-10-16
 author: AaronZZH & Kiro
 tags:
   - AAF-120
@@ -576,21 +576,21 @@ Broker 与客户端库：
 
 ### 设备配对与绑定
 
-设备不需要登录。机器人和长者都不是 AAF 用户账号：机器人用设备凭据，长者通过机器人使用，运营用自己的账号登录并负责绑定。家属端一期不做，所以一期绑定由运营在管理端完成，家属端上线后再开放家属自助绑定。绑定采用"屏幕配对码"流程：
+设备不需要登录。机器人使用设备凭据，用户通过自己的 AAF 账号完成自助绑定；运营管理端仍保留为其他用户和业务场景配置设备的能力。绑定采用“短期 HTTPS 链接 + 屏幕配对码”流程：
 
-1. 机器人未绑定时，调用 `POST /api/device/pair/start`，提交硬件序列号、型号、固件版本（该接口无需登录，按序列号和来源限流）。AAF 返回 `pairCode`（8 位易读字符）、不可猜的 `deviceCode`、有效期 10 分钟，机器人在屏幕上显示二维码和配对码。
-2. 已登录的运营在管理端"设备"页新建设备，填写配对码、选择长者和设备所有者，提交。这就是创建 `Device` 资源，绑定是创建的副作用，不需要自定义动作。后端校验调用人有权管理该长者，配对码有效且一次性使用，序列号未被绑定。设备所有者必须由运营明确指定为一个用户账号（通常是出钱的家属账号），不默认取运营本人；所有者是计费主体。
-3. 机器人轮询 `POST /api/device/pair/poll`（带 `deviceCode`），绑定成功后一次性收到 `deviceKey`、设备密钥、MQTT 接入参数、API 基地址。密钥只返回一次，机器人存入安全存储。
-4. 机器人用凭据连接 MQTT，发布在线状态和能力，进入工作状态。
-5. 解绑：运营在管理端对设备执行"解绑"动作（无参动作，需确认），撤销凭据并踢掉连接；机器人收到认证失败后回到配对界面，重新配对即可换新凭据。一期不做单独的凭据轮换。
+1. 机器人未绑定时，调用 `POST /api/device/pair/start`，提交硬件序列号、型号、固件版本（该接口无需登录，按序列号和来源限流）。AAF 返回 `pairCode`（8 位易读字符）、不可猜的 `deviceCode`、有效期 10 分钟和 `https://<frontend>/device/pair?pairCode=...`；机器人显示二维码、配对码并把临时链接输出到日志/命令行。
+2. 用户打开 HTTPS 链接；未登录时先登录并携带完整 `redirect` 返回。用户确认后调用 JWT 接口 `POST /api/device-bindings`，请求只含 `pairCode`。设备所有者强制取当前登录用户，客户端不能指定他人；自助绑定固定使用 `general` 场景、`ROBOT` 类型和 `OTHER` 区域。
+3. 运营仍可在管理端通过 `POST /api/admin/devices` 填写配对码并选择业务场景、场景主体与设备所有者，用于养老等需要主体档案的配置。
+4. 机器人轮询 `POST /api/device/pair/poll`（带 `deviceCode`），绑定成功后一次性收到 `deviceKey`、设备密钥、MQTT 接入参数、API 基地址。密钥只返回一次，机器人存入安全存储。
+5. 机器人用凭据连接 MQTT 和设备 API，进入工作状态。解绑必须由管理员执行；凭据撤销后机器人重新申请配对码，下一位完成绑定的登录用户成为新所有者。
 
 规则：
 
 - 配对码单次使用，失败 5 次锁定，配对会话存 Redis 并设过期，不建表。
 - 设备能被绑定，靠的是"在设备屏幕上看到配对码"这一物理接近证明，序列号本身不作为凭据。
-- 一个设备同时只绑定一位长者；换绑必须先解绑。
+- 一个设备同时只有一个有效绑定；换所有者或换场景主体必须先由管理员解绑，再由目标用户自助绑定或由运营重新配置。
 - 设备密钥库中只存哈希。
-- 设备所有者记录在 `Device`，也是计费主体，见"语音与助理接入"。
+- 自助绑定的设备所有者固定为当前登录用户；管理端绑定可由有权限的运营指定所有者。设备所有者也是计费主体，见“语音与助理接入”。
 
 ### 设备 REST 与流式接口
 
@@ -868,10 +868,10 @@ Redis 的其他用途限于：配对会话、用药计划草稿（均带过期�
 | 一期预约 | 只做预约单，由运营线下安排服务，不含 `provider` 与 `workorder` | 控制一期规模；派单与上门闭环随二期加入 |
 | 设备层与场景拆分 | 设备配对、认证、MQTT 通道、简报、语音网关归通用模块 `device`；养老业务（预警、用药、相册、预约、康复）归 `elder`，作为首个场景包通过 `DeviceScenario` 接入；依赖只有 `elder → device` | 设备能力要支持儿童教育、办公助理、情感陪伴等多场景；设备层不含任何养老语义，新增场景只需实现扩展点 |
 | 设备通道 | 一期实现通信设计的 MQTT over TLS 子集：主题、信封、签名、状态语义、outbox；租约字段对非物理能力暂不实现；预警与心跳只走 MQTT，不保留 REST 兜底 | 业务方要求实现既有通信方案；单一路径，不做兼容层；机器人已有 QtMqtt 适配器 |
-| 设备身份 | 设备不登录，屏幕配对码加所有者用户绑定，绑定后颁发每台设备唯一的凭据；一期由运营在管理端绑定 | 机器人和长者都不是用户账号；配对码证明物理接近；所有者也是计费主体；家属端后置 |
+| 设备身份 | 设备不登录，使用短期 HTTPS 配对链接和所有者用户绑定，绑定后颁发每台设备唯一的凭据；自助绑定固定归属当前登录用户，管理端保留代配置能力 | 机器人不是用户账号；配对码证明物理接近；所有者也是计费主体；已绑定设备必须先解绑才能转移 |
 | 设备认证 | 独立的 `DeviceAuthFilter` 与 `SecurityFilterChain`，只授 `ROLE_DEVICE`，不复用 `ApiKey` | `ApiKey` 会继承所有者的全部角色，设备被盗等于盗用所有者权限；独立过滤链不改动共享的 `SecurityConfig` |
 | Broker | EMQX 单节点，与 Java 服务同机、独立容器运行；阿里云云消息队列 MQTT 版（按预留量收费、不支持私有化）与阿里云物联网平台（已停止新购）不采用 | 一期一台测试设备，负载极轻；EMQX 的认证与授权可回调 AAF，改动最少；单节点生产使用符合 BSL 附加授权，作为外部依赖单独部署，不随 AAF 打包；Java 服务多实例后再评估 broker 高可用 |
-| 前端范围 | 一期只做运营管理端（EntityDef 驱动），家属端和长者端页面后置 | 业务方定；管理端能覆盖建档、绑定、预警处置、预约确认、内容管理 |
+| 前端范围 | 提供 `/device/pair` 最小自助绑定页；运营管理端继续由 EntityDef 驱动 | 自助页只确认绑定到当前用户，不开放所有者、场景主体等管理字段；复杂配置仍由管理端完成 |
 | 通知与定时队列 | 复用 `AsyncQueueTaskService` 发送通知，用 `nextActionAt` 加定时扫描推进确认窗口与升级，不新建 Redis 消息队列 | 框架已有 PostgreSQL 加 Redis Stream 队列；状态驱动更易恢复与测试 |
 | 视觉事件分工 | 边缘判定语义事件，后端不收预警画面；长时间无活动与设备离线由后端判定 | 视频不出设备；无活动依赖多设备与时段，放后端更易配置 |
 | 陪伴聊天 | 一期对接 AAF 助理，经设备语音网关调用识别、对话、合成；本机大脑作断网兜底 | 机器人团队就是我们自己，后续本来要对接助理；网关避免让现有端点接受设备凭据 |
@@ -931,3 +931,281 @@ Redis 的其他用途限于：配对会话、用药计划草稿（均带过期�
 | 2026-10-15 | 预警通知改为同时发运营值班（站内信加钉钉群，复用现有发送器）和联系人站内信，去掉逐级升级与单级超时；服务号、小程序后置；补充云消息队列 MQTT 版的已核实信息；新增开发前的人类审核范围；设备所有者必须指定用户；去掉凭据轮换与批量导入；增加按场景划分 MQTT 与 REST | 业务方要求预警触达后台账号并发钉钉，功能优先、不提前扩展 |
 | 2026-10-15 | 设计通过人类审核；broker 定为 EMQX 单节点，与 Java 服务同机独立容器，一期一台测试设备不压测；M0 由"通信 PoC"改为"通信基础"；租约字段暂不实现获确认；保留期限与阈值按默认；新增 tasks.md | 业务方回复并确认审核通过 |
 | device（通用设备层） | 11_000_000 ~ 11_099_999 |
+| 2026-10-16 | 新增 Omni Realtime v1 实现规格与 #12028 至 #12033 | 已授权统一会话、双入口、服务端配置与检索、PCM 及 Web UI 迁移方向；不建 SQL，不改 cascade v3 或 ModBot |
+
+## Omni Realtime v1（#12028 起）
+
+> 本节是 [需求增量](requirement.md#实时会话协议增量候选技术任务-12028) 的实现规格，并优先于本文早期“设备 REST 与流式接口”和“语音与助理接入”中关于新实时入口的表述。它新增 Omni Realtime v1，不修改、代理、转换或迁移既有 `cascade v3`。`cascade v3` 的入口、客户端和语义保持原样；Web UI 只迁移现有 `/ws/realtime-conversation` 示例到 v1。
+
+### 范围与边界
+
+- 两条 WebSocket 入口共享同一个 `RealtimeConversationSession`，但认证、可信调用者和上下文解析在 transport 适配层完成：浏览器为 `GET /ws/realtime-conversation`，仅接受 JWT；设备为 `GET /api/device/realtime-conversation`，仅接受 `X-Device-Key` 与 `X-Device-Credential`。
+- 建连后的第一条客户端 text frame 必须为 `hello`。在收到 `ready` 前，服务端不得向模型发送音频、文本或图片，也不得接受 binary frame。
+- 客户端只可提交文本、协议控制数据、JSON 图片和规定 PCM。`assistantId`、`instructions`、`model`、工具清单、知识库 ID、知识文档 ID、业务主体 ID、所有者 ID 与计费主体 ID 均为非法字段，携带即发送 `error` 并以协议错误关闭。
+- 音频不使用 JSON、Base64、MQTT 或 binary 帧头。每个 WebSocket binary message 是完整的原始 PCM payload；由于一个会话同时只允许一个活跃的服务端音频响应，`response.audio.started` 与 `response.audio.done` 定义下行 PCM 的边界。
+- 图片是唯一允许携带 Base64 的媒体类型，使用 JSON `input.image`，不复用 binary frame，以避免在无二进制帧头时与 PCM 混淆。
+- 本任务不建表、不建 SQL、不做会话持久化或重连恢复；一个 WebSocket 连接对应一个内存会话。
+
+### v1 线协议
+
+所有控制帧与事件均为 UTF-8 JSON text frame，字段名和事件名区分大小写。未知字段、未知 `type`、重复 `hello`、非对象 JSON、`ready` 前的非 `hello` 帧均为协议错误。`sessionId` 由服务端生成且仅作关联日志的非授权标识。
+
+首帧 `hello` 的精确字段如下。浏览器允许可选的 `roleKey` 和 `knowledge`；`knowledge` 仅接受 JSON 布尔值，省略时为 `true`。设备不得发送这两个字段。`endpointing` 由入口固定，客户端填错即拒绝，不允许客户端选择端点检测策略。
+
+```json
+// 浏览器：roleKey 可省略，省略表示当前默认 Assistant 的默认角色；knowledge 省略时为 true
+{
+  "type": "hello",
+  "protocol": "omni-realtime.v1",
+  "endpointing": "server",
+  "roleKey": "optional-bound-role-key",
+  "knowledge": false
+}
+
+// 设备：不允许 roleKey、knowledge 或任何主体、Assistant、知识配置字段
+{
+  "type": "hello",
+  "protocol": "omni-realtime.v1",
+  "endpointing": "client"
+}
+```
+
+服务端在上下文、引擎与传输均成功初始化后发送唯一的 `ready`。`contextResolveMs` 是上下文解析耗时，`knowledgeEnabled` 表示本会话是否已注册服务端 `knowledge_search` 工具；两者均不泄露 Assistant ID、提示词、知识库 ID、用户 ID、设备 ID 或主体 ID。
+
+```json
+{
+  "type": "ready",
+  "protocol": "omni-realtime.v1",
+  "sessionId": "opaque-session-id",
+  "endpointing": "server",
+  "contextResolveMs": 12,
+  "knowledgeEnabled": true,
+  "inputAudioFormat": {
+    "encoding": "pcm_s16le",
+    "sampleRateHz": 16000,
+    "channels": 1
+  },
+  "outputAudioFormat": {
+    "encoding": "pcm_s16le",
+    "sampleRateHz": 24000,
+    "channels": 1
+  }
+}
+```
+
+客户端控制事件：
+
+| `type` | 字段 | 允许入口 | 语义 |
+|---|---|---|---|
+| `input.text` | `text`（非空字符串） | 两者 | 将一轮文字输入交给会话；服务端按会话上下文创建响应。 |
+| `input.image` | `mimeType`（`image/jpeg` 或 `image/png`）、`data`（Base64） | 两者 | JSON 图片输入；服务端解码、校验 MIME 与载荷后调用引擎。 |
+| `input_audio.commit` | 无 | 仅设备 | 将已收到的 16 kHz 单声道 PCM 提交为一轮输入；只在 `client` endpointing 下有效。 |
+| `response.create` | 无 | 仅设备 | 仅可紧跟成功的 `input_audio.commit`，启动该轮响应。 |
+| `response.cancel` | 无 | 两者 | 取消当前响应及其可取消的知识检索；空闲时幂等成功。 |
+| `session.close` | 无 | 两者 | 正常关闭；服务端先发送 `closed` 再关闭 WebSocket。 |
+
+浏览器为 `server` endpointing：引擎的服务端 VAD 负责停讲检测、提交和启动响应，浏览器不得发送 `input_audio.commit` 或 `response.create`。设备为 `client` endpointing：设备完成本地端点检测后必须按 `input_audio.commit`、`response.create` 的顺序发送；未提交、重复提交或响应进行中时创建响应均返回 `error`，不改变现有响应。
+
+服务端标准事件如下。除下行 PCM 外，所有事件均为 JSON；`error` 后是否关闭由 `fatal` 决定，协议、鉴权、上下文和引擎初始化错误均为致命错误。
+
+| `type` | 必要字段 | 说明 |
+|---|---|---|
+| `ready` | 精确结构见上文 | 会话可接收输入。 |
+| `input_audio.speech_started` / `input_audio.speech_stopped` | 无 | 浏览器服务端 VAD 状态。 |
+| `input_audio.transcript.delta` | `text` | 输入语音转写增量。 |
+| `input_audio.transcript.completed` | `text` | 输入语音转写完成。 |
+| `response.created` | 无 | 当前轮响应已创建。 |
+| `response.latency` | `durationMs` | 首个有效模型文本或音频输出时仅发送一次；不包含上下文、提示词或知识库标识。 |
+| `response.text.delta` | `text` | 模型文字输出增量。 |
+| `response.audio.started` / `response.audio.done` | 无 | 后续/此前 WebSocket binary message 为 24 kHz 单声道 `pcm_s16le`；不带 frame header。 |
+| `response.completed` | 无 | 当前响应正常结束。 |
+| `response.cancelled` | 无 | 取消已完成，后续不再发送此响应的文本或音频。 |
+| `knowledge_search.started` | 无 | 受控服务端检索已开始。 |
+| `knowledge_search.completed` | `status`、`durationMs`、`resultCount` | 检索完成；不返回知识库 ID、文档 ID、查询参数或原文。 |
+| `error` | `code`、`message`、`fatal` | 稳定协议错误码和可展示消息；不回显凭据与受限配置。 |
+| `closed` | `reason` | 资源释放已开始，随后关闭 WebSocket。 |
+
+### 接口定义
+
+`RealtimeConversationSession` 放在 `module.ai.aigc.realtime`，是 v1 的共享应用核心；浏览器与设备 handler 只能把可信身份、协议帧和二进制 PCM 交给它。现有 `RealtimeConversationEngine` 仍是供应商引擎端口，v1 session 负责把其供应商事件转换为上述标准事件。
+
+```java
+package com.xuejiai.aaf.module.ai.aigc.realtime;
+
+import com.xuejiai.aaf.module.device.security.DevicePrincipal;
+
+public interface RealtimeConversationSession extends AutoCloseable {
+
+    void receiveControl(RealtimeClientControl control);
+
+    void receiveAudio(byte[] pcm16Le);
+
+    void cancelResponse();
+
+    @Override
+    void close();
+}
+
+public interface RealtimeConversationSessionFactory {
+
+    RealtimeConversationSession open(
+            RealtimeCaller caller,
+            RealtimeHello hello,
+            RealtimeSessionTransport transport);
+}
+
+public sealed interface RealtimeCaller permits WebRealtimeCaller, DeviceRealtimeCaller {}
+
+public record WebRealtimeCaller(Long userId) implements RealtimeCaller {}
+
+public record DeviceRealtimeCaller(RealtimeDeviceContext context) implements RealtimeCaller {}
+
+public record RealtimeHello(String protocol, String endpointing, String roleKey, Boolean knowledge) {
+
+    public boolean knowledgeEnabled() {
+        return knowledge == null || knowledge;
+    }
+}
+
+public sealed interface RealtimeClientControl
+        permits InputText, InputImage, InputAudioCommit, ResponseCreate, ResponseCancel, SessionClose {}
+
+public record InputText(String text) implements RealtimeClientControl {}
+
+public record InputImage(String mimeType, String base64Data) implements RealtimeClientControl {}
+
+public record InputAudioCommit() implements RealtimeClientControl {}
+
+public record ResponseCreate() implements RealtimeClientControl {}
+
+public record ResponseCancel() implements RealtimeClientControl {}
+
+public record SessionClose() implements RealtimeClientControl {}
+
+public interface RealtimeSessionTransport {
+
+    boolean isOpen();
+
+    void sendEvent(RealtimeServerEvent event);
+
+    void sendAudio(byte[] pcm24Le);
+
+    void close(RealtimeCloseReason reason);
+}
+
+public record RealtimeServerEvent(String type, java.util.Map<String, Object> data) {}
+
+public enum RealtimeCloseReason {
+    NORMAL,
+    PROTOCOL_ERROR,
+    UNAUTHORIZED,
+    CONTEXT_REJECTED,
+    ENGINE_ERROR
+}
+```
+
+受控上下文解析与设备场景读取使用以下接口。`DeviceRealtimeContextClient` 是设备会话核心对 `module/device` 的唯一依赖；实现可读取场景注册表和启用门，但不得把 `Device` entity、repository 或 service 泄露给 `aigc`。
+
+```java
+package com.xuejiai.aaf.module.ai.aigc.realtime.context;
+
+import com.xuejiai.aaf.module.ai.aigc.realtime.RealtimeCaller;
+import com.xuejiai.aaf.module.ai.aigc.realtime.RealtimeHello;
+import com.xuejiai.aaf.module.ai.assistant.api.AssistantConversationContextApi.ConversationContext;
+import com.xuejiai.aaf.module.ai.assistant.api.AssistantConversationContextApi.ConversationIdentity;
+import com.xuejiai.aaf.module.device.api.DeviceRealtimeContextClient;
+import com.xuejiai.aaf.module.device.api.RealtimeDeviceAuthentication;
+import com.xuejiai.aaf.module.device.api.RealtimeDeviceContext;
+import com.xuejiai.aaf.module.device.api.RealtimeDeviceContext;
+
+public interface RealtimeConversationContextResolver {
+
+    ResolvedRealtimeContext resolve(RealtimeCaller caller, RealtimeHello hello);
+}
+
+public record ResolvedRealtimeContext(
+        ConversationIdentity identity,
+        ConversationContext assistantContext,
+        String endpointing,
+        RealtimeDeviceContext deviceContext) {}
+```
+
+```java
+package com.xuejiai.aaf.module.device.api;
+
+import com.xuejiai.aaf.module.device.security.DevicePrincipal;
+
+public interface DeviceRealtimeContextClient {
+
+    RealtimeDeviceContext resolve(RealtimeDeviceAuthentication authentication);
+}
+
+public record RealtimeDeviceContext(
+        String scenarioKey,
+        Long subjectId,
+        String requestedRoleKey,
+        String scenarioDefaultRoleKey,
+        java.util.Set<String> allowedRoleKeys,
+        java.util.Map<String, Object> chatVariables) {}
+```
+
+### 上下文、身份和知识检索
+
+上下文在收到 `hello` 时一次解析并冻结到会话结束。后续控制帧不能修改身份、角色、Assistant、工具或知识范围。
+
+1. **浏览器**：JWT 握手已验证的 `userId` → `SystemOrgContextApi.resolvePersonalDefault(userId)` 的组织与工作区 → 该用户默认 Assistant → `hello.roleKey`，省略则 Assistant 默认角色 → `AssistantConversationContextApi.resolve` 校验角色已绑定、启用且可见。任何一步失败即拒绝，尤其不能改用任意角色或 Assistant。
+2. **设备**：设备凭据认证出的 `DevicePrincipal` → `DeviceRealtimeContextClient` 重新确认绑定未撤销、场景已启用、设备的场景与主体仍合法 → 使用设备记录的 `orgId`、`workspaceId` 和 `ownerUserId` 创建 `ConversationIdentity` → 所有者默认 Assistant → 角色优先级为设备 `roleKey`、所有者默认 Assistant 的默认角色、场景 `defaultRoleKey`。每个候选都必须已绑定到该 Assistant、启用、可见且属于场景 `allowedRoleKeys`；候选不合法则继续检查下一级，全部不合法即拒绝。`subjectId` 只进入 `RealtimeDeviceContext` 和场景变量，绝不写入 `ConversationIdentity` 的用户、所有者或操作员字段。
+3. 设备会话的 `operatorUserId` 为 `null`，`ownerUserId` 只用于受限的 Assistant、积分和组织上下文执行。`PermissionExecutionService.runAsOwner` 不得向设备 handler 或协议暴露用户角色、JWT 或用户标识。
+
+`RealtimeKnowledgeSearchService` 迁入共享 session 的服务端工具执行路径。冻结 `knowledgeBaseIds` 为空时，session 不向模型注册 `knowledge_search`；非空时，浏览器由 `hello.knowledge` 控制，设备因不发送该字段默认注册。检索只接受已冻结的 `ConversationIdentity` 和 `ConversationContext`，按 `knowledgeBaseIds` 调用 `KnowledgeSearchApi`，并继续由 `PermissionExecutionService.runAsOwner` 和 `OrgContext.runIfAbsent` 执行。模型函数调用、查询参数、命中文档和原文不转交客户端；客户端不再声明工具、也不发送 `function_output`。场景工具范围由解析后的 Assistant 和 `DeviceScenario.openToolScope` 在服务端打开与关闭。
+
+### 端点注册和安全链路
+
+| 入口 | 注册类与 handler | 握手认证 | 可信 attribute | 禁止路径 |
+|---|---|---|---|---|
+| `/ws/realtime-conversation` | `AigcWebSocketConfig` → `JwtRealtimeConversationWebSocketHandler` | `QueryTokenJwtHandshakeInterceptor`；仅接受 `token` query，拒绝 `Authorization` 与 Cookie | `JwtHandshakeInterceptor.ATTR_USER_ID` | 不接受设备 header、设备主体、`/api/device/**` 安全链 |
+| `/api/device/realtime-conversation` | 新增 `DeviceRealtimeWebSocketConfig` → `DeviceRealtimeConversationWebSocketHandler` | `DeviceSecurityConfig` 的 `/api/device/**` 链先运行 `DeviceAuthFilter`；`DeviceCredentialHandshakeInterceptor` 仅把已认证 `DevicePrincipal` 复制到 session attributes | `DevicePrincipal` | 不挂 `JwtHandshakeInterceptor`，不接受 JWT、ApiKey 或匿名配对例外 |
+
+设备入口必须保持在 `DeviceSecurityConfig` 的 `.anyRequest().hasRole("DEVICE")` 保护下，配对 `permitAll` 仅限既有两个 `POST /api/device/pair/*` 路径。`DeviceCredentialHandshakeInterceptor` 不再次解析或记录明文凭据，也不从 query、cookie 或 body 回退认证。浏览器入口继续只走 JWT 握手认证，设备凭据出现在该入口时直接拒绝。所有日志只记录调用者类型、内部会话 ID、设备 ID 或用户 ID 的安全审计标识，严禁记录 JWT、设备 credential、图片 Base64、PCM 或解析出的 instructions。
+
+### 并发、取消、关闭与可观测性
+
+- 每个 `RealtimeConversationSession` 有一个 FIFO 串行执行器。WebSocket 入站线程、引擎回调和异步知识检索回调都经该执行器推进状态，避免 `commit/create/cancel/close` 竞态；跨会话不共享锁。
+- 状态为 `INITIALIZING → READY → RESPONDING → READY → CLOSING → CLOSED`。同一会话只允许一个响应和一个知识检索；`response.cancel`、WebSocket 断开、引擎 `closed` 及应用停机均走同一幂等关闭路径。
+- 关闭路径依次停止接收、取消知识检索 future、调用 `RealtimeConversation.cancelResponse`（若响应中）、调用 `RealtimeConversation.close`、释放场景 `openToolScope`、清除 session registry，再关闭 transport。异常建连的已申请资源也必须由该路径回收。
+- transport 使用 `ConcurrentWebSocketSessionDecorator` 串行发送。下行 `response.audio.started`、原始 binary PCM、`response.audio.done` 的相对顺序由同一发送队列保证；没有附加帧头、长度前缀或混合媒体二进制消息。
+- 记录结构化耗时日志：上下文解析、引擎打开、首个 `response.text.delta` 或 PCM、每次知识检索、响应完成及会话总时长。`ready` 仅增加不敏感的 `contextResolveMs` 和 `knowledgeEnabled`；首个有效模型文本或 PCM 输出只发送一次、仅含 `durationMs` 的 `response.latency`。记录 session ID、入口类型、endpointing、结果和耗时；禁止把文本、音频、图片、密钥或提示词写入日志。`ready` 不再暴露现有 `context_ready` 的 Assistant 和知识库统计。
+
+### 类结构与迁移范围
+
+| 类 | 包 | 职责 |
+|---|---|---|
+| `DefaultRealtimeConversationSession` | `module.ai.aigc.realtime` | 共享状态机、引擎适配、标准事件、关闭与串行并发控制。 |
+| `DefaultRealtimeConversationSessionFactory` | `module.ai.aigc.realtime` | 在可信调用者和 `hello` 均有效后创建冻结会话。 |
+| `WebRealtimeConversationContextResolver` | `module.ai.aigc.realtime.context` | 浏览器默认 Assistant 与绑定角色校验。 |
+| `DeviceRealtimeConversationContextResolver` | `module.ai.aigc.realtime.context` | 使用受控设备上下文和角色优先级解析会话。 |
+| `DefaultDeviceRealtimeContextClient` | `module.device.api` 的实现包 | 校验设备绑定、场景启用和场景变量，并仅返回 `RealtimeDeviceContext`。 |
+| `JwtRealtimeConversationWebSocketHandler` | `module.ai.aigc.realtime.ws` | JWT WebSocket transport；不含会话业务逻辑。 |
+| `DeviceRealtimeConversationWebSocketHandler` | `module.device.realtime.ws` | 设备凭据 WebSocket transport；不含 Assistant 或权限提升逻辑。 |
+| `DeviceCredentialHandshakeInterceptor` | `module.device.security` | 从已认证安全上下文提取 `DevicePrincipal`。 |
+| `RealtimeWebSocketTransport` | `module.ai.aigc.realtime.ws` | JSON 事件与无帧头 PCM binary 的安全、顺序发送。 |
+| `RealtimeKnowledgeSearchService` | `module.ai.aigc.realtime.service` | 冻结范围内的服务端知识检索；不再暴露客户端工具桥接。 |
+
+`RealtimeConversationWebSocketHandler` 的现有查询参数、JSON Base64 音频、`video`、客户端 `tools`、`function_output`、`context_ready` 和 `response_latency` 协议直接替换为 v1。该替换只作用于 `/ws/realtime-conversation` 与其 Web UI 示例，且不为旧 handler 建 fallback、shim 或双协议分支。既有 `cascade v3` 和 ModBot 仓库不在本仓库改动范围内。
+
+### 设计决策（ADR 增量）
+
+| 决策 | 选择 | 原因 |
+|---|---|---|
+| 会话核心 | 共享 `RealtimeConversationSession`，入口仅作 transport 与认证 | 避免浏览器、设备的状态机、知识范围和关闭逻辑分叉。 |
+| 协议启动 | `hello` 后才解析上下文并发送 `ready` | 将客户端可控字段收敛为可校验的最小集合，避免 query 配置扩张。 |
+| 端点检测 | 浏览器 `server`，设备 `client` | 浏览器复用服务端 VAD；设备保留本地 VAD 并在 commit 后显式启动响应。 |
+| 音频传输 | WebSocket raw PCM binary，16 kHz 上行、24 kHz 下行、无帧头 | 消除 Base64 开销，且单活跃音频响应使边界可由标准事件确定。 |
+| 图片传输 | `input.image` JSON Base64 | 与无帧头的 PCM binary 类型隔离，保持 v1 媒体判别确定。 |
+| 设备身份 | `DevicePrincipal` 只提供受限上下文，所有者只用于受控执行 | 防止 `subjectId` 或设备凭据被提升为用户身份、角色或计费权限。 |
+| 知识检索 | 服务端固定工具与冻结知识范围 | 客户端无法声明、扩大或绕过知识来源。 |
+| 旧协议 | `cascade v3` 原样并存；当前 Web endpoint 直接切 v1 | 保留独立旧协议，同时不在同一 endpoint 保留兼容层。 |
+
+### 开发与验收重点
+
+开发者的单元测试覆盖：`hello/ready` 严格字段、两个入口的认证隔离、浏览器角色绑定拒绝、设备角色优先级与 `subjectId` 不提升、PCM 与图片通道分离、设备 commit 后 response、服务器 VAD 路径、服务端检索范围、cancel/close 幂等、异常建连回收、单响应并发和发送顺序。tester 的验收测试覆盖需求增量全部 Gherkin 场景，并追加浏览器 Web UI 从 Base64 音频迁移到 binary PCM 的冒烟路径。不得在本任务运行构建、测试、lint 或 check；实现任务完成前再按开发规范执行 `pnpm check:affected`。

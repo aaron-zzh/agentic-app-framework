@@ -8,7 +8,7 @@
  *
  * 用于将 Web Audio API 采集的 Float32 数据转为 DashScope 实时 ASR/Omni 所需的 PCM16 格式。
  */
-export function float32ToPcm16(float32: Float32Array): Int16Array {
+export function float32ToPcm16(float32: Float32Array): Int16Array<ArrayBuffer> {
   const int16 = new Int16Array(float32.length)
   for (let i = 0; i < float32.length; i++) {
     const s = Math.max(-1, Math.min(1, float32[i]))

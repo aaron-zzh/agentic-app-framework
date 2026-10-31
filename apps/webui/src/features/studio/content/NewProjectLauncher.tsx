@@ -939,11 +939,12 @@ export function NewProjectLauncher({
   }, [])
   const referenceDocumentIdNumber = Number(referenceDocumentId)
   const { data: referenceDocumentList, isLoading: referenceDocumentListLoading } = useDocList()
-  const { data: referenceDocumentDetail, isFetching: referenceDocumentVersionLoading } = useDocument(
-    Number.isInteger(referenceDocumentIdNumber) && referenceDocumentIdNumber > 0
-      ? referenceDocumentIdNumber
-      : null
-  )
+  const { data: referenceDocumentDetail, isFetching: referenceDocumentVersionLoading } =
+    useDocument(
+      Number.isInteger(referenceDocumentIdNumber) && referenceDocumentIdNumber > 0
+        ? referenceDocumentIdNumber
+        : null
+    )
 
   const allTypes = (typePage?.list ?? []).filter((type) => type.status === "published")
   const types = mode === "compact" ? allTypes.filter((type) => type.quickEntry) : allTypes
@@ -1891,7 +1892,9 @@ export function NewProjectLauncher({
               </p>
               <Select
                 value={referenceDocumentId === "" ? "none" : referenceDocumentId}
-                onValueChange={(next) => setReferenceDocumentId(next && next !== "none" ? next : "")}
+                onValueChange={(next) =>
+                  setReferenceDocumentId(next && next !== "none" ? next : "")
+                }
               >
                 <SelectTrigger id={referenceDocumentSelectId} className="w-full">
                   <SelectValue>

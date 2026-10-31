@@ -7,7 +7,7 @@ version: 5.7.0
 date: 2026-08-22
 author: AaronZZH
 related:
-  - ../../../explanation/general-agent/general-agent-migration-design.md
+  - ../../../../../explanation/general-agent/general-agent-migration-design.md
   - ../../../explanation/general-agent/general-agent-delivery-roadmap.md
 ---
 
@@ -78,7 +78,7 @@ L0–L4 与 P0–P8 是两个正交维度。L0–L4 表示 Core、Cognition、Ag
 | 调用形态 | 本次模型调用是否持有自主任务循环 | `AUTONOMOUS_HARNESS`、`NON_AUTONOMOUS_L0` |
 | Prompt 优先级 | 自主调用的约束和数据如何排序 | P0 代码硬治理，P1–P7 System 片段，P8 上下文与消息数据 |
 
-所有 Prompt 型模型调用在实际发送前都冻结一个 [`PromptEnvelope`](bak/core/prompt.md)，但按调用形态使用不同装配画像：
+所有 Prompt 型模型调用在实际发送前都冻结一个 [`PromptEnvelope`](core/prompt.md)，但按调用形态使用不同装配画像：
 
 - `AUTONOMOUS_HARNESS` 装配 Constitution、执行身份与任务循环、Assistant Delivery、Role、冻结任务合同、ActivatedSkill、可选 Persona Profile 和 P8 数据；每个 ReAct 回合及模型尝试均生成独立 Envelope。
 - `NON_AUTONOMOUS_L0` 只装配版本化 Function Contract、严格 Output Contract 和最小数据，不注入 Harness Constitution、Persona、Role、Skill 或自主任务循环。
@@ -271,7 +271,7 @@ Harness ReAct 迭代和模型重试不属于 `DecompositionBudget`，继续由�
 
 #### 群体（Team）——社会协作 · 共事
 
-> **当前实现边界。** 已交付的是 `LEADER_COORDINATED` Team：一个 Leader、1..8 个静态 Worker、版本冻结的 Assistant/Role/Skill/工具 target，以及由 `TaskBoard` 调度的确定性聚合。动态成员、项目级独立状态、自动冲突仲裁、Pipeline/Peer 协作和外部 A2A Worker 均是未来愿景，不能据此创建 `ai_team*` 表或旁路运行时；现行细节以[Team 技术方案](bak/team/team-tech.md)为准。
+> **当前实现边界。** 已交付的是 `LEADER_COORDINATED` Team：一个 Leader、1..8 个静态 Worker、版本冻结的 Assistant/Role/Skill/工具 target，以及由 `TaskBoard` 调度的确定性聚合。动态成员、项目级独立状态、自动冲突仲裁、Pipeline/Peer 协作和外部 A2A Worker 均是未来愿景，不能据此创建 `ai_team*` 表或旁路运行时；现行细节以[Team 技术方案](team/team-tech.md)为准。
 
 当一个目标超出单个助理的能力时，多个助理组成"群体"协作完成。群体由一位主导助理牵头，本身不执行具体工作——它是"社会层面的组织"，真正的行动仍由各助理调度自己的机能完成。
 
@@ -445,7 +445,7 @@ Harness ReAct 迭代和模型重试不属于 `DecompositionBudget`，继续由�
 
 ## 通用智能体产品控制面
 
-> 本节把 [通用智能体迁移设计](../../../explanation/general-agent/general-agent-migration-design.md) 的产品要求落为五层架构的跨层契约。它不新增第六个智能层，也不改变 Assistant、Team、Agent、Cognition、Core 的职责。
+> 本节把 [通用智能体迁移设计](../../../../explanation/general-agent/general-agent-migration-design.md) 的产品要求落为五层架构的跨层契约。它不新增第六个智能层，也不改变 Assistant、Team、Agent、Cognition、Core 的职责。
 
 ### 助理能力契约与有效上下文
 
@@ -530,7 +530,7 @@ MCP 只负责连接协议。连接器目录、OAuth scope、凭证托管、刷�
 
 ## 已确认的实现决策
 
-> 本节是 v2 实现的约束性决策，优先级高于后续历史技术示例。后续示例若仍出现 `Session`、每会话 Agent 实例或工作区长期记忆等旧表述，均应按本节解释并在实现阶段清理。分阶段交付与验收见 [五层智能架构 v2 开发计划](architecture-v2-development-plan.md)。
+> 本节是 v2 实现的约束性决策，优先级高于后续历史技术示例。后续示例若仍出现 `Session`、每会话 Agent 实例或工作区长期记忆等旧表述，均应按本节解释并在实现阶段清理。分阶段交付与验收见后续开发计划（文档待补）。
 
 ### 系统 Assistant 模板物化
 

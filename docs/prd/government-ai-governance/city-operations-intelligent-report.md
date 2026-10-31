@@ -462,7 +462,7 @@ And 在事实校验恢复前不得自动送审
 
 ## 19. 相关设计
 
-- 共用技术方案：[政府AI产品平台技术说明](../../design/apps/government-ai-governance/technical-solution.md)
+- 共用技术方案：[政府AI产品平台技术说明](technical-solution.md)
 - 后续应补充：城市运行指标字典、报告模板规范、实时预警技术设计、模型卡与评测集、数据分类分级清单、签发归档流程和接口字段规范。
 
 ## 20. 变更记录

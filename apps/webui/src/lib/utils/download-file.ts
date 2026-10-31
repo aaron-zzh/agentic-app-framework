@@ -59,9 +59,12 @@ export async function downloadFile(url: string, filename: string): Promise<void>
 
 /** 带 toast 提示的下载，用于用户主动点击下载按钮的场景 */
 export function downloadFileWithToast(url: string, filename: string): void {
-  toast.promise(fetchDownloadBlob(url).then((blob) => saveBlob(blob, filename)), {
-    loading: "下载中...",
-    success: "下载完成",
-    error: "下载失败"
-  })
+  toast.promise(
+    fetchDownloadBlob(url).then((blob) => saveBlob(blob, filename)),
+    {
+      loading: "下载中...",
+      success: "下载完成",
+      error: "下载失败"
+    }
+  )
 }

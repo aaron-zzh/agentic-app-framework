@@ -20,10 +20,14 @@ import com.xuejiai.aaf.common.enums.device.DeviceOnlineStatusEnum;
 import com.xuejiai.aaf.common.enums.device.DeviceStatusEnum;
 import com.xuejiai.aaf.common.enums.device.DeviceTypeEnum;
 import com.xuejiai.aaf.common.enums.device.DeviceZoneEnum;
+import com.xuejiai.aaf.common.exception.BusinessException;
+import com.xuejiai.aaf.common.exception.GlobalErrorCode;
 import com.xuejiai.aaf.common.model.SpecificationBuilder;
 import com.xuejiai.aaf.framework.crud.BaseCrudService;
 import com.xuejiai.aaf.framework.crud.definition.Patch;
 import com.xuejiai.aaf.framework.crud.reference.ResourceReference;
+import com.xuejiai.aaf.framework.org.OrgContext;
+import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.module.device.DeviceResource;
 import com.xuejiai.aaf.module.device.api.DeviceConnectionControl;
 import com.xuejiai.aaf.module.device.domain.Device;
@@ -32,6 +36,9 @@ import com.xuejiai.aaf.module.device.repository.DeviceRepository;
 import com.xuejiai.aaf.module.device.scenario.DeviceBindingContext;
 import com.xuejiai.aaf.module.device.scenario.DeviceScenario;
 import com.xuejiai.aaf.module.device.scenario.DeviceScenarioAccess;
+import com.xuejiai.aaf.module.device.scenario.GeneralDeviceScenario;
+import com.xuejiai.aaf.module.device.vo.DeviceBindingCreateDTO;
+import com.xuejiai.aaf.module.device.vo.DeviceBindingVO;
 import com.xuejiai.aaf.module.device.vo.DeviceCreateDTO;
 import com.xuejiai.aaf.module.device.vo.DevicePageDTO;
 import com.xuejiai.aaf.module.device.vo.DeviceUpdateDTO;
@@ -47,18 +54,21 @@ public class DeviceService
     private final DeviceCredentialService credentialService;
     private final DeviceConnectionControl connectionControl;
     private final DeviceScenarioAccess scenarioAccess;
+    private final OperatorContext operatorContext;
 
     public DeviceService(
             DeviceRepository deviceRepository,
             DevicePairingService pairingService,
             DeviceCredentialService credentialService,
             DeviceConnectionControl connectionControl,
-            DeviceScenarioAccess scenarioAccess) {
+            DeviceScenarioAccess scenarioAccess,
+            OperatorContext operatorContext) {
         this.deviceRepository = deviceRepository;
         this.pairingService = pairingService;
         this.credentialService = credentialService;
         this.connectionControl = connectionControl;
         this.scenarioAccess = scenarioAccess;
+        this.operatorContext = operatorContext;
     }
 
     @Override
@@ -100,6 +110,58 @@ public class DeviceService
                 null,
                 null,
                 null);
+    }
+
+    /**
+     * 将未绑定设备绑定到当前登录用户。
+     *
+     * <p>该入口不接受设备属性或所有者 ID。所有业务字段均由服务端从配对会话和当前租户上下文生成，避免普通用户借自助绑定入口创建任意设备记录。
+     */
+    @Transactional
+    public DeviceBindingVO bindCurrentUser(DeviceBindingCreateDTO request) {
+        var ownerUserId =
+                operatorContext
+                        .currentOwnerId()
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                GlobalErrorCode.UNAUTHORIZED, "请先登录后再绑定设备"));
+        var orgId = OrgContext.getCurrentOrgId();
+        var workspaceId = OrgContext.getCurrentWorkspaceId();
+        if (orgId == null
+                || workspaceId == null
+                || OrgContext.isAllOrganizations()
+                || OrgContext.isAllWorkspaces()) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "请先选择具体组织和工作区");
+        }
+
+        var pairing = pairingService.requirePending(request.pairCode());
+        var deviceName =
+                pairing.model() == null || pairing.model().isBlank()
+                        ? pairing.serialNumber()
+                        : pairing.model();
+        var createRequest =
+                new DeviceCreateDTO(
+                        request.pairCode(),
+                        GeneralDeviceScenario.KEY,
+                        null,
+                        null,
+                        ownerUserId,
+                        deviceName,
+                        DeviceTypeEnum.ROBOT.getCode(),
+                        DeviceZoneEnum.OTHER.getCode());
+        var device = toEntity(createRequest);
+        device.setOrgId(orgId);
+        device.setWorkspaceId(workspaceId);
+        device.setOwnerId(ownerUserId);
+        deviceRepository.save(device);
+        afterCreate(device, createRequest);
+        return new DeviceBindingVO(
+                device.getId(),
+                device.getName(),
+                device.getSerialNumber(),
+                device.getModel(),
+                device.getStatus());
     }
 
     @Override

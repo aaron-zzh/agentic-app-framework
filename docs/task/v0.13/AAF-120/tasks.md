@@ -3,8 +3,8 @@ level: Practice
 layer: Model
 purpose: AAF-120 养老业务模块（elder）一期的技术任务：按 M0 至 M3 四个里程碑拆分，含任务依赖与验证标准
 status: active
-version: 1.0.0
-date: 2026-10-15
+version: 1.1.0
+date: 2026-10-16
 author: AaronZZH & Kiro
 tags:
   - AAF-120
@@ -46,6 +46,8 @@ related:
 | M3 | 助理与语音接入、对话创建用药、康复指导 | #12016 至 #12018 |
 | 收尾 | 文档同步、机器人端改造登记 | #12019 至 #12020 |
 | 多场景通用化 | 设备层去养老化：扩展契约、api 边界、迁移拆分、契约测试 | #12021 至 #12027 |
+| Omni Realtime v1 | 共享受控实时会话、双认证入口、PCM 协议与 Web UI 迁移 | #12028 至 #12033 |
+| HTTPS 自助绑定 | 登录用户扫码绑定自己的设备，管理端保留代配置能力 | #12034 |
 
 ## 任务列表
 
@@ -171,6 +173,49 @@ related:
 27. [x] #12027 契约测试
    - `DeviceScenarioContractTest`：用与养老无关的假场景验证能力校验、CONFIG 通用能力、按主体解析目标设备
    - 状态：已编写，按要求未运行
+
+### Omni Realtime v1
+
+> 本组是已登记的高风险技术任务。实现以 [design.md 的 Omni Realtime v1 章节](design.md#omni-realtime-v112028-起) 为唯一协议规格；不建 SQL、不改 `cascade v3`、不在本仓库改 ModBot。每项完成前由 developer 按规范运行 `pnpm check:affected`，本次设计工作不运行构建、测试、lint 或 check。
+
+28. [x] #12028 Omni Realtime v1 协议与共享会话核心
+   - 新增 `RealtimeConversationSession`、`RealtimeConversationSessionFactory`、严格 `hello` 解析和唯一 `ready` 事件；将现有 `/ws/realtime-conversation` 的会话状态、引擎事件映射、服务端检索回调和资源回收收拢为共享核心
+   - 直接删除该 endpoint 旧的 query 配置、JSON Base64 音频、`video`、客户端 tools、`function_output`、`context_ready` 与 `response_latency` 协议处理；不保留 fallback、shim 或双协议分支；`cascade v3` 完全不触碰
+   - 依赖：#12027
+   - verify: `hello`/`ready` 精确字段、未知字段拒绝、未 ready 的输入拒绝、现有引擎事件映射为 v1 标准事件
+29. [x] #12029 Omni Realtime 受控浏览器上下文与服务端知识检索
+   - 实现 `WebRealtimeConversationContextResolver`：只使用 JWT 可信 `userId`、个人默认组织工作区和默认 Assistant；严格校验 `hello.roleKey` 已绑定、启用、可见，缺失时仅取该 Assistant 默认角色；浏览器 `hello.knowledge` 仅接受严格布尔值，省略默认启用
+   - 将 `RealtimeKnowledgeSearchService` 接入共享会话的内部工具路径；仅在浏览器已启用且冻结知识范围非空时注册 `knowledge_search`；客户端不得声明工具或提交 function output；冻结知识范围、以所有者上下文检索，并仅发送脱敏的检索状态和耗时事件
+   - 依赖：#12028
+   - verify: 未绑定角色、Assistant/指令/知识字段注入、越权知识范围均被拒；检索只使用会话冻结范围
+30. [x] #12030 设备实时上下文客户端与角色解析
+   - 在 `module/device` 的公开 API/实现边界提供 `DeviceRealtimeContextClient`，重新核验 `DevicePrincipal` 对应的绑定、场景启用、主体与场景变量；`aigc` 不得访问 device 的 entity、repository 或 service
+   - 实现 `DeviceRealtimeConversationContextResolver`：按设备角色覆盖、所有者默认 Assistant 角色、场景默认角色顺序解析，并逐项校验 Assistant 绑定、可见性和场景允许集合；`subjectId` 只能作为场景主体变量，不能成为用户、角色或计费主体
+   - 依赖：#12029
+   - verify: 撤销/禁用设备或场景不能建连；无有效候选角色拒绝；`subjectId` 无法提升设备权限
+31. [x] #12031 v1 transport、PCM、事件与生命周期
+   - 实现 `RealtimeWebSocketTransport` 及共享 session 串行状态机：上行 raw `pcm_s16le` 16 kHz 单声道 binary、下行 raw `pcm_s16le` 24 kHz 单声道 binary；JSON 图片仅用 `input.image`，不添加 binary frame header
+   - 按入口强制 endpointing：浏览器 server VAD，设备 client commit 后 `response.create`；实现标准事件、一个活跃响应/检索、`response.cancel`、`session.close`、断链与启动失败的幂等资源回收
+   - 添加结构化耗时日志（上下文、引擎打开、首响应、检索、响应、会话）和安全日志脱敏；`ready` 增加不敏感的 `contextResolveMs`、`knowledgeEnabled`，首个有效输出只发一次 `response.latency`；确保 JSON 事件与二进制音频的发送顺序
+   - 依赖：#12030
+   - verify: PCM/图片通道不混用；设备 commit-create 顺序受控；并发 cancel/close 不二次关闭、不泄漏 session 或检索任务，日志不含音频、图片、JWT、credential、提示词
+32. [x] #12032 浏览器 JWT handler（后端部分；Web UI 不在本次范围）
+   - 用 `JwtRealtimeConversationWebSocketHandler` 复用 `JwtHandshakeInterceptor` 注册 `/ws/realtime-conversation`，仅把可信用户身份交给共享 session；设备 credential、匿名和 AI 配置 query 参数均拒绝
+   - 迁移 `apps/webui/src/app/(dev)/examples/realtime-conversation/page.tsx`：连接后发浏览器 `hello`，以 WebSocket binary 发送 PCM，按 `ready` 与标准事件播放无帧头 PCM；移除 Base64 音频、视频与客户端 Function Calling/知识开关 UI
+   - 依赖：#12031
+   - verify: 有效 JWT 加已绑定角色可对话；未绑定角色和设备凭据失败；浏览器不发送 commit/create，页面关闭会释放录音、播放和 WebSocket 资源
+33. [x] #12033 设备 credential handler 与独立设备入口
+   - 新增 `DeviceCredentialHandshakeInterceptor`、`DeviceRealtimeWebSocketConfig` 和 `DeviceRealtimeConversationWebSocketHandler`，注册 `/api/device/realtime-conversation`；复用 `DeviceSecurityConfig` 和 `DeviceAuthFilter` 的认证结果，只将已认证 `DevicePrincipal` 交给共享 session
+   - 禁止 JWT、ApiKey、cookie、query 或配对匿名例外进入该端点；不修改 `/api/device/voice/session?proto=3` 或其他 `cascade v3` 入口，不在本仓库改 ModBot
+   - 依赖：#12032
+   - verify: 仅有效设备 headers 可以完成 device `hello`；JWT 用设备入口、设备凭据用浏览器入口均被拒；凭据吊销后握手拒绝；v3 路由与协议回归基线不变
+34. [x] #12034 HTTPS 用户自助绑定
+   - `pair/start` 返回 `https://<frontend>/device/pair?pairCode=...`；新增 JWT 接口 `POST /api/device-bindings`，请求只接受配对码，所有者强制取当前登录用户，固定 `general / ROBOT / OTHER`
+   - 新增 `/device/pair` 页面，未登录先登录并保留完整回跳查询；管理员 `/api/admin/devices` 继续承担代配置、复杂场景和解绑
+   - ModBot 始终把十分钟临时 HTTPS 配对地址输出到日志/命令行，并继续在有界面时显示二维码与文本
+   - 依赖：#12006
+   - verify: 匿名绑定被拒；用户不能指定其他所有者；配对码只能消费一次；已绑定设备必须先解绑；无界面设备可复制日志地址完成绑定
+
 ## 依赖概览
 
 ```text
@@ -185,6 +230,8 @@ related:
 #12009 + #12013 → #12015
 #12005 + #12014 + #12015 + #12018 → #12017
 #12007 + #12012 + #12017 → #12016
+#12027 → #12028 → #12029 → #12030 → #12031 → #12032 → #12033
+#12006 → #12034
 ```
 
 #12006 依赖 #12007 与 #12004，列在 #12007 之后实施；任务编号不代表实施顺序。
@@ -195,6 +242,7 @@ related:
 2. 然后 #12006、#12008、#12005；
 3. 再 #12009、#12010、#12011、#12012；
 4. 最后 #12013 收口 M1，端到端联调后再进入 M2。
+5. Omni Realtime v1 严格按 #12028 → #12029 → #12030 → #12031 → #12032 → #12033 顺序实施；#12032 与 #12033 都完成后才开始跨入口联调。
 
 ## 新会话开工提示
 
@@ -202,7 +250,8 @@ related:
 - 编码前按 `AGENTS.md` 加载 `.kiro/agents/developer-service.json`（后端）与 `developer-webui.json`（前端，做 #12013 时）列出的 `resources`。
 - 开工前的待办（协调者）：在 `docs/reference/dev/architecture-constraints.md` 的号段表登记 `v300-v399 | 通用设备层（device）` 与 `v400-v499 | 养老业务模块（elder）`；#12001 改 `aaf-dependencies`、#12003 改 `aaf-common` 需协调者评估。
 - 建议起步：#12001、#12003、#12004、#12007 可并行；每个任务完工跑 `pnpm check:affected`，并在 `dev-log.md` 记录一行。
-- 设计结论摘要：EMQX 单节点同机独立容器；设备不登录，屏幕配对码加所有者用户；设备认证用独立过滤链；预警同时通知运营值班（站内信加钉钉群）和联系人站内信，不做逐级升级；一期只做运营管理端；迁移保持顺序执行，生产也不开乱序。
+- Omni Realtime v1 开工顺序固定为 #12028 至 #12033：先读设计中的精确 `hello`/`ready`、事件和 PCM 合同；不改 `cascade v3`，不建 SQL，不在本仓库改 ModBot。#12032 需要同时加载 developer-service 与 developer-webui 的 resources。
+- 设计结论摘要：EMQX 单节点同机独立容器；设备不登录，使用十分钟 HTTPS 配对链接；自助绑定归属当前登录用户，复杂场景由管理端代配置；设备认证用独立过滤链；预警同时通知运营值班（站内信加钉钉群）和联系人站内信，不做逐级升级；迁移保持顺序执行，生产也不开乱序。
 
 ## 变更记录
 
@@ -212,3 +261,6 @@ related:
 | 2026-10-15 | 一期后端代码实现完成（#12002、#12019 除外） | 未编译、未测试、未跑 check；权限前缀统一为两段式 `elder:{子域}-{资源}`；时序上 v402 值班种子在 v403 之前，v403 补值班权限；EMQX 与密钥需人工配置 |
 | 2026-10-15 | 拆出通用设备层 module/device 与场景扩展点，养老作为首个场景包 | 设备能力需支持儿童教育、办公助理、情感陪伴等多场景；设备路径 /api/device/**，表 device_info、device_message，权限 device:device，错误码 11_000_000 段；场景组织级开关目前为全局配置 |
 | 2026-10-16 | 追加多场景通用化任务 #12021 至 #12027；device 独占迁移号段 v300 至 v399，elder 改 v400 至 v499 | 静态核对发现通用设备层写死养老能力白名单与 ROBOT 类型、入站消息不带场景、心跳阈值写死、elder 越过 api 边界；未编译、未测试、未跑 check |
+| 2026-10-16 | 正式登记 Omni Realtime v1 任务 #12028 至 #12033 | 已确认共享会话、双入口认证、受控上下文、服务端检索、raw PCM、生命周期与 Web UI 迁移范围；不建 SQL、不改 cascade v3、不改 ModBot |
+| 2026-10-17 | 补回 Omni v1 知识、图片与观测合同 | 浏览器 hello 支持严格布尔 `knowledge`；冻结范围非空才注册服务端检索；ready 与首输出延迟仅返回不敏感指标；按指示未运行检查 |
+| 2026-10-31 | 增加 HTTPS 用户自助绑定 #12034 | 谁确认绑定谁成为设备所有者；管理端保留复杂配置；ModBot 无界面也输出临时配对地址 |

@@ -12,7 +12,7 @@ author: Kiro
 
 ## 参考文档
 
-- [子智能体动态创建与技能合并设计](../../../design/framework/intelligent/subagent-and-skill-merge-design.md)
+- [子智能体动态创建与技能合并设计](../../../design/framework/intelligent/bak/subagent-and-skill-merge-design.md)
 - [架构约束](../../../reference/dev/architecture-constraints.md)
 - [代码审查规范](../../../reference/dev/code-review-standard.md)
 
@@ -27,7 +27,7 @@ author: Kiro
 - Dynamic 同样在 compiler 内强制 Role∩Agent 工具交集并合并技能提示；每次创建且由 adapter 在完成、失败、超时和取消时关闭。
 - 两类执行 Agent 都保持 `disableSubagents()` 与 `disableDynamicSubagents()`，避免共享 manager 参与 AAF 业务路由。
 
-最终接口以主设计文档的[调用前解析完整执行画像](../../../design/framework/intelligent/subagent-and-skill-merge-design.md#调用前解析完整执行画像)为准。
+最终接口以主设计文档的[调用前解析完整执行画像](../../../design/framework/intelligent/bak/subagent-and-skill-merge-design.md#调用前解析完整执行画像)为准。
 
 ## 修复范围
 

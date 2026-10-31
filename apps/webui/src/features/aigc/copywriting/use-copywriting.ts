@@ -108,9 +108,7 @@ const HIDDEN_COPYWRITING_PROCESS_EVENT_TYPES = new Set<AafAiTaskEvent["type"]>([
 
 /** 协议级参数、结果增量与正常模型生命周期不进入用户可见进度列表。 */
 function shouldRecordCopywritingProcessEvent(event: AssistantAgUiEvent): boolean {
-  return (
-    event.type !== "CUSTOM" || !HIDDEN_COPYWRITING_PROCESS_EVENT_TYPES.has(event.value.type)
-  )
+  return event.type !== "CUSTOM" || !HIDDEN_COPYWRITING_PROCESS_EVENT_TYPES.has(event.value.type)
 }
 
 export interface CopywritingStreamContent {
@@ -124,7 +122,9 @@ export function reduceCopywritingStreamContent(
   event: AssistantAgUiEvent
 ): CopywritingStreamContent {
   if (event.type === "TEXT_MESSAGE_START") {
-    return event.messageId === current.messageId ? current : { text: "", messageId: event.messageId }
+    return event.messageId === current.messageId
+      ? current
+      : { text: "", messageId: event.messageId }
   }
   if (event.type === "TEXT_MESSAGE_CONTENT") {
     return event.messageId === current.messageId
@@ -203,8 +203,13 @@ function copywritingDraftTitle(content: string, prompt: string): string {
   const contentLine = content.split(/\r?\n/u).find((line) => line.trim().length > 0)
   const promptLine = prompt.split(/\r?\n/u).find((line) => line.trim().length > 0)
   const source = contentLine ?? promptLine ?? "AI 文案"
-  const normalized = source.replace(/^#{1,6}\s*/u, "").replaceAll("**", "").trim()
-  return Array.from(normalized || "AI 文案").slice(0, 200).join("")
+  const normalized = source
+    .replace(/^#{1,6}\s*/u, "")
+    .replaceAll("**", "")
+    .trim()
+  return Array.from(normalized || "AI 文案")
+    .slice(0, 200)
+    .join("")
 }
 
 function dataText(data: AafAiTaskEventData, ...keys: string[]): string | null {
@@ -222,25 +227,29 @@ function copywritingToolLabel(toolName: string): string {
 function copywritingToolStatus(toolName: string, status: string): string {
   const normalized = status.toUpperCase()
   if (toolName === "content.draft.upsert") {
-    return {
-      RUNNING: "保存中",
-      SUCCESS: "已保存",
-      COMPLETED: "已保存",
-      FAILED: "保存失败",
-      ERROR: "保存失败",
-      REJECTED: "保存已拒绝",
+    return (
+      {
+        RUNNING: "保存中",
+        SUCCESS: "已保存",
+        COMPLETED: "已保存",
+        FAILED: "保存失败",
+        ERROR: "保存失败",
+        REJECTED: "保存已拒绝",
+        AWAITING_AUTHORIZATION: "等待授权"
+      }[normalized] ?? status
+    )
+  }
+  return (
+    {
+      RUNNING: "执行中",
+      SUCCESS: "执行成功",
+      COMPLETED: "已完成",
+      FAILED: "执行失败",
+      ERROR: "执行失败",
+      REJECTED: "已拒绝",
       AWAITING_AUTHORIZATION: "等待授权"
     }[normalized] ?? status
-  }
-  return {
-    RUNNING: "执行中",
-    SUCCESS: "执行成功",
-    COMPLETED: "已完成",
-    FAILED: "执行失败",
-    ERROR: "执行失败",
-    REJECTED: "已拒绝",
-    AWAITING_AUTHORIZATION: "等待授权"
-  }[normalized] ?? status
+  )
 }
 
 function copywritingToolSummary(toolName: string, status: string): string {
@@ -871,11 +880,7 @@ export function useCopywriting() {
         saved = { documentId: created.id, documentVersionId: created.currentVersionId }
       }
       currentRunArtifactRef.current = saved
-      state.setCopywritingPersistedDocument(
-        scopeKey,
-        saved.documentId,
-        saved.documentVersionId
-      )
+      state.setCopywritingPersistedDocument(scopeKey, saved.documentId, saved.documentVersionId)
       manualSaveNeeded.onFalse()
       toast.success("草稿已保存")
     } catch (error) {

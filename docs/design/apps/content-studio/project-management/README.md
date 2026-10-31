@@ -7,7 +7,7 @@ version: 1.0.0
 date: 2026-09-10
 author: AaronZZH & Kiro
 dependencies:
-  - ../general-project-management-model.md
+  - general-project-management-model.md
 scope:
   includes:
     - 项目核心实体与非实体内容的持久化边界
@@ -20,7 +20,7 @@ gains:
 
 # 项目管理设计
 
-> 本目录承载通用项目管理模型的持久化与实现边界设计；完整领域语义见[通用项目管理模型](../general-project-management-model.md)。
+> 本目录承载通用项目管理模型的持久化与实现边界设计；完整领域语义见[通用项目管理模型](general-project-management-model.md)。
 
 ## 文档列表
 

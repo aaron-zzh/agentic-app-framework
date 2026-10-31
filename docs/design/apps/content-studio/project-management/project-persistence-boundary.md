@@ -9,7 +9,7 @@ author: AaronZZH & Kiro
 changelog:
   - 2026-09-10 | v1.0.0 建立 24 个类型化核心实体表、3 个通用语义元数据表及非实体内容的持久化边界
 dependencies:
-  - ../general-project-management-model.md
+  - general-project-management-model.md
 related:
   - ../ai-native-project-management.md
 scope:
@@ -33,7 +33,7 @@ gains:
 
 # 通用项目管理持久化边界
 
-> 本文是[通用项目管理模型](../general-project-management-model.md)的持久化裁剪结果。默认实现采用 **24 个类型化核心实体表 + 3 个通用项目语义元数据表**；复杂语义交给智能文档，专业对象交给所属模块，进度与健康度由事实派生。本文列出逻辑表及其职责，不等同于最终 SQL DDL。
+> 本文是[通用项目管理模型](general-project-management-model.md)的持久化裁剪结果。默认实现采用 **24 个类型化核心实体表 + 3 个通用项目语义元数据表**；复杂语义交给智能文档，专业对象交给所属模块，进度与健康度由事实派生。本文列出逻辑表及其职责，不等同于最终 SQL DDL。
 
 ## 核心结论
 

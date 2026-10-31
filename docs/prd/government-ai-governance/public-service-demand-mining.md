@@ -431,7 +431,7 @@ And 保留影响范围、处置过程和复评结果
 
 ## 19. 相关设计
 
-- 共用技术方案：[政府AI产品平台技术说明](../../design/apps/government-ai-governance/technical-solution.md)
+- 共用技术方案：[政府AI产品平台技术说明](technical-solution.md)
 - 后续应补充：数据保护影响评估、民生主题词表、指标字典、算法影响评估、模型卡、试点评估方案和接口字段规范。
 
 ## 20. 变更记录

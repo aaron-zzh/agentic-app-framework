@@ -688,16 +688,16 @@ AAF提供落实安全控制的技术基础，但等保定级、密码应用、�
 
 ## 18. 相关产品方案
 
-- [市政“智慧管家”完整解决方案](../../../prd/government-ai-governance/municipal-smart-steward.md)
-- [“小切口”民生服务需求挖掘完整解决方案](../../../prd/government-ai-governance/public-service-demand-mining.md)
-- [城市运行“智能报告”完整解决方案](../../../prd/government-ai-governance/city-operations-intelligent-report.md)
-- [“开店宝”商业决策工具完整解决方案](../../../prd/government-ai-governance/store-opening-decision-tool.md)
-- [AAF架构概览](../../architecture.md)
-- [后端技术选型](../service/tech-stack.md)
-- [Web技术选型](../webui/tech-stack.md)
-- [移动端技术选型](../uniapp/tech-stack.md)
-- [Docker部署指南](../../../guide/deployment/docker-deploy.md)
-- [运维手册](../../../guide/deployment/ops-manual.md)
+- [市政“智慧管家”完整解决方案](municipal-smart-steward.md)
+- [“小切口”民生服务需求挖掘完整解决方案](public-service-demand-mining.md)
+- [城市运行“智能报告”完整解决方案](city-operations-intelligent-report.md)
+- [“开店宝”商业决策工具完整解决方案](store-opening-decision-tool.md)
+- [AAF架构概览](../../design/architecture.md)
+- [后端技术选型](../../design/apps/service/tech-stack.md)
+- [Web技术选型](../../design/apps/webui/tech-stack.md)
+- [移动端技术选型](../../design/apps/uniapp/tech-stack.md)
+- [Docker部署指南](../../guide/deployment/docker-deploy.md)
+- [运维手册](../../guide/deployment/ops-manual.md)
 
 ## 19. 变更记录
 

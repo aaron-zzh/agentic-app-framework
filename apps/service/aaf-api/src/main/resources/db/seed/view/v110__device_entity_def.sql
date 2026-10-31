@@ -44,7 +44,7 @@ VALUES (
           "label": "解绑",
           "type": "single",
           "execution": "sync",
-          "endpoint": "/api/device/devices/actions/unbind",
+          "endpoint": "/api/admin/devices/actions/unbind",
           "confirmMessage": "解绑将立即撤销设备凭据并断开 MQTT 连接，设备会回到配对界面。是否继续？",
           "visibleWhen": "$record.status === 'BOUND'",
           "position": "rowAction"

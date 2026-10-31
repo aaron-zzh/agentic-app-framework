@@ -14,10 +14,7 @@ import {
   resolveCopywritingDisplayContent
 } from "./use-copywriting"
 
-function customEvent(
-  eventType: `aaf.${string}`,
-  data: AafAiTaskEventData
-): AssistantAgUiEvent {
+function customEvent(eventType: `aaf.${string}`, data: AafAiTaskEventData): AssistantAgUiEvent {
   const value: AafAiTaskEvent = {
     eventId: "event-1",
     taskId: "task-1",
@@ -84,13 +81,16 @@ describe("文案草稿预览恢复", () => {
     )
     const resumedText = reduceCopywritingStreamContent(
       { text: "", messageId: null },
-      { type: "TEXT_MESSAGE_CONTENT", runId: "run-2", messageId: "message-2", delta: "恢复后的普通文本" }
+      {
+        type: "TEXT_MESSAGE_CONTENT",
+        runId: "run-2",
+        messageId: "message-2",
+        delta: "恢复后的普通文本"
+      }
     )
 
     expect(preview).toBe("草稿参数预览")
-    expect(resolveCopywritingDisplayContent(preview, resumedText, "历史文案")).toBe(
-      "草稿参数预览"
-    )
+    expect(resolveCopywritingDisplayContent(preview, resumedText, "历史文案")).toBe("草稿参数预览")
   })
 })
 

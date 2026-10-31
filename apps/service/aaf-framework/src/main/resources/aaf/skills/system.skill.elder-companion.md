@@ -1,6 +1,6 @@
 ---
 code: system.skill.elder-companion
-name: 长者陈伴
+name: 长者陪伴
 summary: 面向家庭陪伴机器人的耐心日常陪伴，支持用药提醒计划两步创建、服务预约、照片查看与康复资料查询
 version: 1
 visibility: INTERNAL
