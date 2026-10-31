@@ -124,27 +124,32 @@ class IncrementalEntityResolverTest {
     @Test
     @DisplayName("Given 多个候选且模型返回有效 LINK When 消歧 Then 使用冻结配置链接候选")
     void should_link_candidate_with_frozen_configuration() {
-        var candidates = stubAmbiguous("placeholder");
-        when(meter.invokeText(
+        var candidates = stubAmbiguous(null);
+        when(meter.invokeEntityResolution(
                         eq(run.billing()),
                         eq("knowledge-resolution"),
-                        eq("mention:aaf"),
+                        eq(
+                                "mention:aaf:"
+                                        + EntityResolutionPrompt.STRUCTURED_OUTPUT_FORMAT_VERSION),
                         eq("resolution-model"),
                         anyString(),
+                        eq(EntityResolutionPrompt.MAX_RESPONSE_LENGTH),
                         any()))
                 .thenReturn(
-                        "{\"action\":\"LINK\",\"entityId\":\"%s\"}"
-                                .formatted(candidates.selected()));
+                        new KnowledgeAiMeter.EntityResolutionDecision(
+                                "LINK", candidates.selected().toString()));
 
         var resolved = resolver.resolve(run, mention());
 
         assertThat(resolved).isEqualTo(candidates.selected());
         verify(store).addAlias(10L, candidates.selected(), run.runId(), "aaf", 0.9);
         verify(meter)
-                .invokeText(
+                .invokeEntityResolution(
                         eq(run.billing()),
                         eq("knowledge-resolution"),
-                        eq("mention:aaf"),
+                        eq(
+                                "mention:aaf:"
+                                        + EntityResolutionPrompt.STRUCTURED_OUTPUT_FORMAT_VERSION),
                         eq("resolution-model"),
                         argThat(
                                 input ->
@@ -153,13 +158,14 @@ class IncrementalEntityResolverTest {
                                                         + EntityResolutionPrompt
                                                                 .OUTPUT_CONTRACT_VERSION
                                                         + "|")),
+                        eq(EntityResolutionPrompt.MAX_RESPONSE_LENGTH),
                         any());
     }
 
     @Test
     @DisplayName("Given 模型返回 CREATE When 消歧 Then 创建普通实体")
     void should_create_entity_when_decision_is_create() {
-        stubAmbiguous("{\"action\":\"CREATE\",\"entityId\":null}");
+        stubAmbiguous(new KnowledgeAiMeter.EntityResolutionDecision("CREATE", null));
         var createdId = UUID.randomUUID();
         when(store.createOrAliasEntity(10L, run.runId(), "AAF", "CONCEPT", null, "aaf", false))
                 .thenReturn(createdId);
@@ -170,7 +176,7 @@ class IncrementalEntityResolverTest {
     @Test
     @DisplayName("Given 模型返回 REVIEW When 消歧 Then 创建待审实体")
     void should_create_review_entity_when_decision_is_review() {
-        stubAmbiguous("{\"action\":\"REVIEW\",\"entityId\":null}");
+        stubAmbiguous(new KnowledgeAiMeter.EntityResolutionDecision("REVIEW", null));
         var createdId = UUID.randomUUID();
         when(store.createOrAliasEntity(10L, run.runId(), "AAF", "CONCEPT", null, "aaf", true))
                 .thenReturn(createdId);
@@ -179,62 +185,34 @@ class IncrementalEntityResolverTest {
     }
 
     @Test
-    @DisplayName("Given 消歧响应包含未知字段 When 解析 Then 失败且不写实体")
-    void should_reject_unknown_field() {
-        stubAmbiguous("{\"action\":\"CREATE\",\"entityId\":null,\"reason\":\"similar\"}");
-
-        assertInvalidDecision("字段集合不匹配");
-    }
-
-    @Test
-    @DisplayName("Given 消歧响应缺少 entityId When 解析 Then 失败且不写实体")
-    void should_reject_missing_field() {
-        stubAmbiguous("{\"action\":\"CREATE\"}");
-
-        assertInvalidDecision("缺失=[entityId]");
-    }
-
-    @Test
-    @DisplayName("Given 消歧 action 未知 When 解析 Then 失败且不静默 CREATE")
+    @DisplayName("Given 消歧 action 未知 When 校验结构化结果 Then 失败且不静默 CREATE")
     void should_reject_unknown_action() {
-        stubAmbiguous("{\"action\":\"MERGE\",\"entityId\":null}");
+        stubAmbiguous(new KnowledgeAiMeter.EntityResolutionDecision("MERGE", null));
 
         assertInvalidDecision("action 不受支持");
     }
 
     @Test
-    @DisplayName("Given LINK 指向候选外 UUID When 解析 Then 失败且不静默 CREATE")
+    @DisplayName("Given LINK 指向候选外 UUID When 校验结构化结果 Then 失败且不静默 CREATE")
     void should_reject_link_outside_candidates() {
-        stubAmbiguous("{\"action\":\"LINK\",\"entityId\":\"%s\"}".formatted(UUID.randomUUID()));
+        stubAmbiguous(
+                new KnowledgeAiMeter.EntityResolutionDecision(
+                        "LINK", UUID.randomUUID().toString()));
 
         assertInvalidDecision("不在当前候选集合");
     }
 
     @Test
-    @DisplayName("Given CREATE 携带非空 entityId When 解析 Then 失败且不写实体")
+    @DisplayName("Given CREATE 携带非空 entityId When 校验结构化结果 Then 失败且不写实体")
     void should_reject_entity_id_for_create() {
-        stubAmbiguous("{\"action\":\"CREATE\",\"entityId\":\"%s\"}".formatted(UUID.randomUUID()));
+        stubAmbiguous(
+                new KnowledgeAiMeter.EntityResolutionDecision(
+                        "CREATE", UUID.randomUUID().toString()));
 
         assertInvalidDecision("必须是 null");
     }
 
-    @Test
-    @DisplayName("Given Markdown 围栏包裹消歧 JSON When 解析 Then 解包并执行决策")
-    void should_strip_markdown_fences() {
-        stubAmbiguous(
-                """
-                ```json
-                {"action":"CREATE","entityId":null}
-                ```
-                """);
-        var createdId = UUID.randomUUID();
-        when(store.createOrAliasEntity(10L, run.runId(), "AAF", "CONCEPT", null, "aaf", false))
-                .thenReturn(createdId);
-
-        assertThat(resolver.resolve(run, mention())).isEqualTo(createdId);
-    }
-
-    private CandidateIds stubAmbiguous(String response) {
+    private CandidateIds stubAmbiguous(KnowledgeAiMeter.EntityResolutionDecision decision) {
         var first = UUID.randomUUID();
         var selected = UUID.randomUUID();
         when(store.findExactEntities(10L, "aaf"))
@@ -244,15 +222,19 @@ class IncrementalEntityResolverTest {
                                         first, "AAF", "PROJECT", null),
                                 new TrustedKnowledgeStore.EntityCandidate(
                                         selected, "AAF", "ORGANIZATION", null)));
-        if (!"placeholder".equals(response)) {
-            when(meter.invokeText(
+        if (decision != null) {
+            when(meter.invokeEntityResolution(
                             eq(run.billing()),
                             eq("knowledge-resolution"),
-                            eq("mention:aaf"),
+                            eq(
+                                    "mention:aaf:"
+                                            + EntityResolutionPrompt
+                                                    .STRUCTURED_OUTPUT_FORMAT_VERSION),
                             eq("resolution-model"),
                             anyString(),
+                            eq(EntityResolutionPrompt.MAX_RESPONSE_LENGTH),
                             any()))
-                    .thenReturn(response);
+                    .thenReturn(decision);
         }
         return new CandidateIds(first, selected);
     }

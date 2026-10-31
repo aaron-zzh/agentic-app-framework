@@ -8,6 +8,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
@@ -83,9 +84,9 @@ class EntityExtractionServiceTest {
     }
 
     @Test
-    @DisplayName("Given objectKind 不受支持或 ENTITY 类型为空 When 校验 Then 整个抽取单元失败")
+    @DisplayName("Given objectKind 不受支持或 ENTITY 类型为空 When 校验 Then 丢弃无效事实")
     void should_reject_invalid_object_kind_and_entity_type() {
-        assertInvalidTriples(
+        assertDiscardedTriples(
                 List.of(
                         new ExtractedTriple(
                                 "水温",
@@ -102,9 +103,8 @@ class EntityExtractionServiceTest {
                                 0.9,
                                 null,
                                 null,
-                                Map.of())),
-                "objectKind");
-        assertInvalidTriples(
+                                Map.of())));
+        assertDiscardedTriples(
                 List.of(
                         new ExtractedTriple(
                                 "PostgreSQL",
@@ -121,8 +121,7 @@ class EntityExtractionServiceTest {
                                 0.9,
                                 null,
                                 null,
-                                Map.of())),
-                "objectType");
+                                Map.of())));
     }
 
     @Test
@@ -135,7 +134,7 @@ class EntityExtractionServiceTest {
                     .isInstanceOf(IllegalArgumentException.class)
                     .hasMessageContaining("置信度");
         }
-        assertInvalidTriples(
+        assertDiscardedTriples(
                 List.of(
                         new ExtractedTriple(
                                 "水温",
@@ -152,14 +151,13 @@ class EntityExtractionServiceTest {
                                 1.1,
                                 null,
                                 null,
-                                Map.of())),
-                "置信度");
+                                Map.of())));
     }
 
     @Test
-    @DisplayName("Given validAt 不早于 invalidAt When 校验 Then 整个抽取单元失败")
+    @DisplayName("Given validAt 不早于 invalidAt When 校验 Then 丢弃无效事实")
     void should_reject_reversed_valid_interval() {
-        assertInvalidTriples(
+        assertDiscardedTriples(
                 List.of(
                         new ExtractedTriple(
                                 "水温",
@@ -176,14 +174,13 @@ class EntityExtractionServiceTest {
                                 0.9,
                                 Instant.parse("2026-02-01T00:00:00Z"),
                                 Instant.parse("2026-01-01T00:00:00Z"),
-                                Map.of())),
-                "validAt 必须早于 invalidAt");
+                                Map.of())));
     }
 
     @Test
-    @DisplayName("Given attributes 含嵌套对象 When 校验 Then 全量校验失败且不持久化")
+    @DisplayName("Given attributes 含嵌套对象 When 校验 Then 丢弃无效事实")
     void should_reject_nested_attribute_object() {
-        assertInvalidTriples(
+        assertDiscardedTriples(
                 List.of(
                         new ExtractedTriple(
                                 "水温",
@@ -200,14 +197,13 @@ class EntityExtractionServiceTest {
                                 0.9,
                                 null,
                                 null,
-                                Map.of("region", Map.of("name", "华东")))),
-                "不支持嵌套对象");
+                                Map.of("region", Map.of("name", "华东")))));
     }
 
     @Test
-    @DisplayName("Given attributes 伪装 validAt When 校验 Then 拒绝保留系统字段")
+    @DisplayName("Given attributes 伪装 validAt When 校验 Then 丢弃无效事实")
     void should_reject_reserved_temporal_attribute_key() {
-        assertInvalidTriples(
+        assertDiscardedTriples(
                 List.of(
                         new ExtractedTriple(
                                 "水温",
@@ -224,8 +220,7 @@ class EntityExtractionServiceTest {
                                 0.9,
                                 null,
                                 null,
-                                Map.of("validAt", "2026-01-01"))),
-                "包含保留键: validAt");
+                                Map.of("validAt", "2026-01-01"))));
     }
 
     @Test
@@ -280,13 +275,17 @@ class EntityExtractionServiceTest {
                 IntStream.rangeClosed(0, EntityExtractionPrompt.MAX_FACTS_PER_CHUNK)
                         .mapToObj(ignored -> literal())
                         .toList();
+        var fixture = fixture(triples);
 
-        assertInvalidTriples(triples, "最多抽取");
+        assertThatThrownBy(fixture::extract)
+                .isInstanceOfAny(IllegalArgumentException.class, IllegalStateException.class)
+                .hasMessageContaining("最多抽取");
+        verifyNoInteractions(fixture.resolver(), fixture.store());
     }
 
     @Test
-    @DisplayName("Given 结构化结果后一项无效 When 校验 Then 前一项也不得持久化")
-    void should_validate_all_items_before_any_persistence() {
+    @DisplayName("Given 结构化结果后一项无效 When 校验 Then 丢弃无效项并持久化合法项")
+    void should_persist_valid_items_when_later_item_is_invalid() {
         var invalid =
                 new ExtractedTriple(
                         "水温",
@@ -305,19 +304,33 @@ class EntityExtractionServiceTest {
                         null,
                         Map.of());
         var fixture = fixture(List.of(literal(), invalid));
+        var subjectId = UUID.randomUUID();
+        when(fixture.resolver().resolve(any(), any())).thenReturn(subjectId);
 
-        assertThatThrownBy(fixture::extract)
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("逐字来自焦点块");
-        verifyNoInteractions(fixture.resolver(), fixture.store());
+        var count = fixture.extract();
+
+        assertThat(count).isEqualTo(1);
+        verify(fixture.resolver(), times(1)).resolve(any(), any());
+        verify(fixture.store(), times(1))
+                .persistLiteralFact(
+                        fixture.run(),
+                        subjectId,
+                        "等于",
+                        "20°C",
+                        0.9,
+                        fixture.chunkId(),
+                        "水温等于20°C",
+                        0,
+                        8,
+                        List.of(),
+                        new TrustedKnowledgeStore.FactAssertion(null, null, Map.of()));
+        verifyNoMoreInteractions(fixture.store());
     }
 
-    private void assertInvalidTriples(List<ExtractedTriple> triples, String message) {
+    private void assertDiscardedTriples(List<ExtractedTriple> triples) {
         var fixture = fixture(triples);
 
-        assertThatThrownBy(fixture::extract)
-                .isInstanceOfAny(IllegalArgumentException.class, IllegalStateException.class)
-                .hasMessageContaining(message);
+        assertThat(fixture.extract()).isZero();
         verifyNoInteractions(fixture.resolver(), fixture.store());
     }
 
