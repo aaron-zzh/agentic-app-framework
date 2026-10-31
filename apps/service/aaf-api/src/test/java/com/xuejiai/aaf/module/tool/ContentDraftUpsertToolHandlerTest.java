@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.tool;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.InstanceOfAssertFactories.map;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -69,7 +70,8 @@ class ContentDraftUpsertToolHandlerTest extends BaseMockitoUnitTest {
                 .containsEntry("type", "object")
                 .containsEntry("additionalProperties", false);
         assertThat(handler.inputSchema().get("required")).isEqualTo(List.of("title", "content"));
-        assertThat((Map<?, ?>) handler.inputSchema().get("properties"))
+        assertThat(handler.inputSchema().get("properties"))
+                .asInstanceOf(map(String.class, Object.class))
                 .containsKeys("title", "content", "documentType");
         assertThatCode(
                         () ->
