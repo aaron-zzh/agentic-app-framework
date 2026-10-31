@@ -20,6 +20,8 @@ public interface DeviceRepository extends CrudEntityRepository<Device> {
 
     boolean existsBySerialNumberAndStatus(String serialNumber, String status);
 
+    Optional<Device> findBySerialNumberAndStatus(String serialNumber, String status);
+
     Optional<Device> findFirstByScenarioKeyAndSubjectIdAndStatusOrderByIdAsc(
             String scenarioKey, Long subjectId, String status);
 

@@ -11,6 +11,7 @@ import static com.xuejiai.aaf.module.system.enums.LogRecordConstants.*;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import org.springframework.data.domain.Page;
@@ -210,6 +211,17 @@ public class UserService implements UserRelationService, CrudReferenceTargetAcce
     }
 
     /** 批量解析用户关联展示引用，供其他业务资源装配读模型。 */
+    @Override
+    public Optional<Long> findActiveUserIdByUsername(String username) {
+        if (username == null || username.isBlank()) {
+            return Optional.empty();
+        }
+        return userRepository
+                .findByUsername(username.trim())
+                .filter(User::isActive)
+                .map(User::getId);
+    }
+
     @Override
     public Map<Long, ResourceRefDTO> findRefs(Collection<Long> userIds) {
         if (userIds == null || userIds.isEmpty()) {

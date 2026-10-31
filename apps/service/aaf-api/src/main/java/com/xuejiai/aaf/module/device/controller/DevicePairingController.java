@@ -9,6 +9,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import com.xuejiai.aaf.common.model.Result;
 import com.xuejiai.aaf.framework.protection.RateLimit;
+import com.xuejiai.aaf.module.device.service.DeviceAutoBindingService;
 import com.xuejiai.aaf.module.device.service.DevicePairingService;
 import com.xuejiai.aaf.module.device.vo.DevicePairingVO;
 
@@ -23,12 +24,15 @@ import jakarta.validation.Valid;
 public class DevicePairingController {
 
     private final DevicePairingService pairingService;
+    private final DeviceAutoBindingService autoBindingService;
     private final String frontendUrl;
 
     public DevicePairingController(
             DevicePairingService pairingService,
+            DeviceAutoBindingService autoBindingService,
             @Value("${aaf.app.frontend-url:http://localhost:3000}") String frontendUrl) {
         this.pairingService = pairingService;
+        this.autoBindingService = autoBindingService;
         this.frontendUrl = frontendUrl;
     }
 
@@ -41,12 +45,16 @@ public class DevicePairingController {
     @PostMapping("/start")
     public Result<DevicePairingVO.StartResponse> start(
             @Valid @RequestBody DevicePairingVO.StartRequest request) {
-        return Result.success(
+        var autoBinding = autoBindingService.authorize(request.serialNumber());
+        var response =
                 pairingService.start(
                         request.serialNumber(),
                         request.model(),
                         request.firmwareVersion(),
-                        frontendUrl));
+                        frontendUrl,
+                        autoBinding.isPresent());
+        autoBinding.ifPresent(target -> autoBindingService.bind(response.pairCode(), target));
+        return Result.success(response);
     }
 
     @Operation(summary = "轮询设备配对结果")

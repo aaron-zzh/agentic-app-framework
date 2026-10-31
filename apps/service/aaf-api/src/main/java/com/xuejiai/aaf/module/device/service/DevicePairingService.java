@@ -54,11 +54,16 @@ public class DevicePairingService {
     }
 
     public DevicePairingVO.StartResponse start(
-            String serialNumber, String model, String firmwareVersion, String frontendUrl) {
+            String serialNumber,
+            String model,
+            String firmwareVersion,
+            String frontendUrl,
+            boolean allowBoundSerial) {
         var normalizedSerial = requireText(serialNumber, DEVICE_PAIRING_REQUEST_INVALID);
         enforceSerialStartRate(normalizedSerial);
-        if (deviceRepository.existsBySerialNumberAndStatus(
-                normalizedSerial, DeviceStatusEnum.BOUND.getCode())) {
+        if (!allowBoundSerial
+                && deviceRepository.existsBySerialNumberAndStatus(
+                        normalizedSerial, DeviceStatusEnum.BOUND.getCode())) {
             throw exception(DEVICE_ALREADY_BOUND);
         }
 

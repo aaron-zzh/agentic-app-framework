@@ -134,15 +134,30 @@ public class DeviceService
                 || OrgContext.isAllWorkspaces()) {
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "请先选择具体组织和工作区");
         }
+        return bindPendingPairing(request.pairCode(), ownerUserId, orgId, workspaceId);
+    }
 
-        var pairing = pairingService.requirePending(request.pairCode());
+    /** 将唯一测试设备的配对会话绑定到固定所有者。 */
+    @Transactional
+    void bindAutoProvisioned(String pairCode, Long ownerUserId, Long orgId, Long workspaceId) {
+        var pairing = pairingService.requirePending(pairCode);
+        deviceRepository
+                .findBySerialNumberAndStatus(
+                        pairing.serialNumber(), DeviceStatusEnum.BOUND.getCode())
+                .ifPresent(this::revokeBoundDeviceForAutoProvisioning);
+        bindPendingPairing(pairCode, ownerUserId, orgId, workspaceId);
+    }
+
+    private DeviceBindingVO bindPendingPairing(
+            String pairCode, Long ownerUserId, Long orgId, Long workspaceId) {
+        var pairing = pairingService.requirePending(pairCode);
         var deviceName =
                 pairing.model() == null || pairing.model().isBlank()
                         ? pairing.serialNumber()
                         : pairing.model();
         var createRequest =
                 new DeviceCreateDTO(
-                        request.pairCode(),
+                        pairCode,
                         GeneralDeviceScenario.KEY,
                         null,
                         null,
@@ -162,6 +177,18 @@ public class DeviceService
                 device.getSerialNumber(),
                 device.getModel(),
                 device.getStatus());
+    }
+
+    private void revokeBoundDeviceForAutoProvisioning(Device device) {
+        credentialService.revoke(device);
+        connectionControl.disconnect(device.getDeviceKey());
+        device.setVersion(currentVersion(device) + 1);
+        device.setStatus(DeviceStatusEnum.UNBOUND.getCode());
+        device.setOnlineStatus(DeviceOnlineStatusEnum.OFFLINE.getCode());
+        device.setBootId(null);
+        device.setBootStartedAt(null);
+        device.setStatusSequence(0L);
+        deviceRepository.saveAndFlush(device);
     }
 
     @Override
