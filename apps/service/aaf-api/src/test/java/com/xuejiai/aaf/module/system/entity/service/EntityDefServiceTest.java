@@ -3,6 +3,7 @@ package com.xuejiai.aaf.module.system.entity.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -180,7 +181,8 @@ class EntityDefServiceTest {
             boolean referenceable) {
         var entry = mock(CrudResourceCatalogEntry.class);
         CrudResourceDefinition<?> definition = mock(CrudResourceDefinition.class);
-        when(definition.mutation())
+        lenient()
+                .when(definition.mutation())
                 .thenReturn(new CrudMutationDefinition(Set.of(), Set.of(), Map.of()));
         var snapshot =
                 new CrudResourceSnapshot(
@@ -197,7 +199,7 @@ class EntityDefServiceTest {
                         referenceable,
                         "test-fingerprint",
                         Instant.EPOCH);
-        when(entry.definition()).thenReturn(definition);
+        lenient().when(entry.definition()).thenAnswer(ignored -> definition);
         when(entry.snapshot()).thenReturn(snapshot);
         return entry;
     }
