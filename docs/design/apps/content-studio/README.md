@@ -44,4 +44,3 @@ gains:
 2. [Content Studio 技术设计](./content-studio-tech.md) — 包、接口、命名矩阵、配置版本、BaseCrud、数据、文件生命周期与一次性迁移结果的唯一工程真理源。
 3. [Content Studio 能力与概念地图](./content-studio-capability-concept-map.md) — 只导航核心概念、代码映射、功能、信息架构与场景，不复制产品细则或技术清单。
 4. [Content Studio 竞品分析](./content-studio-competitor-analysis.md) — 分析 Flova、LibTV、Miora、ChatCut 与 WorkRally，并说明 AAF 的设计取舍。
-5. [竞品截图证据](./tmp/) — 竞品分析使用的本地界面截图。

@@ -241,8 +241,6 @@ gains:
 
 ### 核实结果：`stop`/`PAUSE`/`takeOver` 需 AAF 自建分类，"进程重启"一行应复用 core 既有机制（2026-09-01 补充核实）
 
-> 读 [tmp/agentscope-java](../../../../tmp/agentscope-java) 源码（`agentscope-core/src/main/java/io/agentscope/core/shutdown/`、`.../interruption/`）后确认：core 已内置 `InterruptSource`（`USER`/`TOOL`/`SYSTEM`，只区分触发者身份，不区分"是否换责任主体"）与 `GracefulShutdownManager` + `AgentState.shutdownInterrupted`（进程优雅停机专用信号，持久化，下次同 `(userId, sessionId)` 加载时可被检测并区分处理）两套现成机制。
-
 - **`stop`/`PAUSE`/`takeOver` 三类业务语义无法复用 core 机制**：这是 AAF 自己的业务概念（谁能对任务做什么操作），`InterruptSource` 只回答"谁触发的"，不回答"是否换了责任主体"；`shutdownInterrupted` 专门绑定 JVM 优雅停机场景（`AgentScopeJvmShutdownHook`），触发源固定 `InterruptSource.SYSTEM`，语义上不能挪用来表达业务暂停。**上方触发路径分类表与签名改动方向不变，这部分是 AAF 侧必须自建的分类，不是重新发明轮子**。
 - **"进程重启/连接中断"一行应直接复用 core 现成生命周期，不需要 AAF 自建信号传递**：core 提供 `GracefulShutdownManager.bindStateSaver`/`registerRequest`/`bindRequestState`/`checkAndClearShutdownInterrupted` 完整链路，专门解决"优雅停机时把状态标记为 `shutdownInterrupted=true` 并持久化，下次加载时检测到该标记就走恢复路径而非当成全新请求"。**核实 AAF 当前接入情况**：`HarnessAgentExecutionAdapter` 目前只用了 `ReActAgent.close()`（连带触发 `unbindStateSaver`）和 `agent.interrupt(ctx)`（走 `InterruptControl`），**从未调用 `bindStateSaver`/`registerRequest` 注册进 `GracefulShutdownManager`**——这条 core 原生链路存在，但 AAF 没有接入，是真实缺口，属于 AAF-110 范围内的具体任务，不是"评估要不要发明新机制"，而是"接入已有机制"。
 
