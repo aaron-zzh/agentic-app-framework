@@ -38,6 +38,8 @@ jobs:
           push: true
           tags: ${{ env.ACR_REGISTRY }}/service:${{ env.IMAGE_TAG }}
           no-cache: true
+          provenance: false
+          sbom: false
 
       - name: 加载前端构建变量（.env.production）
         run: grep -v '^\s*#' apps/webui/.env.production | grep -v '^\s*$' >> $GITHUB_ENV
@@ -59,6 +61,8 @@ jobs:
             NEXT_PUBLIC_CAPTCHA_SCENE_ID=${{ env.NEXT_PUBLIC_CAPTCHA_SCENE_ID }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: false
+          sbom: false
 
   deploy:
     name: 部署到 ECS
