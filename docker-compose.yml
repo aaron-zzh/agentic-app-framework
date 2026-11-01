@@ -119,7 +119,7 @@ services:
 
   # EMQX MQTT Broker。与基础服务一起启动，常规 AAF 发布不重启该容器。
   emqx:
-    image: ${EMQX_IMAGE:-emqx/emqx:5.10.5}
+    image: ${ACR_REGISTRY}/emqx:5.10.5
     container_name: aaf-emqx
     environment:
       AAF_EMQX_SHARED_SECRET: ${EMQX_SHARED_SECRET:-}
