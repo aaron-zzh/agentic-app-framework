@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: 登录阿里云 ACR
         uses: docker/login-action@v3
@@ -71,7 +71,7 @@ jobs:
     environment: production   # GitHub 环境保护，需人工审批
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: 上传部署文件到 ECS
         uses: appleboy/scp-action@v0.1.7

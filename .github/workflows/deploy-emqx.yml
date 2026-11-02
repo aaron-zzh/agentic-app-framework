@@ -23,7 +23,7 @@ jobs:
     environment: production
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: 上传 EMQX 编排配置到 ECS
         if: inputs.action != 'status'
