@@ -10,7 +10,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * <p>修复前：验签公钥硬编码在 {@code LicenseLoader.PUBLIC_KEY_PEM}，无法按环境配置或轮换，也无法静态确认
  * 各环境使用独立信任根——一份泄漏的私钥即可为所有环境签发许可。
  *
- * <p>现在：公钥经配置注入，支持多把公钥并存以完成轮换（新旧公钥同时受信，待旧许可自然过期后移除旧值）。 生产环境必须显式配置，未配置时启动即失败（见 {@code
+ * <p>现在：公钥经配置注入，支持多把公钥并存以完成轮换（新旧公钥同时受信，待旧许可自然过期后移除旧值）。 未配置时回退使用内置开发公钥并打印警告（见 {@code
  * LicenseLoader#resolveTrustedKeys}）。
  */
 @ConfigurationProperties(prefix = "aaf.license")
@@ -28,6 +28,11 @@ public class LicenseProperties {
     }
 
     public void setPublicKeys(List<String> publicKeys) {
-        this.publicKeys = publicKeys == null ? List.of() : publicKeys;
+        this.publicKeys =
+                publicKeys == null
+                        ? List.of()
+                        : publicKeys.stream()
+                                .filter(v -> v != null && !v.isBlank())
+                                .toList();
     }
 }

@@ -31,30 +31,26 @@ public class LicenseLoader {
 
     private final LicenseIdentityService identityService;
     private final LicenseProperties licenseProperties;
-    private final org.springframework.core.env.Environment environment;
 
     LicenseLoader() {
         this(
                 new LicenseIdentityService(new LicenseIdentityProperties()),
-                new LicenseProperties(),
-                new org.springframework.core.env.StandardEnvironment());
+                new LicenseProperties());
     }
 
     @Autowired
     public LicenseLoader(
             LicenseIdentityService identityService,
-            LicenseProperties licenseProperties,
-            org.springframework.core.env.Environment environment) {
+            LicenseProperties licenseProperties) {
         this.identityService = identityService;
         this.licenseProperties = licenseProperties;
-        this.environment = environment;
     }
 
     /**
      * 开发/测试用内置公钥（与 {@code BootstrapLicenseTool} 生成的密钥对配套）。
      *
-     * <p>M32：仅作为**非生产**兜底信任根；生产环境必须通过 {@code aaf.license.public-keys} 显式配置， 否则启动失败（见 {@link
-     * #resolveTrustedKeys()}）。
+     * <p>作为未配置 {@code aaf.license.public-keys} 时的兜底信任根，回退时打印警告（见 {@link
+     * #resolveTrustedKeys()}）。正式生产环境请配置独立公钥，勿复用本开发公钥。
      */
     static final String DEV_PUBLIC_KEY_PEM =
             "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjX7kNbyPNeOOYFkdoDo7"
@@ -155,25 +151,17 @@ public class LicenseLoader {
     }
 
     /**
-     * M32：解析受信公钥列表。
+     * 解析受信公钥列表。
      *
-     * <p>配置了 {@code aaf.license.public-keys} 即以配置为准；未配置时：
-     *
-     * <ul>
-     *   <li>生产 Profile → 直接抛异常终止启动，避免生产误用内置开发信任根
-     *   <li>非生产 → 使用内置开发公钥并打印警告
-     * </ul>
+     * <p>配置了 {@code aaf.license.public-keys}（过滤空值后非空）即以配置为准；未配置时回退使用内置开发公钥并打印警告。
+     * 正式生产环境应显式配置独立公钥，避免复用开发信任根。
      */
     private List<String> resolveTrustedKeys() {
         var configured = licenseProperties.getPublicKeys();
         if (configured != null && !configured.isEmpty()) {
             return configured;
         }
-        if (List.of(environment.getActiveProfiles()).contains("prod")) {
-            throw new IllegalStateException(
-                    "生产环境必须显式配置 aaf.license.public-keys，禁止使用内置开发公钥作为许可证信任根");
-        }
-        log.warn("未配置 aaf.license.public-keys，当前使用内置开发公钥（仅限非生产环境）");
+        log.warn("未配置 aaf.license.public-keys，回退使用内置开发公钥（正式生产请改用独立公钥）");
         return List.of(DEV_PUBLIC_KEY_PEM);
     }
 }

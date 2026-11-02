@@ -222,6 +222,10 @@ aaf:
         client-id: ${DINGTALK_CLIENT_ID:}
         client-secret: ${DINGTALK_CLIENT_SECRET:}
         redirect-uri: ${DINGTALK_REDIRECT_URI:}
+  license:
+    # 验签公钥列表（Base64 X.509，不含 PEM 头尾）；留空则回退内置开发公钥（见 LicenseLoader#resolveTrustedKeys）
+    public-keys:
+      - ${AAF_LICENSE_PUBLIC_KEY:}
   channel:
     # 企业内部应用机器人 Stream 模式（接收用户消息/AI 对话），复用上方 DINGTALK_CLIENT_ID/SECRET
     dingtalk:
