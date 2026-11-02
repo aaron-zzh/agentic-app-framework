@@ -33,15 +33,12 @@ public class LicenseLoader {
     private final LicenseProperties licenseProperties;
 
     LicenseLoader() {
-        this(
-                new LicenseIdentityService(new LicenseIdentityProperties()),
-                new LicenseProperties());
+        this(new LicenseIdentityService(new LicenseIdentityProperties()), new LicenseProperties());
     }
 
     @Autowired
     public LicenseLoader(
-            LicenseIdentityService identityService,
-            LicenseProperties licenseProperties) {
+            LicenseIdentityService identityService, LicenseProperties licenseProperties) {
         this.identityService = identityService;
         this.licenseProperties = licenseProperties;
     }

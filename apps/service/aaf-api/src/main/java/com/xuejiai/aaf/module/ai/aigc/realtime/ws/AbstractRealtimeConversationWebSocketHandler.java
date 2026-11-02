@@ -25,9 +25,11 @@ import com.xuejiai.aaf.module.ai.aigc.realtime.RealtimeConversationSessionFactor
 import com.xuejiai.aaf.module.ai.aigc.realtime.RealtimeHello;
 import com.xuejiai.aaf.module.ai.aigc.realtime.RealtimeServerEvent;
 
+import lombok.extern.slf4j.Slf4j;
 import tools.jackson.databind.JsonNode;
 
 /** Omni Realtime v1 的公共 WebSocket transport，子类只负责认证调用者。 */
+@Slf4j
 public abstract class AbstractRealtimeConversationWebSocketHandler extends TextWebSocketHandler {
 
     private static final int SEND_TIME_LIMIT_MS = 10_000;
@@ -91,6 +93,7 @@ public abstract class AbstractRealtimeConversationWebSocketHandler extends TextW
             }
             active.receiveControl(parseControl(node));
         } catch (IllegalArgumentException exception) {
+            log.warn("Omni Realtime hello/control 解析失败: {}", exception.getMessage(), exception);
             if (sessions.containsKey(session.getId())) {
                 sessions.get(session.getId()).close();
             }

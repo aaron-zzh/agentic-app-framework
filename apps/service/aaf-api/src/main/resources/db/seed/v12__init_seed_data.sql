@@ -211,6 +211,30 @@ WHERE u.username = 'admin'
       WHERE m.workspace_id = w.id AND m.user_id = u.id AND m.deleted = FALSE
   );
 
+-- ==================== 初始管理员积分 ====================
+-- admin 不走注册流程，拿不到注册赠积分（grantRegistrationCredits）。框架介绍知识库初始化
+-- （AdminFrameworkKnowledgeInitializer）导入的文档在异步向量化链路受 DefaultAiCreditGuard
+-- fail-closed 限制（余额 <= 0 拒绝），无积分时文档永远停留在 PENDING，故此处预置 1000 积分。
+-- 账户幂等靠 uk_credit_account_user 唯一索引 + NOT EXISTS 双保险。
+
+INSERT INTO credit_account (user_id, balance, frozen, total_earned, total_spent)
+SELECT u.id, 1000, 0, 1000, 0
+FROM sys_user u
+WHERE u.username = 'admin'
+  AND NOT EXISTS (SELECT 1 FROM credit_account ca WHERE ca.user_id = u.id);
+
+-- EARN 流水：source 取 admin_adjust（CreditTransactionSourceEnum.ADMIN_ADJUST），idempotency_key 唯一索引保证幂等
+INSERT INTO credit_transaction
+    (account_id, type, amount, balance_after, source, batch_type, remain, idempotency_key, deleted)
+SELECT ca.id, 'EARN', 1000, 1000, 'admin_adjust', 'MANUAL', 1000, 'admin-bootstrap-credit', FALSE
+FROM credit_account ca
+JOIN sys_user u ON ca.user_id = u.id
+WHERE u.username = 'admin'
+  AND NOT EXISTS (
+      SELECT 1 FROM credit_transaction ct
+      WHERE ct.idempotency_key = 'admin-bootstrap-credit'
+  );
+
 -- ==================== 角色定义 ====================
 
 INSERT INTO sys_role (code, name, description)

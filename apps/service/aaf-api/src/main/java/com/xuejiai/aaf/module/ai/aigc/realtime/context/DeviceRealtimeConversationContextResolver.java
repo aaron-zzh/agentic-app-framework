@@ -82,6 +82,6 @@ public class DeviceRealtimeConversationContextResolver
     }
 
     private static boolean allowed(RealtimeDeviceContext context, String roleKey) {
-        return !context.allowedRoleKeys().isEmpty() && context.allowedRoleKeys().contains(roleKey);
+        return context.allowedRoleKeys().isEmpty() || context.allowedRoleKeys().contains(roleKey);
     }
 }

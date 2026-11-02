@@ -31,8 +31,6 @@ public class LicenseProperties {
         this.publicKeys =
                 publicKeys == null
                         ? List.of()
-                        : publicKeys.stream()
-                                .filter(v -> v != null && !v.isBlank())
-                                .toList();
+                        : publicKeys.stream().filter(v -> v != null && !v.isBlank()).toList();
     }
 }
