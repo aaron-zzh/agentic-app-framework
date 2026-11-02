@@ -123,6 +123,8 @@ services:
     container_name: aaf-emqx
     environment:
       AAF_EMQX_SHARED_SECRET: ${EMQX_SHARED_SECRET:-}
+      EMQX_NODE__COOKIE: ${EMQX_NODE_COOKIE:-aaf-emqx-cookie}
+      EMQX_NODE__DATA_DIR: /opt/emqx/data
     ports:
       - "${EMQX_TLS_PORT:-8883}:8883"
     volumes:
