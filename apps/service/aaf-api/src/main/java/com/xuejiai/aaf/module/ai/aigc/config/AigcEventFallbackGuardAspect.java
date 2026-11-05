@@ -5,6 +5,7 @@ import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.core.Ordered;
+import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -20,6 +21,10 @@ import lombok.extern.slf4j.Slf4j;
  * isActualTransactionActive()} 为 true；没有事务时为 false，此时记录 ERROR 以暴露问题， 不改变执行行为。
  *
  * <p>切面优先级高于事务切面，保证检测发生在监听器自身的 {@code REQUIRES_NEW} 事务开启之前。
+ *
+ * <p>切点不做参数绑定（不写 {@code @annotation(listener)}）：最高优先级会排在 {@code ExposeInvocationInterceptor} 之前，
+ * 绑定参数需要的运行时匹配会把 JoinPointMatch 写到外层调用上，嵌套在其他代理调用中（如注册事务内 BEFORE_COMMIT 监听器）时抛出 "JoinPointMatch was
+ * NOT bound in invocation"。注解改为从方法上反射读取。
  */
 @Slf4j
 @Aspect
@@ -28,13 +33,16 @@ import lombok.extern.slf4j.Slf4j;
 public class AigcEventFallbackGuardAspect {
 
     @Around(
-            value = "@annotation(listener) && within(com.xuejiai.aaf.module.ai.aigc..*)",
-            argNames = "pjp,listener")
-    public Object around(ProceedingJoinPoint pjp, TransactionalEventListener listener)
-            throws Throwable {
-        if (listener.fallbackExecution()
+            "@annotation(org.springframework.transaction.event.TransactionalEventListener)"
+                    + " && within(com.xuejiai.aaf.module.ai.aigc..*)")
+    public Object around(ProceedingJoinPoint pjp) throws Throwable {
+        var method = ((MethodSignature) pjp.getSignature()).getMethod();
+        var listener =
+                AnnotatedElementUtils.findMergedAnnotation(
+                        method, TransactionalEventListener.class);
+        if (listener != null
+                && listener.fallbackExecution()
                 && !TransactionSynchronizationManager.isActualTransactionActive()) {
-            var method = ((MethodSignature) pjp.getSignature()).getMethod();
             log.error(
                     "[事务事件守卫] 事件在无事务环境下被发布，监听器经 fallbackExecution 立即执行，"
                             + "可能早于数据提交: {}#{}，请检查发布点是否位于事务内",
