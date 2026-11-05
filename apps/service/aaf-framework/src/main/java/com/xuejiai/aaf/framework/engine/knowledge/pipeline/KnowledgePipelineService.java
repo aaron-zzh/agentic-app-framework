@@ -154,9 +154,21 @@ public class KnowledgePipelineService {
 
             updateProgress(documentId, PipelineStep.EXTRACT_FACTS, 4, startTime);
             for (var index = 0; index < storedChunks.size(); index++) {
-                var context =
-                        contextAssembler.assemble(storedChunks, index, EXTRACTION_CONTEXT_BUDGET);
-                extractionService.extractAndPersist(run, context, executionGuard);
+                try {
+                    var context =
+                            contextAssembler.assemble(
+                                    storedChunks, index, EXTRACTION_CONTEXT_BUDGET);
+                    extractionService.extractAndPersist(run, context, executionGuard);
+                } catch (TaskExecutionInProgressException inProgress) {
+                    throw inProgress;
+                } catch (Exception extractionFailure) {
+                    log.warn(
+                            "知识库实体抽取失败，降级跳过该块（图投影可待 Neo4j 恢复后由管理员重建），documentId={}, runId={}, chunkIndex={}, 原因={}",
+                            documentId,
+                            run.runId(),
+                            index,
+                            extractionFailure.getMessage());
+                }
                 executionGuard.run();
             }
 
