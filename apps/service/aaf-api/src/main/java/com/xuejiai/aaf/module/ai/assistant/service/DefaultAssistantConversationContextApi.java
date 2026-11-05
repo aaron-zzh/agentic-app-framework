@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.ai.assistant.service;
 
 import java.util.Collections;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -16,6 +17,7 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.module.ai.assistant.api.AssistantConversationContextApi;
+import com.xuejiai.aaf.module.knowledge.api.KnowledgeSearchApi;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,9 +28,10 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class DefaultAssistantConversationContextApi implements AssistantConversationContextApi {
 
-    private static final int MAX_KNOWLEDGE_BASES = 3;
+    private static final int MAX_KNOWLEDGE_BASES = 6;
 
     private final AssistantDefinitionPort assistantDefinitions;
+    private final KnowledgeSearchApi knowledgeSearchApi;
 
     @Override
     public ConversationContext resolve(ConversationIdentity identity, String roleKey) {
@@ -59,11 +62,12 @@ public class DefaultAssistantConversationContextApi implements AssistantConversa
                         definition.assistantId().value(),
                         definition.knowledgeBaseIds(),
                         role.knowledgeBaseIds());
+        var knowledgeBases = knowledgeSearchApi.findKnowledgeBases(knowledgeBaseIds);
         return new ConversationContext(
                 definition.assistantId().value(),
                 definition.version().value(),
                 role.key(),
-                composeInstructions(definition.persona(), role),
+                composeInstructions(definition.persona(), role, knowledgeBases),
                 knowledgeBaseIds);
     }
 
@@ -86,7 +90,10 @@ public class DefaultAssistantConversationContextApi implements AssistantConversa
         return Collections.unmodifiableSet(selected);
     }
 
-    private String composeInstructions(PersonaSnapshot persona, Role role) {
+    private String composeInstructions(
+            PersonaSnapshot persona,
+            Role role,
+            List<KnowledgeSearchApi.KnowledgeBaseSummary> knowledgeBases) {
         var roleAppendix =
                 new RoleAssignment(
                                 role.key(),
@@ -94,12 +101,15 @@ public class DefaultAssistantConversationContextApi implements AssistantConversa
                                 role.responsibilities(),
                                 role.nonResponsibilities())
                         .systemPromptAppendix();
+        var knowledgeAppendix = buildKnowledgeAppendix(knowledgeBases);
         return """
                 ## 助理人设
                 名称：%s
                 描述：%s
                 性格：%s
                 说话风格：%s
+
+                %s
 
                 %s
 
@@ -111,7 +121,27 @@ public class DefaultAssistantConversationContextApi implements AssistantConversa
                         persona.personality(),
                         persona.speakingStyle(),
                         persona.instructions(),
-                        roleAppendix)
+                        roleAppendix,
+                        knowledgeAppendix)
                 .trim();
+    }
+
+    private String buildKnowledgeAppendix(
+            List<KnowledgeSearchApi.KnowledgeBaseSummary> knowledgeBases) {
+        if (knowledgeBases.isEmpty()) {
+            return "";
+        }
+        var lines =
+                knowledgeBases.stream()
+                        .map(
+                                kb -> {
+                                    var description =
+                                            kb.description() == null || kb.description().isBlank()
+                                                    ? "（无描述）"
+                                                    : kb.description();
+                                    return " - %s：%s".formatted(kb.name(), description);
+                                })
+                        .toList();
+        return "## 可用知识库\n" + String.join("\n", lines);
     }
 }

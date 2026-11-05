@@ -1,6 +1,9 @@
 package com.xuejiai.aaf.module.knowledge.service;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,7 +53,7 @@ public class DefaultKnowledgeSearchApi implements KnowledgeSearchApi {
                         new KnowledgeSearchDTO(
                                 query.query(),
                                 query.knowledgeBaseIds(),
-                                false,
+                                true, // 公开知识库默认纳入检索
                                 Map.of(),
                                 Map.of("documentIds", query.documentIds()),
                                 query.topK(),
@@ -70,5 +73,20 @@ public class DefaultKnowledgeSearchApi implements KnowledgeSearchApi {
                                                         hit.source().sourceUri())))
                         .toList();
         return new SearchResult(hits, response.degradedChannels());
+    }
+
+    @Override
+    public List<KnowledgeBaseSummary> findKnowledgeBases(Set<UUID> stableIds) {
+        if (stableIds == null || stableIds.isEmpty()) {
+            return List.of();
+        }
+        return knowledgeBaseRepository.findByStableIdIn(stableIds).stream()
+                .map(
+                        knowledgeBase ->
+                                new KnowledgeBaseSummary(
+                                        knowledgeBase.getStableId(),
+                                        knowledgeBase.getName(),
+                                        knowledgeBase.getDescription()))
+                .toList();
     }
 }

@@ -41,14 +41,18 @@ public class RealtimeKnowledgeSearchService {
     public FunctionTool toolDefinition() {
         return new FunctionTool(
                 TOOL_NAME,
-                "从当前助理已绑定的知识库检索与用户问题相关的内容",
+                "从当前助理已绑定的知识库检索与用户问题相关的内容。当问题需要查证你训练知识之外的资料（如专业规范、政策条款、操作教程等，见系统消息中的「可用知识库」）时调用。",
                 Map.of(
                         "type",
                         "object",
                         "properties",
                         Map.of(
                                 "query",
-                                Map.of("type", "string"),
+                                Map.of(
+                                        "type",
+                                        "string",
+                                        "description",
+                                        "完整自然语言检索语句，覆盖问题核心实体与术语，不要只写关键词"),
                                 "topK",
                                 Map.of("type", "integer", "minimum", 1, "maximum", MAX_TOP_K)),
                         "required",

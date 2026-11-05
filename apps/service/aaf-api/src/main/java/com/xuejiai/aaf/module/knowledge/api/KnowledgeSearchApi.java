@@ -14,6 +14,9 @@ public interface KnowledgeSearchApi {
     /** 复用知识库授权与混合检索链路，并限定知识库和文档 stable ID。 */
     SearchResult search(SearchQuery query);
 
+    /** 按 stable_id 批量解析知识库概要（名称、描述），不存在或已删除时跳过。 */
+    List<KnowledgeBaseSummary> findKnowledgeBases(Set<UUID> stableIds);
+
     record DocumentReference(
             Long id, UUID stableId, UUID knowledgeBaseStableId, String title, Integer status) {}
 
@@ -29,4 +32,6 @@ public interface KnowledgeSearchApi {
     record SearchHit(String content, double score, Source source) {}
 
     record Source(UUID knowledgeBaseId, UUID documentId, String sourceKey, String sourceUri) {}
+
+    record KnowledgeBaseSummary(UUID stableId, String name, String description) {}
 }

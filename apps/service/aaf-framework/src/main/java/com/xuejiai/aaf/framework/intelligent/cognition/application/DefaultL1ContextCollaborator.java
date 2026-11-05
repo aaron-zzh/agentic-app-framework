@@ -187,7 +187,7 @@ public final class DefaultL1ContextCollaborator implements L1ContextPort {
                                 wantMemory ? billableUserId(request) : null,
                                 request.query(),
                                 wantKnowledge ? plan.knowledgeBaseIds() : java.util.Set.of(),
-                                false,
+                                true, // 公开知识库默认纳入检索
                                 retrievalLimit));
         var accepted = result.fused().stream().limit(retrievalLimit).toList();
         if (accepted.isEmpty()) {

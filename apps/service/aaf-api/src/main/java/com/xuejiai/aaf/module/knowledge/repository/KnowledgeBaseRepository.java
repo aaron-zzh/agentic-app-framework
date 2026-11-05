@@ -19,6 +19,14 @@ public interface KnowledgeBaseRepository extends CrudEntityRepository<KnowledgeB
     @Query(
             """
             SELECT b FROM KnowledgeBase b
+            WHERE b.deleted = false AND b.stableId IN :stableIds
+            ORDER BY b.stableId
+            """)
+    List<KnowledgeBase> findByStableIdIn(@Param("stableIds") Collection<UUID> stableIds);
+
+    @Query(
+            """
+            SELECT b FROM KnowledgeBase b
             WHERE b.deleted = false AND b.status = 0
               AND (b.stableId IN :requestedIds OR b.visibility = 'SYSTEM_PUBLIC')
             ORDER BY b.stableId
