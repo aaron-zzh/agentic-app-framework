@@ -29,12 +29,20 @@ import { Textarea } from "@/components/ui/textarea"
 import type { AiRoleSkillBinding, AiRoleVO, MyAiRoleInput } from "@/lib/api/rest/ai/role"
 import { useAiRoleToolOptions, useCreateMyAiRole, useUpdateMyAiRole } from "@/lib/api/rest/ai/role"
 import { useAiSkills } from "@/lib/api/rest/ai/skill"
+import { useKnowledgeBases } from "@/lib/api/rest/knowledge/knowledge"
 
 interface MyRoleEditorDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   /** 为空表示新建 */
   role: AiRoleVO | null
+}
+
+/** 知识库可见性展示文案。 */
+const knowledgeVisibilityLabel: Record<string, string> = {
+  PRIVATE: "私有",
+  ORG: "组织",
+  SYSTEM_PUBLIC: "公共"
 }
 
 /** 解析角色上的工具授权池 JSON，非法时按空处理。 */
@@ -72,10 +80,13 @@ function MyRoleEditorForm({ role, onDone }: { role: AiRoleVO | null; onDone: () 
   const [description, setDescription] = useState(role?.description ?? "")
   const [skills, setSkills] = useState<AiRoleSkillBinding[]>(role?.skillBindings ?? [])
   const [tools, setTools] = useState<string[]>(parseToolNames(role?.toolWhitelist ?? null))
+  const [knowledgeBaseIds, setKnowledgeBaseIds] = useState<string[]>(role?.knowledgeBaseIds ?? [])
   const [error, setError] = useState<string | null>(null)
 
   const { data: visibleSkills = [] } = useAiSkills({ publishedOnly: true })
   const { data: toolOptions = [] } = useAiRoleToolOptions()
+  const { data: knowledgeBasesPage } = useKnowledgeBases({ pageNo: 1, pageSize: 200 })
+  const selectableKnowledgeBases = knowledgeBasesPage?.list ?? []
   const createRole = useCreateMyAiRole()
   const updateRole = useUpdateMyAiRole()
   const saving = createRole.isPending || updateRole.isPending
@@ -105,6 +116,16 @@ function MyRoleEditorForm({ role, onDone }: { role: AiRoleVO | null; onDone: () 
     setTools((prev) => (checked ? [...prev, toolName] : prev.filter((item) => item !== toolName)))
   }
 
+  const toggleKnowledgeBase = (stableId: string, checked: boolean) => {
+    if (checked && !knowledgeBaseIds.includes(stableId) && knowledgeBaseIds.length >= 5) {
+      setError("最多绑定 5 个知识库")
+      return
+    }
+    setKnowledgeBaseIds((prev) =>
+      checked ? [...prev, stableId] : prev.filter((id) => id !== stableId)
+    )
+  }
+
   const handleSave = async () => {
     if (!name.trim()) {
       setError("请填写角色名称")
@@ -115,7 +136,8 @@ function MyRoleEditorForm({ role, onDone }: { role: AiRoleVO | null; onDone: () 
       name: name.trim(),
       description: description.trim() || undefined,
       skillBindings: skills,
-      toolWhitelist: JSON.stringify(tools)
+      toolWhitelist: JSON.stringify(tools),
+      knowledgeBaseIds
     }
     try {
       if (role) {
@@ -221,6 +243,38 @@ function MyRoleEditorForm({ role, onDone }: { role: AiRoleVO | null; onDone: () 
                         {tool.readOnly && <Badge variant="secondary">只读</Badge>}
                       </div>
                     </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </fieldset>
+
+          <fieldset className="space-y-2">
+            <legend className="font-medium text-sm">知识库（{knowledgeBaseIds.length}/5）</legend>
+            {selectableKnowledgeBases.length === 0 ? (
+              <p className="text-muted-foreground text-sm">暂无可绑定的知识库</p>
+            ) : (
+              <ul className="space-y-2">
+                {selectableKnowledgeBases.map((kb) => (
+                  <li key={kb.stableId} className="flex items-start gap-3 rounded-md border p-2">
+                    <Checkbox
+                      checked={knowledgeBaseIds.includes(kb.stableId)}
+                      aria-label={`绑定知识库 ${kb.name}`}
+                      onCheckedChange={(checked) =>
+                        toggleKnowledgeBase(kb.stableId, checked === true)
+                      }
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-sm">{kb.name}</p>
+                      {kb.description && (
+                        <p className="line-clamp-2 text-muted-foreground text-xs">
+                          {kb.description}
+                        </p>
+                      )}
+                    </div>
+                    <Badge variant="outline">
+                      {knowledgeVisibilityLabel[kb.visibility] ?? kb.visibility}
+                    </Badge>
                   </li>
                 ))}
               </ul>

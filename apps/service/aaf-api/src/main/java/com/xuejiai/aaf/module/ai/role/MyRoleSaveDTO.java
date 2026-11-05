@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.ai.role;
 
 import java.util.List;
+import java.util.UUID;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.model.SkillBinding;
 
@@ -23,7 +24,9 @@ public record MyRoleSaveDTO(
         @Schema(description = "描述，用于模型按任务选择角色") @Size(max = 512) String description,
         @Schema(description = "Skill 绑定对象数组", requiredMode = Schema.RequiredMode.REQUIRED) @NotNull
                 List<SkillBinding> skillBindings,
-        @Schema(description = "工具授权池（JSON 字符串数组）") String toolWhitelist) {
+        @Schema(description = "工具授权池（JSON 字符串数组）") String toolWhitelist,
+        @Schema(description = "绑定知识库的 stable_id，最多 5 个") @Size(max = 5)
+                List<UUID> knowledgeBaseIds) {
 
     public MyRoleSaveDTO {
         skillBindings = SkillBinding.copyOf(skillBindings, "skillBindings");

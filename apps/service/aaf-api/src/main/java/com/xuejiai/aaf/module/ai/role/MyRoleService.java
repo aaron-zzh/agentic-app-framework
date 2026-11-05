@@ -65,6 +65,7 @@ public class MyRoleService {
         entity.setDescription(dto.description());
         entity.setSkillIds(RoleSkillBindingJson.write(dto.skillBindings()));
         entity.setToolWhitelist(dto.toolWhitelist());
+        entity.setKnowledgeBaseIds(RoleKnowledgeBaseJson.write(dto.knowledgeBaseIds()));
         entity.setVisibility(RoleVisibilityLevel.PRIVATE);
         entity.setOwnerId(ownerId);
         return RoleVO.from(roleRepository.save(entity));
@@ -81,6 +82,7 @@ public class MyRoleService {
         entity.setDescription(dto.description());
         entity.setSkillIds(RoleSkillBindingJson.write(dto.skillBindings()));
         entity.setToolWhitelist(dto.toolWhitelist());
+        entity.setKnowledgeBaseIds(RoleKnowledgeBaseJson.write(dto.knowledgeBaseIds()));
         return RoleVO.from(roleRepository.save(entity));
     }
 

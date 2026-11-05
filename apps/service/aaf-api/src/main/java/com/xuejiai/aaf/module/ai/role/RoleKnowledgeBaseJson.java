@@ -8,8 +8,8 @@ import com.xuejiai.aaf.common.util.JsonUtils;
 /** ai_role.knowledge_base_ids 的 JSON UUID 数组读写。 */
 final class RoleKnowledgeBaseJson {
 
-    /** 单个角色最多绑定的知识库数量；加上助理默认库，未显式指定时最多检索 3 个。 */
-    static final int MAX_BINDINGS = 2;
+    /** 单个角色最多绑定的知识库数量；加上助理默认库，未显式指定时最多检索 6 个。 */
+    static final int MAX_BINDINGS = 5;
 
     private RoleKnowledgeBaseJson() {}
 

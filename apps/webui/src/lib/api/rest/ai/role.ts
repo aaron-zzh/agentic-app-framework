@@ -83,6 +83,8 @@ export interface MyAiRoleInput {
   skillBindings: AiRoleSkillBinding[]
   /** JSON 字符串数组，如 ["context.load"] */
   toolWhitelist?: string
+  /** 绑定知识库的 stable_id，最多 5 个 */
+  knowledgeBaseIds?: string[]
 }
 
 export interface AiRoleToolOption {
