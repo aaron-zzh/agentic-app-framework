@@ -67,8 +67,8 @@ WHERE workspace.deleted = FALSE
 -- ==================== #12017 助理角色种子 ====================
 
 INSERT INTO ai_role
-    (code, name, description, skill_ids, tool_whitelist, status, visibility,
-     create_time, update_time, deleted)
+    (code, name, description, skill_ids, tool_whitelist, knowledge_base_ids,
+     status, visibility, create_time, update_time, deleted)
 VALUES
     (
         'system.role.elder-companion',
@@ -76,6 +76,7 @@ VALUES
         '家庭陪伴机器人使用的长者陪伴角色，只能查询或经两步确认创建用药计划和预约',
         '[{"skillKey":"system.skill.elder-companion","activationMode":"ALWAYS"},{"skillKey":"system.skill.elder-care-health","activationMode":"ON_DEMAND"}]'::jsonb,
         '["listMedicationPlans","draftMedicationPlan","confirmMedicationPlan","listAvailableServices","draftServiceOrder","confirmServiceOrder","queryServiceOrderStatus","listRecentPhotos","searchRehabGuide","queryMedicalKnowledge","queryMedicalAnswer"]',
+        '["10000000-0000-4000-8000-000000000001","10000000-0000-4000-8000-000000000002"]'::jsonb,
         'active', 'SYSTEM', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
     ),
     (
@@ -84,6 +85,7 @@ VALUES
         '已授权家属查看长者概况、预警、用药、照片和服务预约的角色',
         '[{"skillKey":"system.skill.elder-family-service","activationMode":"ALWAYS"}]'::jsonb,
         '["queryElderOverview","queryAlertStatus","listMedicationPlans","listRecentPhotos","listAvailableServices","draftServiceOrder","confirmServiceOrder","queryServiceOrderStatus","searchRehabGuide"]',
+        NULL,
         'active', 'SYSTEM', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
     ),
     (
@@ -92,6 +94,7 @@ VALUES
         '养老运营和值班人员的只读状态查询角色，不能起草或确认预约',
         '[{"skillKey":"system.skill.elder-ops-assistant","activationMode":"ALWAYS"}]'::jsonb,
         '["queryAlertStatus","queryDeviceStatus","queryServiceOrderStatus"]',
+        NULL,
         'active', 'SYSTEM', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
     )
 ON CONFLICT (code) WHERE deleted = FALSE DO UPDATE
@@ -99,6 +102,7 @@ SET name = EXCLUDED.name,
     description = EXCLUDED.description,
     skill_ids = EXCLUDED.skill_ids,
     tool_whitelist = EXCLUDED.tool_whitelist,
+    knowledge_base_ids = EXCLUDED.knowledge_base_ids,
     status = EXCLUDED.status,
     visibility = EXCLUDED.visibility,
     update_time = CURRENT_TIMESTAMP;
@@ -139,3 +143,38 @@ SET enabled = TRUE,
     update_time = CURRENT_TIMESTAMP,
     deleted = FALSE,
     delete_time = NULL;
+
+
+-- ==================== 养老公开知识库种子（康复指导 + 养老政策） ====================
+
+-- 两个 SYSTEM_PUBLIC 公开库；内容先为空，由管理员经界面导入文档后触发切片与向量化。
+-- stable_id 与上方 ai_role.knowledge_base_ids 中绑定的 UUID 一一对应。
+INSERT INTO ai_knowledge_base
+    (stable_id, version, visibility, scope_code, name, description, status, auto_inject)
+VALUES
+    (
+        '10000000-0000-4000-8000-000000000001',
+        0,
+        'SYSTEM_PUBLIC',
+        'elder.rehab-guide',
+        '养老康复指导',
+        '长者慢病康复指导公开知识库（高血压、糖尿病等）',
+        0,
+        FALSE
+    ),
+    (
+        '10000000-0000-4000-8000-000000000002',
+        0,
+        'SYSTEM_PUBLIC',
+        'elder.policy',
+        '养老政策',
+        '养老政策公开知识库（长护险、补贴、准入条件等）',
+        0,
+        FALSE
+    )
+ON CONFLICT (stable_id) DO UPDATE
+SET name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    scope_code = EXCLUDED.scope_code,
+    visibility = EXCLUDED.visibility,
+    update_time = CURRENT_TIMESTAMP;
