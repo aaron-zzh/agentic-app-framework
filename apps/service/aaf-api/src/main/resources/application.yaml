@@ -5,6 +5,10 @@ spring:
   threads:
     virtual:
       enabled: true
+  reactor:
+    # Reactor ThreadLocal 自动传播（AafContextHolder、OrgContext 跨调度线程恢复）；
+    # OrgContext 访问器经 META-INF/services/io.micrometer.context.ThreadLocalAccessor 注册
+    context-propagation: auto
   servlet:
     multipart:
       max-file-size: 100MB

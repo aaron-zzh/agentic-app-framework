@@ -20,6 +20,12 @@ public final class OrgContext {
     private static final ThreadLocal<Boolean> ALL_WORKSPACES = new ThreadLocal<>();
     private static final ThreadLocal<Boolean> IGNORE = new ThreadLocal<>();
 
+    /** Reactor Context 中传播组织 ID 的键（配合 {@code io.micrometer.context ThreadLocalAccessor}）。 */
+    public static final String ORG_ID_CONTEXT_KEY = "aaf.orgId";
+
+    /** Reactor Context 中传播工作区 ID 的键。 */
+    public static final String WORKSPACE_ID_CONTEXT_KEY = "aaf.workspaceId";
+
     private OrgContext() {}
 
     public static void setCurrentOrgId(Long orgId) {

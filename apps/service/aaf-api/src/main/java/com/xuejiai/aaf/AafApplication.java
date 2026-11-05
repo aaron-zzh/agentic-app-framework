@@ -16,8 +16,7 @@ import com.xuejiai.aaf.framework.bizlog.annotation.EnableLogRecord;
         pageSerializationMode = EnableSpringDataWebSupport.PageSerializationMode.VIA_DTO)
 public class AafApplication {
     public static void main(String[] args) {
-        // 启用 Reactor ThreadLocal 自动传播，确保 AafContextHolder 跨线程可用
-        reactor.core.publisher.Hooks.enableAutomaticContextPropagation();
+        // Reactor ThreadLocal 自动传播由 spring.reactor.context-propagation=auto 开启（见 application.yaml）
         SpringApplication.run(AafApplication.class, args);
     }
 }

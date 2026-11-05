@@ -6,6 +6,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ClarificationRequest;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -18,6 +19,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
+@OrgIgnore
 @Table(name = "ai_clarification_request")
 public class ClarificationRequestEntity {
     @Id

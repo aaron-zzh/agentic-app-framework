@@ -6,6 +6,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import com.xuejiai.aaf.framework.intelligent.core.prompt.PromptEnvelopeBody;
+import com.xuejiai.aaf.framework.org.OrgIgnore;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -26,6 +27,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
+@OrgIgnore
 @Table(
         name = "ai_prompt_envelope_body",
         uniqueConstraints =

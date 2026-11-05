@@ -2,6 +2,8 @@ package com.xuejiai.aaf.framework.intelligent.infrastructure.assistant.persisten
 
 import java.time.Instant;
 
+import com.xuejiai.aaf.framework.org.OrgIgnore;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -15,6 +17,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
+@OrgIgnore
 @Table(
         name = "ai_context_source_preference",
         uniqueConstraints =

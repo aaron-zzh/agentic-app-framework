@@ -323,7 +323,23 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                         command.executionId().value(),
                                         taskKey(command),
                                         signalType,
-                                        elapsedMillis(startedAtNanos)));
+                                        elapsedMillis(startedAtNanos)))
+                // 组织上下文必须显式写入 Reactor Context：runIfAbsent 在 subscribe 后（Flux.defer 惰性）才设置
+                // ThreadLocal，晚于 Reactor 自动 contextCapture 的捕获点，光靠 ThreadLocalAccessor 无法传播到
+                // boundedElastic 等异步线程；写入 Context 后，注册的 accessor 才能在每次跨线程调度时恢复 org。
+                .contextWrite(
+                        ctx -> {
+                            var next = ctx;
+                            var orgId = orgIdOf(command);
+                            if (orgId != null) {
+                                next = next.put(OrgContext.ORG_ID_CONTEXT_KEY, orgId);
+                            }
+                            var wsId = invocation.executionIntent().workspaceId();
+                            if (wsId != null) {
+                                next = next.put(OrgContext.WORKSPACE_ID_CONTEXT_KEY, wsId);
+                            }
+                            return next;
+                        });
     }
 
     static boolean shouldPersistEvent(ExecutionEvent event) {
