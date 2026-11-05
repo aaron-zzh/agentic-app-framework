@@ -1923,3 +1923,5 @@ WHERE admin_copy.code = 'user.assistant.default.' || admin_user.id
 ON CONFLICT (assistant_id, role_id) DO NOTHING;
 
 -- 平台向导知识文档、run 与 chunk 移至 db/seed/v301__nexus_knowledge_seed.sql。
+-- 测试设备自动绑定的长者档案 seed 移至 db/seed/v402__elder_duty_seed.sql
+-- （依赖 db/migration/v400__elder_schema.sql 的 elder_profile 表，v12 版本号早于 v400 故不能放此处）。

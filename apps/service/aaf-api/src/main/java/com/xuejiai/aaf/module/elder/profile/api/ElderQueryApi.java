@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.elder.profile.api;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /** 长者中心跨子域只读契约；guard、mall 与 agent 只能通过此接口读取 profile。 */
@@ -11,6 +12,12 @@ public interface ElderQueryApi {
 
     /** 校验当前数据归属用户对长者具备指定关系授权，并返回可信范围。 */
     AuthorizedElder requireAccess(Long elderId, String authorizationScope);
+
+    /** 校验指定数据归属用户对长者具备指定关系授权（供设备绑定等无操作者上下文的系统链路使用）。 */
+    void requireAccessForOwner(Long elderId, Long ownerUserId, String authorizationScope);
+
+    /** 按关联用户查询其首个长者 ID，供设备自动绑定等无操作者上下文的系统链路使用。 */
+    Optional<Long> findFirstElderIdByUserId(Long userId);
 
     /** 查询当前数据归属用户在指定关系授权下可访问的长者，供无模型 ID 的工具上下文解析。 */
     List<AuthorizedElder> listAccessibleElders(String authorizationScope);

@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 import org.springframework.data.jpa.domain.Specification;
@@ -205,7 +206,24 @@ public class ElderService
     @Override
     public AuthorizedElder requireAccess(Long elderId, String authorizationScope) {
         requireAuthorizationScope(authorizationScope);
-        var ownerId = currentOwnerId();
+        return requireAccessByOwner(elderId, currentOwnerId(), authorizationScope);
+    }
+
+    @Override
+    public void requireAccessForOwner(Long elderId, Long ownerUserId, String authorizationScope) {
+        requireAuthorizationScope(authorizationScope);
+        requireAccessByOwner(elderId, ownerUserId, authorizationScope);
+    }
+
+    @Override
+    public Optional<Long> findFirstElderIdByUserId(Long userId) {
+        return elderRepository.findAllByUserIdOrderByIdAsc(userId).stream()
+                .map(Elder::getId)
+                .findFirst();
+    }
+
+    private AuthorizedElder requireAccessByOwner(
+            Long elderId, Long ownerId, String authorizationScope) {
         var elder = elderRepository.findById(elderId).orElseThrow(() -> exception(ELDER_NOT_FOUND));
         if (!Objects.equals(elder.getUserId(), ownerId)
                 && !isElderOperator(ownerId)

@@ -137,19 +137,36 @@ public class DeviceService
         return bindPendingPairing(request.pairCode(), ownerUserId, orgId, workspaceId);
     }
 
-    /** 将唯一测试设备的配对会话绑定到固定所有者。 */
+    /** 将唯一测试设备的配对会话绑定到固定所有者与指定场景主体。 */
     @Transactional
-    void bindAutoProvisioned(String pairCode, Long ownerUserId, Long orgId, Long workspaceId) {
+    void bindAutoProvisioned(
+            String pairCode,
+            Long ownerUserId,
+            Long orgId,
+            Long workspaceId,
+            String scenarioKey,
+            ResourceReference subject) {
         var pairing = pairingService.requirePending(pairCode);
         deviceRepository
                 .findBySerialNumberAndStatus(
                         pairing.serialNumber(), DeviceStatusEnum.BOUND.getCode())
                 .ifPresent(this::revokeBoundDeviceForAutoProvisioning);
-        bindPendingPairing(pairCode, ownerUserId, orgId, workspaceId);
+        bindPendingPairing(pairCode, ownerUserId, orgId, workspaceId, scenarioKey, subject);
     }
 
     private DeviceBindingVO bindPendingPairing(
             String pairCode, Long ownerUserId, Long orgId, Long workspaceId) {
+        return bindPendingPairing(
+                pairCode, ownerUserId, orgId, workspaceId, GeneralDeviceScenario.KEY, null);
+    }
+
+    private DeviceBindingVO bindPendingPairing(
+            String pairCode,
+            Long ownerUserId,
+            Long orgId,
+            Long workspaceId,
+            String scenarioKey,
+            ResourceReference subject) {
         var pairing = pairingService.requirePending(pairCode);
         var deviceName =
                 pairing.model() == null || pairing.model().isBlank()
@@ -158,8 +175,8 @@ public class DeviceService
         var createRequest =
                 new DeviceCreateDTO(
                         pairCode,
-                        GeneralDeviceScenario.KEY,
-                        null,
+                        scenarioKey,
+                        subject,
                         null,
                         ownerUserId,
                         deviceName,

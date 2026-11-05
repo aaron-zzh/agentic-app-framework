@@ -34,7 +34,7 @@ import reactor.core.publisher.Flux;
 public class ElderDeviceScenario implements DeviceScenario {
 
     public static final String KEY = "elder";
-    private static final String SUBJECT_RESOURCE = "elder.profile.elder";
+    public static final String SUBJECT_RESOURCE = "elder.profile.elder";
     private static final String DEFAULT_ROLE_KEY = "system.role.elder-companion";
 
     /** 养老场景下发给机器人的业务能力：用药与服务预约都是屏幕提醒。 */
@@ -103,8 +103,10 @@ public class ElderDeviceScenario implements DeviceScenario {
 
     @Override
     public void validateBinding(DeviceBindingContext context) {
-        elderQueryApi.requireAccess(
-                context.subjectId(), AuthorizationScopeEnum.VIEW_PROFILE.getCode());
+        elderQueryApi.requireAccessForOwner(
+                context.subjectId(),
+                context.ownerUserId(),
+                AuthorizationScopeEnum.VIEW_PROFILE.getCode());
     }
 
     @Override

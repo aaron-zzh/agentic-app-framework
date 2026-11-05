@@ -178,3 +178,30 @@ SET name = EXCLUDED.name,
     scope_code = EXCLUDED.scope_code,
     visibility = EXCLUDED.visibility,
     update_time = CURRENT_TIMESTAMP;
+
+-- ==================== 测试设备自动绑定的长者档案 ====================
+-- 唯一测试设备自动绑定时需落到「养老」场景并关联 admin 的长者档案，
+-- 使长者信息（robotBrief）进入设备语音/实时对话的系统提示词。
+-- 幂等靠 uk_elder_profile_user 唯一索引（user_id 非空且未删除）+ NOT EXISTS 双保险。
+-- 依赖 db/migration/v400__elder_schema.sql 的 elder_profile 表，必须放在 v400 之后。
+INSERT INTO elder_profile (
+    org_id, workspace_id, user_id, full_name, preferred_name,
+    living_arrangement, status, owner_id, create_by,
+    create_time, update_time, deleted, remark
+)
+SELECT
+    o.id, w.id, u.id, '测试长者', '奶奶',
+    'ALONE', 'ACTIVE', u.id, u.id,
+    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE,
+    '唯一测试设备自动绑定用的长者档案'
+FROM sys_user u
+JOIN sys_organization o
+    ON o.owner_id = u.id AND o.type = 'personal' AND o.deleted = FALSE
+JOIN sys_workspace w
+    ON w.org_id = o.id AND w.slug = 'default' AND w.deleted = FALSE
+WHERE u.username = 'admin'
+  AND u.deleted = FALSE
+  AND NOT EXISTS (
+      SELECT 1 FROM elder_profile e
+      WHERE e.user_id = u.id AND e.deleted = FALSE
+  );
