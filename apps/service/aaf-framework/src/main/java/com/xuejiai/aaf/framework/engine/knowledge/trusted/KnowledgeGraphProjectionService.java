@@ -117,9 +117,9 @@ public class KnowledgeGraphProjectionService {
                   AND (size($sourceTypes) = 0 OR any(value IN fact.sourceTypes WHERE value IN $sourceTypes))
                   AND (size($sourceKeys) = 0 OR any(value IN fact.sourceKeys WHERE value IN $sourceKeys))
                   AND (size($documentIds) = 0 OR any(value IN fact.documentIds WHERE value IN $documentIds))
-                  AND (toLower(subject.name) CONTAINS toLower($query)
-                       OR toLower(object.name) CONTAINS toLower($query)
-                       OR toLower(fact.predicate) CONTAINS toLower($query))
+                  AND (toLower($query) CONTAINS toLower(subject.name)
+                       OR toLower($query) CONTAINS toLower(object.name)
+                       OR toLower($query) CONTAINS toLower(fact.predicate))
                 RETURN DISTINCT fact.factKey AS factKey
                 ORDER BY factKey
                 LIMIT $limit
