@@ -860,7 +860,7 @@ public class AuthService {
             log.warn("注册赠积分失败，不影响注册流程: userId={}, err={}", userId, e.getMessage());
         }
         try {
-            subscriptionService.subscribe(userId, "FREE", null);
+            subscriptionService.ensureFreeSubscription(userId);
         } catch (Exception e) {
             log.warn("注册分配免费套餐失败，不影响注册流程: userId={}, err={}", userId, e.getMessage());
         }
