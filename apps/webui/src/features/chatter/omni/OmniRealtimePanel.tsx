@@ -32,6 +32,8 @@ interface RealtimeEvent {
 
 interface OmniRealtimePanelProps {
   onClose: () => void
+  /** 显式指定角色 roleKey（如 system.role.elder-companion）；为空时后端回退到助理默认角色 */
+  roleKey?: string
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -60,7 +62,7 @@ function parseRealtimeEvent(data: unknown): RealtimeEvent | null {
   }
 }
 
-export function OmniRealtimePanel({ onClose }: OmniRealtimePanelProps) {
+export function OmniRealtimePanel({ onClose, roleKey }: OmniRealtimePanelProps) {
   const accessToken = useAuthStore((s) => s.accessToken)
   const [status, setStatus] = useState<WsStatus>("disconnected")
   const [messages, setMessages] = useState<OmniMessage[]>([])
@@ -176,13 +178,13 @@ export function OmniRealtimePanel({ onClose }: OmniRealtimePanelProps) {
     setStatus("connecting")
 
     ws.onopen = () => {
-      ws.send(
-        JSON.stringify({
-          type: "hello",
-          protocol: "omni-realtime.v1",
-          endpointing: "server"
-        })
-      )
+      const hello: Record<string, unknown> = {
+        type: "hello",
+        protocol: "omni-realtime.v1",
+        endpointing: "server"
+      }
+      if (roleKey) hello.roleKey = roleKey
+      ws.send(JSON.stringify(hello))
     }
 
     ws.onmessage = (event: MessageEvent<unknown>) => {
@@ -276,7 +278,7 @@ export function OmniRealtimePanel({ onClose }: OmniRealtimePanelProps) {
       setStatus("disconnected")
     }
     ws.onerror = () => ws.close()
-  }, [accessToken, closePlayback, playAudioChunk, startCapture, stopCapture])
+  }, [accessToken, closePlayback, playAudioChunk, roleKey, startCapture, stopCapture])
 
   const handleCancelResponse = useCallback(() => {
     const ws = wsRef.current
