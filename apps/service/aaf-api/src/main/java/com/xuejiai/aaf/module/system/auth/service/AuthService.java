@@ -92,8 +92,8 @@ public class AuthService {
     @Value("${aaf.app.company-name:学记智能}")
     private String companyName;
 
-    @Value("${aaf.messaging.verify-code-channel:EMAIL}")
-    private String verifyCodeChannel;
+    @Value("${aaf.messaging.sms-verify-code-channel:SMS}")
+    private String smsVerifyCodeChannel;
 
     /** 获取当前登录用户 ID */
     public Long currentUserId() {
@@ -146,7 +146,7 @@ public class AuthService {
             user.setPassword(passwordEncoder.encode(dto.password()));
             if (dto.nickname() != null) user.setNickname(dto.nickname());
             userRepository.save(user);
-            sendVerifyCode(dto.email(), "register");
+            innerSendEmailCode(dto.email(), "register");
             return;
         }
         User user = new User();
@@ -161,7 +161,7 @@ public class AuthService {
         user.setRegisterLocation(resolveLocation(registerIp));
         userRepository.save(user);
         // 发送验证码
-        sendVerifyCode(dto.email(), "register");
+        innerSendEmailCode(dto.email(), "register");
     }
 
     /** 验证邮箱 */
@@ -223,13 +223,18 @@ public class AuthService {
         if ("reset".equals(dto.type()) && !userRepository.existsByEmail(dto.email())) {
             throw exception(AUTH_EMAIL_NOT_REGISTERED);
         }
+        innerSendEmailCode(dto.email(), dto.type());
+    }
+
+    /** 发送邮箱验证码核心逻辑：生成验证码 + 限频 + 同步发送邮件（失败抛异常并释放限频锁），供 sendEmailCode 与注册流程复用。 */
+    private void innerSendEmailCode(String email, String type) {
         // 频率限制：同邮箱1分钟内不重复发送
-        String lockKey = VERIFY_CODE_LOCK_PREFIX + dto.type() + ":" + dto.email();
+        String lockKey = VERIFY_CODE_LOCK_PREFIX + type + ":" + email;
         if (Boolean.TRUE.equals(redisTemplate.hasKey(lockKey))) {
             throw exception(AUTH_VERIFY_CODE_RATE_LIMIT);
         }
         String code = generateCode();
-        String codeKey = VERIFY_CODE_PREFIX + dto.type() + ":" + dto.email();
+        String codeKey = VERIFY_CODE_PREFIX + type + ":" + email;
         redisTemplate
                 .opsForValue()
                 .set(
@@ -238,30 +243,33 @@ public class AuthService {
                         Duration.ofMinutes(
                                 systemConfigService.getInteger("security.verify_code_expire", 5)));
         redisTemplate.opsForValue().set(lockKey, "1", Duration.ofMinutes(1));
-        log.info("邮箱验证码已生成: email={}, type={}", maskEmail(dto.email()), dto.type());
+        log.info("邮箱验证码已生成: email={}, type={}", maskEmail(email), type);
         // 同步发送验证码邮件——失败立即向前端报错，避免用户陷入"发了没收到 + 限频不能重试"死循环
-        var templateCode = "auth.verify_code." + dto.type();
         try {
             messageService.sendSync(
                     new MessageRequest(
                             MessageChannel.EMAIL,
-                            templateCode,
-                            List.of(dto.email()),
+                            "AUTH_VERIFY_CODE",
+                            List.of(email),
                             Map.of(
                                     "code",
                                     code,
+                                    "type",
+                                    type,
                                     "expireMinutes",
                                     systemConfigService.getInteger(
-                                            "security.verify_code_expire", 5)),
-                            null));
+                                            "security.verify_code_expire", 5),
+                                    "companyName",
+                                    companyName),
+                            "【" + companyName + "】安全验证码"));
         } catch (MessageSendException e) {
             // 发送失败：释放限频锁 + 清理已写入的验证码，让用户立即重试
             redisTemplate.delete(lockKey);
             redisTemplate.delete(codeKey);
             log.warn(
                     "邮箱验证码发送失败: email={}, type={}, error={}",
-                    maskEmail(dto.email()),
-                    dto.type(),
+                    maskEmail(email),
+                    type,
                     e.getMessage());
             throw exception(AUTH_VERIFY_CODE_SEND_FAILED);
         }
@@ -269,6 +277,8 @@ public class AuthService {
 
     /** 发送手机验证码 */
     public void sendSmsCode(SendSmsCodeDTO dto) {
+        // 渠道解析前置：配置非法时在写 Redis 前快速失败
+        var channel = MessageChannel.valueOf(smsVerifyCodeChannel.toUpperCase());
         // 频率限制：同手机号1分钟内不重复发送
         String lockKey = SMS_VERIFY_CODE_LOCK_PREFIX + dto.type() + ":" + dto.phone();
         if (Boolean.TRUE.equals(redisTemplate.hasKey(lockKey))) {
@@ -285,28 +295,39 @@ public class AuthService {
                                 systemConfigService.getInteger("security.verify_code_expire", 5)));
         redisTemplate.opsForValue().set(lockKey, "1", Duration.ofMinutes(1));
         log.info("手机验证码已生成: phone={}, type={}", maskPhone(dto.phone()), dto.type());
-        // 同步发送短信验证码——SmsChannelSender 内部用 templateCode（register/login/reset）查 sys_sms_template
-        // 解析厂商模板
-        // 失败立即向前端报错，避免用户陷入"发了没收到 + 限频不能重试"死循环
+        // 发送验证码——渠道由 aaf.messaging.sms-verify-code-channel 决定：SMS 走短信厂商模板，
+        // DINGTALK 等开发调试渠道改为直接内容推送到群机器人。失败立即向前端报错，避免"发了没收到 + 限频不能重试"死循环。
         try {
-            messageService.sendSync(
-                    new MessageRequest(
-                            MessageChannel.SMS,
-                            dto.type(),
-                            List.of(dto.phone()),
-                            Map.of("code", code),
-                            null));
+            messageService.sendSync(buildSmsVerifyCodeRequest(channel, dto, code));
         } catch (MessageSendException e) {
             // 发送失败：释放限频锁 + 清理已写入的验证码，让用户立即重试
             redisTemplate.delete(lockKey);
             redisTemplate.delete(codeKey);
             log.warn(
-                    "短信验证码发送失败: phone={}, type={}, error={}",
+                    "手机验证码发送失败: phone={}, type={}, error={}",
                     maskPhone(dto.phone()),
                     dto.type(),
                     e.getMessage());
             throw exception(AUTH_VERIFY_CODE_SEND_FAILED);
         }
+    }
+
+    /** 构造手机验证码发送请求：SMS 用模板编码走厂商，非短信渠道（群机器人）用直接内容。 */
+    private MessageRequest buildSmsVerifyCodeRequest(
+            MessageChannel channel, SendSmsCodeDTO dto, String code) {
+        if (channel == MessageChannel.SMS) {
+            return new MessageRequest(
+                    MessageChannel.SMS,
+                    dto.type(),
+                    List.of(dto.phone()),
+                    Map.of("code", code),
+                    null);
+        }
+        return MessageRequest.direct(
+                channel,
+                "【" + companyName + "】手机验证码",
+                "手机号：" + dto.phone() + "（" + dto.type() + "）验证码：" + code,
+                List.of(dto.phone()));
     }
 
     // ==================== 验证码登录 ====================
@@ -740,41 +761,6 @@ public class AuthService {
         String stored = redisTemplate.opsForValue().getAndDelete(key);
         if (stored == null || !stored.equals(code)) {
             throw exception(AUTH_VERIFY_CODE_INVALID);
-        }
-    }
-
-    private void sendVerifyCode(String email, String type) {
-        String code = generateCode();
-        String codeKey = VERIFY_CODE_PREFIX + type + ":" + email;
-        redisTemplate
-                .opsForValue()
-                .set(
-                        codeKey,
-                        code,
-                        Duration.ofMinutes(
-                                systemConfigService.getInteger("security.verify_code_expire", 5)));
-        try {
-            var channel = MessageChannel.valueOf(verifyCodeChannel.toUpperCase());
-            // 钉钉渠道收件人用邮箱占位（实际推送到群机器人，recipients 字段忽略）
-            var recipients = List.of(email);
-            messageService.send(
-                    new MessageRequest(
-                            channel,
-                            "AUTH_VERIFY_CODE",
-                            recipients,
-                            Map.of(
-                                    "code",
-                                    code,
-                                    "type",
-                                    type,
-                                    "expireMinutes",
-                                    systemConfigService.getInteger(
-                                            "security.verify_code_expire", 5),
-                                    "companyName",
-                                    companyName),
-                            "【" + companyName + "】安全验证码"));
-        } catch (Exception e) {
-            log.warn("验证码发送失败，邮箱={}, 类型={}", maskEmail(email), type, e);
         }
     }
 

@@ -138,40 +138,6 @@ VALUES (
     content  = EXCLUDED.content,
     variables = EXCLUDED.variables;
 
--- 验证码邮件模板（旧格式，兼容 sendCode 调用）
-INSERT INTO sys_message_template (code, name, channel, subject, content, variables)
-VALUES
-    ('auth.verify_code.register', '注册验证码', 'EMAIL', '注册验证码',
-     '<p>您正在注册账号，验证码为：<strong>${code}</strong>，${expireMinutes} 分钟内有效，请勿泄露。</p>',
-     '["code","expireMinutes"]'),
-    ('auth.verify_code.login', '登录验证码', 'EMAIL', '登录验证码',
-     '<p>您正在登录，验证码为：<strong>${code}</strong>，${expireMinutes} 分钟内有效，请勿泄露。</p>',
-     '["code","expireMinutes"]'),
-    ('auth.verify_code.reset', '重置密码验证码', 'EMAIL', '重置密码验证码',
-     '<p>您正在重置密码，验证码为：<strong>${code}</strong>，${expireMinutes} 分钟内有效，请勿泄露。</p>',
-     '["code","expireMinutes"]')
-ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
-
--- 钉钉渠道验证码模板（开发/测试环境调试用）
-INSERT INTO sys_message_template (code, name, channel, subject, content, variables)
-VALUES (
-    'AUTH_VERIFY_CODE_DINGTALK',
-    '认证验证码（钉钉）',
-    'DINGTALK',
-    '安全验证码',
-    '## 【${companyName}】安全验证码
-
-您正在进行账号验证，您的验证码为：
-
-# ${code}
-
-验证码 **${expireMinutes} 分钟**内有效，请勿泄露给他人。
-
-> 如非本人操作，请忽略此消息。',
-    '["code","type","expireMinutes","companyName"]'
-) ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
-
-
 -- ==================== 初始管理员 ====================
 
 -- 密码为 admin（BCrypt），首次登录后请修改

@@ -186,8 +186,8 @@ aaf:
     prompts:
       chat: 你是一个有帮助的 AI 助手，请用中文回答用户的问题。
   messaging:
-    # 验证码发送渠道：EMAIL（默认）/ DINGTALK（开发调试用，推到钉钉群机器人）/ SMS
-    verify-code-channel: ${VERIFY_CODE_CHANNEL:EMAIL}
+    # 手机验证码发送渠道：SMS（默认，走短信厂商）/ DINGTALK（开发调试用，推到钉钉群机器人）
+    sms-verify-code-channel: ${SMS_VERIFY_CODE_CHANNEL:SMS}
     sms:
       provider: aliyun
       aliyun:

@@ -140,7 +140,7 @@ class AuthServiceTest extends BaseMockitoUnitTest {
         verify(messageService).sendSync(captor.capture());
         var request = captor.getValue();
         assertThat(request.channel()).isEqualTo(MessageChannel.EMAIL);
-        assertThat(request.templateCode()).isEqualTo("auth.verify_code.register");
+        assertThat(request.templateCode()).isEqualTo("AUTH_VERIFY_CODE");
         assertThat(request.recipients()).containsExactly("test@example.com");
         assertThat(request.variables()).containsEntry("expireMinutes", 5);
     }
