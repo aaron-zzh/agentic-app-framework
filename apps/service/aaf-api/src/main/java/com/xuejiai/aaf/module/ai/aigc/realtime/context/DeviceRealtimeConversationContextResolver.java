@@ -47,24 +47,28 @@ public class DeviceRealtimeConversationContextResolver
     private AssistantConversationContextApi.ConversationContext resolveRole(
             ConversationIdentity identity, RealtimeDeviceContext deviceContext) {
         var deviceRole = normalizedRoleKey(deviceContext.requestedRoleKey());
-        var context = resolveAllowedRole(identity, deviceContext, deviceRole);
-        if (context != null) {
-            return context;
-        }
-
-        context = resolveAllowedRole(identity, deviceContext, null);
-        if (context != null) {
-            return context;
-        }
-
-        var scenarioRole = normalizedRoleKey(deviceContext.scenarioDefaultRoleKey());
-        if (!java.util.Objects.equals(deviceRole, scenarioRole)) {
-            context = resolveAllowedRole(identity, deviceContext, scenarioRole);
+        if (deviceRole != null) {
+            var context = resolveAllowedRole(identity, deviceContext, deviceRole);
             if (context != null) {
                 return context;
             }
         }
-        throw new IllegalArgumentException("设备没有可用的 Assistant 绑定角色");
+
+        // 设备链路优先跟随场景默认角色，切换场景即自动切换角色。
+        var scenarioRole = normalizedRoleKey(deviceContext.scenarioDefaultRoleKey());
+        if (scenarioRole != null) {
+            var context = resolveAllowedRole(identity, deviceContext, scenarioRole);
+            if (context != null) {
+                return context;
+            }
+        }
+
+        // 弃用：设备链路不再回退「所有者默认角色」，仅作兜底，后续版本移除。
+        var context = resolveAllowedRole(identity, deviceContext, null);
+        if (context != null) {
+            return context;
+        }
+        throw new IllegalArgumentException("设备会话角色解析失败：设备角色与场景默认角色均不可用，请检查默认助理是否存在并绑定可用的默认角色");
     }
 
     private AssistantConversationContextApi.ConversationContext resolveAllowedRole(

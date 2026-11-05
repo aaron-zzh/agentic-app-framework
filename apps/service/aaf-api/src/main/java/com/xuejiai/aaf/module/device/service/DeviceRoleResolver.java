@@ -29,6 +29,12 @@ public class DeviceRoleResolver {
         if (deviceRole != null) {
             return deviceRole;
         }
+        // 设备链路优先跟随场景默认角色，切换场景即自动切换角色。
+        var scenarioDefault = usableRole(library, scenario.defaultRoleKey(), allowed);
+        if (scenarioDefault != null) {
+            return scenarioDefault;
+        }
+        // 弃用：设备链路不再回退「所有者默认角色」，仅作兜底，后续版本移除。
         var ownerDefault =
                 library.items().stream()
                         .filter(RoleLibraryVO.Item::defaultRole)
@@ -38,10 +44,6 @@ public class DeviceRoleResolver {
                         .orElse(null);
         if (ownerDefault != null) {
             return ownerDefault;
-        }
-        var scenarioDefault = usableRole(library, scenario.defaultRoleKey(), allowed);
-        if (scenarioDefault != null) {
-            return scenarioDefault;
         }
         throw exception(DEVICE_ROLE_UNAVAILABLE);
     }
