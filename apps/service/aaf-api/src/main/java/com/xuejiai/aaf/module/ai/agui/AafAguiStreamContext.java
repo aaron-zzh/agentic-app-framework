@@ -239,7 +239,7 @@ public final class AafAguiStreamContext {
                         new AguiEvent.RunFinishedInterruptOutcome(interrupts)));
     }
 
-    /** 失败终态：RUN_ERROR 后必须紧跟 RUN_FINISHED，AG-UI 要求 run 必须终结。 */
+    /** 失败终态：RUN_ERROR 本身即 AG-UI 协议的 run 终结事件，不能再补发 RUN_FINISHED。 */
     public List<AguiEvent> runError(String code) {
         if (runFinished) {
             return List.of();
@@ -249,9 +249,7 @@ public final class AafAguiStreamContext {
                 "MODEL_SERVICE_TEMPORARILY_UNAVAILABLE".equals(code)
                         ? "模型服务暂时不可用，请稍后重试"
                         : "Assistant 运行未完成";
-        return List.of(
-                new AguiEvent.RunError(threadId, runId, message, code),
-                new AguiEvent.RunFinished(threadId, runId));
+        return List.of(new AguiEvent.RunError(threadId, runId, message, code));
     }
 
     /** 流结束兜底：补齐未闭合的 message 与 tool call，并确保 run 已终结。 */

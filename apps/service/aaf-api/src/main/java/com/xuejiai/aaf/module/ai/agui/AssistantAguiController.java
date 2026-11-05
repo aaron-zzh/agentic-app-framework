@@ -146,7 +146,8 @@ public class AssistantAguiController {
                             send(emitter, session.project(event), event.sequence());
                         },
                         failure -> {
-                            // 事件流以异常终止时补 RUN_ERROR + RUN_FINISHED，保证 run 在协议上闭合
+                            // 事件流以异常终止时补 RUN_ERROR 终结 run；记录原始异常以便定位失败根因
+                            log.error("run 执行流异常: threadId={}, runId={}", threadId, runId, failure);
                             send(
                                     emitter,
                                     session.fail(threadId, runId, "ASSISTANT_STREAM_FAILED"),

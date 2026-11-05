@@ -159,7 +159,7 @@ class AgUiProjectorTest {
         var events = session.project(event(1, ExecutionEventType.RUN_FAILED, Map.of()));
 
         assertThat(events.stream().map(AguiEvent::getType))
-                .containsExactly(AguiEventType.RUN_ERROR, AguiEventType.RUN_FINISHED);
+                .containsExactly(AguiEventType.RUN_ERROR);
         assertThat(json(events.getFirst())).contains("\"code\":\"AGENT_RUN_FAILED\"");
     }
 
