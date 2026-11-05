@@ -3,8 +3,8 @@ level: Practice
 layer: Product
 purpose: 定义 NexusKB 可信知识架构的接口、数据模型、投影、检索、计费和迁移方案
 status: published
-version: 1.3.5
-date: 2026-08-02
+version: 1.3.6
+date: 2026-11-04
 author: AaronZZH
 tags:
   - NexusKB
@@ -39,6 +39,7 @@ gains:
   - 能按当前事实或显式时间点执行证据支持的可信检索
   - 能验证多库检索不会越过 ACL 并能稳定融合结果
 changelog:
+  - 2026-11-04 v1.3.6 | 补社区（community）检索能力清单：定位全局层、global/local/drift 三种用法、PG 真理 + Neo4j GDS 计算投影的存储职责与前提门槛
   - 2026-08-02 v1.3.5 | 知识库默认图谱切换为独立 Nx Three.js 引擎，支持 2D/2.5D/3D、批量渲染、基础布局和节点卡片
   - 2026-08-02 v1.3.4 | 前台收口到 /studio/knowledge，新增租户约束的 /admin/knowledge 运维入口与 ADMIN_MAINTENANCE 权限 seed
   - 2026-08-02 v1.3.3 | 删除阶段性 SQL 文本静态测试，将迁移验证合同收口为首次部署前的真实 PostgreSQL/Flyway 验收
@@ -717,6 +718,22 @@ score(candidate) = baseWeight(candidate.baseId)
 - 图查询过采样后再复核截断，投影不 READY 时关闭图分支并返回 degraded channel。
 
 每项能力必须先有生产调用和验收场景；不得仅因 Neo4j 支持某算法就预先维护结果。
+
+### 社区检索（Community）
+
+社区是对当前三通道的**全局层补充**，不是第四种 `Channel`，也不替代 VECTOR/KEYWORD/GRAPH。社区按知识库内部图结构聚类，受 ACL 约束不跨库；与「知识库（权限边界）」「文档（来源边界）」正交。搜索时社区摘要有三种用法，按需启用其一：
+
+- **Global 检索**：把社区摘要向量化后建 PgVector 索引，检索时匹配相关社区摘要，再 Map 分批生成带评分局部要点、过滤排序后 Reduce 汇总。证据单元是社区摘要本身，**不走图查询**。
+- **Local 检索增强**：现有三通道命中后，回查命中实体/事实所在的社区摘要，作为全局上下文与实体描述、关系路径、原文并列附加进 LLM 输入。
+- **DRIFT / 混合（可选）**：先用社区摘要把问题收敛到少数相关社区，再在社区内做有界图遍历，向量补充原文后汇总。只有此处的「社区收敛」才用于缩小图遍历范围，不同于 Global 的无图路径。
+
+存储职责与既有架构一致，簇与摘要都落 PostgreSQL，Neo4j 只做计算与投影：
+
+- Neo4j GDS 执行 Leiden/Louvain 计算聚类，结果回写 PostgreSQL 作为真理并投影 `communityId` 到 `KnowledgeEntity`；Neo4j 侧仅是可重建派生，删除后可重算。
+- PostgreSQL 新增 `ai_knowledge_community`（稳定 community_id、knowledge_base_id）与 `ai_knowledge_entity_community`（entity→community 归属），受 ACL、来源与代际约束。
+- LLM 社区摘要是 AI 产物而非图算法结果，必须落 PostgreSQL，复用 fact/evidence 的 modelId、prompt 快照、指纹、`KnowledgeUsagePort` 计费与代际换代失效机制；摘要向量存 PgVector，不复制为 Neo4j 真理。
+
+该能力仅为登记，须出现具体的全局总结或主题报告型使用场景，并经协调者评审后立项。
 
 ### 历史图投影
 
