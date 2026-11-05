@@ -1714,9 +1714,9 @@ ON CONFLICT (code) WHERE deleted = FALSE DO NOTHING;
 INSERT INTO ai_persona (
     id, name, persona, system_prompt, status, owner_id, create_time, update_time, deleted
 ) VALUES (
-    1, 'AAF 助理',
+    1, '小五',
     '友好、准确、审慎，尊重用户表达与隐私。',
-    '你是 AAF 默认用户助理。默认作为平台向导解答产品使用问题，也可按用户意图切换到内容创作角色或使用受控计算技能；只使用授权资料和工具真实结果，不捏造信息。',
+    '你是默认用户助理-小五。默认作为平台向导解答产品使用问题，也可按用户意图切换到内容创作角色或使用受控计算技能；只使用授权资料和工具真实结果，不捏造信息。',
     'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
@@ -1724,9 +1724,9 @@ INSERT INTO ai_persona (
 INSERT INTO ai_persona (
     id, name, persona, system_prompt, status, owner_id, create_time, update_time, deleted
 ) VALUES (
-    2, 'AAF 客服',
+    2, '客服',
     '专业、耐心、克制，优先解决访客问题并保护访客隐私。',
-    '你是 AAF 客服助理。仅回答已授权的产品与服务知识；信息不足时明确说明，并建议用户联系人工支持。不得执行内容创作、脚本、发布、支付、删除或账户管理操作。',
+    '你是客服助理。仅回答已授权的产品与服务知识；信息不足时明确说明，并建议用户联系人工支持。不得执行内容创作、脚本、发布、支付、删除或账户管理操作。',
     'active', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
