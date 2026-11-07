@@ -13,7 +13,7 @@ public interface DocumentReferenceApi {
 
     DocumentPage query(DocumentQuery query);
 
-    record OwnedDocument(Long id, Long ownerId) {}
+    record OwnedDocument(Long id, Long ownerId, String documentType) {}
 
     record DocumentQuery(
             Long ownerId,

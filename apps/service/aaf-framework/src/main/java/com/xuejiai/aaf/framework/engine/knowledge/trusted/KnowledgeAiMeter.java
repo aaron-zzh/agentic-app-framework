@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.engine.knowledge.graph.ExtractedTriple;
+import com.xuejiai.aaf.framework.engine.knowledge.summary.KnowledgeSummaryPrompt.DocumentSummaryOutput;
 import com.xuejiai.aaf.framework.intelligent.core.AiUsage;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelManagementService;
 
@@ -50,6 +51,104 @@ public class KnowledgeAiMeter {
         };
     }
 
+    /** 文档摘要阶段：与实体抽取相同的预留、恢复与结算流程，记给入库代际的付费用户。 */
+    public DocumentSummaryOutput invokeDocumentSummary(
+            KnowledgeUsagePort.BillingContext billing,
+            String stage,
+            String unitKey,
+            String modelId,
+            String input,
+            Supplier<ResponseEntity<ChatResponse, DocumentSummaryOutput>> invocation) {
+        var inputDigest = inputDigest(modelId, input);
+        var stored = usagePort.findProviderResult(billing, stage, unitKey, inputDigest);
+        if (stored.isPresent()) {
+            return settleStoredDocumentSummary(billing, stage, unitKey, modelId, stored.get());
+        }
+
+        usagePort.precheck(billing, stage, AiCreditGuard.INESTIMABLE_COST);
+        var reservation = usagePort.reserve(billing, stage, unitKey, inputDigest);
+        return switch (reservation.state()) {
+            case RECOVERABLE, COMPLETED -> settleDocumentSummaryReservation(reservation, modelId);
+            case BUSY -> throw new IllegalStateException("知识入库 AI 单元正由其他调用者处理");
+            case UNKNOWN ->
+                    throw new IllegalStateException("知识入库 AI 调用结果未知，需按 provider request id 人工确认");
+            case RESERVED -> invokeReservedDocumentSummary(reservation, modelId, invocation);
+        };
+    }
+
+    private DocumentSummaryOutput invokeReservedDocumentSummary(
+            KnowledgeUsagePort.InvocationReservation reservation,
+            String modelId,
+            Supplier<ResponseEntity<ChatResponse, DocumentSummaryOutput>> invocation) {
+        if (!usagePort.start(reservation)) {
+            throw new IllegalStateException("知识入库 AI 单元并发占用失败");
+        }
+        try {
+            var responseEntity = invocation.get();
+            if (responseEntity == null
+                    || responseEntity.response() == null
+                    || responseEntity.entity() == null) {
+                throw new IllegalStateException("文档摘要 AI 返回空结构化响应");
+            }
+            var metadata = responseEntity.response().getMetadata();
+            var providerUsage = metadata == null ? null : metadata.getUsage();
+            var provider =
+                    new DocumentSummaryProviderResult(
+                            responseEntity.entity(),
+                            JsonUtils.toJsonString(responseEntity.response()),
+                            providerUsage == null ? 0 : providerUsage.getPromptTokens(),
+                            providerUsage == null ? 0 : providerUsage.getCompletionTokens());
+            var providerJson = JsonUtils.toJsonString(provider);
+            usagePort.persistProviderResult(
+                    reservation, providerJson, reservation.providerRequestId());
+            settle(
+                    reservation,
+                    modelId,
+                    providerJson,
+                    provider.promptTokens(),
+                    provider.completionTokens());
+            return provider.entity();
+        } catch (RuntimeException failure) {
+            usagePort.markUnknown(reservation, failure.getMessage());
+            throw failure;
+        }
+    }
+
+    private DocumentSummaryOutput settleStoredDocumentSummary(
+            KnowledgeUsagePort.BillingContext billing,
+            String stage,
+            String unitKey,
+            String modelId,
+            KnowledgeUsagePort.StoredProviderResult stored) {
+        var provider =
+                JsonUtils.parseObject(stored.providerResult(), DocumentSummaryProviderResult.class);
+        var reservation = reservation(billing, stage, unitKey, stored);
+        settle(
+                reservation,
+                modelId,
+                stored.providerResult(),
+                provider.promptTokens(),
+                provider.completionTokens());
+        return provider.entity();
+    }
+
+    private DocumentSummaryOutput settleDocumentSummaryReservation(
+            KnowledgeUsagePort.InvocationReservation reservation, String modelId) {
+        if (reservation.providerResult() == null) {
+            throw new IllegalStateException("知识入库 AI 恢复单元缺少 provider 结果");
+        }
+        var provider =
+                JsonUtils.parseObject(
+                        reservation.providerResult(), DocumentSummaryProviderResult.class);
+        settle(
+                reservation,
+                modelId,
+                reservation.providerResult(),
+                provider.promptTokens(),
+                provider.completionTokens());
+        return provider.entity();
+    }
+
     public String invokeText(
             KnowledgeUsagePort.BillingContext billing,
             String stage,
@@ -74,14 +173,14 @@ public class KnowledgeAiMeter {
         };
     }
 
-    public EntityResolutionDecision invokeEntityResolution(
+    public EntityResolutionBatchDecision invokeEntityResolution(
             KnowledgeUsagePort.BillingContext billing,
             String stage,
             String unitKey,
             String modelId,
             String input,
             int maxResponseLength,
-            Supplier<ResponseEntity<ChatResponse, EntityResolutionDecision>> invocation) {
+            Supplier<ResponseEntity<ChatResponse, EntityResolutionBatchDecision>> invocation) {
         var inputDigest = inputDigest(modelId, input);
         var stored = usagePort.findProviderResult(billing, stage, unitKey, inputDigest);
         if (stored.isPresent()) {
@@ -101,11 +200,11 @@ public class KnowledgeAiMeter {
         };
     }
 
-    private EntityResolutionDecision invokeReservedEntityResolution(
+    private EntityResolutionBatchDecision invokeReservedEntityResolution(
             KnowledgeUsagePort.InvocationReservation reservation,
             String modelId,
             int maxResponseLength,
-            Supplier<ResponseEntity<ChatResponse, EntityResolutionDecision>> invocation) {
+            Supplier<ResponseEntity<ChatResponse, EntityResolutionBatchDecision>> invocation) {
         if (!usagePort.start(reservation)) {
             throw new IllegalStateException("知识入库 AI 单元并发占用失败");
         }
@@ -117,14 +216,8 @@ public class KnowledgeAiMeter {
                 throw new IllegalStateException("实体消歧 AI 返回空结构化响应");
             }
             var response = responseEntity.response();
-            var rawText =
-                    response.getResult() == null || response.getResult().getOutput() == null
-                            ? null
-                            : response.getResult().getOutput().getText();
-            if (rawText == null || rawText.isBlank()) {
-                throw new IllegalStateException("实体消歧 AI 返回空响应");
-            }
-            if (rawText.length() > maxResponseLength) {
+            // 结构化结果来自工具调用入参，正文为空；按结构化结果序列化长度限制
+            if (JsonUtils.toJsonString(responseEntity.entity()).length() > maxResponseLength) {
                 throw new IllegalStateException("实体消歧结果超过最大长度");
             }
             var metadata = response.getMetadata();
@@ -151,7 +244,7 @@ public class KnowledgeAiMeter {
         }
     }
 
-    private EntityResolutionDecision settleStoredEntityResolution(
+    private EntityResolutionBatchDecision settleStoredEntityResolution(
             KnowledgeUsagePort.BillingContext billing,
             String stage,
             String unitKey,
@@ -170,7 +263,7 @@ public class KnowledgeAiMeter {
         return provider.entity();
     }
 
-    private EntityResolutionDecision settleEntityResolutionReservation(
+    private EntityResolutionBatchDecision settleEntityResolutionReservation(
             KnowledgeUsagePort.InvocationReservation reservation, String modelId) {
         if (reservation.providerResult() == null) {
             throw new IllegalStateException("知识入库 AI 恢复单元缺少 provider 结果");
@@ -400,15 +493,24 @@ public class KnowledgeAiMeter {
         }
     }
 
-    public record EntityResolutionDecision(String action, String entityId) {}
+    /** 批量消歧工具入参：每个输入 key 一条决策。 */
+    public record EntityResolutionBatchDecision(List<EntityResolutionDecision> decisions) {}
+
+    public record EntityResolutionDecision(String key, String action, String entityId) {}
 
     private record EntityResolutionProviderResult(
-            EntityResolutionDecision entity,
+            EntityResolutionBatchDecision entity,
             String rawResponse,
             long promptTokens,
             long completionTokens) {}
 
     private record ChatProviderResult(String text, long promptTokens, long completionTokens) {}
+
+    private record DocumentSummaryProviderResult(
+            DocumentSummaryOutput entity,
+            String rawResponse,
+            long promptTokens,
+            long completionTokens) {}
 
     private record ChatTokenUsage(long inputTokens, long outputTokens) implements AiUsage {
         @Override

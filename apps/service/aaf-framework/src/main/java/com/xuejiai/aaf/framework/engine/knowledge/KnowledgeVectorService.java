@@ -332,6 +332,7 @@ public class KnowledgeVectorService {
                             AND d.active_run_id = c.run_id AND d.deleted = false
                         JOIN ai_knowledge_base b ON b.id = c.knowledge_base_id AND b.deleted = false
                         WHERE c.stable_id = ANY(CAST(? AS uuid[]))
+                          AND c.enabled
                           AND b.stable_id = ?
                           AND (CAST(? AS text[]) = '{}'::text[] OR d.source_type = ANY(CAST(? AS text[])))
                           AND (CAST(? AS text[]) = '{}'::text[] OR d.source_key = ANY(CAST(? AS text[])))

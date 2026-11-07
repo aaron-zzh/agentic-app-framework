@@ -1,11 +1,13 @@
 package com.xuejiai.aaf.module.knowledge.controller;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -31,6 +33,9 @@ import com.xuejiai.aaf.module.knowledge.vo.KnowledgeBaseMaintenanceVO;
 import com.xuejiai.aaf.module.knowledge.vo.KnowledgeBaseStatsVO;
 import com.xuejiai.aaf.module.knowledge.vo.KnowledgeBaseUpdateDTO;
 import com.xuejiai.aaf.module.knowledge.vo.KnowledgeBaseVO;
+import com.xuejiai.aaf.module.knowledge.vo.KnowledgeChunkVO;
+import com.xuejiai.aaf.module.knowledge.vo.KnowledgeDocumentLibraryImportDTO;
+import com.xuejiai.aaf.module.knowledge.vo.KnowledgeDocumentLibraryImportVO;
 import com.xuejiai.aaf.module.knowledge.vo.KnowledgeDocumentVO;
 import com.xuejiai.aaf.module.knowledge.vo.KnowledgeGraphVO;
 import com.xuejiai.aaf.module.knowledge.vo.KnowledgeGraphVO.GraphProjectionStatusVO;
@@ -135,6 +140,20 @@ public class KnowledgeBaseController
         return Result.success(knowledgeBaseService.getGraph(id));
     }
 
+    @Operation(summary = "知识库所有者重建知识图投影")
+    @OperationLog(
+            module = "知识库",
+            type = OperationType.OTHER,
+            description = "重建知识图投影",
+            bizNo = "#{p0}")
+    @PreAuthorize("isAuthenticated()")
+    @PostMapping("/{id}/graph/rebuild")
+    public Result<GraphProjectionStatusVO> rebuildOwnGraphProjection(
+            @PathVariable Long id,
+            @RequestHeader("Idempotency-Key") @NotBlank @Size(max = 200) String requestKey) {
+        return Result.success(knowledgeBaseService.rebuildOwnGraphProjection(id, requestKey));
+    }
+
     @Operation(summary = "查询知识图投影状态")
     @PreAuthorize("hasAnyRole('ORG_ADMIN', 'ADMIN', 'SUPER_ADMIN')")
     @GetMapping("/{id}/graph-projection/status")
@@ -191,6 +210,31 @@ public class KnowledgeBaseController
         return Result.success(knowledgeBaseService.getDocument(id, documentId));
     }
 
+    @Operation(summary = "知识库文档分块列表（当前发布代际，只读）")
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/{id}/documents/{documentId}/chunks")
+    public Result<PageResult<KnowledgeChunkVO>> documentChunks(
+            @PathVariable Long id, @PathVariable Long documentId, Pageable pageable) {
+        return Result.success(knowledgeBaseService.listDocumentChunks(id, documentId, pageable));
+    }
+
+    @Operation(summary = "启用或停用知识库文档分块")
+    @OperationLog(
+            module = "知识库",
+            type = OperationType.UPDATE,
+            description = "启用或停用知识库文档分块",
+            bizNo = "#{p2}")
+    @PreAuthorize("isAuthenticated()")
+    @PatchMapping("/{id}/documents/{documentId}/chunks/{chunkId}/enabled")
+    public Result<Void> setChunkEnabled(
+            @PathVariable Long id,
+            @PathVariable Long documentId,
+            @PathVariable UUID chunkId,
+            @RequestParam boolean enabled) {
+        knowledgeBaseService.setChunkEnabled(id, documentId, chunkId, enabled);
+        return Result.success();
+    }
+
     @Operation(summary = "删除知识库文档")
     @PreAuthorize("isAuthenticated()")
     @DeleteMapping("/{id}/documents/{documentId}")
@@ -213,6 +257,15 @@ public class KnowledgeBaseController
     public Result<List<KnowledgeDocumentVO>> batchImport(
             @PathVariable Long id, @RequestParam("files") MultipartFile[] files) {
         return Result.success(knowledgeBaseService.batchImportDocuments(id, files));
+    }
+
+    @Operation(summary = "从文档库导入文档")
+    @PreAuthorize("isAuthenticated()")
+    @PostMapping("/{id}/documents/from-docs")
+    public Result<KnowledgeDocumentLibraryImportVO> importFromDocs(
+            @PathVariable Long id, @Valid @RequestBody KnowledgeDocumentLibraryImportDTO request) {
+        return Result.success(
+                knowledgeBaseService.importLibraryDocuments(id, request.documentIds()));
     }
 
     @Operation(summary = "查询文档处理进度")

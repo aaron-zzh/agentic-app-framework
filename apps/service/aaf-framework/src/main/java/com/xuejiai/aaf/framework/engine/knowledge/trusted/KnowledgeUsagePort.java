@@ -24,6 +24,9 @@ public interface KnowledgeUsagePort {
 
     void markUnknown(InvocationReservation reservation, String errorMessage);
 
+    /** 调用明确失败且未拿到 provider 结果时释放预留，下次 {@link #reserve} 可重新占用并重发。 */
+    void releaseForRetry(InvocationReservation reservation, String errorMessage);
+
     Optional<StoredProviderResult> findProviderResult(
             BillingContext billing, String stage, String unitKey, String inputDigest);
 

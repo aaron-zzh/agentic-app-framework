@@ -34,6 +34,7 @@ public class KnowledgeDocumentUploadService {
     private final FileStoragePort fileUploadService;
     private final DocumentSourceApi documentSourceApi;
 
+    /** 上传文档库不支持的文件（docx/html）：只建来源档案，由异步处理冻结解析文本版本。 */
     @Transactional
     public List<KnowledgeDocument> upload(KnowledgeBase knowledgeBase, MultipartFile[] files) {
         if (files == null || files.length == 0) {
@@ -85,15 +86,27 @@ public class KnowledgeDocumentUploadService {
         return List.copyOf(documents);
     }
 
-    /** 导入应用内置资源，沿用普通上传的文件存储、来源建档与异步处理链路。 */
+    /**
+     * 将文档库文档的固定版本正文作为知识来源导入，沿用普通上传的文件存储与异步处理链路。
+     *
+     * <p>知识文档直接引用该文档库文档，不再另建来源文档；正文另存为独立处理文件，删除知识文档只清理该处理文件。
+     */
     @Transactional
     public KnowledgeDocument uploadResource(
             KnowledgeBase knowledgeBase,
             byte[] content,
             String filename,
             String contentType,
-            String sourceKey) {
-        if (content == null || content.length == 0 || filename == null || filename.isBlank()) {
+            Long sourceDocumentId,
+            String sourceKey,
+            String sourceType,
+            Long uploadedBy) {
+        if (content == null
+                || content.length == 0
+                || filename == null
+                || filename.isBlank()
+                || sourceDocumentId == null
+                || uploadedBy == null) {
             throw exception(GlobalErrorCode.BAD_REQUEST);
         }
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
@@ -108,20 +121,11 @@ public class KnowledgeDocumentUploadService {
                 fileUploadService.uploadFromBytes(
                         content, filename, contentType, knowledgeBase.getOwnerId());
         uploadedKeys.add(sourceFile.key());
-        var sourceDocument =
-                documentSourceApi.register(
-                        new SourceDocumentCommand(
-                                sourceFile.fileId(),
-                                filename,
-                                "knowledge_source",
-                                sourceKey,
-                                null,
-                                knowledgeBase.getOwnerId()));
         var document = new KnowledgeDocument();
         document.setKnowledgeBaseId(knowledgeBase.getId());
-        document.setSourceDocumentId(sourceDocument.id());
-        document.setUploadedBy(knowledgeBase.getOwnerId());
-        document.setSourceType("SYSTEM");
+        document.setSourceDocumentId(sourceDocumentId);
+        document.setUploadedBy(uploadedBy);
+        document.setSourceType(sourceType);
         document.setSourceKey(sourceKey);
         document.setSourceUri(sourceFile.url());
         document.setTitle(filename);

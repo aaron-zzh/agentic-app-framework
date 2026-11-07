@@ -6,35 +6,43 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.ai.chat.client.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.FocusExtractionContextAssembler.FocusContext;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.IncrementalEntityResolver;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.IncrementalEntityResolver.EntityMention;
+import com.xuejiai.aaf.framework.engine.knowledge.trusted.IncrementalEntityResolver.MentionKey;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeAiMeter;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore.FactAssertion;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore.RunContext;
 import com.xuejiai.aaf.framework.engine.meta.runtime.NonRetryableTaskException;
-import com.xuejiai.aaf.framework.intelligent.ai.chat.DynamicChatClientFactory;
+import com.xuejiai.aaf.framework.intelligent.ai.chat.DashScopeStructuredOutputClient;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 从焦点块抽取可验证事实并写入 PostgreSQL 真理表。 */
+/**
+ * 从焦点块抽取可验证事实并写入 PostgreSQL 真理表。
+ *
+ * <p>分两步：{@link #extract} 逐块调用大模型抽取并校验，不落库；{@link #persist} 汇总整篇文档的实体提及做一次批量消歧，再写入事实。
+ *
+ * <p>抽取通过百炼 JSON Schema 结构化输出约束生成，抽取模型须为百炼千问模型。
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class EntityExtractionService {
 
-    private final DynamicChatClientFactory chatClientFactory;
+    private final DashScopeStructuredOutputClient structuredOutputClient;
     private final KnowledgeAiMeter meter;
     private final IncrementalEntityResolver entityResolver;
     private final TrustedKnowledgeStore store;
 
-    public int extractAndPersist(RunContext run, FocusContext context, Runnable executionGuard) {
+    /** 抽取单个焦点块的事实并完成契约与证据校验，返回可持久化的事实。 */
+    public ChunkFacts extract(RunContext run, FocusContext context, Runnable executionGuard) {
         if (!EntityExtractionPrompt.OUTPUT_CONTRACT_VERSION.equals(
                 run.extractionOutputContractVersion())) {
             throw new IllegalStateException(
@@ -63,16 +71,20 @@ public class EntityExtractionService {
                         unitKey,
                         run.extractionModelId(),
                         meteredInput,
-                        () ->
-                                chatClientFactory
-                                        .get(run.extractionModelId())
-                                        .prompt()
-                                        .system(extractionSystemPrompt)
-                                        .user(prompt)
-                                        .call()
-                                        .responseEntity(
-                                                new ParameterizedTypeReference<
-                                                        List<ExtractedTriple>>() {}));
+                        () -> {
+                            var result =
+                                    structuredOutputClient.call(
+                                            run.extractionModelId(),
+                                            extractionSystemPrompt,
+                                            prompt,
+                                            EntityExtractionPrompt.OUTPUT_SCHEMA_NAME,
+                                            EntityExtractionPrompt.OUTPUT_SCHEMA,
+                                            ExtractedFacts.class);
+                            var facts = result.entity() == null ? null : result.entity().facts();
+                            return new ResponseEntity<>(
+                                    result.response(),
+                                    facts == null ? List.<ExtractedTriple>of() : facts);
+                        });
         if (log.isDebugEnabled()) {
             log.debug(
                     "[KnowledgeExtraction] 结构化返回: runId={}, chunkId={}, count={}, result={}",
@@ -81,23 +93,48 @@ public class EntityExtractionService {
                     extractedTriples == null ? null : extractedTriples.size(),
                     JsonUtils.toJsonString(extractedTriples));
         }
-        var triples = validateAndPrepare(run, context, extractedTriples);
+        executionGuard.run();
+        return new ChunkFacts(context, validateAndPrepare(run, context, extractedTriples));
+    }
+
+    /** 对整篇文档的事实做一次批量实体消歧并写入；消歧失败的实体所涉事实被丢弃。返回写入事实数。 */
+    public int persist(RunContext run, List<ChunkFacts> chunks, Runnable executionGuard) {
+        var mentions = new ArrayList<EntityMention>();
+        for (var chunk : chunks) {
+            for (var triple : chunk.triples()) {
+                mentions.add(subjectMention(triple));
+                if (!"LITERAL".equals(triple.objectKind())) {
+                    mentions.add(objectMention(triple));
+                }
+            }
+        }
+        if (mentions.isEmpty()) {
+            return 0;
+        }
+        var resolved = entityResolver.resolveAll(run, mentions, executionGuard);
 
         var persisted = 0;
-        for (var triple : triples) {
-            executionGuard.run();
-            try {
+        for (var chunk : chunks) {
+            var context = chunk.context();
+            for (var triple : chunk.triples()) {
+                executionGuard.run();
+                var subject = resolved.get(MentionKey.of(subjectMention(triple)));
+                var literal = "LITERAL".equals(triple.objectKind());
+                var object = literal ? null : resolved.get(MentionKey.of(objectMention(triple)));
+                if (subject == null || (!literal && object == null)) {
+                    log.warn(
+                            "[KnowledgeExtraction] 丢弃实体未消歧事实: runId={}, chunkId={}, subject={}, predicate={}, object={}",
+                            run.runId(),
+                            context.focusChunkId(),
+                            triple.subject(),
+                            triple.predicate(),
+                            triple.object());
+                    continue;
+                }
                 var assertion =
                         new FactAssertion(
                                 triple.validAt(), triple.invalidAt(), triple.attributes());
-                var subject =
-                        entityResolver.resolve(
-                                run,
-                                new EntityMention(
-                                        triple.subject(),
-                                        triple.subjectType().name(),
-                                        triple.subjectDescription()));
-                if ("LITERAL".equals(triple.objectKind())) {
+                if (literal) {
                     store.persistLiteralFact(
                             run,
                             subject,
@@ -111,13 +148,6 @@ public class EntityExtractionService {
                             context.contextChunkIds(),
                             assertion);
                 } else {
-                    var object =
-                            entityResolver.resolve(
-                                    run,
-                                    new EntityMention(
-                                            triple.object(),
-                                            triple.objectType(),
-                                            triple.objectDescription()));
                     store.persistFact(
                             run,
                             subject,
@@ -132,18 +162,25 @@ public class EntityExtractionService {
                             assertion);
                 }
                 persisted++;
-            } catch (IncrementalEntityResolver.InvalidEntityResolutionException failure) {
-                log.warn(
-                        "[KnowledgeExtraction] 丢弃实体消歧异常事实: runId={}, chunkId={}, subject={}, predicate={}, object={}, reason={}",
-                        run.runId(),
-                        context.focusChunkId(),
-                        triple.subject(),
-                        triple.predicate(),
-                        triple.object(),
-                        failure.getMessage());
             }
         }
         return persisted;
+    }
+
+    private EntityMention subjectMention(ExtractedTriple triple) {
+        return new EntityMention(
+                triple.subject(), triple.subjectType().name(), triple.subjectDescription());
+    }
+
+    private EntityMention objectMention(ExtractedTriple triple) {
+        return new EntityMention(triple.object(), triple.objectType(), triple.objectDescription());
+    }
+
+    /** 单个焦点块校验后的事实。 */
+    public record ChunkFacts(FocusContext context, List<ExtractedTriple> triples) {
+        public ChunkFacts {
+            triples = List.copyOf(triples);
+        }
     }
 
     private List<ExtractedTriple> validateAndPrepare(
@@ -267,6 +304,8 @@ public class EntityExtractionService {
             }
         } else if (!triple.objectType().isEmpty() || !triple.objectDescription().isEmpty()) {
             throw invalidItem(index, "LITERAL 的 objectType 和 objectDescription 必须为空字符串");
+        } else {
+            validateLiteralValue(triple.object(), index);
         }
         if (triple.validAt() != null
                 && triple.invalidAt() != null
@@ -274,6 +313,23 @@ public class EntityExtractionService {
             throw invalidItem(index, "validAt 必须早于 invalidAt");
         }
         validateAttributes(triple.attributes(), index);
+    }
+
+    /** LITERAL 只允许短值：去首尾空白后不超过最大长度，且不含句子分隔字符。 */
+    private void validateLiteralValue(String object, int index) {
+        var value = object.trim();
+        if (value.codePointCount(0, value.length()) > EntityExtractionPrompt.MAX_LITERAL_LENGTH) {
+            throw invalidItem(
+                    index, "LITERAL 的 object 超过最大长度 " + EntityExtractionPrompt.MAX_LITERAL_LENGTH);
+        }
+        if (value.chars()
+                .anyMatch(
+                        character ->
+                                EntityExtractionPrompt.LITERAL_SENTENCE_DELIMITERS.indexOf(
+                                                character)
+                                        >= 0)) {
+            throw invalidItem(index, "LITERAL 的 object 含句子分隔字符，应拆为实体加关系");
+        }
     }
 
     private void validateString(String value, String field, int maxLength, int index) {

@@ -24,6 +24,9 @@ public interface KnowledgeDocumentRepository extends CrudEntityRepository<Knowle
     Optional<KnowledgeDocument> findByKnowledgeBaseIdAndSourceKeyAndDeletedFalse(
             Long knowledgeBaseId, String sourceKey);
 
+    List<KnowledgeDocument> findByKnowledgeBaseIdAndSourceKeyStartingWithAndDeletedFalse(
+            Long knowledgeBaseId, String sourceKeyPrefix);
+
     @Query(
             "SELECT COALESCE(SUM(d.fileSize), 0) FROM KnowledgeDocument d WHERE d.knowledgeBaseId = :knowledgeBaseId AND d.deleted = false")
     long sumFileSizeByKnowledgeBaseId(Long knowledgeBaseId);

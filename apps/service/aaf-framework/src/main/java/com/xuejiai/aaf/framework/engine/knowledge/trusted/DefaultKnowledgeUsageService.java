@@ -213,6 +213,27 @@ public class DefaultKnowledgeUsageService implements KnowledgeUsagePort {
     }
 
     @Override
+    public void releaseForRetry(InvocationReservation reservation, String errorMessage) {
+        // 退回 RESERVED 并让租约立即过期，reserve 的过期恢复分支会复用原 invocation 重新占用
+        jdbcTemplate.update(
+                """
+                UPDATE ai_knowledge_ingest_unit
+                SET status = 'RESERVED', error_message = ?, reservation_token = NULL,
+                    lease_until = CURRENT_TIMESTAMP - INTERVAL '1 second',
+                    update_time = CURRENT_TIMESTAMP
+                WHERE run_id = ? AND stage = ? AND unit_key = ?
+                  AND input_digest = ? AND status = 'IN_PROGRESS'
+                  AND reservation_token = ? AND output_json IS NULL
+                """,
+                truncate(errorMessage),
+                reservation.billing().runId(),
+                reservation.stage(),
+                reservation.unitKey(),
+                reservation.inputDigest(),
+                reservation.ownerToken());
+    }
+
+    @Override
     public Optional<StoredProviderResult> findProviderResult(
             BillingContext billing, String stage, String unitKey, String inputDigest) {
         var stored = findUnit(billing, stage, unitKey).stream().findFirst();

@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.ai.embedding.Embedding;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.EmbeddingRequest;
 import org.springframework.ai.embedding.EmbeddingResponse;
@@ -51,16 +52,16 @@ class EmbeddingKnowledgeReservationTest {
         var text = "knowledge";
         var digest = sha256("embedding-model" + "|" + sha256(text));
         var invocationId =
-                KnowledgeUsagePort.invocationId(billing.runId(), "embedding", "chunks", digest);
+                KnowledgeUsagePort.invocationId(billing.runId(), "embedding", "chunks:0", digest);
         var reservation =
                 new KnowledgeUsagePort.InvocationReservation(
                         billing,
                         "embedding",
-                        "chunks",
+                        "chunks:0",
                         digest,
                         invocationId,
                         KnowledgeUsagePort.usageKey(
-                                billing.runId(), "embedding", "chunks", invocationId),
+                                billing.runId(), "embedding", "chunks:0", invocationId),
                         Instant.parse("2026-01-02T03:04:05Z"),
                         UUID.randomUUID(),
                         KnowledgeUsagePort.ReservationState.RESERVED,
@@ -70,12 +71,12 @@ class EmbeddingKnowledgeReservationTest {
         when(model.getModelId()).thenReturn("embedding-model");
         when(embeddingModels.get(model, 3)).thenReturn(embeddingModel);
         when(model.getInputPricePerK()).thenReturn(BigDecimal.ONE);
-        when(usagePort.findProviderResult(billing, "embedding", "chunks", digest))
+        when(usagePort.findProviderResult(billing, "embedding", "chunks:0", digest))
                 .thenReturn(Optional.empty());
-        when(usagePort.reserve(billing, "embedding", "chunks", digest)).thenReturn(reservation);
+        when(usagePort.reserve(billing, "embedding", "chunks:0", digest)).thenReturn(reservation);
         when(usagePort.start(reservation)).thenReturn(true);
         var response = mock(EmbeddingResponse.class, RETURNS_DEEP_STUBS);
-        when(response.getResult().getOutput()).thenReturn(new float[] {1, 2, 3});
+        when(response.getResults()).thenReturn(List.of(new Embedding(new float[] {1, 2, 3}, 0)));
         when(response.getMetadata().getUsage().getPromptTokens()).thenReturn(5);
         when(embeddingModel.call(any(EmbeddingRequest.class))).thenReturn(response);
 
@@ -84,7 +85,7 @@ class EmbeddingKnowledgeReservationTest {
         assertThat(result).hasSize(1);
         var ordered = inOrder(usagePort, embeddingModel);
         ordered.verify(usagePort).precheck(any(), anyString(), anyLong());
-        ordered.verify(usagePort).reserve(billing, "embedding", "chunks", digest);
+        ordered.verify(usagePort).reserve(billing, "embedding", "chunks:0", digest);
         ordered.verify(usagePort).start(reservation);
         ordered.verify(embeddingModel).call(any(EmbeddingRequest.class));
         ordered.verify(usagePort).persistProviderResult(any(), anyString(), anyString());

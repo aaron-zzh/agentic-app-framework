@@ -126,6 +126,32 @@ public class DocumentService implements DocumentSourceApi, DocumentReferenceApi,
                 document.getOwnerId());
     }
 
+    /** 按来源键查找当前组织内指定 owner 的有效文档；缺少具体组织范围时视为不存在。 */
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<SourceDocument> findBySourceKey(String sourceKey, Long ownerId) {
+        var orgId = OrgContext.getCurrentOrgId();
+        if (sourceKey == null
+                || sourceKey.isBlank()
+                || ownerId == null
+                || orgId == null
+                || OrgContext.isAllOrganizations()) {
+            return Optional.empty();
+        }
+        return documentRepository
+                .findFirstByFilePathAndOwnerIdAndOrgIdAndStatusAndDeletedFalseOrderByIdAsc(
+                        sourceKey, ownerId, orgId, "active")
+                .map(
+                        document ->
+                                new SourceDocument(
+                                        document.getId(),
+                                        document.getCurrentVersionId(),
+                                        null,
+                                        document.getSourceFileId(),
+                                        document.getFilePath(),
+                                        document.getOwnerId()));
+    }
+
     /** 使用工具网关传入的可信范围保存数据库草稿；既有目标按 CAS 追加版本且永不发布。 */
     @Override
     @Transactional
@@ -241,7 +267,12 @@ public class DocumentService implements DocumentSourceApi, DocumentReferenceApi,
                                 documentId ->
                                         requireAccessibleDocument(
                                                 documentId, ownerId, orgId, workspaceId))
-                        .map(document -> new OwnedDocument(document.getId(), document.getOwnerId()))
+                        .map(
+                                document ->
+                                        new OwnedDocument(
+                                                document.getId(),
+                                                document.getOwnerId(),
+                                                document.getDocType()))
                         .toList();
     }
 
@@ -417,6 +448,7 @@ public class DocumentService implements DocumentSourceApi, DocumentReferenceApi,
             Long expectedCurrentVersionId,
             String changeSummary) {
         var document = getById(documentId);
+        requireEditable(document);
         documentVersionService.restore(
                 new RestoreDocumentVersionCommand(
                         documentId,
@@ -439,6 +471,10 @@ public class DocumentService implements DocumentSourceApi, DocumentReferenceApi,
     public Document update(Long id, DocUpdateDTO dto) {
         var currentDocument = getById(id);
         var changesVersion = dto.title() != null || dto.content() != null;
+        if (changesVersion
+                || (dto.docType() != null && !dto.docType().equals(currentDocument.getDocType()))) {
+            requireEditable(currentDocument);
+        }
         if (changesVersion) {
             if (dto.expectedCurrentVersionId() == null) {
                 throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "修改标题或正文时必须提供当前版本编号");
@@ -663,10 +699,43 @@ public class DocumentService implements DocumentSourceApi, DocumentReferenceApi,
     }
 
     /** 导入 PDF（委托 DocImportService）。 */
+    @Transactional
     public Document importPdf(MultipartFile file) throws IOException {
+        var filename = file.getOriginalFilename();
+        if (filename == null || !filename.toLowerCase(java.util.Locale.ROOT).endsWith(".pdf")) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "仅支持导入 PDF 文件");
+        }
         var scope = requireCurrentWriteScope();
-        return docImportService.importPdf(
+        return docImportService.importFile(
                 file, scope.ownerId(), scope.orgId(), scope.workspaceId());
+    }
+
+    @Override
+    public boolean supportsFileImport(String filename) {
+        return DocImportService.supports(filename);
+    }
+
+    @Override
+    @Transactional
+    public SourceDocument importFile(MultipartFile file, Long ownerId) {
+        var scope = requireCurrentWriteScope();
+        if (file == null || !Objects.equals(ownerId, scope.ownerId())) {
+            throw new BusinessException(GlobalErrorCode.FORBIDDEN, "文档导入范围与当前账号不一致");
+        }
+        try {
+            var document =
+                    docImportService.importFile(
+                            file, scope.ownerId(), scope.orgId(), scope.workspaceId());
+            return new SourceDocument(
+                    document.getId(),
+                    document.getCurrentVersionId(),
+                    null,
+                    document.getSourceFileId(),
+                    document.getFilePath(),
+                    document.getOwnerId());
+        } catch (IOException failure) {
+            throw new java.io.UncheckedIOException("读取导入文件失败", failure);
+        }
     }
 
     /** 全文检索。 */
@@ -762,6 +831,13 @@ public class DocumentService implements DocumentSourceApi, DocumentReferenceApi,
         }
         return requireAccessibleDocument(
                 documentId, ownerId, orgId, OrgContext.getCurrentWorkspaceId());
+    }
+
+    /** PDF 提取文本只是原文件的部分派生内容，禁止编辑、恢复或改类型，避免与原文件不一致。 */
+    private static void requireEditable(Document document) {
+        if (DocImportService.PDF_IMPORT_DOC_TYPE.equals(document.getDocType())) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "PDF 提取文本为只读，不能编辑");
+        }
     }
 
     private WriteScope requireCurrentWriteScope() {
@@ -883,6 +959,10 @@ public class DocumentService implements DocumentSourceApi, DocumentReferenceApi,
     }
 
     private void writeToLocalFile(String filePath, String content) {
+        // 只有 docs/ 下的本地文档需要写回；知识来源、内置资源等以来源键作为 filePath，不对应本地文件
+        if (!filePath.startsWith("docs/")) {
+            return;
+        }
         try {
             Path path = Path.of(filePath).toAbsolutePath();
             Files.createDirectories(path.getParent());

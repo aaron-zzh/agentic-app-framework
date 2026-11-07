@@ -149,34 +149,55 @@ SET enabled = TRUE,
 
 -- 两个 SYSTEM_PUBLIC 公开库；内容先为空，由管理员经界面导入文档后触发切片与向量化。
 -- stable_id 与上方 ai_role.knowledge_base_ids 中绑定的 UUID 一一对应。
+-- 与 v21 平台向导知识库一致归属 admin 个人组织：上传文档继承库的 owner_id/org_id，
+-- 异步处理任务拒绝空 owner，缺归属时文档永远停在 PENDING，检索范围恒为空。
+CREATE TEMP TABLE seed_elder_knowledge_owner ON COMMIT DROP AS
+SELECT admin_user.id AS owner_id, org.id AS org_id
+FROM sys_user admin_user
+JOIN sys_organization org
+    ON org.owner_id = admin_user.id
+    AND org.type = 'personal'
+    AND org.deleted = FALSE
+WHERE admin_user.username = 'admin'
+  AND admin_user.deleted = FALSE
+ORDER BY org.id
+LIMIT 1;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM seed_elder_knowledge_owner) THEN
+        RAISE EXCEPTION 'v402 养老公开知识库缺少 admin 个人组织归属';
+    END IF;
+END $$;
+
 INSERT INTO ai_knowledge_base
-    (stable_id, version, visibility, scope_code, name, description, status, auto_inject)
-VALUES
-    (
-        '10000000-0000-4000-8000-000000000001',
-        0,
-        'SYSTEM_PUBLIC',
-        'elder.rehab-guide',
-        '养老康复指导',
-        '长者慢病康复指导公开知识库（高血压、糖尿病等）',
-        0,
-        FALSE
-    ),
-    (
-        '10000000-0000-4000-8000-000000000002',
-        0,
-        'SYSTEM_PUBLIC',
-        'elder.policy',
-        '养老政策',
-        '养老政策公开知识库（长护险、补贴、准入条件等）',
-        0,
-        FALSE
-    )
+    (stable_id, version, org_id, visibility, scope_code, name, description, status,
+     auto_inject, owner_id)
+SELECT kb.stable_id, 0, owner.org_id, 'SYSTEM_PUBLIC', kb.scope_code, kb.name,
+       kb.description, 0, FALSE, owner.owner_id
+FROM (
+    VALUES
+        (
+            '10000000-0000-4000-8000-000000000001'::UUID,
+            'elder.rehab-guide',
+            '养老康复指导',
+            '长者慢病康复指导公开知识库（高血压、糖尿病等）'
+        ),
+        (
+            '10000000-0000-4000-8000-000000000002'::UUID,
+            'elder.policy',
+            '养老政策',
+            '养老政策公开知识库（长护险、补贴、准入条件等）'
+        )
+) AS kb (stable_id, scope_code, name, description)
+CROSS JOIN seed_elder_knowledge_owner owner
 ON CONFLICT (stable_id) DO UPDATE
 SET name = EXCLUDED.name,
     description = EXCLUDED.description,
     scope_code = EXCLUDED.scope_code,
     visibility = EXCLUDED.visibility,
+    org_id = EXCLUDED.org_id,
+    owner_id = EXCLUDED.owner_id,
     update_time = CURRENT_TIMESTAMP;
 
 -- ==================== 测试设备自动绑定的长者档案 ====================

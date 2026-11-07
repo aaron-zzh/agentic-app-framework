@@ -53,7 +53,7 @@ public class DefaultKnowledgeSearchApi implements KnowledgeSearchApi {
                         new KnowledgeSearchDTO(
                                 query.query(),
                                 query.knowledgeBaseIds(),
-                                true, // 公开知识库默认纳入检索
+                                false, // 公开知识库不隐式纳入，需在角色或助理上显式绑定
                                 Map.of(),
                                 Map.of("documentIds", query.documentIds()),
                                 query.topK(),
@@ -86,7 +86,8 @@ public class DefaultKnowledgeSearchApi implements KnowledgeSearchApi {
                                 new KnowledgeBaseSummary(
                                         knowledgeBase.getStableId(),
                                         knowledgeBase.getName(),
-                                        knowledgeBase.getDescription()))
+                                        knowledgeBase.getDescription(),
+                                        knowledgeBase.getAiSummary()))
                 .toList();
     }
 }

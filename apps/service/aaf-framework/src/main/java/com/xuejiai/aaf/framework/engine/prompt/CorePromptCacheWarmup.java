@@ -21,7 +21,11 @@ public class CorePromptCacheWarmup implements ApplicationRunner, Ordered {
                     "aaf.knowledge.fact-extraction.system",
                     "aaf.knowledge.fact-extraction.user",
                     "aaf.knowledge.entity-resolution.system",
-                    "aaf.knowledge.entity-resolution.user");
+                    "aaf.knowledge.entity-resolution.user",
+                    "aaf.knowledge.document-summary.system",
+                    "aaf.knowledge.document-summary.user",
+                    "aaf.knowledge.base-summary.system",
+                    "aaf.knowledge.base-summary.user");
 
     private final PromptVersionCache promptCache;
 

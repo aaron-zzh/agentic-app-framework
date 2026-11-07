@@ -2,15 +2,18 @@ package com.xuejiai.aaf.module.knowledge.service;
 
 import static com.xuejiai.aaf.common.exception.ExceptionUtil.exception;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -39,6 +42,11 @@ import com.xuejiai.aaf.framework.engine.meta.runtime.TaskExecutionInProgressExce
 import com.xuejiai.aaf.framework.org.OrgContext;
 import com.xuejiai.aaf.framework.security.OperatorContext;
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationSubject;
+import com.xuejiai.aaf.module.document.api.DocumentReferenceApi;
+import com.xuejiai.aaf.module.document.api.DocumentReferenceApi.OwnedDocument;
+import com.xuejiai.aaf.module.document.api.DocumentSourceApi;
+import com.xuejiai.aaf.module.document.api.DocumentVersionApi;
+import com.xuejiai.aaf.module.document.api.DocumentVersionApi.DocumentVersionView;
 import com.xuejiai.aaf.module.knowledge.domain.KnowledgeBase;
 import com.xuejiai.aaf.module.knowledge.domain.KnowledgeDocument;
 import com.xuejiai.aaf.module.knowledge.repository.KnowledgeBaseRepository;
@@ -50,6 +58,9 @@ import com.xuejiai.aaf.module.knowledge.vo.KnowledgeBaseMaintenanceVO;
 import com.xuejiai.aaf.module.knowledge.vo.KnowledgeBaseStatsVO;
 import com.xuejiai.aaf.module.knowledge.vo.KnowledgeBaseUpdateDTO;
 import com.xuejiai.aaf.module.knowledge.vo.KnowledgeBaseVO;
+import com.xuejiai.aaf.module.knowledge.vo.KnowledgeChunkVO;
+import com.xuejiai.aaf.module.knowledge.vo.KnowledgeDocumentLibraryImportVO;
+import com.xuejiai.aaf.module.knowledge.vo.KnowledgeDocumentLibraryImportVO.SkippedDocumentVO;
 import com.xuejiai.aaf.module.knowledge.vo.KnowledgeDocumentVO;
 import com.xuejiai.aaf.module.knowledge.vo.KnowledgeGraphVO;
 import com.xuejiai.aaf.module.knowledge.vo.KnowledgeGraphVO.GraphProjectionStatusVO;
@@ -84,6 +95,13 @@ public class KnowledgeBaseService
                     "createTime",
                     "updateTime");
 
+    private static final int MAX_LIBRARY_IMPORT_DOCUMENTS = 20;
+    private static final int MAX_LIBRARY_FILENAME_BASE_LENGTH = 196;
+    private static final String KNOWLEDGE_SOURCE_DOCUMENT_TYPE = "knowledge_source";
+    private static final String LIBRARY_SOURCE_TYPE = "BUSINESS_OBJECT";
+    private static final Set<String> PLATFORM_ADMIN_AUTHORITIES =
+            Set.of("ROLE_ADMIN", "ROLE_SUPER_ADMIN");
+
     private final KnowledgeBaseRepository knowledgeBaseRepository;
     private final KnowledgeDocumentRepository knowledgeDocumentRepository;
     private final KnowledgeDocumentUploadService uploadService;
@@ -99,6 +117,9 @@ public class KnowledgeBaseService
     private final EntityManager entityManager;
     private final OperatorContext operatorContext;
     private final EmbeddingProperties embeddingProperties;
+    private final DocumentReferenceApi documentReferenceApi;
+    private final DocumentVersionApi documentVersionApi;
+    private final DocumentSourceApi documentSourceApi;
 
     @Override
     protected KnowledgeBaseRepository getRepository() {
@@ -112,6 +133,8 @@ public class KnowledgeBaseService
                 entity.getStableId(),
                 entity.getName(),
                 entity.getDescription(),
+                entity.getAiSummary(),
+                entity.getAiSummaryUpdatedAt(),
                 entity.getVisibility(),
                 entity.getScopeCode(),
                 entity.getEmbeddingModel(),
@@ -182,9 +205,20 @@ public class KnowledgeBaseService
         }
     }
 
+    /** 平台管理员（ADMIN / SUPER_ADMIN）维护公开库与组织库，不占个人套餐的知识库数量额度；创建不扣减，删除也不归还。 */
     @Override
     protected String entitlementCode() {
-        return "kb_count";
+        return isPlatformAdmin() ? null : "kb_count";
+    }
+
+    private static boolean isPlatformAdmin() {
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null
+                && authentication.getAuthorities().stream()
+                        .anyMatch(
+                                authority ->
+                                        PLATFORM_ADMIN_AUTHORITIES.contains(
+                                                authority.getAuthority()));
     }
 
     @Override
@@ -257,6 +291,8 @@ public class KnowledgeBaseService
                 entity.getOwnerId(),
                 entity.getName(),
                 entity.getDescription(),
+                entity.getAiSummary(),
+                entity.getAiSummaryUpdatedAt(),
                 entity.getVisibility(),
                 entity.getScopeCode(),
                 entity.getEmbeddingModel(),
@@ -372,7 +408,17 @@ public class KnowledgeBaseService
     }
 
     public GraphProjectionStatusVO rebuildGraphProjection(Long id, String requestKey) {
-        var knowledgeBase = requireEntity(id, CrudOperation.UPDATE, AccessMode.ADMIN_MAINTENANCE);
+        return rebuildGraphProjection(id, requestKey, AccessMode.ADMIN_MAINTENANCE);
+    }
+
+    /** 知识库所有者重建自己知识库的图投影：按普通写权限校验，不跨 owner。 */
+    public GraphProjectionStatusVO rebuildOwnGraphProjection(Long id, String requestKey) {
+        return rebuildGraphProjection(id, requestKey, AccessMode.DEFAULT);
+    }
+
+    private GraphProjectionStatusVO rebuildGraphProjection(
+            Long id, String requestKey, AccessMode accessMode) {
+        var knowledgeBase = requireEntity(id, CrudOperation.UPDATE, accessMode);
         graphProjectionService.rebuild(knowledgeBase.getStableId(), requestKey);
         return graphProjectionStatus(knowledgeBase);
     }
@@ -417,14 +463,58 @@ public class KnowledgeBaseService
         return toDocumentVO(requireDocument(id, documentId));
     }
 
+    /** 文档当前发布代际的分块列表；未发布（处理中或失败）时为空。 */
+    public PageResult<KnowledgeChunkVO> listDocumentChunks(
+            Long id, Long documentId, Pageable pageable) {
+        requireEntity(id);
+        var document = requireDocument(id, documentId);
+        if (document.getActiveRunId() == null) {
+            return new PageResult<>(List.of(), 0L);
+        }
+        var chunks =
+                truthStore
+                        .documentChunks(
+                                documentId,
+                                document.getActiveRunId(),
+                                Math.toIntExact(pageable.getOffset()),
+                                pageable.getPageSize())
+                        .stream()
+                        .map(
+                                chunk ->
+                                        new KnowledgeChunkVO(
+                                                chunk.id(),
+                                                chunk.chunkIndex(),
+                                                chunk.content(),
+                                                chunk.tokenCount(),
+                                                chunk.sectionPath(),
+                                                chunk.pageNo(),
+                                                chunk.enabled()))
+                        .toList();
+        return new PageResult<>(
+                chunks, truthStore.countDocumentChunks(documentId, document.getActiveRunId()));
+    }
+
+    /** 启用/停用分块：停用后不参与检索，仅由其证据支撑的事实从图谱移除。 */
+    public void setChunkEnabled(Long id, Long documentId, UUID chunkId, boolean enabled) {
+        requireEntity(id, CrudOperation.UPDATE, AccessMode.DEFAULT);
+        requireDocument(id, documentId);
+        if (!truthStore.setChunkEnabled(documentId, chunkId, enabled)) {
+            throw exception(GlobalErrorCode.NOT_FOUND);
+        }
+    }
+
     @Transactional
     public void deleteDocument(Long id, Long documentId) {
         requireEntity(id, CrudOperation.UPDATE, AccessMode.DEFAULT);
+        revokeAndDeleteDocument(id, documentId);
+    }
+
+    private void revokeAndDeleteDocument(Long knowledgeBaseId, Long documentId) {
         try {
             executionLeaseService.execute(
                     documentId,
                     guard -> {
-                        var document = requireDocument(id, documentId);
+                        var document = requireDocument(knowledgeBaseId, documentId);
                         guard.run();
                         pipelineService.revokeDocument(documentId);
                         guard.run();
@@ -475,10 +565,146 @@ public class KnowledgeBaseService
         return new BusinessException(409, inProgress.getMessage());
     }
 
+    /** 上传文件到知识库：md/markdown/txt/pdf 先导入文档库生成正文版本，再按该版本导入知识库；其余类型沿用来源档案上传。 */
     @Transactional
     public List<KnowledgeDocumentVO> batchImportDocuments(Long id, MultipartFile[] files) {
         var knowledgeBase = requireEntity(id, CrudOperation.UPDATE, AccessMode.DEFAULT);
-        return uploadService.upload(knowledgeBase, files).stream().map(this::toDocumentVO).toList();
+        if (files == null || files.length == 0) {
+            throw exception(GlobalErrorCode.BAD_REQUEST);
+        }
+        var result = new ArrayList<KnowledgeDocumentVO>();
+        var otherFiles = new ArrayList<MultipartFile>();
+        for (var file : files) {
+            if (!documentSourceApi.supportsFileImport(file.getOriginalFilename())) {
+                otherFiles.add(file);
+                continue;
+            }
+            var ownerId =
+                    operatorContext
+                            .currentOwnerId()
+                            .orElseThrow(() -> exception(GlobalErrorCode.UNAUTHORIZED));
+            var source = documentSourceApi.importFile(file, ownerId);
+            result.addAll(importFromDocuments(knowledgeBase, List.of(source.id())).imported());
+        }
+        if (!otherFiles.isEmpty()) {
+            uploadService
+                    .upload(knowledgeBase, otherFiles.toArray(MultipartFile[]::new))
+                    .forEach(document -> result.add(toDocumentVO(document)));
+        }
+        return List.copyOf(result);
+    }
+
+    /** 从文档库导入：先校验知识库 UPDATE 权限，再按文档当前版本导入。 */
+    @Transactional
+    public KnowledgeDocumentLibraryImportVO importLibraryDocuments(
+            Long id, List<Long> documentIds) {
+        var knowledgeBase = requireEntity(id, CrudOperation.UPDATE, AccessMode.DEFAULT);
+        return importFromDocuments(knowledgeBase, documentIds);
+    }
+
+    /**
+     * 将当前用户可访问的文档库文档按当前版本导入知识库。
+     *
+     * <p>正文另存为 Markdown 并复用资源上传链路另建来源记录，原文档版本不受影响；来源键为 {@code
+     * doc:{文档ID}:v{版本ID}}，同版本幂等，同一文档的旧版本导入在该库内先撤销删除。调用方负责知识库写权限校验。
+     */
+    @Transactional
+    public KnowledgeDocumentLibraryImportVO importFromDocuments(
+            KnowledgeBase knowledgeBase, List<Long> documentIds) {
+        if (documentIds == null
+                || documentIds.isEmpty()
+                || documentIds.size() > MAX_LIBRARY_IMPORT_DOCUMENTS) {
+            throw exception(GlobalErrorCode.BAD_REQUEST);
+        }
+        var ownerId =
+                operatorContext
+                        .currentOwnerId()
+                        .orElseThrow(() -> exception(GlobalErrorCode.UNAUTHORIZED));
+        var documents =
+                documentReferenceApi.requireAccessible(
+                        documentIds,
+                        ownerId,
+                        OrgContext.getCurrentOrgId(),
+                        OrgContext.getCurrentWorkspaceId());
+        var currentVersions =
+                documentVersionApi.findCurrent(documents.stream().map(OwnedDocument::id).toList());
+        var imported = new ArrayList<KnowledgeDocumentVO>();
+        var skipped = new ArrayList<SkippedDocumentVO>();
+        for (var document : documents) {
+            var version = currentVersions.get(document.id());
+            var skipReason = libraryImportSkipReason(knowledgeBase, document, version);
+            if (skipReason != null) {
+                skipped.add(new SkippedDocumentVO(document.id(), skipReason));
+                continue;
+            }
+            knowledgeDocumentRepository
+                    .findByKnowledgeBaseIdAndSourceKeyStartingWithAndDeletedFalse(
+                            knowledgeBase.getId(), librarySourceKeyPrefix(document.id()))
+                    .forEach(
+                            previous ->
+                                    revokeAndDeleteDocument(
+                                            knowledgeBase.getId(), previous.getId()));
+            var plainText = "PLAIN_TEXT".equals(version.format());
+            var saved =
+                    uploadService.uploadResource(
+                            knowledgeBase,
+                            version.content().getBytes(StandardCharsets.UTF_8),
+                            libraryFilename(version.title(), document.id(), plainText),
+                            plainText ? "text/plain" : "text/markdown",
+                            document.id(),
+                            librarySourceKey(document.id(), version.id()),
+                            LIBRARY_SOURCE_TYPE,
+                            ownerId);
+            imported.add(toDocumentVO(saved));
+        }
+        return new KnowledgeDocumentLibraryImportVO(imported, skipped);
+    }
+
+    private String libraryImportSkipReason(
+            KnowledgeBase knowledgeBase, OwnedDocument document, DocumentVersionView version) {
+        if (KNOWLEDGE_SOURCE_DOCUMENT_TYPE.equals(document.documentType())) {
+            return "知识来源文档不可导入";
+        }
+        if (version == null || version.content() == null || version.content().isBlank()) {
+            return "文档无正文";
+        }
+        if (knowledgeDocumentRepository
+                .findByKnowledgeBaseIdAndSourceKeyAndDeletedFalse(
+                        knowledgeBase.getId(), librarySourceKey(document.id(), version.id()))
+                .isPresent()) {
+            return "该版本已导入";
+        }
+        return null;
+    }
+
+    private static String librarySourceKeyPrefix(Long documentId) {
+        return "doc:%d:v".formatted(documentId);
+    }
+
+    private static String librarySourceKey(Long documentId, Long versionId) {
+        return librarySourceKeyPrefix(documentId) + versionId;
+    }
+
+    /** 标题去除路径分隔符、控制字符与文件系统保留字符后作为文件名；为空时使用文档 ID。纯文本版本用 .txt，否则 .md。 */
+    private static String libraryFilename(String title, Long documentId, boolean plainText) {
+        var base =
+                title == null
+                        ? ""
+                        : title.replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]", "")
+                                .replaceAll("^\\.+", "")
+                                .trim();
+        if (base.isEmpty()) {
+            base = "document-" + documentId;
+        }
+        // 来源文档标题上限 200 字符，预留扩展名
+        if (base.length() > MAX_LIBRARY_FILENAME_BASE_LENGTH) {
+            var end = MAX_LIBRARY_FILENAME_BASE_LENGTH;
+            if (Character.isHighSurrogate(base.charAt(end - 1))) {
+                end--;
+            }
+            base = base.substring(0, end);
+        }
+        return base + (plainText ? ".txt" : ".md");
     }
 
     public BatchImportProgressVO getImportProgress(Long id) {
@@ -600,6 +826,7 @@ public class KnowledgeBaseService
                 entity.getActiveRunId(),
                 entity.getActiveSourceDocumentVersionId(),
                 entity.getTitle(),
+                entity.getSummary(),
                 entity.getFileType(),
                 entity.getFileSize(),
                 entity.getContentHash(),

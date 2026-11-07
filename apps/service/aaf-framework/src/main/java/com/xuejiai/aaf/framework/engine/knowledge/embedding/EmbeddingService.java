@@ -5,12 +5,14 @@ import java.math.RoundingMode;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 
+import org.springframework.ai.embedding.Embedding;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.EmbeddingOptions;
 import org.springframework.ai.embedding.EmbeddingRequest;
@@ -18,10 +20,15 @@ import org.springframework.ai.embedding.EmbeddingResponse;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.openai.errors.OpenAIServiceException;
+
 import com.xuejiai.aaf.common.enums.pay.CreditTransactionCategoryEnum;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeUsagePort;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeUsagePort.BillingContext;
+import com.xuejiai.aaf.framework.engine.meta.runtime.NonRetryableTaskException;
 import com.xuejiai.aaf.framework.intelligent.ai.embedding.DynamicEmbeddingModelFactory;
 import com.xuejiai.aaf.framework.intelligent.core.AiUsage;
 import com.xuejiai.aaf.framework.intelligent.core.model.AiModel;
@@ -49,7 +56,8 @@ public class EmbeddingService {
     private final EmbeddingProperties properties;
     private final AiCreditGuard creditGuard;
     private final KnowledgeUsagePort knowledgeUsagePort;
-    private final ConcurrentHashMap<String, float[]> cache = new ConcurrentHashMap<>();
+    // 有界缓存：每条 1536 维向量约 6KB，上限 5000 条约 30MB，按最近最少使用淘汰
+    private final Cache<String, float[]> cache = Caffeine.newBuilder().maximumSize(5_000).build();
 
     public EmbeddingService(
             CapabilityRouter capabilityRouter,
@@ -69,7 +77,7 @@ public class EmbeddingService {
         Objects.requireNonNull(userId, "M53：embedding 成本需要归属用户，userId 不能为空");
         var model = resolveModel(userId);
         var key = cacheKey(model, text);
-        var cached = cache.get(key);
+        var cached = cache.getIfPresent(key);
         if (cached != null) {
             return cached;
         }
@@ -78,7 +86,7 @@ public class EmbeddingService {
                 CreditTransactionCategoryEnum.EMBEDDING.getCode(),
                 AiCreditGuard.INESTIMABLE_COST);
         var result = embedWithRetry(embeddingModelOf(model), text);
-        cache.putIfAbsent(key, result.vector());
+        cache.asMap().putIfAbsent(key, result.vector());
         log.info(
                 "[Embedding] 向量化完成: userId={}, modelId={}, inputTokens={}",
                 userId,
@@ -129,31 +137,77 @@ public class EmbeddingService {
 
     /** 单条文本向量化；返回向量与 provider 实际返回的输入 Token 数（用量缺失即失败，避免静默漏账）。 */
     private EmbeddedText embedWithRetry(EmbeddingModel embeddingModel, String text) {
-        var response = callWithRetry(embeddingModel, text);
+        var response = callWithRetry(embeddingModel, List.of(text));
         return new EmbeddedText(response.getResult().getOutput(), providerInputTokens(response));
     }
 
-    /** 带重试的 embedding 调用 */
-    private EmbeddingResponse callWithRetry(EmbeddingModel embeddingModel, String text) {
-        for (int attempt = 1; attempt <= properties.maxRetries(); attempt++) {
+    /** 多条文本一次请求向量化，按 provider 返回的 index 对齐输入顺序。 */
+    private EmbeddedBatch embedBatchWithRetry(EmbeddingModel embeddingModel, List<String> texts) {
+        var response = callWithRetry(embeddingModel, texts);
+        var results =
+                response.getResults().stream()
+                        .sorted(Comparator.comparing(Embedding::getIndex))
+                        .map(Embedding::getOutput)
+                        .toList();
+        if (results.size() != texts.size()) {
+            throw new IllegalStateException(
+                    "Embedding 返回条数与输入不一致: expected=%d, actual=%d"
+                            .formatted(texts.size(), results.size()));
+        }
+        return new EmbeddedBatch(results, providerInputTokens(response));
+    }
+
+    /** 带指数退避的 embedding 调用；限流、5xx 与网络异常重试，其余 4xx 直接失败。 */
+    private EmbeddingResponse callWithRetry(EmbeddingModel embeddingModel, List<String> texts) {
+        for (int attempt = 1; ; attempt++) {
             try {
                 return embeddingModel.call(
-                        new EmbeddingRequest(List.of(text), EmbeddingOptions.builder().build()));
-            } catch (Exception e) {
-                log.warn("Embedding 生成失败，第 {} 次重试，原因：{}", attempt, e.getMessage());
-                if (attempt == properties.maxRetries()) {
-                    throw new RuntimeException(
+                        new EmbeddingRequest(texts, EmbeddingOptions.builder().build()));
+            } catch (RuntimeException e) {
+                var status = providerStatus(e);
+                if (status != null && status != 429 && status < 500) {
+                    throw new NonRetryableTaskException(
+                            "Embedding 请求被拒绝（HTTP %d）：%s".formatted(status, e.getMessage()), e);
+                }
+                if (attempt >= properties.maxRetries()) {
+                    throw new IllegalStateException(
                             "Embedding 生成失败，已重试 %d 次".formatted(properties.maxRetries()), e);
                 }
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    throw new RuntimeException("Embedding 重试被中断", ie);
-                }
+                var delayMillis = backoffMillis(attempt);
+                log.warn(
+                        "Embedding 生成失败，{}ms 后第 {} 次重试，status={}，原因：{}",
+                        delayMillis,
+                        attempt + 1,
+                        status,
+                        e.getMessage());
+                sleep(delayMillis);
             }
         }
-        throw new IllegalStateException("不可达");
+    }
+
+    /** 第 n 次失败后等待 1s、2s、4s…（上限 8s），叠加 0-500ms 抖动避免并发任务同时重试。 */
+    private static long backoffMillis(int attempt) {
+        var base = Math.min(1000L << (attempt - 1), 8000L);
+        return base + ThreadLocalRandom.current().nextLong(500);
+    }
+
+    private static void sleep(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Embedding 重试被中断", ie);
+        }
+    }
+
+    /** 从异常链中取 provider HTTP 状态码；网络异常、超时等无状态码时返回 null。 */
+    private static Integer providerStatus(Throwable failure) {
+        for (var cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof OpenAIServiceException serviceException) {
+                return serviceException.statusCode();
+            }
+        }
+        return null;
     }
 
     /** provider 实际返回的输入 Token 数；缺失或为 0 视为 provider 未上报，无法计费。 */
@@ -176,7 +230,10 @@ public class EmbeddingService {
         }
     }
 
-    /** 知识入库批量向量化；调用前预留，provider 结果落盘后幂等结算。 */
+    /**
+     * 知识入库批量向量化：按 batchSize 切成子单元（unitKey 追加起始序号），每个子单元一次请求、独立预留与幂等结算；
+     * 某个子单元失败只需重做该子单元，已落盘的子单元重试时直接复用。
+     */
     public List<float[]> embedKnowledgeBatch(
             List<String> texts, BillingContext billing, String unitKey) {
         Objects.requireNonNull(texts, "texts 不能为空");
@@ -184,22 +241,33 @@ public class EmbeddingService {
         if (texts.isEmpty()) {
             return List.of();
         }
-        for (var index = 0; index < texts.size(); index++) {
-            var text = Objects.requireNonNull(texts.get(index), "知识入库文本不能为空");
-            var preview =
-                    text.substring(0, Math.min(text.length(), 80))
-                            .replace('\r', ' ')
-                            .replace('\n', ' ');
-            log.info(
-                    "[Embedding] 知识入库文本: unitKey={}, index={}/{}, length={}, preview={}",
-                    unitKey,
-                    index + 1,
-                    texts.size(),
-                    text.length(),
-                    preview);
-        }
+        texts.forEach(text -> Objects.requireNonNull(text, "知识入库文本不能为空"));
         var model = resolveModel(billing.payerUserId());
         var embeddingModel = embeddingModelOf(model);
+        var batchSize = properties.batchSize();
+        var vectors = new ArrayList<float[]>(texts.size());
+        for (var start = 0; start < texts.size(); start += batchSize) {
+            var batch = texts.subList(start, Math.min(start + batchSize, texts.size()));
+            vectors.addAll(
+                    embedKnowledgeUnit(
+                            batch, billing, unitKey + ":" + start, model, embeddingModel));
+        }
+        log.info(
+                "[Embedding] 知识入库向量化完成: payerUserId={}, modelId={}, unitKey={}, count={}, units={}",
+                billing.payerUserId(),
+                model.getModelId(),
+                unitKey,
+                vectors.size(),
+                (texts.size() + batchSize - 1) / batchSize);
+        return List.copyOf(vectors);
+    }
+
+    private List<float[]> embedKnowledgeUnit(
+            List<String> texts,
+            BillingContext billing,
+            String unitKey,
+            AiModel model,
+            EmbeddingModel embeddingModel) {
         var inputDigest =
                 sha256(
                         model.getModelId()
@@ -244,14 +312,11 @@ public class EmbeddingService {
             throw new IllegalStateException("知识入库 embedding 单元并发占用失败");
         }
         try {
-            var embedded =
-                    texts.stream().map(text -> embedWithRetry(embeddingModel, text)).toList();
-            var vectors = embedded.stream().map(EmbeddedText::vector).toList();
-            var inputTokens = embedded.stream().mapToLong(EmbeddedText::inputTokens).sum();
-            log.info(
-                    "[Embedding] 知识入库向量化完成: payerUserId={}, modelId={}, unitKey={}, count={}, inputTokens={}",
-                    billing.payerUserId(),
-                    model.getModelId(),
+            var embedded = embedBatchWithRetry(embeddingModel, texts);
+            var vectors = embedded.vectors();
+            var inputTokens = embedded.inputTokens();
+            log.debug(
+                    "[Embedding] 知识入库子单元完成: unitKey={}, count={}, inputTokens={}",
                     unitKey,
                     vectors.size(),
                     inputTokens);
@@ -263,7 +328,8 @@ public class EmbeddingService {
             cacheSettled(model, texts, vectors);
             return List.copyOf(vectors);
         } catch (RuntimeException failure) {
-            knowledgeUsagePort.markUnknown(reserved, failure.getMessage());
+            // 调用已明确失败（未拿到 provider 结果），释放预留供重试；已落盘的结果不受影响
+            knowledgeUsagePort.releaseForRetry(reserved, failure.getMessage());
             throw failure;
         }
     }
@@ -316,11 +382,13 @@ public class EmbeddingService {
 
     private void cacheSettled(AiModel model, List<String> texts, List<float[]> vectors) {
         for (var index = 0; index < texts.size(); index++) {
-            cache.putIfAbsent(cacheKey(model, texts.get(index)), vectors.get(index));
+            cache.asMap().putIfAbsent(cacheKey(model, texts.get(index)), vectors.get(index));
         }
     }
 
     private record EmbeddedText(float[] vector, long inputTokens) {}
+
+    private record EmbeddedBatch(List<float[]> vectors, long inputTokens) {}
 
     private record EmbeddingProviderResult(List<float[]> vectors, long inputTokens, int count) {
         private EmbeddingProviderResult {

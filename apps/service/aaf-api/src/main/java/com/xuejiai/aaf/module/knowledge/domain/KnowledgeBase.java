@@ -1,5 +1,6 @@
 package com.xuejiai.aaf.module.knowledge.domain;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import org.hibernate.annotations.Formula;
@@ -44,9 +45,25 @@ public class KnowledgeBase extends BaseEntity {
     @Column(name = "name", nullable = false, length = 200)
     private String name;
 
-    /** 描述 */
+    /**
+     * 知识库说明：用户填写，系统永不修改。
+     *
+     * <p>写定位：面向谁、回答哪类问题、不适用哪些问题。
+     */
     @Column(name = "description", length = 1000)
     private String description;
+
+    /**
+     * 涵盖主题：系统根据已入库文档自动生成，只读。
+     *
+     * <p>写资料实际覆盖的主题，形如“涵盖主题：饮食管理、血糖监测、低血糖处理。概述：……”。由汇总任务通过 JDBC 写入，JPA 不插入、不更新。
+     */
+    @Column(name = "ai_summary", length = 1000, insertable = false, updatable = false)
+    private String aiSummary;
+
+    /** 涵盖主题最近生成时间，只读。 */
+    @Column(name = "ai_summary_updated_at", insertable = false, updatable = false)
+    private LocalDateTime aiSummaryUpdatedAt;
 
     /** 创建时记录所用的全局向量模型 modelId，只读；向量模型全局唯一，不随知识库切换。 */
     @Column(name = "embedding_model", length = 100)

@@ -12,6 +12,8 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -19,20 +21,24 @@ import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.FocusExtractionContextAssembler.FocusContext;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.IncrementalEntityResolver;
+import com.xuejiai.aaf.framework.engine.knowledge.trusted.IncrementalEntityResolver.EntityMention;
+import com.xuejiai.aaf.framework.engine.knowledge.trusted.IncrementalEntityResolver.MentionKey;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeAiMeter;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeUsagePort.BillingContext;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore.RunContext;
-import com.xuejiai.aaf.framework.intelligent.ai.chat.DynamicChatClientFactory;
+import com.xuejiai.aaf.framework.intelligent.ai.chat.DashScopeStructuredOutputClient;
 
 class EntityExtractionServiceTest {
 
     private final EntityExtractionService service =
             new EntityExtractionService(
-                    mock(DynamicChatClientFactory.class),
+                    mock(DashScopeStructuredOutputClient.class),
                     mock(KnowledgeAiMeter.class),
                     mock(IncrementalEntityResolver.class),
                     mock(TrustedKnowledgeStore.class));
@@ -62,12 +68,13 @@ class EntityExtractionServiceTest {
     void should_persist_literal_without_resolving_object_entity() {
         var fixture = fixture(List.of(literal()));
         var subjectId = UUID.randomUUID();
-        when(fixture.resolver().resolve(any(), any())).thenReturn(subjectId);
+        when(fixture.resolver().resolveAll(any(), any(), any()))
+                .thenAnswer(invocation -> resolvedTo(invocation.getArgument(1), subjectId));
 
         var count = fixture.extract();
 
         assertThat(count).isEqualTo(1);
-        verify(fixture.resolver(), times(1)).resolve(any(), any());
+        verify(fixture.resolver(), times(1)).resolveAll(any(), any(), any());
         verify(fixture.store())
                 .persistLiteralFact(
                         fixture.run(),
@@ -246,7 +253,8 @@ class EntityExtractionServiceTest {
                                         null,
                                         Map.of("region", "华东"))));
         var subjectId = UUID.randomUUID();
-        when(fixture.resolver().resolve(any(), any())).thenReturn(subjectId);
+        when(fixture.resolver().resolveAll(any(), any(), any()))
+                .thenAnswer(invocation -> resolvedTo(invocation.getArgument(1), subjectId));
 
         fixture.extract();
 
@@ -305,12 +313,13 @@ class EntityExtractionServiceTest {
                         Map.of());
         var fixture = fixture(List.of(literal(), invalid));
         var subjectId = UUID.randomUUID();
-        when(fixture.resolver().resolve(any(), any())).thenReturn(subjectId);
+        when(fixture.resolver().resolveAll(any(), any(), any()))
+                .thenAnswer(invocation -> resolvedTo(invocation.getArgument(1), subjectId));
 
         var count = fixture.extract();
 
         assertThat(count).isEqualTo(1);
-        verify(fixture.resolver(), times(1)).resolve(any(), any());
+        verify(fixture.resolver(), times(1)).resolveAll(any(), any(), any());
         verify(fixture.store(), times(1))
                 .persistLiteralFact(
                         fixture.run(),
@@ -327,11 +336,96 @@ class EntityExtractionServiceTest {
         verifyNoMoreInteractions(fixture.store());
     }
 
+    @Test
+    @DisplayName("Given 同块含整句 LITERAL 与合法事实 When 校验 Then 丢弃整句 LITERAL 且合法事实入库")
+    void should_discard_sentence_literal_and_persist_valid_fact_in_same_chunk() {
+        var sentence = literal("患者应在医生指导下长期坚持低糖饮食并定期复查。");
+        var fixture = fixture(List.of(sentence, literal()));
+        var subjectId = UUID.randomUUID();
+        when(fixture.resolver().resolveAll(any(), any(), any()))
+                .thenAnswer(invocation -> resolvedTo(invocation.getArgument(1), subjectId));
+
+        var count = fixture.extract();
+
+        assertThat(count).isEqualTo(1);
+        verify(fixture.store(), times(1))
+                .persistLiteralFact(
+                        fixture.run(),
+                        subjectId,
+                        "等于",
+                        "20°C",
+                        0.9,
+                        fixture.chunkId(),
+                        "水温等于20°C",
+                        0,
+                        8,
+                        List.of(),
+                        new TrustedKnowledgeStore.FactAssertion(null, null, Map.of()));
+        verifyNoMoreInteractions(fixture.store());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"7.0 mmol/L", "2026-11-07", "v2.1", "已停用", "是", "每周 3 次", "1,000"})
+    @DisplayName("Given LITERAL 为数值日期版本状态布尔等短值 When 持久化 Then 正常入库")
+    void should_persist_short_literal_values(String value) {
+        var fixture = fixture(List.of(literal(value)));
+        var subjectId = UUID.randomUUID();
+        when(fixture.resolver().resolveAll(any(), any(), any()))
+                .thenAnswer(invocation -> resolvedTo(invocation.getArgument(1), subjectId));
+
+        assertThat(fixture.extract()).isEqualTo(1);
+        verify(fixture.store())
+                .persistLiteralFact(
+                        fixture.run(),
+                        subjectId,
+                        "等于",
+                        value,
+                        0.9,
+                        fixture.chunkId(),
+                        "水温等于20°C",
+                        0,
+                        8,
+                        List.of(),
+                        new TrustedKnowledgeStore.FactAssertion(null, null, Map.of()));
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "abcdefghijklmnopqrstuvwxyz0123456",
+                "患者需要遵循医生建议坚持低糖饮食同时保持规律作息并且按时服药定期复查",
+                "已停用；改用新版",
+                "是否启用?",
+                "第一行\n第二行"
+            })
+    @DisplayName("Given LITERAL 超过 32 字符或含句子分隔字符 When 校验 Then 丢弃该事实")
+    void should_discard_long_or_sentence_literal(String value) {
+        assertDiscardedTriples(List.of(literal(value)));
+    }
+
+    @Test
+    @DisplayName("Given LITERAL 恰好 32 字符且首尾有空白 When 校验 Then 按 trim 后长度判定并入库")
+    void should_accept_literal_with_exactly_maximum_length_after_trim() {
+        var value = " " + "a".repeat(EntityExtractionPrompt.MAX_LITERAL_LENGTH) + " ";
+        var fixture = fixture(List.of(literal(value)));
+        when(fixture.resolver().resolveAll(any(), any(), any()))
+                .thenAnswer(invocation -> resolvedTo(invocation.getArgument(1), UUID.randomUUID()));
+
+        assertThat(fixture.extract()).isEqualTo(1);
+    }
+
     private void assertDiscardedTriples(List<ExtractedTriple> triples) {
         var fixture = fixture(triples);
 
         assertThat(fixture.extract()).isZero();
         verifyNoInteractions(fixture.resolver(), fixture.store());
+    }
+
+    /** 模拟批量消歧：全部 mention 解析为同一实体。 */
+    private static Map<MentionKey, UUID> resolvedTo(Collection<EntityMention> mentions, UUID id) {
+        var resolved = new HashMap<MentionKey, UUID>();
+        mentions.forEach(mention -> resolved.put(MentionKey.of(mention), id));
+        return resolved;
     }
 
     private Fixture fixture(List<ExtractedTriple> triples) {
@@ -340,7 +434,7 @@ class EntityExtractionServiceTest {
         var store = mock(TrustedKnowledgeStore.class);
         var localService =
                 new EntityExtractionService(
-                        mock(DynamicChatClientFactory.class), meter, resolver, store);
+                        mock(DashScopeStructuredOutputClient.class), meter, resolver, store);
         var runId = UUID.randomUUID();
         var run =
                 new RunContext(
@@ -376,12 +470,16 @@ class EntityExtractionServiceTest {
     }
 
     private ExtractedTriple literal() {
+        return literal("20°C");
+    }
+
+    private ExtractedTriple literal(String object) {
         return new ExtractedTriple(
                 "水温",
                 ExtractedEntityType.METRIC,
                 "",
                 "等于",
-                "20°C",
+                object,
                 "LITERAL",
                 "",
                 "",
@@ -425,8 +523,13 @@ class EntityExtractionServiceTest {
             UUID chunkId) {
 
         private int extract() {
-            return service.extractAndPersist(
-                    run, new FocusContext(chunkId, "水温等于20°C", List.of(), List.of()), () -> {});
+            Runnable guard = () -> {};
+            var chunk =
+                    service.extract(
+                            run,
+                            new FocusContext(chunkId, "水温等于20°C", List.of(), List.of()),
+                            guard);
+            return service.persist(run, List.of(chunk), guard);
         }
     }
 }

@@ -36,6 +36,10 @@ public class TrustedKnowledgeStore {
 
     private static final String NORMALIZATION_VERSION = "v1";
 
+    /** 与 {@link #normalize(String)} 等价的实体类型规范化：空白折叠为单个空格、去首尾空格、小写。 */
+    private static final String NORMALIZED_ENTITY_TYPE_SQL =
+            "lower(btrim(regexp_replace(e.entity_type, '\\s+', ' ', 'g')))";
+
     private final JdbcTemplate jdbcTemplate;
 
     @Transactional
@@ -298,15 +302,23 @@ public class TrustedKnowledgeStore {
         return List.copyOf(stored);
     }
 
-    public List<EntityCandidate> findExactEntities(Long knowledgeBaseId, String normalizedAlias) {
+    /**
+     * 按规范化别名与规范化类型精确匹配实体，同名不同类型的实体不会命中。
+     *
+     * @param normalizedType 按 {@link #normalize(String)} 规范化后的实体类型
+     */
+    public List<EntityCandidate> findExactEntities(
+            Long knowledgeBaseId, String normalizedAlias, String normalizedType) {
         return jdbcTemplate.query(
                 """
                 SELECT e.id, e.canonical_name, e.entity_type, e.description
                 FROM ai_knowledge_entity_alias a
                 JOIN ai_knowledge_entity e ON e.id = a.entity_id AND e.merged_into_id IS NULL
                 WHERE a.knowledge_base_id = ? AND a.normalized_alias = ?
+                  AND %s = ?
                 ORDER BY a.confidence DESC, a.entity_id
-                """,
+                """
+                        .formatted(NORMALIZED_ENTITY_TYPE_SQL),
                 (rs, rowNum) ->
                         new EntityCandidate(
                                 rs.getObject(1, UUID.class),
@@ -314,35 +326,60 @@ public class TrustedKnowledgeStore {
                                 rs.getString(3),
                                 rs.getString(4)),
                 knowledgeBaseId,
-                normalizedAlias);
+                normalizedAlias,
+                normalizedType);
     }
 
-    public List<EntityCandidate> findEntityCandidates(
-            Long knowledgeBaseId, String normalizedAlias, float[] mentionEmbedding, int limit) {
+    /**
+     * 按向量距离与名称包含关系召回同类型消歧候选。
+     *
+     * <p>只召回规范化类型一致的实体；名称包含命中的候选始终保留；仅靠向量召回的候选需余弦距离不超过 {@code maxDistance}，避免明显无关实体进入大模型消歧。
+     *
+     * @param normalizedType 按 {@link #normalize(String)} 规范化后的实体类型
+     */
+    public List<ScoredEntityCandidate> findEntityCandidates(
+            Long knowledgeBaseId,
+            String normalizedAlias,
+            String normalizedType,
+            float[] mentionEmbedding,
+            double maxDistance,
+            int limit) {
         return jdbcTemplate.query(
                 """
-                SELECT DISTINCT e.id, e.canonical_name, e.entity_type, e.description,
-                       CASE WHEN vector.entity_id IS NULL THEN 2.0
-                            ELSE vector.embedding <=> CAST(? AS vector) END AS distance
-                FROM ai_knowledge_entity e
-                LEFT JOIN ai_knowledge_entity_alias a ON a.entity_id = e.id
-                LEFT JOIN ai_knowledge_entity_embedding vector ON vector.entity_id = e.id
-                WHERE e.knowledge_base_id = ? AND e.merged_into_id IS NULL
-                  AND (vector.entity_id IS NOT NULL
-                       OR lower(e.canonical_name) LIKE ? OR a.normalized_alias LIKE ?)
-                ORDER BY distance, e.canonical_name, e.id
+                WITH scored AS (
+                    SELECT e.id, e.canonical_name, e.entity_type, e.description,
+                           MIN(CASE WHEN vector.entity_id IS NULL THEN 2.0
+                                    ELSE vector.embedding <=> CAST(? AS vector) END) AS distance,
+                           bool_or(lower(e.canonical_name) LIKE ?
+                                   OR COALESCE(a.normalized_alias LIKE ?, false)) AS lexical
+                    FROM ai_knowledge_entity e
+                    LEFT JOIN ai_knowledge_entity_alias a ON a.entity_id = e.id
+                    LEFT JOIN ai_knowledge_entity_embedding vector ON vector.entity_id = e.id
+                    WHERE e.knowledge_base_id = ? AND e.merged_into_id IS NULL
+                      AND %s = ?
+                    GROUP BY e.id, e.canonical_name, e.entity_type, e.description
+                )
+                SELECT id, canonical_name, entity_type, description, distance
+                FROM scored
+                WHERE lexical OR distance <= ?
+                ORDER BY distance, canonical_name, id
                 LIMIT ?
-                """,
+                """
+                        .formatted(NORMALIZED_ENTITY_TYPE_SQL),
                 (rs, rowNum) ->
-                        new EntityCandidate(
-                                rs.getObject(1, UUID.class),
-                                rs.getString(2),
-                                rs.getString(3),
-                                rs.getString(4)),
+                        new ScoredEntityCandidate(
+                                new EntityCandidate(
+                                        rs.getObject(1, UUID.class),
+                                        rs.getString(2),
+                                        rs.getString(3),
+                                        rs.getString(4)),
+                                rs.getDouble(5)),
                 vector(mentionEmbedding),
+                "%" + normalizedAlias + "%",
+                "%" + normalizedAlias + "%",
                 knowledgeBaseId,
-                "%" + normalizedAlias + "%",
-                "%" + normalizedAlias + "%",
+                normalizedType,
+                maxDistance,
                 limit);
     }
 
@@ -651,6 +688,9 @@ public class TrustedKnowledgeStore {
                     WHERE id = ? AND status = 'PUBLISHED'
                     """,
                     previousRunId);
+            // 旧代际向量随替换一并删除，避免残留在 HNSW 索引中挤占检索 topK
+            jdbcTemplate.update(
+                    "DELETE FROM ai_knowledge_embedding WHERE run_id = ?", previousRunId);
         }
         var switched =
                 jdbcTemplate.update(
@@ -797,6 +837,9 @@ public class TrustedKnowledgeStore {
                 WHERE id = ? AND status = 'PUBLISHED'
                 """,
                 row.activeRunId());
+        // 撤销后的向量不再可检索，直接删除，避免残留在 HNSW 索引中挤占检索 topK
+        jdbcTemplate.update(
+                "DELETE FROM ai_knowledge_embedding WHERE run_id = ?", row.activeRunId());
         var watermark = incrementProjectionWatermark(row.knowledgeBaseId());
         insertRevocationEvent(
                 "document:" + documentId + ":revoke:" + row.activeRunId(),
@@ -806,6 +849,14 @@ public class TrustedKnowledgeStore {
         markProjectionDesired(row.knowledgeBaseId(), "PGVECTOR", watermark);
         refreshVectorCheckpoint(row.knowledgeBaseId(), watermark);
         markProjectionDesired(row.knowledgeBaseId(), "NEO4J", watermark);
+        markSummaryStale(row.knowledgeBaseId());
+    }
+
+    /** 标记知识库涵盖主题待重算；值为最近一次文档变更时间，由汇总任务按该值 CAS 清除。 */
+    public void markSummaryStale(Long knowledgeBaseId) {
+        jdbcTemplate.update(
+                "UPDATE ai_knowledge_base SET ai_summary_stale_at = transaction_timestamp() WHERE id = ?",
+                knowledgeBaseId);
     }
 
     private PublishState lockDocument(Long documentId) {
@@ -979,6 +1030,7 @@ public class TrustedKnowledgeStore {
                 JOIN ai_knowledge_base b ON b.id = c.knowledge_base_id AND b.deleted = false
                 WHERE b.stable_id = ANY(CAST(? AS uuid[]))
                   AND d.deleted = false
+                  AND c.enabled
                   AND (CAST(? AS text[]) = '{}'::text[] OR d.source_type = ANY(CAST(? AS text[])))
                   AND (CAST(? AS text[]) = '{}'::text[] OR d.source_key = ANY(CAST(? AS text[])))
                   AND (CAST(? AS uuid[]) = '{}'::uuid[] OR d.stable_id = ANY(CAST(? AS uuid[])))
@@ -1018,6 +1070,7 @@ public class TrustedKnowledgeStore {
                 WHERE f.fact_key = ANY(string_to_array(?, ','))
                   AND b.stable_id = ANY(CAST(? AS uuid[]))
                   AND d.deleted = false
+                  AND c.enabled
                   AND assertion.recorded_at IS NOT NULL
                   AND assertion.expired_at IS NULL
                   AND (assertion.valid_at IS NULL
@@ -1087,6 +1140,7 @@ public class TrustedKnowledgeStore {
                               AND (fe.invalid_at IS NULL OR fe.invalid_at > CURRENT_TIMESTAMP)
                         ) validated ON TRUE
                         WHERE c.stable_id = ?
+                          AND c.enabled
                           AND b.stable_id = ANY(CAST(? AS uuid[]))
                           AND (CAST(? AS text[]) = '{}'::text[] OR d.source_type = ANY(CAST(? AS text[])))
                           AND (CAST(? AS text[]) = '{}'::text[] OR d.source_key = ANY(CAST(? AS text[])))
@@ -1138,6 +1192,8 @@ public class TrustedKnowledgeStore {
                       JOIN ai_knowledge_evidence current_e ON current_e.id = current_fe.evidence_id
                       JOIN ai_knowledge_document current_d
                         ON current_d.active_run_id = current_e.run_id AND current_d.deleted = false
+                      JOIN ai_knowledge_chunk current_c
+                        ON current_c.stable_id = current_e.focus_chunk_id AND current_c.enabled
                       WHERE current_fe.fact_id = f.id
                         AND current_fe.recorded_at IS NOT NULL
                         AND current_fe.expired_at IS NULL
@@ -1160,6 +1216,7 @@ public class TrustedKnowledgeStore {
                 JOIN ai_knowledge_fact_evidence assertion ON assertion.fact_id = f.id
                 JOIN ai_knowledge_evidence e ON e.id = assertion.evidence_id
                 JOIN ai_knowledge_document d ON d.active_run_id = e.run_id AND d.deleted = false
+                JOIN ai_knowledge_chunk ec ON ec.stable_id = e.focus_chunk_id AND ec.enabled
                 WHERE b.stable_id = ?
                   AND assertion.recorded_at IS NOT NULL
                   AND assertion.expired_at IS NULL
@@ -1217,6 +1274,7 @@ public class TrustedKnowledgeStore {
                         JOIN ai_knowledge_fact_evidence assertion ON assertion.fact_id = f.id
                         JOIN ai_knowledge_evidence e ON e.id = assertion.evidence_id
                         JOIN ai_knowledge_document d ON d.active_run_id = e.run_id AND d.deleted = false
+                        JOIN ai_knowledge_chunk ec ON ec.stable_id = e.focus_chunk_id AND ec.enabled
                         WHERE f.id = ? AND f.object_kind = 'ENTITY'
                           AND assertion.recorded_at IS NOT NULL
                           AND assertion.expired_at IS NULL
@@ -1245,6 +1303,8 @@ public class TrustedKnowledgeStore {
                             JOIN ai_knowledge_evidence e ON e.id = assertion.evidence_id
                             JOIN ai_knowledge_document d
                               ON d.active_run_id = e.run_id AND d.deleted = false
+                            JOIN ai_knowledge_chunk ec
+                              ON ec.stable_id = e.focus_chunk_id AND ec.enabled
                             WHERE b.stable_id = ? AND f.object_kind = 'ENTITY'
                               AND assertion.recorded_at IS NOT NULL
                               AND assertion.expired_at IS NULL
@@ -1260,6 +1320,8 @@ public class TrustedKnowledgeStore {
                             JOIN ai_knowledge_evidence e ON e.id = assertion.evidence_id
                             JOIN ai_knowledge_document d
                               ON d.active_run_id = e.run_id AND d.deleted = false
+                            JOIN ai_knowledge_chunk ec
+                              ON ec.stable_id = e.focus_chunk_id AND ec.enabled
                             WHERE b.stable_id = ? AND f.object_kind = 'ENTITY'
                               AND assertion.recorded_at IS NOT NULL
                               AND assertion.expired_at IS NULL
@@ -1273,6 +1335,108 @@ public class TrustedKnowledgeStore {
                         (rs, rowNum) -> rs.getObject(1, UUID.class),
                         knowledgeBaseId,
                         knowledgeBaseId));
+    }
+
+    /** 文档当前发布代际的分块（按序号分页）。 */
+    public List<DocumentChunkView> documentChunks(
+            Long documentId, UUID activeRunId, int offset, int limit) {
+        return jdbcTemplate.query(
+                """
+                SELECT stable_id, chunk_index, content, token_count, section_path, page_no, enabled
+                FROM ai_knowledge_chunk
+                WHERE document_id = ? AND run_id = ?
+                ORDER BY chunk_index
+                OFFSET ? LIMIT ?
+                """,
+                (rs, rowNum) ->
+                        new DocumentChunkView(
+                                rs.getObject(1, UUID.class),
+                                rs.getInt(2),
+                                rs.getString(3),
+                                rs.getInt(4),
+                                rs.getString(5),
+                                (Integer) rs.getObject(6),
+                                rs.getBoolean(7)),
+                documentId,
+                activeRunId,
+                offset,
+                limit);
+    }
+
+    public long countDocumentChunks(Long documentId, UUID activeRunId) {
+        var count =
+                jdbcTemplate.queryForObject(
+                        "SELECT COUNT(*) FROM ai_knowledge_chunk WHERE document_id = ? AND run_id = ?",
+                        Long.class,
+                        documentId,
+                        activeRunId);
+        return count == null ? 0 : count;
+    }
+
+    /**
+     * 启用或停用当前发布代际中的分块。
+     *
+     * <p>检索侧在 SQL 中直接按 {@code enabled} 过滤；图谱侧推进投影水位并为该分块证据涉及的事实写入 FACT_UPSERT 事件， 投影时事实若已无启用证据支撑则从
+     * Neo4j 删除，否则刷新证据集合。
+     *
+     * @return 分块不存在或不属于当前代际时返回 false；状态未变化时直接返回 true
+     */
+    @Transactional
+    public boolean setChunkEnabled(Long documentId, UUID chunkId, boolean enabled) {
+        var current = lockDocument(documentId);
+        if (current.activeRunId() == null) {
+            return false;
+        }
+        var state =
+                jdbcTemplate
+                        .query(
+                                """
+                                SELECT knowledge_base_id, enabled FROM ai_knowledge_chunk
+                                WHERE stable_id = ? AND document_id = ? AND run_id = ?
+                                FOR UPDATE
+                                """,
+                                (rs, rowNum) -> Map.entry(rs.getLong(1), rs.getBoolean(2)),
+                                chunkId,
+                                documentId,
+                                current.activeRunId())
+                        .stream()
+                        .findFirst();
+        if (state.isEmpty()) {
+            return false;
+        }
+        if (state.get().getValue() == enabled) {
+            return true;
+        }
+        var knowledgeBaseId = state.get().getKey();
+        jdbcTemplate.update(
+                "UPDATE ai_knowledge_chunk SET enabled = ? WHERE stable_id = ?", enabled, chunkId);
+        var watermark = incrementProjectionWatermark(knowledgeBaseId);
+        jdbcTemplate.update(
+                """
+                INSERT INTO ai_knowledge_graph_outbox
+                    (event_key, knowledge_base_id, aggregate_type, aggregate_id, run_id,
+                     projection_watermark, event_type)
+                SELECT DISTINCT 'fact:' || f.fact_key || ':chunk:' || CAST(? AS text)
+                                    || ':w' || CAST(? AS text),
+                       f.knowledge_base_id, 'FACT', f.id, e.run_id, ?, 'FACT_UPSERT'
+                FROM ai_knowledge_fact f
+                JOIN ai_knowledge_fact_evidence assertion ON assertion.fact_id = f.id
+                JOIN ai_knowledge_evidence e ON e.id = assertion.evidence_id
+                WHERE e.focus_chunk_id = ?
+                  AND assertion.recorded_at IS NOT NULL
+                  AND assertion.expired_at IS NULL
+                ON CONFLICT (event_key) DO NOTHING
+                """,
+                chunkId,
+                watermark,
+                watermark,
+                chunkId);
+        // 向量不随启停变化（检索时按 enabled 过滤），仅推进水位并复核一致性
+        markProjectionDesired(knowledgeBaseId, "PGVECTOR", watermark);
+        refreshVectorCheckpoint(knowledgeBaseId, watermark);
+        markProjectionDesired(knowledgeBaseId, "NEO4J", watermark);
+        refreshGraphCheckpoint(knowledgeBaseId);
+        return true;
     }
 
     public Optional<GraphProjectionStatus> graphProjectionStatus(UUID knowledgeBaseId) {
@@ -1514,6 +1678,17 @@ public class TrustedKnowledgeStore {
                 "UPDATE ai_knowledge_graph_outbox SET status = 'DONE', error_message = NULL, updated_at = CURRENT_TIMESTAMP WHERE event_id = ? AND status = 'PROCESSING'",
                 event.eventId());
         refreshGraphCheckpoint(event.knowledgeBaseId());
+    }
+
+    /** 知识库所有者 ID，用于推送图投影完成通知；知识库已删除时为空。 */
+    public Optional<Long> knowledgeBaseOwnerId(Long knowledgeBaseId) {
+        return jdbcTemplate
+                .query(
+                        "SELECT owner_id FROM ai_knowledge_base WHERE id = ? AND deleted = false AND owner_id IS NOT NULL",
+                        (rs, rowNum) -> rs.getLong(1),
+                        knowledgeBaseId)
+                .stream()
+                .findFirst();
     }
 
     @Transactional
@@ -1801,6 +1976,16 @@ public class TrustedKnowledgeStore {
             String entityResolutionOutputContractVersion,
             String entityResolutionModelId) {}
 
+    /** 文档分块只读视图。 */
+    public record DocumentChunkView(
+            UUID id,
+            int chunkIndex,
+            String content,
+            int tokenCount,
+            String sectionPath,
+            Integer pageNo,
+            boolean enabled) {}
+
     public record StoredChunk(
             UUID stableId,
             int index,
@@ -1810,6 +1995,9 @@ public class TrustedKnowledgeStore {
             Map<String, Object> metadata) {}
 
     public record EntityCandidate(UUID id, String name, String type, String description) {}
+
+    /** 带余弦距离的消歧候选；仅名称命中、无向量的候选距离为 2.0。 */
+    public record ScoredEntityCandidate(EntityCandidate candidate, double distance) {}
 
     public record FactAssertion(
             java.time.Instant validAt,

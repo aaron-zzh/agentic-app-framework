@@ -2,6 +2,7 @@ package com.xuejiai.aaf.module.knowledge.service;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Component;
 
@@ -17,6 +18,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class DocumentKnowledgeSourceVersionAdapter implements KnowledgeSourceVersionPort {
 
+    private static final Pattern LIBRARY_SOURCE_KEY = Pattern.compile("doc:(\\d+):v(\\d+)");
+
     private final KnowledgeDocumentRepository knowledgeDocuments;
     private final DocumentVersionApi documentVersions;
 
@@ -31,6 +34,17 @@ public class DocumentKnowledgeSourceVersionAdapter implements KnowledgeSourceVer
         var sourceDocumentId = knowledgeDocument.getSourceDocumentId();
         if (sourceDocumentId == null) {
             throw new IllegalStateException("知识来源缺少业务文档身份: " + knowledgeDocumentId);
+        }
+        var pinnedVersionId = pinnedVersionId(knowledgeDocument.getSourceKey(), sourceDocumentId);
+        if (pinnedVersionId != null) {
+            var pinned =
+                    documentVersions
+                            .findExact(sourceDocumentId, pinnedVersionId)
+                            .orElseThrow(
+                                    () ->
+                                            new IllegalStateException(
+                                                    "知识来源固定的文档版本不存在: " + pinnedVersionId));
+            return new SourceVersion(pinned.id(), pinned.checksum());
         }
         var current = documentVersions.findCurrent(List.of(sourceDocumentId)).get(sourceDocumentId);
         if (current != null
@@ -55,6 +69,22 @@ public class DocumentKnowledgeSourceVersionAdapter implements KnowledgeSourceVer
                                 knowledgeDocument.getOrgId(),
                                 knowledgeDocument.getWorkspaceId()));
         return new SourceVersion(created.id(), created.checksum());
+    }
+
+    /**
+     * 文档库导入的来源键 {@code doc:{文档ID}:v{版本ID}} 已固定精确版本，直接复用该版本，不向用户文档追加解析文本版本。
+     *
+     * @return 来源键指向本来源文档时返回版本 ID，否则 {@code null}
+     */
+    private static Long pinnedVersionId(String sourceKey, Long sourceDocumentId) {
+        if (sourceKey == null) {
+            return null;
+        }
+        var matcher = LIBRARY_SOURCE_KEY.matcher(sourceKey);
+        if (!matcher.matches() || !sourceDocumentId.toString().equals(matcher.group(1))) {
+            return null;
+        }
+        return Long.valueOf(matcher.group(2));
     }
 
     private String normalize(String value) {

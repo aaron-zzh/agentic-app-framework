@@ -2,6 +2,7 @@ package com.xuejiai.aaf.framework.engine.knowledge.pipeline;
 
 import java.io.InputStream;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,6 +18,7 @@ import com.xuejiai.aaf.framework.engine.knowledge.graph.EntityExtractionPrompt;
 import com.xuejiai.aaf.framework.engine.knowledge.graph.EntityExtractionService;
 import com.xuejiai.aaf.framework.engine.knowledge.graph.EntityResolutionPrompt;
 import com.xuejiai.aaf.framework.engine.knowledge.importer.ImporterFactory;
+import com.xuejiai.aaf.framework.engine.knowledge.summary.KnowledgeDocumentSummaryService;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.FocusExtractionContextAssembler;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeIngestConfigurationService;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore;
@@ -48,6 +50,7 @@ public class KnowledgePipelineService {
     private final KnowledgeDocumentStatusPort documentStatusPort;
     private final KnowledgeSourceVersionPort sourceVersionPort;
     private final EmbeddingProperties embeddingProperties;
+    private final KnowledgeDocumentSummaryService documentSummaryService;
 
     private final ConcurrentHashMap<Long, PipelineProgress> progressMap = new ConcurrentHashMap<>();
 
@@ -119,6 +122,7 @@ public class KnowledgePipelineService {
                             embeddingProperties.model());
             if ("READY".equals(run.status()) || "PUBLISHED".equals(run.status())) {
                 var receipt = truthStore.publish(run);
+                documentSummaryService.summarize(run, true);
                 progressMap.remove(documentId);
                 return new PipelineResult(
                         true,
@@ -153,12 +157,13 @@ public class KnowledgePipelineService {
             executionGuard.run();
 
             updateProgress(documentId, PipelineStep.EXTRACT_FACTS, 4, startTime);
+            var chunkFacts = new ArrayList<EntityExtractionService.ChunkFacts>(storedChunks.size());
             for (var index = 0; index < storedChunks.size(); index++) {
                 try {
                     var context =
                             contextAssembler.assemble(
                                     storedChunks, index, EXTRACTION_CONTEXT_BUDGET);
-                    extractionService.extractAndPersist(run, context, executionGuard);
+                    chunkFacts.add(extractionService.extract(run, context, executionGuard));
                 } catch (TaskExecutionInProgressException inProgress) {
                     throw inProgress;
                 } catch (Exception extractionFailure) {
@@ -171,10 +176,23 @@ public class KnowledgePipelineService {
                 }
                 executionGuard.run();
             }
+            try {
+                extractionService.persist(run, chunkFacts, executionGuard);
+            } catch (TaskExecutionInProgressException inProgress) {
+                throw inProgress;
+            } catch (Exception persistFailure) {
+                log.warn(
+                        "知识库实体消歧或事实写入失败，降级跳过图谱事实，documentId={}, runId={}, 原因={}",
+                        documentId,
+                        run.runId(),
+                        persistFailure.getMessage());
+            }
+            executionGuard.run();
 
             updateProgress(documentId, PipelineStep.PUBLISH, 5, startTime);
             truthStore.markReady(run);
             var receipt = truthStore.publish(run);
+            documentSummaryService.summarize(run, false);
             progressMap.remove(documentId);
             return new PipelineResult(
                     true,

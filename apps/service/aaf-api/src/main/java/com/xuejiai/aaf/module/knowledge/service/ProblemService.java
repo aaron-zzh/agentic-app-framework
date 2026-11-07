@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.knowledge.service;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -31,19 +32,13 @@ public class ProblemService {
     }
 
     @Transactional
-    public Problem create(Long knowledgeBaseId, String content, List<Long> segmentIds) {
+    public Problem create(Long knowledgeBaseId, String content, List<UUID> chunkIds) {
         var problem = new Problem();
         problem.setKnowledgeBaseId(knowledgeBaseId);
         problem.setContent(content);
         problemRepo.save(problem);
-        if (segmentIds != null) {
-            segmentIds.forEach(
-                    sid -> {
-                        var pp = new ProblemParagraph();
-                        pp.setProblemId(problem.getId());
-                        pp.setSegmentId(sid);
-                        ppRepo.save(pp);
-                    });
+        if (chunkIds != null) {
+            chunkIds.forEach(chunkId -> linkChunk(problem.getId(), chunkId));
         }
         return problem;
     }
@@ -54,15 +49,15 @@ public class ProblemService {
         problemRepo.deleteById(problemId);
     }
 
-    public List<ProblemParagraph> getLinkedSegments(Long problemId) {
+    public List<ProblemParagraph> getLinkedChunks(Long problemId) {
         return ppRepo.findByProblemId(problemId);
     }
 
     @Transactional
-    public void linkSegment(Long problemId, Long segmentId) {
+    public void linkChunk(Long problemId, UUID chunkId) {
         var pp = new ProblemParagraph();
         pp.setProblemId(problemId);
-        pp.setSegmentId(segmentId);
+        pp.setChunkId(chunkId);
         ppRepo.save(pp);
     }
 }

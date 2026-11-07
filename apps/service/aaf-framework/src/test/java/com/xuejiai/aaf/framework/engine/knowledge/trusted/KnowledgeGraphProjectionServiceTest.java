@@ -28,6 +28,7 @@ import org.neo4j.driver.Result;
 import org.neo4j.driver.Session;
 
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeSearchContracts.SourceFilters;
+import com.xuejiai.aaf.framework.messaging.event.SysEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class KnowledgeGraphProjectionServiceTest {
@@ -37,12 +38,13 @@ class KnowledgeGraphProjectionServiceTest {
     @Mock private Result directResult;
     @Mock private Result relatedResult;
     @Mock private TrustedKnowledgeStore store;
+    @Mock private SysEventPublisher eventPublisher;
 
     private KnowledgeGraphProjectionService service;
 
     @BeforeEach
     void setUp() {
-        service = new KnowledgeGraphProjectionService(driver, store);
+        service = new KnowledgeGraphProjectionService(driver, store, eventPublisher);
     }
 
     @Test

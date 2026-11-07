@@ -28,8 +28,10 @@ import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeSearchContrac
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /** 授权多库向量、全文和图检索的 weighted RRF 入口。 */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class HybridSearchService {
@@ -43,11 +45,19 @@ public class HybridSearchService {
     private final KnowledgeGraphProjectionService graphProjectionService;
 
     public Response search(AuthorizedQuery query) {
+        var startedAt = System.nanoTime();
         var scope = accessScopePort.resolve(query);
+        var authorizedAt = System.nanoTime();
         if (scope.knowledgeBases().isEmpty()) {
+            log.info(
+                    "知识检索耗时: baseCount=0, authMs={}, totalMs={}, hitCount=0",
+                    millisBetween(startedAt, authorizedAt),
+                    millisBetween(startedAt, authorizedAt));
             return new Response(List.of(), Set.of(), Set.of());
         }
         var degraded = ConcurrentHashMap.<Channel>newKeySet();
+        // 各库并行检索，同一通道取各库中最慢的一次，即该通道对总耗时的贡献
+        var channelMillis = new ConcurrentHashMap<Channel, Long>();
         var byBase = new LinkedHashMap<UUID, List<Candidate>>();
         try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
             var futures = new LinkedHashMap<UUID, java.util.concurrent.Future<List<Candidate>>>();
@@ -57,7 +67,12 @@ public class HybridSearchService {
                                     futures.put(
                                             baseId,
                                             executor.submit(
-                                                    () -> searchBase(query, base, degraded))));
+                                                    () ->
+                                                            searchBase(
+                                                                    query,
+                                                                    base,
+                                                                    degraded,
+                                                                    channelMillis))));
             for (var entry : futures.entrySet()) {
                 byBase.put(entry.getKey(), entry.getValue().get());
             }
@@ -67,6 +82,7 @@ public class HybridSearchService {
         } catch (java.util.concurrent.ExecutionException failure) {
             throw new IllegalStateException("授权知识库检索失败", failure.getCause());
         }
+        var retrievedAt = System.nanoTime();
 
         var fused = new HashMap<String, Aggregate>();
         for (var entry : byBase.entrySet()) {
@@ -115,15 +131,41 @@ public class HybridSearchService {
                                                 sourceFilters))
                         .flatMap(java.util.Optional::stream)
                         .toList();
+        var finishedAt = System.nanoTime();
+        log.info(
+                "知识检索耗时: baseCount={}, authMs={}, retrieveMs={}, vectorMs={}, keywordMs={}, graphMs={}, fuseMs={}, totalMs={}, hitCount={}, degraded={}",
+                scope.knowledgeBases().size(),
+                millisBetween(startedAt, authorizedAt),
+                millisBetween(authorizedAt, retrievedAt),
+                channelMillis.getOrDefault(Channel.VECTOR, 0L),
+                channelMillis.getOrDefault(Channel.KEYWORD, 0L),
+                channelMillis.getOrDefault(Channel.GRAPH, 0L),
+                millisBetween(retrievedAt, finishedAt),
+                millisBetween(startedAt, finishedAt),
+                hits.size(),
+                degraded);
         return new Response(hits, finalScope.knowledgeBases().keySet(), Set.copyOf(degraded));
     }
 
+    private static long millisBetween(long startNanos, long endNanos) {
+        return (endNanos - startNanos) / 1_000_000;
+    }
+
+    private static void recordChannel(
+            Map<Channel, Long> channelMillis, Channel channel, long startNanos) {
+        channelMillis.merge(channel, millisBetween(startNanos, System.nanoTime()), Math::max);
+    }
+
     private List<Candidate> searchBase(
-            AuthorizedQuery query, AuthorizedKnowledgeBase base, Set<Channel> degraded) {
+            AuthorizedQuery query,
+            AuthorizedKnowledgeBase base,
+            Set<Channel> degraded,
+            Map<Channel, Long> channelMillis) {
         var candidates = new ArrayList<Candidate>();
         var limit = query.topK() * OVERSAMPLE;
         var sourceFilters = SourceFilters.from(query.sourceFilters());
         if (query.channelWeights().vector() > 0) {
+            var channelStartedAt = System.nanoTime();
             try {
                 var request =
                         new SearchRequest(
@@ -147,9 +189,12 @@ public class HybridSearchService {
                         .forEach(candidates::add);
             } catch (RuntimeException failure) {
                 degraded.add(Channel.VECTOR);
+            } finally {
+                recordChannel(channelMillis, Channel.VECTOR, channelStartedAt);
             }
         }
         if (query.channelWeights().keyword() > 0) {
+            var channelStartedAt = System.nanoTime();
             try {
                 truthStore
                         .keywordSearch(
@@ -168,9 +213,12 @@ public class HybridSearchService {
                         .forEach(candidates::add);
             } catch (RuntimeException failure) {
                 degraded.add(Channel.KEYWORD);
+            } finally {
+                recordChannel(channelMillis, Channel.KEYWORD, channelStartedAt);
             }
         }
         if (query.channelWeights().graph() > 0) {
+            var channelStartedAt = System.nanoTime();
             if (!truthStore.isProjectionReady(base.knowledgeBaseId(), "NEO4J")) {
                 degraded.add(Channel.GRAPH);
             } else {
@@ -200,6 +248,7 @@ public class HybridSearchService {
                     degraded.add(Channel.GRAPH);
                 }
             }
+            recordChannel(channelMillis, Channel.GRAPH, channelStartedAt);
         }
         return List.copyOf(candidates);
     }

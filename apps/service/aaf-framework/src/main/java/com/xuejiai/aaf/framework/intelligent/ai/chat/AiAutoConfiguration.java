@@ -53,12 +53,13 @@ public class AiAutoConfiguration {
                                         "qwen:fun-asr-realtime"),
                                 Map.entry(
                                         CapabilityRoutingContext.CAP_SPEECH_TTS,
-                                        "qwen:cosyvoice-v3-flash"),
+                                        "qwen:cosyvoice-v3.5-flash"),
                                 Map.entry(
                                         CapabilityRoutingContext.CAP_MUSIC_GEN,
                                         "qwen:fun-music-v1"),
                                 Map.entry(
-                                        CapabilityRoutingContext.CAP_MODEL_3D, "tripo:tripo3d-v2"),
+                                        CapabilityRoutingContext.CAP_MODEL_3D,
+                                        "tripo:Tripo/Tripo-P1.0"),
                                 Map.entry(
                                         CapabilityRoutingContext.CAP_OMNI_REALTIME,
                                         "qwen:qwen3.5-omni-plus-realtime"),

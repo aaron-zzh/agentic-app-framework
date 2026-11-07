@@ -95,4 +95,8 @@ public class KnowledgeDocument extends BaseEntity {
     /** 分块数量 */
     @Column(name = "chunk_count")
     private Integer chunkCount = 0;
+
+    /** 文档摘要：入库发布后由系统根据文档内容自动生成，只读；由入库管道通过 JDBC 写入，JPA 不插入、不更新。 */
+    @Column(name = "summary", length = 500, insertable = false, updatable = false)
+    private String summary;
 }

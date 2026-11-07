@@ -10,7 +10,7 @@ import jakarta.validation.constraints.Size;
 @Schema(description = "知识库更新请求")
 public record KnowledgeBaseUpdateDTO(
         @Schema(description = "知识库名称") @Size(max = 200) String name,
-        @Schema(description = "描述") @Size(max = 1000) String description,
+        @Schema(description = "知识库说明：面向谁、回答哪类问题、不适用哪些问题") @Size(max = 1000) String description,
         @Schema(description = "可见性：PRIVATE 私有、ORG 组织、SYSTEM_PUBLIC 系统公共")
                 @Pattern(regexp = "PRIVATE|ORG|SYSTEM_PUBLIC")
                 String visibility,

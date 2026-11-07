@@ -73,7 +73,34 @@ ON CONFLICT DO NOTHING;
 
 
 
--- 知识入库只读取 SYSTEM 模型偏好；初始值复用当前系统 CHAT 偏好。
+-- 知识入库只读取 SYSTEM 模型偏好。
+-- 事实抽取使用百炼 JSON Schema strict 结构化输出，只能用百炼模型，固定为 qwen3.8-flash。
+INSERT INTO ai_model_preference (scope, scope_id, capability, model_ids)
+SELECT 'SYSTEM', NULL, 'KNOWLEDGE_EXTRACTION', jsonb_build_array(model.model_id)
+FROM ai_model model
+WHERE model.model_id = 'qwen:qwen3.8-flash' AND model.enabled = TRUE
+  AND NOT EXISTS (
+      SELECT 1
+      FROM ai_model_preference existing
+      WHERE existing.scope = 'SYSTEM'
+        AND existing.scope_id IS NULL
+        AND existing.capability = 'KNOWLEDGE_EXTRACTION'
+  );
+
+-- 文档摘要与知识库涵盖主题同样使用百炼 JSON Schema strict 结构化输出，固定为 qwen3.8-flash。
+INSERT INTO ai_model_preference (scope, scope_id, capability, model_ids)
+SELECT 'SYSTEM', NULL, 'KNOWLEDGE_SUMMARY', jsonb_build_array(model.model_id)
+FROM ai_model model
+WHERE model.model_id = 'qwen:qwen3.8-flash' AND model.enabled = TRUE
+  AND NOT EXISTS (
+      SELECT 1
+      FROM ai_model_preference existing
+      WHERE existing.scope = 'SYSTEM'
+        AND existing.scope_id IS NULL
+        AND existing.capability = 'KNOWLEDGE_SUMMARY'
+  );
+
+-- 实体消歧走通用工具调用，初始值复用当前系统 CHAT 偏好。
 WITH selected AS (
     SELECT COALESCE(
         (SELECT model_ids FROM ai_model_preference
@@ -83,7 +110,7 @@ WITH selected AS (
          WHERE enabled = TRUE AND capabilities LIKE '%CHAT%'
          ORDER BY id LIMIT 1)) AS model_ids
 ), capabilities(capability) AS (
-    VALUES ('KNOWLEDGE_EXTRACTION'), ('KNOWLEDGE_ENTITY_RESOLUTION')
+    VALUES ('KNOWLEDGE_ENTITY_RESOLUTION')
 )
 INSERT INTO ai_model_preference (scope, scope_id, capability, model_ids)
 SELECT 'SYSTEM', NULL, capabilities.capability, selected.model_ids
@@ -107,231 +134,50 @@ BEGIN
         SELECT 1 FROM ai_model_preference
         WHERE scope = 'SYSTEM' AND scope_id IS NULL
           AND capability = 'KNOWLEDGE_ENTITY_RESOLUTION'
-
-
-
+    ) OR NOT EXISTS (
+        SELECT 1 FROM ai_model_preference
+        WHERE scope = 'SYSTEM' AND scope_id IS NULL
+          AND capability = 'KNOWLEDGE_SUMMARY'
     ) THEN
-        RAISE EXCEPTION 'v21 无法初始化知识抽取模型偏好：缺少已启用 CHAT 模型';
+        RAISE EXCEPTION 'v21 无法初始化知识抽取与摘要模型偏好：缺少已启用的 qwen:qwen3.8-flash 或 CHAT 模型';
     END IF;
 END $$;
 
--- 平台向导原始全文；统一 DocumentVersion 与知识 chunk 共用，避免第二文本事实。
-CREATE TEMP TABLE seed_aaf_platform_guide_chunk (
-    id BIGINT PRIMARY KEY,
-    stable_id UUID NOT NULL,
-    content TEXT NOT NULL,
-    chunk_index INTEGER NOT NULL,
-    token_count INTEGER NOT NULL
-) ON COMMIT DROP;
-
-INSERT INTO seed_aaf_platform_guide_chunk (id, stable_id, content, chunk_index, token_count)
-VALUES
-    (1, '00000000-0000-0000-0000-000000000311'::UUID,
-     $chunk_1$AAF（Agentic App Framework）是一套面向开发者的生产级 AI 原生应用开发框架，目标是让每一个团队都能快速构建多智能体协作应用，而不需要从零搭建 AI 基础设施。
-
-AAF 的核心理念是「AI 是架构的一等公民」——不是在传统业务系统上贴一层 AI，而是从设计之初就以 AI 协作为中心来组织整个系统。
-
-主要核心能力：
-• 多智能体协作：支持 Agent 间的分工、委托与并行执行，内置 ReAct 推理循环、子 Agent 派发、结果汇聚等机制
-• 工作流引擎：可视化拖拽设计 AI 工作流，支持 LLM 节点、知识库节点、条件分支、代码节点等，底层由 Flowable 驱动执行
-• 知识库管理：支持文档上传、自动分块、向量化存储，提供语义检索（pgvector hnsw）、混合检索和知识图谱能力
-• 规范驱动开发：先写规范再写代码，规范是人类和 AI 的共同真理来源，支持 AI 全流程自动开发
-• 无代码开发：普通用户可通过可视化界面搭建工作流、配置技能和知识库，无需编写代码$chunk_1$,
-     0, 380),
-    (2, '00000000-0000-0000-0000-000000000312'::UUID,
-     $chunk_2$AAF 技术栈：
-• 后端：Java 25 + Spring Boot 4 + Spring AI + WebFlux + GraphQL + MCP 协议
-• 智能体框架：AgentScope Java（HarnessAgent，支持 AG-UI 协议流式交互）
-• 数据层：PostgreSQL + pgvector（向量检索）、Neo4j（知识图谱）、Redis（缓存）
-• 工作流：Flowable（同时支持 AI 编排流和企业审批流）
-• 前端：Next.js 16 + React 19 + TypeScript，工程化采用 Nx Monorepo + pnpm
-• 跨端：UniApp（微信小程序 / H5 / APP）
-
-整体分为五层架构：
-1. 对话与交互层：多端适配、SSE 流式推送、REST/WebSocket/AG-UI 接口
-2. 服务层：用户管理、知识库、工作流、计费、AIGC 内容创作等业务模块
-3. 智能层：Core/Cognition/Agent/Assistant/Team 五层 AI 协作体系
-4. 引擎层：工作流引擎、知识库引擎、记忆引擎、工具系统、MCP 集成
-5. 基础设施层：PostgreSQL、Redis、Neo4j、向量库、Agent 沙箱
-
-AAF 支持多种部署方式，生产环境推荐 Docker Compose 或 Kubernetes，本地开发只需 JDK 25 + Node.js 22 + PostgreSQL。$chunk_2$,
-     1, 320),
-    (3, '00000000-0000-0000-0000-000000000313'::UUID,
-     $chunk_3$AAF 适用场景：
-
-1. 企业 AI 助理：基于知识库构建企业专属客服、HR 助手、产品顾问，支持多知识库切换和权限隔离
-2. 内容创作平台：集成 AI 写作、图像生成、视频生成能力，支持多平台内容分发（小红书/公众号/抖音）
-3. 智能工作流：将重复性业务流程（如文档处理、数据提取、报告生成）自动化，人工只审核关键节点
-4. AI 开发工具：支持 AI 辅助编码、代码审查、自动测试，集成 MCP 工具协议对接外部开发工具
-5. 多智能体协作：复杂任务由协调者 Agent 拆解后分配给专业子 Agent 并行处理，最终汇总结果
-
-适用人群：
-• 希望快速落地 AI 应用的开发团队（节省搭建基础设施的时间）
-• 需要结合知识库和业务系统的企业（客服、销售、运营场景）
-• 想通过无代码方式构建 AI 工作流的业务人员
-
-当前版本（v0.1.0）已稳定支持：多智能体对话、知识库检索、内容创作工作流、计费与权限管理。
-更多功能（Agent 市场、低代码工作流编辑器、多租户SaaS）在 v0.2.0 规划中。
-
-如需了解更多，欢迎访问项目文档或通过客服联系我们。$chunk_3$,
-     2, 350);
-
-CREATE TEMP TABLE seed_aaf_platform_guide_document_version (
-    document_id BIGINT PRIMARY KEY,
-    version_id BIGINT NOT NULL
-) ON COMMIT DROP;
-
-WITH source_content AS (
-    SELECT string_agg(content, E'\n\n' ORDER BY chunk_index) AS content
-    FROM seed_aaf_platform_guide_chunk
-), inserted_document AS (
-    INSERT INTO doc_document (
-        title, file_path, doc_type, status, publish, owner_id, create_time, update_time
-    )
-    SELECT 'AAF 框架介绍', 'builtin:aaf-platform-guide', 'knowledge-source',
-           'active', 'draft', id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-    FROM sys_user WHERE username = 'admin'
-    RETURNING id, owner_id
-), inserted_version AS (
-    INSERT INTO doc_document_version (
-        document_id, version_no, title, content, format, checksum,
-        source_type, source_ref, change_summary, owner_id
-    )
-    SELECT inserted_document.id, 1, 'AAF 框架介绍', source_content.content,
-           'PLAIN_TEXT', encode(digest(
-               convert_to('AAF 框架介绍', 'UTF8') || decode('00', 'hex') ||
-               convert_to('PLAIN_TEXT', 'UTF8') || decode('00', 'hex') ||
-               convert_to(source_content.content, 'UTF8'),
-               'sha256'), 'hex'),
-           'IMPORT', 'builtin:aaf-platform-guide', '平台向导初始来源', inserted_document.owner_id
-    FROM inserted_document CROSS JOIN source_content
-    RETURNING id, document_id
-)
-INSERT INTO seed_aaf_platform_guide_document_version (document_id, version_id)
-SELECT document_id, id
-FROM inserted_version;
-
--- PostgreSQL 同一数据修改 CTE 的基表快照看不到刚插入文档；必须独立回填当前版本指针。
-UPDATE doc_document document
-SET current_version_id = seeded.version_id
-FROM seed_aaf_platform_guide_document_version seeded
-WHERE document.id = seeded.document_id;
-
--- 平台向导知识库（公共，auto_inject=false，由 search_kb 工具按需检索）。
-INSERT INTO ai_knowledge_base (
-    id, stable_id, visibility, scope_code, name, description, embedding_model,
-    chunk_strategy, chunk_size, chunk_overlap, status, auto_inject,
-    projection_watermark, owner_id, create_time, update_time, deleted)
-VALUES (
-    1, '00000000-0000-0000-0000-000000000301', 'SYSTEM_PUBLIC',
-    'system:aaf-platform-guide', 'AAF 平台向导知识库',
-    '产品咨询、常见问题和功能说明，供默认用户助理的平台向导 Role 使用',
-    NULL, 'RECURSIVE', 512, 64, 0, FALSE,
-    1, NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE)
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO ai_knowledge_document (
-    id, stable_id, knowledge_base_id, uploaded_by, source_document_id, source_type, source_key,
-    title, file_type, content_hash, status, chunk_count,
-    create_time, update_time, deleted)
-VALUES (
-    1, '00000000-0000-0000-0000-000000000302', 1,
-    (SELECT id FROM sys_user WHERE username = 'admin'),
-    (SELECT document_id FROM seed_aaf_platform_guide_document_version),
-    'SYSTEM',
-    'builtin:aaf-platform-guide', 'AAF 框架介绍', 'text',
-    (SELECT version.checksum
-     FROM seed_aaf_platform_guide_document_version seeded
-     JOIN doc_document_version version ON version.id = seeded.version_id),
-    2, 3,
-    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE)
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO ai_knowledge_ingest_run (
-    id, knowledge_base_id, document_id, source_document_version_id, run_no, ingest_fingerprint,
-    payer_user_id, status, parser_version, chunk_config_digest,
-    extraction_prompt_snapshot, extraction_prompt_digest, extraction_prompt_version,
-    extraction_user_prompt_snapshot, extraction_user_prompt_digest, extraction_user_prompt_version,
-    extraction_output_contract_version, extraction_model_id,
-    entity_resolution_prompt_snapshot, entity_resolution_prompt_digest, entity_resolution_prompt_version,
-    entity_resolution_user_prompt_snapshot, entity_resolution_user_prompt_digest, entity_resolution_user_prompt_version,
-    entity_resolution_output_contract_version, entity_resolution_model_id,
-    normalization_version, embedding_model_id, expected_active_run_id, fencing_token,
-    started_at, ready_at, published_at, finished_at)
-SELECT
-    '00000000-0000-0000-0000-000000000303', 1, 1,
-    source_version.version_id,
-    1,
-    encode(digest('seed-v21|aaf-platform-guide-v1', 'sha256'), 'hex'),
-    (SELECT id FROM sys_user WHERE username = 'admin'),
-    'PUBLISHED', 'seed-v21',
-    encode(digest('RECURSIVE|512|64', 'sha256'), 'hex'),
-    extraction.content, extraction.content_hash, extraction.template_version,
-    extraction_user.content, extraction_user.content_hash, extraction_user.template_version,
-    'knowledge-fact-schema-v2', extraction_model.model_id,
-    resolution.content, resolution.content_hash, resolution.template_version,
-    resolution_user.content, resolution_user.content_hash, resolution_user.template_version,
-    'knowledge-entity-resolution-schema-v1', resolution_model.model_id,
-    'v1', 'text-embedding-v3', NULL, 1,
-    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-FROM seed_aaf_platform_guide_document_version source_version
-CROSS JOIN ai_prompt_template extraction_root
-JOIN ai_prompt_template_version extraction ON extraction.id = extraction_root.current_version_id
-JOIN ai_prompt_template extraction_user_root ON extraction_user_root.code = 'aaf.knowledge.fact-extraction.user' AND extraction_user_root.deleted = FALSE
-JOIN ai_prompt_template_version extraction_user ON extraction_user.id = extraction_user_root.current_version_id
-JOIN ai_prompt_template resolution_root ON resolution_root.code = 'aaf.knowledge.entity-resolution.system' AND resolution_root.deleted = FALSE
-JOIN ai_prompt_template_version resolution ON resolution.id = resolution_root.current_version_id
-JOIN ai_prompt_template resolution_user_root ON resolution_user_root.code = 'aaf.knowledge.entity-resolution.user' AND resolution_user_root.deleted = FALSE
-JOIN ai_prompt_template_version resolution_user ON resolution_user.id = resolution_user_root.current_version_id
-CROSS JOIN LATERAL (
-    SELECT model_ids ->> 0 AS model_id
-    FROM ai_model_preference
-    WHERE scope = 'SYSTEM' AND scope_id IS NULL
-      AND capability = 'KNOWLEDGE_EXTRACTION'
-    LIMIT 1
-) extraction_model
-CROSS JOIN LATERAL (
-    SELECT model_ids ->> 0 AS model_id
-    FROM ai_model_preference
-    WHERE scope = 'SYSTEM' AND scope_id IS NULL
-      AND capability = 'KNOWLEDGE_ENTITY_RESOLUTION'
-    LIMIT 1
-) resolution_model
-WHERE extraction_root.code = 'aaf.knowledge.fact-extraction.system'
-  AND extraction_root.deleted = FALSE
-ON CONFLICT (id) DO NOTHING;
+-- 平台向导知识库归属 admin 个人组织：租户范围与组织过滤要求 org_id 匹配，否则管理员无法在后台查看与维护。
+CREATE TEMP TABLE seed_aaf_platform_guide_owner ON COMMIT DROP AS
+SELECT admin_user.id AS owner_id, org.id AS org_id
+FROM sys_user admin_user
+JOIN sys_organization org
+    ON org.owner_id = admin_user.id
+    AND org.type = 'personal'
+    AND org.deleted = FALSE
+WHERE admin_user.username = 'admin'
+  AND admin_user.deleted = FALSE
+ORDER BY org.id
+LIMIT 1;
 
 DO $$
 BEGIN
-    IF NOT EXISTS (
-        SELECT 1
-        FROM ai_knowledge_ingest_run run
-        JOIN seed_aaf_platform_guide_document_version source_version
-            ON source_version.version_id = run.source_document_version_id
-        WHERE run.id = '00000000-0000-0000-0000-000000000303'::UUID
-          AND run.document_id = 1
-          AND run.knowledge_base_id = 1
-    ) THEN
-        RAISE EXCEPTION 'v21 平台向导 ingest run 未生成或未绑定精确文档版本';
+    IF NOT EXISTS (SELECT 1 FROM seed_aaf_platform_guide_owner) THEN
+        RAISE EXCEPTION 'v21 平台向导知识库缺少 admin 个人组织归属';
     END IF;
 END $$;
 
-INSERT INTO ai_knowledge_chunk (
-    id, stable_id, run_id, document_id, knowledge_base_id, content,
-    content_hash, chunk_index, token_count, metadata, created_at)
-SELECT id, stable_id, '00000000-0000-0000-0000-000000000303', 1, 1, content,
-       encode(digest(content, 'sha256'), 'hex'), chunk_index, token_count,
-       jsonb_build_object('seed', 'platform-guide'), CURRENT_TIMESTAMP
-FROM seed_aaf_platform_guide_chunk
+-- 平台向导知识库（系统公开；由绑定该库的角色经 knowledge_search 工具按需检索，auto_inject 当前不参与运行时）。
+-- 库内文档不在种子中预置：启动时 PlatformGuideDocumentInitializer 只将 bootstrap/ 下的框架介绍与产品服务介绍登记到文档库，
+-- 由管理员在知识库页面"从文档库导入"后才切片、向量化与实体抽取。
+INSERT INTO ai_knowledge_base (
+    id, stable_id, org_id, visibility, scope_code, name, description, embedding_model,
+    chunk_strategy, chunk_size, chunk_overlap, status, auto_inject,
+    projection_watermark, owner_id, create_time, update_time, deleted)
+SELECT
+    1, '00000000-0000-0000-0000-000000000301', owner.org_id, 'SYSTEM_PUBLIC',
+    'system:aaf-platform-guide', 'AAF 平台向导知识库',
+    '产品咨询、常见问题和功能说明，供默认用户助理的平台向导 Role 使用',
+    NULL, 'RECURSIVE', 512, 64, 0, FALSE,
+    1, owner.owner_id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
+FROM seed_aaf_platform_guide_owner owner
 ON CONFLICT (id) DO NOTHING;
-
-UPDATE ai_knowledge_document
-SET active_run_id = '00000000-0000-0000-0000-000000000303',
-    ingest_fence = 1,
-    status = 2,
-    chunk_count = 3,
-    update_time = CURRENT_TIMESTAMP
-WHERE id = 1;
 
 INSERT INTO ai_knowledge_projection_checkpoint (
     knowledge_base_id, projection_kind, desired_watermark, applied_watermark, status)

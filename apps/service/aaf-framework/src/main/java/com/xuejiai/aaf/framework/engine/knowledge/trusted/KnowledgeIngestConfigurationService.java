@@ -24,6 +24,11 @@ public class KnowledgeIngestConfigurationService {
     public static final String EXTRACTION_USER_PROMPT = "aaf.knowledge.fact-extraction.user";
     public static final String RESOLUTION_SYSTEM_PROMPT = "aaf.knowledge.entity-resolution.system";
     public static final String RESOLUTION_USER_PROMPT = "aaf.knowledge.entity-resolution.user";
+    public static final String DOCUMENT_SUMMARY_SYSTEM_PROMPT =
+            "aaf.knowledge.document-summary.system";
+    public static final String DOCUMENT_SUMMARY_USER_PROMPT = "aaf.knowledge.document-summary.user";
+    public static final String BASE_SUMMARY_SYSTEM_PROMPT = "aaf.knowledge.base-summary.system";
+    public static final String BASE_SUMMARY_USER_PROMPT = "aaf.knowledge.base-summary.user";
 
     private final PromptTemplateService promptTemplates;
     private final ModelPreferenceRepository preferenceRepository;
@@ -43,6 +48,20 @@ public class KnowledgeIngestConfigurationService {
                 resolutionUser,
                 EntityResolutionPrompt.OUTPUT_CONTRACT_VERSION,
                 resolveSystemChatModel(CapabilityRoutingContext.CAP_KNOWLEDGE_ENTITY_RESOLUTION));
+    }
+
+    /**
+     * 解析文档摘要与知识库涵盖主题使用的 Prompt 与系统模型。
+     *
+     * <p>摘要不参与入库指纹：修改摘要 Prompt 或模型只影响之后生成的摘要，不触发文档重新入库。
+     */
+    public SummarySnapshot resolveSummary() {
+        return new SummarySnapshot(
+                promptTemplates.requirePublished(DOCUMENT_SUMMARY_SYSTEM_PROMPT),
+                promptTemplates.requirePublished(DOCUMENT_SUMMARY_USER_PROMPT),
+                promptTemplates.requirePublished(BASE_SUMMARY_SYSTEM_PROMPT),
+                promptTemplates.requirePublished(BASE_SUMMARY_USER_PROMPT),
+                resolveSystemChatModel(CapabilityRoutingContext.CAP_KNOWLEDGE_SUMMARY));
     }
 
     private String resolveSystemChatModel(String capability) {
@@ -98,4 +117,12 @@ public class KnowledgeIngestConfigurationService {
             return TrustedKnowledgeStore.sha256(system.sha256() + "|" + user.sha256());
         }
     }
+
+    /** 文档摘要与知识库涵盖主题的配置快照。 */
+    public record SummarySnapshot(
+            ResolvedPromptTemplate documentSystem,
+            ResolvedPromptTemplate documentUser,
+            ResolvedPromptTemplate baseSystem,
+            ResolvedPromptTemplate baseUser,
+            String modelId) {}
 }

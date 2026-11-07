@@ -2,6 +2,7 @@ package com.xuejiai.aaf.framework.engine.knowledge.trusted;
 
 import java.time.Duration;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -14,6 +15,8 @@ import org.springframework.stereotype.Service;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeSearchContracts.SourceFilters;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore.FactProjection;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore.OutboxEvent;
+import com.xuejiai.aaf.framework.messaging.event.SysEventPublisher;
+import com.xuejiai.aaf.framework.org.OrgContext;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,8 +29,12 @@ public class KnowledgeGraphProjectionService {
 
     private static final Duration CONNECTIVITY_RETRY_DELAY = Duration.ofMinutes(1);
 
+    /** 图投影完成事件，前端据此刷新知识图谱。 */
+    private static final String GRAPH_PROJECTED_EVENT = "knowledge.graph.projected";
+
     private final Driver driver;
     private final TrustedKnowledgeStore store;
+    private final SysEventPublisher eventPublisher;
 
     private volatile boolean neo4jAvailable;
     private volatile long nextConnectivityProbeNanos;
@@ -38,6 +45,7 @@ public class KnowledgeGraphProjectionService {
         if (!isNeo4jAvailable()) {
             return;
         }
+        var projectedKnowledgeBaseIds = new LinkedHashSet<Long>();
         for (var event : store.claimOutbox(100)) {
             if (!neo4jAvailable) {
                 store.failOutbox(event, "Neo4j 不可用");
@@ -46,6 +54,7 @@ public class KnowledgeGraphProjectionService {
             try {
                 project(event);
                 store.completeOutbox(event);
+                projectedKnowledgeBaseIds.add(event.knowledgeBaseId());
             } catch (RuntimeException failure) {
                 store.failOutbox(event, failure.getMessage());
                 if (causedByServiceUnavailable(failure)) {
@@ -54,6 +63,31 @@ public class KnowledgeGraphProjectionService {
                     log.warn("知识图投影失败，eventId={}", event.eventId(), failure);
                 }
             }
+        }
+        projectedKnowledgeBaseIds.forEach(this::notifyGraphProjected);
+    }
+
+    /**
+     * 图投影写入 Neo4j 后通知知识库所有者刷新图谱；文档完成事件早于投影，前端仅靠它拿到的是空图。
+     *
+     * <p>仅作变化通知，不含业务数据；发布失败不影响投影结果。
+     */
+    private void notifyGraphProjected(Long knowledgeBaseId) {
+        try {
+            store.knowledgeBaseOwnerId(knowledgeBaseId)
+                    .ifPresent(
+                            ownerId ->
+                                    OrgContext.runIgnoring(
+                                            () ->
+                                                    eventPublisher.publish(
+                                                            ownerId,
+                                                            GRAPH_PROJECTED_EVENT,
+                                                            Map.of(
+                                                                    "knowledgeBaseId",
+                                                                    knowledgeBaseId),
+                                                            Map.of())));
+        } catch (RuntimeException failure) {
+            log.warn("知识图投影完成事件发布失败，knowledgeBaseId={}", knowledgeBaseId, failure);
         }
     }
 
@@ -261,8 +295,12 @@ public class KnowledgeGraphProjectionService {
 
     private void project(OutboxEvent event) {
         switch (event.eventType()) {
+            // 事实仍有启用的当前证据则刷新；否则（如证据所在分块被停用）从图中删除
             case "FACT_UPSERT" ->
-                    store.currentFactProjection(event.aggregateId()).ifPresent(this::projectFact);
+                    store.currentFactProjection(event.aggregateId())
+                            .ifPresentOrElse(
+                                    this::projectFact,
+                                    () -> deleteFacts(List.of(event.aggregateId())));
             case "DOCUMENT_REVOKED" -> deleteRun(event.runId());
             default -> throw new IllegalArgumentException("未知知识图投影事件: " + event.eventType());
         }
@@ -336,7 +374,11 @@ public class KnowledgeGraphProjectionService {
         if (runId == null) {
             return;
         }
-        var activeFactIds = store.currentFactIdsForRunExclusion(runId);
+        deleteFacts(store.currentFactIdsForRunExclusion(runId));
+    }
+
+    /** 删除指定事实边，并清理不再有任何关系的实体节点。 */
+    private void deleteFacts(List<UUID> factIds) {
         try (var session = driver.session()) {
             session.run(
                             """
@@ -344,7 +386,7 @@ public class KnowledgeGraphProjectionService {
                             WHERE relation.id IN $factIds
                             DELETE relation
                             """,
-                            Map.of("factIds", activeFactIds.stream().map(UUID::toString).toList()))
+                            Map.of("factIds", factIds.stream().map(UUID::toString).toList()))
                     .consume();
             session.run("MATCH (entity:KnowledgeEntity) WHERE NOT (entity)--() DELETE entity")
                     .consume();

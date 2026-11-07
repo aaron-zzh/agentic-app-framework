@@ -50,6 +50,7 @@ public class KnowledgeDocumentReferenceService
                 entity.getActiveRunId(),
                 entity.getActiveSourceDocumentVersionId(),
                 entity.getTitle(),
+                entity.getSummary(),
                 entity.getFileType(),
                 entity.getFileSize(),
                 entity.getContentHash(),

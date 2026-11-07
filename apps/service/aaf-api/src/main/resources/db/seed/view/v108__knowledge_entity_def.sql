@@ -22,7 +22,8 @@ VALUES (
       "fields": [
         {"type":"number","name":"id","label":"ID","readOnly":true},
         {"type":"text","name":"name","label":"名称","readOnly":true},
-        {"type":"textarea","name":"description","label":"描述","readOnly":true,"rows":3},
+        {"type":"textarea","name":"description","label":"知识库说明","readOnly":true,"rows":3},
+        {"type":"textarea","name":"aiSummary","label":"涵盖主题（自动生成）","readOnly":true,"rows":3},
         {"type":"select","name":"visibility","label":"可见性","readOnly":true,
           "options":[
             {"label":"私有","value":"PRIVATE"},

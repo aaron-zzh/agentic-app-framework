@@ -17,7 +17,9 @@ public record CreateKnowledgeBaseRequest(
                 @NotBlank
                 @Size(max = 200)
                 String name,
-        @Schema(description = "描述", example = "存放产品相关文档") @Size(max = 1000) String description,
+        @Schema(description = "知识库说明：面向谁、回答哪类问题、不适用哪些问题", example = "面向糖尿病患者家属，回答居家护理问题；不适用于用药方案调整")
+                @Size(max = 1000)
+                String description,
         @Schema(description = "可见性：PRIVATE 私有、ORG 组织、SYSTEM_PUBLIC 系统公共", example = "PRIVATE")
                 @Pattern(regexp = "PRIVATE|ORG|SYSTEM_PUBLIC")
                 String visibility,

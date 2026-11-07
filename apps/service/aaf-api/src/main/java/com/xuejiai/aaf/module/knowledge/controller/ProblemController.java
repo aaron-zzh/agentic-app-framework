@@ -1,6 +1,7 @@
 package com.xuejiai.aaf.module.knowledge.controller;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -27,7 +28,7 @@ public class ProblemController {
 
     @PostMapping
     public Result<?> create(@PathVariable Long kbId, @RequestBody CreateProblemDTO dto) {
-        return Result.success(problemService.create(kbId, dto.content(), dto.segmentIds()));
+        return Result.success(problemService.create(kbId, dto.content(), dto.chunkIds()));
     }
 
     @DeleteMapping("/{id}")
@@ -36,11 +37,11 @@ public class ProblemController {
         return Result.success();
     }
 
-    @PostMapping("/{id}/segments/{segmentId}")
-    public Result<?> linkSegment(@PathVariable Long id, @PathVariable Long segmentId) {
-        problemService.linkSegment(id, segmentId);
+    @PostMapping("/{id}/chunks/{chunkId}")
+    public Result<?> linkChunk(@PathVariable Long id, @PathVariable UUID chunkId) {
+        problemService.linkChunk(id, chunkId);
         return Result.success();
     }
 
-    record CreateProblemDTO(String content, List<Long> segmentIds) {}
+    record CreateProblemDTO(String content, List<UUID> chunkIds) {}
 }

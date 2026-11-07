@@ -20,6 +20,9 @@ public interface DocumentRepository
 
     Optional<Document> findByFilePath(String filePath);
 
+    Optional<Document> findFirstByFilePathAndOwnerIdAndOrgIdAndStatusAndDeletedFalseOrderByIdAsc(
+            String filePath, Long ownerId, Long orgId, String status);
+
     List<Document> findByStatusOrderByFilePath(String status);
 
     List<Document> findByOwnerIdAndStatusOrderByCreateTimeDesc(Long ownerId, String status);
