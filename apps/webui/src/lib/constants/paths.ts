@@ -47,7 +47,9 @@ export const paths = {
     me: "/studio/me",
     mePricing: "/studio/me/membership",
     meCredits: "/studio/me/credits",
-    meAccount: "/studio/me/account"
+    meAccount: "/studio/me/account",
+    knowledgeDoc: (id: number | string, sourceVersionId?: number | null) =>
+      `/studio/knowledge/docs?documentId=${id}${sourceVersionId ? `&sourceVersionId=${sourceVersionId}` : ""}`
   },
   admin: {
     demo: "/admin/demo",

@@ -1,6 +1,6 @@
 {
   "name": "knowledge-visualization",
-  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "$schema": "../../node_modules/n  x/schemas/project-schema.json",
   "sourceRoot": "packages/knowledge-visualization/src",
   "projectType": "library",
   "tags": [

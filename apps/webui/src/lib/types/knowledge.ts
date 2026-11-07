@@ -23,7 +23,12 @@ export interface KnowledgeBase {
   id: number
   stableId: string
   name: string
+  /** 知识库说明：用户填写，系统不会修改。 */
   description: string | null
+  /** 涵盖主题：系统根据已入库文档自动生成，只读。 */
+  aiSummary: string | null
+  /** 涵盖主题最近更新时间（LocalDateTime 序列化字符串），只读。 */
+  aiSummaryUpdatedAt: string | null
   visibility: KnowledgeBaseVisibility
   scopeCode: string | null
   embeddingModel: string | null
@@ -49,6 +54,8 @@ export interface KnowledgeDocument {
   sourceUri: string | null
   activeRunId: string | null
   title: string
+  /** 文档摘要：系统生成，只读。 */
+  summary: string | null
   fileType: string | null
   fileSize: number | null
   contentHash: string | null
@@ -67,17 +74,15 @@ export interface KnowledgeBaseStats {
   totalSize: number
 }
 
-/** 知识库段落（分块）。 */
-export interface KnowledgeSegment {
-  id: number
-  documentId: number
-  knowledgeBaseId: number
+/** 知识文档当前发布代际的分块；内容只读，可启用/停用。 */
+export interface KnowledgeChunk {
+  id: string
+  chunkIndex: number
   content: string
-  position: number
-  wordCount: number
+  tokenCount: number
+  sectionPath: string | null
+  pageNo: number | null
   enabled: boolean
-  createTime: string
-  updateTime: string
 }
 
 /** 创建知识库入参。 */

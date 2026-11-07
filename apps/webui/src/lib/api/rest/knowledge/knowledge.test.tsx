@@ -4,7 +4,7 @@
  */
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { act, renderHook, waitFor } from "@testing-library/react"
+import { act, renderHook } from "@testing-library/react"
 import type { PropsWithChildren } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import type { KnowledgeDocument } from "@/lib/types/knowledge"
@@ -19,12 +19,7 @@ const backendApiMock = vi.hoisted(() => ({
 
 vi.mock("../backend-client", () => ({ backendApi: backendApiMock }))
 
-import {
-  getKnowledgeDocumentsRefetchInterval,
-  knowledgeApi,
-  useDeleteKnowledgeDocument,
-  useKnowledgeDocuments
-} from "./knowledge"
+import { knowledgeApi, useDeleteKnowledgeDocument } from "./knowledge"
 
 const DOCUMENT: KnowledgeDocument = {
   id: 31,
@@ -38,6 +33,7 @@ const DOCUMENT: KnowledgeDocument = {
   sourceUri: "/knowledge/architecture.md",
   activeRunId: "00000000-0000-0000-0000-000000000099",
   title: "架构说明",
+  summary: null,
   fileType: "md",
   fileSize: 1024,
   contentHash: "sha256:test",
@@ -106,51 +102,6 @@ describe("知识文档 Query hooks", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     backendApiMock.delete.mockResolvedValue(undefined)
-  })
-
-  it("仅存在待处理或处理中记录时返回两秒轮询间隔", () => {
-    expect(getKnowledgeDocumentsRefetchInterval(undefined)).toBe(false)
-    expect(
-      getKnowledgeDocumentsRefetchInterval({ list: [{ ...DOCUMENT, status: 0 }], total: 1 })
-    ).toBe(2000)
-    expect(
-      getKnowledgeDocumentsRefetchInterval({ list: [{ ...DOCUMENT, status: 1 }], total: 1 })
-    ).toBe(2000)
-    expect(
-      getKnowledgeDocumentsRefetchInterval({
-        list: [DOCUMENT, { ...DOCUMENT, id: 32, status: 3 }],
-        total: 2
-      })
-    ).toBe(false)
-  })
-
-  it("文档从处理中进入全部终态时应各刷新一次 stats 和 graph", async () => {
-    const activePage = { list: [{ ...DOCUMENT, status: 1 as const }], total: 1 }
-    const terminalPage = { list: [DOCUMENT], total: 1 }
-    backendApiMock.get.mockResolvedValueOnce(activePage).mockResolvedValueOnce(terminalPage)
-
-    const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false }, mutations: { retry: false } }
-    })
-    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries").mockResolvedValue()
-    const wrapper = ({ children }: PropsWithChildren) => (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    )
-    const { result } = renderHook(() => useKnowledgeDocuments("12"), { wrapper })
-
-    await waitFor(() => expect(result.current.data).toEqual(activePage))
-    await act(async () => {
-      await result.current.refetch()
-    })
-    await waitFor(() => expect(result.current.data).toEqual(terminalPage))
-    await waitFor(() => expect(invalidateSpy).toHaveBeenCalledTimes(2))
-
-    expect(invalidateSpy).toHaveBeenNthCalledWith(1, {
-      queryKey: ["knowledge-bases", "12", "stats"]
-    })
-    expect(invalidateSpy).toHaveBeenNthCalledWith(2, {
-      queryKey: ["knowledge-bases", "12", "graph"]
-    })
   })
 
   it("删除文档后应只失效当前知识库的 documents、stats 和 graph", async () => {

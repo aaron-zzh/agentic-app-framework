@@ -15,15 +15,18 @@ interface ProjectDocumentPickerProps {
   options: DocListItem[]
   loading?: boolean
   disabled?: boolean
+  /** 无可选文档时的提示文案。 */
+  emptyText?: string
   onValueChange: (values: number[]) => void
 }
 
-/** 选择创建后立即关联到项目的现有文档。 */
+/** 选择创建后立即关联到项目的现有文档；也用于从文档库选择导入知识库。 */
 export function ProjectDocumentPicker({
   values,
   options,
   loading = false,
   disabled = false,
+  emptyText = "暂无可关联文档，不影响创建。",
   onValueChange
 }: ProjectDocumentPickerProps) {
   const id = useId()
@@ -33,7 +36,7 @@ export function ProjectDocumentPicker({
   }
 
   if (options.length === 0) {
-    return <p className="text-muted-foreground text-sm">暂无可关联文档，不影响创建。</p>
+    return <p className="text-muted-foreground text-sm">{emptyText}</p>
   }
 
   return (

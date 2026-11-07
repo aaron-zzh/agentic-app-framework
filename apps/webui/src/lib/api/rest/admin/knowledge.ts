@@ -23,7 +23,12 @@ export interface KnowledgeBaseMaintenance {
   workspaceId: number | null
   ownerId: number | null
   name: string
+  /** 知识库说明：用户填写，系统不会修改。 */
   description: string | null
+  /** 涵盖主题：系统根据已入库文档自动生成，只读。 */
+  aiSummary: string | null
+  /** 涵盖主题最近更新时间（LocalDateTime 序列化字符串），只读。 */
+  aiSummaryUpdatedAt: string | null
   visibility: KnowledgeBaseVisibility
   scopeCode: string | null
   embeddingModel: string | null

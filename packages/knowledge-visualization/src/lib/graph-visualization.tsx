@@ -14,6 +14,7 @@ export function GraphVisualization<TNodeData = unknown, TEdgeData = unknown>({
   graph,
   dimension = "2.5d",
   layout = "force",
+  colorScheme = "light",
   selectedNodeId,
   className,
   style,
@@ -46,6 +47,7 @@ export function GraphVisualization<TNodeData = unknown, TEdgeData = unknown>({
       engine = new ThreeGraphEngine(container, {
         dimension,
         layout,
+        colorScheme,
         onNodePick: (node) => onNodePickRef.current?.(node),
         onNodeHover: (node) => onNodeHoverRef.current?.(node),
         onError: (error) => onErrorRef.current?.(error)
@@ -66,7 +68,7 @@ export function GraphVisualization<TNodeData = unknown, TEdgeData = unknown>({
       appliedGraphRef.current = null
       mountedEngine.dispose()
     }
-  }, [dimension, layout])
+  }, [dimension, layout, colorScheme])
 
   useEffect(() => {
     const engine = engineRef.current
@@ -91,6 +93,7 @@ export function GraphVisualization<TNodeData = unknown, TEdgeData = unknown>({
       className={className}
       data-dimension={dimension}
       data-layout={layout}
+      data-color-scheme={colorScheme}
       style={{
         height: "100%",
         minHeight: 320,

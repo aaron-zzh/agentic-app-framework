@@ -13,6 +13,7 @@
 import {
   AssistantRuntimeProvider,
   type AttachmentAdapter,
+  AuiConfig,
   type CompleteAttachment,
   CompositeAttachmentAdapter,
   type FeedbackAdapter,
@@ -20,7 +21,6 @@ import {
   SimpleTextAttachmentAdapter,
   type ThreadMessage,
   Tools,
-  useAui,
   useVoiceControls
 } from "@assistant-ui/react"
 import { type UseAgUiThreadListAdapter, useAgUiRuntime } from "@assistant-ui/react-ag-ui"
@@ -221,7 +221,8 @@ async function fetchAuthenticatedRun(
   headers.set("Accept", "text/event-stream, application/json")
   const initialRequest = { ...requestInit, headers }
   const response = await fetch(requestUrl, initialRequest)
-  if (!(await isChatSessionNotFound(response))) return response
+  const sessionNotFound = await isChatSessionNotFound(response)
+  if (!sessionNotFound) return response
 
   if (!replaceRunThreadId(initialRequest, "")) return response
 
@@ -453,6 +454,13 @@ export function AgUiChatProvider({
   useEffect(() => {
     currentThreadIdRef.current = currentThreadId
   }, [currentThreadId])
+
+  // run 请求的 threadId 取自 agent.threadId（HttpAgent 默认随机 UUID，runtime 不会按 threadList 同步），
+  // 必须与当前服务端会话保持一致，否则每次发送都会被判定会话不存在并新建会话。guest 由 fetchGuestRun 覆盖。
+  useEffect(() => {
+    if (guestMode) return
+    agent.threadId = currentThreadId ?? ""
+  }, [agent, currentThreadId, guestMode])
 
   // 订阅 AG-UI 事件流，把运行状态/工具调用/AAF 专有 CUSTOM 事件写入运行状态 store
   useEffect(() => {
@@ -821,7 +829,7 @@ export function AgUiChatProvider({
     adapters
   })
 
-  const aui = useAui(
+  const auiConfig = AuiConfig(
     guestMode ? {} : { tools: Tools({ toolkit: { ...aigcToolkit, ...renderUiBlockToolkit } }) }
   )
 
@@ -857,7 +865,7 @@ export function AgUiChatProvider({
   }, [initialThreadIdToSwitch, initialThreadOwned, onError, runtime.threads])
 
   return (
-    <AssistantRuntimeProvider runtime={runtime} aui={aui}>
+    <AssistantRuntimeProvider runtime={runtime} config={auiConfig}>
       {!guestMode && <VoiceCleanup />}
       {(guestMode || fixedThreadId) && (!initialThreadIdToSwitch || !initialThreadReady) ? (
         <div className="flex h-full items-center justify-center text-muted-foreground text-sm">

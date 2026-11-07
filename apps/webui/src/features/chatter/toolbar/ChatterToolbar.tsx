@@ -16,8 +16,8 @@
 import {
   ThreadListItemPrimitive,
   ThreadListPrimitive,
+  useAui,
   useAuiState,
-  useThreadListItemRuntime,
   useVoiceControls,
   useVoiceState
 } from "@assistant-ui/react"
@@ -402,13 +402,13 @@ function AssistantRoleSelect({
 /**
  * 会话列表单项——用 ThreadListItemPrimitive 消费 runtime 状态。
  *
- * rename/archive/unarchive/delete 通过 useThreadListItemRuntime() 调用而非官方具名
+ * rename/archive/unarchive/delete 通过 useAui().threadListItem 调用而非官方具名
  * ThreadListItemPrimitive.Archive/Delete/Unarchive 组件——那些组件渲染为独立 <button>，
  * 直接嵌入 DropdownMenuItem（base-ui <div> 语义）会产生嵌套交互元素问题；
- * useThreadListItemRuntime() 是同一套官方运行时能力的公开 hook 形式。
+ * useAui().threadListItem 是同一套官方运行时能力的公开访问方式。
  */
 function SessionListItem({ onAfterSwitch }: { onAfterSwitch: () => void }) {
-  const itemRuntime = useThreadListItemRuntime()
+  const aui = useAui()
   const title = useAuiState((s) => s.threadListItem.title)
   const status = useAuiState((s) => s.threadListItem.status)
 
@@ -436,7 +436,7 @@ function SessionListItem({ onAfterSwitch }: { onAfterSwitch: () => void }) {
               const nextTitle = window.prompt("重命名会话", title ?? "")
               if (!nextTitle || nextTitle === title) return
               try {
-                await itemRuntime.rename(nextTitle)
+                await aui.threadListItem.rename(nextTitle)
               } catch {
                 toast.error("重命名失败，请重试")
               }
@@ -448,7 +448,7 @@ function SessionListItem({ onAfterSwitch }: { onAfterSwitch: () => void }) {
             <DropdownMenuItem
               onClick={async () => {
                 try {
-                  await itemRuntime.unarchive()
+                  await aui.threadListItem.unarchive()
                 } catch {
                   toast.error("取消归档失败，请重试")
                 }
@@ -461,7 +461,7 @@ function SessionListItem({ onAfterSwitch }: { onAfterSwitch: () => void }) {
             <DropdownMenuItem
               onClick={async () => {
                 try {
-                  await itemRuntime.archive()
+                  await aui.threadListItem.archive()
                 } catch {
                   toast.error("归档失败，请重试")
                 }
@@ -476,7 +476,7 @@ function SessionListItem({ onAfterSwitch }: { onAfterSwitch: () => void }) {
             onClick={async () => {
               if (!window.confirm("确定删除该会话？此操作不可恢复。")) return
               try {
-                await itemRuntime.delete()
+                await aui.threadListItem.delete()
               } catch {
                 toast.error("删除失败，请重试")
               }

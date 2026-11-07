@@ -10,6 +10,9 @@ import { buildWsUrl } from "@/lib/api/config"
 import { float32ToPcm16 } from "@/lib/utils/audio"
 import { parseOmniRealtimeReadyEvent } from "@/lib/voice/omni-realtime-protocol"
 
+// 本地播放结束后继续静音的余量（秒），避免扬声器尾音被麦克风录入
+const PLAYBACK_TAIL_SECONDS = 0.3
+
 interface RealtimeEvent {
   type: string
   text?: string
@@ -78,6 +81,12 @@ export class OmniVoiceAdapter implements RealtimeVoiceAdapter {
         void playbackCtx?.close()
         playbackCtx = null
         playhead = 0
+      }
+
+      // 模型语音仍在本地播放（含尾音余量）时返回 true
+      const isPlaybackActive = () => {
+        if (!playbackCtx || playbackCtx.state === "closed") return false
+        return playbackCtx.currentTime < playhead + PLAYBACK_TAIL_SECONDS
       }
 
       const playChunk = (pcm: ArrayBuffer) => {
@@ -151,7 +160,13 @@ export class OmniVoiceAdapter implements RealtimeVoiceAdapter {
       const startCapture = async () => {
         try {
           const captureStream = await navigator.mediaDevices.getUserMedia({
-            audio: { sampleRate: 16000, channelCount: 1 }
+            audio: {
+              sampleRate: 16000,
+              channelCount: 1,
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true
+            }
           })
           if (stopped || helpers.isDisposed() || ws.readyState !== WebSocket.OPEN) {
             for (const track of captureStream.getTracks()) track.stop()
@@ -170,7 +185,9 @@ export class OmniVoiceAdapter implements RealtimeVoiceAdapter {
               samples.reduce((sum, sample) => sum + sample * sample, 0) / samples.length
             )
             helpers.emitVolume(Math.min(1, rms * 4))
-            ws.send(pcm16.buffer)
+            // 响应进行中或本地仍在播放时发送等长静音：避免扬声器回声被识别为用户输入，同时让服务端持续收到输入不判定空闲
+            const frame = responding || isPlaybackActive() ? new Int16Array(pcm16.length) : pcm16
+            ws.send(frame.buffer)
           }
           source.connect(processor)
           processor.connect(audioCtx.destination)

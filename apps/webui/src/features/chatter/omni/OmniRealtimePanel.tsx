@@ -15,6 +15,9 @@ import { useAuthStore } from "@/lib/store/auth-store"
 import { float32ToPcm16 } from "@/lib/utils/audio"
 import { parseOmniRealtimeReadyEvent } from "@/lib/voice/omni-realtime-protocol"
 
+// 本地播放结束后继续静音的余量（秒），避免扬声器尾音被麦克风录入
+const PLAYBACK_TAIL_SECONDS = 0.3
+
 type WsStatus = "connecting" | "ready" | "closing" | "disconnected"
 
 interface OmniMessage {
@@ -77,6 +80,7 @@ export function OmniRealtimePanel({ onClose, roleKey }: OmniRealtimePanelProps) 
   const playbackCtxRef = useRef<AudioContext | null>(null)
   const playheadRef = useRef(0)
   const audioOutputActiveRef = useRef(false)
+  const responseActiveRef = useRef(false)
   const responseTextRef = useRef("")
   const sessionClosingRef = useRef(false)
 
@@ -85,6 +89,13 @@ export function OmniRealtimePanel({ onClose, roleKey }: OmniRealtimePanelProps) 
     void playbackCtxRef.current?.close()
     playbackCtxRef.current = null
     playheadRef.current = 0
+  }, [])
+
+  // 模型语音仍在本地播放（含尾音余量）时返回 true
+  const isPlaybackActive = useCallback(() => {
+    const ctx = playbackCtxRef.current
+    if (!ctx || ctx.state === "closed") return false
+    return ctx.currentTime < playheadRef.current + PLAYBACK_TAIL_SECONDS
   }, [])
 
   const stopCapture = useCallback(() => {
@@ -133,7 +144,13 @@ export function OmniRealtimePanel({ onClose, roleKey }: OmniRealtimePanelProps) 
     async (ws: WebSocket) => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          audio: { sampleRate: 16000, channelCount: 1 }
+          audio: {
+            sampleRate: 16000,
+            channelCount: 1,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
         })
         if (wsRef.current !== ws || ws.readyState !== WebSocket.OPEN || sessionClosingRef.current) {
           for (const track of stream.getTracks()) track.stop()
@@ -149,7 +166,10 @@ export function OmniRealtimePanel({ onClose, roleKey }: OmniRealtimePanelProps) 
         processor.onaudioprocess = (event: AudioProcessingEvent) => {
           if (ws.readyState !== WebSocket.OPEN || sessionClosingRef.current) return
           const pcm16 = float32ToPcm16(event.inputBuffer.getChannelData(0))
-          ws.send(pcm16.buffer)
+          // 响应进行中或本地仍在播放时发送等长静音：避免扬声器回声被识别为用户输入，同时让服务端持续收到输入不判定空闲
+          const muted = responseActiveRef.current || isPlaybackActive()
+          const frame = muted ? new Int16Array(pcm16.length) : pcm16
+          ws.send(frame.buffer)
         }
         source.connect(processor)
         processor.connect(audioCtx.destination)
@@ -158,7 +178,7 @@ export function OmniRealtimePanel({ onClose, roleKey }: OmniRealtimePanelProps) 
         ws.close()
       }
     },
-    [stopCapture]
+    [isPlaybackActive, stopCapture]
   )
 
   const handleStart = useCallback(() => {
@@ -170,6 +190,7 @@ export function OmniRealtimePanel({ onClose, roleKey }: OmniRealtimePanelProps) 
     setCurrentInputTranscript("")
     setCurrentResponseText("")
     responseTextRef.current = ""
+    responseActiveRef.current = false
     sessionClosingRef.current = false
     const params = new URLSearchParams({ token: accessToken })
     const ws = new WebSocket(buildWsUrl(`/ws/realtime-conversation?${params.toString()}`))
@@ -220,6 +241,7 @@ export function OmniRealtimePanel({ onClose, roleKey }: OmniRealtimePanelProps) 
           setCurrentInputTranscript("")
           break
         case "response.created":
+          responseActiveRef.current = true
           responseTextRef.current = ""
           setCurrentResponseText("")
           setResponding(true)
@@ -237,6 +259,7 @@ export function OmniRealtimePanel({ onClose, roleKey }: OmniRealtimePanelProps) 
           audioOutputActiveRef.current = false
           break
         case "response.completed":
+          responseActiveRef.current = false
           if (responseTextRef.current) {
             setMessages((previous) => [
               ...previous,
@@ -248,6 +271,7 @@ export function OmniRealtimePanel({ onClose, roleKey }: OmniRealtimePanelProps) 
           setResponding(false)
           break
         case "response.cancelled":
+          responseActiveRef.current = false
           responseTextRef.current = ""
           setCurrentResponseText("")
           setResponding(false)
@@ -274,6 +298,7 @@ export function OmniRealtimePanel({ onClose, roleKey }: OmniRealtimePanelProps) 
       closePlayback()
       wsRef.current = null
       sessionClosingRef.current = false
+      responseActiveRef.current = false
       setResponding(false)
       setStatus("disconnected")
     }

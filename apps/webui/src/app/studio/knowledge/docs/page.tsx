@@ -7,7 +7,7 @@
 "use client"
 
 import { useQueryClient } from "@tanstack/react-query"
-import { FileText, Plus, Trash2 } from "lucide-react"
+import { FileText, GitCompare, Plus, Trash2 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { SectionHaze } from "@/components/studio"
@@ -23,13 +23,15 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { KnowledgeSourceVersionComparison } from "@/features/knowledge/components/KnowledgeSourceVersionComparison"
 import { DocumentEditor } from "@/features/studio/content/DocumentEditor"
 import type { DocListItem } from "@/lib/api/rest/system/document"
 import {
   docKeys,
   useCreateDocument,
   useDeleteDocument,
-  useDocList
+  useDocList,
+  useDocument
 } from "@/lib/api/rest/system/document"
 import { useDocEvents } from "@/lib/hooks/use-doc-events"
 
@@ -49,16 +51,38 @@ export default function StudioKnowledgeDocsPage() {
   const [selectedId, setSelectedId] = useState<number | "new" | null>(null)
   const [publishTab, setPublishTab] = useState<PublishTab>("all")
   const [deletingNode, setDeletingNode] = useState<DocListItem | null>(null)
+  const [compareOpen, setCompareOpen] = useState(false)
+  // 从知识库跳转时携带的知识来源版本，仅对对应文档生效
+  const [pinnedSource, setPinnedSource] = useState<{
+    documentId: number
+    versionId: number
+  } | null>(null)
   const queryClient = useQueryClient()
 
   const { data: list, isLoading: treeLoading } = useDocList()
   const { mutate: createDocMutate, isPending: creating } = useCreateDocument()
   const { mutate: deleteDoc } = useDeleteDocument()
+  const selectedDocId = typeof selectedId === "number" ? selectedId : null
+  const { data: selectedDoc } = useDocument(selectedDocId)
 
   useEffect(() => {
-    const documentId = Number(new URLSearchParams(window.location.search).get("documentId"))
-    if (Number.isInteger(documentId) && documentId > 0) setSelectedId(documentId)
+    const params = new URLSearchParams(window.location.search)
+    const documentId = Number(params.get("documentId"))
+    if (!Number.isInteger(documentId) || documentId <= 0) return
+    setSelectedId(documentId)
+    const versionId = Number(params.get("sourceVersionId"))
+    if (Number.isInteger(versionId) && versionId > 0) {
+      setPinnedSource({ documentId, versionId })
+      setCompareOpen(true)
+    }
   }, [])
+
+  const pinnedVersionId =
+    pinnedSource !== null && pinnedSource.documentId === selectedDocId
+      ? pinnedSource.versionId
+      : null
+  const compareBaseVersionId = pinnedVersionId ?? selectedDoc?.currentVersionId ?? null
+  const showCompare = compareOpen && selectedDocId !== null
 
   const createDoc = (
     p: { title: string; content: string },
@@ -126,6 +150,16 @@ export default function StudioKnowledgeDocsPage() {
             </TabsList>
           </Tabs>
           <div className="ml-auto flex items-center gap-2">
+            <Button
+              variant={showCompare ? "secondary" : "outline"}
+              size="sm"
+              disabled={selectedDocId === null}
+              aria-pressed={showCompare}
+              onClick={() => setCompareOpen((open) => !open)}
+            >
+              <GitCompare className="mr-1 size-4" />
+              版本对比
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setSelectedId("new")}>
               <Plus className="mr-1 size-4" />
               新建
@@ -136,7 +170,7 @@ export default function StudioKnowledgeDocsPage() {
         {/* 主体 */}
         <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
           {/* 左侧文档树 */}
-          <ResizablePanel defaultSize={28} minSize={20}>
+          <ResizablePanel id="doc-tree" defaultSize={28} minSize={20}>
             <div className="h-full overflow-y-auto p-3">
               {treeLoading ? (
                 <div className="space-y-2">
@@ -201,7 +235,7 @@ export default function StudioKnowledgeDocsPage() {
           <ResizableHandle />
 
           {/* 右侧编辑区 */}
-          <ResizablePanel defaultSize={72}>
+          <ResizablePanel id="doc-editor" defaultSize={showCompare ? 44 : 72}>
             <div className="h-full overflow-hidden">
               {selectedId === "new" ? (
                 <DocumentEditor
@@ -219,6 +253,32 @@ export default function StudioKnowledgeDocsPage() {
               )}
             </div>
           </ResizablePanel>
+
+          {/* 版本对比（可折叠）：从知识库跳转时以知识来源版本为基准，否则以当前版本为基准 */}
+          {showCompare && selectedDocId !== null ? (
+            <>
+              <ResizableHandle />
+              <ResizablePanel id="doc-compare" defaultSize={28} minSize={20}>
+                <div className="h-full overflow-y-auto p-3">
+                  {compareBaseVersionId !== null ? (
+                    <KnowledgeSourceVersionComparison
+                      key={`${selectedDocId}-${compareBaseVersionId}`}
+                      documentId={selectedDocId}
+                      sourceVersionId={compareBaseVersionId}
+                      {...(pinnedVersionId === null
+                        ? {
+                            sourceLabel: "当前版本",
+                            description: "选择历史版本与当前版本比较。"
+                          }
+                        : {})}
+                    />
+                  ) : (
+                    <Skeleton className="h-72" />
+                  )}
+                </div>
+              </ResizablePanel>
+            </>
+          ) : null}
         </ResizablePanelGroup>
       </div>
 

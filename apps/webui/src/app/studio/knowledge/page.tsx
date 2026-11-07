@@ -20,6 +20,9 @@ import {
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Textarea } from "@/components/ui/textarea"
+import { KnowledgeBaseBrief } from "@/features/knowledge/components/KnowledgeBaseBrief"
+import { KNOWLEDGE_DESCRIPTION_COPY } from "@/features/knowledge/constants"
 import { useCreateKnowledgeBase, useKnowledgeBases } from "@/lib/api/rest/knowledge/knowledge"
 
 export default function StudioKnowledgeBasesPage() {
@@ -81,14 +84,19 @@ export default function StudioKnowledgeBasesPage() {
                 </div>
                 <div className="space-y-1.5">
                   <label htmlFor={descId} className="font-medium text-sm">
-                    描述（可选）
+                    {KNOWLEDGE_DESCRIPTION_COPY.label}（可选）
                   </label>
-                  <Input
+                  <Textarea
                     id={descId}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="简要描述"
+                    placeholder={KNOWLEDGE_DESCRIPTION_COPY.placeholder}
+                    aria-describedby={`${descId}-help`}
+                    rows={3}
                   />
+                  <p id={`${descId}-help`} className="text-muted-foreground text-xs">
+                    {KNOWLEDGE_DESCRIPTION_COPY.help}
+                  </p>
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" onClick={() => setOpen(false)}>
@@ -134,11 +142,7 @@ export default function StudioKnowledgeBasesPage() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium">{kb.name}</p>
-                        {kb.description && (
-                          <p className="mt-0.5 line-clamp-2 text-muted-foreground text-xs">
-                            {kb.description}
-                          </p>
-                        )}
+                        <KnowledgeBaseBrief description={kb.description} aiSummary={kb.aiSummary} />
                       </div>
                     </div>
                     <p className="text-muted-foreground text-xs">{kb.documentCount} 篇文档</p>

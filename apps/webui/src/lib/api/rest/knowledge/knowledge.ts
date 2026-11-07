@@ -4,17 +4,18 @@
  */
 
 import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useEffect, useRef } from "react"
+import { useEventSubscription } from "@/lib/realtime/use-event-subscription"
 import type {
   CreateKnowledgeBaseInput,
   GraphData,
   KnowledgeBase,
   KnowledgeBaseStats,
+  KnowledgeChunk,
   KnowledgeDocument,
-  KnowledgeSegment,
   SearchRequest,
   SearchResponse
 } from "@/lib/types/knowledge"
+import type { GraphProjectionStatus } from "../admin/knowledge"
 import { backendApi } from "../backend-client"
 import { buildQuery, type ListParams, type PageResult } from "../crud"
 
@@ -22,6 +23,11 @@ const API_PATH = "/knowledge-bases"
 type KnowledgeResourceId = string | number
 type KnowledgeListParams = Pick<ListParams, "pageNo" | "pageSize" | "sort">
 
+/** 从文档库导入知识库的结果。 */
+export interface KnowledgeDocumentLibraryImportResult {
+  imported: KnowledgeDocument[]
+  skipped: { documentId: number; reason: string }[]
+}
 export const knowledgeApi = {
   /** 知识库列表。 */
   list: (params: KnowledgeListParams = {}) =>
@@ -64,6 +70,12 @@ export const knowledgeApi = {
   /** 图谱数据。 */
   graph: (id: KnowledgeResourceId) => backendApi.get<GraphData>(`${API_PATH}/${id}/graph`),
 
+  /** 知识库所有者重建图投影：从 PostgreSQL 事实重新投影到 Neo4j。 */
+  rebuildGraph: (id: KnowledgeResourceId, requestKey: string) =>
+    backendApi.post<GraphProjectionStatus>(`${API_PATH}/${id}/graph/rebuild`, undefined, {
+      headers: { "Idempotency-Key": requestKey }
+    }),
+
   /** 多库检索，默认同时检索当前用户可见的公开知识库。 */
   search: (params: SearchRequest) =>
     backendApi.post<SearchResponse>(`${API_PATH}/search`, {
@@ -71,29 +83,27 @@ export const knowledgeApi = {
       includePublic: params.includePublic ?? true
     }),
 
-  /** 段落列表（按文档）。 */
-  segments: (kbId: KnowledgeResourceId, documentId: number, page = 0, size = 20) =>
-    backendApi.get<PageResult<KnowledgeSegment>>(
-      `${API_PATH}/${kbId}/segments?documentId=${documentId}&page=${page}&size=${size}`
+  /** 文档当前发布代际的分块（只读）。 */
+  chunks: (kbId: KnowledgeResourceId, documentId: number, page = 0, size = 50) =>
+    backendApi.get<PageResult<KnowledgeChunk>>(
+      `${API_PATH}/${kbId}/documents/${documentId}/chunks?page=${page}&size=${size}`
     ),
 
-  /** 创建段落。 */
-  createSegment: (
+  /** 启用或停用分块：停用后不参与检索，仅由其证据支撑的事实从图谱移除。 */
+  setChunkEnabled: (
     kbId: KnowledgeResourceId,
-    data: { documentId: number; content: string; position?: number }
-  ) => backendApi.post<KnowledgeSegment>(`${API_PATH}/${kbId}/segments`, data),
-
-  /** 更新段落。 */
-  updateSegment: (kbId: KnowledgeResourceId, segmentId: number, data: { content: string }) =>
-    backendApi.put<KnowledgeSegment>(`${API_PATH}/${kbId}/segments/${segmentId}`, data),
-
-  /** 删除段落。 */
-  deleteSegment: (kbId: KnowledgeResourceId, segmentId: number) =>
-    backendApi.delete<void>(`${API_PATH}/${kbId}/segments/${segmentId}`),
-
-  /** 切换段落启用状态。 */
-  toggleSegment: (kbId: KnowledgeResourceId, segmentId: number, enabled: boolean) =>
-    backendApi.patch<void>(`${API_PATH}/${kbId}/segments/${segmentId}/enabled?enabled=${enabled}`),
+    documentId: number,
+    chunkId: string,
+    enabled: boolean
+  ) =>
+    backendApi.patch<void>(
+      `${API_PATH}/${kbId}/documents/${documentId}/chunks/${chunkId}/enabled?enabled=${enabled}`
+    ),
+  /** 从文档库按当前版本导入文档；同版本跳过，同文档旧版本替换。 */
+  importFromDocs: (id: KnowledgeResourceId, documentIds: number[]) =>
+    backendApi.post<KnowledgeDocumentLibraryImportResult>(`${API_PATH}/${id}/documents/from-docs`, {
+      documentIds
+    }),
 
   /** 上传文档。 */
   uploadDocument: (id: KnowledgeResourceId, file: File, onProgress?: (pct: number) => void) => {
@@ -126,8 +136,8 @@ export const knowledgeKeys = {
   document: (id: KnowledgeResourceId, documentId: number) =>
     ["knowledge-bases", id, "documents", "detail", documentId] as const,
   graph: (id: KnowledgeResourceId) => ["knowledge-bases", id, "graph"] as const,
-  segments: (kbId: KnowledgeResourceId, documentId: number) =>
-    ["knowledge-bases", kbId, "segments", documentId] as const
+  chunks: (kbId: KnowledgeResourceId, documentId: number) =>
+    ["knowledge-bases", kbId, "chunks", documentId] as const
 }
 
 /** 失效文档异步处理影响的统计与图谱查询。 */
@@ -152,16 +162,11 @@ export async function invalidateKnowledgeDocumentQueries(
   ])
 }
 
-function hasActiveKnowledgeDocuments(data: PageResult<KnowledgeDocument> | undefined): boolean {
-  return data?.list.some((document) => document.status === 0 || document.status === 1) ?? false
-}
+/** 知识库文档处理事件前缀：processing / completed / failed，由后端推送给上传人。 */
+const KNOWLEDGE_DOCUMENT_EVENT_PREFIX = "knowledge.document."
 
-/** 文档存在待处理或处理中记录时每两秒轮询，否则停止。 */
-export function getKnowledgeDocumentsRefetchInterval(
-  data: PageResult<KnowledgeDocument> | undefined
-): 2000 | false {
-  return hasActiveKnowledgeDocuments(data) ? 2000 : false
-}
+/** 知识图投影事件前缀：projected，Neo4j 投影写入后推送给知识库所有者（晚于文档 completed）。 */
+const KNOWLEDGE_GRAPH_EVENT_PREFIX = "knowledge.graph."
 
 /** 知识库列表。 */
 export function useKnowledgeBases(params: KnowledgeListParams = {}) {
@@ -189,33 +194,38 @@ export function useKnowledgeBaseStats(id: KnowledgeResourceId) {
   })
 }
 
-/** 知识库文档列表。 */
+/**
+ * 知识库文档列表；文档处理事件到达时失效列表，完成或失败时再失效文档详情、统计与图谱。
+ *
+ * 图谱由后端异步投影到 Neo4j，文档 completed 时尚未写入；投影完成事件到达后再失效图谱。
+ * 订阅放在页面常驻的本 hook 中，图谱 tab 未挂载时也能把缓存标记为过期，切换过去即重新拉取。
+ */
 export function useKnowledgeDocuments(id: KnowledgeResourceId, params: KnowledgeListParams = {}) {
   const queryClient = useQueryClient()
-  const activityRef = useRef<{
-    knowledgeBaseId: KnowledgeResourceId
-    hasActiveDocuments: boolean
-  } | null>(null)
-  const query = useQuery({
-    queryKey: knowledgeKeys.documentList(id, params),
-    queryFn: () => knowledgeApi.documents(id, params),
-    enabled: id !== "",
-    refetchInterval: (currentQuery) => getKnowledgeDocumentsRefetchInterval(currentQuery.state.data)
+
+  useEventSubscription(KNOWLEDGE_GRAPH_EVENT_PREFIX, (event) => {
+    if (id === "" || String(event.refs.knowledgeBaseId) !== String(id)) return
+    void invalidateKnowledgeDerivedQueries(queryClient, id)
   })
 
-  useEffect(() => {
-    if (!query.data) return
-
-    const hasActiveDocuments = hasActiveKnowledgeDocuments(query.data)
-    const previous = activityRef.current
-    activityRef.current = { knowledgeBaseId: id, hasActiveDocuments }
-
-    if (previous?.knowledgeBaseId === id && previous.hasActiveDocuments && !hasActiveDocuments) {
-      void invalidateKnowledgeDerivedQueries(queryClient, id)
+  useEventSubscription(KNOWLEDGE_DOCUMENT_EVENT_PREFIX, (event) => {
+    if (id === "" || String(event.refs.knowledgeBaseId) !== String(id)) return
+    if (event.type === `${KNOWLEDGE_DOCUMENT_EVENT_PREFIX}processing`) {
+      void queryClient.invalidateQueries({ queryKey: knowledgeKeys.documents(id) })
+      return
     }
-  }, [id, query.data, queryClient])
+    const documentId = event.refs.documentId
+    if (documentId !== undefined) {
+      void queryClient.invalidateQueries({ queryKey: knowledgeKeys.document(id, documentId) })
+    }
+    void invalidateKnowledgeDocumentQueries(queryClient, id)
+  })
 
-  return query
+  return useQuery({
+    queryKey: knowledgeKeys.documentList(id, params),
+    queryFn: () => knowledgeApi.documents(id, params),
+    enabled: id !== ""
+  })
 }
 
 /** 知识库文档详情。 */
@@ -233,6 +243,16 @@ export function useKnowledgeGraph(id: KnowledgeResourceId) {
     queryKey: knowledgeKeys.graph(id),
     queryFn: () => knowledgeApi.graph(id),
     enabled: id !== ""
+  })
+}
+
+/** 重建当前知识库的图投影，完成后刷新图谱数据。 */
+export function useRebuildKnowledgeGraph(id: KnowledgeResourceId) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      knowledgeApi.rebuildGraph(id, `knowledge-graph-${id}-${globalThis.crypto.randomUUID()}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: knowledgeKeys.graph(id) })
   })
 }
 
@@ -298,61 +318,34 @@ export function useRetryKnowledgeDocument(knowledgeBaseId: KnowledgeResourceId) 
   })
 }
 
-/** 段落列表。 */
-export function useKnowledgeSegments(
-  kbId: KnowledgeResourceId,
-  documentId: number,
-  enabled = true
-) {
+/** 文档分块列表。 */
+export function useKnowledgeChunks(kbId: KnowledgeResourceId, documentId: number, enabled = true) {
   return useQuery({
-    queryKey: knowledgeKeys.segments(kbId, documentId),
-    queryFn: () => knowledgeApi.segments(kbId, documentId),
+    queryKey: knowledgeKeys.chunks(kbId, documentId),
+    queryFn: () => knowledgeApi.chunks(kbId, documentId),
     enabled: enabled && kbId !== ""
   })
 }
 
-/** 创建段落。 */
-export function useCreateSegment(kbId: KnowledgeResourceId) {
+/** 启用/停用分块，成功后刷新分块列表与图谱。 */
+export function useSetChunkEnabled(kbId: KnowledgeResourceId, documentId: number) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (data: { documentId: number; content: string; position?: number }) =>
-      knowledgeApi.createSegment(kbId, data),
-    onSuccess: (_data, variables) => {
-      return queryClient.invalidateQueries({
-        queryKey: knowledgeKeys.segments(kbId, variables.documentId)
-      })
+    mutationFn: ({ chunkId, enabled }: { chunkId: string; enabled: boolean }) =>
+      knowledgeApi.setChunkEnabled(kbId, documentId, chunkId, enabled),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: knowledgeKeys.chunks(kbId, documentId) }),
+        queryClient.invalidateQueries({ queryKey: knowledgeKeys.graph(kbId) })
+      ])
     }
   })
 }
-
-/** 更新段落。 */
-export function useUpdateSegment(kbId: KnowledgeResourceId, documentId: number) {
+/** 从文档库导入知识库，成功后刷新该库文档与统计。 */
+export function useImportKnowledgeFromDocs(id: KnowledgeResourceId) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, content }: { id: number; content: string }) =>
-      knowledgeApi.updateSegment(kbId, id, { content }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: knowledgeKeys.segments(kbId, documentId) })
-  })
-}
-
-/** 删除段落。 */
-export function useDeleteSegment(kbId: KnowledgeResourceId, documentId: number) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (segmentId: number) => knowledgeApi.deleteSegment(kbId, segmentId),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: knowledgeKeys.segments(kbId, documentId) })
-  })
-}
-
-/** 切换段落启用状态。 */
-export function useToggleSegment(kbId: KnowledgeResourceId, documentId: number) {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: ({ id, enabled }: { id: number; enabled: boolean }) =>
-      knowledgeApi.toggleSegment(kbId, id, enabled),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: knowledgeKeys.segments(kbId, documentId) })
+    mutationFn: (documentIds: number[]) => knowledgeApi.importFromDocs(id, documentIds),
+    onSuccess: () => invalidateKnowledgeDocumentQueries(queryClient, id)
   })
 }

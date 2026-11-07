@@ -5,8 +5,11 @@
 
 "use client"
 
-import { useAssistantRuntime, useAuiState } from "@assistant-ui/react"
-import type { AgUiAssistantRuntime, AgUiInterrupt } from "@assistant-ui/react-ag-ui"
+import {
+  type AgUiInterrupt,
+  useAgUiInterrupts,
+  useAgUiSubmitInterruptResponses
+} from "@assistant-ui/react-ag-ui"
 import { useState } from "react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
@@ -43,17 +46,14 @@ function ToolConfirmPanel({
 }
 
 export function ToolConfirmOverlay() {
-  const runtime = useAssistantRuntime() as AgUiAssistantRuntime
-  useAuiState((state) => state.thread.isRunning)
+  const submitInterruptResponses = useAgUiSubmitInterruptResponses()
   const [submittingId, setSubmittingId] = useState<string | null>(null)
-  const interrupts = runtime
-    .unstable_getPendingInterrupts()
-    .filter((interrupt) => interrupt.reason === "tool_call")
+  const interrupts = useAgUiInterrupts().filter((interrupt) => interrupt.reason === "tool_call")
 
   async function handleDecision(interrupt: AgUiInterrupt, approved: boolean) {
     setSubmittingId(interrupt.id)
     try {
-      await runtime.unstable_submitInterruptResponses([
+      await submitInterruptResponses([
         { interruptId: interrupt.id, status: "resolved", payload: { approved } }
       ])
     } catch {

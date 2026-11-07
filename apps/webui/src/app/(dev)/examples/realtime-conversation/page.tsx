@@ -61,6 +61,8 @@ interface KnowledgeSearchState {
 }
 
 const DEFAULT_ROLE_KEY = "__default__"
+// 本地播放结束后继续静音的余量（秒），避免扬声器尾音被麦克风录入
+const PLAYBACK_TAIL_SECONDS = 0.3
 const DEFAULT_VOICE = "Tina"
 const REALTIME_VOICES = [
   { value: "Tina", label: "女声 · Tina" },
@@ -177,6 +179,13 @@ export default function RealtimeConversation() {
     playheadRef.current = 0
   }, [])
 
+  // 模型语音仍在本地播放（含尾音余量）时返回 true
+  const isPlaybackActive = useCallback(() => {
+    const ctx = playbackCtxRef.current
+    if (!ctx || ctx.state === "closed") return false
+    return ctx.currentTime < playheadRef.current + PLAYBACK_TAIL_SECONDS
+  }, [])
+
   const stopCapture = useCallback(() => {
     if (videoIntervalRef.current) {
       clearInterval(videoIntervalRef.current)
@@ -255,7 +264,13 @@ export default function RealtimeConversation() {
     async (ws: WebSocket, enableVideo: boolean) => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          audio: { sampleRate: 16000, channelCount: 1 },
+          audio: {
+            sampleRate: 16000,
+            channelCount: 1,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          },
           ...(enableVideo ? { video: { width: 640, height: 480, frameRate: 2 } } : {})
         })
         if (wsRef.current !== ws || ws.readyState !== WebSocket.OPEN || sessionClosingRef.current) {
@@ -271,15 +286,12 @@ export default function RealtimeConversation() {
         const processor = audioCtx.createScriptProcessor(4096, 1, 1)
         processorRef.current = processor
         processor.onaudioprocess = (event: AudioProcessingEvent) => {
-          if (
-            ws.readyState !== WebSocket.OPEN ||
-            sessionClosingRef.current ||
-            responseActiveRef.current
-          ) {
-            return
-          }
+          if (ws.readyState !== WebSocket.OPEN || sessionClosingRef.current) return
           const pcm16 = float32ToPcm16(event.inputBuffer.getChannelData(0))
-          ws.send(pcm16.buffer as ArrayBuffer)
+          // 响应进行中或本地仍在播放时发送等长静音：不触发 VAD，又能让服务端持续收到输入不判定空闲
+          const muted = responseActiveRef.current || isPlaybackActive()
+          const frame = muted ? new Int16Array(pcm16.length) : pcm16
+          ws.send(frame.buffer as ArrayBuffer)
         }
         source.connect(processor)
         processor.connect(audioCtx.destination)
@@ -297,7 +309,7 @@ export default function RealtimeConversation() {
         ws.close()
       }
     },
-    [captureAndSendFrame, stopCapture]
+    [captureAndSendFrame, isPlaybackActive, stopCapture]
   )
 
   const handleStart = useCallback(() => {

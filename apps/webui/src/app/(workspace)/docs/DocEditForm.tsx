@@ -6,15 +6,19 @@
 
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
+import { useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
 import { z } from "zod"
 import { Field } from "@/components/form/fields"
 import { Form } from "@/components/form/form"
+import { PdfViewer } from "@/components/pdf"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { RichTextEditor } from "@/features/rich-text-editor"
+import { buildApiUrl } from "@/lib/api/config"
+import { getBackendRequestContextHeaders } from "@/lib/api/rest/backend-client"
 import {
   useCreateDocument,
   usePublishDocument,
@@ -33,9 +37,13 @@ const DOC_TYPES = [
   { value: "explanation", label: "说明" }
 ]
 
+/** PDF 提取文本文档类型：正文只是原文件的部分派生文本，只读，与后端校验一致。 */
+const PDF_IMPORT_DOC_TYPE = "pdf_import"
+
 const schema = z.object({
   title: z.string().min(1, "请填写标题"),
-  filePath: z.string().min(1, "请填写文件路径"),
+  /** 上传导入的文档没有本地路径，编辑时可为空；新建时在提交前校验 */
+  filePath: z.string(),
   docType: z.string().min(1, "请选择类型"),
   content: z.string(),
   changeSummary: z.string().max(500, "修改说明不能超过 500 字").optional(),
@@ -122,6 +130,10 @@ export function DocEditForm({ doc }: DocEditFormProps) {
         }
       )
     } else {
+      if (!values.filePath) {
+        methods.setError("filePath", { message: "请填写文件路径" })
+        return
+      }
       create(values, {
         onSuccess: () => {
           toast.success("文档已创建")
@@ -133,6 +145,19 @@ export function DocEditForm({ doc }: DocEditFormProps) {
   }
 
   const publish = methods.watch("publish")
+  const readOnly = doc?.docType === PDF_IMPORT_DOC_TYPE
+  const sourceFileId = readOnly ? (doc?.sourceFileId ?? null) : null
+  // react-pdf 按引用判断文件变化，鉴权源对象需稳定
+  const pdfSource = useMemo(
+    () =>
+      sourceFileId === null
+        ? null
+        : {
+            url: buildApiUrl(`/system/files/${sourceFileId}/content`),
+            httpHeaders: getBackendRequestContextHeaders()
+          },
+    [sourceFileId]
+  )
 
   return (
     <Form methods={methods} onSubmit={onSubmit} className="mx-auto max-w-4xl space-y-6 p-6">
@@ -157,11 +182,17 @@ export function DocEditForm({ doc }: DocEditFormProps) {
           >
             {publish === "published" ? "转为草稿" : "发布当前版本"}
           </Button>
-          <Button type="submit" disabled={isPending}>
+          <Button type="submit" disabled={isPending || readOnly}>
             {isPending ? "保存中..." : "保存"}
           </Button>
         </div>
       </div>
+
+      {readOnly && (
+        <p className="text-muted-foreground text-sm">
+          该文档由 PDF 提取文本生成，只保留部分文字内容，不可编辑；完整内容以原文件为准。
+        </p>
+      )}
 
       {/* 基本信息 */}
       <Card>
@@ -180,15 +211,28 @@ export function DocEditForm({ doc }: DocEditFormProps) {
         </CardContent>
       </Card>
 
+      {/* PDF 原文件预览：完整内容以原文件为准，下方为只读提取文本 */}
+      {pdfSource && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">原文件预览</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PdfViewer file={pdfSource} />
+          </CardContent>
+        </Card>
+      )}
+
       {/* 内容编辑器（直接用 Controller 绑定富文本） */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">内容</CardTitle>
+          <CardTitle className="text-base">{readOnly ? "提取文本" : "内容"}</CardTitle>
         </CardHeader>
         <CardContent>
           <RichTextEditor
             value={methods.watch("content")}
             onChange={(v) => methods.setValue("content", v)}
+            disabled={readOnly}
             preset="document"
             mode="markdown"
             minHeight={500}

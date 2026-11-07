@@ -13,8 +13,7 @@ import {
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
-  useMessage,
-  useThread
+  useAuiState
 } from "@assistant-ui/react"
 import { CheckIcon, CopyIcon, SendHorizonal } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -23,7 +22,7 @@ import { MarkdownMessage } from "./components/MarkdownMessage"
 
 /** 助手消息 */
 function AssistantMessage() {
-  const message = useMessage()
+  const createdAt = useAuiState((s) => s.message.createdAt)
 
   return (
     <MessagePrimitive.Root className="mb-3 flex flex-col items-start">
@@ -31,13 +30,13 @@ function AssistantMessage() {
         <MarkdownMessage />
       </div>
       <div className="mt-1 flex items-center gap-2 px-1">
-        {message.createdAt && (
+        {createdAt && (
           <time
             className="text-muted-foreground text-xs"
-            dateTime={message.createdAt.toISOString()}
-            title={message.createdAt.toLocaleString("zh-CN")}
+            dateTime={createdAt.toISOString()}
+            title={createdAt.toLocaleString("zh-CN")}
           >
-            {formatMessageTime(message.createdAt.toISOString())}
+            {formatMessageTime(createdAt.toISOString())}
           </time>
         )}
         <ActionBarPrimitive.Root hideWhenRunning autohide="not-last" className="flex gap-1">
@@ -63,20 +62,20 @@ function AssistantMessage() {
 
 /** 用户消息 */
 function UserMessage() {
-  const message = useMessage()
+  const createdAt = useAuiState((s) => s.message.createdAt)
 
   return (
     <MessagePrimitive.Root className="mb-3 flex flex-col items-end">
       <div className="max-w-[80%] rounded-2xl bg-primary px-3 py-2 text-primary-foreground text-sm">
         <MessagePrimitive.Content />
       </div>
-      {message.createdAt && (
+      {createdAt && (
         <time
           className="mt-1 px-1 text-muted-foreground text-xs"
-          dateTime={message.createdAt.toISOString()}
-          title={message.createdAt.toLocaleString("zh-CN")}
+          dateTime={createdAt.toISOString()}
+          title={createdAt.toLocaleString("zh-CN")}
         >
-          {formatMessageTime(message.createdAt.toISOString())}
+          {formatMessageTime(createdAt.toISOString())}
         </time>
       )}
     </MessagePrimitive.Root>
@@ -89,7 +88,7 @@ function UserMessage() {
  * 需要包裹在 LivechatProvider 或 AssistantRuntimeProvider 内使用
  */
 export function LivechatPanel() {
-  const isLoading = useThread((s) => s.isRunning)
+  const isLoading = useAuiState((s) => s.thread.isRunning)
 
   return (
     <ThreadPrimitive.Root className="flex h-full flex-col">

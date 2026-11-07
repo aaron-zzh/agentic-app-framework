@@ -13,6 +13,7 @@ import type {
 } from "@aaf/knowledge-visualization"
 import { Box, Layers3, RefreshCw, Square } from "lucide-react"
 import dynamic from "next/dynamic"
+import { useTheme } from "next-themes"
 import { useEffect, useMemo, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -56,6 +57,17 @@ export function KnowledgeGraph({ knowledgeBaseId }: KnowledgeGraphProps) {
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null)
   const [renderError, setRenderError] = useState<Error | null>(null)
   const [rendererRevision, setRendererRevision] = useState(0)
+  const { resolvedTheme } = useTheme()
+  const colorScheme = resolvedTheme === "dark" ? "dark" : "light"
+
+  const degreeById = useMemo(() => {
+    const degrees = new Map<string, number>()
+    for (const edge of data?.edges ?? []) {
+      degrees.set(edge.sourceId, (degrees.get(edge.sourceId) ?? 0) + 1)
+      degrees.set(edge.targetId, (degrees.get(edge.targetId) ?? 0) + 1)
+    }
+    return degrees
+  }, [data])
 
   const graph = useMemo<VisualizationGraph<GraphNode, GraphEdge>>(
     () => ({
@@ -64,19 +76,30 @@ export function KnowledgeGraph({ knowledgeBaseId }: KnowledgeGraphProps) {
         label: node.name,
         color: colorForEntityType(node.type),
         layer: layerForEntityType(node.type),
+        size: sizeForDegree(degreeById.get(node.id) ?? 0),
         data: node
       })),
+      // 关系线不指定颜色，由引擎按两端节点色渐变并压暗
       edges: (data?.edges ?? []).map((edge) => ({
         id: edge.id,
         source: edge.sourceId,
         target: edge.targetId,
-        color: colorForConfidence(edge.confidence),
+        label: edge.predicate,
         strength: Math.max(0.35, edge.confidence),
         data: edge
       }))
     }),
-    [data]
+    [data, degreeById]
   )
+
+  const typeLegend = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const node of data?.nodes ?? []) {
+      const type = normalizeEntityType(node.type)
+      counts.set(type, (counts.get(type) ?? 0) + 1)
+    }
+    return [...counts.entries()].sort((left, right) => right[1] - left[1])
+  }, [data])
 
   const nodesById = useMemo(
     () => new Map((data?.nodes ?? []).map((node) => [node.id, node])),
@@ -211,6 +234,7 @@ export function KnowledgeGraph({ knowledgeBaseId }: KnowledgeGraphProps) {
           graph={graph}
           dimension={activeDimension}
           layout="force"
+          colorScheme={colorScheme}
           selectedNodeId={selectedNodeId}
           ariaLabel={`${DIMENSION_LABELS[activeDimension]} 知识图谱，共 ${data.nodes.length} 个节点`}
           onNodePick={(node) => setSelectedNodeId(node?.id ?? null)}
@@ -221,7 +245,7 @@ export function KnowledgeGraph({ knowledgeBaseId }: KnowledgeGraphProps) {
         {hovered ? (
           <div className="pointer-events-none absolute bottom-3 left-3 max-w-72 rounded-lg border bg-background/90 px-3 py-2 shadow-sm backdrop-blur">
             <p className="truncate font-medium text-sm">{hovered.name}</p>
-            <p className="text-muted-foreground text-xs">{hovered.type}</p>
+            <p className="text-muted-foreground text-xs">{entityTypeLabel(hovered.type)}</p>
             {hovered.description ? (
               <p className="mt-1 line-clamp-2 text-muted-foreground text-xs">
                 {hovered.description}
@@ -229,6 +253,19 @@ export function KnowledgeGraph({ knowledgeBaseId }: KnowledgeGraphProps) {
             ) : null}
           </div>
         ) : null}
+
+        <ul className="pointer-events-none absolute right-3 bottom-3 z-10 flex max-w-[50%] flex-wrap justify-end gap-x-3 gap-y-1 rounded-lg border bg-background/90 px-3 py-2 text-xs shadow-sm backdrop-blur">
+          {typeLegend.map(([type, count]) => (
+            <li key={type} className="flex items-center gap-1.5">
+              <span
+                className="size-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: toCssColor(colorForEntityType(type)) }}
+              />
+              <span>{entityTypeLabel(type)}</span>
+              <span className="text-muted-foreground">{count}</span>
+            </li>
+          ))}
+        </ul>
       </div>
 
       {selected ? (
@@ -242,7 +279,7 @@ export function KnowledgeGraph({ knowledgeBaseId }: KnowledgeGraphProps) {
               <div>
                 <dt className="text-muted-foreground">类型</dt>
                 <dd className="mt-1">
-                  <Badge variant="secondary">{selected.type}</Badge>
+                  <Badge variant="secondary">{entityTypeLabel(selected.type)}</Badge>
                 </dd>
               </div>
               <div>
@@ -297,27 +334,48 @@ function isGraphDimension(value: string | undefined): value is GraphDimension {
   return value === "2d" || value === "2.5d" || value === "3d"
 }
 
+/** 与后端 ExtractedEntityType 枚举一一对应，未知类型归入 OTHER；统一用 400 色阶，暗色背景上足够亮，亮色背景上不刺眼。 */
+const ENTITY_TYPE_STYLES: Record<string, { color: number; label: string }> = {
+  PERSON: { color: 0xa78bfa, label: "人物" },
+  ORGANIZATION: { color: 0x60a5fa, label: "组织" },
+  LOCATION: { color: 0x34d399, label: "地点" },
+  EVENT: { color: 0xf87171, label: "事件" },
+  PRODUCT: { color: 0xfb923c, label: "产品" },
+  TECHNOLOGY: { color: 0x22d3ee, label: "技术" },
+  SYSTEM: { color: 0x2dd4bf, label: "系统" },
+  DOCUMENT: { color: 0xfbbf24, label: "文档" },
+  CONCEPT: { color: 0x818cf8, label: "概念" },
+  METRIC: { color: 0xf472b6, label: "指标" },
+  ROLE: { color: 0xa3e635, label: "角色" },
+  OTHER: { color: 0x94a3b8, label: "其他" }
+}
+
+function normalizeEntityType(type: string): string {
+  const normalized = type.trim().toUpperCase()
+  return normalized in ENTITY_TYPE_STYLES ? normalized : "OTHER"
+}
+
 function colorForEntityType(type: string): number {
-  const normalized = type.toUpperCase()
-  if (normalized.includes("PERSON")) return 0xa78bfa
-  if (normalized.includes("ORGANIZATION")) return 0x38bdf8
-  if (normalized.includes("LOCATION")) return 0x34d399
-  if (normalized.includes("DOCUMENT")) return 0xfbbf24
-  if (normalized.includes("EVENT")) return 0xfb7185
-  if (normalized.includes("TECHNOLOGY") || normalized.includes("SYSTEM")) return 0x22d3ee
-  return 0x94a3b8
+  return ENTITY_TYPE_STYLES[normalizeEntityType(type)]?.color ?? 0x94a3b8
+}
+
+function entityTypeLabel(type: string): string {
+  return ENTITY_TYPE_STYLES[normalizeEntityType(type)]?.label ?? type
+}
+
+function toCssColor(color: number): string {
+  return `#${color.toString(16).padStart(6, "0")}`
+}
+
+/** 连接度越高节点越大，开方压缩避免枢纽节点过大。 */
+function sizeForDegree(degree: number): number {
+  return 4 + Math.min(7, Math.sqrt(degree) * 1.8)
 }
 
 function layerForEntityType(type: string): number {
-  const normalized = type.toUpperCase()
-  if (normalized.includes("DOCUMENT")) return -1
-  if (normalized.includes("EVENT")) return 1
-  if (normalized.includes("CONCEPT")) return 2
+  const normalized = normalizeEntityType(type)
+  if (normalized === "DOCUMENT") return -1
+  if (normalized === "EVENT") return 1
+  if (normalized === "CONCEPT") return 2
   return 0
-}
-
-function colorForConfidence(confidence: number): number {
-  if (confidence >= 0.85) return 0x67e8f9
-  if (confidence >= 0.65) return 0x94a3b8
-  return 0x64748b
 }

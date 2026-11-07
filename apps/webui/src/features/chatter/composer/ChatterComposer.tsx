@@ -96,7 +96,7 @@ export function ChatterComposer({
     (text: string) => {
       const base = voiceBaseTextRef.current.trimEnd()
       const voiceText = text.trim()
-      api.composer().setText(base && voiceText ? `${base}\n${voiceText}` : base || voiceText)
+      api.composer.setText(base && voiceText ? `${base}\n${voiceText}` : base || voiceText)
     },
     [api]
   )
@@ -104,7 +104,7 @@ export function ChatterComposer({
   const handleVoiceRecordingChange = useCallback(
     (stream: MediaStream | null) => {
       if (stream) {
-        voiceBaseTextRef.current = api.composer().getState().text ?? ""
+        voiceBaseTextRef.current = api.composer.getState().text ?? ""
       }
       setWaveformCtx(stream)
     },
@@ -115,11 +115,11 @@ export function ChatterComposer({
   const handleSend = useCallback(() => {
     const textChips = guestMode ? [] : attachments.filter((a) => a.type === "text" && a.content)
     if (textChips.length > 0) {
-      const current = api.composer().getState().text ?? ""
+      const current = api.composer.getState().text ?? ""
       const prefix = textChips.map((a) => a.content).join("\n\n")
-      api.composer().setText(prefix + (current ? `\n\n${current}` : ""))
+      api.composer.setText(prefix + (current ? `\n\n${current}` : ""))
     }
-    api.composer().send()
+    api.composer.send()
     onAfterSend?.()
   }, [api, attachments, guestMode, onAfterSend])
 
@@ -177,7 +177,7 @@ export function ChatterComposer({
                   <button
                     type="button"
                     aria-label={`移除附件 ${attachment.name}`}
-                    onClick={() => api.composer().attachment({ id: attachment.id }).remove()}
+                    onClick={() => api.composer.attachment({ id: attachment.id }).remove()}
                     className="absolute right-1 flex size-5 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
                   >
                     <span className="text-sm leading-none">×</span>

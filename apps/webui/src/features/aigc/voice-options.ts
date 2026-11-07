@@ -6,7 +6,7 @@
 /** 配音文本最大长度（字），与后端 VOICE_TEXT_MAX_LEN 保持一致 */
 export const VOICE_TEXT_MAX_LEN = 200
 
-/** 可选音色（对应后端 DashScope cosyvoice-v3-flash 音色） */
+/** 可选音色（对应后端 DashScope cosyvoice-v3.5-flash 音色） */
 export const VOICES = [
   { value: "longxiaochun_v3", label: "龙小淳（知性女）" },
   { value: "longanyang", label: "龙安阳（阳光男）" },

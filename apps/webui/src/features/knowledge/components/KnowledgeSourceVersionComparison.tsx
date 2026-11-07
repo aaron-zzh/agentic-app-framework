@@ -1,11 +1,10 @@
 /**
- * 知识文档精确来源版本定位与比较面板。
+ * 文档版本对比面板：固定一个基准版本（默认为知识入库的精确来源版本），选择同一文档的其他版本比较。
  * @author AaronZZH & Kiro
  */
 
 "use client"
 
-import Link from "next/link"
 import { useEffect, useState } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -17,7 +16,12 @@ import type { DocumentVersion } from "@/lib/types/document"
 
 interface KnowledgeSourceVersionComparisonProps {
   documentId: number
+  /** 基准版本：知识入库固定的来源版本，或文档当前版本 */
   sourceVersionId: number
+  /** 基准版本的称呼，默认「知识来源」 */
+  sourceLabel?: string
+  /** 基准版本说明，默认描述知识来源固定不随文档更新 */
+  description?: string
 }
 
 const SOURCE_LABELS: Record<DocumentVersion["sourceType"], string> = {
@@ -27,10 +31,12 @@ const SOURCE_LABELS: Record<DocumentVersion["sourceType"], string> = {
   RESTORE: "恢复"
 }
 
-/** 固定知识 ingest 的来源版本，并允许选择同一文档的历史版本进行比较。 */
+/** 固定基准版本，并允许选择同一文档的历史版本进行比较。布局按容器宽度自适应，可放入窄侧栏。 */
 export function KnowledgeSourceVersionComparison({
   documentId,
-  sourceVersionId
+  sourceVersionId,
+  sourceLabel = "知识来源",
+  description
 }: KnowledgeSourceVersionComparisonProps) {
   const versionsQuery = useDocumentVersions(documentId)
   const versions = versionsQuery.data ?? []
@@ -69,8 +75,8 @@ export function KnowledgeSourceVersionComparison({
   if (versionsQuery.isError) {
     return (
       <Alert variant="destructive">
-        <AlertTitle>来源版本历史加载失败</AlertTitle>
-        <AlertDescription>无法定位知识内容使用的 DocumentVersion。</AlertDescription>
+        <AlertTitle>版本历史加载失败</AlertTitle>
+        <AlertDescription>无法加载 Document #{documentId} 的版本历史。</AlertDescription>
       </Alert>
     )
   }
@@ -78,7 +84,7 @@ export function KnowledgeSourceVersionComparison({
   if (!sourceVersion) {
     return (
       <Alert variant="destructive">
-        <AlertTitle>精确来源版本不可用</AlertTitle>
+        <AlertTitle>基准版本不可用</AlertTitle>
         <AlertDescription>
           Document #{documentId} 的版本历史中未找到 Version #{sourceVersionId}。
         </AlertDescription>
@@ -89,29 +95,22 @@ export function KnowledgeSourceVersionComparison({
   const baseVersion = versions.find((version) => version.id === baseVersionId)
 
   return (
-    <section className="flex flex-col gap-3 rounded-lg border bg-background p-3">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-medium text-sm">来源版本历史</h3>
-            <Badge>知识来源 v{sourceVersion.versionNo}</Badge>
-            <Badge variant="outline">Version #{sourceVersion.id}</Badge>
-          </div>
-          <p className="text-muted-foreground text-xs">
-            知识内容固定来自 Document #{documentId}，后续文档更新不会改变本次来源。
-          </p>
+    <section className="@container flex flex-col gap-3 rounded-lg border bg-background p-3">
+      <header className="flex flex-col gap-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="font-medium text-sm">版本对比</h3>
+          <Badge>
+            {sourceLabel} v{sourceVersion.versionNo}
+          </Badge>
+          <Badge variant="outline">Version #{sourceVersion.id}</Badge>
         </div>
-        <Button
-          nativeButton={false}
-          render={<Link href={`/docs/${documentId}/edit`} />}
-          variant="outline"
-          size="xs"
-        >
-          打开文档
-        </Button>
+        <p className="text-muted-foreground text-xs">
+          {description ??
+            `知识内容固定来自 Document #${documentId}，后续文档更新不会改变本次来源。`}
+        </p>
       </header>
 
-      <dl className="grid gap-2 rounded-md bg-muted/30 p-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
+      <dl className="grid @3xl:grid-cols-4 @xl:grid-cols-2 gap-2 rounded-md bg-muted/30 p-3 text-xs">
         <div>
           <dt className="text-muted-foreground">来源类型</dt>
           <dd>{SOURCE_LABELS[sourceVersion.sourceType]}</dd>
@@ -132,9 +131,9 @@ export function KnowledgeSourceVersionComparison({
         </div>
       </dl>
 
-      <div className="grid min-h-0 gap-3 lg:grid-cols-[220px_minmax(0,1fr)]">
+      <div className="grid min-h-0 @2xl:grid-cols-[220px_minmax(0,1fr)] gap-3">
         <fieldset className="m-0 flex max-h-80 min-w-0 flex-col gap-1 overflow-auto border-0 p-0">
-          <legend className="sr-only">来源文档版本历史</legend>
+          <legend className="sr-only">文档版本历史</legend>
           {versions.map((version) => {
             const isSource = version.id === sourceVersionId
             const isBase = version.id === baseVersionId
@@ -150,7 +149,7 @@ export function KnowledgeSourceVersionComparison({
                 <span className="flex min-w-0 flex-1 flex-col items-start gap-1">
                   <span className="flex w-full items-center gap-1.5">
                     <span className="font-medium">v{version.versionNo}</span>
-                    {isSource ? <Badge>来源</Badge> : null}
+                    {isSource ? <Badge>{sourceLabel}</Badge> : null}
                     {isBase ? <Badge variant="outline">对比</Badge> : null}
                   </span>
                   <span className="line-clamp-1 text-muted-foreground text-xs">
@@ -165,14 +164,16 @@ export function KnowledgeSourceVersionComparison({
         <div className="flex min-h-0 flex-col gap-2">
           <p className="text-muted-foreground text-xs">
             {baseVersion
-              ? `比较 v${baseVersion.versionNo} 与知识来源 v${sourceVersion.versionNo}`
-              : `知识来源 v${sourceVersion.versionNo} 暂无其他版本可比较`}
+              ? `比较 v${baseVersion.versionNo} 与${sourceLabel} v${sourceVersion.versionNo}`
+              : `${sourceLabel} v${sourceVersion.versionNo} 暂无其他版本可比较`}
           </p>
           <DocumentDiffViewer
             diff={sameVersion ? undefined : diffQuery.data}
             loading={!sameVersion && diffQuery.isLoading}
             error={!sameVersion && diffQuery.isError}
-            emptyMessage={sameVersion ? "请选择其他历史版本与知识来源比较" : "两个版本正文相同"}
+            emptyMessage={
+              sameVersion ? `请选择其他历史版本与${sourceLabel}比较` : "两个版本正文相同"
+            }
             className="h-72"
           />
         </div>

@@ -30,8 +30,6 @@ import {
   type SourceMessagePart,
   ThreadPrimitive,
   useAuiState,
-  useMessage,
-  useThread,
   useVoiceState
 } from "@assistant-ui/react"
 import {
@@ -69,12 +67,13 @@ import { MarkdownText } from "./MarkdownText"
 
 /** AI 消息内容提取（用于 TTS） */
 function useMessageText(): string {
-  const message = useMessage()
-  if (message.role !== "assistant") return ""
-  return message.content
-    .filter((p) => p.type === "text")
-    .map((p) => ("text" in p ? p.text : ""))
-    .join("")
+  return useAuiState((s) => {
+    if (s.message.role !== "assistant") return ""
+    return s.message.content
+      .filter((p) => p.type === "text")
+      .map((p) => ("text" in p ? p.text : ""))
+      .join("")
+  })
 }
 
 /**
@@ -228,7 +227,7 @@ function BranchPicker() {
 
 /** 负反馈原因弹出输入框：点击后展示补充原因 Popover，提交后调用反馈接口（AAF-114 #11412） */
 function NegativeFeedbackButton() {
-  const message = useMessage()
+  const messageId = useAuiState((s) => s.message.id)
   const currentThreadId = useAgentRunStore((s) => s.currentThreadId)
   const diagnostic = useAgentRunStore((s) => s.diagnostic)
   const [open, setOpen] = useState(false)
@@ -238,7 +237,7 @@ function NegativeFeedbackButton() {
   const handleSubmit = useCallback(() => {
     if (!currentThreadId) return
     chatApi
-      .submitMessageFeedback(currentThreadId, message.id, {
+      .submitMessageFeedback(currentThreadId, messageId, {
         type: "negative",
         reason: reason.trim() || undefined,
         model: diagnostic.modelId,
@@ -249,7 +248,7 @@ function NegativeFeedbackButton() {
         setOpen(false)
       })
       .catch(() => toast.error("反馈提交失败，请重试"))
-  }, [currentThreadId, message.id, reason, diagnostic.modelId, diagnostic.runId])
+  }, [currentThreadId, messageId, reason, diagnostic.modelId, diagnostic.runId])
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -429,7 +428,7 @@ function AssistantMessage({
   showThinking: boolean
 }) {
   const text = useMessageText()
-  const message = useMessage()
+  const createdAt = useAuiState((s) => s.message.createdAt)
   const ttsMode = useVoiceConfig((s) => s.ttsMode)
   const ttsVoice = useVoiceConfig((s) => s.ttsVoice)
 
@@ -530,13 +529,13 @@ function AssistantMessage({
 
       {/* 操作栏：分支切换 + 复制 + 重新生成 */}
       <div className="flex items-center gap-2">
-        {message.createdAt && (
+        {createdAt && (
           <time
             className="text-muted-foreground text-xs"
-            dateTime={message.createdAt.toISOString()}
-            title={message.createdAt.toLocaleString("zh-CN")}
+            dateTime={createdAt.toISOString()}
+            title={createdAt.toLocaleString("zh-CN")}
           >
-            {formatMessageTime(message.createdAt.toISOString())}
+            {formatMessageTime(createdAt.toISOString())}
           </time>
         )}
         <AssistantActionBar guestMode={guestMode} />
@@ -547,7 +546,7 @@ function AssistantMessage({
 
 /** 用户消息气泡（支持编辑） */
 function UserMessage() {
-  const message = useMessage()
+  const createdAt = useAuiState((s) => s.message.createdAt)
 
   return (
     <MessagePrimitive.Root className="mb-3 flex flex-col items-end">
@@ -587,13 +586,13 @@ function UserMessage() {
         {/* 用户消息分支切换与时间戳 */}
         <div className="mt-0.5 flex items-center gap-2 px-1">
           <BranchPicker />
-          {message.createdAt && (
+          {createdAt && (
             <time
               className="text-muted-foreground text-xs"
-              dateTime={message.createdAt.toISOString()}
-              title={message.createdAt.toLocaleString("zh-CN")}
+              dateTime={createdAt.toISOString()}
+              title={createdAt.toLocaleString("zh-CN")}
             >
-              {formatMessageTime(message.createdAt.toISOString())}
+              {formatMessageTime(createdAt.toISOString())}
             </time>
           )}
         </div>
@@ -613,6 +612,13 @@ const DEFAULT_SUGGESTIONS = [
   { prompt: "你能做什么？" },
   { prompt: "帮我写一份报告" },
   { prompt: "如何使用知识库？" }
+]
+
+/** 未登录访客走系统客服，只推荐客服知识库可回答的产品咨询问题。 */
+const GUEST_SUGGESTIONS = [
+  { prompt: "你们有哪些产品和服务？" },
+  { prompt: "适合用在哪些业务场景？" },
+  { prompt: "现在已经支持哪些功能？" }
 ]
 
 /** 单条建议渲染（AAF-114 #11412）：优先展示 title/description，无则回退 label/prompt；autoSend 缺省 true。 */
@@ -637,7 +643,8 @@ function WelcomeScreen() {
   const [suggestions, setSuggestions] = useState<AgentSuggestion[]>(DEFAULT_SUGGESTIONS)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const dynamicSuggestions = useAgentRunStore((s) => s.suggestions)
-  const displayed = dynamicSuggestions.length > 0 ? dynamicSuggestions : suggestions
+  const fallback = isAuthenticated ? suggestions : GUEST_SUGGESTIONS
+  const displayed = dynamicSuggestions.length > 0 ? dynamicSuggestions : fallback
 
   useEffect(() => {
     if (!isAuthenticated) return
@@ -687,7 +694,7 @@ export function ChatterThread({
   guestMode?: boolean
   showThinking: boolean
 }) {
-  const isLoading = useThread((s) => s.isRunning)
+  const isLoading = useAuiState((s) => s.thread.isRunning)
   const currentThreadId = useAgentRunStore((state) => state.currentThreadId)
   const currentRunId = useAgentRunStore((state) => state.diagnostic.runId)
   const { data: creditSummary } = useConversationCreditSummary(

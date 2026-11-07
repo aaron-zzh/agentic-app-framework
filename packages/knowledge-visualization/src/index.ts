@@ -15,6 +15,7 @@ export { GraphVisualization } from "./lib/graph-visualization"
 export { resolveGraphLayout, validateGraph } from "./lib/layout"
 export { ThreeGraphEngine } from "./lib/three-graph-engine"
 export type {
+  GraphColorScheme,
   GraphDimension,
   GraphLayout,
   GraphPosition,

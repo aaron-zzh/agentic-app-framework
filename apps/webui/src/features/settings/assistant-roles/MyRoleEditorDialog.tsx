@@ -26,6 +26,7 @@ import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
+import { KnowledgeBaseBrief } from "@/features/knowledge/components/KnowledgeBaseBrief"
 import type { AiRoleSkillBinding, AiRoleVO, MyAiRoleInput } from "@/lib/api/rest/ai/role"
 import { useAiRoleToolOptions, useCreateMyAiRole, useUpdateMyAiRole } from "@/lib/api/rest/ai/role"
 import { useAiSkills } from "@/lib/api/rest/ai/skill"
@@ -266,11 +267,7 @@ function MyRoleEditorForm({ role, onDone }: { role: AiRoleVO | null; onDone: () 
                     />
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium text-sm">{kb.name}</p>
-                      {kb.description && (
-                        <p className="line-clamp-2 text-muted-foreground text-xs">
-                          {kb.description}
-                        </p>
-                      )}
+                      <KnowledgeBaseBrief description={kb.description} aiSummary={kb.aiSummary} />
                     </div>
                     <Badge variant="outline">
                       {knowledgeVisibilityLabel[kb.visibility] ?? kb.visibility}

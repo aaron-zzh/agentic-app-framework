@@ -121,6 +121,9 @@ export function GlobalChatter({ availableModes = [], projectContext }: GlobalCha
 
   const handleDragDown = useCallback(
     (e: React.PointerEvent<HTMLElement>) => {
+      // Portal 内的下拉/弹层事件会沿 React 树冒泡到工具栏；非工具栏 DOM 内的事件不得触发拖拽，
+      // 否则 setPointerCapture 会吞掉弹层选项的 click（角色无法切换）。
+      if (!e.currentTarget.contains(e.target as Node)) return
       if ((e.target as HTMLElement).closest("button,select,[role=combobox]")) return
       e.currentTarget.setPointerCapture(e.pointerId)
       dragStart.current = {

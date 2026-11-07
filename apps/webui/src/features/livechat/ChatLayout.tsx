@@ -8,12 +8,7 @@
 
 "use client"
 
-import {
-  ComposerPrimitive,
-  MessagePrimitive,
-  ThreadPrimitive,
-  useAssistantRuntime
-} from "@assistant-ui/react"
+import { ComposerPrimitive, MessagePrimitive, ThreadPrimitive, useAui } from "@assistant-ui/react"
 import { PanelLeftClose, PanelLeftOpen, PlusIcon, SendHorizonal } from "lucide-react"
 import { useCallback, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -29,21 +24,21 @@ import { SubTaskActivityList } from "./components/SubTaskActivityList"
 function SessionList() {
   const { data } = useChatSessions()
   const { mutateAsync: createSession } = useCreateSession()
-  const runtime = useAssistantRuntime()
+  const aui = useAui()
 
   const sessions = data ?? []
 
   const handleNew = useCallback(async () => {
     await createSession({ type: "ai" })
     // 新建会话后 runtime 切换到新线程
-    runtime.threads.switchToNewThread()
-  }, [createSession, runtime])
+    aui.threads.switchToNewThread()
+  }, [createSession, aui])
 
   const handleSwitch = useCallback(
     (sessionId: string) => {
-      runtime.threads.switchToThread(sessionId)
+      aui.threads.switchToThread(sessionId)
     },
-    [runtime]
+    [aui]
   )
 
   return (

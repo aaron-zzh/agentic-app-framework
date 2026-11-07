@@ -10,6 +10,7 @@ import {
   BufferGeometry,
   type Camera,
   Color,
+  ConeGeometry,
   DirectionalLight,
   DynamicDrawUsage,
   Group,
@@ -17,9 +18,11 @@ import {
   LineBasicMaterial,
   LineSegments,
   Matrix4,
+  MeshBasicMaterial,
   MeshStandardMaterial,
   OrthographicCamera,
   PerspectiveCamera,
+  Quaternion,
   Raycaster,
   Scene,
   SphereGeometry,
@@ -32,11 +35,13 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js"
 import { validateGraph } from "./layout"
 import type { LayoutWorkerRequest, LayoutWorkerResponse } from "./layout-worker-protocol"
 import type {
+  GraphColorScheme,
   GraphDimension,
   GraphLayout,
   GraphPosition,
   ThreeGraphEngineOptions,
   VisualizationColor,
+  VisualizationEdge,
   VisualizationGraph,
   VisualizationNode
 } from "./types"
@@ -51,10 +56,60 @@ interface PickingTreeNode {
 const DEFAULT_NODE_COLOR = 0x38bdf8
 const DEFAULT_EDGE_COLOR = 0x64748b
 const DEFAULT_NODE_SIZE = 5
-const DEFAULT_SPACING = 44
+const DEFAULT_SPACING = 64
 const DEFAULT_LAYER_GAP = 18
 const POINTER_CLICK_TOLERANCE = 4
 const ORTHOGRAPHIC_VIEW_HEIGHT = 640
+// 聚焦节点时，无关节点与关系向背景色混合以弱化；暗色背景下混向深色才会退后
+const SCHEME_STYLES = {
+  light: {
+    dimColor: 0xe2e8f0,
+    dimRatio: 0.72,
+    focusEdgeColor: 0x0284c7,
+    selectedLift: 0x0f172a,
+    ambient: 1.15,
+    key: 2.2,
+    fill: 1.1,
+    edgeOpacity: 0.8,
+    edgeNeutral: 0xcbd5e1,
+    edgeNeutralRatio: 0.5
+  },
+  dark: {
+    dimColor: 0x1e293b,
+    dimRatio: 0.82,
+    focusEdgeColor: 0x7dd3fc,
+    selectedLift: 0xffffff,
+    ambient: 1.7,
+    key: 1.5,
+    fill: 0.7,
+    edgeOpacity: 0.7,
+    edgeNeutral: 0x334155,
+    edgeNeutralRatio: 0.55
+  }
+} as const
+// 超过该节点数不创建 DOM 标签，避免大图拖慢交互
+const MAX_LABEL_NODES = 800
+const MAX_EDGE_LABELS = 40
+const LABEL_HEIGHT = 14
+const LABEL_GAP = 4
+const LABEL_TEXT_COLOR = "var(--foreground, #0f172a)"
+const LABEL_HALO = [2, 4, 6].map((blur) => `0 0 ${blur}px var(--background, #ffffff)`).join(", ")
+const UP = new Vector3(0, 1, 0)
+
+interface LabelCandidate {
+  readonly index: number
+  readonly x: number
+  readonly y: number
+  readonly priority: number
+  readonly dimmed: boolean
+}
+
+interface LabelRect {
+  readonly left: number
+  readonly top: number
+  readonly right: number
+  readonly bottom: number
+}
 
 /** Three.js 知识图渲染器，所有 DOM/WebGL 操作都由实例生命周期管理。 */
 export class ThreeGraphEngine<TNodeData = unknown, TEdgeData = unknown> {
@@ -66,6 +121,7 @@ export class ThreeGraphEngine<TNodeData = unknown, TEdgeData = unknown> {
   private readonly pointer = new Vector2()
   private readonly dimension: GraphDimension
   private readonly layout: GraphLayout
+  private readonly scheme: (typeof SCHEME_STYLES)[GraphColorScheme]
   private readonly nodeSize: number
   private readonly spacing: number
   private readonly layerGap: number
@@ -76,6 +132,17 @@ export class ThreeGraphEngine<TNodeData = unknown, TEdgeData = unknown> {
   private layoutWorker: Worker | null = null
   private nodeMesh: InstancedMesh<SphereGeometry, MeshStandardMaterial> | null = null
   private edgeLines: LineSegments<BufferGeometry, LineBasicMaterial> | null = null
+  private arrowMesh: InstancedMesh<ConeGeometry, MeshBasicMaterial> | null = null
+  // 每条关系箭头的完整变换；为 null 表示该关系没有可画的方向（自环或端点重合）
+  private arrowMatrices: (Matrix4 | null)[] = []
+  private readonly labelLayer: HTMLDivElement
+  private nodeLabels: HTMLDivElement[] = []
+  private nodeLabelWidths: number[] = []
+  private edgeLabels: HTMLDivElement[] = []
+  private edgeIndicesByNodeId = new Map<string, number[]>()
+  private nodeDegrees: number[] = []
+  private focusNodeIds: ReadonlySet<string> | null = null
+  private focusEdgeIndices: ReadonlySet<number> | null = null
   private graph: VisualizationGraph<TNodeData, TEdgeData> = { nodes: [], edges: [] }
   private positions = new Map<string, GraphPosition>()
   private nodesByInstanceId: readonly VisualizationNode<TNodeData>[] = []
@@ -99,6 +166,7 @@ export class ThreeGraphEngine<TNodeData = unknown, TEdgeData = unknown> {
     this.container = container
     this.dimension = options.dimension ?? "2.5d"
     this.layout = options.layout ?? "force"
+    this.scheme = SCHEME_STYLES[options.colorScheme ?? "light"]
     this.nodeSize = options.nodeSize ?? DEFAULT_NODE_SIZE
     this.spacing = options.spacing ?? DEFAULT_SPACING
     this.layerGap = options.layerGap ?? DEFAULT_LAYER_GAP
@@ -113,6 +181,7 @@ export class ThreeGraphEngine<TNodeData = unknown, TEdgeData = unknown> {
       antialias: true,
       powerPreference: "high-performance"
     })
+    this.labelLayer = createLabelLayer()
 
     try {
       this.renderer.outputColorSpace = SRGBColorSpace
@@ -128,15 +197,16 @@ export class ThreeGraphEngine<TNodeData = unknown, TEdgeData = unknown> {
       this.renderer.domElement.style.touchAction = "none"
       this.renderer.domElement.setAttribute("aria-hidden", "true")
       this.container.appendChild(this.renderer.domElement)
+      this.container.appendChild(this.labelLayer)
 
       const controls = this.createControls(this.camera)
       this.controls = controls
       this.scene.add(this.graphGroup)
-      this.scene.add(new AmbientLight(0xffffff, 1.15))
-      const keyLight = new DirectionalLight(0xffffff, 2.2)
+      this.scene.add(new AmbientLight(0xffffff, this.scheme.ambient))
+      const keyLight = new DirectionalLight(0xffffff, this.scheme.key)
       keyLight.position.set(120, 180, 260)
       this.scene.add(keyLight)
-      const fillLight = new DirectionalLight(0x60a5fa, 1.1)
+      const fillLight = new DirectionalLight(0x60a5fa, this.scheme.fill)
       fillLight.position.set(-180, -80, 120)
       this.scene.add(fillLight)
 
@@ -176,6 +246,8 @@ export class ThreeGraphEngine<TNodeData = unknown, TEdgeData = unknown> {
     this.instanceIndexByNodeId = new Map(graph.nodes.map((node, index) => [node.id, index]))
     this.pickingTree = null
     this.baseNodeColors = graph.nodes.map((node) => toColor(node.color ?? DEFAULT_NODE_COLOR))
+    this.indexEdges(graph)
+    this.createLabels(graph)
 
     const nodeIds = new Set(graph.nodes.map((node) => node.id))
     if (this.selectedNodeId && !nodeIds.has(this.selectedNodeId)) this.selectedNodeId = null
@@ -183,6 +255,7 @@ export class ThreeGraphEngine<TNodeData = unknown, TEdgeData = unknown> {
       this.hoveredNodeId = null
       this.onNodeHover?.(null)
     }
+    this.updateFocusSets()
 
     if (graph.nodes.length === 0) {
       this.invalidate()
@@ -232,10 +305,8 @@ export class ThreeGraphEngine<TNodeData = unknown, TEdgeData = unknown> {
     this.assertActive()
     const nextNodeId = nodeId ?? null
     if (nextNodeId === this.selectedNodeId) return
-    const previousNodeId = this.selectedNodeId
     this.selectedNodeId = nextNodeId
-    this.updateNodeAppearances([previousNodeId, nextNodeId])
-    this.invalidate()
+    this.refreshFocus()
   }
 
   /** 依据当前节点包围盒调整相机视口。 */
@@ -340,6 +411,17 @@ export class ThreeGraphEngine<TNodeData = unknown, TEdgeData = unknown> {
     if (this.renderer.domElement.parentElement === this.container) {
       this.container.removeChild(this.renderer.domElement)
     }
+    if (this.labelLayer.parentElement === this.container) {
+      this.container.removeChild(this.labelLayer)
+    }
+    this.labelLayer.replaceChildren()
+    this.nodeLabels = []
+    this.nodeLabelWidths = []
+    this.edgeLabels = []
+    this.edgeIndicesByNodeId.clear()
+    this.nodeDegrees = []
+    this.focusNodeIds = null
+    this.focusEdgeIndices = null
     this.nodesByInstanceId = []
     this.instanceIndexByNodeId.clear()
     this.pickingTree = null
@@ -398,8 +480,11 @@ export class ThreeGraphEngine<TNodeData = unknown, TEdgeData = unknown> {
       if (this.graph.edges.length > 0) {
         this.edgeLines = this.createEdgeLines(this.graph)
         this.graphGroup.add(this.edgeLines)
+        this.arrowMesh = this.createArrowMesh(this.graph)
+        if (this.arrowMesh) this.graphGroup.add(this.arrowMesh)
       }
       this.updateNodeInstances()
+      this.updateEdgeColors()
       this.fitView()
       this.invalidate()
     } catch (cause) {
@@ -416,10 +501,10 @@ export class ThreeGraphEngine<TNodeData = unknown, TEdgeData = unknown> {
     nodes: readonly VisualizationNode<TNodeData>[]
   ): InstancedMesh<SphereGeometry, MeshStandardMaterial> {
     const geometry = new SphereGeometry(1, 14, 10)
+    // 颜色走 InstancedMesh.instanceColor；球体几何没有 color 顶点属性，开启 vertexColors 会乘上默认的 (0,0,0) 变成黑色
     const material = new MeshStandardMaterial({
-      metalness: 0.08,
-      roughness: 0.38,
-      vertexColors: true
+      metalness: 0,
+      roughness: 0.55
     })
     const mesh = new InstancedMesh(geometry, material, nodes.length)
     mesh.instanceMatrix.setUsage(DynamicDrawUsage)
@@ -437,10 +522,7 @@ export class ThreeGraphEngine<TNodeData = unknown, TEdgeData = unknown> {
       const source = this.positions.get(edge.source)
       const target = this.positions.get(edge.target)
       if (!source || !target) return
-      const offset = index * 6
-      vertices.set([source.x, source.y, source.z, target.x, target.y, target.z], offset)
-      const color = toColor(edge.color ?? DEFAULT_EDGE_COLOR)
-      colors.set([color.r, color.g, color.b, color.r, color.g, color.b], offset)
+      vertices.set([source.x, source.y, source.z, target.x, target.y, target.z], index * 6)
     })
 
     const geometry = new BufferGeometry()
@@ -449,11 +531,109 @@ export class ThreeGraphEngine<TNodeData = unknown, TEdgeData = unknown> {
     geometry.computeBoundingSphere()
     const material = new LineBasicMaterial({
       depthWrite: false,
-      opacity: 0.56,
+      opacity: this.scheme.edgeOpacity,
       transparent: true,
       vertexColors: true
     })
     return new LineSegments(geometry, material)
+  }
+
+  /**
+   * 预先计算每条关系终点外侧的箭头变换；箭头默认隐藏，只在聚焦节点时显示其相关关系的方向。
+   * 全部箭头共用一个实例化网格。
+   */
+  private createArrowMesh(
+    graph: VisualizationGraph<TNodeData, TEdgeData>
+  ): InstancedMesh<ConeGeometry, MeshBasicMaterial> | null {
+    if (graph.edges.length === 0) return null
+    const geometry = new ConeGeometry(0.5, 1.6, 10)
+    const material = new MeshBasicMaterial({ transparent: true, opacity: 0.9 })
+    const mesh = new InstancedMesh(geometry, material, graph.edges.length)
+    mesh.instanceMatrix.setUsage(DynamicDrawUsage)
+    mesh.frustumCulled = false
+
+    const position = new Vector3()
+    const direction = new Vector3()
+    const rotation = new Quaternion()
+    const scale = new Vector3()
+    const arrowSize = this.nodeSize * 0.9
+
+    this.arrowMatrices = graph.edges.map((edge) => {
+      const source = this.positions.get(edge.source)
+      const target = this.positions.get(edge.target)
+      if (!source || !target || edge.source === edge.target) return null
+      direction.set(target.x - source.x, target.y - source.y, target.z - source.z)
+      const length = direction.length()
+      if (length < 0.001) return null
+      direction.divideScalar(length)
+      const targetIndex = this.instanceIndexByNodeId.get(edge.target)
+      const targetNode = targetIndex === undefined ? undefined : graph.nodes[targetIndex]
+      const targetRadius = targetNode?.size ?? this.nodeSize
+      // 箭头尖端贴住终点球面
+      const offset = targetRadius + arrowSize * 0.8
+      position.set(target.x, target.y, target.z).addScaledVector(direction, -offset)
+      rotation.setFromUnitVectors(UP, direction)
+      scale.setScalar(arrowSize)
+      return new Matrix4().compose(position, rotation, scale)
+    })
+    return mesh
+  }
+
+  /** 按当前聚焦状态重写关系线颜色与箭头：聚焦关系高亮并显示箭头，其余弱化且不显示箭头。 */
+  private updateEdgeColors(): void {
+    const lines = this.edgeLines
+    const arrows = this.arrowMesh
+    if (!lines && !arrows) return
+    const colorAttribute = lines?.geometry.getAttribute("color")
+    const focusEdges = this.focusEdgeIndices
+    const dim = new Color(this.scheme.dimColor)
+    const highlight = new Color(this.scheme.focusEdgeColor)
+    const hidden = new Matrix4().makeScale(0, 0, 0)
+    const style = (color: Color, focused: boolean): Color => {
+      if (!focusEdges) return color
+      return focused ? color.lerp(highlight, 0.6) : color.lerp(dim, this.scheme.dimRatio)
+    }
+
+    this.graph.edges.forEach((edge, index) => {
+      const focused = focusEdges?.has(index) ?? false
+      const [sourceColor, targetColor] = this.edgeEndColors(edge)
+      style(sourceColor, focused)
+      style(targetColor, focused)
+      if (colorAttribute) {
+        colorAttribute.setXYZ(index * 2, sourceColor.r, sourceColor.g, sourceColor.b)
+        colorAttribute.setXYZ(index * 2 + 1, targetColor.r, targetColor.g, targetColor.b)
+      }
+      if (arrows) {
+        const arrowMatrix = this.arrowMatrices[index]
+        arrows.setMatrixAt(index, focused && arrowMatrix ? arrowMatrix : hidden)
+        arrows.setColorAt(index, targetColor)
+      }
+    })
+    if (colorAttribute) colorAttribute.needsUpdate = true
+    if (arrows) {
+      arrows.instanceMatrix.needsUpdate = true
+      if (arrows.instanceColor) arrows.instanceColor.needsUpdate = true
+    }
+  }
+
+  /**
+   * 关系两端的基础颜色：调用方指定 color 时两端同色；否则从起点节点色渐变到终点节点色，
+   * 并向背景中性色混合，让关系线退到节点之后。
+   */
+  private edgeEndColors(edge: VisualizationEdge<TEdgeData>): [Color, Color] {
+    if (edge.color !== undefined) {
+      return [toColor(edge.color), toColor(edge.color)]
+    }
+    const neutral = new Color(this.scheme.edgeNeutral)
+    const endColor = (nodeId: string): Color => {
+      const index = this.instanceIndexByNodeId.get(nodeId)
+      const base = index === undefined ? undefined : this.baseNodeColors[index]
+      return (base?.clone() ?? new Color(DEFAULT_EDGE_COLOR)).lerp(
+        neutral,
+        this.scheme.edgeNeutralRatio
+      )
+    }
+    return [endColor(edge.source), endColor(edge.target)]
   }
 
   private buildPickingTree(): PickingTreeNode | null {
@@ -516,29 +696,206 @@ export class ThreeGraphEngine<TNodeData = unknown, TEdgeData = unknown> {
     mesh.computeBoundingSphere()
   }
 
-  private updateNodeAppearances(nodeIds: readonly (string | null)[]): void {
-    const mesh = this.nodeMesh
-    if (!mesh) return
-    const indices = new Set<number>()
-    for (const nodeId of nodeIds) {
-      if (!nodeId) continue
-      const index = this.instanceIndexByNodeId.get(nodeId)
-      if (index !== undefined) indices.add(index)
-    }
-    if (indices.size === 0) return
+  /** 聚焦节点（选中优先，其次悬停）变化后，重算邻域并整体刷新节点、关系与标签。 */
+  private refreshFocus(): void {
+    this.updateFocusSets()
+    this.updateNodeInstances()
+    this.updateEdgeColors()
+    this.invalidate()
+  }
 
-    const matrix = new Matrix4()
-    const position = new Vector3()
-    const scale = new Vector3()
-    mesh.instanceMatrix.clearUpdateRanges()
-    mesh.instanceColor?.clearUpdateRanges()
-    for (const index of indices) {
-      this.writeNodeInstance(mesh, index, matrix, position, scale)
-      mesh.instanceMatrix.addUpdateRange(index * 16, 16)
-      mesh.instanceColor?.addUpdateRange(index * 3, 3)
+  private updateFocusSets(): void {
+    const focusId = this.selectedNodeId ?? this.hoveredNodeId
+    if (!focusId || !this.instanceIndexByNodeId.has(focusId)) {
+      this.focusNodeIds = null
+      this.focusEdgeIndices = null
+      return
     }
-    mesh.instanceMatrix.needsUpdate = true
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
+    const edgeIndices = this.edgeIndicesByNodeId.get(focusId) ?? []
+    const nodeIds = new Set<string>([focusId])
+    for (const index of edgeIndices) {
+      const edge = this.graph.edges[index]
+      if (!edge) continue
+      nodeIds.add(edge.source)
+      nodeIds.add(edge.target)
+    }
+    this.focusNodeIds = nodeIds
+    this.focusEdgeIndices = new Set(edgeIndices)
+  }
+
+  private indexEdges(graph: VisualizationGraph<TNodeData, TEdgeData>): void {
+    const byNode = new Map<string, number[]>()
+    graph.edges.forEach((edge, index) => {
+      const endpoints = edge.source === edge.target ? [edge.source] : [edge.source, edge.target]
+      for (const nodeId of endpoints) {
+        const list = byNode.get(nodeId)
+        if (list) list.push(index)
+        else byNode.set(nodeId, [index])
+      }
+    })
+    this.edgeIndicesByNodeId = byNode
+    this.nodeDegrees = graph.nodes.map((node) => byNode.get(node.id)?.length ?? 0)
+  }
+
+  private createLabels(graph: VisualizationGraph<TNodeData, TEdgeData>): void {
+    this.labelLayer.replaceChildren()
+    this.nodeLabels = []
+    this.nodeLabelWidths = []
+    this.edgeLabels = []
+    if (graph.nodes.length > MAX_LABEL_NODES) return
+    this.nodeLabels = graph.nodes.map((node) => {
+      const element = createLabelElement(node.label, false)
+      this.labelLayer.appendChild(element)
+      return element
+    })
+    this.nodeLabelWidths = graph.nodes.map(() => 0)
+  }
+
+  /**
+   * 将节点标签投影到屏幕：选中、悬停、邻居和高连接度节点优先放置，与已放置标签重叠的低优先级标签隐藏。
+   */
+  private updateLabels(): void {
+    const width = this.container.clientWidth
+    const height = this.container.clientHeight
+    if (width <= 0 || height <= 0) return
+
+    const projected = new Vector3()
+    const candidates: LabelCandidate[] = []
+    const focusNodes = this.focusNodeIds
+    const maxDegree = Math.max(1, ...this.nodeDegrees)
+
+    this.nodeLabels.forEach((element, index) => {
+      const node = this.graph.nodes[index]
+      const position = node ? this.positions.get(node.id) : undefined
+      if (!node || !position) {
+        hideLabel(element)
+        return
+      }
+      const point = this.projectToScreen(position, projected, width, height)
+      if (!point) {
+        hideLabel(element)
+        return
+      }
+      const inFocus = focusNodes?.has(node.id) ?? false
+      const priority =
+        node.id === this.selectedNodeId
+          ? 4
+          : node.id === this.hoveredNodeId
+            ? 3
+            : inFocus
+              ? 2
+              : (this.nodeDegrees[index] ?? 0) / maxDegree
+      candidates.push({ index, ...point, priority, dimmed: focusNodes !== null && !inFocus })
+    })
+
+    candidates.sort((left, right) => right.priority - left.priority)
+    const placed: LabelRect[] = []
+    for (const candidate of candidates) {
+      const element = this.nodeLabels[candidate.index]
+      if (!element) continue
+      const labelWidth = this.measureNodeLabel(candidate.index, element)
+      const top = candidate.y + this.screenNodeRadius(candidate.index) + LABEL_GAP
+      const rect: LabelRect = {
+        left: candidate.x - labelWidth / 2,
+        top,
+        right: candidate.x + labelWidth / 2,
+        bottom: top + LABEL_HEIGHT
+      }
+      // 聚焦相关标签必须显示；聚焦时其他标签隐藏，未聚焦时按优先级互相避让
+      const blocked = candidate.dimmed || placed.some((other) => overlaps(rect, other))
+      if (candidate.priority < 2 && blocked) {
+        hideLabel(element)
+        continue
+      }
+      placed.push(rect)
+      // 普通标签半透明退后；聚焦邻居稍亮，选中与悬停节点不透明
+      showLabel(element, rect.left, rect.top, labelOpacity(candidate.priority))
+      element.style.fontWeight = candidate.priority >= 3 ? "600" : "400"
+    }
+
+    this.updateEdgeLabels(projected, width, height)
+  }
+
+  /** 只为聚焦节点的关系显示关系名称，避免全图文字堆叠。 */
+  private updateEdgeLabels(projected: Vector3, width: number, height: number): void {
+    const focusEdges = this.focusEdgeIndices
+    const labelled = focusEdges
+      ? [...focusEdges].filter((index) => this.graph.edges[index]?.label).slice(0, MAX_EDGE_LABELS)
+      : []
+
+    while (this.edgeLabels.length < labelled.length) {
+      const element = createLabelElement("", true)
+      this.labelLayer.appendChild(element)
+      this.edgeLabels.push(element)
+    }
+    this.edgeLabels.forEach((element, slot) => {
+      const edgeIndex = labelled[slot]
+      const edge = edgeIndex === undefined ? undefined : this.graph.edges[edgeIndex]
+      const source = edge ? this.positions.get(edge.source) : undefined
+      const target = edge ? this.positions.get(edge.target) : undefined
+      if (!edge?.label || !source || !target) {
+        hideLabel(element)
+        return
+      }
+      const point = this.projectToScreen(
+        {
+          x: (source.x + target.x) / 2,
+          y: (source.y + target.y) / 2,
+          z: (source.z + target.z) / 2
+        },
+        projected,
+        width,
+        height
+      )
+      if (!point) {
+        hideLabel(element)
+        return
+      }
+      if (element.textContent !== edge.label) {
+        element.textContent = edge.label
+        element.title = edge.label
+      }
+      const labelWidth = element.offsetWidth
+      showLabel(element, point.x - labelWidth / 2, point.y - LABEL_HEIGHT / 2, 0.85)
+    })
+  }
+
+  private projectToScreen(
+    position: GraphPosition,
+    projected: Vector3,
+    width: number,
+    height: number
+  ): { readonly x: number; readonly y: number } | null {
+    projected.set(position.x, position.y, position.z).project(this.camera)
+    if (projected.z < -1 || projected.z > 1) return null
+    if (Math.abs(projected.x) > 1.05 || Math.abs(projected.y) > 1.05) return null
+    return { x: ((projected.x + 1) / 2) * width, y: ((1 - projected.y) / 2) * height }
+  }
+
+  /** 估算节点在屏幕上的半径，使标签紧贴节点下方。 */
+  private screenNodeRadius(index: number): number {
+    const node = this.graph.nodes[index]
+    const radius = node?.size ?? this.nodeSize
+    if (this.camera instanceof OrthographicCamera) {
+      const height = Math.max(this.container.clientHeight, 1)
+      return (radius * this.camera.zoom * height) / ORTHOGRAPHIC_VIEW_HEIGHT
+    }
+    const position = node ? this.positions.get(node.id) : undefined
+    if (!position) return radius
+    const distance = this.camera.position.distanceTo(
+      new Vector3(position.x, position.y, position.z)
+    )
+    const height = Math.max(this.container.clientHeight, 1)
+    const fov = (this.camera.fov * Math.PI) / 180
+    return (radius / (2 * Math.tan(fov / 2) * Math.max(distance, 0.001))) * height
+  }
+
+  private measureNodeLabel(index: number, element: HTMLDivElement): number {
+    const cached = this.nodeLabelWidths[index] ?? 0
+    if (cached > 0) return cached
+    const width = element.offsetWidth
+    this.nodeLabelWidths[index] = width
+    return width
   }
 
   private writeNodeInstance(
@@ -560,8 +917,12 @@ export class ThreeGraphEngine<TNodeData = unknown, TEdgeData = unknown> {
     matrix.compose(position, this.graphGroup.quaternion, scale)
     mesh.setMatrixAt(index, matrix)
     const color = this.baseNodeColors[index]?.clone() ?? new Color(DEFAULT_NODE_COLOR)
-    if (selected) color.lerp(new Color(0xffffff), 0.48)
-    else if (hovered) color.lerp(new Color(0xffffff), 0.24)
+    const lift = new Color(this.scheme.selectedLift)
+    if (selected) color.lerp(lift, 0.3)
+    else if (hovered) color.lerp(lift, 0.15)
+    else if (this.focusNodeIds && !this.focusNodeIds.has(node.id)) {
+      color.lerp(new Color(this.scheme.dimColor), this.scheme.dimRatio)
+    }
     mesh.setColorAt(index, color)
   }
 
@@ -593,12 +954,10 @@ export class ThreeGraphEngine<TNodeData = unknown, TEdgeData = unknown> {
     const node = this.pickNode(pointer.x, pointer.y)
     const nextId = node?.id ?? null
     if (nextId === this.hoveredNodeId) return
-    const previousId = this.hoveredNodeId
     this.hoveredNodeId = nextId
     this.renderer.domElement.style.cursor = node ? "pointer" : "grab"
-    this.updateNodeAppearances([previousId, nextId])
+    this.refreshFocus()
     this.onNodeHover?.(node)
-    this.invalidate()
   }
 
   private readonly handlePointerUp = (event: PointerEvent): void => {
@@ -612,11 +971,9 @@ export class ThreeGraphEngine<TNodeData = unknown, TEdgeData = unknown> {
       return
     }
     const node = this.pickNode(event.clientX, event.clientY)
-    const previousId = this.selectedNodeId
     this.selectedNodeId = node?.id ?? null
-    this.updateNodeAppearances([previousId, this.selectedNodeId])
+    this.refreshFocus()
     this.onNodePick?.(node)
-    this.invalidate()
   }
 
   private readonly handlePointerLeave = (): void => {
@@ -625,12 +982,10 @@ export class ThreeGraphEngine<TNodeData = unknown, TEdgeData = unknown> {
     if (this.hoverAnimationFrame !== null) cancelAnimationFrame(this.hoverAnimationFrame)
     this.hoverAnimationFrame = null
     if (this.hoveredNodeId === null) return
-    const previousId = this.hoveredNodeId
     this.hoveredNodeId = null
     this.renderer.domElement.style.cursor = "grab"
-    this.updateNodeAppearances([previousId])
+    this.refreshFocus()
     this.onNodeHover?.(null)
-    this.invalidate()
   }
 
   private pickNode(clientX: number, clientY: number): VisualizationNode<TNodeData> | null {
@@ -681,6 +1036,7 @@ export class ThreeGraphEngine<TNodeData = unknown, TEdgeData = unknown> {
       if (this.disposed || this.failed) return
       try {
         this.renderer.render(this.scene, this.camera)
+        this.updateLabels()
       } catch (cause) {
         this.reportError(cause)
       }
@@ -710,6 +1066,14 @@ export class ThreeGraphEngine<TNodeData = unknown, TEdgeData = unknown> {
       this.edgeLines.material.dispose()
       this.edgeLines = null
     }
+    if (this.arrowMesh) {
+      this.graphGroup.remove(this.arrowMesh)
+      this.arrowMesh.dispose()
+      this.arrowMesh.geometry.dispose()
+      this.arrowMesh.material.dispose()
+      this.arrowMesh = null
+    }
+    this.arrowMatrices = []
   }
 
   private assertActive(): void {
@@ -719,6 +1083,75 @@ export class ThreeGraphEngine<TNodeData = unknown, TEdgeData = unknown> {
 
 function toColor(color: VisualizationColor): Color {
   return new Color(color)
+}
+
+function createLabelLayer(): HTMLDivElement {
+  const layer = document.createElement("div")
+  layer.setAttribute("aria-hidden", "true")
+  Object.assign(layer.style, {
+    inset: "0",
+    overflow: "hidden",
+    pointerEvents: "none",
+    position: "absolute"
+  })
+  return layer
+}
+
+function createLabelElement(text: string, edge: boolean): HTMLDivElement {
+  const element = document.createElement("div")
+  element.textContent = text
+  element.title = text
+  Object.assign(element.style, {
+    color: LABEL_TEXT_COLOR,
+    fontSize: edge ? "10px" : "11px",
+    left: "0",
+    lineHeight: `${LABEL_HEIGHT}px`,
+    maxWidth: edge ? "120px" : "160px",
+    overflow: "hidden",
+    position: "absolute",
+    textOverflow: "ellipsis",
+    textShadow: LABEL_HALO,
+    top: "0",
+    visibility: "hidden",
+    whiteSpace: "nowrap",
+    willChange: "transform"
+  })
+  if (edge) {
+    Object.assign(element.style, {
+      background: "var(--background, #ffffff)",
+      border: "1px solid var(--border, #e2e8f0)",
+      borderRadius: "6px",
+      opacity: "0.95",
+      padding: "0 4px",
+      textShadow: "none"
+    })
+  }
+  return element
+}
+
+function showLabel(element: HTMLDivElement, left: number, top: number, opacity: number): void {
+  element.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`
+  element.style.opacity = String(opacity)
+  element.style.visibility = "visible"
+}
+
+function labelOpacity(priority: number): number {
+  if (priority >= 3) return 1
+  if (priority >= 2) return 0.85
+  return 0.65
+}
+
+function hideLabel(element: HTMLDivElement): void {
+  element.style.visibility = "hidden"
+}
+
+function overlaps(left: LabelRect, right: LabelRect): boolean {
+  return (
+    left.left < right.right &&
+    left.right > right.left &&
+    left.top < right.bottom &&
+    left.bottom > right.top
+  )
 }
 
 function toError(cause: unknown): Error {

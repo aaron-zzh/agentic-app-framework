@@ -13,6 +13,10 @@ import type {
 
 const TAU = Math.PI * 2
 const DEFAULT_FORCE_ITERATIONS = 72
+// 小图在 Worker 中多迭代几轮代价很低，能让随机初始位置充分收敛
+const SMALL_GRAPH_FORCE_ITERATIONS = 260
+const SMALL_GRAPH_NODE_LIMIT = 300
+const GRAVITY = 0.006
 const LARGE_GRAPH_REPULSION_SAMPLES = 32
 
 /** 校验图标识和关系端点，并返回节点索引。 */
@@ -152,7 +156,9 @@ function relaxPositions<TNodeData, TEdgeData>(
   const count = nodes.length
   const forces = new Float64Array(count * 3)
   const fixed = nodes.map((node) => node.position !== undefined)
-  const iterations = options.iterations ?? DEFAULT_FORCE_ITERATIONS
+  const iterations =
+    options.iterations ??
+    (count <= SMALL_GRAPH_NODE_LIMIT ? SMALL_GRAPH_FORCE_ITERATIONS : DEFAULT_FORCE_ITERATIONS)
   const dimensions = options.dimension === "3d" ? 3 : 2
   const idealDistance = options.spacing
   const repulsion = idealDistance * idealDistance * 0.85
@@ -255,10 +261,10 @@ function applyGravity<TData>(
 ): void {
   nodes.forEach((node, index) => {
     const offset = index * 3
-    forces[offset] = (forces[offset] ?? 0) - (positions[offset] ?? 0) * 0.003
-    forces[offset + 1] = (forces[offset + 1] ?? 0) - (positions[offset + 1] ?? 0) * 0.003
+    forces[offset] = (forces[offset] ?? 0) - (positions[offset] ?? 0) * GRAVITY
+    forces[offset + 1] = (forces[offset + 1] ?? 0) - (positions[offset + 1] ?? 0) * GRAVITY
     if (options.dimension === "3d") {
-      forces[offset + 2] = (forces[offset + 2] ?? 0) - (positions[offset + 2] ?? 0) * 0.003
+      forces[offset + 2] = (forces[offset + 2] ?? 0) - (positions[offset + 2] ?? 0) * GRAVITY
     } else if (options.dimension === "2.5d") {
       const targetZ = (node.layer ?? 0) * options.layerGap
       forces[offset + 2] = (targetZ - (positions[offset + 2] ?? 0)) * 0.08

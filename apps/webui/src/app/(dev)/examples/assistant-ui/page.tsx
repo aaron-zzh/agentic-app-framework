@@ -144,7 +144,11 @@ export default function AssistantUIExamplePage() {
                   发送一条消息开始对话
                 </div>
               </ThreadPrimitive.Empty>
-              <ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} />
+              <ThreadPrimitive.Messages>
+                {({ message }) =>
+                  message.role === "user" ? <UserMessage /> : <AssistantMessage />
+                }
+              </ThreadPrimitive.Messages>
             </ThreadPrimitive.Viewport>
             <Composer />
           </ThreadPrimitive.Root>

@@ -12,8 +12,8 @@ import {
   BranchPickerPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
-  useEditComposer,
-  useMessageRuntime
+  useAui,
+  useAuiState
 } from "@assistant-ui/react"
 import { ChevronLeft, ChevronRight, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -53,11 +53,11 @@ export function BranchSwitcher() {
  * 需要放在 user 消息的 MessagePrimitive 上下文内
  */
 export function MessageEditTrigger() {
-  const messageRuntime = useMessageRuntime()
+  const aui = useAui()
 
   return (
     <MessagePrimitive.If user>
-      <Button variant="ghost" size="xs" onClick={() => messageRuntime.composer.beginEdit()}>
+      <Button variant="ghost" size="xs" onClick={() => aui.composer.beginEdit()}>
         <Pencil className="size-3" />
         <span className="sr-only">编辑消息</span>
       </Button>
@@ -71,16 +71,16 @@ export function MessageEditTrigger() {
  * 提交后自动创建新分支并重新生成
  */
 export function MessageEditComposer() {
-  const editComposer = useEditComposer()
-  const messageRuntime = useMessageRuntime()
+  const aui = useAui()
+  const composerType = useAuiState((s) => s.composer.type)
 
-  if (editComposer.type !== "edit") return null
+  if (composerType !== "edit") return null
 
   return (
     <div className="flex flex-col gap-2">
       <ComposerPrimitive.Input className="min-h-[60px] w-full resize-none rounded-md border bg-background p-2 text-sm outline-none focus:ring-1 focus:ring-ring" />
       <div className="flex justify-end gap-2">
-        <Button variant="outline" size="sm" onClick={() => messageRuntime.composer.cancel()}>
+        <Button variant="outline" size="sm" onClick={() => aui.composer.cancel()}>
           取消
         </Button>
         <ComposerPrimitive.Send asChild>
