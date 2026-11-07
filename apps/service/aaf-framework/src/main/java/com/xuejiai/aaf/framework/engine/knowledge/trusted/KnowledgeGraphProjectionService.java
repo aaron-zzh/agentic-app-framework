@@ -137,7 +137,12 @@ public class KnowledgeGraphProjectionService {
         return false;
     }
 
-    /** 直接命中事实优先；有剩余额度时扩展其端点的相邻事实，形成最多二跳的证据候选。 */
+    /**
+     * 直接命中事实优先；有剩余额度时扩展其端点的相邻事实，形成最多二跳的证据候选。
+     *
+     * <p>只按实体名命中：短 predicate（如"是""包括"）几乎出现在任何查询中，单独命中会引入大量无关边；单字实体名同理。predicate
+     * 仅在实体已命中时参与排序。截断前按主客体都命中、predicate 命中、命中实体名总长度排序，相关性高的事实优先保留。
+     */
     public Set<String> searchFactKeys(
             String query, Set<UUID> authorizedKnowledgeBaseIds, SourceFilters filters, int limit) {
         if (authorizedKnowledgeBaseIds.isEmpty() || limit <= 0) {
@@ -151,11 +156,19 @@ public class KnowledgeGraphProjectionService {
                   AND (size($sourceTypes) = 0 OR any(value IN fact.sourceTypes WHERE value IN $sourceTypes))
                   AND (size($sourceKeys) = 0 OR any(value IN fact.sourceKeys WHERE value IN $sourceKeys))
                   AND (size($documentIds) = 0 OR any(value IN fact.documentIds WHERE value IN $documentIds))
-                  AND (toLower($query) CONTAINS toLower(subject.name)
-                       OR toLower($query) CONTAINS toLower(object.name)
-                       OR toLower($query) CONTAINS toLower(fact.predicate))
-                RETURN DISTINCT fact.factKey AS factKey
-                ORDER BY factKey
+                WITH subject, fact, object,
+                     size(subject.name) >= 2 AND toLower($query) CONTAINS toLower(subject.name) AS subjectHit,
+                     size(object.name) >= 2 AND toLower($query) CONTAINS toLower(object.name) AS objectHit
+                WHERE subjectHit OR objectHit
+                WITH fact,
+                     CASE WHEN subjectHit AND objectHit THEN 1 ELSE 0 END AS bothHit,
+                     CASE WHEN size(fact.predicate) >= 2
+                               AND toLower($query) CONTAINS toLower(fact.predicate)
+                          THEN 1 ELSE 0 END AS predicateHit,
+                     CASE WHEN subjectHit THEN size(subject.name) ELSE 0 END
+                       + CASE WHEN objectHit THEN size(object.name) ELSE 0 END AS matchedLength
+                RETURN DISTINCT fact.factKey AS factKey, bothHit, predicateHit, matchedLength
+                ORDER BY bothHit DESC, predicateHit DESC, matchedLength DESC, factKey
                 LIMIT $limit
                 """;
         var knowledgeBaseIds =
@@ -200,8 +213,8 @@ public class KnowledgeGraphProjectionService {
                       AND (size($sourceTypes) = 0 OR any(value IN related.sourceTypes WHERE value IN $sourceTypes))
                       AND (size($sourceKeys) = 0 OR any(value IN related.sourceKeys WHERE value IN $sourceKeys))
                       AND (size($documentIds) = 0 OR any(value IN related.documentIds WHERE value IN $documentIds))
-                    RETURN DISTINCT related.factKey AS factKey
-                    ORDER BY factKey
+                    RETURN DISTINCT related.factKey AS factKey, related.confidence AS confidence
+                    ORDER BY confidence DESC, factKey
                     LIMIT $limit
                     """;
             var remaining = limit - directFactKeys.size();

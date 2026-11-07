@@ -66,9 +66,11 @@ class KnowledgeGraphProjectionServiceTest {
         var parameters = ArgumentCaptor.forClass(Map.class);
         verify(session, times(2)).run(cypher.capture(), parameters.capture());
         assertThat(cypher.getAllValues().get(0))
-                .contains("toLower($query) CONTAINS toLower(subject.name)")
-                .contains("toLower($query) CONTAINS toLower(object.name)")
-                .contains("toLower($query) CONTAINS toLower(fact.predicate)");
+                .contains("CONTAINS toLower(subject.name) AS subjectHit")
+                .contains("CONTAINS toLower(object.name) AS objectHit")
+                .contains("size(subject.name) >= 2")
+                .contains("WHERE subjectHit OR objectHit")
+                .contains("ORDER BY bothHit DESC, predicateHit DESC, matchedLength DESC, factKey");
         assertThat(cypher.getAllValues().get(1))
                 .contains("direct.factKey IN $directFactKeys")
                 .contains("MATCH (anchor)-[related:FACT]-(neighbor:KnowledgeEntity)")
