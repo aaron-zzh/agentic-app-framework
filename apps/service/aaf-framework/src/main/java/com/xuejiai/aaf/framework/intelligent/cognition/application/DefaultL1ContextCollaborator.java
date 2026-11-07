@@ -24,7 +24,7 @@ import com.xuejiai.aaf.framework.security.authorization.AuthorizationSubject;
 
 import lombok.extern.slf4j.Slf4j;
 
-/** 从已授权记忆、知识和任务材料生成受披露边界约束的 L1 上下文快照。 */
+/** 从已授权记忆和任务材料生成受披露边界约束的 L1 上下文快照；知识库由 knowledge_search 工具按需检索。 */
 @Slf4j
 public final class DefaultL1ContextCollaborator implements L1ContextPort {
 
@@ -69,8 +69,7 @@ public final class DefaultL1ContextCollaborator implements L1ContextPort {
         }
         remainingCharacters.consume(consumedBySession);
 
-        if (request.scopes().contains(ContextScope.MEMORY)
-                || request.scopes().contains(ContextScope.KNOWLEDGE)) {
+        if (request.scopes().contains(ContextScope.MEMORY)) {
             appendRetrieval(
                     request, references, contentMessages, remainingItems, remainingCharacters);
         }
@@ -154,7 +153,7 @@ public final class DefaultL1ContextCollaborator implements L1ContextPort {
         return "- %s：%s\n".formatted(turn.role(), turn.content());
     }
 
-    /** 长期记忆 + 知识库统一检索：经 UnifiedRetrievalPort 编排，不再分别调用记忆与知识入口。 */
+    /** 长期记忆检索：经 UnifiedRetrievalPort 编排；知识库改由 knowledge_search 工具按需检索，此处不再纳入。 */
     private void appendRetrieval(
             ContextRequest request,
             List<SourceReference> references,
@@ -164,15 +163,7 @@ public final class DefaultL1ContextCollaborator implements L1ContextPort {
         if (items.remaining() <= 0 || characters.remaining() <= 0) {
             return;
         }
-        var plan = request.knowledgeQuery();
-        var wantKnowledge =
-                request.scopes().contains(ContextScope.KNOWLEDGE)
-                        && plan.enabled()
-                        && !request.query().isBlank();
-        var wantMemory =
-                request.scopes().contains(ContextScope.MEMORY)
-                        && request.memorySubject().kind() == SubjectKind.USER;
-        if (!wantKnowledge && !wantMemory) {
+        if (request.memorySubject().kind() != SubjectKind.USER) {
             return;
         }
         var reservedForMaterials = Math.min(request.taskMaterials().size(), items.remaining());
@@ -183,11 +174,11 @@ public final class DefaultL1ContextCollaborator implements L1ContextPort {
         var result =
                 unifiedRetrieval.retrieve(
                         new UnifiedRetrievalRequest(
-                                wantKnowledge ? plan.subject() : unresolvedSubject(),
-                                wantMemory ? billableUserId(request) : null,
+                                unresolvedSubject(),
+                                billableUserId(request),
                                 request.query(),
-                                wantKnowledge ? plan.knowledgeBaseIds() : java.util.Set.of(),
-                                true, // 公开知识库默认纳入检索
+                                java.util.Set.of(),
+                                false,
                                 retrievalLimit));
         var accepted = result.fused().stream().limit(retrievalLimit).toList();
         if (accepted.isEmpty()) {

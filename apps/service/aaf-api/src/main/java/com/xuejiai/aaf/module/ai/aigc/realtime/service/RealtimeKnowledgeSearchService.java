@@ -21,7 +21,7 @@ import com.xuejiai.aaf.module.knowledge.api.KnowledgeSearchApi.SearchQuery;
 
 import lombok.RequiredArgsConstructor;
 
-/** Realtime 会话受控知识检索服务。 */
+/** 受控知识检索服务：Realtime 会话与文字对话 knowledge_search 工具共用。 */
 @Service
 @RequiredArgsConstructor
 public class RealtimeKnowledgeSearchService {
@@ -41,7 +41,8 @@ public class RealtimeKnowledgeSearchService {
     public FunctionTool toolDefinition() {
         return new FunctionTool(
                 TOOL_NAME,
-                "从当前助理已绑定的知识库检索与用户问题相关的内容。当问题需要查证你训练知识之外的资料（如专业规范、政策条款、操作教程等，见系统消息中的「可用知识库」）时调用。",
+                "检索当前助理已绑定的知识库（见系统消息中的「可用知识库」），返回与检索语句最相关的资料片段。"
+                        + "只接受 query 与 topK 参数，不接受知识库或文档 ID；无结果时返回未找到的提示。",
                 Map.of(
                         "type",
                         "object",
@@ -69,23 +70,43 @@ public class RealtimeKnowledgeSearchService {
             Integer requestedTopK) {
         Objects.requireNonNull(identity, "identity 不能为空");
         Objects.requireNonNull(context, "context 不能为空");
+        return search(
+                new SearchScope(
+                        identity.ownerUserId(),
+                        identity.orgId(),
+                        identity.workspaceId(),
+                        context.knowledgeBaseIds()),
+                "realtime-knowledge-search",
+                query,
+                requestedTopK);
+    }
+
+    /**
+     * 语音与文字对话共用的受控检索：只检索可信范围内的知识库，在所有者身份与组织上下文下执行， 条数与截断规则统一。
+     *
+     * @param scope 来自可信上下文的执行身份与知识库范围，不接受模型传入
+     * @param reason 以所有者身份执行的审计原因
+     */
+    public SearchResponse search(
+            SearchScope scope, String reason, String query, Integer requestedTopK) {
+        Objects.requireNonNull(scope, "scope 不能为空");
         var normalizedQuery = normalizeQuery(query);
         var topK = normalizeTopK(requestedTopK);
-        requireCompatibleOrgContext(identity);
+        requireCompatibleOrgContext(scope.orgId(), scope.workspaceId());
 
         var result =
                 permissionExecutionService.runAsOwner(
-                        identity.ownerUserId(),
-                        "realtime-knowledge-search",
+                        scope.ownerUserId(),
+                        reason,
                         () ->
                                 OrgContext.runIfAbsent(
-                                        identity.orgId(),
-                                        identity.workspaceId(),
+                                        scope.orgId(),
+                                        scope.workspaceId(),
                                         () ->
                                                 knowledgeSearchApi.search(
                                                         new SearchQuery(
                                                                 normalizedQuery,
-                                                                context.knowledgeBaseIds(),
+                                                                scope.knowledgeBaseIds(),
                                                                 Set.of(),
                                                                 topK,
                                                                 0.5))));
@@ -141,7 +162,7 @@ public class RealtimeKnowledgeSearchService {
         return topK;
     }
 
-    private void requireCompatibleOrgContext(ConversationIdentity identity) {
+    private void requireCompatibleOrgContext(Long orgId, Long workspaceId) {
         var currentOrgId = OrgContext.getCurrentOrgId();
         var currentWorkspaceId = OrgContext.getCurrentWorkspaceId();
         var hasContext =
@@ -150,8 +171,8 @@ public class RealtimeKnowledgeSearchService {
                         || OrgContext.isAllOrganizations();
         if (hasContext
                 && (OrgContext.isAllOrganizations()
-                        || !Objects.equals(currentOrgId, identity.orgId())
-                        || !Objects.equals(currentWorkspaceId, identity.workspaceId()))) {
+                        || !Objects.equals(currentOrgId, orgId)
+                        || !Objects.equals(currentWorkspaceId, workspaceId))) {
             throw new IllegalStateException("当前组织上下文与 Realtime 会话冻结上下文冲突");
         }
     }
@@ -200,4 +221,15 @@ public class RealtimeKnowledgeSearchService {
     /** 检索来源白名单字段。 */
     public record SearchSource(
             UUID knowledgeBaseId, UUID documentId, String sourceKey, String sourceUri) {}
+
+    /** 可信检索范围：执行身份与知识库集合均由服务端解析，不接受模型传入。 */
+    public record SearchScope(
+            Long ownerUserId, Long orgId, Long workspaceId, Set<UUID> knowledgeBaseIds) {
+
+        public SearchScope {
+            Objects.requireNonNull(ownerUserId, "ownerUserId 不能为空");
+            knowledgeBaseIds =
+                    Set.copyOf(Objects.requireNonNull(knowledgeBaseIds, "knowledgeBaseIds 不能为空"));
+        }
+    }
 }

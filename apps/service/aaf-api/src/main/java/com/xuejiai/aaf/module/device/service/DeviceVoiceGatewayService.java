@@ -47,7 +47,7 @@ import reactor.core.publisher.Flux;
 public class DeviceVoiceGatewayService {
 
     private static final String ASR_MODEL_ID = "qwen:fun-asr-realtime";
-    private static final String TTS_MODEL_ID = "qwen:cosyvoice-v3-flash";
+    private static final String TTS_MODEL_ID = "qwen:cosyvoice-v3.5-flash";
 
     private final SpeechService speechService;
     private final AiCreditGuard creditGuard;

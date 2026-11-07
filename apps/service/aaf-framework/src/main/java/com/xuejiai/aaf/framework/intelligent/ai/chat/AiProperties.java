@@ -39,7 +39,7 @@ public class AiProperties {
      *       IMAGE_GEN: qwen-image-plus
      *       VIDEO_GEN: happyhorse-1.0-i2v
      *       SPEECH_ASR: fun-asr-realtime
-     *       SPEECH_TTS: cosyvoice-v3-flash
+     *       SPEECH_TTS: cosyvoice-v3.5-flash
      *       RERANK: qwen3.7-text-rerank
      *       EMBEDDING: text-embedding-v3
      * </pre>

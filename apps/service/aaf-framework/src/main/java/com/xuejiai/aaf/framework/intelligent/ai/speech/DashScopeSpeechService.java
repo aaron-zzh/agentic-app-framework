@@ -36,11 +36,11 @@ import reactor.core.publisher.FluxSink;
  *
  * <p>ASR：Recognition SDK（fun-asr-realtime），WebSocket 流式
  *
- * <p>TTS：SpeechSynthesizer SDK（cosyvoice-v3-flash），WebSocket 流式
+ * <p>TTS：SpeechSynthesizer SDK（cosyvoice-v3.5-flash），WebSocket 流式
  *
  * <p>启用条件：配置 {@code spring.ai.dashscope.api-key}
  *
- * <p>推荐音色（cosyvoice-v3-flash）：
+ * <p>推荐音色（cosyvoice-v3.5-flash）：
  *
  * <pre>
  * 场景          voice 参数              特质
@@ -64,7 +64,7 @@ import reactor.core.publisher.FluxSink;
 public class DashScopeSpeechService implements SpeechService {
 
     private static final String DEFAULT_ASR_MODEL = "fun-asr-realtime";
-    private static final String DEFAULT_TTS_MODEL = "cosyvoice-v3-flash";
+    private static final String DEFAULT_TTS_MODEL = "cosyvoice-v3.5-flash";
 
     /** 默认音色：语音助手场景，知性积极女 */
     private static final String DEFAULT_VOICE = "longxiaochun_v3";

@@ -20,7 +20,6 @@ import com.xuejiai.aaf.framework.intelligent.cognition.model.ContextRequest.Agen
 import com.xuejiai.aaf.framework.intelligent.cognition.model.ContextRequest.ContextBudget;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.ContextRequest.ContextScope;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.ContextRequest.Disclosure;
-import com.xuejiai.aaf.framework.intelligent.cognition.model.ContextRequest.KnowledgeQuery;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.MemorySubject;
 import com.xuejiai.aaf.framework.intelligent.cognition.model.MemoryRecord.SubjectKind;
 import com.xuejiai.aaf.framework.intelligent.cognition.port.SessionMemoryPort;
@@ -212,7 +211,6 @@ class DefaultL1ContextCollaboratorTest {
                     Disclosure.CONTENT_ALLOWED,
                     authorizedCandidates,
                     taskMaterials,
-                    KnowledgeQuery.none(),
                     sessionId,
                     Instant.now());
         }

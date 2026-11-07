@@ -3,6 +3,8 @@ package com.xuejiai.aaf.framework.intelligent.agent.model;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionContract;
 import com.xuejiai.aaf.framework.intelligent.assistant.model.ExecutionIntent;
@@ -21,7 +23,11 @@ import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TaskId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.TenantId;
 import com.xuejiai.aaf.framework.intelligent.shared.id.StableId.UserId;
 
-/** 每次 Agent 调用显式携带的身份、状态槽位、可选项目范围、dispatch fence 与轨迹上下文。 */
+/**
+ * 每次 Agent 调用显式携带的身份、状态槽位、可选项目范围、dispatch fence 与轨迹上下文。
+ *
+ * <p>{@code knowledgeBaseIds} 是服务端冻结的 knowledge_search 可检索知识库范围，不接受模型传入；缺省为空集合。
+ */
 public record InvocationContext(
         TenantId tenantId,
         UserId userId,
@@ -49,7 +55,8 @@ public record InvocationContext(
         String dispatchLeaseOwner,
         Instant dispatchLeaseUntil,
         ExecutionIntent.ArtifactTarget artifactTarget,
-        Optional<SkillExecutionProfile> skillExecutionProfile) {
+        Optional<SkillExecutionProfile> skillExecutionProfile,
+        Set<UUID> knowledgeBaseIds) {
 
     public InvocationContext(
             TenantId tenantId,
@@ -97,7 +104,8 @@ public record InvocationContext(
                 null,
                 null,
                 null,
-                Optional.empty());
+                Optional.empty(),
+                Set.of());
     }
 
     public InvocationContext(
@@ -147,7 +155,8 @@ public record InvocationContext(
                 null,
                 null,
                 null,
-                Optional.empty());
+                Optional.empty(),
+                Set.of());
     }
 
     public InvocationContext(
@@ -247,6 +256,7 @@ public record InvocationContext(
         Objects.requireNonNull(controlMode, "controlMode 不能为空");
         Objects.requireNonNull(toolAuthorization, "toolAuthorization 不能为空");
         Objects.requireNonNull(skillExecutionProfile, "skillExecutionProfile Optional 不能为空");
+        knowledgeBaseIds = knowledgeBaseIds == null ? Set.of() : Set.copyOf(knowledgeBaseIds);
         if (taskId == null
                 && (controlMode != ControlMode.READ_ONLY
                         || lease != null

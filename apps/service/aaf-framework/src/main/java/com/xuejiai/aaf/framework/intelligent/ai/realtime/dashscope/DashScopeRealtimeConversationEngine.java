@@ -2,8 +2,10 @@ package com.xuejiai.aaf.framework.intelligent.ai.realtime.dashscope;
 
 import java.util.Base64;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
@@ -60,6 +62,7 @@ public class DashScopeRealtimeConversationEngine implements RealtimeConversation
 
                     @Override
                     public void onEvent(JsonObject message) {
+                        logReceivedEvent(message);
                         var event = parseEvent(message);
                         if (event != null) {
                             eventConsumer.accept(event);
@@ -69,7 +72,7 @@ public class DashScopeRealtimeConversationEngine implements RealtimeConversation
                     @Override
                     public void onClose(int code, String reason) {
                         closed.set(true);
-                        log.debug("[RealtimeConversation] 连接关闭: code={}, reason={}", code, reason);
+                        log.info("[RealtimeConversation] 连接关闭: code={}, reason={}", code, reason);
                         eventConsumer.accept(
                                 new RealtimeConversationEvent(
                                         "closed", reason, null, Map.of("code", code)));
@@ -87,7 +90,10 @@ public class DashScopeRealtimeConversationEngine implements RealtimeConversation
         }
 
         log.info("[RealtimeConversation] 会话已创建: model={}", MODEL);
-        return new DashScopeRealtimeConversation(conversation, closed);
+        return new DashScopeRealtimeConversation(
+                conversation,
+                closed,
+                config.modalities().stream().map(this::toSdkModality).toList());
     }
 
     private void closeAfterOpenFailure(
@@ -196,6 +202,31 @@ public class DashScopeRealtimeConversationEngine implements RealtimeConversation
         function.put("description", tool.description());
         function.put("parameters", tool.parameters());
         return Map.of("type", "function", "function", function);
+    }
+
+    /** 记录供应商下行事件类型，跳过高频增量事件，用于排查事件是否到达。 */
+    private void logReceivedEvent(JsonObject message) {
+        if (!log.isDebugEnabled()) {
+            return;
+        }
+        var type = stringValue(message, "type", null);
+        if (type == null || type.endsWith(".delta")) {
+            return;
+        }
+        var item = objectValue(message, "item");
+        var extra = new LinkedHashMap<String, Object>();
+        addResponseId(extra, message);
+        log.debug(
+                "[RealtimeConversation] 收到事件: type={}, responseId={}, itemId={}, itemType={}, callId={}",
+                type,
+                extra.get("responseId"),
+                item == null
+                        ? stringValue(message, "item_id", null)
+                        : stringValue(item, "id", null),
+                item == null ? null : stringValue(item, "type", null),
+                item == null
+                        ? stringValue(message, "call_id", null)
+                        : stringValue(item, "call_id", null));
     }
 
     private RealtimeConversationEvent parseEvent(JsonObject message) {
@@ -355,10 +386,15 @@ public class DashScopeRealtimeConversationEngine implements RealtimeConversation
 
         private final OmniRealtimeConversation conversation;
         private final AtomicBoolean closed;
+        private final List<OmniRealtimeModality> responseModalities;
 
-        DashScopeRealtimeConversation(OmniRealtimeConversation conversation, AtomicBoolean closed) {
+        DashScopeRealtimeConversation(
+                OmniRealtimeConversation conversation,
+                AtomicBoolean closed,
+                List<OmniRealtimeModality> responseModalities) {
             this.conversation = conversation;
             this.closed = closed;
+            this.responseModalities = List.copyOf(responseModalities);
         }
 
         @Override
@@ -400,16 +436,25 @@ public class DashScopeRealtimeConversationEngine implements RealtimeConversation
             }
             Objects.requireNonNull(output, "output 不能为空");
 
+            // 与官方示例一致，为工具结果条目显式生成 item id
             var item = new JsonObject();
+            item.addProperty("id", "item_" + UUID.randomUUID().toString().replace("-", ""));
             item.addProperty("type", "function_call_output");
             item.addProperty("call_id", callId);
             item.addProperty("output", output);
+            log.debug(
+                    "[RealtimeConversation] 发送工具结果: callId={}, outputLength={}",
+                    callId,
+                    output.length());
             runWhenOpen(() -> conversation.createItem(item));
         }
 
         @Override
         public void createResponse() {
-            runWhenOpen(() -> conversation.createResponse(null, null));
+            log.debug(
+                    "[RealtimeConversation] 发送 response.create: modalities={}", responseModalities);
+            // 显式携带会话输出模态，工具结果回传后的响应才会按会话配置生成语音
+            runWhenOpen(() -> conversation.createResponse(null, responseModalities));
         }
 
         @Override

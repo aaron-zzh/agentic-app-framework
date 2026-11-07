@@ -32,7 +32,6 @@ public record ContextRequest(
         Disclosure disclosure,
         List<SourceReference> authorizedCandidates,
         List<TaskMaterial> taskMaterials,
-        KnowledgeQuery knowledgeQuery,
         String sessionId,
         Instant requestedAt) {
 
@@ -54,7 +53,6 @@ public record ContextRequest(
                 List.copyOf(
                         Objects.requireNonNull(authorizedCandidates, "authorizedCandidates 不能为空"));
         taskMaterials = List.copyOf(Objects.requireNonNull(taskMaterials, "taskMaterials 不能为空"));
-        knowledgeQuery = Objects.requireNonNull(knowledgeQuery, "knowledgeQuery 不能为空");
         sessionId = sessionId == null || sessionId.isBlank() ? null : sessionId.trim();
         Objects.requireNonNull(requestedAt, "requestedAt 不能为空");
         if (purpose == AgentPurpose.AGGREGATION && disclosure != Disclosure.SUMMARY_ONLY) {
@@ -64,20 +62,13 @@ public record ContextRequest(
         if (purpose == AgentPurpose.AGGREGATION) {
             sessionId = null;
         }
-        validateScopes(scopes, taskMaterials, knowledgeQuery);
+        validateScopes(scopes, taskMaterials);
         validateTaskMaterials(authorizedCandidates, taskMaterials);
-        validateKnowledgeCandidates(authorizedCandidates, knowledgeQuery);
     }
 
-    private static void validateScopes(
-            Set<ContextScope> scopes,
-            List<TaskMaterial> taskMaterials,
-            KnowledgeQuery knowledgeQuery) {
+    private static void validateScopes(Set<ContextScope> scopes, List<TaskMaterial> taskMaterials) {
         if (!taskMaterials.isEmpty() && !scopes.contains(ContextScope.TASK_MATERIAL)) {
             throw new IllegalArgumentException("存在任务材料时必须声明 TASK_MATERIAL scope");
-        }
-        if (knowledgeQuery.enabled() && !scopes.contains(ContextScope.KNOWLEDGE)) {
-            throw new IllegalArgumentException("存在知识查询时必须声明 KNOWLEDGE scope");
         }
     }
 
@@ -90,31 +81,6 @@ public record ContextRequest(
         }
     }
 
-    private static void validateKnowledgeCandidates(
-            List<SourceReference> authorizedCandidates, KnowledgeQuery knowledgeQuery) {
-        if (!knowledgeQuery.enabled()) {
-            return;
-        }
-        var candidateIds =
-                authorizedCandidates.stream()
-                        .filter(reference -> reference.type() == SourceType.KNOWLEDGE)
-                        .map(SourceReference::sourceKey)
-                        .map(ContextRequest::parseUuid)
-                        .collect(java.util.stream.Collectors.toUnmodifiableSet());
-        if (!candidateIds.containsAll(knowledgeQuery.knowledgeBaseIds())) {
-            throw new IllegalArgumentException("知识查询包含 command/contextCandidates 外知识库");
-        }
-    }
-
-    private static UUID parseUuid(String value) {
-        try {
-            return UUID.fromString(value);
-        } catch (IllegalArgumentException failure) {
-            throw new IllegalArgumentException(
-                    "KNOWLEDGE candidate sourceKey 必须是知识库 UUID", failure);
-        }
-    }
-
     public enum AgentPurpose {
         EXECUTION,
         AGGREGATION
@@ -122,7 +88,6 @@ public record ContextRequest(
 
     public enum ContextScope {
         MEMORY,
-        KNOWLEDGE,
         TASK_MATERIAL
     }
 

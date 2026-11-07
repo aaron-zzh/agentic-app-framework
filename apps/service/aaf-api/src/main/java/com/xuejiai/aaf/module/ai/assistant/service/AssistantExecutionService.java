@@ -357,12 +357,21 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
         return start(request, RunIdentity.create(threadId, runId), null, null, true);
     }
 
-    /** 当前用户可用 Assistant 摘要（AAF-107 #10708），供前端角色/技能选择器展示真实可选项。 */
+    /**
+     * 当前用户可用 Assistant 摘要（AAF-107 #10708），供前端角色/技能选择器展示真实可选项。
+     *
+     * <p>SYSTEM_MANAGED 系统模板不允许被显式指定（见 {@link #resolveAssistant}），且与用户副本的 Persona/Role 完全相同，
+     * 返回会导致选择器重复且选中即失败，因此只返回用户可显式执行的定义。
+     */
     public List<AssistantSummaryVO> availableAssistants() {
         var identity = identity();
         var tenantId = new TenantId(identity.orgId().toString());
         var userId = new UserId(identity.ownerId().toString());
         return assistantDefinitions.findAvailableForUser(tenantId, userId).stream()
+                .filter(
+                        definition ->
+                                definition.ownership()
+                                        != AssistantDefinition.TemplateOwnership.SYSTEM_MANAGED)
                 .map(
                         definition ->
                                 new AssistantSummaryVO(
@@ -699,7 +708,6 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
         appendControlledContexts(
                 spec.controlledContexts(), executionKey, contextCandidates, taskMaterials);
         appendMaterials(spec.materials(), executionKey, contextCandidates, taskMaterials);
-        appendKnowledgeCandidates(spec.knowledgeBaseIds(), contextCandidates);
         var userAttachments = resolveImageAttachments(spec.imageFileKeys(), contextCandidates);
         log.debug(
                 "[AssistantExecution] stage=context_planned executionId={} taskId={} "
@@ -737,7 +745,6 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                         || spec.executionIntent().interactionMode()
                                 == ExecutionIntent.InteractionMode.TASK;
         var allowedActions = new LinkedHashSet<String>();
-        allowedActions.add("knowledge.search");
         allowedActions.add("content.generate");
         allowedActions.addAll(spec.trustedAllowedActions());
         allowedActions.addAll(
@@ -802,23 +809,6 @@ public class AssistantExecutionService implements ProgrammaticAssistantTaskPort 
                 spec.modelSelection(),
                 invocationProfile,
                 now);
-    }
-
-    private static void appendKnowledgeCandidates(
-            Set<UUID> knowledgeBaseIds, List<SourceReference> contextCandidates) {
-        knowledgeBaseIds.stream()
-                .sorted()
-                .forEach(
-                        knowledgeBaseId ->
-                                contextCandidates.add(
-                                        new SourceReference(
-                                                SourceType.KNOWLEDGE,
-                                                knowledgeBaseId.toString(),
-                                                "1",
-                                                "REQUEST",
-                                                "用户本次请求指定的知识库候选",
-                                                "等待 L1 授权混合检索",
-                                                true)));
     }
 
     private static KnowledgeQuery knowledgeQuery(ExecutionSpec spec, Identity identity) {

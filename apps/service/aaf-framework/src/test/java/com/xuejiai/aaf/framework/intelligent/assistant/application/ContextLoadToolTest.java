@@ -335,7 +335,8 @@ class ContextLoadToolTest extends BaseMockitoUnitTest {
                         null,
                         null,
                         null,
-                        Optional.of(skillExecutionProfile(arguments)));
+                        Optional.of(skillExecutionProfile(arguments)),
+                        Set.of());
         return new ToolInvocation(
                 "call-1",
                 new ToolRef(ContextLoadTool.TOOL_NAME, 1L, ContextLoadTool.TOOL_NAME),

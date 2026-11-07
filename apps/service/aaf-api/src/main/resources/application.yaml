@@ -178,7 +178,7 @@ aaf:
       IMAGE_GEN: qwen:wan2.7-image
       VIDEO_GEN: qwen:happyhorse-1.1-i2v
       SPEECH_ASR: qwen:fun-asr-realtime
-      SPEECH_TTS: qwen:cosyvoice-v3-flash
+      SPEECH_TTS: qwen:cosyvoice-v3.5-flash
       MUSIC_GEN: qwen:fun-music-v1
       OMNI_REALTIME: qwen:qwen3.5-omni-plus-realtime
       RERANK: qwen:qwen3.7-text-rerank
