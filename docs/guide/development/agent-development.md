@@ -88,7 +88,7 @@ public class CustomerTools {
   "temperature": 0.7,
   "maxTokens": 4096,
   "knowledgeBases": ["kb-product", "kb-faq"],
-  "tools": ["knowledge_search", "query_orders", "create_ticket"],
+  "tools": ["query_orders", "create_ticket"],
   "workflows": ["escalation-flow"],
   "config": {
     "maxTurns": 20,

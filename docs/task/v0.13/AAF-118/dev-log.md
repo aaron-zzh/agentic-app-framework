@@ -67,3 +67,75 @@
 - 改进意见已在 `docs/prd/improvements.md` 登记：权限码未注册不构成授权的收紧方向；私有角色可引用高风险工具的滥用监测。
 - 工作区可见性的技能不支持被角色引用；管理端 `ai-role` EntityDef 的 `readOnlyWhen` 使用 `$record.id` 判断编辑态（表达式引擎只支持单个比较或真值）。
 - 异步任务事件与实时通道（AAF-119）由另一位开发者处理，本故事未触及。
+
+## 角色知识库按需检索（#11816 ~ #11819）
+
+> 按人类指定：不补设计稿、不编译、不跑测试与 lint、不新增单测，下列条目均为"已实施、未运行验证"。
+
+- ✅ #11818 移除 L1 知识预检索 — 删 `ContextScope.KNOWLEDGE`、`ContextRequest.knowledgeQuery` 及校验；L1 仅检记忆（2026-11-05）
+- ✅ #11817 内置注册与执行契约 — 范围非空即并入内置工具，规则只读免授权；契约动作统一 `knowledge_search`（2026-11-05）
+- ✅ #11816 `knowledge_search` 工具 — `KnowledgeSearchToolHandler` 只取可信范围，与语音共用检索；`includePublic=false`（2026-11-05）
+- ✅ #11819 提示词 — 小五、客服 Persona 补"先调用 knowledge_search"（2026-11-05）
+
+| 范围 | 文件 |
+|------|------|
+| framework | `ContextRequest`、`DefaultL1ContextCollaborator`、`AssistantApplicationService`、`BuiltinControlToolProfile`、`InvocationContext` |
+| aaf-api | `KnowledgeSearchToolHandler`（新增，`module.ai.assistant.service`）、`RealtimeKnowledgeSearchService`、`AssistantExecutionService`、`DefaultKnowledgeSearchApi`、`v12__init_seed_data.sql` |
+| 测试（仅修编译） | `DefaultL1ContextCollaboratorTest`、`ContextLoadToolTest` |
+
+实现决策：
+
+- 范围不在工具内重新加载 `AssistantDefinition`（任务原文写法），改为服务端算好后冻结进 `InvocationContext.knowledgeBaseIds`（缺省空集合），工具只读该字段。注册与传参同用 `AssistantApplicationService.effectiveKnowledgeBaseIds`，聚合者恒为空。
+- 共用检索留在 `RealtimeKnowledgeSearchService`，新增 `search(SearchScope, reason, query, topK)`，语音原入口委托过去，语音事件与返回不变；类名未改。
+- `knowledge_search` 计入 `BuiltinControlToolProfile.contains` 与 `contractActions`，任务合同（对话任务、工作流 `AgentNode`）统一放行；`AssistantExecutionService` 中硬编码的 `knowledge.search` 删除。
+- `AssistantExecutionService.appendKnowledgeCandidates` 仅为旧校验存在，已删除；`KnowledgeMode` 校验与 `ContextPlan.knowledgeQuery` 保留，用于决定工具范围。
+
+注意事项：
+
+- 未核实：`AutomationDelegatedDispatchAdapter` 使用模板合同，若模板未含 `knowledge_search`，自动化任务调用时会被合同拒绝。
+- 工具检索结果未写入引用来源（manifest / citation），由 #11820 登记改进意见。
+- v12 种子用 `ON CONFLICT DO NOTHING`，已有库的 Persona 提示词不会更新，需重建库；v12 checksum 变化。
+- 需更新文档（协调者，#11820）：`cognition/retrieval.md`、`cognition/Readme.md`、`action-governance.md` 等。
+
+## 产品服务资料与文档导入知识库（#11821 ~ #11823）
+
+> 按人类指定：不编译、不跑测试与 lint、不新增单测，下列条目均为"已实施、未运行验证"。
+
+- ✅ #11821 产品服务介绍资料 — `bootstrap/aaf-products-and-services.md` 已存在（2026-11-05）
+- ✅ #11822 文档导入知识库 — `POST /{id}/documents/from-docs`；复用 `uploadResource`，按版本幂等替换（2026-11-05）
+- ✅ #11823 启动登记并导入 KB 301 — `PlatformGuideKnowledgeInitializer`；v21 删旧向导文档/批次/切块（2026-11-05）
+
+| 范围 | 文件 |
+|------|------|
+| document | `DocumentSourceApi`（加 `findBySourceKey`）、`DocumentReferenceApi`（`OwnedDocument` 加 `documentType`）、`DocumentService`、`DocumentRepository` |
+| knowledge | `KnowledgeBaseService`、`KnowledgeBaseController`、`KnowledgeDocumentUploadService`（`uploadResource` 加 `sourceType`）、`KnowledgeDocumentRepository`、`AdminFrameworkKnowledgeInitializer`（传 `SYSTEM`）、`PlatformGuideKnowledgeInitializer`（新增）、`vo/KnowledgeDocumentLibraryImportDTO`、`vo/KnowledgeDocumentLibraryImportVO`（新增） |
+| SQL | `v21__knowledge_seed.sql` |
+
+实现决策：
+
+- 导入方法放 `KnowledgeBaseService`：撤销删除与 `deleteDocument` 共用私有方法 `revokeAndDeleteDocument`，避免拆服务后循环依赖。
+- 跳过知识来源文档需要文档类型，`OwnedDocument` 增加 `documentType`（唯一构造点在 `DocumentService`）。
+- 导入知识文档 `source_type=BUSINESS_OBJECT`；来源文档仍按 `uploadResource` 归属知识库 owner。
+- 启动初始化失败沿用 `AdminFrameworkKnowledgeInitializer` 风格直接抛出，不吞异常。
+- v21 投影 checkpoint 与 `projection_watermark` 保持不变：空库无投影内容，首次发布时水位自然推进。
+
+注意事项：
+
+- 来源文档登记要求当前用户即知识库 owner，非 owner 的协作者导入会被 `register` 拒绝（FORBIDDEN）。
+- 旧版本导入仍在处理中时替换返回 409，整批回滚。
+- 内置文档 `file_path=classpath:bootstrap/...`；用户在文档库编辑该文档时 `writeToLocalFile` 会按此路径写本地文件（Windows 下含冒号会抛 `InvalidPathException`）。已处理：协调者在 `DocumentService.writeToLocalFile` 加守卫，只回写 `docs/` 前缀路径（2026-11-05）。
+- v21 checksum 变化，已有库需重建；需更新文档（协调者）：知识库接口说明补充 `from-docs`。
+
+- ✅ #11824 前端"从文档库导入" — `DocumentLibraryImport` 弹窗：标题搜索、多选≤20、过滤 `knowledge_source`，结果与跳过原因 toast；`ProjectDocumentPicker` 加 `emptyText` 复用（2026-11-05）
+
+| 范围 | 文件 |
+|------|------|
+| webui | `lib/api/rest/knowledge/knowledge.ts`（`importFromDocs`、`useImportKnowledgeFromDocs`）、`features/knowledge/components/DocumentLibraryImport.tsx`（新增）、`features/studio/content/ProjectDocumentPicker.tsx`、`app/studio/knowledge/[id]/page.tsx` |
+
+- ✅ #11823 补充：内置资料统一导入平台向导库 — `PlatformGuideKnowledgeInitializer` 改为资源清单（框架介绍 + 产品服务介绍），均先登记文档再导入 KB 301，文档类型统一 `platform-guide`；删除 `AdminFrameworkKnowledgeInitializer`（admin 默认助理与个人库由登录 `provisionDefaultAssistant` 幂等补齐）（2026-11-05）
+- ✅ #11823 调整：启动只登记文档不导入 — 改名 `PlatformGuideDocumentInitializer`，仅写文档库；由管理员在知识库页"从文档库导入"，避免每次清库启动消耗向量化与实体抽取额度（2026-11-05）
+- ✅ 知识库上传先入文档库 — md/txt/pdf 经 `DocImportService.importFile` 生成正文版本后按版本导入；pdf 为只读提取文本；文档库导入不再另建 `knowledge_source`；按 `doc:{id}:v{ver}` 固定版本不追加解析版本；知识文档加来源文档跳转；PDF 文档编辑页预览原文件（抽出 `components/pdf` 复用 dev 示例的 react-pdf）（2026-11-05）
+- ✅ 知识文档处理改 SSE — `KnowledgeDocumentQueueService` 向上传人发用户级 `knowledge.document.processing/completed/failed`；前端删轮询改订阅失效；文档库导入 `uploadedBy` 改为操作人（2026-11-05）
+- ✅ 管理员免知识库数量额度 — `KnowledgeBaseService.entitlementCode()` 对 ADMIN/SUPER_ADMIN 返回 null，创建不扣、删除不还（2026-11-05）
+
+> 遗留：权益归还按删除操作人计，管理员删除普通用户的知识库时不会退回创建人额度（既有问题，未改）。

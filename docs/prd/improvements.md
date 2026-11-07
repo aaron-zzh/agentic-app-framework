@@ -44,6 +44,7 @@ AI 智能体和人类用户协作中发现的改进点，协调者定期审阅�
 - 2026-05-06 | **Polymorphic Actor 落地路径**：① 新建 `docs/design/framework/actor.md` 定义 Actor 抽象、类型枚举、操作接口、审计协议；② 更新 `requirement-standard.md` 强制"谁做了什么"字段用 Actor；③ 更新 ~~`permission-system.md`~~→`access-control.md` 把"Agent 作为权限主体"从 Principal 层上升为 Actor 层；④ `packages/types/actor.ts` + `com.xuejiai.aaf.common.actor.Actor` 作为首个共享类型（同时验证 P2.3）；⑤ ArchUnit/ESLint 约束 `createdBy`/`assignee`/`owner` 必须为 Actor 类型 | "已实施（设计+规范层面），代码层面待首个业务实体开发时落地
 
 - 2026-10-15 | **迁移号段规则只在"所有环境可清库重建"时成立**：`architecture-constraints.md` 的"数据库迁移版本号规划"为每个模块登记百位号段，号段内新增文件取下一个编号。Flyway 默认 `outOfOrder=false`（`application.yaml` 未设置），一旦某个环境已执行过更高版本（如 v400），再新增 v305 会被校验判为"已解析但未应用"而启动失败。目前不出问题，是因为项目未发布、按既有约定（`v7__aigc_schema.sql` 头部"所有环境必须清空后按 Flyway 顺序重建"、dev 的 `aaf.flyway.clean-on-start`）每次清库重建，生产也还没有数据。首次生产部署前需要协调者定演进策略：① 开启 `spring.flyway.out-of-order=true`，保留号段，模块之间保持迁移互不依赖；② 新迁移改用单调递增的时间戳版本号，号段规则作废；③ 种子数据改用幂等的可重复迁移 `R__`（现有种子已写成 `ON CONFLICT`），只有表结构变更保留版本号文件。同时需修订该文档里"单号段预期覆盖单个模块全生命周期"的假设。出处：AAF-120 | 已决定：生产也保持顺序执行，不开启乱序；已部署环境之后的变更必须取比已部署最大版本更大的编号，号段内编号此后不再保证连续，该文档的号段假设需由协调者据此修订
+- 2026-11-05 | **`knowledge_search` 工具检索结果未记录为引用来源**：AAF-118 #11816 ~ #11818 把文字对话的知识库访问从 L1 预检索改为模型按需调用 `knowledge_search`。原 L1 预检索会把命中写入 `EffectiveContextManifest` 的 `SourceReference`；工具结果经 `ToolResultEvidenceStore` 时只保留白名单元数据，来源信息被丢弃，执行清单与前端都拿不到引用。后续需定义工具检索命中的引用契约（清单记录 + AG-UI 引用事件 + 前端展示），并决定 `AutomationDelegatedDispatchAdapter` 模板合同是否默认放行 `knowledge_search` | 待评估
 
 ## 五层智能架构代码-文档一致性审计（2026-08-26）
 

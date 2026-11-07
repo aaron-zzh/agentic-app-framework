@@ -62,8 +62,7 @@ curl -X POST http://localhost:8080/api/knowledge-bases \
 2. 配置：
    - 名称：`产品助手`
    - 系统提示词：`你是产品助手，基于知识库回答用户关于产品的问题。回答要准确、简洁。`
-   - 绑定知识库：选择"产品文档"
-   - 绑定工具：`knowledge_search`
+   - 绑定知识库：选择"产品文档"（绑定后自动提供 `knowledge_search` 工具，无需在工具中单独绑定）
 3. 保存
 
 ### 通过 API
@@ -75,8 +74,7 @@ curl -X POST http://localhost:8080/api/agents \
   -d '{
     "name": "产品助手",
     "systemPrompt": "你是产品助手，基于知识库回答用户关于产品的问题。",
-    "knowledgeBaseIds": ["kb-xxx"],
-    "tools": ["knowledge_search"]
+    "knowledgeBaseIds": ["kb-xxx"]
   }'
 ```
 

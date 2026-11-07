@@ -38,7 +38,7 @@ gains:
 混合检索是 L1 内部的统一检索能力：记忆与知识经同一门面规划通道、并行召回、融合、重排，再由 [cognition.md](cognition.md) 的披露与预算契约形成受控上下文。
 
 - 上层只调用 `L1ContextPort.resolve(ContextRequest)`，不直接选择存储引擎
-- 检索不作为开放业务工具暴露，不能绕过主体、知识绑定与来源授权
+- 记忆检索不作为开放业务工具暴露；知识库不在 L1 预检索，改由受控只读工具 `knowledge_search` 按需检索，检索范围由服务端按助理库 ∪ 当前角色库（或请求显式指定库）冻结，模型不能指定知识库，不能绕过主体、知识绑定与来源授权
 - 查询改写与重排属于纯计算或非自主 L0 调用，不创建 Agent、Harness Loop 或持久 Task
 - 通道失败允许受控降级，但必须保留失败事实，不能改用未授权来源
 
@@ -100,7 +100,7 @@ ChannelPlan = {
 | 原子记忆 | 稳定事实、偏好、语义近邻 | `min(6, remaining)` | ✅ 已实现 · `MemoryRetrievalPort` 提供检索，`UnifiedRetrievalPort` 统一分配跨源预算（`DefaultMemoryRetrievalPort.java`、`DefaultUnifiedRetrievalPort.java`） |
 | 情景 bundle | 时序、因果、上次经历与证据链 | `min(4, remaining)` | ✅ 已实现 · `MemoryRetrievalPort` 提供检索并参与 `UnifiedRetrievalPort` 的融合 |
 | 程序化记忆 | “如何做”、步骤、失败教训 | 默认 `min(2, remaining)`；程序化意图最高 5 | ✅ 已实现 · `MemoryRetrievalPort` 提供检索并参与融合；专用入口（旧 `retrieveProcedural`）未重建，非本轮范围 |
-| 知识库 | 事实问答、文档依据、租户共享资料 | `min(knowledge.topK, remaining)` | ✅ 已实现 · 主链经 `UnifiedRetrievalPort` 调用 `HybridSearchService` |
+| 知识库 | 事实问答、文档依据、租户共享资料 | 工具 `topK`（1..5） | ✅ 已实现 · 不经 L1 预检索；`knowledge_search` 工具（`KnowledgeSearchToolHandler`）经 `KnowledgeSearchApi` 调用 `HybridSearchService`，只查绑定范围，未绑定的系统公开库不纳入（AAF-118 #11816） |
 | 图谱 | 实体关系、多跳依赖、关系补全 | 仅关系意图启用，`min(2, remaining)` | ⚠️ 部分实现 · 图谱存取存在（`GraphMemoryService.java:17-65`），未接统一门面，非本轮范围 |
 
 预算分配顺序：保留任务必需材料 → 分配 required 通道 → 按 intent 与权重分配 optional 通道 → 未使用配额才允许回收。配额回收不得扩大来源权限。

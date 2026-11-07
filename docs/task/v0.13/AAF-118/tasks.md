@@ -19,7 +19,7 @@ related:
 # 技术任务：Role 可见性与用户自维护绑定（AAF-118）
 
 > 需求：[requirement.md](requirement.md)　设计：[design.md](design.md)
-> 负责人：architect 拆分 | 创建：10-14 | 更新：10-14（设计已确认；按代码核对补充管理端权限、发布接口、读取入口、JSONB 反查）
+> 负责人：architect 拆分 | 创建：10-14 | 更新：11-05（追加 #11815 ~ #11820 角色知识库按需检索）
 
 ## 任务约束
 
@@ -118,13 +118,68 @@ related:
     - 依赖：#11809
     - verify: 文档实现态与代码一致
 
+### 角色知识库按需检索
+
+> 背景：Role 绑定知识库（提交 `40f653e7`）当前由 L1 在每轮对话前自动预检索并注入提示词。改为模型按需调用的只读工具 `knowledge_search`，与实时语音链路一致；不保留预检索与工具两条路径。属架构调整，按 🔴 处理；人类已确认不补设计稿，直接按本节任务实现。
+
+15. ✅ #11815 访客客服推荐问题与平台向导知识库归属
+    - `ChatterThread.tsx` 未登录时使用访客专用推荐问题（产品与服务、适用场景、已支持功能），登录用户不变
+    - `v21__knowledge_seed.sql`：平台向导知识库、知识文档、来源文档及版本归属 admin 个人组织并设 `owner_id`，使管理员可在后台查看、导入、重建；修正"由 search_kb 工具按需检索"的错误注释
+    - verify: 未登录欢迎页展示访客问题；重建库后 admin 在 `/admin/knowledge` 可见该库，运维页可重建向量与图投影
+16. ✅ #11816 文字对话知识检索工具 `knowledge_search`
+    - 在 `aaf-api` 新增只读 `ContextAwareToolHandler`（`readOnly=true`），参照 `InspectProjectSemanticsToolHandler`：检索范围只从可信 `InvocationContext` 解析（按 tenantId + assistantId 重新加载 `AssistantDefinition`，角色取当前 Skill 选择或任务节点的 roleKey），模型传入知识库或文档 ID 一律拒绝
+    - 范围规则沿用现有 `effectiveKnowledgeQuery`：请求 `EXPLICIT` 只查指定库；`DEFAULT` 查助理库 ∪ 当前角色库（总数 ≤ 3）；不纳入未绑定的 `SYSTEM_PUBLIC` 库
+    - 检索经 `KnowledgeSearchApi`，并在 `runAsOwner` + `OrgContext.runIfAbsent` 下执行；结果条数与截断规则与 `RealtimeKnowledgeSearchService` 共用一处实现，不另写一套
+    - `DefaultKnowledgeSearchApi.search` 的 `includePublic` 改为 `false`：公开库不再隐式全量纳入，需要公开库的角色在 `knowledge_base_ids` 中显式绑定（已有先例：`v402__elder_duty_seed.sql` 养老角色绑定 SYSTEM_PUBLIC 库）；语音会话按冻结的"助理库 ∪ 角色库"检索，已绑定的公开库照常可查
+    - 依赖：#11817
+    - verify: 只命中绑定范围；未绑定的系统公开库不被检索、已绑定的系统公开库可检索（文字与语音一致）；模型参数携带知识库 ID 被拒；养老角色语音会话仍能检索其绑定的公开库
+17. ✅ #11817 内置注册与执行契约
+    - 有效检索范围非空时作为内置工具加入工具集，不要求写入角色或助理白名单；协调者（直接对话与任务态）、执行者注册，聚合者不注册；请求 `DISABLED` 或范围为空时不注册
+    - 授权规则按只读、无需授权处理，确保 `READ_ONLY`（访客客服）与直接对话可调用；`ExecutionContract` 中的动作名 `knowledge.search` 统一改为 `knowledge_search`
+    - 依赖：#11818
+    - verify: 绑定知识库的角色可见并能调用该工具；未绑定知识库或 `DISABLED` 时模型看不到该工具；访客客服可调用；聚合者不可见
+18. ✅ #11818 移除 L1 知识预检索
+    - `AssistantApplicationService` 删除自动知识检索（`ContextScope.KNOWLEDGE`、`appendDefaultKnowledgeCandidates`），有效范围计算保留并改为供 #11816 / #11817 使用；`DefaultL1ContextCollaborator.appendRetrieval` 删除知识分支，长期记忆检索保留；`ContextRequest` 删除 `knowledgeQuery`、`ContextScope.KNOWLEDGE` 及相关校验；`AssistantExecutionService` 的 `KnowledgeMode` 只用于决定工具范围，前端请求契约不变
+    - 同步受影响单测：`DefaultL1ContextCollaboratorTest`、`AssistantExecutionServiceTest`、`AssistantApplicationServiceTest`
+    - verify: 对话前不再触发知识检索与向量化计费；长期记忆检索不受影响；`grep ContextScope.KNOWLEDGE` 在 `apps/` 下无结果
+19. ✅ #11819 角色提示词
+    - `v12__init_seed_data.sql` 直接修改：客服 Persona 与平台向导等绑定知识库的角色，提示词明确"产品与服务问题先调用 `knowledge_search`，检索不到时如实告知并建议联系人工"
+    - 依赖：#11817
+    - verify: 访客问"你们有哪些产品和服务"时先调用工具再回答；寒暄类问题不调用
+20. ✅ #11820 文档同步（协调者）
+    - `cognition/retrieval.md`、`cognition/Readme.md` 中"检索不作为开放业务工具暴露"改为：知识以受控只读工具按需检索，记忆仍由 L1 注入；`action-governance.md` 实现态；`guide/quickstart/hello-world.md`、`guide/development/agent-development.md` 与实现对齐；`improvements.md` 登记"工具检索结果未记录为引用来源"的后续项
+    - 依赖：#11816、#11817、#11818
+    - verify: 文档描述与代码一致
+
+### 产品服务资料与文档导入知识库
+
+> 人类于 2026-11-05 确认：内置 md 启动时先登记为文档库文档，再导入平台向导知识库（KB 301）；文件变更不自动重导（按 source_key 幂等）；删除 v21 旧的三段种子内容；任意文档可在知识库页面搜索选中导入。
+
+21. ✅ #11821 产品服务介绍资料
+    - 新增 `aaf-api/src/main/resources/bootstrap/aaf-products-and-services.md`：智能体应用框架、AIGC、养老机器人、伴学机器人、RPA、ERP 与 AI 转型、APP 智能体定制、FDE 的介绍、亮点与参考价格（价格待人工核对）
+    - verify: 文件存在，标题层级可被 `MarkdownImporter` 按章节切分
+22. ✅ #11822 文档导入知识库服务与接口
+    - `POST /api/knowledge-bases/{id}/documents/from-docs`（`{documentIds}`，最多 20）：校验知识库 UPDATE 权限与文档对当前用户可访问；取当前版本正文存为 `.md`，复用 `uploadResource` 链路另建来源记录（不改动原文档版本）；`source_key = doc:{文档ID}:v{版本ID}` 幂等；同一文档的旧版本导入在该库内撤销替换；无正文的文档跳过并返回原因
+    - verify: 同一版本重复导入不新增；文档编辑后再导入替换旧版本；他人文档返回不存在；原文档版本数不变
+23. ✅ #11823 启动时登记文档并导入平台向导库
+    - 启动时幂等：md 按来源键登记为 admin 个人组织下的文档（已存在则跳过），再经 #11822 的服务导入 KB 301；v21 删除平台向导旧种子文档、知识文档、入库批次与切块
+    - 依赖：#11822
+    - verify: 空库启动后文档库出现"产品与服务介绍"，KB 301 出现对应知识文档并完成处理；再次启动不重复
+24. ✅ #11824 知识库页面"从文档库导入"
+    - `/studio/knowledge/[id]` 文档页增加按钮与弹窗：按标题搜索、多选文档、提交导入；复用现有文档多选器，过滤无正文的知识来源文档；成功后刷新文档列表
+    - 依赖：#11822
+    - verify: 可搜索并选中多个文档导入；导入结果与跳过原因有提示
+
 ## 建议顺序
 
 ```text
 #11801 → #11802 → #11814 → #11803 → #11804 → #11805 → #11806 → #11807 → #11808 → #11809 → #11810 → #11811 → #11812 → #11813
+#11815 → #11818 → #11817 → #11816 → #11819 → #11820
 ```
 
 先落字段、校验与接口，再做绑定维护，最后做加载容错与运行时校验。#11809 只改容错分支，可与 #11807、#11808 并行验证。
+
+知识按需检索：先移除预检索并保留范围计算，再接内置注册，最后落工具与提示词；#11816 ~ #11818 需同一批合入，避免中间态既无预检索也无工具。
 
 ## 已确认决策
 
@@ -146,4 +201,4 @@ related:
 
 ## 待人工确认
 
-- 无。
+- #11816 ~ #11820（知识按需检索）：人类于 2026-11-05 确认不补设计稿直接实现；已实施、未编译与测试验证，待联调。
