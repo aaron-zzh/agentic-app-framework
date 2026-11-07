@@ -41,6 +41,10 @@ export function NotificationDrawer({ notificationsUrl }: { notificationsUrl?: st
   useWebSocket({
     url: buildWsUrl("/ws/notifications"),
     enabled: !!accessToken,
+    // WS 不补发断线期间的推送，连上或重连后重新拉取一次
+    onOpen: () => {
+      qc.invalidateQueries({ queryKey: ["notifications"] })
+    },
     onMessage: (data) => {
       try {
         const envelope = JSON.parse(data) as {

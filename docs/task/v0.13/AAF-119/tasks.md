@@ -95,3 +95,10 @@ related:
     - `pnpm check:affected` 全绿；手动验证：重启后端后前端按游标补发；关闭 WebSocket 通知后通知链路不依赖 SSE；助理对话和通知、IM 不受影响
     - 依赖：全部
     - verify: 验收标准每条场景有对应结果，写入 `dev-log.md`
+
+### 新增任务
+
+13. [x] #11913 通知 WebSocket 多连接与重连补拉
+    - `WebSocketSessionManager` 改为按 `userId → sessionId` 存储，`remove` 签名改为 `remove(Long userId, WebSocketSession session)`，同步 `ImWebSocketHandler`、`NotificationWebSocketHandler`；注册时包装 `ConcurrentWebSocketSessionDecorator`，新增 `sendToSession` 供心跳回复使用，handler 不再直接写原始会话；`NotificationDrawer` 连上或重连后失效 `["notifications"]`；`useUnreadCount` 轮询改为 5 分钟并单独开启窗口聚焦刷新
+    - 来源：11-07 排查 `/api/notifications/unread-count` 轮询时发现多标签页连接互相覆盖，协调者评估后新增
+    - verify: 同一用户开两个标签页，两边都收到通知推送；关闭其中一个，另一个仍能收到；断开网络后恢复，未读数自动更新

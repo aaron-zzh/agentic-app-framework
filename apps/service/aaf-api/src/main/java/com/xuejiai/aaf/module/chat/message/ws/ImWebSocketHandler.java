@@ -14,7 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * IM WebSocket 处理器，处理用户间聊天连接的建立、断开与心跳。
  *
- * <p>连接身份为 userId（一人一连接），实际消息推送由 {@code MessageCrudService.pushToParticipants} 通过 {@link
+ * <p>连接身份为 userId（同一用户可多标签页多连接），实际消息推送由 {@code MessageCrudService.pushToParticipants} 通过 {@link
  * WebSocketSessionManager} 完成，本 handler 只负责连接生命周期管理。
  *
  * @author AaronZZH & Kiro
@@ -49,9 +49,11 @@ public class ImWebSocketHandler extends TextWebSocketHandler {
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message)
             throws Exception {
-        // 心跳：客户端发 ping，服务端回 pong。业务消息发送走 REST 接口，不经此通道。
+        // 心跳：客户端发 ping，服务端回 pong；经会话管理器发送，避免与业务推送并发写同一会话。
+        // 业务消息发送走 REST 接口，不经此通道。
         if (PING.equals(message.getPayload())) {
-            session.sendMessage(new TextMessage(PONG));
+            var userId = (Long) session.getAttributes().get(USER_ID_ATTR);
+            sessionManager.sendToSession(userId, session, PONG);
         }
     }
 
@@ -59,7 +61,7 @@ public class ImWebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         var userId = (Long) session.getAttributes().get(USER_ID_ATTR);
         if (userId != null) {
-            sessionManager.remove(userId, CHANNEL);
+            sessionManager.remove(userId, session);
         }
     }
 }

@@ -61,12 +61,16 @@ export function useNotifications(params: NotificationListParams = {}) {
   })
 }
 
-/** 未读计数 */
+/**
+ * 未读计数：实时更新靠 /ws/notifications 推送；
+ * 低频轮询与窗口聚焦刷新兜底只存库不推送的通知，以及其他标签页的已读变化
+ */
 export function useUnreadCount() {
   return useQuery({
     queryKey: KEYS.unreadCount,
     queryFn: () => notificationApi.unreadCount(),
-    refetchInterval: 60_000
+    refetchInterval: 5 * 60_000,
+    refetchOnWindowFocus: true
   })
 }
 

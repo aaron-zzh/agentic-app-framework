@@ -46,9 +46,10 @@ public class NotificationWebSocketHandler extends TextWebSocketHandler {
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message)
             throws Exception {
-        // 心跳：客户端发 ping，服务端回 pong
+        // 心跳：客户端发 ping，服务端回 pong；经会话管理器发送，避免与业务推送并发写同一会话
         if (PING.equals(message.getPayload())) {
-            session.sendMessage(new TextMessage(PONG));
+            var userId = (Long) session.getAttributes().get(USER_ID_ATTR);
+            sessionManager.sendToSession(userId, session, PONG);
         }
     }
 
@@ -56,7 +57,7 @@ public class NotificationWebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         var userId = (Long) session.getAttributes().get(USER_ID_ATTR);
         if (userId != null) {
-            sessionManager.remove(userId, CHANNEL);
+            sessionManager.remove(userId, session);
         }
     }
 }

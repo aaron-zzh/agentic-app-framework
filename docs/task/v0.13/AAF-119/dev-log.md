@@ -18,6 +18,7 @@
 - ✅ #11910 `EntityActions` 与死代码清理 — `trackAsyncTask` 基于 `subscribe` + `waitForEvent`；删除 `use-export-progress.ts`、`ExportButton` 及导出、`use-notification-ws.ts`（2026-10-14）
 - ✅ #11911 文档同步与 ADR — 更新 `aaf-v0.13.md`、AAF-112 tasks、AAF-113 requirement / tasks / ui-design、`realtime-data-strategy.md`；新增 ADR-009（2026-10-14）
 - ⏳ #11912 整体验证 — 按用户要求本轮不执行 `check:affected` 与手动验证，待后续补做
+- ✅ #11913 通知 WebSocket 多连接与重连补拉 — 会话按 sessionId 存，多标签页不再互相覆盖；会话包装并发装饰器，推送与心跳不再并发写；重连后补拉通知；未读数轮询改 5 分钟加聚焦刷新（2026-11-07，未编译未测试）
 
 ## 实现决策
 
@@ -34,3 +35,4 @@
 - `use-execution-state.ts`（流程执行事件）与 `use-doc-events.ts` 仍使用原生 `EventSource`，不在本故事范围
 - 历史记录 `AAF-112/test-report.md`、`review.md` 仍引用已删除的 `AigcActivityEventServiceTest` 等，属当时事实记录，未改
 - `sys_event` 表无清理策略，另立故事处理
+- 同一 `WebSocketSession` 并发 `sendMessage` 非线程安全，#11913 已修：注册时包装 `ConcurrentWebSocketSessionDecorator`（10 秒、512KB），心跳回复改走 `sendToSession`
