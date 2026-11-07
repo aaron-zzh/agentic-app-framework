@@ -51,7 +51,7 @@ export function MarketingHeader() {
         <div className="flex items-center gap-2">
           <ThemeToggle />
           {isAuthenticated ? (
-            <Button size="sm" nativeButton={false} render={<Link href={paths.studio.welcome} />}>
+            <Button size="sm" nativeButton={false} render={<Link href={paths.studio.root} />}>
               进入工作区
             </Button>
           ) : (

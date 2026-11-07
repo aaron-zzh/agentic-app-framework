@@ -81,7 +81,7 @@ function AuthButton() {
         variant="outline"
         size="sm"
         nativeButton={false}
-        render={<Link href={paths.studio.welcome} />}
+        render={<Link href={paths.studio.root} />}
       >
         进入工作区
       </Button>

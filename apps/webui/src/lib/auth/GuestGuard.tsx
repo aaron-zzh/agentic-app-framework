@@ -18,7 +18,7 @@ export function GuestGuard({ children }: { children: React.ReactNode }) {
   const searchParams = useSearchParams()
   const { isAuthenticated } = useAuth()
   const [checked, setChecked] = useState(false)
-  const redirectTo = searchParams.get("redirect") ?? paths.studio.welcome
+  const redirectTo = searchParams.get("redirect") ?? paths.studio.root
 
   useEffect(() => {
     if (isAuthenticated) {

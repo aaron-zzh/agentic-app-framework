@@ -7,16 +7,11 @@
 
 import { FileText, ImageIcon, Mic, Music, UserRound, Video } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useEffect } from "react"
 import { GlassCard, SectionHaze } from "@/components/studio"
 import { Badge } from "@/components/ui/badge"
 import { RecentProjectGrid } from "@/features/studio/content"
 import { HomeDataCapsules } from "@/features/studio/home"
 import { HomeBlueprintSection } from "@/features/studio/home/HomeBlueprintSection"
-
-const WELCOME_KEY = "aaf:lastWelcomeAt"
-const WELCOME_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000
 
 const QUICK_CREATE_ENTRIES = [
   {
@@ -53,14 +48,6 @@ const QUICK_CREATE_ENTRIES = [
 ] as const
 
 export default function StudioHomePage() {
-  const router = useRouter()
-
-  useEffect(() => {
-    const last = localStorage.getItem(WELCOME_KEY)
-    const expired = !last || Date.now() - Number(last) > WELCOME_INTERVAL_MS
-    if (expired) router.replace("/studio/welcome")
-  }, [router])
-
   return (
     <div className="relative">
       <SectionHaze variant="blend" />

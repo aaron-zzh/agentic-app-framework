@@ -74,13 +74,13 @@ export default function PayResultPage() {
         ? "积分已到账，可返回继续使用"
         : "订单已完成，可返回继续使用"
 
-  // 按业务类型跳回对应功能页，而非笼统的首页；未知类型兜底到工作台欢迎页
+  // 按业务类型跳回对应功能页，而非笼统的首页；未知类型兜底到 Studio 首页
   const backHref =
     bizOrderType === BIZ_ORDER_TYPE.SUBSCRIPTION
       ? paths.studio.mePricing
       : bizOrderType === BIZ_ORDER_TYPE.CREDIT_PACKAGE || bizOrderType === BIZ_ORDER_TYPE.RECHARGE
         ? paths.studio.meCredits
-        : paths.studio.welcome
+        : paths.studio.root
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-4">

@@ -389,7 +389,7 @@ function RegisterPageInner() {
     } catch {
       // 拉取组织列表失败不阻塞注册流程，后续由 checkAuth 兜底纠正
     }
-    router.push("/studio/welcome")
+    router.push("/studio")
   }
 
   return (

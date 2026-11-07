@@ -48,7 +48,7 @@ function OAuthCallbackContent() {
         setTokens(result.accessToken, result.refreshToken)
         const { user } = await authApi.me()
         setUser(user)
-        router.push("/studio/welcome")
+        router.push("/studio")
       })
       .catch((err: Error) => {
         setError(err.message || "第三方登录失败，请重试")

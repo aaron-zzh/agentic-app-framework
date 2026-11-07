@@ -51,7 +51,7 @@ function LoginContent() {
   const passwordPanelRef = useRef<PasswordLoginPanelRef>(null)
   const phonePanelRef = useRef<PhoneLoginPanelRef>(null)
 
-  const redirectTo = searchParams.get("redirect") || "/studio/welcome"
+  const redirectTo = searchParams.get("redirect") || "/studio"
 
   // 处理后端 OAuth 重定向回来的 token 参数
   useEffect(() => {
@@ -142,10 +142,7 @@ function LoginContent() {
     } catch {
       // 拉取组织列表失败不阻塞登录流程，后续页面可自行重试
     }
-    const dest = redirectTo.startsWith("/studio")
-      ? `${redirectTo.split("?")[0]}?welcome=1`
-      : redirectTo
-    router.push(dest)
+    router.push(redirectTo)
   }, [router, redirectTo, setTokens, setUser, ensureOrgContext])
 
   // 验证码通过后，根据当前 tab 分发到对应面板

@@ -19,7 +19,7 @@ export function AutoRedirectToStudio() {
 
   useEffect(() => {
     if (accessToken) {
-      router.replace("/studio?welcome=1")
+      router.replace("/studio")
     }
   }, [accessToken, router])
 

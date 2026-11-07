@@ -37,7 +37,6 @@ export const paths = {
   },
   studio: {
     root: "/studio",
-    welcome: "/studio/welcome",
     create: "/studio/create",
     projects: "/studio/projects",
     project: (id: number | string) => `/studio/projects/${id}`,
