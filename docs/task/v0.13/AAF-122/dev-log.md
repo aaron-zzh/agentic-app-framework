@@ -22,6 +22,26 @@
 
 > 未编译、未运行测试与 check（按人类 11-07 指示）。合入前需补跑 `pnpm nx test service`。
 
+## #12220 图谱检索降噪
+
+✅ 2026-11-07 — 协调者
+
+- 直接命中删 predicate 条件，只按实体名
+- 实体名不足 2 字不参与命中
+- 截断前按双端命中、predicate、名长排序
+- 邻居扩展按置信度降序截断
+
+## #12221 predicate 规范化提示词
+
+✅ 2026-11-07 — 协调者
+
+- predicate 限 2-6 字规范动词或属性名
+- 情态词移入 attributes.modality
+- 禁描述性短语，附正反例
+- 契约升 knowledge-fact-schema-v7，计入 fingerprint
+
+> 未编译、未运行测试与 check（按人类 11-07 指示）。本体设计 design.md 中的 `knowledge-fact-schema-v7` 需顺延为 v8。
+
 ## 实现文件
 
 | 文件 | 说明 |
@@ -31,6 +51,9 @@
 | `aaf-framework/.../graph/EntityExtractionPrompt.java` | `MAX_LITERAL_LENGTH`、`LITERAL_SENTENCE_DELIMITERS`、指令与契约版本 v6 |
 | `aaf-framework/.../graph/EntityExtractionService.java` | `validateLiteralValue` |
 | `IncrementalEntityResolverTest.java`、`EntityExtractionServiceTest.java` | 更新签名并覆盖 AC-17 至 AC-20 |
+| `aaf-framework/.../trusted/KnowledgeGraphProjectionService.java` | `searchFactKeys` 直接命中与邻居扩展的 Cypher（#12220） |
+| `KnowledgeGraphProjectionServiceTest.java` | 同步 Cypher 断言（#12220） |
+| `aaf-framework/.../graph/EntityExtractionPrompt.java` | predicate 规则与契约版本 v7（#12221） |
 
 ## 实现决策
 

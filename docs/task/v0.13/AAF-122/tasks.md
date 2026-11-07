@@ -37,6 +37,10 @@ related:
    verify: AC-17、AC-18；`IncrementalEntityResolverTest` 覆盖（未编译运行，见 dev-log，合入前补跑 `pnpm nx test service`）
 2. ✅ #12202 LITERAL 只允许短值，契约升 `knowledge-fact-schema-v6` - developer-service
    verify: AC-19、AC-20；`EntityExtractionServiceTest` 覆盖（同上）
+3. ✅ #12220 图谱检索降噪：直接命中只按实体名、单字名不命中、截断前按相关性排序 - 协调者
+   verify: `KnowledgeGraphProjectionServiceTest` 断言已同步（未编译运行，同上）
+4. ✅ #12221 predicate 规范化提示词，情态移入 `attributes.modality`，契约升 `knowledge-fact-schema-v7` - 协调者
+   verify: 只改提示词常量，需重新入库后观察 predicate 分布（未编译运行，同上）
 
 ### M1 本体数据模型与默认本体
 
