@@ -47,7 +47,6 @@ import reactor.core.publisher.Flux;
 public class DeviceVoiceGatewayService {
 
     private static final String ASR_MODEL_ID = "qwen:fun-asr-realtime";
-    private static final String TTS_MODEL_ID = "qwen:cosyvoice-v3.5-flash";
 
     private final SpeechService speechService;
     private final AiCreditGuard creditGuard;
@@ -88,7 +87,7 @@ public class DeviceVoiceGatewayService {
         if (spokenText == null || spokenText.isBlank()) {
             return;
         }
-        var model = configCacheManager.getAiModelByModelId(TTS_MODEL_ID);
+        var model = configCacheManager.getAiModelByModelId(SpeechService.REALTIME_TTS_MODEL_ID);
         var cost = speechService.estimateCost(model, spokenText, creditGuard.getMarkupRate());
         ownerExecutionService.runAsOwner(
                 principal,
@@ -120,7 +119,7 @@ public class DeviceVoiceGatewayService {
 
     public Flux<byte[]> synthesize(DevicePrincipal principal, String text, String voice) {
         scenarioAccess.requireEnabled(principal.scenarioKey());
-        var model = configCacheManager.getAiModelByModelId(TTS_MODEL_ID);
+        var model = configCacheManager.getAiModelByModelId(SpeechService.REALTIME_TTS_MODEL_ID);
         var estimated = speechService.estimateCost(model, text, creditGuard.getMarkupRate());
         precheck(principal, CapabilityRoutingContext.CAP_SPEECH_TTS, estimated);
         return Flux.defer(

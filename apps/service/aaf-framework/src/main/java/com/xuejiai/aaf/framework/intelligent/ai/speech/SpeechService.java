@@ -77,6 +77,9 @@ public interface SpeechService extends AiCapability {
     /** 实时 TTS 输出采样率（Hz）。 */
     int REALTIME_TTS_SAMPLE_RATE = 16_000;
 
+    /** 实时 TTS 计费模型（ai_model.model_id），与实时合成实际使用的模型一致。 */
+    String REALTIME_TTS_MODEL_ID = "qwen:cosyvoice-v3-flash";
+
     /** TTS 非流式：返回合成结果（含音频字节和计费用量） */
     SynthesisResult synthesize(AiModel model, String text, String voice);
 
