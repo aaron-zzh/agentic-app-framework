@@ -11,6 +11,7 @@ import { ArrowUpRight, RefreshCw, TrendingUp } from "lucide-react"
 import Link from "next/link"
 import { LottieIcon } from "@/components/animate"
 import { GlassCard, GlassCardBody, NeonChip, SectionHaze } from "@/components/studio"
+import { useStudioHeader } from "@/layouts/studio/header-store"
 import { backendRequest } from "@/lib/api/rest/backend-client"
 
 interface TrendingItem {
@@ -31,6 +32,7 @@ const TAG_TONE: Record<string, "violet" | "cyan" | "amber" | "rose" | "emerald">
 }
 
 export default function StudioToolsHotPage() {
+  useStudioHeader({ back: { href: "/studio/create/tools", label: "返回工具箱" } })
   const { data, isLoading, isFetching, refetch } = useQuery<TrendingItem[]>({
     queryKey: ["trending"],
     queryFn: () => backendRequest("/aigc/trending", { timeout: 120_000 }),

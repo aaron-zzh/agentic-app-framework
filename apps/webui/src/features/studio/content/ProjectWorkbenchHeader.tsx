@@ -5,19 +5,12 @@
 
 "use client"
 
-import {
-  ArrowLeft,
-  BookOpen,
-  CalendarClock,
-  ClipboardList,
-  GitBranch,
-  LayoutList
-} from "lucide-react"
-import Link from "next/link"
+import { BookOpen, CalendarClock, ClipboardList, GitBranch, LayoutList } from "lucide-react"
 import type { ReactNode } from "react"
 import { NeonChip } from "@/components/studio"
 import { Button } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { useStudioHeader } from "@/layouts/studio/header-store"
 import type { AigcProject } from "@/lib/api/rest/ai/aigc"
 import { cn } from "@/lib/utils/index"
 import { getProjectTypeConfig, PROJECT_STATUS_CONFIG } from "./project-type-config"
@@ -53,21 +46,13 @@ export function ProjectWorkbenchHeader({
   onOpenSchedule,
   scheduleOpen
 }: ProjectWorkbenchHeaderProps) {
+  useStudioHeader({ back: { href: "/studio/projects", label: "返回项目列表" } })
   const type = getProjectTypeConfig({ code: project.projectTypeCode, name: "" })
   const status = PROJECT_STATUS_CONFIG[project.status]
 
   return (
     <header className="flex flex-wrap items-center justify-between gap-3 border-b bg-background/70 px-4 py-3 backdrop-blur sm:px-6">
       <div className="flex min-w-0 items-center gap-3">
-        <Button
-          nativeButton={false}
-          render={<Link href="/studio/projects" />}
-          variant="ghost"
-          size="icon-sm"
-          aria-label="返回项目列表"
-        >
-          <ArrowLeft />
-        </Button>
         <div className="min-w-0">
           <p className="truncate text-muted-foreground text-xs">
             {project.primaryBrandProfileId

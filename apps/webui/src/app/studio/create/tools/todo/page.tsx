@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useStudioHeader } from "@/layouts/studio/header-store"
 import {
   useStudioTodoClearDone,
   useStudioTodos,
@@ -22,6 +23,7 @@ import { TodoNewForm } from "./TodoNewForm"
 import { TodoRow } from "./TodoRow"
 
 export default function StudioTodoToolPage() {
+  useStudioHeader({ back: { href: "/studio/create/tools", label: "返回工具箱" } })
   const [filter, setFilter] = useState<TodoFilter>("all")
   const { data, isLoading } = useStudioTodos()
   const { mutate: updateStatus } = useStudioTodoUpdateStatus()

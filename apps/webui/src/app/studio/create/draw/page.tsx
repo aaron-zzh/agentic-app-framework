@@ -5,6 +5,7 @@
  */
 
 import { CanvasPanel } from "@/features/studio/projects/CanvasPanel"
+import { StudioHeaderBack } from "@/layouts/studio/StudioHeaderBack"
 
 interface StudioDrawPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>
@@ -20,6 +21,7 @@ export default async function StudioDrawPage({ searchParams }: StudioDrawPagePro
 
   return (
     <div className="h-full w-full">
+      <StudioHeaderBack href="/studio/create" label="返回创作" />
       <CanvasPanel persistenceKey="studio-draw" initialImageUrl={imageUrl} />
     </div>
   )

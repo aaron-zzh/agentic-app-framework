@@ -28,7 +28,7 @@ interface SidebarItemProps {
   onOpen: () => void
 }
 
-function SectionItem({ config, active, collapsed, onOpen }: SidebarItemProps) {
+export function SectionItem({ config, active, collapsed, onOpen }: SidebarItemProps) {
   const Icon = config.icon
 
   return (
@@ -70,10 +70,11 @@ function SectionItem({ config, active, collapsed, onOpen }: SidebarItemProps) {
   )
 }
 
-export function StudioSidebar() {
+/** 功能分区导航：返回当前 active 分区与打开分区的方法（桌面侧栏与移动抽屉共用） */
+export function useStudioSectionNav() {
   const pathname = usePathname()
   const router = useRouter()
-  const { sidebarCollapsed, toggleSidebar, openTab } = useStudioShell()
+  const openTab = useStudioShell((s) => s.openTab)
 
   // 当前 active section（从 URL 反查）
   const activeSection = useMemo(() => resolveSectionFromPath(pathname), [pathname])
@@ -89,6 +90,13 @@ export function StudioSidebar() {
     router.push(url)
   }
 
+  return { activeSection, handleOpen }
+}
+
+export function StudioSidebar() {
+  const { sidebarCollapsed, toggleSidebar } = useStudioShell()
+  const { activeSection, handleOpen } = useStudioSectionNav()
+
   const { data: wechatQrData } = useWechatQrImage()
   const wechatQrUrl = wechatQrData || "https://picsum.photos/720"
 
@@ -96,7 +104,7 @@ export function StudioSidebar() {
     <aside
       data-collapsed={sidebarCollapsed}
       className={cn(
-        "relative flex h-screen flex-col border-foreground/6 border-r bg-card/80 transition-[width]",
+        "relative hidden h-screen flex-col border-foreground/6 border-r bg-card/80 transition-[width] md:flex",
         sidebarCollapsed ? "w-16" : "w-[180px]"
       )}
     >

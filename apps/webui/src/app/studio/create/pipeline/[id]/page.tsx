@@ -11,7 +11,6 @@
 "use client"
 
 import {
-  ArrowLeft,
   CheckCircle2,
   FileText,
   Image as ImageIcon,
@@ -29,6 +28,7 @@ import { GlassCard, GlowButton, NeonChip, SectionHaze } from "@/components/studi
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
+import { useStudioHeader } from "@/layouts/studio/header-store"
 import {
   useIncrementRunCount,
   useWorkflowTemplate,
@@ -121,6 +121,7 @@ function StepCard({
 }
 
 export default function StudioPipelineDetailPage() {
+  useStudioHeader({ back: { href: "/studio/create/pipeline", label: "返回模板列表" } })
   const params = useParams<{ id: string }>()
   const id = Number(params.id)
 
@@ -191,13 +192,6 @@ export default function StudioPipelineDetailPage() {
       <div className="mx-auto max-w-3xl space-y-5 p-6">
         {/* 头 */}
         <header className="space-y-2">
-          <Link
-            href="/studio/create/pipeline"
-            className="inline-flex items-center gap-1.5 text-muted-foreground text-xs transition-colors hover:text-foreground"
-          >
-            <ArrowLeft className="size-3.5" />
-            返回模板列表
-          </Link>
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <h1 className="font-semibold text-xl">{template.name}</h1>

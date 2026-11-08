@@ -5,6 +5,7 @@
 
 import { SectionHaze } from "@/components/studio"
 import { NewProjectLauncher } from "@/features/studio/content"
+import { StudioHeaderBack } from "@/layouts/studio/StudioHeaderBack"
 
 export default async function StudioProjectNewPage({
   searchParams
@@ -16,6 +17,7 @@ export default async function StudioProjectNewPage({
 
   return (
     <div className="relative h-full overflow-y-auto">
+      <StudioHeaderBack href="/studio/projects" label="返回项目列表" />
       <SectionHaze variant="violet" />
       <div className="relative mx-auto flex max-w-4xl flex-col gap-6 p-6">
         <header>

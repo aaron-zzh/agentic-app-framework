@@ -28,7 +28,7 @@ export function HomeDataCapsules() {
   const { data: summary, isLoading } = useAigcStudioHomeSummary()
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
       <Link href="/studio/projects?status=in_progress" className="group">
         <DataCapsule
           label="进行中项目"
@@ -73,7 +73,7 @@ export function HomeDataCapsules() {
           action={<CapsuleArrow />}
         />
       </Link>
-      <Link href="/studio/assets/works" className="group">
+      <Link href="/studio/assets/works" className="group col-span-2 lg:col-span-1">
         <DataCapsule
           label="作品"
           value={summary?.workCount ?? 0}

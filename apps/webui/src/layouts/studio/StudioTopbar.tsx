@@ -10,12 +10,66 @@
 
 "use client"
 
-import { Search } from "lucide-react"
-import { Brand } from "@/components/brand/Brand"
+import { ChevronLeft, Home, Search } from "lucide-react"
+import Link from "next/link"
+import { usePathname, useRouter } from "next/navigation"
 import { ThemeToggle } from "@/components/common/ThemeToggle"
 import { UserAvatarPopover } from "@/components/common/UserAvatarPopover"
+import { Button } from "@/components/ui/button"
 import { NotificationDrawer } from "@/features/notifications"
 import { cn } from "@/lib/utils/index"
+import { useStudioHeaderStore } from "./header-store"
+import { StudioMobileNav } from "./StudioMobileNav"
+
+/** 左侧导航按钮：页面声明了 back 时显示返回；二级及更深页面在手机端显示首页入口（桌面端侧栏常驻） */
+function TopbarNavButtons() {
+  const pathname = usePathname()
+  const router = useRouter()
+  const back = useStudioHeaderStore((s) => s.back)
+  // 一级页面（/studio、/studio/xxx）有侧栏/抽屉入口，不显示首页按钮
+  const isTopLevel = pathname.split("/").filter(Boolean).length <= 2
+  const backLabel = back?.label ?? "返回"
+
+  const handleBack = () => {
+    if (back?.href) {
+      router.push(back.href)
+    } else if (window.history.length > 1) {
+      router.back()
+    } else {
+      router.push("/studio")
+    }
+  }
+
+  return (
+    <>
+      {back && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label={backLabel}
+          title={backLabel}
+          onClick={handleBack}
+        >
+          <ChevronLeft className="size-5" />
+        </Button>
+      )}
+      {!isTopLevel && (
+        <Button
+          nativeButton={false}
+          render={<Link href="/studio" />}
+          variant="ghost"
+          size="icon-sm"
+          aria-label="首页"
+          title="首页"
+          className="md:hidden"
+        >
+          <Home />
+        </Button>
+      )}
+    </>
+  )
+}
 
 export function StudioTopbar() {
   return (
@@ -25,12 +79,11 @@ export function StudioTopbar() {
         "px-4"
       )}
     >
-      {/* 左：仅在小屏显示品牌（侧栏隐藏时） */}
-      <div className="md:hidden">
-        <Brand collapsed size="sm" href="/" />
-      </div>
+      {/* 左：小屏汉堡按钮，点击从左侧弹出导航抽屉（桌面端使用常驻侧栏） */}
+      <StudioMobileNav />
+      <TopbarNavButtons />
 
-      {/* 中：搜索框（⌘K 命令面板触发） */}
+      {/* 搜索框（⌘K 命令面板触发）；品牌 logo 由侧栏 / 抽屉显示 */}
       <button
         type="button"
         onClick={() => {

@@ -8,9 +8,11 @@
 import { User } from "lucide-react"
 import { DataCapsule, GlassCard } from "@/components/studio"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useStudioHeader } from "@/layouts/studio/header-store"
 import { useProfile } from "@/lib/api/rest/user"
 
 export default function ProfileToolPage() {
+  useStudioHeader({ back: { href: "/studio/create/tools", label: "返回工具箱" } })
   const { data: profile, isLoading } = useProfile()
 
   return (

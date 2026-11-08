@@ -22,6 +22,7 @@ import {
 import { Button } from "@/components/ui/button"
 import type { RichTextEditorHandle } from "@/features/rich-text-editor"
 import { RichTextEditor } from "@/features/rich-text-editor"
+import { useStudioHeader } from "@/layouts/studio/header-store"
 import { buildWsUrl } from "@/lib/api/config"
 import { meetingApi } from "@/lib/api/rest/ai"
 import { useCreateDocument } from "@/lib/api/rest/system"
@@ -31,6 +32,7 @@ import { float32ToPcm16 } from "@/lib/utils/audio"
 type WsStatus = "disconnected" | "connecting" | "connected"
 
 export default function StudioToolsMeetingPage() {
+  useStudioHeader({ back: { href: "/studio/create/tools", label: "返回工具箱" } })
   const accessToken = useAuthStore((s) => s.accessToken)
   const [status, setStatus] = useState<WsStatus>("disconnected")
   const [lines, setLines] = useState<string[]>([])

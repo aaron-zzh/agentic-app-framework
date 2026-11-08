@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Textarea } from "@/components/ui/textarea"
+import { useStudioHeader } from "@/layouts/studio/header-store"
 import { saveBlob } from "@/lib/utils/download-file"
 import {
   clampLayerRect,
@@ -54,6 +55,7 @@ const PASTE_PREVIEW_MAX_WIDTH = 360
 const OFFSCREEN_QR_SIZE = 512
 
 export default function QrCodeToolPage() {
+  useStudioHeader({ back: { href: "/studio/create/tools", label: "返回工具箱" } })
   const [text, setText] = useState("")
   const [size, setSize] = useState(512)
   const [style, setStyle] = useState<QrCodeStyle>("square")

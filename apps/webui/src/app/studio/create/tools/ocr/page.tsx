@@ -8,6 +8,7 @@
 import { Copy, FileText, Loader2, Upload } from "lucide-react"
 import { useRef, useState } from "react"
 import { GlassCard, GlassCardBody, GlowButton } from "@/components/studio"
+import { useStudioHeader } from "@/layouts/studio/header-store"
 import { ocrApi } from "@/lib/api/rest/ai"
 import { useFileUpload } from "@/lib/hooks/use-file-upload"
 import { notify } from "@/lib/notification"
@@ -22,6 +23,7 @@ const TASK_OPTIONS = [
 ]
 
 export default function OcrToolPage() {
+  useStudioHeader({ back: { href: "/studio/create/tools", label: "返回工具箱" } })
   const [previewSrc, setPreviewSrc] = useState<string | null>(null)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [task, setTask] = useState("TEXT_RECOGNITION")

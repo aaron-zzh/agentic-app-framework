@@ -6,8 +6,10 @@
 "use client"
 
 import {
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
+  Clock,
   Database,
   Edit2,
   ExternalLink,
@@ -15,8 +17,10 @@ import {
   HardDrive,
   Layers,
   Loader2,
+  type LucideIcon,
   RefreshCw,
-  Trash2
+  Trash2,
+  XCircle
 } from "lucide-react"
 import Link from "next/link"
 import { use, useId, useState } from "react"
@@ -48,6 +52,7 @@ import {
   KNOWLEDGE_AI_SUMMARY_COPY,
   KNOWLEDGE_DESCRIPTION_COPY
 } from "@/features/knowledge/constants"
+import { useStudioHeader } from "@/layouts/studio/header-store"
 import {
   useDeleteKnowledgeDocument,
   useKnowledgeBase,
@@ -67,16 +72,34 @@ import type {
   KnowledgeDocument,
   KnowledgeDocumentStatus
 } from "@/lib/types/knowledge"
+import { cn } from "@/lib/utils/index"
 import { formatTimeAgo } from "@/lib/utils/time"
 
 const STATUS_MAP: Record<
   KnowledgeDocumentStatus,
-  { label: string; variant: "default" | "secondary" | "destructive" | "outline" }
+  { label: string; icon: LucideIcon; spin?: boolean; className: string }
 > = {
-  0: { label: "待处理", variant: "outline" },
-  1: { label: "处理中", variant: "secondary" },
-  2: { label: "已完成", variant: "default" },
-  3: { label: "失败", variant: "destructive" }
+  0: {
+    label: "待处理",
+    icon: Clock,
+    className: "bg-muted text-muted-foreground"
+  },
+  1: {
+    label: "处理中",
+    icon: Loader2,
+    spin: true,
+    className: "bg-sky-500/10 text-sky-600 dark:text-sky-400"
+  },
+  2: {
+    label: "已完成",
+    icon: CheckCircle2,
+    className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+  },
+  3: {
+    label: "失败",
+    icon: XCircle,
+    className: "bg-destructive/10 text-destructive"
+  }
 }
 
 function ChunkRow({
@@ -191,7 +214,10 @@ function DocumentRow({ doc, kbId }: { doc: KnowledgeDocument; kbId: string }) {
         <TableCell>{formatSize(doc.fileSize ?? 0)}</TableCell>
         <TableCell>{doc.chunkCount}</TableCell>
         <TableCell>
-          <Badge variant={status.variant}>{status.label}</Badge>
+          <Badge variant="ghost" className={cn("hover:bg-inherit", status.className)}>
+            <status.icon className={status.spin ? "animate-spin" : undefined} />
+            {status.label}
+          </Badge>
         </TableCell>
         <TableCell>{new Date(doc.createTime).toLocaleDateString()}</TableCell>
         <TableCell>
@@ -336,6 +362,7 @@ function DocumentRow({ doc, kbId }: { doc: KnowledgeDocument; kbId: string }) {
 }
 
 export default function KnowledgeDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  useStudioHeader({ back: { href: "/studio/knowledge", label: "返回知识库列表" } })
   const { id } = use(params)
   const { data: knowledgeBase, isLoading } = useKnowledgeBase(id)
   const { data: stats } = useKnowledgeBaseStats(id)

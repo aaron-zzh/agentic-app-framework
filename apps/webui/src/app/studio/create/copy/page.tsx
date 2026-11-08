@@ -58,6 +58,7 @@ import {
 } from "@/features/aigc/copywriting/use-copywriting"
 import { useAigcStore } from "@/features/aigc/store"
 import { StreamingEditor } from "@/features/rich-text-editor"
+import { useStudioHeader } from "@/layouts/studio/header-store"
 import type { AssistantExecutionPhase } from "@/lib/api/assistant-agui"
 import { type AiSkillVO, COPYWRITING_SKILL_CATEGORY, useAiSkills } from "@/lib/api/rest/ai"
 import { DictType } from "@/lib/constants/dict-type"
@@ -700,6 +701,7 @@ function CopywritingWorkspace({
 }
 
 export default function StudioCreateCopyPage() {
+  useStudioHeader({ back: { href: "/studio/create", label: "返回创作" } })
   const launcherPrefillRef = useRef<string | null>(null)
   const queryParams = {
     categoryCode: COPYWRITING_SKILL_CATEGORY,

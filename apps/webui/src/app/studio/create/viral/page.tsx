@@ -24,6 +24,7 @@ import { useSearchParams } from "next/navigation"
 import { useCallback, useRef, useState } from "react"
 import { GlassCard, GlowButton, NeonChip } from "@/components/studio"
 import { Textarea } from "@/components/ui/textarea"
+import { useStudioHeader } from "@/layouts/studio/header-store"
 import { executeAssistantAgUi } from "@/lib/api/assistant-agui"
 import { notify } from "@/lib/notification"
 import { cn } from "@/lib/utils/index"
@@ -43,6 +44,7 @@ const STEPS: {
 ]
 
 export default function StudioCreateViralPage() {
+  useStudioHeader({ back: { href: "/studio/create", label: "返回创作" } })
   const searchParams = useSearchParams()
   const initPrompt = (() => {
     const stored =

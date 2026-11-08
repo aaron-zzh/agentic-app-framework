@@ -76,16 +76,16 @@ export function DataCapsule({
       interactive={interactive}
       onClick={onClick}
       style={style}
-      className={cn("h-[112px]", className)}
+      className={cn("h-[88px] sm:h-[112px]", className)}
     >
-      <div className="flex h-full flex-col justify-between p-4">
+      <div className="flex h-full flex-col justify-between p-3 sm:p-4">
         {/* 头：图标 + label + action（右上角） */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             {icon && (
               <span
                 className={cn(
-                  "flex size-7 items-center justify-center rounded-lg bg-foreground/[0.04]",
+                  "flex size-6 items-center justify-center rounded-lg bg-foreground/[0.04] sm:size-7",
                   TONE_ICON_MAP[tone]
                 )}
               >
@@ -106,7 +106,9 @@ export function DataCapsule({
             <span className="h-8 w-20 animate-pulse rounded bg-foreground/10" />
           ) : (
             <div className="flex items-baseline gap-1">
-              <span className="font-semibold text-2xl tabular-nums leading-none">{value}</span>
+              <span className="font-semibold text-xl tabular-nums leading-none sm:text-2xl">
+                {value}
+              </span>
               {unit && <span className="text-muted-foreground text-xs">{unit}</span>}
             </div>
           )}

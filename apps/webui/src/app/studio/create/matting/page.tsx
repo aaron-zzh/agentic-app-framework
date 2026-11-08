@@ -17,6 +17,7 @@ import { Coins, Download, ImagePlus, Scissors, Wand2 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { GlassCard, GlowButton, NeonChip } from "@/components/studio"
 import { Label } from "@/components/ui/label"
+import { useStudioHeader } from "@/layouts/studio/header-store"
 import type { AigcTaskEvent } from "@/lib/api/rest/ai/aigc-task"
 import { request } from "@/lib/api/rest/crud"
 import type { PageResult } from "@/lib/api/types"
@@ -150,6 +151,7 @@ function validateFile(file: File, method: MethodValue): string | null {
 // ─── 主页面 ─────────────────────────────────────────────────
 
 export default function MattingPage() {
+  useStudioHeader({ back: { href: "/studio/create", label: "返回创作" } })
   const [method, setMethod] = useState<MethodValue>("SEGMENT_HD_BODY")
   const [imageFileId, setImageFileId] = useState<number | null>(null)
   const [previewUrl, setPreviewUrl] = useState("")

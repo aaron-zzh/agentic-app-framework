@@ -10,6 +10,7 @@ import { useEffect, useState } from "react"
 import { DataCapsule, GlassCard, GlassCardBody, GlowButton } from "@/components/studio"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useStudioHeader } from "@/layouts/studio/header-store"
 import { backendApi } from "@/lib/api/rest/backend-client"
 
 // ─── 类型 ─────────────────────────────────────────────────────────────────────
@@ -85,6 +86,7 @@ const PRESETS = [
 // ─── 主页面 ───────────────────────────────────────────────────────────────────
 
 export default function WeatherToolPage() {
+  useStudioHeader({ back: { href: "/studio/create/tools", label: "返回工具箱" } })
   const [loading, setLoading] = useState(false)
   const [locating, setLocating] = useState(false)
   const [error, setError] = useState<string | null>(null)
