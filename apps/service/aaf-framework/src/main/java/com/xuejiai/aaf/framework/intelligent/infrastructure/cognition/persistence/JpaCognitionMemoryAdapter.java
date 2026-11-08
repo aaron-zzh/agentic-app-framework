@@ -37,8 +37,11 @@ public class JpaCognitionMemoryAdapter
         }
     }
 
+    /**
+     * 不开启事务：查询向量需先调用 Embedding 并同步结算积分，结算要对 credit_account 加行锁，在只读事务内会失败并使整个事务中止； 同时避免在外部 HTTP
+     * 调用期间占用数据库连接。实体无关联字段，单条查询不依赖事务。
+     */
     @Override
-    @Transactional(readOnly = true)
     public List<MemoryRecord> recall(RecallQuery query) {
         var subject = query.subject();
         var entities =
