@@ -39,7 +39,7 @@ public class AiProperties {
      *       IMAGE_GEN: qwen-image-plus
      *       VIDEO_GEN: happyhorse-1.0-i2v
      *       SPEECH_ASR: fun-asr-realtime
-     *       SPEECH_TTS: cosyvoice-v3.5-flash
+     *       SPEECH_TTS: cosyvoice-v3-flash
      *       RERANK: qwen3.7-text-rerank
      *       EMBEDDING: text-embedding-v3
      * </pre>
@@ -57,6 +57,9 @@ public class AiProperties {
 
     /** 短期会话上下文分层增量压缩配置 */
     private SessionSummaryConfig sessionSummary = new SessionSummaryConfig();
+
+    /** 助理执行轨迹摘要日志配置 */
+    private ExecutionTraceConfig executionTrace = new ExecutionTraceConfig();
 
     /**
      * 协调者写给聚合者的聚合要求（{@code delegate_agents} 的 {@code aggregationContract.requirements}）默认字符上限； 请求参数
@@ -153,5 +156,14 @@ public class AiProperties {
 
         /** 严格 JSON 摘要结果最大字符数。 */
         private Integer maxChars = 8000;
+    }
+
+    /** 助理执行轨迹摘要（AAF-124）：每次 DIRECT / Task / TaskNode 执行结束时以 INFO 打印一个分组日志块， 只含名称、数量、耗时与状态。 */
+    @Getter
+    @Setter
+    public static class ExecutionTraceConfig {
+
+        /** 是否打印执行轨迹摘要。 */
+        private Boolean enabled = true;
     }
 }

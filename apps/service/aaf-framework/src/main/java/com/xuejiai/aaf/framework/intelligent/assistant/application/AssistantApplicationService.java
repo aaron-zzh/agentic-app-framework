@@ -3,6 +3,7 @@ package com.xuejiai.aaf.framework.intelligent.assistant.application;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -133,6 +134,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
     private final TaskRecoveryPort recoveries;
     private final ObjectProvider<SessionMemoryPort> sessionMemories;
     private final ToolVisibilityFilter toolVisibility;
+    private final boolean executionTraceEnabled;
 
     public AssistantApplicationService(
             AssistantDefinitionPort definitions,
@@ -159,9 +161,11 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             ExecutionLiveEventPort liveEvents,
             TaskRecoveryPort recoveries,
             ObjectProvider<SessionMemoryPort> sessionMemories,
-            int contextWindow) {
+            int contextWindow,
+            boolean executionTraceEnabled) {
         this.sessionMemories = Objects.requireNonNull(sessionMemories, "sessionMemories 不能为空");
         this.toolVisibility = Objects.requireNonNull(toolVisibility, "toolVisibility 不能为空");
+        this.executionTraceEnabled = executionTraceEnabled;
         this.runtimeExecutionPolicy =
                 ExecutionPolicy.withDefaultTimeouts(
                         RUNTIME_MAX_ITERATIONS,
@@ -239,6 +243,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         var failureSequence = new AtomicLong(command.sequenceBase());
         var taskRef = new AtomicReference<Task>();
         var taskProgressed = new AtomicBoolean();
+        var trace = ExecutionTraceRecorder.start(executionTraceEnabled, command);
         // 派发线程没有 HTTP 请求上下文：用命令中的可信 tenantId（orgId）与冻结在执行意图里的
         // workspaceId 恢复组织上下文，覆盖同步准备阶段（定义/Skill/审计等按组织过滤的 Repository）。
         return Flux.defer(
@@ -248,27 +253,29 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                         invocation.executionIntent().workspaceId(),
                                         () ->
                                                 direct
-                                                        ? executeDirect(invocation)
+                                                        ? executeDirect(invocation, trace)
                                                         : command.operation()
                                                                         == AssistantCommand
                                                                                 .Operation.SUBTASK
-                                                                ? executeNode(invocation)
+                                                                ? executeNode(invocation, trace)
                                                                 : executeAgent(
                                                                         invocation,
                                                                         taskRef,
-                                                                        taskProgressed)))
+                                                                        taskProgressed,
+                                                                        trace)))
                 .doOnNext(event -> failureSequence.accumulateAndGet(event.sequence(), Math::max))
                 .onErrorResume(
                         failure -> {
                             var trackedTask = taskRef.get();
-                            log.debug(
-                                    "[Assistant协调] 执行失败，已进入失败收口：executionId={}，taskId={}，assistantId={}，任务状态={}，错误类型={}，错误信息={}",
+                            log.warn(
+                                    "[Assistant协调] 执行失败，已进入失败收口：executionId={}，taskId={}，assistantId={}，任务状态={}，错误类型={}",
                                     command.executionId().value(),
                                     taskKey(command),
                                     command.assistantId().value(),
                                     trackedTask == null ? null : trackedTask.status(),
                                     failure.getClass().getName(),
-                                    failure.getMessage());
+                                    failure);
+                            trace.failure(failure);
                             return direct
                                     ? failDirect(
                                             command, failureSequence.incrementAndGet(), failure)
@@ -279,6 +286,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                             failureSequence.incrementAndGet(),
                                             failure);
                         })
+                .doOnNext(trace::observe)
                 .concatMap(
                         event ->
                                 shouldPersistEvent(event)
@@ -302,23 +310,29 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                             }
                         })
                 .doOnError(
-                        failure ->
-                                log.debug(
-                                        "[Assistant协调] 事件流异常关闭：executionId={}，taskId={}，错误类型={}",
-                                        command.executionId().value(),
-                                        taskKey(command),
-                                        failure.getClass().getName()))
+                        failure -> {
+                            log.warn(
+                                    "[Assistant协调] 事件流异常关闭：executionId={}，taskId={}，错误类型={}",
+                                    command.executionId().value(),
+                                    taskKey(command),
+                                    failure.getClass().getName(),
+                                    failure);
+                            trace.failure(failure);
+                        })
                 .doFinally(
-                        signalType ->
-                                // 实时订阅的收口由入口按交付节点与等待点判定（RunDeliveryTracker），
-                                // 单个节点执行结束不再结束整个任务的实时流
-                                log.debug(
-                                        "[AssistantExecution] stage=invocation_closed executionId={} taskId={} "
-                                                + "signal={} durationMs={}",
-                                        command.executionId().value(),
-                                        taskKey(command),
-                                        signalType,
-                                        elapsedMillis(startedAtNanos)))
+                        signalType -> {
+                            // 实时订阅的收口由入口按交付节点与等待点判定（RunDeliveryTracker），
+                            // 单个节点执行结束不再结束整个任务的实时流
+                            var durationMs = elapsedMillis(startedAtNanos);
+                            log.debug(
+                                    "[AssistantExecution] stage=invocation_closed executionId={} taskId={} "
+                                            + "signal={} durationMs={}",
+                                    command.executionId().value(),
+                                    taskKey(command),
+                                    signalType,
+                                    durationMs);
+                            trace.finish(signalType.name(), durationMs);
+                        })
                 // 组织上下文必须显式写入 Reactor Context：runIfAbsent 在 subscribe 后（Flux.defer 惰性）才设置
                 // ThreadLocal，晚于 Reactor 自动 contextCapture 的捕获点，光靠 ThreadLocalAccessor 无法传播到
                 // boundedElastic 等异步线程；写入 Context 后，注册的 accessor 才能在每次跨线程调度时恢复 org。
@@ -379,7 +393,8 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         return !values.isEmpty() && allowedKeys.containsAll(values.keySet());
     }
 
-    private Flux<ExecutionEvent> executeNode(AssistantInvocation invocation) {
+    private Flux<ExecutionEvent> executeNode(
+            AssistantInvocation invocation, ExecutionTraceRecorder trace) {
         var command = invocation.command();
         var sequence = new AtomicLong(command.sequenceBase());
         var taskRef = new AtomicReference<>(requireTask(command));
@@ -390,6 +405,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         var profileCandidate = resolveExecutionProfile(invocation, definition);
         var context = executionContext(command, definition, profileCandidate);
         var profile = freezeCompressedProfile(invocation, profileCandidate, context.messages());
+        traceProfile(trace, invocation, profile, context);
         log.debug(
                 "[Assistant协调] L1 上下文已冻结：executionId={}，taskId={}，agentKind={}，来源数={}，消息数={}，摘要={}",
                 command.executionId().value(),
@@ -423,10 +439,16 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 Flux.defer(
                         () ->
                                 finalizeNodeExecution(
-                                        invocation, taskRef, profile, agentEvents, sequence)));
+                                        invocation,
+                                        taskRef,
+                                        profile,
+                                        agentEvents,
+                                        sequence,
+                                        trace)));
     }
 
-    private Flux<ExecutionEvent> executeDirect(AssistantInvocation invocation) {
+    private Flux<ExecutionEvent> executeDirect(
+            AssistantInvocation invocation, ExecutionTraceRecorder trace) {
         var command = invocation.command();
         if (command.operation() != AssistantCommand.Operation.START
                 || command.controlMode()
@@ -469,10 +491,11 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                     Instant.now());
                         })
                 .subscribeOn(Schedulers.boundedElastic())
-                .flatMapMany(ignored -> executeDirectAgent(invocation));
+                .flatMapMany(ignored -> executeDirectAgent(invocation, trace));
     }
 
-    private Flux<ExecutionEvent> executeDirectAgent(AssistantInvocation invocation) {
+    private Flux<ExecutionEvent> executeDirectAgent(
+            AssistantInvocation invocation, ExecutionTraceRecorder trace) {
         var command = invocation.command();
         var sequence = new AtomicLong(command.sequenceBase());
         var emitted = new ArrayList<ExecutionEvent>();
@@ -498,6 +521,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         var controlledContext = executionContext(command, definition, profileCandidate);
         var profile =
                 freezeCompressedProfile(invocation, profileCandidate, controlledContext.messages());
+        traceProfile(trace, invocation, profile, controlledContext);
         var agentEvents = new ArrayList<ExecutionEvent>();
         var executionEvents =
                 agentExecution
@@ -521,14 +545,18 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         return Flux.concat(
                 Flux.fromIterable(emitted),
                 executionEvents,
-                Flux.defer(() -> finalizeDirect(invocation, definition, agentEvents, sequence)));
+                Flux.defer(
+                        () ->
+                                finalizeDirect(
+                                        invocation, definition, agentEvents, sequence, trace)));
     }
 
     private Flux<ExecutionEvent> finalizeDirect(
             AssistantInvocation invocation,
             AssistantDefinition definition,
             List<ExecutionEvent> agentEvents,
-            AtomicLong sequence) {
+            AtomicLong sequence,
+            ExecutionTraceRecorder trace) {
         var command = invocation.command();
         return Mono.fromCallable(
                         () -> {
@@ -568,6 +596,9 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                                     decision != null
                                             && decision.outcome()
                                                     == CompletionDecision.Outcome.COMPLETED;
+                            trace.validation(
+                                    decision == null ? "未验证（已取消）" : decision.outcome().name(),
+                                    decision == null ? null : decision.reason());
                             var status =
                                     canceled
                                             ? Execution.Status.CANCELED
@@ -583,19 +614,19 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                             if (completed
                                     && invocation.memoryMode()
                                             != AssistantInvocation.MemoryMode.DISABLED) {
-                                appendSessionTurn(command, reply);
+                                appendSessionTurn(command, reply, trace);
                             }
-                            if (completed
-                                    && longTermMemoryEnabled(invocation, definition)
-                                    && definition
-                                            .memoryStrategy()
-                                            .writeScopes()
-                                            .contains("PERSONAL")) {
-                                memoryGovernance.learn(
-                                        command.memorySubject(),
-                                        command.input(),
+                            if (completed) {
+                                learnLongTermMemory(
+                                        memoryGovernance,
+                                        command,
                                         reply,
-                                        Instant.now());
+                                        longTermMemoryEnabled(invocation, definition)
+                                                && definition
+                                                        .memoryStrategy()
+                                                        .writeScopes()
+                                                        .contains("PERSONAL"),
+                                        trace);
                             }
                             var reason =
                                     canceled
@@ -805,9 +836,11 @@ public final class AssistantApplicationService implements AssistantCommandPort {
     }
 
     /** 写入本轮短期会话上下文；失败只记录，不影响已完成的执行。 */
-    private void appendSessionTurn(AssistantCommand command, String reply) {
+    private void appendSessionTurn(
+            AssistantCommand command, String reply, ExecutionTraceRecorder trace) {
         var sessions = sessionMemories.getIfAvailable();
         if (sessions == null) {
+            trace.sessionTurn("未启用");
             return;
         }
         try {
@@ -817,15 +850,130 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                     command.conversationId().value(),
                     command.input(),
                     reply);
+            trace.sessionTurn("已写入");
         } catch (RuntimeException exception) {
             log.warn("[会话上下文] 短期会话写入失败，不影响本轮结果：{}", exception.getMessage());
+            trace.sessionTurn("写入失败：" + exception.getClass().getSimpleName());
         }
+    }
+
+    /**
+     * 长期记忆学习，尽力而为：回复已生成并判定完成，学习失败只记 WARN 与轨迹摘要，不改变本轮执行结果。
+     *
+     * <p>包级可见供单测直接验证失败不外抛。
+     */
+    static void learnLongTermMemory(
+            MemoryGovernanceService governance,
+            AssistantCommand command,
+            String reply,
+            boolean enabled,
+            ExecutionTraceRecorder trace) {
+        if (!enabled) {
+            trace.longTermMemorySkipped();
+            return;
+        }
+        try {
+            var outcome =
+                    governance.learn(
+                            command.memorySubject(), command.input(), reply, Instant.now());
+            trace.longTermMemoryLearned(outcome.stored(), outcome.rejected());
+        } catch (RuntimeException exception) {
+            log.warn(
+                    "[长期记忆] 执行后学习失败，不影响本轮结果：executionId={}，taskId={}",
+                    command.executionId().value(),
+                    taskKey(command),
+                    exception);
+            trace.longTermMemoryFailed(exception);
+        }
+    }
+
+    /** 把已冻结画像与 L1 上下文中的名称、数量写入轨迹摘要；不读取任何正文。 */
+    private void traceProfile(
+            ExecutionTraceRecorder trace,
+            AssistantInvocation invocation,
+            ExecutionProfileSnapshot profile,
+            com.xuejiai.aaf.framework.intelligent.cognition.model.ControlledContextSnapshot
+                    context) {
+        if (!trace.enabled()) {
+            return;
+        }
+        var command = invocation.command();
+        var skillProfile = profile.skillExecutionProfile();
+        trace.profile(
+                command.invocationProfile().agentKind().name(),
+                profile.roleAssignment().roleKey(),
+                profile.roleAssignment().roleName(),
+                skillProfile.activatedSkills().stream().map(skill -> skill.code()).toList(),
+                invocation.requestedSkillKey(),
+                skillProfile.effectiveTools().stream().map(ToolRef::name).toList(),
+                profile.executionModel().map(ModelSpec::modelId).orElse(null));
+        var references = context.references();
+        trace.context(
+                countSources(references, EffectiveContextManifest.SourceType.MEMORY),
+                countSources(references, EffectiveContextManifest.SourceType.KNOWLEDGE),
+                countSources(references, EffectiveContextManifest.SourceType.TASK_MATERIAL),
+                profile.contextCompression()
+                        .map(compression -> compression.finalEstimatedTokens())
+                        .orElse(null),
+                runtimeExecutionPolicy.contextWindow());
+    }
+
+    private static int countSources(
+            List<EffectiveContextManifest.SourceReference> references,
+            EffectiveContextManifest.SourceType type) {
+        return (int) references.stream().filter(reference -> reference.type() == type).count();
+    }
+
+    /** 协调者节点本轮成功提交委派计划时，读取计划把子节点写入摘要。仅摘要开启时读取；读取失败只影响摘要， 不影响节点收口。 */
+    private void traceDelegation(
+            ExecutionTraceRecorder trace, AssistantCommand command, List<ExecutionEvent> events) {
+        if (!trace.enabled()
+                || command.nodeIdentity().kind() != NodeIdentity.NodeKind.COORDINATOR
+                || events.stream()
+                        .noneMatch(
+                                event ->
+                                        event.type() == ExecutionEventType.TOOL_CALL_COMPLETED
+                                                && SubmitCoordinationPlanTool.TOOL_NAME.equals(
+                                                        event.payload()
+                                                                .values()
+                                                                .get("toolName")))) {
+            return;
+        }
+        try {
+            taskBoards
+                    .find(command.tenantId(), command.taskId())
+                    .ifPresent(plan -> tracePlan(trace, plan, command.nodeIdentity().nodeId()));
+        } catch (RuntimeException exception) {
+            log.debug(
+                    "[执行轨迹] 读取委派计划失败，摘要不列子节点：executionId={}，错误类型={}",
+                    command.executionId().value(),
+                    exception.getClass().getName());
+        }
+    }
+
+    /** 协调者委派出的子节点（不含自身）写入轨迹摘要。 */
+    private static void tracePlan(ExecutionTraceRecorder trace, TaskPlan plan, String selfNodeId) {
+        trace.plan(
+                plan.nodes().values().stream()
+                        .filter(node -> !node.nodeId().equals(selfNodeId))
+                        .sorted(Comparator.comparing(TaskPlan.TaskNode::nodeId))
+                        .map(
+                                node ->
+                                        new ExecutionTraceRecorder.ChildNode(
+                                                node.nodeId(),
+                                                node.kind().name(),
+                                                node.roleKey(),
+                                                node.status() == null
+                                                        ? null
+                                                        : node.status().name()))
+                        .toList());
     }
 
     private Flux<ExecutionEvent> executeAgent(
             AssistantInvocation invocation,
             AtomicReference<Task> taskRef,
-            AtomicBoolean taskProgressed) {
+            AtomicBoolean taskProgressed,
+            ExecutionTraceRecorder trace) {
         var command = invocation.command();
         var sequence = new AtomicLong(command.sequenceBase());
         var emitted = new ArrayList<ExecutionEvent>();
@@ -853,6 +1001,7 @@ public final class AssistantApplicationService implements AssistantCommandPort {
         var controlledContext = executionContext(command, definition, profileCandidate);
         var profile =
                 freezeCompressedProfile(invocation, profileCandidate, controlledContext.messages());
+        traceProfile(trace, invocation, profile, controlledContext);
         var contextCandidates = new ArrayList<>(command.contextCandidates());
         contextCandidates.addAll(controlledContext.references());
         var manifest =
@@ -910,7 +1059,14 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 Flux.fromIterable(emitted),
                 executionEvents,
                 Flux.defer(
-                        () -> finalizeTask(invocation, taskRef, profile, agentEvents, sequence)));
+                        () ->
+                                finalizeTask(
+                                        invocation,
+                                        taskRef,
+                                        profile,
+                                        agentEvents,
+                                        sequence,
+                                        trace)));
     }
 
     /**
@@ -1101,7 +1257,8 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             AtomicReference<Task> taskRef,
             ExecutionProfileSnapshot profile,
             List<ExecutionEvent> agentEvents,
-            AtomicLong sequence) {
+            AtomicLong sequence,
+            ExecutionTraceRecorder trace) {
         var command = invocation.command();
         var agentId = new AgentId(profile.executionSpec().identifier());
         var pausedEvent =
@@ -1148,15 +1305,18 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             throw new IllegalStateException("Agent 取消事件缺少 durable CANCELING 请求");
         }
         if (command.nodeIdentity() != null) {
-            return finalizeNodeExecution(invocation, taskRef, profile, agentEvents, sequence);
+            return finalizeNodeExecution(
+                    invocation, taskRef, profile, agentEvents, sequence, trace);
+        }
+        var plan = taskBoards.find(command.tenantId(), command.taskId());
+        if (trace.enabled()) {
+            plan.ifPresent(found -> tracePlan(trace, found, null));
         }
         var decision =
                 completionValidator.validate(
                         new CompletionValidator.ValidationRequest(
-                                taskRef.get(),
-                                command.completionCriteria(),
-                                taskBoards.find(command.tenantId(), command.taskId()),
-                                agentEvents));
+                                taskRef.get(), command.completionCriteria(), plan, agentEvents));
+        trace.validation(decision.outcome().name(), decision.reason());
         log.debug(
                 "[Assistant协调] 完成条件已判定：executionId={}，taskId={}，条件类别={}，要求事件={}，要求证据字段={}，结果={}，Agent事件数={}",
                 command.executionId().value(),
@@ -1193,13 +1353,15 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 var reply = completedReply(agentEvents);
                 // 短期会话上下文：只受 MemoryMode 控制，与长期沉淀的写 scope 无关
                 if (invocation.memoryMode() != AssistantInvocation.MemoryMode.DISABLED) {
-                    appendSessionTurn(command, reply);
+                    appendSessionTurn(command, reply, trace);
                 }
-                if (longTermMemoryEnabled(invocation, definition)
-                        && definition.memoryStrategy().writeScopes().contains("PERSONAL")) {
-                    memoryGovernance.learn(
-                            command.memorySubject(), command.input(), reply, Instant.now());
-                }
+                learnLongTermMemory(
+                        memoryGovernance,
+                        command,
+                        reply,
+                        longTermMemoryEnabled(invocation, definition)
+                                && definition.memoryStrategy().writeScopes().contains("PERSONAL"),
+                        trace);
                 events.add(
                         taskEvent(
                                 command,
@@ -1349,7 +1511,8 @@ public final class AssistantApplicationService implements AssistantCommandPort {
             AtomicReference<Task> taskRef,
             ExecutionProfileSnapshot profile,
             List<ExecutionEvent> agentEvents,
-            AtomicLong sequence) {
+            AtomicLong sequence,
+            ExecutionTraceRecorder trace) {
         var command = invocation.command();
         var task = taskRef.get();
         var successfulRun =
@@ -1381,6 +1544,8 @@ public final class AssistantApplicationService implements AssistantCommandPort {
                 completionValidator.validate(
                         new CompletionValidator.ValidationRequest(
                                 task, command.completionCriteria(), validationPlan, agentEvents));
+        trace.validation(decision.outcome().name(), decision.reason());
+        traceDelegation(trace, command, agentEvents);
         var draftEvidence =
                 agentEvents.stream()
                         .filter(event -> event.type() == ExecutionEventType.TOOL_CALL_COMPLETED)

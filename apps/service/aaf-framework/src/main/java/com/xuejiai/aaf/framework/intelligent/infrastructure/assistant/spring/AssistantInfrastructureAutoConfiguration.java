@@ -394,7 +394,8 @@ public class AssistantInfrastructureAutoConfiguration {
                 liveEvents,
                 recoveries,
                 sessionMemories,
-                aiProperties.getContext().getDefaultContextWindow());
+                aiProperties.getContext().getDefaultContextWindow(),
+                Boolean.TRUE.equals(aiProperties.getExecutionTrace().getEnabled()));
     }
 
     @Bean
