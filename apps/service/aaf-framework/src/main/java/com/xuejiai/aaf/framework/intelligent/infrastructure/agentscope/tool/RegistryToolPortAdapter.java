@@ -57,17 +57,22 @@ public final class RegistryToolPortAdapter implements ToolCatalogPort, ToolInvoc
         return tools.stream().map(this::resolveOne).toList();
     }
 
-    /** 本地 callback 与上下文感知内置工具均在 boundedElastic 执行，避免阻塞事件循环线程。 */
+    /**
+     * 本地 callback 与上下文感知内置工具均在 boundedElastic 执行，避免阻塞事件循环线程。
+     *
+     * <p>内置工具（{@link ContextAwareToolHandler}）的治理元数据由代码自声明，与 {@code AgentScopeToolkitFactory}
+     * 构造工具时一致，调用时同样不查 {@code ai_tool_catalog}；只有 callback 类工具才按目录解析与校验。
+     */
     @Override
     public Mono<ToolInvocationResult> invoke(ToolInvocation invocation) {
         Objects.requireNonNull(invocation, "invocation 不能为空");
-        var definition = resolveOne(invocation.tool());
-        if (definition.connectorAction()) {
-            return Mono.error(new IllegalStateException("Connector 禁止绕过 ConnectorActionPort 调用"));
-        }
         var handler = handler(invocation.tool().name());
         if (handler != null) {
             return handler.invoke(invocation).subscribeOn(Schedulers.boundedElastic());
+        }
+        var definition = resolveOne(invocation.tool());
+        if (definition.connectorAction()) {
+            return Mono.error(new IllegalStateException("Connector 禁止绕过 ConnectorActionPort 调用"));
         }
         return Mono.fromCallable(
                         () -> {
