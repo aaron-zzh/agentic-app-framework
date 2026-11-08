@@ -1124,9 +1124,11 @@ VALUES
 ('qwen:qwen3.7-text-rerank',      'Qwen3.7 Rerank',      'qwen', 'DASHSCOPE',    'qwen3.7-text-rerank',            'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com', 'RERANK',     32000, 360, true,  0.0005,  0, null, 0, null, null),
 -- 语音识别（ASR）
 ('qwen:fun-asr-realtime',          '通义 ASR Flash',      'qwen', 'DASHSCOPE',    'fun-asr-realtime',               'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com', 'SPEECH_ASR', null, 310, true,  null,  null, 0.00033, 2, null, null),
--- 语音合成（TTS）
-('qwen:cosyvoice-v3.5-flash',        'CosyVoice 3 Flash',   'qwen', 'DASHSCOPE',    'cosyvoice-v3.5-flash',             'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com', 'SPEECH_TTS', null, 320, true,  0.1,   null, null, 0, null, null),
-('qwen:cosyvoice-v3.5-plus',         'CosyVoice 3 Plus',    'qwen', 'DASHSCOPE',    'cosyvoice-v3.5-plus',              'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com', 'SPEECH_TTS', null, 321, true,  0.2,   null, null, 0, null, null),
+-- 语音合成（TTS）：v3 系列提供系统音色；v3.5 系列只支持复刻/设计音色，无系统音色
+('qwen:cosyvoice-v3-flash',          'CosyVoice 3 Flash',   'qwen', 'DASHSCOPE',    'cosyvoice-v3-flash',               'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com', 'SPEECH_TTS', null, 320, true,  0.1,   null, null, 0, null, null),
+('qwen:cosyvoice-v3-plus',           'CosyVoice 3 Plus',    'qwen', 'DASHSCOPE',    'cosyvoice-v3-plus',                'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com', 'SPEECH_TTS', null, 321, true,  0.2,   null, null, 0, null, null),
+('qwen:cosyvoice-v3.5-flash',        'CosyVoice 3.5 Flash', 'qwen', 'DASHSCOPE',    'cosyvoice-v3.5-flash',             'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com', 'SPEECH_TTS', null, 322, true,  0.1,   null, null, 0, null, null),
+('qwen:cosyvoice-v3.5-plus',         'CosyVoice 3.5 Plus',  'qwen', 'DASHSCOPE',    'cosyvoice-v3.5-plus',              'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com', 'SPEECH_TTS', null, 323, true,  0.2,   null, null, 0, null, null),
 -- 音乐生成
 ('qwen:fun-music-v1',              '文生音乐 v1',          'qwen', 'DASHSCOPE',    'fun-music-v1',                   'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com', 'MUSIC_GEN',  null, 330, true,  null,  null, 0.002, 2, null, null),
 -- 全模态实时
@@ -1147,7 +1149,7 @@ VALUES
     ('SYSTEM', NULL, 'OCR',        '["qwen:qwen3.5-ocr"]'),
     ('SYSTEM', NULL, 'MUSIC_GEN',  '["qwen:fun-music-v1"]'),
     ('SYSTEM', NULL, 'SPEECH_ASR', '["qwen:fun-asr-realtime"]'),
-    ('SYSTEM', NULL, 'SPEECH_TTS', '["qwen:cosyvoice-v3.5-flash"]'),
+    ('SYSTEM', NULL, 'SPEECH_TTS', '["qwen:cosyvoice-v3-flash"]'),
     ('SYSTEM', NULL, 'MODEL_3D',   '["tripo:Tripo/Tripo-P1.0"]')
 ON CONFLICT ON CONSTRAINT uq_model_preference DO NOTHING;
 

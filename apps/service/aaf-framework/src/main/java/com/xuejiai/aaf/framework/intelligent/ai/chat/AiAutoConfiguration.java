@@ -53,7 +53,7 @@ public class AiAutoConfiguration {
                                         "qwen:fun-asr-realtime"),
                                 Map.entry(
                                         CapabilityRoutingContext.CAP_SPEECH_TTS,
-                                        "qwen:cosyvoice-v3.5-flash"),
+                                        "qwen:cosyvoice-v3-flash"),
                                 Map.entry(
                                         CapabilityRoutingContext.CAP_MUSIC_GEN,
                                         "qwen:fun-music-v1"),

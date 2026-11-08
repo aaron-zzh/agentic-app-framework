@@ -18,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
  *
  * <p>复刻的音色（voiceId）可直接传给 {@link DashScopeSpeechService#synthesize} 的 voice 参数用于 TTS 合成。
  *
- * <p>支持模型：cosyvoice-v3-plus / cosyvoice-v3.5-flash / cosyvoice-v3.5-plus / cosyvoice-v3.5-flash
+ * <p>支持模型：cosyvoice-v3-plus / cosyvoice-v3-flash / cosyvoice-v3.5-plus / cosyvoice-v3.5-flash
  */
 @Slf4j
 @Service
