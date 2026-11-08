@@ -100,6 +100,7 @@ public class KnowledgeDocumentUploadService {
             Long sourceDocumentId,
             String sourceKey,
             String sourceType,
+            String fileType,
             Long uploadedBy) {
         if (content == null
                 || content.length == 0
@@ -130,7 +131,8 @@ public class KnowledgeDocumentUploadService {
         document.setSourceUri(sourceFile.url());
         document.setTitle(filename);
         document.setFilePath(sourceFile.key());
-        document.setFileType(extractFileType(filename));
+        document.setFileType(
+                fileType == null || fileType.isBlank() ? extractFileType(filename) : fileType);
         document.setFileSize(sourceFile.size());
         document.setStatus(DocumentStatusEnum.PENDING.getCode());
         document.setChunkCount(0);

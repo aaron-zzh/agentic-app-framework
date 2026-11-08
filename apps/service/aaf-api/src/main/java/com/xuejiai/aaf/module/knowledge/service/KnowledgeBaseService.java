@@ -98,6 +98,10 @@ public class KnowledgeBaseService
     private static final int MAX_LIBRARY_IMPORT_DOCUMENTS = 20;
     private static final int MAX_LIBRARY_FILENAME_BASE_LENGTH = 196;
     private static final String KNOWLEDGE_SOURCE_DOCUMENT_TYPE = "knowledge_source";
+
+    /** 文档库 PDF 导入文档类型，与 DocImportService.PDF_IMPORT_DOC_TYPE 一致。 */
+    private static final String PDF_IMPORT_DOCUMENT_TYPE = "pdf_import";
+
     private static final String LIBRARY_SOURCE_TYPE = "BUSINESS_OBJECT";
     private static final Set<String> PLATFORM_ADMIN_AUTHORITIES =
             Set.of("ROLE_ADMIN", "ROLE_SUPER_ADMIN");
@@ -654,6 +658,7 @@ public class KnowledgeBaseService
                             document.id(),
                             librarySourceKey(document.id(), version.id()),
                             LIBRARY_SOURCE_TYPE,
+                            libraryFileType(document),
                             ownerId);
             imported.add(toDocumentVO(saved));
         }
@@ -675,6 +680,11 @@ public class KnowledgeBaseService
             return "该版本已导入";
         }
         return null;
+    }
+
+    /** PDF 导入文档的知识文档类型记为 pdf（处理文件虽是提取文本），其余由处理文件扩展名推出（返回 null）。 */
+    private static String libraryFileType(OwnedDocument document) {
+        return PDF_IMPORT_DOCUMENT_TYPE.equals(document.documentType()) ? "pdf" : null;
     }
 
     private static String librarySourceKeyPrefix(Long documentId) {
