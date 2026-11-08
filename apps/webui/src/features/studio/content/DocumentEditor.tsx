@@ -7,15 +7,18 @@
 
 import { ExternalLink, Eye, Loader2, Pencil } from "lucide-react"
 import Link from "next/link"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { toast } from "sonner"
+import { PdfViewer } from "@/components/pdf"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { RichTextEditorHandle } from "@/features/rich-text-editor"
 import { RichTextEditor } from "@/features/rich-text-editor"
+import { buildApiUrl } from "@/lib/api/config"
+import { getBackendRequestContextHeaders } from "@/lib/api/rest/backend-client"
 import {
   useDocument,
   useDocumentVersion,
@@ -23,6 +26,9 @@ import {
   useUnpublishDocument,
   useUpdateDocument
 } from "@/lib/api/rest/system/document"
+
+/** PDF 提取文本文档类型：正文为只读派生文本，原文件以 sourceFileId 保留，与后端一致。 */
+const PDF_IMPORT_DOC_TYPE = "pdf_import"
 
 interface DocumentEditorProps {
   docId?: number
@@ -64,7 +70,22 @@ export function DocumentEditor({
   )
   const displayedDocument = isPinned ? pinnedVersion : doc
   const isLoading = isPinned ? pinnedVersionLoading : docLoading
-  const canEdit = allowEditing && !isPinned
+  // PDF 导入文档：正文只读，有原文件时提供原文件预览
+  const isPdfImport = !isPinned && doc?.docType === PDF_IMPORT_DOC_TYPE
+  const sourceFileId = isPdfImport ? (doc?.sourceFileId ?? null) : null
+  // react-pdf 按引用判断文件变化，鉴权源对象需稳定
+  const pdfSource = useMemo(
+    () =>
+      sourceFileId === null
+        ? null
+        : {
+            url: buildApiUrl(`/system/files/${sourceFileId}/content`),
+            httpHeaders: getBackendRequestContextHeaders()
+          },
+    [sourceFileId]
+  )
+  const [pdfTab, setPdfTab] = useState<"pdf" | "text">("pdf")
+  const canEdit = allowEditing && !isPinned && !isPdfImport
   const { mutate: updateDoc, isPending: saving } = useUpdateDocument()
   const { mutate: publish } = usePublishDocument()
   const { mutate: unpublish } = useUnpublishDocument()
@@ -162,11 +183,24 @@ export function DocumentEditor({
   const isCurrentVersionPublished =
     hasPublishedVersion && doc?.publishedVersionId === doc?.currentVersionId
 
-  if (view === "preview") {
+  if (view === "preview" || isPdfImport) {
+    const showPdf = pdfSource !== null && pdfTab === "pdf"
     return (
       <div className="flex h-full min-h-0 flex-col">
         <div className="flex items-center gap-2 border-b px-4 py-2">
           <h3 className="min-w-0 flex-1 truncate font-medium text-sm">{title}</h3>
+          {pdfSource ? (
+            <Tabs value={pdfTab} onValueChange={(value) => setPdfTab(value as "pdf" | "text")}>
+              <TabsList className="h-7">
+                <TabsTrigger value="pdf" className="px-2 text-xs">
+                  原文件
+                </TabsTrigger>
+                <TabsTrigger value="text" className="px-2 text-xs">
+                  提取文本
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          ) : null}
           {isPinned ? (
             <Badge variant="secondary">固定版本 v{pinnedVersion?.versionNo}</Badge>
           ) : (
@@ -197,9 +231,13 @@ export function DocumentEditor({
           ) : null}
         </div>
         <div className="min-h-0 flex-1 overflow-auto px-5 py-4">
-          <article className="prose prose-sm dark:prose-invert max-w-none">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content || "暂无内容"}</ReactMarkdown>
-          </article>
+          {showPdf ? (
+            <PdfViewer file={pdfSource} />
+          ) : (
+            <article className="prose prose-sm dark:prose-invert max-w-none">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{content || "暂无内容"}</ReactMarkdown>
+            </article>
+          )}
         </div>
       </div>
     )
