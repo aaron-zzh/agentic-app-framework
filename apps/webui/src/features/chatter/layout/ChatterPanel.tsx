@@ -14,7 +14,7 @@ import { useTaskList } from "@/features/chatter/hooks/use-task-list"
 import { ClarificationInterruptPanel } from "@/features/chatter/runtime/ui-block/ClarificationInterruptPanel"
 import { TaskPanel } from "@/features/chatter/task/TaskPanel"
 import { ToolConfirmOverlay } from "@/features/chatter/task/ToolConfirmOverlay"
-import { ChatterThread } from "@/features/chatter/thread"
+import { ChatterThread, ConversationCreditBar } from "@/features/chatter/thread"
 import type {
   ChatterDisplayPreferences,
   ChatterDropItem,
@@ -81,6 +81,7 @@ export function ChatterPanel({
       {!guestMode && displayPreferences.showPlan && (
         <TaskPanel tasks={tasks} progress={progress} isLoading={isLoading} />
       )}
+      {!guestMode && <ConversationCreditBar />}
       {guestMode ? (
         composer
       ) : (

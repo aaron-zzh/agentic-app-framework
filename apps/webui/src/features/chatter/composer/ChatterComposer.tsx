@@ -366,7 +366,7 @@ function ModelSelectorSlot({
       value={modelId}
       onChange={setModelId}
       placeholder="任务模型"
-      className="h-7 min-w-0 max-w-20 shrink gap-1 rounded-full px-1.5 text-muted-foreground text-xs hover:text-foreground"
+      className="h-7 min-w-0 max-w-40 shrink gap-1 rounded-full px-1.5 text-muted-foreground text-xs hover:text-foreground"
       autoOption={{
         selected: taskModelSelection.mode === "AUTO",
         onSelect: () => onTaskModelSelectionChange(DEFAULT_TASK_MODEL_SELECTION),
