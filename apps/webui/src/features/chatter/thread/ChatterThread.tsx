@@ -43,9 +43,11 @@ import {
   ImageIcon,
   InfoIcon,
   LinkIcon,
+  LoaderCircle,
   PencilIcon,
   Play,
   RefreshCwIcon,
+  Square,
   ThumbsDownIcon,
   ThumbsUpIcon,
   XIcon
@@ -58,11 +60,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { deriveVoiceOrbState, VoiceControl, VoiceOrb } from "@/components/voice"
 import { type AgentSuggestion, useAgentRunStore } from "@/features/livechat/runtime/agent-run-store"
 import { SpeechOutput } from "@/features/livechat/voice/SpeechOutput"
-import { chatApi, useConversationCreditSummary } from "@/lib/api/rest/ai"
+import { chatApi } from "@/lib/api/rest/ai"
 import { useAuthStore } from "@/lib/store/auth-store"
-import { serverTtsStream, useVoiceConfig } from "@/lib/store/voice-config"
+import { useVoiceConfig } from "@/lib/store/voice-config"
 import { cn } from "@/lib/utils/cn"
 import { formatMessageTime } from "@/lib/utils/format-time"
+import { useServerTts } from "../hooks/use-server-tts"
 import { MarkdownText } from "./MarkdownText"
 
 /** AI 消息内容提取（用于 TTS） */
@@ -419,6 +422,51 @@ function UserEditComposer() {
   )
 }
 
+/** 服务端 TTS 播放按钮：空闲时播放，加载中/播放中点击停止 */
+function ServerTtsButton({ text }: { text: string }) {
+  const ttsVoice = useVoiceConfig((s) => s.ttsVoice)
+  const { state, play, stop } = useServerTts()
+
+  const handleClick = useCallback(() => {
+    if (state !== "idle") {
+      stop()
+      return
+    }
+    play(text, ttsVoice).catch(() => toast.error("语音播放失败，请稍后重试"))
+  }, [state, stop, play, text, ttsVoice])
+
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      onClick={handleClick}
+      aria-busy={state === "loading"}
+      aria-label={
+        state === "idle" ? "播放语音" : state === "loading" ? "语音加载中，点击取消" : "停止播放"
+      }
+    >
+      {state === "idle" && <Play className="size-4" />}
+      {state === "loading" && <LoaderCircle className="size-4 animate-spin" />}
+      {state === "playing" && <Square className="size-3.5" />}
+    </Button>
+  )
+}
+
+/** 思考占位：三点跳动 + 文案 */
+function ThinkingIndicator() {
+  return (
+    <div className="flex items-center gap-2 text-muted-foreground text-sm">
+      <div className="flex gap-1">
+        <div className="size-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.3s]" />
+        <div className="size-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.15s]" />
+        <div className="size-1.5 animate-bounce rounded-full bg-current" />
+      </div>
+      <span>正在思考...</span>
+    </div>
+  )
+}
+
 /** AI 消息气泡 */
 function AssistantMessage({
   guestMode,
@@ -430,23 +478,18 @@ function AssistantMessage({
   const text = useMessageText()
   const createdAt = useAuiState((s) => s.message.createdAt)
   const ttsMode = useVoiceConfig((s) => s.ttsMode)
-  const ttsVoice = useVoiceConfig((s) => s.ttsVoice)
-
-  const handleServerPlay = useCallback(async () => {
-    if (!text) return
-    const audioCtx = new AudioContext()
-    await serverTtsStream(text, ttsVoice, async (chunk) => {
-      const buffer = await audioCtx.decodeAudioData(chunk)
-      const source = audioCtx.createBufferSource()
-      source.buffer = buffer
-      source.connect(audioCtx.destination)
-      source.start()
-    })
-  }, [text, ttsVoice])
+  // 生成中且尚无可见内容（推理被隐藏时也算无内容）→ 在本气泡内显示思考占位，不另起气泡
+  const awaitingContent = useAuiState(
+    (s) =>
+      s.message.role === "assistant" &&
+      s.message.status?.type === "running" &&
+      s.message.content.every((p) => !showThinking && p.type === "reasoning")
+  )
 
   return (
     <MessagePrimitive.Root className="mb-3 flex flex-col items-start">
       <div className="max-w-[85%] rounded-lg bg-muted px-3 py-2 text-sm">
+        {awaitingContent && <ThinkingIndicator />}
         {/* 消息内容：Markdown + 推理（Chain of Thought 分组折叠） + 工具调用 + Generative UI */}
         <MessagePrimitive.GroupedParts
           groupBy={groupPartByType({
@@ -510,19 +553,7 @@ function AssistantMessage({
         {/* TTS */}
         {!guestMode && text && (
           <div className="mt-1 border-t pt-1">
-            {ttsMode === "browser" ? (
-              <SpeechOutput text={text} />
-            ) : (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={handleServerPlay}
-                aria-label="播放语音"
-              >
-                <Play className="size-4" />
-              </Button>
-            )}
+            {ttsMode === "browser" ? <SpeechOutput text={text} /> : <ServerTtsButton text={text} />}
           </div>
         )}
       </div>
@@ -694,13 +725,8 @@ export function ChatterThread({
   guestMode?: boolean
   showThinking: boolean
 }) {
-  const isLoading = useAuiState((s) => s.thread.isRunning)
-  const currentThreadId = useAgentRunStore((state) => state.currentThreadId)
-  const currentRunId = useAgentRunStore((state) => state.diagnostic.runId)
-  const { data: creditSummary } = useConversationCreditSummary(
-    currentThreadId,
-    currentRunId,
-    !guestMode && !isLoading
+  const awaitingAssistant = useAuiState(
+    (s) => s.thread.isRunning && s.thread.messages.at(-1)?.role !== "assistant"
   )
 
   return (
@@ -722,27 +748,12 @@ export function ChatterThread({
           }
         </ThreadPrimitive.Messages>
 
-        {/* 加载状态指示器 */}
-        {isLoading && (
+        {/* 助理消息尚未创建时的思考占位；已创建后由助理气泡内部显示 */}
+        {awaitingAssistant && (
           <div className="mb-3 flex items-start">
             <div className="max-w-[85%] rounded-lg bg-muted px-3 py-2">
-              <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <div className="flex gap-1">
-                  <div className="size-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.3s]" />
-                  <div className="size-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.15s]" />
-                  <div className="size-1.5 animate-bounce rounded-full bg-current" />
-                </div>
-                <span>正在思考...</span>
-              </div>
+              <ThinkingIndicator />
             </div>
-          </div>
-        )}
-
-        {!guestMode && creditSummary && (
-          <div className="mb-3 flex justify-center gap-2 text-muted-foreground text-xs">
-            <span>本轮消耗 {creditSummary.turnCredits.toLocaleString()} 积分</span>
-            <span aria-hidden="true">·</span>
-            <span>当前对话累计 {creditSummary.conversationCredits.toLocaleString()} 积分</span>
           </div>
         )}
 
