@@ -77,10 +77,10 @@ ON CONFLICT DO NOTHING;
 -- ============================================================
 
 INSERT INTO aigc_project_type
-    (code, name, description, default_channels, default_production_mode, status)
+    (code, name, description, default_channels, default_production_mode, sort_order, status)
 VALUES
-    ('digital_human_asset', '数字人资产', '数字人形象生成', '[]'::jsonb, 'standard', 'published'),
-    ('digital_human_video', '数字人视频', '数字人营销视频生成', '["douyin","wechat_channels"]'::jsonb, 'standard', 'published')
+    ('digital_human_asset', '数字人资产', '数字人形象生成', '[]'::jsonb, 'standard', 9, 'published'),
+    ('digital_human_video', '数字人视频', '数字人营销视频生成', '["douyin","wechat_channels"]'::jsonb, 'standard', 10, 'published')
 ON CONFLICT DO NOTHING;
 
 -- ============================================================
