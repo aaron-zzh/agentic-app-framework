@@ -199,10 +199,11 @@ public class EntityExtractionService {
         var prepared = new ArrayList<ExtractedTriple>(triples.size());
         for (var index = 0; index < triples.size(); index++) {
             try {
-                var corrected = correctEvidenceOffsets(focus, triples.get(index));
-                validateContract(corrected, index);
-                validateFocusEvidence(focus, corrected);
-                prepared.add(corrected);
+                var normalized = clearLiteralTypeFields(triples.get(index));
+                validateContract(normalized, index);
+                var located = locateEvidence(focus, normalized);
+                validateFocusEvidence(focus, located);
+                prepared.add(located);
             } catch (NonRetryableTaskException failure) {
                 log.warn(
                         "[KnowledgeExtraction] 丢弃无效事实: runId={}, chunkId={}, index={}, reason={}",
@@ -215,28 +216,97 @@ public class EntityExtractionService {
         return List.copyOf(prepared);
     }
 
-    private ExtractedTriple correctEvidenceOffsets(String focus, ExtractedTriple triple) {
-        if (triple == null) {
+    /** LITERAL 客体不使用类型与说明，模型误填时直接清空，不因此丢弃事实。 */
+    private ExtractedTriple clearLiteralTypeFields(ExtractedTriple triple) {
+        if (triple == null
+                || !"LITERAL".equals(triple.objectKind())
+                || ("".equals(triple.objectType()) && "".equals(triple.objectDescription()))) {
+            return triple;
+        }
+        return copy(triple, "", "", triple.evidenceQuote(), null, null);
+    }
+
+    /**
+     * 在焦点块中定位证据并由系统计算字符区间：先精确匹配；失败时忽略空白、Markdown 强调符号与全角半角差异再匹配。
+     *
+     * <p>宽松匹配成功时证据替换为焦点块中对应的原文片段，入库证据仍逐字来自原文。
+     */
+    private ExtractedTriple locateEvidence(String focus, ExtractedTriple triple) {
+        var quote = triple.evidenceQuote();
+        var start = focus.indexOf(quote);
+        if (start >= 0) {
+            return copy(
+                    triple,
+                    triple.objectType(),
+                    triple.objectDescription(),
+                    quote,
+                    start,
+                    start + quote.length());
+        }
+        var span = looseSpan(focus, quote);
+        if (span == null) {
+            throw new NonRetryableTaskException("事实证据在焦点块中找不到原文");
+        }
+        return copy(
+                triple,
+                triple.objectType(),
+                triple.objectDescription(),
+                focus.substring(span[0], span[1]),
+                span[0],
+                span[1]);
+    }
+
+    /** 宽松匹配：两侧都去掉可忽略字符并统一全角半角后查找，返回焦点块原文区间；找不到返回 null。 */
+    private static int[] looseSpan(String focus, String quote) {
+        var normalizedQuote = new StringBuilder(quote.length());
+        quote.chars()
+                .filter(character -> !isIgnorable(character))
+                .forEach(character -> normalizedQuote.append(fold((char) character)));
+        if (normalizedQuote.isEmpty()) {
             return null;
         }
-        var quote = triple.evidenceQuote();
-        if (quote == null || quote.isEmpty()) {
-            return triple;
+        var normalizedFocus = new StringBuilder(focus.length());
+        var positions = new int[focus.length()];
+        for (var index = 0; index < focus.length(); index++) {
+            var character = focus.charAt(index);
+            if (!isIgnorable(character)) {
+                positions[normalizedFocus.length()] = index;
+                normalizedFocus.append(fold(character));
+            }
         }
-        var start = triple.startOffset();
-        var end = triple.endOffset();
-        if (start != null
-                && end != null
-                && start >= 0
-                && end > start
-                && end <= focus.length()
-                && focus.substring(start, end).equals(quote)) {
-            return triple;
+        var found = normalizedFocus.indexOf(normalizedQuote.toString());
+        if (found < 0) {
+            return null;
         }
-        var correctedStart = focus.indexOf(quote);
-        if (correctedStart < 0) {
-            return triple;
+        return new int[] {positions[found], positions[found + normalizedQuote.length() - 1] + 1};
+    }
+
+    private static boolean isIgnorable(int character) {
+        return Character.isWhitespace(character)
+                || Character.isSpaceChar(character)
+                || character == '*'
+                || character == '`';
+    }
+
+    /** 全角 ASCII 字符转半角，中文弯引号统一为直引号。 */
+    private static char fold(char character) {
+        if (character >= '\uFF01' && character <= '\uFF5E') {
+            return (char) (character - 0xFEE0);
         }
+        return switch (character) {
+            case '\u201C', '\u201D' -> '"';
+            case '\u2018', '\u2019' -> '\'';
+            default -> character;
+        };
+    }
+
+    private static ExtractedTriple copy(
+            ExtractedTriple triple,
+            String objectType,
+            String objectDescription,
+            String evidenceQuote,
+            Integer startOffset,
+            Integer endOffset) {
         return new ExtractedTriple(
                 triple.subject(),
                 triple.subjectType(),
@@ -244,11 +314,11 @@ public class EntityExtractionService {
                 triple.predicate(),
                 triple.object(),
                 triple.objectKind(),
-                triple.objectType(),
-                triple.objectDescription(),
-                quote,
-                correctedStart,
-                correctedStart + quote.length(),
+                objectType,
+                objectDescription,
+                evidenceQuote,
+                startOffset,
+                endOffset,
                 triple.confidence(),
                 triple.validAt(),
                 triple.invalidAt(),
@@ -286,12 +356,6 @@ public class EntityExtractionService {
                 EntityExtractionPrompt.MAX_EVIDENCE_LENGTH,
                 index);
 
-        if (triple.startOffset() == null) {
-            throw invalidItem(index, "startOffset 必须是 32 位整数");
-        }
-        if (triple.endOffset() == null) {
-            throw invalidItem(index, "endOffset 必须是 32 位整数");
-        }
         if (triple.confidence() == null || !Double.isFinite(triple.confidence())) {
             throw invalidItem(index, "confidence 必须是有限数");
         }

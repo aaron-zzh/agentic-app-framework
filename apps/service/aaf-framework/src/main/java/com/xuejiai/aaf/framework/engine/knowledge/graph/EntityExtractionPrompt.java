@@ -14,7 +14,7 @@ import com.xuejiai.aaf.common.util.JsonUtils;
 /** 焦点块事实抽取固定输出契约。 */
 public final class EntityExtractionPrompt {
 
-    public static final String OUTPUT_CONTRACT_VERSION = "knowledge-fact-schema-v7";
+    public static final String OUTPUT_CONTRACT_VERSION = "knowledge-fact-schema-v8";
     public static final String OUTPUT_SCHEMA_NAME = "submit_facts";
     public static final int MAX_FACTS_PER_CHUNK = 100;
     public static final int MAX_RESPONSE_LENGTH = 1_000_000;
@@ -41,8 +41,6 @@ public final class EntityExtractionPrompt {
                     "objectType",
                     "objectDesc",
                     "evidenceQuote",
-                    "startOffset",
-                    "endOffset",
                     "confidence");
 
     public static final Set<String> OPTIONAL_FIELDS = Set.of("validAt", "invalidAt", "attributes");
@@ -110,8 +108,7 @@ public final class EntityExtractionPrompt {
             - 必须从 FOCUS 中逐字复制一段连续原文，不得引用 CONTEXT_ONLY，不得改写、概括、补字、删字或拼接不相邻的片段。
             - 原文中的 Markdown 标记（如 **、#、-、>、`）、空格（含中文与数字之间的空格）、全角或半角标点、换行都必须原样保留，不得删除或替换。
             - 优先引用能支撑该事实的最短完整句或分句；无法确定原文准确写法时，改为引用更短、能确保逐字一致的连续片段。
-            - 系统会用 evidenceQuote 在 FOCUS 中做精确匹配，原文找不到的事实会被直接丢弃。
-            startOffset 和 endOffset 是 evidenceQuote 在 FOCUS Java 字符串中的零基、左闭右开 UTF-16 字符区间；系统会按 evidenceQuote 原文重新校正偏移，因此 evidenceQuote 的逐字准确性优先于偏移数值。
+            - 系统会用 evidenceQuote 在 FOCUS 中定位原文并计算字符区间，原文找不到的事实会被直接丢弃。
 
             validAt 和 invalidAt 只能是 ISO-8601 UTC 时间（如 2025-12-31T00:00:00Z）或 null；原文时间无法确定到具体时刻时填 null，不得填写“年底”“前”等中文描述或空字符串。
             attributes 可省略；需要时只放 FOCUS 中明确出现的补充属性，以及上文规定的 modality。
@@ -143,8 +140,6 @@ public final class EntityExtractionPrompt {
         properties.put("objectType", Map.of("type", "string", "enum", objectTypes));
         properties.put("objectDesc", string);
         properties.put("evidenceQuote", string);
-        properties.put("startOffset", Map.of("type", "integer"));
-        properties.put("endOffset", Map.of("type", "integer"));
         properties.put("confidence", Map.of("type", "number"));
         properties.put("validAt", nullableTime);
         properties.put("invalidAt", nullableTime);
