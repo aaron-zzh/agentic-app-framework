@@ -101,9 +101,24 @@ public class DashScopeStructuredOutputClient {
             String nativeBaseUrl, MultiModalConversationParam param) {
         try {
             return new MultiModalConversation(Protocol.HTTP.getValue(), nativeBaseUrl).call(param);
-        } catch (ApiException | NoApiKeyException | UploadFileException failure) {
+        } catch (ApiException failure) {
+            if (isThrottled(failure)) {
+                throw new ModelThrottledException("百炼结构化输出被限频: " + failure.getMessage(), failure);
+            }
+            throw new IllegalStateException("百炼结构化输出调用失败: " + failure.getMessage(), failure);
+        } catch (NoApiKeyException | UploadFileException failure) {
             throw new IllegalStateException("百炼结构化输出调用失败: " + failure.getMessage(), failure);
         }
+    }
+
+    /** 百炼限频返回 HTTP 429，错误码以 Throttling 开头（如 Throttling.RateQuota）；此时请求未被执行。 */
+    private static boolean isThrottled(ApiException failure) {
+        var status = failure.getStatus();
+        if (status == null) {
+            return false;
+        }
+        return status.getStatusCode() == 429
+                || (status.getCode() != null && status.getCode().startsWith("Throttling"));
     }
 
     private static MultiModalMessage message(Role role, String text) {

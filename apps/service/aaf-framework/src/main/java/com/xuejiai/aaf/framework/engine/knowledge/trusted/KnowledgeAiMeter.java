@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 
 import org.springframework.ai.chat.client.ResponseEntity;
@@ -14,15 +15,24 @@ import com.xuejiai.aaf.common.util.JsonUtils;
 import com.xuejiai.aaf.framework.engine.credit.AiCreditGuard;
 import com.xuejiai.aaf.framework.engine.knowledge.graph.ExtractedTriple;
 import com.xuejiai.aaf.framework.engine.knowledge.summary.KnowledgeSummaryPrompt.DocumentSummaryOutput;
+import com.xuejiai.aaf.framework.intelligent.ai.chat.ModelThrottledException;
 import com.xuejiai.aaf.framework.intelligent.core.AiUsage;
 import com.xuejiai.aaf.framework.intelligent.core.model.ModelManagementService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /** 抽取和消歧共享的知识 AI 计量器。 */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class KnowledgeAiMeter {
+
+    /** 限频最多重试次数。 */
+    private static final int MAX_THROTTLE_RETRIES = 5;
+
+    /** 限频首次退避时长，之后每次翻倍。 */
+    private static final long INITIAL_THROTTLE_BACKOFF_MILLIS = 2_000;
 
     private final KnowledgeUsagePort usagePort;
     private final ModelManagementService modelManagementService;
@@ -84,7 +94,7 @@ public class KnowledgeAiMeter {
             throw new IllegalStateException("知识入库 AI 单元并发占用失败");
         }
         try {
-            var responseEntity = invocation.get();
+            var responseEntity = callWithThrottleRetry(invocation);
             if (responseEntity == null
                     || responseEntity.response() == null
                     || responseEntity.entity() == null) {
@@ -108,6 +118,10 @@ public class KnowledgeAiMeter {
                     provider.promptTokens(),
                     provider.completionTokens());
             return provider.entity();
+        } catch (ModelThrottledException throttled) {
+            // 限频重试用尽：请求未被执行，退回待处理，下次入库可直接重新占用，不标记为结果未知
+            usagePort.releaseForRetry(reservation, throttled.getMessage());
+            throw throttled;
         } catch (RuntimeException failure) {
             usagePort.markUnknown(reservation, failure.getMessage());
             throw failure;
@@ -209,7 +223,7 @@ public class KnowledgeAiMeter {
             throw new IllegalStateException("知识入库 AI 单元并发占用失败");
         }
         try {
-            var responseEntity = invocation.get();
+            var responseEntity = callWithThrottleRetry(invocation);
             if (responseEntity == null
                     || responseEntity.response() == null
                     || responseEntity.entity() == null) {
@@ -238,6 +252,10 @@ public class KnowledgeAiMeter {
                     provider.promptTokens(),
                     provider.completionTokens());
             return provider.entity();
+        } catch (ModelThrottledException throttled) {
+            // 限频重试用尽：请求未被执行，退回待处理，下次入库可直接重新占用，不标记为结果未知
+            usagePort.releaseForRetry(reservation, throttled.getMessage());
+            throw throttled;
         } catch (RuntimeException failure) {
             usagePort.markUnknown(reservation, failure.getMessage());
             throw failure;
@@ -280,6 +298,39 @@ public class KnowledgeAiMeter {
         return provider.entity();
     }
 
+    /**
+     * 执行模型调用，遇到供应商限频时按指数退避加随机抖动重试（2、4、8、16、32 秒）。
+     *
+     * <p>只重试限频：限频请求未被执行，重试不会重复计费；超时与服务端错误可能已执行，仍交由调用方按结果未知处理。 最长等待约 93 秒，在单元 {@code IN_PROGRESS}
+     * 租约内。等待中被中断时恢复中断标记并抛出原限频异常。
+     */
+    private <T> T callWithThrottleRetry(Supplier<T> invocation) {
+        var backoffMillis = INITIAL_THROTTLE_BACKOFF_MILLIS;
+        for (var attempt = 0; ; attempt++) {
+            try {
+                return invocation.get();
+            } catch (ModelThrottledException throttled) {
+                if (attempt >= MAX_THROTTLE_RETRIES) {
+                    throw throttled;
+                }
+                var delay =
+                        backoffMillis + ThreadLocalRandom.current().nextLong(backoffMillis / 2 + 1);
+                log.warn(
+                        "知识入库 AI 调用被限频，{}ms 后第 {} 次重试: {}",
+                        delay,
+                        attempt + 1,
+                        throttled.getMessage());
+                try {
+                    Thread.sleep(delay);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw throttled;
+                }
+                backoffMillis *= 2;
+            }
+        }
+    }
+
     private String inputDigest(String modelId, String input) {
         if (modelId == null || modelId.isBlank()) {
             throw new IllegalArgumentException("知识入库 AI modelId 不能为空");
@@ -295,7 +346,7 @@ public class KnowledgeAiMeter {
             throw new IllegalStateException("知识入库 AI 单元并发占用失败");
         }
         try {
-            var responseEntity = invocation.get();
+            var responseEntity = callWithThrottleRetry(invocation);
             if (responseEntity == null
                     || responseEntity.response() == null
                     || responseEntity.entity() == null) {
@@ -319,6 +370,10 @@ public class KnowledgeAiMeter {
                     provider.promptTokens(),
                     provider.completionTokens());
             return provider.entity();
+        } catch (ModelThrottledException throttled) {
+            // 限频重试用尽：请求未被执行，退回待处理，下次入库可直接重新占用，不标记为结果未知
+            usagePort.releaseForRetry(reservation, throttled.getMessage());
+            throw throttled;
         } catch (RuntimeException failure) {
             usagePort.markUnknown(reservation, failure.getMessage());
             throw failure;
@@ -333,7 +388,7 @@ public class KnowledgeAiMeter {
             throw new IllegalStateException("知识入库 AI 单元并发占用失败");
         }
         try {
-            var response = invocation.get();
+            var response = callWithThrottleRetry(invocation);
             if (response == null || response.getResult() == null) {
                 throw new IllegalStateException("知识入库 AI 返回空响应");
             }
@@ -354,6 +409,10 @@ public class KnowledgeAiMeter {
                     provider.promptTokens(),
                     provider.completionTokens());
             return provider.text();
+        } catch (ModelThrottledException throttled) {
+            // 限频重试用尽：请求未被执行，退回待处理，下次入库可直接重新占用，不标记为结果未知
+            usagePort.releaseForRetry(reservation, throttled.getMessage());
+            throw throttled;
         } catch (RuntimeException failure) {
             usagePort.markUnknown(reservation, failure.getMessage());
             throw failure;

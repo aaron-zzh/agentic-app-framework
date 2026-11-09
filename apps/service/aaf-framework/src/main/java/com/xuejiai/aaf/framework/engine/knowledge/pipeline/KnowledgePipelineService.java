@@ -2,11 +2,17 @@ package com.xuejiai.aaf.framework.engine.knowledge.pipeline;
 
 import java.io.InputStream;
 import java.time.Instant;
-import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicReference;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.common.enums.knowledge.DocumentStatusEnum;
@@ -24,7 +30,10 @@ import com.xuejiai.aaf.framework.engine.knowledge.trusted.FocusExtractionContext
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeIngestConfigurationService;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore.RunContext;
+import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore.StoredChunk;
 import com.xuejiai.aaf.framework.engine.meta.runtime.TaskExecutionInProgressException;
+import com.xuejiai.aaf.framework.org.OrgContext;
+import com.xuejiai.aaf.framework.security.PermissionExecutionContextHolder;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -57,6 +66,10 @@ public class KnowledgePipelineService {
     private final KnowledgeDocumentSummaryService documentSummaryService;
 
     private final ConcurrentHashMap<Long, PipelineProgress> progressMap = new ConcurrentHashMap<>();
+
+    /** 单个文档同时抽取事实的块数；受模型供应商限频约束，限频时由计量器自动延时重试。 */
+    @Value("${aaf.knowledge.extraction-concurrency:4}")
+    private int extractionConcurrency;
 
     public PipelineResult process(
             Long knowledgeBaseId,
@@ -158,25 +171,8 @@ public class KnowledgePipelineService {
             executionGuard.run();
 
             updateProgress(documentId, PipelineStep.EXTRACT_FACTS, 4, startTime);
-            var chunkFacts = new ArrayList<EntityExtractionService.ChunkFacts>(storedChunks.size());
-            for (var index = 0; index < storedChunks.size(); index++) {
-                try {
-                    var context =
-                            contextAssembler.assemble(
-                                    storedChunks, index, EXTRACTION_CONTEXT_BUDGET);
-                    chunkFacts.add(extractionService.extract(run, context, executionGuard));
-                } catch (TaskExecutionInProgressException inProgress) {
-                    throw inProgress;
-                } catch (Exception extractionFailure) {
-                    log.warn(
-                            "知识库实体抽取失败，降级跳过该块（图投影可待 Neo4j 恢复后由管理员重建），documentId={}, runId={}, chunkIndex={}, 原因={}",
-                            documentId,
-                            run.runId(),
-                            index,
-                            extractionFailure.getMessage());
-                }
-                executionGuard.run();
-            }
+            var chunkFacts = extractFacts(run, storedChunks, documentId, executionGuard);
+            executionGuard.run();
             try {
                 extractionService.persist(run, chunkFacts, executionGuard);
             } catch (TaskExecutionInProgressException inProgress) {
@@ -241,6 +237,118 @@ public class KnowledgePipelineService {
 
     public Optional<PipelineProgress> getProgress(Long documentId) {
         return Optional.ofNullable(progressMap.get(documentId));
+    }
+
+    /**
+     * 按块并行抽取事实，同时进行的块数不超过 {@code extractionConcurrency}；结果按块顺序返回，单块失败降级跳过。
+     *
+     * <p>每块在独立虚拟线程执行并沿用当前组织与权限执行上下文。执行租约失效时不再启动新块，等进行中的块结束后抛出，不中断进行中的模型调用，避免其被记为结果未知。
+     */
+    private List<EntityExtractionService.ChunkFacts> extractFacts(
+            RunContext run,
+            List<StoredChunk> storedChunks,
+            Long documentId,
+            Runnable executionGuard) {
+        var context = InheritedContext.capture();
+        var slots = new EntityExtractionService.ChunkFacts[storedChunks.size()];
+        var leaseLost = new AtomicReference<TaskExecutionInProgressException>();
+        var permits = new Semaphore(Math.max(1, extractionConcurrency));
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            for (var index = 0; index < storedChunks.size() && leaseLost.get() == null; index++) {
+                executionGuard.run();
+                acquire(permits);
+                if (leaseLost.get() != null) {
+                    permits.release();
+                    break;
+                }
+                var chunkIndex = index;
+                executor.execute(
+                        () -> {
+                            try {
+                                context.run(
+                                        () ->
+                                                slots[chunkIndex] =
+                                                        extractChunk(
+                                                                run,
+                                                                storedChunks,
+                                                                chunkIndex,
+                                                                documentId,
+                                                                executionGuard));
+                            } catch (TaskExecutionInProgressException inProgress) {
+                                leaseLost.compareAndSet(null, inProgress);
+                            } finally {
+                                permits.release();
+                            }
+                        });
+            }
+        }
+        if (leaseLost.get() != null) {
+            throw leaseLost.get();
+        }
+        return Arrays.stream(slots).filter(Objects::nonNull).toList();
+    }
+
+    /** 抽取单块；租约失效向上抛出，其余失败降级跳过该块并返回 null。 */
+    private EntityExtractionService.ChunkFacts extractChunk(
+            RunContext run,
+            List<StoredChunk> storedChunks,
+            int index,
+            Long documentId,
+            Runnable executionGuard) {
+        try {
+            var context = contextAssembler.assemble(storedChunks, index, EXTRACTION_CONTEXT_BUDGET);
+            return extractionService.extract(run, context, executionGuard);
+        } catch (TaskExecutionInProgressException inProgress) {
+            throw inProgress;
+        } catch (Exception extractionFailure) {
+            log.warn(
+                    "知识库实体抽取失败，降级跳过该块（图投影可待 Neo4j 恢复后由管理员重建），documentId={}, runId={}, chunkIndex={}, 原因={}",
+                    documentId,
+                    run.runId(),
+                    index,
+                    extractionFailure.getMessage());
+            return null;
+        }
+    }
+
+    private void acquire(Semaphore permits) {
+        try {
+            permits.acquire();
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("知识库事实抽取被中断", interrupted);
+        }
+    }
+
+    /** 抽取子线程需要沿用的组织与权限执行上下文。 */
+    private record InheritedContext(
+            Long orgId,
+            Long workspaceId,
+            boolean ignoreOrg,
+            PermissionExecutionContextHolder.PermissionExecutionContext permission) {
+
+        static InheritedContext capture() {
+            return new InheritedContext(
+                    OrgContext.getCurrentOrgId(),
+                    OrgContext.getCurrentWorkspaceId(),
+                    OrgContext.isIgnore(),
+                    PermissionExecutionContextHolder.get());
+        }
+
+        void run(Runnable action) {
+            OrgContext.setCurrentOrgId(orgId);
+            OrgContext.setCurrentWorkspaceId(workspaceId);
+            OrgContext.setIgnore(ignoreOrg);
+            try (var ignored =
+                    permission == null
+                            ? null
+                            : PermissionExecutionContextHolder.useOwner(
+                                    permission.ownerId(), permission.reason())) {
+                action.run();
+            } finally {
+                OrgContext.clear();
+            }
+        }
     }
 
     private void ensureCurrentOrDefer(Runnable executionGuard, Exception failure) {
