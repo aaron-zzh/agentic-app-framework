@@ -100,28 +100,17 @@ WHERE model.model_id = 'qwen:qwen3.8-flash' AND model.enabled = TRUE
         AND existing.capability = 'KNOWLEDGE_SUMMARY'
   );
 
--- 实体消歧走通用工具调用，初始值复用当前系统 CHAT 偏好。
-WITH selected AS (
-    SELECT COALESCE(
-        (SELECT model_ids FROM ai_model_preference
-         WHERE scope = 'SYSTEM' AND scope_id IS NULL AND capability = 'CHAT'
-         LIMIT 1),
-        (SELECT jsonb_build_array(model_id) FROM ai_model
-         WHERE enabled = TRUE AND capabilities LIKE '%CHAT%'
-         ORDER BY id LIMIT 1)) AS model_ids
-), capabilities(capability) AS (
-    VALUES ('KNOWLEDGE_ENTITY_RESOLUTION')
-)
+-- 实体消歧同样使用百炼 JSON Schema strict 结构化输出，固定为 qwen3.8-flash。
 INSERT INTO ai_model_preference (scope, scope_id, capability, model_ids)
-SELECT 'SYSTEM', NULL, capabilities.capability, selected.model_ids
-FROM selected CROSS JOIN capabilities
-WHERE selected.model_ids IS NOT NULL
+SELECT 'SYSTEM', NULL, 'KNOWLEDGE_ENTITY_RESOLUTION', jsonb_build_array(model.model_id)
+FROM ai_model model
+WHERE model.model_id = 'qwen:qwen3.8-flash' AND model.enabled = TRUE
   AND NOT EXISTS (
       SELECT 1
       FROM ai_model_preference existing
       WHERE existing.scope = 'SYSTEM'
         AND existing.scope_id IS NULL
-        AND existing.capability = capabilities.capability
+        AND existing.capability = 'KNOWLEDGE_ENTITY_RESOLUTION'
   );
 
 DO $$
@@ -139,7 +128,7 @@ BEGIN
         WHERE scope = 'SYSTEM' AND scope_id IS NULL
           AND capability = 'KNOWLEDGE_SUMMARY'
     ) THEN
-        RAISE EXCEPTION 'v21 无法初始化知识抽取与摘要模型偏好：缺少已启用的 qwen:qwen3.8-flash 或 CHAT 模型';
+        RAISE EXCEPTION 'v21 无法初始化知识抽取、消歧与摘要模型偏好：缺少已启用的 qwen:qwen3.8-flash';
     END IF;
 END $$;
 

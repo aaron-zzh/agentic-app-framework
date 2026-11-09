@@ -37,7 +37,7 @@ import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeUsagePort.Bil
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore.EntityCandidate;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore.RunContext;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore.ScoredEntityCandidate;
-import com.xuejiai.aaf.framework.intelligent.ai.chat.StructuredToolCallClient;
+import com.xuejiai.aaf.framework.intelligent.ai.chat.DashScopeStructuredOutputClient;
 
 @ExtendWith(MockitoExtension.class)
 class IncrementalEntityResolverTest {
@@ -45,7 +45,7 @@ class IncrementalEntityResolverTest {
     private static final Runnable NO_GUARD = () -> {};
 
     @Mock private TrustedKnowledgeStore store;
-    @Mock private StructuredToolCallClient structuredToolCallClient;
+    @Mock private DashScopeStructuredOutputClient structuredOutputClient;
     @Mock private KnowledgeAiMeter meter;
     @Mock private EmbeddingService embeddingService;
 
@@ -57,7 +57,7 @@ class IncrementalEntityResolverTest {
         resolver =
                 new IncrementalEntityResolver(
                         store,
-                        structuredToolCallClient,
+                        structuredOutputClient,
                         meter,
                         embeddingService,
                         new EmbeddingProperties("embed-model", 1536, 100, 3),

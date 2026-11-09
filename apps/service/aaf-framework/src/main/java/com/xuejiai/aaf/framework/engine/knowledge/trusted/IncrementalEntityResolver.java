@@ -20,7 +20,7 @@ import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore.
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore.RunContext;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore.ScoredEntityCandidate;
 import com.xuejiai.aaf.framework.engine.meta.runtime.TaskExecutionInProgressException;
-import com.xuejiai.aaf.framework.intelligent.ai.chat.StructuredToolCallClient;
+import com.xuejiai.aaf.framework.intelligent.ai.chat.DashScopeStructuredOutputClient;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,7 +44,7 @@ public class IncrementalEntityResolver {
     private static final String DEFAULT_ENTITY_TYPE = "Concept";
 
     private final TrustedKnowledgeStore store;
-    private final StructuredToolCallClient structuredToolCallClient;
+    private final DashScopeStructuredOutputClient structuredOutputClient;
     private final KnowledgeAiMeter meter;
     private final EmbeddingService embeddingService;
     private final EmbeddingProperties embeddingProperties;
@@ -295,12 +295,12 @@ public class IncrementalEntityResolver {
                 meteredInput,
                 EntityResolutionPrompt.MAX_RESPONSE_LENGTH,
                 () ->
-                        structuredToolCallClient.call(
+                        structuredOutputClient.call(
                                 run.entityResolutionModelId(),
                                 resolutionSystemPrompt,
                                 prompt,
-                                EntityResolutionPrompt.OUTPUT_TOOL_NAME,
-                                EntityResolutionPrompt.OUTPUT_TOOL_DESCRIPTION,
+                                EntityResolutionPrompt.OUTPUT_SCHEMA_NAME,
+                                EntityResolutionPrompt.OUTPUT_SCHEMA,
                                 KnowledgeAiMeter.EntityResolutionBatchDecision.class));
     }
 
