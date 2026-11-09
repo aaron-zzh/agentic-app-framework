@@ -8,6 +8,7 @@ import type {
   KnowledgeBaseStats,
   KnowledgeBaseStatus,
   KnowledgeBaseVisibility,
+  KnowledgeChunkStrategy,
   KnowledgeDocument
 } from "@/lib/types/knowledge"
 import { backendApi } from "../backend-client"
@@ -32,7 +33,7 @@ export interface KnowledgeBaseMaintenance {
   visibility: KnowledgeBaseVisibility
   scopeCode: string | null
   embeddingModel: string | null
-  chunkStrategy: "fixed" | "recursive" | "semantic"
+  chunkStrategy: KnowledgeChunkStrategy
   chunkSize: number
   chunkOverlap: number
   documentCount: number

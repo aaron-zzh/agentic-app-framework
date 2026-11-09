@@ -18,6 +18,9 @@ export type KnowledgeSearchChannel = "VECTOR" | "KEYWORD" | "GRAPH"
 /** 知识库可见范围。 */
 export type KnowledgeBaseVisibility = "PRIVATE" | "ORG" | "SYSTEM_PUBLIC"
 
+/** 分块策略：auto 使用默认块大小与重叠，semantic 使用知识库自定义块大小与重叠。 */
+export type KnowledgeChunkStrategy = "auto" | "semantic"
+
 /** 知识库。 */
 export interface KnowledgeBase {
   id: number
@@ -32,7 +35,7 @@ export interface KnowledgeBase {
   visibility: KnowledgeBaseVisibility
   scopeCode: string | null
   embeddingModel: string | null
-  chunkStrategy: "fixed" | "recursive" | "semantic"
+  chunkStrategy: KnowledgeChunkStrategy
   chunkSize: number
   chunkOverlap: number
   status: KnowledgeBaseStatus
@@ -91,7 +94,7 @@ export interface CreateKnowledgeBaseInput {
   description?: string
   visibility?: KnowledgeBaseVisibility
   scopeCode?: string
-  chunkStrategy?: "fixed" | "recursive" | "semantic"
+  chunkStrategy?: KnowledgeChunkStrategy
   chunkSize?: number
   chunkOverlap?: number
 }

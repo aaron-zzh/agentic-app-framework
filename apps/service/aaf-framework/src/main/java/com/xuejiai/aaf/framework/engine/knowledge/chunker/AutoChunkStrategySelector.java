@@ -1,42 +1,33 @@
 package com.xuejiai.aaf.framework.engine.knowledge.chunker;
 
-import java.util.List;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-/** 根据文档类型自动选择分块策略 */
+/**
+ * 选择章节内的分块策略：知识库自定义配置优先，未配置（auto）时按段落与句末边界切分。
+ *
+ * <p>文档结构由导入器与 {@link SectionOutlineBuilder} 按文件类型解析，分块策略只决定章节内部如何切分，因此不再按文件类型区分。
+ */
 @Component
 public class AutoChunkStrategySelector {
+
+    /** 默认块大小（字符）。 */
+    static final int DEFAULT_CHUNK_SIZE = 800;
+
+    /** 默认相邻块重叠（字符），仅发生在同一章节内。 */
+    static final int DEFAULT_OVERLAP_SIZE = 50;
 
     @Autowired(required = false)
     private KnowledgeBaseConfigProvider configProvider;
 
-    /** 根据文件类型自动选择分块策略，知识库配置优先 */
-    public ChunkConfig selectStrategy(String fileType, Long knowledgeBaseId) {
-        // 知识库自定义配置优先
+    public ChunkConfig selectStrategy(Long knowledgeBaseId) {
         if (knowledgeBaseId != null && configProvider != null) {
             var custom = configProvider.getChunkConfig(knowledgeBaseId);
             if (custom.isPresent()) {
                 return custom.get();
             }
         }
-        return selectByFileType(fileType);
-    }
-
-    private ChunkConfig selectByFileType(String fileType) {
-        var type = fileType == null ? "" : fileType.toLowerCase().replaceFirst("^\\.", "");
-        return switch (type) {
-            case "pdf" -> new ChunkConfig(ChunkStrategy.SEMANTIC_BOUNDARY, 1024, 128);
-            case "md", "markdown" ->
-                    new ChunkConfig(
-                            ChunkStrategy.RECURSIVE_CHARACTER,
-                            800,
-                            100,
-                            List.of("\n## ", "\n### ", "\n\n", "\n"));
-            case "html", "htm" -> new ChunkConfig(ChunkStrategy.RECURSIVE_CHARACTER, 800, 100);
-            case "docx" -> new ChunkConfig(ChunkStrategy.FIXED_SIZE, 512, 64);
-            default -> new ChunkConfig(ChunkStrategy.FIXED_SIZE);
-        };
+        return new ChunkConfig(
+                ChunkStrategy.SEMANTIC_BOUNDARY, DEFAULT_CHUNK_SIZE, DEFAULT_OVERLAP_SIZE);
     }
 }

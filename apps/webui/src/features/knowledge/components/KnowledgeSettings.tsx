@@ -18,13 +18,12 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import { useUpdateKnowledgeBase } from "@/lib/api/rest/knowledge/knowledge"
-import type { KnowledgeBase } from "@/lib/types/knowledge"
+import type { KnowledgeBase, KnowledgeChunkStrategy } from "@/lib/types/knowledge"
 
 const CHUNK_STRATEGIES = [
-  { value: "fixed", label: "固定长度" },
-  { value: "recursive", label: "递归字符" },
-  { value: "semantic", label: "语义边界" }
-] as const
+  { value: "auto", label: "自动（默认 800 字）" },
+  { value: "semantic", label: "自定义大小" }
+] as const satisfies readonly { value: KnowledgeChunkStrategy; label: string }[]
 
 interface KnowledgeSettingsProps {
   knowledgeBase: KnowledgeBase
@@ -36,6 +35,7 @@ export function KnowledgeSettings({ knowledgeBase }: KnowledgeSettingsProps) {
   const [chunkOverlap, setChunkOverlap] = useState(knowledgeBase.chunkOverlap)
 
   const { mutate: update, isPending } = useUpdateKnowledgeBase()
+  const isAuto = strategy === "auto"
 
   function handleSave() {
     update({
@@ -55,7 +55,7 @@ export function KnowledgeSettings({ knowledgeBase }: KnowledgeSettingsProps) {
           <Label>分块策略</Label>
           <Select
             value={strategy}
-            onValueChange={(v) => v && setStrategy(v as KnowledgeBase["chunkStrategy"])}
+            onValueChange={(v) => v && setStrategy(v as KnowledgeChunkStrategy)}
           >
             <SelectTrigger>
               <SelectValue />
@@ -68,6 +68,10 @@ export function KnowledgeSettings({ knowledgeBase }: KnowledgeSettingsProps) {
               ))}
             </SelectContent>
           </Select>
+          <p className="text-muted-foreground text-xs">
+            先按文档章节拆分，再在章节内按段落与句末标点均衡切分；不同上级章节的内容不会进入同一块，同一上级下的短小节可能合并。
+            {isAuto && "自动模式每块 800 字、重叠 50 字，下方块大小与重叠不生效。"}
+          </p>
         </div>
 
         {/* 块大小 + 重叠 */}
@@ -80,6 +84,7 @@ export function KnowledgeSettings({ knowledgeBase }: KnowledgeSettingsProps) {
               max={4000}
               step={100}
               value={chunkSize}
+              disabled={isAuto}
               onChange={(e) => setChunkSize(Number(e.target.value))}
             />
           </div>
@@ -91,6 +96,7 @@ export function KnowledgeSettings({ knowledgeBase }: KnowledgeSettingsProps) {
               max={500}
               step={50}
               value={chunkOverlap}
+              disabled={isAuto}
               onChange={(e) => setChunkOverlap(Number(e.target.value))}
             />
           </div>

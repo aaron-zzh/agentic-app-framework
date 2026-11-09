@@ -174,7 +174,7 @@ SELECT
     1, '00000000-0000-0000-0000-000000000301', owner.org_id, 'SYSTEM_PUBLIC',
     'system:aaf-platform-guide', 'AAF 平台向导知识库',
     '产品咨询、常见问题和功能说明，供默认用户助理的平台向导 Role 使用',
-    NULL, 'RECURSIVE', 512, 64, 0, FALSE,
+    NULL, 'auto', 800, 50, 0, FALSE,
     1, owner.owner_id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 FROM seed_aaf_platform_guide_owner owner
 ON CONFLICT (id) DO NOTHING;

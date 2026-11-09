@@ -12,7 +12,8 @@ import org.springframework.stereotype.Service;
 import com.xuejiai.aaf.common.enums.knowledge.DocumentStatusEnum;
 import com.xuejiai.aaf.framework.engine.knowledge.KnowledgeVectorService;
 import com.xuejiai.aaf.framework.engine.knowledge.chunker.AutoChunkStrategySelector;
-import com.xuejiai.aaf.framework.engine.knowledge.chunker.ChunkerFactory;
+import com.xuejiai.aaf.framework.engine.knowledge.chunker.SectionAwareChunker;
+import com.xuejiai.aaf.framework.engine.knowledge.chunker.SectionOutlineBuilder;
 import com.xuejiai.aaf.framework.engine.knowledge.embedding.EmbeddingProperties;
 import com.xuejiai.aaf.framework.engine.knowledge.graph.EntityExtractionPrompt;
 import com.xuejiai.aaf.framework.engine.knowledge.graph.EntityExtractionService;
@@ -34,13 +35,16 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class KnowledgePipelineService {
 
-    private static final String PARSER_VERSION = "v1";
+    /** v3：分块前规范化空白并合并 PDF 折行；v2：先按章节大纲分块，块携带章节路径与页码，向量化输入拼接章节路径。 */
+    private static final String PARSER_VERSION = "v3";
+
     private static final String NORMALIZATION_VERSION = "v1";
     private static final int EXTRACTION_CONTEXT_BUDGET = 12_000;
     private static final int MAX_ERROR_LENGTH = 2_000;
 
     private final ImporterFactory importerFactory;
-    private final ChunkerFactory chunkerFactory;
+    private final SectionOutlineBuilder outlineBuilder;
+    private final SectionAwareChunker sectionChunker;
     private final AutoChunkStrategySelector strategySelector;
     private final TrustedKnowledgeStore truthStore;
     private final KnowledgeVectorService vectorService;
@@ -84,8 +88,7 @@ public class KnowledgePipelineService {
                     sourceVersionPort.freeze(documentId, filename, fullText, contentHash);
 
             updateProgress(documentId, PipelineStep.CHUNK, 1, startTime);
-            var extension = extension(filename);
-            var chunkConfig = strategySelector.selectStrategy(extension, knowledgeBaseId);
+            var chunkConfig = strategySelector.selectStrategy(knowledgeBaseId);
             var chunkDigest = TrustedKnowledgeStore.sha256(chunkConfig.toString());
             var configuration = configurationService.resolve();
             var fingerprint =
@@ -134,18 +137,16 @@ public class KnowledgePipelineService {
             }
 
             var chunks =
-                    chunkerFactory
-                            .getChunker(chunkConfig.strategy())
-                            .chunk(
-                                    fullText,
-                                    chunkConfig,
-                                    Map.of(
-                                            "knowledge_base_id",
-                                            knowledgeBaseId,
-                                            "document_id",
-                                            documentId,
-                                            "filename",
-                                            filename));
+                    sectionChunker.chunk(
+                            outlineBuilder.build(importResult.sections()),
+                            chunkConfig,
+                            Map.of(
+                                    "knowledge_base_id",
+                                    knowledgeBaseId,
+                                    "document_id",
+                                    documentId,
+                                    "filename",
+                                    filename));
             executionGuard.run();
 
             updateProgress(documentId, PipelineStep.STORE, 2, startTime);
@@ -280,11 +281,6 @@ public class KnowledgePipelineService {
     private void updateDocumentStatus(
             Long documentId, int status, int chunkCount, String errorMessage) {
         documentStatusPort.updateStatus(documentId, status, chunkCount, errorMessage);
-    }
-
-    private String extension(String filename) {
-        var dot = filename.lastIndexOf('.');
-        return dot < 0 ? "" : filename.substring(dot + 1);
     }
 
     private String truncate(String message) {

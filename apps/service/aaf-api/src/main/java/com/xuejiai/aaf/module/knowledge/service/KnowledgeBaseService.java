@@ -142,9 +142,9 @@ public class KnowledgeBaseService
                 entity.getVisibility(),
                 entity.getScopeCode(),
                 entity.getEmbeddingModel(),
-                Objects.requireNonNullElse(entity.getChunkStrategy(), "recursive"),
-                Objects.requireNonNullElse(entity.getChunkSize(), 512),
-                Objects.requireNonNullElse(entity.getChunkOverlap(), 64),
+                Objects.requireNonNullElse(entity.getChunkStrategy(), "auto"),
+                Objects.requireNonNullElse(entity.getChunkSize(), 800),
+                Objects.requireNonNullElse(entity.getChunkOverlap(), 50),
                 Objects.requireNonNullElse(entity.getDocumentCount(), 0L),
                 entity.getStatus(),
                 entity.getCreateTime(),
@@ -160,9 +160,9 @@ public class KnowledgeBaseService
         entity.setScopeCode(request.scopeCode());
         // 创建时记录当时使用的全局向量模型 modelId，只读；向量模型全局唯一，不支持按库指定或后续修改。
         entity.setEmbeddingModel(embeddingProperties.model());
-        entity.setChunkStrategy(Objects.requireNonNullElse(request.chunkStrategy(), "recursive"));
-        entity.setChunkSize(Objects.requireNonNullElse(request.chunkSize(), 512));
-        entity.setChunkOverlap(Objects.requireNonNullElse(request.chunkOverlap(), 64));
+        entity.setChunkStrategy(Objects.requireNonNullElse(request.chunkStrategy(), "auto"));
+        entity.setChunkSize(Objects.requireNonNullElse(request.chunkSize(), 800));
+        entity.setChunkOverlap(Objects.requireNonNullElse(request.chunkOverlap(), 50));
         validateChunkConfig(entity);
         return entity;
     }
@@ -300,9 +300,9 @@ public class KnowledgeBaseService
                 entity.getVisibility(),
                 entity.getScopeCode(),
                 entity.getEmbeddingModel(),
-                Objects.requireNonNullElse(entity.getChunkStrategy(), "recursive"),
-                Objects.requireNonNullElse(entity.getChunkSize(), 512),
-                Objects.requireNonNullElse(entity.getChunkOverlap(), 64),
+                Objects.requireNonNullElse(entity.getChunkStrategy(), "auto"),
+                Objects.requireNonNullElse(entity.getChunkSize(), 800),
+                Objects.requireNonNullElse(entity.getChunkOverlap(), 50),
                 Objects.requireNonNullElse(entity.getDocumentCount(), 0L),
                 entity.getStatus(),
                 entity.getCreateTime(),

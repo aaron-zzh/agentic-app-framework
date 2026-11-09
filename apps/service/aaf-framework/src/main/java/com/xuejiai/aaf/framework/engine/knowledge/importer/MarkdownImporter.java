@@ -63,7 +63,8 @@ public class MarkdownImporter implements DocumentImporter {
             } else {
                 var text = extractText(node);
                 if (!text.isBlank()) {
-                    if (!currentText.isEmpty()) currentText.append("\n");
+                    // 块之间保留空行，章节大纲按首行取标题、按空行保留段落边界
+                    if (!currentText.isEmpty()) currentText.append("\n\n");
                     currentText.append(text);
                 }
             }

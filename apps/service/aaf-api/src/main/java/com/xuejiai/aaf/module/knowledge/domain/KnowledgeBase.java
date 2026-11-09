@@ -69,17 +69,17 @@ public class KnowledgeBase extends BaseEntity {
     @Column(name = "embedding_model", length = 100)
     private String embeddingModel;
 
-    /** 分块策略 */
+    /** 分块策略：auto 使用默认块大小与重叠，semantic 使用本库自定义块大小与重叠；两者都先按章节拆分再按语义边界切分。 */
     @Column(name = "chunk_strategy", length = 50)
-    private String chunkStrategy = "recursive";
+    private String chunkStrategy = "auto";
 
     /** 分块大小 */
     @Column(name = "chunk_size")
-    private Integer chunkSize = 512;
+    private Integer chunkSize = 800;
 
     /** 分块重叠 */
     @Column(name = "chunk_overlap")
-    private Integer chunkOverlap = 64;
+    private Integer chunkOverlap = 50;
 
     /**
      * 状态

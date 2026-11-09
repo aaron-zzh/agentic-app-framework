@@ -15,7 +15,8 @@ public record KnowledgeBaseUpdateDTO(
                 @Pattern(regexp = "PRIVATE|ORG|SYSTEM_PUBLIC")
                 String visibility,
         @Schema(description = "授权范围编码") @Size(max = 128) String scopeCode,
-        @Schema(description = "分块策略") @Pattern(regexp = "fixed|recursive|semantic")
+        @Schema(description = "章节内分块策略：auto 使用默认块大小与重叠，semantic 使用知识库自定义块大小与重叠")
+                @Pattern(regexp = "auto|semantic")
                 String chunkStrategy,
         @Schema(description = "分块大小") @Min(1) @Max(100_000) Integer chunkSize,
         @Schema(description = "分块重叠") @Min(0) @Max(99_999) Integer chunkOverlap) {}

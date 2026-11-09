@@ -36,6 +36,8 @@ public class KnowledgeVectorService {
 
     private static final String EMBEDDING_VERSION = "v1";
 
+    private static final String SECTION_PATH_KEY = "section_path";
+
     private final VectorStore vectorStore;
     private final JdbcTemplate jdbcTemplate;
     private final EmbeddingService embeddingService;
@@ -48,7 +50,7 @@ public class KnowledgeVectorService {
         }
         var vectors =
                 embeddingService.embedKnowledgeBatch(
-                        chunks.stream().map(StoredChunk::content).toList(),
+                        chunks.stream().map(KnowledgeVectorService::embeddingText).toList(),
                         run.billing(),
                         "chunks");
         if (vectors.size() != chunks.size()) {
@@ -107,6 +109,19 @@ public class KnowledgeVectorService {
                     vector(vectors.get(index)));
         }
         log.info("写入 {} 条知识向量，runId={}", chunks.size(), run.runId());
+    }
+
+    /**
+     * 向量化输入：章节路径加块正文，使正文未提及主题词的块也能按所属章节命中。
+     *
+     * <p>只取代际内不变的章节路径，不取可编辑的文档标题，保证入库与重建的向量化输入一致。
+     */
+    static String embeddingText(StoredChunk chunk) {
+        var sectionPath = chunk.metadata() == null ? null : chunk.metadata().get(SECTION_PATH_KEY);
+        if (!(sectionPath instanceof String path) || path.isBlank()) {
+            return chunk.content();
+        }
+        return "【" + path + "】\n" + chunk.content();
     }
 
     /**
@@ -171,7 +186,7 @@ public class KnowledgeVectorService {
                        r.entity_resolution_output_contract_version,
                        r.entity_resolution_model_id,
                        c.stable_id, c.chunk_index, c.content, c.content_hash,
-                       c.token_count
+                       c.token_count, c.section_path
                 FROM ai_knowledge_base b
                 JOIN ai_knowledge_document d ON d.knowledge_base_id = b.id
                     AND d.active_run_id IS NOT NULL AND d.deleted = false
@@ -216,7 +231,9 @@ public class KnowledgeVectorService {
                                         rs.getString(27),
                                         rs.getString(28),
                                         rs.getInt(29),
-                                        Map.of())),
+                                        rs.getString(30) == null
+                                                ? Map.of()
+                                                : Map.of(SECTION_PATH_KEY, rs.getString(30)))),
                 knowledgeBaseId);
     }
 
