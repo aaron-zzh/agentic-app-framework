@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 
 import com.xuejiai.aaf.framework.engine.knowledge.search.SimilaritySearchService;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeAccessScopePort;
@@ -31,6 +32,7 @@ import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeSearchContrac
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeSearchContracts.Visibility;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore.SearchCandidate;
+import com.xuejiai.aaf.framework.intelligent.ai.rerank.RerankService;
 import com.xuejiai.aaf.framework.security.authorization.AuthorizationSubject;
 
 @ExtendWith(MockitoExtension.class)
@@ -43,6 +45,7 @@ class HybridSearchServiceTest {
     @Mock private SimilaritySearchService similaritySearchService;
     @Mock private TrustedKnowledgeStore truthStore;
     @Mock private KnowledgeGraphProjectionService graphProjectionService;
+    @Mock private ObjectProvider<RerankService> rerankServiceProvider;
 
     private HybridSearchService service;
 
@@ -53,7 +56,8 @@ class HybridSearchServiceTest {
                         accessScopePort,
                         similaritySearchService,
                         truthStore,
-                        graphProjectionService);
+                        graphProjectionService,
+                        rerankServiceProvider);
     }
 
     @Test

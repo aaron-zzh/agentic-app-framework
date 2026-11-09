@@ -6,6 +6,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.xuejiai.aaf.module.knowledge.api.KnowledgeSearchApi;
@@ -47,6 +48,7 @@ public class DefaultKnowledgeSearchApi implements KnowledgeSearchApi {
     }
 
     @Override
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public SearchResult search(SearchQuery query) {
         var response =
                 knowledgeBaseService.search(

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -13,6 +14,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 import com.xuejiai.aaf.framework.engine.knowledge.search.SearchRequest;
@@ -26,11 +28,12 @@ import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeSearchContrac
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeSearchContracts.Response;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.KnowledgeSearchContracts.SourceFilters;
 import com.xuejiai.aaf.framework.engine.knowledge.trusted.TrustedKnowledgeStore;
+import com.xuejiai.aaf.framework.intelligent.ai.rerank.RerankService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-/** 授权多库向量、全文和图检索的 weighted RRF 入口。 */
+/** 授权多库向量、全文和图检索：weighted RRF 融合召回，再经重排模型精排。 */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -39,10 +42,19 @@ public class HybridSearchService {
     private static final int RRF_K = 60;
     private static final int OVERSAMPLE = 3;
 
+    /** 每个通道每个知识库至少召回的候选数，为精排提供足够的候选池。 */
+    private static final int MIN_RECALL_PER_CHANNEL = 30;
+
+    /** 交给重排模型的融合候选上限。 */
+    private static final int RERANK_POOL = 40;
+
     private final KnowledgeAccessScopePort accessScopePort;
     private final SimilaritySearchService similaritySearchService;
     private final TrustedKnowledgeStore truthStore;
     private final KnowledgeGraphProjectionService graphProjectionService;
+
+    /** 重排服务为可选 Bean：未配置百炼 key 时不存在，检索保持融合排序。 */
+    private final ObjectProvider<RerankService> rerankServiceProvider;
 
     public Response search(AuthorizedQuery query) {
         var startedAt = System.nanoTime();
@@ -113,7 +125,7 @@ public class HybridSearchService {
 
         var finalScope = accessScopePort.resolve(query);
         var sourceFilters = SourceFilters.from(query.sourceFilters());
-        var hits =
+        var ranked =
                 fused.entrySet().stream()
                         .sorted(
                                 Map.Entry.<String, Aggregate>comparingByValue(
@@ -121,7 +133,9 @@ public class HybridSearchService {
                                                                 (Aggregate item) -> item.score)
                                                         .reversed())
                                         .thenComparing(Map.Entry::getKey))
-                        .limit(query.topK())
+                        .toList();
+        var hits =
+                rerank(query, ranked).stream()
                         .map(
                                 entry ->
                                         toHit(
@@ -130,6 +144,7 @@ public class HybridSearchService {
                                                 finalScope.knowledgeBases().keySet(),
                                                 sourceFilters))
                         .flatMap(java.util.Optional::stream)
+                        .limit(query.topK())
                         .toList();
         var finishedAt = System.nanoTime();
         log.info(
@@ -151,6 +166,51 @@ public class HybridSearchService {
         return (endNanos - startNanos) / 1_000_000;
     }
 
+    /**
+     * 两阶段检索的精排：融合排序前 {@link #RERANK_POOL} 个候选交给重排模型重新排序，其余候选按融合顺序排在后面。
+     *
+     * <p>未配置重排模型、候选不足两个或重排失败（含积分不足）时保持融合顺序，检索本身不因精排失败而失败。 命中分数仍为融合分数，只调整顺序。
+     */
+    private List<Map.Entry<String, Aggregate>> rerank(
+            AuthorizedQuery query, List<Map.Entry<String, Aggregate>> ranked) {
+        var reranker = rerankServiceProvider.getIfAvailable();
+        var userId = query.subject().subjectId();
+        if (reranker == null || userId == null || ranked.size() < 2) {
+            return ranked;
+        }
+        var pool = ranked.subList(0, Math.min(RERANK_POOL, ranked.size()));
+        try {
+            var startedAt = System.nanoTime();
+            var results =
+                    reranker.rerank(
+                            userId,
+                            query.query(),
+                            pool.stream().map(entry -> entry.getValue().content).toList(),
+                            pool.size());
+            var ordered = new ArrayList<Map.Entry<String, Aggregate>>(ranked.size());
+            var placed = new HashSet<Integer>();
+            for (var result : results) {
+                var index = result.index();
+                if (index >= 0 && index < pool.size() && placed.add(index)) {
+                    ordered.add(pool.get(index));
+                }
+            }
+            for (var index = 0; index < ranked.size(); index++) {
+                if (!placed.contains(index)) {
+                    ordered.add(ranked.get(index));
+                }
+            }
+            log.info(
+                    "知识检索重排: candidates={}, rerankMs={}",
+                    pool.size(),
+                    millisBetween(startedAt, System.nanoTime()));
+            return ordered;
+        } catch (RuntimeException failure) {
+            log.warn("知识检索重排失败，保持融合排序: {}", failure.getMessage());
+            return ranked;
+        }
+    }
+
     private static void recordChannel(
             Map<Channel, Long> channelMillis, Channel channel, long startNanos) {
         channelMillis.merge(channel, millisBetween(startNanos, System.nanoTime()), Math::max);
@@ -162,7 +222,7 @@ public class HybridSearchService {
             Set<Channel> degraded,
             Map<Channel, Long> channelMillis) {
         var candidates = new ArrayList<Candidate>();
-        var limit = query.topK() * OVERSAMPLE;
+        var limit = Math.max(query.topK() * OVERSAMPLE, MIN_RECALL_PER_CHANNEL);
         var sourceFilters = SourceFilters.from(query.sourceFilters());
         if (query.channelWeights().vector() > 0) {
             var channelStartedAt = System.nanoTime();
