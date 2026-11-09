@@ -529,6 +529,8 @@ db/seed/v18__user_studio_seed.sql                        -- 模板 + 装扮 + �
 ## Studio 首页四行改版
 
 > 本节是 AAF-100 首页改版的增量设计，只覆盖 [requirement.md](./requirement.md) 中定义的 Reduction MVP。前文历史方案继续保留；与本节冲突的首页结构、蓝图封面字段和 Flyway 编号，以本节为准。
+>
+> 首页结构已由 [AAF-125](../../v0.13/AAF-125/tasks.md) 修订：最近项目与蓝图移到项目主页，首页结构以 AAF-125 为准。
 
 ### 目标与边界
 

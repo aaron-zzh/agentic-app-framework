@@ -2,7 +2,7 @@
 
 所有用户故事的唯一来源。条目由 product agent 细化后登记，协调者维护编号和状态。
 
-编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-124**，新一级用户故事从 AAF-125 开始。添加新条目后必须同步更新此行。
+编号规则：`AAF-{三位序号}`，全局递增，不按版本重置。当前最大编号：**AAF-125**，新一级用户故事从 AAF-126 开始。添加新条目后必须同步更新此行。
 
 ## 当前迭代（v0.13）
 
@@ -11,6 +11,7 @@
 - [ ] AAF-115 (创建: 09-11) 统一 Task/TaskPlan/Execution 任务模型与 DAG 编排（移除 AssistantTask/DelegatedTask 双真理源；普通 CHAT 只建 Execution；复杂任务使用唯一 Task + 可选 TaskPlan；支持串行、并行、join、fan-out/fan-in、恢复与 fencing）任务: docs/task/v0.13/AAF-115/tasks.md
 - [ ] AAF-117 (创建: 10-12) 任务式调用执行形态与全环节流式可视化（TASK 路径 delta 不落库并实时转发；DIRECT/TASK 统一为协调者的轻量态与任务态；协调者直答与交付、分解策略 AUTO/NONE/REQUIRED；内置技能与控制工具重命名；聚合要求与聚合者输入契约；harness 驱动的产物保存；各节点输出按节点折叠展示；依赖 AAF-115）设计: docs/design/adr/ADR-008-task-execution-shape-and-streaming.md 任务: docs/task/v0.13/AAF-117/tasks.md
 - [ ] AAF-123 (创建: 11-08) 助理消息语音播放改为后端实时流式 TTS（新增 `POST /api/voice/tts/stream` 流式返回 16kHz PCM，复用 `SpeechService.startTtsTask` 实时连接池与积分预检结算；前端 PCM 分片排队播放、支持停止，默认服务端模式，用户可手动切回浏览器 speechSynthesis；🟡 中风险）任务: docs/task/v0.13/AAF-123/tasks.md
+- [ ] AAF-125 (创建: 11-09) Studio 首页与项目主页布局拆分（首页通用化第一步：最近项目与项目模板移到 `/studio/projects` 未筛选视图顶部；首页保留工作概况，快速创作与积分消耗分类并排展示；积分分类抽成共享派生 hook，与积分中心同源，口径统一为近 30 天 SPEND；修订 AAF-100 首页四行约束；只改前端，🟡 中风险）任务: docs/task/v0.13/AAF-125/tasks.md
 
 ## 待排期
 
