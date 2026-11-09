@@ -44,7 +44,10 @@ public final class KnowledgeSearchToolHandler implements ContextAwareToolHandler
     @Override
     public String description() {
         return "检索当前角色已授权的知识库，返回相关片段与来源。用户询问产品、服务、政策、规范、操作说明等事实性问题时，应先调用本工具再回答；"
-                + "寒暄或与知识库无关的问题无需调用。检索结果为空时如实告知未找到相关资料，不要编造。"
+                + "寒暄或与知识库无关的问题无需调用。"
+                + "问题涉及多个方面或多个对象时（如“饮食和运动分别注意什么”“A 与 B 的区别”），按方面拆成多个独立检索语句分别调用本工具，"
+                + "每次只检索一个方面，汇总全部结果后再回答；首次结果不足以回答某一方面时，可换用更具体的说法再检索。"
+                + "检索结果为空时如实告知未找到相关资料，不要编造。"
                 + "只接受 query 与 topK 参数，不接受知识库或文档 ID。";
     }
 
@@ -65,7 +68,11 @@ public final class KnowledgeSearchToolHandler implements ContextAwareToolHandler
                 "properties",
                 Map.of(
                         "query",
-                        Map.of("type", "string", "description", "完整自然语言检索语句，覆盖问题核心实体与术语，不要只写关键词"),
+                        Map.of(
+                                "type",
+                                "string",
+                                "description",
+                                "完整自然语言检索语句，只针对一个方面，覆盖该方面的核心实体与术语，不要只写关键词"),
                         "topK",
                         Map.of(
                                 "type",
