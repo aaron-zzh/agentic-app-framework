@@ -21,14 +21,22 @@ export function AgentRunStatus() {
 
   if (phase === "idle") return null
 
-  const last = entries.at(-1)
+  // 角色切换、转为任务已在消息流中以行内标记显示（ControlToolChip），这里只显示过程性记录
+  const last = entries
+    .filter((entry) => entry.type !== "ROLE_SWITCHED" && entry.type !== "TASK_PROMOTED")
+    .at(-1)
   const label = activeTool ? `调用工具：${activeTool}` : (PHASE_LABEL[phase] ?? phase)
 
   return (
     <div className="flex items-center gap-2 border-t px-3 py-1.5 text-muted-foreground text-xs">
       {phase === "running" && <Loader2 className="size-3 animate-spin" />}
       <span>{label}</span>
-      {last?.title && <span className="truncate">· {last.title}</span>}
+      {last?.title && (
+        <span className="min-w-0 truncate">
+          · {last.title}
+          {last.message ? `：${last.message}` : ""}
+        </span>
+      )}
     </div>
   )
 }

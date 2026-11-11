@@ -70,7 +70,12 @@ function RecentProjectCard({ project }: { project: AigcProject }) {
   )
 }
 
-export function RecentProjectGrid() {
+interface RecentProjectGridProps {
+  /** 是否显示"查看全部"链接；在项目主页上会链回当前页，应传 false */
+  showViewAll?: boolean
+}
+
+export function RecentProjectGrid({ showViewAll = true }: RecentProjectGridProps) {
   const { data, isLoading } = useAigcProjects({ pageSize: 4 })
   const projects = data?.list ?? []
 
@@ -78,12 +83,14 @@ export function RecentProjectGrid() {
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <h2 className="font-semibold text-base">最近项目</h2>
-        <Link
-          href="/studio/projects"
-          className="flex items-center gap-1 text-muted-foreground text-sm hover:text-foreground"
-        >
-          查看全部 <ChevronRight />
-        </Link>
+        {showViewAll ? (
+          <Link
+            href="/studio/projects"
+            className="flex items-center gap-1 text-muted-foreground text-sm hover:text-foreground"
+          >
+            查看全部 <ChevronRight />
+          </Link>
+        ) : null}
       </div>
       {isLoading ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">

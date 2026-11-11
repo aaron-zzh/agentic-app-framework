@@ -64,6 +64,11 @@ interface MediaGenerationWorkspaceProps {
   initialDraft?: MediaGenerationDraft
   projectTargets?: Partial<Record<MediaGenerationMode, MediaProjectTarget>>
   onExecutionSubmitted?: (executionRunId: number) => void
+  /**
+   * 嵌入其他页面（如 Studio 首页）：切换模式不跳转到创作页路由，也不显示任务结果卡片，
+   * 结果由宿主页面自行展示。
+   */
+  embedded?: boolean
 }
 
 function parseTaskParams(params: string | null): ParsedTaskParams {
@@ -90,7 +95,8 @@ export function MediaGenerationWorkspace({
   initialMode = "image",
   initialDraft,
   projectTargets,
-  onExecutionSubmitted
+  onExecutionSubmitted,
+  embedded = false
 }: MediaGenerationWorkspaceProps) {
   const availableFeatures = useMemo(
     () =>
@@ -107,9 +113,10 @@ export function MediaGenerationWorkspace({
   const [workspaceDraft, setWorkspaceDraft] = useState<WorkspaceDraft | null>(() =>
     initialDraft ? { mode: resolvedInitialMode, value: initialDraft } : null
   )
+  const showResults = !projectTargets && !embedded
   const { data: recentTasks } = useRecentAigcTasks(
     25,
-    shouldLoadIndependentMediaTasks(projectTargets)
+    shouldLoadIndependentMediaTasks(projectTargets) && showResults
   )
   const tasksByType = useMemo(() => {
     const next: Record<MediaTaskType, AigcTaskEvent[]> = {
@@ -142,9 +149,9 @@ export function MediaGenerationWorkspace({
       setActiveMode(mode)
       setWorkspaceDraft(null)
       setSelectedSkillId(null)
-      if (!projectTargets) router.push(getMediaGenerationPath(mode))
+      if (!projectTargets && !embedded) router.push(getMediaGenerationPath(mode))
     },
-    [projectTargets, router, setSelectedSkillId]
+    [embedded, projectTargets, router, setSelectedSkillId]
   )
 
   const handleTaskSubmitted = useCallback(
@@ -241,14 +248,14 @@ export function MediaGenerationWorkspace({
   return (
     <div className="flex flex-col gap-4">
       {composer}
-      {projectTargets ? null : (
+      {showResults ? (
         <GenerationResultCard
           tasks={tasksByType[activeTaskType]}
           mediaType={RESULT_TYPE_BY_MODE[activeMode]}
           onRegenerate={handleRegenerate}
           regeneratingTaskId={regeneratingTaskId}
         />
-      )}
+      ) : null}
     </div>
   )
 }

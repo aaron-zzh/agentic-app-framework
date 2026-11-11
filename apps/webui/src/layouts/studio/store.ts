@@ -45,6 +45,8 @@ interface StudioShellState {
   activeId: string | null
   /** 侧栏折叠（独立持久化） */
   sidebarCollapsed: boolean
+  /** 首页顶栏收起，只留下拉把手（其他页面顶栏始终展开） */
+  homeTopbarCollapsed: boolean
   /** 助理浮球可见性 */
   assistantVisible: boolean
 
@@ -56,6 +58,7 @@ interface StudioShellState {
   updateTab: (id: string, patch: Partial<StudioTab>) => void
   setScrollY: (id: string, y: number) => void
   toggleSidebar: () => void
+  toggleHomeTopbar: () => void
   setAssistantVisible: (v: boolean) => void
 
   /** 重置（如登出） */
@@ -80,6 +83,7 @@ const initialState = {
   ] as StudioTab[],
   activeId: "home" as string | null,
   sidebarCollapsed: true,
+  homeTopbarCollapsed: true,
   assistantVisible: true
 }
 
@@ -159,6 +163,8 @@ export const useStudioShell = create<StudioShellState>()(
 
       toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
 
+      toggleHomeTopbar: () => set((state) => ({ homeTopbarCollapsed: !state.homeTopbarCollapsed })),
+
       setAssistantVisible: (v) => set({ assistantVisible: v }),
 
       reset: () => set(initialState)
@@ -177,6 +183,7 @@ export const useStudioShell = create<StudioShellState>()(
         tabs: state.tabs,
         activeId: state.activeId,
         sidebarCollapsed: state.sidebarCollapsed,
+        homeTopbarCollapsed: state.homeTopbarCollapsed,
         assistantVisible: state.assistantVisible
       })
     }

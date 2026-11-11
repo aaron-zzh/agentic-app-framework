@@ -86,12 +86,100 @@ export const creditsApi = {
 }
 
 import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { format, subDays } from "date-fns"
+import { useCallback } from "react"
 import { useAuthStore } from "@/lib/store/auth-store"
 
 const BALANCE_KEY = ["credits", "balance"]
 const TRANSACTIONS_KEY = ["credits", "transactions"]
 const TOKEN_RULES_KEY = ["credits", "token-rules"]
 const GROUPS_KEY = ["credits", "groups"]
+/** 图表聚合取最近 100 条流水；积分没有用户级统计接口，消耗频繁时统计会偏小 */
+const SPEND_STATS_PAGE_SIZE = 100
+
+/** 每日积分消耗点，date 为 yyyy-MM-dd */
+export interface CreditSpendTrendPoint {
+  date: string
+  amount: number
+}
+
+/** 积分消耗分类汇总行，字段与 ExpensesCategoryWidget 的 categories 行一致 */
+export interface CreditSpendCategoryRow {
+  biz_type: string
+  total: number
+}
+
+/** 截至 now 的最近 days 天日期 key（含当天），按时间升序 */
+function recentDayKeys(days: number, now: Date): string[] {
+  const count = Math.max(0, Math.floor(days))
+  return Array.from({ length: count }, (_, index) =>
+    format(subDays(now, count - 1 - index), "yyyy-MM-dd")
+  )
+}
+
+/** 流水所属日期 key：createTime 前 10 位（yyyy-MM-dd） */
+function transactionDayKey(tx: CreditTransactionVO): string {
+  return tx.createTime.slice(0, 10)
+}
+
+/**
+ * 聚合最近 days 天每日 SPEND 金额，没有消耗的日期补 0。
+ *
+ * @example
+ * aggregateCreditSpendTrend(page.list, 14) // => [{ date: "2026-10-27", amount: 0 }, ...]
+ */
+export function aggregateCreditSpendTrend(
+  transactions: CreditTransactionVO[],
+  days: number,
+  now: Date = new Date()
+): CreditSpendTrendPoint[] {
+  const dayKeys = recentDayKeys(days, now)
+  const totals = new Map(dayKeys.map((day) => [day, 0]))
+  for (const tx of transactions) {
+    if (tx.type !== "SPEND") continue
+    const day = transactionDayKey(tx)
+    const current = totals.get(day)
+    if (current === undefined) continue
+    totals.set(day, current + Math.abs(tx.amount))
+  }
+  return dayKeys.map((date) => ({ date, amount: totals.get(date) ?? 0 }))
+}
+
+/**
+ * 聚合最近 days 天 SPEND 金额并按 category 汇总，category 为空归入 other，按金额降序。
+ *
+ * @example
+ * aggregateCreditSpendCategories(page.list, 30) // => [{ biz_type: "chat", total: 120 }, ...]
+ */
+export function aggregateCreditSpendCategories(
+  transactions: CreditTransactionVO[],
+  days: number,
+  now: Date = new Date()
+): CreditSpendCategoryRow[] {
+  const dayKeys = recentDayKeys(days, now)
+  const firstDay = dayKeys[0]
+  const lastDay = dayKeys[dayKeys.length - 1]
+  if (firstDay === undefined || lastDay === undefined) return []
+  const totals = new Map<string, number>()
+  for (const tx of transactions) {
+    if (tx.type !== "SPEND") continue
+    const day = transactionDayKey(tx)
+    if (day < firstDay || day > lastDay) continue
+    const key = tx.category || "other"
+    totals.set(key, (totals.get(key) ?? 0) + Math.abs(tx.amount))
+  }
+  return Array.from(totals.entries())
+    .map(([biz_type, total]) => ({ biz_type, total }))
+    .sort((left, right) => right.total - left.total)
+}
+
+/** 积分流水查询配置，分页列表与图表派生 hook 共用同一 queryKey 规则 */
+function creditTransactionsQuery(page: number, size: number) {
+  return {
+    queryKey: [...TRANSACTIONS_KEY, page, size],
+    queryFn: () => creditsApi.getTransactions(page, size)
+  }
+}
 
 /**
  * 积分变更后统一失效查询：余额 + 流水 + 分组明细。
@@ -113,10 +201,35 @@ export function useCreditBalance() {
 
 /** 查询积分流水（分页） */
 export function useCreditTransactions(page: number, size = 20) {
-  return useQuery({
-    queryKey: [...TRANSACTIONS_KEY, page, size],
-    queryFn: () => creditsApi.getTransactions(page, size)
-  })
+  return useQuery(creditTransactionsQuery(page, size))
+}
+
+/**
+ * 近 N 天每日积分消耗趋势，与 useCreditTransactions(0, 100) 共用一份缓存。
+ *
+ * @example
+ * const { data: points = [] } = useCreditSpendTrend(14)
+ */
+export function useCreditSpendTrend(days = 14) {
+  const select = useCallback(
+    (page: PageResult<CreditTransactionVO>) => aggregateCreditSpendTrend(page.list, days),
+    [days]
+  )
+  return useQuery({ ...creditTransactionsQuery(0, SPEND_STATS_PAGE_SIZE), select })
+}
+
+/**
+ * 近 N 天积分消耗分类，与 useCreditTransactions(0, 100) 共用一份缓存。
+ *
+ * @example
+ * const { data: categories = [] } = useCreditSpendCategories(30)
+ */
+export function useCreditSpendCategories(days = 30) {
+  const select = useCallback(
+    (page: PageResult<CreditTransactionVO>) => aggregateCreditSpendCategories(page.list, days),
+    [days]
+  )
+  return useQuery({ ...creditTransactionsQuery(0, SPEND_STATS_PAGE_SIZE), select })
 }
 
 /** 查询积分转 Token 规则 */

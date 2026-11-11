@@ -8,12 +8,23 @@
 import { UserRound } from "lucide-react"
 import { useAgentRunStore } from "../runtime/agent-run-store"
 
+/** ROUTE_AUTO 下按 selectedBy 显示角色来源；未知取值统一显示"助理判断" */
+const SELECTED_BY_LABELS: Record<string, string> = {
+  CONVERSATION_ROLE: "沿用会话角色",
+  DEFAULT_ROLE: "默认角色",
+  ROLE_SWITCHED: "助理切换"
+}
+
 export function SelectedRoleBadge() {
   const selectedRole = useAgentRunStore((s) => s.selectedRole)
 
   if (!selectedRole) return null
 
-  const source = selectedRole.routeConstraint === "ROUTE_FIXED" ? "已指定" : "AI 自动选择"
+  const source =
+    selectedRole.routeConstraint === "ROUTE_FIXED"
+      ? "已指定"
+      : ((selectedRole.selectedBy ? SELECTED_BY_LABELS[selectedRole.selectedBy] : undefined) ??
+        "助理判断")
 
   return (
     <div className="flex items-center gap-1.5 border-b px-3 py-1.5 text-muted-foreground text-xs">

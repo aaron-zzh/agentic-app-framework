@@ -1,99 +1,46 @@
 /**
- * Content Studio 首页——统计、最近项目、蓝图与快速创作。
+ * Content Studio 首页——座舱大屏：中央多智能体协作画布，四周资源、积分、运行统计、创作与最近生成浮层。
+ *
+ * 本文件只负责页面容器与屏幕模式；布局见 HomeCockpitLayout，面板定义见 HOME_WIDGETS。
+ * 大屏模式（视口 ≥ 1280px 或全屏）下页面铺满主内容区、不滚动；窄屏下纵向堆叠可滚动。
  * @author AaronZZH & Kiro
  */
 
 "use client"
 
-import { FileText, ImageIcon, Mic, Music, UserRound, Video } from "lucide-react"
-import Link from "next/link"
-import { GlassCard, SectionHaze } from "@/components/studio"
-import { Badge } from "@/components/ui/badge"
-import { RecentProjectGrid } from "@/features/studio/content"
-import { HomeDataCapsules } from "@/features/studio/home"
-import { HomeBlueprintSection } from "@/features/studio/home/HomeBlueprintSection"
-
-const QUICK_CREATE_ENTRIES = [
-  {
-    title: "图像",
-    href: "/studio/create?mode=image",
-    icon: ImageIcon
-  },
-  {
-    title: "视频",
-    href: "/studio/create?mode=video",
-    icon: Video
-  },
-  {
-    title: "文案",
-    href: "/studio/create/copy",
-    icon: FileText
-  },
-  {
-    title: "配音",
-    href: "/studio/create?mode=voice",
-    icon: Mic
-  },
-  {
-    title: "音乐",
-    href: "/studio/create?mode=music",
-    icon: Music
-  },
-  {
-    title: "数字人",
-    href: "/studio/create?mode=digital-human",
-    icon: UserRound,
-    comingSoon: true
-  }
-] as const
+import { useRef } from "react"
+import { HomeCockpitLayout, HomeSkeleton, useHomeScreenMode } from "@/features/studio/home"
+import { useHydrated } from "@/lib/hooks/use-hydrated"
+import { cn } from "@/lib/utils/cn"
 
 export default function StudioHomePage() {
+  // 水合完成后才读取本地偏好、当前时间与登录信息，避免与服务端渲染不一致
+  const hydrated = useHydrated()
+  const containerRef = useRef<HTMLDivElement>(null)
+  const { fit, fullscreen, fullscreenSupported, toggleFullscreen } = useHomeScreenMode(containerRef)
+
   return (
-    <div className="relative">
-      <SectionHaze variant="blend" />
-      <div className="relative mx-auto flex max-w-7xl flex-col gap-8 px-6 py-8">
-        <section aria-label="工作概况">
-          <HomeDataCapsules />
-        </section>
-
-        <RecentProjectGrid />
-
-        <HomeBlueprintSection />
-
-        <section aria-labelledby="studio-quick-create-title" className="flex flex-col gap-3">
-          <h2 id="studio-quick-create-title" className="font-semibold text-base">
-            快速创作
-          </h2>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
-            {QUICK_CREATE_ENTRIES.map((entry) => {
-              const Icon = entry.icon
-              return (
-                <Link
-                  key={entry.href}
-                  href={entry.href}
-                  className="group block rounded-2xl outline-none focus-visible:ring-3 focus-visible:ring-primary"
-                >
-                  <GlassCard interactive className="h-full">
-                    <div className="p-4">
-                      <div className="flex items-center gap-2">
-                        <span className="rounded-xl bg-primary/10 p-2 text-primary">
-                          <Icon />
-                        </span>
-                        <h3 className="font-semibold text-sm">{entry.title}</h3>
-                        {"comingSoon" in entry ? (
-                          <Badge variant="secondary" className="ml-auto">
-                            尚未开放
-                          </Badge>
-                        ) : null}
-                      </div>
-                    </div>
-                  </GlassCard>
-                </Link>
-              )
-            })}
-          </div>
-        </section>
-      </div>
+    <div
+      ref={containerRef}
+      className={cn(
+        "relative bg-background",
+        fit ? "h-full" : "min-h-full",
+        // 全屏元素由浏览器设为满屏尺寸，窄屏堆叠时需自带滚动
+        fullscreen && "overflow-y-auto"
+      )}
+    >
+      {hydrated ? (
+        <HomeCockpitLayout
+          wide={fit}
+          fullscreen={fullscreen}
+          fullscreenSupported={fullscreenSupported}
+          onToggleFullscreen={toggleFullscreen}
+        />
+      ) : (
+        <div className="mx-auto max-w-7xl px-6 py-8">
+          <HomeSkeleton />
+        </div>
+      )}
     </div>
   )
 }

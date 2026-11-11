@@ -19,6 +19,8 @@ export interface ChatSession {
   status: "ACTIVE" | "ARCHIVED" | "BOT" | "WAITING" | "CLOSED"
   userId: string
   threadId: string
+  /** 会话当前角色（下一轮起步角色），未记录时为空 */
+  agentRole?: string | null
   agentId?: string
   createdAt: string
   updatedAt: string
@@ -152,12 +154,15 @@ export const chatApi = {
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
-const KEYS = {
+/** 聊天查询键；对外导出供运行时事件失效会话列表（如角色切换后刷新会话当前角色） */
+export const chatKeys = {
   all: ["chat"] as const,
   sessions: ["chat", "sessions"] as const,
   messages: (sessionId: string) => ["chat", "messages", sessionId] as const,
   credits: (threadId: string, runId: string) => ["chat", "credits", threadId, runId] as const
 }
+
+const KEYS = chatKeys
 
 /** 会话列表 */
 export function useChatSessions(options?: { enabled?: boolean }) {

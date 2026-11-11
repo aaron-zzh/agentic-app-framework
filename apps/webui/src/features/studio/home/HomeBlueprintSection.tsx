@@ -1,5 +1,6 @@
 /**
- * Studio 首页蓝图区：按项目类型展示已发布蓝图，点击后跳转统一新建项目页。
+ * Studio 项目模板区（在项目主页 /studio/projects 未筛选时展示）：按项目类型展示已发布蓝图，
+ * 点击后跳转统一新建项目页。
  * @author AaronZZH & Kiro
  */
 
@@ -164,7 +165,7 @@ export function HomeBlueprintSection() {
               <LayoutTemplate />
             </EmptyMedia>
             <EmptyTitle>项目类型加载失败</EmptyTitle>
-            <EmptyDescription>项目模板区暂时不可用，其他首页功能不受影响。</EmptyDescription>
+            <EmptyDescription>项目模板区暂时不可用，其他功能不受影响。</EmptyDescription>
           </EmptyHeader>
           <Button type="button" variant="outline" onClick={() => void refetchTypes()}>
             <RefreshCw data-icon="inline-start" />

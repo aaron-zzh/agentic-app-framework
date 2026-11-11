@@ -13,6 +13,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { notify } from "@/lib/notification"
 
 import { backendApi } from "../backend-client"
+import { buildQuery, type PageResult } from "../crud"
 
 const ROLE_QUERY_KEY = ["ai-roles"] as const
 /** 助理可用性查询（聊天框角色选择器使用），绑定变化后需要同步失效。 */
@@ -41,8 +42,20 @@ export interface AiRoleVO {
   visibility: AiRoleVisibility
   /** 私有角色的所有者；SYSTEM / PUBLIC 为空 */
   ownerId: number | null
+  /** 角色分类 ID；为空表示未分类 */
+  categoryId: number | null
   createTime: string
   updateTime: string
+}
+
+export interface AiRoleCategoryVO {
+  id: number
+  /** 系统分类的稳定业务码；私有分类为空 */
+  code: string | null
+  name: string
+  /** 排序值，升序 */
+  sortOrder: number
+  visibility: "SYSTEM" | "PRIVATE"
 }
 
 export interface AiRoleLibraryItem {
@@ -123,7 +136,20 @@ export const roleApi = {
     backendApi.put(`/ai/my/roles/${id}`, input),
   deleteMine: (id: number): Promise<void> => backendApi.delete(`/ai/my/roles/${id}`),
   publish: (id: number, input: PublishAiRoleInput): Promise<AiRoleVO> =>
-    backendApi.post("/ai/roles/actions/publish", { id, ...input })
+    backendApi.post("/ai/roles/actions/publish", { id, ...input }),
+  /** 当前用户可见的角色分类：系统分类加自己的私有分类 */
+  categories: (): Promise<PageResult<AiRoleCategoryVO>> =>
+    backendApi.get(`/ai/role-categories${buildQuery({ pageNo: 1, pageSize: 100 })}`)
+}
+
+/** 当前用户可见的角色分类，按 sortOrder 升序。 */
+export function useAiRoleCategories() {
+  return useQuery({
+    queryKey: [...ROLE_QUERY_KEY, "categories"] as const,
+    queryFn: roleApi.categories,
+    select: (page) => [...page.list].sort((a, b) => a.sortOrder - b.sortOrder),
+    staleTime: 5 * 60 * 1000
+  })
 }
 
 /** 角色库：当前用户可绑定的内置、公开与自己的私有角色，标注是否已绑定。 */

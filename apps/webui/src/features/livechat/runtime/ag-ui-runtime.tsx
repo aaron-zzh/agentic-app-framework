@@ -152,6 +152,7 @@ import {
   type AafAiTaskEvent,
   type ChatMessageVO,
   chatApi,
+  chatKeys,
   getGuestMessages,
   resolveGuestSession,
   taskKeys,
@@ -171,6 +172,12 @@ import { applyJsonPatch, type JsonPatchOperation } from "./json-patch"
 
 const DEFAULT_AGENT_URL = buildApiUrl("/agui/run")
 const GUEST_SESSION_QUERY_KEY = ["guest-customer-service-session"] as const
+
+/** `aaf.task.promoted` 的 shape 对应的对话流提示；shape 缺省时用通用文案。 */
+const PROMOTION_SHAPE_MESSAGES: Record<string, string> = {
+  STEPS: "已转为任务，按步骤执行",
+  DELEGATE: "已转为任务，由多个角色分工协作"
+}
 
 /** 判断未知值是否为普通对象。 */
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -503,8 +510,54 @@ export function AgUiChatProvider({
         })
       },
       onCustomEvent: ({ event }) => {
-        if (event.name.startsWith("aaf.task.")) {
+        // aaf.task.promoted 必须先于 aaf.task. 前缀分支处理，否则会被提前 return
+        if (event.name === "aaf.task.promoted") {
+          const value = event.value as AafAiTaskEvent | undefined
+          const shape = value?.data.shape
+          const promotedRoleKey = value?.data.roleKey
+          const shapeMessage =
+            typeof shape === "string" ? PROMOTION_SHAPE_MESSAGES[shape] : undefined
+          run.pushEntry({
+            type: "TASK_PROMOTED",
+            title: "转为任务",
+            message: shapeMessage ?? "已转为任务",
+            roleKey: typeof promotedRoleKey === "string" ? promotedRoleKey : undefined,
+            timestamp: Date.now()
+          })
           void queryClient.invalidateQueries({ queryKey: taskKeys.all })
+          return
+        }
+        if (event.name.startsWith("aaf.task.") || event.name.startsWith("aaf.executor_plan.")) {
+          // 步骤计划事件只作失效通知，让 TaskPanel 重新拉取步骤
+          void queryClient.invalidateQueries({ queryKey: taskKeys.all })
+          return
+        }
+        if (event.name === "aaf.role.switched") {
+          const value = event.value as AafAiTaskEvent | undefined
+          const toRoleKey = value?.data.toRoleKey
+          const toRoleName = value?.data.toRoleName
+          const reason = value?.data.reason
+          if (typeof toRoleKey === "string" && typeof toRoleName === "string") {
+            run.pushEntry({
+              type: "ROLE_SWITCHED",
+              title: "切换角色",
+              message:
+                typeof reason === "string" && reason.length > 0
+                  ? `已切换到 ${toRoleName}：${reason}`
+                  : `已切换到 ${toRoleName}`,
+              roleKey: toRoleKey,
+              timestamp: Date.now()
+            })
+            run.setSelectedRole({
+              roleKey: toRoleKey,
+              roleName: toRoleName,
+              // 由助理在轮内主动切换，不属于调用方指定
+              routeConstraint: "ROUTE_AUTO",
+              selectedBy: "ROLE_SWITCHED"
+            })
+            // 后端已把新角色记为会话当前角色，刷新会话列表让工具栏起步角色同步
+            void queryClient.invalidateQueries({ queryKey: chatKeys.sessions })
+          }
           return
         }
         if (event.name === "aaf.role.resolved") {
@@ -512,11 +565,25 @@ export function AgUiChatProvider({
           const roleKey = value?.data.roleKey
           const roleName = value?.data.roleName
           const routeConstraint = value?.data.routeConstraint
+          const selectedBy = value?.data.selectedBy
           if (typeof roleKey === "string" && typeof roleName === "string") {
+            // 自主切换后的续接执行以固定路由运行；同一角色时保留"助理切换"来源，避免显示成用户指定
+            const previous = useAgentRunStore.getState().selectedRole
+            const switched =
+              previous?.selectedBy === "ROLE_SWITCHED" && previous.roleKey === roleKey
             run.setSelectedRole({
               roleKey,
               roleName,
-              routeConstraint: typeof routeConstraint === "string" ? routeConstraint : "ROUTE_AUTO"
+              routeConstraint: switched
+                ? previous.routeConstraint
+                : typeof routeConstraint === "string"
+                  ? routeConstraint
+                  : "ROUTE_AUTO",
+              selectedBy: switched
+                ? "ROLE_SWITCHED"
+                : typeof selectedBy === "string"
+                  ? selectedBy
+                  : undefined
             })
           }
           return

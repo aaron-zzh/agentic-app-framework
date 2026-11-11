@@ -20,6 +20,9 @@ import type {
   ChatterDropItem,
   TaskModelSelection
 } from "@/features/chatter/types"
+import { AgentRunStatus } from "@/features/livechat/components/AgentRunStatus"
+import { SelectedRoleBadge } from "@/features/livechat/components/SelectedRoleBadge"
+import { SubTaskActivityList } from "@/features/livechat/components/SubTaskActivityList"
 
 interface ChatterPanelProps {
   toolbar: ReactNode
@@ -75,7 +78,11 @@ export function ChatterPanel({
   return (
     <div className="flex h-full flex-col">
       {toolbar}
+      {/* 运行态指示挂载位置参照 livechat/ChatLayout：角色标识在消息流上方，子任务与运行状态在下方 */}
+      {!guestMode && <SelectedRoleBadge />}
       <ChatterThread guestMode={guestMode} showThinking={displayPreferences.showThinking} />
+      {!guestMode && <SubTaskActivityList />}
+      {!guestMode && <AgentRunStatus />}
       {!guestMode && <ClarificationInterruptPanel />}
       {!guestMode && <ToolConfirmOverlay />}
       {!guestMode && displayPreferences.showPlan && (

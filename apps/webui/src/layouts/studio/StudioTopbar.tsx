@@ -6,6 +6,8 @@
  * 右：积分余额、通知、用户头像、主题切换
  *
  * 复用现有 UserAvatarPopover 与 Notifications 业务能力
+ *
+ * 首页（/studio）顶栏可收起：收起后只留下沿右半部分正中的把手，点击切换；状态存 Studio Shell store。
  */
 
 "use client"
@@ -20,6 +22,8 @@ import { NotificationDrawer } from "@/features/notifications"
 import { cn } from "@/lib/utils/index"
 import { useStudioHeaderStore } from "./header-store"
 import { StudioMobileNav } from "./StudioMobileNav"
+import { useStudioShell } from "./store"
+import { TopbarCollapseHandle } from "./TopbarCollapseHandle"
 
 /** 左侧导航按钮：页面声明了 back 时显示返回；二级及更深页面在手机端显示首页入口（桌面端侧栏常驻） */
 function TopbarNavButtons() {
@@ -72,45 +76,67 @@ function TopbarNavButtons() {
 }
 
 export function StudioTopbar() {
-  return (
-    <header
-      className={cn(
-        "flex h-14 shrink-0 items-center gap-3 border-foreground/6 border-b bg-background/60 backdrop-blur-md",
-        "px-4"
-      )}
-    >
-      {/* 左：小屏汉堡按钮，点击从左侧弹出导航抽屉（桌面端使用常驻侧栏） */}
-      <StudioMobileNav />
-      <TopbarNavButtons />
+  const pathname = usePathname()
+  const homeTopbarCollapsed = useStudioShell((s) => s.homeTopbarCollapsed)
+  const toggleHomeTopbar = useStudioShell((s) => s.toggleHomeTopbar)
+  // 只有首页的顶栏可收起，其他页面始终展开
+  const collapsible = pathname === "/studio"
+  const collapsed = collapsible && homeTopbarCollapsed
 
-      {/* 搜索框（⌘K 命令面板触发）；品牌 logo 由侧栏 / 抽屉显示 */}
-      <button
-        type="button"
-        onClick={() => {
-          // 通过 keyboard event 模拟触发 ⌘K，与 useCommandPalette 中的监听器联动
-          document.dispatchEvent(
-            new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true })
-          )
-        }}
+  return (
+    <div className="relative z-30 shrink-0">
+      {/* 收起时高度归零并上移隐藏，内容区随之上移；把手放在裁剪层之外，始终可见 */}
+      <div
         className={cn(
-          "ml-auto flex h-9 w-full max-w-md items-center gap-2 rounded-lg border border-foreground/8",
-          "bg-foreground/2 px-3 text-muted-foreground text-sm",
-          "hover:border-foreground/15 hover:bg-foreground/4"
+          "overflow-hidden transition-[height] duration-200",
+          collapsed ? "h-0" : "h-14"
         )}
       >
-        <Search className="size-4" />
-        <span className="flex-1 text-left">搜索...</span>
-        <kbd className="hidden rounded bg-foreground/6 px-1.5 py-0.5 font-mono text-[10px] sm:inline">
-          ⌘K
-        </kbd>
-      </button>
+        <header
+          inert={collapsed}
+          className={cn(
+            "flex h-14 items-center gap-3 border-foreground/6 border-b bg-background/60 backdrop-blur-md",
+            "px-4 transition-transform duration-200",
+            collapsed && "-translate-y-full"
+          )}
+        >
+          {/* 左：小屏汉堡按钮，点击从左侧弹出导航抽屉（桌面端使用常驻侧栏） */}
+          <StudioMobileNav />
+          <TopbarNavButtons />
 
-      {/* 右：主题切换 / 通知 / 头像 */}
-      <div className="ml-auto flex items-center gap-2">
-        <ThemeToggle />
-        <NotificationDrawer notificationsUrl="/studio/notifications" />
-        <UserAvatarPopover />
+          {/* 搜索框（⌘K 命令面板触发）；品牌 logo 由侧栏 / 抽屉显示 */}
+          <button
+            type="button"
+            onClick={() => {
+              // 通过 keyboard event 模拟触发 ⌘K，与 useCommandPalette 中的监听器联动
+              document.dispatchEvent(
+                new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true })
+              )
+            }}
+            className={cn(
+              "ml-auto flex h-9 w-full max-w-md items-center gap-2 rounded-lg border border-foreground/8",
+              "bg-foreground/2 px-3 text-muted-foreground text-sm",
+              "hover:border-foreground/15 hover:bg-foreground/4"
+            )}
+          >
+            <Search className="size-4" />
+            <span className="flex-1 text-left">搜索...</span>
+            <kbd className="hidden rounded bg-foreground/6 px-1.5 py-0.5 font-mono text-[10px] sm:inline">
+              ⌘K
+            </kbd>
+          </button>
+
+          {/* 右：主题切换 / 通知 / 头像 */}
+          <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle />
+            <NotificationDrawer notificationsUrl="/studio/notifications" />
+            <UserAvatarPopover />
+          </div>
+        </header>
       </div>
-    </header>
+      {collapsible ? (
+        <TopbarCollapseHandle collapsed={collapsed} onToggle={toggleHomeTopbar} />
+      ) : null}
+    </div>
   )
 }

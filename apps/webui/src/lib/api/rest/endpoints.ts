@@ -58,6 +58,7 @@ export const restEndpoints = {
     generationHistory: "/aigc/history",
     imageGeneration: "/system/images/draw",
     tasks: "/ai/tasks",
+    activeTasks: "/ai/tasks/active",
     task: (taskId: string) => `/ai/tasks/${taskId}`,
     taskPause: (taskId: string) => `/ai/tasks/${taskId}/pause`,
     taskResume: (taskId: string) => `/ai/tasks/${taskId}/resume`,

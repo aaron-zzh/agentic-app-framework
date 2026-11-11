@@ -30,7 +30,7 @@ import {
   Wand2,
   Wrench
 } from "lucide-react"
-import { useMemo } from "react"
+import { useCallback, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { BaseChart, type EChartsOption } from "@/features/stats/charts/BaseChart"
@@ -56,7 +56,8 @@ interface ExpensesCategoryWidgetProps {
   categories?: BillingCategoryRow[]
 }
 
-const COLORS = [
+/** 分类配色，饼图与分类列表共用 */
+export const CATEGORY_COLORS = [
   "#6366f1",
   "#ef4444",
   "#3b82f6",
@@ -105,31 +106,44 @@ const BIZ_TYPE_META: Record<string, { label: string; icon: LucideIcon }> = {
   OTHER: { label: "其他", icon: Package }
 }
 
-export function ExpensesCategoryWidget({ title, series, categories }: ExpensesCategoryWidgetProps) {
+/** 积分消耗分类展示信息 */
+export interface BillingCategoryMeta {
+  label: string
+  icon: LucideIcon
+  /** 小写归一化 key，用于查图标 */
+  iconKey: string
+}
+
+/**
+ * 积分消耗分类 bizType 解析：归一化 → 字典 label → 本地 fallback → 原值。
+ *
+ * @example
+ * const resolveMeta = useBillingCategoryMeta()
+ * resolveMeta("IMAGE_GEN").label // => "图像生成"
+ */
+export function useBillingCategoryMeta(): (bizType: string) => BillingCategoryMeta {
   // 字典：credit_transaction_category（label 即中文名，value 为小写 code）
   const { getLabel: getDictLabel } = useDict("credit_transaction_category")
-
-  /**
-   * 解析单个 bizType：归一化 → 字典 label → 本地 fallback → 原值
-   * 同时返回用于查图标的小写归一化 key
-   */
-  const resolveMeta = useMemo(
-    () =>
-      (bizType: string): { label: string; icon: LucideIcon; iconKey: string } => {
-        const raw = bizType ?? ""
-        const lower = raw.toLowerCase()
-        // 1. 优先查字典（按归一化的小写 value）
-        const dictLabel = getDictLabel(lower)
-        // 2. 本地 fallback：先按小写 key，再按原始 key（兼容历史 bizType 大写驼峰）
-        const fallback = BIZ_TYPE_META[lower] ?? BIZ_TYPE_META[raw]
-        return {
-          label: dictLabel || fallback?.label || raw || "其他",
-          icon: fallback?.icon ?? Package,
-          iconKey: lower
-        }
-      },
+  return useCallback(
+    (bizType: string) => {
+      const raw = bizType ?? ""
+      const lower = raw.toLowerCase()
+      // 1. 优先查字典（按归一化的小写 value）
+      const dictLabel = getDictLabel(lower)
+      // 2. 本地 fallback：先按小写 key，再按原始 key（兼容历史 bizType 大写驼峰）
+      const fallback = BIZ_TYPE_META[lower] ?? BIZ_TYPE_META[raw]
+      return {
+        label: dictLabel || fallback?.label || raw || "其他",
+        icon: fallback?.icon ?? Package,
+        iconKey: lower
+      }
+    },
     [getDictLabel]
   )
+}
+
+export function ExpensesCategoryWidget({ title, series, categories }: ExpensesCategoryWidgetProps) {
+  const resolveMeta = useBillingCategoryMeta()
 
   // 优先用真实数据 categories（biz_type 形态），否则用 series（mock 形态）
   const items: CategoryItem[] = useMemo(() => {
@@ -157,7 +171,7 @@ export function ExpensesCategoryWidget({ title, series, categories }: ExpensesCa
           data: items.map((item, i) => ({
             name: item.label,
             value: item.value,
-            itemStyle: { color: COLORS[i % COLORS.length] }
+            itemStyle: { color: CATEGORY_COLORS[i % CATEGORY_COLORS.length] }
           }))
         }
       ]
@@ -192,8 +206,8 @@ export function ExpensesCategoryWidget({ title, series, categories }: ExpensesCa
                       <span
                         className="flex h-7 w-7 items-center justify-center rounded-full"
                         style={{
-                          backgroundColor: `${COLORS[i % COLORS.length]}20`,
-                          color: COLORS[i % COLORS.length]
+                          backgroundColor: `${CATEGORY_COLORS[i % CATEGORY_COLORS.length]}20`,
+                          color: CATEGORY_COLORS[i % CATEGORY_COLORS.length]
                         }}
                       >
                         <Icon className="h-4 w-4" />
@@ -206,7 +220,7 @@ export function ExpensesCategoryWidget({ title, series, categories }: ExpensesCa
                       </div>
                       <span
                         className="ml-auto h-2 w-2 shrink-0 rounded-full"
-                        style={{ backgroundColor: COLORS[i % COLORS.length] }}
+                        style={{ backgroundColor: CATEGORY_COLORS[i % CATEGORY_COLORS.length] }}
                       />
                     </div>
                   )

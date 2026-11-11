@@ -23,7 +23,6 @@ import {
 } from "@assistant-ui/react"
 import {
   Archive,
-  Bot,
   Maximize2,
   MessageSquareIcon,
   MoreHorizontal,
@@ -34,7 +33,6 @@ import {
   PlusIcon,
   Sparkles,
   Trash2,
-  User,
   X
 } from "lucide-react"
 import { type ReactNode, useEffect, useState } from "react"
@@ -57,9 +55,11 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+// 临时注释：AI/Kiro 切换已隐藏
+// import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import type { ChatterPreset, ChatterTarget } from "@/features/chatter/types"
-import { type AssistantItem, useAssistants } from "@/lib/api/rest/ai"
+import { useAgentRunStore } from "@/features/livechat/runtime/agent-run-store"
+import { type AssistantItem, useAssistants, useChatSessions } from "@/lib/api/rest/ai"
 import { useChatterStore } from "@/lib/store/chatter-store"
 import { cn } from "@/lib/utils"
 
@@ -89,25 +89,26 @@ function roleOptionValue(assistantId: string, roleKey: string): string {
   return JSON.stringify([assistantId, roleKey])
 }
 
-function getAvailableTargets(preset: ChatterPreset): ChatterTarget["type"][] {
-  switch (preset) {
-    case "ai":
-      return ["ai", "kiro"]
-    case "kiro":
-      return ["kiro", "ai"]
-    case "livechat":
-      return ["ai", "kiro", "user"]
-    case "guest":
-      return []
-  }
-}
-
-const TARGET_ICONS: Record<ChatterTarget["type"], ReactNode> = {
-  ai: <Sparkles className="size-3.5" />,
-  guest: <MessageSquareIcon className="size-3.5" />,
-  kiro: <Bot className="size-3.5" />,
-  user: <User className="size-3.5" />
-}
+// 临时注释：AI/Kiro 切换已隐藏，以下目标列表与图标暂不使用
+// function getAvailableTargets(preset: ChatterPreset): ChatterTarget["type"][] {
+//   switch (preset) {
+//     case "ai":
+//       return ["ai", "kiro"]
+//     case "kiro":
+//       return ["kiro", "ai"]
+//     case "livechat":
+//       return ["ai", "kiro", "user"]
+//     case "guest":
+//       return []
+//   }
+// }
+//
+// const TARGET_ICONS: Record<ChatterTarget["type"], ReactNode> = {
+//   ai: <Sparkles className="size-3.5" />,
+//   guest: <MessageSquareIcon className="size-3.5" />,
+//   kiro: <Bot className="size-3.5" />,
+//   user: <User className="size-3.5" />
+// }
 
 const TARGET_LABELS: Record<ChatterTarget["type"], string> = {
   ai: "AI",
@@ -127,7 +128,7 @@ export function ChatterToolbar({
   hideRoleSwitch = false,
   fixedTitle
 }: ChatterToolbarProps) {
-  const targets = getAvailableTargets(preset)
+  // const targets = getAvailableTargets(preset) // 临时注释：AI/Kiro 切换已隐藏
   const showRoleSelector = target.type === "ai" && fixedTitle === undefined
   const layoutOverride = useChatterStore((s) => s.layoutOverride)
   const setLayoutOverride = useChatterStore((s) => s.setLayoutOverride)
@@ -150,9 +151,52 @@ export function ChatterToolbar({
       roleName: role.name
     }))
   )
-  const currentRole = roleOptions.find(
+  // 当前实际角色以服务端事件为准（aaf.role.resolved / aaf.role.switched 写入的瞬时 UI 状态）
+  const selectedRole = useAgentRunStore((s) => s.selectedRole)
+  const pickedRole = roleOptions.find(
     (option) => option.assistantId === target.assistantId && option.roleKey === target.agentRole
   )
+  const resolvedRole = selectedRole
+    ? roleOptions.find(
+        (option) =>
+          option.roleKey === selectedRole.roleKey &&
+          (!target.assistantId || option.assistantId === target.assistantId)
+      )
+    : undefined
+  const currentRole = resolvedRole ?? pickedRole
+  // 发消息前还没有服务端事件：先用会话记录的当前角色，再退到助理默认角色。
+  // 未指定助理时只在用户仅有一个助理时可确定
+  const displayAssistant =
+    assistants?.find((assistant) => assistant.assistantId === target.assistantId) ??
+    (assistants?.length === 1 ? assistants[0] : undefined)
+  const currentThreadId = useAgentRunStore((s) => s.currentThreadId)
+  const { data: chatSessions } = useChatSessions({ enabled: target.type === "ai" })
+  const conversationRoleKey = chatSessions?.find(
+    (session) => session.threadId === currentThreadId
+  )?.agentRole
+  const findRoleOption = (roleKey: string | null | undefined) =>
+    roleKey
+      ? roleOptions.find(
+          (option) =>
+            option.roleKey === roleKey &&
+            (!displayAssistant || option.assistantId === displayAssistant.assistantId)
+        )
+      : undefined
+  const startingRole = selectedRole
+    ? undefined
+    : (findRoleOption(conversationRoleKey) ?? findRoleOption(displayAssistant?.defaultRoleKey))
+  const displayRole = currentRole ?? startingRole
+
+  // 协调者自主切换后，把用户上次选的起步角色同步为实际角色，避免下一轮请求把会话角色改回旧选择
+  useEffect(() => {
+    if (!target.agentRole || !resolvedRole || resolvedRole.roleKey === target.agentRole) return
+    onTargetChange({
+      ...target,
+      assistantId: resolvedRole.assistantId,
+      agentRole: resolvedRole.roleKey,
+      agentSkill: undefined
+    })
+  }, [onTargetChange, resolvedRole, target])
 
   // 旧页面配置只有 roleKey；仅当 API 中唯一匹配时一次性补齐 assistantId，随后始终原子发送。
   useEffect(() => {
@@ -180,8 +224,10 @@ export function ChatterToolbar({
     <AssistantRoleSelect
       assistants={assistants ?? []}
       options={roleOptions}
-      current={currentRole}
+      current={displayRole}
+      fallbackRoleName={selectedRole?.roleName}
       onChange={(option) =>
+        // 选择只指定起步角色，不锁定；后端写入会话当前角色，协调者仍可自主切换（ADR-011）
         onTargetChange({
           ...target,
           type: "ai",
@@ -219,6 +265,7 @@ export function ChatterToolbar({
             <span className="flex-1" />
           ) : (
             <>
+              {/* 临时注释：AI/Kiro 切换，当前仅保留 AI 助理模式
               <ToggleGroup
                 value={[target.type]}
                 onValueChange={(value: string[]) => {
@@ -241,6 +288,7 @@ export function ChatterToolbar({
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
+              */}
 
               {roleSelector}
             </>
@@ -348,13 +396,21 @@ function AssistantRoleSelect({
   assistants,
   options,
   current,
+  fallbackRoleName,
   onChange
 }: {
   assistants: AssistantItem[]
   options: AssistantRoleOption[]
+  /** 当前实际角色：优先取服务端本轮确定的角色，其次是用户选的起步角色 */
   current?: AssistantRoleOption
+  /** 服务端已确定角色但不在选项中（如助理未显式指定）时的展示名 */
+  fallbackRoleName?: string
   onChange: (option: AssistantRoleOption) => void
 }) {
+  const triggerLabel = current
+    ? `${current.assistantName} · ${current.roleName}`
+    : `AI 助理 · ${fallbackRoleName ?? "默认角色"}`
+
   return (
     <Select
       value={current?.value ?? null}
@@ -365,7 +421,7 @@ function AssistantRoleSelect({
     >
       <SelectTrigger
         size="sm"
-        aria-label="选择助理角色"
+        aria-label="选择起步角色"
         className="h-7 min-w-0 flex-1 justify-start gap-1.5 overflow-hidden border-none bg-muted/50 px-2 text-xs"
       >
         <Avatar className="size-4 shrink-0">
@@ -373,9 +429,7 @@ function AssistantRoleSelect({
             {(current?.assistantName ?? "AI").charAt(0)}
           </AvatarFallback>
         </Avatar>
-        <SelectValue className="min-w-0 truncate">
-          {current ? `${current.assistantName} · ${current.roleName}` : "AI 助理 · 自动角色"}
-        </SelectValue>
+        <SelectValue className="min-w-0 truncate">{triggerLabel}</SelectValue>
       </SelectTrigger>
       <SelectContent align="start" className="min-w-56">
         {assistants.map((assistant) => (

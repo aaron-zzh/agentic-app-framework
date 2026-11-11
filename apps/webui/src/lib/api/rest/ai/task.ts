@@ -108,6 +108,11 @@ export interface ExecutorPlanDetails {
 export interface TaskNodeDetails {
   nodeId: string
   kind: TaskNodeKind
+  /**
+   * 节点执行角色的稳定业务码。后端 TaskDetails.NodeDetails 当前未投影该字段（AAF-127 #12712 待后端补齐），
+   * 缺省时首页看板的角色运行节点数为 0。
+   */
+  roleKey?: string | null
   description: string
   dependsOn: string[]
   status: TaskNodeStatus
@@ -156,6 +161,7 @@ export interface TaskDetails {
 
 export const taskKeys = {
   all: ["assistant-tasks"] as const,
+  active: ["assistant-tasks", "active"] as const,
   list: (conversationId: string) => [...taskKeys.all, "list", conversationId] as const,
   detail: (taskId: string) => [...taskKeys.all, "detail", taskId] as const
 }
@@ -165,6 +171,8 @@ export const taskApi = {
     backendApi.get<TaskDetails[]>(restEndpoints.ai.tasks, {
       params: { conversationId }
     }),
+  /** 当前用户跨会话的未终结 Task（最多 50 条，按更新时间倒序） */
+  active: () => backendApi.get<TaskDetails[]>(restEndpoints.ai.activeTasks),
   get: (taskId: string) => backendApi.get<TaskDetails>(restEndpoints.ai.task(taskId)),
   pause: (taskId: string, reason: string) =>
     backendApi.post<TaskDetails>(restEndpoints.ai.taskPause(taskId), { reason }),
@@ -211,5 +219,25 @@ export function useTaskDetails(taskId: string | null) {
         ? TRANSITIONING_POLL_MS
         : ACTIVE_POLL_MS
     }
+  })
+}
+
+const TASK_EVENT_PREFIX = "task."
+
+/**
+ * 查询当前用户跨会话的未终结 Task，供首页看板展示运行中任务与角色节点数。
+ * 任何 `task.` 前缀事件只作失效通知，不读取 payload 写入本地状态；存在活跃任务时低频轮询兜底断线。
+ */
+export function useActiveTasks() {
+  const queryClient = useQueryClient()
+
+  useEventSubscription(TASK_EVENT_PREFIX, () => {
+    void queryClient.invalidateQueries({ queryKey: taskKeys.active, exact: true })
+  })
+
+  return useQuery({
+    queryKey: taskKeys.active,
+    queryFn: taskApi.active,
+    refetchInterval: (query) => ((query.state.data?.length ?? 0) > 0 ? ACTIVE_POLL_MS : false)
   })
 }

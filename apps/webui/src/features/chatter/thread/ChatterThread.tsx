@@ -66,6 +66,7 @@ import { useVoiceConfig } from "@/lib/store/voice-config"
 import { cn } from "@/lib/utils/cn"
 import { formatMessageTime } from "@/lib/utils/format-time"
 import { useServerTts } from "../hooks/use-server-tts"
+import { CONTROL_TOOL_NAMES, ControlToolChip } from "./ControlToolChip"
 import { MarkdownText } from "./MarkdownText"
 
 /** AI 消息内容提取（用于 TTS） */
@@ -494,6 +495,9 @@ function AssistantMessage({
         <MessagePrimitive.GroupedParts
           groupBy={groupPartByType({
             reasoning: ["group-chainOfThought", "group-reasoning"],
+            // 控制工具（切换角色、转为任务）不进折叠组，在消息流中以行内标记显示
+            "tool-call:activate_role": [],
+            "tool-call:promote_to_task": [],
             "tool-call": ["group-chainOfThought", "group-tool"]
           })}
         >
@@ -524,6 +528,16 @@ function AssistantMessage({
                   </span>
                 ) : null
               case "tool-call":
+                if ((CONTROL_TOOL_NAMES as readonly string[]).includes(part.toolName)) {
+                  return (
+                    <ControlToolChip
+                      toolName={part.toolName}
+                      args={part.args}
+                      status={part.status}
+                      isError={part.isError}
+                    />
+                  )
+                }
                 return (
                   part.toolUI ?? (
                     <ToolFallback

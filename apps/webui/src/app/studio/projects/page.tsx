@@ -1,5 +1,5 @@
 /**
- * Content Studio AIGC 项目列表。
+ * Content Studio AIGC 项目主页：未筛选时先展示最近项目与项目模板，再展示全部项目列表。
  * @author AaronZZH & Kiro
  */
 
@@ -44,8 +44,10 @@ import { Textarea } from "@/components/ui/textarea"
 import {
   getProjectTypeConfig,
   isProjectContentWritable,
-  PROJECT_STATUS_CONFIG
+  PROJECT_STATUS_CONFIG,
+  RecentProjectGrid
 } from "@/features/studio/content"
+import { HomeBlueprintSection } from "@/features/studio/home/HomeBlueprintSection"
 import type { AigcProject, AigcProjectStatus } from "@/lib/api/rest/ai/aigc"
 import {
   useAigcProjectLifecycle,
@@ -250,6 +252,8 @@ export default function StudioProjectsPage() {
   const rawStatus = searchParams.get("status") ?? "all"
   const status = STATUS_TABS.some((tab) => tab.value === rawStatus) ? rawStatus : "all"
   const type = searchParams.get("type")
+  // 未带任何筛选参数时才在列表上方展示最近项目与项目模板；按原始参数判断，侧栏带 status 进入直接看列表
+  const unfiltered = (searchParams.get("status") ?? "all") === "all" && !type
   const { data: typePage } = useAigcProjectTypes()
   const { data, isLoading } = useAigcProjects({
     pageSize: 50,
@@ -312,6 +316,15 @@ export default function StudioProjectsPage() {
             </GlowButton>
           ) : null}
         </header>
+
+        {unfiltered ? (
+          <>
+            <RecentProjectGrid showViewAll={false} />
+            <HomeBlueprintSection />
+          </>
+        ) : null}
+
+        <h2 className="font-semibold text-base">全部项目</h2>
 
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 flex-nowrap gap-2 overflow-x-auto pb-1 lg:w-1/2 lg:flex-none">
