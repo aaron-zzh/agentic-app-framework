@@ -130,6 +130,7 @@ Flyway 通过 `spring.flyway.locations`（`classpath:db/migration,classpath:db/s
 | v200-v299 | Intelligent runtime | Assistant、canonical Task 与智能治理迁移 |
 | v300-v399 | 通用设备层（device） | AAF-120；先于场景包执行；schema 放 `db/migration/`、seed 放 `db/seed/`；EntityDef 种子用 v100-v199 号段（`view/v110__device_entity_def.sql`） |
 | v400-v499 | 养老业务模块（elder） | AAF-120；device 的首个场景包；EntityDef 种子用 v100-v199 号段（`view/v109__elder_entity_def.sql`） |
+| v500-v599 | 回忆录模块（memoir） | 老人回忆录平台 P0，需求见 [P0 需求规格](../../prd/memoir/一期需求规格.md)；讲述者档案经服务接口复用 elder 模块，不跨包访问其表；EntityDef 种子用 v100-v199 号段 |
 
 **规则**：
 
