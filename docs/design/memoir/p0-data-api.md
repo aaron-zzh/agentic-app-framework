@@ -1,47 +1,138 @@
 ---
 level: Practice
 layer: Product
-purpose: 给出回忆录平台 P0 的数据模型草案、REST 接口清单与示例、安全与降级要求，供 architect 评审定稿
+purpose: 给出回忆录平台的数据模型草案、REST 接口清单与示例、安全与降级要求：一期一图一事部分按一期需求规格编写，原方案 A 部分作为二期和后推阶段的基线，供 architect 评审定稿
 status: draft
-version: 0.2.0
-date: 2026-11-10
+version: 0.3.0
+date: 2026-11-11
 author: AaronZZH & Kiro
 tags:
   - 回忆录
   - 数据模型
   - 接口
   - P0
+  - 一图一事
 related:
   - ./agent-workflow.md
   - ./fact-check-engine.md
   - ../../prd/memoir/一期需求规格.md
   - ../../prd/memoir/一期任务.md
+  - ../../prd/memoir/后续需求规格.md
+  - ../../prd/memoir/后续任务.md
 scope:
   includes:
-    - P0 数据表草案（事实核对相关表见事实核对模块）
-    - 一期自助版数据表：身份、家族档案、成员与邀请、资料与家人补充、自助对话、事实卡片、自助作品、升级请求
+    - 一期一图一事：家族档案与成员、邀请爸妈、分项授权、故事卡片（多张照片、原声、转写、标题、话题、状态、可见范围、案例展示授权）、话题库与出题、故事包订单与额度、退款、家人留言、复核与投诉的表结构、状态机落地、接口清单与校验
+    - 原方案 A（二期或后推）：人工项目表、自助对话、事实卡片、自助作品、家人补充、升级请求
     - REST 接口清单与示例
     - 安全、审计与降级
     - 待 architect 决定的事项
   excludes:
-    - 业务规则与验收线（见 P0 需求规格）
+    - 业务规则与验收线（一期见一期需求规格，二期和后推见后续需求规格）
     - 类结构与模块拆分（进入迭代后在任务目录 design.md 中定义）
 gains:
-  - 能说出 P0 的核心数据表及其关系
-  - 能说出事实卡片和自助作品的状态字段、来源表和溯源表
-  - 能按接口清单找到每个 P0 功能对应的接口
+  - 能说出一期故事卡片和故事包订单的表、状态字段与服务端校验
+  - 能按一期接口清单找到 P0-01 到 P0-14 每项功能对应的接口
+  - 能说出原方案 A 的事实卡片和自助作品的状态字段、来源表和溯源表，以及它们属于二期
   - 能列出评审时需要 architect 决定的问题
 ---
 
 # P0 数据与接口设计
 
-本文是草案，业务规则见 [P0 需求规格](../../prd/memoir/一期需求规格.md)。进入迭代前由 architect 评审，结论写入任务目录的 `design.md`。
+本文是草案，进入迭代前由 architect 评审，结论写入任务目录的 `design.md`。本文分两部分：
+
+- [一期一图一事](#一期一图一事)：按 [一期需求规格](../../prd/memoir/一期需求规格.md) 编写，该节的 P0 编号指一期需求规格的 P0-01 到 P0-14，任务卡见 [一期任务](../../prd/memoir/一期任务.md)。
+- [数据模型](#数据模型) 及之后各节：按原方案 A 编写，业务规则见 [后续需求规格](../../prd/memoir/后续需求规格.md)，未注明来源的 P0 编号指后续需求规格。其中自助对话、事实卡片、自助作品、家人补充属于二期，人工项目与升级请求属于后推阶段；身份、家族档案、成员与邀请、授权在一期按"一期一图一事"一节调整后落地，两处不一致时一期以该节为准。
 
 ## 落地约定
 
 - 后端模块建议为 `com.xuejiai.aaf.module.memoir`，遵循 [架构约束](../../reference/dev/architecture-constraints.md)。
 - 运营后台的列表、表单和运维动作由 `sys_entity_def` 声明，不手写页面。
 - 主存储为 PostgreSQL。已定：P0 时间线与人物关系只用 PostgreSQL 加 JSON，不投影 Neo4j。
+
+## 一期一图一事
+
+只列一期新增或调整的表和接口，状态机与放行条件以 [一期需求规格 状态机](../../prd/memoir/一期需求规格.md#状态机) 为准。沿用下文的 `user_identity`、`family_archive`、`archive_member`、`archive_invitation`、`consent_record`，一期不建 `elder_profile`（待人类确认，见 [一期任务 超出容量与待决](../../prd/memoir/一期任务.md#超出容量与待决)）。
+
+### 一期新增表
+
+```sql
+-- 故事卡片：一段讲述一张卡
+story(
+  id PK, archive_id FK, narrator_id FK,
+  topic_id FK NULL, child_prompt_id FK NULL,     -- 来自话题库或子女出题，均空为自由讲
+  audio_uri, duration_sec INT,                   -- 原声，最后一版
+  transcript JSON,                               -- 逐句转写，带时间戳
+  title, title_source ENUM('quote','topic'),     -- 原话摘取或话题名
+  video_uri NULL, ai_label_done BOOL,
+  risk_flags JSON,                               -- 高风险规则命中
+  status ENUM('GENERATING','IN_REVIEW','BLOCKED','FAILED','PENDING',
+              'PUBLISHED','WITHDRAWN','DELETED'),
+  visibility ENUM('self','family'),              -- 不提供公开链接
+  showcase_consent BOOL DEFAULT false,           -- 案例展示授权
+  withdrawn_by ENUM('narrator','consent','ops') NULL,
+  order_id FK NULL,                              -- 扣段数的订单
+  gen_attempts INT, last_error, created_at, published_at
+)
+
+-- 故事照片：1 到 9 张，保存顺序
+story_photo(
+  id PK, story_id FK, seq INT, origin_uri, restored_uri NULL
+)
+
+-- 状态留痕
+story_status_log(
+  id PK, story_id FK, from_status, to_status, reason, operator_id, device, created_at
+)
+
+-- 话题库与子女出题
+topic(
+  id PK, title, tts_uri, stage, festival NULL, sort INT, enabled BOOL
+)
+child_prompt(
+  id PK, archive_id FK, author_id FK, text, used_story_id FK NULL, created_at
+)
+
+-- 故事包订单与额度
+story_pack_order(
+  id PK, payer_id FK, narrator_id FK, archive_id FK,
+  pack ENUM('trial','monthly','yearly'), price_cent INT, is_first_year_price BOOL,
+  quota INT NULL,                                -- 尝鲜包 3，月度包 20，年度包为空
+  used INT DEFAULT 0, overdraft INT DEFAULT 0,
+  pay_order_no,                                  -- 关联 module/pay 订单
+  status ENUM('PENDING_PAYMENT','CLOSED','PAID','ACTIVE','EXHAUSTED',
+              'EXPIRED','REFUNDING','REFUNDED'),
+  active_at NULL, expire_at NULL, created_at
+)
+
+-- 家人留言
+story_comment(
+  id PK, story_id FK, author_id FK, kind ENUM('text','voice'),
+  content NULL, audio_uri NULL, tts_uri NULL, played_by_narrator BOOL, created_at
+)
+```
+
+邀请爸妈复用 `archive_invitation`，增加 `inviter_voice_uri`（子女录的一句话）和 `invitee_role`（讲述者或家人）两个字段。
+
+### 一期接口
+
+| 方法 | 路径 | 说明 | 规格 |
+|------|------|------|------|
+| POST | `/api/memoir/orders` | 子女下单故事包，返回小程序支付参数 | P0-04 |
+| POST | `/api/memoir/orders/{id}/refund` | 付款子女申请首段退款，服务内部调用 pay 模块 | P0-04 |
+| GET | `/api/memoir/orders` | 子女查看订单、剩余段数和到期时间 | P0-04 |
+| POST | `/api/memoir/invitations` | 生成邀请卡片 | P0-03 |
+| POST | `/api/memoir/invitations/{code}/accept` | 老人或家人接受邀请 | P0-03、P0-09 |
+| GET | `/api/memoir/topics/current` | 老人本周话题（子女出题优先） | P0-05 |
+| POST | `/api/memoir/prompts` | 子女出题 | P0-05 |
+| POST | `/api/memoir/stories` | 老人提交照片和录音，进入 GENERATING | P0-06、P0-07 |
+| POST | `/api/memoir/stories/{id}/retell` | 重讲，不重复扣段数 | P0-06 |
+| POST | `/api/memoir/stories/{id}/publish` | 预览完成后发给家人 | P0-08 |
+| POST | `/api/memoir/stories/{id}/withdraw` | 撤回 | P0-08 |
+| DELETE | `/api/memoir/stories/{id}` | 删除，二次确认 | P0-08 |
+| GET | `/api/memoir/archives/{id}/stories` | 档案内故事列表，按身份过滤可见范围 | P0-09 |
+| POST | `/api/memoir/stories/{id}/comments` | 家人留言 | P0-10 |
+
+支付与退款回调走 `module/pay` 并验签。[一期任务](../../prd/memoir/一期任务.md) 已列出 pay 模块退款接口需要先收紧权限。运营后台的订单、故事复核、话题库、投诉由 EntityDef 声明，不单独设计接口。
 - 七层流水线各层的 AI 能力按 [智能体工作流 AAF 能力映射](./agent-workflow.md#aaf-能力映射) 接入。
 - 已定：讲述者档案复用 `module/elder/profile` 的 `elder_profile`，回忆录模块只经 elder 模块的服务接口读写，不跨包读表。
 - 已定：项目状态机用领域代码实现，不建 BPMN；事实卡片与自助作品的状态机同样用领域代码实现。
@@ -691,7 +782,7 @@ Idempotency-Key: 7f2c...
 | `family_contributed` | 家人补充或上传 | 来源人、类型 |
 | `upgrade_requested`、`upgrade_accepted`、`upgrade_rejected` | 升级请求与接单 | 发起人、处理人、项目 |
 
-审计事件与 [P0 需求规格 埋点与指标](../../prd/memoir/一期需求规格.md#埋点与指标) 的自助事件同名的部分，同时上报埋点；埋点只上报 ID 和状态，不上报文本。
+审计事件与 [后续需求规格 埋点与指标](../../prd/memoir/后续需求规格.md#埋点与指标) 的自助事件同名的部分，同时上报埋点；埋点只上报 ID 和状态，不上报文本。
 
 ## 降级
 
@@ -716,7 +807,7 @@ Idempotency-Key: 7f2c...
 | 跨模块引用是否建库级外键 | `family_archive.elder_id`、`project.elder_id`、`consent_record.elder_id` 指向 elder 模块的表 | 只做逻辑引用，不建外键，经服务接口校验存在 | architect |
 | 身份是否复用 AAF 角色表 | `user_identity` 与 `sys_role` 有重叠 | 业务身份用 `user_identity`，接口权限仍用 AAF 角色 | architect |
 | 转写文本字段加密与检索 | 二期证据绑定用全文检索（见 [一期任务](../../prd/memoir/一期任务.md)），字段级加密后无法在库内检索 | 转写文本只做存储层加密，或另建检索索引；需与安全要求一起定 | architect |
-| 扫码加入是否需要讲述者批准 | 需求只写"家人扫码加入" | 已定：讲述者发出的邀请扫码即加入；家属发出的邀请需讲述者同意（`pending_approval`），见 [P0 需求规格 P0-17](../../prd/memoir/一期需求规格.md#p0-17-家族档案家人邀请与补充) | product |
+| 扫码加入是否需要讲述者批准 | 需求只写"家人扫码加入" | 已定：讲述者发出的邀请扫码即加入；家属发出的邀请需讲述者同意（`pending_approval`），见 [一期需求规格 P0-09](../../prd/memoir/一期需求规格.md#p0-09-家族档案与家人加入) | product |
 | 邀请有效期与次数 | 需求未定义 | 已定：7 天、最多 10 次 | product |
 | 家属能否邀请他人 | 需求未定义 | 已定：可以，需讲述者同意 | product |
 | 分享范围的粒度与取值 | 需求只写"老人决定分享范围"，未说明是档案级还是作品级、能否选部分成员 | 已定：档案默认加作品覆盖，取值"全部成员"或"指定成员" | product |
