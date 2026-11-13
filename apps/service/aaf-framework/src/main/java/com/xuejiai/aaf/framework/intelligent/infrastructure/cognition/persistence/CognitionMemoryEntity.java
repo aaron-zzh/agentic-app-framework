@@ -2,10 +2,12 @@ package com.xuejiai.aaf.framework.intelligent.infrastructure.cognition.persisten
 
 import java.time.Instant;
 
+import org.hibernate.annotations.ColumnTransformer;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -50,6 +52,9 @@ public class CognitionMemoryEntity {
     @Column(columnDefinition = "text[]")
     private String[] tags;
 
+    /** PgVector 按文本读写：读取避开驱动的数组解析，写入显式转为 vector。 */
+    @Convert(converter = PgVectorConverter.class)
+    @ColumnTransformer(write = "cast(? as vector)")
     @Column(columnDefinition = "vector(1536)")
     private float[] embedding;
 

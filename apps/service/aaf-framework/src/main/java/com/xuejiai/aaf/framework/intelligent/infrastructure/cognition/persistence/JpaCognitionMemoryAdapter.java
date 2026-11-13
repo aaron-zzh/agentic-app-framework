@@ -22,6 +22,7 @@ public class JpaCognitionMemoryAdapter
         implements MemoryRecallPort, MemoryWritePort, MemoryManagementPort {
 
     private final CognitionMemoryRepository repository;
+    private static final PgVectorConverter VECTOR = new PgVectorConverter();
     private final EmbeddingService embeddings;
     private final String embeddingModelId;
 
@@ -286,11 +287,6 @@ public class JpaCognitionMemoryAdapter
     }
 
     private static String vector(float[] values) {
-        var builder = new StringBuilder("[");
-        for (var index = 0; index < values.length; index++) {
-            if (index > 0) builder.append(',');
-            builder.append(values[index]);
-        }
-        return builder.append(']').toString();
+        return VECTOR.convertToDatabaseColumn(values);
     }
 }
