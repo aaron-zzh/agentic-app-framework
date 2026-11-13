@@ -20,6 +20,8 @@ import com.xuejiai.aaf.module.ai.persona.outfit.controller.AvatarOutfitControlle
 import com.xuejiai.aaf.module.ai.prompt.controller.PromptTemplateController;
 import com.xuejiai.aaf.module.ai.role.AiRoleController;
 import com.xuejiai.aaf.module.ai.role.PersonaController;
+import com.xuejiai.aaf.module.ai.role.RoleCategoryController;
+import com.xuejiai.aaf.module.ai.role.RoleCategoryResource;
 import com.xuejiai.aaf.module.ai.skill.SkillController;
 import com.xuejiai.aaf.module.billing.controller.CreditRedeemCodeController;
 import com.xuejiai.aaf.module.billing.controller.EntitlementController;
@@ -196,6 +198,12 @@ public class CrudResourceProviderConfiguration {
                 "/api/ai/roles",
                 "system:role",
                 TenantScope.GLOBAL);
+    }
+
+    @Bean
+    CrudResourceDefinitionProvider<?> roleCategoryResource() {
+        return CrudResourceDefinitions.bindCrud(
+                RoleCategoryResource.DEFINITION, RoleCategoryController.class);
     }
 
     @Bean

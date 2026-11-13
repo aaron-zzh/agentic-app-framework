@@ -1,5 +1,5 @@
 -- ============================================================
--- Prompt / Skill 智能治理 EntityDef
+-- Prompt / Skill / 角色 / 角色分类 智能治理 EntityDef
 -- 复用现有代码资源；accessMode 由通用 CRUD 客户端转为固定治理 Header。
 -- ============================================================
 
@@ -198,6 +198,8 @@ VALUES
           "readOnlyWhen":"$record.visibility === 'PRIVATE'"},
         {"type":"json","name":"knowledgeBaseIds","label":"关联知识库（stable_id 数组，最多 5 个）",
           "readOnlyWhen":"$record.visibility === 'PRIVATE'"},
+        {"type":"number","name":"categoryId","label":"角色分类 ID（系统分类）",
+          "readOnlyWhen":"$record.visibility === 'PRIVATE'"},
         {"type":"number","name":"ownerId","label":"私有角色所有者","readOnly":true},
         {"type":"date","name":"updateTime","label":"更新时间","readOnly":true,"includeTime":true}
       ],
@@ -220,6 +222,43 @@ VALUES
           "position": "rowAction"
         }
       ],
+      "mixins": ["baseEntity"]
+    }
+    $json$::jsonb, TRUE, TRUE),
+    ('role-category', $json$
+    {
+      "kind": "code",
+      "resource": "ai.role-category",
+      "accessMode": "admin-maintenance",
+      "label": "角色分类治理",
+      "labelPlural": "角色分类治理",
+      "icon": "folder-tree",
+      "group": "intelligent-governance",
+      "groupLabel": "智能治理",
+      "description": "维护所有用户可见的系统角色分类；用户的私有分类只读",
+      "access": {"read": true, "create": true, "update": true, "delete": true},
+      "fields": [
+        {"type":"number","name":"id","label":"ID","readOnly":true},
+        {"type":"text","name":"code","label":"稳定代码","required":true,"maxLength":64,
+          "readOnlyWhen":"$record.id"},
+        {"type":"text","name":"name","label":"名称","required":true,"maxLength":64},
+        {"type":"select","name":"visibility","label":"可见性","readOnly":true,
+          "options":[
+            {"label":"系统","value":"SYSTEM"},
+            {"label":"私有","value":"PRIVATE"}
+          ]},
+        {"type":"number","name":"ownerId","label":"私有分类所有者","readOnly":true},
+        {"type":"number","name":"sortOrder","label":"排序"},
+        {"type":"date","name":"updateTime","label":"更新时间","readOnly":true,"includeTime":true}
+      ],
+      "listView": {
+        "columns": ["code","name","visibility","ownerId","sortOrder","updateTime"],
+        "defaultSort": "sortOrder:asc",
+        "searchableFields": ["code","name"],
+        "filterableFields": ["visibility"],
+        "filterFields": ["visibility"],
+        "serverPagination": true
+      },
       "mixins": ["baseEntity"]
     }
     $json$::jsonb, TRUE, TRUE)

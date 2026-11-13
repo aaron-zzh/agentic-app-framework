@@ -29,6 +29,7 @@ import lombok.RequiredArgsConstructor;
  * <p>规则：
  *
  * <ul>
+ *   <li>分类可为空；SYSTEM / PUBLIC 角色只能归入未删除的系统分类，PRIVATE 角色可归入系统分类或所有者自己的私有分类，否则按"分类不存在"拒绝
  *   <li>技能必须存在且有已批准的当前版本；SYSTEM / PUBLIC 角色只能引用全员可引用的技能（内置、PUBLIC、INTERNAL）， PRIVATE
  *       角色额外可引用所有者自己的私有技能；任何角色不得引用 WORKSPACE 技能
  *   <li>工具必须是已启用的内置工具或目录登记且启用的工具，不按风险等级限制；PRIVATE 角色要求所有者持有工具声明的已注册权限码
@@ -44,21 +45,25 @@ public class RoleReferenceValidator {
     private final ToolCatalogProvider toolCatalog;
     private final FunctionPermissionChecker permissions;
     private final ObjectProvider<ContextAwareToolHandler> builtinHandlers;
+    private final RoleCategoryRepository categoryRepository;
 
     /**
      * 校验角色引用。
      *
      * @param level 角色可见性，只接受 SYSTEM / PUBLIC / PRIVATE
      * @param ownerId PRIVATE 角色的所有者；SYSTEM / PUBLIC 传 null
+     * @param categoryId 角色分类 ID，可为空
      * @param skillBindings 技能绑定
      * @param toolWhitelistJson 工具授权池 JSON 数组
      */
     public void validate(
             RoleVisibilityLevel level,
             Long ownerId,
+            Long categoryId,
             List<SkillBinding> skillBindings,
             String toolWhitelistJson) {
         Objects.requireNonNull(level, "level 不能为空");
+        requireUsableCategory(level, ownerId, categoryId);
         var skillViolations = skillViolations(level, ownerId, skillBindings);
         var toolViolations = toolViolations(level, ownerId, toolNames(toolWhitelistJson));
         if (skillViolations.isEmpty() && toolViolations.isEmpty()) {
@@ -72,6 +77,42 @@ public class RoleReferenceValidator {
             message.append("；工具：").append(String.join("、", toolViolations));
         }
         throw new BusinessException(GlobalErrorCode.BAD_REQUEST, message.toString());
+    }
+
+    /**
+     * 发布私有角色时沿用的分类：原分类是系统分类则保留，是私有分类或为空则不带分类。
+     *
+     * @param categoryId 原角色的分类 ID，可为空
+     * @return 新公开角色的分类 ID，可为空
+     */
+    public Long retainedSystemCategory(Long categoryId) {
+        if (categoryId == null) {
+            return null;
+        }
+        return categoryRepository
+                .findById(categoryId)
+                .filter(AiRoleCategory::systemCategory)
+                .map(AiRoleCategory::getId)
+                .orElse(null);
+    }
+
+    /** SYSTEM / PUBLIC 只能用系统分类；PRIVATE 可用系统分类或所有者的私有分类。不满足一律按不存在处理，不泄露他人分类。 */
+    private void requireUsableCategory(RoleVisibilityLevel level, Long ownerId, Long categoryId) {
+        if (categoryId == null) {
+            return;
+        }
+        var usable =
+                categoryRepository
+                        .findById(categoryId)
+                        .filter(
+                                category ->
+                                        category.systemCategory()
+                                                || (level == RoleVisibilityLevel.PRIVATE
+                                                        && category.privateOf(ownerId)))
+                        .isPresent();
+        if (!usable) {
+            throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "分类不存在");
+        }
     }
 
     private List<String> skillViolations(
@@ -153,13 +194,15 @@ public class RoleReferenceValidator {
      * @param riskLevel 风险等级，内置工具为空；仅作展示，不影响可选性
      * @param requireConfirm 调用时是否需要人工确认
      * @param readOnly 是否只读
+     * @param displayName 工具中文名，取自工具目录；未配置时为空
      */
     public record SelectableTool(
             String name,
             String category,
             String riskLevel,
             boolean requireConfirm,
-            boolean readOnly) {}
+            boolean readOnly,
+            String displayName) {}
 
     /** 列出用户可选的工具，按工具名排序、去重。 */
     public List<SelectableTool> selectableTools(Long ownerId) {
@@ -174,7 +217,13 @@ public class RoleReferenceValidator {
                                                 null,
                                                 null,
                                                 handler.requireConfirm(),
-                                                handler.readOnly())));
+                                                handler.readOnly(),
+                                                handler.displayName() != null
+                                                        ? handler.displayName()
+                                                        : toolCatalog
+                                                                .find(handler.toolName())
+                                                                .map(ToolCatalogEntry::displayName)
+                                                                .orElse(null))));
         for (var entry : toolCatalog.listEnabled()) {
             if (!permitted(entry, ownerId)) {
                 continue;
@@ -186,7 +235,8 @@ public class RoleReferenceValidator {
                             entry.category(),
                             entry.riskLevel() == null ? null : entry.riskLevel().name(),
                             entry.requireConfirm(),
-                            entry.readOnly()));
+                            entry.readOnly(),
+                            entry.displayName()));
         }
         return List.copyOf(tools.values());
     }

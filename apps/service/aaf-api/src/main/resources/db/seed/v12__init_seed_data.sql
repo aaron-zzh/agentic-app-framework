@@ -179,7 +179,7 @@ WHERE u.username = 'admin'
 
 -- ==================== 初始管理员积分 ====================
 -- admin 不走注册流程，拿不到注册赠积分（grantRegistrationCredits）。admin 在知识库页面导入的文档
--- （如 PlatformGuideDocumentInitializer 登记的平台向导资料）在异步向量化链路受 DefaultAiCreditGuard
+-- （如 BootstrapKnowledgeDocumentInitializer 登记的内置资料）在异步向量化链路受 DefaultAiCreditGuard
 -- fail-closed 限制（余额 <= 0 拒绝），无积分时文档永远停留在 PENDING，故此处预置 1000 积分。
 -- 账户幂等靠 uk_credit_account_user 唯一索引 + NOT EXISTS 双保险。
 
@@ -1001,22 +1001,37 @@ VALUES ('copywriting', '文案生成', '广告、口播、小红书与产品文�
 ON CONFLICT (code) DO NOTHING;
 
 -- ============================================================
+-- 系统角色分类（必须早于全部 ai_role 种子；角色按分类 code 回填 category_id）
+-- ============================================================
+
+INSERT INTO ai_role_category (code, name, sort_order, visibility, create_time, update_time)
+VALUES
+    ('system.role-category.general',     '通用',     10, 'SYSTEM', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('system.role-category.content',     '内容创作', 20, 'SYSTEM', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('system.role-category.elder',       '智慧养老', 30, 'SYSTEM', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('system.role-category.agriculture', '智慧农业', 40, 'SYSTEM', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+ON CONFLICT (code) WHERE deleted = FALSE AND code IS NOT NULL DO NOTHING;
+
+-- ============================================================
 -- 内容创作 Role（默认用户助理模板的可切换能力集）
 -- ============================================================
 
 INSERT INTO ai_role (
-    id, code, name, description, skill_ids, tool_whitelist, status, visibility,
+    id, code, name, description, skill_ids, tool_whitelist, status, visibility, category_id,
     create_time, update_time
 ) VALUES (
     2, 'system.role.content-creator', '内容创作者',
     '内容拆解、思路澄清、结构构建、内容裂变和多平台草稿生成',
     '[{"skillKey":"aigc-copywriting","activationMode":"ON_DEMAND"},{"skillKey":"content-schedule","activationMode":"ON_DEMAND"},{"skillKey":"content-judge","activationMode":"ON_DEMAND"},{"skillKey":"content-clarify","activationMode":"ON_DEMAND"},{"skillKey":"content-architect","activationMode":"ON_DEMAND"},{"skillKey":"content-build","activationMode":"ON_DEMAND"},{"skillKey":"voiceover","activationMode":"ON_DEMAND"},{"skillKey":"redbook","activationMode":"ON_DEMAND"},{"skillKey":"product-copy","activationMode":"ON_DEMAND"},{"skillKey":"ip-position","activationMode":"ON_DEMAND"},{"skillKey":"short-script","activationMode":"ON_DEMAND"},{"skillKey":"title-topic","activationMode":"ON_DEMAND"},{"skillKey":"biz-analysis","activationMode":"ON_DEMAND"},{"skillKey":"rich-text-write","activationMode":"ON_DEMAND"},{"skillKey":"system.skill.content-project-collaboration","activationMode":"ON_DEMAND"},{"skillKey":"system.skill.assistant-blueprint-planning","activationMode":"ON_DEMAND"}]',
     '["content.draft.upsert","context.load","inspect_project_semantics","record_project_text_candidate","record_project_document_candidate","aigc.blueprint.proposal.submit","aigc.project.generation.action.submit"]',
-    'active', 'SYSTEM', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+    'active', 'SYSTEM',
+    (SELECT id FROM ai_role_category WHERE code = 'system.role-category.content' AND deleted = FALSE),
+    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 ) ON CONFLICT (id) DO UPDATE SET
     skill_ids = EXCLUDED.skill_ids,
     tool_whitelist = EXCLUDED.tool_whitelist,
     visibility = EXCLUDED.visibility,
+    category_id = EXCLUDED.category_id,
     update_time = EXCLUDED.update_time;
 
 -- ============================================================
@@ -1025,14 +1040,16 @@ INSERT INTO ai_role (
 -- ============================================================
 
 INSERT INTO ai_role (
-    id, code, name, description, skill_ids, tool_whitelist, status, visibility,
+    id, code, name, description, skill_ids, tool_whitelist, status, visibility, category_id,
     create_time, update_time
 ) VALUES (
     5, 'system.role.elder-care-advisor', '银龄健康顾问',
     '面向老年人及家属的健康知识参考：药品与病症知识核对、口语化健康科普问答，附依据来源；不做诊断、不开处方',
     '[{"skillKey":"system.skill.elder-care-health","activationMode":"ALWAYS"}]',
     '["queryMedicalKnowledge","queryMedicalAnswer","webSearch","queryWeather","context.load"]',
-    'active', 'SYSTEM', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+    'active', 'SYSTEM',
+    (SELECT id FROM ai_role_category WHERE code = 'system.role-category.elder' AND deleted = FALSE),
+    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
 ) ON CONFLICT (id) DO UPDATE SET
     code = EXCLUDED.code,
     name = EXCLUDED.name,
@@ -1040,6 +1057,7 @@ INSERT INTO ai_role (
     skill_ids = EXCLUDED.skill_ids,
     tool_whitelist = EXCLUDED.tool_whitelist,
     visibility = EXCLUDED.visibility,
+    category_id = EXCLUDED.category_id,
     update_time = EXCLUDED.update_time;
 
 -- ============================================================
@@ -1104,8 +1122,8 @@ VALUES
 ('n1n:gpt-6-luna',          'GPT 6 Luna',        'n1n',     'OPENAI_COMPAT', 'gpt-6-luna',                  'https://llm-api.net/v1',                        'CHAT,VISION', 128000, 11,  true,  0.00072, 0.0036, null, 0, null, 0.1),
 ('n1n:deepseek-v4.1-flash', 'DeepSeek Flash',     'n1n',    'OPENAI_COMPAT', 'deepseek-v4.1-flash',          'https://llm-api.net/v1',                   'CHAT',        128000,  20,  true,  0.00216, 0.00864, null, 0, null, 0.02),
 ('n1n:deepseek-v4-pro',     'DeepSeek Pro',       'n1n',    'OPENAI_COMPAT', 'deepseek-v4-pro',              'https://llm-api.net/v1',                   'CHAT',        128000,  21,  true,  0.009504, 0.028512, null, 0, null, 0.033333),
-('qwen:qwen3.8-max',      'Qwen Max',             'qwen',    'OPENAI_COMPAT', 'qwen3.8-max',                 'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com/compatible-mode/v1', 'CHAT,VISION',    128000,  30,  true,  0.012, 0.036, null, 0, null, 0.125),
-('qwen:qwen3.8-flash',     'Qwen Flash',          'qwen',    'OPENAI_COMPAT', 'qwen3.8-flash',                'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com/compatible-mode/v1', 'CHAT,VISION',  128000, 31,  true,  0.0008, 0.0027, null, 0, null, 0.125),
+('qwen:qwen3.8-max',      'Qwen Max',             'qwen',    'OPENAI_COMPAT', 'qwen3.8-max',                 'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com/compatible-mode/v1', 'CHAT,VISION',    128000,  1,  true,  0.012, 0.036, null, 0, null, 0.125),
+('qwen:qwen3.8-flash',     'Qwen Flash',          'qwen',    'OPENAI_COMPAT', 'qwen3.8-flash',                'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com/compatible-mode/v1', 'CHAT,VISION',  128000, 0,  true,  0.0008, 0.0027, null, 0, null, 0.125),
 ('qwen:qwen3.7-text-embedding','Qwen3.7 Embedding', 'qwen',    'OPENAI_COMPAT', 'qwen3.7-text-embedding',     'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com/compatible-mode/v1', 'EMBEDDING', 128000, 33,  true,  0.0005, 0, null, 0, null, null),
 -- 图像生成（按次计费，quota_type=1；OpenAI Compat 按 token 计费，quota_type=0）
 ('qwen:wan2.7-image',              '万相 Wan2.7',        'qwen', 'DASHSCOPE',    'wan2.7-image',                   'https://llm-svefpty6kh16cfqc.cn-beijing.maas.aliyuncs.com', 'IMAGE_GEN',  800, 210, true,  null,  null,  0.2, 1, '{"mode":"fixed","sizes":[],"generate":{"maxImages":4,"sizePresets":["1K","2K"],"seed":true},"edit":{"maxInputImages":9,"maxImages":4,"sizePresets":["1K","2K"],"seed":true}}', null),
@@ -1143,7 +1161,7 @@ ON CONFLICT (model_id) DO NOTHING;
 -- 系统默认模型偏好
 INSERT INTO ai_model_preference (scope, scope_id, capability, model_ids)
 VALUES
-    ('SYSTEM', NULL, 'CHAT',       '["n1n:claude-sonnet-5-5"]'),
+    ('SYSTEM', NULL, 'CHAT',       '["qwen:qwen3.8-flash"]'),
     ('SYSTEM', NULL, 'EMBEDDING',  '["qwen:qwen3.7-text-embedding"]'),
     ('SYSTEM', NULL, 'IMAGE_GEN',  '["n1n:gpt-image-2"]'),
     ('SYSTEM', NULL, 'OCR',        '["qwen:qwen3.5-ocr"]'),
@@ -1767,37 +1785,43 @@ INSERT INTO ai_persona (
 -- 用户默认模板的 Role。内容创作者 Role（ID 2）由既有 seed 定义。
 INSERT INTO ai_role (
     id, code, name, description, skill_ids, tool_whitelist, knowledge_base_ids, status, visibility, owner_id,
-    create_time, update_time, deleted
+    category_id, create_time, update_time, deleted
 ) VALUES (
     1, 'system.role.platform-guide', '平台向导',
     'AAF 平台咨询和只读故障排查',
     '[{"skillKey":"builtin-skill-creation","activationMode":"ON_DEMAND"},{"skillKey":"builtin-tool-generation","activationMode":"ON_DEMAND"}]', '["context.load"]',
     '["00000000-0000-0000-0000-000000000301"]',
-    'active', 'SYSTEM', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
+    'active', 'SYSTEM', NULL,
+    (SELECT id FROM ai_role_category WHERE code = 'system.role-category.general' AND deleted = FALSE),
+    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
 -- 默认用户模板的中立通用 Role：不限定具体领域职能，作为兜底入口按用户意图动态路由到其他 Role/Skill；
 -- "平台向导"改为普通非默认 Role，避免默认 Role 的命名限定了其"应覆盖任意任务"的定位。
 INSERT INTO ai_role (
     id, code, name, description, skill_ids, tool_whitelist, status, visibility, owner_id,
-    create_time, update_time, deleted
+    category_id, create_time, update_time, deleted
 ) VALUES (
     4, 'system.role.generalist', '通用助理',
     '不限定具体领域，按用户意图动态路由到其他角色或技能；无匹配意图时提供通用协助',
     '[]', '["context.load"]',
-    'active', 'SYSTEM', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
+    'active', 'SYSTEM', NULL,
+    (SELECT id FROM ai_role_category WHERE code = 'system.role-category.general' AND deleted = FALSE),
+    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
 -- 访客客服的最小权限 Role：不挂载内容生成、脚本或有副作用工具；绑定平台向导知识库用于产品咨询。
 INSERT INTO ai_role (
     id, code, name, description, skill_ids, tool_whitelist, knowledge_base_ids, status, visibility, owner_id,
-    create_time, update_time, deleted
+    category_id, create_time, update_time, deleted
 ) VALUES (
     3, 'system.role.customer-service', '客服专员',
     '面向访客的产品咨询和知识问答',
     '[]', '[]',
     '["00000000-0000-0000-0000-000000000301"]',
-    'active', 'SYSTEM', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
+    'active', 'SYSTEM', NULL,
+    (SELECT id FROM ai_role_category WHERE code = 'system.role-category.general' AND deleted = FALSE),
+    CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
 ) ON CONFLICT (id) DO NOTHING;
 
 -- 显式写入系统 Role ID 不会推进 identity sequence，后续 seed 使用生成 ID 前必须同步。
@@ -1806,6 +1830,154 @@ SELECT setval(
     COALESCE((SELECT MAX(id) FROM ai_role), 1),
     TRUE
 );
+
+-- 智慧农业演示工具目录（AAF-126）：实现见 module.agri.agent.tool.AgriDemoTool，返回示例数据。
+-- 不声明功能权限码：角色白名单限定能力；预约草稿按当前用户隔离，确认需人工确认。
+INSERT INTO ai_tool_catalog (
+    tool_name, source, enabled, tool_type, category, risk_level,
+    read_only, reversible, idempotency_required, require_confirm,
+    permission_code, entitlement_code, cost_expression,
+    input_schema, output_schema, sort_order, create_time, update_time
+) VALUES
+    ('agriSensorTrend', 'LOCAL', TRUE, 'FUNCTION', 'AGRI', 'LOW',
+     TRUE, FALSE, FALSE, FALSE, NULL, NULL, NULL,
+     '{"type":"object","additionalProperties":false,"required":["greenhouse","metric"],"properties":{"greenhouse":{"type":"string","minLength":1,"maxLength":32},"metric":{"type":"string","enum":["temperature","humidity","light","soilMoisture"]},"days":{"type":"integer","minimum":1,"maximum":30,"default":7}}}', NULL,
+     600, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('agriSensorAlerts', 'LOCAL', TRUE, 'FUNCTION', 'AGRI', 'LOW',
+     TRUE, FALSE, FALSE, FALSE, NULL, NULL, NULL,
+     '{"type":"object","additionalProperties":false,"properties":{"days":{"type":"integer","minimum":1,"maximum":30,"default":7}}}', NULL,
+     610, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('agriSalesSummary', 'LOCAL', TRUE, 'FUNCTION', 'AGRI', 'LOW',
+     TRUE, FALSE, FALSE, FALSE, NULL, NULL, NULL,
+     '{"type":"object","additionalProperties":false,"properties":{"product":{"type":"string","maxLength":32},"days":{"type":"integer","minimum":7,"maximum":90,"default":30}}}', NULL,
+     620, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('agriBookableProducts', 'LOCAL', TRUE, 'FUNCTION', 'AGRI', 'LOW',
+     TRUE, FALSE, FALSE, FALSE, NULL, NULL, NULL,
+     '{"type":"object","additionalProperties":false,"properties":{}}', NULL,
+     630, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('agriDraftBooking', 'LOCAL', TRUE, 'FUNCTION', 'AGRI', 'LOW',
+     TRUE, FALSE, FALSE, FALSE, NULL, NULL, NULL,
+     '{"type":"object","additionalProperties":false,"required":["product","quantityKg","bookingType","date","timeSlot","contactName"],"properties":{"product":{"type":"string","minLength":1,"maxLength":32},"quantityKg":{"type":"integer","minimum":1,"maximum":500},"bookingType":{"type":"string","enum":["PICKING","DELIVERY"]},"date":{"type":"string","format":"date"},"timeSlot":{"type":"string","enum":["09:00-11:00","14:00-16:00"]},"contactName":{"type":"string","minLength":1,"maxLength":64},"contactPhone":{"type":"string","maxLength":32},"address":{"type":"string","maxLength":500}}}', NULL,
+     640, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('agriConfirmBooking', 'LOCAL', TRUE, 'FUNCTION', 'AGRI', 'HIGH',
+     FALSE, FALSE, TRUE, TRUE, NULL, NULL, NULL,
+     '{"type":"object","additionalProperties":false,"required":["draftId"],"properties":{"draftId":{"type":"string","format":"uuid"}}}', NULL,
+     650, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    -- 物联网设备演示工具：实现见 module.agri.agent.tool.AgriDeviceDemoTool，设备与状态只在内存中，不控制真实设备。
+    ('agriSensorRealtime', 'LOCAL', TRUE, 'FUNCTION', 'AGRI', 'LOW',
+     TRUE, FALSE, FALSE, FALSE, NULL, NULL, NULL,
+     '{"type":"object","additionalProperties":false,"required":["greenhouse"],"properties":{"greenhouse":{"type":"string","minLength":1,"maxLength":32}}}', NULL,
+     660, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('agriDeviceList', 'LOCAL', TRUE, 'FUNCTION', 'AGRI', 'LOW',
+     TRUE, FALSE, FALSE, FALSE, NULL, NULL, NULL,
+     '{"type":"object","additionalProperties":false,"properties":{"greenhouse":{"type":"string","maxLength":32}}}', NULL,
+     670, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('agriDeviceStatus', 'LOCAL', TRUE, 'FUNCTION', 'AGRI', 'LOW',
+     TRUE, FALSE, FALSE, FALSE, NULL, NULL, NULL,
+     '{"type":"object","additionalProperties":false,"required":["deviceId"],"properties":{"deviceId":{"type":"string","minLength":1,"maxLength":32}}}', NULL,
+     680, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('agriDraftDeviceCommand', 'LOCAL', TRUE, 'FUNCTION', 'AGRI', 'LOW',
+     TRUE, FALSE, FALSE, FALSE, NULL, NULL, NULL,
+     '{"type":"object","additionalProperties":false,"required":["deviceId","action","reason"],"properties":{"deviceId":{"type":"string","minLength":1,"maxLength":32},"action":{"type":"string","enum":["ON","OFF","SET_LEVEL"]},"level":{"type":"integer","minimum":0,"maximum":100},"durationMinutes":{"type":"integer","minimum":1,"maximum":60},"reason":{"type":"string","minLength":1,"maxLength":200}}}', NULL,
+     690, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+    ('agriConfirmDeviceCommand', 'LOCAL', TRUE, 'FUNCTION', 'AGRI', 'HIGH',
+     FALSE, FALSE, TRUE, TRUE, NULL, NULL, NULL,
+     '{"type":"object","additionalProperties":false,"required":["draftId"],"properties":{"draftId":{"type":"string","format":"uuid"}}}', NULL,
+     700, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+ON CONFLICT (tool_name) WHERE deleted = FALSE DO UPDATE
+SET enabled = EXCLUDED.enabled,
+    category = EXCLUDED.category,
+    risk_level = EXCLUDED.risk_level,
+    read_only = EXCLUDED.read_only,
+    idempotency_required = EXCLUDED.idempotency_required,
+    require_confirm = EXCLUDED.require_confirm,
+    input_schema = EXCLUDED.input_schema,
+    sort_order = EXCLUDED.sort_order,
+    update_time = CURRENT_TIMESTAMP;
+
+-- 工具中文名：只用于界面展示，模型调用与 Skill 正文引用仍使用 tool_name。
+UPDATE ai_tool_catalog catalog
+SET display_name = item.display_name
+FROM (VALUES
+    ('listBusinessActions', '业务动作列表'),
+    ('executeBusinessAction', '执行业务动作'),
+    ('generateImage', '生成图片'),
+    ('generateVideo', '生成视频'),
+    ('start_workflow', '启动工作流'),
+    ('list_workflows', '工作流列表'),
+    ('recognizeOcr', '图片文字识别'),
+    ('context.load', '加载技能上下文'),
+    ('script.execute.javascript', '执行脚本'),
+    ('content.draft.upsert', '保存草稿'),
+    ('aigc.project.generation.action.submit', '提交生成动作'),
+    ('aigc.blueprint.proposal.submit', '提交项目蓝图'),
+    ('queryWeather', '天气查询'),
+    ('webSearch', '联网搜索'),
+    ('queryMedicalKnowledge', '医疗知识查询'),
+    ('queryMedicalAnswer', '健康问答'),
+    ('agriSensorTrend', '大棚环境趋势'),
+    ('agriSensorAlerts', '大棚异常告警'),
+    ('agriSalesSummary', '农产品销售汇总'),
+    ('agriBookableProducts', '可预约农产品'),
+    ('agriDraftBooking', '起草预约'),
+    ('agriConfirmBooking', '确认预约'),
+    ('agriSensorRealtime', '大棚实时环境'),
+    ('agriDeviceList', '大棚设备列表'),
+    ('agriDeviceStatus', '设备详细状态'),
+    ('agriDraftDeviceCommand', '起草设备控制'),
+    ('agriConfirmDeviceCommand', '确认设备控制')
+) AS item(tool_name, display_name)
+WHERE catalog.tool_name = item.tool_name AND catalog.deleted = FALSE;
+
+-- 智慧农业内置角色（AAF-126）：演示场景的能力配置，归入"智慧农业"分类。
+-- 技能来自 aaf/skills/system.skill.agri-*.md；知识库见 v21（农技库、农场经营资料），绑定后自动获得 knowledge_search；
+-- 不挂到默认用户模板，用户从角色库自行绑定。
+-- 必须位于上方 sequence 同步之后：使用生成 ID，避免与显式 ID 的系统角色冲突。
+INSERT INTO ai_role (
+    code, name, description, skill_ids, tool_whitelist, knowledge_base_ids, status, visibility, owner_id,
+    category_id, create_time, update_time, deleted
+)
+SELECT item.code, item.name, item.description, item.skill_ids::jsonb, item.tool_whitelist,
+       item.knowledge_base_ids::jsonb,
+       'active', 'SYSTEM', NULL, category.id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
+FROM (
+    VALUES
+        ('system.role.agri-advisor', '农技专家',
+         '面向种植户的农技问答：病虫害识别与防治、施肥灌溉、种植规程，回答附依据来源',
+         '[{"skillKey":"system.skill.agri-advisor","activationMode":"ALWAYS"}]',
+         '["context.load","webSearch","queryWeather"]',
+         '["20000000-0000-4000-8000-000000000001"]'),
+        ('system.role.agri-data-analyst', '农场数据分析师',
+         '查询并分析大棚传感器（温度、湿度、光照、土壤）与农产品销售数据，给出趋势、异常与经营建议',
+         '[{"skillKey":"system.skill.agri-data-analysis","activationMode":"ALWAYS"}]',
+         '["context.load","agriSensorTrend","agriSensorAlerts","agriSalesSummary"]',
+         NULL),
+        ('system.role.agri-marketing', '农产品营销助手',
+         '根据当季产品生成朋友圈文案、海报文案与直播话术，帮助农户推广农产品',
+         '[{"skillKey":"system.skill.agri-marketing","activationMode":"ALWAYS"}]',
+         '["context.load","content.draft.upsert","agriSalesSummary","agriBookableProducts"]',
+         '["20000000-0000-4000-8000-000000000002"]'),
+        ('system.role.agri-booking', '农场预约助手',
+         '为顾客办理采摘与配送预约：先查询库存与可预约时段，复述确认后再创建预约',
+         '[{"skillKey":"system.skill.agri-booking","activationMode":"ALWAYS"}]',
+         '["context.load","agriBookableProducts","agriDraftBooking","agriConfirmBooking"]',
+         '["20000000-0000-4000-8000-000000000002"]'),
+        ('system.role.agri-iot-operator', '农场设备管家',
+         '对话式查询大棚实时环境与物联网设备（通风窗、风机、湿帘、遮阳网、补光灯、滴灌阀），按数据趋势给出调控建议，用户确认后控制设备',
+         '[{"skillKey":"system.skill.agri-iot-control","activationMode":"ALWAYS"}]',
+         '["context.load","agriSensorRealtime","agriSensorTrend","agriSensorAlerts","agriDeviceList","agriDeviceStatus","agriDraftDeviceCommand","agriConfirmDeviceCommand"]',
+         '["20000000-0000-4000-8000-000000000001"]')
+) AS item(code, name, description, skill_ids, tool_whitelist, knowledge_base_ids)
+JOIN ai_role_category category
+    ON category.code = 'system.role-category.agriculture' AND category.deleted = FALSE
+ON CONFLICT (code) WHERE deleted = FALSE DO UPDATE
+SET name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    skill_ids = EXCLUDED.skill_ids,
+    tool_whitelist = EXCLUDED.tool_whitelist,
+    knowledge_base_ids = EXCLUDED.knowledge_base_ids,
+    category_id = EXCLUDED.category_id,
+    update_time = CURRENT_TIMESTAMP;
 
 -- 系统用户模板只用于复制，登录用户不得直接作为默认 Assistant 执行。
 INSERT INTO ai_assistant (
@@ -1954,6 +2126,38 @@ WHERE admin_copy.code = 'user.assistant.default.' || admin_user.id
   AND admin_copy.source_system_key = template.code
   AND admin_copy.is_default = TRUE
   AND admin_copy.deleted = FALSE
+ON CONFLICT (assistant_id, role_id) DO NOTHING;
+
+-- 开发演示：admin 默认 Assistant 额外绑定智慧农业 5 个内置角色（AAF-126，含农场设备管家），只作用于 admin，不进用户模板；
+-- 连同模板复制的角色共 10 个，恰好等于 ai.assistant_max_roles 默认上限 10，再加角色需先调高上限。
+INSERT INTO ai_assistant_role (
+    assistant_id, role_id, is_default, sort_order, enabled, owner_id,
+    create_time, update_time, deleted
+)
+SELECT
+    admin_copy.id,
+    agri_role.id,
+    FALSE,
+    item.sort_order,
+    TRUE,
+    admin_user.id,
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP,
+    FALSE
+FROM (
+    VALUES
+        ('system.role.agri-advisor', 60),
+        ('system.role.agri-data-analyst', 50),
+        ('system.role.agri-marketing', 40),
+        ('system.role.agri-booking', 30),
+        ('system.role.agri-iot-operator', 20)
+) AS item(code, sort_order)
+JOIN ai_role agri_role ON agri_role.code = item.code AND agri_role.deleted = FALSE
+JOIN sys_user admin_user ON admin_user.username = 'admin' AND admin_user.deleted = FALSE
+JOIN ai_assistant admin_copy ON admin_copy.user_id = admin_user.id
+    AND admin_copy.code = 'user.assistant.default.' || admin_user.id
+    AND admin_copy.is_default = TRUE
+    AND admin_copy.deleted = FALSE
 ON CONFLICT (assistant_id, role_id) DO NOTHING;
 
 -- 平台向导知识文档、run 与 chunk 移至 db/seed/v301__nexus_knowledge_seed.sql。

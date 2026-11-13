@@ -55,7 +55,8 @@ public class AiRoleCrudService
         if (roleRepository.existsByCode(dto.code())) {
             throw new BusinessException(409, "Role code 已存在: " + dto.code());
         }
-        referenceValidator.validate(level, null, dto.skillBindings(), dto.toolWhitelist());
+        referenceValidator.validate(
+                level, null, dto.categoryId(), dto.skillBindings(), dto.toolWhitelist());
         var entity = new Role();
         entity.setCode(dto.code());
         entity.setName(dto.name());
@@ -64,6 +65,7 @@ public class AiRoleCrudService
         entity.setToolWhitelist(dto.toolWhitelist());
         entity.setKnowledgeBaseIds(RoleKnowledgeBaseJson.write(dto.knowledgeBaseIds()));
         entity.setVisibility(level);
+        entity.setCategoryId(dto.categoryId());
         entity.setStatus(statusOrActive(dto.status()));
         return entity;
     }
@@ -83,12 +85,17 @@ public class AiRoleCrudService
             throw new BusinessException(GlobalErrorCode.BAD_REQUEST, "Role code 创建后不可修改");
         }
         referenceValidator.validate(
-                entity.getVisibility(), null, dto.skillBindings(), dto.toolWhitelist());
+                entity.getVisibility(),
+                null,
+                dto.categoryId(),
+                dto.skillBindings(),
+                dto.toolWhitelist());
         entity.setName(dto.name());
         entity.setDescription(dto.description());
         entity.setSkillIds(RoleSkillBindingJson.write(dto.skillBindings()));
         entity.setToolWhitelist(dto.toolWhitelist());
         entity.setKnowledgeBaseIds(RoleKnowledgeBaseJson.write(dto.knowledgeBaseIds()));
+        entity.setCategoryId(dto.categoryId());
         entity.setStatus(statusOrActive(dto.status()));
     }
 
@@ -126,9 +133,12 @@ public class AiRoleCrudService
         if (roleRepository.existsByCode(code)) {
             throw new BusinessException(409, "Role code 已存在: " + code);
         }
+        // 私有分类不带出，系统分类保留
+        var categoryId = referenceValidator.retainedSystemCategory(source.getCategoryId());
         referenceValidator.validate(
                 RoleVisibilityLevel.PUBLIC,
                 null,
+                categoryId,
                 RoleSkillBindingJson.read(source.getSkillIds()),
                 source.getToolWhitelist());
         var copy = new Role();
@@ -142,6 +152,7 @@ public class AiRoleCrudService
         copy.setToolWhitelist(source.getToolWhitelist());
         copy.setKnowledgeBaseIds(source.getKnowledgeBaseIds());
         copy.setVisibility(RoleVisibilityLevel.PUBLIC);
+        copy.setCategoryId(categoryId);
         copy.setStatus(Role.STATUS_ACTIVE);
         return RoleVO.from(roleRepository.save(copy));
     }
@@ -173,6 +184,7 @@ public class AiRoleCrudService
                         && entity.getName().equals(dto.name())
                         && Objects.equals(entity.getDescription(), dto.description())
                         && Objects.equals(entity.getToolWhitelist(), dto.toolWhitelist())
+                        && Objects.equals(entity.getCategoryId(), dto.categoryId())
                         && RoleKnowledgeBaseJson.read(entity.getKnowledgeBaseIds())
                                 .equals(
                                         RoleKnowledgeBaseJson.read(

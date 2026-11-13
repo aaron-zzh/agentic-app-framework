@@ -25,8 +25,8 @@ public record MyRoleSaveDTO(
         @Schema(description = "Skill 绑定对象数组", requiredMode = Schema.RequiredMode.REQUIRED) @NotNull
                 List<SkillBinding> skillBindings,
         @Schema(description = "工具授权池（JSON 字符串数组）") String toolWhitelist,
-        @Schema(description = "绑定知识库的 stable_id，最多 5 个") @Size(max = 5)
-                List<UUID> knowledgeBaseIds) {
+        @Schema(description = "绑定知识库的 stable_id，最多 5 个") @Size(max = 5) List<UUID> knowledgeBaseIds,
+        @Schema(description = "角色分类 ID：系统分类或自己的私有分类；为空表示未分类") Long categoryId) {
 
     public MyRoleSaveDTO {
         skillBindings = SkillBinding.copyOf(skillBindings, "skillBindings");

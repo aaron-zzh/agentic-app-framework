@@ -12,6 +12,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -62,4 +63,14 @@ public interface AiRoleRepository extends CrudEntityRepository<Role> {
                             + " AND skill_ids @> CAST(:skillRef AS jsonb)",
             nativeQuery = true)
     List<Role> findReferencingSkill(@Param("skillRef") String skillRef);
+
+    /** 引用指定分类的未删除角色数量（含私有角色），用于删除系统分类前的引用检查。 */
+    long countByCategoryId(Long categoryId);
+
+    /** 删除私有分类前，清空所有者私有角色上的该分类。 */
+    @Modifying(flushAutomatically = true)
+    @Query(
+            "UPDATE AiRole r SET r.categoryId = NULL WHERE r.categoryId = :categoryId AND "
+                    + RoleVisibility.PRIVATE_OF_OWNER)
+    int clearPrivateCategory(@Param("categoryId") Long categoryId, @Param("ownerId") Long ownerId);
 }

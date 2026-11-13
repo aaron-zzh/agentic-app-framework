@@ -35,7 +35,8 @@ public record RoleCreateDTO(
                 RoleVisibilityLevel visibility,
         @Schema(description = "状态：active / disabled，缺省为 active")
                 @Pattern(regexp = "active|disabled")
-                String status) {
+                String status,
+        @Schema(description = "角色分类 ID，只能是系统分类；为空表示未分类") Long categoryId) {
 
     public RoleCreateDTO {
         skillBindings = SkillBinding.copyOf(skillBindings, "skillBindings");

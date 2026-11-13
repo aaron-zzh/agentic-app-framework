@@ -23,6 +23,7 @@ public record RoleVO(
         @Schema(description = "状态：active / disabled") String status,
         @Schema(description = "可见性：SYSTEM / PUBLIC / PRIVATE") RoleVisibilityLevel visibility,
         @Schema(description = "私有角色的所有者用户 ID；SYSTEM / PUBLIC 为空") Long ownerId,
+        @Schema(description = "角色分类 ID；为空表示未分类") Long categoryId,
         @Schema(description = "创建时间") LocalDateTime createTime,
         @Schema(description = "更新时间") LocalDateTime updateTime) {
 
@@ -43,6 +44,7 @@ public record RoleVO(
                 role.getStatus(),
                 role.getVisibility(),
                 role.getVisibility() == RoleVisibilityLevel.PRIVATE ? role.getOwnerId() : null,
+                role.getCategoryId(),
                 role.getCreateTime(),
                 role.getUpdateTime());
     }

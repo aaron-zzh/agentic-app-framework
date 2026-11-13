@@ -65,4 +65,8 @@ public class Role extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     private RoleVisibilityLevel visibility;
+
+    /** 角色分类 ID（ai_role_category），为空表示未分类；仅用于角色库浏览，助理加载与路由不读取。 */
+    @Column(name = "category_id")
+    private Long categoryId;
 }

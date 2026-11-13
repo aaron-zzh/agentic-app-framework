@@ -68,7 +68,7 @@ WHERE workspace.deleted = FALSE
 
 INSERT INTO ai_role
     (code, name, description, skill_ids, tool_whitelist, knowledge_base_ids,
-     status, visibility, create_time, update_time, deleted)
+     status, visibility, category_id, create_time, update_time, deleted)
 VALUES
     (
         'system.role.elder-companion',
@@ -77,7 +77,9 @@ VALUES
         '[{"skillKey":"system.skill.elder-companion","activationMode":"ALWAYS"},{"skillKey":"system.skill.elder-care-health","activationMode":"ON_DEMAND"}]'::jsonb,
         '["listMedicationPlans","draftMedicationPlan","confirmMedicationPlan","listAvailableServices","draftServiceOrder","confirmServiceOrder","queryServiceOrderStatus","listRecentPhotos","searchRehabGuide","queryMedicalKnowledge","queryMedicalAnswer"]',
         '["10000000-0000-4000-8000-000000000001","10000000-0000-4000-8000-000000000002"]'::jsonb,
-        'active', 'SYSTEM', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
+        'active', 'SYSTEM',
+        (SELECT id FROM ai_role_category WHERE code = 'system.role-category.elder' AND deleted = FALSE),
+        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
     ),
     (
         'system.role.elder-family-service',
@@ -86,7 +88,9 @@ VALUES
         '[{"skillKey":"system.skill.elder-family-service","activationMode":"ALWAYS"}]'::jsonb,
         '["queryElderOverview","queryAlertStatus","listMedicationPlans","listRecentPhotos","listAvailableServices","draftServiceOrder","confirmServiceOrder","queryServiceOrderStatus","searchRehabGuide"]',
         NULL,
-        'active', 'SYSTEM', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
+        'active', 'SYSTEM',
+        (SELECT id FROM ai_role_category WHERE code = 'system.role-category.elder' AND deleted = FALSE),
+        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
     ),
     (
         'system.role.elder-ops-assistant',
@@ -95,7 +99,9 @@ VALUES
         '[{"skillKey":"system.skill.elder-ops-assistant","activationMode":"ALWAYS"}]'::jsonb,
         '["queryAlertStatus","queryDeviceStatus","queryServiceOrderStatus"]',
         NULL,
-        'active', 'SYSTEM', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
+        'active', 'SYSTEM',
+        (SELECT id FROM ai_role_category WHERE code = 'system.role-category.elder' AND deleted = FALSE),
+        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
     )
 ON CONFLICT (code) WHERE deleted = FALSE DO UPDATE
 SET name = EXCLUDED.name,
@@ -105,6 +111,7 @@ SET name = EXCLUDED.name,
     knowledge_base_ids = EXCLUDED.knowledge_base_ids,
     status = EXCLUDED.status,
     visibility = EXCLUDED.visibility,
+    category_id = EXCLUDED.category_id,
     update_time = CURRENT_TIMESTAMP;
 
 

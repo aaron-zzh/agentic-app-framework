@@ -153,7 +153,7 @@ BEGIN
 END $$;
 
 -- 平台向导知识库（系统公开；由绑定该库的角色经 knowledge_search 工具按需检索，auto_inject 当前不参与运行时）。
--- 库内文档不在种子中预置：启动时 PlatformGuideDocumentInitializer 只将 bootstrap/ 下的框架介绍与产品服务介绍登记到文档库，
+-- 库内文档不在种子中预置：启动时 BootstrapKnowledgeDocumentInitializer 只将 bootstrap/ 下的框架介绍与产品服务介绍登记到文档库，
 -- 由管理员在知识库页面"从文档库导入"后才切片、向量化与实体抽取。
 INSERT INTO ai_knowledge_base (
     id, stable_id, org_id, visibility, scope_code, name, description, embedding_model,
@@ -184,3 +184,31 @@ SELECT setval(
 SELECT setval(
     pg_get_serial_sequence('ai_knowledge_chunk', 'id'),
     GREATEST(COALESCE((SELECT MAX(id) FROM ai_knowledge_chunk), 1), 1), TRUE);
+
+-- 智慧农业演示知识库（AAF-126）：农技知识库供农技专家，农场经营资料供营销助手与预约助手。
+-- 与平台向导库一致归属 admin 个人组织；库内文档由 BootstrapKnowledgeDocumentInitializer 登记 bootstrap/agri/ 下的资料，
+-- 管理员在知识库页面"从文档库导入"后才切片与向量化。stable_id 与 v12 农业角色的 knowledge_base_ids 一一对应。
+-- 位于上方 sequence 同步之后，使用生成 ID。
+INSERT INTO ai_knowledge_base (
+    stable_id, org_id, visibility, scope_code, name, description, embedding_model,
+    chunk_strategy, chunk_size, chunk_overlap, status, auto_inject,
+    owner_id, create_time, update_time, deleted)
+SELECT kb.stable_id, owner.org_id, 'SYSTEM_PUBLIC', kb.scope_code, kb.name, kb.description, NULL,
+       'auto', 800, 50, 0, FALSE,
+       owner.owner_id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, FALSE
+FROM (
+    VALUES
+        ('20000000-0000-4000-8000-000000000001'::UUID, 'agri.tech', '智慧农业农技知识库',
+         '设施番茄、黄瓜、草莓的病虫害防治与栽培管理，以及大棚环境调控（演示资料）'),
+        ('20000000-0000-4000-8000-000000000002'::UUID, 'agri.ops', '农场经营资料',
+         '农场产品与产地介绍、采摘与配送须知、售后与常见问题（演示资料）')
+) AS kb (stable_id, scope_code, name, description)
+CROSS JOIN seed_aaf_platform_guide_owner owner
+ON CONFLICT (stable_id) DO UPDATE
+SET name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    scope_code = EXCLUDED.scope_code,
+    visibility = EXCLUDED.visibility,
+    org_id = EXCLUDED.org_id,
+    owner_id = EXCLUDED.owner_id,
+    update_time = CURRENT_TIMESTAMP;

@@ -58,7 +58,11 @@ public class MyRoleService {
     public RoleVO create(MyRoleSaveDTO dto) {
         var ownerId = currentUserId();
         referenceValidator.validate(
-                RoleVisibilityLevel.PRIVATE, ownerId, dto.skillBindings(), dto.toolWhitelist());
+                RoleVisibilityLevel.PRIVATE,
+                ownerId,
+                dto.categoryId(),
+                dto.skillBindings(),
+                dto.toolWhitelist());
         var entity = new Role();
         entity.setCode(generateCode(ownerId));
         entity.setName(dto.name());
@@ -66,6 +70,7 @@ public class MyRoleService {
         entity.setSkillIds(RoleSkillBindingJson.write(dto.skillBindings()));
         entity.setToolWhitelist(dto.toolWhitelist());
         entity.setKnowledgeBaseIds(RoleKnowledgeBaseJson.write(dto.knowledgeBaseIds()));
+        entity.setCategoryId(dto.categoryId());
         entity.setVisibility(RoleVisibilityLevel.PRIVATE);
         entity.setOwnerId(ownerId);
         return RoleVO.from(roleRepository.save(entity));
@@ -77,12 +82,17 @@ public class MyRoleService {
         var ownerId = currentUserId();
         var entity = requireOwned(id, ownerId);
         referenceValidator.validate(
-                RoleVisibilityLevel.PRIVATE, ownerId, dto.skillBindings(), dto.toolWhitelist());
+                RoleVisibilityLevel.PRIVATE,
+                ownerId,
+                dto.categoryId(),
+                dto.skillBindings(),
+                dto.toolWhitelist());
         entity.setName(dto.name());
         entity.setDescription(dto.description());
         entity.setSkillIds(RoleSkillBindingJson.write(dto.skillBindings()));
         entity.setToolWhitelist(dto.toolWhitelist());
         entity.setKnowledgeBaseIds(RoleKnowledgeBaseJson.write(dto.knowledgeBaseIds()));
+        entity.setCategoryId(dto.categoryId());
         return RoleVO.from(roleRepository.save(entity));
     }
 
